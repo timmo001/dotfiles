@@ -1,6 +1,7 @@
 #!/usr/bin/env zsh
 if [[ -z $STOW_FOLDERS ]]; then
-    STOW_FOLDERS="bin,i3,netflix,nvim,personal,tmux,uwuntu,xkb,zsh"
+    # Get list of folders in the dotfiles directory
+    STOW_FOLDERS=$(ls -d */ | sed 's/\///g' | tr '\n' ',' | sed 's/,$//')
 fi
 
 if [[ -z $DOTFILES ]]; then
