@@ -56,7 +56,6 @@ eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 # Aliases
 # ------------------------------
 alias cat=bat
-alias ls="ls -la --color=always"
 alias la="tree"
 
 ## Git
