@@ -1,7 +1,7 @@
 # ------------------------------
 # Basic path
 # ------------------------------
-export PATH=$HOME/bin:/usr/local/bin:$PATH
+export PATH=$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH
 
 # ------------------------------
 # Oh my zsh
@@ -21,7 +21,7 @@ export STARSHIP_CONFIG=~/.config/starship/starship.toml
 # Language
 # ------------------------------
 export LANG=en_GB.UTF-8
-export LC_ALL=en_GB.UTF-8
+# export LC_ALL=en_GB.UTF-8
 
 # ------------------------------
 # Editor
