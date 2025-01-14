@@ -5,7 +5,7 @@ if [[ -z $STOW_FOLDERS ]]; then
 fi
 
 if [[ -z $DOTFILES ]]; then
-    DOTFILES=$HOME/.dotfiles
+    DOTFILES=$HOME/.config/dotfiles
 fi
 
 pushd $DOTFILES
