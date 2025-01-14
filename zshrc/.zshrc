@@ -12,6 +12,24 @@ plugins=(git zsh-autosuggestions zsh-syntax-highlighting fast-syntax-highlightin
 source $ZSH/oh-my-zsh.sh
 
 # ------------------------------
+# Starship
+# ------------------------------
+eval "$(starship init zsh)"
+export STARSHIP_CONFIG=~/.config/starship/starship.toml
+
+# ------------------------------
+# Language
+# ------------------------------
+export LANG=en_GB.UTF-8
+export LC_ALL=en_GB.UTF-8
+
+# ------------------------------
+# Editor
+# ------------------------------
+export EDITOR=nvim
+export VISUAL=nvim
+
+# ------------------------------
 # Go
 # ------------------------------
 export GOPATH=$HOME/go
@@ -27,6 +45,7 @@ eval "$(fnm env --use-on-cd --shell zsh)"
 # Rust
 # ------------------------------
 source $HOME/.cargo/env
+export PATH=$HOME/.cargo/bin:$PATH
 
 # ------------------------------
 # Brew for Linux
