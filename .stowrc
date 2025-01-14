@@ -1,4 +1,5 @@
---target=~/.config
+--target=~/
 --ignore=.stowrc
 --ignore=DS_Store
---ignore=atuin/*
+--ignore=install.sh
+--ignore=README.md
