@@ -17,6 +17,11 @@ if [[ -f $HOME/.zshrc ]]; then
     mv $HOME/.zshrc $DOTFILES/backup
 fi
 
+if [[ -f $HOME/.editorconfig ]]; then
+    mkdir -p $DOTFILES/backup
+    mv $HOME/.editorconfig $DOTFILES/backup
+fi
+
 if [[ -f $HOME/.config/ghostty/config.toml ]]; then
     mkdir -p $DOTFILES/backup/.config/ghostty
     mv $HOME/.config/ghostty/config.toml $DOTFILES/backup/.config/ghostty
