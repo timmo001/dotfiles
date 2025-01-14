@@ -4,6 +4,13 @@
 export PATH=$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH
 
 # ------------------------------
+# History
+# ------------------------------
+export HISTFILE=$HOME/.zsh_history
+export HISTSIZE=10000
+export SAVEHIST=10000
+
+# ------------------------------
 # Oh my zsh
 # ------------------------------
 export ZSH="$HOME/.oh-my-zsh"
@@ -51,6 +58,11 @@ export PATH=$HOME/.cargo/bin:$PATH
 # Brew for Linux
 # ------------------------------
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+
+# ------------------------------
+# Snaps
+# ------------------------------
+export PATH=$PATH:/snap/bin
 
 # ------------------------------
 # Aliases
