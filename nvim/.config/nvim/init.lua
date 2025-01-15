@@ -36,8 +36,10 @@ vim.api.nvim_create_autocmd("BufEnter", {
         or vim.bo.filetype == "javascript"
     then
       vim.cmd.colorscheme("tokyonight-night")
+      -- vim.cmd.colorscheme("catppuccin-mocha")
     else
       vim.cmd.colorscheme("rose-pine-moon")
+      -- vim.cmd.colorscheme("tokyonight-night")
     end
   end,
 })
