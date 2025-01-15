@@ -32,6 +32,21 @@ return {
         return "%2l:%-2v"
       end
 
+      -- Pairs plugin
+      -- - Automatically adds, deletes, and skips pairs
+      require("mini.pairs").setup()
+
+      -- Session management plugin
+      -- - Save and restore your session
+      -- - You can use :SaveSession and :RestoreSession commands
+      -- - Or use the default mappings: <leader>ss and <leader>sr
+      -- - You can also configure the plugin to save the session
+      --  automatically on exit
+      require("mini.sessions").setup({
+        autoread = true,
+        autowrite = true,
+      })
+
       -- Commenting plugin
       -- require("mini.comment").setup()
 
