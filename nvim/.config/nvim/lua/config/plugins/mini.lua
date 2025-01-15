@@ -45,8 +45,14 @@ return {
       require("mini.sessions").setup({
         autoread = true,
         autowrite = true,
+        directory = vim.fn.stdpath("data") .. "/sessions",
       })
 
+      vim.api.nvim_create_autocmd("VimLeavePre", {
+        callback = function()
+          require('mini.sessions').save()
+        end,
+      })
       -- Commenting plugin
       -- require("mini.comment").setup()
 
