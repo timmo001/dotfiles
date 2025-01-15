@@ -1,4 +1,11 @@
 # ------------------------------
+# Source profile
+# ------------------------------
+if [ -f $HOME/.zsh_profile ]; then
+    source $HOME/.zsh_profile
+fi
+
+# ------------------------------
 # Basic path
 # ------------------------------
 export PATH=$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH
