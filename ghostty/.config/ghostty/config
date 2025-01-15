@@ -1,12 +1,14 @@
 # Theme
 theme = catppuccin-mocha
-font-family = "Geist Mono"
-background-opacity = 0.8
+# font-family = "Geist Mono"
+font-family = "CaskaydiaCove Nerd Font"
+background-opacity = 0.85
 # background-blur-radius = 20
 
 # Window
 mouse-hide-while-typing = true
 window-decoration = true
+gtk-titlebar = false
 
 # keybind
 keybind = global:cmd+/=toggle_quick_terminal
