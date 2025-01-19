@@ -34,7 +34,7 @@ export STARSHIP_CONFIG=~/.config/starship/starship.toml
 # ------------------------------
 # Language
 # ------------------------------
-# export LANG=en_GB.UTF-8
+export LANG=en_GB.UTF-8
 # export LC_ALL=en_GB.UTF-8
 
 # ------------------------------
