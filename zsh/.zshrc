@@ -56,6 +56,13 @@ export PATH=$HOME/.local/share/fnm:$PATH
 eval "$(fnm env --use-on-cd --shell zsh)"
 
 # ------------------------------
+# Bun
+# ------------------------------
+[ -s "/home/aidan/.bun/_bun" ] && source "/home/aidan/.bun/_bun"
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+# ------------------------------
 # Rust
 # ------------------------------
 source $HOME/.cargo/env
