@@ -117,3 +117,7 @@ alias ....="cd ../../.."
 alias .....="cd ../../../.."
 alias ......="cd ../../../../.."
 
+# Flush DNS
+alias flushdns="sudo resolvectl flush-caches"
+alias fc="sudo resolvectl flush-caches"
+
