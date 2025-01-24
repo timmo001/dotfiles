@@ -121,3 +121,5 @@ alias ......="cd ../../../../.."
 alias flushdns="sudo resolvectl flush-caches"
 alias fc="sudo resolvectl flush-caches"
 
+alias ghrpr="./.github/create-release-pr-draft.sh"
+
