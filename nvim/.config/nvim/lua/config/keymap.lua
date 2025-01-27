@@ -18,3 +18,19 @@ vim.keymap.set("i", "<C-c>", "<Esc>")
 
 -- Quick delete bindings
 vim.keymap.set("n", '<leader>d"', '"_d/"<CR>', { desc = "Delete to next quote" })
+
+-- Go to
+vim.keymap.set("n", "gd", "<cmd>lua vim.lsp.buf.definition()<CR>", { desc = "Go to definition" })
+vim.keymap.set("n", "<leader>cd", "<cmd>lua vim.lsp.buf.definition()<CR>", { desc = "Go to definition" })
+vim.keymap.set("n", "gD", "<cmd>lua vim.lsp.buf.declaration()<CR>", { desc = "Go to declaration" })
+vim.keymap.set("n", "<leader>cD", "<cmd>lua vim.lsp.buf.declaration()<CR>", { desc = "Go to declaration" })
+
+-- Find references
+vim.keymap.set("n", "gr", "<cmd>lua vim.lsp.buf.references()<CR>", { desc = "Find references" })
+vim.keymap.set("n", "<leader>cr", "<cmd>lua vim.lsp.buf.references()<CR>", { desc = "Find references" })
+
+-- Quickfix
+vim.keymap.set('n', '<leader>cn', '<cmd>cnext<CR>', { desc = "Next quickfix" })
+vim.keymap.set('n', '<leader>cp', '<cmd>cprev<CR>', { desc = "Previous quickfix" })
+vim.keymap.set('n', '<leader>co', '<cmd>copen<CR>', { desc = "Open quickfix" })
+vim.keymap.set('n', '<leader>cc', '<cmd>cclose<CR>', { desc = "Close quickfix" })
