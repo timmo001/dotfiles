@@ -29,6 +29,46 @@ return {
       require('mason').setup()
     end
   },
+  -- Function signature help
+  { 'ray-x/lsp_signature.nvim' },
+  -- LSP diagnostics
+  { 'folke/lsp-colors.nvim' },
+  -- TypeScript tools
+  {
+    "pmizio/typescript-tools.nvim",
+    dependencies = { "nvim-lua/plenary.nvim", "neovim/nvim-lspconfig" },
+    opts = {},
+    setup = function()
+      require("typescript-tools").setup({
+        -- Automatically add missing imports
+        auto_import = true,
+
+        -- Enable ESLint integration
+        import_on_completion = true,
+
+        -- ESLint
+        eslint_enable_diagnostics = true,
+        eslint_enable_code_actions = true,
+
+        -- Set up keybindings for LSP features
+        on_attach = function(client, bufnr)
+          local opts = { noremap = true, silent = true }
+          vim.api.nvim_buf_set_keymap(bufnr, 'n', 'K', '<cmd>lua vim.lsp.buf.hover()<CR>', opts)
+          vim.api.nvim_buf_set_keymap(bufnr, 'n', '<leader>d', '<cmd>lua vim.diagnostic.open_float()<CR>', opts)
+        end,
+
+        --         -- Function to handle incorrect imports
+        --         on_incorrect_import = function(import_statement)
+        --           -- Logic to handle incorrect imports
+        --           -- For example, you can log the incorrect import or replace it with a correct one
+        --           print("Incorrect import found: " .. import_statement)
+        --           -- Return the corrected import statement (you need to define what this is)
+        --           local corrected_import_statement = import_statement -- Modify this as needed
+        --           return corrected_import_statement
+        --         end,
+      })
+    end,
+  },
   -- Mason integration with LSP
   {
     'williamboman/mason-lspconfig.nvim',
@@ -37,8 +77,8 @@ return {
       require('mason-lspconfig').setup {
         automatic_installation = true,
         ensure_installed = {
-          "gopls",
           -- "lua-language-server",
+          "gopls",
         },
       }
 
@@ -70,36 +110,14 @@ return {
       lspconfig.gopls.setup {
         on_attach = on_attach,
       }
-    end,
-  },
-  -- Function signature help
-  { 'ray-x/lsp_signature.nvim' },
-  {
-    "pmizio/typescript-tools.nvim",
-    dependencies = { "nvim-lua/plenary.nvim", "neovim/nvim-lspconfig" },
-    opts = {},
-    setup = function()
-      require("typescript-tools").setup({
-        -- Automatically add missing imports
-        auto_import = true,
 
-        -- Enable ESLint integration
-        import_on_completion = true,
+      -- Setup hover functionality
+      vim.lsp.handlers["textDocument/hover"] = vim.lsp.with(
+        vim.lsp.handlers.hover, { border = "rounded" }
+      )
 
-        -- ESLint
-        eslint_enable_diagnostics = true,
-        eslint_enable_code_actions = true,
-
-        --         -- Function to handle incorrect imports
-        --         on_incorrect_import = function(import_statement)
-        --           -- Logic to handle incorrect imports
-        --           -- For example, you can log the incorrect import or replace it with a correct one
-        --           print("Incorrect import found: " .. import_statement)
-        --           -- Return the corrected import statement (you need to define what this is)
-        --           local corrected_import_statement = import_statement -- Modify this as needed
-        --           return corrected_import_statement
-        --         end,
-      })
+      -- Setup function signature help
+      require 'lsp_signature'.on_attach()
     end,
   },
 }
