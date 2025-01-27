@@ -53,8 +53,9 @@ return {
           require('mini.sessions').save()
         end,
       })
-      -- Commenting plugin
-      -- require("mini.comment").setup()
+
+      -- Align plugin
+      require("mini.align").setup()
 
       -- ... and there is more!
       --  Check out: https://github.com/echasnovski/mini.nvim
