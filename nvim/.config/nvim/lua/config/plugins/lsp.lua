@@ -23,9 +23,55 @@ return {
     end,
   },
   -- Mason for managing LSP servers
-  { 'williamboman/mason.nvim',           config = true },
+  {
+    'williamboman/mason.nvim',
+    config = function()
+      require('mason').setup()
+    end
+  },
   -- Mason integration with LSP
-  { 'williamboman/mason-lspconfig.nvim', config = true },
+  {
+    'williamboman/mason-lspconfig.nvim',
+    config = function()
+      -- Ensure gopls is installed
+      require('mason-lspconfig').setup {
+        automatic_installation = true,
+        ensure_installed = {
+          "gopls",
+          -- "lua-language-server",
+        },
+      }
+
+      local lspconfig = require('lspconfig')
+
+      -- Configure gopls
+      lspconfig.gopls.setup {
+        cmd = { "gopls" },
+        filetypes = { "go", "gomod" },
+        root_dir = lspconfig.util.root_pattern("go.mod", ".git"),
+        settings = {
+          gopls = {
+            analyses = {
+              unusedparams = true,
+              shadow = true,
+            },
+            staticcheck = true,
+          },
+        },
+      }
+
+      -- Optional: Key mappings for LSP functions
+      local on_attach = function(client, bufnr)
+        local opts = { noremap = true, silent = true }
+        -- Rename
+        vim.api.nvim_buf_set_keymap(bufnr, 'n', '<leader>rn', '<cmd>lua vim.lsp.buf.rename()<CR>', opts)
+      end
+
+      lspconfig.gopls.setup {
+        on_attach = on_attach,
+      }
+    end,
+  },
   -- Function signature help
   { 'ray-x/lsp_signature.nvim' },
 }
