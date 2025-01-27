@@ -123,5 +123,9 @@ alias ......="cd ../../../../.."
 alias flushdns="sudo resolvectl flush-caches"
 alias fc="sudo resolvectl flush-caches"
 
+# Update dotfiles
+alias update-dotfiles="cwd=$(pwd) && cd $HOME/.config/dotfiles && git pull && cd $cwd"
+
+# Custom scripts
 alias ghrpr="./.github/create-release-pr-draft.sh"
 
