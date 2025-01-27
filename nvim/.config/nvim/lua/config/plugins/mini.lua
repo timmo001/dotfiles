@@ -43,7 +43,7 @@ return {
       -- - You can also configure the plugin to save the session
       --  automatically on exit
       require("mini.sessions").setup({
-        autoread = true,
+        autoread = false,
         autowrite = true,
         directory = vim.fn.stdpath("data") .. "/sessions",
       })
