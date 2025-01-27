@@ -25,18 +25,19 @@ vim.keymap.set("n", "<leader>cD", "<cmd>lua vim.lsp.buf.declaration()<CR>", { de
 
 -- Go to type definition
 vim.keymap.set("n", "gtd", "<cmd>lua vim.lsp.buf.type_definition()<CR>", { desc = "Go to type definition" })
+vim.keymap.set("n", "<leader>ctd", "<cmd>lua vim.lsp.buf.type_definition()<CR>", { desc = "Go to type definition" })
 
 -- Go to implementation
 vim.keymap.set("n", "gi", "<cmd>lua vim.lsp.buf.implementation()<CR>", { desc = "Go to implementation" })
+vim.keymap.set("n", "<leader>ci", "<cmd>lua vim.lsp.buf.implementation()<CR>", { desc = "Go to implementation" })
 
 -- Go to hover
 vim.keymap.set("n", "K", "<cmd>lua vim.lsp.buf.hover()<CR>", { desc = "Go to hover" })
+vim.keymap.set("n", "<leader>ch", "<cmd>lua vim.lsp.buf.hover()<CR>", { desc = "Go to hover" })
 
 -- Go to signature help
 vim.keymap.set("n", "<C-k>", "<cmd>lua vim.lsp.buf.signature_help()<CR>", { desc = "Go to signature help" })
-
--- Go to rename
-vim.keymap.set("n", "<leader>cr", "<cmd>lua vim.lsp.buf.rename()<CR>", { desc = "Go to rename" })
+vim.keymap.set("i", "<C-k>", "<cmd>lua vim.lsp.buf.signature_help()<CR>", { desc = "Go to signature help" })
 
 -- Find references
 vim.keymap.set("n", "gr", "<cmd>lua vim.lsp.buf.references()<CR>", { desc = "Find references" })
