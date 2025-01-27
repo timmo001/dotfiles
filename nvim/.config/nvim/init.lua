@@ -25,21 +25,3 @@ require("config.keymap")
 
 -- yank (yy, yap etc.) highlighting
 require("config.yank-highlight")
-
--- Set the colorscheme based on file type
-vim.api.nvim_create_autocmd("BufEnter", {
-  callback = function()
-    --   if
-    --       vim.bo.filetype == "typescriptreact"
-    --       or vim.bo.filetype == "typescript"
-    --       or vim.bo.filetype == "javascriptreact"
-    --       or vim.bo.filetype == "javascript"
-    --   then
-    -- vim.cmd.colorscheme("tokyonight-night")
-    vim.cmd.colorscheme("catppuccin-mocha")
-    -- else
-    -- vim.cmd.colorscheme("rose-pine-moon")
-    -- -- vim.cmd.colorscheme("tokyonight-night")
-    -- end
-  end,
-})
