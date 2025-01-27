@@ -28,9 +28,13 @@ vim.keymap.set("n", "gr", "<cmd>lua vim.lsp.buf.references()<CR>", { desc = "Fin
 vim.keymap.set("n", "<leader>cr", "<cmd>lua vim.lsp.buf.references()<CR>", { desc = "Find references" })
 
 -- Quickfix
+vim.keymap.set('n', '<leader>fn', '<cmd>cnext<CR>', { desc = "Next quickfix" })
 vim.keymap.set('n', '<leader>qn', '<cmd>cnext<CR>', { desc = "Next quickfix" })
+vim.keymap.set('n', '<leader>fp', '<cmd>cprev<CR>', { desc = "Previous quickfix" })
 vim.keymap.set('n', '<leader>qp', '<cmd>cprev<CR>', { desc = "Previous quickfix" })
+vim.keymap.set('n', '<leader>fo', '<cmd>copen<CR>', { desc = "Open quickfix" })
 vim.keymap.set('n', '<leader>qo', '<cmd>copen<CR>', { desc = "Open quickfix" })
+vim.keymap.set('n', '<leader>fc', '<cmd>cclose<CR>', { desc = "Close quickfix" })
 vim.keymap.set('n', '<leader>qc', '<cmd>cclose<CR>', { desc = "Close quickfix" })
 
 -- Navigation
