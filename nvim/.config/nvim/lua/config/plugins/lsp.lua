@@ -54,7 +54,7 @@ return {
         on_attach = function(client, bufnr)
           local opts = { noremap = true, silent = true }
           vim.api.nvim_buf_set_keymap(bufnr, 'n', 'K', '<cmd>lua vim.lsp.buf.hover()<CR>', opts)
-          vim.api.nvim_buf_set_keymap(bufnr, 'n', '<leader>d', '<cmd>lua vim.diagnostic.open_float()<CR>', opts)
+          -- vim.api.nvim_buf_set_keymap(bufnr, 'n', '<leader>cK', '<cmd>lua vim.diagnostic.open_float()<CR>', opts)
         end,
 
         --         -- Function to handle incorrect imports
