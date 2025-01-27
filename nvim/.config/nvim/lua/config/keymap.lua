@@ -4,11 +4,6 @@
 -- Reload
 vim.keymap.set("n", "<leader>X", "<cmd>source %<CR>", { desc = "Reload config" })
 
--- Format
-vim.keymap.set("n", "<leader>f", function()
-  require("conform").format({ async = true })
-end, { desc = "Format" })
-
 -- Move current line up or down a line
 vim.keymap.set("v", "<A-j>", ":m '>+1<CR>gv=gv", { desc = "Move line down" })
 vim.keymap.set("v", "<A-k>", ":m '<-2<CR>gv=gv", { desc = "Move line up" })
@@ -20,9 +15,11 @@ vim.keymap.set("i", "<C-c>", "<Esc>")
 vim.keymap.set("n", 'd"', '"_d', { desc = "Delete to next quote" })
 vim.keymap.set("n", '<leader>d"', '"_d/"<CR>', { desc = "Delete to next quote" })
 
--- Go to
+-- Go to definition
 vim.keymap.set("n", "gd", "<cmd>lua vim.lsp.buf.definition()<CR>", { desc = "Go to definition" })
 vim.keymap.set("n", "<leader>cd", "<cmd>lua vim.lsp.buf.definition()<CR>", { desc = "Go to definition" })
+
+-- Go to declaration
 vim.keymap.set("n", "gD", "<cmd>lua vim.lsp.buf.declaration()<CR>", { desc = "Go to declaration" })
 vim.keymap.set("n", "<leader>cD", "<cmd>lua vim.lsp.buf.declaration()<CR>", { desc = "Go to declaration" })
 
@@ -35,10 +32,6 @@ vim.keymap.set('n', '<leader>qn', '<cmd>cnext<CR>', { desc = "Next quickfix" })
 vim.keymap.set('n', '<leader>qp', '<cmd>cprev<CR>', { desc = "Previous quickfix" })
 vim.keymap.set('n', '<leader>qo', '<cmd>copen<CR>', { desc = "Open quickfix" })
 vim.keymap.set('n', '<leader>qc', '<cmd>cclose<CR>', { desc = "Close quickfix" })
--- vim.keymap.set('n', '<leader>cn', '<cmd>cnext<CR>', { desc = "Next quickfix" })
--- vim.keymap.set('n', '<leader>cp', '<cmd>cprev<CR>', { desc = "Previous quickfix" })
--- vim.keymap.set('n', '<leader>co', '<cmd>copen<CR>', { desc = "Open quickfix" })
--- vim.keymap.set('n', '<leader>cc', '<cmd>cclose<CR>', { desc = "Close quickfix" })
 
 -- Navigation
 vim.keymap.set("n", "<C-h>", "<C-w>h", { desc = "Navigate left" })
