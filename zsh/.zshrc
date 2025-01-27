@@ -104,6 +104,8 @@ alias gr='git remote'
 alias gre='git reset'
 
 ## Docker
+alias ld="lazydocker"
+
 alias dco="docker compose"
 alias dps="docker ps"
 alias dpa="docker ps -a"
