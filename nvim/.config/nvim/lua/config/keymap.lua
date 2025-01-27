@@ -66,3 +66,6 @@ vim.keymap.set("n", "<leader>cb", "<C-^>", { desc = "Go back" })
 -- Go forward
 vim.keymap.set("n", "gf", "<C-o>", { desc = "Go forward" })
 vim.keymap.set("n", "<leader>cf", "<C-o>", { desc = "Go forward" })
+
+-- Delete this file
+vim.keymap.set("n", "<leader>df", "<cmd>!rm %<CR>", { desc = "Delete this file" })
