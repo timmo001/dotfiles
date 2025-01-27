@@ -34,3 +34,17 @@ vim.keymap.set('n', '<leader>cn', '<cmd>cnext<CR>', { desc = "Next quickfix" })
 vim.keymap.set('n', '<leader>cp', '<cmd>cprev<CR>', { desc = "Previous quickfix" })
 vim.keymap.set('n', '<leader>co', '<cmd>copen<CR>', { desc = "Open quickfix" })
 vim.keymap.set('n', '<leader>cc', '<cmd>cclose<CR>', { desc = "Close quickfix" })
+
+-- Navigation
+vim.keymap.set("n", "<C-h>", "<C-w>h", { desc = "Navigate left" })
+vim.keymap.set("n", "<C-j>", "<C-w>j", { desc = "Navigate down" })
+vim.keymap.set("n", "<C-k>", "<C-w>k", { desc = "Navigate up" })
+vim.keymap.set("n", "<C-l>", "<C-w>l", { desc = "Navigate right" })
+
+-- Go back
+vim.keymap.set("n", "gb", "<C-^>", { desc = "Go back" })
+vim.keymap.set("n", "<leader>cb", "<C-^>", { desc = "Go back" })
+
+-- Go forward
+vim.keymap.set("n", "gf", "<C-o>", { desc = "Go forward" })
+vim.keymap.set("n", "<leader>cf", "<C-o>", { desc = "Go forward" })
