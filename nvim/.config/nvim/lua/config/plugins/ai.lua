@@ -6,6 +6,9 @@ return {
     version = "*",
     opts = {
       provider = "copilot",
+      behaviour = {
+        auto_suggestions = false,
+      },
     },
     -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
     build = "make",
@@ -15,12 +18,21 @@ return {
       "nvim-lua/plenary.nvim",
       "MunifTanjim/nui.nvim",
       --- The below dependencies are optional,
-      "echasnovski/mini.pick",         -- for file_selector provider mini.pick
-      "nvim-telescope/telescope.nvim", -- for file_selector provider telescope
-      "hrsh7th/nvim-cmp",              -- autocompletion for avante commands and mentions
-      "ibhagwan/fzf-lua",              -- for file_selector provider fzf
-      "nvim-tree/nvim-web-devicons",   -- or echasnovski/mini.icons
-      "zbirenbaum/copilot.lua",        -- for providers='copilot'
+      "hrsh7th/nvim-cmp",            -- autocompletion for avante commands and mentions
+      "ibhagwan/fzf-lua",            -- for file_selector provider fzf
+      "nvim-tree/nvim-web-devicons", -- or echasnovski/mini.icons
+      {
+        "zbirenbaum/copilot.lua",    -- for providers='copilot'
+        cmd = "Copilot",
+        event = "InsertEnter",
+        config = function()
+          require("copilot").setup({
+            filetypes = {
+              ["."] = true,
+            },
+          })
+        end,
+      },
       {
         -- support for image pasting
         "HakonHarnes/img-clip.nvim",
@@ -49,11 +61,12 @@ return {
     },
   },
 
-  -- -- Copilot
-  -- {
-  --   enabled = true,
-  --   "github/copilot.vim",
-  -- },
+  -- Copilot
+  {
+    enabled = true,
+    "github/copilot.vim",
+  },
+
   -- -- Copilot Chat
   -- {
   --   enabled = true,
