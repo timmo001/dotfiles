@@ -41,7 +41,6 @@ return {
       "MunifTanjim/nui.nvim",
       --- The below dependencies are optional,
       "hrsh7th/nvim-cmp",
-      "ibhagwan/fzf-lua",
       "nvim-tree/nvim-web-devicons",
       {
         "zbirenbaum/copilot.lua", -- for providers='copilot'
