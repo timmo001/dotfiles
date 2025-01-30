@@ -129,3 +129,5 @@ alias update-dotfiles="cwd=$(pwd) && cd $HOME/.config/dotfiles && git pull && cd
 # Custom scripts
 alias ghrpr="./.github/create-release-pr-draft.sh"
 
+alias dev="git pull && pnpm i && pnpm dev"
+
