@@ -141,6 +141,12 @@ alias update-nvim-base="cwd=$(pwd) && cd $HOME/.config/bootstrap && go run app/u
 alias update-nvim-plugins='nvim "+Lazy! sync" +qa'
 alias update-nvim="update-nvim-base && update-nvim-plugins"
 
+# Update ghostty
+alias update-ghostty="cwd=$(pwd) && cd $HOME/.config/bootstrap && go run app/update-ghostty.go && cd $cwd"
+
+# Update all
+alias update-all="update-system && update-dotfiles && update-nvim && update-ghostty"
+
 # Create a new release PR (Custom script in internal repo)
 alias ghrpr="./.github/create-release-pr-draft.sh"
 
