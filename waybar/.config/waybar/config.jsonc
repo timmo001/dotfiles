@@ -94,9 +94,8 @@
     "spacing": 10,
   },
   "clock": {
-    // "timezone": "America/New_York",
-    "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>",
-    "format-alt": "{:%Y-%m-%d}",
+    "format": "<span foreground='#f5c2e7'>  </span>{:%H:%M %a %d %b}",
+    "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>"
   },
   "cpu": {
     "format": "{usage}% ",
@@ -132,9 +131,6 @@
     // "format-good": "", // An empty format will hide the module
     // "format-full": "",
     "format-icons": ["", "", "", "", ""],
-  },
-  "battery#bat2": {
-    "bat": "BAT2",
   },
   "power-profiles-daemon": {
     "format": "{icon}",
