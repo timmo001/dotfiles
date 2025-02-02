@@ -5,6 +5,7 @@ return {
     lazy = false,
     version = "*",
     opts = {
+      ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | string
       provider = "copilot",
       behaviour = {
         auto_suggestions = false,
