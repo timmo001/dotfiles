@@ -11,12 +11,12 @@
   "modules-right": [
     // "mpd",
     // "idle_inhibitor",
+    "custom/media",
     "pulseaudio",
     "network",
     "power-profiles-daemon",
     "cpu",
     "memory",
-    // "disk",
     "backlight",
     "battery",
     "clock",
@@ -148,23 +148,11 @@
     "format-alt": "{ifname}: {ipaddr}/{cidr}",
   },
   "pulseaudio": {
-    // "scroll-step": 1, // %, can be a float
-    "format": "{volume}% {icon} {format_source}",
-    "format-bluetooth": "{volume}% {icon} {format_source}",
-    "format-bluetooth-muted": " {icon} {format_source}",
-    "format-muted": " {format_source}",
-    "format-source": "{volume}% ",
-    "format-source-muted": "",
-    "format-icons": {
-      "headphone": "",
-      "hands-free": "",
-      "headset": "",
-      "phone": "",
-      "portable": "",
-      "car": "",
-      "default": ["", "", ""],
-    },
-    "on-click": "pavucontrol",
+      "format": "{icon}  {volume}%",
+      "format-muted": "",
+      "format-icons": {
+          "default": ["", "", " "]
+      },
   },
   "custom/media": {
     "format": "{icon} {text}",
