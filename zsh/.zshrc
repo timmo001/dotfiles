@@ -127,7 +127,7 @@ alias fc="sudo resolvectl flush-caches"
 alias bootstrap="cwd=$(pwd) && cd $HOME/.config/bootstrap && go run app/bootstrap.go && cd $cwd"
 
 # Update dotfiles
-alias update-dotfiles="cwd=$(pwd) && cd $HOME/.config/dotfiles && git pull && ./install.sh && cd $cwd && source $HOME/.zshrc"
+alias update-dotfiles="cwd=$(pwd) && cd $HOME/.config/dotfiles && git pull && ./update.sh && cd $cwd && source $HOME/.zshrc"
 
 # Update system apps
 alias update-apt="sudo apt update && sudo apt upgrade && sudo apt autoremove && sudo apt autoclean"
@@ -152,5 +152,4 @@ alias ghrpr="./.github/create-release-pr-draft.sh"
 
 # Development
 alias dev="git pull && pnpm i && pnpm dev"
-
 
