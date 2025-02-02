@@ -6,7 +6,6 @@
   min-height: 0;
 }
 
-
 window#waybar {
     background: transparent;
     background-color: @crust;
@@ -107,6 +106,26 @@ button:hover {
 #battery {
     color: @green;
     border-bottom: 2px solid @green;
+}
+
+#battery.low {
+    color: @red;
+    border-bottom: 2px solid @red;
+}
+
+#power-profiles-daemon {
+    color: @blue;
+    border-bottom: 2px solid @blue;
+}
+
+#cpu {
+    color: @orange;
+    border-bottom: 2px solid @orange;
+}
+
+#memory {
+    color: @purple;
+    border-bottom: 2px solid @purple;
 }
 
 /* If workspaces is the leftmost module, omit left margin */
