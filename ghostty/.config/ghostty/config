@@ -1,6 +1,5 @@
 # Theme
 theme = catppuccin-mocha
-# font-family = "Geist Mono"
 font-family = "CaskaydiaCove Nerd Font"
 font-size = 14
 background-opacity = 0.85
