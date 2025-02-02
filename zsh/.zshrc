@@ -123,6 +123,9 @@ alias ......="cd ../../../../.."
 alias flushdns="sudo resolvectl flush-caches"
 alias fc="sudo resolvectl flush-caches"
 
+# Bootstrap
+alias bootstrap="cwd=$(pwd) && cd $HOME/.config/bootstrap && go run app/bootstrap.go && cd $cwd"
+
 # Update dotfiles
 alias update-dotfiles="cwd=$(pwd) && cd $HOME/.config/dotfiles && git pull && cd $cwd"
 
@@ -133,7 +136,7 @@ alias update-snap="sudo snap refresh"
 alias update-flatpak="flatpak update"
 alias update-system="update-apt && update-brew && update-snap && update-flatpak"
 
-# Update apps from source
+# Update neovim
 alias update-nvim-base="cwd=$(pwd) && cd $HOME/.config/bootstrap && go run app/update-nvim.go && cd $cwd"
 alias update-nvim-plugins='nvim "+Lazy! sync" +qa'
 alias update-nvim="update-nvim-base && update-nvim-plugins"
