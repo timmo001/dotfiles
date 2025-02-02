@@ -119,13 +119,13 @@ button:hover {
 }
 
 #cpu {
-    color: @orange;
-    border-bottom: 2px solid @orange;
+    color: @peach;
+    border-bottom: 2px solid @peach;
 }
 
 #memory {
-    color: @purple;
-    border-bottom: 2px solid @purple;
+    color: @lavender;
+    border-bottom: 2px solid @lavender;
 }
 
 #disk {
