@@ -5,8 +5,18 @@ return {
     lazy = false,
     version = false, -- Set to false to use the latest release
     opts = {
-      ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | string
+      ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | "ollama" | string
       provider = "ollama",
+      auto_suggestions_provider = "ollama",
+      vendors = {
+        --@type AvanteProvider
+        ollama = {
+          __inherited_from = "openai",
+          api_key_name = "",
+          endpoint = "http://127.0.0.1:11434/v1",
+          model = "codegemma",
+        },
+      },
       behaviour = {
         auto_suggestions = true,
         auto_set_highlight_group = true,
@@ -14,33 +24,6 @@ return {
         auto_apply_diff_after_generation = false,
         support_paste_from_clipboard = false,
         minimize_diff = true,
-      },
-      use_absolute_path = true,
-      vendors = {
-        ---@type AvanteProvider
-        ollama = {
-          endpoint = "http://localhost:11434/v1",
-          model = "deepseek-r1:32b",
-          parse_curl_args = function(opts, code_opts)
-            return {
-              url = opts.endpoint .. "/chat/completions",
-              headers = {
-                ["Accept"] = "application/json",
-                ["Content-Type"] = "application/json",
-                ["x-api-key"] = "ollama",
-              },
-              body = {
-                model = opts.model,
-                messages = require("avante.providers").copilot.parse_messages(code_opts), -- you can make your own message, but this is very advanced
-                max_tokens = 2048,
-                stream = true,
-              },
-            }
-          end,
-          parse_response_data = function(data_stream, event_state, opts)
-            require("avante.providers").openai.parse_response(data_stream, event_state, opts)
-          end,
-        },
       },
       windows = {
         wrap = true,
@@ -59,6 +42,7 @@ return {
           },
         },
       },
+      use_absolute_path = true,
     },
     build = "make",
     -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- for windows
