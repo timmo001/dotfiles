@@ -41,8 +41,8 @@ return {
       "nvim-lua/plenary.nvim",
       "MunifTanjim/nui.nvim",
       --- The below dependencies are optional,
-      "hrsh7th/nvim-cmp",            -- autocompletion for avante commands and mentions
-      "nvim-tree/nvim-web-devicons", -- for icons in avante
+      "hrsh7th/nvim-cmp",       -- autocompletion for avante commands and mentions
+      "echasnovski/mini.icons", -- for icons in avante
       {
         -- support for image pasting
         "HakonHarnes/img-clip.nvim",
