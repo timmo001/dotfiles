@@ -12,4 +12,4 @@ window-decoration = true
 gtk-titlebar = false
 
 # keybind
-keybind = global:cmd+/=toggle_quick_terminal
+keybind = global:super+/=toggle_quick_terminal
