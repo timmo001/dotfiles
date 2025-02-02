@@ -41,10 +41,10 @@ return {
       "nvim-lua/plenary.nvim",
       "MunifTanjim/nui.nvim",
       --- The below dependencies are optional,
-      "hrsh7th/nvim-cmp",
-      "nvim-tree/nvim-web-devicons",
+      "hrsh7th/nvim-cmp",            -- autocompletion for avante commands and mentions
+      "nvim-tree/nvim-web-devicons", -- for icons in avante
       {
-        "zbirenbaum/copilot.lua", -- for providers='copilot'
+        "zbirenbaum/copilot.lua",    -- for providers='copilot'
         cmd = "Copilot",
         event = "InsertEnter",
         config = function()
@@ -85,13 +85,13 @@ return {
 
   -- Copilot
   {
-    enabled = true,
+    enabled = false,
     "github/copilot.vim",
   },
 
   -- Copilot Chat
   {
-    enabled = true,
+    enabled = false,
     "CopilotC-Nvim/CopilotChat.nvim",
     -- branch = "canary",
     dependencies = {
