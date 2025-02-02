@@ -44,18 +44,6 @@ return {
       "hrsh7th/nvim-cmp",            -- autocompletion for avante commands and mentions
       "nvim-tree/nvim-web-devicons", -- for icons in avante
       {
-        "zbirenbaum/copilot.lua",    -- for providers='copilot'
-        cmd = "Copilot",
-        event = "InsertEnter",
-        config = function()
-          require("copilot").setup({
-            filetypes = {
-              ["."] = true,
-            },
-          })
-        end,
-      },
-      {
         -- support for image pasting
         "HakonHarnes/img-clip.nvim",
         event = "VeryLazy",
