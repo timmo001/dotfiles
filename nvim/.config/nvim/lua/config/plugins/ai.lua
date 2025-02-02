@@ -1,6 +1,7 @@
 return {
   {
     "yetone/avante.nvim",
+    enabled = false,
     event = "VeryLazy",
     lazy = false,
     version = false, -- Set to false to use the latest release
@@ -14,7 +15,7 @@ return {
           __inherited_from = "openai",
           api_key_name = "",
           endpoint = "http://127.0.0.1:11434/v1",
-          model = "codegemma",
+          model = "deepseek-r1:32b",
         },
       },
       behaviour = {
@@ -85,13 +86,13 @@ return {
 
   -- Copilot
   {
-    enabled = false,
+    enabled = true,
     "github/copilot.vim",
   },
 
   -- Copilot Chat
   {
-    enabled = false,
+    enabled = true,
     "CopilotC-Nvim/CopilotChat.nvim",
     -- branch = "canary",
     dependencies = {
