@@ -127,7 +127,7 @@ alias fc="sudo resolvectl flush-caches"
 alias bootstrap="cwd=$(pwd) && cd $HOME/.config/bootstrap && go run app/bootstrap.go && cd $cwd"
 
 # Update dotfiles
-alias update-dotfiles="cwd=$(pwd) && cd $HOME/.config/dotfiles && git pull && cd $cwd"
+alias update-dotfiles="cwd=$(pwd) && cd $HOME/.config/dotfiles && git pull && ./install.sh && cd $cwd && source $HOME/.zshrc"
 
 # Update system apps
 alias update-apt="sudo apt update && sudo apt upgrade && sudo apt autoremove && sudo apt autoclean"
@@ -145,7 +145,7 @@ alias update-nvim="update-nvim-base && update-nvim-plugins"
 alias update-ghostty="cwd=$(pwd) && cd $HOME/.config/bootstrap && go run app/update-ghostty.go && cd $cwd"
 
 # Update all
-alias update-all="update-system && update-dotfiles && update-nvim && update-ghostty"
+alias update-all="update-system && update-dotfiles && update-nvim && update-ghostty && source $HOME/.zshrc"
 
 # Create a new release PR (Custom script in internal repo)
 alias ghrpr="./.github/create-release-pr-draft.sh"
