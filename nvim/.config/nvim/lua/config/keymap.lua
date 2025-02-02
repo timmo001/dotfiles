@@ -4,6 +4,13 @@
 -- Reload
 vim.keymap.set("n", "<leader>X", "<cmd>source %<CR>", { desc = "Reload config" })
 
+-- Plugins
+vim.keymap.set("n", "<leader>li", "<cmd>Lazy install<CR>", { desc = "Install plugins" })
+vim.keymap.set("n", "<leader>lu", "<cmd>Lazy update<CR>", { desc = "Update plugins" })
+vim.keymap.set("n", "<leader>ls", "<cmd>Lazy sync<CR>", { desc = "Sync plugins" })
+vim.keymap.set("n", "<leader>lc", "<cmd>Lazy clean<CR>", { desc = "Clean plugins" })
+vim.keymap.set("n", "<leader>ll", "<cmd>Lazy<CR>", { desc = "Install, update, sync and clean plugins" })
+
 -- Move current line up or down a line
 vim.keymap.set("v", "<A-j>", ":m '>+1<CR>gv=gv", { desc = "Move line down" })
 vim.keymap.set("v", "<A-k>", ":m '<-2<CR>gv=gv", { desc = "Move line up" })
