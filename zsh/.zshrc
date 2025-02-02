@@ -126,6 +126,13 @@ alias fc="sudo resolvectl flush-caches"
 # Update dotfiles
 alias update-dotfiles="cwd=$(pwd) && cd $HOME/.config/dotfiles && git pull && cd $cwd"
 
+# Update apps
+alias update-apt="sudo apt update && sudo apt upgrade && sudo apt autoremove && sudo apt autoclean"
+alias update-brew="brew update && brew upgrade && brew cleanup"
+alias update-snap="sudo snap refresh"
+alias update-flatpak="flatpak update"
+alias update-system="update-apt && update-brew && update-snap && update-flatpak"
+
 # Custom scripts
 alias ghrpr="./.github/create-release-pr-draft.sh"
 
