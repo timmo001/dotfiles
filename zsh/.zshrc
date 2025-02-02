@@ -134,11 +134,14 @@ alias update-flatpak="flatpak update"
 alias update-system="update-apt && update-brew && update-snap && update-flatpak"
 
 # Update apps from source
-alias update-nvim-plugins="nvim +PlugUpdate +qall && nvim +PlugClean +qall"
-alias update-nvim-base="cwd=$(pwd) && cd $HOME/.config/bootstrap && go run app/update-nvim.go && git pull && update-nvim-plugins && cd $cwd"
+alias update-nvim-base="cwd=$(pwd) && cd $HOME/.config/bootstrap && go run app/update-nvim.go && cd $cwd"
+alias update-nvim-plugins='nvim --headless "+Lazy! sync" +qa'
+alias update-nvim="update-nvim-base && update-nvim-plugins"
 
-# Custom scripts
+# Create a new release PR (Custom script in internal repo)
 alias ghrpr="./.github/create-release-pr-draft.sh"
 
+# Development
 alias dev="git pull && pnpm i && pnpm dev"
+
 
