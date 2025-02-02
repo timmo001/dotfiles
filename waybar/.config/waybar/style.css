@@ -90,8 +90,8 @@ button:hover {
 }
 
 #network {
-    color: @yellow;
-    border-bottom: 2px solid @yellow;
+    color: @green;
+    border-bottom: 2px solid @green;
 }
 
 #idle_inhibitor {
@@ -131,6 +131,16 @@ button:hover {
 #disk {
     color: @blue;
     border-bottom: 2px solid @blue;
+}
+
+#temperature {
+    color: @red;
+    border-bottom: 2px solid @red;
+}
+
+#backlight {
+    color: @yellow;
+    border-bottom: 2px solid @yellow;
 }
 
 /* If workspaces is the leftmost module, omit left margin */
