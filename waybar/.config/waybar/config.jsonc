@@ -9,7 +9,7 @@
   "modules-left": ["hyprland/workspaces"],
   "modules-center": ["hyprland/window"],
   "modules-right": [
-    "mpd",
+    // "mpd",
     "idle_inhibitor",
     "pulseaudio",
     "network",
@@ -18,6 +18,7 @@
     "memory",
     // "disk",
     // "temperature",
+    "backlight",
     "battery",
     "clock",
     "tray",
@@ -142,7 +143,6 @@
     },
   },
   "network": {
-    // "interface": "wlp2*", // (Optional) To force the use of this interface
     "format-wifi": "{essid} ({signalStrength}%) ",
     "format-ethernet": "{ipaddr}/{cidr} 🖧",
     "tooltip-format": "{ifname} via {gwaddr} ",
