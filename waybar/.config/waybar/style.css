@@ -128,6 +128,11 @@ button:hover {
     border-bottom: 2px solid @purple;
 }
 
+#disk {
+    color: @blue;
+    border-bottom: 2px solid @blue;
+}
+
 /* If workspaces is the leftmost module, omit left margin */
 .modules-left>widget:first-child>#workspaces {
     margin-left: 0;

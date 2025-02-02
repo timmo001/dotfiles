@@ -16,6 +16,7 @@
     "power-profiles-daemon",
     "cpu",
     "memory",
+    // "disk",
     // "temperature",
     "battery",
     "clock",
