@@ -11,6 +11,11 @@ fi
 pushd $DOTFILES
 for folder in $(echo $STOW_FOLDERS | sed "s/,/ /g")
 do
+    # Ignore backup folder
+    if [[ $folder == "backup" ]]; then
+        continue
+    fi
+
     echo "stow $folder"
     stow $folder
 done
