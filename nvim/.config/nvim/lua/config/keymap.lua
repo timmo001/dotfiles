@@ -76,3 +76,8 @@ vim.keymap.set("n", "<leader>cf", "<C-o>", { desc = "Go forward" })
 
 -- Delete this file
 vim.keymap.set("n", "<leader>df", "<cmd>!rm %<CR>", { desc = "Delete this file" })
+
+-- Code actions
+vim.keymap.set("n", "<leader>ca", function() vim.lsp.buf.code_action() end, { desc = "Code actions" })
+vim.keymap.set("v", "<leader>ca", function() vim.lsp.buf.range_code_action() end, { desc = "Code actions (range)" })
+vim.keymap.set("v", "ca", function() vim.lsp.buf.code_action() end, { desc = "Code actions" })
