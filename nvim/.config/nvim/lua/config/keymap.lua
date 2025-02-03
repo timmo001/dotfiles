@@ -50,6 +50,11 @@ vim.keymap.set("i", "<C-k>", function() vim.lsp.buf.signature_help() end, { desc
 vim.keymap.set("n", "gr", function() vim.lsp.buf.references() end, { desc = "Find references" })
 vim.keymap.set("n", "<leader>cr", function() vim.lsp.buf.references() end, { desc = "Find references" })
 
+-- Code actions
+vim.keymap.set("n", "<leader>ca", function() vim.lsp.buf.code_action() end, { desc = "Code actions" })
+vim.keymap.set("v", "<leader>ca", function() vim.lsp.buf.range_code_action() end, { desc = "Code actions (range)" })
+vim.keymap.set("v", "ca", function() vim.lsp.buf.code_action() end, { desc = "Code actions" })
+
 -- Quickfix
 vim.keymap.set('n', '<leader>fn', '<cmd>cnext<CR>', { desc = "Next quickfix" })
 vim.keymap.set('n', '<leader>qn', '<cmd>cnext<CR>', { desc = "Next quickfix" })
@@ -76,8 +81,3 @@ vim.keymap.set("n", "<leader>cf", "<C-o>", { desc = "Go forward" })
 
 -- Delete this file
 vim.keymap.set("n", "<leader>df", "<cmd>!rm %<CR>", { desc = "Delete this file" })
-
--- Code actions
-vim.keymap.set("n", "<leader>ca", function() vim.lsp.buf.code_action() end, { desc = "Code actions" })
-vim.keymap.set("v", "<leader>ca", function() vim.lsp.buf.range_code_action() end, { desc = "Code actions (range)" })
-vim.keymap.set("v", "ca", function() vim.lsp.buf.code_action() end, { desc = "Code actions" })
