@@ -23,32 +23,32 @@ vim.keymap.set("n", 'd"', '"_d', { desc = "Delete to next quote" })
 vim.keymap.set("n", '<leader>d"', '"_d/"<CR>', { desc = "Delete to next quote" })
 
 -- Go to definition
-vim.keymap.set("n", "gd", "<cmd>lua vim.lsp.buf.definition()<CR>", { desc = "Go to definition" })
-vim.keymap.set("n", "<leader>cd", "<cmd>lua vim.lsp.buf.definition()<CR>", { desc = "Go to definition" })
+vim.keymap.set("n", "gd", function() vim.lsp.buf.definition() end, { desc = "Go to definition" })
+vim.keymap.set("n", "<leader>cd", function() vim.lsp.buf.definition() end, { desc = "Go to definition" })
 
 -- Go to declaration
-vim.keymap.set("n", "gD", "<cmd>lua vim.lsp.buf.declaration()<CR>", { desc = "Go to declaration" })
-vim.keymap.set("n", "<leader>cD", "<cmd>lua vim.lsp.buf.declaration()<CR>", { desc = "Go to declaration" })
+vim.keymap.set("n", "gD", function() vim.lsp.buf.declaration() end, { desc = "Go to declaration" })
+vim.keymap.set("n", "<leader>cD", function() vim.lsp.buf.declaration() end, { desc = "Go to declaration" })
 
 -- Go to type definition
-vim.keymap.set("n", "gtd", "<cmd>lua vim.lsp.buf.type_definition()<CR>", { desc = "Go to type definition" })
-vim.keymap.set("n", "<leader>ctd", "<cmd>lua vim.lsp.buf.type_definition()<CR>", { desc = "Go to type definition" })
+vim.keymap.set("n", "gtd", function() vim.lsp.buf.type_definition() end, { desc = "Go to type definition" })
+vim.keymap.set("n", "<leader>ctd", function() vim.lsp.buf.type_definition() end, { desc = "Go to type definition" })
 
 -- Go to implementation
-vim.keymap.set("n", "gi", "<cmd>lua vim.lsp.buf.implementation()<CR>", { desc = "Go to implementation" })
-vim.keymap.set("n", "<leader>ci", "<cmd>lua vim.lsp.buf.implementation()<CR>", { desc = "Go to implementation" })
+vim.keymap.set("n", "gi", function() vim.lsp.buf.implementation() end, { desc = "Go to implementation" })
+vim.keymap.set("n", "<leader>ci", function() vim.lsp.buf.implementation() end, { desc = "Go to implementation" })
 
 -- Go to hover
-vim.keymap.set("n", "K", "<cmd>lua vim.lsp.buf.hover()<CR>", { desc = "Go to hover" })
-vim.keymap.set("n", "<leader>ch", "<cmd>lua vim.lsp.buf.hover()<CR>", { desc = "Go to hover" })
+vim.keymap.set("n", "K", function() vim.lsp.buf.hover() end, { desc = "Go to hover" })
+vim.keymap.set("n", "<leader>ch", function() vim.lsp.buf.hover() end, { desc = "Go to hover" })
 
 -- Go to signature help
-vim.keymap.set("n", "<C-k>", "<cmd>lua vim.lsp.buf.signature_help()<CR>", { desc = "Go to signature help" })
-vim.keymap.set("i", "<C-k>", "<cmd>lua vim.lsp.buf.signature_help()<CR>", { desc = "Go to signature help" })
+vim.keymap.set("n", "<C-k>", function() vim.lsp.buf.signature_help() end, { desc = "Go to signature help" })
+vim.keymap.set("i", "<C-k>", function() vim.lsp.buf.signature_help() end, { desc = "Go to signature help" })
 
 -- Find references
-vim.keymap.set("n", "gr", "<cmd>lua vim.lsp.buf.references()<CR>", { desc = "Find references" })
-vim.keymap.set("n", "<leader>cr", "<cmd>lua vim.lsp.buf.references()<CR>", { desc = "Find references" })
+vim.keymap.set("n", "gr", function() vim.lsp.buf.references() end, { desc = "Find references" })
+vim.keymap.set("n", "<leader>cr", function() vim.lsp.buf.references() end, { desc = "Find references" })
 
 -- Quickfix
 vim.keymap.set('n', '<leader>fn', '<cmd>cnext<CR>', { desc = "Next quickfix" })
