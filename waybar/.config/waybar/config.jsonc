@@ -9,12 +9,12 @@
   "modules-left": ["hyprland/workspaces"],
   "modules-center": ["hyprland/window"],
   "modules-right": [
+    // "idle_inhibitor",
+    // "power-profiles-daemon",
     // "mpd",
-    "idle_inhibitor",
     "custom/media",
     "pulseaudio",
     "network",
-    "power-profiles-daemon",
     "cpu",
     "memory",
     "backlight",
@@ -120,14 +120,6 @@
     "format-icons": ["", "", "", "", ""],
     "tooltip-format": "{time}"
   },
-  "network": {
-    "format-ethernet": "<span size='13000' foreground='#f5e0dc'>󰤭  </span> Disconnected",
-    // "format-wifi": "<span size='13000' foreground='#f5e0dc'>  </span>{essid}",
-    "format-linked": "{ifname} (No IP) ",
-    "format-disconnected": "<span size='13000' foreground='#f5e0dc'>  </span>Disconnected",
-    // "tooltip-format-wifi": "Signal Strength: {signalStrength}%"
-  },
-  }
   "power-profiles-daemon": {
     "format": "{icon}",
     "tooltip-format": "Power profile: {profile}\nDriver: {driver}",
@@ -140,11 +132,11 @@
     },
   },
   "network": {
-    "format-wifi": "{essid} ({signalStrength}%) ",
-    "format-ethernet": "{ipaddr}/{cidr} 🖧",
-    "tooltip-format": "{ifname} via {gwaddr} ",
-    "format-linked": "{ifname} (No IP) ",
-    "format-disconnected": "Disconnected ⚠",
+    "format-wifi": " {essid} ({signalStrength}%)",
+    "format-ethernet": "🖧 {ipaddr}/{cidr}",
+    "tooltip-format": " {ifname} via {gwaddr}",
+    "format-linked": " {ifname} (No IP)",
+    "format-disconnected": "⚠ Disconnected",
     "format-alt": "{ifname}: {ipaddr}/{cidr}",
   },
   "pulseaudio": {
