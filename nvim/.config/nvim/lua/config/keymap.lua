@@ -55,6 +55,10 @@ vim.keymap.set("n", "<leader>ca", function() vim.lsp.buf.code_action() end, { de
 vim.keymap.set("v", "<leader>ca", function() vim.lsp.buf.range_code_action() end, { desc = "Code actions (range)" })
 vim.keymap.set("v", "ca", function() vim.lsp.buf.code_action() end, { desc = "Code actions" })
 
+-- Diagnostics
+vim.keymap.set("n", "<leader>cd", function() vim.lsp.diagnostic.show_line_diagnostics() end, { desc = "Show line diagnostics" })
+vim.keymap.set("v", "<leader>cd", function() vim.diagnostic.open_float() end, { desc = "Show diagnostics" })
+
 -- Quickfix
 vim.keymap.set('n', '<leader>fn', '<cmd>cnext<CR>', { desc = "Next quickfix" })
 vim.keymap.set('n', '<leader>qn', '<cmd>cnext<CR>', { desc = "Next quickfix" })
