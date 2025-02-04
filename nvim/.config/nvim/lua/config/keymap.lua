@@ -56,7 +56,8 @@ vim.keymap.set("v", "<leader>ca", function() vim.lsp.buf.range_code_action() end
 vim.keymap.set("v", "ca", function() vim.lsp.buf.code_action() end, { desc = "Code actions" })
 
 -- Diagnostics
-vim.keymap.set("n", "<leader>cd", function() vim.lsp.diagnostic.show_line_diagnostics() end, { desc = "Show line diagnostics" })
+vim.keymap.set("n", "<leader>cd", function() vim.lsp.diagnostic.show_line_diagnostics() end,
+  { desc = "Show line diagnostics" })
 vim.keymap.set("v", "<leader>cd", function() vim.diagnostic.open_float() end, { desc = "Show diagnostics" })
 
 -- Quickfix
@@ -85,3 +86,9 @@ vim.keymap.set("n", "<leader>cf", "<C-o>", { desc = "Go forward" })
 
 -- Delete this file
 vim.keymap.set("n", "<leader>df", "<cmd>!rm %<CR>", { desc = "Delete this file" })
+
+-- Edit current directory
+vim.keymap.set("n", "<leader>ed", ":e %:p:h<CR>", { desc = "Edit current directory" })
+
+-- Edit current file
+vim.keymap.set("n", "<leader>ef", ":e %<CR>", { desc = "Edit current file" })
