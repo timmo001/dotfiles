@@ -9,13 +9,29 @@ return {
       dashboard = {
         enabled = true,
         sections = {
-          { section = "header" },
           {
+            pane = 1,
+            section = "header",
+          },
+          {
+            pane = 1,
             section = "keys",
             gap = 1,
+            indent = 2,
             padding = 1,
           },
           {
+            pane = 1,
+            section = "startup",
+            indent = 2,
+            padding = 1,
+          },
+          {
+            pane = 2,
+            padding = 7,
+          },
+          {
+            pane = 2,
             icon = " ",
             title = "Recent Files",
             section = "recent_files",
@@ -23,6 +39,7 @@ return {
             padding = 1,
           },
           {
+            pane = 2,
             icon = " ",
             title = "Projects",
             section = "projects",
@@ -49,37 +66,37 @@ return {
           function()
             local in_git = Snacks.git.get_root() ~= nil
             local cmds = {
-              {
-                title = "Notifications",
-                cmd = "gh notify -s -a -n5",
-                action = function()
-                  vim.ui.open("https://github.com/notifications")
-                end,
-                key = "N",
-                icon = " ",
-                height = 5,
-                enabled = true,
-              },
-              {
-                title = "Open Issues",
-                cmd = "gh issue list -L 3",
-                key = "i",
-                action = function()
-                  vim.fn.jobstart("gh issue list --web", { detach = true })
-                end,
-                icon = " ",
-                height = 7,
-              },
-              {
-                icon = " ",
-                title = "Open PRs",
-                cmd = "gh pr list -L 3",
-                key = "p",
-                action = function()
-                  vim.fn.jobstart("gh pr list --web", { detach = true })
-                end,
-                height = 7,
-              },
+              -- {
+              --   title = "Notifications",
+              --   cmd = "gh notify -s -a -n5",
+              --   action = function()
+              --     vim.ui.open("https://github.com/notifications")
+              --   end,
+              --   key = "N",
+              --   icon = " ",
+              --   height = 5,
+              --   enabled = true,
+              -- },
+              -- {
+              --   title = "Open Issues",
+              --   cmd = "gh issue list -L 3",
+              --   key = "i",
+              --   action = function()
+              --     vim.fn.jobstart("gh issue list --web", { detach = true })
+              --   end,
+              --   icon = " ",
+              --   height = 7,
+              -- },
+              -- {
+              --   icon = " ",
+              --   title = "Open PRs",
+              --   cmd = "gh pr list -L 3",
+              --   key = "p",
+              --   action = function()
+              --     vim.fn.jobstart("gh pr list --web", { detach = true })
+              --   end,
+              --   height = 7,
+              -- },
               {
                 icon = " ",
                 title = "Git Status",
@@ -97,7 +114,7 @@ return {
                 indent = 3,
               }, cmd)
             end, cmds)
-          end, { section = "startup" },
+          end,
         },
       },
       indent = { enabled = true },
