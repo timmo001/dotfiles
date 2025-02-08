@@ -1,5 +1,0 @@
-return {
-  {
-    "steelsojka/headwind.nvim",
-  },
-}
