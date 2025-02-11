@@ -1,6 +1,6 @@
 {
   "CopilotChat.nvim": { "branch": "main", "commit": "dbce8a231d1ac72c68ce00b86b415c9304417102" },
-  "LazyVim": { "branch": "main", "commit": "29829f7eb6e937f9fe43e9455e55704b3fac8794" },
+  "LazyVim": { "branch": "main", "commit": "9d426ed7fc57b285e0a89e011f7a35bd99cdc7f8" },
   "SchemaStore.nvim": { "branch": "main", "commit": "118e563101169e8c5096023bc45c460e4c4fb77c" },
   "blink-cmp-copilot": { "branch": "main", "commit": "5d4ed42c5d7d144012792bb6cc4ac7899a108169" },
   "blink.cmp": { "branch": "main", "commit": "b6f11a0aa33e601c469a126e3ed6e35208fe3ea3" },
@@ -50,7 +50,7 @@
   "plenary.nvim": { "branch": "master", "commit": "3707cdb1e43f5cea73afb6037e6494e7ce847a66" },
   "render-markdown.nvim": { "branch": "main", "commit": "17a77463f945c4b9e4f371c752efd90e3e1bf604" },
   "rustaceanvim": { "branch": "master", "commit": "f03035fa03ccb36cd26d0792c946fbacba1d1a39" },
-  "snacks.nvim": { "branch": "main", "commit": "d607d2e050d9ab19ebe51db38aab807958f05bad" },
+  "snacks.nvim": { "branch": "main", "commit": "7da3b6e9307a7eddd863cd2519f5ab708469bc77" },
   "telescope-fzf-native.nvim": { "branch": "main", "commit": "dae2eac9d91464448b584c7949a31df8faefec56" },
   "telescope.nvim": { "branch": "master", "commit": "415af52339215926d705cccc08145f3782c4d132" },
   "todo-comments.nvim": { "branch": "main", "commit": "304a8d204ee787d2544d8bc23cd38d2f929e7cc5" },
