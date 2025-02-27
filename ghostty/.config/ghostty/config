@@ -17,3 +17,4 @@ keybind = global:super+/=toggle_quick_terminal
 
 # Shell
 shell-integration = zsh
+shell-integration-features = true
