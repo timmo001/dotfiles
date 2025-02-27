@@ -7,8 +7,13 @@ background-opacity = 0.85
 
 # Window
 mouse-hide-while-typing = true
+window-theme= ghostty
 window-decoration = true
+window-title-font-family = "CaskaydiaCove Nerd Font"
 gtk-titlebar = false
 
-# keybind
+# Keybinds
 keybind = global:super+/=toggle_quick_terminal
+
+# Shell
+shell-integration = zsh
