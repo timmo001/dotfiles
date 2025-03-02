@@ -143,6 +143,7 @@ return {
         sources = {
           explorer = {
             auto_close = true,
+            auto_confirm = true,
           },
         },
       },
