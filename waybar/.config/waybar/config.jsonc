@@ -12,7 +12,7 @@
     // "idle_inhibitor",
     // "power-profiles-daemon",
     // "mpd",
-    "custom/media",
+    // "custom/media",
     "pulseaudio",
     "network",
     "cpu",
@@ -21,7 +21,6 @@
     "battery",
     "clock",
     "tray",
-    "custom/power",
   ],
   // Modules configuration
   "hyprland/workspaces": {
@@ -53,32 +52,6 @@
     "format-icons": ["", ""],
     "tooltip": true,
     "tooltip-format": "{app}: {title}",
-  },
-  "mpd": {
-    "format": "{stateIcon} {consumeIcon}{randomIcon}{repeatIcon}{singleIcon}{artist} - {album} - {title} ({elapsedTime:%M:%S}/{totalTime:%M:%S}) ⸨{songPosition}|{queueLength}⸩ {volume}% ",
-    "format-disconnected": "Disconnected ",
-    "format-stopped": "{consumeIcon}{randomIcon}{repeatIcon}{singleIcon}Stopped ",
-    "unknown-tag": "N/A",
-    "interval": 5,
-    "consume-icons": {
-      "on": " ",
-    },
-    "random-icons": {
-      "off": "<span color=\"#f53c3c\"></span> ",
-      "on": " ",
-    },
-    "repeat-icons": {
-      "on": " ",
-    },
-    "single-icons": {
-      "on": "1 ",
-    },
-    "state-icons": {
-      "paused": "",
-      "playing": "",
-    },
-    "tooltip-format": "MPD (connected)",
-    "tooltip-format-disconnected": "MPD (disconnected)",
   },
   "idle_inhibitor": {
     "format": "{icon}",
@@ -145,7 +118,7 @@
     "format-icons": {
       "default": ["", "", "󰕾"],
     },
-    "on-click": "flatpak run com.github.wwmm.easyeffects",
+    "on-click": "pavucontrol",
   },
   "custom/media": {
     "format": "{icon} {text}",
@@ -158,17 +131,5 @@
     "escape": true,
     "exec": "$HOME/.config/waybar/mediaplayer.py 2> /dev/null", // Script in resources folder
     // "exec": "$HOME/.config/waybar/mediaplayer.py --player spotify 2> /dev/null" // Filter player based on name
-  },
-  "custom/power": {
-    "format": "⏻ ",
-    "tooltip": false,
-    "menu": "on-click",
-    "menu-file": "$HOME/.config/waybar/power_menu.xml", // Menu file in resources folder
-    "menu-actions": {
-      "shutdown": "shutdown",
-      "reboot": "reboot",
-      "suspend": "systemctl suspend",
-      "hibernate": "systemctl hibernate",
-    },
   },
 }
