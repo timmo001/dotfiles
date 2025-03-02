@@ -79,6 +79,11 @@ eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 export PATH=$PATH:/snap/bin
 
 # ------------------------------
+# Copilot
+# ------------------------------
+eval "$(gh copilot alias -- zsh)"
+
+# ------------------------------
 # Aliases
 # ------------------------------
 alias cat=bat
