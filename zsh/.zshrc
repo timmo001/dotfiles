@@ -154,7 +154,6 @@ alias update-all="update-system && update-dotfiles && update-nvim && update-ghos
 
 # Copilot CLI
 alias copilot="gh copilot"
-alias cp="gh copilot"
 alias cpe="gh copilot explain"
 alias cps="gh copilot suggest"
 
