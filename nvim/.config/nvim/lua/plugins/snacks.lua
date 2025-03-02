@@ -135,6 +135,17 @@ return {
           },
         },
       },
+      explorer = {
+        replace_netrw = true,
+      },
+      picker = {
+        auto_close = true,
+        sources = {
+          explorer = {
+            auto_close = true,
+          },
+        },
+      },
     },
     init = function()
       vim.api.nvim_create_autocmd("User", {
@@ -163,12 +174,6 @@ return {
           Snacks.toggle.inlay_hints():map("<leader>uh")
           Snacks.toggle.indent():map("<leader>ug")
           Snacks.toggle.dim():map("<leader>uD")
-
-          -- Snacks explorer / picker
-          Snacks.config.explorer.replace_netrw = true
-          Snacks.config.picker.auto_close = true
-          Snacks.config.picker.sources.explorer.auto_close = true
-          Snacks.config.picker.sources.explorer.focus = "input"
         end,
       })
     end,
