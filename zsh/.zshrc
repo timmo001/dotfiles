@@ -158,6 +158,10 @@ alias cp="gh copilot"
 alias cpe="gh copilot explain"
 alias cps="gh copilot suggest"
 
+# Go Automate
+alias auto="go-automate"
+alias ga="go-automate"
+
 # Create a new release PR (Custom script in internal repo)
 alias ghrpr="./.github/create-release-pr-draft.sh"
 
