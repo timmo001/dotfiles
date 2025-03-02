@@ -22,3 +22,26 @@ vim.keymap.set("n", "<leader>ed", ":e %:p:h<CR>", { desc = "Edit current directo
 
 -- Edit current file
 vim.keymap.set("n", "<leader>ef", ":e %<CR>", { desc = "Edit current file" })
+
+-- Replace selection
+vim.keymap.set("v", "<leader>rc", '"_dP', { desc = "Replace current selection with clipboard" })
+
+function ReplaceAllOccurrencesOfSelection()
+  -- Save the current visual selection
+  vim.cmd('normal! "vy') -- Yank the selected text into register v
+
+  local selected_text = vim.fn.getreg("v") -- Get the yanked text
+  selected_text = vim.fn.escape(selected_text, "\\") -- Escape special characters for search
+
+  -- Get the replacement text from the user
+  local replacement_text = vim.fn.input("Enter replacement text: ")
+  if replacement_text == "" then
+    print("Replacement cancelled.")
+    return
+  end
+
+  -- Search and replace with confirmation
+  vim.cmd("%s/" .. selected_text .. "/" .. replacement_text .. "/gc")
+end
+
+vim.keymap.set("v", "<leader>ra", ReplaceAllOccurrencesOfSelection, { desc = "Replace All Occurrences of Selection" })
