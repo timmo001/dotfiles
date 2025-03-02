@@ -129,7 +129,10 @@ return {
       words = { enabled = true },
       styles = {
         notification = {
-          wo = { wrap = true }, -- Wrap notifications
+          relative = "editor",
+          wo = {
+            wrap = true, -- Wrap notifications
+          },
         },
       },
     },
