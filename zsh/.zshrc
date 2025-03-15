@@ -80,6 +80,12 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 export PATH=$PATH:/snap/bin
 
 # ------------------------------
+# HDR / Gamescope
+# ------------------------------
+export ENABLE_HDR_WSI=1
+export DXVK_HDR=1
+
+# ------------------------------
 # Aliases
 # ------------------------------
 alias cat=bat
