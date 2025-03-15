@@ -66,13 +66,13 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 # ------------------------------
 # Rust
 # ------------------------------
-source $HOME/.cargo/env
-export PATH=$HOME/.cargo/bin:$PATH
+# source $HOME/.cargo/env
+# export PATH=$HOME/.cargo/bin:$PATH
 
 # ------------------------------
 # Brew for Linux
 # ------------------------------
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+# eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 
 # ------------------------------
 # Snaps
