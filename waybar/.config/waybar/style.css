@@ -8,7 +8,6 @@
 
 window#waybar {
     background: transparent;
-    background-color: @crust;
     color: @overlay0;
     transition-property: background-color;
     transition-duration: 0.1s;
