@@ -89,7 +89,7 @@ export DXVK_HDR=1
 # ------------------------------
 # Aliases
 # ------------------------------
-alias cat=bat
+alias cat="bat"
 alias la="tree"
 
 alias ff="fastfetch"
