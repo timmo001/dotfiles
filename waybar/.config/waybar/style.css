@@ -11,7 +11,7 @@ window#waybar {
   color: @text;
   transition-property: background-color;
   transition-duration: 0.1s;
-  border-bottom: 1px solid @overlay1;
+  border-bottom: 2px solid @surface1;
 }
 
 #window {
