@@ -92,6 +92,8 @@ export DXVK_HDR=1
 alias cat=bat
 alias la="tree"
 
+alias ff="fastfetch"
+
 ## Git
 alias lg="lazygit"
 
@@ -171,3 +173,9 @@ alias ghrpr="./.github/create-release-pr-draft.sh"
 # Development
 alias dev="git pull && pnpm i && pnpm dev"
 
+
+# ------------------------------
+# Commands
+# ------------------------------
+# Fastfetch
+ff
