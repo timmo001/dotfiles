@@ -158,6 +158,9 @@ alias update-ghostty="cwd=$(pwd) && cd $HOME/.config/bootstrap && go run app/upd
 # Update all
 alias update-all="update-system && update-dotfiles && update-nvim && update-ghostty && source $HOME/.zshrc"
 
+# Gear lever (app images)
+alias gearlever="flatpak run it.mijorus.gearlever"
+
 # Copilot CLI
 alias copilot="gh copilot"
 alias cpe="gh copilot explain"
@@ -167,12 +170,14 @@ alias cps="gh copilot suggest"
 alias auto="go-automate"
 alias ga="go-automate"
 
+# Cursor
+alias cursor="~/apps/appimages/cursor.appimage"
+
 # Create a new release PR (Custom script in internal repo)
 alias ghrpr="./.github/create-release-pr-draft.sh"
 
 # Development
 alias dev="git pull && pnpm i && pnpm dev"
-
 
 # ------------------------------
 # Commands
