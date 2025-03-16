@@ -170,9 +170,6 @@ alias cps="gh copilot suggest"
 alias auto="go-automate"
 alias ga="go-automate"
 
-# Cursor
-alias cursor="~/apps/appimages/cursor.appimage"
-
 # Create a new release PR (Custom script in internal repo)
 alias ghrpr="./.github/create-release-pr-draft.sh"
 
