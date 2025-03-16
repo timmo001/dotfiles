@@ -139,10 +139,11 @@ alias update-dotfiles="cwd=$(pwd) && cd $HOME/.config/dotfiles && git pull && ./
 
 # Update system apps
 alias update-apt="sudo apt update && sudo apt upgrade && sudo apt autoremove && sudo apt autoclean"
+alias update-yay="yay -Syu"
 alias update-brew="brew update && brew upgrade && brew cleanup"
 alias update-snap="sudo snap refresh"
 alias update-flatpak="flatpak update"
-alias update-system="update-apt && update-brew && update-snap && update-flatpak"
+alias update-system="update-yay && update-brew && update-snap && update-flatpak"
 
 # Update neovim
 alias update-nvim-base="cwd=$(pwd) && cd $HOME/.config/bootstrap && go run app/update-nvim.go && cd $cwd"
