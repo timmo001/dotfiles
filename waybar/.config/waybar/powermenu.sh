@@ -7,6 +7,6 @@ case "$chosen" in
 "⏾ Suspend") systemctl suspend ;;
 "⏻ Power Off") systemctl poweroff ;;
 " Reboot") systemctl reboot ;;
-" Reboot to windows") /home/aidan/config/waybar/reboot-to-windows.sh ;;
+" Reboot to windows") sh /home/aidan/.config/waybar/reboot-to-windows.sh ;;
 " Logout") hyprctl dispatch exit ;;
 esac
