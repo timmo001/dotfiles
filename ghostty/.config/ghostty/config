@@ -8,9 +8,11 @@ background-opacity = 0.85
 # Window
 mouse-hide-while-typing = true
 window-theme= ghostty
-window-decoration = true
+window-decoration = auto
 window-title-font-family = "CaskaydiaCove Nerd Font"
 gtk-titlebar = false
+gtk-adwaita = true
+adw-toolbar-style = flat
 
 # Keybinds
 keybind = global:super+/=toggle_quick_terminal
