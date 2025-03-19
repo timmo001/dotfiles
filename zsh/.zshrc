@@ -76,6 +76,11 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 
 # ------------------------------
+# Android
+# ------------------------------
+ANDROID_HOME=$HOME/Android/Sdk
+
+# ------------------------------
 # HDR / Gamescope
 # ------------------------------
 export ENABLE_HDR_WSI=1
