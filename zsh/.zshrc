@@ -133,6 +133,10 @@ alias ......="cd ../../../../.."
 alias flushdns="sudo resolvectl flush-caches"
 alias fc="sudo resolvectl flush-caches"
 
+# Image optimiser
+alias img-optimise="$HOME/.img-optimize/optimize.sh"
+alias img-optimise-all="img-optimise --all"
+
 # Bootstrap
 alias bootstrap="cwd=$(pwd) && cd $HOME/.config/bootstrap && go run app/bootstrap.go && cd $cwd"
 
