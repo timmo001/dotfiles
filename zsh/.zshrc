@@ -79,7 +79,7 @@ eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 # Java
 # ------------------------------
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
-export path=$JAVA_HOME/bin:$PATH
+export PATH=$JAVA_HOME/bin:$PATH
 
 # ------------------------------
 # Android
