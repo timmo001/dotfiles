@@ -185,8 +185,10 @@ alias ghrpr="./.github/create-release-pr-draft.sh"
 # Development
 alias dev="git pull && pnpm i && pnpm dev"
 
+# Go
 alias gor="go run ."
-alias gr="gor"
+alias gob="go build ."
+alias goi="go install ."
 
 # ------------------------------
 # Commands
