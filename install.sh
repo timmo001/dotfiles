@@ -45,4 +45,3 @@ do
     stow $folder
 done
 popd
-
