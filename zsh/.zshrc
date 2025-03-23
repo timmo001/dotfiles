@@ -46,6 +46,11 @@ export EDITOR=nvim
 export VISUAL=nvim
 
 # ------------------------------
+# GPG
+# ------------------------------
+export GPG_TTY=$(tty)
+
+# ------------------------------
 # Go
 # ------------------------------
 export GOPATH=$HOME/go
