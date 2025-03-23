@@ -104,7 +104,11 @@ export DXVK_HDR=1
 # ------------------------------
 load-env() {
     if [ -f .env ]; then
-        export $(cat .env | grep -v '^#' | xargs)
+        while IFS='=' read -r key value; do
+            if [[ ! $key =~ ^# && -n $key ]]; then
+                export "$key=$value"
+            fi
+        done < .env
         echo "Loaded environment variables from .env"
     else
         echo "No .env file found in current directory"
