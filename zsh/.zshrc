@@ -257,3 +257,10 @@ alias repos="cd ~/repos"
 # ------------------------------
 # Fastfetch
 ff
+
+# ------------------------------
+# Private dotfiles
+# ------------------------------
+if [ -f ~/.config/dotfiles-private/.zshrc ]; then
+    source ~/.config/dotfiles-private/zsh/.zshrc
+fi
