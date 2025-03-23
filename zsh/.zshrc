@@ -2,7 +2,7 @@
 # Source profile
 # ------------------------------
 if [ -f $HOME/.zsh_profile ]; then
-    source $HOME/.zsh_profile
+  source $HOME/.zsh_profile
 fi
 
 # ------------------------------
@@ -103,24 +103,24 @@ export DXVK_HDR=1
 # from .env file if it exists
 # ------------------------------
 load-env() {
-    if [ -f .env ]; then
-        while IFS='=' read -r key value; do
-            if [[ ! $key =~ ^# && -n $key ]]; then
-                export "$key=$value"
-            fi
-        done < .env
-        echo "Loaded environment variables from .env"
-    else
-        echo "No .env file found in current directory"
-    fi
+  if [ -f .env ]; then
+    while IFS='=' read -r key value; do
+      if [[ ! $key =~ ^# && -n $key ]]; then
+        export "$key=$value"
+      fi
+    done <.env
+    echo "Loaded environment variables from .env"
+  else
+    echo "No .env file found in current directory"
+  fi
 }
 
 # ------------------------------
 # Change directory and load .env
 # ------------------------------
 cd-env() {
-    cd "$1"
-    load-env
+  cd "$1"
+  load-env
 }
 
 # ------------------------------
@@ -146,7 +146,10 @@ node-exec() {
 # Run node project with correct package manager
 # ------------------------------
 node-run() {
-  if [ -f bun.lock ]; then
+  if [ -f deno.lock ]; then
+    echo "Using deno..."
+    deno task "$@"
+  elif [ -f bun.lock ]; then
     echo "Using bun..."
     bun "$@"
   elif [ -f pnpm-lock.yaml ]; then
@@ -331,12 +334,11 @@ alias pnpm="node-run"
 alias yarn="node-run"
 alias bun="node-run"
 
-
 # ------------------------------
 # Private dotfiles
 # ------------------------------
 if [ -f ~/.zshrc-private ]; then
-    source ~/.zshrc-private
+  source ~/.zshrc-private
 fi
 
 # ------------------------------
