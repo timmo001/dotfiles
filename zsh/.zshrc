@@ -43,7 +43,8 @@ export KEYMAP=uk
 # Editor
 # ------------------------------
 export EDITOR=nvim
-export VISUAL=nvim
+export VISUAL=cursor
+export REACT_EDITOR=cursor
 
 # ------------------------------
 # GPG
