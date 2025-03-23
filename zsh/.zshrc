@@ -245,6 +245,13 @@ alias gor="go run ."
 alias gob="go build ."
 alias goi="go install ."
 
+# Quick paths
+alias home="cd ~"
+alias dotfiles="cd ~/.config/dotfiles"
+alias dotfiles-private="cd ~/.config/dotfiles-private"
+alias config="cd ~/.config"
+alias repos="cd ~/repos"
+
 # ------------------------------
 # Commands
 # ------------------------------
