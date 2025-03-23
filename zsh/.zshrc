@@ -99,6 +99,19 @@ export ENABLE_HDR_WSI=1
 export DXVK_HDR=1
 
 # ------------------------------
+# Load environment variables
+# from .env file if it exists
+# ------------------------------
+load-env() {
+    if [ -f .env ]; then
+        export $(cat .env | grep -v '^#' | xargs)
+        echo "Loaded environment variables from .env"
+    else
+        echo "No .env file found in current directory"
+    fi
+}
+
+# ------------------------------
 # Development
 # ------------------------------
 dev() {
