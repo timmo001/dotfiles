@@ -122,6 +122,9 @@ dev() {
     return 0
   fi
 
+  # Open cursor
+  cursor .
+
   if [ -f package.json ]; then
     if [ -f deno.lock ]; then
       echo "Using deno..."
