@@ -261,6 +261,6 @@ ff
 # ------------------------------
 # Private dotfiles
 # ------------------------------
-if [ -f ~/.config/dotfiles-private/.zshrc ]; then
-    source ~/.config/dotfiles-private/zsh/.zshrc
+if [ -f ~/.zshrc-private ]; then
+    source ~/.zshrc-private
 fi
