@@ -124,6 +124,44 @@ cd-env() {
 }
 
 # ------------------------------
+# Execute node package with correct package manager
+# ------------------------------
+node-exec() {
+  if [ -f bun.lock ]; then
+    echo "Using bunx..."
+    bunx "$@"
+  elif [ -f pnpm-lock.yaml ]; then
+    echo "Using pnpm dlx..."
+    pnpm dlx "$@"
+  elif [ -f yarn.lock ]; then
+    echo "Using yarn dlx..."
+    yarn dlx "$@"
+  else
+    echo "Using npx..."
+    npx "$@"
+  fi
+}
+
+# ------------------------------
+# Run node project with correct package manager
+# ------------------------------
+node-run() {
+  if [ -f bun.lock ]; then
+    echo "Using bun..."
+    bun "$@"
+  elif [ -f pnpm-lock.yaml ]; then
+    echo "Using pnpm..."
+    pnpm "$@"
+  elif [ -f yarn.lock ]; then
+    echo "Using yarn..."
+    yarn "$@"
+  else
+    echo "Using npm..."
+    npm "$@"
+  fi
+}
+
+# ------------------------------
 # Development
 # ------------------------------
 dev() {
@@ -280,6 +318,19 @@ alias dotfiles="cd ~/.config/dotfiles"
 alias dotfiles-private="cd ~/.config/dotfiles-private"
 alias config="cd ~/.config"
 alias repos="cd ~/repos"
+
+# Replace node executors with correct package manager
+alias npx="node-exec"
+alias pnpm-dlx="node-exec"
+alias yarn-dlx="node-exec"
+alias bunx="node-exec"
+
+# Replace node runners with correct package manager
+alias npm="node-run"
+alias pnpm="node-run"
+alias yarn="node-run"
+alias bun="node-run"
+
 
 # ------------------------------
 # Private dotfiles
