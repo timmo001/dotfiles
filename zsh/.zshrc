@@ -98,6 +98,59 @@ export ENABLE_HDR_WSI=1
 export DXVK_HDR=1
 
 # ------------------------------
+# Development
+# ------------------------------
+dev() {
+  git pull
+
+  if [ -f go.mod ]; then
+    echo "Using go..."
+    go run . "$@"
+    return 0
+  fi
+
+  if [ -f requirements.txt ] || [ -f pyproject.toml ]; then
+    echo "Using python..."
+    if [ -f .venv/bin/activate ]; then
+      source .venv/bin/activate
+    else
+      uv venv .venv
+      source .venv/bin/activate
+    fi
+    uv pip install -r requirements.txt 2>/dev/null || uv pip install -e .
+    python main.py "$@"
+    return 0
+  fi
+
+  if [ -f package.json ]; then
+    if [ -f deno.lock ]; then
+      echo "Using deno..."
+      deno task dev "$@"
+    elif [ -f bun.lock ]; then
+      echo "Using bun..."
+      bun i
+      bun dev "$@"
+    elif [ -f pnpm-lock.yaml ]; then
+      echo "Using pnpm..."
+      pnpm i
+      pnpm dev "$@"
+    elif [ -f yarn.lock ]; then
+      echo "Using yarn..."
+      yarn i
+      yarn dev "$@"
+    else
+      echo "Using npm..."
+      npm i
+      npm run dev "$@"
+    fi
+    return 0
+  fi
+
+  echo "No supported project files found (go.mod, requirements.txt, pyproject.toml, package.json)"
+  return 1
+}
+
+# ------------------------------
 # Aliases
 # ------------------------------
 alias cat="bat"
@@ -186,9 +239,6 @@ alias ga="go-automate"
 
 # Create a new release PR (Custom script in internal repo)
 alias ghrpr="./.github/create-release-pr-draft.sh"
-
-# Development
-alias dev="git pull && pnpm i && pnpm dev"
 
 # Go
 alias gor="go run ."
