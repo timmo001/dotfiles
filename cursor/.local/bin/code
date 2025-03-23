@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Print a message to the user
+echo "Using cursor instead of code"
+
+# Call cursor command with the provided arguments
+cursor "$@"
