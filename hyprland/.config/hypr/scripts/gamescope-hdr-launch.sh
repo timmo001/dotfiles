@@ -22,9 +22,7 @@ fi
 
 # List available GPUs
 echo "Available GPUs:"
-if command -v vulkaninfo &>/dev/null; then
-    vulkaninfo | grep -A 2 "GPU id" | grep -E "GPU id|deviceName" | sed 's/^[[:space:]]*//'
-elif command -v lspci &>/dev/null; then
+if command -v lspci &>/dev/null; then
     lspci | grep -E 'VGA|3D|Display'
 fi
 
@@ -48,29 +46,28 @@ echo "Launching $APP_NAME with HDR enabled on $MONITOR_INFO ($MONITOR_RES)"
 # Environment variables for HDR
 export ENABLE_HDR_WSI=1
 export DXVK_HDR=1
+export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json
+export __VK_LAYER_NV_optimus=NVIDIA_only
+export __GLX_VENDOR_LIBRARY_NAME=nvidia
+export __GL_GSYNC_ALLOWED=1
 export MANGOHUD_CONFIG="position=top-left,font_size=24,fps,frametime,gpu_stats,cpu_stats,ram,gpu_temp,cpu_temp,hdr"
 
-# If NVIDIA GPU is detected, try to use it preferentially
-if lspci | grep -i nvidia &>/dev/null; then
-    GPU_OPTION="--prefer-vk-device nvidia"
-    echo "Found NVIDIA GPU, will try to use it preferentially"
-# Otherwise, if you have a specific AMD card you want to use, uncomment and modify this
-# elif lspci | grep -i "AMD Radeon RX" &> /dev/null; then
-#     GPU_OPTION="--prefer-vk-device amd"
-#     echo "Found AMD discrete GPU, will try to use it preferentially"
-else
-    GPU_OPTION=""
+# Set NVIDIA-specific GPU option with exact PCI ID
+NVIDIA_PCI_ID="10de:2704" # This is for RTX 4080 SUPER, update if needed
+GPU_OPTION="--prefer-vk-device $NVIDIA_PCI_ID"
+echo "Using NVIDIA GPU with PCI ID $NVIDIA_PCI_ID"
+
+# Kill any existing Xwayland processes on display :2 to avoid port conflicts
+XWAYLAND_PID=$(pgrep -f "Xwayland :2")
+if [ ! -z "$XWAYLAND_PID" ]; then
+    echo "Killing existing Xwayland process on :2 (PID: $XWAYLAND_PID)"
+    kill $XWAYLAND_PID 2>/dev/null
 fi
 
 # Launch with gamescope using HDR
-# Found the available HDR options in help:
-# --hdr-enabled          - enable HDR output
-# --hdr-itm-enabled      - enable inverse tone mapping for SDR content
-# --hdr-sdr-content-nits - set SDR content brightness (default 400 nits)
-# --hdr-itm-target-nits  - set target brightness (default 1000 nits, max 10000)
 gamescope \
     -w ${MONITOR_RES%x*} -h ${MONITOR_RES#*x} \
-    -r 0 \
+    -r 240 \
     -O HDMI-A-1 \
     $GPU_OPTION \
     --hdr-enabled \
@@ -80,6 +77,8 @@ gamescope \
     --adaptive-sync \
     --borderless \
     --fullscreen \
+    --display-index 0 \
+    --xwayland-count 2 \
     -- "$APP_NAME" "$@"
 
 exit_status=$?
@@ -87,14 +86,15 @@ if [ $exit_status -ne 0 ]; then
     echo "Application exited with status $exit_status"
     echo "If you're experiencing issues with HDR, try the following:"
     echo "1. For NVIDIA: Make sure you have driver version 550.54.14 or higher"
-    echo "2. For AMD: Make sure you have the latest mesa and kernel"
-    echo "3. Add 'wide_color_gamut = true' to your hyprland.conf experimental section"
+    echo "2. Make sure you have the Vulkan HDR layer installed:"
+    echo "   yay -S vk-hdr-layer-kwin6-git"
     echo ""
-    echo "You may need to install the HDR WSI layer for Vulkan applications:"
-    echo "sudo pacman -S vk-hdr-layer"
+    echo "You can test if HDR capabilities are properly detected with:"
+    echo "vulkaninfo | grep -A 10 VK_EXT_hdr_metadata"
     echo ""
-    echo "To force a specific GPU, use --prefer-vk-device with either a GPU name or PCI ID"
-    echo "Example: --prefer-vk-device nvidia or --prefer-vk-device 10de:2684"
+    echo "Debug GPU selection with environmental variables:"
+    echo "VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json"
+    echo "__VK_LAYER_NV_optimus=NVIDIA_only"
 fi
 
 exit $exit_status

@@ -215,6 +215,12 @@ alias dpa="docker ps -a"
 alias dl="docker ps -l -q"
 alias dx="docker exec -it"
 
+## Gamescope
+alias gs="~/.config/hypr/scripts/gamescope-launch.sh"
+alias gshdr="~/.config/hypr/scripts/gamescope-hdr-launch.sh"
+alias gsd="~/.config/hypr/scripts/gamescope-direct-launch.sh"
+alias gsdhdr="~/.config/hypr/scripts/gamescope-hdr-direct-launch.sh"
+
 ## Dirs
 alias ..="cd .."
 alias ...="cd ../.."
