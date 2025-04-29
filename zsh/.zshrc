@@ -287,6 +287,9 @@ alias dotfiles-private="cd ~/.config/dotfiles-private"
 alias config="cd ~/.config"
 alias repos="cd ~/repos"
 
+# Reboot to windows
+alias reboot-windows="~/.config/waybar/reboot-to-windows.sh"
+
 # ------------------------------
 # Private dotfiles
 # ------------------------------
@@ -299,3 +302,6 @@ fi
 # ------------------------------
 # Fastfetch
 ff
+
+# sst
+export PATH=/home/aidan/.sst/bin:$PATH
