@@ -98,6 +98,11 @@ export ANDROID_HOME=$HOME/Android/Sdk
 export ENABLE_HDR_WSI=1
 export DXVK_HDR=1
 
+# -------------------------------
+# SST
+# -------------------------------
+export PATH=/home/aidan/.sst/bin:$PATH
+
 # ------------------------------
 # Load environment variables
 # from .env file if it exists
@@ -300,8 +305,8 @@ fi
 # ------------------------------
 # Commands
 # ------------------------------
+clear
+
 # Fastfetch
 ff
 
-# sst
-export PATH=/home/aidan/.sst/bin:$PATH
