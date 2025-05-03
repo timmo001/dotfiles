@@ -57,6 +57,7 @@ button:hover {
 #battery,
 #cpu,
 #memory,
+#custom-gpu-usage,
 #disk,
 #temperature,
 #backlight,
@@ -89,8 +90,8 @@ button:hover {
 }
 
 #network {
-  color: @green;
-  border-bottom: 2px solid @green;
+  color: @mauve;
+  border-bottom: 2px solid @mauve;
 }
 
 #idle_inhibitor {
@@ -125,6 +126,11 @@ button:hover {
 #memory {
   color: @lavender;
   border-bottom: 2px solid @lavender;
+}
+
+#custom-gpu-usage {
+  color: @green;
+  border-bottom: 2px solid @green;
 }
 
 #disk {

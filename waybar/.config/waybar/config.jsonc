@@ -13,15 +13,17 @@
     // "power-profiles-daemon",
     // "mpd",
     // "custom/media",
-    "pulseaudio",
-    "network",
     "cpu",
     "memory",
+    "custom/gpu-usage",
+    // "keyboard-state",
+    "pulseaudio",
+    "network",
     "backlight",
     "battery",
     "clock",
     "tray",
-    "custom/powermenu",
+    "custom/powermenu"
   ],
   // Modules configuration
   "hyprland/workspaces": {
@@ -32,8 +34,8 @@
     "format-icons": {
       "urgent": "",
       "active": "",
-      "default": "",
-    },
+      "default": ""
+    }
   },
   "keyboard-state": {
     "numlock": true,
@@ -41,48 +43,58 @@
     "format": "{name} {icon}",
     "format-icons": {
       "locked": "",
-      "unlocked": "",
-    },
+      "unlocked": ""
+    }
   },
   "hyprland/mode": {
-    "format": "<span style=\"italic\">{}</span>",
+    "format": "<span style=\"italic\">{}</span>"
   },
   "hyprland/scratchpad": {
     "format": "{icon} {count}",
     "show-empty": false,
     "format-icons": ["", ""],
     "tooltip": true,
-    "tooltip-format": "{app}: {title}",
+    "tooltip-format": "{app}: {title}"
   },
   "idle_inhibitor": {
     "format": "{icon}",
     "format-icons": {
       "activated": "",
-      "deactivated": "",
-    },
+      "deactivated": ""
+    }
   },
   "tray": {
-    // "icon-size": 21,
-    "spacing": 10,
+    "icon-size": 20,
+    "spacing": 10
   },
   "clock": {
     "format": "<span foreground='#f5c2e7'>  </span>{:%H:%M %a %d %b}",
     "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>",
+    "on-click": "xdg-open https://calendar.google.com"
   },
   "cpu": {
-    "format": "  {usage}%",
+    "format": "  {usage}%",
+    "on-click": "kitty btop"
   },
   "memory": {
     "format": "  {}%",
+    "on-click": "kitty btop"
+  },
+  "custom/gpu-usage": {
+    "format": "{icon}  {text}",
+    "exec": "~/.cargo/bin/gpu-usage-waybar --text-no-memory --interval 10000",
+    "return-type": "json",
+    "format-icons": "",
+    "on-click": "kitty nvtop"
   },
   "backlight": {
     "format": "{icon} {percent}%",
-    "format-icons": ["", "", "", "", "", "", "", "", ""],
+    "format-icons": ["", "", "", "", "", "", "", "", ""]
   },
   "battery": {
     "states": {
       "warning": 30,
-      "critical": 15,
+      "critical": 15
     },
     "format": "<span size='13000' foreground='#a6e3a1'>{icon} </span> {capacity}%",
     "format-warning": "<span size='13000' foreground='#B1E3AD'>{icon} </span> {capacity}%",
@@ -92,7 +104,7 @@
     "format-alt": "<span size='13000' foreground='#B1E3AD'>{icon} </span> {time}",
     "format-full": "<span size='13000' foreground='#B1E3AD'> </span>{capacity}%",
     "format-icons": ["", "", "", "", ""],
-    "tooltip-format": "{time}",
+    "tooltip-format": "{time}"
   },
   "power-profiles-daemon": {
     "format": "{icon}",
@@ -102,24 +114,24 @@
       "default": "",
       "performance": "",
       "balanced": "",
-      "power-saver": "",
-    },
+      "power-saver": ""
+    }
   },
   "network": {
-    "format-wifi": " {essid} ({signalStrength}%)",
-    "format-ethernet": "🖧 {ipaddr}/{cidr}",
-    "tooltip-format": " {ifname} via {gwaddr}",
-    "format-linked": " {ifname} (No IP)",
-    "format-disconnected": "⚠ Disconnected",
-    "format-alt": "{ifname}: {ipaddr}/{cidr}",
+    "format-wifi": "  {essid} ({signalStrength}%)",
+    "format-ethernet": "󰲝  {ipaddr}/{cidr}",
+    "tooltip-format": "  {ifname} via {gwaddr}",
+    "format-linked": "  {ifname} (No IP)",
+    "format-disconnected": "⚠  Disconnected",
+    "format-alt": "{ifname}: {ipaddr}/{cidr}"
   },
   "pulseaudio": {
     "format": "{icon}  {volume}%",
     "format-muted": "",
     "format-icons": {
-      "default": ["", "", "󰕾"],
+      "default": ["", "", "󰕾"]
     },
-    "on-click": "pavucontrol",
+    "on-click": "pavucontrol"
   },
   "custom/media": {
     "format": "{icon} {text}",
@@ -127,15 +139,15 @@
     "max-length": 40,
     "format-icons": {
       "spotify": "",
-      "default": "🎜",
+      "default": "🎜"
     },
     "escape": true,
-    "exec": "$HOME/.config/waybar/mediaplayer.py 2> /dev/null", // Script in resources folder
+    "exec": "$HOME/.config/waybar/mediaplayer.py 2> /dev/null" // Script in resources folder
     // "exec": "$HOME/.config/waybar/mediaplayer.py --player spotify 2> /dev/null" // Filter player based on name
   },
   "custom/powermenu": {
     "format": "⏻  ",
     "tooltip": false,
-    "on-click": "~/.config/waybar/powermenu.sh",
-  },
+    "on-click": "~/.config/waybar/powermenu.sh"
+  }
 }
