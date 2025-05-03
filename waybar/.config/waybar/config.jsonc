@@ -68,7 +68,7 @@
     "spacing": 10
   },
   "clock": {
-    "format": "<span foreground='#f5c2e7'>  </span>{:%H:%M %a %d %b}",
+    "format": "  {:%H:%M %a %d %b}",
     "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>",
     "on-click": "xdg-open https://calendar.google.com"
   },
