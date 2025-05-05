@@ -8,4 +8,4 @@ if [[ -f $XDG_CONFIG_HOME/cursor-flags.conf ]]; then
 fi
 
 # Launch
-exec ~/apps/appimages/cursor.appimage "$@" $CURSOR_USER_FLAGS > /dev/null 2>&1 &
+exec ~/apps/appimages/cursor_0_48_8.appimage "$@" $CURSOR_USER_FLAGS >/dev/null 2>&1 &
