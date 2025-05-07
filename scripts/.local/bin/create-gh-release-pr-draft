@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+
+set -e
+
+base_branch=${1:-prod}
+head_branch=${2:-dev}
+
+log() {
+  echo ""
+  echo "----------------------------------------------------------"
+  echo "$1"
+  echo "----------------------------------------------------------"
+}
+
+log "Fetching the latest changes from the remote..."
+# Fetch the latest changes from the remote
+git fetch origin "$head_branch"
+git fetch origin "$base_branch"
+
+log "Creating the CHANGELOG.md file..."
+# Create the CHANGELOG.md file
+echo "## Full Changelog" >CHANGELOG.md
+echo "" >>CHANGELOG.md
+git log origin/"$base_branch"..origin/"$head_branch" --pretty=format:"- [%ad] %s - [%h](https://github.com/gothrift/loopi-headless/commit/%H)" --date=iso >>CHANGELOG.md
+
+log "Displaying the CHANGELOG.md file..."
+# Display the CHANGELOG.md file
+cat CHANGELOG.md
+
+log "Formatting current date as ISO 8601..."
+# Format date as ISO 8601
+now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+log "Creating the PR title and body..."
+title="Production Deployment: $now"
+body="""> This PR is for the production deployment at $now
+Please review the changes and merge when all required stages have completed.
+
+## Changes
+
+<!-- Add a list of changes here -->
+
+$(cat CHANGELOG.md)
+"""
+
+log "Checking for existing draft PRs opened by the user..."
+# Check for existing draft PRs opened by the user
+existing_pr=$(gh pr list --base "$base_branch" --head "$head_branch" --state open --author "$(gh api user | jq -r .login)" --json number --jq '.[0].number')
+
+if [ -n "$existing_pr" ]; then
+  log "Updating the existing PR #$existing_pr..."
+  # Update the existing PR
+  gh pr edit "$existing_pr" \
+    --title "$title" \
+    --body "$body"
+else
+  log "Creating a new draft release PR..."
+  # Create a new draft release PR
+  gh pr create \
+    --base "$base_branch" \
+    --head "$head_branch" \
+    --draft \
+    --title "$title" \
+    --body "$body"
+fi
+
+log "Script execution completed."
