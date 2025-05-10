@@ -9,6 +9,7 @@
   "modules-left": ["hyprland/workspaces"],
   "modules-center": ["hyprland/window"],
   "modules-right": [
+    "custom/mic-status",
     // "idle_inhibitor",
     // "power-profiles-daemon",
     // "mpd",
@@ -134,7 +135,7 @@
     "on-click": "pavucontrol"
   },
   "custom/media": {
-    "format": "{icon} {text}",
+    "format": "{icon}  {text}",
     "return-type": "json",
     "max-length": 40,
     "format-icons": {
@@ -146,8 +147,19 @@
     // "exec": "$HOME/.config/waybar/mediaplayer.py --player spotify 2> /dev/null" // Filter player based on name
   },
   "custom/powermenu": {
-    "format": "⏻  ",
+    "format": " ⏻  ",
     "tooltip": false,
     "on-click": "~/.config/waybar/powermenu.sh"
+  },
+  "custom/mic-status": {
+    "format": "{icon}  {text}",
+    "format-icons": {
+      "muted": "",
+      "unmuted": "",
+      "unknown": "󱦉"
+    },
+    "exec": "$HOME/go/bin/go-monitor",
+    "return-type": "json",
+    "on-click": "xdg-open http://localhost:14564"
   }
 }
