@@ -161,7 +161,7 @@
   "custom/clock-ordinal": {
     "format": "  {}",
     "exec": "$HOME/.config/waybar/waybar-date-ordinal.sh",
-    "interval": 60,
+    "interval": 1,
     "tooltip": false,
     "on-click": "xdg-open https://calendar.google.com"
   }
