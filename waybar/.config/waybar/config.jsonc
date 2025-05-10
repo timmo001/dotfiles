@@ -153,16 +153,16 @@
     "exec": "$HOME/.config/waybar/mediaplayer.py 2> /dev/null" // Script in resources folder
     // "exec": "$HOME/.config/waybar/mediaplayer.py --player spotify 2> /dev/null" // Filter player based on name
   },
-  "custom/powermenu": {
-    "format": " ⏻  ",
-    "tooltip": false,
-    "on-click": "~/.config/waybar/powermenu.sh"
-  },
   "custom/clock-ordinal": {
     "format": "  {}",
     "exec": "$HOME/.config/waybar/waybar-date-ordinal.sh",
     "interval": 1,
     "tooltip": false,
     "on-click": "xdg-open https://calendar.google.com"
+  },
+  "custom/powermenu": {
+    "format": " ⏻  ",
+    "tooltip": false,
+    "on-click": "~/.config/waybar/powermenu.sh"
   }
 }
