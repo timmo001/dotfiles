@@ -75,11 +75,6 @@ button:hover {
   padding-right: 4px;
 }
 
-#custom-clock-ordinal {
-  color: @maroon;
-  border-bottom: 2px solid @maroon;
-}
-
 #pulseaudio {
   color: @blue;
   border-bottom: 2px solid @blue;
@@ -154,6 +149,11 @@ button:hover {
   margin-right: 0;
 }
 
+/* #tray {
+  color: @blue;
+  border-bottom: 2px solid @blue;
+} */
+
 #custom-mic-status.mic-muted {
   color: @green;
   border-bottom: 2px solid @green;
@@ -167,4 +167,9 @@ button:hover {
 #custom-mic-status.mic-unknown {
   color: @yellow;
   border-bottom: 2px solid @yellow;
+}
+
+#custom-clock-ordinal {
+  color: @maroon;
+  border-bottom: 2px solid @maroon;
 }
