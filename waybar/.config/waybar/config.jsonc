@@ -13,7 +13,6 @@
     // "power-profiles-daemon",
     // "mpd",
     // "custom/media",
-    "custom/mic-status",
     "pulseaudio",
     "cpu",
     "memory",
@@ -129,17 +128,6 @@
       "default": ["", "", "󰕾"]
     },
     "on-click": "pavucontrol"
-  },
-  "custom/mic-status": {
-    "format": "{icon}  {text}",
-    "format-icons": {
-      "muted": "",
-      "unmuted": "",
-      "unknown": "󱦉"
-    },
-    "exec": "$HOME/go/bin/go-monitor --watch",
-    "return-type": "json",
-    "on-click": "$HOME/.config/waybar/goxlr-utility-toggle-mute.sh"
   },
   "custom/media": {
     "format": "{icon}  {text}",
