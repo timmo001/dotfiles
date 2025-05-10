@@ -37,13 +37,13 @@ button:hover {
 }
 
 #workspaces button.focused {
-  background-color: rgba(0, 0, 0, 0.3);
+  /* background-color: rgba(0, 0, 0, 0.3); */
   color: @rosewater;
   border-top: 2px solid @rosewater;
 }
 
 #workspaces button.active {
-  background-color: rgba(0, 0, 0, 0.3);
+  /* background-color: rgba(0, 0, 0, 0.3); */
   color: @mauve;
   border-top: 2px solid @mauve;
 }
