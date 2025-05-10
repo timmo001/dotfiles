@@ -9,11 +9,11 @@
   "modules-left": ["hyprland/workspaces"],
   "modules-center": ["hyprland/window"],
   "modules-right": [
-    "custom/mic-status",
     // "idle_inhibitor",
     // "power-profiles-daemon",
     // "mpd",
     // "custom/media",
+    "custom/mic-status",
     "cpu",
     "memory",
     "custom/gpu-usage",
@@ -134,6 +134,17 @@
     },
     "on-click": "pavucontrol"
   },
+  "custom/mic-status": {
+    "format": "{icon}  {text}",
+    "format-icons": {
+      "muted": "",
+      "unmuted": "",
+      "unknown": "󱦉"
+    },
+    "exec": "$HOME/go/bin/go-monitor",
+    "return-type": "json",
+    "on-click": "xdg-open http://localhost:14564"
+  },
   "custom/media": {
     "format": "{icon}  {text}",
     "return-type": "json",
@@ -150,16 +161,5 @@
     "format": " ⏻  ",
     "tooltip": false,
     "on-click": "~/.config/waybar/powermenu.sh"
-  },
-  "custom/mic-status": {
-    "format": "{icon}  {text}",
-    "format-icons": {
-      "muted": "",
-      "unmuted": "",
-      "unknown": "󱦉"
-    },
-    "exec": "$HOME/go/bin/go-monitor",
-    "return-type": "json",
-    "on-click": "xdg-open http://localhost:14564"
   }
 }
