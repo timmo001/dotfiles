@@ -79,7 +79,7 @@
   },
   "custom/gpu-usage": {
     "format": "{icon}  {text}",
-    "exec": "~/.cargo/bin/gpu-usage-waybar --text-no-memory --interval 10000",
+    "exec": "gpu-usage-waybar --text-no-memory --interval 10000",
     "return-type": "json",
     "format-icons": "",
     "on-click": "kitty nvtop"
