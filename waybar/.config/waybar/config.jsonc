@@ -22,7 +22,7 @@
     "network",
     "backlight",
     "battery",
-    "clock",
+    "custom/clock-ordinal",
     "tray",
     "custom/powermenu"
   ],
@@ -68,11 +68,7 @@
     "icon-size": 20,
     "spacing": 10
   },
-  "clock": {
-    "format": "  {:%H:%M %a %d %b}",
-    "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>",
-    "on-click": "xdg-open https://calendar.google.com"
-  },
+
   "cpu": {
     "format": "  {usage}%",
     "on-click": "kitty btop"
@@ -161,5 +157,12 @@
     "format": " ⏻  ",
     "tooltip": false,
     "on-click": "~/.config/waybar/powermenu.sh"
+  },
+  "custom/clock-ordinal": {
+    "format": "  {}",
+    "exec": "$HOME/.config/waybar/waybar-date-ordinal.sh",
+    "interval": 60,
+    "tooltip": false,
+    "on-click": "xdg-open https://calendar.google.com"
   }
 }

@@ -53,7 +53,7 @@ button:hover {
 }
 
 #pulseaudio,
-#clock,
+#custom-clock-ordinal,
 #battery,
 #cpu,
 #memory,
@@ -75,14 +75,9 @@ button:hover {
   padding-right: 4px;
 }
 
-#clock {
+#custom-clock-ordinal {
   color: @maroon;
   border-bottom: 2px solid @maroon;
-}
-
-#clock.date {
-  color: @mauve;
-  border-bottom: 2px solid @mauve;
 }
 
 #pulseaudio {
