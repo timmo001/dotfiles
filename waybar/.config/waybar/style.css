@@ -149,11 +149,6 @@ button:hover {
   margin-right: 0;
 }
 
-/* #tray {
-  color: @blue;
-  border-bottom: 2px solid @blue;
-} */
-
 #custom-mic-status.mic-muted {
   color: @green;
   border-bottom: 2px solid @green;
@@ -173,3 +168,8 @@ button:hover {
   color: @maroon;
   border-bottom: 2px solid @maroon;
 }
+
+/* #tray {
+  color: @blue;
+  border-bottom: 2px solid @blue;
+} */
