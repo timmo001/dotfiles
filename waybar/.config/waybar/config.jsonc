@@ -137,9 +137,9 @@
       "unmuted": "",
       "unknown": "󱦉"
     },
-    "exec": "$HOME/go/bin/go-monitor",
+    "exec": "$HOME/go/bin/go-monitor --watch",
     "return-type": "json",
-    "on-click": "xdg-open http://localhost:14564"
+    "on-click": "$HOME/.config/waybar/goxlr-utility-toggle-mute.sh"
   },
   "custom/media": {
     "format": "{icon}  {text}",
