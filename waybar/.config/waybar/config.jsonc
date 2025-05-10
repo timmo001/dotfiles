@@ -11,7 +11,6 @@
   "modules-right": [
     // "idle_inhibitor",
     // "custom/media",
-    "custom/mic-status",
     "pulseaudio",
     "cpu",
     "memory",
@@ -141,18 +140,6 @@
       "default": ["", "", "󰕾"]
     },
     "on-double-click": "pavucontrol"
-  },
-  "custom/mic-status": {
-    "format": "{icon}  {text}",
-    "format-icons": {
-      "muted": "",
-      "unmuted": "",
-      "unknown": "󱦉"
-    },
-    "exec": "$HOME/go/bin/go-monitor --watch",
-    "return-type": "json",
-    "on-double-click": "$HOME/.local/bin/goxlr-utility-toggle-mute",
-    "on-triple-click": "xdg-open http://localhost:14564"
   },
   "custom/media": {
     "format": "{icon}  {text}",
