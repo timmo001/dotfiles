@@ -1,0 +1,38 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# Dotfiles Repository Structure
+
+The dotfiles workspace at the root contains:
+
+- `aws/`: AWS CLI customization code
+  - [aws/dist/awscli](mdc:aws/dist/awscli)
+  - [aws/dist/awscli/botocore](mdc:aws/dist/awscli/botocore) for core service data and changes
+  - [aws/customizations](mdc:aws/customizations) for SSO and wizard modules
+
+- `scripts/`: User scripts directory
+  - [scripts/.local/bin](mdc:scripts/.local/bin)
+
+- Editor and UI configurations:
+  - Neovim: [nvim/.config/nvim](mdc:nvim/.config/nvim)
+  - Hyprland: [hyprland/.config/hypr](mdc:hyprland/.config/hypr)
+  - Waybar: [waybar/.config/waybar](mdc:waybar/.config/waybar)
+  - Wofi: [wofi/.config/wofi](mdc:wofi/.config/wofi)
+  - LazyGit: [lazygit/.config/lazygit](mdc:lazygit/.config/lazygit)
+  - QT5 settings: [qt5ct/.config/qt5ct](mdc:qt5ct/.config/qt5ct)
+
+- Shell and startup scripts:
+  - [install.sh](mdc:install.sh), [update.sh](mdc:update.sh), [clean.sh](mdc:clean.sh), [windows.ps1](mdc:windows.ps1)
+  - Zsh config: [zsh/](mdc:zsh)
+  - EditorConfig: [editorconfig](mdc:editorconfig)
+  - Starship prompt: [starship/.config/starship](mdc:starship/.config/starship)
+
+- Other service configurations:
+  - SwayNC: [swaync/.config/swaync](mdc:swaync/.config/swaync)
+  - Ghostty: [ghostty/.config/ghostty](mdc:ghostty/.config/ghostty)
+  - Gamescope environment: [gamescope/.config/environment.d](mdc:gamescope/.config/environment.d)
+  - Backup configs: [backup/.config](mdc:backup/.config)
+
+This rule aids the AI in navigating and understanding the key areas of the dotfiles repository.
