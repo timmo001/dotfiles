@@ -105,8 +105,8 @@ button:hover {
 }
 
 #power-profiles-daemon {
-  color: @blue;
-  border-bottom: 2px solid @blue;
+  color: @yellow;
+  border-bottom: 2px solid @yellow;
 }
 
 #cpu {

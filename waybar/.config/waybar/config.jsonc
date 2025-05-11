@@ -10,16 +10,15 @@
   "modules-center": ["hyprland/window"],
   "modules-right": [
     // "idle_inhibitor",
-    // "power-profiles-daemon",
-    // "mpd",
     // "custom/media",
     "custom/mic-status",
     "pulseaudio",
     "cpu",
     "memory",
     "custom/gpu-usage",
-    // "keyboard-state",
+    // "power-profiles-daemon",
     "network",
+    // "keyboard-state",
     "backlight",
     "battery",
     "custom/clock-ordinal",
@@ -156,7 +155,7 @@
   },
   "custom/clock-ordinal": {
     "format": "  {}",
-    "exec": "date-ordinal",
+    "exec": "$HOME/.local/bin/date-ordinal",
     "interval": 1,
     "tooltip": false,
     "on-double-click": "xdg-open https://calendar.google.com"
