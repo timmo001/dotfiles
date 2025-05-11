@@ -1,4 +1,117 @@
 #!/usr/bin/env zsh
 
-# Stow (Required for dotfile management)
-yay -S --noconfirm --needed stow
+# Update repositories
+yay -Syu
+
+# Define default yay flags and allow overriding via script args
+DEFAULT_YAY_FLAGS=(--noconfirm --needed)
+YAY_FLAGS=("${DEFAULT_YAY_FLAGS[@]}")
+# Process script arguments
+for arg in "$@"; do
+  case "$arg" in
+  --confirm)
+    # Remove --noconfirm to require user confirmation
+    YAY_FLAGS=("${YAY_FLAGS[@]/--noconfirm/}")
+    ;;
+  *)
+    echo "Unknown option: $arg"
+    exit 1
+    ;;
+  esac
+done
+# Prepare the install command as an array to preserve flags
+install_command=(yay -S "${YAY_FLAGS[@]}")
+
+echo
+echo "------------------------------------------"
+echo "Root (dotfiles management & tooling)"
+echo "------------------------------------------"
+${install_command[@]} \
+  base-devel git stow yay-bin zsh
+
+echo
+echo "------------------------------------------"
+echo "hyprland/"
+echo "------------------------------------------"
+${install_command[@]} \
+  blueman flatpak hyprland network-manager-applet polkit-gnome swaybg wl-clipboard
+
+echo
+echo "------------------------------------------"
+echo "hyprland/.config/hypr/scripts/"
+echo "------------------------------------------"
+${install_command[@]} \
+  edid-decode jq vkbasalt
+
+echo
+echo "------------------------------------------"
+echo "gamescope/"
+echo "------------------------------------------"
+${install_command[@]} \
+  gamescope
+
+echo
+echo "------------------------------------------"
+echo "ghostty/"
+echo "------------------------------------------"
+${install_command[@]} \
+  ghostty
+
+echo
+echo "------------------------------------------"
+echo "lazygit/"
+echo "------------------------------------------"
+${install_command[@]} \
+  lazygit
+
+echo
+echo "------------------------------------------"
+echo "nvim/"
+echo "------------------------------------------"
+${install_command[@]} \
+  go neovim nodejs python python-pip ripgrep
+npm install -g prettier
+
+echo
+echo "------------------------------------------"
+echo "qt5ct/"
+echo "------------------------------------------"
+${install_command[@]} \
+  qt5ct
+
+echo
+echo "------------------------------------------"
+echo "starship/"
+echo "------------------------------------------"
+${install_command[@]} \
+  starship
+
+echo
+echo "------------------------------------------"
+echo "swaync/"
+echo "------------------------------------------"
+${install_command[@]} \
+  swaync
+
+echo
+echo "------------------------------------------"
+echo "waybar/"
+echo "------------------------------------------"
+${install_command[@]} \
+  playerctl python-gobject waybar
+
+echo
+echo "------------------------------------------"
+echo "wofi/"
+echo "------------------------------------------"
+${install_command[@]} \
+  wofi
+
+# Add a note
+echo
+echo -e "\e[38;5;214m------------------------------------------\e[0m"
+echo -e "\e[38;5;214mThis is not every package needed for\e[0m"
+echo -e "\e[38;5;214mthese dotfiles, but it's a good\e[0m"
+echo -e "\e[38;5;214mstarting point.\e[0m"
+echo -e "\e[38;5;214m------------------------------------------\e[0m"
+echo
