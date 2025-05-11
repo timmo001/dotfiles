@@ -1,7 +1,10 @@
 #!/usr/bin/env zsh
 
+# Get the 192.168.*.* IP address of the current network interface
+ip_address=$(ip addr show | grep "inet " | awk '{print $2}' | cut -d/ -f1 | grep '^192\.168\.' | head -n 1)
+
 # Copy the IP address to the clipboard
-ip addr show | grep "inet " | awk '{print $2}' | cut -d/ -f1 | wl-copy
+echo -n "$ip_address" | wl-copy
 
 # Notify the user
-notify-send "IP address copied to clipboard"
+notify-send "IP address $ip_address copied to clipboard"
