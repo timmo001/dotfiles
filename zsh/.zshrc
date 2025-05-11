@@ -186,8 +186,22 @@ dev() {
 
 # Function to find and edit a file in a specified directory (or current if none given)
 find-and-edit() {
-  local dir="${1:-.}" # Use first argument as directory, or current dir if no arg
+  local use_visual=0
+  local dir="."
   local file
+
+  # Parse arguments for --visual flag and optional directory
+  for arg in "$@"; do
+    case "$arg" in
+    --visual)
+      use_visual=1
+      ;;
+    *)
+      dir="$arg"
+      ;;
+    esac
+  done
+
   # Use fd if available, otherwise fall back to find
   if command -v fd &>/dev/null; then
     file=$(fd --type f . "$dir" | fzf --height 40% --reverse --prompt="Edit: ")
@@ -196,7 +210,11 @@ find-and-edit() {
   fi
 
   if [[ -n "$file" ]]; then
-    "$EDITOR" "$file"
+    if [[ $use_visual -eq 1 ]]; then
+      "$VISUAL" "$file"
+    else
+      "$EDITOR" "$file"
+    fi
   else
     echo "No file selected."
   fi
