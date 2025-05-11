@@ -1,5 +1,20 @@
 #!/usr/bin/env zsh
 
+function log_amber() {
+  echo -e "\e[38;5;214m$1\e[0m"
+}
+
+function log_green() {
+  echo -e "\e[38;5;46m$1\e[0m"
+}
+
+function log_section() {
+  echo
+  log_green "------------------------------------------"
+  log_green "$1"
+  log_green "------------------------------------------"
+}
+
 # Update repositories
 yay -Syu
 
@@ -22,96 +37,60 @@ done
 # Prepare the install command as an array to preserve flags
 install_command=(yay -S "${YAY_FLAGS[@]}")
 
-echo
-echo "------------------------------------------"
-echo "Root (dotfiles management & tooling)"
-echo "------------------------------------------"
+log_section "Root (dotfiles management & tooling)"
 ${install_command[@]} \
   base-devel git stow yay-bin zsh
 
-echo
-echo "------------------------------------------"
-echo "hyprland/"
-echo "------------------------------------------"
-${install_command[@]} \
-  blueman flatpak hyprland network-manager-applet polkit-gnome swaybg wl-clipboard
-
-echo
-echo "------------------------------------------"
-echo "hyprland/.config/hypr/scripts/"
-echo "------------------------------------------"
-${install_command[@]} \
-  edid-decode jq vkbasalt
-
-echo
-echo "------------------------------------------"
-echo "gamescope/"
-echo "------------------------------------------"
+log_section "gamescope/"
 ${install_command[@]} \
   gamescope
 
-echo
-echo "------------------------------------------"
-echo "ghostty/"
-echo "------------------------------------------"
+log_section "ghostty/"
 ${install_command[@]} \
   ghostty
 
-echo
-echo "------------------------------------------"
-echo "lazygit/"
-echo "------------------------------------------"
+log_section "hyprland/"
+${install_command[@]} \
+  blueman flatpak hyprland network-manager-applet polkit-gnome swaybg wl-clipboard
+
+log_section "hyprland/.config/hypr/scripts/"
+${install_command[@]} \
+  edid-decode jq vkbasalt
+
+log_section "lazygit/"
 ${install_command[@]} \
   lazygit
 
-echo
-echo "------------------------------------------"
-echo "nvim/"
-echo "------------------------------------------"
+log_section "nvim/"
 ${install_command[@]} \
   go neovim nodejs python python-pip ripgrep
 npm install -g prettier
 
-echo
-echo "------------------------------------------"
-echo "qt5ct/"
-echo "------------------------------------------"
+log_section "qt5ct/"
 ${install_command[@]} \
   qt5ct
 
-echo
-echo "------------------------------------------"
-echo "starship/"
-echo "------------------------------------------"
+log_section "starship/"
 ${install_command[@]} \
   starship
 
-echo
-echo "------------------------------------------"
-echo "swaync/"
-echo "------------------------------------------"
+log_section "swaync/"
 ${install_command[@]} \
   swaync
 
-echo
-echo "------------------------------------------"
-echo "waybar/"
-echo "------------------------------------------"
+log_section "waybar/"
 ${install_command[@]} \
   playerctl python-gobject waybar
 
-echo
-echo "------------------------------------------"
-echo "wofi/"
-echo "------------------------------------------"
+log_section "wofi/"
 ${install_command[@]} \
   wofi
 
 # Add a note
 echo
-echo -e "\e[38;5;214m------------------------------------------\e[0m"
-echo -e "\e[38;5;214mThis is not every package needed for\e[0m"
-echo -e "\e[38;5;214mthese dotfiles, but it's a good\e[0m"
-echo -e "\e[38;5;214mstarting point.\e[0m"
-echo -e "\e[38;5;214m------------------------------------------\e[0m"
+echo
+log_amber "This is not every package needed for"
+log_amber "these dotfiles, but it's a good"
+log_amber "starting point."
+echo
 echo
