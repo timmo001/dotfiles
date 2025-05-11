@@ -1,0 +1,7 @@
+#!/usr/bin/env zsh
+
+# Copy the IP address to the clipboard
+ip addr show | grep "inet " | awk '{print $2}' | cut -d/ -f1 | wl-copy
+
+# Notify the user
+notify-send "IP address copied to clipboard"

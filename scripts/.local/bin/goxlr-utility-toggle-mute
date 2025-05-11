@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env zsh
 
 # Script to toggle GoXLR fader A mute state between 'muted-to-x' and 'unmuted'
 
