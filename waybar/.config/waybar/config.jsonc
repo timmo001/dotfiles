@@ -86,7 +86,8 @@
   },
   "disk": {
     "format": "  {percentage_used}%",
-    "on-double-click": "kitty btop"
+    "on-double-click": "kitty btop",
+    "tooltip-format": "Used: {used} / {total} ({percentage_used}%)\nFree: {free}"
   },
   "temperature": {
     "format": "  {temperatureC}°C",
@@ -112,7 +113,7 @@
     "format-alt": "<span size='13000' foreground='#B1E3AD'>{icon} </span> {time}",
     "format-full": "<span size='13000' foreground='#B1E3AD'> </span>{capacity}%",
     "format-icons": ["", "", "", "", ""],
-    "tooltip-format": "{time}"
+    "tooltip-format": "Status: {status}\nCapacity: {capacity}%\nTime Remaining: {time}\nHealth: {health}"
   },
   "power-profiles-daemon": {
     "format": "{icon}",
