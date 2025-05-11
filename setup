@@ -63,7 +63,7 @@ ${install_command[@]} \
 
 log_section "nvim/"
 ${install_command[@]} \
-  go neovim nodejs python python-pip ripgrep
+  go neovim nodejs python python-pip ripgrep uv
 npm install -g prettier
 
 log_section "qt5ct/"
