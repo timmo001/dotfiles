@@ -139,7 +139,8 @@
     },
     "exec": "$HOME/go/bin/go-monitor --watch",
     "return-type": "json",
-    "on-double-click": "$HOME/.local/bin/goxlr-utility-toggle-mute"
+    "on-double-click": "$HOME/.local/bin/goxlr-utility-toggle-mute",
+    "on-triple-click": "xdg-open http://localhost:14564"
   },
   "custom/media": {
     "format": "{icon}  {text}",
