@@ -333,6 +333,7 @@ alias reboot-windows="reboot-to-windows"
 
 # Find and edit
 alias fe="find-and-edit"
+alias fev="find-and-edit --visual"
 
 # ------------------------------
 # Private dotfiles
