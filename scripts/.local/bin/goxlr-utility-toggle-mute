@@ -7,10 +7,14 @@
 # {"alt":"unknown","class":"mic-unknown","text":"Unknown"}
 current_state=$(go-monitor | jq -r '.alt')
 
-if [[ "$current_state" == "muted" ]]; then
-  # If currently muted, unmute
-  goxlr-client faders mute-state a unmuted
-else
+echo "Current state: $current_state"
+
+if [[ "$current_state" == "unmuted" ]]; then
   # If currently unmuted or unknown, mute
   goxlr-client faders mute-state a muted-to-x
+  echo "Muted"
+else
+  # If currently muted, unmute
+  goxlr-client faders mute-state a unmuted
+  echo "Unmuted"
 fi
