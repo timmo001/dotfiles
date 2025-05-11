@@ -184,6 +184,24 @@ dev() {
   return 1
 }
 
+# Function to find and edit a file in a specified directory (or current if none given)
+find-and-edit() {
+  local dir="${1:-.}" # Use first argument as directory, or current dir if no arg
+  local file
+  # Use fd if available, otherwise fall back to find
+  if command -v fd &>/dev/null; then
+    file=$(fd --type f . "$dir" | fzf --height 40% --reverse --prompt="Edit: ")
+  else
+    file=$(find "$dir" -type f | fzf --height 40% --reverse --prompt="Edit: ")
+  fi
+
+  if [[ -n "$file" ]]; then
+    "$EDITOR" "$file"
+  else
+    echo "No file selected."
+  fi
+}
+
 # ------------------------------
 # Aliases
 # ------------------------------
@@ -294,6 +312,9 @@ alias repos="cd ~/repos"
 
 # Reboot to windows
 alias reboot-windows="reboot-to-windows"
+
+# Find and edit
+alias fe="find-and-edit"
 
 # ------------------------------
 # Private dotfiles
