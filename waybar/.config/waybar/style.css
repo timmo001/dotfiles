@@ -131,6 +131,11 @@ button:hover {
 }
 
 #temperature {
+  color: @yellow;
+  border-bottom: 2px solid @yellow;
+}
+
+#temperature.critical {
   color: @red;
   border-bottom: 2px solid @red;
 }

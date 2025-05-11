@@ -17,7 +17,7 @@
     "memory",
     "custom/gpu-usage",
     "disk",
-    // "temperature",
+    "temperature",
     // "power-profiles-daemon",
     "network",
     // "keyboard-state",
@@ -69,7 +69,6 @@
     "icon-size": 20,
     "spacing": 10
   },
-
   "cpu": {
     "format": "  {usage}%",
     "on-double-click": "kitty btop --preset 1"
@@ -90,7 +89,10 @@
     "on-double-click": "kitty btop"
   },
   "temperature": {
-    "format": "  {}%",
+    "format": "  {temperatureC}°C",
+    "hwmon-path": "/sys/class/hwmon/hwmon5/temp1_input",
+    "critical-threshold": 85,
+    "interval": 5,
     "on-double-click": "kitty btop --preset 2"
   },
   "backlight": {
