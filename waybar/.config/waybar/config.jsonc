@@ -79,7 +79,7 @@
   },
   "custom/gpu-usage": {
     "format": "{icon}  {text}",
-    "exec": "~/.cargo/bin/gpu-usage-waybar --text-no-memory --interval 10000",
+    "exec": "gpu-usage-waybar --text-no-memory --interval 10000",
     "return-type": "json",
     "format-icons": "",
     "on-click": "kitty nvtop"
@@ -139,7 +139,7 @@
     },
     "exec": "$HOME/go/bin/go-monitor --watch",
     "return-type": "json",
-    "on-click": "waybar-goxlr-utility-toggle-mute"
+    "on-click": "$HOME/.local/bin/goxlr-utility-toggle-mute"
   },
   "custom/media": {
     "format": "{icon}  {text}",
@@ -163,6 +163,6 @@
   "custom/powermenu": {
     "format": " ⏻  ",
     "tooltip": false,
-    "on-click": "~/.config/waybar/powermenu.sh"
+    "on-click": "$HOME/.local/bin/wofi-powermenu"
   }
 }
