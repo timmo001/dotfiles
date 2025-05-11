@@ -193,4 +193,20 @@ button:hover {
   border-bottom: 2px solid @red;
 }
 
+tooltip {
+  background: @base;
+  color: @text;
+  border-radius: 8px;
+  border: 1px solid @surface1;
+  box-shadow: 0 4px 24px 0 rgba(24, 24, 37, 0.35);
+  padding: 8px 14px;
+  font-size: 14px;
+  font-family: "CaskaydiaCove Nerd Font";
+  transition: opacity 0.2s;
+  opacity: 0.98;
+}
 
+tooltip label {
+  color: @text;
+  font-size: 14px;
+}
