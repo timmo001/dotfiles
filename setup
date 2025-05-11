@@ -89,8 +89,9 @@ ${install_command[@]} \
 # Add a note
 echo
 echo
-log_amber "This is not every package needed for"
-log_amber "these dotfiles, but it's a good"
-log_amber "starting point."
+log_amber "This is not every package needed for these dotfiles, but it's a good starting point."
+echo
+echo
+log_green "Now run './install' to run stow on each dotfile directory."
 echo
 echo
