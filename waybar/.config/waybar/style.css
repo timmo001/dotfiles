@@ -66,7 +66,8 @@ button:hover {
 #network,
 #mode,
 #scratchpad,
-#custom-mic-status {
+#custom-mic-status,
+#custom-powermenu {
   margin-top: 2px;
   margin-bottom: 2px;
   margin-left: 4px;
@@ -125,8 +126,8 @@ button:hover {
 }
 
 #disk {
-  color: @blue;
-  border-bottom: 2px solid @blue;
+  color: @sky;
+  border-bottom: 2px solid @sky;
 }
 
 #temperature {
@@ -169,7 +170,22 @@ button:hover {
   border-bottom: 2px solid @maroon;
 }
 
-/* #tray {
-  color: @blue;
-  border-bottom: 2px solid @blue;
-} */
+#tray {
+  color: @text;
+  border-bottom: 2px solid @text;
+}
+
+#custom-powermenu {
+  color: @text;
+  border-bottom: 2px solid @text;
+  padding-left: 8px;
+  padding-right: 12px;
+  font-size: 18px;
+}
+
+#custom-powermenu:hover {
+  color: @red;
+  border-bottom: 2px solid @red;
+}
+
+

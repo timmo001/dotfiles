@@ -16,6 +16,8 @@
     "cpu",
     "memory",
     "custom/gpu-usage",
+    "disk",
+    // "temperature",
     // "power-profiles-daemon",
     "network",
     // "keyboard-state",
@@ -70,11 +72,11 @@
 
   "cpu": {
     "format": "  {usage}%",
-    "on-double-click": "kitty btop"
+    "on-double-click": "kitty btop --preset 1"
   },
   "memory": {
     "format": "  {}%",
-    "on-double-click": "kitty btop"
+    "on-double-click": "kitty btop --preset 2"
   },
   "custom/gpu-usage": {
     "format": "{icon}  {text}",
@@ -82,6 +84,14 @@
     "return-type": "json",
     "format-icons": "",
     "on-double-click": "kitty nvtop"
+  },
+  "disk": {
+    "format": "  {percentage_used}%",
+    "on-double-click": "kitty btop"
+  },
+  "temperature": {
+    "format": "  {}%",
+    "on-double-click": "kitty btop --preset 2"
   },
   "backlight": {
     "format": "{icon} {percent}%",
@@ -161,7 +171,7 @@
     "on-double-click": "xdg-open https://calendar.google.com"
   },
   "custom/powermenu": {
-    "format": " ⏻  ",
+    "format": "",
     "tooltip": false,
     "on-click": "$HOME/.local/bin/wofi-powermenu"
   }
