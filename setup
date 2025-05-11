@@ -1,0 +1,4 @@
+#!/usr/bin/env zsh
+
+# Stow (Required for dotfile management)
+yay -S --noconfirm --needed stow
