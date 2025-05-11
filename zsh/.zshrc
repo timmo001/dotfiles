@@ -293,7 +293,7 @@ alias config="cd ~/.config"
 alias repos="cd ~/repos"
 
 # Reboot to windows
-alias reboot-windows="~/.config/waybar/reboot-to-windows.sh"
+alias reboot-windows="reboot-to-windows"
 
 # ------------------------------
 # Private dotfiles
@@ -309,4 +309,3 @@ clear
 
 # Fastfetch
 ff
-

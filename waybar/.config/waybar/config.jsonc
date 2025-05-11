@@ -139,7 +139,7 @@
     },
     "exec": "$HOME/go/bin/go-monitor --watch",
     "return-type": "json",
-    "on-click": "$HOME/.config/waybar/goxlr-utility-toggle-mute.sh"
+    "on-click": "waybar-goxlr-utility-toggle-mute"
   },
   "custom/media": {
     "format": "{icon}  {text}",
@@ -155,7 +155,7 @@
   },
   "custom/clock-ordinal": {
     "format": "  {}",
-    "exec": "$HOME/.config/waybar/waybar-date-ordinal.sh",
+    "exec": "date-ordinal",
     "interval": 1,
     "tooltip": false,
     "on-click": "xdg-open https://calendar.google.com"
