@@ -167,7 +167,7 @@
   },
   "custom/clock-ordinal": {
     "format": "  {}",
-    "exec": "$HOME/.local/bin/date-ordinal",
+    "exec": "$HOME/.local/bin/clock-ordinal",
     "interval": 1,
     "tooltip": false,
     "on-double-click": "xdg-open https://calendar.google.com"
