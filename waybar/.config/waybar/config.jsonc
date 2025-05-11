@@ -71,18 +71,18 @@
 
   "cpu": {
     "format": "  {usage}%",
-    "on-click": "kitty btop"
+    "on-double-click": "kitty btop"
   },
   "memory": {
     "format": "  {}%",
-    "on-click": "kitty btop"
+    "on-double-click": "kitty btop"
   },
   "custom/gpu-usage": {
     "format": "{icon}  {text}",
     "exec": "gpu-usage-waybar --text-no-memory --interval 10000",
     "return-type": "json",
     "format-icons": "",
-    "on-click": "kitty nvtop"
+    "on-double-click": "kitty nvtop"
   },
   "backlight": {
     "format": "{icon} {percent}%",
@@ -116,11 +116,11 @@
   },
   "network": {
     "format-wifi": "  {essid} ({signalStrength}%)",
-    "format-ethernet": "󰲝  {ipaddr}/{cidr}",
-    "tooltip-format": "  {ifname} via {gwaddr}",
+    "format-ethernet": "󰲝  {ipaddr}",
+    "tooltip-format": "  {ifname}: {ipaddr}/{cidr} via {gwaddr}",
     "format-linked": "  {ifname} (No IP)",
     "format-disconnected": "⚠  Disconnected",
-    "format-alt": "{ifname}: {ipaddr}/{cidr}"
+    "on-double-click": "$HOME/.local/bin/copy-ip-to-clipboard"
   },
   "pulseaudio": {
     "format": "{icon}  {volume}%",
@@ -128,7 +128,7 @@
     "format-icons": {
       "default": ["", "", "󰕾"]
     },
-    "on-click": "pavucontrol"
+    "on-double-click": "pavucontrol"
   },
   "custom/mic-status": {
     "format": "{icon}  {text}",
@@ -139,7 +139,7 @@
     },
     "exec": "$HOME/go/bin/go-monitor --watch",
     "return-type": "json",
-    "on-click": "$HOME/.local/bin/goxlr-utility-toggle-mute"
+    "on-double-click": "$HOME/.local/bin/goxlr-utility-toggle-mute"
   },
   "custom/media": {
     "format": "{icon}  {text}",
@@ -158,7 +158,7 @@
     "exec": "date-ordinal",
     "interval": 1,
     "tooltip": false,
-    "on-click": "xdg-open https://calendar.google.com"
+    "on-double-click": "xdg-open https://calendar.google.com"
   },
   "custom/powermenu": {
     "format": " ⏻  ",
