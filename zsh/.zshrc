@@ -220,6 +220,58 @@ find-and-edit() {
   fi
 }
 
+bulk-rename-files() {
+  if [ $# -ne 2 ]; then
+    echo "Usage: bulk-rename-files <pattern> <replacement>"
+    return 1
+  fi
+
+  local pattern="$1"
+  local replacement="$2"
+  local files
+  local old new
+
+  # Remove the leading * from the pattern to get the suffix
+  local suffix="${pattern#\*}"
+
+  files=()
+  while IFS= read -r -d '' file; do
+    files+=("$file")
+  done < <(find . -type f -name "$pattern" -print0)
+
+  if [ ${#files[@]} -eq 0 ]; then
+    echo "No files found matching pattern: $pattern"
+    return 0
+  fi
+
+  echo "The following files will be renamed:"
+  for old in "${files[@]}"; do
+    if [[ "$old" == *"$suffix" ]]; then
+      new="${old/%$suffix/$replacement}"
+      echo "'$old' -> '$new'"
+    fi
+  done
+
+  echo -n "Proceed? [y/N]: "
+  read -r answer
+  if [[ ! "$answer" =~ ^[Yy]$ ]]; then
+    echo "Aborted."
+    return 0
+  fi
+
+  for old in "${files[@]}"; do
+    if [[ "$old" == *"$suffix" ]]; then
+      new="${old/%$suffix/$replacement}"
+      if [ -e "$new" ]; then
+        echo "Skipping '$old' (target '$new' exists)"
+        continue
+      fi
+      mv -- "$old" "$new"
+    fi
+  done
+  echo "Done."
+}
+
 # ------------------------------
 # Aliases
 # ------------------------------
@@ -275,7 +327,9 @@ alias fc="sudo resolvectl flush-caches"
 
 # Image optimiser
 alias img-optimise="$HOME/.img-optimize/optimize.sh"
-alias img-optimise-all="img-optimise --all"
+alias img-pngwebp-to-webp="bulk-rename-files '*.png.webp' '.webp'"
+alias img-jpgwebp-to-webp="bulk-rename-files '*.jpg.webp' '.webp'"
+alias img-optimise-all="img-optimise --all && img-pngwebp-to-webp && img-jpgwebp-to-webp"
 
 # Bootstrap
 alias bootstrap="cwd=$(pwd) && cd $HOME/.config/bootstrap && go run app/bootstrap.go && cd $cwd"
