@@ -91,6 +91,8 @@ export PATH=$JAVA_HOME/bin:$PATH
 # Android
 # ------------------------------
 export ANDROID_HOME=$HOME/Android/Sdk
+export PATH=$PATH:$ANDROID_HOME/emulator
+export PATH=$PATH:$ANDROID_HOME/platform-tools
 
 # ------------------------------
 # HDR / Gamescope
@@ -102,6 +104,14 @@ export DXVK_HDR=1
 # SST
 # -------------------------------
 export PATH=/home/aidan/.sst/bin:$PATH
+
+# ------------------------------
+# Hyprland
+# ------------------------------
+export XDG_CURRENT_DESKTOP=Hyprland
+export XDG_SESSION_TYPE=wayland
+export QT_QPA_PLATFORM=xcb
+export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
 
 # ------------------------------
 # Load environment variables
