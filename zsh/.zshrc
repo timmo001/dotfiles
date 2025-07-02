@@ -282,6 +282,28 @@ bulk-rename-files() {
   echo "Done."
 }
 
+save-installed-packages() {
+  local outfile="$HOME/.local/installed-packages.txt"
+  echo "# Yay packages" >"$outfile"
+  yay -Qqe | sort -u | tr '\n' ' ' >>"$outfile"
+  echo -e "\n\n# Brew formulae" >>"$outfile"
+  if command -v brew &>/dev/null; then
+    brew list --formula | sort -u | tr '\n' ' ' >>"$outfile"
+    echo -e "\n\n# Brew casks" >>"$outfile"
+    brew list --cask | sort -u | tr '\n' ' ' >>"$outfile"
+  else
+    echo "brew not found" >>"$outfile"
+  fi
+  echo -e "\n\n# Flatpak apps" >>"$outfile"
+  if command -v flatpak &>/dev/null; then
+    flatpak list --app --columns=application | sort -u | tr '\n' ' ' >>"$outfile"
+  else
+    echo "flatpak not found" >>"$outfile"
+  fi
+  echo -e "\n" >>"$outfile"
+  echo "Saved all user-installed packages (yay, brew, flatpak) to $outfile"
+}
+
 # ------------------------------
 # Aliases
 # ------------------------------
@@ -352,7 +374,7 @@ alias update-apt="sudo apt update && sudo apt upgrade && sudo apt autoremove && 
 alias update-yay="yay -Syu"
 alias update-brew="brew update && brew upgrade && brew cleanup"
 alias update-flatpak="flatpak update"
-alias update-system="update-yay && update-brew && update-flatpak"
+alias update-system="update-yay && update-brew && update-flatpak && save-installed-packages"
 
 # Update neovim
 alias update-nvim-base="cwd=$(pwd) && cd $HOME/.config/bootstrap && go run app/update-nvim.go && cd $cwd"
