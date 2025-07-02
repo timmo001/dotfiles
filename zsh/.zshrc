@@ -284,7 +284,7 @@ bulk-rename-files() {
 
 save-installed-packages() {
   local outfile="$HOME/.local/installed-packages.txt"
-  echo "# Yay packages" >"$outfile"
+  echo "# System packages (including AUR)" >"$outfile"
   yay -Qqe | sort -u | tr '\n' ' ' >>"$outfile"
   echo -e "\n\n# Brew formulae" >>"$outfile"
   if command -v brew &>/dev/null; then
@@ -301,7 +301,7 @@ save-installed-packages() {
     echo "flatpak not found" >>"$outfile"
   fi
   echo -e "\n" >>"$outfile"
-  echo "Saved all user-installed packages (yay, brew, flatpak) to $outfile"
+  echo "Saved all user-installed packages (system, brew, flatpak) to $outfile"
 }
 
 # ------------------------------
