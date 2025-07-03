@@ -307,7 +307,7 @@ save-installed-packages() {
 # ------------------------------
 # Aliases
 # ------------------------------
-alias cat="bat"
+# alias cat="bat"
 alias la="tree"
 
 alias ff="fastfetch"
