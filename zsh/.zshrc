@@ -434,4 +434,4 @@ fi
 clear
 
 # Fastfetch
-ff
+# ff
