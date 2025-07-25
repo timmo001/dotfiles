@@ -373,7 +373,7 @@ alias update-dotfiles="cwd=$(pwd) && cd $HOME/.config/dotfiles && git pull && ./
 alias update-apt="sudo apt update && sudo apt upgrade && sudo apt autoremove && sudo apt autoclean"
 alias update-yay="yay -Syu"
 alias update-brew="brew update && brew upgrade && brew cleanup"
-alias update-flatpak="flatpak update"
+alias update-flatpak="sudo flatpak update"
 alias update-system="update-yay && update-brew && update-flatpak && save-installed-packages"
 alias update-mirrors="sudo reflector --country 'GB' --age 12 --protocol https --sort rate --save /etc/pacman.d/mirrorlist"
 
