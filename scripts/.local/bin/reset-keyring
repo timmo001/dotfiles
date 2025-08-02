@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# Script to reset GNOME Keyring password
+# This will remove the existing keyring and create a new one
+
+echo "This script will reset your GNOME Keyring password."
+echo "This will remove all stored passwords and you'll need to re-enter them."
+echo ""
+read -p "Are you sure you want to continue? (y/N): " -n 1 -r
+echo ""
+
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo "Stopping GNOME Keyring daemon..."
+    pkill -f gnome-keyring-daemon
+
+    echo "Removing existing keyring..."
+    rm -rf ~/.local/share/keyrings/*
+
+    echo "Creating new keyring..."
+    gnome-keyring-daemon --start --components=secrets,pkcs11
+
+    echo "Keyring reset complete!"
+    echo "You will be prompted for a new password when you next use an application that requires the keyring."
+    echo "Make sure to use the same password as your login password for automatic unlocking."
+else
+    echo "Operation cancelled."
+fi
