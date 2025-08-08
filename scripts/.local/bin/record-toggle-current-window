@@ -1,0 +1,27 @@
+#!/bin/env zsh
+
+if pgrep -x "wf-recorder"; then
+    pkill -INT -x wf-recorder
+    notify-send -h string:wf-recorder:record -t 1000 "Finished Recording"
+    exit 0
+else
+    notify-send -h string:wf-recorder:record -t 1000 "Recording in:" " 3 "
+    sleep 1
+    notify-send -h string:wf-recorder:record -t 1000 "Recording in:" " 2 "
+    sleep 1
+    notify-send -h string:wf-recorder:record -t 950 "Recording in:" " 1 "
+    sleep 1
+
+    # Get the geometry of the active window
+    # Format: x y width height
+    # Example: 100 200 800 600 -> 100,200 800x600
+    active_window_geometry=$(hyprctl activewindow -j | jq -r '"\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])"')
+
+    if [ -z "$active_window_geometry" ]; then
+        notify-send "Error" "Could not get active window geometry."
+        exit 1
+    fi
+
+    dateTime=$(date +%m-%d-%Y-%H:%M:%S)
+    wf-recorder -g "$active_window_geometry" -f "$HOME/Videos/$dateTime.mp4"
+fi
