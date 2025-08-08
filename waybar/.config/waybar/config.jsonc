@@ -17,7 +17,7 @@
     "memory",
     "custom/gpu-usage",
     "disk",
-    "temperature",
+    // "temperature",
     // "power-profiles-daemon",
     "network",
     // "keyboard-state",
