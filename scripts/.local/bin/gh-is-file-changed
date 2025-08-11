@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Prettier: printWidth 80
 
+# Requires: gh, jq, git, grep (tput optional for colors)
+
 set -euo pipefail
 
 usage() {
