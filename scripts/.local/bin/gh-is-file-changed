@@ -317,21 +317,23 @@ while read -r pr; do
   fi
 done < <(jq -c '.[]' <<<"$pr_json")
 
-# Emit all matched PRs to stdout at the end
-if (( ${#MATCHING_PR_LINES[@]} > 0 )); then
-  for line in "${MATCHING_PR_LINES[@]}"; do
-    printf "%s\n" "$line"
-  done
-fi
-
 # Final summary (stderr)
 sep "="
 if (( ${#MATCHING_PR_SUMMARIES[@]} > 0 )); then
   echo "${BOLD}Summary:${RESET} Found ${BOLD}${#MATCHING_PR_SUMMARIES[@]}${RESET} PR(s) with matching file changes (${GREEN}open${RESET}: ${BOLD}${matched_open_count}${RESET}, ${MAGENTA}merged${RESET}: ${BOLD}${matched_merged_count}${RESET})" >&2
+else
+  echo "${YELLOW}${BOLD}No PRs found${RESET} with files matching pattern: $PATTERN"
+fi
+
+echo "${DIM}Open PRs: ${BOLD}${matched_open_count}${RESET}" >&2
+echo "${DIM}Merged PRs: ${BOLD}${matched_merged_count}${RESET}" >&2
+echo "${DIM}PRs read: ${BOLD}${pr_count}${RESET}" >&2
+
+if (( ${#MATCHING_PR_SUMMARIES[@]} > 0 )); then
+  echo "${BOLD}PRs:${RESET}" >&2
   for s in "${MATCHING_PR_SUMMARIES[@]}"; do
     echo "${GREEN}- ${s}${RESET}" >&2
   done
-else
-  echo "${YELLOW}${BOLD}No PRs found${RESET} with files matching pattern: $PATTERN (${GREEN}open${RESET}: ${BOLD}${matched_open_count}${RESET}, ${MAGENTA}merged${RESET}: ${BOLD}${matched_merged_count}${RESET})" >&2
 fi
+
 sep "="
