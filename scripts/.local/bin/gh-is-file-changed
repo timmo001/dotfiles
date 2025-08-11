@@ -1,0 +1,316 @@
+#!/usr/bin/env bash
+# Prettier: printWidth 80
+
+set -euo pipefail
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [options] [owner/repo] <path-pattern>
+
+Examples:
+  $(basename "$0") src/lib              # use current repo, pattern "src/lib"
+  $(basename "$0") myorg/myrepo src/lib # explicit repo and pattern
+  $(basename "$0") . "src/lib"         # '.' resolves to current repo
+
+Options:
+  -v, --verbose        Show detailed progress information
+  -l, --limit <num>    Max number of PRs to fetch (default: 100)
+  -a, --all            Include all PR states (overrides --state)
+      --state <state>  PR state filter: open|closed|merged|all (default: open)
+  -h, --help           Show this help message and exit
+EOF
+  exit 1
+}
+
+# Defaults
+VERBOSE=0
+LIMIT=100
+STATE="open"
+
+log() {
+  if (( VERBOSE )); then
+    echo "$*" >&2
+  fi
+}
+
+# Colors and separators (TTY-aware)
+USE_COLOR=0
+if [[ -t 2 && -z "${NO_COLOR:-}" ]] && command -v tput >/dev/null 2>&1; then
+  USE_COLOR=1
+fi
+
+if (( USE_COLOR )); then
+  BOLD="$(tput bold)"
+  DIM="$(tput dim)"
+  RESET="$(tput sgr0)"
+  RED="$(tput setaf 1)"
+  GREEN="$(tput setaf 2)"
+  YELLOW="$(tput setaf 3)"
+  BLUE="$(tput setaf 4)"
+  MAGENTA="$(tput setaf 5)"
+  CYAN="$(tput setaf 6)"
+else
+  BOLD=""; DIM=""; RESET=""; RED=""; GREEN=""; YELLOW=""; BLUE=""; MAGENTA=""; CYAN="";
+fi
+
+term_width() {
+  local w
+  w=${COLUMNS:-}
+  if [[ -z "$w" ]] && command -v tput >/dev/null 2>&1; then
+    w=$(tput cols 2>/dev/null || echo 80)
+  fi
+  echo "${w:-80}"
+}
+
+sep() {
+  local char
+  char=${1:--}
+  local w
+  w=$(term_width)
+  printf "%s\n" "$(printf "%${w}s" "" | tr " " "$char")" >&2
+}
+
+color_state() {
+  case "$1" in
+    OPEN|open)
+      printf "%s%s%s" "$GREEN" "$1" "$RESET"
+      ;;
+    MERGED|merged)
+      printf "%s%s%s" "$MAGENTA" "$1" "$RESET"
+      ;;
+    CLOSED|closed)
+      printf "%s%s%s" "$RED" "$1" "$RESET"
+      ;;
+    *)
+      printf "%s" "$1"
+      ;;
+  esac
+}
+
+# Parse flags
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -v|--verbose)
+      VERBOSE=1
+      shift
+      ;;
+    -l|--limit)
+      if [[ ${2:-} =~ ^[0-9]+$ ]]; then
+        LIMIT="$2"
+        shift 2
+      else
+        echo "Error: --limit requires a numeric value" >&2
+        usage
+      fi
+      ;;
+    -a|--all)
+      STATE="all"
+      shift
+      ;;
+    --state)
+      case "${2:-}" in
+        open|closed|merged|all)
+          STATE="$2"
+          shift 2
+          ;;
+        *)
+          echo "Error: --state must be one of: open|closed|merged|all" >&2
+          usage
+          ;;
+      esac
+      ;;
+    -h|--help)
+      usage
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      echo "Unknown option: $1" >&2
+      usage
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+# Positional args handling (non-interactive)
+# - If 2 args remain: [owner/repo] [pattern]
+# - If 1 arg remains: [pattern] (repo will be auto-detected)
+# - Otherwise: error
+REPO=""
+PATTERN=""
+case $# in
+  2)
+    REPO="$1"
+    PATTERN="$2"
+    ;;
+  1)
+    PATTERN="$1"
+    ;;
+  *)
+    echo "Error: expected 1 or 2 positional arguments (pattern, or repo and pattern)." >&2
+    usage
+    ;;
+esac
+
+# Basic dependency check
+for _cmd in gh jq grep; do
+  if ! command -v "$_cmd" >/dev/null 2>&1; then
+    echo "Missing required command: $_cmd" >&2
+    exit 2
+  fi
+done
+
+if [[ -z "$REPO" ]]; then
+  log "No repository argument provided; attempting to detect current repo via GitHub CLI"
+  if gh repo view --json nameWithOwner >/dev/null 2>&1; then
+    REPO="$(gh repo view --json nameWithOwner -q .nameWithOwner)"
+  else
+    echo "Error: Could not detect current repository. Provide owner/repo as first argument." >&2
+    usage
+  fi
+fi
+
+# Interpret '.' as current repo
+if [[ "$REPO" == "." ]]; then
+  log "Repository set to '.'; resolving to current repo via GitHub CLI"
+  REPO="$(gh repo view --json nameWithOwner -q .nameWithOwner)"
+fi
+
+if [[ -z "$PATTERN" ]]; then
+  echo "No path pattern provided." >&2
+  usage
+fi
+
+sep "="
+echo "${BOLD}${CYAN}Searching PRs in${RESET} ${BOLD}$REPO${RESET} ${DIM}(limit: $LIMIT, state: $STATE)${RESET}" >&2
+echo "${BOLD}Pattern:${RESET} $PATTERN" >&2
+sep "="
+
+# Determine context for "merged newer than head/base" when default state is open
+HEAD_PR_NUMBER=""
+BASE_BRANCH=""
+MERGE_BASE_DATE=""
+
+# Try to get current branch PR number and base branch
+HEAD_PR_NUMBER=$(gh pr view --repo "$REPO" --json number,baseRefName -q .number 2>/dev/null || true)
+BASE_BRANCH=$(gh pr view --repo "$REPO" --json baseRefName -q .baseRefName 2>/dev/null || true)
+
+# Fallback to repo default branch if no PR base found
+if [[ -z "$BASE_BRANCH" ]]; then
+  BASE_BRANCH=$(gh repo view --repo "$REPO" --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null || true)
+fi
+
+# Compute merge-base date (ISO 8601) with base branch if available
+if [[ -n "$BASE_BRANCH" ]]; then
+  if git fetch origin "$BASE_BRANCH" --quiet 2>/dev/null; then
+    BASE_SHA=$(git merge-base HEAD "origin/$BASE_BRANCH" 2>/dev/null || true)
+    if [[ -n "$BASE_SHA" ]]; then
+      MERGE_BASE_DATE=$(git show -s --format=%cI "$BASE_SHA" 2>/dev/null || true)
+    fi
+  fi
+fi
+
+# Build PR list(s)
+MERGED_LIMIT=200
+
+log "Fetching PR list from $REPO (state=$STATE, limit=$LIMIT)"
+open_pr_json=$(gh pr list --repo "$REPO" --state "$STATE" --limit "$LIMIT" \
+  --json number,title,state || true)
+
+merged_pr_json="[]"
+if [[ "$STATE" == "open" ]]; then
+  if [[ -n "$MERGE_BASE_DATE" && -n "$BASE_BRANCH" ]]; then
+    log "Fetching merged PRs since $MERGE_BASE_DATE on base $BASE_BRANCH (extra; not counting towards limit)"
+    merged_pr_json=$(gh pr list --repo "$REPO" --state merged \
+      --search "base:$BASE_BRANCH merged:>=$MERGE_BASE_DATE" \
+      --limit "$MERGED_LIMIT" --json number,title,state 2>/dev/null || echo "[]")
+    # Verbose: how many merged PRs since the current base
+    merged_since_base_count=$(jq 'length' <<<"$merged_pr_json" 2>/dev/null || echo 0)
+    log "Merged PRs since base $BASE_BRANCH at $MERGE_BASE_DATE: $merged_since_base_count"
+  elif [[ -n "$HEAD_PR_NUMBER" ]]; then
+    log "Fetching merged PRs and filtering by number > #$HEAD_PR_NUMBER (extra; not counting towards limit)"
+    all_merged=$(gh pr list --repo "$REPO" --state merged --limit "$MERGED_LIMIT" --json number,title,state 2>/dev/null || echo "[]")
+    # Filter to PRs with number greater than current PR number
+    merged_pr_json=$(jq --argjson min "$HEAD_PR_NUMBER" '[.[] | select(.number > $min)]' <<<"$all_merged" 2>/dev/null || echo "[]")
+    # Verbose: how many merged PRs are newer than the current PR
+    merged_since_prnum_count=$(jq 'length' <<<"$merged_pr_json" 2>/dev/null || echo 0)
+    log "Merged PRs newer than PR #$HEAD_PR_NUMBER: $merged_since_prnum_count"
+  fi
+fi
+
+# Combine open and extra merged PRs
+if [[ -z "$open_pr_json" || "$open_pr_json" = "" ]]; then open_pr_json='[]'; fi
+if [[ -z "$merged_pr_json" || "$merged_pr_json" = "" ]]; then merged_pr_json='[]'; fi
+pr_json=$(jq -s '.[0] + .[1]' <<<"$open_pr_json
+$merged_pr_json" 2>/dev/null || echo "[]")
+
+# If no PRs or empty result, exit
+if [[ -z "$pr_json" || "$pr_json" = "[]" ]]; then
+  echo "No PRs found in $REPO." >&2
+  exit 0
+fi
+
+# Count PRs
+pr_count=$(jq 'length' <<<"$pr_json" 2>/dev/null || echo 0)
+log "Found ${BOLD}$pr_count${RESET} PR(s) to inspect"
+
+# Iterate PRs and check files
+declare -a MATCHING_PR_SUMMARIES=()
+declare -A SEEN
+while read -r pr; do
+  num=$(jq -r '.number' <<<"$pr")
+  title=$(jq -r '.title' <<<"$pr")
+  state=$(jq -r '.state' <<<"$pr")
+
+  # If we fetched extra merged PRs because default state was open, de-duplicate
+  if [[ -n "${SEEN[$num]:-}" ]]; then
+    continue
+  fi
+  SEEN[$num]=1
+  if (( VERBOSE )); then
+    sep "-"
+    cstate=$(color_state "$state")
+    echo "${BOLD}${BLUE}→ Checking${RESET} ${BOLD}PR #$num${RESET} [${cstate}] - $title" >&2
+  fi
+
+  # fetch files changed for the PR; handle pagination if needed
+  # gh pr view --json files returns up to 100 files; for >100 files
+  # we page using the GraphQL via gh api (rare)
+  files=$(gh pr view "$num" --repo "$REPO" --json files \
+    -q '.files[].path' 2>/dev/null || true)
+
+  if [[ -z "$files" ]]; then
+    log "${DIM}PR #$num: No files returned (possibly a draft or no file changes)${RESET}"
+    continue
+  fi
+
+  file_count=$(wc -l <<<"$files" | tr -d ' ')
+  log "${DIM}PR #$num: Retrieved $file_count changed file path(s)${RESET}"
+
+  if echo "$files" | grep -E -q -- "$PATTERN"; then
+    if (( VERBOSE )); then
+      echo "${GREEN}${BOLD}✔ Match in PR #$num${RESET} ${DIM}(pattern '$PATTERN')${RESET}" >&2
+      echo "$files" | grep -E -- "$PATTERN" | while IFS= read -r _path; do
+        echo "${GREEN}  - ${_path}${RESET}" >&2
+      done
+    fi
+    printf "%s\t%s\t%s\n" "$num" "$state" "$title"
+    MATCHING_PR_SUMMARIES+=("PR #$num [$state] - $title")
+  fi
+done < <(jq -c '.[]' <<<"$pr_json")
+
+# Final summary (stderr)
+sep "="
+if (( ${#MATCHING_PR_SUMMARIES[@]} > 0 )); then
+  echo "${BOLD}Summary:${RESET} Found ${BOLD}${#MATCHING_PR_SUMMARIES[@]}${RESET} PR(s) with matching file changes" >&2
+  for s in "${MATCHING_PR_SUMMARIES[@]}"; do
+    echo "${GREEN}- ${s}${RESET}" >&2
+  done
+else
+  echo "${YELLOW}${BOLD}No PRs found${RESET} with files matching pattern: $PATTERN" >&2
+fi
+sep "="
