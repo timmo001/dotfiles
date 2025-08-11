@@ -260,7 +260,10 @@ log "Found ${BOLD}$pr_count${RESET} PR(s) to inspect"
 
 # Iterate PRs and check files
 declare -a MATCHING_PR_SUMMARIES=()
+declare -a MATCHING_PR_LINES=()
 declare -A SEEN
+matched_open_count=0
+matched_merged_count=0
 while read -r pr; do
   num=$(jq -r '.number' <<<"$pr")
   title=$(jq -r '.title' <<<"$pr")
@@ -291,26 +294,44 @@ while read -r pr; do
   file_count=$(wc -l <<<"$files" | tr -d ' ')
   log "${DIM}PR #$num: Retrieved $file_count changed file path(s)${RESET}"
 
-  if echo "$files" | grep -E -q -- "$PATTERN"; then
+  if grep -E -q -- "$PATTERN" <<<"$files"; then
     if (( VERBOSE )); then
       echo "${GREEN}${BOLD}✔ Match in PR #$num${RESET} ${DIM}(pattern '$PATTERN')${RESET}" >&2
-      echo "$files" | grep -E -- "$PATTERN" | while IFS= read -r _path; do
+      # Avoid pipelines under strict mode; tolerate no matches
+      matched_paths=$(grep -E -- "$PATTERN" <<<"$files" 2>/dev/null || true)
+      while IFS= read -r _path; do
+        [[ -z "$_path" ]] && continue
         echo "${GREEN}  - ${_path}${RESET}" >&2
-      done
+      done <<<"$matched_paths"
     fi
-    printf "%s\t%s\t%s\n" "$num" "$state" "$title"
+    case "$state" in
+      OPEN|open)
+        (( matched_open_count+=1 ))
+        ;;
+      MERGED|merged)
+        (( matched_merged_count+=1 ))
+        ;;
+    esac
+    MATCHING_PR_LINES+=("$num\t$state\t$title")
     MATCHING_PR_SUMMARIES+=("PR #$num [$state] - $title")
   fi
 done < <(jq -c '.[]' <<<"$pr_json")
 
+# Emit all matched PRs to stdout at the end
+if (( ${#MATCHING_PR_LINES[@]} > 0 )); then
+  for line in "${MATCHING_PR_LINES[@]}"; do
+    printf "%s\n" "$line"
+  done
+fi
+
 # Final summary (stderr)
 sep "="
 if (( ${#MATCHING_PR_SUMMARIES[@]} > 0 )); then
-  echo "${BOLD}Summary:${RESET} Found ${BOLD}${#MATCHING_PR_SUMMARIES[@]}${RESET} PR(s) with matching file changes" >&2
+  echo "${BOLD}Summary:${RESET} Found ${BOLD}${#MATCHING_PR_SUMMARIES[@]}${RESET} PR(s) with matching file changes (${GREEN}open${RESET}: ${BOLD}${matched_open_count}${RESET}, ${MAGENTA}merged${RESET}: ${BOLD}${matched_merged_count}${RESET})" >&2
   for s in "${MATCHING_PR_SUMMARIES[@]}"; do
     echo "${GREEN}- ${s}${RESET}" >&2
   done
 else
-  echo "${YELLOW}${BOLD}No PRs found${RESET} with files matching pattern: $PATTERN" >&2
+  echo "${YELLOW}${BOLD}No PRs found${RESET} with files matching pattern: $PATTERN (${GREEN}open${RESET}: ${BOLD}${matched_open_count}${RESET}, ${MAGENTA}merged${RESET}: ${BOLD}${matched_merged_count}${RESET})" >&2
 fi
 sep "="
