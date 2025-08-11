@@ -4,6 +4,8 @@ font-family = "CaskaydiaCove Nerd Font"
 font-size = 14
 background-opacity = 0.85
 # background-blur-radius = 20
+window-padding-x = 24,12
+window-padding-y = 8
 
 # Window
 mouse-hide-while-typing = true
