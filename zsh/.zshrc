@@ -340,12 +340,6 @@ alias dpa="docker ps -a"
 alias dl="docker ps -l -q"
 alias dx="docker exec -it"
 
-## Gamescope
-alias gs="~/.config/hypr/scripts/gamescope-launch.sh"
-alias gshdr="~/.config/hypr/scripts/gamescope-hdr-launch.sh"
-alias gsd="~/.config/hypr/scripts/gamescope-direct-launch.sh"
-alias gsdhdr="~/.config/hypr/scripts/gamescope-hdr-direct-launch.sh"
-
 ## Dirs
 alias ..="cd .."
 alias ...="cd ../.."
@@ -363,30 +357,15 @@ alias img-pngwebp-to-webp="bulk-rename-files '*.png.webp' '.webp'"
 alias img-jpgwebp-to-webp="bulk-rename-files '*.jpg.webp' '.webp'"
 alias img-optimise-all="img-optimise --all && img-pngwebp-to-webp && img-jpgwebp-to-webp"
 
-# Bootstrap
-alias bootstrap="cwd=$(pwd) && cd $HOME/.config/bootstrap && go run app/bootstrap.go && cd $cwd"
-
-# Update dotfiles
-alias update-dotfiles="cwd=$(pwd) && cd $HOME/.config/dotfiles && git pull && ./update.sh && cd $cwd && source $HOME/.zshrc"
-
 # Update system apps
-alias update-apt="sudo apt update && sudo apt upgrade && sudo apt autoremove && sudo apt autoclean"
 alias update-yay="yay -Syu"
 alias update-brew="brew update && brew upgrade && brew cleanup"
 alias update-flatpak="sudo flatpak update"
 alias update-system="update-yay && update-brew && update-flatpak && save-installed-packages"
 alias update-mirrors="sudo reflector --country 'GB' --age 12 --protocol https --sort rate --save /etc/pacman.d/mirrorlist"
 
-# Update neovim
-alias update-nvim-base="cwd=$(pwd) && cd $HOME/.config/bootstrap && go run app/update-nvim.go && cd $cwd"
-alias update-nvim-plugins='nvim "+Lazy! sync" +qa'
-alias update-nvim="update-nvim-base && update-nvim-plugins"
-
-# Update ghostty
-alias update-ghostty="cwd=$(pwd) && cd $HOME/.config/bootstrap && go run app/update-ghostty.go && cd $cwd"
-
 # Update all
-alias update-all="update-system && update-dotfiles && update-nvim && update-ghostty && source $HOME/.zshrc"
+alias update-all="update-system && update-dotfiles && source $HOME/.zshrc"
 
 # Gear lever (app images)
 alias gearlever="flatpak run it.mijorus.gearlever"
@@ -410,8 +389,8 @@ alias goi="go install ."
 
 # Quick paths
 alias home="cd ~"
-alias dotfiles="cd ~/.config/dotfiles"
-alias dotfiles-private="cd ~/.config/dotfiles-private"
+alias dotfiles="cd ~/.local/dotfiles"
+alias dotfiles-private="cd ~/.local/dotfiles-private"
 alias config="cd ~/.config"
 alias repos="cd ~/repos"
 
