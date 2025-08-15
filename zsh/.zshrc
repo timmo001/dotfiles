@@ -1,3 +1,5 @@
+export PATH=$PATH:$HOME/.local/share/omarchy/bin
+
 # ------------------------------
 # Source profile
 # ------------------------------
@@ -415,3 +417,5 @@ clear
 
 # Fastfetch
 # ff
+
+. "$HOME/.local/share/../bin/env"
