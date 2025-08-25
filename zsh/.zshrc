@@ -309,6 +309,11 @@ save-installed-packages() {
 # ------------------------------
 # Aliases
 # ------------------------------
+
+# Fix for mise python3
+alias virt-install="/usr/bin/python3 /usr/bin/virt-install"
+alias virt-manager="/usr/bin/python3 /usr/bin/virt-install"
+
 # alias cat="bat"
 alias la="tree"
 
@@ -419,3 +424,8 @@ clear
 # ff
 
 . "$HOME/.local/share/../bin/env"
+
+# Added by LM Studio CLI (lms)
+export PATH="$PATH:/home/aidan/.lmstudio/bin"
+# End of LM Studio CLI section
+
