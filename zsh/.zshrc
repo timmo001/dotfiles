@@ -317,6 +317,8 @@ alias lg="lazygit"
 
 alias gc="git commit -m"
 alias gca="git commit -a -m"
+alias gcanm="git commit --amend --no-edit"
+alias gitcommitamend="gcanm"
 alias gp="git push origin HEAD"
 alias gpu="git pull origin"
 alias gst="git status"
