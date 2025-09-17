@@ -19,18 +19,25 @@ export PATH=$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH
 source ~/.local/share/omarchy/default/bash/aliases
 source ~/.local/share/omarchy/default/bash/functions
 source ~/.local/share/omarchy/default/bash/prompt
-source ~/.local/share/omarchy/default/bash/init
+# source ~/.local/share/omarchy/default/bash/init
 source ~/.local/share/omarchy/default/bash/envs
-[[ $- == *i* ]] && bind -f ~/.local/share/omarchy/default/bash/inputrc
+# [[ $- == *i* ]] && bind -f ~/.local/share/omarchy/default/bash/inputrc
 
 # ------------------------------
 # History
-# Partically from ~/.local/share/omarchy/default/bash/shell
+# Part of ~/.local/share/omarchy/default/bash/shell
 # ------------------------------
-shopt -s histappend
 HISTCONTROL=ignoreboth
 HISTSIZE=32768
 HISTFILESIZE="${HISTSIZE}"
+
+# ------------------------------
+# Mise
+# Partically from ~/.local/share/omarchy/default/bash/init
+# ------------------------------
+if command -v mise &> /dev/null; then
+  eval "$(mise activate bash)"
+fi
 
 # ------------------------------
 # Oh my zsh
@@ -84,41 +91,6 @@ eval "$(fnm env --use-on-cd --shell zsh)"
 [ -s "/home/aidan/.bun/_bun" ] && source "/home/aidan/.bun/_bun"
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
-
-# ------------------------------
-# Rust
-# ------------------------------
-source $HOME/.cargo/env
-export PATH=$HOME/.cargo/bin:$PATH
-
-# ------------------------------
-# Brew for Linux
-# ------------------------------
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-
-# -------------------------------
-# Java
-# ------------------------------
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
-export PATH=$JAVA_HOME/bin:$PATH
-
-# ------------------------------
-# Android
-# ------------------------------
-export ANDROID_HOME=$HOME/Android/Sdk
-export PATH=$PATH:$ANDROID_HOME/emulator
-export PATH=$PATH:$ANDROID_HOME/platform-tools
-
-# ------------------------------
-# HDR / Gamescope
-# ------------------------------
-export ENABLE_HDR_WSI=1
-export DXVK_HDR=1
-
-# -------------------------------
-# SST
-# -------------------------------
-export PATH=/home/aidan/.sst/bin:$PATH
 
 # ------------------------------
 # Hyprland
