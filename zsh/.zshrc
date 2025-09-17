@@ -13,11 +13,24 @@ fi
 export PATH=$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH
 
 # ------------------------------
-# History
+# Source omarchy files
 # ------------------------------
-export HISTFILE=$HOME/.zsh_history
-export HISTSIZE=10000
-export SAVEHIST=10000
+# source ~/.local/share/omarchy/default/bash/shell
+source ~/.local/share/omarchy/default/bash/aliases
+source ~/.local/share/omarchy/default/bash/functions
+source ~/.local/share/omarchy/default/bash/prompt
+source ~/.local/share/omarchy/default/bash/init
+source ~/.local/share/omarchy/default/bash/envs
+[[ $- == *i* ]] && bind -f ~/.local/share/omarchy/default/bash/inputrc
+
+# ------------------------------
+# History
+# Partically from ~/.local/share/omarchy/default/bash/shell
+# ------------------------------
+shopt -s histappend
+HISTCONTROL=ignoreboth
+HISTSIZE=32768
+HISTFILESIZE="${HISTSIZE}"
 
 # ------------------------------
 # Oh my zsh
