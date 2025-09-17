@@ -114,6 +114,9 @@ export XDG_CURRENT_DESKTOP=Hyprland
 export XDG_SESSION_TYPE=wayland
 export QT_QPA_PLATFORM=xcb
 export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
+export ELECTRON_OZONE_PLATFORM_HINT=wayland
+
+alias cursor="ELECTRON_OZONE_PLATFORM_HINT=wayland /usr/bin/cursor"
 
 # ------------------------------
 # Load environment variables
@@ -312,7 +315,7 @@ save-installed-packages() {
 
 # Fix for mise python3
 alias virt-install="/usr/bin/python3 /usr/bin/virt-install"
-alias virt-manager="/usr/bin/python3 /usr/bin/virt-install"
+alias virt-manager="/usr/bin/python3 /usr/bin/virt-manager"
 
 # alias cat="bat"
 alias la="tree"
@@ -396,8 +399,8 @@ alias goi="go install ."
 
 # Quick paths
 alias home="cd ~"
-alias dotfiles="cd ~/.local/dotfiles"
-alias dotfiles-private="cd ~/.local/dotfiles-private"
+alias dotfiles="cd ~/.config/dotfiles"
+alias dotfiles-private="cd ~/.config/dotfiles-private"
 alias config="cd ~/.config"
 alias repos="cd ~/repos"
 
