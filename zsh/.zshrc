@@ -129,7 +129,11 @@ export QT_QPA_PLATFORM=xcb
 export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
 export ELECTRON_OZONE_PLATFORM_HINT=wayland
 
-alias cursor="ELECTRON_OZONE_PLATFORM_HINT=wayland /usr/bin/cursor"
+. "$HOME/.local/share/../bin/env"
+
+# Added by LM Studio CLI (lms)
+export PATH="$PATH:/home/aidan/.lmstudio/bin"
+# End of LM Studio CLI section
 
 # ------------------------------
 # Load environment variables
@@ -424,6 +428,9 @@ alias reboot-windows="reboot-to-windows"
 alias fe="find-and-edit"
 alias fev="find-and-edit --visual"
 
+# Cursor
+alias cursor="ELECTRON_OZONE_PLATFORM_HINT=wayland /usr/bin/cursor"
+
 # ------------------------------
 # Private dotfiles
 # ------------------------------
@@ -434,14 +441,8 @@ fi
 # ------------------------------
 # Commands
 # ------------------------------
-clear
+# clear
 
 # Fastfetch
 # ff
-
-. "$HOME/.local/share/../bin/env"
-
-# Added by LM Studio CLI (lms)
-export PATH="$PATH:/home/aidan/.lmstudio/bin"
-# End of LM Studio CLI section
 
