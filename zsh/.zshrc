@@ -13,33 +13,6 @@ fi
 export PATH=$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH
 
 # ------------------------------
-# Source omarchy files
-# ------------------------------
-# source ~/.local/share/omarchy/default/bash/shell
-source ~/.local/share/omarchy/default/bash/aliases
-source ~/.local/share/omarchy/default/bash/functions
-source ~/.local/share/omarchy/default/bash/prompt
-# source ~/.local/share/omarchy/default/bash/init
-source ~/.local/share/omarchy/default/bash/envs
-# [[ $- == *i* ]] && bind -f ~/.local/share/omarchy/default/bash/inputrc
-
-# ------------------------------
-# History
-# Part of ~/.local/share/omarchy/default/bash/shell
-# ------------------------------
-HISTCONTROL=ignoreboth
-HISTSIZE=32768
-HISTFILESIZE="${HISTSIZE}"
-
-# ------------------------------
-# Mise
-# Partically from ~/.local/share/omarchy/default/bash/init
-# ------------------------------
-if command -v mise &> /dev/null; then
-  eval "$(mise activate bash)"
-fi
-
-# ------------------------------
 # Oh my zsh
 # ------------------------------
 export ZSH="$HOME/.oh-my-zsh"
@@ -339,7 +312,7 @@ alias dpa="docker ps -a"
 alias dl="docker ps -l -q"
 alias dx="docker exec -it"
 
-## Dirs
+# Dirs
 alias ..="cd .."
 alias ...="cd ../.."
 alias ....="cd ../../.."
@@ -360,7 +333,7 @@ alias img-optimise-all="img-optimise --all && img-pngwebp-to-webp && img-jpgwebp
 alias update-yay="yay -Syu"
 alias update-brew="brew update && brew upgrade && brew cleanup"
 alias update-flatpak="sudo flatpak update"
-alias update-system="update-yay && update-brew && update-flatpak && save-installed-packages"
+alias update-system="omarchy-update && save-installed-packages"
 alias update-mirrors="sudo reflector --country 'GB' --age 12 --protocol https --sort rate --save /etc/pacman.d/mirrorlist"
 
 # Update all
@@ -404,6 +377,36 @@ alias fev="find-and-edit --visual"
 alias cursor="ELECTRON_OZONE_PLATFORM_HINT=wayland /usr/bin/cursor"
 
 # ------------------------------
+# Omarchy Part 1 - History
+# Part of ~/.local/share/omarchy/default/bash/shell
+# ------------------------------
+HISTCONTROL=ignoreboth
+HISTSIZE=32768
+HISTFILESIZE="${HISTSIZE}"
+
+# ------------------------------
+# Omarchy Part 2
+# ------------------------------
+# source ~/.local/share/omarchy/default/bash/shell
+source ~/.local/share/omarchy/default/bash/aliases
+source ~/.local/share/omarchy/default/bash/functions
+# source ~/.local/share/omarchy/default/bash/prompt
+
+# ------------------------------
+# Omarchy Part 3 - Mise
+# Partically from ~/.local/share/omarchy/default/bash/init
+# ------------------------------
+if command -v mise &> /dev/null; then
+  eval "$(mise activate bash)"
+fi
+
+# ------------------------------
+# Omarchy Part 4
+# ------------------------------
+source ~/.local/share/omarchy/default/bash/envs
+# [[ $- == *i* ]] && bind -f ~/.local/share/omarchy/default/bash/inputrc
+
+# ------------------------------
 # Private dotfiles
 # ------------------------------
 if [ -f ~/.zshrc-private ]; then
@@ -417,4 +420,3 @@ clear
 
 # Fastfetch
 # ff
-
