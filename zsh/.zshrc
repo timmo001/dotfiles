@@ -414,6 +414,17 @@ if [ -f ~/.zshrc-private ]; then
 fi
 
 # ------------------------------
+# Key bindings for word navigation
+# ------------------------------
+# Ctrl+Left/Right for word navigation
+bindkey "^[[1;5D" backward-word
+bindkey "^[[1;5C" forward-word
+
+# Alt+Left/Right for word navigation (alternative)
+bindkey "^[[1;3D" backward-word
+bindkey "^[[1;3C" forward-word
+
+# ------------------------------
 # Commands
 # ------------------------------
 clear
