@@ -304,6 +304,14 @@ alias gcoall='git checkout -- .'
 alias gr='git remote'
 alias gre='git reset'
 
+git-update() {
+  # Save current directory
+  local current_dir=$(pwd) # Save current directory
+  cd $1 # Change to the given path
+  git pull # Pull the latest changes
+  cd $current_dir # Change back to the original directory
+}
+
 ## Docker
 alias ld="lazydocker"
 
@@ -329,16 +337,6 @@ alias img-optimise="$HOME/.img-optimize/optimize.sh"
 alias img-pngwebp-to-webp="bulk-rename-files '*.png.webp' '.webp'"
 alias img-jpgwebp-to-webp="bulk-rename-files '*.jpg.webp' '.webp'"
 alias img-optimise-all="img-optimise --all && img-pngwebp-to-webp && img-jpgwebp-to-webp"
-
-# Update system apps
-alias update-yay="yay -Syu"
-alias update-brew="brew update && brew upgrade && brew cleanup"
-alias update-flatpak="sudo flatpak update"
-alias update-system="omarchy-update && save-installed-packages"
-alias update-mirrors="sudo reflector --country 'GB' --age 12 --protocol https --sort rate --save /etc/pacman.d/mirrorlist"
-
-# Update all
-alias update-all="update-system && update-dotfiles && source $HOME/.zshrc"
 
 # Gear lever (app images)
 alias gearlever="flatpak run it.mijorus.gearlever"
@@ -406,6 +404,17 @@ fi
 # ------------------------------
 source ~/.local/share/omarchy/default/bash/envs
 # [[ $- == *i* ]] && bind -f ~/.local/share/omarchy/default/bash/inputrc
+
+# ------------------------------
+# Omarchy extras
+# ------------------------------
+timmo-update-extras() {
+  git-update ~/.config/hypr
+  git-update ~/.config/waybar
+  git-update ~/.config/ghostty
+  git-update ~/.config/uwsm
+  git-update ~/.config/dotfiles
+}
 
 # ------------------------------
 # Private dotfiles
