@@ -1,4 +1,5 @@
 export PATH=$PATH:$HOME/.local/share/omarchy/bin
+export PATH=$PATH:$HOME/.config/hypr/bin
 
 # ------------------------------
 # Source profile
