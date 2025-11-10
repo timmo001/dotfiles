@@ -375,7 +375,7 @@ alias fe="find-and-edit"
 alias fev="find-and-edit --visual"
 
 # Cursor
-alias cursor="ELECTRON_OZONE_PLATFORM_HINT=wayland /usr/bin/cursor"
+alias cursor="/usr/bin/cursor $(grep -v '^#' ~/.config/cursor-flags.conf 2>/dev/null | tr '\n' ' ')"
 
 # ------------------------------
 # Omarchy Part 1 - History
