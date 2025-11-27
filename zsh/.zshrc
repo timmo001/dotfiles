@@ -308,7 +308,7 @@ git-update() {
   # Save current directory
   local current_dir=$(pwd) # Save current directory
   cd $1 # Change to the given path
-  git pull # Pull the latest changes
+  git pull --rebase # Pull the latest changes
   cd $current_dir # Change back to the original directory
 }
 
