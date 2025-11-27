@@ -414,6 +414,7 @@ timmo-update-extras() {
   git-update ~/.config/ghostty
   git-update ~/.config/uwsm
   git-update ~/.config/dotfiles
+  git-update ~/.config/dotfiles-private
 }
 
 # ------------------------------
