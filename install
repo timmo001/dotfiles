@@ -27,10 +27,10 @@ if [[ -f $HOME/.config/ghostty/config.toml ]]; then
     mv $HOME/.config/ghostty/config.toml $DOTFILES/backup/.config/ghostty
 fi
 
-# if [[ -d $HOME/.config/nvim ]]; then
-#     mkdir -p $DOTFILES/backup/.config
-#     mv $HOME/.config/nvim $DOTFILES/backup/.config
-# fi
+if [[ -d $HOME/.config/nvim ]]; then
+    mkdir -p $DOTFILES/backup/.config
+    mv $HOME/.config/nvim $DOTFILES/backup/.config
+fi
 
 pushd $DOTFILES
 for folder in $(echo $STOW_FOLDERS | sed "s/,/ /g")
@@ -42,6 +42,6 @@ do
 
     echo "stow $folder"
     stow -D $folder
-    stow $folder
+    stow --adopt $folder
 done
 popd
