@@ -42,6 +42,10 @@ do
 
     echo "stow $folder"
     stow -D $folder
-    stow --adopt $folder
+    if [[ $folder == "opencode" ]]; then
+        stow --no-folding --adopt $folder
+    else
+        stow --adopt $folder
+    fi
 done
 popd
