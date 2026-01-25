@@ -375,6 +375,11 @@ alias fev="find-and-edit --visual"
 # Cursor
 alias cursor="/usr/bin/cursor $(grep -v '^#' ~/.config/cursor-flags.conf 2>/dev/null | tr '\n' ' ')"
 
+# Omarchy shorcuts
+alias olw="omarchy-launch-webapp"
+alias ou="omarchy-update"
+alias ouf="omarchy-update-firmware"
+
 # ------------------------------
 # Omarchy Part 1 - History
 # Part of ~/.local/share/omarchy/default/bash/shell
