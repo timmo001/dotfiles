@@ -1,7 +1,15 @@
 ---
-allowed-tools: Bash(git:*)
 description: Reset branch to default and reapply current diff staged
 agent: ask
+permission:
+  bash:
+    "gh repo view*": allow
+    "git apply --index*": allow
+    "git diff*": allow
+    "git remote": allow
+    "git reset --hard*": allow
+    "git status*": allow
+    "git symbolic-ref*": allow
 ---
 
 # Reset Branch And Reapply Diff
