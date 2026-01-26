@@ -24,6 +24,7 @@ permission:
     "gh pr view*": allow
     "gh release view*": allow
     "gh repo view*": allow
+    "gh run view*": allow
     "git blame*": allow
     "git branch": allow
     "git branch --show-current": allow
