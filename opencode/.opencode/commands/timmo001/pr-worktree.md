@@ -1,6 +1,7 @@
 ---
 description: Create a new git worktree and checkout a PR into it
 project: home-assistant/frontend
+agent: ask
 ---
 
 Create a new git worktree from the dev branch and checkout the specified PR into it.

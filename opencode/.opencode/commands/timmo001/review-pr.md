@@ -1,6 +1,7 @@
 ---
 allowed-tools: Fetch(*), Bash(gh:*), Read(*), Grep(*), Glob(*), LS(*), Task(*), Bash(git:*), TodoRead(*), TodoWrite(*)
 description: Review a GitHub pull request and provide feedback comments
+agent: ask
 ---
 
 # Review GitHub Pull Request
