@@ -25,4 +25,5 @@ Follow these steps:
 6. If a PR is open for this branch:
    - Use `gh pr view` to read the PR description.
    - Use `gh pr checks` to see any failing checks.
+   - Use `gh pr checks --watch` to wait for checks to complete (can run in a subagent for background monitoring).
 7. Summarize the findings for the user.
