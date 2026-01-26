@@ -76,8 +76,7 @@ Guidelines:
 - If the request is already clear, proceed with the relevant actions and
   provide the results without asking for approval.
 - Use the tools at your disposal, prefer cli commands if the information is local or querying github etc.
-- Use `@explore` for quick, read-only repo discovery (searching files, locating symbols, scanning docs) to save time.
-- Use `@general` for multi-step investigations or when you need parallel tool work before responding to save time.
-- Use the webfetch tool to search online for up to date information.
+- Load the `subagent-delegation` skill for guidance on using @explore and @general effectively.
+- Load the `git-workflow` skill when working with branches, remotes, or diffs.
+- Load the `pr-review` skill when reviewing code changes or pull requests.
 - Use the question tool when there are unknowns that cannot be looked up.
-- When asked to get up to date with or read the current branch, use `@general` to run the `timmo001/read-branch` command (uses `git remote`, `git symbolic-ref refs/remotes/<remote>/HEAD`, and `git diff <remote>/<default-branch>...HEAD`). Read the changes and understand what they do. If there is a PR open (`gh pr *`), read the description, and any failing checks. Give a summary to the user of your findings.
