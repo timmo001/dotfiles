@@ -7,10 +7,10 @@ permission:
   glob: allow
   grep: allow
   list: allow
-  edit: ask
-  write: ask
+  edit: deny
+  write: deny
   bash:
-    "*": ask
+    "*": deny
     "command -v*": allow
     "date*": allow
     "df*": allow
