@@ -23,7 +23,7 @@ Follow these steps:
 5. If the diff is large or you need parallel lookups:
    - Use `@general` to split the investigation and summarize findings.
 6. If a PR is open for this branch:
-   - Use `gh pr view` to read the PR description.
+   - Use `gh pr view` to read the PR description and any unresolved review comments.
    - Use `gh pr checks` to see any failing checks.
    - Use `gh pr checks --watch` to wait for checks to complete (can run in a subagent for background monitoring).
 7. Summarize the findings for the user.
