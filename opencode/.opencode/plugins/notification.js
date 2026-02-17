@@ -1,8 +1,5 @@
-import { homedir } from "os";
-import { join } from "path";
-
 export const NotificationPlugin = async ({ $, client }) => {
-  const soundPath = join(homedir(), ".config/opencode/sounds/gow_active_reload.mp3");
+  const soundPath = "/usr/share/sounds/freedesktop/stereo/message.oga";
 
   const playSound = async () => {
     try {
