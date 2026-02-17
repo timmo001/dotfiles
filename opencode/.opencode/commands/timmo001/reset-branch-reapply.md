@@ -1,6 +1,6 @@
 ---
 description: Reset branch to default and reapply current diff staged
-agent: ask
+agent: build
 permission:
   bash:
     "gh repo view*": allow
