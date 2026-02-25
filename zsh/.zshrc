@@ -77,9 +77,11 @@ export ELECTRON_OZONE_PLATFORM_HINT=wayland
 
 . "$HOME/.local/share/../bin/env"
 
-# Added by LM Studio CLI (lms)
+# LM Studio CLI (lms)
 export PATH="$PATH:/home/aidan/.lmstudio/bin"
-# End of LM Studio CLI section
+
+# Android
+export PATH=$PATH:/opt/android-sdk/platform-tools
 
 # ------------------------------
 # Load environment variables
