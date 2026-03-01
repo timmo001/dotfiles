@@ -12,6 +12,7 @@ TERM_DEFAULT_CMD='uwsm app -- ghostty'
 
 WS1_SLACK_SIZE="645 590"
 WS1_DISCORD_SIZE="645 590"
+WS1_BROWSER_TOP_SIZE="1294 590"
 WS1_BROWSER_SIZE="1294 1110"
 WS1_TERMINAL_SIZE="1294 564"
 
@@ -252,6 +253,18 @@ apply_workspace1_sizes() {
   fi
 }
 
+apply_workspace1_nonwork_sizes() {
+  local restore_addr="$1"
+
+  resize_tagged_window_exact "$TAG_WS1_BROWSER_TOP" ${WS1_BROWSER_TOP_SIZE} || true
+  resize_tagged_window_exact "$TAG_WS1_BROWSER_MAIN" ${WS1_BROWSER_SIZE} || true
+  resize_tagged_window_exact "$TAG_WS1_TERM" ${WS1_TERMINAL_SIZE} || true
+
+  if [ -n "$restore_addr" ]; then
+    focus_addr "$restore_addr" || true
+  fi
+}
+
 rebuild_workspace1_tree() {
   local temp_ws="name:wssetup-temp"
   local slack_addr
@@ -290,6 +303,39 @@ rebuild_workspace1_tree() {
   sleep 0.1
 
   move_to_workspace_silent 1 "$discord_addr"
+  sleep 0.2
+}
+
+rebuild_workspace1_nonwork_tree() {
+  local temp_ws="name:wssetup-temp"
+  local top_addr
+  local main_addr
+  local term_addr
+
+  top_addr="$(address_by_tag "$TAG_WS1_BROWSER_TOP")"
+  main_addr="$(address_by_tag "$TAG_WS1_BROWSER_MAIN")"
+  term_addr="$(address_by_tag "$TAG_WS1_TERM")"
+
+  if [ -z "$top_addr" ] || [ -z "$main_addr" ] || [ -z "$term_addr" ]; then
+    return 0
+  fi
+
+  move_to_workspace_silent "$temp_ws" "$top_addr"
+  move_to_workspace_silent "$temp_ws" "$main_addr"
+  move_to_workspace_silent "$temp_ws" "$term_addr"
+  sleep 0.2
+
+  move_to_workspace_silent 1 "$top_addr"
+  focus_addr "$top_addr" || true
+  hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
+  sleep 0.1
+
+  move_to_workspace_silent 1 "$main_addr"
+  focus_addr "$main_addr" || true
+  hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
+  sleep 0.1
+
+  move_to_workspace_silent 1 "$term_addr"
   sleep 0.2
 }
 
@@ -335,15 +381,11 @@ else
 
   ensure_slot "$TAG_WS1_BROWSER_TOP" '^chromium$' "$BROWSER_PERSONAL_CMD" 1 false || true
   ensure_slot "$TAG_WS1_BROWSER_MAIN" '^chromium$' "$BROWSER_PERSONAL_CMD" 1 false || true
-  WS1_BROWSER_ADDR="$ENSURED_ADDR"
-
-  if [ -n "$WS1_BROWSER_ADDR" ]; then
-    focus_addr "$WS1_BROWSER_ADDR" || true
-    hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
-    sleep 0.2
-  fi
-
   ensure_slot "$TAG_WS1_TERM" '^com\.mitchellh\.ghostty$' "$TERM_DEFAULT_CMD" 1 true || true
+
+  rebuild_workspace1_nonwork_tree
+  apply_workspace1_nonwork_sizes "$START_FOCUS_ADDR"
+
   ensure_slot "$TAG_WS2_TERM" '^com\.mitchellh\.ghostty$' "$TERM_DEFAULT_CMD" 2 true || true
 fi
 
