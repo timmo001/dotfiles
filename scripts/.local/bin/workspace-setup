@@ -347,6 +347,8 @@ else
   ensure_slot "$TAG_WS2_TERM" '^com\.mitchellh\.ghostty$' "$TERM_DEFAULT_CMD" 2 true || true
 fi
 
-if [ -n "$START_FOCUS_ADDR" ]; then
-  focus_addr "$START_FOCUS_ADDR" || true
+if $WORK_TIME; then
+  hyprctl dispatch workspace 3 >/dev/null 2>&1 || true
+else
+  hyprctl dispatch workspace 2 >/dev/null 2>&1 || true
 fi
