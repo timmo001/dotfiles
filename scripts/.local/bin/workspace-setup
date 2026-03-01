@@ -145,7 +145,7 @@ clear_tag_from_all() {
 
   while IFS= read -r addr; do
     [ -n "$addr" ] || continue
-    hyprctl dispatch tagwindow "-$tag" "address:$addr" >/dev/null 2>&1 || true
+    hyprctl dispatch tagwindow -- "-$tag" "address:$addr" >/dev/null 2>&1 || true
   done <<< "$addrs"
 }
 
@@ -155,7 +155,7 @@ tag_address_for_slot() {
   local managed
 
   for managed in "${MANAGED_TAGS[@]}"; do
-    hyprctl dispatch tagwindow "-$managed" "address:$addr" >/dev/null 2>&1 || true
+    hyprctl dispatch tagwindow -- "-$managed" "address:$addr" >/dev/null 2>&1 || true
   done
 
   clear_tag_from_all "$tag"
@@ -262,6 +262,55 @@ apply_workspace1_nonwork_sizes() {
 
   if [ -n "$restore_addr" ]; then
     focus_addr "$restore_addr" || true
+  fi
+}
+
+is_blank_chromium_addr() {
+  local addr="$1"
+  [ -n "$addr" ] || return 1
+
+  hyprctl clients -j | jq -e --arg a "$addr" '
+    .[]
+    | select(.address == $a and .class == "chromium")
+    | (((.title // "") | test("^(New tab|about:blank)"; "i"))
+       or ((.initialTitle // "") | test("^(New tab|about:blank)"; "i")))
+  ' >/dev/null
+}
+
+swap_slot_tags() {
+  local tag_a="$1"
+  local tag_b="$2"
+  local addr_a
+  local addr_b
+
+  addr_a="$(address_by_tag "$tag_a")"
+  addr_b="$(address_by_tag "$tag_b")"
+
+  [ -n "$addr_a" ] || return 1
+  [ -n "$addr_b" ] || return 1
+
+  clear_tag_from_all "$tag_a"
+  clear_tag_from_all "$tag_b"
+  hyprctl dispatch tagwindow "+$tag_a" "address:$addr_b" >/dev/null 2>&1 || true
+  hyprctl dispatch tagwindow "+$tag_b" "address:$addr_a" >/dev/null 2>&1 || true
+}
+
+normalize_nonwork_browser_slot_order() {
+  local top_addr
+  local main_addr
+
+  top_addr="$(address_by_tag "$TAG_WS1_BROWSER_TOP")"
+  main_addr="$(address_by_tag "$TAG_WS1_BROWSER_MAIN")"
+
+  [ -n "$top_addr" ] || return 0
+  [ -n "$main_addr" ] || return 0
+
+  if is_blank_chromium_addr "$top_addr"; then
+    return 0
+  fi
+
+  if is_blank_chromium_addr "$main_addr"; then
+    swap_slot_tags "$TAG_WS1_BROWSER_TOP" "$TAG_WS1_BROWSER_MAIN" || true
   fi
 }
 
@@ -381,6 +430,7 @@ else
 
   ensure_slot "$TAG_WS1_BROWSER_TOP" '^chromium$' "$BROWSER_PERSONAL_CMD" 1 false || true
   ensure_slot "$TAG_WS1_BROWSER_MAIN" '^chromium$' "$BROWSER_PERSONAL_CMD" 1 false || true
+  normalize_nonwork_browser_slot_order
   ensure_slot "$TAG_WS1_TERM" '^com\.mitchellh\.ghostty$' "$TERM_DEFAULT_CMD" 1 true || true
 
   rebuild_workspace1_nonwork_tree
