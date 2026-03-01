@@ -5,10 +5,10 @@
 WORK_DIR="$HOME/repos/home-assistant/frontend"
 TERMINAL="uwsm app -- ghostty"
 BROWSER_PERSONAL="uwsm app -- chromium --new-window --ozone-platform=wayland --profile-directory=Default --force-device-scale-factor=0.8"
-WS1_SLACK_SIZE="645 592"
-WS1_DISCORD_SIZE="645 592"
-WS1_BROWSER_SIZE="1294 1109"
-WS1_TERMINAL_SIZE="1294 567"
+WS1_SLACK_SIZE="645 590"
+WS1_DISCORD_SIZE="645 590"
+WS1_BROWSER_SIZE="1294 1110"
+WS1_TERMINAL_SIZE="1294 564"
 
 launch_exec() {
   hyprctl dispatch exec "$@"
