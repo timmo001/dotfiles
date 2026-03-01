@@ -5,6 +5,10 @@
 WORK_DIR="$HOME/repos/home-assistant/frontend"
 TERMINAL="uwsm app -- ghostty"
 BROWSER_PERSONAL="uwsm app -- chromium --new-window --ozone-platform=wayland --profile-directory=Default --force-device-scale-factor=0.8"
+WS1_SLACK_SIZE="645 592"
+WS1_DISCORD_SIZE="645 592"
+WS1_BROWSER_SIZE="1294 1109"
+WS1_TERMINAL_SIZE="1294 567"
 
 launch_exec() {
   hyprctl dispatch exec "$@"
@@ -16,15 +20,50 @@ launch_cmd() {
   sleep 0.6
 }
 
-wait_for_class() {
-  local re="$1"
+wait_for_workspace_class() {
+  local ws="$1"
+  local re="$2"
   for _ in {1..50}; do
-    if hyprctl clients -j | jq -e --arg re "$re" '.[] | select(((.class // "") | test($re)) or ((.initialClass // "") | test($re)))' >/dev/null; then
+    if hyprctl clients -j | jq -e --argjson ws "$ws" --arg re "$re" '.[] | select(.workspace.id == $ws and (((.class // "") | test($re)) or ((.initialClass // "") | test($re))))' >/dev/null; then
       return 0
     fi
     sleep 0.1
   done
   return 1
+}
+
+workspace_window_address() {
+  local ws="$1"
+  local re="$2"
+  hyprctl clients -j | jq -r --argjson ws "$ws" --arg re "$re" 'first(.[] | select(.workspace.id == $ws and (((.class // "") | test($re)) or ((.initialClass // "") | test($re)))) ) | .address // empty'
+}
+
+resize_workspace_window_exact() {
+  local ws="$1"
+  local re="$2"
+  local width="$3"
+  local height="$4"
+  local addr
+
+  addr="$(workspace_window_address "$ws" "$re")"
+  [ -n "$addr" ] || return 1
+
+  hyprctl dispatch focuswindow "address:$addr" >/dev/null 2>&1 || return 1
+  hyprctl dispatch resizeactive exact "$width" "$height" >/dev/null 2>&1 || return 1
+  return 0
+}
+
+apply_workspace1_sizes() {
+  local restore_addr="$1"
+
+  resize_workspace_window_exact 1 '^chrome-app\.slack\.com__client' ${WS1_SLACK_SIZE} || true
+  resize_workspace_window_exact 1 '^chrome-discord\.com__app' ${WS1_DISCORD_SIZE} || true
+  resize_workspace_window_exact 1 '^chromium$' ${WS1_BROWSER_SIZE} || true
+  resize_workspace_window_exact 1 '^com\.mitchellh\.ghostty$' ${WS1_TERMINAL_SIZE} || true
+
+  if [ -n "$restore_addr" ]; then
+    hyprctl dispatch focuswindow "address:$restore_addr" >/dev/null 2>&1 || true
+  fi
 }
 
 # Workspace 1 (DP-1 portrait)
@@ -38,25 +77,31 @@ else
   WORK_TIME=0
 fi
 
+START_FOCUS_ADDR="$(hyprctl activewindow -j | jq -r '.address // empty')"
+
 if [ "$WORK_TIME" -eq 1 ]; then
   # 1. Slack first (takes full screen)
   launch_cmd launch-work-slack
   # 2. Chromium (splits below Slack — portrait monitor splits top/bottom)
   launch_exec "[workspace 1 silent] $BROWSER_PERSONAL"
   # 3. Force Chromium to split downward, then open Ghostty below it
-  if wait_for_class '^chromium$'; then
+  if wait_for_workspace_class 1 '^chromium$'; then
     hyprctl dispatch focuswindow "class:^(chromium)$"
     hyprctl dispatch layoutmsg preselect d
     sleep 0.2
   fi
   launch_exec "[workspace 1 silent] $TERMINAL --working-directory=$WORK_DIR"
   # 4. Focus Slack, force a right-split, then open Discord beside it
-  if wait_for_class '^chrome-app\.slack\.com__client'; then
+  if wait_for_workspace_class 1 '^chrome-app\.slack\.com__client'; then
     hyprctl dispatch focuswindow "class:^(chrome-app\.slack\.com__client.*)$"
     hyprctl dispatch layoutmsg preselect r
     sleep 0.2
   fi
   launch_cmd launch-work-discord
+
+  if wait_for_workspace_class 1 '^chrome-discord\.com__app'; then
+    apply_workspace1_sizes "$START_FOCUS_ADDR"
+  fi
 else
   launch_exec "[workspace 1 silent] $BROWSER_PERSONAL"
   launch_exec "[workspace 1 silent] $BROWSER_PERSONAL"
