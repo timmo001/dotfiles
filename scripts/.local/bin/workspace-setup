@@ -1,0 +1,76 @@
+#!/bin/bash
+# Workspace startup layout - launched by Hyprland autostart
+# Uses hyprctl dispatch exec to control window placement order
+
+WORK_DIR="$HOME/repos/home-assistant/frontend"
+TERMINAL="uwsm app -- ghostty"
+BROWSER_PERSONAL="uwsm app -- chromium --new-window --ozone-platform=wayland --profile-directory=Default --force-device-scale-factor=0.8"
+
+launch_exec() {
+  hyprctl dispatch exec "$@"
+  sleep 0.6
+}
+
+launch_cmd() {
+  "$@"
+  sleep 0.6
+}
+
+wait_for_class() {
+  local re="$1"
+  for _ in {1..50}; do
+    if hyprctl clients -j | jq -e --arg re "$re" '.[] | select(((.class // "") | test($re)) or ((.initialClass // "") | test($re)))' >/dev/null; then
+      return 0
+    fi
+    sleep 0.1
+  done
+  return 1
+}
+
+# Workspace 1 (DP-1 portrait)
+# Layout: top area | chromium | ghostty
+# During work: top area = Slack (left) + Discord (right)
+# Otherwise:   top area = second browser (full width)
+
+if is-work-time; then
+  WORK_TIME=1
+else
+  WORK_TIME=0
+fi
+
+if [ "$WORK_TIME" -eq 1 ]; then
+  # 1. Slack first (takes full screen)
+  launch_cmd launch-work-slack
+  # 2. Chromium (splits below Slack — portrait monitor splits top/bottom)
+  launch_exec "[workspace 1 silent] $BROWSER_PERSONAL"
+  # 3. Force Chromium to split downward, then open Ghostty below it
+  if wait_for_class '^chromium$'; then
+    hyprctl dispatch focuswindow "class:^(chromium)$"
+    hyprctl dispatch layoutmsg preselect d
+    sleep 0.2
+  fi
+  launch_exec "[workspace 1 silent] $TERMINAL --working-directory=$WORK_DIR"
+  # 4. Focus Slack, force a right-split, then open Discord beside it
+  if wait_for_class '^chrome-app\.slack\.com__client'; then
+    hyprctl dispatch focuswindow "class:^(chrome-app\.slack\.com__client.*)$"
+    hyprctl dispatch layoutmsg preselect r
+    sleep 0.2
+  fi
+  launch_cmd launch-work-discord
+else
+  launch_exec "[workspace 1 silent] $BROWSER_PERSONAL"
+  launch_exec "[workspace 1 silent] $BROWSER_PERSONAL"
+  launch_exec "[workspace 1 silent] $TERMINAL"
+fi
+
+# Workspace 2 (HDMI-A-2)
+if [ "$WORK_TIME" -eq 1 ]; then
+  launch_exec "[workspace 2 silent] $TERMINAL --working-directory=$WORK_DIR"
+else
+  launch_exec "[workspace 2 silent] $TERMINAL"
+fi
+
+# Workspace 3: work browser (work hours only)
+if [ "$WORK_TIME" -eq 1 ]; then
+  launch_cmd launch-work-browser
+fi

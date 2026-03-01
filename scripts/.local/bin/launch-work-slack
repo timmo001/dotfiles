@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cmd='uwsm app -- google-chrome-stable --new-window --ozone-platform=wayland --force-device-scale-factor=0.8 --profile-directory=Profile\ 1 --user-data-dir=$HOME/.config/google-chrome-work --app=https://app.slack.com/client'
+launch-on-workspace 1 '^chrome-app\.slack\.com__client' "$cmd"

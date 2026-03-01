@@ -1,0 +1,39 @@
+#!/bin/bash
+set -euo pipefail
+
+if [ "$#" -lt 3 ]; then
+  printf 'Usage: %s <workspace> <class-regex> <command...>\n' "$0" >&2
+  exit 2
+fi
+
+workspace="$1"
+class_regex="$2"
+shift 2
+
+before_addresses="$({ hyprctl clients -j | jq -r --arg re "$class_regex" '.[] | select(((.class // "") | test($re)) or ((.initialClass // "") | test($re))) | .address'; } 2>/dev/null || true)"
+
+hyprctl dispatch exec "$*"
+
+for _ in {1..40}; do
+  after_addresses="$({ hyprctl clients -j | jq -r --arg re "$class_regex" '.[] | select(((.class // "") | test($re)) or ((.initialClass // "") | test($re))) | .address'; } 2>/dev/null || true)"
+
+  while IFS= read -r addr; do
+    [ -n "$addr" ] || continue
+
+    seen=0
+    while IFS= read -r existing; do
+      if [ "$addr" = "$existing" ]; then
+        seen=1
+        break
+      fi
+    done <<< "$before_addresses"
+
+    if [ "$seen" -eq 0 ]; then
+      hyprctl dispatch movetoworkspacesilent "$workspace,address:$addr" >/dev/null 2>&1 || true
+      exit 0
+    fi
+  done <<< "$after_addresses"
+
+  sleep 0.1
+done
+exit 0
