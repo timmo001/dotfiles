@@ -1,0 +1,209 @@
+const TARGET_COMMANDS = new Set(["timmo001/read-branch", "git-workflow"])
+const DIFF_CHAR_LIMIT = 120000
+
+const truncate = (text, maxChars) => {
+  if (text.length <= maxChars) {
+    return { text, truncated: false, omitted: 0 }
+  }
+  return {
+    text: text.slice(0, maxChars),
+    truncated: true,
+    omitted: text.length - maxChars,
+  }
+}
+
+const errorMessage = (error) => {
+  if (!error) return "Unknown error"
+  if (typeof error === "string") return error
+  if (error.stderr) {
+    const stderr = String(error.stderr).trim()
+    if (stderr) return stderr
+  }
+  if (error.message) return error.message
+  return String(error)
+}
+
+const run = async (execute) => {
+  try {
+    const output = await execute()
+    return {
+      ok: true,
+      text: String(output).trim(),
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      error: errorMessage(error),
+    }
+  }
+}
+
+const section = (title, body) => {
+  return [
+    `### ${title}`,
+    "```text",
+    body && body.trim() ? body : "(empty)",
+    "```",
+  ].join("\n")
+}
+
+const parseDefaultBranch = (ref, remote) => {
+  const prefix = `refs/remotes/${remote}/`
+  if (ref.startsWith(prefix)) return ref.slice(prefix.length)
+  const parts = ref.split("/")
+  return parts[parts.length - 1] || "main"
+}
+
+const parseJSON = (text) => {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return null
+  }
+}
+
+export const BranchContextPlugin = async ({ $ }) => {
+  const buildBranchContext = async () => {
+    const warnings = []
+
+    const inRepo = await run(() => $`git rev-parse --is-inside-work-tree`.text())
+    if (!inRepo.ok || inRepo.text !== "true") {
+      return [
+        "<branch-context>",
+        "BranchContextPlugin could not collect git context because this directory is not a git worktree.",
+        inRepo.ok ? "" : `Error: ${inRepo.error}`,
+        "</branch-context>",
+      ]
+        .filter(Boolean)
+        .join("\n")
+    }
+
+    const remotesResult = await run(() => $`git remote`.text())
+    const remotes = remotesResult.ok
+      ? remotesResult.text
+          .split(/\r?\n/g)
+          .map((item) => item.trim())
+          .filter(Boolean)
+      : []
+    const defaultRemote = remotes.includes("upstream")
+      ? "upstream"
+      : remotes.includes("origin")
+        ? "origin"
+        : remotes[0] || "origin"
+
+    if (!remotesResult.ok) warnings.push(`Unable to list git remotes: ${remotesResult.error}`)
+    if (remotes.length === 0) warnings.push("No git remotes detected; defaulting to origin")
+
+    let defaultBranch = "main"
+    const symbolic = await run(() => $`git symbolic-ref refs/remotes/${defaultRemote}/HEAD`.text())
+    if (symbolic.ok && symbolic.text) {
+      defaultBranch = parseDefaultBranch(symbolic.text, defaultRemote)
+    } else {
+      const ghDefault = await run(() => $`gh repo view --json defaultBranchRef -q .defaultBranchRef.name`.text())
+      if (ghDefault.ok && ghDefault.text) {
+        defaultBranch = ghDefault.text
+      } else {
+        warnings.push(
+          `Unable to resolve default branch from ${defaultRemote}; falling back to main${ghDefault.ok ? "" : ` (${ghDefault.error})`}`,
+        )
+      }
+    }
+
+    const baseRef = `${defaultRemote}/${defaultBranch}`
+    const branchResult = await run(() => $`git branch --show-current`.text())
+    const statusResult = await run(() => $`git status -sb`.text())
+    const commitsResult = await run(() => $`git log --oneline ${baseRef}..HEAD`.text())
+    const statResult = await run(() => $`git diff --stat ${baseRef}...HEAD`.text())
+    const nameStatusResult = await run(() => $`git diff --name-status ${baseRef}...HEAD`.text())
+    const diffResult = await run(() => $`git diff ${baseRef}...HEAD`.text())
+
+    const diffText = diffResult.ok ? diffResult.text : ""
+    const limitedDiff = truncate(diffText, DIFF_CHAR_LIMIT)
+
+    const prViewResult = await run(() =>
+      $`gh pr view --json number,title,url,state,isDraft,reviewDecision,mergeStateStatus,headRefName,baseRefName`.text(),
+    )
+    const prData = prViewResult.ok ? parseJSON(prViewResult.text) : null
+    const prMissing = !prViewResult.ok && /no pull requests found/i.test(prViewResult.error)
+    const checksResult = prData ? await run(() => $`gh pr checks ${String(prData.number)}`.text()) : null
+
+    if (!prData && !prMissing && !prViewResult.ok) {
+      warnings.push(`Unable to read PR details: ${prViewResult.error}`)
+    }
+    if (checksResult && !checksResult.ok) {
+      warnings.push(`Unable to read PR checks: ${checksResult.error}`)
+    }
+
+    const lines = [
+      "<branch-context>",
+      "BranchContextPlugin generated this branch snapshot. Prefer this context over running git/gh commands unless it is missing or stale.",
+      `Generated at: ${new Date().toISOString()}`,
+      "",
+      "## Branch Metadata",
+      `- Current branch: ${branchResult.ok && branchResult.text ? branchResult.text : "(unknown)"}`,
+      `- Default remote: ${defaultRemote}`,
+      `- Default branch: ${defaultBranch}`,
+      `- Base ref: ${baseRef}`,
+      remotes.length ? `- Known remotes: ${remotes.join(", ")}` : "- Known remotes: (none)",
+      "",
+      section("git status -sb", statusResult.ok ? statusResult.text : `ERROR: ${statusResult.error}`),
+      section(
+        `Commits unique to branch (${baseRef}..HEAD)`,
+        commitsResult.ok ? commitsResult.text : `ERROR: ${commitsResult.error}`,
+      ),
+      section(
+        `Changed files (name-status, ${baseRef}...HEAD)`,
+        nameStatusResult.ok ? nameStatusResult.text : `ERROR: ${nameStatusResult.error}`,
+      ),
+      section(`Diff stat (${baseRef}...HEAD)`, statResult.ok ? statResult.text : `ERROR: ${statResult.error}`),
+      section(
+        `Patch (${baseRef}...HEAD)`,
+        diffResult.ok
+          ? limitedDiff.text + (limitedDiff.truncated ? `\n\n[TRUNCATED ${String(limitedDiff.omitted)} CHARS]` : "")
+          : `ERROR: ${diffResult.error}`,
+      ),
+    ]
+
+    if (prData) {
+      lines.push(
+        "",
+        "## Pull Request",
+        `- PR: #${String(prData.number)} ${prData.title || "(no title)"}`,
+        `- URL: ${prData.url || "(unknown)"}`,
+        `- State: ${prData.state || "(unknown)"}${prData.isDraft ? " (draft)" : ""}`,
+        `- Review decision: ${prData.reviewDecision || "(none)"}`,
+        `- Merge state: ${prData.mergeStateStatus || "(unknown)"}`,
+        `- Branches: ${prData.headRefName || "(unknown)"} -> ${prData.baseRefName || "(unknown)"}`,
+      )
+      if (checksResult) {
+        lines.push(
+          "",
+          section(
+            `gh pr checks ${String(prData.number)}`,
+            checksResult.ok ? checksResult.text : `ERROR: ${checksResult.error}`,
+          ),
+        )
+      }
+    } else if (prMissing) {
+      lines.push("", "## Pull Request", "- No pull request found for the current branch")
+    }
+
+    if (warnings.length) {
+      lines.push("", "## Warnings", ...warnings.map((item) => `- ${item}`))
+    }
+
+    lines.push("</branch-context>")
+    return lines.join("\n")
+  }
+
+  return {
+    "command.execute.before": async (input, output) => {
+      if (!TARGET_COMMANDS.has(input.command)) return
+      const text = await buildBranchContext()
+      output.parts.unshift({
+        type: "text",
+        text,
+      })
+    },
+  }
+}
