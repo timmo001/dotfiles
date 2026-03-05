@@ -1,5 +1,6 @@
-const TARGET_COMMANDS = new Set(["timmo001/read-branch", "git-workflow"])
+const TARGET_COMMANDS = new Set(["timmo001/read-branch", "timmo001/reset-branch-reapply", "git-workflow"])
 const DIFF_CHAR_LIMIT = 120000
+const PR_CHECKS_CHAR_LIMIT = 40000
 
 const truncate = (text, maxChars) => {
   if (text.length <= maxChars) {
@@ -176,11 +177,14 @@ export const BranchContextPlugin = async ({ $ }) => {
         `- Branches: ${prData.headRefName || "(unknown)"} -> ${prData.baseRefName || "(unknown)"}`,
       )
       if (checksResult) {
+        const limitedChecks = checksResult.ok ? truncate(checksResult.text, PR_CHECKS_CHAR_LIMIT) : null
         lines.push(
           "",
           section(
             `gh pr checks ${String(prData.number)}`,
-            checksResult.ok ? checksResult.text : `ERROR: ${checksResult.error}`,
+            checksResult.ok
+              ? limitedChecks.text + (limitedChecks.truncated ? `\n\n[TRUNCATED ${String(limitedChecks.omitted)} CHARS]` : "")
+              : `ERROR: ${checksResult.error}`,
           ),
         )
       }

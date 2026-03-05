@@ -9,7 +9,7 @@ Use this skill when working with branches, remotes, or comparing changes.
 
 ## Plugin-first branch context
 
-`BranchContextPlugin` now precomputes branch context for `timmo001/read-branch` and `git-workflow` command executions. It injects a `<branch-context>` block containing:
+`BranchContextPlugin` now precomputes branch context for `timmo001/read-branch`, `timmo001/reset-branch-reapply`, and `git-workflow` command executions. It injects a `<branch-context>` block containing:
 
 - default remote/branch resolution
 - branch status and commit list
