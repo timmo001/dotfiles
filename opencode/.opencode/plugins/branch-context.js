@@ -1,6 +1,10 @@
 const TARGET_COMMANDS = new Set(["timmo001/read-branch", "timmo001/reset-branch-reapply", "git-workflow"])
 const DIFF_CHAR_LIMIT = 120000
 const PR_CHECKS_CHAR_LIMIT = 40000
+const STATUS_CHAR_LIMIT = 12000
+const COMMITS_CHAR_LIMIT = 30000
+const NAME_STATUS_CHAR_LIMIT = 30000
+const DIFF_STAT_CHAR_LIMIT = 20000
 
 const truncate = (text, maxChars) => {
   if (text.length <= maxChars) {
@@ -46,6 +50,16 @@ const section = (title, body) => {
     body && body.trim() ? body : "(empty)",
     "```",
   ].join("\n")
+}
+
+const limitedText = (text, maxChars) => {
+  const limited = truncate(text, maxChars)
+  return limited.text + (limited.truncated ? `\n\n[TRUNCATED ${String(limited.omitted)} CHARS]` : "")
+}
+
+const sectionFromResult = (title, result, maxChars) => {
+  if (!result.ok) return section(title, `ERROR: ${result.error}`)
+  return section(title, limitedText(result.text, maxChars))
 }
 
 const parseDefaultBranch = (ref, remote) => {
@@ -118,9 +132,6 @@ export const BranchContextPlugin = async ({ $ }) => {
     const nameStatusResult = await run(() => $`git diff --name-status ${baseRef}...HEAD`.text())
     const diffResult = await run(() => $`git diff ${baseRef}...HEAD`.text())
 
-    const diffText = diffResult.ok ? diffResult.text : ""
-    const limitedDiff = truncate(diffText, DIFF_CHAR_LIMIT)
-
     const prViewResult = await run(() =>
       $`gh pr view --json number,title,url,state,isDraft,reviewDecision,mergeStateStatus,headRefName,baseRefName`.text(),
     )
@@ -147,22 +158,15 @@ export const BranchContextPlugin = async ({ $ }) => {
       `- Base ref: ${baseRef}`,
       remotes.length ? `- Known remotes: ${remotes.join(", ")}` : "- Known remotes: (none)",
       "",
-      section("git status -sb", statusResult.ok ? statusResult.text : `ERROR: ${statusResult.error}`),
-      section(
-        `Commits unique to branch (${baseRef}..HEAD)`,
-        commitsResult.ok ? commitsResult.text : `ERROR: ${commitsResult.error}`,
-      ),
-      section(
+      sectionFromResult("git status -sb", statusResult, STATUS_CHAR_LIMIT),
+      sectionFromResult(`Commits unique to branch (${baseRef}..HEAD)`, commitsResult, COMMITS_CHAR_LIMIT),
+      sectionFromResult(
         `Changed files (name-status, ${baseRef}...HEAD)`,
-        nameStatusResult.ok ? nameStatusResult.text : `ERROR: ${nameStatusResult.error}`,
+        nameStatusResult,
+        NAME_STATUS_CHAR_LIMIT,
       ),
-      section(`Diff stat (${baseRef}...HEAD)`, statResult.ok ? statResult.text : `ERROR: ${statResult.error}`),
-      section(
-        `Patch (${baseRef}...HEAD)`,
-        diffResult.ok
-          ? limitedDiff.text + (limitedDiff.truncated ? `\n\n[TRUNCATED ${String(limitedDiff.omitted)} CHARS]` : "")
-          : `ERROR: ${diffResult.error}`,
-      ),
+      sectionFromResult(`Diff stat (${baseRef}...HEAD)`, statResult, DIFF_STAT_CHAR_LIMIT),
+      sectionFromResult(`Patch (${baseRef}...HEAD)`, diffResult, DIFF_CHAR_LIMIT),
     ]
 
     if (prData) {
@@ -177,15 +181,9 @@ export const BranchContextPlugin = async ({ $ }) => {
         `- Branches: ${prData.headRefName || "(unknown)"} -> ${prData.baseRefName || "(unknown)"}`,
       )
       if (checksResult) {
-        const limitedChecks = checksResult.ok ? truncate(checksResult.text, PR_CHECKS_CHAR_LIMIT) : null
         lines.push(
           "",
-          section(
-            `gh pr checks ${String(prData.number)}`,
-            checksResult.ok
-              ? limitedChecks.text + (limitedChecks.truncated ? `\n\n[TRUNCATED ${String(limitedChecks.omitted)} CHARS]` : "")
-              : `ERROR: ${checksResult.error}`,
-          ),
+          sectionFromResult(`gh pr checks ${String(prData.number)}`, checksResult, PR_CHECKS_CHAR_LIMIT),
         )
       }
     } else if (prMissing) {
