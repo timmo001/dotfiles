@@ -123,10 +123,27 @@ MANAGED_TAGS=(
 )
 
 START_FOCUS_ADDR="$(hyprctl activewindow -j | jq -r '.address // empty')"
+STARTUP_BROWSER_ADDR=""
 USED_ADDRS=""
 ENSURED_ADDR=""
 
+if [ -n "$START_FOCUS_ADDR" ] && hyprctl clients -j | jq -e --arg a "$START_FOCUS_ADDR" '
+  .[]
+  | select(.address == $a)
+  | (((.class // "") | test("^chromium$")) or ((.initialClass // "") | test("^chromium$")))
+' >/dev/null; then
+  STARTUP_BROWSER_ADDR="$START_FOCUS_ADDR"
+fi
+
 log_step "Starting workspace setup (step-through=$STEP_MODE, speed-multiplier=$SLOW_MULTIPLIER, log-file=$LOG_FILE)"
+
+if [ -n "$STARTUP_BROWSER_ADDR" ]; then
+  log_step "Startup browser detected at $STARTUP_BROWSER_ADDR; preferring it for center browser slot"
+elif [ -n "$START_FOCUS_ADDR" ]; then
+  log_step "Focused startup window $START_FOCUS_ADDR is not chromium; center browser slot will use normal candidate selection"
+else
+  log_step "No focused startup window detected; center browser slot will use normal candidate selection"
+fi
 
 line_in_list() {
   local list="$1"
@@ -266,6 +283,7 @@ ensure_slot() {
   local command="$3"
   local workspace="$4"
   local skip_oc="$5"
+  local preferred_addr="${6:-}"
 
   local addr=""
   local before=""
@@ -278,6 +296,21 @@ ensure_slot() {
   addr="$(address_by_tag "$tag")"
   if [ -n "$addr" ] && is_used "$addr"; then
     addr=""
+  fi
+
+  if [ -z "$addr" ]; then
+    if [ -n "$preferred_addr" ] && ! is_used "$preferred_addr" && hyprctl clients -j | jq -e \
+      --arg a "$preferred_addr" \
+      --arg re "$re" \
+      --argjson skip_oc "$skip_oc" '
+        .[]
+        | select(.address == $a)
+        | select((((.class // "") | test($re)) or ((.initialClass // "") | test($re))))
+        | select(if $skip_oc then ((.title // "") | startswith("OC |") | not) else true end)
+      ' >/dev/null; then
+      log_step "Using preferred window $preferred_addr for slot '$tag'"
+      addr="$preferred_addr"
+    fi
   fi
 
   if [ -z "$addr" ]; then
@@ -521,7 +554,7 @@ if $WORK_TIME; then
   ensure_slot "$TAG_WS1_SLACK" '^chrome-app\.slack\.com__client' "$WORK_SLACK_CMD" 1 false || true
   WS1_SLACK_ADDR="$ENSURED_ADDR"
 
-  ensure_slot "$TAG_WS1_BROWSER_MAIN" '^chromium$' "$BROWSER_PERSONAL_CMD" 1 false || true
+  ensure_slot "$TAG_WS1_BROWSER_MAIN" '^chromium$' "$BROWSER_PERSONAL_CMD" 1 false "$STARTUP_BROWSER_ADDR" || true
   WS1_BROWSER_ADDR="$ENSURED_ADDR"
 
   if [ -n "$WS1_BROWSER_ADDR" ]; then
@@ -551,8 +584,8 @@ else
   clear_tag_from_all "$TAG_WS1_SLACK"
   clear_tag_from_all "$TAG_WS1_DISCORD"
 
+  ensure_slot "$TAG_WS1_BROWSER_MAIN" '^chromium$' "$BROWSER_PERSONAL_CMD" 1 false "$STARTUP_BROWSER_ADDR" || true
   ensure_slot "$TAG_WS1_BROWSER_TOP" '^chromium$' "$BROWSER_PERSONAL_CMD" 1 false || true
-  ensure_slot "$TAG_WS1_BROWSER_MAIN" '^chromium$' "$BROWSER_PERSONAL_CMD" 1 false || true
   normalize_nonwork_browser_slot_order
   ensure_slot "$TAG_WS1_TERM" '^com\.mitchellh\.ghostty$' "$TERM_DEFAULT_CMD" 1 true || true
 
