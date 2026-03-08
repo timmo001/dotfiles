@@ -605,3 +605,8 @@ else
 fi
 
 log_step "Workspace setup complete"
+
+log_step "Cleaning up logs older than 7 days"
+if [ -d "$LOG_DIR_DEFAULT" ]; then
+  find "$LOG_DIR_DEFAULT" -type f -name 'workspace-setup-*.log' -mtime +7 -delete 2>/dev/null || true
+fi
