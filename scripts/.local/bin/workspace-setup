@@ -5,7 +5,8 @@ WORK_DIR="$HOME/repos/home-assistant/frontend"
 STEP_MODE=false
 SLOW_MULTIPLIER="1.8"
 STARTUP_DELAY="0"
-LOG_FILE="${WORKSPACE_SETUP_LOG_FILE:-$HOME/.local/state/workspace-setup.log}"
+LOG_DIR_DEFAULT="$HOME/.local/state/workspace-setup/runs"
+LOG_FILE=""
 
 usage() {
   cat <<'EOF'
@@ -14,7 +15,7 @@ Usage: workspace-setup [--step-through] [--speed-multiplier=N] [--sleep=N] [--fa
 Options:
   --step-through          Pause after each logged step and wait for Enter.
   --speed-multiplier=N    Multiply all built-in sleep durations (default: 1.8).
-  --sleep=N               Wait N seconds before running setup logic.
+  --sleep=N               Wait N seconds before running setup logic (default: 0).
   --fast                  Alias for --speed-multiplier=1.
   -h, --help              Show this help.
 EOF
@@ -55,6 +56,12 @@ fi
 if ! awk -v n="$STARTUP_DELAY" 'BEGIN { exit !(n ~ /^[0-9]+([.][0-9]+)?$/) }'; then
   printf 'workspace-setup: --sleep must be a non-negative number\n' >&2
   exit 1
+fi
+
+if [ -n "${WORKSPACE_SETUP_LOG_FILE:-}" ]; then
+  LOG_FILE="$WORKSPACE_SETUP_LOG_FILE"
+else
+  LOG_FILE="$LOG_DIR_DEFAULT/workspace-setup-$(date +%Y%m%d-%H%M%S).log"
 fi
 
 mkdir -p "$(dirname "$LOG_FILE")"
