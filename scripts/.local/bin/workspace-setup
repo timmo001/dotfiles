@@ -2,6 +2,86 @@
 
 WORK_DIR="$HOME/repos/home-assistant/frontend"
 
+STEP_MODE=false
+SLOW_MULTIPLIER="1.8"
+STARTUP_DELAY="0"
+LOG_FILE="${WORKSPACE_SETUP_LOG_FILE:-$HOME/.local/state/workspace-setup.log}"
+
+usage() {
+  cat <<'EOF'
+Usage: workspace-setup [--step-through] [--speed-multiplier=N] [--sleep=N] [--fast]
+
+Options:
+  --step-through          Pause after each logged step and wait for Enter.
+  --speed-multiplier=N    Multiply all built-in sleep durations (default: 1.8).
+  --sleep=N               Wait N seconds before running setup logic.
+  --fast                  Alias for --speed-multiplier=1.
+  -h, --help              Show this help.
+EOF
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --step-through|--step)
+      STEP_MODE=true
+      ;;
+    --speed-multiplier=*)
+      SLOW_MULTIPLIER="${1#*=}"
+      ;;
+    --sleep=*)
+      STARTUP_DELAY="${1#*=}"
+      ;;
+    --fast)
+      SLOW_MULTIPLIER="1"
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      printf 'workspace-setup: unknown option: %s\n' "$1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+if ! awk -v n="$SLOW_MULTIPLIER" 'BEGIN { exit !(n ~ /^[0-9]+([.][0-9]+)?$/ && n > 0) }'; then
+  printf 'workspace-setup: --speed-multiplier must be a positive number\n' >&2
+  exit 1
+fi
+
+if ! awk -v n="$STARTUP_DELAY" 'BEGIN { exit !(n ~ /^[0-9]+([.][0-9]+)?$/) }'; then
+  printf 'workspace-setup: --sleep must be a non-negative number\n' >&2
+  exit 1
+fi
+
+mkdir -p "$(dirname "$LOG_FILE")"
+
+log_step() {
+  local message="$1"
+  local timestamp
+  timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+  printf '[workspace-setup %s] %s\n' "$timestamp" "$message" | tee -a "$LOG_FILE"
+
+  if $STEP_MODE; then
+    read -r -p "[workspace-setup] Press Enter to continue... "
+  fi
+}
+
+if awk -v n="$STARTUP_DELAY" 'BEGIN { exit !(n > 0) }'; then
+  printf '[workspace-setup] Sleeping %ss before startup\n' "$STARTUP_DELAY" | tee -a "$LOG_FILE"
+  command sleep "$STARTUP_DELAY"
+fi
+
+sleep() {
+  local duration="${1:-0}"
+  local scaled
+  scaled="$(awk -v d="$duration" -v m="$SLOW_MULTIPLIER" 'BEGIN { printf "%.3f", d * m }')"
+  command sleep "$scaled"
+}
+
 BROWSER_PERSONAL_CMD='uwsm app -- chromium --new-window --ozone-platform=wayland --profile-directory="Default" --force-device-scale-factor=0.8'
 WORK_CHROME_BASE='uwsm app -- google-chrome-stable --new-window --ozone-platform=wayland --force-device-scale-factor=0.8 --profile-directory=Profile\ 1 --user-data-dir=$HOME/.config/google-chrome-work'
 WORK_SLACK_CMD="$WORK_CHROME_BASE --app=https://app.slack.com/client"
@@ -38,6 +118,8 @@ MANAGED_TAGS=(
 START_FOCUS_ADDR="$(hyprctl activewindow -j | jq -r '.address // empty')"
 USED_ADDRS=""
 ENSURED_ADDR=""
+
+log_step "Starting workspace setup (step-through=$STEP_MODE, speed-multiplier=$SLOW_MULTIPLIER, log-file=$LOG_FILE)"
 
 line_in_list() {
   local list="$1"
@@ -141,6 +223,7 @@ clear_tag_from_all() {
   local addrs
   local addr
 
+  log_step "Clearing tag '$tag' from all windows"
   addrs="$(hyprctl clients -j | jq -r --arg tag "$tag" '.[] | select((.tags // []) | index($tag)) | .address')"
 
   while IFS= read -r addr; do
@@ -154,6 +237,7 @@ tag_address_for_slot() {
   local tag="$2"
   local managed
 
+  log_step "Tagging window $addr as '$tag'"
   for managed in "${MANAGED_TAGS[@]}"; do
     hyprctl dispatch tagwindow -- "-$managed" "address:$addr" >/dev/null 2>&1 || true
   done
@@ -165,6 +249,7 @@ tag_address_for_slot() {
 move_to_workspace_silent() {
   local workspace="$1"
   local addr="$2"
+  log_step "Moving window $addr to workspace $workspace"
   hyprctl dispatch movetoworkspacesilent "$workspace,address:$addr" >/dev/null 2>&1 || true
 }
 
@@ -181,6 +266,7 @@ ensure_slot() {
   local candidates=""
 
   ENSURED_ADDR=""
+  log_step "Ensuring slot '$tag' on workspace $workspace"
 
   addr="$(address_by_tag "$tag")"
   if [ -n "$addr" ] && is_used "$addr"; then
@@ -188,11 +274,13 @@ ensure_slot() {
   fi
 
   if [ -z "$addr" ]; then
+    log_step "No existing slot for '$tag', looking for candidate windows"
     candidates="$(find_candidate_addresses "$re" "$workspace" "$skip_oc")"
     addr="$(first_unused_from_list "$candidates" || true)"
   fi
 
   if [ -z "$addr" ]; then
+    log_step "No reusable candidate for '$tag', launching command"
     before="$(matching_addresses "$re" "$skip_oc")"
     hyprctl dispatch exec "$command" >/dev/null 2>&1 || true
 
@@ -207,22 +295,28 @@ ensure_slot() {
   fi
 
   if [ -z "$addr" ]; then
+    log_step "Fallback candidate lookup for '$tag'"
     candidates="$(find_candidate_addresses "$re" "$workspace" "$skip_oc")"
     addr="$(first_unused_from_list "$candidates" || true)"
   fi
 
-  [ -n "$addr" ] || return 1
+  if [ -z "$addr" ]; then
+    log_step "Failed to resolve address for slot '$tag'"
+    return 1
+  fi
 
   move_to_workspace_silent "$workspace" "$addr"
   tag_address_for_slot "$addr" "$tag"
   mark_used "$addr"
   ENSURED_ADDR="$addr"
+  log_step "Slot '$tag' now bound to $addr"
   return 0
 }
 
 focus_addr() {
   local addr="$1"
   [ -n "$addr" ] || return 1
+  log_step "Focusing window $addr"
   hyprctl dispatch focuswindow "address:$addr" >/dev/null 2>&1
 }
 
@@ -235,6 +329,7 @@ resize_tagged_window_exact() {
   addr="$(address_by_tag "$tag")"
   [ -n "$addr" ] || return 1
 
+  log_step "Resizing tag '$tag' ($addr) to ${width}x${height}"
   focus_addr "$addr" || return 1
   hyprctl dispatch resizeactive exact "$width" "$height" >/dev/null 2>&1 || return 1
   return 0
@@ -242,6 +337,8 @@ resize_tagged_window_exact() {
 
 apply_workspace1_sizes() {
   local restore_addr="$1"
+
+  log_step "Applying workspace 1 work layout sizes"
 
   resize_tagged_window_exact "$TAG_WS1_SLACK" ${WS1_SLACK_SIZE} || true
   resize_tagged_window_exact "$TAG_WS1_DISCORD" ${WS1_DISCORD_SIZE} || true
@@ -255,6 +352,8 @@ apply_workspace1_sizes() {
 
 apply_workspace1_nonwork_sizes() {
   local restore_addr="$1"
+
+  log_step "Applying workspace 1 non-work layout sizes"
 
   resize_tagged_window_exact "$TAG_WS1_BROWSER_TOP" ${WS1_BROWSER_TOP_SIZE} || true
   resize_tagged_window_exact "$TAG_WS1_BROWSER_MAIN" ${WS1_BROWSER_SIZE} || true
@@ -306,10 +405,12 @@ normalize_nonwork_browser_slot_order() {
   [ -n "$main_addr" ] || return 0
 
   if is_blank_chromium_addr "$top_addr"; then
+    log_step "Non-work browser slot order already normalized"
     return 0
   fi
 
   if is_blank_chromium_addr "$main_addr"; then
+    log_step "Swapping non-work browser slots to keep blank tab on top"
     swap_slot_tags "$TAG_WS1_BROWSER_TOP" "$TAG_WS1_BROWSER_MAIN" || true
   fi
 }
@@ -327,8 +428,11 @@ rebuild_workspace1_tree() {
   term_addr="$(address_by_tag "$TAG_WS1_TERM")"
 
   if [ -z "$slack_addr" ] || [ -z "$discord_addr" ] || [ -z "$browser_addr" ] || [ -z "$term_addr" ]; then
+    log_step "Skipping workspace 1 work tree rebuild (missing one or more windows)"
     return 0
   fi
+
+  log_step "Rebuilding workspace 1 work tree"
 
   move_to_workspace_silent "$temp_ws" "$slack_addr"
   move_to_workspace_silent "$temp_ws" "$discord_addr"
@@ -366,8 +470,11 @@ rebuild_workspace1_nonwork_tree() {
   term_addr="$(address_by_tag "$TAG_WS1_TERM")"
 
   if [ -z "$top_addr" ] || [ -z "$main_addr" ] || [ -z "$term_addr" ]; then
+    log_step "Skipping workspace 1 non-work tree rebuild (missing one or more windows)"
     return 0
   fi
+
+  log_step "Rebuilding workspace 1 non-work tree"
 
   move_to_workspace_silent "$temp_ws" "$top_addr"
   move_to_workspace_silent "$temp_ws" "$main_addr"
@@ -395,6 +502,13 @@ else
 fi
 
 if $WORK_TIME; then
+  log_step "Detected work-time mode"
+else
+  log_step "Detected non-work-time mode"
+fi
+
+if $WORK_TIME; then
+  log_step "Preparing workspace 1 work apps"
   clear_tag_from_all "$TAG_WS1_BROWSER_TOP"
 
   ensure_slot "$TAG_WS1_SLACK" '^chrome-app\.slack\.com__client' "$WORK_SLACK_CMD" 1 false || true
@@ -422,9 +536,11 @@ if $WORK_TIME; then
   rebuild_workspace1_tree
   apply_workspace1_sizes "$START_FOCUS_ADDR"
 
+  log_step "Preparing workspace 2 and 3 work apps"
   ensure_slot "$TAG_WS2_TERM" '^com\.mitchellh\.ghostty$' "$TERM_WORK_CMD" 2 true || true
   ensure_slot "$TAG_WS3_BROWSER" '^(work-browser|google-chrome)$' "$WORK_BROWSER_CMD" 3 false || true
 else
+  log_step "Preparing workspace 1 non-work apps"
   clear_tag_from_all "$TAG_WS1_SLACK"
   clear_tag_from_all "$TAG_WS1_DISCORD"
 
@@ -436,11 +552,16 @@ else
   rebuild_workspace1_nonwork_tree
   apply_workspace1_nonwork_sizes "$START_FOCUS_ADDR"
 
+  log_step "Preparing workspace 2 non-work app"
   ensure_slot "$TAG_WS2_TERM" '^com\.mitchellh\.ghostty$' "$TERM_DEFAULT_CMD" 2 true || true
 fi
 
 if $WORK_TIME; then
+  log_step "Switching to workspace 3"
   hyprctl dispatch workspace 3 >/dev/null 2>&1 || true
 else
+  log_step "Switching to workspace 2"
   hyprctl dispatch workspace 2 >/dev/null 2>&1 || true
 fi
+
+log_step "Workspace setup complete"
