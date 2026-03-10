@@ -1,6 +1,6 @@
 #!/bin/bash
-# Exit 0 if Mon-Fri 8:00-16:59, exit 1 otherwise
+# Exit 0 if Mon-Fri 7:00-16:59, exit 1 otherwise
 day=$(date +%u)  # 1=Mon, 7=Sun
 hour=$(date +%-H)
 
-[[ $day -ge 1 && $day -le 5 && $hour -ge 8 && $hour -lt 17 ]]
+[[ $day -ge 1 && $day -le 5 && $hour -ge 7 && $hour -lt 17 ]]
