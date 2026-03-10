@@ -7,6 +7,12 @@ SLOW_MULTIPLIER="1.8"
 STARTUP_DELAY="0"
 LOG_DIR_DEFAULT="$HOME/.local/state/workspace-setup/runs"
 LOG_FILE=""
+# Use a numeric temp workspace instead of a named workspace because
+# named + silent workspace moves have triggered Hyprland crashes here.
+TEMP_WORKSPACE="${WORKSPACE_SETUP_TEMP_WS:-99}"
+# Prefer non-silent moves by default because movetoworkspacesilent has
+# crashed Hyprland during this setup flow.
+MOVE_DISPATCHER="${WORKSPACE_SETUP_MOVE_DISPATCHER:-movetoworkspace}"
 
 usage() {
   cat <<'EOF'
@@ -57,6 +63,20 @@ if ! awk -v n="$STARTUP_DELAY" 'BEGIN { exit !(n ~ /^[0-9]+([.][0-9]+)?$/) }'; t
   printf 'workspace-setup: --sleep must be a non-negative number\n' >&2
   exit 1
 fi
+
+if ! awk -v n="$TEMP_WORKSPACE" 'BEGIN { exit !(n ~ /^[0-9]+$/ && n > 0) }'; then
+  printf 'workspace-setup: WORKSPACE_SETUP_TEMP_WS must be a positive integer workspace id\n' >&2
+  exit 1
+fi
+
+case "$MOVE_DISPATCHER" in
+  movetoworkspace|movetoworkspacesilent)
+    ;;
+  *)
+    printf 'workspace-setup: WORKSPACE_SETUP_MOVE_DISPATCHER must be movetoworkspace or movetoworkspacesilent\n' >&2
+    exit 1
+    ;;
+esac
 
 if [ -n "${WORKSPACE_SETUP_LOG_FILE:-}" ]; then
   LOG_FILE="$WORKSPACE_SETUP_LOG_FILE"
@@ -135,7 +155,7 @@ if [ -n "$START_FOCUS_ADDR" ] && hyprctl clients -j | jq -e --arg a "$START_FOCU
   STARTUP_BROWSER_ADDR="$START_FOCUS_ADDR"
 fi
 
-log_step "Starting workspace setup (step-through=$STEP_MODE, speed-multiplier=$SLOW_MULTIPLIER, log-file=$LOG_FILE)"
+log_step "Starting workspace setup (step-through=$STEP_MODE, speed-multiplier=$SLOW_MULTIPLIER, move-dispatcher=$MOVE_DISPATCHER, log-file=$LOG_FILE)"
 
 if [ -n "$STARTUP_BROWSER_ADDR" ]; then
   log_step "Startup browser detected at $STARTUP_BROWSER_ADDR; preferring it for center browser slot"
@@ -273,8 +293,8 @@ tag_address_for_slot() {
 move_to_workspace_silent() {
   local workspace="$1"
   local addr="$2"
-  log_step "Moving window $addr to workspace $workspace"
-  hyprctl dispatch movetoworkspacesilent "$workspace,address:$addr" >/dev/null 2>&1 || true
+  log_step "Moving window $addr to workspace $workspace via $MOVE_DISPATCHER"
+  hyprctl dispatch "$MOVE_DISPATCHER" "$workspace,address:$addr" >/dev/null 2>&1 || true
 }
 
 ensure_slot() {
@@ -456,7 +476,7 @@ normalize_nonwork_browser_slot_order() {
 }
 
 rebuild_workspace1_tree() {
-  local temp_ws="name:wssetup-temp"
+  local temp_ws="$TEMP_WORKSPACE"
   local slack_addr
   local discord_addr
   local browser_addr
@@ -500,7 +520,7 @@ rebuild_workspace1_tree() {
 }
 
 rebuild_workspace1_nonwork_tree() {
-  local temp_ws="name:wssetup-temp"
+  local temp_ws="$TEMP_WORKSPACE"
   local top_addr
   local main_addr
   local term_addr
