@@ -306,6 +306,65 @@ alias gcoall='git checkout -- .'
 alias gr='git remote'
 alias gre='git reset'
 
+git-merged-branches() {
+  local default_branch current_branch branch
+
+  current_branch=$(git branch --show-current 2>/dev/null)
+
+  if command -v gh >/dev/null 2>&1 && gh repo view >/dev/null 2>&1; then
+    default_branch=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null)
+
+    if [ -n "$default_branch" ]; then
+      gh pr list --state merged --base "$default_branch" --json headRefName --jq '.[].headRefName' 2>/dev/null \
+        | while IFS= read -r branch; do
+            if [ -n "$branch" ] && [ "$branch" != "$current_branch" ] && git show-ref --verify --quiet "refs/heads/$branch"; then
+              echo "$branch"
+            fi
+          done \
+        | sort -u
+      return 0
+    fi
+  fi
+
+  default_branch=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | cut -d/ -f2-)
+
+  if [ -z "$default_branch" ]; then
+    echo "Could not detect the default branch from GitHub or origin/HEAD"
+    return 1
+  fi
+
+  git for-each-ref refs/heads/ --merged "origin/$default_branch" --format='%(refname:short)' \
+    | grep -vx "$default_branch" \
+    | grep -vx "$current_branch"
+}
+
+git-delete-merged-branches() {
+  local branches branch
+
+  branches=$(git-merged-branches)
+
+  if [ -z "$branches" ]; then
+    echo "No merged local branches found"
+    return 0
+  fi
+
+  echo "The following local branches will be deleted:"
+  printf '%s\n' "$branches"
+  echo -n "Proceed? [y/N]: "
+  read -r answer
+
+  if [[ ! "$answer" =~ ^[Yy]$ ]]; then
+    echo "Aborted."
+    return 0
+  fi
+
+  while IFS= read -r branch; do
+    if [ -n "$branch" ]; then
+      git branch -d "$branch"
+    fi
+  done <<< "$branches"
+}
+
 git-update() {
   # Save current directory
   local current_dir=$(pwd) # Save current directory
