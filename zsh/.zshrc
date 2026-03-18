@@ -83,6 +83,9 @@ export PATH="$PATH:/home/aidan/.lmstudio/bin"
 # Android
 export PATH=$PATH:/opt/android-sdk/platform-tools
 
+# Opencode
+OPENCODE_ENABLE_EXA=1
+
 # ------------------------------
 # Load environment variables
 # from .env file if it exists
