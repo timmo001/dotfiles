@@ -308,6 +308,9 @@ command-breakdown() {
 
   local -a tokens expanded
   local first resolved where_output
+  local last_alias_name=""
+  local last_alias_first=""
+  local last_alias_word_count=0
   local -A seen
   local depth=0
   local indent=""
@@ -329,7 +332,10 @@ command-breakdown() {
       echo "${indent}${first} -> alias: ${aliases[$first]}"
     fi
 
+    last_alias_name="$first"
     expanded=(${(z)aliases[$first]})
+    last_alias_first="${expanded[1]}"
+    last_alias_word_count=${#expanded[@]}
     tokens=("${expanded[@]}" "${tokens[@]:1}")
     first="${tokens[1]}"
 
@@ -344,7 +350,15 @@ command-breakdown() {
     fi
     tokens[1]="$resolved"
   elif (( ${+functions[$first]} )); then
-    if (( verbose )); then
+    if [[ -n "$last_alias_name" ]] \
+      && (( ${+builtins[$last_alias_name]} )) \
+      && (( last_alias_word_count == 1 )) \
+      && [[ "$last_alias_first" == "$first" ]]; then
+      if (( verbose )); then
+        echo "${indent}${first} -> function (builtin alias target for ${last_alias_name})"
+      fi
+      tokens[1]="$last_alias_name"
+    elif (( verbose )); then
       echo "${indent}${first} -> function"
     fi
   else
