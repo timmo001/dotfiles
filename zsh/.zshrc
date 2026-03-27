@@ -277,6 +277,92 @@ save-installed-packages() {
   echo "Saved all user-installed packages (system, brew, flatpak) to $outfile"
 }
 
+command-breakdown() {
+  local verbose=0
+
+  while (( $# > 0 )); do
+    case "$1" in
+    -v|--verbose)
+      verbose=1
+      shift
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      echo "Unknown option: $1" >&2
+      echo "Usage: command-breakdown [-v|--verbose] <command> [args ...]" >&2
+      return 1
+      ;;
+    *)
+      break
+      ;;
+    esac
+  done
+
+  if (( $# == 0 )); then
+    echo "Usage: command-breakdown [-v|--verbose] <command> [args ...]"
+    return 1
+  fi
+
+  local -a tokens expanded
+  local first resolved where_output
+  local -A seen
+  local depth=0
+  local indent=""
+
+  tokens=("$@")
+  first="${tokens[1]}"
+
+  while (( ${+aliases[$first]} )); do
+    if [[ -n "${seen[$first]}" ]]; then
+      if (( verbose )); then
+        echo "${indent}${first} -> cycle detected"
+      fi
+      echo "cycle-detected:${first}" >&2
+      return 1
+    fi
+    seen[$first]=1
+
+    if (( verbose )); then
+      echo "${indent}${first} -> alias: ${aliases[$first]}"
+    fi
+
+    expanded=(${(z)aliases[$first]})
+    tokens=("${expanded[@]}" "${tokens[@]:1}")
+    first="${tokens[1]}"
+
+    depth=$((depth + 1))
+    indent=$(printf '%*s' $((depth * 2)) '')
+  done
+
+  if whence -p "$first" >/dev/null 2>&1; then
+    resolved=$(whence -p "$first")
+    if (( verbose )); then
+      echo "${indent}${first} -> command: ${resolved}"
+    fi
+    tokens[1]="$resolved"
+  elif (( ${+functions[$first]} )); then
+    if (( verbose )); then
+      echo "${indent}${first} -> function"
+    fi
+  else
+    where_output=$(where "$first" 2>/dev/null)
+    if [[ -n "$where_output" ]]; then
+      resolved="${where_output%%$'\n'*}"
+      if (( verbose )); then
+        echo "${indent}${first} -> ${resolved}"
+      fi
+      tokens[1]="$resolved"
+    elif (( verbose )); then
+      echo "${indent}${first} -> not found"
+    fi
+  fi
+
+  print -r -- ${(j: :)tokens}
+}
+
 # ------------------------------
 # Aliases
 # ------------------------------
@@ -287,6 +373,7 @@ alias virt-manager="/usr/bin/python3 /usr/bin/virt-manager"
 
 # alias cat="bat"
 alias la="tree"
+alias cbd="command-breakdown"
 
 alias ff="fastfetch"
 
