@@ -116,6 +116,7 @@ WORK_DISCORD_CMD="$WORK_CHROME_BASE --app=https://discord.com/app"
 WORK_BROWSER_CMD="$WORK_CHROME_BASE --class=work-browser"
 TERM_WORK_CMD="uwsm app -- ghostty --working-directory=$WORK_DIR"
 TERM_DEFAULT_CMD='uwsm app -- ghostty'
+CURSOR_WORK_CMD="uwsm app -- /usr/bin/cursor \"$WORK_DIR\""
 
 WS1_SLACK_SIZE="645 660"
 WS1_DISCORD_SIZE="645 660"
@@ -130,6 +131,7 @@ TAG_WS1_BROWSER_MAIN="${TAG_PREFIX}ws1-browser-main"
 TAG_WS1_BROWSER_TOP="${TAG_PREFIX}ws1-browser-top"
 TAG_WS1_TERM="${TAG_PREFIX}ws1-term"
 TAG_WS2_TERM="${TAG_PREFIX}ws2-term"
+TAG_WS2_CURSOR="${TAG_PREFIX}ws2-cursor"
 TAG_WS3_BROWSER="${TAG_PREFIX}ws3-browser"
 
 MANAGED_TAGS=(
@@ -139,6 +141,7 @@ MANAGED_TAGS=(
   "$TAG_WS1_BROWSER_TOP"
   "$TAG_WS1_TERM"
   "$TAG_WS2_TERM"
+  "$TAG_WS2_CURSOR"
   "$TAG_WS3_BROWSER"
 )
 
@@ -597,7 +600,8 @@ if $WORK_TIME; then
   apply_workspace1_sizes "$START_FOCUS_ADDR"
 
   log_step "Preparing workspace 2 and 3 work apps"
-  ensure_slot "$TAG_WS2_TERM" '^com\.mitchellh\.ghostty$' "$TERM_WORK_CMD" 2 true || true
+  clear_tag_from_all "$TAG_WS2_TERM"
+  ensure_slot "$TAG_WS2_CURSOR" '^[Cc]ursor$' "$CURSOR_WORK_CMD" 2 false || true
   ensure_slot "$TAG_WS3_BROWSER" '^(work-browser|google-chrome)$' "$WORK_BROWSER_CMD" 3 false || true
 else
   log_step "Preparing workspace 1 non-work apps"
@@ -613,12 +617,13 @@ else
   apply_workspace1_nonwork_sizes "$START_FOCUS_ADDR"
 
   log_step "Preparing workspace 2 non-work app"
+  clear_tag_from_all "$TAG_WS2_CURSOR"
   ensure_slot "$TAG_WS2_TERM" '^com\.mitchellh\.ghostty$' "$TERM_DEFAULT_CMD" 2 true || true
 fi
 
 if $WORK_TIME; then
-  log_step "Switching to workspace 3"
-  hyprctl dispatch workspace 3 >/dev/null 2>&1 || true
+  log_step "Switching to workspace 2"
+  hyprctl dispatch workspace 2 >/dev/null 2>&1 || true
 else
   log_step "Switching to workspace 2"
   hyprctl dispatch workspace 2 >/dev/null 2>&1 || true
