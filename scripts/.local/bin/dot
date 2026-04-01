@@ -11,9 +11,12 @@ EXPECTED_GH_USER="${DOT_PRIVATE_GH_USER:-timmo001}"
 PRIVATE_MODE="${DOT_ALLOW_PRIVATE:-auto}" # auto|always|never
 INCLUDE_OMARCHY_DIFF_REPOS="${DOT_INCLUDE_OMARCHY_DIFF_REPOS:-1}"
 INCLUDE_OMARCHY_UPDATE_REPOS="${DOT_INCLUDE_OMARCHY_UPDATE_REPOS:-1}"
+INIT_NONINTERACTIVE="${DOT_INIT_NONINTERACTIVE:-0}"
 
 OMARCHY_REPO_BASE="${OMARCHY_REPO_BASE_DIR:-$HOME/.config}"
 OMARCHY_DIFF_REPOS=(bootstrap hypr waybar ghostty uwsm)
+OMARCHY_BRANCH="${DOT_OMARCHY_BRANCH:-}"
+BOOTSTRAP_BRANCH="${DOT_BOOTSTRAP_BRANCH:-distro/omarchy}"
 
 PRIVATE_REASON=""
 
@@ -98,7 +101,7 @@ safe_pull_repo() {
   local name="$1"
   local repo_dir="$2"
 
-  if [[ ! -d "$repo_dir/.git" ]]; then
+  if [[ ! -e "$repo_dir/.git" ]]; then
     log_warn "Skipping $name pull (not a git repo): $(display_path "$repo_dir")"
     return 0
   fi
@@ -117,6 +120,194 @@ safe_pull_repo() {
   git -C "$repo_dir" pull --rebase
 }
 
+omarchy_repo_slug() {
+  local repo_name="$1"
+
+  case "$repo_name" in
+    bootstrap) printf 'timmo001/bootstrap\n' ;;
+    hypr) printf 'timmo001/omarchy-hypr\n' ;;
+    waybar) printf 'timmo001/omarchy-waybar\n' ;;
+    ghostty) printf 'timmo001/omarchy-ghostty\n' ;;
+    uwsm) printf 'timmo001/omarchy-uwsm\n' ;;
+    *) return 1 ;;
+  esac
+}
+
+omarchy_backup_existing_dir() {
+  local repo_name="$1"
+  local target_dir="$2"
+  local backup_root="$OMARCHY_REPO_BASE/omarchy-backups"
+  local backup_path="$backup_root/${repo_name}-$(date +%Y%m%d-%H%M%S)"
+
+  mkdir -p "$backup_root"
+  mv "$target_dir" "$backup_path"
+  log_warn "Moved existing $repo_name to backup: $(display_path "$backup_path")"
+}
+
+omarchy_repo_matches_remote() {
+  local target_dir="$1"
+  local expected_slug="$2"
+  local remote_url
+
+  remote_url="$(git -C "$target_dir" remote get-url origin 2>/dev/null || true)"
+  [[ "$remote_url" == *"$expected_slug"* ]]
+}
+
+omarchy_clone_repo() {
+  local repo_slug="$1"
+  local target_dir="$2"
+
+  if has_cmd gh && gh auth status >/dev/null 2>&1; then
+    log_info "Cloning $repo_slug -> $(display_path "$target_dir") (via gh)"
+    gh repo clone "$repo_slug" "$target_dir"
+  elif has_cmd git; then
+    log_info "Cloning $repo_slug -> $(display_path "$target_dir") (via git)"
+    git clone "https://github.com/${repo_slug}.git" "$target_dir"
+  else
+    log_error "Cannot clone $repo_slug (gh and git unavailable)"
+    return 1
+  fi
+}
+
+omarchy_checkout_branch_if_available() {
+  local repo_name="$1"
+  local target_dir="$2"
+  local branch="$3"
+
+  if [[ -z "$branch" ]]; then
+    return 0
+  fi
+
+  if git -C "$target_dir" ls-remote --heads origin "$branch" | grep -q "$branch"; then
+    log_info "Checking out branch '$branch' for $repo_name"
+    git -C "$target_dir" fetch origin "$branch" >/dev/null 2>&1 || true
+    git -C "$target_dir" checkout "$branch" >/dev/null 2>&1 || true
+  else
+    log_warn "Branch '$branch' not found for $repo_name; keeping current branch"
+  fi
+}
+
+omarchy_sync_repo() {
+  local repo_name="$1"
+  local repo_slug="$2"
+  local branch="$3"
+  local target_dir="$OMARCHY_REPO_BASE/$repo_name"
+
+  log_section "omarchy sync: $repo_name"
+
+  if [[ -d "$target_dir" ]]; then
+    if [[ -e "$target_dir/.git" ]] && omarchy_repo_matches_remote "$target_dir" "$repo_slug"; then
+      omarchy_checkout_branch_if_available "$repo_name" "$target_dir" "$branch"
+      safe_pull_repo "omarchy:$repo_name" "$target_dir"
+      return 0
+    fi
+
+    omarchy_backup_existing_dir "$repo_name" "$target_dir"
+    omarchy_clone_repo "$repo_slug" "$target_dir"
+    omarchy_checkout_branch_if_available "$repo_name" "$target_dir" "$branch"
+    return 0
+  fi
+
+  omarchy_clone_repo "$repo_slug" "$target_dir"
+  omarchy_checkout_branch_if_available "$repo_name" "$target_dir" "$branch"
+}
+
+omarchy_sync_repos() {
+  local branch_override="$OMARCHY_BRANCH"
+  local bootstrap_branch_override="$BOOTSTRAP_BRANCH"
+  local arg
+  local repo_name
+  local slug
+
+  while [[ $# -gt 0 ]]; do
+    arg="$1"
+    case "$arg" in
+      --branch)
+        shift
+        branch_override="${1:-}"
+        ;;
+      --branch=*)
+        branch_override="${arg#*=}"
+        ;;
+      --bootstrap-branch)
+        shift
+        bootstrap_branch_override="${1:-}"
+        ;;
+      --bootstrap-branch=*)
+        bootstrap_branch_override="${arg#*=}"
+        ;;
+      *)
+        log_error "Unknown omarchy-sync option: $arg"
+        return 1
+        ;;
+    esac
+    shift || true
+  done
+
+  omarchy_sync_repo 'bootstrap' "$(omarchy_repo_slug bootstrap)" "$bootstrap_branch_override"
+
+  for repo_name in hypr waybar ghostty uwsm; do
+    slug="$(omarchy_repo_slug "$repo_name")"
+    omarchy_sync_repo "$repo_name" "$slug" "$branch_override"
+  done
+}
+
+discover_omarchy_branches() {
+  if ! has_cmd gh; then
+    return 1
+  fi
+
+  gh api "repos/timmo001/omarchy-hypr/branches" --jq '.[].name' 2>/dev/null
+}
+
+run_init_questionnaire() {
+  INIT_SELECTED_OMARCHY_BRANCH="$OMARCHY_BRANCH"
+  INIT_RUN_BOOTSTRAP=0
+
+  if [[ "$INIT_NONINTERACTIVE" == '1' ]]; then
+    return 0
+  fi
+
+  if [[ -n "$INIT_SELECTED_OMARCHY_BRANCH" ]]; then
+    log_info "Using preselected omarchy branch: $INIT_SELECTED_OMARCHY_BRANCH"
+  elif has_cmd gum && has_cmd gh && gh auth status >/dev/null 2>&1; then
+    local branches
+    branches="$(discover_omarchy_branches || true)"
+
+    if [[ -n "$branches" ]]; then
+      log_section 'Select omarchy branch'
+      INIT_SELECTED_OMARCHY_BRANCH="$(printf '%s\n' "$branches" | gum choose --header 'Available branches')"
+      log_info "Selected omarchy branch: $INIT_SELECTED_OMARCHY_BRANCH"
+    else
+      log_warn 'Could not discover omarchy branches; using current/default branches'
+    fi
+  else
+    log_warn 'Skipping branch questionnaire (requires gum + gh auth)'
+  fi
+
+  if has_cmd gum; then
+    if gum confirm 'Would you like to run bootstrap init now?'; then
+      INIT_RUN_BOOTSTRAP=1
+    fi
+  fi
+}
+
+run_bootstrap_init_if_requested() {
+  local bootstrap_init="$OMARCHY_REPO_BASE/bootstrap/init.sh"
+
+  if [[ "$INIT_RUN_BOOTSTRAP" != '1' ]]; then
+    return 0
+  fi
+
+  if [[ ! -x "$bootstrap_init" ]]; then
+    log_warn "bootstrap init script not found/executable: $(display_path "$bootstrap_init")"
+    return 0
+  fi
+
+  log_section 'Running bootstrap init'
+  "$bootstrap_init"
+}
+
 show_repo_diffs() {
   local name="$1"
   local repo_dir="$2"
@@ -124,14 +315,14 @@ show_repo_diffs() {
   local unstaged_out
   local staged_out
 
-  if [[ ! -d "$repo_dir/.git" ]]; then
+  if [[ ! -e "$repo_dir/.git" ]]; then
     log_warn "Skipping $name diff (not a git repo): $(display_path "$repo_dir")"
     return 0
   fi
 
   log_section "$name repo: $(display_path "$repo_dir")"
 
-  status_out="$(git -C "$repo_dir" status --short)"
+  status_out="$(cd "$repo_dir" && git status --short)"
   if [[ -n "$status_out" ]]; then
     log_info 'status:'
     printf '%s\n' "$status_out"
@@ -139,7 +330,7 @@ show_repo_diffs() {
     log_info 'status: clean'
   fi
 
-  unstaged_out="$(git -C "$repo_dir" diff --stat)"
+  unstaged_out="$(cd "$repo_dir" && git diff --stat)"
   if [[ -n "$unstaged_out" ]]; then
     log_info 'unstaged diff:'
     printf '%s\n' "$unstaged_out"
@@ -147,7 +338,7 @@ show_repo_diffs() {
     log_info 'unstaged diff: none'
   fi
 
-  staged_out="$(git -C "$repo_dir" diff --cached --stat)"
+  staged_out="$(cd "$repo_dir" && git diff --cached --stat)"
   if [[ -n "$staged_out" ]]; then
     log_info 'staged diff:'
     printf '%s\n' "$staged_out"
@@ -425,6 +616,15 @@ run_setup_packages() {
 }
 
 cmd_init() {
+  run_init_questionnaire
+
+  if [[ -n "${INIT_SELECTED_OMARCHY_BRANCH:-}" ]]; then
+    omarchy_sync_repos --branch "$INIT_SELECTED_OMARCHY_BRANCH"
+  else
+    omarchy_sync_repos
+  fi
+
+  run_bootstrap_init_if_requested
   run_setup_packages "$@"
   install_public_dotfiles
 
@@ -436,22 +636,18 @@ cmd_init() {
 }
 
 cmd_update() {
+  if [[ "$INCLUDE_OMARCHY_UPDATE_REPOS" == '1' ]]; then
+    omarchy_sync_repos
+  else
+    log_warn 'Skipping omarchy repo update pulls (DOT_INCLUDE_OMARCHY_UPDATE_REPOS=0)'
+  fi
+
   safe_pull_repo 'dotfiles' "$PUBLIC_DOTFILES"
 
   if can_use_private; then
     safe_pull_repo 'dotfiles-private' "$PRIVATE_DOTFILES"
   else
     log_warn "Skipping private pull ($PRIVATE_REASON)"
-  fi
-
-  if [[ "$INCLUDE_OMARCHY_UPDATE_REPOS" == '1' ]]; then
-    local repo_name
-    local repo_path
-
-    for repo_name in "${OMARCHY_DIFF_REPOS[@]}"; do
-      repo_path="$OMARCHY_REPO_BASE/$repo_name"
-      safe_pull_repo "omarchy:$repo_name" "$repo_path"
-    done
   fi
 
   stow_public_dotfiles
@@ -517,6 +713,20 @@ cmd_doctor() {
     fi
   done
 
+  if [[ "$INCLUDE_OMARCHY_DIFF_REPOS" == '1' || "$INCLUDE_OMARCHY_UPDATE_REPOS" == '1' ]]; then
+    local repo_name
+    local repo_path
+
+    for repo_name in "${OMARCHY_DIFF_REPOS[@]}"; do
+      repo_path="$OMARCHY_REPO_BASE/$repo_name"
+      if [[ -e "$repo_path/.git" ]]; then
+        log_info "found $(display_path "$repo_path")"
+      else
+        log_warn "missing git repo $(display_path "$repo_path")"
+      fi
+    done
+  fi
+
   if can_use_private; then
     log_info "private repo enabled ($PRIVATE_REASON)"
   else
@@ -556,7 +766,7 @@ cmd_help() {
 Usage: $SCRIPT_NAME <command> [args]
 
 Commands:
-  init         Run setup, then install public/private dotfiles
+  init         Run questionnaire, sync omarchy repos, setup, install
   update       Pull repos, then stow public/private dotfiles
   stow         Re-stow public/private dotfiles (no git pull)
   diff         Show git status and diff summary for repos
@@ -572,10 +782,14 @@ Environment:
   DOT_ALLOW_PRIVATE     auto|always|never (default: auto)
   DOT_PRIVATE_GH_USER   Expected gh username for private actions (default: timmo001)
   OMARCHY_REPO_BASE_DIR Base directory for omarchy repos (default: ~/.config)
+  DOT_OMARCHY_BRANCH    Branch for hypr/waybar/ghostty/uwsm in init/update sync
+  DOT_BOOTSTRAP_BRANCH  Branch for bootstrap repo (default: distro/omarchy)
   DOT_INCLUDE_OMARCHY_DIFF_REPOS
                      1|0 include omarchy repos in diff (default: 1)
   DOT_INCLUDE_OMARCHY_UPDATE_REPOS
                      1|0 include omarchy repos in update pull (default: 1)
+  DOT_INIT_NONINTERACTIVE
+                     1|0 skip init questionnaire (default: 0)
 EOF
 }
 

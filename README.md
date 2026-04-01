@@ -1,6 +1,8 @@
 # Dotfiles
 
-My dotfiles repository
+My dotfiles repository.
+
+`dot init` includes the interactive Omarchy questionnaire, syncs Omarchy repos, installs packages, and then applies public/private dotfiles.
 
 ## Usage
 
@@ -12,6 +14,7 @@ My dotfiles repository
 dot init
 dot update
 dot stow
+dot diff
 dot setup
 dot install
 dot clean
