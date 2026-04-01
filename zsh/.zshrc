@@ -114,7 +114,7 @@ cd-env() {
 dot() {
   local dot_bin="$HOME/.config/dotfiles/scripts/.local/bin/dot"
   local cmd="${1:-help}"
-  local status
+  local rc
 
   if [[ ! -x "$dot_bin" ]]; then
     echo "dot script not found or not executable: $dot_bin"
@@ -122,19 +122,19 @@ dot() {
   fi
 
   command "$dot_bin" "$@"
-  status=$?
+  rc=$?
 
-  if [[ $status -eq 0 && "${DOT_AUTO_CD:-1}" == "1" ]]; then
+  if [[ $rc -eq 0 && "${DOT_AUTO_CD:-1}" == "1" ]]; then
     case "$cmd" in
       help|-h|--help)
         ;;
       *)
-        builtin cd "$HOME/.config/dotfiles" || return $status
+        builtin cd "$HOME/.config/dotfiles" || return $rc
         ;;
     esac
   fi
 
-  return $status
+  return $rc
 }
 
 # ------------------------------
