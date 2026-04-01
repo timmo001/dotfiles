@@ -264,7 +264,7 @@ run_init_questionnaire() {
   INIT_SELECTED_OMARCHY_BRANCH="$OMARCHY_BRANCH"
   INIT_RUN_BOOTSTRAP=0
 
-  if [[ "$INIT_NONINTERACTIVE" == '1' ]]; then
+  if [[ "$INIT_NONINTERACTIVE" == '1' || ! -t 0 || ! -t 1 ]]; then
     return 0
   fi
 
@@ -616,16 +616,71 @@ run_setup_packages() {
 }
 
 cmd_init() {
-  run_init_questionnaire
+  local -a sync_args=()
+  local -a setup_args=()
+  local branch_override=''
+  local has_branch_override=0
+  local prev_noninteractive="$INIT_NONINTERACTIVE"
+  local prev_omarchy_branch="$OMARCHY_BRANCH"
 
-  if [[ -n "${INIT_SELECTED_OMARCHY_BRANCH:-}" ]]; then
-    omarchy_sync_repos --branch "$INIT_SELECTED_OMARCHY_BRANCH"
-  else
-    omarchy_sync_repos
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --confirm)
+        setup_args+=("$1")
+        ;;
+      --noninteractive)
+        INIT_NONINTERACTIVE=1
+        ;;
+      --interactive)
+        INIT_NONINTERACTIVE=0
+        ;;
+      --branch)
+        if [[ -z "${2:-}" ]]; then
+          log_error '--branch requires a value'
+          return 1
+        fi
+        branch_override="$2"
+        has_branch_override=1
+        sync_args+=("$1" "$2")
+        shift
+        ;;
+      --branch=*)
+        branch_override="${1#*=}"
+        has_branch_override=1
+        sync_args+=("$1")
+        ;;
+      --bootstrap-branch)
+        if [[ -z "${2:-}" ]]; then
+          log_error '--bootstrap-branch requires a value'
+          return 1
+        fi
+        sync_args+=("$1" "$2")
+        shift
+        ;;
+      --bootstrap-branch=*)
+        sync_args+=("$1")
+        ;;
+      *)
+        log_error "Unknown init option: $1"
+        return 1
+        ;;
+    esac
+    shift
+  done
+
+  if [[ -n "$branch_override" ]]; then
+    OMARCHY_BRANCH="$branch_override"
   fi
 
+  run_init_questionnaire
+
+  if [[ -n "${INIT_SELECTED_OMARCHY_BRANCH:-}" && $has_branch_override -eq 0 ]]; then
+    sync_args+=(--branch "$INIT_SELECTED_OMARCHY_BRANCH")
+  fi
+
+  omarchy_sync_repos "${sync_args[@]}"
   run_bootstrap_init_if_requested
-  run_setup_packages "$@"
+  run_setup_packages "${setup_args[@]}"
   install_public_dotfiles
 
   if can_use_private; then
@@ -633,6 +688,9 @@ cmd_init() {
   else
     log_warn "Skipping private install ($PRIVATE_REASON)"
   fi
+
+  INIT_NONINTERACTIVE="$prev_noninteractive"
+  OMARCHY_BRANCH="$prev_omarchy_branch"
 }
 
 cmd_update() {
@@ -695,34 +753,81 @@ cmd_clean() {
 
 cmd_doctor() {
   local issues=0
+  local warnings=0
 
-  for cmd in git stow bash; do
+  require_cmd() {
+    local cmd="$1"
+    local purpose="$2"
     if has_cmd "$cmd"; then
-      log_info "$cmd is available"
+      log_info "$cmd is available ($purpose)"
     else
-      log_warn "$cmd is missing"
+      log_error "$cmd is missing ($purpose)"
       issues=$((issues + 1))
     fi
-  done
+  }
 
-  for path in "$PUBLIC_DOTFILES" "$PRIVATE_DOTFILES"; do
-    if [[ -d "$path" ]]; then
-      log_info "found $(display_path "$path")"
+  optional_cmd() {
+    local cmd="$1"
+    local purpose="$2"
+    if has_cmd "$cmd"; then
+      log_info "$cmd is available ($purpose)"
     else
-      log_warn "missing $(display_path "$path")"
+      log_warn "$cmd is missing ($purpose)"
+      warnings=$((warnings + 1))
     fi
-  done
+  }
+
+  require_cmd git 'repo sync/diff'
+  require_cmd stow 'dotfile linking'
+  require_cmd bash 'dot runtime'
+  optional_cmd yay 'dot setup / dot init package install'
+  optional_cmd npm 'global prettier install in setup'
+  optional_cmd gh 'branch discovery + authenticated clone convenience'
+  optional_cmd gum 'interactive init questionnaire'
+
+  if has_cmd gh; then
+    if gh auth status >/dev/null 2>&1; then
+      log_info 'gh authentication is active'
+    else
+      log_warn 'gh is installed but not authenticated (branch questionnaire discovery disabled)'
+      warnings=$((warnings + 1))
+    fi
+  fi
+
+  if [[ -d "$PUBLIC_DOTFILES" ]]; then
+    log_info "found $(display_path "$PUBLIC_DOTFILES")"
+  else
+    log_error "missing $(display_path "$PUBLIC_DOTFILES")"
+    issues=$((issues + 1))
+  fi
+
+  if [[ -d "$PRIVATE_DOTFILES" ]]; then
+    log_info "found $(display_path "$PRIVATE_DOTFILES")"
+  else
+    log_warn "missing $(display_path "$PRIVATE_DOTFILES")"
+    warnings=$((warnings + 1))
+  fi
 
   if [[ "$INCLUDE_OMARCHY_DIFF_REPOS" == '1' || "$INCLUDE_OMARCHY_UPDATE_REPOS" == '1' ]]; then
     local repo_name
     local repo_path
+    local repo_slug
 
     for repo_name in "${OMARCHY_DIFF_REPOS[@]}"; do
       repo_path="$OMARCHY_REPO_BASE/$repo_name"
+      repo_slug="$(omarchy_repo_slug "$repo_name")"
       if [[ -e "$repo_path/.git" ]]; then
         log_info "found $(display_path "$repo_path")"
+
+        if omarchy_repo_matches_remote "$repo_path" "$repo_slug"; then
+          log_info "remote ok for $repo_name ($repo_slug)"
+        else
+          log_warn "remote mismatch for $repo_name (expected $repo_slug)"
+          warnings=$((warnings + 1))
+        fi
       else
         log_warn "missing git repo $(display_path "$repo_path")"
+        warnings=$((warnings + 1))
       fi
     done
   fi
@@ -734,9 +839,13 @@ cmd_doctor() {
   fi
 
   if [[ $issues -eq 0 ]]; then
-    log_info 'doctor finished: no critical issues found'
+    if [[ $warnings -eq 0 ]]; then
+      log_info 'doctor finished: no critical issues found'
+    else
+      log_warn "doctor finished: no critical issues, $warnings warning(s)"
+    fi
   else
-    log_warn "doctor finished: $issues critical issue(s) found"
+    log_error "doctor finished: $issues critical issue(s), $warnings warning(s)"
     return 1
   fi
 }
@@ -790,6 +899,13 @@ Environment:
                      1|0 include omarchy repos in update pull (default: 1)
   DOT_INIT_NONINTERACTIVE
                      1|0 skip init questionnaire (default: 0)
+
+Init options:
+  --confirm              Passes through to setup (interactive package install)
+  --noninteractive       Skip questionnaire for this run
+  --interactive          Force questionnaire for this run
+  --branch <name>        Omarchy branch override for hypr/waybar/ghostty/uwsm
+  --bootstrap-branch <n> Bootstrap repo branch override for this run
 EOF
 }
 
