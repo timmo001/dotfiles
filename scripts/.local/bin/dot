@@ -130,6 +130,13 @@ has_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
 
+is_truthy() {
+  case "${1,,}" in
+    1|true|yes|on) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 require_repo_dir() {
   local repo_dir="$1"
   local name="$2"
@@ -337,7 +344,7 @@ run_init_questionnaire() {
   INIT_SELECTED_OMARCHY_BRANCH="$OMARCHY_BRANCH"
   INIT_RUN_BOOTSTRAP=0
 
-  if [[ "$INIT_NONINTERACTIVE" == '1' || ! -t 0 || ! -t 1 ]]; then
+  if is_truthy "$INIT_NONINTERACTIVE" || [[ ! -t 0 || ! -t 1 ]]; then
     return 0
   fi
 
@@ -771,11 +778,11 @@ cmd_init() {
 cmd_update() {
   log_section 'Update workflow'
 
-  if [[ "$INCLUDE_OMARCHY_UPDATE_REPOS" == '1' ]]; then
+  if is_truthy "$INCLUDE_OMARCHY_UPDATE_REPOS"; then
     log_section 'Omarchy repo sync'
     omarchy_sync_repos
   else
-    log_warn 'Skipping omarchy repo update pulls (DOT_INCLUDE_OMARCHY_UPDATE_REPOS=0)'
+    log_warn "Skipping Omarchy repo update pulls (DOT_INCLUDE_OMARCHY_UPDATE_REPOS=$INCLUDE_OMARCHY_UPDATE_REPOS)"
   fi
 
   log_section 'Public repo pull'
@@ -897,7 +904,7 @@ cmd_doctor() {
     warnings=$((warnings + 1))
   fi
 
-  if [[ "$INCLUDE_OMARCHY_DIFF_REPOS" == '1' || "$INCLUDE_OMARCHY_UPDATE_REPOS" == '1' ]]; then
+  if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS" || is_truthy "$INCLUDE_OMARCHY_UPDATE_REPOS"; then
     log_section 'Omarchy repository checks'
     local repo_name
     local repo_path
@@ -952,7 +959,8 @@ cmd_diff() {
     log_warn "Skipping private diff ($PRIVATE_REASON)"
   fi
 
-  if [[ "$INCLUDE_OMARCHY_DIFF_REPOS" == '1' ]]; then
+  if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS"; then
+    log_section 'Omarchy repo diffs'
     local repo_name
     local repo_path
 
@@ -960,6 +968,8 @@ cmd_diff() {
       repo_path="$OMARCHY_REPO_BASE/$repo_name"
       show_repo_diffs "omarchy:$repo_name" "$repo_path"
     done
+  else
+    log_warn "Skipping Omarchy repo diffs (DOT_INCLUDE_OMARCHY_DIFF_REPOS=$INCLUDE_OMARCHY_DIFF_REPOS)"
   fi
 }
 

@@ -115,6 +115,9 @@ dot() {
   local dot_bin="$HOME/.config/dotfiles/scripts/.local/bin/dot"
   local cmd="${1:-help}"
   local rc
+  local target_dir
+  local repo
+  local -a repos
 
   if [[ ! -x "$dot_bin" ]]; then
     echo "dot script not found or not executable: $dot_bin"
@@ -127,6 +130,31 @@ dot() {
   if [[ $rc -eq 0 && "${DOT_AUTO_CD:-1}" == "1" ]]; then
     case "$cmd" in
       help|-h|--help)
+        ;;
+      diff)
+        repos=(
+          "$HOME/.config/bootstrap"
+          "$HOME/.config/hypr"
+          "$HOME/.config/waybar"
+          "$HOME/.config/ghostty"
+          "$HOME/.config/uwsm"
+          "$HOME/.config/dotfiles"
+          "$HOME/.config/dotfiles-private"
+        )
+
+        target_dir="$HOME/.config/dotfiles"
+        for repo in "${repos[@]}"; do
+          if [[ ! -d "$repo/.git" ]]; then
+            continue
+          fi
+
+          if [[ -n "$(git -C "$repo" status --porcelain 2>/dev/null)" ]]; then
+            target_dir="$repo"
+            break
+          fi
+        done
+
+        builtin cd "$target_dir" || return $rc
         ;;
       *)
         builtin cd "$HOME/.config/dotfiles" || return $rc
