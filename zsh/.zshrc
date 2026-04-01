@@ -115,7 +115,9 @@ dot() {
   local dot_bin="$HOME/.config/dotfiles/scripts/.local/bin/dot"
   local cmd="${1:-help}"
   local rc
+  local original_dir="$PWD"
   local target_dir
+  local found_dirty=0
   local repo
   local -a repos
 
@@ -127,39 +129,39 @@ dot() {
   command "$dot_bin" "$@"
   rc=$?
 
-  if [[ $rc -eq 0 && "${DOT_AUTO_CD:-1}" == "1" ]]; then
-    case "$cmd" in
-      help|-h|--help)
-        ;;
-      diff)
-        repos=(
-          "$HOME/.config/bootstrap"
-          "$HOME/.config/hypr"
-          "$HOME/.config/waybar"
-          "$HOME/.config/ghostty"
-          "$HOME/.config/uwsm"
-          "$HOME/.config/dotfiles"
-          "$HOME/.config/dotfiles-private"
-        )
+  if [[ "${DOT_AUTO_CD:-1}" == "1" && "$cmd" == "diff" ]]; then
+    repos=(
+      "$HOME/.config/bootstrap"
+      "$HOME/.config/hypr"
+      "$HOME/.config/waybar"
+      "$HOME/.config/ghostty"
+      "$HOME/.config/uwsm"
+      "$HOME/.config/dotfiles"
+      "$HOME/.config/dotfiles-private"
+    )
 
-        target_dir="$HOME/.config/dotfiles"
-        for repo in "${repos[@]}"; do
-          if [[ ! -d "$repo/.git" ]]; then
-            continue
-          fi
+    target_dir="$HOME/.config/dotfiles"
+    for repo in "${repos[@]}"; do
+      if [[ ! -d "$repo/.git" ]]; then
+        continue
+      fi
 
-          if [[ -n "$(git -C "$repo" status --porcelain 2>/dev/null)" ]]; then
-            target_dir="$repo"
-            break
-          fi
-        done
+      if [[ -n "$(git -C "$repo" status --porcelain 2>/dev/null)" ]]; then
+        target_dir="$repo"
+        found_dirty=1
+        break
+      fi
+    done
 
-        builtin cd "$target_dir" || return $rc
-        ;;
-      *)
-        builtin cd "$HOME/.config/dotfiles" || return $rc
-        ;;
-    esac
+    if [[ $found_dirty -eq 1 ]]; then
+      builtin cd "$target_dir" || return $rc
+    elif [[ $rc -ne 0 ]]; then
+      builtin cd "$HOME/.config/dotfiles" || return $rc
+    else
+      builtin cd "$original_dir" || return $rc
+    fi
+  else
+    builtin cd "$original_dir" || return $rc
   fi
 
   return $rc

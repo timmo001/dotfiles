@@ -56,7 +56,7 @@ dot doctor
 - `DOT_INCLUDE_OMARCHY_DIFF_REPOS` - include Omarchy repos in `dot diff` (`1|0`, default `1`)
 - `DOT_INCLUDE_OMARCHY_UPDATE_REPOS` - include Omarchy repos in `dot update` sync (`1|0`, default `1`)
 - `DOT_INIT_NONINTERACTIVE` - skip init questionnaire (`1|0`, default `0`)
-- `DOT_AUTO_CD` - zsh wrapper auto-cd to `~/.config/dotfiles` after successful command (`1|0`, default `1`)
+- `DOT_AUTO_CD` - zsh wrapper auto-cd to first repo with changes after `dot diff`; otherwise restore original dir (failed diff falls back to `~/.config/dotfiles`) (`1|0`, default `1`)
 
 ## New machine checklist
 
