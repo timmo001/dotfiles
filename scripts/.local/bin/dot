@@ -147,7 +147,7 @@ run_private_script() {
 cmd_init() {
   run_script 'omarchy setup' "$OMARCHY_CONFIG/setup.sh"
   run_script 'public install' "$PUBLIC_DOTFILES/install"
-  run_private_script 'private install' "$PRIVATE_DOTFILES/install.sh"
+  run_private_script 'private install' "$PRIVATE_DOTFILES/install"
 }
 
 cmd_update() {
@@ -161,12 +161,12 @@ cmd_update() {
   fi
 
   run_script 'public update' "$PUBLIC_DOTFILES/update"
-  run_private_script 'private update' "$PRIVATE_DOTFILES/update.sh"
+  run_private_script 'private update' "$PRIVATE_DOTFILES/update"
 }
 
 cmd_stow() {
   run_script 'public stow/update' "$PUBLIC_DOTFILES/update"
-  run_private_script 'private stow/update' "$PRIVATE_DOTFILES/update.sh"
+  run_private_script 'private stow/update' "$PRIVATE_DOTFILES/update"
 }
 
 cmd_setup() {
@@ -175,12 +175,12 @@ cmd_setup() {
 
 cmd_install() {
   run_script 'public install' "$PUBLIC_DOTFILES/install"
-  run_private_script 'private install' "$PRIVATE_DOTFILES/install.sh"
+  run_private_script 'private install' "$PRIVATE_DOTFILES/install"
 }
 
 cmd_clean() {
   run_script 'public clean' "$PUBLIC_DOTFILES/clean"
-  run_private_script 'private clean' "$PRIVATE_DOTFILES/clean.sh"
+  run_private_script 'private clean' "$PRIVATE_DOTFILES/clean"
 }
 
 cmd_doctor() {
