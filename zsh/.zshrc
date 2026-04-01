@@ -111,6 +111,32 @@ cd-env() {
   load-env
 }
 
+dot() {
+  local dot_bin="$HOME/.config/dotfiles/scripts/.local/bin/dot"
+  local cmd="${1:-help}"
+  local status
+
+  if [[ ! -x "$dot_bin" ]]; then
+    echo "dot script not found or not executable: $dot_bin"
+    return 1
+  fi
+
+  command "$dot_bin" "$@"
+  status=$?
+
+  if [[ $status -eq 0 && "${DOT_AUTO_CD:-1}" == "1" ]]; then
+    case "$cmd" in
+      help|-h|--help)
+        ;;
+      *)
+        builtin cd "$HOME/.config/dotfiles" || return $status
+        ;;
+    esac
+  fi
+
+  return $status
+}
+
 # ------------------------------
 # Development
 # ------------------------------
