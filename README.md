@@ -1,6 +1,6 @@
 # Dotfiles
 
-All setup and maintenance now runs through `dot`.
+My dotfiles repository
 
 ## Usage
 
