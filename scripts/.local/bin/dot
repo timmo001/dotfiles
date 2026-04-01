@@ -121,9 +121,9 @@ display_path() {
 }
 
 log_context() {
-  log_info "public repo: $(display_path "$PUBLIC_DOTFILES")"
-  log_info "private repo: $(display_path "$PRIVATE_DOTFILES")"
-  log_info "private mode: $PRIVATE_MODE"
+  log_info "Public repo: $(display_path "$PUBLIC_DOTFILES")"
+  log_info "Private repo: $(display_path "$PRIVATE_DOTFILES")"
+  log_info "Private mode: $PRIVATE_MODE"
 }
 
 has_cmd() {
@@ -180,7 +180,7 @@ safe_pull_repo() {
   fi
 
   if ! has_cmd git; then
-    log_error "git not found; cannot pull $name"
+    log_error "Git not found; cannot pull $name"
     return 1
   fi
 
@@ -266,7 +266,7 @@ omarchy_sync_repo() {
   local branch="$3"
   local target_dir="$OMARCHY_REPO_BASE/$repo_name"
 
-  log_section "omarchy sync: $repo_name"
+  log_section "Omarchy sync: $repo_name"
 
   if [[ -d "$target_dir" ]]; then
     if [[ -e "$target_dir/.git" ]] && omarchy_repo_matches_remote "$target_dir" "$repo_slug"; then
@@ -373,7 +373,7 @@ run_bootstrap_init_if_requested() {
   fi
 
   if [[ ! -x "$bootstrap_init" ]]; then
-    log_warn "bootstrap init script not found/executable: $(display_path "$bootstrap_init")"
+    log_warn "Bootstrap init script not found/executable: $(display_path "$bootstrap_init")"
     return 0
   fi
 
@@ -397,26 +397,26 @@ show_repo_diffs() {
 
   status_out="$(cd "$repo_dir" && git status --short)"
   if [[ -n "$status_out" ]]; then
-    log_info 'status:'
+    log_info 'Git status:'
     printf '%s\n' "$status_out"
   else
-    log_info 'status: clean'
+    log_info 'Git status: clean'
   fi
 
   unstaged_out="$(cd "$repo_dir" && git diff --stat)"
   if [[ -n "$unstaged_out" ]]; then
-    log_info 'unstaged diff:'
+    log_info 'Unstaged diff:'
     printf '%s\n' "$unstaged_out"
   else
-    log_info 'unstaged diff: none'
+    log_info 'Unstaged diff: none'
   fi
 
   staged_out="$(cd "$repo_dir" && git diff --cached --stat)"
   if [[ -n "$staged_out" ]]; then
-    log_info 'staged diff:'
+    log_info 'Staged diff:'
     printf '%s\n' "$staged_out"
   else
-    log_info 'staged diff: none'
+    log_info 'Staged diff: none'
   fi
 }
 
@@ -465,25 +465,25 @@ backup_public_files_for_install() {
 
   if [[ -f "$HOME/.zshrc" ]]; then
     mkdir -p "$backup_root"
-    log_info "backup: $(display_path "$HOME/.zshrc") -> $(display_path "$backup_root")"
+    log_info "Backup: $(display_path "$HOME/.zshrc") -> $(display_path "$backup_root")"
     mv "$HOME/.zshrc" "$backup_root"
   fi
 
   if [[ -f "$HOME/.editorconfig" ]]; then
     mkdir -p "$backup_root"
-    log_info "backup: $(display_path "$HOME/.editorconfig") -> $(display_path "$backup_root")"
+    log_info "Backup: $(display_path "$HOME/.editorconfig") -> $(display_path "$backup_root")"
     mv "$HOME/.editorconfig" "$backup_root"
   fi
 
   if [[ -f "$HOME/.config/ghostty/config.toml" ]]; then
     mkdir -p "$backup_root/.config/ghostty"
-    log_info "backup: $(display_path "$HOME/.config/ghostty/config.toml") -> $(display_path "$backup_root/.config/ghostty")"
+    log_info "Backup: $(display_path "$HOME/.config/ghostty/config.toml") -> $(display_path "$backup_root/.config/ghostty")"
     mv "$HOME/.config/ghostty/config.toml" "$backup_root/.config/ghostty"
   fi
 
   if [[ -d "$HOME/.config/nvim" ]]; then
     mkdir -p "$backup_root/.config"
-    log_info "backup: $(display_path "$HOME/.config/nvim") -> $(display_path "$backup_root/.config")"
+    log_info "Backup: $(display_path "$HOME/.config/nvim") -> $(display_path "$backup_root/.config")"
     mv "$HOME/.config/nvim" "$backup_root/.config"
   fi
 }
@@ -495,7 +495,7 @@ install_public_dotfiles() {
   require_repo_dir "$PUBLIC_DOTFILES" 'public dotfiles'
 
   if ! has_cmd stow; then
-    log_error 'stow is required'
+    log_error 'Stow is required'
     return 1
   fi
 
@@ -521,7 +521,7 @@ stow_public_dotfiles() {
   require_repo_dir "$PUBLIC_DOTFILES" 'public dotfiles'
 
   if ! has_cmd stow; then
-    log_error 'stow is required'
+    log_error 'Stow is required'
     return 1
   fi
 
@@ -539,7 +539,7 @@ clean_public_dotfiles() {
   require_repo_dir "$PUBLIC_DOTFILES" 'public dotfiles'
 
   if ! has_cmd stow; then
-    log_error 'stow is required'
+    log_error 'Stow is required'
     return 1
   fi
 
@@ -556,7 +556,7 @@ install_private_opencode() {
 
   if [[ -e "$opencode_target" && ! -L "$opencode_target" ]]; then
     mkdir -p "$backup_dir"
-    log_info "backup: $(display_path "$opencode_target") -> $(display_path "$backup_dir")"
+    log_info "Backup: $(display_path "$opencode_target") -> $(display_path "$backup_dir")"
     mv "$opencode_target" "$backup_dir/opencode.json.$(date +%Y%m%d-%H%M%S)"
   fi
 
@@ -576,7 +576,7 @@ install_private_dotfiles() {
   require_repo_dir "$PRIVATE_DOTFILES" 'private dotfiles'
 
   if ! has_cmd stow; then
-    log_error 'stow is required'
+    log_error 'Stow is required'
     return 1
   fi
 
@@ -600,7 +600,7 @@ stow_private_dotfiles() {
   require_repo_dir "$PRIVATE_DOTFILES" 'private dotfiles'
 
   if ! has_cmd stow; then
-    log_error 'stow is required'
+    log_error 'Stow is required'
     return 1
   fi
 
@@ -618,7 +618,7 @@ clean_private_dotfiles() {
   require_repo_dir "$PRIVATE_DOTFILES" 'private dotfiles'
 
   if ! has_cmd stow; then
-    log_error 'stow is required'
+    log_error 'Stow is required'
     return 1
   fi
 
@@ -647,7 +647,7 @@ run_setup_packages() {
   done
 
   if ! has_cmd yay; then
-    log_error 'yay is required for setup'
+    log_error 'Required command missing: yay (setup)'
     return 1
   fi
 
@@ -675,7 +675,7 @@ run_setup_packages() {
   install_group 'lazygit/' lazygit
   install_group 'nvim/' go neovim nodejs python python-pip ripgrep uv
 
-  log_section 'nvim/ (global npm)'
+  log_section 'nvim/ (Global npm)'
   npm install -g prettier
 
   install_group 'qt5ct/' qt5ct
@@ -883,17 +883,17 @@ cmd_doctor() {
 
   if [[ -d "$PUBLIC_DOTFILES" ]]; then
     log_section 'Repository checks'
-    log_info "found $(display_path "$PUBLIC_DOTFILES")"
+    log_info "Found $(display_path "$PUBLIC_DOTFILES")"
   else
     log_section 'Repository checks'
-    log_error "missing $(display_path "$PUBLIC_DOTFILES")"
+    log_error "Missing $(display_path "$PUBLIC_DOTFILES")"
     issues=$((issues + 1))
   fi
 
   if [[ -d "$PRIVATE_DOTFILES" ]]; then
-    log_info "found $(display_path "$PRIVATE_DOTFILES")"
+    log_info "Found $(display_path "$PRIVATE_DOTFILES")"
   else
-    log_warn "missing $(display_path "$PRIVATE_DOTFILES")"
+    log_warn "Missing $(display_path "$PRIVATE_DOTFILES")"
     warnings=$((warnings + 1))
   fi
 
@@ -907,16 +907,16 @@ cmd_doctor() {
       repo_path="$OMARCHY_REPO_BASE/$repo_name"
       repo_slug="$(omarchy_repo_slug "$repo_name")"
       if [[ -e "$repo_path/.git" ]]; then
-        log_info "found $(display_path "$repo_path")"
+        log_info "Found $(display_path "$repo_path")"
 
         if omarchy_repo_matches_remote "$repo_path" "$repo_slug"; then
-          log_info "remote ok for $repo_name ($repo_slug)"
+          log_info "Remote OK for $repo_name ($repo_slug)"
         else
-          log_warn "remote mismatch for $repo_name (expected $repo_slug)"
+          log_warn "Remote mismatch for $repo_name (expected $repo_slug)"
           warnings=$((warnings + 1))
         fi
       else
-        log_warn "missing git repo $(display_path "$repo_path")"
+        log_warn "Missing git repo $(display_path "$repo_path")"
         warnings=$((warnings + 1))
       fi
     done
@@ -924,20 +924,20 @@ cmd_doctor() {
 
   if can_use_private; then
     log_section 'Private access'
-    log_info "private repo enabled ($PRIVATE_REASON)"
+    log_info "Private repo enabled ($PRIVATE_REASON)"
   else
     log_section 'Private access'
-    log_warn "private repo disabled ($PRIVATE_REASON)"
+    log_warn "Private repo disabled ($PRIVATE_REASON)"
   fi
 
   if [[ $issues -eq 0 ]]; then
     if [[ $warnings -eq 0 ]]; then
-      log_info 'doctor finished: no critical issues found'
+      log_info 'Doctor finished: no critical issues found'
     else
-      log_warn "doctor finished: no critical issues, $warnings warning(s)"
+      log_warn "Doctor finished: no critical issues, $warnings warning(s)"
     fi
   else
-    log_error "doctor finished: $issues critical issue(s), $warnings warning(s)"
+    log_error "Doctor finished: $issues critical issue(s), $warnings warning(s)"
     return 1
   fi
 }
