@@ -1,12 +1,12 @@
 ---
-allowed-tools: Fetch(*), Bash(gh:*), Read(*), Grep(*), Glob(*), LS(*), Task(*), Bash(git:*), TodoRead(*), TodoWrite(*)
+allowed-tools: Fetch(*), Bash(gh:*), Bash(git:*), Read(*), Grep(*), Glob(*), LS(*)
 description: Review a GitHub pull request and provide feedback comments
-agent: ask
+agent: code-reviewer
 ---
 
 # Review GitHub Pull Request
 
-Please review the GitHub pull request: $ARGUMENTS.
+Review the GitHub pull request: $ARGUMENTS.
 
 Follow these steps:
 
@@ -33,7 +33,7 @@ IMPORTANT:
 -   Only provide review feedback
 -   Be constructive and specific in your comments
 -   Suggest improvements where appropriate
--   Acknowledge good practices when you see them
+-   Keep feedback specific and evidence-based
 -   Format your review as GitHub review comments that can be posted
 -   If needed for a better review, checkout the PR locally using 'gh pr checkout'. When checked out locally, ensure the local checkout if up to date with the remote version.
 
