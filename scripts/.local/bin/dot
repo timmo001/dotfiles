@@ -9,6 +9,11 @@ PRIVATE_DOTFILES="${DOTFILES_PRIVATE_DIR:-$HOME/.config/dotfiles-private}"
 
 EXPECTED_GH_USER="${DOT_PRIVATE_GH_USER:-timmo001}"
 PRIVATE_MODE="${DOT_ALLOW_PRIVATE:-auto}" # auto|always|never
+INCLUDE_OMARCHY_DIFF_REPOS="${DOT_INCLUDE_OMARCHY_DIFF_REPOS:-1}"
+INCLUDE_OMARCHY_UPDATE_REPOS="${DOT_INCLUDE_OMARCHY_UPDATE_REPOS:-1}"
+
+OMARCHY_REPO_BASE="${OMARCHY_REPO_BASE_DIR:-$HOME/.config}"
+OMARCHY_DIFF_REPOS=(bootstrap hypr waybar ghostty uwsm)
 
 PRIVATE_REASON=""
 
@@ -439,6 +444,16 @@ cmd_update() {
     log_warn "Skipping private pull ($PRIVATE_REASON)"
   fi
 
+  if [[ "$INCLUDE_OMARCHY_UPDATE_REPOS" == '1' ]]; then
+    local repo_name
+    local repo_path
+
+    for repo_name in "${OMARCHY_DIFF_REPOS[@]}"; do
+      repo_path="$OMARCHY_REPO_BASE/$repo_name"
+      safe_pull_repo "omarchy:$repo_name" "$repo_path"
+    done
+  fi
+
   stow_public_dotfiles
 
   if can_use_private; then
@@ -524,6 +539,16 @@ cmd_diff() {
   else
     log_warn "Skipping private diff ($PRIVATE_REASON)"
   fi
+
+  if [[ "$INCLUDE_OMARCHY_DIFF_REPOS" == '1' ]]; then
+    local repo_name
+    local repo_path
+
+    for repo_name in "${OMARCHY_DIFF_REPOS[@]}"; do
+      repo_path="$OMARCHY_REPO_BASE/$repo_name"
+      show_repo_diffs "omarchy:$repo_name" "$repo_path"
+    done
+  fi
 }
 
 cmd_help() {
@@ -546,6 +571,11 @@ Environment:
   DOTFILES_PRIVATE_DIR  Override private dotfiles path
   DOT_ALLOW_PRIVATE     auto|always|never (default: auto)
   DOT_PRIVATE_GH_USER   Expected gh username for private actions (default: timmo001)
+  OMARCHY_REPO_BASE_DIR Base directory for omarchy repos (default: ~/.config)
+  DOT_INCLUDE_OMARCHY_DIFF_REPOS
+                     1|0 include omarchy repos in diff (default: 1)
+  DOT_INCLUDE_OMARCHY_UPDATE_REPOS
+                     1|0 include omarchy repos in update pull (default: 1)
 EOF
 }
 
