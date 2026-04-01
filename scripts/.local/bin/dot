@@ -20,20 +20,93 @@ BOOTSTRAP_BRANCH="${DOT_BOOTSTRAP_BRANCH:-distro/omarchy}"
 
 PRIVATE_REASON=""
 
+if [[ -n "${FORCE_COLOR:-}" ]] || [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
+  DOT_RED=$'\033[31m'
+  DOT_GREEN=$'\033[32m'
+  DOT_YELLOW=$'\033[33m'
+  DOT_BLUE=$'\033[34m'
+  DOT_MAGENTA=$'\033[35m'
+  DOT_CYAN=$'\033[36m'
+  DOT_BOLD=$'\033[1m'
+  DOT_DIM=$'\033[2m'
+  DOT_RESET=$'\033[0m'
+else
+  DOT_RED=''
+  DOT_GREEN=''
+  DOT_YELLOW=''
+  DOT_BLUE=''
+  DOT_MAGENTA=''
+  DOT_CYAN=''
+  DOT_BOLD=''
+  DOT_DIM=''
+  DOT_RESET=''
+fi
+
+term_width() {
+  local width="${COLUMNS:-88}"
+
+  if ! [[ "$width" =~ ^[0-9]+$ ]]; then
+    width=88
+  fi
+
+  if [[ "$width" -lt 48 ]]; then
+    width=48
+  elif [[ "$width" -gt 120 ]]; then
+    width=120
+  fi
+
+  printf '%s\n' "$width"
+}
+
+log_divider() {
+  local char="${1:--}"
+  local color="${2:-$DOT_DIM}"
+  local width="${3:-$(term_width)}"
+  local line
+
+  line=$(printf '%*s' "$width" '')
+  line=${line// /$char}
+  printf '%b%s%b\n' "$color" "$line" "$DOT_RESET"
+}
+
+log_label() {
+  local color="$1"
+  local level="$2"
+  local message="$3"
+  local stream="${4:-stdout}"
+
+  if [[ "$stream" == 'stderr' ]]; then
+    printf '%b%-8s%b %s\n' "${DOT_BOLD}${color}" "[$level]" "$DOT_RESET" "$message" >&2
+  else
+    printf '%b%-8s%b %s\n' "${DOT_BOLD}${color}" "[$level]" "$DOT_RESET" "$message"
+  fi
+}
+
+log_header() {
+  local title="$1"
+
+  printf '\n'
+  log_divider '=' "$DOT_BLUE"
+  printf '%b%s%b\n' "${DOT_BOLD}${DOT_BLUE}" "  $title" "$DOT_RESET"
+  log_divider '=' "$DOT_BLUE"
+}
+
 log_info() {
-  printf '[dot] %s\n' "$*"
+  log_label "$DOT_CYAN" 'INFO' "$*"
 }
 
 log_warn() {
-  printf '[dot] WARN: %s\n' "$*" >&2
+  log_label "$DOT_YELLOW" 'WARN' "$*" 'stderr'
 }
 
 log_error() {
-  printf '[dot] ERROR: %s\n' "$*" >&2
+  log_label "$DOT_RED" 'ERROR' "$*" 'stderr'
 }
 
 log_section() {
-  printf '\n[dot] %s\n' "$*"
+  printf '\n'
+  log_divider '-' "$DOT_DIM" 72
+  printf '%b%s%b\n' "${DOT_BOLD}${DOT_MAGENTA}" "  $*" "$DOT_RESET"
 }
 
 display_path() {
@@ -623,6 +696,8 @@ cmd_init() {
   local prev_noninteractive="$INIT_NONINTERACTIVE"
   local prev_omarchy_branch="$OMARCHY_BRANCH"
 
+  log_section 'Initialization workflow'
+
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --confirm)
@@ -694,23 +769,30 @@ cmd_init() {
 }
 
 cmd_update() {
+  log_section 'Update workflow'
+
   if [[ "$INCLUDE_OMARCHY_UPDATE_REPOS" == '1' ]]; then
+    log_section 'Omarchy repo sync'
     omarchy_sync_repos
   else
     log_warn 'Skipping omarchy repo update pulls (DOT_INCLUDE_OMARCHY_UPDATE_REPOS=0)'
   fi
 
+  log_section 'Public repo pull'
   safe_pull_repo 'dotfiles' "$PUBLIC_DOTFILES"
 
   if can_use_private; then
+    log_section 'Private repo pull'
     safe_pull_repo 'dotfiles-private' "$PRIVATE_DOTFILES"
   else
     log_warn "Skipping private pull ($PRIVATE_REASON)"
   fi
 
+  log_section 'Stow public dotfiles'
   stow_public_dotfiles
 
   if can_use_private; then
+    log_section 'Stow private dotfiles'
     stow_private_dotfiles
   else
     log_warn "Skipping private stow ($PRIVATE_REASON)"
@@ -718,6 +800,7 @@ cmd_update() {
 }
 
 cmd_stow() {
+  log_section 'Stow workflow'
   stow_public_dotfiles
 
   if can_use_private; then
@@ -732,6 +815,7 @@ cmd_setup() {
 }
 
 cmd_install() {
+  log_section 'Install workflow'
   install_public_dotfiles
 
   if can_use_private; then
@@ -742,6 +826,7 @@ cmd_install() {
 }
 
 cmd_clean() {
+  log_section 'Clean workflow'
   if can_use_private; then
     clean_private_dotfiles
   else
@@ -754,6 +839,8 @@ cmd_clean() {
 cmd_doctor() {
   local issues=0
   local warnings=0
+
+  log_section 'Dependency checks'
 
   require_cmd() {
     local cmd="$1"
@@ -795,8 +882,10 @@ cmd_doctor() {
   fi
 
   if [[ -d "$PUBLIC_DOTFILES" ]]; then
+    log_section 'Repository checks'
     log_info "found $(display_path "$PUBLIC_DOTFILES")"
   else
+    log_section 'Repository checks'
     log_error "missing $(display_path "$PUBLIC_DOTFILES")"
     issues=$((issues + 1))
   fi
@@ -809,6 +898,7 @@ cmd_doctor() {
   fi
 
   if [[ "$INCLUDE_OMARCHY_DIFF_REPOS" == '1' || "$INCLUDE_OMARCHY_UPDATE_REPOS" == '1' ]]; then
+    log_section 'Omarchy repository checks'
     local repo_name
     local repo_path
     local repo_slug
@@ -833,8 +923,10 @@ cmd_doctor() {
   fi
 
   if can_use_private; then
+    log_section 'Private access'
     log_info "private repo enabled ($PRIVATE_REASON)"
   else
+    log_section 'Private access'
     log_warn "private repo disabled ($PRIVATE_REASON)"
   fi
 
@@ -851,6 +943,7 @@ cmd_doctor() {
 }
 
 cmd_diff() {
+  log_section 'Diff workflow'
   show_repo_diffs 'public' "$PUBLIC_DOTFILES"
 
   if can_use_private; then
@@ -918,6 +1011,7 @@ main() {
       cd "$PUBLIC_DOTFILES"
     fi
 
+    log_header "dot $cmd"
     log_context
   fi
 
