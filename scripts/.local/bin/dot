@@ -28,6 +28,23 @@ log_section() {
   printf '\n[dot] %s\n' "$*"
 }
 
+display_path() {
+  local path="$1"
+  local home_prefix="${HOME%/}"
+
+  if [[ "$path" == "$home_prefix"* ]]; then
+    printf '~%s\n' "${path#$home_prefix}"
+  else
+    printf '%s\n' "$path"
+  fi
+}
+
+log_context() {
+  log_info "public repo: $(display_path "$PUBLIC_DOTFILES")"
+  log_info "private repo: $(display_path "$PRIVATE_DOTFILES")"
+  log_info "private mode: $PRIVATE_MODE"
+}
+
 has_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
@@ -77,7 +94,7 @@ safe_pull_repo() {
   local repo_dir="$2"
 
   if [[ ! -d "$repo_dir/.git" ]]; then
-    log_warn "Skipping $name pull (not a git repo): $repo_dir"
+    log_warn "Skipping $name pull (not a git repo): $(display_path "$repo_dir")"
     return 0
   fi
 
@@ -87,12 +104,51 @@ safe_pull_repo() {
   fi
 
   if [[ -n "$(git -C "$repo_dir" status --porcelain 2>/dev/null || true)" ]]; then
-    log_warn "Skipping $name pull (working tree not clean): $repo_dir"
+    log_warn "Skipping $name pull (working tree not clean): $(display_path "$repo_dir")"
     return 0
   fi
 
-  log_info "Pulling latest for $name"
+  log_info "Pulling latest for $name: $(display_path "$repo_dir")"
   git -C "$repo_dir" pull --rebase
+}
+
+show_repo_diffs() {
+  local name="$1"
+  local repo_dir="$2"
+  local status_out
+  local unstaged_out
+  local staged_out
+
+  if [[ ! -d "$repo_dir/.git" ]]; then
+    log_warn "Skipping $name diff (not a git repo): $(display_path "$repo_dir")"
+    return 0
+  fi
+
+  log_section "$name repo: $(display_path "$repo_dir")"
+
+  status_out="$(git -C "$repo_dir" status --short)"
+  if [[ -n "$status_out" ]]; then
+    log_info 'status:'
+    printf '%s\n' "$status_out"
+  else
+    log_info 'status: clean'
+  fi
+
+  unstaged_out="$(git -C "$repo_dir" diff --stat)"
+  if [[ -n "$unstaged_out" ]]; then
+    log_info 'unstaged diff:'
+    printf '%s\n' "$unstaged_out"
+  else
+    log_info 'unstaged diff: none'
+  fi
+
+  staged_out="$(git -C "$repo_dir" diff --cached --stat)"
+  if [[ -n "$staged_out" ]]; then
+    log_info 'staged diff:'
+    printf '%s\n' "$staged_out"
+  else
+    log_info 'staged diff: none'
+  fi
 }
 
 can_use_private() {
@@ -113,12 +169,12 @@ can_use_private() {
   esac
 
   if [[ ! -d "$PRIVATE_DOTFILES" || ! -r "$PRIVATE_DOTFILES" ]]; then
-    PRIVATE_REASON='private repo not present/readable'
+    PRIVATE_REASON="private repo not present/readable ($(display_path "$PRIVATE_DOTFILES"))"
     return 1
   fi
 
   if ! [[ -O "$PRIVATE_DOTFILES" ]]; then
-    PRIVATE_REASON='private repo is not owned by current user'
+    PRIVATE_REASON="private repo is not owned by current user ($(display_path "$PRIVATE_DOTFILES"))"
     return 1
   fi
 
@@ -140,21 +196,25 @@ backup_public_files_for_install() {
 
   if [[ -f "$HOME/.zshrc" ]]; then
     mkdir -p "$backup_root"
+    log_info "backup: $(display_path "$HOME/.zshrc") -> $(display_path "$backup_root")"
     mv "$HOME/.zshrc" "$backup_root"
   fi
 
   if [[ -f "$HOME/.editorconfig" ]]; then
     mkdir -p "$backup_root"
+    log_info "backup: $(display_path "$HOME/.editorconfig") -> $(display_path "$backup_root")"
     mv "$HOME/.editorconfig" "$backup_root"
   fi
 
   if [[ -f "$HOME/.config/ghostty/config.toml" ]]; then
     mkdir -p "$backup_root/.config/ghostty"
+    log_info "backup: $(display_path "$HOME/.config/ghostty/config.toml") -> $(display_path "$backup_root/.config/ghostty")"
     mv "$HOME/.config/ghostty/config.toml" "$backup_root/.config/ghostty"
   fi
 
   if [[ -d "$HOME/.config/nvim" ]]; then
     mkdir -p "$backup_root/.config"
+    log_info "backup: $(display_path "$HOME/.config/nvim") -> $(display_path "$backup_root/.config")"
     mv "$HOME/.config/nvim" "$backup_root/.config"
   fi
 }
@@ -174,7 +234,7 @@ install_public_dotfiles() {
 
   mapfile -t folders < <(list_stow_folders "$PUBLIC_DOTFILES" false)
   for folder in "${folders[@]}"; do
-    log_info "stow $folder"
+    log_info "[public] stow $folder (repo: $(display_path "$PUBLIC_DOTFILES"))"
     stow_in_repo "$PUBLIC_DOTFILES" -D "$folder"
 
     if [[ "$folder" == 'opencode' ]]; then
@@ -198,7 +258,7 @@ stow_public_dotfiles() {
 
   mapfile -t folders < <(list_stow_folders "$PUBLIC_DOTFILES" false)
   for folder in "${folders[@]}"; do
-    log_info "stow $folder"
+    log_info "[public] stow $folder (repo: $(display_path "$PUBLIC_DOTFILES"))"
     stow_in_repo "$PUBLIC_DOTFILES" "$folder"
   done
 }
@@ -216,7 +276,7 @@ clean_public_dotfiles() {
 
   mapfile -t folders < <(list_stow_folders "$PUBLIC_DOTFILES" true)
   for folder in "${folders[@]}"; do
-    log_info "Removing $folder"
+    log_info "[public] remove $folder (repo: $(display_path "$PUBLIC_DOTFILES"))"
     stow_in_repo "$PUBLIC_DOTFILES" -D "$folder"
   done
 }
@@ -227,6 +287,7 @@ install_private_opencode() {
 
   if [[ -e "$opencode_target" && ! -L "$opencode_target" ]]; then
     mkdir -p "$backup_dir"
+    log_info "backup: $(display_path "$opencode_target") -> $(display_path "$backup_dir")"
     mv "$opencode_target" "$backup_dir/opencode.json.$(date +%Y%m%d-%H%M%S)"
   fi
 
@@ -252,7 +313,7 @@ install_private_dotfiles() {
 
   mapfile -t folders < <(list_stow_folders "$PRIVATE_DOTFILES" false)
   for folder in "${folders[@]}"; do
-    log_info "stow $folder"
+    log_info "[private] stow $folder (repo: $(display_path "$PRIVATE_DOTFILES"))"
     stow_in_repo "$PRIVATE_DOTFILES" -D "$folder"
 
     if [[ "$folder" == 'opencode' ]]; then
@@ -276,7 +337,7 @@ stow_private_dotfiles() {
 
   mapfile -t folders < <(list_stow_folders "$PRIVATE_DOTFILES" false)
   for folder in "${folders[@]}"; do
-    log_info "stow $folder"
+    log_info "[private] stow $folder (repo: $(display_path "$PRIVATE_DOTFILES"))"
     stow_in_repo "$PRIVATE_DOTFILES" "$folder"
   done
 }
@@ -294,7 +355,7 @@ clean_private_dotfiles() {
 
   mapfile -t folders < <(list_stow_folders "$PRIVATE_DOTFILES" true)
   for folder in "${folders[@]}"; do
-    log_info "Removing $folder"
+    log_info "[private] remove $folder (repo: $(display_path "$PRIVATE_DOTFILES"))"
     stow_in_repo "$PRIVATE_DOTFILES" -D "$folder"
   done
 }
@@ -435,9 +496,9 @@ cmd_doctor() {
 
   for path in "$PUBLIC_DOTFILES" "$PRIVATE_DOTFILES"; do
     if [[ -d "$path" ]]; then
-      log_info "found $path"
+      log_info "found $(display_path "$path")"
     else
-      log_warn "missing $path"
+      log_warn "missing $(display_path "$path")"
     fi
   done
 
@@ -455,6 +516,16 @@ cmd_doctor() {
   fi
 }
 
+cmd_diff() {
+  show_repo_diffs 'public' "$PUBLIC_DOTFILES"
+
+  if can_use_private; then
+    show_repo_diffs 'private' "$PRIVATE_DOTFILES"
+  else
+    log_warn "Skipping private diff ($PRIVATE_REASON)"
+  fi
+}
+
 cmd_help() {
   cat <<EOF
 Usage: $SCRIPT_NAME <command> [args]
@@ -463,6 +534,7 @@ Commands:
   init         Run setup, then install public/private dotfiles
   update       Pull repos, then stow public/private dotfiles
   stow         Re-stow public/private dotfiles (no git pull)
+  diff         Show git status and diff summary for repos
   setup        Install packages (supports: --confirm)
   install      Backup/adopt and install public/private dotfiles
   clean        Unstow private then public dotfiles
@@ -481,10 +553,19 @@ main() {
   local cmd="${1:-help}"
   shift || true
 
+  if [[ "$cmd" != 'help' && "$cmd" != '-h' && "$cmd" != '--help' ]]; then
+    if [[ -d "$PUBLIC_DOTFILES" ]]; then
+      cd "$PUBLIC_DOTFILES"
+    fi
+
+    log_context
+  fi
+
   case "$cmd" in
     init) cmd_init "$@" ;;
     update) cmd_update "$@" ;;
     stow) cmd_stow "$@" ;;
+    diff) cmd_diff "$@" ;;
     setup) cmd_setup "$@" ;;
     install) cmd_install "$@" ;;
     clean) cmd_clean "$@" ;;
