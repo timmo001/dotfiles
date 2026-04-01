@@ -2,12 +2,26 @@
 
 Other dotfiles and setup can be found at [omarchy-config](https://github.com/timmo001/omarchy-config).
 
-## Install
+## Dot command
+
+Primary workflow is now the `dot` command (stowed from `scripts/.local/bin/dot`).
+
+```bash
+dot init
+dot update
+dot stow
+dot setup
+dot doctor
+```
+
+Run `dot help` for all commands.
+
+## Legacy scripts
 
 To install/setup your dotfiles, run this script:
 
 ```zsh
-./install.sh
+./install
 ```
 
 ## Cleanup
@@ -15,6 +29,5 @@ To install/setup your dotfiles, run this script:
 To remove the stowed directories and start again, run this script:
 
 ```zsh
-./clean.sh
+./clean
 ```
-

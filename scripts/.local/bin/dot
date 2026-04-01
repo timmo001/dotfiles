@@ -1,0 +1,270 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SCRIPT_NAME="${0##*/}"
+
+PUBLIC_DOTFILES="${DOTFILES_PUBLIC_DIR:-$HOME/.config/dotfiles}"
+PRIVATE_DOTFILES="${DOTFILES_PRIVATE_DIR:-$HOME/.config/dotfiles-private}"
+OMARCHY_CONFIG="${OMARCHY_CONFIG_DIR:-$HOME/.config/omarchy-config}"
+
+EXPECTED_GH_USER="${DOT_PRIVATE_GH_USER:-timmo001}"
+PRIVATE_MODE="${DOT_ALLOW_PRIVATE:-auto}" # auto|always|never
+
+PRIVATE_REASON=""
+
+log_info() {
+  printf '[dot] %s\n' "$*"
+}
+
+log_warn() {
+  printf '[dot] WARN: %s\n' "$*" >&2
+}
+
+log_error() {
+  printf '[dot] ERROR: %s\n' "$*" >&2
+}
+
+has_cmd() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+script_runner() {
+  local script_path="$1"
+  local shebang
+
+  shebang="$(sed -n '1p' "$script_path" 2>/dev/null || true)"
+  case "$shebang" in
+    *zsh*)
+      printf 'zsh\n'
+      ;;
+    *bash*)
+      printf 'bash\n'
+      ;;
+    *)
+      printf 'bash\n'
+      ;;
+  esac
+}
+
+run_script() {
+  local label="$1"
+  local script_path="$2"
+  shift 2
+
+  if [[ ! -f "$script_path" ]]; then
+    log_warn "$label script not found: $script_path"
+    return 0
+  fi
+
+  log_info "Running $label"
+
+  if [[ -x "$script_path" ]]; then
+    "$script_path" "$@"
+    return
+  fi
+
+  local runner
+  runner="$(script_runner "$script_path")"
+  "$runner" "$script_path" "$@"
+}
+
+safe_pull_repo() {
+  local name="$1"
+  local repo_dir="$2"
+
+  if [[ ! -d "$repo_dir/.git" ]]; then
+    log_warn "Skipping $name pull (not a git repo): $repo_dir"
+    return 0
+  fi
+
+  if ! has_cmd git; then
+    log_error "git not found; cannot pull $name"
+    return 1
+  fi
+
+  if [[ -n "$(git -C "$repo_dir" status --porcelain 2>/dev/null || true)" ]]; then
+    log_warn "Skipping $name pull (working tree not clean): $repo_dir"
+    return 0
+  fi
+
+  log_info "Pulling latest for $name"
+  git -C "$repo_dir" pull --rebase
+}
+
+can_use_private() {
+  case "$PRIVATE_MODE" in
+    always)
+      PRIVATE_REASON='DOT_ALLOW_PRIVATE=always'
+      return 0
+      ;;
+    never)
+      PRIVATE_REASON='DOT_ALLOW_PRIVATE=never'
+      return 1
+      ;;
+    auto)
+      ;;
+    *)
+      log_warn "Unknown DOT_ALLOW_PRIVATE value '$PRIVATE_MODE', using auto"
+      ;;
+  esac
+
+  if [[ ! -d "$PRIVATE_DOTFILES" || ! -r "$PRIVATE_DOTFILES" ]]; then
+    PRIVATE_REASON='private repo not present/readable'
+    return 1
+  fi
+
+  if ! [[ -O "$PRIVATE_DOTFILES" ]]; then
+    PRIVATE_REASON='private repo is not owned by current user'
+    return 1
+  fi
+
+  if has_cmd gh && gh auth status >/dev/null 2>&1; then
+    local gh_login
+    gh_login="$(gh api user --jq .login 2>/dev/null || true)"
+    if [[ -n "$gh_login" && "$gh_login" != "$EXPECTED_GH_USER" ]]; then
+      PRIVATE_REASON="gh user '$gh_login' does not match '$EXPECTED_GH_USER'"
+      return 1
+    fi
+  fi
+
+  PRIVATE_REASON='private repo access granted'
+  return 0
+}
+
+run_private_script() {
+  local label="$1"
+  local script_path="$2"
+  shift 2
+
+  if can_use_private; then
+    run_script "$label" "$script_path" "$@"
+  else
+    log_warn "Skipping $label ($PRIVATE_REASON)"
+  fi
+}
+
+cmd_init() {
+  run_script 'omarchy setup' "$OMARCHY_CONFIG/setup.sh"
+  run_script 'public install' "$PUBLIC_DOTFILES/install"
+  run_private_script 'private install' "$PRIVATE_DOTFILES/install.sh"
+}
+
+cmd_update() {
+  safe_pull_repo 'dotfiles' "$PUBLIC_DOTFILES"
+  safe_pull_repo 'omarchy-config' "$OMARCHY_CONFIG"
+
+  if can_use_private; then
+    safe_pull_repo 'dotfiles-private' "$PRIVATE_DOTFILES"
+  else
+    log_warn "Skipping private pull ($PRIVATE_REASON)"
+  fi
+
+  run_script 'public update' "$PUBLIC_DOTFILES/update"
+  run_private_script 'private update' "$PRIVATE_DOTFILES/update.sh"
+}
+
+cmd_stow() {
+  run_script 'public stow/update' "$PUBLIC_DOTFILES/update"
+  run_private_script 'private stow/update' "$PRIVATE_DOTFILES/update.sh"
+}
+
+cmd_setup() {
+  run_script 'public setup' "$PUBLIC_DOTFILES/setup" "$@"
+}
+
+cmd_install() {
+  run_script 'public install' "$PUBLIC_DOTFILES/install"
+  run_private_script 'private install' "$PRIVATE_DOTFILES/install.sh"
+}
+
+cmd_clean() {
+  run_script 'public clean' "$PUBLIC_DOTFILES/clean"
+  run_private_script 'private clean' "$PRIVATE_DOTFILES/clean.sh"
+}
+
+cmd_doctor() {
+  local issues=0
+
+  for cmd in git stow zsh; do
+    if has_cmd "$cmd"; then
+      log_info "$cmd is available"
+    else
+      log_warn "$cmd is missing"
+      issues=$((issues + 1))
+    fi
+  done
+
+  for path in \
+    "$PUBLIC_DOTFILES/install" \
+    "$PUBLIC_DOTFILES/update" \
+    "$PUBLIC_DOTFILES/clean" \
+    "$PUBLIC_DOTFILES/setup" \
+    "$OMARCHY_CONFIG/setup.sh"; do
+    if [[ -f "$path" ]]; then
+      log_info "found $path"
+    else
+      log_warn "missing $path"
+      issues=$((issues + 1))
+    fi
+  done
+
+  if can_use_private; then
+    log_info "private repo enabled ($PRIVATE_REASON)"
+  else
+    log_warn "private repo disabled ($PRIVATE_REASON)"
+  fi
+
+  if [[ $issues -eq 0 ]]; then
+    log_info 'doctor finished: no critical issues found'
+  else
+    log_warn "doctor finished: $issues issue(s) found"
+    return 1
+  fi
+}
+
+cmd_help() {
+  cat <<EOF
+Usage: $SCRIPT_NAME <command> [args]
+
+Commands:
+  init         Run omarchy setup, then public/private install
+  update       Pull repos, then run public/private update
+  stow         Re-stow public/private dotfiles (no git pull)
+  setup        Run public package/setup script
+  install      Run public/private install scripts
+  clean        Run public/private clean scripts
+  doctor       Check dependencies and script availability
+  help         Show this help
+
+Environment:
+  DOTFILES_PUBLIC_DIR   Override public dotfiles path
+  DOTFILES_PRIVATE_DIR  Override private dotfiles path
+  OMARCHY_CONFIG_DIR    Override omarchy-config path
+  DOT_ALLOW_PRIVATE     auto|always|never (default: auto)
+  DOT_PRIVATE_GH_USER   Expected gh username for private actions (default: timmo001)
+EOF
+}
+
+main() {
+  local cmd="${1:-help}"
+  shift || true
+
+  case "$cmd" in
+    init) cmd_init "$@" ;;
+    update) cmd_update "$@" ;;
+    stow) cmd_stow "$@" ;;
+    setup) cmd_setup "$@" ;;
+    install) cmd_install "$@" ;;
+    clean) cmd_clean "$@" ;;
+    doctor) cmd_doctor "$@" ;;
+    help|-h|--help) cmd_help ;;
+    *)
+      log_error "Unknown command: $cmd"
+      cmd_help
+      return 1
+      ;;
+  esac
+}
+
+main "$@"
