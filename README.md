@@ -60,11 +60,11 @@ dot doctor
 
 ## New machine checklist
 
-- [ ] Clone `dotfiles` to `~/.config/dotfiles`
-- [ ] Clone `dotfiles-private` to `~/.config/dotfiles-private` (if available)
-- [ ] Confirm `gh auth status` works
-- [ ] Run `~/.config/dotfiles/scripts/.local/bin/dot doctor`
-- [ ] Run `~/.config/dotfiles/scripts/.local/bin/dot init`
-- [ ] Restart shell and confirm `dot help` is on `PATH`
-- [ ] Run `dot diff` and verify expected repo state
-- [ ] Run `dot update` to validate sync + stow end-to-end
+1. Clone `dotfiles` to `~/.config/dotfiles`
+1. Clone `dotfiles-private` to `~/.config/dotfiles-private` (if available)
+1. Confirm `gh auth status` works
+1. Run `~/.config/dotfiles/scripts/.local/bin/dot doctor`
+1. Run `~/.config/dotfiles/scripts/.local/bin/dot init`
+1. Restart shell and confirm `dot help` is on `PATH`
+1. Run `dot diff` and verify expected repo state
+1. Run `dot update` to validate sync + stow end-to-end
