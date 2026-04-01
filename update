@@ -1,15 +1,24 @@
 #!/usr/bin/env zsh
-if [[ -z $STOW_FOLDERS ]]; then
-    # Get list of folders in the dotfiles directory
-    STOW_FOLDERS=$(ls -d */ | sed 's/\///g' | tr '\n' ',' | sed 's/,$//')
-fi
-
 if [[ -z $DOTFILES ]]; then
     DOTFILES=$HOME/.config/dotfiles
 fi
 
-pushd $DOTFILES
-for folder in $(echo $STOW_FOLDERS | sed "s/,/ /g")
+if [[ ! -d $DOTFILES ]]; then
+    echo "Dotfiles directory not found: $DOTFILES"
+    exit 1
+fi
+
+if [[ -z $STOW_FOLDERS ]]; then
+    # Get list of folders in the dotfiles directory
+    pushd "$DOTFILES" >/dev/null || exit 1
+    STOW_FOLDERS=$(printf '%s,' */)
+    STOW_FOLDERS=${STOW_FOLDERS//\//}
+    STOW_FOLDERS=${STOW_FOLDERS%,}
+    popd >/dev/null || exit 1
+fi
+
+pushd "$DOTFILES" >/dev/null || exit 1
+for folder in ${(s:,:)STOW_FOLDERS}
 do
     # Ignore backup folder
     if [[ $folder == "backup" ]]; then
@@ -17,6 +26,6 @@ do
     fi
 
     echo "stow $folder"
-    stow $folder
+    stow "$folder"
 done
-popd
+popd >/dev/null || exit 1
