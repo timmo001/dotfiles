@@ -6,7 +6,6 @@ SCRIPT_NAME="${0##*/}"
 
 PUBLIC_DOTFILES="${DOTFILES_PUBLIC_DIR:-$HOME/.config/dotfiles}"
 PRIVATE_DOTFILES="${DOTFILES_PRIVATE_DIR:-$HOME/.config/dotfiles-private}"
-OMARCHY_CONFIG="${OMARCHY_CONFIG_DIR:-$HOME/.config/omarchy-config}"
 
 EXPECTED_GH_USER="${DOT_PRIVATE_GH_USER:-timmo001}"
 PRIVATE_MODE="${DOT_ALLOW_PRIVATE:-auto}" # auto|always|never
@@ -25,48 +24,52 @@ log_error() {
   printf '[dot] ERROR: %s\n' "$*" >&2
 }
 
+log_section() {
+  printf '\n[dot] %s\n' "$*"
+}
+
 has_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
 
-script_runner() {
-  local script_path="$1"
-  local shebang
+require_repo_dir() {
+  local repo_dir="$1"
+  local name="$2"
 
-  shebang="$(sed -n '1p' "$script_path" 2>/dev/null || true)"
-  case "$shebang" in
-    *zsh*)
-      printf 'zsh\n'
-      ;;
-    *bash*)
-      printf 'bash\n'
-      ;;
-    *)
-      printf 'bash\n'
-      ;;
-  esac
+  if [[ ! -d "$repo_dir" ]]; then
+    log_error "$name directory not found: $repo_dir"
+    return 1
+  fi
 }
 
-run_script() {
-  local label="$1"
-  local script_path="$2"
-  shift 2
+list_stow_folders() {
+  local repo_dir="$1"
+  local include_backup="${2:-false}"
+  local dir
+  local folder
 
-  if [[ ! -f "$script_path" ]]; then
-    log_warn "$label script not found: $script_path"
-    return 0
-  fi
+  shopt -s nullglob
+  for dir in "$repo_dir"/*/; do
+    folder="${dir%/}"
+    folder="${folder##*/}"
 
-  log_info "Running $label"
+    if [[ "$include_backup" != "true" && "$folder" == "backup" ]]; then
+      continue
+    fi
 
-  if [[ -x "$script_path" ]]; then
-    "$script_path" "$@"
-    return
-  fi
+    printf '%s\n' "$folder"
+  done
+  shopt -u nullglob
+}
 
-  local runner
-  runner="$(script_runner "$script_path")"
-  "$runner" "$script_path" "$@"
+stow_in_repo() {
+  local repo_dir="$1"
+  shift
+
+  (
+    cd "$repo_dir"
+    stow "$@"
+  )
 }
 
 safe_pull_repo() {
@@ -132,27 +135,242 @@ can_use_private() {
   return 0
 }
 
-run_private_script() {
-  local label="$1"
-  local script_path="$2"
-  shift 2
+backup_public_files_for_install() {
+  local backup_root="$PUBLIC_DOTFILES/backup"
 
-  if can_use_private; then
-    run_script "$label" "$script_path" "$@"
-  else
-    log_warn "Skipping $label ($PRIVATE_REASON)"
+  if [[ -f "$HOME/.zshrc" ]]; then
+    mkdir -p "$backup_root"
+    mv "$HOME/.zshrc" "$backup_root"
+  fi
+
+  if [[ -f "$HOME/.editorconfig" ]]; then
+    mkdir -p "$backup_root"
+    mv "$HOME/.editorconfig" "$backup_root"
+  fi
+
+  if [[ -f "$HOME/.config/ghostty/config.toml" ]]; then
+    mkdir -p "$backup_root/.config/ghostty"
+    mv "$HOME/.config/ghostty/config.toml" "$backup_root/.config/ghostty"
+  fi
+
+  if [[ -d "$HOME/.config/nvim" ]]; then
+    mkdir -p "$backup_root/.config"
+    mv "$HOME/.config/nvim" "$backup_root/.config"
   fi
 }
 
+install_public_dotfiles() {
+  local -a folders
+  local folder
+
+  require_repo_dir "$PUBLIC_DOTFILES" 'public dotfiles'
+
+  if ! has_cmd stow; then
+    log_error 'stow is required'
+    return 1
+  fi
+
+  backup_public_files_for_install
+
+  mapfile -t folders < <(list_stow_folders "$PUBLIC_DOTFILES" false)
+  for folder in "${folders[@]}"; do
+    log_info "stow $folder"
+    stow_in_repo "$PUBLIC_DOTFILES" -D "$folder"
+
+    if [[ "$folder" == 'opencode' ]]; then
+      stow_in_repo "$PUBLIC_DOTFILES" --no-folding --adopt "$folder"
+    else
+      stow_in_repo "$PUBLIC_DOTFILES" --adopt "$folder"
+    fi
+  done
+}
+
+stow_public_dotfiles() {
+  local -a folders
+  local folder
+
+  require_repo_dir "$PUBLIC_DOTFILES" 'public dotfiles'
+
+  if ! has_cmd stow; then
+    log_error 'stow is required'
+    return 1
+  fi
+
+  mapfile -t folders < <(list_stow_folders "$PUBLIC_DOTFILES" false)
+  for folder in "${folders[@]}"; do
+    log_info "stow $folder"
+    stow_in_repo "$PUBLIC_DOTFILES" "$folder"
+  done
+}
+
+clean_public_dotfiles() {
+  local -a folders
+  local folder
+
+  require_repo_dir "$PUBLIC_DOTFILES" 'public dotfiles'
+
+  if ! has_cmd stow; then
+    log_error 'stow is required'
+    return 1
+  fi
+
+  mapfile -t folders < <(list_stow_folders "$PUBLIC_DOTFILES" true)
+  for folder in "${folders[@]}"; do
+    log_info "Removing $folder"
+    stow_in_repo "$PUBLIC_DOTFILES" -D "$folder"
+  done
+}
+
+install_private_opencode() {
+  local opencode_target="$HOME/.config/opencode/opencode.json"
+  local backup_dir="$PRIVATE_DOTFILES/backup/opencode"
+
+  if [[ -e "$opencode_target" && ! -L "$opencode_target" ]]; then
+    mkdir -p "$backup_dir"
+    mv "$opencode_target" "$backup_dir/opencode.json.$(date +%Y%m%d-%H%M%S)"
+  fi
+
+  stow_in_repo "$PRIVATE_DOTFILES" \
+    --no-folding \
+    --ignore=node_modules \
+    --ignore=package\.json \
+    --ignore=bun\.lock \
+    --ignore=\.gitignore \
+    opencode
+}
+
+install_private_dotfiles() {
+  local -a folders
+  local folder
+
+  require_repo_dir "$PRIVATE_DOTFILES" 'private dotfiles'
+
+  if ! has_cmd stow; then
+    log_error 'stow is required'
+    return 1
+  fi
+
+  mapfile -t folders < <(list_stow_folders "$PRIVATE_DOTFILES" false)
+  for folder in "${folders[@]}"; do
+    log_info "stow $folder"
+    stow_in_repo "$PRIVATE_DOTFILES" -D "$folder"
+
+    if [[ "$folder" == 'opencode' ]]; then
+      install_private_opencode
+    else
+      stow_in_repo "$PRIVATE_DOTFILES" "$folder"
+    fi
+  done
+}
+
+stow_private_dotfiles() {
+  local -a folders
+  local folder
+
+  require_repo_dir "$PRIVATE_DOTFILES" 'private dotfiles'
+
+  if ! has_cmd stow; then
+    log_error 'stow is required'
+    return 1
+  fi
+
+  mapfile -t folders < <(list_stow_folders "$PRIVATE_DOTFILES" false)
+  for folder in "${folders[@]}"; do
+    log_info "stow $folder"
+    stow_in_repo "$PRIVATE_DOTFILES" "$folder"
+  done
+}
+
+clean_private_dotfiles() {
+  local -a folders
+  local folder
+
+  require_repo_dir "$PRIVATE_DOTFILES" 'private dotfiles'
+
+  if ! has_cmd stow; then
+    log_error 'stow is required'
+    return 1
+  fi
+
+  mapfile -t folders < <(list_stow_folders "$PRIVATE_DOTFILES" true)
+  for folder in "${folders[@]}"; do
+    log_info "Removing $folder"
+    stow_in_repo "$PRIVATE_DOTFILES" -D "$folder"
+  done
+}
+
+run_setup_packages() {
+  local confirm=false
+  local arg
+  local -a install_flags
+
+  for arg in "$@"; do
+    case "$arg" in
+      --confirm)
+        confirm=true
+        ;;
+      *)
+        log_error "Unknown option: $arg"
+        return 1
+        ;;
+    esac
+  done
+
+  if ! has_cmd yay; then
+    log_error 'yay is required for setup'
+    return 1
+  fi
+
+  log_section 'System update'
+  yay -Syu
+
+  install_flags=(--needed --noconfirm)
+  if [[ "$confirm" == 'true' ]]; then
+    install_flags=(--needed)
+  fi
+
+  install_group() {
+    local title="$1"
+    shift
+
+    log_section "$title"
+    yay -S "${install_flags[@]}" "$@"
+  }
+
+  install_group 'Root (dotfiles management & tooling)' base-devel git stow yay-bin zsh
+  install_group 'gamescope/' gamescope
+  install_group 'ghostty/' ghostty
+  install_group 'hyprland/' blueman flatpak hyprland network-manager-applet polkit-gnome swaybg wl-clipboard
+  install_group 'hyprland/.config/hypr/scripts/' edid-decode jq vkbasalt
+  install_group 'lazygit/' lazygit
+  install_group 'nvim/' go neovim nodejs python python-pip ripgrep uv
+
+  log_section 'nvim/ (global npm)'
+  npm install -g prettier
+
+  install_group 'qt5ct/' qt5ct
+  install_group 'starship/' starship
+  install_group 'swaync/' swaync
+  install_group 'waybar/' playerctl python-gobject waybar
+  install_group 'wofi/' wofi
+
+  printf '\n'
+  log_warn "This is not every package needed for these dotfiles, but it's a good starting point."
+}
+
 cmd_init() {
-  run_script 'omarchy setup' "$OMARCHY_CONFIG/setup.sh"
-  run_script 'public install' "$PUBLIC_DOTFILES/install"
-  run_private_script 'private install' "$PRIVATE_DOTFILES/install"
+  run_setup_packages "$@"
+  install_public_dotfiles
+
+  if can_use_private; then
+    install_private_dotfiles
+  else
+    log_warn "Skipping private install ($PRIVATE_REASON)"
+  fi
 }
 
 cmd_update() {
   safe_pull_repo 'dotfiles' "$PUBLIC_DOTFILES"
-  safe_pull_repo 'omarchy-config' "$OMARCHY_CONFIG"
 
   if can_use_private; then
     safe_pull_repo 'dotfiles-private' "$PRIVATE_DOTFILES"
@@ -160,33 +378,53 @@ cmd_update() {
     log_warn "Skipping private pull ($PRIVATE_REASON)"
   fi
 
-  run_script 'public update' "$PUBLIC_DOTFILES/update"
-  run_private_script 'private update' "$PRIVATE_DOTFILES/update"
+  stow_public_dotfiles
+
+  if can_use_private; then
+    stow_private_dotfiles
+  else
+    log_warn "Skipping private stow ($PRIVATE_REASON)"
+  fi
 }
 
 cmd_stow() {
-  run_script 'public stow/update' "$PUBLIC_DOTFILES/update"
-  run_private_script 'private stow/update' "$PRIVATE_DOTFILES/update"
+  stow_public_dotfiles
+
+  if can_use_private; then
+    stow_private_dotfiles
+  else
+    log_warn "Skipping private stow ($PRIVATE_REASON)"
+  fi
 }
 
 cmd_setup() {
-  run_script 'public setup' "$PUBLIC_DOTFILES/setup" "$@"
+  run_setup_packages "$@"
 }
 
 cmd_install() {
-  run_script 'public install' "$PUBLIC_DOTFILES/install"
-  run_private_script 'private install' "$PRIVATE_DOTFILES/install"
+  install_public_dotfiles
+
+  if can_use_private; then
+    install_private_dotfiles
+  else
+    log_warn "Skipping private install ($PRIVATE_REASON)"
+  fi
 }
 
 cmd_clean() {
-  run_script 'public clean' "$PUBLIC_DOTFILES/clean"
-  run_private_script 'private clean' "$PRIVATE_DOTFILES/clean"
+  if can_use_private; then
+    clean_private_dotfiles
+  else
+    log_warn "Skipping private clean ($PRIVATE_REASON)"
+  fi
+
+  clean_public_dotfiles
 }
 
 cmd_doctor() {
   local issues=0
 
-  for cmd in git stow zsh; do
+  for cmd in git stow bash; do
     if has_cmd "$cmd"; then
       log_info "$cmd is available"
     else
@@ -195,17 +433,11 @@ cmd_doctor() {
     fi
   done
 
-  for path in \
-    "$PUBLIC_DOTFILES/install" \
-    "$PUBLIC_DOTFILES/update" \
-    "$PUBLIC_DOTFILES/clean" \
-    "$PUBLIC_DOTFILES/setup" \
-    "$OMARCHY_CONFIG/setup.sh"; do
-    if [[ -f "$path" ]]; then
+  for path in "$PUBLIC_DOTFILES" "$PRIVATE_DOTFILES"; do
+    if [[ -d "$path" ]]; then
       log_info "found $path"
     else
       log_warn "missing $path"
-      issues=$((issues + 1))
     fi
   done
 
@@ -218,7 +450,7 @@ cmd_doctor() {
   if [[ $issues -eq 0 ]]; then
     log_info 'doctor finished: no critical issues found'
   else
-    log_warn "doctor finished: $issues issue(s) found"
+    log_warn "doctor finished: $issues critical issue(s) found"
     return 1
   fi
 }
@@ -228,19 +460,18 @@ cmd_help() {
 Usage: $SCRIPT_NAME <command> [args]
 
 Commands:
-  init         Run omarchy setup, then public/private install
-  update       Pull repos, then run public/private update
+  init         Run setup, then install public/private dotfiles
+  update       Pull repos, then stow public/private dotfiles
   stow         Re-stow public/private dotfiles (no git pull)
-  setup        Run public package/setup script
-  install      Run public/private install scripts
-  clean        Run public/private clean scripts
-  doctor       Check dependencies and script availability
+  setup        Install packages (supports: --confirm)
+  install      Backup/adopt and install public/private dotfiles
+  clean        Unstow private then public dotfiles
+  doctor       Check dependencies and repo availability
   help         Show this help
 
 Environment:
   DOTFILES_PUBLIC_DIR   Override public dotfiles path
   DOTFILES_PRIVATE_DIR  Override private dotfiles path
-  OMARCHY_CONFIG_DIR    Override omarchy-config path
   DOT_ALLOW_PRIVATE     auto|always|never (default: auto)
   DOT_PRIVATE_GH_USER   Expected gh username for private actions (default: timmo001)
 EOF
