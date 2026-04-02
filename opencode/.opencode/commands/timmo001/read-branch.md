@@ -1,6 +1,6 @@
 ---
-allowed-tools: Read(*), Grep(*), Glob(*), Bash(git:*), Bash(gh:*)
-description: Read up on the current branch and summarize changes
+allowed-tools: Read(*), Grep(*), Glob(*), Bash(git:*)
+description: Read up on the current branch and quickly summarize code changes
 agent: ask
 ---
 
@@ -15,5 +15,5 @@ Follow these steps:
 1. Parse the injected `<branch-context>` block and treat it as the canonical snapshot.
 2. Summarize branch intent and key code changes grouped by area.
 3. Call out risky changes, missing tests, or unclear behavior.
-4. Include PR/check status when present.
-5. Run additional `git`/`gh` commands only if the injected context is missing, stale, or insufficient.
+4. Run additional `git` commands only if the injected context is missing, stale, or insufficient.
+5. Keep the response brief and focused on what changed and how it works.
