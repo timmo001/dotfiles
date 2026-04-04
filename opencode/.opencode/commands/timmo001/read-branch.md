@@ -1,19 +1,20 @@
 ---
 allowed-tools: Read(*), Grep(*), Glob(*), Bash(git:*)
-description: Read up on the current branch and quickly summarize code changes
+description: Return formatted branch context only
 agent: ask
 ---
 
 # Read Current Branch
 
-Read the current branch status and summarize what changed compared to the default branch.
+Read the current branch status and return formatted context only.
 
 `BranchContextPlugin` injects a `<branch-context>` block before this command runs. Use that injected context as your primary source of truth.
 
 Follow these steps:
 
 1. Parse the injected `<branch-context>` block and treat it as the canonical snapshot.
-2. Summarize branch intent and key code changes grouped by area.
-3. Call out risky changes, missing tests, or unclear behavior.
-4. Run additional `git` commands only if the injected context is missing, stale, or insufficient.
-5. Keep the response brief and focused on what changed and how it works.
+2. Format the `<branch-context>` details into clear sections and bullet points.
+3. Do not summarize, analyze, or add commentary/opinions/recommendations.
+4. Do not print raw diffs or patch hunks (`diff --git`, `index`, `@@`, `+`, `-` line content).
+5. If diff content exists in `<branch-context>`, ignore it and only include non-diff metadata.
+6. Run additional `git` commands only if the injected context is missing, stale, or insufficient.
