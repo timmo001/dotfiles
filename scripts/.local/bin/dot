@@ -664,6 +664,77 @@ show_repo_diffs() {
   fi
 }
 
+# One-line JSON for Waybar (no log noise). Same repos as cmd_diff.
+cmd_diff_status() {
+  local issues=0
+  local -a segments=()
+  local name path dirty ahead
+
+  _diff_status_json_escape() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    printf '%s' "$s"
+  }
+
+  _diff_status_scan() {
+    name="$1"
+    path="$2"
+    if ! git -C "$path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      return 0
+    fi
+    dirty=0
+    [[ -n "$(git -C "$path" status --porcelain 2>/dev/null)" ]] && dirty=1
+    ahead=0
+    if git -C "$path" rev-parse '@{u}' >/dev/null 2>&1; then
+      ahead="$(git -C "$path" rev-list --count '@{u}..HEAD' 2>/dev/null || printf '0')"
+    fi
+    if [[ "$dirty" -eq 1 ]] || [[ "${ahead:-0}" -gt 0 ]]; then
+      issues=$((issues + 1))
+      local detail=()
+      [[ "$dirty" -eq 1 ]] && detail+=("dirty")
+      [[ "${ahead:-0}" -gt 0 ]] && detail+=("${ahead} unpushed")
+      segments+=("${name} (${detail[*]})")
+    fi
+  }
+
+  _diff_status_scan 'public' "$PUBLIC_DOTFILES"
+
+  if can_use_private; then
+    _diff_status_scan 'private' "$PRIVATE_DOTFILES"
+    _diff_status_scan 'notes' "$NOTES_REPO_DIR"
+  fi
+
+  if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS"; then
+    local om_name
+    for om_name in "${OMARCHY_DIFF_REPOS[@]}"; do
+      _diff_status_scan "omarchy:${om_name}" "$OMARCHY_REPO_BASE/$om_name"
+    done
+  fi
+
+  local text tooltip class json_tip
+  if [[ "$issues" -eq 0 ]]; then
+    text=''
+    tooltip='dot diff: all repos clean'
+    class='dots-ok'
+  else
+    text=" ${issues}"
+    tooltip='dot diff: '
+    local i=0
+    local seg
+    for seg in "${segments[@]}"; do
+      [[ $i -gt 0 ]] && tooltip+='; '
+      tooltip+="$seg"
+      i=$((i + 1))
+    done
+    class='dots-attention'
+  fi
+
+  json_tip="$(_diff_status_json_escape "$tooltip")"
+  printf '{"text":"%s","tooltip":"%s","class":"%s"}\n' "$text" "$json_tip" "$class"
+}
+
 can_use_private() {
   case "$PRIVATE_MODE" in
     always)
@@ -1268,60 +1339,59 @@ cmd_diff() {
 }
 
 cmd_help() {
-  cat <<EOF
-Usage: $SCRIPT_NAME <command> [args]
+  local fmt_cmd='  %-14s  %s\n'
+  local fmt_env='  %-34s%s\n'
+  local fmt_init='  %-26s  %s\n'
 
-Commands:
-  init         Run questionnaire, sync omarchy repos, setup, install
-  update       Pull repos (public, private, notes), stow dotfiles (optional agents-sync + dot memory --soft)
-  memory       Refresh OpenCode durable memory (~/.opencode/AGENTS.md via memory.js --update)
-  stow         Re-stow public/private dotfiles (no git pull)
-  diff         Git status, diffs, and upstream ahead/behind (unpushed commits) per repo
-  setup        Install packages (supports: --confirm)
-  install      Backup/adopt and install public/private dotfiles
-  clean        Unstow private then public dotfiles
-  doctor       Check dependencies and repo availability
-  agents-sync  Run dot memory then write global-agents.mdc (default: dotfiles-private agents/.cursor/rules/)
-  help         Show this help
+  printf 'Usage: %s <command> [args]\n\n' "$SCRIPT_NAME"
+  printf 'Commands:\n'
+  printf "$fmt_cmd" 'init' 'Run questionnaire, sync omarchy repos, setup, install'
+  printf "$fmt_cmd" 'update' 'Pull repos (public, private, notes), stow dotfiles (optional agents-sync + dot memory --soft)'
+  printf "$fmt_cmd" 'memory' 'Refresh OpenCode durable memory (~/.opencode/AGENTS.md via memory.js --update)'
+  printf "$fmt_cmd" 'stow' 'Re-stow public/private dotfiles (no git pull)'
+  printf "$fmt_cmd" 'diff' 'Per-repo git status, diffs, upstream ahead/behind (unpushed commits)'
+  printf "$fmt_cmd" '' 'Options: --status → one-line JSON for Waybar (same checks; no banners)'
+  printf "$fmt_cmd" 'setup' 'Install packages (supports: --confirm)'
+  printf "$fmt_cmd" 'install' 'Backup/adopt and install public/private dotfiles'
+  printf "$fmt_cmd" 'clean' 'Unstow private then public dotfiles'
+  printf "$fmt_cmd" 'doctor' 'Check dependencies and repo availability'
+  printf "$fmt_cmd" 'agents-sync' 'Run dot memory then write global-agents.mdc (default: dotfiles-private agents/.cursor/rules/)'
+  printf "$fmt_cmd" 'help' 'Show this help'
 
-Environment:
-  DOTFILES_PUBLIC_DIR   Override public dotfiles path
-  DOTFILES_PRIVATE_DIR  Override private dotfiles path
-  DOT_NOTES_DIR         Notes vault git repo (default ~/Documents/notes); shown in dot diff with private
-  DOT_ALLOW_PRIVATE     auto|always|never (default: auto)
-  DOT_PRIVATE_GH_USER   Expected gh username for private actions (default: timmo001)
-  OMARCHY_REPO_BASE_DIR Base directory for omarchy repos (default: ~/.config)
-  DOT_OMARCHY_BRANCH    Branch for hypr/waybar/ghostty/uwsm in init/update sync
-  DOT_BOOTSTRAP_BRANCH  Branch for bootstrap repo (default: distro/omarchy)
-  DOT_INCLUDE_OMARCHY_DIFF_REPOS
-                     1|0 include omarchy repos in diff (default: 1)
-  DOT_INCLUDE_OMARCHY_UPDATE_REPOS
-                     1|0 include omarchy repos in update pull (default: 1)
-  DOT_INIT_NONINTERACTIVE
-                     1|0 skip init questionnaire (default: 0)
-  DOT_AGENTS_SYNC_SOURCE
-                     Path to AGENTS.md to mirror (default ~/.opencode/AGENTS.md)
-  DOT_AGENTS_SYNC_RULE_FILE
-                     Cursor rule file path (default: \$DOTFILES_PRIVATE_DIR/agents/.cursor/rules/global-agents.mdc)
-  DOT_AGENTS_SYNC_ON_UPDATE
-                     1|0 run agents-sync after dot update (default 1)
-  DOT_MEMORY_UPDATE_ON_UPDATE
-                     1|0 run \`dot memory --soft\` after dot update (default 1)
-  DOT_MEMORY_ON_AGENTS_SYNC
-                     1|0 run \`dot memory\` before mirroring in \`dot agents-sync\` (default 1)
+  printf '\nEnvironment:\n'
+  printf "$fmt_env" 'DOTFILES_PUBLIC_DIR' 'Override public dotfiles path'
+  printf "$fmt_env" 'DOTFILES_PRIVATE_DIR' 'Override private dotfiles path'
+  printf "$fmt_env" 'DOT_NOTES_DIR' 'Notes vault git repo (default ~/Documents/notes); shown in dot diff with private'
+  printf "$fmt_env" 'DOT_ALLOW_PRIVATE' 'auto|always|never (default: auto)'
+  printf "$fmt_env" 'DOT_PRIVATE_GH_USER' 'Expected gh username for private actions (default: timmo001)'
+  printf "$fmt_env" 'OMARCHY_REPO_BASE_DIR' 'Base directory for omarchy repos (default: ~/.config)'
+  printf "$fmt_env" 'DOT_OMARCHY_BRANCH' 'Branch for hypr/waybar/ghostty/uwsm in init/update sync'
+  printf "$fmt_env" 'DOT_BOOTSTRAP_BRANCH' 'Branch for bootstrap repo (default: distro/omarchy)'
+  printf "$fmt_env" 'DOT_INCLUDE_OMARCHY_DIFF_REPOS' '1|0 include omarchy repos in diff (default: 1)'
+  printf "$fmt_env" 'DOT_INCLUDE_OMARCHY_UPDATE_REPOS' '1|0 include omarchy repos in update pull (default: 1)'
+  printf "$fmt_env" 'DOT_INIT_NONINTERACTIVE' '1|0 skip init questionnaire (default: 0)'
+  printf "$fmt_env" 'DOT_AGENTS_SYNC_SOURCE' 'Path to AGENTS.md to mirror (default ~/.opencode/AGENTS.md)'
+  printf "$fmt_env" 'DOT_AGENTS_SYNC_RULE_FILE' 'Cursor rule file path (default: $DOTFILES_PRIVATE_DIR/agents/.cursor/rules/global-agents.mdc)'
+  printf "$fmt_env" 'DOT_AGENTS_SYNC_ON_UPDATE' '1|0 run agents-sync after dot update (default 1)'
+  printf "$fmt_env" 'DOT_MEMORY_UPDATE_ON_UPDATE' '1|0 run `dot memory --soft` after dot update (default 1)'
+  printf "$fmt_env" 'DOT_MEMORY_ON_AGENTS_SYNC' '1|0 run `dot memory` before mirroring in `dot agents-sync` (default 1)'
 
-Init options:
-  --confirm              Passes through to setup (interactive package install)
-  --noninteractive       Skip questionnaire for this run
-  --interactive          Force questionnaire for this run
-  --branch <name>        Omarchy branch override for hypr/waybar/ghostty/uwsm
-  --bootstrap-branch <n> Bootstrap repo branch override for this run
-EOF
+  printf '\nInit options:\n'
+  printf "$fmt_init" '--confirm' 'Passes through to setup (interactive package install)'
+  printf "$fmt_init" '--noninteractive' 'Skip questionnaire for this run'
+  printf "$fmt_init" '--interactive' 'Force questionnaire for this run'
+  printf "$fmt_init" '--branch <name>' 'Omarchy branch override for hypr/waybar/ghostty/uwsm'
+  printf "$fmt_init" '--bootstrap-branch <n>' 'Bootstrap repo branch override for this run'
 }
 
 main() {
   local cmd="${1:-help}"
   shift || true
+
+  if [[ "$cmd" == 'diff' && "${1:-}" == '--status' ]]; then
+    cmd_diff_status
+    return
+  fi
 
   if [[ "$cmd" != 'help' && "$cmd" != '-h' && "$cmd" != '--help' ]]; then
     if [[ -d "$PUBLIC_DOTFILES" ]]; then
