@@ -143,6 +143,64 @@ is_truthy() {
   esac
 }
 
+# Populates DIFF_ATTENTION_ISSUES and DIFF_ATTENTION_SEGMENTS (same rules as `dot diff --status`).
+_diff_attention_scan_repo() {
+  local name="$1"
+  local path="$2"
+  local dirty=0
+  local ahead=0
+  local -a detail=()
+
+  if ! git -C "$path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    return 0
+  fi
+
+  [[ -n "$(git -C "$path" status --porcelain 2>/dev/null)" ]] && dirty=1
+  ahead=0
+  if git -C "$path" rev-parse '@{u}' >/dev/null 2>&1; then
+    ahead="$(git -C "$path" rev-list --count '@{u}..HEAD' 2>/dev/null || printf '0')"
+  fi
+
+  if [[ "$dirty" -eq 1 ]] || [[ "${ahead:-0}" -gt 0 ]]; then
+    DIFF_ATTENTION_ISSUES=$((DIFF_ATTENTION_ISSUES + 1))
+    [[ "$dirty" -eq 1 ]] && detail+=('dirty')
+    [[ "${ahead:-0}" -gt 0 ]] && detail+=("${ahead} unpushed")
+    DIFF_ATTENTION_SEGMENTS+=("${name} (${detail[*]})")
+  fi
+}
+
+diff_collect_attention() {
+  DIFF_ATTENTION_ISSUES=0
+  DIFF_ATTENTION_SEGMENTS=()
+
+  _diff_attention_scan_repo 'public' "$PUBLIC_DOTFILES"
+
+  if can_use_private; then
+    _diff_attention_scan_repo 'private' "$PRIVATE_DOTFILES"
+    _diff_attention_scan_repo 'notes' "$NOTES_REPO_DIR"
+  fi
+
+  if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS"; then
+    local om_name
+    for om_name in "${OMARCHY_DIFF_REPOS[@]}"; do
+      _diff_attention_scan_repo "omarchy:${om_name}" "$OMARCHY_REPO_BASE/$om_name"
+    done
+  fi
+}
+
+# Desktop notification when repos need commit/push (libnotify; same stack as other omarchy scripts).
+notify_diff_attention_if_needed() {
+  is_truthy "${DOT_DIFF_NOTIFY:-1}" || return 0
+  [[ "${DIFF_ATTENTION_ISSUES:-0}" -gt 0 ]] || return 0
+  has_cmd notify-send || return 0
+
+  local title='Dot diff: action needed'
+  local body
+  body="$(printf '%s\n' "${DIFF_ATTENTION_SEGMENTS[@]}")"
+
+  notify-send -a dot -u normal -t 8000 "$title" "$body"
+}
+
 require_repo_dir() {
   local repo_dir="$1"
   local name="$2"
@@ -590,10 +648,6 @@ show_repo_diffs() {
 
 # One-line JSON for Waybar (no log noise). Same repos as cmd_diff.
 cmd_diff_status() {
-  local issues=0
-  local -a segments=()
-  local name path dirty ahead
-
   _diff_status_json_escape() {
     local s="$1"
     s="${s//\\/\\\\}"
@@ -602,42 +656,12 @@ cmd_diff_status() {
     printf '%s' "$s"
   }
 
-  _diff_status_scan() {
-    name="$1"
-    path="$2"
-    if ! git -C "$path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-      return 0
-    fi
-    dirty=0
-    [[ -n "$(git -C "$path" status --porcelain 2>/dev/null)" ]] && dirty=1
-    ahead=0
-    if git -C "$path" rev-parse '@{u}' >/dev/null 2>&1; then
-      ahead="$(git -C "$path" rev-list --count '@{u}..HEAD' 2>/dev/null || printf '0')"
-    fi
-    if [[ "$dirty" -eq 1 ]] || [[ "${ahead:-0}" -gt 0 ]]; then
-      issues=$((issues + 1))
-      local detail=()
-      [[ "$dirty" -eq 1 ]] && detail+=("dirty")
-      [[ "${ahead:-0}" -gt 0 ]] && detail+=("${ahead} unpushed")
-      segments+=("${name} (${detail[*]})")
-    fi
-  }
-
-  _diff_status_scan 'public' "$PUBLIC_DOTFILES"
-
-  if can_use_private; then
-    _diff_status_scan 'private' "$PRIVATE_DOTFILES"
-    _diff_status_scan 'notes' "$NOTES_REPO_DIR"
-  fi
-
-  if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS"; then
-    local om_name
-    for om_name in "${OMARCHY_DIFF_REPOS[@]}"; do
-      _diff_status_scan "omarchy:${om_name}" "$OMARCHY_REPO_BASE/$om_name"
-    done
-  fi
+  diff_collect_attention
 
   local text tooltip class json_tip
+  local issues="${DIFF_ATTENTION_ISSUES:-0}"
+  local -a segments=("${DIFF_ATTENTION_SEGMENTS[@]}")
+
   if [[ "$issues" -eq 0 ]]; then
     text=''
     tooltip='dot diff: all repos clean'
@@ -657,6 +681,7 @@ cmd_diff_status() {
 
   json_tip="$(_diff_status_json_escape "$tooltip")"
   printf '{"text":"%s","tooltip":"%s","class":"%s"}\n' "$text" "$json_tip" "$class"
+  notify_diff_attention_if_needed
 }
 
 can_use_private() {
@@ -1224,6 +1249,9 @@ cmd_diff() {
   else
     log_warn "Skipping Omarchy repo diffs (DOT_INCLUDE_OMARCHY_DIFF_REPOS=$INCLUDE_OMARCHY_DIFF_REPOS)"
   fi
+
+  diff_collect_attention
+  notify_diff_attention_if_needed
 }
 
 cmd_help() {
@@ -1257,6 +1285,7 @@ cmd_help() {
   printf "$fmt_env" 'DOT_BOOTSTRAP_BRANCH' 'Branch for bootstrap repo (default: distro/omarchy)'
   printf "$fmt_env" 'DOT_INCLUDE_OMARCHY_DIFF_REPOS' '1|0 include omarchy repos in diff (default: 1)'
   printf "$fmt_env" 'DOT_INCLUDE_OMARCHY_UPDATE_REPOS' '1|0 include omarchy repos in update pull (default: 1)'
+  printf "$fmt_env" 'DOT_DIFF_NOTIFY' '1|0 libnotify when dot diff / dot diff --status need action (default: 1)'
   printf "$fmt_env" 'DOT_INIT_NONINTERACTIVE' '1|0 skip init questionnaire (default: 0)'
   printf "$fmt_env" 'DOT_AGENTS_SYNC_SOURCE' 'Path to AGENTS.md to mirror (default ~/.opencode/AGENTS.md)'
   printf "$fmt_env" 'DOT_AGENTS_SYNC_RULE_FILE' 'Cursor rule file path (default: $DOTFILES_PRIVATE_DIR/agents/.cursor/rules/global-agents.mdc)'
