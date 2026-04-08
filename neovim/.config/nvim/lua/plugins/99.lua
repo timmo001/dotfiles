@@ -8,9 +8,6 @@ return {
       md_files = {
         "AGENT.md",
       },
-      -- completion = {
-      --   source = "blink",
-      -- },
     })
 
     -- visual must be set in visual mode; uses the current/last visual selection
