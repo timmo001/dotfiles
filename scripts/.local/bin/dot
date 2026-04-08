@@ -513,7 +513,7 @@ install_public_dotfiles() {
     log_info "[public] stow $folder (repo: $(display_path "$PUBLIC_DOTFILES"))"
     stow_in_repo "$PUBLIC_DOTFILES" -D "$folder"
 
-    if [[ "$folder" == 'opencode' ]]; then
+    if [[ "$folder" == 'agents' ]]; then
       stow_in_repo "$PUBLIC_DOTFILES" --no-folding --adopt "$folder"
     else
       stow_in_repo "$PUBLIC_DOTFILES" --adopt "$folder"
@@ -557,7 +557,7 @@ clean_public_dotfiles() {
   done
 }
 
-install_private_opencode() {
+install_private_agents() {
   local opencode_target="$HOME/.config/opencode/opencode.json"
   local backup_dir="$PRIVATE_DOTFILES/backup/opencode"
 
@@ -573,7 +573,7 @@ install_private_opencode() {
     --ignore=package\.json \
     --ignore=bun\.lock \
     --ignore=\.gitignore \
-    opencode
+    agents
 }
 
 install_private_dotfiles() {
@@ -592,8 +592,8 @@ install_private_dotfiles() {
     log_info "[private] stow $folder (repo: $(display_path "$PRIVATE_DOTFILES"))"
     stow_in_repo "$PRIVATE_DOTFILES" -D "$folder"
 
-    if [[ "$folder" == 'opencode' ]]; then
-      install_private_opencode
+    if [[ "$folder" == 'agents' ]]; then
+      install_private_agents
     else
       stow_in_repo "$PRIVATE_DOTFILES" "$folder"
     fi

@@ -2,6 +2,10 @@
 
 Instructions for coding agents working in this repository.
 
+This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGENTS.md` from the repo root (and from nested directories when working under those paths). For Cursor-only behavior (globs, `alwaysApply`), use `.cursor/rules/`; that stays separate from this portable file.
+
+**Shared global instructions** (OpenCode and any Cursor project): one on-disk file at `~/.opencode/AGENTS.md`, stowed from `~/.config/dotfiles-private/agents/.opencode/AGENTS.md` when private dotfiles are installed. To reuse the same file in another repo: `ln -sf ~/.opencode/AGENTS.md AGENTS.md` in that project’s root (or use **Cursor → Settings → Rules** for editor-wide text).
+
 ## Scope
 
 - This repo is the public dotfiles source at `~/.config/dotfiles`.

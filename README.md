@@ -17,7 +17,7 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 - `zsh/` - shell config
 - `neovim/` - Neovim config
 - `starship/` - prompt config
-- `opencode/` - OpenCode config
+- `agents/` - agent tooling (OpenCode: `~/.opencode/` via `.opencode/` subtree; global `AGENTS.md` stowed from private `agents/.opencode/AGENTS.md`)
 - `cursor/`, `editorconfig/` - editor/tooling config
 
 ## Quick start
