@@ -118,6 +118,9 @@ dot() {
   local original_dir="$PWD"
   local target_dir
   local found_dirty=0
+  local upstream_sha
+  local ahead_count
+  local behind_count
   local repo
   local -a repos
 
@@ -154,7 +157,7 @@ dot() {
       fi
     done
 
-    # Unpushed commits (clean tree but ahead of upstream) — same priority order as repos
+    # Remote divergence (clean tree but ahead/behind upstream) — same priority order as repos
     if [[ $found_dirty -eq 0 ]]; then
       for repo in "${repos[@]}"; do
         if ! git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -162,7 +165,8 @@ dot() {
         fi
         upstream_sha="$(git -C "$repo" rev-parse --verify '@{u}' 2>/dev/null)" || continue
         ahead_count="$(git -C "$repo" rev-list --count "${upstream_sha}..HEAD" 2>/dev/null)" || ahead_count=0
-        if [[ "$ahead_count" -gt 0 ]]; then
+        behind_count="$(git -C "$repo" rev-list --count "HEAD..${upstream_sha}" 2>/dev/null)" || behind_count=0
+        if [[ "$ahead_count" -gt 0 || "$behind_count" -gt 0 ]]; then
           target_dir="$repo"
           found_dirty=1
           break

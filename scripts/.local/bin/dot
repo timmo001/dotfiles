@@ -143,12 +143,36 @@ is_truthy() {
   esac
 }
 
+# Refresh local tracking refs for the configured upstream branch.
+fetch_repo_upstream() {
+  local repo_dir="$1"
+  local upstream_ref
+  local remote_name
+  local remote_branch
+
+  if ! git -C "$repo_dir" rev-parse '@{u}' >/dev/null 2>&1; then
+    return 1
+  fi
+
+  upstream_ref="$(git -C "$repo_dir" rev-parse --abbrev-ref '@{u}' 2>/dev/null || true)"
+  if [[ -z "$upstream_ref" || "$upstream_ref" != */* ]]; then
+    return 1
+  fi
+
+  remote_name="${upstream_ref%%/*}"
+  remote_branch="${upstream_ref#*/}"
+
+  git -C "$repo_dir" fetch --quiet "$remote_name" "$remote_branch" >/dev/null 2>&1 \
+    || git -C "$repo_dir" fetch --quiet "$remote_name" >/dev/null 2>&1
+}
+
 # Populates DIFF_ATTENTION_ISSUES and DIFF_ATTENTION_SEGMENTS (same rules as `dot diff --status`).
 _diff_attention_scan_repo() {
   local name="$1"
   local path="$2"
   local dirty=0
   local ahead=0
+  local behind=0
   local -a detail=()
 
   if ! git -C "$path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -157,14 +181,18 @@ _diff_attention_scan_repo() {
 
   [[ -n "$(git -C "$path" status --porcelain 2>/dev/null)" ]] && dirty=1
   ahead=0
+  behind=0
   if git -C "$path" rev-parse '@{u}' >/dev/null 2>&1; then
+    fetch_repo_upstream "$path" || true
     ahead="$(git -C "$path" rev-list --count '@{u}..HEAD' 2>/dev/null || printf '0')"
+    behind="$(git -C "$path" rev-list --count 'HEAD..@{u}' 2>/dev/null || printf '0')"
   fi
 
-  if [[ "$dirty" -eq 1 ]] || [[ "${ahead:-0}" -gt 0 ]]; then
+  if [[ "$dirty" -eq 1 ]] || [[ "${ahead:-0}" -gt 0 ]] || [[ "${behind:-0}" -gt 0 ]]; then
     DIFF_ATTENTION_ISSUES=$((DIFF_ATTENTION_ISSUES + 1))
     [[ "$dirty" -eq 1 ]] && detail+=('dirty')
     [[ "${ahead:-0}" -gt 0 ]] && detail+=("${ahead} unpushed")
+    [[ "${behind:-0}" -gt 0 ]] && detail+=("${behind} incoming")
     DIFF_ATTENTION_SEGMENTS+=("${name} (${detail[*]})")
   fi
 }
@@ -626,6 +654,8 @@ show_repo_diffs() {
   fi
 
   if git -C "$repo_dir" rev-parse '@{u}' >/dev/null 2>&1; then
+    fetch_repo_upstream "$repo_dir" || true
+
     unpushed_out="$(cd "$repo_dir" && git log '@{u}..HEAD' --oneline -20)"
     if [[ -n "$unpushed_out" ]]; then
       log_info 'Unpushed commits:'
@@ -1265,7 +1295,7 @@ cmd_help() {
   printf "$fmt_cmd" 'update' 'Pull repos (public, private, notes), stow dotfiles (optional agents-sync + dot memory --soft)'
   printf "$fmt_cmd" 'memory' 'Refresh OpenCode durable memory (~/.opencode/AGENTS.md via memory.js --update)'
   printf "$fmt_cmd" 'stow' 'Re-stow public/private dotfiles (no git pull)'
-  printf "$fmt_cmd" 'diff' 'Per-repo git status, diffs, upstream ahead/behind (unpushed commits)'
+  printf "$fmt_cmd" 'diff' 'Per-repo status + diffs with fetched upstream unpushed/incoming commits'
   printf "$fmt_cmd" '' 'Options: --status → one-line JSON for Waybar (same checks; no banners)'
   printf "$fmt_cmd" 'setup' 'Install packages (supports: --confirm)'
   printf "$fmt_cmd" 'install' 'Backup/adopt and install public/private dotfiles'

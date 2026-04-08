@@ -38,7 +38,7 @@ dot doctor
 - `dot init` - questionnaire (when available), Omarchy sync, package setup, then public/private install
 - `dot update` - Omarchy + public/private pull, then stow refresh
 - `dot stow` - stow refresh only (no git pull)
-- `dot diff` - git status + staged/unstaged summaries across managed repos
+- `dot diff` - git status + staged/unstaged summaries with fetched unpushed/incoming commit checks across managed repos
 - `dot setup [--confirm]` - package install step only
 - `dot install` - backup/adopt install flow for public/private dotfiles
 - `dot clean` - unstow private then public
