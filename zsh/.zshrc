@@ -138,6 +138,7 @@ dot() {
       "$HOME/.config/uwsm"
       "$HOME/.config/dotfiles"
       "$HOME/.config/dotfiles-private"
+      "$HOME/Documents/notes"
     )
 
     target_dir="$HOME/.config/dotfiles"
@@ -152,6 +153,23 @@ dot() {
         break
       fi
     done
+
+    # Unpushed commits (clean tree but ahead of upstream) — same priority order as repos
+    if [[ $found_dirty -eq 0 ]]; then
+      for repo in "${repos[@]}"; do
+        if [[ ! -d "$repo/.git" ]]; then
+          continue
+        fi
+        if ! git -C "$repo" rev-parse '@{u}' >/dev/null 2>&1; then
+          continue
+        fi
+        if [[ "$(git -C "$repo" rev-list --count '@{u}..HEAD' 2>/dev/null || echo 0)" -gt 0 ]]; then
+          target_dir="$repo"
+          found_dirty=1
+          break
+        fi
+      done
+    fi
 
     if [[ $found_dirty -eq 1 ]]; then
       builtin cd "$target_dir" || return $rc
