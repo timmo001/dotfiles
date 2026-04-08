@@ -8,6 +8,7 @@ DOT_SELF="${BASH_SOURCE[0]:-$0}"
 
 PUBLIC_DOTFILES="${DOTFILES_PUBLIC_DIR:-$HOME/.config/dotfiles}"
 PRIVATE_DOTFILES="${DOTFILES_PRIVATE_DIR:-$HOME/.config/dotfiles-private}"
+NOTES_REPO_DIR="${DOT_NOTES_DIR:-$HOME/Documents/notes}"
 
 EXPECTED_GH_USER="${DOT_PRIVATE_GH_USER:-timmo001}"
 PRIVATE_MODE="${DOT_ALLOW_PRIVATE:-auto}" # auto|always|never
@@ -128,6 +129,7 @@ display_path() {
 log_context() {
   log_info "Public repo: $(display_path "$PUBLIC_DOTFILES")"
   log_info "Private repo: $(display_path "$PRIVATE_DOTFILES")"
+  log_info "Notes repo: $(display_path "$NOTES_REPO_DIR")"
   log_info "Private mode: $PRIVATE_MODE"
 }
 
@@ -1047,8 +1049,10 @@ cmd_update() {
   if can_use_private; then
     log_section 'Private repo pull'
     safe_pull_repo 'dotfiles-private' "$PRIVATE_DOTFILES"
+    log_section 'Notes repo pull'
+    safe_pull_repo 'notes' "$NOTES_REPO_DIR"
   else
-    log_warn "Skipping private pull ($PRIVATE_REASON)"
+    log_warn "Skipping private and notes pull ($PRIVATE_REASON)"
   fi
 
   log_section 'Stow public dotfiles'
@@ -1229,8 +1233,9 @@ cmd_diff() {
 
   if can_use_private; then
     show_repo_diffs 'private' "$PRIVATE_DOTFILES"
+    show_repo_diffs 'notes' "$NOTES_REPO_DIR"
   else
-    log_warn "Skipping private diff ($PRIVATE_REASON)"
+    log_warn "Skipping private and notes diff ($PRIVATE_REASON)"
   fi
 
   if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS"; then
@@ -1255,10 +1260,10 @@ Usage: $SCRIPT_NAME <command> [args]
 
 Commands:
   init         Run questionnaire, sync omarchy repos, setup, install
-  update       Pull repos, then stow public/private dotfiles (optional agents-sync + dot memory --soft)
+  update       Pull repos (public, private, notes), stow dotfiles (optional agents-sync + dot memory --soft)
   memory       Refresh OpenCode durable memory (~/.opencode/AGENTS.md via memory.js --update)
   stow         Re-stow public/private dotfiles (no git pull)
-  diff         Show git status and diff summary for repos
+  diff         Show git status and diff summary for repos (public, private, notes, omarchy)
   setup        Install packages (supports: --confirm)
   install      Backup/adopt and install public/private dotfiles
   clean        Unstow private then public dotfiles
@@ -1269,6 +1274,7 @@ Commands:
 Environment:
   DOTFILES_PUBLIC_DIR   Override public dotfiles path
   DOTFILES_PRIVATE_DIR  Override private dotfiles path
+  DOT_NOTES_DIR         Notes vault git repo (default ~/Documents/notes); shown in dot diff with private
   DOT_ALLOW_PRIVATE     auto|always|never (default: auto)
   DOT_PRIVATE_GH_USER   Expected gh username for private actions (default: timmo001)
   OMARCHY_REPO_BASE_DIR Base directory for omarchy repos (default: ~/.config)
