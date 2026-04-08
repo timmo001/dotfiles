@@ -22,7 +22,9 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 
 ### Migrating from `opencode/` (renamed to `agents/`)
 
-The stow package was renamed from `opencode` to `agents`. If you still have the old package directory, run `stow -D opencode` from `~/.config/dotfiles` and `~/.config/dotfiles-private` **before** pulling a tree that only has `agents/`, then run `dot install` or `dot stow` so links are recreated. If you already pulled and have orphan symlinks under `~/.opencode/`, run `dot clean` and `dot install`.
+The stow package was renamed from `opencode` to `agents`. **`dot update`**, **`dot stow`**, and **`dot install`** run a short migration first: if `opencode/` is still present in the public or private repo, they `stow -D opencode` there before pulls or restow (so links are not left pointing at a removed package after you pull).
+
+If you already removed `opencode/` from the repo without unstowing first and see broken links under `~/.opencode/`, run `dot clean` then `dot install`.
 
 ## Quick start
 
