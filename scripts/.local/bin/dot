@@ -16,7 +16,6 @@ INCLUDE_OMARCHY_DIFF_REPOS="${DOT_INCLUDE_OMARCHY_DIFF_REPOS:-1}"
 INCLUDE_OMARCHY_UPDATE_REPOS="${DOT_INCLUDE_OMARCHY_UPDATE_REPOS:-1}"
 INIT_NONINTERACTIVE="${DOT_INIT_NONINTERACTIVE:-0}"
 DOT_AGENTS_SYNC_ON_UPDATE="${DOT_AGENTS_SYNC_ON_UPDATE:-1}"
-DOT_AGENTS_SYNC_ON_DIFF="${DOT_AGENTS_SYNC_ON_DIFF:-1}"
 DOT_MEMORY_ON_AGENTS_SYNC="${DOT_MEMORY_ON_AGENTS_SYNC:-1}"
 
 OMARCHY_REPO_BASE="${OMARCHY_REPO_BASE_DIR:-$HOME/.config}"
@@ -391,12 +390,6 @@ cmd_memory() {
 maybe_memory_update_after_update() {
   is_truthy "${DOT_MEMORY_UPDATE_ON_UPDATE:-1}" || return 0
   "$DOT_SELF" memory --soft || true
-}
-
-maybe_agents_sync_after_diff() {
-  is_truthy "${DOT_AGENTS_SYNC_ON_DIFF:-1}" || return 0
-  log_section 'Agents rules sync'
-  run_agents_sync || true
 }
 
 safe_pull_repo() {
@@ -1272,8 +1265,6 @@ cmd_diff() {
   else
     log_warn "Skipping Omarchy repo diffs (DOT_INCLUDE_OMARCHY_DIFF_REPOS=$INCLUDE_OMARCHY_DIFF_REPOS)"
   fi
-
-  maybe_agents_sync_after_diff
 }
 
 cmd_help() {
@@ -1314,8 +1305,6 @@ Environment:
                      Cursor rule file path (default: \$DOTFILES_PRIVATE_DIR/agents/.cursor/rules/global-agents.mdc)
   DOT_AGENTS_SYNC_ON_UPDATE
                      1|0 run agents-sync after dot update (default 1)
-  DOT_AGENTS_SYNC_ON_DIFF
-                     1|0 run agents-sync after dot diff (default 1)
   DOT_MEMORY_UPDATE_ON_UPDATE
                      1|0 run \`dot memory --soft\` after dot update (default 1)
   DOT_MEMORY_ON_AGENTS_SYNC
