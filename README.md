@@ -17,7 +17,7 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 - `zsh/` - shell config
 - `neovim/` - Neovim config
 - `starship/` - prompt config
-- `agents/` - agent tooling (OpenCode: `~/.opencode/` via `.opencode/` subtree; global `AGENTS.md` stowed from private `agents/.opencode/AGENTS.md`)
+- `agents/` - agent tooling: public OpenCode config under `.opencode/`; private overlay adds OpenCode secrets, Claude Code (`.claude/`, `.claude.json`), `~/.config/opencode/`, and Cursor rule output under `.cursor/rules/` (see `dot agents-sync`)
 - `cursor/`, `editorconfig/` - editor/tooling config
 
 ### Migrating from `opencode/` (renamed to `agents/`)
@@ -25,6 +25,10 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 The stow package was renamed from `opencode` to `agents`. **`dot update`**, **`dot stow`**, and **`dot install`** run a short migration first: if `opencode/` is still present in the public or private repo, they `stow -D opencode` there before pulls or restow (so links are not left pointing at a removed package after you pull).
 
 If you already removed `opencode/` from the repo without unstowing first and see broken links under `~/.opencode/`, run `dot clean` then `dot install`.
+
+### Private `claude/` merged into `agents/`
+
+Claude Code config (`.claude/`, `.claude.json`) now lives under the private **`agents/`** package. **`dot update`**, **`dot stow`**, and **`dot install`** unstow a legacy **`claude/`** package when that directory still exists, before restowing **`agents/`**.
 
 ## Quick start
 
@@ -49,6 +53,7 @@ dot doctor
 - `dot install` - backup/adopt install flow for public/private dotfiles
 - `dot clean` - unstow private then public
 - `dot doctor` - tool, repo, and remote health checks
+- `dot agents-sync` - copy `~/.opencode/AGENTS.md` into `agents/.cursor/rules/global-agents.mdc` in private dotfiles by default (`alwaysApply: true` + body; stows to `~/.cursor/rules/`). **`dot update`** and **`dot diff`** run this automatically by default (see env vars below).
 
 ## Environment options
 
@@ -63,6 +68,10 @@ dot doctor
 - `DOT_INCLUDE_OMARCHY_UPDATE_REPOS` - include Omarchy repos in `dot update` sync (`1|0`, default `1`)
 - `DOT_INIT_NONINTERACTIVE` - skip init questionnaire (`1|0`, default `0`)
 - `DOT_AUTO_CD` - zsh wrapper auto-cd to first repo with changes after `dot diff`; otherwise restore original dir (failed diff falls back to `~/.config/dotfiles`) (`1|0`, default `1`)
+- `DOT_AGENTS_SYNC_SOURCE` - AGENTS file to mirror (default `~/.opencode/AGENTS.md`)
+- `DOT_AGENTS_SYNC_RULE_FILE` - Cursor rule output path (default `$DOTFILES_PRIVATE_DIR/agents/.cursor/rules/global-agents.mdc`, else `~/.cursor/rules/global-agents.mdc`)
+- `DOT_AGENTS_SYNC_ON_UPDATE` - run `agents-sync` after `dot update` (`1|0`, default `1`)
+- `DOT_AGENTS_SYNC_ON_DIFF` - run `agents-sync` after `dot diff` (`1|0`, default `1`)
 
 ## New machine checklist
 
