@@ -679,7 +679,7 @@ bindkey "^[[1;3C" forward-word
 # ------------------------------
 # Commands
 # ------------------------------
-# clear
+clear
 
 # Fastfetch
 # ff
