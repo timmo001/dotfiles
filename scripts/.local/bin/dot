@@ -3,6 +3,8 @@
 set -euo pipefail
 
 SCRIPT_NAME="${0##*/}"
+# Absolute path to this script (for re-invoking commands, e.g. dot update → dot memory).
+DOT_SELF="${BASH_SOURCE[0]:-$0}"
 
 PUBLIC_DOTFILES="${DOTFILES_PUBLIC_DIR:-$HOME/.config/dotfiles}"
 PRIVATE_DOTFILES="${DOTFILES_PRIVATE_DIR:-$HOME/.config/dotfiles-private}"
@@ -328,31 +330,64 @@ maybe_agents_sync_after_update() {
   run_agents_sync || true
 }
 
-run_memory_update() {
+# Sync ~/.opencode/AGENTS.md durable block via dotfiles-private memory.js --update.
+# soft=1: missing deps or node failure returns 0 (for dot update hook). soft=0: returns 1 on failure.
+_dot_run_memory_js() {
+  local soft="${1:-0}"
   local script="$PRIVATE_DOTFILES/agents/.opencode/plugins/memory.js"
 
   if [[ ! -f "$script" ]]; then
-    log_warn "Skipping memory update (missing $(display_path "$script"))"
-    return 0
+    log_warn "Skipping memory sync (missing $(display_path "$script"))"
+    if [[ "$soft" -eq 1 ]]; then
+      return 0
+    fi
+    return 1
   fi
 
   if ! has_cmd node; then
-    log_warn 'Skipping memory update (node not found in PATH)'
+    log_warn 'Skipping memory sync (node not found in PATH)'
+    if [[ "$soft" -eq 1 ]]; then
+      return 0
+    fi
+    return 1
+  fi
+
+  log_info "OpenCode memory: node $(display_path "$script") --update"
+  if (cd "$HOME" && node "$script" --update); then
     return 0
   fi
 
-  log_info "OpenCode memory sync: node $(display_path "$script") --update"
-  (cd "$HOME" && node "$script" --update) || {
-    log_warn 'Memory update failed (non-fatal)'
+  log_warn 'Memory sync failed'
+  if [[ "$soft" -eq 1 ]]; then
     return 0
-  }
+  fi
+  return 1
+}
+
+# Optional: --soft (used by dot update) — do not fail the parent workflow on skip/error.
+cmd_memory() {
+  local soft=0
+  if [[ "${1:-}" == '--soft' ]]; then
+    soft=1
+    shift
+  fi
+
+  log_section 'OpenCode memory sync'
+
+  if ! can_use_private; then
+    log_warn "Memory sync requires private dotfiles ($PRIVATE_REASON)"
+    if [[ "$soft" -eq 1 ]]; then
+      return 0
+    fi
+    return 1
+  fi
+
+  _dot_run_memory_js "$soft"
 }
 
 maybe_memory_update_after_update() {
   is_truthy "${DOT_MEMORY_UPDATE_ON_UPDATE:-1}" || return 0
-  can_use_private || return 0
-  log_section 'OpenCode memory sync'
-  run_memory_update || true
+  "$DOT_SELF" memory --soft || true
 }
 
 maybe_agents_sync_after_diff() {
@@ -1213,7 +1248,8 @@ Usage: $SCRIPT_NAME <command> [args]
 
 Commands:
   init         Run questionnaire, sync omarchy repos, setup, install
-  update       Pull repos, then stow public/private dotfiles (optional agents-sync + memory sync)
+  update       Pull repos, then stow public/private dotfiles (optional agents-sync + dot memory --soft)
+  memory       Refresh OpenCode durable memory (~/.opencode/AGENTS.md via memory.js --update)
   stow         Re-stow public/private dotfiles (no git pull)
   diff         Show git status and diff summary for repos
   setup        Install packages (supports: --confirm)
@@ -1246,7 +1282,7 @@ Environment:
   DOT_AGENTS_SYNC_ON_DIFF
                      1|0 run agents-sync after dot diff (default 1)
   DOT_MEMORY_UPDATE_ON_UPDATE
-                     1|0 run OpenCode memory.js --update after dot update (default 1)
+                     1|0 run \`dot memory --soft\` after dot update (default 1)
 
 Init options:
   --confirm              Passes through to setup (interactive package install)
@@ -1280,6 +1316,7 @@ main() {
     clean) cmd_clean "$@" ;;
     doctor) cmd_doctor "$@" ;;
     agents-sync) cmd_agents_sync "$@" ;;
+    memory) cmd_memory "$@" ;;
     help|-h|--help) cmd_help ;;
     *)
       log_error "Unknown command: $cmd"
