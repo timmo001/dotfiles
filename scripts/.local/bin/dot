@@ -989,13 +989,15 @@ run_setup_packages() {
     esac
   done
 
-  if ! has_cmd yay; then
-    log_error 'Required command missing: yay (setup)'
-    return 1
+  if has_cmd stow; then
+    log_info 'Skipping setup: stow already installed'
+    return 0
   fi
 
-  log_section 'System update'
-  yay -Syu
+  if ! has_cmd yay; then
+    log_error 'Required command missing: yay (setup installs stow when absent)'
+    return 1
+  fi
 
   install_flags=(--needed --noconfirm)
   if [[ "$confirm" == 'true' ]]; then
@@ -1010,22 +1012,10 @@ run_setup_packages() {
     yay -S "${install_flags[@]}" "$@"
   }
 
-  install_group 'Root (dotfiles management & tooling)' stow zsh
-  install_group 'gamescope/' gamescope
-  install_group 'ghostty/' ghostty
-  install_group 'hyprland/' blueman flatpak network-manager-applet
-  install_group 'hyprland/.config/hypr/scripts/' edid-decode vkbasalt
-  install_group 'nvim/' go neovim nodejs python python-pip uv
-
-  log_section 'nvim/ (Global npm)'
-  npm install -g prettier
-
-  install_group 'qt5ct/' qt5ct
-  install_group 'swaync/' swaync
-  install_group 'wofi/' wofi
+  install_group 'Init prerequisites (required)' stow
 
   printf '\n'
-  log_warn "This is not every package needed for these dotfiles, but it's a good starting point."
+  log_info 'Installed init prerequisites only.'
 }
 
 cmd_init() {
@@ -1235,8 +1225,7 @@ cmd_doctor() {
   require_cmd git 'repo sync/diff'
   require_cmd stow 'dotfile linking'
   require_cmd bash 'dot runtime'
-  optional_cmd yay 'dot setup / dot init package install'
-  optional_cmd npm 'global prettier install in setup'
+  optional_cmd yay 'dot setup installs stow when missing'
   optional_cmd gh 'branch discovery + authenticated clone convenience'
   optional_cmd gum 'interactive init questionnaire'
 
