@@ -16,6 +16,7 @@ INCLUDE_OMARCHY_UPDATE_REPOS="${DOT_INCLUDE_OMARCHY_UPDATE_REPOS:-1}"
 INIT_NONINTERACTIVE="${DOT_INIT_NONINTERACTIVE:-0}"
 DOT_AGENTS_SYNC_ON_UPDATE="${DOT_AGENTS_SYNC_ON_UPDATE:-1}"
 DOT_AGENTS_SYNC_ON_DIFF="${DOT_AGENTS_SYNC_ON_DIFF:-1}"
+DOT_MEMORY_ON_AGENTS_SYNC="${DOT_MEMORY_ON_AGENTS_SYNC:-1}"
 
 OMARCHY_REPO_BASE="${OMARCHY_REPO_BASE_DIR:-$HOME/.config}"
 OMARCHY_DIFF_REPOS=(bootstrap hypr waybar ghostty uwsm)
@@ -1065,6 +1066,12 @@ cmd_update() {
 }
 
 cmd_agents_sync() {
+  if is_truthy "${DOT_MEMORY_ON_AGENTS_SYNC:-1}"; then
+    if ! cmd_memory; then
+      log_warn 'dot memory failed; mirroring existing AGENTS.md to the Cursor rule'
+    fi
+  fi
+
   log_section 'Agents rules sync'
   if run_agents_sync; then
     log_info 'agents-sync finished'
@@ -1256,7 +1263,7 @@ Commands:
   install      Backup/adopt and install public/private dotfiles
   clean        Unstow private then public dotfiles
   doctor       Check dependencies and repo availability
-  agents-sync  Write global-agents.mdc (default: dotfiles-private agents/.cursor/rules/)
+  agents-sync  Run dot memory then write global-agents.mdc (default: dotfiles-private agents/.cursor/rules/)
   help         Show this help
 
 Environment:
@@ -1283,6 +1290,8 @@ Environment:
                      1|0 run agents-sync after dot diff (default 1)
   DOT_MEMORY_UPDATE_ON_UPDATE
                      1|0 run \`dot memory --soft\` after dot update (default 1)
+  DOT_MEMORY_ON_AGENTS_SYNC
+                     1|0 run \`dot memory\` before mirroring in \`dot agents-sync\` (default 1)
 
 Init options:
   --confirm              Passes through to setup (interactive package install)
