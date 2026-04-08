@@ -1212,7 +1212,7 @@ Environment:
   DOT_AGENTS_SYNC_SOURCE
                      Path to AGENTS.md to mirror (default ~/.opencode/AGENTS.md)
   DOT_AGENTS_SYNC_RULE_FILE
-                     Cursor rule file path (default: $DOTFILES_PRIVATE_DIR/agents/.cursor/rules/global-agents.mdc)
+                     Cursor rule file path (default: \$DOTFILES_PRIVATE_DIR/agents/.cursor/rules/global-agents.mdc)
   DOT_AGENTS_SYNC_ON_UPDATE
                      1|0 run agents-sync after dot update (default 1)
   DOT_AGENTS_SYNC_ON_DIFF
