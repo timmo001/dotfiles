@@ -3,6 +3,9 @@ description: Inline and remove safe single-use functions from current git scope
 ---
 
 Follow current rules before making changes.
+Follow local project rules while editing.
+Do not assume ambiguous intent is clear; when ambiguity would change edits, ask one targeted question before changing code.
+When user feedback conflicts with your assumption, treat user feedback as authoritative.
 
 1. Build scope in this exact order:
    - unstaged changes (`git diff`)
