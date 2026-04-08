@@ -1010,21 +1010,18 @@ run_setup_packages() {
     yay -S "${install_flags[@]}" "$@"
   }
 
-  install_group 'Root (dotfiles management & tooling)' base-devel git stow yay-bin zsh
+  install_group 'Root (dotfiles management & tooling)' stow zsh
   install_group 'gamescope/' gamescope
   install_group 'ghostty/' ghostty
-  install_group 'hyprland/' blueman flatpak hyprland network-manager-applet polkit-gnome swaybg wl-clipboard
-  install_group 'hyprland/.config/hypr/scripts/' edid-decode jq vkbasalt
-  install_group 'lazygit/' lazygit
-  install_group 'nvim/' go neovim nodejs python python-pip ripgrep uv
+  install_group 'hyprland/' blueman flatpak network-manager-applet
+  install_group 'hyprland/.config/hypr/scripts/' edid-decode vkbasalt
+  install_group 'nvim/' go neovim nodejs python python-pip uv
 
   log_section 'nvim/ (Global npm)'
   npm install -g prettier
 
   install_group 'qt5ct/' qt5ct
-  install_group 'starship/' starship
   install_group 'swaync/' swaync
-  install_group 'waybar/' playerctl python-gobject waybar
   install_group 'wofi/' wofi
 
   printf '\n'
