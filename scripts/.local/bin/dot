@@ -174,6 +174,8 @@ _diff_attention_scan_repo() {
   local ahead=0
   local behind=0
   local -a detail=()
+  local detail_text
+  local item
 
   if ! git -C "$path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     return 0
@@ -190,10 +192,30 @@ _diff_attention_scan_repo() {
 
   if [[ "$dirty" -eq 1 ]] || [[ "${ahead:-0}" -gt 0 ]] || [[ "${behind:-0}" -gt 0 ]]; then
     DIFF_ATTENTION_ISSUES=$((DIFF_ATTENTION_ISSUES + 1))
-    [[ "$dirty" -eq 1 ]] && detail+=('dirty')
-    [[ "${ahead:-0}" -gt 0 ]] && detail+=("${ahead} unpushed")
-    [[ "${behind:-0}" -gt 0 ]] && detail+=("${behind} incoming")
-    DIFF_ATTENTION_SEGMENTS+=("${name} (${detail[*]})")
+    [[ "$dirty" -eq 1 ]] && detail+=('local edits to commit')
+
+    if [[ "${ahead:-0}" -gt 0 ]]; then
+      if [[ "${ahead:-0}" -eq 1 ]]; then
+        detail+=('1 commit ready to push')
+      else
+        detail+=("${ahead} commits ready to push")
+      fi
+    fi
+
+    if [[ "${behind:-0}" -gt 0 ]]; then
+      if [[ "${behind:-0}" -eq 1 ]]; then
+        detail+=('1 remote update available')
+      else
+        detail+=("${behind} remote updates available")
+      fi
+    fi
+
+    detail_text=''
+    for item in "${detail[@]}"; do
+      [[ -n "$detail_text" ]] && detail_text+=', '
+      detail_text+="$item"
+    done
+    DIFF_ATTENTION_SEGMENTS+=("${name}: ${detail_text}")
   fi
 }
 
@@ -214,19 +236,6 @@ diff_collect_attention() {
       _diff_attention_scan_repo "omarchy:${om_name}" "$OMARCHY_REPO_BASE/$om_name"
     done
   fi
-}
-
-# Desktop notification when repos need commit/push (libnotify; same stack as other omarchy scripts).
-notify_diff_attention_if_needed() {
-  is_truthy "${DOT_DIFF_NOTIFY:-1}" || return 0
-  [[ "${DIFF_ATTENTION_ISSUES:-0}" -gt 0 ]] || return 0
-  has_cmd notify-send || return 0
-
-  local title='Dot diff: action needed'
-  local body
-  body="$(printf '%s\n' "${DIFF_ATTENTION_SEGMENTS[@]}")"
-
-  notify-send -a dot -u normal -t 8000 "$title" "$body"
 }
 
 require_repo_dir() {
@@ -694,11 +703,11 @@ cmd_diff_status() {
 
   if [[ "$issues" -eq 0 ]]; then
     text=''
-    tooltip='dot diff: all repos clean'
+    tooltip='All tracked repositories look up to date.'
     class='dots-ok'
   else
     text=" ${issues}"
-    tooltip='dot diff: '
+    tooltip='Repositories with updates to review: '
     local i=0
     local seg
     for seg in "${segments[@]}"; do
@@ -711,7 +720,6 @@ cmd_diff_status() {
 
   json_tip="$(_diff_status_json_escape "$tooltip")"
   printf '{"text":"%s","tooltip":"%s","class":"%s"}\n' "$text" "$json_tip" "$class"
-  notify_diff_attention_if_needed
 }
 
 can_use_private() {
@@ -1280,8 +1288,6 @@ cmd_diff() {
     log_warn "Skipping Omarchy repo diffs (DOT_INCLUDE_OMARCHY_DIFF_REPOS=$INCLUDE_OMARCHY_DIFF_REPOS)"
   fi
 
-  diff_collect_attention
-  notify_diff_attention_if_needed
 }
 
 cmd_help() {
@@ -1315,7 +1321,6 @@ cmd_help() {
   printf "$fmt_env" 'DOT_BOOTSTRAP_BRANCH' 'Branch for bootstrap repo (default: distro/omarchy)'
   printf "$fmt_env" 'DOT_INCLUDE_OMARCHY_DIFF_REPOS' '1|0 include omarchy repos in diff (default: 1)'
   printf "$fmt_env" 'DOT_INCLUDE_OMARCHY_UPDATE_REPOS' '1|0 include omarchy repos in update pull (default: 1)'
-  printf "$fmt_env" 'DOT_DIFF_NOTIFY' '1|0 libnotify when dot diff / dot diff --status need action (default: 1)'
   printf "$fmt_env" 'DOT_INIT_NONINTERACTIVE' '1|0 skip init questionnaire (default: 0)'
   printf "$fmt_env" 'DOT_AGENTS_SYNC_SOURCE' 'Path to AGENTS.md to mirror (default ~/.opencode/AGENTS.md)'
   printf "$fmt_env" 'DOT_AGENTS_SYNC_RULE_FILE' 'Cursor rule file path (default: $DOTFILES_PRIVATE_DIR/agents/.cursor/rules/global-agents.mdc)'
