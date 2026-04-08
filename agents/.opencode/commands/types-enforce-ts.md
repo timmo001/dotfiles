@@ -38,7 +38,8 @@ When user feedback conflicts with your assumption, treat user feedback as author
    - prefer explicit, narrow types
    - remove unnecessary intermediate variables and one-off aliases
    - inline one-time-use values when clarity is maintained
-   - when a generic typed event/helper exists, use it with a concrete payload type (for example `XDomEvent<MyType>`) instead of raw `CustomEvent` or casted local aliases
+   - prefer typing parameters at the signature level (for example `function onChange(e: XEvent<number>)`, `function onKeyDown(e: KeyboardEvent)`, `function parse(input: string)`) so values are already typed, instead of casting later at value access points (for example `e.detail.value as number`, `(e as KeyboardEvent).key`, `input as string`)
+   - if project generic helpers exist, prefer concrete generic types (for example `XEvent<number>`, `ApiResult<User>`, `EntityMap<Item>`) over ad-hoc casts and loosely typed objects
    - prefer top-level annotations and `satisfies` over type assertions when possible
    - keep control flow simple (early return/break) without changing established logic unless explicitly requested
 
