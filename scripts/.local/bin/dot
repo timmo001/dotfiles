@@ -616,9 +616,8 @@ show_repo_diffs() {
   local status_out
   local unstaged_out
   local staged_out
-  local ahead_count
-  local behind_count
   local unpushed_out
+  local unpulled_out
 
   if [[ ! -e "$repo_dir/.git" ]]; then
     log_warn "Skipping $name diff (not a git repo): $(display_path "$repo_dir")"
@@ -652,18 +651,23 @@ show_repo_diffs() {
   fi
 
   if git -C "$repo_dir" rev-parse '@{u}' >/dev/null 2>&1; then
-    ahead_count="$(git -C "$repo_dir" rev-list --count '@{u}..HEAD' 2>/dev/null || printf '0')"
-    behind_count="$(git -C "$repo_dir" rev-list --count 'HEAD..@{u}' 2>/dev/null || printf '0')"
-    log_info "Upstream: ${ahead_count} commit(s) ahead (unpushed), ${behind_count} behind (not pulled)"
-    if [[ "${ahead_count:-0}" -gt 0 ]]; then
-      unpushed_out="$(cd "$repo_dir" && git log '@{u}..HEAD' --oneline -20)"
+    unpushed_out="$(cd "$repo_dir" && git log '@{u}..HEAD' --oneline -20)"
+    if [[ -n "$unpushed_out" ]]; then
       log_info 'Unpushed commits:'
       printf '%s\n' "$unpushed_out"
     else
       log_info 'Unpushed commits: none'
     fi
+
+    unpulled_out="$(cd "$repo_dir" && git log 'HEAD..@{u}' --oneline -20)"
+    if [[ -n "$unpulled_out" ]]; then
+      log_info 'Unpulled commits:'
+      printf '%s\n' "$unpulled_out"
+    else
+      log_info 'Unpulled commits: none'
+    fi
   else
-    log_info 'Upstream: not configured (cannot compare push/pull)'
+    log_info 'Unpushed / unpulled commits: no upstream configured'
   fi
 }
 
