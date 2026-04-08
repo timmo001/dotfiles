@@ -20,20 +20,6 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 - `agents/` - agent tooling: public OpenCode (`.opencode/`), Cursor launcher scripts (`.local/bin/code`, `cursor`); private overlay adds `~/.cursor/` (`argv.json`, `mcp.json`, rules), Claude Code, OpenCode secrets, `~/.config/opencode/` (see `dot agents-sync`)
 - `editorconfig/` - editor config
 
-### Migrating from `opencode/` (renamed to `agents/`)
-
-The stow package was renamed from `opencode` to `agents`. **`dot update`**, **`dot stow`**, and **`dot install`** run a short migration first: if `opencode/` is still present in the public or private repo, they `stow -D opencode` there before pulls or restow (so links are not left pointing at a removed package after you pull).
-
-If you already removed `opencode/` from the repo without unstowing first and see broken links under `~/.opencode/`, run `dot clean` then `dot install`.
-
-### Private `claude/` merged into `agents/`
-
-Claude Code config (`.claude/`, `.claude.json`) now lives under the private **`agents/`** package. **`dot update`**, **`dot stow`**, and **`dot install`** unstow a legacy **`claude/`** package when that directory still exists, before restowing **`agents/`**.
-
-### Public and private `cursor/` merged into `agents/`
-
-Cursor-related paths (`~/.local/bin/code`, `cursor`, and private `~/.cursor/argv.json`, `mcp.json`) now live under the **`agents/`** package. **`dot update`**, **`dot stow`**, and **`dot install`** unstow a legacy **`cursor/`** package when that directory still exists, before restowing **`agents/`**.
-
 ## Quick start
 
 ```bash

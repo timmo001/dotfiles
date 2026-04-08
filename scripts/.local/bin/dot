@@ -183,82 +183,6 @@ stow_in_repo() {
   )
 }
 
-# Stow package was renamed opencode → agents. While opencode/ still exists in the repo
-# (before pull removes it), unstow it so symlinks under ~/ are not orphaned. No-op when
-# only agents/ is present.
-migrate_legacy_opencode_package() {
-  local repo_dir="$1"
-  local label="$2"
-
-  if [[ ! -d "$repo_dir" ]]; then
-    return 0
-  fi
-
-  if [[ ! -d "$repo_dir/opencode" ]]; then
-    return 0
-  fi
-
-  if ! has_cmd stow; then
-    log_warn "Stow missing; cannot migrate legacy opencode package ($label)"
-    return 0
-  fi
-
-  log_section "Legacy stow: opencode → agents ($label)"
-  log_info "Unstowing legacy package opencode/ at $(display_path "$repo_dir")"
-  if stow_in_repo "$repo_dir" -D opencode; then
-    log_info "Legacy opencode unstowed ($label)"
-  else
-    log_warn "Legacy opencode unstow failed ($label); try: dot clean && dot install"
-  fi
-}
-
-# Private package claude/ was merged into agents/. Unstow legacy claude/ while it still exists.
-migrate_legacy_private_claude_package() {
-  if [[ ! -d "$PRIVATE_DOTFILES/claude" ]]; then
-    return 0
-  fi
-
-  if ! has_cmd stow; then
-    log_warn "Stow missing; cannot migrate legacy private claude package"
-    return 0
-  fi
-
-  log_section 'Legacy stow: private claude → agents'
-  log_info "Unstowing legacy package claude/ at $(display_path "$PRIVATE_DOTFILES")"
-  if stow_in_repo "$PRIVATE_DOTFILES" -D claude; then
-    log_info 'Legacy private claude unstowed'
-  else
-    log_warn 'Legacy private claude unstow failed; try: dot clean && dot install'
-  fi
-}
-
-# Stow package cursor/ was merged into agents/. Unstow legacy cursor/ while it still exists.
-migrate_legacy_cursor_package() {
-  local repo_dir="$1"
-  local label="$2"
-
-  if [[ ! -d "$repo_dir" ]]; then
-    return 0
-  fi
-
-  if [[ ! -d "$repo_dir/cursor" ]]; then
-    return 0
-  fi
-
-  if ! has_cmd stow; then
-    log_warn "Stow missing; cannot migrate legacy cursor package ($label)"
-    return 0
-  fi
-
-  log_section "Legacy stow: cursor → agents ($label)"
-  log_info "Unstowing legacy package cursor/ at $(display_path "$repo_dir")"
-  if stow_in_repo "$repo_dir" -D cursor; then
-    log_info "Legacy cursor unstowed ($label)"
-  else
-    log_warn "Legacy cursor unstow failed ($label); try: dot clean && dot install"
-  fi
-}
-
 # Mirror AGENTS.md into a Cursor user rule (.mdc with alwaysApply) so it is always-on context.
 # Default output: private agents package at agents/.cursor/rules/global-agents.mdc (stows into ~/.cursor/rules/).
 run_agents_sync() {
@@ -814,9 +738,6 @@ install_public_dotfiles() {
     return 1
   fi
 
-  migrate_legacy_opencode_package "$PUBLIC_DOTFILES" 'public'
-  migrate_legacy_cursor_package "$PUBLIC_DOTFILES" 'public'
-
   backup_public_files_for_install
 
   mapfile -t folders < <(list_stow_folders "$PUBLIC_DOTFILES" false)
@@ -842,9 +763,6 @@ stow_public_dotfiles() {
     log_error 'Stow is required'
     return 1
   fi
-
-  migrate_legacy_opencode_package "$PUBLIC_DOTFILES" 'public'
-  migrate_legacy_cursor_package "$PUBLIC_DOTFILES" 'public'
 
   mapfile -t folders < <(list_stow_folders "$PUBLIC_DOTFILES" false)
   for folder in "${folders[@]}"; do
@@ -905,10 +823,6 @@ install_private_dotfiles() {
     return 1
   fi
 
-  migrate_legacy_opencode_package "$PRIVATE_DOTFILES" 'private'
-  migrate_legacy_private_claude_package
-  migrate_legacy_cursor_package "$PRIVATE_DOTFILES" 'private'
-
   mapfile -t folders < <(list_stow_folders "$PRIVATE_DOTFILES" false)
   for folder in "${folders[@]}"; do
     log_info "[private] stow $folder (repo: $(display_path "$PRIVATE_DOTFILES"))"
@@ -932,10 +846,6 @@ stow_private_dotfiles() {
     log_error 'Stow is required'
     return 1
   fi
-
-  migrate_legacy_opencode_package "$PRIVATE_DOTFILES" 'private'
-  migrate_legacy_private_claude_package
-  migrate_legacy_cursor_package "$PRIVATE_DOTFILES" 'private'
 
   mapfile -t folders < <(list_stow_folders "$PRIVATE_DOTFILES" false)
   for folder in "${folders[@]}"; do
@@ -1100,14 +1010,6 @@ cmd_init() {
 
 cmd_update() {
   log_section 'Update workflow'
-
-  migrate_legacy_opencode_package "$PUBLIC_DOTFILES" 'public'
-  migrate_legacy_cursor_package "$PUBLIC_DOTFILES" 'public'
-  if can_use_private; then
-    migrate_legacy_opencode_package "$PRIVATE_DOTFILES" 'private'
-    migrate_legacy_private_claude_package
-    migrate_legacy_cursor_package "$PRIVATE_DOTFILES" 'private'
-  fi
 
   if is_truthy "$INCLUDE_OMARCHY_UPDATE_REPOS"; then
     log_section 'Omarchy repo sync'
