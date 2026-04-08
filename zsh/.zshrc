@@ -143,7 +143,7 @@ dot() {
 
     target_dir="$HOME/.config/dotfiles"
     for repo in "${repos[@]}"; do
-      if [[ ! -d "$repo/.git" ]]; then
+      if ! git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
         continue
       fi
 
@@ -157,13 +157,12 @@ dot() {
     # Unpushed commits (clean tree but ahead of upstream) — same priority order as repos
     if [[ $found_dirty -eq 0 ]]; then
       for repo in "${repos[@]}"; do
-        if [[ ! -d "$repo/.git" ]]; then
+        if ! git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
           continue
         fi
-        if ! git -C "$repo" rev-parse '@{u}' >/dev/null 2>&1; then
-          continue
-        fi
-        if [[ "$(git -C "$repo" rev-list --count '@{u}..HEAD' 2>/dev/null || echo 0)" -gt 0 ]]; then
+        upstream_sha="$(git -C "$repo" rev-parse --verify '@{u}' 2>/dev/null)" || continue
+        ahead_count="$(git -C "$repo" rev-list --count "${upstream_sha}..HEAD" 2>/dev/null)" || ahead_count=0
+        if [[ "$ahead_count" -gt 0 ]]; then
           target_dir="$repo"
           found_dirty=1
           break
