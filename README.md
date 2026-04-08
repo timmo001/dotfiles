@@ -20,6 +20,10 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 - `agents/` - agent tooling (OpenCode: `~/.opencode/` via `.opencode/` subtree; global `AGENTS.md` stowed from private `agents/.opencode/AGENTS.md`)
 - `cursor/`, `editorconfig/` - editor/tooling config
 
+### Migrating from `opencode/` (renamed to `agents/`)
+
+The stow package was renamed from `opencode` to `agents`. If you still have the old package directory, run `stow -D opencode` from `~/.config/dotfiles` and `~/.config/dotfiles-private` **before** pulling a tree that only has `agents/`, then run `dot install` or `dot stow` so links are recreated. If you already pulled and have orphan symlinks under `~/.opencode/`, run `dot clean` and `dot install`.
+
 ## Quick start
 
 ```bash

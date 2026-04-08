@@ -535,7 +535,11 @@ stow_public_dotfiles() {
   mapfile -t folders < <(list_stow_folders "$PUBLIC_DOTFILES" false)
   for folder in "${folders[@]}"; do
     log_info "[public] stow $folder (repo: $(display_path "$PUBLIC_DOTFILES"))"
-    stow_in_repo "$PUBLIC_DOTFILES" "$folder"
+    if [[ "$folder" == 'agents' ]]; then
+      stow_in_repo "$PUBLIC_DOTFILES" --no-folding "$folder"
+    else
+      stow_in_repo "$PUBLIC_DOTFILES" "$folder"
+    fi
   done
 }
 
@@ -614,7 +618,17 @@ stow_private_dotfiles() {
   mapfile -t folders < <(list_stow_folders "$PRIVATE_DOTFILES" false)
   for folder in "${folders[@]}"; do
     log_info "[private] stow $folder (repo: $(display_path "$PRIVATE_DOTFILES"))"
-    stow_in_repo "$PRIVATE_DOTFILES" "$folder"
+    if [[ "$folder" == 'agents' ]]; then
+      stow_in_repo "$PRIVATE_DOTFILES" \
+        --no-folding \
+        --ignore=node_modules \
+        --ignore=package\.json \
+        --ignore=bun\.lock \
+        --ignore=\.gitignore \
+        "$folder"
+    else
+      stow_in_repo "$PRIVATE_DOTFILES" "$folder"
+    fi
   done
 }
 
