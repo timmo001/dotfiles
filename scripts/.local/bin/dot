@@ -616,6 +616,9 @@ show_repo_diffs() {
   local status_out
   local unstaged_out
   local staged_out
+  local ahead_count
+  local behind_count
+  local unpushed_out
 
   if [[ ! -e "$repo_dir/.git" ]]; then
     log_warn "Skipping $name diff (not a git repo): $(display_path "$repo_dir")"
@@ -646,6 +649,21 @@ show_repo_diffs() {
     printf '%s\n' "$staged_out"
   else
     log_info 'Staged diff: none'
+  fi
+
+  if git -C "$repo_dir" rev-parse '@{u}' >/dev/null 2>&1; then
+    ahead_count="$(git -C "$repo_dir" rev-list --count '@{u}..HEAD' 2>/dev/null || printf '0')"
+    behind_count="$(git -C "$repo_dir" rev-list --count 'HEAD..@{u}' 2>/dev/null || printf '0')"
+    log_info "Upstream: ${ahead_count} commit(s) ahead (unpushed), ${behind_count} behind (not pulled)"
+    if [[ "${ahead_count:-0}" -gt 0 ]]; then
+      unpushed_out="$(cd "$repo_dir" && git log '@{u}..HEAD' --oneline -20)"
+      log_info 'Unpushed commits:'
+      printf '%s\n' "$unpushed_out"
+    else
+      log_info 'Unpushed commits: none'
+    fi
+  else
+    log_info 'Upstream: not configured (cannot compare push/pull)'
   fi
 }
 
@@ -1263,7 +1281,7 @@ Commands:
   update       Pull repos (public, private, notes), stow dotfiles (optional agents-sync + dot memory --soft)
   memory       Refresh OpenCode durable memory (~/.opencode/AGENTS.md via memory.js --update)
   stow         Re-stow public/private dotfiles (no git pull)
-  diff         Show git status and diff summary for repos (public, private, notes, omarchy)
+  diff         Git status, diffs, and upstream ahead/behind (unpushed commits) per repo
   setup        Install packages (supports: --confirm)
   install      Backup/adopt and install public/private dotfiles
   clean        Unstow private then public dotfiles
