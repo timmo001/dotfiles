@@ -12,6 +12,8 @@ PRIVATE_MODE="${DOT_ALLOW_PRIVATE:-auto}" # auto|always|never
 INCLUDE_OMARCHY_DIFF_REPOS="${DOT_INCLUDE_OMARCHY_DIFF_REPOS:-1}"
 INCLUDE_OMARCHY_UPDATE_REPOS="${DOT_INCLUDE_OMARCHY_UPDATE_REPOS:-1}"
 INIT_NONINTERACTIVE="${DOT_INIT_NONINTERACTIVE:-0}"
+DOT_AGENTS_SYNC_ON_UPDATE="${DOT_AGENTS_SYNC_ON_UPDATE:-1}"
+DOT_AGENTS_SYNC_ON_DIFF="${DOT_AGENTS_SYNC_ON_DIFF:-1}"
 
 OMARCHY_REPO_BASE="${OMARCHY_REPO_BASE_DIR:-$HOME/.config}"
 OMARCHY_DIFF_REPOS=(bootstrap hypr waybar ghostty uwsm)
@@ -204,6 +206,105 @@ migrate_legacy_opencode_package() {
   else
     log_warn "Legacy opencode unstow failed ($label); try: dot clean && dot install"
   fi
+}
+
+# Private package claude/ was merged into agents/. Unstow legacy claude/ while it still exists.
+migrate_legacy_private_claude_package() {
+  if [[ ! -d "$PRIVATE_DOTFILES/claude" ]]; then
+    return 0
+  fi
+
+  if ! has_cmd stow; then
+    log_warn "Stow missing; cannot migrate legacy private claude package"
+    return 0
+  fi
+
+  log_section 'Legacy stow: private claude → agents'
+  log_info "Unstowing legacy package claude/ at $(display_path "$PRIVATE_DOTFILES")"
+  if stow_in_repo "$PRIVATE_DOTFILES" -D claude; then
+    log_info 'Legacy private claude unstowed'
+  else
+    log_warn 'Legacy private claude unstow failed; try: dot clean && dot install'
+  fi
+}
+
+# Mirror AGENTS.md into a Cursor user rule (.mdc with alwaysApply) so it is always-on context.
+# Default output: private agents package at agents/.cursor/rules/global-agents.mdc (stows into ~/.cursor/rules/).
+run_agents_sync() {
+  local source="${DOT_AGENTS_SYNC_SOURCE:-$HOME/.opencode/AGENTS.md}"
+  local dest
+  local rule_dir
+  local tmp
+  local resolved
+
+  if [[ -n "${DOT_AGENTS_SYNC_RULE_FILE:-}" ]]; then
+    dest="$DOT_AGENTS_SYNC_RULE_FILE"
+  elif [[ -d "$PRIVATE_DOTFILES/agents" ]]; then
+    dest="$PRIVATE_DOTFILES/agents/.cursor/rules/global-agents.mdc"
+  else
+    dest="$HOME/.cursor/rules/global-agents.mdc"
+  fi
+
+  rule_dir="$(dirname -- "$dest")"
+
+  if [[ ! -e "$source" ]]; then
+    log_warn "agents-sync skipped (missing source): $(display_path "$source")"
+    return 1
+  fi
+
+  if [[ ! -r "$source" ]]; then
+    log_warn "agents-sync skipped (not readable): $(display_path "$source")"
+    return 1
+  fi
+
+  resolved="$(readlink -f "$source" 2>/dev/null || printf '%s\n' "$source")"
+
+  tmp="$(mktemp)" || {
+    log_error 'agents-sync failed (mktemp)'
+    return 1
+  }
+
+  {
+    printf '%s\n' '---'
+    printf '%s\n' 'description: Global agent instructions mirrored from AGENTS.md; refresh with dot agents-sync.'
+    printf '%s\n' 'alwaysApply: true'
+    printf '%s\n' '---'
+    printf '\n'
+    printf '%s\n' "<!-- dot agents-sync: source=$(display_path "$resolved") synced=$(date -Iseconds) -->"
+    printf '\n'
+    cat "$source"
+  } >"$tmp" || {
+    rm -f "$tmp"
+    log_error 'agents-sync failed while writing temp file'
+    return 1
+  }
+
+  if ! mkdir -p "$rule_dir"; then
+    rm -f "$tmp"
+    log_error "agents-sync failed (mkdir $(display_path "$rule_dir"))"
+    return 1
+  fi
+
+  if mv -f "$tmp" "$dest"; then
+    log_info "Wrote Cursor rule: $(display_path "$dest")"
+    return 0
+  fi
+
+  rm -f "$tmp"
+  log_error "agents-sync failed (mv to $(display_path "$dest"))"
+  return 1
+}
+
+maybe_agents_sync_after_update() {
+  is_truthy "${DOT_AGENTS_SYNC_ON_UPDATE:-1}" || return 0
+  log_section 'Agents rules sync'
+  run_agents_sync || true
+}
+
+maybe_agents_sync_after_diff() {
+  is_truthy "${DOT_AGENTS_SYNC_ON_DIFF:-1}" || return 0
+  log_section 'Agents rules sync'
+  run_agents_sync || true
 }
 
 safe_pull_repo() {
@@ -625,6 +726,7 @@ install_private_dotfiles() {
   fi
 
   migrate_legacy_opencode_package "$PRIVATE_DOTFILES" 'private'
+  migrate_legacy_private_claude_package
 
   mapfile -t folders < <(list_stow_folders "$PRIVATE_DOTFILES" false)
   for folder in "${folders[@]}"; do
@@ -651,6 +753,7 @@ stow_private_dotfiles() {
   fi
 
   migrate_legacy_opencode_package "$PRIVATE_DOTFILES" 'private'
+  migrate_legacy_private_claude_package
 
   mapfile -t folders < <(list_stow_folders "$PRIVATE_DOTFILES" false)
   for folder in "${folders[@]}"; do
@@ -832,6 +935,7 @@ cmd_update() {
   migrate_legacy_opencode_package "$PUBLIC_DOTFILES" 'public'
   if can_use_private; then
     migrate_legacy_opencode_package "$PRIVATE_DOTFILES" 'private'
+    migrate_legacy_private_claude_package
   fi
 
   if is_truthy "$INCLUDE_OMARCHY_UPDATE_REPOS"; then
@@ -859,6 +963,17 @@ cmd_update() {
     stow_private_dotfiles
   else
     log_warn "Skipping private stow ($PRIVATE_REASON)"
+  fi
+
+  maybe_agents_sync_after_update
+}
+
+cmd_agents_sync() {
+  log_section 'Agents rules sync'
+  if run_agents_sync; then
+    log_info 'agents-sync finished'
+  else
+    log_warn 'agents-sync did not update the rule (see messages above)'
   fi
 }
 
@@ -1027,6 +1142,8 @@ cmd_diff() {
   else
     log_warn "Skipping Omarchy repo diffs (DOT_INCLUDE_OMARCHY_DIFF_REPOS=$INCLUDE_OMARCHY_DIFF_REPOS)"
   fi
+
+  maybe_agents_sync_after_diff
 }
 
 cmd_help() {
@@ -1042,6 +1159,7 @@ Commands:
   install      Backup/adopt and install public/private dotfiles
   clean        Unstow private then public dotfiles
   doctor       Check dependencies and repo availability
+  agents-sync  Write global-agents.mdc (default: dotfiles-private agents/.cursor/rules/)
   help         Show this help
 
 Environment:
@@ -1058,6 +1176,14 @@ Environment:
                      1|0 include omarchy repos in update pull (default: 1)
   DOT_INIT_NONINTERACTIVE
                      1|0 skip init questionnaire (default: 0)
+  DOT_AGENTS_SYNC_SOURCE
+                     Path to AGENTS.md to mirror (default ~/.opencode/AGENTS.md)
+  DOT_AGENTS_SYNC_RULE_FILE
+                     Cursor rule file path (default: $DOTFILES_PRIVATE_DIR/agents/.cursor/rules/global-agents.mdc)
+  DOT_AGENTS_SYNC_ON_UPDATE
+                     1|0 run agents-sync after dot update (default 1)
+  DOT_AGENTS_SYNC_ON_DIFF
+                     1|0 run agents-sync after dot diff (default 1)
 
 Init options:
   --confirm              Passes through to setup (interactive package install)
@@ -1090,6 +1216,7 @@ main() {
     install) cmd_install "$@" ;;
     clean) cmd_clean "$@" ;;
     doctor) cmd_doctor "$@" ;;
+    agents-sync) cmd_agents_sync "$@" ;;
     help|-h|--help) cmd_help ;;
     *)
       log_error "Unknown command: $cmd"
