@@ -328,6 +328,33 @@ maybe_agents_sync_after_update() {
   run_agents_sync || true
 }
 
+run_memory_update() {
+  local script="$PRIVATE_DOTFILES/agents/.opencode/plugins/memory.js"
+
+  if [[ ! -f "$script" ]]; then
+    log_warn "Skipping memory update (missing $(display_path "$script"))"
+    return 0
+  fi
+
+  if ! has_cmd node; then
+    log_warn 'Skipping memory update (node not found in PATH)'
+    return 0
+  fi
+
+  log_info "OpenCode memory sync: node $(display_path "$script") --update"
+  (cd "$HOME" && node "$script" --update) || {
+    log_warn 'Memory update failed (non-fatal)'
+    return 0
+  }
+}
+
+maybe_memory_update_after_update() {
+  is_truthy "${DOT_MEMORY_UPDATE_ON_UPDATE:-1}" || return 0
+  can_use_private || return 0
+  log_section 'OpenCode memory sync'
+  run_memory_update || true
+}
+
 maybe_agents_sync_after_diff() {
   is_truthy "${DOT_AGENTS_SYNC_ON_DIFF:-1}" || return 0
   log_section 'Agents rules sync'
@@ -999,6 +1026,7 @@ cmd_update() {
   fi
 
   maybe_agents_sync_after_update
+  maybe_memory_update_after_update
 }
 
 cmd_agents_sync() {
@@ -1185,7 +1213,7 @@ Usage: $SCRIPT_NAME <command> [args]
 
 Commands:
   init         Run questionnaire, sync omarchy repos, setup, install
-  update       Pull repos, then stow public/private dotfiles
+  update       Pull repos, then stow public/private dotfiles (optional agents-sync + memory sync)
   stow         Re-stow public/private dotfiles (no git pull)
   diff         Show git status and diff summary for repos
   setup        Install packages (supports: --confirm)
@@ -1217,6 +1245,8 @@ Environment:
                      1|0 run agents-sync after dot update (default 1)
   DOT_AGENTS_SYNC_ON_DIFF
                      1|0 run agents-sync after dot diff (default 1)
+  DOT_MEMORY_UPDATE_ON_UPDATE
+                     1|0 run OpenCode memory.js --update after dot update (default 1)
 
 Init options:
   --confirm              Passes through to setup (interactive package install)
