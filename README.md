@@ -17,8 +17,8 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 - `zsh/` - shell config
 - `neovim/` - Neovim config
 - `starship/` - prompt config
-- `agents/` - agent tooling: public OpenCode config under `.opencode/`; private overlay adds OpenCode secrets, Claude Code (`.claude/`, `.claude.json`), `~/.config/opencode/`, and Cursor rule output under `.cursor/rules/` (see `dot agents-sync`)
-- `cursor/`, `editorconfig/` - editor/tooling config
+- `agents/` - agent tooling: public OpenCode (`.opencode/`), Cursor launcher scripts (`.local/bin/code`, `cursor`); private overlay adds `~/.cursor/` (`argv.json`, `mcp.json`, rules), Claude Code, OpenCode secrets, `~/.config/opencode/` (see `dot agents-sync`)
+- `editorconfig/` - editor config
 
 ### Migrating from `opencode/` (renamed to `agents/`)
 
@@ -29,6 +29,10 @@ If you already removed `opencode/` from the repo without unstowing first and see
 ### Private `claude/` merged into `agents/`
 
 Claude Code config (`.claude/`, `.claude.json`) now lives under the private **`agents/`** package. **`dot update`**, **`dot stow`**, and **`dot install`** unstow a legacy **`claude/`** package when that directory still exists, before restowing **`agents/`**.
+
+### Public and private `cursor/` merged into `agents/`
+
+Cursor-related paths (`~/.local/bin/code`, `cursor`, and private `~/.cursor/argv.json`, `mcp.json`) now live under the **`agents/`** package. **`dot update`**, **`dot stow`**, and **`dot install`** unstow a legacy **`cursor/`** package when that directory still exists, before restowing **`agents/`**.
 
 ## Quick start
 
