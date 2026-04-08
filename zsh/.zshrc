@@ -54,12 +54,6 @@ export GOPATH=$HOME/go
 export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin
 
 # ------------------------------
-# Node
-# ------------------------------
-export PATH=$HOME/.local/share/fnm:$PATH
-eval "$(fnm env --use-on-cd --shell zsh)"
-
-# ------------------------------
 # Bun
 # ------------------------------
 [ -s "/home/aidan/.bun/_bun" ] && source "/home/aidan/.bun/_bun"
@@ -685,7 +679,7 @@ bindkey "^[[1;3C" forward-word
 # ------------------------------
 # Commands
 # ------------------------------
-clear
+# clear
 
 # Fastfetch
 # ff
