@@ -44,12 +44,27 @@ PRIVATE_REASON=""
 PUBLIC_ARCH_PACKAGES=(system-bridge go-automate-git)
 MISSING_PUBLIC_ARCH_PACKAGES=()
 
+PRIVATE_ARCH_PACKAGES=()
+MISSING_PRIVATE_ARCH_PACKAGES=()
+
+DOT_PRIVATE_PACKAGE_REPO_FILE_DEFAULT="$PRIVATE_DOTFILES/.dot-private-package-repo"
+DOT_PRIVATE_PACKAGE_REPO_FILE="${DOT_PRIVATE_PACKAGE_REPO_FILE:-$DOT_PRIVATE_PACKAGE_REPO_FILE_DEFAULT}"
+DOT_PRIVATE_PACKAGES_FILE_DEFAULT="$PRIVATE_DOTFILES/.dot-private-packages"
+DOT_PRIVATE_PACKAGES_FILE="${DOT_PRIVATE_PACKAGES_FILE:-$DOT_PRIVATE_PACKAGES_FILE_DEFAULT}"
+DOT_PRIVATE_PACMAN_REPO_CONFIG_DEFAULT='/etc/pacman.d/timmo-private.conf'
+DOT_PRIVATE_PACMAN_REPO_CONFIG="${DOT_PRIVATE_PACMAN_REPO_CONFIG:-$DOT_PRIVATE_PACMAN_REPO_CONFIG_DEFAULT}"
+
+PRIVATE_PACKAGE_REPO_NAME=''
+PRIVATE_PACKAGE_REPO_PATH=''
+PRIVATE_PACKAGE_REPO_SIGLEVEL='Optional TrustAll'
+
 DOT_PRIVATE_BROWSER_CHECKS_FILE_DEFAULT="$PRIVATE_DOTFILES/.dot-browser-checks"
 DOT_PRIVATE_BROWSER_CHECKS_FILE="${DOT_PRIVATE_BROWSER_CHECKS_FILE:-$DOT_PRIVATE_BROWSER_CHECKS_FILE_DEFAULT}"
 
 INIT_SELECTED_OMARCHY_BRANCH=''
 INIT_RUN_BOOTSTRAP=0
 INIT_INSTALL_PUBLIC_ARCH_PACKAGES=1
+INIT_INSTALL_PRIVATE_ARCH_PACKAGES=1
 
 if [[ -n "${FORCE_COLOR:-}" ]] || [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
   DOT_RED=$'\033[31m'
@@ -355,6 +370,162 @@ collect_missing_public_arch_packages() {
       MISSING_PUBLIC_ARCH_PACKAGES+=("$package_name")
     fi
   done
+}
+
+load_private_package_repo_config() {
+  local config_file="$DOT_PRIVATE_PACKAGE_REPO_FILE"
+  local raw_line
+  local line
+  local key
+  local value
+
+  PRIVATE_PACKAGE_REPO_NAME=''
+  PRIVATE_PACKAGE_REPO_PATH=''
+  PRIVATE_PACKAGE_REPO_SIGLEVEL='Optional TrustAll'
+
+  if [[ ! -f "$config_file" ]] || [[ ! -r "$config_file" ]]; then
+    return 1
+  fi
+
+  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
+    line="$(trim_whitespace "$raw_line")"
+    [[ -z "$line" || "${line:0:1}" == '#' ]] && continue
+
+    key="$(trim_whitespace "${line%%=*}")"
+    value="$(trim_whitespace "${line#*=}")"
+
+    case "$key" in
+      name)
+        PRIVATE_PACKAGE_REPO_NAME="$value"
+        ;;
+      path)
+        PRIVATE_PACKAGE_REPO_PATH="$(expand_home_path "$value")"
+        ;;
+      siglevel)
+        PRIVATE_PACKAGE_REPO_SIGLEVEL="$value"
+        ;;
+    esac
+  done < "$config_file"
+
+  [[ -n "$PRIVATE_PACKAGE_REPO_NAME" && -n "$PRIVATE_PACKAGE_REPO_PATH" ]]
+}
+
+load_private_arch_packages() {
+  local packages_file="$DOT_PRIVATE_PACKAGES_FILE"
+  local raw_line
+  local line
+
+  PRIVATE_ARCH_PACKAGES=()
+
+  if [[ ! -f "$packages_file" ]] || [[ ! -r "$packages_file" ]]; then
+    return 1
+  fi
+
+  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
+    line="$(trim_whitespace "$raw_line")"
+    [[ -z "$line" || "${line:0:1}" == '#' ]] && continue
+    PRIVATE_ARCH_PACKAGES+=("$line")
+  done < "$packages_file"
+
+  return 0
+}
+
+private_package_repo_server() {
+  [[ -n "$PRIVATE_PACKAGE_REPO_PATH" ]] || return 1
+  printf 'file://%s\n' "$PRIVATE_PACKAGE_REPO_PATH"
+}
+
+private_package_repo_config_contents() {
+  local repo_server
+
+  repo_server="$(private_package_repo_server)" || return 1
+
+  cat <<EOF
+[$PRIVATE_PACKAGE_REPO_NAME]
+SigLevel = $PRIVATE_PACKAGE_REPO_SIGLEVEL
+Server = $repo_server
+EOF
+}
+
+private_package_repo_config_matches() {
+  local config_path="$DOT_PRIVATE_PACMAN_REPO_CONFIG"
+  local expected_contents
+  local current_contents
+
+  [[ -f "$config_path" ]] || return 1
+
+  expected_contents="$(private_package_repo_config_contents)" || return 1
+  current_contents="$(<"$config_path")"
+
+  [[ "$current_contents" == "$expected_contents" ]]
+}
+
+private_package_repo_registered() {
+  local config_path="$DOT_PRIVATE_PACMAN_REPO_CONFIG"
+
+  [[ -n "$PRIVATE_PACKAGE_REPO_NAME" ]] || return 1
+  [[ -f "$config_path" ]] || return 1
+  grep -Fq "[$PRIVATE_PACKAGE_REPO_NAME]" "$config_path"
+}
+
+collect_missing_private_arch_packages() {
+  local package_name
+
+  MISSING_PRIVATE_ARCH_PACKAGES=()
+
+  if ! has_cmd pacman; then
+    return 0
+  fi
+
+  load_private_arch_packages || return 0
+
+  for package_name in "${PRIVATE_ARCH_PACKAGES[@]}"; do
+    if ! package_installed "$package_name"; then
+      MISSING_PRIVATE_ARCH_PACKAGES+=("$package_name")
+    fi
+  done
+}
+
+private_arch_repo_latest_version() {
+  local package_name="$1"
+
+  has_cmd pacman || return 1
+  pacman -Si "$package_name" 2>/dev/null | sed -n 's/^Version[[:space:]]*:[[:space:]]*//p;q'
+}
+
+install_missing_private_arch_packages() {
+  local confirm="${1:-false}"
+
+  collect_missing_private_arch_packages
+
+  if [[ "${#MISSING_PRIVATE_ARCH_PACKAGES[@]}" -eq 0 ]]; then
+    log_info 'Private Arch packages already installed'
+    return 0
+  fi
+
+  if ! has_cmd yay; then
+    log_warn 'Cannot install missing private Arch packages automatically (yay not found)'
+    return 0
+  fi
+
+  log_info "Installing missing private Arch packages: ${MISSING_PRIVATE_ARCH_PACKAGES[*]}"
+  install_yay_packages "$confirm" "${MISSING_PRIVATE_ARCH_PACKAGES[@]}"
+}
+
+ensure_private_package_repo_config() {
+  local config_path="$DOT_PRIVATE_PACMAN_REPO_CONFIG"
+  local config_dir
+  local expected_contents
+
+  load_private_package_repo_config || return 1
+  expected_contents="$(private_package_repo_config_contents)" || return 1
+  config_dir="$(dirname "$config_path")"
+
+  if [[ ! -d "$config_dir" ]]; then
+    pkexec mkdir -p "$config_dir"
+  fi
+
+  printf '%s\n' "$expected_contents" | pkexec tee "$config_path" >/dev/null
 }
 
 install_yay_packages() {
@@ -1111,6 +1282,7 @@ run_init_questionnaire() {
   INIT_SELECTED_OMARCHY_BRANCH="$OMARCHY_BRANCH"
   INIT_RUN_BOOTSTRAP=0
   INIT_INSTALL_PUBLIC_ARCH_PACKAGES=1
+  INIT_INSTALL_PRIVATE_ARCH_PACKAGES=1
 
   if is_truthy "$INIT_NONINTERACTIVE" || ! is_interactive_terminal; then
     return 0
@@ -1145,6 +1317,15 @@ run_init_questionnaire() {
       INIT_INSTALL_PUBLIC_ARCH_PACKAGES=1
     else
       INIT_INSTALL_PUBLIC_ARCH_PACKAGES=0
+    fi
+  fi
+
+  collect_missing_private_arch_packages
+  if [[ "${#MISSING_PRIVATE_ARCH_PACKAGES[@]}" -gt 0 ]]; then
+    if confirm_action "Install missing private Arch packages (${MISSING_PRIVATE_ARCH_PACKAGES[*]}) now?"; then
+      INIT_INSTALL_PRIVATE_ARCH_PACKAGES=1
+    else
+      INIT_INSTALL_PRIVATE_ARCH_PACKAGES=0
     fi
   fi
 }
@@ -1635,6 +1816,48 @@ run_init_public_package_installs() {
   install_missing_public_arch_packages "$confirm"
 }
 
+run_init_private_package_installs() {
+  local confirm=false
+
+  if [[ "${INIT_INSTALL_PRIVATE_ARCH_PACKAGES:-1}" != '1' ]]; then
+    collect_missing_private_arch_packages
+    if [[ "${#MISSING_PRIVATE_ARCH_PACKAGES[@]}" -gt 0 ]]; then
+      log_warn "Skipping private Arch package install (${MISSING_PRIVATE_ARCH_PACKAGES[*]})"
+    fi
+    return 0
+  fi
+
+  if [[ "${#MISSING_PRIVATE_ARCH_PACKAGES[@]}" -eq 0 ]]; then
+    collect_missing_private_arch_packages
+  fi
+
+  if [[ "${#MISSING_PRIVATE_ARCH_PACKAGES[@]}" -eq 0 ]]; then
+    return 0
+  fi
+
+  if ! load_private_package_repo_config; then
+    log_warn "Skipping private Arch package install (missing config: $(display_path "$DOT_PRIVATE_PACKAGE_REPO_FILE"))"
+    return 0
+  fi
+
+  if ! private_package_repo_registered || ! private_package_repo_config_matches; then
+    log_section 'Configure private pacman repo'
+    ensure_private_package_repo_config
+  fi
+
+  if ! has_cmd yay; then
+    log_warn 'Skipping private Arch package install (yay not found)'
+    return 0
+  fi
+
+  if [[ "${1:-}" == '--confirm' ]]; then
+    confirm=true
+  fi
+
+  log_section 'Install private Arch packages'
+  install_missing_private_arch_packages "$confirm"
+}
+
 cmd_init() {
   local -a sync_args=()
   local -a setup_args=()
@@ -1707,8 +1930,10 @@ cmd_init() {
   run_setup_packages "${setup_args[@]}"
   if [[ "$setup_confirm" == 'true' ]]; then
     run_init_public_package_installs --confirm
+    run_init_private_package_installs --confirm
   else
     run_init_public_package_installs
+    run_init_private_package_installs
   fi
   install_public_dotfiles
 
@@ -1938,6 +2163,57 @@ cmd_doctor() {
     fi
   }
 
+  report_private_package_repo_status() {
+    if ! can_use_private; then
+      doctor_warn "Skipping private package repo checks ($PRIVATE_REASON)"
+      return 0
+    fi
+
+    if ! load_private_package_repo_config; then
+      doctor_warn "Missing private package repo config: $(display_path "$DOT_PRIVATE_PACKAGE_REPO_FILE")"
+      return 0
+    fi
+
+    if [[ ! -d "$PRIVATE_PACKAGE_REPO_PATH" ]]; then
+      doctor_warn "Missing private package repo clone: $(display_path "$PRIVATE_PACKAGE_REPO_PATH")"
+    fi
+
+    if ! private_package_repo_registered; then
+      doctor_warn "Private pacman repo is not configured in $(display_path "$DOT_PRIVATE_PACMAN_REPO_CONFIG")"
+      doctor_warn 'Run dot init to configure the private pacman repo'
+      return 0
+    fi
+
+    if ! private_package_repo_config_matches; then
+      doctor_warn "Private pacman repo config differs from expected contents: $(display_path "$DOT_PRIVATE_PACMAN_REPO_CONFIG")"
+      doctor_warn 'Run dot init to rewrite the private pacman repo config'
+      return 0
+    fi
+
+    log_info "Private pacman repo is configured ($(display_path "$DOT_PRIVATE_PACMAN_REPO_CONFIG"))"
+  }
+
+  report_private_package_status() {
+    local package_name="$1"
+    local installed_version=''
+    local repo_version=''
+
+    if package_installed "$package_name"; then
+      log_info "$package_name is installed"
+      installed_version="$(pacman -Q "$package_name" 2>/dev/null | awk '{ print $2 }')"
+      if private_package_repo_registered && private_package_repo_config_matches; then
+        repo_version="$(private_arch_repo_latest_version "$package_name" 2>/dev/null || true)"
+      fi
+
+      if [[ -n "$installed_version" && -n "$repo_version" && "$installed_version" != "$repo_version" ]]; then
+        doctor_warn "$package_name version differs from private repo ($installed_version installed, $repo_version latest)"
+      fi
+    else
+      doctor_warn "$package_name is missing"
+      doctor_warn "Install with: yay -S $package_name"
+    fi
+  }
+
   report_chromium_extension_status() {
     local extension_label="$1"
     local install_hint="$2"
@@ -2095,6 +2371,25 @@ cmd_doctor() {
   doctor_log_section 'Public package checks'
   report_package_status 'system-bridge' 'yay -S system-bridge'
   report_package_status 'go-automate-git' 'yay -S go-automate-git'
+
+  doctor_log_section 'Private package repo checks'
+  report_private_package_repo_status
+
+  doctor_log_section 'Private package checks'
+  if can_use_private && load_private_arch_packages; then
+    if [[ "${#PRIVATE_ARCH_PACKAGES[@]}" -eq 0 ]]; then
+      log_info 'No private packages configured'
+    else
+      local private_package_name
+      for private_package_name in "${PRIVATE_ARCH_PACKAGES[@]}"; do
+        report_private_package_status "$private_package_name"
+      done
+    fi
+  elif can_use_private; then
+    doctor_warn "Missing private package list: $(display_path "$DOT_PRIVATE_PACKAGES_FILE")"
+  else
+    doctor_warn "Skipping private package checks ($PRIVATE_REASON)"
+  fi
 
   print_grouped_doctor_messages error
   print_grouped_doctor_messages warning
