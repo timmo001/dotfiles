@@ -3,8 +3,16 @@
 set -euo pipefail
 
 config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/waybar"
+cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/waybar"
+dot_diff_cache_file="$cache_dir/dot-diff-waybar.json"
+dot_diff_lock_dir="$cache_dir/dot-diff-waybar.lock"
 host="${OMARCHY_HOST:-}"
 config_path=""
+
+reset_dot_diff_cache() {
+  rm -f "$dot_diff_cache_file"
+  rmdir "$dot_diff_lock_dir" 2>/dev/null || true
+}
 
 real_waybar_bin="$(PATH=/usr/local/bin:/usr/bin:/bin command -v waybar 2>/dev/null || true)"
 if [[ -z "$real_waybar_bin" ]]; then
@@ -22,10 +30,13 @@ fi
 for arg in "$@"; do
   case "$arg" in
     -c|--config|--config=*)
+      reset_dot_diff_cache
       exec "$real_waybar_bin" "$@"
       ;;
   esac
 done
+
+reset_dot_diff_cache
 
 if [[ -n "$config_path" ]]; then
   exec "$real_waybar_bin" -c "$config_path" "$@"
