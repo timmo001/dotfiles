@@ -622,6 +622,7 @@ publish_private_package() {
   fi
 
   log_section "Publish private package: $package_name"
+  rm -f "$PRIVATE_PACKAGE_REPO_PATH/${package_name}-"*.pkg.tar.zst
   cp "$runtime_pkg" "$PRIVATE_PACKAGE_REPO_PATH/"
   rm -f "$PRIVATE_PACKAGE_REPO_PATH/${package_name}-debug-"*.pkg.tar.zst
   rm -f "$PRIVATE_PACKAGE_REPO_PATH/"*.old "$PRIVATE_PACKAGE_REPO_PATH/"*.lck
