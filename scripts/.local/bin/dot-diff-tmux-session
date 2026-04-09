@@ -12,6 +12,15 @@ window_names=()
 window_paths=()
 popup_visible=0
 
+notify_no_changed_repos() {
+  if command -v notify-send >/dev/null 2>&1; then
+    notify-send \
+      'Dot diff' \
+      'No repositories have changes. Right click the indicator or use the keybind to open all tracked repositories.' \
+      >/dev/null 2>&1 || true
+  fi
+}
+
 show_popup() {
   local message="${1:-Loading dot diff session...}"
 
@@ -128,7 +137,12 @@ else
 fi
 
 if [[ ${#window_names[@]} -eq 0 ]]; then
-  update_popup "No dot repos to open."
+  if [[ "$MODE" == "changed" ]]; then
+    hide_popup
+    notify_no_changed_repos
+  else
+    update_popup "No dot repos to open."
+  fi
   exit 0
 fi
 
