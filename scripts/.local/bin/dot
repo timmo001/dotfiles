@@ -33,6 +33,9 @@ OMARCHY_TARGET_PATHS=()
 DIFF_ATTENTION_ISSUES=0
 DIFF_ATTENTION_SEGMENTS=()
 DIFF_ATTENTION_PATHS=()
+DIFF_ATTENTION_HAS_DIRTY=0
+DIFF_ATTENTION_HAS_AHEAD=0
+DIFF_ATTENTION_HAS_BEHIND=0
 
 PRIVATE_REASON=""
 
@@ -287,6 +290,7 @@ _diff_attention_scan_repo() {
   local dirty=0
   local ahead=0
   local behind=0
+  local fetch_upstream="${3:-1}"
 
   if ! git -C "$path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     return 0
@@ -296,7 +300,9 @@ _diff_attention_scan_repo() {
   ahead=0
   behind=0
   if git -C "$path" rev-parse '@{u}' >/dev/null 2>&1; then
-    fetch_repo_upstream "$path" || true
+    if [[ "$fetch_upstream" == "1" ]]; then
+      fetch_repo_upstream "$path" || true
+    fi
     ahead="$(git -C "$path" rev-list --count '@{u}..HEAD' 2>/dev/null || printf '0')"
     behind="$(git -C "$path" rev-list --count 'HEAD..@{u}' 2>/dev/null || printf '0')"
   fi
@@ -305,7 +311,12 @@ _diff_attention_scan_repo() {
     DIFF_ATTENTION_ISSUES=$((DIFF_ATTENTION_ISSUES + 1))
     DIFF_ATTENTION_SEGMENTS+=("$name")
     DIFF_ATTENTION_PATHS+=("$path")
+    [[ "$dirty" -eq 1 ]] && DIFF_ATTENTION_HAS_DIRTY=1
+    [[ "${ahead:-0}" -gt 0 ]] && DIFF_ATTENTION_HAS_AHEAD=1
+    [[ "${behind:-0}" -gt 0 ]] && DIFF_ATTENTION_HAS_BEHIND=1
   fi
+
+  return 0
 }
 
 # Sort PRIVATE_EXTRA_REPO_NAMES / PRIVATE_EXTRA_REPO_PATHS together by name.
@@ -328,6 +339,11 @@ sort_private_extra_repos() {
 }
 
 diff_collect_attention() {
+  diff_collect_attention_with_fetch 1
+}
+
+diff_collect_attention_with_fetch() {
+  local fetch_upstream="${1:-1}"
   local public_name
   local private_name
   local notes_name
@@ -336,22 +352,25 @@ diff_collect_attention() {
   DIFF_ATTENTION_ISSUES=0
   DIFF_ATTENTION_SEGMENTS=()
   DIFF_ATTENTION_PATHS=()
+  DIFF_ATTENTION_HAS_DIRTY=0
+  DIFF_ATTENTION_HAS_AHEAD=0
+  DIFF_ATTENTION_HAS_BEHIND=0
 
   public_name="$(basename -- "${PUBLIC_DOTFILES%/}")"
-  _diff_attention_scan_repo "$public_name" "$PUBLIC_DOTFILES"
+  _diff_attention_scan_repo "$public_name" "$PUBLIC_DOTFILES" "$fetch_upstream"
 
   if can_use_private; then
     private_name="$(basename -- "${PRIVATE_DOTFILES%/}")"
     notes_name="$(basename -- "${NOTES_REPO_DIR%/}")"
-    _diff_attention_scan_repo "$private_name" "$PRIVATE_DOTFILES"
-    _diff_attention_scan_repo "$notes_name" "$NOTES_REPO_DIR"
+    _diff_attention_scan_repo "$private_name" "$PRIVATE_DOTFILES" "$fetch_upstream"
+    _diff_attention_scan_repo "$notes_name" "$NOTES_REPO_DIR" "$fetch_upstream"
   fi
 
   if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS"; then
     local om_i
     omarchy_collect_repo_targets
     for om_i in "${!OMARCHY_TARGET_PATHS[@]}"; do
-      _diff_attention_scan_repo "${OMARCHY_TARGET_NAMES[$om_i]}" "${OMARCHY_TARGET_PATHS[$om_i]}"
+      _diff_attention_scan_repo "${OMARCHY_TARGET_NAMES[$om_i]}" "${OMARCHY_TARGET_PATHS[$om_i]}" "$fetch_upstream"
     done
   fi
 
@@ -359,7 +378,7 @@ diff_collect_attention() {
     load_private_extra_repos
     sort_private_extra_repos
     for i in "${!PRIVATE_EXTRA_REPO_PATHS[@]}"; do
-      _diff_attention_scan_repo "extra:${PRIVATE_EXTRA_REPO_NAMES[$i]}" "${PRIVATE_EXTRA_REPO_PATHS[$i]}"
+      _diff_attention_scan_repo "extra:${PRIVATE_EXTRA_REPO_NAMES[$i]}" "${PRIVATE_EXTRA_REPO_PATHS[$i]}" "$fetch_upstream"
     done
   fi
 }
@@ -924,6 +943,12 @@ show_repo_diffs() {
 
 # One-line JSON for Waybar (no log noise). Same repos as cmd_diff.
 cmd_diff_status() {
+  local fetch_upstream=1
+
+  if [[ "${1:-}" == '--no-fetch' ]]; then
+    fetch_upstream=0
+  fi
+
   _diff_status_json_escape() {
     local s="$1"
     s="${s//\\/\\\\}"
@@ -932,9 +957,9 @@ cmd_diff_status() {
     printf '%s' "$s"
   }
 
-  diff_collect_attention
+  diff_collect_attention_with_fetch "$fetch_upstream"
 
-  local text tooltip class json_tip only_extra_repos
+  local text tooltip class json_tip only_extra_repos only_pulls_wanted
   local issues="${DIFF_ATTENTION_ISSUES:-0}"
   local -a segments=("${DIFF_ATTENTION_SEGMENTS[@]}")
 
@@ -946,6 +971,7 @@ cmd_diff_status() {
     text=" ${issues}"
     tooltip='Repositories with changes pending: '
     only_extra_repos=1
+    only_pulls_wanted=1
     local i=0
     local seg
     for seg in "${segments[@]}"; do
@@ -956,7 +982,12 @@ cmd_diff_status() {
       fi
       i=$((i + 1))
     done
-    if [[ "$only_extra_repos" -eq 1 ]]; then
+    if [[ "$DIFF_ATTENTION_HAS_DIRTY" -eq 1 ]] || [[ "$DIFF_ATTENTION_HAS_AHEAD" -eq 1 ]] || [[ "$DIFF_ATTENTION_HAS_BEHIND" -ne 1 ]]; then
+      only_pulls_wanted=0
+    fi
+    if [[ "$only_pulls_wanted" -eq 1 ]]; then
+      class='dots-pull-only'
+    elif [[ "$only_extra_repos" -eq 1 ]]; then
       class='dots-extra-only'
     else
       class='dots-attention'
@@ -1702,7 +1733,8 @@ main() {
   shift || true
 
   if [[ "$cmd" == 'diff' && "${1:-}" == '--waybar' ]]; then
-    cmd_diff_status
+    shift
+    cmd_diff_status "$@"
     return
   fi
 
