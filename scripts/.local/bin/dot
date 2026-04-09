@@ -20,7 +20,7 @@ DOT_AGENTS_SYNC_ON_UPDATE="${DOT_AGENTS_SYNC_ON_UPDATE:-1}"
 DOT_MEMORY_ON_AGENTS_SYNC="${DOT_MEMORY_ON_AGENTS_SYNC:-1}"
 
 OMARCHY_REPO_BASE="${OMARCHY_REPO_BASE_DIR:-$HOME/.config}"
-OMARCHY_DIFF_REPOS=(bootstrap hypr waybar ghostty uwsm)
+OMARCHY_DIFF_REPOS=(hypr waybar bootstrap ghostty uwsm)
 OMARCHY_WORKTREE_REPOS=(hypr waybar)
 OMARCHY_WORKTREE_BRANCHES=(desktop laptop)
 OMARCHY_SINGLE_BRANCH_REPOS=(bootstrap ghostty uwsm)
@@ -29,6 +29,10 @@ BOOTSTRAP_BRANCH="${DOT_BOOTSTRAP_BRANCH:-distro/omarchy}"
 
 OMARCHY_TARGET_NAMES=()
 OMARCHY_TARGET_PATHS=()
+
+DIFF_ATTENTION_ISSUES=0
+DIFF_ATTENTION_SEGMENTS=()
+DIFF_ATTENTION_PATHS=()
 
 PRIVATE_REASON=""
 
@@ -300,7 +304,27 @@ _diff_attention_scan_repo() {
   if [[ "$dirty" -eq 1 ]] || [[ "${ahead:-0}" -gt 0 ]] || [[ "${behind:-0}" -gt 0 ]]; then
     DIFF_ATTENTION_ISSUES=$((DIFF_ATTENTION_ISSUES + 1))
     DIFF_ATTENTION_SEGMENTS+=("$name")
+    DIFF_ATTENTION_PATHS+=("$path")
   fi
+}
+
+# Sort PRIVATE_EXTRA_REPO_NAMES / PRIVATE_EXTRA_REPO_PATHS together by name.
+sort_private_extra_repos() {
+  [[ ${#PRIVATE_EXTRA_REPO_NAMES[@]} -le 1 ]] && return 0
+  local -a sorted_names=()
+  local -a sorted_paths=()
+  local name path
+  while IFS=$'\t' read -r name path; do
+    sorted_names+=("$name")
+    sorted_paths+=("$path")
+  done < <(
+    local j
+    for j in "${!PRIVATE_EXTRA_REPO_NAMES[@]}"; do
+      printf '%s\t%s\n' "${PRIVATE_EXTRA_REPO_NAMES[$j]}" "${PRIVATE_EXTRA_REPO_PATHS[$j]}"
+    done | sort
+  )
+  PRIVATE_EXTRA_REPO_NAMES=("${sorted_names[@]}")
+  PRIVATE_EXTRA_REPO_PATHS=("${sorted_paths[@]}")
 }
 
 diff_collect_attention() {
@@ -311,6 +335,7 @@ diff_collect_attention() {
 
   DIFF_ATTENTION_ISSUES=0
   DIFF_ATTENTION_SEGMENTS=()
+  DIFF_ATTENTION_PATHS=()
 
   public_name="$(basename -- "${PUBLIC_DOTFILES%/}")"
   _diff_attention_scan_repo "$public_name" "$PUBLIC_DOTFILES"
@@ -320,11 +345,6 @@ diff_collect_attention() {
     notes_name="$(basename -- "${NOTES_REPO_DIR%/}")"
     _diff_attention_scan_repo "$private_name" "$PRIVATE_DOTFILES"
     _diff_attention_scan_repo "$notes_name" "$NOTES_REPO_DIR"
-
-    load_private_extra_repos
-    for i in "${!PRIVATE_EXTRA_REPO_PATHS[@]}"; do
-      _diff_attention_scan_repo "extra:${PRIVATE_EXTRA_REPO_NAMES[$i]}" "${PRIVATE_EXTRA_REPO_PATHS[$i]}"
-    done
   fi
 
   if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS"; then
@@ -332,6 +352,14 @@ diff_collect_attention() {
     omarchy_collect_repo_targets
     for om_i in "${!OMARCHY_TARGET_PATHS[@]}"; do
       _diff_attention_scan_repo "${OMARCHY_TARGET_NAMES[$om_i]}" "${OMARCHY_TARGET_PATHS[$om_i]}"
+    done
+  fi
+
+  if can_use_private; then
+    load_private_extra_repos
+    sort_private_extra_repos
+    for i in "${!PRIVATE_EXTRA_REPO_PATHS[@]}"; do
+      _diff_attention_scan_repo "extra:${PRIVATE_EXTRA_REPO_NAMES[$i]}" "${PRIVATE_EXTRA_REPO_PATHS[$i]}"
     done
   fi
 }
@@ -933,6 +961,51 @@ cmd_diff_status() {
 
   json_tip="$(_diff_status_json_escape "$tooltip")"
   printf '{"text":"%s","tooltip":"%s","class":"%s"}\n' "$text" "$json_tip" "$class"
+}
+
+# Output one "name|path" line per repo that currently has changes (dirty / ahead / behind).
+cmd_diff_list_changed() {
+  diff_collect_attention
+  local i
+  for i in "${!DIFF_ATTENTION_SEGMENTS[@]}"; do
+    printf '%s|%s\n' "${DIFF_ATTENTION_SEGMENTS[$i]}" "${DIFF_ATTENTION_PATHS[$i]}"
+  done
+}
+
+# Output one "name|path" line for every repo tracked by dot diff, in diff order.
+# Only includes repos whose directories exist on this machine.
+cmd_diff_list_all() {
+  local p
+
+  p="$PUBLIC_DOTFILES"
+  [[ -d "$p" ]] && printf '%s|%s\n' "$(basename -- "${p%/}")" "$p"
+
+  if can_use_private; then
+    p="$PRIVATE_DOTFILES"
+    [[ -d "$p" ]] && printf '%s|%s\n' "$(basename -- "${p%/}")" "$p"
+
+    p="$NOTES_REPO_DIR"
+    [[ -d "$p" ]] && printf '%s|%s\n' "$(basename -- "${p%/}")" "$p"
+  fi
+
+  if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS"; then
+    omarchy_collect_repo_targets
+    local om_i
+    for om_i in "${!OMARCHY_TARGET_PATHS[@]}"; do
+      p="${OMARCHY_TARGET_PATHS[$om_i]}"
+      [[ -d "$p" ]] && printf '%s|%s\n' "${OMARCHY_TARGET_NAMES[$om_i]}" "$p"
+    done
+  fi
+
+  if can_use_private; then
+    load_private_extra_repos
+    sort_private_extra_repos
+    local i
+    for i in "${!PRIVATE_EXTRA_REPO_PATHS[@]}"; do
+      p="${PRIVATE_EXTRA_REPO_PATHS[$i]}"
+      [[ -d "$p" ]] && printf '%s|%s\n' "extra:${PRIVATE_EXTRA_REPO_NAMES[$i]}" "$p"
+    done
+  fi
 }
 
 can_use_private() {
@@ -1544,14 +1617,6 @@ cmd_diff() {
   if can_use_private; then
     show_repo_diffs 'private' "$PRIVATE_DOTFILES"
     show_repo_diffs 'notes' "$NOTES_REPO_DIR"
-
-    load_private_extra_repos
-    if [[ "${#PRIVATE_EXTRA_REPO_PATHS[@]}" -gt 0 ]]; then
-      log_section 'Additional private repo diffs'
-      for i in "${!PRIVATE_EXTRA_REPO_PATHS[@]}"; do
-        show_repo_diffs "extra:${PRIVATE_EXTRA_REPO_NAMES[$i]}" "${PRIVATE_EXTRA_REPO_PATHS[$i]}"
-      done
-    fi
   else
     log_warn "Skipping private and notes diff ($PRIVATE_REASON)"
   fi
@@ -1564,6 +1629,17 @@ cmd_diff() {
     done
   else
     log_warn "Skipping Omarchy repo diffs (DOT_INCLUDE_OMARCHY_DIFF_REPOS=$INCLUDE_OMARCHY_DIFF_REPOS)"
+  fi
+
+  if can_use_private; then
+    load_private_extra_repos
+    sort_private_extra_repos
+    if [[ "${#PRIVATE_EXTRA_REPO_PATHS[@]}" -gt 0 ]]; then
+      log_section 'Additional private repo diffs'
+      for i in "${!PRIVATE_EXTRA_REPO_PATHS[@]}"; do
+        show_repo_diffs "extra:${PRIVATE_EXTRA_REPO_NAMES[$i]}" "${PRIVATE_EXTRA_REPO_PATHS[$i]}"
+      done
+    fi
   fi
 
 }
@@ -1581,6 +1657,8 @@ cmd_help() {
   printf "$fmt_cmd" 'stow' 'Re-stow public/private dotfiles (no git pull)'
   printf "$fmt_cmd" 'diff' 'Per-repo status + diffs with fetched upstream unpushed/incoming commits'
   printf "$fmt_cmd" '' 'Options: --waybar → one-line JSON for Waybar (same checks; no banners)'
+  printf "$fmt_cmd" '' '         --list-changed → name|path lines for repos with changes'
+  printf "$fmt_cmd" '' '         --list-all → name|path lines for all tracked repos'
   printf "$fmt_cmd" 'setup' 'Install packages (supports: --confirm)'
   printf "$fmt_cmd" 'install' 'Backup/adopt and install public/private dotfiles'
   printf "$fmt_cmd" 'clean' 'Unstow private then public dotfiles'
@@ -1624,6 +1702,15 @@ main() {
     return
   fi
 
+  if [[ "$cmd" == 'diff' && "${1:-}" == '--list-changed' ]]; then
+    cmd_diff_list_changed
+    return
+  fi
+
+  if [[ "$cmd" == 'diff' && "${1:-}" == '--list-all' ]]; then
+    cmd_diff_list_all
+    return
+  fi
   if [[ "$cmd" != 'help' && "$cmd" != '-h' && "$cmd" != '--help' ]]; then
     if [[ -d "$PUBLIC_DOTFILES" ]]; then
       cd "$PUBLIC_DOTFILES"
