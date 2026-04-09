@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "$#" -lt 1 ]; then
+  printf 'Usage: %s <message> [command...]\n' "$0" >&2
+  exit 2
+fi
+
+message="$1"
+shift
+
+popup-loading show "$message"
+trap 'popup-loading hide' EXIT
+
+if [ "$#" -gt 0 ]; then
+  "$@"
+fi
