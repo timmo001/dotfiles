@@ -50,7 +50,7 @@ dot doctor
 - `dot install` - backup/adopt install flow for public/private dotfiles
 - `dot clean` - unstow private then public
 - `dot doctor` - tool, repo, remote, public/private package, private package repo, and Chromium extension health checks
-- `dot private-pkg-publish <package>` - build and publish a mapped private package into the private pacman repo, sync the mirror, and refresh pacman metadata
+- `dot private-pkg-publish [--no-git] <package>` - build and publish a mapped private package into the private pacman repo, sync the mirror, refresh pacman metadata, and commit/push by default
 - `dot agents-sync` - copy `~/.opencode/AGENTS.md` into `agents/.cursor/rules/global-agents.mdc` in private dotfiles by default (`alwaysApply: true` + body; stows to `~/.cursor/rules/`). **`dot update`** and **`dot diff`** run this automatically by default (see env vars below).
 
 ## Environment options
