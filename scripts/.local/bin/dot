@@ -21,9 +21,9 @@ DOT_MEMORY_ON_AGENTS_SYNC="${DOT_MEMORY_ON_AGENTS_SYNC:-1}"
 
 OMARCHY_REPO_BASE="${OMARCHY_REPO_BASE_DIR:-$HOME/.config}"
 OMARCHY_DIFF_REPOS=(hypr waybar bootstrap ghostty uwsm)
-OMARCHY_WORKTREE_REPOS=(hypr waybar)
+OMARCHY_WORKTREE_REPOS=(hypr)
 OMARCHY_WORKTREE_BRANCHES=(desktop laptop)
-OMARCHY_SINGLE_BRANCH_REPOS=(bootstrap ghostty uwsm)
+OMARCHY_SINGLE_BRANCH_REPOS=(bootstrap waybar ghostty uwsm)
 OMARCHY_BRANCH="${DOT_OMARCHY_BRANCH:-}"
 BOOTSTRAP_BRANCH="${DOT_BOOTSTRAP_BRANCH:-distro/omarchy}"
 
@@ -739,6 +739,10 @@ omarchy_sync_repo() {
   local repo_slug="$2"
   local branch="$3"
   local target_dir="$OMARCHY_REPO_BASE/$repo_name"
+
+  if omarchy_repo_is_single_branch "$repo_name"; then
+    branch=''
+  fi
 
   log_section "Omarchy sync: $repo_name"
 
@@ -1652,7 +1656,7 @@ cmd_help() {
   printf 'Usage: %s <command> [args]\n\n' "$SCRIPT_NAME"
   printf 'Commands:\n'
   printf "$fmt_cmd" 'init' 'Run questionnaire, sync omarchy repos, setup, install'
-  printf "$fmt_cmd" 'update' 'Pull repos (public, private, notes, extra, omarchy worktrees), stow dotfiles (optional agents-sync + dot memory --soft)'
+  printf "$fmt_cmd" 'update' 'Pull repos (public, private, notes, extra, omarchy repos), stow dotfiles (optional agents-sync + dot memory --soft)'
   printf "$fmt_cmd" 'memory' 'Refresh OpenCode durable memory (~/.opencode/AGENTS.md via memory.js --update)'
   printf "$fmt_cmd" 'stow' 'Re-stow public/private dotfiles (no git pull)'
   printf "$fmt_cmd" 'diff' 'Per-repo status + diffs with fetched upstream unpushed/incoming commits'
@@ -1674,7 +1678,7 @@ cmd_help() {
   printf "$fmt_env" 'DOT_ALLOW_PRIVATE' 'auto|always|never (default: auto)'
   printf "$fmt_env" 'DOT_PRIVATE_GH_USER' 'Expected gh username for private actions (default: timmo001)'
   printf "$fmt_env" 'OMARCHY_REPO_BASE_DIR' 'Base directory for omarchy repos (default: ~/.config)'
-  printf "$fmt_env" 'DOT_OMARCHY_BRANCH' 'Branch for hypr/waybar/ghostty/uwsm in init/update sync'
+  printf "$fmt_env" 'DOT_OMARCHY_BRANCH' 'Branch override for split omarchy repos in init/update sync'
   printf "$fmt_env" 'DOT_BOOTSTRAP_BRANCH' 'Branch for bootstrap repo (default: distro/omarchy)'
   printf "$fmt_env" 'DOT_INCLUDE_OMARCHY_DIFF_REPOS' '1|0 include omarchy repos in diff (default: 1)'
   printf "$fmt_env" 'DOT_INCLUDE_OMARCHY_UPDATE_REPOS' '1|0 include omarchy repos in update pull (default: 1)'
@@ -1689,7 +1693,7 @@ cmd_help() {
   printf "$fmt_init" '--confirm' 'Passes through to setup (interactive package install)'
   printf "$fmt_init" '--noninteractive' 'Skip questionnaire for this run'
   printf "$fmt_init" '--interactive' 'Force questionnaire for this run'
-  printf "$fmt_init" '--branch <name>' 'Omarchy branch override for hypr/waybar/ghostty/uwsm'
+  printf "$fmt_init" '--branch <name>' 'Omarchy branch override for split repos such as hypr'
   printf "$fmt_init" '--bootstrap-branch <n>' 'Bootstrap repo branch override for this run'
 }
 

@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/waybar"
+host="${OMARCHY_HOST:-}"
+config_path=""
+
+real_waybar_bin="$(PATH=/usr/local/bin:/usr/bin:/bin command -v waybar 2>/dev/null || true)"
+if [[ -z "$real_waybar_bin" ]]; then
+  printf 'waybar wrapper: could not find real waybar binary\n' >&2
+  exit 1
+fi
+
+if [[ -n "$host" ]]; then
+  host_config="$config_dir/config.${host}.jsonc"
+  if [[ -f "$host_config" ]]; then
+    config_path="$host_config"
+  fi
+fi
+
+for arg in "$@"; do
+  case "$arg" in
+    -c|--config|--config=*)
+      exec "$real_waybar_bin" "$@"
+      ;;
+  esac
+done
+
+if [[ -n "$config_path" ]]; then
+  exec "$real_waybar_bin" -c "$config_path" "$@"
+fi
+
+exec "$real_waybar_bin" "$@"

@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+wrapper="${HOME}/.local/bin/waybar"
+
+if [[ -x "$wrapper" ]]; then
+  exec "$wrapper" "$@"
+fi
+
+exec /usr/bin/waybar "$@"

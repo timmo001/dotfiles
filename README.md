@@ -35,10 +35,10 @@ dot doctor
 
 ## Command reference
 
-- `dot init` - questionnaire (when available), Omarchy sync (including branch worktree setup like `hypr-desktop`/`waybar-desktop`), package setup, then public/private install
-- `dot update` - Omarchy + public/private pull (including optional extra private repos and Omarchy branch worktrees), then stow refresh
+- `dot init` - questionnaire (when available), Omarchy sync (including split-repo worktree setup like `hypr-desktop`), package setup, then public/private install
+- `dot update` - Omarchy + public/private pull (including optional extra private repos and split Omarchy repo worktrees), then stow refresh
 - `dot stow` - stow refresh only (no git pull)
-- `dot diff` - git status + staged/unstaged summaries with fetched unpushed/incoming commit checks across managed repos (including optional extra private repos and Omarchy branch worktrees); use `dot diff --waybar` for one-line Waybar JSON
+- `dot diff` - git status + staged/unstaged summaries with fetched unpushed/incoming commit checks across managed repos (including optional extra private repos and split Omarchy repo worktrees); use `dot diff --waybar` for one-line Waybar JSON
 - `dot setup [--confirm]` - package install step only
 - `dot install` - backup/adopt install flow for public/private dotfiles
 - `dot clean` - unstow private then public
@@ -53,7 +53,7 @@ dot doctor
 - `DOT_PRIVATE_GH_USER` - expected GitHub user for private actions (default `timmo001`)
 - `DOT_PRIVATE_EXTRA_REPOS_FILE` - extra private repo config file for `dot diff`/`dot update` (default `$DOTFILES_PRIVATE_DIR/.dot-extra-repos`, format: `name|path` or just `path`)
 - `OMARCHY_REPO_BASE_DIR` - Omarchy repo base path (default `~/.config`)
-- `DOT_OMARCHY_BRANCH` - branch for `hypr/waybar/ghostty/uwsm` sync
+- `DOT_OMARCHY_BRANCH` - branch override for split Omarchy repos (currently `hypr`)
 - `DOT_BOOTSTRAP_BRANCH` - branch for `bootstrap` sync (default `distro/omarchy`)
 - `DOT_INCLUDE_OMARCHY_DIFF_REPOS` - include Omarchy repos in `dot diff` (`1|0`, default `1`)
 - `DOT_INCLUDE_OMARCHY_UPDATE_REPOS` - include Omarchy repos in `dot update` sync (`1|0`, default `1`)
