@@ -301,14 +301,18 @@ public_arch_installed_package_name() {
 
 public_arch_package_label() {
   local package_name="$1"
+  local installed_name=''
+
+  installed_name="$(public_arch_installed_package_name "$package_name")"
+
+  if [[ -n "$installed_name" ]]; then
+    printf '%s\n' "$installed_name"
+    return
+  fi
 
   case "$package_name" in
     go-automate-git)
-      if package_installed 'go-automate'; then
-        printf 'go-automate\n'
-      else
-        printf '%s\n' "$package_name"
-      fi
+      printf 'go-automate\n'
       ;;
     *)
       printf '%s\n' "$package_name"
