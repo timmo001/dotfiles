@@ -134,7 +134,7 @@ def build_css(theme: dict[str, str]) -> bytes:
 
 .popup-loading-message {{
   color: {theme['foreground']};
-  font-family: "JetBrains Mono NF";
+  font-family: "JetBrainsMono Nerd Font";
   font-size: 16px;
   font-weight: 600;
 }}
