@@ -36,9 +36,9 @@ dot doctor
 ## Command reference
 
 - `dot init` - questionnaire (when available), Omarchy sync, package setup, then public/private install
-- `dot update` - Omarchy + public/private pull, then stow refresh
+- `dot update` - Omarchy + public/private pull (including optional extra private repos), then stow refresh
 - `dot stow` - stow refresh only (no git pull)
-- `dot diff` - git status + staged/unstaged summaries with fetched unpushed/incoming commit checks across managed repos
+- `dot diff` - git status + staged/unstaged summaries with fetched unpushed/incoming commit checks across managed repos (including optional extra private repos)
 - `dot setup [--confirm]` - package install step only
 - `dot install` - backup/adopt install flow for public/private dotfiles
 - `dot clean` - unstow private then public
@@ -51,6 +51,7 @@ dot doctor
 - `DOTFILES_PRIVATE_DIR` - private dotfiles path (default `~/.config/dotfiles-private`)
 - `DOT_ALLOW_PRIVATE` - `auto|always|never` (default `auto`)
 - `DOT_PRIVATE_GH_USER` - expected GitHub user for private actions (default `timmo001`)
+- `DOT_PRIVATE_EXTRA_REPOS_FILE` - extra private repo config file for `dot diff`/`dot update` (default `$DOTFILES_PRIVATE_DIR/.dot-extra-repos`, format: `name|path` or just `path`)
 - `OMARCHY_REPO_BASE_DIR` - Omarchy repo base path (default `~/.config`)
 - `DOT_OMARCHY_BRANCH` - branch for `hypr/waybar/ghostty/uwsm` sync
 - `DOT_BOOTSTRAP_BRANCH` - branch for `bootstrap` sync (default `distro/omarchy`)

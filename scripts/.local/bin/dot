@@ -9,6 +9,7 @@ DOT_SELF="${BASH_SOURCE[0]:-$0}"
 PUBLIC_DOTFILES="${DOTFILES_PUBLIC_DIR:-$HOME/.config/dotfiles}"
 PRIVATE_DOTFILES="${DOTFILES_PRIVATE_DIR:-$HOME/.config/dotfiles-private}"
 NOTES_REPO_DIR="${DOT_NOTES_DIR:-$HOME/Documents/notes}"
+PRIVATE_EXTRA_REPOS_FILE="${DOT_PRIVATE_EXTRA_REPOS_FILE:-$PRIVATE_DOTFILES/.dot-extra-repos}"
 
 EXPECTED_GH_USER="${DOT_PRIVATE_GH_USER:-timmo001}"
 PRIVATE_MODE="${DOT_ALLOW_PRIVATE:-auto}" # auto|always|never
@@ -143,6 +144,72 @@ is_truthy() {
   esac
 }
 
+trim_whitespace() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s\n' "$value"
+}
+
+expand_home_path() {
+  local path="$1"
+
+  if [[ "$path" == '~' ]]; then
+    printf '%s\n' "$HOME"
+    return
+  fi
+
+  if [[ "$path" == '~/'* ]]; then
+    printf '%s/%s\n' "$HOME" "${path:2}"
+    return
+  fi
+
+  printf '%s\n' "$path"
+}
+
+PRIVATE_EXTRA_REPO_NAMES=()
+PRIVATE_EXTRA_REPO_PATHS=()
+
+load_private_extra_repos() {
+  local config_file="$PRIVATE_EXTRA_REPOS_FILE"
+  local raw_line
+  local line
+  local repo_name
+  local repo_path
+
+  PRIVATE_EXTRA_REPO_NAMES=()
+  PRIVATE_EXTRA_REPO_PATHS=()
+
+  if [[ ! -f "$config_file" ]] || [[ ! -r "$config_file" ]]; then
+    return 0
+  fi
+
+  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
+    line="$(trim_whitespace "$raw_line")"
+    [[ -z "$line" || "${line:0:1}" == '#' ]] && continue
+
+    if [[ "$line" == *'|'* ]]; then
+      repo_name="$(trim_whitespace "${line%%|*}")"
+      repo_path="$(trim_whitespace "${line#*|}")"
+    else
+      repo_name=''
+      repo_path="$line"
+    fi
+
+    [[ -z "$repo_path" ]] && continue
+    repo_path="$(expand_home_path "$repo_path")"
+
+    if [[ -z "$repo_name" ]]; then
+      repo_name="$(basename -- "$repo_path")"
+    fi
+
+    [[ -z "$repo_name" ]] && continue
+
+    PRIVATE_EXTRA_REPO_NAMES+=("$repo_name")
+    PRIVATE_EXTRA_REPO_PATHS+=("$repo_path")
+  done <"$config_file"
+}
+
 # Refresh local tracking refs for the configured upstream branch.
 fetch_repo_upstream() {
   local repo_dir="$1"
@@ -173,9 +240,6 @@ _diff_attention_scan_repo() {
   local dirty=0
   local ahead=0
   local behind=0
-  local -a detail=()
-  local detail_text
-  local item
 
   if ! git -C "$path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     return 0
@@ -192,42 +256,32 @@ _diff_attention_scan_repo() {
 
   if [[ "$dirty" -eq 1 ]] || [[ "${ahead:-0}" -gt 0 ]] || [[ "${behind:-0}" -gt 0 ]]; then
     DIFF_ATTENTION_ISSUES=$((DIFF_ATTENTION_ISSUES + 1))
-    [[ "$dirty" -eq 1 ]] && detail+=('local edits to commit')
-
-    if [[ "${ahead:-0}" -gt 0 ]]; then
-      if [[ "${ahead:-0}" -eq 1 ]]; then
-        detail+=('1 commit ready to push')
-      else
-        detail+=("${ahead} commits ready to push")
-      fi
-    fi
-
-    if [[ "${behind:-0}" -gt 0 ]]; then
-      if [[ "${behind:-0}" -eq 1 ]]; then
-        detail+=('1 remote update available')
-      else
-        detail+=("${behind} remote updates available")
-      fi
-    fi
-
-    detail_text=''
-    for item in "${detail[@]}"; do
-      [[ -n "$detail_text" ]] && detail_text+=', '
-      detail_text+="$item"
-    done
-    DIFF_ATTENTION_SEGMENTS+=("${name}: ${detail_text}")
+    DIFF_ATTENTION_SEGMENTS+=("$name")
   fi
 }
 
 diff_collect_attention() {
+  local public_name
+  local private_name
+  local notes_name
+  local i
+
   DIFF_ATTENTION_ISSUES=0
   DIFF_ATTENTION_SEGMENTS=()
 
-  _diff_attention_scan_repo 'public' "$PUBLIC_DOTFILES"
+  public_name="$(basename -- "${PUBLIC_DOTFILES%/}")"
+  _diff_attention_scan_repo "$public_name" "$PUBLIC_DOTFILES"
 
   if can_use_private; then
-    _diff_attention_scan_repo 'private' "$PRIVATE_DOTFILES"
-    _diff_attention_scan_repo 'notes' "$NOTES_REPO_DIR"
+    private_name="$(basename -- "${PRIVATE_DOTFILES%/}")"
+    notes_name="$(basename -- "${NOTES_REPO_DIR%/}")"
+    _diff_attention_scan_repo "$private_name" "$PRIVATE_DOTFILES"
+    _diff_attention_scan_repo "$notes_name" "$NOTES_REPO_DIR"
+
+    load_private_extra_repos
+    for i in "${!PRIVATE_EXTRA_REPO_PATHS[@]}"; do
+      _diff_attention_scan_repo "extra:${PRIVATE_EXTRA_REPO_NAMES[$i]}" "${PRIVATE_EXTRA_REPO_PATHS[$i]}"
+    done
   fi
 
   if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS"; then
@@ -707,7 +761,7 @@ cmd_diff_status() {
     class='dots-ok'
   else
     text=" ${issues}"
-    tooltip='Repositories with updates to review: '
+    tooltip='Repositories with changes pending: '
     local i=0
     local seg
     for seg in "${segments[@]}"; do
@@ -1072,6 +1126,8 @@ cmd_init() {
 }
 
 cmd_update() {
+  local i
+
   log_section 'Update workflow'
 
   if is_truthy "$INCLUDE_OMARCHY_UPDATE_REPOS"; then
@@ -1089,6 +1145,14 @@ cmd_update() {
     safe_pull_repo 'dotfiles-private' "$PRIVATE_DOTFILES"
     log_section 'Notes repo pull'
     safe_pull_repo 'notes' "$NOTES_REPO_DIR"
+
+    load_private_extra_repos
+    if [[ "${#PRIVATE_EXTRA_REPO_PATHS[@]}" -gt 0 ]]; then
+      log_section 'Additional private repo pulls'
+      for i in "${!PRIVATE_EXTRA_REPO_PATHS[@]}"; do
+        safe_pull_repo "extra:${PRIVATE_EXTRA_REPO_NAMES[$i]}" "${PRIVATE_EXTRA_REPO_PATHS[$i]}"
+      done
+    fi
   else
     log_warn "Skipping private and notes pull ($PRIVATE_REASON)"
   fi
@@ -1265,21 +1329,30 @@ cmd_doctor() {
 }
 
 cmd_diff() {
+  local repo_name
+  local repo_path
+  local i
+
   log_section 'Diff workflow'
   show_repo_diffs 'public' "$PUBLIC_DOTFILES"
 
   if can_use_private; then
     show_repo_diffs 'private' "$PRIVATE_DOTFILES"
     show_repo_diffs 'notes' "$NOTES_REPO_DIR"
+
+    load_private_extra_repos
+    if [[ "${#PRIVATE_EXTRA_REPO_PATHS[@]}" -gt 0 ]]; then
+      log_section 'Additional private repo diffs'
+      for i in "${!PRIVATE_EXTRA_REPO_PATHS[@]}"; do
+        show_repo_diffs "extra:${PRIVATE_EXTRA_REPO_NAMES[$i]}" "${PRIVATE_EXTRA_REPO_PATHS[$i]}"
+      done
+    fi
   else
     log_warn "Skipping private and notes diff ($PRIVATE_REASON)"
   fi
 
   if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS"; then
     log_section 'Omarchy repo diffs'
-    local repo_name
-    local repo_path
-
     for repo_name in "${OMARCHY_DIFF_REPOS[@]}"; do
       repo_path="$OMARCHY_REPO_BASE/$repo_name"
       show_repo_diffs "omarchy:$repo_name" "$repo_path"
@@ -1298,7 +1371,7 @@ cmd_help() {
   printf 'Usage: %s <command> [args]\n\n' "$SCRIPT_NAME"
   printf 'Commands:\n'
   printf "$fmt_cmd" 'init' 'Run questionnaire, sync omarchy repos, setup, install'
-  printf "$fmt_cmd" 'update' 'Pull repos (public, private, notes), stow dotfiles (optional agents-sync + dot memory --soft)'
+  printf "$fmt_cmd" 'update' 'Pull repos (public, private, notes, extra), stow dotfiles (optional agents-sync + dot memory --soft)'
   printf "$fmt_cmd" 'memory' 'Refresh OpenCode durable memory (~/.opencode/AGENTS.md via memory.js --update)'
   printf "$fmt_cmd" 'stow' 'Re-stow public/private dotfiles (no git pull)'
   printf "$fmt_cmd" 'diff' 'Per-repo status + diffs with fetched upstream unpushed/incoming commits'
@@ -1314,6 +1387,7 @@ cmd_help() {
   printf "$fmt_env" 'DOTFILES_PUBLIC_DIR' 'Override public dotfiles path'
   printf "$fmt_env" 'DOTFILES_PRIVATE_DIR' 'Override private dotfiles path'
   printf "$fmt_env" 'DOT_NOTES_DIR' 'Notes vault git repo (default ~/Documents/notes); shown in dot diff with private'
+  printf "$fmt_env" 'DOT_PRIVATE_EXTRA_REPOS_FILE' 'File with extra private repos for diff/update (default $DOTFILES_PRIVATE_DIR/.dot-extra-repos)'
   printf "$fmt_env" 'DOT_ALLOW_PRIVATE' 'auto|always|never (default: auto)'
   printf "$fmt_env" 'DOT_PRIVATE_GH_USER' 'Expected gh username for private actions (default: timmo001)'
   printf "$fmt_env" 'OMARCHY_REPO_BASE_DIR' 'Base directory for omarchy repos (default: ~/.config)'
