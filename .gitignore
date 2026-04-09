@@ -1,2 +1,4 @@
 backup/
 Session.vim
+__pycache__/
+*.py[cod]
