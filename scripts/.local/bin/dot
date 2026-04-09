@@ -280,6 +280,25 @@ public_arch_package_present() {
   esac
 }
 
+public_arch_installed_package_name() {
+  local package_name="$1"
+
+  case "$package_name" in
+    go-automate-git)
+      if package_installed 'go-automate-git'; then
+        printf 'go-automate-git\n'
+      elif package_installed 'go-automate'; then
+        printf 'go-automate\n'
+      fi
+      ;;
+    *)
+      if package_installed "$package_name"; then
+        printf '%s\n' "$package_name"
+      fi
+      ;;
+  esac
+}
+
 public_arch_package_label() {
   local package_name="$1"
 
@@ -295,6 +314,27 @@ public_arch_package_label() {
       printf '%s\n' "$package_name"
       ;;
   esac
+}
+
+public_arch_installed_version() {
+  local package_name="$1"
+  local installed_name="${2:-}"
+
+  if [[ -z "$installed_name" ]]; then
+    installed_name="$(public_arch_installed_package_name "$package_name")"
+  fi
+
+  [[ -n "$installed_name" ]] || return 1
+
+  pacman -Q "$installed_name" 2>/dev/null | awk '{ print $2 }'
+}
+
+public_arch_latest_aur_version() {
+  local package_name="$1"
+
+  has_cmd yay || return 1
+
+  yay -Si "$package_name" 2>/dev/null | sed -n 's/^Version[[:space:]]*:[[:space:]]*//p;q'
 }
 
 collect_missing_public_arch_packages() {
@@ -1779,22 +1819,118 @@ cmd_clean() {
 cmd_doctor() {
   local issues=0
   local warnings=0
+  local status=0
+  local summary_message
+  local summary_section
+  local doctor_current_section='General'
+  local -a doctor_warning_messages=()
+  local -a doctor_warning_sections=()
+  local -a doctor_error_messages=()
+  local -a doctor_error_sections=()
+
+  doctor_log_section() {
+    doctor_current_section="$1"
+    log_section "$doctor_current_section"
+  }
+
+  doctor_warn() {
+    local message="$*"
+    doctor_warning_sections+=("$doctor_current_section")
+    doctor_warning_messages+=("$message")
+    warnings=$((warnings + 1))
+  }
+
+  doctor_error() {
+    local message="$*"
+    doctor_error_sections+=("$doctor_current_section")
+    doctor_error_messages+=("$message")
+    issues=$((issues + 1))
+  }
+
+  doctor_summary_warn() {
+    log_label "$DOT_YELLOW" 'WARN' "$*"
+  }
+
+  doctor_summary_error() {
+    log_label "$DOT_RED" 'ERROR' "$*"
+  }
+
+  doctor_summary_section() {
+    printf '%b%s%b\n' "${DOT_BOLD}${DOT_BLUE}" "  $*" "$DOT_RESET"
+  }
+
+  print_grouped_doctor_messages() {
+    local kind="$1"
+    local current_section=''
+    local i
+
+    case "$kind" in
+      error)
+        [[ "${#doctor_error_messages[@]}" -gt 0 ]] || return 0
+        doctor_log_section 'Collected Errors'
+        for i in "${!doctor_error_messages[@]}"; do
+          summary_section="${doctor_error_sections[$i]}"
+          summary_message="${doctor_error_messages[$i]}"
+          if [[ "$summary_section" != "$current_section" ]]; then
+            current_section="$summary_section"
+            doctor_summary_section "$current_section"
+          fi
+          doctor_summary_error "$summary_message"
+        done
+        ;;
+      warning)
+        [[ "${#doctor_warning_messages[@]}" -gt 0 ]] || return 0
+        doctor_log_section 'Collected Warnings'
+        for i in "${!doctor_warning_messages[@]}"; do
+          summary_section="${doctor_warning_sections[$i]}"
+          summary_message="${doctor_warning_messages[$i]}"
+          if [[ "$summary_section" != "$current_section" ]]; then
+            current_section="$summary_section"
+            doctor_summary_section "$current_section"
+          fi
+          doctor_summary_warn "$summary_message"
+        done
+        ;;
+    esac
+  }
 
   report_package_status() {
     local package_name="$1"
     local install_hint="$2"
     local display_name
+    local installed_name=''
+    local installed_version=''
+    local latest_aur_version=''
 
     display_name="$(public_arch_package_label "$package_name")"
+    installed_name="$(public_arch_installed_package_name "$package_name")"
 
     if public_arch_package_present "$package_name"; then
       log_info "$display_name is installed"
-    else
-      log_warn "$display_name is missing"
-      if [[ -n "$install_hint" ]]; then
-        log_warn "Install hint: $install_hint"
+
+      installed_version="$(public_arch_installed_version "$package_name" "$installed_name" 2>/dev/null || true)"
+      latest_aur_version="$(public_arch_latest_aur_version "$package_name" 2>/dev/null || true)"
+
+      if [[ -n "$installed_name" && "$installed_name" != "$package_name" ]]; then
+        doctor_warn "$installed_name is installed instead of canonical AUR package $package_name"
+        if [[ -n "$latest_aur_version" ]]; then
+          doctor_warn "Latest AUR version for $package_name: $latest_aur_version"
+        fi
+        if [[ -n "$install_hint" ]]; then
+          doctor_warn "To switch back to AUR: $install_hint"
+        fi
+        doctor_warn 'Keep the local package only if you intentionally want to override the AUR package on this machine'
+      elif [[ -n "$installed_version" && -n "$latest_aur_version" && "$installed_version" != "$latest_aur_version" ]]; then
+        doctor_warn "$package_name version differs from latest AUR ($installed_version installed, $latest_aur_version latest)"
+        if [[ -n "$install_hint" ]]; then
+          doctor_warn "To update from AUR: $install_hint"
+        fi
       fi
-      warnings=$((warnings + 1))
+    else
+      doctor_warn "$display_name is missing"
+      if [[ -n "$install_hint" ]]; then
+        doctor_warn "Install hint: $install_hint"
+      fi
     fi
   }
 
@@ -1806,21 +1942,19 @@ cmd_doctor() {
     shift 4
 
     if [[ ! -d "$profile_dir" ]]; then
-      log_warn "Chromium profile not found: $(display_path "$profile_dir")"
-      warnings=$((warnings + 1))
+      doctor_warn "Chromium profile not found: $(display_path "$profile_dir")"
       return 0
     fi
 
     if "$checker" "$profile_dir" "$@"; then
       log_info "$extension_label is installed in $(display_path "$profile_dir")"
     else
-      log_warn "$extension_label is missing from $(display_path "$profile_dir")"
-      log_warn "$install_hint"
-      warnings=$((warnings + 1))
+      doctor_warn "$extension_label is missing from $(display_path "$profile_dir")"
+      doctor_warn "$install_hint"
     fi
   }
 
-  log_section 'Dependency checks'
+  doctor_log_section 'Dependency checks'
 
   require_cmd() {
     local cmd="$1"
@@ -1828,8 +1962,7 @@ cmd_doctor() {
     if has_cmd "$cmd"; then
       log_info "$cmd is available ($purpose)"
     else
-      log_error "$cmd is missing ($purpose)"
-      issues=$((issues + 1))
+      doctor_error "$cmd is missing ($purpose)"
     fi
   }
 
@@ -1839,8 +1972,7 @@ cmd_doctor() {
     if has_cmd "$cmd"; then
       log_info "$cmd is available ($purpose)"
     else
-      log_warn "$cmd is missing ($purpose)"
-      warnings=$((warnings + 1))
+      doctor_warn "$cmd is missing ($purpose)"
     fi
   }
 
@@ -1855,33 +1987,26 @@ cmd_doctor() {
     if gh auth status >/dev/null 2>&1; then
       log_info 'gh authentication is active'
     else
-      log_warn 'gh is installed but not authenticated (branch questionnaire discovery disabled)'
-      warnings=$((warnings + 1))
+      doctor_warn 'gh is installed but not authenticated (branch questionnaire discovery disabled)'
     fi
   fi
 
-  log_section 'Public package checks'
-  report_package_status 'system-bridge' 'yay -S system-bridge'
-  report_package_status 'go-automate-git' 'yay -S go-automate-git'
-
   if [[ -d "$PUBLIC_DOTFILES" ]]; then
-    log_section 'Repository checks'
+    doctor_log_section 'Repository checks'
     log_info "Found $(display_path "$PUBLIC_DOTFILES")"
   else
-    log_section 'Repository checks'
-    log_error "Missing $(display_path "$PUBLIC_DOTFILES")"
-    issues=$((issues + 1))
+    doctor_log_section 'Repository checks'
+    doctor_error "Missing $(display_path "$PUBLIC_DOTFILES")"
   fi
 
   if [[ -d "$PRIVATE_DOTFILES" ]]; then
     log_info "Found $(display_path "$PRIVATE_DOTFILES")"
   else
-    log_warn "Missing $(display_path "$PRIVATE_DOTFILES")"
-    warnings=$((warnings + 1))
+    doctor_warn "Missing $(display_path "$PRIVATE_DOTFILES")"
   fi
 
   if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS" || is_truthy "$INCLUDE_OMARCHY_UPDATE_REPOS"; then
-    log_section 'Omarchy repository checks'
+    doctor_log_section 'Omarchy repository checks'
     local repo_name
     local repo_path
     local repo_slug
@@ -1899,16 +2024,14 @@ cmd_doctor() {
         if omarchy_repo_matches_remote "$repo_path" "$repo_slug"; then
           log_info "Remote OK for $repo_name ($repo_slug)"
         else
-          log_warn "Remote mismatch for $repo_name (expected $repo_slug)"
-          warnings=$((warnings + 1))
+          doctor_warn "Remote mismatch for $repo_name (expected $repo_slug)"
         fi
       else
-        log_warn "Missing git repo $(display_path "$repo_path")"
-        warnings=$((warnings + 1))
+        doctor_warn "Missing git repo $(display_path "$repo_path")"
       fi
     done
 
-    log_section 'Omarchy worktree checks'
+    doctor_log_section 'Omarchy worktree checks'
     for repo_name in "${OMARCHY_DIFF_REPOS[@]}"; do
       repo_path="$OMARCHY_REPO_BASE/$repo_name"
 
@@ -1919,8 +2042,8 @@ cmd_doctor() {
         continue
       fi
 
-      if ! git -C "$repo_path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-        log_warn "Skipping worktree checks for $repo_name (base repo missing): $(display_path "$repo_path")"
+        if ! git -C "$repo_path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        doctor_warn "Skipping worktree checks for $repo_name (base repo missing): $(display_path "$repo_path")"
         continue
       fi
 
@@ -1941,42 +2064,49 @@ cmd_doctor() {
           if [[ "$worktree_branch" == "$branch_name" ]]; then
             log_info "Found $(display_path "$worktree_path") (branch '$branch_name')"
           else
-            log_warn "Worktree branch mismatch for $(display_path "$worktree_path") (expected '$branch_name', found '$worktree_branch')"
-            warnings=$((warnings + 1))
+            doctor_warn "Worktree branch mismatch for $(display_path "$worktree_path") (expected '$branch_name', found '$worktree_branch')"
           fi
         else
-          log_warn "Missing worktree $(display_path "$worktree_path") for branch '$branch_name'"
-          warnings=$((warnings + 1))
+          doctor_warn "Missing worktree $(display_path "$worktree_path") for branch '$branch_name'"
         fi
       done
     done
   fi
 
   if can_use_private; then
-    log_section 'Private access'
+    doctor_log_section 'Private access'
     log_info "Private repo enabled ($PRIVATE_REASON)"
   else
-    log_section 'Private access'
-    log_warn "Private repo disabled ($PRIVATE_REASON)"
+    doctor_log_section 'Private access'
+    doctor_warn "Private repo disabled ($PRIVATE_REASON)"
   fi
 
-  log_section 'Browser extension checks'
+  doctor_log_section 'Browser extension checks'
   if can_use_private; then
     run_private_browser_checks report_chromium_extension_status
   else
-    log_warn "Skipping browser extension checks ($PRIVATE_REASON)"
+    doctor_warn "Skipping browser extension checks ($PRIVATE_REASON)"
   fi
+
+  doctor_log_section 'Public package checks'
+  report_package_status 'system-bridge' 'yay -S system-bridge'
+  report_package_status 'go-automate-git' 'yay -S go-automate-git'
+
+  print_grouped_doctor_messages error
+  print_grouped_doctor_messages warning
 
   if [[ $issues -eq 0 ]]; then
     if [[ $warnings -eq 0 ]]; then
       log_info 'Doctor finished: no critical issues found'
     else
-      log_warn "Doctor finished: no critical issues, $warnings warning(s)"
+      doctor_summary_warn "Doctor finished: no critical issues, $warnings warning(s)"
     fi
   else
-    log_error "Doctor finished: $issues critical issue(s), $warnings warning(s)"
-    return 1
+    doctor_summary_error "Doctor finished: $issues critical issue(s), $warnings warning(s)"
+    status=1
   fi
+
+  return "$status"
 }
 
 cmd_diff() {
