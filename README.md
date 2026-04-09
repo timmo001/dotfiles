@@ -20,6 +20,13 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 - `agents/` - agent tooling: public OpenCode (`.opencode/`), Cursor launcher scripts (`.local/bin/code`, `cursor`); private overlay adds `~/.cursor/` (`argv.json`, `mcp.json`, rules), Claude Code, OpenCode secrets, `~/.config/opencode/` (see `dot agents-sync`)
 - `editorconfig/` - editor config
 
+## Split worktrees
+
+- Current desktop/laptop split worktree repo: `hypr`
+- Laptop worktree: `~/.config/hypr` on branch `laptop`
+- Desktop worktree: `~/.config/hypr-desktop` on branch `desktop`
+- If this split-worktree setup changes, update the relevant `README.md`, `AGENTS.md`, and skill documentation together so the documented layout stays accurate
+
 ## Quick start
 
 ```bash

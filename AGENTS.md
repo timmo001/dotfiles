@@ -19,6 +19,13 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - Stow config: `.stowrc`
 - Main docs: `README.md`
 
+## Split Worktrees
+
+- The current desktop/laptop split worktree repo is `hypr`.
+- Laptop worktree: `~/.config/hypr` on branch `laptop`.
+- Desktop worktree: `~/.config/hypr-desktop` on branch `desktop`.
+- If this worktree layout changes, update all relevant `README.md`, `AGENTS.md`, and skill documentation together so repo instructions stay consistent.
+
 ## Stow Rules
 
 - Repo root is a stow package root targeting `~/`.

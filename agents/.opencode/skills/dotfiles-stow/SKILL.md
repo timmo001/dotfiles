@@ -71,6 +71,14 @@ Use `dot` as the canonical workflow command instead of raw `stow` for normal ope
 - Preserve existing unrelated changes in dirty worktrees.
 - If private repo access is unavailable, continue with public-safe steps and clearly report what private actions were skipped.
 
+## Split Worktree Documentation Rules
+
+- The current desktop/laptop split worktree repo is `hypr`.
+- Laptop worktree: `~/.config/hypr` on branch `laptop`.
+- Desktop worktree: `~/.config/hypr-desktop` on branch `desktop`.
+- When changing split-worktree layout or guidance, update the relevant `README.md`, `AGENTS.md`, and skill documentation together.
+- Repos that use desktop/laptop worktrees should have their own `README.md` and `AGENTS.md` that explicitly state the worktree arrangement and the requirement to keep related documentation in sync when it changes.
+
 ## Suggested Execution Flow
 
 1. Identify the live target path from the request.
