@@ -959,7 +959,7 @@ cmd_diff_status() {
 
   diff_collect_attention_with_fetch "$fetch_upstream"
 
-  local text tooltip class json_tip only_extra_repos only_pulls_wanted
+  local text tooltip class json_tip only_extra_repos only_pulls_wanted only_extra_worktree_changes
   local issues="${DIFF_ATTENTION_ISSUES:-0}"
   local -a segments=("${DIFF_ATTENTION_SEGMENTS[@]}")
 
@@ -972,6 +972,7 @@ cmd_diff_status() {
     tooltip='Repositories with changes pending: '
     only_extra_repos=1
     only_pulls_wanted=1
+    only_extra_worktree_changes=1
     local i=0
     local seg
     for seg in "${segments[@]}"; do
@@ -985,9 +986,12 @@ cmd_diff_status() {
     if [[ "$DIFF_ATTENTION_HAS_DIRTY" -eq 1 ]] || [[ "$DIFF_ATTENTION_HAS_AHEAD" -eq 1 ]] || [[ "$DIFF_ATTENTION_HAS_BEHIND" -ne 1 ]]; then
       only_pulls_wanted=0
     fi
+    if [[ "$DIFF_ATTENTION_HAS_DIRTY" -ne 1 ]] || [[ "$DIFF_ATTENTION_HAS_AHEAD" -eq 1 ]] || [[ "$DIFF_ATTENTION_HAS_BEHIND" -eq 1 ]]; then
+      only_extra_worktree_changes=0
+    fi
     if [[ "$only_pulls_wanted" -eq 1 ]]; then
       class='dots-pull-only'
-    elif [[ "$only_extra_repos" -eq 1 ]]; then
+    elif [[ "$only_extra_repos" -eq 1 ]] && [[ "$only_extra_worktree_changes" -eq 1 ]]; then
       class='dots-extra-only'
     else
       class='dots-attention'
