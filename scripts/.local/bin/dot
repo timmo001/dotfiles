@@ -18,6 +18,8 @@ INCLUDE_OMARCHY_UPDATE_REPOS="${DOT_INCLUDE_OMARCHY_UPDATE_REPOS:-1}"
 INIT_NONINTERACTIVE="${DOT_INIT_NONINTERACTIVE:-0}"
 DOT_AGENTS_SYNC_ON_UPDATE="${DOT_AGENTS_SYNC_ON_UPDATE:-1}"
 DOT_MEMORY_ON_AGENTS_SYNC="${DOT_MEMORY_ON_AGENTS_SYNC:-1}"
+DOT_FETCH_TTL_SECONDS="${DOT_FETCH_TTL_SECONDS:-300}"
+DOT_FETCH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dot/fetch-upstream"
 
 OMARCHY_REPO_BASE="${OMARCHY_REPO_BASE_DIR:-$HOME/.config}"
 OMARCHY_DIFF_REPOS=(hypr waybar bootstrap ghostty uwsm)
@@ -266,6 +268,11 @@ fetch_repo_upstream() {
   local upstream_ref
   local remote_name
   local remote_branch
+  local cache_key=''
+  local cache_file=''
+  local now
+  local last_attempt=''
+  local ttl_seconds="$DOT_FETCH_TTL_SECONDS"
 
   if ! git -C "$repo_dir" rev-parse '@{u}' >/dev/null 2>&1; then
     return 1
@@ -278,9 +285,34 @@ fetch_repo_upstream() {
 
   remote_name="${upstream_ref%%/*}"
   remote_branch="${upstream_ref#*/}"
+  now="$(date +%s)"
 
-  git -C "$repo_dir" fetch --quiet "$remote_name" "$remote_branch" >/dev/null 2>&1 \
-    || git -C "$repo_dir" fetch --quiet "$remote_name" >/dev/null 2>&1
+  if [[ "$ttl_seconds" =~ ^[0-9]+$ ]] && (( ttl_seconds > 0 )); then
+    mkdir -p "$DOT_FETCH_CACHE_DIR" >/dev/null 2>&1 || true
+    cache_key="$(printf '%s\n%s\n' "$repo_dir" "$upstream_ref" | sha1sum | awk '{print $1}')"
+    cache_file="$DOT_FETCH_CACHE_DIR/$cache_key"
+
+    if [[ -r "$cache_file" ]]; then
+      last_attempt="$(< "$cache_file")"
+      if [[ "$last_attempt" =~ ^[0-9]+$ ]] && (( now - last_attempt < ttl_seconds )); then
+        return 0
+      fi
+    fi
+  fi
+
+  if git -C "$repo_dir" fetch --quiet "$remote_name" "$remote_branch" >/dev/null 2>&1 \
+    || git -C "$repo_dir" fetch --quiet "$remote_name" >/dev/null 2>&1; then
+    if [[ -n "$cache_file" ]]; then
+      printf '%s\n' "$now" > "$cache_file" 2>/dev/null || true
+    fi
+    return 0
+  fi
+
+  if [[ -n "$cache_file" ]]; then
+    printf '%s\n' "$now" > "$cache_file" 2>/dev/null || true
+  fi
+
+  return 1
 }
 
 # Populates DIFF_ATTENTION_ISSUES and DIFF_ATTENTION_SEGMENTS (same rules as `dot diff --waybar`).
@@ -1717,6 +1749,7 @@ cmd_help() {
   printf "$fmt_env" 'DOT_BOOTSTRAP_BRANCH' 'Branch for bootstrap repo (default: distro/omarchy)'
   printf "$fmt_env" 'DOT_INCLUDE_OMARCHY_DIFF_REPOS' '1|0 include omarchy repos in diff (default: 1)'
   printf "$fmt_env" 'DOT_INCLUDE_OMARCHY_UPDATE_REPOS' '1|0 include omarchy repos in update pull (default: 1)'
+  printf "$fmt_env" 'DOT_FETCH_TTL_SECONDS' 'Seconds to reuse the last upstream fetch result in diff commands (default: 300)'
   printf "$fmt_env" 'DOT_INIT_NONINTERACTIVE' '1|0 skip init questionnaire (default: 0)'
   printf "$fmt_env" 'DOT_AGENTS_SYNC_SOURCE' 'Path to AGENTS.md to mirror (default ~/.opencode/AGENTS.md)'
   printf "$fmt_env" 'DOT_AGENTS_SYNC_RULE_FILE' 'Cursor rule file path (default: $DOTFILES_PRIVATE_DIR/agents/.cursor/rules/global-agents.mdc)'

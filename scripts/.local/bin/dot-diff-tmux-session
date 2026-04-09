@@ -5,6 +5,7 @@ set -euo pipefail
 DOT_BIN="${DOT_BIN:-$HOME/.config/dotfiles/scripts/.local/bin/dot}"
 TMUX_BIN="${TMUX_BIN:-/usr/bin/tmux}"
 POPUP_LOADING_BIN="${POPUP_LOADING_BIN:-$HOME/.local/bin/popup-loading}"
+DOT_DIFF_CACHE_FILE="${DOT_DIFF_CACHE_FILE:-${XDG_CACHE_HOME:-$HOME/.cache}/waybar/dot-diff-waybar.json}"
 MODE="${1:-changed}"
 SESSION="dot"
 window_names=()
@@ -37,6 +38,56 @@ hide_popup() {
   fi
 }
 
+trim_whitespace() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s' "$value"
+}
+
+load_changed_repos_from_waybar_cache() {
+  local cache_json tooltip line name path raw_segment segment
+  local -a cached_segments=()
+
+  [[ -s "$DOT_DIFF_CACHE_FILE" ]] || return 1
+
+  cache_json="$(< "$DOT_DIFF_CACHE_FILE")"
+  [[ "$cache_json" == *'"class":"dots-unknown"'* ]] && return 1
+
+  if [[ "$cache_json" == *'"class":"dots-ok"'* ]]; then
+    return 0
+  fi
+
+  tooltip="${cache_json#*\"tooltip\":\"}"
+  [[ "$tooltip" != "$cache_json" ]] || return 1
+  tooltip="${tooltip%%\",\"class\":\"*}"
+
+  if [[ "$tooltip" == 'Repositories with changes pending: '* ]]; then
+    tooltip="${tooltip#Repositories with changes pending: }"
+  else
+    return 1
+  fi
+
+  IFS=';'
+  read -r -a cached_segments <<< "$tooltip"
+  unset IFS
+
+  while IFS='|' read -r name path; do
+    [[ -z "$name" || -z "$path" ]] && continue
+
+    for raw_segment in "${cached_segments[@]}"; do
+      segment="$(trim_whitespace "$raw_segment")"
+      if [[ "$segment" == "$name" ]]; then
+        window_names+=("${name#*:}")
+        window_paths+=("$path")
+        break
+      fi
+    done
+  done < <("$DOT_BIN" diff --list-all)
+
+  return 0
+}
+
 trap hide_popup EXIT
 
 case "$MODE" in
@@ -54,18 +105,27 @@ esac
 
 if [[ "$MODE" == "changed" ]]; then
   show_popup "Checking changed dot repos..."
+  if ! load_changed_repos_from_waybar_cache; then
+    while IFS='|' read -r name path; do
+      if [[ -z "$name" || -z "$path" ]]; then
+        continue
+      fi
+
+      window_names+=("${name#*:}")
+      window_paths+=("$path")
+    done < <("$DOT_BIN" diff "$diff_arg")
+  fi
 else
   show_popup "Listing all dot repos..."
+  while IFS='|' read -r name path; do
+    if [[ -z "$name" || -z "$path" ]]; then
+      continue
+    fi
+
+    window_names+=("${name#*:}")
+    window_paths+=("$path")
+  done < <("$DOT_BIN" diff "$diff_arg")
 fi
-
-while IFS='|' read -r name path; do
-  if [[ -z "$name" || -z "$path" ]]; then
-    continue
-  fi
-
-  window_names+=("${name#*:}")
-  window_paths+=("$path")
-done < <("$DOT_BIN" diff "$diff_arg")
 
 if [[ ${#window_names[@]} -eq 0 ]]; then
   update_popup "No dot repos to open."
