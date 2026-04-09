@@ -280,6 +280,23 @@ public_arch_package_present() {
   esac
 }
 
+public_arch_package_label() {
+  local package_name="$1"
+
+  case "$package_name" in
+    go-automate-git)
+      if package_installed 'go-automate'; then
+        printf 'go-automate\n'
+      else
+        printf '%s\n' "$package_name"
+      fi
+      ;;
+    *)
+      printf '%s\n' "$package_name"
+      ;;
+  esac
+}
+
 collect_missing_public_arch_packages() {
   local package_name
 
@@ -1766,11 +1783,14 @@ cmd_doctor() {
   report_package_status() {
     local package_name="$1"
     local install_hint="$2"
+    local display_name
+
+    display_name="$(public_arch_package_label "$package_name")"
 
     if public_arch_package_present "$package_name"; then
-      log_info "$package_name is installed"
+      log_info "$display_name is installed"
     else
-      log_warn "$package_name is missing"
+      log_warn "$display_name is missing"
       if [[ -n "$install_hint" ]]; then
         log_warn "Install hint: $install_hint"
       fi
