@@ -41,6 +41,16 @@ DIFF_ATTENTION_HAS_BEHIND=0
 
 PRIVATE_REASON=""
 
+PUBLIC_ARCH_PACKAGES=(system-bridge go-automate-git)
+MISSING_PUBLIC_ARCH_PACKAGES=()
+
+DOT_PRIVATE_BROWSER_CHECKS_FILE_DEFAULT="$PRIVATE_DOTFILES/.dot-browser-checks"
+DOT_PRIVATE_BROWSER_CHECKS_FILE="${DOT_PRIVATE_BROWSER_CHECKS_FILE:-$DOT_PRIVATE_BROWSER_CHECKS_FILE_DEFAULT}"
+
+INIT_SELECTED_OMARCHY_BRANCH=''
+INIT_RUN_BOOTSTRAP=0
+INIT_INSTALL_PUBLIC_ARCH_PACKAGES=1
+
 if [[ -n "${FORCE_COLOR:-}" ]] || [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
   DOT_RED=$'\033[31m'
   DOT_GREEN=$'\033[32m'
@@ -217,6 +227,167 @@ expand_home_path() {
   fi
 
   printf '%s\n' "$path"
+}
+
+is_interactive_terminal() {
+  [[ -t 0 && -t 1 ]]
+}
+
+confirm_action() {
+  local prompt="$1"
+  local response=''
+
+  if ! is_interactive_terminal; then
+    return 1
+  fi
+
+  if has_cmd gum; then
+    gum confirm "$prompt"
+    return $?
+  fi
+
+  printf '%s [y/N] ' "$prompt" > /dev/tty
+  if ! read -r response < /dev/tty; then
+    return 1
+  fi
+
+  case "${response,,}" in
+    y|yes)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+package_installed() {
+  local package_name="$1"
+
+  has_cmd pacman && pacman -Q "$package_name" >/dev/null 2>&1
+}
+
+collect_missing_public_arch_packages() {
+  local package_name
+
+  MISSING_PUBLIC_ARCH_PACKAGES=()
+
+  if ! has_cmd pacman; then
+    return 0
+  fi
+
+  for package_name in "${PUBLIC_ARCH_PACKAGES[@]}"; do
+    if ! package_installed "$package_name"; then
+      MISSING_PUBLIC_ARCH_PACKAGES+=("$package_name")
+    fi
+  done
+}
+
+install_yay_packages() {
+  local confirm="${1:-false}"
+  shift || true
+  local -a install_flags=(--needed --noconfirm)
+
+  if [[ $# -eq 0 ]]; then
+    return 0
+  fi
+
+  if [[ "$confirm" == 'true' ]]; then
+    install_flags=(--needed)
+  fi
+
+  yay -S "${install_flags[@]}" "$@"
+}
+
+install_missing_public_arch_packages() {
+  local confirm="${1:-false}"
+
+  collect_missing_public_arch_packages
+
+  if [[ "${#MISSING_PUBLIC_ARCH_PACKAGES[@]}" -eq 0 ]]; then
+    log_info 'Public Arch packages already installed'
+    return 0
+  fi
+
+  if ! has_cmd yay; then
+    log_warn 'Cannot install missing public Arch packages automatically (yay not found)'
+    return 0
+  fi
+
+  log_info "Installing missing public Arch packages: ${MISSING_PUBLIC_ARCH_PACKAGES[*]}"
+  install_yay_packages "$confirm" "${MISSING_PUBLIC_ARCH_PACKAGES[@]}"
+}
+
+chromium_extension_id_installed() {
+  local profile_dir="$1"
+  local extension_id="$2"
+  local -a manifests=()
+
+  shopt -s nullglob
+  manifests=("$profile_dir/Extensions/$extension_id"/*/manifest.json)
+  shopt -u nullglob
+
+  [[ "${#manifests[@]}" -gt 0 ]]
+}
+
+chromium_extension_name_installed() {
+  local profile_dir="$1"
+  local expected_name="$2"
+  local manifest_path
+
+  shopt -s nullglob
+  for manifest_path in "$profile_dir"/Extensions/*/*/manifest.json; do
+    [[ -f "$manifest_path" ]] || continue
+    if grep -Fq "\"name\": \"$expected_name\"" "$manifest_path"; then
+      shopt -u nullglob
+      return 0
+    fi
+  done
+  shopt -u nullglob
+
+  return 1
+}
+
+run_private_browser_checks() {
+  local report_fn="$1"
+  local config_file="$DOT_PRIVATE_BROWSER_CHECKS_FILE"
+  local raw_line
+  local line
+  local kind
+  local profile_dir
+  local target
+  local label
+  local hint
+
+  if [[ ! -f "$config_file" ]] || [[ ! -r "$config_file" ]]; then
+    return 0
+  fi
+
+  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
+    line="$(trim_whitespace "$raw_line")"
+    [[ -z "$line" || "${line:0:1}" == '#' ]] && continue
+
+    IFS='|' read -r kind profile_dir target label hint <<< "$line"
+    kind="$(trim_whitespace "$kind")"
+    profile_dir="$(expand_home_path "$(trim_whitespace "$profile_dir")")"
+    target="$(trim_whitespace "$target")"
+    label="$(trim_whitespace "$label")"
+    hint="$(trim_whitespace "$hint")"
+
+    [[ -z "$kind" || -z "$profile_dir" || -z "$target" || -z "$label" ]] && continue
+
+    case "$kind" in
+      chromium-id)
+        "$report_fn" "$label" "$hint" chromium_extension_id_installed "$profile_dir" "$target"
+        ;;
+      chromium-name)
+        "$report_fn" "$label" "$hint" chromium_extension_name_installed "$profile_dir" "$target"
+        ;;
+      *)
+        log_warn "Ignoring unknown browser check type '$kind' in $(display_path "$config_file")"
+        ;;
+    esac
+  done < "$config_file"
 }
 
 PRIVATE_EXTRA_REPO_NAMES=()
@@ -865,8 +1036,9 @@ discover_omarchy_branches() {
 run_init_questionnaire() {
   INIT_SELECTED_OMARCHY_BRANCH="$OMARCHY_BRANCH"
   INIT_RUN_BOOTSTRAP=0
+  INIT_INSTALL_PUBLIC_ARCH_PACKAGES=1
 
-  if is_truthy "$INIT_NONINTERACTIVE" || [[ ! -t 0 || ! -t 1 ]]; then
+  if is_truthy "$INIT_NONINTERACTIVE" || ! is_interactive_terminal; then
     return 0
   fi
 
@@ -890,6 +1062,15 @@ run_init_questionnaire() {
   if has_cmd gum; then
     if gum confirm 'Would you like to run bootstrap init now?'; then
       INIT_RUN_BOOTSTRAP=1
+    fi
+  fi
+
+  collect_missing_public_arch_packages
+  if [[ "${#MISSING_PUBLIC_ARCH_PACKAGES[@]}" -gt 0 ]]; then
+    if confirm_action "Install missing public Arch packages (${MISSING_PUBLIC_ARCH_PACKAGES[*]}) now?"; then
+      INIT_INSTALL_PUBLIC_ARCH_PACKAGES=1
+    else
+      INIT_INSTALL_PUBLIC_ARCH_PACKAGES=0
     fi
   fi
 }
@@ -1348,11 +1529,44 @@ run_setup_packages() {
   log_info 'Installed init prerequisites only.'
 }
 
+run_init_public_package_installs() {
+  local confirm=false
+
+  if [[ "${INIT_INSTALL_PUBLIC_ARCH_PACKAGES:-1}" != '1' ]]; then
+    collect_missing_public_arch_packages
+    if [[ "${#MISSING_PUBLIC_ARCH_PACKAGES[@]}" -gt 0 ]]; then
+      log_warn "Skipping public Arch package install (${MISSING_PUBLIC_ARCH_PACKAGES[*]})"
+    fi
+    return 0
+  fi
+
+  if [[ "${#MISSING_PUBLIC_ARCH_PACKAGES[@]}" -eq 0 ]]; then
+    collect_missing_public_arch_packages
+  fi
+
+  if [[ "${#MISSING_PUBLIC_ARCH_PACKAGES[@]}" -eq 0 ]]; then
+    return 0
+  fi
+
+  if ! has_cmd yay; then
+    log_warn 'Skipping public Arch package install (yay not found)'
+    return 0
+  fi
+
+  if [[ "${1:-}" == '--confirm' ]]; then
+    confirm=true
+  fi
+
+  log_section 'Install public Arch packages'
+  install_missing_public_arch_packages "$confirm"
+}
+
 cmd_init() {
   local -a sync_args=()
   local -a setup_args=()
   local branch_override=''
   local has_branch_override=0
+  local setup_confirm=false
   local prev_noninteractive="$INIT_NONINTERACTIVE"
   local prev_omarchy_branch="$OMARCHY_BRANCH"
 
@@ -1362,6 +1576,7 @@ cmd_init() {
     case "$1" in
       --confirm)
         setup_args+=("$1")
+        setup_confirm=true
         ;;
       --noninteractive)
         INIT_NONINTERACTIVE=1
@@ -1416,6 +1631,11 @@ cmd_init() {
   omarchy_sync_repos "${sync_args[@]}"
   run_bootstrap_init_if_requested
   run_setup_packages "${setup_args[@]}"
+  if [[ "$setup_confirm" == 'true' ]]; then
+    run_init_public_package_installs --confirm
+  else
+    run_init_public_package_installs
+  fi
   install_public_dotfiles
 
   if can_use_private; then
@@ -1530,6 +1750,43 @@ cmd_doctor() {
   local issues=0
   local warnings=0
 
+  report_package_status() {
+    local package_name="$1"
+    local install_hint="$2"
+
+    if package_installed "$package_name"; then
+      log_info "$package_name is installed"
+    else
+      log_warn "$package_name is missing"
+      if [[ -n "$install_hint" ]]; then
+        log_warn "Install hint: $install_hint"
+      fi
+      warnings=$((warnings + 1))
+    fi
+  }
+
+  report_chromium_extension_status() {
+    local extension_label="$1"
+    local install_hint="$2"
+    local checker="$3"
+    local profile_dir="$4"
+    shift 4
+
+    if [[ ! -d "$profile_dir" ]]; then
+      log_warn "Chromium profile not found: $(display_path "$profile_dir")"
+      warnings=$((warnings + 1))
+      return 0
+    fi
+
+    if "$checker" "$profile_dir" "$@"; then
+      log_info "$extension_label is installed in $(display_path "$profile_dir")"
+    else
+      log_warn "$extension_label is missing from $(display_path "$profile_dir")"
+      log_warn "$install_hint"
+      warnings=$((warnings + 1))
+    fi
+  }
+
   log_section 'Dependency checks'
 
   require_cmd() {
@@ -1569,6 +1826,10 @@ cmd_doctor() {
       warnings=$((warnings + 1))
     fi
   fi
+
+  log_section 'Public package checks'
+  report_package_status 'system-bridge' 'yay -S system-bridge'
+  report_package_status 'go-automate-git' 'yay -S go-automate-git'
 
   if [[ -d "$PUBLIC_DOTFILES" ]]; then
     log_section 'Repository checks'
@@ -1666,6 +1927,13 @@ cmd_doctor() {
     log_warn "Private repo disabled ($PRIVATE_REASON)"
   fi
 
+  log_section 'Browser extension checks'
+  if can_use_private; then
+    run_private_browser_checks report_chromium_extension_status
+  else
+    log_warn "Skipping browser extension checks ($PRIVATE_REASON)"
+  fi
+
   if [[ $issues -eq 0 ]]; then
     if [[ $warnings -eq 0 ]]; then
       log_info 'Doctor finished: no critical issues found'
@@ -1733,7 +2001,7 @@ cmd_help() {
   printf "$fmt_cmd" 'setup' 'Install packages (supports: --confirm)'
   printf "$fmt_cmd" 'install' 'Backup/adopt and install public/private dotfiles'
   printf "$fmt_cmd" 'clean' 'Unstow private then public dotfiles'
-  printf "$fmt_cmd" 'doctor' 'Check dependencies and repo availability'
+  printf "$fmt_cmd" 'doctor' 'Check dependencies, repos, public packages, and Chromium extensions'
   printf "$fmt_cmd" 'agents-sync' 'Run dot memory then write global-agents.mdc (default: dotfiles-private agents/.cursor/rules/)'
   printf "$fmt_cmd" 'help' 'Show this help'
 
