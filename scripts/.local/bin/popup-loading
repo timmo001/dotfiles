@@ -10,14 +10,23 @@ import subprocess
 import sys
 import threading
 import time
+import tomllib
 
 
 APP_ID = "dev.aidan.popup-loading"
 DEFAULT_MESSAGE = "Loading..."
-CARD_WIDTH = 420
+CARD_WIDTH = 360
 CARD_HEIGHT_ESTIMATE = 92
 SOCKET_NAME = "popup-loading.sock"
 LOCK_NAME = "popup-loading.lock"
+OMARCHY_THEME_PATH = Path(
+    os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))
+) / "omarchy/current/theme/colors.toml"
+DEFAULT_THEME = {
+    "foreground": "#ffffff",
+    "background": "#0d0d0d",
+    "accent": "#8d8d8d",
+}
 USAGE = """Usage:
   popup-loading show [message...]
   popup-loading hide
@@ -77,29 +86,63 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Gtk4LayerShell", "1.0")
 
 from gi.repository import Gdk, GLib, Gtk, Gtk4LayerShell, Pango
-CSS = b"""
-.popup-loading-window {
+
+
+def _hex_to_rgba(color: str, alpha: float) -> str:
+    color = color.lstrip("#")
+
+    if len(color) != 6:
+        return f"rgba(13, 13, 13, {alpha})"
+
+    red = int(color[0:2], 16)
+    green = int(color[2:4], 16)
+    blue = int(color[4:6], 16)
+    return f"rgba({red}, {green}, {blue}, {alpha})"
+
+
+def load_theme_colors() -> dict[str, str]:
+    theme = DEFAULT_THEME.copy()
+
+    try:
+        with OMARCHY_THEME_PATH.open("rb") as theme_file:
+            data = tomllib.load(theme_file)
+    except (FileNotFoundError, OSError, tomllib.TOMLDecodeError):
+        return theme
+
+    for key in theme:
+        value = data.get(key)
+
+        if isinstance(value, str) and value.startswith("#"):
+            theme[key] = value
+
+    return theme
+
+
+def build_css(theme: dict[str, str]) -> bytes:
+    return f"""
+.popup-loading-window {{
   background: transparent;
-}
+}}
 
-.popup-loading-card {
-  background: rgba(18, 20, 28, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 18px;
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
-  padding: 18px 22px;
-}
+.popup-loading-card {{
+  background: {_hex_to_rgba(theme['background'], 0.84)};
+  border: none;
+  border-radius: 12px;
+  box-shadow: none;
+  padding: 12px 16px;
+}}
 
-.popup-loading-message {
-  color: #f5f7fa;
-  font-size: 15px;
+.popup-loading-message {{
+  color: {theme['foreground']};
+  font-family: "JetBrains Mono NF";
+  font-size: 16px;
   font-weight: 600;
-}
+}}
 
-.popup-loading-spinner {
-  color: #8fd3ff;
-}
-"""
+.popup-loading-spinner {{
+  color: {theme['foreground']};
+}}
+""".encode("utf-8")
 
 
 def runtime_dir() -> Path:
@@ -258,7 +301,7 @@ class PopupLoadingApp(Gtk.Application):
             return
 
         self.css_provider = Gtk.CssProvider()
-        self.css_provider.load_from_data(CSS)
+        self.css_provider.load_from_data(build_css(load_theme_colors()))
         Gtk.StyleContext.add_provider_for_display(
             display,
             self.css_provider,
