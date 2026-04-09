@@ -267,6 +267,19 @@ package_installed() {
   has_cmd pacman && pacman -Q "$package_name" >/dev/null 2>&1
 }
 
+public_arch_package_present() {
+  local package_name="$1"
+
+  case "$package_name" in
+    go-automate-git)
+      package_installed 'go-automate-git' || package_installed 'go-automate'
+      ;;
+    *)
+      package_installed "$package_name"
+      ;;
+  esac
+}
+
 collect_missing_public_arch_packages() {
   local package_name
 
@@ -277,7 +290,7 @@ collect_missing_public_arch_packages() {
   fi
 
   for package_name in "${PUBLIC_ARCH_PACKAGES[@]}"; do
-    if ! package_installed "$package_name"; then
+    if ! public_arch_package_present "$package_name"; then
       MISSING_PUBLIC_ARCH_PACKAGES+=("$package_name")
     fi
   done
@@ -1754,7 +1767,7 @@ cmd_doctor() {
     local package_name="$1"
     local install_hint="$2"
 
-    if package_installed "$package_name"; then
+    if public_arch_package_present "$package_name"; then
       log_info "$package_name is installed"
     else
       log_warn "$package_name is missing"
