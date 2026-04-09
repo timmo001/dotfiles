@@ -902,7 +902,7 @@ cmd_diff_status() {
 
   diff_collect_attention
 
-  local text tooltip class json_tip
+  local text tooltip class json_tip only_extra_repos
   local issues="${DIFF_ATTENTION_ISSUES:-0}"
   local -a segments=("${DIFF_ATTENTION_SEGMENTS[@]}")
 
@@ -913,14 +913,22 @@ cmd_diff_status() {
   else
     text=" ${issues}"
     tooltip='Repositories with changes pending: '
+    only_extra_repos=1
     local i=0
     local seg
     for seg in "${segments[@]}"; do
       [[ $i -gt 0 ]] && tooltip+='; '
       tooltip+="$seg"
+      if [[ "$seg" != extra:* ]]; then
+        only_extra_repos=0
+      fi
       i=$((i + 1))
     done
-    class='dots-attention'
+    if [[ "$only_extra_repos" -eq 1 ]]; then
+      class='dots-extra-only'
+    else
+      class='dots-attention'
+    fi
   fi
 
   json_tip="$(_diff_status_json_escape "$tooltip")"
