@@ -16,7 +16,7 @@ notify_no_changed_repos() {
   if command -v notify-send >/dev/null 2>&1; then
     notify-send \
       'Dot diff' \
-      'No repositories have changes. Right click the indicator or use the keybind to open all tracked repositories.' \
+      'No repositories have changes. Right click the indicator or press Ctrl+Alt+Shift+R to open all tracked repositories.' \
       >/dev/null 2>&1 || true
   fi
 }
