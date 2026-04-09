@@ -4,10 +4,40 @@ set -euo pipefail
 
 DOT_BIN="${DOT_BIN:-$HOME/.config/dotfiles/scripts/.local/bin/dot}"
 TMUX_BIN="${TMUX_BIN:-/usr/bin/tmux}"
+POPUP_LOADING_BIN="${POPUP_LOADING_BIN:-$HOME/.local/bin/popup-loading}"
 MODE="${1:-changed}"
 SESSION="dot"
 window_names=()
 window_paths=()
+popup_visible=0
+
+show_popup() {
+  local message="${1:-Loading dot diff session...}"
+
+  if [[ -x "$POPUP_LOADING_BIN" ]]; then
+    "$POPUP_LOADING_BIN" show "$message" >/dev/null 2>&1 || true
+    popup_visible=1
+  fi
+}
+
+update_popup() {
+  local message="$1"
+
+  if [[ "$popup_visible" -eq 1 && -x "$POPUP_LOADING_BIN" ]]; then
+    "$POPUP_LOADING_BIN" show "$message" >/dev/null 2>&1 || true
+  else
+    show_popup "$message"
+  fi
+}
+
+hide_popup() {
+  if [[ "$popup_visible" -eq 1 && -x "$POPUP_LOADING_BIN" ]]; then
+    "$POPUP_LOADING_BIN" hide >/dev/null 2>&1 || true
+    popup_visible=0
+  fi
+}
+
+trap hide_popup EXIT
 
 case "$MODE" in
   changed)
@@ -22,6 +52,12 @@ case "$MODE" in
     ;;
 esac
 
+if [[ "$MODE" == "changed" ]]; then
+  show_popup "Checking changed dot repos..."
+else
+  show_popup "Listing all dot repos..."
+fi
+
 while IFS='|' read -r name path; do
   if [[ -z "$name" || -z "$path" ]]; then
     continue
@@ -32,23 +68,34 @@ while IFS='|' read -r name path; do
 done < <("$DOT_BIN" diff "$diff_arg")
 
 if [[ ${#window_names[@]} -eq 0 ]]; then
+  update_popup "No dot repos to open."
   exit 0
 fi
 
+repo_count=${#window_names[@]}
+
 if "$TMUX_BIN" has-session -t "$SESSION" 2>/dev/null; then
   clients=()
+  update_popup "Found existing tmux dot session. Checking for attached clients..."
   if mapfile -t clients < <("$TMUX_BIN" list-clients -t "$SESSION" -F '#{client_tty}' 2>/dev/null) && [[ ${#clients[@]} -gt 0 ]]; then
+    update_popup "Opening existing tmux dot session..."
+    hide_popup
     uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal "$TMUX_BIN" attach-session -t "$SESSION"
     exit 0
   fi
 
+  update_popup "Resetting stale tmux dot session..."
   "$TMUX_BIN" kill-session -t "$SESSION"
 fi
 
+update_popup "Creating tmux dot session for ${repo_count} repo(s)..."
 first=1
 for i in "${!window_names[@]}"; do
   win="${window_names[$i]}"
   path="${window_paths[$i]}"
+  current_index=$((i + 1))
+
+  update_popup "Preparing ${win} (${current_index}/${repo_count})..."
   if [[ $first -eq 1 ]]; then
     "$TMUX_BIN" new-session -d -s "$SESSION" -n "$win" -c "$path"
     first=0
@@ -61,4 +108,6 @@ if [[ $first -eq 1 ]]; then
   exit 0
 fi
 
+update_popup "Opening tmux dot session..."
+hide_popup
 uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal "$TMUX_BIN" attach-session -t "$SESSION"
