@@ -14,7 +14,7 @@ Follow these steps:
 2. Use 'gh pr diff' to see all the changes in the PR.
 3. Use 'gh pr checks' to see the status of CI checks.
     - There may be warnings in the checks (linters etc.) which are not treated as errors. Provide recommendations for how to fix the warnings.
-    - Tip: Use 'gh pr checks --watch' to wait for checks to complete. When using subagents, this can run in the background while continuing other work.
+    - Do not use 'gh pr checks --watch' unless the user explicitly asks you to watch or wait for checks to complete.
 4. Analyze the code changes for:
     - Code quality and style consistency
     - Potential bugs or issues

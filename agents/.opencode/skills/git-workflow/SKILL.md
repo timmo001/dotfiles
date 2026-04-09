@@ -54,6 +54,6 @@ If a PR exists for the branch:
 ```bash
 gh pr view              # Read description
 gh pr checks            # Check CI status, find failing checks
-gh pr checks --watch    # Watch for checks to complete (run in subagent for background monitoring)
+gh pr checks --watch    # Watch for checks only when explicitly requested by the user
 gh pr diff              # See what's in the PR
 ```

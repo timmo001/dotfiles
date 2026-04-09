@@ -40,8 +40,7 @@ gh pr diff <PR_NUMBER>
 # Check CI status (includes linter warnings)
 gh pr checks <PR_NUMBER>
 
-# Watch for checks to complete (use --watch flag)
-# Tip: Run in a subagent to watch in the background while continuing other work
+# Watch for checks only when explicitly requested by the user
 gh pr checks <PR_NUMBER> --watch
 
 # View details of a specific workflow run (logs, status, jobs)
