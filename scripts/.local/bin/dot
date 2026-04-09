@@ -21,8 +21,14 @@ DOT_MEMORY_ON_AGENTS_SYNC="${DOT_MEMORY_ON_AGENTS_SYNC:-1}"
 
 OMARCHY_REPO_BASE="${OMARCHY_REPO_BASE_DIR:-$HOME/.config}"
 OMARCHY_DIFF_REPOS=(bootstrap hypr waybar ghostty uwsm)
+OMARCHY_WORKTREE_REPOS=(hypr waybar)
+OMARCHY_WORKTREE_BRANCHES=(desktop laptop)
+OMARCHY_SINGLE_BRANCH_REPOS=(bootstrap ghostty uwsm)
 OMARCHY_BRANCH="${DOT_OMARCHY_BRANCH:-}"
 BOOTSTRAP_BRANCH="${DOT_BOOTSTRAP_BRANCH:-distro/omarchy}"
+
+OMARCHY_TARGET_NAMES=()
+OMARCHY_TARGET_PATHS=()
 
 PRIVATE_REASON=""
 
@@ -144,6 +150,43 @@ is_truthy() {
   esac
 }
 
+array_contains() {
+  local needle="$1"
+  shift
+  local item
+
+  for item in "$@"; do
+    if [[ "$item" == "$needle" ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+omarchy_repo_is_single_branch() {
+  local repo_name="$1"
+  array_contains "$repo_name" "${OMARCHY_SINGLE_BRANCH_REPOS[@]}"
+}
+
+omarchy_repo_has_worktree_branches() {
+  local repo_name="$1"
+
+  if omarchy_repo_is_single_branch "$repo_name"; then
+    return 1
+  fi
+
+  array_contains "$repo_name" "${OMARCHY_WORKTREE_REPOS[@]}"
+}
+
+omarchy_branch_ref_exists() {
+  local repo_dir="$1"
+  local branch="$2"
+
+  git -C "$repo_dir" show-ref --verify --quiet "refs/heads/$branch" \
+    || git -C "$repo_dir" show-ref --verify --quiet "refs/remotes/origin/$branch"
+}
+
 trim_whitespace() {
   local value="$1"
   value="${value#"${value%%[![:space:]]*}"}"
@@ -233,7 +276,7 @@ fetch_repo_upstream() {
     || git -C "$repo_dir" fetch --quiet "$remote_name" >/dev/null 2>&1
 }
 
-# Populates DIFF_ATTENTION_ISSUES and DIFF_ATTENTION_SEGMENTS (same rules as `dot diff --status`).
+# Populates DIFF_ATTENTION_ISSUES and DIFF_ATTENTION_SEGMENTS (same rules as `dot diff --waybar`).
 _diff_attention_scan_repo() {
   local name="$1"
   local path="$2"
@@ -285,9 +328,10 @@ diff_collect_attention() {
   fi
 
   if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS"; then
-    local om_name
-    for om_name in "${OMARCHY_DIFF_REPOS[@]}"; do
-      _diff_attention_scan_repo "omarchy:${om_name}" "$OMARCHY_REPO_BASE/$om_name"
+    local om_i
+    omarchy_collect_repo_targets
+    for om_i in "${!OMARCHY_TARGET_PATHS[@]}"; do
+      _diff_attention_scan_repo "${OMARCHY_TARGET_NAMES[$om_i]}" "${OMARCHY_TARGET_PATHS[$om_i]}"
     done
   fi
 }
@@ -555,6 +599,113 @@ omarchy_checkout_branch_if_available() {
   fi
 }
 
+omarchy_collect_repo_targets() {
+  local repo_name
+  local repo_path
+  local current_branch
+  local branch_name
+  local worktree_path
+
+  OMARCHY_TARGET_NAMES=()
+  OMARCHY_TARGET_PATHS=()
+
+  for repo_name in "${OMARCHY_DIFF_REPOS[@]}"; do
+    repo_path="$OMARCHY_REPO_BASE/$repo_name"
+    OMARCHY_TARGET_NAMES+=("omarchy:$repo_name")
+    OMARCHY_TARGET_PATHS+=("$repo_path")
+
+    if ! omarchy_repo_has_worktree_branches "$repo_name"; then
+      continue
+    fi
+
+    if ! git -C "$repo_path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      continue
+    fi
+
+    current_branch="$(git -C "$repo_path" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+    for branch_name in "${OMARCHY_WORKTREE_BRANCHES[@]}"; do
+      if [[ "$branch_name" == "$current_branch" ]]; then
+        continue
+      fi
+
+      if ! omarchy_branch_ref_exists "$repo_path" "$branch_name"; then
+        continue
+      fi
+
+      worktree_path="$OMARCHY_REPO_BASE/${repo_name}-${branch_name}"
+      OMARCHY_TARGET_NAMES+=("omarchy:${repo_name}-${branch_name}")
+      OMARCHY_TARGET_PATHS+=("$worktree_path")
+    done
+  done
+}
+
+omarchy_sync_repo_worktrees() {
+  local repo_name="$1"
+  local target_dir="$2"
+  local current_branch
+  local branch_name
+  local worktree_path
+  local worktree_branch
+
+  if ! omarchy_repo_has_worktree_branches "$repo_name"; then
+    if omarchy_repo_is_single_branch "$repo_name"; then
+      log_info "Skipping branch worktree checks for $repo_name (single-branch repo)"
+    fi
+    return 0
+  fi
+
+  if ! git -C "$target_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    return 0
+  fi
+
+  git -C "$target_dir" fetch --quiet origin >/dev/null 2>&1 || true
+  current_branch="$(git -C "$target_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+
+  for branch_name in "${OMARCHY_WORKTREE_BRANCHES[@]}"; do
+    if [[ "$branch_name" == "$current_branch" ]]; then
+      continue
+    fi
+
+    if ! omarchy_branch_ref_exists "$target_dir" "$branch_name"; then
+      log_info "Skipping worktree ${repo_name}-${branch_name} (branch '$branch_name' not found)"
+      continue
+    fi
+
+    worktree_path="$OMARCHY_REPO_BASE/${repo_name}-${branch_name}"
+
+    if git -C "$worktree_path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      worktree_branch="$(git -C "$worktree_path" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+      if [[ "$worktree_branch" != "$branch_name" ]]; then
+        log_warn "Skipping $(display_path "$worktree_path") pull (expected branch '$branch_name', found '$worktree_branch')"
+        continue
+      fi
+
+      safe_pull_repo "omarchy:${repo_name}-${branch_name}" "$worktree_path"
+      continue
+    fi
+
+    if [[ -d "$worktree_path" ]]; then
+      log_warn "Skipping worktree setup for ${repo_name}-${branch_name} (path exists and is not a git worktree): $(display_path "$worktree_path")"
+      continue
+    fi
+
+    log_info "Creating worktree omarchy:${repo_name}-${branch_name} at $(display_path "$worktree_path")"
+    if git -C "$target_dir" show-ref --verify --quiet "refs/heads/$branch_name"; then
+      if ! git -C "$target_dir" worktree add "$worktree_path" "$branch_name" >/dev/null 2>&1; then
+        log_warn "Failed to create worktree for ${repo_name}-${branch_name}"
+        continue
+      fi
+    else
+      if ! git -C "$target_dir" worktree add -b "$branch_name" "$worktree_path" "origin/$branch_name" >/dev/null 2>&1; then
+        log_warn "Failed to create worktree for ${repo_name}-${branch_name} from origin/$branch_name"
+        continue
+      fi
+    fi
+
+    safe_pull_repo "omarchy:${repo_name}-${branch_name}" "$worktree_path"
+  done
+}
+
 omarchy_sync_repo() {
   local repo_name="$1"
   local repo_slug="$2"
@@ -567,17 +718,17 @@ omarchy_sync_repo() {
     if [[ -e "$target_dir/.git" ]] && omarchy_repo_matches_remote "$target_dir" "$repo_slug"; then
       omarchy_checkout_branch_if_available "$repo_name" "$target_dir" "$branch"
       safe_pull_repo "omarchy:$repo_name" "$target_dir"
-      return 0
+    else
+      omarchy_backup_existing_dir "$repo_name" "$target_dir"
+      omarchy_clone_repo "$repo_slug" "$target_dir"
+      omarchy_checkout_branch_if_available "$repo_name" "$target_dir" "$branch"
     fi
-
-    omarchy_backup_existing_dir "$repo_name" "$target_dir"
+  else
     omarchy_clone_repo "$repo_slug" "$target_dir"
     omarchy_checkout_branch_if_available "$repo_name" "$target_dir" "$branch"
-    return 0
   fi
 
-  omarchy_clone_repo "$repo_slug" "$target_dir"
-  omarchy_checkout_branch_if_available "$repo_name" "$target_dir" "$branch"
+  omarchy_sync_repo_worktrees "$repo_name" "$target_dir"
 }
 
 omarchy_sync_repos() {
@@ -1288,6 +1439,10 @@ cmd_doctor() {
     local repo_name
     local repo_path
     local repo_slug
+    local current_branch
+    local branch_name
+    local worktree_path
+    local worktree_branch
 
     for repo_name in "${OMARCHY_DIFF_REPOS[@]}"; do
       repo_path="$OMARCHY_REPO_BASE/$repo_name"
@@ -1305,6 +1460,49 @@ cmd_doctor() {
         log_warn "Missing git repo $(display_path "$repo_path")"
         warnings=$((warnings + 1))
       fi
+    done
+
+    log_section 'Omarchy worktree checks'
+    for repo_name in "${OMARCHY_DIFF_REPOS[@]}"; do
+      repo_path="$OMARCHY_REPO_BASE/$repo_name"
+
+      if ! omarchy_repo_has_worktree_branches "$repo_name"; then
+        if omarchy_repo_is_single_branch "$repo_name"; then
+          log_info "Skipping branch checks for $repo_name (single-branch repo)"
+        fi
+        continue
+      fi
+
+      if ! git -C "$repo_path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        log_warn "Skipping worktree checks for $repo_name (base repo missing): $(display_path "$repo_path")"
+        continue
+      fi
+
+      current_branch="$(git -C "$repo_path" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+      for branch_name in "${OMARCHY_WORKTREE_BRANCHES[@]}"; do
+        if [[ "$branch_name" == "$current_branch" ]]; then
+          continue
+        fi
+
+        if ! omarchy_branch_ref_exists "$repo_path" "$branch_name"; then
+          log_info "Skipping ${repo_name}-${branch_name} check (branch '$branch_name' not found)"
+          continue
+        fi
+
+        worktree_path="$OMARCHY_REPO_BASE/${repo_name}-${branch_name}"
+        if git -C "$worktree_path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+          worktree_branch="$(git -C "$worktree_path" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+          if [[ "$worktree_branch" == "$branch_name" ]]; then
+            log_info "Found $(display_path "$worktree_path") (branch '$branch_name')"
+          else
+            log_warn "Worktree branch mismatch for $(display_path "$worktree_path") (expected '$branch_name', found '$worktree_branch')"
+            warnings=$((warnings + 1))
+          fi
+        else
+          log_warn "Missing worktree $(display_path "$worktree_path") for branch '$branch_name'"
+          warnings=$((warnings + 1))
+        fi
+      done
     done
   fi
 
@@ -1329,9 +1527,8 @@ cmd_doctor() {
 }
 
 cmd_diff() {
-  local repo_name
-  local repo_path
   local i
+  local om_i
 
   log_section 'Diff workflow'
   show_repo_diffs 'public' "$PUBLIC_DOTFILES"
@@ -1353,9 +1550,9 @@ cmd_diff() {
 
   if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS"; then
     log_section 'Omarchy repo diffs'
-    for repo_name in "${OMARCHY_DIFF_REPOS[@]}"; do
-      repo_path="$OMARCHY_REPO_BASE/$repo_name"
-      show_repo_diffs "omarchy:$repo_name" "$repo_path"
+    omarchy_collect_repo_targets
+    for om_i in "${!OMARCHY_TARGET_PATHS[@]}"; do
+      show_repo_diffs "${OMARCHY_TARGET_NAMES[$om_i]}" "${OMARCHY_TARGET_PATHS[$om_i]}"
     done
   else
     log_warn "Skipping Omarchy repo diffs (DOT_INCLUDE_OMARCHY_DIFF_REPOS=$INCLUDE_OMARCHY_DIFF_REPOS)"
@@ -1371,11 +1568,11 @@ cmd_help() {
   printf 'Usage: %s <command> [args]\n\n' "$SCRIPT_NAME"
   printf 'Commands:\n'
   printf "$fmt_cmd" 'init' 'Run questionnaire, sync omarchy repos, setup, install'
-  printf "$fmt_cmd" 'update' 'Pull repos (public, private, notes, extra), stow dotfiles (optional agents-sync + dot memory --soft)'
+  printf "$fmt_cmd" 'update' 'Pull repos (public, private, notes, extra, omarchy worktrees), stow dotfiles (optional agents-sync + dot memory --soft)'
   printf "$fmt_cmd" 'memory' 'Refresh OpenCode durable memory (~/.opencode/AGENTS.md via memory.js --update)'
   printf "$fmt_cmd" 'stow' 'Re-stow public/private dotfiles (no git pull)'
   printf "$fmt_cmd" 'diff' 'Per-repo status + diffs with fetched upstream unpushed/incoming commits'
-  printf "$fmt_cmd" '' 'Options: --status → one-line JSON for Waybar (same checks; no banners)'
+  printf "$fmt_cmd" '' 'Options: --waybar → one-line JSON for Waybar (same checks; no banners)'
   printf "$fmt_cmd" 'setup' 'Install packages (supports: --confirm)'
   printf "$fmt_cmd" 'install' 'Backup/adopt and install public/private dotfiles'
   printf "$fmt_cmd" 'clean' 'Unstow private then public dotfiles'
@@ -1414,7 +1611,7 @@ main() {
   local cmd="${1:-help}"
   shift || true
 
-  if [[ "$cmd" == 'diff' && "${1:-}" == '--status' ]]; then
+  if [[ "$cmd" == 'diff' && "${1:-}" == '--waybar' ]]; then
     cmd_diff_status
     return
   fi

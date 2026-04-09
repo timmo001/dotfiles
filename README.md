@@ -35,10 +35,10 @@ dot doctor
 
 ## Command reference
 
-- `dot init` - questionnaire (when available), Omarchy sync, package setup, then public/private install
-- `dot update` - Omarchy + public/private pull (including optional extra private repos), then stow refresh
+- `dot init` - questionnaire (when available), Omarchy sync (including branch worktree setup like `hypr-desktop`/`waybar-desktop`), package setup, then public/private install
+- `dot update` - Omarchy + public/private pull (including optional extra private repos and Omarchy branch worktrees), then stow refresh
 - `dot stow` - stow refresh only (no git pull)
-- `dot diff` - git status + staged/unstaged summaries with fetched unpushed/incoming commit checks across managed repos (including optional extra private repos)
+- `dot diff` - git status + staged/unstaged summaries with fetched unpushed/incoming commit checks across managed repos (including optional extra private repos and Omarchy branch worktrees); use `dot diff --waybar` for one-line Waybar JSON
 - `dot setup [--confirm]` - package install step only
 - `dot install` - backup/adopt install flow for public/private dotfiles
 - `dot clean` - unstow private then public
