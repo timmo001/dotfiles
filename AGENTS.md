@@ -11,6 +11,14 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - This repo is the public dotfiles source at `~/.config/dotfiles`.
 - Make changes here (not in `~/.config/*` live paths directly).
 - Treat private overlays as optional and separate (`~/.config/dotfiles-private`).
+- Keep personal machine checks, browser extension checks, private package manifests, and other user-specific data in `~/.config/dotfiles-private`; the public repo should only contain the reusable logic that reads those private configs.
+
+## Private Repositories
+
+- Before adding repo-specific logic, paths, or checks to this public repo, determine whether the target repository is public or private.
+- For repository visibility, check the git remote and hosting visibility instead of assuming from the folder name or local path.
+- Keep private repository lists, private package manifests, browser checks, and other machine-specific repo metadata in `~/.config/dotfiles-private`.
+- In this public repo, keep only the shared logic that reads optional private repo config such as `.dot-extra-repos`, `.dot-browser-checks`, or future private package config files.
 
 ## Key Paths
 
