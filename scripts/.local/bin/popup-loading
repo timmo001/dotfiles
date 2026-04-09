@@ -1,0 +1,476 @@
+#!/usr/bin/env python3
+
+import ctypes
+import ctypes.util
+import fcntl
+import json
+import os
+from pathlib import Path
+import socket
+import subprocess
+import sys
+import threading
+import time
+
+
+APP_ID = "dev.aidan.popup-loading"
+DEFAULT_MESSAGE = "Loading..."
+CARD_WIDTH = 420
+CARD_HEIGHT_ESTIMATE = 92
+SOCKET_NAME = "popup-loading.sock"
+LOCK_NAME = "popup-loading.lock"
+USAGE = """Usage:
+  popup-loading show [message...]
+  popup-loading hide
+  popup-loading [message...]
+
+Shows or hides a singleton loading overlay on the focused Hyprland monitor.
+"""
+
+
+def ensure_layer_shell_preloaded() -> None:
+    if os.environ.get("POPUP_LOADING_PRELOADED") == "1":
+        return
+
+    library_path = ctypes.util.find_library("gtk4-layer-shell")
+
+    if library_path is None:
+        for candidate in (
+            "/usr/lib/libgtk4-layer-shell.so",
+            "/usr/lib/libgtk4-layer-shell.so.0",
+        ):
+            if os.path.exists(candidate):
+                library_path = candidate
+                break
+
+    if library_path is None:
+        return
+
+    try:
+        ctypes.CDLL(library_path, mode=os.RTLD_GLOBAL)
+    except OSError:
+        return
+
+    os.environ["POPUP_LOADING_PRELOADED"] = "1"
+
+
+ensure_layer_shell_preloaded()
+
+import gi
+
+gi.require_version("Gdk", "4.0")
+gi.require_version("Gtk", "4.0")
+gi.require_version("Gtk4LayerShell", "1.0")
+
+from gi.repository import Gdk, GLib, Gtk, Gtk4LayerShell, Pango
+CSS = b"""
+.popup-loading-window {
+  background: transparent;
+}
+
+.popup-loading-card {
+  background: rgba(18, 20, 28, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 18px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
+  padding: 18px 22px;
+}
+
+.popup-loading-message {
+  color: #f5f7fa;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.popup-loading-spinner {
+  color: #8fd3ff;
+}
+"""
+
+
+def runtime_dir() -> Path:
+    return Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp"))
+
+
+def socket_path() -> Path:
+    return runtime_dir() / SOCKET_NAME
+
+
+def lock_path() -> Path:
+    return runtime_dir() / LOCK_NAME
+
+
+def print_usage(stream) -> None:
+    stream.write(USAGE)
+
+
+def parse_command(args: list[str]) -> tuple[str, str | None]:
+    if not args:
+        return "show", DEFAULT_MESSAGE
+
+    if args[0] in {"-h", "--help", "help"}:
+        return "help", None
+
+    if args[0] == "hide":
+        if len(args) != 1:
+            raise ValueError("Usage: popup-loading hide")
+        return "hide", None
+
+    if args[0] == "show":
+        message = " ".join(args[1:]).strip() or DEFAULT_MESSAGE
+        return "show", message
+
+    return "show", " ".join(args).strip() or DEFAULT_MESSAGE
+
+
+def send_command(command: str, message: str | None = None) -> bool:
+    payload = {"command": command, "message": message}
+
+    for _ in range(5):
+        try:
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+                client.settimeout(0.25)
+                client.connect(str(socket_path()))
+                client.sendall(json.dumps(payload).encode("utf-8"))
+                client.shutdown(socket.SHUT_WR)
+            return True
+        except OSError:
+            time.sleep(0.05)
+
+    return False
+
+
+def remove_stale_socket() -> None:
+    try:
+        socket_path().unlink()
+    except FileNotFoundError:
+        pass
+
+
+def spawn_daemon(command: str, message: str | None) -> subprocess.Popen[bytes]:
+    script_path = os.path.realpath(__file__)
+    args = [sys.executable, script_path, "--daemon", command]
+
+    if message is not None:
+        args.append(message)
+
+    return subprocess.Popen(
+        args,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        close_fds=True,
+        start_new_session=True,
+    )
+
+
+def wait_for_daemon(proc: subprocess.Popen[bytes]) -> bool:
+    deadline = time.monotonic() + 2.0
+
+    while time.monotonic() < deadline:
+        if socket_path().exists():
+            return True
+
+        if proc.poll() is not None:
+            return False
+
+        time.sleep(0.05)
+
+    return socket_path().exists()
+
+
+class IpcLock:
+    def __init__(self) -> None:
+        self._fd: int | None = None
+
+    def __enter__(self):
+        self._fd = os.open(lock_path(), os.O_CREAT | os.O_RDWR, 0o600)
+        fcntl.flock(self._fd, fcntl.LOCK_EX)
+        return self
+
+    def __exit__(self, exc_type, exc, exc_tb) -> None:
+        if self._fd is None:
+            return
+
+        fcntl.flock(self._fd, fcntl.LOCK_UN)
+        os.close(self._fd)
+        self._fd = None
+
+
+def run_client(command: str, message: str | None) -> int:
+    with IpcLock():
+        if send_command(command, message):
+            return 0
+
+        remove_stale_socket()
+
+        if command == "hide":
+            return 0
+
+        proc = spawn_daemon(command, message)
+
+        if wait_for_daemon(proc):
+            return 0
+
+    print("popup-loading: failed to start overlay daemon", file=sys.stderr)
+    return 1
+
+
+class PopupLoadingApp(Gtk.Application):
+    def __init__(self, initial_command: str, initial_message: str | None) -> None:
+        super().__init__(application_id=APP_ID, flags=0)
+        self.initial_command = initial_command
+        self.initial_message = initial_message
+        self.window: Gtk.ApplicationWindow | None = None
+        self.message_label: Gtk.Label | None = None
+        self.server_socket: socket.socket | None = None
+        self.server_thread: threading.Thread | None = None
+        self.css_provider: Gtk.CssProvider | None = None
+
+    def do_startup(self) -> None:
+        Gtk.Application.do_startup(self)
+        self.hold()
+
+        if not Gtk4LayerShell.is_supported():
+            print("popup-loading: gtk4-layer-shell is not supported in this session", file=sys.stderr)
+            self.quit()
+            return
+
+        display = Gdk.Display.get_default()
+
+        if display is None:
+            print("popup-loading: no graphical display is available", file=sys.stderr)
+            self.quit()
+            return
+
+        self.css_provider = Gtk.CssProvider()
+        self.css_provider.load_from_data(CSS)
+        Gtk.StyleContext.add_provider_for_display(
+            display,
+            self.css_provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+        )
+
+        self._start_ipc_server()
+
+    def do_activate(self) -> None:
+        self._handle_command(self.initial_command, self.initial_message)
+        self.initial_command = "show"
+        self.initial_message = DEFAULT_MESSAGE
+
+    def do_shutdown(self) -> None:
+        self._stop_ipc_server()
+        Gtk.Application.do_shutdown(self)
+
+    def _start_ipc_server(self) -> None:
+        remove_stale_socket()
+        self.server_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.server_socket.bind(str(socket_path()))
+        os.chmod(socket_path(), 0o600)
+        self.server_socket.listen(8)
+        self.server_thread = threading.Thread(target=self._serve_commands, daemon=True)
+        self.server_thread.start()
+
+    def _stop_ipc_server(self) -> None:
+        if self.server_socket is not None:
+            try:
+                self.server_socket.close()
+            except OSError:
+                pass
+            self.server_socket = None
+
+        remove_stale_socket()
+
+    def _serve_commands(self) -> None:
+        while self.server_socket is not None:
+            try:
+                connection, _ = self.server_socket.accept()
+            except OSError:
+                break
+
+            with connection:
+                try:
+                    chunks = []
+
+                    while True:
+                        data = connection.recv(4096)
+
+                        if not data:
+                            break
+
+                        chunks.append(data)
+
+                    payload = json.loads(b"".join(chunks).decode("utf-8") or "{}")
+                except json.JSONDecodeError:
+                    continue
+
+            command = payload.get("command")
+            message = payload.get("message")
+            GLib.idle_add(self._handle_command, command, message)
+
+    def _handle_command(self, command: str | None, message: str | None) -> bool:
+        if command == "hide":
+            self.quit()
+            return False
+
+        self._show_popup(message or DEFAULT_MESSAGE)
+        return False
+
+    def _show_popup(self, message: str) -> None:
+        if self.window is None:
+            self.window = self._build_window()
+
+        self._apply_monitor_target()
+
+        if self.message_label is not None:
+            self.message_label.set_label(message)
+
+        self.window.present()
+
+    def _build_window(self) -> Gtk.ApplicationWindow:
+        window = Gtk.ApplicationWindow(application=self)
+        window.set_title("Loading")
+        window.set_decorated(False)
+        window.set_resizable(False)
+        window.set_focusable(False)
+        window.set_can_target(False)
+        window.add_css_class("popup-loading-window")
+        window.connect("close-request", self._on_close_request)
+
+        Gtk4LayerShell.init_for_window(window)
+        Gtk4LayerShell.set_namespace(window, "popup-loading")
+        Gtk4LayerShell.set_layer(window, Gtk4LayerShell.Layer.OVERLAY)
+        Gtk4LayerShell.set_keyboard_mode(window, Gtk4LayerShell.KeyboardMode.NONE)
+        Gtk4LayerShell.set_anchor(window, Gtk4LayerShell.Edge.TOP, True)
+
+        card = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=14)
+        card.add_css_class("popup-loading-card")
+        card.set_size_request(CARD_WIDTH, -1)
+        card.set_can_target(False)
+
+        spinner = Gtk.Spinner()
+        spinner.add_css_class("popup-loading-spinner")
+        spinner.set_size_request(24, 24)
+        spinner.set_halign(Gtk.Align.CENTER)
+        spinner.set_valign(Gtk.Align.CENTER)
+        spinner.start()
+
+        message_label = Gtk.Label(label=DEFAULT_MESSAGE)
+        message_label.add_css_class("popup-loading-message")
+        message_label.set_xalign(0.0)
+        message_label.set_wrap(True)
+        message_label.set_wrap_mode(Pango.WrapMode.WORD_CHAR)
+        message_label.set_max_width_chars(34)
+        message_label.set_hexpand(True)
+
+        card.append(spinner)
+        card.append(message_label)
+
+        window.set_child(card)
+        self.message_label = message_label
+        return window
+
+    def _apply_monitor_target(self) -> None:
+        if self.window is None:
+            return
+
+        display = Gdk.Display.get_default()
+
+        if display is None:
+            return
+
+        monitor = self._find_focused_monitor(display)
+
+        if monitor is not None:
+            Gtk4LayerShell.set_monitor(self.window, monitor)
+            geometry = monitor.get_geometry()
+            top_margin = max((geometry.height - CARD_HEIGHT_ESTIMATE) // 2, 24)
+        else:
+            top_margin = 160
+
+        Gtk4LayerShell.set_margin(self.window, Gtk4LayerShell.Edge.TOP, top_margin)
+
+    def _find_focused_monitor(self, display: Gdk.Display) -> Gdk.Monitor | None:
+        target_name = None
+        target_description = None
+
+        try:
+            result = subprocess.run(
+                ["hyprctl", "-j", "monitors"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            monitors = json.loads(result.stdout)
+        except (FileNotFoundError, subprocess.CalledProcessError, json.JSONDecodeError):
+            monitors = []
+
+        focused_monitor = next((monitor for monitor in monitors if monitor.get("focused")), None)
+
+        if focused_monitor is not None:
+            target_name = focused_monitor.get("name")
+            target_description = focused_monitor.get("description")
+
+        monitors_model = display.get_monitors()
+
+        for index in range(monitors_model.get_n_items()):
+            monitor = monitors_model.get_item(index)
+
+            if monitor is None:
+                continue
+
+            connector = monitor.get_connector()
+            description = monitor.get_description()
+
+            if target_name and connector == target_name:
+                return monitor
+
+            if target_description and description == target_description:
+                return monitor
+
+        if monitors_model.get_n_items() == 0:
+            return None
+
+        return monitors_model.get_item(0)
+
+    def _on_close_request(self, _window: Gtk.Window) -> bool:
+        self.window = None
+        self.message_label = None
+        self.quit()
+        return False
+
+
+def run_daemon(command: str, message: str | None) -> int:
+    app = PopupLoadingApp(command, message)
+    return app.run([sys.argv[0]])
+
+
+def main(argv: list[str]) -> int:
+    if argv and argv[0] == "--daemon":
+        try:
+            command, message = parse_command(argv[1:])
+        except ValueError as exc:
+            print(exc, file=sys.stderr)
+            return 2
+
+        if command == "help":
+            print_usage(sys.stdout)
+            return 0
+
+        return run_daemon(command, message)
+
+    try:
+        command, message = parse_command(argv)
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+
+    if command == "help":
+        print_usage(sys.stdout)
+        return 0
+
+    return run_client(command, message)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))
