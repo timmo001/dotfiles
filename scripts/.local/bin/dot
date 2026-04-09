@@ -582,6 +582,7 @@ publish_private_package() {
   local runtime_pkg=''
   local artifact
   local -a package_artifacts=()
+  local -a published_runtime_artifacts=()
 
   load_private_package_repo_config || return 1
 
@@ -622,11 +623,25 @@ publish_private_package() {
   fi
 
   log_section "Publish private package: $package_name"
-  rm -f "$PRIVATE_PACKAGE_REPO_PATH/${package_name}-"*.pkg.tar.zst
+  shopt -s nullglob
+  for artifact in "$PRIVATE_PACKAGE_REPO_PATH/${package_name}-"*.pkg.tar.zst; do
+    if [[ "$artifact" == *-debug-* ]]; then
+      continue
+    fi
+    rm -f "$artifact"
+  done
   cp "$runtime_pkg" "$PRIVATE_PACKAGE_REPO_PATH/"
   rm -f "$PRIVATE_PACKAGE_REPO_PATH/${package_name}-debug-"*.pkg.tar.zst
   rm -f "$PRIVATE_PACKAGE_REPO_PATH/"*.old "$PRIVATE_PACKAGE_REPO_PATH/"*.lck
-  repo-add "$PRIVATE_PACKAGE_REPO_PATH/timmo-private.db.tar.gz" "$PRIVATE_PACKAGE_REPO_PATH/"*.pkg.tar.zst
+  for artifact in "$PRIVATE_PACKAGE_REPO_PATH/"*.pkg.tar.zst; do
+    if [[ "$artifact" == *-debug-* ]]; then
+      continue
+    fi
+    published_runtime_artifacts+=("$artifact")
+  done
+  shopt -u nullglob
+
+  repo-add "$PRIVATE_PACKAGE_REPO_PATH/timmo-private.db.tar.gz" "${published_runtime_artifacts[@]}"
   rm -f "$PRIVATE_PACKAGE_REPO_PATH/"*.old "$PRIVATE_PACKAGE_REPO_PATH/"*.lck
 
   log_section 'Sync private package repo mirror'
@@ -2608,7 +2623,7 @@ cmd_diff() {
 }
 
 cmd_help() {
-  local fmt_cmd='  %-14s  %s\n'
+  local fmt_cmd='  %-20s  %s\n'
   local fmt_env='  %-34s%s\n'
   local fmt_init='  %-26s  %s\n'
 
@@ -2625,8 +2640,8 @@ cmd_help() {
   printf "$fmt_cmd" 'setup' 'Install packages (supports: --confirm)'
   printf "$fmt_cmd" 'install' 'Backup/adopt and install public/private dotfiles'
   printf "$fmt_cmd" 'clean' 'Unstow private then public dotfiles'
-  printf "$fmt_cmd" 'doctor' 'Check dependencies, repos, public packages, and Chromium extensions'
-  printf "$fmt_cmd" 'private-pkg-publish' 'Build and publish a private package into timmo-private'
+  printf "$fmt_cmd" 'doctor' 'Check dependencies, repos, package repos, packages, and browser extensions'
+  printf "$fmt_cmd" 'private-pkg-publish' 'Build and publish a mapped private package'
   printf "$fmt_cmd" 'agents-sync' 'Run dot memory then write global-agents.mdc (default: dotfiles-private agents/.cursor/rules/)'
   printf "$fmt_cmd" 'help' 'Show this help'
 
