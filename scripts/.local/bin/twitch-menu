@@ -1,19 +1,76 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-choice="$(printf '%s\n' 'Recheck Twitch notifications' 'Restart Twitch notifications' 'Open all live Twitch autostart channels' 'Open Twitch following live' | omarchy-launch-walker --dmenu --width 295 --minheight 1 --maxheight 630 -p 'Twitch…' 2>/dev/null || true)"
+channels_menu() {
+  local config_file="${XDG_CONFIG_HOME:-$HOME/.config}/twitch-notifications/channels.yml"
+  local status_json tooltip line choice selected
+  local -a all_channels live_channels options
+  declare -A live_lookup=()
 
-case "$choice" in
-  'Recheck Twitch notifications')
-    exec ~/.config/waybar/scripts/twitch-notifications-recheck.sh
-    ;;
-  'Restart Twitch notifications')
-    exec ~/.config/waybar/scripts/twitch-notifications-restart.sh
-    ;;
-  'Open all live Twitch autostart channels')
-    exec twitch-notifications --recheck --open
-    ;;
-  'Open Twitch following live')
-    exec omarchy-launch-webapp 'https://twitch.tv/directory/following/live'
-    ;;
-esac
+  [[ -f "$config_file" ]] || return 0
+
+  while IFS= read -r line; do
+    if [[ $line =~ ^[[:space:]]*-[[:space:]]name:[[:space:]]*([^[:space:]]+)[[:space:]]*$ ]]; then
+      all_channels+=("${BASH_REMATCH[1]}")
+    fi
+  done < "$config_file"
+
+  status_json="$(twitch-notifications --status-waybar 2>/dev/null || true)"
+  tooltip="$(jq -r '.tooltip // empty' <<<"$status_json" 2>/dev/null || true)"
+
+  while IFS= read -r line; do
+    [[ $line == '- '* ]] || continue
+    live_channels+=("${line#- }")
+    live_lookup["${line#- } "]=1
+    live_lookup["${line#- } "]=${live_lookup["${line#- } "]}
+  done <<< "$tooltip"
+
+  live_lookup=()
+  for line in "${live_channels[@]}"; do
+    live_lookup["${line,,}"]=1
+  done
+
+  options+=('Open all live autolaunch')
+
+  for line in "${all_channels[@]}"; do
+    if [[ -n ${live_lookup["${line,,}"]:-} ]]; then
+      options+=("$line")
+    fi
+  done
+
+  for line in "${all_channels[@]}"; do
+    if [[ -z ${live_lookup["${line,,}"]:-} ]]; then
+      options+=("$line [offline]")
+    fi
+  done
+
+  choice="$(printf '%s\n' "${options[@]}" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 630 -p 'Twitch channels…' 2>/dev/null || true)"
+  [[ $choice == 'Open all live autolaunch' ]] && exec twitch-notifications --recheck --open
+  selected="${choice% \[offline\]}"
+  [[ -n $selected ]] && exec omarchy-launch-webapp "https://twitch.tv/$selected"
+}
+
+while true; do
+  choice="$(printf '%s\n' 'Recheck notifications' 'Restart notifications' 'Open following' 'Open following live' 'Open channel(s)..' | omarchy-launch-walker --dmenu --width 295 --minheight 1 --maxheight 630 -p 'Twitch…' 2>/dev/null || true)"
+
+  case "$choice" in
+    'Recheck notifications')
+      exec ~/.config/waybar/scripts/twitch-notifications-recheck.sh
+      ;;
+    'Restart notifications')
+      exec ~/.config/waybar/scripts/twitch-notifications-restart.sh
+      ;;
+    'Open following')
+      exec omarchy-launch-webapp 'https://twitch.tv/directory/following'
+      ;;
+    'Open channel(s)..')
+      channels_menu
+      ;;
+    'Open following live')
+      exec omarchy-launch-webapp 'https://twitch.tv/directory/following/live'
+      ;;
+    *)
+      exit 0
+      ;;
+  esac
+done
