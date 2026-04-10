@@ -49,7 +49,7 @@ dot doctor
 - `dot setup [--confirm]` - package install step only
 - `dot install` - backup/adopt install flow for public/private dotfiles
 - `dot clean` - unstow private then public
-- `dot doctor` - tool, repo, remote, public/private package, private package repo, and Chromium extension health checks
+- `dot doctor` - tool, repo, extra repo, remote, public/private package, private package repo, and Chromium extension health checks
 - `dot private-pkg-publish [--no-git] <package>` - build and publish a mapped private package into the private pacman repo, sync the mirror, refresh pacman metadata, and commit/push by default
 - `dot agents-sync` - copy `~/.opencode/AGENTS.md` into `agents/.cursor/rules/global-agents.mdc` in private dotfiles by default (`alwaysApply: true` + body; stows to `~/.cursor/rules/`). **`dot update`** and **`dot diff`** run this automatically by default (see env vars below).
 
@@ -59,7 +59,7 @@ dot doctor
 - `DOTFILES_PRIVATE_DIR` - private dotfiles path (default `~/.config/dotfiles-private`)
 - `DOT_ALLOW_PRIVATE` - `auto|always|never` (default `auto`)
 - `DOT_PRIVATE_GH_USER` - expected GitHub user for private actions (default `timmo001`)
-- `DOT_PRIVATE_EXTRA_REPOS_FILE` - extra private repo config file for `dot diff`/`dot update` (default `$DOTFILES_PRIVATE_DIR/.dot-extra-repos`, format: `name|path` or just `path`)
+- `DOT_PRIVATE_EXTRA_REPOS_FILE` - extra private repo config file for `dot diff`/`dot update`/`dot doctor` (default `$DOTFILES_PRIVATE_DIR/.dot-extra-repos`, format: `name|path` or just `path`; `dot doctor` expects each repo to be on a named branch with an upstream)
 - `DOT_PRIVATE_PACKAGE_REPO_FILE` - private pacman repo config for `dot` (default `$DOTFILES_PRIVATE_DIR/.dot-private-package-repo`)
 - `DOT_PRIVATE_PACKAGES_FILE` - private package list for `dot` (default `$DOTFILES_PRIVATE_DIR/.dot-private-packages`)
 - `DOT_PRIVATE_PACMAN_REPO_CONFIG` - pacman repo snippet path written by `dot` (default `/etc/pacman.d/timmo-private.conf`)

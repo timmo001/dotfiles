@@ -1214,6 +1214,21 @@ safe_pull_repo() {
   git -C "$repo_dir" pull --rebase
 }
 
+repo_current_branch() {
+  local repo_dir="$1"
+  git -C "$repo_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || true
+}
+
+repo_upstream_ref() {
+  local repo_dir="$1"
+
+  if ! git -C "$repo_dir" rev-parse '@{u}' >/dev/null 2>&1; then
+    return 1
+  fi
+
+  git -C "$repo_dir" rev-parse --abbrev-ref '@{u}' 2>/dev/null || true
+}
+
 omarchy_repo_slug() {
   local repo_name="$1"
 
@@ -2503,6 +2518,54 @@ cmd_doctor() {
     doctor_warn "Missing $(display_path "$PRIVATE_DOTFILES")"
   fi
 
+  if can_use_private; then
+    doctor_log_section 'Additional private repository checks'
+    load_private_extra_repos
+    if [[ "${#PRIVATE_EXTRA_REPO_PATHS[@]}" -eq 0 ]]; then
+      log_info 'No additional private repos configured'
+    else
+      local extra_repo_name
+      local extra_repo_path
+      local extra_current_branch
+      local extra_upstream_ref
+      local i
+
+      for i in "${!PRIVATE_EXTRA_REPO_PATHS[@]}"; do
+        extra_repo_name="${PRIVATE_EXTRA_REPO_NAMES[$i]}"
+        extra_repo_path="${PRIVATE_EXTRA_REPO_PATHS[$i]}"
+
+        if [[ ! -d "$extra_repo_path" ]]; then
+          doctor_warn "Missing extra repo $extra_repo_name: $(display_path "$extra_repo_path")"
+          continue
+        fi
+
+        if ! git -C "$extra_repo_path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+          doctor_warn "Extra repo $extra_repo_name is not a git repo: $(display_path "$extra_repo_path")"
+          continue
+        fi
+
+        log_info "Found extra repo $extra_repo_name: $(display_path "$extra_repo_path")"
+
+        extra_current_branch="$(repo_current_branch "$extra_repo_path")"
+        if [[ -z "$extra_current_branch" || "$extra_current_branch" == 'HEAD' ]]; then
+          doctor_warn "Extra repo $extra_repo_name is not on a named branch: $(display_path "$extra_repo_path")"
+          continue
+        fi
+
+        extra_upstream_ref="$(repo_upstream_ref "$extra_repo_path")"
+        if [[ -z "$extra_upstream_ref" ]]; then
+          doctor_warn "Extra repo $extra_repo_name branch '$extra_current_branch' has no upstream: $(display_path "$extra_repo_path")"
+          continue
+        fi
+
+        log_info "Extra repo $extra_repo_name branch OK ('$extra_current_branch' -> '$extra_upstream_ref')"
+      done
+    fi
+  else
+    doctor_log_section 'Additional private repository checks'
+    doctor_warn "Skipping additional private repo checks ($PRIVATE_REASON)"
+  fi
+
   if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS" || is_truthy "$INCLUDE_OMARCHY_UPDATE_REPOS"; then
     doctor_log_section 'Omarchy repository checks'
     local repo_name
@@ -2545,7 +2608,7 @@ cmd_doctor() {
         continue
       fi
 
-      current_branch="$(git -C "$repo_path" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+      current_branch="$(repo_current_branch "$repo_path")"
       for branch_name in "${OMARCHY_WORKTREE_BRANCHES[@]}"; do
         if [[ "$branch_name" == "$current_branch" ]]; then
           continue
@@ -2558,7 +2621,7 @@ cmd_doctor() {
 
         worktree_path="$OMARCHY_REPO_BASE/${repo_name}-${branch_name}"
         if git -C "$worktree_path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-          worktree_branch="$(git -C "$worktree_path" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+          worktree_branch="$(repo_current_branch "$worktree_path")"
           if [[ "$worktree_branch" == "$branch_name" ]]; then
             log_info "Found $(display_path "$worktree_path") (branch '$branch_name')"
           else
@@ -2681,7 +2744,7 @@ cmd_help() {
   printf "$fmt_cmd" 'setup' 'Install packages (supports: --confirm)'
   printf "$fmt_cmd" 'install' 'Backup/adopt and install public/private dotfiles'
   printf "$fmt_cmd" 'clean' 'Unstow private then public dotfiles'
-  printf "$fmt_cmd" 'doctor' 'Check dependencies, repos, package repos, packages, and browser extensions'
+  printf "$fmt_cmd" 'doctor' 'Check dependencies, repos, extra repos, packages, and browser extensions'
   printf "$fmt_cmd" 'private-pkg-publish' 'Build, publish, commit, and push a mapped private package'
   printf "$fmt_cmd" 'agents-sync' 'Run dot memory then write global-agents.mdc (default: dotfiles-private agents/.cursor/rules/)'
   printf "$fmt_cmd" 'help' 'Show this help'
@@ -2690,7 +2753,7 @@ cmd_help() {
   printf "$fmt_env" 'DOTFILES_PUBLIC_DIR' 'Override public dotfiles path'
   printf "$fmt_env" 'DOTFILES_PRIVATE_DIR' 'Override private dotfiles path'
   printf "$fmt_env" 'DOT_NOTES_DIR' 'Notes vault git repo (default ~/Documents/notes); shown in dot diff with private'
-  printf "$fmt_env" 'DOT_PRIVATE_EXTRA_REPOS_FILE' 'File with extra private repos for diff/update (default $DOTFILES_PRIVATE_DIR/.dot-extra-repos)'
+  printf "$fmt_env" 'DOT_PRIVATE_EXTRA_REPOS_FILE' 'File with extra private repos for diff/update/doctor (default $DOTFILES_PRIVATE_DIR/.dot-extra-repos)'
   printf "$fmt_env" 'DOT_ALLOW_PRIVATE' 'auto|always|never (default: auto)'
   printf "$fmt_env" 'DOT_PRIVATE_GH_USER' 'Expected gh username for private actions (default: timmo001)'
   printf "$fmt_env" 'OMARCHY_REPO_BASE_DIR' 'Base directory for omarchy repos (default: ~/.config)'
