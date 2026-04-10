@@ -3,7 +3,7 @@ set -euo pipefail
 
 channels_menu() {
   local config_file="${XDG_CONFIG_HOME:-$HOME/.config}/twitch-notifications/channels.yml"
-  local status_json tooltip line choice choice_label selected
+  local status_json tooltip line choice choice_label selected target_url
   local -a all_channels live_channels options
   declare -A live_lookup=()
 
@@ -48,7 +48,12 @@ channels_menu() {
   choice_label="${choice#*  }"
   [[ $choice_label == 'Open all live autolaunch' ]] && exec twitch-notifications --recheck --open
   selected="${choice_label% \[offline\]}"
-  [[ -n $selected ]] && exec omarchy-launch-webapp "https://twitch.tv/$selected"
+
+  if [[ -n $selected ]]; then
+    target_url="https://twitch.tv/$selected"
+    [[ $choice_label == *' [offline]' ]] && target_url+='/videos'
+    exec omarchy-launch-webapp "$target_url"
+  fi
 }
 
 while true; do
