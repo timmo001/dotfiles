@@ -27,6 +27,12 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - Stow config: `.stowrc`
 - Main docs: `README.md`
 
+## Go Automate Home Assistant Bridge Policy
+
+- For Home Assistant entity watchers used by Waybar/scripts, use `go-automate ha bridge watch entity` by default.
+- Treat `go-automate ha watch entity` direct-style usage as a fallback only when bridge mode is unavailable.
+- Prefer `--waybar` output for machine-consumed flows; plain text output should be treated as human-facing unless explicitly needed.
+
 ## Split Worktrees
 
 - The current desktop/laptop split worktree repo is `hypr`.
