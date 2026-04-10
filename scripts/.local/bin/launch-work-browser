@@ -1,4 +1,24 @@
 #!/bin/bash
 
-cmd='uwsm app -- google-chrome-stable --new-window --ozone-platform=wayland --force-device-scale-factor=0.8 --profile-directory=Profile\ 1 --user-data-dir=$HOME/.config/google-chrome-work --class=work-browser'
+tab=0
+if [ "${1:-}" = "--tab" ]; then
+  tab=1
+  shift
+fi
+
+suffix=''
+if [ "$#" -gt 0 ]; then
+  suffix=" $*"
+fi
+
+tab_cmd='uwsm app -- google-chrome-stable --ozone-platform=wayland --force-device-scale-factor=0.8 --profile-directory=Profile\ 1 --user-data-dir=$HOME/.config/google-chrome-work --class=work-browser'
+window_cmd='uwsm app -- google-chrome-stable --new-window --ozone-platform=wayland --force-device-scale-factor=0.8 --profile-directory=Profile\ 1 --user-data-dir=$HOME/.config/google-chrome-work --class=work-browser'
+
+if [ "$tab" -eq 1 ]; then
+  cmd="$tab_cmd$suffix"
+  hyprctl dispatch exec "$cmd"
+  exit 0
+fi
+
+cmd="$window_cmd$suffix"
 launch-on-workspace 3 '^(work-browser|google-chrome)$' "$cmd"
