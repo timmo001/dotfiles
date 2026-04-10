@@ -44,7 +44,7 @@ DIFF_ATTENTION_HAS_BEHIND=0
 
 PRIVATE_REASON=""
 
-PUBLIC_ARCH_PACKAGES=(system-bridge go-automate-git python-gobject gtk4-layer-shell)
+PUBLIC_ARCH_PACKAGES=(system-bridge-git go-automate-git python-gobject gtk4-layer-shell)
 MISSING_PUBLIC_ARCH_PACKAGES=()
 
 PRIVATE_ARCH_PACKAGES=()
@@ -2960,7 +2960,7 @@ cmd_doctor() {
   fi
 
   doctor_log_section 'Public package checks'
-  report_package_status 'system-bridge' 'yay -S system-bridge'
+  report_package_status 'system-bridge-git' 'yay -S system-bridge-git'
   report_package_status 'go-automate-git' 'yay -S go-automate-git'
   report_package_status 'python-gobject' 'yay -S python-gobject'
   report_package_status 'gtk4-layer-shell' 'yay -S gtk4-layer-shell'
