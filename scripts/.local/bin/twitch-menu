@@ -53,7 +53,7 @@ channels_menu() {
 
   if [[ -n $selected ]]; then
     target_url="https://twitch.tv/$selected"
-    [[ $choice_label == *' [offline]' ]] && target_url+='/videos'
+    [[ $choice_label == *' [offline]' ]] && target_url+='/videos?filter=archives&sort=time'
     exec omarchy-launch-webapp "$target_url"
   fi
 }
