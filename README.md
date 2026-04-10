@@ -60,7 +60,7 @@ dot doctor
 - Private dotfiles provide the watchlist in `~/.config/dotfiles-private/.git-workflow-watch-repos`
 - The global hook queues pushed commits only for watched GitHub repositories and only when the commit matches the local git identity
 - The watcher polls `gh run list --commit <sha>` and sends one desktop notification per workflow run as each run completes
-- Failed workflow runs are cached for Waybar; left click opens all tracked failed run URLs, right click clears the list, and stale failures expire automatically after 7 days by default
+- Failed workflow runs are cached for Waybar; left click opens all tracked failed run URLs, right click clears the list, and stale failures expire automatically after 1 hour by default
 - `dot init`, `dot install`, `dot stow`, and `dot update` configure the global `core.hooksPath` and enable `git-workflow-watch.timer`
 - `dot doctor` verifies the hooks path, watchlist file, and timer state
 
