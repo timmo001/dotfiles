@@ -1,0 +1,6 @@
+[Unit]
+Description=Process queued GitHub workflow notifications
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/git-workflow-watch process-queue

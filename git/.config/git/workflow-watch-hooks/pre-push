@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+HOOK_BIN="${DOT_WORKFLOW_WATCH_BIN:-$HOME/.local/bin/git-workflow-watch}"
+CURRENT_HOOK_PATH="$(readlink -f "$0" 2>/dev/null || printf '%s\n' "$0")"
+STDIN_FILE="$(mktemp)"
+
+cleanup() {
+  rm -f "$STDIN_FILE"
+}
+
+trap cleanup EXIT
+
+while IFS= read -r line || [[ -n "$line" ]]; do
+  printf '%s\n' "$line" >> "$STDIN_FILE"
+done
+
+if [[ -x "$HOOK_BIN" ]]; then
+  "$HOOK_BIN" enqueue-pre-push --stdin-file "$STDIN_FILE" "$@" || true
+fi
+
+GIT_DIR="$(git rev-parse --absolute-git-dir 2>/dev/null || true)"
+if [[ -n "$GIT_DIR" ]]; then
+  REPO_LOCAL_HOOK="$GIT_DIR/hooks/pre-push"
+  if [[ -x "$REPO_LOCAL_HOOK" ]]; then
+    RESOLVED_LOCAL_HOOK="$(readlink -f "$REPO_LOCAL_HOOK" 2>/dev/null || printf '%s\n' "$REPO_LOCAL_HOOK")"
+    if [[ "$RESOLVED_LOCAL_HOOK" != "$CURRENT_HOOK_PATH" ]]; then
+      "$REPO_LOCAL_HOOK" "$@" < "$STDIN_FILE"
+    fi
+  fi
+fi

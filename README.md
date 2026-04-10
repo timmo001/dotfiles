@@ -9,6 +9,7 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 - One command entrypoint at `scripts/.local/bin/dot`
 - Optional private overlays from `~/.config/dotfiles-private`
 - Omarchy repo sync for `bootstrap`, `hypr`, `waybar`, `ghostty`, and `uwsm`
+- Global git workflow watch for watched GitHub repos on this machine
 
 ## Repository layout
 
@@ -42,16 +43,25 @@ dot doctor
 
 ## Command reference
 
-- `dot init` - questionnaire (when available), Omarchy sync (including split-repo worktree setup like `hypr-desktop`), package setup, optional public/private Arch package install, then public/private install
-- `dot update` - Omarchy + public/private pull (including optional extra private repos and split Omarchy repo worktrees), then stow refresh
+- `dot init` - questionnaire (when available), Omarchy sync (including split-repo worktree setup like `hypr-desktop`), package setup, optional public/private Arch package install, then public/private install and workflow-watch setup
+- `dot update` - Omarchy + public/private pull (including optional extra private repos and split Omarchy repo worktrees), then stow refresh and workflow-watch reconfiguration
 - `dot stow` - stow refresh only (no git pull)
 - `dot diff` - git status + staged/unstaged summaries with fetched unpushed/incoming commit checks across managed repos (including optional extra private repos and split Omarchy repo worktrees); use `dot diff --waybar` for one-line Waybar JSON
 - `dot setup [--confirm]` - package install step only
 - `dot install` - backup/adopt install flow for public/private dotfiles
 - `dot clean` - unstow private then public
-- `dot doctor` - tool, repo, extra repo, remote, public/private package, private package repo, and Chromium extension health checks
+- `dot doctor` - tool, repo, workflow watch, extra repo, remote, public/private package, private package repo, and Chromium extension health checks
 - `dot private-pkg-publish [--no-git] <package>` - build and publish a mapped private package into the private pacman repo, sync the mirror, refresh pacman metadata, and commit/push by default
 - `dot agents-sync` - copy `~/.opencode/AGENTS.md` into `agents/.cursor/rules/global-agents.mdc` in private dotfiles by default (`alwaysApply: true` + body; stows to `~/.cursor/rules/`). **`dot update`** and **`dot diff`** run this automatically by default (see env vars below).
+
+## Workflow watch
+
+- Public dotfiles provide the global `pre-push` hook, poller, and user systemd units
+- Private dotfiles provide the watchlist in `~/.config/dotfiles-private/.git-workflow-watch-repos`
+- The global hook queues pushed commits only for watched GitHub repositories and only when the commit matches the local git identity
+- The watcher polls `gh run list --commit <sha>` and sends one desktop notification per pushed commit after all discovered workflow runs complete
+- `dot init`, `dot install`, `dot stow`, and `dot update` configure the global `core.hooksPath` and enable `git-workflow-watch.timer`
+- `dot doctor` verifies the hooks path, watchlist file, and timer state
 
 ## Environment options
 
@@ -69,6 +79,9 @@ dot doctor
 - `DOT_INCLUDE_OMARCHY_DIFF_REPOS` - include Omarchy repos in `dot diff` (`1|0`, default `1`)
 - `DOT_INCLUDE_OMARCHY_UPDATE_REPOS` - include Omarchy repos in `dot update` sync (`1|0`, default `1`)
 - `DOT_INIT_NONINTERACTIVE` - skip init questionnaire (`1|0`, default `0`)
+- `DOT_WORKFLOW_WATCH_HOOKS_PATH` - global git hooks path for workflow watch (default `~/.config/git/workflow-watch-hooks`)
+- `DOT_WORKFLOW_WATCH_REPOS_FILE` - watched repo list file (default `$DOTFILES_PRIVATE_DIR/.git-workflow-watch-repos`)
+- `DOT_WORKFLOW_WATCH_TIMER_UNIT` - workflow polling timer unit name (default `git-workflow-watch.timer`)
 - `DOT_AUTO_CD` - zsh wrapper auto-cd to first repo with changes after `dot diff`; otherwise restore original dir (failed diff falls back to `~/.config/dotfiles`) (`1|0`, default `1`)
 - `DOT_AGENTS_SYNC_SOURCE` - AGENTS file to mirror (default `~/.opencode/AGENTS.md`)
 - `DOT_AGENTS_SYNC_RULE_FILE` - Cursor rule output path (default `$DOTFILES_PRIVATE_DIR/agents/.cursor/rules/global-agents.mdc`, else `~/.cursor/rules/global-agents.mdc`)

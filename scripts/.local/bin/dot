@@ -20,6 +20,9 @@ DOT_AGENTS_SYNC_ON_UPDATE="${DOT_AGENTS_SYNC_ON_UPDATE:-1}"
 DOT_MEMORY_ON_AGENTS_SYNC="${DOT_MEMORY_ON_AGENTS_SYNC:-1}"
 DOT_FETCH_TTL_SECONDS="${DOT_FETCH_TTL_SECONDS:-300}"
 DOT_FETCH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dot/fetch-upstream"
+DOT_WORKFLOW_WATCH_HOOKS_PATH="${DOT_WORKFLOW_WATCH_HOOKS_PATH:-$HOME/.config/git/workflow-watch-hooks}"
+DOT_WORKFLOW_WATCH_REPOS_FILE="${DOT_WORKFLOW_WATCH_REPOS_FILE:-$PRIVATE_DOTFILES/.git-workflow-watch-repos}"
+DOT_WORKFLOW_WATCH_TIMER_UNIT="${DOT_WORKFLOW_WATCH_TIMER_UNIT:-git-workflow-watch.timer}"
 
 OMARCHY_REPO_BASE="${OMARCHY_REPO_BASE_DIR:-$HOME/.config}"
 OMARCHY_DIFF_REPOS=(hypr waybar bootstrap ghostty uwsm)
@@ -1056,6 +1059,73 @@ stow_in_repo() {
     cd "$repo_dir"
     stow "$@"
   )
+}
+
+workflow_watch_configured_hook_path() {
+  git config --global --get core.hooksPath 2>/dev/null || true
+}
+
+workflow_watch_hooks_path_matches() {
+  local configured_path
+  local resolved_configured
+  local resolved_expected
+
+  configured_path="$(workflow_watch_configured_hook_path)"
+  [[ -n "$configured_path" ]] || return 1
+
+  resolved_configured="$(readlink -f "$configured_path" 2>/dev/null || printf '%s\n' "$configured_path")"
+  resolved_expected="$(readlink -f "$DOT_WORKFLOW_WATCH_HOOKS_PATH" 2>/dev/null || printf '%s\n' "$DOT_WORKFLOW_WATCH_HOOKS_PATH")"
+  [[ "$resolved_configured" == "$resolved_expected" ]]
+}
+
+workflow_watch_timer_is_enabled() {
+  has_cmd systemctl || return 1
+  systemctl --user is-enabled "$DOT_WORKFLOW_WATCH_TIMER_UNIT" >/dev/null 2>&1
+}
+
+workflow_watch_timer_is_active() {
+  has_cmd systemctl || return 1
+  systemctl --user is-active "$DOT_WORKFLOW_WATCH_TIMER_UNIT" >/dev/null 2>&1
+}
+
+configure_workflow_watch() {
+  local hook_path="$DOT_WORKFLOW_WATCH_HOOKS_PATH"
+
+  log_section 'Configure workflow watch'
+
+  if ! has_cmd git; then
+    log_warn 'Skipping workflow watch configuration (git not found)'
+    return 0
+  fi
+
+  if [[ ! -d "$hook_path" ]]; then
+    log_warn "Skipping workflow watch configuration (missing hooks path: $(display_path "$hook_path"))"
+    return 0
+  fi
+
+  if workflow_watch_hooks_path_matches; then
+    log_info "Workflow watch hooksPath already configured: $(display_path "$hook_path")"
+  else
+    git config --global core.hooksPath "$hook_path"
+    log_info "Configured global git hooksPath: $(display_path "$hook_path")"
+  fi
+
+  if [[ ! -f "$DOT_WORKFLOW_WATCH_REPOS_FILE" ]]; then
+    log_warn "Workflow watch repo list not found: $(display_path "$DOT_WORKFLOW_WATCH_REPOS_FILE")"
+  else
+    log_info "Workflow watch repo list: $(display_path "$DOT_WORKFLOW_WATCH_REPOS_FILE")"
+  fi
+
+  if has_cmd systemctl; then
+    systemctl --user daemon-reload >/dev/null 2>&1 || true
+    if systemctl --user enable --now "$DOT_WORKFLOW_WATCH_TIMER_UNIT" >/dev/null 2>&1; then
+      log_info "Enabled workflow watch timer: $DOT_WORKFLOW_WATCH_TIMER_UNIT"
+    else
+      log_warn "Could not enable workflow watch timer: $DOT_WORKFLOW_WATCH_TIMER_UNIT"
+    fi
+  else
+    log_warn 'Skipping workflow watch timer enable (systemctl not found)'
+  fi
 }
 
 # Mirror AGENTS.md into a Cursor user rule (.mdc with alwaysApply) so it is always-on context.
@@ -2173,6 +2243,7 @@ cmd_init() {
     run_init_private_package_installs
   fi
   install_public_dotfiles
+  configure_workflow_watch
 
   if can_use_private; then
     install_private_dotfiles
@@ -2224,6 +2295,7 @@ cmd_update() {
 
   log_section 'Stow public dotfiles'
   stow_public_dotfiles
+  configure_workflow_watch
 
   if can_use_private; then
     log_section 'Stow private dotfiles'
@@ -2254,6 +2326,7 @@ cmd_agents_sync() {
 cmd_stow() {
   log_section 'Stow workflow'
   stow_public_dotfiles
+  configure_workflow_watch
 
   if can_use_private; then
     stow_private_dotfiles
@@ -2269,6 +2342,7 @@ cmd_setup() {
 cmd_install() {
   log_section 'Install workflow'
   install_public_dotfiles
+  configure_workflow_watch
 
   if can_use_private; then
     install_private_dotfiles
@@ -2517,6 +2591,7 @@ cmd_doctor() {
   optional_cmd yay 'dot setup installs stow when missing'
   optional_cmd gh 'branch discovery + authenticated clone convenience'
   optional_cmd gum 'interactive init questionnaire'
+  optional_cmd notify-send 'desktop workflow notifications'
 
   if has_cmd gh; then
     if gh auth status >/dev/null 2>&1; then
@@ -2586,6 +2661,51 @@ cmd_doctor() {
   else
     doctor_log_section 'Additional private repository checks'
     doctor_warn "Skipping additional private repo checks ($PRIVATE_REASON)"
+  fi
+
+  doctor_log_section 'Workflow watch checks'
+  if [[ -d "$DOT_WORKFLOW_WATCH_HOOKS_PATH" ]]; then
+    log_info "Workflow watch hooks path exists: $(display_path "$DOT_WORKFLOW_WATCH_HOOKS_PATH")"
+  else
+    doctor_warn "Workflow watch hooks path is missing: $(display_path "$DOT_WORKFLOW_WATCH_HOOKS_PATH")"
+    doctor_warn 'Run dot stow or dot init to install the workflow watch hook package'
+  fi
+
+  if workflow_watch_hooks_path_matches; then
+    log_info "Global git hooksPath points to workflow watch hooks: $(display_path "$DOT_WORKFLOW_WATCH_HOOKS_PATH")"
+  else
+    local configured_hooks_path
+    configured_hooks_path="$(workflow_watch_configured_hook_path)"
+    if [[ -n "$configured_hooks_path" ]]; then
+      doctor_warn "Global git hooksPath differs from workflow watch hooks ($(display_path "$configured_hooks_path"))"
+    else
+      doctor_warn 'Global git hooksPath is not configured'
+    fi
+    doctor_warn 'Run dot init to configure global workflow watch hooks'
+  fi
+
+  if [[ -f "$DOT_WORKFLOW_WATCH_REPOS_FILE" ]]; then
+    log_info "Workflow watch repo list found: $(display_path "$DOT_WORKFLOW_WATCH_REPOS_FILE")"
+  else
+    doctor_warn "Workflow watch repo list missing: $(display_path "$DOT_WORKFLOW_WATCH_REPOS_FILE")"
+    doctor_warn 'Add watched repositories in private dotfiles to enable workflow monitoring'
+  fi
+
+  if has_cmd systemctl; then
+    if workflow_watch_timer_is_enabled; then
+      log_info "Workflow watch timer enabled: $DOT_WORKFLOW_WATCH_TIMER_UNIT"
+    else
+      doctor_warn "Workflow watch timer is not enabled: $DOT_WORKFLOW_WATCH_TIMER_UNIT"
+      doctor_warn 'Run dot init to enable the workflow watch timer'
+    fi
+
+    if workflow_watch_timer_is_active; then
+      log_info "Workflow watch timer active: $DOT_WORKFLOW_WATCH_TIMER_UNIT"
+    else
+      doctor_warn "Workflow watch timer is not active: $DOT_WORKFLOW_WATCH_TIMER_UNIT"
+    fi
+  else
+    doctor_warn 'Skipping workflow watch timer checks (systemctl not found)'
   fi
 
   if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS" || is_truthy "$INCLUDE_OMARCHY_UPDATE_REPOS"; then
@@ -2768,7 +2888,7 @@ cmd_help() {
   printf "$fmt_cmd" 'setup' 'Install packages (supports: --confirm)'
   printf "$fmt_cmd" 'install' 'Backup/adopt and install public/private dotfiles'
   printf "$fmt_cmd" 'clean' 'Unstow private then public dotfiles'
-  printf "$fmt_cmd" 'doctor' 'Check dependencies, repos, extra repos, packages, and browser extensions'
+  printf "$fmt_cmd" 'doctor' 'Check dependencies, repos, workflow watch, packages, and browser extensions'
   printf "$fmt_cmd" 'private-pkg-publish' 'Build, publish, commit, and push a mapped private package'
   printf "$fmt_cmd" 'agents-sync' 'Run dot memory then write global-agents.mdc (default: dotfiles-private agents/.cursor/rules/)'
   printf "$fmt_cmd" 'help' 'Show this help'
@@ -2787,6 +2907,9 @@ cmd_help() {
   printf "$fmt_env" 'DOT_INCLUDE_OMARCHY_UPDATE_REPOS' '1|0 include omarchy repos in update pull (default: 1)'
   printf "$fmt_env" 'DOT_FETCH_TTL_SECONDS' 'Seconds to reuse the last upstream fetch result in diff commands (default: 300)'
   printf "$fmt_env" 'DOT_INIT_NONINTERACTIVE' '1|0 skip init questionnaire (default: 0)'
+  printf "$fmt_env" 'DOT_WORKFLOW_WATCH_HOOKS_PATH' 'Global git hooksPath for workflow watch hooks (default ~/.config/git/workflow-watch-hooks)'
+  printf "$fmt_env" 'DOT_WORKFLOW_WATCH_REPOS_FILE' 'Watched GitHub repo list file (default $DOTFILES_PRIVATE_DIR/.git-workflow-watch-repos)'
+  printf "$fmt_env" 'DOT_WORKFLOW_WATCH_TIMER_UNIT' 'User systemd timer for workflow polling (default git-workflow-watch.timer)'
   printf "$fmt_env" 'DOT_AGENTS_SYNC_SOURCE' 'Path to AGENTS.md to mirror (default ~/.opencode/AGENTS.md)'
   printf "$fmt_env" 'DOT_AGENTS_SYNC_RULE_FILE' 'Cursor rule file path (default: $DOTFILES_PRIVATE_DIR/agents/.cursor/rules/global-agents.mdc)'
   printf "$fmt_env" 'DOT_AGENTS_SYNC_ON_UPDATE' '1|0 run agents-sync after dot update (default 1)'
