@@ -523,7 +523,7 @@ command_waybar_status() {
   local failed_file
   local count=0
   local tooltip='GitHub workflows: no failed runs tracked.'
-  local class='workflow-failures-ok'
+  local class='workflow-failures-ok hidden'
   local text=''
   local rendered_tooltip=''
   local line=''
