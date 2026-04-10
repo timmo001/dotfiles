@@ -62,7 +62,7 @@ dot doctor
 - The watcher polls `gh run list --commit <sha>` and sends one desktop notification per workflow run as each run completes
 - Failed workflow runs are cached for Waybar; left click opens all tracked failed run URLs, right click clears the list, and stale failures expire automatically after 1 hour by default
 - `dot init`, `dot install`, `dot stow`, and `dot update` configure the global `core.hooksPath` and enable `git-workflow-watch.timer`
-- `dot doctor` verifies the hooks path, watchlist file, and timer state
+- `dot doctor` verifies the hooks path, watchlist file, timer state, and active Waybar workflow-failures module wiring
 
 ## Environment options
 

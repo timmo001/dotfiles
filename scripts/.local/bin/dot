@@ -1088,6 +1088,105 @@ workflow_watch_timer_is_active() {
   systemctl --user is-active "$DOT_WORKFLOW_WATCH_TIMER_UNIT" >/dev/null 2>&1
 }
 
+workflow_watch_waybar_config_path() {
+  local config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/waybar"
+  local host="${OMARCHY_HOST:-}"
+  local host_config=''
+
+  if [[ -n "$host" ]]; then
+    host_config="$config_dir/config.${host}.jsonc"
+    if [[ -f "$host_config" ]]; then
+      printf '%s\n' "$host_config"
+      return 0
+    fi
+  fi
+
+  printf '%s\n' "$config_dir/config.jsonc"
+}
+
+workflow_watch_waybar_config_contains() {
+  local config_path="$1"
+  local needle="$2"
+  local include_line=''
+  local include_body=''
+  local include_entry=''
+  local include_path=''
+  local config_dir=''
+
+  [[ -f "$config_path" ]] || return 1
+  if grep -Fq "$needle" "$config_path"; then
+    return 0
+  fi
+
+  include_line="$(grep -E '"include"[[:space:]]*:' "$config_path" 2>/dev/null || true)"
+  [[ -n "$include_line" ]] || return 1
+
+  include_body="${include_line#*[}"
+  include_body="${include_body%]*}"
+  config_dir="$(dirname -- "$config_path")"
+
+  IFS=',' read -r -a workflow_watch_include_entries <<< "$include_body"
+  unset IFS
+
+  for include_entry in "${workflow_watch_include_entries[@]}"; do
+    include_entry="$(trim_whitespace "$include_entry")"
+    include_entry="${include_entry#\"}"
+    include_entry="${include_entry%\"}"
+    include_path="${include_entry/#~/$HOME}"
+    if [[ "$include_path" != /* ]]; then
+      include_path="$config_dir/$include_path"
+    fi
+    if workflow_watch_waybar_config_contains "$include_path" "$needle"; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+workflow_watch_waybar_config_orders_before() {
+  local config_path="$1"
+  local first="$2"
+  local second="$3"
+  local config_text=''
+  local include_line=''
+  local include_body=''
+  local include_entry=''
+  local include_path=''
+  local config_dir=''
+
+  [[ -f "$config_path" ]] || return 1
+  config_text="$(tr -d '\n\r' < "$config_path")"
+  if [[ "$config_text" =~ ${first}[[:space:]]*,[[:space:]]*${second} ]]; then
+    return 0
+  fi
+
+  include_line="$(grep -E '"include"[[:space:]]*:' "$config_path" 2>/dev/null || true)"
+  [[ -n "$include_line" ]] || return 1
+
+  include_body="${include_line#*[}"
+  include_body="${include_body%]*}"
+  config_dir="$(dirname -- "$config_path")"
+
+  IFS=',' read -r -a workflow_watch_include_entries <<< "$include_body"
+  unset IFS
+
+  for include_entry in "${workflow_watch_include_entries[@]}"; do
+    include_entry="$(trim_whitespace "$include_entry")"
+    include_entry="${include_entry#\"}"
+    include_entry="${include_entry%\"}"
+    include_path="${include_entry/#~/$HOME}"
+    if [[ "$include_path" != /* ]]; then
+      include_path="$config_dir/$include_path"
+    fi
+    if workflow_watch_waybar_config_orders_before "$include_path" "$first" "$second"; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 configure_workflow_watch() {
   local hook_path="$DOT_WORKFLOW_WATCH_HOOKS_PATH"
 
@@ -2706,6 +2805,75 @@ cmd_doctor() {
     fi
   else
     doctor_warn 'Skipping workflow watch timer checks (systemctl not found)'
+  fi
+
+  local workflow_watch_script="$HOME/.local/bin/git-workflow-watch"
+  if [[ -x "$workflow_watch_script" ]]; then
+    log_info "Workflow watch script is executable: $(display_path "$workflow_watch_script")"
+  else
+    doctor_warn "Workflow watch script is missing or not executable: $(display_path "$workflow_watch_script")"
+    doctor_warn 'Run dot stow or dot init to install the workflow watch script'
+  fi
+
+  local workflow_watch_waybar_script="${XDG_CONFIG_HOME:-$HOME/.config}/waybar/scripts/github-workflow-failures-waybar.sh"
+  if [[ -x "$workflow_watch_waybar_script" ]]; then
+    log_info "Workflow watch Waybar script is executable: $(display_path "$workflow_watch_waybar_script")"
+  else
+    doctor_warn "Workflow watch Waybar script is missing or not executable: $(display_path "$workflow_watch_waybar_script")"
+    doctor_warn 'Stow or update the Waybar repo to install the workflow failures module script'
+  fi
+
+  local workflow_watch_waybar_style="${XDG_CONFIG_HOME:-$HOME/.config}/waybar/style.css"
+  if [[ -f "$workflow_watch_waybar_style" ]]; then
+    if grep -Fq '#custom-github-workflow-failures.hidden' "$workflow_watch_waybar_style"; then
+      log_info "Workflow watch Waybar hidden-empty CSS found: $(display_path "$workflow_watch_waybar_style")"
+    else
+      doctor_warn "Workflow watch Waybar hidden-empty CSS is missing: $(display_path "$workflow_watch_waybar_style")"
+      doctor_warn 'Update the Waybar style so the workflow failure icon hides when there are no failures'
+    fi
+  else
+    doctor_warn "Waybar style file is missing: $(display_path "$workflow_watch_waybar_style")"
+  fi
+
+  local workflow_watch_waybar_config
+  workflow_watch_waybar_config="$(workflow_watch_waybar_config_path)"
+  if [[ -f "$workflow_watch_waybar_config" ]]; then
+    log_info "Workflow watch active Waybar config: $(display_path "$workflow_watch_waybar_config")"
+
+    if workflow_watch_waybar_config_contains "$workflow_watch_waybar_config" '"custom/github-workflow-failures"'; then
+      log_info 'Workflow watch Waybar module is present in the active config'
+    else
+      doctor_warn "Workflow watch Waybar module is missing from $(display_path "$workflow_watch_waybar_config")"
+      doctor_warn 'Add custom/github-workflow-failures before custom/dot-diff in the active Waybar config'
+    fi
+
+    if workflow_watch_waybar_config_contains "$workflow_watch_waybar_config" '"on-click": "~/.local/bin/git-workflow-watch open-failed-runs"'; then
+      log_info 'Workflow watch Waybar left click opens failed runs'
+    else
+      doctor_warn "Workflow watch Waybar left-click action is missing in $(display_path "$workflow_watch_waybar_config")"
+    fi
+
+    if workflow_watch_waybar_config_contains "$workflow_watch_waybar_config" '"on-click-right": "~/.local/bin/git-workflow-watch clear-failed-runs"'; then
+      log_info 'Workflow watch Waybar right click clears failed runs'
+    else
+      doctor_warn "Workflow watch Waybar right-click clear action is missing in $(display_path "$workflow_watch_waybar_config")"
+    fi
+
+    if workflow_watch_waybar_config_orders_before "$workflow_watch_waybar_config" '"custom/github-workflow-failures"' '"custom/dot-diff"'; then
+      log_info 'Workflow watch Waybar module is ordered before dot diff'
+    else
+      doctor_warn "Workflow watch Waybar module is not ordered before dot diff in $(display_path "$workflow_watch_waybar_config")"
+    fi
+  else
+    doctor_warn "Active Waybar config is missing: $(display_path "$workflow_watch_waybar_config")"
+  fi
+
+  if has_cmd notify-send; then
+    if notify-send --help 2>&1 | grep -Fq -- '--action'; then
+      log_info 'notify-send supports clickable notification actions'
+    else
+      doctor_warn 'notify-send does not advertise action support; workflow notifications may not open runs on click'
+    fi
   fi
 
   if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS" || is_truthy "$INCLUDE_OMARCHY_UPDATE_REPOS"; then
