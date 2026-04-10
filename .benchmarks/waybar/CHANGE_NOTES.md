@@ -18,7 +18,7 @@
 
 - Prefer `go-automate ha bridge watch entity` over `go-automate ha watch entity`.
 - Prefer `--waybar` JSON output for script/bar consumers.
-- For interval-driven scripts, use bounded execution and read only the first emitted line.
+- For interval-driven scripts, read only the first emitted line and terminate the watcher process group immediately.
 
 ## Validation checklist
 
