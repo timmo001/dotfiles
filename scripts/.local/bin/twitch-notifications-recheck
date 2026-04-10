@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${TWITCH_NOTIFICATIONS_RECHECK_DETACHED:-0}" != "1" ]]; then
+  export TWITCH_NOTIFICATIONS_RECHECK_DETACHED=1
+  setsid "$0" "$@" >/dev/null 2>&1 &
+  exit 0
+fi
+
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+status="$(twitch-notifications --status 2>/dev/null || printf 'inactive')"
+
+if [[ "$status" == "active" ]]; then
+  exec twitch-notifications --recheck
+fi
+
+exec "$script_dir/twitch-notifications-restart"

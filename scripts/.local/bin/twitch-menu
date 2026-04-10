@@ -64,10 +64,10 @@ while true; do
 
   case "$choice" in
     'Recheck notifications')
-      exec ~/.config/waybar/scripts/twitch-notifications-recheck.sh
+      exec ~/.config/dotfiles/scripts/.local/bin/twitch-notifications-recheck
       ;;
     'Restart notifications')
-      exec ~/.config/waybar/scripts/twitch-notifications-restart.sh
+      exec ~/.config/dotfiles/scripts/.local/bin/twitch-notifications-restart
       ;;
     'Open following')
       exec omarchy-launch-webapp 'https://twitch.tv/directory/following'
