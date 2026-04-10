@@ -1,5 +1,7 @@
 --target=~/
 --ignore=.stowrc
+--ignore=.benchmarks
+--ignore=.ruff_cache
 --ignore=DS_Store
 --ignore=README.md
 --ignore=AGENTS.md
