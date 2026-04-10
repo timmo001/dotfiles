@@ -3,7 +3,7 @@ set -euo pipefail
 
 channels_menu() {
   local config_file="${XDG_CONFIG_HOME:-$HOME/.config}/twitch-notifications/channels.yml"
-  local status_json tooltip line choice selected
+  local status_json tooltip line choice choice_label selected
   local -a all_channels live_channels options
   declare -A live_lookup=()
 
@@ -30,28 +30,30 @@ channels_menu() {
     live_lookup["${line,,}"]=1
   done
 
-  options+=('Open all live autolaunch')
+  options+=('󰕃  Open all live autolaunch')
 
   for line in "${all_channels[@]}"; do
     if [[ -n ${live_lookup["${line,,}"]:-} ]]; then
-      options+=("$line")
+      options+=("  $line")
     fi
   done
 
   for line in "${all_channels[@]}"; do
     if [[ -z ${live_lookup["${line,,}"]:-} ]]; then
-      options+=("$line [offline]")
+      options+=("󰖪  $line [offline]")
     fi
   done
 
   choice="$(printf '%s\n' "${options[@]}" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 630 -p 'Twitch channels…' 2>/dev/null || true)"
-  [[ $choice == 'Open all live autolaunch' ]] && exec twitch-notifications --recheck --open
-  selected="${choice% \[offline\]}"
+  choice_label="${choice#*  }"
+  [[ $choice_label == 'Open all live autolaunch' ]] && exec twitch-notifications --recheck --open
+  selected="${choice_label% \[offline\]}"
   [[ -n $selected ]] && exec omarchy-launch-webapp "https://twitch.tv/$selected"
 }
 
 while true; do
-  choice="$(printf '%s\n' 'Recheck notifications' 'Restart notifications' 'Open following' 'Open following live' 'Open channel(s)..' | omarchy-launch-walker --dmenu --width 295 --minheight 1 --maxheight 630 -p 'Twitch…' 2>/dev/null || true)"
+  choice="$(printf '%s\n' '  Recheck notifications' '󰜉  Restart notifications' '  Open following' '  Open following live' '  Open channel(s)..' | omarchy-launch-walker --dmenu --width 295 --minheight 1 --maxheight 630 -p 'Twitch…' 2>/dev/null || true)"
+  choice="${choice#*  }"
 
   case "$choice" in
     'Recheck notifications')
