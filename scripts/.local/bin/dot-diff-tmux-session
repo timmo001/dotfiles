@@ -12,6 +12,18 @@ window_names=()
 window_paths=()
 popup_visible=0
 
+open_session_in_terminal() {
+  local session_name="$1"
+
+  uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal /usr/bin/env bash -lc '
+    tmux_bin="$1"
+    session="$2"
+
+    printf "\033]0;%s\007" "$session"
+    exec "$tmux_bin" attach-session -t "$session"
+  ' _ "$TMUX_BIN" "$session_name"
+}
+
 notify_no_changed_repos() {
   if command -v notify-send >/dev/null 2>&1; then
     notify-send \
@@ -154,7 +166,7 @@ if "$TMUX_BIN" has-session -t "$SESSION" 2>/dev/null; then
   if mapfile -t clients < <("$TMUX_BIN" list-clients -t "$SESSION" -F '#{client_tty}' 2>/dev/null) && [[ ${#clients[@]} -gt 0 ]]; then
     update_popup "Opening existing tmux dot session..."
     hide_popup
-    uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal "$TMUX_BIN" attach-session -t "$SESSION"
+    open_session_in_terminal "$SESSION"
     exit 0
   fi
 
@@ -184,4 +196,4 @@ fi
 
 update_popup "Opening tmux dot session..."
 hide_popup
-uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal "$TMUX_BIN" attach-session -t "$SESSION"
+open_session_in_terminal "$SESSION"
