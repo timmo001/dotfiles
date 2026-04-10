@@ -3,8 +3,9 @@ set -euo pipefail
 
 channels_menu() {
   local config_file="${XDG_CONFIG_HOME:-$HOME/.config}/twitch-notifications/channels.yml"
-  local status_json tooltip line choice choice_label selected target_url
-  local -a all_channels live_channels options
+  local status_json tooltip line choice choice_label selected target_url live_entry live_channel
+  local -a all_channels options
+  declare -A live_display=()
   declare -A live_lookup=()
 
   [[ -f "$config_file" ]] || return 0
@@ -20,21 +21,21 @@ channels_menu() {
 
   while IFS= read -r line; do
     [[ $line == '- '* ]] || continue
-    live_channels+=("${line#- }")
-    live_lookup["${line#- } "]=1
-    live_lookup["${line#- } "]=${live_lookup["${line#- } "]}
+    live_entry="${line#- }"
+    if [[ $live_entry =~ ^([^:[:space:]]+)[[:space:]]*:[[:space:]]+(.+)$ ]]; then
+      live_channel="${BASH_REMATCH[1]}"
+    else
+      live_channel="$live_entry"
+    fi
+    live_lookup["${live_channel,,}"]=1
+    live_display["${live_channel,,}"]="$live_entry"
   done <<< "$tooltip"
-
-  live_lookup=()
-  for line in "${live_channels[@]}"; do
-    live_lookup["${line,,}"]=1
-  done
 
   options+=('󰕃  Open all live autolaunch')
 
   for line in "${all_channels[@]}"; do
     if [[ -n ${live_lookup["${line,,}"]:-} ]]; then
-      options+=("  $line")
+      options+=("  ${live_display["${line,,}"]:-$line}")
     fi
   done
 
@@ -48,6 +49,7 @@ channels_menu() {
   choice_label="${choice#*  }"
   [[ $choice_label == 'Open all live autolaunch' ]] && exec twitch-notifications --recheck --open
   selected="${choice_label% \[offline\]}"
+  selected="${selected%%:*}"
 
   if [[ -n $selected ]]; then
     target_url="https://twitch.tv/$selected"
