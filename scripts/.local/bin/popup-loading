@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 
 import ctypes.util
 import fcntl
@@ -40,13 +40,24 @@ def ensure_layer_shell_preloaded() -> None:
     if os.environ.get("POPUP_LOADING_PRELOADED") == "1":
         return
 
-    library_path = ctypes.util.find_library("gtk4-layer-shell")
+    library_path = None
+    resolved_library = ctypes.util.find_library("gtk4-layer-shell")
+    candidate_paths = (
+        "/usr/lib/libgtk4-layer-shell.so.0",
+        "/usr/lib/libgtk4-layer-shell.so",
+    )
+
+    if resolved_library:
+        if os.path.isabs(resolved_library):
+            library_path = resolved_library
+        else:
+            for candidate in candidate_paths:
+                if os.path.basename(candidate) == resolved_library and os.path.exists(candidate):
+                    library_path = candidate
+                    break
 
     if library_path is None:
-        for candidate in (
-            "/usr/lib/libgtk4-layer-shell.so",
-            "/usr/lib/libgtk4-layer-shell.so.0",
-        ):
+        for candidate in candidate_paths:
             if os.path.exists(candidate):
                 library_path = candidate
                 break

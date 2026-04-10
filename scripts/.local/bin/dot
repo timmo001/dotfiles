@@ -41,7 +41,7 @@ DIFF_ATTENTION_HAS_BEHIND=0
 
 PRIVATE_REASON=""
 
-PUBLIC_ARCH_PACKAGES=(system-bridge go-automate-git)
+PUBLIC_ARCH_PACKAGES=(system-bridge go-automate-git python-gobject gtk4-layer-shell)
 MISSING_PUBLIC_ARCH_PACKAGES=()
 
 PRIVATE_ARCH_PACKAGES=()
@@ -1760,28 +1760,47 @@ can_use_private() {
 backup_public_files_for_install() {
   local backup_root="$PUBLIC_DOTFILES/backup"
 
+  backup_item_for_install() {
+    local source_path="$1"
+    local backup_parent="$2"
+    local source_name
+    local backup_target
+
+    if [[ ! -e "$source_path" ]]; then
+      return 0
+    fi
+
+    if [[ -L "$source_path" ]]; then
+      log_info "Skip backup for symlink target: $(display_path "$source_path")"
+      return 0
+    fi
+
+    mkdir -p "$backup_parent"
+    source_name="${source_path##*/}"
+    backup_target="$backup_parent/$source_name"
+
+    if [[ -e "$backup_target" ]]; then
+      backup_target="$backup_parent/$source_name.$(date +%Y%m%d-%H%M%S)"
+    fi
+
+    log_info "Backup: $(display_path "$source_path") -> $(display_path "$backup_target")"
+    mv "$source_path" "$backup_target"
+  }
+
   if [[ -f "$HOME/.zshrc" ]]; then
-    mkdir -p "$backup_root"
-    log_info "Backup: $(display_path "$HOME/.zshrc") -> $(display_path "$backup_root")"
-    mv "$HOME/.zshrc" "$backup_root"
+    backup_item_for_install "$HOME/.zshrc" "$backup_root"
   fi
 
   if [[ -f "$HOME/.editorconfig" ]]; then
-    mkdir -p "$backup_root"
-    log_info "Backup: $(display_path "$HOME/.editorconfig") -> $(display_path "$backup_root")"
-    mv "$HOME/.editorconfig" "$backup_root"
+    backup_item_for_install "$HOME/.editorconfig" "$backup_root"
   fi
 
   if [[ -f "$HOME/.config/ghostty/config.toml" ]]; then
-    mkdir -p "$backup_root/.config/ghostty"
-    log_info "Backup: $(display_path "$HOME/.config/ghostty/config.toml") -> $(display_path "$backup_root/.config/ghostty")"
-    mv "$HOME/.config/ghostty/config.toml" "$backup_root/.config/ghostty"
+    backup_item_for_install "$HOME/.config/ghostty/config.toml" "$backup_root/.config/ghostty"
   fi
 
   if [[ -d "$HOME/.config/nvim" ]]; then
-    mkdir -p "$backup_root/.config"
-    log_info "Backup: $(display_path "$HOME/.config/nvim") -> $(display_path "$backup_root/.config")"
-    mv "$HOME/.config/nvim" "$backup_root/.config"
+    backup_item_for_install "$HOME/.config/nvim" "$backup_root/.config"
   fi
 }
 
@@ -1993,6 +2012,8 @@ run_init_public_package_installs() {
     collect_missing_public_arch_packages
     if [[ "${#MISSING_PUBLIC_ARCH_PACKAGES[@]}" -gt 0 ]]; then
       log_warn "Skipping public Arch package install (${MISSING_PUBLIC_ARCH_PACKAGES[*]})"
+    else
+      log_info 'Public Arch packages already installed'
     fi
     return 0
   fi
@@ -2002,6 +2023,7 @@ run_init_public_package_installs() {
   fi
 
   if [[ "${#MISSING_PUBLIC_ARCH_PACKAGES[@]}" -eq 0 ]]; then
+    log_info 'Public Arch packages already installed'
     return 0
   fi
 
@@ -2652,6 +2674,8 @@ cmd_doctor() {
   doctor_log_section 'Public package checks'
   report_package_status 'system-bridge' 'yay -S system-bridge'
   report_package_status 'go-automate-git' 'yay -S go-automate-git'
+  report_package_status 'python-gobject' 'yay -S python-gobject'
+  report_package_status 'gtk4-layer-shell' 'yay -S gtk4-layer-shell'
 
   doctor_log_section 'Private package repo checks'
   report_private_package_repo_status
