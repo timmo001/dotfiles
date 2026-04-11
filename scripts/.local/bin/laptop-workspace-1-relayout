@@ -4,10 +4,26 @@ set -euo pipefail
 
 TARGET_WORKSPACE=1
 TEMP_WORKSPACE="${WORKSPACE_1_RELAYOUT_TEMP_WS:-99}"
-LEFT_WIDTH=326
-RIGHT_WIDTH=966
-ROW_HEIGHT=390
 NOTIFY_TITLE="Workspace 1 relayout"
+
+GRID_LEFT_WIDTH=326
+GRID_RIGHT_WIDTH=966
+GRID_ROW_HEIGHT=390
+
+TOP_WIDTH=1294
+TOP_HEIGHT=576
+BOTTOM_LEFT_WIDTH=276
+BOTTOM_MIDDLE_WIDTH=276
+BOTTOM_RIGHT_WIDTH=738
+BOTTOM_ROW_HEIGHT=204
+
+THREE_BOTTOM_LEFT_WIDTH=362
+THREE_BOTTOM_RIGHT_WIDTH=930
+
+THREE_CURRENT_TOP_HEIGHT=492
+THREE_CURRENT_BOTTOM_LEFT_WIDTH=510
+THREE_CURRENT_BOTTOM_RIGHT_WIDTH=782
+THREE_CURRENT_BOTTOM_ROW_HEIGHT=288
 
 notify() {
   notify-send "$NOTIFY_TITLE" "$1"
@@ -34,95 +50,339 @@ resize_addr_exact() {
   hyprctl dispatch resizeactive exact "$width" "$height" >/dev/null 2>&1
 }
 
-if ! command -v hyprctl >/dev/null 2>&1; then
-  notify "hyprctl is not available"
-  exit 1
-fi
+require_dependencies() {
+  if ! command -v hyprctl >/dev/null 2>&1; then
+    notify "hyprctl is not available"
+    exit 1
+  fi
 
-if ! command -v jq >/dev/null 2>&1; then
-  notify "jq is not available"
-  exit 1
-fi
+  if ! command -v jq >/dev/null 2>&1; then
+    notify "jq is not available"
+    exit 1
+  fi
+}
 
-if ! [[ "$TEMP_WORKSPACE" =~ ^[0-9]+$ ]] || [ "$TEMP_WORKSPACE" -le 0 ] || [ "$TEMP_WORKSPACE" -eq "$TARGET_WORKSPACE" ]; then
-  notify "WORKSPACE_1_RELAYOUT_TEMP_WS must be a positive workspace id other than 1"
-  exit 1
-fi
+validate_temp_workspace() {
+  if ! [[ "$TEMP_WORKSPACE" =~ ^[0-9]+$ ]] || [ "$TEMP_WORKSPACE" -le 0 ] || [ "$TEMP_WORKSPACE" -eq "$TARGET_WORKSPACE" ]; then
+    notify "WORKSPACE_1_RELAYOUT_TEMP_WS must be a positive workspace id other than 1"
+    exit 1
+  fi
+}
 
-active_workspace="$(hyprctl -j activeworkspace | jq -r '.id // empty')"
-if [ "$active_workspace" != "$TARGET_WORKSPACE" ]; then
-  notify "Switch to workspace 1 before relayout"
-  exit 1
-fi
+ensure_target_workspace() {
+  local active_workspace
+  active_workspace="$(hyprctl -j activeworkspace | jq -r '.id // empty')"
 
-clients_json="$(hyprctl -j clients)"
-window_count="$(jq -r --argjson ws "$TARGET_WORKSPACE" '
-  [.[]
-    | select(.mapped == true)
-    | select(.hidden == false)
-    | select(.floating == false)
-    | select(.workspace.id == $ws)
-  ]
-  | length
-' <<< "$clients_json")"
+  if [ "$active_workspace" != "$TARGET_WORKSPACE" ]; then
+    notify "Switch to workspace 1 before relayout"
+    exit 1
+  fi
+}
 
-if [ "$window_count" -ne 4 ]; then
-  notify "Expected 4 visible tiled windows on workspace 1, found $window_count"
-  exit 1
-fi
+load_workspace_clients() {
+  clients_json="$(hyprctl -j clients | jq -c --argjson ws "$TARGET_WORKSPACE" '
+    [.[]
+      | select(.mapped == true)
+      | select(.hidden == false)
+      | select(.floating == false)
+      | select(.workspace.id == $ws)
+    ]
+  ')"
+}
 
-mapfile -t ordered_addrs < <(jq -r --argjson ws "$TARGET_WORKSPACE" '
-  [.[]
-    | select(.mapped == true)
-    | select(.hidden == false)
-    | select(.floating == false)
-    | select(.workspace.id == $ws)
-  ]
-  | sort_by(.at[0], .at[1])
-  | .[].address
-' <<< "$clients_json")
+ensure_four_windows() {
+  local window_count
+  window_count="$(jq -r 'length' <<< "$clients_json")"
 
-top_left_addr="${ordered_addrs[0]}"
-bottom_left_addr="${ordered_addrs[1]}"
-top_right_addr="${ordered_addrs[2]}"
-bottom_right_addr="${ordered_addrs[3]}"
+  if [ "$window_count" -ne 4 ]; then
+    notify "Expected 4 visible tiled windows on workspace 1, found $window_count"
+    exit 1
+  fi
+}
 
-restore_addr="$(hyprctl activewindow -j | jq -r --argjson ws "$TARGET_WORKSPACE" '
-  select((.workspace.id // -1) == $ws)
-  | .address // empty
-')"
+load_restore_addr() {
+  restore_addr="$(hyprctl activewindow -j | jq -r --argjson ws "$TARGET_WORKSPACE" '
+    select((.workspace.id // -1) == $ws)
+    | .address // empty
+  ')"
+}
 
-for addr in "$top_left_addr" "$bottom_left_addr" "$top_right_addr" "$bottom_right_addr"; do
-  move_to_workspace "$TEMP_WORKSPACE" "$addr"
-done
+load_grid_addresses() {
+  mapfile -t grid_addrs < <(jq -r '
+    sort_by(.at[0], .at[1])
+    | .[].address
+  ' <<< "$clients_json")
+}
 
-sleep 0.15
+load_row_addresses() {
+  mapfile -t row_addrs < <(jq -r '
+    sort_by(.at[1], .at[0])
+    | .[].address
+  ' <<< "$clients_json")
+}
 
-move_to_workspace "$TARGET_WORKSPACE" "$top_left_addr"
-focus_addr "$top_left_addr"
-hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
-sleep 0.05
+move_windows_to_temp() {
+  local addr
 
-move_to_workspace "$TARGET_WORKSPACE" "$top_right_addr"
-focus_addr "$top_left_addr"
-hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
-sleep 0.05
+  for addr in "$@"; do
+    move_to_workspace "$TEMP_WORKSPACE" "$addr"
+  done
 
-move_to_workspace "$TARGET_WORKSPACE" "$bottom_left_addr"
-focus_addr "$top_right_addr"
-hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
-sleep 0.05
+  sleep 0.15
+}
 
-move_to_workspace "$TARGET_WORKSPACE" "$bottom_right_addr"
-sleep 0.15
+restore_focus() {
+  if [ -n "$restore_addr" ]; then
+    focus_addr "$restore_addr" || true
+  fi
+}
 
-resize_addr_exact "$top_left_addr" "$LEFT_WIDTH" "$ROW_HEIGHT" || true
-resize_addr_exact "$bottom_left_addr" "$LEFT_WIDTH" "$ROW_HEIGHT" || true
-resize_addr_exact "$top_right_addr" "$RIGHT_WIDTH" "$ROW_HEIGHT" || true
-resize_addr_exact "$bottom_right_addr" "$RIGHT_WIDTH" "$ROW_HEIGHT" || true
+choose_layout() {
+  local choice
+  local option_count
+  local prompt
+  local grid_label
+  local top_bottom_label
+  local three_label
+  local three_current_label
 
-if [ -n "$restore_addr" ]; then
-  focus_addr "$restore_addr" || true
-fi
+  if ! command -v omarchy-launch-walker >/dev/null 2>&1; then
+    notify "omarchy-launch-walker is not available"
+    return 1
+  fi
 
-notify "Reapplied the 4-window workspace 1 layout"
+  option_count="$(jq -r 'length' <<< "$clients_json")"
+  prompt="$option_count window layout..."
+  grid_label='2 columns / 2 rows [25/75, 50/50]'
+  top_bottom_label='1 top / 3 bottom [74/26, 21/21/57]'
+  three_label='1 top / 2 bottom [74/26, 28/72]'
+  three_current_label='1 top / 2 bottom [63/37, 39/61]'
+
+  case "$option_count" in
+    4)
+      choice="$(printf '%s\n' "$grid_label" "$top_bottom_label" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 240 -p "$prompt" 2>/dev/null || true)"
+      ;;
+    3)
+      choice="$(printf '%s\n' "$three_label" "$three_current_label" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 240 -p "$prompt" 2>/dev/null || true)"
+      ;;
+    *)
+      notify "Expected 3 or 4 visible tiled windows on workspace 1, found $option_count"
+      return 1
+      ;;
+  esac
+
+  case "$choice" in
+    "$grid_label")
+      printf 'grid\n'
+      ;;
+    "$top_bottom_label")
+      printf 'top-bottom\n'
+      ;;
+    "$three_label")
+      printf 'top-two-bottom\n'
+      ;;
+    "$three_current_label")
+      printf 'top-two-bottom-current\n'
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+apply_grid_layout() {
+  local top_left_addr bottom_left_addr top_right_addr bottom_right_addr
+
+  ensure_four_windows
+  load_restore_addr
+  load_grid_addresses
+
+  top_left_addr="${grid_addrs[0]}"
+  bottom_left_addr="${grid_addrs[1]}"
+  top_right_addr="${grid_addrs[2]}"
+  bottom_right_addr="${grid_addrs[3]}"
+
+  move_windows_to_temp "$top_left_addr" "$bottom_left_addr" "$top_right_addr" "$bottom_right_addr"
+
+  move_to_workspace "$TARGET_WORKSPACE" "$top_left_addr"
+  focus_addr "$top_left_addr"
+  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
+  sleep 0.05
+
+  move_to_workspace "$TARGET_WORKSPACE" "$top_right_addr"
+  focus_addr "$top_left_addr"
+  hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
+  sleep 0.05
+
+  move_to_workspace "$TARGET_WORKSPACE" "$bottom_left_addr"
+  focus_addr "$top_right_addr"
+  hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
+  sleep 0.05
+
+  move_to_workspace "$TARGET_WORKSPACE" "$bottom_right_addr"
+  sleep 0.15
+
+  resize_addr_exact "$top_left_addr" "$GRID_LEFT_WIDTH" "$GRID_ROW_HEIGHT" || true
+  resize_addr_exact "$bottom_left_addr" "$GRID_LEFT_WIDTH" "$GRID_ROW_HEIGHT" || true
+  resize_addr_exact "$top_right_addr" "$GRID_RIGHT_WIDTH" "$GRID_ROW_HEIGHT" || true
+  resize_addr_exact "$bottom_right_addr" "$GRID_RIGHT_WIDTH" "$GRID_ROW_HEIGHT" || true
+
+  restore_focus
+  notify "Applied 2 columns / 2 rows"
+}
+
+apply_top_bottom_layout() {
+  local top_addr bottom_left_addr bottom_middle_addr bottom_right_addr
+
+  ensure_four_windows
+  load_restore_addr
+  load_row_addresses
+
+  top_addr="${row_addrs[0]}"
+  bottom_left_addr="${row_addrs[1]}"
+  bottom_middle_addr="${row_addrs[2]}"
+  bottom_right_addr="${row_addrs[3]}"
+
+  move_windows_to_temp "$top_addr" "$bottom_left_addr" "$bottom_middle_addr" "$bottom_right_addr"
+
+  move_to_workspace "$TARGET_WORKSPACE" "$top_addr"
+  focus_addr "$top_addr"
+  hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
+  sleep 0.05
+
+  move_to_workspace "$TARGET_WORKSPACE" "$bottom_left_addr"
+  focus_addr "$bottom_left_addr"
+  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
+  sleep 0.05
+
+  move_to_workspace "$TARGET_WORKSPACE" "$bottom_middle_addr"
+  focus_addr "$bottom_middle_addr"
+  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
+  sleep 0.05
+
+  move_to_workspace "$TARGET_WORKSPACE" "$bottom_right_addr"
+  sleep 0.15
+
+  resize_addr_exact "$top_addr" "$TOP_WIDTH" "$TOP_HEIGHT" || true
+  resize_addr_exact "$bottom_left_addr" "$BOTTOM_LEFT_WIDTH" "$BOTTOM_ROW_HEIGHT" || true
+  resize_addr_exact "$bottom_middle_addr" "$BOTTOM_MIDDLE_WIDTH" "$BOTTOM_ROW_HEIGHT" || true
+  resize_addr_exact "$bottom_right_addr" "$BOTTOM_RIGHT_WIDTH" "$BOTTOM_ROW_HEIGHT" || true
+
+  restore_focus
+  notify "Applied 1 top / 3 bottom"
+}
+
+apply_top_two_bottom_layout() {
+  local top_addr bottom_left_addr bottom_right_addr
+
+  local window_count
+  window_count="$(jq -r 'length' <<< "$clients_json")"
+  if [ "$window_count" -ne 3 ]; then
+    notify "Expected 3 visible tiled windows on workspace 1, found $window_count"
+    exit 1
+  fi
+
+  load_restore_addr
+  load_row_addresses
+
+  top_addr="${row_addrs[0]}"
+  bottom_left_addr="${row_addrs[1]}"
+  bottom_right_addr="${row_addrs[2]}"
+
+  move_windows_to_temp "$top_addr" "$bottom_left_addr" "$bottom_right_addr"
+
+  move_to_workspace "$TARGET_WORKSPACE" "$top_addr"
+  focus_addr "$top_addr"
+  hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
+  sleep 0.05
+
+  move_to_workspace "$TARGET_WORKSPACE" "$bottom_left_addr"
+  focus_addr "$bottom_left_addr"
+  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
+  sleep 0.05
+
+  move_to_workspace "$TARGET_WORKSPACE" "$bottom_right_addr"
+  sleep 0.15
+
+  resize_addr_exact "$top_addr" "$TOP_WIDTH" "$TOP_HEIGHT" || true
+  resize_addr_exact "$bottom_left_addr" "$THREE_BOTTOM_LEFT_WIDTH" "$BOTTOM_ROW_HEIGHT" || true
+  resize_addr_exact "$bottom_right_addr" "$THREE_BOTTOM_RIGHT_WIDTH" "$BOTTOM_ROW_HEIGHT" || true
+
+  restore_focus
+  notify "Applied 1 top / 2 bottom"
+}
+
+apply_top_two_bottom_current_layout() {
+  local top_addr bottom_left_addr bottom_right_addr
+
+  local window_count
+  window_count="$(jq -r 'length' <<< "$clients_json")"
+  if [ "$window_count" -ne 3 ]; then
+    notify "Expected 3 visible tiled windows on workspace 1, found $window_count"
+    exit 1
+  fi
+
+  load_restore_addr
+  load_row_addresses
+
+  top_addr="${row_addrs[0]}"
+  bottom_left_addr="${row_addrs[1]}"
+  bottom_right_addr="${row_addrs[2]}"
+
+  move_windows_to_temp "$top_addr" "$bottom_left_addr" "$bottom_right_addr"
+
+  move_to_workspace "$TARGET_WORKSPACE" "$top_addr"
+  focus_addr "$top_addr"
+  hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
+  sleep 0.05
+
+  move_to_workspace "$TARGET_WORKSPACE" "$bottom_left_addr"
+  focus_addr "$bottom_left_addr"
+  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
+  sleep 0.05
+
+  move_to_workspace "$TARGET_WORKSPACE" "$bottom_right_addr"
+  sleep 0.15
+
+  resize_addr_exact "$top_addr" "$TOP_WIDTH" "$THREE_CURRENT_TOP_HEIGHT" || true
+  resize_addr_exact "$bottom_left_addr" "$THREE_CURRENT_BOTTOM_LEFT_WIDTH" "$THREE_CURRENT_BOTTOM_ROW_HEIGHT" || true
+  resize_addr_exact "$bottom_right_addr" "$THREE_CURRENT_BOTTOM_RIGHT_WIDTH" "$THREE_CURRENT_BOTTOM_ROW_HEIGHT" || true
+
+  restore_focus
+  notify "Applied 1 top / 2 bottom"
+}
+
+main() {
+  local layout="${1:-menu}"
+
+  require_dependencies
+  validate_temp_workspace
+  ensure_target_workspace
+  load_workspace_clients
+
+  if [ "$layout" = "menu" ]; then
+    layout="$(choose_layout || true)"
+    [ -n "$layout" ] || exit 0
+  fi
+
+  case "$layout" in
+    grid|2x2)
+      apply_grid_layout
+      ;;
+    top-bottom|top3|1-top-3-bottom)
+      apply_top_bottom_layout
+      ;;
+    top-two-bottom|top2|1-top-2-bottom)
+      apply_top_two_bottom_layout
+      ;;
+    top-two-bottom-current|top2-current|1-top-2-bottom-current)
+      apply_top_two_bottom_current_layout
+      ;;
+    *)
+      notify "Unknown layout: $layout"
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"
