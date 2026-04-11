@@ -25,6 +25,19 @@ THREE_CURRENT_BOTTOM_LEFT_WIDTH=510
 THREE_CURRENT_BOTTOM_RIGHT_WIDTH=782
 THREE_CURRENT_BOTTOM_ROW_HEIGHT=288
 
+THREE_HALF_TOP_HEIGHT=392
+THREE_HALF_BOTTOM_LEFT_WIDTH=330
+THREE_HALF_BOTTOM_RIGHT_WIDTH=962
+THREE_HALF_BOTTOM_ROW_HEIGHT=388
+
+TWO_CURRENT_TOP_HEIGHT=576
+TWO_CURRENT_BOTTOM_HEIGHT=204
+
+TWO_ALT_TOP_HEIGHT=492
+TWO_ALT_BOTTOM_HEIGHT=288
+
+TWO_HALF_HEIGHT=390
+
 notify() {
   notify-send "$NOTIFY_TITLE" "$1"
 }
@@ -141,10 +154,14 @@ choose_layout() {
   local choice
   local option_count
   local prompt
+  local two_label
+  local two_alt_label
+  local two_half_label
   local grid_label
   local top_bottom_label
   local three_label
   local three_current_label
+  local three_half_label
 
   if ! command -v omarchy-launch-walker >/dev/null 2>&1; then
     notify "omarchy-launch-walker is not available"
@@ -153,25 +170,41 @@ choose_layout() {
 
   option_count="$(jq -r 'length' <<< "$clients_json")"
   prompt="$option_count window layout..."
-  grid_label='2 columns / 2 rows [25/75, 50/50]'
+  two_label='1 top / 1 bottom [74/26]'
+  two_alt_label='1 top / 1 bottom [63/37]'
+  two_half_label='1 top / 1 bottom [50/50]'
+  grid_label='2 columns / 2 rows [50/50, 25/75]'
   top_bottom_label='1 top / 3 bottom [74/26, 21/21/57]'
   three_label='1 top / 2 bottom [74/26, 28/72]'
   three_current_label='1 top / 2 bottom [63/37, 39/61]'
+  three_half_label='1 top / 2 bottom [50/50, 26/74]'
 
   case "$option_count" in
+    2)
+      choice="$(printf '%s\n' "$two_label" "$two_alt_label" "$two_half_label" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 240 -p "$prompt" 2>/dev/null || true)"
+      ;;
     4)
       choice="$(printf '%s\n' "$grid_label" "$top_bottom_label" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 240 -p "$prompt" 2>/dev/null || true)"
       ;;
     3)
-      choice="$(printf '%s\n' "$three_label" "$three_current_label" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 240 -p "$prompt" 2>/dev/null || true)"
+      choice="$(printf '%s\n' "$three_label" "$three_current_label" "$three_half_label" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 240 -p "$prompt" 2>/dev/null || true)"
       ;;
     *)
-      notify "Expected 3 or 4 visible tiled windows on workspace 1, found $option_count"
+      notify "Expected 2, 3, or 4 visible tiled windows on workspace 1, found $option_count"
       return 1
       ;;
   esac
 
   case "$choice" in
+    "$two_label")
+      printf 'top-bottom-two\n'
+      ;;
+    "$two_alt_label")
+      printf 'top-bottom-two-alt\n'
+      ;;
+    "$two_half_label")
+      printf 'top-bottom-two-half\n'
+      ;;
     "$grid_label")
       printf 'grid\n'
       ;;
@@ -184,10 +217,112 @@ choose_layout() {
     "$three_current_label")
       printf 'top-two-bottom-current\n'
       ;;
+    "$three_half_label")
+      printf 'top-two-bottom-half\n'
+      ;;
     *)
       return 1
       ;;
   esac
+}
+
+apply_top_bottom_two_layout() {
+  local top_addr bottom_addr
+
+  local window_count
+  window_count="$(jq -r 'length' <<< "$clients_json")"
+  if [ "$window_count" -ne 2 ]; then
+    notify "Expected 2 visible tiled windows on workspace 1, found $window_count"
+    exit 1
+  fi
+
+  load_restore_addr
+  load_row_addresses
+
+  top_addr="${row_addrs[0]}"
+  bottom_addr="${row_addrs[1]}"
+
+  move_windows_to_temp "$top_addr" "$bottom_addr"
+
+  move_to_workspace "$TARGET_WORKSPACE" "$top_addr"
+  focus_addr "$top_addr"
+  hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
+  sleep 0.05
+
+  move_to_workspace "$TARGET_WORKSPACE" "$bottom_addr"
+  sleep 0.15
+
+  resize_addr_exact "$top_addr" "$TOP_WIDTH" "$TWO_CURRENT_TOP_HEIGHT" || true
+  resize_addr_exact "$bottom_addr" "$TOP_WIDTH" "$TWO_CURRENT_BOTTOM_HEIGHT" || true
+
+  restore_focus
+  notify "Applied 1 top / 1 bottom"
+}
+
+apply_top_bottom_two_alt_layout() {
+  local top_addr bottom_addr
+
+  local window_count
+  window_count="$(jq -r 'length' <<< "$clients_json")"
+  if [ "$window_count" -ne 2 ]; then
+    notify "Expected 2 visible tiled windows on workspace 1, found $window_count"
+    exit 1
+  fi
+
+  load_restore_addr
+  load_row_addresses
+
+  top_addr="${row_addrs[0]}"
+  bottom_addr="${row_addrs[1]}"
+
+  move_windows_to_temp "$top_addr" "$bottom_addr"
+
+  move_to_workspace "$TARGET_WORKSPACE" "$top_addr"
+  focus_addr "$top_addr"
+  hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
+  sleep 0.05
+
+  move_to_workspace "$TARGET_WORKSPACE" "$bottom_addr"
+  sleep 0.15
+
+  resize_addr_exact "$top_addr" "$TOP_WIDTH" "$TWO_ALT_TOP_HEIGHT" || true
+  resize_addr_exact "$bottom_addr" "$TOP_WIDTH" "$TWO_ALT_BOTTOM_HEIGHT" || true
+
+  restore_focus
+  notify "Applied 1 top / 1 bottom"
+}
+
+apply_top_bottom_two_half_layout() {
+  local top_addr bottom_addr
+
+  local window_count
+  window_count="$(jq -r 'length' <<< "$clients_json")"
+  if [ "$window_count" -ne 2 ]; then
+    notify "Expected 2 visible tiled windows on workspace 1, found $window_count"
+    exit 1
+  fi
+
+  load_restore_addr
+  load_row_addresses
+
+  top_addr="${row_addrs[0]}"
+  bottom_addr="${row_addrs[1]}"
+
+  move_windows_to_temp "$top_addr" "$bottom_addr"
+
+  move_to_workspace "$TARGET_WORKSPACE" "$top_addr"
+  focus_addr "$top_addr"
+  hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
+  sleep 0.05
+
+  move_to_workspace "$TARGET_WORKSPACE" "$bottom_addr"
+  sleep 0.15
+
+  resize_addr_exact "$top_addr" "$TOP_WIDTH" "$TWO_HALF_HEIGHT" || true
+  resize_addr_exact "$bottom_addr" "$TOP_WIDTH" "$TWO_HALF_HEIGHT" || true
+
+  restore_focus
+  notify "Applied 1 top / 1 bottom"
 }
 
 apply_grid_layout() {
@@ -352,6 +487,46 @@ apply_top_two_bottom_current_layout() {
   notify "Applied 1 top / 2 bottom"
 }
 
+apply_top_two_bottom_half_layout() {
+  local top_addr bottom_left_addr bottom_right_addr
+
+  local window_count
+  window_count="$(jq -r 'length' <<< "$clients_json")"
+  if [ "$window_count" -ne 3 ]; then
+    notify "Expected 3 visible tiled windows on workspace 1, found $window_count"
+    exit 1
+  fi
+
+  load_restore_addr
+  load_row_addresses
+
+  top_addr="${row_addrs[0]}"
+  bottom_left_addr="${row_addrs[1]}"
+  bottom_right_addr="${row_addrs[2]}"
+
+  move_windows_to_temp "$top_addr" "$bottom_left_addr" "$bottom_right_addr"
+
+  move_to_workspace "$TARGET_WORKSPACE" "$top_addr"
+  focus_addr "$top_addr"
+  hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
+  sleep 0.05
+
+  move_to_workspace "$TARGET_WORKSPACE" "$bottom_left_addr"
+  focus_addr "$bottom_left_addr"
+  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
+  sleep 0.05
+
+  move_to_workspace "$TARGET_WORKSPACE" "$bottom_right_addr"
+  sleep 0.15
+
+  resize_addr_exact "$top_addr" "$TOP_WIDTH" "$THREE_HALF_TOP_HEIGHT" || true
+  resize_addr_exact "$bottom_left_addr" "$THREE_HALF_BOTTOM_LEFT_WIDTH" "$THREE_HALF_BOTTOM_ROW_HEIGHT" || true
+  resize_addr_exact "$bottom_right_addr" "$THREE_HALF_BOTTOM_RIGHT_WIDTH" "$THREE_HALF_BOTTOM_ROW_HEIGHT" || true
+
+  restore_focus
+  notify "Applied 1 top / 2 bottom"
+}
+
 main() {
   local layout="${1:-menu}"
 
@@ -366,6 +541,15 @@ main() {
   fi
 
   case "$layout" in
+    top-bottom-two|top1-bottom1|1-top-1-bottom)
+      apply_top_bottom_two_layout
+      ;;
+    top-bottom-two-alt|top1-bottom1-alt|1-top-1-bottom-alt)
+      apply_top_bottom_two_alt_layout
+      ;;
+    top-bottom-two-half|top1-bottom1-half|1-top-1-bottom-half)
+      apply_top_bottom_two_half_layout
+      ;;
     grid|2x2)
       apply_grid_layout
       ;;
@@ -377,6 +561,9 @@ main() {
       ;;
     top-two-bottom-current|top2-current|1-top-2-bottom-current)
       apply_top_two_bottom_current_layout
+      ;;
+    top-two-bottom-half|top2-half|1-top-2-bottom-half)
+      apply_top_two_bottom_half_layout
       ;;
     *)
       notify "Unknown layout: $layout"
