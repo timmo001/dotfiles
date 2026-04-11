@@ -525,13 +525,13 @@ install_missing_private_arch_packages() {
     return 0
   fi
 
-  if ! has_cmd yay; then
-    log_warn 'Cannot install missing private Arch packages automatically (yay not found)'
+  if ! has_cmd omarchy-pkg-aur-add; then
+    log_warn 'Cannot install missing private Arch packages automatically (omarchy-pkg-aur-add not found)'
     return 0
   fi
 
   log_info "Installing missing private Arch packages: ${MISSING_PRIVATE_ARCH_PACKAGES[*]}"
-  install_yay_packages "$confirm" "${MISSING_PRIVATE_ARCH_PACKAGES[@]}"
+  install_aur_packages "$confirm" "${MISSING_PRIVATE_ARCH_PACKAGES[@]}"
 }
 
 ensure_private_package_repo_config() {
@@ -543,11 +543,15 @@ ensure_private_package_repo_config() {
   expected_contents="$(private_package_repo_config_contents)" || return 1
   config_dir="$(dirname "$config_path")"
 
-  if [[ ! -d "$config_dir" ]]; then
-    pkexec mkdir -p "$config_dir"
+  if [[ ! -d "$config_dir" ]] && ! mkdir -p "$config_dir"; then
+    log_warn "Skipping private pacman repo config write (cannot create directory as current user: $(display_path "$config_dir"))"
+    return 0
   fi
 
-  printf '%s\n' "$expected_contents" | pkexec tee "$config_path" >/dev/null
+  if ! printf '%s\n' "$expected_contents" > "$config_path"; then
+    log_warn "Skipping private pacman repo config write (cannot write as current user: $(display_path "$config_path"))"
+    return 0
+  fi
 }
 
 sync_private_package_repo_mirror() {
@@ -558,8 +562,15 @@ sync_private_package_repo_mirror() {
     return 0
   fi
 
-  pkexec mkdir -p "$PRIVATE_PACKAGE_REPO_MIRROR_PATH"
-  pkexec rsync -a --delete --exclude '.git/' "$PRIVATE_PACKAGE_REPO_PATH/" "$PRIVATE_PACKAGE_REPO_MIRROR_PATH/"
+  if [[ ! -d "$PRIVATE_PACKAGE_REPO_MIRROR_PATH" ]] && ! mkdir -p "$PRIVATE_PACKAGE_REPO_MIRROR_PATH"; then
+    log_warn "Skipping private package repo mirror sync (cannot create mirror path as current user: $(display_path "$PRIVATE_PACKAGE_REPO_MIRROR_PATH"))"
+    return 0
+  fi
+
+  if ! rsync -a --delete --exclude '.git/' "$PRIVATE_PACKAGE_REPO_PATH/" "$PRIVATE_PACKAGE_REPO_MIRROR_PATH/"; then
+    log_warn "Skipping private package repo mirror sync (cannot sync as current user: $(display_path "$PRIVATE_PACKAGE_REPO_MIRROR_PATH"))"
+    return 0
+  fi
 }
 
 ensure_private_package_repo_include() {
@@ -572,9 +583,17 @@ ensure_private_package_repo_include() {
   fi
 
   temp_file="$(mktemp)"
-  cp "$DOT_PRIVATE_PACMAN_MAIN_CONFIG" "$temp_file"
+  if ! cp "$DOT_PRIVATE_PACMAN_MAIN_CONFIG" "$temp_file"; then
+    log_warn "Skipping private pacman repo include update (cannot read as current user: $(display_path "$DOT_PRIVATE_PACMAN_MAIN_CONFIG"))"
+    rm -f "$temp_file"
+    return 0
+  fi
   printf '\n%s\n' "$include_line" >> "$temp_file"
-  pkexec install -m 644 "$temp_file" "$DOT_PRIVATE_PACMAN_MAIN_CONFIG"
+  if ! install -m 644 "$temp_file" "$DOT_PRIVATE_PACMAN_MAIN_CONFIG"; then
+    log_warn "Skipping private pacman repo include update (cannot write as current user: $(display_path "$DOT_PRIVATE_PACMAN_MAIN_CONFIG"))"
+    rm -f "$temp_file"
+    return 0
+  fi
   rm -f "$temp_file"
 }
 
@@ -653,7 +672,13 @@ publish_private_package() {
   sync_private_package_repo_mirror
 
   if private_package_repo_registered && private_package_repo_include_registered; then
-    pkexec pacman -Sy
+    if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+      if ! pacman -Sy; then
+        log_warn 'pacman database refresh failed'
+      fi
+    else
+      log_warn 'Skipping pacman database refresh (run manually with your preferred privilege method if needed)'
+    fi
   fi
 
   if [[ "$publish_git" == 'true' ]]; then
@@ -718,20 +743,24 @@ cmd_private_pkg_publish() {
   publish_private_package "$package_name" "$source_repo" "$publish_git"
 }
 
-install_yay_packages() {
+install_aur_packages() {
   local confirm="${1:-false}"
   shift || true
-  local -a install_flags=(--needed --noconfirm)
 
   if [[ $# -eq 0 ]]; then
     return 0
   fi
 
-  if [[ "$confirm" == 'true' ]]; then
-    install_flags=(--needed)
+  if ! has_cmd omarchy-pkg-aur-add; then
+    log_warn 'Cannot install AUR packages automatically (omarchy-pkg-aur-add not found)'
+    return 0
   fi
 
-  yay -S "${install_flags[@]}" "$@"
+  if [[ "$confirm" == 'true' ]]; then
+    log_warn '--confirm is ignored for omarchy-pkg-aur-add (it is non-interactive)'
+  fi
+
+  omarchy-pkg-aur-add "$@"
 }
 
 install_missing_public_arch_packages() {
@@ -744,13 +773,13 @@ install_missing_public_arch_packages() {
     return 0
   fi
 
-  if ! has_cmd yay; then
-    log_warn 'Cannot install missing public Arch packages automatically (yay not found)'
+  if ! has_cmd omarchy-pkg-aur-add; then
+    log_warn 'Cannot install missing public Arch packages automatically (omarchy-pkg-aur-add not found)'
     return 0
   fi
 
   log_info "Installing missing public Arch packages: ${MISSING_PUBLIC_ARCH_PACKAGES[*]}"
-  install_yay_packages "$confirm" "${MISSING_PUBLIC_ARCH_PACKAGES[@]}"
+  install_aur_packages "$confirm" "${MISSING_PUBLIC_ARCH_PACKAGES[@]}"
 }
 
 chromium_extension_id_installed() {
@@ -2131,7 +2160,6 @@ clean_private_dotfiles() {
 run_setup_packages() {
   local confirm=false
   local arg
-  local -a install_flags
 
   for arg in "$@"; do
     case "$arg" in
@@ -2150,14 +2178,9 @@ run_setup_packages() {
     return 0
   fi
 
-  if ! has_cmd yay; then
-    log_error 'Required command missing: yay (setup installs stow when absent)'
+  if ! has_cmd omarchy-pkg-add; then
+    log_error 'Required command missing: omarchy-pkg-add (setup installs stow when absent)'
     return 1
-  fi
-
-  install_flags=(--needed --noconfirm)
-  if [[ "$confirm" == 'true' ]]; then
-    install_flags=(--needed)
   fi
 
   install_group() {
@@ -2165,7 +2188,10 @@ run_setup_packages() {
     shift
 
     log_section "$title"
-    yay -S "${install_flags[@]}" "$@"
+    if [[ "$confirm" == 'true' ]]; then
+      log_warn '--confirm is ignored for omarchy-pkg-add (it is non-interactive)'
+    fi
+    omarchy-pkg-add "$@"
   }
 
   install_group 'Init prerequisites (required)' stow
@@ -2196,8 +2222,8 @@ run_init_public_package_installs() {
     return 0
   fi
 
-  if ! has_cmd yay; then
-    log_warn 'Skipping public Arch package install (yay not found)'
+  if ! has_cmd omarchy-pkg-aur-add; then
+    log_warn 'Skipping public Arch package install (omarchy-pkg-aur-add not found)'
     return 0
   fi
 
@@ -2235,6 +2261,11 @@ run_init_private_package_installs() {
     ensure_private_package_repo_include
   fi
 
+  if ! private_package_repo_registered || ! private_package_repo_include_registered || ! private_package_repo_config_matches; then
+    log_warn 'Skipping private Arch package install (private pacman repo is not configured for current user permissions)'
+    return 0
+  fi
+
   if [[ "${INIT_INSTALL_PRIVATE_ARCH_PACKAGES:-1}" != '1' ]]; then
     collect_missing_private_arch_packages
     if [[ "${#MISSING_PRIVATE_ARCH_PACKAGES[@]}" -gt 0 ]]; then
@@ -2251,8 +2282,8 @@ run_init_private_package_installs() {
     return 0
   fi
 
-  if ! has_cmd yay; then
-    log_warn 'Skipping private Arch package install (yay not found)'
+  if ! has_cmd omarchy-pkg-aur-add; then
+    log_warn 'Skipping private Arch package install (omarchy-pkg-aur-add not found)'
     return 0
   fi
 
@@ -2638,7 +2669,7 @@ cmd_doctor() {
       fi
     else
       doctor_warn "$package_name is missing"
-      doctor_warn "Install with: yay -S $package_name"
+      doctor_warn "Install with: omarchy-pkg-aur-add $package_name"
     fi
   }
 
@@ -2687,7 +2718,9 @@ cmd_doctor() {
   require_cmd git 'repo sync/diff'
   require_cmd stow 'dotfile linking'
   require_cmd bash 'dot runtime'
-  optional_cmd yay 'dot setup installs stow when missing'
+  optional_cmd omarchy-pkg-add 'dot setup installs stow when missing'
+  optional_cmd omarchy-pkg-aur-add 'dot init installs missing AUR packages'
+  optional_cmd yay 'used by omarchy-pkg-aur-add and AUR version checks'
   optional_cmd gh 'branch discovery + authenticated clone convenience'
   optional_cmd gum 'interactive init questionnaire'
   optional_cmd notify-send 'desktop workflow notifications'
@@ -2960,10 +2993,10 @@ cmd_doctor() {
   fi
 
   doctor_log_section 'Public package checks'
-  report_package_status 'system-bridge-git' 'yay -S system-bridge-git'
-  report_package_status 'go-automate-git' 'yay -S go-automate-git'
-  report_package_status 'python-gobject' 'yay -S python-gobject'
-  report_package_status 'gtk4-layer-shell' 'yay -S gtk4-layer-shell'
+  report_package_status 'system-bridge-git' 'omarchy-pkg-aur-add system-bridge-git'
+  report_package_status 'go-automate-git' 'omarchy-pkg-aur-add go-automate-git'
+  report_package_status 'python-gobject' 'omarchy-pkg-aur-add python-gobject'
+  report_package_status 'gtk4-layer-shell' 'omarchy-pkg-aur-add gtk4-layer-shell'
 
   doctor_log_section 'Private package repo checks'
   report_private_package_repo_status
@@ -3053,7 +3086,7 @@ cmd_help() {
   printf "$fmt_cmd" '' 'Options: --waybar → one-line JSON for Waybar (same checks; no banners)'
   printf "$fmt_cmd" '' '         --list-changed → name|path lines for repos with changes'
   printf "$fmt_cmd" '' '         --list-all → name|path lines for all tracked repos'
-  printf "$fmt_cmd" 'setup' 'Install packages (supports: --confirm)'
+  printf "$fmt_cmd" 'setup' 'Install packages (supports: --confirm, currently non-interactive)'
   printf "$fmt_cmd" 'install' 'Backup/adopt and install public/private dotfiles'
   printf "$fmt_cmd" 'clean' 'Unstow private then public dotfiles'
   printf "$fmt_cmd" 'doctor' 'Check dependencies, repos, workflow watch, packages, and browser extensions'
@@ -3085,7 +3118,7 @@ cmd_help() {
   printf "$fmt_env" 'DOT_MEMORY_ON_AGENTS_SYNC' '1|0 run `dot memory` before mirroring in `dot agents-sync` (default 1)'
 
   printf '\nInit options:\n'
-  printf "$fmt_init" '--confirm' 'Passes through to setup (interactive package install)'
+  printf "$fmt_init" '--confirm' 'Passes through to setup (accepted, package helpers are non-interactive)'
   printf "$fmt_init" '--noninteractive' 'Skip questionnaire for this run'
   printf "$fmt_init" '--interactive' 'Force questionnaire for this run'
   printf "$fmt_init" '--branch <name>' 'Omarchy branch override for split repos such as hypr'
@@ -3096,6 +3129,11 @@ cmd_help() {
 main() {
   local cmd="${1:-help}"
   shift || true
+
+  if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+    log_error 'Run dot as your regular user account (not as root)'
+    return 1
+  fi
 
   if [[ "$cmd" == 'diff' && "${1:-}" == '--waybar' ]]; then
     shift
