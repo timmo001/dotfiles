@@ -1,0 +1,128 @@
+#!/bin/bash
+
+set -euo pipefail
+
+TARGET_WORKSPACE=1
+TEMP_WORKSPACE="${WORKSPACE_1_RELAYOUT_TEMP_WS:-99}"
+LEFT_WIDTH=326
+RIGHT_WIDTH=966
+ROW_HEIGHT=390
+NOTIFY_TITLE="Workspace 1 relayout"
+
+notify() {
+  notify-send "$NOTIFY_TITLE" "$1"
+}
+
+focus_addr() {
+  local addr="$1"
+  [ -n "$addr" ] || return 1
+  hyprctl dispatch focuswindow "address:$addr" >/dev/null 2>&1
+}
+
+move_to_workspace() {
+  local workspace="$1"
+  local addr="$2"
+  hyprctl dispatch movetoworkspace "$workspace,address:$addr" >/dev/null 2>&1
+}
+
+resize_addr_exact() {
+  local addr="$1"
+  local width="$2"
+  local height="$3"
+
+  focus_addr "$addr" || return 1
+  hyprctl dispatch resizeactive exact "$width" "$height" >/dev/null 2>&1
+}
+
+if ! command -v hyprctl >/dev/null 2>&1; then
+  notify "hyprctl is not available"
+  exit 1
+fi
+
+if ! command -v jq >/dev/null 2>&1; then
+  notify "jq is not available"
+  exit 1
+fi
+
+if ! [[ "$TEMP_WORKSPACE" =~ ^[0-9]+$ ]] || [ "$TEMP_WORKSPACE" -le 0 ] || [ "$TEMP_WORKSPACE" -eq "$TARGET_WORKSPACE" ]; then
+  notify "WORKSPACE_1_RELAYOUT_TEMP_WS must be a positive workspace id other than 1"
+  exit 1
+fi
+
+active_workspace="$(hyprctl -j activeworkspace | jq -r '.id // empty')"
+if [ "$active_workspace" != "$TARGET_WORKSPACE" ]; then
+  notify "Switch to workspace 1 before relayout"
+  exit 1
+fi
+
+clients_json="$(hyprctl -j clients)"
+window_count="$(jq -r --argjson ws "$TARGET_WORKSPACE" '
+  [.[]
+    | select(.mapped == true)
+    | select(.hidden == false)
+    | select(.floating == false)
+    | select(.workspace.id == $ws)
+  ]
+  | length
+' <<< "$clients_json")"
+
+if [ "$window_count" -ne 4 ]; then
+  notify "Expected 4 visible tiled windows on workspace 1, found $window_count"
+  exit 1
+fi
+
+mapfile -t ordered_addrs < <(jq -r --argjson ws "$TARGET_WORKSPACE" '
+  [.[]
+    | select(.mapped == true)
+    | select(.hidden == false)
+    | select(.floating == false)
+    | select(.workspace.id == $ws)
+  ]
+  | sort_by(.at[0], .at[1])
+  | .[].address
+' <<< "$clients_json")
+
+top_left_addr="${ordered_addrs[0]}"
+bottom_left_addr="${ordered_addrs[1]}"
+top_right_addr="${ordered_addrs[2]}"
+bottom_right_addr="${ordered_addrs[3]}"
+
+restore_addr="$(hyprctl activewindow -j | jq -r --argjson ws "$TARGET_WORKSPACE" '
+  select((.workspace.id // -1) == $ws)
+  | .address // empty
+')"
+
+for addr in "$top_left_addr" "$bottom_left_addr" "$top_right_addr" "$bottom_right_addr"; do
+  move_to_workspace "$TEMP_WORKSPACE" "$addr"
+done
+
+sleep 0.15
+
+move_to_workspace "$TARGET_WORKSPACE" "$top_left_addr"
+focus_addr "$top_left_addr"
+hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
+sleep 0.05
+
+move_to_workspace "$TARGET_WORKSPACE" "$top_right_addr"
+focus_addr "$top_left_addr"
+hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
+sleep 0.05
+
+move_to_workspace "$TARGET_WORKSPACE" "$bottom_left_addr"
+focus_addr "$top_right_addr"
+hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
+sleep 0.05
+
+move_to_workspace "$TARGET_WORKSPACE" "$bottom_right_addr"
+sleep 0.15
+
+resize_addr_exact "$top_left_addr" "$LEFT_WIDTH" "$ROW_HEIGHT" || true
+resize_addr_exact "$bottom_left_addr" "$LEFT_WIDTH" "$ROW_HEIGHT" || true
+resize_addr_exact "$top_right_addr" "$RIGHT_WIDTH" "$ROW_HEIGHT" || true
+resize_addr_exact "$bottom_right_addr" "$RIGHT_WIDTH" "$ROW_HEIGHT" || true
+
+if [ -n "$restore_addr" ]; then
+  focus_addr "$restore_addr" || true
+fi
+
+notify "Reapplied the 4-window workspace 1 layout"
