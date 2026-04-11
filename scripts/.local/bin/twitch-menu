@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+open_url() {
+  local url="${1:?}"
+  local host="${OMARCHY_HOST:-}"
+
+  if [[ "$host" == 'desktop' ]] && command -v xdg-open >/dev/null 2>&1; then
+    exec xdg-open "$url"
+  fi
+
+  exec omarchy-launch-webapp "$url"
+}
+
 channels_menu() {
   local config_file="${XDG_CONFIG_HOME:-$HOME/.config}/twitch-notifications/channels.yml"
   local status_json tooltip line choice choice_label selected target_url live_entry live_channel
@@ -54,7 +65,7 @@ channels_menu() {
   if [[ -n $selected ]]; then
     target_url="https://twitch.tv/$selected"
     [[ $choice_label == *' [offline]' ]] && target_url+='/videos?filter=archives&sort=time'
-    exec omarchy-launch-webapp "$target_url"
+    open_url "$target_url"
   fi
 }
 
@@ -70,13 +81,13 @@ while true; do
       exec ~/.config/dotfiles/scripts/.local/bin/twitch-notifications-restart
       ;;
     'Open following')
-      exec omarchy-launch-webapp 'https://twitch.tv/directory/following'
+      open_url 'https://twitch.tv/directory/following'
       ;;
     'Open channel(s)..')
       channels_menu
       ;;
     'Open following live')
-      exec omarchy-launch-webapp 'https://twitch.tv/directory/following/live'
+      open_url 'https://twitch.tv/directory/following/live'
       ;;
     *)
       exit 0
