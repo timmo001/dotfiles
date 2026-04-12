@@ -2,9 +2,8 @@
 
 set -euo pipefail
 
-TARGET_WORKSPACE=1
-TEMP_WORKSPACE="${WORKSPACE_1_RELAYOUT_TEMP_WS:-99}"
-NOTIFY_TITLE="Workspace 1 relayout"
+TEMP_WORKSPACE="${WORKSPACE_RELAYOUT_TEMP_WS:-${WORKSPACE_1_RELAYOUT_TEMP_WS:-99}}"
+NOTIFY_TITLE="Workspace relayout"
 
 GRID_LEFT_WIDTH=326
 GRID_RIGHT_WIDTH=966
@@ -37,6 +36,10 @@ TWO_ALT_TOP_HEIGHT=492
 TWO_ALT_BOTTOM_HEIGHT=288
 
 TWO_HALF_HEIGHT=390
+
+# Set by capture_active_workspace before other logic runs.
+WS_ID_JSON=""
+WS_ID_STR=""
 
 notify() {
   notify-send "$NOTIFY_TITLE" "$1"
@@ -75,25 +78,36 @@ require_dependencies() {
   fi
 }
 
-validate_temp_workspace() {
-  if ! [[ "$TEMP_WORKSPACE" =~ ^[0-9]+$ ]] || [ "$TEMP_WORKSPACE" -le 0 ] || [ "$TEMP_WORKSPACE" -eq "$TARGET_WORKSPACE" ]; then
-    notify "WORKSPACE_1_RELAYOUT_TEMP_WS must be a positive workspace id other than 1"
+capture_active_workspace() {
+  local active_json
+  active_json="$(hyprctl -j activeworkspace)"
+  WS_ID_JSON="$(jq -c '.id' <<< "$active_json")"
+  WS_ID_STR="$(jq -r '.id | tostring' <<< "$active_json")"
+
+  if [ -z "$WS_ID_JSON" ] || [ "$WS_ID_JSON" = "null" ]; then
+    notify "Could not read active workspace"
     exit 1
   fi
+
+  local ws_label
+  ws_label="$(jq -r 'if ((.name // "") | length) > 0 then " (\(.name))" else "" end' <<< "$active_json")"
+  NOTIFY_TITLE="Workspace relayout${ws_label}"
 }
 
-ensure_target_workspace() {
-  local active_workspace
-  active_workspace="$(hyprctl -j activeworkspace | jq -r '.id // empty')"
+validate_temp_workspace() {
+  if ! [[ "$TEMP_WORKSPACE" =~ ^[0-9]+$ ]] || [ "$TEMP_WORKSPACE" -le 0 ]; then
+    notify "WORKSPACE_RELAYOUT_TEMP_WS must be a positive workspace id"
+    exit 1
+  fi
 
-  if [ "$active_workspace" != "$TARGET_WORKSPACE" ]; then
-    notify "Switch to workspace 1 before relayout"
+  if [ "$TEMP_WORKSPACE" = "$WS_ID_STR" ]; then
+    notify "WORKSPACE_RELAYOUT_TEMP_WS must differ from the active workspace id"
     exit 1
   fi
 }
 
 load_workspace_clients() {
-  clients_json="$(hyprctl -j clients | jq -c --argjson ws "$TARGET_WORKSPACE" '
+  clients_json="$(hyprctl -j clients | jq -c --argjson ws "$WS_ID_JSON" '
     [.[]
       | select(.mapped == true)
       | select(.hidden == false)
@@ -108,13 +122,13 @@ ensure_four_windows() {
   window_count="$(jq -r 'length' <<< "$clients_json")"
 
   if [ "$window_count" -ne 4 ]; then
-    notify "Expected 4 visible tiled windows on workspace 1, found $window_count"
+    notify "Expected 4 visible tiled windows on this workspace, found $window_count"
     exit 1
   fi
 }
 
 load_restore_addr() {
-  restore_addr="$(hyprctl activewindow -j | jq -r --argjson ws "$TARGET_WORKSPACE" '
+  restore_addr="$(hyprctl activewindow -j | jq -r --argjson ws "$WS_ID_JSON" '
     select((.workspace.id // -1) == $ws)
     | .address // empty
   ')"
@@ -190,7 +204,7 @@ choose_layout() {
       choice="$(printf '%s\n' "$three_label" "$three_current_label" "$three_half_label" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 240 -p "$prompt" 2>/dev/null || true)"
       ;;
     *)
-      notify "Expected 2, 3, or 4 visible tiled windows on workspace 1, found $option_count"
+      notify "Expected 2, 3, or 4 visible tiled windows on this workspace, found $option_count"
       return 1
       ;;
   esac
@@ -232,7 +246,7 @@ apply_top_bottom_two_layout() {
   local window_count
   window_count="$(jq -r 'length' <<< "$clients_json")"
   if [ "$window_count" -ne 2 ]; then
-    notify "Expected 2 visible tiled windows on workspace 1, found $window_count"
+    notify "Expected 2 visible tiled windows on this workspace, found $window_count"
     exit 1
   fi
 
@@ -244,12 +258,12 @@ apply_top_bottom_two_layout() {
 
   move_windows_to_temp "$top_addr" "$bottom_addr"
 
-  move_to_workspace "$TARGET_WORKSPACE" "$top_addr"
+  move_to_workspace "$WS_ID_STR" "$top_addr"
   focus_addr "$top_addr"
   hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
   sleep 0.05
 
-  move_to_workspace "$TARGET_WORKSPACE" "$bottom_addr"
+  move_to_workspace "$WS_ID_STR" "$bottom_addr"
   sleep 0.15
 
   resize_addr_exact "$top_addr" "$TOP_WIDTH" "$TWO_CURRENT_TOP_HEIGHT" || true
@@ -265,7 +279,7 @@ apply_top_bottom_two_alt_layout() {
   local window_count
   window_count="$(jq -r 'length' <<< "$clients_json")"
   if [ "$window_count" -ne 2 ]; then
-    notify "Expected 2 visible tiled windows on workspace 1, found $window_count"
+    notify "Expected 2 visible tiled windows on this workspace, found $window_count"
     exit 1
   fi
 
@@ -277,12 +291,12 @@ apply_top_bottom_two_alt_layout() {
 
   move_windows_to_temp "$top_addr" "$bottom_addr"
 
-  move_to_workspace "$TARGET_WORKSPACE" "$top_addr"
+  move_to_workspace "$WS_ID_STR" "$top_addr"
   focus_addr "$top_addr"
   hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
   sleep 0.05
 
-  move_to_workspace "$TARGET_WORKSPACE" "$bottom_addr"
+  move_to_workspace "$WS_ID_STR" "$bottom_addr"
   sleep 0.15
 
   resize_addr_exact "$top_addr" "$TOP_WIDTH" "$TWO_ALT_TOP_HEIGHT" || true
@@ -298,7 +312,7 @@ apply_top_bottom_two_half_layout() {
   local window_count
   window_count="$(jq -r 'length' <<< "$clients_json")"
   if [ "$window_count" -ne 2 ]; then
-    notify "Expected 2 visible tiled windows on workspace 1, found $window_count"
+    notify "Expected 2 visible tiled windows on this workspace, found $window_count"
     exit 1
   fi
 
@@ -310,12 +324,12 @@ apply_top_bottom_two_half_layout() {
 
   move_windows_to_temp "$top_addr" "$bottom_addr"
 
-  move_to_workspace "$TARGET_WORKSPACE" "$top_addr"
+  move_to_workspace "$WS_ID_STR" "$top_addr"
   focus_addr "$top_addr"
   hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
   sleep 0.05
 
-  move_to_workspace "$TARGET_WORKSPACE" "$bottom_addr"
+  move_to_workspace "$WS_ID_STR" "$bottom_addr"
   sleep 0.15
 
   resize_addr_exact "$top_addr" "$TOP_WIDTH" "$TWO_HALF_HEIGHT" || true
@@ -339,22 +353,22 @@ apply_grid_layout() {
 
   move_windows_to_temp "$top_left_addr" "$bottom_left_addr" "$top_right_addr" "$bottom_right_addr"
 
-  move_to_workspace "$TARGET_WORKSPACE" "$top_left_addr"
+  move_to_workspace "$WS_ID_STR" "$top_left_addr"
   focus_addr "$top_left_addr"
   hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
   sleep 0.05
 
-  move_to_workspace "$TARGET_WORKSPACE" "$top_right_addr"
+  move_to_workspace "$WS_ID_STR" "$top_right_addr"
   focus_addr "$top_left_addr"
   hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
   sleep 0.05
 
-  move_to_workspace "$TARGET_WORKSPACE" "$bottom_left_addr"
+  move_to_workspace "$WS_ID_STR" "$bottom_left_addr"
   focus_addr "$top_right_addr"
   hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
   sleep 0.05
 
-  move_to_workspace "$TARGET_WORKSPACE" "$bottom_right_addr"
+  move_to_workspace "$WS_ID_STR" "$bottom_right_addr"
   sleep 0.15
 
   resize_addr_exact "$top_left_addr" "$GRID_LEFT_WIDTH" "$GRID_ROW_HEIGHT" || true
@@ -380,22 +394,22 @@ apply_top_bottom_layout() {
 
   move_windows_to_temp "$top_addr" "$bottom_left_addr" "$bottom_middle_addr" "$bottom_right_addr"
 
-  move_to_workspace "$TARGET_WORKSPACE" "$top_addr"
+  move_to_workspace "$WS_ID_STR" "$top_addr"
   focus_addr "$top_addr"
   hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
   sleep 0.05
 
-  move_to_workspace "$TARGET_WORKSPACE" "$bottom_left_addr"
+  move_to_workspace "$WS_ID_STR" "$bottom_left_addr"
   focus_addr "$bottom_left_addr"
   hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
   sleep 0.05
 
-  move_to_workspace "$TARGET_WORKSPACE" "$bottom_middle_addr"
+  move_to_workspace "$WS_ID_STR" "$bottom_middle_addr"
   focus_addr "$bottom_middle_addr"
   hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
   sleep 0.05
 
-  move_to_workspace "$TARGET_WORKSPACE" "$bottom_right_addr"
+  move_to_workspace "$WS_ID_STR" "$bottom_right_addr"
   sleep 0.15
 
   resize_addr_exact "$top_addr" "$TOP_WIDTH" "$TOP_HEIGHT" || true
@@ -413,7 +427,7 @@ apply_top_two_bottom_layout() {
   local window_count
   window_count="$(jq -r 'length' <<< "$clients_json")"
   if [ "$window_count" -ne 3 ]; then
-    notify "Expected 3 visible tiled windows on workspace 1, found $window_count"
+    notify "Expected 3 visible tiled windows on this workspace, found $window_count"
     exit 1
   fi
 
@@ -426,17 +440,17 @@ apply_top_two_bottom_layout() {
 
   move_windows_to_temp "$top_addr" "$bottom_left_addr" "$bottom_right_addr"
 
-  move_to_workspace "$TARGET_WORKSPACE" "$top_addr"
+  move_to_workspace "$WS_ID_STR" "$top_addr"
   focus_addr "$top_addr"
   hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
   sleep 0.05
 
-  move_to_workspace "$TARGET_WORKSPACE" "$bottom_left_addr"
+  move_to_workspace "$WS_ID_STR" "$bottom_left_addr"
   focus_addr "$bottom_left_addr"
   hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
   sleep 0.05
 
-  move_to_workspace "$TARGET_WORKSPACE" "$bottom_right_addr"
+  move_to_workspace "$WS_ID_STR" "$bottom_right_addr"
   sleep 0.15
 
   resize_addr_exact "$top_addr" "$TOP_WIDTH" "$TOP_HEIGHT" || true
@@ -453,7 +467,7 @@ apply_top_two_bottom_current_layout() {
   local window_count
   window_count="$(jq -r 'length' <<< "$clients_json")"
   if [ "$window_count" -ne 3 ]; then
-    notify "Expected 3 visible tiled windows on workspace 1, found $window_count"
+    notify "Expected 3 visible tiled windows on this workspace, found $window_count"
     exit 1
   fi
 
@@ -466,17 +480,17 @@ apply_top_two_bottom_current_layout() {
 
   move_windows_to_temp "$top_addr" "$bottom_left_addr" "$bottom_right_addr"
 
-  move_to_workspace "$TARGET_WORKSPACE" "$top_addr"
+  move_to_workspace "$WS_ID_STR" "$top_addr"
   focus_addr "$top_addr"
   hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
   sleep 0.05
 
-  move_to_workspace "$TARGET_WORKSPACE" "$bottom_left_addr"
+  move_to_workspace "$WS_ID_STR" "$bottom_left_addr"
   focus_addr "$bottom_left_addr"
   hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
   sleep 0.05
 
-  move_to_workspace "$TARGET_WORKSPACE" "$bottom_right_addr"
+  move_to_workspace "$WS_ID_STR" "$bottom_right_addr"
   sleep 0.15
 
   resize_addr_exact "$top_addr" "$TOP_WIDTH" "$THREE_CURRENT_TOP_HEIGHT" || true
@@ -493,7 +507,7 @@ apply_top_two_bottom_half_layout() {
   local window_count
   window_count="$(jq -r 'length' <<< "$clients_json")"
   if [ "$window_count" -ne 3 ]; then
-    notify "Expected 3 visible tiled windows on workspace 1, found $window_count"
+    notify "Expected 3 visible tiled windows on this workspace, found $window_count"
     exit 1
   fi
 
@@ -506,17 +520,17 @@ apply_top_two_bottom_half_layout() {
 
   move_windows_to_temp "$top_addr" "$bottom_left_addr" "$bottom_right_addr"
 
-  move_to_workspace "$TARGET_WORKSPACE" "$top_addr"
+  move_to_workspace "$WS_ID_STR" "$top_addr"
   focus_addr "$top_addr"
   hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
   sleep 0.05
 
-  move_to_workspace "$TARGET_WORKSPACE" "$bottom_left_addr"
+  move_to_workspace "$WS_ID_STR" "$bottom_left_addr"
   focus_addr "$bottom_left_addr"
   hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
   sleep 0.05
 
-  move_to_workspace "$TARGET_WORKSPACE" "$bottom_right_addr"
+  move_to_workspace "$WS_ID_STR" "$bottom_right_addr"
   sleep 0.15
 
   resize_addr_exact "$top_addr" "$TOP_WIDTH" "$THREE_HALF_TOP_HEIGHT" || true
@@ -531,8 +545,8 @@ main() {
   local layout="${1:-menu}"
 
   require_dependencies
+  capture_active_workspace
   validate_temp_workspace
-  ensure_target_workspace
   load_workspace_clients
 
   if [ "$layout" = "menu" ]; then
