@@ -37,6 +37,10 @@ TWO_ALT_BOTTOM_HEIGHT=288
 
 TWO_HALF_HEIGHT=390
 
+# 50/50 side-by-side (full width TOP_WIDTH, height matches stacked 74/26 totals)
+TWO_LR_HALF_WIDTH=647
+TWO_LR_HEIGHT=780
+
 # Set by capture_active_workspace before other logic runs.
 WS_ID_JSON=""
 WS_ID_STR=""
@@ -148,6 +152,13 @@ load_row_addresses() {
   ' <<< "$clients_json")
 }
 
+load_column_addresses() {
+  mapfile -t column_addrs < <(jq -r '
+    sort_by(.at[0], .at[1])
+    | .[].address
+  ' <<< "$clients_json")
+}
+
 move_windows_to_temp() {
   local addr
 
@@ -171,6 +182,7 @@ choose_layout() {
   local two_label
   local two_alt_label
   local two_half_label
+  local two_lr_label
   local grid_label
   local top_bottom_label
   local three_label
@@ -187,6 +199,7 @@ choose_layout() {
   two_label='1 top / 1 bottom [74/26]'
   two_alt_label='1 top / 1 bottom [63/37]'
   two_half_label='1 top / 1 bottom [50/50]'
+  two_lr_label='1 left / 1 right [50/50]'
   grid_label='2 columns / 2 rows [50/50, 25/75]'
   top_bottom_label='1 top / 3 bottom [74/26, 21/21/57]'
   three_label='1 top / 2 bottom [74/26, 28/72]'
@@ -195,7 +208,7 @@ choose_layout() {
 
   case "$option_count" in
     2)
-      choice="$(printf '%s\n' "$two_label" "$two_alt_label" "$two_half_label" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 240 -p "$prompt" 2>/dev/null || true)"
+      choice="$(printf '%s\n' "$two_label" "$two_alt_label" "$two_half_label" "$two_lr_label" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 280 -p "$prompt" 2>/dev/null || true)"
       ;;
     4)
       choice="$(printf '%s\n' "$grid_label" "$top_bottom_label" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 240 -p "$prompt" 2>/dev/null || true)"
@@ -218,6 +231,9 @@ choose_layout() {
       ;;
     "$two_half_label")
       printf 'top-bottom-two-half\n'
+      ;;
+    "$two_lr_label")
+      printf 'left-right-half\n'
       ;;
     "$grid_label")
       printf 'grid\n'
@@ -337,6 +353,39 @@ apply_top_bottom_two_half_layout() {
 
   restore_focus
   notify "Applied 1 top / 1 bottom"
+}
+
+apply_left_right_half_layout() {
+  local left_addr right_addr
+
+  local window_count
+  window_count="$(jq -r 'length' <<< "$clients_json")"
+  if [ "$window_count" -ne 2 ]; then
+    notify "Expected 2 visible tiled windows on this workspace, found $window_count"
+    exit 1
+  fi
+
+  load_restore_addr
+  load_column_addresses
+
+  left_addr="${column_addrs[0]}"
+  right_addr="${column_addrs[1]}"
+
+  move_windows_to_temp "$left_addr" "$right_addr"
+
+  move_to_workspace "$WS_ID_STR" "$left_addr"
+  focus_addr "$left_addr"
+  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
+  sleep 0.05
+
+  move_to_workspace "$WS_ID_STR" "$right_addr"
+  sleep 0.15
+
+  resize_addr_exact "$left_addr" "$TWO_LR_HALF_WIDTH" "$TWO_LR_HEIGHT" || true
+  resize_addr_exact "$right_addr" "$TWO_LR_HALF_WIDTH" "$TWO_LR_HEIGHT" || true
+
+  restore_focus
+  notify "Applied 1 left / 1 right"
 }
 
 apply_grid_layout() {
@@ -563,6 +612,9 @@ main() {
       ;;
     top-bottom-two-half|top1-bottom1-half|1-top-1-bottom-half)
       apply_top_bottom_two_half_layout
+      ;;
+    left-right-half|left-right|side-by-side|1-left-1-right|lr-half)
+      apply_left_right_half_layout
       ;;
     grid|2x2)
       apply_grid_layout
