@@ -41,6 +41,16 @@ TWO_HALF_HEIGHT=390
 TWO_LR_HALF_WIDTH=647
 TWO_LR_HEIGHT=780
 
+# 1/3 + 2/3 left to right (1294 → 431 + 863)
+TWO_LR_ONE_THIRD_WIDTH=431
+TWO_LR_TWO_THIRD_WIDTH=863
+
+# 1 left / 1 middle / 1 right — equal thirds (TOP_WIDTH 1294 → 431 + 431 + 432)
+THREE_LMR_W1=431
+THREE_LMR_W2=431
+THREE_LMR_W3=432
+THREE_LMR_HEIGHT=780
+
 # Set by capture_active_workspace before other logic runs.
 WS_ID_JSON=""
 WS_ID_STR=""
@@ -183,11 +193,13 @@ choose_layout() {
   local two_alt_label
   local two_half_label
   local two_lr_label
+  local two_lr_one_third_label
   local grid_label
   local top_bottom_label
   local three_label
   local three_current_label
   local three_half_label
+  local three_lmr_label
 
   if ! command -v omarchy-launch-walker >/dev/null 2>&1; then
     notify "omarchy-launch-walker is not available"
@@ -200,21 +212,23 @@ choose_layout() {
   two_alt_label='1 top / 1 bottom [63/37]'
   two_half_label='1 top / 1 bottom [50/50]'
   two_lr_label='1 left / 1 right [50/50]'
+  two_lr_one_third_label='1 left / 1 right [1/3, 2/3]'
   grid_label='2 columns / 2 rows [50/50, 25/75]'
   top_bottom_label='1 top / 3 bottom [74/26, 21/21/57]'
   three_label='1 top / 2 bottom [74/26, 28/72]'
   three_current_label='1 top / 2 bottom [63/37, 39/61]'
   three_half_label='1 top / 2 bottom [50/50, 26/74]'
+  three_lmr_label='1 left / 1 middle / 1 right [1/3, 1/3, 1/3]'
 
   case "$option_count" in
     2)
-      choice="$(printf '%s\n' "$two_label" "$two_alt_label" "$two_half_label" "$two_lr_label" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 280 -p "$prompt" 2>/dev/null || true)"
+      choice="$(printf '%s\n' "$two_label" "$two_alt_label" "$two_half_label" "$two_lr_label" "$two_lr_one_third_label" | omarchy-launch-walker --dmenu --width 400 --minheight 1 --maxheight 320 -p "$prompt" 2>/dev/null || true)"
       ;;
     4)
       choice="$(printf '%s\n' "$grid_label" "$top_bottom_label" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 240 -p "$prompt" 2>/dev/null || true)"
       ;;
     3)
-      choice="$(printf '%s\n' "$three_label" "$three_current_label" "$three_half_label" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 240 -p "$prompt" 2>/dev/null || true)"
+      choice="$(printf '%s\n' "$three_label" "$three_current_label" "$three_half_label" "$three_lmr_label" | omarchy-launch-walker --dmenu --width 420 --minheight 1 --maxheight 300 -p "$prompt" 2>/dev/null || true)"
       ;;
     *)
       notify "Expected 2, 3, or 4 visible tiled windows on this workspace, found $option_count"
@@ -235,6 +249,9 @@ choose_layout() {
     "$two_lr_label")
       printf 'left-right-half\n'
       ;;
+    "$two_lr_one_third_label")
+      printf 'left-right-one-third\n'
+      ;;
     "$grid_label")
       printf 'grid\n'
       ;;
@@ -249,6 +266,9 @@ choose_layout() {
       ;;
     "$three_half_label")
       printf 'top-two-bottom-half\n'
+      ;;
+    "$three_lmr_label")
+      printf 'left-middle-right-thirds\n'
       ;;
     *)
       return 1
@@ -386,6 +406,79 @@ apply_left_right_half_layout() {
 
   restore_focus
   notify "Applied 1 left / 1 right"
+}
+
+apply_left_right_one_third_layout() {
+  local left_addr right_addr
+
+  local window_count
+  window_count="$(jq -r 'length' <<< "$clients_json")"
+  if [ "$window_count" -ne 2 ]; then
+    notify "Expected 2 visible tiled windows on this workspace, found $window_count"
+    exit 1
+  fi
+
+  load_restore_addr
+  load_column_addresses
+
+  left_addr="${column_addrs[0]}"
+  right_addr="${column_addrs[1]}"
+
+  move_windows_to_temp "$left_addr" "$right_addr"
+
+  move_to_workspace "$WS_ID_STR" "$left_addr"
+  focus_addr "$left_addr"
+  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
+  sleep 0.05
+
+  move_to_workspace "$WS_ID_STR" "$right_addr"
+  sleep 0.15
+
+  resize_addr_exact "$left_addr" "$TWO_LR_ONE_THIRD_WIDTH" "$TWO_LR_HEIGHT" || true
+  resize_addr_exact "$right_addr" "$TWO_LR_TWO_THIRD_WIDTH" "$TWO_LR_HEIGHT" || true
+
+  restore_focus
+  notify "Applied 1 left / 1 right"
+}
+
+apply_left_middle_right_thirds_layout() {
+  local left_addr mid_addr right_addr
+
+  local window_count
+  window_count="$(jq -r 'length' <<< "$clients_json")"
+  if [ "$window_count" -ne 3 ]; then
+    notify "Expected 3 visible tiled windows on this workspace, found $window_count"
+    exit 1
+  fi
+
+  load_restore_addr
+  load_column_addresses
+
+  left_addr="${column_addrs[0]}"
+  mid_addr="${column_addrs[1]}"
+  right_addr="${column_addrs[2]}"
+
+  move_windows_to_temp "$left_addr" "$mid_addr" "$right_addr"
+
+  move_to_workspace "$WS_ID_STR" "$left_addr"
+  focus_addr "$left_addr"
+  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
+  sleep 0.05
+
+  move_to_workspace "$WS_ID_STR" "$mid_addr"
+  focus_addr "$mid_addr"
+  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
+  sleep 0.05
+
+  move_to_workspace "$WS_ID_STR" "$right_addr"
+  sleep 0.15
+
+  resize_addr_exact "$left_addr" "$THREE_LMR_W1" "$THREE_LMR_HEIGHT" || true
+  resize_addr_exact "$mid_addr" "$THREE_LMR_W2" "$THREE_LMR_HEIGHT" || true
+  resize_addr_exact "$right_addr" "$THREE_LMR_W3" "$THREE_LMR_HEIGHT" || true
+
+  restore_focus
+  notify "Applied 1 left / 1 middle / 1 right"
 }
 
 apply_grid_layout() {
@@ -616,6 +709,9 @@ main() {
     left-right-half|left-right|side-by-side|1-left-1-right|lr-half)
       apply_left_right_half_layout
       ;;
+    left-right-one-third|lr-one-third|1-3-2-3|lr-1323)
+      apply_left_right_one_third_layout
+      ;;
     grid|2x2)
       apply_grid_layout
       ;;
@@ -630,6 +726,9 @@ main() {
       ;;
     top-two-bottom-half|top2-half|1-top-2-bottom-half)
       apply_top_two_bottom_half_layout
+      ;;
+    left-middle-right-thirds|lmr-thirds|lmr3|1-left-1-middle-1-right)
+      apply_left_middle_right_thirds_layout
       ;;
     *)
       notify "Unknown layout: $layout"
