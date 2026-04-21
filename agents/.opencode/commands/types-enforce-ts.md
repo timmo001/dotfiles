@@ -7,7 +7,7 @@ Follow local project rules while editing.
 Do not assume ambiguous intent is clear; when ambiguity would change edits, ask one targeted question before changing code.
 When user feedback conflicts with your assumption, treat user feedback as authoritative.
 
-Read and apply `agents/.opencode/rules/types-enforce-ts.md` before editing.
+Read and apply the `types-enforce-ts` rule before editing.
 
 1. Build scope in this exact order:
    - unstaged changes (`git diff`)
@@ -23,7 +23,7 @@ Read and apply `agents/.opencode/rules/types-enforce-ts.md` before editing.
 
 4. From files in scope (optionally narrowed by `${ARGUMENTS}`), find TypeScript edits that weaken types or bypass type safety.
 
-5. Apply the smallest safe type fixes that satisfy `agents/.opencode/rules/types-enforce-ts.md`.
+5. Apply the smallest safe type fixes that satisfy the `types-enforce-ts` rule.
 
 6. Run the smallest relevant verification for the touched code (targeted typecheck, test, lint, or build check).
 

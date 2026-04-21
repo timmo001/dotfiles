@@ -7,7 +7,7 @@ Follow local project rules while editing.
 Do not assume ambiguous intent is clear; when ambiguity would change edits, ask one targeted question before changing code.
 When user feedback conflicts with your assumption, treat user feedback as authoritative.
 
-Read and apply `agents/.opencode/rules/remove-single-use-functions.md` before editing.
+Read and apply the `remove-single-use-functions` rule before editing.
 
 1. Build scope in this exact order:
    - unstaged changes (`git diff`)
@@ -18,7 +18,7 @@ Read and apply `agents/.opencode/rules/remove-single-use-functions.md` before ed
 
 3. From files in scope (optionally narrowed by `${ARGUMENTS}`), find functions added or modified in the current work that are now used exactly once.
 
-4. Apply the smallest safe cleanup that satisfies `agents/.opencode/rules/remove-single-use-functions.md`.
+4. Apply the smallest safe cleanup that satisfies the `remove-single-use-functions` rule.
 
 5. Run the smallest relevant verification for the touched code (targeted test, typecheck, lint, or build check).
 
