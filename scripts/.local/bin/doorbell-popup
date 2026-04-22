@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-MOTION_ENTITY="binary_sensor.front_door_motion_2"
+MOTION_ENTITY="input_boolean.doorbell"
 CAMERA_ENTITY="camera.front_door"
 HOME_ASSISTANT_BASE_URL="http://homeassistant.local:8123"
 
@@ -19,14 +19,14 @@ OPEN_ONLY=0
 AUTO_CLOSE=1
 
 POPUP_URL="${HOME_ASSISTANT_BASE_URL}/lovelace/home?more-info-entity-id=${CAMERA_ENTITY}"
-POPUP_ADDR_FILE="${XDG_RUNTIME_DIR:-/tmp}/front-door-motion-popup.address"
+POPUP_ADDR_FILE="${XDG_RUNTIME_DIR:-/tmp}/doorbell-popup.address"
 
 popup_addr=""
 close_timer_pid=""
 
 usage() {
   cat <<'EOF'
-Usage: front-door-motion-popup [options]
+Usage: doorbell-popup [options]
 
 Options:
   --entity <entity_id>          Motion entity to watch
@@ -111,12 +111,12 @@ parse_args() {
         exit 0
         ;;
       --*)
-        printf 'front-door-motion-popup: unknown option: %s\n' "$1" >&2
+        printf 'doorbell-popup: unknown option: %s\n' "$1" >&2
         usage >&2
         exit 1
         ;;
       *)
-        printf 'front-door-motion-popup: unexpected argument: %s\n' "$1" >&2
+        printf 'doorbell-popup: unexpected argument: %s\n' "$1" >&2
         usage >&2
         exit 1
         ;;
@@ -130,7 +130,7 @@ validate_numeric_settings() {
   for key in POPUP_WORKSPACE POPUP_WIDTH POPUP_HEIGHT POPUP_MARGIN POPUP_BOTTOM_MARGIN POPUP_DURATION_SECONDS; do
     value="${!key}"
     if [[ ! "$value" =~ ^[0-9]+$ ]] || (( value <= 0 )); then
-      printf 'front-door-motion-popup: %s must be a positive integer\n' "$key" >&2
+      printf 'doorbell-popup: %s must be a positive integer\n' "$key" >&2
       exit 1
     fi
   done
@@ -140,7 +140,7 @@ require_commands() {
   local cmd
   for cmd in go-automate hyprctl jq omarchy-launch-webapp; do
     command -v "$cmd" >/dev/null 2>&1 || {
-      printf 'front-door-motion-popup: missing command: %s\n' "$cmd" >&2
+      printf 'doorbell-popup: missing command: %s\n' "$cmd" >&2
       exit 1
     }
   done
@@ -307,7 +307,7 @@ handle_simulation_if_requested() {
     ''|off|0|false)
       ;;
     *)
-      printf 'front-door-motion-popup: unsupported simulation value: %s\n' "$requested" >&2
+      printf 'doorbell-popup: unsupported simulation value: %s\n' "$requested" >&2
       ;;
   esac
 }
