@@ -1,0 +1,361 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+MOTION_ENTITY="binary_sensor.front_door_motion_2"
+CAMERA_ENTITY="camera.front_door"
+HOME_ASSISTANT_BASE_URL="http://homeassistant.local:8123"
+
+POPUP_WORKSPACE="1"
+POPUP_WIDTH="640"
+POPUP_HEIGHT="640"
+POPUP_MARGIN="16"
+POPUP_BOTTOM_MARGIN="6"
+POPUP_DURATION_SECONDS="20"
+SIMULATE_EVENT=""
+SIMULATE_EXIT=0
+FORCE_MOTION_TRUE=0
+OPEN_ONLY=0
+AUTO_CLOSE=1
+
+POPUP_URL="${HOME_ASSISTANT_BASE_URL}/lovelace/home?more-info-entity-id=${CAMERA_ENTITY}"
+POPUP_ADDR_FILE="${XDG_RUNTIME_DIR:-/tmp}/front-door-motion-popup.address"
+
+popup_addr=""
+close_timer_pid=""
+
+usage() {
+  cat <<'EOF'
+Usage: front-door-motion-popup [options]
+
+Options:
+  --entity <entity_id>          Motion entity to watch
+  --camera-entity <entity_id>   Camera entity for more-info popup
+  --base-url <url>              Home Assistant base URL
+  --workspace <id>              Target workspace for popup
+  --width <px>                  Popup width in pixels
+  --height <px>                 Popup height in pixels
+  --margin <px>                 Left margin in pixels
+  --bottom-margin <px>          Bottom margin in pixels
+  --duration <seconds>          Popup display duration
+  --open-only                   Open popup once and exit
+  --no-auto-close               Keep popup open (disable auto-close timer)
+  --simulate-event <on|off>     Simulate one event on startup
+  --simulate-exit               Exit after simulated event completes
+  --force-motion-true           Force simulated motion on startup
+  --help                        Show this help
+EOF
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --entity)
+        MOTION_ENTITY="$2"
+        shift 2
+        ;;
+      --camera-entity)
+        CAMERA_ENTITY="$2"
+        shift 2
+        ;;
+      --base-url)
+        HOME_ASSISTANT_BASE_URL="$2"
+        shift 2
+        ;;
+      --workspace)
+        POPUP_WORKSPACE="$2"
+        shift 2
+        ;;
+      --width)
+        POPUP_WIDTH="$2"
+        shift 2
+        ;;
+      --height)
+        POPUP_HEIGHT="$2"
+        shift 2
+        ;;
+      --margin)
+        POPUP_MARGIN="$2"
+        shift 2
+        ;;
+      --bottom-margin)
+        POPUP_BOTTOM_MARGIN="$2"
+        shift 2
+        ;;
+      --duration)
+        POPUP_DURATION_SECONDS="$2"
+        shift 2
+        ;;
+      --open-only)
+        OPEN_ONLY=1
+        shift
+        ;;
+      --no-auto-close)
+        AUTO_CLOSE=0
+        shift
+        ;;
+      --simulate-event)
+        SIMULATE_EVENT="$2"
+        shift 2
+        ;;
+      --simulate-exit)
+        SIMULATE_EXIT=1
+        shift
+        ;;
+      --force-motion-true)
+        FORCE_MOTION_TRUE=1
+        shift
+        ;;
+      --help|-h)
+        usage
+        exit 0
+        ;;
+      --*)
+        printf 'front-door-motion-popup: unknown option: %s\n' "$1" >&2
+        usage >&2
+        exit 1
+        ;;
+      *)
+        printf 'front-door-motion-popup: unexpected argument: %s\n' "$1" >&2
+        usage >&2
+        exit 1
+        ;;
+    esac
+  done
+}
+
+validate_numeric_settings() {
+  local key value
+
+  for key in POPUP_WORKSPACE POPUP_WIDTH POPUP_HEIGHT POPUP_MARGIN POPUP_BOTTOM_MARGIN POPUP_DURATION_SECONDS; do
+    value="${!key}"
+    if [[ ! "$value" =~ ^[0-9]+$ ]] || (( value <= 0 )); then
+      printf 'front-door-motion-popup: %s must be a positive integer\n' "$key" >&2
+      exit 1
+    fi
+  done
+}
+
+require_commands() {
+  local cmd
+  for cmd in go-automate hyprctl jq omarchy-launch-webapp; do
+    command -v "$cmd" >/dev/null 2>&1 || {
+      printf 'front-door-motion-popup: missing command: %s\n' "$cmd" >&2
+      exit 1
+    }
+  done
+}
+
+window_exists() {
+  local addr="$1"
+  [[ -n "$addr" ]] || return 1
+  hyprctl -j clients | jq -e --arg addr "$addr" '.[] | select(.address == $addr)' >/dev/null
+}
+
+load_known_popup_addr() {
+  local known_addr
+
+  if [[ -f "$POPUP_ADDR_FILE" ]]; then
+    known_addr="$(< "$POPUP_ADDR_FILE")"
+    if window_exists "$known_addr"; then
+      popup_addr="$known_addr"
+      return 0
+    fi
+    rm -f "$POPUP_ADDR_FILE"
+  fi
+
+  return 1
+}
+
+resolve_workspace_monitor_name() {
+  local monitor_name
+
+  monitor_name="$(hyprctl -j workspaces | jq -r --argjson workspace "$POPUP_WORKSPACE" '.[] | select(.id == $workspace) | .monitor' | head -n 1)"
+
+  if [[ -z "$monitor_name" || "$monitor_name" == "null" ]]; then
+    monitor_name="$(hyprctl -j monitors | jq -r '.[] | select(.focused == true) | .name' | head -n 1)"
+  fi
+
+  printf '%s' "$monitor_name"
+}
+
+position_popup() {
+  local addr="$1"
+  local monitor_name monitor_json
+  local monitor_x monitor_y monitor_width monitor_height
+  local reserved_left reserved_bottom
+  local pos_x pos_y
+
+  monitor_name="$(resolve_workspace_monitor_name)"
+  [[ -n "$monitor_name" ]] || return 1
+
+  monitor_json="$(hyprctl -j monitors | jq -c --arg name "$monitor_name" '.[] | select(.name == $name)')"
+  [[ -n "$monitor_json" ]] || return 1
+
+  monitor_x="$(jq -r '.x // 0' <<< "$monitor_json")"
+  monitor_y="$(jq -r '.y // 0' <<< "$monitor_json")"
+  monitor_width="$(jq -r '.width // 0' <<< "$monitor_json")"
+  monitor_height="$(jq -r '.height // 0' <<< "$monitor_json")"
+  reserved_left="$(jq -r '.reserved[0] // 0' <<< "$monitor_json")"
+  reserved_bottom="$(jq -r '.reserved[3] // 0' <<< "$monitor_json")"
+
+  pos_x=$((monitor_x + reserved_left + POPUP_MARGIN))
+  pos_y=$((monitor_y + monitor_height - reserved_bottom - POPUP_HEIGHT - POPUP_BOTTOM_MARGIN))
+
+  hyprctl dispatch movetoworkspacesilent "${POPUP_WORKSPACE},address:${addr}" >/dev/null 2>&1 || true
+  hyprctl dispatch setfloating "address:${addr}" >/dev/null 2>&1 || true
+  hyprctl dispatch resizewindowpixel "exact ${POPUP_WIDTH} ${POPUP_HEIGHT},address:${addr}" >/dev/null 2>&1 || true
+  hyprctl dispatch movewindowpixel "exact ${pos_x} ${pos_y},address:${addr}" >/dev/null 2>&1 || true
+}
+
+find_new_popup_window() {
+  local before_addresses_json="$1"
+  hyprctl -j clients | jq -r --argjson before "$before_addresses_json" '
+    [
+      .[]
+      | select(.mapped == true)
+      | select((.address as $addr | $before | index($addr)) == null)
+    ]
+    | sort_by(.focusHistoryID)
+    | reverse
+    | .[0].address // empty
+  '
+}
+
+open_popup() {
+  local before_addresses_json
+  local new_addr=""
+  local attempt
+
+  before_addresses_json="$(hyprctl -j clients | jq -c '[.[].address]')"
+  omarchy-launch-webapp "$POPUP_URL" >/dev/null 2>&1 &
+
+  for ((attempt = 0; attempt < 80; attempt += 1)); do
+    new_addr="$(find_new_popup_window "$before_addresses_json")"
+    if [[ -n "$new_addr" ]]; then
+      popup_addr="$new_addr"
+      printf '%s\n' "$popup_addr" > "$POPUP_ADDR_FILE"
+      position_popup "$popup_addr" || true
+      return 0
+    fi
+    sleep 0.1
+  done
+
+  return 1
+}
+
+stop_close_timer() {
+  if [[ -n "$close_timer_pid" ]] && kill -0 "$close_timer_pid" 2>/dev/null; then
+    kill "$close_timer_pid" 2>/dev/null || true
+    wait "$close_timer_pid" 2>/dev/null || true
+  fi
+  close_timer_pid=""
+}
+
+schedule_close() {
+  local addr="$1"
+
+  stop_close_timer
+  (
+    sleep "$POPUP_DURATION_SECONDS"
+    if hyprctl -j clients | jq -e --arg close_addr "$addr" '.[] | select(.address == $close_addr)' >/dev/null; then
+      hyprctl dispatch closewindow "address:${addr}" >/dev/null 2>&1 || true
+    fi
+  ) &
+  close_timer_pid="$!"
+}
+
+handle_motion_event() {
+  if [[ -z "$popup_addr" ]]; then
+    load_known_popup_addr || true
+  fi
+
+  if window_exists "$popup_addr"; then
+    position_popup "$popup_addr" || true
+    hyprctl dispatch focuswindow "address:${popup_addr}" >/dev/null 2>&1 || true
+    if (( AUTO_CLOSE )); then
+      schedule_close "$popup_addr"
+    fi
+    return
+  fi
+
+  popup_addr=""
+  if open_popup; then
+    hyprctl dispatch focuswindow "address:${popup_addr}" >/dev/null 2>&1 || true
+    if (( AUTO_CLOSE )); then
+      schedule_close "$popup_addr"
+    fi
+  fi
+}
+
+handle_simulation_if_requested() {
+  local requested="$SIMULATE_EVENT"
+
+  if (( FORCE_MOTION_TRUE )); then
+    requested="on"
+  fi
+
+  case "$requested" in
+    on|1|true)
+      handle_motion_event
+      if (( SIMULATE_EXIT )); then
+        sleep "$POPUP_DURATION_SECONDS"
+        sleep 1
+        exit 0
+      fi
+      ;;
+    ''|off|0|false)
+      ;;
+    *)
+      printf 'front-door-motion-popup: unsupported simulation value: %s\n' "$requested" >&2
+      ;;
+  esac
+}
+
+watch_motion() {
+  local line state
+  local watch_pid=""
+
+  while true; do
+    coproc MOTION_WATCH {
+      exec go-automate ha bridge watch entity --waybar --icon '' "$MOTION_ENTITY" 2>/dev/null
+    }
+
+    watch_pid="${MOTION_WATCH_PID:-}"
+
+    while IFS= read -r line <&"${MOTION_WATCH[0]}"; do
+      state="$(jq -r '.class // ""' <<< "$line" 2>/dev/null)"
+      state="${state%% *}"
+      if [[ "$state" == "on" ]]; then
+        handle_motion_event
+      fi
+    done
+
+    if [[ -n "$watch_pid" ]]; then
+      wait "$watch_pid" 2>/dev/null || true
+    fi
+    sleep 1
+  done
+}
+
+cleanup() {
+  stop_close_timer
+}
+
+main() {
+  parse_args "$@"
+  validate_numeric_settings
+  POPUP_URL="${HOME_ASSISTANT_BASE_URL}/lovelace/home?more-info-entity-id=${CAMERA_ENTITY}"
+  require_commands
+  trap cleanup EXIT INT TERM
+
+  if (( OPEN_ONLY )); then
+    handle_motion_event
+    exit 0
+  fi
+
+  handle_simulation_if_requested
+  watch_motion
+}
+
+main "$@"
