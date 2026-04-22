@@ -17,7 +17,7 @@ count_singleton() {
 }
 
 count_motion_watcher() {
-  pgrep -af "go-automate ha bridge watch entity --waybar --icon .*binary_sensor.front_door_motion_2" | grep -vc "front-door-motion-test" || true
+  pgrep -af "^go-automate ha bridge watch entity --waybar --icon .*binary_sensor.front_door_motion_2$" | wc -l || true
 }
 
 list_motion_processes() {
