@@ -70,6 +70,12 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
   - log labels uppercase (`[INFO]`, `[WARN]`, `[ERROR]`)
   - message text in sentence case
 
+## Script Configuration Policy
+
+- For dotfiles and system scripts, prefer explicit CLI flags over environment-variable toggles for runtime behavior.
+- Use environment variables only for standard process context (`HOME`, `PATH`, `XDG_*`, etc.), secrets, or compatibility shims that already exist.
+- For test/simulation/force behaviors, implement documented flags first; if an env fallback is temporarily needed, treat it as deprecated and remove it in follow-up cleanup.
+
 ## Validation
 
 - Syntax check: `bash -n scripts/.local/bin/dot`
