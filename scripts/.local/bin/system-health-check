@@ -28,7 +28,9 @@ C_RED=$'\033[31m'
 C_GREEN=$'\033[32m'
 C_YELLOW=$'\033[33m'
 C_BLUE=$'\033[34m'
+C_MAGENTA=$'\033[35m'
 C_CYAN=$'\033[36m'
+C_DIM=$'\033[2m'
 
 if [[ -n "${NO_COLOR:-}" ]] || { [[ ! -t 1 ]] && [[ -z "${FORCE_COLOR:-}" ]]; }; then
   C_RESET=''
@@ -37,13 +39,76 @@ if [[ -n "${NO_COLOR:-}" ]] || { [[ ! -t 1 ]] && [[ -z "${FORCE_COLOR:-}" ]]; };
   C_GREEN=''
   C_YELLOW=''
   C_BLUE=''
+  C_MAGENTA=''
   C_CYAN=''
+  C_DIM=''
 fi
 
-style_line() {
+term_width() {
+  local width="${COLUMNS:-88}"
+
+  if ! [[ "$width" =~ ^[0-9]+$ ]]; then
+    width=88
+  fi
+
+  if [[ "$width" -lt 48 ]]; then
+    width=48
+  elif [[ "$width" -gt 120 ]]; then
+    width=120
+  fi
+
+  printf '%s\n' "$width"
+}
+
+log_divider() {
+  local char="${1:--}"
+  local color="${2:-$C_DIM}"
+  local width="${3:-$(term_width)}"
+  local line
+
+  line=$(printf '%*s' "$width" '')
+  line=${line// /$char}
+  printf '%b%s%b\n' "$color" "$line" "$C_RESET"
+}
+
+log_label() {
   local color="$1"
-  shift
-  printf '%b%s%b\n' "$color" "$*" "$C_RESET"
+  local level="$2"
+  local message="$3"
+  local stream="${4:-stdout}"
+
+  if [[ "$stream" == 'stderr' ]]; then
+    printf '%b%-8s%b %s\n' "${C_BOLD}${color}" "[$level]" "$C_RESET" "$message" >&2
+  else
+    printf '%b%-8s%b %s\n' "${C_BOLD}${color}" "[$level]" "$C_RESET" "$message"
+  fi
+}
+
+log_header() {
+  local title="$1"
+
+  printf '\n'
+  log_divider '=' "$C_BLUE"
+  printf '%b%s%b\n' "${C_BOLD}${C_BLUE}" "  $title" "$C_RESET"
+  log_divider '=' "$C_BLUE"
+}
+
+log_section() {
+  printf '\n'
+  log_divider '-' "$C_DIM" 72
+  printf '%b%s%b\n' "${C_BOLD}${C_MAGENTA}" "  $*" "$C_RESET"
+}
+
+log_info() {
+  log_label "$C_CYAN" 'INFO' "$*"
+}
+
+log_warn() {
+  log_label "$C_YELLOW" 'WARN' "$*" 'stderr'
+}
+
+log_error() {
+  log_label "$C_RED" 'ERROR' "$*" 'stderr'
 }
 
 usage() {
@@ -263,24 +328,23 @@ fi
 
 exec > >(tee "$OUTPUT_FILE") 2>&1
 
-style_line "${C_BOLD}${C_CYAN}" 'System health check'
-printf 'Timestamp: %s\n' "$(date -Is)"
-printf 'Host: %s\n' "$(hostname)"
-printf 'Kernel: %s\n' "$(uname -r)"
-printf 'Uptime/load: '
-uptime
+log_header 'System Health Check'
+log_info "Timestamp: $(date -Is)"
+log_info "Host: $(hostname)"
+log_info "Kernel: $(uname -r)"
+log_info "Uptime/load: $(uptime)"
 
 cpu_count="$(read_cpu_count)"
 root_disk_used="$(read_root_disk_used_percent)"
 primary_iface="$(detect_primary_iface)"
 
-style_line "${C_BOLD}${C_BLUE}" 'Config'
-printf 'Snapshots: %s\n' "$SAMPLES"
-printf 'Interval: %ss\n' "$INTERVAL"
-printf 'Known logs window: %s minute(s)\n' "$KNOWN_LOGS_MINUTES"
-printf 'CPU count: %s\n' "$cpu_count"
-printf 'Primary interface: %s\n' "$primary_iface"
-printf 'Root disk used: %s%%\n' "$root_disk_used"
+log_section 'Config'
+log_info "Snapshots: $SAMPLES"
+log_info "Interval: ${INTERVAL}s"
+log_info "Known logs window: ${KNOWN_LOGS_MINUTES} minute(s)"
+log_info "CPU count: $cpu_count"
+log_info "Primary interface: $primary_iface"
+log_info "Root disk used: ${root_disk_used}%"
 
 declare -a sample_epoch=()
 declare -a load1_tenths=()
@@ -295,7 +359,7 @@ declare -a rx_bytes=()
 declare -a tx_bytes=()
 declare -a cpu_busy_valid=()
 
-style_line "${C_BOLD}${C_BLUE}" 'Snapshot sampling'
+log_section 'Snapshot Sampling'
 for ((i = 1; i <= SAMPLES; i += 1)); do
   if (( i > 1 )); then
     sleep "$INTERVAL"
@@ -330,7 +394,8 @@ for ((i = 1; i <= SAMPLES; i += 1)); do
     busy_display='n/a'
   fi
 
-  printf 'sample %02d/%02d load=%s cpu_busy=%s mem_avail=%sMB swap=%sMB cpu_psi60=%s mem_psi60=%s io_psi60=%s tcp=%s rx_mb=%.1f tx_mb=%.1f\n' \
+  printf '%b%-8s%b sample %02d/%02d load=%s cpu_busy=%s mem_avail=%sMB swap=%sMB cpu_psi60=%s mem_psi60=%s io_psi60=%s tcp=%s rx_mb=%.1f tx_mb=%.1f\n' \
+    "${C_BOLD}${C_CYAN}" '[INFO]' "$C_RESET" \
     "$i" "$SAMPLES" \
     "$(format_tenths "$load1")" \
     "$busy_display" \
@@ -369,7 +434,7 @@ else
   cpu_busy_avg='-1'
 fi
 
-style_line "${C_BOLD}${C_BLUE}" 'Known logs (user journal)'
+log_section 'Known Logs (User Journal)'
 user_log_count=0
 kernel_log_count=0
 if has_cmd journalctl; then
@@ -383,7 +448,8 @@ if has_cmd journalctl; then
     | awk -v pattern="$KNOWN_LOG_PATTERN" 'BEGIN { IGNORECASE = 1 } $0 ~ pattern { print }' \
     | print_limited_stream "$KNOWN_LOG_MAX_LINES"
 
-  printf '\nTop repeated user signals:\n'
+  printf '\n'
+  log_info 'Top repeated user signals:'
   "${journalctl_user_cmd[@]}" -o cat \
     | awk -v pattern="$KNOWN_LOG_PATTERN" 'BEGIN { IGNORECASE = 1 } $0 ~ pattern { print }' \
     | sort \
@@ -391,17 +457,18 @@ if has_cmd journalctl; then
     | sort -nr \
     | awk 'NR <= 15 { printf "%7d %s\n", $1, substr($0, index($0, $2)) } END { if (NR == 0) print "No repeated user signals." }'
 else
-  style_line "$C_YELLOW" 'journalctl unavailable; skipping known logs collection.'
+  log_warn 'journalctl unavailable; skipping known logs collection.'
 fi
 
-style_line "${C_BOLD}${C_BLUE}" 'Known logs (kernel journal)'
+log_section 'Known Logs (Kernel Journal)'
 if has_cmd journalctl; then
   kernel_log_count="$(journalctl -k --since "${KNOWN_LOGS_MINUTES} minutes ago" --no-pager -o cat | awk -v pattern="$KNOWN_LOG_PATTERN" 'BEGIN { IGNORECASE = 1 } $0 ~ pattern { count += 1 } END { print count + 0 }')"
   journalctl -k --since "${KNOWN_LOGS_MINUTES} minutes ago" --no-pager -o short-iso \
     | awk -v pattern="$KNOWN_LOG_PATTERN" 'BEGIN { IGNORECASE = 1 } $0 ~ pattern { print }' \
     | print_limited_stream "$KNOWN_LOG_MAX_LINES"
 
-  printf '\nTop repeated kernel signals:\n'
+  printf '\n'
+  log_info 'Top repeated kernel signals:'
   journalctl -k --since "${KNOWN_LOGS_MINUTES} minutes ago" --no-pager -o cat \
     | awk -v pattern="$KNOWN_LOG_PATTERN" 'BEGIN { IGNORECASE = 1 } $0 ~ pattern { print }' \
     | sort \
@@ -409,7 +476,7 @@ if has_cmd journalctl; then
     | sort -nr \
     | awk 'NR <= 15 { printf "%7d %s\n", $1, substr($0, index($0, $2)) } END { if (NR == 0) print "No repeated kernel signals." }'
 else
-  style_line "$C_YELLOW" 'journalctl unavailable; skipping kernel signal collection.'
+  log_warn 'journalctl unavailable; skipping kernel signal collection.'
 fi
 
 severity=0
@@ -494,94 +561,71 @@ elif (( root_disk_used > 85 )); then
   add_watch "Root disk usage is high (${root_disk_used}%)."
 fi
 
-style_line "${C_BOLD}${C_BLUE}" 'Friendly summary'
-printf 'Sampling duration: %ss\n' "$duration_seconds"
-printf 'CPU load avg1: start=%s end=%s min=%s max=%s avg=%s\n' \
-  "$(format_tenths "${load1_tenths[0]}")" \
-  "$(format_tenths "${load1_tenths[last_index]}")" \
-  "$(format_tenths "$load_min")" \
-  "$(format_tenths "$load_max")" \
-  "$(format_tenths "$load_avg")"
+log_section 'Friendly Summary'
+log_info "Sampling duration: ${duration_seconds}s"
+log_info "CPU load avg1: start=$(format_tenths "${load1_tenths[0]}") end=$(format_tenths "${load1_tenths[last_index]}") min=$(format_tenths "$load_min") max=$(format_tenths "$load_max") avg=$(format_tenths "$load_avg")"
 
 if (( cpu_busy_avg >= 0 )); then
-  printf 'CPU busy: min=%s%% max=%s%% avg=%s%%\n' \
-    "$(format_tenths "$cpu_busy_min")" \
-    "$(format_tenths "$cpu_busy_max")" \
-    "$(format_tenths "$cpu_busy_avg")"
+  log_info "CPU busy: min=$(format_tenths "$cpu_busy_min")% max=$(format_tenths "$cpu_busy_max")% avg=$(format_tenths "$cpu_busy_avg")%"
 else
-  printf 'CPU busy: n/a\n'
+  log_info 'CPU busy: n/a'
 fi
 
-printf 'MemAvailable: start=%sMB end=%sMB delta=%sMB\n' \
-  "$(format_mb_from_kb "${mem_available_kb[0]}")" \
-  "$(format_mb_from_kb "${mem_available_kb[last_index]}")" \
-  "$(format_mb_from_kb "$mem_drop_kb")"
-printf 'Swap used: start=%sMB end=%sMB delta=%sMB\n' \
-  "$(format_mb_from_kb "${swap_used_kb[0]}")" \
-  "$(format_mb_from_kb "${swap_used_kb[last_index]}")" \
-  "$(format_mb_from_kb "$swap_growth_kb")"
-
-printf 'PSI avg60 (end): cpu=%s mem=%s io=%s\n' \
-  "$(format_tenths "${cpu_psi_tenths[last_index]}")" \
-  "$(format_tenths "${mem_psi_tenths[last_index]}")" \
-  "$(format_tenths "${io_psi_tenths[last_index]}")"
-
-printf 'TCP sockets: start=%s end=%s delta=%s\n' \
-  "${tcp_sockets[0]}" "${tcp_sockets[last_index]}" "$tcp_growth"
-printf 'Network traffic (%s): rx_delta=%.1fMB tx_delta=%.1fMB\n' \
-  "$primary_iface" \
-  "$(awk -v b="$rx_growth_bytes" 'BEGIN { printf "%.1f", b / 1048576.0 }')" \
-  "$(awk -v b="$tx_growth_bytes" 'BEGIN { printf "%.1f", b / 1048576.0 }')"
-
-printf 'Known logs: user=%s kernel=%s total=%s\n' "$user_log_count" "$kernel_log_count" "$total_known_log_matches"
+log_info "MemAvailable: start=$(format_mb_from_kb "${mem_available_kb[0]}")MB end=$(format_mb_from_kb "${mem_available_kb[last_index]}")MB delta=$(format_mb_from_kb "$mem_drop_kb")MB"
+log_info "Swap used: start=$(format_mb_from_kb "${swap_used_kb[0]}")MB end=$(format_mb_from_kb "${swap_used_kb[last_index]}")MB delta=$(format_mb_from_kb "$swap_growth_kb")MB"
+log_info "PSI avg60 (end): cpu=$(format_tenths "${cpu_psi_tenths[last_index]}") mem=$(format_tenths "${mem_psi_tenths[last_index]}") io=$(format_tenths "${io_psi_tenths[last_index]}")"
+log_info "TCP sockets: start=${tcp_sockets[0]} end=${tcp_sockets[last_index]} delta=$tcp_growth"
+log_info "Network traffic ($primary_iface): rx_delta=$(awk -v b="$rx_growth_bytes" 'BEGIN { printf "%.1f", b / 1048576.0 }')MB tx_delta=$(awk -v b="$tx_growth_bytes" 'BEGIN { printf "%.1f", b / 1048576.0 }')MB"
+log_info "Known logs: user=$user_log_count kernel=$kernel_log_count total=$total_known_log_matches"
 
 if (( severity == 0 )); then
-  style_line "${C_BOLD}${C_GREEN}" 'Verdict: Healthy'
-  printf 'Your system looked stable across this sampling window.\n'
+  log_info 'Verdict: Healthy'
+  log_info 'Your system looked stable across this sampling window.'
 elif (( severity == 1 )); then
-  style_line "${C_BOLD}${C_YELLOW}" 'Verdict: Watch'
-  printf 'A few signals are elevated. Keep an eye on these:\n'
+  log_warn 'Verdict: Watch'
+  log_warn 'A few signals are elevated. Keep an eye on these:'
   for note in "${watch_notes[@]}"; do
-    printf -- '- %s\n' "$note"
+    log_warn "- $note"
   done
 else
-  style_line "${C_BOLD}${C_RED}" 'Verdict: Stressed'
-  printf 'Multiple stress indicators were detected:\n'
+  log_error 'Verdict: Stressed'
+  log_error 'Multiple stress indicators were detected:'
   for note in "${stressed_notes[@]}"; do
-    printf -- '- %s\n' "$note"
+    log_error "- $note"
   done
 
   if (( ${#watch_notes[@]} > 0 )); then
-    printf 'Additional watch items:\n'
+    log_warn 'Additional watch items:'
     for note in "${watch_notes[@]}"; do
-      printf -- '- %s\n' "$note"
+      log_warn "- $note"
     done
   fi
 fi
 
-printf '\nSaved system health report: %s\n' "$OUTPUT_FILE"
+printf '\n'
+log_info "Saved system health report: $OUTPUT_FILE"
 
 if (( OPEN_OPENCODE )); then
-  style_line "${C_BOLD}${C_BLUE}" 'OpenCode handoff'
+  log_section 'OpenCode Handoff'
 
   if ! has_cmd opencode; then
-    style_line "$C_RED" 'opencode command not found. Skipping OpenCode handoff.'
+    log_error 'opencode command not found. Skipping OpenCode handoff.'
     exit 0
   fi
 
   opencode_prompt='Review this system health report. Give a concise diagnosis, probable causes, and a prioritized action plan. Use the logs and metrics to justify each recommendation.'
   opencode_title="System Health $(date +%F-%H%M)"
 
-  style_line "$C_CYAN" 'Running opencode analysis on the report...'
+  log_info 'Running opencode analysis on the report...'
   if ! opencode run "$opencode_prompt" -f "$OUTPUT_FILE" --title "$opencode_title"; then
-    style_line "$C_RED" 'opencode run failed. You can retry manually with the saved report file.'
+    log_error 'opencode run failed. You can retry manually with the saved report file.'
     exit 0
   fi
 
   if [[ -t 0 && -t 1 ]]; then
-    style_line "$C_CYAN" 'Opening full interactive OpenCode session (continuing latest)...'
-    opencode --continue || style_line "$C_RED" 'Failed to open interactive OpenCode session.'
+    log_info 'Opening full interactive OpenCode session (continuing latest)...'
+    opencode --continue || log_error 'Failed to open interactive OpenCode session.'
   else
-    style_line "$C_YELLOW" 'No interactive TTY detected. Continue manually with: opencode --continue'
+    log_warn 'No interactive TTY detected. Continue manually with: opencode --continue'
   fi
 fi
