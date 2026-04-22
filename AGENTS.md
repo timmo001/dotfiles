@@ -33,6 +33,21 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - Treat `go-automate ha watch entity` direct-style usage as a fallback only when bridge mode is unavailable.
 - Prefer `--waybar` output for machine-consumed flows; plain text output should be treated as human-facing unless explicitly needed.
 
+## Rule Application
+
+- For every code change, apply all matching rule files before editing.
+- If a change spans multiple scopes, apply all relevant rules together (not just one).
+
+## TypeScript Rules
+
+- For any TypeScript edit or TypeScript-focused review (`.ts`, `.tsx`, `.mts`, `.cts`), apply the `types-enforce-ts` rule before making changes.
+
+## Code Rules
+
+- Apply `cleanup-unnecessary-variables` as a general code-quality rule for all code changes when its guidance is relevant, not only explicit cleanup requests.
+- Apply `remove-single-use-functions` as a general code-quality rule for all code changes when its guidance is relevant, not only explicit cleanup requests.
+- For TypeScript changes where these rules apply, apply `types-enforce-ts` alongside them when scopes overlap.
+
 ## Split Worktrees
 
 - The current desktop/laptop split worktree repo is `hypr`.
