@@ -8,10 +8,40 @@ dot_diff_cache_file="$cache_dir/dot-diff-waybar.json"
 dot_diff_lock_dir="$cache_dir/dot-diff-waybar.lock"
 host="${OMARCHY_HOST:-}"
 config_path=""
+selected_output=""
+selected_config_path=""
 
 reset_dot_diff_cache() {
   rm -f "$dot_diff_cache_file"
   rmdir "$dot_diff_lock_dir" 2>/dev/null || true
+}
+
+resolve_rightmost_output() {
+  local output
+
+  if ! command -v hyprctl >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
+    return 1
+  fi
+
+  output="$(hyprctl -j monitors | jq -r '[.[] | select(.disabled != true)] | sort_by(.x, .y) | last | .name // empty')"
+  [[ -n "$output" ]] || return 1
+
+  printf '%s' "$output"
+}
+
+build_selected_output_config() {
+  local base_config="$1"
+  local output="$2"
+
+  mkdir -p "$cache_dir"
+  selected_config_path="$cache_dir/config.selected-output.jsonc"
+
+  cat > "$selected_config_path" <<EOF
+{
+  "include": ["$base_config"],
+  "output": ["$output"]
+}
+EOF
 }
 
 real_waybar_bin="$(PATH=/usr/local/bin:/usr/bin:/bin command -v waybar 2>/dev/null || true)"
@@ -29,7 +59,7 @@ fi
 
 for arg in "$@"; do
   case "$arg" in
-    -c|--config|--config=*)
+    -c|--config|--config=*|-o|--output|--output=*)
       reset_dot_diff_cache
       exec "$real_waybar_bin" "$@"
       ;;
@@ -38,8 +68,23 @@ done
 
 reset_dot_diff_cache
 
+selected_output="$(resolve_rightmost_output || true)"
+
 if [[ -n "$config_path" ]]; then
+  if [[ -n "$selected_output" ]]; then
+    build_selected_output_config "$config_path" "$selected_output"
+    exec "$real_waybar_bin" -c "$selected_config_path" "$@"
+  fi
+
   exec "$real_waybar_bin" -c "$config_path" "$@"
+fi
+
+if [[ -n "$selected_output" ]]; then
+  default_config="$config_dir/config.jsonc"
+  if [[ -f "$default_config" ]]; then
+    build_selected_output_config "$default_config" "$selected_output"
+    exec "$real_waybar_bin" -c "$selected_config_path" "$@"
+  fi
 fi
 
 exec "$real_waybar_bin" "$@"
