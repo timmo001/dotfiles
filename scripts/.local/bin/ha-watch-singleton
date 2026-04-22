@@ -1,0 +1,187 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+MODULE_ID=""
+ENTITY_ID=""
+ICON=""
+TEXT_ON=""
+TEXT_OFF=""
+TOOLTIP_ON=""
+TOOLTIP_OFF=""
+CLASS_ON=""
+CLASS_OFF=""
+HIDE_OFF=0
+
+usage() {
+  cat <<'EOF'
+Usage: ha-watch-singleton --module <id> --entity <entity_id> [options]
+
+Options:
+  --module <id>           Module identifier used in singleton key
+  --entity <entity_id>    Home Assistant entity id to watch
+  --icon <icon>           Waybar icon for on/off states
+  --text-on <text>        Waybar text when state is on
+  --text-off <text>       Waybar text when state is not on
+  --tooltip-on <text>     Waybar tooltip when state is on
+  --tooltip-off <text>    Waybar tooltip when state is not on
+  --class-on <class>      Waybar CSS class when state is on
+  --class-off <class>     Waybar CSS class when state is not on
+  --hide-off              Hide module when state is not on
+  --help                  Show this help
+EOF
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --module)
+        MODULE_ID="$2"
+        shift 2
+        ;;
+      --entity)
+        ENTITY_ID="$2"
+        shift 2
+        ;;
+      --icon)
+        ICON="$2"
+        shift 2
+        ;;
+      --text-on)
+        TEXT_ON="$2"
+        shift 2
+        ;;
+      --text-off)
+        TEXT_OFF="$2"
+        shift 2
+        ;;
+      --tooltip-on)
+        TOOLTIP_ON="$2"
+        shift 2
+        ;;
+      --tooltip-off)
+        TOOLTIP_OFF="$2"
+        shift 2
+        ;;
+      --class-on)
+        CLASS_ON="$2"
+        shift 2
+        ;;
+      --class-off)
+        CLASS_OFF="$2"
+        shift 2
+        ;;
+      --hide-off)
+        HIDE_OFF=1
+        shift
+        ;;
+      --help|-h)
+        usage
+        exit 0
+        ;;
+      --*)
+        printf 'ha-watch-singleton: unknown option: %s\n' "$1" >&2
+        usage >&2
+        exit 1
+        ;;
+      *)
+        printf 'ha-watch-singleton: unexpected argument: %s\n' "$1" >&2
+        usage >&2
+        exit 1
+        ;;
+    esac
+  done
+
+  if [[ -z "$MODULE_ID" || -z "$ENTITY_ID" ]]; then
+    printf 'ha-watch-singleton: --module and --entity are required\n' >&2
+    usage >&2
+    exit 1
+  fi
+}
+
+find_waybar_ancestor_pid() {
+  local pid="$PPID"
+  local depth=0
+  local comm=""
+  local next_pid=""
+
+  while [[ "$pid" =~ ^[0-9]+$ ]] && (( pid > 1 )) && (( depth < 8 )); do
+    comm="$(awk '{print $2}' "/proc/$pid/stat" 2>/dev/null || true)"
+    if [[ "$comm" == "(waybar)" ]]; then
+      printf '%s' "$pid"
+      return 0
+    fi
+
+    next_pid="$(awk '{print $4}' "/proc/$pid/stat" 2>/dev/null || true)"
+    if [[ ! "$next_pid" =~ ^[0-9]+$ ]] || (( next_pid <= 1 )); then
+      break
+    fi
+
+    pid="$next_pid"
+    depth=$((depth + 1))
+  done
+
+  return 1
+}
+
+build_watch_command() {
+  WATCH_CMD=(go-automate ha bridge watch entity --waybar)
+
+  if [[ -n "$ICON" ]]; then
+    WATCH_CMD+=(--icon "$ICON")
+  fi
+  if [[ -n "$TEXT_ON" ]]; then
+    WATCH_CMD+=(--text-on "$TEXT_ON")
+  fi
+  if [[ -n "$TEXT_OFF" ]]; then
+    WATCH_CMD+=(--text-off "$TEXT_OFF")
+  fi
+  if [[ -n "$TOOLTIP_ON" ]]; then
+    WATCH_CMD+=(--tooltip-on "$TOOLTIP_ON")
+  fi
+  if [[ -n "$TOOLTIP_OFF" ]]; then
+    WATCH_CMD+=(--tooltip-off "$TOOLTIP_OFF")
+  fi
+  if [[ -n "$CLASS_ON" ]]; then
+    WATCH_CMD+=(--class-on "$CLASS_ON")
+  fi
+  if [[ -n "$CLASS_OFF" ]]; then
+    WATCH_CMD+=(--class-off "$CLASS_OFF")
+  fi
+  if (( HIDE_OFF )); then
+    WATCH_CMD+=(--hide-off)
+  fi
+
+  WATCH_CMD+=("$ENTITY_ID")
+}
+
+main() {
+  local waybar_pid=""
+  local waybar_starttime=""
+  local stream_key=""
+
+  parse_args "$@"
+
+  if ! command -v go-automate >/dev/null 2>&1 || ! command -v singleton-stream >/dev/null 2>&1; then
+    printf 'ha-watch-singleton: missing required command (go-automate or singleton-stream)\n' >&2
+    exit 1
+  fi
+
+  waybar_pid="$(find_waybar_ancestor_pid || printf '%s' "$PPID")"
+  waybar_starttime="$(awk '{print $22}' "/proc/$waybar_pid/stat" 2>/dev/null || true)"
+  if [[ -z "$waybar_starttime" ]]; then
+    printf 'ha-watch-singleton: unable to read Waybar parent starttime\n' >&2
+    exit 1
+  fi
+
+  build_watch_command
+  stream_key="ha-watch.${MODULE_ID}.${ENTITY_ID}"
+
+  exec singleton-stream \
+    --key "$stream_key" \
+    --parent-pid "$waybar_pid" \
+    --parent-starttime "$waybar_starttime" \
+    -- "${WATCH_CMD[@]}"
+}
+
+main "$@"

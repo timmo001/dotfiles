@@ -191,29 +191,48 @@ publish_line() {
 
 owner_iteration() {
   local line
-  local read_status
+  local source_status
+  local source_pipe
+  source_pipe="${STATE_FILE}.pipe"
+  local source_fd=""
+
+  rm -f "$source_pipe"
+  mkfifo "$source_pipe"
 
   coproc SOURCE_STREAM {
-    exec "${COMMAND[@]}"
+    exec "${COMMAND[@]}" > "$source_pipe"
   }
   source_pid="${SOURCE_STREAM_PID:-}"
+  exec {source_fd}<"$source_pipe"
+  rm -f "$source_pipe"
+
+  if [[ -z "$source_fd" || ! "$source_fd" =~ ^[0-9]+$ ]]; then
+    if [[ -n "$source_fd" ]]; then
+      exec {source_fd}<&-
+    fi
+    stop_source
+    return
+  fi
 
   while parent_alive; do
-    if IFS= read -r -t 1 line <&"${SOURCE_STREAM[0]}"; then
+    if IFS= read -r -t 1 line <&"$source_fd"; then
       publish_line "$line"
       continue
     fi
 
-    read_status=$?
-
     if [[ -n "$source_pid" ]] && ! kill -0 "$source_pid" 2>/dev/null; then
       break
     fi
-
-    if (( read_status != 142 )); then
-      continue
-    fi
   done
+
+  exec {source_fd}<&-
+  if [[ -n "$source_pid" ]]; then
+    wait "$source_pid" >/dev/null 2>&1 || true
+    source_status=$?
+    if (( source_status > 0 )); then
+      :
+    fi
+  fi
 
   stop_source
 }
