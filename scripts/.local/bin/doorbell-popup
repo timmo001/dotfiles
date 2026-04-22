@@ -17,6 +17,7 @@ SIMULATE_EXIT=0
 FORCE_MOTION_TRUE=0
 OPEN_ONLY=0
 AUTO_CLOSE=1
+FOCUS_POPUP=0
 
 POPUP_URL="${HOME_ASSISTANT_BASE_URL}/lovelace/home?more-info-entity-id=${CAMERA_ENTITY}"
 POPUP_ADDR_FILE="${XDG_RUNTIME_DIR:-/tmp}/doorbell-popup.address"
@@ -40,6 +41,7 @@ Options:
   --duration <seconds>          Popup display duration
   --open-only                   Open popup once and exit
   --no-auto-close               Keep popup open (disable auto-close timer)
+  --focus-popup                 Focus popup window after opening/repositioning
   --simulate-event <on|off>     Simulate one event on startup
   --simulate-exit               Exit after simulated event completes
   --force-motion-true           Force simulated motion on startup
@@ -92,6 +94,10 @@ parse_args() {
         ;;
       --no-auto-close)
         AUTO_CLOSE=0
+        shift
+        ;;
+      --focus-popup)
+        FOCUS_POPUP=1
         shift
         ;;
       --simulate-event)
@@ -265,14 +271,30 @@ schedule_close() {
   close_timer_pid="$!"
 }
 
+restore_focus() {
+  local addr="$1"
+
+  [[ -n "$addr" ]] || return 0
+  window_exists "$addr" || return 0
+  hyprctl dispatch focuswindow "address:${addr}" >/dev/null 2>&1 || true
+}
+
 handle_motion_event() {
+  local active_addr
+
+  active_addr="$(hyprctl -j activewindow | jq -r '.address // empty' 2>/dev/null || true)"
+
   if [[ -z "$popup_addr" ]]; then
     load_known_popup_addr || true
   fi
 
   if window_exists "$popup_addr"; then
     position_popup "$popup_addr" || true
-    hyprctl dispatch focuswindow "address:${popup_addr}" >/dev/null 2>&1 || true
+    if (( FOCUS_POPUP )); then
+      hyprctl dispatch focuswindow "address:${popup_addr}" >/dev/null 2>&1 || true
+    else
+      restore_focus "$active_addr"
+    fi
     if (( AUTO_CLOSE )); then
       schedule_close "$popup_addr"
     fi
@@ -281,7 +303,11 @@ handle_motion_event() {
 
   popup_addr=""
   if open_popup; then
-    hyprctl dispatch focuswindow "address:${popup_addr}" >/dev/null 2>&1 || true
+    if (( FOCUS_POPUP )); then
+      hyprctl dispatch focuswindow "address:${popup_addr}" >/dev/null 2>&1 || true
+    else
+      restore_focus "$active_addr"
+    fi
     if (( AUTO_CLOSE )); then
       schedule_close "$popup_addr"
     fi
