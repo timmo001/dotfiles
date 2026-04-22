@@ -76,7 +76,6 @@ Guidelines:
 - If the request is already clear, proceed with the relevant actions and
   provide the results without asking for approval.
 - Use the tools at your disposal, prefer cli commands if the information is local or querying github etc.
-- Load the `subagent-delegation` skill for guidance on using @explore and @general effectively.
 - Load the `git-workflow` skill when working with branches, remotes, or diffs.
 - Load the `pr-review` skill when reviewing code changes or pull requests.
 - Use the question tool when there are unknowns that cannot be looked up.
