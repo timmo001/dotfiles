@@ -8,6 +8,7 @@ has_cmd() {
 
 OUTPUT_DIR="${DOT_SYSTEM_HEALTH_OUTPUT_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/system-health-check}"
 OUTPUT_FILE=""
+HAS_INTERACTIVE_TTY=0
 
 SAMPLES=5
 INTERVAL=15
@@ -314,6 +315,10 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ -r /dev/tty && -w /dev/tty ]]; then
+  HAS_INTERACTIVE_TTY=1
+fi
 
 validate_positive_int '--samples' "$SAMPLES"
 validate_positive_int '--interval' "$INTERVAL"
@@ -622,9 +627,9 @@ if (( OPEN_OPENCODE )); then
     exit 0
   fi
 
-  if [[ -t 0 && -t 1 ]]; then
+  if (( HAS_INTERACTIVE_TTY )); then
     log_info 'Opening full interactive OpenCode session (continuing latest)...'
-    opencode --continue || log_error 'Failed to open interactive OpenCode session.'
+    opencode --continue < /dev/tty > /dev/tty 2>&1 || log_error 'Failed to open interactive OpenCode session.'
   else
     log_warn 'No interactive TTY detected. Continue manually with: opencode --continue'
   fi
