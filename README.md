@@ -54,6 +54,11 @@ dot doctor
 - `dot private-pkg-publish [--no-git] <package>` - build and publish a mapped private package into the private pacman repo, sync the mirror, refresh pacman metadata, and commit/push by default
 - `dot agents-sync` - copy `~/.opencode/AGENTS.md` into `agents/.cursor/rules/global-agents.mdc` in private dotfiles by default (`alwaysApply: true` + body; stows to `~/.cursor/rules/`). **`dot update`** and **`dot diff`** run this automatically by default (see env vars below).
 
+## System health check
+
+- `system-health-check` - friendly multi-snapshot system health report for CPU, memory, network, pressure, and known logs
+- Add `--open-opencode` to run `opencode run` against the saved report, then open a full interactive OpenCode session with `opencode --continue`
+
 ## Workflow watch
 
 - Public dotfiles provide the global `pre-push` hook, poller, and user systemd units
