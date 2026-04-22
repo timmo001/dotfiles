@@ -3,7 +3,7 @@ Description=Periodic lightweight Chromium/Chrome freeze diagnostics
 
 [Timer]
 OnBootSec=3m
-OnUnitActiveSec=2m
+OnUnitActiveSec=15m
 Persistent=true
 Unit=browser-freeze-snapshot.service
 
