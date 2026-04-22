@@ -2515,6 +2515,10 @@ cmd_doctor() {
   local -a doctor_warning_sections=()
   local -a doctor_error_messages=()
   local -a doctor_error_sections=()
+  local -a doctor_missing_aur_packages=()
+  local -a doctor_switch_aur_packages=()
+  local -a doctor_update_aur_packages=()
+  local -a doctor_missing_private_packages=()
 
   doctor_log_section() {
     doctor_current_section="$1"
@@ -2584,7 +2588,6 @@ cmd_doctor() {
 
   report_package_status() {
     local package_name="$1"
-    local install_hint="$2"
     local display_name
     local installed_name=''
     local installed_version=''
@@ -2604,21 +2607,15 @@ cmd_doctor() {
         if [[ -n "$latest_aur_version" ]]; then
           doctor_warn "Latest AUR version for $package_name: $latest_aur_version"
         fi
-        if [[ -n "$install_hint" ]]; then
-          doctor_warn "To switch back to AUR: $install_hint"
-        fi
+        doctor_switch_aur_packages+=("$package_name")
         doctor_warn 'Keep the local package only if you intentionally want to override the AUR package on this machine'
       elif [[ -n "$installed_version" && -n "$latest_aur_version" && "$installed_version" != "$latest_aur_version" ]]; then
         doctor_warn "$package_name version differs from latest AUR ($installed_version installed, $latest_aur_version latest)"
-        if [[ -n "$install_hint" ]]; then
-          doctor_warn "To update from AUR: $install_hint"
-        fi
+        doctor_update_aur_packages+=("$package_name")
       fi
     else
       doctor_warn "$display_name is missing"
-      if [[ -n "$install_hint" ]]; then
-        doctor_warn "Install hint: $install_hint"
-      fi
+      doctor_missing_aur_packages+=("$package_name")
     fi
   }
 
@@ -2681,7 +2678,7 @@ cmd_doctor() {
       fi
     else
       doctor_warn "$package_name is missing"
-      doctor_warn "Install with: omarchy-pkg-aur-add $package_name"
+      doctor_missing_private_packages+=("$package_name")
     fi
   }
 
@@ -3040,16 +3037,22 @@ cmd_doctor() {
   fi
 
   doctor_log_section 'Public package checks'
-  report_package_status 'system-bridge-git' 'omarchy-pkg-aur-add system-bridge-git'
-  report_package_status 'go-automate-git' 'omarchy-pkg-aur-add go-automate-git'
-  report_package_status 'python-gobject' 'omarchy-pkg-aur-add python-gobject'
-  report_package_status 'gtk4-layer-shell' 'omarchy-pkg-aur-add gtk4-layer-shell'
-  report_package_status 'stress-ng' 'omarchy-pkg-aur-add stress-ng'
-  report_package_status 'sysbench' 'omarchy-pkg-aur-add sysbench'
-  report_package_status 'iperf3' 'omarchy-pkg-aur-add iperf3'
-  report_package_status 'sysstat' 'omarchy-pkg-aur-add sysstat'
-  report_package_status 'bmon' 'omarchy-pkg-aur-add bmon'
-  report_package_status 'smem' 'omarchy-pkg-aur-add smem'
+  report_package_status system-bridge-git
+  report_package_status go-automate-git
+  report_package_status python-gobject
+  report_package_status gtk4-layer-shell
+  report_package_status stress-ng
+  report_package_status sysbench
+  report_package_status iperf3
+  report_package_status sysstat
+  report_package_status bmon
+  report_package_status smem
+
+  if [[ "${#doctor_missing_aur_packages[@]}" -gt 0 || "${#doctor_switch_aur_packages[@]}" -gt 0 || "${#doctor_update_aur_packages[@]}" -gt 0 ]]; then
+    local combined_aur_packages=()
+    combined_aur_packages+=("${doctor_missing_aur_packages[@]}" "${doctor_switch_aur_packages[@]}" "${doctor_update_aur_packages[@]}")
+    doctor_warn "Install/update with: omarchy-pkg-aur-add ${combined_aur_packages[*]}"
+  fi
 
   doctor_log_section 'Private package repo checks'
   report_private_package_repo_status
@@ -3063,6 +3066,9 @@ cmd_doctor() {
       for private_package_name in "${PRIVATE_ARCH_PACKAGES[@]}"; do
         report_private_package_status "$private_package_name"
       done
+      if [[ "${#doctor_missing_private_packages[@]}" -gt 0 ]]; then
+        doctor_warn "Install with: omarchy-pkg-aur-add ${doctor_missing_private_packages[*]}"
+      fi
     fi
   elif can_use_private; then
     doctor_warn "Missing private package list: $(display_path "$DOT_PRIVATE_PACKAGES_FILE")"
