@@ -213,13 +213,12 @@ restore_original_branch() {
 trap restore_original_branch EXIT
 
 cursor=0
-parent_branch="$BASE_BRANCH"
 
 for ((i = 1; i <= BRANCH_COUNT; i++)); do
   size="${GROUP_SIZES[$((i - 1))]}"
   branch_name="${SOURCE_BRANCH}-b${i}"
 
-  git switch -c "$branch_name" "$parent_branch" >/dev/null
+  git switch -c "$branch_name" "$BASE_BRANCH" >/dev/null
 
   if (( size > 0 )); then
     declare -a present_files=()
@@ -247,8 +246,6 @@ for ((i = 1; i <= BRANCH_COUNT; i++)); do
 
     git commit -m "Split ${SOURCE_BRANCH} (${i}/${BRANCH_COUNT})" >/dev/null
   fi
-
-  parent_branch="$branch_name"
 done
 
 trap - EXIT
@@ -257,10 +254,6 @@ restore_original_branch
 printf 'Created branches:\n'
 for ((i = 1; i <= BRANCH_COUNT; i++)); do
   branch_name="${SOURCE_BRANCH}-b${i}"
-  parent="$BASE_BRANCH"
-  if (( i > 1 )); then
-    parent="${SOURCE_BRANCH}-b$((i - 1))"
-  fi
-  inc_count="$(git diff --name-only "$parent...$branch_name" | wc -l | tr -d ' ')"
+  inc_count="$(git diff --name-only "$BASE_BRANCH...$branch_name" | wc -l | tr -d ' ')"
   printf '  %s incremental=%s\n' "$branch_name" "$inc_count"
 done
