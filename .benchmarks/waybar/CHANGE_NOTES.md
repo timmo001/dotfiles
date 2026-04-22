@@ -8,12 +8,9 @@
 
 ## High-priority change targets
 
-- `/home/aidan/.config/waybar/scripts/temperature.sh`
-- `/home/aidan/.config/waybar/scripts/co2-alert.sh`
-- `/home/aidan/.config/waybar/scripts/current-next-event.sh`
-- `/home/aidan/.config/waybar/scripts/voc-alert.sh`
-- `/home/aidan/.config/waybar/scripts/nas-activity.sh`
-- `/home/aidan/.config/waybar/scripts/doorbell.sh`
+- `/home/aidan/.config/waybar/scripts/ha-waybar-module.sh`
+- `/home/aidan/.config/dotfiles/scripts/.local/bin/ha-watch-singleton`
+- `/home/aidan/.config/dotfiles/scripts/.local/bin/singleton-stream`
 
 ## Required policy for future edits
 
