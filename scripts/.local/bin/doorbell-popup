@@ -12,6 +12,7 @@ POPUP_HEIGHT="640"
 POPUP_MARGIN="16"
 POPUP_BOTTOM_MARGIN="6"
 POPUP_DURATION_SECONDS="20"
+POPUP_MONITOR=""
 SIMULATE_EVENT=""
 SIMULATE_EXIT=0
 FORCE_MOTION_TRUE=0
@@ -34,6 +35,7 @@ Options:
   --camera-entity <entity_id>   Camera entity for more-info popup
   --base-url <url>              Home Assistant base URL
   --workspace <id>              Target workspace for popup
+  --monitor <name>              Target monitor name (e.g. DP-1)
   --width <px>                  Popup width in pixels
   --height <px>                 Popup height in pixels
   --margin <px>                 Left margin in pixels
@@ -66,6 +68,10 @@ parse_args() {
         ;;
       --workspace)
         POPUP_WORKSPACE="$2"
+        shift 2
+        ;;
+      --monitor)
+        POPUP_MONITOR="$2"
         shift 2
         ;;
       --width)
@@ -176,7 +182,13 @@ load_known_popup_addr() {
 resolve_workspace_monitor_name() {
   local monitor_name
 
-  monitor_name="$(hyprctl -j workspaces | jq -r --argjson workspace "$POPUP_WORKSPACE" '.[] | select(.id == $workspace) | .monitor' | head -n 1)"
+  if [[ -n "$POPUP_MONITOR" ]]; then
+    monitor_name="$(hyprctl -j monitors | jq -r --arg name "$POPUP_MONITOR" '.[] | select(.name == $name) | .name' | head -n 1)"
+  fi
+
+  if [[ -z "$monitor_name" || "$monitor_name" == "null" ]]; then
+    monitor_name="$(hyprctl -j workspaces | jq -r --argjson workspace "$POPUP_WORKSPACE" '.[] | select(.id == $workspace) | .monitor' | head -n 1)"
+  fi
 
   if [[ -z "$monitor_name" || "$monitor_name" == "null" ]]; then
     monitor_name="$(hyprctl -j monitors | jq -r '.[] | select(.focused == true) | .name' | head -n 1)"
@@ -185,15 +197,35 @@ resolve_workspace_monitor_name() {
   printf '%s' "$monitor_name"
 }
 
+resolve_target_workspace() {
+  local monitor_name="$1"
+  local target_workspace
+
+  target_workspace="$POPUP_WORKSPACE"
+
+  if [[ -n "$POPUP_MONITOR" && -n "$monitor_name" ]]; then
+    target_workspace="$(hyprctl -j monitors | jq -r --arg name "$monitor_name" '.[] | select(.name == $name) | .activeWorkspace.id' | head -n 1)"
+  fi
+
+  if [[ -z "$target_workspace" || "$target_workspace" == "null" ]]; then
+    target_workspace="$POPUP_WORKSPACE"
+  fi
+
+  printf '%s' "$target_workspace"
+}
+
 position_popup() {
   local addr="$1"
   local monitor_name monitor_json
+  local target_workspace
   local monitor_x monitor_y monitor_width monitor_height
   local reserved_left reserved_bottom
   local pos_x pos_y
 
   monitor_name="$(resolve_workspace_monitor_name)"
   [[ -n "$monitor_name" ]] || return 1
+  target_workspace="$(resolve_target_workspace "$monitor_name")"
+  [[ -n "$target_workspace" ]] || return 1
 
   monitor_json="$(hyprctl -j monitors | jq -c --arg name "$monitor_name" '.[] | select(.name == $name)')"
   [[ -n "$monitor_json" ]] || return 1
@@ -208,7 +240,7 @@ position_popup() {
   pos_x=$((monitor_x + reserved_left + POPUP_MARGIN))
   pos_y=$((monitor_y + monitor_height - reserved_bottom - POPUP_HEIGHT - POPUP_BOTTOM_MARGIN))
 
-  hyprctl dispatch movetoworkspacesilent "${POPUP_WORKSPACE},address:${addr}" >/dev/null 2>&1 || true
+  hyprctl dispatch movetoworkspacesilent "${target_workspace},address:${addr}" >/dev/null 2>&1 || true
   hyprctl dispatch setfloating "address:${addr}" >/dev/null 2>&1 || true
   hyprctl dispatch resizewindowpixel "exact ${POPUP_WIDTH} ${POPUP_HEIGHT},address:${addr}" >/dev/null 2>&1 || true
   hyprctl dispatch movewindowpixel "exact ${pos_x} ${pos_y},address:${addr}" >/dev/null 2>&1 || true
