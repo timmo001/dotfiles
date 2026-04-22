@@ -507,6 +507,10 @@ if has_cmd fastfetch; then
       log_info "Memory: ${mem_gb} GB"
     fi
   fi
+
+  if [[ -n "${OMARCHY_HOST:-}" ]]; then
+    log_info "Omarchy host: $OMARCHY_HOST"
+  fi
 fi
 
 log_section 'Config'
