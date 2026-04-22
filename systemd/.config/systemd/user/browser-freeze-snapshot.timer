@@ -1,0 +1,11 @@
+[Unit]
+Description=Periodic lightweight Chromium/Chrome freeze diagnostics
+
+[Timer]
+OnBootSec=3m
+OnUnitActiveSec=2m
+Persistent=true
+Unit=browser-freeze-snapshot.service
+
+[Install]
+WantedBy=timers.target

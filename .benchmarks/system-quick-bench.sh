@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OUTPUT_DIR="$SCRIPT_DIR/output"
+
+OUTPUT_FILE=""
+IPERF_HOST=""
+IPERF_PORT=5201
+CPU_SECONDS=8
+VMSTAT_SAMPLES=5
+PING_COUNT=5
+
+C_RESET=$'\033[0m'
+C_BOLD=$'\033[1m'
+C_RED=$'\033[31m'
+C_GREEN=$'\033[32m'
+C_YELLOW=$'\033[33m'
+C_BLUE=$'\033[34m'
+C_CYAN=$'\033[36m'
+
+if [[ -n "${NO_COLOR:-}" ]] || { [[ ! -t 1 ]] && [[ -z "${FORCE_COLOR:-}" ]]; }; then
+  C_RESET=''
+  C_BOLD=''
+  C_RED=''
+  C_GREEN=''
+  C_YELLOW=''
+  C_BLUE=''
+  C_CYAN=''
+fi
+
+style_line() {
+  local color="$1"
+  shift
+  printf '%b%s%b\n' "$color" "$*" "$C_RESET"
+}
+
+has_cmd() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+usage() {
+  cat <<'EOF'
+Usage: system-quick-bench.sh [options]
+
+Options:
+  --iperf-host <host>      LAN iperf3 target host (optional)
+  --iperf-port <port>      LAN iperf3 target port (default: 5201)
+  --cpu-seconds <n>        CPU benchmark seconds (default: 8)
+  --vmstat-samples <n>     vmstat samples (default: 5)
+  --ping-count <n>         ping count when iperf host set (default: 5)
+  --output <path>          Output file path
+  --help                   Show this help
+EOF
+}
+
+validate_positive_int() {
+  local name="$1"
+  local value="$2"
+
+  if [[ ! "$value" =~ ^[0-9]+$ ]] || (( value < 1 )); then
+    printf 'system-quick-bench.sh: %s must be a positive integer\n' "$name" >&2
+    exit 1
+  fi
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --iperf-host)
+      IPERF_HOST="$2"
+      shift 2
+      ;;
+    --iperf-port)
+      IPERF_PORT="$2"
+      shift 2
+      ;;
+    --cpu-seconds)
+      CPU_SECONDS="$2"
+      shift 2
+      ;;
+    --vmstat-samples)
+      VMSTAT_SAMPLES="$2"
+      shift 2
+      ;;
+    --ping-count)
+      PING_COUNT="$2"
+      shift 2
+      ;;
+    --output)
+      OUTPUT_FILE="$2"
+      shift 2
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      printf 'system-quick-bench.sh: unknown argument: %s\n' "$1" >&2
+      exit 1
+      ;;
+  esac
+done
+
+validate_positive_int '--iperf-port' "$IPERF_PORT"
+validate_positive_int '--cpu-seconds' "$CPU_SECONDS"
+validate_positive_int '--vmstat-samples' "$VMSTAT_SAMPLES"
+validate_positive_int '--ping-count' "$PING_COUNT"
+
+if [[ -z "$OUTPUT_FILE" ]]; then
+  mkdir -p "$OUTPUT_DIR"
+  OUTPUT_FILE="$OUTPUT_DIR/system-quick-bench-$(date +%Y%m%d-%H%M%S).txt"
+else
+  mkdir -p "$(dirname "$OUTPUT_FILE")"
+fi
+
+exec > >(tee "$OUTPUT_FILE") 2>&1
+
+style_line "${C_BOLD}${C_CYAN}" 'System quick benchmark'
+printf 'Host: %s\n' "$(hostname)"
+printf 'Kernel: %s\n' "$(uname -r)"
+printf 'Output: %s\n' "$OUTPUT_FILE"
+
+style_line "${C_BOLD}${C_BLUE}" 'System snapshot'
+printf 'Uptime/load: '
+uptime
+printf '\nCPU:\n'
+lscpu | grep -E 'Model name|CPU\(s\)|Thread\(s\) per core|Core\(s\) per socket|Socket\(s\)' || true
+
+style_line "${C_BOLD}${C_BLUE}" 'CPU benchmark'
+if has_cmd sysbench; then
+  style_line "$C_GREEN" "Using sysbench for ${CPU_SECONDS}s"
+  sysbench cpu --threads="$(nproc)" --cpu-max-prime=20000 --time="$CPU_SECONDS" run
+elif has_cmd stress-ng; then
+  style_line "$C_GREEN" "Using stress-ng for ${CPU_SECONDS}s"
+  stress-ng --cpu "$(nproc)" --timeout "${CPU_SECONDS}s" --metrics-brief
+else
+  style_line "$C_YELLOW" 'No CPU benchmark tool found (sysbench/stress-ng). Skipping CPU stress run.'
+fi
+
+style_line "${C_BOLD}${C_BLUE}" 'Memory and pressure snapshot'
+free -h
+if has_cmd vmstat; then
+  printf '\n'
+  vmstat 1 "$VMSTAT_SAMPLES"
+else
+  style_line "$C_YELLOW" 'vmstat is unavailable. Skipping vmstat sample.'
+fi
+
+printf '\n/proc/pressure/cpu\n'
+cat /proc/pressure/cpu
+printf '/proc/pressure/memory\n'
+cat /proc/pressure/memory
+printf '/proc/pressure/io\n'
+cat /proc/pressure/io
+
+style_line "${C_BOLD}${C_BLUE}" 'Network snapshot'
+if has_cmd ss; then
+  ss -s
+else
+  style_line "$C_YELLOW" 'ss is unavailable. Skipping socket summary.'
+fi
+
+if [[ -n "$IPERF_HOST" ]]; then
+  style_line "$C_GREEN" "LAN target provided: $IPERF_HOST:$IPERF_PORT"
+  if has_cmd ping; then
+    printf '\n'
+    ping -c "$PING_COUNT" "$IPERF_HOST" || style_line "$C_YELLOW" 'ping failed (continuing)'
+  fi
+
+  if has_cmd iperf3; then
+    printf '\n'
+    iperf3 -c "$IPERF_HOST" -p "$IPERF_PORT" -t 8 || style_line "$C_RED" 'iperf3 benchmark failed'
+  else
+    style_line "$C_RED" 'iperf3 is unavailable. Install iperf3 for LAN throughput benchmark.'
+  fi
+else
+  style_line "$C_YELLOW" 'No --iperf-host provided. Skipping LAN throughput benchmark.'
+fi
+
+style_line "${C_BOLD}${C_GREEN}" 'Benchmark complete'
+printf 'Saved benchmark output: %s\n' "$OUTPUT_FILE"

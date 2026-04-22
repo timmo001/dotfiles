@@ -23,6 +23,7 @@ DOT_FETCH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dot/fetch-upstream"
 DOT_WORKFLOW_WATCH_HOOKS_PATH="${DOT_WORKFLOW_WATCH_HOOKS_PATH:-$HOME/.config/git/workflow-watch-hooks}"
 DOT_WORKFLOW_WATCH_REPOS_FILE="${DOT_WORKFLOW_WATCH_REPOS_FILE:-$PRIVATE_DOTFILES/.git-workflow-watch-repos}"
 DOT_WORKFLOW_WATCH_TIMER_UNIT="${DOT_WORKFLOW_WATCH_TIMER_UNIT:-git-workflow-watch.timer}"
+DOT_BROWSER_FREEZE_TIMER_UNIT="${DOT_BROWSER_FREEZE_TIMER_UNIT:-browser-freeze-snapshot.timer}"
 
 OMARCHY_REPO_BASE="${OMARCHY_REPO_BASE_DIR:-$HOME/.config}"
 OMARCHY_DIFF_REPOS=(hypr waybar bootstrap ghostty uwsm)
@@ -44,7 +45,18 @@ DIFF_ATTENTION_HAS_BEHIND=0
 
 PRIVATE_REASON=""
 
-PUBLIC_ARCH_PACKAGES=(system-bridge-git go-automate-git python-gobject gtk4-layer-shell)
+PUBLIC_ARCH_PACKAGES=(
+  system-bridge-git
+  go-automate-git
+  python-gobject
+  gtk4-layer-shell
+  stress-ng
+  sysbench
+  iperf3
+  sysstat
+  bmon
+  smem
+)
 MISSING_PUBLIC_ARCH_PACKAGES=()
 
 PRIVATE_ARCH_PACKAGES=()
@@ -1420,11 +1432,11 @@ repo_current_branch() {
 repo_upstream_ref() {
   local repo_dir="$1"
 
-  if ! git -C "$repo_dir" rev-parse '@{u}' >/dev/null 2>&1; then
-    return 1
+  if git -C "$repo_dir" rev-parse '@{u}' >/dev/null 2>&1; then
+    git -C "$repo_dir" rev-parse --abbrev-ref '@{u}' 2>/dev/null || true
+  else
+    printf '\n'
   fi
-
-  git -C "$repo_dir" rev-parse --abbrev-ref '@{u}' 2>/dev/null || true
 }
 
 omarchy_repo_slug() {
@@ -2901,6 +2913,41 @@ cmd_doctor() {
     doctor_warn "Active Waybar config is missing: $(display_path "$workflow_watch_waybar_config")"
   fi
 
+  doctor_log_section 'Browser freeze monitor checks'
+  local browser_freeze_script="$PUBLIC_DOTFILES/.tests/browser-freeze-snapshot.sh"
+  local browser_freeze_unit_path="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/$DOT_BROWSER_FREEZE_TIMER_UNIT"
+
+  if [[ -f "$browser_freeze_script" ]]; then
+    log_info "Browser freeze snapshot script found: $(display_path "$browser_freeze_script")"
+  else
+    doctor_warn "Browser freeze snapshot script missing: $(display_path "$browser_freeze_script")"
+  fi
+
+  if [[ -f "$browser_freeze_unit_path" ]]; then
+    log_info "Browser freeze timer unit file found: $(display_path "$browser_freeze_unit_path")"
+  else
+    doctor_warn "Browser freeze timer unit file missing: $(display_path "$browser_freeze_unit_path")"
+    doctor_warn 'Run dot stow (or dot install) to link systemd user units'
+  fi
+
+  if has_cmd systemctl; then
+    if systemctl --user is-enabled "$DOT_BROWSER_FREEZE_TIMER_UNIT" >/dev/null 2>&1; then
+      log_info "Browser freeze monitor timer enabled: $DOT_BROWSER_FREEZE_TIMER_UNIT"
+    else
+      doctor_warn "Browser freeze monitor timer is disabled: $DOT_BROWSER_FREEZE_TIMER_UNIT"
+      doctor_warn "Enable with: systemctl --user enable --now $DOT_BROWSER_FREEZE_TIMER_UNIT"
+      doctor_warn "If unwanted, keep it disabled or remove with: systemctl --user disable --now $DOT_BROWSER_FREEZE_TIMER_UNIT"
+    fi
+
+    if systemctl --user is-active "$DOT_BROWSER_FREEZE_TIMER_UNIT" >/dev/null 2>&1; then
+      log_info "Browser freeze monitor timer active: $DOT_BROWSER_FREEZE_TIMER_UNIT"
+    else
+      doctor_warn "Browser freeze monitor timer is not active: $DOT_BROWSER_FREEZE_TIMER_UNIT"
+    fi
+  else
+    doctor_warn 'Skipping browser freeze monitor timer checks (systemctl not found)'
+  fi
+
   if has_cmd notify-send; then
     if notify-send --help 2>&1 | grep -Fq -- '--action'; then
       log_info 'notify-send supports clickable notification actions'
@@ -2997,6 +3044,12 @@ cmd_doctor() {
   report_package_status 'go-automate-git' 'omarchy-pkg-aur-add go-automate-git'
   report_package_status 'python-gobject' 'omarchy-pkg-aur-add python-gobject'
   report_package_status 'gtk4-layer-shell' 'omarchy-pkg-aur-add gtk4-layer-shell'
+  report_package_status 'stress-ng' 'omarchy-pkg-aur-add stress-ng'
+  report_package_status 'sysbench' 'omarchy-pkg-aur-add sysbench'
+  report_package_status 'iperf3' 'omarchy-pkg-aur-add iperf3'
+  report_package_status 'sysstat' 'omarchy-pkg-aur-add sysstat'
+  report_package_status 'bmon' 'omarchy-pkg-aur-add bmon'
+  report_package_status 'smem' 'omarchy-pkg-aur-add smem'
 
   doctor_log_section 'Private package repo checks'
   report_private_package_repo_status
@@ -3111,6 +3164,7 @@ cmd_help() {
   printf "$fmt_env" 'DOT_WORKFLOW_WATCH_HOOKS_PATH' 'Global git hooksPath for workflow watch hooks (default ~/.config/git/workflow-watch-hooks)'
   printf "$fmt_env" 'DOT_WORKFLOW_WATCH_REPOS_FILE' 'Watched GitHub repo list file (default $DOTFILES_PRIVATE_DIR/.git-workflow-watch-repos)'
   printf "$fmt_env" 'DOT_WORKFLOW_WATCH_TIMER_UNIT' 'User systemd timer for workflow polling (default git-workflow-watch.timer)'
+  printf "$fmt_env" 'DOT_BROWSER_FREEZE_TIMER_UNIT' 'User systemd timer for browser freeze snapshots (default browser-freeze-snapshot.timer)'
   printf "$fmt_env" 'DOT_AGENTS_SYNC_SOURCE' 'Path to AGENTS.md to mirror (default ~/.opencode/AGENTS.md)'
   printf "$fmt_env" 'DOT_AGENTS_SYNC_RULE_FILE' 'Cursor rule file path (default: $DOTFILES_PRIVATE_DIR/agents/.cursor/rules/global-agents.mdc)'
   printf "$fmt_env" 'DOT_AGENTS_SYNC_ON_UPDATE' '1|0 run agents-sync after dot update (default 1)'
