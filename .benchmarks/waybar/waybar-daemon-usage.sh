@@ -206,13 +206,3 @@ if growth_seconds > 0:
     per_min = delta * (60.0 / growth_seconds)
     print(f"\nWATCHER_GROWTH\twindow_s={growth_seconds}\tstart={start}\tend={end}\tdelta={delta}\test_per_min={per_min:.1f}")
 PY
-
-if [[ -x "$HOME/.config/waybar/scripts/camera-usage.sh" ]]; then
-  printf '\nCAMERA_USAGE\n'
-  "$HOME/.config/waybar/scripts/camera-usage.sh" || true
-fi
-
-if [[ -x "$HOME/.config/waybar/scripts/microphone-usage.sh" ]]; then
-  printf '\nMICROPHONE_USAGE\n'
-  "$HOME/.config/waybar/scripts/microphone-usage.sh" || true
-fi

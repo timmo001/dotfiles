@@ -60,18 +60,6 @@ COMMANDS = [
         "expects_timeout": False,
     },
     {
-        "name": "camera-usage.sh",
-        "command": "~/.config/waybar/scripts/camera-usage.sh",
-        "timeout": 10,
-        "expects_timeout": False,
-    },
-    {
-        "name": "microphone-usage.sh",
-        "command": "~/.config/waybar/scripts/microphone-usage.sh",
-        "timeout": 10,
-        "expects_timeout": False,
-    },
-    {
         "name": "omarchy-update-available",
         "command": "omarchy-update-available",
         "timeout": 10,
