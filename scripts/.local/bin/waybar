@@ -176,13 +176,6 @@ if [[ -n "$host" ]]; then
   fi
 fi
 
-if [[ -z "$minimal_config_path" ]]; then
-  default_minimal_config="$config_dir/config.minimal.jsonc"
-  if [[ -f "$default_minimal_config" ]]; then
-    minimal_config_path="$default_minimal_config"
-  fi
-fi
-
 active_outputs=()
 if mapfile -t active_outputs < <(resolve_active_outputs); then
   :
