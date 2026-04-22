@@ -4,6 +4,7 @@ set -euo pipefail
 
 KEY=""
 PARENT_PID="$PPID"
+PARENT_STARTTIME=""
 POLL_INTERVAL="0.2"
 STATE_FILE=""
 LOCK_FILE=""
@@ -20,6 +21,7 @@ Usage: singleton-stream --key <name> [options] -- <command> [args...]
 Options:
   --key <name>            Unique stream key
   --parent-pid <pid>      Parent process to follow (default: caller PPID)
+  --parent-starttime <t>  Parent /proc starttime tick (advanced)
   --state-file <path>     Override shared state file path
   --lock-file <path>      Override lock file path
   --poll-interval <sec>   Follower polling interval (default: 0.2)
@@ -48,6 +50,10 @@ parse_args() {
         ;;
       --parent-pid)
         PARENT_PID="$2"
+        shift 2
+        ;;
+      --parent-starttime)
+        PARENT_STARTTIME="$2"
         shift 2
         ;;
       --state-file)
@@ -93,6 +99,11 @@ parse_args() {
     exit 1
   fi
 
+  if [[ -n "$PARENT_STARTTIME" ]] && [[ ! "$PARENT_STARTTIME" =~ ^[0-9]+$ ]]; then
+    printf 'singleton-stream: --parent-starttime must be numeric\n' >&2
+    exit 1
+  fi
+
   if [[ -z "$STATE_FILE" ]]; then
     STATE_FILE="${XDG_RUNTIME_DIR:-/tmp}/singleton-stream-$(sanitize_key "$KEY").state"
   fi
@@ -104,8 +115,44 @@ parse_args() {
   COMMAND=("$@")
 }
 
+get_proc_starttime() {
+  local pid="$1"
+
+  [[ -r "/proc/$pid/stat" ]] || return 1
+  awk '{print $22}' "/proc/$pid/stat"
+}
+
+get_proc_state() {
+  local pid="$1"
+
+  [[ -r "/proc/$pid/stat" ]] || return 1
+  awk '{print $3}' "/proc/$pid/stat"
+}
+
+resolve_parent_starttime() {
+  if [[ -n "$PARENT_STARTTIME" ]]; then
+    return 0
+  fi
+
+  PARENT_STARTTIME="$(get_proc_starttime "$PARENT_PID" || true)"
+  if [[ -z "$PARENT_STARTTIME" ]]; then
+    printf 'singleton-stream: could not read parent starttime for pid %s\n' "$PARENT_PID" >&2
+    exit 1
+  fi
+}
+
 parent_alive() {
-  kill -0 "$PARENT_PID" 2>/dev/null
+  local current_state=""
+  local current_starttime=""
+
+  kill -0 "$PARENT_PID" 2>/dev/null || return 1
+  current_state="$(get_proc_state "$PARENT_PID" || true)"
+  [[ -n "$current_state" ]] || return 1
+  [[ "$current_state" != "Z" ]] || return 1
+
+  current_starttime="$(get_proc_starttime "$PARENT_PID" || true)"
+  [[ -n "$current_starttime" ]] || return 1
+  [[ "$current_starttime" == "$PARENT_STARTTIME" ]]
 }
 
 stop_source() {
@@ -175,6 +222,7 @@ main() {
   local owner_pid
 
   parse_args "$@"
+  resolve_parent_starttime
   trap cleanup EXIT INT TERM
 
   exec {lock_fd}>"$LOCK_FILE"
