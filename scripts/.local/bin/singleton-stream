@@ -117,6 +117,15 @@ stop_source() {
 }
 
 cleanup() {
+  local owner_pid=""
+
+  if [[ -f "${LOCK_FILE}.owner" ]]; then
+    owner_pid="$(< "${LOCK_FILE}.owner")"
+    if [[ "$owner_pid" =~ ^[0-9]+$ ]] && (( owner_pid == $$ )); then
+      rm -f "${LOCK_FILE}.owner"
+    fi
+  fi
+
   stop_source
   if [[ -n "$lock_fd" ]]; then
     exec {lock_fd}>&-
@@ -163,6 +172,8 @@ follower_step() {
 }
 
 main() {
+  local owner_pid
+
   parse_args "$@"
   trap cleanup EXIT INT TERM
 
@@ -170,12 +181,33 @@ main() {
 
   while parent_alive; do
     if flock -n "$lock_fd"; then
+      printf '%s\n' "$$" > "${LOCK_FILE}.owner"
       owner_iteration
       if parent_alive; then
         sleep 1
       fi
     else
-      follower_step
+      if [[ -f "${LOCK_FILE}.owner" ]]; then
+        owner_pid="$(< "${LOCK_FILE}.owner")"
+        if [[ "$owner_pid" =~ ^[0-9]+$ ]] && kill -0 "$owner_pid" 2>/dev/null; then
+          follower_step
+          continue
+        fi
+      fi
+
+      sleep 0.1
+      continue
+    fi
+
+    if ! parent_alive; then
+      break
+    fi
+
+    if [[ -f "${LOCK_FILE}.owner" ]]; then
+      owner_pid="$(< "${LOCK_FILE}.owner")"
+      if [[ "$owner_pid" =~ ^[0-9]+$ ]] && (( owner_pid == $$ )); then
+        rm -f "${LOCK_FILE}.owner"
+      fi
     fi
   done
 }
