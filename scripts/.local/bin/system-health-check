@@ -22,7 +22,7 @@ if has_cmd systemctl; then
   SELF_UNIT="$(systemctl --user show --property=Id --value 2>/dev/null || true)"
 fi
 
-KNOWN_LOG_PATTERN='error|failed|fatal|segfault|oom|out of memory|watchdog|hang|freeze|timeout|timed out|connection reset|i/o error|network.*down|link is down|amdgpu.*(error|fail|timeout|hang|reset)|nvidia.*(error|fail|timeout|hang|xid)|drm.*(error|fail|timeout|hang|reset)|gpu.*(error|fail|timeout|hang|reset)'
+KNOWN_LOG_PATTERN='error|failed|fatal|segfault|oom|out of memory|watchdog|hang|freeze|timeout|timed out|connection reset|i/o error|network.*down|link is down|amdgpu.*(error|fail|timeout|hang|reset)|nvidia.*(error|fail|timeout|hang|xid)|drm.*(error|fail|timeout|hang|reset)|gpu.*(error|fail|timeout|hang|reset)|throttl|thermal|overheat|critical temperature|cpu.*hot'
 
 C_RESET=$'\033[0m'
 C_BOLD=$'\033[1m'
@@ -148,6 +148,11 @@ format_tenths() {
   awk -v v="$value" 'BEGIN { printf "%.1f", v / 10.0 }'
 }
 
+format_millideg() {
+  local millideg="$1"
+  awk -v t="$millideg" 'BEGIN { printf "%.1f", t / 1000.0 }'
+}
+
 summarize_array() {
   if (( $# == 0 )); then
     printf 'n/a n/a n/a\n'
@@ -233,6 +238,70 @@ read_cpu_count() {
   else
     awk '/^processor/ { count += 1 } END { print count + 0 }' /proc/cpuinfo
   fi
+}
+
+has_thermal_zones() {
+  compgen -G '/sys/class/thermal/thermal_zone*/temp' >/dev/null 2>&1
+}
+
+read_thermal_zone_summary() {
+  local zone type_file temp_file type_name temp_millideg temp_display
+  local crit_file crit_millideg crit_display
+
+  for zone in /sys/class/thermal/thermal_zone*; do
+    type_file="$zone/type"
+    temp_file="$zone/temp"
+
+    [[ -r "$temp_file" ]] || continue
+    type_name="unknown"
+    [[ -r "$type_file" ]] && type_name="$(<"$type_file")"
+
+    temp_millideg="$(<"$temp_file")"
+    temp_display="$(awk -v t="$temp_millideg" 'BEGIN { printf "%.1f", t / 1000.0 }')"
+
+    crit_display=''
+    for crit_file in "$zone"/trip_point_*_temp; do
+      [[ -r "$crit_file" ]] || continue
+      if [[ "$crit_file" == *_temp ]] && grep -q 'critical' "${crit_file/_temp/_type}" 2>/dev/null; then
+        crit_millideg="$(<"$crit_file")"
+        crit_display=" crit=$(awk -v t="$crit_millideg" 'BEGIN { printf "%.0f", t / 1000.0 }')C"
+        break
+      fi
+    done
+
+    printf '  %-24s %s°C%s\n' "$type_name" "$temp_display" "$crit_display"
+  done
+}
+
+read_thermal_max_millideg() {
+  local max=0 temp_millideg
+
+  for temp_file in /sys/class/thermal/thermal_zone*/temp; do
+    [[ -r "$temp_file" ]] || continue
+    temp_millideg="$(<"$temp_file")"
+    if (( temp_millideg > max )); then
+      max="$temp_millideg"
+    fi
+  done
+
+  printf '%s\n' "$max"
+}
+
+read_thermal_hottest_zone() {
+  local max=0 hottest='unknown' temp_millideg type_name
+
+  for zone in /sys/class/thermal/thermal_zone*; do
+    [[ -r "$zone/temp" ]] || continue
+    temp_millideg="$(<"$zone/temp")"
+    if (( temp_millideg > max )); then
+      max="$temp_millideg"
+      type_name='unknown'
+      [[ -r "$zone/type" ]] && type_name="$(<"$zone/type")"
+      hottest="$type_name"
+    fi
+  done
+
+  printf '%s\n' "$hottest"
 }
 
 PREV_CPU_TOTAL=''
@@ -357,6 +426,15 @@ log_info "CPU count: $cpu_count"
 log_info "Primary interface: $primary_iface"
 log_info "Root disk used: ${root_disk_used}%"
 
+HAS_THERMAL=0
+if has_thermal_zones; then
+  HAS_THERMAL=1
+  log_info 'Thermal zones:'
+  read_thermal_zone_summary
+else
+  log_info 'Thermal zones: not available'
+fi
+
 declare -a sample_epoch=()
 declare -a load1_tenths=()
 declare -a cpu_busy_tenths=()
@@ -369,6 +447,7 @@ declare -a tcp_sockets=()
 declare -a rx_bytes=()
 declare -a tx_bytes=()
 declare -a cpu_busy_valid=()
+declare -a thermal_max_millideg=()
 
 log_section 'Snapshot Sampling'
 for ((i = 1; i <= SAMPLES; i += 1)); do
@@ -387,6 +466,11 @@ for ((i = 1; i <= SAMPLES; i += 1)); do
   tcp="$(read_tcp_sockets)"
   read -r rx tx <<< "$(read_iface_bytes "$primary_iface")"
 
+  thermal_max=0
+  if (( HAS_THERMAL )); then
+    thermal_max="$(read_thermal_max_millideg)"
+  fi
+
   load1_tenths+=("$load1")
   cpu_busy_tenths+=("$busy")
   mem_available_kb+=("$mem_avail")
@@ -397,6 +481,7 @@ for ((i = 1; i <= SAMPLES; i += 1)); do
   tcp_sockets+=("$tcp")
   rx_bytes+=("$rx")
   tx_bytes+=("$tx")
+  thermal_max_millideg+=("$thermal_max")
 
   if (( busy >= 0 )); then
     cpu_busy_valid+=("$busy")
@@ -405,7 +490,12 @@ for ((i = 1; i <= SAMPLES; i += 1)); do
     busy_display='n/a'
   fi
 
-  printf '%b%-8s%b sample %02d/%02d load=%s cpu_busy=%s mem_avail=%sMB swap=%sMB cpu_psi60=%s mem_psi60=%s io_psi60=%s tcp=%s rx_mb=%.1f tx_mb=%.1f\n' \
+  thermal_display=''
+  if (( HAS_THERMAL )); then
+    thermal_display=" thermal_max=$(awk -v t="$thermal_max" 'BEGIN { printf "%.1f", t / 1000.0 }')C"
+  fi
+
+  printf '%b%-8s%b sample %02d/%02d load=%s cpu_busy=%s mem_avail=%sMB swap=%sMB cpu_psi60=%s mem_psi60=%s io_psi60=%s tcp=%s rx_mb=%.1f tx_mb=%.1f%s\n' \
     "${C_BOLD}${C_CYAN}" '[INFO]' "$C_RESET" \
     "$i" "$SAMPLES" \
     "$(format_tenths "$load1")" \
@@ -417,7 +507,8 @@ for ((i = 1; i <= SAMPLES; i += 1)); do
     "$(format_tenths "$io_psi")" \
     "$tcp" \
     "$(awk -v b="$rx" 'BEGIN { printf "%.1f", b / 1048576.0 }')" \
-    "$(awk -v b="$tx" 'BEGIN { printf "%.1f", b / 1048576.0 }')"
+    "$(awk -v b="$tx" 'BEGIN { printf "%.1f", b / 1048576.0 }')" \
+    "$thermal_display"
 done
 
 last_index=$((SAMPLES - 1))
@@ -436,6 +527,16 @@ read -r cpu_psi_min cpu_psi_max cpu_psi_avg <<< "$(summarize_array "${cpu_psi_te
 read -r mem_psi_min mem_psi_max mem_psi_avg <<< "$(summarize_array "${mem_psi_tenths[@]}")"
 read -r io_psi_min io_psi_max io_psi_avg <<< "$(summarize_array "${io_psi_tenths[@]}")"
 read -r tcp_min tcp_max tcp_avg <<< "$(summarize_array "${tcp_sockets[@]}")"
+
+if (( HAS_THERMAL )); then
+  read -r thermal_min thermal_max_stat thermal_avg <<< "$(summarize_array "${thermal_max_millideg[@]}")"
+  thermal_rise_millideg=$((thermal_max_millideg[last_index] - thermal_max_millideg[0]))
+else
+  thermal_min=0
+  thermal_max_stat=0
+  thermal_avg=0
+  thermal_rise_millideg=0
+fi
 
 if (( ${#cpu_busy_valid[@]} > 0 )); then
   read -r cpu_busy_min cpu_busy_max cpu_busy_avg <<< "$(summarize_array "${cpu_busy_valid[@]}")"
@@ -572,6 +673,23 @@ elif (( root_disk_used > 85 )); then
   add_watch "Root disk usage is high (${root_disk_used}%)."
 fi
 
+if (( HAS_THERMAL )); then
+  # thermal_max_stat is in millidegrees: 90000 = 90°C, 80000 = 80°C
+  if (( thermal_max_stat > 95000 )); then
+    add_stressed "Peak thermal reading is critical ($(format_millideg "$thermal_max_stat")°C) — likely throttling."
+  elif (( thermal_max_stat > 85000 )); then
+    add_stressed "Peak thermal reading is very high ($(format_millideg "$thermal_max_stat")°C)."
+  elif (( thermal_max_stat > 75000 )); then
+    add_watch "Peak thermal reading is elevated ($(format_millideg "$thermal_max_stat")°C)."
+  fi
+
+  if (( thermal_rise_millideg > 15000 )); then
+    add_stressed "Temperature rose sharply during sampling ($(format_millideg "$thermal_rise_millideg")°C increase)."
+  elif (( thermal_rise_millideg > 8000 )); then
+    add_watch "Temperature rose noticeably during sampling ($(format_millideg "$thermal_rise_millideg")°C increase)."
+  fi
+fi
+
 log_section 'Friendly Summary'
 log_info "Sampling duration: ${duration_seconds}s"
 log_info "CPU load avg1: start=$(format_tenths "${load1_tenths[0]}") end=$(format_tenths "${load1_tenths[last_index]}") min=$(format_tenths "$load_min") max=$(format_tenths "$load_max") avg=$(format_tenths "$load_avg")"
@@ -588,6 +706,11 @@ log_info "PSI avg60 (end): cpu=$(format_tenths "${cpu_psi_tenths[last_index]}") 
 log_info "TCP sockets: start=${tcp_sockets[0]} end=${tcp_sockets[last_index]} delta=$tcp_growth"
 log_info "Network traffic ($primary_iface): rx_delta=$(awk -v b="$rx_growth_bytes" 'BEGIN { printf "%.1f", b / 1048576.0 }')MB tx_delta=$(awk -v b="$tx_growth_bytes" 'BEGIN { printf "%.1f", b / 1048576.0 }')MB"
 log_info "Known logs: user=$user_log_count kernel=$kernel_log_count total=$total_known_log_matches"
+
+if (( HAS_THERMAL )); then
+  log_info "Thermal max: start=$(format_millideg "${thermal_max_millideg[0]}")C end=$(format_millideg "${thermal_max_millideg[last_index]}")C min=$(format_millideg "$thermal_min")C max=$(format_millideg "$thermal_max_stat")C avg=$(format_millideg "$thermal_avg")C delta=$(format_millideg "$thermal_rise_millideg")C"
+  log_info "Hottest zone: $(read_thermal_hottest_zone)"
+fi
 
 if (( severity == 0 )); then
   log_info 'Verdict: Healthy'
