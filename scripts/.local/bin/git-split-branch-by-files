@@ -1,0 +1,266 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: git-split-branch-by-files [options]
+
+Split one branch into stacked branches by changed-file chunks.
+
+Output branches are always named:
+  <source-branch>-b1, <source-branch>-b2, ...
+
+Options:
+  --source <branch>        Source branch to split (default: current branch)
+  --base <branch>          Base branch to diff against (default: origin/HEAD, fallback dev/main/master)
+  --branches <number>      Total output branches (default: 5)
+  --equal-up-to <number>   First N branches have equal file counts (default: 4)
+  --force                  Delete existing output branches before recreating
+  --dry-run                Print the plan and exit
+  -h, --help               Show help
+
+Examples:
+  git-split-branch-by-files --source feature-x --base dev --branches 5 --equal-up-to 4
+  git-split-branch-by-files --base main --dry-run
+EOF
+}
+
+default_base_branch() {
+  local default_ref
+  default_ref="$(git rev-parse --abbrev-ref origin/HEAD 2>/dev/null || true)"
+  if [[ -n "$default_ref" ]]; then
+    printf '%s\n' "${default_ref#origin/}"
+    return 0
+  fi
+
+  local candidate
+  for candidate in dev main master; do
+    if git show-ref --verify --quiet "refs/heads/$candidate"; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+require_clean_worktree() {
+  if ! git diff --quiet || ! git diff --cached --quiet; then
+    printf '%s\n' 'Working tree must be clean (staged and unstaged) before running.' >&2
+    exit 1
+  fi
+}
+
+SOURCE_BRANCH="$(git branch --show-current)"
+BASE_BRANCH=''
+BRANCH_COUNT=5
+EQUAL_UP_TO=4
+FORCE=0
+DRY_RUN=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --source)
+      SOURCE_BRANCH="${2:-}"
+      shift 2
+      ;;
+    --base)
+      BASE_BRANCH="${2:-}"
+      shift 2
+      ;;
+    --branches)
+      BRANCH_COUNT="${2:-}"
+      shift 2
+      ;;
+    --equal-up-to)
+      EQUAL_UP_TO="${2:-}"
+      shift 2
+      ;;
+    --force)
+      FORCE=1
+      shift
+      ;;
+    --dry-run)
+      DRY_RUN=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      printf 'Unknown argument: %s\n\n' "$1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [[ -z "$BASE_BRANCH" ]]; then
+  if ! BASE_BRANCH="$(default_base_branch)"; then
+    printf '%s\n' 'Could not determine base branch. Pass --base explicitly.' >&2
+    exit 1
+  fi
+fi
+
+if ! [[ "$BRANCH_COUNT" =~ ^[0-9]+$ ]] || (( BRANCH_COUNT < 1 )); then
+  printf '%s\n' '--branches must be a positive integer' >&2
+  exit 1
+fi
+
+if ! [[ "$EQUAL_UP_TO" =~ ^[0-9]+$ ]] || (( EQUAL_UP_TO < 1 )); then
+  printf '%s\n' '--equal-up-to must be a positive integer' >&2
+  exit 1
+fi
+
+if (( EQUAL_UP_TO > BRANCH_COUNT )); then
+  printf '%s\n' '--equal-up-to cannot be greater than --branches' >&2
+  exit 1
+fi
+
+if ! git rev-parse --verify --quiet "$SOURCE_BRANCH" >/dev/null; then
+  printf 'Source branch does not exist: %s\n' "$SOURCE_BRANCH" >&2
+  exit 1
+fi
+
+if ! git rev-parse --verify --quiet "$BASE_BRANCH" >/dev/null; then
+  printf 'Base branch does not exist: %s\n' "$BASE_BRANCH" >&2
+  exit 1
+fi
+
+if (( DRY_RUN == 0 )); then
+  require_clean_worktree
+fi
+
+mapfile -t CHANGED_FILES < <(git diff --name-only --no-renames "$BASE_BRANCH...$SOURCE_BRANCH")
+TOTAL_FILES=${#CHANGED_FILES[@]}
+
+if (( TOTAL_FILES == 0 )); then
+  printf 'No changed files between %s and %s\n' "$BASE_BRANCH" "$SOURCE_BRANCH"
+  exit 0
+fi
+
+EQUAL_SIZE=$((TOTAL_FILES / EQUAL_UP_TO))
+if (( EQUAL_SIZE == 0 )); then
+  printf 'Not enough files (%d) to equally fill first %d branches\n' "$TOTAL_FILES" "$EQUAL_UP_TO" >&2
+  exit 1
+fi
+
+REMAINDER=$((TOTAL_FILES - (EQUAL_SIZE * EQUAL_UP_TO)))
+TAIL_BRANCHES=$((BRANCH_COUNT - EQUAL_UP_TO))
+
+if (( TAIL_BRANCHES == 0 && REMAINDER != 0 )); then
+  printf 'Cannot evenly split all %d branches with %d files\n' "$BRANCH_COUNT" "$TOTAL_FILES" >&2
+  exit 1
+fi
+
+declare -a GROUP_SIZES=()
+for ((i = 1; i <= BRANCH_COUNT; i++)); do
+  if (( i <= EQUAL_UP_TO )); then
+    GROUP_SIZES+=("$EQUAL_SIZE")
+  else
+    if (( TAIL_BRANCHES == 0 )); then
+      GROUP_SIZES+=("0")
+    else
+      tail_base=$((REMAINDER / TAIL_BRANCHES))
+      tail_extra=$((REMAINDER % TAIL_BRANCHES))
+      tail_idx=$((i - EQUAL_UP_TO))
+      size=$tail_base
+      if (( tail_idx <= tail_extra )); then
+        size=$((size + 1))
+      fi
+      GROUP_SIZES+=("$size")
+    fi
+  fi
+done
+
+printf 'Plan: %d files from %s vs %s\n' "$TOTAL_FILES" "$SOURCE_BRANCH" "$BASE_BRANCH"
+planned_total=0
+for ((i = 1; i <= BRANCH_COUNT; i++)); do
+  size="${GROUP_SIZES[$((i - 1))]}"
+  branch_name="${SOURCE_BRANCH}-b${i}"
+  printf '  %s -> %s files\n' "$branch_name" "$size"
+  planned_total=$((planned_total + size))
+done
+
+if (( planned_total != TOTAL_FILES )); then
+  printf 'Internal error: planned=%d expected=%d\n' "$planned_total" "$TOTAL_FILES" >&2
+  exit 1
+fi
+
+if (( DRY_RUN == 1 )); then
+  exit 0
+fi
+
+for ((i = 1; i <= BRANCH_COUNT; i++)); do
+  branch_name="${SOURCE_BRANCH}-b${i}"
+  if git show-ref --verify --quiet "refs/heads/$branch_name"; then
+    if (( FORCE == 1 )); then
+      git branch -D "$branch_name" >/dev/null
+    else
+      printf 'Branch exists: %s (use --force to recreate)\n' "$branch_name" >&2
+      exit 1
+    fi
+  fi
+done
+
+ORIGINAL_BRANCH="$(git branch --show-current)"
+
+restore_original_branch() {
+  git switch "$ORIGINAL_BRANCH" >/dev/null 2>&1 || true
+}
+trap restore_original_branch EXIT
+
+cursor=0
+parent_branch="$BASE_BRANCH"
+
+for ((i = 1; i <= BRANCH_COUNT; i++)); do
+  size="${GROUP_SIZES[$((i - 1))]}"
+  branch_name="${SOURCE_BRANCH}-b${i}"
+
+  git switch -c "$branch_name" "$parent_branch" >/dev/null
+
+  if (( size > 0 )); then
+    declare -a present_files=()
+    declare -a removed_files=()
+
+    for ((j = 0; j < size; j++)); do
+      file_path="${CHANGED_FILES[$cursor]}"
+      cursor=$((cursor + 1))
+
+      if git cat-file -e "$SOURCE_BRANCH:$file_path" 2>/dev/null; then
+        present_files+=("$file_path")
+      else
+        removed_files+=("$file_path")
+      fi
+    done
+
+    if (( ${#present_files[@]} > 0 )); then
+      git checkout "$SOURCE_BRANCH" -- "${present_files[@]}"
+      git add -- "${present_files[@]}"
+    fi
+
+    if (( ${#removed_files[@]} > 0 )); then
+      git rm --quiet --ignore-unmatch -- "${removed_files[@]}"
+    fi
+
+    git commit -m "Split ${SOURCE_BRANCH} (${i}/${BRANCH_COUNT})" >/dev/null
+  fi
+
+  parent_branch="$branch_name"
+done
+
+trap - EXIT
+restore_original_branch
+
+printf 'Created branches:\n'
+for ((i = 1; i <= BRANCH_COUNT; i++)); do
+  branch_name="${SOURCE_BRANCH}-b${i}"
+  parent="$BASE_BRANCH"
+  if (( i > 1 )); then
+    parent="${SOURCE_BRANCH}-b$((i - 1))"
+  fi
+  inc_count="$(git diff --name-only "$parent...$branch_name" | wc -l | tr -d ' ')"
+  printf '  %s incremental=%s\n' "$branch_name" "$inc_count"
+done
