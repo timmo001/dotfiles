@@ -8,33 +8,95 @@ dot_diff_cache_file="$cache_dir/dot-diff-waybar.json"
 dot_diff_lock_dir="$cache_dir/dot-diff-waybar.lock"
 host="${OMARCHY_HOST:-}"
 config_path=""
-selected_output=""
 selected_config_path=""
+
+prepare_selected_config_path() {
+  mkdir -p "$cache_dir"
+  selected_config_path="$cache_dir/config.selected-output.jsonc"
+}
 
 reset_dot_diff_cache() {
   rm -f "$dot_diff_cache_file"
   rmdir "$dot_diff_lock_dir" 2>/dev/null || true
 }
 
-resolve_rightmost_output() {
+resolve_active_outputs() {
+  local outputs
+
+  if ! command -v hyprctl >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
+    return 1
+  fi
+
+  outputs="$(hyprctl -j monitors | jq -r '[.[] | select(.disabled != true)] | sort_by(.x, .y) | .[].name // empty')"
+  [[ -n "$outputs" ]] || return 1
+
+  printf '%s\n' "$outputs"
+}
+
+resolve_focused_output() {
   local output
 
   if ! command -v hyprctl >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
     return 1
   fi
 
-  output="$(hyprctl -j monitors | jq -r '[.[] | select(.disabled != true)] | sort_by(.x, .y) | last | .name // empty')"
+  output="$(hyprctl -j monitors | jq -r '[.[] | select(.disabled != true and .focused == true)] | first | .name // empty')"
   [[ -n "$output" ]] || return 1
 
   printf '%s' "$output"
 }
 
-build_selected_output_config() {
+output_in_list() {
+  local needle="$1"
+  shift
+  local item
+
+  for item in "$@"; do
+    if [[ "$item" == "$needle" ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+resolve_primary_output() {
+  local preferred_output=""
+  local focused_output=""
+
+  case "$host" in
+    desktop)
+      preferred_output="HDMI-A-2"
+      ;;
+    laptop)
+      preferred_output="eDP-1"
+      ;;
+  esac
+
+  if [[ -n "$preferred_output" ]] && output_in_list "$preferred_output" "$@"; then
+    printf '%s' "$preferred_output"
+    return 0
+  fi
+
+  focused_output="$(resolve_focused_output || true)"
+  if [[ -n "$focused_output" ]] && output_in_list "$focused_output" "$@"; then
+    printf '%s' "$focused_output"
+    return 0
+  fi
+
+  if (( $# > 0 )); then
+    printf '%s' "$1"
+    return 0
+  fi
+
+  return 1
+}
+
+build_single_output_config() {
   local base_config="$1"
   local output="$2"
 
-  mkdir -p "$cache_dir"
-  selected_config_path="$cache_dir/config.selected-output.jsonc"
+  prepare_selected_config_path
 
   cat > "$selected_config_path" <<EOF
 {
@@ -42,6 +104,36 @@ build_selected_output_config() {
   "output": ["$output"]
 }
 EOF
+}
+
+build_full_and_minimal_output_config() {
+  local full_config="$1"
+  local minimal_config="$2"
+  local primary_output="$3"
+  shift 3
+  local secondary_outputs_json="[]"
+
+  prepare_selected_config_path
+
+  if (( $# > 0 )); then
+    secondary_outputs_json="$(printf '%s\n' "$@" | jq -R . | jq -s .)"
+  fi
+
+  jq -n \
+    --arg full_config "$full_config" \
+    --arg minimal_config "$minimal_config" \
+    --arg primary_output "$primary_output" \
+    --argjson secondary_outputs "$secondary_outputs_json" \
+    '[
+      {
+        "include": [$full_config],
+        "output": [$primary_output]
+      },
+      {
+        "include": [$minimal_config],
+        "output": $secondary_outputs
+      }
+    ]' > "$selected_config_path"
 }
 
 real_waybar_bin="$(PATH=/usr/local/bin:/usr/bin:/bin command -v waybar 2>/dev/null || true)"
@@ -68,23 +160,64 @@ done
 
 reset_dot_diff_cache
 
-selected_output="$(resolve_rightmost_output || true)"
-
-if [[ -n "$config_path" ]]; then
-  if [[ -n "$selected_output" ]]; then
-    build_selected_output_config "$config_path" "$selected_output"
-    exec "$real_waybar_bin" -c "$selected_config_path" "$@"
-  fi
-
-  exec "$real_waybar_bin" -c "$config_path" "$@"
-fi
-
-if [[ -n "$selected_output" ]]; then
+full_config_path="$config_path"
+if [[ -z "$full_config_path" ]]; then
   default_config="$config_dir/config.jsonc"
   if [[ -f "$default_config" ]]; then
-    build_selected_output_config "$default_config" "$selected_output"
+    full_config_path="$default_config"
+  fi
+fi
+
+minimal_config_path=""
+if [[ -n "$host" ]]; then
+  host_minimal_config="$config_dir/config.minimal.${host}.jsonc"
+  if [[ -f "$host_minimal_config" ]]; then
+    minimal_config_path="$host_minimal_config"
+  fi
+fi
+
+if [[ -z "$minimal_config_path" ]]; then
+  default_minimal_config="$config_dir/config.minimal.jsonc"
+  if [[ -f "$default_minimal_config" ]]; then
+    minimal_config_path="$default_minimal_config"
+  fi
+fi
+
+active_outputs=()
+if mapfile -t active_outputs < <(resolve_active_outputs); then
+  :
+fi
+
+if [[ -n "$full_config_path" ]] && (( ${#active_outputs[@]} > 0 )); then
+  primary_output="$(resolve_primary_output "${active_outputs[@]}" || true)"
+
+  if [[ -n "$primary_output" ]]; then
+    if [[ -n "$minimal_config_path" ]] && (( ${#active_outputs[@]} > 1 )); then
+      secondary_outputs=()
+      for output in "${active_outputs[@]}"; do
+        if [[ "$output" != "$primary_output" ]]; then
+          secondary_outputs+=("$output")
+        fi
+      done
+
+      if (( ${#secondary_outputs[@]} > 0 )); then
+        build_full_and_minimal_output_config \
+          "$full_config_path" \
+          "$minimal_config_path" \
+          "$primary_output" \
+          "${secondary_outputs[@]}"
+
+        exec "$real_waybar_bin" -c "$selected_config_path" "$@"
+      fi
+    fi
+
+    build_single_output_config "$full_config_path" "$primary_output"
     exec "$real_waybar_bin" -c "$selected_config_path" "$@"
   fi
+fi
+
+if [[ -n "$full_config_path" ]]; then
+  exec "$real_waybar_bin" -c "$full_config_path" "$@"
 fi
 
 exec "$real_waybar_bin" "$@"
