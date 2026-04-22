@@ -1,0 +1,8 @@
+[Unit]
+Description=Run dot doctor at login and notify on errors
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/dot-doctor-notify
+Environment=DISPLAY=:0

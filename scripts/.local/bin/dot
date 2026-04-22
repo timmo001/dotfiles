@@ -24,6 +24,7 @@ DOT_WORKFLOW_WATCH_HOOKS_PATH="${DOT_WORKFLOW_WATCH_HOOKS_PATH:-$HOME/.config/gi
 DOT_WORKFLOW_WATCH_REPOS_FILE="${DOT_WORKFLOW_WATCH_REPOS_FILE:-$PRIVATE_DOTFILES/.git-workflow-watch-repos}"
 DOT_WORKFLOW_WATCH_TIMER_UNIT="${DOT_WORKFLOW_WATCH_TIMER_UNIT:-git-workflow-watch.timer}"
 DOT_BROWSER_FREEZE_TIMER_UNIT="${DOT_BROWSER_FREEZE_TIMER_UNIT:-browser-freeze-snapshot.timer}"
+DOT_DOCTOR_STARTUP_TIMER_UNIT="${DOT_DOCTOR_STARTUP_TIMER_UNIT:-dot-doctor-startup.timer}"
 
 OMARCHY_REPO_BASE="${OMARCHY_REPO_BASE_DIR:-$HOME/.config}"
 OMARCHY_DIFF_REPOS=(hypr waybar bootstrap ghostty uwsm)
@@ -1087,6 +1088,7 @@ list_stow_folders() {
   local include_backup="${2:-false}"
   local dir
   local folder
+  local host_suffix
 
   shopt -s nullglob
   for dir in "$repo_dir"/*/; do
@@ -1095,6 +1097,15 @@ list_stow_folders() {
 
     if [[ "$include_backup" != "true" && "$folder" == "backup" ]]; then
       continue
+    fi
+
+    # Host-specific packages use double-dash: <name>--<host>
+    # Skip packages that target a different OMARCHY_HOST
+    if [[ "$folder" == *--* ]]; then
+      host_suffix="${folder##*--}"
+      if [[ "$host_suffix" != "${OMARCHY_HOST:-}" ]]; then
+        continue
+      fi
     fi
 
     printf '%s\n' "$folder"
@@ -2963,6 +2974,16 @@ cmd_doctor() {
     fi
   fi
 
+  doctor_log_section 'Doctor startup notification'
+  if has_cmd systemctl; then
+    if systemctl --user is-enabled "$DOT_DOCTOR_STARTUP_TIMER_UNIT" >/dev/null 2>&1; then
+      log_info "Doctor startup timer enabled: $DOT_DOCTOR_STARTUP_TIMER_UNIT"
+    else
+      doctor_warn "Doctor startup timer is disabled: $DOT_DOCTOR_STARTUP_TIMER_UNIT"
+      doctor_warn "Enable with: systemctl --user enable --now $DOT_DOCTOR_STARTUP_TIMER_UNIT"
+    fi
+  fi
+
   if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS" || is_truthy "$INCLUDE_OMARCHY_UPDATE_REPOS"; then
     doctor_log_section 'Omarchy repository checks'
     local repo_name
@@ -3037,6 +3058,33 @@ cmd_doctor() {
   else
     doctor_log_section 'Private access'
     doctor_warn "Private repo disabled ($PRIVATE_REASON)"
+  fi
+
+  doctor_log_section 'Browser flags'
+  local browser_flags_host_pkg="chromium--${OMARCHY_HOST:-}"
+  local browser_flags_pkg_dir="$PRIVATE_DOTFILES/$browser_flags_host_pkg"
+  if [[ -n "${OMARCHY_HOST:-}" && -d "$browser_flags_pkg_dir" ]]; then
+    local browser_flags_ok=true
+    for flag_file in ~/.config/chromium-flags.conf ~/.config/chrome-flags.conf; do
+      if [[ ! -e "$flag_file" ]]; then
+        doctor_error "Missing $(display_path "$flag_file") — run: dot stow"
+        browser_flags_ok=false
+      elif [[ ! -L "$flag_file" ]]; then
+        doctor_error "$(display_path "$flag_file") is not a symlink — run: dot stow"
+        browser_flags_ok=false
+      fi
+    done
+    if [[ "$browser_flags_ok" == true ]]; then
+      log_info "Browser flags stowed from $browser_flags_host_pkg"
+    fi
+  else
+    if [[ -n "${OMARCHY_HOST:-}" ]] && can_use_private; then
+      doctor_error "Missing $browser_flags_host_pkg package in $(display_path "$PRIVATE_DOTFILES")"
+    elif [[ -z "${OMARCHY_HOST:-}" ]]; then
+      doctor_warn 'OMARCHY_HOST is not set — cannot check browser flags'
+    else
+      log_info 'Browser flags using omarchy defaults (private repo unavailable)'
+    fi
   fi
 
   doctor_log_section 'Browser extension checks'
@@ -3181,6 +3229,7 @@ cmd_help() {
   printf "$fmt_env" 'DOT_WORKFLOW_WATCH_REPOS_FILE' 'Watched GitHub repo list file (default $DOTFILES_PRIVATE_DIR/.git-workflow-watch-repos)'
   printf "$fmt_env" 'DOT_WORKFLOW_WATCH_TIMER_UNIT' 'User systemd timer for workflow polling (default git-workflow-watch.timer)'
   printf "$fmt_env" 'DOT_BROWSER_FREEZE_TIMER_UNIT' 'User systemd timer for browser freeze snapshots (default browser-freeze-snapshot.timer)'
+  printf "$fmt_env" 'DOT_DOCTOR_STARTUP_TIMER_UNIT' 'User systemd timer for dot doctor startup notifications (default dot-doctor-startup.timer)'
   printf "$fmt_env" 'DOT_AGENTS_SYNC_SOURCE' 'Path to AGENTS.md to mirror (default ~/.opencode/AGENTS.md)'
   printf "$fmt_env" 'DOT_AGENTS_SYNC_RULE_FILE' 'Cursor rule file path (default: $DOTFILES_PRIVATE_DIR/agents/.cursor/rules/global-agents.mdc)'
   printf "$fmt_env" 'DOT_AGENTS_SYNC_ON_UPDATE' '1|0 run agents-sync after dot update (default 1)'

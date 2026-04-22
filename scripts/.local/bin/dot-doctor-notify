@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Run dot doctor and send a desktop notification if there are errors.
+# Intended for use with the dot-doctor-startup systemd timer.
+set -euo pipefail
+
+strip_ansi() {
+  sed 's/\x1b\[[0-9;]*m//g'
+}
+
+raw_output=$(dot doctor 2>&1) || true
+status=$?
+
+if [[ $status -ne 0 ]]; then
+  plain=$(echo "$raw_output" | strip_ansi)
+  summary=$(echo "$plain" | tail -1)
+  errors=$(echo "$plain" | grep -E '^\[ERROR\]' | head -10 || true)
+  notify-send -u critical 'dot doctor' "$(printf '%s\n\n%s' "$summary" "$errors")"
+fi
