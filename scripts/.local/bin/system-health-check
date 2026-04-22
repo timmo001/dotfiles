@@ -460,6 +460,55 @@ log_info "Uptime/load: $(uptime)"
 cpu_count="$(read_cpu_count)"
 primary_iface="$(detect_primary_iface)"
 
+if has_cmd fastfetch; then
+  log_section 'Hardware'
+  ff_json="$(fastfetch -s host:board:chassis:cpu:gpu:memory --format json 2>/dev/null)" || ff_json=''
+  if [[ -n "$ff_json" ]] && has_cmd jq; then
+    ff_val() { jq -r --arg t "$1" '.[] | select(.type == $t) | .result // empty' <<< "$ff_json"; }
+
+    host_vendor="$(ff_val Host | jq -r '.vendor // empty')"
+    host_family="$(ff_val Host | jq -r '.family // empty')"
+    host_name="$(ff_val Host | jq -r '.name // empty')"
+    if [[ -n "$host_name" ]]; then
+      log_info "Device: ${host_vendor:+$host_vendor }${host_name}"
+    fi
+
+    chassis_type="$(ff_val Chassis | jq -r '.type // empty')"
+    [[ -n "$chassis_type" ]] && log_info "Chassis: $chassis_type"
+
+    board_vendor="$(ff_val Board | jq -r '.vendor // empty')"
+    board_name="$(ff_val Board | jq -r '.name // empty')"
+    board_version="$(ff_val Board | jq -r '.version // empty')"
+    if [[ -n "$board_name" ]]; then
+      log_info "Motherboard: ${board_vendor:+$board_vendor }${board_name}${board_version:+ ($board_version)}"
+    fi
+
+    cpu_name="$(ff_val CPU | jq -r '.cpu // empty')"
+    cpu_phys="$(ff_val CPU | jq -r '.cores.physical // empty')"
+    cpu_logical="$(ff_val CPU | jq -r '.cores.logical // empty')"
+    cpu_freq_max="$(ff_val CPU | jq -r '.frequency.max // empty')"
+    if [[ -n "$cpu_name" ]]; then
+      cpu_detail="$cpu_name"
+      [[ -n "$cpu_phys" && -n "$cpu_logical" ]] && cpu_detail+=" (${cpu_phys}P/${cpu_logical}T)"
+      [[ -n "$cpu_freq_max" ]] && cpu_detail+=" @ $(awk -v f="$cpu_freq_max" 'BEGIN { printf "%.1f GHz", f / 1000.0 }')"
+      log_info "CPU: $cpu_detail"
+    fi
+
+    gpu_count="$(jq -r '.[] | select(.type == "GPU") | .result | length' <<< "$ff_json" 2>/dev/null)" || gpu_count=0
+    if (( gpu_count > 0 )); then
+      while IFS='|' read -r g_name g_driver g_type; do
+        [[ -n "$g_name" ]] && log_info "GPU: ${g_name}${g_type:+ ($g_type)}${g_driver:+ [$g_driver]}"
+      done < <(jq -r '.[] | select(.type == "GPU") | .result[] | [.name // "", .driver // "", .type // ""] | join("|")' <<< "$ff_json" 2>/dev/null)
+    fi
+
+    mem_total="$(ff_val Memory | jq -r '.total // empty')"
+    if [[ -n "$mem_total" && "$mem_total" != "0" ]]; then
+      mem_gb="$(awk -v b="$mem_total" 'BEGIN { printf "%.0f", b / 1073741824.0 }')"
+      log_info "Memory: ${mem_gb} GB"
+    fi
+  fi
+fi
+
 log_section 'Config'
 
 if (( ${#ONLY_SECTIONS[@]} > 0 )); then
