@@ -99,6 +99,8 @@ exec > >(tee "$OUTPUT_FILE") 2>&1
 style_line "${C_BOLD}${C_CYAN}" 'Browser freeze snapshot'
 printf 'Timestamp: %s\n' "$(date -Is)"
 printf 'Host: %s\n' "$(hostname)"
+printf 'Uptime/load: '
+uptime
 
 style_line "${C_BOLD}${C_BLUE}" 'Browser process summary'
 if has_cmd pgrep; then
@@ -114,6 +116,29 @@ ps -eo pid=,ppid=,pcpu=,rss=,args= \
   | head -n "$TOP_PROCS" \
   | awk -F'\t' '{ printf "pid=%s ppid=%s cpu=%s rss_mb=%.1f cmd=%s\n", $1, $2, $3, $4/1024.0, $5 }'
 
+style_line "${C_BOLD}${C_BLUE}" 'Browser memory summary'
+if has_cmd ps; then
+  browser_summary="$(ps -eo rss=,args= | awk '/chromium|google-chrome|chrome/ {count+=1; sum+=$1} END {printf "%d %d", count, sum}')"
+  browser_count="${browser_summary%% *}"
+  total_browser_rss_kb="${browser_summary##* }"
+  printf 'Browser process count: %s\n' "$browser_count"
+  awk -v kb="$total_browser_rss_kb" 'BEGIN { printf "Total browser RSS: %.1f MB\n", kb / 1024.0 }'
+else
+  style_line "$C_YELLOW" 'ps unavailable; skipping browser memory summary.'
+fi
+
+style_line "${C_BOLD}${C_BLUE}" 'Top 3 renderer processes by RSS'
+renderer_lines="$(ps -eo pid=,pcpu=,rss=,args= \
+  | awk '/chromium|google-chrome|chrome/ && /--type=renderer/ {printf "%s\tpid=%s cpu=%s rss_mb=%.1f cmd=%s\n", $3, $1, $2, $3/1024.0, substr($0, index($0,$4))}' \
+  | sort -t$'\t' -k1,1nr \
+  | head -n 3 \
+  | awk -F'\t' '{print $2}')"
+if [[ -n "$renderer_lines" ]]; then
+  printf '%s\n' "$renderer_lines"
+else
+  style_line "$C_YELLOW" 'No renderer processes found in current snapshot.'
+fi
+
 style_line "${C_BOLD}${C_BLUE}" 'Pressure and sockets snapshot'
 printf '/proc/pressure/cpu\n'
 cat /proc/pressure/cpu
@@ -128,8 +153,17 @@ fi
 
 style_line "${C_BOLD}${C_BLUE}" 'GPU and browser journal signals'
 if has_cmd journalctl; then
-  journalctl --user --since "${JOURNAL_MINUTES} minutes ago" --no-pager \
-    | grep -Ei 'chrom|chrome|gpu|hang|freeze|crash|segfault|viz|skia|sandbox|device lost|context lost|error' || true
+  journalctl --user --since "${JOURNAL_MINUTES} minutes ago" --no-pager -o cat \
+    | grep -Ei 'chrom|chrome|gpu|hang|freeze|crash|segfault|viz|skia|sandbox|device lost|context lost|oom|watchdog|amdgpu|drm' || true
+
+  printf '\nTop repeated user-journal signals:\n'
+  journalctl --user --since "${JOURNAL_MINUTES} minutes ago" --no-pager -o cat \
+    | grep -Ei 'error|failed|crash|segfault|hang|freeze|oom|watchdog|gpu|drm|amdgpu|chrom|chrome' \
+    | sed -E 's/^([A-Z][a-z]{2} [[:space:]][0-9]{1,2} [0-9]{2}:[0-9]{2}:[0-9]{2} [^:]+ [^:]+: )+//' \
+    | sort \
+    | uniq -c \
+    | sort -nr \
+    | head -n 20 || true
 else
   style_line "$C_YELLOW" 'journalctl not available in user session.'
 fi

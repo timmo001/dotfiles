@@ -175,6 +175,8 @@ format_tenths() {
 exec > >(tee "$OUTPUT_FILE") 2>&1
 
 style_line "${C_BOLD}${C_CYAN}" 'System resource leak test'
+printf 'Uptime/load: '
+uptime
 printf 'Duration: %ss\n' "$DURATION"
 printf 'Interval: %ss\n' "$INTERVAL"
 printf 'Warmup: %ss\n' "$WARMUP"
