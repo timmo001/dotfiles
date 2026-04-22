@@ -17,6 +17,7 @@ KNOWN_LOG_MAX_LINES=200
 OPEN_OPENCODE=0
 OPENCODE_VARIANT=''
 SELF_UNIT=''
+declare -a ONLY_SECTIONS=()
 
 if has_cmd systemctl; then
   SELF_UNIT="$(systemctl --user show --property=Id --value 2>/dev/null || true)"
@@ -118,6 +119,10 @@ usage() {
 Usage: system-health-check [options]
 
 Options:
+  --only <sections>          Run only the listed sections (comma-separated,
+                             repeatable). When omitted, all sections run.
+                             Sections: cpu, memory, psi, network, disk,
+                             thermal, logs
   --samples <n>              Number of snapshots (default: 5)
   --interval <seconds>       Seconds between snapshots (default: 15)
   --known-logs-minutes <n>   Journal lookback window (default: 15)
@@ -356,6 +361,11 @@ print_limited_stream() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --only)
+      IFS=',' read -ra _sections <<< "$2"
+      ONLY_SECTIONS+=("${_sections[@]}")
+      shift 2
+      ;;
     --samples)
       SAMPLES="$2"
       shift 2
@@ -395,6 +405,39 @@ if [[ -r /dev/tty && -w /dev/tty ]]; then
   HAS_INTERACTIVE_TTY=1
 fi
 
+# Validate --only section names
+VALID_SECTIONS='cpu memory psi network disk thermal logs'
+for _s in "${ONLY_SECTIONS[@]}"; do
+  if [[ " $VALID_SECTIONS " != *" $_s "* ]]; then
+    printf 'system-health-check: unknown section: %s\nValid sections: %s\n' "$_s" "$VALID_SECTIONS" >&2
+    exit 1
+  fi
+done
+
+section_enabled() {
+  if (( ${#ONLY_SECTIONS[@]} == 0 )); then
+    return 0
+  fi
+  local s
+  for s in "${ONLY_SECTIONS[@]}"; do
+    [[ "$s" == "$1" ]] && return 0
+  done
+  return 1
+}
+
+RUN_CPU=0;     section_enabled cpu     && RUN_CPU=1
+RUN_MEMORY=0;  section_enabled memory  && RUN_MEMORY=1
+RUN_PSI=0;     section_enabled psi     && RUN_PSI=1
+RUN_NETWORK=0; section_enabled network && RUN_NETWORK=1
+RUN_DISK=0;    section_enabled disk    && RUN_DISK=1
+RUN_THERMAL=0; section_enabled thermal && RUN_THERMAL=1
+RUN_LOGS=0;    section_enabled logs    && RUN_LOGS=1
+
+RUN_SAMPLING=0
+if (( RUN_CPU || RUN_MEMORY || RUN_PSI || RUN_NETWORK || RUN_THERMAL )); then
+  RUN_SAMPLING=1
+fi
+
 validate_positive_int '--samples' "$SAMPLES"
 validate_positive_int '--interval' "$INTERVAL"
 validate_positive_int '--known-logs-minutes' "$KNOWN_LOGS_MINUTES"
@@ -415,23 +458,42 @@ log_info "Kernel: $(uname -r)"
 log_info "Uptime/load: $(uptime)"
 
 cpu_count="$(read_cpu_count)"
-root_disk_used="$(read_root_disk_used_percent)"
 primary_iface="$(detect_primary_iface)"
 
 log_section 'Config'
-log_info "Snapshots: $SAMPLES"
-log_info "Interval: ${INTERVAL}s"
-log_info "Known logs window: ${KNOWN_LOGS_MINUTES} minute(s)"
-log_info "CPU count: $cpu_count"
-log_info "Primary interface: $primary_iface"
-log_info "Root disk used: ${root_disk_used}%"
+
+if (( ${#ONLY_SECTIONS[@]} > 0 )); then
+  log_info "Sections: ${ONLY_SECTIONS[*]}"
+else
+  log_info "Sections: all"
+fi
+
+if (( RUN_SAMPLING )); then
+  log_info "Snapshots: $SAMPLES"
+  log_info "Interval: ${INTERVAL}s"
+fi
+if (( RUN_LOGS )); then
+  log_info "Known logs window: ${KNOWN_LOGS_MINUTES} minute(s)"
+fi
+if (( RUN_CPU )); then
+  log_info "CPU count: $cpu_count"
+fi
+if (( RUN_NETWORK )); then
+  log_info "Primary interface: $primary_iface"
+fi
+
+root_disk_used=0
+if (( RUN_DISK )); then
+  root_disk_used="$(read_root_disk_used_percent)"
+  log_info "Root disk used: ${root_disk_used}%"
+fi
 
 HAS_THERMAL=0
-if has_thermal_zones; then
+if (( RUN_THERMAL )) && has_thermal_zones; then
   HAS_THERMAL=1
   log_info 'Thermal zones:'
   read_thermal_zone_summary
-else
+elif (( RUN_THERMAL )); then
   log_info 'Thermal zones: not available'
 fi
 
@@ -449,146 +511,172 @@ declare -a tx_bytes=()
 declare -a cpu_busy_valid=()
 declare -a thermal_max_millideg=()
 
-log_section 'Snapshot Sampling'
-for ((i = 1; i <= SAMPLES; i += 1)); do
-  if (( i > 1 )); then
-    sleep "$INTERVAL"
+duration_seconds=0
+mem_drop_kb=0
+swap_growth_kb=0
+tcp_growth=0
+rx_growth_bytes=0
+tx_growth_bytes=0
+load_min=0; load_max=0; load_avg=0
+cpu_busy_min='-1'; cpu_busy_max='-1'; cpu_busy_avg='-1'
+thermal_min=0; thermal_max_stat=0; thermal_avg=0; thermal_rise_millideg=0
+
+if (( RUN_SAMPLING )); then
+  log_section 'Snapshot Sampling'
+  for ((i = 1; i <= SAMPLES; i += 1)); do
+    if (( i > 1 )); then
+      sleep "$INTERVAL"
+    fi
+
+    sample_epoch+=("$(date +%s)")
+
+    load1=0; busy=-1
+    if (( RUN_CPU )); then
+      load1="$(read_load1_tenths)"
+      busy="$(read_cpu_busy_tenths)"
+    fi
+
+    mem_avail=0; swap_used=0
+    if (( RUN_MEMORY )); then
+      mem_avail="$(read_mem_available_kb)"
+      swap_used="$(read_swap_used_kb)"
+    fi
+
+    cpu_psi=0; mem_psi=0; io_psi=0
+    if (( RUN_PSI )); then
+      cpu_psi="$(read_pressure_tenths /proc/pressure/cpu)"
+      mem_psi="$(read_pressure_tenths /proc/pressure/memory)"
+      io_psi="$(read_pressure_tenths /proc/pressure/io)"
+    fi
+
+    tcp=0; rx=0; tx=0
+    if (( RUN_NETWORK )); then
+      tcp="$(read_tcp_sockets)"
+      read -r rx tx <<< "$(read_iface_bytes "$primary_iface")"
+    fi
+
+    thermal_max=0
+    if (( HAS_THERMAL )); then
+      thermal_max="$(read_thermal_max_millideg)"
+    fi
+
+    load1_tenths+=("$load1")
+    cpu_busy_tenths+=("$busy")
+    mem_available_kb+=("$mem_avail")
+    swap_used_kb+=("$swap_used")
+    cpu_psi_tenths+=("$cpu_psi")
+    mem_psi_tenths+=("$mem_psi")
+    io_psi_tenths+=("$io_psi")
+    tcp_sockets+=("$tcp")
+    rx_bytes+=("$rx")
+    tx_bytes+=("$tx")
+    thermal_max_millideg+=("$thermal_max")
+
+    if (( RUN_CPU && busy >= 0 )); then
+      cpu_busy_valid+=("$busy")
+    fi
+
+    # Build sample display line from enabled sections
+    sample_parts="sample $(printf '%02d/%02d' "$i" "$SAMPLES")"
+    if (( RUN_CPU )); then
+      busy_display='n/a'
+      (( busy >= 0 )) && busy_display="$(format_tenths "$busy")%"
+      sample_parts+=" load=$(format_tenths "$load1") cpu_busy=$busy_display"
+    fi
+    if (( RUN_MEMORY )); then
+      sample_parts+=" mem_avail=$(format_mb_from_kb "$mem_avail")MB swap=$(format_mb_from_kb "$swap_used")MB"
+    fi
+    if (( RUN_PSI )); then
+      sample_parts+=" cpu_psi60=$(format_tenths "$cpu_psi") mem_psi60=$(format_tenths "$mem_psi") io_psi60=$(format_tenths "$io_psi")"
+    fi
+    if (( RUN_NETWORK )); then
+      sample_parts+=" tcp=$tcp rx_mb=$(awk -v b="$rx" 'BEGIN { printf "%.1f", b / 1048576.0 }') tx_mb=$(awk -v b="$tx" 'BEGIN { printf "%.1f", b / 1048576.0 }')"
+    fi
+    if (( HAS_THERMAL )); then
+      sample_parts+=" thermal_max=$(format_millideg "$thermal_max")C"
+    fi
+    log_info "$sample_parts"
+  done
+
+  last_index=$((SAMPLES - 1))
+  duration_seconds=$((sample_epoch[last_index] - sample_epoch[0]))
+
+  if (( RUN_CPU )); then
+    read -r load_min load_max load_avg <<< "$(summarize_array "${load1_tenths[@]}")"
+    if (( ${#cpu_busy_valid[@]} > 0 )); then
+      read -r cpu_busy_min cpu_busy_max cpu_busy_avg <<< "$(summarize_array "${cpu_busy_valid[@]}")"
+    fi
   fi
 
-  sample_epoch+=("$(date +%s)")
-  load1="$(read_load1_tenths)"
-  busy="$(read_cpu_busy_tenths)"
-  mem_avail="$(read_mem_available_kb)"
-  swap_used="$(read_swap_used_kb)"
-  cpu_psi="$(read_pressure_tenths /proc/pressure/cpu)"
-  mem_psi="$(read_pressure_tenths /proc/pressure/memory)"
-  io_psi="$(read_pressure_tenths /proc/pressure/io)"
-  tcp="$(read_tcp_sockets)"
-  read -r rx tx <<< "$(read_iface_bytes "$primary_iface")"
+  if (( RUN_MEMORY )); then
+    mem_drop_kb=$((mem_available_kb[0] - mem_available_kb[last_index]))
+    swap_growth_kb=$((swap_used_kb[last_index] - swap_used_kb[0]))
+  fi
 
-  thermal_max=0
+  if (( RUN_NETWORK )); then
+    tcp_growth=$((tcp_sockets[last_index] - tcp_sockets[0]))
+    rx_growth_bytes=$((rx_bytes[last_index] - rx_bytes[0]))
+    tx_growth_bytes=$((tx_bytes[last_index] - tx_bytes[0]))
+  fi
+
+  if (( RUN_PSI )); then
+    read -r cpu_psi_min cpu_psi_max cpu_psi_avg <<< "$(summarize_array "${cpu_psi_tenths[@]}")"
+    read -r mem_psi_min mem_psi_max mem_psi_avg <<< "$(summarize_array "${mem_psi_tenths[@]}")"
+    read -r io_psi_min io_psi_max io_psi_avg <<< "$(summarize_array "${io_psi_tenths[@]}")"
+  fi
+
   if (( HAS_THERMAL )); then
-    thermal_max="$(read_thermal_max_millideg)"
+    read -r thermal_min thermal_max_stat thermal_avg <<< "$(summarize_array "${thermal_max_millideg[@]}")"
+    thermal_rise_millideg=$((thermal_max_millideg[last_index] - thermal_max_millideg[0]))
   fi
-
-  load1_tenths+=("$load1")
-  cpu_busy_tenths+=("$busy")
-  mem_available_kb+=("$mem_avail")
-  swap_used_kb+=("$swap_used")
-  cpu_psi_tenths+=("$cpu_psi")
-  mem_psi_tenths+=("$mem_psi")
-  io_psi_tenths+=("$io_psi")
-  tcp_sockets+=("$tcp")
-  rx_bytes+=("$rx")
-  tx_bytes+=("$tx")
-  thermal_max_millideg+=("$thermal_max")
-
-  if (( busy >= 0 )); then
-    cpu_busy_valid+=("$busy")
-    busy_display="$(format_tenths "$busy")%"
-  else
-    busy_display='n/a'
-  fi
-
-  thermal_display=''
-  if (( HAS_THERMAL )); then
-    thermal_display=" thermal_max=$(awk -v t="$thermal_max" 'BEGIN { printf "%.1f", t / 1000.0 }')C"
-  fi
-
-  printf '%b%-8s%b sample %02d/%02d load=%s cpu_busy=%s mem_avail=%sMB swap=%sMB cpu_psi60=%s mem_psi60=%s io_psi60=%s tcp=%s rx_mb=%.1f tx_mb=%.1f%s\n' \
-    "${C_BOLD}${C_CYAN}" '[INFO]' "$C_RESET" \
-    "$i" "$SAMPLES" \
-    "$(format_tenths "$load1")" \
-    "$busy_display" \
-    "$(format_mb_from_kb "$mem_avail")" \
-    "$(format_mb_from_kb "$swap_used")" \
-    "$(format_tenths "$cpu_psi")" \
-    "$(format_tenths "$mem_psi")" \
-    "$(format_tenths "$io_psi")" \
-    "$tcp" \
-    "$(awk -v b="$rx" 'BEGIN { printf "%.1f", b / 1048576.0 }')" \
-    "$(awk -v b="$tx" 'BEGIN { printf "%.1f", b / 1048576.0 }')" \
-    "$thermal_display"
-done
-
-last_index=$((SAMPLES - 1))
-
-duration_seconds=$((sample_epoch[last_index] - sample_epoch[0]))
-mem_drop_kb=$((mem_available_kb[0] - mem_available_kb[last_index]))
-swap_growth_kb=$((swap_used_kb[last_index] - swap_used_kb[0]))
-tcp_growth=$((tcp_sockets[last_index] - tcp_sockets[0]))
-rx_growth_bytes=$((rx_bytes[last_index] - rx_bytes[0]))
-tx_growth_bytes=$((tx_bytes[last_index] - tx_bytes[0]))
-
-read -r load_min load_max load_avg <<< "$(summarize_array "${load1_tenths[@]}")"
-read -r mem_min mem_max mem_avg <<< "$(summarize_array "${mem_available_kb[@]}")"
-read -r swap_min swap_max swap_avg <<< "$(summarize_array "${swap_used_kb[@]}")"
-read -r cpu_psi_min cpu_psi_max cpu_psi_avg <<< "$(summarize_array "${cpu_psi_tenths[@]}")"
-read -r mem_psi_min mem_psi_max mem_psi_avg <<< "$(summarize_array "${mem_psi_tenths[@]}")"
-read -r io_psi_min io_psi_max io_psi_avg <<< "$(summarize_array "${io_psi_tenths[@]}")"
-read -r tcp_min tcp_max tcp_avg <<< "$(summarize_array "${tcp_sockets[@]}")"
-
-if (( HAS_THERMAL )); then
-  read -r thermal_min thermal_max_stat thermal_avg <<< "$(summarize_array "${thermal_max_millideg[@]}")"
-  thermal_rise_millideg=$((thermal_max_millideg[last_index] - thermal_max_millideg[0]))
-else
-  thermal_min=0
-  thermal_max_stat=0
-  thermal_avg=0
-  thermal_rise_millideg=0
 fi
 
-if (( ${#cpu_busy_valid[@]} > 0 )); then
-  read -r cpu_busy_min cpu_busy_max cpu_busy_avg <<< "$(summarize_array "${cpu_busy_valid[@]}")"
-else
-  cpu_busy_min='-1'
-  cpu_busy_max='-1'
-  cpu_busy_avg='-1'
-fi
-
-log_section 'Known Logs (User Journal)'
 user_log_count=0
 kernel_log_count=0
-if has_cmd journalctl; then
-  journalctl_user_cmd=(journalctl --user --since "${KNOWN_LOGS_MINUTES} minutes ago" --no-pager)
-  if [[ -n "$SELF_UNIT" ]]; then
-    journalctl_user_cmd+=(--unit "$SELF_UNIT")
+
+if (( RUN_LOGS )); then
+  log_section 'Known Logs (User Journal)'
+  if has_cmd journalctl; then
+    journalctl_user_cmd=(journalctl --user --since "${KNOWN_LOGS_MINUTES} minutes ago" --no-pager)
+    if [[ -n "$SELF_UNIT" ]]; then
+      journalctl_user_cmd+=(--unit "$SELF_UNIT")
+    fi
+
+    user_log_count="$("${journalctl_user_cmd[@]}" -o cat | awk -v pattern="$KNOWN_LOG_PATTERN" 'BEGIN { IGNORECASE = 1 } $0 ~ pattern { count += 1 } END { print count + 0 }')"
+    "${journalctl_user_cmd[@]}" -o short-iso \
+      | awk -v pattern="$KNOWN_LOG_PATTERN" 'BEGIN { IGNORECASE = 1 } $0 ~ pattern { print }' \
+      | print_limited_stream "$KNOWN_LOG_MAX_LINES"
+
+    printf '\n'
+    log_info 'Top repeated user signals:'
+    "${journalctl_user_cmd[@]}" -o cat \
+      | awk -v pattern="$KNOWN_LOG_PATTERN" 'BEGIN { IGNORECASE = 1 } $0 ~ pattern { print }' \
+      | sort \
+      | uniq -c \
+      | sort -nr \
+      | awk 'NR <= 15 { printf "%7d %s\n", $1, substr($0, index($0, $2)) } END { if (NR == 0) print "No repeated user signals." }'
+  else
+    log_warn 'journalctl unavailable; skipping known logs collection.'
   fi
 
-  user_log_count="$("${journalctl_user_cmd[@]}" -o cat | awk -v pattern="$KNOWN_LOG_PATTERN" 'BEGIN { IGNORECASE = 1 } $0 ~ pattern { count += 1 } END { print count + 0 }')"
-  "${journalctl_user_cmd[@]}" -o short-iso \
-    | awk -v pattern="$KNOWN_LOG_PATTERN" 'BEGIN { IGNORECASE = 1 } $0 ~ pattern { print }' \
-    | print_limited_stream "$KNOWN_LOG_MAX_LINES"
+  log_section 'Known Logs (Kernel Journal)'
+  if has_cmd journalctl; then
+    kernel_log_count="$(journalctl -k --since "${KNOWN_LOGS_MINUTES} minutes ago" --no-pager -o cat | awk -v pattern="$KNOWN_LOG_PATTERN" 'BEGIN { IGNORECASE = 1 } $0 ~ pattern { count += 1 } END { print count + 0 }')"
+    journalctl -k --since "${KNOWN_LOGS_MINUTES} minutes ago" --no-pager -o short-iso \
+      | awk -v pattern="$KNOWN_LOG_PATTERN" 'BEGIN { IGNORECASE = 1 } $0 ~ pattern { print }' \
+      | print_limited_stream "$KNOWN_LOG_MAX_LINES"
 
-  printf '\n'
-  log_info 'Top repeated user signals:'
-  "${journalctl_user_cmd[@]}" -o cat \
-    | awk -v pattern="$KNOWN_LOG_PATTERN" 'BEGIN { IGNORECASE = 1 } $0 ~ pattern { print }' \
-    | sort \
-    | uniq -c \
-    | sort -nr \
-    | awk 'NR <= 15 { printf "%7d %s\n", $1, substr($0, index($0, $2)) } END { if (NR == 0) print "No repeated user signals." }'
-else
-  log_warn 'journalctl unavailable; skipping known logs collection.'
-fi
-
-log_section 'Known Logs (Kernel Journal)'
-if has_cmd journalctl; then
-  kernel_log_count="$(journalctl -k --since "${KNOWN_LOGS_MINUTES} minutes ago" --no-pager -o cat | awk -v pattern="$KNOWN_LOG_PATTERN" 'BEGIN { IGNORECASE = 1 } $0 ~ pattern { count += 1 } END { print count + 0 }')"
-  journalctl -k --since "${KNOWN_LOGS_MINUTES} minutes ago" --no-pager -o short-iso \
-    | awk -v pattern="$KNOWN_LOG_PATTERN" 'BEGIN { IGNORECASE = 1 } $0 ~ pattern { print }' \
-    | print_limited_stream "$KNOWN_LOG_MAX_LINES"
-
-  printf '\n'
-  log_info 'Top repeated kernel signals:'
-  journalctl -k --since "${KNOWN_LOGS_MINUTES} minutes ago" --no-pager -o cat \
-    | awk -v pattern="$KNOWN_LOG_PATTERN" 'BEGIN { IGNORECASE = 1 } $0 ~ pattern { print }' \
-    | sort \
-    | uniq -c \
-    | sort -nr \
-    | awk 'NR <= 15 { printf "%7d %s\n", $1, substr($0, index($0, $2)) } END { if (NR == 0) print "No repeated kernel signals." }'
-else
-  log_warn 'journalctl unavailable; skipping kernel signal collection.'
+    printf '\n'
+    log_info 'Top repeated kernel signals:'
+    journalctl -k --since "${KNOWN_LOGS_MINUTES} minutes ago" --no-pager -o cat \
+      | awk -v pattern="$KNOWN_LOG_PATTERN" 'BEGIN { IGNORECASE = 1 } $0 ~ pattern { print }' \
+      | sort \
+      | uniq -c \
+      | sort -nr \
+      | awk 'NR <= 15 { printf "%7d %s\n", $1, substr($0, index($0, $2)) } END { if (NR == 0) print "No repeated kernel signals." }'
+  else
+    log_warn 'journalctl unavailable; skipping kernel signal collection.'
+  fi
 fi
 
 severity=0
@@ -610,67 +698,79 @@ add_stressed() {
 load_watch_threshold=$((cpu_count * 8))
 load_stress_threshold=$((cpu_count * 12))
 
-if (( load1_tenths[last_index] > load_stress_threshold )); then
-  add_stressed "Load avg1 is high for CPU count ($(format_tenths "${load1_tenths[last_index]}") on $cpu_count cores)."
-elif (( load1_tenths[last_index] > load_watch_threshold )); then
-  add_watch "Load avg1 is elevated for CPU count ($(format_tenths "${load1_tenths[last_index]}") on $cpu_count cores)."
-fi
+if (( RUN_CPU && ${#load1_tenths[@]} > 0 )); then
+  if (( load1_tenths[last_index] > load_stress_threshold )); then
+    add_stressed "Load avg1 is high for CPU count ($(format_tenths "${load1_tenths[last_index]}") on $cpu_count cores)."
+  elif (( load1_tenths[last_index] > load_watch_threshold )); then
+    add_watch "Load avg1 is elevated for CPU count ($(format_tenths "${load1_tenths[last_index]}") on $cpu_count cores)."
+  fi
 
-if (( cpu_busy_avg >= 0 )); then
-  if (( cpu_busy_avg > 850 )); then
-    add_stressed "Average CPU busy is very high ($(format_tenths "$cpu_busy_avg")%)."
-  elif (( cpu_busy_avg > 700 )); then
-    add_watch "Average CPU busy is elevated ($(format_tenths "$cpu_busy_avg")%)."
+  if (( cpu_busy_avg >= 0 )); then
+    if (( cpu_busy_avg > 850 )); then
+      add_stressed "Average CPU busy is very high ($(format_tenths "$cpu_busy_avg")%)."
+    elif (( cpu_busy_avg > 700 )); then
+      add_watch "Average CPU busy is elevated ($(format_tenths "$cpu_busy_avg")%)."
+    fi
   fi
 fi
 
-if (( mem_drop_kb > 1024 * 1024 )); then
-  add_stressed "MemAvailable dropped by more than 1.0 GiB ($(format_mb_from_kb "$mem_drop_kb") MB)."
-elif (( mem_drop_kb > 512 * 1024 )); then
-  add_watch "MemAvailable dropped by more than 512 MB ($(format_mb_from_kb "$mem_drop_kb") MB)."
+if (( RUN_MEMORY )); then
+  if (( mem_drop_kb > 1024 * 1024 )); then
+    add_stressed "MemAvailable dropped by more than 1.0 GiB ($(format_mb_from_kb "$mem_drop_kb") MB)."
+  elif (( mem_drop_kb > 512 * 1024 )); then
+    add_watch "MemAvailable dropped by more than 512 MB ($(format_mb_from_kb "$mem_drop_kb") MB)."
+  fi
+
+  if (( swap_growth_kb > 512 * 1024 )); then
+    add_stressed "Swap used grew by more than 512 MB ($(format_mb_from_kb "$swap_growth_kb") MB)."
+  elif (( swap_growth_kb > 128 * 1024 )); then
+    add_watch "Swap used grew by more than 128 MB ($(format_mb_from_kb "$swap_growth_kb") MB)."
+  fi
 fi
 
-if (( swap_growth_kb > 512 * 1024 )); then
-  add_stressed "Swap used grew by more than 512 MB ($(format_mb_from_kb "$swap_growth_kb") MB)."
-elif (( swap_growth_kb > 128 * 1024 )); then
-  add_watch "Swap used grew by more than 128 MB ($(format_mb_from_kb "$swap_growth_kb") MB)."
+if (( RUN_PSI && ${#cpu_psi_tenths[@]} > 0 )); then
+  if (( cpu_psi_tenths[last_index] > 30 )); then
+    add_stressed "CPU PSI avg60 is high ($(format_tenths "${cpu_psi_tenths[last_index]}"))."
+  elif (( cpu_psi_tenths[last_index] > 10 )); then
+    add_watch "CPU PSI avg60 is elevated ($(format_tenths "${cpu_psi_tenths[last_index]}"))."
+  fi
+
+  if (( mem_psi_tenths[last_index] > 20 )); then
+    add_stressed "Memory PSI avg60 is high ($(format_tenths "${mem_psi_tenths[last_index]}"))."
+  elif (( mem_psi_tenths[last_index] > 5 )); then
+    add_watch "Memory PSI avg60 is elevated ($(format_tenths "${mem_psi_tenths[last_index]}"))."
+  fi
+
+  if (( io_psi_tenths[last_index] > 20 )); then
+    add_stressed "IO PSI avg60 is high ($(format_tenths "${io_psi_tenths[last_index]}"))."
+  elif (( io_psi_tenths[last_index] > 5 )); then
+    add_watch "IO PSI avg60 is elevated ($(format_tenths "${io_psi_tenths[last_index]}"))."
+  fi
 fi
 
-if (( cpu_psi_tenths[last_index] > 30 )); then
-  add_stressed "CPU PSI avg60 is high ($(format_tenths "${cpu_psi_tenths[last_index]}"))."
-elif (( cpu_psi_tenths[last_index] > 10 )); then
-  add_watch "CPU PSI avg60 is elevated ($(format_tenths "${cpu_psi_tenths[last_index]}"))."
+if (( RUN_NETWORK )); then
+  if (( tcp_growth > 400 )); then
+    add_stressed "TCP socket count grew sharply ($tcp_growth)."
+  elif (( tcp_growth > 150 )); then
+    add_watch "TCP socket count grew noticeably ($tcp_growth)."
+  fi
 fi
 
-if (( mem_psi_tenths[last_index] > 20 )); then
-  add_stressed "Memory PSI avg60 is high ($(format_tenths "${mem_psi_tenths[last_index]}"))."
-elif (( mem_psi_tenths[last_index] > 5 )); then
-  add_watch "Memory PSI avg60 is elevated ($(format_tenths "${mem_psi_tenths[last_index]}"))."
+if (( RUN_LOGS )); then
+  total_known_log_matches=$((user_log_count + kernel_log_count))
+  if (( total_known_log_matches > 80 )); then
+    add_stressed "Known log matches are very high ($total_known_log_matches lines in ${KNOWN_LOGS_MINUTES}m)."
+  elif (( total_known_log_matches > 10 )); then
+    add_watch "Known log matches are elevated ($total_known_log_matches lines in ${KNOWN_LOGS_MINUTES}m)."
+  fi
 fi
 
-if (( io_psi_tenths[last_index] > 20 )); then
-  add_stressed "IO PSI avg60 is high ($(format_tenths "${io_psi_tenths[last_index]}"))."
-elif (( io_psi_tenths[last_index] > 5 )); then
-  add_watch "IO PSI avg60 is elevated ($(format_tenths "${io_psi_tenths[last_index]}"))."
-fi
-
-if (( tcp_growth > 400 )); then
-  add_stressed "TCP socket count grew sharply ($tcp_growth)."
-elif (( tcp_growth > 150 )); then
-  add_watch "TCP socket count grew noticeably ($tcp_growth)."
-fi
-
-total_known_log_matches=$((user_log_count + kernel_log_count))
-if (( total_known_log_matches > 80 )); then
-  add_stressed "Known log matches are very high ($total_known_log_matches lines in ${KNOWN_LOGS_MINUTES}m)."
-elif (( total_known_log_matches > 10 )); then
-  add_watch "Known log matches are elevated ($total_known_log_matches lines in ${KNOWN_LOGS_MINUTES}m)."
-fi
-
-if (( root_disk_used > 95 )); then
-  add_stressed "Root disk usage is critical (${root_disk_used}%)."
-elif (( root_disk_used > 85 )); then
-  add_watch "Root disk usage is high (${root_disk_used}%)."
+if (( RUN_DISK )); then
+  if (( root_disk_used > 95 )); then
+    add_stressed "Root disk usage is critical (${root_disk_used}%)."
+  elif (( root_disk_used > 85 )); then
+    add_watch "Root disk usage is high (${root_disk_used}%)."
+  fi
 fi
 
 if (( HAS_THERMAL )); then
@@ -691,21 +791,41 @@ if (( HAS_THERMAL )); then
 fi
 
 log_section 'Friendly Summary'
-log_info "Sampling duration: ${duration_seconds}s"
-log_info "CPU load avg1: start=$(format_tenths "${load1_tenths[0]}") end=$(format_tenths "${load1_tenths[last_index]}") min=$(format_tenths "$load_min") max=$(format_tenths "$load_max") avg=$(format_tenths "$load_avg")"
 
-if (( cpu_busy_avg >= 0 )); then
-  log_info "CPU busy: min=$(format_tenths "$cpu_busy_min")% max=$(format_tenths "$cpu_busy_max")% avg=$(format_tenths "$cpu_busy_avg")%"
-else
-  log_info 'CPU busy: n/a'
+if (( RUN_SAMPLING )); then
+  log_info "Sampling duration: ${duration_seconds}s"
 fi
 
-log_info "MemAvailable: start=$(format_mb_from_kb "${mem_available_kb[0]}")MB end=$(format_mb_from_kb "${mem_available_kb[last_index]}")MB delta=$(format_mb_from_kb "$mem_drop_kb")MB"
-log_info "Swap used: start=$(format_mb_from_kb "${swap_used_kb[0]}")MB end=$(format_mb_from_kb "${swap_used_kb[last_index]}")MB delta=$(format_mb_from_kb "$swap_growth_kb")MB"
-log_info "PSI avg60 (end): cpu=$(format_tenths "${cpu_psi_tenths[last_index]}") mem=$(format_tenths "${mem_psi_tenths[last_index]}") io=$(format_tenths "${io_psi_tenths[last_index]}")"
-log_info "TCP sockets: start=${tcp_sockets[0]} end=${tcp_sockets[last_index]} delta=$tcp_growth"
-log_info "Network traffic ($primary_iface): rx_delta=$(awk -v b="$rx_growth_bytes" 'BEGIN { printf "%.1f", b / 1048576.0 }')MB tx_delta=$(awk -v b="$tx_growth_bytes" 'BEGIN { printf "%.1f", b / 1048576.0 }')MB"
-log_info "Known logs: user=$user_log_count kernel=$kernel_log_count total=$total_known_log_matches"
+if (( RUN_CPU && ${#load1_tenths[@]} > 0 )); then
+  log_info "CPU load avg1: start=$(format_tenths "${load1_tenths[0]}") end=$(format_tenths "${load1_tenths[last_index]}") min=$(format_tenths "$load_min") max=$(format_tenths "$load_max") avg=$(format_tenths "$load_avg")"
+  if (( cpu_busy_avg >= 0 )); then
+    log_info "CPU busy: min=$(format_tenths "$cpu_busy_min")% max=$(format_tenths "$cpu_busy_max")% avg=$(format_tenths "$cpu_busy_avg")%"
+  else
+    log_info 'CPU busy: n/a'
+  fi
+fi
+
+if (( RUN_MEMORY && ${#mem_available_kb[@]} > 0 )); then
+  log_info "MemAvailable: start=$(format_mb_from_kb "${mem_available_kb[0]}")MB end=$(format_mb_from_kb "${mem_available_kb[last_index]}")MB delta=$(format_mb_from_kb "$mem_drop_kb")MB"
+  log_info "Swap used: start=$(format_mb_from_kb "${swap_used_kb[0]}")MB end=$(format_mb_from_kb "${swap_used_kb[last_index]}")MB delta=$(format_mb_from_kb "$swap_growth_kb")MB"
+fi
+
+if (( RUN_PSI && ${#cpu_psi_tenths[@]} > 0 )); then
+  log_info "PSI avg60 (end): cpu=$(format_tenths "${cpu_psi_tenths[last_index]}") mem=$(format_tenths "${mem_psi_tenths[last_index]}") io=$(format_tenths "${io_psi_tenths[last_index]}")"
+fi
+
+if (( RUN_NETWORK && ${#tcp_sockets[@]} > 0 )); then
+  log_info "TCP sockets: start=${tcp_sockets[0]} end=${tcp_sockets[last_index]} delta=$tcp_growth"
+  log_info "Network traffic ($primary_iface): rx_delta=$(awk -v b="$rx_growth_bytes" 'BEGIN { printf "%.1f", b / 1048576.0 }')MB tx_delta=$(awk -v b="$tx_growth_bytes" 'BEGIN { printf "%.1f", b / 1048576.0 }')MB"
+fi
+
+if (( RUN_DISK )); then
+  log_info "Root disk: ${root_disk_used}%"
+fi
+
+if (( RUN_LOGS )); then
+  log_info "Known logs: user=$user_log_count kernel=$kernel_log_count total=${total_known_log_matches:-0}"
+fi
 
 if (( HAS_THERMAL )); then
   log_info "Thermal max: start=$(format_millideg "${thermal_max_millideg[0]}")C end=$(format_millideg "${thermal_max_millideg[last_index]}")C min=$(format_millideg "$thermal_min")C max=$(format_millideg "$thermal_max_stat")C avg=$(format_millideg "$thermal_avg")C delta=$(format_millideg "$thermal_rise_millideg")C"
