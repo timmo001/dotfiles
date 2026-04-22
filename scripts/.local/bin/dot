@@ -797,29 +797,39 @@ install_missing_public_arch_packages() {
 chromium_extension_id_installed() {
   local profile_dir="$1"
   local extension_id="$2"
-  local -a manifests=()
+  local prefs_file="$profile_dir/Preferences"
 
-  shopt -s nullglob
-  manifests=("$profile_dir/Extensions/$extension_id"/*/manifest.json)
-  shopt -u nullglob
-
-  [[ "${#manifests[@]}" -gt 0 ]]
+  [[ -f "$prefs_file" ]] || return 1
+  jq -e --arg id "$extension_id" '.extensions.settings[$id] // empty' "$prefs_file" >/dev/null 2>&1
 }
 
 chromium_extension_name_installed() {
   local profile_dir="$1"
   local expected_name="$2"
-  local manifest_path
+  local prefs_file="$profile_dir/Preferences"
 
-  shopt -s nullglob
-  for manifest_path in "$profile_dir"/Extensions/*/*/manifest.json; do
-    [[ -f "$manifest_path" ]] || continue
-    if grep -Fq "\"name\": \"$expected_name\"" "$manifest_path"; then
-      shopt -u nullglob
+  [[ -f "$prefs_file" ]] || return 1
+
+  local ext_path
+  ext_path="$(jq -r --arg name "$expected_name" '
+    .extensions.settings | to_entries[]
+    | select(.value.path) | .value.path as $p
+    | if (.value.manifest.name // "") == $name then $p
+      else empty end
+  ' "$prefs_file" 2>/dev/null | head -1)"
+
+  if [[ -n "$ext_path" ]]; then
+    return 0
+  fi
+
+  # Manifest name may not be cached in Preferences; check manifest.json at each extension path
+  local path
+  while IFS= read -r path; do
+    [[ -f "$path/manifest.json" ]] || continue
+    if grep -Fq "\"name\": \"$expected_name\"" "$path/manifest.json"; then
       return 0
     fi
-  done
-  shopt -u nullglob
+  done < <(jq -r '.extensions.settings | to_entries[] | select(.value.path) | .value.path' "$prefs_file" 2>/dev/null)
 
   return 1
 }
