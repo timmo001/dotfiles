@@ -191,14 +191,28 @@ publish_line() {
 
 owner_iteration() {
   local line
+  local read_status
 
   coproc SOURCE_STREAM {
     exec "${COMMAND[@]}"
   }
   source_pid="${SOURCE_STREAM_PID:-}"
 
-  while parent_alive && IFS= read -r line <&"${SOURCE_STREAM[0]}"; do
-    publish_line "$line"
+  while parent_alive; do
+    if IFS= read -r -t 1 line <&"${SOURCE_STREAM[0]}"; then
+      publish_line "$line"
+      continue
+    fi
+
+    read_status=$?
+
+    if [[ -n "$source_pid" ]] && ! kill -0 "$source_pid" 2>/dev/null; then
+      break
+    fi
+
+    if (( read_status != 142 )); then
+      continue
+    fi
   done
 
   stop_source
