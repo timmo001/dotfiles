@@ -47,6 +47,8 @@ patterns = {
     "waybar": re.compile(r"(^|/)waybar(\s|$)"),
     "go-automate bridge serve": re.compile(r"go-automate ha bridge serve"),
     "go-automate bridge watch": re.compile(r"go-automate ha bridge watch entity --waybar"),
+    "ha-watch-singleton": re.compile(r"ha-watch-singleton"),
+    "singleton-stream": re.compile(r"singleton-stream --key"),
     "go-automate watch": re.compile(r"go-automate ha watch entity --waybar"),
     "twitch-notifications": re.compile(r"twitch-notifications"),
     "omarchy-voxtype-status": re.compile(r"omarchy-voxtype-status"),
@@ -119,7 +121,7 @@ def count_watchers():
             cmdline = " ".join(proc.cmdline())
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
-        if "go-automate ha watch entity --waybar" in cmdline:
+        if "go-automate ha bridge watch entity --waybar" in cmdline:
             count += 1
     return count
 
@@ -168,7 +170,7 @@ for proc in psutil.process_iter(["pid", "ppid", "cmdline", "memory_info"]):
         cmdline = " ".join(proc.cmdline())
     except (psutil.NoSuchProcess, psutil.AccessDenied):
         continue
-    if "go-automate ha watch entity --waybar" not in cmdline:
+    if "go-automate ha bridge watch entity --waybar" not in cmdline:
         continue
 
     match = re.search(r"([a-z_]+\.[a-z0-9_]+)$", cmdline)

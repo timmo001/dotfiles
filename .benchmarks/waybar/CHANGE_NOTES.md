@@ -2,7 +2,7 @@
 
 ## Why these changes were needed
 
-- Interval scripts were spawning `go-automate ha watch entity --waybar` repeatedly.
+- Interval scripts were spawning `go-automate ha bridge watch entity --waybar` repeatedly.
 - Process snapshots showed a large accumulation of watcher processes over time.
 - Machine-consumed output paths were mixed between plain text and Waybar JSON expectations.
 
@@ -13,12 +13,13 @@
 - `/home/aidan/.config/waybar/scripts/current-next-event.sh`
 - `/home/aidan/.config/waybar/scripts/voc-alert.sh`
 - `/home/aidan/.config/waybar/scripts/nas-activity.sh`
+- `/home/aidan/.config/waybar/scripts/doorbell.sh`
 
 ## Required policy for future edits
 
 - Prefer `go-automate ha bridge watch entity` over `go-automate ha watch entity`.
 - Prefer `--waybar` JSON output for script/bar consumers.
-- For interval-driven scripts, read only the first emitted line and terminate the watcher process group immediately.
+- For interval-driven scripts, prefer `ha-watch-singleton` / `singleton-stream` where feasible.
 
 ## Validation checklist
 
