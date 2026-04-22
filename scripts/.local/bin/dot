@@ -3063,6 +3063,7 @@ cmd_doctor() {
   doctor_log_section 'Browser flags'
   local browser_flags_host_pkg="chromium--${OMARCHY_HOST:-}"
   local browser_flags_pkg_dir="$PRIVATE_DOTFILES/$browser_flags_host_pkg"
+  local omarchy_default_chromium_flags="$HOME/.local/share/omarchy/config/chromium-flags.conf"
   if [[ -n "${OMARCHY_HOST:-}" && -d "$browser_flags_pkg_dir" ]]; then
     local browser_flags_ok=true
     for flag_file in ~/.config/chromium-flags.conf ~/.config/chrome-flags.conf; do
@@ -3085,6 +3086,22 @@ cmd_doctor() {
     else
       log_info 'Browser flags using omarchy defaults (private repo unavailable)'
     fi
+  fi
+
+  # Always show diff between live chromium-flags.conf and omarchy defaults
+  if [[ -f "$omarchy_default_chromium_flags" && -f ~/.config/chromium-flags.conf ]]; then
+    local flags_diff
+    flags_diff="$(diff -u "$omarchy_default_chromium_flags" ~/.config/chromium-flags.conf \
+      --label 'omarchy defaults' --label 'chromium-flags.conf' 2>/dev/null \
+      | grep -v '^[+-].*--oauth2-client-')" || true
+    if [[ -z "$flags_diff" ]]; then
+      log_info 'chromium-flags.conf is identical to omarchy defaults'
+    else
+      log_info 'chromium-flags.conf diff from omarchy defaults:'
+      printf '%s\n' "$flags_diff"
+    fi
+  elif [[ ! -f "$omarchy_default_chromium_flags" ]]; then
+    doctor_warn "Omarchy default chromium-flags.conf not found at $(display_path "$omarchy_default_chromium_flags")"
   fi
 
   doctor_log_section 'Browser extension checks'
