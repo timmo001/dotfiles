@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+KEY=""
+PARENT_PID="$PPID"
+POLL_INTERVAL="0.2"
+STATE_FILE=""
+LOCK_FILE=""
+
+lock_fd=""
+source_pid=""
+last_line=""
+COMMAND=()
+
+usage() {
+  cat <<'EOF'
+Usage: singleton-stream --key <name> [options] -- <command> [args...]
+
+Options:
+  --key <name>            Unique stream key
+  --parent-pid <pid>      Parent process to follow (default: caller PPID)
+  --state-file <path>     Override shared state file path
+  --lock-file <path>      Override lock file path
+  --poll-interval <sec>   Follower polling interval (default: 0.2)
+  --help                  Show this help
+
+Behavior:
+  - Exactly one owner process runs the source command stream per key.
+  - Followers replay the latest line from the shared state file.
+  - Followers can promote to owner if the previous owner exits.
+  - Process exits when parent-pid exits to prevent lingering workers.
+EOF
+}
+
+sanitize_key() {
+  local key="$1"
+  key="${key//[^a-zA-Z0-9._-]/_}"
+  printf '%s' "$key"
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --key)
+        KEY="$2"
+        shift 2
+        ;;
+      --parent-pid)
+        PARENT_PID="$2"
+        shift 2
+        ;;
+      --state-file)
+        STATE_FILE="$2"
+        shift 2
+        ;;
+      --lock-file)
+        LOCK_FILE="$2"
+        shift 2
+        ;;
+      --poll-interval)
+        POLL_INTERVAL="$2"
+        shift 2
+        ;;
+      --help|-h)
+        usage
+        exit 0
+        ;;
+      --)
+        shift
+        break
+        ;;
+      *)
+        printf 'singleton-stream: unknown option: %s\n' "$1" >&2
+        usage >&2
+        exit 1
+        ;;
+    esac
+  done
+
+  if [[ -z "$KEY" ]]; then
+    printf 'singleton-stream: --key is required\n' >&2
+    exit 1
+  fi
+
+  if [[ $# -eq 0 ]]; then
+    printf 'singleton-stream: missing command after --\n' >&2
+    exit 1
+  fi
+
+  if [[ ! "$PARENT_PID" =~ ^[0-9]+$ ]] || (( PARENT_PID <= 1 )); then
+    printf 'singleton-stream: --parent-pid must be a positive integer\n' >&2
+    exit 1
+  fi
+
+  if [[ -z "$STATE_FILE" ]]; then
+    STATE_FILE="${XDG_RUNTIME_DIR:-/tmp}/singleton-stream-$(sanitize_key "$KEY").state"
+  fi
+
+  if [[ -z "$LOCK_FILE" ]]; then
+    LOCK_FILE="${XDG_RUNTIME_DIR:-/tmp}/singleton-stream-$(sanitize_key "$KEY").lock"
+  fi
+
+  COMMAND=("$@")
+}
+
+parent_alive() {
+  kill -0 "$PARENT_PID" 2>/dev/null
+}
+
+stop_source() {
+  if [[ -n "$source_pid" ]]; then
+    kill -- "-$source_pid" 2>/dev/null || kill "$source_pid" 2>/dev/null || true
+    wait "$source_pid" 2>/dev/null || true
+  fi
+  source_pid=""
+}
+
+cleanup() {
+  stop_source
+  if [[ -n "$lock_fd" ]]; then
+    exec {lock_fd}>&-
+  fi
+}
+
+publish_line() {
+  local line="$1"
+  local tmp="${STATE_FILE}.tmp.$$"
+
+  printf '%s\n' "$line" > "$tmp"
+  mv "$tmp" "$STATE_FILE"
+  printf '%s\n' "$line"
+  last_line="$line"
+}
+
+owner_iteration() {
+  local line
+
+  coproc SOURCE_STREAM {
+    exec "${COMMAND[@]}"
+  }
+  source_pid="${SOURCE_STREAM_PID:-}"
+
+  while parent_alive && IFS= read -r line <&"${SOURCE_STREAM[0]}"; do
+    publish_line "$line"
+  done
+
+  stop_source
+}
+
+follower_step() {
+  local line
+
+  if [[ -f "$STATE_FILE" ]]; then
+    line="$(< "$STATE_FILE")"
+    if [[ "$line" != "$last_line" ]]; then
+      printf '%s\n' "$line"
+      last_line="$line"
+    fi
+  fi
+
+  sleep "$POLL_INTERVAL"
+}
+
+main() {
+  parse_args "$@"
+  trap cleanup EXIT INT TERM
+
+  exec {lock_fd}>"$LOCK_FILE"
+
+  while parent_alive; do
+    if flock -n "$lock_fd"; then
+      owner_iteration
+      if parent_alive; then
+        sleep 1
+      fi
+    else
+      follower_step
+    fi
+  done
+}
+
+main "$@"
