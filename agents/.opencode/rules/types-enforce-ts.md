@@ -16,6 +16,8 @@ Use these rules when reviewing or editing TypeScript code:
 - Remove unnecessary casts and non-null assertions where safe.
 - Add minimal annotations for function params or returns when clarity or safety improves.
 - Align generics, unions, and nullability with real data flow.
+- For Lit lifecycle methods that receive changed properties (`shouldUpdate`, `willUpdate`, `update`, `firstUpdated`, `updated`), prefer `changedProperties: PropertyValues<this>` for strict typing.
+- For Lit lifecycle methods that need to handle `protected` or `private` changed properties, use `changedProperties: PropertyValues` (without `<this>`) instead of forcing `PropertyValues<this>`.
 - Prefer explicit, narrow types.
 - Remove unnecessary intermediate variables and one-off aliases when clarity is maintained.
 - Inline one-time-use values when clarity is maintained.
