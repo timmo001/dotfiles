@@ -3104,6 +3104,123 @@ cmd_doctor() {
     doctor_warn "Omarchy default chromium-flags.conf not found at $(display_path "$omarchy_default_chromium_flags")"
   fi
 
+  doctor_log_section 'Hardware video decode'
+  local vaapi_ok=true
+
+  # Check for vainfo
+  if ! has_cmd vainfo; then
+    doctor_warn 'vainfo is missing — install libva-utils to diagnose VAAPI'
+    vaapi_ok=false
+  fi
+
+  # Identify render nodes and their drivers
+  local render_node driver_name vaapi_driver_expected=''
+  for render_node in /sys/class/drm/renderD*; do
+    [[ -e "$render_node/device/driver" ]] || continue
+    driver_name="$(basename "$(readlink -f "$render_node/device/driver")")"
+    local node_name
+    node_name="$(basename "$render_node")"
+    log_info "$node_name -> $driver_name"
+
+    # Determine expected VAAPI driver for the active GPU
+    case "$driver_name" in
+      i915|xe) vaapi_driver_expected='iHD' ;;
+      amdgpu)  vaapi_driver_expected='radeonsi' ;;
+      nvidia)  : ;; # NVIDIA render nodes don't need a VAAPI driver override
+    esac
+  done
+
+  # Check VAAPI driver selection
+  local current_vaapi_driver="${LIBVA_DRIVER_NAME:-auto}"
+  log_info "LIBVA_DRIVER_NAME=$current_vaapi_driver (session default)"
+
+  if [[ "$vaapi_ok" == true ]]; then
+    # Test VAAPI on each render node
+    local vaapi_working=false
+    for render_node in /dev/dri/renderD*; do
+      [[ -c "$render_node" ]] || continue
+      local node_name
+      node_name="$(basename "$render_node")"
+      local vainfo_output vainfo_driver
+      if vainfo_output="$(vainfo --display drm --device "$render_node" 2>&1)"; then
+        vainfo_driver="$(printf '%s\n' "$vainfo_output" | sed -n 's/.*Driver version: \(.*\)/\1/p')"
+        local profile_count
+        profile_count="$(printf '%s\n' "$vainfo_output" | grep -c 'VAEntrypoint' || true)"
+        log_info "$node_name: $vainfo_driver ($profile_count profiles)"
+        vaapi_working=true
+      else
+        doctor_warn "$node_name: vainfo failed"
+      fi
+    done
+
+    if [[ "$vaapi_working" != true ]]; then
+      doctor_error 'No working VAAPI driver found on any render node'
+    fi
+  fi
+
+  # Check browser wrappers for VAAPI overrides (Chromium and Chrome)
+  local -A browser_wrappers=(
+    [Chromium]="$HOME/.local/bin/chromium"
+    [Chrome]="$HOME/.local/bin/google-chrome-stable"
+  )
+  local browser_name browser_wrapper
+  for browser_name in "${(@k)browser_wrappers}"; do
+    browser_wrapper="${browser_wrappers[$browser_name]}"
+    if [[ -x "$browser_wrapper" ]]; then
+      local wrapper_vaapi_driver
+      wrapper_vaapi_driver="$(grep -oP '^\s*export\s+LIBVA_DRIVER_NAME=\K\S+' "$browser_wrapper" 2>/dev/null || true)"
+      if [[ -n "$wrapper_vaapi_driver" ]]; then
+        log_info "$browser_name wrapper overrides LIBVA_DRIVER_NAME=$wrapper_vaapi_driver"
+      fi
+      if grep -q '__EGL_VENDOR_LIBRARY_FILENAMES' "$browser_wrapper" 2>/dev/null; then
+        log_info "$browser_name wrapper forces Mesa EGL (hybrid GPU fix)"
+      fi
+    else
+      if [[ -n "$vaapi_driver_expected" && "$current_vaapi_driver" != "$vaapi_driver_expected" ]]; then
+        # Only warn if the browser is actually installed
+        local browser_bin="${browser_wrapper##*/}"
+        if command -v "$browser_bin" &>/dev/null; then
+          doctor_warn "No $browser_name wrapper at $(display_path "$browser_wrapper") — VAAPI may use wrong driver (session=$current_vaapi_driver, expected=$vaapi_driver_expected)"
+        fi
+      fi
+    fi
+  done
+
+  # Check browser flags.conf files for VAAPI features
+  local -A browser_flags=(
+    [chromium]="$HOME/.config/chromium-flags.conf"
+    [chrome]="$HOME/.config/chrome-flags.conf"
+  )
+  local flags_name flags_path
+  for flags_name in "${(@k)browser_flags}"; do
+    flags_path="${browser_flags[$flags_name]}"
+    if [[ -f "$flags_path" ]]; then
+      if grep -q 'VaapiVideoDecodeLinuxGL' "$flags_path" 2>/dev/null; then
+        log_info "$flags_name-flags.conf has VaapiVideoDecodeLinuxGL enabled"
+      else
+        doctor_warn "$flags_name-flags.conf missing VaapiVideoDecodeLinuxGL feature flag"
+      fi
+    fi
+  done
+
+  # Check required packages
+  local vaapi_packages_ok=true
+  if ! pacman -Qi libva &>/dev/null; then
+    doctor_error 'libva is not installed (required for VAAPI)'
+    vaapi_packages_ok=false
+  fi
+
+  local has_vaapi_driver=false
+  for pkg in intel-media-driver libva-intel-driver libva-nvidia-driver libva-mesa-driver; do
+    if pacman -Qi "$pkg" &>/dev/null; then
+      log_info "$pkg is installed"
+      has_vaapi_driver=true
+    fi
+  done
+  if [[ "$has_vaapi_driver" != true ]]; then
+    doctor_error 'No VAAPI driver package installed (need intel-media-driver, libva-mesa-driver, or similar)'
+  fi
+
   doctor_log_section 'Browser extension checks'
   if can_use_private; then
     run_private_browser_checks report_chromium_extension_status
