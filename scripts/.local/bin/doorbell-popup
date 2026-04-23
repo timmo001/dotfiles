@@ -180,7 +180,7 @@ load_known_popup_addr() {
 }
 
 resolve_workspace_monitor_name() {
-  local monitor_name
+  local monitor_name=""
 
   if [[ -n "$POPUP_MONITOR" ]]; then
     monitor_name="$(hyprctl -j monitors | jq -r --arg name "$POPUP_MONITOR" '.[] | select(.name == $name) | .name' | head -n 1)"
@@ -199,7 +199,7 @@ resolve_workspace_monitor_name() {
 
 resolve_target_workspace() {
   local monitor_name="$1"
-  local target_workspace
+  local target_workspace=""
 
   target_workspace="$POPUP_WORKSPACE"
 
@@ -219,6 +219,7 @@ position_popup() {
   local monitor_name monitor_json
   local target_workspace
   local monitor_x monitor_y monitor_width monitor_height
+  local monitor_scale
   local reserved_left reserved_bottom
   local pos_x pos_y
 
@@ -230,10 +231,14 @@ position_popup() {
   monitor_json="$(hyprctl -j monitors | jq -c --arg name "$monitor_name" '.[] | select(.name == $name)')"
   [[ -n "$monitor_json" ]] || return 1
 
-  monitor_x="$(jq -r '.x // 0' <<< "$monitor_json")"
-  monitor_y="$(jq -r '.y // 0' <<< "$monitor_json")"
-  monitor_width="$(jq -r '.width // 0' <<< "$monitor_json")"
-  monitor_height="$(jq -r '.height // 0' <<< "$monitor_json")"
+  # Hyprland reports monitor width/height/x/y in raw pixels but `movewindowpixel`
+  # and `resizewindowpixel` operate in logical (scale-divided) coordinates.
+  # Divide by scale to compute correct on-screen positions.
+  monitor_scale="$(jq -r '.scale // 1' <<< "$monitor_json")"
+  monitor_x="$(jq -r --argjson s "$monitor_scale" '((.x // 0) / $s) | floor' <<< "$monitor_json")"
+  monitor_y="$(jq -r --argjson s "$monitor_scale" '((.y // 0) / $s) | floor' <<< "$monitor_json")"
+  monitor_width="$(jq -r --argjson s "$monitor_scale" '((.width // 0) / $s) | floor' <<< "$monitor_json")"
+  monitor_height="$(jq -r --argjson s "$monitor_scale" '((.height // 0) / $s) | floor' <<< "$monitor_json")"
   reserved_left="$(jq -r '.reserved[0] // 0' <<< "$monitor_json")"
   reserved_bottom="$(jq -r '.reserved[3] // 0' <<< "$monitor_json")"
 
