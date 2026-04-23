@@ -2975,6 +2975,22 @@ cmd_doctor() {
   fi
 
   doctor_log_section 'Doctor startup notification'
+  local doctor_startup_notify_script="$HOME/.local/bin/dot-doctor-notify"
+  local doctor_startup_unit_path="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/$DOT_DOCTOR_STARTUP_TIMER_UNIT"
+
+  if [[ -x "$doctor_startup_notify_script" ]]; then
+    log_info "Doctor startup notify script found: $(display_path "$doctor_startup_notify_script")"
+  else
+    doctor_warn "Doctor startup notify script missing or not executable: $(display_path "$doctor_startup_notify_script")"
+  fi
+
+  if [[ -f "$doctor_startup_unit_path" ]]; then
+    log_info "Doctor startup timer unit file found: $(display_path "$doctor_startup_unit_path")"
+  else
+    doctor_warn "Doctor startup timer unit file missing: $(display_path "$doctor_startup_unit_path")"
+    doctor_warn 'Run dot stow (or dot install) to link systemd user units'
+  fi
+
   if has_cmd systemctl; then
     if systemctl --user is-enabled "$DOT_DOCTOR_STARTUP_TIMER_UNIT" >/dev/null 2>&1; then
       log_info "Doctor startup timer enabled: $DOT_DOCTOR_STARTUP_TIMER_UNIT"
@@ -2982,6 +2998,14 @@ cmd_doctor() {
       doctor_warn "Doctor startup timer is disabled: $DOT_DOCTOR_STARTUP_TIMER_UNIT"
       doctor_warn "Enable with: systemctl --user enable --now $DOT_DOCTOR_STARTUP_TIMER_UNIT"
     fi
+
+    if systemctl --user is-active "$DOT_DOCTOR_STARTUP_TIMER_UNIT" >/dev/null 2>&1; then
+      log_info "Doctor startup timer active: $DOT_DOCTOR_STARTUP_TIMER_UNIT"
+    else
+      doctor_warn "Doctor startup timer is not active: $DOT_DOCTOR_STARTUP_TIMER_UNIT"
+    fi
+  else
+    doctor_warn 'Skipping doctor startup timer checks (systemctl not found)'
   fi
 
   if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS" || is_truthy "$INCLUDE_OMARCHY_UPDATE_REPOS"; then
@@ -3193,10 +3217,10 @@ cmd_doctor() {
       chrome)   flags_path="$HOME/.config/chrome-flags.conf" ;;
     esac
     if [[ -f "$flags_path" ]]; then
-      if grep -q 'VaapiVideoDecodeLinuxGL' "$flags_path" 2>/dev/null; then
-        log_info "$flags_name-flags.conf has VaapiVideoDecodeLinuxGL enabled"
+      if grep -qE 'AcceleratedVideoDecodeLinuxGL|VaapiVideoDecodeLinuxGL' "$flags_path" 2>/dev/null; then
+        log_info "$flags_name-flags.conf has hardware video decode feature flag enabled"
       else
-        doctor_warn "$flags_name-flags.conf missing VaapiVideoDecodeLinuxGL feature flag"
+        doctor_warn "$flags_name-flags.conf missing hardware video decode feature flag (AcceleratedVideoDecodeLinuxGL or VaapiVideoDecodeLinuxGL)"
       fi
     fi
   done
