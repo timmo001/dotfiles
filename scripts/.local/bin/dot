@@ -3159,13 +3159,12 @@ cmd_doctor() {
   fi
 
   # Check browser wrappers for VAAPI overrides (Chromium and Chrome)
-  local -A browser_wrappers=(
-    [Chromium]="$HOME/.local/bin/chromium"
-    [Chrome]="$HOME/.local/bin/google-chrome-stable"
-  )
   local browser_name browser_wrapper
-  for browser_name in "${(@k)browser_wrappers}"; do
-    browser_wrapper="${browser_wrappers[$browser_name]}"
+  for browser_name in Chromium Chrome; do
+    case "$browser_name" in
+      Chromium) browser_wrapper="$HOME/.local/bin/chromium" ;;
+      Chrome)   browser_wrapper="$HOME/.local/bin/google-chrome-stable" ;;
+    esac
     if [[ -x "$browser_wrapper" ]]; then
       local wrapper_vaapi_driver
       wrapper_vaapi_driver="$(grep -oP '^\s*export\s+LIBVA_DRIVER_NAME=\K\S+' "$browser_wrapper" 2>/dev/null || true)"
@@ -3187,13 +3186,12 @@ cmd_doctor() {
   done
 
   # Check browser flags.conf files for VAAPI features
-  local -A browser_flags=(
-    [chromium]="$HOME/.config/chromium-flags.conf"
-    [chrome]="$HOME/.config/chrome-flags.conf"
-  )
   local flags_name flags_path
-  for flags_name in "${(@k)browser_flags}"; do
-    flags_path="${browser_flags[$flags_name]}"
+  for flags_name in chromium chrome; do
+    case "$flags_name" in
+      chromium) flags_path="$HOME/.config/chromium-flags.conf" ;;
+      chrome)   flags_path="$HOME/.config/chrome-flags.conf" ;;
+    esac
     if [[ -f "$flags_path" ]]; then
       if grep -q 'VaapiVideoDecodeLinuxGL' "$flags_path" 2>/dev/null; then
         log_info "$flags_name-flags.conf has VaapiVideoDecodeLinuxGL enabled"
