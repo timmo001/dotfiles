@@ -1,5 +1,5 @@
 ---
-name: omarchy
+name: pkexec-root
 description: >
   Use pkexec first for commands that need root directly or indirectly.
 ---
