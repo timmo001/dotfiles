@@ -75,7 +75,7 @@ dot doctor
 - `DOTFILES_PRIVATE_DIR` - private dotfiles path (default `~/.config/dotfiles-private`)
 - `DOT_ALLOW_PRIVATE` - `auto|always|never` (default `auto`)
 - `DOT_PRIVATE_GH_USER` - expected GitHub user for private actions (default `timmo001`)
-- `DOT_PRIVATE_EXTRA_REPOS_FILE` - extra private repo config file for `dot diff`/`dot update`/`dot doctor` (default `$DOTFILES_PRIVATE_DIR/.dot-extra-repos`, format: `name|path` or just `path`; `dot doctor` expects each repo to be on a named branch with an upstream)
+- `DOT_PRIVATE_EXTRA_REPOS_FILE` - extra private repo config file for `dot diff`/`dot update`/`dot doctor` (default `$DOTFILES_PRIVATE_DIR/.dot-extra-repos`, format: `name|path[|schedule]` or just `path`; 5-field cron schedules such as `* 8-15 * * 1-5` filter diff/Waybar visibility only; `dot doctor` expects each repo to be on a named branch with an upstream)
 - `DOT_PRIVATE_PACKAGE_REPO_FILE` - private pacman repo config for `dot` (default `$DOTFILES_PRIVATE_DIR/.dot-private-package-repo`)
 - `DOT_PRIVATE_PACKAGES_FILE` - private package list for `dot` (default `$DOTFILES_PRIVATE_DIR/.dot-private-packages`)
 - `DOT_PRIVATE_PACMAN_REPO_CONFIG` - pacman repo snippet path written by `dot` (default `/etc/pacman.d/timmo-private.conf`)
