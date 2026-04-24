@@ -2898,6 +2898,54 @@ cmd_doctor() {
     fi
   }
 
+  report_opencode_location_status() {
+    local legacy_path
+    local canonical_path
+    local legacy_source
+    local legacy_target
+    local found_legacy=false
+
+    log_info 'OpenCode documented global resources live under ~/.config/opencode'
+
+    local -a opencode_resource_names=(AGENTS.md agents commands skills plugins rules)
+    for legacy_path in "${opencode_resource_names[@]}"; do
+      canonical_path="$HOME/.config/opencode/$legacy_path"
+      legacy_path="$HOME/.opencode/$legacy_path"
+
+      if [[ -e "$canonical_path" || -L "$canonical_path" ]]; then
+        log_info "OpenCode canonical path exists: $(display_path "$canonical_path")"
+      else
+        doctor_warn "OpenCode canonical path missing: $(display_path "$canonical_path")"
+      fi
+
+      if [[ -e "$legacy_path" || -L "$legacy_path" ]]; then
+        found_legacy=true
+        if [[ -L "$legacy_path" ]]; then
+          legacy_target="$(readlink "$legacy_path" 2>/dev/null || true)"
+          doctor_warn "Legacy OpenCode path still exists: $(display_path "$legacy_path") -> $legacy_target"
+        else
+          doctor_warn "Legacy OpenCode path still exists: $(display_path "$legacy_path")"
+        fi
+        doctor_warn "Move/remove legacy OpenCode resources after confirming $(display_path "$canonical_path") is correct"
+      fi
+    done
+
+    for legacy_source in \
+      "$PUBLIC_DOTFILES/agents/.opencode" \
+      "$PRIVATE_DOTFILES/agents/.opencode"
+    do
+      if [[ -e "$legacy_source" || -L "$legacy_source" ]]; then
+        found_legacy=true
+        doctor_warn "Legacy OpenCode stow source still exists: $(display_path "$legacy_source")"
+        doctor_warn 'Use agents/.config/opencode in the public/private dotfiles repos instead'
+      fi
+    done
+
+    if [[ "$found_legacy" == false ]]; then
+      log_info 'No legacy OpenCode resource paths found under ~/.opencode or stow sources'
+    fi
+  }
+
   doctor_log_section 'Dependency checks'
 
   require_cmd() {
@@ -2999,6 +3047,9 @@ cmd_doctor() {
     doctor_log_section 'Additional private repository checks'
     doctor_warn "Skipping additional private repo checks ($PRIVATE_REASON)"
   fi
+
+  doctor_log_section 'OpenCode location checks'
+  report_opencode_location_status
 
   doctor_log_section 'Workflow watch checks'
   if [[ -d "$DOT_WORKFLOW_WATCH_HOOKS_PATH" ]]; then
@@ -3340,15 +3391,36 @@ cmd_doctor() {
       [[ -c "$render_node" ]] || continue
       local node_name
       node_name="$(basename "$render_node")"
-      local vainfo_output vainfo_driver
-      if vainfo_output="$(vainfo --display drm --device "$render_node" 2>&1)"; then
+      local render_sys_node="/sys/class/drm/$node_name"
+      local render_driver_name=''
+      local render_vaapi_driver=''
+
+      if [[ -e "$render_sys_node/device/driver" ]]; then
+        render_driver_name="$(basename "$(readlink -f "$render_sys_node/device/driver")")"
+      fi
+
+      case "$render_driver_name" in
+        i915|xe) render_vaapi_driver='iHD' ;;
+        amdgpu)  render_vaapi_driver='radeonsi' ;;
+        nvidia)  render_vaapi_driver='' ;;
+      esac
+
+      local vainfo_output vainfo_driver vaapi_driver_label
+      vaapi_driver_label="${render_vaapi_driver:-${current_vaapi_driver:-auto}}"
+      if [[ -n "$render_vaapi_driver" ]]; then
+        vainfo_output="$(LIBVA_DRIVER_NAME="$render_vaapi_driver" vainfo --display drm --device "$render_node" 2>&1)"
+      else
+        vainfo_output="$(vainfo --display drm --device "$render_node" 2>&1)"
+      fi
+
+      if [[ "$?" -eq 0 ]]; then
         vainfo_driver="$(printf '%s\n' "$vainfo_output" | sed -n 's/.*Driver version: \(.*\)/\1/p')"
         local profile_count
         profile_count="$(printf '%s\n' "$vainfo_output" | grep -c 'VAEntrypoint' || true)"
-        log_info "$node_name: $vainfo_driver ($profile_count profiles)"
+        log_info "$node_name: $vainfo_driver ($profile_count profiles, LIBVA_DRIVER_NAME=$vaapi_driver_label)"
         vaapi_working=true
       else
-        doctor_warn "$node_name: vainfo failed"
+        doctor_warn "$node_name: vainfo failed with LIBVA_DRIVER_NAME=$vaapi_driver_label"
       fi
     done
 
