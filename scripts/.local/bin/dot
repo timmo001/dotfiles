@@ -3408,20 +3408,22 @@ cmd_doctor() {
       local vainfo_output vainfo_driver vaapi_driver_label
       vaapi_driver_label="${render_vaapi_driver:-${current_vaapi_driver:-auto}}"
       if [[ -n "$render_vaapi_driver" ]]; then
-        vainfo_output="$(LIBVA_DRIVER_NAME="$render_vaapi_driver" vainfo --display drm --device "$render_node" 2>&1)"
+        if ! vainfo_output="$(LIBVA_DRIVER_NAME="$render_vaapi_driver" vainfo --display drm --device "$render_node" 2>&1)"; then
+          doctor_warn "$node_name: vainfo failed with LIBVA_DRIVER_NAME=$vaapi_driver_label"
+          continue
+        fi
       else
-        vainfo_output="$(vainfo --display drm --device "$render_node" 2>&1)"
+        if ! vainfo_output="$(vainfo --display drm --device "$render_node" 2>&1)"; then
+          doctor_warn "$node_name: vainfo failed with LIBVA_DRIVER_NAME=$vaapi_driver_label"
+          continue
+        fi
       fi
 
-      if [[ "$?" -eq 0 ]]; then
-        vainfo_driver="$(printf '%s\n' "$vainfo_output" | sed -n 's/.*Driver version: \(.*\)/\1/p')"
-        local profile_count
-        profile_count="$(printf '%s\n' "$vainfo_output" | grep -c 'VAEntrypoint' || true)"
-        log_info "$node_name: $vainfo_driver ($profile_count profiles, LIBVA_DRIVER_NAME=$vaapi_driver_label)"
-        vaapi_working=true
-      else
-        doctor_warn "$node_name: vainfo failed with LIBVA_DRIVER_NAME=$vaapi_driver_label"
-      fi
+      vainfo_driver="$(printf '%s\n' "$vainfo_output" | sed -n 's/.*Driver version: \(.*\)/\1/p')"
+      local profile_count
+      profile_count="$(printf '%s\n' "$vainfo_output" | grep -c 'VAEntrypoint' || true)"
+      log_info "$node_name: $vainfo_driver ($profile_count profiles, LIBVA_DRIVER_NAME=$vaapi_driver_label)"
+      vaapi_working=true
     done
 
     if [[ "$vaapi_working" != true ]]; then
