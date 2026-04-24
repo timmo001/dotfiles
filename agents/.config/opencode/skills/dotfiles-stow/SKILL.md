@@ -19,7 +19,7 @@ Always invoke this skill when a task involves any of the following:
 
 - Editing files that belong to stowed dotfiles managed by `dot`
 - Requests that reference `~/.config/dotfiles` or `~/.config/dotfiles-private`
-- Requests to edit live config under `~/.config/*`, `~/.zshrc`, `~/.zshrc-private`, `~/.opencode/*`, `~/.cursor/*`, or `~/.claude/*` where the file is stow-managed
+- Requests to edit live config under `~/.config/*`, `~/.zshrc`, `~/.zshrc-private`, `~/.cursor/*`, or `~/.claude/*` where the file is stow-managed
 - Running install/update/stow/doctor workflows for dotfiles
 
 If a path is stow-managed, edit the repository source path instead of making ad-hoc live-file changes.
@@ -43,7 +43,7 @@ Examples:
 - `~/.zshrc-private` -> `~/.config/dotfiles-private/zsh/.zshrc-private`
 - `~/.config/nvim/init.lua` -> `~/.config/dotfiles/neovim/.config/nvim/init.lua`
 - `~/.config/starship.toml` -> `~/.config/dotfiles/starship/.config/starship.toml`
-- `~/.opencode/skills/*` -> `~/.config/dotfiles/agents/.opencode/skills/*` (or private `agents/.opencode/*` when intentionally private)
+- `~/.config/opencode/skills/*` -> `~/.config/dotfiles/agents/.config/opencode/skills/*` (or private `agents/.config/opencode/*` when intentionally private)
 - `~/.cursor/rules/*` -> `~/.config/dotfiles-private/agents/.cursor/rules/*`
 
 If unsure where a managed file belongs:
