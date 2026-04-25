@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Notify shortly before setting the default audio sink to 0% volume.
+set -euo pipefail
+
+DELAY_SECONDS=10
+DRY_RUN=0
+
+usage() {
+  printf 'Usage: daily-volume-zero [--delay-seconds <seconds>] [--dry-run]\n'
+}
+
+die() {
+  printf 'daily-volume-zero: %s\n' "$1" >&2
+  exit 1
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --delay-seconds)
+      [[ $# -ge 2 ]] || die '--delay-seconds requires a value'
+      DELAY_SECONDS="$2"
+      shift 2
+      ;;
+    --dry-run)
+      DRY_RUN=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      die "Unknown argument: $1"
+      ;;
+  esac
+done
+
+if ! [[ "$DELAY_SECONDS" =~ ^[0-9]+$ ]]; then
+  die '--delay-seconds must be a non-negative integer'
+fi
+
+if command -v notify-send >/dev/null 2>&1; then
+  notify-send \
+    -u normal \
+    -t "$((DELAY_SECONDS * 1000))" \
+    'Daily volume reset' \
+    "System volume will be set to 0% in ${DELAY_SECONDS} seconds." \
+    >/dev/null 2>&1 || true
+fi
+
+sleep "$DELAY_SECONDS"
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  printf 'Would set @DEFAULT_AUDIO_SINK@ volume to 0%% and clear mute.\n'
+  exit 0
+fi
+
+command -v wpctl >/dev/null 2>&1 || die 'wpctl is required to control PipeWire/WirePlumber volume'
+
+wpctl set-mute @DEFAULT_AUDIO_SINK@ 0
+wpctl set-volume @DEFAULT_AUDIO_SINK@ 0%
