@@ -69,6 +69,12 @@ dot doctor
 - `dot init`, `dot install`, `dot stow`, and `dot update` configure the global `core.hooksPath` and enable `git-workflow-watch.timer`
 - `dot doctor` verifies the hooks path, watchlist file, timer state, and active Waybar workflow-failures module wiring
 
+## Daily volume reset
+
+- Public dotfiles provide `daily-volume-zero.timer`, a user systemd timer that runs at 5am local time
+- The timer runs `daily-volume-zero`, which sends a 10-second desktop notification, clears default sink mute, then sets the default PipeWire/WirePlumber sink volume to `0%`
+- `dot init`, `dot install`, `dot stow`, and `dot update` enable the timer; use `systemctl --user disable --now daily-volume-zero.timer` to opt out
+
 ## Environment options
 
 - `DOTFILES_PUBLIC_DIR` - public dotfiles path (default `~/.config/dotfiles`)
@@ -88,6 +94,7 @@ dot doctor
 - `DOT_WORKFLOW_WATCH_HOOKS_PATH` - global git hooks path for workflow watch (default `~/.config/git/workflow-watch-hooks`)
 - `DOT_WORKFLOW_WATCH_REPOS_FILE` - watched repo list file (default `$DOTFILES_PRIVATE_DIR/.git-workflow-watch-repos`)
 - `DOT_WORKFLOW_WATCH_TIMER_UNIT` - workflow polling timer unit name (default `git-workflow-watch.timer`)
+- `DOT_DAILY_VOLUME_ZERO_TIMER_UNIT` - 5am volume reset timer unit name (default `daily-volume-zero.timer`)
 - `DOT_AUTO_CD` - zsh wrapper auto-cd to first repo with changes after `dot diff`; otherwise restore original dir (failed diff falls back to `~/.config/dotfiles`) (`1|0`, default `1`)
 - `DOT_AGENTS_SYNC_SOURCE` - AGENTS file to mirror (default `~/.opencode/AGENTS.md`)
 - `DOT_AGENTS_SYNC_RULE_FILE` - Cursor rule output path (default `$DOTFILES_PRIVATE_DIR/agents/.cursor/rules/global-agents.mdc`, else `~/.cursor/rules/global-agents.mdc`)

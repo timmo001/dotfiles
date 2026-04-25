@@ -1,0 +1,10 @@
+[Unit]
+Description=Run daily volume reset at 5am
+
+[Timer]
+OnCalendar=*-*-* 05:00:00
+Persistent=true
+Unit=daily-volume-zero.service
+
+[Install]
+WantedBy=timers.target

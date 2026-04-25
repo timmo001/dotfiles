@@ -1,0 +1,7 @@
+[Unit]
+Description=Notify then set system volume to 0%%
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/daily-volume-zero

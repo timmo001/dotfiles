@@ -25,6 +25,7 @@ DOT_WORKFLOW_WATCH_REPOS_FILE="${DOT_WORKFLOW_WATCH_REPOS_FILE:-$PRIVATE_DOTFILE
 DOT_WORKFLOW_WATCH_TIMER_UNIT="${DOT_WORKFLOW_WATCH_TIMER_UNIT:-git-workflow-watch.timer}"
 DOT_BROWSER_FREEZE_TIMER_UNIT="${DOT_BROWSER_FREEZE_TIMER_UNIT:-browser-freeze-snapshot.timer}"
 DOT_DOCTOR_STARTUP_TIMER_UNIT="${DOT_DOCTOR_STARTUP_TIMER_UNIT:-dot-doctor-startup.timer}"
+DOT_DAILY_VOLUME_ZERO_TIMER_UNIT="${DOT_DAILY_VOLUME_ZERO_TIMER_UNIT:-daily-volume-zero.timer}"
 
 OMARCHY_REPO_BASE="${OMARCHY_REPO_BASE_DIR:-$HOME/.config}"
 OMARCHY_DIFF_REPOS=(hypr waybar bootstrap ghostty uwsm)
@@ -1463,6 +1464,22 @@ configure_workflow_watch() {
   fi
 }
 
+configure_daily_volume_zero() {
+  log_section 'Configure daily volume reset'
+
+  if ! has_cmd systemctl; then
+    log_warn 'Skipping daily volume reset timer enable (systemctl not found)'
+    return 0
+  fi
+
+  systemctl --user daemon-reload >/dev/null 2>&1 || true
+  if systemctl --user enable --now "$DOT_DAILY_VOLUME_ZERO_TIMER_UNIT" >/dev/null 2>&1; then
+    log_info "Enabled daily volume reset timer: $DOT_DAILY_VOLUME_ZERO_TIMER_UNIT"
+  else
+    log_warn "Could not enable daily volume reset timer: $DOT_DAILY_VOLUME_ZERO_TIMER_UNIT"
+  fi
+}
+
 # Mirror AGENTS.md into a Cursor user rule (.mdc with alwaysApply) so it is always-on context.
 # Default output: private agents package at agents/.cursor/rules/global-agents.mdc (stows into ~/.cursor/rules/).
 run_agents_sync() {
@@ -2582,6 +2599,7 @@ cmd_init() {
   fi
   install_public_dotfiles
   configure_workflow_watch
+  configure_daily_volume_zero
 
   if can_use_private; then
     install_private_dotfiles
@@ -2634,6 +2652,7 @@ cmd_update() {
   log_section 'Stow public dotfiles'
   stow_public_dotfiles
   configure_workflow_watch
+  configure_daily_volume_zero
 
   if can_use_private; then
     log_section 'Stow private dotfiles'
@@ -2665,6 +2684,7 @@ cmd_stow() {
   log_section 'Stow workflow'
   stow_public_dotfiles
   configure_workflow_watch
+  configure_daily_volume_zero
 
   if can_use_private; then
     stow_private_dotfiles
@@ -2681,6 +2701,7 @@ cmd_install() {
   log_section 'Install workflow'
   install_public_dotfiles
   configure_workflow_watch
+  configure_daily_volume_zero
 
   if can_use_private; then
     install_private_dotfiles
@@ -2977,6 +2998,7 @@ cmd_doctor() {
   optional_cmd gh 'branch discovery + authenticated clone convenience'
   optional_cmd gum 'interactive init questionnaire'
   optional_cmd notify-send 'desktop workflow notifications'
+  optional_cmd wpctl 'daily 5am volume reset on PipeWire/WirePlumber'
 
   if has_cmd gh; then
     if gh auth status >/dev/null 2>&1; then
@@ -3232,6 +3254,49 @@ cmd_doctor() {
     fi
   else
     doctor_warn 'Skipping doctor startup timer checks (systemctl not found)'
+  fi
+
+  doctor_log_section 'Daily volume reset'
+  local daily_volume_zero_script="$HOME/.local/bin/daily-volume-zero"
+  local daily_volume_zero_systemd_dir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+  local daily_volume_zero_service_unit_path="$daily_volume_zero_systemd_dir/daily-volume-zero.service"
+  local daily_volume_zero_timer_unit_path="$daily_volume_zero_systemd_dir/$DOT_DAILY_VOLUME_ZERO_TIMER_UNIT"
+
+  if [[ -x "$daily_volume_zero_script" ]]; then
+    log_info "Daily volume reset script found: $(display_path "$daily_volume_zero_script")"
+  else
+    doctor_warn "Daily volume reset script missing or not executable: $(display_path "$daily_volume_zero_script")"
+  fi
+
+  if [[ -f "$daily_volume_zero_service_unit_path" ]]; then
+    log_info "Daily volume reset service unit file found: $(display_path "$daily_volume_zero_service_unit_path")"
+  else
+    doctor_warn "Daily volume reset service unit file missing: $(display_path "$daily_volume_zero_service_unit_path")"
+    doctor_warn 'Run dot stow (or dot install) to link systemd user units'
+  fi
+
+  if [[ -f "$daily_volume_zero_timer_unit_path" ]]; then
+    log_info "Daily volume reset timer unit file found: $(display_path "$daily_volume_zero_timer_unit_path")"
+  else
+    doctor_warn "Daily volume reset timer unit file missing: $(display_path "$daily_volume_zero_timer_unit_path")"
+    doctor_warn 'Run dot stow (or dot install) to link systemd user units'
+  fi
+
+  if has_cmd systemctl; then
+    if systemctl --user is-enabled "$DOT_DAILY_VOLUME_ZERO_TIMER_UNIT" >/dev/null 2>&1; then
+      log_info "Daily volume reset timer enabled: $DOT_DAILY_VOLUME_ZERO_TIMER_UNIT"
+    else
+      doctor_warn "Daily volume reset timer is disabled: $DOT_DAILY_VOLUME_ZERO_TIMER_UNIT"
+      doctor_warn "Enable with: systemctl --user enable --now $DOT_DAILY_VOLUME_ZERO_TIMER_UNIT"
+    fi
+
+    if systemctl --user is-active "$DOT_DAILY_VOLUME_ZERO_TIMER_UNIT" >/dev/null 2>&1; then
+      log_info "Daily volume reset timer active: $DOT_DAILY_VOLUME_ZERO_TIMER_UNIT"
+    else
+      doctor_warn "Daily volume reset timer is not active: $DOT_DAILY_VOLUME_ZERO_TIMER_UNIT"
+    fi
+  else
+    doctor_warn 'Skipping daily volume reset timer checks (systemctl not found)'
   fi
 
   if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS" || is_truthy "$INCLUDE_OMARCHY_UPDATE_REPOS"; then
@@ -3640,6 +3705,7 @@ cmd_help() {
   printf "$fmt_env" 'DOT_WORKFLOW_WATCH_TIMER_UNIT' 'User systemd timer for workflow polling (default git-workflow-watch.timer)'
   printf "$fmt_env" 'DOT_BROWSER_FREEZE_TIMER_UNIT' 'User systemd timer for browser freeze snapshots (default browser-freeze-snapshot.timer)'
   printf "$fmt_env" 'DOT_DOCTOR_STARTUP_TIMER_UNIT' 'User systemd timer for dot doctor startup notifications (default dot-doctor-startup.timer)'
+  printf "$fmt_env" 'DOT_DAILY_VOLUME_ZERO_TIMER_UNIT' 'User systemd timer for 5am volume reset (default daily-volume-zero.timer)'
   printf "$fmt_env" 'DOT_AGENTS_SYNC_SOURCE' 'Path to AGENTS.md to mirror (default ~/.opencode/AGENTS.md)'
   printf "$fmt_env" 'DOT_AGENTS_SYNC_RULE_FILE' 'Cursor rule file path (default: $DOTFILES_PRIVATE_DIR/agents/.cursor/rules/global-agents.mdc)'
   printf "$fmt_env" 'DOT_AGENTS_SYNC_ON_UPDATE' '1|0 run agents-sync after dot update (default 1)'
