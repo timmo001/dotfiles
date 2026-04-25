@@ -3,7 +3,7 @@
 set -euo pipefail
 
 MOTION_ENTITY="input_boolean.doorbell"
-CAMERA_ENTITY="camera.front_door"
+CAMERA_ENTITY="camera.front_door_snapshot"
 HOME_ASSISTANT_BASE_URL="http://homeassistant.local:8123"
 
 POPUP_WORKSPACE="1"
