@@ -1,12 +1,15 @@
-const TARGET_COMMANDS = new Set([
+const BRANCH_CONTEXT_COMMANDS = new Set([
   "timmo001/read-branch",
   "timmo001/reset-branch-reapply",
   "git-workflow",
+])
+const WORK_SCOPE_COMMANDS = new Set([
   "cleanup-unnecessary-variables",
   "remove-single-use-functions",
   "types-enforce-ts",
   "home-assistant-private/lazy-context",
 ])
+const TARGET_COMMANDS = new Set([...BRANCH_CONTEXT_COMMANDS, ...WORK_SCOPE_COMMANDS])
 const DIFF_CHAR_LIMIT = 120000
 const WORK_SCOPE_DIFF_CHAR_LIMIT = 80000
 const PR_CHECKS_CHAR_LIMIT = 40000
@@ -92,7 +95,7 @@ const parseJSON = (text) => {
 }
 
 export const BranchContextPlugin = async ({ $ }) => {
-  const buildBranchContext = async () => {
+  const buildBranchContext = async ({ includePullRequest }) => {
     const warnings = []
 
     const inRepo = await run(() => $`git rev-parse --is-inside-work-tree`.text())
@@ -159,14 +162,16 @@ export const BranchContextPlugin = async ({ $ }) => {
       : await run(() => $`git diff --name-status ${baseRef}...HEAD`.text())
     const diffResult = onDefaultBranch ? skipped(branchSkipReason) : await run(() => $`git diff ${baseRef}...HEAD`.text())
 
-    const prViewResult = await run(() =>
-      $`gh pr view --json number,title,url,state,isDraft,reviewDecision,mergeStateStatus,headRefName,baseRefName`.text(),
-    )
-    const prData = prViewResult.ok ? parseJSON(prViewResult.text) : null
-    const prMissing = !prViewResult.ok && /no pull requests found/i.test(prViewResult.error)
+    const prViewResult = includePullRequest
+      ? await run(() =>
+          $`gh pr view --json number,title,url,state,isDraft,reviewDecision,mergeStateStatus,headRefName,baseRefName`.text(),
+        )
+      : null
+    const prData = prViewResult && prViewResult.ok ? parseJSON(prViewResult.text) : null
+    const prMissing = prViewResult && !prViewResult.ok && /no pull requests found/i.test(prViewResult.error)
     const checksResult = prData ? await run(() => $`gh pr checks ${String(prData.number)}`.text()) : null
 
-    if (!prData && !prMissing && !prViewResult.ok) {
+    if (prViewResult && !prData && !prMissing && !prViewResult.ok) {
       warnings.push(`Unable to read PR details: ${prViewResult.error}`)
     }
     if (checksResult && !checksResult.ok) {
@@ -236,7 +241,7 @@ export const BranchContextPlugin = async ({ $ }) => {
   return {
     "command.execute.before": async (input, output) => {
       if (!TARGET_COMMANDS.has(input.command)) return
-      const text = await buildBranchContext()
+      const text = await buildBranchContext({ includePullRequest: BRANCH_CONTEXT_COMMANDS.has(input.command) })
       output.parts.unshift({
         type: "text",
         text,

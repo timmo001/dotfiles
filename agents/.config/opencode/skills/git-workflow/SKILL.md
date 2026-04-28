@@ -15,7 +15,7 @@ Use this skill when working with branches, remotes, or comparing changes.
 - branch status and commit list
 - current work scope in this order: unstaged, staged, then branch diff
 - changed-file lists, diff stats, and patch output, truncated when large
-- PR metadata and check output when available
+- PR metadata and check output for branch-focused commands when available
 
 When `<branch-context>` is present:
 
