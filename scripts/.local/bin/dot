@@ -1464,22 +1464,6 @@ configure_workflow_watch() {
   fi
 }
 
-configure_daily_volume_zero() {
-  log_section 'Configure daily volume reset'
-
-  if ! has_cmd systemctl; then
-    log_warn 'Skipping daily volume reset timer enable (systemctl not found)'
-    return 0
-  fi
-
-  systemctl --user daemon-reload >/dev/null 2>&1 || true
-  if systemctl --user enable --now "$DOT_DAILY_VOLUME_ZERO_TIMER_UNIT" >/dev/null 2>&1; then
-    log_info "Enabled daily volume reset timer: $DOT_DAILY_VOLUME_ZERO_TIMER_UNIT"
-  else
-    log_warn "Could not enable daily volume reset timer: $DOT_DAILY_VOLUME_ZERO_TIMER_UNIT"
-  fi
-}
-
 # Mirror AGENTS.md into a Cursor user rule (.mdc with alwaysApply) so it is always-on context.
 # Default output: private agents package at agents/.cursor/rules/global-agents.mdc (stows into ~/.cursor/rules/).
 run_agents_sync() {
@@ -2599,7 +2583,6 @@ cmd_init() {
   fi
   install_public_dotfiles
   configure_workflow_watch
-  configure_daily_volume_zero
 
   if can_use_private; then
     install_private_dotfiles
@@ -2652,7 +2635,6 @@ cmd_update() {
   log_section 'Stow public dotfiles'
   stow_public_dotfiles
   configure_workflow_watch
-  configure_daily_volume_zero
 
   if can_use_private; then
     log_section 'Stow private dotfiles'
@@ -2683,8 +2665,6 @@ cmd_agents_sync() {
 cmd_stow() {
   log_section 'Stow workflow'
   stow_public_dotfiles
-  configure_workflow_watch
-  configure_daily_volume_zero
 
   if can_use_private; then
     stow_private_dotfiles
@@ -2701,7 +2681,6 @@ cmd_install() {
   log_section 'Install workflow'
   install_public_dotfiles
   configure_workflow_watch
-  configure_daily_volume_zero
 
   if can_use_private; then
     install_private_dotfiles
@@ -2998,7 +2977,11 @@ cmd_doctor() {
   optional_cmd gh 'branch discovery + authenticated clone convenience'
   optional_cmd gum 'interactive init questionnaire'
   optional_cmd notify-send 'desktop workflow notifications'
-  optional_cmd wpctl 'daily 5am volume reset on PipeWire/WirePlumber'
+  if has_cmd wpctl; then
+    log_info 'wpctl is available (optional daily 5am volume reset on PipeWire/WirePlumber)'
+  else
+    log_info 'wpctl is missing (optional daily 5am volume reset on PipeWire/WirePlumber)'
+  fi
 
   if has_cmd gh; then
     if gh auth status >/dev/null 2>&1; then
@@ -3261,42 +3244,55 @@ cmd_doctor() {
   local daily_volume_zero_systemd_dir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
   local daily_volume_zero_service_unit_path="$daily_volume_zero_systemd_dir/daily-volume-zero.service"
   local daily_volume_zero_timer_unit_path="$daily_volume_zero_systemd_dir/$DOT_DAILY_VOLUME_ZERO_TIMER_UNIT"
+  local daily_volume_zero_host="${OMARCHY_HOST:-unset}"
 
   if [[ -x "$daily_volume_zero_script" ]]; then
     log_info "Daily volume reset script found: $(display_path "$daily_volume_zero_script")"
   else
-    doctor_warn "Daily volume reset script missing or not executable: $(display_path "$daily_volume_zero_script")"
+    log_info "Daily volume reset script missing or not executable: $(display_path "$daily_volume_zero_script")"
   fi
 
   if [[ -f "$daily_volume_zero_service_unit_path" ]]; then
     log_info "Daily volume reset service unit file found: $(display_path "$daily_volume_zero_service_unit_path")"
   else
-    doctor_warn "Daily volume reset service unit file missing: $(display_path "$daily_volume_zero_service_unit_path")"
-    doctor_warn 'Run dot stow (or dot install) to link systemd user units'
+    log_info "Daily volume reset service unit file missing: $(display_path "$daily_volume_zero_service_unit_path")"
+    if [[ "${OMARCHY_HOST:-}" == 'laptop' ]]; then
+      log_info 'Run dot stow (or dot install) to link systemd user units if you want this optional timer'
+    else
+      log_info "Daily volume reset is laptop-only; not linking it for OMARCHY_HOST=$daily_volume_zero_host"
+    fi
   fi
 
   if [[ -f "$daily_volume_zero_timer_unit_path" ]]; then
     log_info "Daily volume reset timer unit file found: $(display_path "$daily_volume_zero_timer_unit_path")"
   else
-    doctor_warn "Daily volume reset timer unit file missing: $(display_path "$daily_volume_zero_timer_unit_path")"
-    doctor_warn 'Run dot stow (or dot install) to link systemd user units'
+    log_info "Daily volume reset timer unit file missing: $(display_path "$daily_volume_zero_timer_unit_path")"
+    if [[ "${OMARCHY_HOST:-}" == 'laptop' ]]; then
+      log_info 'Run dot stow (or dot install) to link systemd user units if you want this optional timer'
+    else
+      log_info "Daily volume reset is laptop-only; not linking it for OMARCHY_HOST=$daily_volume_zero_host"
+    fi
   fi
 
   if has_cmd systemctl; then
     if systemctl --user is-enabled "$DOT_DAILY_VOLUME_ZERO_TIMER_UNIT" >/dev/null 2>&1; then
       log_info "Daily volume reset timer enabled: $DOT_DAILY_VOLUME_ZERO_TIMER_UNIT"
     else
-      doctor_warn "Daily volume reset timer is disabled: $DOT_DAILY_VOLUME_ZERO_TIMER_UNIT"
-      doctor_warn "Enable with: systemctl --user enable --now $DOT_DAILY_VOLUME_ZERO_TIMER_UNIT"
+      log_info "Daily volume reset timer is disabled: $DOT_DAILY_VOLUME_ZERO_TIMER_UNIT"
+      if [[ "${OMARCHY_HOST:-}" == 'laptop' ]]; then
+        log_info "Enable with: systemctl --user enable --now $DOT_DAILY_VOLUME_ZERO_TIMER_UNIT"
+      else
+        log_info "Daily volume reset is laptop-only; leave it disabled for OMARCHY_HOST=$daily_volume_zero_host"
+      fi
     fi
 
     if systemctl --user is-active "$DOT_DAILY_VOLUME_ZERO_TIMER_UNIT" >/dev/null 2>&1; then
       log_info "Daily volume reset timer active: $DOT_DAILY_VOLUME_ZERO_TIMER_UNIT"
     else
-      doctor_warn "Daily volume reset timer is not active: $DOT_DAILY_VOLUME_ZERO_TIMER_UNIT"
+      log_info "Daily volume reset timer is not active: $DOT_DAILY_VOLUME_ZERO_TIMER_UNIT"
     fi
   else
-    doctor_warn 'Skipping daily volume reset timer checks (systemctl not found)'
+    log_info 'Skipping daily volume reset timer checks (systemctl not found)'
   fi
 
   if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS" || is_truthy "$INCLUDE_OMARCHY_UPDATE_REPOS"; then
