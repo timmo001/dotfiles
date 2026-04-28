@@ -9,26 +9,23 @@ When user feedback conflicts with your assumption, treat user feedback as author
 
 Read and apply the `types-enforce-ts` rule before editing.
 
-1. Build scope in this exact order:
-   - unstaged changes (`git diff`)
-   - staged changes (`git diff --cached`)
-   - current branch diff from default branch (`git diff <default>...HEAD`) only when the current branch is not the default branch
+`BranchContextPlugin` injects a `<branch-context>` block before this command runs. Use its `Current Work Scope` sections as the primary scope source, and run git fallback commands only if the injected context is missing, stale, or insufficient.
 
-2. Determine default branch from `origin/HEAD` when available; otherwise use the first existing fallback in: `dev`, `main`, `master`.
+1. Parse `Current Work Scope` in this order: unstaged, staged, then branch diff.
 
-3. Before editing, search local project guidance and reusable type sources:
+2. Before editing, search local project guidance and reusable type sources:
    - local rules/docs (for example `AGENTS.md`, project style guides, lint/type config)
    - helper/data/type files that may already define reusable interfaces, unions, enums, and utility types
    - prefer reusing or extending existing local types instead of creating duplicate one-off types
 
-4. From files in scope (optionally narrowed by `${ARGUMENTS}`), find TypeScript edits that weaken types or bypass type safety.
+3. From files in scope (optionally narrowed by `${ARGUMENTS}`), find TypeScript edits that weaken types or bypass type safety.
 
-5. Apply the smallest safe type fixes that satisfy the `types-enforce-ts` rule.
+4. Apply the smallest safe type fixes that satisfy the `types-enforce-ts` rule.
 
-6. Run the smallest relevant verification for the touched code (targeted typecheck, test, lint, or build check).
+5. Run the smallest relevant verification for the touched code (targeted typecheck, test, lint, or build check).
 
-7. Report briefly:
-    - git scope inspected (unstaged, staged, branch diff)
+6. Report briefly:
+    - scope source used (plugin context or fallback)
     - type issues fixed
     - files changed
     - verification run + result

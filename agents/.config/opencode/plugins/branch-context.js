@@ -1,5 +1,14 @@
-const TARGET_COMMANDS = new Set(["timmo001/read-branch", "timmo001/reset-branch-reapply", "git-workflow"])
+const TARGET_COMMANDS = new Set([
+  "timmo001/read-branch",
+  "timmo001/reset-branch-reapply",
+  "git-workflow",
+  "cleanup-unnecessary-variables",
+  "remove-single-use-functions",
+  "types-enforce-ts",
+  "home-assistant-private/lazy-context",
+])
 const DIFF_CHAR_LIMIT = 120000
+const WORK_SCOPE_DIFF_CHAR_LIMIT = 80000
 const PR_CHECKS_CHAR_LIMIT = 40000
 const STATUS_CHAR_LIMIT = 12000
 const COMMITS_CHAR_LIMIT = 30000
@@ -42,6 +51,11 @@ const run = async (execute) => {
     }
   }
 }
+
+const skipped = (text) => ({
+  ok: true,
+  text,
+})
 
 const section = (title, body) => {
   return [
@@ -126,11 +140,24 @@ export const BranchContextPlugin = async ({ $ }) => {
 
     const baseRef = `${defaultRemote}/${defaultBranch}`
     const branchResult = await run(() => $`git branch --show-current`.text())
+    const currentBranch = branchResult.ok && branchResult.text ? branchResult.text : ""
+    const onDefaultBranch = currentBranch === defaultBranch
     const statusResult = await run(() => $`git status -sb`.text())
-    const commitsResult = await run(() => $`git log --oneline ${baseRef}..HEAD`.text())
-    const statResult = await run(() => $`git diff --stat ${baseRef}...HEAD`.text())
-    const nameStatusResult = await run(() => $`git diff --name-status ${baseRef}...HEAD`.text())
-    const diffResult = await run(() => $`git diff ${baseRef}...HEAD`.text())
+    const unstagedNameStatusResult = await run(() => $`git diff --name-status`.text())
+    const unstagedDiffResult = await run(() => $`git diff`.text())
+    const stagedNameStatusResult = await run(() => $`git diff --cached --name-status`.text())
+    const stagedDiffResult = await run(() => $`git diff --cached`.text())
+    const branchSkipReason = "Skipped because the current branch is the default branch."
+    const commitsResult = onDefaultBranch
+      ? skipped(branchSkipReason)
+      : await run(() => $`git log --oneline ${baseRef}..HEAD`.text())
+    const statResult = onDefaultBranch
+      ? skipped(branchSkipReason)
+      : await run(() => $`git diff --stat ${baseRef}...HEAD`.text())
+    const nameStatusResult = onDefaultBranch
+      ? skipped(branchSkipReason)
+      : await run(() => $`git diff --name-status ${baseRef}...HEAD`.text())
+    const diffResult = onDefaultBranch ? skipped(branchSkipReason) : await run(() => $`git diff ${baseRef}...HEAD`.text())
 
     const prViewResult = await run(() =>
       $`gh pr view --json number,title,url,state,isDraft,reviewDecision,mergeStateStatus,headRefName,baseRefName`.text(),
@@ -156,9 +183,17 @@ export const BranchContextPlugin = async ({ $ }) => {
       `- Default remote: ${defaultRemote}`,
       `- Default branch: ${defaultBranch}`,
       `- Base ref: ${baseRef}`,
+      `- On default branch: ${onDefaultBranch ? "yes" : "no"}`,
       remotes.length ? `- Known remotes: ${remotes.join(", ")}` : "- Known remotes: (none)",
       "",
       sectionFromResult("git status -sb", statusResult, STATUS_CHAR_LIMIT),
+      "",
+      "## Current Work Scope",
+      "Use these precomputed sections as the primary scope source. Inspect them in this order: unstaged, staged, then branch diff.",
+      sectionFromResult("Changed files (unstaged, git diff --name-status)", unstagedNameStatusResult, NAME_STATUS_CHAR_LIMIT),
+      sectionFromResult("Patch (unstaged, git diff)", unstagedDiffResult, WORK_SCOPE_DIFF_CHAR_LIMIT),
+      sectionFromResult("Changed files (staged, git diff --cached --name-status)", stagedNameStatusResult, NAME_STATUS_CHAR_LIMIT),
+      sectionFromResult("Patch (staged, git diff --cached)", stagedDiffResult, WORK_SCOPE_DIFF_CHAR_LIMIT),
       sectionFromResult(`Commits unique to branch (${baseRef}..HEAD)`, commitsResult, COMMITS_CHAR_LIMIT),
       sectionFromResult(
         `Changed files (name-status, ${baseRef}...HEAD)`,

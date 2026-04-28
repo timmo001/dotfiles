@@ -9,30 +9,35 @@ Use this skill when working with branches, remotes, or comparing changes.
 
 ## Plugin-first branch context
 
-`BranchContextPlugin` now precomputes branch context for `timmo001/read-branch`, `timmo001/reset-branch-reapply`, and `git-workflow` command executions. It injects a `<branch-context>` block containing:
+`BranchContextPlugin` precomputes branch and scoped-work context for branch-oriented commands and scoped cleanup/type commands. It injects a `<branch-context>` block containing:
 
 - default remote/branch resolution
 - branch status and commit list
-- changed-file lists and diff stat
-- patch output (`git diff <remote>/<default-branch>...HEAD`, truncated when large)
+- current work scope in this order: unstaged, staged, then branch diff
+- changed-file lists, diff stats, and patch output, truncated when large
 - PR metadata and check output when available
 
 When `<branch-context>` is present:
 
 1. Use it as the primary source for branch analysis.
-2. Avoid re-running `git`/`gh` commands unless the user asks for a fresh snapshot.
-3. Only execute fallback commands when context is missing or clearly stale.
+2. Use `Current Work Scope` instead of rebuilding scope with separate git commands.
+3. Avoid re-running `git`/`gh` commands unless the user asks for a fresh snapshot.
+4. Only execute fallback commands when context is missing or clearly stale.
 
 ## Fallback commands (only when needed)
 
-If plugin context is unavailable, use this order:
+If plugin context is unavailable and you need a scoped work snapshot, use this order:
 
-1. `git remote` (prefer `upstream`, otherwise `origin`)
-2. `git symbolic-ref refs/remotes/<remote>/HEAD`
-3. `gh repo view --json defaultBranchRef -q .defaultBranchRef.name`
-4. `git diff <remote>/<default-branch>...HEAD`
+1. `git diff`
+2. `git diff --cached`
+3. `git remote` (prefer `upstream`, otherwise `origin`)
+4. `git symbolic-ref refs/remotes/<remote>/HEAD`
+5. `gh repo view --json defaultBranchRef -q .defaultBranchRef.name`
+6. `git diff <remote>/<default-branch>...HEAD` when not on the default branch
 
 ```bash
+git diff
+git diff --cached
 git remote
 git symbolic-ref refs/remotes/<remote>/HEAD
 gh repo view --json defaultBranchRef -q .defaultBranchRef.name
