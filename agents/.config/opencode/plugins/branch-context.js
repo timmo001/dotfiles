@@ -4,10 +4,14 @@ const BRANCH_CONTEXT_COMMANDS = new Set([
   "git-workflow",
 ])
 const WORK_SCOPE_COMMANDS = new Set([
+  "all-lit-rules",
+  "all-ts-rules",
   "cleanup-unnecessary-variables",
   "remove-single-use-functions",
   "types-enforce-ts",
+  "home-assistant-private/all-frontend-rules",
   "home-assistant-private/lazy-context",
+  "home-assistant-private/lit-rendering",
 ])
 const TARGET_COMMANDS = new Set([...BRANCH_CONTEXT_COMMANDS, ...WORK_SCOPE_COMMANDS])
 const DIFF_CHAR_LIMIT = 120000

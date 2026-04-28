@@ -9,23 +9,25 @@ When user feedback conflicts with your assumption, treat user feedback as author
 
 Read and apply the `types-enforce-ts` rule before editing.
 
-`BranchContextPlugin` injects a `<branch-context>` block before this command runs. Use its `Current Work Scope` sections as the primary scope source, and run git fallback commands only if the injected context is missing, stale, or insufficient.
+`BranchContextPlugin` must inject a `<branch-context>` block before this command runs. Use its `Current Work Scope` sections as the scope source.
 
 1. Parse `Current Work Scope` in this order: unstaged, staged, then branch diff.
 
-2. Before editing, search local project guidance and reusable type sources:
+2. If `<branch-context>` is absent, do not run git fallback commands; stop and report that `BranchContextPlugin` did not inject context for this command.
+
+3. Before editing, search local project guidance and reusable type sources:
    - local rules/docs (for example `AGENTS.md`, project style guides, lint/type config)
    - helper/data/type files that may already define reusable interfaces, unions, enums, and utility types
    - prefer reusing or extending existing local types instead of creating duplicate one-off types
 
-3. From files in scope (optionally narrowed by `${ARGUMENTS}`), find TypeScript edits that weaken types or bypass type safety.
+4. From files in scope (optionally narrowed by `${ARGUMENTS}`), find TypeScript edits that weaken types or bypass type safety.
 
-4. Apply the smallest safe type fixes that satisfy the `types-enforce-ts` rule.
+5. Apply the smallest safe type fixes that satisfy the `types-enforce-ts` rule.
 
-5. Run the smallest relevant verification for the touched code (targeted typecheck, test, lint, or build check).
+6. Run the smallest relevant verification for the touched code (targeted typecheck, test, lint, or build check).
 
-6. Report briefly:
-    - scope source used (plugin context or fallback)
+7. Report briefly:
+    - scope source used (`BranchContextPlugin` context)
     - type issues fixed
     - files changed
     - verification run + result

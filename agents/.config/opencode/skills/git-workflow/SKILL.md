@@ -22,11 +22,11 @@ When `<branch-context>` is present:
 1. Use it as the primary source for branch analysis.
 2. Use `Current Work Scope` instead of rebuilding scope with separate git commands.
 3. Avoid re-running `git`/`gh` commands unless the user asks for a fresh snapshot.
-4. Only execute fallback commands when context is missing or clearly stale.
+4. For commands that require `BranchContextPlugin` scope, stop and report a plugin issue if context is missing instead of rebuilding scope.
 
 ## Fallback commands (only when needed)
 
-If plugin context is unavailable and you need a scoped work snapshot, use this order:
+If plugin context is unavailable during ad-hoc work that is not plugin-backed and you need a scoped work snapshot, use this order:
 
 1. `git diff`
 2. `git diff --cached`
