@@ -18,7 +18,7 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 - `zsh/` - shell config
 - `neovim/` - Neovim config
 - `starship/` - prompt config
-- `agents/` - agent tooling: public OpenCode (`.opencode/`), Cursor launcher scripts (`.local/bin/code`, `cursor`); private overlay adds `~/.cursor/` (`argv.json`, `mcp.json`, rules), Claude Code, OpenCode secrets, `~/.config/opencode/` (see `dot agents-sync`)
+- `agents/` - agent tooling: public OpenCode (`.opencode/`), Cursor launcher script (`.local/bin/cursor`); private overlay adds `~/.cursor/` (`argv.json`, `mcp.json`, rules), Claude Code, OpenCode secrets, `~/.config/opencode/` (see `dot agents-sync`)
 - `editorconfig/` - editor config
 
 ## Split worktrees
@@ -66,14 +66,14 @@ dot doctor
 - The global hook queues pushed commits only for watched GitHub repositories and only when the commit matches the local git identity
 - The watcher polls `gh run list --commit <sha>` and sends one desktop notification per workflow run as each run completes
 - Failed workflow runs are cached for Waybar; left click opens all tracked failed run URLs, right click clears the list, and stale failures expire automatically after 1 hour by default
-- `dot init`, `dot install`, `dot stow`, and `dot update` configure the global `core.hooksPath` and enable `git-workflow-watch.timer`
+- `dot init`, `dot install`, and `dot update` configure the global `core.hooksPath` and enable `git-workflow-watch.timer`; `dot stow` only links files
 - `dot doctor` verifies the hooks path, watchlist file, timer state, and active Waybar workflow-failures module wiring
 
 ## Daily volume reset
 
-- Public dotfiles provide `daily-volume-zero.timer`, a user systemd timer that runs at 5am local time
+- Public dotfiles provide `daily-volume-zero.timer` in laptop-only stow packages (`scripts--laptop` and `systemd--laptop`), a user systemd timer that runs at 5am local time
 - The timer runs `daily-volume-zero`, which sends a 10-second desktop notification, clears default sink mute, then sets the default PipeWire/WirePlumber sink volume to `0%`
-- `dot init`, `dot install`, `dot stow`, and `dot update` enable the timer; use `systemctl --user disable --now daily-volume-zero.timer` to opt out
+- The timer is optional and is not enabled by `dot`; use `systemctl --user enable --now daily-volume-zero.timer` on machines that should use it
 
 ## Environment options
 
