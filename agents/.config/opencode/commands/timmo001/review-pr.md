@@ -19,6 +19,7 @@ Follow these steps:
     - Treat rules with a type suffix as file-type-specific rules. Example: 'types-enforce-ts' applies only to TypeScript files such as '.ts', '.tsx', '.mts', and '.cts'.
     - Treat unsuffixed rules as generic rules that can apply across languages when relevant.
     - If future file-type-specific rule files are added, apply the same convention instead of hardcoding a fixed list.
+    - If Home Assistant frontend files are present, include Home Assistant-specific rule overlays in addition to generic rules (for example `ha-lazy-context` and `ha-lit-rendering` alongside `lit-rendering`) and apply all `*-ts` rules by default.
 5. Analyze the code changes for:
     - Code quality and style consistency
     - Potential bugs or issues
