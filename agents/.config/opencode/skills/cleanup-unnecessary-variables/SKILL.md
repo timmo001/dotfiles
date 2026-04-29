@@ -1,8 +1,11 @@
 ---
-description: Rules for safe unnecessary-variable cleanup
+name: cleanup-unnecessary-variables
+description: Safe unnecessary-variable cleanup guidance for code review and refactoring.
 ---
 
-Use these rules when reviewing or editing cleanup/refactor changes that remove or inline variables:
+# Cleanup Unnecessary Variables
+
+Use this skill when reviewing or editing cleanup/refactor changes that remove or inline variables:
 
 - The candidate must be local and non-exported.
 - Preserve evaluation order and runtime behavior.

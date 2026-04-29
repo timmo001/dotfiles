@@ -1,8 +1,11 @@
 ---
-description: Rules for safe single-use function removal
+name: remove-single-use-functions
+description: Safe single-use function removal guidance for code review and refactoring.
 ---
 
-Use these rules when reviewing or editing cleanup/refactor changes that inline and remove functions used exactly once:
+# Remove Single-Use Functions
+
+Use this skill when reviewing or editing cleanup/refactor changes that inline and remove functions used exactly once:
 
 - The function must be local and non-exported.
 - The function must have exactly one real call site after the current change set is applied.

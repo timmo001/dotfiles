@@ -1,10 +1,13 @@
 ---
-description: TypeScript type-safety rules
+name: types-enforce-ts
+description: TypeScript type-safety guidance for editing and reviewing `.ts`, `.tsx`, `.mts`, and `.cts` files.
 ---
+
+# TypeScript Type Safety
 
 Applies only to TypeScript files such as `.ts`, `.tsx`, `.mts`, and `.cts`.
 
-Use these rules when reviewing or editing TypeScript code:
+Use this skill when reviewing or editing TypeScript code:
 
 - Preserve runtime behavior and public API shape unless the user asked otherwise.
 - Prefer stricter and more precise types over broader types.
@@ -28,6 +31,6 @@ Use these rules when reviewing or editing TypeScript code:
 - Prefer top-level annotations and `satisfies` over type assertions when possible.
 - Do not introduce local aliases only to satisfy TypeScript narrowing (`const params = this._params`, `const data = this._data`) if direct guards and property access typecheck cleanly.
 - Keep control flow simple without changing established logic unless explicitly requested.
-- Do not use the non-null assertion operator (`!`) unless it is strictly required and justified by existing project rules.
+- Do not use the non-null assertion operator (`!`) unless it is strictly required and justified by existing project guidance.
 - Use the `fallow` skill when TypeScript cleanup or review needs dead-code, duplication, circular dependency, or complexity evidence.
 - Do not add unnecessary comments or abstractions.
