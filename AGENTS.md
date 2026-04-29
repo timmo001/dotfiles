@@ -33,20 +33,21 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - Treat `go-automate ha watch entity` direct-style usage as a fallback only when bridge mode is unavailable.
 - Prefer `--waybar` output for machine-consumed flows; plain text output should be treated as human-facing unless explicitly needed.
 
-## Rule Application
+## Skill Application
 
-- For every code change, apply all matching rule files before editing.
-- If a change spans multiple scopes, apply all relevant rules together (not just one).
+- For every code change, apply all matching OpenCode skills before editing.
+- If a user asks for a local "rule" in OpenCode context, treat that as a request for the corresponding skill and use "skill" in new docs/config.
+- If a change spans multiple scopes, apply all relevant skills together (not just one).
 
-## TypeScript Rules
+## TypeScript Skills
 
-- For any TypeScript edit or TypeScript-focused review (`.ts`, `.tsx`, `.mts`, `.cts`), apply the `types-enforce-ts` rule before making changes.
+- For any TypeScript edit or TypeScript-focused review (`.ts`, `.tsx`, `.mts`, `.cts`), apply the `types-enforce-ts` skill before making changes.
 
-## Code Rules
+## Code Skills
 
-- Apply `cleanup-unnecessary-variables` as a general code-quality rule for all code changes when its guidance is relevant, not only explicit cleanup requests.
-- Apply `remove-single-use-functions` as a general code-quality rule for all code changes when its guidance is relevant, not only explicit cleanup requests.
-- For TypeScript changes where these rules apply, apply `types-enforce-ts` alongside them when scopes overlap.
+- Apply `cleanup-unnecessary-variables` as a general code-quality skill for all code changes when its guidance is relevant, not only explicit cleanup requests.
+- Apply `remove-single-use-functions` as a general code-quality skill for all code changes when its guidance is relevant, not only explicit cleanup requests.
+- For TypeScript changes where these skills apply, apply `types-enforce-ts` alongside them when scopes overlap.
 
 ## Split Worktrees
 

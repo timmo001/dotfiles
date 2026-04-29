@@ -2,12 +2,12 @@
 description: Enforce TypeScript type safety in current git scope
 ---
 
-Follow current rules before making changes.
-Follow local project rules while editing.
+Follow current instructions before making changes.
+Follow local project guidance while editing.
 Do not assume ambiguous intent is clear; when ambiguity would change edits, ask one targeted question before changing code.
 When user feedback conflicts with your assumption, treat user feedback as authoritative.
 
-Read and apply the `types-enforce-ts` rule before editing.
+Load and apply the `types-enforce-ts` skill before editing.
 
 `BranchContextPlugin` must inject a `<branch-context>` block before this command runs. Use its `Current Work Scope` sections as the scope source.
 
@@ -16,13 +16,13 @@ Read and apply the `types-enforce-ts` rule before editing.
 2. If `<branch-context>` is absent, do not run git fallback commands; stop and report that `BranchContextPlugin` did not inject context for this command.
 
 3. Before editing, search local project guidance and reusable type sources:
-   - local rules/docs (for example `AGENTS.md`, project style guides, lint/type config)
+   - local guidance/docs (for example `AGENTS.md`, project style guides, lint/type config)
    - helper/data/type files that may already define reusable interfaces, unions, enums, and utility types
    - prefer reusing or extending existing local types instead of creating duplicate one-off types
 
 4. From files in scope (optionally narrowed by `${ARGUMENTS}`), find TypeScript edits that weaken types or bypass type safety.
 
-5. Apply the smallest safe type fixes that satisfy the `types-enforce-ts` rule.
+5. Apply the smallest safe type fixes that satisfy the `types-enforce-ts` skill.
 
 6. Run the smallest relevant verification for the touched code (targeted typecheck, test, lint, or build check).
 

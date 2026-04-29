@@ -15,17 +15,17 @@ Follow these steps:
 3. Use 'gh pr checks' to see the status of CI checks.
     - There may be warnings in the checks (linters etc.) which are not treated as errors. Provide recommendations for how to fix the warnings.
     - Do not use 'gh pr checks --watch' unless the user explicitly asks you to watch or wait for checks to complete.
-4. Identify the changed file types in the PR and read only the applicable local review rules.
-    - Treat rules with a type suffix as file-type-specific rules. Example: 'types-enforce-ts' applies only to TypeScript files such as '.ts', '.tsx', '.mts', and '.cts'.
-    - Treat unsuffixed rules as generic rules that can apply across languages when relevant.
-    - If future file-type-specific rule files are added, apply the same convention instead of hardcoding a fixed list.
-    - If Home Assistant frontend files are present, include Home Assistant-specific rule overlays in addition to generic rules (for example `ha-lazy-context` and `ha-lit-rendering` alongside `lit-rendering`) and apply all `*-ts` rules by default.
+4. Identify the changed file types in the PR and load only the applicable local review skills.
+    - Treat skills with a type suffix as file-type-specific skills. Example: 'types-enforce-ts' applies only to TypeScript files such as '.ts', '.tsx', '.mts', and '.cts'.
+    - Treat unsuffixed skills as generic skills that can apply across languages when relevant.
+    - If future file-type-specific skills are added, apply the same convention instead of hardcoding a fixed list.
+    - If Home Assistant frontend files are present, include Home Assistant-specific skill overlays in addition to generic skills (for example `ha-lazy-context` and `ha-lit-rendering` alongside `lit-rendering`) and apply all `*-ts` skills by default.
 5. Analyze the code changes for:
     - Code quality and style consistency
     - Potential bugs or issues
     - Performance implications
-    - Missing type safety according to the applicable file-type-specific rules (for example, 'types-enforce-ts' only for TypeScript files)
-    - Unsafe cleanup or refactors according to the applicable generic or file-type-specific cleanup rules
+    - Missing type safety according to the applicable file-type-specific skills (for example, 'types-enforce-ts' only for TypeScript files)
+    - Unsafe cleanup or refactors according to the applicable generic or file-type-specific cleanup skills
     - Breaking changes (these need to be flagged as breaking changes in the PR template)
     - Security concerns
     - Test coverage
@@ -40,7 +40,7 @@ IMPORTANT:
 -   Be constructive and specific in your comments
 -   Suggest improvements where appropriate
 -   Keep feedback specific and evidence-based
--   When flagging file-type-specific or cleanup issues, tie the feedback back to the applicable local rule and explain the concrete behavioral or maintenance risk
+-   When flagging file-type-specific or cleanup issues, tie the feedback back to the applicable local skill and explain the concrete behavioral or maintenance risk
 -   Format your review as GitHub review comments that can be posted
 -   If needed for a better review, checkout the PR locally using 'gh pr checkout'. When checked out locally, ensure the local checkout if up to date with the remote version.
 

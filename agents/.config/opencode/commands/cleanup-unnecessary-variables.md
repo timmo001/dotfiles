@@ -2,12 +2,12 @@
 description: Inline and remove unnecessary variables from current git scope
 ---
 
-Follow current rules before making changes.
-Follow local project rules while editing.
+Follow current instructions before making changes.
+Follow local project guidance while editing.
 Do not assume ambiguous intent is clear; when ambiguity would change edits, ask one targeted question before changing code.
 When user feedback conflicts with your assumption, treat user feedback as authoritative.
 
-Read and apply the `cleanup-unnecessary-variables` rule before editing.
+Load and apply the `cleanup-unnecessary-variables` skill before editing.
 
 `BranchContextPlugin` must inject a `<branch-context>` block before this command runs. Use its `Current Work Scope` sections as the scope source.
 
@@ -17,7 +17,7 @@ Read and apply the `cleanup-unnecessary-variables` rule before editing.
 
 3. From files in scope (optionally narrowed by `${ARGUMENTS}`), find variables added or modified in the current work that are unnecessary and safe to remove.
 
-4. Apply the smallest safe cleanup that satisfies the `cleanup-unnecessary-variables` rule.
+4. Apply the smallest safe cleanup that satisfies the `cleanup-unnecessary-variables` skill.
 
 5. Run the smallest relevant verification for the touched code (targeted test, typecheck, lint, or build check).
 
