@@ -4,12 +4,12 @@ const BRANCH_CONTEXT_COMMANDS = new Set([
   "git-workflow",
 ])
 const WORK_SCOPE_COMMANDS = new Set([
-  "all-lit-rules",
-  "all-ts-rules",
+  "all-lit-skills",
+  "all-ts-skills",
   "cleanup-unnecessary-variables",
   "remove-single-use-functions",
   "types-enforce-ts",
-  "home-assistant-private/all-frontend-rules",
+  "home-assistant-private/all-frontend-skills",
   "home-assistant-private/lazy-context",
   "home-assistant-private/lit-rendering",
 ])
