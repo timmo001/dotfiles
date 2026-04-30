@@ -2598,55 +2598,120 @@ cmd_init() {
 
 cmd_update() {
   local i
+  local updated=0
 
   log_section 'Update workflow'
 
-  if is_truthy "$INCLUDE_OMARCHY_UPDATE_REPOS"; then
-    log_section 'Omarchy repo sync'
-    omarchy_sync_repos
-  else
-    log_warn "Skipping Omarchy repo update pulls (DOT_INCLUDE_OMARCHY_UPDATE_REPOS=$INCLUDE_OMARCHY_UPDATE_REPOS)"
+  # Fetch all repos and determine which are behind upstream.
+  log_section 'Fetching and checking for updates'
+  diff_collect_attention
+
+  if [[ "$DIFF_ATTENTION_HAS_BEHIND" -eq 0 ]]; then
+    log_info 'All repositories are up to date'
+    return 0
   fi
 
-  log_section 'Public repo pull'
-  safe_pull_repo 'dotfiles' "$PUBLIC_DOTFILES"
+  log_info "${DIFF_ATTENTION_ISSUES} repo(s) need attention"
+
+  if is_truthy "$INCLUDE_OMARCHY_UPDATE_REPOS"; then
+    if _update_path_needs_pull_any_omarchy; then
+      log_section 'Omarchy repo sync'
+      omarchy_sync_repos
+      updated=1
+    fi
+  fi
+
+  if _update_path_needs_pull "$PUBLIC_DOTFILES"; then
+    log_section 'Public repo pull'
+    _update_pull_behind 'dotfiles' "$PUBLIC_DOTFILES"
+    updated=1
+  fi
 
   if can_use_private; then
-    log_section 'Private repo pull'
-    safe_pull_repo 'dotfiles-private' "$PRIVATE_DOTFILES"
+    if _update_path_needs_pull "$PRIVATE_DOTFILES"; then
+      log_section 'Private repo pull'
+      _update_pull_behind 'dotfiles-private' "$PRIVATE_DOTFILES"
+      updated=1
+    fi
 
     if load_private_package_repo_config; then
       log_section 'Sync private package repo mirror'
       sync_private_package_repo_mirror
     fi
 
-    log_section 'Notes repo pull'
-    safe_pull_repo 'notes' "$NOTES_REPO_DIR"
+    if _update_path_needs_pull "$NOTES_REPO_DIR"; then
+      log_section 'Notes repo pull'
+      _update_pull_behind 'notes' "$NOTES_REPO_DIR"
+      updated=1
+    fi
 
     load_private_extra_repos
     if [[ "${#PRIVATE_EXTRA_REPO_PATHS[@]}" -gt 0 ]]; then
-      log_section 'Additional private repo pulls'
+      local pulled_extra=0
       for i in "${!PRIVATE_EXTRA_REPO_PATHS[@]}"; do
-        safe_pull_repo "extra:${PRIVATE_EXTRA_REPO_NAMES[$i]}" "${PRIVATE_EXTRA_REPO_PATHS[$i]}"
+        if _update_path_needs_pull "${PRIVATE_EXTRA_REPO_PATHS[$i]}"; then
+          [[ "$pulled_extra" -eq 0 ]] && log_section 'Additional private repo pulls'
+          _update_pull_behind "extra:${PRIVATE_EXTRA_REPO_NAMES[$i]}" "${PRIVATE_EXTRA_REPO_PATHS[$i]}"
+          pulled_extra=1
+          updated=1
+        fi
       done
     fi
   else
     log_warn "Skipping private and notes pull ($PRIVATE_REASON)"
   fi
 
-  log_section 'Stow public dotfiles'
-  stow_public_dotfiles
-  configure_workflow_watch
+  if [[ "$updated" -eq 1 ]]; then
+    log_section 'Stow public dotfiles'
+    stow_public_dotfiles
+    configure_workflow_watch
 
-  if can_use_private; then
-    log_section 'Stow private dotfiles'
-    stow_private_dotfiles
+    if can_use_private; then
+      log_section 'Stow private dotfiles'
+      stow_private_dotfiles
+    fi
+
+    maybe_agents_sync_after_update
+    maybe_memory_update_after_update
   else
-    log_warn "Skipping private stow ($PRIVATE_REASON)"
+    log_info 'Nothing pulled; skipping stow'
+  fi
+}
+
+# Check if a repo path appears in the attention list (is behind or dirty).
+_update_path_needs_pull() {
+  local target="$1"
+  local i
+  for i in "${!DIFF_ATTENTION_PATHS[@]}"; do
+    [[ "${DIFF_ATTENTION_PATHS[$i]}" == "$target" ]] && return 0
+  done
+  return 1
+}
+
+# Check if any omarchy target path needs pulling.
+_update_path_needs_pull_any_omarchy() {
+  omarchy_collect_repo_targets
+  local om_i
+  for om_i in "${!OMARCHY_TARGET_PATHS[@]}"; do
+    if _update_path_needs_pull "${OMARCHY_TARGET_PATHS[$om_i]}"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Pull a repo that is known to be behind (fetch already done by diff_collect_attention).
+_update_pull_behind() {
+  local name="$1"
+  local repo_dir="$2"
+
+  if [[ -n "$(git -C "$repo_dir" status --porcelain 2>/dev/null || true)" ]]; then
+    log_warn "Skipping $name pull (working tree not clean): $(display_path "$repo_dir")"
+    return 0
   fi
 
-  maybe_agents_sync_after_update
-  maybe_memory_update_after_update
+  log_info "Pulling latest for $name: $(display_path "$repo_dir")"
+  git -C "$repo_dir" pull --rebase
 }
 
 cmd_agents_sync() {
