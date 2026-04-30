@@ -1466,6 +1466,24 @@ configure_workflow_watch() {
   fi
 }
 
+configure_git_config_include() {
+  local git_config_file="$HOME/.config/git/config"
+  local git_include_path='~/.config/git/config.dotfiles'
+  local git_config_dotfiles="$HOME/.config/git/config.dotfiles"
+
+  if [[ ! -L "$git_config_dotfiles" && ! -f "$git_config_dotfiles" ]]; then
+    log_warn "Stowed git config.dotfiles not found — run: dot stow"
+    return 0
+  fi
+
+  if [[ -f "$git_config_file" ]] && grep -q "path = $git_include_path" "$git_config_file" 2>/dev/null; then
+    log_info "Git config already includes managed dotfiles settings"
+  else
+    git config --global --add include.path "$git_include_path"
+    log_info "Added git config include: $git_include_path"
+  fi
+}
+
 # Mirror AGENTS.md into a Cursor user rule (.mdc with alwaysApply) so it is always-on context.
 # Default output: private agents package at agents/.cursor/rules/global-agents.mdc (stows into ~/.cursor/rules/).
 run_agents_sync() {
@@ -2585,6 +2603,7 @@ cmd_init() {
   fi
   install_public_dotfiles
   configure_workflow_watch
+  configure_git_config_include
 
   if can_use_private; then
     install_private_dotfiles
