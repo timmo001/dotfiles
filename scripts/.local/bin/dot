@@ -3120,6 +3120,60 @@ cmd_doctor() {
     doctor_warn "Skipping additional private repo checks ($PRIVATE_REASON)"
   fi
 
+  doctor_log_section 'Stow integrity'
+  if has_cmd stow; then
+    local stow_drift_found=false
+    local stow_output
+    local stow_folder
+
+    check_stow_package() {
+      local repo_dir="$1"
+      local folder="$2"
+      shift 2
+      local extra_args=("$@")
+
+      stow_output="$(stow_in_repo "$repo_dir" -n -v "${extra_args[@]}" "$folder" 2>&1 || true)"
+      # Filter out LINK lines that revert their own UNLINK (no-op in --no-folding mode)
+      if echo "$stow_output" | grep -v 'reverts previous action' | grep -q '^LINK:\|^ERROR\|existing target'; then
+        stow_drift_found=true
+        doctor_warn "Stow package '$folder' in $(display_path "$repo_dir") needs restow"
+      fi
+    }
+
+    if [[ -d "$PUBLIC_DOTFILES" ]]; then
+      mapfile -t stow_folders < <(list_stow_folders "$PUBLIC_DOTFILES" false)
+      for stow_folder in "${stow_folders[@]}"; do
+        if [[ "$stow_folder" == 'agents' ]]; then
+          check_stow_package "$PUBLIC_DOTFILES" "$stow_folder" --no-folding
+        else
+          check_stow_package "$PUBLIC_DOTFILES" "$stow_folder"
+        fi
+      done
+    fi
+
+    if can_use_private && [[ -d "$PRIVATE_DOTFILES" ]]; then
+      mapfile -t stow_folders < <(list_stow_folders "$PRIVATE_DOTFILES" false)
+      for stow_folder in "${stow_folders[@]}"; do
+        if [[ "$stow_folder" == 'agents' ]]; then
+          check_stow_package "$PRIVATE_DOTFILES" "$stow_folder" \
+            --no-folding \
+            --ignore=node_modules \
+            --ignore='package\.json' \
+            --ignore='bun\.lock' \
+            --ignore='\.gitignore'
+        else
+          check_stow_package "$PRIVATE_DOTFILES" "$stow_folder"
+        fi
+      done
+    fi
+
+    if [[ "$stow_drift_found" == false ]]; then
+      log_info 'All stow packages are correctly linked'
+    fi
+  else
+    doctor_warn 'stow not installed — cannot verify link integrity'
+  fi
+
   doctor_log_section 'OpenCode location checks'
   report_opencode_location_status
 
