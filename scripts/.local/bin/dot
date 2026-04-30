@@ -3177,6 +3177,21 @@ cmd_doctor() {
   doctor_log_section 'OpenCode location checks'
   report_opencode_location_status
 
+  doctor_log_section 'Git config include'
+  local git_config_file="$HOME/.config/git/config"
+  local git_config_dotfiles="$HOME/.config/git/config.dotfiles"
+  local git_include_path='~/.config/git/config.dotfiles'
+  if [[ -L "$git_config_dotfiles" || -f "$git_config_dotfiles" ]]; then
+    if [[ -f "$git_config_file" ]] && grep -q "path = $git_include_path" "$git_config_file" 2>/dev/null; then
+      log_info "Git config includes managed dotfiles settings"
+    else
+      doctor_warn "Git config is missing the dotfiles include"
+      doctor_warn "Run: git config --global --add include.path '$git_include_path'"
+    fi
+  else
+    doctor_warn "Stowed git config.dotfiles not found — run: dot stow"
+  fi
+
   doctor_log_section 'Workflow watch checks'
   if [[ -d "$DOT_WORKFLOW_WATCH_HOOKS_PATH" ]]; then
     log_info "Workflow watch hooks path exists: $(display_path "$DOT_WORKFLOW_WATCH_HOOKS_PATH")"
