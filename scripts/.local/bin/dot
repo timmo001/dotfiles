@@ -44,6 +44,7 @@ DIFF_ATTENTION_PATHS=()
 DIFF_ATTENTION_HAS_DIRTY=0
 DIFF_ATTENTION_HAS_AHEAD=0
 DIFF_ATTENTION_HAS_BEHIND=0
+DIFF_ATTENTION_VERBOSE=0
 
 PRIVATE_REASON=""
 
@@ -1147,6 +1148,7 @@ fetch_repo_upstream() {
 }
 
 # Populates DIFF_ATTENTION_ISSUES and DIFF_ATTENTION_SEGMENTS (same rules as `dot diff --waybar`).
+# When DIFF_ATTENTION_VERBOSE=1, logs the per-repo status as it is checked.
 _diff_attention_scan_repo() {
   local name="$1"
   local path="$2"
@@ -1154,20 +1156,46 @@ _diff_attention_scan_repo() {
   local ahead=0
   local behind=0
   local fetch_upstream="${3:-1}"
+  local verbose="${DIFF_ATTENTION_VERBOSE:-0}"
 
   if ! git -C "$path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    if [[ "$verbose" == "1" ]]; then
+      log_info "Checking ${name}: not a git repo (skipped) — $(display_path "$path")"
+    fi
     return 0
   fi
 
   [[ -n "$(git -C "$path" status --porcelain 2>/dev/null)" ]] && dirty=1
   ahead=0
   behind=0
+  local has_upstream=0
   if git -C "$path" rev-parse '@{u}' >/dev/null 2>&1; then
+    has_upstream=1
     if [[ "$fetch_upstream" == "1" ]]; then
       fetch_repo_upstream "$path" || true
     fi
     ahead="$(git -C "$path" rev-list --count '@{u}..HEAD' 2>/dev/null || printf '0')"
     behind="$(git -C "$path" rev-list --count 'HEAD..@{u}' 2>/dev/null || printf '0')"
+  fi
+
+  if [[ "$verbose" == "1" ]]; then
+    local -a parts=()
+    [[ "${behind:-0}" -gt 0 ]] && parts+=("behind ${behind}")
+    [[ "${ahead:-0}" -gt 0 ]] && parts+=("ahead ${ahead}")
+    [[ "$dirty" -eq 1 ]] && parts+=("dirty")
+    if [[ "${#parts[@]}" -eq 0 ]]; then
+      if [[ "$has_upstream" -eq 1 ]]; then
+        parts+=("up to date")
+      else
+        parts+=("clean (no upstream)")
+      fi
+    fi
+    local status_str="${parts[0]}"
+    local p_i
+    for ((p_i = 1; p_i < ${#parts[@]}; p_i++)); do
+      status_str+=", ${parts[$p_i]}"
+    done
+    log_info "Checking ${name}: ${status_str}"
   fi
 
   if [[ "$dirty" -eq 1 ]] || [[ "${ahead:-0}" -gt 0 ]] || [[ "${behind:-0}" -gt 0 ]]; then
@@ -2623,10 +2651,29 @@ cmd_update() {
 
   # Fetch all repos and determine which are behind upstream.
   log_section 'Fetching and checking for updates'
+  DIFF_ATTENTION_VERBOSE=1
   diff_collect_attention
+  DIFF_ATTENTION_VERBOSE=0
 
   if [[ "$DIFF_ATTENTION_HAS_BEHIND" -eq 0 ]]; then
-    log_info 'All repositories are up to date'
+    if [[ "$DIFF_ATTENTION_HAS_DIRTY" -eq 1 ]] || [[ "$DIFF_ATTENTION_HAS_AHEAD" -eq 1 ]]; then
+      local -a notes=()
+      [[ "$DIFF_ATTENTION_HAS_DIRTY" -eq 1 ]] && notes+=('dirty working tree')
+      [[ "$DIFF_ATTENTION_HAS_AHEAD" -eq 1 ]] && notes+=('ahead of upstream')
+      local note_str="${notes[0]}"
+      local n_i
+      for ((n_i = 1; n_i < ${#notes[@]}; n_i++)); do
+        note_str+=", ${notes[$n_i]}"
+      done
+      log_info "Nothing to pull (no repos behind upstream)"
+      log_warn "${DIFF_ATTENTION_ISSUES} repo(s) need attention: ${note_str}"
+      local s_i
+      for s_i in "${!DIFF_ATTENTION_SEGMENTS[@]}"; do
+        log_warn "  - ${DIFF_ATTENTION_SEGMENTS[$s_i]}: $(display_path "${DIFF_ATTENTION_PATHS[$s_i]}")"
+      done
+    else
+      log_info 'All repositories are up to date'
+    fi
     return 0
   fi
 
