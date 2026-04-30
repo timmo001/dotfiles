@@ -52,6 +52,8 @@ PUBLIC_ARCH_PACKAGES=(
   go-automate-git
   python-gobject
   gtk4-layer-shell
+  topgrade-bin
+  cpio
   stress-ng
   sysbench
   iperf3
