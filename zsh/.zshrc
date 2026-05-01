@@ -513,33 +513,6 @@ git-merged-branches() {
     | grep -vx "$current_branch"
 }
 
-git-delete-merged-branches() {
-  local branches branch
-
-  branches=$(git-merged-branches)
-
-  if [ -z "$branches" ]; then
-    echo "No merged local branches found"
-    return 0
-  fi
-
-  echo "The following local branches will be deleted:"
-  printf '%s\n' "$branches"
-  echo -n "Proceed? [y/N]: "
-  read -r answer
-
-  if [[ ! "$answer" =~ ^[Yy]$ ]]; then
-    echo "Aborted."
-    return 0
-  fi
-
-  while IFS= read -r branch; do
-    if [ -n "$branch" ]; then
-      git branch -d "$branch"
-    fi
-  done <<< "$branches"
-}
-
 git-update() {
   # Save current directory
   local current_dir=$(pwd) # Save current directory
