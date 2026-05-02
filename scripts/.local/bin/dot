@@ -708,12 +708,16 @@ publish_private_package() {
 
   if [[ "$install_package" == 'true' ]]; then
     log_section "Install private package: $package_name"
-    if has_cmd omarchy-pkg-aur-add; then
-      omarchy-pkg-aur-add "$package_name"
+    if is_interactive_terminal && has_cmd yay; then
+      yay -Sy --noconfirm "$package_name"
     elif [[ "${EUID:-$(id -u)}" -eq 0 ]] && has_cmd pacman; then
-      pacman -S --needed --noconfirm "$package_name"
+      pacman -Sy --noconfirm "$package_name"
+    elif has_cmd pkexec && has_cmd pacman; then
+      pkexec pacman -Sy --noconfirm "$package_name"
+    elif has_cmd yay; then
+      yay -Sy --noconfirm "$package_name" --sudo pkexec --sudoflags ""
     else
-      log_error 'Cannot install package automatically (omarchy-pkg-aur-add not found and not running as root)'
+      log_error 'Cannot install package automatically (pkexec/pacman not found and not running as root)'
       return 1
     fi
   fi
