@@ -632,13 +632,15 @@ publish_private_package() {
     return 1
   fi
 
-  if [[ ! -f "$source_repo/Makefile" ]]; then
-    log_error "Missing Makefile in $(display_path "$source_repo")"
+  log_section "Build private package: $package_name"
+  if [[ -f "$source_repo/deno.json" ]] && deno task --cwd "$source_repo" 2>/dev/null | grep -Eq '(^|[[:space:]])package:arch($|[[:space:]])'; then
+    deno task --cwd "$source_repo" package:arch
+  elif [[ -f "$source_repo/Makefile" ]]; then
+    (cd "$source_repo" && make create_arch)
+  else
+    log_error "Missing package build task in $(display_path "$source_repo")"
     return 1
   fi
-
-  log_section "Build private package: $package_name"
-  (cd "$source_repo" && make create_arch)
 
   if [[ ! -d "$dist_dir" ]]; then
     log_error "Missing dist directory after build: $(display_path "$dist_dir")"
@@ -750,6 +752,9 @@ cmd_private_pkg_publish() {
   case "$package_name" in
     twitch-notifications)
       source_repo="$HOME/repos/twitch-notifications"
+      ;;
+    slopops)
+      source_repo="$HOME/repos/slopops"
       ;;
     *)
       log_error "No private package publish mapping configured for: $package_name"
