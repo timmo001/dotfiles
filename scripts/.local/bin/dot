@@ -619,6 +619,7 @@ publish_private_package() {
   local source_repo="$2"
   local publish_git="${3:-true}"
   local build_package="${4:-true}"
+  local install_package="${5:-false}"
   local dist_dir="$source_repo/dist"
   local runtime_pkg=''
   local artifact
@@ -705,6 +706,18 @@ publish_private_package() {
     fi
   fi
 
+  if [[ "$install_package" == 'true' ]]; then
+    log_section "Install private package: $package_name"
+    if has_cmd omarchy-pkg-aur-add; then
+      omarchy-pkg-aur-add "$package_name"
+    elif [[ "${EUID:-$(id -u)}" -eq 0 ]] && has_cmd pacman; then
+      pacman -S --needed --noconfirm "$package_name"
+    else
+      log_error 'Cannot install package automatically (omarchy-pkg-aur-add not found and not running as root)'
+      return 1
+    fi
+  fi
+
   if [[ "$publish_git" == 'true' ]]; then
     commit_message="publish ${package_name} package"
     log_section 'Commit private package repo'
@@ -725,6 +738,7 @@ cmd_private_pkg_publish() {
   local source_repo=''
   local publish_git=true
   local build_package=true
+  local install_package=false
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -734,8 +748,11 @@ cmd_private_pkg_publish() {
       --skip-build)
         build_package=false
         ;;
+      --install)
+        install_package=true
+        ;;
       --help|-h)
-        printf 'Usage: %s private-pkg-publish [--no-git] [--skip-build] <package-name>\n' "$SCRIPT_NAME"
+        printf 'Usage: %s private-pkg-publish [--no-git] [--skip-build] [--install] <package-name>\n' "$SCRIPT_NAME"
         return 0
         ;;
       -*)
@@ -744,7 +761,7 @@ cmd_private_pkg_publish() {
         ;;
       *)
         if [[ -n "$package_name" ]]; then
-          log_error 'Usage: dot private-pkg-publish [--no-git] [--skip-build] <package-name>'
+          log_error 'Usage: dot private-pkg-publish [--no-git] [--skip-build] [--install] <package-name>'
           return 1
         fi
         package_name="$1"
@@ -754,7 +771,7 @@ cmd_private_pkg_publish() {
   done
 
   if [[ -z "$package_name" ]]; then
-    log_error 'Usage: dot private-pkg-publish [--no-git] [--skip-build] <package-name>'
+    log_error 'Usage: dot private-pkg-publish [--no-git] [--skip-build] [--install] <package-name>'
     return 1
   fi
 
@@ -771,7 +788,7 @@ cmd_private_pkg_publish() {
       ;;
   esac
 
-  publish_private_package "$package_name" "$source_repo" "$publish_git" "$build_package"
+  publish_private_package "$package_name" "$source_repo" "$publish_git" "$build_package" "$install_package"
 }
 
 install_aur_packages() {
