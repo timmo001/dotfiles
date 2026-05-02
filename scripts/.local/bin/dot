@@ -3949,6 +3949,7 @@ cmd_help() {
   printf "$fmt_init" '--bootstrap-branch <n>' 'Bootstrap repo branch override for this run'
   printf "$fmt_init" '--no-git' 'For private-pkg-publish: skip commit and push'
   printf "$fmt_init" '--skip-build' 'For private-pkg-publish: publish existing dist package artifact'
+  printf "$fmt_init" '--install' 'For private-pkg-publish: install the published package'
 }
 
 main() {
