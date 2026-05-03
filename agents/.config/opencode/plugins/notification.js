@@ -1,7 +1,27 @@
 export const NotificationPlugin = async ({ $, client }) => {
   const soundPath = "/usr/share/sounds/freedesktop/stereo/message.oga";
+  let canPlaySound;
+
+  const checkPaplay = async () => {
+    if (canPlaySound !== undefined) {
+      return canPlaySound;
+    }
+
+    try {
+      await $`sh -lc "command -v paplay >/dev/null 2>&1"`;
+      canPlaySound = true;
+    } catch {
+      canPlaySound = false;
+    }
+
+    return canPlaySound;
+  };
 
   const playSound = async () => {
+    if (!(await checkPaplay())) {
+      return;
+    }
+
     try {
       await $`paplay ${soundPath}`;
     } catch {}
