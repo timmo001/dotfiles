@@ -26,6 +26,7 @@ source $ZSH/oh-my-zsh.sh
 # ------------------------------
 eval "$(starship init zsh)"
 export STARSHIP_CONFIG=~/.config/starship/starship.toml
+export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/config"
 
 # ------------------------------
 # Language

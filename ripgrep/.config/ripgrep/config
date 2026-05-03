@@ -1,0 +1,5 @@
+# Search hidden files and directories (still respects .gitignore).
+--hidden
+
+# Avoid scanning huge binary blobs.
+--max-filesize=5M

@@ -61,6 +61,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - Repo root is a stow package root targeting `~/`.
 - Top-level docs for humans/agents must be ignored by stow.
 - Keep `.stowrc` ignore rules in sync when adding root-only files.
+- **Always run `dot stow`** (or `dot update`, which refreshes stow) to apply packages. Do **not** invoke GNU `stow` directly from the repo root: `dot` applies the correct adopt/no-folding flow and public-then-private ordering.
 
 ## Dot Command Changes
 
