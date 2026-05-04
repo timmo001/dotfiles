@@ -116,6 +116,7 @@ WORK_DISCORD_CMD="$WORK_CHROME_BASE --app=https://discord.com/app"
 WORK_BROWSER_CMD="$WORK_CHROME_BASE --class=work-browser"
 TERM_WORK_CMD="uwsm app -- ghostty --working-directory=$WORK_DIR"
 TERM_DEFAULT_CMD='uwsm app -- ghostty'
+CURSOR_WORK_CMD="uwsm app -- /usr/bin/cursor \"$WORK_DIR\""
 
 WS1_SLACK_SIZE="645 660"
 WS1_DISCORD_SIZE="645 660"
@@ -599,8 +600,8 @@ if $WORK_TIME; then
   apply_workspace1_sizes "$START_FOCUS_ADDR"
 
   log_step "Preparing workspace 2 and 3 work apps"
-  clear_tag_from_all "$TAG_WS2_CURSOR"
-  ensure_slot "$TAG_WS2_TERM" '^com\.mitchellh\.ghostty$' "$TERM_WORK_CMD" 2 true || true
+  clear_tag_from_all "$TAG_WS2_TERM"
+  ensure_slot "$TAG_WS2_CURSOR" '^[Cc]ursor$' "$CURSOR_WORK_CMD" 2 false || true
   ensure_slot "$TAG_WS3_BROWSER" '^(work-browser|google-chrome)$' "$WORK_BROWSER_CMD" 3 false || true
 else
   log_step "Preparing workspace 1 non-work apps"
