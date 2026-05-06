@@ -1,14 +1,25 @@
 const BRANCH_CONTEXT_COMMANDS = new Set([
+  // General
+  "git-workflow",
+
+  // Private
+  "timmo001-private/deslopify",
+
+  // Timmo001
   "timmo001/read-branch",
   "timmo001/reset-branch-reapply",
-  "git-workflow",
 ])
 const WORK_SCOPE_COMMANDS = new Set([
-  "all-lit-skills",
-  "all-ts-skills",
+  // General
   "cleanup-unnecessary-variables",
   "remove-single-use-functions",
   "types-enforce-ts",
+
+  // Private
+  "all-lit-skills",
+  "all-ts-skills",
+
+  // Home Assistant
   "home-assistant-private/all-frontend-skills",
   "home-assistant-private/lazy-context",
   "home-assistant-private/lit-rendering",
