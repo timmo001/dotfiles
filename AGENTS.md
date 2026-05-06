@@ -83,6 +83,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 
 - Syntax check: `bash -n scripts/.local/bin/dot`
 - Basic health check: `scripts/.local/bin/dot doctor`
+- OpenCode debug wrapper: `scripts/.local/bin/dot opencode-debug`
 - Diff behavior: `scripts/.local/bin/dot diff`
 - Wrapper cwd behavior (interactive zsh):
   - `zsh -ic 'dot diff >/tmp/dot-diff.log 2>&1; pwd'`

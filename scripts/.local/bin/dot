@@ -1675,6 +1675,75 @@ cmd_memory() {
   _dot_run_memory_js "$soft"
 }
 
+cmd_opencode_debug() {
+  local agent_name=''
+  local output=''
+  local status=0
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --agent)
+        if [[ $# -lt 2 || -z "${2:-}" ]]; then
+          log_error 'opencode-debug requires a value for --agent'
+          return 1
+        fi
+        agent_name="$2"
+        shift 2
+        ;;
+      -h|--help)
+        printf 'Usage: %s opencode-debug [--agent <name>]\n' "$SCRIPT_NAME"
+        printf '\n'
+        printf 'Run useful OpenCode debug commands in one place.\n'
+        return 0
+        ;;
+      *)
+        log_error "Unknown opencode-debug option: $1"
+        return 1
+        ;;
+    esac
+  done
+
+  log_section 'OpenCode debug'
+
+  if ! has_cmd opencode; then
+    log_error 'OpenCode command not found in PATH'
+    return 1
+  fi
+
+  log_info 'Running: opencode debug paths'
+  if ! opencode debug paths; then
+    status=1
+  fi
+
+  log_info 'Running: opencode debug config'
+  if ! opencode debug config; then
+    status=1
+  fi
+
+  log_info 'Running: opencode debug skill'
+  if ! opencode debug skill; then
+    status=1
+  fi
+
+  log_info 'Running: opencode debug info'
+  if ! opencode debug info; then
+    status=1
+  fi
+
+  if [[ -n "$agent_name" ]]; then
+    log_info "Running: opencode debug agent $agent_name"
+    if ! opencode debug agent "$agent_name"; then
+      status=1
+    fi
+  else
+    if output="$(opencode agent list 2>/dev/null)" && [[ -n "$output" ]]; then
+      log_info 'Tip: add --agent <name> to inspect one configured agent'
+    fi
+  fi
+
+  return "$status"
+}
+
 maybe_memory_update_after_update() {
   is_truthy "${DOT_MEMORY_UPDATE_ON_UPDATE:-1}" || return 0
   "$DOT_SELF" memory --soft || true
@@ -3915,6 +3984,7 @@ cmd_help() {
   printf "$fmt_cmd" 'install' 'Backup/adopt and install public/private dotfiles'
   printf "$fmt_cmd" 'clean' 'Unstow private then public dotfiles'
   printf "$fmt_cmd" 'doctor' 'Check dependencies, repos, workflow watch, packages, and browser extensions'
+  printf "$fmt_cmd" 'opencode-debug' 'Run OpenCode debug paths/config/skill/info (optional: --agent <name>)'
   printf "$fmt_cmd" 'private-pkg-publish' 'Build, publish, commit, and push a mapped private package'
   printf "$fmt_cmd" 'agents-sync' 'Run dot memory then write global-agents.mdc (default: dotfiles-private agents/.cursor/rules/)'
   printf "$fmt_cmd" 'help' 'Show this help'
@@ -3998,6 +4068,7 @@ main() {
     install) cmd_install "$@" ;;
     clean) cmd_clean "$@" ;;
     doctor) cmd_doctor "$@" ;;
+    opencode-debug) cmd_opencode_debug "$@" ;;
     private-pkg-publish) cmd_private_pkg_publish "$@" ;;
     agents-sync) cmd_agents_sync "$@" ;;
     memory) cmd_memory "$@" ;;
