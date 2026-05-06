@@ -32,7 +32,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - Prefer the `/git-workflow` and `/review-current-work` commands for current-branch branch, diff, and review context instead of rebuilding that snapshot with repeated `git status`, `git diff`, `git log`, or `gh pr` calls.
 - `/git-workflow`, `/review-current-work`, and the scoped cleanup/type commands use `BranchContextPlugin`; treat its injected `Current Work Scope` as the canonical scope source unless the user explicitly asks for a refresh.
 - Use first-class agents intentionally: `ask` for clarification/light investigation, `code-reviewer` via `/review-current-work` for reviews, and `code-refactorer` for behavior-preserving cleanup.
-- Use subagents for broad exploration or parallelizable multi-step work instead of doing long serial searches in one agent.
+- Use `/explore-codebase` for broad discovery questions and use subagents for other parallelizable multi-step work instead of doing long serial searches in one agent.
 - Use `/memorise` only for durable preferences, decisions, or corrections that should persist beyond the current task.
 - For frontend debugging, prefer Chrome DevTools tools (snapshot, console, network, Lighthouse, performance trace) over static reasoning alone when the issue is browser-behavior-dependent.
 
@@ -95,6 +95,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - OpenCode debug wrapper: `scripts/.local/bin/dot opencode-debug`
 - OpenCode branch-context command: `/git-workflow`
 - OpenCode review command: `/review-current-work`
+- OpenCode exploration command: `/explore-codebase <topic>`
 - Diff behavior: `scripts/.local/bin/dot diff`
 - Wrapper cwd behavior (interactive zsh):
   - `zsh -ic 'dot diff >/tmp/dot-diff.log 2>&1; pwd'`

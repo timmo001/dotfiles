@@ -59,10 +59,11 @@ dot doctor
 
 - `/git-workflow` - read precomputed branch, diff, and PR context from `BranchContextPlugin`; prefer this over repeated ad-hoc `git`/`gh` inspection when you want the current work scope
 - `/review-current-work` - run a current-branch review through the shared `code-reviewer` agent using `BranchContextPlugin` context instead of rebuilding branch state by hand
+- `/explore-codebase <topic>` - delegate broad codebase discovery to the `task` `explore` subagent instead of doing long serial searches in one agent
 - `dot opencode-debug [--agent <name>]` - validate resolved OpenCode paths, config, skills, and agent config after changing commands, skills, plugins, or agent docs
 - `/memorise` - save one durable preference, rule, decision, or correction through the memory plugin instead of editing `AGENTS.md` by hand
 - First-class agents - use `ask` via `/git-workflow`, `code-reviewer` via `/review-current-work`, and `code-refactorer` via the shared cleanup/type commands when you want a task routed through a narrower operating mode instead of one large general prompt
-- Subagents - use `task` delegation for broad codebase exploration and parallelizable multi-step work
+- Subagents - use `/explore-codebase` for broad codebase discovery and `task` delegation for other parallelizable multi-step work
 - Chrome DevTools MCP - use snapshots, console/network inspection, Lighthouse, and performance traces for browser-specific debugging instead of guessing from source alone
 
 ## System health check
