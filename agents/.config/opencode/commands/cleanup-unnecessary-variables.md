@@ -1,11 +1,7 @@
 ---
 description: Inline and remove unnecessary variables from current git scope
+agent: code-refactorer
 ---
-
-Follow current instructions before making changes.
-Follow local project guidance while editing.
-Do not assume ambiguous intent is clear; when ambiguity would change edits, ask one targeted question before changing code.
-When user feedback conflicts with your assumption, treat user feedback as authoritative.
 
 Load and apply the `cleanup-unnecessary-variables` skill before editing.
 

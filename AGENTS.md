@@ -48,6 +48,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - Apply `cleanup-unnecessary-variables` as a general code-quality skill for all code changes when its guidance is relevant, not only explicit cleanup requests.
 - Apply `remove-single-use-functions` as a general code-quality skill for all code changes when its guidance is relevant, not only explicit cleanup requests.
 - For TypeScript changes where these skills apply, apply `types-enforce-ts` alongside them when scopes overlap.
+- For behavior-preserving cleanup or type-focused refactor commands, prefer the shared `code-refactorer` agent and keep command files focused on scope, applicable skills, and verification.
 
 ## Split Worktrees
 
