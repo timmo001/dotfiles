@@ -1,6 +1,7 @@
 const BRANCH_CONTEXT_COMMANDS = new Set([
   // General
   "git-workflow",
+  "refactor-current-work",
   "review-current-work",
 
   // Private

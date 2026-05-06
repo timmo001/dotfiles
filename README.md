@@ -60,6 +60,7 @@ dot doctor
 - `/git-workflow` - read precomputed branch, diff, and PR context from `BranchContextPlugin`; prefer this over repeated ad-hoc `git`/`gh` inspection when you want the current work scope
 - `/plan [focus]` - manual entrypoint for native OpenCode plan mode; produce a plan from the existing conversation and gathered context instead of starting planning from scratch
 - `/review-current-work` - run a current-branch review through the shared `code-reviewer` agent using `BranchContextPlugin` context instead of rebuilding branch state by hand
+- `/refactor-current-work [scope]` - run a behaviour-preserving refactor through the shared `code-refactorer` agent using `BranchContextPlugin` context for the current branch scope
 - `/investigate <topic>` - use the shared `ask` agent for general investigation, triage, and context gathering without editing by default
 - `/explore-codebase <topic>` - delegate broad codebase discovery to the `task` `explore` subagent instead of doing long serial searches in one agent
 - `/debug-frontend <page or issue>` - start browser-specific debugging with Chrome DevTools evidence first: snapshot, console, network, then Lighthouse or performance traces when the issue calls for them
