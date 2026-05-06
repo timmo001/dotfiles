@@ -61,11 +61,13 @@ dot doctor
 - `/review-current-work` - run a current-branch review through the shared `code-reviewer` agent using `BranchContextPlugin` context instead of rebuilding branch state by hand
 - `/explore-codebase <topic>` - delegate broad codebase discovery to the `task` `explore` subagent instead of doing long serial searches in one agent
 - `/debug-frontend <page or issue>` - start browser-specific debugging with Chrome DevTools evidence first: snapshot, console, network, then Lighthouse or performance traces when the issue calls for them
+- `/fallow-audit [workspace]` - audit changed JavaScript or TypeScript code with Fallow for dead code, complexity, and duplication before deciding on cleanup or follow-up fixes
 - `dot opencode-debug [--agent <name>]` - validate resolved OpenCode paths, config, skills, and agent config after changing commands, skills, plugins, or agent docs
 - `/memorise` - save one durable preference, rule, decision, or correction through the memory plugin instead of editing `AGENTS.md` by hand
 - First-class agents - use `ask` via `/git-workflow`, `code-reviewer` via `/review-current-work`, and `code-refactorer` via the shared cleanup/type commands when you want a task routed through a narrower operating mode instead of one large general prompt
 - Subagents - use `/explore-codebase` for broad codebase discovery and `task` delegation for other parallelizable multi-step work
 - Chrome DevTools MCP - use `/debug-frontend` or direct DevTools tools for snapshots, console/network inspection, Lighthouse, and performance traces instead of guessing from source alone
+- Fallow MCP - use `/fallow-audit` or direct Fallow tools when you need dead-code, complexity, duplication, or cleanup evidence for JS/TS changes
 
 ## System health check
 

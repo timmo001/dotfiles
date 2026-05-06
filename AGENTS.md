@@ -34,6 +34,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - Use first-class agents intentionally: `ask` for clarification/light investigation, `code-reviewer` via `/review-current-work` for reviews, and `code-refactorer` for behavior-preserving cleanup.
 - Use `/explore-codebase` for broad discovery questions and use subagents for other parallelizable multi-step work instead of doing long serial searches in one agent.
 - Use `/debug-frontend` for browser-specific investigation before falling back to source-only reasoning.
+- Use `/fallow-audit` when JS/TS changes need dead-code, complexity, or duplication evidence before cleanup or review follow-up.
 - Use `/memorise` only for durable preferences, decisions, or corrections that should persist beyond the current task.
 - For frontend debugging, prefer Chrome DevTools tools (snapshot, console, network, Lighthouse, performance trace) over static reasoning alone when the issue is browser-behavior-dependent.
 
@@ -98,6 +99,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - OpenCode review command: `/review-current-work`
 - OpenCode exploration command: `/explore-codebase <topic>`
 - OpenCode frontend debug command: `/debug-frontend <page or issue>`
+- OpenCode fallow audit command: `/fallow-audit [workspace]`
 - Diff behavior: `scripts/.local/bin/dot diff`
 - Wrapper cwd behavior (interactive zsh):
   - `zsh -ic 'dot diff >/tmp/dot-diff.log 2>&1; pwd'`
