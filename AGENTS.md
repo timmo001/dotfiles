@@ -37,6 +37,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - For human-written command names and command/docs prose in this repo, prefer UK spelling. Keep upstream tool, API, or MCP names unchanged when they use US spelling.
 - Use first-class agents intentionally: `ask` for clarification/light investigation, `code-reviewer` via `/review-current-work` for reviews, and `code-refactorer` for behavior-preserving cleanup.
 - Use `/investigate` as the default shared `ask` entrypoint for general investigation, triage, and context gathering when the work is not specifically codebase exploration, frontend debugging, or Fallow analysis.
+- Use the `diagnose` skill for hard bug reports, regressions, flaky behaviour, and performance diagnosis when the work needs a reproducible feedback loop before fixing.
 - Use `/explore-codebase` for broad discovery questions and use subagents for other parallelizable multi-step work instead of doing long serial searches in one agent.
 - Use `/debug-frontend` for browser-specific investigation before falling back to source-only reasoning.
 - Use `/fallow-audit` when JS/TS changes need dead-code, complexity, or duplication evidence before cleanup or review follow-up.
