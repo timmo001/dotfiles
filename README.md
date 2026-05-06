@@ -53,7 +53,7 @@ dot doctor
 - `dot doctor` - tool, repo, workflow watch, extra repo, remote, public/private package, private package repo, and Chromium extension health checks
 - `dot opencode-debug [--agent <name>]` - run `opencode debug paths`, `config`, `skill`, and `info` together; optionally inspect one agent with `opencode debug agent <name>`
 - `dot private-pkg-publish [--no-git] [--skip-build] [--install] <package>` - build and publish a mapped private package into the private pacman repo, sync the mirror, refresh pacman metadata, optionally install it, and commit/push by default
-- `dot agents-sync` - copy `~/.opencode/AGENTS.md` into `agents/.cursor/rules/global-agents.mdc` in private dotfiles by default (`alwaysApply: true` + body; stows to `~/.cursor/rules/`). **`dot update`** and **`dot diff`** run this automatically by default (see env vars below).
+- `dot agents-sync` - copy `~/.config/opencode/AGENTS.md` into `agents/.cursor/rules/global-agents.mdc` in private dotfiles by default (`alwaysApply: true` + body; stows to `~/.cursor/rules/`). **`dot update`** and **`dot diff`** run this automatically by default (see env vars below).
 
 ## OpenCode workflow features
 
@@ -118,7 +118,7 @@ dot doctor
 - `DOT_WORKFLOW_WATCH_TIMER_UNIT` - workflow polling timer unit name (default `git-workflow-watch.timer`)
 - `DOT_DAILY_VOLUME_ZERO_TIMER_UNIT` - 5am volume reset timer unit name (default `daily-volume-zero.timer`)
 - `DOT_AUTO_CD` - zsh wrapper auto-cd to first repo with changes after `dot diff`; otherwise restore original dir (failed diff falls back to `~/.config/dotfiles`) (`1|0`, default `1`)
-- `DOT_AGENTS_SYNC_SOURCE` - AGENTS file to mirror (default `~/.opencode/AGENTS.md`)
+- `DOT_AGENTS_SYNC_SOURCE` - AGENTS file to mirror (default `~/.config/opencode/AGENTS.md`)
 - `DOT_AGENTS_SYNC_RULE_FILE` - Cursor rule output path (default `$DOTFILES_PRIVATE_DIR/agents/.cursor/rules/global-agents.mdc`, else `~/.cursor/rules/global-agents.mdc`)
 - `DOT_AGENTS_SYNC_ON_UPDATE` - run `agents-sync` after `dot update` (`1|0`, default `1`)
 - `DOT_AGENTS_SYNC_ON_DIFF` - run `agents-sync` after `dot diff` (`1|0`, default `1`)
