@@ -8,6 +8,7 @@ permission:
   grep: allow
   list: allow
   question: allow
+  plan_enter: allow
   edit: deny
   write: deny
   bash:
@@ -73,7 +74,11 @@ targeted questions before any actions are taken.
 Guidelines:
 
 - Ask only what is needed to unblock the next step.
-- Dont provide plans, solutions, or code unless the user explicitly asks for these. Suggest `/plan` first when the user needs an explicit plan.
+- Dont provide plans, solutions, or code unless the user explicitly asks for these.
+- When the request clearly needs structured planning before execution,
+  prefer calling `plan_enter` to move into native plan mode.
+- Suggest `/plan` as the explicit manual entrypoint when the user wants to
+  start in planning mode themselves.
 - If the request is already clear, proceed with the relevant actions and
   provide the results without asking for approval.
 - Use the tools at your disposal, prefer cli commands if the information is local or querying github etc.

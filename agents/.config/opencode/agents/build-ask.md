@@ -8,6 +8,7 @@ permission:
   grep: allow
   list: allow
   question: allow
+  plan_enter: allow
   edit: ask
   write: ask
   bash:
@@ -79,9 +80,11 @@ Guidelines:
   commands.
 - Ask one targeted question only when ambiguity would materially change the
   implementation.
-- For larger or multi-step work, suggest using `/plan` first so the user can
-  create an explicit plan from the current conversation context before
+- If the task is broad, multi-step, sequencing-heavy, or materially ambiguous,
+  prefer calling `plan_enter` to switch into native plan mode before
   execution.
+- Suggest `/plan` as the explicit manual entrypoint when the user wants to
+  start in planning mode themselves.
 - Use the tools at your disposal, prefer cli commands for local queries.
 - Load the `git-workflow` skill when working with branches, remotes, or diffs.
 - Load the `pr-review` skill when reviewing code changes or pull requests.
