@@ -58,6 +58,7 @@ dot doctor
 ## OpenCode workflow features
 
 - `/git-workflow` - read precomputed branch, diff, and PR context from `BranchContextPlugin`; prefer this over repeated ad-hoc `git`/`gh` inspection when you want the current work scope
+- `/plan [focus]` - switch into native OpenCode plan mode and produce a plan from the existing conversation and gathered context instead of starting planning from scratch
 - `/review-current-work` - run a current-branch review through the shared `code-reviewer` agent using `BranchContextPlugin` context instead of rebuilding branch state by hand
 - `/investigate <topic>` - use the shared `ask` agent for general investigation, triage, and context gathering without editing by default
 - `/explore-codebase <topic>` - delegate broad codebase discovery to the `task` `explore` subagent instead of doing long serial searches in one agent

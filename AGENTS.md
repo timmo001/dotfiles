@@ -30,6 +30,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 ## OpenCode Workflow
 
 - Prefer the `/git-workflow` and `/review-current-work` commands for current-branch branch, diff, and review context instead of rebuilding that snapshot with repeated `git status`, `git diff`, `git log`, or `gh pr` calls.
+- Use `/plan` to enter native planning mode for the current task when explicit implementation planning would help; reuse the existing conversation context instead of rebuilding it from scratch.
 - `/git-workflow`, `/review-current-work`, and the scoped cleanup/type commands use `BranchContextPlugin`; treat its injected `Current Work Scope` as the canonical scope source unless the user explicitly asks for a refresh.
 - For human-written command names and command/docs prose in this repo, prefer UK spelling. Keep upstream tool, API, or MCP names unchanged when they use US spelling.
 - Use first-class agents intentionally: `ask` for clarification/light investigation, `code-reviewer` via `/review-current-work` for reviews, and `code-refactorer` for behavior-preserving cleanup.
@@ -100,6 +101,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - Basic health check: `scripts/.local/bin/dot doctor`
 - OpenCode debug wrapper: `scripts/.local/bin/dot opencode-debug`
 - OpenCode branch-context command: `/git-workflow`
+- OpenCode planning command: `/plan [focus]`
 - OpenCode review command: `/review-current-work`
 - OpenCode investigation command: `/investigate <topic>`
 - OpenCode exploration command: `/explore-codebase <topic>`
