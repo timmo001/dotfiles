@@ -64,7 +64,7 @@ dot doctor
 - `/fallow-audit [workspace]` - audit changed JavaScript or TypeScript code with Fallow for dead code, complexity, and duplication before deciding on cleanup or follow-up fixes
 - `/fallow-project-analyse [workspace]` - run a broader Fallow project analysis for JavaScript or TypeScript using full dead-code, health, duplication, and other deeper project-level modes when useful
 - `dot opencode-debug [--agent <name>]` - validate resolved OpenCode paths, config, skills, and agent config after changing commands, skills, plugins, or agent docs
-- `/memorise` - save one durable preference, rule, decision, or correction through the memory plugin instead of editing `AGENTS.md` by hand
+- `/memorise` - save one rewritten durable preference, rule, decision, or correction through the memory plugin instead of editing `AGENTS.md` by hand; avoid using it for temporary task notes
 - First-class agents - use `ask` via `/git-workflow`, `code-reviewer` via `/review-current-work`, and `code-refactorer` via the shared cleanup/type commands when you want a task routed through a narrower operating mode instead of one large general prompt
 - Subagents - use `/explore-codebase` for broad codebase discovery and `task` delegation for other parallelizable multi-step work
 - Chrome DevTools MCP - use `/debug-frontend` or direct DevTools tools for snapshots, console/network inspection, Lighthouse, and performance traces instead of guessing from source alone
