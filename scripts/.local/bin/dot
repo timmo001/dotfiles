@@ -2403,6 +2403,7 @@ stow_public_dotfiles() {
   mapfile -t folders < <(list_stow_folders "$PUBLIC_DOTFILES" false)
   for folder in "${folders[@]}"; do
     log_info "[public] stow $folder (repo: $(display_path "$PUBLIC_DOTFILES"))"
+    stow_in_repo "$PUBLIC_DOTFILES" -D "$folder"
     if [[ "$folder" == 'agents' ]]; then
       stow_in_repo "$PUBLIC_DOTFILES" --no-folding "$folder"
     else
@@ -2486,6 +2487,7 @@ stow_private_dotfiles() {
   mapfile -t folders < <(list_stow_folders "$PRIVATE_DOTFILES" false)
   for folder in "${folders[@]}"; do
     log_info "[private] stow $folder (repo: $(display_path "$PRIVATE_DOTFILES"))"
+    stow_in_repo "$PRIVATE_DOTFILES" -D "$folder"
     if [[ "$folder" == 'agents' ]]; then
       stow_in_repo "$PRIVATE_DOTFILES" \
         --no-folding \
@@ -3140,6 +3142,7 @@ cmd_doctor() {
     local canonical_path
     local legacy_source
     local legacy_target
+    local singular_name
     local found_legacy=false
 
     log_info 'OpenCode documented global resources live under ~/.config/opencode'
@@ -3165,6 +3168,22 @@ cmd_doctor() {
         fi
         doctor_warn "Move/remove legacy OpenCode resources after confirming $(display_path "$canonical_path") is correct"
       fi
+    done
+
+    local -a opencode_legacy_singular_names=(agent command skill plugin rule)
+    for singular_name in "${opencode_legacy_singular_names[@]}"; do
+      for legacy_path in "$HOME/.config/opencode/$singular_name" "$HOME/.opencode/$singular_name"; do
+        if [[ -e "$legacy_path" || -L "$legacy_path" ]]; then
+          found_legacy=true
+          if [[ -L "$legacy_path" ]]; then
+            legacy_target="$(readlink "$legacy_path" 2>/dev/null || true)"
+            doctor_warn "Legacy OpenCode singular path still exists: $(display_path "$legacy_path") -> $legacy_target"
+          else
+            doctor_warn "Legacy OpenCode singular path still exists: $(display_path "$legacy_path")"
+          fi
+          doctor_warn 'Remove legacy singular OpenCode paths after confirming the plural ~/.config/opencode/* resources are correct'
+        fi
+      done
     done
 
     for legacy_source in \
