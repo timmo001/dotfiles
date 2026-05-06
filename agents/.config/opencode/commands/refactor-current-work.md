@@ -1,6 +1,6 @@
 ---
 description: Refactor current branch work while preserving behaviour
-agent: code-refactorer
+agent: refactorer
 ---
 
 Load applicable local skills before editing.

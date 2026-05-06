@@ -35,7 +35,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - Some execution-oriented agents can now call native `plan_enter` themselves for broad, multi-step, sequencing-heavy, or materially ambiguous work; prefer that automatic handoff when the agent is already in execution flow.
 - `/git-workflow`, `/review-current-work`, and the scoped cleanup/type commands use `BranchContextPlugin`; treat its injected `Current Work Scope` as the canonical scope source unless the user explicitly asks for a refresh.
 - For human-written command names and command/docs prose in this repo, prefer UK spelling. Keep upstream tool, API, or MCP names unchanged when they use US spelling.
-- Use first-class agents intentionally: `ask` for clarification/light investigation, `code-reviewer` via `/review-current-work` for reviews, and `code-refactorer` for behavior-preserving cleanup.
+- Use first-class agents intentionally: `ask` for clarification/light investigation, `reviewer` via `/review-current-work` for reviews, and `refactorer` for behavior-preserving cleanup.
 - Use `/investigate` as the default shared `ask` entrypoint for general investigation, triage, and context gathering when the work is not specifically codebase exploration, frontend debugging, or Fallow analysis.
 - Use the `diagnose` skill for hard bug reports, regressions, flaky behaviour, and performance diagnosis when the work needs a reproducible feedback loop before fixing.
 - Use the `improve-codebase-architecture` skill for architecture reviews, maintainability analysis, and structural follow-up when an area feels scattered, tightly coupled, or hard to reason about.
@@ -70,7 +70,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - Apply `cleanup-unnecessary-variables` as a general code-quality skill for all code changes when its guidance is relevant, not only explicit cleanup requests.
 - Apply `remove-single-use-functions` as a general code-quality skill for all code changes when its guidance is relevant, not only explicit cleanup requests.
 - For TypeScript changes where these skills apply, apply `types-enforce-ts` alongside them when scopes overlap.
-- For behavior-preserving cleanup or type-focused refactor commands, prefer the shared `code-refactorer` agent and keep command files focused on scope, applicable skills, and verification.
+- For behavior-preserving cleanup or type-focused refactor commands, prefer the shared `refactorer` agent and keep command files focused on scope, applicable skills, and verification.
 
 ## Split Worktrees
 

@@ -1,6 +1,6 @@
 ---
 description: Enforce TypeScript type safety in current git scope
-agent: code-refactorer
+agent: refactorer
 ---
 
 Load and apply the `types-enforce-ts` skill before editing.

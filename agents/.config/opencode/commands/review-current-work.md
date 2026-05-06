@@ -1,6 +1,6 @@
 ---
 description: Review current branch work with BranchContextPlugin context
-agent: code-reviewer
+agent: reviewer
 ---
 
 Load the `pr-review` skill before proceeding.

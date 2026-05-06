@@ -59,8 +59,8 @@ dot doctor
 
 - `/git-workflow` - read precomputed branch, diff, and PR context from `BranchContextPlugin`; prefer this over repeated ad-hoc `git`/`gh` inspection when you want the current work scope
 - `/plan [focus]` - manual entrypoint for native OpenCode plan mode; produce a plan from the existing conversation and gathered context instead of starting planning from scratch
-- `/review-current-work` - run a current-branch review through the shared `code-reviewer` agent using `BranchContextPlugin` context instead of rebuilding branch state by hand
-- `/refactor-current-work [scope]` - run a behaviour-preserving refactor through the shared `code-refactorer` agent using `BranchContextPlugin` context for the current branch scope
+- `/review-current-work` - run a current-branch review through the shared `reviewer` agent using `BranchContextPlugin` context instead of rebuilding branch state by hand
+- `/refactor-current-work [scope]` - run a behaviour-preserving refactor through the shared `refactorer` agent using `BranchContextPlugin` context for the current branch scope
 - `/investigate <topic>` - use the shared `ask` agent for general investigation, triage, and context gathering without editing by default
 - `diagnose` - feedback-loop-first debugging skill for hard bugs, regressions, flaky behaviour, and performance problems
 - `improve-codebase-architecture` - architecture-review skill for spotting structural friction and proposing focused improvements in a specific area
@@ -72,8 +72,8 @@ dot doctor
 - `/fallow-project-analyse [workspace]` - run a broader Fallow project analysis for JavaScript or TypeScript using full dead-code, health, duplication, and other deeper project-level modes when useful
 - `dot opencode-debug [--agent <name>]` - validate resolved OpenCode paths, config, skills, and agent config after changing commands, skills, plugins, or agent docs
 - `/memorise` - save one rewritten durable preference, rule, decision, or correction through the memory plugin instead of editing `AGENTS.md` by hand; avoid using it for temporary task notes
-- First-class agents - use `ask` via `/git-workflow` or `/investigate`, `code-reviewer` via `/review-current-work`, and `code-refactorer` via the shared cleanup/type commands when you want a task routed through a narrower operating mode instead of one large general prompt
-- Native plan handoff - execution-oriented agents such as `build-ask`, `ask`, `code-refactorer`, and `build-locked` can call native `plan_enter` themselves when work becomes broad, sequencing-heavy, or materially ambiguous; `/plan` remains the explicit manual way to start in planning mode
+- First-class agents - use `ask` via `/git-workflow` or `/investigate`, `reviewer` via `/review-current-work`, and `refactorer` via the shared cleanup/type commands when you want a task routed through a narrower operating mode instead of one large general prompt
+- Native plan handoff - execution-oriented agents such as `build-ask`, `ask`, `refactorer`, and `build-locked` can call native `plan_enter` themselves when work becomes broad, sequencing-heavy, or materially ambiguous; `/plan` remains the explicit manual way to start in planning mode
 - Subagents - use `/explore-codebase` for broad codebase discovery and `task` delegation for other parallelizable multi-step work
 - Chrome DevTools MCP - use `/debug-frontend` or direct DevTools tools for snapshots, console/network inspection, Lighthouse, and performance traces instead of guessing from source alone
 - Fallow MCP - use `/fallow-audit` or direct Fallow tools when you need dead-code, complexity, duplication, or cleanup evidence for JS/TS changes

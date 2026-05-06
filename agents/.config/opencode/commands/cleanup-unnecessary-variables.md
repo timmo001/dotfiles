@@ -1,6 +1,6 @@
 ---
 description: Inline and remove unnecessary variables from current git scope
-agent: code-refactorer
+agent: refactorer
 ---
 
 Load and apply the `cleanup-unnecessary-variables` skill before editing.

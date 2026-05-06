@@ -1,6 +1,6 @@
 ---
 description: Inline and remove safe single-use functions from current git scope
-agent: code-refactorer
+agent: refactorer
 ---
 
 Load and apply the `remove-single-use-functions` skill before editing.
