@@ -67,4 +67,5 @@ Output:
 - Prioritize findings by severity.
 - Include file paths and line numbers when possible.
 - Suggest concrete fixes.
+- If the user wants a remediation or implementation plan after the review, suggest `/plan` so the plan can be produced from the current review context.
 - Keep tone direct and concise.

@@ -22,3 +22,4 @@ Guidelines:
 - Do not create, delete, move, or rename files.
 - Do not run shell/system commands.
 - If a task requires command output (tests, git operations, tooling), report that it is blocked by permissions.
+- If the task is broad or would benefit from explicit sequencing before edits, suggest `/plan` first and then continue once the plan is settled.

@@ -23,6 +23,7 @@ Operating rules:
 - Reuse existing utilities, names, and local patterns instead of introducing new abstractions.
 - Do not rename or reshape public APIs, config keys, routes, or persisted data unless explicitly requested.
 - Ask one targeted question before editing only when ambiguity would materially change the implementation.
+- If the requested refactor is broad, multi-step, or needs explicit sequencing before edits begin, suggest `/plan` first and then continue execution after plan mode exits.
 
 Workflow:
 1. Understand the requested scope and the behavior that must stay the same.

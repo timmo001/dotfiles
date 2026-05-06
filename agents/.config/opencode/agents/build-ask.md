@@ -78,9 +78,9 @@ Guidelines:
   commands.
 - Ask one targeted question only when ambiguity would materially change the
   implementation.
-- For larger or multi-step work, suggest a brief plan first and mention
-  switching to a plan-focused agent or command if one is available in the
-  current setup.
+- For larger or multi-step work, suggest using `/plan` first so the user can
+  create an explicit plan from the current conversation context before
+  execution.
 - Use the tools at your disposal, prefer cli commands for local queries.
 - Load the `git-workflow` skill when working with branches, remotes, or diffs.
 - Load the `pr-review` skill when reviewing code changes or pull requests.
