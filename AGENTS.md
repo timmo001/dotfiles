@@ -27,6 +27,15 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - Stow config: `.stowrc`
 - Main docs: `README.md`
 
+## OpenCode Workflow
+
+- Prefer the `/git-workflow` command for branch, diff, and PR context instead of rebuilding that snapshot with repeated `git status`, `git diff`, `git log`, or `gh pr` calls.
+- `/git-workflow` and the scoped cleanup/type commands use `BranchContextPlugin`; treat its injected `Current Work Scope` as the canonical scope source unless the user explicitly asks for a refresh.
+- Use first-class agents intentionally: `ask` for clarification/light investigation, `code-reviewer` for reviews, and `code-refactorer` for behavior-preserving cleanup.
+- Use subagents for broad exploration or parallelizable multi-step work instead of doing long serial searches in one agent.
+- Use `/memorise` only for durable preferences, decisions, or corrections that should persist beyond the current task.
+- For frontend debugging, prefer Chrome DevTools tools (snapshot, console, network, Lighthouse, performance trace) over static reasoning alone when the issue is browser-behavior-dependent.
+
 ## Go Automate Home Assistant Bridge Policy
 
 - For Home Assistant entity watchers used by Waybar/scripts, use `go-automate ha bridge watch entity` by default.
@@ -84,6 +93,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - Syntax check: `bash -n scripts/.local/bin/dot`
 - Basic health check: `scripts/.local/bin/dot doctor`
 - OpenCode debug wrapper: `scripts/.local/bin/dot opencode-debug`
+- OpenCode branch-context command: `/git-workflow`
 - Diff behavior: `scripts/.local/bin/dot diff`
 - Wrapper cwd behavior (interactive zsh):
   - `zsh -ic 'dot diff >/tmp/dot-diff.log 2>&1; pwd'`

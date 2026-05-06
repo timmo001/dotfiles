@@ -55,6 +55,15 @@ dot doctor
 - `dot private-pkg-publish [--no-git] [--skip-build] [--install] <package>` - build and publish a mapped private package into the private pacman repo, sync the mirror, refresh pacman metadata, optionally install it, and commit/push by default
 - `dot agents-sync` - copy `~/.opencode/AGENTS.md` into `agents/.cursor/rules/global-agents.mdc` in private dotfiles by default (`alwaysApply: true` + body; stows to `~/.cursor/rules/`). **`dot update`** and **`dot diff`** run this automatically by default (see env vars below).
 
+## OpenCode workflow features
+
+- `/git-workflow` - read precomputed branch, diff, and PR context from `BranchContextPlugin`; prefer this over repeated ad-hoc `git`/`gh` inspection when you want the current work scope
+- `dot opencode-debug [--agent <name>]` - validate resolved OpenCode paths, config, skills, and agent config after changing commands, skills, plugins, or agent docs
+- `/memorise` - save one durable preference, rule, decision, or correction through the memory plugin instead of editing `AGENTS.md` by hand
+- First-class agents - use `ask`, `code-reviewer`, and `code-refactorer` when you want a task routed through a narrower operating mode instead of one large general prompt
+- Subagents - use `task` delegation for broad codebase exploration and parallelizable multi-step work
+- Chrome DevTools MCP - use snapshots, console/network inspection, Lighthouse, and performance traces for browser-specific debugging instead of guessing from source alone
+
 ## System health check
 
 - `system-health-check` - friendly multi-snapshot system health report for CPU, memory, network, pressure, and known logs
