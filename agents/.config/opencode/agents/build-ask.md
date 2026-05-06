@@ -7,6 +7,7 @@ permission:
   glob: allow
   grep: allow
   list: allow
+  question: allow
   edit: ask
   write: ask
   bash:
