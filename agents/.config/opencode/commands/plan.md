@@ -1,9 +1,11 @@
 ---
-description: Switch into native plan mode and produce a plan from the current conversation context
+description: Manual entrypoint to native plan mode from the current conversation context
 agent: plan
 ---
 
-Use this command when the current task would benefit from an explicit plan before implementation.
+Use this command when the current task would benefit from an explicit plan before implementation and the user wants to start in planning mode explicitly.
+
+Some execution-oriented agents may also enter native plan mode automatically via `plan_enter`; this command is the manual entrypoint.
 
 Follow these steps:
 
