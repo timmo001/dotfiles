@@ -63,8 +63,10 @@ dot doctor
 - `/refactor-current-work [scope]` - run a behaviour-preserving refactor through the shared `code-refactorer` agent using `BranchContextPlugin` context for the current branch scope
 - `/investigate <topic>` - use the shared `ask` agent for general investigation, triage, and context gathering without editing by default
 - `diagnose` - feedback-loop-first debugging skill for hard bugs, regressions, flaky behaviour, and performance problems
+- `improve-codebase-architecture` - architecture-review skill for spotting structural friction and proposing focused improvements in a specific area
 - `write-a-skill` - local skill-authoring guidance for concise descriptions, minimal supporting files, and reusable OpenCode workflows
 - `/explore-codebase <topic>` - delegate broad codebase discovery to the `task` `explore` subagent instead of doing long serial searches in one agent
+- `/improve-codebase-architecture <area>` - review a named feature, subsystem, or file family for architectural friction and focused structural improvements without editing first
 - `/debug-frontend <page or issue>` - start browser-specific debugging with Chrome DevTools evidence first: snapshot, console, network, then Lighthouse or performance traces when the issue calls for them
 - `/fallow-audit [workspace]` - audit changed JavaScript or TypeScript code with Fallow for dead code, complexity, and duplication before deciding on cleanup or follow-up fixes
 - `/fallow-project-analyse [workspace]` - run a broader Fallow project analysis for JavaScript or TypeScript using full dead-code, health, duplication, and other deeper project-level modes when useful

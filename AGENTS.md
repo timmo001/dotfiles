@@ -38,7 +38,9 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - Use first-class agents intentionally: `ask` for clarification/light investigation, `code-reviewer` via `/review-current-work` for reviews, and `code-refactorer` for behavior-preserving cleanup.
 - Use `/investigate` as the default shared `ask` entrypoint for general investigation, triage, and context gathering when the work is not specifically codebase exploration, frontend debugging, or Fallow analysis.
 - Use the `diagnose` skill for hard bug reports, regressions, flaky behaviour, and performance diagnosis when the work needs a reproducible feedback loop before fixing.
+- Use the `improve-codebase-architecture` skill for architecture reviews, maintainability analysis, and structural follow-up when an area feels scattered, tightly coupled, or hard to reason about.
 - Use `/explore-codebase` for broad discovery questions and use subagents for other parallelizable multi-step work instead of doing long serial searches in one agent.
+- Use `/improve-codebase-architecture <area>` when you want a focused architecture review of a named feature, subsystem, or file family without editing first.
 - Use `/debug-frontend` for browser-specific investigation before falling back to source-only reasoning.
 - Use `/fallow-audit` when JS/TS changes need dead-code, complexity, or duplication evidence before cleanup or review follow-up.
 - Use `/fallow-project-analyse` when you want broader Fallow project analysis beyond changed-code audit scope.
