@@ -57,6 +57,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - For every code change, apply all matching OpenCode skills before editing.
 - If a user asks for a local "rule" in OpenCode context, treat that as a request for the corresponding skill and use "skill" in new docs/config.
 - If a change spans multiple scopes, apply all relevant skills together (not just one).
+- Use the `write-a-skill` skill when adding or revising local OpenCode skills so descriptions, supporting files, and scripts stay minimal and consistent.
 
 ## TypeScript Skills
 
