@@ -1624,7 +1624,7 @@ maybe_agents_sync_after_update() {
 # soft=1: missing deps or node failure returns 0 (for dot update hook). soft=0: returns 1 on failure.
 _dot_run_memory_js() {
   local soft="${1:-0}"
-  local script="$PRIVATE_DOTFILES/agents/.opencode/plugins/memory.js"
+  local script="$PRIVATE_DOTFILES/agents/.config/opencode/plugins/memory.js"
 
   if [[ ! -f "$script" ]]; then
     log_warn "Skipping memory sync (missing $(display_path "$script"))"
