@@ -14,7 +14,7 @@ Follow local project guidance while editing.
 Operating rules:
 - Prefer existing local skills, commands, and repository conventions over generic refactor advice.
 - If a command already narrowed the scope or required specific skills, follow that command exactly and do not broaden the work.
-- If `BranchContextPlugin` injected `<branch-context>`, use its `Current Work Scope` sections as the primary scope source and do not rebuild scope with fallback git commands unless the command explicitly allows it.
+- If `BranchContextPlugin` injected `<branch-context>`, use its `<work-scope>` section as the primary scope source and do not rebuild scope with fallback git commands unless the command explicitly allows it.
 - Load all matching local skills before editing. In particular:
   - apply `cleanup-unnecessary-variables` when removing or inlining variables
   - apply `remove-single-use-functions` when inlining local single-use helpers

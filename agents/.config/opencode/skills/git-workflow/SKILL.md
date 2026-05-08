@@ -9,18 +9,18 @@ Use this skill when working with branches, remotes, or comparing changes.
 
 ## Plugin-first branch context
 
-`BranchContextPlugin` precomputes branch and scoped-work context for branch-oriented commands and scoped cleanup/type commands. It injects a `<branch-context>` block containing:
+`BranchContextPlugin` precomputes branch and scoped-work context for branch-oriented commands and scoped cleanup/type commands. It injects a `<branch-context>` block with tagged sections:
 
-- default remote/branch resolution
-- branch status and commit list
-- current work scope in this order: unstaged, staged, then branch diff
-- changed-file lists, diff stats, and patch output, truncated when large
-- PR metadata and check output for branch-focused commands when available
+- `<branch-metadata>` for default remote/branch resolution and base-ref identity
+- `<status>` for compact `git status -sb` output
+- `<work-scope>` for current work scope in this order: unstaged, staged, then branch diff
+- `<pull-request>` for PR metadata and check output on branch-focused commands when available
+- `<warnings>` for collection caveats, fallbacks, and missing data
 
 When `<branch-context>` is present:
 
 1. Use it as the primary source for branch analysis.
-2. Use `Current Work Scope` instead of rebuilding scope with separate git commands.
+2. Use `<work-scope>` instead of rebuilding scope with separate git commands.
 3. Avoid re-running `git`/`gh` commands unless the user asks for a fresh snapshot.
 4. For commands that require `BranchContextPlugin` scope, stop and report a plugin issue if context is missing instead of rebuilding scope.
 

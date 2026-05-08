@@ -5,9 +5,9 @@ agent: refactorer
 
 Load and apply the `cleanup-unnecessary-variables` skill before editing.
 
-`BranchContextPlugin` must inject a `<branch-context>` block before this command runs. Use its `Current Work Scope` sections as the scope source.
+`BranchContextPlugin` must inject a `<branch-context>` block before this command runs. Use its `<work-scope>` section as the scope source.
 
-1. Parse `Current Work Scope` in this order: unstaged, staged, then branch diff.
+1. Parse the injected `<branch-context>` block and read the `<work-scope>` section in this order: unstaged, staged, then branch diff.
 
 2. If `<branch-context>` is absent, do not run git fallback commands; stop and report that `BranchContextPlugin` did not inject context for this command.
 

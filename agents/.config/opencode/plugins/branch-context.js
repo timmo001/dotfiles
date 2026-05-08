@@ -8,7 +8,6 @@ const BRANCH_CONTEXT_COMMANDS = new Set([
   "timmo001-private/deslopify",
 
   // Timmo001
-  "timmo001/read-branch",
   "timmo001/reset-branch-reapply",
 ])
 const WORK_SCOPE_COMMANDS = new Set([
@@ -27,8 +26,6 @@ const WORK_SCOPE_COMMANDS = new Set([
   "home-assistant-private/lit-rendering",
 ])
 const TARGET_COMMANDS = new Set([...BRANCH_CONTEXT_COMMANDS, ...WORK_SCOPE_COMMANDS])
-const DIFF_CHAR_LIMIT = 120000
-const WORK_SCOPE_DIFF_CHAR_LIMIT = 80000
 const PR_CHECKS_CHAR_LIMIT = 40000
 const STATUS_CHAR_LIMIT = 12000
 const COMMITS_CHAR_LIMIT = 30000
@@ -77,23 +74,9 @@ const skipped = (text) => ({
   text,
 })
 
-const section = (title, body) => {
-  return [
-    `### ${title}`,
-    "```text",
-    body && body.trim() ? body : "(empty)",
-    "```",
-  ].join("\n")
-}
-
 const limitedText = (text, maxChars) => {
   const limited = truncate(text, maxChars)
   return limited.text + (limited.truncated ? `\n\n[TRUNCATED ${String(limited.omitted)} CHARS]` : "")
-}
-
-const sectionFromResult = (title, result, maxChars) => {
-  if (!result.ok) return section(title, `ERROR: ${result.error}`)
-  return section(title, limitedText(result.text, maxChars))
 }
 
 const parseDefaultBranch = (ref, remote) => {
@@ -109,6 +92,153 @@ const parseJSON = (text) => {
   } catch {
     return null
   }
+}
+
+const formatTag = (name, description, lines) => {
+  const body = [
+    `Description: ${description}`,
+    ...lines.filter(Boolean),
+  ]
+    .join("\n")
+    .trim()
+
+  return [`<${name}>`, body || "(empty)", `</${name}>`].join("\n")
+}
+
+const formatList = (title, value) => {
+  const text = value && value.trim() ? value.trim() : "(empty)"
+  return `${title}:\n${text}`
+}
+
+const collectBranchMetadata = ({
+  branchResult,
+  defaultRemote,
+  defaultBranch,
+  baseRef,
+  onDefaultBranch,
+  remotes,
+}) => {
+  return [
+    `Current branch: ${branchResult.ok && branchResult.text ? branchResult.text : "(unknown)"}`,
+    `Default remote: ${defaultRemote}`,
+    `Default branch: ${defaultBranch}`,
+    `Base ref: ${baseRef}`,
+    `On default branch: ${onDefaultBranch ? "yes" : "no"}`,
+    `Known remotes: ${remotes.length ? remotes.join(", ") : "(none)"}`,
+  ]
+}
+
+const collectStatus = (statusResult) => {
+  if (!statusResult.ok) return [`ERROR: ${statusResult.error}`]
+  return [statusResult.text || "(empty)"]
+}
+
+const collectWorkScope = ({
+  unstagedNameStatusResult,
+  stagedNameStatusResult,
+  commitsResult,
+  nameStatusResult,
+  statResult,
+}) => {
+  return [
+    formatList(
+      "Unstaged changed files",
+      unstagedNameStatusResult.ok ? limitedText(unstagedNameStatusResult.text, NAME_STATUS_CHAR_LIMIT) : `ERROR: ${unstagedNameStatusResult.error}`,
+    ),
+    "",
+    formatList(
+      "Staged changed files",
+      stagedNameStatusResult.ok ? limitedText(stagedNameStatusResult.text, NAME_STATUS_CHAR_LIMIT) : `ERROR: ${stagedNameStatusResult.error}`,
+    ),
+    "",
+    formatList(
+      "Branch-only commits",
+      commitsResult.ok ? limitedText(commitsResult.text, COMMITS_CHAR_LIMIT) : `ERROR: ${commitsResult.error}`,
+    ),
+    "",
+    formatList(
+      "Branch changed files",
+      nameStatusResult.ok ? limitedText(nameStatusResult.text, NAME_STATUS_CHAR_LIMIT) : `ERROR: ${nameStatusResult.error}`,
+    ),
+    "",
+    formatList(
+      "Branch diff stat",
+      statResult.ok ? limitedText(statResult.text, DIFF_STAT_CHAR_LIMIT) : `ERROR: ${statResult.error}`,
+    ),
+  ]
+}
+
+const collectPullRequestContext = ({ prViewResult, prData, prMissing, checksResult }) => {
+  if (!prViewResult) return null
+  if (prData) {
+    return [
+      `PR number: ${String(prData.number)}`,
+      `Title: ${prData.title || "(no title)"}`,
+      `URL: ${prData.url || "(unknown)"}`,
+      `State: ${prData.state || "(unknown)"}`,
+      `Draft: ${prData.isDraft ? "yes" : "no"}`,
+      `Review decision: ${prData.reviewDecision || "(none)"}`,
+      `Merge state: ${prData.mergeStateStatus || "(unknown)"}`,
+      `Branches: ${prData.headRefName || "(unknown)"} -> ${prData.baseRefName || "(unknown)"}`,
+      "",
+      formatList(
+        "Checks",
+        checksResult
+          ? checksResult.ok
+            ? limitedText(checksResult.text, PR_CHECKS_CHAR_LIMIT)
+            : `ERROR: ${checksResult.error}`
+          : "(not available)",
+      ),
+    ]
+  }
+  if (prMissing) {
+    return ["No pull request found for the current branch."]
+  }
+  return ["Pull request data was requested but could not be collected."]
+}
+
+const renderBranchContext = ({ branchMetadata, statusLines, workScopeLines, pullRequestLines, warnings }) => {
+  const lines = [
+    "<branch-context>",
+    formatTag(
+      "branch-metadata",
+      "Repository and branch identity for interpreting the rest of the context.",
+      branchMetadata,
+    ),
+    formatTag(
+      "status",
+      "Compact git status summary for a quick overview of the working tree and branch tracking state.",
+      statusLines,
+    ),
+    formatTag(
+      "work-scope",
+      "Current work scope in priority order. Use unstaged first, then staged, then branch-only changes.",
+      workScopeLines,
+    ),
+  ]
+
+  if (pullRequestLines) {
+    lines.push(
+      formatTag(
+        "pull-request",
+        "Pull request metadata and CI/check state for branch-oriented workflow commands only.",
+        pullRequestLines,
+      ),
+    )
+  }
+
+  if (warnings.length) {
+    lines.push(
+      formatTag(
+        "warnings",
+        "Non-fatal collection issues, fallbacks, missing data, or truncation notices that may affect interpretation.",
+        warnings,
+      ),
+    )
+  }
+
+  lines.push("</branch-context>")
+  return lines.join("\n\n")
 }
 
 export const BranchContextPlugin = async ({ $ }) => {
@@ -164,9 +294,7 @@ export const BranchContextPlugin = async ({ $ }) => {
     const onDefaultBranch = currentBranch === defaultBranch
     const statusResult = await run(() => $`git status -sb`.text())
     const unstagedNameStatusResult = await run(() => $`git diff --name-status`.text())
-    const unstagedDiffResult = await run(() => $`git diff`.text())
     const stagedNameStatusResult = await run(() => $`git diff --cached --name-status`.text())
-    const stagedDiffResult = await run(() => $`git diff --cached`.text())
     const branchSkipReason = "Skipped because the current branch is the default branch."
     const commitsResult = onDefaultBranch
       ? skipped(branchSkipReason)
@@ -177,7 +305,6 @@ export const BranchContextPlugin = async ({ $ }) => {
     const nameStatusResult = onDefaultBranch
       ? skipped(branchSkipReason)
       : await run(() => $`git diff --name-status ${baseRef}...HEAD`.text())
-    const diffResult = onDefaultBranch ? skipped(branchSkipReason) : await run(() => $`git diff ${baseRef}...HEAD`.text())
 
     const prViewResult = includePullRequest
       ? await run(() =>
@@ -195,64 +322,42 @@ export const BranchContextPlugin = async ({ $ }) => {
       warnings.push(`Unable to read PR checks: ${checksResult.error}`)
     }
 
-    const lines = [
-      "<branch-context>",
+    warnings.unshift(
       "BranchContextPlugin generated this branch snapshot. Prefer this context over running git/gh commands unless it is missing or stale.",
       `Generated at: ${new Date().toISOString()}`,
-      "",
-      "## Branch Metadata",
-      `- Current branch: ${branchResult.ok && branchResult.text ? branchResult.text : "(unknown)"}`,
-      `- Default remote: ${defaultRemote}`,
-      `- Default branch: ${defaultBranch}`,
-      `- Base ref: ${baseRef}`,
-      `- On default branch: ${onDefaultBranch ? "yes" : "no"}`,
-      remotes.length ? `- Known remotes: ${remotes.join(", ")}` : "- Known remotes: (none)",
-      "",
-      sectionFromResult("git status -sb", statusResult, STATUS_CHAR_LIMIT),
-      "",
-      "## Current Work Scope",
-      "Use these precomputed sections as the primary scope source. Inspect them in this order: unstaged, staged, then branch diff.",
-      sectionFromResult("Changed files (unstaged, git diff --name-status)", unstagedNameStatusResult, NAME_STATUS_CHAR_LIMIT),
-      sectionFromResult("Patch (unstaged, git diff)", unstagedDiffResult, WORK_SCOPE_DIFF_CHAR_LIMIT),
-      sectionFromResult("Changed files (staged, git diff --cached --name-status)", stagedNameStatusResult, NAME_STATUS_CHAR_LIMIT),
-      sectionFromResult("Patch (staged, git diff --cached)", stagedDiffResult, WORK_SCOPE_DIFF_CHAR_LIMIT),
-      sectionFromResult(`Commits unique to branch (${baseRef}..HEAD)`, commitsResult, COMMITS_CHAR_LIMIT),
-      sectionFromResult(
-        `Changed files (name-status, ${baseRef}...HEAD)`,
-        nameStatusResult,
-        NAME_STATUS_CHAR_LIMIT,
-      ),
-      sectionFromResult(`Diff stat (${baseRef}...HEAD)`, statResult, DIFF_STAT_CHAR_LIMIT),
-      sectionFromResult(`Patch (${baseRef}...HEAD)`, diffResult, DIFF_CHAR_LIMIT),
-    ]
+    )
 
-    if (prData) {
-      lines.push(
-        "",
-        "## Pull Request",
-        `- PR: #${String(prData.number)} ${prData.title || "(no title)"}`,
-        `- URL: ${prData.url || "(unknown)"}`,
-        `- State: ${prData.state || "(unknown)"}${prData.isDraft ? " (draft)" : ""}`,
-        `- Review decision: ${prData.reviewDecision || "(none)"}`,
-        `- Merge state: ${prData.mergeStateStatus || "(unknown)"}`,
-        `- Branches: ${prData.headRefName || "(unknown)"} -> ${prData.baseRefName || "(unknown)"}`,
-      )
-      if (checksResult) {
-        lines.push(
-          "",
-          sectionFromResult(`gh pr checks ${String(prData.number)}`, checksResult, PR_CHECKS_CHAR_LIMIT),
-        )
-      }
-    } else if (prMissing) {
-      lines.push("", "## Pull Request", "- No pull request found for the current branch")
-    }
+    const branchMetadata = collectBranchMetadata({
+      branchResult,
+      defaultRemote,
+      defaultBranch,
+      baseRef,
+      onDefaultBranch,
+      remotes,
+    })
+    const statusLines = collectStatus({
+      ok: statusResult.ok,
+      text: statusResult.ok ? limitedText(statusResult.text, STATUS_CHAR_LIMIT) : "",
+      error: statusResult.ok ? null : statusResult.error,
+    })
+    const workScopeLines = collectWorkScope({
+      unstagedNameStatusResult,
+      stagedNameStatusResult,
+      commitsResult,
+      nameStatusResult,
+      statResult,
+    })
+    const pullRequestLines = includePullRequest
+      ? collectPullRequestContext({ prViewResult, prData, prMissing, checksResult })
+      : null
 
-    if (warnings.length) {
-      lines.push("", "## Warnings", ...warnings.map((item) => `- ${item}`))
-    }
-
-    lines.push("</branch-context>")
-    return lines.join("\n")
+    return renderBranchContext({
+      branchMetadata,
+      statusLines,
+      workScopeLines,
+      pullRequestLines,
+      warnings,
+    })
   }
 
   return {
