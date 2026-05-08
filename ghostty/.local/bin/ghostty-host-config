@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ghostty_bin=/usr/bin/ghostty
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/ghostty"
+host="${OMARCHY_HOST:-}"
+
+if [[ -n "$host" ]]; then
+  host_config="$config_dir/config.$host"
+  if [[ -f "$host_config" ]]; then
+    exec "$ghostty_bin" --config-default-files=true --config-file="$host_config" "$@"
+  fi
+fi
+
+exec "$ghostty_bin" "$@"
