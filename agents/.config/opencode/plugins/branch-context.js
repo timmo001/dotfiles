@@ -105,6 +105,25 @@ const formatTag = (name, description, lines) => {
   return [`<${name}>`, body || "(empty)", `</${name}>`].join("\n")
 }
 
+const formatErrorContext = (message, error) => {
+  return [
+    "<branch-context>",
+    formatTag(
+      "context-metadata",
+      "Information about how this branch context snapshot was generated.",
+      [`Generated at: ${new Date().toISOString()}`],
+    ),
+    formatTag(
+      "warnings",
+      "Non-fatal collection issues, fallbacks, missing data, or truncation notices that may affect interpretation.",
+      [message, error ? `Error: ${error}` : ""],
+    ),
+    "</branch-context>",
+  ]
+    .filter(Boolean)
+    .join("\n\n")
+}
+
 const formatList = (title, value) => {
   const text = value && value.trim() ? value.trim() : "(empty)"
   return `${title}:\n${text}`
@@ -197,9 +216,14 @@ const collectPullRequestContext = ({ prViewResult, prData, prMissing, checksResu
   return ["Pull request data was requested but could not be collected."]
 }
 
-const renderBranchContext = ({ branchMetadata, statusLines, workScopeLines, pullRequestLines, warnings }) => {
+const renderBranchContext = ({ contextMetadata, branchMetadata, statusLines, workScopeLines, pullRequestLines, warnings }) => {
   const lines = [
     "<branch-context>",
+    formatTag(
+      "context-metadata",
+      "Information about how this branch context snapshot was generated.",
+      contextMetadata,
+    ),
     formatTag(
       "branch-metadata",
       "Repository and branch identity for interpreting the rest of the context.",
@@ -247,14 +271,10 @@ export const BranchContextPlugin = async ({ $ }) => {
 
     const inRepo = await run(() => $`git rev-parse --is-inside-work-tree`.text())
     if (!inRepo.ok || inRepo.text !== "true") {
-      return [
-        "<branch-context>",
+      return formatErrorContext(
         "BranchContextPlugin could not collect git context because this directory is not a git worktree.",
-        inRepo.ok ? "" : `Error: ${inRepo.error}`,
-        "</branch-context>",
-      ]
-        .filter(Boolean)
-        .join("\n")
+        inRepo.ok ? null : inRepo.error,
+      )
     }
 
     const remotesResult = await run(() => $`git remote`.text())
@@ -322,10 +342,10 @@ export const BranchContextPlugin = async ({ $ }) => {
       warnings.push(`Unable to read PR checks: ${checksResult.error}`)
     }
 
-    warnings.unshift(
+    const contextMetadata = [
       "BranchContextPlugin generated this branch snapshot. Prefer this context over running git/gh commands unless it is missing or stale.",
       `Generated at: ${new Date().toISOString()}`,
-    )
+    ]
 
     const branchMetadata = collectBranchMetadata({
       branchResult,
@@ -352,6 +372,7 @@ export const BranchContextPlugin = async ({ $ }) => {
       : null
 
     return renderBranchContext({
+      contextMetadata,
       branchMetadata,
       statusLines,
       workScopeLines,
