@@ -1,0 +1,55 @@
+#!/bin/bash
+
+STATE_DIR="$HOME/.local/state"
+STATE_FILE="$STATE_DIR/steam-scale-1x-state"
+
+mkdir -p "$STATE_DIR"
+
+MONITOR_INFO=$(hyprctl monitors -j 2>/dev/null | jq -r '.[] | select(.focused == true)' 2>/dev/null)
+CURRENT_SENSITIVITY=$(hyprctl getoption input:sensitivity 2>/dev/null | awk '/^float:/ { print $2 }')
+
+if [[ -n $MONITOR_INFO ]]; then
+  ACTIVE_MONITOR=$(jq -r '.name' <<< "$MONITOR_INFO")
+  WIDTH=$(jq -r '.width' <<< "$MONITOR_INFO")
+  HEIGHT=$(jq -r '.height' <<< "$MONITOR_INFO")
+  REFRESH_RATE=$(jq -r '.refreshRate' <<< "$MONITOR_INFO")
+  X=$(jq -r '.x' <<< "$MONITOR_INFO")
+  Y=$(jq -r '.y' <<< "$MONITOR_INFO")
+  SCALE=$(jq -r '.scale' <<< "$MONITOR_INFO")
+  TRANSFORM=$(jq -r '.transform' <<< "$MONITOR_INFO")
+
+  cat > "$STATE_FILE" <<EOF
+ACTIVE_MONITOR="$ACTIVE_MONITOR"
+WIDTH="$WIDTH"
+HEIGHT="$HEIGHT"
+REFRESH_RATE="$REFRESH_RATE"
+X="$X"
+Y="$Y"
+SCALE="$SCALE"
+TRANSFORM="$TRANSFORM"
+SENSITIVITY="${CURRENT_SENSITIVITY:-0}"
+EOF
+
+  if [[ $SCALE != "1" && $SCALE != "1.0" ]]; then
+    if [[ $TRANSFORM == "0" ]]; then
+      hyprctl keyword monitor "$ACTIVE_MONITOR,${WIDTH}x${HEIGHT}@${REFRESH_RATE},${X}x${Y},1" >/dev/null 2>&1
+    else
+      hyprctl keyword monitor "$ACTIVE_MONITOR,${WIDTH}x${HEIGHT}@${REFRESH_RATE},${X}x${Y},1,transform,${TRANSFORM}" >/dev/null 2>&1
+    fi
+  fi
+
+  if [[ ${CURRENT_SENSITIVITY:-0} == "0" || ${CURRENT_SENSITIVITY:-0} == "0.0" || ${CURRENT_SENSITIVITY:-0} == "0.000000" ]]; then
+    hyprctl keyword input:sensitivity 0.5 >/dev/null 2>&1
+  fi
+
+  notify-send -u low "Steam forced monitor scale to 1x" "Mouse speed was increased for 1x mode. Your previous monitor scale and pointer speed will be restored automatically after Steam exits."
+fi
+
+env GDK_SCALE=1 GDK_DPI_SCALE=1 STEAM_FORCE_DESKTOPUI_SCALING=1.5 /usr/bin/steam -forcedesktopscaling 1.5 "$@"
+STEAM_EXIT_CODE=$?
+
+if [[ -f "$STATE_FILE" ]]; then
+  steam-scale-1x-restore >/dev/null 2>&1
+fi
+
+exit $STEAM_EXIT_CODE
