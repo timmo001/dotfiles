@@ -64,6 +64,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 ## TypeScript Skills
 
 - For any TypeScript edit or TypeScript-focused review (`.ts`, `.tsx`, `.mts`, `.cts`), apply the `types-enforce-ts` skill before making changes.
+- For JavaScript or TypeScript edits (`.js`, `.jsx`, `.ts`, `.tsx`, `.mjs`, `.cjs`, `.mts`, `.cts`), run a Fallow audit on the changed scope before wrapping up when dead-code, complexity, or duplication checks are relevant.
 
 ## Code Skills
 
