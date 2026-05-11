@@ -18,7 +18,7 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 - `zsh/` - shell config
 - `neovim/` - Neovim config
 - `starship/` - prompt config
-- `agents/` - agent tooling: public OpenCode (`.opencode/`), Cursor launcher script (`.local/bin/cursor`); private overlay adds `~/.cursor/` (`argv.json`, `mcp.json`, rules), Claude Code, OpenCode secrets, `~/.config/opencode/` (see `dot agents-sync`)
+- `agents/` - agent tooling: public OpenCode (`.opencode/`), Cursor launcher script (`.local/bin/cursor`); private overlay adds `~/.cursor/` (`argv.json`, `mcp.json`, rules), Claude Code, OpenCode secrets, `~/.config/opencode/` (see `dot agents-sync`). OpenCode skills, agents, commands, and plugins are published to [`timmo001/opencode-config`](https://github.com/timmo001/opencode-config) automatically on push.
 - `editorconfig/` - editor config
 
 ## Split worktrees
@@ -55,29 +55,12 @@ dot doctor
 - `dot private-pkg-publish [--no-git] [--skip-build] [--install] <package>` - build and publish a mapped private package into the private pacman repo, sync the mirror, refresh pacman metadata, optionally install it, and commit/push by default
 - `dot agents-sync` - copy `~/.config/opencode/AGENTS.md` into `agents/.cursor/rules/global-agents.mdc` in private dotfiles by default (`alwaysApply: true` + body; stows to `~/.cursor/rules/`). **`dot update`** and **`dot diff`** run this automatically by default (see env vars below).
 
-## OpenCode workflow features
+## OpenCode
 
-- `/git-workflow` - read precomputed branch, diff, and PR context from `BranchContextPlugin`; prefer this over repeated ad-hoc `git`/`gh` inspection when you want the current work scope
-- `/plan [focus]` - manual entrypoint for native OpenCode plan mode; produce a plan from the existing conversation and gathered context instead of starting planning from scratch
-- `/review-current-work` - run a current-branch review through the shared `reviewer` agent using `BranchContextPlugin` context instead of rebuilding branch state by hand
-- `/refactor-current-work [scope]` - run a behaviour-preserving refactor through the shared `refactorer` agent using `BranchContextPlugin` context for the current branch scope
-- `/investigate <topic>` - use the shared `ask` agent for general investigation, triage, and context gathering without editing by default
-- `diagnose` - feedback-loop-first debugging skill for hard bugs, regressions, flaky behaviour, and performance problems
-- `improve-codebase-architecture` - architecture-review skill for spotting structural friction and proposing focused improvements in a specific area
-- `write-a-skill` - local skill-authoring guidance for concise descriptions, minimal supporting files, and reusable OpenCode workflows
-- `/explore-codebase <topic>` - delegate broad codebase discovery to the `task` `explore` subagent instead of doing long serial searches in one agent
-- `/improve-codebase-architecture <area>` - review a named feature, subsystem, or file family for architectural friction and focused structural improvements without editing first
-- `/debug-frontend <page or issue>` - start browser-specific debugging with Chrome DevTools evidence first: snapshot, console, network, then Lighthouse or performance traces when the issue calls for them
-- `/fallow-audit [workspace]` - audit changed JavaScript or TypeScript code with Fallow for dead code, complexity, and duplication before deciding on cleanup or follow-up fixes
-- `/fallow-project-analyse [workspace]` - run a broader Fallow project analysis for JavaScript or TypeScript using full dead-code, health, duplication, and other deeper project-level modes when useful
-- `dot opencode-debug [--agent <name>]` - validate resolved OpenCode paths, config, skills, and agent config after changing commands, skills, plugins, or agent docs
-- `/memorise` - save one rewritten durable preference, rule, decision, or correction through the memory plugin instead of editing `AGENTS.md` by hand; avoid using it for temporary task notes
-- First-class agents - use `ask` via `/git-workflow` or `/investigate`, `reviewer` via `/review-current-work`, and `refactorer` via the shared cleanup/type commands when you want a task routed through a narrower operating mode instead of one large general prompt
-- Native plan handoff - execution-oriented agents such as `build-ask`, `ask`, `refactorer`, and `build-locked` can call native `plan_enter` themselves when work becomes broad, sequencing-heavy, or materially ambiguous; `/plan` remains the explicit manual way to start in planning mode
-- Subagents - use `/explore-codebase` for broad codebase discovery and `task` delegation for other parallelizable multi-step work
-- Chrome DevTools MCP - use `/debug-frontend` or direct DevTools tools for snapshots, console/network inspection, Lighthouse, and performance traces instead of guessing from source alone
-- Fallow MCP - use `/fallow-audit` or direct Fallow tools when you need dead-code, complexity, duplication, or cleanup evidence for JS/TS changes
-- Fallow deeper project analysis - use `/fallow-project-analyse` when you want broader project-level inspection instead of changed-code audit scope
+OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/` and are also automatically published to [`timmo001/opencode-config`](https://github.com/timmo001/opencode-config) so they can be browsed, imported, and installed independently of the full dotfiles repo — see that repo for documentation and installation instructions.
+
+- Debug: `dot opencode-debug [--agent <name>]`
+- Publishing is automatic via GitHub Actions on push
 
 ## System health check
 

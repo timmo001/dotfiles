@@ -26,6 +26,8 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - Shell wrapper for `dot`: `zsh/.zshrc` (`dot()` function)
 - Stow config: `.stowrc`
 - Main docs: `README.md`
+- OpenCode config source: `agents/.config/opencode/`
+- Published OpenCode config: [`timmo001/opencode-config`](https://github.com/timmo001/opencode-config)
 
 ## OpenCode Workflow
 
