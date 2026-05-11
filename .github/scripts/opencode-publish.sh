@@ -142,45 +142,26 @@ Agents, commands, and plugins are not managed by \`import-external-skill\` — c
 
 ## Skills
 
-### Locally Authored
-
-| Skill | Description | Requires | Works with |
-|---|---|---|---|
+| Skill | Description | Origin | Requires | Works with |
+|---|---|---|---|---|
 EOF
 
     for skill_dir in "${CONFIG_DIR}/skills"/*/; do
       [[ -f "${skill_dir}SKILL.md" ]] || continue
-      local o
-      o="$(origin "${skill_dir}SKILL.md")"
-      [[ -n "$o" ]] && continue
-      local name desc deps optional
+      local name desc deps optional o origin_col
       name="$(basename "$skill_dir")"
       desc="$(field "${skill_dir}SKILL.md" description)"
       deps="$(requires "${skill_dir}SKILL.md")"
       optional="$(works_with "${skill_dir}SKILL.md")"
-      printf '| `%s` | %s | %s | %s |\n' "$name" "$desc" "$deps" "$optional"
-    done | sort
-
-    cat <<'EOF'
-
-### Also Used
-
-These skills are imported from external sources and are not included in this repo. Install them from their origin:
-
-| Skill | Origin |
-|---|---|
-EOF
-
-    for skill_dir in "${CONFIG_DIR}/skills"/*/; do
-      [[ -f "${skill_dir}SKILL.md" ]] || continue
-      local o
       o="$(origin "${skill_dir}SKILL.md")"
-      [[ -z "$o" ]] && continue
-      local name desc origin_label
-      name="$(basename "$skill_dir")"
-      desc="$(field "${skill_dir}SKILL.md" description)"
-      origin_label="$(printf '%s' "$o" | sed -n 's|https://github.com/\([^/]*/[^/]*\)/.*|\1|p')"
-      printf '| `%s` | [%s](%s) |\n' "$name" "${origin_label:-$o}" "$o"
+      if [[ -n "$o" ]]; then
+        local origin_label
+        origin_label="$(printf '%s' "$o" | sed -n 's|https://github.com/\([^/]*/[^/]*\)/.*|\1|p')"
+        origin_col="[${origin_label:-$o}]($o)"
+      else
+        origin_col=""
+      fi
+      printf '| `%s` | %s | %s | %s | %s |\n' "$name" "$desc" "$origin_col" "$deps" "$optional"
     done | sort
 
     printf '\n## Agents\n\n'
@@ -287,14 +268,6 @@ sync_to_publish() {
 
   # Copy subtree contents
   cp -a "${CONFIG_DIR}/." "${PUBLISH_DIR}/"
-
-  # Remove imported skills (they belong to their upstream repos)
-  for skill_dir in "${PUBLISH_DIR}/skills"/*/; do
-    [[ -f "${skill_dir}SKILL.md" ]] || continue
-    if origin "${skill_dir}SKILL.md" | grep -q .; then
-      rm -rf "$skill_dir"
-    fi
-  done
 
   echo "::endgroup::"
 }
