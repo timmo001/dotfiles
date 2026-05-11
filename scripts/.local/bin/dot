@@ -2957,6 +2957,36 @@ cmd_agents_sync() {
 # ---------------------------------------------------------------------------
 
 SKILLS_DIR="${PUBLIC_DOTFILES}/agents/.config/opencode/skills"
+_SU_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dot"
+_SU_CACHE_FILE="${_SU_CACHE_DIR}/skill-updates-cache"
+_SU_USE_CACHE=1
+
+# Get the cached upstream commit SHA for a skill. Prints the SHA or empty.
+_skill_updates_cache_get() {
+  local skill_name="$1"
+  [[ -f "$_SU_CACHE_FILE" ]] || return 0
+  awk -v s="$skill_name" '$1 == s { print $2; exit }' "$_SU_CACHE_FILE"
+}
+
+# Write/update the cached upstream commit SHA for a skill.
+_skill_updates_cache_set() {
+  local skill_name="$1" sha="$2"
+  mkdir -p "$_SU_CACHE_DIR"
+  if [[ -f "$_SU_CACHE_FILE" ]]; then
+    # Remove existing entry then append.
+    local tmp
+    tmp="$(awk -v s="$skill_name" '$1 != s' "$_SU_CACHE_FILE")"
+    printf '%s\n' "$tmp" > "$_SU_CACHE_FILE"
+  fi
+  printf '%s %s\n' "$skill_name" "$sha" >> "$_SU_CACHE_FILE"
+}
+
+# Query the latest commit SHA that touched a path in a GitHub repo.
+_skill_updates_upstream_sha() {
+  local owner="$1" repo="$2" branch="$3" path="$4"
+  gh api "repos/${owner}/${repo}/commits?path=${path}&per_page=1&sha=${branch}" \
+    --jq '.[0].sha' 2>/dev/null || true
+}
 
 # Parse a GitHub tree URL into owner, repo, branch, and path components.
 # Sets: _SU_OWNER, _SU_REPO, _SU_BRANCH, _SU_PATH
@@ -3101,6 +3131,20 @@ _skill_updates_check_skill() {
   local has_local_edits=0
   [[ -n "$local_edits" ]] && has_local_edits=1
 
+  # Query upstream commit SHA (used for cache and written after successful checks).
+  local upstream_sha=''
+  upstream_sha="$(_skill_updates_upstream_sha "$owner" "$repo" "$branch" "$spath")"
+
+  # Check upstream commit SHA against cache to skip unchanged origins.
+  if [[ "$_SU_USE_CACHE" -eq 1 && -n "$upstream_sha" ]]; then
+    local cached_sha
+    cached_sha="$(_skill_updates_cache_get "$skill_name")"
+    if [[ "$upstream_sha" == "$cached_sha" ]]; then
+      log_info "  ${skill_name}: up to date (cached)"
+      return 0
+    fi
+  fi
+
   # List upstream files.
   local upstream_files
   upstream_files="$(_skill_updates_list_upstream_files "$owner" "$repo" "$branch" "$spath" 2>/dev/null)"
@@ -3158,6 +3202,7 @@ _skill_updates_check_skill() {
   rm -rf "$tmpdir"
 
   if [[ "$has_changes" -eq 0 ]]; then
+    [[ "$mode" != 'check' && -n "$upstream_sha" ]] && _skill_updates_cache_set "$skill_name" "$upstream_sha"
     log_info "  ${skill_name}: up to date"
     return 0
   fi
@@ -3183,6 +3228,7 @@ _skill_updates_check_skill() {
 
   # Skills with local edits cannot be auto-applied; they need manual review.
   if [[ "$has_local_edits" -eq 1 ]]; then
+    [[ -n "$upstream_sha" ]] && _skill_updates_cache_set "$skill_name" "$upstream_sha"
     log_info "  ${skill_name}: skipped (has local edits — review manually or via /check-skill-updates)"
     return 3
   fi
@@ -3226,16 +3272,19 @@ _skill_updates_check_skill() {
     fi
   done <<< "$upstream_files"
 
+  [[ -n "$upstream_sha" ]] && _skill_updates_cache_set "$skill_name" "$upstream_sha"
   log_info "  ${skill_name}: updated"
   return 0
 }
 
 cmd_skill_updates() {
   local mode='interactive'
+  _SU_USE_CACHE=1
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --update) mode='update'; shift ;;
-      --check)  mode='check'; shift ;;
+      --update)   mode='update'; shift ;;
+      --check)    mode='check'; shift ;;
+      --no-cache) _SU_USE_CACHE=0; shift ;;
       *) log_error "Unknown flag: $1"; return 1 ;;
     esac
   done
@@ -4454,6 +4503,7 @@ cmd_help() {
   printf "$fmt_cmd" 'skill-updates' 'Check imported skills for upstream changes (auto-applied during update; interactive standalone)'
   printf "$fmt_cmd" '' 'Options: --check → report only, exit 1 if updates available (no prompts)'
   printf "$fmt_cmd" '' '         --update → auto-apply without prompting (used by dot update)'
+  printf "$fmt_cmd" '' '         --no-cache → bypass upstream SHA cache, force full comparison'
   printf "$fmt_cmd" 'help' 'Show this help'
 
   printf '\nEnvironment:\n'

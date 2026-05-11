@@ -28,6 +28,21 @@ Review and apply upstream changes to imported OpenCode skills that have `# origi
 
 When running from an agent, only use `--check` (report) and `--update` (apply all). Do not run bare `dot skill-updates` — interactive mode prompts `[y/N]` per skill and will hang without a terminal.
 
+Add `--no-cache` to bypass the upstream SHA cache and force a full comparison (useful after clearing the cache or debugging).
+
+## Caching
+
+Each successful check stores the latest upstream commit SHA per skill in `~/.cache/dot/skill-updates-cache`. On subsequent runs, if the upstream SHA hasn't changed the skill is reported as "up to date (cached)" and the full fetch-and-diff is skipped.
+
+Cache writes happen when:
+- A full comparison confirms no diff (skill is genuinely up to date).
+- An update is successfully applied (clean import).
+- A local-edits skill is reported in interactive or update mode (diffs already shown to the user; re-reporting the same diffs is suppressed until upstream changes again).
+
+Cache writes do **not** happen when:
+- Running in `--check` mode (report-only; must stay idempotent).
+- The user skips a clean update in interactive mode (show it again next time).
+
 ## Modes
 
 ### Check only
