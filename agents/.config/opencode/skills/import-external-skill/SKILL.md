@@ -108,3 +108,4 @@ When given a repo URL without a specific skill path, review the full skill set:
 - Do not import without diffing against the upstream original.
 - Do not commit without explicit user request.
 - Edit stow source paths, not live paths.
+- Ensure imported scripts are executable (`chmod +x`) after writing them to disk.
