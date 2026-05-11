@@ -61,14 +61,14 @@ OpenCode ignores unknown frontmatter fields, so upstream-only fields (`metadata`
 
 The `# upstream-sha:` line stores the latest upstream commit SHA so unchanged origins can be skipped on subsequent `dot skill-updates` runs. Set it during import to the commit that last touched the skill. It is also updated automatically by `dot skill-updates`.
 
-If the import adapts body content beyond the frontmatter (condensing sections, reformatting, etc.), add a `# local-edits:` block documenting what was changed and why. This tells `dot skill-updates` that the resulting diffs are intentional:
+If the import adapts body content beyond the frontmatter (condensing sections, reformatting, etc.), add a `# local-edits:` block documenting the differences from upstream. This tells `dot skill-updates` that the diffs are intentional. List what differs, not a changelog of what was done:
 
 ```yaml
 # origin: https://github.com/org/repo/tree/main/skills/skill-name
 # upstream-sha: abc123...
 # local-edits:
-#   - description rewritten for local context
-#   - section X condensed for brevity
+#   - SKILL.md: condensed body, rewritten description
+#   - SOME-FILE.md: framework-specific pattern replaced with local equivalent
 ```
 
 ## Commit Format
