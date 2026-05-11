@@ -79,12 +79,24 @@ Origin:
 https://github.com/org/repo/tree/main/skills/skill-name
 ```
 
+## User Context
+
+Before ranking external skills, understand what the user actually works on. Check their GitHub profile for recently pushed repos (`gh api users/{user}/repos --paginate --jq ...`) to build a picture of:
+
+- **Languages and frameworks** used across active repos
+- **Ownership roles** -- sole owner vs. contributor/maintainer on a shared project
+- **Project types** -- libraries, applications, tooling, config repos
+
+Skills that assume full control of a project's issue tracker, labelling, or team process are only relevant for repos where the user has full ownership, not for shared projects where they are one maintainer among many.
+
+If recent activity does not clearly indicate the user's primary work, languages, or ownership roles, ask before ranking.
+
 ## Review Mode
 
 When given a repo URL without a specific skill path, review the full skill set:
 
 1. List all available skills in the repo.
-2. Filter out domain-specific skills irrelevant to the local setup.
+2. Filter out domain-specific skills irrelevant to the user context above.
 3. Compare remaining skills against the existing local skill library for overlaps.
 4. Present a recommendation table: pull in, adapt into existing, or skip -- with reasoning.
 5. Wait for the user to choose before importing or adapting anything.
