@@ -10,6 +10,18 @@ run_in_terminal() {
     -e bash -c "$command; printf '\n'; read -r -p 'Press Enter to close...'"
 }
 
+run_with_notify() {
+  local label="${1:?}"
+  shift
+  local output
+  if output="$("$@" 2>&1)"; then
+    notify-send -a 'Workspace' "$label" "$output"
+  else
+    notify-send -u critical -a 'Workspace' "$label failed" "${output:-Unknown error}"
+  fi
+  exit 0
+}
+
 while true; do
   options=(
     '󰙀  Relayout current workspace'
@@ -34,10 +46,10 @@ while true; do
       exec workspace-relayout
       ;;
     'Capture all workspaces')
-      run_in_terminal 'workspace-capture'
+      run_with_notify 'Capture' workspace-capture
       ;;
     'Capture current workspace')
-      run_in_terminal 'workspace-capture --current-workspace'
+      run_with_notify 'Capture' workspace-capture --current-workspace
       ;;
     'Restore latest (dry run)')
       run_in_terminal 'workspace-restore --dry-run'
