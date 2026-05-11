@@ -1863,10 +1863,7 @@ omarchy_clone_repo() {
   local repo_slug="$1"
   local target_dir="$2"
 
-  if has_cmd gh && gh auth status >/dev/null 2>&1; then
-    log_info "Cloning $repo_slug -> $(display_path "$target_dir") (via gh)"
-    gh repo clone "$repo_slug" "$target_dir"
-  elif has_cmd git; then
+  if has_cmd git; then
     log_info "Cloning $repo_slug -> $(display_path "$target_dir") (via git)"
     git clone "https://github.com/${repo_slug}.git" "$target_dir"
   else
@@ -2089,7 +2086,7 @@ run_init_questionnaire() {
 
   if [[ -n "$INIT_SELECTED_OMARCHY_BRANCH" ]]; then
     log_info "Using preselected omarchy branch: $INIT_SELECTED_OMARCHY_BRANCH"
-  elif has_cmd gum && has_cmd gh && gh auth status >/dev/null 2>&1; then
+  elif has_cmd gum && has_cmd gh; then
     local branches
     branches="$(discover_omarchy_branches || true)"
 
@@ -2101,7 +2098,7 @@ run_init_questionnaire() {
       log_warn 'Could not discover omarchy branches; using current/default branches'
     fi
   else
-    log_warn 'Skipping branch questionnaire (requires gum + gh auth)'
+    log_warn 'Skipping branch questionnaire (requires gum + gh)'
   fi
 
   if has_cmd gum; then
@@ -2340,15 +2337,6 @@ can_use_private() {
   if ! [[ -O "$PRIVATE_DOTFILES" ]]; then
     PRIVATE_REASON="private repo is not owned by current user ($(display_path "$PRIVATE_DOTFILES"))"
     return 1
-  fi
-
-  if has_cmd gh && gh auth status >/dev/null 2>&1; then
-    local gh_login
-    gh_login="$(gh api user --jq .login 2>/dev/null || true)"
-    if [[ -n "$gh_login" && "$gh_login" != "$EXPECTED_GH_USER" ]]; then
-      PRIVATE_REASON="gh user '$gh_login' does not match '$EXPECTED_GH_USER'"
-      return 1
-    fi
   fi
 
   PRIVATE_REASON='private repo access granted'
@@ -3754,7 +3742,7 @@ cmd_doctor() {
   else
     doctor_warn 'agent-browser is missing (install with: npm i -g agent-browser && agent-browser install)'
   fi
-   optional_cmd notify-send 'desktop workflow notifications'
+  optional_cmd notify-send 'desktop workflow notifications'
   if has_cmd wpctl; then
     log_info 'wpctl is available (optional daily 5am volume reset on PipeWire/WirePlumber)'
   else
@@ -3762,10 +3750,11 @@ cmd_doctor() {
   fi
 
   if has_cmd gh; then
-    if gh auth status >/dev/null 2>&1; then
-      log_info 'gh authentication is active'
+    local gh_login
+    if gh_login="$(GH_PROMPT_DISABLED=1 gh api user --jq .login 2>/dev/null)" && [[ -n "$gh_login" ]]; then
+      log_info "gh authentication is active ($gh_login)"
     else
-      doctor_warn 'gh is installed but not authenticated (branch questionnaire discovery disabled)'
+      doctor_warn 'gh is installed but not authenticated (branch questionnaire discovery may be rate-limited)'
     fi
   fi
 
