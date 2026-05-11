@@ -3707,6 +3707,105 @@ cmd_doctor() {
     fi
   }
 
+  pacman_info_field() {
+    local package_name="$1"
+    local field_name="$2"
+
+    pacman -Qi "$package_name" 2>/dev/null | awk -F ':' -v field="$field_name" '
+      $1 ~ "^" field "[[:space:]]*$" {
+        sub(/^[[:space:]]*/, "", $2)
+        print $2
+        exit
+      }
+    '
+  }
+
+  first_pacman_log_match() {
+    local package_name="$1"
+    local pattern="$2"
+    local log_file='/var/log/pacman.log'
+
+    [[ -r "$log_file" ]] || return 1
+
+    while IFS= read -r line; do
+      if [[ "$line" == *"$package_name"* && "$line" == *"$pattern"* ]]; then
+        printf '%s\n' "$line"
+        return 0
+      fi
+    done < "$log_file"
+
+    return 1
+  }
+
+  report_unexpected_secret_provider_package() {
+    local package_name="$1"
+    local install_reason=''
+    local required_by=''
+    local optional_for=''
+    local install_line=''
+    local command_line=''
+
+    if ! package_installed "$package_name"; then
+      return 0
+    fi
+
+    doctor_warn "$package_name is installed; expected kwallet to be the Secret Service provider on this setup"
+
+    install_reason="$(pacman_info_field "$package_name" 'Install Reason')"
+    required_by="$(pacman_info_field "$package_name" 'Required By')"
+    optional_for="$(pacman_info_field "$package_name" 'Optional For')"
+    [[ -n "$install_reason" ]] && doctor_warn "$package_name install reason: $install_reason"
+    [[ -n "$required_by" && "$required_by" != 'None' ]] && doctor_warn "$package_name required by: $required_by"
+    [[ -n "$optional_for" && "$optional_for" != 'None' ]] && doctor_warn "$package_name optional for: $optional_for"
+
+    command_line="$(first_pacman_log_match "$package_name" '[PACMAN] Running' || true)"
+    install_line="$(first_pacman_log_match "$package_name" '[ALPM] installed' || true)"
+    [[ -n "$command_line" ]] && doctor_warn "$package_name first matching pacman command: $command_line"
+    [[ -n "$install_line" ]] && doctor_warn "$package_name first install log entry: $install_line"
+  }
+
+  report_secret_service_status() {
+    local dbus_secret_service='/usr/share/dbus-1/services/org.freedesktop.secrets.service'
+    local dbus_exec=''
+    local gnome_keyring_unit_found=false
+
+    if package_installed kwallet; then
+      log_info 'kwallet is installed and provides org.freedesktop.secrets'
+    else
+      doctor_warn 'kwallet is missing; this setup expects kwallet to provide org.freedesktop.secrets'
+    fi
+
+    report_unexpected_secret_provider_package gnome-keyring
+
+    if [[ -e "$dbus_secret_service" || -L "$dbus_secret_service" ]]; then
+      dbus_exec="$(awk -F= '$1 == "Exec" { print $2; exit }' "$dbus_secret_service" 2>/dev/null || true)"
+      if [[ -n "$dbus_exec" ]]; then
+        doctor_warn "Unexpected Secret Service DBus autostart exists: $(display_path "$dbus_secret_service") -> $dbus_exec"
+      else
+        doctor_warn "Unexpected Secret Service DBus autostart exists: $(display_path "$dbus_secret_service")"
+      fi
+    else
+      log_info 'No legacy org.freedesktop.secrets DBus autostart file found'
+    fi
+
+    for unit_path in \
+      '/usr/lib/systemd/user/gnome-keyring-daemon.service' \
+      '/usr/lib/systemd/user/gnome-keyring-daemon.socket' \
+      '/etc/systemd/user/gnome-keyring-daemon.service' \
+      '/etc/systemd/user/gnome-keyring-daemon.socket' \
+      '/etc/systemd/user/sockets.target.wants/gnome-keyring-daemon.socket'
+    do
+      if [[ -e "$unit_path" || -L "$unit_path" ]]; then
+        gnome_keyring_unit_found=true
+        doctor_warn "gnome-keyring systemd user unit is present: $unit_path"
+      fi
+    done
+
+    if [[ "$gnome_keyring_unit_found" == false ]]; then
+      log_info 'No gnome-keyring systemd user units found'
+    fi
+  }
+
   doctor_log_section 'Dependency checks'
 
   require_cmd() {
@@ -3757,6 +3856,9 @@ cmd_doctor() {
       doctor_warn 'gh is installed but not authenticated (branch questionnaire discovery may be rate-limited)'
     fi
   fi
+
+  doctor_log_section 'Secret Service checks'
+  report_secret_service_status
 
   if [[ -d "$PUBLIC_DOTFILES" ]]; then
     doctor_log_section 'Repository checks'
