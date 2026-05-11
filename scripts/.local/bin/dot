@@ -4479,6 +4479,52 @@ cmd_diff() {
 
 }
 
+# ---------------------------------------------------------------------------
+# dot opencode-publish — publish OpenCode config to a standalone repo via
+#                        git subtree push
+# ---------------------------------------------------------------------------
+
+OPENCODE_PUBLISH_PREFIX='agents/.config/opencode'
+OPENCODE_PUBLISH_REMOTE='opencode-publish'
+OPENCODE_PUBLISH_REPO_NAME='opencode-config'
+
+cmd_opencode_publish() {
+  log_section 'OpenCode Publish'
+
+  # Resolve the GitHub user from the dotfiles origin remote.
+  local gh_user
+  gh_user="$(git -C "$PUBLIC_DOTFILES" remote get-url origin 2>/dev/null \
+    | sed -n 's|.*github\.com[:/]\([^/]*\)/.*|\1|p')"
+  if [[ -z "$gh_user" ]]; then
+    log_error 'Could not determine GitHub user from dotfiles origin remote'
+    return 1
+  fi
+
+  local repo_full="${gh_user}/${OPENCODE_PUBLISH_REPO_NAME}"
+  local repo_url="git@github.com:${repo_full}.git"
+
+  # First-run: create the GitHub repo if it does not exist.
+  if ! gh repo view "$repo_full" &>/dev/null; then
+    log_info "Creating GitHub repo ${repo_full}"
+    gh repo create "$repo_full" --public \
+      --description 'Shared OpenCode skills, agents, plugins, and commands' \
+      || { log_error "Failed to create repo ${repo_full}"; return 1; }
+  fi
+
+  # Ensure the git remote exists locally.
+  if ! git -C "$PUBLIC_DOTFILES" remote get-url "$OPENCODE_PUBLISH_REMOTE" &>/dev/null; then
+    log_info "Adding git remote ${OPENCODE_PUBLISH_REMOTE} → ${repo_url}"
+    git -C "$PUBLIC_DOTFILES" remote add "$OPENCODE_PUBLISH_REMOTE" "$repo_url"
+  fi
+
+  # Push the subtree.
+  log_info "Pushing subtree ${OPENCODE_PUBLISH_PREFIX} → ${repo_full} main"
+  git -C "$PUBLIC_DOTFILES" subtree push \
+    --prefix "$OPENCODE_PUBLISH_PREFIX" "$OPENCODE_PUBLISH_REMOTE" main
+
+  log_info "Published to https://github.com/${repo_full}"
+}
+
 cmd_help() {
   local fmt_cmd='  %-20s  %s\n'
   local fmt_env='  %-34s%s\n'
@@ -4502,6 +4548,7 @@ cmd_help() {
   printf "$fmt_cmd" 'private-pkg-publish' 'Build, publish, commit, and push a mapped private package'
   printf "$fmt_cmd" 'agents-sync' 'Run dot memory then write global-agents.mdc (default: dotfiles-private agents/.cursor/rules/)'
   printf "$fmt_cmd" 'skill-updates' 'Check imported skills for upstream changes (auto-applied during update; interactive standalone)'
+  printf "$fmt_cmd" 'opencode-publish' 'Publish OpenCode config (skills, agents, plugins, commands) via git subtree'
   printf "$fmt_cmd" '' 'Options: --check → report only, exit 1 if updates available (no prompts)'
   printf "$fmt_cmd" '' '         --update → auto-apply without prompting (used by dot update)'
   printf "$fmt_cmd" 'help' 'Show this help'
@@ -4589,6 +4636,7 @@ main() {
     private-pkg-publish) cmd_private_pkg_publish "$@" ;;
     agents-sync) cmd_agents_sync "$@" ;;
     skill-updates) cmd_skill_updates "$@" ;;
+    opencode-publish) cmd_opencode_publish "$@" ;;
     memory) cmd_memory "$@" ;;
     help|-h|--help) cmd_help ;;
     *)
