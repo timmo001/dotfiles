@@ -15,16 +15,18 @@ Review and apply upstream changes to imported OpenCode skills that have `# origi
 
 ## Workflow
 
-1. Run `dot skill-updates` to check all imported skills against their upstream origins.
+1. Run `dot skill-updates --check` to check all imported skills against their upstream origins.
 2. Review the output: each skill reports up-to-date, changed, or failed.
 3. For skills with upstream changes:
    - Review the normalised diff (local frontmatter adjustments are excluded).
    - Decide per skill: apply the update, skip, or investigate further.
-4. When applying, `dot skill-updates` handles the mechanical work:
-   - Fetches all upstream files (SKILL.md + references).
-   - Re-applies local frontmatter format (keeps `name`, `description`, adds `# origin:`, drops `metadata`/`category`/`tags`).
-   - Writes updated files to the stow source path.
-5. After applying updates, run `dot stow` to relink and `dot opencode-debug` to verify skills load.
+4. When applying, use `dot skill-updates --update` to apply all changes at once.
+5. If `--update` fails or selective application is needed, fall back to manually fetching and writing files using the `import-external-skill` skill workflow.
+6. After applying updates, run `dot stow` to relink and `dot opencode-debug` to verify skills load.
+
+## Agent Usage
+
+When running from an agent, only use `--check` (report) and `--update` (apply all). Do not run bare `dot skill-updates` — interactive mode prompts `[y/N]` per skill and will hang without a terminal.
 
 ## Modes
 
