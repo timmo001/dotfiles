@@ -2975,12 +2975,30 @@ _skill_updates_write_sha() {
   fi
 }
 
+# Run a gh api call with exponential backoff (3 attempts, 1s/2s/4s).
+# All arguments are forwarded to gh api. Suppresses stderr.
+_skill_updates_gh_api() {
+  local attempt max_attempts=3 delay=1
+  for (( attempt=1; attempt<=max_attempts; attempt++ )); do
+    if gh api "$@" 2>/dev/null; then
+      return 0
+    fi
+    if (( attempt < max_attempts )); then
+      log_warn "  GitHub API call failed (attempt ${attempt}/${max_attempts}), retrying in ${delay}s..."
+      sleep "$delay"
+      delay=$(( delay * 2 ))
+    fi
+  done
+  log_warn "  GitHub API call failed after ${max_attempts} attempts"
+  return 1
+}
+
 # Query the latest commit SHA that touched a path in a GitHub repo.
 _skill_updates_upstream_sha() {
   local owner="$1" repo="$2" branch="$3" path="$4"
   local sha
-  sha="$(gh api "repos/${owner}/${repo}/commits?path=${path}&per_page=1&sha=${branch}" \
-    --jq '.[0].sha' 2>/dev/null)" || return 0
+  sha="$(_skill_updates_gh_api "repos/${owner}/${repo}/commits?path=${path}&per_page=1&sha=${branch}" \
+    --jq '.[0].sha')" || return 0
   # Validate: a commit SHA is exactly 40 hex chars.
   [[ "$sha" =~ ^[0-9a-f]{40}$ ]] && printf '%s' "$sha"
 }
@@ -3025,8 +3043,8 @@ _skill_updates_normalise_upstream() {
 _skill_updates_fetch_file() {
   local owner="$1" repo="$2" branch="$3" filepath="$4"
   local content
-  content="$(gh api "repos/${owner}/${repo}/contents/${filepath}?ref=${branch}" \
-    --jq '.content' 2>/dev/null)" || return 1
+  content="$(_skill_updates_gh_api "repos/${owner}/${repo}/contents/${filepath}?ref=${branch}" \
+    --jq '.content')" || return 1
   [[ -z "$content" ]] && return 1
   printf '%s' "$content" | base64 -d 2>/dev/null || return 1
 }
@@ -3035,8 +3053,8 @@ _skill_updates_fetch_file() {
 # Returns lines of "type name" (file SKILL.md, dir references, etc.)
 _skill_updates_list_upstream_dir() {
   local owner="$1" repo="$2" branch="$3" dirpath="$4"
-  gh api "repos/${owner}/${repo}/contents/${dirpath}?ref=${branch}" \
-    --jq '.[] | "\(.type) \(.name)"' 2>/dev/null || return 1
+  _skill_updates_gh_api "repos/${owner}/${repo}/contents/${dirpath}?ref=${branch}" \
+    --jq '.[] | "\(.type) \(.name)"' || return 1
 }
 
 # List all files in the upstream skill recursively.
