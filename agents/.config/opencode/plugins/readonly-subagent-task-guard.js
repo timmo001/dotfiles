@@ -52,8 +52,14 @@ function readOnlyByWorkspaceProbes(ruleset) {
 }
 
 function allowsOrAsksTypicalWorkspaceEdits(ruleset) {
-  const action = evaluateAction(ruleset, "edit", EDIT_PROBE_PATH)
-  return action === "allow" || action === "ask"
+  const editAction = evaluateAction(ruleset, "edit", EDIT_PROBE_PATH)
+  const writeAction = evaluateAction(ruleset, "write", WRITE_PROBE_PATH)
+  return (
+    editAction === "allow" ||
+    editAction === "ask" ||
+    writeAction === "allow" ||
+    writeAction === "ask"
+  )
 }
 
 function shouldEnforceReadonlyDelegation(parent) {
