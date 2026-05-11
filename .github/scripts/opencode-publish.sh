@@ -46,6 +46,15 @@ origin() {
   ' "$1"
 }
 
+# List plugin dependencies by scanning for known plugin references.
+requires_plugins() {
+  local file="$1" deps=""
+  if grep -qi 'BranchContextPlugin\|branch-context' "$file" 2>/dev/null; then
+    deps="branch-context"
+  fi
+  printf '%s' "$deps"
+}
+
 # Extract the @file description from a plugin's JSDoc block.
 plugin_desc() {
   awk '
@@ -85,6 +94,8 @@ cp agents/reviewer.md ~/.config/opencode/agents/
 cp -r skills agents commands plugins ~/.config/opencode/
 \`\`\`
 
+Some skills and commands depend on plugins to function. Check the tables below for required plugins and install them alongside the skill or command.
+
 ### Importing Skills
 
 Once you have the \`import-external-skill\` skill installed, you can use it to import skills from this or any public GitHub skills repo. Point it at a skill directory URL and it handles fetching, frontmatter conversion, and origin tracking:
@@ -101,8 +112,8 @@ Agents, commands, and plugins are not managed by \`import-external-skill\` — c
 
 ### Locally Authored
 
-| Skill | Description |
-|---|---|
+| Skill | Description | Requires |
+|---|---|---|
 EOF
 
     for skill_dir in "${CONFIG_DIR}/skills"/*/; do
@@ -110,10 +121,11 @@ EOF
       local o
       o="$(origin "${skill_dir}SKILL.md")"
       [[ -n "$o" ]] && continue
-      local name desc
+      local name desc deps
       name="$(basename "$skill_dir")"
       desc="$(field "${skill_dir}SKILL.md" description)"
-      printf '| `%s` | %s |\n' "$name" "$desc"
+      deps="$(requires_plugins "${skill_dir}SKILL.md")"
+      printf '| `%s` | %s | %s |\n' "$name" "$desc" "${deps:+\`$deps\`}"
     done | sort
 
     cat <<'EOF'
@@ -149,18 +161,19 @@ EOF
     done | sort
 
     printf '\n## Commands\n\n'
-    printf '| Command | Description | Agent |\n|---|---|---|\n'
+    printf '| Command | Description | Agent | Requires |\n|---|---|---|---|\n'
 
     while IFS= read -r cmd_file; do
       [[ -f "$cmd_file" ]] || continue
-      local rel_path name dir_part desc agent
+      local rel_path name dir_part desc agent deps
       rel_path="${cmd_file#"${CONFIG_DIR}/commands/"}"
       name="$(basename "$rel_path" .md)"
       dir_part="${rel_path%/*}"
       [[ "$dir_part" != "$(basename "$rel_path")" ]] && name="${dir_part}/${name}"
       desc="$(field "$cmd_file" description)"
       agent="$(field "$cmd_file" agent)"
-      printf '| `/%s` | %s | %s |\n' "$name" "$desc" "${agent:-default}"
+      deps="$(requires_plugins "$cmd_file")"
+      printf '| `/%s` | %s | %s | %s |\n' "$name" "$desc" "${agent:-default}" "${deps:+\`$deps\`}"
     done < <(find "${CONFIG_DIR}/commands" -name '*.md' -type f | sort)
 
     printf '\n## Plugins\n\n'
