@@ -6,6 +6,8 @@ STATE_DIR_DEFAULT="$HOME/.local/state/workspace-sessions"
 STATE_DIR="$STATE_DIR_DEFAULT"
 OUTPUT_FILE=""
 CURRENT_WORKSPACE_ONLY=false
+EXCLUDED_CLASS_RE='^workspace-menu-terminal$'
+EXCLUDED_TITLE_RE='^Workspace Menu$'
 
 usage() {
   cat <<'EOF'
@@ -73,6 +75,16 @@ active_workspace_json="$(hyprctl -j activeworkspace)"
 active_window_json="$(hyprctl -j activewindow 2>/dev/null || printf '{}')"
 monitors_json="$(hyprctl -j monitors)"
 active_workspace_id="$(jq -r '.id' <<< "$active_workspace_json")"
+
+jq \
+  --arg class_re "$EXCLUDED_CLASS_RE" \
+  --arg title_re "$EXCLUDED_TITLE_RE" \
+  'map(select(
+    (((.class // "") | test($class_re)) or ((.initialClass // "") | test($class_re))
+      or ((.title // "") | test($title_re)) or ((.initialTitle // "") | test($title_re)))
+    | not
+  ))' "$clients_tmp" > "$clients_tmp.filtered"
+mv "$clients_tmp.filtered" "$clients_tmp"
 
 if $CURRENT_WORKSPACE_ONLY; then
   jq --argjson ws "$active_workspace_id" 'map(select(.workspace.id == $ws))' "$clients_tmp" > "$clients_tmp.filtered"

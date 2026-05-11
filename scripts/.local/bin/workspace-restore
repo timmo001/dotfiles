@@ -15,6 +15,8 @@ WORK_SLACK_CMD="$WORK_CHROME_BASE --app=https://app.slack.com/client"
 WORK_DISCORD_CMD="$WORK_CHROME_BASE --app=https://discord.com/app"
 WORK_BROWSER_CMD="$WORK_CHROME_BASE --class=work-browser"
 TERM_DEFAULT_CMD='uwsm app -- ghostty'
+EXCLUDED_CLASS_RE='^workspace-menu-terminal$'
+EXCLUDED_TITLE_RE='^Workspace Menu$'
 
 USED_ADDRS=""
 
@@ -188,6 +190,14 @@ command_for_client() {
   initial_class="$(jq -r '.initialClass // ""' <<< "$client_json")"
   title="$(jq -r '.title // ""' <<< "$client_json")"
   cwd="$(jq -r '.process.cwd // ""' <<< "$client_json")"
+
+  if [[ $class =~ $EXCLUDED_CLASS_RE || $initial_class =~ $EXCLUDED_CLASS_RE || $title =~ $EXCLUDED_TITLE_RE ]]; then
+    RESTORE_LABEL="Workspace Menu terminal"
+    RESTORE_CLASS_RE=""
+    RESTORE_COMMAND=""
+    RESTORE_REASON="workspace helper terminal is excluded"
+    return 1
+  fi
 
   case "$class:$initial_class" in
     chrome-app.slack.com__client:*|*:chrome-app.slack.com__client)

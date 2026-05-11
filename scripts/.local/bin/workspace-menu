@@ -4,7 +4,10 @@ set -euo pipefail
 
 run_in_terminal() {
   local command="${1:?}"
-  exec uwsm app -- ghostty -e bash -lc "$command; printf '\n'; read -r -p 'Press Enter to close...'"
+  exec setsid uwsm-app -- xdg-terminal-exec \
+    --app-id=org.omarchy.terminal \
+    --title='Workspace Menu' \
+    -e bash -c "$command; printf '\n'; read -r -p 'Press Enter to close...'"
 }
 
 while true; do
