@@ -46,13 +46,24 @@ origin() {
   ' "$1"
 }
 
-# List plugin dependencies by scanning for known plugin references.
-requires_plugins() {
-  local file="$1" deps=""
+# List dependencies (plugins and skills) by scanning for known references.
+requires() {
+  local file="$1" deps=()
   if grep -qi 'BranchContextPlugin\|branch-context' "$file" 2>/dev/null; then
-    deps="branch-context"
+    deps+=('`branch-context` plugin')
   fi
-  printf '%s' "$deps"
+  # Scan for skill references: backtick-quoted names that match a skill directory
+  local ref
+  for ref in $(grep -oP '`[a-z][-a-z0-9]*`' "$file" 2>/dev/null | tr -d '`' | sort -u); do
+    if [[ -d "${CONFIG_DIR}/skills/${ref}" ]]; then
+      local self
+      self="$(basename "$(dirname "$file")")"
+      [[ "$ref" == "$self" || "$ref" == "$(basename "$file" .md)" ]] && continue
+      deps+=("\`${ref}\` skill")
+    fi
+  done
+  local IFS=', '
+  printf '%s' "${deps[*]}"
 }
 
 # Extract the @file description from a plugin's JSDoc block.
@@ -126,8 +137,8 @@ EOF
       local name desc deps
       name="$(basename "$skill_dir")"
       desc="$(field "${skill_dir}SKILL.md" description)"
-      deps="$(requires_plugins "${skill_dir}SKILL.md")"
-      printf '| `%s` | %s | %s |\n' "$name" "$desc" "${deps:+\`$deps\`}"
+      deps="$(requires "${skill_dir}SKILL.md")"
+      printf '| `%s` | %s | %s |\n' "$name" "$desc" "$deps"
     done | sort
 
     cat <<'EOF'
@@ -174,8 +185,8 @@ EOF
       [[ "$dir_part" != "$(basename "$rel_path")" ]] && name="${dir_part}/${name}"
       desc="$(field "$cmd_file" description)"
       agent="$(field "$cmd_file" agent)"
-      deps="$(requires_plugins "$cmd_file")"
-      printf '| `/%s` | %s | %s | %s |\n' "$name" "$desc" "${agent:-default}" "${deps:+\`$deps\`}"
+      deps="$(requires "$cmd_file")"
+      printf '| `/%s` | %s | %s | %s |\n' "$name" "$desc" "${agent:-default}" "$deps"
     done < <(find "${CONFIG_DIR}/commands" -name '*.md' -type f | sort)
 
     printf '\n## Plugins\n\n'
