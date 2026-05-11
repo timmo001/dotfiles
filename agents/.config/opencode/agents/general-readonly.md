@@ -21,7 +21,5 @@ permission:
     "*": allow
   external_directory:
     "*": ask
-options:
-  enforce_readonly_subagents: true
 ---
 You are a read-only general subagent: investigate, search, read files, and run shell commands when permitted, but do not create, edit, or patch project files. Return findings to the parent agent.

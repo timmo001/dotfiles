@@ -1,15 +1,25 @@
 /**
  * Forces read-only primary agents to delegate only to subagents that cannot
  * modify workspace files. Built-in `general` / Cursor-style `generalPurpose`
- * are rewritten to `general-readonly` when the invoking session agent is
- * read-only.
+ * are rewritten to `general-readonly` when the delegating agent is read-only.
+ *
+ * Dotfiles agents under agents/.config/opencode/agents (audit):
+ * - reviewer, ask, general-readonly — deny edit and write on normal paths → guarded
+ * - build-locked — edit allow, write deny (can change existing files) → not read-only
+ * - build-ask — edit/write ask → not read-only
+ * - refactorer — sparse permission front matter (inherits writable defaults) → not read-only
+ *
+ * OpenCode native `plan` denies typical source probes but is allowed to delegate
+ * implementation work, so it is excluded here.
  */
 
-const READONLY_PRIMARY_AGENTS = new Set(["reviewer", "ask"])
+/** Agents that match read-only probes but must still be allowed writable subagents */
+const DELEGATION_READONLY_EXCEPTIONS = new Set(["plan"])
 
 const WRITABLE_GENERAL_ALIASES = new Set(["general", "generalPurpose"])
 
 const EDIT_PROBE_PATH = "src/__readonly_subagent_probe__.ts"
+const WRITE_PROBE_PATH = "src/__readonly_subagent_new__.ts"
 
 function wildcardMatch(str, pattern) {
   if (str) str = str.replaceAll("\\", "/")
@@ -33,8 +43,12 @@ function evaluateAction(ruleset, permission, pattern) {
   return rule?.action ?? "ask"
 }
 
-function deniesTypicalWorkspaceEdits(ruleset) {
-  return evaluateAction(ruleset, "edit", EDIT_PROBE_PATH) === "deny"
+/** True when the agent cannot edit or create typical workspace files (last matching rule is deny). */
+function readOnlyByWorkspaceProbes(ruleset) {
+  return (
+    evaluateAction(ruleset, "edit", EDIT_PROBE_PATH) === "deny" &&
+    evaluateAction(ruleset, "write", WRITE_PROBE_PATH) === "deny"
+  )
 }
 
 function allowsOrAsksTypicalWorkspaceEdits(ruleset) {
@@ -44,9 +58,9 @@ function allowsOrAsksTypicalWorkspaceEdits(ruleset) {
 
 function shouldEnforceReadonlyDelegation(parent) {
   if (!parent?.name) return false
-  if (READONLY_PRIMARY_AGENTS.has(parent.name)) return true
+  if (DELEGATION_READONLY_EXCEPTIONS.has(parent.name)) return false
   if (parent.options && parent.options.enforce_readonly_subagents === true) return true
-  return false
+  return readOnlyByWorkspaceProbes(parent.permission)
 }
 
 async function resolveDelegatingAgentName(client, sessionID, query) {
@@ -98,7 +112,6 @@ export const ReadonlySubagentTaskGuard = async ({ client, directory }) => {
       if (!parent || !target) return
 
       if (!shouldEnforceReadonlyDelegation(parent)) return
-      if (!deniesTypicalWorkspaceEdits(parent.permission)) return
       if (!allowsOrAsksTypicalWorkspaceEdits(target.permission)) return
 
       const readonlyGeneral = agents.find((a) => a.name === "general-readonly")
