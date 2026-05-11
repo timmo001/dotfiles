@@ -2957,35 +2957,32 @@ cmd_agents_sync() {
 # ---------------------------------------------------------------------------
 
 SKILLS_DIR="${PUBLIC_DOTFILES}/agents/.config/opencode/skills"
-_SU_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dot"
-_SU_CACHE_FILE="${_SU_CACHE_DIR}/skill-updates-cache"
-_SU_USE_CACHE=1
 
-# Get the cached upstream commit SHA for a skill. Prints the SHA or empty.
-_skill_updates_cache_get() {
-  local skill_name="$1"
-  [[ -f "$_SU_CACHE_FILE" ]] || return 0
-  awk -v s="$skill_name" '$1 == s { print $2; exit }' "$_SU_CACHE_FILE"
+# Read the stored upstream-sha from a skill's SKILL.md frontmatter.
+_skill_updates_stored_sha() {
+  local skill_md="$1"
+  awk 'NR==1 && /^---$/ { in_fm=1; next } in_fm && /^---$/ { exit } in_fm && /^# upstream-sha:/ { sub(/^# upstream-sha: */, ""); print; exit }' "$skill_md"
 }
 
-# Write/update the cached upstream commit SHA for a skill.
-_skill_updates_cache_set() {
-  local skill_name="$1" sha="$2"
-  mkdir -p "$_SU_CACHE_DIR"
-  if [[ -f "$_SU_CACHE_FILE" ]]; then
-    # Remove existing entry then append.
-    local tmp
-    tmp="$(awk -v s="$skill_name" '$1 != s' "$_SU_CACHE_FILE")"
-    printf '%s\n' "$tmp" > "$_SU_CACHE_FILE"
+# Write or update the upstream-sha in a skill's SKILL.md frontmatter.
+_skill_updates_write_sha() {
+  local skill_md="$1" sha="$2"
+  if grep -q '^# upstream-sha:' "$skill_md"; then
+    sed -i "s|^# upstream-sha:.*|# upstream-sha: ${sha}|" "$skill_md"
+  else
+    # Insert after the # origin: line in frontmatter.
+    sed -i "/^# origin:/a # upstream-sha: ${sha}" "$skill_md"
   fi
-  printf '%s %s\n' "$skill_name" "$sha" >> "$_SU_CACHE_FILE"
 }
 
 # Query the latest commit SHA that touched a path in a GitHub repo.
 _skill_updates_upstream_sha() {
   local owner="$1" repo="$2" branch="$3" path="$4"
-  gh api "repos/${owner}/${repo}/commits?path=${path}&per_page=1&sha=${branch}" \
-    --jq '.[0].sha' 2>/dev/null || true
+  local sha
+  sha="$(gh api "repos/${owner}/${repo}/commits?path=${path}&per_page=1&sha=${branch}" \
+    --jq '.[0].sha' 2>/dev/null)" || return 0
+  # Validate: a commit SHA is exactly 40 hex chars.
+  [[ "$sha" =~ ^[0-9a-f]{40}$ ]] && printf '%s' "$sha"
 }
 
 # Parse a GitHub tree URL into owner, repo, branch, and path components.
@@ -3003,9 +3000,9 @@ _skill_updates_parse_origin() {
   return 1
 }
 
-# Strip local-only frontmatter additions (# origin:, # local-edits: block) from content.
+# Strip local-only frontmatter additions (# origin:, # upstream-sha:, # local-edits: block) from content.
 _skill_updates_normalise_local() {
-  sed '/^# origin:/d; /^# local-edits:/d; /^#   - /d'
+  sed '/^# origin:/d; /^# upstream-sha:/d; /^# local-edits:/d; /^#   - /d'
 }
 
 # Strip upstream-only frontmatter fields (metadata block, category, tags) from content.
@@ -3067,9 +3064,9 @@ _skill_updates_list_upstream_files() {
 
 # Apply the local frontmatter format to an upstream SKILL.md.
 # Reads upstream content from stdin; writes normalised local content to stdout.
-# Requires: skill_name, origin_url, local_description (to preserve local desc).
+# Requires: skill_name, origin_url, local_description, upstream_sha (to preserve across updates).
 _skill_updates_apply_frontmatter() {
-  local skill_name="$1" origin_url="$2" local_description="$3"
+  local skill_name="$1" origin_url="$2" local_description="$3" sha="$4"
   local line in_fm=0 past_fm=0 wrote_fm=0
 
   while IFS= read -r line || [[ -n "$line" ]]; do
@@ -3088,6 +3085,7 @@ _skill_updates_apply_frontmatter() {
         printf 'name: %s\n' "$skill_name"
         printf 'description: %s\n' "$local_description"
         printf '# origin: %s\n' "$origin_url"
+        [[ -n "$sha" ]] && printf '# upstream-sha: %s\n' "$sha"
         wrote_fm=1
       fi
       printf '%s\n' '---'
@@ -3131,15 +3129,15 @@ _skill_updates_check_skill() {
   local has_local_edits=0
   [[ -n "$local_edits" ]] && has_local_edits=1
 
-  # Query upstream commit SHA (used for cache and written after successful checks).
+  # Query upstream commit SHA (used for comparison and written after successful checks).
   local upstream_sha=''
   upstream_sha="$(_skill_updates_upstream_sha "$owner" "$repo" "$branch" "$spath")"
 
-  # Check upstream commit SHA against cache to skip unchanged origins.
-  if [[ "$_SU_USE_CACHE" -eq 1 && -n "$upstream_sha" ]]; then
-    local cached_sha
-    cached_sha="$(_skill_updates_cache_get "$skill_name")"
-    if [[ "$upstream_sha" == "$cached_sha" ]]; then
+  # Compare upstream SHA against stored SHA in frontmatter to skip unchanged origins.
+  if [[ -n "$upstream_sha" ]]; then
+    local stored_sha
+    stored_sha="$(_skill_updates_stored_sha "$skill_md")"
+    if [[ "$upstream_sha" == "$stored_sha" ]]; then
       log_info "  ${skill_name}: up to date (cached)"
       return 0
     fi
@@ -3202,7 +3200,7 @@ _skill_updates_check_skill() {
   rm -rf "$tmpdir"
 
   if [[ "$has_changes" -eq 0 ]]; then
-    [[ "$mode" != 'check' && -n "$upstream_sha" ]] && _skill_updates_cache_set "$skill_name" "$upstream_sha"
+    [[ "$mode" != 'check' && -n "$upstream_sha" ]] && _skill_updates_write_sha "$skill_md" "$upstream_sha"
     log_info "  ${skill_name}: up to date"
     return 0
   fi
@@ -3228,7 +3226,7 @@ _skill_updates_check_skill() {
 
   # Skills with local edits cannot be auto-applied; they need manual review.
   if [[ "$has_local_edits" -eq 1 ]]; then
-    [[ -n "$upstream_sha" ]] && _skill_updates_cache_set "$skill_name" "$upstream_sha"
+    [[ -n "$upstream_sha" ]] && _skill_updates_write_sha "$skill_md" "$upstream_sha"
     log_info "  ${skill_name}: skipped (has local edits — review manually or via /check-skill-updates)"
     return 3
   fi
@@ -3265,26 +3263,24 @@ _skill_updates_check_skill() {
 
     if [[ "$file" == 'SKILL.md' ]]; then
       printf '%s' "$upstream_content" \
-        | _skill_updates_apply_frontmatter "$skill_name" "$origin_url" "$local_description" \
+        | _skill_updates_apply_frontmatter "$skill_name" "$origin_url" "$local_description" "$upstream_sha" \
         > "$local_file"
     else
       printf '%s' "$upstream_content" > "$local_file"
     fi
   done <<< "$upstream_files"
 
-  [[ -n "$upstream_sha" ]] && _skill_updates_cache_set "$skill_name" "$upstream_sha"
+  [[ -n "$upstream_sha" ]] && _skill_updates_write_sha "$skill_md" "$upstream_sha"
   log_info "  ${skill_name}: updated"
   return 0
 }
 
 cmd_skill_updates() {
   local mode='interactive'
-  _SU_USE_CACHE=1
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --update)   mode='update'; shift ;;
-      --check)    mode='check'; shift ;;
-      --no-cache) _SU_USE_CACHE=0; shift ;;
+      --update) mode='update'; shift ;;
+      --check)  mode='check'; shift ;;
       *) log_error "Unknown flag: $1"; return 1 ;;
     esac
   done
@@ -4503,7 +4499,6 @@ cmd_help() {
   printf "$fmt_cmd" 'skill-updates' 'Check imported skills for upstream changes (auto-applied during update; interactive standalone)'
   printf "$fmt_cmd" '' 'Options: --check → report only, exit 1 if updates available (no prompts)'
   printf "$fmt_cmd" '' '         --update → auto-apply without prompting (used by dot update)'
-  printf "$fmt_cmd" '' '         --no-cache → bypass upstream SHA cache, force full comparison'
   printf "$fmt_cmd" 'help' 'Show this help'
 
   printf '\nEnvironment:\n'

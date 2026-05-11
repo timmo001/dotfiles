@@ -43,15 +43,19 @@ Use when the external skill overlaps with or extends an existing local skill.
 name: skill-name
 description: One or two sentences. First sentence says what. Second says when to use.
 # origin: https://github.com/org/repo/tree/main/skills/skill-name
+# upstream-sha: abc123...
 ---
 ```
 
 Drop upstream-only fields (`metadata`, `category`, `tags`) that the local skill loader does not use.
 
+The `# upstream-sha:` line is written automatically by `dot skill-updates` after a successful check or update. It stores the latest upstream commit SHA so unchanged origins can be skipped on subsequent runs. Do not set it manually during import — it will be populated on the first `dot skill-updates --update` run.
+
 If the import adapts body content beyond the frontmatter (condensing sections, reformatting, etc.), add a `# local-edits:` block documenting what was changed and why. This tells `dot skill-updates` that the resulting diffs are intentional:
 
 ```yaml
 # origin: https://github.com/org/repo/tree/main/skills/skill-name
+# upstream-sha: abc123...
 # local-edits:
 #   - description rewritten for local context
 #   - section X condensed for brevity

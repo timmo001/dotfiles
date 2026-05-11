@@ -28,20 +28,20 @@ Review and apply upstream changes to imported OpenCode skills that have `# origi
 
 When running from an agent, only use `--check` (report) and `--update` (apply all). Do not run bare `dot skill-updates` — interactive mode prompts `[y/N]` per skill and will hang without a terminal.
 
-Add `--no-cache` to bypass the upstream SHA cache and force a full comparison (useful after clearing the cache or debugging).
+## Upstream SHA Tracking
 
-## Caching
+Each skill's SKILL.md frontmatter stores a `# upstream-sha:` comment with the latest upstream commit SHA that was checked. On subsequent runs, if the upstream SHA hasn't changed, the skill is reported as "up to date (cached)" and the full fetch-and-diff is skipped.
 
-Each successful check stores the latest upstream commit SHA per skill in `~/.cache/dot/skill-updates-cache`. On subsequent runs, if the upstream SHA hasn't changed the skill is reported as "up to date (cached)" and the full fetch-and-diff is skipped.
-
-Cache writes happen when:
+The SHA is written to frontmatter when:
 - A full comparison confirms no diff (skill is genuinely up to date).
 - An update is successfully applied (clean import).
-- A local-edits skill is reported in interactive or update mode (diffs already shown to the user; re-reporting the same diffs is suppressed until upstream changes again).
+- A local-edits skill is reported in interactive or update mode (diffs already shown; suppressed until upstream changes again).
 
-Cache writes do **not** happen when:
-- Running in `--check` mode (report-only; must stay idempotent).
+The SHA is **not** written when:
+- Running in `--check` mode (report-only; stays idempotent, does not modify files).
 - The user skips a clean update in interactive mode (show it again next time).
+
+Since the SHA lives in the committed frontmatter, it persists across machines and fresh clones. Commit the skill files after running `--update` or interactive mode to share the reviewed state.
 
 ## Modes
 
