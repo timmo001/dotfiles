@@ -86,6 +86,8 @@ if [ -z "$SESSION_FILE" ] || [ ! -f "$SESSION_FILE" ]; then
   exit 1
 fi
 
+exec > >(tee "$STATE_DIR/restore.log") 2>&1
+
 log_action() {
   if $DRY_RUN; then
     printf '[dry-run] %s\n' "$1"
@@ -277,24 +279,28 @@ restore_window_shape() {
   local floating x y width height
 
   floating="$(jq -r '.floating // false' <<< "$client_json")"
-
-  if [ "$floating" != "true" ]; then
-    return 0
-  fi
-
-  x="$(jq -r '.at[0] // empty' <<< "$client_json")"
-  y="$(jq -r '.at[1] // empty' <<< "$client_json")"
   width="$(jq -r '.size[0] // empty' <<< "$client_json")"
   height="$(jq -r '.size[1] // empty' <<< "$client_json")"
 
-  [ -n "$x" ] && [ -n "$y" ] && [ -n "$width" ] && [ -n "$height" ] || return 0
+  [ -n "$width" ] && [ -n "$height" ] || return 0
 
-  log_action "Restoring floating geometry for $addr to ${width}x${height}+${x}+${y}"
-  if ! $DRY_RUN; then
-    hyprctl dispatch focuswindow "address:$addr" >/dev/null 2>&1 || true
-    hyprctl dispatch setfloating "address:$addr" >/dev/null 2>&1 || true
-    hyprctl dispatch resizeactive exact "$width" "$height" >/dev/null 2>&1 || true
-    hyprctl dispatch moveactive exact "$x" "$y" >/dev/null 2>&1 || true
+  if [ "$floating" = "true" ]; then
+    x="$(jq -r '.at[0] // empty' <<< "$client_json")"
+    y="$(jq -r '.at[1] // empty' <<< "$client_json")"
+    [ -n "$x" ] && [ -n "$y" ] || return 0
+
+    log_action "Restoring floating geometry for $addr to ${width}x${height}+${x}+${y}"
+    if ! $DRY_RUN; then
+      hyprctl dispatch focuswindow "address:$addr" >/dev/null 2>&1 || true
+      hyprctl dispatch setfloating "address:$addr" >/dev/null 2>&1 || true
+      hyprctl dispatch resizeactive exact "$width" "$height" >/dev/null 2>&1 || true
+      hyprctl dispatch moveactive exact "$x" "$y" >/dev/null 2>&1 || true
+    fi
+  else
+    log_action "Restoring tiled size for $addr to ${width}x${height}"
+    if ! $DRY_RUN; then
+      hyprctl dispatch resizewindowpixel exact "$width" "$height","address:$addr" >/dev/null 2>&1 || true
+    fi
   fi
 }
 
@@ -304,32 +310,54 @@ while IFS= read -r client_b64; do
   client_json="$(printf '%s' "$client_b64" | base64 -d)"
   workspace="$(jq -r '.workspace.id // empty' <<< "$client_json")"
   saved_addr="$(jq -r '.address // empty' <<< "$client_json")"
+  class="$(jq -r '.class // ""' <<< "$client_json")"
+  initial_class="$(jq -r '.initialClass // ""' <<< "$client_json")"
   title="$(jq -r '.title // ""' <<< "$client_json")"
+  window_label="${class:-${initial_class:-unknown}}"
 
   [ -n "$workspace" ] || continue
 
-  RESTORE_LABEL=""
-  RESTORE_CLASS_RE=""
-  RESTORE_COMMAND=""
-  RESTORE_REASON=""
-
-  if ! command_for_client "$client_json"; then
-    log_action "Skipping $RESTORE_LABEL from workspace $workspace: $RESTORE_REASON"
+  # Skip excluded windows
+  if [[ $class =~ $EXCLUDED_CLASS_RE || $initial_class =~ $EXCLUDED_CLASS_RE || $title =~ $EXCLUDED_TITLE_RE ]]; then
     continue
   fi
 
-  addr="$(find_existing_address "$RESTORE_CLASS_RE" "$workspace" || true)"
+  addr=""
 
-  if [ -n "$addr" ]; then
-    log_action "Reusing $RESTORE_LABEL window $addr for saved $saved_addr on workspace $workspace"
-  elif $DRY_RUN; then
-    log_action "Would launch $RESTORE_LABEL for workspace $workspace: $RESTORE_COMMAND"
-    addr="dry-run"
-  else
-    log_action "Launching $RESTORE_LABEL for workspace $workspace"
-    addr="$(launch_and_wait "$RESTORE_CLASS_RE" "$RESTORE_COMMAND" || true)"
-    if [ -z "$addr" ]; then
-      printf 'workspace-restore: failed to resolve launched window for %s (%s)\n' "$RESTORE_LABEL" "$title" >&2
+  # Try to find existing window by its saved address (works for any class)
+  if [ -n "$saved_addr" ]; then
+    existing="$(hyprctl -j clients | jq -r --arg a "$saved_addr" \
+      '.[] | select(.address == $a) | .address' 2>/dev/null || true)"
+    if [ -n "$existing" ] && ! is_used "$existing"; then
+      addr="$existing"
+      log_action "Found $window_label by address $addr"
+    fi
+  fi
+
+  # Fall back to class-based matching / launching
+  if [ -z "$addr" ]; then
+    RESTORE_LABEL=""
+    RESTORE_CLASS_RE=""
+    RESTORE_COMMAND=""
+    RESTORE_REASON=""
+
+    if command_for_client "$client_json"; then
+      addr="$(find_existing_address "$RESTORE_CLASS_RE" "$workspace" || true)"
+      if [ -n "$addr" ]; then
+        log_action "Reusing $RESTORE_LABEL window $addr for saved $saved_addr on workspace $workspace"
+      elif $DRY_RUN; then
+        log_action "Would launch $RESTORE_LABEL for workspace $workspace: $RESTORE_COMMAND"
+        addr="dry-run"
+      else
+        log_action "Launching $RESTORE_LABEL for workspace $workspace"
+        addr="$(launch_and_wait "$RESTORE_CLASS_RE" "$RESTORE_COMMAND" || true)"
+        if [ -z "$addr" ]; then
+          printf 'workspace-restore: failed to resolve launched window for %s (%s)\n' "$RESTORE_LABEL" "$title" >&2
+          continue
+        fi
+      fi
+    else
+      log_action "Skipping $window_label ($title) from workspace $workspace: ${RESTORE_REASON:-unsupported class, window not found}"
       continue
     fi
   fi
@@ -339,7 +367,7 @@ while IFS= read -r client_b64; do
   fi
 
   if $MOVE_EXISTING; then
-    log_action "Moving $RESTORE_LABEL to workspace $workspace"
+    log_action "Moving ${RESTORE_LABEL:-$window_label} to workspace $workspace"
     if ! $DRY_RUN && [ "$addr" != "dry-run" ]; then
       hyprctl dispatch movetoworkspace "$workspace,address:$addr" >/dev/null 2>&1 || true
       restore_window_shape "$client_json" "$addr"

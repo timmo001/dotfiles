@@ -55,7 +55,7 @@ while true; do
       run_in_terminal 'workspace-restore --dry-run'
       ;;
     'Restore latest')
-      exec workspace-restore
+      run_with_notify 'Restore' workspace-restore
       ;;
     *)
       exit 0

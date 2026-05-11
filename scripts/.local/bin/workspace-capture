@@ -65,6 +65,8 @@ fi
 
 mkdir -p "$(dirname "$OUTPUT_FILE")"
 
+exec > >(tee "$STATE_DIR/capture.log") 2>&1
+
 clients_tmp="$(mktemp)"
 proc_tmp="$(mktemp)"
 trap 'rm -f "$clients_tmp" "$proc_tmp"' EXIT
