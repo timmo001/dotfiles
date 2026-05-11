@@ -50,6 +50,14 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - When using `/memorise`, save one rewritten durable rule, not raw conversational text or temporary task notes.
 - For frontend debugging, prefer Chrome DevTools tools (snapshot, console, network, Lighthouse, performance trace) over static reasoning alone when the issue is browser-behavior-dependent.
 
+## Documentation and External Lookups
+
+- For library or framework documentation, prefer `context7` tools over `webfetch` or `gh` CLI.
+- For GitHub-hosted documentation, code patterns, or real-world usage examples, prefer `gh_grep` over `webfetch`, `gh api`, or `gh repo view` of raw file content.
+- For community troubleshooting context, use Answer Overflow tools.
+- Reserve `gh` CLI for GitHub workflow operations (PRs, issues, checks, runs) and local repo metadata, not for reading documentation or searching code patterns.
+- Reserve `webfetch` as a fallback for URLs that are not GitHub-hosted repos or indexed library docs.
+
 ## Go Automate Home Assistant Bridge Policy
 
 - For Home Assistant entity watchers used by Waybar/scripts, use `go-automate ha bridge watch entity` by default.

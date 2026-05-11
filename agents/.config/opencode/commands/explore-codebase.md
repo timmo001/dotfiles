@@ -18,5 +18,6 @@ Follow these steps:
    - quick for a narrow lookup in one area
    - medium for a feature or subsystem walkthrough
    - very thorough for broad architecture or cross-cutting behavior
-5. When the subagent returns, summarize the findings directly for the user instead of dumping raw subagent output.
-6. Do not edit files unless the user explicitly asks for changes after the exploration step.
+5. For upstream or external repo exploration, prefer `gh_grep` for GitHub-hosted code patterns and `context7` for library/framework documentation instead of `webfetch` or `gh` CLI.
+6. When the subagent returns, summarize the findings directly for the user instead of dumping raw subagent output.
+7. Do not edit files unless the user explicitly asks for changes after the exploration step.

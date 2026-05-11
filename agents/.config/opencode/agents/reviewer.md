@@ -69,3 +69,8 @@ Output:
 - Suggest concrete fixes.
 - If the user wants a remediation or implementation plan after the review, suggest `/plan` so the plan can be produced from the current review context.
 - Keep tone direct and concise.
+
+Documentation and pattern lookups:
+- For library or framework documentation, prefer `context7` tools over `webfetch` or `gh` CLI.
+- For upstream code patterns, API usage examples, or GitHub-hosted docs, prefer `gh_grep` over `webfetch` or `gh repo view` of raw file content.
+- Reserve `gh` CLI for PR workflow operations (view, diff, checks, runs), not for reading documentation or searching code patterns.

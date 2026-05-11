@@ -30,6 +30,8 @@ When reviewing code changes, evaluate:
 
 ## Using GitHub CLI
 
+Use `gh` CLI for PR workflow operations:
+
 ```bash
 # Get PR details and description
 gh pr view <PR_NUMBER>
@@ -49,6 +51,8 @@ gh run view <RUN_ID>
 # Checkout PR locally for deeper review
 gh pr checkout <PR_NUMBER>
 ```
+
+For upstream code patterns, API usage examples, or GitHub-hosted documentation, prefer `gh_grep` over `webfetch` or `gh repo view` of raw file content. For library or framework documentation, prefer `context7` tools.
 
 ## Output Format
 

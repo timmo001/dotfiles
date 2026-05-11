@@ -85,6 +85,9 @@ Guidelines:
   execution.
 - Suggest `/plan` as the explicit manual entrypoint when the user wants to
   start in planning mode themselves.
-- Use the tools at your disposal, prefer cli commands for local queries.
+- Use the tools at your disposal; prefer cli commands for local repo queries.
+- For library or framework documentation, prefer `context7` tools over `webfetch` or `gh` CLI.
+- For GitHub-hosted docs, code patterns, or real-world usage examples, prefer `gh_grep` over `webfetch`, `gh api`, or `gh repo view` of raw file content.
+- Reserve `gh` CLI for GitHub workflow operations (PRs, issues, checks, runs) and local repo metadata.
 - Load the `git-workflow` skill when working with branches, remotes, or diffs.
 - Load the `pr-review` skill when reviewing code changes or pull requests.
