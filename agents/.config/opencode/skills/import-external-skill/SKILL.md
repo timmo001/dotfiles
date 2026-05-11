@@ -30,7 +30,7 @@ Use when the external skill is useful as-is and does not overlap with an existin
 
 1. Fetch the raw SKILL.md and any reference files from the source.
 2. Copy them verbatim into a new skill directory under the local skills path.
-3. Add an `# origin:` comment to the frontmatter with the source tree URL. Keep all existing fields; unknown frontmatter is silently ignored.
+3. Add `# origin:` and `# upstream-sha:` comments to the frontmatter. The origin is the source tree URL; the SHA is the latest upstream commit that touched the skill. Keep all existing fields; unknown frontmatter is silently ignored.
 4. Diff each local file against the upstream original to verify the only changes are the frontmatter adjustment and any framework-specific cleanup.
 5. Run `dot stow` to link the new skill into place.
 6. Run `dot opencode-debug` to confirm the skill appears in the resolved config.
@@ -58,7 +58,7 @@ description: One or two sentences. First sentence says what. Second says when to
 
 OpenCode ignores unknown frontmatter fields, so upstream-only fields (`metadata`, `category`, `tags`, `allowed-tools`, etc.) can stay.
 
-The `# upstream-sha:` line is written automatically by `dot skill-updates` after a successful check or update. It stores the latest upstream commit SHA so unchanged origins can be skipped on subsequent runs. Do not set it manually during import — it will be populated on the first `dot skill-updates --update` run.
+The `# upstream-sha:` line stores the latest upstream commit SHA so unchanged origins can be skipped on subsequent `dot skill-updates` runs. Set it during import to the commit that last touched the skill. It is also updated automatically by `dot skill-updates`.
 
 If the import adapts body content beyond the frontmatter (condensing sections, reformatting, etc.), add a `# local-edits:` block documenting what was changed and why. This tells `dot skill-updates` that the resulting diffs are intentional:
 
