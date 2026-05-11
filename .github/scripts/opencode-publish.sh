@@ -69,19 +69,29 @@ Published from [\`${DOTFILES_REPO}\`](${DOTFILES_URL}) — source at [\`${SOURCE
 
 ## Installation
 
-Import individual skills using the \`import-external-skill\` workflow:
+Clone the repo and copy what you need into your OpenCode config directory:
+
+\`\`\`bash
+git clone https://github.com/${PUBLISH_REPO}.git
+cd opencode-config
+
+# Copy individual items
+cp -r skills/diagnose ~/.config/opencode/skills/
+cp commands/git-workflow.md ~/.config/opencode/commands/
+cp plugins/env-protection.js ~/.config/opencode/plugins/
+cp agents/reviewer.md ~/.config/opencode/agents/
+
+# Or copy everything
+cp -r skills agents commands plugins ~/.config/opencode/
+\`\`\`
+
+Once you have the \`import-external-skill\` skill installed, you can use it to import skills from any public GitHub repo -- not just this one. Point it at a skill directory URL and it handles fetching, frontmatter conversion, and origin tracking:
 
 \`\`\`
 # origin: https://github.com/${PUBLISH_REPO}/tree/main/skills/<skill-name>
 \`\`\`
 
-Or clone the full repo and copy what you need:
-
-\`\`\`bash
-git clone https://github.com/${PUBLISH_REPO}.git
-\`\`\`
-
-Agents, commands, and plugins can be copied directly into your OpenCode config directory (\`~/.config/opencode/\`).
+It also supports a review mode: give it a repo URL and it will list all available skills, compare them against your local library, and recommend which to import, adapt, or skip.
 
 ## Skills
 
