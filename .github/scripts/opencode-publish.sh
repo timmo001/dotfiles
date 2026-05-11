@@ -161,12 +161,12 @@ EOF
 
     cat <<'EOF'
 
-### Adapted From External Sources
+### From External Sources
 
-These skills were originally imported and adapted for local use. They are included in this repo with local modifications.
+These skills were imported from other repos. Some are used as-is; others have been adapted for local workflows and conventions.
 
-| Skill | Origin | Requires | Works with |
-|---|---|---|---|
+| Skill | Origin | Local Changes | Requires | Works with |
+|---|---|---|---|---|
 EOF
 
     for skill_dir in "${CONFIG_DIR}/skills"/*/; do
@@ -174,12 +174,13 @@ EOF
       local o
       o="$(origin "${skill_dir}SKILL.md")"
       [[ -z "$o" ]] && continue
-      local name deps optional origin_label
+      local name deps optional origin_label adapted="No"
       name="$(basename "$skill_dir")"
       deps="$(requires "${skill_dir}SKILL.md")"
       optional="$(works_with "${skill_dir}SKILL.md")"
       origin_label="$(printf '%s' "$o" | sed -n 's|https://github.com/\([^/]*/[^/]*\)/.*|\1|p')"
-      printf '| `%s` | [%s](%s) | %s | %s |\n' "$name" "${origin_label:-$o}" "$o" "$deps" "$optional"
+      grep -q '^# local-edits:' "${skill_dir}SKILL.md" 2>/dev/null && adapted="Yes"
+      printf '| `%s` | [%s](%s) | %s | %s | %s |\n' "$name" "${origin_label:-$o}" "$o" "$adapted" "$deps" "$optional"
     done | sort
 
     printf '\n## Agents\n\n'
