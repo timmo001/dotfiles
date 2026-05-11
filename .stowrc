@@ -7,4 +7,4 @@
 --ignore=README.md
 --ignore=AGENTS.md
 --ignore=\.github
---ignore=\.opencode
+--ignore=^/\.opencode
