@@ -163,9 +163,9 @@ EOF
 
     cat <<'EOF'
 
-### Imported
+### Also Used
 
-These skills were imported from external sources and may include local adaptations.
+These skills are imported from external sources and are not included in this repo. Install them from their origin:
 
 | Skill | Origin |
 |---|---|
@@ -176,8 +176,9 @@ EOF
       local o
       o="$(origin "${skill_dir}SKILL.md")"
       [[ -z "$o" ]] && continue
-      local name origin_label
+      local name desc origin_label
       name="$(basename "$skill_dir")"
+      desc="$(field "${skill_dir}SKILL.md" description)"
       origin_label="$(printf '%s' "$o" | sed -n 's|https://github.com/\([^/]*/[^/]*\)/.*|\1|p')"
       printf '| `%s` | [%s](%s) |\n' "$name" "${origin_label:-$o}" "$o"
     done | sort
@@ -286,6 +287,14 @@ sync_to_publish() {
 
   # Copy subtree contents
   cp -a "${CONFIG_DIR}/." "${PUBLISH_DIR}/"
+
+  # Remove imported skills (they belong to their upstream repos)
+  for skill_dir in "${PUBLISH_DIR}/skills"/*/; do
+    [[ -f "${skill_dir}SKILL.md" ]] || continue
+    if origin "${skill_dir}SKILL.md" | grep -q .; then
+      rm -rf "$skill_dir"
+    fi
+  done
 
   echo "::endgroup::"
 }
