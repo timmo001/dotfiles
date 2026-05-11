@@ -94,6 +94,8 @@ cp agents/reviewer.md ~/.config/opencode/agents/
 cp -r skills agents commands plugins ~/.config/opencode/
 \`\`\`
 
+> **Stow users:** If your OpenCode config is managed by [GNU Stow](https://www.gnu.org/software/stow/) or a similar symlink manager, the \`cp\` commands above will not work — they copy into the live path rather than your stow source directory. Either follow the [dotfiles setup](${DOTFILES_URL}) this repo is published from, or ask an agent to adapt the files into your own stow structure.
+
 Some skills and commands depend on plugins to function. Check the tables below for required plugins and install them alongside the skill or command.
 
 ### Importing Skills
