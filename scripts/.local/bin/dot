@@ -3134,6 +3134,10 @@ _skill_updates_check_skill() {
   upstream_sha="$(_skill_updates_upstream_sha "$owner" "$repo" "$branch" "$spath")"
   [[ -z "$upstream_sha" ]] && _SU_SHA_QUERY_FAILED=1
 
+  # SHA to write back: prefer fresh upstream, fall back to stored value so a
+  # transient API failure doesn't strip the cached SHA during a frontmatter rebuild.
+  local write_sha="${upstream_sha:-$(_skill_updates_stored_sha "$skill_md")}"
+
   # Compare upstream SHA against stored SHA in frontmatter to skip unchanged origins.
   if [[ -n "$upstream_sha" ]]; then
     local stored_sha
@@ -3201,7 +3205,7 @@ _skill_updates_check_skill() {
   rm -rf "$tmpdir"
 
   if [[ "$has_changes" -eq 0 ]]; then
-    [[ "$mode" != 'check' && -n "$upstream_sha" ]] && _skill_updates_write_sha "$skill_md" "$upstream_sha"
+    [[ "$mode" != 'check' && -n "$write_sha" ]] && _skill_updates_write_sha "$skill_md" "$write_sha"
     log_info "  ${skill_name}: up to date"
     return 0
   fi
@@ -3227,7 +3231,7 @@ _skill_updates_check_skill() {
 
   # Skills with local edits cannot be auto-applied; they need manual review.
   if [[ "$has_local_edits" -eq 1 ]]; then
-    [[ -n "$upstream_sha" ]] && _skill_updates_write_sha "$skill_md" "$upstream_sha"
+    [[ -n "$write_sha" ]] && _skill_updates_write_sha "$skill_md" "$write_sha"
     log_info "  ${skill_name}: skipped (has local edits — review manually or via /check-skill-updates)"
     return 3
   fi
@@ -3264,14 +3268,14 @@ _skill_updates_check_skill() {
 
     if [[ "$file" == 'SKILL.md' ]]; then
       printf '%s' "$upstream_content" \
-        | _skill_updates_apply_frontmatter "$skill_name" "$origin_url" "$local_description" "$upstream_sha" \
+        | _skill_updates_apply_frontmatter "$skill_name" "$origin_url" "$local_description" "$write_sha" \
         > "$local_file"
     else
       printf '%s' "$upstream_content" > "$local_file"
     fi
   done <<< "$upstream_files"
 
-  [[ -n "$upstream_sha" ]] && _skill_updates_write_sha "$skill_md" "$upstream_sha"
+  [[ -n "$write_sha" ]] && _skill_updates_write_sha "$skill_md" "$write_sha"
   log_info "  ${skill_name}: updated"
   return 0
 }
