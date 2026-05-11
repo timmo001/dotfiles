@@ -3721,8 +3721,7 @@ cmd_doctor() {
   optional_cmd yay 'used by omarchy-pkg-aur-add and AUR version checks'
   optional_cmd gh 'branch discovery + authenticated clone convenience'
   optional_cmd gum 'interactive init questionnaire'
-  optional_cmd notify-send 'desktop workflow notifications'
-  optional_cmd yt-dlp 'OpenCode vibe-mode YouTube stream resolution'
+   optional_cmd notify-send 'desktop workflow notifications'
   if has_cmd wpctl; then
     log_info 'wpctl is available (optional daily 5am volume reset on PipeWire/WirePlumber)'
   else
