@@ -4,10 +4,8 @@ description: Disciplined diagnosis workflow for hard bugs, regressions, flaky be
 # origin: https://github.com/mattpocock/skills/tree/main/skills/engineering/diagnose
 # upstream-sha: 7afa86d3a5dd96edde06ffa014e16c64e733681e
 # local-edits:
-#   - description rewritten for OpenCode context
-#   - body condensed from six prescriptive phases to a concise workflow with checklist
-#   - removed Claude-specific language and LANGUAGE.md/CONTEXT.md references
-#   - added tool guidance section for OpenCode agents
+#   - SKILL.md: condensed body, rewritten description, OpenCode tool guidance, no test-first workflow
+#   - hitl-loop.template.sh: verbatim from upstream
 ---
 
 # Diagnose
@@ -30,8 +28,22 @@ Use this skill for debugging work where ad-hoc inspection is likely to miss the 
 ## Workflow
 
 1. Build a feedback loop first.
+   - **This is the skill.** Everything else is mechanical. Spend disproportionate effort here.
    - Prefer a fast, deterministic pass/fail signal before changing code.
-   - Good loops include: a CLI invocation, a minimal repro script, a dev-server request, a browser-driven repro, or a failing test when a well-used helper or existing test seam already makes that the smallest correct option.
+   - Techniques to construct one (roughly in order of preference):
+     1. Failing test at whatever seam reaches the bug.
+     2. Curl / HTTP script against a running dev server.
+     3. CLI invocation with a fixture input, diffing stdout against known-good output.
+     4. Headless browser script (Playwright / Puppeteer) -- drives UI, asserts on DOM/console/network.
+     5. Replay a captured trace -- save a real network request / payload / event log to disk; replay it through the code path in isolation.
+     6. Throwaway harness -- spin up a minimal subset of the system (one service, mocked deps) that exercises the bug path with a single function call.
+     7. Property / fuzz loop -- if the bug is "sometimes wrong output", run 1000 random inputs and look for the failure mode.
+     8. Bisection harness -- if the bug appeared between two known states (commit, dataset, version), automate "boot at state X, check, repeat" so you can `git bisect run` it.
+     9. Differential loop -- run the same input through old-version vs new-version (or two configs) and diff outputs.
+     10. HITL bash script -- last resort. If a human must click, drive them with [hitl-loop.template.sh](scripts/hitl-loop.template.sh) so the loop is still structured.
+   - Iterate on the loop itself: make it faster, make the signal sharper, make it more deterministic. A 2-second deterministic loop is a debugging superpower.
+   - For non-deterministic bugs: loop the trigger 100x, parallelise, add stress, narrow timing windows, inject sleeps. Raise reproduction rate until debuggable.
+   - If you genuinely cannot build a loop, stop and say so. List what you tried. Ask the user for environment access, a captured artifact, or permission to add temporary instrumentation.
 2. Reproduce the reported problem.
    - Confirm the loop matches the user's actual failure, not a nearby symptom.
    - If the issue is flaky, work on increasing reproduction rate before hypothesising.
