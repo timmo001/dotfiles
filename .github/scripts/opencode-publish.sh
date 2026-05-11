@@ -85,13 +85,17 @@ cp agents/reviewer.md ~/.config/opencode/agents/
 cp -r skills agents commands plugins ~/.config/opencode/
 \`\`\`
 
-Once you have the \`import-external-skill\` skill installed, you can use it to import skills from any public GitHub repo -- not just this one. Point it at a skill directory URL and it handles fetching, frontmatter conversion, and origin tracking:
+### Importing Skills
+
+Once you have the \`import-external-skill\` skill installed, you can use it to import skills from this or any public GitHub skills repo. Point it at a skill directory URL and it handles fetching, frontmatter conversion, and origin tracking:
 
 \`\`\`
 # origin: https://github.com/${PUBLISH_REPO}/tree/main/skills/<skill-name>
 \`\`\`
 
 It also supports a review mode: give it a repo URL and it will list all available skills, compare them against your local library, and recommend which to import, adapt, or skip.
+
+Agents, commands, and plugins are not managed by \`import-external-skill\` — copy them manually as shown above.
 
 ## Skills
 
