@@ -46,19 +46,38 @@ origin() {
   ' "$1"
 }
 
-# List dependencies (plugins and skills) by scanning for known references.
+# List hard dependencies (plugins and skills loaded before execution).
 requires() {
   local file="$1" deps=()
   if grep -qi 'BranchContextPlugin\|branch-context' "$file" 2>/dev/null; then
     deps+=('`branch-context` plugin')
   fi
-  # Scan for skill references: backtick-quoted names that match a skill directory
+  local ref
+  for ref in $(grep -P '[Ll]oad\b.*`[a-z][-a-z0-9]*`' "$file" 2>/dev/null \
+    | grep -oP '`[a-z][-a-z0-9]*`' | tr -d '`' | sort -u); do
+    if [[ -d "${CONFIG_DIR}/skills/${ref}" ]]; then
+      local self
+      self="$(basename "$(dirname "$file")")"
+      [[ "$ref" == "$self" || "$ref" == "$(basename "$file" .md)" ]] && continue
+      deps+=("\`${ref}\` skill")
+    fi
+  done
+  local IFS=', '
+  printf '%s' "${deps[*]}"
+}
+
+# List optional/suggested skill references (not hard dependencies).
+works_with() {
+  local file="$1" deps=() required
+  required="$(requires "$file")"
   local ref
   for ref in $(grep -oP '`[a-z][-a-z0-9]*`' "$file" 2>/dev/null | tr -d '`' | sort -u); do
     if [[ -d "${CONFIG_DIR}/skills/${ref}" ]]; then
       local self
       self="$(basename "$(dirname "$file")")"
       [[ "$ref" == "$self" || "$ref" == "$(basename "$file" .md)" ]] && continue
+      # Skip if already listed as a hard dependency
+      echo "$required" | grep -q "\`${ref}\`" && continue
       deps+=("\`${ref}\` skill")
     fi
   done
@@ -125,8 +144,8 @@ Agents, commands, and plugins are not managed by \`import-external-skill\` — c
 
 ### Locally Authored
 
-| Skill | Description | Requires |
-|---|---|---|
+| Skill | Description | Requires | Works with |
+|---|---|---|---|
 EOF
 
     for skill_dir in "${CONFIG_DIR}/skills"/*/; do
@@ -134,11 +153,12 @@ EOF
       local o
       o="$(origin "${skill_dir}SKILL.md")"
       [[ -n "$o" ]] && continue
-      local name desc deps
+      local name desc deps optional
       name="$(basename "$skill_dir")"
       desc="$(field "${skill_dir}SKILL.md" description)"
       deps="$(requires "${skill_dir}SKILL.md")"
-      printf '| `%s` | %s | %s |\n' "$name" "$desc" "$deps"
+      optional="$(works_with "${skill_dir}SKILL.md")"
+      printf '| `%s` | %s | %s | %s |\n' "$name" "$desc" "$deps" "$optional"
     done | sort
 
     cat <<'EOF'
@@ -174,11 +194,11 @@ EOF
     done | sort
 
     printf '\n## Commands\n\n'
-    printf '| Command | Description | Agent | Requires |\n|---|---|---|---|\n'
+    printf '| Command | Description | Agent | Requires | Works with |\n|---|---|---|---|---|\n'
 
     while IFS= read -r cmd_file; do
       [[ -f "$cmd_file" ]] || continue
-      local rel_path name dir_part desc agent deps
+      local rel_path name dir_part desc agent deps optional
       rel_path="${cmd_file#"${CONFIG_DIR}/commands/"}"
       name="$(basename "$rel_path" .md)"
       dir_part="${rel_path%/*}"
@@ -186,7 +206,8 @@ EOF
       desc="$(field "$cmd_file" description)"
       agent="$(field "$cmd_file" agent)"
       deps="$(requires "$cmd_file")"
-      printf '| `/%s` | %s | %s | %s |\n' "$name" "$desc" "${agent:-default}" "$deps"
+      optional="$(works_with "$cmd_file")"
+      printf '| `/%s` | %s | %s | %s | %s |\n' "$name" "$desc" "${agent:-default}" "$deps" "$optional"
     done < <(find "${CONFIG_DIR}/commands" -name '*.md' -type f | sort)
 
     printf '\n## Plugins\n\n'
