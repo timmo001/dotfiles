@@ -2973,9 +2973,9 @@ _skill_updates_parse_origin() {
   return 1
 }
 
-# Strip local-only frontmatter additions (# origin: line) from content.
+# Strip local-only frontmatter additions (# origin:, # local-edits: block) from content.
 _skill_updates_normalise_local() {
-  sed '/^# origin:/d'
+  sed '/^# origin:/d; /^# local-edits:/d; /^#   - /d'
 }
 
 # Strip upstream-only frontmatter fields (metadata block, category, tags) from content.
@@ -3073,7 +3073,8 @@ _skill_updates_apply_frontmatter() {
 # Returns 0 if up-to-date or updated, 1 on error.
 # Check a single imported skill against upstream.
 # $1 = skill directory, $2 = mode (check|interactive|update)
-# Returns: 0 = up-to-date or applied, 1 = error, 2 = changes available (check mode)
+# Returns: 0 = up-to-date or applied, 1 = error,
+#          2 = changes available (check/interactive), 3 = has local edits (needs manual review)
 _skill_updates_check_skill() {
   local skill_dir="$1" mode="$2"
   local skill_name origin_url
@@ -3093,6 +3094,12 @@ _skill_updates_check_skill() {
   fi
 
   local owner="$_SU_OWNER" repo="$_SU_REPO" branch="$_SU_BRANCH" spath="$_SU_PATH"
+
+  # Detect local edits.
+  local local_edits
+  local_edits="$(awk 'NR==1 && /^---$/ { in_fm=1; next } in_fm && /^---$/ { exit } in_fm && /^# local-edits:/ { show=1; next } in_fm && show && /^#   - / { sub(/^#   - /, ""); print; next } in_fm && show { show=0 }' "$skill_md")"
+  local has_local_edits=0
+  [[ -n "$local_edits" ]] && has_local_edits=1
 
   # List upstream files.
   local upstream_files
@@ -3157,11 +3164,27 @@ _skill_updates_check_skill() {
 
   # Report changes.
   printf '  %s: upstream changes detected\n' "$skill_name"
+
+  # Show local-edits notes if present (explains expected diffs).
+  if [[ "$has_local_edits" -eq 1 ]]; then
+    printf '    [local edits — diffs expected, skipping auto-apply]\n'
+    while IFS= read -r line; do
+      printf '      - %s\n' "$line"
+    done <<< "$local_edits"
+  fi
+
   printf '%s' "$changes_summary"
 
   # Check-only mode: report and signal changes via exit code.
   if [[ "$mode" == 'check' ]]; then
+    [[ "$has_local_edits" -eq 1 ]] && return 3
     return 2
+  fi
+
+  # Skills with local edits cannot be auto-applied; they need manual review.
+  if [[ "$has_local_edits" -eq 1 ]]; then
+    log_info "  ${skill_name}: skipped (has local edits — review manually or via /check-skill-updates)"
+    return 3
   fi
 
   # Determine whether to apply.
@@ -3177,7 +3200,7 @@ _skill_updates_check_skill() {
 
   if [[ "$do_apply" -eq 0 ]]; then
     log_info "  ${skill_name}: skipped"
-    return 0
+    return 2
   fi
 
   # Extract current local description (preserve it across updates).
@@ -3245,24 +3268,80 @@ cmd_skill_updates() {
 
   log_info "Checking ${#skill_dirs[@]} imported skill(s) for upstream changes"
 
-  local skill_dir errors=0 available=0 rc
+  local skill_dir errors=0 available=0 needs_review=0 rc
+  local available_names=() review_names=() review_origins=()
   for skill_dir in "${skill_dirs[@]}"; do
     rc=0
     _skill_updates_check_skill "$skill_dir" "$mode" || rc=$?
-    if [[ "$rc" -eq 1 ]]; then
-      errors=$((errors + 1))
-    elif [[ "$rc" -eq 2 ]]; then
-      available=$((available + 1))
-    fi
+    case "$rc" in
+      1) errors=$((errors + 1)) ;;
+      2) available=$((available + 1))
+         available_names+=("$(basename "$skill_dir")") ;;
+      3) needs_review=$((needs_review + 1))
+         review_names+=("$(basename "$skill_dir")")
+         review_origins+=("$(awk 'NR==1 && /^---$/ { in_fm=1; next } in_fm && /^---$/ { exit } in_fm && /^# origin:/ { sub(/^# origin: */, ""); print; exit }' "${skill_dir}/SKILL.md")") ;;
+    esac
   done
 
   if [[ "$errors" -gt 0 ]]; then
     log_warn "${errors} skill(s) had errors during update check"
   fi
 
-  if [[ "$mode" == 'check' && "$available" -gt 0 ]]; then
-    log_info "${available} skill(s) have upstream updates available"
-    return 1
+  if [[ "$mode" == 'check' ]]; then
+    local total=$((available + needs_review))
+    if [[ "$total" -gt 0 ]]; then
+      log_info "${total} skill(s) have upstream updates available"
+      return 1
+    fi
+    return 0
+  fi
+
+  # Interactive mode: generate a paste-ready agent report at the end.
+  if [[ "$mode" == 'interactive' ]]; then
+    local has_report=0
+
+    if [[ "$available" -gt 0 ]]; then
+      has_report=1
+      printf '\n'
+      log_section 'Agent report — clean updates'
+      printf 'Paste into an agent session to apply:\n\n'
+      printf '```\n'
+      printf '/check-skill-updates\n'
+      printf '\n'
+      printf 'The following skills have clean upstream updates (no local edits).\n'
+      printf 'Run dot skill-updates --update to apply all, then dot stow.\n'
+      printf '\n'
+      local s
+      for s in "${available_names[@]}"; do
+        printf 'Update available: %s\n' "$s"
+      done
+      printf '```\n'
+    fi
+
+    if [[ "$needs_review" -gt 0 ]]; then
+      has_report=1
+      printf '\n'
+      log_section 'Agent report — skills with local edits'
+      printf 'These skills have local edits and cannot be auto-updated.\n'
+      printf 'Paste into an agent session to review and selectively merge:\n\n'
+      printf '```\n'
+      printf 'The following imported skills have upstream changes but also have\n'
+      printf 'local edits that prevent automatic updates. For each skill, fetch\n'
+      printf 'the upstream version, compare against local, and present what\n'
+      printf 'changed upstream so I can decide what to merge.\n'
+      printf '\n'
+      local i
+      for i in "${!review_names[@]}"; do
+        printf 'Skill: %s\n' "${review_names[$i]}"
+        printf 'Origin: %s\n' "${review_origins[$i]}"
+        printf '\n'
+      done
+      printf '```\n'
+    fi
+
+    if [[ "$has_report" -eq 0 && "$errors" -eq 0 ]]; then
+      log_info 'All imported skills are up to date'
+    fi
   fi
 }
 

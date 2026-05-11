@@ -12,13 +12,23 @@ Load and follow the `check-skill-updates` skill.
 
 4. If `${ARGUMENTS}` contains a skill name, focus on that skill only.
 
-5. Ask the user whether to apply updates (all, selected, or none).
+5. Distinguish between two categories in the output:
 
-6. For accepted updates, run `dot skill-updates --update` to apply all changes.
-   Do NOT use interactive mode (no flags) — the agent cannot respond to terminal prompts.
-   If `--update` fails or the user wants selective application, fall back to manually fetching
-   and writing files using the `import-external-skill` skill workflow.
+   **Clean updates** (no `# local-edits:` in frontmatter):
+   - Ask the user whether to apply (all, selected, or none).
+   - For accepted updates, run `dot skill-updates --update` to apply.
+   - If `--update` fails or the user wants selective application, fall back to manually
+     fetching and writing files using the `import-external-skill` skill workflow.
 
-7. After applying, run `dot stow` and `dot opencode-debug` to verify.
+   **Skills with local edits** (`# local-edits:` present in frontmatter):
+   - These are skipped by `--update` automatically. Do not attempt to auto-apply.
+   - Present the local-edits notes from the frontmatter alongside the diff.
+   - If the user wants to merge upstream changes, fetch the upstream version manually,
+     compare against local, and present what changed upstream so the user can decide
+     what to selectively merge. Follow the `import-external-skill` skill (Path 2: Adaptation).
+
+6. Do NOT use interactive mode (no flags) — the agent cannot respond to terminal prompts.
+
+7. After applying any updates, run `dot stow` and `dot opencode-debug` to verify.
 
 8. Do not commit unless the user explicitly asks.

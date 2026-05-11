@@ -46,10 +46,39 @@ Run `dot skill-updates` with no flags. Shows diffs and prompts `[y/N]` per skill
 
 - All files in the skill directory are checked (SKILL.md and reference files).
 - Normalisation strips known local changes before diffing:
-  - Local side: `# origin:` line removed.
+  - Local side: `# origin:` and `# local-edits:` block removed.
   - Upstream side: `metadata`, `category`, `tags` fields removed.
 - New upstream files are detected and added.
 - Only skills with `# origin:` in their YAML frontmatter are checked.
+
+## Local Edits
+
+Skills that were adapted during import (body content changed, not just frontmatter) document their changes with a `# local-edits:` block in the frontmatter:
+
+```yaml
+# local-edits:
+#   - description rewritten for local context
+#   - section X condensed for brevity
+```
+
+### Behaviour
+
+- `dot skill-updates --update` and `dot skill-updates --check` both **skip auto-apply** for skills with `# local-edits:`. Auto-applying would overwrite intentional local adaptations.
+- The checker still reports the diffs and displays the local-edits notes so the reviewer can see whether upstream also changed beyond the known local edits.
+- Interactive mode generates a paste-ready agent report for these skills at the end of the run.
+
+### Updating skills with local edits
+
+When upstream changes need merging into a locally adapted skill:
+
+1. Fetch the upstream SKILL.md and reference files from the origin URL.
+2. Compare upstream changes against the local version.
+3. Present what changed upstream alongside the documented local edits.
+4. Wait for the user to decide which upstream changes to merge.
+5. Apply the agreed changes, preserving the local adaptations.
+6. Update the `# local-edits:` block if the set of local changes changed.
+
+This follows the `import-external-skill` skill (Path 2: Adaptation).
 
 ## Safety
 

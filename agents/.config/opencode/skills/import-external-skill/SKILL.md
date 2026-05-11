@@ -48,6 +48,15 @@ description: One or two sentences. First sentence says what. Second says when to
 
 Drop upstream-only fields (`metadata`, `category`, `tags`) that the local skill loader does not use.
 
+If the import adapts body content beyond the frontmatter (condensing sections, reformatting, etc.), add a `# local-edits:` block documenting what was changed and why. This tells `dot skill-updates` that the resulting diffs are intentional:
+
+```yaml
+# origin: https://github.com/org/repo/tree/main/skills/skill-name
+# local-edits:
+#   - description rewritten for local context
+#   - section X condensed for brevity
+```
+
 ## Commit Format
 
 ```
