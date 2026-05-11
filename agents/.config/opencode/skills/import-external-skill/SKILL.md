@@ -13,6 +13,15 @@ Import skills from external repositories into the local OpenCode skill library u
 - Reviewing an external skill repository for useful additions
 - Adapting external skill content to improve existing local skills
 
+## Agent-Specific Repos
+
+External skill repos are often written for a specific agent framework (e.g. Claude Code, Codex, Cursor). Skills from these repos may need adaptation even for a "direct import":
+
+- Unknown frontmatter fields are silently ignored by OpenCode, so framework-specific fields like `allowed-tools`, `disable-model-invocation`, or `argument-hint` can stay.
+- Replace framework-specific tool names, hook mechanisms, or sub-agent delegation patterns in the skill body with local equivalents.
+- Remove references to framework-specific scaffolding, plugins, or conventions that do not exist locally.
+- If the skill body is portable as-is, treat it as a direct import. If the body needs rewriting, treat it as an adaptation and document the changes in `# local-edits:`.
+
 ## Two Paths
 
 ### Path 1: Direct Import
@@ -21,8 +30,8 @@ Use when the external skill is useful as-is and does not overlap with an existin
 
 1. Fetch the raw SKILL.md and any reference files from the source.
 2. Copy them verbatim into a new skill directory under the local skills path.
-3. Replace the frontmatter metadata block (if present) with the local format: keep only `name`, `description`, and add an `# origin:` comment with the source tree URL.
-4. Diff each local file against the upstream original to verify the only changes are the frontmatter adjustment.
+3. Add an `# origin:` comment to the frontmatter with the source tree URL. Keep all existing fields; unknown frontmatter is silently ignored.
+4. Diff each local file against the upstream original to verify the only changes are the frontmatter adjustment and any framework-specific cleanup.
 5. Run `dot stow` to link the new skill into place.
 6. Run `dot opencode-debug` to confirm the skill appears in the resolved config.
 
@@ -47,7 +56,7 @@ description: One or two sentences. First sentence says what. Second says when to
 ---
 ```
 
-Drop upstream-only fields (`metadata`, `category`, `tags`) that the local skill loader does not use.
+OpenCode ignores unknown frontmatter fields, so upstream-only fields (`metadata`, `category`, `tags`, `allowed-tools`, etc.) can stay.
 
 The `# upstream-sha:` line is written automatically by `dot skill-updates` after a successful check or update. It stores the latest upstream commit SHA so unchanged origins can be skipped on subsequent runs. Do not set it manually during import — it will be populated on the first `dot skill-updates --update` run.
 
