@@ -6,6 +6,8 @@ on:
       - distro/arch-omarchy
     paths:
       - 'agents/.config/opencode/**'
+      - '.github/workflows/opencode-publish.yml'
+      - '.github/scripts/opencode-publish.sh'
   workflow_dispatch:
 
 permissions:
