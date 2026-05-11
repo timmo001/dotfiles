@@ -3749,6 +3749,11 @@ cmd_doctor() {
   optional_cmd yay 'used by omarchy-pkg-aur-add and AUR version checks'
   optional_cmd gh 'branch discovery + authenticated clone convenience'
   optional_cmd gum 'interactive init questionnaire'
+  if has_cmd agent-browser; then
+    log_info 'agent-browser is available (OpenCode browser automation skill)'
+  else
+    doctor_warn 'agent-browser is missing (install with: npm i -g agent-browser && agent-browser install)'
+  fi
    optional_cmd notify-send 'desktop workflow notifications'
   if has_cmd wpctl; then
     log_info 'wpctl is available (optional daily 5am volume reset on PipeWire/WirePlumber)'
