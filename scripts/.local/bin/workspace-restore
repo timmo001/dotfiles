@@ -226,6 +226,22 @@ command_for_client() {
       RESTORE_COMMAND="$BROWSER_PERSONAL_CMD"
       return 0
       ;;
+    chrome-www.twitch.tv__*:*|*:chrome-www.twitch.tv__*|chrome-twitch.tv__*:*|*:chrome-twitch.tv__*)
+      local twitch_class twitch_host twitch_path
+      twitch_class="${class:-$initial_class}"
+      twitch_host="${twitch_class#chrome-}"
+      twitch_host="${twitch_host%%__*}"
+      twitch_path="${twitch_class#*__}"
+      twitch_path="${twitch_path%-*}"
+      # Chrome encodes / as _ in class names; restore slashes for known multi-segment paths
+      if [[ $twitch_path == directory_* ]]; then
+        twitch_path="${twitch_path//_//}"
+      fi
+      RESTORE_LABEL="Twitch ($twitch_path)"
+      RESTORE_CLASS_RE="^chrome-(www\\.)?twitch\\.tv__${twitch_path//\//\\_}-"
+      RESTORE_COMMAND="omarchy-launch-webapp https://${twitch_host}/${twitch_path}"
+      return 0
+      ;;
     com.mitchellh.ghostty:*|*:com.mitchellh.ghostty)
       RESTORE_LABEL="Ghostty"
       RESTORE_CLASS_RE='^com\.mitchellh\.ghostty$'
