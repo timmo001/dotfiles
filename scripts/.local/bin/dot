@@ -3132,6 +3132,7 @@ _skill_updates_check_skill() {
   # Query upstream commit SHA (used for comparison and written after successful checks).
   local upstream_sha=''
   upstream_sha="$(_skill_updates_upstream_sha "$owner" "$repo" "$branch" "$spath")"
+  [[ -z "$upstream_sha" ]] && _SU_SHA_QUERY_FAILED=1
 
   # Compare upstream SHA against stored SHA in frontmatter to skip unchanged origins.
   if [[ -n "$upstream_sha" ]]; then
@@ -3313,6 +3314,7 @@ cmd_skill_updates() {
 
   log_info "Checking ${#skill_dirs[@]} imported skill(s) for upstream changes"
 
+  _SU_SHA_QUERY_FAILED=0
   local skill_dir errors=0 available=0 needs_review=0 rc
   local available_names=() review_names=() review_origins=()
   for skill_dir in "${skill_dirs[@]}"; do
@@ -3330,6 +3332,10 @@ cmd_skill_updates() {
 
   if [[ "$errors" -gt 0 ]]; then
     log_warn "${errors} skill(s) had errors during update check"
+  fi
+
+  if [[ "$_SU_SHA_QUERY_FAILED" -eq 1 ]]; then
+    log_warn 'Could not query upstream commit SHAs (rate limit or network); cache skipped'
   fi
 
   if [[ "$mode" == 'check' ]]; then
