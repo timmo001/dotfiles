@@ -1,0 +1,40 @@
+name: Publish OpenCode Config
+
+on:
+  push:
+    branches:
+      - distro/arch-omarchy
+    paths:
+      - 'agents/.config/opencode/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout dotfiles
+        uses: actions/checkout@v4
+
+      - name: Checkout publish repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/opencode-config
+          path: _publish
+          token: ${{ secrets.OPENCODE_PUBLISH_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git -C _publish config user.name 'github-actions[bot]'
+          git -C _publish config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+      - name: Publish
+        env:
+          DOTFILES_REPO: ${{ github.repository }}
+          PUBLISH_REPO: ${{ github.repository_owner }}/opencode-config
+          SOURCE_PREFIX: agents/.config/opencode
+          SOURCE_BRANCH: ${{ github.ref_name }}
+          PUBLISH_DIR: ${{ github.workspace }}/_publish
+        run: .github/scripts/opencode-publish.sh

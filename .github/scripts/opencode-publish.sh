@@ -1,0 +1,266 @@
+#!/usr/bin/env bash
+# Generates README.md and AGENTS.md from the live opencode config, then
+# syncs the subtree contents into the target publish repo and pushes.
+#
+# Expected environment:
+#   DOTFILES_REPO   - owner/repo of the dotfiles source (e.g. timmo001/dotfiles)
+#   PUBLISH_REPO    - owner/repo of the target publish repo (e.g. timmo001/opencode-config)
+#   SOURCE_PREFIX   - subtree path within dotfiles (e.g. agents/.config/opencode)
+#   SOURCE_BRANCH - branch name in dotfiles repo (e.g. distro/arch-omarchy)
+#   PUBLISH_DIR     - local checkout of the publish repo
+set -euo pipefail
+
+CONFIG_DIR="${SOURCE_PREFIX}"
+DOTFILES_URL="https://github.com/${DOTFILES_REPO}"
+SOURCE_URL="${DOTFILES_URL}/tree/${SOURCE_BRANCH}/${SOURCE_PREFIX}"
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+# Extract a scalar field from a file's YAML frontmatter.
+field() {
+  local file="$1" f="$2"
+  awk -v f="$f" '
+    NR==1 && /^---/ { fm=1; next }
+    fm && /^---/ { exit }
+    !fm { next }
+    $0 ~ "^"f": " || $0 ~ "^"f":$" {
+      v = $0; sub("^"f":[ ]*", "", v)
+      gsub(/^[\x22\x27]|[\x22\x27]$/, "", v)
+      if (v ~ /^[>|][-]?$/ || v == "") { ml=1; next }
+      r = v; exit
+    }
+    ml && /^  / { sub(/^  +/, ""); r = r ? r " " $0 : $0; next }
+    ml { exit }
+    END { print r }
+  ' "$file"
+}
+
+# Extract the # origin: URL from a skill's YAML frontmatter comment.
+origin() {
+  awk '
+    NR==1 && /^---/ { fm=1; next }
+    fm && /^---/ { exit }
+    fm && /^# origin:/ { sub(/^# origin: */, ""); print; exit }
+  ' "$1"
+}
+
+# Extract the @file description from a plugin's JSDoc block.
+plugin_desc() {
+  awk '
+    /^\/\*\*/ { jd=1; next }
+    jd && /\*\// { exit }
+    jd && /@file / { sub(/.*@file /, ""); sub(/\.? *$/, ""); print; exit }
+  ' "$1"
+}
+
+# ---------------------------------------------------------------------------
+# Generate README.md
+# ---------------------------------------------------------------------------
+generate_readme() {
+  {
+    cat <<EOF
+# OpenCode Config
+
+Shared [OpenCode](https://opencode.ai) skills, agents, plugins, and commands.
+
+Published from [\`${DOTFILES_REPO}\`](${DOTFILES_URL}) — source at [\`${SOURCE_PREFIX}/\`](${SOURCE_URL}).
+
+## Installation
+
+Import individual skills using the \`import-external-skill\` workflow:
+
+\`\`\`
+# origin: https://github.com/${PUBLISH_REPO}/tree/main/skills/<skill-name>
+\`\`\`
+
+Or clone the full repo and copy what you need:
+
+\`\`\`bash
+git clone https://github.com/${PUBLISH_REPO}.git
+\`\`\`
+
+Agents, commands, and plugins can be copied directly into your OpenCode config directory (\`~/.config/opencode/\`).
+
+## Skills
+
+### Locally Authored
+
+| Skill | Description |
+|---|---|
+EOF
+
+    for skill_dir in "${CONFIG_DIR}/skills"/*/; do
+      [[ -f "${skill_dir}SKILL.md" ]] || continue
+      local o
+      o="$(origin "${skill_dir}SKILL.md")"
+      [[ -n "$o" ]] && continue
+      local name desc
+      name="$(basename "$skill_dir")"
+      desc="$(field "${skill_dir}SKILL.md" description)"
+      printf '| `%s` | %s |\n' "$name" "$desc"
+    done | sort
+
+    cat <<'EOF'
+
+### Imported
+
+These skills were imported from external sources and may include local adaptations.
+
+| Skill | Origin |
+|---|---|
+EOF
+
+    for skill_dir in "${CONFIG_DIR}/skills"/*/; do
+      [[ -f "${skill_dir}SKILL.md" ]] || continue
+      local o
+      o="$(origin "${skill_dir}SKILL.md")"
+      [[ -z "$o" ]] && continue
+      local name origin_label
+      name="$(basename "$skill_dir")"
+      origin_label="$(printf '%s' "$o" | sed -n 's|https://github.com/\([^/]*/[^/]*\)/.*|\1|p')"
+      printf '| `%s` | [%s](%s) |\n' "$name" "${origin_label:-$o}" "$o"
+    done | sort
+
+    printf '\n## Agents\n\n'
+    printf '| Agent | Description |\n|---|---|\n'
+
+    for agent_file in "${CONFIG_DIR}/agents"/*.md; do
+      [[ -f "$agent_file" ]] || continue
+      local name desc
+      name="$(basename "$agent_file" .md)"
+      desc="$(field "$agent_file" description)"
+      printf '| `%s` | %s |\n' "$name" "$desc"
+    done | sort
+
+    printf '\n## Commands\n\n'
+    printf '| Command | Description | Agent |\n|---|---|---|\n'
+
+    while IFS= read -r cmd_file; do
+      [[ -f "$cmd_file" ]] || continue
+      local rel_path name dir_part desc agent
+      rel_path="${cmd_file#"${CONFIG_DIR}/commands/"}"
+      name="$(basename "$rel_path" .md)"
+      dir_part="${rel_path%/*}"
+      [[ "$dir_part" != "$(basename "$rel_path")" ]] && name="${dir_part}/${name}"
+      desc="$(field "$cmd_file" description)"
+      agent="$(field "$cmd_file" agent)"
+      printf '| `/%s` | %s | %s |\n' "$name" "$desc" "${agent:-default}"
+    done < <(find "${CONFIG_DIR}/commands" -name '*.md' -type f | sort)
+
+    printf '\n## Plugins\n\n'
+    printf '| Plugin | Description |\n|---|---|\n'
+
+    for plugin_file in "${CONFIG_DIR}/plugins"/*.js; do
+      [[ -f "$plugin_file" ]] || continue
+      local name desc
+      name="$(basename "$plugin_file" .js)"
+      desc="$(plugin_desc "$plugin_file")"
+      printf '| `%s` | %s |\n' "$name" "$desc"
+    done | sort
+
+    cat <<EOF
+
+## Publishing
+
+This repo is published automatically via GitHub Actions when the source
+[\`${SOURCE_PREFIX}/\`](${SOURCE_URL}) changes.
+EOF
+  } > "${CONFIG_DIR}/README.md"
+}
+
+# ---------------------------------------------------------------------------
+# Generate AGENTS.md
+# ---------------------------------------------------------------------------
+generate_agents() {
+  cat <<EOF > "${CONFIG_DIR}/AGENTS.md"
+# AGENTS
+
+Instructions for coding agents working in this repository.
+
+## Source
+
+This repo is a published snapshot of OpenCode configuration from [\`${DOTFILES_REPO}\`](${DOTFILES_URL}).
+
+Source files: [\`${SOURCE_PREFIX}/\`](${SOURCE_URL})
+
+Do not edit files here directly. Make changes in the [source dotfiles repo](${DOTFILES_URL}) and push — a GitHub Actions workflow publishes automatically.
+
+## Structure
+
+\`\`\`
+skills/      OpenCode skills (SKILL.md per directory, optional references/)
+agents/      Agent definitions (YAML frontmatter + Markdown body)
+commands/    Slash commands (YAML frontmatter + Markdown workflow)
+plugins/     Lifecycle plugins (ESM JavaScript)
+\`\`\`
+
+## Skills
+
+Each skill is a directory containing a \`SKILL.md\` with YAML frontmatter (\`name\`, \`description\`) and a Markdown body with checklists and guidance. Some skills include a \`references/\` subdirectory with supporting documents.
+
+Imported skills include \`# origin:\` and \`# upstream-sha:\` comments in their frontmatter for tracking upstream changes.
+
+## Importing
+
+To import a skill into your own OpenCode setup, use the \`import-external-skill\` workflow with a GitHub tree URL pointing at the skill directory:
+
+\`\`\`
+https://github.com/${PUBLISH_REPO}/tree/main/skills/<skill-name>
+\`\`\`
+
+Agents, commands, and plugins can be copied directly into your OpenCode config directory.
+EOF
+}
+
+# ---------------------------------------------------------------------------
+# Sync to publish repo
+# ---------------------------------------------------------------------------
+sync_to_publish() {
+  echo "::group::Sync files to publish repo"
+
+  # Clean target (preserve .git)
+  find "${PUBLISH_DIR}" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+
+  # Copy subtree contents
+  cp -a "${CONFIG_DIR}/." "${PUBLISH_DIR}/"
+
+  echo "::endgroup::"
+}
+
+# ---------------------------------------------------------------------------
+# Commit and push
+# ---------------------------------------------------------------------------
+commit_and_push() {
+  cd "${PUBLISH_DIR}"
+
+  git add -A
+  if git diff --cached --quiet; then
+    echo "No changes to publish"
+    return 0
+  fi
+
+  local short_sha
+  short_sha="$(git -C "${GITHUB_WORKSPACE}" rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
+
+  git commit -m "publish: sync from ${DOTFILES_REPO}@${short_sha}"
+  git push
+  echo "Published to https://github.com/${PUBLISH_REPO}"
+}
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+main() {
+  echo "::group::Generate docs"
+  generate_readme
+  generate_agents
+  echo "Generated README.md and AGENTS.md"
+  echo "::endgroup::"
+
+  sync_to_publish
+  commit_and_push
+}
+
+main "$@"
