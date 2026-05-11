@@ -1,6 +1,0 @@
-[Unit]
-Description=Capture lightweight Chromium/Chrome freeze diagnostics
-
-[Service]
-Type=oneshot
-ExecStart=%h/.config/dotfiles/.tests/browser-freeze-snapshot.sh

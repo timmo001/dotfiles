@@ -6,7 +6,6 @@ Minimal system-wide benchmarks and diagnostics (not Waybar-specific).
 
 - `.benchmarks/system-quick-bench.sh`: short CPU/memory/network benchmark snapshot.
 - `.tests/system-resource-leak-test.sh`: short leak and growth check over time.
-- `.tests/browser-freeze-snapshot.sh`: lightweight Chromium/Chrome freeze evidence snapshot.
 
 ## Output layout
 
@@ -24,9 +23,6 @@ Minimal system-wide benchmarks and diagnostics (not Waybar-specific).
 
 # Resource leak test (short run)
 .tests/system-resource-leak-test.sh
-
-# Browser freeze snapshot (single run)
-.tests/browser-freeze-snapshot.sh
 ```
 
 ## Notes
@@ -34,7 +30,3 @@ Minimal system-wide benchmarks and diagnostics (not Waybar-specific).
 - LAN network throughput is opt-in and requires `--iperf-host`.
 - Scripts use ANSI color output by default; set `NO_COLOR=1` to disable.
 - All scripts include an uptime/load snapshot near the top of output.
-- Browser freeze snapshots include a browser memory summary and top renderer summary to make repeated diagnostics easier to compare.
-- Browser freeze monitor is opt-in via systemd timer:
-  - `systemctl --user enable --now browser-freeze-snapshot.timer`
-  - `systemctl --user disable --now browser-freeze-snapshot.timer`
