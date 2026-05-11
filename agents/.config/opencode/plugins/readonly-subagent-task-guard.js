@@ -1,7 +1,8 @@
 /**
- * Forces read-only primary agents to delegate only to subagents that cannot
- * modify workspace files. Built-in `general` / Cursor-style `generalPurpose`
- * are rewritten to `general-readonly` when the delegating agent is read-only.
+ * @file Forces read-only primary agents to delegate only to non-modifying subagents.
+ *
+ * Built-in `general` / Cursor-style `generalPurpose` subagent types are
+ * rewritten to `general-readonly` when the delegating agent is read-only.
  *
  * Dotfiles agents under agents/.config/opencode/agents (audit):
  * - reviewer, ask, general-readonly — deny edit and write on normal paths → guarded

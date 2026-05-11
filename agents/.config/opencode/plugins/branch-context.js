@@ -1,3 +1,12 @@
+/**
+ * @file Injects branch-context blocks into command prompts before execution.
+ *
+ * Hooks into `command.execute.before` to collect git/gh state (branch, status,
+ * diff, PR info) and inject a `<branch-context>` XML block into the command
+ * prompt. Supports two tiers: full branch-context commands and work-scope-only
+ * commands that receive a narrower diff.
+ */
+
 const BRANCH_CONTEXT_COMMANDS = new Set([
   // General
   "git-workflow",

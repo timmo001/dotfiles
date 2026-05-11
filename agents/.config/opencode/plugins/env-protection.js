@@ -1,3 +1,10 @@
+/**
+ * @file Blocks reads of .env files to prevent leaking secrets.
+ *
+ * Guards `tool.execute.before` on the `read` tool. Any file named `.env` or
+ * `.env.*` (except `.env.example`) throws before the read reaches disk.
+ */
+
 export const EnvProtection = async ({ project, client, $, directory, worktree }) => {
   return {
     "tool.execute.before": async (input, output) => {

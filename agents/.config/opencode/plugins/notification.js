@@ -1,3 +1,11 @@
+/**
+ * @file Plays a desktop notification sound when agent tasks complete.
+ *
+ * Uses `paplay` with the freedesktop message sound. Only fires for main
+ * (non-subagent) session idle events and permission prompts so background
+ * work stays silent.
+ */
+
 export const NotificationPlugin = async ({ $, client }) => {
   const soundPath = "/usr/share/sounds/freedesktop/stereo/message.oga";
   let canPlaySound;
