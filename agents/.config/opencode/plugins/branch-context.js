@@ -11,13 +11,11 @@ const BRANCH_CONTEXT_COMMANDS = new Set([
   // General
   "git-workflow",
   "refactor-current-work",
+  "reset-branch-reapply",
   "review-current-work",
 
   // Private
   "timmo001-private/deslopify",
-
-  // Timmo001
-  "timmo001/reset-branch-reapply",
 ])
 const WORK_SCOPE_COMMANDS = new Set([
   // General
