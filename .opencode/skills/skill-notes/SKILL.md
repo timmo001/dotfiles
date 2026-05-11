@@ -13,3 +13,8 @@ Consult these notes when evaluating external skills for import, recommending ski
 - Tests are verification tools, not design drivers.
 - Skip or flag any skill whose core workflow is TDD or test-first.
 - If an otherwise useful skill includes TDD content, note the conflict and offer to adapt with the TDD parts removed.
+
+## Issues and Planning
+
+- The user writes their own issues, especially in shared repos.
+- Skip skills that automate issue creation, breakdown-to-issues, or PRD-to-tickets workflows.
