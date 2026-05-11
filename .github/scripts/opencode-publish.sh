@@ -142,26 +142,44 @@ Agents, commands, and plugins are not managed by \`import-external-skill\` — c
 
 ## Skills
 
-| Skill | Description | Origin | Requires | Works with |
-|---|---|---|---|---|
+| Skill | Description | Requires | Works with |
+|---|---|---|---|
 EOF
 
     for skill_dir in "${CONFIG_DIR}/skills"/*/; do
       [[ -f "${skill_dir}SKILL.md" ]] || continue
-      local name desc deps optional o origin_col
+      local o
+      o="$(origin "${skill_dir}SKILL.md")"
+      [[ -n "$o" ]] && continue
+      local name desc deps optional
       name="$(basename "$skill_dir")"
       desc="$(field "${skill_dir}SKILL.md" description)"
       deps="$(requires "${skill_dir}SKILL.md")"
       optional="$(works_with "${skill_dir}SKILL.md")"
+      printf '| `%s` | %s | %s | %s |\n' "$name" "$desc" "$deps" "$optional"
+    done | sort
+
+    cat <<'EOF'
+
+### Adapted From External Sources
+
+These skills were originally imported and adapted for local use. They are included in this repo with local modifications.
+
+| Skill | Origin | Requires | Works with |
+|---|---|---|---|
+EOF
+
+    for skill_dir in "${CONFIG_DIR}/skills"/*/; do
+      [[ -f "${skill_dir}SKILL.md" ]] || continue
+      local o
       o="$(origin "${skill_dir}SKILL.md")"
-      if [[ -n "$o" ]]; then
-        local origin_label
-        origin_label="$(printf '%s' "$o" | sed -n 's|https://github.com/\([^/]*/[^/]*\)/.*|\1|p')"
-        origin_col="[${origin_label:-$o}]($o)"
-      else
-        origin_col=""
-      fi
-      printf '| `%s` | %s | %s | %s | %s |\n' "$name" "$desc" "$origin_col" "$deps" "$optional"
+      [[ -z "$o" ]] && continue
+      local name deps optional origin_label
+      name="$(basename "$skill_dir")"
+      deps="$(requires "${skill_dir}SKILL.md")"
+      optional="$(works_with "${skill_dir}SKILL.md")"
+      origin_label="$(printf '%s' "$o" | sed -n 's|https://github.com/\([^/]*/[^/]*\)/.*|\1|p')"
+      printf '| `%s` | [%s](%s) | %s | %s |\n' "$name" "${origin_label:-$o}" "$o" "$deps" "$optional"
     done | sort
 
     printf '\n## Agents\n\n'
