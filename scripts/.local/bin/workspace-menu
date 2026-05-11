@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+run_in_terminal() {
+  local command="${1:?}"
+  exec uwsm app -- ghostty -e bash -lc "$command; printf '\n'; read -r -p 'Press Enter to close...'"
+}
+
+while true; do
+  options=(
+    '󰙀  Relayout current workspace'
+    '󰆓  Capture all workspaces'
+    '󰆓  Capture current workspace'
+    '󰑓  Restore latest (dry run)'
+    '󰑓  Restore latest'
+  )
+
+  if [[ ${OMARCHY_HOST:-} == 'desktop' ]]; then
+    options=('󰣇  Setup workspace' "${options[@]}")
+  fi
+
+  choice="$(printf '%s\n' "${options[@]}" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 420 -p 'Workspace…' 2>/dev/null || true)"
+  choice="${choice#*  }"
+
+  case "$choice" in
+    'Setup workspace')
+      exec workspace-setup
+      ;;
+    'Relayout current workspace')
+      exec workspace-relayout
+      ;;
+    'Capture all workspaces')
+      run_in_terminal 'workspace-capture'
+      ;;
+    'Capture current workspace')
+      run_in_terminal 'workspace-capture --current-workspace'
+      ;;
+    'Restore latest (dry run)')
+      run_in_terminal 'workspace-restore --dry-run'
+      ;;
+    'Restore latest')
+      exec workspace-restore
+      ;;
+    *)
+      exit 0
+      ;;
+  esac
+done
