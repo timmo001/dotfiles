@@ -17,6 +17,7 @@ Use this skill when reviewing or editing cleanup/refactor changes that remove or
 - Treat aliases of instance fields or parameters (`const params = this._params`, `const value = props.value`) as no-op aliases unless they preserve a required snapshot, narrowing across async boundaries, evaluation order, or readability for repeated complex access.
 - Inline object literals that are constructed only to be passed immediately to one function or event payload, when doing so preserves clarity and behavior.
 - Drop dead assignments and declarations that are never read.
+- Flatten deep nesting via guard clauses and early returns when it reduces indentation without obscuring control flow.
 - Do not introduce `any`.
 - Do not use the non-null assertion operator (`!`).
 - Do not add unnecessary comments or abstractions.
