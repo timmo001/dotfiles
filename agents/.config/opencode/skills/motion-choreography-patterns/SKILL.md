@@ -2,6 +2,7 @@
 name: motion-choreography-patterns
 description: Use when orchestrating multi-element UI motion, stagger systems, list reorder/insert/remove flows, modal and overlay stacks, gesture-driven transitions, and route-level choreography that preserves hierarchy and attention.
 # origin: https://github.com/stolinski/s-stack/tree/main/skills/motion-choreography-patterns
+# upstream-sha: bbc36fc66076923237c0b4db9ca2df284d734548
 ---
 
 # Motion Choreography Patterns

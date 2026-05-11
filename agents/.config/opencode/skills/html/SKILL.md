@@ -2,6 +2,7 @@
 name: html
 description: Writes and reviews semantic, accessible HTML and template markup that stays readable and low-noise. Use when creating or refactoring HTML or Svelte templates, cleaning up div soup, choosing better elements, improving form markup, fixing heading or landmark structure, or replacing custom controls with native HTML.
 # origin: https://github.com/stolinski/s-stack/tree/main/skills/html
+# upstream-sha: 2b5d41a12bd18a128216d36bdd2d95b9269c9c6d
 # local-edits:
 #   - smart-quote characters normalised to straight quotes
 ---

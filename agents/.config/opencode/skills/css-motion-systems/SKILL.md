@@ -2,6 +2,7 @@
 name: css-motion-systems
 description: CSS motion design and implementation for web interfaces. Use when designing or building transitions, animations, `linear()` easing, transform strategy, View Transitions API patterns, motion tokens, or reviewing motion quality and accessibility.
 # origin: https://github.com/stolinski/s-stack/tree/main/skills/css-motion-systems
+# upstream-sha: bbc36fc66076923237c0b4db9ca2df284d734548
 # local-edits:
 #   - description rewritten for local skill-selection clarity
 #   - body extensively restructured — condensed overview, inlined review checklist, reformatted easing section, normalised punctuation (em-dash to double-hyphen)
