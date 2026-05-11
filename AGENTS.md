@@ -66,6 +66,14 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - For any TypeScript edit or TypeScript-focused review (`.ts`, `.tsx`, `.mts`, `.cts`), apply the `types-enforce-ts` skill before making changes.
 - For JavaScript or TypeScript edits (`.js`, `.jsx`, `.ts`, `.tsx`, `.mjs`, `.cjs`, `.mts`, `.cts`), run a Fallow audit on the changed scope before wrapping up when dead-code, complexity, or duplication checks are relevant.
 
+## HTML Skills
+
+- For any HTML, template, or component markup edit (`.html`, `.svelte`, `.astro`, `.vue`, `.jsx`, `.tsx`), apply the `html` skill when the change touches markup structure, semantics, accessibility, or form labelling.
+
+## CSS Motion Skills
+
+- For CSS transitions, animations, easing, View Transitions API patterns, or motion token work, apply the `css-motion-systems` skill before making changes.
+
 ## Code Skills
 
 - Apply `cleanup-unnecessary-variables` as a general code-quality skill for all code changes when its guidance is relevant, not only explicit cleanup requests.
