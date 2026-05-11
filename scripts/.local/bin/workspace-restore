@@ -186,12 +186,13 @@ quote_arg() {
 
 command_for_client() {
   local client_json="$1"
-  local class initial_class title cwd quoted_cwd
+  local class initial_class title cwd quoted_cwd browser_url
 
   class="$(jq -r '.class // ""' <<< "$client_json")"
   initial_class="$(jq -r '.initialClass // ""' <<< "$client_json")"
   title="$(jq -r '.title // ""' <<< "$client_json")"
   cwd="$(jq -r '.process.cwd // ""' <<< "$client_json")"
+  browser_url="$(jq -r '.browser_url // ""' <<< "$client_json")"
 
   if [[ $class =~ $EXCLUDED_CLASS_RE || $initial_class =~ $EXCLUDED_CLASS_RE || $title =~ $EXCLUDED_TITLE_RE ]]; then
     RESTORE_LABEL="Workspace Menu terminal"
@@ -227,19 +228,25 @@ command_for_client() {
       return 0
       ;;
     chrome-www.twitch.tv__*:*|*:chrome-www.twitch.tv__*|chrome-twitch.tv__*:*|*:chrome-twitch.tv__*)
-      local twitch_class twitch_host twitch_path
+      local twitch_class twitch_path launch_url
       twitch_class="${class:-$initial_class}"
-      twitch_host="${twitch_class#chrome-}"
-      twitch_host="${twitch_host%%__*}"
       twitch_path="${twitch_class#*__}"
       twitch_path="${twitch_path%-*}"
-      # Chrome encodes / as _ in class names; restore slashes for known multi-segment paths
-      if [[ $twitch_path == directory_* ]]; then
-        twitch_path="${twitch_path//_//}"
-      fi
+      # Set label and regex before any path modification
       RESTORE_LABEL="Twitch ($twitch_path)"
-      RESTORE_CLASS_RE="^chrome-(www\\.)?twitch\\.tv__${twitch_path//\//\\_}-"
-      RESTORE_COMMAND="omarchy-launch-webapp https://${twitch_host}/${twitch_path}"
+      RESTORE_CLASS_RE="^chrome-(www\\.)?twitch\\.tv__${twitch_path}-"
+      if [ -n "$browser_url" ]; then
+        launch_url="$browser_url"
+      else
+        # Fallback: reconstruct URL from class name
+        local twitch_host="${twitch_class#chrome-}"
+        twitch_host="${twitch_host%%__*}"
+        if [[ $twitch_path == directory_* ]]; then
+          twitch_path="${twitch_path//_//}"
+        fi
+        launch_url="https://${twitch_host}/${twitch_path}"
+      fi
+      RESTORE_COMMAND="omarchy-launch-webapp $launch_url"
       return 0
       ;;
     com.mitchellh.ghostty:*|*:com.mitchellh.ghostty)
@@ -254,6 +261,14 @@ command_for_client() {
       return 0
       ;;
     *)
+      # Generic Chrome webapp: use browser_url if available
+      if [[ "$class" == chrome-* ]] && [ -n "$browser_url" ]; then
+        RESTORE_LABEL="${class:-${initial_class:-unknown}}"
+        RESTORE_CLASS_RE="^$(printf '%s' "$class" | sed 's/[.[\*^$()+?{|]/\\&/g')$"
+        RESTORE_COMMAND="omarchy-launch-webapp $browser_url"
+        [ -n "$title" ] && RESTORE_LABEL="$RESTORE_LABEL ($title)"
+        return 0
+      fi
       RESTORE_LABEL="${class:-${initial_class:-unknown}}"
       RESTORE_CLASS_RE=""
       RESTORE_COMMAND=""

@@ -127,6 +127,16 @@ done < <(jq -r '.[] | [.address, (.pid // empty)] | @tsv' "$clients_tmp")
 
 printf ']' >> "$proc_tmp"
 
+# Read real URLs from the workspace-urls extension (if available)
+URLS_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/browser-urls.json"
+urls_tmp="$(mktemp)"
+trap 'rm -f "$clients_tmp" "$proc_tmp" "$urls_tmp"' EXIT
+if [ -f "$URLS_FILE" ]; then
+  cp "$URLS_FILE" "$urls_tmp"
+else
+  printf '[]' > "$urls_tmp"
+fi
+
 jq -n \
   --arg generated_at "$(date --iso-8601=seconds)" \
   --arg scope "$($CURRENT_WORKSPACE_ONLY && printf current-workspace || printf all-workspaces)" \
@@ -135,15 +145,29 @@ jq -n \
   --argjson monitors "$monitors_json" \
   --slurpfile clients "$clients_tmp" \
   --slurpfile proc "$proc_tmp" \
+  --slurpfile urls "$urls_tmp" \
   '{
-    version: 1,
+    version: 2,
     generated_at: $generated_at,
     scope: $scope,
     active_workspace: $active_workspace,
     active_window: $active_window,
     monitors: $monitors,
     clients: ($clients[0]
-      | map(. + {process: (($proc[0] | INDEX(.address))[.address] // {})}))
+      | map(. + {process: (($proc[0] | INDEX(.address))[.address] // {})})
+      | map(
+          if (.class | test("^chrome-|^chromium$")) then
+            (.title // ""
+              | sub("^\\(\\d+\\) "; "")
+              | sub(" - Chromium$"; "")
+              | sub(" - Google Chrome$"; "")
+            ) as $clean |
+            ($urls[0] | map(select((.title // "") == $clean)) | .[0].url // null) as $url |
+            . + {browser_url: $url}
+          else
+            .
+          end
+        ))
   }' > "$OUTPUT_FILE"
 
 printf 'Captured workspace session: %s\n' "$OUTPUT_FILE"
