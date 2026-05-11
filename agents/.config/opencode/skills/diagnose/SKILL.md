@@ -1,6 +1,13 @@
 ---
 name: diagnose
 description: Disciplined diagnosis workflow for hard bugs, regressions, flaky behavior, and performance issues. Use when behavior is broken, failing, intermittent, or slower than expected and the agent needs a reproducible feedback loop before fixing.
+# origin: https://github.com/mattpocock/skills/tree/main/skills/engineering/diagnose
+# upstream-sha: 7afa86d3a5dd96edde06ffa014e16c64e733681e
+# local-edits:
+#   - description rewritten for OpenCode context
+#   - body condensed from six prescriptive phases to a concise workflow with checklist
+#   - removed Claude-specific language and LANGUAGE.md/CONTEXT.md references
+#   - added tool guidance section for OpenCode agents
 ---
 
 # Diagnose

@@ -1,6 +1,13 @@
 ---
 name: write-a-skill
 description: Create new OpenCode skills with concise descriptions, clear triggers, and minimal supporting files. Use when adding or rewriting a local skill, command-adjacent skill, or reusable agent workflow.
+# origin: https://github.com/mattpocock/skills/tree/main/skills/productivity/write-a-skill
+# upstream-sha: 62f43a18177be6ec82da242e59ffbc490a4c22ea
+# local-edits:
+#   - description rewritten for OpenCode context
+#   - body rewritten from template-heavy process to concise workflow with quality checks
+#   - removed Claude-specific template and review checklist
+#   - added OpenCode-specific integration guidance (AGENTS.md, commands, wrappers)
 ---
 
 # Write A Skill

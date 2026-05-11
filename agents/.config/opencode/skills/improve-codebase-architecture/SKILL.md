@@ -1,6 +1,13 @@
 ---
 name: improve-codebase-architecture
 description: Review a codebase area for architectural friction and propose focused structural improvements. Use when the user wants to improve maintainability, reduce coupling, simplify understanding, or identify where code should be consolidated or deepened.
+# origin: https://github.com/mattpocock/skills/tree/main/skills/engineering/improve-codebase-architecture
+# upstream-sha: 7afa86d3a5dd96edde06ffa014e16c64e733681e
+# local-edits:
+#   - description rewritten for OpenCode context
+#   - body condensed from grilling-loop process to focused review method with guardrails
+#   - removed CONTEXT.md/LANGUAGE.md/ADR-FORMAT.md/INTERFACE-DESIGN.md references
+#   - removed Claude-specific vocabulary and prescriptive glossary
 ---
 
 # Improve Codebase Architecture
