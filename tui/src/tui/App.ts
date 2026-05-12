@@ -9,6 +9,7 @@ import { DiffView } from "./DiffView.js"
 import { OmarchyMenu } from "./OmarchyMenu.js"
 import { StagingView } from "./StagingView.js"
 import { CommitView } from "./CommitView.js"
+import { Toast } from "./Toast.js"
 import { openLazygit } from "./Lazygit.js"
 
 const log = (msg: string) => console.error(`[dot-tui:App] ${msg}`)
@@ -180,7 +181,7 @@ export class App {
       if (item) {
         this.showView("main")
         const { action } = item
-        if (action.type === "command" || action.type === "silent") {
+        if (action.type === "command" || action.type === "silent" || action.type === "notify") {
           setTimeout(() => {
             this.commandRunner.runSuspended(action.cmd, true).catch((err) => {
               log(`Execute error: ${err}`)
@@ -269,6 +270,12 @@ export class App {
       case "silent":
         this.commandRunner.runSilent(action.cmd).catch((err) => {
           log(`Silent command error: ${err}`)
+        })
+        break
+
+      case "notify":
+        this.commandRunner.runNotify(action.cmd, action.notify).catch((err) => {
+          log(`Notify command error: ${err}`)
         })
         break
 

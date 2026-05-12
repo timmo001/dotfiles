@@ -60,6 +60,26 @@ export interface SilentAction {
   readonly cmd: string
 }
 
+/** Toast notification config for notify actions */
+export interface NotifyConfig {
+  /** Stable ID for grouping — a new notification with the same ID replaces the previous one */
+  readonly id: string
+  /** Message shown while the command is running (e.g. "Refreshing memory...") */
+  readonly progress: string
+  /** Message shown on success (e.g. "Memory refreshed") */
+  readonly success: string
+}
+
+/** Action that runs a command silently and shows toast notifications for progress/result */
+export interface NotifyAction {
+  readonly type: "notify"
+  readonly cmd: string
+  readonly notify: NotifyConfig
+}
+
+/** Toast variant controlling display colour */
+export type ToastVariant = "info" | "success" | "error"
+
 /** Action that navigates to a sub-view within the TUI */
 export interface ViewAction {
   readonly type: "view"
@@ -73,7 +93,7 @@ export interface SubmenuAction {
 }
 
 /** Discriminated union of all possible menu item actions */
-export type MenuAction = CommandAction | SilentAction | ViewAction | SubmenuAction
+export type MenuAction = CommandAction | SilentAction | NotifyAction | ViewAction | SubmenuAction
 
 /** A single entry in the TUI menu system */
 export interface MenuItem {

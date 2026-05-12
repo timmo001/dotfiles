@@ -7,6 +7,7 @@ import { GitStaging, GitStagingLive } from "./services/GitStaging.js"
 import { CommitSuggest, CommitSuggestLive } from "./services/CommitSuggest.js"
 import { shutdownServer } from "./services/CommitSuggest.js"
 import { createCommandRunner } from "./services/CommandRunner.js"
+import { Toast } from "./tui/Toast.js"
 import { App } from "./tui/App.js"
 import { parseFlags, resolveSubcommand, printHelp } from "./flags.js"
 import { menuItemsById } from "./menu.js"
@@ -39,7 +40,7 @@ if (flags.subcommand) {
     const item = menuItemsById.get(resolved.itemId)
     if (item) {
       const { action } = item
-      if (action.type === "command" || action.type === "silent" || action.type === "submenu") {
+      if (action.type === "command" || action.type === "silent" || action.type === "notify" || action.type === "submenu") {
         executeItemId = resolved.itemId
       } else if (action.type === "view") {
         initialView = action.viewId
@@ -65,7 +66,7 @@ const program = Effect.gen(function* () {
   )
   log("Renderer created")
 
-  const commandRunner = createCommandRunner(renderer)
+  const commandRunner = createCommandRunner(renderer, new Toast(renderer))
 
   // Create the app with concrete dependencies
   const app = new App(
