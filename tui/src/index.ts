@@ -5,8 +5,20 @@ import { WaybarCacheLive } from "./services/WaybarCache.js"
 import { RepoWatcher, RepoWatcherLive } from "./services/RepoWatcher.js"
 import { Dashboard } from "./tui/Dashboard.js"
 import { openLazygit } from "./tui/Lazygit.js"
+import { parseFlags, type Flags } from "./flags.js"
 
 const log = (msg: string) => console.error(`[dot-tui] ${msg}`)
+
+const flags = parseFlags(process.argv.slice(2))
+
+if (flags.help) {
+  console.log(`Usage: dot-tui [options]
+
+Options:
+  --tab <changed|other>  Initial tab to focus (default: changed)
+  --help                 Show this help message`)
+  process.exit(0)
+}
 
 const program = Effect.gen(function* () {
   log("Starting — resolving RepoWatcher service...")
@@ -24,6 +36,7 @@ const program = Effect.gen(function* () {
   log("Renderer created")
 
   const dashboard = new Dashboard(renderer, {
+    initialTab: flags.tab,
     onSelect: async (repo) => {
       await openLazygit(renderer, repo.path)
       Effect.runFork(watcher.refresh())

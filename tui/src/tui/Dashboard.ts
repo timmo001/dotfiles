@@ -11,16 +11,17 @@ import {
 } from "@opentui/core"
 import type { Repo, RepoState } from "../types.js"
 
-export interface DashboardCallbacks {
+export interface DashboardOptions {
   onSelect: (repo: Repo) => void
   onRefresh: () => void
+  initialTab?: Pane
 }
 
 type Pane = "changed" | "unchanged"
 
 export class Dashboard {
   private renderer: CliRenderer
-  private callbacks: DashboardCallbacks
+  private callbacks: DashboardOptions
 
   private root: BoxRenderable
   private changedSelect: SelectRenderable
@@ -35,7 +36,7 @@ export class Dashboard {
   private unchangedRepos: readonly Repo[] = []
   private lastChecked: Date = new Date()
 
-  constructor(renderer: CliRenderer, callbacks: DashboardCallbacks) {
+  constructor(renderer: CliRenderer, callbacks: DashboardOptions) {
     this.renderer = renderer
     this.callbacks = callbacks
 
@@ -179,8 +180,13 @@ export class Dashboard {
       }
     })
 
-    // Focus the changed pane by default
-    this.focusPane("changed")
+    // Focus the initial pane
+    this.activePane = callbacks.initialTab ?? "changed"
+    this.focusPane(this.activePane)
+
+    // Update titles to reflect initial pane
+    this.changedTitle.content = this.formatPaneTitle("Changed", 0, this.activePane === "changed")
+    this.unchangedTitle.content = this.formatPaneTitle("Other", 0, this.activePane === "unchanged")
   }
 
   update(state: RepoState): void {
