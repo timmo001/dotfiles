@@ -3575,25 +3575,25 @@ cmd_doctor() {
 
     if [[ ! -d "$PRIVATE_PACKAGE_REPO_MIRROR_PATH" ]]; then
       doctor_warn "Missing private package repo mirror: $(display_path "$PRIVATE_PACKAGE_REPO_MIRROR_PATH")"
-      doctor_warn 'Run dot init to sync the private package repo mirror'
+      doctor_warn "Sync: mkdir -p $(display_path "$PRIVATE_PACKAGE_REPO_MIRROR_PATH") && rsync -a --delete --exclude .git/ $(display_path "$PRIVATE_PACKAGE_REPO_PATH")/ $(display_path "$PRIVATE_PACKAGE_REPO_MIRROR_PATH")/"
       return 0
     fi
 
     if ! private_package_repo_registered; then
       doctor_warn "Private pacman repo is not configured in $(display_path "$DOT_PRIVATE_PACMAN_REPO_CONFIG")"
-      doctor_warn 'Run dot init to configure the private pacman repo'
+      doctor_warn "Create it with the [$PRIVATE_PACKAGE_REPO_NAME] repo pointing to $(private_package_repo_server)"
       return 0
     fi
 
     if ! private_package_repo_include_registered; then
       doctor_warn "Private pacman repo include is missing from $(display_path "$DOT_PRIVATE_PACMAN_MAIN_CONFIG")"
-      doctor_warn 'Run dot init to add the private pacman repo include'
+      doctor_warn "Add: $(private_package_repo_include_line)"
       return 0
     fi
 
     if ! private_package_repo_config_matches; then
       doctor_warn "Private pacman repo config differs from expected contents: $(display_path "$DOT_PRIVATE_PACMAN_REPO_CONFIG")"
-      doctor_warn 'Run dot init to rewrite the private pacman repo config'
+      doctor_warn "Rewrite it with the [$PRIVATE_PACKAGE_REPO_NAME] repo pointing to $(private_package_repo_server)"
       return 0
     fi
 
