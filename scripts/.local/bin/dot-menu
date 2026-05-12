@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+run_in_terminal() {
+  local command="${1:?}"
+  exec setsid uwsm-app -- xdg-terminal-exec \
+    --app-id=org.omarchy.terminal \
+    --title='Dot Menu' \
+    -e bash -c "$command; printf '\n'; read -r -p 'Press Enter to close...'"
+}
+
+run_in_shell() {
+  local command="${1:?}"
+  local tmpdir
+  tmpdir="$(mktemp -d)"
+  printf '%s\n' \
+    "source \"\$HOME/.zshrc\" 2>/dev/null" \
+    "$command" \
+    "command rm -rf \"$tmpdir\"" \
+    > "$tmpdir/.zshrc"
+  exec setsid uwsm-app -- xdg-terminal-exec \
+    --app-id=org.omarchy.terminal \
+    --title='Dot Menu' \
+    -e env ZDOTDIR="$tmpdir" zsh -i
+}
+
+run_with_notify() {
+  local label="${1:?}"
+  shift
+  local output
+  if output="$("$@" 2>&1)"; then
+    notify-send -a 'Dot' "$label" "$output"
+  else
+    notify-send -u critical -a 'Dot' "$label failed" "${output:-Unknown error}"
+  fi
+  exit 0
+}
+
+while true; do
+  options=(
+    '󰚰  Update'
+    '󰏗  Stow'
+    '  Diff'
+    '󰋼  Doctor'
+    '  Skill updates'
+    '󰍉  Memory refresh'
+  )
+
+  choice="$(printf '%s\n' "${options[@]}" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 420 -p 'Dot...' 2>/dev/null || true)"
+  choice="${choice#*  }"
+
+  case "$choice" in
+    'Update')
+      run_in_terminal 'dot update'
+      ;;
+    'Stow')
+      run_with_notify 'Stow' dot stow
+      ;;
+    'Diff')
+      run_in_shell 'dot diff'
+      ;;
+    'Doctor')
+      run_in_terminal 'dot doctor'
+      ;;
+    'Skill updates')
+      run_in_terminal 'dot skill-updates'
+      ;;
+    'Memory refresh')
+      run_with_notify 'Memory' dot memory
+      ;;
+    *)
+      exit 0
+      ;;
+  esac
+done

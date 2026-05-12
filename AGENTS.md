@@ -110,6 +110,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 
 - Keep command orchestration in `scripts/.local/bin/dot`.
 - If command behavior depends on parent-shell cwd changes, implement/update logic in `zsh/.zshrc` `dot()`.
+- When adding new `dot` subcommands that users may want quick access to, also add them to the `dot-menu` walker menu in `scripts/.local/bin/dot-menu`.
 - Keep logging readable and consistent:
   - section headings in Title Case
   - log labels uppercase (`[INFO]`, `[WARN]`, `[ERROR]`)
