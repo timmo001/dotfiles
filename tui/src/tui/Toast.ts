@@ -7,19 +7,13 @@ import {
   fg,
 } from "@opentui/core"
 import type { ToastVariant } from "../types.js"
+import type { Theme } from "../theme.js"
 
 /** Auto-dismiss delay per variant (milliseconds) */
 const DISMISS_MS: Record<ToastVariant, number> = {
   info: 5000,
   success: 3000,
   error: 8000,
-}
-
-/** Border colour per variant */
-const BORDER_COLOR: Record<ToastVariant, string> = {
-  info: "#58a6ff",
-  success: "#3fb950",
-  error: "#f85149",
 }
 
 /** Icon per variant */
@@ -39,10 +33,13 @@ const ICON: Record<ToastVariant, string> = {
 export class Toast {
   private root: BoxRenderable
   private text: TextRenderable
+  private theme: Theme
   private currentId: string | null = null
   private timeout: ReturnType<typeof setTimeout> | null = null
 
-  constructor(renderer: CliRenderer) {
+  constructor(renderer: CliRenderer, theme: Theme) {
+    this.theme = theme
+
     this.root = new BoxRenderable(renderer, {
       id: "toast-root",
       position: "absolute",
@@ -51,8 +48,8 @@ export class Toast {
       width: 50,
       height: 3,
       borderStyle: "rounded",
-      borderColor: BORDER_COLOR.info,
-      backgroundColor: "#161b22",
+      borderColor: theme.accent,
+      backgroundColor: theme.bgElevated,
       paddingLeft: 1,
       paddingRight: 1,
       alignItems: "center",
@@ -67,6 +64,15 @@ export class Toast {
     this.root.add(this.text)
 
     renderer.root.add(this.root)
+  }
+
+  /** Resolve the border colour for a toast variant */
+  private borderColor(variant: ToastVariant): string {
+    switch (variant) {
+      case "info": return this.theme.accent
+      case "success": return this.theme.green
+      case "error": return this.theme.red
+    }
   }
 
   /**
@@ -86,9 +92,10 @@ export class Toast {
       this.timeout = null
     }
 
+    const color = this.borderColor(variant)
     this.currentId = id
-    this.root.borderColor = BORDER_COLOR[variant]
-    this.text.content = t`${fg(BORDER_COLOR[variant])(ICON[variant])}  ${bold(fg("#c9d1d9")(message))}`
+    this.root.borderColor = color
+    this.text.content = t`${fg(color)(ICON[variant])}  ${bold(fg(this.theme.fg)(message))}`
     this.root.visible = true
 
     this.timeout = setTimeout(() => {

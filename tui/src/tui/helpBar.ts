@@ -1,5 +1,6 @@
 import { StyledText, fg } from "@opentui/core"
 import type { TextChunk } from "@opentui/core"
+import type { Theme } from "../theme.js"
 
 /** A key-action pair displayed in a help bar */
 export interface HelpEntry {
@@ -9,27 +10,22 @@ export interface HelpEntry {
   readonly action: string
 }
 
-/** Dim grey used for help bar action text and separators */
-const ACTION_COLOR = "#484f58"
-
-/** Light grey used for help bar key names */
-const KEY_COLOR = "#8b949e"
-
 /** Separator between key-action pairs (visible width) */
 const SEPARATOR = "   "
 
 /**
  * Format help bar entries into styled text with automatic row wrapping.
  *
- * Keys are rendered in light grey ({@link KEY_COLOR}) and actions in
- * dim grey ({@link ACTION_COLOR}) so keyboard shortcuts stand out.
- * When the total width exceeds terminal columns, entries wrap onto
- * multiple rows.
+ * Keys are rendered in muted text and actions in subtle text so keyboard
+ * shortcuts stand out. When the total width exceeds terminal columns,
+ * entries wrap onto multiple rows.
  *
+ * @param theme - Active colour theme
  * @param entries - Key-action pairs to display
  * @param suffix - Optional styled suffix appended after the last row (e.g. model ID badge)
  */
 export function formatHelpBar(
+  theme: Theme,
   entries: readonly HelpEntry[],
   suffix?: TextChunk,
 ): StyledText {
@@ -59,18 +55,18 @@ export function formatHelpBar(
   // Build styled chunks with colour-coded keys and actions
   const chunks: TextChunk[] = []
   for (let r = 0; r < rows.length; r++) {
-    if (r > 0) chunks.push(fg(ACTION_COLOR)("\n"))
+    if (r > 0) chunks.push(fg(theme.fgSubtle)("\n"))
     const row = rows[r]
     for (let j = 0; j < row.length; j++) {
-      if (j > 0) chunks.push(fg(ACTION_COLOR)(SEPARATOR))
+      if (j > 0) chunks.push(fg(theme.fgSubtle)(SEPARATOR))
       const entry = entries[row[j]]
-      chunks.push(fg(KEY_COLOR)(entry.key))
-      chunks.push(fg(ACTION_COLOR)(` ${entry.action}`))
+      chunks.push(fg(theme.fgMuted)(entry.key))
+      chunks.push(fg(theme.fgSubtle)(` ${entry.action}`))
     }
   }
 
   if (suffix) {
-    chunks.push(fg(ACTION_COLOR)("  "))
+    chunks.push(fg(theme.fgSubtle)("  "))
     chunks.push(suffix)
   }
 

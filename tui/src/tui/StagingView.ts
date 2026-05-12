@@ -9,6 +9,7 @@ import {
 } from "@opentui/core"
 import { Effect } from "effect"
 import type { StagedFile } from "../types.js"
+import type { Theme } from "../theme.js"
 import type { GitStagingService } from "../services/GitStaging.js"
 import { formatBreadcrumb } from "./breadcrumb.js"
 import { formatHelpBar, type HelpEntry } from "./helpBar.js"
@@ -43,6 +44,7 @@ export class StagingView {
   private renderer: CliRenderer
   private callbacks: StagingViewOptions
   private gitStaging: GitStagingService
+  private theme: Theme
 
   private root: BoxRenderable
   private stagedPane: BoxRenderable
@@ -64,12 +66,14 @@ export class StagingView {
 
   constructor(
     renderer: CliRenderer,
+    theme: Theme,
     gitStaging: GitStagingService,
     callbacks: StagingViewOptions,
   ) {
     this.renderer = renderer
     this.callbacks = callbacks
     this.gitStaging = gitStaging
+    this.theme = theme
 
     // Root container — full screen, vertical layout
     this.root = new BoxRenderable(renderer, {
@@ -83,7 +87,7 @@ export class StagingView {
     // Title bar — updated when repo is set
     const titleBar = new TextRenderable(renderer, {
       id: "staging-title-bar",
-      content: formatBreadcrumb(["Dot", "Diff", "Stage"], ""),
+      content: formatBreadcrumb(theme, ["Dot", "Diff", "Stage"], ""),
       marginBottom: 1,
     })
     this.root.add(titleBar)
@@ -107,14 +111,14 @@ export class StagingView {
       flexGrow: 1,
       width: "100%",
       options: [],
-      backgroundColor: "#161b22",
-      focusedBackgroundColor: "#161b22",
-      selectedBackgroundColor: "#1f6feb",
-      selectedTextColor: "#ffffff",
-      textColor: "#3fb950",
-      focusedTextColor: "#3fb950",
-      descriptionColor: "#8b949e",
-      selectedDescriptionColor: "#c9d1d9",
+      backgroundColor: theme.bgElevated,
+      focusedBackgroundColor: theme.bgElevated,
+      selectedBackgroundColor: theme.accent,
+      selectedTextColor: theme.accentFg,
+      textColor: theme.green,
+      focusedTextColor: theme.green,
+      descriptionColor: theme.fgMuted,
+      selectedDescriptionColor: theme.fg,
       showDescription: true,
       showScrollIndicator: true,
       wrapSelection: true,
@@ -125,7 +129,7 @@ export class StagingView {
     // Separator
     const separator = new TextRenderable(renderer, {
       id: "staging-separator",
-      content: t`${fg("#30363d")("─".repeat(60))}`,
+      content: t`${fg(theme.surface)("─".repeat(60))}`,
       marginTop: 1,
       marginBottom: 0,
     })
@@ -150,14 +154,14 @@ export class StagingView {
       flexGrow: 1,
       width: "100%",
       options: [],
-      backgroundColor: "#161b22",
-      focusedBackgroundColor: "#161b22",
-      selectedBackgroundColor: "#30363d",
-      selectedTextColor: "#c9d1d9",
-      textColor: "#f85149",
-      focusedTextColor: "#f85149",
-      descriptionColor: "#8b949e",
-      selectedDescriptionColor: "#8b949e",
+      backgroundColor: theme.bgElevated,
+      focusedBackgroundColor: theme.bgElevated,
+      selectedBackgroundColor: theme.surface,
+      selectedTextColor: theme.fg,
+      textColor: theme.red,
+      focusedTextColor: theme.red,
+      descriptionColor: theme.fgMuted,
+      selectedDescriptionColor: theme.fgMuted,
       showDescription: true,
       showScrollIndicator: true,
       wrapSelection: true,
@@ -168,7 +172,7 @@ export class StagingView {
     // Status bar
     this.statusBar = new TextRenderable(renderer, {
       id: "staging-status-bar",
-      content: t`${fg("#8b949e")("")}`,
+      content: t`${fg(theme.fgMuted)("")}`,
       marginTop: 1,
     })
     this.root.add(this.statusBar)
@@ -176,7 +180,7 @@ export class StagingView {
     // Help bar
     this.helpBar = new TextRenderable(renderer, {
       id: "staging-help-bar",
-      content: formatHelpBar(HELP),
+      content: formatHelpBar(theme, HELP),
     })
     this.root.add(this.helpBar)
 
@@ -184,7 +188,7 @@ export class StagingView {
 
     // Re-wrap help bar on terminal resize
     renderer.on("resize", () => {
-      this.helpBar.content = formatHelpBar(HELP)
+      this.helpBar.content = formatHelpBar(this.theme, HELP)
     })
 
     // Wire select events (Enter on staged/unstaged list — no-op, we use space for toggle)
@@ -211,7 +215,7 @@ export class StagingView {
         if (this.stagedFiles.length > 0) {
           this.callbacks.onCommit(this.repoPath)
         } else {
-          this.statusBar.content = t`${fg("#d29922")("No staged files — stage files before committing")}`
+          this.statusBar.content = t`${fg(theme.yellow)("No staged files — stage files before committing")}`
         }
       } else if (key.name === "escape" || key.name === "backspace") {
         this.callbacks.onBack()
@@ -227,7 +231,7 @@ export class StagingView {
     this.repoPath = repoPath
     this.repoName = repoName
     this.activePane = "unstaged"
-    this.statusBar.content = t`${fg("#8b949e")("Loading...")}`
+    this.statusBar.content = t`${fg(this.theme.fgMuted)("Loading...")}`
     this.refreshFiles()
   }
 
@@ -312,7 +316,7 @@ export class StagingView {
       effect.pipe(
         Effect.catchAll((err) => {
           log(`Toggle error: ${err.message}`)
-          this.statusBar.content = t`${fg("#f85149")(`Error: ${err.message}`)}`
+          this.statusBar.content = t`${fg(this.theme.red)(`Error: ${err.message}`)}`
           return Effect.void
         }),
       ),
@@ -327,13 +331,13 @@ export class StagingView {
     if (this.unstagedFiles.length === 0) return
 
     this.busy = true
-    this.statusBar.content = t`${fg("#d29922")("Staging all files...")}`
+    this.statusBar.content = t`${fg(this.theme.yellow)("Staging all files...")}`
 
     Effect.runPromise(
       this.gitStaging.stageAll(this.repoPath).pipe(
         Effect.catchAll((err) => {
           log(`Stage all error: ${err.message}`)
-          this.statusBar.content = t`${fg("#f85149")(`Error: ${err.message}`)}`
+          this.statusBar.content = t`${fg(this.theme.red)(`Error: ${err.message}`)}`
           return Effect.void
         }),
       ),
@@ -359,43 +363,45 @@ export class StagingView {
   }
 
   private focusPane(pane: StagingPane): void {
+    const th = this.theme
     if (pane === "staged") {
       this.unstagedSelect.blur()
       this.stagedSelect.focus()
 
       // Active pane: restore highlight colours, full opacity
-      this.stagedSelect.selectedBackgroundColor = "#1f6feb"
-      this.stagedSelect.selectedTextColor = "#ffffff"
-      this.stagedSelect.selectedDescriptionColor = "#c9d1d9"
+      this.stagedSelect.selectedBackgroundColor = th.accent
+      this.stagedSelect.selectedTextColor = th.accentFg
+      this.stagedSelect.selectedDescriptionColor = th.fg
       this.stagedPane.opacity = 1
 
       // Inactive pane: hide highlight (match background), dim opacity
-      this.unstagedSelect.selectedBackgroundColor = "#161b22"
-      this.unstagedSelect.selectedTextColor = "#f85149"
-      this.unstagedSelect.selectedDescriptionColor = "#8b949e"
+      this.unstagedSelect.selectedBackgroundColor = th.bgElevated
+      this.unstagedSelect.selectedTextColor = th.red
+      this.unstagedSelect.selectedDescriptionColor = th.fgMuted
       this.unstagedPane.opacity = 0.45
     } else {
       this.stagedSelect.blur()
       this.unstagedSelect.focus()
 
       // Active pane: restore highlight colours, full opacity
-      this.unstagedSelect.selectedBackgroundColor = "#30363d"
-      this.unstagedSelect.selectedTextColor = "#c9d1d9"
-      this.unstagedSelect.selectedDescriptionColor = "#8b949e"
+      this.unstagedSelect.selectedBackgroundColor = th.surface
+      this.unstagedSelect.selectedTextColor = th.fg
+      this.unstagedSelect.selectedDescriptionColor = th.fgMuted
       this.unstagedPane.opacity = 1
 
       // Inactive pane: hide highlight (match background), dim opacity
-      this.stagedSelect.selectedBackgroundColor = "#161b22"
-      this.stagedSelect.selectedTextColor = "#3fb950"
-      this.stagedSelect.selectedDescriptionColor = "#8b949e"
+      this.stagedSelect.selectedBackgroundColor = th.bgElevated
+      this.stagedSelect.selectedTextColor = th.green
+      this.stagedSelect.selectedDescriptionColor = th.fgMuted
       this.stagedPane.opacity = 0.45
     }
   }
 
   private formatPaneTitle(label: string, count: number, active: boolean) {
+    const th = this.theme
     const indicator = active ? "▸" : " "
-    const color = active ? "#58a6ff" : "#8b949e"
-    const countColor = label === "Staged" && count > 0 ? "#3fb950" : "#8b949e"
+    const color = active ? th.accent : th.fgMuted
+    const countColor = label === "Staged" && count > 0 ? th.green : th.fgMuted
     return t`${fg(color)(`${indicator} ${label}`)} ${fg(countColor)(`(${count})`)}`
   }
 
@@ -424,9 +430,10 @@ export class StagingView {
   }
 
   private updateStatusBar(): void {
+    const th = this.theme
     const staged = this.stagedFiles.length
     const unstaged = this.unstagedFiles.length
     const total = staged + unstaged
-    this.statusBar.content = t`${fg("#8b949e")(`${this.repoName}`)}    ${fg("#3fb950")(`${staged} staged`)}  ${fg("#f85149")(`${unstaged} unstaged`)}  ${fg("#8b949e")(`${total} total`)}`
+    this.statusBar.content = t`${fg(th.fgMuted)(`${this.repoName}`)}    ${fg(th.green)(`${staged} staged`)}  ${fg(th.red)(`${unstaged} unstaged`)}  ${fg(th.fgMuted)(`${total} total`)}`
   }
 }

@@ -1,5 +1,6 @@
 import type { CliRenderer } from "@opentui/core"
 import type { ViewId, MenuItem, Repo } from "../types.js"
+import type { Theme } from "../theme.js"
 import { menuItemsById, submenus } from "../menu.js"
 import type { CommandRunnerService } from "../services/CommandRunner.js"
 import type { GitStagingService } from "../services/GitStaging.js"
@@ -30,6 +31,8 @@ export interface AppOptions {
 export interface AppDeps {
   /** The OpenTUI CLI renderer instance */
   readonly renderer: CliRenderer
+  /** Active colour theme */
+  readonly theme: Theme
   /** Service for running shell commands with suspend/resume */
   readonly commandRunner: CommandRunnerService
   /** Service for git staging operations */
@@ -60,16 +63,16 @@ export class App {
     this.renderer = deps.renderer
     this.commandRunner = deps.commandRunner
 
-    deps.renderer.setBackgroundColor("#0d1117")
+    deps.renderer.setBackgroundColor(deps.theme.bg)
 
     // --- Create views ---
 
-    this.mainMenu = new MainMenu(deps.renderer, {
+    this.mainMenu = new MainMenu(deps.renderer, deps.theme, {
       onSelect: (item) => this.handleMenuAction(item),
       initialSelectedId: options.executeItemId,
     })
 
-    this.diffView = new DiffView(deps.renderer, {
+    this.diffView = new DiffView(deps.renderer, deps.theme, {
       initialTab: options.initialDiffTab ?? "changed",
       onSelect: async (repo) => {
         await openLazygit(deps.renderer, repo.path)
@@ -122,12 +125,12 @@ export class App {
       onBack: () => this.popView(),
     })
 
-    this.omarchyMenu = new OmarchyMenu(deps.renderer, {
+    this.omarchyMenu = new OmarchyMenu(deps.renderer, deps.theme, {
       onAction: (item) => this.handleMenuAction(item),
       onBack: () => this.popView(),
     })
 
-    this.stagingView = new StagingView(deps.renderer, deps.gitStaging, {
+    this.stagingView = new StagingView(deps.renderer, deps.theme, deps.gitStaging, {
       onCommit: (repoPath) => {
         this.commitView.openForRepo(repoPath, this.commitRepoName)
         this.pushView("commit")
@@ -140,7 +143,7 @@ export class App {
       onBack: () => this.popView(),
     })
 
-    this.commitView = new CommitView(deps.renderer, deps.gitStaging, deps.commitSuggest, {
+    this.commitView = new CommitView(deps.renderer, deps.theme, deps.gitStaging, deps.commitSuggest, {
       onCommitComplete: () => {
         // Pop back to diff view (skip staging)
         this.viewStack = this.viewStack.filter((v) => v !== "staging")

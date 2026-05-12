@@ -7,16 +7,7 @@ import {
   fg,
 } from "@opentui/core"
 import type { MenuItem } from "../types.js"
-
-/** Theme colours for the menu list */
-const THEME = {
-  bg: "#161b22",
-  text: "#c9d1d9",
-  desc: "#8b949e",
-  selectedBg: "#1f6feb",
-  selectedText: "#ffffff",
-  selectedDesc: "#c9d1d9",
-} as const
+import type { Theme } from "../theme.js"
 
 /** Width of the left icon column in characters */
 const ICON_COLUMN_WIDTH = 4
@@ -37,6 +28,8 @@ export interface MenuListOptions {
   readonly id: string
   /** Menu items to display */
   readonly items: readonly MenuItem[]
+  /** Active colour theme */
+  readonly theme: Theme
   /** Called when the user presses Enter on an item */
   readonly onSelect: (item: MenuItem) => void
   /** Called when the highlighted item changes */
@@ -65,6 +58,7 @@ export class MenuList extends BoxRenderable {
   private readonly _selectCb: (item: MenuItem) => void
   private readonly _selectionChangedCb?: (item: MenuItem) => void
   private readonly _renderer: CliRenderer
+  private readonly _theme: Theme
 
   constructor(renderer: CliRenderer, options: MenuListOptions) {
     super(renderer, {
@@ -72,11 +66,12 @@ export class MenuList extends BoxRenderable {
       flexGrow: 1,
       width: "100%",
       flexDirection: "column",
-      backgroundColor: THEME.bg,
+      backgroundColor: options.theme.bgElevated,
       focusable: true,
     })
 
     this._renderer = renderer
+    this._theme = options.theme
     this._items = options.items
     this._selectedIndex = options.initialSelectedIndex ?? 0
     this._wrapSelection = options.wrapSelection ?? true
@@ -176,10 +171,11 @@ export class MenuList extends BoxRenderable {
     index: number,
     isSelected: boolean,
   ): MenuRow {
+    const th = this._theme
     const id = `${this.id}-row-${index}`
-    const bgColor = isSelected ? THEME.selectedBg : THEME.bg
-    const textColor = isSelected ? THEME.selectedText : THEME.text
-    const descColor = isSelected ? THEME.selectedDesc : THEME.desc
+    const bgColor = isSelected ? th.accent : th.bgElevated
+    const textColor = isSelected ? th.accentFg : th.fg
+    const descColor = isSelected ? th.fg : th.fgMuted
 
     // Row container — horizontal layout, full width
     const container = new BoxRenderable(this._renderer, {
@@ -224,9 +220,10 @@ export class MenuList extends BoxRenderable {
   }
 
   private _styleRow(row: MenuRow, selected: boolean): void {
-    const bg = selected ? THEME.selectedBg : THEME.bg
-    const textColor = selected ? THEME.selectedText : THEME.text
-    const descColor = selected ? THEME.selectedDesc : THEME.desc
+    const th = this._theme
+    const bg = selected ? th.accent : th.bgElevated
+    const textColor = selected ? th.accentFg : th.fg
+    const descColor = selected ? th.fg : th.fgMuted
 
     row.container.backgroundColor = bg
     row.iconText.content = t`${fg(textColor)(row.item.icon)}`

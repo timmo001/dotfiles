@@ -7,6 +7,7 @@ import {
   fg,
 } from "@opentui/core"
 import type { MenuItem } from "../types.js"
+import type { Theme } from "../theme.js"
 import { mainMenuItems } from "../menu.js"
 import { formatHelpBar, type HelpEntry } from "./helpBar.js"
 import { MenuList } from "./MenuList.js"
@@ -29,13 +30,15 @@ export interface MainMenuOptions {
 /** Top-level dot menu rendered as a {@link MenuList} */
 export class MainMenu {
   private renderer: CliRenderer
+  private theme: Theme
   private root: BoxRenderable
   private menuList: MenuList
   private helpBar: TextRenderable
   private callbacks: MainMenuOptions
 
-  constructor(renderer: CliRenderer, options: MainMenuOptions) {
+  constructor(renderer: CliRenderer, theme: Theme, options: MainMenuOptions) {
     this.renderer = renderer
+    this.theme = theme
     this.callbacks = options
 
     this.root = new BoxRenderable(renderer, {
@@ -49,7 +52,7 @@ export class MainMenu {
     // Title
     const titleBar = new TextRenderable(renderer, {
       id: "main-menu-title",
-      content: t`${bold(fg("#58a6ff")("Dot"))}${fg("#8b949e")(" — dotfiles manager")}`,
+      content: t`${bold(fg(theme.accent)("Dot"))}${fg(theme.fgMuted)(" — dotfiles manager")}`,
       marginBottom: 1,
     })
     this.root.add(titleBar)
@@ -62,6 +65,7 @@ export class MainMenu {
     this.menuList = new MenuList(renderer, {
       id: "main-menu-list",
       items: mainMenuItems,
+      theme,
       onSelect: (item) => this.callbacks.onSelect(item),
       initialSelectedIndex: initialIdx,
       wrapSelection: true,
@@ -71,7 +75,7 @@ export class MainMenu {
     // Help bar
     this.helpBar = new TextRenderable(renderer, {
       id: "main-menu-help",
-      content: formatHelpBar(HELP),
+      content: formatHelpBar(theme, HELP),
       marginTop: 1,
     })
     this.root.add(this.helpBar)
@@ -80,7 +84,7 @@ export class MainMenu {
 
     // Re-wrap help bar on terminal resize
     renderer.on("resize", () => {
-      this.helpBar.content = formatHelpBar(HELP)
+      this.helpBar.content = formatHelpBar(this.theme, HELP)
     })
   }
 

@@ -12,6 +12,7 @@ import {
 } from "@opentui/core"
 import { Effect } from "effect"
 import type { CommitSuggestion } from "../types.js"
+import type { Theme } from "../theme.js"
 import type { GitStagingService } from "../services/GitStaging.js"
 import type { CommitSuggestService } from "../services/CommitSuggest.js"
 import { formatBreadcrumb } from "./breadcrumb.js"
@@ -52,6 +53,7 @@ type CommitFocus = "input" | "suggestions"
 /** Commit message input view with AI-powered suggestion list */
 export class CommitView {
   private renderer: CliRenderer
+  private theme: Theme
   private callbacks: CommitViewOptions
   private gitStaging: GitStagingService
   private commitSuggest: CommitSuggestService
@@ -73,11 +75,13 @@ export class CommitView {
 
   constructor(
     renderer: CliRenderer,
+    theme: Theme,
     gitStaging: GitStagingService,
     commitSuggest: CommitSuggestService,
     callbacks: CommitViewOptions,
   ) {
     this.renderer = renderer
+    this.theme = theme
     this.callbacks = callbacks
     this.gitStaging = gitStaging
     this.commitSuggest = commitSuggest
@@ -94,7 +98,7 @@ export class CommitView {
     // Title bar
     this.titleText = new TextRenderable(renderer, {
       id: "commit-title-bar",
-      content: formatBreadcrumb(["Dot", "Diff", "Stage", "Commit"], ""),
+      content: formatBreadcrumb(theme, ["Dot", "Diff", "Stage", "Commit"], ""),
       marginBottom: 1,
     })
     this.root.add(this.titleText)
@@ -102,7 +106,7 @@ export class CommitView {
     // Message label
     const messageLabel = new TextRenderable(renderer, {
       id: "commit-message-label",
-      content: t`${bold(fg("#58a6ff")("Message:"))}`,
+      content: t`${bold(fg(theme.accent)("Message:"))}`,
       marginBottom: 0,
     })
     this.root.add(messageLabel)
@@ -112,17 +116,17 @@ export class CommitView {
       id: "commit-message-input",
       width: "100%",
       placeholder: "Type commit message or press Ctrl+s for suggestions...",
-      backgroundColor: "#161b22",
-      focusedBackgroundColor: "#1c2129",
-      textColor: "#c9d1d9",
-      cursorColor: "#58a6ff",
+      backgroundColor: theme.bgElevated,
+      focusedBackgroundColor: theme.bgInput,
+      textColor: theme.fg,
+      cursorColor: theme.accent,
     })
     this.root.add(this.messageInput)
 
     // Suggestions section (hidden initially)
     this.suggestionsTitle = new TextRenderable(renderer, {
       id: "commit-suggestions-title",
-      content: t`${fg("#8b949e")("── Suggestions ──")}`,
+      content: t`${fg(theme.fgMuted)("── Suggestions ──")}`,
       marginTop: 1,
       marginBottom: 0,
     })
@@ -134,14 +138,14 @@ export class CommitView {
       flexGrow: 1,
       width: "100%",
       options: [],
-      backgroundColor: "#161b22",
-      focusedBackgroundColor: "#161b22",
-      selectedBackgroundColor: "#1f6feb",
-      selectedTextColor: "#ffffff",
-      textColor: "#c9d1d9",
-      focusedTextColor: "#c9d1d9",
-      descriptionColor: "#8b949e",
-      selectedDescriptionColor: "#c9d1d9",
+      backgroundColor: theme.bgElevated,
+      focusedBackgroundColor: theme.bgElevated,
+      selectedBackgroundColor: theme.accent,
+      selectedTextColor: theme.accentFg,
+      textColor: theme.fg,
+      focusedTextColor: theme.fg,
+      descriptionColor: theme.fgMuted,
+      selectedDescriptionColor: theme.fg,
       showDescription: false,
       showScrollIndicator: true,
       wrapSelection: true,
@@ -152,7 +156,7 @@ export class CommitView {
     // Status bar
     this.statusBar = new TextRenderable(renderer, {
       id: "commit-status-bar",
-      content: t`${fg("#8b949e")("")}`,
+      content: t`${fg(theme.fgMuted)("")}`,
       marginTop: 1,
     })
     this.root.add(this.statusBar)
@@ -160,7 +164,7 @@ export class CommitView {
     // Help bar
     this.helpBar = new TextRenderable(renderer, {
       id: "commit-help-bar",
-      content: formatHelpBar(HELP_DEFAULT),
+      content: formatHelpBar(theme, HELP_DEFAULT),
     })
     this.root.add(this.helpBar)
 
@@ -217,7 +221,7 @@ export class CommitView {
     this.messageInput.value = ""
     this.hideSuggestions()
     this.setFocus("input")
-    this.statusBar.content = t`${fg("#8b949e")(`Committing to ${repoName}`)}`
+    this.statusBar.content = t`${fg(this.theme.fgMuted)(`Committing to ${repoName}`)}`
   }
 
   /** Show or hide the commit view */
@@ -239,20 +243,20 @@ export class CommitView {
   /** Execute the commit with the given message */
   private doCommit(message: string): void {
     this.busy = true
-    this.statusBar.content = t`${fg("#d29922")("Committing...")}`
+    this.statusBar.content = t`${fg(this.theme.yellow)("Committing...")}`
 
     Effect.runPromise(
       this.gitStaging.commit(this.repoPath, message).pipe(
         Effect.catchAll((err) => {
           log(`Commit error: ${err.message}`)
-          this.statusBar.content = t`${fg("#f85149")(`Commit failed: ${err.message}`)}`
+          this.statusBar.content = t`${fg(this.theme.red)(`Commit failed: ${err.message}`)}`
           this.busy = false
           return Effect.void
         }),
       ),
     ).then(() => {
       if (this.busy) {
-        this.statusBar.content = t`${fg("#3fb950")(`Committed: ${message}`)}`
+        this.statusBar.content = t`${fg(this.theme.green)(`Committed: ${message}`)}`
         this.busy = false
         // Brief pause so the user sees the success message, then go back
         setTimeout(() => {
@@ -267,7 +271,7 @@ export class CommitView {
     this.busy = true
     const modelId = this.commitSuggest.getModelId()
     const modelHint = modelId ? ` (${modelId})` : ""
-    this.statusBar.content = t`${fg("#d29922")(`Generating suggestions${modelHint}...`)}`
+    this.statusBar.content = t`${fg(this.theme.yellow)(`Generating suggestions${modelHint}...`)}`
     this.suggestionsTitle.visible = true
     this.suggestionsSelect.visible = true
     this.suggestionsSelect.options = [{ name: "Loading...", description: "", value: "loading" }]
@@ -299,7 +303,7 @@ export class CommitView {
       getSuggestions.pipe(
         Effect.catchAll((err) => {
           log(`Suggestions error: ${err.message}`)
-          this.statusBar.content = t`${fg("#f85149")(`Error: ${err.message}`)}`
+          this.statusBar.content = t`${fg(this.theme.red)(`Error: ${err.message}`)}`
           this.hideSuggestions()
           this.busy = false
           this.updateHelpBar()
@@ -367,7 +371,7 @@ export class CommitView {
       description: "",
       value: `suggestion-${i}`,
     }))
-    this.statusBar.content = t`${fg("#3fb950")("Select a suggestion or Tab to return to input")}`
+    this.statusBar.content = t`${fg(this.theme.green)("Select a suggestion or Tab to return to input")}`
     this.updateHelpBar()
     this.setFocus("suggestions")
   }
@@ -395,7 +399,7 @@ export class CommitView {
   private updateHelpBar(): void {
     const modelId = this.commitSuggest.getModelId()
     const entries = this.suggestionsVisible ? HELP_SUGGESTIONS : HELP_DEFAULT
-    const suffix = modelId ? fg("#6e7681")(`[${modelId}]`) : undefined
-    this.helpBar.content = formatHelpBar(entries, suffix)
+    const suffix = modelId ? fg(this.theme.fgGhost)(`[${modelId}]`) : undefined
+    this.helpBar.content = formatHelpBar(this.theme, entries, suffix)
   }
 }

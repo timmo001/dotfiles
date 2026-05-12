@@ -7,6 +7,7 @@ import { GitStaging, GitStagingLive } from "./services/GitStaging.js"
 import { CommitSuggest, CommitSuggestLive } from "./services/CommitSuggest.js"
 import { shutdownServer } from "./services/CommitSuggest.js"
 import { createCommandRunner } from "./services/CommandRunner.js"
+import { loadTheme } from "./theme.js"
 import { Toast } from "./tui/Toast.js"
 import { App } from "./tui/App.js"
 import { parseFlags, resolveSubcommand, printHelp } from "./flags.js"
@@ -54,6 +55,7 @@ const program = Effect.gen(function* () {
   const watcher = yield* RepoWatcher
   const gitStaging = yield* GitStaging
   const commitSuggest = yield* CommitSuggest
+  const theme = yield* loadTheme
   log("Services ready")
 
   log("Creating renderer...")
@@ -66,12 +68,13 @@ const program = Effect.gen(function* () {
   )
   log("Renderer created")
 
-  const commandRunner = createCommandRunner(renderer, new Toast(renderer))
+  const commandRunner = createCommandRunner(renderer, new Toast(renderer, theme))
 
   // Create the app with concrete dependencies
   const app = new App(
     {
       renderer,
+      theme,
       commandRunner,
       gitStaging,
       commitSuggest,

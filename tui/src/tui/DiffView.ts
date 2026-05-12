@@ -11,6 +11,7 @@ import {
 import { unlinkSync } from "node:fs"
 import { join } from "node:path"
 import type { Repo, RepoState } from "../types.js"
+import type { Theme } from "../theme.js"
 import { formatBreadcrumb } from "./breadcrumb.js"
 import { formatHelpBar, type HelpEntry } from "./helpBar.js"
 
@@ -61,6 +62,7 @@ type Pane = "changed" | "unchanged"
 export class DiffView {
   private renderer: CliRenderer
   private callbacks: DiffViewOptions
+  private theme: Theme
 
   private root: BoxRenderable
   private leftPane: BoxRenderable
@@ -78,9 +80,10 @@ export class DiffView {
   private lastChecked: Date = new Date()
   private isVisible = false
 
-  constructor(renderer: CliRenderer, callbacks: DiffViewOptions) {
+  constructor(renderer: CliRenderer, theme: Theme, callbacks: DiffViewOptions) {
     this.renderer = renderer
     this.callbacks = callbacks
+    this.theme = theme
 
     // Root container — full screen
     this.root = new BoxRenderable(renderer, {
@@ -94,7 +97,7 @@ export class DiffView {
     // Title bar — breadcrumb style matching other subviews
     const titleBar = new TextRenderable(renderer, {
       id: "diff-title-bar",
-      content: formatBreadcrumb(["Dot", "Diff"], "repo watcher"),
+      content: formatBreadcrumb(theme, ["Dot", "Diff"], "repo watcher"),
       marginBottom: 1,
     })
     this.root.add(titleBar)
@@ -127,14 +130,14 @@ export class DiffView {
       flexGrow: 1,
       width: "100%",
       options: [],
-      backgroundColor: "#161b22",
-      focusedBackgroundColor: "#161b22",
-      selectedBackgroundColor: "#1f6feb",
-      selectedTextColor: "#ffffff",
-      textColor: "#c9d1d9",
-      focusedTextColor: "#c9d1d9",
-      descriptionColor: "#8b949e",
-      selectedDescriptionColor: "#c9d1d9",
+      backgroundColor: theme.bgElevated,
+      focusedBackgroundColor: theme.bgElevated,
+      selectedBackgroundColor: theme.accent,
+      selectedTextColor: theme.accentFg,
+      textColor: theme.fg,
+      focusedTextColor: theme.fg,
+      descriptionColor: theme.fgMuted,
+      selectedDescriptionColor: theme.fg,
       showDescription: true,
       showScrollIndicator: true,
       wrapSelection: true,
@@ -161,14 +164,14 @@ export class DiffView {
       flexGrow: 1,
       width: "100%",
       options: [],
-      backgroundColor: "#161b22",
-      focusedBackgroundColor: "#161b22",
-      selectedBackgroundColor: "#30363d",
-      selectedTextColor: "#c9d1d9",
-      textColor: "#8b949e",
-      focusedTextColor: "#8b949e",
-      descriptionColor: "#484f58",
-      selectedDescriptionColor: "#8b949e",
+      backgroundColor: theme.bgElevated,
+      focusedBackgroundColor: theme.bgElevated,
+      selectedBackgroundColor: theme.surface,
+      selectedTextColor: theme.fg,
+      textColor: theme.fgMuted,
+      focusedTextColor: theme.fgMuted,
+      descriptionColor: theme.fgSubtle,
+      selectedDescriptionColor: theme.fgMuted,
       showDescription: true,
       showScrollIndicator: true,
       wrapSelection: true,
@@ -182,7 +185,7 @@ export class DiffView {
     // Status bar
     this.statusBar = new TextRenderable(renderer, {
       id: "diff-status-bar",
-      content: t`${fg("#8b949e")("Loading...")}`,
+      content: t`${fg(theme.fgMuted)("Loading...")}`,
       marginTop: 1,
     })
     this.root.add(this.statusBar)
@@ -190,7 +193,7 @@ export class DiffView {
     // Help bar
     this.helpBar = new TextRenderable(renderer, {
       id: "diff-help-bar",
-      content: formatHelpBar(HELP),
+      content: formatHelpBar(theme, HELP),
     })
     this.root.add(this.helpBar)
 
@@ -198,7 +201,7 @@ export class DiffView {
 
     // Re-wrap help bar on terminal resize
     renderer.on("resize", () => {
-      this.helpBar.content = formatHelpBar(HELP)
+      this.helpBar.content = formatHelpBar(this.theme, HELP)
     })
 
     // Wire up select events
@@ -237,7 +240,7 @@ export class DiffView {
         const repo = this.getActiveRepo()
         if (repo) this.callbacks.onPull(repo)
       } else if (key.name === "r") {
-        this.statusBar.content = t`${fg("#d29922")("Refreshing...")}`
+        this.statusBar.content = t`${fg(theme.yellow)("Refreshing...")}`
         this.callbacks.onRefresh()
       } else if (key.name === "x") {
         this.removeLock()
@@ -319,35 +322,36 @@ export class DiffView {
   }
 
   private focusPane(pane: Pane): void {
+    const th = this.theme
     if (pane === "changed") {
       this.unchangedSelect.blur()
       this.changedSelect.focus()
 
       // Active pane: restore highlight colours, full opacity
-      this.changedSelect.selectedBackgroundColor = "#1f6feb"
-      this.changedSelect.selectedTextColor = "#ffffff"
-      this.changedSelect.selectedDescriptionColor = "#c9d1d9"
+      this.changedSelect.selectedBackgroundColor = th.accent
+      this.changedSelect.selectedTextColor = th.accentFg
+      this.changedSelect.selectedDescriptionColor = th.fg
       this.leftPane.opacity = 1
 
       // Inactive pane: hide highlight (match background), dim opacity
-      this.unchangedSelect.selectedBackgroundColor = "#161b22"
-      this.unchangedSelect.selectedTextColor = "#8b949e"
-      this.unchangedSelect.selectedDescriptionColor = "#484f58"
+      this.unchangedSelect.selectedBackgroundColor = th.bgElevated
+      this.unchangedSelect.selectedTextColor = th.fgMuted
+      this.unchangedSelect.selectedDescriptionColor = th.fgSubtle
       this.rightPane.opacity = 0.45
     } else {
       this.changedSelect.blur()
       this.unchangedSelect.focus()
 
       // Active pane: restore highlight colours, full opacity
-      this.unchangedSelect.selectedBackgroundColor = "#30363d"
-      this.unchangedSelect.selectedTextColor = "#c9d1d9"
-      this.unchangedSelect.selectedDescriptionColor = "#8b949e"
+      this.unchangedSelect.selectedBackgroundColor = th.surface
+      this.unchangedSelect.selectedTextColor = th.fg
+      this.unchangedSelect.selectedDescriptionColor = th.fgMuted
       this.rightPane.opacity = 1
 
       // Inactive pane: hide highlight (match background), dim opacity
-      this.changedSelect.selectedBackgroundColor = "#161b22"
-      this.changedSelect.selectedTextColor = "#c9d1d9"
-      this.changedSelect.selectedDescriptionColor = "#8b949e"
+      this.changedSelect.selectedBackgroundColor = th.bgElevated
+      this.changedSelect.selectedTextColor = th.fg
+      this.changedSelect.selectedDescriptionColor = th.fgMuted
       this.leftPane.opacity = 0.45
     }
   }
@@ -363,9 +367,10 @@ export class DiffView {
   }
 
   private formatPaneTitle(label: string, count: number, active: boolean) {
+    const th = this.theme
     const indicator = active ? "▸" : " "
-    const color = active ? "#58a6ff" : "#8b949e"
-    const countColor = label === "Changed" && count > 0 ? "#f85149" : "#8b949e"
+    const color = active ? th.accent : th.fgMuted
+    const countColor = label === "Changed" && count > 0 ? th.red : th.fgMuted
     return t`${fg(color)(`${indicator} ${label}`)} ${fg(countColor)(`(${count})`)}`
   }
 
@@ -376,40 +381,42 @@ export class DiffView {
 
   /** Remove `.git/index.lock` for the selected repo and trigger a refresh */
   private removeLock(): void {
+    const th = this.theme
     const repo = this.getActiveRepo()
     if (!repo) return
 
     if (!repo.locked) {
-      this.statusBar.content = t`${fg("#8b949e")(`${repo.name} has no lock file`)}`
+      this.statusBar.content = t`${fg(th.fgMuted)(`${repo.name} has no lock file`)}`
       return
     }
 
     const lockPath = join(repo.path, ".git", "index.lock")
     try {
       unlinkSync(lockPath)
-      this.statusBar.content = t`${fg("#3fb950")(`Removed index.lock from ${repo.name}`)}`
+      this.statusBar.content = t`${fg(th.green)(`Removed index.lock from ${repo.name}`)}`
       this.callbacks.onRefresh()
     } catch {
-      this.statusBar.content = t`${fg("#f85149")(`Failed to remove index.lock from ${repo.name}`)}`
+      this.statusBar.content = t`${fg(th.red)(`Failed to remove index.lock from ${repo.name}`)}`
     }
   }
 
   private updateStatusBar(): void {
+    const th = this.theme
     const ago = this.formatTimeAgo(this.lastChecked)
     const changedCount = this.changedRepos.length
-    const dot = changedCount > 0 ? fg("#f85149")("●") : fg("#3fb950")("●")
+    const dot = changedCount > 0 ? fg(th.red)("●") : fg(th.green)("●")
     const countText =
       changedCount > 0
-        ? fg("#f85149")(`${changedCount} repo${changedCount === 1 ? "" : "s"} changed`)
-        : fg("#3fb950")("all clean")
+        ? fg(th.red)(`${changedCount} repo${changedCount === 1 ? "" : "s"} changed`)
+        : fg(th.green)("all clean")
 
     const allRepos = [...this.changedRepos, ...this.unchangedRepos]
     const lockedCount = allRepos.filter((r) => r.locked).length
 
     if (lockedCount > 0) {
-      this.statusBar.content = t`${fg("#8b949e")(`Last checked: ${ago}`)}    ${dot}  ${countText}    ${fg("#d29922")("󰌾")}  ${fg("#d29922")(`${lockedCount} locked`)}`
+      this.statusBar.content = t`${fg(th.fgMuted)(`Last checked: ${ago}`)}    ${dot}  ${countText}    ${fg(th.yellow)("󰌾")}  ${fg(th.yellow)(`${lockedCount} locked`)}`
     } else {
-      this.statusBar.content = t`${fg("#8b949e")(`Last checked: ${ago}`)}    ${dot}  ${countText}`
+      this.statusBar.content = t`${fg(th.fgMuted)(`Last checked: ${ago}`)}    ${dot}  ${countText}`
     }
   }
 

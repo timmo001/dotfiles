@@ -4,6 +4,7 @@ import {
   TextRenderable,
 } from "@opentui/core"
 import type { MenuItem } from "../types.js"
+import type { Theme } from "../theme.js"
 import { submenus, submenuTitles } from "../menu.js"
 import { formatBreadcrumb } from "./breadcrumb.js"
 import { formatHelpBar, type HelpEntry } from "./helpBar.js"
@@ -28,6 +29,7 @@ export interface OmarchyMenuOptions {
 /** Inline omarchy submenu tree with breadcrumb navigation and nested levels */
 export class OmarchyMenu {
   private renderer: CliRenderer
+  private theme: Theme
   private callbacks: OmarchyMenuOptions
 
   private root: BoxRenderable
@@ -41,8 +43,9 @@ export class OmarchyMenu {
   private currentItems: readonly MenuItem[] = []
   private isVisible = false
 
-  constructor(renderer: CliRenderer, options: OmarchyMenuOptions) {
+  constructor(renderer: CliRenderer, theme: Theme, options: OmarchyMenuOptions) {
     this.renderer = renderer
+    this.theme = theme
     this.callbacks = options
 
     this.root = new BoxRenderable(renderer, {
@@ -65,6 +68,7 @@ export class OmarchyMenu {
     this.menuList = new MenuList(renderer, {
       id: "omarchy-menu-list",
       items: [],
+      theme,
       onSelect: (item) => {
         // If this item opens a submenu and the submenu exists, navigate into it
         if (item.action.type === "submenu" && submenus.has(item.action.menuId)) {
@@ -80,7 +84,7 @@ export class OmarchyMenu {
     // Help bar
     this.helpBar = new TextRenderable(renderer, {
       id: "omarchy-menu-help",
-      content: formatHelpBar(HELP),
+      content: formatHelpBar(theme, HELP),
       marginTop: 1,
     })
     this.root.add(this.helpBar)
@@ -89,7 +93,7 @@ export class OmarchyMenu {
 
     // Re-wrap help bar on terminal resize
     renderer.on("resize", () => {
-      this.helpBar.content = formatHelpBar(HELP)
+      this.helpBar.content = formatHelpBar(this.theme, HELP)
     })
 
     // Keyboard handling
@@ -173,7 +177,7 @@ export class OmarchyMenu {
 
     // Show subtitle only at the omarchy root level (Dot › Omarchy)
     const subtitle = parts.length === 2 ? "desktop controls" : undefined
-    return formatBreadcrumb(parts, subtitle)
+    return formatBreadcrumb(this.theme, parts, subtitle)
   }
 
   /** Remove the omarchy menu from the render tree */
