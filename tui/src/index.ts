@@ -14,7 +14,7 @@ const log = (msg: string) => console.error(`[dot-tui] ${msg}`)
 const flags = parseFlags(process.argv.slice(2))
 
 if (flags.help) {
-  printHelp()
+  printHelp(flags.subcommand)
   process.exit(0)
 }
 
@@ -36,12 +36,10 @@ if (flags.subcommand) {
     const item = menuItemsById.get(resolved.itemId)
     if (item) {
       const { action } = item
-      if (action.type === "command" || action.type === "silent") {
+      if (action.type === "command" || action.type === "silent" || action.type === "submenu") {
         executeItemId = resolved.itemId
       } else if (action.type === "view") {
         initialView = action.viewId
-      } else if (action.type === "submenu") {
-        initialView = "omarchy"
       }
     }
   }

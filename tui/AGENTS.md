@@ -14,6 +14,12 @@ Always apply these skills when editing code in this directory:
 - `opentui` — OpenTUI core imperative API, renderables, keyboard, suspend/resume
 - `types-enforce-ts` — TypeScript type safety
 
+## Documentation
+
+- All exported functions, classes, interfaces, types, and interface members must have JSDoc comments.
+- Effect service tags should reference the underlying service interface via `{@link}`.
+- Use concise single-line JSDoc for simple members; multi-line for functions with complex behaviour.
+
 ## Stack
 
 - **Runtime**: Bun
@@ -84,8 +90,12 @@ dot-tui diff                  # Diff view directly
 dot-tui diff --tab other      # Diff view, Other tab focused
 dot-tui update                # Run dot update (suspend/resume in TUI)
 dot-tui omarchy               # Omarchy submenu
-dot-tui omarchy.theme         # Omarchy theme submenu
+dot-tui omarchy theme         # Omarchy theme submenu (space-separated)
+dot-tui omarchy theme set     # Execute omarchy theme set directly
+dot-tui omarchy.theme.set     # Same as above (dot-separated)
 dot-tui --help                # Show help
+dot-tui diff --help           # Diff-specific help
+dot-tui omarchy --help        # Omarchy-specific help
 ```
 
 Alias via `dot`:
@@ -123,7 +133,7 @@ The build is also triggered by `dot update` via `maybe_build_tui()` in the `dot`
 | `Tab` | Switch between Changed/Other pane |
 | `Enter` | Open lazygit for selected repo |
 | `r` | Manual refresh |
-| `Esc` | Back to main menu |
+| `Esc/Backspace` | Back to main menu |
 | `q` | Quit |
 
 ### Omarchy Menu
@@ -131,7 +141,7 @@ The build is also triggered by `dot update` via `maybe_build_tui()` in the `dot`
 |-----|--------|
 | `↑↓` | Navigate list |
 | `Enter` | Select item / enter submenu |
-| `Esc` | Back to parent menu |
+| `Esc/Backspace` | Back to parent menu |
 | `q` | Quit |
 
 ## External Dependencies
