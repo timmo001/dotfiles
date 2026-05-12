@@ -55,13 +55,6 @@ export GOPATH=$HOME/go
 export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin
 
 # ------------------------------
-# Bun
-# ------------------------------
-[ -s "/home/aidan/.bun/_bun" ] && source "/home/aidan/.bun/_bun"
-export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$PATH"
-
-# ------------------------------
 # Hyprland
 # ------------------------------
 export XDG_CURRENT_DESKTOP=Hyprland
@@ -70,13 +63,7 @@ export QT_QPA_PLATFORM=xcb
 export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
 export ELECTRON_OZONE_PLATFORM_HINT=wayland
 
-. "$HOME/.local/share/../bin/env"
-
-# LM Studio CLI (lms)
-export PATH="$PATH:/home/aidan/.lmstudio/bin"
-
-# Android
-export PATH=$PATH:/opt/android-sdk/platform-tools
+. "$HOME/.local/bin/env"
 
 # Opencode
 OPENCODE_ENABLE_EXA=1
@@ -453,10 +440,6 @@ command-breakdown() {
 # Aliases
 # ------------------------------
 
-# Fix for mise python3
-alias virt-install="/usr/bin/python3 /usr/bin/virt-install"
-alias virt-manager="/usr/bin/python3 /usr/bin/virt-manager"
-
 # alias cat="bat"
 alias la="tree"
 alias cbd="command-breakdown"
@@ -541,12 +524,6 @@ alias ......="cd ../../../../.."
 # Flush DNS
 alias flushdns="sudo resolvectl flush-caches"
 alias fc="sudo resolvectl flush-caches"
-
-# Image optimiser
-alias img-optimise="$HOME/.img-optimize/optimize.sh"
-alias img-pngwebp-to-webp="bulk-rename-files '*.png.webp' '.webp'"
-alias img-jpgwebp-to-webp="bulk-rename-files '*.jpg.webp' '.webp'"
-alias img-optimise-all="img-optimise --all && img-pngwebp-to-webp && img-jpgwebp-to-webp"
 
 # Gear lever (app images)
 alias gearlever="flatpak run it.mijorus.gearlever"
