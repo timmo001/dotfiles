@@ -45,6 +45,8 @@ export class StagingView {
   private gitStaging: GitStagingService
 
   private root: BoxRenderable
+  private stagedPane: BoxRenderable
+  private unstagedPane: BoxRenderable
   private stagedSelect: SelectRenderable
   private unstagedSelect: SelectRenderable
   private stagedTitle: TextRenderable
@@ -87,12 +89,18 @@ export class StagingView {
     this.root.add(titleBar)
 
     // --- Top pane: Staged ---
+    this.stagedPane = new BoxRenderable(renderer, {
+      id: "staging-staged-pane",
+      flexDirection: "column",
+      flexGrow: 1,
+    })
+
     this.stagedTitle = new TextRenderable(renderer, {
       id: "staging-staged-title",
       content: this.formatPaneTitle("Staged", 0, false),
       marginBottom: 0,
     })
-    this.root.add(this.stagedTitle)
+    this.stagedPane.add(this.stagedTitle)
 
     this.stagedSelect = new SelectRenderable(renderer, {
       id: "staging-staged-select",
@@ -111,7 +119,8 @@ export class StagingView {
       showScrollIndicator: true,
       wrapSelection: true,
     })
-    this.root.add(this.stagedSelect)
+    this.stagedPane.add(this.stagedSelect)
+    this.root.add(this.stagedPane)
 
     // Separator
     const separator = new TextRenderable(renderer, {
@@ -123,12 +132,18 @@ export class StagingView {
     this.root.add(separator)
 
     // --- Bottom pane: Unstaged ---
+    this.unstagedPane = new BoxRenderable(renderer, {
+      id: "staging-unstaged-pane",
+      flexDirection: "column",
+      flexGrow: 1,
+    })
+
     this.unstagedTitle = new TextRenderable(renderer, {
       id: "staging-unstaged-title",
       content: this.formatPaneTitle("Unstaged", 0, true),
       marginBottom: 0,
     })
-    this.root.add(this.unstagedTitle)
+    this.unstagedPane.add(this.unstagedTitle)
 
     this.unstagedSelect = new SelectRenderable(renderer, {
       id: "staging-unstaged-select",
@@ -147,7 +162,8 @@ export class StagingView {
       showScrollIndicator: true,
       wrapSelection: true,
     })
-    this.root.add(this.unstagedSelect)
+    this.unstagedPane.add(this.unstagedSelect)
+    this.root.add(this.unstagedPane)
 
     // Status bar
     this.statusBar = new TextRenderable(renderer, {
@@ -346,9 +362,33 @@ export class StagingView {
     if (pane === "staged") {
       this.unstagedSelect.blur()
       this.stagedSelect.focus()
+
+      // Active pane: restore highlight colours, full opacity
+      this.stagedSelect.selectedBackgroundColor = "#1f6feb"
+      this.stagedSelect.selectedTextColor = "#ffffff"
+      this.stagedSelect.selectedDescriptionColor = "#c9d1d9"
+      this.stagedPane.opacity = 1
+
+      // Inactive pane: hide highlight (match background), dim opacity
+      this.unstagedSelect.selectedBackgroundColor = "#161b22"
+      this.unstagedSelect.selectedTextColor = "#f85149"
+      this.unstagedSelect.selectedDescriptionColor = "#8b949e"
+      this.unstagedPane.opacity = 0.45
     } else {
       this.stagedSelect.blur()
       this.unstagedSelect.focus()
+
+      // Active pane: restore highlight colours, full opacity
+      this.unstagedSelect.selectedBackgroundColor = "#30363d"
+      this.unstagedSelect.selectedTextColor = "#c9d1d9"
+      this.unstagedSelect.selectedDescriptionColor = "#8b949e"
+      this.unstagedPane.opacity = 1
+
+      // Inactive pane: hide highlight (match background), dim opacity
+      this.stagedSelect.selectedBackgroundColor = "#161b22"
+      this.stagedSelect.selectedTextColor = "#3fb950"
+      this.stagedSelect.selectedDescriptionColor = "#8b949e"
+      this.stagedPane.opacity = 0.45
     }
   }
 

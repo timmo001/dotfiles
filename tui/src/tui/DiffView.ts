@@ -63,6 +63,8 @@ export class DiffView {
   private callbacks: DiffViewOptions
 
   private root: BoxRenderable
+  private leftPane: BoxRenderable
+  private rightPane: BoxRenderable
   private changedSelect: SelectRenderable
   private unchangedSelect: SelectRenderable
   private changedTitle: TextRenderable
@@ -106,7 +108,7 @@ export class DiffView {
     })
 
     // --- Left pane: Changed ---
-    const leftPane = new BoxRenderable(renderer, {
+    this.leftPane = new BoxRenderable(renderer, {
       id: "diff-left-pane",
       flexDirection: "column",
       flexGrow: 1,
@@ -118,7 +120,7 @@ export class DiffView {
       content: this.formatPaneTitle("Changed", 0, true),
       marginBottom: 0,
     })
-    leftPane.add(this.changedTitle)
+    this.leftPane.add(this.changedTitle)
 
     this.changedSelect = new SelectRenderable(renderer, {
       id: "diff-changed-select",
@@ -137,10 +139,10 @@ export class DiffView {
       showScrollIndicator: true,
       wrapSelection: true,
     })
-    leftPane.add(this.changedSelect)
+    this.leftPane.add(this.changedSelect)
 
     // --- Right pane: Unchanged ---
-    const rightPane = new BoxRenderable(renderer, {
+    this.rightPane = new BoxRenderable(renderer, {
       id: "diff-right-pane",
       flexDirection: "column",
       flexGrow: 1,
@@ -152,7 +154,7 @@ export class DiffView {
       content: this.formatPaneTitle("Other", 0, false),
       marginBottom: 0,
     })
-    rightPane.add(this.unchangedTitle)
+    this.rightPane.add(this.unchangedTitle)
 
     this.unchangedSelect = new SelectRenderable(renderer, {
       id: "diff-unchanged-select",
@@ -171,10 +173,10 @@ export class DiffView {
       showScrollIndicator: true,
       wrapSelection: true,
     })
-    rightPane.add(this.unchangedSelect)
+    this.rightPane.add(this.unchangedSelect)
 
-    paneContainer.add(leftPane)
-    paneContainer.add(rightPane)
+    paneContainer.add(this.leftPane)
+    paneContainer.add(this.rightPane)
     this.root.add(paneContainer)
 
     // Status bar
@@ -320,9 +322,33 @@ export class DiffView {
     if (pane === "changed") {
       this.unchangedSelect.blur()
       this.changedSelect.focus()
+
+      // Active pane: restore highlight colours, full opacity
+      this.changedSelect.selectedBackgroundColor = "#1f6feb"
+      this.changedSelect.selectedTextColor = "#ffffff"
+      this.changedSelect.selectedDescriptionColor = "#c9d1d9"
+      this.leftPane.opacity = 1
+
+      // Inactive pane: hide highlight (match background), dim opacity
+      this.unchangedSelect.selectedBackgroundColor = "#161b22"
+      this.unchangedSelect.selectedTextColor = "#8b949e"
+      this.unchangedSelect.selectedDescriptionColor = "#484f58"
+      this.rightPane.opacity = 0.45
     } else {
       this.changedSelect.blur()
       this.unchangedSelect.focus()
+
+      // Active pane: restore highlight colours, full opacity
+      this.unchangedSelect.selectedBackgroundColor = "#30363d"
+      this.unchangedSelect.selectedTextColor = "#c9d1d9"
+      this.unchangedSelect.selectedDescriptionColor = "#8b949e"
+      this.rightPane.opacity = 1
+
+      // Inactive pane: hide highlight (match background), dim opacity
+      this.changedSelect.selectedBackgroundColor = "#161b22"
+      this.changedSelect.selectedTextColor = "#c9d1d9"
+      this.changedSelect.selectedDescriptionColor = "#8b949e"
+      this.leftPane.opacity = 0.45
     }
   }
 
