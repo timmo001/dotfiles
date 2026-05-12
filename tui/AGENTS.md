@@ -33,7 +33,7 @@ Always apply these skills when editing code in this directory:
 ```
 src/
   index.ts                — Entry point, subcommand routing, Effect bootstrap
-  types.ts                — Repo, RepoState, MenuItem, MenuAction, ViewId
+  types.ts                — Repo, RepoState, MenuItem, MenuAction, ViewId, StagedFile, CommitSuggestion
   flags.ts                — CLI parser: subcommands, --tab, --raw, --help
   menu.ts                 — Menu registry: Map<string, MenuItem> for dot + omarchy items
   services/
@@ -41,18 +41,22 @@ src/
     WaybarCache.ts        — Effect service reading Waybar cache JSON for fast start
     RepoWatcher.ts        — Hybrid poll loop (Waybar cache → 10s poll), PubSub state
     CommandRunner.ts      — Suspend/resume + silent command execution
+    GitStaging.ts         — Effect service for git status/add/reset/commit operations
+    CommitSuggest.ts      — Effect service for AI commit suggestions via OpenCode SDK v2
   tui/
     App.ts                — Top-level app shell, view stack, global keyboard, action routing
     MainMenu.ts           — SelectRenderable menu built from menu registry
     DiffView.ts           — Two-pane layout (Changed/Other) with repo watcher
     OmarchyMenu.ts        — Inline omarchy submenu tree with breadcrumb navigation
     Lazygit.ts            — Suspend/resume lazygit spawn
+    StagingView.ts        — Two-pane staging view (Staged/Unstaged) for git commit flow
+    CommitView.ts         — Commit message input with AI suggestion list
 ```
 
 ### Data Flow
 
 1. `index.ts` resolves subcommand → initial view/action, creates renderer + services
-2. `App` manages a view stack (main menu ↔ diff view ↔ omarchy menu)
+2. `App` manages a view stack (main menu ↔ diff view ↔ omarchy menu ↔ staging view ↔ commit view)
 3. Menu items have typed actions: `command` (suspend/resume), `silent` (background), `view` (navigate), `submenu` (nested)
 4. `CommandRunner` handles suspend/resume for terminal commands and silent background execution
 5. `RepoWatcher` loads Waybar cache for instant diff first paint, then polls `dot diff` every 10s
@@ -74,7 +78,7 @@ MenuItem action types:
 
 ### Key Patterns
 
-- **Services**: `Context.Tag` + `Layer` for Effect services (DotDiff, WaybarCache, RepoWatcher)
+- **Services**: `Context.Tag` + `Layer` for Effect services (DotDiff, WaybarCache, RepoWatcher, GitStaging, CommitSuggest)
 - **CommandRunner**: Plain object (not Effect service) — passed directly to App to avoid scope issues with `Effect.runFork`
 - **Concurrency**: `Effect.forkScoped` for background poll fiber
 - **Top-level run**: `Effect.runPromise` (keeps process alive)
@@ -132,11 +136,33 @@ The build is also triggered by `dot update` via `maybe_build_tui()` in the `dot`
 | `↑↓` | Navigate list |
 | `Tab` | Switch between Changed/Other pane |
 | `Enter` | Open lazygit for selected repo |
+| `c` | Open commit flow (staging → commit) for selected repo |
 | `t` | Open tmux session (changed repos if Changed pane, all repos if Other pane) |
 | `o` | Open terminal in selected repo directory |
 | `w` | Open selected repo on GitHub in browser |
 | `r` | Manual refresh |
 | `Esc/Backspace` | Back to main menu |
+| `q` | Quit |
+
+### Staging View
+| Key | Action |
+|-----|--------|
+| `↑↓` | Navigate file list |
+| `Tab` | Switch between Staged/Unstaged pane |
+| `Space` | Toggle selected file between staged/unstaged |
+| `a` | Stage all unstaged files |
+| `l` | Open lazygit for the repo |
+| `c`/`Enter` | Proceed to commit view (requires staged files) |
+| `Esc/Backspace` | Back to diff view |
+| `q` | Quit |
+
+### Commit View
+| Key | Action |
+|-----|--------|
+| `Ctrl+s` | Request AI commit message suggestions |
+| `Tab` | Switch between input and suggestion list |
+| `Enter` | Commit (on input) or select suggestion (on list) |
+| `Esc` | Hide suggestions / back to staging view |
 | `q` | Quit |
 
 ### Omarchy Menu
@@ -153,6 +179,8 @@ The build is also triggered by `dot update` via `maybe_build_tui()` in the `dot`
 - `dot diff --list-changed` — lists repos with uncommitted/unpushed changes
 - `~/.cache/waybar/dot-diff-waybar.json` — Waybar cache for fast startup
 - `lazygit` — launched via suspend/resume on Enter in diff view
+- `opencode` — CLI for model discovery; SDK v2 for AI commit suggestions
+- `@opencode-ai/sdk` — OpenCode SDK v2 for programmatic session/prompt calls
 - `omarchy` — various subcommands for desktop management
 - `system-health-check` — system diagnostics
 - `topgrade` — system-wide package upgrades

@@ -3,6 +3,9 @@ import { createCliRenderer } from "@opentui/core"
 import { DotDiffLive } from "./services/DotDiff.js"
 import { WaybarCacheLive } from "./services/WaybarCache.js"
 import { RepoWatcher, RepoWatcherLive } from "./services/RepoWatcher.js"
+import { GitStaging, GitStagingLive } from "./services/GitStaging.js"
+import { CommitSuggest, CommitSuggestLive } from "./services/CommitSuggest.js"
+import { shutdownServer } from "./services/CommitSuggest.js"
 import { createCommandRunner } from "./services/CommandRunner.js"
 import { App } from "./tui/App.js"
 import { parseFlags, resolveSubcommand, printHelp } from "./flags.js"
@@ -48,7 +51,9 @@ if (flags.subcommand) {
 const program = Effect.gen(function* () {
   log("Starting...")
   const watcher = yield* RepoWatcher
-  log("RepoWatcher ready")
+  const gitStaging = yield* GitStaging
+  const commitSuggest = yield* CommitSuggest
+  log("Services ready")
 
   log("Creating renderer...")
   const renderer = yield* Effect.promise(() =>
@@ -67,6 +72,8 @@ const program = Effect.gen(function* () {
     {
       renderer,
       commandRunner,
+      gitStaging,
+      commitSuggest,
       onRefreshDiff: () => {
         Effect.runFork(watcher.refresh())
       },
@@ -112,6 +119,8 @@ const program = Effect.gen(function* () {
 const MainLayer = RepoWatcherLive.pipe(
   Layer.provideMerge(DotDiffLive),
   Layer.provideMerge(WaybarCacheLive),
+  Layer.provideMerge(GitStagingLive),
+  Layer.provideMerge(CommitSuggestLive),
 )
 
 const runnable = program.pipe(
@@ -120,6 +129,11 @@ const runnable = program.pipe(
 )
 
 log("Launching...")
+// Ensure OpenCode server is shut down on exit if we started it
+process.on("exit", shutdownServer)
+process.on("SIGINT", () => { shutdownServer(); process.exit(0) })
+process.on("SIGTERM", () => { shutdownServer(); process.exit(0) })
+
 Effect.runPromise(runnable).catch((err) => {
   log(`Fatal error: ${err}`)
   console.error(err)

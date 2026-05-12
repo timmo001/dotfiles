@@ -17,6 +17,8 @@ import { formatBreadcrumb } from "./breadcrumb.js"
 export interface DiffViewOptions {
   /** Called when the user selects a repo (e.g. to open lazygit) */
   readonly onSelect: (repo: Repo) => void
+  /** Called when the user presses 'c' to open the commit/staging flow for the selected repo */
+  readonly onCommit: (repo: Repo) => void
   /** Called to open a tmux session — "changed" repos when the Changed pane is active, "all" when Other */
   readonly onOpenTmux: (mode: "changed" | "all") => void
   /** Called to open a plain terminal in the selected repo's directory */
@@ -163,7 +165,7 @@ export class DiffView {
     // Help bar
     const helpBar = new TextRenderable(renderer, {
       id: "diff-help-bar",
-      content: t`${fg("#484f58")("↑↓ navigate   Tab pane   Enter lazygit   x unlock   t tmux   o open   w web   r refresh   Esc back   q quit")}`,
+      content: t`${fg("#484f58")("↑↓ navigate   Tab pane   Enter lazygit   c commit   x unlock   t tmux   o open   w web   r refresh   Esc back   q quit")}`,
     })
     this.root.add(helpBar)
 
@@ -187,6 +189,9 @@ export class DiffView {
 
       if (key.name === "tab") {
         this.togglePane()
+      } else if (key.name === "c") {
+        const repo = this.getActiveRepo()
+        if (repo) this.callbacks.onCommit(repo)
       } else if (key.name === "t") {
         this.callbacks.onOpenTmux(this.activePane === "changed" ? "changed" : "all")
       } else if (key.name === "o") {

@@ -8,6 +8,7 @@
     "build": "bun build src/index.ts --compile --outfile ../scripts/.local/bin/dot-tui"
   },
   "dependencies": {
+    "@opencode-ai/sdk": "^1.14.48",
     "@opentui/core": "^0.2.7",
     "effect": "^3.21.2"
   },

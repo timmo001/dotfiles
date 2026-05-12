@@ -23,7 +23,28 @@ export interface RepoState {
 // --- Menu types ---
 
 /** Identifies a top-level TUI view for navigation */
-export type ViewId = "main" | "diff" | "omarchy"
+export type ViewId = "main" | "diff" | "omarchy" | "staging" | "commit"
+
+// --- Git staging types ---
+
+/** Git status code for a file (first two columns of `git status --porcelain`) */
+export type GitStatusCode = "M" | "A" | "D" | "R" | "C" | "U" | "?" | "!"
+
+/** A file tracked by `git status` with its staging state */
+export interface StagedFile {
+  /** Relative file path within the repository */
+  readonly path: string
+  /** Git status code (M=modified, A=added, D=deleted, ?=untracked, etc.) */
+  readonly status: GitStatusCode
+  /** Whether this file is currently staged (in the index) */
+  readonly staged: boolean
+}
+
+/** A single AI-generated commit message suggestion */
+export interface CommitSuggestion {
+  /** The suggested commit message text */
+  readonly message: string
+}
 
 /** Action that suspends the TUI and runs a command with inherited stdio */
 export interface CommandAction {

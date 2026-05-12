@@ -1,10 +1,14 @@
 import type { CliRenderer } from "@opentui/core"
-import type { ViewId, MenuItem } from "../types.js"
+import type { ViewId, MenuItem, Repo } from "../types.js"
 import { menuItemsById, submenus } from "../menu.js"
 import type { CommandRunnerService } from "../services/CommandRunner.js"
+import type { GitStagingService } from "../services/GitStaging.js"
+import type { CommitSuggestService } from "../services/CommitSuggest.js"
 import { MainMenu } from "./MainMenu.js"
 import { DiffView } from "./DiffView.js"
 import { OmarchyMenu } from "./OmarchyMenu.js"
+import { StagingView } from "./StagingView.js"
+import { CommitView } from "./CommitView.js"
 import { openLazygit } from "./Lazygit.js"
 
 const log = (msg: string) => console.error(`[dot-tui:App] ${msg}`)
@@ -27,6 +31,10 @@ export interface AppDeps {
   readonly renderer: CliRenderer
   /** Service for running shell commands with suspend/resume */
   readonly commandRunner: CommandRunnerService
+  /** Service for git staging operations */
+  readonly gitStaging: GitStagingService
+  /** Service for AI commit message suggestions */
+  readonly commitSuggest: CommitSuggestService
   /** Callback to trigger an immediate diff refresh (wired to RepoWatcher) */
   readonly onRefreshDiff: () => void
 }
@@ -38,8 +46,14 @@ export class App {
   private mainMenu: MainMenu
   private diffView: DiffView
   private omarchyMenu: OmarchyMenu
+  private stagingView: StagingView
+  private commitView: CommitView
   private activeView: ViewId = "main"
   private viewStack: ViewId[] = []
+  /** Repo path passed through the staging → commit flow */
+  private commitRepoPath = ""
+  /** Repo display name passed through the staging → commit flow */
+  private commitRepoName = ""
 
   constructor(deps: AppDeps, options: AppOptions = {}) {
     this.renderer = deps.renderer
@@ -59,6 +73,12 @@ export class App {
       onSelect: async (repo) => {
         await openLazygit(deps.renderer, repo.path)
         deps.onRefreshDiff()
+      },
+      onCommit: (repo) => {
+        this.commitRepoPath = repo.path
+        this.commitRepoName = repo.name
+        this.stagingView.openForRepo(repo.path, repo.name)
+        this.pushView("staging")
       },
       onOpenTmux: (mode) => {
         deps.commandRunner.runSilent(`dot-diff-tmux-session ${mode}`).catch((err) => {
@@ -90,10 +110,35 @@ export class App {
       onBack: () => this.popView(),
     })
 
+    this.stagingView = new StagingView(deps.renderer, deps.gitStaging, {
+      onCommit: (repoPath) => {
+        this.commitView.openForRepo(repoPath, this.commitRepoName)
+        this.pushView("commit")
+      },
+      onLazygit: async (repoPath) => {
+        await openLazygit(deps.renderer, repoPath)
+        this.stagingView.openForRepo(repoPath, this.commitRepoName)
+        deps.onRefreshDiff()
+      },
+      onBack: () => this.popView(),
+    })
+
+    this.commitView = new CommitView(deps.renderer, deps.gitStaging, deps.commitSuggest, {
+      onCommitComplete: () => {
+        // Pop back to diff view (skip staging)
+        this.viewStack = this.viewStack.filter((v) => v !== "staging")
+        this.popView()
+        deps.onRefreshDiff()
+      },
+      onBack: () => this.popView(),
+    })
+
     // --- Hide all views initially ---
     this.mainMenu.setVisible(false)
     this.diffView.setVisible(false)
     this.omarchyMenu.setVisible(false)
+    this.stagingView.setVisible(false)
+    this.commitView.setVisible(false)
 
     // --- Global keyboard ---
     deps.renderer.keyInput.on("keypress", (key) => {
@@ -164,6 +209,8 @@ export class App {
     this.mainMenu.setVisible(false)
     this.diffView.setVisible(false)
     this.omarchyMenu.setVisible(false)
+    this.stagingView.setVisible(false)
+    this.commitView.setVisible(false)
 
     this.activeView = viewId
 
@@ -180,6 +227,14 @@ export class App {
       case "omarchy":
         this.omarchyMenu.setVisible(true)
         this.omarchyMenu.focus()
+        break
+      case "staging":
+        this.stagingView.setVisible(true)
+        this.stagingView.focus()
+        break
+      case "commit":
+        this.commitView.setVisible(true)
+        this.commitView.focus()
         break
     }
   }
