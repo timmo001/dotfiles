@@ -1,0 +1,38 @@
+name: Build dot-tui
+
+on:
+  push:
+    branches:
+      - distro/arch-omarchy
+    paths:
+      - 'tui/**'
+      - '.github/workflows/tui-build.yml'
+  pull_request:
+    paths:
+      - 'tui/**'
+      - '.github/workflows/tui-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+        working-directory: tui
+
+      - name: Type check
+        run: bunx tsc --noEmit
+        working-directory: tui
+
+      - name: Build
+        run: bun build src/index.ts --compile --outfile dot-tui
+        working-directory: tui
