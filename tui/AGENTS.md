@@ -164,9 +164,10 @@ Always run type check, dead-code analysis, and build after every final code chan
 ```bash
 cd ~/.config/dotfiles/tui
 bunx tsc --noEmit            # type check
-fallow dead-code             # dead code / unused deps (or use MCP tools)
 bun run build                # compile binary
 ```
+
+For dead-code analysis, use the MCP `analyze` tool with `root: tui`, or `/fallow-audit`.
 
 Smoke tests:
 ```bash

@@ -138,6 +138,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - OpenCode frontend debug command: `/debug-frontend <page or issue>`
 - OpenCode fallow audit command: `/fallow-audit [workspace]`
 - OpenCode fallow project analysis command: `/fallow-project-analyse [workspace]`
+- Fallow dead-code check (after `.ts` changes in `tui/`): use MCP `analyze` tool with `root: tui`, or `/fallow-audit`
 - Diff behavior: `scripts/.local/bin/dot diff`
 - Wrapper cwd behavior (interactive zsh):
   - `zsh -ic 'dot diff >/tmp/dot-diff.log 2>&1; pwd'`
