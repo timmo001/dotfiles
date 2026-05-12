@@ -14,10 +14,8 @@ export interface AppOptions {
   readonly initialView?: ViewId
   /** Initial tab for the diff view */
   readonly initialDiffTab?: "changed" | "unchanged"
-  /** If set, execute this menu item immediately on startup */
+  /** If set, execute this menu item immediately on startup and pre-select it */
   readonly executeItemId?: string
-  /** If set, pre-select this item in the main menu on startup */
-  readonly focusItemId?: string
 }
 
 /** Dependencies injected into the App at construction time */
@@ -50,7 +48,7 @@ export class App {
 
     this.mainMenu = new MainMenu(deps.renderer, {
       onSelect: (item) => this.handleMenuAction(item),
-      initialSelectedId: options.focusItemId,
+      initialSelectedId: options.executeItemId,
     })
 
     this.diffView = new DiffView(deps.renderer, {
@@ -85,14 +83,22 @@ export class App {
     // --- Determine initial view ---
     const startView = options.initialView ?? "main"
 
-    // If an item should be executed immediately (subcommand mode)
+    // If an item should be executed immediately (subcommand mode):
+    // always suspend, run with visible output, wait for keypress, then resume.
     if (options.executeItemId) {
       const item = menuItemsById.get(options.executeItemId)
       if (item) {
-        // Show main menu as the base, then execute
         this.showView("main")
-        // Defer execution to after renderer starts
-        setTimeout(() => this.handleMenuAction(item), 50)
+        const { action } = item
+        if (action.type === "command" || action.type === "silent") {
+          setTimeout(() => {
+            this.commandRunner.runSuspended(action.cmd, true).catch((err) => {
+              log(`Execute error: ${err}`)
+            })
+          }, 50)
+        } else {
+          setTimeout(() => this.handleMenuAction(item), 50)
+        }
         return
       }
     }

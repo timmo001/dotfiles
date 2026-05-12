@@ -32,7 +32,7 @@ function submenu(menuId: string): MenuItem["action"] {
 
 const dotItems: readonly MenuItem[] = [
   item("update", "󰚰", "Update", "Pull repos, stow dotfiles, rebuild", cmd("dot update")),
-  item("stow", "󰏗", "Stow", "Re-stow public/private dotfiles", silent("dot stow")),
+  item("stow", "󰏗", "Stow", "Re-stow public/private dotfiles", cmd("dot stow")),
   item("diff", "󰊢", "Diff", "Repo watcher with change status", view("diff")),
   item("doctor", "󰛯", "Doctor", "Check dependencies and health", cmd("dot doctor")),
   item("system-health", "󰗶", "System Health Check", "Run system-health-check diagnostics", cmd("system-health-check")),

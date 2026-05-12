@@ -21,7 +21,6 @@ if (flags.help) {
 // Resolve subcommand to determine startup behaviour
 let initialView: ViewId = "main"
 let executeItemId: string | undefined
-let focusItemId: string | undefined
 
 if (flags.subcommand) {
   const resolved = resolveSubcommand(flags.subcommand)
@@ -43,34 +42,6 @@ if (flags.subcommand) {
         initialView = action.viewId
       }
     }
-  }
-}
-
-// For command/silent actions invoked as direct subcommands, run the command
-// first then fall through to the TUI main menu.
-if (executeItemId) {
-  const directItem = menuItemsById.get(executeItemId)
-  if (directItem) {
-    const { action } = directItem
-    if (action.type === "command") {
-      const proc = Bun.spawn(["bash", "-c", action.cmd], {
-        stdin: "inherit",
-        stdout: "inherit",
-        stderr: "inherit",
-      })
-      await proc.exited
-      focusItemId = executeItemId
-      executeItemId = undefined
-    } else if (action.type === "silent") {
-      const proc = Bun.spawn(["bash", "-c", action.cmd], {
-        stdout: "inherit",
-        stderr: "inherit",
-      })
-      await proc.exited
-      focusItemId = executeItemId
-      executeItemId = undefined
-    }
-    // submenu actions still need the TUI — fall through with executeItemId intact
   }
 }
 
@@ -104,7 +75,6 @@ const program = Effect.gen(function* () {
       initialView,
       initialDiffTab: flags.tab,
       executeItemId,
-      focusItemId,
     },
   )
   log("App created")
