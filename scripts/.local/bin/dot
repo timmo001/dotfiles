@@ -4601,14 +4601,17 @@ cmd_help() {
   local fmt_env='  %-34s%s\n'
   local fmt_init='  %-26s  %s\n'
 
-  printf 'Usage: %s <command> [args]\n\n' "$SCRIPT_NAME"
+  printf 'Usage: %s [command] [args]\n\n' "$SCRIPT_NAME"
+  printf 'Without a command, launches the TUI dashboard (dot-tui).\n\n'
   printf 'Commands:\n'
   printf "$fmt_cmd" 'init' 'Run questionnaire, sync omarchy repos, setup, install'
   printf "$fmt_cmd" 'update' 'Pull repos (public, private, notes, extra, omarchy repos), stow dotfiles (optional agents-sync + dot memory --soft)'
   printf "$fmt_cmd" 'memory' 'Refresh OpenCode durable memory (~/.config/opencode/AGENTS.md via memory.js --update)'
   printf "$fmt_cmd" 'stow' 'Re-stow public/private dotfiles (no git pull)'
-  printf "$fmt_cmd" 'diff' 'Per-repo status + diffs with fetched upstream unpushed/incoming commits'
-  printf "$fmt_cmd" '' 'Options: --waybar → one-line JSON for Waybar (same checks; no banners)'
+  printf "$fmt_cmd" 'tui' 'Launch the TUI dashboard (alias for dot-tui; passes subcommands/flags through)'
+  printf "$fmt_cmd" 'diff' 'Open the diff/repo watcher TUI view (falls back to CLI if TUI not built)'
+  printf "$fmt_cmd" '' 'Options: --raw → original CLI per-repo status + diffs output'
+  printf "$fmt_cmd" '' '         --waybar → one-line JSON for Waybar (same checks; no banners)'
   printf "$fmt_cmd" '' '         --list-changed → name|path lines for repos with changes'
   printf "$fmt_cmd" '' '         --list-all → name|path lines for all tracked repos'
   printf "$fmt_cmd" 'setup' 'Install packages (supports: --confirm, currently non-interactive)'
@@ -4661,14 +4664,38 @@ cmd_help() {
 }
 
 main() {
-  local cmd="${1:-help}"
-  shift || true
+  local cmd="${1:-}"
 
   if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
     log_error 'Run dot as your regular user account (not as root)'
     return 1
   fi
 
+  # No arguments — launch the TUI (fallback to help if not built)
+  if [[ -z "$cmd" ]]; then
+    if has_cmd dot-tui; then
+      exec dot-tui
+    else
+      log_warn 'dot-tui not built — run dot update or: cd tui && bun run build'
+      cmd_help
+      return
+    fi
+  fi
+
+  shift || true
+
+  # "tui" subcommand — pass through to dot-tui with remaining args
+  if [[ "$cmd" == 'tui' ]]; then
+    if has_cmd dot-tui; then
+      exec dot-tui "$@"
+    else
+      log_warn 'dot-tui not built — run dot update or: cd tui && bun run build'
+      cmd_help
+      return 1
+    fi
+  fi
+
+  # Machine-readable diff flags bypass the TUI (fast-path before header)
   if [[ "$cmd" == 'diff' && "${1:-}" == '--waybar' ]]; then
     shift
     cmd_diff_status "$@"
@@ -4684,6 +4711,20 @@ main() {
     cmd_diff_list_all
     return
   fi
+
+  # "diff" without --raw — launch TUI at the diff view (fallback to CLI diff)
+  if [[ "$cmd" == 'diff' && "${1:-}" != '--raw' ]]; then
+    if has_cmd dot-tui; then
+      exec dot-tui diff "$@"
+    fi
+    # Fallback to CLI diff if TUI not available
+  fi
+
+  # "diff --raw" — strip the flag and run the original CLI diff
+  if [[ "$cmd" == 'diff' && "${1:-}" == '--raw' ]]; then
+    shift
+  fi
+
   if [[ "$cmd" != 'help' && "$cmd" != '-h' && "$cmd" != '--help' ]]; then
     if [[ -d "$PUBLIC_DOTFILES" ]]; then
       cd "$PUBLIC_DOTFILES"

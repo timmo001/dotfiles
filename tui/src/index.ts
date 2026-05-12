@@ -3,25 +3,52 @@ import { createCliRenderer } from "@opentui/core"
 import { DotDiffLive } from "./services/DotDiff.js"
 import { WaybarCacheLive } from "./services/WaybarCache.js"
 import { RepoWatcher, RepoWatcherLive } from "./services/RepoWatcher.js"
-import { Dashboard } from "./tui/Dashboard.js"
-import { openLazygit } from "./tui/Lazygit.js"
-import { parseFlags, type Flags } from "./flags.js"
+import { createCommandRunner } from "./services/CommandRunner.js"
+import { App } from "./tui/App.js"
+import { parseFlags, resolveSubcommand, printHelp } from "./flags.js"
+import { menuItemsById } from "./menu.js"
+import type { ViewId } from "./types.js"
 
 const log = (msg: string) => console.error(`[dot-tui] ${msg}`)
 
 const flags = parseFlags(process.argv.slice(2))
 
 if (flags.help) {
-  console.log(`Usage: dot-tui [options]
-
-Options:
-  --tab <changed|other>  Initial tab to focus (default: changed)
-  --help                 Show this help message`)
+  printHelp()
   process.exit(0)
 }
 
+// Resolve subcommand to determine startup behaviour
+let initialView: ViewId = "main"
+let executeItemId: string | undefined
+
+if (flags.subcommand) {
+  const resolved = resolveSubcommand(flags.subcommand)
+  if (!resolved) {
+    console.error(`Unknown subcommand: ${flags.subcommand}`)
+    printHelp()
+    process.exit(1)
+  }
+
+  if (resolved.type === "view") {
+    initialView = resolved.viewId
+  } else {
+    const item = menuItemsById.get(resolved.itemId)
+    if (item) {
+      const { action } = item
+      if (action.type === "command" || action.type === "silent") {
+        executeItemId = resolved.itemId
+      } else if (action.type === "view") {
+        initialView = action.viewId
+      } else if (action.type === "submenu") {
+        initialView = "omarchy"
+      }
+    }
+  }
+}
+
 const program = Effect.gen(function* () {
-  log("Starting — resolving RepoWatcher service...")
+  log("Starting...")
   const watcher = yield* RepoWatcher
   log("RepoWatcher ready")
 
@@ -35,34 +62,43 @@ const program = Effect.gen(function* () {
   )
   log("Renderer created")
 
-  const dashboard = new Dashboard(renderer, {
-    initialTab: flags.tab,
-    onSelect: async (repo) => {
-      await openLazygit(renderer, repo.path)
-      Effect.runFork(watcher.refresh())
-    },
-    onRefresh: () => {
-      Effect.runFork(watcher.refresh())
-    },
-  })
-  log("Dashboard created")
+  const commandRunner = createCommandRunner(renderer)
 
-  // Subscribe to watcher state changes and update dashboard
+  // Create the app with concrete dependencies
+  const app = new App(
+    {
+      renderer,
+      commandRunner,
+      onRefreshDiff: () => {
+        Effect.runFork(watcher.refresh())
+      },
+    },
+    {
+      initialView,
+      initialDiffTab: flags.tab,
+      executeItemId,
+    },
+  )
+  log("App created")
+
+  const diffView = app.getDiffView()
+
+  // Subscribe to watcher state changes and update the diff view
   yield* watcher.subscribe().pipe(
     Stream.runForEach((state) =>
       Effect.sync(() => {
         log(`State update: ${state.changed.length} changed, ${state.unchanged.length} unchanged`)
-        dashboard.update(state)
+        diffView.update(state)
       }),
     ),
     Effect.forkScoped,
   )
   log("Subscribed to state stream")
 
-  // Also push current state immediately for first paint
+  // Push current state immediately for first paint
   const initialState = yield* watcher.getState()
   log(`Initial state: ${initialState.changed.length} changed, ${initialState.unchanged.length} unchanged`)
-  dashboard.update(initialState)
+  diffView.update(initialState)
 
   // Set terminal tab title
   process.stdout.write("\x1b]0;Dot TUI\x07")

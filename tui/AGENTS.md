@@ -1,6 +1,6 @@
 # dot-tui
 
-OpenTUI + Effect TUI dashboard for watching git repos via `dot diff`.
+Full TUI dashboard for `dot` — the dotfiles manager. Replaces both `dot-menu` (walker GUI) and the old diff-only TUI.
 
 ## Scope
 
@@ -26,30 +26,77 @@ Always apply these skills when editing code in this directory:
 
 ```
 src/
-  index.ts              — Entry point, Effect bootstrap, wires watcher → dashboard
-  types.ts              — Repo, RepoState interfaces
+  index.ts                — Entry point, subcommand routing, Effect bootstrap
+  types.ts                — Repo, RepoState, MenuItem, MenuAction, ViewId
+  flags.ts                — CLI parser: subcommands, --tab, --raw, --help
+  menu.ts                 — Menu registry: Map<string, MenuItem> for dot + omarchy items
   services/
-    DotDiff.ts           — Effect service wrapping `dot diff` shell commands
-    WaybarCache.ts       — Effect service reading Waybar cache JSON for fast start
-    RepoWatcher.ts       — Hybrid poll loop (Waybar cache → 10s poll), PubSub state
+    DotDiff.ts            — Effect service wrapping `dot diff` shell commands
+    WaybarCache.ts        — Effect service reading Waybar cache JSON for fast start
+    RepoWatcher.ts        — Hybrid poll loop (Waybar cache → 10s poll), PubSub state
+    CommandRunner.ts      — Suspend/resume + silent command execution
   tui/
-    Dashboard.ts         — Two-pane layout (Changed/Other) with SelectRenderables
-    Lazygit.ts           — Suspend/resume lazygit spawn
+    App.ts                — Top-level app shell, view stack, global keyboard, action routing
+    MainMenu.ts           — SelectRenderable menu built from menu registry
+    DiffView.ts           — Two-pane layout (Changed/Other) with repo watcher
+    OmarchyMenu.ts        — Inline omarchy submenu tree with breadcrumb navigation
+    Lazygit.ts            — Suspend/resume lazygit spawn
 ```
 
 ### Data Flow
 
-1. `RepoWatcher` loads Waybar cache for instant first paint, then polls `dot diff` every 10s
-2. State changes are published via `PubSub<RepoState>`
-3. `index.ts` subscribes via `Stream.fromPubSub` and calls `dashboard.update(state)`
-4. Dashboard renders two `SelectRenderable` panes with repo lists
+1. `index.ts` resolves subcommand → initial view/action, creates renderer + services
+2. `App` manages a view stack (main menu ↔ diff view ↔ omarchy menu)
+3. Menu items have typed actions: `command` (suspend/resume), `silent` (background), `view` (navigate), `submenu` (nested)
+4. `CommandRunner` handles suspend/resume for terminal commands and silent background execution
+5. `RepoWatcher` loads Waybar cache for instant diff first paint, then polls `dot diff` every 10s
+6. State changes are published via `PubSub<RepoState>` → `DiffView.update()`
+
+### Menu Registry
+
+`menu.ts` exports:
+- `mainMenuItems` — top-level dot menu items (update, stow, diff, doctor, etc.)
+- `submenus` — `Map<string, MenuItem[]>` for all omarchy submenus
+- `menuItemsById` — flat lookup of every item by its stable ID
+- `submenuTitles` — display titles for submenu breadcrumbs
+
+MenuItem action types:
+- `command` — suspend TUI, run `bash -c <cmd>`, optional "press any key" wait, resume
+- `silent` — run in background, no TUI interruption
+- `view` — navigate to a sub-view (diff, omarchy)
+- `submenu` — open a nested submenu within the omarchy tree
 
 ### Key Patterns
 
-- **Services**: `Context.Tag` + `Layer.succeed` (simple) or `Layer.effect` (with dependencies)
-- **Concurrency**: `Effect.forkScoped` for background poll fiber (NOT `forkDaemon` — needs scope)
-- **Top-level run**: `Effect.runPromise` (NOT `runFork` — keeps process alive)
-- **Suspend/resume**: `renderer.suspend()` → `Bun.spawn` → `renderer.resume()` for lazygit
+- **Services**: `Context.Tag` + `Layer` for Effect services (DotDiff, WaybarCache, RepoWatcher)
+- **CommandRunner**: Plain object (not Effect service) — passed directly to App to avoid scope issues with `Effect.runFork`
+- **Concurrency**: `Effect.forkScoped` for background poll fiber
+- **Top-level run**: `Effect.runPromise` (keeps process alive)
+- **Suspend/resume**: `renderer.suspend()` → `Bun.spawn` → `renderer.resume()` for commands and lazygit
+- **View switching**: `BoxRenderable.visible` property to show/hide views without destroying them
+- **Navigation**: View stack with `pushView()`/`popView()`, Escape/Backspace returns to parent
+
+## CLI
+
+```
+dot-tui                       # Main menu
+dot-tui diff                  # Diff view directly
+dot-tui diff --tab other      # Diff view, Other tab focused
+dot-tui update                # Run dot update (suspend/resume in TUI)
+dot-tui omarchy               # Omarchy submenu
+dot-tui omarchy.theme         # Omarchy theme submenu
+dot-tui --help                # Show help
+```
+
+Alias via `dot`:
+```
+dot                           # Launches dot-tui (main menu)
+dot tui                       # Same as dot-tui
+dot tui diff --tab other      # Same as dot-tui diff --tab other
+dot diff                      # Launches dot-tui diff view
+dot diff --raw                # Original CLI diff output (no TUI)
+dot diff --waybar             # Machine-readable (unchanged)
+```
 
 ## Build
 
@@ -62,12 +109,29 @@ The build is also triggered by `dot update` via `maybe_build_tui()` in the `dot`
 
 ## Keybindings
 
+### Main Menu
+| Key | Action |
+|-----|--------|
+| `↑↓` | Navigate list |
+| `Enter` | Select item |
+| `q` | Quit |
+
+### Diff View
 | Key | Action |
 |-----|--------|
 | `↑↓` | Navigate list |
 | `Tab` | Switch between Changed/Other pane |
 | `Enter` | Open lazygit for selected repo |
 | `r` | Manual refresh |
+| `Esc` | Back to main menu |
+| `q` | Quit |
+
+### Omarchy Menu
+| Key | Action |
+|-----|--------|
+| `↑↓` | Navigate list |
+| `Enter` | Select item / enter submenu |
+| `Esc` | Back to parent menu |
 | `q` | Quit |
 
 ## External Dependencies
@@ -75,7 +139,10 @@ The build is also triggered by `dot update` via `maybe_build_tui()` in the `dot`
 - `dot diff --list-all` — lists all tracked repos as `name|path` lines
 - `dot diff --list-changed` — lists repos with uncommitted/unpushed changes
 - `~/.cache/waybar/dot-diff-waybar.json` — Waybar cache for fast startup
-- `lazygit` — launched via suspend/resume on Enter
+- `lazygit` — launched via suspend/resume on Enter in diff view
+- `omarchy` — various subcommands for desktop management
+- `system-health-check` — system diagnostics
+- `topgrade` — system-wide package upgrades
 
 ## Validation
 
@@ -83,7 +150,11 @@ The build is also triggered by `dot update` via `maybe_build_tui()` in the `dot`
 cd ~/.config/dotfiles/tui
 bunx tsc --noEmit            # type check
 bun run build                # compile binary
-dot-tui                      # smoke test (q to quit)
+dot-tui                      # smoke test: main menu renders, q quits
+dot-tui diff                 # smoke test: diff view renders
+dot tui                      # smoke test: alias works
+dot                          # smoke test: launches TUI
+dot diff --raw               # smoke test: original CLI diff
 ```
 
 ## Debugging

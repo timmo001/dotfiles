@@ -11,17 +11,18 @@ import {
 } from "@opentui/core"
 import type { Repo, RepoState } from "../types.js"
 
-export interface DashboardOptions {
+export interface DiffViewOptions {
   onSelect: (repo: Repo) => void
   onRefresh: () => void
+  onBack: () => void
   initialTab?: Pane
 }
 
 type Pane = "changed" | "unchanged"
 
-export class Dashboard {
+export class DiffView {
   private renderer: CliRenderer
-  private callbacks: DashboardOptions
+  private callbacks: DiffViewOptions
 
   private root: BoxRenderable
   private changedSelect: SelectRenderable
@@ -29,22 +30,20 @@ export class Dashboard {
   private changedTitle: TextRenderable
   private unchangedTitle: TextRenderable
   private statusBar: TextRenderable
-  private helpBar: TextRenderable
 
   private activePane: Pane = "changed"
   private changedRepos: readonly Repo[] = []
   private unchangedRepos: readonly Repo[] = []
   private lastChecked: Date = new Date()
+  private isVisible = false
 
-  constructor(renderer: CliRenderer, callbacks: DashboardOptions) {
+  constructor(renderer: CliRenderer, callbacks: DiffViewOptions) {
     this.renderer = renderer
     this.callbacks = callbacks
 
-    renderer.setBackgroundColor("#0d1117")
-
-    // Root container — full screen, centered content
+    // Root container — full screen
     this.root = new BoxRenderable(renderer, {
-      id: "dashboard-root",
+      id: "diff-root",
       flexDirection: "column",
       width: "100%",
       height: "100%",
@@ -53,15 +52,15 @@ export class Dashboard {
 
     // Title bar
     const titleBar = new TextRenderable(renderer, {
-      id: "title-bar",
-      content: t`${bold(fg("#58a6ff")("Dot TUI"))}${fg("#8b949e")(" — repo watcher")}`,
+      id: "diff-title-bar",
+      content: t`${bold(fg("#58a6ff")("Diff"))}${fg("#8b949e")(" — repo watcher")}`,
       marginBottom: 1,
     })
     this.root.add(titleBar)
 
     // Two-pane container
     const paneContainer = new BoxRenderable(renderer, {
-      id: "pane-container",
+      id: "diff-pane-container",
       flexDirection: "row",
       flexGrow: 1,
       gap: 2,
@@ -69,21 +68,21 @@ export class Dashboard {
 
     // --- Left pane: Changed ---
     const leftPane = new BoxRenderable(renderer, {
-      id: "left-pane",
+      id: "diff-left-pane",
       flexDirection: "column",
       flexGrow: 1,
       flexBasis: 0,
     })
 
     this.changedTitle = new TextRenderable(renderer, {
-      id: "changed-title",
+      id: "diff-changed-title",
       content: this.formatPaneTitle("Changed", 0, true),
       marginBottom: 0,
     })
     leftPane.add(this.changedTitle)
 
     this.changedSelect = new SelectRenderable(renderer, {
-      id: "changed-select",
+      id: "diff-changed-select",
       flexGrow: 1,
       width: "100%",
       options: [],
@@ -103,21 +102,21 @@ export class Dashboard {
 
     // --- Right pane: Unchanged ---
     const rightPane = new BoxRenderable(renderer, {
-      id: "right-pane",
+      id: "diff-right-pane",
       flexDirection: "column",
       flexGrow: 1,
       flexBasis: 0,
     })
 
     this.unchangedTitle = new TextRenderable(renderer, {
-      id: "unchanged-title",
+      id: "diff-unchanged-title",
       content: this.formatPaneTitle("Other", 0, false),
       marginBottom: 0,
     })
     rightPane.add(this.unchangedTitle)
 
     this.unchangedSelect = new SelectRenderable(renderer, {
-      id: "unchanged-select",
+      id: "diff-unchanged-select",
       flexGrow: 1,
       width: "100%",
       options: [],
@@ -141,18 +140,18 @@ export class Dashboard {
 
     // Status bar
     this.statusBar = new TextRenderable(renderer, {
-      id: "status-bar",
+      id: "diff-status-bar",
       content: t`${fg("#8b949e")("Loading...")}`,
       marginTop: 1,
     })
     this.root.add(this.statusBar)
 
     // Help bar
-    this.helpBar = new TextRenderable(renderer, {
-      id: "help-bar",
-      content: t`${fg("#484f58")("↑↓ navigate   Tab switch pane   Enter lazygit   r refresh   q quit")}`,
+    const helpBar = new TextRenderable(renderer, {
+      id: "diff-help-bar",
+      content: t`${fg("#484f58")("↑↓ navigate   Tab switch pane   Enter lazygit   r refresh   Esc back   q quit")}`,
     })
-    this.root.add(this.helpBar)
+    this.root.add(helpBar)
 
     renderer.root.add(this.root)
 
@@ -169,14 +168,16 @@ export class Dashboard {
 
     // Keyboard handling
     renderer.keyInput.on("keypress", (key) => {
+      // Only handle keys when this view is visible
+      if (!this.isVisible) return
+
       if (key.name === "tab") {
         this.togglePane()
       } else if (key.name === "r") {
         this.statusBar.content = t`${fg("#d29922")("Refreshing...")}`
         this.callbacks.onRefresh()
-      } else if (key.name === "q") {
-        renderer.destroy()
-        process.exit(0)
+      } else if (key.name === "escape" || key.name === "backspace") {
+        this.callbacks.onBack()
       }
     })
 
@@ -224,6 +225,15 @@ export class Dashboard {
     this.updateStatusBar()
   }
 
+  setVisible(visible: boolean): void {
+    this.root.visible = visible
+    this.isVisible = visible
+  }
+
+  focus(): void {
+    this.focusPane(this.activePane)
+  }
+
   private togglePane(): void {
     this.activePane = this.activePane === "changed" ? "unchanged" : "changed"
     this.focusPane(this.activePane)
@@ -250,7 +260,7 @@ export class Dashboard {
     }
   }
 
-  private formatPaneTitle(label: string, count: number, active: boolean): string {
+  private formatPaneTitle(label: string, count: number, active: boolean) {
     const indicator = active ? "▸" : " "
     const color = active ? "#58a6ff" : "#8b949e"
     const countColor = label === "Changed" && count > 0 ? "#f85149" : "#8b949e"
