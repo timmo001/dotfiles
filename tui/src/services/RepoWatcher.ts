@@ -5,12 +5,17 @@ import { WaybarCache } from "./WaybarCache.js"
 
 const log = (msg: string) => console.error(`[dot-tui:Watcher] ${msg}`)
 
+/** Service interface for the hybrid repo-polling watcher */
 interface RepoWatcherService {
+  /** Subscribe to a stream of repo state snapshots */
   readonly subscribe: () => Stream.Stream<RepoState>
+  /** Trigger an immediate poll refresh */
   readonly refresh: () => Effect.Effect<void>
+  /** Return the most recently polled state */
   readonly getState: () => Effect.Effect<RepoState>
 }
 
+/** Effect service tag for {@link RepoWatcherService} */
 export class RepoWatcher extends Context.Tag("RepoWatcher")<
   RepoWatcher,
   RepoWatcherService
@@ -25,6 +30,7 @@ function buildRepoState(
   return { changed, unchanged, lastChecked: new Date() }
 }
 
+/** Live layer: loads Waybar cache for fast first paint, then polls `dot diff` every 10 seconds */
 export const RepoWatcherLive = Layer.scoped(
   RepoWatcher,
   Effect.gen(function* () {

@@ -1,5 +1,6 @@
 import type { CliRenderer } from "@opentui/core"
 
+/** Suspend the TUI, launch lazygit in the given repo, then resume rendering */
 export async function openLazygit(
   renderer: CliRenderer,
   repoPath: string,

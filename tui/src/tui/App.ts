@@ -18,12 +18,17 @@ export interface AppOptions {
   readonly executeItemId?: string
 }
 
+/** Dependencies injected into the App at construction time */
 export interface AppDeps {
+  /** The OpenTUI CLI renderer instance */
   readonly renderer: CliRenderer
+  /** Service for running shell commands with suspend/resume */
   readonly commandRunner: CommandRunnerService
+  /** Callback to trigger an immediate diff refresh (wired to RepoWatcher) */
   readonly onRefreshDiff: () => void
 }
 
+/** Top-level TUI application shell managing a view stack and global keyboard */
 export class App {
   private renderer: CliRenderer
   private commandRunner: CommandRunnerService

@@ -12,11 +12,15 @@ import {
 import type { MenuItem } from "../types.js"
 import { submenus, submenuTitles } from "../menu.js"
 
+/** Configuration callbacks for the omarchy submenu tree */
 export interface OmarchyMenuOptions {
+  /** Called when the user selects a non-submenu action item */
   readonly onAction: (item: MenuItem) => void
+  /** Called when the user navigates back from the root omarchy menu */
   readonly onBack: () => void
 }
 
+/** Inline omarchy submenu tree with breadcrumb navigation and nested levels */
 export class OmarchyMenu {
   private renderer: CliRenderer
   private callbacks: OmarchyMenuOptions
@@ -75,7 +79,7 @@ export class OmarchyMenu {
     // Help bar
     this.helpBar = new TextRenderable(renderer, {
       id: "omarchy-menu-help",
-      content: t`${fg("#484f58")("↑↓ navigate   Enter select   Esc back   q quit")}`,
+      content: t`${fg("#484f58")("↑↓ navigate   Enter select   Esc/Backspace back   q quit")}`,
       marginTop: 1,
     })
     this.root.add(this.helpBar)
@@ -123,11 +127,13 @@ export class OmarchyMenu {
     this.loadMenu("omarchy")
   }
 
+  /** Show or hide the omarchy menu view */
   setVisible(visible: boolean): void {
     this.root.visible = visible
     this.isVisible = visible
   }
 
+  /** Give keyboard focus to the menu list */
   focus(): void {
     this.select.focus()
   }
@@ -198,6 +204,7 @@ export class OmarchyMenu {
     return t`${fg("#8b949e")(prefix)}${fg("#484f58")(" › ")}${bold(fg("#58a6ff")(parts[last]))}`
   }
 
+  /** Remove the omarchy menu from the render tree */
   destroy(): void {
     this.renderer.root.remove(this.root.id)
   }

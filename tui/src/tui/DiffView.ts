@@ -11,15 +11,21 @@ import {
 } from "@opentui/core"
 import type { Repo, RepoState } from "../types.js"
 
+/** Configuration callbacks and initial state for the diff view */
 export interface DiffViewOptions {
-  onSelect: (repo: Repo) => void
-  onRefresh: () => void
-  onBack: () => void
-  initialTab?: Pane
+  /** Called when the user selects a repo (e.g. to open lazygit) */
+  readonly onSelect: (repo: Repo) => void
+  /** Called when the user requests a manual refresh */
+  readonly onRefresh: () => void
+  /** Called when the user navigates back (Escape/Backspace) */
+  readonly onBack: () => void
+  /** Which pane to focus on startup (default: "changed") */
+  readonly initialTab?: Pane
 }
 
 type Pane = "changed" | "unchanged"
 
+/** Two-pane diff view showing Changed and Other repositories with a status bar */
 export class DiffView {
   private renderer: CliRenderer
   private callbacks: DiffViewOptions
@@ -149,7 +155,7 @@ export class DiffView {
     // Help bar
     const helpBar = new TextRenderable(renderer, {
       id: "diff-help-bar",
-      content: t`${fg("#484f58")("↑↓ navigate   Tab switch pane   Enter lazygit   r refresh   Esc back   q quit")}`,
+      content: t`${fg("#484f58")("↑↓ navigate   Tab switch pane   Enter lazygit   r refresh   Esc/Backspace back   q quit")}`,
     })
     this.root.add(helpBar)
 
@@ -190,6 +196,7 @@ export class DiffView {
     this.unchangedTitle.content = this.formatPaneTitle("Other", 0, this.activePane === "unchanged")
   }
 
+  /** Update both panes and the status bar with a new repo state snapshot */
   update(state: RepoState): void {
     this.changedRepos = state.changed
     this.unchangedRepos = state.unchanged
@@ -225,11 +232,13 @@ export class DiffView {
     this.updateStatusBar()
   }
 
+  /** Show or hide the diff view */
   setVisible(visible: boolean): void {
     this.root.visible = visible
     this.isVisible = visible
   }
 
+  /** Give keyboard focus to the currently active pane */
   focus(): void {
     this.focusPane(this.activePane)
   }
@@ -295,6 +304,7 @@ export class DiffView {
     return path
   }
 
+  /** Remove the diff view from the render tree */
   destroy(): void {
     this.renderer.root.remove(this.root.id)
   }

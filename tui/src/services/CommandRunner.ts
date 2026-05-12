@@ -2,6 +2,7 @@ import type { CliRenderer } from "@opentui/core"
 
 const log = (msg: string) => console.error(`[dot-tui:CommandRunner] ${msg}`)
 
+/** Service for executing shell commands with TUI suspend/resume lifecycle */
 export interface CommandRunnerService {
   /** Suspend the TUI, run the command with inherited stdio, then resume.
    *  When wait is true, shows "Press any key to continue" before resuming. */
@@ -12,6 +13,7 @@ export interface CommandRunnerService {
   readonly runSilent: (cmd: string) => Promise<void>
 }
 
+/** Create a {@link CommandRunnerService} bound to the given renderer for suspend/resume */
 export function createCommandRunner(renderer: CliRenderer): CommandRunnerService {
   return {
     runSuspended: async (cmd, wait) => {

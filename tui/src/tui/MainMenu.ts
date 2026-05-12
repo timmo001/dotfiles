@@ -12,10 +12,13 @@ import {
 import type { MenuItem } from "../types.js"
 import { mainMenuItems } from "../menu.js"
 
+/** Configuration callbacks for the main menu */
 export interface MainMenuOptions {
+  /** Called when the user selects a menu item */
   readonly onSelect: (item: MenuItem) => void
 }
 
+/** Top-level dot menu rendered as a {@link SelectRenderable} list */
 export class MainMenu {
   private renderer: CliRenderer
   private root: BoxRenderable
@@ -86,14 +89,17 @@ export class MainMenu {
     )
   }
 
+  /** Show or hide the main menu view */
   setVisible(visible: boolean): void {
     this.root.visible = visible
   }
 
+  /** Give keyboard focus to the menu list */
   focus(): void {
     this.select.focus()
   }
 
+  /** Remove the main menu from the render tree */
   destroy(): void {
     this.renderer.root.remove(this.root.id)
   }

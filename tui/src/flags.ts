@@ -3,15 +3,16 @@ import { menuItemsById } from "./menu.js"
 
 type DiffTab = "changed" | "unchanged"
 
+/** Parsed CLI flags for `dot-tui` */
 export interface Flags {
   /** Subcommand matching a menu item ID, or a view ID like "diff" */
-  subcommand: string | undefined
+  readonly subcommand: string | undefined
   /** Initial tab for the diff view */
-  tab: DiffTab
+  readonly tab: DiffTab
   /** Show help and exit */
-  help: boolean
-  /** Remaining args to pass through to the subcommand */
-  rest: readonly string[]
+  readonly help: boolean
+  /** Remaining args not consumed by subcommand or flag parsing */
+  readonly rest: readonly string[]
 }
 
 function parseDiffTab(value: string): DiffTab {

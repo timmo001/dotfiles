@@ -3,11 +3,15 @@ import type { Repo } from "../types.js"
 
 const log = (msg: string) => console.error(`[dot-tui:DotDiff] ${msg}`)
 
+/** Service interface for running `dot diff` shell commands */
 interface DotDiffService {
+  /** List repositories that have uncommitted or unpushed changes */
   readonly listChanged: () => Effect.Effect<readonly Repo[], Error>
+  /** List all tracked repositories */
   readonly listAll: () => Effect.Effect<readonly Repo[], Error>
 }
 
+/** Effect service tag for {@link DotDiffService} */
 export class DotDiff extends Context.Tag("DotDiff")<DotDiff, DotDiffService>() {}
 
 function parseDotDiffOutput(output: string): readonly Repo[] {
@@ -53,6 +57,7 @@ function runDotDiff(args: string[]): Effect.Effect<readonly Repo[], Error> {
   })
 }
 
+/** Live layer that shells out to `dot diff` for repository data */
 export const DotDiffLive = Layer.succeed(DotDiff, {
   listChanged: () => runDotDiff(["--list-changed"]),
   listAll: () => runDotDiff(["--list-all"]),
