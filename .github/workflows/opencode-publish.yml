@@ -18,10 +18,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout dotfiles
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Checkout publish repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ github.repository_owner }}/opencode-config
           path: _publish
