@@ -159,11 +159,12 @@ The build is also triggered by `dot update` via `maybe_build_tui()` in the `dot`
 
 ## Validation
 
-Always run type check and build after every final code change:
+Always run type check, dead-code analysis, and build after every final code change:
 
 ```bash
 cd ~/.config/dotfiles/tui
 bunx tsc --noEmit            # type check
+fallow dead-code             # dead code / unused deps (or use MCP tools)
 bun run build                # compile binary
 ```
 

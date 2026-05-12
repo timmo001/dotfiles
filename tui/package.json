@@ -8,8 +8,6 @@
     "build": "bun build src/index.ts --compile --outfile ../scripts/.local/bin/dot-tui"
   },
   "dependencies": {
-    "@effect/platform": "^0.96.1",
-    "@effect/platform-bun": "^0.89.0",
     "@opentui/core": "^0.2.7",
     "effect": "^3.21.2"
   },
