@@ -25,7 +25,7 @@ function buildRepoState(
   return { changed, unchanged, lastChecked: new Date() }
 }
 
-export const RepoWatcherLive = Layer.effect(
+export const RepoWatcherLive = Layer.scoped(
   RepoWatcher,
   Effect.gen(function* () {
     log("Initialising RepoWatcher...")
