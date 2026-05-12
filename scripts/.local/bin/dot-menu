@@ -41,9 +41,9 @@ while true; do
   options=(
     '󰚰  Update'
     '󰏗  Stow'
-    '  Diff'
+    '󰊢  Diff'
     '󰋼  Doctor'
-    '  Skill updates'
+    '󰏬  Skill updates'
     '󰍉  Memory refresh'
   )
 
