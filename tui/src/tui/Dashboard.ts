@@ -54,7 +54,7 @@ export class Dashboard {
     // Title bar
     const titleBar = new TextRenderable(renderer, {
       id: "title-bar",
-      content: t`${bold(fg("#58a6ff")("dot-tui"))}${fg("#8b949e")(" — repo watcher")}`,
+      content: t`${bold(fg("#58a6ff")("Dot TUI"))}${fg("#8b949e")(" — repo watcher")}`,
       marginBottom: 1,
     })
     this.root.add(titleBar)

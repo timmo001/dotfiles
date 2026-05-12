@@ -64,6 +64,9 @@ const program = Effect.gen(function* () {
   log(`Initial state: ${initialState.changed.length} changed, ${initialState.unchanged.length} unchanged`)
   dashboard.update(initialState)
 
+  // Set terminal tab title
+  process.stdout.write("\x1b]0;Dot TUI\x07")
+
   log("Starting renderer...")
   renderer.start()
   log("Renderer started — TUI is live")
