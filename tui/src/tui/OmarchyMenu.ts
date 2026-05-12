@@ -2,14 +2,12 @@ import {
   type CliRenderer,
   BoxRenderable,
   TextRenderable,
-  SelectRenderable,
-  SelectRenderableEvents,
-  type SelectOption,
 } from "@opentui/core"
 import type { MenuItem } from "../types.js"
 import { submenus, submenuTitles } from "../menu.js"
 import { formatBreadcrumb } from "./breadcrumb.js"
 import { formatHelpBar, type HelpEntry } from "./helpBar.js"
+import { MenuList } from "./MenuList.js"
 
 /** Help entries for the omarchy menu */
 const HELP: readonly HelpEntry[] = [
@@ -34,7 +32,7 @@ export class OmarchyMenu {
 
   private root: BoxRenderable
   private titleText: TextRenderable
-  private select: SelectRenderable
+  private menuList: MenuList
   private helpBar: TextRenderable
 
   /** Stack of submenu IDs for nested navigation */
@@ -63,25 +61,21 @@ export class OmarchyMenu {
     })
     this.root.add(this.titleText)
 
-    // Menu list
-    this.select = new SelectRenderable(renderer, {
-      id: "omarchy-menu-select",
-      flexGrow: 1,
-      width: "100%",
-      options: [],
-      backgroundColor: "#161b22",
-      focusedBackgroundColor: "#161b22",
-      selectedBackgroundColor: "#1f6feb",
-      selectedTextColor: "#ffffff",
-      textColor: "#c9d1d9",
-      focusedTextColor: "#c9d1d9",
-      descriptionColor: "#8b949e",
-      selectedDescriptionColor: "#c9d1d9",
-      showDescription: true,
-      showScrollIndicator: true,
+    // Menu list — icons on the left, full-height rows
+    this.menuList = new MenuList(renderer, {
+      id: "omarchy-menu-list",
+      items: [],
+      onSelect: (item) => {
+        // If this item opens a submenu and the submenu exists, navigate into it
+        if (item.action.type === "submenu" && submenus.has(item.action.menuId)) {
+          this.pushSubmenu(item.action.menuId)
+        } else {
+          this.callbacks.onAction(item)
+        }
+      },
       wrapSelection: true,
     })
-    this.root.add(this.select)
+    this.root.add(this.menuList)
 
     // Help bar
     this.helpBar = new TextRenderable(renderer, {
@@ -97,22 +91,6 @@ export class OmarchyMenu {
     renderer.on("resize", () => {
       this.helpBar.content = formatHelpBar(HELP)
     })
-
-    // Wire up selection
-    this.select.on(
-      SelectRenderableEvents.ITEM_SELECTED,
-      (_index: number, option: SelectOption) => {
-        const item = this.currentItems.find((m) => m.id === option.value)
-        if (!item) return
-
-        // If this item opens a submenu and the submenu exists, navigate into it
-        if (item.action.type === "submenu" && submenus.has(item.action.menuId)) {
-          this.pushSubmenu(item.action.menuId)
-        } else {
-          this.callbacks.onAction(item)
-        }
-      },
-    )
 
     // Keyboard handling
     renderer.keyInput.on("keypress", (key) => {
@@ -147,7 +125,7 @@ export class OmarchyMenu {
 
   /** Give keyboard focus to the menu list */
   focus(): void {
-    this.select.focus()
+    this.menuList.focus()
   }
 
   private handleBack(): void {
@@ -171,15 +149,8 @@ export class OmarchyMenu {
     // Update title
     this.titleText.content = this.formatTitle()
 
-    // Update list
-    this.select.options = items.map((item) => ({
-      name: `${item.icon}  ${item.title}`,
-      description: item.description,
-      value: item.id,
-    }))
-
-    // Reset selection to top
-    this.select.setSelectedIndex(0)
+    // Update list with new items (resets selection to top)
+    this.menuList.setItems(items)
   }
 
   private formatTitle() {
