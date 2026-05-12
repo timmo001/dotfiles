@@ -560,13 +560,13 @@ ensure_private_package_repo_config() {
   expected_contents="$(private_package_repo_config_contents)" || return 1
   config_dir="$(dirname "$config_path")"
 
-  if [[ ! -d "$config_dir" ]] && ! mkdir -p "$config_dir"; then
-    log_warn "Skipping private pacman repo config write (cannot create directory as current user: $(display_path "$config_dir"))"
+  if [[ ! -d "$config_dir" ]] && ! sudo mkdir -p "$config_dir"; then
+    log_warn "Skipping private pacman repo config write (cannot create directory: $(display_path "$config_dir"))"
     return 0
   fi
 
-  if ! printf '%s\n' "$expected_contents" > "$config_path"; then
-    log_warn "Skipping private pacman repo config write (cannot write as current user: $(display_path "$config_path"))"
+  if ! printf '%s\n' "$expected_contents" | sudo tee "$config_path" > /dev/null; then
+    log_warn "Skipping private pacman repo config write (cannot write: $(display_path "$config_path"))"
     return 0
   fi
 }
@@ -592,26 +592,16 @@ sync_private_package_repo_mirror() {
 
 ensure_private_package_repo_include() {
   local include_line
-  local temp_file
 
   include_line="$(private_package_repo_include_line)"
   if private_package_repo_include_registered; then
     return 0
   fi
 
-  temp_file="$(mktemp)"
-  if ! cp "$DOT_PRIVATE_PACMAN_MAIN_CONFIG" "$temp_file"; then
-    log_warn "Skipping private pacman repo include update (cannot read as current user: $(display_path "$DOT_PRIVATE_PACMAN_MAIN_CONFIG"))"
-    rm -f "$temp_file"
+  if ! printf '\n%s\n' "$include_line" | sudo tee -a "$DOT_PRIVATE_PACMAN_MAIN_CONFIG" > /dev/null; then
+    log_warn "Skipping private pacman repo include update (cannot write: $(display_path "$DOT_PRIVATE_PACMAN_MAIN_CONFIG"))"
     return 0
   fi
-  printf '\n%s\n' "$include_line" >> "$temp_file"
-  if ! install -m 644 "$temp_file" "$DOT_PRIVATE_PACMAN_MAIN_CONFIG"; then
-    log_warn "Skipping private pacman repo include update (cannot write as current user: $(display_path "$DOT_PRIVATE_PACMAN_MAIN_CONFIG"))"
-    rm -f "$temp_file"
-    return 0
-  fi
-  rm -f "$temp_file"
 }
 
 publish_private_package() {
