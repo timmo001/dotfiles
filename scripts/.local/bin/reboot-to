@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+
+# Reboot into another OS via EFI boot-next.
+#
+# Usage: reboot-to <target>
+#
+# Known targets are matched by short name (case-insensitive).
+# Unknown targets are searched in efibootmgr output with confirmation.
+
+set -euo pipefail
+
+# Known targets: short name -> EFI description grep pattern
+declare -A KNOWN_TARGETS=(
+  [windows]="Windows Boot Manager"
+  [bazzite]="Bazzite"
+  [limine]="Limine"
+)
+
+# Special targets handled outside efibootmgr
+declare -A SPECIAL_TARGETS=(
+  [uefi]="UEFI Firmware Setup"
+  [firmware]="UEFI Firmware Setup"
+  [bios]="UEFI Firmware Setup"
+)
+
+target="${1:-}"
+
+if [[ -z "$target" ]]; then
+  echo "Usage: reboot-to <target>"
+  echo ""
+  echo "Known targets:"
+  for name in "${!KNOWN_TARGETS[@]}"; do
+    printf "  %-12s  %s\n" "$name" "${KNOWN_TARGETS[$name]}"
+  done
+  echo ""
+  echo "Special targets:"
+  printf "  %-12s  %s\n" "uefi" "UEFI Firmware Setup"
+  exit 1
+fi
+
+# Handle special targets (firmware setup)
+target_lower="${target,,}"
+if [[ -v "SPECIAL_TARGETS[$target_lower]" ]]; then
+  echo "Rebooting into UEFI Firmware Setup..."
+  sudo systemctl reboot --firmware-setup
+  exit 0
+fi
+
+# Resolve target to an EFI grep pattern
+if [[ -v "KNOWN_TARGETS[$target_lower]" ]]; then
+  search="${KNOWN_TARGETS[$target_lower]}"
+  confirmed=true
+else
+  search="$target"
+  confirmed=false
+fi
+
+# Find matching EFI boot entry
+efi_output="$(sudo efibootmgr)"
+match="$(grep -i "$search" <<< "$efi_output" || true)"
+
+if [[ -z "$match" ]]; then
+  echo "No EFI boot entry found matching '$search'"
+  echo ""
+  echo "Available entries:"
+  grep -E '^Boot[0-9]' <<< "$efi_output" | sed 's/\t/ /g'
+  exit 1
+fi
+
+# Handle multiple matches
+match_count="$(wc -l <<< "$match")"
+if [[ "$match_count" -gt 1 ]]; then
+  echo "Multiple EFI entries match '$search':"
+  echo "$match"
+  echo ""
+  echo "Be more specific."
+  exit 1
+fi
+
+boot_num="$(awk '{print $1}' <<< "$match" | sed 's/Boot//;s/\*//')"
+boot_label="$(sed 's/^Boot[0-9]*\*\? *//' <<< "$match" | sed 's/\t.*//')"
+
+# Confirm for unknown targets
+if [[ "$confirmed" != true ]]; then
+  printf 'Reboot into "%s" (entry %s)? [y/N] ' "$boot_label" "$boot_num"
+  read -r answer
+  if [[ "${answer,,}" != "y" ]]; then
+    echo "Cancelled."
+    exit 0
+  fi
+fi
+
+sudo efibootmgr --bootnext "$boot_num" > /dev/null
+echo "Rebooting into $boot_label..."
+sudo reboot

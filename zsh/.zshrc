@@ -552,8 +552,15 @@ alias dotfiles-private="cd ~/.config/dotfiles-private"
 alias config="cd ~/.config"
 alias repos="cd ~/repos"
 
-# Reboot to windows
-alias reboot-windows="reboot-to-windows"
+# Reboot to Windows
+alias reboot-windows="reboot-to windows"
+
+# Reboot to Bazzite
+alias reboot-bazzite="reboot-to bazzite"
+
+# Reboot to UEFI firmware setup
+alias reboot-uefi="reboot-to uefi"
+alias reboot-bios="reboot-to bios"
 
 # Find and edit
 alias fe="find-and-edit"
