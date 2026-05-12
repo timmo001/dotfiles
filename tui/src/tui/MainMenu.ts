@@ -16,6 +16,8 @@ import { mainMenuItems } from "../menu.js"
 export interface MainMenuOptions {
   /** Called when the user selects a menu item */
   readonly onSelect: (item: MenuItem) => void
+  /** If set, pre-select the item with this ID on startup */
+  readonly initialSelectedId?: string
 }
 
 /** Top-level dot menu rendered as a {@link SelectRenderable} list */
@@ -87,6 +89,12 @@ export class MainMenu {
         if (item) this.callbacks.onSelect(item)
       },
     )
+
+    // Pre-select a specific item if requested
+    if (options.initialSelectedId) {
+      const idx = mainMenuItems.findIndex((m) => m.id === options.initialSelectedId)
+      if (idx >= 0) this.select.setSelectedIndex(idx)
+    }
   }
 
   /** Show or hide the main menu view */

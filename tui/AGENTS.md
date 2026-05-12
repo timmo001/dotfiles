@@ -88,11 +88,11 @@ MenuItem action types:
 dot-tui                       # Main menu
 dot-tui diff                  # Diff view directly
 dot-tui diff --tab other      # Diff view, Other tab focused
-dot-tui update                # Run dot update (suspend/resume in TUI)
+dot-tui update                # Run dot update directly (no TUI)
+dot-tui stow                  # Run dot stow directly (no TUI)
 dot-tui omarchy               # Omarchy submenu
 dot-tui omarchy theme         # Omarchy theme submenu (space-separated)
 dot-tui omarchy theme set     # Execute omarchy theme set directly
-dot-tui omarchy.theme.set     # Same as above (dot-separated)
 dot-tui --help                # Show help
 dot-tui diff --help           # Diff-specific help
 dot-tui omarchy --help        # Omarchy-specific help
@@ -156,10 +156,16 @@ The build is also triggered by `dot update` via `maybe_build_tui()` in the `dot`
 
 ## Validation
 
+Always run type check and build after every final code change:
+
 ```bash
 cd ~/.config/dotfiles/tui
 bunx tsc --noEmit            # type check
 bun run build                # compile binary
+```
+
+Smoke tests:
+```bash
 dot-tui                      # smoke test: main menu renders, q quits
 dot-tui diff                 # smoke test: diff view renders
 dot tui                      # smoke test: alias works

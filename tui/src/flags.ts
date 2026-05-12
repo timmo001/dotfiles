@@ -26,8 +26,6 @@ function parseDiffTab(value: string): DiffTab {
 function isKnownTarget(candidate: string): boolean {
   if (candidate === "diff" || candidate === "omarchy") return true
   if (menuItemsById.has(candidate) || submenus.has(candidate)) return true
-  const withPrefix = `omarchy.${candidate}`
-  if (menuItemsById.has(withPrefix) || submenus.has(withPrefix)) return true
   return false
 }
 
@@ -107,11 +105,6 @@ export function resolveSubcommand(sub: string): { type: "view"; viewId: ViewId }
   if (menuItemsById.has(sub)) return { type: "item", itemId: sub }
   if (submenus.has(sub)) return { type: "item", itemId: sub }
 
-  // Try with omarchy prefix for convenience (e.g. "theme" → "omarchy.theme")
-  const withPrefix = `omarchy.${sub}`
-  if (menuItemsById.has(withPrefix)) return { type: "item", itemId: withPrefix }
-  if (submenus.has(withPrefix)) return { type: "item", itemId: withPrefix }
-
   return undefined
 }
 
@@ -142,15 +135,14 @@ Keybindings:
     return
   }
 
-  if (subcommand === "omarchy" || subcommand?.startsWith("omarchy.") || subcommand?.startsWith("omarchy ")) {
+  if (subcommand === "omarchy" || subcommand?.startsWith("omarchy.")) {
     console.log(`Usage: dot-tui omarchy [submenu...]
 
 Open the Omarchy desktop controls menu. Submenus can be specified
-as space-separated or dot-separated paths:
+as space-separated paths:
 
   dot-tui omarchy theme        Theme submenu
   dot-tui omarchy theme set    Execute theme set directly
-  dot-tui omarchy.theme.set    Same as above (dot-separated)
 
 Available submenus:
   theme       Theme management
@@ -182,14 +174,14 @@ Launch the dot TUI dashboard. Without a subcommand, opens the main menu.
 
 Subcommands:
   diff                 Open the diff/repo watcher view
-  update               Run dot update (suspend/resume)
-  stow                 Run dot stow (background)
-  doctor               Run dot doctor (suspend/resume)
-  system-health        Run system-health-check (suspend/resume)
-  skill-updates        Run dot skill-updates (suspend/resume)
-  memory               Run dot memory (background)
-  topgrade             Run topgrade (suspend/resume)
-  omarchy [submenu..]  Open the Omarchy submenu (supports space-separated paths)
+  update               Run dot update
+  stow                 Run dot stow
+  doctor               Run dot doctor
+  system-health        Run system-health-check
+  skill-updates        Run dot skill-updates
+  memory               Run dot memory
+  topgrade             Run topgrade
+  omarchy [submenu..]  Open the Omarchy submenu (space-separated paths)
 
 Options:
   --tab <changed|other|unchanged>  Initial tab for the diff view (default: changed)

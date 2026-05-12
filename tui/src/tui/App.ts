@@ -16,6 +16,8 @@ export interface AppOptions {
   readonly initialDiffTab?: "changed" | "unchanged"
   /** If set, execute this menu item immediately on startup */
   readonly executeItemId?: string
+  /** If set, pre-select this item in the main menu on startup */
+  readonly focusItemId?: string
 }
 
 /** Dependencies injected into the App at construction time */
@@ -48,6 +50,7 @@ export class App {
 
     this.mainMenu = new MainMenu(deps.renderer, {
       onSelect: (item) => this.handleMenuAction(item),
+      initialSelectedId: options.focusItemId,
     })
 
     this.diffView = new DiffView(deps.renderer, {
