@@ -40,13 +40,14 @@ run_with_notify() {
 while true; do
   options=(
     '󰚰  Update'
-    '󰁝  Topgrade'
     '󰏗  Stow'
     '󰊢  Diff'
     '󰛯  Doctor'
     '󰗶  System health check'
     '󰏬  Skill updates'
     '󰟶  Memory refresh'
+    '󰁝  Topgrade'
+    '󰣇  Omarchy..'
   )
 
   choice="$(printf '%s\n' "${options[@]}" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 420 -p 'Dot...' 2>/dev/null || true)"
@@ -76,6 +77,9 @@ while true; do
       ;;
     'Memory refresh')
       run_with_notify 'Memory' dot memory
+      ;;
+    'Omarchy..')
+      exec omarchy-cmd-menu
       ;;
     *)
       exit 0

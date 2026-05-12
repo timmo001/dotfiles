@@ -1,0 +1,498 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+walker_menu() {
+  local prompt="${1:?}"
+  shift
+  printf '%s\n' "$@" | omarchy-launch-walker --dmenu --width 400 --minheight 1 --maxheight 520 -p "$prompt" 2>/dev/null || true
+}
+
+pick() {
+  local choice="${1:?}"
+  echo "${choice#*  }"
+}
+
+run_notify() {
+  local label="${1:?}"
+  shift
+  local output
+  if output="$("$@" 2>&1)"; then
+    notify-send -a 'Omarchy' "$label" "${output:-Done}"
+  else
+    notify-send -u critical -a 'Omarchy' "$label failed" "${output:-Unknown error}"
+  fi
+}
+
+run_terminal() {
+  local command="${1:?}"
+  exec setsid uwsm-app -- xdg-terminal-exec \
+    --app-id=org.omarchy.terminal \
+    --title='Omarchy' \
+    -e bash -c "$command; printf '\n'; read -r -p 'Press Enter to close...'"
+}
+
+# --- Sub-menus ---
+
+theme_menu() {
+  while true; do
+    local choice
+    choice="$(walker_menu 'Theme...' \
+      '󰏘  Set theme' \
+      '󰋩  Next background' \
+      '  Current theme' \
+      '  List themes' \
+      '󰑐  Refresh theme' \
+      '󰋩  Install backgrounds' \
+      '󰇚  Install theme' \
+      '󰚰  Update themes' \
+      '󰆴  Remove theme' \
+    )"
+    case "$(pick "$choice")" in
+      'Set theme')
+        local themes
+        themes="$(omarchy theme list 2>/dev/null)" || continue
+        local selected
+        selected="$(echo "$themes" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 420 -p 'Theme...' 2>/dev/null || true)"
+        [[ -n $selected ]] && omarchy theme set "$selected"
+        exit 0
+        ;;
+      'Next background')       omarchy theme bg next; exit 0 ;;
+      'Current theme')         run_notify 'Theme' omarchy theme current; exit 0 ;;
+      'List themes')           run_terminal 'omarchy theme list' ;;
+      'Refresh theme')         omarchy theme refresh; exit 0 ;;
+      'Install backgrounds')   omarchy theme bg install; exit 0 ;;
+      'Install theme')         run_terminal 'omarchy theme install' ;;
+      'Update themes')         run_notify 'Theme update' omarchy theme update; exit 0 ;;
+      'Remove theme')          run_terminal 'omarchy theme remove' ;;
+      *) return ;;
+    esac
+  done
+}
+
+font_menu() {
+  while true; do
+    local choice
+    choice="$(walker_menu 'Font...' \
+      '󰛖  Set font' \
+      '  Current font' \
+      '  List fonts' \
+    )"
+    case "$(pick "$choice")" in
+      'Set font')
+        local fonts
+        fonts="$(omarchy font list 2>/dev/null)" || continue
+        local selected
+        selected="$(echo "$fonts" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 420 -p 'Font...' 2>/dev/null || true)"
+        [[ -n $selected ]] && omarchy font set "$selected"
+        exit 0
+        ;;
+      'Current font')  run_notify 'Font' omarchy font current; exit 0 ;;
+      'List fonts')    run_terminal 'omarchy font list' ;;
+      *) return ;;
+    esac
+  done
+}
+
+toggle_menu() {
+  while true; do
+    local choice
+    choice="$(walker_menu 'Toggle...' \
+      '󰙿  Nightlight' \
+      '󰒲  Idle lock' \
+      '  Waybar' \
+      '󰟸  Touchpad' \
+      '󰍶  Touchscreen' \
+      '󰂛  Notification silencing' \
+      '󰤄  Suspend' \
+      '󰖤  Screensaver' \
+    )"
+    case "$(pick "$choice")" in
+      'Nightlight')              omarchy toggle nightlight; exit 0 ;;
+      'Idle lock')               omarchy toggle idle; exit 0 ;;
+      'Waybar')                  omarchy toggle waybar; exit 0 ;;
+      'Touchpad')                omarchy toggle touchpad; exit 0 ;;
+      'Touchscreen')             omarchy toggle touchscreen; exit 0 ;;
+      'Notification silencing')  omarchy toggle notification silencing; exit 0 ;;
+      'Suspend')                 omarchy toggle suspend; exit 0 ;;
+      'Screensaver')             omarchy toggle screensaver; exit 0 ;;
+      *) return ;;
+    esac
+  done
+}
+
+capture_menu() {
+  while true; do
+    local choice
+    choice="$(walker_menu 'Capture...' \
+      '󰄀  Screenshot' \
+      '󰕨  Screen recording' \
+      '󱄼  Text extraction (OCR)' \
+    )"
+    case "$(pick "$choice")" in
+      'Screenshot')            omarchy capture screenshot; exit 0 ;;
+      'Screen recording')      omarchy capture screenrecording; exit 0 ;;
+      'Text extraction (OCR)') omarchy capture text extraction; exit 0 ;;
+      *) return ;;
+    esac
+  done
+}
+
+system_menu() {
+  while true; do
+    local choice
+    choice="$(walker_menu 'System...' \
+      '󰌾  Lock' \
+      '󰍃  Logout' \
+      '󰜉  Reboot' \
+      '󰤁  Shutdown' \
+    )"
+    case "$(pick "$choice")" in
+      'Lock')     omarchy system lock; exit 0 ;;
+      'Logout')   omarchy system logout; exit 0 ;;
+      'Reboot')   omarchy system reboot; exit 0 ;;
+      'Shutdown')  omarchy system shutdown; exit 0 ;;
+      *) return ;;
+    esac
+  done
+}
+
+launch_menu() {
+  while true; do
+    local choice
+    choice="$(walker_menu 'Launch...' \
+      '  Browser' \
+      '󰕾  Audio controls' \
+      '󰂯  Bluetooth' \
+      '󰖩  Wi-Fi' \
+      '  About' \
+      '󰖤  Screensaver' \
+      '  Walker' \
+    )"
+    case "$(pick "$choice")" in
+      'Browser')        omarchy launch browser; exit 0 ;;
+      'Audio controls') omarchy launch audio; exit 0 ;;
+      'Bluetooth')      omarchy launch bluetooth; exit 0 ;;
+      'Wi-Fi')          omarchy launch wifi; exit 0 ;;
+      'About')          omarchy launch about; exit 0 ;;
+      'Screensaver')    omarchy launch screensaver; exit 0 ;;
+      'Walker')         omarchy launch walker; exit 0 ;;
+      *) return ;;
+    esac
+  done
+}
+
+refresh_menu() {
+  while true; do
+    local choice
+    choice="$(walker_menu 'Refresh...' \
+      '  Hyprland' \
+      '  Waybar' \
+      '  Walker' \
+      '  Hypridle' \
+      '  Hyprlock' \
+      '  Hyprsunset' \
+      '  SwayOSD' \
+      '  Tmux' \
+      '  Terminal' \
+      '  Fastfetch' \
+      '  Chromium' \
+      '  Applications' \
+      '  Pacman' \
+      '  Plymouth' \
+      '  SDDM' \
+    )"
+    case "$(pick "$choice")" in
+      'Hyprland')     run_notify 'Refresh' omarchy refresh hyprland; exit 0 ;;
+      'Waybar')       run_notify 'Refresh' omarchy refresh waybar; exit 0 ;;
+      'Walker')       run_notify 'Refresh' omarchy refresh walker; exit 0 ;;
+      'Hypridle')     run_notify 'Refresh' omarchy refresh hypridle; exit 0 ;;
+      'Hyprlock')     run_notify 'Refresh' omarchy refresh hyprlock; exit 0 ;;
+      'Hyprsunset')   run_notify 'Refresh' omarchy refresh hyprsunset; exit 0 ;;
+      'SwayOSD')      run_notify 'Refresh' omarchy refresh swayosd; exit 0 ;;
+      'Tmux')         run_notify 'Refresh' omarchy refresh tmux; exit 0 ;;
+      'Terminal')     run_notify 'Refresh' omarchy refresh terminal; exit 0 ;;
+      'Fastfetch')    run_notify 'Refresh' omarchy refresh fastfetch; exit 0 ;;
+      'Chromium')     run_notify 'Refresh' omarchy refresh chromium; exit 0 ;;
+      'Applications') run_terminal 'omarchy refresh applications' ;;
+      'Pacman')       run_terminal 'omarchy refresh pacman' ;;
+      'Plymouth')     run_terminal 'omarchy refresh plymouth' ;;
+      'SDDM')        run_terminal 'omarchy refresh sddm' ;;
+      *) return ;;
+    esac
+  done
+}
+
+restart_menu() {
+  while true; do
+    local choice
+    choice="$(walker_menu 'Restart...' \
+      '  Waybar' \
+      '  Walker' \
+      '  Pipewire' \
+      '  Bluetooth' \
+      '  Wi-Fi' \
+      '  Terminal' \
+      '  Tmux' \
+      '  Hyprland' \
+      '  Hypridle' \
+      '  Hyprsunset' \
+      '  Mako' \
+      '  SwayOSD' \
+      '  Trackpad' \
+    )"
+    case "$(pick "$choice")" in
+      'Waybar')     run_notify 'Restart' omarchy restart waybar; exit 0 ;;
+      'Walker')     run_notify 'Restart' omarchy restart walker; exit 0 ;;
+      'Pipewire')   run_notify 'Restart' omarchy restart pipewire; exit 0 ;;
+      'Bluetooth')  run_notify 'Restart' omarchy restart bluetooth; exit 0 ;;
+      'Wi-Fi')      run_notify 'Restart' omarchy restart wifi; exit 0 ;;
+      'Terminal')   run_notify 'Restart' omarchy restart terminal; exit 0 ;;
+      'Tmux')       run_notify 'Restart' omarchy restart tmux; exit 0 ;;
+      'Hyprland')   run_notify 'Restart' omarchy restart hyprctl; exit 0 ;;
+      'Hypridle')   run_notify 'Restart' omarchy restart hypridle; exit 0 ;;
+      'Hyprsunset') run_notify 'Restart' omarchy restart hyprsunset; exit 0 ;;
+      'Mako')       run_notify 'Restart' omarchy restart mako; exit 0 ;;
+      'SwayOSD')    run_notify 'Restart' omarchy restart swayosd; exit 0 ;;
+      'Trackpad')   run_notify 'Restart' omarchy restart trackpad; exit 0 ;;
+      *) return ;;
+    esac
+  done
+}
+
+install_menu() {
+  while true; do
+    local choice
+    choice="$(walker_menu 'Install...' \
+      '  Browser' \
+      '  Dev environment' \
+      '  Terminal' \
+      '  Docker databases' \
+      '  Gaming' \
+      '  VS Code' \
+      '  Zed' \
+      '  Helix' \
+      '  Tailscale' \
+      '  NordVPN' \
+      '  Dropbox' \
+    )"
+    case "$(pick "$choice")" in
+      'Browser')          run_terminal 'omarchy install browser' ;;
+      'Dev environment')  run_terminal 'omarchy install dev-env' ;;
+      'Terminal')         run_terminal 'omarchy install terminal' ;;
+      'Docker databases') run_terminal 'omarchy install docker dbs' ;;
+      'Gaming')           run_terminal 'omarchy install gaming steam' ;;
+      'VS Code')          run_terminal 'omarchy install vscode' ;;
+      'Zed')              run_terminal 'omarchy install zed' ;;
+      'Helix')            run_terminal 'omarchy install helix' ;;
+      'Tailscale')        run_terminal 'omarchy install tailscale' ;;
+      'NordVPN')          run_terminal 'omarchy install nordvpn' ;;
+      'Dropbox')          run_terminal 'omarchy install dropbox' ;;
+      *) return ;;
+    esac
+  done
+}
+
+remove_menu() {
+  while true; do
+    local choice
+    choice="$(walker_menu 'Remove...' \
+      '  Browser' \
+      '  Dev environment' \
+      '  Gaming' \
+      '  Preinstalls' \
+      '  Security (FIDO2)' \
+      '  Security (fingerprint)' \
+    )"
+    case "$(pick "$choice")" in
+      'Browser')                 run_terminal 'omarchy remove browser' ;;
+      'Dev environment')         run_terminal 'omarchy remove dev env' ;;
+      'Gaming')                  run_terminal 'omarchy remove gaming steam' ;;
+      'Preinstalls')             run_terminal 'omarchy remove preinstalls' ;;
+      'Security (FIDO2)')        run_terminal 'omarchy remove security fido2' ;;
+      'Security (fingerprint)')  run_terminal 'omarchy remove security fingerprint' ;;
+      *) return ;;
+    esac
+  done
+}
+
+pkg_menu() {
+  while true; do
+    local choice
+    choice="$(walker_menu 'Packages...' \
+      '󰏓  Install packages' \
+      '󰏓  Install AUR packages' \
+      '󰆴  Remove packages' \
+    )"
+    case "$(pick "$choice")" in
+      'Install packages')     run_terminal 'omarchy pkg install' ;;
+      'Install AUR packages') run_terminal 'omarchy pkg aur install' ;;
+      'Remove packages')      run_terminal 'omarchy pkg remove' ;;
+      *) return ;;
+    esac
+  done
+}
+
+share_menu() {
+  while true; do
+    local choice
+    choice="$(walker_menu 'Share...' \
+      '  Clipboard' \
+      '  File' \
+      '  Folder' \
+    )"
+    case "$(pick "$choice")" in
+      'Clipboard') omarchy share clipboard; exit 0 ;;
+      'File')      omarchy share file; exit 0 ;;
+      'Folder')    omarchy share folder; exit 0 ;;
+      *) return ;;
+    esac
+  done
+}
+
+reminder_menu() {
+  while true; do
+    local choice
+    choice="$(walker_menu 'Reminder...' \
+      '󰂞  Set reminder' \
+      '  Show reminders' \
+      '󰆴  Clear reminders' \
+    )"
+    case "$(pick "$choice")" in
+      'Set reminder')
+        local input
+        input="$(echo '' | omarchy-launch-walker --dmenu --width 360 --minheight 1 -p 'Minutes message...' 2>/dev/null || true)"
+        if [[ -n $input ]]; then
+          # shellcheck disable=SC2086
+          omarchy reminder $input
+        fi
+        exit 0
+        ;;
+      'Show reminders')  run_terminal 'omarchy reminder show' ;;
+      'Clear reminders') run_notify 'Reminder' omarchy reminder clear; exit 0 ;;
+      *) return ;;
+    esac
+  done
+}
+
+setup_menu() {
+  while true; do
+    local choice
+    choice="$(walker_menu 'Setup...' \
+      '  DNS' \
+      '  Fingerprint' \
+      '  FIDO2' \
+    )"
+    case "$(pick "$choice")" in
+      'DNS')         run_terminal 'omarchy setup dns' ;;
+      'Fingerprint') run_terminal 'omarchy setup security fingerprint' ;;
+      'FIDO2')       run_terminal 'omarchy setup security fido2' ;;
+      *) return ;;
+    esac
+  done
+}
+
+brightness_menu() {
+  while true; do
+    local choice
+    choice="$(walker_menu 'Brightness...' \
+      '  Display +10%' \
+      '  Display -10%' \
+      '  Display off' \
+      '  Display on' \
+      '  Keyboard up' \
+      '  Keyboard down' \
+      '  Keyboard cycle' \
+      '  Keyboard off' \
+    )"
+    case "$(pick "$choice")" in
+      'Display +10%')    omarchy brightness display +10%; exit 0 ;;
+      'Display -10%')    omarchy brightness display 10%-; exit 0 ;;
+      'Display off')     omarchy brightness display off; exit 0 ;;
+      'Display on')      omarchy brightness display on; exit 0 ;;
+      'Keyboard up')     omarchy brightness keyboard up; exit 0 ;;
+      'Keyboard down')   omarchy brightness keyboard down; exit 0 ;;
+      'Keyboard cycle')  omarchy brightness keyboard cycle; exit 0 ;;
+      'Keyboard off')    omarchy brightness keyboard off; exit 0 ;;
+      *) return ;;
+    esac
+  done
+}
+
+power_menu() {
+  while true; do
+    local choice
+    choice="$(walker_menu 'Power profile...' \
+      '  Autodetect' \
+      '  AC (performance)' \
+      '  Battery (power saver)' \
+    )"
+    case "$(pick "$choice")" in
+      'Autodetect')           run_notify 'Power' omarchy powerprofiles set autodetect; exit 0 ;;
+      'AC (performance)')     run_notify 'Power' omarchy powerprofiles set ac; exit 0 ;;
+      'Battery (power saver)') run_notify 'Power' omarchy powerprofiles set battery; exit 0 ;;
+      *) return ;;
+    esac
+  done
+}
+
+# --- Main menu ---
+
+while true; do
+  choice="$(walker_menu 'Omarchy...' \
+    '󰚰  Update' \
+    '󰏘  Theme...' \
+    '󰛖  Font...' \
+    '󰔡  Toggle...' \
+    '󰄀  Capture...' \
+    '󰐥  System...' \
+    '󱓞  Launch...' \
+    '󰑐  Refresh...' \
+    '󰜉  Restart...' \
+    '󰇚  Install...' \
+    '󰆴  Remove...' \
+    '󰏓  Packages...' \
+    '󰒗  Share...' \
+    '󰂞  Reminder...' \
+    '󰒓  Setup...' \
+    '󰁯  Snapshot...' \
+    '󰃠  Brightness...' \
+    '󰂄  Power profile...' \
+    '󰋼  Version' \
+    '󰃤  Debug' \
+  )"
+
+  case "$(pick "$choice")" in
+    'Update')          run_terminal 'omarchy update' ;;
+    'Theme...')        theme_menu ;;
+    'Font...')         font_menu ;;
+    'Toggle...')       toggle_menu ;;
+    'Capture...')      capture_menu ;;
+    'System...')       system_menu ;;
+    'Launch...')       launch_menu ;;
+    'Refresh...')      refresh_menu ;;
+    'Restart...')      restart_menu ;;
+    'Install...')      install_menu ;;
+    'Remove...')       remove_menu ;;
+    'Packages...')     pkg_menu ;;
+    'Share...')        share_menu ;;
+    'Reminder...')     reminder_menu ;;
+    'Setup...')        setup_menu ;;
+    'Snapshot...')
+      local snap_choice
+      snap_choice="$(walker_menu 'Snapshot...' \
+        '  Create snapshot' \
+        '  Restore snapshot' \
+      )"
+      case "$(pick "$snap_choice")" in
+        'Create snapshot')   run_terminal 'omarchy snapshot create' ;;
+        'Restore snapshot')  run_terminal 'omarchy snapshot restore' ;;
+      esac
+      ;;
+    'Brightness...')   brightness_menu ;;
+    'Power profile...')  power_menu ;;
+    'Version')         run_notify 'Version' omarchy version; exit 0 ;;
+    'Debug')           run_terminal 'omarchy debug --no-sudo --print' ;;
+    *)                 exit 0 ;;
+  esac
+done
