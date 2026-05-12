@@ -8,6 +8,8 @@ import {
   t,
   fg,
 } from "@opentui/core"
+import { unlinkSync } from "node:fs"
+import { join } from "node:path"
 import type { Repo, RepoState } from "../types.js"
 import { formatBreadcrumb } from "./breadcrumb.js"
 
@@ -161,7 +163,7 @@ export class DiffView {
     // Help bar
     const helpBar = new TextRenderable(renderer, {
       id: "diff-help-bar",
-      content: t`${fg("#484f58")("↑↓ navigate   Tab switch pane   Enter lazygit   t tmux   o open   w web   r refresh   Esc back   q quit")}`,
+      content: t`${fg("#484f58")("↑↓ navigate   Tab pane   Enter lazygit   x unlock   t tmux   o open   w web   r refresh   Esc back   q quit")}`,
     })
     this.root.add(helpBar)
 
@@ -196,6 +198,8 @@ export class DiffView {
       } else if (key.name === "r") {
         this.statusBar.content = t`${fg("#d29922")("Refreshing...")}`
         this.callbacks.onRefresh()
+      } else if (key.name === "x") {
+        this.removeLock()
       } else if (key.name === "escape" || key.name === "backspace") {
         this.callbacks.onBack()
       }
@@ -218,14 +222,14 @@ export class DiffView {
 
     // Update changed list
     this.changedSelect.options = state.changed.map((repo) => ({
-      name: repo.name,
+      name: this.formatRepoName(repo),
       description: this.shortenPath(repo.path),
       value: repo.path,
     }))
 
     // Update unchanged list
     this.unchangedSelect.options = state.unchanged.map((repo) => ({
-      name: repo.name,
+      name: this.formatRepoName(repo),
       description: this.shortenPath(repo.path),
       value: repo.path,
     }))
@@ -300,6 +304,31 @@ export class DiffView {
     return t`${fg(color)(`${indicator} ${label}`)} ${fg(countColor)(`(${count})`)}`
   }
 
+  /** Format a repo name with a lock indicator when `.git/index.lock` exists */
+  private formatRepoName(repo: Repo): string {
+    return repo.locked ? `󰌾 ${repo.name}` : repo.name
+  }
+
+  /** Remove `.git/index.lock` for the selected repo and trigger a refresh */
+  private removeLock(): void {
+    const repo = this.getActiveRepo()
+    if (!repo) return
+
+    if (!repo.locked) {
+      this.statusBar.content = t`${fg("#8b949e")(`${repo.name} has no lock file`)}`
+      return
+    }
+
+    const lockPath = join(repo.path, ".git", "index.lock")
+    try {
+      unlinkSync(lockPath)
+      this.statusBar.content = t`${fg("#3fb950")(`Removed index.lock from ${repo.name}`)}`
+      this.callbacks.onRefresh()
+    } catch {
+      this.statusBar.content = t`${fg("#f85149")(`Failed to remove index.lock from ${repo.name}`)}`
+    }
+  }
+
   private updateStatusBar(): void {
     const ago = this.formatTimeAgo(this.lastChecked)
     const changedCount = this.changedRepos.length
@@ -309,7 +338,14 @@ export class DiffView {
         ? fg("#f85149")(`${changedCount} repo${changedCount === 1 ? "" : "s"} changed`)
         : fg("#3fb950")("all clean")
 
-    this.statusBar.content = t`${fg("#8b949e")(`Last checked: ${ago}`)}    ${dot}  ${countText}`
+    const allRepos = [...this.changedRepos, ...this.unchangedRepos]
+    const lockedCount = allRepos.filter((r) => r.locked).length
+
+    if (lockedCount > 0) {
+      this.statusBar.content = t`${fg("#8b949e")(`Last checked: ${ago}`)}    ${dot}  ${countText}    ${fg("#d29922")("󰌾")}  ${fg("#d29922")(`${lockedCount} locked`)}`
+    } else {
+      this.statusBar.content = t`${fg("#8b949e")(`Last checked: ${ago}`)}    ${dot}  ${countText}`
+    }
   }
 
   private formatTimeAgo(date: Date): string {

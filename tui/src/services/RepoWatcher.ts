@@ -1,4 +1,6 @@
 import { Context, Effect, Layer, PubSub, Schedule, Stream } from "effect"
+import { existsSync } from "node:fs"
+import { join } from "node:path"
 import type { Repo, RepoState } from "../types.js"
 import { DotDiff } from "./DotDiff.js"
 import { WaybarCache } from "./WaybarCache.js"
@@ -21,13 +23,22 @@ export class RepoWatcher extends Context.Tag("RepoWatcher")<
   RepoWatcherService
 >() {}
 
+/** Check for `.git/index.lock` and enrich a repo with lock status */
+function withLockStatus(repo: Repo): Repo {
+  const lockPath = join(repo.path, ".git", "index.lock")
+  return { ...repo, locked: existsSync(lockPath) }
+}
+
 function buildRepoState(
   all: readonly Repo[],
   changed: readonly Repo[],
 ): RepoState {
   const changedPaths = new Set(changed.map((r) => r.path))
-  const unchanged = all.filter((r) => !changedPaths.has(r.path))
-  return { changed, unchanged, lastChecked: new Date() }
+  const enrichedChanged = changed.map(withLockStatus)
+  const unchanged = all
+    .filter((r) => !changedPaths.has(r.path))
+    .map(withLockStatus)
+  return { changed: enrichedChanged, unchanged, lastChecked: new Date() }
 }
 
 /** Live layer: loads Waybar cache for fast first paint, then polls `dot diff` every 10 seconds */

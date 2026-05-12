@@ -21,7 +21,7 @@ function parseDotDiffOutput(output: string): readonly Repo[] {
     .filter((line) => line.includes("|"))
     .map((line) => {
       const [name, path] = line.split("|", 2)
-      return { name: name.trim(), path: path.trim() }
+      return { name: name.trim(), path: path.trim(), locked: false }
     })
 }
 

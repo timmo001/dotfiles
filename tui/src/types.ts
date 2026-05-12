@@ -6,6 +6,8 @@ export interface Repo {
   readonly name: string
   /** Absolute filesystem path to the repository root */
   readonly path: string
+  /** Whether `.git/index.lock` exists (stale lock from a crashed git process) */
+  readonly locked: boolean
 }
 
 /** Snapshot of all tracked repositories partitioned by change status */
