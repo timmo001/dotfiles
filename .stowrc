@@ -8,3 +8,5 @@
 --ignore=AGENTS.md
 --ignore=\.github
 --ignore=^/\.opencode
+--ignore=renovate.json
+--ignore=^/tui

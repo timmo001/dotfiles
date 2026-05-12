@@ -1635,6 +1635,24 @@ run_agents_sync() {
   return 1
 }
 
+maybe_build_tui() {
+  local tui_dir="$PUBLIC_DOTFILES/tui"
+  if [[ ! -f "$tui_dir/package.json" ]]; then
+    return 0
+  fi
+  if ! has_cmd bun; then
+    log_warn 'Skipping TUI build (bun not found in PATH)'
+    return 0
+  fi
+  log_section 'Build dot-tui'
+  log_info "Building dot-tui: $(display_path "$tui_dir")"
+  if (cd "$tui_dir" && bun install --frozen-lockfile 2>/dev/null && bun run build); then
+    log_info 'dot-tui built successfully'
+  else
+    log_warn 'dot-tui build failed (non-fatal)'
+  fi
+}
+
 maybe_agents_sync_after_update() {
   is_truthy "${DOT_AGENTS_SYNC_ON_UPDATE:-1}" || return 0
   log_section 'Agents rules sync'
@@ -2892,6 +2910,7 @@ cmd_update() {
       stow_private_dotfiles
     fi
 
+    maybe_build_tui
     maybe_agents_sync_after_update
     maybe_memory_update_after_update
     maybe_notify_updated_repos
