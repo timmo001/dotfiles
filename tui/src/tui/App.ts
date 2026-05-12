@@ -107,6 +107,11 @@ export class App {
     // --- Determine initial view ---
     const startView = options.initialView ?? "main"
 
+    // Ensure back navigation works when starting on a non-main view
+    if (startView !== "main") {
+      this.viewStack.push("main")
+    }
+
     // If an item should be executed immediately (subcommand mode):
     // always suspend, run with visible output, wait for keypress, then resume.
     if (options.executeItemId) {

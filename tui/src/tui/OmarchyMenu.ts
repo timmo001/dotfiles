@@ -6,11 +6,11 @@ import {
   SelectRenderableEvents,
   type SelectOption,
   t,
-  bold,
   fg,
 } from "@opentui/core"
 import type { MenuItem } from "../types.js"
 import { submenus, submenuTitles } from "../menu.js"
+import { formatBreadcrumb } from "./breadcrumb.js"
 
 /** Configuration callbacks for the omarchy submenu tree */
 export interface OmarchyMenuOptions {
@@ -171,8 +171,8 @@ export class OmarchyMenu {
   }
 
   private formatTitle() {
-    // Build breadcrumb: Omarchy > Theme > ...
-    const parts = ["Omarchy"]
+    // Build breadcrumb: Dot > Omarchy > Theme > ...
+    const parts = ["Dot", "Omarchy"]
 
     for (const menuId of this.menuStack) {
       if (menuId !== "omarchy") {
@@ -188,20 +188,9 @@ export class OmarchyMenu {
       }
     }
 
-    if (parts.length === 1) {
-      return t`${bold(fg("#58a6ff")("Omarchy"))}${fg("#8b949e")(" — desktop controls")}`
-    }
-
-    const last = parts.length - 1
-
-    // Style the whole thing: last part highlighted, rest dim
-    if (parts.length === 2) {
-      return t`${fg("#8b949e")(parts[0])}${fg("#484f58")(" › ")}${bold(fg("#58a6ff")(parts[1]))}`
-    }
-
-    // 3+ parts: dim all but last
-    const prefix = parts.slice(0, -1).join(" › ")
-    return t`${fg("#8b949e")(prefix)}${fg("#484f58")(" › ")}${bold(fg("#58a6ff")(parts[last]))}`
+    // Show subtitle only at the omarchy root level (Dot › Omarchy)
+    const subtitle = parts.length === 2 ? "desktop controls" : undefined
+    return formatBreadcrumb(parts, subtitle)
   }
 
   /** Remove the omarchy menu from the render tree */

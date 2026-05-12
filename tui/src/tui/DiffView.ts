@@ -6,10 +6,10 @@ import {
   SelectRenderableEvents,
   type SelectOption,
   t,
-  bold,
   fg,
 } from "@opentui/core"
 import type { Repo, RepoState } from "../types.js"
+import { formatBreadcrumb } from "./breadcrumb.js"
 
 /** Configuration callbacks and initial state for the diff view */
 export interface DiffViewOptions {
@@ -62,10 +62,10 @@ export class DiffView {
       padding: 1,
     })
 
-    // Title bar
+    // Title bar — breadcrumb style matching other subviews
     const titleBar = new TextRenderable(renderer, {
       id: "diff-title-bar",
-      content: t`${bold(fg("#58a6ff")("Diff"))}${fg("#8b949e")(" — repo watcher")}`,
+      content: formatBreadcrumb(["Dot", "Diff"], "repo watcher"),
       marginBottom: 1,
     })
     this.root.add(titleBar)
