@@ -2,18 +2,6 @@
 
 set -euo pipefail
 
-run_with_notify() {
-  local label="${1:?}"
-  shift
-  local output
-  if output="$("$@" 2>&1)"; then
-    notify-send -a 'Dot' "$label" "$output"
-  else
-    notify-send -u critical -a 'Dot' "$label failed" "${output:-Unknown error}"
-  fi
-  exit 0
-}
-
 while true; do
   options=(
     '󰚰  Update'
@@ -38,7 +26,7 @@ while true; do
       exec run-in-terminal --wait 'topgrade'
       ;;
     'Stow')
-      run_with_notify 'Stow' dot stow
+      run-with-notify -a 'Dot' 'Stow' dot stow; exit 0
       ;;
     'Diff')
       exec run-in-terminal 'dot diff'
@@ -53,7 +41,7 @@ while true; do
       exec run-in-terminal --wait 'dot skill-updates'
       ;;
     'Memory refresh')
-      run_with_notify 'Memory' dot memory
+      run-with-notify -a 'Dot' 'Memory' dot memory; exit 0
       ;;
     'Omarchy..')
       exec omarchy-cmd-menu

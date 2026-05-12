@@ -13,17 +13,6 @@ pick() {
   echo "${choice#*  }"
 }
 
-run_notify() {
-  local label="${1:?}"
-  shift
-  local output
-  if output="$("$@" 2>&1)"; then
-    notify-send -a 'Omarchy' "$label" "${output:-Done}"
-  else
-    notify-send -u critical -a 'Omarchy' "$label failed" "${output:-Unknown error}"
-  fi
-}
-
 # --- Sub-menus ---
 
 theme_menu() {
@@ -50,12 +39,12 @@ theme_menu() {
         exit 0
         ;;
       'Next background')       omarchy theme bg next; exit 0 ;;
-      'Current theme')         run_notify 'Theme' omarchy theme current; exit 0 ;;
+      'Current theme')         run-with-notify -a 'Omarchy' 'Theme' omarchy theme current; exit 0 ;;
       'List themes')           exec run-in-terminal 'omarchy theme list' ;;
       'Refresh theme')         omarchy theme refresh; exit 0 ;;
       'Install backgrounds')   omarchy theme bg install; exit 0 ;;
       'Install theme')         exec run-in-terminal 'omarchy theme install' ;;
-      'Update themes')         run_notify 'Theme update' omarchy theme update; exit 0 ;;
+      'Update themes')         run-with-notify -a 'Omarchy' 'Theme update' omarchy theme update; exit 0 ;;
       'Remove theme')          exec run-in-terminal 'omarchy theme remove' ;;
       *) return ;;
     esac
@@ -79,7 +68,7 @@ font_menu() {
         [[ -n $selected ]] && omarchy font set "$selected"
         exit 0
         ;;
-      'Current font')  run_notify 'Font' omarchy font current; exit 0 ;;
+      'Current font')  run-with-notify -a 'Omarchy' 'Font' omarchy font current; exit 0 ;;
       'List fonts')    exec run-in-terminal 'omarchy font list' ;;
       *) return ;;
     esac
@@ -195,17 +184,17 @@ refresh_menu() {
       '󰩈  SDDM' \
     )"
     case "$(pick "$choice")" in
-      'Hyprland')     run_notify 'Refresh' omarchy refresh hyprland; exit 0 ;;
-      'Waybar')       run_notify 'Refresh' omarchy refresh waybar; exit 0 ;;
-      'Walker')       run_notify 'Refresh' omarchy refresh walker; exit 0 ;;
-      'Hypridle')     run_notify 'Refresh' omarchy refresh hypridle; exit 0 ;;
-      'Hyprlock')     run_notify 'Refresh' omarchy refresh hyprlock; exit 0 ;;
-      'Hyprsunset')   run_notify 'Refresh' omarchy refresh hyprsunset; exit 0 ;;
-      'SwayOSD')      run_notify 'Refresh' omarchy refresh swayosd; exit 0 ;;
-      'Tmux')         run_notify 'Refresh' omarchy refresh tmux; exit 0 ;;
-      'Terminal')     run_notify 'Refresh' omarchy refresh terminal; exit 0 ;;
-      'Fastfetch')    run_notify 'Refresh' omarchy refresh fastfetch; exit 0 ;;
-      'Chromium')     run_notify 'Refresh' omarchy refresh chromium; exit 0 ;;
+      'Hyprland')     run-with-notify -a 'Omarchy' 'Refresh' omarchy refresh hyprland; exit 0 ;;
+      'Waybar')       run-with-notify -a 'Omarchy' 'Refresh' omarchy refresh waybar; exit 0 ;;
+      'Walker')       run-with-notify -a 'Omarchy' 'Refresh' omarchy refresh walker; exit 0 ;;
+      'Hypridle')     run-with-notify -a 'Omarchy' 'Refresh' omarchy refresh hypridle; exit 0 ;;
+      'Hyprlock')     run-with-notify -a 'Omarchy' 'Refresh' omarchy refresh hyprlock; exit 0 ;;
+      'Hyprsunset')   run-with-notify -a 'Omarchy' 'Refresh' omarchy refresh hyprsunset; exit 0 ;;
+      'SwayOSD')      run-with-notify -a 'Omarchy' 'Refresh' omarchy refresh swayosd; exit 0 ;;
+      'Tmux')         run-with-notify -a 'Omarchy' 'Refresh' omarchy refresh tmux; exit 0 ;;
+      'Terminal')     run-with-notify -a 'Omarchy' 'Refresh' omarchy refresh terminal; exit 0 ;;
+      'Fastfetch')    run-with-notify -a 'Omarchy' 'Refresh' omarchy refresh fastfetch; exit 0 ;;
+      'Chromium')     run-with-notify -a 'Omarchy' 'Refresh' omarchy refresh chromium; exit 0 ;;
       'Applications') exec run-in-terminal --wait 'omarchy refresh applications' ;;
       'Pacman')       exec run-in-terminal --wait 'omarchy refresh pacman' ;;
       'Plymouth')     exec run-in-terminal --wait 'omarchy refresh plymouth' ;;
@@ -234,19 +223,19 @@ restart_menu() {
       '󰓷  Trackpad' \
     )"
     case "$(pick "$choice")" in
-      'Waybar')     run_notify 'Restart' omarchy restart waybar; exit 0 ;;
-      'Walker')     run_notify 'Restart' omarchy restart walker; exit 0 ;;
-      'Pipewire')   run_notify 'Restart' omarchy restart pipewire; exit 0 ;;
-      'Bluetooth')  run_notify 'Restart' omarchy restart bluetooth; exit 0 ;;
-      'Wi-Fi')      run_notify 'Restart' omarchy restart wifi; exit 0 ;;
-      'Terminal')   run_notify 'Restart' omarchy restart terminal; exit 0 ;;
-      'Tmux')       run_notify 'Restart' omarchy restart tmux; exit 0 ;;
-      'Hyprland')   run_notify 'Restart' omarchy restart hyprctl; exit 0 ;;
-      'Hypridle')   run_notify 'Restart' omarchy restart hypridle; exit 0 ;;
-      'Hyprsunset') run_notify 'Restart' omarchy restart hyprsunset; exit 0 ;;
-      'Mako')       run_notify 'Restart' omarchy restart mako; exit 0 ;;
-      'SwayOSD')    run_notify 'Restart' omarchy restart swayosd; exit 0 ;;
-      'Trackpad')   run_notify 'Restart' omarchy restart trackpad; exit 0 ;;
+      'Waybar')     run-with-notify -a 'Omarchy' 'Restart' omarchy restart waybar; exit 0 ;;
+      'Walker')     run-with-notify -a 'Omarchy' 'Restart' omarchy restart walker; exit 0 ;;
+      'Pipewire')   run-with-notify -a 'Omarchy' 'Restart' omarchy restart pipewire; exit 0 ;;
+      'Bluetooth')  run-with-notify -a 'Omarchy' 'Restart' omarchy restart bluetooth; exit 0 ;;
+      'Wi-Fi')      run-with-notify -a 'Omarchy' 'Restart' omarchy restart wifi; exit 0 ;;
+      'Terminal')   run-with-notify -a 'Omarchy' 'Restart' omarchy restart terminal; exit 0 ;;
+      'Tmux')       run-with-notify -a 'Omarchy' 'Restart' omarchy restart tmux; exit 0 ;;
+      'Hyprland')   run-with-notify -a 'Omarchy' 'Restart' omarchy restart hyprctl; exit 0 ;;
+      'Hypridle')   run-with-notify -a 'Omarchy' 'Restart' omarchy restart hypridle; exit 0 ;;
+      'Hyprsunset') run-with-notify -a 'Omarchy' 'Restart' omarchy restart hyprsunset; exit 0 ;;
+      'Mako')       run-with-notify -a 'Omarchy' 'Restart' omarchy restart mako; exit 0 ;;
+      'SwayOSD')    run-with-notify -a 'Omarchy' 'Restart' omarchy restart swayosd; exit 0 ;;
+      'Trackpad')   run-with-notify -a 'Omarchy' 'Restart' omarchy restart trackpad; exit 0 ;;
       *) return ;;
     esac
   done
@@ -361,7 +350,7 @@ reminder_menu() {
         exit 0
         ;;
       'Show reminders')  exec run-in-terminal --wait 'omarchy reminder show' ;;
-      'Clear reminders') run_notify 'Reminder' omarchy reminder clear; exit 0 ;;
+      'Clear reminders') run-with-notify -a 'Omarchy' 'Reminder' omarchy reminder clear; exit 0 ;;
       *) return ;;
     esac
   done
@@ -420,9 +409,9 @@ power_menu() {
       '󰁺  Battery (power saver)' \
     )"
     case "$(pick "$choice")" in
-      'Autodetect')           run_notify 'Power' omarchy powerprofiles set autodetect; exit 0 ;;
-      'AC (performance)')     run_notify 'Power' omarchy powerprofiles set ac; exit 0 ;;
-      'Battery (power saver)') run_notify 'Power' omarchy powerprofiles set battery; exit 0 ;;
+      'Autodetect')           run-with-notify -a 'Omarchy' 'Power' omarchy powerprofiles set autodetect; exit 0 ;;
+      'AC (performance)')     run-with-notify -a 'Omarchy' 'Power' omarchy powerprofiles set ac; exit 0 ;;
+      'Battery (power saver)') run-with-notify -a 'Omarchy' 'Power' omarchy powerprofiles set battery; exit 0 ;;
       *) return ;;
     esac
   done
@@ -483,7 +472,7 @@ while true; do
       ;;
     'Brightness...')   brightness_menu ;;
     'Power profile...')  power_menu ;;
-    'Version')         run_notify 'Version' omarchy version; exit 0 ;;
+    'Version')         run-with-notify -a 'Omarchy' 'Version' omarchy version; exit 0 ;;
     'Debug')           exec run-in-terminal --wait 'omarchy debug --no-sudo --print' ;;
     *)                 exit 0 ;;
   esac

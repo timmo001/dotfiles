@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+# Run a command and send a desktop notification with the result.
+#
+# Usage: run-with-notify [-a <app>] <label> <command> [args...]
+#
+#   -a <app>  Application name for the notification (default: the label)
+
+set -euo pipefail
+
+app=""
+while [[ "${1:-}" == -* ]]; do
+  case "$1" in
+    -a) app="$2"; shift 2 ;;
+    *)  break ;;
+  esac
+done
+
+label="${1:?Usage: run-with-notify [-a app] <label> <command> [args...]}"
+shift
+
+app="${app:-$label}"
+
+local_output=""
+if local_output="$("$@" 2>&1)"; then
+  notify-send -a "$app" "$label" "${local_output:-Done}"
+else
+  notify-send -u critical -a "$app" "$label failed" "${local_output:-Unknown error}"
+fi
