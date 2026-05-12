@@ -11,6 +11,14 @@ import {
 } from "@opentui/core"
 import type { MenuItem } from "../types.js"
 import { mainMenuItems } from "../menu.js"
+import { formatHelpBar, type HelpEntry } from "./helpBar.js"
+
+/** Help entries for the main menu */
+const HELP: readonly HelpEntry[] = [
+  { key: "↑↓", action: "navigate" },
+  { key: "Enter", action: "select" },
+  { key: "q", action: "quit" },
+]
 
 /** Configuration callbacks for the main menu */
 export interface MainMenuOptions {
@@ -25,6 +33,7 @@ export class MainMenu {
   private renderer: CliRenderer
   private root: BoxRenderable
   private select: SelectRenderable
+  private helpBar: TextRenderable
   private callbacks: MainMenuOptions
 
   constructor(renderer: CliRenderer, options: MainMenuOptions) {
@@ -72,14 +81,19 @@ export class MainMenu {
     this.root.add(this.select)
 
     // Help bar
-    const helpBar = new TextRenderable(renderer, {
+    this.helpBar = new TextRenderable(renderer, {
       id: "main-menu-help",
-      content: t`${fg("#484f58")("↑↓ navigate   Enter select   q quit")}`,
+      content: formatHelpBar(HELP),
       marginTop: 1,
     })
-    this.root.add(helpBar)
+    this.root.add(this.helpBar)
 
     renderer.root.add(this.root)
+
+    // Re-wrap help bar on terminal resize
+    renderer.on("resize", () => {
+      this.helpBar.content = formatHelpBar(HELP)
+    })
 
     // Wire up selection
     this.select.on(

@@ -11,6 +11,18 @@ import { Effect } from "effect"
 import type { StagedFile } from "../types.js"
 import type { GitStagingService } from "../services/GitStaging.js"
 import { formatBreadcrumb } from "./breadcrumb.js"
+import { formatHelpBar, type HelpEntry } from "./helpBar.js"
+
+/** Help entries for the staging view */
+const HELP: readonly HelpEntry[] = [
+  { key: "Space", action: "toggle" },
+  { key: "Tab", action: "pane" },
+  { key: "a", action: "stage all" },
+  { key: "l", action: "lazygit" },
+  { key: "c/Enter", action: "commit" },
+  { key: "Esc/Backspace", action: "back" },
+  { key: "q", action: "quit" },
+]
 
 const log = (msg: string) => console.error(`[dot-tui:StagingView] ${msg}`)
 
@@ -148,11 +160,16 @@ export class StagingView {
     // Help bar
     this.helpBar = new TextRenderable(renderer, {
       id: "staging-help-bar",
-      content: t`${fg("#484f58")("Space toggle   Tab pane   a stage all   l lazygit   c/Enter commit   Esc back   q quit")}`,
+      content: formatHelpBar(HELP),
     })
     this.root.add(this.helpBar)
 
     renderer.root.add(this.root)
+
+    // Re-wrap help bar on terminal resize
+    renderer.on("resize", () => {
+      this.helpBar.content = formatHelpBar(HELP)
+    })
 
     // Wire select events (Enter on staged/unstaged list — no-op, we use space for toggle)
     this.stagedSelect.on(SelectRenderableEvents.ITEM_SELECTED, () => {

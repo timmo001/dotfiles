@@ -5,12 +5,19 @@ import {
   SelectRenderable,
   SelectRenderableEvents,
   type SelectOption,
-  t,
-  fg,
 } from "@opentui/core"
 import type { MenuItem } from "../types.js"
 import { submenus, submenuTitles } from "../menu.js"
 import { formatBreadcrumb } from "./breadcrumb.js"
+import { formatHelpBar, type HelpEntry } from "./helpBar.js"
+
+/** Help entries for the omarchy menu */
+const HELP: readonly HelpEntry[] = [
+  { key: "↑↓", action: "navigate" },
+  { key: "Enter", action: "select" },
+  { key: "Esc/Backspace", action: "back" },
+  { key: "q", action: "quit" },
+]
 
 /** Configuration callbacks for the omarchy submenu tree */
 export interface OmarchyMenuOptions {
@@ -79,12 +86,17 @@ export class OmarchyMenu {
     // Help bar
     this.helpBar = new TextRenderable(renderer, {
       id: "omarchy-menu-help",
-      content: t`${fg("#484f58")("↑↓ navigate   Enter select   Esc/Backspace back   q quit")}`,
+      content: formatHelpBar(HELP),
       marginTop: 1,
     })
     this.root.add(this.helpBar)
 
     renderer.root.add(this.root)
+
+    // Re-wrap help bar on terminal resize
+    renderer.on("resize", () => {
+      this.helpBar.content = formatHelpBar(HELP)
+    })
 
     // Wire up selection
     this.select.on(

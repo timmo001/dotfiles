@@ -12,6 +12,24 @@ import { unlinkSync } from "node:fs"
 import { join } from "node:path"
 import type { Repo, RepoState } from "../types.js"
 import { formatBreadcrumb } from "./breadcrumb.js"
+import { formatHelpBar, type HelpEntry } from "./helpBar.js"
+
+/** Help entries for the diff view */
+const HELP: readonly HelpEntry[] = [
+  { key: "↑↓", action: "navigate" },
+  { key: "Tab", action: "pane" },
+  { key: "Enter", action: "lazygit" },
+  { key: "c", action: "commit" },
+  { key: "p", action: "pull" },
+  { key: "P", action: "push" },
+  { key: "x", action: "unlock" },
+  { key: "t", action: "tmux" },
+  { key: "o", action: "open" },
+  { key: "w", action: "web" },
+  { key: "r", action: "refresh" },
+  { key: "Esc/Backspace", action: "back" },
+  { key: "q", action: "quit" },
+]
 
 /** Configuration callbacks and initial state for the diff view */
 export interface DiffViewOptions {
@@ -50,6 +68,7 @@ export class DiffView {
   private changedTitle: TextRenderable
   private unchangedTitle: TextRenderable
   private statusBar: TextRenderable
+  private helpBar: TextRenderable
 
   private activePane: Pane = "changed"
   private changedRepos: readonly Repo[] = []
@@ -167,13 +186,18 @@ export class DiffView {
     this.root.add(this.statusBar)
 
     // Help bar
-    const helpBar = new TextRenderable(renderer, {
+    this.helpBar = new TextRenderable(renderer, {
       id: "diff-help-bar",
-      content: t`${fg("#484f58")("↑↓ navigate   Tab pane   Enter lazygit   c commit   p pull   P push   x unlock   t tmux   o open   w web   r refresh   Esc back   q quit")}`,
+      content: formatHelpBar(HELP),
     })
-    this.root.add(helpBar)
+    this.root.add(this.helpBar)
 
     renderer.root.add(this.root)
+
+    // Re-wrap help bar on terminal resize
+    renderer.on("resize", () => {
+      this.helpBar.content = formatHelpBar(HELP)
+    })
 
     // Wire up select events
     this.changedSelect.on(SelectRenderableEvents.ITEM_SELECTED, (_index: number, option: SelectOption) => {

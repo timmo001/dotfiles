@@ -15,6 +15,24 @@ import type { CommitSuggestion } from "../types.js"
 import type { GitStagingService } from "../services/GitStaging.js"
 import type { CommitSuggestService } from "../services/CommitSuggest.js"
 import { formatBreadcrumb } from "./breadcrumb.js"
+import { formatHelpBar, type HelpEntry } from "./helpBar.js"
+
+/** Help entries for the commit view (default state) */
+const HELP_DEFAULT: readonly HelpEntry[] = [
+  { key: "Ctrl+s", action: "suggest" },
+  { key: "Enter", action: "commit" },
+  { key: "Esc", action: "back" },
+  { key: "q", action: "quit" },
+]
+
+/** Help entries for the commit view when suggestions are visible */
+const HELP_SUGGESTIONS: readonly HelpEntry[] = [
+  { key: "Tab", action: "switch" },
+  { key: "Enter", action: "select/commit" },
+  { key: "Ctrl+s", action: "suggest" },
+  { key: "Esc", action: "back" },
+  { key: "q", action: "quit" },
+]
 
 const log = (msg: string) => console.error(`[dot-tui:CommitView] ${msg}`)
 
@@ -142,11 +160,16 @@ export class CommitView {
     // Help bar
     this.helpBar = new TextRenderable(renderer, {
       id: "commit-help-bar",
-      content: t`${fg("#484f58")("Ctrl+s suggest   Enter commit   Esc back   q quit")}`,
+      content: formatHelpBar(HELP_DEFAULT),
     })
     this.root.add(this.helpBar)
 
     renderer.root.add(this.root)
+
+    // Re-wrap help bar on terminal resize
+    renderer.on("resize", () => {
+      this.updateHelpBar()
+    })
 
     // Input enter event — commit
     this.messageInput.on(InputRenderableEvents.ENTER, (value: string) => {
@@ -371,14 +394,8 @@ export class CommitView {
 
   private updateHelpBar(): void {
     const modelId = this.commitSuggest.getModelId()
-    if (this.suggestionsVisible) {
-      this.helpBar.content = modelId
-        ? t`${fg("#484f58")("Tab switch   Enter select/commit   Ctrl+s suggest   Esc back   q quit")}  ${fg("#6e7681")(`[${modelId}]`)}`
-        : t`${fg("#484f58")("Tab switch   Enter select/commit   Ctrl+s suggest   Esc back   q quit")}`
-    } else {
-      this.helpBar.content = modelId
-        ? t`${fg("#484f58")("Ctrl+s suggest   Enter commit   Esc back   q quit")}  ${fg("#6e7681")(`[${modelId}]`)}`
-        : t`${fg("#484f58")("Ctrl+s suggest   Enter commit   Esc back   q quit")}`
-    }
+    const entries = this.suggestionsVisible ? HELP_SUGGESTIONS : HELP_DEFAULT
+    const suffix = modelId ? fg("#6e7681")(`[${modelId}]`) : undefined
+    this.helpBar.content = formatHelpBar(entries, suffix)
   }
 }
