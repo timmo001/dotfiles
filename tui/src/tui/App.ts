@@ -9,6 +9,9 @@ import { openLazygit } from "./Lazygit.js"
 
 const log = (msg: string) => console.error(`[dot-tui:App] ${msg}`)
 
+/** Wrap a string in single quotes, escaping embedded single quotes for safe shell interpolation */
+const shellQuote = (s: string): string => `'${s.replace(/'/g, "'\\''")}'`
+
 export interface AppOptions {
   /** Which view to start on (default: "main") */
   readonly initialView?: ViewId
@@ -56,6 +59,27 @@ export class App {
       onSelect: async (repo) => {
         await openLazygit(deps.renderer, repo.path)
         deps.onRefreshDiff()
+      },
+      onOpenTmux: (mode) => {
+        deps.commandRunner.runSilent(`dot-diff-tmux-session ${mode}`).catch((err) => {
+          log(`Tmux session error: ${err}`)
+        })
+      },
+      onOpenTerminal: (repo) => {
+        const p = shellQuote(repo.path)
+        deps.commandRunner
+          .runSilent(
+            `uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal /usr/bin/env bash -lc 'cd "$0" && exec bash -l' ${p}`,
+          )
+          .catch((err) => {
+            log(`Open terminal error: ${err}`)
+          })
+      },
+      onOpenWeb: (repo) => {
+        const p = shellQuote(repo.path)
+        deps.commandRunner.runSilent(`cd ${p} && gh repo view --web`).catch((err) => {
+          log(`Open web error: ${err}`)
+        })
       },
       onRefresh: () => deps.onRefreshDiff(),
       onBack: () => this.popView(),

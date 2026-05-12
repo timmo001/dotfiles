@@ -15,6 +15,12 @@ import type { Repo, RepoState } from "../types.js"
 export interface DiffViewOptions {
   /** Called when the user selects a repo (e.g. to open lazygit) */
   readonly onSelect: (repo: Repo) => void
+  /** Called to open a tmux session — "changed" repos when the Changed pane is active, "all" when Other */
+  readonly onOpenTmux: (mode: "changed" | "all") => void
+  /** Called to open a plain terminal in the selected repo's directory */
+  readonly onOpenTerminal: (repo: Repo) => void
+  /** Called to open the selected repo on GitHub in the browser */
+  readonly onOpenWeb: (repo: Repo) => void
   /** Called when the user requests a manual refresh */
   readonly onRefresh: () => void
   /** Called when the user navigates back (Escape/Backspace) */
@@ -155,7 +161,7 @@ export class DiffView {
     // Help bar
     const helpBar = new TextRenderable(renderer, {
       id: "diff-help-bar",
-      content: t`${fg("#484f58")("↑↓ navigate   Tab switch pane   Enter lazygit   r refresh   Esc/Backspace back   q quit")}`,
+      content: t`${fg("#484f58")("↑↓ navigate   Tab switch pane   Enter lazygit   t tmux   o open   w web   r refresh   Esc back   q quit")}`,
     })
     this.root.add(helpBar)
 
@@ -179,6 +185,14 @@ export class DiffView {
 
       if (key.name === "tab") {
         this.togglePane()
+      } else if (key.name === "t") {
+        this.callbacks.onOpenTmux(this.activePane === "changed" ? "changed" : "all")
+      } else if (key.name === "o") {
+        const repo = this.getActiveRepo()
+        if (repo) this.callbacks.onOpenTerminal(repo)
+      } else if (key.name === "w") {
+        const repo = this.getActiveRepo()
+        if (repo) this.callbacks.onOpenWeb(repo)
       } else if (key.name === "r") {
         this.statusBar.content = t`${fg("#d29922")("Refreshing...")}`
         this.callbacks.onRefresh()
@@ -267,6 +281,16 @@ export class DiffView {
       this.changedSelect.blur()
       this.unchangedSelect.focus()
     }
+  }
+
+  /** Return the repo currently highlighted in the active pane, if any */
+  private getActiveRepo(): Repo | undefined {
+    if (this.activePane === "changed") {
+      const opt = this.changedSelect.getSelectedOption()
+      return opt ? this.changedRepos.find((r) => r.path === opt.value) : undefined
+    }
+    const opt = this.unchangedSelect.getSelectedOption()
+    return opt ? this.unchangedRepos.find((r) => r.path === opt.value) : undefined
   }
 
   private formatPaneTitle(label: string, count: number, active: boolean) {

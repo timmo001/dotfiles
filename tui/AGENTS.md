@@ -132,6 +132,9 @@ The build is also triggered by `dot update` via `maybe_build_tui()` in the `dot`
 | `↑↓` | Navigate list |
 | `Tab` | Switch between Changed/Other pane |
 | `Enter` | Open lazygit for selected repo |
+| `t` | Open tmux session (changed repos if Changed pane, all repos if Other pane) |
+| `o` | Open terminal in selected repo directory |
+| `w` | Open selected repo on GitHub in browser |
 | `r` | Manual refresh |
 | `Esc/Backspace` | Back to main menu |
 | `q` | Quit |
