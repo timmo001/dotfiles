@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+
+# Run a command in a new terminal window.
+#
+# Usage: run-in-terminal [--exit|--wait|--shell] <command>
+#
+#   --shell  (default) Run command, stay in interactive shell
+#   --wait   Run command, then offer to continue or close
+#   --exit   Run command, close terminal when done
+
+set -euo pipefail
+
+mode="shell"
+case "${1:-}" in
+  --exit)  mode="exit";  shift ;;
+  --wait)  mode="wait";  shift ;;
+  --shell) mode="shell"; shift ;;
+esac
+
+command="${1:?Usage: run-in-terminal [--exit|--wait|--shell] <command>}"
+
+if [[ "$mode" == "exit" ]]; then
+  exec setsid uwsm-app -- xdg-terminal-exec \
+    --app-id=org.omarchy.terminal \
+    --title='Terminal' \
+    -e bash -c "$command"
+fi
+
+# Both --wait and --shell use ZDOTDIR so output appears after .zshrc init
+tmpdir="$(mktemp -d)"
+{
+  echo 'source "$HOME/.zshrc" 2>/dev/null'
+  echo "$command"
+  if [[ "$mode" == "wait" ]]; then
+    echo "printf '\\n\\e[2m%s\\e[0m\\n' 'Ctrl-D to close, or continue in this shell.'"
+  fi
+  echo "command rm -rf \"$tmpdir\""
+} > "$tmpdir/.zshrc"
+
+exec setsid uwsm-app -- xdg-terminal-exec \
+  --app-id=org.omarchy.terminal \
+  --title='Terminal' \
+  -e env ZDOTDIR="$tmpdir" zsh -i

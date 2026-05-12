@@ -24,14 +24,6 @@ run_notify() {
   fi
 }
 
-run_terminal() {
-  local command="${1:?}"
-  exec setsid uwsm-app -- xdg-terminal-exec \
-    --app-id=org.omarchy.terminal \
-    --title='Omarchy' \
-    -e bash -c "$command; printf '\n'; read -r -p 'Press Enter to close...'"
-}
-
 # --- Sub-menus ---
 
 theme_menu() {
@@ -59,12 +51,12 @@ theme_menu() {
         ;;
       'Next background')       omarchy theme bg next; exit 0 ;;
       'Current theme')         run_notify 'Theme' omarchy theme current; exit 0 ;;
-      'List themes')           run_terminal 'omarchy theme list' ;;
+      'List themes')           exec run-in-terminal 'omarchy theme list' ;;
       'Refresh theme')         omarchy theme refresh; exit 0 ;;
       'Install backgrounds')   omarchy theme bg install; exit 0 ;;
-      'Install theme')         run_terminal 'omarchy theme install' ;;
+      'Install theme')         exec run-in-terminal 'omarchy theme install' ;;
       'Update themes')         run_notify 'Theme update' omarchy theme update; exit 0 ;;
-      'Remove theme')          run_terminal 'omarchy theme remove' ;;
+      'Remove theme')          exec run-in-terminal 'omarchy theme remove' ;;
       *) return ;;
     esac
   done
@@ -88,7 +80,7 @@ font_menu() {
         exit 0
         ;;
       'Current font')  run_notify 'Font' omarchy font current; exit 0 ;;
-      'List fonts')    run_terminal 'omarchy font list' ;;
+      'List fonts')    exec run-in-terminal 'omarchy font list' ;;
       *) return ;;
     esac
   done
@@ -214,10 +206,10 @@ refresh_menu() {
       'Terminal')     run_notify 'Refresh' omarchy refresh terminal; exit 0 ;;
       'Fastfetch')    run_notify 'Refresh' omarchy refresh fastfetch; exit 0 ;;
       'Chromium')     run_notify 'Refresh' omarchy refresh chromium; exit 0 ;;
-      'Applications') run_terminal 'omarchy refresh applications' ;;
-      'Pacman')       run_terminal 'omarchy refresh pacman' ;;
-      'Plymouth')     run_terminal 'omarchy refresh plymouth' ;;
-      'SDDM')        run_terminal 'omarchy refresh sddm' ;;
+      'Applications') exec run-in-terminal --wait 'omarchy refresh applications' ;;
+      'Pacman')       exec run-in-terminal --wait 'omarchy refresh pacman' ;;
+      'Plymouth')     exec run-in-terminal --wait 'omarchy refresh plymouth' ;;
+      'SDDM')        exec run-in-terminal --wait 'omarchy refresh sddm' ;;
       *) return ;;
     esac
   done
@@ -277,17 +269,17 @@ install_menu() {
       '󰇡  Dropbox' \
     )"
     case "$(pick "$choice")" in
-      'Browser')          run_terminal 'omarchy install browser' ;;
-      'Dev environment')  run_terminal 'omarchy install dev-env' ;;
-      'Terminal')         run_terminal 'omarchy install terminal' ;;
-      'Docker databases') run_terminal 'omarchy install docker dbs' ;;
-      'Gaming')           run_terminal 'omarchy install gaming steam' ;;
-      'VS Code')          run_terminal 'omarchy install vscode' ;;
-      'Zed')              run_terminal 'omarchy install zed' ;;
-      'Helix')            run_terminal 'omarchy install helix' ;;
-      'Tailscale')        run_terminal 'omarchy install tailscale' ;;
-      'NordVPN')          run_terminal 'omarchy install nordvpn' ;;
-      'Dropbox')          run_terminal 'omarchy install dropbox' ;;
+      'Browser')          exec run-in-terminal 'omarchy install browser' ;;
+      'Dev environment')  exec run-in-terminal 'omarchy install dev-env' ;;
+      'Terminal')         exec run-in-terminal 'omarchy install terminal' ;;
+      'Docker databases') exec run-in-terminal 'omarchy install docker dbs' ;;
+      'Gaming')           exec run-in-terminal 'omarchy install gaming steam' ;;
+      'VS Code')          exec run-in-terminal 'omarchy install vscode' ;;
+      'Zed')              exec run-in-terminal 'omarchy install zed' ;;
+      'Helix')            exec run-in-terminal 'omarchy install helix' ;;
+      'Tailscale')        exec run-in-terminal 'omarchy install tailscale' ;;
+      'NordVPN')          exec run-in-terminal 'omarchy install nordvpn' ;;
+      'Dropbox')          exec run-in-terminal 'omarchy install dropbox' ;;
       *) return ;;
     esac
   done
@@ -305,12 +297,12 @@ remove_menu() {
       '󰃅  Security (fingerprint)' \
     )"
     case "$(pick "$choice")" in
-      'Browser')                 run_terminal 'omarchy remove browser' ;;
-      'Dev environment')         run_terminal 'omarchy remove dev env' ;;
-      'Gaming')                  run_terminal 'omarchy remove gaming steam' ;;
-      'Preinstalls')             run_terminal 'omarchy remove preinstalls' ;;
-      'Security (FIDO2)')        run_terminal 'omarchy remove security fido2' ;;
-      'Security (fingerprint)')  run_terminal 'omarchy remove security fingerprint' ;;
+      'Browser')                 exec run-in-terminal --wait 'omarchy remove browser' ;;
+      'Dev environment')         exec run-in-terminal --wait 'omarchy remove dev env' ;;
+      'Gaming')                  exec run-in-terminal --wait 'omarchy remove gaming steam' ;;
+      'Preinstalls')             exec run-in-terminal --wait 'omarchy remove preinstalls' ;;
+      'Security (FIDO2)')        exec run-in-terminal --wait 'omarchy remove security fido2' ;;
+      'Security (fingerprint)')  exec run-in-terminal --wait 'omarchy remove security fingerprint' ;;
       *) return ;;
     esac
   done
@@ -325,9 +317,9 @@ pkg_menu() {
       '󰆴  Remove packages' \
     )"
     case "$(pick "$choice")" in
-      'Install packages')     run_terminal 'omarchy pkg install' ;;
-      'Install AUR packages') run_terminal 'omarchy pkg aur install' ;;
-      'Remove packages')      run_terminal 'omarchy pkg remove' ;;
+      'Install packages')     exec run-in-terminal --wait 'omarchy pkg install' ;;
+      'Install AUR packages') exec run-in-terminal --wait 'omarchy pkg aur install' ;;
+      'Remove packages')      exec run-in-terminal --wait 'omarchy pkg remove' ;;
       *) return ;;
     esac
   done
@@ -368,7 +360,7 @@ reminder_menu() {
         fi
         exit 0
         ;;
-      'Show reminders')  run_terminal 'omarchy reminder show' ;;
+      'Show reminders')  exec run-in-terminal --wait 'omarchy reminder show' ;;
       'Clear reminders') run_notify 'Reminder' omarchy reminder clear; exit 0 ;;
       *) return ;;
     esac
@@ -384,9 +376,9 @@ setup_menu() {
       '󰒃  FIDO2' \
     )"
     case "$(pick "$choice")" in
-      'DNS')         run_terminal 'omarchy setup dns' ;;
-      'Fingerprint') run_terminal 'omarchy setup security fingerprint' ;;
-      'FIDO2')       run_terminal 'omarchy setup security fido2' ;;
+      'DNS')         exec run-in-terminal --wait 'omarchy setup dns' ;;
+      'Fingerprint') exec run-in-terminal --wait 'omarchy setup security fingerprint' ;;
+      'FIDO2')       exec run-in-terminal --wait 'omarchy setup security fido2' ;;
       *) return ;;
     esac
   done
@@ -463,7 +455,7 @@ while true; do
   )"
 
   case "$(pick "$choice")" in
-    'Update')          run_terminal 'omarchy update' ;;
+    'Update')          exec run-in-terminal --wait 'omarchy update' ;;
     'Theme...')        theme_menu ;;
     'Font...')         font_menu ;;
     'Toggle...')       toggle_menu ;;
@@ -485,14 +477,14 @@ while true; do
         '󰁯  Restore snapshot' \
       )"
       case "$(pick "$snap_choice")" in
-        'Create snapshot')   run_terminal 'omarchy snapshot create' ;;
-        'Restore snapshot')  run_terminal 'omarchy snapshot restore' ;;
+        'Create snapshot')   exec run-in-terminal --wait 'omarchy snapshot create' ;;
+        'Restore snapshot')  exec run-in-terminal --wait 'omarchy snapshot restore' ;;
       esac
       ;;
     'Brightness...')   brightness_menu ;;
     'Power profile...')  power_menu ;;
     'Version')         run_notify 'Version' omarchy version; exit 0 ;;
-    'Debug')           run_terminal 'omarchy debug --no-sudo --print' ;;
+    'Debug')           exec run-in-terminal --wait 'omarchy debug --no-sudo --print' ;;
     *)                 exit 0 ;;
   esac
 done
