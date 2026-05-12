@@ -737,6 +737,37 @@ publish_private_package() {
   fi
 }
 
+cmd_setup_private_repo() {
+  if ! can_use_private; then
+    log_error "Private access is not available ($PRIVATE_REASON)"
+    return 1
+  fi
+
+  if ! load_private_package_repo_config; then
+    log_error "Missing private package repo config: $(display_path "$DOT_PRIVATE_PACKAGE_REPO_FILE")"
+    return 1
+  fi
+
+  log_section 'Sync private package repo mirror'
+  sync_private_package_repo_mirror
+
+  if ! private_package_repo_registered || ! private_package_repo_config_matches; then
+    log_section 'Configure private pacman repo'
+    ensure_private_package_repo_config
+  fi
+
+  if ! private_package_repo_include_registered; then
+    log_section 'Register private pacman repo include'
+    ensure_private_package_repo_include
+  fi
+
+  if private_package_repo_registered && private_package_repo_include_registered && private_package_repo_config_matches; then
+    log_info "Private pacman repo is configured ($(display_path "$DOT_PRIVATE_PACMAN_REPO_CONFIG"))"
+  else
+    log_warn 'Private pacman repo setup incomplete (check permissions for /etc paths)'
+  fi
+}
+
 cmd_private_pkg_publish() {
   local package_name=''
   local source_repo=''
@@ -3575,25 +3606,25 @@ cmd_doctor() {
 
     if [[ ! -d "$PRIVATE_PACKAGE_REPO_MIRROR_PATH" ]]; then
       doctor_warn "Missing private package repo mirror: $(display_path "$PRIVATE_PACKAGE_REPO_MIRROR_PATH")"
-      doctor_warn "Sync: mkdir -p $(display_path "$PRIVATE_PACKAGE_REPO_MIRROR_PATH") && rsync -a --delete --exclude .git/ $(display_path "$PRIVATE_PACKAGE_REPO_PATH")/ $(display_path "$PRIVATE_PACKAGE_REPO_MIRROR_PATH")/"
+      doctor_warn 'Run dot setup-private-repo to sync the mirror'
       return 0
     fi
 
     if ! private_package_repo_registered; then
       doctor_warn "Private pacman repo is not configured in $(display_path "$DOT_PRIVATE_PACMAN_REPO_CONFIG")"
-      doctor_warn "Create it with the [$PRIVATE_PACKAGE_REPO_NAME] repo pointing to $(private_package_repo_server)"
+      doctor_warn 'Run dot setup-private-repo to configure it'
       return 0
     fi
 
     if ! private_package_repo_include_registered; then
       doctor_warn "Private pacman repo include is missing from $(display_path "$DOT_PRIVATE_PACMAN_MAIN_CONFIG")"
-      doctor_warn "Add: $(private_package_repo_include_line)"
+      doctor_warn 'Run dot setup-private-repo to add it'
       return 0
     fi
 
     if ! private_package_repo_config_matches; then
       doctor_warn "Private pacman repo config differs from expected contents: $(display_path "$DOT_PRIVATE_PACMAN_REPO_CONFIG")"
-      doctor_warn "Rewrite it with the [$PRIVATE_PACKAGE_REPO_NAME] repo pointing to $(private_package_repo_server)"
+      doctor_warn 'Run dot setup-private-repo to rewrite it'
       return 0
     fi
 
@@ -4580,6 +4611,7 @@ cmd_help() {
   printf "$fmt_cmd" 'install' 'Backup/adopt and install public/private dotfiles'
   printf "$fmt_cmd" 'clean' 'Unstow private then public dotfiles'
   printf "$fmt_cmd" 'doctor' 'Check dependencies, repos, workflow watch, packages, and browser extensions'
+  printf "$fmt_cmd" 'setup-private-repo' 'Sync mirror, write pacman config, and register include for the private repo'
   printf "$fmt_cmd" 'opencode-debug' 'Run OpenCode debug paths/config/skill/info (optional: --agent <name>)'
   printf "$fmt_cmd" 'private-pkg-publish' 'Build, publish, commit, and push a mapped private package'
   printf "$fmt_cmd" 'agents-sync' 'Run dot memory then write global-agents.mdc (default: dotfiles-private agents/.cursor/rules/)'
@@ -4667,6 +4699,7 @@ main() {
     clean) cmd_clean "$@" ;;
     doctor) cmd_doctor "$@" ;;
     opencode-debug) cmd_opencode_debug "$@" ;;
+    setup-private-repo) cmd_setup_private_repo "$@" ;;
     private-pkg-publish) cmd_private_pkg_publish "$@" ;;
     agents-sync) cmd_agents_sync "$@" ;;
     skill-updates) cmd_skill_updates "$@" ;;
