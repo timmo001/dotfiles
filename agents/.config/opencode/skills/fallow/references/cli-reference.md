@@ -138,10 +138,11 @@ By default, `fallow dupes` skips generated framework output matching `**/.next/*
 |------|------|---------|-------------|
 | `--format` | `human\|json\|sarif\|compact\|markdown\|codeclimate\|gitlab-codequality\|pr-comment-github\|pr-comment-gitlab\|review-github\|review-gitlab` | `human` | Output format |
 | `--quiet` | bool | `false` | Suppress progress bars |
-| `--top` | number | — | Show only the N largest clone groups (sorted by line count descending). Summary stats reflect the full project. |
+| `--top` | number | — | Show only the N most-duplicated clone groups (sorted by instance count desc, tiebreak: line count desc, then path/line). Summary stats reflect the full project. |
 | `--mode` | `strict\|mild\|weak\|semantic` | `mild` | Detection mode |
 | `--min-tokens` | number | `50` | Minimum token count for a clone |
 | `--min-lines` | number | `5` | Minimum line count for a clone |
+| `--min-occurrences` | number | `2` | Minimum number of occurrences before a clone group is reported (must be ≥ 2). Raise to skip pair-only clones and focus on widespread copy-paste worth refactoring. `fallow init` writes `minOccurrences: 3` into new projects. |
 | `--threshold` | number | `0` | Fail if duplication exceeds this percentage |
 | `--skip-local` | bool | `false` | Only report cross-directory duplicates |
 | `--cross-language` | bool | `false` | Strip type annotations for TS↔JS matching |
@@ -424,7 +425,7 @@ fallow health --format json --quiet --trend
 ```json
 {
   "schema_version": 3,
-  "version": "2.69.0",
+  "version": "2.71.1",
   "elapsed_ms": 32,
   "summary": {
     "files_analyzed": 482,
@@ -810,7 +811,7 @@ fallow audit \
 ```json
 {
   "schema_version": 3,
-  "version": "2.69.0",
+  "version": "2.71.1",
   "command": "audit",
   "verdict": "fail",
   "changed_files_count": 12,
@@ -883,7 +884,7 @@ fallow flags --format json --quiet --workspace my-package
 ```json
 {
   "schema_version": 3,
-  "version": "2.69.0",
+  "version": "2.71.1",
   "elapsed_ms": 116,
   "feature_flags": [],
   "total_flags": 0
@@ -1302,7 +1303,7 @@ The HTTP layer mirrors the bash `gh_api_retry` / `curl_retry` helpers: `FALLOW_A
 ```json
 {
   "schema_version": 3,
-  "version": "2.69.0",
+  "version": "2.71.1",
   "elapsed_ms": 45,
   "total_issues": 12,
   "entry_points": {
@@ -1449,7 +1450,7 @@ When `--baseline` is used in combined output, the JSON includes a `baseline_delt
 ```json
 {
   "schema_version": 3,
-  "version": "2.69.0",
+  "version": "2.71.1",
   "elapsed_ms": 82,
   "total_clones": 15,
   "total_lines_duplicated": 230,
@@ -1493,7 +1494,7 @@ When running `fallow` with no subcommand (all analyses), the JSON output combine
 {
   "check": {
     "schema_version": 3,
-    "version": "2.69.0",
+    "version": "2.71.1",
     "elapsed_ms": 45,
     "total_issues": 12,
     "unused_files": [],
@@ -1515,7 +1516,7 @@ When running `fallow` with no subcommand (all analyses), the JSON output combine
   },
   "dupes": {
     "schema_version": 3,
-    "version": "2.69.0",
+    "version": "2.71.1",
     "elapsed_ms": 82,
     "total_clones": 15,
     "total_lines_duplicated": 230,
@@ -1524,7 +1525,7 @@ When running `fallow` with no subcommand (all analyses), the JSON output combine
   },
   "health": {
     "schema_version": 3,
-    "version": "2.69.0",
+    "version": "2.71.1",
     "elapsed_ms": 32,
     "summary": {},
     "findings": [],
