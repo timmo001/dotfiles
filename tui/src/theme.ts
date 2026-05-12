@@ -30,6 +30,8 @@ export interface Theme {
   readonly red: string
   /** Warning / in-progress state */
   readonly yellow: string
+  /** Whether panels should skip painting backgrounds to let terminal transparency through */
+  readonly transparent: boolean
 }
 
 /** Hardcoded GitHub Dark fallback when no Omarchy theme is available */
@@ -47,6 +49,7 @@ const FALLBACK: Theme = {
   green: "#3fb950",
   red: "#f85149",
   yellow: "#d29922",
+  transparent: false,
 }
 
 const COLORS_TOML_PATH = join(
@@ -134,6 +137,7 @@ function deriveTheme(c: Record<string, string>): Theme {
     green: c.color2 ?? FALLBACK.green,
     red: c.color1 ?? FALLBACK.red,
     yellow: c.color3 ?? FALLBACK.yellow,
+    transparent: true,
   }
 }
 

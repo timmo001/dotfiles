@@ -64,6 +64,7 @@ const program = Effect.gen(function* () {
       exitOnCtrlC: true,
       screenMode: "alternate-screen",
       useMouse: false,
+      backgroundColor: theme.transparent ? "transparent" : theme.bg,
     }),
   )
   log("Renderer created")

@@ -63,8 +63,6 @@ export class App {
     this.renderer = deps.renderer
     this.commandRunner = deps.commandRunner
 
-    deps.renderer.setBackgroundColor(deps.theme.bg)
-
     // --- Create views ---
 
     this.mainMenu = new MainMenu(deps.renderer, deps.theme, {

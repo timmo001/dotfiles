@@ -66,7 +66,7 @@ export class MenuList extends BoxRenderable {
       flexGrow: 1,
       width: "100%",
       flexDirection: "column",
-      backgroundColor: options.theme.bgElevated,
+      backgroundColor: options.theme.transparent ? "transparent" : options.theme.bgElevated,
       focusable: true,
     })
 
@@ -173,7 +173,7 @@ export class MenuList extends BoxRenderable {
   ): MenuRow {
     const th = this._theme
     const id = `${this.id}-row-${index}`
-    const bgColor = isSelected ? th.accent : th.bgElevated
+    const bgColor = isSelected ? th.accent : (th.transparent ? "transparent" : th.bgElevated)
     const textColor = isSelected ? th.accentFg : th.fg
     const descColor = isSelected ? th.fg : th.fgMuted
 
@@ -221,7 +221,7 @@ export class MenuList extends BoxRenderable {
 
   private _styleRow(row: MenuRow, selected: boolean): void {
     const th = this._theme
-    const bg = selected ? th.accent : th.bgElevated
+    const bg = selected ? th.accent : (th.transparent ? "transparent" : th.bgElevated)
     const textColor = selected ? th.accentFg : th.fg
     const descColor = selected ? th.fg : th.fgMuted
 
