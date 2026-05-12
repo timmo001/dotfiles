@@ -25,6 +25,10 @@ export interface DiffViewOptions {
   readonly onOpenTerminal: (repo: Repo) => void
   /** Called to open the selected repo on GitHub in the browser */
   readonly onOpenWeb: (repo: Repo) => void
+  /** Called when the user presses 'p' to pull the selected repo */
+  readonly onPull: (repo: Repo) => void
+  /** Called when the user presses 'P' to push the selected repo */
+  readonly onPush: (repo: Repo) => void
   /** Called when the user requests a manual refresh */
   readonly onRefresh: () => void
   /** Called when the user navigates back (Escape/Backspace) */
@@ -165,7 +169,7 @@ export class DiffView {
     // Help bar
     const helpBar = new TextRenderable(renderer, {
       id: "diff-help-bar",
-      content: t`${fg("#484f58")("↑↓ navigate   Tab pane   Enter lazygit   c commit   x unlock   t tmux   o open   w web   r refresh   Esc back   q quit")}`,
+      content: t`${fg("#484f58")("↑↓ navigate   Tab pane   Enter lazygit   c commit   p pull   P push   x unlock   t tmux   o open   w web   r refresh   Esc back   q quit")}`,
     })
     this.root.add(helpBar)
 
@@ -200,6 +204,12 @@ export class DiffView {
       } else if (key.name === "w") {
         const repo = this.getActiveRepo()
         if (repo) this.callbacks.onOpenWeb(repo)
+      } else if (key.name === "p" && key.shift) {
+        const repo = this.getActiveRepo()
+        if (repo) this.callbacks.onPush(repo)
+      } else if (key.name === "p") {
+        const repo = this.getActiveRepo()
+        if (repo) this.callbacks.onPull(repo)
       } else if (key.name === "r") {
         this.statusBar.content = t`${fg("#d29922")("Refreshing...")}`
         this.callbacks.onRefresh()

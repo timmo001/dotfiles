@@ -101,6 +101,22 @@ export class App {
           log(`Open web error: ${err}`)
         })
       },
+      onPull: (repo) => {
+        const p = shellQuote(repo.path)
+        deps.commandRunner.runSuspended(`git -C ${p} pull --rebase --no-edit`, true).then(() => {
+          deps.onRefreshDiff()
+        }).catch((err) => {
+          log(`Pull error: ${err}`)
+        })
+      },
+      onPush: (repo) => {
+        const p = shellQuote(repo.path)
+        deps.commandRunner.runSuspended(`git -C ${p} push`, true).then(() => {
+          deps.onRefreshDiff()
+        }).catch((err) => {
+          log(`Push error: ${err}`)
+        })
+      },
       onRefresh: () => deps.onRefreshDiff(),
       onBack: () => this.popView(),
     })

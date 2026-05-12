@@ -137,6 +137,8 @@ The build is also triggered by `dot update` via `maybe_build_tui()` in the `dot`
 | `Tab` | Switch between Changed/Other pane |
 | `Enter` | Open lazygit for selected repo |
 | `c` | Open commit flow (staging → commit) for selected repo |
+| `p` | Pull selected repo (`git pull --rebase --no-edit`) |
+| `P` | Push selected repo (`git push`) |
 | `t` | Open tmux session (changed repos if Changed pane, all repos if Other pane) |
 | `o` | Open terminal in selected repo directory |
 | `w` | Open selected repo on GitHub in browser |
