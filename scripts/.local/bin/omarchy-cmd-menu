@@ -40,8 +40,8 @@ theme_menu() {
     choice="$(walker_menu 'Theme...' \
       '󰏘  Set theme' \
       '󰋩  Next background' \
-      '  Current theme' \
-      '  List themes' \
+      '󰋽  Current theme' \
+      '󰽛  List themes' \
       '󰑐  Refresh theme' \
       '󰋩  Install backgrounds' \
       '󰇚  Install theme' \
@@ -75,8 +75,8 @@ font_menu() {
     local choice
     choice="$(walker_menu 'Font...' \
       '󰛖  Set font' \
-      '  Current font' \
-      '  List fonts' \
+      '󰋽  Current font' \
+      '󰽛  List fonts' \
     )"
     case "$(pick "$choice")" in
       'Set font')
@@ -100,7 +100,7 @@ toggle_menu() {
     choice="$(walker_menu 'Toggle...' \
       '󰙿  Nightlight' \
       '󰒲  Idle lock' \
-      '  Waybar' \
+      '󰃎  Waybar' \
       '󰟸  Touchpad' \
       '󰍶  Touchscreen' \
       '󰂛  Notification silencing' \
@@ -161,13 +161,13 @@ launch_menu() {
   while true; do
     local choice
     choice="$(walker_menu 'Launch...' \
-      '  Browser' \
+      '󱣔  Browser' \
       '󰕾  Audio controls' \
       '󰂯  Bluetooth' \
       '󰖩  Wi-Fi' \
-      '  About' \
+      '󰋽  About' \
       '󰖤  Screensaver' \
-      '  Walker' \
+      '󰍉  Walker' \
     )"
     case "$(pick "$choice")" in
       'Browser')        omarchy launch browser; exit 0 ;;
@@ -186,21 +186,21 @@ refresh_menu() {
   while true; do
     local choice
     choice="$(walker_menu 'Refresh...' \
-      '  Hyprland' \
-      '  Waybar' \
-      '  Walker' \
-      '  Hypridle' \
-      '  Hyprlock' \
-      '  Hyprsunset' \
-      '  SwayOSD' \
-      '  Tmux' \
-      '  Terminal' \
-      '  Fastfetch' \
-      '  Chromium' \
-      '  Applications' \
-      '  Pacman' \
-      '  Plymouth' \
-      '  SDDM' \
+      '󰢓  Hyprland' \
+      '󰃎  Waybar' \
+      '󰍉  Walker' \
+      '󰤄  Hypridle' \
+      '󰌾  Hyprlock' \
+      '󰙿  Hyprsunset' \
+      '󰖀  SwayOSD' \
+      '󰈹  Tmux' \
+      '󰈹  Terminal' \
+      '󰋽  Fastfetch' \
+      '󱣔  Chromium' \
+      '󰘔  Applications' \
+      '󰏓  Pacman' \
+      '󰓎  Plymouth' \
+      '󰩈  SDDM' \
     )"
     case "$(pick "$choice")" in
       'Hyprland')     run_notify 'Refresh' omarchy refresh hyprland; exit 0 ;;
@@ -227,19 +227,19 @@ restart_menu() {
   while true; do
     local choice
     choice="$(walker_menu 'Restart...' \
-      '  Waybar' \
-      '  Walker' \
-      '  Pipewire' \
-      '  Bluetooth' \
-      '  Wi-Fi' \
-      '  Terminal' \
-      '  Tmux' \
-      '  Hyprland' \
-      '  Hypridle' \
-      '  Hyprsunset' \
-      '  Mako' \
-      '  SwayOSD' \
-      '  Trackpad' \
+      '󰃎  Waybar' \
+      '󰍉  Walker' \
+      '󰝟  Pipewire' \
+      '󰂯  Bluetooth' \
+      '󰖩  Wi-Fi' \
+      '󰈹  Terminal' \
+      '󰈹  Tmux' \
+      '󰢓  Hyprland' \
+      '󰤄  Hypridle' \
+      '󰙿  Hyprsunset' \
+      '󰂞  Mako' \
+      '󰖀  SwayOSD' \
+      '󰓷  Trackpad' \
     )"
     case "$(pick "$choice")" in
       'Waybar')     run_notify 'Restart' omarchy restart waybar; exit 0 ;;
@@ -264,17 +264,17 @@ install_menu() {
   while true; do
     local choice
     choice="$(walker_menu 'Install...' \
-      '  Browser' \
-      '  Dev environment' \
-      '  Terminal' \
-      '  Docker databases' \
-      '  Gaming' \
-      '  VS Code' \
-      '  Zed' \
-      '  Helix' \
-      '  Tailscale' \
-      '  NordVPN' \
-      '  Dropbox' \
+      '󱣔  Browser' \
+      '󰄡  Dev environment' \
+      '󰈹  Terminal' \
+      '󰡨  Docker databases' \
+      '󰺵  Gaming' \
+      '󰨞  VS Code' \
+      '󰄡  Zed' \
+      '󰄡  Helix' \
+      '󰨦  Tailscale' \
+      '󰨦  NordVPN' \
+      '󰇡  Dropbox' \
     )"
     case "$(pick "$choice")" in
       'Browser')          run_terminal 'omarchy install browser' ;;
@@ -297,12 +297,12 @@ remove_menu() {
   while true; do
     local choice
     choice="$(walker_menu 'Remove...' \
-      '  Browser' \
-      '  Dev environment' \
-      '  Gaming' \
-      '  Preinstalls' \
-      '  Security (FIDO2)' \
-      '  Security (fingerprint)' \
+      '󱣔  Browser' \
+      '󰄡  Dev environment' \
+      '󰺵  Gaming' \
+      '󰏓  Preinstalls' \
+      '󰒃  Security (FIDO2)' \
+      '󰃅  Security (fingerprint)' \
     )"
     case "$(pick "$choice")" in
       'Browser')                 run_terminal 'omarchy remove browser' ;;
@@ -337,9 +337,9 @@ share_menu() {
   while true; do
     local choice
     choice="$(walker_menu 'Share...' \
-      '  Clipboard' \
-      '  File' \
-      '  Folder' \
+      '󰅇  Clipboard' \
+      '󰈔  File' \
+      '󰉋  Folder' \
     )"
     case "$(pick "$choice")" in
       'Clipboard') omarchy share clipboard; exit 0 ;;
@@ -355,7 +355,7 @@ reminder_menu() {
     local choice
     choice="$(walker_menu 'Reminder...' \
       '󰂞  Set reminder' \
-      '  Show reminders' \
+      '󰽛  Show reminders' \
       '󰆴  Clear reminders' \
     )"
     case "$(pick "$choice")" in
@@ -379,9 +379,9 @@ setup_menu() {
   while true; do
     local choice
     choice="$(walker_menu 'Setup...' \
-      '  DNS' \
-      '  Fingerprint' \
-      '  FIDO2' \
+      '󱣔  DNS' \
+      '󰃅  Fingerprint' \
+      '󰒃  FIDO2' \
     )"
     case "$(pick "$choice")" in
       'DNS')         run_terminal 'omarchy setup dns' ;;
@@ -396,14 +396,14 @@ brightness_menu() {
   while true; do
     local choice
     choice="$(walker_menu 'Brightness...' \
-      '  Display +10%' \
-      '  Display -10%' \
-      '  Display off' \
-      '  Display on' \
-      '  Keyboard up' \
-      '  Keyboard down' \
-      '  Keyboard cycle' \
-      '  Keyboard off' \
+      '󰃟  Display +10%' \
+      '󰃞  Display -10%' \
+      '󰃜  Display off' \
+      '󰃟  Display on' \
+      '󰖘  Keyboard up' \
+      '󰁅  Keyboard down' \
+      '󰓡  Keyboard cycle' \
+      '󰻳  Keyboard off' \
     )"
     case "$(pick "$choice")" in
       'Display +10%')    omarchy brightness display +10%; exit 0 ;;
@@ -423,9 +423,9 @@ power_menu() {
   while true; do
     local choice
     choice="$(walker_menu 'Power profile...' \
-      '  Autodetect' \
-      '  AC (performance)' \
-      '  Battery (power saver)' \
+      '󰁨  Autodetect' \
+      '󰐥  AC (performance)' \
+      '󰁺  Battery (power saver)' \
     )"
     case "$(pick "$choice")" in
       'Autodetect')           run_notify 'Power' omarchy powerprofiles set autodetect; exit 0 ;;
@@ -481,8 +481,8 @@ while true; do
     'Snapshot...')
       local snap_choice
       snap_choice="$(walker_menu 'Snapshot...' \
-        '  Create snapshot' \
-        '  Restore snapshot' \
+        '󰄀  Create snapshot' \
+        '󰁯  Restore snapshot' \
       )"
       case "$(pick "$snap_choice")" in
         'Create snapshot')   run_terminal 'omarchy snapshot create' ;;
