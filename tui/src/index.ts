@@ -1,11 +1,10 @@
 import { Effect, Layer, Stream } from "effect";
 import { createCliRenderer } from "@opentui/core";
-import { DotDiffLive } from "./services/DotDiff.js";
-import { WaybarCacheLive } from "./services/WaybarCache.js";
-import { RepoWatcher, RepoWatcherLive } from "./services/RepoWatcher.js";
-import { GitStaging, GitStagingLive } from "./services/GitStaging.js";
-import { CommitSuggest, CommitSuggestLive } from "./services/CommitSuggest.js";
-import { shutdownServer } from "./services/CommitSuggest.js";
+import { DotDiff } from "./services/DotDiff.js";
+import { WaybarCache } from "./services/WaybarCache.js";
+import { RepoWatcher } from "./services/RepoWatcher.js";
+import { GitStaging } from "./services/GitStaging.js";
+import { CommitSuggest, shutdownServer } from "./services/CommitSuggest.js";
 import { createCommandRunner } from "./services/CommandRunner.js";
 import { loadTheme } from "./theme.js";
 import { Toast } from "./tui/Toast.js";
@@ -137,11 +136,11 @@ const program = Effect.gen(function* () {
   yield* Effect.never;
 });
 
-const MainLayer = RepoWatcherLive.pipe(
-  Layer.provideMerge(DotDiffLive),
-  Layer.provideMerge(WaybarCacheLive),
-  Layer.provideMerge(GitStagingLive),
-  Layer.provideMerge(CommitSuggestLive),
+const MainLayer = RepoWatcher.layer.pipe(
+  Layer.provideMerge(DotDiff.layer),
+  Layer.provideMerge(WaybarCache.layer),
+  Layer.provideMerge(GitStaging.layer),
+  Layer.provideMerge(CommitSuggest.layer),
 );
 
 const runnable = program.pipe(Effect.scoped, Effect.provide(MainLayer));

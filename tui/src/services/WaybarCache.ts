@@ -20,40 +20,39 @@ interface WaybarCacheService {
   readonly parseChangedNames: (data: WaybarCacheData) => readonly string[];
 }
 
-/** Effect service tag for {@link WaybarCacheService} */
+/** Effect service for {@link WaybarCacheService} */
 export class WaybarCache extends Context.Service<
   WaybarCache,
   WaybarCacheService
->()("WaybarCache") {}
+>()("WaybarCache") {
+  static readonly layer = Layer.succeed(WaybarCache, {
+    load: () =>
+      Effect.tryPromise({
+        try: async () => {
+          const raw = await readFile(getCachePath(), "utf-8");
+          const data = JSON.parse(raw) as WaybarCacheData;
+          if (!data.tooltip || !data.class) return null;
+          return data;
+        },
+        catch: (error) =>
+          error instanceof Error ? error : new Error(String(error)),
+      }).pipe(Effect.catch(() => Effect.succeed(null))),
+
+    parseChangedNames: (data: WaybarCacheData): readonly string[] => {
+      // Tooltip format: "Repositories with changes pending: dotfiles; notes"
+      // or "Repositories with changes pending: dotfiles"
+      const match = data.tooltip.match(/:\s*(.+)$/);
+      if (!match) return [];
+      return match[1]
+        .split(/[;,]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    },
+  });
+}
 
 function getCachePath(): string {
   const cacheHome =
     process.env.XDG_CACHE_HOME || join(process.env.HOME || "~", ".cache");
   return join(cacheHome, "waybar", "dot-diff-waybar.json");
 }
-
-/** Live layer reading from `$XDG_CACHE_HOME/waybar/dot-diff-waybar.json` */
-export const WaybarCacheLive = Layer.succeed(WaybarCache, {
-  load: () =>
-    Effect.tryPromise({
-      try: async () => {
-        const raw = await readFile(getCachePath(), "utf-8");
-        const data = JSON.parse(raw) as WaybarCacheData;
-        if (!data.tooltip || !data.class) return null;
-        return data;
-      },
-      catch: (error) =>
-        error instanceof Error ? error : new Error(String(error)),
-    }).pipe(Effect.catch(() => Effect.succeed(null))),
-
-  parseChangedNames: (data: WaybarCacheData): readonly string[] => {
-    // Tooltip format: "Repositories with changes pending: dotfiles; notes"
-    // or "Repositories with changes pending: dotfiles"
-    const match = data.tooltip.match(/:\s*(.+)$/);
-    if (!match) return [];
-    return match[1]
-      .split(/[;,]/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-  },
-});

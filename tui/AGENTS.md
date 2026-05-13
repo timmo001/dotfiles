@@ -80,7 +80,12 @@ MenuItem action types:
 
 ### Key Patterns
 
-- **Services**: `Context.Service` + `Layer` for Effect services (DotDiff, WaybarCache, RepoWatcher, GitStaging, CommitSuggest)
+- **Services**: `Context.Service` + static `layer` property for Effect services (DotDiff, WaybarCache, RepoWatcher, GitStaging, CommitSuggest)
+- **Static layers**: Each service class exposes `ServiceName.layer` (not a separate `*Live` export). Layer is built with `Layer.effect(ServiceName, Effect.gen(...))`
+- **Domain errors**: `Schema.TaggedErrorClass` per service (`DotDiffError`, `GitStagingError`, `CommitSuggestError`). WaybarCache has no error type
+- **Error handling**: `Effect.catch` (v4 rename of `catchAll`) for recovery; tagged errors flow through the type channel
+- **Named spans**: `Effect.fn("Name")` for effectful functions with arguments; `Effect.gen` + `Effect.withSpan("Name")` for zero-arg named effects (since `Effect.fn` returns a function, not an Effect)
+- **Testable time**: `Clock.currentTimeMillis` for timestamps instead of `new Date()`
 - **CommandRunner**: Plain object (not Effect service) — passed directly to App to avoid scope issues with `Effect.runFork`
 - **Concurrency**: `Effect.forkScoped` for background poll fiber
 - **Top-level run**: `Effect.runPromise` (keeps process alive)

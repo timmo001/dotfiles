@@ -1,20 +1,33 @@
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Schema } from "effect";
 import type { Repo } from "../types.js";
 
 const log = (msg: string) => console.error(`[dot-tui:DotDiff] ${msg}`);
 
+/** Domain error for `dot diff` command failures */
+export class DotDiffError extends Schema.TaggedErrorClass<DotDiffError>()(
+  "DotDiffError",
+  {
+    message: Schema.String,
+  },
+) {}
+
 /** Service interface for running `dot diff` shell commands */
 interface DotDiffService {
   /** List repositories that have uncommitted or unpushed changes */
-  readonly listChanged: () => Effect.Effect<readonly Repo[], Error>;
+  readonly listChanged: () => Effect.Effect<readonly Repo[], DotDiffError>;
   /** List all tracked repositories */
-  readonly listAll: () => Effect.Effect<readonly Repo[], Error>;
+  readonly listAll: () => Effect.Effect<readonly Repo[], DotDiffError>;
 }
 
-/** Effect service tag for {@link DotDiffService} */
+/** Effect service for {@link DotDiffService} */
 export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
   "DotDiff",
-) {}
+) {
+  static readonly layer = Layer.succeed(DotDiff, {
+    listChanged: () => runDotDiff(["--list-changed"]),
+    listAll: () => runDotDiff(["--list-all"]),
+  });
+}
 
 function parseDotDiffOutput(output: string): readonly Repo[] {
   return output
@@ -30,7 +43,7 @@ function parseDotDiffOutput(output: string): readonly Repo[] {
 /** Run a `dot diff` subcommand and parse the output into repositories */
 const runDotDiff = Effect.fn("DotDiff.runDotDiff")(function* (
   args: string[],
-): Effect.fn.Return<readonly Repo[], Error> {
+): Effect.fn.Return<readonly Repo[], DotDiffError> {
   return yield* Effect.tryPromise({
     try: async () => {
       log(`Running: dot diff ${args.join(" ")}`);
@@ -55,15 +68,9 @@ const runDotDiff = Effect.fn("DotDiff.runDotDiff")(function* (
       return repos;
     },
     catch: (error) => {
-      const err = error instanceof Error ? error : new Error(String(error));
-      log(`Error: ${err.message}`);
-      return err;
+      const msg = error instanceof Error ? error.message : String(error);
+      log(`Error: ${msg}`);
+      return new DotDiffError({ message: msg });
     },
   });
-});
-
-/** Live layer that shells out to `dot diff` for repository data */
-export const DotDiffLive = Layer.succeed(DotDiff, {
-  listChanged: () => runDotDiff(["--list-changed"]),
-  listAll: () => runDotDiff(["--list-all"]),
 });
