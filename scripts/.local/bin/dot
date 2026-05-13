@@ -1818,20 +1818,27 @@ maybe_notify_updated_repos() {
   notify-send "$title" "$message" >/dev/null 2>&1 || true
 }
 
-safe_pull_repo() {
+# Shared pull logic: clear stale lock (prompt if held), skip dirty trees, pull --rebase.
+# Callers must validate repo_dir/.git exists and git is available before calling.
+_git_clear_lock_and_pull() {
   local name="$1"
   local repo_dir="$2"
-  local before_head=''
-  local after_head=''
 
-  if [[ ! -e "$repo_dir/.git" ]]; then
-    log_warn "Skipping $name pull (not a git repo): $(display_path "$repo_dir")"
-    return 0
-  fi
-
-  if ! has_cmd git; then
-    log_error "Git not found; cannot pull $name"
-    return 1
+  # Remove stale index lock if present; prompt if held by a running process
+  local lock_file="$repo_dir/.git/index.lock"
+  if [[ -f "$lock_file" ]]; then
+    if has_cmd fuser && fuser "$lock_file" >/dev/null 2>&1; then
+      log_warn "Lock held by active git process for $name: $(display_path "$repo_dir")"
+      printf '  Remove lock and continue anyway? [y/N] '
+      local reply
+      read -r reply
+      if [[ "$reply" != [yY]* ]]; then
+        log_info "Skipping $name pull (lock kept)"
+        return 0
+      fi
+    fi
+    log_warn "Removing stale lock for $name: $(display_path "$lock_file")"
+    rm -f "$lock_file"
   fi
 
   if [[ -n "$(git -C "$repo_dir" status --porcelain 2>/dev/null || true)" ]]; then
@@ -1840,6 +1847,7 @@ safe_pull_repo() {
   fi
 
   log_info "Pulling latest for $name: $(display_path "$repo_dir")"
+  local before_head after_head
   before_head="$(git -C "$repo_dir" rev-parse HEAD 2>/dev/null || true)"
   if ! git -C "$repo_dir" pull --rebase; then
     log_warn "Pull failed for $name — aborting rebase and continuing: $(display_path "$repo_dir")"
@@ -1851,6 +1859,23 @@ safe_pull_repo() {
   if [[ -n "$before_head" && -n "$after_head" && "$before_head" != "$after_head" ]]; then
     track_updated_repo "$name"
   fi
+}
+
+safe_pull_repo() {
+  local name="$1"
+  local repo_dir="$2"
+
+  if [[ ! -e "$repo_dir/.git" ]]; then
+    log_warn "Skipping $name pull (not a git repo): $(display_path "$repo_dir")"
+    return 0
+  fi
+
+  if ! has_cmd git; then
+    log_error "Git not found; cannot pull $name"
+    return 1
+  fi
+
+  _git_clear_lock_and_pull "$name" "$repo_dir"
 }
 
 repo_current_branch() {
@@ -2948,28 +2973,7 @@ _update_path_needs_pull_any_omarchy() {
 
 # Pull a repo that is known to be behind (fetch already done by diff_collect_attention).
 _update_pull_behind() {
-  local name="$1"
-  local repo_dir="$2"
-  local before_head=''
-  local after_head=''
-
-  if [[ -n "$(git -C "$repo_dir" status --porcelain 2>/dev/null || true)" ]]; then
-    log_warn "Skipping $name pull (working tree not clean): $(display_path "$repo_dir")"
-    return 0
-  fi
-
-  log_info "Pulling latest for $name: $(display_path "$repo_dir")"
-  before_head="$(git -C "$repo_dir" rev-parse HEAD 2>/dev/null || true)"
-  if ! git -C "$repo_dir" pull --rebase; then
-    log_warn "Pull failed for $name — aborting rebase and continuing: $(display_path "$repo_dir")"
-    git -C "$repo_dir" rebase --abort 2>/dev/null || true
-    return 0
-  fi
-  after_head="$(git -C "$repo_dir" rev-parse HEAD 2>/dev/null || true)"
-
-  if [[ -n "$before_head" && -n "$after_head" && "$before_head" != "$after_head" ]]; then
-    track_updated_repo "$name"
-  fi
+  _git_clear_lock_and_pull "$1" "$2"
 }
 
 cmd_agents_sync() {
