@@ -179,6 +179,19 @@ const dotItems: readonly MenuItem[] = [
     ],
   ),
   item(
+    "restart-services",
+    "󰜉",
+    "Restart Services",
+    "Restart services that don't recover well after suspend",
+    notify("on-resume", {
+      id: "restart-services",
+      progress: "Restarting services...",
+      success: "Services restarted",
+    }),
+    undefined,
+    ["resume", "suspend", "sleep", "wake", "waybar", "restart"],
+  ),
+  item(
     "skill-updates",
     "󰏬",
     "Skill Updates",
