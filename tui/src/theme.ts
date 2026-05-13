@@ -159,6 +159,10 @@ function deriveTheme(c: Record<string, string>): Theme {
  * missing or unreadable (e.g. non-Omarchy systems).
  */
 export const loadTheme: Effect.Effect<Theme> = Effect.gen(function* () {
-  const raw = yield* Effect.try(() => readFileSync(COLORS_TOML_PATH, "utf-8"));
+  const raw = yield* Effect.try({
+    try: () => readFileSync(COLORS_TOML_PATH, "utf-8"),
+    catch: (error) =>
+      error instanceof Error ? error : new Error(String(error)),
+  });
   return deriveTheme(parseColorsToml(raw));
 }).pipe(Effect.orElseSucceed(() => FALLBACK));

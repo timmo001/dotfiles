@@ -18,10 +18,10 @@ interface RepoWatcherService {
 }
 
 /** Effect service tag for {@link RepoWatcherService} */
-export class RepoWatcher extends Context.Tag("RepoWatcher")<
+export class RepoWatcher extends Context.Service<
   RepoWatcher,
   RepoWatcherService
->() {}
+>()("RepoWatcher") {}
 
 /** Check for `.git/index.lock` and enrich a repo with lock status */
 function withLockStatus(repo: Repo): Repo {
@@ -42,7 +42,7 @@ function buildRepoState(
 }
 
 /** Live layer: loads Waybar cache for fast first paint, then polls `dot diff` every 10 seconds */
-export const RepoWatcherLive = Layer.scoped(
+export const RepoWatcherLive = Layer.effect(
   RepoWatcher,
   Effect.gen(function* () {
     log("Initialising RepoWatcher...");
@@ -71,7 +71,7 @@ export const RepoWatcherLive = Layer.scoped(
         `Poll complete: ${changed.length} changed, ${state.unchanged.length} unchanged`,
       );
     }).pipe(
-      Effect.catchAll((error) => {
+      Effect.catch((error) => {
         log(`Poll failed: ${error}`);
         return Effect.logWarning(`Poll failed: ${error}`);
       }),
@@ -89,7 +89,7 @@ export const RepoWatcherLive = Layer.scoped(
         );
         const all = yield* dotDiff
           .listAll()
-          .pipe(Effect.catchAll(() => Effect.succeed([] as readonly Repo[])));
+          .pipe(Effect.catch(() => Effect.succeed([] as readonly Repo[])));
 
         if (all.length > 0) {
           const changedNameSet = new Set(changedNames);
@@ -112,7 +112,7 @@ export const RepoWatcherLive = Layer.scoped(
       log("Waybar cache miss — falling back to full poll");
       yield* poll;
     }).pipe(
-      Effect.catchAll(() => {
+      Effect.catch(() => {
         log("Initial load error — falling back to full poll");
         return poll;
       }),

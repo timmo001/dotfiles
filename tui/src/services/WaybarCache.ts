@@ -21,10 +21,10 @@ interface WaybarCacheService {
 }
 
 /** Effect service tag for {@link WaybarCacheService} */
-export class WaybarCache extends Context.Tag("WaybarCache")<
+export class WaybarCache extends Context.Service<
   WaybarCache,
   WaybarCacheService
->() {}
+>()("WaybarCache") {}
 
 function getCachePath(): string {
   const cacheHome =
@@ -44,7 +44,7 @@ export const WaybarCacheLive = Layer.succeed(WaybarCache, {
       },
       catch: (error) =>
         error instanceof Error ? error : new Error(String(error)),
-    }).pipe(Effect.catchAll(() => Effect.succeed(null))),
+    }).pipe(Effect.catch(() => Effect.succeed(null))),
 
   parseChangedNames: (data: WaybarCacheData): readonly string[] => {
     // Tooltip format: "Repositories with changes pending: dotfiles; notes"

@@ -12,10 +12,9 @@ interface DotDiffService {
 }
 
 /** Effect service tag for {@link DotDiffService} */
-export class DotDiff extends Context.Tag("DotDiff")<
-  DotDiff,
-  DotDiffService
->() {}
+export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
+  "DotDiff",
+) {}
 
 function parseDotDiffOutput(output: string): readonly Repo[] {
   return output
@@ -28,8 +27,11 @@ function parseDotDiffOutput(output: string): readonly Repo[] {
     });
 }
 
-function runDotDiff(args: string[]): Effect.Effect<readonly Repo[], Error> {
-  return Effect.tryPromise({
+/** Run a `dot diff` subcommand and parse the output into repositories */
+const runDotDiff = Effect.fn("DotDiff.runDotDiff")(function* (
+  args: string[],
+): Effect.fn.Return<readonly Repo[], Error> {
+  return yield* Effect.tryPromise({
     try: async () => {
       log(`Running: dot diff ${args.join(" ")}`);
       const proc = Bun.spawn(["dot", "diff", ...args], {
@@ -58,7 +60,7 @@ function runDotDiff(args: string[]): Effect.Effect<readonly Repo[], Error> {
       return err;
     },
   });
-}
+});
 
 /** Live layer that shells out to `dot diff` for repository data */
 export const DotDiffLive = Layer.succeed(DotDiff, {

@@ -60,51 +60,50 @@ export interface CommitSuggestService {
 }
 
 /** Effect service tag for {@link CommitSuggestService} */
-export class CommitSuggest extends Context.Tag("CommitSuggest")<
+export class CommitSuggest extends Context.Service<
   CommitSuggest,
   CommitSuggestService
->() {}
+>()("CommitSuggest") {}
 
 /** Discover available models via `opencode models --verbose` and pick the best fast one */
-function discoverFastModel(): Effect.Effect<
-  DiscoveredModel | undefined,
-  Error
-> {
-  return Effect.tryPromise({
-    try: async () => {
-      log("Discovering models via opencode models --verbose...");
-      const proc = Bun.spawn(["opencode", "models", "--verbose"], {
-        stdout: "pipe",
-        stderr: "pipe",
-      });
+const discoverFastModel = Effect.fn("CommitSuggest.discoverFastModel")(
+  function* (): Effect.fn.Return<DiscoveredModel | undefined, Error> {
+    return yield* Effect.tryPromise({
+      try: async () => {
+        log("Discovering models via opencode models --verbose...");
+        const proc = Bun.spawn(["opencode", "models", "--verbose"], {
+          stdout: "pipe",
+          stderr: "pipe",
+        });
 
-      const stdout = await new Response(proc.stdout).text();
-      await proc.exited;
+        const stdout = await new Response(proc.stdout).text();
+        await proc.exited;
 
-      const models = parseModelOutput(stdout);
-      log(`Discovered ${models.length} models`);
+        const models = parseModelOutput(stdout);
+        log(`Discovered ${models.length} models`);
 
-      if (models.length === 0) return undefined;
+        if (models.length === 0) return undefined;
 
-      // Score and sort: prefer fast models from the preferred provider
-      const scored = models.map((m) => ({
-        model: m,
-        score: scoreModel(m),
-      }));
+        // Score and sort: prefer fast models from the preferred provider
+        const scored = models.map((m) => ({
+          model: m,
+          score: scoreModel(m),
+        }));
 
-      scored.sort((a, b) => a.score - b.score); // lower is better
+        scored.sort((a, b) => a.score - b.score); // lower is better
 
-      const best = scored[0];
-      log(`Selected model: ${best.model.id} (score: ${best.score})`);
-      return best.model;
-    },
-    catch: (error) => {
-      const err = error instanceof Error ? error : new Error(String(error));
-      log(`Model discovery failed: ${err.message}`);
-      return err;
-    },
-  });
-}
+        const best = scored[0];
+        log(`Selected model: ${best.model.id} (score: ${best.score})`);
+        return best.model;
+      },
+      catch: (error) => {
+        const err = error instanceof Error ? error : new Error(String(error));
+        log(`Model discovery failed: ${err.message}`);
+        return err;
+      },
+    });
+  },
+);
 
 /**
  * Parse `opencode models --verbose` output into model entries.
@@ -295,7 +294,7 @@ export const CommitSuggestLive = Layer.succeed(CommitSuggest, {
       // Discover fast model (cached after first call)
       if (!cachedModel) {
         const model = yield* discoverFastModel().pipe(
-          Effect.catchAll(() => Effect.succeed(undefined)),
+          Effect.catch(() => Effect.succeed(undefined)),
         );
         cachedModel = model ?? undefined;
       }
@@ -405,8 +404,7 @@ export const CommitSuggestLive = Layer.succeed(CommitSuggest, {
           return parsed.suggestions;
         },
         catch: (error) => {
-          const err =
-            error instanceof Error ? error : new Error(String(error));
+          const err = error instanceof Error ? error : new Error(String(error));
           log(`Suggestion error: ${err.message}`);
           return err;
         },

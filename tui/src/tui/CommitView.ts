@@ -247,7 +247,7 @@ export class CommitView {
 
     Effect.runPromise(
       this.gitStaging.commit(this.repoPath, message).pipe(
-        Effect.catchAll((err) => {
+        Effect.catch((err) => {
           log(`Commit error: ${err.message}`);
           this.statusBar.content = t`${fg(this.theme.red)(`Commit failed: ${err.message}`)}`;
           this.busy = false;
@@ -279,7 +279,7 @@ export class CommitView {
     ];
 
     // Get diff and recent commits in parallel, then request suggestions
-    const getSuggestions = Effect.gen(this, function* () {
+    const getSuggestions = Effect.gen({ self: this }, function* () {
       // Get staged diff
       const diffOutput = yield* Effect.tryPromise({
         try: async () => {
@@ -306,7 +306,7 @@ export class CommitView {
 
     Effect.runPromise(
       getSuggestions.pipe(
-        Effect.catchAll((err) => {
+        Effect.catch((err) => {
           log(`Suggestions error: ${err.message}`);
           this.statusBar.content = t`${fg(this.theme.red)(`Error: ${err.message}`)}`;
           this.hideSuggestions();
@@ -329,7 +329,7 @@ export class CommitView {
    * 10 from the target repo, 2-3 from each repo in `.dot-extra-repos`.
    */
   private gatherRecentCommits(): Effect.Effect<readonly string[], Error> {
-    return Effect.gen(this, function* () {
+    return Effect.gen({ self: this }, function* () {
       const commits: string[] = [];
 
       // 10 from the target repo

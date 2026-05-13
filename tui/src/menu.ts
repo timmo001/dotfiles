@@ -231,7 +231,16 @@ const dotItems: readonly MenuItem[] = [
     "Manage workspace layouts, capture, restore, and setup",
     silent("workspace-menu"),
     undefined,
-    ["layout", "tile", "capture", "restore", "arrange", "windows", "setup", "session"],
+    [
+      "layout",
+      "tile",
+      "capture",
+      "restore",
+      "arrange",
+      "windows",
+      "setup",
+      "session",
+    ],
   ),
   item(
     "topgrade",

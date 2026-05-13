@@ -256,7 +256,7 @@ export class StagingView {
     this.busy = true;
     Effect.runPromise(
       this.gitStaging.getStatus(this.repoPath).pipe(
-        Effect.catchAll((err) => {
+        Effect.catch((err) => {
           log(`Status error: ${err.message}`);
           return Effect.succeed([] as readonly StagedFile[]);
         }),
@@ -315,7 +315,7 @@ export class StagingView {
 
     Effect.runPromise(
       effect.pipe(
-        Effect.catchAll((err) => {
+        Effect.catch((err) => {
           log(`Toggle error: ${err.message}`);
           this.statusBar.content = t`${fg(this.theme.red)(`Error: ${err.message}`)}`;
           return Effect.void;
@@ -336,7 +336,7 @@ export class StagingView {
 
     Effect.runPromise(
       this.gitStaging.stageAll(this.repoPath).pipe(
-        Effect.catchAll((err) => {
+        Effect.catch((err) => {
           log(`Stage all error: ${err.message}`);
           this.statusBar.content = t`${fg(this.theme.red)(`Error: ${err.message}`)}`;
           return Effect.void;

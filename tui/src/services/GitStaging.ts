@@ -34,17 +34,17 @@ export interface GitStagingService {
 }
 
 /** Effect service tag for {@link GitStagingService} */
-export class GitStaging extends Context.Tag("GitStaging")<
+export class GitStaging extends Context.Service<
   GitStaging,
   GitStagingService
->() {}
+>()("GitStaging") {}
 
 /** Run a git command in the given repo directory and return stdout */
-function runGit(
+const runGit = Effect.fn("GitStaging.runGit")(function* (
   repoPath: string,
   args: readonly string[],
-): Effect.Effect<string, Error> {
-  return Effect.tryPromise({
+): Effect.fn.Return<string, Error> {
+  return yield* Effect.tryPromise({
     try: async () => {
       const cmd = ["git", "-C", repoPath, ...args];
       log(`Running: ${cmd.join(" ")}`);
@@ -71,7 +71,7 @@ function runGit(
       return err;
     },
   });
-}
+});
 
 /** Run a git command that produces no meaningful output */
 function runGitVoid(
@@ -162,6 +162,6 @@ export const GitStagingLive = Layer.succeed(GitStaging, {
             return spaceIdx > 0 ? line.slice(spaceIdx + 1) : line;
           }),
       ),
-      Effect.catchAll(() => Effect.succeed([] as readonly string[])),
+      Effect.catch(() => Effect.succeed([] as readonly string[])),
     ),
 });

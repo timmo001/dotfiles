@@ -24,7 +24,7 @@ Always apply these skills when editing code in this directory:
 
 - **Runtime**: Bun
 - **UI**: `@opentui/core` (imperative API — no React/Solid)
-- **Services**: `effect` 3.x (`Context.Tag`, `Layer`, `PubSub`, `Stream`, `Schedule`)
+- **Services**: `effect` 4.x (`Context.Service`, `Layer`, `PubSub`, `Stream`, `Schedule`)
 - **Platform**: `@effect/platform-bun` (available but not yet used heavily)
 - **Build**: `bun build --compile` producing a single binary
 
@@ -80,7 +80,7 @@ MenuItem action types:
 
 ### Key Patterns
 
-- **Services**: `Context.Tag` + `Layer` for Effect services (DotDiff, WaybarCache, RepoWatcher, GitStaging, CommitSuggest)
+- **Services**: `Context.Service` + `Layer` for Effect services (DotDiff, WaybarCache, RepoWatcher, GitStaging, CommitSuggest)
 - **CommandRunner**: Plain object (not Effect service) — passed directly to App to avoid scope issues with `Effect.runFork`
 - **Concurrency**: `Effect.forkScoped` for background poll fiber
 - **Top-level run**: `Effect.runPromise` (keeps process alive)

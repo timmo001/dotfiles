@@ -23,4 +23,4 @@ export const resizeIfFloating = (
         { stdout: "ignore", stderr: "ignore" },
       );
     }
-  }).pipe(Effect.catchAll(() => Effect.void));
+  }).pipe(Effect.catch(() => Effect.void));
