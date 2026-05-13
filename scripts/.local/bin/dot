@@ -3506,13 +3506,47 @@ cmd_skill_updates() {
 }
 
 cmd_stow() {
-  log_section 'Stow workflow'
-  stow_public_dotfiles
+  local has_flags=0
+  local do_public=0
+  local do_private=0
 
-  if can_use_private; then
-    stow_private_dotfiles
-  else
-    log_warn "Skipping private stow ($PRIVATE_REASON)"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --public)  do_public=1; has_flags=1 ;;
+      --private) do_private=1; has_flags=1 ;;
+      --help|-h)
+        printf 'Usage: dot stow [scope]\n\n'
+        printf 'Without flags, stows both public and private dotfiles.\n'
+        printf 'Specify one or more scopes to stow only those:\n\n'
+        printf '  --public    Stow public dotfiles only\n'
+        printf '  --private   Stow private dotfiles only\n'
+        return 0
+        ;;
+      *)
+        log_error "Unknown flag: $1"
+        return 1
+        ;;
+    esac
+    shift
+  done
+
+  if [[ "$has_flags" -eq 0 ]]; then
+    do_public=1
+    do_private=1
+  fi
+
+  log_section 'Stow workflow'
+
+  if [[ "$do_public" -eq 1 ]]; then
+    stow_public_dotfiles
+  fi
+
+  if [[ "$do_private" -eq 1 ]]; then
+    if can_use_private; then
+      stow_private_dotfiles
+    else
+      log_warn "Skipping private stow ($PRIVATE_REASON)"
+    fi
   fi
 }
 
@@ -4680,6 +4714,8 @@ cmd_help() {
   printf '\n'
 
   printf "$fmt_cmd" 'stow' 'Re-stow public/private dotfiles (no git pull)'
+  printf "$fmt_opt" '--public' 'Stow public dotfiles only'
+  printf "$fmt_opt" '--private' 'Stow private dotfiles only'
   printf '\n'
 
   printf "$fmt_cmd" 'tui' 'Launch the TUI dashboard (passes subcommands/flags through)'

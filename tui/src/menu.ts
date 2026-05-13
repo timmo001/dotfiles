@@ -42,7 +42,11 @@ const dotItems: readonly MenuItem[] = [
     { label: "Stow", description: "Re-stow dotfiles without pulling", action: cmd("dot update --stow") },
     { label: "TUI", description: "Rebuild dot-tui binary only", action: cmd("dot update --tui") },
   ]),
-  item("stow", "󰏗", "Stow", "Re-stow public/private dotfiles", cmd("dot stow")),
+  item("stow", "󰏗", "Stow", "Re-stow public/private dotfiles", cmd("dot stow"), [
+    { label: "Full", description: "Stow public + private dotfiles", action: cmd("dot stow") },
+    { label: "Public only", description: "Stow public dotfiles only", action: cmd("dot stow --public") },
+    { label: "Private only", description: "Stow private dotfiles only", action: cmd("dot stow --private") },
+  ]),
   item("diff", "󰊢", "Diff", "Repo watcher with change status", view("diff")),
   item("doctor", "󰛯", "Doctor", "Check dependencies and health", cmd("dot doctor")),
   item("system-health", "󰗶", "System Health Check", "Run system-health-check diagnostics", cmd("system-health-check"), [
@@ -53,11 +57,25 @@ const dotItems: readonly MenuItem[] = [
     { label: "Thermals", description: "Temperature readings", action: cmd("system-health-check --only thermal") },
     { label: "With AI analysis", description: "Full check + OpenCode report", action: cmd("system-health-check --open-opencode") },
   ]),
-  item("skill-updates", "󰏬", "Skill Updates", "Check imported skills for changes", cmd("dot skill-updates")),
+  item("skill-updates", "󰏬", "Skill Updates", "Check imported skills for changes", cmd("dot skill-updates --update"), [
+    { label: "Update", description: "Auto-apply available skill updates", action: cmd("dot skill-updates --update") },
+    { label: "Check only", description: "Show what changed (no apply)", action: cmd("dot skill-updates --check") },
+  ]),
   item("memory", "󰟶", "Memory Refresh", "Refresh OpenCode durable memory", notify("dot memory", {
     id: "memory", progress: "Refreshing memory...", success: "Memory refreshed",
   })),
-  item("topgrade", "󰁝", "Topgrade", "System-wide package upgrades", cmd("topgrade")),
+  item("topgrade", "󰁝", "Topgrade", "System-wide package upgrades", cmd("topgrade"), [
+    { label: "Full", description: "All steps with prompts", action: cmd("topgrade") },
+    { label: "Dry run", description: "Preview what would run", action: cmd("topgrade --dry-run") },
+    { label: "System only", description: "Pacman system packages", action: cmd("topgrade --only system") },
+    { label: "Firmware", description: "Check firmware updates", action: cmd("topgrade --only firmware") },
+    { label: "Containers", description: "Update containers", action: cmd("topgrade --only containers") },
+    { label: "Rust", description: "rustup updates", action: cmd("topgrade --only rustup") },
+    { label: "Bun", description: "Bun packages", action: cmd("topgrade --only bun_packages") },
+    { label: "VS Code", description: "VS Code extensions", action: cmd("topgrade --only vscode") },
+    { label: "mise", description: "mise tool versions", action: cmd("topgrade --only mise") },
+    { label: "Cleanup", description: "Run with post-cleanup", action: cmd("topgrade --cleanup") },
+  ]),
   item("omarchy", "󰣇", "Omarchy", "Desktop environment controls", submenu("omarchy")),
 ]
 
@@ -66,7 +84,14 @@ const dotItems: readonly MenuItem[] = [
 // Items without walker entry points are kept as TUI submenus.
 
 const omarchyTopItems: readonly MenuItem[] = [
-  item("omarchy.update", "󰚰", "Update", "Update Omarchy and all components", cmd("omarchy update")),
+  item("omarchy.update", "󰚰", "Update", "Update Omarchy and all components", cmd("omarchy update -y"), [
+    { label: "Full", description: "Full update pipeline", action: cmd("omarchy update -y") },
+    { label: "Git only", description: "Pull latest Omarchy changes", action: cmd("omarchy update git") },
+    { label: "System pkgs", description: "Update pacman packages", action: cmd("omarchy update system pkgs") },
+    { label: "AUR pkgs", description: "Update AUR packages", action: cmd("omarchy update aur pkgs") },
+    { label: "Firmware", description: "Firmware via fwupd", action: cmd("omarchy update firmware") },
+    { label: "Keyring", description: "Refresh keyrings", action: cmd("omarchy update keyring") },
+  ]),
 
   // Walker menu launches
   item("omarchy.theme", "󰏘", "Theme", "Choose and apply a theme", silent("omarchy-menu theme")),
