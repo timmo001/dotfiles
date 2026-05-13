@@ -294,12 +294,11 @@ export class MenuList extends ScrollBoxRenderable {
     const textColor = isSelected ? th.accentFg : th.fg;
     const descColor = isSelected ? th.fg : th.fgMuted;
 
-    // Row container — horizontal layout, full width, fixed 2-line height
+    // Row container — horizontal layout, full width
     const container = new BoxRenderable(this._renderer, {
       id,
       flexDirection: "row",
       width: "100%",
-      height: 2,
       flexShrink: 0,
       backgroundColor: bgColor,
     });
