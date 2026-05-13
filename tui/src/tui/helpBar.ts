@@ -1,17 +1,17 @@
-import { StyledText, fg } from "@opentui/core"
-import type { TextChunk } from "@opentui/core"
-import type { Theme } from "../theme.js"
+import { StyledText, fg } from "@opentui/core";
+import type { TextChunk } from "@opentui/core";
+import type { Theme } from "../theme.js";
 
 /** A key-action pair displayed in a help bar */
 export interface HelpEntry {
   /** Key or key combination (e.g. "↑↓", "Enter", "Esc/Backspace") */
-  readonly key: string
+  readonly key: string;
   /** Action description (e.g. "navigate", "quit") */
-  readonly action: string
+  readonly action: string;
 }
 
 /** Separator between key-action pairs (visible width) */
-const SEPARATOR = "   "
+const SEPARATOR = "   ";
 
 /**
  * Format help bar entries into styled text with automatic row wrapping.
@@ -29,46 +29,47 @@ export function formatHelpBar(
   entries: readonly HelpEntry[],
   suffix?: TextChunk,
 ): StyledText {
-  const plainParts = entries.map((e) => `${e.key} ${e.action}`)
-  const columns = process.stdout.columns || 80
+  const plainParts = entries.map((e) => `${e.key} ${e.action}`);
+  const columns = process.stdout.columns || 80;
 
   // Wrap into rows that fit within terminal width using plain-text widths
-  const rows: number[][] = []
-  let currentWidth = 0
-  let currentRow: number[] = []
+  const rows: number[][] = [];
+  let currentWidth = 0;
+  let currentRow: number[] = [];
   for (let i = 0; i < plainParts.length; i++) {
-    const partWidth = plainParts[i].length
-    const candidateWidth = currentRow.length > 0
-      ? currentWidth + SEPARATOR.length + partWidth
-      : partWidth
+    const partWidth = plainParts[i].length;
+    const candidateWidth =
+      currentRow.length > 0
+        ? currentWidth + SEPARATOR.length + partWidth
+        : partWidth;
     if (currentRow.length > 0 && candidateWidth > columns) {
-      rows.push(currentRow)
-      currentRow = [i]
-      currentWidth = partWidth
+      rows.push(currentRow);
+      currentRow = [i];
+      currentWidth = partWidth;
     } else {
-      currentRow.push(i)
-      currentWidth = candidateWidth
+      currentRow.push(i);
+      currentWidth = candidateWidth;
     }
   }
-  if (currentRow.length > 0) rows.push(currentRow)
+  if (currentRow.length > 0) rows.push(currentRow);
 
   // Build styled chunks with colour-coded keys and actions
-  const chunks: TextChunk[] = []
+  const chunks: TextChunk[] = [];
   for (let r = 0; r < rows.length; r++) {
-    if (r > 0) chunks.push(fg(theme.fgSubtle)("\n"))
-    const row = rows[r]
+    if (r > 0) chunks.push(fg(theme.fgSubtle)("\n"));
+    const row = rows[r];
     for (let j = 0; j < row.length; j++) {
-      if (j > 0) chunks.push(fg(theme.fgSubtle)(SEPARATOR))
-      const entry = entries[row[j]]
-      chunks.push(fg(theme.fgMuted)(entry.key))
-      chunks.push(fg(theme.fgSubtle)(` ${entry.action}`))
+      if (j > 0) chunks.push(fg(theme.fgSubtle)(SEPARATOR));
+      const entry = entries[row[j]];
+      chunks.push(fg(theme.fgMuted)(entry.key));
+      chunks.push(fg(theme.fgSubtle)(` ${entry.action}`));
     }
   }
 
   if (suffix) {
-    chunks.push(fg(theme.fgSubtle)("  "))
-    chunks.push(suffix)
+    chunks.push(fg(theme.fgSubtle)("  "));
+    chunks.push(suffix);
   }
 
-  return new StyledText(chunks)
+  return new StyledText(chunks);
 }

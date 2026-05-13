@@ -1,32 +1,34 @@
-import type { ViewId } from "./types.js"
-import { menuItemsById, submenus } from "./menu.js"
+import type { ViewId } from "./types.js";
+import { menuItemsById, submenus } from "./menu.js";
 
-type DiffTab = "changed" | "unchanged"
+type DiffTab = "changed" | "unchanged";
 
 /** Parsed CLI flags for `dot-tui` */
 export interface Flags {
   /** Resolved subcommand (dot-separated path) matching a menu item ID or view ID */
-  readonly subcommand: string | undefined
+  readonly subcommand: string | undefined;
   /** Initial tab for the diff view */
-  readonly tab: DiffTab
+  readonly tab: DiffTab;
   /** Show help and exit */
-  readonly help: boolean
+  readonly help: boolean;
   /** Remaining args not consumed by subcommand or flag parsing */
-  readonly rest: readonly string[]
+  readonly rest: readonly string[];
 }
 
 function parseDiffTab(value: string): DiffTab {
-  if (value === "other" || value === "unchanged") return "unchanged"
-  if (value === "changed") return "changed"
-  console.error(`Unknown --tab value: ${value} (expected: changed, other, unchanged)`)
-  process.exit(1)
+  if (value === "other" || value === "unchanged") return "unchanged";
+  if (value === "changed") return "changed";
+  console.error(
+    `Unknown --tab value: ${value} (expected: changed, other, unchanged)`,
+  );
+  process.exit(1);
 }
 
 /** Check whether a candidate string matches any known view, menu item, or submenu */
 function isKnownTarget(candidate: string): boolean {
-  if (candidate === "diff" || candidate === "omarchy") return true
-  if (menuItemsById.has(candidate) || submenus.has(candidate)) return true
-  return false
+  if (candidate === "diff" || candidate === "omarchy") return true;
+  if (menuItemsById.has(candidate) || submenus.has(candidate)) return true;
+  return false;
 }
 
 /**
@@ -37,75 +39,82 @@ function isKnownTarget(candidate: string): boolean {
  * to subcommand `"omarchy.theme.set"` if that ID exists in the registry.
  */
 export function parseFlags(args: readonly string[]): Flags {
-  let subcommand: string | undefined
-  let tab: DiffTab = "changed"
-  let help = false
-  const rest: string[] = []
+  let subcommand: string | undefined;
+  let tab: DiffTab = "changed";
+  let help = false;
+  const rest: string[] = [];
 
-  let i = 0
+  let i = 0;
 
   // Collect all leading positional args (before any flags)
-  const positionals: string[] = []
+  const positionals: string[] = [];
   while (i < args.length && !args[i].startsWith("-")) {
-    positionals.push(args[i])
-    i++
+    positionals.push(args[i]);
+    i++;
   }
 
   // Greedy longest-match resolution for subcommand path
   if (positionals.length > 0) {
-    let consumed = 0
+    let consumed = 0;
     // Try longest candidate first, shrink until a match is found
     for (let len = positionals.length; len >= 1; len--) {
-      const candidate = positionals.slice(0, len).join(".")
+      const candidate = positionals.slice(0, len).join(".");
       if (isKnownTarget(candidate)) {
-        subcommand = candidate
-        consumed = len
-        break
+        subcommand = candidate;
+        consumed = len;
+        break;
       }
     }
     if (consumed === 0) {
       // No match — use first positional (will fail in resolveSubcommand)
-      subcommand = positionals[0]
-      consumed = 1
+      subcommand = positionals[0];
+      consumed = 1;
     }
     // Push unconsumed positionals to rest
     for (let j = consumed; j < positionals.length; j++) {
-      rest.push(positionals[j])
+      rest.push(positionals[j]);
     }
   }
 
   // Parse remaining flags
   for (; i < args.length; i++) {
-    const arg = args[i]
+    const arg = args[i];
     if (arg === "--help" || arg === "-h") {
-      help = true
+      help = true;
     } else if (arg === "--tab") {
-      const next = args[i + 1]
+      const next = args[i + 1];
       if (!next || next.startsWith("-")) {
-        console.error("--tab requires a value (e.g. --tab changed or --tab other)")
-        process.exit(1)
+        console.error(
+          "--tab requires a value (e.g. --tab changed or --tab other)",
+        );
+        process.exit(1);
       }
-      tab = parseDiffTab(next)
-      i++
+      tab = parseDiffTab(next);
+      i++;
     } else {
-      rest.push(arg)
+      rest.push(arg);
     }
   }
 
-  return { subcommand, tab, help, rest }
+  return { subcommand, tab, help, rest };
 }
 
 /** Resolve a subcommand string to a navigation target */
-export function resolveSubcommand(sub: string): { type: "view"; viewId: ViewId } | { type: "item"; itemId: string } | undefined {
+export function resolveSubcommand(
+  sub: string,
+):
+  | { type: "view"; viewId: ViewId }
+  | { type: "item"; itemId: string }
+  | undefined {
   // Direct view names
-  if (sub === "diff") return { type: "view", viewId: "diff" }
-  if (sub === "omarchy") return { type: "view", viewId: "omarchy" }
+  if (sub === "diff") return { type: "view", viewId: "diff" };
+  if (sub === "omarchy") return { type: "view", viewId: "omarchy" };
 
   // Match against menu item IDs or submenu keys
-  if (menuItemsById.has(sub)) return { type: "item", itemId: sub }
-  if (submenus.has(sub)) return { type: "item", itemId: sub }
+  if (menuItemsById.has(sub)) return { type: "item", itemId: sub };
+  if (submenus.has(sub)) return { type: "item", itemId: sub };
 
-  return undefined
+  return undefined;
 }
 
 /**
@@ -131,8 +140,8 @@ Keybindings:
   Enter          Open lazygit for the selected repo
   r              Manual refresh
   Esc/Backspace  Back to main menu
-  q              Quit`)
-    return
+  q              Quit`);
+    return;
   }
 
   if (subcommand === "omarchy" || subcommand?.startsWith("omarchy.")) {
@@ -164,8 +173,8 @@ Available submenus:
   power       Power profiles
 
 Options:
-  --help, -h  Show this help message`)
-    return
+  --help, -h  Show this help message`);
+    return;
   }
 
   console.log(`Usage: dot-tui [subcommand] [options]
@@ -191,5 +200,5 @@ Examples:
   dot-tui                      Main menu
   dot-tui diff --tab other     Diff view, Other pane focused
   dot-tui omarchy theme        Omarchy theme submenu
-  dot-tui omarchy theme set    Execute omarchy theme set`)
+  dot-tui omarchy theme set    Execute omarchy theme set`);
 }
