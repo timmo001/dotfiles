@@ -135,7 +135,7 @@ const program = Effect.gen(function* () {
       const text = await new Response(proc.stdout).text();
       const win = JSON.parse(text);
       if (win.floating) {
-        Bun.spawn(["hyprctl", "dispatch", "resizewindowpixel", "exact 420 580,active"], {
+        Bun.spawn(["hyprctl", "dispatch", "resizewindowpixel", "exact 500 600,active"], {
           stdout: "ignore",
           stderr: "ignore",
         });
