@@ -9,7 +9,7 @@ import type { MenuItem } from "../types.js";
 import type { Theme } from "../theme.js";
 import { submenus, submenuTitles } from "../menu.js";
 import { formatBreadcrumb } from "./breadcrumb.js";
-import { formatHelpBar, type HelpEntry } from "./helpBar.js";
+import { formatHelpBar, GLOBAL_HELP, type HelpEntry } from "./helpBar.js";
 import { MenuList } from "./MenuList.js";
 
 /** Help entries for the omarchy menu */
@@ -19,6 +19,7 @@ const HELP: readonly HelpEntry[] = [
   { key: "type", action: "filter" },
   { key: "Esc", action: "back" },
   { key: "Backspace", action: "back" },
+  ...GLOBAL_HELP,
 ];
 
 /** Configuration callbacks for the omarchy submenu tree */

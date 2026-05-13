@@ -16,14 +16,14 @@ import type { Theme } from "../theme.js";
 import type { GitStagingService } from "../services/GitStaging.js";
 import type { CommitSuggestService } from "../services/CommitSuggest.js";
 import { formatBreadcrumb } from "./breadcrumb.js";
-import { formatHelpBar, type HelpEntry } from "./helpBar.js";
+import { formatHelpBar, GLOBAL_HELP, type HelpEntry } from "./helpBar.js";
 
 /** Help entries for the commit view (default state) */
 const HELP_DEFAULT: readonly HelpEntry[] = [
   { key: "Ctrl+s", action: "suggest" },
   { key: "Enter", action: "commit" },
   { key: "Esc", action: "back" },
-  { key: "q", action: "quit" },
+  ...GLOBAL_HELP,
 ];
 
 /** Help entries for the commit view when suggestions are visible */
@@ -32,7 +32,7 @@ const HELP_SUGGESTIONS: readonly HelpEntry[] = [
   { key: "Enter", action: "select/commit" },
   { key: "Ctrl+s", action: "suggest" },
   { key: "Esc", action: "back" },
-  { key: "q", action: "quit" },
+  ...GLOBAL_HELP,
 ];
 
 const log = (msg: string) => console.error(`[dot-tui:CommitView] ${msg}`);

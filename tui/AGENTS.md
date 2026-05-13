@@ -130,7 +130,7 @@ The build is also triggered by `dot update` via `maybe_build_tui()` in the `dot`
 |-----|--------|
 | `↑↓` | Navigate list |
 | `Enter` | Select item (opens variant popup if variants exist) |
-| `q` | Quit |
+| `Ctrl+c` | Quit |
 
 ### Variant Popup
 | Key | Action |
@@ -153,7 +153,7 @@ The build is also triggered by `dot update` via `maybe_build_tui()` in the `dot`
 | `w` | Open selected repo on GitHub in browser |
 | `r` | Manual refresh |
 | `Esc/Backspace` | Back to main menu |
-| `q` | Quit |
+| `Ctrl+c` | Quit |
 
 ### Staging View
 | Key | Action |
@@ -165,7 +165,7 @@ The build is also triggered by `dot update` via `maybe_build_tui()` in the `dot`
 | `l` | Open lazygit for the repo |
 | `c`/`Enter` | Proceed to commit view (requires staged files) |
 | `Esc/Backspace` | Back to diff view |
-| `q` | Quit |
+| `Ctrl+c` | Quit |
 
 ### Commit View
 | Key | Action |
@@ -174,7 +174,7 @@ The build is also triggered by `dot update` via `maybe_build_tui()` in the `dot`
 | `Tab` | Switch between input and suggestion list |
 | `Enter` | Commit (on input) or select suggestion (on list) |
 | `Esc` | Hide suggestions / back to staging view |
-| `q` | Quit |
+| `Ctrl+c` | Quit |
 
 ### Omarchy Menu
 | Key | Action |
@@ -182,7 +182,7 @@ The build is also triggered by `dot update` via `maybe_build_tui()` in the `dot`
 | `↑↓` | Navigate list |
 | `Enter` | Select item / enter submenu |
 | `Esc/Backspace` | Back to parent menu |
-| `q` | Quit |
+| `Ctrl+c` | Quit |
 
 ## External Dependencies
 
@@ -211,7 +211,7 @@ For dead-code analysis, use the MCP `analyze` tool with `root: tui`, or `/fallow
 
 Smoke tests:
 ```bash
-dot-tui                      # smoke test: main menu renders, q quits
+dot-tui                      # smoke test: main menu renders, Ctrl+c quits
 dot-tui diff                 # smoke test: diff view renders
 dot tui                      # smoke test: alias works
 dot                          # smoke test: launches TUI

@@ -12,7 +12,7 @@ import type { StagedFile } from "../types.js";
 import type { Theme } from "../theme.js";
 import type { GitStagingService } from "../services/GitStaging.js";
 import { formatBreadcrumb } from "./breadcrumb.js";
-import { formatHelpBar, type HelpEntry } from "./helpBar.js";
+import { formatHelpBar, GLOBAL_HELP, type HelpEntry } from "./helpBar.js";
 
 /** Help entries for the staging view */
 const HELP: readonly HelpEntry[] = [
@@ -22,7 +22,7 @@ const HELP: readonly HelpEntry[] = [
   { key: "l", action: "lazygit" },
   { key: "c/Enter", action: "commit" },
   { key: "Esc/Backspace", action: "back" },
-  { key: "q", action: "quit" },
+  ...GLOBAL_HELP,
 ];
 
 const log = (msg: string) => console.error(`[dot-tui:StagingView] ${msg}`);

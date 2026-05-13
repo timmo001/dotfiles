@@ -9,7 +9,7 @@ import {
 import type { MenuItem } from "../types.js";
 import type { Theme } from "../theme.js";
 import { mainMenuItems } from "../menu.js";
-import { formatHelpBar, type HelpEntry } from "./helpBar.js";
+import { formatHelpBar, GLOBAL_HELP, type HelpEntry } from "./helpBar.js";
 import { MenuList } from "./MenuList.js";
 
 /** Help entries for the main menu */
@@ -17,7 +17,7 @@ const HELP: readonly HelpEntry[] = [
   { key: "↑↓", action: "navigate" },
   { key: "Enter", action: "select" },
   { key: "type", action: "filter" },
-  { key: "Ctrl+c", action: "quit" },
+  ...GLOBAL_HELP,
 ];
 
 /** Configuration callbacks for the main menu */

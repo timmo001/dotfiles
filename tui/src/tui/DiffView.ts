@@ -13,7 +13,7 @@ import { join } from "node:path";
 import type { Repo, RepoState } from "../types.js";
 import type { Theme } from "../theme.js";
 import { formatBreadcrumb } from "./breadcrumb.js";
-import { formatHelpBar, type HelpEntry } from "./helpBar.js";
+import { formatHelpBar, GLOBAL_HELP, type HelpEntry } from "./helpBar.js";
 
 /** Help entries for the diff view */
 const HELP: readonly HelpEntry[] = [
@@ -29,7 +29,7 @@ const HELP: readonly HelpEntry[] = [
   { key: "w", action: "web" },
   { key: "r", action: "refresh" },
   { key: "Esc/Backspace", action: "back" },
-  { key: "q", action: "quit" },
+  ...GLOBAL_HELP,
 ];
 
 /** Configuration callbacks and initial state for the diff view */

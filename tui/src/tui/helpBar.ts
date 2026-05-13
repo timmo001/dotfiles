@@ -10,6 +10,11 @@ export interface HelpEntry {
   readonly action: string;
 }
 
+/** Global help entries appended to every view's help bar */
+export const GLOBAL_HELP: readonly HelpEntry[] = [
+  { key: "Ctrl+c", action: "quit" },
+];
+
 /** Separator between key-action pairs (visible width) */
 const SEPARATOR = "   ";
 
