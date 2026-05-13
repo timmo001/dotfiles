@@ -144,6 +144,7 @@ export class OmarchyMenu {
     this.root.remove(this.menuList.id);
     this.menuList = this.createMenuList(items);
     this.root.insertBefore(this.menuList, this.helpBar);
+    this.menuList.focus();
   }
 
   private createMenuList(items: readonly MenuItem[]): MenuList {
