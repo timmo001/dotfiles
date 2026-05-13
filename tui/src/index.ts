@@ -125,6 +125,26 @@ const program = Effect.gen(function* () {
   // Set terminal tab title
   process.stdout.write("\x1b]0;Dot TUI\x07");
 
+  // Resize window if floating on Hyprland
+  yield* Effect.promise(async () => {
+    try {
+      const proc = Bun.spawn(["hyprctl", "activewindow", "-j"], {
+        stdout: "pipe",
+        stderr: "ignore",
+      });
+      const text = await new Response(proc.stdout).text();
+      const win = JSON.parse(text);
+      if (win.floating) {
+        Bun.spawn(["hyprctl", "dispatch", "resizewindowpixel", "exact 420 580,active"], {
+          stdout: "ignore",
+          stderr: "ignore",
+        });
+      }
+    } catch {
+      // Not on Hyprland or hyprctl unavailable — skip
+    }
+  });
+
   log("Starting renderer...");
   renderer.start();
   log("Renderer started — TUI is live");
