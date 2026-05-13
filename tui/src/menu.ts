@@ -36,7 +36,11 @@ function submenu(menuId: string): MenuItem["action"] {
 // --- Dot main menu ---
 
 const dotItems: readonly MenuItem[] = [
-  item("update", "󰚰", "Update", "Pull repos, stow dotfiles, rebuild", cmd("dot update")),
+  item("update", "󰚰", "Update", "Pull repos, stow dotfiles, rebuild", cmd("dot update"), [
+    { label: "Full", description: "Pull, stow, agents-sync, memory, skills", action: cmd("dot update") },
+    { label: "Quick", description: "Pull & stow only (skip post-hooks)", action: cmd("DOT_AGENTS_SYNC_ON_UPDATE=0 DOT_MEMORY_UPDATE_ON_UPDATE=0 dot update") },
+    { label: "No omarchy", description: "Skip omarchy repo sync", action: cmd("DOT_INCLUDE_OMARCHY_UPDATE_REPOS=0 dot update") },
+  ]),
   item("stow", "󰏗", "Stow", "Re-stow public/private dotfiles", cmd("dot stow")),
   item("diff", "󰊢", "Diff", "Repo watcher with change status", view("diff")),
   item("doctor", "󰛯", "Doctor", "Check dependencies and health", cmd("dot doctor")),
