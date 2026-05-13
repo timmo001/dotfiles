@@ -98,6 +98,18 @@ const dotItems: readonly MenuItem[] = [
     "Doctor",
     "Check dependencies and health",
     cmd("dot doctor"),
+    [
+      {
+        label: "Standard",
+        description: "Run all health checks",
+        action: cmd("dot doctor"),
+      },
+      {
+        label: "With AI analysis",
+        description: "Full check + OpenCode report",
+        action: cmd("dot doctor --open-opencode"),
+      },
+    ],
   ),
   item(
     "system-health",

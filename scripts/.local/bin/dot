@@ -3578,6 +3578,27 @@ cmd_clean() {
 }
 
 cmd_doctor() {
+  local open_opencode=0
+  local opencode_variant=''
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --open-opencode) open_opencode=1; shift ;;
+      --opencode-variant) opencode_variant="$2"; shift 2 ;;
+      *)
+        log_error "dot doctor: unknown argument: $1"
+        return 1
+        ;;
+    esac
+  done
+
+  local doctor_output_dir="${XDG_STATE_HOME:-$HOME/.local/state}/dot-doctor"
+  local doctor_output_file="$doctor_output_dir/dot-doctor-$(date +%Y%m%d-%H%M%S).txt"
+
+  if (( open_opencode )); then
+    mkdir -p "$doctor_output_dir"
+    exec > >(tee "$doctor_output_file") 2>&1
+  fi
+
   local issues=0
   local warnings=0
   local status=0
@@ -4643,6 +4664,45 @@ cmd_doctor() {
   else
     doctor_summary_error "Doctor finished: $issues critical issue(s), $warnings warning(s)"
     status=1
+  fi
+
+  if (( open_opencode )); then
+    printf '\n'
+    log_info "Saved doctor report: $doctor_output_file"
+    log_section 'OpenCode Handoff'
+
+    if ! has_cmd opencode; then
+      log_error 'opencode command not found. Skipping OpenCode handoff.'
+      return "$status"
+    fi
+
+    local opencode_prompt='Review this dot doctor report. Give a concise diagnosis of any issues or warnings, probable causes, and a prioritized action plan to resolve them.'
+    local opencode_title="Dot Doctor $(date +%F-%H%M)"
+
+    log_info 'Running opencode analysis on the report...'
+    local -a opencode_run_cmd=(opencode run "$opencode_prompt" -f "$doctor_output_file" --title "$opencode_title")
+    if [[ -n "$opencode_variant" ]]; then
+      opencode_run_cmd+=(--variant "$opencode_variant")
+    fi
+    if ! "${opencode_run_cmd[@]}"; then
+      if [[ -n "$opencode_variant" ]]; then
+        log_warn "opencode run failed with --variant $opencode_variant, retrying without variant..."
+        if ! opencode run "$opencode_prompt" -f "$doctor_output_file" --title "$opencode_title"; then
+          log_error 'opencode run failed. You can retry manually with the saved report file.'
+          return "$status"
+        fi
+      else
+        log_error 'opencode run failed. You can retry manually with the saved report file.'
+        return "$status"
+      fi
+    fi
+
+    if [[ -r /dev/tty && -w /dev/tty ]]; then
+      log_info 'Opening full interactive OpenCode session (continuing latest)...'
+      opencode --continue < /dev/tty > /dev/tty 2>&1 || log_error 'Failed to open interactive OpenCode session.'
+    else
+      log_warn 'No interactive TTY detected. Continue manually with: opencode --continue'
+    fi
   fi
 
   return "$status"
