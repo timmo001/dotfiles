@@ -73,6 +73,7 @@ const dotItems: readonly MenuItem[] = [
         action: cmd("dot update --tui"),
       },
     ],
+    ["upd", "pull", "fetch", "sync", "refresh", "rebuild"],
   ),
   item(
     "stow",
@@ -97,8 +98,17 @@ const dotItems: readonly MenuItem[] = [
         action: cmd("dot stow --private"),
       },
     ],
+    ["sym", "symlink", "link", "deploy", "dotfiles"],
   ),
-  item("diff", "󰊢", "Diff", "Repo watcher with change status", view("diff")),
+  item(
+    "diff",
+    "󰊢",
+    "Diff",
+    "Repo watcher with change status",
+    view("diff"),
+    undefined,
+    ["chg", "changes", "status", "git", "repos", "modified", "dirty"],
+  ),
   item(
     "doctor",
     "󰛯",
@@ -117,6 +127,7 @@ const dotItems: readonly MenuItem[] = [
         action: cmd("dot doctor --open-opencode"),
       },
     ],
+    ["doc", "health", "check", "diagnose", "deps", "dependencies"],
   ),
   item(
     "system-health",
@@ -156,6 +167,16 @@ const dotItems: readonly MenuItem[] = [
         action: cmd("system-health-check --open-opencode"),
       },
     ],
+    [
+      "diag",
+      "diagnostics",
+      "temperature",
+      "disk",
+      "logs",
+      "hardware",
+      "cpu",
+      "mem",
+    ],
   ),
   item(
     "skill-updates",
@@ -175,6 +196,7 @@ const dotItems: readonly MenuItem[] = [
         action: cmd("dot skill-updates --check"),
       },
     ],
+    ["sk", "skills", "plugins", "upstream", "agents"],
   ),
   item(
     "memory",
@@ -186,6 +208,8 @@ const dotItems: readonly MenuItem[] = [
       progress: "Refreshing memory...",
       success: "Memory refreshed",
     }),
+    undefined,
+    ["mem", "memorise", "remember", "agents", "durable", "opencode"],
   ),
   item(
     "topgrade",
@@ -245,6 +269,7 @@ const dotItems: readonly MenuItem[] = [
         action: cmd("topgrade --cleanup"),
       },
     ],
+    ["upg", "upgrade", "packages", "pacman", "aur", "brew", "apt", "pkg"],
   ),
   item(
     "omarchy",
@@ -252,16 +277,18 @@ const dotItems: readonly MenuItem[] = [
     "Omarchy",
     "Desktop environment controls",
     submenu("omarchy"),
-  ),
-  item(
-    "quit",
-    "󰗼",
-    "Quit",
-    "Exit the TUI",
-    { type: "quit" },
     undefined,
-    ["exit", "quit", "close", ":q", ":wq", ":qa", "bye"],
+    ["om", "desktop", "hyprland", "waybar", "linux", "wm", "theme"],
   ),
+  item("quit", "󰗼", "Quit", "Exit the TUI", { type: "quit" }, undefined, [
+    "exit",
+    "quit",
+    "close",
+    ":q",
+    ":wq",
+    ":qa",
+    "bye",
+  ]),
 ];
 
 // --- Omarchy top-level ---
