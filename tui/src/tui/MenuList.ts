@@ -233,9 +233,7 @@ export class MenuList extends ScrollBoxRenderable {
       this._selectedIndex = preservedIndex >= 0 ? preservedIndex : 0;
     } else {
       // Filtering — always select top result
-      this._items = this._fuse
-        .search(this._filterText)
-        .map((r) => r.item);
+      this._items = this._fuse.search(this._filterText).map((r) => r.item);
       this._selectedIndex = 0;
     }
     this._buildRows();
