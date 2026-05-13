@@ -203,6 +203,7 @@ Always run type check, dead-code analysis, and build after every final code chan
 ```bash
 cd ~/.config/dotfiles/tui
 bunx tsc --noEmit            # type check
+bun run format               # format with prettier
 bun run build                # compile binary
 ```
 
