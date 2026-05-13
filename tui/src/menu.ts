@@ -37,9 +37,10 @@ function submenu(menuId: string): MenuItem["action"] {
 
 const dotItems: readonly MenuItem[] = [
   item("update", "󰚰", "Update", "Pull repos, stow dotfiles, rebuild", cmd("dot update"), [
-    { label: "Full", description: "Pull, stow, agents-sync, memory, skills", action: cmd("dot update") },
-    { label: "Quick", description: "Pull & stow only (skip post-hooks)", action: cmd("DOT_AGENTS_SYNC_ON_UPDATE=0 DOT_MEMORY_UPDATE_ON_UPDATE=0 dot update") },
-    { label: "No omarchy", description: "Skip omarchy repo sync", action: cmd("DOT_INCLUDE_OMARCHY_UPDATE_REPOS=0 dot update") },
+    { label: "Full", description: "Pull, stow, rebuild TUI, run hooks", action: cmd("dot update") },
+    { label: "Pull", description: "Pull all repos (dotfiles, private, omarchy)", action: cmd("dot update --pull") },
+    { label: "Stow", description: "Re-stow dotfiles without pulling", action: cmd("dot update --stow") },
+    { label: "TUI", description: "Rebuild dot-tui binary only", action: cmd("dot update --tui") },
   ]),
   item("stow", "󰏗", "Stow", "Re-stow public/private dotfiles", cmd("dot stow")),
   item("diff", "󰊢", "Diff", "Repo watcher with change status", view("diff")),
