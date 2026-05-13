@@ -8,6 +8,8 @@ export interface Theme {
   readonly bg: string;
   /** Elevated surface (pane/card background) */
   readonly bgElevated: string;
+  /** Selected row background (subtle accent tint) */
+  readonly bgSelected: string;
   /** Focused input background */
   readonly bgInput: string;
   /** Accent colour for selections, highlights, cursors, and emphasis text */
@@ -34,21 +36,22 @@ export interface Theme {
   readonly transparent: boolean;
 }
 
-/** Hardcoded GitHub Dark fallback when no Omarchy theme is available */
+/** Hardcoded Catppuccin Mocha (dark) fallback when no Omarchy theme is available */
 const FALLBACK: Theme = {
-  bg: "#0d1117",
-  bgElevated: "#161b22",
-  bgInput: "#1c2129",
-  accent: "#58a6ff",
-  accentFg: "#ffffff",
-  surface: "#30363d",
-  fg: "#c9d1d9",
-  fgMuted: "#8b949e",
-  fgSubtle: "#484f58",
-  fgGhost: "#6e7681",
-  green: "#3fb950",
-  red: "#f85149",
-  yellow: "#d29922",
+  bg: "#06060a",
+  bgElevated: "#0e0e15",
+  bgSelected: "#1a1a2e",
+  bgInput: "#181825",
+  accent: "#89b4fa",
+  accentFg: "#11111b",
+  surface: "#313244",
+  fg: "#cdd6f4",
+  fgMuted: "#a6adc8",
+  fgSubtle: "#6c7086",
+  fgGhost: "#45475a",
+  green: "#a6e3a1",
+  red: "#f38ba8",
+  yellow: "#f9e2af",
   transparent: false,
 };
 
@@ -131,9 +134,10 @@ function deriveTheme(c: Record<string, string>): Theme {
   return {
     bg,
     bgElevated: mix(bg, fgColor, 0.05),
+    bgSelected: mix(bg, accent, 0.2),
     bgInput: mix(bg, fgColor, 0.08),
     accent,
-    accentFg: pickAccentFg(accent, fgColor, bg),
+    accentFg: mix(accent, pickAccentFg(accent, fgColor, bg), 0.8),
     surface: mix(bg, fgColor, 0.19),
     fg: fgColor,
     fgMuted: mix(bg, fgColor, 0.67),

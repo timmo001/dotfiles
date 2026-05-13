@@ -290,9 +290,9 @@ export class MenuList extends ScrollBoxRenderable {
   ): MenuRow {
     const th = this._theme;
     const id = `${this.id}-row-${index}`;
-    const bgColor = isSelected ? th.accent : th.bgElevated;
-    const textColor = isSelected ? th.accentFg : th.fg;
-    const descColor = isSelected ? th.fg : th.fgMuted;
+    const bgColor = isSelected ? th.bgSelected : th.bgElevated;
+    const textColor = isSelected ? th.accent : th.fg;
+    const descColor = isSelected ? th.fgMuted : th.fgMuted;
 
     // Row container — horizontal layout, full width
     const container = new BoxRenderable(this._renderer, {
@@ -339,9 +339,9 @@ export class MenuList extends ScrollBoxRenderable {
 
   private _styleRow(row: MenuRow, selected: boolean): void {
     const th = this._theme;
-    const bg = selected ? th.accent : th.bgElevated;
-    const textColor = selected ? th.accentFg : th.fg;
-    const descColor = selected ? th.fg : th.fgMuted;
+    const bg = selected ? th.bgSelected : th.bgElevated;
+    const textColor = selected ? th.accent : th.fg;
+    const descColor = selected ? th.fgMuted : th.fgMuted;
 
     row.container.backgroundColor = bg;
     row.iconText.content = t`${fg(textColor)(row.item.icon)}`;
