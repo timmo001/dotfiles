@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# Called by hypridle after_sleep_cmd on system resume from sleep.
+# Restarts services that don't recover well after suspend.
+
+LOG_FILE="/tmp/on-resume.log"
+
+log() {
+  echo "[$(date '+%H:%M:%S')] $1" >> "$LOG_FILE"
+}
+
+if [[ "${ON_RESUME_DETACHED:-0}" != "1" ]]; then
+  export ON_RESUME_DETACHED=1
+  setsid "$0" "$@" >/dev/null 2>&1 &
+  exit 0
+fi
+
+: > "$LOG_FILE"
+log "Resume started"
+
+# Restart twitch-notifications
+pkill -f '/usr/bin/twitch-notifications( |$)' >/dev/null 2>&1 || pkill -f '(^| )twitch-notifications( |$)' >/dev/null 2>&1 || true
+log "Killed twitch-notifications"
+
+# Clear dot-diff cache and restart waybar
+rm -f ~/.cache/waybar/dot-diff-waybar.json
+pkill -9 -x waybar >/dev/null 2>&1 || true
+log "Killed waybar, cleared dot-diff cache"
+
+uwsm-app -- waybar >/dev/null 2>&1 &
+log "Waybar restarted"
+
+# Restart twitch-notifications after brief delay
+sleep 1
+uwsm-app -- twitch-notifications >/dev/null 2>&1 &
+log "twitch-notifications restarted"
+
+log "Resume complete"
