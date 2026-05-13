@@ -2,7 +2,7 @@
 name: fallow
 description: Codebase intelligence for JavaScript and TypeScript. Free static layer finds unused code (files, exports, types, dependencies), code duplication, circular dependencies, complexity hotspots, architecture boundary violations, and feature flag patterns. Runtime coverage merges production execution data into the same health report for hot-path review, cold-path deletion confidence, and stale-flag evidence - a single local capture is free, while continuous/cloud runtime monitoring is paid. 94 framework plugins, zero configuration, sub-second static analysis. Use when asked to analyze code health, find unused code, detect duplicates, check circular dependencies, audit complexity, check architecture boundaries, detect feature flags, clean up the codebase, auto-fix issues, merge runtime coverage, or run fallow.
 # origin: https://github.com/fallow-rs/fallow-skills/tree/main/fallow/skills/fallow
-# upstream-sha: 336da104ad9aab57ad2c06d834c3021913aa1868
+# upstream-sha: e622d668d38332407ecdb1285f8ba2118dcafb82
 ---
 
 # Fallow: codebase intelligence for JavaScript and TypeScript
@@ -96,6 +96,7 @@ cargo install fallow-cli        # build from source
 | Stale suppressions | `--stale-suppressions` | `fallow-ignore` comments or `@expected-unused` JSDoc tags that no longer match any issue |
 | Test-only dependencies | n/a | Production deps only imported from test files (should be devDependencies) |
 | Unused pnpm catalog entries | `--unused-catalog-entries` | `pnpm-workspace.yaml` entries no workspace package.json references via `catalog:` (default `warn`) |
+| Empty pnpm catalog groups | `--empty-catalog-groups` | Named `catalogs.<name>:` groups in `pnpm-workspace.yaml` with no entries. Top-level `catalog:` placeholders are ignored. Default `warn`. |
 | Unresolved pnpm catalog references | `--unresolved-catalog-references` | `package.json` references to `catalog:` / `catalog:<name>` whose catalog does not declare the package; `pnpm install` would fail. Default `error`. Suppress via `ignoreCatalogReferences: [{ package, catalog?, consumer? }]` in fallow config (package.json has no comment syntax). |
 | Unused pnpm dependency overrides | `--unused-dependency-overrides` | `pnpm-workspace.yaml#overrides` / `package.json#pnpm.overrides` entries forcing a version no workspace package depends on. Default `warn`; the `hint` field flags entries that may be intentional pins for transitive CVEs. Suppress via `ignoreDependencyOverrides: [{ package, source? }]` in fallow config. |
 | Misconfigured pnpm dependency overrides | `--misconfigured-dependency-overrides` | `pnpm.overrides` entries whose key is unparsable (empty, dangling separators, malformed selectors) or value is missing/empty. `pnpm install` would fail. Default `error`. Suppression: same `ignoreDependencyOverrides` config rule. |
