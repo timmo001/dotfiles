@@ -1841,7 +1841,11 @@ safe_pull_repo() {
 
   log_info "Pulling latest for $name: $(display_path "$repo_dir")"
   before_head="$(git -C "$repo_dir" rev-parse HEAD 2>/dev/null || true)"
-  git -C "$repo_dir" pull --rebase
+  if ! git -C "$repo_dir" pull --rebase; then
+    log_warn "Pull failed for $name — aborting rebase and continuing: $(display_path "$repo_dir")"
+    git -C "$repo_dir" rebase --abort 2>/dev/null || true
+    return 0
+  fi
   after_head="$(git -C "$repo_dir" rev-parse HEAD 2>/dev/null || true)"
 
   if [[ -n "$before_head" && -n "$after_head" && "$before_head" != "$after_head" ]]; then
