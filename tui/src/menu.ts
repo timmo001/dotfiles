@@ -293,6 +293,36 @@ const dotItems: readonly MenuItem[] = [
     undefined,
     ["om", "hyprland", "waybar", "linux", "wm", "theme"],
   ),
+  item(
+    "reboot-to",
+    "󰜉",
+    "Reboot To",
+    "Reboot into another OS or firmware via EFI boot-next",
+    cmd("reboot-to"),
+    [
+      {
+        label: "Windows",
+        description: "Reboot into Windows Boot Manager",
+        action: cmd("reboot-to windows"),
+      },
+      {
+        label: "Bazzite",
+        description: "Reboot into Bazzite",
+        action: cmd("reboot-to bazzite"),
+      },
+      {
+        label: "Limine",
+        description: "Reboot into Limine bootloader",
+        action: cmd("reboot-to limine"),
+      },
+      {
+        label: "UEFI Firmware",
+        description: "Reboot into UEFI/BIOS setup",
+        action: cmd("reboot-to uefi"),
+      },
+    ],
+    ["reboot", "boot", "windows", "bazzite", "uefi", "firmware", "bios", "os"],
+  ),
   item("quit", "󰗼", "Quit", "Exit the TUI", { type: "quit" }, undefined, [
     "exit",
     "quit",
