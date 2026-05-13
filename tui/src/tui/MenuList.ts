@@ -211,8 +211,8 @@ export class MenuList extends ScrollBoxRenderable {
   private _createFuse(items: readonly MenuItem[]): Fuse<MenuItem> {
     return new Fuse([...items], {
       keys: [
-        { name: "title", weight: 2 },
-        { name: "keywords", weight: 2 },
+        { name: "title", weight: 4 },
+        { name: "keywords", weight: 1.5 },
         { name: "description", weight: 1 },
       ],
       threshold: 0.4,

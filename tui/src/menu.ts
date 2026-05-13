@@ -278,7 +278,7 @@ const dotItems: readonly MenuItem[] = [
     "Desktop environment controls",
     submenu("omarchy"),
     undefined,
-    ["om", "desktop", "hyprland", "waybar", "linux", "wm", "theme"],
+    ["om", "hyprland", "waybar", "linux", "wm", "theme"],
   ),
   item("quit", "󰗼", "Quit", "Exit the TUI", { type: "quit" }, undefined, [
     "exit",
