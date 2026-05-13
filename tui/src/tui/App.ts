@@ -176,7 +176,7 @@ export class App {
     }
 
     // If an item should be executed immediately (subcommand mode):
-    // always suspend, run with visible output, wait for keypress, then resume.
+    // always suspend, run with visible output, wait for keypress, then exit.
     if (options.executeItemId) {
       const item = menuItemsById.get(options.executeItemId)
       if (item) {
@@ -184,9 +184,13 @@ export class App {
         const { action } = item
         if (action.type === "command" || action.type === "silent" || action.type === "notify") {
           setTimeout(() => {
-            this.commandRunner.runSuspended(action.cmd, true).catch((err) => {
-              log(`Execute error: ${err}`)
-            })
+            this.commandRunner
+              .runSuspended(action.cmd, true)
+              .then(() => process.exit(0))
+              .catch((err) => {
+                log(`Execute error: ${err}`)
+                process.exit(1)
+              })
           }, 50)
         } else {
           setTimeout(() => this.handleMenuAction(item), 50)
