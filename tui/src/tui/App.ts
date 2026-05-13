@@ -176,10 +176,14 @@ export class App {
 
     this.variantPopup = new VariantPopup(deps.renderer, deps.theme, {
       onSelect: (action) => {
-        this.focusActiveView();
+        // Defer refocus to avoid the same keypress event hitting the MenuList
+        queueMicrotask(() => this.focusActiveView());
         this.dispatchAction(action);
       },
-      onDismiss: () => this.focusActiveView(),
+      onDismiss: () => {
+        // Defer refocus to avoid the same Escape event hitting the MenuList
+        queueMicrotask(() => this.focusActiveView());
+      },
     });
 
     // --- Hide all views initially ---
@@ -196,7 +200,7 @@ export class App {
         this.variantPopup.handleKeyPress(key);
         return;
       }
-      if (key.name === "q" && !key.ctrl) {
+      if (key.name === "c" && key.ctrl) {
         log("Quit requested");
         deps.renderer.destroy();
         process.exit(0);
@@ -276,11 +280,11 @@ export class App {
 
     this.activeView = viewId;
 
-    // Show the target
+    // Show the target and reset filter state (fresh view entry)
     switch (viewId) {
       case "main":
         this.mainMenu.setVisible(true);
-        this.mainMenu.focus();
+        this.mainMenu.resetAndFocus();
         break;
       case "diff":
         this.diffView.setVisible(true);
@@ -288,7 +292,7 @@ export class App {
         break;
       case "omarchy":
         this.omarchyMenu.setVisible(true);
-        this.omarchyMenu.focus();
+        this.omarchyMenu.resetAndFocus();
         break;
       case "staging":
         this.stagingView.setVisible(true);
@@ -305,6 +309,7 @@ export class App {
     // If the item has variants, open the popup instead of dispatching directly
     if (item.variants && item.variants.length > 0) {
       log(`Opening variant popup for item ${item.id}`);
+      this.blurActiveView();
       this.variantPopup.show(item);
       return;
     }
@@ -374,6 +379,18 @@ export class App {
         break;
       case "commit":
         this.commitView.focus();
+        break;
+    }
+  }
+
+  /** Remove keyboard focus from the currently active view */
+  private blurActiveView(): void {
+    switch (this.activeView) {
+      case "main":
+        this.mainMenu.blur();
+        break;
+      case "omarchy":
+        this.omarchyMenu.blur();
         break;
     }
   }

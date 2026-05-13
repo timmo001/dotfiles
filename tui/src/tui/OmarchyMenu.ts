@@ -1,4 +1,10 @@
-import { type CliRenderer, BoxRenderable, TextRenderable } from "@opentui/core";
+import {
+  type CliRenderer,
+  BoxRenderable,
+  TextRenderable,
+  t,
+  fg,
+} from "@opentui/core";
 import type { MenuItem } from "../types.js";
 import type { Theme } from "../theme.js";
 import { submenus, submenuTitles } from "../menu.js";
@@ -10,8 +16,9 @@ import { MenuList } from "./MenuList.js";
 const HELP: readonly HelpEntry[] = [
   { key: "↑↓", action: "navigate" },
   { key: "Enter", action: "select" },
-  { key: "Esc/Backspace", action: "back" },
-  { key: "q", action: "quit" },
+  { key: "type", action: "filter" },
+  { key: "Esc", action: "back" },
+  { key: "Backspace", action: "back" },
 ];
 
 /** Configuration callbacks for the omarchy submenu tree */
@@ -22,7 +29,7 @@ export interface OmarchyMenuOptions {
   readonly onBack: () => void;
 }
 
-/** Inline omarchy submenu tree with breadcrumb navigation and nested levels */
+/** Inline omarchy submenu tree with breadcrumb navigation, nested levels, and type-to-filter */
 export class OmarchyMenu {
   private renderer: CliRenderer;
   private theme: Theme;
@@ -30,6 +37,7 @@ export class OmarchyMenu {
 
   private root: BoxRenderable;
   private titleText: TextRenderable;
+  private filterBar: TextRenderable;
   private menuList: MenuList;
   private helpBar: TextRenderable;
 
@@ -64,6 +72,14 @@ export class OmarchyMenu {
     });
     this.root.add(this.titleText);
 
+    // Filter bar — always visible to avoid layout shifts
+    this.filterBar = new TextRenderable(renderer, {
+      id: "omarchy-menu-filter",
+      content: t`${fg(theme.fgSubtle)("/")}`,
+      marginBottom: 1,
+    });
+    this.root.add(this.filterBar);
+
     // Menu list — created fresh on each loadMenu call
     const initialItems = submenus.get("omarchy") ?? [];
     this.menuList = this.createMenuList(initialItems);
@@ -82,15 +98,6 @@ export class OmarchyMenu {
     // Re-wrap help bar on terminal resize
     renderer.on("resize", () => {
       this.helpBar.content = formatHelpBar(this.theme, HELP);
-    });
-
-    // Keyboard handling
-    renderer.keyInput.on("keypress", (key) => {
-      if (!this.isVisible) return;
-
-      if (key.name === "escape" || key.name === "backspace") {
-        this.handleBack();
-      }
     });
 
     this.currentItems = initialItems;
@@ -119,6 +126,17 @@ export class OmarchyMenu {
     this.menuList.focus();
   }
 
+  /** Reset filter state and give keyboard focus to the menu list */
+  resetAndFocus(): void {
+    this.menuList.resetFilter();
+    this.menuList.focus();
+  }
+
+  /** Remove keyboard focus from the menu list */
+  blur(): void {
+    this.menuList.blur();
+  }
+
   private handleBack(): void {
     const prev = this.menuStack.pop();
     if (prev) {
@@ -139,6 +157,9 @@ export class OmarchyMenu {
 
     // Update title
     this.titleText.content = this.formatTitle();
+
+    // Reset filter bar (new menu = no filter)
+    this.filterBar.content = t`${fg(this.theme.fgSubtle)("/")}`;
 
     // Recreate the menu list with new items (ensures correct 2-row layout)
     this.root.remove(this.menuList.id);
@@ -162,8 +183,20 @@ export class OmarchyMenu {
           this.callbacks.onAction(item);
         }
       },
+      onFilterChange: (filter) => this.updateFilterBar(filter),
+      onEscape: () => this.handleBack(),
+      onBack: () => this.handleBack(),
       wrapSelection: true,
     });
+  }
+
+  /** Update the filter bar display based on current filter text */
+  private updateFilterBar(filter: string): void {
+    if (filter.length === 0) {
+      this.filterBar.content = t`${fg(this.theme.fgSubtle)("/")}`;
+    } else {
+      this.filterBar.content = t`${fg(this.theme.accent)("/")} ${fg(this.theme.fg)(filter)}`;
+    }
   }
 
   private formatTitle() {

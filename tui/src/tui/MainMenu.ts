@@ -16,7 +16,8 @@ import { MenuList } from "./MenuList.js";
 const HELP: readonly HelpEntry[] = [
   { key: "↑↓", action: "navigate" },
   { key: "Enter", action: "select" },
-  { key: "q", action: "quit" },
+  { key: "type", action: "filter" },
+  { key: "Ctrl+c", action: "quit" },
 ];
 
 /** Configuration callbacks for the main menu */
@@ -27,12 +28,13 @@ export interface MainMenuOptions {
   readonly initialSelectedId?: string;
 }
 
-/** Top-level dot menu rendered as a {@link MenuList} */
+/** Top-level dot menu rendered as a {@link MenuList} with type-to-filter */
 export class MainMenu {
   private renderer: CliRenderer;
   private theme: Theme;
   private root: BoxRenderable;
   private menuList: MenuList;
+  private filterBar: TextRenderable;
   private helpBar: TextRenderable;
   private callbacks: MainMenuOptions;
 
@@ -57,6 +59,14 @@ export class MainMenu {
     });
     this.root.add(titleBar);
 
+    // Filter bar — always visible to avoid layout shifts
+    this.filterBar = new TextRenderable(renderer, {
+      id: "main-menu-filter",
+      content: t`${fg(theme.fgSubtle)("/")}`,
+      marginBottom: 1,
+    });
+    this.root.add(this.filterBar);
+
     // Menu list — icons on the left, full-height rows
     const initialIdx = options.initialSelectedId
       ? Math.max(
@@ -69,7 +79,14 @@ export class MainMenu {
       id: "main-menu-list",
       items: mainMenuItems,
       theme,
-      onSelect: (item) => this.callbacks.onSelect(item),
+      onSelect: (item) => {
+        this.callbacks.onSelect(item);
+      },
+      onFilterChange: (filter) => this.updateFilterBar(filter),
+      onEscape: () => {
+        // Escape on main menu with empty filter — no-op (quit via Ctrl+c)
+      },
+      // No onBack — Backspace with empty filter is no-op on main menu
       initialSelectedIndex: initialIdx,
       wrapSelection: true,
     });
@@ -101,8 +118,28 @@ export class MainMenu {
     this.menuList.focus();
   }
 
+  /** Reset filter state and give keyboard focus to the menu list */
+  resetAndFocus(): void {
+    this.menuList.resetFilter();
+    this.menuList.focus();
+  }
+
+  /** Remove keyboard focus from the menu list */
+  blur(): void {
+    this.menuList.blur();
+  }
+
   /** Remove the main menu from the render tree */
   destroy(): void {
     this.renderer.root.remove(this.root.id);
+  }
+
+  /** Update the filter bar display based on current filter text */
+  private updateFilterBar(filter: string): void {
+    if (filter.length === 0) {
+      this.filterBar.content = t`${fg(this.theme.fgSubtle)("/")}`;
+    } else {
+      this.filterBar.content = t`${fg(this.theme.accent)("/")} ${fg(this.theme.fg)(filter)}`;
+    }
   }
 }

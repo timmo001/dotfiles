@@ -7,6 +7,7 @@ import {
   t,
   fg,
 } from "@opentui/core";
+import Fuse from "fuse.js";
 import type { MenuItem } from "../types.js";
 import type { Theme } from "../theme.js";
 
@@ -35,6 +36,12 @@ export interface MenuListOptions {
   readonly onSelect: (item: MenuItem) => void;
   /** Called when the highlighted item changes */
   readonly onSelectionChanged?: (item: MenuItem) => void;
+  /** Called when filter text changes (for external display) */
+  readonly onFilterChange?: (filter: string) => void;
+  /** Called when Escape is pressed with an empty filter */
+  readonly onEscape?: () => void;
+  /** Called when Backspace is pressed with an empty filter */
+  readonly onBack?: () => void;
   /** Index of the initially selected item */
   readonly initialSelectedIndex?: number;
   /** Whether navigation wraps around (default: true) */
@@ -42,24 +49,33 @@ export interface MenuListOptions {
 }
 
 /**
- * Custom menu list with left-aligned full-height icons and vertical scrolling.
+ * Custom menu list with left-aligned full-height icons, vertical scrolling,
+ * and walker-style fuzzy type-to-filter.
  *
  * Each item renders as a two-line row:
  * - Line 1: icon character + title text
  * - Line 2: blank icon column + description text
  *
- * When items exceed available height, the list scrolls to keep the
- * selected item visible.
+ * Typing any printable character accumulates a fuzzy filter query
+ * (powered by Fuse.js with weighted keys). Escape clears the filter;
+ * Backspace removes the last character.
  */
 export class MenuList extends ScrollBoxRenderable {
+  private _allItems: readonly MenuItem[];
   private _items: readonly MenuItem[];
   private _selectedIndex: number;
   private readonly _wrapSelection: boolean;
   private _rows: MenuRow[] = [];
   private readonly _selectCb: (item: MenuItem) => void;
   private readonly _selectionChangedCb?: (item: MenuItem) => void;
+  private readonly _onFilterChange?: (filter: string) => void;
+  private readonly _onEscape?: () => void;
+  private readonly _onBack?: () => void;
   private readonly _renderer: CliRenderer;
   private readonly _theme: Theme;
+
+  private _filterText = "";
+  private _fuse: Fuse<MenuItem>;
 
   constructor(renderer: CliRenderer, options: MenuListOptions) {
     super(renderer, {
@@ -74,21 +90,30 @@ export class MenuList extends ScrollBoxRenderable {
 
     this._renderer = renderer;
     this._theme = options.theme;
+    this._allItems = options.items;
     this._items = options.items;
     this._selectedIndex = options.initialSelectedIndex ?? 0;
     this._wrapSelection = options.wrapSelection ?? true;
     this._selectCb = options.onSelect;
     this._selectionChangedCb = options.onSelectionChanged;
+    this._onFilterChange = options.onFilterChange;
+    this._onEscape = options.onEscape;
+    this._onBack = options.onBack;
 
+    this._fuse = this._createFuse(options.items);
     this._buildRows();
   }
 
-  /** Replace displayed items and reset selection to the top */
+  /** Replace displayed items and reset selection and filter to the top */
   setItems(items: readonly MenuItem[]): void {
     this._clearRows();
+    this._allItems = items;
     this._items = items;
+    this._filterText = "";
+    this._fuse = this._createFuse(items);
     this._selectedIndex = 0;
     this._buildRows();
+    this._onFilterChange?.("");
   }
 
   /** Programmatically select an item by index */
@@ -107,29 +132,114 @@ export class MenuList extends ScrollBoxRenderable {
     return this._items[this._selectedIndex];
   }
 
+  /** Clear the filter and restore the full item list */
+  resetFilter(): void {
+    if (this._filterText.length === 0) return;
+    this._filterText = "";
+    this._applyFilter();
+  }
+
+  /** Whether a filter query is currently active */
+  get hasFilter(): boolean {
+    return this._filterText.length > 0;
+  }
+
   // -- Keyboard handling ------------------------------------------------
 
   handleKeyPress(key: KeyEvent): boolean {
-    switch (key.name) {
-      case "up":
-      case "k":
-        this._moveSelection(-1);
-        return true;
-      case "down":
-      case "j":
-        this._moveSelection(1);
-        return true;
-      case "return": {
-        const item = this._items[this._selectedIndex];
-        if (item) this._selectCb(item);
+    // Escape: clear filter → or fire onEscape callback
+    if (key.name === "escape") {
+      if (this._filterText.length > 0) {
+        this._filterText = "";
+        this._applyFilter();
         return true;
       }
-      default:
-        return super.handleKeyPress(key);
+      if (this._onEscape) {
+        this._onEscape();
+        return true;
+      }
+      return false;
     }
+
+    // Backspace: remove last filter char → or fire onBack callback
+    if (key.name === "backspace") {
+      if (this._filterText.length > 0) {
+        this._filterText = this._filterText.slice(0, -1);
+        this._applyFilter();
+        return true;
+      }
+      if (this._onBack) {
+        this._onBack();
+        return true;
+      }
+      return false;
+    }
+
+    // Arrow navigation
+    if (key.name === "up") {
+      this._moveSelection(-1);
+      return true;
+    }
+    if (key.name === "down") {
+      this._moveSelection(1);
+      return true;
+    }
+
+    // Enter: select highlighted item
+    if (key.name === "return") {
+      const item = this._items[this._selectedIndex];
+      if (item) this._selectCb(item);
+      return true;
+    }
+
+    // Printable character → fuzzy filter
+    if (key.sequence && key.sequence.length === 1 && !key.ctrl && !key.meta) {
+      const ch = key.sequence;
+      if (ch >= " ") {
+        this._filterText += ch;
+        this._applyFilter();
+        return true;
+      }
+    }
+
+    return super.handleKeyPress(key);
   }
 
   // -- Private helpers --------------------------------------------------
+
+  /** Create a Fuse.js instance for the given item set */
+  private _createFuse(items: readonly MenuItem[]): Fuse<MenuItem> {
+    return new Fuse([...items], {
+      keys: [
+        { name: "title", weight: 2 },
+        { name: "description", weight: 1 },
+      ],
+      threshold: 0.4,
+      ignoreLocation: true,
+    });
+  }
+
+  /** Re-filter visible items from the full set using current filter text */
+  private _applyFilter(): void {
+    this._clearRows();
+    if (this._filterText.length === 0) {
+      // Restoring full list — preserve selected item position
+      const currentItem = this._items[this._selectedIndex];
+      this._items = this._allItems;
+      const preservedIndex = currentItem
+        ? this._items.indexOf(currentItem)
+        : -1;
+      this._selectedIndex = preservedIndex >= 0 ? preservedIndex : 0;
+    } else {
+      // Filtering — always select top result
+      this._items = this._fuse
+        .search(this._filterText)
+        .map((r) => r.item);
+      this._selectedIndex = 0;
+    }
+    this._buildRows();
+    this._onFilterChange?.(this._filterText);
+  }
 
   private _moveSelection(delta: number): void {
     const len = this._items.length;
