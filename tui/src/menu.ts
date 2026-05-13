@@ -9,10 +9,17 @@ function item(
   description: string,
   action: MenuItem["action"],
   variants?: readonly MenuVariant[],
+  keywords?: readonly string[],
 ): MenuItem {
-  return variants
-    ? { id, icon, title, description, action, variants }
-    : { id, icon, title, description, action };
+  return {
+    id,
+    icon,
+    title,
+    description,
+    action,
+    ...(variants && { variants }),
+    ...(keywords && { keywords }),
+  };
 }
 
 function cmd(command: string, wait = true): MenuItem["action"] {
@@ -245,6 +252,15 @@ const dotItems: readonly MenuItem[] = [
     "Omarchy",
     "Desktop environment controls",
     submenu("omarchy"),
+  ),
+  item(
+    "quit",
+    "󰗼",
+    "Quit",
+    "Exit the TUI",
+    { type: "quit" },
+    undefined,
+    ["exit", "quit", "close", ":q", ":wq", ":qa", "bye"],
   ),
 ];
 

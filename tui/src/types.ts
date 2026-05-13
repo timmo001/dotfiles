@@ -92,13 +92,19 @@ export interface SubmenuAction {
   readonly menuId: string;
 }
 
+/** Action that exits the TUI */
+export interface QuitAction {
+  readonly type: "quit";
+}
+
 /** Discriminated union of all possible menu item actions */
 export type MenuAction =
   | CommandAction
   | SilentAction
   | NotifyAction
   | ViewAction
-  | SubmenuAction;
+  | SubmenuAction
+  | QuitAction;
 
 /** A selectable variant for a menu item offering an alternative action */
 export interface MenuVariant {
@@ -124,4 +130,6 @@ export interface MenuItem {
   readonly action: MenuAction;
   /** Optional alternative actions shown in a popup selector when present */
   readonly variants?: readonly MenuVariant[];
+  /** Optional search aliases for fuzzy filter matching */
+  readonly keywords?: readonly string[];
 }

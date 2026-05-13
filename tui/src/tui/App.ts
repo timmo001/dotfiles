@@ -359,6 +359,9 @@ export class App {
         }
         break;
       }
+
+      case "quit":
+        process.exit(0);
     }
   }
 
