@@ -10,6 +10,7 @@ import { createCommandRunner } from "./services/CommandRunner.js";
 import { loadTheme } from "./theme.js";
 import { Toast } from "./tui/Toast.js";
 import { App } from "./tui/App.js";
+import { resizeIfFloating } from "./tui/hyprland.js";
 import { parseFlags, resolveSubcommand, printHelp } from "./flags.js";
 import { menuItemsById } from "./menu.js";
 import type { ViewId } from "./types.js";
@@ -126,24 +127,7 @@ const program = Effect.gen(function* () {
   process.stdout.write("\x1b]0;Dot TUI\x07");
 
   // Resize window if floating on Hyprland
-  yield* Effect.promise(async () => {
-    try {
-      const proc = Bun.spawn(["hyprctl", "activewindow", "-j"], {
-        stdout: "pipe",
-        stderr: "ignore",
-      });
-      const text = await new Response(proc.stdout).text();
-      const win = JSON.parse(text);
-      if (win.floating) {
-        Bun.spawn(["hyprctl", "dispatch", "resizewindowpixel", "exact 500 600,active"], {
-          stdout: "ignore",
-          stderr: "ignore",
-        });
-      }
-    } catch {
-      // Not on Hyprland or hyprctl unavailable — skip
-    }
-  });
+  yield* resizeIfFloating(500, 600);
 
   log("Starting renderer...");
   renderer.start();

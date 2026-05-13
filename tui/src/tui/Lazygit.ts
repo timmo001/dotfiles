@@ -1,4 +1,6 @@
+import { Effect } from "effect";
 import type { CliRenderer } from "@opentui/core";
+import { resizeIfFloating } from "./hyprland.js";
 
 /** Suspend the TUI, launch lazygit in the given repo, then resume rendering */
 export async function openLazygit(
@@ -7,6 +9,7 @@ export async function openLazygit(
 ): Promise<void> {
   renderer.suspend();
   renderer.currentRenderBuffer.clear();
+  await Effect.runPromise(resizeIfFloating(1020, 700));
   try {
     const proc = Bun.spawn(["lazygit"], {
       cwd: repoPath,
@@ -16,6 +19,7 @@ export async function openLazygit(
     });
     await proc.exited;
   } finally {
+    await Effect.runPromise(resizeIfFloating(500, 600));
     renderer.currentRenderBuffer.clear();
     renderer.resume();
     renderer.requestRender();
