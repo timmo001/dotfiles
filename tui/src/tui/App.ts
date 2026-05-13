@@ -1,5 +1,5 @@
 import type { CliRenderer } from "@opentui/core"
-import type { ViewId, MenuItem, Repo } from "../types.js"
+import type { ViewId, MenuItem, MenuAction, Repo } from "../types.js"
 import type { Theme } from "../theme.js"
 import { menuItemsById, submenus } from "../menu.js"
 import type { CommandRunnerService } from "../services/CommandRunner.js"
@@ -11,6 +11,7 @@ import { OmarchyMenu } from "./OmarchyMenu.js"
 import { StagingView } from "./StagingView.js"
 import { CommitView } from "./CommitView.js"
 import { Toast } from "./Toast.js"
+import { VariantPopup } from "./VariantPopup.js"
 import { openLazygit } from "./Lazygit.js"
 
 const log = (msg: string) => console.error(`[dot-tui:App] ${msg}`)
@@ -52,6 +53,7 @@ export class App {
   private omarchyMenu: OmarchyMenu
   private stagingView: StagingView
   private commitView: CommitView
+  private variantPopup: VariantPopup
   private activeView: ViewId = "main"
   private viewStack: ViewId[] = []
   /** Repo path passed through the staging → commit flow */
@@ -151,6 +153,11 @@ export class App {
       onBack: () => this.popView(),
     })
 
+    this.variantPopup = new VariantPopup(deps.renderer, deps.theme, {
+      onSelect: (action) => this.dispatchAction(action),
+      onDismiss: () => this.focusActiveView(),
+    })
+
     // --- Hide all views initially ---
     this.mainMenu.setVisible(false)
     this.diffView.setVisible(false)
@@ -160,6 +167,11 @@ export class App {
 
     // --- Global keyboard ---
     deps.renderer.keyInput.on("keypress", (key) => {
+      // Route keys to the variant popup when it is visible
+      if (this.variantPopup.visible) {
+        this.variantPopup.handleKeyPress(key)
+        return
+      }
       if (key.name === "q" && !key.ctrl) {
         log("Quit requested")
         deps.renderer.destroy()
@@ -262,8 +274,19 @@ export class App {
   }
 
   private handleMenuAction(item: MenuItem): void {
-    const { action } = item
-    log(`Action: ${action.type} for item ${item.id}`)
+    // If the item has variants, open the popup instead of dispatching directly
+    if (item.variants && item.variants.length > 0) {
+      log(`Opening variant popup for item ${item.id}`)
+      this.variantPopup.show(item)
+      return
+    }
+
+    this.dispatchAction(item.action)
+  }
+
+  /** Dispatch a menu action (command, silent, notify, view, or submenu) */
+  private dispatchAction(action: MenuAction): void {
+    log(`Dispatching action: ${action.type}`)
 
     switch (action.type) {
       case "command":
@@ -301,6 +324,27 @@ export class App {
         }
         break
       }
+    }
+  }
+
+  /** Restore keyboard focus to the currently active view */
+  private focusActiveView(): void {
+    switch (this.activeView) {
+      case "main":
+        this.mainMenu.focus()
+        break
+      case "diff":
+        this.diffView.focus()
+        break
+      case "omarchy":
+        this.omarchyMenu.focus()
+        break
+      case "staging":
+        this.stagingView.focus()
+        break
+      case "commit":
+        this.commitView.focus()
+        break
     }
   }
 }

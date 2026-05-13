@@ -48,6 +48,7 @@ src/
     MainMenu.ts           — SelectRenderable menu built from menu registry
     DiffView.ts           — Two-pane layout (Changed/Other) with repo watcher
     OmarchyMenu.ts        — Inline omarchy submenu tree with breadcrumb navigation
+    VariantPopup.ts       — Centred popup overlay for menu item variant selection
     Lazygit.ts            — Suspend/resume lazygit spawn
     StagingView.ts        — Two-pane staging view (Staged/Unstaged) for git commit flow
     CommitView.ts         — Commit message input with AI suggestion list
@@ -58,7 +59,8 @@ src/
 1. `index.ts` resolves subcommand → initial view/action, creates renderer + services
 2. `App` manages a view stack (main menu ↔ diff view ↔ omarchy menu ↔ staging view ↔ commit view)
 3. Menu items have typed actions: `command` (suspend/resume), `silent` (background), `view` (navigate), `submenu` (nested)
-4. `CommandRunner` handles suspend/resume for terminal commands and silent background execution
+4. Menu items with `variants` open a centred popup on Enter; selecting a variant dispatches its action
+5. `CommandRunner` handles suspend/resume for terminal commands and silent background execution
 5. `RepoWatcher` loads Waybar cache for instant diff first paint, then polls `dot diff` every 10s
 6. State changes are published via `PubSub<RepoState>` → `DiffView.update()`
 
@@ -127,8 +129,15 @@ The build is also triggered by `dot update` via `maybe_build_tui()` in the `dot`
 | Key | Action |
 |-----|--------|
 | `↑↓` | Navigate list |
-| `Enter` | Select item |
+| `Enter` | Select item (opens variant popup if variants exist) |
 | `q` | Quit |
+
+### Variant Popup
+| Key | Action |
+|-----|--------|
+| `↑↓` | Navigate variant list |
+| `Enter` | Run selected variant |
+| `Esc/Backspace` | Dismiss popup (no action) |
 
 ### Diff View
 | Key | Action |

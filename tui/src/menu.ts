@@ -1,4 +1,4 @@
-import type { MenuItem, NotifyConfig, ViewId } from "./types.js"
+import type { MenuItem, MenuVariant, NotifyConfig, ViewId } from "./types.js"
 
 // --- Helpers ---
 
@@ -8,8 +8,9 @@ function item(
   title: string,
   description: string,
   action: MenuItem["action"],
+  variants?: readonly MenuVariant[],
 ): MenuItem {
-  return { id, icon, title, description, action }
+  return variants ? { id, icon, title, description, action, variants } : { id, icon, title, description, action }
 }
 
 function cmd(command: string, wait = true): MenuItem["action"] {
@@ -39,7 +40,14 @@ const dotItems: readonly MenuItem[] = [
   item("stow", "󰏗", "Stow", "Re-stow public/private dotfiles", cmd("dot stow")),
   item("diff", "󰊢", "Diff", "Repo watcher with change status", view("diff")),
   item("doctor", "󰛯", "Doctor", "Check dependencies and health", cmd("dot doctor")),
-  item("system-health", "󰗶", "System Health Check", "Run system-health-check diagnostics", cmd("system-health-check")),
+  item("system-health", "󰗶", "System Health Check", "Run system-health-check diagnostics", cmd("system-health-check"), [
+    { label: "Full", description: "All sections, 5 samples (~60s)", action: cmd("system-health-check") },
+    { label: "Quick", description: "Fast overview (~5s)", action: cmd("system-health-check --samples 2 --interval 5") },
+    { label: "Logs only", description: "Journal errors (instant)", action: cmd("system-health-check --only logs") },
+    { label: "Disk only", description: "Filesystem usage (instant)", action: cmd("system-health-check --only disk") },
+    { label: "Thermals", description: "Temperature readings", action: cmd("system-health-check --only thermal") },
+    { label: "With AI analysis", description: "Full check + OpenCode report", action: cmd("system-health-check --open-opencode") },
+  ]),
   item("skill-updates", "󰏬", "Skill Updates", "Check imported skills for changes", cmd("dot skill-updates")),
   item("memory", "󰟶", "Memory Refresh", "Refresh OpenCode durable memory", notify("dot memory", {
     id: "memory", progress: "Refreshing memory...", success: "Memory refreshed",

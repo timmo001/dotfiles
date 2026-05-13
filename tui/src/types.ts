@@ -95,6 +95,16 @@ export interface SubmenuAction {
 /** Discriminated union of all possible menu item actions */
 export type MenuAction = CommandAction | SilentAction | NotifyAction | ViewAction | SubmenuAction
 
+/** A selectable variant for a menu item offering an alternative action */
+export interface MenuVariant {
+  /** Short display label (e.g. "Quick", "Full") */
+  readonly label: string
+  /** Optional description shown below the label in the popup */
+  readonly description?: string
+  /** The action to execute when this variant is selected */
+  readonly action: MenuAction
+}
+
 /** A single entry in the TUI menu system */
 export interface MenuItem {
   /** Stable dot-separated identifier (e.g. "update", "omarchy.theme.set") */
@@ -107,4 +117,6 @@ export interface MenuItem {
   readonly icon: string
   /** What happens when this item is selected */
   readonly action: MenuAction
+  /** Optional alternative actions shown in a popup selector when present */
+  readonly variants?: readonly MenuVariant[]
 }
