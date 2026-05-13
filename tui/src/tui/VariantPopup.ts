@@ -173,6 +173,7 @@ export class VariantPopup {
   /** Hide the popup and release focus */
   hide(): void {
     this.root.visible = false
+    this.select.blur()
   }
 
   /** Handle keyboard input when the popup has focus */

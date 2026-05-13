@@ -154,7 +154,10 @@ export class App {
     })
 
     this.variantPopup = new VariantPopup(deps.renderer, deps.theme, {
-      onSelect: (action) => this.dispatchAction(action),
+      onSelect: (action) => {
+        this.focusActiveView()
+        this.dispatchAction(action)
+      },
       onDismiss: () => this.focusActiveView(),
     })
 
