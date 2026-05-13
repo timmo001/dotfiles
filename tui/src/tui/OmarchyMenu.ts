@@ -64,21 +64,9 @@ export class OmarchyMenu {
     })
     this.root.add(this.titleText)
 
-    // Menu list — icons on the left, full-height rows
-    this.menuList = new MenuList(renderer, {
-      id: "omarchy-menu-list",
-      items: [],
-      theme,
-      onSelect: (item) => {
-        // If this item opens a submenu and the submenu exists, navigate into it
-        if (item.action.type === "submenu" && submenus.has(item.action.menuId)) {
-          this.pushSubmenu(item.action.menuId)
-        } else {
-          this.callbacks.onAction(item)
-        }
-      },
-      wrapSelection: true,
-    })
+    // Menu list — created fresh on each loadMenu call
+    const initialItems = submenus.get("omarchy") ?? []
+    this.menuList = this.createMenuList(initialItems)
     this.root.add(this.menuList)
 
     // Help bar
@@ -105,8 +93,7 @@ export class OmarchyMenu {
       }
     })
 
-    // Load root omarchy menu
-    this.loadMenu("omarchy")
+    this.currentItems = initialItems
   }
 
   /** Navigate into a submenu */
@@ -153,8 +140,26 @@ export class OmarchyMenu {
     // Update title
     this.titleText.content = this.formatTitle()
 
-    // Update list with new items (resets selection to top)
-    this.menuList.setItems(items)
+    // Recreate the menu list with new items (ensures correct 2-row layout)
+    this.root.remove(this.menuList.id)
+    this.menuList = this.createMenuList(items)
+    this.root.insertBefore(this.menuList, this.helpBar)
+  }
+
+  private createMenuList(items: readonly MenuItem[]): MenuList {
+    return new MenuList(this.renderer, {
+      id: "omarchy-menu-list",
+      items,
+      theme: this.theme,
+      onSelect: (item) => {
+        if (item.action.type === "submenu" && submenus.has(item.action.menuId)) {
+          this.pushSubmenu(item.action.menuId)
+        } else {
+          this.callbacks.onAction(item)
+        }
+      },
+      wrapSelection: true,
+    })
   }
 
   private formatTitle() {

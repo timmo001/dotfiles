@@ -1,6 +1,7 @@
 import {
   type CliRenderer,
   BoxRenderable,
+  ScrollBoxRenderable,
   TextRenderable,
   type KeyEvent,
   t,
@@ -41,16 +42,16 @@ export interface MenuListOptions {
 }
 
 /**
- * Custom menu list with left-aligned full-height icons.
+ * Custom menu list with left-aligned full-height icons and vertical scrolling.
  *
  * Each item renders as a two-line row:
  * - Line 1: icon character + title text
  * - Line 2: blank icon column + description text
  *
- * Replaces {@link import("@opentui/core").SelectRenderable} for menus that
- * need a distinct icon column without the default `▶` selection indicator.
+ * When items exceed available height, the list scrolls to keep the
+ * selected item visible.
  */
-export class MenuList extends BoxRenderable {
+export class MenuList extends ScrollBoxRenderable {
   private _items: readonly MenuItem[]
   private _selectedIndex: number
   private readonly _wrapSelection: boolean
@@ -65,7 +66,8 @@ export class MenuList extends BoxRenderable {
       id: options.id,
       flexGrow: 1,
       width: "100%",
-      flexDirection: "column",
+      scrollY: true,
+      scrollX: false,
       backgroundColor: options.theme.bgElevated,
       focusable: true,
     })
@@ -119,7 +121,7 @@ export class MenuList extends BoxRenderable {
         return true
       }
       default:
-        return false
+        return super.handleKeyPress(key)
     }
   }
 
@@ -145,6 +147,8 @@ export class MenuList extends BoxRenderable {
     if (oldRow) this._styleRow(oldRow, false)
     if (newRow) this._styleRow(newRow, true)
     this._selectedIndex = newIndex
+    // Scroll the selected item into view
+    if (newRow) this.scrollChildIntoView(newRow.container.id)
     const item = this._items[newIndex]
     if (item) this._selectionChangedCb?.(item)
   }
@@ -177,11 +181,13 @@ export class MenuList extends BoxRenderable {
     const textColor = isSelected ? th.accentFg : th.fg
     const descColor = isSelected ? th.fg : th.fgMuted
 
-    // Row container — horizontal layout, full width
+    // Row container — horizontal layout, full width, fixed 2-line height
     const container = new BoxRenderable(this._renderer, {
       id,
       flexDirection: "row",
       width: "100%",
+      height: 2,
+      flexShrink: 0,
       backgroundColor: bgColor,
     })
 
