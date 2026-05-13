@@ -10,7 +10,7 @@ This directory (`~/.config/dotfiles/tui/`) contains the `dot-tui` application so
 
 Always apply these skills when editing code in this directory:
 
-- `effect-ts` — Effect service/layer/concurrency patterns (Effect 3.x, `Context.Tag`)
+- `effect` — Effect v4 / effect-smol patterns
 - `opentui` — OpenTUI core imperative API, renderables, keyboard, suspend/resume
 - `types-enforce-ts` — TypeScript type safety
 
