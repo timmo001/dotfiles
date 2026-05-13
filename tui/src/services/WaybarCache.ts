@@ -42,7 +42,8 @@ export const WaybarCacheLive = Layer.succeed(WaybarCache, {
         if (!data.tooltip || !data.class) return null;
         return data;
       },
-      catch: () => null as never,
+      catch: (error) =>
+        error instanceof Error ? error : new Error(String(error)),
     }).pipe(Effect.catchAll(() => Effect.succeed(null))),
 
   parseChangedNames: (data: WaybarCacheData): readonly string[] => {

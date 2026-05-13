@@ -285,126 +285,132 @@ Return exactly 5 suggestions ordered from most to least specific. Each should de
 export const CommitSuggestLive = Layer.succeed(CommitSuggest, {
   getModelId: () => cachedModel?.id,
   suggest: (diff, recentCommits) =>
-    Effect.tryPromise({
-      try: async () => {
-        if (!diff.trim()) {
-          throw new Error("No staged changes to generate suggestions for");
-        }
-
-        // Discover fast model (cached after first call)
-        if (!cachedModel) {
-          const model = await Effect.runPromise(
-            discoverFastModel().pipe(
-              Effect.catchAll(() => Effect.succeed(undefined)),
-            ),
-          );
-          cachedModel = model ?? undefined;
-        }
-
-        const server = await ensureServer();
-        const { client } = server;
-
-        // Create a session
-        const sessionResult = await client.session.create();
-        if (sessionResult.error) {
-          throw new Error(
-            `Failed to create session: ${JSON.stringify(sessionResult.error)}`,
-          );
-        }
-        const sessionId = sessionResult.data.id;
-        log(`Created session: ${sessionId}`);
-
-        const promptText = buildPrompt(diff, recentCommits);
-
-        // Build prompt params with model selection and structured output
-        const promptParams: Parameters<typeof client.session.prompt>[0] = {
-          sessionID: sessionId,
-          parts: [{ type: "text" as const, text: promptText }],
-          format: {
-            type: "json_schema",
-            schema: SUGGESTION_SCHEMA,
-          },
-          // Disable all tools — pure generation
-          tools: {},
-        };
-
-        if (cachedModel) {
-          promptParams.model = {
-            modelID: cachedModel.model,
-            providerID: cachedModel.provider,
-          };
-          log(`Using model: ${cachedModel.id}`);
-        }
-
-        // Send prompt via V1 API (streams/blocks until agent finishes)
-        const promptResult = await client.session.prompt(promptParams);
-        if (promptResult.error) {
-          debugLog("prompt-error", promptResult.error);
-          throw new Error(
-            `Prompt failed: ${JSON.stringify(promptResult.error)}`,
-          );
-        }
-
-        const { info, parts } = promptResult.data;
-        debugLog("prompt-response", {
-          infoKeys: Object.keys(info),
-          structured: info.structured,
-          finish: info.finish,
-          error: info.error,
-          partsCount: parts.length,
-          partTypes: parts.map((p) => p.type),
-          partsSample: parts.slice(0, 3),
-        });
-
-        // 1. Check info.structured — json_schema format puts output here
-        if (info.structured) {
-          log("Found structured output in info.structured");
-          const structured = info.structured as {
-            suggestions?: readonly CommitSuggestion[];
-          };
-          if (structured.suggestions && structured.suggestions.length > 0) {
-            log(`Got ${structured.suggestions.length} structured suggestions`);
-            return structured.suggestions;
-          }
-        }
-
-        // 2. Check parts for text content
-        let responseText = extractTextFromParts(parts);
-
-        // 3. Fall back to polling session.messages() (reduced to 10 attempts)
-        if (!responseText) {
-          log("No text in prompt response parts, polling messages...");
-          responseText = await pollForAssistantText(client, sessionId, 10);
-        }
-
-        if (!responseText) {
-          throw new Error("No text response from assistant after polling");
-        }
-
-        log(
-          `Raw response text (first 500 chars): ${responseText.slice(0, 500)}`,
+    Effect.gen(function* () {
+      if (!diff.trim()) {
+        return yield* Effect.fail(
+          new Error("No staged changes to generate suggestions for"),
         );
+      }
 
-        // Strip markdown code fences if the model wrapped the JSON
-        let jsonText = responseText.trim();
-        if (jsonText.startsWith("```")) {
-          jsonText = jsonText
-            .replace(/^```(?:json)?\s*\n?/, "")
-            .replace(/\n?\s*```$/, "");
-        }
+      // Discover fast model (cached after first call)
+      if (!cachedModel) {
+        const model = yield* discoverFastModel().pipe(
+          Effect.catchAll(() => Effect.succeed(undefined)),
+        );
+        cachedModel = model ?? undefined;
+      }
 
-        const parsed = JSON.parse(jsonText) as {
-          suggestions: readonly CommitSuggestion[];
-        };
+      // Connect to OpenCode server and generate suggestions
+      return yield* Effect.tryPromise({
+        try: async () => {
+          const server = await ensureServer();
+          const { client } = server;
 
-        log(`Got ${parsed.suggestions.length} suggestions`);
-        return parsed.suggestions;
-      },
-      catch: (error) => {
-        const err = error instanceof Error ? error : new Error(String(error));
-        log(`Suggestion error: ${err.message}`);
-        return err;
-      },
+          // Create a session
+          const sessionResult = await client.session.create();
+          if (sessionResult.error) {
+            throw new Error(
+              `Failed to create session: ${JSON.stringify(sessionResult.error)}`,
+            );
+          }
+          const sessionId = sessionResult.data.id;
+          log(`Created session: ${sessionId}`);
+
+          const promptText = buildPrompt(diff, recentCommits);
+
+          // Build prompt params with model selection and structured output
+          const promptParams: Parameters<typeof client.session.prompt>[0] = {
+            sessionID: sessionId,
+            parts: [{ type: "text" as const, text: promptText }],
+            format: {
+              type: "json_schema",
+              schema: SUGGESTION_SCHEMA,
+            },
+            // Disable all tools — pure generation
+            tools: {},
+          };
+
+          if (cachedModel) {
+            promptParams.model = {
+              modelID: cachedModel.model,
+              providerID: cachedModel.provider,
+            };
+            log(`Using model: ${cachedModel.id}`);
+          }
+
+          // Send prompt via V1 API (streams/blocks until agent finishes)
+          const promptResult = await client.session.prompt(promptParams);
+          if (promptResult.error) {
+            debugLog("prompt-error", promptResult.error);
+            throw new Error(
+              `Prompt failed: ${JSON.stringify(promptResult.error)}`,
+            );
+          }
+
+          const { info, parts } = promptResult.data;
+          debugLog("prompt-response", {
+            infoKeys: Object.keys(info),
+            structured: info.structured,
+            finish: info.finish,
+            error: info.error,
+            partsCount: parts.length,
+            partTypes: parts.map((p) => p.type),
+            partsSample: parts.slice(0, 3),
+          });
+
+          // 1. Check info.structured — json_schema format puts output here
+          if (info.structured) {
+            log("Found structured output in info.structured");
+            const structured = info.structured as {
+              suggestions?: readonly CommitSuggestion[];
+            };
+            if (structured.suggestions && structured.suggestions.length > 0) {
+              log(
+                `Got ${structured.suggestions.length} structured suggestions`,
+              );
+              return structured.suggestions;
+            }
+          }
+
+          // 2. Check parts for text content
+          let responseText = extractTextFromParts(parts);
+
+          // 3. Fall back to polling session.messages() (reduced to 10 attempts)
+          if (!responseText) {
+            log("No text in prompt response parts, polling messages...");
+            responseText = await pollForAssistantText(client, sessionId, 10);
+          }
+
+          if (!responseText) {
+            throw new Error("No text response from assistant after polling");
+          }
+
+          log(
+            `Raw response text (first 500 chars): ${responseText.slice(0, 500)}`,
+          );
+
+          // Strip markdown code fences if the model wrapped the JSON
+          let jsonText = responseText.trim();
+          if (jsonText.startsWith("```")) {
+            jsonText = jsonText
+              .replace(/^```(?:json)?\s*\n?/, "")
+              .replace(/\n?\s*```$/, "");
+          }
+
+          const parsed = JSON.parse(jsonText) as {
+            suggestions: readonly CommitSuggestion[];
+          };
+
+          log(`Got ${parsed.suggestions.length} suggestions`);
+          return parsed.suggestions;
+        },
+        catch: (error) => {
+          const err =
+            error instanceof Error ? error : new Error(String(error));
+          log(`Suggestion error: ${err.message}`);
+          return err;
+        },
+      });
     }),
 });
 
