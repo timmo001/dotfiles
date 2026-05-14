@@ -36,6 +36,7 @@ Agents, commands, and plugins can be copied directly into your OpenCode config d
 | `import-external-skill` | Import skills from external repos into the local dotfiles skill library. Use when pulling in a skill from a public repo, reviewing an external skill set for useful additions, or adapting external skill content into existing local skills. |
 | `improve-codebase-architecture` | Review a codebase area for architectural friction and propose focused structural improvements. Use when the user wants to improve maintainability, reduce coupling, simplify understanding, or identify where code should be consolidated or deepened. |
 | `pkexec-root` | Use pkexec first for commands that need root directly or indirectly. |
+| `safe-process-signals` | Safe process killing and signal handling for agent/subprocess contexts. Use when running pkill, killall, kill, or any process termination command. |
 | `pr-review` | Guidelines for reviewing pull requests - what to analyze, review etiquette, and output formatting |
 | `remove-single-use-functions` | Safe single-use function removal guidance for code review and refactoring. |
 | `types-enforce-ts` | TypeScript type-safety guidance for editing and reviewing `.ts`, `.tsx`, `.mts`, and `.cts` files. |
