@@ -4652,6 +4652,24 @@ cmd_doctor() {
     doctor_warn "Skipping private package checks ($PRIVATE_REASON)"
   fi
 
+  doctor_log_section 'Pacman hooks'
+  local pacman_hooks_source="${XDG_CONFIG_HOME:-$HOME/.config}/pacman-hooks"
+  if [[ -d "$pacman_hooks_source" ]]; then
+    local hook_file
+    for hook_file in "$pacman_hooks_source"/*.hook; do
+      [[ -f "$hook_file" ]] || continue
+      local hook_name
+      hook_name="$(basename "$hook_file")"
+      if [[ ! -f "/etc/pacman.d/hooks/$hook_name" ]]; then
+        doctor_warn "Pacman hook not installed: $hook_name (run: pkexec install -Dm644 $hook_file /etc/pacman.d/hooks/$hook_name)"
+      elif ! diff -q "$hook_file" "/etc/pacman.d/hooks/$hook_name" >/dev/null 2>&1; then
+        doctor_warn "Pacman hook out of date: $hook_name (run: pkexec install -Dm644 $hook_file /etc/pacman.d/hooks/$hook_name)"
+      else
+        log_info "Pacman hook installed: $hook_name"
+      fi
+    done
+  fi
+
   print_grouped_doctor_messages error
   print_grouped_doctor_messages warning
 
