@@ -2,12 +2,12 @@
 name: fallow
 description: Codebase intelligence for JavaScript and TypeScript. Free static layer finds unused code (files, exports, types, dependencies), code duplication, circular dependencies, complexity hotspots, architecture boundary violations, and feature flag patterns. Runtime coverage merges production execution data into the same health report for hot-path review, cold-path deletion confidence, and stale-flag evidence - a single local capture is free, while continuous/cloud runtime monitoring is paid. 94 framework plugins, zero configuration, sub-second static analysis. Use when asked to analyze code health, find unused code, detect duplicates, check circular dependencies, audit complexity, check architecture boundaries, detect feature flags, clean up the codebase, auto-fix issues, merge runtime coverage, or run fallow.
 # origin: https://github.com/fallow-rs/fallow-skills/tree/main/fallow/skills/fallow
-# upstream-sha: f26418f4a9040c47a12cfa09a3f698ad704f7fe0
+# upstream-sha: 9aac6f1a4c0547ac37560100836ff4f089b00fca
 ---
 
 # Fallow: codebase intelligence for JavaScript and TypeScript
 
-Codebase intelligence for JavaScript and TypeScript. The free static layer finds unused code, circular dependencies, code duplication, complexity hotspots, architecture boundary violations, and feature flag patterns. Runtime coverage merges production execution data into the same `fallow health` report for hot-path review, cold-path deletion confidence, and stale-flag evidence: a single local capture is free, while continuous/cloud runtime monitoring is paid. 94 framework plugins, zero configuration, sub-second static analysis.
+Codebase intelligence for JavaScript and TypeScript. The free static layer finds unused code, circular dependencies, code duplication, complexity hotspots, architecture boundary violations, and feature flag patterns. Runtime coverage merges production execution data into the same `fallow health` report for hot-path review, cold-path deletion confidence, and stale-flag evidence: a single local capture is free, while continuous/cloud runtime monitoring is paid. 95 framework plugins, zero configuration, sub-second static analysis.
 
 ## When to Use
 
@@ -215,7 +215,7 @@ fallow list --entry-points --format json --quiet
 fallow list --plugins --format json --quiet
 ```
 
-Shows detected entry points and active framework plugins (94 built-in: Next.js, Vite, Jest, Storybook, Tailwind, PandaCSS, tap, tsd, etc.).
+Shows detected entry points and active framework plugins (95 built-in: Next.js, Vite, Jest, Storybook, Tailwind, PandaCSS, tap, tsd, etc.).
 
 ### Production-only analysis
 
@@ -369,7 +369,7 @@ export const deprecatedHelper = () => {};
 ## Key Gotchas
 
 - **`fix --yes` is required** in non-TTY (agent) environments. Without it, `fix` exits with code 2
-- **Zero config by default.** 94 framework plugins auto-detect, including tap and tsd test entry points. Don't create config unless customization is needed
+- **Zero config by default.** 95 framework plugins auto-detect, including tap and tsd test entry points. Don't create config unless customization is needed
 - **Syntactic analysis only.** No TypeScript compiler, so fully dynamic `import(variable)` is not resolved
 - **Function overloads are deduplicated.** TypeScript function overload signatures are merged into a single export (not reported as separate unused exports)
 - **Re-export chains are resolved.** Exports through barrel files are tracked, not falsely flagged
