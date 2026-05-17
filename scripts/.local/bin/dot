@@ -59,6 +59,8 @@ DOT_PRIVATE_PACKAGE_REPO_FILE_DEFAULT="$PRIVATE_DOTFILES/.dot-private-package-re
 DOT_PRIVATE_PACKAGE_REPO_FILE="${DOT_PRIVATE_PACKAGE_REPO_FILE:-$DOT_PRIVATE_PACKAGE_REPO_FILE_DEFAULT}"
 DOT_PRIVATE_PACKAGES_FILE_DEFAULT="$PRIVATE_DOTFILES/.dot-private-packages"
 DOT_PRIVATE_PACKAGES_FILE="${DOT_PRIVATE_PACKAGES_FILE:-$DOT_PRIVATE_PACKAGES_FILE_DEFAULT}"
+DOT_PRIVATE_PACKAGE_MAP_FILE_DEFAULT="$PRIVATE_DOTFILES/.dot-private-package-map"
+DOT_PRIVATE_PACKAGE_MAP_FILE="${DOT_PRIVATE_PACKAGE_MAP_FILE:-$DOT_PRIVATE_PACKAGE_MAP_FILE_DEFAULT}"
 DOT_PRIVATE_PACMAN_REPO_CONFIG_DEFAULT='/etc/pacman.d/timmo-private.conf'
 DOT_PRIVATE_PACMAN_REPO_CONFIG="${DOT_PRIVATE_PACMAN_REPO_CONFIG:-$DOT_PRIVATE_PACMAN_REPO_CONFIG_DEFAULT}"
 DOT_PRIVATE_PACMAN_MAIN_CONFIG_DEFAULT='/etc/pacman.conf'
@@ -209,29 +211,6 @@ array_contains() {
   return 1
 }
 
-omarchy_repo_is_single_branch() {
-  local repo_name="$1"
-  array_contains "$repo_name" "${OMARCHY_SINGLE_BRANCH_REPOS[@]}"
-}
-
-omarchy_repo_has_worktree_branches() {
-  local repo_name="$1"
-
-  if omarchy_repo_is_single_branch "$repo_name"; then
-    return 1
-  fi
-
-  array_contains "$repo_name" "${OMARCHY_WORKTREE_REPOS[@]}"
-}
-
-omarchy_branch_ref_exists() {
-  local repo_dir="$1"
-  local branch="$2"
-
-  git -C "$repo_dir" show-ref --verify --quiet "refs/heads/$branch" \
-    || git -C "$repo_dir" show-ref --verify --quiet "refs/remotes/origin/$branch"
-}
-
 trim_whitespace() {
   local value="$1"
   value="${value#"${value%%[![:space:]]*}"}"
@@ -293,430 +272,16 @@ confirm_action() {
 # shellcheck source=dot-lib
 source "$(dirname "${BASH_SOURCE[0]}")/dot-lib"
 
-load_private_package_repo_config() {
-  local config_file="$DOT_PRIVATE_PACKAGE_REPO_FILE"
-  local raw_line
-  local line
-  local key
-  local value
+# ---------------------------------------------------------------------------
+# Private package management — lazy-loaded from dot-private-pkg-lib
+# ---------------------------------------------------------------------------
 
-  PRIVATE_PACKAGE_REPO_NAME=''
-  PRIVATE_PACKAGE_REPO_PATH=''
-  PRIVATE_PACKAGE_REPO_MIRROR_PATH=''
-  PRIVATE_PACKAGE_REPO_SIGLEVEL='Optional TrustAll'
-
-  if [[ ! -f "$config_file" ]] || [[ ! -r "$config_file" ]]; then
-    return 1
+_ensure_private_pkg_lib() {
+  if [[ -z "${_DOT_PRIVATE_PKG_LIB_LOADED:-}" ]]; then
+    # shellcheck source=dot-private-pkg-lib
+    source "$(dirname "${BASH_SOURCE[0]}")/dot-private-pkg-lib"
+    _DOT_PRIVATE_PKG_LIB_LOADED=1
   fi
-
-  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
-    line="$(trim_whitespace "$raw_line")"
-    [[ -z "$line" || "${line:0:1}" == '#' ]] && continue
-
-    key="$(trim_whitespace "${line%%=*}")"
-    value="$(trim_whitespace "${line#*=}")"
-
-    case "$key" in
-      name)
-        PRIVATE_PACKAGE_REPO_NAME="$value"
-        ;;
-      path)
-        PRIVATE_PACKAGE_REPO_PATH="$(expand_home_path "$value")"
-        ;;
-      mirror_path)
-        PRIVATE_PACKAGE_REPO_MIRROR_PATH="$(expand_home_path "$value")"
-        ;;
-      siglevel)
-        PRIVATE_PACKAGE_REPO_SIGLEVEL="$value"
-        ;;
-    esac
-  done < "$config_file"
-
-  [[ -n "$PRIVATE_PACKAGE_REPO_NAME" && -n "$PRIVATE_PACKAGE_REPO_PATH" && -n "$PRIVATE_PACKAGE_REPO_MIRROR_PATH" ]]
-}
-
-load_private_arch_packages() {
-  local packages_file="$DOT_PRIVATE_PACKAGES_FILE"
-  local raw_line
-  local line
-
-  PRIVATE_ARCH_PACKAGES=()
-
-  if [[ ! -f "$packages_file" ]] || [[ ! -r "$packages_file" ]]; then
-    return 1
-  fi
-
-  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
-    line="$(trim_whitespace "$raw_line")"
-    [[ -z "$line" || "${line:0:1}" == '#' ]] && continue
-    PRIVATE_ARCH_PACKAGES+=("$line")
-  done < "$packages_file"
-
-  return 0
-}
-
-private_package_repo_server() {
-  [[ -n "$PRIVATE_PACKAGE_REPO_MIRROR_PATH" ]] || return 1
-  printf 'file://%s\n' "$PRIVATE_PACKAGE_REPO_MIRROR_PATH"
-}
-
-private_package_repo_config_contents() {
-  local repo_server
-
-  repo_server="$(private_package_repo_server)" || return 1
-
-  cat <<EOF
-[$PRIVATE_PACKAGE_REPO_NAME]
-SigLevel = $PRIVATE_PACKAGE_REPO_SIGLEVEL
-Server = $repo_server
-EOF
-}
-
-private_package_repo_config_matches() {
-  local config_path="$DOT_PRIVATE_PACMAN_REPO_CONFIG"
-  local expected_contents
-  local current_contents
-
-  [[ -f "$config_path" ]] || return 1
-
-  expected_contents="$(private_package_repo_config_contents)" || return 1
-  current_contents="$(<"$config_path")"
-
-  [[ "$current_contents" == "$expected_contents" ]]
-}
-
-private_package_repo_registered() {
-  local config_path="$DOT_PRIVATE_PACMAN_REPO_CONFIG"
-
-  [[ -n "$PRIVATE_PACKAGE_REPO_NAME" ]] || return 1
-  [[ -f "$config_path" ]] || return 1
-  grep -Fq "[$PRIVATE_PACKAGE_REPO_NAME]" "$config_path"
-}
-
-private_package_repo_include_line() {
-  printf 'Include = %s\n' "$DOT_PRIVATE_PACMAN_REPO_CONFIG"
-}
-
-private_package_repo_include_registered() {
-  local include_line
-
-  include_line="$(private_package_repo_include_line)"
-  [[ -f "$DOT_PRIVATE_PACMAN_MAIN_CONFIG" ]] || return 1
-  grep -Fq "$include_line" "$DOT_PRIVATE_PACMAN_MAIN_CONFIG"
-}
-
-collect_missing_private_arch_packages() {
-  local package_name
-
-  MISSING_PRIVATE_ARCH_PACKAGES=()
-
-  if ! has_cmd pacman; then
-    return 0
-  fi
-
-  load_private_arch_packages || return 0
-
-  for package_name in "${PRIVATE_ARCH_PACKAGES[@]}"; do
-    if ! package_installed "$package_name"; then
-      MISSING_PRIVATE_ARCH_PACKAGES+=("$package_name")
-    fi
-  done
-}
-
-private_arch_repo_latest_version() {
-  local package_name="$1"
-
-  has_cmd pacman || return 1
-  pacman -Si "$package_name" 2>/dev/null | sed -n 's/^Version[[:space:]]*:[[:space:]]*//p;q'
-}
-
-install_missing_private_arch_packages() {
-  local confirm="${1:-false}"
-
-  collect_missing_private_arch_packages
-
-  if [[ "${#MISSING_PRIVATE_ARCH_PACKAGES[@]}" -eq 0 ]]; then
-    log_info 'Private Arch packages already installed'
-    return 0
-  fi
-
-  if ! has_cmd omarchy-pkg-aur-add; then
-    log_warn 'Cannot install missing private Arch packages automatically (omarchy-pkg-aur-add not found)'
-    return 0
-  fi
-
-  log_info "Installing missing private Arch packages: ${MISSING_PRIVATE_ARCH_PACKAGES[*]}"
-  install_aur_packages "$confirm" "${MISSING_PRIVATE_ARCH_PACKAGES[@]}"
-}
-
-ensure_private_package_repo_config() {
-  local config_path="$DOT_PRIVATE_PACMAN_REPO_CONFIG"
-  local config_dir
-  local expected_contents
-
-  load_private_package_repo_config || return 1
-  expected_contents="$(private_package_repo_config_contents)" || return 1
-  config_dir="$(dirname "$config_path")"
-
-  if [[ ! -d "$config_dir" ]] && ! sudo mkdir -p "$config_dir"; then
-    log_warn "Skipping private pacman repo config write (cannot create directory: $(display_path "$config_dir"))"
-    return 0
-  fi
-
-  if ! printf '%s\n' "$expected_contents" | sudo tee "$config_path" > /dev/null; then
-    log_warn "Skipping private pacman repo config write (cannot write: $(display_path "$config_path"))"
-    return 0
-  fi
-}
-
-sync_private_package_repo_mirror() {
-  load_private_package_repo_config || return 1
-
-  if [[ ! -d "$PRIVATE_PACKAGE_REPO_PATH" ]]; then
-    log_warn "Skipping private package repo mirror sync (missing source clone: $(display_path "$PRIVATE_PACKAGE_REPO_PATH"))"
-    return 0
-  fi
-
-  if [[ ! -d "$PRIVATE_PACKAGE_REPO_MIRROR_PATH" ]] && ! mkdir -p "$PRIVATE_PACKAGE_REPO_MIRROR_PATH"; then
-    log_warn "Skipping private package repo mirror sync (cannot create mirror path as current user: $(display_path "$PRIVATE_PACKAGE_REPO_MIRROR_PATH"))"
-    return 0
-  fi
-
-  if ! rsync -a --delete --exclude '.git/' "$PRIVATE_PACKAGE_REPO_PATH/" "$PRIVATE_PACKAGE_REPO_MIRROR_PATH/"; then
-    log_warn "Skipping private package repo mirror sync (cannot sync as current user: $(display_path "$PRIVATE_PACKAGE_REPO_MIRROR_PATH"))"
-    return 0
-  fi
-}
-
-ensure_private_package_repo_include() {
-  local include_line
-
-  include_line="$(private_package_repo_include_line)"
-  if private_package_repo_include_registered; then
-    return 0
-  fi
-
-  if ! printf '\n%s\n' "$include_line" | sudo tee -a "$DOT_PRIVATE_PACMAN_MAIN_CONFIG" > /dev/null; then
-    log_warn "Skipping private pacman repo include update (cannot write: $(display_path "$DOT_PRIVATE_PACMAN_MAIN_CONFIG"))"
-    return 0
-  fi
-}
-
-publish_private_package() {
-  local package_name="$1"
-  local source_repo="$2"
-  local publish_git="${3:-true}"
-  local build_package="${4:-true}"
-  local install_package="${5:-false}"
-  local dist_dir="$source_repo/dist"
-  local runtime_pkg=''
-  local artifact
-  local -a package_artifacts=()
-  local -a published_runtime_artifacts=()
-  local commit_message
-
-  load_private_package_repo_config || return 1
-
-  if [[ ! -d "$source_repo" ]]; then
-    log_error "Missing package source repo: $(display_path "$source_repo")"
-    return 1
-  fi
-
-  if [[ "$build_package" == 'true' ]]; then
-    log_section "Build private package: $package_name"
-    if [[ -f "$source_repo/deno.json" ]] && deno task --cwd "$source_repo" 2>/dev/null | grep -Eq '(^|[[:space:]])package:arch($|[[:space:]])'; then
-      deno task --cwd "$source_repo" package:arch
-    elif [[ -f "$source_repo/Makefile" ]]; then
-      (cd "$source_repo" && make create_arch)
-    else
-      log_error "Missing package build task in $(display_path "$source_repo")"
-      return 1
-    fi
-  else
-    log_section "Use existing private package artifact: $package_name"
-  fi
-
-  if [[ ! -d "$dist_dir" ]]; then
-    log_error "Missing dist directory after build: $(display_path "$dist_dir")"
-    return 1
-  fi
-
-  shopt -s nullglob
-  for artifact in "$dist_dir/${package_name}-"*.pkg.tar.zst; do
-    if [[ "$artifact" == *-debug-* ]]; then
-      continue
-    fi
-    package_artifacts+=("$artifact")
-  done
-  shopt -u nullglob
-
-  if [[ "${#package_artifacts[@]}" -gt 0 ]]; then
-    runtime_pkg="${package_artifacts[-1]}"
-  fi
-
-  if [[ -z "$runtime_pkg" ]]; then
-    log_error "No runtime package artifact found for $package_name in $(display_path "$dist_dir")"
-    return 1
-  fi
-
-  log_section "Publish private package: $package_name"
-  shopt -s nullglob
-  for artifact in "$PRIVATE_PACKAGE_REPO_PATH/${package_name}-"*.pkg.tar.zst; do
-    if [[ "$artifact" == *-debug-* ]]; then
-      continue
-    fi
-    rm -f "$artifact"
-  done
-  cp "$runtime_pkg" "$PRIVATE_PACKAGE_REPO_PATH/"
-  rm -f "$PRIVATE_PACKAGE_REPO_PATH/${package_name}-debug-"*.pkg.tar.zst
-  rm -f "$PRIVATE_PACKAGE_REPO_PATH/"*.old "$PRIVATE_PACKAGE_REPO_PATH/"*.lck
-  for artifact in "$PRIVATE_PACKAGE_REPO_PATH/"*.pkg.tar.zst; do
-    if [[ "$artifact" == *-debug-* ]]; then
-      continue
-    fi
-    published_runtime_artifacts+=("$artifact")
-  done
-  shopt -u nullglob
-
-  repo-add "$PRIVATE_PACKAGE_REPO_PATH/timmo-private.db.tar.gz" "${published_runtime_artifacts[@]}"
-  rm -f "$PRIVATE_PACKAGE_REPO_PATH/"*.old "$PRIVATE_PACKAGE_REPO_PATH/"*.lck
-
-  log_section 'Sync private package repo mirror'
-  sync_private_package_repo_mirror
-
-  if private_package_repo_registered && private_package_repo_include_registered; then
-    if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
-      if ! pacman -Sy; then
-        log_warn 'pacman database refresh failed'
-      fi
-    else
-      log_warn 'Skipping pacman database refresh (run manually with your preferred privilege method if needed)'
-    fi
-  fi
-
-  if [[ "$install_package" == 'true' ]]; then
-    log_section "Install private package: $package_name"
-    if is_interactive_terminal && has_cmd yay; then
-      yay -Sy --noconfirm "$package_name"
-    elif [[ "${EUID:-$(id -u)}" -eq 0 ]] && has_cmd pacman; then
-      pacman -Sy --noconfirm "$package_name"
-    elif has_cmd pkexec && has_cmd pacman; then
-      pkexec pacman -Sy --noconfirm "$package_name"
-    elif has_cmd yay; then
-      yay -Sy --noconfirm "$package_name" --sudo pkexec --sudoflags ""
-    else
-      log_error 'Cannot install package automatically (pkexec/pacman not found and not running as root)'
-      return 1
-    fi
-  fi
-
-  if [[ "$publish_git" == 'true' ]]; then
-    commit_message="publish ${package_name} package"
-    log_section 'Commit private package repo'
-    git -C "$PRIVATE_PACKAGE_REPO_PATH" add .
-    if ! git -C "$PRIVATE_PACKAGE_REPO_PATH" diff --cached --quiet; then
-      git -C "$PRIVATE_PACKAGE_REPO_PATH" commit -m "$commit_message"
-    else
-      log_info 'No private package repo changes to commit'
-    fi
-
-    log_section 'Push private package repo'
-    git -C "$PRIVATE_PACKAGE_REPO_PATH" push
-  fi
-}
-
-# @cmd setup-private-repo — Sync mirror, write pacman config, register include
-cmd_setup_private_repo() {
-  if ! can_use_private; then
-    log_error "Private access is not available ($PRIVATE_REASON)"
-    return 1
-  fi
-
-  if ! load_private_package_repo_config; then
-    log_error "Missing private package repo config: $(display_path "$DOT_PRIVATE_PACKAGE_REPO_FILE")"
-    return 1
-  fi
-
-  log_section 'Sync private package repo mirror'
-  sync_private_package_repo_mirror
-
-  if ! private_package_repo_registered || ! private_package_repo_config_matches; then
-    log_section 'Configure private pacman repo'
-    ensure_private_package_repo_config
-  fi
-
-  if ! private_package_repo_include_registered; then
-    log_section 'Register private pacman repo include'
-    ensure_private_package_repo_include
-  fi
-
-  if private_package_repo_registered && private_package_repo_include_registered && private_package_repo_config_matches; then
-    log_info "Private pacman repo is configured ($(display_path "$DOT_PRIVATE_PACMAN_REPO_CONFIG"))"
-  else
-    log_warn 'Private pacman repo setup incomplete (check permissions for /etc paths)'
-  fi
-}
-
-# @cmd private-pkg-publish — Build, publish, commit, and push a mapped private package
-# @opt --no-git — Skip commit and push
-# @opt --skip-build — Publish existing dist package artifact
-# @opt --install — Install the published package
-cmd_private_pkg_publish() {
-  local package_name=''
-  local source_repo=''
-  local publish_git=true
-  local build_package=true
-  local install_package=false
-
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --no-git)
-        publish_git=false
-        ;;
-      --skip-build)
-        build_package=false
-        ;;
-      --install)
-        install_package=true
-        ;;
-      --help|-h)
-        printf 'Usage: %s private-pkg-publish [--no-git] [--skip-build] [--install] <package-name>\n' "$SCRIPT_NAME"
-        return 0
-        ;;
-      -*)
-        log_error "Unknown private-pkg-publish option: $1"
-        return 1
-        ;;
-      *)
-        if [[ -n "$package_name" ]]; then
-          log_error 'Usage: dot private-pkg-publish [--no-git] [--skip-build] [--install] <package-name>'
-          return 1
-        fi
-        package_name="$1"
-        ;;
-    esac
-    shift
-  done
-
-  if [[ -z "$package_name" ]]; then
-    log_error 'Usage: dot private-pkg-publish [--no-git] [--skip-build] [--install] <package-name>'
-    return 1
-  fi
-
-  case "$package_name" in
-    twitch-notifications)
-      source_repo="$HOME/repos/twitch-notifications"
-      ;;
-    slopops)
-      source_repo="$HOME/repos/slopops"
-      ;;
-    *)
-      log_error "No private package publish mapping configured for: $package_name"
-      return 1
-      ;;
-  esac
-
-  publish_private_package "$package_name" "$source_repo" "$publish_git" "$build_package" "$install_package"
 }
 
 install_aur_packages() {
@@ -756,88 +321,6 @@ install_missing_public_arch_packages() {
 
   log_info "Installing missing public Arch packages: ${MISSING_PUBLIC_ARCH_PACKAGES[*]}"
   install_aur_packages "$confirm" "${MISSING_PUBLIC_ARCH_PACKAGES[@]}"
-}
-
-chromium_extension_id_installed() {
-  local profile_dir="$1"
-  local extension_id="$2"
-  local prefs_file="$profile_dir/Preferences"
-
-  [[ -f "$prefs_file" ]] || return 1
-  jq -e --arg id "$extension_id" '.extensions.settings[$id] // empty' "$prefs_file" >/dev/null 2>&1
-}
-
-chromium_extension_name_installed() {
-  local profile_dir="$1"
-  local expected_name="$2"
-  local prefs_file="$profile_dir/Preferences"
-
-  [[ -f "$prefs_file" ]] || return 1
-
-  local ext_path
-  ext_path="$(jq -r --arg name "$expected_name" '
-    .extensions.settings | to_entries[]
-    | select(.value.path) | .value.path as $p
-    | if (.value.manifest.name // "") == $name then $p
-      else empty end
-  ' "$prefs_file" 2>/dev/null | head -1)"
-
-  if [[ -n "$ext_path" ]]; then
-    return 0
-  fi
-
-  # Manifest name may not be cached in Preferences; check manifest.json at each extension path
-  local path
-  while IFS= read -r path; do
-    [[ -f "$path/manifest.json" ]] || continue
-    if grep -Fq "\"name\": \"$expected_name\"" "$path/manifest.json"; then
-      return 0
-    fi
-  done < <(jq -r '.extensions.settings | to_entries[] | select(.value.path) | .value.path' "$prefs_file" 2>/dev/null)
-
-  return 1
-}
-
-run_private_browser_checks() {
-  local report_fn="$1"
-  local config_file="$DOT_PRIVATE_BROWSER_CHECKS_FILE"
-  local raw_line
-  local line
-  local kind
-  local profile_dir
-  local target
-  local label
-  local hint
-
-  if [[ ! -f "$config_file" ]] || [[ ! -r "$config_file" ]]; then
-    return 0
-  fi
-
-  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
-    line="$(trim_whitespace "$raw_line")"
-    [[ -z "$line" || "${line:0:1}" == '#' ]] && continue
-
-    IFS='|' read -r kind profile_dir target label hint <<< "$line"
-    kind="$(trim_whitespace "$kind")"
-    profile_dir="$(expand_home_path "$(trim_whitespace "$profile_dir")")"
-    target="$(trim_whitespace "$target")"
-    label="$(trim_whitespace "$label")"
-    hint="$(trim_whitespace "$hint")"
-
-    [[ -z "$kind" || -z "$profile_dir" || -z "$target" || -z "$label" ]] && continue
-
-    case "$kind" in
-      chromium-id)
-        "$report_fn" "$label" "$hint" chromium_extension_id_installed "$profile_dir" "$target"
-        ;;
-      chromium-name)
-        "$report_fn" "$label" "$hint" chromium_extension_name_installed "$profile_dir" "$target"
-        ;;
-      *)
-        log_warn "Ignoring unknown browser check type '$kind' in $(display_path "$config_file")"
-        ;;
-    esac
-  done < "$config_file"
 }
 
 PRIVATE_EXTRA_REPO_NAMES=()
@@ -1069,6 +552,7 @@ diff_collect_attention_with_fetch() {
 
   if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS"; then
     local om_i
+    _ensure_omarchy_lib
     omarchy_collect_repo_targets
     for om_i in "${!OMARCHY_TARGET_PATHS[@]}"; do
       _diff_attention_scan_repo "${OMARCHY_TARGET_NAMES[$om_i]}" "${OMARCHY_TARGET_PATHS[$om_i]}" "$fetch_upstream"
@@ -1647,252 +1131,16 @@ repo_upstream_ref() {
   fi
 }
 
-omarchy_repo_slug() {
-  local repo_name="$1"
+# ---------------------------------------------------------------------------
+# Omarchy repo management — lazy-loaded from dot-omarchy-lib
+# ---------------------------------------------------------------------------
 
-  case "$repo_name" in
-    bootstrap) printf 'timmo001/bootstrap\n' ;;
-    hypr) printf 'timmo001/omarchy-hypr\n' ;;
-    waybar) printf 'timmo001/omarchy-waybar\n' ;;
-    ghostty) printf 'timmo001/omarchy-ghostty\n' ;;
-    uwsm) printf 'timmo001/omarchy-uwsm\n' ;;
-    *) return 1 ;;
-  esac
-}
-
-omarchy_backup_existing_dir() {
-  local repo_name="$1"
-  local target_dir="$2"
-  local backup_root="$OMARCHY_REPO_BASE/omarchy-backups"
-  local backup_path="$backup_root/${repo_name}-$(date +%Y%m%d-%H%M%S)"
-
-  mkdir -p "$backup_root"
-  mv "$target_dir" "$backup_path"
-  log_warn "Moved existing $repo_name to backup: $(display_path "$backup_path")"
-}
-
-omarchy_repo_matches_remote() {
-  local target_dir="$1"
-  local expected_slug="$2"
-  local remote_url
-
-  remote_url="$(git -C "$target_dir" remote get-url origin 2>/dev/null || true)"
-  [[ "$remote_url" == *"$expected_slug"* ]]
-}
-
-omarchy_clone_repo() {
-  local repo_slug="$1"
-  local target_dir="$2"
-
-  if has_cmd git; then
-    log_info "Cloning $repo_slug -> $(display_path "$target_dir") (via git)"
-    git clone "https://github.com/${repo_slug}.git" "$target_dir"
-  else
-    log_error "Cannot clone $repo_slug (gh and git unavailable)"
-    return 1
+_ensure_omarchy_lib() {
+  if [[ -z "${_DOT_OMARCHY_LIB_LOADED:-}" ]]; then
+    # shellcheck source=dot-omarchy-lib
+    source "$(dirname "${BASH_SOURCE[0]}")/dot-omarchy-lib"
+    _DOT_OMARCHY_LIB_LOADED=1
   fi
-}
-
-omarchy_checkout_branch_if_available() {
-  local repo_name="$1"
-  local target_dir="$2"
-  local branch="$3"
-
-  if [[ -z "$branch" ]]; then
-    return 0
-  fi
-
-  if git -C "$target_dir" ls-remote --heads origin "$branch" | grep -q "$branch"; then
-    log_info "Checking out branch '$branch' for $repo_name"
-    git -C "$target_dir" fetch origin "$branch" >/dev/null 2>&1 || true
-    git -C "$target_dir" checkout "$branch" >/dev/null 2>&1 || true
-  else
-    log_warn "Branch '$branch' not found for $repo_name; keeping current branch"
-  fi
-}
-
-omarchy_collect_repo_targets() {
-  local repo_name
-  local repo_path
-  local current_branch
-  local branch_name
-  local worktree_path
-
-  OMARCHY_TARGET_NAMES=()
-  OMARCHY_TARGET_PATHS=()
-
-  for repo_name in "${OMARCHY_DIFF_REPOS[@]}"; do
-    repo_path="$OMARCHY_REPO_BASE/$repo_name"
-    OMARCHY_TARGET_NAMES+=("omarchy:$repo_name")
-    OMARCHY_TARGET_PATHS+=("$repo_path")
-
-    if ! omarchy_repo_has_worktree_branches "$repo_name"; then
-      continue
-    fi
-
-    if ! git -C "$repo_path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-      continue
-    fi
-
-    current_branch="$(git -C "$repo_path" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
-    for branch_name in "${OMARCHY_WORKTREE_BRANCHES[@]}"; do
-      if [[ "$branch_name" == "$current_branch" ]]; then
-        continue
-      fi
-
-      if ! omarchy_branch_ref_exists "$repo_path" "$branch_name"; then
-        continue
-      fi
-
-      worktree_path="$OMARCHY_REPO_BASE/${repo_name}-${branch_name}"
-      OMARCHY_TARGET_NAMES+=("omarchy:${repo_name}-${branch_name}")
-      OMARCHY_TARGET_PATHS+=("$worktree_path")
-    done
-  done
-}
-
-omarchy_sync_repo_worktrees() {
-  local repo_name="$1"
-  local target_dir="$2"
-  local current_branch
-  local branch_name
-  local worktree_path
-  local worktree_branch
-
-  if ! omarchy_repo_has_worktree_branches "$repo_name"; then
-    if omarchy_repo_is_single_branch "$repo_name"; then
-      log_info "Skipping branch worktree checks for $repo_name (single-branch repo)"
-    fi
-    return 0
-  fi
-
-  if ! git -C "$target_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    return 0
-  fi
-
-  git -C "$target_dir" fetch --quiet origin >/dev/null 2>&1 || true
-  current_branch="$(git -C "$target_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
-
-  for branch_name in "${OMARCHY_WORKTREE_BRANCHES[@]}"; do
-    if [[ "$branch_name" == "$current_branch" ]]; then
-      continue
-    fi
-
-    if ! omarchy_branch_ref_exists "$target_dir" "$branch_name"; then
-      log_info "Skipping worktree ${repo_name}-${branch_name} (branch '$branch_name' not found)"
-      continue
-    fi
-
-    worktree_path="$OMARCHY_REPO_BASE/${repo_name}-${branch_name}"
-
-    if git -C "$worktree_path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-      worktree_branch="$(git -C "$worktree_path" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
-      if [[ "$worktree_branch" != "$branch_name" ]]; then
-        log_warn "Skipping $(display_path "$worktree_path") pull (expected branch '$branch_name', found '$worktree_branch')"
-        continue
-      fi
-
-      safe_pull_repo "omarchy:${repo_name}-${branch_name}" "$worktree_path"
-      continue
-    fi
-
-    if [[ -d "$worktree_path" ]]; then
-      log_warn "Skipping worktree setup for ${repo_name}-${branch_name} (path exists and is not a git worktree): $(display_path "$worktree_path")"
-      continue
-    fi
-
-    log_info "Creating worktree omarchy:${repo_name}-${branch_name} at $(display_path "$worktree_path")"
-    if git -C "$target_dir" show-ref --verify --quiet "refs/heads/$branch_name"; then
-      if ! git -C "$target_dir" worktree add "$worktree_path" "$branch_name" >/dev/null 2>&1; then
-        log_warn "Failed to create worktree for ${repo_name}-${branch_name}"
-        continue
-      fi
-    else
-      if ! git -C "$target_dir" worktree add -b "$branch_name" "$worktree_path" "origin/$branch_name" >/dev/null 2>&1; then
-        log_warn "Failed to create worktree for ${repo_name}-${branch_name} from origin/$branch_name"
-        continue
-      fi
-    fi
-
-    safe_pull_repo "omarchy:${repo_name}-${branch_name}" "$worktree_path"
-  done
-}
-
-omarchy_sync_repo() {
-  local repo_name="$1"
-  local repo_slug="$2"
-  local branch="$3"
-  local target_dir="$OMARCHY_REPO_BASE/$repo_name"
-
-  if omarchy_repo_is_single_branch "$repo_name"; then
-    branch=''
-  fi
-
-  log_section "Omarchy sync: $repo_name"
-
-  if [[ -d "$target_dir" ]]; then
-    if [[ -e "$target_dir/.git" ]] && omarchy_repo_matches_remote "$target_dir" "$repo_slug"; then
-      omarchy_checkout_branch_if_available "$repo_name" "$target_dir" "$branch"
-      safe_pull_repo "omarchy:$repo_name" "$target_dir"
-    else
-      omarchy_backup_existing_dir "$repo_name" "$target_dir"
-      omarchy_clone_repo "$repo_slug" "$target_dir"
-      omarchy_checkout_branch_if_available "$repo_name" "$target_dir" "$branch"
-    fi
-  else
-    omarchy_clone_repo "$repo_slug" "$target_dir"
-    omarchy_checkout_branch_if_available "$repo_name" "$target_dir" "$branch"
-  fi
-
-  omarchy_sync_repo_worktrees "$repo_name" "$target_dir"
-}
-
-omarchy_sync_repos() {
-  local branch_override="$OMARCHY_BRANCH"
-  local bootstrap_branch_override="$BOOTSTRAP_BRANCH"
-  local arg
-  local repo_name
-  local slug
-
-  while [[ $# -gt 0 ]]; do
-    arg="$1"
-    case "$arg" in
-      --branch)
-        shift
-        branch_override="${1:-}"
-        ;;
-      --branch=*)
-        branch_override="${arg#*=}"
-        ;;
-      --bootstrap-branch)
-        shift
-        bootstrap_branch_override="${1:-}"
-        ;;
-      --bootstrap-branch=*)
-        bootstrap_branch_override="${arg#*=}"
-        ;;
-      *)
-        log_error "Unknown omarchy-sync option: $arg"
-        return 1
-        ;;
-    esac
-    shift || true
-  done
-
-  omarchy_sync_repo 'bootstrap' "$(omarchy_repo_slug bootstrap)" "$bootstrap_branch_override"
-
-  for repo_name in hypr waybar ghostty uwsm; do
-    slug="$(omarchy_repo_slug "$repo_name")"
-    omarchy_sync_repo "$repo_name" "$slug" "$branch_override"
-  done
-}
-
-discover_omarchy_branches() {
-  if ! has_cmd gh; then
-    return 1
-  fi
-
-  gh api "repos/timmo001/omarchy-hypr/branches" --jq '.[].name' 2>/dev/null
 }
 
 run_init_questionnaire() {
@@ -1900,6 +1148,8 @@ run_init_questionnaire() {
   INIT_RUN_BOOTSTRAP=0
   INIT_INSTALL_PUBLIC_ARCH_PACKAGES=1
   INIT_INSTALL_PRIVATE_ARCH_PACKAGES=1
+
+  _ensure_omarchy_lib
 
   if is_truthy "$INIT_NONINTERACTIVE" || ! is_interactive_terminal; then
     return 0
@@ -1937,6 +1187,7 @@ run_init_questionnaire() {
     fi
   fi
 
+  _ensure_private_pkg_lib
   collect_missing_private_arch_packages
   if [[ "${#MISSING_PRIVATE_ARCH_PACKAGES[@]}" -gt 0 ]]; then
     if confirm_action "Install missing private Arch packages (${MISSING_PRIVATE_ARCH_PACKAGES[*]}) now?"; then
@@ -2113,6 +1364,7 @@ cmd_diff_list_all() {
   fi
 
   if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS"; then
+    _ensure_omarchy_lib
     omarchy_collect_repo_targets
     local om_i
     for om_i in "${!OMARCHY_TARGET_PATHS[@]}"; do
@@ -2405,6 +1657,8 @@ run_init_private_package_installs() {
     return 0
   fi
 
+  _ensure_private_pkg_lib
+
   if ! load_private_package_repo_config; then
     log_warn "Skipping private Arch package install (missing config: $(display_path "$DOT_PRIVATE_PACKAGE_REPO_FILE"))"
     return 0
@@ -2530,6 +1784,7 @@ cmd_init() {
     sync_args+=(--branch "$INIT_SELECTED_OMARCHY_BRANCH")
   fi
 
+  _ensure_omarchy_lib
   omarchy_sync_repos "${sync_args[@]}"
   run_bootstrap_init_if_requested
   run_setup_packages "${setup_args[@]}"
@@ -2653,6 +1908,7 @@ cmd_update() {
           updated=1
         fi
 
+        _ensure_private_pkg_lib
         if load_private_package_repo_config; then
           log_section 'Sync private package repo mirror'
           sync_private_package_repo_mirror
@@ -2725,6 +1981,7 @@ _update_path_needs_pull() {
 
 # Check if any omarchy target path needs pulling.
 _update_path_needs_pull_any_omarchy() {
+  _ensure_omarchy_lib
   omarchy_collect_repo_targets
   local om_i
   for om_i in "${!OMARCHY_TARGET_PATHS[@]}"; do
@@ -2902,6 +2159,7 @@ cmd_diff() {
 
   if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS"; then
     log_section 'Omarchy repo diffs'
+    _ensure_omarchy_lib
     omarchy_collect_repo_targets
     for om_i in "${!OMARCHY_TARGET_PATHS[@]}"; do
       show_repo_diffs "${OMARCHY_TARGET_NAMES[$om_i]}" "${OMARCHY_TARGET_PATHS[$om_i]}"
@@ -3098,8 +2356,14 @@ main() {
       cmd_doctor "$@"
       ;;
     opencode-debug) cmd_opencode_debug "$@" ;;
-    setup-private-repo) cmd_setup_private_repo "$@" ;;
-    private-pkg-publish) cmd_private_pkg_publish "$@" ;;
+    setup-private-repo)
+      _ensure_private_pkg_lib
+      cmd_setup_private_repo "$@"
+      ;;
+    private-pkg-publish)
+      _ensure_private_pkg_lib
+      cmd_private_pkg_publish "$@"
+      ;;
     agents-sync) cmd_agents_sync "$@" ;;
     skill-updates)
       _ensure_skill_updates_lib

@@ -1,0 +1,495 @@
+#!/usr/bin/env bash
+# dot-private-pkg-lib — private package repo management (lazy-loaded from dot)
+# shellcheck disable=SC2034
+
+# ---------------------------------------------------------------------------
+# Config loading
+# ---------------------------------------------------------------------------
+
+load_private_package_repo_config() {
+  local config_file="$DOT_PRIVATE_PACKAGE_REPO_FILE"
+  local raw_line
+  local line
+  local key
+  local value
+
+  PRIVATE_PACKAGE_REPO_NAME=''
+  PRIVATE_PACKAGE_REPO_PATH=''
+  PRIVATE_PACKAGE_REPO_MIRROR_PATH=''
+  PRIVATE_PACKAGE_REPO_SIGLEVEL='Optional TrustAll'
+
+  if [[ ! -f "$config_file" ]] || [[ ! -r "$config_file" ]]; then
+    return 1
+  fi
+
+  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
+    line="$(trim_whitespace "$raw_line")"
+    [[ -z "$line" || "${line:0:1}" == '#' ]] && continue
+
+    key="$(trim_whitespace "${line%%=*}")"
+    value="$(trim_whitespace "${line#*=}")"
+
+    case "$key" in
+      name)
+        PRIVATE_PACKAGE_REPO_NAME="$value"
+        ;;
+      path)
+        PRIVATE_PACKAGE_REPO_PATH="$(expand_home_path "$value")"
+        ;;
+      mirror_path)
+        PRIVATE_PACKAGE_REPO_MIRROR_PATH="$(expand_home_path "$value")"
+        ;;
+      siglevel)
+        PRIVATE_PACKAGE_REPO_SIGLEVEL="$value"
+        ;;
+    esac
+  done < "$config_file"
+
+  [[ -n "$PRIVATE_PACKAGE_REPO_NAME" && -n "$PRIVATE_PACKAGE_REPO_PATH" && -n "$PRIVATE_PACKAGE_REPO_MIRROR_PATH" ]]
+}
+
+load_private_arch_packages() {
+  local packages_file="$DOT_PRIVATE_PACKAGES_FILE"
+  local raw_line
+  local line
+
+  PRIVATE_ARCH_PACKAGES=()
+
+  if [[ ! -f "$packages_file" ]] || [[ ! -r "$packages_file" ]]; then
+    return 1
+  fi
+
+  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
+    line="$(trim_whitespace "$raw_line")"
+    [[ -z "$line" || "${line:0:1}" == '#' ]] && continue
+    PRIVATE_ARCH_PACKAGES+=("$line")
+  done < "$packages_file"
+
+  return 0
+}
+
+# ---------------------------------------------------------------------------
+# Repo status queries
+# ---------------------------------------------------------------------------
+
+private_package_repo_server() {
+  [[ -n "$PRIVATE_PACKAGE_REPO_MIRROR_PATH" ]] || return 1
+  printf 'file://%s\n' "$PRIVATE_PACKAGE_REPO_MIRROR_PATH"
+}
+
+private_package_repo_config_contents() {
+  local repo_server
+
+  repo_server="$(private_package_repo_server)" || return 1
+
+  cat <<EOF
+[$PRIVATE_PACKAGE_REPO_NAME]
+SigLevel = $PRIVATE_PACKAGE_REPO_SIGLEVEL
+Server = $repo_server
+EOF
+}
+
+private_package_repo_config_matches() {
+  local config_path="$DOT_PRIVATE_PACMAN_REPO_CONFIG"
+  local expected_contents
+  local current_contents
+
+  [[ -f "$config_path" ]] || return 1
+
+  expected_contents="$(private_package_repo_config_contents)" || return 1
+  current_contents="$(<"$config_path")"
+
+  [[ "$current_contents" == "$expected_contents" ]]
+}
+
+private_package_repo_registered() {
+  local config_path="$DOT_PRIVATE_PACMAN_REPO_CONFIG"
+
+  [[ -n "$PRIVATE_PACKAGE_REPO_NAME" ]] || return 1
+  [[ -f "$config_path" ]] || return 1
+  grep -Fq "[$PRIVATE_PACKAGE_REPO_NAME]" "$config_path"
+}
+
+private_package_repo_include_line() {
+  printf 'Include = %s\n' "$DOT_PRIVATE_PACMAN_REPO_CONFIG"
+}
+
+private_package_repo_include_registered() {
+  local include_line
+
+  include_line="$(private_package_repo_include_line)"
+  [[ -f "$DOT_PRIVATE_PACMAN_MAIN_CONFIG" ]] || return 1
+  grep -Fq "$include_line" "$DOT_PRIVATE_PACMAN_MAIN_CONFIG"
+}
+
+# ---------------------------------------------------------------------------
+# Package collection and version queries
+# ---------------------------------------------------------------------------
+
+collect_missing_private_arch_packages() {
+  local package_name
+
+  MISSING_PRIVATE_ARCH_PACKAGES=()
+
+  if ! has_cmd pacman; then
+    return 0
+  fi
+
+  load_private_arch_packages || return 0
+
+  for package_name in "${PRIVATE_ARCH_PACKAGES[@]}"; do
+    if ! package_installed "$package_name"; then
+      MISSING_PRIVATE_ARCH_PACKAGES+=("$package_name")
+    fi
+  done
+}
+
+private_arch_repo_latest_version() {
+  local package_name="$1"
+
+  has_cmd pacman || return 1
+  pacman -Si "$package_name" 2>/dev/null | sed -n 's/^Version[[:space:]]*:[[:space:]]*//p;q'
+}
+
+install_missing_private_arch_packages() {
+  local confirm="${1:-false}"
+
+  collect_missing_private_arch_packages
+
+  if [[ "${#MISSING_PRIVATE_ARCH_PACKAGES[@]}" -eq 0 ]]; then
+    log_info 'Private Arch packages already installed'
+    return 0
+  fi
+
+  if ! has_cmd omarchy-pkg-aur-add; then
+    log_warn 'Cannot install missing private Arch packages automatically (omarchy-pkg-aur-add not found)'
+    return 0
+  fi
+
+  log_info "Installing missing private Arch packages: ${MISSING_PRIVATE_ARCH_PACKAGES[*]}"
+  install_aur_packages "$confirm" "${MISSING_PRIVATE_ARCH_PACKAGES[@]}"
+}
+
+# ---------------------------------------------------------------------------
+# Repo configuration and sync
+# ---------------------------------------------------------------------------
+
+ensure_private_package_repo_config() {
+  local config_path="$DOT_PRIVATE_PACMAN_REPO_CONFIG"
+  local config_dir
+  local expected_contents
+
+  load_private_package_repo_config || return 1
+  expected_contents="$(private_package_repo_config_contents)" || return 1
+  config_dir="$(dirname "$config_path")"
+
+  if [[ ! -d "$config_dir" ]] && ! sudo mkdir -p "$config_dir"; then
+    log_warn "Skipping private pacman repo config write (cannot create directory: $(display_path "$config_dir"))"
+    return 0
+  fi
+
+  if ! printf '%s\n' "$expected_contents" | sudo tee "$config_path" > /dev/null; then
+    log_warn "Skipping private pacman repo config write (cannot write: $(display_path "$config_path"))"
+    return 0
+  fi
+}
+
+sync_private_package_repo_mirror() {
+  load_private_package_repo_config || return 1
+
+  if [[ ! -d "$PRIVATE_PACKAGE_REPO_PATH" ]]; then
+    log_warn "Skipping private package repo mirror sync (missing source clone: $(display_path "$PRIVATE_PACKAGE_REPO_PATH"))"
+    return 0
+  fi
+
+  if [[ ! -d "$PRIVATE_PACKAGE_REPO_MIRROR_PATH" ]] && ! mkdir -p "$PRIVATE_PACKAGE_REPO_MIRROR_PATH"; then
+    log_warn "Skipping private package repo mirror sync (cannot create mirror path as current user: $(display_path "$PRIVATE_PACKAGE_REPO_MIRROR_PATH"))"
+    return 0
+  fi
+
+  if ! rsync -a --delete --exclude '.git/' "$PRIVATE_PACKAGE_REPO_PATH/" "$PRIVATE_PACKAGE_REPO_MIRROR_PATH/"; then
+    log_warn "Skipping private package repo mirror sync (cannot sync as current user: $(display_path "$PRIVATE_PACKAGE_REPO_MIRROR_PATH"))"
+    return 0
+  fi
+}
+
+ensure_private_package_repo_include() {
+  local include_line
+
+  include_line="$(private_package_repo_include_line)"
+  if private_package_repo_include_registered; then
+    return 0
+  fi
+
+  if ! printf '\n%s\n' "$include_line" | sudo tee -a "$DOT_PRIVATE_PACMAN_MAIN_CONFIG" > /dev/null; then
+    log_warn "Skipping private pacman repo include update (cannot write: $(display_path "$DOT_PRIVATE_PACMAN_MAIN_CONFIG"))"
+    return 0
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Package publishing
+# ---------------------------------------------------------------------------
+
+publish_private_package() {
+  local package_name="$1"
+  local source_repo="$2"
+  local publish_git="${3:-true}"
+  local build_package="${4:-true}"
+  local install_package="${5:-false}"
+  local dist_dir="$source_repo/dist"
+  local runtime_pkg=''
+  local artifact
+  local -a package_artifacts=()
+  local -a published_runtime_artifacts=()
+  local commit_message
+
+  load_private_package_repo_config || return 1
+
+  if [[ ! -d "$source_repo" ]]; then
+    log_error "Missing package source repo: $(display_path "$source_repo")"
+    return 1
+  fi
+
+  if [[ "$build_package" == 'true' ]]; then
+    log_section "Build private package: $package_name"
+    if [[ -f "$source_repo/deno.json" ]] && deno task --cwd "$source_repo" 2>/dev/null | grep -Eq '(^|[[:space:]])package:arch($|[[:space:]])'; then
+      deno task --cwd "$source_repo" package:arch
+    elif [[ -f "$source_repo/Makefile" ]]; then
+      (cd "$source_repo" && make create_arch)
+    else
+      log_error "Missing package build task in $(display_path "$source_repo")"
+      return 1
+    fi
+  else
+    log_section "Use existing private package artifact: $package_name"
+  fi
+
+  if [[ ! -d "$dist_dir" ]]; then
+    log_error "Missing dist directory after build: $(display_path "$dist_dir")"
+    return 1
+  fi
+
+  shopt -s nullglob
+  for artifact in "$dist_dir/${package_name}-"*.pkg.tar.zst; do
+    if [[ "$artifact" == *-debug-* ]]; then
+      continue
+    fi
+    package_artifacts+=("$artifact")
+  done
+  shopt -u nullglob
+
+  if [[ "${#package_artifacts[@]}" -gt 0 ]]; then
+    runtime_pkg="${package_artifacts[-1]}"
+  fi
+
+  if [[ -z "$runtime_pkg" ]]; then
+    log_error "No runtime package artifact found for $package_name in $(display_path "$dist_dir")"
+    return 1
+  fi
+
+  log_section "Publish private package: $package_name"
+  shopt -s nullglob
+  for artifact in "$PRIVATE_PACKAGE_REPO_PATH/${package_name}-"*.pkg.tar.zst; do
+    if [[ "$artifact" == *-debug-* ]]; then
+      continue
+    fi
+    rm -f "$artifact"
+  done
+  cp "$runtime_pkg" "$PRIVATE_PACKAGE_REPO_PATH/"
+  rm -f "$PRIVATE_PACKAGE_REPO_PATH/${package_name}-debug-"*.pkg.tar.zst
+  rm -f "$PRIVATE_PACKAGE_REPO_PATH/"*.old "$PRIVATE_PACKAGE_REPO_PATH/"*.lck
+  for artifact in "$PRIVATE_PACKAGE_REPO_PATH/"*.pkg.tar.zst; do
+    if [[ "$artifact" == *-debug-* ]]; then
+      continue
+    fi
+    published_runtime_artifacts+=("$artifact")
+  done
+  shopt -u nullglob
+
+  repo-add "$PRIVATE_PACKAGE_REPO_PATH/timmo-private.db.tar.gz" "${published_runtime_artifacts[@]}"
+  rm -f "$PRIVATE_PACKAGE_REPO_PATH/"*.old "$PRIVATE_PACKAGE_REPO_PATH/"*.lck
+
+  log_section 'Sync private package repo mirror'
+  sync_private_package_repo_mirror
+
+  if private_package_repo_registered && private_package_repo_include_registered; then
+    if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+      if ! pacman -Sy; then
+        log_warn 'pacman database refresh failed'
+      fi
+    else
+      log_warn 'Skipping pacman database refresh (run manually with your preferred privilege method if needed)'
+    fi
+  fi
+
+  if [[ "$install_package" == 'true' ]]; then
+    log_section "Install private package: $package_name"
+    if is_interactive_terminal && has_cmd yay; then
+      yay -Sy --noconfirm "$package_name"
+    elif [[ "${EUID:-$(id -u)}" -eq 0 ]] && has_cmd pacman; then
+      pacman -Sy --noconfirm "$package_name"
+    elif has_cmd pkexec && has_cmd pacman; then
+      pkexec pacman -Sy --noconfirm "$package_name"
+    elif has_cmd yay; then
+      yay -Sy --noconfirm "$package_name" --sudo pkexec --sudoflags ""
+    else
+      log_error 'Cannot install package automatically (pkexec/pacman not found and not running as root)'
+      return 1
+    fi
+  fi
+
+  if [[ "$publish_git" == 'true' ]]; then
+    commit_message="publish ${package_name} package"
+    log_section 'Commit private package repo'
+    git -C "$PRIVATE_PACKAGE_REPO_PATH" add .
+    if ! git -C "$PRIVATE_PACKAGE_REPO_PATH" diff --cached --quiet; then
+      git -C "$PRIVATE_PACKAGE_REPO_PATH" commit -m "$commit_message"
+    else
+      log_info 'No private package repo changes to commit'
+    fi
+
+    log_section 'Push private package repo'
+    git -C "$PRIVATE_PACKAGE_REPO_PATH" push
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Package publish mapping
+# ---------------------------------------------------------------------------
+
+_load_private_package_publish_map() {
+  local map_file="$DOT_PRIVATE_PACKAGE_MAP_FILE"
+  local raw_line
+  local line
+  local key
+  local value
+
+  _PRIVATE_PACKAGE_MAP_KEYS=()
+  _PRIVATE_PACKAGE_MAP_VALUES=()
+
+  if [[ ! -f "$map_file" ]] || [[ ! -r "$map_file" ]]; then
+    return 1
+  fi
+
+  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
+    line="$(trim_whitespace "$raw_line")"
+    [[ -z "$line" || "${line:0:1}" == '#' ]] && continue
+
+    key="$(trim_whitespace "${line%%=*}")"
+    value="$(expand_home_path "$(trim_whitespace "${line#*=}")")"
+
+    [[ -n "$key" && -n "$value" ]] || continue
+    _PRIVATE_PACKAGE_MAP_KEYS+=("$key")
+    _PRIVATE_PACKAGE_MAP_VALUES+=("$value")
+  done < "$map_file"
+
+  [[ "${#_PRIVATE_PACKAGE_MAP_KEYS[@]}" -gt 0 ]]
+}
+
+_resolve_private_package_source_repo() {
+  local package_name="$1"
+  local i
+
+  if _load_private_package_publish_map; then
+    for i in "${!_PRIVATE_PACKAGE_MAP_KEYS[@]}"; do
+      if [[ "${_PRIVATE_PACKAGE_MAP_KEYS[$i]}" == "$package_name" ]]; then
+        printf '%s\n' "${_PRIVATE_PACKAGE_MAP_VALUES[$i]}"
+        return 0
+      fi
+    done
+  fi
+
+  return 1
+}
+
+# ---------------------------------------------------------------------------
+# Commands
+# ---------------------------------------------------------------------------
+
+# @cmd setup-private-repo — Sync mirror, write pacman config, register include
+cmd_setup_private_repo() {
+  if ! can_use_private; then
+    log_error "Private access is not available ($PRIVATE_REASON)"
+    return 1
+  fi
+
+  if ! load_private_package_repo_config; then
+    log_error "Missing private package repo config: $(display_path "$DOT_PRIVATE_PACKAGE_REPO_FILE")"
+    return 1
+  fi
+
+  log_section 'Sync private package repo mirror'
+  sync_private_package_repo_mirror
+
+  if ! private_package_repo_registered || ! private_package_repo_config_matches; then
+    log_section 'Configure private pacman repo'
+    ensure_private_package_repo_config
+  fi
+
+  if ! private_package_repo_include_registered; then
+    log_section 'Register private pacman repo include'
+    ensure_private_package_repo_include
+  fi
+
+  if private_package_repo_registered && private_package_repo_include_registered && private_package_repo_config_matches; then
+    log_info "Private pacman repo is configured ($(display_path "$DOT_PRIVATE_PACMAN_REPO_CONFIG"))"
+  else
+    log_warn 'Private pacman repo setup incomplete (check permissions for /etc paths)'
+  fi
+}
+
+# @cmd private-pkg-publish — Build, publish, commit, and push a mapped private package
+# @opt --no-git — Skip commit and push
+# @opt --skip-build — Publish existing dist package artifact
+# @opt --install — Install the published package
+cmd_private_pkg_publish() {
+  local package_name=''
+  local source_repo=''
+  local publish_git=true
+  local build_package=true
+  local install_package=false
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --no-git)
+        publish_git=false
+        ;;
+      --skip-build)
+        build_package=false
+        ;;
+      --install)
+        install_package=true
+        ;;
+      --help|-h)
+        printf 'Usage: %s private-pkg-publish [--no-git] [--skip-build] [--install] <package-name>\n' "$SCRIPT_NAME"
+        return 0
+        ;;
+      -*)
+        log_error "Unknown private-pkg-publish option: $1"
+        return 1
+        ;;
+      *)
+        if [[ -n "$package_name" ]]; then
+          log_error 'Usage: dot private-pkg-publish [--no-git] [--skip-build] [--install] <package-name>'
+          return 1
+        fi
+        package_name="$1"
+        ;;
+    esac
+    shift
+  done
+
+  if [[ -z "$package_name" ]]; then
+    log_error 'Usage: dot private-pkg-publish [--no-git] [--skip-build] [--install] <package-name>'
+    return 1
+  fi
+
+  source_repo="$(_resolve_private_package_source_repo "$package_name")" || {
+    log_error "No private package publish mapping configured for: $package_name"
+    log_error "Add '$package_name = ~/repos/$package_name' to $(display_path "$DOT_PRIVATE_PACKAGE_MAP_FILE")"
+    return 1
+  }
+
+  publish_private_package "$package_name" "$source_repo" "$publish_git" "$build_package" "$install_package"
+}
