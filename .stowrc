@@ -7,6 +7,7 @@
 --ignore=README.md
 --ignore=AGENTS.md
 --ignore=\.github
+--ignore=\.dot-public-packages
 --ignore=^/\.opencode
 --ignore=renovate.json
 --ignore=^/tui

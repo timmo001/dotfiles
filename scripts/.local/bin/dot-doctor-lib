@@ -40,6 +40,7 @@ cmd_doctor() {
   local -a doctor_switch_aur_packages=()
   local -a doctor_update_aur_packages=()
   local -a doctor_missing_private_packages=()
+  local package_name
 
   doctor_log_section() {
     doctor_current_section="$1"
@@ -1040,18 +1041,13 @@ cmd_doctor() {
   fi
 
   doctor_log_section 'Public package checks'
-  report_package_status system-bridge-git
-  report_package_status go-automate-git
-  report_package_status python-gobject
-  report_package_status gtk4-layer-shell
-  report_package_status topgrade-bin
-  report_package_status cpio
-  report_package_status stress-ng
-  report_package_status sysbench
-  report_package_status iperf3
-  report_package_status sysstat
-  report_package_status bmon
-  report_package_status smem
+  if load_public_arch_packages; then
+    for package_name in "${PUBLIC_ARCH_PACKAGES[@]}"; do
+      report_package_status "$package_name"
+    done
+  else
+    doctor_warn "Could not load public packages file"
+  fi
 
   if [[ "${#doctor_missing_aur_packages[@]}" -gt 0 || "${#doctor_switch_aur_packages[@]}" -gt 0 || "${#doctor_update_aur_packages[@]}" -gt 0 ]]; then
     local combined_aur_packages=()

@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+# dot-lib — shared helpers sourced by dot
+# shellcheck disable=SC2034
+
+# ---------------------------------------------------------------------------
+# Public Arch package helpers
+# ---------------------------------------------------------------------------
+
+package_installed() {
+  local package_name="$1"
+
+  has_cmd pacman && pacman -Q "$package_name" >/dev/null 2>&1
+}
+
+public_arch_package_present() {
+  local package_name="$1"
+
+  case "$package_name" in
+    go-automate-git)
+      package_installed 'go-automate-git' || package_installed 'go-automate'
+      ;;
+    *)
+      package_installed "$package_name"
+      ;;
+  esac
+}
+
+public_arch_installed_package_name() {
+  local package_name="$1"
+
+  case "$package_name" in
+    go-automate-git)
+      if package_installed 'go-automate-git'; then
+        printf 'go-automate-git\n'
+      elif package_installed 'go-automate'; then
+        printf 'go-automate\n'
+      fi
+      ;;
+    *)
+      if package_installed "$package_name"; then
+        printf '%s\n' "$package_name"
+      fi
+      ;;
+  esac
+}
+
+public_arch_package_label() {
+  local package_name="$1"
+  local installed_name=''
+
+  installed_name="$(public_arch_installed_package_name "$package_name")"
+
+  if [[ -n "$installed_name" ]]; then
+    printf '%s\n' "$installed_name"
+    return
+  fi
+
+  case "$package_name" in
+    go-automate-git)
+      printf 'go-automate\n'
+      ;;
+    *)
+      printf '%s\n' "$package_name"
+      ;;
+  esac
+}
+
+public_arch_installed_version() {
+  local package_name="$1"
+  local installed_name="${2:-}"
+
+  if [[ -z "$installed_name" ]]; then
+    installed_name="$(public_arch_installed_package_name "$package_name")"
+  fi
+
+  [[ -n "$installed_name" ]] || return 1
+
+  pacman -Q "$installed_name" 2>/dev/null | awk '{ print $2 }'
+}
+
+public_arch_latest_aur_version() {
+  local package_name="$1"
+
+  has_cmd yay || return 1
+
+  yay -Si "$package_name" 2>/dev/null | sed -n 's/^Version[[:space:]]*:[[:space:]]*//p;q'
+}
+
+load_public_arch_packages() {
+  local packages_file="$DOT_PUBLIC_PACKAGES_FILE"
+  local raw_line
+  local line
+
+  PUBLIC_ARCH_PACKAGES=()
+
+  if [[ ! -f "$packages_file" ]] || [[ ! -r "$packages_file" ]]; then
+    log_warn "Missing public packages file: $(display_path "$packages_file")"
+    return 1
+  fi
+
+  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
+    line="$(trim_whitespace "$raw_line")"
+    [[ -z "$line" || "${line:0:1}" == '#' ]] && continue
+    PUBLIC_ARCH_PACKAGES+=("$line")
+  done < "$packages_file"
+
+  return 0
+}
+
+collect_missing_public_arch_packages() {
+  local package_name
+
+  MISSING_PUBLIC_ARCH_PACKAGES=()
+
+  if ! has_cmd pacman; then
+    return 0
+  fi
+
+  if [[ "${#PUBLIC_ARCH_PACKAGES[@]}" -eq 0 ]]; then
+    load_public_arch_packages || return 0
+  fi
+
+  for package_name in "${PUBLIC_ARCH_PACKAGES[@]}"; do
+    if ! public_arch_package_present "$package_name"; then
+      MISSING_PUBLIC_ARCH_PACKAGES+=("$package_name")
+    fi
+  done
+}

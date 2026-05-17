@@ -1,0 +1,15 @@
+# Public Arch packages managed by dot.
+# One package per line, comments and blank lines are ignored.
+
+bmon
+cpio
+go-automate-git
+gtk4-layer-shell
+iperf3
+python-gobject
+smem
+stress-ng
+sysbench
+sysstat
+system-bridge-git
+topgrade-bin

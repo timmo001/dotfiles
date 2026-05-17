@@ -48,20 +48,8 @@ DIFF_ATTENTION_VERBOSE=0
 
 PRIVATE_REASON=""
 
-PUBLIC_ARCH_PACKAGES=(
-  system-bridge-git
-  go-automate-git
-  python-gobject
-  gtk4-layer-shell
-  topgrade-bin
-  cpio
-  stress-ng
-  sysbench
-  iperf3
-  sysstat
-  bmon
-  smem
-)
+DOT_PUBLIC_PACKAGES_FILE="${DOT_PUBLIC_PACKAGES_FILE:-$PUBLIC_DOTFILES/.dot-public-packages}"
+PUBLIC_ARCH_PACKAGES=()
 MISSING_PUBLIC_ARCH_PACKAGES=()
 
 PRIVATE_ARCH_PACKAGES=()
@@ -299,101 +287,11 @@ confirm_action() {
   esac
 }
 
-package_installed() {
-  local package_name="$1"
-
-  has_cmd pacman && pacman -Q "$package_name" >/dev/null 2>&1
-}
-
-public_arch_package_present() {
-  local package_name="$1"
-
-  case "$package_name" in
-    go-automate-git)
-      package_installed 'go-automate-git' || package_installed 'go-automate'
-      ;;
-    *)
-      package_installed "$package_name"
-      ;;
-  esac
-}
-
-public_arch_installed_package_name() {
-  local package_name="$1"
-
-  case "$package_name" in
-    go-automate-git)
-      if package_installed 'go-automate-git'; then
-        printf 'go-automate-git\n'
-      elif package_installed 'go-automate'; then
-        printf 'go-automate\n'
-      fi
-      ;;
-    *)
-      if package_installed "$package_name"; then
-        printf '%s\n' "$package_name"
-      fi
-      ;;
-  esac
-}
-
-public_arch_package_label() {
-  local package_name="$1"
-  local installed_name=''
-
-  installed_name="$(public_arch_installed_package_name "$package_name")"
-
-  if [[ -n "$installed_name" ]]; then
-    printf '%s\n' "$installed_name"
-    return
-  fi
-
-  case "$package_name" in
-    go-automate-git)
-      printf 'go-automate\n'
-      ;;
-    *)
-      printf '%s\n' "$package_name"
-      ;;
-  esac
-}
-
-public_arch_installed_version() {
-  local package_name="$1"
-  local installed_name="${2:-}"
-
-  if [[ -z "$installed_name" ]]; then
-    installed_name="$(public_arch_installed_package_name "$package_name")"
-  fi
-
-  [[ -n "$installed_name" ]] || return 1
-
-  pacman -Q "$installed_name" 2>/dev/null | awk '{ print $2 }'
-}
-
-public_arch_latest_aur_version() {
-  local package_name="$1"
-
-  has_cmd yay || return 1
-
-  yay -Si "$package_name" 2>/dev/null | sed -n 's/^Version[[:space:]]*:[[:space:]]*//p;q'
-}
-
-collect_missing_public_arch_packages() {
-  local package_name
-
-  MISSING_PUBLIC_ARCH_PACKAGES=()
-
-  if ! has_cmd pacman; then
-    return 0
-  fi
-
-  for package_name in "${PUBLIC_ARCH_PACKAGES[@]}"; do
-    if ! public_arch_package_present "$package_name"; then
-      MISSING_PUBLIC_ARCH_PACKAGES+=("$package_name")
-    fi
-  done
-}
+# ---------------------------------------------------------------------------
+# Shared helpers — loaded from dot-lib
+# ---------------------------------------------------------------------------
+# shellcheck source=dot-lib
+source "$(dirname "${BASH_SOURCE[0]}")/dot-lib"
 
 load_private_package_repo_config() {
   local config_file="$DOT_PRIVATE_PACKAGE_REPO_FILE"
