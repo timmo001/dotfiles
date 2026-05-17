@@ -346,6 +346,8 @@ _skill_updates_check_skill() {
 }
 
 # @cmd skill-updates — Check imported skills for upstream changes
+# @opt --check — Report only, exit 1 if updates available (no prompts)
+# @opt --update — Auto-apply without prompting (used by dot update)
 cmd_skill_updates() {
   local mode='interactive'
   while [[ $# -gt 0 ]]; do
