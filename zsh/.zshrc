@@ -1,17 +1,17 @@
-export PATH=$PATH:$HOME/.local/share/omarchy/bin
-export PATH=$PATH:$HOME/.config/hypr/bin
+export PATH="$PATH:$HOME/.local/share/omarchy/bin"
+export PATH="$PATH:$HOME/.config/hypr/bin"
 
 # ------------------------------
 # Source profile
 # ------------------------------
-if [ -f $HOME/.zsh_profile ]; then
-  source $HOME/.zsh_profile
+if [ -f "$HOME/.zsh_profile" ]; then
+  source "$HOME/.zsh_profile"
 fi
 
 # ------------------------------
 # Basic path
 # ------------------------------
-export PATH=$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH
+export PATH="$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
 
 # ------------------------------
 # Oh my zsh
@@ -19,7 +19,7 @@ export PATH=$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH
 export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME="robbyrussell"
 plugins=(git zsh-autosuggestions zsh-syntax-highlighting fast-syntax-highlighting zsh-autocomplete)
-source $ZSH/oh-my-zsh.sh
+source "$ZSH/oh-my-zsh.sh"
 
 # ------------------------------
 # Starship
@@ -46,13 +46,13 @@ export REACT_EDITOR=cursor
 # ------------------------------
 # GPG
 # ------------------------------
-export GPG_TTY=$(tty)
+export GPG_TTY="$(tty)"
 
 # ------------------------------
 # Go
 # ------------------------------
-export GOPATH=$HOME/go
-export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin
+export GOPATH="$HOME/go"
+export PATH="$PATH:/usr/local/go/bin:$HOME/go/bin"
 
 # ------------------------------
 # Hyprland
@@ -99,12 +99,7 @@ dot() {
   local rc
   local original_dir="$PWD"
   local target_dir
-  local found_dirty=0
-  local upstream_sha
-  local ahead_count
-  local behind_count
-  local repo
-  local -a repos
+  local line repo_path
 
   if [[ ! -x "$dot_bin" ]]; then
     echo "dot script not found or not executable: $dot_bin"
@@ -114,49 +109,17 @@ dot() {
   command "$dot_bin" "$@"
   rc=$?
 
+  # After "dot diff", auto-cd to the first changed repo (dirty or ahead/behind).
+  # Consumes the machine-readable --list-changed output so there is a single
+  # source of truth for which repos have changes (including private extras).
   if [[ "${DOT_AUTO_CD:-1}" == "1" && "$cmd" == "diff" ]]; then
-    repos=(
-      "$HOME/.config/bootstrap"
-      "$HOME/.config/hypr"
-      "$HOME/.config/waybar"
-      "$HOME/.config/ghostty"
-      "$HOME/.config/uwsm"
-      "$HOME/.config/dotfiles"
-      "$HOME/.config/dotfiles-private"
-      "$HOME/Documents/notes"
-    )
-
     target_dir="$HOME/.config/dotfiles"
-    for repo in "${repos[@]}"; do
-      if ! git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-        continue
+
+    if line="$(command "$dot_bin" diff --list-changed 2>/dev/null | head -1)" && [[ -n "$line" ]]; then
+      repo_path="${line#*|}"
+      if [[ -d "$repo_path" ]]; then
+        target_dir="$repo_path"
       fi
-
-      if [[ -n "$(git -C "$repo" status --porcelain 2>/dev/null)" ]]; then
-        target_dir="$repo"
-        found_dirty=1
-        break
-      fi
-    done
-
-    # Remote divergence (clean tree but ahead/behind upstream) — same priority order as repos
-    if [[ $found_dirty -eq 0 ]]; then
-      for repo in "${repos[@]}"; do
-        if ! git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-          continue
-        fi
-        upstream_sha="$(git -C "$repo" rev-parse --verify '@{u}' 2>/dev/null)" || continue
-        ahead_count="$(git -C "$repo" rev-list --count "${upstream_sha}..HEAD" 2>/dev/null)" || ahead_count=0
-        behind_count="$(git -C "$repo" rev-list --count "HEAD..${upstream_sha}" 2>/dev/null)" || behind_count=0
-        if [[ "$ahead_count" -gt 0 || "$behind_count" -gt 0 ]]; then
-          target_dir="$repo"
-          found_dirty=1
-          break
-        fi
-      done
-    fi
-
-    if [[ $found_dirty -eq 1 ]]; then
       builtin cd "$target_dir" || return $rc
     elif [[ $rc -ne 0 ]]; then
       builtin cd "$HOME/.config/dotfiles" || return $rc
@@ -500,9 +463,9 @@ git-merged-branches() {
 git-update() {
   # Save current directory
   local current_dir=$(pwd) # Save current directory
-  cd $1 # Change to the given path
+  cd "$1" # Change to the given path
   git pull --rebase # Pull the latest changes
-  cd $current_dir # Change back to the original directory
+  cd "$current_dir" # Change back to the original directory
 }
 
 ## Docker
@@ -637,7 +600,10 @@ bindkey "^[[1;3C" forward-word
 # ------------------------------
 # Commands
 # ------------------------------
-clear
+# Clear screen on first interactive shell (skip in tmux, subshells, or when opted out)
+if [[ -z "$TMUX" && "$SHLVL" -le 1 && "${DOT_CLEAR_ON_STARTUP:-1}" == "1" ]]; then
+  clear
+fi
 
 # Fastfetch
 # ff

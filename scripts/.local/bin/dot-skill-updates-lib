@@ -1,0 +1,467 @@
+#!/usr/bin/env bash
+# dot-skill-updates-lib — sourced by dot when "skill-updates" is invoked.
+# All functions here rely on utilities and globals defined in the main dot script.
+# Do not execute this file directly.
+
+SKILLS_DIR="${PUBLIC_DOTFILES}/agents/.config/opencode/skills"
+
+# Read the stored upstream-sha from a skill's SKILL.md frontmatter.
+_skill_updates_stored_sha() {
+  local skill_md="$1"
+  awk 'NR==1 && /^---$/ { in_fm=1; next } in_fm && /^---$/ { exit } in_fm && /^# upstream-sha:/ { sub(/^# upstream-sha: */, ""); print; exit }' "$skill_md"
+}
+
+# Write or update the upstream-sha in a skill's SKILL.md frontmatter.
+_skill_updates_write_sha() {
+  local skill_md="$1" sha="$2"
+  if grep -q '^# upstream-sha:' "$skill_md"; then
+    sed -i "s|^# upstream-sha:.*|# upstream-sha: ${sha}|" "$skill_md"
+  else
+    # Insert after the # origin: line in frontmatter.
+    sed -i "/^# origin:/a # upstream-sha: ${sha}" "$skill_md"
+  fi
+}
+
+# Run a gh api call with exponential backoff (3 attempts, 1s/2s/4s).
+# All arguments are forwarded to gh api. Suppresses stderr.
+_skill_updates_gh_api() {
+  local attempt max_attempts=3 delay=1
+  for (( attempt=1; attempt<=max_attempts; attempt++ )); do
+    if gh api "$@" 2>/dev/null; then
+      return 0
+    fi
+    if (( attempt < max_attempts )); then
+      log_warn "  GitHub API call failed (attempt ${attempt}/${max_attempts}), retrying in ${delay}s..."
+      sleep "$delay"
+      delay=$(( delay * 2 ))
+    fi
+  done
+  log_warn "  GitHub API call failed after ${max_attempts} attempts"
+  return 1
+}
+
+# Query the latest commit SHA that touched a path in a GitHub repo.
+_skill_updates_upstream_sha() {
+  local owner="$1" repo="$2" branch="$3" path="$4"
+  local sha
+  sha="$(_skill_updates_gh_api "repos/${owner}/${repo}/commits?path=${path}&per_page=1&sha=${branch}" \
+    --jq '.[0].sha')" || return 0
+  # Validate: a commit SHA is exactly 40 hex chars.
+  [[ "$sha" =~ ^[0-9a-f]{40}$ ]] && printf '%s' "$sha"
+}
+
+# Parse a GitHub tree URL into owner, repo, branch, and path components.
+# Sets: _SU_OWNER, _SU_REPO, _SU_BRANCH, _SU_PATH
+_skill_updates_parse_origin() {
+  local url="$1"
+  # https://github.com/{owner}/{repo}/tree/{branch}/{path...}
+  if [[ "$url" =~ ^https://github\.com/([^/]+)/([^/]+)/tree/([^/]+)/(.+)$ ]]; then
+    _SU_OWNER="${BASH_REMATCH[1]}"
+    _SU_REPO="${BASH_REMATCH[2]}"
+    _SU_BRANCH="${BASH_REMATCH[3]}"
+    _SU_PATH="${BASH_REMATCH[4]}"
+    return 0
+  fi
+  return 1
+}
+
+# Strip local-only frontmatter additions (# origin:, # upstream-sha:, # local-edits: block) from content.
+_skill_updates_normalise_local() {
+  sed '/^# origin:/d; /^# upstream-sha:/d; /^# local-edits:/d; /^#   - /d'
+}
+
+# Strip upstream-only frontmatter fields (metadata block, category, tags) from content.
+_skill_updates_normalise_upstream() {
+  awk '
+    BEGIN { in_fm=0; skip_meta=0 }
+    /^---$/ && !in_fm { in_fm=1; print; next }
+    /^---$/ && in_fm  { in_fm=0; skip_meta=0; print; next }
+    in_fm && /^metadata:/ { skip_meta=1; next }
+    in_fm && skip_meta && /^  / { next }
+    in_fm && skip_meta && !/^  / { skip_meta=0 }
+    in_fm && /^category:/ { next }
+    in_fm && /^tags:/ { skip_meta=1; next }
+    { print }
+  '
+}
+
+# Fetch a single file from GitHub via the API. Prints decoded content to stdout.
+# Returns 1 on failure.
+_skill_updates_fetch_file() {
+  local owner="$1" repo="$2" branch="$3" filepath="$4"
+  local content
+  content="$(_skill_updates_gh_api "repos/${owner}/${repo}/contents/${filepath}?ref=${branch}" \
+    --jq '.content')" || return 1
+  [[ -z "$content" ]] && return 1
+  printf '%s' "$content" | base64 -d 2>/dev/null || return 1
+}
+
+# List files in an upstream skill directory (non-recursive, one level).
+# Returns lines of "type name" (file SKILL.md, dir references, etc.)
+_skill_updates_list_upstream_dir() {
+  local owner="$1" repo="$2" branch="$3" dirpath="$4"
+  _skill_updates_gh_api "repos/${owner}/${repo}/contents/${dirpath}?ref=${branch}" \
+    --jq '.[] | "\(.type) \(.name)"' || return 1
+}
+
+# List all files in the upstream skill recursively.
+# Prints relative paths (e.g. "SKILL.md", "references/CHOREOGRAPHY_PATTERNS.md").
+_skill_updates_list_upstream_files() {
+  local owner="$1" repo="$2" branch="$3" dirpath="$4"
+  local line ftype fname
+  while IFS= read -r line; do
+    ftype="${line%% *}"
+    fname="${line#* }"
+    if [[ "$ftype" == 'file' ]]; then
+      printf '%s\n' "$fname"
+    elif [[ "$ftype" == 'dir' ]]; then
+      local subline subtype subname
+      while IFS= read -r subline; do
+        subtype="${subline%% *}"
+        subname="${subline#* }"
+        if [[ "$subtype" == 'file' ]]; then
+          printf '%s/%s\n' "$fname" "$subname"
+        fi
+      done < <(_skill_updates_list_upstream_dir "$owner" "$repo" "$branch" "${dirpath}/${fname}")
+    fi
+  done < <(_skill_updates_list_upstream_dir "$owner" "$repo" "$branch" "$dirpath")
+}
+
+# Apply the local frontmatter format to an upstream SKILL.md.
+# Reads upstream content from stdin; writes normalised local content to stdout.
+# Requires: skill_name, origin_url, local_description, upstream_sha (to preserve across updates).
+_skill_updates_apply_frontmatter() {
+  local skill_name="$1" origin_url="$2" local_description="$3" sha="$4"
+  local line in_fm=0 past_fm=0 wrote_fm=0
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$past_fm" -eq 1 ]]; then
+      printf '%s\n' "$line"
+      continue
+    fi
+    if [[ "$line" == '---' && "$in_fm" -eq 0 ]]; then
+      in_fm=1
+      printf '%s\n' '---'
+      continue
+    fi
+    if [[ "$line" == '---' && "$in_fm" -eq 1 ]]; then
+      # End of upstream frontmatter; emit our local format
+      if [[ "$wrote_fm" -eq 0 ]]; then
+        printf 'name: %s\n' "$skill_name"
+        printf 'description: %s\n' "$local_description"
+        printf '# origin: %s\n' "$origin_url"
+        [[ -n "$sha" ]] && printf '# upstream-sha: %s\n' "$sha"
+        wrote_fm=1
+      fi
+      printf '%s\n' '---'
+      past_fm=1
+      in_fm=0
+      continue
+    fi
+    # Skip upstream frontmatter lines (we rebuild it)
+  done
+}
+
+# Check and optionally update a single imported skill.
+# Returns 0 if up-to-date or updated, 1 on error.
+# Check a single imported skill against upstream.
+# $1 = skill directory, $2 = mode (check|interactive|update)
+# Returns: 0 = up-to-date or applied, 1 = error,
+#          2 = changes available (check/interactive), 3 = has local edits (needs manual review)
+_skill_updates_check_skill() {
+  local skill_dir="$1" mode="$2"
+  local skill_name origin_url
+  local skill_md="${skill_dir}/SKILL.md"
+
+  skill_name="$(basename "$skill_dir")"
+
+  # Extract origin URL from frontmatter.
+  origin_url="$(awk 'NR==1 && /^---$/ { in_fm=1; next } in_fm && /^---$/ { exit } in_fm && /^# origin:/ { sub(/^# origin: */, ""); print; exit }' "$skill_md")"
+  if [[ -z "$origin_url" ]]; then
+    return 0 # No origin; skip silently.
+  fi
+
+  if ! _skill_updates_parse_origin "$origin_url"; then
+    log_warn "  ${skill_name}: could not parse origin URL: ${origin_url}"
+    return 1
+  fi
+
+  local owner="$_SU_OWNER" repo="$_SU_REPO" branch="$_SU_BRANCH" spath="$_SU_PATH"
+
+  # Detect local edits.
+  local local_edits
+  local_edits="$(awk 'NR==1 && /^---$/ { in_fm=1; next } in_fm && /^---$/ { exit } in_fm && /^# local-edits:/ { show=1; next } in_fm && show && /^#   - / { sub(/^#   - /, ""); print; next } in_fm && show { show=0 }' "$skill_md")"
+  local has_local_edits=0
+  [[ -n "$local_edits" ]] && has_local_edits=1
+
+  # Query upstream commit SHA (used for comparison and written after successful checks).
+  local upstream_sha=''
+  upstream_sha="$(_skill_updates_upstream_sha "$owner" "$repo" "$branch" "$spath")"
+  [[ -z "$upstream_sha" ]] && _SU_SHA_QUERY_FAILED=1
+
+  # SHA to write back: prefer fresh upstream, fall back to stored value so a
+  # transient API failure doesn't strip the cached SHA during a frontmatter rebuild.
+  local write_sha="${upstream_sha:-$(_skill_updates_stored_sha "$skill_md")}"
+
+  # Compare upstream SHA against stored SHA in frontmatter to skip unchanged origins.
+  if [[ -n "$upstream_sha" ]]; then
+    local stored_sha
+    stored_sha="$(_skill_updates_stored_sha "$skill_md")"
+    if [[ "$upstream_sha" == "$stored_sha" ]]; then
+      log_info "  ${skill_name}: up to date (cached)"
+      return 0
+    fi
+  fi
+
+  # List upstream files.
+  local upstream_files
+  upstream_files="$(_skill_updates_list_upstream_files "$owner" "$repo" "$branch" "$spath" 2>/dev/null)"
+  if [[ -z "$upstream_files" ]]; then
+    log_warn "  ${skill_name}: could not list upstream directory"
+    return 1
+  fi
+
+  # Compare each file.
+  local file has_changes=0 changes_summary='' local_file upstream_content
+  local local_norm upstream_norm tmpdir
+  tmpdir="$(mktemp -d)"
+
+  while IFS= read -r file; do
+    [[ -z "$file" ]] && continue
+    local_file="${skill_dir}/${file}"
+
+    upstream_content="$(_skill_updates_fetch_file "$owner" "$repo" "$branch" "${spath}/${file}" 2>/dev/null)"
+    if [[ -z "$upstream_content" ]]; then
+      log_warn "  ${skill_name}: could not fetch upstream ${file}"
+      continue
+    fi
+
+    if [[ ! -f "$local_file" ]]; then
+      # New upstream file.
+      has_changes=1
+      changes_summary+="    + ${file} (new upstream file)"$'\n'
+      printf '%s' "$upstream_content" > "${tmpdir}/${file##*/}.upstream"
+      continue
+    fi
+
+    # Normalise and compare.
+    if [[ "$file" == 'SKILL.md' ]]; then
+      local_norm="$(< "$local_file" _skill_updates_normalise_local)"
+      upstream_norm="$(printf '%s' "$upstream_content" | _skill_updates_normalise_upstream)"
+    else
+      local_norm="$(< "$local_file")"
+      upstream_norm="$upstream_content"
+    fi
+
+    if [[ "$local_norm" != "$upstream_norm" ]]; then
+      has_changes=1
+      local diff_lines
+      diff_lines="$(diff --unified=2 \
+        <(printf '%s\n' "$local_norm") \
+        <(printf '%s\n' "$upstream_norm") \
+        | tail -n +3 | head -20)" || true
+      changes_summary+="    ~ ${file}"$'\n'
+      if [[ -n "$diff_lines" ]]; then
+        changes_summary+="${diff_lines}"$'\n'
+      fi
+    fi
+  done <<< "$upstream_files"
+
+  rm -rf "$tmpdir"
+
+  if [[ "$has_changes" -eq 0 ]]; then
+    [[ "$mode" != 'check' && -n "$write_sha" ]] && _skill_updates_write_sha "$skill_md" "$write_sha"
+    log_info "  ${skill_name}: up to date"
+    return 0
+  fi
+
+  # Report changes.
+  printf '  %s: upstream changes detected\n' "$skill_name"
+
+  # Show local-edits notes if present (explains expected diffs).
+  if [[ "$has_local_edits" -eq 1 ]]; then
+    printf '    [local edits — diffs expected, skipping auto-apply]\n'
+    while IFS= read -r line; do
+      printf '      - %s\n' "$line"
+    done <<< "$local_edits"
+  fi
+
+  printf '%s' "$changes_summary"
+
+  # Check-only mode: report and signal changes via exit code.
+  if [[ "$mode" == 'check' ]]; then
+    [[ "$has_local_edits" -eq 1 ]] && return 3
+    return 2
+  fi
+
+  # Skills with local edits cannot be auto-applied; they need manual review.
+  if [[ "$has_local_edits" -eq 1 ]]; then
+    [[ -n "$write_sha" ]] && _skill_updates_write_sha "$skill_md" "$write_sha"
+    log_info "  ${skill_name}: skipped (has local edits — review manually or via /check-skill-updates)"
+    return 3
+  fi
+
+  # Determine whether to apply.
+  local do_apply=0
+  if [[ "$mode" == 'update' ]]; then
+    do_apply=1
+  else
+    printf '  Apply update for %s? [y/N] ' "$skill_name"
+    local reply
+    read -r reply
+    [[ "$reply" =~ ^[Yy] ]] && do_apply=1
+  fi
+
+  if [[ "$do_apply" -eq 0 ]]; then
+    log_info "  ${skill_name}: skipped"
+    return 2
+  fi
+
+  # Extract current local description (preserve it across updates).
+  local local_description
+  local_description="$(awk 'NR==1 && /^---$/ { in_fm=1; next } in_fm && /^---$/ { exit } in_fm && /^description:/ { sub(/^description: */, ""); print; exit }' "$skill_md")"
+
+  # Apply updates.
+  while IFS= read -r file; do
+    [[ -z "$file" ]] && continue
+    local_file="${skill_dir}/${file}"
+
+    upstream_content="$(_skill_updates_fetch_file "$owner" "$repo" "$branch" "${spath}/${file}")" || continue
+
+    # Ensure parent directory exists for new files.
+    mkdir -p "$(dirname "$local_file")"
+
+    if [[ "$file" == 'SKILL.md' ]]; then
+      printf '%s' "$upstream_content" \
+        | _skill_updates_apply_frontmatter "$skill_name" "$origin_url" "$local_description" "$write_sha" \
+        > "$local_file"
+    else
+      printf '%s' "$upstream_content" > "$local_file"
+    fi
+  done <<< "$upstream_files"
+
+  [[ -n "$write_sha" ]] && _skill_updates_write_sha "$skill_md" "$write_sha"
+  log_info "  ${skill_name}: updated"
+  return 0
+}
+
+# @cmd skill-updates — Check imported skills for upstream changes
+cmd_skill_updates() {
+  local mode='interactive'
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --update) mode='update'; shift ;;
+      --check)  mode='check'; shift ;;
+      *) log_error "Unknown flag: $1"; return 1 ;;
+    esac
+  done
+
+  log_section 'Skill origin updates'
+
+  if ! command -v gh &>/dev/null; then
+    log_warn 'gh CLI not available; skipping skill origin checks'
+    return 0
+  fi
+
+  if [[ ! -d "$SKILLS_DIR" ]]; then
+    log_info 'No skills directory found'
+    return 0
+  fi
+
+  # Collect skills with origin annotations.
+  local skill_dirs=() d
+  for d in "${SKILLS_DIR}"/*/; do
+    [[ -f "${d}SKILL.md" ]] || continue
+    if awk 'NR==1 && /^---$/ { in_fm=1; next } in_fm && /^---$/ { exit } in_fm && /^# origin:/ { found=1; exit } END { exit !found }' "${d}SKILL.md" 2>/dev/null; then
+      skill_dirs+=("${d%/}")
+    fi
+  done
+
+  if [[ "${#skill_dirs[@]}" -eq 0 ]]; then
+    log_info 'No imported skills with origin tracking'
+    return 0
+  fi
+
+  log_info "Checking ${#skill_dirs[@]} imported skill(s) for upstream changes"
+
+  _SU_SHA_QUERY_FAILED=0
+  local skill_dir errors=0 available=0 needs_review=0 rc
+  local available_names=() review_names=() review_origins=()
+  for skill_dir in "${skill_dirs[@]}"; do
+    rc=0
+    _skill_updates_check_skill "$skill_dir" "$mode" || rc=$?
+    case "$rc" in
+      1) errors=$((errors + 1)) ;;
+      2) available=$((available + 1))
+         available_names+=("$(basename "$skill_dir")") ;;
+      3) needs_review=$((needs_review + 1))
+         review_names+=("$(basename "$skill_dir")")
+         review_origins+=("$(awk 'NR==1 && /^---$/ { in_fm=1; next } in_fm && /^---$/ { exit } in_fm && /^# origin:/ { sub(/^# origin: */, ""); print; exit }' "${skill_dir}/SKILL.md")") ;;
+    esac
+  done
+
+  if [[ "$errors" -gt 0 ]]; then
+    log_warn "${errors} skill(s) had errors during update check"
+  fi
+
+  if [[ "$_SU_SHA_QUERY_FAILED" -eq 1 ]]; then
+    log_warn 'Could not query upstream commit SHAs (rate limit or network); cache skipped'
+  fi
+
+  if [[ "$mode" == 'check' ]]; then
+    local total=$((available + needs_review))
+    if [[ "$total" -gt 0 ]]; then
+      log_info "${total} skill(s) have upstream updates available"
+      return 1
+    fi
+    return 0
+  fi
+
+  # Interactive mode: generate a paste-ready agent report at the end.
+  if [[ "$mode" == 'interactive' ]]; then
+    local has_report=0
+
+    if [[ "$available" -gt 0 ]]; then
+      has_report=1
+      printf '\n'
+      log_section 'Agent report — clean updates'
+      printf 'Paste into an agent session to apply:\n\n'
+      printf '```\n'
+      printf '/check-skill-updates\n'
+      printf '\n'
+      printf 'The following skills have clean upstream updates (no local edits).\n'
+      printf 'Run dot skill-updates --update to apply all, then dot stow.\n'
+      printf '\n'
+      local s
+      for s in "${available_names[@]}"; do
+        printf 'Update available: %s\n' "$s"
+      done
+      printf '```\n'
+    fi
+
+    if [[ "$needs_review" -gt 0 ]]; then
+      has_report=1
+      printf '\n'
+      log_section 'Agent report — skills with local edits'
+      printf 'These skills have local edits and cannot be auto-updated.\n'
+      printf 'Paste into an agent session to review and selectively merge:\n\n'
+      printf '```\n'
+      printf 'The following imported skills have upstream changes but also have\n'
+      printf 'local edits that prevent automatic updates. For each skill, fetch\n'
+      printf 'the upstream version, compare against local, and present what\n'
+      printf 'changed upstream so I can decide what to merge.\n'
+      printf '\n'
+      local i
+      for i in "${!review_names[@]}"; do
+        printf 'Skill: %s\n' "${review_names[$i]}"
+        printf 'Origin: %s\n' "${review_origins[$i]}"
+        printf '\n'
+      done
+      printf '```\n'
+    fi
+
+    if [[ "$has_report" -eq 0 && "$errors" -eq 0 ]]; then
+      log_info 'All imported skills are up to date'
+    fi
+  fi
+}

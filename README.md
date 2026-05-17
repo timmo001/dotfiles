@@ -107,6 +107,10 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 - `DOT_AGENTS_SYNC_SOURCE` - AGENTS file to mirror (default `~/.config/opencode/AGENTS.md`)
 - `DOT_AGENTS_SYNC_RULE_FILE` - Cursor rule output path (default `$DOTFILES_PRIVATE_DIR/agents/.cursor/rules/global-agents.mdc`, else `~/.cursor/rules/global-agents.mdc`)
 - `DOT_AGENTS_SYNC_ON_UPDATE` - run `agents-sync` after `dot update` (`1|0`, default `1`)
+- `DOT_MEMORY_UPDATE_ON_UPDATE` - run `dot memory --soft` after `dot update` (`1|0`, default `1`)
+- `DOT_MEMORY_ON_AGENTS_SYNC` - run `dot memory` before `agents-sync` (`1|0`, default `1`)
+- `DOT_NOTES_DIR` - notes vault git repo (default `~/Documents/notes`)
+- `DOT_FETCH_TTL_SECONDS` - seconds to reuse last upstream fetch (default `300`)
 
 ## New machine checklist
 
