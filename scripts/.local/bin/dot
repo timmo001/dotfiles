@@ -2905,6 +2905,7 @@ cmd_update() {
     maybe_agents_sync_after_update
     maybe_memory_update_after_update
     maybe_notify_updated_repos
+    _ensure_skill_updates_lib
     cmd_skill_updates --update
   fi
 
@@ -2957,11 +2958,16 @@ cmd_agents_sync() {
 }
 
 # ---------------------------------------------------------------------------
-# dot skill-updates — loaded on demand from dot-skill-updates-lib
+# dot skill-updates — lazy-loaded from dot-skill-updates-lib
 # ---------------------------------------------------------------------------
-# Source the skill-updates helper (co-located via stow).
-# shellcheck source=dot-skill-updates-lib
-source "$(dirname "${BASH_SOURCE[0]}")/dot-skill-updates-lib"
+
+_ensure_skill_updates_lib() {
+  if [[ -z "${_DOT_SKILL_UPDATES_LIB_LOADED:-}" ]]; then
+    # shellcheck source=dot-skill-updates-lib
+    source "$(dirname "${BASH_SOURCE[0]}")/dot-skill-updates-lib"
+    _DOT_SKILL_UPDATES_LIB_LOADED=1
+  fi
+}
 
 # @cmd stow — Re-stow public/private dotfiles (no git pull)
 # @opt --public — Stow public dotfiles only
@@ -3043,11 +3049,16 @@ cmd_clean() {
 }
 
 # ---------------------------------------------------------------------------
-# dot doctor — loaded on demand from dot-doctor-lib
+# dot doctor — lazy-loaded from dot-doctor-lib
 # ---------------------------------------------------------------------------
-# Source the doctor helper (co-located via stow).
-# shellcheck source=dot-doctor-lib
-source "$(dirname "${BASH_SOURCE[0]}")/dot-doctor-lib"
+
+_ensure_doctor_lib() {
+  if [[ -z "${_DOT_DOCTOR_LIB_LOADED:-}" ]]; then
+    # shellcheck source=dot-doctor-lib
+    source "$(dirname "${BASH_SOURCE[0]}")/dot-doctor-lib"
+    _DOT_DOCTOR_LIB_LOADED=1
+  fi
+}
 
 # @cmd diff — Open the diff/repo watcher TUI view
 # @opt --raw — Original CLI per-repo status + diffs output
@@ -3287,12 +3298,18 @@ main() {
     setup) cmd_setup "$@" ;;
     install) cmd_install "$@" ;;
     clean) cmd_clean "$@" ;;
-    doctor) cmd_doctor "$@" ;;
+    doctor)
+      _ensure_doctor_lib
+      cmd_doctor "$@"
+      ;;
     opencode-debug) cmd_opencode_debug "$@" ;;
     setup-private-repo) cmd_setup_private_repo "$@" ;;
     private-pkg-publish) cmd_private_pkg_publish "$@" ;;
     agents-sync) cmd_agents_sync "$@" ;;
-    skill-updates) cmd_skill_updates "$@" ;;
+    skill-updates)
+      _ensure_skill_updates_lib
+      cmd_skill_updates "$@"
+      ;;
     memory) cmd_memory "$@" ;;
     help|-h|--help) cmd_help ;;
     *)
