@@ -662,9 +662,13 @@ workflow_watch_waybar_config_path() {
   printf '%s\n' "$config_dir/config.jsonc"
 }
 
-workflow_watch_waybar_config_contains() {
-  local config_path="$1"
-  local needle="$2"
+# Walk a Waybar config file and its includes, calling $match_fn on each file.
+# $match_fn receives the config_path as $1 and any extra args passed after it.
+# Returns 0 as soon as $match_fn succeeds on any file.
+_waybar_config_walk() {
+  local match_fn="$1"
+  local config_path="$2"
+  shift 2
   local include_line=''
   local include_body=''
   local include_entry=''
@@ -672,7 +676,7 @@ workflow_watch_waybar_config_contains() {
   local config_dir=''
 
   [[ -f "$config_path" ]] || return 1
-  if grep -Fq "$needle" "$config_path"; then
+  if "$match_fn" "$config_path" "$@"; then
     return 0
   fi
 
@@ -683,10 +687,10 @@ workflow_watch_waybar_config_contains() {
   include_body="${include_body%]*}"
   config_dir="$(dirname -- "$config_path")"
 
-  IFS=',' read -r -a workflow_watch_include_entries <<< "$include_body"
+  IFS=',' read -r -a _waybar_walk_entries <<< "$include_body"
   unset IFS
 
-  for include_entry in "${workflow_watch_include_entries[@]}"; do
+  for include_entry in "${_waybar_walk_entries[@]}"; do
     include_entry="$(trim_whitespace "$include_entry")"
     include_entry="${include_entry#\"}"
     include_entry="${include_entry%\"}"
@@ -694,7 +698,7 @@ workflow_watch_waybar_config_contains() {
     if [[ "$include_path" != /* ]]; then
       include_path="$config_dir/$include_path"
     fi
-    if workflow_watch_waybar_config_contains "$include_path" "$needle"; then
+    if _waybar_config_walk "$match_fn" "$include_path" "$@"; then
       return 0
     fi
   done
@@ -702,47 +706,27 @@ workflow_watch_waybar_config_contains() {
   return 1
 }
 
-workflow_watch_waybar_config_orders_before() {
+_waybar_match_contains() {
+  local config_path="$1"
+  local needle="$2"
+  grep -Fq "$needle" "$config_path"
+}
+
+_waybar_match_orders_before() {
   local config_path="$1"
   local first="$2"
   local second="$3"
-  local config_text=''
-  local include_line=''
-  local include_body=''
-  local include_entry=''
-  local include_path=''
-  local config_dir=''
-
-  [[ -f "$config_path" ]] || return 1
+  local config_text
   config_text="$(tr -d '\n\r' < "$config_path")"
-  if [[ "$config_text" =~ ${first}[[:space:]]*,[[:space:]]*${second} ]]; then
-    return 0
-  fi
+  [[ "$config_text" =~ ${first}[[:space:]]*,[[:space:]]*${second} ]]
+}
 
-  include_line="$(grep -E '"include"[[:space:]]*:' "$config_path" 2>/dev/null || true)"
-  [[ -n "$include_line" ]] || return 1
+workflow_watch_waybar_config_contains() {
+  _waybar_config_walk _waybar_match_contains "$@"
+}
 
-  include_body="${include_line#*[}"
-  include_body="${include_body%]*}"
-  config_dir="$(dirname -- "$config_path")"
-
-  IFS=',' read -r -a workflow_watch_include_entries <<< "$include_body"
-  unset IFS
-
-  for include_entry in "${workflow_watch_include_entries[@]}"; do
-    include_entry="$(trim_whitespace "$include_entry")"
-    include_entry="${include_entry#\"}"
-    include_entry="${include_entry%\"}"
-    include_path="${include_entry/#~/$HOME}"
-    if [[ "$include_path" != /* ]]; then
-      include_path="$config_dir/$include_path"
-    fi
-    if workflow_watch_waybar_config_orders_before "$include_path" "$first" "$second"; then
-      return 0
-    fi
-  done
-
-  return 1
+workflow_watch_waybar_config_orders_before() {
+  _waybar_config_walk _waybar_match_orders_before "$@"
 }
 
 configure_workflow_watch() {
