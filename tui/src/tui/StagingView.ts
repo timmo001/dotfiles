@@ -13,6 +13,7 @@ import type { Theme } from "../theme.js";
 import type { GitStagingService } from "../services/GitStaging.js";
 import { formatBreadcrumb } from "./breadcrumb.js";
 import { formatHelpBar, GLOBAL_HELP, type HelpEntry } from "./helpBar.js";
+import { focusTwoPane, type TwoPaneDescriptor } from "./twoPane.js";
 
 /** Help entries for the staging view */
 const HELP: readonly HelpEntry[] = [
@@ -55,6 +56,9 @@ export class StagingView {
   private unstagedTitle: TextRenderable;
   private statusBar: TextRenderable;
   private helpBar: TextRenderable;
+
+  private stagedPaneDesc!: TwoPaneDescriptor;
+  private unstagedPaneDesc!: TwoPaneDescriptor;
 
   private activePane: StagingPane = "unstaged";
   private stagedFiles: StagedFile[] = [];
@@ -168,6 +172,36 @@ export class StagingView {
     });
     this.unstagedPane.add(this.unstagedSelect);
     this.root.add(this.unstagedPane);
+
+    // Build two-pane descriptors for shared focus logic
+    this.stagedPaneDesc = {
+      select: this.stagedSelect,
+      container: this.stagedPane,
+      activeStyle: {
+        selectedBackgroundColor: theme.accent,
+        selectedTextColor: theme.accentFg,
+        selectedDescriptionColor: theme.fg,
+      },
+      inactiveStyle: {
+        selectedBackgroundColor: theme.bgElevated,
+        selectedTextColor: theme.green,
+        selectedDescriptionColor: theme.fgMuted,
+      },
+    };
+    this.unstagedPaneDesc = {
+      select: this.unstagedSelect,
+      container: this.unstagedPane,
+      activeStyle: {
+        selectedBackgroundColor: theme.surface,
+        selectedTextColor: theme.fg,
+        selectedDescriptionColor: theme.fgMuted,
+      },
+      inactiveStyle: {
+        selectedBackgroundColor: theme.bgElevated,
+        selectedTextColor: theme.red,
+        selectedDescriptionColor: theme.fgMuted,
+      },
+    };
 
     // Status bar
     this.statusBar = new TextRenderable(renderer, {
@@ -364,37 +398,10 @@ export class StagingView {
   }
 
   private focusPane(pane: StagingPane): void {
-    const th = this.theme;
     if (pane === "staged") {
-      this.unstagedSelect.blur();
-      this.stagedSelect.focus();
-
-      // Active pane: restore highlight colours, full opacity
-      this.stagedSelect.selectedBackgroundColor = th.accent;
-      this.stagedSelect.selectedTextColor = th.accentFg;
-      this.stagedSelect.selectedDescriptionColor = th.fg;
-      this.stagedPane.opacity = 1;
-
-      // Inactive pane: hide highlight (match background), dim opacity
-      this.unstagedSelect.selectedBackgroundColor = th.bgElevated;
-      this.unstagedSelect.selectedTextColor = th.red;
-      this.unstagedSelect.selectedDescriptionColor = th.fgMuted;
-      this.unstagedPane.opacity = 0.45;
+      focusTwoPane(this.stagedPaneDesc, this.unstagedPaneDesc);
     } else {
-      this.stagedSelect.blur();
-      this.unstagedSelect.focus();
-
-      // Active pane: restore highlight colours, full opacity
-      this.unstagedSelect.selectedBackgroundColor = th.surface;
-      this.unstagedSelect.selectedTextColor = th.fg;
-      this.unstagedSelect.selectedDescriptionColor = th.fgMuted;
-      this.unstagedPane.opacity = 1;
-
-      // Inactive pane: hide highlight (match background), dim opacity
-      this.stagedSelect.selectedBackgroundColor = th.bgElevated;
-      this.stagedSelect.selectedTextColor = th.green;
-      this.stagedSelect.selectedDescriptionColor = th.fgMuted;
-      this.stagedPane.opacity = 0.45;
+      focusTwoPane(this.unstagedPaneDesc, this.stagedPaneDesc);
     }
   }
 

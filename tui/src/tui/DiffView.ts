@@ -14,6 +14,7 @@ import type { Repo, RepoState } from "../types.js";
 import type { Theme } from "../theme.js";
 import { formatBreadcrumb } from "./breadcrumb.js";
 import { formatHelpBar, GLOBAL_HELP, type HelpEntry } from "./helpBar.js";
+import { focusTwoPane, type TwoPaneDescriptor } from "./twoPane.js";
 
 /** Help entries for the diff view */
 const HELP: readonly HelpEntry[] = [
@@ -73,6 +74,9 @@ export class DiffView {
   private unchangedTitle: TextRenderable;
   private statusBar: TextRenderable;
   private helpBar: TextRenderable;
+
+  private leftPaneDesc!: TwoPaneDescriptor;
+  private rightPaneDesc!: TwoPaneDescriptor;
 
   private activePane: Pane = "changed";
   private changedRepos: readonly Repo[] = [];
@@ -177,6 +181,36 @@ export class DiffView {
       wrapSelection: true,
     });
     this.rightPane.add(this.unchangedSelect);
+
+    // Build two-pane descriptors for shared focus logic
+    this.leftPaneDesc = {
+      select: this.changedSelect,
+      container: this.leftPane,
+      activeStyle: {
+        selectedBackgroundColor: theme.accent,
+        selectedTextColor: theme.accentFg,
+        selectedDescriptionColor: theme.fg,
+      },
+      inactiveStyle: {
+        selectedBackgroundColor: theme.bgElevated,
+        selectedTextColor: theme.fg,
+        selectedDescriptionColor: theme.fgMuted,
+      },
+    };
+    this.rightPaneDesc = {
+      select: this.unchangedSelect,
+      container: this.rightPane,
+      activeStyle: {
+        selectedBackgroundColor: theme.surface,
+        selectedTextColor: theme.fg,
+        selectedDescriptionColor: theme.fgMuted,
+      },
+      inactiveStyle: {
+        selectedBackgroundColor: theme.bgElevated,
+        selectedTextColor: theme.fgMuted,
+        selectedDescriptionColor: theme.fgSubtle,
+      },
+    };
 
     paneContainer.add(this.leftPane);
     paneContainer.add(this.rightPane);
@@ -338,37 +372,10 @@ export class DiffView {
   }
 
   private focusPane(pane: Pane): void {
-    const th = this.theme;
     if (pane === "changed") {
-      this.unchangedSelect.blur();
-      this.changedSelect.focus();
-
-      // Active pane: restore highlight colours, full opacity
-      this.changedSelect.selectedBackgroundColor = th.accent;
-      this.changedSelect.selectedTextColor = th.accentFg;
-      this.changedSelect.selectedDescriptionColor = th.fg;
-      this.leftPane.opacity = 1;
-
-      // Inactive pane: hide highlight (match background), dim opacity
-      this.unchangedSelect.selectedBackgroundColor = th.bgElevated;
-      this.unchangedSelect.selectedTextColor = th.fgMuted;
-      this.unchangedSelect.selectedDescriptionColor = th.fgSubtle;
-      this.rightPane.opacity = 0.45;
+      focusTwoPane(this.leftPaneDesc, this.rightPaneDesc);
     } else {
-      this.changedSelect.blur();
-      this.unchangedSelect.focus();
-
-      // Active pane: restore highlight colours, full opacity
-      this.unchangedSelect.selectedBackgroundColor = th.surface;
-      this.unchangedSelect.selectedTextColor = th.fg;
-      this.unchangedSelect.selectedDescriptionColor = th.fgMuted;
-      this.rightPane.opacity = 1;
-
-      // Inactive pane: hide highlight (match background), dim opacity
-      this.changedSelect.selectedBackgroundColor = th.bgElevated;
-      this.changedSelect.selectedTextColor = th.fg;
-      this.changedSelect.selectedDescriptionColor = th.fgMuted;
-      this.leftPane.opacity = 0.45;
+      focusTwoPane(this.rightPaneDesc, this.leftPaneDesc);
     }
   }
 
