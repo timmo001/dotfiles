@@ -2865,6 +2865,28 @@ _ensure_doctor_lib() {
 # @opt --list-changed — name|path lines for repos with changes
 # @opt --list-all — name|path lines for all tracked repos
 cmd_diff() {
+  # Machine-readable and TUI modes bypass the header
+  case "${1:-}" in
+    --waybar)       shift; cmd_diff_status "$@"; return ;;
+    --list-changed) cmd_diff_list_changed; return ;;
+    --list-all)     cmd_diff_list_all; return ;;
+    --raw)          shift ;;  # fall through to CLI diff
+    *)
+      # Default: launch TUI at the diff view
+      if has_cmd dot-tui; then
+        exec dot-tui diff "$@"
+      fi
+      # Fallback to CLI diff if TUI not available
+      ;;
+  esac
+
+  # CLI diff (--raw or TUI fallback)
+  if [[ -d "$PUBLIC_DOTFILES" ]]; then
+    cd "$PUBLIC_DOTFILES"
+  fi
+  log_header 'dot diff'
+  log_context
+
   local i
   local om_i
 
@@ -2903,7 +2925,6 @@ cmd_diff() {
       done
     fi
   fi
-
 }
 
 # ---------------------------------------------------------------------------
@@ -3050,34 +3071,10 @@ main() {
     fi
   fi
 
-  # Machine-readable diff flags bypass the TUI (fast-path before header)
-  if [[ "$cmd" == 'diff' && "${1:-}" == '--waybar' ]]; then
-    shift
-    cmd_diff_status "$@"
+  # diff handles its own header/context (most modes bypass it)
+  if [[ "$cmd" == 'diff' ]]; then
+    cmd_diff "$@"
     return
-  fi
-
-  if [[ "$cmd" == 'diff' && "${1:-}" == '--list-changed' ]]; then
-    cmd_diff_list_changed
-    return
-  fi
-
-  if [[ "$cmd" == 'diff' && "${1:-}" == '--list-all' ]]; then
-    cmd_diff_list_all
-    return
-  fi
-
-  # "diff" without --raw — launch TUI at the diff view (fallback to CLI diff)
-  if [[ "$cmd" == 'diff' && "${1:-}" != '--raw' ]]; then
-    if has_cmd dot-tui; then
-      exec dot-tui diff "$@"
-    fi
-    # Fallback to CLI diff if TUI not available
-  fi
-
-  # "diff --raw" — strip the flag and run the original CLI diff
-  if [[ "$cmd" == 'diff' && "${1:-}" == '--raw' ]]; then
-    shift
   fi
 
   if [[ "$cmd" != 'help' && "$cmd" != '-h' && "$cmd" != '--help' ]]; then
@@ -3093,7 +3090,6 @@ main() {
     init) cmd_init "$@" ;;
     update) cmd_update "$@" ;;
     stow) cmd_stow "$@" ;;
-    diff) cmd_diff "$@" ;;
     setup) cmd_setup "$@" ;;
     install) cmd_install "$@" ;;
     clean) cmd_clean "$@" ;;
