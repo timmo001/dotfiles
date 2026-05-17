@@ -46,8 +46,6 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - Use `/debug-frontend` for browser-specific investigation before falling back to source-only reasoning.
 - Use `/fallow-audit` when JS/TS changes need dead-code, complexity, or duplication evidence before cleanup or review follow-up.
 - Use `/fallow-project-analyse` when you want broader Fallow project analysis beyond changed-code audit scope.
-- Use `/memorise` only for durable preferences, decisions, or corrections that should persist beyond the current task.
-- When using `/memorise`, save one rewritten durable rule, not raw conversational text or temporary task notes.
 - For frontend debugging, prefer Chrome DevTools tools (snapshot, console, network, Lighthouse, performance trace) over static reasoning alone when the issue is browser-behavior-dependent.
 
 ## Documentation and External Lookups

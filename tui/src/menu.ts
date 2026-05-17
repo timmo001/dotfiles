@@ -212,19 +212,6 @@ const dotItems: readonly MenuItem[] = [
     ["sk", "skills", "plugins", "upstream", "agents"],
   ),
   item(
-    "memory",
-    "󰟶",
-    "Memory Refresh",
-    "Refresh OpenCode durable memory",
-    notify("dot memory", {
-      id: "memory",
-      progress: "Refreshing memory...",
-      success: "Memory refreshed",
-    }),
-    undefined,
-    ["mem", "memorise", "remember", "agents", "durable", "opencode"],
-  ),
-  item(
     "workspace",
     "󱂬",
     "Workspace",

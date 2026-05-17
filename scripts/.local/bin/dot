@@ -3,7 +3,7 @@
 set -euo pipefail
 
 SCRIPT_NAME="${0##*/}"
-# Absolute path to this script (for re-invoking commands, e.g. dot update → dot memory).
+# Absolute path to this script (for re-invoking commands).
 DOT_SELF="${BASH_SOURCE[0]:-$0}"
 
 PUBLIC_DOTFILES="${DOTFILES_PUBLIC_DIR:-$HOME/.config/dotfiles}"
@@ -17,7 +17,6 @@ INCLUDE_OMARCHY_DIFF_REPOS="${DOT_INCLUDE_OMARCHY_DIFF_REPOS:-1}"
 INCLUDE_OMARCHY_UPDATE_REPOS="${DOT_INCLUDE_OMARCHY_UPDATE_REPOS:-1}"
 INIT_NONINTERACTIVE="${DOT_INIT_NONINTERACTIVE:-0}"
 DOT_AGENTS_SYNC_ON_UPDATE="${DOT_AGENTS_SYNC_ON_UPDATE:-1}"
-DOT_MEMORY_ON_AGENTS_SYNC="${DOT_MEMORY_ON_AGENTS_SYNC:-1}"
 DOT_FETCH_TTL_SECONDS="${DOT_FETCH_TTL_SECONDS:-300}"
 DOT_FETCH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dot/fetch-upstream"
 DOT_WORKFLOW_WATCH_HOOKS_PATH="${DOT_WORKFLOW_WATCH_HOOKS_PATH:-$HOME/.config/git/workflow-watch-hooks}"
@@ -878,62 +877,6 @@ maybe_agents_sync_after_update() {
   run_agents_sync || true
 }
 
-# Sync ~/.config/opencode/AGENTS.md durable block via dotfiles-private memory.js --update.
-# soft=1: missing deps or node failure returns 0 (for dot update hook). soft=0: returns 1 on failure.
-_dot_run_memory_js() {
-  local soft="${1:-0}"
-  local script="$PRIVATE_DOTFILES/agents/.config/opencode/plugins/memory.js"
-
-  if [[ ! -f "$script" ]]; then
-    log_warn "Skipping memory sync (missing $(display_path "$script"))"
-    if [[ "$soft" -eq 1 ]]; then
-      return 0
-    fi
-    return 1
-  fi
-
-  if ! has_cmd node; then
-    log_warn 'Skipping memory sync (node not found in PATH)'
-    if [[ "$soft" -eq 1 ]]; then
-      return 0
-    fi
-    return 1
-  fi
-
-  log_info "OpenCode memory: node $(display_path "$script") --update"
-  if (cd "$HOME" && node "$script" --update); then
-    return 0
-  fi
-
-  log_warn 'Memory sync failed'
-  if [[ "$soft" -eq 1 ]]; then
-    return 0
-  fi
-  return 1
-}
-
-# @cmd memory — Refresh OpenCode durable memory
-# @opt --soft — Quick refresh (used by dot update)
-cmd_memory() {
-  local soft=0
-  if [[ "${1:-}" == '--soft' ]]; then
-    soft=1
-    shift
-  fi
-
-  log_section 'OpenCode memory sync'
-
-  if ! can_use_private; then
-    log_warn "Memory sync requires private dotfiles ($PRIVATE_REASON)"
-    if [[ "$soft" -eq 1 ]]; then
-      return 0
-    fi
-    return 1
-  fi
-
-  _dot_run_memory_js "$soft"
-}
-
 # @cmd opencode-debug — Run OpenCode debug paths/config/skill/info
 # @opt --agent <name> — Inspect a specific agent
 cmd_opencode_debug() {
@@ -1003,11 +946,6 @@ cmd_opencode_debug() {
   fi
 
   return "$status"
-}
-
-maybe_memory_update_after_update() {
-  is_truthy "${DOT_MEMORY_UPDATE_ON_UPDATE:-1}" || return 0
-  "$DOT_SELF" memory --soft || true
 }
 
 track_updated_repo() {
@@ -1819,7 +1757,7 @@ cmd_update() {
         printf '  --pull      Pull all repos (dotfiles, private, notes, extra, omarchy)\n'
         printf '  --stow      Re-stow public/private dotfiles\n'
         printf '  --tui       Rebuild dot-tui binary\n\n'
-        printf 'Post-hooks (agents-sync, memory, skills, notifications) run automatically\n'
+        printf 'Post-hooks (agents-sync, skills, notifications) run automatically\n'
         printf 'whenever repos are updated.\n'
         return 0
         ;;
@@ -1942,7 +1880,6 @@ cmd_update() {
   # --- Post-hooks (automatic when repos were updated) ---
   if [[ "$updated" -eq 1 ]]; then
     maybe_agents_sync_after_update
-    maybe_memory_update_after_update
     maybe_notify_updated_repos
     _ensure_skill_updates_lib
     cmd_skill_updates --update
@@ -1981,14 +1918,8 @@ _update_pull_behind() {
   _git_clear_lock_and_pull "$1" "$2"
 }
 
-# @cmd agents-sync — Run dot memory then write global-agents.mdc
+# @cmd agents-sync — Write global-agents.mdc
 cmd_agents_sync() {
-  if is_truthy "${DOT_MEMORY_ON_AGENTS_SYNC:-1}"; then
-    if ! cmd_memory; then
-      log_warn 'dot memory failed; mirroring existing AGENTS.md to the Cursor rule'
-    fi
-  fi
-
   log_section 'Agents rules sync'
   if run_agents_sync; then
     log_info 'agents-sync finished'
@@ -2177,7 +2108,7 @@ cmd_diff() {
 # appear at the end in discovery order.
 _HELP_CMD_ORDER=(
   init update stow tui diff doctor setup install clean
-  memory agents-sync skill-updates opencode-debug
+  agents-sync skill-updates opencode-debug
   setup-private-repo private-pkg-publish help
 )
 
@@ -2276,8 +2207,6 @@ cmd_help() {
   printf "$fmt_env" 'DOT_AGENTS_SYNC_SOURCE' 'Path to AGENTS.md to mirror'
   printf "$fmt_env" 'DOT_AGENTS_SYNC_RULE_FILE' 'Cursor rule file path for global-agents.mdc'
   printf "$fmt_env" 'DOT_AGENTS_SYNC_ON_UPDATE' '1|0 run agents-sync after update (default: 1)'
-  printf "$fmt_env" 'DOT_MEMORY_UPDATE_ON_UPDATE' '1|0 run dot memory --soft after update (default: 1)'
-  printf "$fmt_env" 'DOT_MEMORY_ON_AGENTS_SYNC' '1|0 run dot memory before agents-sync (default: 1)'
 }
 
 main() {
@@ -2353,7 +2282,6 @@ main() {
       _ensure_skill_updates_lib
       cmd_skill_updates "$@"
       ;;
-    memory) cmd_memory "$@" ;;
     help|-h|--help) cmd_help ;;
     *)
       log_error "Unknown command: $cmd"

@@ -188,7 +188,6 @@ Subcommands:
   doctor               Run dot doctor
   system-health        Run system-health-check
   skill-updates        Run dot skill-updates
-  memory               Run dot memory
   topgrade             Run topgrade
   omarchy [submenu..]  Open the Omarchy submenu (space-separated paths)
 
