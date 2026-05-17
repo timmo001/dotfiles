@@ -1,0 +1,166 @@
+#!/usr/bin/env bash
+# dot-cron-lib — cron expression matching helpers sourced by dot
+
+# ---------------------------------------------------------------------------
+# Cron field parsing and matching
+# ---------------------------------------------------------------------------
+
+cron_named_value() {
+  local token="${1,,}"
+  local kind="$2"
+
+  case "$kind:$token" in
+    dow:sun|dow:sunday) printf '0\n' ;;
+    dow:mon|dow:monday) printf '1\n' ;;
+    dow:tue|dow:tues|dow:tuesday) printf '2\n' ;;
+    dow:wed|dow:wednesday) printf '3\n' ;;
+    dow:thu|dow:thur|dow:thurs|dow:thursday) printf '4\n' ;;
+    dow:fri|dow:friday) printf '5\n' ;;
+    dow:sat|dow:saturday) printf '6\n' ;;
+    month:jan|month:january) printf '1\n' ;;
+    month:feb|month:february) printf '2\n' ;;
+    month:mar|month:march) printf '3\n' ;;
+    month:apr|month:april) printf '4\n' ;;
+    month:may) printf '5\n' ;;
+    month:jun|month:june) printf '6\n' ;;
+    month:jul|month:july) printf '7\n' ;;
+    month:aug|month:august) printf '8\n' ;;
+    month:sep|month:sept|month:september) printf '9\n' ;;
+    month:oct|month:october) printf '10\n' ;;
+    month:nov|month:november) printf '11\n' ;;
+    month:dec|month:december) printf '12\n' ;;
+    *) return 1 ;;
+  esac
+}
+
+cron_field_value() {
+  local token="$1"
+  local min="$2"
+  local max="$3"
+  local kind="${4:-}"
+  local value
+
+  if [[ "$token" =~ ^[0-9]+$ ]]; then
+    value=$((10#$token))
+  else
+    value="$(cron_named_value "$token" "$kind" 2>/dev/null || true)"
+    [[ -n "$value" ]] || return 1
+  fi
+
+  if [[ "$kind" == 'dow' && "$value" -eq 7 ]]; then
+    value=0
+  fi
+
+  (( value >= min && value <= max )) || return 1
+  printf '%d\n' "$value"
+}
+
+cron_field_is_unrestricted() {
+  local expr="${1//[[:space:]]/}"
+
+  [[ "$expr" == '*' || "$expr" == '?' ]]
+}
+
+cron_field_matches() {
+  local value="$1"
+  local expr="${2//[[:space:]]/}"
+  local min="$3"
+  local max="$4"
+  local kind="${5:-}"
+  local part
+  local base
+  local step=1
+  local start_token
+  local end_token
+  local start_value
+  local end_value
+  local -a parts
+
+  cron_field_is_unrestricted "$expr" && return 0
+
+  IFS=',' read -r -a parts <<< "$expr"
+  for part in "${parts[@]}"; do
+    [[ -n "$part" ]] || continue
+
+    base="$part"
+    step=1
+    if [[ "$part" == */* ]]; then
+      base="${part%%/*}"
+      step="${part#*/}"
+      [[ "$step" =~ ^[0-9]+$ && "$step" -gt 0 ]] || continue
+    fi
+
+    if [[ "$base" == '*' || "$base" == '?' ]]; then
+      start_value="$min"
+      end_value="$max"
+    elif [[ "$base" == *-* ]]; then
+      start_token="${base%%-*}"
+      end_token="${base#*-}"
+      start_value="$(cron_field_value "$start_token" "$min" "$max" "$kind" 2>/dev/null || true)"
+      end_value="$(cron_field_value "$end_token" "$min" "$max" "$kind" 2>/dev/null || true)"
+      [[ -n "$start_value" && -n "$end_value" && "$start_value" -le "$end_value" ]] || continue
+    else
+      start_value="$(cron_field_value "$base" "$min" "$max" "$kind" 2>/dev/null || true)"
+      [[ -n "$start_value" ]] || continue
+      end_value="$start_value"
+    fi
+
+    if (( value >= start_value && value <= end_value && (value - start_value) % step == 0 )); then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+# Check whether a 5-field cron expression matches the current time.
+# Returns 0 (active) when the schedule is empty or matches now.
+private_extra_repo_schedule_active() {
+  local schedule="$(trim_whitespace "$1")"
+  local minute_expr
+  local hour_expr
+  local dom_expr
+  local month_expr
+  local dow_expr
+  local current_minute
+  local current_hour
+  local current_dom
+  local current_month
+  local current_dow
+  local dom_matches
+  local dow_matches
+
+  [[ -z "$schedule" ]] && return 0
+
+  read -r minute_expr hour_expr dom_expr month_expr dow_expr _ <<< "$schedule"
+  [[ -n "$minute_expr" && -n "$hour_expr" && -n "$dom_expr" && -n "$month_expr" && -n "$dow_expr" ]] || return 0
+
+  current_minute="$(date +%M)"
+  current_hour="$(date +%H)"
+  current_dom="$(date +%d)"
+  current_month="$(date +%m)"
+  current_dow="$(date +%w)"
+
+  cron_field_matches $((10#$current_minute)) "$minute_expr" 0 59 || return 1
+  cron_field_matches $((10#$current_hour)) "$hour_expr" 0 23 || return 1
+  cron_field_matches $((10#$current_month)) "$month_expr" 1 12 month || return 1
+
+  if cron_field_matches $((10#$current_dom)) "$dom_expr" 1 31; then
+    dom_matches=1
+  else
+    dom_matches=0
+  fi
+
+  if cron_field_matches $((10#$current_dow)) "$dow_expr" 0 7 dow; then
+    dow_matches=1
+  else
+    dow_matches=0
+  fi
+
+  if ! cron_field_is_unrestricted "$dom_expr" && ! cron_field_is_unrestricted "$dow_expr"; then
+    (( dom_matches == 1 || dow_matches == 1 ))
+    return
+  fi
+
+  (( dom_matches == 1 && dow_matches == 1 ))
+}
