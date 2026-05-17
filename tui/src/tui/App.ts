@@ -194,16 +194,13 @@ export class App {
     this.commitView.setVisible(false);
 
     // --- Global keyboard ---
+    // Ctrl+C is handled by OpenTUI's exitOnCtrlC option which ensures
+    // terminal state is fully restored before exiting.
     deps.renderer.keyInput.on("keypress", (key) => {
       // Route keys to the variant popup when it is visible
       if (this.variantPopup.visible) {
         this.variantPopup.handleKeyPress(key);
         return;
-      }
-      if (key.name === "c" && key.ctrl) {
-        log("Quit requested");
-        deps.renderer.destroy();
-        process.exit(0);
       }
     });
 
@@ -230,10 +227,10 @@ export class App {
           setTimeout(() => {
             this.commandRunner
               .runSuspended(action.cmd, true)
-              .then(() => process.exit(0))
+              .then(() => deps.renderer.destroy())
               .catch((err) => {
                 log(`Execute error: ${err}`);
-                process.exit(1);
+                deps.renderer.destroy();
               });
           }, 50);
         } else {
@@ -361,7 +358,8 @@ export class App {
       }
 
       case "quit":
-        process.exit(0);
+        this.renderer.destroy();
+        break;
     }
   }
 

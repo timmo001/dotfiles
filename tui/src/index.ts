@@ -71,6 +71,10 @@ const program = Effect.gen(function* () {
       screenMode: "alternate-screen",
       useMouse: false,
       backgroundColor: theme.transparent ? "transparent" : theme.bg,
+      onDestroy: () => {
+        shutdownServer();
+        process.exit(0);
+      },
     }),
   );
   log("Renderer created");
@@ -147,16 +151,10 @@ const MainLayer = RepoWatcher.layer.pipe(
 const runnable = program.pipe(Effect.scoped, Effect.provide(MainLayer));
 
 log("Launching...");
-// Ensure OpenCode server is shut down on exit if we started it
+// Safety net: ensure OpenCode server is shut down if the process exits
+// without going through renderer.destroy() (e.g. uncaught exception).
+// The primary shutdown path is the onDestroy callback in the renderer config.
 process.on("exit", shutdownServer);
-process.on("SIGINT", () => {
-  shutdownServer();
-  process.exit(0);
-});
-process.on("SIGTERM", () => {
-  shutdownServer();
-  process.exit(0);
-});
 
 Effect.runPromise(runnable).catch((err) => {
   log(`Fatal error: ${err}`);
