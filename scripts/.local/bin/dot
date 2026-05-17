@@ -760,6 +760,9 @@ cmd_setup_private_repo() {
 }
 
 # @cmd private-pkg-publish — Build, publish, commit, and push a mapped private package
+# @opt --no-git — Skip commit and push
+# @opt --skip-build — Publish existing dist package artifact
+# @opt --install — Install the published package
 cmd_private_pkg_publish() {
   local package_name=''
   local source_repo=''
@@ -1696,6 +1699,7 @@ _dot_run_memory_js() {
 }
 
 # @cmd memory — Refresh OpenCode durable memory
+# @opt --soft — Quick refresh (used by dot update)
 # Optional: --soft (used by dot update) — do not fail the parent workflow on skip/error.
 cmd_memory() {
   local soft=0
@@ -1718,6 +1722,7 @@ cmd_memory() {
 }
 
 # @cmd opencode-debug — Run OpenCode debug paths/config/skill/info
+# @opt --agent <name> — Inspect a specific agent
 cmd_opencode_debug() {
   local agent_name=''
   local output=''
@@ -2757,6 +2762,11 @@ run_init_private_package_installs() {
 }
 
 # @cmd init — Run questionnaire, sync omarchy repos, setup, install
+# @opt --confirm — Pass through to setup (non-interactive package helpers)
+# @opt --noninteractive — Skip questionnaire for this run
+# @opt --interactive — Force questionnaire for this run
+# @opt --branch <name> — Omarchy branch override for split repos (e.g. hypr)
+# @opt --bootstrap-branch — Bootstrap repo branch override
 cmd_init() {
   local -a sync_args=()
   local -a setup_args=()
@@ -2849,6 +2859,9 @@ cmd_init() {
 }
 
 # @cmd update — Pull repos, stow dotfiles, rebuild TUI, run post-hooks
+# @opt --pull — Pull all repos (dotfiles, private, notes, extra, omarchy)
+# @opt --stow — Re-stow public/private dotfiles
+# @opt --tui — Rebuild dot-tui binary
 cmd_update() {
   local i
   local updated=0
@@ -3054,6 +3067,8 @@ cmd_agents_sync() {
 source "$(dirname "${BASH_SOURCE[0]}")/dot-skill-updates-lib"
 
 # @cmd stow — Re-stow public/private dotfiles (no git pull)
+# @opt --public — Stow public dotfiles only
+# @opt --private — Stow private dotfiles only
 cmd_stow() {
   local has_flags=0
   local do_public=0
@@ -3100,6 +3115,7 @@ cmd_stow() {
 }
 
 # @cmd setup — Install packages
+# @opt --confirm — Non-interactive mode (currently default)
 cmd_setup() {
   run_setup_packages "$@"
 }
@@ -3137,6 +3153,10 @@ cmd_clean() {
 source "$(dirname "${BASH_SOURCE[0]}")/dot-doctor-lib"
 
 # @cmd diff — Open the diff/repo watcher TUI view
+# @opt --raw — Original CLI per-repo status + diffs output
+# @opt --waybar — One-line JSON for Waybar (same checks; no banners)
+# @opt --list-changed — name|path lines for repos with changes
+# @opt --list-all — name|path lines for all tracked repos
 cmd_diff() {
   local i
   local om_i
