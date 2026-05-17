@@ -127,9 +127,6 @@ const program = Effect.gen(function* () {
   );
   diffView.update(initialState);
 
-  // Set terminal tab title
-  process.stdout.write("\x1b]0;Dot TUI\x07");
-
   // Resize window if floating on Hyprland
   yield* resizeIfFloating(500, 600);
 

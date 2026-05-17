@@ -28,6 +28,8 @@ export interface OmarchyMenuOptions {
   readonly onAction: (item: MenuItem) => void;
   /** Called when the user navigates back from the root omarchy menu */
   readonly onBack: () => void;
+  /** Called when the submenu changes so the terminal title can be updated */
+  readonly onTitleChange?: (titleParts: readonly string[]) => void;
 }
 
 /** Inline omarchy submenu tree with breadcrumb navigation, nested levels, and type-to-filter */
@@ -159,6 +161,9 @@ export class OmarchyMenu {
     // Update title
     this.titleText.content = this.formatTitle();
 
+    // Notify parent of title change for terminal tab title
+    this.callbacks.onTitleChange?.(this.getTitleParts());
+
     // Reset filter bar (new menu = no filter)
     this.filterBar.content = t`${fg(this.theme.fgSubtle)("/")}`;
 
@@ -201,7 +206,15 @@ export class OmarchyMenu {
   }
 
   private formatTitle() {
-    // Build breadcrumb: Dot > Omarchy > Theme > ...
+    const parts = this.getTitleParts();
+
+    // Show subtitle only at the omarchy root level (Dot › Omarchy)
+    const subtitle = parts.length === 2 ? "desktop controls" : undefined;
+    return formatBreadcrumb(this.theme, parts, subtitle);
+  }
+
+  /** Build the plain-text breadcrumb segments for the current submenu depth */
+  private getTitleParts(): string[] {
     const parts = ["Dot", "Omarchy"];
 
     for (const menuId of this.menuStack) {
@@ -218,9 +231,7 @@ export class OmarchyMenu {
       }
     }
 
-    // Show subtitle only at the omarchy root level (Dot › Omarchy)
-    const subtitle = parts.length === 2 ? "desktop controls" : undefined;
-    return formatBreadcrumb(this.theme, parts, subtitle);
+    return parts;
   }
 
   /** Remove the omarchy menu from the render tree */

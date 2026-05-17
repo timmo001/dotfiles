@@ -16,6 +16,11 @@ import { openLazygit } from "./Lazygit.js";
 
 const log = (msg: string) => console.error(`[dot-tui:App] ${msg}`);
 
+/** Set the terminal tab/window title via an OSC escape sequence */
+const setTerminalTitle = (title: string): void => {
+  process.stdout.write(`\x1b]0;${title}\x07`);
+};
+
 /** Wrap a string in single quotes, escaping embedded single quotes for safe shell interpolation */
 const shellQuote = (s: string): string => `'${s.replace(/'/g, "'\\''")}'`;
 
@@ -138,6 +143,11 @@ export class App {
     this.omarchyMenu = new OmarchyMenu(deps.renderer, deps.theme, {
       onAction: (item) => this.handleMenuAction(item),
       onBack: () => this.popView(),
+      onTitleChange: (parts) => {
+        // parts: ["Dot", "Omarchy"] or ["Dot", "Omarchy", "Refresh"] etc.
+        const suffix = parts.slice(1).join(" \u203A ");
+        setTerminalTitle(`Dot TUI \u203A ${suffix}`);
+      },
     });
 
     this.stagingView = new StagingView(
@@ -280,22 +290,27 @@ export class App {
     // Show the target and reset filter state (fresh view entry)
     switch (viewId) {
       case "main":
+        setTerminalTitle("Dot TUI");
         this.mainMenu.setVisible(true);
         this.mainMenu.resetAndFocus();
         break;
       case "diff":
+        setTerminalTitle("Dot TUI \u203A Diff");
         this.diffView.setVisible(true);
         this.diffView.focus();
         break;
       case "omarchy":
         this.omarchyMenu.setVisible(true);
         this.omarchyMenu.resetAndFocus();
+        // OmarchyMenu updates the terminal title itself via onTitleChange
         break;
       case "staging":
+        setTerminalTitle("Dot TUI \u203A Diff \u203A Stage");
         this.stagingView.setVisible(true);
         this.stagingView.focus();
         break;
       case "commit":
+        setTerminalTitle("Dot TUI \u203A Diff \u203A Commit");
         this.commitView.setVisible(true);
         this.commitView.focus();
         break;
