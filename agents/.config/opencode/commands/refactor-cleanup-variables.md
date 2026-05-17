@@ -4,20 +4,15 @@ agent: refactorer
 ---
 
 Load and apply the `cleanup-unnecessary-variables` skill before editing.
+Load the `branch-context-consumer` skill. Use work-scope mode.
 
-`BranchContextPlugin` must inject a `<branch-context>` block before this command runs. Use its `<work-scope>` section as the scope source.
+1. From files in scope (optionally narrowed by `${ARGUMENTS}`), find variables added or modified in the current work that are unnecessary and safe to remove.
 
-1. Parse the injected `<branch-context>` block and read the `<work-scope>` section in this order: unstaged, staged, then branch diff.
+2. Apply the smallest safe cleanup that satisfies the `cleanup-unnecessary-variables` skill.
 
-2. If `<branch-context>` is absent, do not run git fallback commands; stop and report that `BranchContextPlugin` did not inject context for this command.
+3. Run the smallest relevant verification for the touched code (targeted test, typecheck, lint, or build check).
 
-3. From files in scope (optionally narrowed by `${ARGUMENTS}`), find variables added or modified in the current work that are unnecessary and safe to remove.
-
-4. Apply the smallest safe cleanup that satisfies the `cleanup-unnecessary-variables` skill.
-
-5. Run the smallest relevant verification for the touched code (targeted test, typecheck, lint, or build check).
-
-6. Report briefly:
+4. Report briefly:
     - scope source used (`BranchContextPlugin` context)
     - variables removed or inlined
     - files changed
