@@ -2,7 +2,7 @@
 name: fallow
 description: Codebase intelligence for JavaScript and TypeScript. Free static layer finds unused code (files, exports, types, dependencies), code duplication, circular dependencies, complexity hotspots, architecture boundary violations, and feature flag patterns. Runtime coverage merges production execution data into the same health report for hot-path review, cold-path deletion confidence, and stale-flag evidence - a single local capture is free, while continuous/cloud runtime monitoring is paid. 94 framework plugins, zero configuration, sub-second static analysis. Use when asked to analyze code health, find unused code, detect duplicates, check circular dependencies, audit complexity, check architecture boundaries, detect feature flags, clean up the codebase, auto-fix issues, merge runtime coverage, or run fallow.
 # origin: https://github.com/fallow-rs/fallow-skills/tree/main/fallow/skills/fallow
-# upstream-sha: 9aac6f1a4c0547ac37560100836ff4f089b00fca
+# upstream-sha: ef0c8a948738f09d09efa781505b67517b898dcb
 ---
 
 # Fallow: codebase intelligence for JavaScript and TypeScript
@@ -92,7 +92,7 @@ cargo install fallow-cli        # build from source
 | Unlisted dependencies | `--unlisted-deps` | Used packages missing from package.json. In monorepos, importing a workspace package from a workspace whose own `package.json` does not list it is reported here too; self-references stay allowed without requiring a package to depend on itself. |
 | Duplicate exports | `--duplicate-exports` | Same symbol exported from multiple modules |
 | Circular dependencies | `--circular-deps` | Import cycles in the module graph |
-| Boundary violations | `--boundary-violations` | Imports crossing architecture zone boundaries. Presets: `layered`, `hexagonal`, `feature-sliced`, `bulletproof`; `autoDiscover` can create one zone per feature directory |
+| Boundary violations | `--boundary-violations` | Imports crossing architecture zone boundaries. Presets: `layered`, `hexagonal`, `feature-sliced`, `bulletproof`; `autoDiscover` can create one zone per feature directory; per-rule `allowTypeOnly: [zones]` admits `import type` / `export type` crossings while still blocking value imports |
 | Stale suppressions | `--stale-suppressions` | `fallow-ignore` comments or `@expected-unused` JSDoc tags that no longer match any issue |
 | Test-only dependencies | n/a | Production deps only imported from test files (should be devDependencies) |
 | Unused pnpm catalog entries | `--unused-catalog-entries` | `pnpm-workspace.yaml` entries no workspace package.json references via `catalog:` (default `warn`) |

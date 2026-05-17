@@ -1131,7 +1131,7 @@ Coverage CI helper for bundled/minified runtime coverage. It scans a build direc
 | `--dir <PATH>` | path | `dist` | Directory scanned recursively. |
 | `--include <GLOB>` | glob | `**/*.map` | Include glob relative to `--dir`. |
 | `--exclude <GLOB>` | glob | `**/node_modules/**` | Exclude glob, repeatable. |
-| `--repo <NAME>` | string | `package.json` `repository.url`, then `git remote get-url origin` | Repo name used in the source-map API path. |
+| `--repo <NAME>` | string | `package.json` `repository.url`, then `git remote get-url origin` parsed to `owner/repo` | Repo identifier used in the source-map API path. Must match the beacon's `projectId` (and `upload-inventory`'s `--project-id`); pass `--repo <bare-name>` explicitly if the beacon reports a bare name. |
 | `--git-sha <SHA>` | string | `$GITHUB_SHA` -> `$CI_COMMIT_SHA` -> `$COMMIT_SHA` -> `git rev-parse HEAD` | Commit SHA, 7-40 hex chars. |
 | `--endpoint <URL>` | string | `$FALLOW_API_URL` or `https://api.fallow.cloud` | Override for staging / on-prem. |
 | `--strip-path <BOOL>` | bool | `true` | Upload basename-only `fileName` values. Use `--strip-path=false` when runtime coverage reports paths like `assets/app.js`. |
@@ -1621,17 +1621,20 @@ Config files are searched in priority order: `.fallowrc.json` > `.fallowrc.jsonc
 
   // Architecture boundaries (preset, custom zones/rules, or auto-discovered feature zones)
   // Presets: "layered", "hexagonal", "feature-sliced", "bulletproof"
+  // Rules accept an optional `allowTypeOnly: [zones]` list that admits type-only imports
+  // (`import type`, inline `{ type Foo }`, namespace type imports, and `export type` re-exports)
+  // to the listed zones even when not present in `allow`. Mixed-specifier imports still fire.
   "boundaries": {
     "preset": "bulletproof"
     // Or:
     // "zones": [
     //   { "name": "app", "patterns": ["src/app/**"] },
-    //   { "name": "features", "autoDiscover": ["src/features"] },
+    //   { "name": "features", "patterns": ["src/features/**"], "autoDiscover": ["src/features"] },
     //   { "name": "shared", "patterns": ["src/shared/**"] }
     // ],
     // "rules": [
     //   { "from": "app", "allow": ["features", "shared"] },
-    //   { "from": "features", "allow": ["shared"] }
+    //   { "from": "features", "allow": ["shared"], "allowTypeOnly": ["features"] }
     // ]
   },
 
