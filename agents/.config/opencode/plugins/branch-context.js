@@ -19,9 +19,9 @@ const BRANCH_CONTEXT_COMMANDS = new Set([
 ])
 const WORK_SCOPE_COMMANDS = new Set([
   // General
-  "cleanup-unnecessary-variables",
-  "remove-single-use-functions",
-  "types-enforce-ts",
+  "refactor-cleanup-variables",
+  "refactor-remove-single-use",
+  "refactor-enforce-types",
 
   // Private
   "all-lit-skills",

@@ -69,6 +69,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - If a change spans multiple scopes, apply all relevant skills together (not just one).
 - Use the `write-a-skill` skill when adding or revising local OpenCode skills so descriptions, supporting files, and scripts stay minimal and consistent.
 - Use the `skill-notes` skill alongside `import-external-skill` and `write-a-skill` when evaluating, importing, or recommending skills.
+- Skills in `agents/.config/opencode/skills/` are stowed globally (cross-project). Skills in `.opencode/skills/` are repo-local (this repo only).
 
 ## TypeScript Skills
 

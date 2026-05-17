@@ -1,9 +1,9 @@
 ---
-description: Inline and remove safe single-use functions from current git scope
+description: Refactor - inline and remove unnecessary variables from current git scope
 agent: refactorer
 ---
 
-Load and apply the `remove-single-use-functions` skill before editing.
+Load and apply the `cleanup-unnecessary-variables` skill before editing.
 
 `BranchContextPlugin` must inject a `<branch-context>` block before this command runs. Use its `<work-scope>` section as the scope source.
 
@@ -11,16 +11,16 @@ Load and apply the `remove-single-use-functions` skill before editing.
 
 2. If `<branch-context>` is absent, do not run git fallback commands; stop and report that `BranchContextPlugin` did not inject context for this command.
 
-3. From files in scope (optionally narrowed by `${ARGUMENTS}`), find functions added or modified in the current work that are now used exactly once.
+3. From files in scope (optionally narrowed by `${ARGUMENTS}`), find variables added or modified in the current work that are unnecessary and safe to remove.
 
-4. Apply the smallest safe cleanup that satisfies the `remove-single-use-functions` skill.
+4. Apply the smallest safe cleanup that satisfies the `cleanup-unnecessary-variables` skill.
 
 5. Run the smallest relevant verification for the touched code (targeted test, typecheck, lint, or build check).
 
 6. Report briefly:
     - scope source used (`BranchContextPlugin` context)
-    - functions removed
+    - variables removed or inlined
     - files changed
     - verification run + result
 
-If no safe single-use function exists, report that and make no edits.
+If no safe unnecessary variable cleanup exists, report that and make no edits.

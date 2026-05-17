@@ -1,5 +1,5 @@
 ---
-description: Enforce TypeScript type safety in current git scope
+description: Refactor - enforce TypeScript type safety in current git scope
 agent: refactorer
 ---
 
