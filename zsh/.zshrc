@@ -595,7 +595,7 @@ source ~/.local/share/omarchy/default/bash/functions
 # Partically from ~/.local/share/omarchy/default/bash/init
 # ------------------------------
 if command -v mise &> /dev/null; then
-  eval "$(mise activate bash)"
+  eval "$(mise activate zsh)"
 fi
 
 # ------------------------------
