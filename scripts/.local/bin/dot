@@ -1700,7 +1700,6 @@ _dot_run_memory_js() {
 
 # @cmd memory — Refresh OpenCode durable memory
 # @opt --soft — Quick refresh (used by dot update)
-# Optional: --soft (used by dot update) — do not fail the parent workflow on skip/error.
 cmd_memory() {
   local soft=0
   if [[ "${1:-}" == '--soft' ]]; then
@@ -3199,86 +3198,92 @@ cmd_diff() {
 
 }
 
-# @cmd help — Show this help
-cmd_help() {
+# ---------------------------------------------------------------------------
+# Help: auto-generated command list from @cmd / @opt tags
+# ---------------------------------------------------------------------------
+
+# Display order for commands in help output. Commands not listed here
+# appear at the end in discovery order.
+_HELP_CMD_ORDER=(
+  init update stow tui diff doctor setup install clean
+  memory agents-sync skill-updates opencode-debug
+  setup-private-repo private-pkg-publish help
+)
+
+# Parse @cmd / @opt comment tags from all dot* scripts and print a
+# formatted command listing.  Tags must appear on consecutive comment
+# lines; the first non-comment / non-@opt line ends the option block.
+#
+# Tag format:
+#   # @cmd <name> — <description>
+#   # @opt <flag> — <description>
+_help_print_commands() {
   local fmt_cmd='  %-24s%s\n'
   local fmt_opt='      %-20s%s\n'
+  local script_dir
+  script_dir="$(dirname "${BASH_SOURCE[0]}")"
+
+  # --- collect tags --------------------------------------------------
+  local -A cmd_descs=()
+  local -A cmd_opts=()   # newline-separated "flag|desc" pairs
+  local current_cmd=''
+
+  local line
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^[[:space:]]*#\ @cmd\ ([^—]+)—\ (.+)$ ]]; then
+      current_cmd="${BASH_REMATCH[1]}"
+      current_cmd="${current_cmd%"${current_cmd##*[![:space:]]}"}"   # rtrim
+      cmd_descs["$current_cmd"]="${BASH_REMATCH[2]}"
+      cmd_opts["$current_cmd"]=''
+    elif [[ "$line" =~ ^[[:space:]]*#\ @opt\ ([^—]+)—\ (.+)$ && -n "$current_cmd" ]]; then
+      local opt="${BASH_REMATCH[1]}"
+      opt="${opt%"${opt##*[![:space:]]}"}"   # rtrim
+      local desc="${BASH_REMATCH[2]}"
+      [[ -n "${cmd_opts[$current_cmd]}" ]] && cmd_opts["$current_cmd"]+=$'\n'
+      cmd_opts["$current_cmd"]+="${opt}|${desc}"
+    elif [[ ! "$line" =~ ^[[:space:]]*# ]]; then
+      current_cmd=''
+    fi
+  done < <(cat "$script_dir"/dot "$script_dir"/dot-*-lib 2>/dev/null)
+
+  # --- print in order ------------------------------------------------
+  local -A printed=()
+  local name
+  for name in "${_HELP_CMD_ORDER[@]}"; do
+    [[ -z "${cmd_descs[$name]:-}" ]] && continue
+    printf "$fmt_cmd" "$name" "${cmd_descs[$name]}"
+    if [[ -n "${cmd_opts[$name]:-}" ]]; then
+      while IFS='|' read -r opt desc; do
+        printf "$fmt_opt" "$opt" "$desc"
+      done <<< "${cmd_opts[$name]}"
+    fi
+    printf '\n'
+    printed["$name"]=1
+  done
+
+  # Any discovered commands not in the order array
+  for name in "${!cmd_descs[@]}"; do
+    [[ -n "${printed[$name]:-}" ]] && continue
+    printf "$fmt_cmd" "$name" "${cmd_descs[$name]}"
+    if [[ -n "${cmd_opts[$name]:-}" ]]; then
+      while IFS='|' read -r opt desc; do
+        printf "$fmt_opt" "$opt" "$desc"
+      done <<< "${cmd_opts[$name]}"
+    fi
+    printf '\n'
+  done
+}
+
+# @cmd help — Show this help
+cmd_help() {
   local fmt_env='  %-36s%s\n'
 
   printf 'Usage: %s [command] [args]\n\n' "$SCRIPT_NAME"
   printf 'Without a command, launches the TUI dashboard (dot-tui).\n\n'
   printf 'Commands:\n'
+  _help_print_commands
 
-  printf "$fmt_cmd" 'init' 'Run questionnaire, sync omarchy repos, setup, install'
-  printf "$fmt_opt" '--confirm' 'Pass through to setup (non-interactive package helpers)'
-  printf "$fmt_opt" '--noninteractive' 'Skip questionnaire for this run'
-  printf "$fmt_opt" '--interactive' 'Force questionnaire for this run'
-  printf "$fmt_opt" '--branch <name>' 'Omarchy branch override for split repos (e.g. hypr)'
-  printf "$fmt_opt" '--bootstrap-branch' 'Bootstrap repo branch override'
-  printf '\n'
-
-  printf "$fmt_cmd" 'update' 'Pull repos, stow dotfiles, rebuild TUI, run post-hooks'
-  printf "$fmt_opt" '--pull' 'Pull all repos (dotfiles, private, notes, extra, omarchy)'
-  printf "$fmt_opt" '--stow' 'Re-stow public/private dotfiles'
-  printf "$fmt_opt" '--tui' 'Rebuild dot-tui binary'
-  printf '\n'
-
-  printf "$fmt_cmd" 'stow' 'Re-stow public/private dotfiles (no git pull)'
-  printf "$fmt_opt" '--public' 'Stow public dotfiles only'
-  printf "$fmt_opt" '--private' 'Stow private dotfiles only'
-  printf '\n'
-
-  printf "$fmt_cmd" 'tui' 'Launch the TUI dashboard (passes subcommands/flags through)'
-  printf '\n'
-
-  printf "$fmt_cmd" 'diff' 'Open the diff/repo watcher TUI view'
-  printf "$fmt_opt" '--raw' 'Original CLI per-repo status + diffs output'
-  printf "$fmt_opt" '--waybar' 'One-line JSON for Waybar (same checks; no banners)'
-  printf "$fmt_opt" '--list-changed' 'name|path lines for repos with changes'
-  printf "$fmt_opt" '--list-all' 'name|path lines for all tracked repos'
-  printf '\n'
-
-  printf "$fmt_cmd" 'doctor' 'Check dependencies, repos, workflow watch, packages'
-  printf '\n'
-
-  printf "$fmt_cmd" 'setup' 'Install packages'
-  printf "$fmt_opt" '--confirm' 'Non-interactive mode (currently default)'
-  printf '\n'
-
-  printf "$fmt_cmd" 'install' 'Backup/adopt and install public/private dotfiles'
-  printf '\n'
-
-  printf "$fmt_cmd" 'clean' 'Unstow private then public dotfiles'
-  printf '\n'
-
-  printf "$fmt_cmd" 'memory' 'Refresh OpenCode durable memory'
-  printf "$fmt_opt" '--soft' 'Quick refresh (used by dot update)'
-  printf '\n'
-
-  printf "$fmt_cmd" 'agents-sync' 'Run dot memory then write global-agents.mdc'
-  printf '\n'
-
-  printf "$fmt_cmd" 'skill-updates' 'Check imported skills for upstream changes'
-  printf "$fmt_opt" '--check' 'Report only, exit 1 if updates available (no prompts)'
-  printf "$fmt_opt" '--update' 'Auto-apply without prompting (used by dot update)'
-  printf '\n'
-
-  printf "$fmt_cmd" 'opencode-debug' 'Run OpenCode debug paths/config/skill/info'
-  printf "$fmt_opt" '--agent <name>' 'Inspect a specific agent'
-  printf '\n'
-
-  printf "$fmt_cmd" 'setup-private-repo' 'Sync mirror, write pacman config, register include'
-  printf '\n'
-
-  printf "$fmt_cmd" 'private-pkg-publish' 'Build, publish, commit, and push a mapped private package'
-  printf "$fmt_opt" '--no-git' 'Skip commit and push'
-  printf "$fmt_opt" '--skip-build' 'Publish existing dist package artifact'
-  printf "$fmt_opt" '--install' 'Install the published package'
-  printf '\n'
-
-  printf "$fmt_cmd" 'help' 'Show this help'
-
-  printf '\nEnvironment:\n'
+  printf 'Environment:\n'
   printf "$fmt_env" 'DOTFILES_PUBLIC_DIR' 'Override public dotfiles path'
   printf "$fmt_env" 'DOTFILES_PRIVATE_DIR' 'Override private dotfiles path'
   printf "$fmt_env" 'DOT_NOTES_DIR' 'Notes vault git repo (default ~/Documents/notes)'
@@ -3325,6 +3330,7 @@ main() {
 
   shift || true
 
+  # @cmd tui — Launch the TUI dashboard (passes subcommands/flags through)
   # "tui" subcommand — pass through to dot-tui with remaining args
   if [[ "$cmd" == 'tui' ]]; then
     if has_cmd dot-tui; then
