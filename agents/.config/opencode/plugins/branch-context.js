@@ -9,7 +9,6 @@
 
 const BRANCH_CONTEXT_COMMANDS = new Set([
   // General
-  "git-workflow",
   "inject-context",
   "refactor-current-work",
   "reset-branch-reapply",
