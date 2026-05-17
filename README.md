@@ -107,7 +107,6 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 - `DOT_AGENTS_SYNC_SOURCE` - AGENTS file to mirror (default `~/.config/opencode/AGENTS.md`)
 - `DOT_AGENTS_SYNC_RULE_FILE` - Cursor rule output path (default `$DOTFILES_PRIVATE_DIR/agents/.cursor/rules/global-agents.mdc`, else `~/.cursor/rules/global-agents.mdc`)
 - `DOT_AGENTS_SYNC_ON_UPDATE` - run `agents-sync` after `dot update` (`1|0`, default `1`)
-- `DOT_AGENTS_SYNC_ON_DIFF` - run `agents-sync` after `dot diff` (`1|0`, default `1`)
 
 ## New machine checklist
 
