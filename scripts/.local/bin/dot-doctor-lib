@@ -863,6 +863,7 @@ cmd_doctor() {
 
   if is_truthy "$INCLUDE_OMARCHY_DIFF_REPOS" || is_truthy "$INCLUDE_OMARCHY_UPDATE_REPOS"; then
     doctor_log_section 'Omarchy repository checks'
+    _ensure_omarchy_lib
     local repo_name
     local repo_path
     local repo_slug
@@ -1142,6 +1143,7 @@ cmd_doctor() {
   fi
 
   doctor_log_section 'Private package repo checks'
+  _ensure_private_pkg_lib
   report_private_package_repo_status
 
   doctor_log_section 'Private package checks'
