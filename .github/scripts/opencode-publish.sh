@@ -116,7 +116,7 @@ cd opencode-config
 
 # Copy individual items
 cp -r skills/diagnose ~/.config/opencode/skills/
-cp commands/git-workflow.md ~/.config/opencode/commands/
+cp commands/inject-context.md ~/.config/opencode/commands/
 cp plugins/env-protection.js ~/.config/opencode/plugins/
 cp agents/reviewer.md ~/.config/opencode/agents/
 

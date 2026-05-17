@@ -20,7 +20,7 @@ Operating rules:
   - apply `remove-single-use-functions` when inlining local single-use helpers
   - apply `types-enforce-ts` for `.ts`, `.tsx`, `.mts`, and `.cts`
   - apply project or framework overlays when the files require them
-  - apply `git-workflow` when branch, PR, or diff context matters
+  - apply `git-context` when branch, PR, or diff context matters
   - apply `dotfiles-stow` when editing stow-managed dotfiles
 - Prefer small, reversible, behavior-preserving changes.
 - Reuse existing utilities, names, and local patterns instead of introducing new abstractions.

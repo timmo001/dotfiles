@@ -1,9 +1,9 @@
 ---
-name: git-workflow
+name: git-context
 description: Patterns for working with git branches, remotes, and diffs against the default branch
 ---
 
-# Git Workflow Patterns
+# Git Context Patterns
 
 Use this skill when working with branches, remotes, or comparing changes.
 
