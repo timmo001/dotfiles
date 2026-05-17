@@ -31,11 +31,11 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 
 ## OpenCode Workflow
 
-- Prefer the `/git-workflow` and `/review-current-work` commands for current-branch branch, diff, and review context instead of rebuilding that snapshot with repeated `git status`, `git diff`, `git log`, or `gh pr` calls.
+- Prefer `/inject-context` and `/review-current-work` for current-branch context instead of rebuilding that snapshot with repeated `git status`, `git diff`, `git log`, or `gh pr` calls. `/inject-context` accepts an optional inline instruction (e.g. `/inject-context add x to the y`); without one it injects context and waits.
 - Use `/refactor-current-work` for behaviour-preserving cleanup within the current branch scope instead of rebuilding that scope manually before a refactor.
 - Use `/plan` as the manual entrypoint to native planning mode when explicit implementation planning would help; reuse the existing conversation context instead of rebuilding it from scratch.
 - Some execution-oriented agents can now call native `plan_enter` themselves for broad, multi-step, sequencing-heavy, or materially ambiguous work; prefer that automatic handoff when the agent is already in execution flow.
-- `/git-workflow`, `/review-current-work`, and the scoped cleanup/type commands use `BranchContextPlugin`; treat its injected `<work-scope>` section as the canonical scope source unless the user explicitly asks for a refresh.
+- `/inject-context`, `/review-current-work`, and the scoped cleanup/type commands use `BranchContextPlugin`; treat its injected `<work-scope>` section as the canonical scope source unless the user explicitly asks for a refresh.
 - For human-written command names and command/docs prose in this repo, prefer UK spelling. Keep upstream tool, API, or MCP names unchanged when they use US spelling.
 - Use first-class agents intentionally: `ask` for clarification/light investigation, `reviewer` via `/review-current-work` for reviews, and `refactorer` for behavior-preserving cleanup.
 - Use `/investigate` as the default shared `ask` entrypoint for general investigation, triage, and context gathering when the work is not specifically codebase exploration, frontend debugging, or Fallow analysis.
@@ -128,7 +128,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - Syntax check: `bash -n scripts/.local/bin/dot`
 - Basic health check: `scripts/.local/bin/dot doctor`
 - OpenCode debug wrapper: `scripts/.local/bin/dot opencode-debug`
-- OpenCode branch-context command: `/git-workflow`
+- OpenCode context injection command: `/inject-context [instruction]`
 - OpenCode planning command: `/plan [focus]` (manual entrypoint; some agents can also switch into plan mode via native `plan_enter`)
 - OpenCode review command: `/review-current-work`
 - OpenCode current-work refactor command: `/refactor-current-work [scope]`
