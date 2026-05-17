@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Print human-readable time since last resume from suspend (for fastfetch).
+# Falls back to "since boot" if no suspend/resume event is found.
+
+last_resume=$(
+  journalctl --boot 0 -q \
+    -g "System returned from sleep operation 'suspend'." \
+    -o short-unix 2>/dev/null |
+    tail -n1 | cut -d' ' -f1 | cut -d. -f1
+)
+
+if [ -n "$last_resume" ]; then
+  diff=$(( $(date +%s) - last_resume ))
+  days=$(( diff / 86400 ))
+  hours=$(( (diff % 86400) / 3600 ))
+  mins=$(( (diff % 3600) / 60 ))
+
+  if [ "$days" -gt 0 ]; then
+    printf '%s days, %s hours, %s mins\n' "$days" "$hours" "$mins"
+  elif [ "$hours" -gt 0 ]; then
+    printf '%s hours, %s mins\n' "$hours" "$mins"
+  else
+    printf '%s mins\n' "$mins"
+  fi
+else
+  echo 'since boot'
+fi
