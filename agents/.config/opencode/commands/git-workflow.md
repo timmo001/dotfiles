@@ -1,6 +1,5 @@
 ---
 description: Read branch, diff, and PR context from BranchContextPlugin without extra git calls
-agent: ask
 ---
 
 Load the `git-workflow` skill before proceeding.
