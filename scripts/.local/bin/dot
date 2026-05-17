@@ -2211,72 +2211,11 @@ backup_public_files_for_install() {
   fi
 }
 
-install_public_dotfiles() {
-  local -a folders
-  local folder
-
-  require_repo_dir "$PUBLIC_DOTFILES" 'public dotfiles'
-
-  if ! has_cmd stow; then
-    log_error 'Stow is required'
-    return 1
-  fi
-
-  backup_public_files_for_install
-
-  mapfile -t folders < <(list_stow_folders "$PUBLIC_DOTFILES" false)
-  for folder in "${folders[@]}"; do
-    log_info "[public] stow $folder (repo: $(display_path "$PUBLIC_DOTFILES"))"
-    stow_in_repo "$PUBLIC_DOTFILES" -D "$folder"
-
-    if [[ "$folder" == 'agents' ]]; then
-      stow_in_repo "$PUBLIC_DOTFILES" --no-folding --adopt "$folder"
-    else
-      stow_in_repo "$PUBLIC_DOTFILES" --adopt "$folder"
-    fi
-  done
-}
-
-stow_public_dotfiles() {
-  local -a folders
-  local folder
-
-  require_repo_dir "$PUBLIC_DOTFILES" 'public dotfiles'
-
-  if ! has_cmd stow; then
-    log_error 'Stow is required'
-    return 1
-  fi
-
-  mapfile -t folders < <(list_stow_folders "$PUBLIC_DOTFILES" false)
-  for folder in "${folders[@]}"; do
-    log_info "[public] stow $folder (repo: $(display_path "$PUBLIC_DOTFILES"))"
-    stow_in_repo "$PUBLIC_DOTFILES" -D "$folder"
-    if [[ "$folder" == 'agents' ]]; then
-      stow_in_repo "$PUBLIC_DOTFILES" --no-folding "$folder"
-    else
-      stow_in_repo "$PUBLIC_DOTFILES" "$folder"
-    fi
-  done
-}
-
-clean_public_dotfiles() {
-  local -a folders
-  local folder
-
-  require_repo_dir "$PUBLIC_DOTFILES" 'public dotfiles'
-
-  if ! has_cmd stow; then
-    log_error 'Stow is required'
-    return 1
-  fi
-
-  mapfile -t folders < <(list_stow_folders "$PUBLIC_DOTFILES" true)
-  for folder in "${folders[@]}"; do
-    log_info "[public] remove $folder (repo: $(display_path "$PUBLIC_DOTFILES"))"
-    stow_in_repo "$PUBLIC_DOTFILES" -D "$folder"
-  done
-}
+# ---------------------------------------------------------------------------
+# Unified stow operation: run_stow <mode> <scope>
+#   mode:  install | stow | clean
+#   scope: public  | private
+# ---------------------------------------------------------------------------
 
 install_private_agents() {
   local opencode_target="$HOME/.config/opencode/opencode.json"
@@ -2297,76 +2236,88 @@ install_private_agents() {
     agents
 }
 
-install_private_dotfiles() {
+_stow_agents_folder() {
+  local mode="$1"
+  local scope="$2"
+  local repo_dir="$3"
+
+  # Private install has a special backup-and-adopt flow
+  if [[ "$scope" == 'private' && "$mode" == 'install' ]]; then
+    install_private_agents
+    return
+  fi
+
+  local -a extra_flags=(--no-folding)
+
+  if [[ "$mode" == 'install' ]]; then
+    extra_flags+=(--adopt)
+  fi
+
+  if [[ "$scope" == 'private' ]]; then
+    extra_flags+=(
+      --ignore=node_modules
+      --ignore='package\.json'
+      --ignore='bun\.lock'
+      --ignore='\.gitignore'
+    )
+  fi
+
+  stow_in_repo "$repo_dir" "${extra_flags[@]}" agents
+}
+
+run_stow() {
+  local mode="$1"
+  local scope="$2"
+  local repo_dir label include_backup log_verb
   local -a folders
   local folder
 
-  require_repo_dir "$PRIVATE_DOTFILES" 'private dotfiles'
+  case "$scope" in
+    public)  repo_dir="$PUBLIC_DOTFILES"; label='public dotfiles' ;;
+    private) repo_dir="$PRIVATE_DOTFILES"; label='private dotfiles' ;;
+  esac
+
+  require_repo_dir "$repo_dir" "$label"
 
   if ! has_cmd stow; then
     log_error 'Stow is required'
     return 1
   fi
 
-  mapfile -t folders < <(list_stow_folders "$PRIVATE_DOTFILES" false)
+  # Pre-install backup (public only)
+  if [[ "$mode" == 'install' && "$scope" == 'public' ]]; then
+    backup_public_files_for_install
+  fi
+
+  case "$mode" in
+    install|stow) log_verb='stow'; include_backup=false ;;
+    clean)        log_verb='remove'; include_backup=true ;;
+  esac
+
+  mapfile -t folders < <(list_stow_folders "$repo_dir" "$include_backup")
   for folder in "${folders[@]}"; do
-    log_info "[private] stow $folder (repo: $(display_path "$PRIVATE_DOTFILES"))"
-    stow_in_repo "$PRIVATE_DOTFILES" -D "$folder"
+    log_info "[$scope] $log_verb $folder (repo: $(display_path "$repo_dir"))"
+    stow_in_repo "$repo_dir" -D "$folder"
+
+    # Clean mode only unstows
+    [[ "$mode" == 'clean' ]] && continue
 
     if [[ "$folder" == 'agents' ]]; then
-      install_private_agents
+      _stow_agents_folder "$mode" "$scope" "$repo_dir"
+    elif [[ "$mode" == 'install' && "$scope" == 'public' ]]; then
+      stow_in_repo "$repo_dir" --adopt "$folder"
     else
-      stow_in_repo "$PRIVATE_DOTFILES" "$folder"
+      stow_in_repo "$repo_dir" "$folder"
     fi
   done
 }
 
-stow_private_dotfiles() {
-  local -a folders
-  local folder
-
-  require_repo_dir "$PRIVATE_DOTFILES" 'private dotfiles'
-
-  if ! has_cmd stow; then
-    log_error 'Stow is required'
-    return 1
-  fi
-
-  mapfile -t folders < <(list_stow_folders "$PRIVATE_DOTFILES" false)
-  for folder in "${folders[@]}"; do
-    log_info "[private] stow $folder (repo: $(display_path "$PRIVATE_DOTFILES"))"
-    stow_in_repo "$PRIVATE_DOTFILES" -D "$folder"
-    if [[ "$folder" == 'agents' ]]; then
-      stow_in_repo "$PRIVATE_DOTFILES" \
-        --no-folding \
-        --ignore=node_modules \
-        --ignore=package\.json \
-        --ignore=bun\.lock \
-        --ignore=\.gitignore \
-        "$folder"
-    else
-      stow_in_repo "$PRIVATE_DOTFILES" "$folder"
-    fi
-  done
-}
-
-clean_private_dotfiles() {
-  local -a folders
-  local folder
-
-  require_repo_dir "$PRIVATE_DOTFILES" 'private dotfiles'
-
-  if ! has_cmd stow; then
-    log_error 'Stow is required'
-    return 1
-  fi
-
-  mapfile -t folders < <(list_stow_folders "$PRIVATE_DOTFILES" true)
-  for folder in "${folders[@]}"; do
-    log_info "[private] remove $folder (repo: $(display_path "$PRIVATE_DOTFILES"))"
-    stow_in_repo "$PRIVATE_DOTFILES" -D "$folder"
-  done
-}
+install_public_dotfiles()  { run_stow install public; }
+stow_public_dotfiles()     { run_stow stow    public; }
+clean_public_dotfiles()    { run_stow clean   public; }
+install_private_dotfiles() { run_stow install private; }
+stow_private_dotfiles()    { run_stow stow    private; }
+clean_private_dotfiles()   { run_stow clean   private; }
 
 run_setup_packages() {
   local confirm=false
