@@ -4,6 +4,7 @@
 bmon
 cpio
 go-automate-git
+home-assistant-tui-git
 gtk4-layer-shell
 iperf3
 python-gobject
