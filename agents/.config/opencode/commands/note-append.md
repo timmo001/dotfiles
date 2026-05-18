@@ -17,13 +17,16 @@ Do not proceed further.
 ## Step 2: Rank and present existing notes
 
 1. Read the list from the `<existing-notes>` section (already sorted newest-first by modification time)
-2. Using your understanding of the current conversation topic, re-rank the list by relevance — files most likely to be related to what was discussed should appear first
+2. Re-rank by relevance to the current conversation topic. Use all three signals together:
+   - **Tags** — primary signal: tags that overlap with the current topic should score highest
+   - **Description** — secondary signal: semantic match to what was discussed
+   - **Name** — tertiary signal: title similarity
 3. Present the ranked list to the user using the `question` tool — always show it even if the top match seems obvious
 
 The question should look like:
 > Which note should this session's content be appended to?
 
-List each option as the filename (without path) and its last-modified date.
+List each option using the full label from `<existing-notes>` (filename, name, description, tags, last modified).
 
 Wait for the user to select a file before continuing.
 
