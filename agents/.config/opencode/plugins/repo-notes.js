@@ -189,7 +189,10 @@ export const RepoNotesPlugin = async ({ $ }) => {
       } catch (e) {
         throw new Error(`note_write: failed to write file ${args.path}: ${errorMessage(e)}`)
       }
-      return `Written: ${args.path}`
+      return {
+        title: args.path,
+        output: `Written: ${args.path}\n\n\`\`\`markdown\n${args.content}\n\`\`\``,
+      }
     },
   }
 
