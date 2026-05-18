@@ -203,9 +203,10 @@ Auto-removes unused exports, dependencies, enum members, and pnpm catalog entrie
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--dry-run` | bool | `false` | Show what would be removed without modifying files |
+| `--dry-run` | bool | `false` | Show what would be removed without modifying files. For `add-to-config` actions, prints a unified-diff preview of the proposed config write; JSON mode includes the diff under a `proposed_diff` field on the fix entry. |
 | `--yes` | bool | `false` | Skip confirmation prompt (**required** in non-TTY) |
 | `--force` | bool | `false` | Alias for `--yes` |
+| `--no-create-config` | bool | `false` | Refuse to create a new `.fallowrc.json` when none exists. The duplicate-export config-add path is skipped with `skip_reason: "no_create_config"`; source-file edits proceed normally. Use in pre-commit hooks, CI bots, and `fallow watch` where silently materialising a new top-level file would surprise the user. |
 | `--format` | `human\|json` | `human` | Output format |
 | `--quiet` | bool | `false` | Suppress progress bars |
 
@@ -215,6 +216,7 @@ Auto-removes unused exports, dependencies, enum members, and pnpm catalog entrie
 - Unused dependencies (removed from `package.json`)
 - Unused enum members (removed from the declaration)
 - Unused pnpm catalog entries (removed from `pnpm-workspace.yaml` by line-aware deletion; comments preserved). When the last entry of a catalog group is removed, the header is rewritten to `catalog: {}` / `<name>: {}` so pnpm doesn't reject the resulting null value. Entries with non-empty `hardcoded_consumers` are skipped to avoid breaking `pnpm install`; the skip is surfaced in the JSON fix output as `{"type": "remove_catalog_entry", "applied": false, "skipped": true, "skip_reason": "hardcoded_consumers", "consumers": [...]}`. After a successful catalog edit the CLI emits a one-line `Run pnpm install to refresh pnpm-lock.yaml` reminder. The JSON envelope carries a top-level `"skipped"` count alongside `"total_fixed"` for partial-fix gating.
+- Duplicate exports (appends an `ignoreExports` rule to your fallow config file). When no fallow config file exists, `.fallowrc.json` is created using the same scaffolding `fallow init` would emit (framework detection, `$schema`, `entry`, `ignorePatterns`, etc.) and the rules are layered on top. Inside a monorepo subpackage (`pnpm-workspace.yaml`, `package.json#workspaces`, `turbo.json`, `lerna.json`, or `rush.json` above the invocation directory) the create-fallback refuses to fire and emits `skip_reason: "monorepo_subpackage"` with a relative `workspace_root` path pointing at the workspace root. The applied entry carries `created_files: [".fallowrc.json"]` so consumers can detect file-creation side effects programmatically.
 
 ### Examples
 
@@ -239,7 +241,7 @@ Inspect discovered files, entry points, detected frameworks, and architecture bo
 | `--files` | bool | List all discovered files |
 | `--entry-points` | bool | List detected entry points |
 | `--plugins` | bool | List active framework plugins |
-| `--boundaries` | bool | Show architecture boundary zones, rules, and per-zone file counts |
+| `--boundaries` | bool | Show architecture boundary zones, rules, per-zone file counts, and `logical_groups[]` for `autoDiscover` parents |
 | `--format` | `human\|json` | Output format |
 | `--quiet` | bool | Suppress progress bars |
 
@@ -251,6 +253,8 @@ fallow list --entry-points --format json --quiet
 fallow list --plugins --format json --quiet
 fallow list --boundaries --format json --quiet
 ```
+
+The `--boundaries` JSON output carries `boundaries.logical_groups[]` alongside the existing `zones[]` / `rules[]` arrays. Each logical-group entry surfaces a user-authored `autoDiscover` parent zone (which expansion otherwise flattens into per-child zones like `features/auth` / `features/billing`): `name`, `children`, `auto_discover` (verbatim user strings), `status` (`ok` / `empty` / `invalid_path`), `source_zone_index`, summed `file_count`, optional `authored_rule` (the pre-expansion `{ allow, allowTypeOnly }` keyed on the parent), optional `fallback_zone` cross-reference when the parent also kept its own `patterns` (Bulletproof case), optional `merged_from` (parent zone indices when the user declared the same parent name twice; surfaces the duplicate in JSON instead of only in `tracing::warn!`), optional `original_zone_root` (echo of the parent's `root` subtree scope for monorepo patchers), and optional `child_source_indices` (parallel to `children`, attributing each child to a specific `auto_discover` entry when multiple paths were authored). The full shape is documented in `docs/output-schema.json` under `ListBoundariesOutput`.
 
 ---
 
@@ -1367,7 +1371,7 @@ Every issue in `dead-code` JSON output includes an `actions` array with structur
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `type` | string | yes | Action type in kebab-case (for example `remove-export`, `remove-file`, `remove-dependency`, `move-dependency`, `suppress-line`, `add-to-config`) |
-| `auto_fixable` | bool | yes | `true` if `fallow fix` handles this action automatically |
+| `auto_fixable` | bool | yes | `true` if `fallow fix` handles this action automatically. Evaluated PER FINDING, not per action type: the same `type` may carry `true` on one finding and `false` on another when per-instance guards in the applier discriminate. Filter on this bool of each individual action, not on `type` alone. |
 | `description` | string | yes | Human-readable description of the action |
 | `comment` | string | no | Suppression comment text (on `suppress-line` actions) |
 | `note` | string | no | Additional context on non-auto-fixable items |
@@ -1424,6 +1428,14 @@ Dependency issues use `add-to-config` with `config_key` and `value`:
 
 When a dependency action is `move-dependency`, `auto_fixable` is `false`; the package is imported from another workspace and needs a package.json ownership move rather than removal.
 
+Per-instance `auto_fixable` flips today (the same action `type` flipping between findings):
+
+- `remove-catalog-entry` (unused-catalog-entries): `true` only when `hardcoded_consumers` is empty; `false` otherwise (the applier skips the entry to avoid breaking `pnpm install`).
+- `remove-dependency` vs `move-dependency` (dependency findings): primary action flips between `remove-dependency` (`true`) and `move-dependency` (`false`) on `used_in_workspaces`.
+- `add-to-config` for `ignoreExports` (duplicate-exports): `true` when `fallow fix` can safely apply the action, which today means EITHER a fallow config file already exists OR no config exists and the working directory is NOT inside a monorepo subpackage. In the second case the applier creates `.fallowrc.json` using `fallow init`'s framework-aware scaffolding and layers the new rules on top. `false` inside a monorepo subpackage with no workspace-root config (the applier refuses to fragment per-package configs). Pass `--no-create-config` to `fallow fix` from pre-commit hooks, CI bots, and `fallow watch` to opt out of the create-fallback; the action then surfaces with `auto_fixable: false`.
+- `update-catalog-reference` (unresolved-catalog-references): always `false` today; non-singleton on the wire so a future applier can promote it without a schema change.
+- All `suppress-line` and `suppress-file` actions are uniformly `false`.
+
 #### Health `actions` array (CRAP findings)
 
 Health findings (`fallow health` JSON output) include an `actions` array. Primary action selection is formula-aware: the rule first checks whether full coverage CAN bring CRAP under threshold (CRAP bottoms out at `cyclomatic` at 100% coverage, so `cyclomatic < maxCrap` means coverage is a viable remediation), then uses `coverage_tier` to choose the description.
@@ -1436,6 +1448,8 @@ Health findings (`fallow health` JSON output) include an `actions` array. Primar
 | Cyclomatic/cognitive triggered (no CRAP) | `refactor-function` |
 
 The `coverage_tier` field is `"none"` (file not test-reachable / Istanbul 0%), `"partial"` (Istanbul `(0, 70)` / estimated 40%), or `"high"` (Istanbul `>= 70` / estimated 85%).
+
+Each CRAP finding also carries a `coverage_source` discriminator: `"istanbul"` (direct fnMap match for this function), `"estimated"` (graph-based estimate evaluated against the finding's own file), or `"estimated_component_inherited"` (graph-based estimate inherited from an Angular component `.ts` reached via the inverse `templateUrl` edge). Synthetic `<template>` findings on Angular `.html` templates use the `estimated_component_inherited` source and ship an `inherited_from` field with the project-relative path to the owning `.component.ts`. When the inherit path applies, the primary `increase-coverage` action targets that `.ts` file (description names the component path explicitly and includes a `target_path` field) so AI agents add component tests rather than scaffolding tests against a structurally untestable `.html` path. The human `fallow health` output renders `(inherited from foo.component.ts)` after the CRAP score on those rows. This is the JIT-test fallback (Angular's runtime renders templates via `ɵɵconditional` / `ɵɵrepeaterCreate` calls; Istanbul never has `fnMap` entries keyed at `.html` paths). AOT-compiled coverage with source-map back-mapping is planned as a tier 2 follow-up; when it lands, `coverage_source` will gain a `"measured_aot_source_map"` variant.
 
 When CRAP-only with cyclomatic count within 5 of `maxCyclomatic` AND cognitive at or above `maxCognitive / 2`, a secondary `refactor-function` is appended. The cognitive floor suppresses false positives on flat type-tag dispatchers and JSX render maps (high CC, near-zero cog). A single finding can carry multiple action types: e.g. a finding that exceeds both cyclomatic and CRAP at `coverage_tier=partial` gets `increase-coverage` AND `refactor-function`. Treat the first non-`suppress-line` action as primary.
 

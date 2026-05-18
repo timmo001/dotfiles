@@ -2,7 +2,7 @@
 name: fallow
 description: Codebase intelligence for JavaScript and TypeScript. Free static layer finds unused code (files, exports, types, dependencies), code duplication, circular dependencies, complexity hotspots, architecture boundary violations, and feature flag patterns. Runtime coverage merges production execution data into the same health report for hot-path review, cold-path deletion confidence, and stale-flag evidence - a single local capture is free, while continuous/cloud runtime monitoring is paid. 94 framework plugins, zero configuration, sub-second static analysis. Use when asked to analyze code health, find unused code, detect duplicates, check circular dependencies, audit complexity, check architecture boundaries, detect feature flags, clean up the codebase, auto-fix issues, merge runtime coverage, or run fallow.
 # origin: https://github.com/fallow-rs/fallow-skills/tree/main/fallow/skills/fallow
-# upstream-sha: ef0c8a948738f09d09efa781505b67517b898dcb
+# upstream-sha: c0af22907d0a07a50efe09baa028cabf003a920d
 ---
 
 # Fallow: codebase intelligence for JavaScript and TypeScript
@@ -121,7 +121,7 @@ When using fallow via MCP (`fallow-mcp`), the following tools are available:
 | `audit` | Combined dead-code + complexity + duplication for changed files, returns verdict. Set `gate` to `"new-only"` or `"all"`. Optional `runtime_coverage` (V8 dir / V8 JSON / Istanbul JSON) folds runtime findings into the same call; `min_invocations_hot` tunes the hot-path threshold |
 | `fallow_explain` | Explain one issue type without running analysis. Required `issue_type`; returns rationale, examples, fix guidance, and docs URL |
 | `project_info` | Project metadata. Set `entry_points`, `files`, `plugins`, or `boundaries` to `true` to request specific sections |
-| `list_boundaries` | Architecture boundary zones and access rules. Returns `{"configured": false}` if no boundaries configured |
+| `list_boundaries` | Architecture boundary zones, access rules, and pre-expansion `autoDiscover` `logical_groups[]` (user-authored parent name, verbatim paths, discovered children, `status` enum, summed `file_count`). Returns `{"configured": false}` if no boundaries configured |
 | `feature_flags` | Detect feature flag patterns (env vars, SDK calls, config objects). Set `top` to limit results |
 | `trace_export` | Trace why an export is used or unused (`fallow dead-code --trace FILE:EXPORT_NAME --format json`). Required `file` and `export_name`. Returns file reachability, entry-point status, direct references, re-export chains, and a reason string. Use before deleting a supposedly-unused export |
 | `trace_file` | Trace all graph edges for a file (`fallow dead-code --trace-file PATH --format json`). Required `file`. Returns reachability, exports, imports-from, imported-by, and re-exports. Use to decide whether a file is isolated, barrel-only, or imported by live entry points |
