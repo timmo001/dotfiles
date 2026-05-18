@@ -55,6 +55,15 @@ For each candidate, include:
 - expected benefit for locality, clarity, or testability
 - any obvious risk or tradeoff
 
+## Plan Mode
+
+This skill runs in **plan mode**. It produces analysis and recommendations only.
+
+- Do NOT edit, write, or create any files.
+- Do NOT implement any proposed changes.
+- Present candidates and wait for the user to leave plan mode and accept before any implementation begins.
+- If the user asks for edits during plan mode, remind them that implementation requires leaving plan mode first.
+
 ## Guardrails
 
 - Prefer focused architectural improvements over speculative redesign.
