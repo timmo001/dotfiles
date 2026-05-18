@@ -44,7 +44,7 @@ branch: {branch}
 date: {YYYY-MM-DD}
 name: {Short human-readable title, 3–6 words, Title Case}
 description: {One sentence describing what this note covers}
-tags: []
+tags: [{2–5 kebab-case tags derived from the conversation content, e.g. authentication, jwt, api-design}]
 ---
 
 # {name value repeated here as the heading}
