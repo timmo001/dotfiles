@@ -132,6 +132,43 @@ const formatErrorContext = (message, error) => {
 }
 
 export const RepoNotesPlugin = async ({ $ }) => {
+  // Custom tool: the LLM calls this to write a note file.
+  // Args use plain JSON Schema 7 objects — OpenCode falls back to legacyJsonSchema
+  // when args are not Zod types, so no imports are required.
+  const note_write = {
+    description:
+      "Write a note file to the notes vault. " +
+      "Used exclusively by note-create and note-append to persist generated note content to disk. " +
+      "Creates parent directories automatically. " +
+      "Do NOT use the built-in write or bash tools to write note files — always use this tool.",
+    args: {
+      path: {
+        type: "string",
+        description: "Absolute path to the note file (e.g. /home/user/Documents/notes/repo-notes/owner/repo/slug.md)",
+      },
+      content: {
+        type: "string",
+        description: "Full file content to write, including frontmatter and all sections",
+      },
+    },
+    async execute(args) {
+      const dir = args.path.substring(0, args.path.lastIndexOf("/"))
+      if (dir) {
+        try {
+          await $`mkdir -p ${dir}`.text()
+        } catch (e) {
+          throw new Error(`note_write: failed to create directory ${dir}: ${errorMessage(e)}`)
+        }
+      }
+      try {
+        await Bun.write(args.path, args.content)
+      } catch (e) {
+        throw new Error(`note_write: failed to write file ${args.path}: ${errorMessage(e)}`)
+      }
+      return `Written: ${args.path}`
+    },
+  }
+
   const buildRepoNoteContext = async ({ command }) => {
     const warnings = []
 
@@ -301,6 +338,9 @@ export const RepoNotesPlugin = async ({ $ }) => {
       if (!NOTE_COMMANDS.has(input.command)) return
       const text = await buildRepoNoteContext({ command: input.command })
       output.parts.unshift({ type: "text", text })
+    },
+    tool: {
+      note_write,
     },
   }
 }

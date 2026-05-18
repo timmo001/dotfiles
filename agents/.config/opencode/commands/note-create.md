@@ -30,12 +30,16 @@ Auto-generate a kebab-case slug from the summary topic. Rules:
 
 ## Step 3: Create the note
 
-Read the `notes_path` from the `<repository>` section of the injected context.
+Read `Notes path` from the `<repository>` section of the injected context.
 
-1. Create the directory if it does not exist: `mkdir -p {notes_path}`
-2. Write the note to `{notes_path}/{slug}.md`
+1. Generate the full note content using the format below.
+2. Call the `note_write` tool with:
+   - `path`: `{notes_path}/{slug}.md`
+   - `content`: the full note content
 
-Use this exact format:
+Do **not** use the `write`, `bash`, or any other tool to write the file — only `note_write`.
+
+Use this exact format for `content`:
 
 ```markdown
 ---
