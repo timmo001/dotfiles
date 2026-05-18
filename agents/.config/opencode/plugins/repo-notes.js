@@ -153,7 +153,7 @@ export const RepoNotesPlugin = async ({ $ }) => {
         $`find ${notesPath} -maxdepth 1 -name "*.md" -printf "%T@ %f\n"`.text(),
       )
       if (listResult.ok && listResult.text) {
-        existingNotes = listResult.text
+        const sorted = listResult.text
           .split(/\r?\n/g)
           .map((line) => {
             const spaceIdx = line.trim().indexOf(" ")
@@ -165,10 +165,29 @@ export const RepoNotesPlugin = async ({ $ }) => {
           .filter(Boolean)
           .filter((e) => e.filename)
           .sort((a, b) => b.mtime - a.mtime)
-          .map((e) => {
-            const date = new Date(e.mtime * 1000).toISOString().slice(0, 10)
-            return `${e.filename} (last modified: ${date})`
-          })
+
+        // Read frontmatter (name + description) from each file for readable labels
+        existingNotes = await Promise.all(
+          sorted.map(async ({ filename, mtime }) => {
+            const filePath = `${notesPath}/${filename}`
+            const date = new Date(mtime * 1000).toISOString().slice(0, 10)
+            const headResult = await run(() => $`head -20 ${filePath}`.text())
+            let name = null
+            let description = null
+            if (headResult.ok && headResult.text) {
+              const nameMatch = headResult.text.match(/^name:\s*(.+)$/m)
+              const descMatch = headResult.text.match(/^description:\s*(.+)$/m)
+              if (nameMatch) name = nameMatch[1].trim()
+              if (descMatch) description = descMatch[1].trim()
+            }
+            const label = name
+              ? description
+                ? `${filename} — ${name}: ${description} (last modified: ${date})`
+                : `${filename} — ${name} (last modified: ${date})`
+              : `${filename} (last modified: ${date})`
+            return label
+          }),
+        )
       } else if (!listResult.ok) {
         warnings.push(`Unable to list existing notes: ${listResult.error}`)
       }

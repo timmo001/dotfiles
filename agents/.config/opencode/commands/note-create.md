@@ -42,10 +42,12 @@ Use this exact format:
 repo: {owner}/{repo}
 branch: {branch}
 date: {YYYY-MM-DD}
+name: {Short human-readable title, 3–6 words, Title Case}
+description: {One sentence describing what this note covers}
 tags: []
 ---
 
-# {Title — human-readable version of the slug}
+# {name value repeated here as the heading}
 
 ## Summary
 
