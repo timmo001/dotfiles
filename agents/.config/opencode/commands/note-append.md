@@ -44,7 +44,8 @@ Omit any section that has no new content for this session.
 
 ## Step 4: Rewrite the note with integrated content
 
-1. Read the full content of the selected note file using the `read` tool (path: `{notes_path}/{filename}`)
+1. Call the `note_read` tool with `path: {notes_path}/{filename}` to get the full existing content.
+   Do **not** use the built-in `read` tool — it is blocked for the notes vault.
 2. Integrate the new content into the appropriate sections:
    - Append new bullet items to existing sections (Key Ideas, Decisions, Actions Taken, Open Threads)
    - If a section in the existing note is missing but has new content, add it

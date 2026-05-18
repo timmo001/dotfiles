@@ -132,15 +132,39 @@ const formatErrorContext = (message, error) => {
 }
 
 export const RepoNotesPlugin = async ({ $ }) => {
-  // Custom tool: the LLM calls this to write a note file.
+  // Custom tools for note I/O.
   // Args use plain JSON Schema 7 objects — OpenCode falls back to legacyJsonSchema
   // when args are not Zod types, so no imports are required.
+  // Direct read/write/edit/bash access to the notes vault is blocked by notes-guard.js;
+  // these tools are the only permitted path for note file I/O.
+
+  const note_read = {
+    description:
+      "Read the full content of a note file from the notes vault. " +
+      "Use this to read an existing note before appending to it. " +
+      "This is the ONLY permitted way to read note files — the built-in read tool is blocked for the notes vault.",
+    args: {
+      path: {
+        type: "string",
+        description: "Absolute path to the note file (e.g. /home/user/Documents/notes/repo-notes/owner/repo/slug.md)",
+      },
+    },
+    async execute(args) {
+      try {
+        const content = await Bun.file(args.path).text()
+        return content
+      } catch (e) {
+        throw new Error(`note_read: failed to read file ${args.path}: ${errorMessage(e)}`)
+      }
+    },
+  }
+
   const note_write = {
     description:
       "Write a note file to the notes vault. " +
       "Used exclusively by note-create and note-append to persist generated note content to disk. " +
       "Creates parent directories automatically. " +
-      "Do NOT use the built-in write or bash tools to write note files — always use this tool.",
+      "This is the ONLY permitted way to write note files — the built-in write, edit, and bash tools are blocked for the notes vault.",
     args: {
       path: {
         type: "string",
@@ -340,6 +364,7 @@ export const RepoNotesPlugin = async ({ $ }) => {
       output.parts.unshift({ type: "text", text })
     },
     tool: {
+      note_read,
       note_write,
     },
   }
