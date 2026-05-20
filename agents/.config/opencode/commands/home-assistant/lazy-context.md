@@ -5,7 +5,7 @@ description: Review and fix Home Assistant frontend lazy-context and memoization
 
 # Review Lazy Context Usage
 
-Load and apply the `ha-frontend` and `ha-lazy-context` skills before editing.
+Load and apply the `home-assistant-frontend` and `home-assistant-lazy-context` skills before editing.
 
 ## Build Scope
 

@@ -5,7 +5,7 @@ description: Review and fix Home Assistant Lit rendering and picker callback-sha
 
 # Review Lit Rendering Patterns
 
-Load and apply the `ha-frontend`, `lit-rendering`, and `ha-lit-rendering` skills before editing.
+Load and apply the `home-assistant-frontend`, `lit-rendering`, and `home-assistant-lit-rendering` skills before editing.
 
 ## Build Scope
 

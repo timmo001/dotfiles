@@ -9,18 +9,18 @@ Load and apply all Home Assistant frontend skills before editing.
 
 Apply skill groups by pattern so new skills are picked up automatically:
 
-- Apply `ha-frontend` as the base skill.
-- Apply all `ha-*` skills.
+- Apply `home-assistant-frontend` as the base skill.
+- Apply all `home-assistant-*` skills.
 - Apply all `lit-*` skills.
 - Apply all `*-ts` skills.
 - Apply cleanup skills for unnecessary variables and single-use helpers.
 
 Current baseline examples:
 
-- `ha-frontend`
-- `ha-lazy-context`
+- `home-assistant-frontend`
+- `home-assistant-lazy-context`
 - `lit-rendering`
-- `ha-lit-rendering`
+- `home-assistant-lit-rendering`
 - `types-enforce-ts`
 - `cleanup-unnecessary-variables`
 - `remove-single-use-functions`
