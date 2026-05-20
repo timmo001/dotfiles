@@ -28,9 +28,9 @@ const WORK_SCOPE_COMMANDS = new Set([
   "all-ts-skills",
 
   // Home Assistant
-  "home-assistant-private/all-frontend-skills",
-  "home-assistant-private/lazy-context",
-  "home-assistant-private/lit-rendering",
+  "home-assistant/all-frontend-skills",
+  "home-assistant/lazy-context",
+  "home-assistant/lit-rendering",
 ])
 const TARGET_COMMANDS = new Set([...BRANCH_CONTEXT_COMMANDS, ...WORK_SCOPE_COMMANDS])
 const PR_CHECKS_CHAR_LIMIT = 40000
