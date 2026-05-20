@@ -1,5 +1,5 @@
 ---
-name: ha-lit-rendering
+name: home-assistant-lit-rendering
 description: Home Assistant Lit rendering extensions for HA components and context-aware picker callback shape.
 ---
 

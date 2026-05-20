@@ -1,5 +1,5 @@
 ---
-name: ha-lazy-context
+name: home-assistant-lazy-context
 description: Home Assistant frontend lazy-context and memoization guidance for context-aware components.
 ---
 

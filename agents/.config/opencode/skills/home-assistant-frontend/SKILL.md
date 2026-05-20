@@ -1,5 +1,5 @@
 ---
-name: ha-frontend
+name: home-assistant-frontend
 description: Home Assistant frontend development with Lit Web Components and TypeScript. Use when working in the Home Assistant frontend repo, editing ha-* components, reviewing HA PRs, or applying HA-specific conventions (localization, theming, dialogs, panels, cards).
 ---
 
@@ -19,8 +19,8 @@ Use this skill when working in the Home Assistant frontend repository or on code
 This skill works alongside and does not replace:
 
 - `lit-rendering` — generic Lit rendering and memoization
-- `ha-lit-rendering` — HA-specific Lit rendering extensions
-- `ha-lazy-context` — HA lazy-context and memoization guidance
+- `home-assistant-lit-rendering` — HA-specific Lit rendering extensions
+- `home-assistant-lazy-context` — HA lazy-context and memoization guidance
 - `types-enforce-ts` — TypeScript type-safety baseline
 - `cleanup-unnecessary-variables` — safe variable cleanup
 - `remove-single-use-functions` — safe function inlining
