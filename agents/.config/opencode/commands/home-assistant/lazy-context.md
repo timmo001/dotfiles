@@ -34,7 +34,7 @@ src/panels/config/integrations/integration-panels/zwave_js/dialog-zwave_js-rebui
 src/panels/lovelace/cards/hui-button-card.ts
 ```
 
-If the scope is primarily Lit rendering and picker callback-shape changes, also apply `home-assistant/lit-rendering` (which applies both `lit-rendering` and `ha-lit-rendering` skills).
+If the scope is primarily Lit rendering and picker callback-shape changes, also apply `home-assistant/lit-rendering` (which applies both `lit-rendering` and `home-assistant-lit-rendering` skills).
 
 ## Verification
 
