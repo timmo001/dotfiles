@@ -70,7 +70,45 @@ When a component adopts context, the `hass` property is removed. This requires r
    - Never pass the full `HomeAssistant` object.
 
 3. **Helper/utility functions** (pure data functions):
-   - Type the parameter as `Pick<HomeAssistant, "callWS">` or accept only the narrow value (e.g. `states: HassEntities`, `locale: FrontendLocaleData`).
+   - Narrow the parameter from `HomeAssistant` to `Pick<HomeAssistant, "callWS">` (or the single value needed).
+   - This lets the consuming component pass its context slice directly (e.g. `this._api`) without reconstructing `hass`.
+   - Prefer narrowing the helper over changing every caller — keeps the scope of the change small.
+
+### Narrowing Helpers to Avoid Scope Explosion
+
+When a component adopts context, its helpers still need data. Rather than passing a reconstructed `hass`-like object or converting every caller, **narrow the helper signature** so the context slice satisfies it directly:
+
+```ts
+// BEFORE: helper accepts full hass
+export const fetchDeviceTriggers = (hass: HomeAssistant, deviceId: string) =>
+  hass.callWS<DeviceTrigger[]>({...});
+
+// AFTER: helper accepts only what it uses
+export const fetchDeviceTriggers = (
+  hass: Pick<HomeAssistant, "callWS">,
+  deviceId: string
+) => hass.callWS<DeviceTrigger[]>({...});
+```
+
+The component then passes its context slice directly:
+
+```ts
+// Component consumes apiContext (which satisfies Pick<HomeAssistant, "callWS">)
+@state()
+@consume({ context: apiContext, subscribe: true })
+private _api!: ContextType<typeof apiContext>;
+
+// Passes directly — no reconstruction needed
+const triggers = await fetchDeviceTriggers(this._api, deviceId);
+```
+
+This keeps the change focused: the dialog/panel adopts context, the helpers get narrowed types, and all other callers of those helpers still work unchanged (since `HomeAssistant` satisfies `Pick<HomeAssistant, "callWS">`).
+
+### When to Use `Pick` vs Individual Values
+
+- **`Pick<HomeAssistant, "callWS">`** — when the helper uses methods from a single context group and the existing param name `hass` stays readable. Keeps changes minimal.
+- **Individual value** (e.g. `states: HassEntities`) — when passing a plain data map that the helper iterates/reads. More explicit, avoids the `hass.` prefix.
+- **`Pick` with multiple keys** — avoid unless strictly necessary. If a helper needs `"callWS" | "localize"`, consider splitting it or accepting the grouped context type directly.
 
 ### Consumption Pattern
 
@@ -82,9 +120,13 @@ private _api!: ContextType<typeof apiContext>;
 @state()
 @consume({ context: internationalizationContext, subscribe: true })
 private _i18n!: ContextType<typeof internationalizationContext>;
+
+@state()
+@consume({ context: statesContext, subscribe: true })
+private _states!: ContextType<typeof statesContext>;
 ```
 
-Usage: `this._api.callWS(...)`, `this._i18n.localize(...)`.
+Usage: `this._api.callWS(...)`, `this._i18n.localize(...)`, `this._states[entityId]`.
 
 ## Rules
 
