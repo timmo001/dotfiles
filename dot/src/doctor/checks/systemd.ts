@@ -23,12 +23,16 @@ export const checkWorkflowWatch = Effect.gen(function* () {
 
   const hooksPath = join(HOME, ".config", "git", "hooks");
   if (existsSync(hooksPath)) {
-    results.push({ severity: "ok", message: `Workflow watch hooks path exists: ${displayPath(hooksPath)}` });
+    results.push({
+      severity: "ok",
+      message: `Workflow watch hooks path exists: ${displayPath(hooksPath)}`,
+    });
   } else {
     results.push({
       severity: "warn",
       message: `Workflow watch hooks path is missing: ${displayPath(hooksPath)}`,
-      detail: "Run dot stow or dot init to install the workflow watch hook package",
+      detail:
+        "Run dot stow or dot init to install the workflow watch hook package",
     });
   }
 
@@ -38,8 +42,14 @@ export const checkWorkflowWatch = Effect.gen(function* () {
     .pipe(Effect.catch(() => Effect.succeed("")));
   const trimmedHooksPath = configuredHooksPath.trim();
 
-  if (trimmedHooksPath === hooksPath || trimmedHooksPath === displayPath(hooksPath)) {
-    results.push({ severity: "ok", message: `Global git hooksPath points to workflow watch hooks` });
+  if (
+    trimmedHooksPath === hooksPath ||
+    trimmedHooksPath === displayPath(hooksPath)
+  ) {
+    results.push({
+      severity: "ok",
+      message: `Global git hooksPath points to workflow watch hooks`,
+    });
   } else if (trimmedHooksPath) {
     results.push({
       severity: "warn",
@@ -57,21 +67,32 @@ export const checkWorkflowWatch = Effect.gen(function* () {
   // Check repos file
   const reposFile = join(XDG_CONFIG_HOME, "git-workflow-watch", "repos");
   if (existsSync(reposFile)) {
-    results.push({ severity: "ok", message: `Workflow watch repo list found: ${displayPath(reposFile)}` });
+    results.push({
+      severity: "ok",
+      message: `Workflow watch repo list found: ${displayPath(reposFile)}`,
+    });
   } else {
     results.push({
       severity: "warn",
       message: `Workflow watch repo list missing: ${displayPath(reposFile)}`,
-      detail: "Add watched repositories in private dotfiles to enable workflow monitoring",
+      detail:
+        "Add watched repositories in private dotfiles to enable workflow monitoring",
     });
   }
 
   // Systemctl timer checks
   const hasSystemctl = (yield* executor.exitCode("which", ["systemctl"])) === 0;
   if (hasSystemctl) {
-    const enabled = yield* executor.exitCode("systemctl", ["--user", "is-enabled", WORKFLOW_WATCH_TIMER_UNIT]);
+    const enabled = yield* executor.exitCode("systemctl", [
+      "--user",
+      "is-enabled",
+      WORKFLOW_WATCH_TIMER_UNIT,
+    ]);
     if (enabled === 0) {
-      results.push({ severity: "ok", message: `Workflow watch timer enabled: ${WORKFLOW_WATCH_TIMER_UNIT}` });
+      results.push({
+        severity: "ok",
+        message: `Workflow watch timer enabled: ${WORKFLOW_WATCH_TIMER_UNIT}`,
+      });
     } else {
       results.push({
         severity: "warn",
@@ -80,20 +101,36 @@ export const checkWorkflowWatch = Effect.gen(function* () {
       });
     }
 
-    const active = yield* executor.exitCode("systemctl", ["--user", "is-active", WORKFLOW_WATCH_TIMER_UNIT]);
+    const active = yield* executor.exitCode("systemctl", [
+      "--user",
+      "is-active",
+      WORKFLOW_WATCH_TIMER_UNIT,
+    ]);
     if (active === 0) {
-      results.push({ severity: "ok", message: `Workflow watch timer active: ${WORKFLOW_WATCH_TIMER_UNIT}` });
+      results.push({
+        severity: "ok",
+        message: `Workflow watch timer active: ${WORKFLOW_WATCH_TIMER_UNIT}`,
+      });
     } else {
-      results.push({ severity: "warn", message: `Workflow watch timer is not active: ${WORKFLOW_WATCH_TIMER_UNIT}` });
+      results.push({
+        severity: "warn",
+        message: `Workflow watch timer is not active: ${WORKFLOW_WATCH_TIMER_UNIT}`,
+      });
     }
   } else {
-    results.push({ severity: "warn", message: "Skipping workflow watch timer checks (systemctl not found)" });
+    results.push({
+      severity: "warn",
+      message: "Skipping workflow watch timer checks (systemctl not found)",
+    });
   }
 
   // Check script executable
   const watchScript = join(HOME, ".local", "bin", "git-workflow-watch");
   if (existsSync(watchScript)) {
-    results.push({ severity: "ok", message: `Workflow watch script is executable: ${displayPath(watchScript)}` });
+    results.push({
+      severity: "ok",
+      message: `Workflow watch script is executable: ${displayPath(watchScript)}`,
+    });
   } else {
     results.push({
       severity: "warn",
@@ -111,10 +148,18 @@ export const checkDoctorStartup = Effect.gen(function* () {
   const results: CheckResult[] = [];
 
   const notifyScript = join(HOME, ".local", "bin", "dot-doctor-notify");
-  const unitPath = join(XDG_CONFIG_HOME, "systemd", "user", DOCTOR_STARTUP_TIMER_UNIT);
+  const unitPath = join(
+    XDG_CONFIG_HOME,
+    "systemd",
+    "user",
+    DOCTOR_STARTUP_TIMER_UNIT,
+  );
 
   if (existsSync(notifyScript)) {
-    results.push({ severity: "ok", message: `Doctor startup notify script found: ${displayPath(notifyScript)}` });
+    results.push({
+      severity: "ok",
+      message: `Doctor startup notify script found: ${displayPath(notifyScript)}`,
+    });
   } else {
     results.push({
       severity: "warn",
@@ -123,7 +168,10 @@ export const checkDoctorStartup = Effect.gen(function* () {
   }
 
   if (existsSync(unitPath)) {
-    results.push({ severity: "ok", message: `Doctor startup timer unit file found: ${displayPath(unitPath)}` });
+    results.push({
+      severity: "ok",
+      message: `Doctor startup timer unit file found: ${displayPath(unitPath)}`,
+    });
   } else {
     results.push({
       severity: "warn",
@@ -134,9 +182,16 @@ export const checkDoctorStartup = Effect.gen(function* () {
 
   const hasSystemctl = (yield* executor.exitCode("which", ["systemctl"])) === 0;
   if (hasSystemctl) {
-    const enabled = yield* executor.exitCode("systemctl", ["--user", "is-enabled", DOCTOR_STARTUP_TIMER_UNIT]);
+    const enabled = yield* executor.exitCode("systemctl", [
+      "--user",
+      "is-enabled",
+      DOCTOR_STARTUP_TIMER_UNIT,
+    ]);
     if (enabled === 0) {
-      results.push({ severity: "ok", message: `Doctor startup timer enabled: ${DOCTOR_STARTUP_TIMER_UNIT}` });
+      results.push({
+        severity: "ok",
+        message: `Doctor startup timer enabled: ${DOCTOR_STARTUP_TIMER_UNIT}`,
+      });
     } else {
       results.push({
         severity: "warn",
@@ -145,14 +200,27 @@ export const checkDoctorStartup = Effect.gen(function* () {
       });
     }
 
-    const active = yield* executor.exitCode("systemctl", ["--user", "is-active", DOCTOR_STARTUP_TIMER_UNIT]);
+    const active = yield* executor.exitCode("systemctl", [
+      "--user",
+      "is-active",
+      DOCTOR_STARTUP_TIMER_UNIT,
+    ]);
     if (active === 0) {
-      results.push({ severity: "ok", message: `Doctor startup timer active: ${DOCTOR_STARTUP_TIMER_UNIT}` });
+      results.push({
+        severity: "ok",
+        message: `Doctor startup timer active: ${DOCTOR_STARTUP_TIMER_UNIT}`,
+      });
     } else {
-      results.push({ severity: "warn", message: `Doctor startup timer is not active: ${DOCTOR_STARTUP_TIMER_UNIT}` });
+      results.push({
+        severity: "warn",
+        message: `Doctor startup timer is not active: ${DOCTOR_STARTUP_TIMER_UNIT}`,
+      });
     }
   } else {
-    results.push({ severity: "warn", message: "Skipping doctor startup timer checks (systemctl not found)" });
+    results.push({
+      severity: "warn",
+      message: "Skipping doctor startup timer checks (systemctl not found)",
+    });
   }
 
   return results;
@@ -170,49 +238,96 @@ export const checkDailyVolumeReset = Effect.gen(function* () {
   const timerUnit = join(systemdDir, DAILY_VOLUME_ZERO_TIMER_UNIT);
 
   if (existsSync(script)) {
-    results.push({ severity: "ok", message: `Daily volume reset script found: ${displayPath(script)}` });
+    results.push({
+      severity: "ok",
+      message: `Daily volume reset script found: ${displayPath(script)}`,
+    });
   } else {
-    results.push({ severity: "ok", message: `Daily volume reset script missing: ${displayPath(script)}` });
+    results.push({
+      severity: "ok",
+      message: `Daily volume reset script missing: ${displayPath(script)}`,
+    });
   }
 
   if (existsSync(serviceUnit)) {
-    results.push({ severity: "ok", message: `Daily volume reset service unit file found: ${displayPath(serviceUnit)}` });
+    results.push({
+      severity: "ok",
+      message: `Daily volume reset service unit file found: ${displayPath(serviceUnit)}`,
+    });
   } else {
-    const detail = host === "laptop"
-      ? "Run dot stow (or dot install) to link systemd user units if you want this optional timer"
-      : `Daily volume reset is laptop-only; not linking it for OMARCHY_HOST=${host}`;
-    results.push({ severity: "ok", message: `Daily volume reset service unit file missing: ${displayPath(serviceUnit)}`, detail });
+    const detail =
+      host === "laptop"
+        ? "Run dot stow (or dot install) to link systemd user units if you want this optional timer"
+        : `Daily volume reset is laptop-only; not linking it for OMARCHY_HOST=${host}`;
+    results.push({
+      severity: "ok",
+      message: `Daily volume reset service unit file missing: ${displayPath(serviceUnit)}`,
+      detail,
+    });
   }
 
   if (existsSync(timerUnit)) {
-    results.push({ severity: "ok", message: `Daily volume reset timer unit file found: ${displayPath(timerUnit)}` });
+    results.push({
+      severity: "ok",
+      message: `Daily volume reset timer unit file found: ${displayPath(timerUnit)}`,
+    });
   } else {
-    const detail = host === "laptop"
-      ? "Run dot stow (or dot install) to link systemd user units if you want this optional timer"
-      : `Daily volume reset is laptop-only; not linking it for OMARCHY_HOST=${host}`;
-    results.push({ severity: "ok", message: `Daily volume reset timer unit file missing: ${displayPath(timerUnit)}`, detail });
+    const detail =
+      host === "laptop"
+        ? "Run dot stow (or dot install) to link systemd user units if you want this optional timer"
+        : `Daily volume reset is laptop-only; not linking it for OMARCHY_HOST=${host}`;
+    results.push({
+      severity: "ok",
+      message: `Daily volume reset timer unit file missing: ${displayPath(timerUnit)}`,
+      detail,
+    });
   }
 
   const hasSystemctl = (yield* executor.exitCode("which", ["systemctl"])) === 0;
   if (hasSystemctl) {
-    const enabled = yield* executor.exitCode("systemctl", ["--user", "is-enabled", DAILY_VOLUME_ZERO_TIMER_UNIT]);
+    const enabled = yield* executor.exitCode("systemctl", [
+      "--user",
+      "is-enabled",
+      DAILY_VOLUME_ZERO_TIMER_UNIT,
+    ]);
     if (enabled === 0) {
-      results.push({ severity: "ok", message: `Daily volume reset timer enabled: ${DAILY_VOLUME_ZERO_TIMER_UNIT}` });
+      results.push({
+        severity: "ok",
+        message: `Daily volume reset timer enabled: ${DAILY_VOLUME_ZERO_TIMER_UNIT}`,
+      });
     } else {
-      const detail = host === "laptop"
-        ? `Enable with: systemctl --user enable --now ${DAILY_VOLUME_ZERO_TIMER_UNIT}`
-        : `Daily volume reset is laptop-only; leave it disabled for OMARCHY_HOST=${host}`;
-      results.push({ severity: "ok", message: `Daily volume reset timer is disabled: ${DAILY_VOLUME_ZERO_TIMER_UNIT}`, detail });
+      const detail =
+        host === "laptop"
+          ? `Enable with: systemctl --user enable --now ${DAILY_VOLUME_ZERO_TIMER_UNIT}`
+          : `Daily volume reset is laptop-only; leave it disabled for OMARCHY_HOST=${host}`;
+      results.push({
+        severity: "ok",
+        message: `Daily volume reset timer is disabled: ${DAILY_VOLUME_ZERO_TIMER_UNIT}`,
+        detail,
+      });
     }
 
-    const active = yield* executor.exitCode("systemctl", ["--user", "is-active", DAILY_VOLUME_ZERO_TIMER_UNIT]);
+    const active = yield* executor.exitCode("systemctl", [
+      "--user",
+      "is-active",
+      DAILY_VOLUME_ZERO_TIMER_UNIT,
+    ]);
     if (active === 0) {
-      results.push({ severity: "ok", message: `Daily volume reset timer active: ${DAILY_VOLUME_ZERO_TIMER_UNIT}` });
+      results.push({
+        severity: "ok",
+        message: `Daily volume reset timer active: ${DAILY_VOLUME_ZERO_TIMER_UNIT}`,
+      });
     } else {
-      results.push({ severity: "ok", message: `Daily volume reset timer is not active: ${DAILY_VOLUME_ZERO_TIMER_UNIT}` });
+      results.push({
+        severity: "ok",
+        message: `Daily volume reset timer is not active: ${DAILY_VOLUME_ZERO_TIMER_UNIT}`,
+      });
     }
   } else {
-    results.push({ severity: "ok", message: "Skipping daily volume reset timer checks (systemctl not found)" });
+    results.push({
+      severity: "ok",
+      message: "Skipping daily volume reset timer checks (systemctl not found)",
+    });
   }
 
   return results;

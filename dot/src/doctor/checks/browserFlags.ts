@@ -22,7 +22,14 @@ export const checkBrowserFlags = Effect.gen(function* () {
   const browserFlagsPkgDir = config.privateDotfiles
     ? join(config.privateDotfiles, browserFlagsHostPkg)
     : null;
-  const omarchyDefaultFlags = join(HOME, ".local", "share", "omarchy", "config", "chromium-flags.conf");
+  const omarchyDefaultFlags = join(
+    HOME,
+    ".local",
+    "share",
+    "omarchy",
+    "config",
+    "chromium-flags.conf",
+  );
 
   if (host && browserFlagsPkgDir && existsSync(browserFlagsPkgDir)) {
     let flagsOk = true;
@@ -56,7 +63,10 @@ export const checkBrowserFlags = Effect.gen(function* () {
     }
 
     if (flagsOk) {
-      results.push({ severity: "ok", message: `Browser flags stowed from ${browserFlagsHostPkg}` });
+      results.push({
+        severity: "ok",
+        message: `Browser flags stowed from ${browserFlagsHostPkg}`,
+      });
     }
   } else if (host && config.canUsePrivate) {
     results.push({
@@ -64,13 +74,23 @@ export const checkBrowserFlags = Effect.gen(function* () {
       message: `Missing ${browserFlagsHostPkg} package in ${displayPath(config.privateDotfiles ?? "")}`,
     });
   } else if (!host) {
-    results.push({ severity: "warn", message: "OMARCHY_HOST is not set \u2014 cannot check browser flags" });
+    results.push({
+      severity: "warn",
+      message: "OMARCHY_HOST is not set \u2014 cannot check browser flags",
+    });
   } else {
-    results.push({ severity: "ok", message: "Browser flags using omarchy defaults (private repo unavailable)" });
+    results.push({
+      severity: "ok",
+      message:
+        "Browser flags using omarchy defaults (private repo unavailable)",
+    });
   }
 
   // Diff live flags against omarchy defaults
-  if (existsSync(omarchyDefaultFlags) && existsSync(join(HOME, ".config", "chromium-flags.conf"))) {
+  if (
+    existsSync(omarchyDefaultFlags) &&
+    existsSync(join(HOME, ".config", "chromium-flags.conf"))
+  ) {
     const diffResult = yield* executor
       .run("bash", [
         "-c",
@@ -79,7 +99,10 @@ export const checkBrowserFlags = Effect.gen(function* () {
       .pipe(Effect.catch(() => Effect.succeed("")));
 
     if (!diffResult.trim()) {
-      results.push({ severity: "ok", message: "chromium-flags.conf is identical to omarchy defaults" });
+      results.push({
+        severity: "ok",
+        message: "chromium-flags.conf is identical to omarchy defaults",
+      });
     } else {
       results.push({
         severity: "ok",

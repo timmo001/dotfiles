@@ -92,9 +92,13 @@ export const doctor = (opts?: { readonly openOpencode?: boolean }) =>
     if (report.errors === 0 && report.warnings === 0) {
       yield* log.info("Doctor finished: no critical issues found");
     } else if (report.errors === 0) {
-      yield* log.warn(`Doctor finished: no critical issues, ${report.warnings} warning(s)`);
+      yield* log.warn(
+        `Doctor finished: no critical issues, ${report.warnings} warning(s)`,
+      );
     } else {
-      yield* log.error(`Doctor finished: ${report.errors} critical issue(s), ${report.warnings} warning(s)`);
+      yield* log.error(
+        `Doctor finished: ${report.errors} critical issue(s), ${report.warnings} warning(s)`,
+      );
     }
 
     // Write report to file
@@ -107,9 +111,9 @@ export const doctor = (opts?: { readonly openOpencode?: boolean }) =>
 
       const opencodePrompt = `Review the dot doctor report at ${reportPath}. Read it with the Read tool first. Give a concise diagnosis of any issues or warnings, probable causes, and a prioritized action plan to resolve them.`;
 
-      yield* launcher.suspend(`opencode --prompt ${JSON.stringify(opencodePrompt)}`).pipe(
-        Effect.catch(() => Effect.void),
-      );
+      yield* launcher
+        .suspend(`opencode --prompt ${JSON.stringify(opencodePrompt)}`)
+        .pipe(Effect.catch(() => Effect.void));
     }
 
     // Exit with error status if critical issues found

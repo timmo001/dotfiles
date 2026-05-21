@@ -50,7 +50,10 @@ export const checkPacmanHooks = Effect.gen(function* () {
           detail: `Run: pkexec install -Dm644 ${sourceFile} ${installedFile}`,
         });
       } else {
-        results.push({ severity: "ok", message: `Pacman hook installed: ${hookName}` });
+        results.push({
+          severity: "ok",
+          message: `Pacman hook installed: ${hookName}`,
+        });
       }
     } catch {
       results.push({

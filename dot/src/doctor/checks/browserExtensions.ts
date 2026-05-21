@@ -30,10 +30,15 @@ export const checkBrowserExtensions = Effect.gen(function* () {
 
   const configFile =
     process.env.DOT_PRIVATE_BROWSER_CHECKS_FILE ??
-    (config.privateDotfiles ? join(config.privateDotfiles, ".dot-browser-checks") : null);
+    (config.privateDotfiles
+      ? join(config.privateDotfiles, ".dot-browser-checks")
+      : null);
 
   if (!configFile || !existsSync(configFile)) {
-    results.push({ severity: "ok", message: "No private browser checks configured" });
+    results.push({
+      severity: "ok",
+      message: "No private browser checks configured",
+    });
     return results;
   }
 
@@ -41,7 +46,10 @@ export const checkBrowserExtensions = Effect.gen(function* () {
   try {
     content = readFileSync(configFile, "utf-8");
   } catch {
-    results.push({ severity: "warn", message: `Could not read browser checks file: ${displayPath(configFile)}` });
+    results.push({
+      severity: "warn",
+      message: `Could not read browser checks file: ${displayPath(configFile)}`,
+    });
     return results;
   }
 
@@ -49,7 +57,9 @@ export const checkBrowserExtensions = Effect.gen(function* () {
     const line = rawLine.trim();
     if (!line || line.startsWith("#")) continue;
 
-    const [kind, rawProfileDir, target, label, hint] = line.split("|").map((s) => s.trim());
+    const [kind, rawProfileDir, target, label, hint] = line
+      .split("|")
+      .map((s) => s.trim());
     if (!kind || !rawProfileDir || !target || !label) continue;
 
     const profileDir = rawProfileDir.replace(/^~/, HOME);
@@ -75,7 +85,10 @@ export const checkBrowserExtensions = Effect.gen(function* () {
     try {
       prefs = readFileSync(prefsFile, "utf-8");
     } catch {
-      results.push({ severity: "warn", message: `Could not read Preferences for ${label}` });
+      results.push({
+        severity: "warn",
+        message: `Could not read Preferences for ${label}`,
+      });
       continue;
     }
 
@@ -85,7 +98,8 @@ export const checkBrowserExtensions = Effect.gen(function* () {
       found = prefs.includes(`"${target}"`);
     } else if (kind === "chromium-name") {
       // Check by extension name in manifest
-      found = prefs.includes(`"name": "${target}"`) || prefs.includes(`"${target}"`);
+      found =
+        prefs.includes(`"name": "${target}"`) || prefs.includes(`"${target}"`);
     }
 
     if (found) {

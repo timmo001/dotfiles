@@ -18,7 +18,10 @@ export const checkOmarchy = Effect.gen(function* () {
   const results: CheckResult[] = [];
 
   if (!config.omarchy.enabled) {
-    results.push({ severity: "ok", message: "Omarchy diff repos are disabled" });
+    results.push({
+      severity: "ok",
+      message: "Omarchy diff repos are disabled",
+    });
     return results;
   }
 
@@ -29,7 +32,10 @@ export const checkOmarchy = Effect.gen(function* () {
     const repoPath = join(repoBase, repoName);
 
     if (!existsSync(join(repoPath, ".git"))) {
-      results.push({ severity: "warn", message: `Missing git repo ${displayPath(repoPath)}` });
+      results.push({
+        severity: "warn",
+        message: `Missing git repo ${displayPath(repoPath)}`,
+      });
       continue;
     }
 
@@ -44,7 +50,10 @@ export const checkOmarchy = Effect.gen(function* () {
     if (remote) {
       results.push({ severity: "ok", message: `Remote OK for ${repoName}` });
     } else {
-      results.push({ severity: "warn", message: `Remote mismatch for ${repoName}` });
+      results.push({
+        severity: "warn",
+        message: `Remote mismatch for ${repoName}`,
+      });
     }
   }
 
@@ -52,7 +61,12 @@ export const checkOmarchy = Effect.gen(function* () {
   for (const repoName of config.omarchy.worktreeRepos) {
     const repoPath = join(repoBase, repoName);
 
-    const isGit = yield* executor.exitCode("git", ["-C", repoPath, "rev-parse", "--is-inside-work-tree"]);
+    const isGit = yield* executor.exitCode("git", [
+      "-C",
+      repoPath,
+      "rev-parse",
+      "--is-inside-work-tree",
+    ]);
     if (isGit !== 0) {
       results.push({
         severity: "warn",
@@ -73,7 +87,11 @@ export const checkOmarchy = Effect.gen(function* () {
 
       // Check if branch ref exists
       const branchExists = yield* executor.exitCode("git", [
-        "-C", repoPath, "rev-parse", "--verify", `refs/heads/${branchName}`,
+        "-C",
+        repoPath,
+        "rev-parse",
+        "--verify",
+        `refs/heads/${branchName}`,
       ]);
       if (branchExists !== 0) {
         results.push({
@@ -85,7 +103,10 @@ export const checkOmarchy = Effect.gen(function* () {
 
       const worktreePath = join(repoBase, `${repoName}-${branchName}`);
       const worktreeIsGit = yield* executor.exitCode("git", [
-        "-C", worktreePath, "rev-parse", "--is-inside-work-tree",
+        "-C",
+        worktreePath,
+        "rev-parse",
+        "--is-inside-work-tree",
       ]);
 
       if (worktreeIsGit === 0) {

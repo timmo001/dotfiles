@@ -12,9 +12,15 @@ function displayPath(p: string): string {
 }
 
 /** Special package name alias handling (matches dot-lib) */
-function resolvePackageName(name: string): { display: string; installed: string } {
+function resolvePackageName(name: string): {
+  display: string;
+  installed: string;
+} {
   if (name === "go-automate-git") {
-    return { display: "go-automate (go-automate-git)", installed: "go-automate-git" };
+    return {
+      display: "go-automate (go-automate-git)",
+      installed: "go-automate-git",
+    };
   }
   return { display: name, installed: name };
 }
@@ -46,7 +52,10 @@ export const checkPublicPackages = Effect.gen(function* () {
 
   const packages = loadPackageList(packagesFile);
   if (packages.length === 0) {
-    results.push({ severity: "warn", message: "Could not load public packages file" });
+    results.push({
+      severity: "warn",
+      message: "Could not load public packages file",
+    });
     return results;
   }
 
@@ -55,9 +64,10 @@ export const checkPublicPackages = Effect.gen(function* () {
 
     // Check if installed (try both names for aliased packages)
     const isInstalled = yield* executor.exitCode("pacman", ["-Q", installed]);
-    const altInstalled = pkg !== installed
-      ? yield* executor.exitCode("pacman", ["-Q", pkg])
-      : isInstalled;
+    const altInstalled =
+      pkg !== installed
+        ? yield* executor.exitCode("pacman", ["-Q", pkg])
+        : isInstalled;
 
     if (isInstalled !== 0 && altInstalled !== 0) {
       results.push({ severity: "warn", message: `${display} is missing` });
@@ -69,13 +79,19 @@ export const checkPublicPackages = Effect.gen(function* () {
 
     // Version comparison (best effort)
     const installedVersion = yield* executor
-      .run("bash", ["-c", `pacman -Q ${installed} 2>/dev/null | awk '{ print $2 }'`])
+      .run("bash", [
+        "-c",
+        `pacman -Q ${installed} 2>/dev/null | awk '{ print $2 }'`,
+      ])
       .pipe(Effect.catch(() => Effect.succeed("")));
 
     const hasYay = (yield* executor.exitCode("which", ["yay"])) === 0;
     if (hasYay) {
       const latestVersion = yield* executor
-        .run("bash", ["-c", `yay -Si ${pkg} 2>/dev/null | grep '^Version' | awk '{ print $3 }'`])
+        .run("bash", [
+          "-c",
+          `yay -Si ${pkg} 2>/dev/null | grep '^Version' | awk '{ print $3 }'`,
+        ])
         .pipe(Effect.catch(() => Effect.succeed("")));
 
       const iv = installedVersion.trim();
@@ -108,14 +124,19 @@ export const checkPrivatePackageRepo = Effect.gen(function* () {
   const results: CheckResult[] = [];
 
   if (!config.canUsePrivate) {
-    results.push({ severity: "warn", message: `Skipping private package repo checks (${config.privateReason})` });
+    results.push({
+      severity: "warn",
+      message: `Skipping private package repo checks (${config.privateReason})`,
+    });
     return results;
   }
 
   // Check for private package repo config
   const repoConfigFile =
     process.env.DOT_PRIVATE_PACKAGE_REPO_FILE ??
-    (config.privateDotfiles ? join(config.privateDotfiles, ".dot-private-package-repo") : null);
+    (config.privateDotfiles
+      ? join(config.privateDotfiles, ".dot-private-package-repo")
+      : null);
 
   if (!repoConfigFile || !existsSync(repoConfigFile)) {
     results.push({
@@ -129,13 +150,20 @@ export const checkPrivatePackageRepo = Effect.gen(function* () {
   let repoPath = "";
   let mirrorPath = "";
   try {
-    const lines = readFileSync(repoConfigFile, "utf-8").split("\n").filter((l) => l.trim());
+    const lines = readFileSync(repoConfigFile, "utf-8")
+      .split("\n")
+      .filter((l) => l.trim());
     repoPath = (lines[0] ?? "").trim().replace(/^~/, HOME);
     mirrorPath = (lines[1] ?? "").trim().replace(/^~/, HOME);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   if (repoPath && !existsSync(repoPath)) {
-    results.push({ severity: "warn", message: `Missing private package repo clone: ${displayPath(repoPath)}` });
+    results.push({
+      severity: "warn",
+      message: `Missing private package repo clone: ${displayPath(repoPath)}`,
+    });
   }
 
   if (mirrorPath && !existsSync(mirrorPath)) {
@@ -145,7 +173,10 @@ export const checkPrivatePackageRepo = Effect.gen(function* () {
       detail: "Run dot setup-private-repo to sync the mirror",
     });
   } else if (mirrorPath) {
-    results.push({ severity: "ok", message: `Private pacman repo is configured` });
+    results.push({
+      severity: "ok",
+      message: `Private pacman repo is configured`,
+    });
   }
 
   return results;
@@ -158,16 +189,24 @@ export const checkPrivatePackages = Effect.gen(function* () {
   const results: CheckResult[] = [];
 
   if (!config.canUsePrivate) {
-    results.push({ severity: "warn", message: `Skipping private package checks (${config.privateReason})` });
+    results.push({
+      severity: "warn",
+      message: `Skipping private package checks (${config.privateReason})`,
+    });
     return results;
   }
 
   const packagesFile =
     process.env.DOT_PRIVATE_PACKAGES_FILE ??
-    (config.privateDotfiles ? join(config.privateDotfiles, ".dot-private-packages") : null);
+    (config.privateDotfiles
+      ? join(config.privateDotfiles, ".dot-private-packages")
+      : null);
 
   if (!packagesFile || !existsSync(packagesFile)) {
-    results.push({ severity: "warn", message: `Missing private package list: ${displayPath(packagesFile ?? "")}` });
+    results.push({
+      severity: "warn",
+      message: `Missing private package list: ${displayPath(packagesFile ?? "")}`,
+    });
     return results;
   }
 

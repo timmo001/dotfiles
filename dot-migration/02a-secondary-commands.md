@@ -1,8 +1,8 @@
-# Handoff: Phase 2 — Secondary Commands
+# Handoff: Phase 2a — Secondary Commands (Simple)
 
 ## Focus
 
-Port the remaining commands from bash to TypeScript Effect. These are lower-traffic commands that individually are simpler than the Phase 1 core commands. They can be done in any order — pick based on what's most useful to have native.
+Port the simple secondary commands from bash to TypeScript Effect. `skill-updates` is broken out to its own handoff (Phase 2b) due to complexity.
 
 ---
 
@@ -155,29 +155,6 @@ export const agentsSync = Effect.gen(function* () {
 
 ---
 
-### `dot skill-updates` (medium)
-
-Checks skill directories for upstream git changes. Currently sourced from `dot-skill-updates-lib`.
-
-```typescript
-export const skillUpdates = Effect.gen(function* () {
-  const log = yield* OutputLog
-  const executor = yield* CommandExecutor
-
-  const skillsDir = "~/.config/opencode/skills"
-  // For each skill with a .source file (remote URL):
-  //   git fetch, compare HEAD to origin/main
-  //   Report if upstream has new commits
-
-  yield* log.section("Skill Updates")
-  // ... iterate skills, check remotes
-})
-```
-
-Reference: `scripts/.local/bin/dot-skill-updates-lib` for the exact logic.
-
----
-
 ### `dot opencode-debug` (simple)
 
 Runs `opencode debug` subcommands, formats output.
@@ -236,11 +213,12 @@ Keep as bash fallback initially. Port later if desired.
 3. `agents-sync` (simple, frequently used)
 4. `opencode-debug` (simple, frequently used)
 5. `install` (reuses stow)
-6. `skill-updates` (medium)
-7. `setup` (simple but rarely used)
-8. `init` (medium, rarely used — consider keeping as bash fallback)
-9. `setup-private-repo` (keep as bash fallback)
-10. `private-pkg-publish` (keep as bash fallback)
+6. `setup` (simple but rarely used)
+7. `init` (medium, rarely used — consider keeping as bash fallback)
+8. `setup-private-repo` (keep as bash fallback)
+9. `private-pkg-publish` (keep as bash fallback)
+
+`skill-updates` is tracked separately in Phase 2b.
 
 ---
 
@@ -261,7 +239,6 @@ After all are ported, the bash fallback should never trigger for known commands.
 | Path | Why |
 |------|-----|
 | `scripts/.local/bin/dot-legacy` | Full bash script with all command logic |
-| `scripts/.local/bin/dot-skill-updates-lib` | Skill updates logic |
 | `scripts/.local/bin/dot-private-pkg-lib` | Private package logic |
 | `dot/src/commands/Stow.ts` | Pattern to follow |
 

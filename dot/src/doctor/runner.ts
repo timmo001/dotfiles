@@ -7,12 +7,20 @@ import { checkRepos } from "./checks/repos.js";
 import { checkStow } from "./checks/stow.js";
 import { checkOpencode } from "./checks/opencode.js";
 import { checkGitConfig } from "./checks/gitConfig.js";
-import { checkWorkflowWatch, checkDoctorStartup, checkDailyVolumeReset } from "./checks/systemd.js";
+import {
+  checkWorkflowWatch,
+  checkDoctorStartup,
+  checkDailyVolumeReset,
+} from "./checks/systemd.js";
 import { checkOmarchy } from "./checks/omarchy.js";
 import { checkBrowserFlags } from "./checks/browserFlags.js";
 import { checkHardwareVideo } from "./checks/hardwareVideo.js";
 import { checkBrowserExtensions } from "./checks/browserExtensions.js";
-import { checkPublicPackages, checkPrivatePackageRepo, checkPrivatePackages } from "./checks/packages.js";
+import {
+  checkPublicPackages,
+  checkPrivatePackageRepo,
+  checkPrivatePackages,
+} from "./checks/packages.js";
 import { checkPacmanHooks } from "./checks/pacmanHooks.js";
 import type { CheckResult, CheckSection, DoctorReport } from "./types.js";
 
@@ -20,7 +28,11 @@ import type { CheckResult, CheckSection, DoctorReport } from "./types.js";
 interface SectionDef {
   readonly name: string;
   // Allow any error type — the runner catches all errors per-section
-  readonly check: Effect.Effect<CheckResult[], unknown, Config | CommandExecutor>;
+  readonly check: Effect.Effect<
+    CheckResult[],
+    unknown,
+    Config | CommandExecutor
+  >;
   readonly requiresPrivate?: boolean;
 }
 
@@ -38,15 +50,31 @@ const sections: readonly SectionDef[] = [
   { name: "Omarchy repository checks", check: checkOmarchy },
   { name: "Browser flags", check: checkBrowserFlags },
   { name: "Hardware video decode", check: checkHardwareVideo },
-  { name: "Browser extension checks", check: checkBrowserExtensions, requiresPrivate: true },
+  {
+    name: "Browser extension checks",
+    check: checkBrowserExtensions,
+    requiresPrivate: true,
+  },
   { name: "Public package checks", check: checkPublicPackages },
-  { name: "Private package repo checks", check: checkPrivatePackageRepo, requiresPrivate: true },
-  { name: "Private package checks", check: checkPrivatePackages, requiresPrivate: true },
+  {
+    name: "Private package repo checks",
+    check: checkPrivatePackageRepo,
+    requiresPrivate: true,
+  },
+  {
+    name: "Private package checks",
+    check: checkPrivatePackages,
+    requiresPrivate: true,
+  },
   { name: "Pacman hooks", check: checkPacmanHooks },
 ];
 
 /** Run all doctor checks in parallel and produce a structured report */
-export const runDoctor: Effect.Effect<DoctorReport, never, Config | CommandExecutor> = Effect.gen(function* () {
+export const runDoctor: Effect.Effect<
+  DoctorReport,
+  never,
+  Config | CommandExecutor
+> = Effect.gen(function* () {
   const config = yield* Config;
 
   // Filter out private-only checks when private is unavailable
@@ -63,7 +91,9 @@ export const runDoctor: Effect.Effect<DoctorReport, never, Config | CommandExecu
         Effect.catch((err: unknown) =>
           Effect.succeed({
             name: s.name,
-            results: [{ severity: "error" as const, message: `Check crashed: ${err}` }],
+            results: [
+              { severity: "error" as const, message: `Check crashed: ${err}` },
+            ],
           }),
         ),
       ),

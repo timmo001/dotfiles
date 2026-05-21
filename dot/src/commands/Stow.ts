@@ -1,9 +1,8 @@
 import { Effect } from "effect";
-import { readdirSync, statSync } from "fs";
-import { join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
+import { listStowFolders } from "../lib/stowFolders.js";
 
 /** Extra stow flags for the agents folder (matches legacy behaviour) */
 const AGENTS_PRIVATE_IGNORES = [
@@ -12,40 +11,6 @@ const AGENTS_PRIVATE_IGNORES = [
   "--ignore='bun\\.lock'",
   "--ignore='\\.gitignore'",
 ];
-
-/**
- * List top-level stow package directories in a repo.
- *
- * Filters out non-directory entries and host-specific packages that
- * don't match `OMARCHY_HOST`.
- */
-function listStowFolders(repoDir: string): string[] {
-  const host = process.env.OMARCHY_HOST ?? "";
-  const entries = readdirSync(repoDir);
-
-  return entries.filter((entry) => {
-    const fullPath = join(repoDir, entry);
-    try {
-      if (!statSync(fullPath).isDirectory()) return false;
-    } catch {
-      return false;
-    }
-
-    // Skip backup folder (only used during install)
-    if (entry === "backup") return false;
-
-    // Skip dot-internal directories that aren't stow packages
-    if (entry.startsWith(".")) return false;
-
-    // Host-specific packages use double-dash: <name>--<host>
-    if (entry.includes("--")) {
-      const hostSuffix = entry.split("--").pop()!;
-      if (hostSuffix !== host) return false;
-    }
-
-    return true;
-  });
-}
 
 /**
  * Run GNU Stow per-folder for the public and (optionally) private dotfiles repos.

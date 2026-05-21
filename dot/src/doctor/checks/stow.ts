@@ -44,7 +44,10 @@ export const checkStow = Effect.gen(function* () {
   // Need stow installed
   const stowExit = yield* executor.exitCode("which", ["stow"]);
   if (stowExit !== 0) {
-    results.push({ severity: "warn", message: "stow not installed \u2014 cannot verify link integrity" });
+    results.push({
+      severity: "warn",
+      message: "stow not installed \u2014 cannot verify link integrity",
+    });
     return results;
   }
 
@@ -103,7 +106,10 @@ export const checkStow = Effect.gen(function* () {
   }
 
   if (!driftFound) {
-    results.push({ severity: "ok", message: "All stow packages are correctly linked" });
+    results.push({
+      severity: "ok",
+      message: "All stow packages are correctly linked",
+    });
   }
 
   return results;

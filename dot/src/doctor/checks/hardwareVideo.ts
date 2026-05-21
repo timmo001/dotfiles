@@ -18,7 +18,10 @@ export const checkHardwareVideo = Effect.gen(function* () {
   // Check for vainfo
   const hasVainfo = (yield* executor.exitCode("which", ["vainfo"])) === 0;
   if (!hasVainfo) {
-    results.push({ severity: "warn", message: "vainfo is missing \u2014 install libva-utils to diagnose VAAPI" });
+    results.push({
+      severity: "warn",
+      message: "vainfo is missing \u2014 install libva-utils to diagnose VAAPI",
+    });
   }
 
   // Identify render nodes and their drivers
@@ -52,7 +55,10 @@ export const checkHardwareVideo = Effect.gen(function* () {
 
   // VAAPI driver env
   const currentVaapiDriver = process.env.LIBVA_DRIVER_NAME ?? "auto";
-  results.push({ severity: "ok", message: `LIBVA_DRIVER_NAME=${currentVaapiDriver} (session default)` });
+  results.push({
+    severity: "ok",
+    message: `LIBVA_DRIVER_NAME=${currentVaapiDriver} (session default)`,
+  });
 
   // Test VAAPI on render nodes (only if vainfo available)
   if (hasVainfo) {
@@ -61,7 +67,10 @@ export const checkHardwareVideo = Effect.gen(function* () {
       .pipe(Effect.catch(() => Effect.succeed("")));
 
     let vaapiWorking = false;
-    for (const renderNode of devNodesOutput.trim().split("\n").filter(Boolean)) {
+    for (const renderNode of devNodesOutput
+      .trim()
+      .split("\n")
+      .filter(Boolean)) {
       const nodeName = basename(renderNode);
       const sysNode = join("/sys/class/drm", nodeName);
 
@@ -87,13 +96,21 @@ export const checkHardwareVideo = Effect.gen(function* () {
       }
 
       const driverLabel = renderVaapiDriver || currentVaapiDriver || "auto";
-      const envPrefix = renderVaapiDriver ? `LIBVA_DRIVER_NAME="${renderVaapiDriver}" ` : "";
+      const envPrefix = renderVaapiDriver
+        ? `LIBVA_DRIVER_NAME="${renderVaapiDriver}" `
+        : "";
       const vainfoResult = yield* executor
-        .run("bash", ["-c", `${envPrefix}vainfo --display drm --device ${renderNode} 2>&1`])
+        .run("bash", [
+          "-c",
+          `${envPrefix}vainfo --display drm --device ${renderNode} 2>&1`,
+        ])
         .pipe(Effect.catch(() => Effect.succeed("")));
 
       if (!vainfoResult.trim()) {
-        results.push({ severity: "warn", message: `${nodeName}: vainfo failed with LIBVA_DRIVER_NAME=${driverLabel}` });
+        results.push({
+          severity: "warn",
+          message: `${nodeName}: vainfo failed with LIBVA_DRIVER_NAME=${driverLabel}`,
+        });
         continue;
       }
 
@@ -107,33 +124,52 @@ export const checkHardwareVideo = Effect.gen(function* () {
         });
         vaapiWorking = true;
       } else {
-        results.push({ severity: "warn", message: `${nodeName}: vainfo failed with LIBVA_DRIVER_NAME=${driverLabel}` });
+        results.push({
+          severity: "warn",
+          message: `${nodeName}: vainfo failed with LIBVA_DRIVER_NAME=${driverLabel}`,
+        });
       }
     }
 
     if (!vaapiWorking) {
-      results.push({ severity: "error", message: "No working VAAPI driver found on any render node" });
+      results.push({
+        severity: "error",
+        message: "No working VAAPI driver found on any render node",
+      });
     }
   }
 
   // Check browser wrappers
   const browsers: Array<{ name: string; wrapper: string }> = [
     { name: "Chromium", wrapper: join(HOME, ".local", "bin", "chromium") },
-    { name: "Chrome", wrapper: join(HOME, ".local", "bin", "google-chrome-stable") },
+    {
+      name: "Chrome",
+      wrapper: join(HOME, ".local", "bin", "google-chrome-stable"),
+    },
   ];
 
   for (const { name, wrapper } of browsers) {
     if (existsSync(wrapper)) {
       try {
         const content = readFileSync(wrapper, "utf-8");
-        const driverMatch = content.match(/^\s*export\s+LIBVA_DRIVER_NAME=(\S+)/m);
+        const driverMatch = content.match(
+          /^\s*export\s+LIBVA_DRIVER_NAME=(\S+)/m,
+        );
         if (driverMatch) {
-          results.push({ severity: "ok", message: `${name} wrapper overrides LIBVA_DRIVER_NAME=${driverMatch[1]}` });
+          results.push({
+            severity: "ok",
+            message: `${name} wrapper overrides LIBVA_DRIVER_NAME=${driverMatch[1]}`,
+          });
         }
         if (content.includes("__EGL_VENDOR_LIBRARY_FILENAMES")) {
-          results.push({ severity: "ok", message: `${name} wrapper forces Mesa EGL (hybrid GPU fix)` });
+          results.push({
+            severity: "ok",
+            message: `${name} wrapper forces Mesa EGL (hybrid GPU fix)`,
+          });
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
   }
 
@@ -147,8 +183,13 @@ export const checkHardwareVideo = Effect.gen(function* () {
     if (existsSync(path)) {
       try {
         const content = readFileSync(path, "utf-8");
-        if (/AcceleratedVideoDecodeLinuxGL|VaapiVideoDecodeLinuxGL/.test(content)) {
-          results.push({ severity: "ok", message: `${name}-flags.conf has hardware video decode feature flag enabled` });
+        if (
+          /AcceleratedVideoDecodeLinuxGL|VaapiVideoDecodeLinuxGL/.test(content)
+        ) {
+          results.push({
+            severity: "ok",
+            message: `${name}-flags.conf has hardware video decode feature flag enabled`,
+          });
         } else {
           results.push({
             severity: "warn",
@@ -156,18 +197,28 @@ export const checkHardwareVideo = Effect.gen(function* () {
             detail: "AcceleratedVideoDecodeLinuxGL or VaapiVideoDecodeLinuxGL",
           });
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
   }
 
   // Check required VAAPI packages
   const libvaExit = yield* executor.exitCode("pacman", ["-Qi", "libva"]);
   if (libvaExit !== 0) {
-    results.push({ severity: "error", message: "libva is not installed (required for VAAPI)" });
+    results.push({
+      severity: "error",
+      message: "libva is not installed (required for VAAPI)",
+    });
   }
 
   let hasVaapiDriverPkg = false;
-  for (const pkg of ["intel-media-driver", "libva-intel-driver", "libva-nvidia-driver", "libva-mesa-driver"]) {
+  for (const pkg of [
+    "intel-media-driver",
+    "libva-intel-driver",
+    "libva-nvidia-driver",
+    "libva-mesa-driver",
+  ]) {
     const pkgExit = yield* executor.exitCode("pacman", ["-Qi", pkg]);
     if (pkgExit === 0) {
       results.push({ severity: "ok", message: `${pkg} is installed` });
@@ -177,7 +228,8 @@ export const checkHardwareVideo = Effect.gen(function* () {
   if (!hasVaapiDriverPkg) {
     results.push({
       severity: "error",
-      message: "No VAAPI driver package installed (need intel-media-driver, libva-mesa-driver, or similar)",
+      message:
+        "No VAAPI driver package installed (need intel-media-driver, libva-mesa-driver, or similar)",
     });
   }
 

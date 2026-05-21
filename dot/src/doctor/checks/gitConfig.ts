@@ -18,7 +18,10 @@ export const checkGitConfig = Effect.gen(function* () {
       try {
         const content = readFileSync(gitConfigFile, "utf-8");
         if (content.includes(`path = ${gitIncludePath}`)) {
-          results.push({ severity: "ok", message: "Git config includes managed dotfiles settings" });
+          results.push({
+            severity: "ok",
+            message: "Git config includes managed dotfiles settings",
+          });
         } else {
           results.push({
             severity: "warn",
@@ -27,7 +30,10 @@ export const checkGitConfig = Effect.gen(function* () {
           });
         }
       } catch {
-        results.push({ severity: "warn", message: "Could not read git config file" });
+        results.push({
+          severity: "warn",
+          message: "Could not read git config file",
+        });
       }
     } else {
       results.push({

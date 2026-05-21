@@ -11,17 +11,34 @@ function displayPath(p: string): string {
 }
 
 /** Canonical OpenCode resource names (plural) */
-const RESOURCE_NAMES = ["AGENTS.md", "agents", "commands", "skills", "plugins", "rules"] as const;
+const RESOURCE_NAMES = [
+  "AGENTS.md",
+  "agents",
+  "commands",
+  "skills",
+  "plugins",
+  "rules",
+] as const;
 
 /** Legacy singular names that should no longer exist */
-const LEGACY_SINGULAR_NAMES = ["agent", "command", "skill", "plugin", "rule"] as const;
+const LEGACY_SINGULAR_NAMES = [
+  "agent",
+  "command",
+  "skill",
+  "plugin",
+  "rule",
+] as const;
 
 /** Check OpenCode binary and config locations for legacy remnants */
 export const checkOpencode = Effect.gen(function* () {
   const config = yield* Config;
   const results: CheckResult[] = [];
 
-  results.push({ severity: "ok", message: "OpenCode documented global resources live under ~/.config/opencode" });
+  results.push({
+    severity: "ok",
+    message:
+      "OpenCode documented global resources live under ~/.config/opencode",
+  });
 
   let foundLegacy = false;
 
@@ -30,14 +47,21 @@ export const checkOpencode = Effect.gen(function* () {
     const legacyPath = join(HOME, ".opencode", name);
 
     if (existsSync(canonicalPath)) {
-      results.push({ severity: "ok", message: `OpenCode canonical path exists: ${displayPath(canonicalPath)}` });
+      results.push({
+        severity: "ok",
+        message: `OpenCode canonical path exists: ${displayPath(canonicalPath)}`,
+      });
     } else {
-      results.push({ severity: "warn", message: `OpenCode canonical path missing: ${displayPath(canonicalPath)}` });
+      results.push({
+        severity: "warn",
+        message: `OpenCode canonical path missing: ${displayPath(canonicalPath)}`,
+      });
     }
 
     if (existsSync(legacyPath) || lstatExists(legacyPath)) {
       foundLegacy = true;
-      const isSymlink = lstatExists(legacyPath) && lstatSync(legacyPath).isSymbolicLink();
+      const isSymlink =
+        lstatExists(legacyPath) && lstatSync(legacyPath).isSymbolicLink();
       if (isSymlink) {
         const target = readlinkSync(legacyPath);
         results.push({
@@ -59,7 +83,10 @@ export const checkOpencode = Effect.gen(function* () {
 
   // Check legacy singular names
   for (const name of LEGACY_SINGULAR_NAMES) {
-    for (const base of [join(HOME, ".config", "opencode"), join(HOME, ".opencode")]) {
+    for (const base of [
+      join(HOME, ".config", "opencode"),
+      join(HOME, ".opencode"),
+    ]) {
       const path = join(base, name);
       if (existsSync(path) || lstatExists(path)) {
         foundLegacy = true;
@@ -78,7 +105,8 @@ export const checkOpencode = Effect.gen(function* () {
         }
         results.push({
           severity: "warn",
-          message: "Remove legacy singular OpenCode paths after confirming the plural ~/.config/opencode/* resources are correct",
+          message:
+            "Remove legacy singular OpenCode paths after confirming the plural ~/.config/opencode/* resources are correct",
         });
       }
     }
@@ -87,20 +115,27 @@ export const checkOpencode = Effect.gen(function* () {
   // Check legacy stow sources
   for (const legacySource of [
     join(config.publicDotfiles, "agents/.opencode"),
-    ...(config.privateDotfiles ? [join(config.privateDotfiles, "agents/.opencode")] : []),
+    ...(config.privateDotfiles
+      ? [join(config.privateDotfiles, "agents/.opencode")]
+      : []),
   ]) {
     if (existsSync(legacySource) || lstatExists(legacySource)) {
       foundLegacy = true;
       results.push({
         severity: "warn",
         message: `Legacy OpenCode stow source still exists: ${displayPath(legacySource)}`,
-        detail: "Use agents/.config/opencode in the public/private dotfiles repos instead",
+        detail:
+          "Use agents/.config/opencode in the public/private dotfiles repos instead",
       });
     }
   }
 
   if (!foundLegacy) {
-    results.push({ severity: "ok", message: "No legacy OpenCode resource paths found under ~/.opencode or stow sources" });
+    results.push({
+      severity: "ok",
+      message:
+        "No legacy OpenCode resource paths found under ~/.opencode or stow sources",
+    });
   }
 
   return results;

@@ -94,7 +94,11 @@ export async function extractNativeLibIfNeeded(): Promise<void> {
   try {
     if (existsSync(cacheDir)) {
       for (const f of readdirSync(cacheDir)) {
-        if (f.startsWith("libopentui") && f.endsWith(".so") && f !== libFileName) {
+        if (
+          f.startsWith("libopentui") &&
+          f.endsWith(".so") &&
+          f !== libFileName
+        ) {
           log(`Removing stale cached library: ${f}`);
           unlinkSync(join(cacheDir, f));
         }

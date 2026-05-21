@@ -27,6 +27,12 @@ import { bashFallback } from "./commands/BashFallback.js";
 import { stow } from "./commands/Stow.js";
 import { update } from "./commands/Update.js";
 import { doctor } from "./commands/Doctor.js";
+import { help } from "./commands/Help.js";
+import { clean } from "./commands/Clean.js";
+import { agentsSync } from "./commands/AgentsSync.js";
+import { opencodeDebug } from "./commands/OpencodeDebug.js";
+import { install } from "./commands/Install.js";
+import { setup } from "./commands/Setup.js";
 import {
   diffWaybar,
   diffListChanged,
@@ -55,7 +61,18 @@ type Mode =
   | { type: "fallback"; subcommand: string; args: readonly string[] };
 
 /** Commands ported natively to TypeScript Effect */
-const nativeCommands = new Set(["stow", "update", "diff", "doctor"]);
+const nativeCommands = new Set([
+  "stow",
+  "update",
+  "diff",
+  "doctor",
+  "help",
+  "clean",
+  "agents-sync",
+  "opencode-debug",
+  "install",
+  "setup",
+]);
 
 function resolveMode(): Mode {
   if (!flags.subcommand) {
@@ -179,6 +196,24 @@ if (mode.type === "fallback") {
         return doctor({
           openOpencode: args.includes("--open-opencode"),
         });
+      case "help":
+        return help;
+      case "clean":
+        return clean;
+      case "agents-sync":
+        return agentsSync;
+      case "opencode-debug": {
+        const agentIdx = args.indexOf("--agent");
+        const agent =
+          agentIdx !== -1 && args[agentIdx + 1]
+            ? (args[agentIdx + 1] as string)
+            : undefined;
+        return opencodeDebug({ agent });
+      }
+      case "install":
+        return install;
+      case "setup":
+        return setup;
       default:
         return bashFallback(command, args);
     }
