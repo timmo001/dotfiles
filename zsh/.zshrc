@@ -97,46 +97,6 @@ cd-env() {
   load-env
 }
 
-dot() {
-  local dot_bin="$HOME/.config/dotfiles/scripts/.local/bin/dot"
-  local cmd="${1:-help}"
-  local rc
-  local original_dir="$PWD"
-  local target_dir
-  local line repo_path
-
-  if [[ ! -x "$dot_bin" ]]; then
-    echo "dot script not found or not executable: $dot_bin"
-    return 1
-  fi
-
-  command "$dot_bin" "$@"
-  rc=$?
-
-  # After "dot diff", auto-cd to the first changed repo (dirty or ahead/behind).
-  # Consumes the machine-readable --list-changed output so there is a single
-  # source of truth for which repos have changes (including private extras).
-  if [[ "${DOT_AUTO_CD:-1}" == "1" && "$cmd" == "diff" ]]; then
-    target_dir="$HOME/.config/dotfiles"
-
-    if line="$(command "$dot_bin" diff --list-changed 2>/dev/null | head -1)" && [[ -n "$line" ]]; then
-      repo_path="${line#*|}"
-      if [[ -d "$repo_path" ]]; then
-        target_dir="$repo_path"
-      fi
-      builtin cd "$target_dir" || return $rc
-    elif [[ $rc -ne 0 ]]; then
-      builtin cd "$HOME/.config/dotfiles" || return $rc
-    else
-      builtin cd "$original_dir" || return $rc
-    fi
-  else
-    builtin cd "$original_dir" || return $rc
-  fi
-
-  return $rc
-}
-
 # ------------------------------
 # Development
 # ------------------------------
