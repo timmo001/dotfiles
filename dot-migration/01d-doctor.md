@@ -20,34 +20,49 @@ Port the 1,220-line `dot-doctor-lib` to TypeScript Effect with structured, paral
 
 Reference: `scripts/.local/bin/dot-doctor-lib` (1,220 lines).
 
-### Check Sections (in order)
+### Legacy behaviour
 
-1. **Dependencies** — required tools installed (stow, git, gum, etc.)
-2. **Secret Service** — `gnome-keyring-daemon` running
-3. **Repositories** — all expected repos exist, correct remotes
-4. **Private repositories** — private repos exist (if private available)
-5. **Stow integrity** — no broken symlinks, no unexpected files
-6. **OpenCode location** — opencode binary in expected path
-7. **Git config** — includes configured correctly
-8. **Workflow watch** — systemd user service active
-9. **Startup notification** — systemd user service active
-10. **Daily volume reset** — systemd timer active
-11. **Omarchy repos/worktrees** — expected worktrees exist
-12. **Private access** — private dotfiles accessible
-13. **Browser flags** — chrome://flags configured
-14. **Hardware video decode** — vainfo/vdpauinfo checks
-15. **Browser extensions** — expected extensions installed
-16. **Public packages** — AUR packages installed + up-to-date
-17. **Private package repo** — repo configured + accessible
-18. **Private packages** — private packages installed
-19. **Pacman hooks** — expected hooks in place
+1. Parse `--open-opencode` flag (captures output to file, then launches opencode)
+2. Initialise counters: `issues=0`, `warnings=0`, per-section message arrays
+3. Helper functions: `doctor_log_section` (wraps `log_section`), `doctor_warn` (accumulates + counts), `doctor_error` (accumulates + counts)
+4. Run ~19 check sections sequentially, each calling `doctor_log_section` then per-check `log_info`/`doctor_warn`/`doctor_error`
+5. Per-check output: `log_info "$tool is installed"` (OK), `doctor_warn "$tool is missing"` (warn), `doctor_error "$check failed"` (error)
+6. At end: grouped summary sections — `doctor_log_section 'Collected Errors'` then `doctor_log_section 'Collected Warnings'` with section-grouped messages
+7. Final summary line: `"$warnings warning(s), $issues error(s)"`
+8. Actionable fix commands suggested inline (e.g. `paru -S ...` for missing packages)
 
-### Output Format
+### Logging level (match legacy)
 
-- Section headings (bold)
-- Per-check: OK (green), WARN (yellow), ERROR (red)
-- Summary at end: X warnings, Y errors
-- Optional: write report to file (`--open-opencode` flag)
+Legacy outputs one section heading per check category, then per-item info/warn/error lines. The summary at the end is grouped by section. The port should aim for similar density:
+- Section heading per check category (not one per individual check)
+- Per-item OK/warn/error line with the item name and status
+- Detail lines indented where useful (e.g. "expected vs actual")
+- Grouped summary at end: errors by section, then warnings by section
+- Final count line: `"X warning(s), Y error(s)"`
+- No artificial "Complete" section — the summary IS the completion signal
+- Skip warnings with reason when private checks are unavailable
+
+### Check Sections (from legacy, in order)
+
+1. Dependencies — required tools installed (stow, git, gum, etc.)
+2. Secret Service — `gnome-keyring-daemon` running
+3. Repositories — all expected repos exist, correct remotes
+4. Private repositories — private repos exist (if private available)
+5. Stow integrity — no broken symlinks, no unexpected files
+6. OpenCode location — opencode binary in expected path
+7. Git config — includes configured correctly
+8. Workflow watch — systemd user service active
+9. Startup notification — systemd user service active
+10. Daily volume reset — systemd timer active
+11. Omarchy repos/worktrees — expected worktrees exist
+12. Private access — private dotfiles accessible
+13. Browser flags — chrome://flags configured
+14. Hardware video decode — vainfo/vdpauinfo checks
+15. Browser extensions — expected extensions installed
+16. Public packages — AUR packages installed + up-to-date
+17. Private package repo — repo configured + accessible
+18. Private packages — private packages installed
+19. Pacman hooks — expected hooks in place
 
 ---
 
@@ -184,26 +199,49 @@ export const runDoctor = Effect.gen(function* () {
 ```typescript
 // dot/src/commands/Doctor.ts
 import { Effect } from "effect"
+import { Config } from "../services/Config.js"
 import { OutputLog } from "../services/OutputLog.js"
 import { runDoctor } from "../doctor/runner.js"
 
 export const doctor = Effect.gen(function* () {
+  const config = yield* Config
   const log = yield* OutputLog
   const report = yield* runDoctor
 
+  // Stream results as they complete (section → items)
   for (const section of report.sections) {
     yield* log.section(section.name)
     for (const result of section.results) {
       switch (result.severity) {
-        case "ok": yield* log.info(`✓ ${result.message}`); break
-        case "warn": yield* log.warn(`⚠ ${result.message}`); break
-        case "error": yield* log.error(`✗ ${result.message}`); break
+        case "ok": yield* log.info(result.message); break
+        case "warn": yield* log.warn(result.message); break
+        case "error": yield* log.error(result.message); break
       }
       if (result.detail) yield* log.info(`  ${result.detail}`)
     }
   }
 
-  yield* log.section("Summary")
+  // Grouped summary (matches legacy: errors by section, then warnings by section)
+  if (report.errors > 0) {
+    yield* log.section("Collected Errors")
+    for (const section of report.sections) {
+      const errors = section.results.filter(r => r.severity === "error")
+      if (errors.length === 0) continue
+      yield* log.info(`  ${section.name}`)
+      for (const r of errors) yield* log.error(`    ${r.message}`)
+    }
+  }
+
+  if (report.warnings > 0) {
+    yield* log.section("Collected Warnings")
+    for (const section of report.sections) {
+      const warns = section.results.filter(r => r.severity === "warn")
+      if (warns.length === 0) continue
+      yield* log.info(`  ${section.name}`)
+      for (const r of warns) yield* log.warn(`    ${r.message}`)
+    }
+  }
+
   yield* log.info(`${report.warnings} warning(s), ${report.errors} error(s)`)
 
   // Write report to file
@@ -249,6 +287,28 @@ dot doctor 2>&1 | cat # CLI mode (plain stdout)
 # In TUI: select Doctor from menu → OutputPane shows streaming results
 ```
 
+Expected output shape (similar to legacy):
+```
+── Dependencies
+[INFO]   stow is installed
+[INFO]   git is installed
+[WARN]   gum is missing
+── Repositories
+[INFO]   dotfiles OK
+[INFO]   dotfiles-private OK
+[ERROR]  hypr: unexpected remote
+           expected: git@github.com:user/hypr.git
+── Stow Integrity
+[INFO]   All symlinks valid
+── Collected Errors
+[INFO]     Repositories
+[ERROR]     hypr: unexpected remote
+── Collected Warnings
+[INFO]     Dependencies
+[WARN]      gum is missing
+[INFO]   1 warning(s), 1 error(s)
+```
+
 Integration test: if `dot doctor` reports 0 errors, the system is healthy.
 
 ---
@@ -278,3 +338,6 @@ Integration test: if `dot doctor` reports 0 errors, the system is healthy.
 - Each check must catch its own errors (a crashing check reports itself as error, doesn't kill the run)
 - Private-only checks skipped gracefully when private dotfiles unavailable
 - Report always written to log file (in addition to TUI/stdout display)
+- Match legacy logging density: section headings per category, per-item status lines, grouped summary
+- No artificial "Complete" section — the grouped summary + final count IS the completion signal
+- Unicode symbols (✓ ⚠ ✗) are optional — the severity level (`[INFO]`/`[WARN]`/`[ERROR]`) is the primary signal

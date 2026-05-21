@@ -15,18 +15,32 @@ Port the `dot update` command from bash to TypeScript Effect. This is the most-u
 
 ## What `dot update` Does (from bash)
 
-Reference: `scripts/.local/bin/dot-legacy` (search for `cmd_update`).
+Reference: `scripts/.local/bin/dot-legacy` (search for `cmd_update`, ~line 1738).
 
-Approximate flow (110 lines):
+### Legacy behaviour
 
-1. **Pull public dotfiles** — `git pull --rebase --no-edit` in `$PUBLIC_DOTFILES`
-2. **Pull private dotfiles** — same, if available
-3. **Pull omarchy repos** — calls `omarchy_sync_repos` (external, keep as subprocess)
-4. **Stow** — runs the stow logic (reuse Phase 1A's `stow` command)
-5. **Install missing packages** — checks for missing public Arch packages, installs via `paru`
-6. **Build dot binary** — `bun install && bun run build` in the `dot/` source directory
-7. **Agents sync** — runs `dot agents-sync` if configured
-8. **Log completion**
+1. Parse `--pull` / `--stow` / `--tui` flags (no flags = full update: all steps)
+2. `log_section 'Update workflow'`
+3. **Fetch & check** — `diff_collect_attention` (verbose: logs per-repo status)
+4. If nothing behind: log "All repositories are up to date" or warn about dirty/ahead repos
+5. If repos behind:
+   - Per-scope: `log_section 'Public repo pull'`, `log_section 'Private repo pull'`, etc.
+   - Pull each behind repo, log name + `display_path`
+   - Extra repos pulled in a loop with `log_section 'Additional private repo pulls'`
+   - Omarchy repos: `log_section 'Omarchy repo sync'`
+6. **Stow** — `log_section 'Stow public dotfiles'` + `log_section 'Stow private dotfiles'`
+7. **TUI build** — `maybe_build_tui` (only logs if it actually rebuilds)
+8. **Post-hooks** — agents sync, notifications, skill updates (only when repos updated)
+9. Skip warning: `log_warn "Skipping private and notes pull ($PRIVATE_REASON)"` when private unavailable
+
+### Logging level (match legacy)
+
+Legacy outputs ~1 section heading per phase, ~1 info line per repo pulled, plus skip warnings. The port should aim for similar density:
+- Section heading per phase (`Pull Repositories`, `Stow`, `Rebuild`, etc.)
+- Per-repo info line when pulling: name + path shown
+- Skip warnings with reason when private unavailable
+- Attention summary when repos are dirty/ahead but not behind
+- No artificial "Complete" section at the end — legacy finishes after post-hooks
 
 ---
 
@@ -47,7 +61,8 @@ const pullRepo = (name: string, path: string) =>
   Effect.gen(function* () {
     const log = yield* OutputLog
     const launcher = yield* Launcher
-    yield* log.info(`Pulling ${name}...`)
+    const displayPath = path.replace(process.env.HOME ?? "", "~")
+    yield* log.info(`Pulling ${name} (${displayPath})...`)
     const exit = yield* launcher.stream("git pull --rebase --no-edit", { cwd: path })
     if (exit !== 0) yield* log.warn(`Pull failed for ${name}`)
   })
@@ -57,26 +72,27 @@ export const update = Effect.gen(function* () {
   const log = yield* OutputLog
   const launcher = yield* Launcher
 
+  yield* log.section("Update Workflow")
+
   // Pull repos
   yield* log.section("Pull Repositories")
   yield* pullRepo("public dotfiles", config.publicDotfiles)
   if (config.canUsePrivate && config.privateDotfiles) {
     yield* pullRepo("private dotfiles", config.privateDotfiles)
+  } else {
+    yield* log.warn(`Skipping private pull (${config.privateReason})`)
   }
 
   // Omarchy sync (external — subprocess call)
-  yield* log.section("Sync Omarchy")
+  yield* log.section("Omarchy Repo Sync")
   yield* launcher.stream("dot-legacy update --omarchy-only")
-  // OR: directly call omarchy sync commands
 
   // Stow
-  yield* log.section("Stow")
-  yield* stow
+  yield* stow()
 
-  // Install missing packages
+  // Install missing packages (stays as bash fallback until ported)
   yield* log.section("Packages")
   yield* launcher.stream("dot-legacy update --packages-only")
-  // This stays as bash fallback until packages are ported
 
   // Rebuild self
   yield* log.section("Rebuild")
@@ -130,8 +146,30 @@ These get removed as later phases port those concerns.
 ```bash
 cd ~/.config/dotfiles/dot && bun run build
 dot update            # Should pull, stow, rebuild, exit 0
+dot update --pull     # Pull-only mode
+dot update --stow     # Stow-only mode
+dot update --tui      # TUI build-only mode
 # Verify the binary is the new build:
 dot --version         # (if version flag exists) or check binary mtime
+```
+
+Expected output shape (similar to legacy):
+```
+── Update Workflow
+── Pull Repositories
+[INFO]   Pulling public dotfiles (~/.config/dotfiles)...
+[INFO]   Pulling private dotfiles (~/.config/dotfiles-private)...
+── Omarchy Repo Sync
+[INFO]   ...
+── Stow Public Dotfiles
+[INFO]   [public] stow agents (repo: ~/.config/dotfiles)
+[INFO]   [public] stow scripts (repo: ~/.config/dotfiles)
+── Stow Private Dotfiles
+[INFO]   [private] stow agents (repo: ~/.config/dotfiles-private)
+── Packages
+[INFO]   ...
+── Rebuild
+[INFO]   Build successful
 ```
 
 ---
@@ -162,3 +200,5 @@ dot --version         # (if version flag exists) or check binary mtime
 - Omarchy stays as external subprocess call (never port omarchy logic)
 - Package install stays as bash fallback until a dedicated packages phase
 - Log all steps via OutputLog — user sees progress in TUI or stdout
+- Match legacy logging density: section headings + per-repo info lines + skip warnings
+- No artificial "Complete" section at the end

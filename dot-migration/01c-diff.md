@@ -15,17 +15,38 @@ Port the `dot diff` command. This is the most multi-modal command — it has mac
 
 ## What `dot diff` Does (from bash)
 
-Reference: `scripts/.local/bin/dot-legacy` (search for diff handling, ~63 lines).
+Reference: `scripts/.local/bin/dot-legacy` (search for `cmd_diff`, ~line 2039).
+
+### Legacy behaviour
+
+1. Dispatch on first flag: `--waybar`, `--list-changed`, `--list-all`, `--raw`, or default (TUI)
+2. Machine-output modes (`--waybar`, `--list-changed`, `--list-all`) write directly to stdout with no section headings
+3. CLI diff (`--raw` or TUI fallback):
+   - `log_header 'dot diff'` + `log_context`
+   - `log_section 'Diff workflow'`
+   - Per-scope: `show_repo_diffs 'public' "$PUBLIC_DOTFILES"` — prints section + git status output
+   - If private available: `show_repo_diffs 'private'`, `show_repo_diffs 'notes'`
+   - If private unavailable: `log_warn "Skipping private and notes diff ($PRIVATE_REASON)"`
+   - Omarchy repos: `log_section 'Omarchy repo diffs'` + per-repo diffs
+   - Extra repos: `log_section 'Additional private repo diffs'` + per-repo (schedule-gated)
+
+### Logging level (match legacy)
+
+The `--raw` CLI mode is the only mode with logging. Machine-output modes write structured data directly with no OutputLog. The `--raw` port should match legacy density:
+- Section heading per scope (public, private, notes, omarchy, extra)
+- Per-repo: repo name + path shown, commit count, modified file count
+- Skip warnings with reason when private/omarchy unavailable
+- No "Complete" section at the end
 
 ### Modes
 
-| Invocation | Output | TUI? |
-|-----------|--------|------|
-| `dot diff` | DiffView (interactive) | Yes |
-| `dot diff --waybar` | Single-line JSON | No |
-| `dot diff --list-changed` | `name\|path` lines (dirty repos only) | No |
-| `dot diff --list-all` | `name\|path` lines (all repos) | No |
-| `dot diff --raw` | Coloured text (git status per repo) | No |
+| Invocation | Output | Uses OutputLog? |
+|-----------|--------|-----------------|
+| `dot diff` | DiffView (interactive) | No (TUI) |
+| `dot diff --waybar` | Single-line JSON | No (stdout) |
+| `dot diff --list-changed` | `name\|path` lines (dirty repos only) | No (stdout) |
+| `dot diff --list-all` | `name\|path` lines (all repos) | No (stdout) |
+| `dot diff --raw` | Coloured text (git status per repo) | Yes |
 
 ### Machine Output Formats
 
@@ -40,9 +61,6 @@ dotfiles|/home/aidan/.config/dotfiles
 hypr|/home/aidan/.config/hypr
 ```
 
-**--raw:**
-Plain coloured text — section headings per repo, git status output.
-
 ---
 
 ## Implementation
@@ -50,7 +68,7 @@ Plain coloured text — section headings per repo, git status output.
 ### `dot/src/commands/Diff.ts`
 
 ```typescript
-import { Effect, Stream } from "effect"
+import { Effect } from "effect"
 import { Config } from "../services/Config.js"
 import { DotDiff } from "../services/DotDiff.js"
 import { OutputLog } from "../services/OutputLog.js"
@@ -96,10 +114,13 @@ export const diffListAll = Effect.gen(function* () {
 
 /** CLI text output: --raw */
 export const diffRaw = Effect.gen(function* () {
+  const config = yield* Config
   const dotDiff = yield* DotDiff
   const log = yield* OutputLog
   const repos = yield* dotDiff.getAll()
   const changed = repos.filter(r => r.isDirty || r.ahead > 0 || r.behind > 0)
+
+  yield* log.section("Diff Workflow")
 
   if (changed.length === 0) {
     yield* log.info("All repositories clean")
@@ -107,11 +128,15 @@ export const diffRaw = Effect.gen(function* () {
   }
 
   for (const repo of changed) {
-    yield* log.section(repo.name)
-    yield* log.info(`Path: ${repo.path}`)
+    const displayPath = repo.path.replace(process.env.HOME ?? "", "~")
+    yield* log.section(`${repo.name} repo: ${displayPath}`)
     if (repo.ahead > 0) yield* log.info(`${repo.ahead} commit(s) ahead`)
     if (repo.behind > 0) yield* log.warn(`${repo.behind} commit(s) behind`)
     if (repo.modified > 0) yield* log.info(`${repo.modified} modified file(s)`)
+  }
+
+  if (!config.canUsePrivate) {
+    yield* log.warn(`Skipping private and notes diff (${config.privateReason})`)
   }
 })
 
@@ -170,6 +195,16 @@ dot diff               # TUI DiffView opens
 echo "test" | dot diff --waybar  # works even when stdin is a pipe
 ```
 
+Expected `--raw` output shape (similar to legacy):
+```
+── Diff Workflow
+── dotfiles repo: ~/.config/dotfiles
+[INFO]   2 commit(s) ahead
+[INFO]   3 modified file(s)
+── hypr repo: ~/.config/hypr
+[INFO]   1 modified file(s)
+```
+
 ---
 
 ## Key Files to Read
@@ -196,6 +231,8 @@ echo "test" | dot diff --waybar  # works even when stdin is a pipe
 
 - Machine-output modes MUST NOT import or initialise the Renderer
 - Machine-output modes write directly to stdout (no OutputLog)
+- `--raw` mode uses OutputLog with section headings per scope and per-repo detail lines
 - Refactoring DotDiff to compute state directly (no self-calling the binary)
 - Existing DiffView and RepoWatcher must continue working unchanged
 - WaybarCache integration stays (reads `~/.cache/waybar/dot-diff-waybar.json`)
+- No artificial "Complete" section at the end of `--raw` output
