@@ -163,6 +163,47 @@ Examples:
     return;
   }
 
+  if (subcommand === "doctor") {
+    console.log(`Usage: dot doctor [options]
+
+Run health checks on the dotfiles system. Verifies dependencies, repos,
+stow integrity, systemd timers, packages, browser config, and more.
+
+All checks run in parallel. Results are printed per-section with a grouped
+summary at the end. A log file is always written to ~/.local/state/dot/logs/.
+
+Options:
+  --open-opencode    Save report and launch an OpenCode session to analyse it
+  --help, -h         Show this help message
+
+Checks performed:
+  Dependencies         Required/optional CLI tools (git, stow, gh, gum, ...)
+  Secret Service       kwallet vs gnome-keyring provider
+  Repositories         Public/private dotfiles + extra repos exist and have upstreams
+  Stow integrity       Dry-run restow to detect drift
+  OpenCode location    Canonical paths, legacy remnants
+  Git config           Managed include is active
+  Workflow watch       Hooks, timer, scripts, Waybar integration
+  Doctor startup       Startup notification timer
+  Daily volume reset   Laptop-only optional timer
+  Omarchy repos        Diff repos + worktree branch correctness
+  Browser flags        Symlinks from private stow package
+  Hardware video       VAAPI render nodes, drivers, packages
+  Browser extensions   Private extension check list
+  Public packages      AUR packages installed + version check
+  Private packages     Private repo + packages installed
+  Pacman hooks         Hook files installed and up to date
+
+Exit codes:
+  0    No critical errors (warnings may still be present)
+  1    One or more critical errors found
+
+Examples:
+  dot doctor                  Run all checks
+  dot doctor --open-opencode  Run checks then hand off to OpenCode for analysis`);
+    return;
+  }
+
   if (subcommand === "omarchy" || subcommand?.startsWith("omarchy.")) {
     console.log(`Usage: dot omarchy [submenu...]
 
