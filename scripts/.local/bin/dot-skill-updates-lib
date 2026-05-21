@@ -406,9 +406,12 @@ and integrate those changes into the local files.
 Steps:
 1. Summarise what changed upstream (new sections, removed content, reworded guidance, new patterns).
 2. Identify which local edits should be preserved (noted in the local-edits frontmatter or intentional divergences).
-3. Propose a plan for integrating worthwhile upstream changes while preserving local edits.
-4. Ask clarifying questions before applying any changes.
-5. After applying changes, run \`dot stow\` to re-link.
+3. If the diff introduces NO new upstream content (only removes locally-added sections, or all
+   changes are already covered by local edits), state "no changes needed" and stop immediately.
+   Do NOT ask questions or propose edits in this case.
+4. Propose a plan for integrating worthwhile upstream changes while preserving local edits.
+5. Ask clarifying questions before applying any changes.
+6. After applying changes, run \`dot stow\` to re-link.
 
 <skill-updates-diff>
 ${diff_content}
