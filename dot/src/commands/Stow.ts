@@ -74,15 +74,12 @@ export const stow = (opts?: {
       if (config.canUsePrivate && config.privateDotfiles) {
         yield* log.section("Stow Private Dotfiles");
         yield* stowRepo(config.privateDotfiles, "private", launcher, log);
-      } else if (!opts?.publicOnly) {
+      } else {
         yield* log.warn(
           "Skipping private stow (private dotfiles not available)",
         );
       }
     }
-
-    yield* log.section("Complete");
-    yield* log.info("All packages stowed successfully");
   });
 
 /** Stow all folders in a single repo */

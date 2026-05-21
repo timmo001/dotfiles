@@ -140,20 +140,24 @@ export class CommandExecutor extends Context.Service<
         `stream: ${fullCmd.join(" ")}${opts?.cwd ? ` (cwd: ${opts.cwd})` : ""}`,
       );
 
-      const proc = Bun.spawn(fullCmd, {
-        stdout: "pipe",
-        stderr: "pipe",
-        cwd: opts?.cwd,
-      });
+      return Stream.unwrap(
+        Effect.sync(() => {
+          const proc = Bun.spawn(fullCmd, {
+            stdout: "pipe",
+            stderr: "pipe",
+            cwd: opts?.cwd,
+          });
 
-      return Stream.fromAsyncIterable(
-        lineIterator(proc.stdout as ReadableStream<Uint8Array>),
-        (error) =>
-          new CommandError({
-            command: fullCmd.join(" "),
-            exitCode: 1,
-            stderr: error instanceof Error ? error.message : String(error),
-          }),
+          return Stream.fromAsyncIterable(
+            lineIterator(proc.stdout as ReadableStream<Uint8Array>),
+            (error) =>
+              new CommandError({
+                command: fullCmd.join(" "),
+                exitCode: 1,
+                stderr: error instanceof Error ? error.message : String(error),
+              }),
+          );
+        }),
       );
     },
 

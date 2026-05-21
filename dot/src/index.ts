@@ -138,8 +138,9 @@ if (mode.type === "fallback") {
   // Run the legacy bash script for unported commands
   const program = bashFallback(mode.subcommand, mode.args).pipe(
     Effect.provide(CliLayers),
-    Effect.catch(() =>
+    Effect.catch((err: unknown) =>
       Effect.sync(() => {
+        console.error(err);
         process.exit(1);
       }),
     ),
@@ -188,8 +189,9 @@ if (mode.type === "fallback") {
       ? resolveDiff(mode.args).pipe(Effect.provide(CliLayers))
       : resolveNative(mode.command, mode.args).pipe(
           Effect.provide(CliLayers),
-          Effect.catch(() =>
+          Effect.catch((err: unknown) =>
             Effect.sync(() => {
+              console.error(err);
               process.exit(1);
             }),
           ),

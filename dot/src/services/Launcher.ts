@@ -66,7 +66,6 @@ export class Launcher extends Context.Service<Launcher, LauncherService>()(
               renderer.currentRenderBuffer.clear();
 
               try {
-                const args = ["bash", "-c", cmd];
                 const exitCode = yield* executor.inherit("bash", ["-c", cmd]);
 
                 if (opts?.waitForKey) {
