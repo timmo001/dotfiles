@@ -3,7 +3,8 @@ import type { CliRenderer } from "@opentui/core";
 import { CommandExecutor, CommandError } from "./CommandExecutor.js";
 import { OutputLog } from "./OutputLog.js";
 
-const log = (msg: string) => console.error(`[dot:Launcher] ${msg}`);
+const DEBUG = !!process.env.DOT_DEBUG;
+const log = (msg: string) => { if (DEBUG) console.error(`[dot:Launcher] ${msg}`); };
 
 /** Domain error for launcher operations */
 export class LauncherError {

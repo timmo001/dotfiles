@@ -18,9 +18,11 @@ import { resizeIfFloating } from "./tui/hyprland.js";
 import { parseFlags, resolveSubcommand, printHelp } from "./flags.js";
 import { menuItemsById } from "./menu.js";
 import { bashFallback } from "./commands/BashFallback.js";
+import { stow } from "./commands/Stow.js";
 import type { ViewId } from "./types.js";
 
-const log = (msg: string) => console.error(`[dot] ${msg}`);
+const DEBUG = !!process.env.DOT_DEBUG;
+const log = (msg: string) => { if (DEBUG) console.error(`[dot] ${msg}`); };
 
 // --- Parse CLI ---
 const flags = parseFlags(process.argv.slice(2));
@@ -33,12 +35,21 @@ if (flags.help) {
 // --- Determine execution mode ---
 type Mode =
   | { type: "tui"; initialView: ViewId; executeItemId?: string }
+  | { type: "native"; command: string; args: readonly string[] }
   | { type: "fallback"; subcommand: string; args: readonly string[] };
+
+/** Commands ported natively to TypeScript Effect */
+const nativeCommands = new Set(["stow"]);
 
 function resolveMode(): Mode {
   if (!flags.subcommand) {
     // No subcommand: open TUI main menu
     return { type: "tui", initialView: "main" };
+  }
+
+  // Native commands bypass the menu/fallback system entirely
+  if (nativeCommands.has(flags.subcommand)) {
+    return { type: "native", command: flags.subcommand, args: flags.rest };
   }
 
   const resolved = resolveSubcommand(flags.subcommand);
@@ -94,6 +105,34 @@ const CliLayers = Launcher.cliLayer.pipe(
 if (mode.type === "fallback") {
   // Run the legacy bash script for unported commands
   const program = bashFallback(mode.subcommand, mode.args).pipe(
+    Effect.provide(CliLayers),
+    Effect.catch(() =>
+      Effect.sync(() => {
+        process.exit(1);
+      }),
+    ),
+  );
+
+  Effect.runPromise(program).catch((err) => {
+    log(`Fatal error: ${err}`);
+    console.error(err);
+    process.exit(1);
+  });
+} else if (mode.type === "native") {
+  // Run a natively-ported command with CLI layers
+  const resolveNative = (command: string, args: readonly string[]) => {
+    switch (command) {
+      case "stow":
+        return stow({
+          publicOnly: args.includes("--public"),
+          privateOnly: args.includes("--private"),
+        });
+      default:
+        return bashFallback(command, args);
+    }
+  };
+
+  const program = resolveNative(mode.command, mode.args).pipe(
     Effect.provide(CliLayers),
     Effect.catch(() =>
       Effect.sync(() => {

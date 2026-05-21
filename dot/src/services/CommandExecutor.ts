@@ -1,6 +1,7 @@
 import { Context, Effect, Layer, Schema, Stream } from "effect";
 
-const log = (msg: string) => console.error(`[dot:CommandExecutor] ${msg}`);
+const DEBUG = !!process.env.DOT_DEBUG;
+const log = (msg: string) => { if (DEBUG) console.error(`[dot:CommandExecutor] ${msg}`); };
 
 /** Domain error for command execution failures */
 export class CommandError extends Schema.TaggedErrorClass<CommandError>()(
