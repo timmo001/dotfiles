@@ -4,15 +4,20 @@ Phased handoff documents for migrating `dot` from bash to TypeScript + Effect.
 
 ## Execution Order
 
-| Phase | File | Focus | Depends On |
-|-------|------|-------|-----------|
-| 0 | `00-foundation.md` | Rename, core services, CLI dispatch, bash fallback | — |
-| 1A | `01a-stow.md` | `dot stow` command | Phase 0 |
-| 1B | `01b-update.md` | `dot update` command (pull, stow, rebuild) | Phase 0, 1A |
-| 1C | `01c-diff.md` | `dot diff` (all modes: TUI, waybar, list, raw) | Phase 0 |
-| 1D | `01d-doctor.md` | `dot doctor` (parallel health checks) | Phase 0, 1A |
-| 2 | `02-secondary-commands.md` | help, clean, install, init, agents-sync, etc. | Phase 1 |
-| 3 | `03-finalise.md` | Remove bash, update docs, validate | Phase 2 |
+| Phase | File | Focus | Depends On | Status |
+|-------|------|-------|-----------|--------|
+| 0 | `00-foundation.md` | Rename, core services, CLI dispatch, bash fallback | — | Done |
+| 1A | `01a-stow.md` | `dot stow` command | Phase 0 | Done |
+| 1B | `01b-update.md` | `dot update` command (pull, stow, rebuild) | Phase 0, 1A | Done |
+| 1C | `01c-diff.md` | `dot diff` (all modes: TUI, waybar, list, raw) | Phase 0 | Done |
+| 1D | `01d-doctor.md` | `dot doctor` (parallel health checks) | Phase 0, 1A | Done |
+| 2A | `02a-secondary-commands.md` | help, clean, install, setup, agents-sync, opencode-debug | Phase 1 | Done |
+| 2B | `02b-skill-updates.md` | `dot skill-updates` | Phase 1 | Done |
+| 3 | `03-finalise.md` | Update docs/config, validate | Phase 2 | Done |
+| 4 | `04-init.md` | `dot init` (interactive init questionnaire + bootstrap) | Phase 3 | Pending |
+| 5 | `05-setup-private-repo.md` | `dot setup-private-repo` (private pacman repo config) | Phase 3 | Pending |
+| 6 | `06-private-pkg-publish.md` | `dot private-pkg-publish` (build + publish + install) | Phase 5 | Pending |
+| 99 | `99-remove-legacy.md` | Remove legacy bash scripts and BashFallback service | Phase 4–6 | Deferred |
 
 ## How to Use
 
