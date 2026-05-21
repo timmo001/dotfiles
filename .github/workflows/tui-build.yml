@@ -1,15 +1,15 @@
-name: Build dot-tui
+name: Build dot
 
 on:
   push:
     branches:
       - distro/arch-omarchy
     paths:
-      - 'tui/**'
+      - 'dot/**'
       - '.github/workflows/tui-build.yml'
   pull_request:
     paths:
-      - 'tui/**'
+      - 'dot/**'
       - '.github/workflows/tui-build.yml'
 
 permissions:
@@ -27,12 +27,12 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
-        working-directory: tui
+        working-directory: dot
 
       - name: Type check
         run: bunx tsc --noEmit
-        working-directory: tui
+        working-directory: dot
 
       - name: Build
-        run: bun build src/index.ts --compile --outfile dot-tui
-        working-directory: tui
+        run: bun build src/index.ts --compile --outfile dot
+        working-directory: dot
