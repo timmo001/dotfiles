@@ -75,7 +75,9 @@ export const stow = (opts?: {
         yield* log.section("Stow Private Dotfiles");
         yield* stowRepo(config.privateDotfiles, "private", launcher, log);
       } else if (!opts?.publicOnly) {
-        yield* log.warn("Skipping private stow (private dotfiles not available)");
+        yield* log.warn(
+          "Skipping private stow (private dotfiles not available)",
+        );
       }
     }
 
@@ -87,8 +89,16 @@ export const stow = (opts?: {
 const stowRepo = (
   repoDir: string,
   scope: "public" | "private",
-  launcher: { readonly stream: (cmd: string, opts?: { readonly cwd?: string }) => Effect.Effect<number, LauncherError> },
-  log: { readonly info: (msg: string) => Effect.Effect<void>; readonly error: (msg: string) => Effect.Effect<void> },
+  launcher: {
+    readonly stream: (
+      cmd: string,
+      opts?: { readonly cwd?: string },
+    ) => Effect.Effect<number, LauncherError>;
+  },
+  log: {
+    readonly info: (msg: string) => Effect.Effect<void>;
+    readonly error: (msg: string) => Effect.Effect<void>;
+  },
 ) =>
   Effect.gen(function* () {
     const folders = listStowFolders(repoDir).sort();

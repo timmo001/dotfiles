@@ -4,7 +4,9 @@ import { renameSync, chmodSync, realpathSync } from "fs";
 import { join, dirname } from "path";
 
 const DEBUG = !!process.env.DOT_DEBUG;
-const log = (msg: string) => { if (DEBUG) console.error(`[dot:selfUpdate] ${msg}`); };
+const log = (msg: string) => {
+  if (DEBUG) console.error(`[dot:selfUpdate] ${msg}`);
+};
 
 /**
  * Resolve the dot source directory from the running binary's location.
@@ -14,7 +16,11 @@ const log = (msg: string) => { if (DEBUG) console.error(`[dot:selfUpdate] ${msg}
  * before walking up.
  */
 const BIN_PATH = (() => {
-  try { return realpathSync(process.execPath); } catch { return process.execPath; }
+  try {
+    return realpathSync(process.execPath);
+  } catch {
+    return process.execPath;
+  }
 })();
 const DOT_SRC = join(dirname(BIN_PATH), "..", "..", "..", "dot");
 

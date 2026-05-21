@@ -1,7 +1,9 @@
 import { Context, Effect, Layer, Schema, Stream } from "effect";
 
 const DEBUG = !!process.env.DOT_DEBUG;
-const log = (msg: string) => { if (DEBUG) console.error(`[dot:CommandExecutor] ${msg}`); };
+const log = (msg: string) => {
+  if (DEBUG) console.error(`[dot:CommandExecutor] ${msg}`);
+};
 
 /** Domain error for command execution failures */
 export class CommandError extends Schema.TaggedErrorClass<CommandError>()(
@@ -80,7 +82,9 @@ export class CommandExecutor extends Context.Service<
       Effect.tryPromise({
         try: async () => {
           const fullCmd = [cmd, ...args];
-          log(`run: ${fullCmd.join(" ")}${opts?.cwd ? ` (cwd: ${opts.cwd})` : ""}`);
+          log(
+            `run: ${fullCmd.join(" ")}${opts?.cwd ? ` (cwd: ${opts.cwd})` : ""}`,
+          );
           const proc = Bun.spawn(fullCmd, {
             stdout: "pipe",
             stderr: "pipe",
@@ -92,7 +96,11 @@ export class CommandExecutor extends Context.Service<
 
           if (exitCode !== 0) {
             const stderr = await new Response(proc.stderr).text();
-            throw { exitCode, stderr: stderr.trim(), command: fullCmd.join(" ") };
+            throw {
+              exitCode,
+              stderr: stderr.trim(),
+              command: fullCmd.join(" "),
+            };
           }
 
           return stdout;
@@ -105,7 +113,11 @@ export class CommandExecutor extends Context.Service<
             "stderr" in error &&
             "command" in error
           ) {
-            const e = error as { exitCode: number; stderr: string; command: string };
+            const e = error as {
+              exitCode: number;
+              stderr: string;
+              command: string;
+            };
             log(`Failed (exit ${e.exitCode}): ${e.command}`);
             return new CommandError({
               command: e.command,
@@ -124,7 +136,9 @@ export class CommandExecutor extends Context.Service<
 
     stream: (cmd, args, opts) => {
       const fullCmd = [cmd, ...args];
-      log(`stream: ${fullCmd.join(" ")}${opts?.cwd ? ` (cwd: ${opts.cwd})` : ""}`);
+      log(
+        `stream: ${fullCmd.join(" ")}${opts?.cwd ? ` (cwd: ${opts.cwd})` : ""}`,
+      );
 
       const proc = Bun.spawn(fullCmd, {
         stdout: "pipe",
@@ -146,7 +160,9 @@ export class CommandExecutor extends Context.Service<
     exitCode: (cmd, args, opts) =>
       Effect.promise(async () => {
         const fullCmd = [cmd, ...args];
-        log(`exitCode: ${fullCmd.join(" ")}${opts?.cwd ? ` (cwd: ${opts.cwd})` : ""}`);
+        log(
+          `exitCode: ${fullCmd.join(" ")}${opts?.cwd ? ` (cwd: ${opts.cwd})` : ""}`,
+        );
         const proc = Bun.spawn(fullCmd, {
           stdout: "ignore",
           stderr: "ignore",
@@ -158,7 +174,9 @@ export class CommandExecutor extends Context.Service<
     inherit: (cmd, args, opts) =>
       Effect.promise(async () => {
         const fullCmd = [cmd, ...args];
-        log(`inherit: ${fullCmd.join(" ")}${opts?.cwd ? ` (cwd: ${opts.cwd})` : ""}`);
+        log(
+          `inherit: ${fullCmd.join(" ")}${opts?.cwd ? ` (cwd: ${opts.cwd})` : ""}`,
+        );
         const proc = Bun.spawn(fullCmd, {
           stdin: "inherit",
           stdout: "inherit",

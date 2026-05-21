@@ -200,7 +200,8 @@ const dotItems: readonly MenuItem[] = [
     [
       {
         label: "Full",
-        description: "Update clean skills, review local-edit conflicts in OpenCode",
+        description:
+          "Update clean skills, review local-edit conflicts in OpenCode",
         action: cmd("dot skill-updates"),
       },
       {

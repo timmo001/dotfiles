@@ -10,9 +10,7 @@ interface ServerState {
 let serverState: ServerState | undefined;
 
 /** Ensure the OpenCode server is running, starting it if needed */
-export async function ensureServer(): Promise<
-  Pick<ServerState, "client">
-> {
+export async function ensureServer(): Promise<Pick<ServerState, "client">> {
   if (serverState) return serverState;
 
   // Try connecting to an existing server first

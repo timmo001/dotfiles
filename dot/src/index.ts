@@ -20,10 +20,18 @@ import { menuItemsById } from "./menu.js";
 import { bashFallback } from "./commands/BashFallback.js";
 import { stow } from "./commands/Stow.js";
 import { update } from "./commands/Update.js";
+import {
+  diffWaybar,
+  diffListChanged,
+  diffListAll,
+  diffRaw,
+} from "./commands/Diff.js";
 import type { ViewId } from "./types.js";
 
 const DEBUG = !!process.env.DOT_DEBUG;
-const log = (msg: string) => { if (DEBUG) console.error(`[dot] ${msg}`); };
+const log = (msg: string) => {
+  if (DEBUG) console.error(`[dot] ${msg}`);
+};
 
 // --- Parse CLI ---
 const flags = parseFlags(process.argv.slice(2));
@@ -40,7 +48,7 @@ type Mode =
   | { type: "fallback"; subcommand: string; args: readonly string[] };
 
 /** Commands ported natively to TypeScript Effect */
-const nativeCommands = new Set(["stow", "update"]);
+const nativeCommands = new Set(["stow", "update", "diff"]);
 
 function resolveMode(): Mode {
   if (!flags.subcommand) {
@@ -50,6 +58,17 @@ function resolveMode(): Mode {
 
   // Native commands bypass the menu/fallback system entirely
   if (nativeCommands.has(flags.subcommand)) {
+    // Diff without machine flags opens the TUI diff view
+    if (flags.subcommand === "diff") {
+      const hasMachineFlag =
+        flags.rest.includes("--waybar") ||
+        flags.rest.includes("--list-changed") ||
+        flags.rest.includes("--list-all") ||
+        flags.rest.includes("--raw");
+      if (!hasMachineFlag) {
+        return { type: "tui", initialView: "diff" };
+      }
+    }
     return { type: "native", command: flags.subcommand, args: flags.rest };
   }
 
@@ -76,7 +95,11 @@ function resolveMode(): Mode {
       return { type: "tui", initialView: action.viewId };
     }
     if (action.type === "submenu") {
-      return { type: "tui", initialView: "main", executeItemId: resolved.itemId };
+      return {
+        type: "tui",
+        initialView: "main",
+        executeItemId: resolved.itemId,
+      };
     }
     // command, silent, notify — fall back to dot-legacy
     return {
@@ -96,6 +119,7 @@ const mode = resolveMode();
 
 /** Minimal layers for CLI fallback commands (no renderer, no TUI services) */
 const CliLayers = Launcher.cliLayer.pipe(
+  Layer.provideMerge(DotDiff.layer),
   Layer.provideMerge(OutputLog.cliLayer),
   Layer.provideMerge(CommandExecutor.layer),
   Layer.provideMerge(Config.layer),
@@ -121,6 +145,15 @@ if (mode.type === "fallback") {
   });
 } else if (mode.type === "native") {
   // Run a natively-ported command with CLI layers
+  const resolveDiff = (
+    args: readonly string[],
+  ): Effect.Effect<void, never, DotDiff | Config | OutputLog> => {
+    if (args.includes("--waybar")) return diffWaybar;
+    if (args.includes("--list-changed")) return diffListChanged;
+    if (args.includes("--list-all")) return diffListAll;
+    return diffRaw;
+  };
+
   const resolveNative = (command: string, args: readonly string[]) => {
     switch (command) {
       case "stow":
@@ -139,14 +172,17 @@ if (mode.type === "fallback") {
     }
   };
 
-  const program = resolveNative(mode.command, mode.args).pipe(
-    Effect.provide(CliLayers),
-    Effect.catch(() =>
-      Effect.sync(() => {
-        process.exit(1);
-      }),
-    ),
-  );
+  const program =
+    mode.command === "diff"
+      ? resolveDiff(mode.args).pipe(Effect.provide(CliLayers))
+      : resolveNative(mode.command, mode.args).pipe(
+          Effect.provide(CliLayers),
+          Effect.catch(() =>
+            Effect.sync(() => {
+              process.exit(1);
+            }),
+          ),
+        );
 
   Effect.runPromise(program).catch((err) => {
     log(`Fatal error: ${err}`);
@@ -232,6 +268,8 @@ if (mode.type === "fallback") {
     Layer.provideMerge(CommitSuggest.layer),
     Layer.provideMerge(Toast.layer(theme)),
     Layer.provideMerge(Renderer.layer(theme)),
+    Layer.provideMerge(CommandExecutor.layer),
+    Layer.provideMerge(Config.layer),
   );
 
   const runnable = tuiProgram.pipe(Effect.scoped, Effect.provide(TuiLayers));

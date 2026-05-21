@@ -46,7 +46,9 @@ const postHooks = Effect.gen(function* () {
     yield* log.warn("Agents sync failed (non-fatal)");
   }
 
-  const skillsExit = yield* launcher.stream("dot-legacy skill-updates --update");
+  const skillsExit = yield* launcher.stream(
+    "dot-legacy skill-updates --update",
+  );
   if (skillsExit !== 0) {
     yield* log.warn("Skill updates failed (non-fatal)");
   }

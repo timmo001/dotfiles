@@ -10,6 +10,22 @@ export interface Repo {
   readonly locked: boolean;
 }
 
+/** Enriched repository state with git status counts for diff modes */
+export interface DiffRepo {
+  /** Short display name (e.g. "dotfiles", "omarchy:hypr") */
+  readonly name: string;
+  /** Absolute filesystem path to the repository root */
+  readonly path: string;
+  /** Whether the repo has any uncommitted changes (modified, untracked, etc.) */
+  readonly isDirty: boolean;
+  /** Number of modified/untracked/deleted files */
+  readonly modified: number;
+  /** Number of commits ahead of upstream */
+  readonly ahead: number;
+  /** Number of commits behind upstream */
+  readonly behind: number;
+}
+
 /** Snapshot of all tracked repositories partitioned by change status */
 export interface RepoState {
   /** Repositories with uncommitted or unpushed changes */
@@ -23,7 +39,13 @@ export interface RepoState {
 // --- Menu types ---
 
 /** Identifies a top-level TUI view for navigation */
-export type ViewId = "main" | "diff" | "omarchy" | "staging" | "commit" | "output";
+export type ViewId =
+  | "main"
+  | "diff"
+  | "omarchy"
+  | "staging"
+  | "commit"
+  | "output";
 
 // --- Git staging types ---
 

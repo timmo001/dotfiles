@@ -128,19 +128,38 @@ export function printHelp(subcommand?: string): void {
   if (subcommand === "diff") {
     console.log(`Usage: dot diff [options]
 
-Open the diff/repo watcher view.
+Open the diff/repo watcher view. Without flags, opens the interactive TUI.
+
+Modes:
+  (default)        Interactive TUI diff view
+  --raw            Coloured CLI summary of repos with changes
+  --waybar         Single-line JSON for Waybar status module
+  --list-changed   Pipe-delimited list of repos with changes (name|path)
+  --list-all       Pipe-delimited list of all tracked repos (name|path)
 
 Options:
-  --tab <changed|other|unchanged>  Initial pane to focus (default: changed)
+  --tab <changed|other|unchanged>  Initial pane to focus in TUI (default: changed)
   --help, -h                       Show this help message
 
-Keybindings:
+Keybindings (TUI mode):
   ↑↓             Navigate the repo list
   Tab            Switch between Changed/Other pane
   Enter          Open lazygit for the selected repo
+  c              Open commit flow (staging → commit)
+  p              Pull selected repo
+  P              Push selected repo
+  t              Open tmux session for repos
+  o              Open terminal in repo directory
+  w              Open repo on GitHub
   r              Manual refresh
   Esc/Backspace  Back to main menu
-  q              Quit`);
+  Ctrl+c         Quit
+
+Examples:
+  dot diff                 Interactive TUI
+  dot diff --raw           CLI summary of changed repos
+  dot diff --waybar        JSON for Waybar integration
+  dot diff --tab other     TUI with Other pane focused`);
     return;
   }
 
@@ -192,12 +211,16 @@ Subcommands:
   omarchy [submenu..]  Open the Omarchy submenu (space-separated paths)
 
 Options:
-  --tab <changed|other|unchanged>  Initial tab for the diff view (default: changed)
   --help, -h                       Show this help message
 
 Examples:
   dot                      Main menu
+  dot diff                 Interactive diff TUI
+  dot diff --raw           CLI diff summary
+  dot diff --waybar        Waybar JSON output
   dot diff --tab other     Diff view, Other pane focused
   dot omarchy theme        Omarchy theme submenu
-  dot omarchy theme set    Execute omarchy theme set`);
+  dot omarchy theme set    Execute omarchy theme set
+
+Run 'dot <subcommand> --help' for subcommand-specific options.`);
 }
