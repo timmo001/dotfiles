@@ -1,10 +1,10 @@
-# dot-tui
+# dot
 
-Full TUI dashboard for `dot` — the dotfiles manager. Replaces both `dot-menu` (walker GUI) and the old diff-only TUI.
+Full TUI dashboard and CLI for `dot` — the dotfiles manager. Built with Effect v4 and OpenTUI.
 
 ## Scope
 
-This directory (`~/.config/dotfiles/tui/`) contains the `dot-tui` application source. It lives inside the public dotfiles repo but is excluded from stow via `--ignore=^/tui` in `.stowrc`. The compiled binary outputs to `../scripts/.local/bin/dot-tui` which IS stowed to `~/.local/bin/dot-tui`.
+This directory (`~/.config/dotfiles/dot/`) contains the `dot` application source. It lives inside the public dotfiles repo but is excluded from stow via `--ignore=^/dot` in `.stowrc`. The compiled binary outputs to `../scripts/.local/bin/dot` which IS stowed to `~/.local/bin/dot`.
 
 ## Skills
 
@@ -25,44 +25,81 @@ Always apply these skills when editing code in this directory:
 - **Runtime**: Bun
 - **UI**: `@opentui/core` (imperative API — no React/Solid)
 - **Services**: `effect` 4.x (`Context.Service`, `Layer`, `PubSub`, `Stream`, `Schedule`)
-- **Platform**: `@effect/platform-bun` (available but not yet used heavily)
 - **Build**: `bun build --compile` producing a single binary
 
 ## Architecture
 
 ```
 src/
-  index.ts                — Entry point, subcommand routing, Effect bootstrap
+  index.ts                — Entry point, CLI mode resolution, Effect bootstrap
   types.ts                — Repo, RepoState, MenuItem, MenuAction, ViewId, StagedFile, CommitSuggestion
   flags.ts                — CLI parser: subcommands, --tab, --raw, --help
   menu.ts                 — Menu registry: Map<string, MenuItem> for dot + omarchy items
+  theme.ts                — Theme loading (Omarchy theme → TUI colours)
+  commands/
+    AgentsSync.ts         — dot agents-sync
+    BashFallback.ts       — Legacy fallback to dot-legacy (being phased out)
+    Clean.ts              — dot clean
+    Diff.ts               — dot diff (--waybar, --list-changed, --list-all, --raw)
+    Doctor.ts             — dot doctor
+    Help.ts               — dot help
+    Install.ts            — dot install
+    OpencodeDebug.ts      — dot opencode-debug
+    Setup.ts              — dot setup
+    SkillUpdates.ts       — dot skill-updates
+    Stow.ts               — dot stow
+    Update.ts             — dot update
+  doctor/
+    types.ts              — DoctorCheck, DoctorResult types
+    runner.ts             — Parallel check runner with output formatting
+    checks/               — 13 check modules (dependencies, repos, packages, etc.)
   services/
-    DotDiff.ts            — Effect service wrapping `dot diff` shell commands
-    WaybarCache.ts        — Effect service reading Waybar cache JSON for fast start
+    Config.ts             — Dotfiles paths, env config
+    CommandExecutor.ts    — Shell command execution Effect service
+    CommandRunner.ts      — Suspend/resume + silent + notify command execution (plain object)
+    CommitSuggest.ts      — AI commit suggestions via OpenCode SDK
+    DotDiff.ts            — Effect service wrapping diff shell commands
+    GitStaging.ts         — Git status/add/reset/commit operations
+    Launcher.ts           — Process lifecycle (exit handling)
+    ModelDiscovery.ts     — OpenCode model discovery
+    OpenCodeServer.ts     — OpenCode server lifecycle
+    OutputLog.ts          — Scrollable output log service
+    Renderer.ts           — OpenTUI renderer service
     RepoWatcher.ts        — Hybrid poll loop (Waybar cache → 10s poll), PubSub state
-    CommandRunner.ts      — Suspend/resume + silent command execution
-    GitStaging.ts         — Effect service for git status/add/reset/commit operations
-    CommitSuggest.ts      — Effect service for AI commit suggestions via OpenCode SDK v2
+    Toast.ts              — Toast notification overlay service
+    WaybarCache.ts        — Waybar cache JSON reader for fast startup
   tui/
     App.ts                — Top-level app shell, view stack, global keyboard, action routing
     MainMenu.ts           — SelectRenderable menu built from menu registry
+    MenuList.ts           — Reusable menu list renderable
     DiffView.ts           — Two-pane layout (Changed/Other) with repo watcher
     OmarchyMenu.ts        — Inline omarchy submenu tree with breadcrumb navigation
     VariantPopup.ts       — Centred popup overlay for menu item variant selection
     Lazygit.ts            — Suspend/resume lazygit spawn
     StagingView.ts        — Two-pane staging view (Staged/Unstaged) for git commit flow
     CommitView.ts         — Commit message input with AI suggestion list
+    OutputPane.ts         — Scrollable command output pane
+    Toast.ts              — Toast renderable
+    breadcrumb.ts         — Breadcrumb navigation helper
+    helpBar.ts            — Bottom help bar renderable
+    hyprland.ts           — Hyprland window resize utility
+    twoPane.ts            — Reusable two-pane layout helper
+  lib/
+    extractNativeLib.ts   — Native .so extraction from bunfs
+    selfUpdate.ts         — Binary rebuild logic
+    skillUpdates.ts       — Skill update checking/applying logic
+    stowFolders.ts        — Stow folder discovery
 ```
 
 ### Data Flow
 
-1. `index.ts` resolves subcommand → initial view/action, creates renderer + services
-2. `App` manages a view stack (main menu ↔ diff view ↔ omarchy menu ↔ staging view ↔ commit view)
-3. Menu items have typed actions: `command` (suspend/resume), `silent` (background), `view` (navigate), `submenu` (nested)
-4. Menu items with `variants` open a centred popup on Enter; selecting a variant dispatches its action
-5. `CommandRunner` handles suspend/resume for terminal commands and silent background execution
-5. `RepoWatcher` loads Waybar cache for instant diff first paint, then polls `dot diff` every 10s
-6. State changes are published via `PubSub<RepoState>` → `DiffView.update()`
+1. `index.ts` parses CLI flags → resolves mode (TUI / native / fallback)
+2. Native commands run with `CliLayers` (no renderer, no TUI)
+3. TUI mode composes full layer stack including RepoWatcher, GitStaging, CommitSuggest, Renderer, Toast
+4. `App` manages a view stack (main menu ↔ diff view ↔ omarchy menu ↔ staging view ↔ commit view)
+5. Menu items have typed actions: `command` (suspend/resume), `silent` (background), `notify` (background + toast), `view` (navigate), `submenu` (nested)
+6. `CommandRunner` handles suspend/resume for terminal commands, silent background execution, and notify-style commands with toast feedback
+7. `RepoWatcher` loads Waybar cache for instant diff first paint, then polls every 10s
 
 ### Menu Registry
 
@@ -73,14 +110,16 @@ src/
 - `submenuTitles` — display titles for submenu breadcrumbs
 
 MenuItem action types:
-- `command` — suspend TUI, run `bash -c <cmd>`, optional "press any key" wait, resume
+- `command` — suspend TUI, run command, optional "press any key" wait, resume
 - `silent` — run in background, no TUI interruption
+- `notify` — run in background with toast progress/success feedback
 - `view` — navigate to a sub-view (diff, omarchy)
 - `submenu` — open a nested submenu within the omarchy tree
+- `quit` — exit the TUI
 
 ### Key Patterns
 
-- **Services**: `Context.Service` + static `layer` property for Effect services (DotDiff, WaybarCache, RepoWatcher, GitStaging, CommitSuggest)
+- **Services**: `Context.Service` + static `layer` property for Effect services
 - **Static layers**: Each service class exposes `ServiceName.layer` (not a separate `*Live` export). Layer is built with `Layer.effect(ServiceName, Effect.gen(...))`
 - **Domain errors**: `Schema.TaggedErrorClass` per service (`DotDiffError`, `GitStagingError`, `CommitSuggestError`). WaybarCache has no error type
 - **Error handling**: `Effect.catch` (v4 rename of `catchAll`) for recovery; tagged errors flow through the type channel
@@ -96,44 +135,52 @@ MenuItem action types:
 ## CLI
 
 ```
-dot-tui                       # Main menu
-dot-tui diff                  # Diff view directly
-dot-tui diff --tab other      # Diff view, Other tab focused
-dot-tui update                # Run dot update directly (no TUI)
-dot-tui stow                  # Run dot stow directly (no TUI)
-dot-tui omarchy               # Omarchy submenu
-dot-tui omarchy theme         # Omarchy theme submenu (space-separated)
-dot-tui omarchy theme set     # Execute omarchy theme set directly
-dot-tui --help                # Show help
-dot-tui diff --help           # Diff-specific help
-dot-tui omarchy --help        # Omarchy-specific help
-```
-
-Alias via `dot`:
-```
-dot                           # Launches dot-tui (main menu)
-dot tui                       # Same as dot-tui
-dot tui diff --tab other      # Same as dot-tui diff --tab other
-dot diff                      # Launches dot-tui diff view
-dot diff --raw                # Original CLI diff output (no TUI)
-dot diff --waybar             # Machine-readable (unchanged)
+dot                           # Main menu (TUI)
+dot diff                      # Diff view (TUI)
+dot diff --tab other          # Diff view, Other tab focused (TUI)
+dot diff --raw                # CLI diff output (no TUI)
+dot diff --waybar             # Machine-readable JSON for Waybar
+dot diff --list-changed       # Pipe-friendly changed repo list
+dot diff --list-all           # Pipe-friendly all repo list
+dot update                    # Full update (pull, stow, rebuild)
+dot update --pull             # Pull repos only
+dot update --stow             # Stow only
+dot update --tui              # Rebuild binary only
+dot stow                      # Stow public + private
+dot stow --public             # Stow public only
+dot stow --private            # Stow private only
+dot doctor                    # Health checks
+dot doctor --open-opencode    # Health checks + OpenCode analysis
+dot help                      # Show help
+dot clean                     # Unstow private then public
+dot agents-sync               # Sync AGENTS.md to Cursor rule
+dot opencode-debug            # Debug OpenCode config
+dot opencode-debug --agent x  # Debug specific agent
+dot install                   # Backup/adopt install flow
+dot setup                     # Package install step
+dot skill-updates             # Check/apply skill updates
+dot skill-updates --check     # Check only (no apply)
+dot skill-updates --update    # Auto-apply clean updates
+dot skill-updates --skip-review # Skip local-edit review
+dot omarchy                   # Omarchy submenu (TUI)
+dot --help                    # Show help
 ```
 
 ## Build
 
 ```bash
-cd ~/.config/dotfiles/tui
-bun run build    # outputs to ../scripts/.local/bin/dot-tui
+cd ~/.config/dotfiles/dot
+bun run build    # outputs to ../scripts/.local/bin/dot
 ```
 
-The build is also triggered by `dot update` via `maybe_build_tui()` in the `dot` script.
+The build is also triggered by `dot update`.
 
 ## Keybindings
 
 ### Main Menu
 | Key | Action |
 |-----|--------|
-| `↑↓` | Navigate list |
+| `↑↓` / typing | Navigate/filter list |
 | `Enter` | Select item (opens variant popup if variants exist) |
 | `Ctrl+c` | Quit |
 
@@ -191,12 +238,10 @@ The build is also triggered by `dot update` via `maybe_build_tui()` in the `dot`
 
 ## External Dependencies
 
-- `dot diff --list-all` — lists all tracked repos as `name|path` lines
-- `dot diff --list-changed` — lists repos with uncommitted/unpushed changes
 - `~/.cache/waybar/dot-diff-waybar.json` — Waybar cache for fast startup
 - `lazygit` — launched via suspend/resume on Enter in diff view
-- `opencode` — CLI for model discovery; SDK v2 for AI commit suggestions
-- `@opencode-ai/sdk` — OpenCode SDK v2 for programmatic session/prompt calls
+- `opencode` — CLI for model discovery; SDK for AI commit suggestions
+- `@opencode-ai/sdk` — OpenCode SDK for programmatic session/prompt calls
 - `omarchy` — various subcommands for desktop management
 - `system-health-check` — system diagnostics
 - `topgrade` — system-wide package upgrades
@@ -206,30 +251,47 @@ The build is also triggered by `dot update` via `maybe_build_tui()` in the `dot`
 Always run type check, dead-code analysis, and build after every final code change:
 
 ```bash
-cd ~/.config/dotfiles/tui
+cd ~/.config/dotfiles/dot
 bunx tsc --noEmit            # type check
 bun run format               # format with prettier
 bun run build                # compile binary
 ```
 
-For dead-code analysis, use the MCP `analyze` tool with `root: tui`, or `/fallow-audit`.
+For dead-code analysis, use the MCP `analyze` tool with `root: dot`, or `/fallow-audit`.
 
 Smoke tests:
 ```bash
-dot-tui                      # smoke test: main menu renders, Ctrl+c quits
-dot-tui diff                 # smoke test: diff view renders
-dot tui                      # smoke test: alias works
-dot                          # smoke test: launches TUI
-dot diff --raw               # smoke test: original CLI diff
+dot                          # smoke test: main menu renders, Ctrl+c quits
+dot diff                     # smoke test: diff view renders
+dot diff --raw               # smoke test: CLI diff output
+dot diff --waybar            # smoke test: JSON output
+dot doctor                   # smoke test: health checks run
+dot help                     # smoke test: help prints
 ```
+
+## Legacy Bash Script
+
+`scripts/.local/bin/dot-legacy` is the original bash implementation. It remains in place as a fallback for any unported subcommands and is a useful reference when debugging behaviour differences or understanding the original logic for a given command. The TS binary falls back to it via `commands/BashFallback.ts` for unknown subcommands.
+
+Related bash helpers (also still in place):
+- `dot-lib` — shared shell functions
+- `dot-cron-lib` — cron/timer helpers
+- `dot-doctor-lib` — doctor check functions
+- `dot-doctor-notify` — doctor notification helper
+- `dot-diff-tmux-session` — tmux session launcher for diff
+- `dot-omarchy-lib` — omarchy sync helpers
+- `dot-private-pkg-lib` — private package repo helpers
+- `dot-skill-updates-lib` — skill update checking logic
+
+These will be removed in Phase 3B of the migration once all fallback paths are confirmed unused.
 
 ## Debugging
 
 Run with stderr visible to see startup logging:
 ```bash
-dot-tui 2>/tmp/dot-tui.log
+DOT_DEBUG=1 dot 2>/tmp/dot.log
 # or
-dot-tui 2>&1 | less
+DOT_DEBUG=1 dot 2>&1 | less
 ```
 
-All services emit `[dot-tui:*]` prefixed log lines to stderr.
+Debug log lines are prefixed with `[dot]`.

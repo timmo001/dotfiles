@@ -22,8 +22,9 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 
 ## Key Paths
 
-- Main entrypoint: `scripts/.local/bin/dot`
-- Shell wrapper for `dot`: `zsh/.zshrc` (`dot()` function)
+- Main entrypoint: `scripts/.local/bin/dot` (compiled binary from `dot/src/`)
+- Source: `dot/` (Bun + Effect v4 + OpenTUI; excluded from stow)
+- Legacy bash fallback: `scripts/.local/bin/dot-legacy` (reference/fallback; being phased out)
 - Stow config: `.stowrc`
 - Main docs: `README.md`
 - OpenCode config source: `agents/.config/opencode/`
@@ -110,7 +111,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 ## Dot Command Changes
 
 - Keep command implementations in `dot/src/commands/`.
-- Legacy bash fallback script: `scripts/.local/bin/dot-legacy` (being phased out).
+- Legacy bash fallback script: `scripts/.local/bin/dot-legacy` (kept as reference; being phased out in Phase 3B).
 - When adding new `dot` subcommands that users may want quick access to, also add them to the menu registry in `dot/src/menu.ts`.
 - Keep logging readable and consistent:
   - section headings in Title Case
@@ -125,7 +126,8 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 
 ## Validation
 
-- Syntax check: `bash -n scripts/.local/bin/dot-legacy`
+- Type check: `cd dot && bunx tsc --noEmit`
+- Build: `cd dot && bun run build`
 - Basic health check: `dot doctor`
 - OpenCode debug wrapper: `dot opencode-debug`
 - OpenCode context injection command: `/inject-context [instruction]`
