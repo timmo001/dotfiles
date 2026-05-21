@@ -1,3 +1,9 @@
+import { extractNativeLibIfNeeded } from "./lib/extractNativeLib.js";
+
+// Extract native .so from bunfs before any OpenTUI rendering code runs.
+// Must complete before createCliRenderer is called (which invokes dlopen).
+await extractNativeLibIfNeeded();
+
 import { Effect, Layer, Stream } from "effect";
 import { Config } from "./services/Config.js";
 import { CommandExecutor } from "./services/CommandExecutor.js";
