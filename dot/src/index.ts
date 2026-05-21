@@ -1,26 +1,9 @@
-import { extractNativeLibIfNeeded } from "./lib/extractNativeLib.js";
-
-// Extract native .so from bunfs before any OpenTUI rendering code runs.
-// Must complete before createCliRenderer is called (which invokes dlopen).
-await extractNativeLibIfNeeded();
-
 import { Effect, Layer, Stream } from "effect";
 import { Config } from "./services/Config.js";
 import { CommandExecutor } from "./services/CommandExecutor.js";
 import { OutputLog } from "./services/OutputLog.js";
 import { Launcher } from "./services/Launcher.js";
-import { Renderer } from "./services/Renderer.js";
-import { Toast } from "./services/Toast.js";
 import { DotDiff } from "./services/DotDiff.js";
-import { WaybarCache } from "./services/WaybarCache.js";
-import { RepoWatcher } from "./services/RepoWatcher.js";
-import { GitStaging } from "./services/GitStaging.js";
-import { CommitSuggest } from "./services/CommitSuggest.js";
-import { shutdownServer } from "./services/OpenCodeServer.js";
-import { createCommandRunner } from "./services/CommandRunner.js";
-import { loadTheme } from "./theme.js";
-import { App } from "./tui/App.js";
-import { resizeIfFloating } from "./tui/hyprland.js";
 import { parseFlags, resolveSubcommand, printHelp } from "./flags.js";
 import { menuItemsById } from "./menu.js";
 import { bashFallback } from "./commands/BashFallback.js";
@@ -246,7 +229,25 @@ if (mode.type === "fallback") {
     process.exit(1);
   });
 } else {
-  // TUI mode
+  // TUI mode — dynamically import TUI dependencies to avoid loading the
+  // OpenTUI native library on CLI-only paths (each dlopen copies ~8MB to /tmp).
+  const { extractNativeLibIfNeeded } = await import(
+    "./lib/extractNativeLib.js"
+  );
+  const nativeLibPath = await extractNativeLibIfNeeded();
+
+  const { Renderer } = await import("./services/Renderer.js");
+  const { Toast } = await import("./services/Toast.js");
+  const { WaybarCache } = await import("./services/WaybarCache.js");
+  const { RepoWatcher } = await import("./services/RepoWatcher.js");
+  const { GitStaging } = await import("./services/GitStaging.js");
+  const { CommitSuggest } = await import("./services/CommitSuggest.js");
+  const { shutdownServer } = await import("./services/OpenCodeServer.js");
+  const { createCommandRunner } = await import("./services/CommandRunner.js");
+  const { loadTheme } = await import("./theme.js");
+  const { App } = await import("./tui/App.js");
+  const { resizeIfFloating } = await import("./tui/hyprland.js");
+
   const { initialView, executeItemId } = mode;
 
   const tuiProgram = Effect.gen(function* () {
@@ -323,7 +324,7 @@ if (mode.type === "fallback") {
     Layer.provideMerge(GitStaging.layer),
     Layer.provideMerge(CommitSuggest.layer),
     Layer.provideMerge(Toast.layer(theme)),
-    Layer.provideMerge(Renderer.layer(theme)),
+    Layer.provideMerge(Renderer.layer(theme, nativeLibPath)),
     Layer.provideMerge(CommandExecutor.layer),
     Layer.provideMerge(Config.layer),
   );

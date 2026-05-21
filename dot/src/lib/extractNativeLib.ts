@@ -7,7 +7,6 @@ import {
   writeFileSync,
 } from "fs";
 import { basename, join } from "path";
-import { setRenderLibPath } from "@opentui/core";
 
 const DEBUG = !!process.env.DOT_DEBUG;
 const log = (msg: string) => {
@@ -41,15 +40,18 @@ function isBunfsPath(path: string): boolean {
  * In compiled binaries, native libraries are embedded in `/$bunfs/root/` which
  * is accessible to Bun's runtime APIs (`readFileSync`, `Bun.file`) but not to
  * the kernel's `dlopen()` syscall. This function copies the library to
- * `~/.cache/dot/native-lib/` and calls {@link setRenderLibPath} so OpenTUI
- * loads it from the extracted location.
+ * `~/.cache/dot/native-lib/` and returns the extracted path.
  *
- * No-op when running uncompiled (e.g. `bun run src/index.ts`).
+ * The caller should pass the returned path to `setRenderLibPath()` from
+ * `@opentui/core` before creating the renderer.
+ *
+ * Returns `undefined` when running uncompiled (e.g. `bun run src/index.ts`)
+ * or if extraction fails.
  */
-export async function extractNativeLibIfNeeded(): Promise<void> {
+export async function extractNativeLibIfNeeded(): Promise<string | undefined> {
   if (!isCompiledBinary()) {
     log("Not a compiled binary, skipping native lib extraction");
-    return;
+    return undefined;
   }
 
   log("Compiled binary detected, extracting native library...");
@@ -71,14 +73,13 @@ export async function extractNativeLibIfNeeded(): Promise<void> {
     embeddedLibPath = nativeModule.default;
   } catch (e) {
     log(`Failed to resolve native package: ${e}`);
-    return;
+    return undefined;
   }
 
   if (!isBunfsPath(embeddedLibPath)) {
-    // Already a real filesystem path — just tell OpenTUI where it is
+    // Already a real filesystem path — caller can use it directly
     log(`Library path is real filesystem: ${embeddedLibPath}`);
-    setRenderLibPath(embeddedLibPath);
-    return;
+    return embeddedLibPath;
   }
 
   const libFileName = basename(embeddedLibPath);
@@ -86,8 +87,7 @@ export async function extractNativeLibIfNeeded(): Promise<void> {
 
   if (existsSync(destPath)) {
     log(`Using cached native library: ${destPath}`);
-    setRenderLibPath(destPath);
-    return;
+    return destPath;
   }
 
   // Clean old cached libraries before writing the new one
@@ -116,5 +116,5 @@ export async function extractNativeLibIfNeeded(): Promise<void> {
   writeFileSync(destPath, libData, { mode: 0o755 });
 
   log(`Extracted native library (${libData.byteLength} bytes)`);
-  setRenderLibPath(destPath);
+  return destPath;
 }
