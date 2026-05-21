@@ -5,8 +5,9 @@ __pycache__/
 .benchmarks/output/
 .tests/output/
 .fallow/
-tui/node_modules/
-tui/dist/
-tui/.fallow/
-tui/bun.lock
-scripts/.local/bin/dot-tui
+dot/node_modules/
+dot/dist/
+dot/.fallow/
+dot/bun.lock
+scripts/.local/bin/dot
+scripts/.local/bin/dot*
