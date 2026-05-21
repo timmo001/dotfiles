@@ -375,31 +375,32 @@ The following diff report shows upstream changes to imported skills that have lo
 All diff content is provided below — do NOT fetch from GitHub or run git commands to obtain this information.
 Use the Read tool to read the current local skill files when applying changes.
 
+IMPORTANT: The \`# upstream-sha:\` values in frontmatter have already been updated by
+the script. Do NOT modify them. Use the diff below to compare what changed upstream
+and integrate those changes into the local files.
+
 For each skill:
 1. Summarise what changed upstream (new sections, removed content, reworded guidance, new patterns).
 2. Identify which local edits should be preserved (noted in the local-edits frontmatter or intentional divergences).
-3. Integrate worthwhile upstream changes into the local files while preserving local edits.
-4. After applying changes, run \`dot stow\` to re-link.
+3. Propose a plan for integrating worthwhile upstream changes while preserving local edits.
+4. Ask clarifying questions before applying any changes.
+5. After applying changes, run \`dot stow\` to re-link.
 
 <skill-updates-diff>
 ${diff_content}
 </skill-updates-diff>
 EOF
 )"
-  local opencode_title="Skill Updates Review $(date +%F-%H%M)"
 
-  log_info 'Running opencode analysis on the skill diff report...'
-  if ! opencode run "$opencode_prompt" --title "$opencode_title"; then
-    log_error 'opencode run failed. Review the report manually: '"$report_file"
+  if [[ ! -r /dev/tty || ! -w /dev/tty ]]; then
+    log_warn 'No interactive TTY detected. Review the report manually: '"$report_file"
     return 1
   fi
 
-  if [[ -r /dev/tty && -w /dev/tty ]]; then
-    log_info 'Opening full interactive OpenCode session (continuing latest)...'
-    opencode --continue < /dev/tty > /dev/tty 2>&1 || log_error 'Failed to open interactive OpenCode session.'
-  else
-    log_warn 'No interactive TTY detected. Continue manually with: opencode --continue'
-  fi
+  log_info 'Launching interactive OpenCode session with plan agent...'
+  log_info '(Report saved to: '"$report_file"')'
+  opencode --prompt "$opencode_prompt" --agent plan < /dev/tty > /dev/tty 2>&1 \
+    || log_error 'OpenCode session exited with an error.'
 }
 
 # Build the markdown diff report content for skills needing review.
