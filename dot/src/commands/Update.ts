@@ -23,18 +23,6 @@ const pullRepo = (name: string, path: string) =>
     }
   });
 
-/** Sync omarchy repos via the omarchy CLI (non-fatal on failure) */
-const omarchySync = Effect.gen(function* () {
-  const log = yield* OutputLog;
-  const launcher = yield* Launcher;
-
-  yield* log.section("Omarchy Repo Sync");
-  const exit = yield* launcher.stream("omarchy update git");
-  if (exit !== 0) {
-    yield* log.warn("Omarchy sync skipped or failed (non-fatal)");
-  }
-});
-
 /** Run post-update hooks (agents-sync, skill-updates) */
 const postHooks = Effect.gen(function* () {
   const log = yield* OutputLog;
@@ -57,7 +45,7 @@ const postHooks = Effect.gen(function* () {
 });
 
 /**
- * Run `dot update`: pull repos, sync omarchy, restow dotfiles, rebuild the binary.
+ * Run `dot update`: pull repos, restow dotfiles, rebuild the binary.
  *
  * Flags are inclusive — passing any of pull/stow/tui selects only those
  * steps; if none are set, all three run (legacy semantics).
@@ -88,9 +76,6 @@ export const update = (opts?: {
           "Skipping private pull (private dotfiles not available)",
         );
       }
-
-      // Omarchy sync (external CLI — non-fatal)
-      yield* omarchySync;
     }
 
     if (doStow) {
