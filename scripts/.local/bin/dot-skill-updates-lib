@@ -416,8 +416,8 @@ _skill_updates_build_diff_report() {
     origin_url="${review_origins[$i]}"
 
     printf '## %s\n\n' "$skill_name"
-    printf '- **Origin:** %s\n' "$origin_url"
-    printf '- **Local path:** %s\n\n' "$skill_dir"
+    printf '%s\n' "- **Origin:** ${origin_url}"
+    printf '%s\n\n' "- **Local path:** ${skill_dir}"
 
     # Show local-edits notes.
     local local_edits
@@ -425,7 +425,7 @@ _skill_updates_build_diff_report() {
     if [[ -n "$local_edits" ]]; then
       printf '**Local edits noted in frontmatter:**\n'
       while IFS= read -r line; do
-        printf '- %s\n' "$line"
+        printf '%s\n' "- ${line}"
       done <<< "$local_edits"
       printf '\n'
     fi
