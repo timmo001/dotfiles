@@ -18,19 +18,35 @@ Phase 0 must be complete. The following services must exist and work:
 
 ## What `dot stow` Does (from bash)
 
-Reference: `scripts/.local/bin/dot-legacy` (search for the stow command handling).
+Reference: `scripts/.local/bin/dot-legacy` — `cmd_stow` (line ~1946) and `run_stow` (line ~1442).
 
-1. `cd $PUBLIC_DOTFILES`
-2. Run `stow` with flags: `--restow --no-folding --adopt .` against `$HOME`
-3. If private dotfiles available: `cd $PRIVATE_DOTFILES` and stow there too
-4. Log each step with section headings
+### Legacy behaviour
 
-The key stow invocation is:
+1. Parse `--public` / `--private` flags (no flags = both)
+2. Log section: `Stow workflow`
+3. For public: list stow folders, then per-folder:
+   - Log: `[public] stow <folder> (repo: ~/.config/dotfiles)`
+   - Unstow (`stow -D <folder>`)
+   - Restow (plain `stow <folder>`, or `--no-folding` for `agents`)
+4. If private available: repeat for private scope
+5. If private unavailable: `log_warn "Skipping private stow (<reason>)"`
+
+### Key stow invocation (simplified port)
+
 ```bash
 stow --restow --no-folding --adopt --target="$HOME" .
 ```
 
-Run from within the dotfiles directory (public or private).
+Run from within the dotfiles directory (public or private). The simplified single-command approach replaces per-folder iteration for the initial port (agents special-casing deferred to a follow-up if needed).
+
+### Logging level (match legacy)
+
+Legacy outputs ~1 `log_info` line per stow folder (typically 5–10 folders per scope), plus section headings, repo paths, and skip warnings. The port should aim for similar density:
+- Section heading per scope (not just one for the whole command)
+- Repo path shown at scope start
+- Per-scope success/failure confirmation
+- Warning with reason when private is skipped
+- No "Complete" section at the end — legacy doesn't have one; just finish after the last scope
 
 ---
 
@@ -49,7 +65,12 @@ export const stow = Effect.gen(function* () {
   const log = yield* OutputLog
   const launcher = yield* Launcher
 
-  yield* log.section("Stow Public Dotfiles")
+  yield* log.section("Stow workflow")
+
+  // --- Public scope ---
+  yield* log.section("Stow public dotfiles")
+  yield* log.info(`Public repo: ${config.displayPath(config.publicDotfiles)}`)
+
   const publicExit = yield* launcher.stream(
     "stow --restow --no-folding --adopt --target=$HOME .",
     { cwd: config.publicDotfiles }
@@ -58,23 +79,26 @@ export const stow = Effect.gen(function* () {
     yield* log.error("Public stow failed")
     return
   }
-  yield* log.info("Public dotfiles stowed")
+  yield* log.info("Public dotfiles stowed successfully")
 
-  if (config.canUsePrivate && config.privateDotfiles) {
-    yield* log.section("Stow Private Dotfiles")
-    const privateExit = yield* launcher.stream(
-      "stow --restow --no-folding --adopt --target=$HOME .",
-      { cwd: config.privateDotfiles }
-    )
-    if (privateExit !== 0) {
-      yield* log.error("Private stow failed")
-      return
-    }
-    yield* log.info("Private dotfiles stowed")
+  // --- Private scope ---
+  if (!config.canUsePrivate || !config.privateDotfiles) {
+    yield* log.warn(`Skipping private stow (${config.privateReason})`)
+    return
   }
 
-  yield* log.section("Complete")
-  yield* log.info("All packages stowed successfully")
+  yield* log.section("Stow private dotfiles")
+  yield* log.info(`Private repo: ${config.displayPath(config.privateDotfiles)}`)
+
+  const privateExit = yield* launcher.stream(
+    "stow --restow --no-folding --adopt --target=$HOME .",
+    { cwd: config.privateDotfiles }
+  )
+  if (privateExit !== 0) {
+    yield* log.error("Private stow failed")
+    return
+  }
+  yield* log.info("Private dotfiles stowed successfully")
 })
 ```
 
@@ -87,8 +111,18 @@ case "stow": return stow
 
 ### Flags
 
-- `--restow` — already the default (always restow)
-- No additional flags needed for the basic port
+- `--public` — Stow public dotfiles only
+- `--private` — Stow private dotfiles only
+- No flags = both scopes (matches legacy behaviour)
+
+### Config service requirements
+
+The implementation references these `Config` fields:
+- `publicDotfiles` — path to public repo
+- `privateDotfiles` — path to private repo (may be undefined)
+- `canUsePrivate` — boolean: private repo accessible
+- `privateReason` — human-readable reason when private unavailable (e.g. `"private repo not present/readable"`)
+- `displayPath(path)` — helper that replaces `$HOME` prefix with `~` for log output
 
 ---
 
@@ -97,7 +131,20 @@ case "stow": return stow
 ```bash
 cd ~/.config/dotfiles/dot && bun run build
 dot stow              # Should stow public + private, streaming output
-dot stow 2>&1 | cat  # Should detect non-TTY, use CLI mode (plain stdout)
+dot stow --public     # Should stow public only
+dot stow --private    # Should stow private only (or warn if unavailable)
+dot stow 2>&1 | cat   # Should detect non-TTY, use CLI mode (plain stdout)
+```
+
+Expected output shape (similar to legacy):
+```
+── Stow workflow
+── Stow public dotfiles
+[INFO]   Public repo: ~/.config/dotfiles
+[INFO]   Public dotfiles stowed successfully
+── Stow private dotfiles
+[INFO]   Private repo: ~/.config/dotfiles-private
+[INFO]   Private dotfiles stowed successfully
 ```
 
 Verify by checking symlinks are intact: `ls -la ~/.local/bin/dot`
@@ -108,10 +155,11 @@ Verify by checking symlinks are intact: `ls -la ~/.local/bin/dot`
 
 | Path | Why |
 |------|-----|
-| `scripts/.local/bin/dot-legacy` | Search for stow logic (around line 2100) |
+| `scripts/.local/bin/dot-legacy` | `cmd_stow` (~line 1946), `run_stow` (~line 1442) |
 | `.stowrc` | Stow configuration (ignore rules, target) |
 | `dot/src/services/Launcher.ts` | The streaming API to use |
-| `dot/src/services/Config.ts` | Paths for public/private dotfiles |
+| `dot/src/services/Config.ts` | Paths, `canUsePrivate`, `privateReason`, `displayPath` |
+| `dot/src/services/OutputLog.ts` | `section`, `info`, `warn`, `error` methods |
 
 ---
 
