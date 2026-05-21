@@ -96,6 +96,17 @@ _skill_updates_fetch_file() {
   printf '%s' "$content" | base64 -d 2>/dev/null || return 1
 }
 
+# List all files in the local skill directory recursively.
+# Prints relative paths (e.g. "SKILL.md", "references/PATTERNS.md").
+_skill_updates_list_local_files() {
+  local skill_dir="$1"
+  local f
+  while IFS= read -r f; do
+    [[ -z "$f" ]] && continue
+    printf '%s\n' "${f#"${skill_dir}"/}"
+  done < <(find "$skill_dir" -type f | sort)
+}
+
 # List files in an upstream skill directory (non-recursive, one level).
 # Returns lines of "type name" (file SKILL.md, dir references, etc.)
 _skill_updates_list_upstream_dir() {
@@ -213,18 +224,13 @@ _skill_updates_check_skill() {
     fi
   fi
 
-  # List upstream files.
-  local upstream_files
-  upstream_files="$(_skill_updates_list_upstream_files "$owner" "$repo" "$branch" "$spath" 2>/dev/null)"
-  if [[ -z "$upstream_files" ]]; then
-    log_warn "  ${skill_name}: could not list upstream directory"
-    return 1
-  fi
+  # Compare local files against their upstream counterparts.
+  # Only files that exist locally are checked (SKILL.md + references).
+  local local_files
+  local_files="$(_skill_updates_list_local_files "$skill_dir")"
 
-  # Compare each file.
   local file has_changes=0 changes_summary='' local_file upstream_content
-  local local_norm upstream_norm tmpdir
-  tmpdir="$(mktemp -d)"
+  local local_norm upstream_norm
 
   while IFS= read -r file; do
     [[ -z "$file" ]] && continue
@@ -232,15 +238,9 @@ _skill_updates_check_skill() {
 
     upstream_content="$(_skill_updates_fetch_file "$owner" "$repo" "$branch" "${spath}/${file}" 2>/dev/null)"
     if [[ -z "$upstream_content" ]]; then
-      log_warn "  ${skill_name}: could not fetch upstream ${file}"
-      continue
-    fi
-
-    if [[ ! -f "$local_file" ]]; then
-      # New upstream file.
+      # File exists locally but not upstream (removed or renamed upstream).
       has_changes=1
-      changes_summary+="    + ${file} (new upstream file)"$'\n'
-      printf '%s' "$upstream_content" > "${tmpdir}/${file##*/}.upstream"
+      changes_summary+="    - ${file} (removed upstream)"$'\n'
       continue
     fi
 
@@ -265,9 +265,7 @@ _skill_updates_check_skill() {
         changes_summary+="${diff_lines}"$'\n'
       fi
     fi
-  done <<< "$upstream_files"
-
-  rm -rf "$tmpdir"
+  done <<< "$local_files"
 
   if [[ "$has_changes" -eq 0 ]]; then
     [[ "$mode" != 'check' && -n "$write_sha" ]] && _skill_updates_write_sha "$skill_md" "$write_sha"
@@ -321,6 +319,14 @@ _skill_updates_check_skill() {
   # Extract current local description (preserve it across updates).
   local local_description
   local_description="$(awk 'NR==1 && /^---$/ { in_fm=1; next } in_fm && /^---$/ { exit } in_fm && /^description:/ { sub(/^description: */, ""); print; exit }' "$skill_md")"
+
+  # List upstream files for full import.
+  local upstream_files
+  upstream_files="$(_skill_updates_list_upstream_files "$owner" "$repo" "$branch" "$spath" 2>/dev/null)"
+  if [[ -z "$upstream_files" ]]; then
+    log_warn "  ${skill_name}: could not list upstream directory for apply"
+    return 1
+  fi
 
   # Apply updates.
   while IFS= read -r file; do
@@ -502,12 +508,10 @@ _skill_updates_build_single_diff() {
   fi
 
   local owner="$_SU_OWNER" repo="$_SU_REPO" branch="$_SU_BRANCH" spath="$_SU_PATH"
-  local upstream_files
-  upstream_files="$(_skill_updates_list_upstream_files "$owner" "$repo" "$branch" "$spath" 2>/dev/null)"
-  if [[ -z "$upstream_files" ]]; then
-    printf '> Could not list upstream directory.\n\n'
-    return 0
-  fi
+
+  # Iterate local files only — fetch their upstream counterparts and diff.
+  local local_files
+  local_files="$(_skill_updates_list_local_files "$skill_dir")"
 
   local has_diff=0
   local file local_file upstream_content local_norm upstream_norm
@@ -516,11 +520,9 @@ _skill_updates_build_single_diff() {
     local_file="${skill_dir}/${file}"
 
     upstream_content="$(_skill_updates_fetch_file "$owner" "$repo" "$branch" "${spath}/${file}" 2>/dev/null)"
-    [[ -z "$upstream_content" ]] && continue
-
-    if [[ ! -f "$local_file" ]]; then
-      output+="$(printf '### %s (new upstream file)\n\n' "$file")"
-      output+="$(printf '```\n%s\n```\n\n' "$upstream_content")"
+    if [[ -z "$upstream_content" ]]; then
+      # File exists locally but not upstream.
+      output+="$(printf '### %s (removed upstream)\n\n' "$file")"
       has_diff=1
       continue
     fi
@@ -544,7 +546,7 @@ _skill_updates_build_single_diff() {
       output+="$(printf '\n```\n\n')"
       has_diff=1
     fi
-  done <<< "$upstream_files"
+  done <<< "$local_files"
 
   if [[ "$has_diff" -eq 1 ]]; then
     printf '%s' "$output"
