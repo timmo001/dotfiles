@@ -6,14 +6,16 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 
 - Stow-based dotfiles rooted at `~/.config/dotfiles`
 - Public config for shell, editor, and tooling
-- One command entrypoint at `scripts/.local/bin/dot`
+- Single compiled binary at `scripts/.local/bin/dot` (Bun + Effect v4 + OpenTUI)
+- TUI dashboard with diff view, omarchy menus, git staging, and AI commit suggestions
 - Optional private overlays from `~/.config/dotfiles-private`
 - Omarchy repo sync for `bootstrap`, `hypr`, `waybar`, `ghostty`, and `uwsm`
 - Global git workflow watch for watched GitHub repos on this machine
 
 ## Repository layout
 
-- `scripts/.local/bin/dot` - main command entrypoint
+- `dot/` - TypeScript source for the `dot` binary (excluded from stow)
+- `scripts/.local/bin/dot` - compiled binary (stowed to `~/.local/bin/dot`)
 - `.stowrc` - stow target and ignore rules
 - `zsh/` - shell config
 - `neovim/` - Neovim config
@@ -34,8 +36,10 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 # Before dot is on PATH
 ~/.config/dotfiles/scripts/.local/bin/dot help
 
+# Build the binary (requires bun)
+cd ~/.config/dotfiles/dot && bun run build
+
 # Typical workflow
-dot init
 dot update
 dot diff
 dot doctor
