@@ -10,4 +10,5 @@
 --ignore=\.dot-public-packages
 --ignore=^/\.opencode
 --ignore=renovate.json
---ignore=^/tui
+--ignore=^/dot
+--ignore=^/dot-migration

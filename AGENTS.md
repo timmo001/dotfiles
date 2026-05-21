@@ -109,9 +109,9 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 
 ## Dot Command Changes
 
-- Keep command orchestration in `scripts/.local/bin/dot`.
-- If command behavior depends on parent-shell cwd changes, implement/update logic in `zsh/.zshrc` `dot()`.
-- When adding new `dot` subcommands that users may want quick access to, also add them to the menu registry in `tui/src/menu.ts`.
+- Keep command implementations in `dot/src/commands/`.
+- Legacy bash fallback script: `scripts/.local/bin/dot-legacy` (being phased out).
+- When adding new `dot` subcommands that users may want quick access to, also add them to the menu registry in `dot/src/menu.ts`.
 - Keep logging readable and consistent:
   - section headings in Title Case
   - log labels uppercase (`[INFO]`, `[WARN]`, `[ERROR]`)
@@ -125,9 +125,9 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 
 ## Validation
 
-- Syntax check: `bash -n scripts/.local/bin/dot`
-- Basic health check: `scripts/.local/bin/dot doctor`
-- OpenCode debug wrapper: `scripts/.local/bin/dot opencode-debug`
+- Syntax check: `bash -n scripts/.local/bin/dot-legacy`
+- Basic health check: `dot doctor`
+- OpenCode debug wrapper: `dot opencode-debug`
 - OpenCode context injection command: `/inject-context [instruction]`
 - OpenCode planning command: `/plan [focus]` (manual entrypoint; some agents can also switch into plan mode via native `plan_enter`)
 - OpenCode review command: `/review-current-work`
@@ -137,10 +137,8 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - OpenCode frontend debug command: `/debug-frontend <page or issue>`
 - OpenCode fallow audit command: `/fallow-audit [workspace]`
 - OpenCode fallow project analysis command: `/fallow-project-analyse [workspace]`
-- Fallow dead-code check (after `.ts` changes in `tui/`): use MCP `analyze` tool with `root: tui`, or `/fallow-audit`
-- Diff behavior: `scripts/.local/bin/dot diff`
-- Wrapper cwd behavior (interactive zsh):
-  - `zsh -ic 'dot diff >/tmp/dot-diff.log 2>&1; pwd'`
+- Fallow dead-code check (after `.ts` changes in `dot/`): use MCP `analyze` tool with `root: dot`, or `/fallow-audit`
+- Diff behavior: `dot diff`
 
 ## Safety
 
