@@ -1,6 +1,6 @@
 import type { CliRenderer } from "@opentui/core";
 import type { NotifyConfig } from "../types.js";
-import type { Toast } from "../tui/Toast.js";
+import type { ToastService } from "./Toast.js";
 
 const log = (msg: string) => console.error(`[dot:CommandRunner] ${msg}`);
 
@@ -21,7 +21,7 @@ export interface CommandRunnerService {
 /** Create a {@link CommandRunnerService} bound to the given renderer for suspend/resume */
 export function createCommandRunner(
   renderer: CliRenderer,
-  toast: Toast,
+  toast: ToastService,
 ): CommandRunnerService {
   return {
     runSuspended: async (cmd, wait) => {

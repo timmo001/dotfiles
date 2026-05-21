@@ -1,9 +1,10 @@
 import { Effect, Layer, Stream } from "effect";
-import { createCliRenderer } from "@opentui/core";
 import { Config } from "./services/Config.js";
 import { CommandExecutor } from "./services/CommandExecutor.js";
 import { OutputLog } from "./services/OutputLog.js";
 import { Launcher } from "./services/Launcher.js";
+import { Renderer } from "./services/Renderer.js";
+import { Toast } from "./services/Toast.js";
 import { DotDiff } from "./services/DotDiff.js";
 import { WaybarCache } from "./services/WaybarCache.js";
 import { RepoWatcher } from "./services/RepoWatcher.js";
@@ -12,7 +13,6 @@ import { CommitSuggest } from "./services/CommitSuggest.js";
 import { shutdownServer } from "./services/OpenCodeServer.js";
 import { createCommandRunner } from "./services/CommandRunner.js";
 import { loadTheme } from "./theme.js";
-import { Toast } from "./tui/Toast.js";
 import { App } from "./tui/App.js";
 import { resizeIfFloating } from "./tui/hyprland.js";
 import { parseFlags, resolveSubcommand, printHelp } from "./flags.js";
@@ -116,28 +116,11 @@ if (mode.type === "fallback") {
     const watcher = yield* RepoWatcher;
     const gitStaging = yield* GitStaging;
     const commitSuggest = yield* CommitSuggest;
-    const theme = yield* loadTheme;
+    const renderer = yield* Renderer;
+    const toast = yield* Toast;
     log("Services ready");
 
-    log("Creating renderer...");
-    const renderer = yield* Effect.promise(() =>
-      createCliRenderer({
-        exitOnCtrlC: true,
-        screenMode: "alternate-screen",
-        useMouse: false,
-        backgroundColor: theme.transparent ? "transparent" : theme.bg,
-        onDestroy: () => {
-          shutdownServer();
-          process.exit(0);
-        },
-      }),
-    );
-    log("Renderer created");
-
-    const commandRunner = createCommandRunner(
-      renderer,
-      new Toast(renderer, theme),
-    );
+    const commandRunner = createCommandRunner(renderer, toast);
 
     // Create the app with concrete dependencies
     const app = new App(
@@ -193,11 +176,16 @@ if (mode.type === "fallback") {
     yield* Effect.never;
   });
 
+  // Resolve theme synchronously (uses readFileSync, no async deps)
+  const theme = Effect.runSync(loadTheme);
+
   const TuiLayers = RepoWatcher.layer.pipe(
     Layer.provideMerge(DotDiff.layer),
     Layer.provideMerge(WaybarCache.layer),
     Layer.provideMerge(GitStaging.layer),
     Layer.provideMerge(CommitSuggest.layer),
+    Layer.provideMerge(Toast.layer(theme)),
+    Layer.provideMerge(Renderer.layer(theme)),
   );
 
   const runnable = tuiProgram.pipe(Effect.scoped, Effect.provide(TuiLayers));
