@@ -2,7 +2,7 @@
 
 ## Focus
 
-Port the `dot update` command from bash to TypeScript Effect. This is the most-used command — it pulls repos, stows, rebuilds the binary, and runs post-hooks. It exercises the full service stack including self-update + relaunch.
+Port the `dot update` command from bash to TypeScript Effect. This is the most-used command — it pulls repos, stows, rebuilds the binary, and runs post-hooks. It exercises the full service stack including self-rebuild.
 
 ---
 
@@ -41,7 +41,7 @@ import { OutputLog } from "../services/OutputLog.js"
 import { Launcher } from "../services/Launcher.js"
 import { CommandExecutor } from "../services/CommandExecutor.js"
 import { stow } from "./Stow.js"
-import { rebuild, relaunch } from "../lib/selfUpdate.js"
+import { rebuild } from "../lib/selfUpdate.js"
 
 const pullRepo = (name: string, path: string) =>
   Effect.gen(function* () {
@@ -81,12 +81,12 @@ export const update = Effect.gen(function* () {
   // Rebuild self
   yield* log.section("Rebuild")
   yield* rebuild
-  yield* log.info("Build successful — relaunching...")
-  yield* relaunch
+  yield* log.info("Build successful")
 })
 ```
 
-Note: The `relaunch` at the end means the process re-execs itself with the new binary. The new binary picks up from a fresh start (not mid-update). This is intentional — the update is complete before relaunch.
+Note: After rebuild, the command exits 0. No relaunch — the next invocation
+of `dot` will naturally use the new binary.
 
 ### Self-Update Detail
 
@@ -111,15 +111,9 @@ export const rebuild = Effect.gen(function* () {
     fs.chmodSync(process.execPath, 0o755)
   })
 })
-
-export const relaunch = Effect.sync(() => {
-  const proc = Bun.spawn([process.execPath, ...process.argv.slice(1)], {
-    stdio: ["inherit", "inherit", "inherit"],
-  })
-  proc.unref()
-  process.exit(0)
-})
 ```
+
+No relaunch step — the process exits 0 after rebuild completes.
 
 ### Incremental Strategy
 
@@ -135,8 +129,8 @@ These get removed as later phases port those concerns.
 
 ```bash
 cd ~/.config/dotfiles/dot && bun run build
-dot update            # Should pull, stow, rebuild, relaunch
-# After relaunch, verify the binary is the new build:
+dot update            # Should pull, stow, rebuild, exit 0
+# Verify the binary is the new build:
 dot --version         # (if version flag exists) or check binary mtime
 ```
 
@@ -148,7 +142,7 @@ dot --version         # (if version flag exists) or check binary mtime
 |------|-----|
 | `scripts/.local/bin/dot-legacy` | Search for `cmd_update` — full update logic |
 | `dot/src/commands/Stow.ts` | Reused by update |
-| `dot/src/lib/selfUpdate.ts` | Rebuild + relaunch implementation |
+| `dot/src/lib/selfUpdate.ts` | Rebuild implementation |
 | `dot/src/services/Launcher.ts` | Streaming subprocess API |
 
 ---
@@ -164,7 +158,7 @@ dot --version         # (if version flag exists) or check binary mtime
 ## Constraints
 
 - Self-rebuild uses atomic rename (write to `.new`, rename over running binary)
-- Relaunch re-execs with same argv — the new binary starts fresh
+- No relaunch — process exits 0 after rebuild; next `dot` invocation uses new binary
 - Omarchy stays as external subprocess call (never port omarchy logic)
 - Package install stays as bash fallback until a dedicated packages phase
 - Log all steps via OutputLog — user sees progress in TUI or stdout

@@ -178,12 +178,10 @@ export const rebuild = Effect.gen(function* () {
   yield* executor.run("bun", ["build", "src/index.ts", "--compile", "--outfile", tmpPath], { cwd: dotSrcDir })
   yield* Effect.sync(() => { fs.renameSync(tmpPath, process.execPath); fs.chmodSync(process.execPath, 0o755) })
 })
-
-export const relaunch = Effect.sync(() => {
-  Bun.spawn([process.execPath, ...process.argv.slice(1)], { stdio: ["inherit", "inherit", "inherit"] }).unref()
-  process.exit(0)
-})
 ```
+
+After rebuild, the update command exits 0. No relaunch — the next invocation
+of `dot` will use the new binary naturally.
 
 ### 0.13 Layer composition
 

@@ -12,7 +12,8 @@ const DOT_SRC = join(dirname(dirname(process.execPath)), "..", "dot");
  * Rebuild the dot binary from source.
  *
  * Runs `bun install` then `bun build --compile` to a temporary path,
- * then atomically renames over the current binary.
+ * then atomically renames over the current binary. The process should
+ * exit 0 after this completes — no relaunch needed.
  */
 export const rebuild = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
@@ -38,21 +39,4 @@ export const rebuild = Effect.gen(function* () {
     chmodSync(process.execPath, 0o755);
   });
   log("Binary replaced");
-});
-
-/**
- * Re-exec the current binary with the same arguments.
- *
- * Spawns a detached replacement process and exits immediately.
- * The new process picks up from a fresh start with the updated binary.
- */
-export const relaunch = Effect.sync(() => {
-  log("Relaunching...");
-  const proc = Bun.spawn([process.execPath, ...process.argv.slice(2)], {
-    stdin: "inherit",
-    stdout: "inherit",
-    stderr: "inherit",
-  });
-  proc.unref();
-  process.exit(0);
 });

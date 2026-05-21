@@ -109,7 +109,7 @@ dot help             # Help prints
 - [ ] TUI views all work: main menu, diff, omarchy, staging, commit
 - [ ] Suspend/resume works: lazygit, opencode launch correctly from TUI
 - [ ] Private dotfiles handling: works when available, skips gracefully when not
-- [ ] Self-update: `dot update` rebuilds and relaunches correctly
+- [ ] Self-update: `dot update` rebuilds binary and exits 0
 - [ ] Log file written to `~/.local/state/dot/logs/`
 - [ ] No references to `dot-tui` remain in stowed paths or configs
 
