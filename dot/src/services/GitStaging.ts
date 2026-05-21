@@ -1,7 +1,7 @@
 import { Context, Effect, Layer, Schema } from "effect";
 import type { GitStatusCode, StagedFile } from "../types.js";
 
-const log = (msg: string) => console.error(`[dot-tui:GitStaging] ${msg}`);
+const log = (msg: string) => console.error(`[dot:GitStaging] ${msg}`);
 
 /** Domain error for git staging operations */
 export class GitStagingError extends Schema.TaggedErrorClass<GitStagingError>()(

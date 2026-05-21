@@ -2,7 +2,7 @@ import type { CliRenderer } from "@opentui/core";
 import type { NotifyConfig } from "../types.js";
 import type { Toast } from "../tui/Toast.js";
 
-const log = (msg: string) => console.error(`[dot-tui:CommandRunner] ${msg}`);
+const log = (msg: string) => console.error(`[dot:CommandRunner] ${msg}`);
 
 /** Service for executing shell commands with TUI suspend/resume lifecycle */
 export interface CommandRunnerService {

@@ -10,11 +10,12 @@ import { DiffView } from "./DiffView.js";
 import { OmarchyMenu } from "./OmarchyMenu.js";
 import { StagingView } from "./StagingView.js";
 import { CommitView } from "./CommitView.js";
+import { OutputPane } from "./OutputPane.js";
 import { Toast } from "./Toast.js";
 import { VariantPopup } from "./VariantPopup.js";
 import { openLazygit } from "./Lazygit.js";
 
-const log = (msg: string) => console.error(`[dot-tui:App] ${msg}`);
+const log = (msg: string) => console.error(`[dot:App] ${msg}`);
 
 /** Set the terminal tab/window title via an OSC escape sequence */
 const setTerminalTitle = (title: string): void => {
@@ -58,6 +59,7 @@ export class App {
   private omarchyMenu: OmarchyMenu;
   private stagingView: StagingView;
   private commitView: CommitView;
+  private outputPane: OutputPane;
   private variantPopup: VariantPopup;
   private activeView: ViewId = "main";
   private viewStack: ViewId[] = [];
@@ -196,12 +198,17 @@ export class App {
       },
     });
 
+    this.outputPane = new OutputPane(deps.renderer, deps.theme, {
+      onBack: () => this.popView(),
+    });
+
     // --- Hide all views initially ---
     this.mainMenu.setVisible(false);
     this.diffView.setVisible(false);
     this.omarchyMenu.setVisible(false);
     this.stagingView.setVisible(false);
     this.commitView.setVisible(false);
+    this.outputPane.setVisible(false);
 
     // --- Global keyboard ---
     // Ctrl+C is handled by OpenTUI's exitOnCtrlC option which ensures
@@ -275,6 +282,11 @@ export class App {
     return this.diffView;
   }
 
+  /** Get the output pane for streaming command output */
+  getOutputPane(): OutputPane {
+    return this.outputPane;
+  }
+
   private showView(viewId: ViewId): void {
     log(`Switching to view: ${viewId}`);
 
@@ -284,6 +296,7 @@ export class App {
     this.omarchyMenu.setVisible(false);
     this.stagingView.setVisible(false);
     this.commitView.setVisible(false);
+    this.outputPane.setVisible(false);
 
     this.activeView = viewId;
 
@@ -313,6 +326,11 @@ export class App {
         setTerminalTitle("Dot TUI \u203A Diff \u203A Commit");
         this.commitView.setVisible(true);
         this.commitView.focus();
+        break;
+      case "output":
+        setTerminalTitle("Dot \u203A Output");
+        this.outputPane.setVisible(true);
+        this.outputPane.focus();
         break;
     }
   }
@@ -395,6 +413,9 @@ export class App {
         break;
       case "commit":
         this.commitView.focus();
+        break;
+      case "output":
+        this.outputPane.focus();
         break;
     }
   }

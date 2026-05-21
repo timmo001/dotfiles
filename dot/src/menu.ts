@@ -69,7 +69,7 @@ const dotItems: readonly MenuItem[] = [
       },
       {
         label: "TUI",
-        description: "Rebuild dot-tui binary only",
+        description: "Rebuild dot binary only",
         action: cmd("dot update --tui"),
       },
     ],

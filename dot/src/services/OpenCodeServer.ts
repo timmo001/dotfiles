@@ -1,4 +1,4 @@
-const log = (msg: string) => console.error(`[dot-tui:OpenCodeServer] ${msg}`);
+const log = (msg: string) => console.error(`[dot:OpenCodeServer] ${msg}`);
 
 /** State for the OpenCode server lifecycle */
 interface ServerState {

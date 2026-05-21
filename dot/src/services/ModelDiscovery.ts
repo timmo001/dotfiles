@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 
-const log = (msg: string) => console.error(`[dot-tui:ModelDiscovery] ${msg}`);
+const log = (msg: string) => console.error(`[dot:ModelDiscovery] ${msg}`);
 
 /** Tokens that indicate a fast/cheap model suitable for commit suggestions */
 const FAST_MODEL_TOKENS = new Set([

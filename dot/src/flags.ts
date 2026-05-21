@@ -3,7 +3,7 @@ import { menuItemsById, submenus } from "./menu.js";
 
 type DiffTab = "changed" | "unchanged";
 
-/** Parsed CLI flags for `dot-tui` */
+/** Parsed CLI flags for `dot` */
 export interface Flags {
   /** Resolved subcommand (dot-separated path) matching a menu item ID or view ID */
   readonly subcommand: string | undefined;
@@ -126,7 +126,7 @@ export function resolveSubcommand(
  */
 export function printHelp(subcommand?: string): void {
   if (subcommand === "diff") {
-    console.log(`Usage: dot-tui diff [options]
+    console.log(`Usage: dot diff [options]
 
 Open the diff/repo watcher view.
 
@@ -145,13 +145,13 @@ Keybindings:
   }
 
   if (subcommand === "omarchy" || subcommand?.startsWith("omarchy.")) {
-    console.log(`Usage: dot-tui omarchy [submenu...]
+    console.log(`Usage: dot omarchy [submenu...]
 
 Open the Omarchy desktop controls menu. Submenus can be specified
 as space-separated paths:
 
-  dot-tui omarchy theme        Theme submenu
-  dot-tui omarchy theme set    Execute theme set directly
+  dot omarchy theme        Theme submenu
+  dot omarchy theme set    Execute theme set directly
 
 Available submenus:
   theme       Theme management
@@ -177,7 +177,7 @@ Options:
     return;
   }
 
-  console.log(`Usage: dot-tui [subcommand] [options]
+  console.log(`Usage: dot [subcommand] [options]
 
 Launch the dot TUI dashboard. Without a subcommand, opens the main menu.
 
@@ -196,8 +196,8 @@ Options:
   --help, -h                       Show this help message
 
 Examples:
-  dot-tui                      Main menu
-  dot-tui diff --tab other     Diff view, Other pane focused
-  dot-tui omarchy theme        Omarchy theme submenu
-  dot-tui omarchy theme set    Execute omarchy theme set`);
+  dot                      Main menu
+  dot diff --tab other     Diff view, Other pane focused
+  dot omarchy theme        Omarchy theme submenu
+  dot omarchy theme set    Execute omarchy theme set`);
 }

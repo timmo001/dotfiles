@@ -7,9 +7,9 @@ import {
 } from "./ModelDiscovery.js";
 import { ensureServer } from "./OpenCodeServer.js";
 
-const log = (msg: string) => console.error(`[dot-tui:CommitSuggest] ${msg}`);
+const log = (msg: string) => console.error(`[dot:CommitSuggest] ${msg}`);
 
-const DEBUG_FILE = "/tmp/dot-tui-debug.json";
+const DEBUG_FILE = "/tmp/dot-debug.json";
 
 /** Domain error for AI commit suggestion failures */
 export class CommitSuggestError extends Schema.TaggedErrorClass<CommitSuggestError>()(

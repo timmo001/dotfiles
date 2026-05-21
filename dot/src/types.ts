@@ -23,7 +23,7 @@ export interface RepoState {
 // --- Menu types ---
 
 /** Identifies a top-level TUI view for navigation */
-export type ViewId = "main" | "diff" | "omarchy" | "staging" | "commit";
+export type ViewId = "main" | "diff" | "omarchy" | "staging" | "commit" | "output";
 
 // --- Git staging types ---
 

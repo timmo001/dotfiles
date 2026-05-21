@@ -13,7 +13,7 @@ import type { Repo, RepoState } from "../types.js";
 import { DotDiff } from "./DotDiff.js";
 import { WaybarCache } from "./WaybarCache.js";
 
-const log = (msg: string) => console.error(`[dot-tui:Watcher] ${msg}`);
+const log = (msg: string) => console.error(`[dot:Watcher] ${msg}`);
 
 /** Service interface for the hybrid repo-polling watcher */
 interface RepoWatcherService {

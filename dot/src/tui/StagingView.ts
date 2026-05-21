@@ -26,7 +26,7 @@ const HELP: readonly HelpEntry[] = [
   ...GLOBAL_HELP,
 ];
 
-const log = (msg: string) => console.error(`[dot-tui:StagingView] ${msg}`);
+const log = (msg: string) => console.error(`[dot:StagingView] ${msg}`);
 
 /** Configuration and callbacks for the staging view */
 export interface StagingViewOptions {

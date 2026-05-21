@@ -35,7 +35,7 @@ const HELP_SUGGESTIONS: readonly HelpEntry[] = [
   ...GLOBAL_HELP,
 ];
 
-const log = (msg: string) => console.error(`[dot-tui:CommitView] ${msg}`);
+const log = (msg: string) => console.error(`[dot:CommitView] ${msg}`);
 
 /** Extra repo paths file used by `dot` for tracking additional repositories */
 const EXTRA_REPOS_FILE = `${process.env.HOME}/.config/dotfiles-private/.dot-extra-repos`;

@@ -1,7 +1,7 @@
 import { Context, Effect, Layer, Schema } from "effect";
 import type { Repo } from "../types.js";
 
-const log = (msg: string) => console.error(`[dot-tui:DotDiff] ${msg}`);
+const log = (msg: string) => console.error(`[dot:DotDiff] ${msg}`);
 
 /** Domain error for `dot diff` command failures */
 export class DotDiffError extends Schema.TaggedErrorClass<DotDiffError>()(
@@ -47,7 +47,7 @@ const runDotDiff = Effect.fn("DotDiff.runDotDiff")(function* (
   return yield* Effect.tryPromise({
     try: async () => {
       log(`Running: dot diff ${args.join(" ")}`);
-      const proc = Bun.spawn(["dot", "diff", ...args], {
+      const proc = Bun.spawn(["dot-legacy", "diff", ...args], {
         stdout: "pipe",
         stderr: "pipe",
         env: { ...process.env, PATH: process.env.PATH },

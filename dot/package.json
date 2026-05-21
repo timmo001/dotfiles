@@ -1,11 +1,11 @@
 {
-  "name": "dot-tui",
-  "version": "0.1.0",
+  "name": "dot-cli",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "bun run --watch src/index.ts",
-    "build": "bun build src/index.ts --compile --outfile ../scripts/.local/bin/dot-tui",
+    "build": "bun build src/index.ts --compile --outfile ../scripts/.local/bin/dot",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\""
   },
