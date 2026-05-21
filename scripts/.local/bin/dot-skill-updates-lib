@@ -295,9 +295,10 @@ _skill_updates_check_skill() {
   fi
 
   # Skills with local edits cannot be auto-applied; they need manual review.
+  # SHA is written later, inside the per-skill review loop.
   if [[ "$has_local_edits" -eq 1 ]]; then
-    [[ -n "$write_sha" ]] && _skill_updates_write_sha "$skill_md" "$write_sha"
-    log_info "  ${skill_name}: skipped (has local edits — review manually or via /check-skill-updates)"
+    _SU_REVIEW_SHA="$write_sha"
+    log_info "  ${skill_name}: queued for review (has local edits)"
     return 3
   fi
 
@@ -346,40 +347,57 @@ _skill_updates_check_skill() {
   return 0
 }
 
-# Generate a full diff report for skills with local edits and launch an OpenCode session.
-# Uses: review_names[], review_dirs[], review_origins[] from cmd_skill_updates scope.
+# Process skills with local edits one at a time: launch OpenCode, show diff, prompt.
+# Uses: review_names[], review_dirs[], review_origins[], review_shas[] from cmd_skill_updates scope.
 _skill_updates_opencode_review() {
   if ! has_cmd opencode; then
     log_error 'opencode command not found. Skipping OpenCode handoff.'
     return 1
   fi
 
-  local report_dir="${XDG_STATE_HOME:-$HOME/.local/state}/dot-skill-updates"
-  mkdir -p "$report_dir"
-  local report_file="$report_dir/skill-review-$(date +%Y%m%d-%H%M%S).md"
+  if [[ ! -r /dev/tty || ! -w /dev/tty ]]; then
+    log_warn 'No interactive TTY detected. Cannot launch interactive review.'
+    return 1
+  fi
 
-  # Build the diff report content (also saved to disk for reference).
-  local diff_content
-  diff_content="$(_skill_updates_build_diff_report)"
-  printf '%s' "$diff_content" > "$report_file"
+  local i
+  for i in "${!review_names[@]}"; do
+    local skill_name="${review_names[$i]}"
+    local skill_dir="${review_dirs[$i]}"
+    local origin_url="${review_origins[$i]}"
+    local write_sha="${review_shas[$i]}"
 
-  log_info "Saved skill review report: $report_file"
+    printf '\n'
+    log_section "Skill Review: ${skill_name}"
+    log_info "Origin: ${origin_url}"
+    log_info "Path:   ${skill_dir}"
 
-  printf '\n'
-  log_section 'OpenCode Skill Review'
+    # Write the SHA now (before the OpenCode session for this skill).
+    if [[ -n "$write_sha" ]]; then
+      _skill_updates_write_sha "${skill_dir}/SKILL.md" "$write_sha"
+    fi
 
-  # Compose the full prompt with diffs inline so the LLM has everything it needs.
-  local opencode_prompt
-  opencode_prompt="$(cat <<EOF
-The following diff report shows upstream changes to imported skills that have local edits.
+    # Build the diff report for this single skill.
+    local diff_content
+    diff_content="$(_skill_updates_build_single_diff "$skill_name" "$skill_dir" "$origin_url")"
+
+    if [[ -z "$diff_content" ]]; then
+      log_info "  No upstream diff to review for ${skill_name}."
+      continue
+    fi
+
+    # Compose the prompt for this skill.
+    local opencode_prompt
+    opencode_prompt="$(cat <<EOF
+The following diff report shows upstream changes to the imported skill "${skill_name}" which has local edits.
 All diff content is provided below — do NOT fetch from GitHub or run git commands to obtain this information.
 Use the Read tool to read the current local skill files when applying changes.
 
-IMPORTANT: The \`# upstream-sha:\` values in frontmatter have already been updated by
-the script. Do NOT modify them. Use the diff below to compare what changed upstream
+IMPORTANT: The \`# upstream-sha:\` value in frontmatter has already been updated by
+the script. Do NOT modify it. Use the diff below to compare what changed upstream
 and integrate those changes into the local files.
 
-For each skill:
+Steps:
 1. Summarise what changed upstream (new sections, removed content, reworded guidance, new patterns).
 2. Identify which local edits should be preserved (noted in the local-edits frontmatter or intentional divergences).
 3. Propose a plan for integrating worthwhile upstream changes while preserving local edits.
@@ -392,15 +410,53 @@ ${diff_content}
 EOF
 )"
 
-  if [[ ! -r /dev/tty || ! -w /dev/tty ]]; then
-    log_warn 'No interactive TTY detected. Review the report manually: '"$report_file"
-    return 1
-  fi
+    log_info 'Launching interactive OpenCode session with plan agent...'
+    opencode --prompt "$opencode_prompt" --agent plan < /dev/tty > /dev/tty 2>&1 \
+      || log_error 'OpenCode session exited with an error.'
 
-  log_info 'Launching interactive OpenCode session with plan agent...'
-  log_info '(Report saved to: '"$report_file"')'
-  opencode --prompt "$opencode_prompt" --agent plan < /dev/tty > /dev/tty 2>&1 \
-    || log_error 'OpenCode session exited with an error.'
+    # After session: check for changes in the skill directory.
+    local skill_diff
+    skill_diff="$(git -C "$PUBLIC_DOTFILES" diff -- "$skill_dir" 2>/dev/null)"
+
+    if [[ -n "$skill_diff" ]]; then
+      printf '\n'
+      log_section "Changes in ${skill_name}"
+      printf '%s\n' "$skill_diff"
+
+      # Prompt: commit / continue / quit
+      local choice
+      while true; do
+        printf '\n'
+        printf '  [c] Commit changes to %s\n' "$skill_name"
+        printf '  [s] Skip (continue without committing)\n'
+        printf '  [q] Quit (stop processing remaining skills)\n'
+        printf '  > '
+        read -r choice < /dev/tty
+        case "$choice" in
+          c|C)
+            git -C "$PUBLIC_DOTFILES" add "$skill_dir"
+            git -C "$PUBLIC_DOTFILES" commit -m "Update skill: ${skill_name}" --no-verify >/dev/null 2>&1
+            log_info "Committed: Update skill: ${skill_name}"
+            break
+            ;;
+          s|S)
+            log_info "Skipped commit for ${skill_name}"
+            break
+            ;;
+          q|Q)
+            log_info 'Quitting skill review.'
+            return 0
+            ;;
+          *)
+            printf '  Invalid choice. Enter c, s, or q.\n'
+            ;;
+        esac
+      done
+    else
+      printf '\n'
+      log_info "No changes made to ${skill_name}."
+    fi
+  done
 }
 
 # Build the markdown diff report content for skills needing review.
@@ -410,75 +466,89 @@ _skill_updates_build_diff_report() {
   printf '# Skill Updates — Local Edit Review\n\n'
   printf 'The following imported skills have upstream changes but also have local edits.\n\n'
 
-  local i skill_name skill_dir origin_url
+  local i
   for i in "${!review_names[@]}"; do
-    skill_name="${review_names[$i]}"
-    skill_dir="${review_dirs[$i]}"
-    origin_url="${review_origins[$i]}"
-
-    printf '## %s\n\n' "$skill_name"
-    printf '%s\n' "- **Origin:** ${origin_url}"
-    printf '%s\n\n' "- **Local path:** ${skill_dir}"
-
-    # Show local-edits notes.
-    local local_edits
-    local_edits="$(awk 'NR==1 && /^---$/ { in_fm=1; next } in_fm && /^---$/ { exit } in_fm && /^# local-edits:/ { show=1; next } in_fm && show && /^#   - / { sub(/^#   - /, ""); print; next } in_fm && show { show=0 }' "${skill_dir}/SKILL.md")"
-    if [[ -n "$local_edits" ]]; then
-      printf '**Local edits noted in frontmatter:**\n'
-      while IFS= read -r line; do
-        printf '%s\n' "- ${line}"
-      done <<< "$local_edits"
-      printf '\n'
-    fi
-
-    # Parse origin and fetch upstream to generate diffs.
-    if ! _skill_updates_parse_origin "$origin_url"; then
-      printf '> Could not parse origin URL.\n\n'
-      continue
-    fi
-
-    local owner="$_SU_OWNER" repo="$_SU_REPO" branch="$_SU_BRANCH" spath="$_SU_PATH"
-    local upstream_files
-    upstream_files="$(_skill_updates_list_upstream_files "$owner" "$repo" "$branch" "$spath" 2>/dev/null)"
-    if [[ -z "$upstream_files" ]]; then
-      printf '> Could not list upstream directory.\n\n'
-      continue
-    fi
-
-    local file local_file upstream_content local_norm upstream_norm
-    while IFS= read -r file; do
-      [[ -z "$file" ]] && continue
-      local_file="${skill_dir}/${file}"
-
-      upstream_content="$(_skill_updates_fetch_file "$owner" "$repo" "$branch" "${spath}/${file}" 2>/dev/null)"
-      [[ -z "$upstream_content" ]] && continue
-
-      if [[ ! -f "$local_file" ]]; then
-        printf '### %s (new upstream file)\n\n' "$file"
-        printf '```\n%s\n```\n\n' "$upstream_content"
-        continue
-      fi
-
-      # Normalise for comparison.
-      if [[ "$file" == 'SKILL.md' ]]; then
-        local_norm="$(< "$local_file" _skill_updates_normalise_local)"
-        upstream_norm="$(printf '%s' "$upstream_content" | _skill_updates_normalise_upstream)"
-      else
-        local_norm="$(< "$local_file")"
-        upstream_norm="$upstream_content"
-      fi
-
-      if [[ "$local_norm" != "$upstream_norm" ]]; then
-        printf '### %s\n\n' "$file"
-        printf '```diff\n'
-        diff --unified=5 \
-          --label "local/${file}" --label "upstream/${file}" \
-          <(printf '%s\n' "$local_norm") \
-          <(printf '%s\n' "$upstream_norm") || true
-        printf '```\n\n'
-      fi
-    done <<< "$upstream_files"
+    _skill_updates_build_single_diff "${review_names[$i]}" "${review_dirs[$i]}" "${review_origins[$i]}"
   done
+}
+
+# Build the diff content for a single skill.
+# Args: $1=skill_name, $2=skill_dir, $3=origin_url
+# Prints diff content to stdout (empty if no differences found).
+_skill_updates_build_single_diff() {
+  local skill_name="$1" skill_dir="$2" origin_url="$3"
+
+  local output=""
+
+  output+="$(printf '## %s\n\n' "$skill_name")"
+  output+="$(printf '%s\n' "- **Origin:** ${origin_url}")"
+  output+="$(printf '%s\n\n' "- **Local path:** ${skill_dir}")"
+
+  # Show local-edits notes.
+  local local_edits
+  local_edits="$(awk 'NR==1 && /^---$/ { in_fm=1; next } in_fm && /^---$/ { exit } in_fm && /^# local-edits:/ { show=1; next } in_fm && show && /^#   - / { sub(/^#   - /, ""); print; next } in_fm && show { show=0 }' "${skill_dir}/SKILL.md")"
+  if [[ -n "$local_edits" ]]; then
+    output+="$(printf '**Local edits noted in frontmatter:**\n')"
+    while IFS= read -r line; do
+      output+="$(printf '%s\n' "- ${line}")"
+    done <<< "$local_edits"
+    output+="$(printf '\n')"
+  fi
+
+  # Parse origin and fetch upstream to generate diffs.
+  if ! _skill_updates_parse_origin "$origin_url"; then
+    printf '> Could not parse origin URL.\n\n'
+    return 0
+  fi
+
+  local owner="$_SU_OWNER" repo="$_SU_REPO" branch="$_SU_BRANCH" spath="$_SU_PATH"
+  local upstream_files
+  upstream_files="$(_skill_updates_list_upstream_files "$owner" "$repo" "$branch" "$spath" 2>/dev/null)"
+  if [[ -z "$upstream_files" ]]; then
+    printf '> Could not list upstream directory.\n\n'
+    return 0
+  fi
+
+  local has_diff=0
+  local file local_file upstream_content local_norm upstream_norm
+  while IFS= read -r file; do
+    [[ -z "$file" ]] && continue
+    local_file="${skill_dir}/${file}"
+
+    upstream_content="$(_skill_updates_fetch_file "$owner" "$repo" "$branch" "${spath}/${file}" 2>/dev/null)"
+    [[ -z "$upstream_content" ]] && continue
+
+    if [[ ! -f "$local_file" ]]; then
+      output+="$(printf '### %s (new upstream file)\n\n' "$file")"
+      output+="$(printf '```\n%s\n```\n\n' "$upstream_content")"
+      has_diff=1
+      continue
+    fi
+
+    # Normalise for comparison.
+    if [[ "$file" == 'SKILL.md' ]]; then
+      local_norm="$(< "$local_file" _skill_updates_normalise_local)"
+      upstream_norm="$(printf '%s' "$upstream_content" | _skill_updates_normalise_upstream)"
+    else
+      local_norm="$(< "$local_file")"
+      upstream_norm="$upstream_content"
+    fi
+
+    if [[ "$local_norm" != "$upstream_norm" ]]; then
+      output+="$(printf '### %s\n\n' "$file")"
+      output+="$(printf '```diff\n')"
+      output+="$(diff --unified=5 \
+        --label "local/${file}" --label "upstream/${file}" \
+        <(printf '%s\n' "$local_norm") \
+        <(printf '%s\n' "$upstream_norm") || true)"
+      output+="$(printf '\n```\n\n')"
+      has_diff=1
+    fi
+  done <<< "$upstream_files"
+
+  if [[ "$has_diff" -eq 1 ]]; then
+    printf '%s' "$output"
+  fi
 }
 
 # @cmd skill-updates — Check imported skills for upstream changes
@@ -527,8 +597,9 @@ cmd_skill_updates() {
 
   _SU_SHA_QUERY_FAILED=0
   _SU_UPDATED_DIRS=()
+  _SU_REVIEW_SHA=''
   local skill_dir errors=0 available=0 needs_review=0 rc
-  local available_names=() review_names=() review_origins=() review_dirs=()
+  local available_names=() review_names=() review_origins=() review_dirs=() review_shas=()
   for skill_dir in "${skill_dirs[@]}"; do
     rc=0
     _skill_updates_check_skill "$skill_dir" "$mode" || rc=$?
@@ -539,6 +610,7 @@ cmd_skill_updates() {
       3) needs_review=$((needs_review + 1))
          review_names+=("$(basename "$skill_dir")")
          review_dirs+=("$skill_dir")
+         review_shas+=("$_SU_REVIEW_SHA")
          review_origins+=("$(awk 'NR==1 && /^---$/ { in_fm=1; next } in_fm && /^---$/ { exit } in_fm && /^# origin:/ { sub(/^# origin: */, ""); print; exit }' "${skill_dir}/SKILL.md")") ;;
     esac
   done
