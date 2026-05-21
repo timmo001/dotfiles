@@ -40,6 +40,7 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 cd ~/.config/dotfiles/dot && bun run build
 
 # Typical workflow
+dot init
 dot update
 dot diff
 dot doctor
