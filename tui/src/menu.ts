@@ -196,17 +196,27 @@ const dotItems: readonly MenuItem[] = [
     "󰏬",
     "Skill Updates",
     "Check imported skills for changes",
-    cmd("dot skill-updates --update"),
+    cmd("dot skill-updates"),
     [
       {
+        label: "Full",
+        description: "Update clean skills, review local-edit conflicts in OpenCode",
+        action: cmd("dot skill-updates"),
+      },
+      {
         label: "Update",
-        description: "Auto-apply available skill updates",
+        description: "Auto-apply clean skill updates (no local edits)",
         action: cmd("dot skill-updates --update"),
       },
       {
         label: "Check only",
         description: "Show what changed (no apply)",
         action: cmd("dot skill-updates --check"),
+      },
+      {
+        label: "Skip review",
+        description: "Update clean skills, skip local-edit review",
+        action: cmd("dot skill-updates --skip-review"),
       },
     ],
     ["sk", "skills", "plugins", "upstream", "agents"],
