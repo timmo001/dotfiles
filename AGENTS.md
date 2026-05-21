@@ -111,7 +111,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 ## Dot Command Changes
 
 - Keep command implementations in `dot/src/commands/`.
-- Legacy bash fallback script: `scripts/.local/bin/dot-legacy` (kept as reference; being phased out in Phase 3B).
+- Legacy bash fallback script: `scripts/.local/bin/dot-legacy` (kept as reference; removal tracked in Phase 99).
 - When adding new `dot` subcommands that users may want quick access to, also add them to the menu registry in `dot/src/menu.ts`.
 - Keep logging readable and consistent:
   - section headings in Title Case

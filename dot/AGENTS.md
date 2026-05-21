@@ -283,7 +283,7 @@ Related bash helpers (also still in place):
 - `dot-private-pkg-lib` — private package repo helpers
 - `dot-skill-updates-lib` — skill update checking logic
 
-These will be removed in Phase 3B of the migration once all fallback paths are confirmed unused.
+These will be removed in Phase 99 of the migration once all fallback paths are confirmed unused.
 
 ## Debugging
 
