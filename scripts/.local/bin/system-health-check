@@ -15,7 +15,6 @@ INTERVAL=15
 KNOWN_LOGS_MINUTES=15
 KNOWN_LOG_MAX_LINES=200
 OPEN_OPENCODE=0
-OPENCODE_VARIANT=''
 SELF_UNIT=''
 declare -a ONLY_SECTIONS=()
 
@@ -127,7 +126,6 @@ Options:
   --interval <seconds>       Seconds between snapshots (default: 15)
   --known-logs-minutes <n>   Journal lookback window (default: 15)
   --open-opencode            Run opencode analysis and open full interactive session
-  --opencode-variant <v>     Model variant for opencode run (e.g., high, max)
   --output <path>            Output report file path
   --help                     Show this help
 EOF
@@ -381,10 +379,6 @@ while [[ $# -gt 0 ]]; do
     --open-opencode)
       OPEN_OPENCODE=1
       shift
-      ;;
-    --opencode-variant)
-      OPENCODE_VARIANT="$2"
-      shift 2
       ;;
     --output)
       OUTPUT_FILE="$2"
@@ -920,31 +914,13 @@ if (( OPEN_OPENCODE )); then
     exit 0
   fi
 
-  opencode_prompt='Review this system health report. Give a concise diagnosis, probable causes, and a prioritized action plan. Use the logs and metrics to justify each recommendation.'
-  opencode_title="System Health $(date +%F-%H%M)"
-
-  log_info 'Running opencode analysis on the report...'
-  opencode_run_cmd=(opencode run "$opencode_prompt" -f "$OUTPUT_FILE" --title "$opencode_title")
-  if [[ -n "$OPENCODE_VARIANT" ]]; then
-    opencode_run_cmd+=(--variant "$OPENCODE_VARIANT")
-  fi
-  if ! "${opencode_run_cmd[@]}"; then
-    if [[ -n "$OPENCODE_VARIANT" ]]; then
-      log_warn "opencode run failed with --variant $OPENCODE_VARIANT, retrying without variant..."
-      if ! opencode run "$opencode_prompt" -f "$OUTPUT_FILE" --title "$opencode_title"; then
-        log_error 'opencode run failed. You can retry manually with the saved report file.'
-        exit 0
-      fi
-    else
-      log_error 'opencode run failed. You can retry manually with the saved report file.'
-      exit 0
-    fi
-  fi
+  opencode_prompt="Review the system health report at ${OUTPUT_FILE}. Read it with the Read tool first. Give a concise diagnosis, probable causes, and a prioritized action plan. Use the logs and metrics to justify each recommendation."
 
   if (( HAS_INTERACTIVE_TTY )); then
-    log_info 'Opening full interactive OpenCode session (continuing latest)...'
-    opencode --continue < /dev/tty > /dev/tty 2>&1 || log_error 'Failed to open interactive OpenCode session.'
+    log_info 'Launching interactive OpenCode session...'
+    opencode --prompt "$opencode_prompt" < /dev/tty > /dev/tty 2>&1 \
+      || log_error 'OpenCode session exited with an error.'
   else
-    log_warn 'No interactive TTY detected. Continue manually with: opencode --continue'
+    log_warn 'No interactive TTY detected. Run manually: opencode --prompt "..."'
   fi
 fi
