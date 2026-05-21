@@ -37,8 +37,15 @@ function isKnownTarget(candidate: string): boolean {
  * Positional args are joined with `.` using greedy longest-match against
  * the menu registry. For example, `["omarchy", "theme", "set"]` resolves
  * to subcommand `"omarchy.theme.set"` if that ID exists in the registry.
+ *
+ * The `tui` prefix is a transparent alias — `dot tui diff` is equivalent to
+ * `dot diff`. It is stripped before subcommand resolution so remaining
+ * positionals and flags are processed normally.
  */
 export function parseFlags(args: readonly string[]): Flags {
+  // Strip leading "tui" prefix — it's a no-op alias for the TUI entry point
+  const effectiveArgs = args.length > 0 && args[0] === "tui" ? args.slice(1) : args;
+
   let subcommand: string | undefined;
   let tab: DiffTab = "changed";
   let help = false;
@@ -48,8 +55,8 @@ export function parseFlags(args: readonly string[]): Flags {
 
   // Collect all leading positional args (before any flags)
   const positionals: string[] = [];
-  while (i < args.length && !args[i].startsWith("-")) {
-    positionals.push(args[i]);
+  while (i < effectiveArgs.length && !effectiveArgs[i].startsWith("-")) {
+    positionals.push(effectiveArgs[i]);
     i++;
   }
 
@@ -77,12 +84,12 @@ export function parseFlags(args: readonly string[]): Flags {
   }
 
   // Parse remaining flags
-  for (; i < args.length; i++) {
-    const arg = args[i];
+  for (; i < effectiveArgs.length; i++) {
+    const arg = effectiveArgs[i];
     if (arg === "--help" || arg === "-h") {
       help = true;
     } else if (arg === "--tab") {
-      const next = args[i + 1];
+      const next = effectiveArgs[i + 1];
       if (!next || next.startsWith("-")) {
         console.error(
           "--tab requires a value (e.g. --tab changed or --tab other)",
