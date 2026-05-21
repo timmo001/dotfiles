@@ -29,6 +29,7 @@ This skill works alongside and does not replace:
 - `lit-rendering` — generic Lit rendering and memoization
 - `home-assistant-lit-rendering` — HA-specific Lit rendering extensions
 - `home-assistant-lazy-context` — HA lazy-context and memoization guidance
+- `home-assistant-list-components` — HA list component migration and usage
 - `types-enforce-ts` — TypeScript type-safety baseline
 - `cleanup-unnecessary-variables` — safe variable cleanup
 - `remove-single-use-functions` — safe function inlining

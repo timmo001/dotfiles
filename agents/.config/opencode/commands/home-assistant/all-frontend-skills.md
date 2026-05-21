@@ -19,6 +19,7 @@ Current baseline examples:
 
 - `home-assistant-frontend`
 - `home-assistant-lazy-context`
+- `home-assistant-list-components`
 - `lit-rendering`
 - `home-assistant-lit-rendering`
 - `types-enforce-ts`
