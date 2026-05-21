@@ -75,7 +75,7 @@ export const stow = (opts?: {
         yield* log.section("Stow Private Dotfiles");
         yield* stowRepo(config.privateDotfiles, "private", launcher, log);
       } else if (!opts?.publicOnly) {
-        yield* log.info("Private dotfiles not available — skipped");
+        yield* log.warn("Skipping private stow (private dotfiles not available)");
       }
     }
 
