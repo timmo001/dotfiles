@@ -3,6 +3,7 @@ import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher } from "../services/Launcher.js";
 import { stow as runStow } from "./Stow.js";
+import { skillUpdates } from "./SkillUpdates.js";
 import { rebuild } from "../lib/selfUpdate.js";
 
 const displayPath = (p: string): string =>
@@ -34,7 +35,7 @@ const omarchySync = Effect.gen(function* () {
   }
 });
 
-/** Run post-update hooks (agents-sync, skill-updates) via dot-legacy */
+/** Run post-update hooks (agents-sync, skill-updates) */
 const postHooks = Effect.gen(function* () {
   const log = yield* OutputLog;
   const launcher = yield* Launcher;
@@ -46,12 +47,13 @@ const postHooks = Effect.gen(function* () {
     yield* log.warn("Agents sync failed (non-fatal)");
   }
 
-  const skillsExit = yield* launcher.stream(
-    "dot-legacy skill-updates --update",
+  yield* skillUpdates({ update: true }).pipe(
+    Effect.catch(() =>
+      Effect.gen(function* () {
+        yield* log.warn("Skill updates failed (non-fatal)");
+      }),
+    ),
   );
-  if (skillsExit !== 0) {
-    yield* log.warn("Skill updates failed (non-fatal)");
-  }
 });
 
 /**

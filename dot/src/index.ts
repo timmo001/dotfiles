@@ -33,6 +33,7 @@ import { agentsSync } from "./commands/AgentsSync.js";
 import { opencodeDebug } from "./commands/OpencodeDebug.js";
 import { install } from "./commands/Install.js";
 import { setup } from "./commands/Setup.js";
+import { skillUpdates } from "./commands/SkillUpdates.js";
 import {
   diffWaybar,
   diffListChanged,
@@ -72,6 +73,7 @@ const nativeCommands = new Set([
   "opencode-debug",
   "install",
   "setup",
+  "skill-updates",
 ]);
 
 function resolveMode(): Mode {
@@ -214,6 +216,12 @@ if (mode.type === "fallback") {
         return install;
       case "setup":
         return setup;
+      case "skill-updates":
+        return skillUpdates({
+          check: args.includes("--check"),
+          update: args.includes("--update"),
+          skipReview: args.includes("--skip-review"),
+        });
       default:
         return bashFallback(command, args);
     }
