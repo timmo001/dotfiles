@@ -1,12 +1,22 @@
 import { Effect } from "effect";
 import { CommandExecutor } from "../services/CommandExecutor.js";
-import { renameSync, chmodSync } from "fs";
+import { renameSync, chmodSync, realpathSync } from "fs";
 import { join, dirname } from "path";
 
-const log = (msg: string) => console.error(`[dot:selfUpdate] ${msg}`);
+const DEBUG = !!process.env.DOT_DEBUG;
+const log = (msg: string) => { if (DEBUG) console.error(`[dot:selfUpdate] ${msg}`); };
 
-/** Resolve the dot source directory from the running binary's location */
-const DOT_SRC = join(dirname(dirname(process.execPath)), "..", "dot");
+/**
+ * Resolve the dot source directory from the running binary's location.
+ *
+ * Binary lives at `<dotfiles>/scripts/.local/bin/dot`; source is at
+ * `<dotfiles>/dot`. Resolve any symlinks (e.g. ~/.local/bin/dot → repo path)
+ * before walking up.
+ */
+const BIN_PATH = (() => {
+  try { return realpathSync(process.execPath); } catch { return process.execPath; }
+})();
+const DOT_SRC = join(dirname(BIN_PATH), "..", "..", "..", "dot");
 
 /**
  * Rebuild the dot binary from source.
@@ -24,8 +34,8 @@ export const rebuild = Effect.gen(function* () {
   yield* executor.run("bun", ["install"], { cwd: DOT_SRC });
   log("Dependencies installed");
 
-  // Build to temp path
-  const tmpPath = `${process.execPath}.new`;
+  // Build to temp path (use resolved BIN_PATH to avoid overwriting stow symlinks)
+  const tmpPath = `${BIN_PATH}.new`;
   yield* executor.run(
     "bun",
     ["build", "src/index.ts", "--compile", "--outfile", tmpPath],
@@ -33,10 +43,10 @@ export const rebuild = Effect.gen(function* () {
   );
   log(`Built to: ${tmpPath}`);
 
-  // Atomic rename
+  // Atomic rename over the real binary (not the symlink)
   yield* Effect.sync(() => {
-    renameSync(tmpPath, process.execPath);
-    chmodSync(process.execPath, 0o755);
+    renameSync(tmpPath, BIN_PATH);
+    chmodSync(BIN_PATH, 0o755);
   });
   log("Binary replaced");
 });

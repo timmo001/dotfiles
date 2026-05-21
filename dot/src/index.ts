@@ -19,6 +19,7 @@ import { parseFlags, resolveSubcommand, printHelp } from "./flags.js";
 import { menuItemsById } from "./menu.js";
 import { bashFallback } from "./commands/BashFallback.js";
 import { stow } from "./commands/Stow.js";
+import { update } from "./commands/Update.js";
 import type { ViewId } from "./types.js";
 
 const DEBUG = !!process.env.DOT_DEBUG;
@@ -39,7 +40,7 @@ type Mode =
   | { type: "fallback"; subcommand: string; args: readonly string[] };
 
 /** Commands ported natively to TypeScript Effect */
-const nativeCommands = new Set(["stow"]);
+const nativeCommands = new Set(["stow", "update"]);
 
 function resolveMode(): Mode {
   if (!flags.subcommand) {
@@ -126,6 +127,12 @@ if (mode.type === "fallback") {
         return stow({
           publicOnly: args.includes("--public"),
           privateOnly: args.includes("--private"),
+        });
+      case "update":
+        return update({
+          pull: args.includes("--pull"),
+          stow: args.includes("--stow"),
+          tui: args.includes("--tui"),
         });
       default:
         return bashFallback(command, args);
