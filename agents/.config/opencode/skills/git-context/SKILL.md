@@ -1,6 +1,6 @@
 ---
 name: git-context
-description: Patterns for working with git branches, remotes, and diffs against the default branch
+description: Patterns for working with git branches, remotes, diffs against the default branch, and rebases. Use when resolving rebase conflicts, continuing interactive rebases, amending commits, or any git operation that would open an interactive editor.
 ---
 
 # Git Context Patterns
@@ -62,6 +62,39 @@ gh pr checks            # Check CI status, find failing checks
 gh pr checks --watch    # Watch for checks only when explicitly requested by the user
 gh pr diff              # See what's in the PR
 ```
+
+## Rebases and Interactive Editor Operations
+
+Git opens an interactive editor for many operations. Since the agent runs in a non-interactive shell, bypass the editor with `GIT_EDITOR=true` (which makes the "editor" succeed immediately, accepting defaults).
+
+### Commands that need `GIT_EDITOR=true`
+
+```bash
+GIT_EDITOR=true git rebase --continue   # After resolving conflicts
+GIT_EDITOR=true git commit --amend      # When amending without changing message
+GIT_EDITOR=true git merge --continue    # After resolving merge conflicts
+GIT_EDITOR=true git revert --continue   # After resolving revert conflicts
+```
+
+For amending with a new message, use `-m` instead:
+
+```bash
+git commit --amend -m "new message"
+```
+
+### Resolving rebase conflicts
+
+1. Read each conflicted file and understand both sides.
+2. When both sides are additive (independent features touching the same location), keep both.
+3. After replacing conflict markers, verify full method/function bodies are intact — shared code between conflict markers is easily lost if not carefully included in the resolution.
+4. Stage resolved files with `git add`.
+5. Continue with `GIT_EDITOR=true git rebase --continue`.
+
+### Operations that do NOT need the editor bypass
+
+- `git rebase --abort` / `git merge --abort` (no editor involved)
+- `git commit -m "message"` (message provided inline)
+- `git rebase --skip` (no editor involved)
 
 ## Splitting a branch by changed files
 
