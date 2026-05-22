@@ -192,6 +192,26 @@ const dotItems: readonly MenuItem[] = [
     ["resume", "suspend", "sleep", "wake", "waybar", "restart"],
   ),
   item(
+    "skill-check",
+    "󰝒",
+    "Skill Check",
+    "Validate skill references across AGENTS and agent files",
+    cmd("dot skill-check"),
+    [
+      {
+        label: "Standard",
+        description: "Run validation checks",
+        action: cmd("dot skill-check"),
+      },
+      {
+        label: "With AI analysis",
+        description: "Run checks + OpenCode analysis",
+        action: cmd("dot skill-check --open-opencode"),
+      },
+    ],
+    ["validate", "lint", "skills", "references"],
+  ),
+  item(
     "skill-updates",
     "󰏬",
     "Skill Updates",

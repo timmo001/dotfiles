@@ -56,9 +56,7 @@ export const doctor = (opts?: { readonly openOpencode?: boolean }) =>
         `Notes repo: ${config.notesDir.replace(process.env.HOME ?? "", "~")}`,
       );
     }
-    yield* log.info(
-      `Private mode: ${process.env.DOT_ALLOW_PRIVATE ?? "auto"}`,
-    );
+    yield* log.info(`Private mode: ${process.env.DOT_ALLOW_PRIVATE ?? "auto"}`);
 
     // Stream results section by section
     for (const section of report.sections) {

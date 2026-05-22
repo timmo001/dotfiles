@@ -17,6 +17,7 @@ import { opencodeDebug } from "./commands/OpencodeDebug.js";
 import { install } from "./commands/Install.js";
 import { setup } from "./commands/Setup.js";
 import { skillUpdates } from "./commands/SkillUpdates.js";
+import { skillCheck } from "./commands/SkillCheck.js";
 import {
   diffWaybar,
   diffListChanged,
@@ -57,6 +58,7 @@ const nativeCommands = new Set([
   "install",
   "setup",
   "skill-updates",
+  "skill-check",
 ]);
 
 function resolveMode(): Mode {
@@ -205,6 +207,10 @@ if (mode.type === "fallback") {
           update: args.includes("--update"),
           skipReview: args.includes("--skip-review"),
         });
+      case "skill-check":
+        return skillCheck({
+          openOpencode: args.includes("--open-opencode"),
+        });
       default:
         return bashFallback(command, args);
     }
@@ -231,9 +237,8 @@ if (mode.type === "fallback") {
 } else {
   // TUI mode — dynamically import TUI dependencies to avoid loading the
   // OpenTUI native library on CLI-only paths (each dlopen copies ~8MB to /tmp).
-  const { extractNativeLibIfNeeded } = await import(
-    "./lib/extractNativeLib.js"
-  );
+  const { extractNativeLibIfNeeded } =
+    await import("./lib/extractNativeLib.js");
   const nativeLibPath = await extractNativeLibIfNeeded();
 
   const { Renderer } = await import("./services/Renderer.js");

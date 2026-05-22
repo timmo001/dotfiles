@@ -46,6 +46,7 @@ src/
     Install.ts            — dot install
     OpencodeDebug.ts      — dot opencode-debug
     Setup.ts              — dot setup
+    SkillCheck.ts         — dot skill-check
     SkillUpdates.ts       — dot skill-updates
     Stow.ts               — dot stow
     Update.ts             — dot update
@@ -87,6 +88,7 @@ src/
   lib/
     extractNativeLib.ts   — Native .so extraction from bunfs
     selfUpdate.ts         — Binary rebuild logic
+    skillCheck.ts         — Skill reference validation logic
     skillUpdates.ts       — Skill update checking/applying logic
     stowFolders.ts        — Stow folder discovery
 ```
@@ -162,6 +164,7 @@ dot skill-updates             # Check/apply skill updates
 dot skill-updates --check     # Check only (no apply)
 dot skill-updates --update    # Auto-apply clean updates
 dot skill-updates --skip-review # Skip local-edit review
+dot skill-check               # Validate skill references
 dot omarchy                   # Omarchy submenu (TUI)
 dot --help                    # Show help
 ```

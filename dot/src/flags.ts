@@ -44,7 +44,8 @@ function isKnownTarget(candidate: string): boolean {
  */
 export function parseFlags(args: readonly string[]): Flags {
   // Strip leading "tui" prefix — it's a no-op alias for the TUI entry point
-  const effectiveArgs = args.length > 0 && args[0] === "tui" ? args.slice(1) : args;
+  const effectiveArgs =
+    args.length > 0 && args[0] === "tui" ? args.slice(1) : args;
 
   let subcommand: string | undefined;
   let tab: DiffTab = "changed";
@@ -255,6 +256,7 @@ Subcommands:
   doctor               Run dot doctor
   system-health        Run system-health-check
   skill-updates        Run dot skill-updates
+  skill-check          Validate skill references
   topgrade             Run topgrade
   omarchy [submenu..]  Open the Omarchy submenu (space-separated paths)
 

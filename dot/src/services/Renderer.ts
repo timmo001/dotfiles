@@ -32,9 +32,8 @@ export class Renderer extends Context.Service<Renderer, CliRenderer>()(
       Effect.acquireRelease(
         Effect.promise(async () => {
           log("Creating renderer...");
-          const { createCliRenderer, setRenderLibPath } = await import(
-            "@opentui/core"
-          );
+          const { createCliRenderer, setRenderLibPath } =
+            await import("@opentui/core");
           if (nativeLibPath) {
             setRenderLibPath(nativeLibPath);
           }
