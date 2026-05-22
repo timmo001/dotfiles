@@ -97,9 +97,38 @@ export const checkBrowserExtensions = Effect.gen(function* () {
       // Check by extension ID in extensions.settings
       found = prefs.includes(`"${target}"`);
     } else if (kind === "chromium-name") {
-      // Check by extension name in manifest
+      // Check by extension name — first try the Preferences JSON directly
       found =
         prefs.includes(`"name": "${target}"`) || prefs.includes(`"${target}"`);
+
+      // Fallback: read actual manifest.json files from extension paths on disk
+      // (the name may not be cached in Preferences for unpacked extensions)
+      if (!found) {
+        try {
+          const parsed = JSON.parse(prefs);
+          const settings = parsed?.extensions?.settings;
+          if (settings && typeof settings === "object") {
+            for (const ext of Object.values(settings) as Array<{
+              path?: string;
+            }>) {
+              if (!ext?.path) continue;
+              const manifestPath = join(ext.path, "manifest.json");
+              if (!existsSync(manifestPath)) continue;
+              try {
+                const manifest = readFileSync(manifestPath, "utf-8");
+                if (manifest.includes(`"name": "${target}"`)) {
+                  found = true;
+                  break;
+                }
+              } catch {
+                /* skip unreadable manifests */
+              }
+            }
+          }
+        } catch {
+          /* ignore JSON parse errors */
+        }
+      }
     }
 
     if (found) {

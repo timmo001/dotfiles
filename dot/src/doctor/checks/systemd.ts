@@ -2,6 +2,7 @@ import { Effect } from "effect";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
+import { Config } from "../../services/Config.js";
 import type { CheckResult } from "../types.js";
 
 const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
@@ -19,9 +20,10 @@ const DAILY_VOLUME_ZERO_TIMER_UNIT = "daily-volume-zero.timer";
 /** Check workflow watch hooks, timer, scripts, and Waybar integration */
 export const checkWorkflowWatch = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
+  const config = yield* Config;
   const results: CheckResult[] = [];
 
-  const hooksPath = join(HOME, ".config", "git", "hooks");
+  const hooksPath = join(HOME, ".config", "git", "workflow-watch-hooks");
   if (existsSync(hooksPath)) {
     results.push({
       severity: "ok",
@@ -64,9 +66,13 @@ export const checkWorkflowWatch = Effect.gen(function* () {
     });
   }
 
-  // Check repos file
-  const reposFile = join(XDG_CONFIG_HOME, "git-workflow-watch", "repos");
-  if (existsSync(reposFile)) {
+  // Check repos file (lives in private dotfiles)
+  const reposFile =
+    process.env.DOT_WORKFLOW_WATCH_REPOS_FILE ??
+    (config.privateDotfiles
+      ? join(config.privateDotfiles, ".git-workflow-watch-repos")
+      : null);
+  if (reposFile && existsSync(reposFile)) {
     results.push({
       severity: "ok",
       message: `Workflow watch repo list found: ${displayPath(reposFile)}`,
@@ -74,7 +80,7 @@ export const checkWorkflowWatch = Effect.gen(function* () {
   } else {
     results.push({
       severity: "warn",
-      message: `Workflow watch repo list missing: ${displayPath(reposFile)}`,
+      message: `Workflow watch repo list missing: ${displayPath(reposFile ?? "~/.config/dotfiles-private/.git-workflow-watch-repos")}`,
       detail:
         "Add watched repositories in private dotfiles to enable workflow monitoring",
     });
