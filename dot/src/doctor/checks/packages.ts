@@ -146,15 +146,22 @@ export const checkPrivatePackageRepo = Effect.gen(function* () {
     return results;
   }
 
-  // Parse config: first line is repo path, second is mirror
+  // Parse key=value config (skip comments and blank lines)
   let repoPath = "";
   let mirrorPath = "";
   try {
     const lines = readFileSync(repoConfigFile, "utf-8")
       .split("\n")
-      .filter((l) => l.trim());
-    repoPath = (lines[0] ?? "").trim().replace(/^~/, HOME);
-    mirrorPath = (lines[1] ?? "").trim().replace(/^~/, HOME);
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith("#"));
+    for (const line of lines) {
+      const eqIdx = line.indexOf("=");
+      if (eqIdx < 0) continue;
+      const key = line.slice(0, eqIdx).trim();
+      const value = line.slice(eqIdx + 1).trim();
+      if (key === "path") repoPath = value.replace(/^~/, HOME);
+      else if (key === "mirror_path") mirrorPath = value.replace(/^~/, HOME);
+    }
   } catch {
     /* ignore */
   }
