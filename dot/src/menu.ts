@@ -161,7 +161,8 @@ const dotItems: readonly MenuItem[] = [
         description: "Run all diagnostics then open OpenCode (excludes interactive Claude)",
         action: cmd(
           'log="${XDG_STATE_HOME:-$HOME/.local/state}/dot/logs/harness-debug.log"; ' +
-            "{ dot opencode-debug 2>&1; printf '\\n---\\n'; codex doctor 2>&1; printf '\\n---\\n'; codex debug models 2>&1; } | tee \"$log\"; " +
+            "{ dot opencode-debug 2>&1; printf '\\n---\\n'; codex doctor 2>&1; printf '\\n---\\n'; codex debug models 2>&1; } | " +
+            "sed -E 's/(ctx7sk-|sk-|ghp_|gho_|glpat-|Bearer )[A-Za-z0-9_-]+/\\1<REDACTED>/g' | tee \"$log\"; " +
             'opencode --prompt "Review the harness debug report at $log. Read it with the Read tool first. Give a concise diagnosis of issues, probable causes, and a prioritized action plan."',
           false,
         ),
