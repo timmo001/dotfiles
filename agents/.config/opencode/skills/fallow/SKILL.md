@@ -2,7 +2,7 @@
 name: fallow
 description: Codebase intelligence for JavaScript and TypeScript. Free static layer finds unused code (files, exports, types, dependencies), code duplication, circular dependencies, complexity hotspots, architecture boundary violations, and feature flag patterns. Runtime coverage merges production execution data into the same health report for hot-path review, cold-path deletion confidence, and stale-flag evidence - a single local capture is free, while continuous/cloud runtime monitoring is paid. 94 framework plugins, zero configuration, sub-second static analysis. Use when asked to analyze code health, find unused code, detect duplicates, check circular dependencies, audit complexity, check architecture boundaries, detect feature flags, clean up the codebase, auto-fix issues, merge runtime coverage, or run fallow.
 # origin: https://github.com/fallow-rs/fallow-skills/tree/main/fallow/skills/fallow
-# upstream-sha: 3f1ca1202292b92f9290098b23a3ea20c5767f89
+# upstream-sha: 062531a366abc5f66bb7f6d2810717aadbb7efd4
 ---
 
 # Fallow: codebase intelligence for JavaScript and TypeScript
@@ -47,7 +47,7 @@ cargo install fallow-cli        # build from source
 
 1. **Always use `--format json --quiet 2>/dev/null`** for machine-readable output. The `2>/dev/null` discards stderr so progress messages and threshold warnings don't corrupt the JSON on stdout. Never use `2>&1`
 2. **Always append `|| true`** to every fallow command. Exit code 1 means "issues found" (normal), not a runtime error. Without `|| true`, the Bash tool treats exit 1 as failure and cancels parallel commands. Only exit code 2 is a real error (invalid config, parse failure)
-3. **Use `--explain`** to include a `_meta` object in JSON output with metric definitions, ranges, and interpretation hints
+3. **Use `--explain`** to include a `_meta` object in JSON output with metric definitions, ranges, and interpretation hints. In human format, `--explain` prints a `Description:` line under each section header.
 4. **Use issue type filters** (`--unused-exports`, `--unused-files`, etc.) to limit output scope
 5. **Always `--dry-run` before `fix`**, then `fix --yes` to apply
 6. **All output paths are relative** to the project root

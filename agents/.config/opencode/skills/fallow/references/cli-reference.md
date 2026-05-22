@@ -772,7 +772,7 @@ Audits changed files for dead code, complexity, and duplication. Returns a verdi
 | `--production-health` | bool | false | Per-analysis production mode for the health sub-analysis only |
 | `--production-dupes` | bool | false | Per-analysis production mode for the duplication sub-analysis only |
 | `-w, --workspace` | string | — | Scope to one or more workspaces. Comma-separated, globs, `!` negation. |
-| `--explain` | bool | false | Include metric definitions in JSON output |
+| `--explain` | bool | false | JSON: include metric definitions in `_meta`. Human: print a `Description:` line under each section header. |
 | `--ci` | bool | false | Equivalent to `--format sarif --fail-on-issues --quiet` |
 | `--fail-on-issues` | bool | false | Exit with code 1 if issues are found |
 | `--sarif-file` | path | — | Write SARIF output to a file alongside primary format |
@@ -892,7 +892,7 @@ Audit creates a temporary git worktree to compare against the base ref. When the
 
 ## `flags`: Feature Flag Detection
 
-Detects feature flag patterns in the codebase. Identifies environment variable flags (`process.env.FEATURE_*`), SDK calls (LaunchDarkly, Statsig, Unleash, GrowthBook), and config object patterns (opt-in). Reports flag locations, detection confidence, and cross-references with dead code findings.
+Detects feature flag patterns in the codebase. Identifies environment variable flags (`process.env.FEATURE_*`), SDK calls from common providers (LaunchDarkly, Statsig, Unleash, GrowthBook, Split, PostHog, Vercel Flags, ConfigCat, Flagsmith, Optimizely, Eppo), and config object patterns (opt-in). Reports flag locations, detection confidence, and cross-references with dead code findings.
 
 ### Flags
 
@@ -1232,7 +1232,7 @@ Available on all commands:
 | `--performance` | bool | Show pipeline timing breakdown |
 | `-w, --workspace` | string | Scope to one or more workspaces (comma-separated, globs, `!` negation) |
 | `--changed-workspaces` | string (git ref) | Git-derived monorepo CI scoping: scope to workspaces containing any file changed since `REF`. Mutually exclusive with `--workspace`. Missing ref is a hard error. |
-| `--explain` | bool | Include metric definitions in JSON output (`_meta` object). Always on for MCP |
+| `--explain` | bool | JSON: include metric definitions in `_meta`. Human: print a `Description:` line under each section header. Always on for MCP. |
 | `--only` | string | Run only specific analyses (e.g., `--only dead-code,dupes`). Values: `dead-code` (alias: `check`), `dupes`, `health` |
 | `--skip` | string | Skip specific analyses (e.g., `--skip health`). Values: `dead-code` (alias: `check`), `dupes`, `health` |
 | `--ci` | bool | CI mode: `--format sarif --fail-on-issues --quiet` |
@@ -1474,7 +1474,7 @@ Health findings (`fallow health` JSON output) include an `actions` array. Primar
 
 The `coverage_tier` field is `"none"` (file not test-reachable / Istanbul 0%), `"partial"` (Istanbul `(0, 70)` / estimated 40%), or `"high"` (Istanbul `>= 70` / estimated 85%).
 
-Each CRAP finding also carries a `coverage_source` discriminator: `"istanbul"` (direct fnMap match for this function), `"estimated"` (graph-based estimate evaluated against the finding's own file), or `"estimated_component_inherited"` (graph-based estimate inherited from an Angular component `.ts` reached via the inverse `templateUrl` edge). Synthetic `<template>` findings on Angular `.html` templates use the `estimated_component_inherited` source and ship an `inherited_from` field with the project-relative path to the owning `.component.ts`. When the inherit path applies, the primary `increase-coverage` action targets that `.ts` file (description names the component path explicitly and includes a `target_path` field) so AI agents add component tests rather than scaffolding tests against a structurally untestable `.html` path. The human `fallow health` output renders `(inherited from foo.component.ts)` after the CRAP score on those rows. This is the JIT-test fallback (Angular's runtime renders templates via `ɵɵconditional` / `ɵɵrepeaterCreate` calls; Istanbul never has `fnMap` entries keyed at `.html` paths). AOT-compiled coverage with source-map back-mapping is planned as a tier 2 follow-up; when it lands, `coverage_source` will gain a `"measured_aot_source_map"` variant.
+Each CRAP finding also carries a `coverage_source` discriminator: `"istanbul"` (direct fnMap match for this function), `"estimated"` (graph-based estimate evaluated against the finding's own file), or `"estimated_component_inherited"` (graph-based estimate inherited from an Angular component `.ts` reached via the inverse `templateUrl` edge). Synthetic `<template>` findings on Angular `.html` templates use the `estimated_component_inherited` source and ship an `inherited_from` field with the project-relative path to the owning `.component.ts`. When the inherit path applies, the primary `increase-coverage` action targets that `.ts` file (description names the component path explicitly and includes a `target_path` field) so AI agents add component tests rather than scaffolding tests against a structurally untestable `.html` path. The human `fallow health` output renders `(inherited from <project-relative-path>.component.ts)` after the CRAP score on those rows (project-relative since fallow 2.78.0; was the bare basename before). This is the JIT-test fallback (Angular's runtime renders templates via `ɵɵconditional` / `ɵɵrepeaterCreate` calls; Istanbul never has `fnMap` entries keyed at `.html` paths). AOT-compiled coverage with source-map back-mapping is planned as a tier 2 follow-up; when it lands, `coverage_source` will gain a `"measured_aot_source_map"` variant.
 
 When CRAP-only with cyclomatic count within 5 of `maxCyclomatic` AND cognitive at or above `maxCognitive / 2`, a secondary `refactor-function` is appended. The cognitive floor suppresses false positives on flat type-tag dispatchers and JSX render maps (high CC, near-zero cog). A single finding can carry multiple action types: e.g. a finding that exceeds both cyclomatic and CRAP at `coverage_tier=partial` gets `increase-coverage` AND `refactor-function`. Treat the first non-`suppress-line` action as primary.
 
