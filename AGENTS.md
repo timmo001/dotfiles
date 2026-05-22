@@ -72,27 +72,10 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - Use the `skill-notes` skill alongside `import-external-skill` and `write-a-skill` when evaluating, importing, or recommending skills.
 - Skills in `agents/.config/opencode/skills/` are stowed globally (cross-project). Skills in `.opencode/skills/` are repo-local (this repo only).
 
-## TypeScript Skills
+## Repo-Specific Skills
 
-- For any TypeScript edit or TypeScript-focused review (`.ts`, `.tsx`, `.mts`, `.cts`), apply the `types-enforce-ts` skill before making changes.
-- For JavaScript or TypeScript edits (`.js`, `.jsx`, `.ts`, `.tsx`, `.mjs`, `.cjs`, `.mts`, `.cts`), run a Fallow audit on the changed scope before wrapping up when dead-code, complexity, or duplication checks are relevant.
 - For Effect-TS code (`effect`, `@effect/platform`, `Context.Tag`, `Layer`, `Effect.gen`), apply the `effect` skill.
 - For OpenTUI code (`@opentui/core`, renderables, keyboard handling, suspend/resume), apply the `opentui` skill.
-
-## HTML Skills
-
-- For any HTML, template, or component markup edit (`.html`, `.svelte`, `.astro`, `.vue`, `.jsx`, `.tsx`), apply the `html` skill when the change touches markup structure, semantics, accessibility, or form labelling.
-
-## CSS Motion Skills
-
-- For CSS transitions, animations, easing, View Transitions API patterns, or motion token work, apply the `css-motion-systems` skill before making changes.
-
-## Code Skills
-
-- Apply `cleanup-unnecessary-variables` as a general code-quality skill for all code changes when its guidance is relevant, not only explicit cleanup requests.
-- Apply `remove-single-use-functions` as a general code-quality skill for all code changes when its guidance is relevant, not only explicit cleanup requests.
-- For TypeScript changes where these skills apply, apply `types-enforce-ts` alongside them when scopes overlap.
-- For behavior-preserving cleanup or type-focused refactor commands, prefer the shared `refactorer` agent and keep command files focused on scope, applicable skills, and verification.
 
 ## Split Worktrees
 
