@@ -3,7 +3,7 @@ import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { checkDependencies } from "./checks/dependencies.js";
 import { checkSecretService } from "./checks/secretService.js";
-import { checkRepos } from "./checks/repos.js";
+import { checkRepos, checkPrivateAccess } from "./checks/repos.js";
 import { checkStow } from "./checks/stow.js";
 import { checkOpencode } from "./checks/opencode.js";
 import { checkGitConfig } from "./checks/gitConfig.js";
@@ -48,6 +48,7 @@ const sections: readonly SectionDef[] = [
   { name: "Doctor startup notification", check: checkDoctorStartup },
   { name: "Daily volume reset", check: checkDailyVolumeReset },
   { name: "Omarchy repository checks", check: checkOmarchy },
+  { name: "Private access", check: checkPrivateAccess },
   { name: "Browser flags", check: checkBrowserFlags },
   { name: "Hardware video decode", check: checkHardwareVideo },
   {

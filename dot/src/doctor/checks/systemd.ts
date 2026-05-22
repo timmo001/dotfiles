@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { existsSync, readFileSync } from "fs";
-import { join } from "path";
+import { join, dirname } from "path";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import type { CheckResult } from "../types.js";
@@ -16,6 +16,71 @@ function displayPath(p: string): string {
 const WORKFLOW_WATCH_TIMER_UNIT = "git-workflow-watch.timer";
 const DOCTOR_STARTUP_TIMER_UNIT = "dot-doctor-startup.timer";
 const DAILY_VOLUME_ZERO_TIMER_UNIT = "daily-volume-zero.timer";
+
+// ---------------------------------------------------------------------------
+// Waybar config walk helpers (matches legacy _waybar_config_walk pattern)
+// ---------------------------------------------------------------------------
+
+/** Walk a Waybar config and its includes, returning true if any file contains the needle */
+function waybarConfigWalkContains(configPath: string, needle: string): boolean {
+  if (!existsSync(configPath)) return false;
+  try {
+    const content = readFileSync(configPath, "utf-8");
+    if (content.includes(needle)) return true;
+    // Check includes
+    for (const includePath of parseWaybarIncludes(configPath, content)) {
+      if (waybarConfigWalkContains(includePath, needle)) return true;
+    }
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
+/** Walk a Waybar config and its includes, checking if `first` appears before `second` */
+function waybarConfigWalkOrdersBefore(
+  configPath: string,
+  first: string,
+  second: string,
+): boolean {
+  if (!existsSync(configPath)) return false;
+  try {
+    const content = readFileSync(configPath, "utf-8");
+    const flat = content.replace(/[\n\r]/g, "");
+    const re = new RegExp(
+      escapeRegex(first) + "\\s*,\\s*" + escapeRegex(second),
+    );
+    if (re.test(flat)) return true;
+    for (const includePath of parseWaybarIncludes(configPath, content)) {
+      if (waybarConfigWalkOrdersBefore(includePath, first, second)) return true;
+    }
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
+/** Parse "include" array entries from a Waybar JSONC config file */
+function parseWaybarIncludes(
+  configPath: string,
+  content: string,
+): readonly string[] {
+  const match = content.match(/"include"\s*:\s*\[([^\]]*)\]/);
+  if (!match) return [];
+  const configDir = dirname(configPath);
+  return match[1]
+    .split(",")
+    .map((e) => e.trim().replace(/^"|"$/g, ""))
+    .filter(Boolean)
+    .map((e) => {
+      const expanded = e.replace(/^~/, HOME);
+      return expanded.startsWith("/") ? expanded : join(configDir, expanded);
+    });
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 /** Check workflow watch hooks, timer, scripts, and Waybar integration */
 export const checkWorkflowWatch = Effect.gen(function* () {
@@ -50,7 +115,7 @@ export const checkWorkflowWatch = Effect.gen(function* () {
   ) {
     results.push({
       severity: "ok",
-      message: `Global git hooksPath points to workflow watch hooks`,
+      message: `Global git hooksPath points to workflow watch hooks: ${displayPath(hooksPath)}`,
     });
   } else if (trimmedHooksPath) {
     results.push({
@@ -143,6 +208,167 @@ export const checkWorkflowWatch = Effect.gen(function* () {
       message: `Workflow watch script is missing or not executable: ${displayPath(watchScript)}`,
       detail: "Run dot stow or dot init to install the workflow watch script",
     });
+  }
+
+  // Waybar script
+  const waybarScript = join(
+    XDG_CONFIG_HOME,
+    "waybar",
+    "scripts",
+    "github-workflow-failures-waybar.sh",
+  );
+  if (existsSync(waybarScript)) {
+    results.push({
+      severity: "ok",
+      message: `Workflow watch Waybar script is executable: ${displayPath(waybarScript)}`,
+    });
+  } else {
+    results.push({
+      severity: "warn",
+      message: `Workflow watch Waybar script is missing or not executable: ${displayPath(waybarScript)}`,
+      detail:
+        "Stow or update the Waybar repo to install the workflow failures module script",
+    });
+  }
+
+  // Waybar style CSS hidden-empty
+  const waybarStyle = join(XDG_CONFIG_HOME, "waybar", "style.css");
+  if (existsSync(waybarStyle)) {
+    try {
+      const styleContent = readFileSync(waybarStyle, "utf-8");
+      if (styleContent.includes("#custom-github-workflow-failures.hidden")) {
+        results.push({
+          severity: "ok",
+          message: `Workflow watch Waybar hidden-empty CSS found: ${displayPath(waybarStyle)}`,
+        });
+      } else {
+        results.push({
+          severity: "warn",
+          message: `Workflow watch Waybar hidden-empty CSS is missing: ${displayPath(waybarStyle)}`,
+          detail:
+            "Update the Waybar style so the workflow failure icon hides when there are no failures",
+        });
+      }
+    } catch {
+      /* ignore */
+    }
+  } else {
+    results.push({
+      severity: "warn",
+      message: `Waybar style file is missing: ${displayPath(waybarStyle)}`,
+    });
+  }
+
+  // Waybar config — find host-specific or default
+  const omarchyHost = process.env.OMARCHY_HOST ?? "";
+  const waybarConfigDir = join(XDG_CONFIG_HOME, "waybar");
+  const hostConfig = omarchyHost
+    ? join(waybarConfigDir, `config.${omarchyHost}.jsonc`)
+    : "";
+  const waybarConfig =
+    hostConfig && existsSync(hostConfig)
+      ? hostConfig
+      : join(waybarConfigDir, "config.jsonc");
+
+  if (existsSync(waybarConfig)) {
+    results.push({
+      severity: "ok",
+      message: `Workflow watch active Waybar config: ${displayPath(waybarConfig)}`,
+    });
+
+    // Walk config and includes to check for module, click actions, and ordering
+    const configContains = (needle: string): boolean =>
+      waybarConfigWalkContains(waybarConfig, needle);
+
+    if (configContains('"custom/github-workflow-failures"')) {
+      results.push({
+        severity: "ok",
+        message: "Workflow watch Waybar module is present in the active config",
+      });
+    } else {
+      results.push({
+        severity: "warn",
+        message: `Workflow watch Waybar module is missing from ${displayPath(waybarConfig)}`,
+        detail:
+          "Add custom/github-workflow-failures before custom/dot-diff in the active Waybar config",
+      });
+    }
+
+    if (
+      configContains(
+        '"on-click": "~/.local/bin/git-workflow-watch open-failed-runs"',
+      )
+    ) {
+      results.push({
+        severity: "ok",
+        message: "Workflow watch Waybar left click opens failed runs",
+      });
+    } else {
+      results.push({
+        severity: "warn",
+        message: `Workflow watch Waybar left-click action is missing in ${displayPath(waybarConfig)}`,
+      });
+    }
+
+    if (
+      configContains(
+        '"on-click-right": "~/.local/bin/git-workflow-watch clear-failed-runs"',
+      )
+    ) {
+      results.push({
+        severity: "ok",
+        message: "Workflow watch Waybar right click clears failed runs",
+      });
+    } else {
+      results.push({
+        severity: "warn",
+        message: `Workflow watch Waybar right-click clear action is missing in ${displayPath(waybarConfig)}`,
+      });
+    }
+
+    if (
+      waybarConfigWalkOrdersBefore(
+        waybarConfig,
+        '"custom/github-workflow-failures"',
+        '"custom/dot-diff"',
+      )
+    ) {
+      results.push({
+        severity: "ok",
+        message: "Workflow watch Waybar module is ordered before dot diff",
+      });
+    } else {
+      results.push({
+        severity: "warn",
+        message: `Workflow watch Waybar module is not ordered before dot diff in ${displayPath(waybarConfig)}`,
+      });
+    }
+  } else {
+    results.push({
+      severity: "warn",
+      message: `Active Waybar config is missing: ${displayPath(waybarConfig)}`,
+    });
+  }
+
+  // notify-send action support
+  const hasNotifySend =
+    (yield* executor.exitCode("which", ["notify-send"])) === 0;
+  if (hasNotifySend) {
+    const helpOutput = yield* executor
+      .run("bash", ["-c", "notify-send --help 2>&1"])
+      .pipe(Effect.catch(() => Effect.succeed("")));
+    if (helpOutput.includes("--action")) {
+      results.push({
+        severity: "ok",
+        message: "notify-send supports clickable notification actions",
+      });
+    } else {
+      results.push({
+        severity: "warn",
+        message:
+          "notify-send does not advertise action support; workflow notifications may not open runs on click",
+      });
+    }
   }
 
   return results;
@@ -251,7 +477,7 @@ export const checkDailyVolumeReset = Effect.gen(function* () {
   } else {
     results.push({
       severity: "ok",
-      message: `Daily volume reset script missing: ${displayPath(script)}`,
+      message: `Daily volume reset script missing or not executable: ${displayPath(script)}`,
     });
   }
 

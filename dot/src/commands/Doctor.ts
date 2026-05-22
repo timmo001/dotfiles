@@ -42,6 +42,24 @@ export const doctor = (opts?: { readonly openOpencode?: boolean }) =>
 
     const report = yield* runDoctor;
 
+    // Header summary (matches legacy)
+    yield* log.info(
+      `Public repo: ${config.publicDotfiles.replace(process.env.HOME ?? "", "~")}`,
+    );
+    if (config.privateDotfiles) {
+      yield* log.info(
+        `Private repo: ${config.privateDotfiles.replace(process.env.HOME ?? "", "~")}`,
+      );
+    }
+    if (config.notesDir) {
+      yield* log.info(
+        `Notes repo: ${config.notesDir.replace(process.env.HOME ?? "", "~")}`,
+      );
+    }
+    yield* log.info(
+      `Private mode: ${process.env.DOT_ALLOW_PRIVATE ?? "auto"}`,
+    );
+
     // Stream results section by section
     for (const section of report.sections) {
       yield* log.section(section.name);

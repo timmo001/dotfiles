@@ -129,3 +129,23 @@ export const checkRepos = Effect.gen(function* () {
 
   return results;
 });
+
+/** Check private access status (standalone section matching legacy) */
+export const checkPrivateAccess = Effect.gen(function* () {
+  const config = yield* Config;
+  const results: CheckResult[] = [];
+
+  if (config.canUsePrivate) {
+    results.push({
+      severity: "ok",
+      message: `Private repo enabled (${config.privateReason})`,
+    });
+  } else {
+    results.push({
+      severity: "warn",
+      message: `Private repo disabled (${config.privateReason})`,
+    });
+  }
+
+  return results;
+});

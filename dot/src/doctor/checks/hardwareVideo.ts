@@ -26,7 +26,7 @@ export const checkHardwareVideo = Effect.gen(function* () {
 
   // Identify render nodes and their drivers
   const renderNodesOutput = yield* executor
-    .run("bash", ["-c", "ls /sys/class/drm/renderD* 2>/dev/null || true"])
+    .run("bash", ["-c", "ls -d /sys/class/drm/renderD* 2>/dev/null || true"])
     .pipe(Effect.catch(() => Effect.succeed("")));
 
   let vaapiDriverExpected = "";

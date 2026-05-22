@@ -147,6 +147,7 @@ export const checkPrivatePackageRepo = Effect.gen(function* () {
   }
 
   // Parse key=value config (skip comments and blank lines)
+  let repoName = "";
   let repoPath = "";
   let mirrorPath = "";
   try {
@@ -159,7 +160,8 @@ export const checkPrivatePackageRepo = Effect.gen(function* () {
       if (eqIdx < 0) continue;
       const key = line.slice(0, eqIdx).trim();
       const value = line.slice(eqIdx + 1).trim();
-      if (key === "path") repoPath = value.replace(/^~/, HOME);
+      if (key === "name") repoName = value;
+      else if (key === "path") repoPath = value.replace(/^~/, HOME);
       else if (key === "mirror_path") mirrorPath = value.replace(/^~/, HOME);
     }
   } catch {
@@ -180,9 +182,12 @@ export const checkPrivatePackageRepo = Effect.gen(function* () {
       detail: "Run dot setup-private-repo to sync the mirror",
     });
   } else if (mirrorPath) {
+    const pacmanConf = repoName
+      ? `/etc/pacman.d/${repoName}.conf`
+      : "/etc/pacman.d/private.conf";
     results.push({
       severity: "ok",
-      message: `Private pacman repo is configured`,
+      message: `Private pacman repo is configured (${pacmanConf})`,
     });
   }
 

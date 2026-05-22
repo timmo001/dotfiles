@@ -71,19 +71,25 @@ export const checkDependencies = Effect.gen(function* () {
     severity: "ok",
     message:
       wpctlExit === 0
-        ? "wpctl is available (optional daily volume reset on PipeWire/WirePlumber)"
-        : "wpctl is missing (optional daily volume reset on PipeWire/WirePlumber)",
+        ? "wpctl is available (optional daily 5am volume reset on PipeWire/WirePlumber)"
+        : "wpctl is missing (optional daily 5am volume reset on PipeWire/WirePlumber)",
   });
 
   // gh authentication check
   const ghExit = yield* executor.exitCode("which", ["gh"]);
   if (ghExit === 0) {
-    const authExit = yield* executor.exitCode("bash", [
-      "-c",
-      "GH_PROMPT_DISABLED=1 gh api user --jq .login 2>/dev/null",
-    ]);
-    if (authExit === 0) {
-      results.push({ severity: "ok", message: "gh authentication is active" });
+    const ghUser = yield* executor
+      .run("bash", [
+        "-c",
+        "GH_PROMPT_DISABLED=1 gh api user --jq .login 2>/dev/null",
+      ])
+      .pipe(Effect.catch(() => Effect.succeed("")));
+    const username = ghUser.trim();
+    if (username) {
+      results.push({
+        severity: "ok",
+        message: `gh authentication is active (${username})`,
+      });
     } else {
       results.push({
         severity: "warn",

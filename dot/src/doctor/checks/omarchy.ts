@@ -11,6 +11,27 @@ function displayPath(p: string): string {
   return p.replace(HOME, "~");
 }
 
+/** Map repo name to expected GitHub org/repo slug (matches legacy omarchy_repo_slug) */
+function omarchyRepoSlug(repoName: string): string | null {
+  switch (repoName) {
+    case "bootstrap":
+      return "timmo001/bootstrap";
+    case "hypr":
+      return "timmo001/omarchy-hypr";
+    case "waybar":
+      return "timmo001/omarchy-waybar";
+    case "ghostty":
+      return "timmo001/omarchy-ghostty";
+    case "uwsm":
+      return "timmo001/omarchy-uwsm";
+    default:
+      return null;
+  }
+}
+
+/** Single-branch repos that should not have worktree checks */
+const SINGLE_BRANCH_REPOS = new Set(["bootstrap", "waybar", "ghostty", "uwsm"]);
+
 /** Check omarchy diff repos exist with correct remotes and worktree branches */
 export const checkOmarchy = Effect.gen(function* () {
   const config = yield* Config;
@@ -46,8 +67,19 @@ export const checkOmarchy = Effect.gen(function* () {
       .run("git", ["-C", repoPath, "remote", "get-url", "origin"])
       .pipe(Effect.catch(() => Effect.succeed("")));
     const remote = remoteResult.trim();
+    const slug = omarchyRepoSlug(repoName);
 
-    if (remote) {
+    if (remote && slug && remote.includes(slug)) {
+      results.push({
+        severity: "ok",
+        message: `Remote OK for ${repoName} (${slug})`,
+      });
+    } else if (remote && slug) {
+      results.push({
+        severity: "warn",
+        message: `Remote mismatch for ${repoName} (expected ${slug})`,
+      });
+    } else if (remote) {
       results.push({ severity: "ok", message: `Remote OK for ${repoName}` });
     } else {
       results.push({
@@ -57,9 +89,23 @@ export const checkOmarchy = Effect.gen(function* () {
     }
   }
 
-  // Check worktree branches
-  for (const repoName of config.omarchy.worktreeRepos) {
+  // Check worktree branches — report single-branch repos as skipped
+  for (const repoName of config.omarchy.diffRepos) {
     const repoPath = join(repoBase, repoName);
+
+    // Single-branch repos don't have worktrees
+    if (SINGLE_BRANCH_REPOS.has(repoName)) {
+      if (!config.omarchy.worktreeRepos.includes(repoName)) {
+        results.push({
+          severity: "ok",
+          message: `Skipping branch checks for ${repoName} (single-branch repo)`,
+        });
+      }
+      continue;
+    }
+
+    // Only process repos that are in the worktreeRepos list
+    if (!config.omarchy.worktreeRepos.includes(repoName)) continue;
 
     const isGit = yield* executor.exitCode("git", [
       "-C",
