@@ -28,6 +28,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - Stow config: `.stowrc`
 - Main docs: `README.md`
 - OpenCode config source: `agents/.config/opencode/`
+- Skills source: `agents/.agents/skills/` (stows to `~/.agents/skills/`; shared by OpenCode + Codex)
 - Published OpenCode config: [`timmo001/opencode-config`](https://github.com/timmo001/opencode-config)
 
 ## OpenCode Workflow
@@ -70,7 +71,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - If a change spans multiple scopes, apply all relevant skills together (not just one).
 - Use the `write-a-skill` skill when adding or revising local OpenCode skills so descriptions, supporting files, and scripts stay minimal and consistent.
 - Use the `skill-notes` skill alongside `import-external-skill` and `write-a-skill` when evaluating, importing, or recommending skills.
-- Skills in `agents/.config/opencode/skills/` are stowed globally (cross-project). Skills in `.opencode/skills/` are repo-local (this repo only).
+- Skills in `agents/.agents/skills/` are stowed globally (cross-project, shared by OpenCode + Codex via `~/.agents/skills/`). Skills in `.opencode/skills/` are repo-local (this repo only).
 
 ## Repo-Specific Skills
 

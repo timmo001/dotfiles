@@ -61,10 +61,7 @@ export const skillUpdates = (opts?: {
       return;
     }
 
-    const skillsDir = join(
-      config.publicDotfiles,
-      "agents/.config/opencode/skills",
-    );
+    const skillsDir = join(config.publicDotfiles, "agents/.agents/skills");
     const skills = scanSkills(skillsDir);
 
     if (skills.length === 0) {

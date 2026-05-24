@@ -115,13 +115,14 @@ git clone https://github.com/${PUBLISH_REPO}.git
 cd opencode-config
 
 # Copy individual items
-cp -r skills/diagnose ~/.config/opencode/skills/
+cp -r skills/diagnose ~/.agents/skills/
 cp commands/inject-context.md ~/.config/opencode/commands/
 cp plugins/env-protection.js ~/.config/opencode/plugins/
 cp agents/reviewer.md ~/.config/opencode/agents/
 
 # Or copy everything
-cp -r skills agents commands plugins ~/.config/opencode/
+cp -r skills ~/.agents/
+cp -r agents commands plugins ~/.config/opencode/
 \`\`\`
 
 > **Stow users:** If your OpenCode config is managed by [GNU Stow](https://www.gnu.org/software/stow/) or a similar symlink manager, the \`cp\` commands above will not work — they copy into the live path rather than your stow source directory. Either follow the [dotfiles setup](${DOTFILES_URL}) this repo is published from, or ask an agent to adapt the files into your own stow structure.

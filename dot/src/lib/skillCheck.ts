@@ -61,14 +61,14 @@ export function discoverSkills(
   publicDotfiles: string,
   privateDotfiles?: string | null,
 ): readonly SkillEntry[] {
-  const globalDir = join(publicDotfiles, "agents/.config/opencode/skills");
+  const globalDir = join(publicDotfiles, "agents/.agents/skills");
   const localDir = join(publicDotfiles, ".opencode/skills");
   const skills = [
     ...scanSkillDir(globalDir, false),
     ...scanSkillDir(localDir, true),
   ];
   if (privateDotfiles) {
-    const privateDir = join(privateDotfiles, "agents/.config/opencode/skills");
+    const privateDir = join(privateDotfiles, "agents/.agents/skills");
     skills.push(...scanSkillDir(privateDir, false));
   }
   return skills;
