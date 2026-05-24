@@ -3,6 +3,7 @@ import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher } from "../services/Launcher.js";
 import { stow as runStow } from "./Stow.js";
+import { agentsSync } from "./AgentsSync.js";
 import { skillUpdates } from "./SkillUpdates.js";
 import { rebuild } from "../lib/selfUpdate.js";
 
@@ -26,14 +27,16 @@ const pullRepo = (name: string, path: string) =>
 /** Run post-update hooks (agents-sync, skill-updates) */
 const postHooks = Effect.gen(function* () {
   const log = yield* OutputLog;
-  const launcher = yield* Launcher;
 
   yield* log.section("Post-Hooks");
 
-  const agentsExit = yield* launcher.stream("dot-legacy agents-sync");
-  if (agentsExit !== 0) {
-    yield* log.warn("Agents sync failed (non-fatal)");
-  }
+  yield* agentsSync.pipe(
+    Effect.catch(() =>
+      Effect.gen(function* () {
+        yield* log.warn("Agents sync failed (non-fatal)");
+      }),
+    ),
+  );
 
   yield* skillUpdates({ update: true }).pipe(
     Effect.catch(() =>
