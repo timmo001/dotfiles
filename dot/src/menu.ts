@@ -263,6 +263,20 @@ const dotItems: readonly MenuItem[] = [
     "AI Tooling",
   ),
   item(
+    "agents-sync",
+    "󰯂",
+    "Agents Sync",
+    "Mirror AGENTS.md to Cursor, Claude, Codex",
+    notify("dot agents-sync", {
+      id: "agents-sync",
+      progress: "Syncing agent rules...",
+      success: "Agent rules synced",
+    }),
+    undefined,
+    ["agents", "sync", "cursor", "claude", "codex", "rules", "mirror"],
+    "AI Tooling",
+  ),
+  item(
     "skill-updates",
     "󰏬",
     "Skill Updates",
