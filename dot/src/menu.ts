@@ -124,27 +124,6 @@ const dotItems: readonly MenuItem[] = [
     "Dotfiles",
   ),
   item(
-    "skill-checks",
-    "󰝒",
-    "Skill Checks",
-    "Validate skill references across AGENTS and agent files",
-    cmd("dot skill-check"),
-    [
-      {
-        label: "Standard",
-        description: "Run validation checks",
-        action: cmd("dot skill-check"),
-      },
-      {
-        label: "With AI analysis",
-        description: "Run checks + OpenCode analysis",
-        action: cmd("dot skill-check --open-opencode"),
-      },
-    ],
-    ["validate", "lint", "skills", "references", "tooling"],
-    "AI Tooling",
-  ),
-  item(
     "agents-sync",
     "󰯂",
     "Agents Sync",
@@ -165,6 +144,27 @@ const dotItems: readonly MenuItem[] = [
       "mirror",
       "tooling",
     ],
+    "AI Tooling",
+  ),
+  item(
+    "skill-checks",
+    "󰝒",
+    "Skill Checks",
+    "Validate skill references across AGENTS and agent files",
+    cmd("dot skill-check"),
+    [
+      {
+        label: "Standard",
+        description: "Run validation checks",
+        action: cmd("dot skill-check"),
+      },
+      {
+        label: "With AI analysis",
+        description: "Run checks + OpenCode analysis",
+        action: cmd("dot skill-check --open-opencode"),
+      },
+    ],
+    ["validate", "lint", "skills", "references", "tooling"],
     "AI Tooling",
   ),
   item(
