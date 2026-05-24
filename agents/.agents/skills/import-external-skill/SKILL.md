@@ -5,7 +5,7 @@ description: Import skills from external repos into the local dotfiles skill lib
 
 # Import External Skill
 
-Import skills from external repositories into the local OpenCode skill library under `~/.config/dotfiles/agents/.config/opencode/skills/`.
+Import skills from external repositories into the local OpenCode skill library under `~/.config/dotfiles/agents/.agents/skills/`.
 
 ## When to Use
 
