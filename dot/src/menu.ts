@@ -136,48 +136,6 @@ const dotItems: readonly MenuItem[] = [
     "Diagnostics",
   ),
   item(
-    "harness-debug",
-    "󱚟",
-    "Harness Debug",
-    "Debug and diagnose AI coding tools",
-    cmd("dot opencode-debug"),
-    [
-      {
-        label: "OpenCode Debug",
-        description: "Paths, config, skills, info",
-        action: cmd("dot opencode-debug"),
-      },
-      {
-        label: "Codex Doctor",
-        description: "Diagnose Codex install and health",
-        action: cmd("codex doctor"),
-      },
-      {
-        label: "Codex Models",
-        description: "Show available Codex models",
-        action: cmd("codex debug models"),
-      },
-      {
-        label: "Claude Doctor",
-        description: "Check Claude Code health (interactive, not in AI analysis)",
-        action: cmd("claude doctor"),
-      },
-      {
-        label: "With AI analysis",
-        description: "Run all diagnostics then open OpenCode (excludes interactive Claude)",
-        action: cmd(
-          'log="${XDG_STATE_HOME:-$HOME/.local/state}/dot/logs/harness-debug.log"; ' +
-            "{ dot opencode-debug 2>&1; printf '\\n---\\n'; codex doctor 2>&1; printf '\\n---\\n'; codex debug models 2>&1; } | " +
-            "sed -E 's/(ctx7sk-|sk-|ghp_|gho_|glpat-|Bearer )[A-Za-z0-9_-]+/\\1<REDACTED>/g' | tee \"$log\"; " +
-            'opencode --prompt "Review the harness debug report at $log. Read it with the Read tool first. Give a concise diagnosis of issues, probable causes, and a prioritized action plan."',
-          false,
-        ),
-      },
-    ],
-    ["harness", "opencode", "codex", "claude", "cursor", "ai", "agent", "debug"],
-    "AI Tooling",
-  ),
-  item(
     "system-health",
     "󰗶",
     "System Health Check",
@@ -228,18 +186,46 @@ const dotItems: readonly MenuItem[] = [
     "Diagnostics",
   ),
   item(
-    "restart-services",
-    "󰜉",
-    "Restart Services",
-    "Restart services that don't recover well after suspend",
-    notify("on-resume", {
-      id: "restart-services",
-      progress: "Restarting services...",
-      success: "Services restarted",
-    }),
-    undefined,
-    ["resume", "suspend", "sleep", "wake", "waybar", "restart"],
-    "System",
+    "harness-debug",
+    "󱚟",
+    "Harness Debug",
+    "Debug and diagnose AI coding tools",
+    cmd("dot opencode-debug"),
+    [
+      {
+        label: "OpenCode Debug",
+        description: "Paths, config, skills, info",
+        action: cmd("dot opencode-debug"),
+      },
+      {
+        label: "Codex Doctor",
+        description: "Diagnose Codex install and health",
+        action: cmd("codex doctor"),
+      },
+      {
+        label: "Codex Models",
+        description: "Show available Codex models",
+        action: cmd("codex debug models"),
+      },
+      {
+        label: "Claude Doctor",
+        description: "Check Claude Code health (interactive, not in AI analysis)",
+        action: cmd("claude doctor"),
+      },
+      {
+        label: "With AI analysis",
+        description: "Run all diagnostics then open OpenCode (excludes interactive Claude)",
+        action: cmd(
+          'log="${XDG_STATE_HOME:-$HOME/.local/state}/dot/logs/harness-debug.log"; ' +
+            "{ dot opencode-debug 2>&1; printf '\\n---\\n'; codex doctor 2>&1; printf '\\n---\\n'; codex debug models 2>&1; } | " +
+            "sed -E 's/(ctx7sk-|sk-|ghp_|gho_|glpat-|Bearer )[A-Za-z0-9_-]+/\\1<REDACTED>/g' | tee \"$log\"; " +
+            'opencode --prompt "Review the harness debug report at $log. Read it with the Read tool first. Give a concise diagnosis of issues, probable causes, and a prioritized action plan."',
+          false,
+        ),
+      },
+    ],
+    ["harness", "opencode", "codex", "claude", "cursor", "ai", "agent", "debug"],
+    "AI Tooling",
   ),
   item(
     "skill-check",
@@ -307,6 +293,20 @@ const dotItems: readonly MenuItem[] = [
     ],
     ["sk", "skills", "plugins", "upstream", "agents"],
     "AI Tooling",
+  ),
+  item(
+    "restart-services",
+    "󰜉",
+    "Restart Services",
+    "Restart services that don't recover well after suspend",
+    notify("on-resume", {
+      id: "restart-services",
+      progress: "Restarting services...",
+      success: "Services restarted",
+    }),
+    undefined,
+    ["resume", "suspend", "sleep", "wake", "waybar", "restart"],
+    "System",
   ),
   item(
     "workspace",
