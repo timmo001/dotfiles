@@ -251,12 +251,12 @@ The build is also triggered by `dot update`.
 
 ## Validation
 
-Always run type check, dead-code analysis, and build after every final code change:
+Always run type check, format, and build after every final code change:
 
 ```bash
 cd ~/.config/dotfiles/dot
 bunx tsc --noEmit            # type check
-bun run format               # format with prettier
+bun run format               # format with prettier (required before every commit)
 bun run build                # compile binary
 ```
 
@@ -271,6 +271,13 @@ dot diff --waybar            # smoke test: JSON output
 dot doctor                   # smoke test: health checks run
 dot help                     # smoke test: help prints
 ```
+
+## Logging Style
+
+Keep logging readable and consistent:
+- Section headings in Title Case
+- Log labels uppercase (`[INFO]`, `[WARN]`, `[ERROR]`)
+- Message text in sentence case
 
 ## Legacy Bash Script
 

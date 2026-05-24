@@ -93,13 +93,9 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 
 ## Dot Command Changes
 
-- Keep command implementations in `dot/src/commands/`.
-- Legacy bash fallback script: `scripts/.local/bin/dot-legacy` (kept as reference; removal tracked in Phase 99).
+- When editing files under `dot/`, always follow `dot/AGENTS.md` (validation steps, skills, patterns).
 - When adding new `dot` subcommands that users may want quick access to, also add them to the menu registry in `dot/src/menu.ts`.
-- Keep logging readable and consistent:
-  - section headings in Title Case
-  - log labels uppercase (`[INFO]`, `[WARN]`, `[ERROR]`)
-  - message text in sentence case
+- Legacy bash fallback script: `scripts/.local/bin/dot-legacy` (kept as reference; removal tracked in Phase 99).
 
 ## Script Configuration Policy
 
@@ -109,8 +105,6 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 
 ## Validation
 
-- Type check: `cd dot && bunx tsc --noEmit`
-- Build: `cd dot && bun run build`
 - Basic health check: `dot doctor`
 - OpenCode debug wrapper: `dot opencode-debug`
 - OpenCode context injection command: `/inject-context [instruction]`
@@ -122,7 +116,6 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - OpenCode frontend debug command: `/debug-frontend <page or issue>`
 - OpenCode fallow audit command: `/fallow-audit [workspace]`
 - OpenCode fallow project analysis command: `/fallow-project-analyse [workspace]`
-- Fallow dead-code check (after `.ts` changes in `dot/`): use MCP `analyze` tool with `root: dot`, or `/fallow-audit`
 - Diff behavior: `dot diff`
 
 ## Safety
