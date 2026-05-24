@@ -209,12 +209,14 @@ const dotItems: readonly MenuItem[] = [
       },
       {
         label: "Claude Doctor",
-        description: "Check Claude Code health (interactive, not in AI analysis)",
+        description:
+          "Check Claude Code health (interactive, not in AI analysis)",
         action: cmd("claude doctor"),
       },
       {
         label: "With AI analysis",
-        description: "Run all diagnostics then open OpenCode (excludes interactive Claude)",
+        description:
+          "Run all diagnostics then open OpenCode (excludes interactive Claude)",
         action: cmd(
           'log="${XDG_STATE_HOME:-$HOME/.local/state}/dot/logs/harness-debug.log"; ' +
             "{ dot opencode-debug 2>&1; printf '\\n---\\n'; codex doctor 2>&1; printf '\\n---\\n'; codex debug models 2>&1; } | " +
@@ -224,7 +226,16 @@ const dotItems: readonly MenuItem[] = [
         ),
       },
     ],
-    ["harness", "opencode", "codex", "claude", "cursor", "ai", "agent", "debug"],
+    [
+      "harness",
+      "opencode",
+      "codex",
+      "claude",
+      "cursor",
+      "ai",
+      "agent",
+      "debug",
+    ],
     "AI Tooling",
   ),
   item(
@@ -429,15 +440,16 @@ const dotItems: readonly MenuItem[] = [
     ["reboot", "boot", "windows", "bazzite", "uefi", "firmware", "bios", "os"],
     "System",
   ),
-  item("quit", "󰗼", "Quit", "Exit the TUI", { type: "quit" }, undefined, [
-    "exit",
+  item(
     "quit",
-    "close",
-    ":q",
-    ":wq",
-    ":qa",
-    "bye",
-  ]),
+    "󰗼",
+    "Quit",
+    "Exit the TUI",
+    { type: "quit" },
+    undefined,
+    ["exit", "quit", "close", ":q", ":wq", ":qa", "bye"],
+    " ",
+  ),
 ];
 
 // --- Omarchy top-level ---

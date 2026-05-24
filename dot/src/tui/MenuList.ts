@@ -231,7 +231,8 @@ export class MenuList extends ScrollBoxRenderable {
   /** Re-filter visible items from the full set using current filter text */
   private _applyFilter(): void {
     const currentRow = this._rows[this._selectedIndex];
-    const currentItem = currentRow && !currentRow.isGroupHeader ? currentRow.item : undefined;
+    const currentItem =
+      currentRow && !currentRow.isGroupHeader ? currentRow.item : undefined;
     this._clearRows();
     if (this._filterText.length === 0) {
       // Restoring full list — will find the item's row after rebuild
@@ -241,7 +242,10 @@ export class MenuList extends ScrollBoxRenderable {
       // Find the row matching the previously selected item
       if (currentItem) {
         for (let r = 0; r < this._rows.length; r++) {
-          if (!this._rows[r].isGroupHeader && this._rows[r].item === currentItem) {
+          if (
+            !this._rows[r].isGroupHeader &&
+            this._rows[r].item === currentItem
+          ) {
             this._applySelection(r);
             break;
           }
@@ -260,7 +264,10 @@ export class MenuList extends ScrollBoxRenderable {
     const len = this._rows.length;
     if (len === 0) return;
 
-    const next = this._nextSelectableIndex(this._selectedIndex, delta > 0 ? 1 : -1);
+    const next = this._nextSelectableIndex(
+      this._selectedIndex,
+      delta > 0 ? 1 : -1,
+    );
     if (next !== this._selectedIndex) this._applySelection(next);
   }
 
@@ -385,7 +392,15 @@ export class MenuList extends ScrollBoxRenderable {
     textCol.add(descText);
     container.add(textCol);
 
-    return { container, iconCol, iconText, titleText, descText, item, isGroupHeader: false };
+    return {
+      container,
+      iconCol,
+      iconText,
+      titleText,
+      descText,
+      item,
+      isGroupHeader: false,
+    };
   }
 
   /** Create a non-selectable group header row */
