@@ -10,6 +10,7 @@ function item(
   action: MenuItem["action"],
   variants?: readonly MenuVariant[],
   keywords?: readonly string[],
+  group?: string,
 ): MenuItem {
   return {
     id,
@@ -19,6 +20,7 @@ function item(
     action,
     ...(variants && { variants }),
     ...(keywords && { keywords }),
+    ...(group && { group }),
   };
 }
 
@@ -74,6 +76,7 @@ const dotItems: readonly MenuItem[] = [
       },
     ],
     ["upd", "pull", "fetch", "sync", "refresh", "rebuild"],
+    "Dotfiles",
   ),
   item(
     "stow",
@@ -99,6 +102,7 @@ const dotItems: readonly MenuItem[] = [
       },
     ],
     ["sym", "symlink", "link", "deploy", "dotfiles"],
+    "Dotfiles",
   ),
   item(
     "diff",
@@ -108,6 +112,7 @@ const dotItems: readonly MenuItem[] = [
     view("diff"),
     undefined,
     ["chg", "changes", "status", "git", "repos", "modified", "dirty"],
+    "Dotfiles",
   ),
   item(
     "doctor",
@@ -128,6 +133,7 @@ const dotItems: readonly MenuItem[] = [
       },
     ],
     ["doc", "health", "check", "diagnose", "deps", "dependencies"],
+    "Diagnostics",
   ),
   item(
     "harness-debug",
@@ -169,6 +175,7 @@ const dotItems: readonly MenuItem[] = [
       },
     ],
     ["harness", "opencode", "codex", "claude", "cursor", "ai", "agent", "debug"],
+    "AI Tooling",
   ),
   item(
     "system-health",
@@ -218,6 +225,7 @@ const dotItems: readonly MenuItem[] = [
       "cpu",
       "mem",
     ],
+    "Diagnostics",
   ),
   item(
     "restart-services",
@@ -231,6 +239,7 @@ const dotItems: readonly MenuItem[] = [
     }),
     undefined,
     ["resume", "suspend", "sleep", "wake", "waybar", "restart"],
+    "System",
   ),
   item(
     "skill-check",
@@ -251,6 +260,7 @@ const dotItems: readonly MenuItem[] = [
       },
     ],
     ["validate", "lint", "skills", "references"],
+    "AI Tooling",
   ),
   item(
     "skill-updates",
@@ -282,6 +292,7 @@ const dotItems: readonly MenuItem[] = [
       },
     ],
     ["sk", "skills", "plugins", "upstream", "agents"],
+    "AI Tooling",
   ),
   item(
     "workspace",
@@ -300,6 +311,7 @@ const dotItems: readonly MenuItem[] = [
       "setup",
       "session",
     ],
+    "System",
   ),
   item(
     "topgrade",
@@ -360,6 +372,7 @@ const dotItems: readonly MenuItem[] = [
       },
     ],
     ["upg", "upgrade", "packages", "pacman", "aur", "brew", "apt", "pkg"],
+    "System",
   ),
   item(
     "omarchy",
@@ -369,6 +382,7 @@ const dotItems: readonly MenuItem[] = [
     submenu("omarchy"),
     undefined,
     ["om", "hyprland", "waybar", "linux", "wm", "theme"],
+    "System",
   ),
   item(
     "reboot-to",
@@ -399,6 +413,7 @@ const dotItems: readonly MenuItem[] = [
       },
     ],
     ["reboot", "boot", "windows", "bazzite", "uefi", "firmware", "bios", "os"],
+    "System",
   ),
   item("quit", "󰗼", "Quit", "Exit the TUI", { type: "quit" }, undefined, [
     "exit",

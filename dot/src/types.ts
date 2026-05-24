@@ -154,4 +154,10 @@ export interface MenuItem {
   readonly variants?: readonly MenuVariant[];
   /** Optional search aliases for fuzzy filter matching */
   readonly keywords?: readonly string[];
+  /**
+   * Group key for section grouping. When consecutive items share the same
+   * group value, a non-selectable section header is rendered before the
+   * first item in each group. Items without a group are rendered normally.
+   */
+  readonly group?: string;
 }

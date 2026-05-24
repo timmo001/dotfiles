@@ -6,6 +6,7 @@ import {
   type KeyEvent,
   t,
   fg,
+  bold,
 } from "@opentui/core";
 import Fuse from "fuse.js";
 import type { MenuItem } from "../types.js";
@@ -22,6 +23,8 @@ interface MenuRow {
   readonly titleText: TextRenderable;
   readonly descText: TextRenderable;
   readonly item: MenuItem;
+  /** Whether this row is a non-selectable group header */
+  readonly isGroupHeader: boolean;
 }
 
 /** Configuration for the {@link MenuList} component */
@@ -116,20 +119,25 @@ export class MenuList extends ScrollBoxRenderable {
     this._onFilterChange?.("");
   }
 
-  /** Programmatically select an item by index */
+  /** Programmatically select an item by index (item index, not row index) */
   setSelectedIndex(index: number): void {
-    if (
-      index < 0 ||
-      index >= this._items.length ||
-      index === this._selectedIndex
-    )
-      return;
-    this._applySelection(index);
+    if (index < 0 || index >= this._items.length) return;
+    // Find the row index for this item index (skip group headers)
+    let itemCount = 0;
+    for (let r = 0; r < this._rows.length; r++) {
+      if (this._rows[r].isGroupHeader) continue;
+      if (itemCount === index) {
+        if (r !== this._selectedIndex) this._applySelection(r);
+        return;
+      }
+      itemCount++;
+    }
   }
 
   /** Return the currently highlighted item */
   getSelectedItem(): MenuItem | undefined {
-    return this._items[this._selectedIndex];
+    const row = this._rows[this._selectedIndex];
+    return row && !row.isGroupHeader ? row.item : undefined;
   }
 
   /** Clear the filter and restore the full item list */
@@ -187,8 +195,8 @@ export class MenuList extends ScrollBoxRenderable {
 
     // Enter: select highlighted item
     if (key.name === "return") {
-      const item = this._items[this._selectedIndex];
-      if (item) this._selectCb(item);
+      const row = this._rows[this._selectedIndex];
+      if (row && !row.isGroupHeader) this._selectCb(row.item);
       return true;
     }
 
@@ -222,47 +230,67 @@ export class MenuList extends ScrollBoxRenderable {
 
   /** Re-filter visible items from the full set using current filter text */
   private _applyFilter(): void {
+    const currentRow = this._rows[this._selectedIndex];
+    const currentItem = currentRow && !currentRow.isGroupHeader ? currentRow.item : undefined;
     this._clearRows();
     if (this._filterText.length === 0) {
-      // Restoring full list — preserve selected item position
-      const currentItem = this._items[this._selectedIndex];
+      // Restoring full list — will find the item's row after rebuild
       this._items = this._allItems;
-      const preservedIndex = currentItem
-        ? this._items.indexOf(currentItem)
-        : -1;
-      this._selectedIndex = preservedIndex >= 0 ? preservedIndex : 0;
+      this._selectedIndex = 0;
+      this._buildRows();
+      // Find the row matching the previously selected item
+      if (currentItem) {
+        for (let r = 0; r < this._rows.length; r++) {
+          if (!this._rows[r].isGroupHeader && this._rows[r].item === currentItem) {
+            this._applySelection(r);
+            break;
+          }
+        }
+      }
     } else {
       // Filtering — always select top result
       this._items = this._fuse.search(this._filterText).map((r) => r.item);
       this._selectedIndex = 0;
+      this._buildRows();
     }
-    this._buildRows();
     this._onFilterChange?.(this._filterText);
   }
 
   private _moveSelection(delta: number): void {
-    const len = this._items.length;
+    const len = this._rows.length;
     if (len === 0) return;
 
-    let next = this._selectedIndex + delta;
-    if (this._wrapSelection) {
-      if (next < 0) next = len - 1;
-      else if (next >= len) next = 0;
-    } else {
-      next = Math.max(0, Math.min(len - 1, next));
-    }
+    const next = this._nextSelectableIndex(this._selectedIndex, delta > 0 ? 1 : -1);
     if (next !== this._selectedIndex) this._applySelection(next);
+  }
+
+  /** Find the next selectable row index in the given direction, skipping group headers */
+  private _nextSelectableIndex(from: number, direction: 1 | -1): number {
+    const len = this._rows.length;
+    if (len === 0) return 0;
+    let idx = from;
+    for (let attempts = 0; attempts < len; attempts++) {
+      idx += direction;
+      if (this._wrapSelection) {
+        if (idx < 0) idx = len - 1;
+        else if (idx >= len) idx = 0;
+      } else {
+        if (idx < 0 || idx >= len) return from;
+      }
+      if (!this._rows[idx]?.isGroupHeader) return idx;
+    }
+    return from;
   }
 
   private _applySelection(newIndex: number): void {
     const oldRow = this._rows[this._selectedIndex];
     const newRow = this._rows[newIndex];
-    if (oldRow) this._styleRow(oldRow, false);
-    if (newRow) this._styleRow(newRow, true);
+    if (oldRow && !oldRow.isGroupHeader) this._styleRow(oldRow, false);
+    if (newRow && !newRow.isGroupHeader) this._styleRow(newRow, true);
     this._selectedIndex = newIndex;
     // Scroll the selected item into view
     if (newRow) this.scrollChildIntoView(newRow.container.id);
-    const item = this._items[newIndex];
+    const item = newRow?.item;
     if (item) this._selectionChangedCb?.(item);
   }
 
@@ -274,12 +302,35 @@ export class MenuList extends ScrollBoxRenderable {
   }
 
   private _buildRows(): void {
+    let rowIndex = 0;
+    let lastGroup: string | undefined;
+    const showGroups = this._filterText.length === 0;
+
     for (let i = 0; i < this._items.length; i++) {
       const item = this._items[i];
-      const isSelected = i === this._selectedIndex;
-      const row = this._createRow(item, i, isSelected);
+
+      // Insert group header when group changes (only in unfiltered view)
+      if (showGroups && item.group !== undefined && item.group !== lastGroup) {
+        const header = this._createGroupHeaderRow(item.group, rowIndex);
+        this._rows.push(header);
+        this.add(header.container);
+        rowIndex++;
+      }
+      lastGroup = item.group;
+
+      const isSelected = rowIndex === this._selectedIndex;
+      const row = this._createRow(item, rowIndex, isSelected);
       this._rows.push(row);
       this.add(row.container);
+      rowIndex++;
+    }
+
+    // Ensure initial selection is on a selectable row
+    if (
+      this._rows.length > 0 &&
+      this._rows[this._selectedIndex]?.isGroupHeader
+    ) {
+      this._selectedIndex = this._nextSelectableIndex(this._selectedIndex, 1);
     }
   }
 
@@ -334,7 +385,71 @@ export class MenuList extends ScrollBoxRenderable {
     textCol.add(descText);
     container.add(textCol);
 
-    return { container, iconCol, iconText, titleText, descText, item };
+    return { container, iconCol, iconText, titleText, descText, item, isGroupHeader: false };
+  }
+
+  /** Create a non-selectable group header row */
+  private _createGroupHeaderRow(group: string, index: number): MenuRow {
+    const th = this._theme;
+    const id = `${this.id}-grp-${index}`;
+
+    const container = new BoxRenderable(this._renderer, {
+      id,
+      flexDirection: "row",
+      width: "100%",
+      flexShrink: 0,
+      backgroundColor: th.bgElevated,
+      paddingTop: index > 0 ? 1 : 0,
+    });
+
+    // Empty icon column for alignment
+    const iconCol = new BoxRenderable(this._renderer, {
+      id: `${id}-icol`,
+      width: ICON_COLUMN_WIDTH,
+      paddingLeft: 1,
+    });
+    const iconText = new TextRenderable(this._renderer, {
+      id: `${id}-icon`,
+      content: t``,
+    });
+    iconCol.add(iconText);
+    container.add(iconCol);
+
+    // Group title — bold and dimmed to distinguish from selectable items
+    const textCol = new BoxRenderable(this._renderer, {
+      id: `${id}-tcol`,
+      flexGrow: 1,
+      flexDirection: "column",
+    });
+    const titleText = new TextRenderable(this._renderer, {
+      id: `${id}-title`,
+      content: t`${bold(fg(th.fgSubtle)(group))}`,
+    });
+    const descText = new TextRenderable(this._renderer, {
+      id: `${id}-desc`,
+      content: t``,
+    });
+    textCol.add(titleText);
+    textCol.add(descText);
+    container.add(textCol);
+
+    const headerItem: MenuItem = {
+      id: `__group_${group}__`,
+      icon: "",
+      title: group,
+      description: "",
+      action: { type: "quit" },
+    };
+
+    return {
+      container,
+      iconCol,
+      iconText,
+      titleText,
+      descText,
+      item: headerItem,
+      isGroupHeader: true,
+    };
   }
 
   private _styleRow(row: MenuRow, selected: boolean): void {
