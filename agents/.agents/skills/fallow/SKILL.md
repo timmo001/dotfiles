@@ -2,12 +2,12 @@
 name: fallow
 description: Codebase intelligence for JavaScript and TypeScript. Free static layer finds unused code (files, exports, types, dependencies), code duplication, circular dependencies, complexity hotspots, architecture boundary violations, and feature flag patterns. Runtime coverage merges production execution data into the same health report for hot-path review, cold-path deletion confidence, and stale-flag evidence - a single local capture is free, while continuous/cloud runtime monitoring is paid. 94 framework plugins, zero configuration, sub-second static analysis. Use when asked to analyze code health, find unused code, detect duplicates, check circular dependencies, audit complexity, check architecture boundaries, detect feature flags, clean up the codebase, auto-fix issues, merge runtime coverage, or run fallow.
 # origin: https://github.com/fallow-rs/fallow-skills/tree/main/fallow/skills/fallow
-# upstream-sha: 42e113cabbc30d82cdb8547e5059f810fda446a1
+# upstream-sha: d8db6004dae96a3214784b960e63b3ddacb798cd
 ---
 
 # Fallow: codebase intelligence for JavaScript and TypeScript
 
-Codebase intelligence for JavaScript and TypeScript. The free static layer reports quality, changed-code risk, cleanup opportunities, circular dependencies, code duplication, complexity hotspots, architecture boundary violations, and feature flag patterns. Runtime coverage merges production execution data into the same `fallow health` report for hot-path review, cold-path deletion confidence, and stale-flag evidence: a single local capture is free, while continuous/cloud runtime monitoring is paid. 113 framework plugins, zero configuration, sub-second static analysis.
+Codebase intelligence for JavaScript and TypeScript. The free static layer reports quality, changed-code risk, cleanup opportunities, circular dependencies, code duplication, complexity hotspots, architecture boundary violations, and feature flag patterns. Runtime coverage merges production execution data into the same `fallow health` report for hot-path review, cold-path deletion confidence, and stale-flag evidence: a single local capture is free, while continuous/cloud runtime monitoring is paid. 114 framework plugins, zero configuration, sub-second static analysis.
 
 ## When to Use
 
@@ -111,7 +111,7 @@ When using fallow via MCP (`fallow-mcp`), the following tools are available:
 |------|-------------|
 | `analyze` | Full dead code analysis (unused files/exports/types/dependencies/members + circular dependencies + re-export cycles (barrel files that form a structural loop, silently breaking re-exports) + boundary violations + stale suppressions). Private type leaks are an opt-in API hygiene check via `issue_types: ["private-type-leaks"]`. Set `boundary_violations: true` as a convenience alias for `issue_types: ["boundary-violations"]`. Set `group_by` to `"owner"`, `"directory"`, `"package"`, or `"section"` to partition results. The `section` mode reads GitLab CODEOWNERS `[Section]` headers and emits `owners` metadata per group |
 | `check_changed` | Incremental analysis of files changed since a git ref |
-| `find_dupes` | Code duplication detection. Set `changed_since` to scope to changed files since a git ref. Set `min_occurrences` (≥ 2, default 2) to hide pair-only clones and focus on widespread copy-paste; JSON gains `stats.clone_groups_below_min_occurrences` when the filter hides anything |
+| `find_dupes` | Code duplication detection. Set `changed_since` to scope to changed files since a git ref. Set `min_occurrences` (≥ 2, default 2) to hide pair-only clones and focus on widespread copy-paste; JSON gains `stats.clone_groups_below_min_occurrences` when the filter hides anything. Each `clone_groups[]` entry carries a stable `fingerprint` (`dup:<8hex>`); pass it to `trace_clone` to deep-dive that group |
 | `fix_preview` | Dry-run auto-fix preview |
 | `fix_apply` | Apply auto-fixes (destructive) |
 | `check_health` | Complexity metrics, health scores, hotspots, and refactoring targets. Optional `runtime_coverage` merges a V8 or Istanbul dump; tune it with `min_invocations_hot` (default 100), `min_observation_volume` (default 5000), and `low_traffic_threshold` (default 0.001). Set `group_by` to `owner`, `directory`, `package`, or `section` for per-group `vital_signs` / `health_score`; SARIF results gain `properties.group`, CodeClimate issues gain a top-level `group` field |
@@ -128,7 +128,7 @@ When using fallow via MCP (`fallow-mcp`), the following tools are available:
 | `trace_export` | Trace why an export is used or unused (`fallow dead-code --trace FILE:EXPORT_NAME --format json`). Required `file` and `export_name`. Returns file reachability, entry-point status, direct references, re-export chains, and a reason string. Use before deleting a supposedly-unused export |
 | `trace_file` | Trace all graph edges for a file (`fallow dead-code --trace-file PATH --format json`). Required `file`. Returns reachability, exports, imports-from, imported-by, and re-exports. Use to decide whether a file is isolated, barrel-only, or imported by live entry points |
 | `trace_dependency` | Trace where a dependency is imported (`fallow dead-code --trace-dependency PACKAGE --format json`). Required `package_name`. Returns importing files, type-only importers, total import count, `used_in_scripts` (true when invoked from package.json scripts or CI configs), and `is_used` (combined import + script signal; mirrors the unused-deps detector so build tools like `microbundle` or `vitest` are not falsely flagged as unused). Use before removing a dependency or moving between `dependencies` and `devDependencies` |
-| `trace_clone` | Trace duplicate-code groups at a location (`fallow dupes --trace FILE:LINE --format json`). Required `file` and `line`. Returns the matched clone instance plus every clone group containing it. Supports `mode`, `min_tokens`, `min_lines`, `threshold`, `skip_local`, `cross_language`, `ignore_imports`. Use to consolidate duplication when you need the exact sibling locations |
+| `trace_clone` | Deep-dive a duplicate-code clone group (`fallow dupes --trace <spec> --format json`). Address by exactly one of: `file` + `line` (a source location), or `fingerprint` (a `dup:<id>` from a prior `find_dupes` `clone_groups[].fingerprint`). Returns the matched clone instance plus every clone group containing it; each traced group carries its `fingerprint`, an extract-function `suggestion` with estimated savings, and a best-effort `suggested_name` (omitted when no confident name). Supports `mode`, `min_tokens`, `min_lines`, `threshold`, `skip_local`, `cross_language`, `ignore_imports`. Use to consolidate duplication when you need exact sibling locations and a refactor target |
 
 Runtime source-map confidence for cloud runtime tools:
 
@@ -226,7 +226,7 @@ fallow list --entry-points --format json --quiet
 fallow list --plugins --format json --quiet
 ```
 
-Shows detected entry points and active framework plugins (113 built-in: Next.js, Vite, Ember, Wuchale, Jest, Storybook, Tailwind, PandaCSS, Contentlayer, tap, tsd, etc.).
+Shows detected entry points and active framework plugins (114 built-in: Next.js, Vite, Ember, Wuchale, Jest, Storybook, Tailwind, PandaCSS, Contentlayer, tap, tsd, etc.).
 
 ### Production-only analysis
 
@@ -331,7 +331,7 @@ When `--format json` is active and exit code is 2, errors are emitted as JSON on
 
 ## Configuration
 
-Fallow reads config from project root: `.fallowrc.json` > `.fallowrc.jsonc` > `fallow.toml` > `.fallow.toml`. Both `.fallowrc.json` and `.fallowrc.jsonc` accept JSON-with-comments syntax (same parser); the `.jsonc` extension lets editors auto-detect JSONC syntax highlighting. Most projects work with zero configuration thanks to 113 auto-detecting framework plugins.
+Fallow reads config from project root: `.fallowrc.json` > `.fallowrc.jsonc` > `fallow.toml` > `.fallow.toml`. Both `.fallowrc.json` and `.fallowrc.jsonc` accept JSON-with-comments syntax (same parser); the `.jsonc` extension lets editors auto-detect JSONC syntax highlighting. Most projects work with zero configuration thanks to 114 auto-detecting framework plugins.
 
 ```jsonc
 {
@@ -380,7 +380,7 @@ export const deprecatedHelper = () => {};
 ## Key Gotchas
 
 - **`fix --yes` is required** in non-TTY (agent) environments. Without it, `fix` exits with code 2
-- **Zero config by default.** 113 framework plugins auto-detect, including Wuchale config, Contentlayer content roots, tap and tsd test entry points. Don't create config unless customization is needed
+- **Zero config by default.** 114 framework plugins auto-detect, including Wuchale config, Contentlayer content roots, tap and tsd test entry points. Don't create config unless customization is needed
 - **Syntactic analysis only.** No TypeScript compiler, so fully dynamic `import(variable)` is not resolved
 - **Function overloads are deduplicated.** TypeScript function overload signatures are merged into a single export (not reported as separate unused exports)
 - **Re-export chains are resolved.** Exports through barrel files are tracked, not falsely flagged

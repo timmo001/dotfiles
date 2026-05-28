@@ -154,7 +154,7 @@ By default, `fallow dupes` skips generated framework output matching `**/.next/*
 | `--cross-language` | bool | `false` | Strip type annotations for TS↔JS matching |
 | `--ignore-imports` | bool | `false` | Exclude import declarations from clone detection |
 | `--explain-skipped` | bool | `false` | Human/markdown only: show per-pattern counts for files skipped by default duplicates ignores |
-| `--trace` | `FILE:LINE` | — | Trace all clones at a specific location |
+| `--trace` | `FILE:LINE` \| `dup:<fp>` | — | Deep-dive clones. `FILE:LINE` traces all clones at a location; `dup:<8hex>` traces a clone group by the stable fingerprint shown in the listing and on `clone_groups[].fingerprint` in JSON. Trace output adds an extract-function suggestion, estimated savings, and a best-effort proposed name per group |
 | `--changed-since` | string | — | Only report duplication in files changed since a git ref |
 | `--baseline` | path | — | Compare against baseline |
 | `--save-baseline` | path | — | Save results as baseline |
@@ -185,6 +185,9 @@ fallow dupes --format json --quiet --skip-local --threshold 5
 
 # Trace clones at a specific location
 fallow dupes --format json --quiet --trace src/utils.ts:42
+
+# Deep-dive a clone group by its dup:<id> fingerprint (from the listing or JSON)
+fallow dupes --format json --quiet --trace dup:7f3a2c1e
 
 # Only check duplication in changed files
 fallow dupes --format json --quiet --changed-since main
@@ -470,7 +473,7 @@ fallow health --format json --quiet --trend
 ```json
 {
   "schema_version": 3,
-  "version": "2.83.0",
+  "version": "2.84.0",
   "elapsed_ms": 32,
   "summary": {
     "files_analyzed": 482,
@@ -858,7 +861,7 @@ fallow audit \
 ```json
 {
   "schema_version": 3,
-  "version": "2.83.0",
+  "version": "2.84.0",
   "command": "audit",
   "verdict": "fail",
   "changed_files_count": 12,
@@ -931,7 +934,7 @@ fallow flags --format json --quiet --workspace my-package
 ```json
 {
   "schema_version": 3,
-  "version": "2.83.0",
+  "version": "2.84.0",
   "elapsed_ms": 116,
   "feature_flags": [],
   "total_flags": 0
@@ -1374,7 +1377,7 @@ The HTTP layer mirrors the bash `gh_api_retry` / `curl_retry` helpers: `FALLOW_A
 ```json
 {
   "schema_version": 3,
-  "version": "2.83.0",
+  "version": "2.84.0",
   "elapsed_ms": 45,
   "total_issues": 12,
   "entry_points": {
@@ -1533,7 +1536,7 @@ When `--baseline` is used in combined output, the JSON includes a `baseline_delt
 ```json
 {
   "schema_version": 3,
-  "version": "2.83.0",
+  "version": "2.84.0",
   "elapsed_ms": 82,
   "total_clones": 15,
   "total_lines_duplicated": 230,
@@ -1577,7 +1580,7 @@ When running `fallow` with no subcommand (all analyses), the JSON output combine
 {
   "check": {
     "schema_version": 3,
-    "version": "2.83.0",
+    "version": "2.84.0",
     "elapsed_ms": 45,
     "total_issues": 12,
     "unused_files": [],
@@ -1600,7 +1603,7 @@ When running `fallow` with no subcommand (all analyses), the JSON output combine
   },
   "dupes": {
     "schema_version": 3,
-    "version": "2.83.0",
+    "version": "2.84.0",
     "elapsed_ms": 82,
     "total_clones": 15,
     "total_lines_duplicated": 230,
@@ -1609,7 +1612,7 @@ When running `fallow` with no subcommand (all analyses), the JSON output combine
   },
   "health": {
     "schema_version": 3,
-    "version": "2.83.0",
+    "version": "2.84.0",
     "elapsed_ms": 32,
     "summary": {},
     "findings": [],
