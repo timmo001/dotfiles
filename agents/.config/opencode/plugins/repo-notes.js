@@ -141,6 +141,42 @@ export const RepoNotesPlugin = async ({ $ }) => {
   // Direct read/write/edit/bash access to the notes vault is blocked by notes-guard.js;
   // these tools are the only permitted path for note file I/O.
 
+  /**
+   * Resolve the notes root directory (git repo root for the vault).
+   * Falls back to ~/Documents/notes when $NOTES is not set.
+   */
+  const resolveNotesRoot = async () => {
+    const notesEnv = await run(() => $`printenv NOTES`.text())
+    if (notesEnv.ok && notesEnv.text) return notesEnv.text
+    const homeEnv = await run(() => $`printenv HOME`.text())
+    const home = homeEnv.ok && homeEnv.text ? homeEnv.text : "~"
+    return `${home}/Documents/notes`
+  }
+
+  /**
+   * Git-commit a file change in the notes vault.
+   * Initialises the repo if it doesn't exist yet.
+   * Non-fatal: logs warnings but does not fail the tool call.
+   */
+  const gitCommit = async (filePath, message) => {
+    const notesRoot = await resolveNotesRoot()
+    // Ensure the notes root is a git repo
+    const isRepo = await run(() => $`git -C ${notesRoot} rev-parse --is-inside-work-tree`.text())
+    if (!isRepo.ok) {
+      const init = await run(() => $`git -C ${notesRoot} init`.text())
+      if (!init.ok) return { ok: false, error: `git init failed: ${init.error}` }
+    }
+    const add = await run(() => $`git -C ${notesRoot} add ${filePath}`.text())
+    if (!add.ok) return { ok: false, error: `git add failed: ${add.error}` }
+    const commit = await run(() => $`git -C ${notesRoot} commit -m ${message} --no-verify`.text())
+    if (!commit.ok) {
+      // "nothing to commit" is not an error
+      if (commit.error?.includes("nothing to commit")) return { ok: true, text: "nothing to commit" }
+      return { ok: false, error: `git commit failed: ${commit.error}` }
+    }
+    return { ok: true, text: commit.text }
+  }
+
   const note_read = {
     description:
       "Read the full content of a note file from the notes vault. " +
@@ -180,6 +216,7 @@ export const RepoNotesPlugin = async ({ $ }) => {
     },
     async execute(args) {
       const dir = args.path.substring(0, args.path.lastIndexOf("/"))
+      const filename = args.path.split("/").pop()
       if (dir) {
         try {
           await $`mkdir -p ${dir}`.text()
@@ -192,10 +229,80 @@ export const RepoNotesPlugin = async ({ $ }) => {
       } catch (e) {
         throw new Error(`note_write: failed to write file ${args.path}: ${errorMessage(e)}`)
       }
-      return {
-        title: args.path,
-        output: `Written: ${args.path}\n\n\`\`\`markdown\n${args.content}\n\`\`\``,
+
+      // Commit the write to git
+      const commitResult = await gitCommit(args.path, `notes: write ${filename}`)
+
+      const output = [
+        `Written: ${args.path}`,
+        "",
+        "```markdown",
+        args.content,
+        "```",
+      ]
+      if (commitResult.ok) {
+        output.push("", `Committed to git: \`notes: write ${filename}\``)
       }
+      output.push(
+        "",
+        "## How to undo",
+        "",
+        "```sh",
+        `# Revert to the previous version`,
+        `cd ${dir} && git log --oneline -5 -- ${filename}`,
+        `cd ${dir} && git checkout HEAD~1 -- ${filename}`,
+        "```",
+      )
+      return { title: args.path, output: output.join("\n") }
+    },
+  }
+
+  const note_delete = {
+    description:
+      "Delete a note file from the notes vault. " +
+      "Use this to remove notes that are no longer needed (e.g. superseded handoffs, stale references). " +
+      "IMPORTANT: Always confirm with the user before calling this tool — deletion is irreversible. " +
+      "Show the filename and ask for explicit approval before proceeding. " +
+      "This is the ONLY permitted way to delete note files — the built-in bash and edit tools are blocked for the notes vault.",
+    args: {
+      path: {
+        type: "string",
+        description: "Absolute path to the note file to delete (e.g. /home/user/Documents/notes/repo-notes/owner/repo/slug.md)",
+      },
+    },
+    async execute(args) {
+      const { unlink } = await import("node:fs/promises")
+      const dir = args.path.substring(0, args.path.lastIndexOf("/"))
+      const filename = args.path.split("/").pop()
+      try {
+        await unlink(args.path)
+      } catch (e) {
+        if (e.code === "ENOENT") {
+          throw new Error(`note_delete: file does not exist: ${args.path}`)
+        }
+        throw new Error(`note_delete: failed to delete file ${args.path}: ${errorMessage(e)}`)
+      }
+
+      // Commit the deletion to git
+      const commitResult = await gitCommit(args.path, `notes: delete ${filename}`)
+
+      const output = [`Deleted: ${args.path}`]
+      if (commitResult.ok) {
+        output.push("", `Committed to git: \`notes: delete ${filename}\``)
+      }
+      output.push(
+        "",
+        "## How to undo",
+        "",
+        "```sh",
+        "# Restore the deleted file",
+        `cd ${dir} && git revert --no-commit HEAD && git checkout HEAD -- ${filename}`,
+        "",
+        "# Or restore directly from the commit before deletion",
+        `cd ${dir} && git checkout HEAD~1 -- ${filename}`,
+        "```",
+      )
+      return output.join("\n")
     },
   }
 
@@ -372,6 +479,7 @@ export const RepoNotesPlugin = async ({ $ }) => {
     tool: {
       note_read,
       note_write,
+      note_delete,
     },
   }
 }
