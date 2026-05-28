@@ -19,6 +19,7 @@ const NOTE_COMMANDS = new Set([
   "notes-search",
   "note-reference",
   "handoff",
+  "handoffs-list",
 ])
 
 /** Commands that need the existing-notes list injected. */
@@ -27,6 +28,7 @@ const COMMANDS_NEEDING_LIST = new Set([
   "notes-list",
   "notes-search",
   "note-reference",
+  "handoffs-list",
 ])
 
 const NOTES_SUBDIR = "repo-notes"

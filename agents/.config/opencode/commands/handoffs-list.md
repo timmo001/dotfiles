@@ -1,30 +1,28 @@
 ---
-description: List notes for the current repository, optionally filtered by tag
+description: List handoff notes for the current repository
 ---
 
 A `<repo-note-context>` block has been injected above by RepoNotesPlugin. It contains the resolved `owner`, `repo`, `notes_path`, and the list of existing note files in `<existing-notes>`, sorted newest-first by modification time.
 
-Follow these steps exactly:
+This is equivalent to `/notes-list handoff`. Follow the same steps as `/notes-list` but with the tag filter hardcoded to `handoff`.
 
 ## Step 1: Check for notes
 
 If `Notes directory exists: no` appears in the injected `<repository>` section, or `<existing-notes>` contains "(notes directory does not exist yet)" or "(no .md files found in notes directory)", tell the user:
 
-> No notes exist yet for `{owner}/{repo}`. Run `/note-create` to create the first note.
+> No handoff notes exist yet for `{owner}/{repo}`. Run `/handoff` to create one.
 
 Do not proceed further.
 
-## Step 2: Filter by tag (if provided)
+## Step 2: Filter by tag
 
-If `${ARGUMENTS}` is non-empty, treat it as a tag filter. Only include entries from `<existing-notes>` whose `[tags: ...]` field contains the specified tag (case-insensitive match).
+Only include entries from `<existing-notes>` whose `[tags: ...]` field contains `handoff` (case-insensitive match).
 
-If no entries match the filter, tell the user:
+If no entries match, tell the user:
 
-> No notes tagged `{tag}` found for `{owner}/{repo}`.
+> No handoff notes found for `{owner}/{repo}`. Run `/handoff` to create one.
 
 Do not proceed further.
-
-If `${ARGUMENTS}` is empty, include all entries.
 
 ## Step 3: Display the list
 
