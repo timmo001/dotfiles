@@ -2,7 +2,7 @@
  * @file Blocks direct LLM file tool access to the notes vault.
  *
  * The notes vault ($NOTES/repo-notes/) is exclusively managed by the
- * note_read and note_write plugin tools registered in repo-notes.js.
+ * note_read, note_write, and note_delete plugin tools registered in repo-notes.js.
  *
  * This plugin prevents the LLM from bypassing that contract by using
  * the built-in read, write, edit, or bash tools on vault paths.
@@ -44,8 +44,8 @@ export const NotesGuardPlugin = async ({ $ }) => {
 
   const guardMessage = (tool) =>
     `Direct '${tool}' access to the notes vault is blocked.\n` +
-    `The vault at ${vaultPath} is exclusively managed by the note_read and note_write tools.\n` +
-    `Use note_read to read a note file, or note_write to create or update one.`
+    `The vault at ${vaultPath} is exclusively managed by the note_read, note_write, and note_delete tools.\n` +
+    `Use note_read to read a note, note_write to create or update one, or note_delete to remove one.`
 
   return {
     "tool.execute.before": async (input, output) => {
