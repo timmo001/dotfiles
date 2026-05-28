@@ -10,12 +10,11 @@ function displayPath(p: string): string {
   return p.replace(HOME, "~");
 }
 
-/** Canonical OpenCode resource names (plural) */
+/** Canonical OpenCode resource names (plural) under ~/.config/opencode/ */
 const RESOURCE_NAMES = [
   "AGENTS.md",
   "agents",
   "commands",
-  "skills",
   "plugins",
   "rules",
 ] as const;
@@ -24,7 +23,6 @@ const RESOURCE_NAMES = [
 const LEGACY_SINGULAR_NAMES = [
   "agent",
   "command",
-  "skill",
   "plugin",
   "rule",
 ] as const;
@@ -39,6 +37,29 @@ export const checkOpencode = Effect.gen(function* () {
     message:
       "OpenCode documented global resources live under ~/.config/opencode",
   });
+
+  // Check external skills directory (~/.agents/skills/)
+  const externalSkillsPath = join(HOME, ".agents", "skills");
+  if (existsSync(externalSkillsPath)) {
+    results.push({
+      severity: "ok",
+      message: `OpenCode external skills path exists: ${displayPath(externalSkillsPath)}`,
+    });
+  } else {
+    results.push({
+      severity: "warn",
+      message: `OpenCode external skills path missing: ${displayPath(externalSkillsPath)}`,
+    });
+  }
+
+  // Warn if legacy skills dir still exists under ~/.config/opencode/
+  const legacySkillsPath = join(HOME, ".config", "opencode", "skills");
+  if (existsSync(legacySkillsPath) || lstatExists(legacySkillsPath)) {
+    results.push({
+      severity: "warn",
+      message: `Legacy skills path still exists: ${displayPath(legacySkillsPath)} (skills now live at ~/.agents/skills/)`,
+    });
+  }
 
   let foundLegacy = false;
 
