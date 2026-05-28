@@ -26,10 +26,24 @@ Do not proceed further.
 
 ## Step 3: Display the list
 
-Present the matching entries in order (newest-first — do not re-rank). Display them as a clean list, preserving the full label format:
+Present the matching entries as a markdown table, newest-first:
 
-```
-filename — Name: Description [tags: a, b, c] (last modified: YYYY-MM-DD)
-```
+| # | Name | Description | Tags | Modified |
+|---|------|-------------|------|----------|
+| 1 | {name} | {description} | `{tag1}`, `{tag2}` | {YYYY-MM-DD} |
 
-No question tool. No summaries. Just the list.
+Rules:
+- `#` column is a sequential row number
+- `Name` is the frontmatter name (no bold, no filename)
+- `Description` is the frontmatter description. Keep it readable — if it's over ~100 chars, truncate at a natural word boundary and append `...`, but if the full text is only a few words beyond that just include it all
+- `Tags` uses inline code spans per tag, comma-separated
+- `Modified` is the YYYY-MM-DD date
+- After the table, list the filenames for reference and suggest next actions:
+
+Files:
+- `{filename1}`
+- `{filename2}`
+
+Use `/note-reference {filename}` to load a handoff, or `/handoff` to create a new one.
+
+No question tool. No summaries beyond the table, file list, and next-action hint.
