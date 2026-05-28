@@ -18,6 +18,7 @@ const NOTE_COMMANDS = new Set([
   "notes-list",
   "notes-search",
   "note-reference",
+  "handoff",
 ])
 
 /** Commands that need the existing-notes list injected. */
