@@ -42,8 +42,7 @@ _dot_set_terminal_title() {
   print -rn -- $'\e]2;'"${title[1,160]}"$'\a'
 }
 
-_dot_terminal_title() {
-  local last_status=$?
+_dot_terminal_title_context() {
   local dir="${PWD/#$HOME/~}"
   local title="$dir"
   local branch git_status
@@ -93,8 +92,22 @@ _dot_terminal_title() {
     fi
   fi
 
+  print -rn -- "$title"
+}
+
+_dot_terminal_title_preexec() {
+  local command_line="$1"
+  command_line=${command_line//$'\n'/ }
+  command_line=${command_line//$'\r'/ }
+  _dot_set_terminal_title "$command_line | $(_dot_terminal_title_context)"
+}
+
+_dot_terminal_title() {
+  local last_status=$?
+  local title="$(_dot_terminal_title_context)"
+
   if (( last_status != 0 )); then
-    title="❯ $last_status | $title"
+    title="❯ $title"
   fi
 
   _dot_set_terminal_title "$title"
@@ -107,6 +120,8 @@ _dot_terminal_title() {
 export STARSHIP_CONFIG=~/.config/starship/starship.toml
 eval "$(starship init zsh)"
 
+add-zsh-hook -d preexec _dot_terminal_title_preexec 2>/dev/null
+add-zsh-hook preexec _dot_terminal_title_preexec
 add-zsh-hook -d precmd _dot_terminal_title 2>/dev/null
 add-zsh-hook precmd _dot_terminal_title
 
