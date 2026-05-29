@@ -9,7 +9,11 @@ import type { MenuItem } from "../types.js";
 import type { Theme } from "../theme.js";
 import { submenus, submenuTitles } from "../menu.js";
 import { formatBreadcrumb } from "./breadcrumb.js";
-import { formatHelpBar, GLOBAL_HELP, type HelpEntry } from "./helpBar.js";
+import {
+  addResponsiveHelpBar,
+  GLOBAL_HELP,
+  type HelpEntry,
+} from "./helpBar.js";
 import { MenuList } from "./MenuList.js";
 
 /** Help entries for the omarchy menu */
@@ -88,20 +92,14 @@ export class OmarchyMenu {
     this.menuList = this.createMenuList(initialItems);
     this.root.add(this.menuList);
 
-    // Help bar
-    this.helpBar = new TextRenderable(renderer, {
+    this.helpBar = addResponsiveHelpBar(renderer, this.root, {
       id: "omarchy-menu-help",
-      content: formatHelpBar(theme, HELP),
+      theme,
+      entries: HELP,
       marginTop: 1,
     });
-    this.root.add(this.helpBar);
 
     renderer.root.add(this.root);
-
-    // Re-wrap help bar on terminal resize
-    renderer.on("resize", () => {
-      this.helpBar.content = formatHelpBar(this.theme, HELP);
-    });
 
     this.currentItems = initialItems;
   }

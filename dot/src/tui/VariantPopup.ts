@@ -1,8 +1,6 @@
 import {
   type CliRenderer,
   BoxRenderable,
-  SelectRenderable,
-  SelectRenderableEvents,
   TextRenderable,
   type KeyEvent,
   t,
@@ -12,6 +10,7 @@ import {
 } from "@opentui/core";
 import type { MenuAction, MenuItem, MenuVariant } from "../types.js";
 import type { Theme } from "../theme.js";
+import { StatusList } from "./StatusList.js";
 
 /** Width of the popup box in characters */
 const POPUP_WIDTH = 50;
@@ -29,14 +28,14 @@ export interface VariantPopupOptions {
  *
  * Opens when a menu item with `variants` is activated. The first variant
  * is pre-selected so Enter→Enter runs the default. Escape dismisses.
- * Uses {@link SelectRenderable} for built-in scroll and selection handling.
+ * Uses {@link StatusList} for keyboard and mouse selection handling.
  */
 export class VariantPopup {
   private renderer: CliRenderer;
   private theme: Theme;
   private root: BoxRenderable;
   private titleText: TextRenderable;
-  private select: SelectRenderable;
+  private list: StatusList<MenuVariant>;
   private separator: TextRenderable;
   private helpText: TextRenderable;
   private callbacks: VariantPopupOptions;
@@ -77,38 +76,15 @@ export class VariantPopup {
     });
     this.root.add(this.titleText);
 
-    // SelectRenderable — built-in scrollable list with selection handling
-    this.select = new SelectRenderable(renderer, {
-      id: "variant-popup-select",
-      options: [],
-      selectedIndex: 0,
-      wrapSelection: true,
-      showDescription: true,
-      showScrollIndicator: true,
-      backgroundColor: theme.bgElevated,
-      textColor: theme.fg,
-      descriptionColor: theme.fgMuted,
-      selectedBackgroundColor: theme.accent,
-      selectedTextColor: theme.accentFg,
-      selectedDescriptionColor: theme.fg,
-      focusedBackgroundColor: theme.bgElevated,
-      focusedTextColor: theme.fg,
-      width: "100%",
-      flexGrow: 1,
+    this.list = new StatusList(renderer, {
+      id: "variant-popup-list",
+      theme,
+      onSelect: (item) => {
+        this.hide();
+        this.callbacks.onSelect(item.value.action);
+      },
     });
-    this.root.add(this.select);
-
-    // Wire selection event
-    this.select.on(SelectRenderableEvents.ITEM_SELECTED, () => {
-      const opt = this.select.getSelectedOption();
-      if (opt) {
-        const variant = this.variants[this.select.getSelectedIndex()];
-        if (variant) {
-          this.hide();
-          this.callbacks.onSelect(variant.action);
-        }
-      }
-    });
+    this.root.add(this.list);
 
     // Separator line between list and help
     this.separator = new TextRenderable(renderer, {
@@ -149,11 +125,15 @@ export class VariantPopup {
     this.titleText.content = t`${bold(fg(this.theme.accent)(item.title))}`;
 
     // Populate select options
-    this.select.options = variants.map((v) => ({
-      name: v.label,
-      description: v.description ?? "",
-    }));
-    this.select.selectedIndex = 0;
+    this.list.setItems(
+      variants.map((variant) => ({
+        id: variant.label,
+        title: variant.label,
+        description: variant.description ?? "",
+        color: this.theme.fg,
+        value: variant,
+      })),
+    );
 
     // Calculate popup height:
     // Each item = 2 lines (name + description) + border(2) + title(1) + titleMargin(1) + sep margin(1) + sep(1) + help(1)
@@ -171,13 +151,13 @@ export class VariantPopup {
     this.root.left = left;
     this.root.height = totalHeight;
     this.root.visible = true;
-    this.select.focus();
+    this.list.setActive(true);
   }
 
   /** Hide the popup and release focus */
   hide(): void {
     this.root.visible = false;
-    this.select.blur();
+    this.list.setActive(false);
   }
 
   /** Handle keyboard input when the popup has focus */
@@ -189,7 +169,7 @@ export class VariantPopup {
         this.callbacks.onDismiss();
         return true;
       default:
-        // Let the SelectRenderable handle up/down/enter via its own focus
+        // Let the StatusList handle up/down/enter via its own focus
         return false;
     }
   }

@@ -2,8 +2,6 @@ import {
   type CliRenderer,
   BoxRenderable,
   TextRenderable,
-  SelectRenderable,
-  SelectRenderableEvents,
   t,
   fg,
 } from "@opentui/core";
@@ -12,8 +10,13 @@ import type { StagedFile } from "../types.js";
 import type { Theme } from "../theme.js";
 import type { GitStagingService } from "../services/GitStaging.js";
 import { formatBreadcrumb } from "./breadcrumb.js";
-import { formatHelpBar, GLOBAL_HELP, type HelpEntry } from "./helpBar.js";
-import { focusTwoPane, type TwoPaneDescriptor } from "./twoPane.js";
+import {
+  addResponsiveHelpBar,
+  GLOBAL_HELP,
+  type HelpEntry,
+} from "./helpBar.js";
+import { formatPaneTitle } from "./paneTitle.js";
+import { StatusList } from "./StatusList.js";
 
 /** Help entries for the staging view */
 const HELP: readonly HelpEntry[] = [
@@ -50,15 +53,11 @@ export class StagingView {
   private root: BoxRenderable;
   private stagedPane: BoxRenderable;
   private unstagedPane: BoxRenderable;
-  private stagedSelect: SelectRenderable;
-  private unstagedSelect: SelectRenderable;
+  private stagedList: StatusList<StagedFile>;
+  private unstagedList: StatusList<StagedFile>;
   private stagedTitle: TextRenderable;
   private unstagedTitle: TextRenderable;
   private statusBar: TextRenderable;
-  private helpBar: TextRenderable;
-
-  private stagedPaneDesc!: TwoPaneDescriptor;
-  private unstagedPaneDesc!: TwoPaneDescriptor;
 
   private activePane: StagingPane = "unstaged";
   private stagedFiles: StagedFile[] = [];
@@ -105,29 +104,18 @@ export class StagingView {
 
     this.stagedTitle = new TextRenderable(renderer, {
       id: "staging-staged-title",
-      content: this.formatPaneTitle("Staged", 0, false),
+      content: formatPaneTitle(theme, "Staged", 0, false, theme.fgMuted),
       marginBottom: 0,
     });
     this.stagedPane.add(this.stagedTitle);
 
-    this.stagedSelect = new SelectRenderable(renderer, {
-      id: "staging-staged-select",
-      flexGrow: 1,
-      width: "100%",
-      options: [],
-      backgroundColor: theme.bgElevated,
-      focusedBackgroundColor: theme.bgElevated,
-      selectedBackgroundColor: theme.accent,
-      selectedTextColor: theme.accentFg,
-      textColor: theme.green,
-      focusedTextColor: theme.green,
-      descriptionColor: theme.fgMuted,
-      selectedDescriptionColor: theme.fg,
-      showDescription: true,
-      showScrollIndicator: true,
-      wrapSelection: true,
+    this.stagedList = new StatusList(renderer, {
+      id: "staging-staged-list",
+      theme,
+      onSelect: (item) => this.toggleFile(item.value),
+      selectOnEnter: false,
     });
-    this.stagedPane.add(this.stagedSelect);
+    this.stagedPane.add(this.stagedList);
     this.root.add(this.stagedPane);
 
     // Separator
@@ -148,60 +136,19 @@ export class StagingView {
 
     this.unstagedTitle = new TextRenderable(renderer, {
       id: "staging-unstaged-title",
-      content: this.formatPaneTitle("Unstaged", 0, true),
+      content: formatPaneTitle(theme, "Unstaged", 0, true, theme.fgMuted),
       marginBottom: 0,
     });
     this.unstagedPane.add(this.unstagedTitle);
 
-    this.unstagedSelect = new SelectRenderable(renderer, {
-      id: "staging-unstaged-select",
-      flexGrow: 1,
-      width: "100%",
-      options: [],
-      backgroundColor: theme.bgElevated,
-      focusedBackgroundColor: theme.bgElevated,
-      selectedBackgroundColor: theme.surface,
-      selectedTextColor: theme.fg,
-      textColor: theme.red,
-      focusedTextColor: theme.red,
-      descriptionColor: theme.fgMuted,
-      selectedDescriptionColor: theme.fgMuted,
-      showDescription: true,
-      showScrollIndicator: true,
-      wrapSelection: true,
+    this.unstagedList = new StatusList(renderer, {
+      id: "staging-unstaged-list",
+      theme,
+      onSelect: (item) => this.toggleFile(item.value),
+      selectOnEnter: false,
     });
-    this.unstagedPane.add(this.unstagedSelect);
+    this.unstagedPane.add(this.unstagedList);
     this.root.add(this.unstagedPane);
-
-    // Build two-pane descriptors for shared focus logic
-    this.stagedPaneDesc = {
-      select: this.stagedSelect,
-      container: this.stagedPane,
-      activeStyle: {
-        selectedBackgroundColor: theme.accent,
-        selectedTextColor: theme.accentFg,
-        selectedDescriptionColor: theme.fg,
-      },
-      inactiveStyle: {
-        selectedBackgroundColor: theme.bgElevated,
-        selectedTextColor: theme.green,
-        selectedDescriptionColor: theme.fgMuted,
-      },
-    };
-    this.unstagedPaneDesc = {
-      select: this.unstagedSelect,
-      container: this.unstagedPane,
-      activeStyle: {
-        selectedBackgroundColor: theme.surface,
-        selectedTextColor: theme.fg,
-        selectedDescriptionColor: theme.fgMuted,
-      },
-      inactiveStyle: {
-        selectedBackgroundColor: theme.bgElevated,
-        selectedTextColor: theme.red,
-        selectedDescriptionColor: theme.fgMuted,
-      },
-    };
 
     // Status bar
     this.statusBar = new TextRenderable(renderer, {
@@ -211,27 +158,13 @@ export class StagingView {
     });
     this.root.add(this.statusBar);
 
-    // Help bar
-    this.helpBar = new TextRenderable(renderer, {
+    addResponsiveHelpBar(renderer, this.root, {
       id: "staging-help-bar",
-      content: formatHelpBar(theme, HELP),
+      theme,
+      entries: HELP,
     });
-    this.root.add(this.helpBar);
 
     renderer.root.add(this.root);
-
-    // Re-wrap help bar on terminal resize
-    renderer.on("resize", () => {
-      this.helpBar.content = formatHelpBar(this.theme, HELP);
-    });
-
-    // Wire select events (Enter on staged/unstaged list — no-op, we use space for toggle)
-    this.stagedSelect.on(SelectRenderableEvents.ITEM_SELECTED, () => {
-      // Enter on staged list does nothing — use space to toggle
-    });
-    this.unstagedSelect.on(SelectRenderableEvents.ITEM_SELECTED, () => {
-      // Enter on unstaged list does nothing — use space to toggle
-    });
 
     // Keyboard handling
     renderer.keyInput.on("keypress", (key) => {
@@ -303,30 +236,29 @@ export class StagingView {
     });
   }
 
-  /** Update SelectRenderable options from current file state */
+  /** Update status list items from current file state */
   private updateLists(): void {
-    this.stagedSelect.options = this.stagedFiles.map((f) => ({
-      name: `${this.statusIcon(f.status)} ${f.path}`,
-      description: this.statusLabel(f.status),
-      value: f.path,
-    }));
-
-    this.unstagedSelect.options = this.unstagedFiles.map((f) => ({
-      name: `${this.statusIcon(f.status)} ${f.path}`,
-      description: this.statusLabel(f.status),
-      value: f.path,
-    }));
-
-    this.stagedTitle.content = this.formatPaneTitle(
-      "Staged",
-      this.stagedFiles.length,
-      this.activePane === "staged",
+    this.stagedList.setItems(
+      this.stagedFiles.map((f) => ({
+        id: `staged:${f.path}`,
+        title: `${this.statusIcon(f.status)} ${f.path}`,
+        description: this.statusLabel(f.status),
+        color: this.theme.green,
+        value: f,
+      })),
     );
-    this.unstagedTitle.content = this.formatPaneTitle(
-      "Unstaged",
-      this.unstagedFiles.length,
-      this.activePane === "unstaged",
+
+    this.unstagedList.setItems(
+      this.unstagedFiles.map((f) => ({
+        id: `unstaged:${f.path}`,
+        title: `${this.statusIcon(f.status)} ${f.path}`,
+        description: this.statusLabel(f.status),
+        color: this.theme.red,
+        value: f,
+      })),
     );
+
+    this.updatePaneTitles();
 
     this.updateStatusBar();
     this.focusPane(this.activePane);
@@ -334,18 +266,24 @@ export class StagingView {
 
   /** Toggle the currently selected file between staged and unstaged */
   private toggleSelectedFile(): void {
-    const select =
-      this.activePane === "staged" ? this.stagedSelect : this.unstagedSelect;
-    const option = select.getSelectedOption();
-    if (!option) return;
+    const item =
+      this.activePane === "staged"
+        ? this.stagedList.getSelectedItem()
+        : this.unstagedList.getSelectedItem();
+    if (!item) return;
 
-    const filePath = option.value as string;
+    this.toggleFile(item.value);
+  }
+
+  private toggleFile(file: StagedFile): void {
+    if (this.busy) return;
+
+    const filePath = file.path;
     this.busy = true;
 
-    const effect =
-      this.activePane === "unstaged"
-        ? this.gitStaging.stageFile(this.repoPath, filePath)
-        : this.gitStaging.unstageFile(this.repoPath, filePath);
+    const effect = file.staged
+      ? this.gitStaging.unstageFile(this.repoPath, filePath)
+      : this.gitStaging.stageFile(this.repoPath, filePath);
 
     Effect.runPromise(
       effect.pipe(
@@ -383,34 +321,31 @@ export class StagingView {
   }
 
   private togglePane(): void {
-    this.activePane = this.activePane === "staged" ? "unstaged" : "staged";
-    this.focusPane(this.activePane);
-    this.stagedTitle.content = this.formatPaneTitle(
-      "Staged",
-      this.stagedFiles.length,
-      this.activePane === "staged",
-    );
-    this.unstagedTitle.content = this.formatPaneTitle(
-      "Unstaged",
-      this.unstagedFiles.length,
-      this.activePane === "unstaged",
-    );
+    this.focusPane(this.activePane === "staged" ? "unstaged" : "staged");
   }
 
   private focusPane(pane: StagingPane): void {
-    if (pane === "staged") {
-      focusTwoPane(this.stagedPaneDesc, this.unstagedPaneDesc);
-    } else {
-      focusTwoPane(this.unstagedPaneDesc, this.stagedPaneDesc);
-    }
+    this.activePane = pane;
+    this.stagedList.setActive(pane === "staged");
+    this.unstagedList.setActive(pane === "unstaged");
+    this.updatePaneTitles();
   }
 
-  private formatPaneTitle(label: string, count: number, active: boolean) {
-    const th = this.theme;
-    const indicator = active ? "▸" : " ";
-    const color = active ? th.accent : th.fgMuted;
-    const countColor = label === "Staged" && count > 0 ? th.green : th.fgMuted;
-    return t`${fg(color)(`${indicator} ${label}`)} ${fg(countColor)(`(${count})`)}`;
+  private updatePaneTitles(): void {
+    this.stagedTitle.content = formatPaneTitle(
+      this.theme,
+      "Staged",
+      this.stagedFiles.length,
+      this.activePane === "staged",
+      this.stagedFiles.length > 0 ? this.theme.green : this.theme.fgMuted,
+    );
+    this.unstagedTitle.content = formatPaneTitle(
+      this.theme,
+      "Unstaged",
+      this.unstagedFiles.length,
+      this.activePane === "unstaged",
+      this.theme.fgMuted,
+    );
   }
 
   private statusIcon(status: string): string {

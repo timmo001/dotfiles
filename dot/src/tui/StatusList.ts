@@ -35,6 +35,8 @@ export interface StatusListOptions<T> {
   readonly onSelect: (item: StatusListItem<T>) => void;
   /** Called when the highlighted item changes */
   readonly onSelectionChanged?: (item: StatusListItem<T>) => void;
+  /** Whether Enter activates the highlighted item. Defaults to true. */
+  readonly selectOnEnter?: boolean;
 }
 
 interface StatusListRow<T> {
@@ -50,6 +52,7 @@ export class StatusList<T> extends ScrollBoxRenderable {
   private readonly theme: Theme;
   private readonly onSelect: (item: StatusListItem<T>) => void;
   private readonly onItemSelectionChanged?: (item: StatusListItem<T>) => void;
+  private readonly selectOnEnter: boolean;
   private rows: StatusListRow<T>[] = [];
   private items: readonly StatusListItem<T>[] = [];
   private selectedIndex = 0;
@@ -70,6 +73,7 @@ export class StatusList<T> extends ScrollBoxRenderable {
     this.theme = options.theme;
     this.onSelect = options.onSelect;
     this.onItemSelectionChanged = options.onSelectionChanged;
+    this.selectOnEnter = options.selectOnEnter ?? true;
     this.setItems(options.items ?? []);
   }
 
@@ -115,7 +119,7 @@ export class StatusList<T> extends ScrollBoxRenderable {
       this.moveSelection(1);
       return true;
     }
-    if (key.name === "return") {
+    if (key.name === "return" && this.selectOnEnter) {
       const item = this.getSelectedItem();
       if (item) this.onSelect(item);
       return true;
@@ -133,6 +137,21 @@ export class StatusList<T> extends ScrollBoxRenderable {
     const row = this.rows[this.selectedIndex];
     if (row) this.scrollChildIntoView(row.container.id);
     this.emitSelectionChanged();
+  }
+
+  private activateIndex(index: number): void {
+    const item = this.items[index];
+    if (!item) return;
+
+    if (index !== this.selectedIndex) {
+      this.selectedIndex = index;
+      this.refreshRowStyles();
+      const row = this.rows[this.selectedIndex];
+      if (row) this.scrollChildIntoView(row.container.id);
+      this.emitSelectionChanged();
+    }
+
+    this.onSelect(item);
   }
 
   private emitSelectionChanged(): void {
@@ -165,6 +184,11 @@ export class StatusList<T> extends ScrollBoxRenderable {
       flexShrink: 0,
       backgroundColor: this.theme.bgElevated,
       paddingLeft: 1,
+      onMouseDown: (event) => {
+        if (event.button !== 0) return;
+        event.stopPropagation();
+        this.activateIndex(index);
+      },
     });
     const titleText = new TextRenderable(this.renderer, {
       id: `${id}-title`,

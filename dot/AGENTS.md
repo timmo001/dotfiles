@@ -74,7 +74,7 @@ src/
     WaybarCache.ts        — Waybar cache JSON reader for fast startup
   tui/
     App.ts                — Top-level app shell, view stack, global keyboard, action routing
-    MainMenu.ts           — SelectRenderable menu built from menu registry
+    MainMenu.ts           — MenuList menu built from menu registry
     MenuList.ts           — Reusable menu list renderable
     DiffView.ts           — Two-pane layout (Changed/Other) with repo watcher
     WorkflowRunsView.ts   — Two-pane watched GitHub workflow runs view
@@ -88,7 +88,7 @@ src/
     breadcrumb.ts         — Breadcrumb navigation helper
     helpBar.ts            — Bottom help bar renderable
     hyprland.ts           — Hyprland window resize utility
-    twoPane.ts            — Reusable two-pane layout helper
+    paneTitle.ts          — Shared two-pane title formatter
   lib/
     extractNativeLib.ts   — Native .so extraction from bunfs
     selfUpdate.ts         — Binary rebuild logic

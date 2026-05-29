@@ -1,4 +1,10 @@
-import { StyledText, fg } from "@opentui/core";
+import {
+  StyledText,
+  TextRenderable,
+  fg,
+  type BoxRenderable,
+  type CliRenderer,
+} from "@opentui/core";
 import type { TextChunk } from "@opentui/core";
 import type { Theme } from "../theme.js";
 
@@ -8,6 +14,18 @@ export interface HelpEntry {
   readonly key: string;
   /** Action description (e.g. "navigate", "quit") */
   readonly action: string;
+}
+
+/** Options for creating a resize-aware help bar renderable. */
+export interface ResponsiveHelpBarOptions {
+  /** Unique renderable ID for the help bar. */
+  readonly id: string;
+  /** Active colour theme. */
+  readonly theme: Theme;
+  /** Help entries to display. */
+  readonly entries: readonly HelpEntry[];
+  /** Top margin passed to the help bar renderable. */
+  readonly marginTop?: number;
 }
 
 /** Global help entries appended to every view's help bar */
@@ -77,4 +95,25 @@ export function formatHelpBar(
   }
 
   return new StyledText(chunks);
+}
+
+/** Add a help bar to a view and keep its wrapped content current on resize. */
+export function addResponsiveHelpBar(
+  renderer: CliRenderer,
+  root: BoxRenderable,
+  options: ResponsiveHelpBarOptions,
+): TextRenderable {
+  const helpBarOptions = {
+    id: options.id,
+    content: formatHelpBar(options.theme, options.entries),
+    ...(options.marginTop === undefined
+      ? {}
+      : { marginTop: options.marginTop }),
+  };
+  const helpBar = new TextRenderable(renderer, helpBarOptions);
+  root.add(helpBar);
+  renderer.on("resize", () => {
+    helpBar.content = formatHelpBar(options.theme, options.entries);
+  });
+  return helpBar;
 }

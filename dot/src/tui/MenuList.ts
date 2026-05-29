@@ -271,6 +271,13 @@ export class MenuList extends ScrollBoxRenderable {
     if (next !== this._selectedIndex) this._applySelection(next);
   }
 
+  private _activateRow(index: number): void {
+    const row = this._rows[index];
+    if (!row || row.isGroupHeader) return;
+    if (index !== this._selectedIndex) this._applySelection(index);
+    this._selectCb(row.item);
+  }
+
   /** Find the next selectable row index in the given direction, skipping group headers */
   private _nextSelectableIndex(from: number, direction: 1 | -1): number {
     const len = this._rows.length;
@@ -359,6 +366,11 @@ export class MenuList extends ScrollBoxRenderable {
       width: "100%",
       flexShrink: 0,
       backgroundColor: bgColor,
+      onMouseDown: (event) => {
+        if (event.button !== 0) return;
+        event.stopPropagation();
+        this._activateRow(index);
+      },
     });
 
     // Icon column — fixed width, icon on the top row spanning full height

@@ -40,7 +40,8 @@ export class Renderer extends Context.Service<Renderer, CliRenderer>()(
           return createCliRenderer({
             exitOnCtrlC: true,
             screenMode: "alternate-screen",
-            useMouse: false,
+            useMouse: true,
+            autoFocus: true,
             backgroundColor: theme.transparent ? "transparent" : theme.bg,
             onDestroy: () => {
               shutdownServer();

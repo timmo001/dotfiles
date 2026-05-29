@@ -4,8 +4,6 @@ import {
   TextRenderable,
   InputRenderable,
   InputRenderableEvents,
-  SelectRenderable,
-  SelectRenderableEvents,
   t,
   fg,
   bold,
@@ -17,6 +15,7 @@ import type { GitStagingService } from "../services/GitStaging.js";
 import type { CommitSuggestService } from "../services/CommitSuggest.js";
 import { formatBreadcrumb } from "./breadcrumb.js";
 import { formatHelpBar, GLOBAL_HELP, type HelpEntry } from "./helpBar.js";
+import { StatusList } from "./StatusList.js";
 
 /** Help entries for the commit view (default state) */
 const HELP_DEFAULT: readonly HelpEntry[] = [
@@ -62,7 +61,7 @@ export class CommitView {
   private titleText: TextRenderable;
   private messageInput: InputRenderable;
   private suggestionsTitle: TextRenderable;
-  private suggestionsSelect: SelectRenderable;
+  private suggestionsList: StatusList<CommitSuggestion>;
   private statusBar: TextRenderable;
   private helpBar: TextRenderable;
 
@@ -133,25 +132,18 @@ export class CommitView {
     this.suggestionsTitle.visible = false;
     this.root.add(this.suggestionsTitle);
 
-    this.suggestionsSelect = new SelectRenderable(renderer, {
-      id: "commit-suggestions-select",
-      flexGrow: 1,
-      width: "100%",
-      options: [],
-      backgroundColor: theme.bgElevated,
-      focusedBackgroundColor: theme.bgElevated,
-      selectedBackgroundColor: theme.accent,
-      selectedTextColor: theme.accentFg,
-      textColor: theme.fg,
-      focusedTextColor: theme.fg,
-      descriptionColor: theme.fgMuted,
-      selectedDescriptionColor: theme.fg,
-      showDescription: false,
-      showScrollIndicator: true,
-      wrapSelection: true,
+    this.suggestionsList = new StatusList(renderer, {
+      id: "commit-suggestions-list",
+      theme,
+      onSelect: (item) => {
+        if (!this.isVisible || this.busy) return;
+        this.messageInput.value = item.value.message;
+        this.hideSuggestions();
+        this.setFocus("input");
+      },
     });
-    this.suggestionsSelect.visible = false;
-    this.root.add(this.suggestionsSelect);
+    this.suggestionsList.visible = false;
+    this.root.add(this.suggestionsList);
 
     // Status bar
     this.statusBar = new TextRenderable(renderer, {
@@ -182,17 +174,6 @@ export class CommitView {
         this.doCommit(value.trim());
       }
     });
-
-    // Suggestions selection — populate input
-    this.suggestionsSelect.on(
-      SelectRenderableEvents.ITEM_SELECTED,
-      (_index: number, option: { name: string }) => {
-        if (!this.isVisible) return;
-        this.messageInput.value = option.name;
-        this.hideSuggestions();
-        this.setFocus("input");
-      },
-    );
 
     // Keyboard handling
     renderer.keyInput.on("keypress", (key) => {
@@ -273,10 +254,16 @@ export class CommitView {
     const modelHint = modelId ? ` (${modelId})` : "";
     this.statusBar.content = t`${fg(this.theme.yellow)(`Generating suggestions${modelHint}...`)}`;
     this.suggestionsTitle.visible = true;
-    this.suggestionsSelect.visible = true;
-    this.suggestionsSelect.options = [
-      { name: "Loading...", description: "", value: "loading" },
-    ];
+    this.suggestionsList.visible = true;
+    this.suggestionsList.setItems([
+      {
+        id: "loading",
+        title: "Loading...",
+        description: "",
+        color: this.theme.fgMuted,
+        value: { message: "Loading..." },
+      },
+    ]);
 
     // Get diff and recent commits in parallel, then request suggestions
     const getSuggestions = Effect.gen({ self: this }, function* () {
@@ -376,12 +363,16 @@ export class CommitView {
   private showSuggestions(suggestions: readonly CommitSuggestion[]): void {
     this.suggestionsVisible = true;
     this.suggestionsTitle.visible = true;
-    this.suggestionsSelect.visible = true;
-    this.suggestionsSelect.options = suggestions.map((s, i) => ({
-      name: s.message,
-      description: "",
-      value: `suggestion-${i}`,
-    }));
+    this.suggestionsList.visible = true;
+    this.suggestionsList.setItems(
+      suggestions.map((suggestion, index) => ({
+        id: `suggestion-${index}`,
+        title: suggestion.message,
+        description: "",
+        color: this.theme.fg,
+        value: suggestion,
+      })),
+    );
     this.statusBar.content = t`${fg(this.theme.green)("Select a suggestion or Tab to return to input")}`;
     this.updateHelpBar();
     this.setFocus("suggestions");
@@ -391,19 +382,19 @@ export class CommitView {
   private hideSuggestions(): void {
     this.suggestionsVisible = false;
     this.suggestionsTitle.visible = false;
-    this.suggestionsSelect.visible = false;
-    this.suggestionsSelect.options = [];
+    this.suggestionsList.visible = false;
+    this.suggestionsList.setItems([]);
     this.updateHelpBar();
   }
 
   private setFocus(target: CommitFocus): void {
     this.currentFocus = target;
     if (target === "input") {
-      this.suggestionsSelect.blur();
+      this.suggestionsList.setActive(false);
       this.messageInput.focus();
     } else {
       this.messageInput.blur();
-      this.suggestionsSelect.focus();
+      this.suggestionsList.setActive(true);
     }
   }
 

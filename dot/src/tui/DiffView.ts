@@ -2,9 +2,7 @@ import {
   type CliRenderer,
   BoxRenderable,
   TextRenderable,
-  SelectRenderable,
-  SelectRenderableEvents,
-  type SelectOption,
+  type KeyEvent,
   t,
   fg,
 } from "@opentui/core";
@@ -13,8 +11,13 @@ import { join } from "node:path";
 import type { Repo, RepoState } from "../types.js";
 import type { Theme } from "../theme.js";
 import { formatBreadcrumb } from "./breadcrumb.js";
-import { formatHelpBar, GLOBAL_HELP, type HelpEntry } from "./helpBar.js";
-import { focusTwoPane, type TwoPaneDescriptor } from "./twoPane.js";
+import {
+  addResponsiveHelpBar,
+  GLOBAL_HELP,
+  type HelpEntry,
+} from "./helpBar.js";
+import { formatPaneTitle } from "./paneTitle.js";
+import { StatusList } from "./StatusList.js";
 
 /** Help entries for the diff view */
 const HELP: readonly HelpEntry[] = [
@@ -68,17 +71,14 @@ export class DiffView {
   private root: BoxRenderable;
   private leftPane: BoxRenderable;
   private rightPane: BoxRenderable;
-  private changedSelect: SelectRenderable;
-  private unchangedSelect: SelectRenderable;
+  private changedList: StatusList<Repo>;
+  private unchangedList: StatusList<Repo>;
   private changedTitle: TextRenderable;
   private unchangedTitle: TextRenderable;
   private statusBar: TextRenderable;
-  private helpBar: TextRenderable;
-
-  private leftPaneDesc!: TwoPaneDescriptor;
-  private rightPaneDesc!: TwoPaneDescriptor;
 
   private activePane: Pane = "changed";
+  private keyHandlers: Readonly<Record<string, () => void>>;
   private changedRepos: readonly Repo[] = [];
   private unchangedRepos: readonly Repo[] = [];
   private lastChecked: Date = new Date();
@@ -88,6 +88,27 @@ export class DiffView {
     this.renderer = renderer;
     this.callbacks = callbacks;
     this.theme = theme;
+    this.keyHandlers = {
+      tab: () => this.togglePane(),
+      c: () => this.runRepoAction((repo) => this.callbacks.onCommit(repo)),
+      t: () =>
+        this.callbacks.onOpenTmux(
+          this.activePane === "changed" ? "changed" : "all",
+        ),
+      o: () =>
+        this.runRepoAction((repo) => this.callbacks.onOpenTerminal(repo)),
+      w: () => this.runRepoAction((repo) => this.callbacks.onOpenWeb(repo)),
+      p: () => this.runRepoAction((repo) => this.callbacks.onPull(repo)),
+      "shift+p": () =>
+        this.runRepoAction((repo) => this.callbacks.onPush(repo)),
+      r: () => {
+        this.statusBar.content = t`${fg(this.theme.yellow)("Refreshing...")}`;
+        this.callbacks.onRefresh();
+      },
+      x: () => this.removeLock(),
+      escape: () => this.callbacks.onBack(),
+      backspace: () => this.callbacks.onBack(),
+    };
 
     // Root container — full screen
     this.root = new BoxRenderable(renderer, {
@@ -124,29 +145,17 @@ export class DiffView {
 
     this.changedTitle = new TextRenderable(renderer, {
       id: "diff-changed-title",
-      content: this.formatPaneTitle("Changed", 0, true),
+      content: formatPaneTitle(theme, "Changed", 0, true, theme.fgMuted),
       marginBottom: 0,
     });
     this.leftPane.add(this.changedTitle);
 
-    this.changedSelect = new SelectRenderable(renderer, {
-      id: "diff-changed-select",
-      flexGrow: 1,
-      width: "100%",
-      options: [],
-      backgroundColor: theme.bgElevated,
-      focusedBackgroundColor: theme.bgElevated,
-      selectedBackgroundColor: theme.accent,
-      selectedTextColor: theme.accentFg,
-      textColor: theme.fg,
-      focusedTextColor: theme.fg,
-      descriptionColor: theme.fgMuted,
-      selectedDescriptionColor: theme.fg,
-      showDescription: true,
-      showScrollIndicator: true,
-      wrapSelection: true,
+    this.changedList = new StatusList(renderer, {
+      id: "diff-changed-list",
+      theme,
+      onSelect: (item) => this.callbacks.onSelect(item.value),
     });
-    this.leftPane.add(this.changedSelect);
+    this.leftPane.add(this.changedList);
 
     // --- Right pane: Unchanged ---
     this.rightPane = new BoxRenderable(renderer, {
@@ -158,59 +167,17 @@ export class DiffView {
 
     this.unchangedTitle = new TextRenderable(renderer, {
       id: "diff-unchanged-title",
-      content: this.formatPaneTitle("Other", 0, false),
+      content: formatPaneTitle(theme, "Other", 0, false, theme.fgMuted),
       marginBottom: 0,
     });
     this.rightPane.add(this.unchangedTitle);
 
-    this.unchangedSelect = new SelectRenderable(renderer, {
-      id: "diff-unchanged-select",
-      flexGrow: 1,
-      width: "100%",
-      options: [],
-      backgroundColor: theme.bgElevated,
-      focusedBackgroundColor: theme.bgElevated,
-      selectedBackgroundColor: theme.surface,
-      selectedTextColor: theme.fg,
-      textColor: theme.fgMuted,
-      focusedTextColor: theme.fgMuted,
-      descriptionColor: theme.fgSubtle,
-      selectedDescriptionColor: theme.fgMuted,
-      showDescription: true,
-      showScrollIndicator: true,
-      wrapSelection: true,
+    this.unchangedList = new StatusList(renderer, {
+      id: "diff-unchanged-list",
+      theme,
+      onSelect: (item) => this.callbacks.onSelect(item.value),
     });
-    this.rightPane.add(this.unchangedSelect);
-
-    // Build two-pane descriptors for shared focus logic
-    this.leftPaneDesc = {
-      select: this.changedSelect,
-      container: this.leftPane,
-      activeStyle: {
-        selectedBackgroundColor: theme.accent,
-        selectedTextColor: theme.accentFg,
-        selectedDescriptionColor: theme.fg,
-      },
-      inactiveStyle: {
-        selectedBackgroundColor: theme.bgElevated,
-        selectedTextColor: theme.fg,
-        selectedDescriptionColor: theme.fgMuted,
-      },
-    };
-    this.rightPaneDesc = {
-      select: this.unchangedSelect,
-      container: this.rightPane,
-      activeStyle: {
-        selectedBackgroundColor: theme.surface,
-        selectedTextColor: theme.fg,
-        selectedDescriptionColor: theme.fgMuted,
-      },
-      inactiveStyle: {
-        selectedBackgroundColor: theme.bgElevated,
-        selectedTextColor: theme.fgMuted,
-        selectedDescriptionColor: theme.fgSubtle,
-      },
-    };
+    this.rightPane.add(this.unchangedList);
 
     paneContainer.add(this.leftPane);
     paneContainer.add(this.rightPane);
@@ -224,88 +191,22 @@ export class DiffView {
     });
     this.root.add(this.statusBar);
 
-    // Help bar
-    this.helpBar = new TextRenderable(renderer, {
+    addResponsiveHelpBar(renderer, this.root, {
       id: "diff-help-bar",
-      content: formatHelpBar(theme, HELP),
+      theme,
+      entries: HELP,
     });
-    this.root.add(this.helpBar);
 
     renderer.root.add(this.root);
 
-    // Re-wrap help bar on terminal resize
-    renderer.on("resize", () => {
-      this.helpBar.content = formatHelpBar(this.theme, HELP);
-    });
-
-    // Wire up select events
-    this.changedSelect.on(
-      SelectRenderableEvents.ITEM_SELECTED,
-      (_index: number, option: SelectOption) => {
-        const repo = this.changedRepos.find((r) => r.path === option.value);
-        if (repo) this.callbacks.onSelect(repo);
-      },
-    );
-
-    this.unchangedSelect.on(
-      SelectRenderableEvents.ITEM_SELECTED,
-      (_index: number, option: SelectOption) => {
-        const repo = this.unchangedRepos.find((r) => r.path === option.value);
-        if (repo) this.callbacks.onSelect(repo);
-      },
-    );
-
-    // Keyboard handling
-    renderer.keyInput.on("keypress", (key) => {
-      // Only handle keys when this view is visible
-      if (!this.isVisible) return;
-
-      if (key.name === "tab") {
-        this.togglePane();
-      } else if (key.name === "c") {
-        const repo = this.getActiveRepo();
-        if (repo) this.callbacks.onCommit(repo);
-      } else if (key.name === "t") {
-        this.callbacks.onOpenTmux(
-          this.activePane === "changed" ? "changed" : "all",
-        );
-      } else if (key.name === "o") {
-        const repo = this.getActiveRepo();
-        if (repo) this.callbacks.onOpenTerminal(repo);
-      } else if (key.name === "w") {
-        const repo = this.getActiveRepo();
-        if (repo) this.callbacks.onOpenWeb(repo);
-      } else if (key.name === "p" && key.shift) {
-        const repo = this.getActiveRepo();
-        if (repo) this.callbacks.onPush(repo);
-      } else if (key.name === "p") {
-        const repo = this.getActiveRepo();
-        if (repo) this.callbacks.onPull(repo);
-      } else if (key.name === "r") {
-        this.statusBar.content = t`${fg(theme.yellow)("Refreshing...")}`;
-        this.callbacks.onRefresh();
-      } else if (key.name === "x") {
-        this.removeLock();
-      } else if (key.name === "escape" || key.name === "backspace") {
-        this.callbacks.onBack();
-      }
-    });
+    renderer.keyInput.on("keypress", (key) => this.handleKeyPress(key));
 
     // Focus the initial pane
     this.activePane = callbacks.initialTab ?? "changed";
     this.focusPane(this.activePane);
 
     // Update titles to reflect initial pane
-    this.changedTitle.content = this.formatPaneTitle(
-      "Changed",
-      0,
-      this.activePane === "changed",
-    );
-    this.unchangedTitle.content = this.formatPaneTitle(
-      "Other",
-      0,
-      this.activePane === "unchanged",
-    );
+    this.updatePaneTitles();
   }
 
   /** Update both panes and the status bar with a new repo state snapshot */
@@ -315,30 +216,29 @@ export class DiffView {
     this.lastChecked = state.lastChecked;
 
     // Update changed list
-    this.changedSelect.options = state.changed.map((repo) => ({
-      name: this.formatRepoName(repo),
-      description: this.shortenPath(repo.path),
-      value: repo.path,
-    }));
+    this.changedList.setItems(
+      state.changed.map((repo) => ({
+        id: repo.path,
+        title: this.formatRepoName(repo),
+        description: this.shortenPath(repo.path),
+        color: repo.locked ? this.theme.yellow : this.theme.fg,
+        value: repo,
+      })),
+    );
 
     // Update unchanged list
-    this.unchangedSelect.options = state.unchanged.map((repo) => ({
-      name: this.formatRepoName(repo),
-      description: this.shortenPath(repo.path),
-      value: repo.path,
-    }));
+    this.unchangedList.setItems(
+      state.unchanged.map((repo) => ({
+        id: repo.path,
+        title: this.formatRepoName(repo),
+        description: this.shortenPath(repo.path),
+        color: repo.locked ? this.theme.yellow : this.theme.fgMuted,
+        value: repo,
+      })),
+    );
 
     // Update titles
-    this.changedTitle.content = this.formatPaneTitle(
-      "Changed",
-      state.changed.length,
-      this.activePane === "changed",
-    );
-    this.unchangedTitle.content = this.formatPaneTitle(
-      "Other",
-      state.unchanged.length,
-      this.activePane === "unchanged",
-    );
+    this.updatePaneTitles();
 
     // Update status bar
     this.updateStatusBar();
@@ -356,49 +256,49 @@ export class DiffView {
   }
 
   private togglePane(): void {
-    this.activePane = this.activePane === "changed" ? "unchanged" : "changed";
-    this.focusPane(this.activePane);
+    this.focusPane(this.activePane === "changed" ? "unchanged" : "changed");
+  }
 
-    this.changedTitle.content = this.formatPaneTitle(
-      "Changed",
-      this.changedRepos.length,
-      this.activePane === "changed",
-    );
-    this.unchangedTitle.content = this.formatPaneTitle(
-      "Other",
-      this.unchangedRepos.length,
-      this.activePane === "unchanged",
-    );
+  private handleKeyPress(key: KeyEvent): void {
+    if (!this.isVisible) return;
+    this.keyHandlers[`${key.shift ? "shift+" : ""}${key.name}`]?.();
+  }
+
+  private runRepoAction(action: (repo: Repo) => void): void {
+    const repo = this.getActiveRepo();
+    if (repo) action(repo);
   }
 
   private focusPane(pane: Pane): void {
-    if (pane === "changed") {
-      focusTwoPane(this.leftPaneDesc, this.rightPaneDesc);
-    } else {
-      focusTwoPane(this.rightPaneDesc, this.leftPaneDesc);
-    }
+    this.activePane = pane;
+    this.changedList.setActive(pane === "changed");
+    this.unchangedList.setActive(pane === "unchanged");
+    this.updatePaneTitles();
   }
 
   /** Return the repo currently highlighted in the active pane, if any */
   private getActiveRepo(): Repo | undefined {
     if (this.activePane === "changed") {
-      const opt = this.changedSelect.getSelectedOption();
-      return opt
-        ? this.changedRepos.find((r) => r.path === opt.value)
-        : undefined;
+      return this.changedList.getSelectedItem()?.value;
     }
-    const opt = this.unchangedSelect.getSelectedOption();
-    return opt
-      ? this.unchangedRepos.find((r) => r.path === opt.value)
-      : undefined;
+    return this.unchangedList.getSelectedItem()?.value;
   }
 
-  private formatPaneTitle(label: string, count: number, active: boolean) {
-    const th = this.theme;
-    const indicator = active ? "▸" : " ";
-    const color = active ? th.accent : th.fgMuted;
-    const countColor = label === "Changed" && count > 0 ? th.red : th.fgMuted;
-    return t`${fg(color)(`${indicator} ${label}`)} ${fg(countColor)(`(${count})`)}`;
+  private updatePaneTitles(): void {
+    this.changedTitle.content = formatPaneTitle(
+      this.theme,
+      "Changed",
+      this.changedRepos.length,
+      this.activePane === "changed",
+      this.changedRepos.length > 0 ? this.theme.red : this.theme.fgMuted,
+    );
+    this.unchangedTitle.content = formatPaneTitle(
+      this.theme,
+      "Other",
+      this.unchangedRepos.length,
+      this.activePane === "unchanged",
+      this.theme.fgMuted,
+    );
   }
 
   /** Format a repo name with a lock indicator when `.git/index.lock` exists */

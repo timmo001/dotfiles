@@ -2,6 +2,7 @@ import {
   type CliRenderer,
   BoxRenderable,
   TextRenderable,
+  type KeyEvent,
   t,
   fg,
 } from "@opentui/core";
@@ -19,7 +20,11 @@ import {
   workflowRunStatusIcon,
 } from "../services/workflowStatus.js";
 import { formatBreadcrumb } from "./breadcrumb.js";
-import { formatHelpBar, GLOBAL_HELP, type HelpEntry } from "./helpBar.js";
+import {
+  addResponsiveHelpBar,
+  GLOBAL_HELP,
+  type HelpEntry,
+} from "./helpBar.js";
 import { StatusList, type StatusListItem } from "./StatusList.js";
 
 /** Help entries for the workflow runs view */
@@ -60,9 +65,9 @@ export class WorkflowRunsView {
   private repoTitle: TextRenderable;
   private runTitle: TextRenderable;
   private statusBar: TextRenderable;
-  private helpBar: TextRenderable;
 
   private activePane: WorkflowPane = "repos";
+  private keyHandlers: Readonly<Record<string, () => void>>;
   private repos: readonly WorkflowRepoRuns[] = [];
   private runs: readonly WorkflowRun[] = [];
   private state: WorkflowState | null = null;
@@ -78,6 +83,15 @@ export class WorkflowRunsView {
     this.renderer = renderer;
     this.callbacks = callbacks;
     this.theme = theme;
+    this.keyHandlers = {
+      tab: () => this.togglePane(),
+      r: () => {
+        this.statusBar.content = t`${fg(this.theme.yellow)("Refreshing workflows...")}`;
+        this.callbacks.onRefresh();
+      },
+      escape: () => this.callbacks.onBack(),
+      backspace: () => this.callbacks.onBack(),
+    };
 
     this.root = new BoxRenderable(renderer, {
       id: "workflows-root",
@@ -164,30 +178,15 @@ export class WorkflowRunsView {
     });
     this.root.add(this.statusBar);
 
-    this.helpBar = new TextRenderable(renderer, {
+    addResponsiveHelpBar(renderer, this.root, {
       id: "workflows-help-bar",
-      content: formatHelpBar(theme, HELP),
+      theme,
+      entries: HELP,
     });
-    this.root.add(this.helpBar);
 
     renderer.root.add(this.root);
 
-    renderer.on("resize", () => {
-      this.helpBar.content = formatHelpBar(this.theme, HELP);
-    });
-
-    renderer.keyInput.on("keypress", (key) => {
-      if (!this.isVisible) return;
-
-      if (key.name === "tab") {
-        this.togglePane();
-      } else if (key.name === "r") {
-        this.statusBar.content = t`${fg(theme.yellow)("Refreshing workflows...")}`;
-        this.callbacks.onRefresh();
-      } else if (key.name === "escape" || key.name === "backspace") {
-        this.callbacks.onBack();
-      }
-    });
+    renderer.keyInput.on("keypress", (key) => this.handleKeyPress(key));
 
     this.focusPane(this.activePane);
   }
@@ -233,6 +232,12 @@ export class WorkflowRunsView {
 
   private togglePane(): void {
     this.focusPane(this.activePane === "repos" ? "runs" : "repos");
+  }
+
+  private handleKeyPress(key: KeyEvent): void {
+    if (!this.isVisible) return;
+
+    this.keyHandlers[key.name]?.();
   }
 
   private focusPane(pane: WorkflowPane): void {

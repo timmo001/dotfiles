@@ -9,7 +9,11 @@ import {
 import type { MenuItem } from "../types.js";
 import type { Theme } from "../theme.js";
 import { mainMenuItems } from "../menu.js";
-import { formatHelpBar, GLOBAL_HELP, type HelpEntry } from "./helpBar.js";
+import {
+  addResponsiveHelpBar,
+  GLOBAL_HELP,
+  type HelpEntry,
+} from "./helpBar.js";
 import { MenuList } from "./MenuList.js";
 
 /** Help entries for the main menu */
@@ -35,7 +39,6 @@ export class MainMenu {
   private root: BoxRenderable;
   private menuList: MenuList;
   private filterBar: TextRenderable;
-  private helpBar: TextRenderable;
   private callbacks: MainMenuOptions;
 
   constructor(renderer: CliRenderer, theme: Theme, options: MainMenuOptions) {
@@ -92,20 +95,14 @@ export class MainMenu {
     });
     this.root.add(this.menuList);
 
-    // Help bar
-    this.helpBar = new TextRenderable(renderer, {
+    addResponsiveHelpBar(renderer, this.root, {
       id: "main-menu-help",
-      content: formatHelpBar(theme, HELP),
+      theme,
+      entries: HELP,
       marginTop: 1,
     });
-    this.root.add(this.helpBar);
 
     renderer.root.add(this.root);
-
-    // Re-wrap help bar on terminal resize
-    renderer.on("resize", () => {
-      this.helpBar.content = formatHelpBar(this.theme, HELP);
-    });
   }
 
   /** Show or hide the main menu view */

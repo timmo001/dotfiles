@@ -9,7 +9,11 @@ import {
 } from "@opentui/core";
 import type { Theme } from "../theme.js";
 import type { LogEntry } from "../services/OutputLog.js";
-import { formatHelpBar, GLOBAL_HELP, type HelpEntry } from "./helpBar.js";
+import {
+  addResponsiveHelpBar,
+  GLOBAL_HELP,
+  type HelpEntry,
+} from "./helpBar.js";
 
 /** Help entries for the output pane */
 const HELP: readonly HelpEntry[] = [
@@ -35,7 +39,6 @@ export class OutputPane {
   private theme: Theme;
   private root: BoxRenderable;
   private scrollBox: ScrollBoxRenderable;
-  private helpBar: TextRenderable;
   private titleText: TextRenderable;
   private callbacks: OutputPaneOptions;
   private lineCount = 0;
@@ -73,20 +76,14 @@ export class OutputPane {
     });
     this.root.add(this.scrollBox);
 
-    // Help bar
-    this.helpBar = new TextRenderable(renderer, {
+    addResponsiveHelpBar(renderer, this.root, {
       id: "output-pane-help",
-      content: formatHelpBar(theme, HELP),
+      theme,
+      entries: HELP,
       marginTop: 1,
     });
-    this.root.add(this.helpBar);
 
     renderer.root.add(this.root);
-
-    // Re-wrap help bar on terminal resize
-    renderer.on("resize", () => {
-      this.helpBar.content = formatHelpBar(this.theme, HELP);
-    });
   }
 
   /** Show or hide the output pane */
