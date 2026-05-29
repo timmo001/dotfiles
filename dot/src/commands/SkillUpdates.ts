@@ -5,6 +5,7 @@ import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
+import { GitHub } from "../services/GitHub.js";
 import {
   scanSkills,
   checkSkill,
@@ -42,6 +43,7 @@ export const skillUpdates = (opts?: {
     const log = yield* OutputLog;
     const launcher = yield* Launcher;
     const executor = yield* CommandExecutor;
+    const github = yield* GitHub;
 
     const mode: Mode = opts?.check
       ? "check"
@@ -52,9 +54,7 @@ export const skillUpdates = (opts?: {
     yield* log.section("Skill Origin Updates");
 
     // Check for gh CLI availability
-    const ghAvailable = yield* executor
-      .exitCode("which", ["gh"])
-      .pipe(Effect.map((code) => code === 0));
+    const ghAvailable = yield* github.isAvailable();
 
     if (!ghAvailable) {
       yield* log.warn("gh CLI not available; skipping skill origin checks");

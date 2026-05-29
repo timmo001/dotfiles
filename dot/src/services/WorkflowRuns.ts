@@ -10,6 +10,7 @@ import type {
 } from "../types.js";
 import { CommandExecutor } from "./CommandExecutor.js";
 import { Config, type ExtraRepo } from "./Config.js";
+import { GitHub } from "./GitHub.js";
 import {
   extraRepoVisible,
   findWorkflowExtraRepo,
@@ -91,6 +92,7 @@ export class WorkflowRuns extends Context.Service<
       log("Initialising WorkflowRuns...");
       const config = yield* Config;
       const executor = yield* CommandExecutor;
+      const github = yield* GitHub;
       const pubsub = yield* PubSub.unbounded<WorkflowState>();
 
       const initialWatchlist = readWatchlist(getWatchlistPath(config));
@@ -167,15 +169,7 @@ export class WorkflowRuns extends Context.Service<
         opts?: WorkflowRunQueryOptions,
       ) {
         const activeWorkflowIds = yield* getActiveWorkflowIds(slug);
-        const raw = yield* executor.run(
-          "gh",
-          runListArgs(slug, branch, sha, opts),
-        );
-        const parsed = yield* Effect.try({
-          try: () => JSON.parse(raw) as unknown,
-          catch: (error) =>
-            error instanceof Error ? error : new Error(String(error)),
-        });
+        const parsed = yield* github.json(runListArgs(slug, branch, sha, opts));
         if (!Array.isArray(parsed)) return [];
         return parsed
           .filter(isRunRecord)
@@ -187,12 +181,7 @@ export class WorkflowRuns extends Context.Service<
       const getActiveWorkflowIds = Effect.fn(
         "WorkflowRuns.getActiveWorkflowIds",
       )(function* (slug: string) {
-        const raw = yield* executor.run("gh", workflowListArgs(slug));
-        const parsed = yield* Effect.try({
-          try: () => JSON.parse(raw) as unknown,
-          catch: (error) =>
-            error instanceof Error ? error : new Error(String(error)),
-        });
+        const parsed = yield* github.json(workflowListArgs(slug));
 
         return new Set(
           Array.isArray(parsed)
@@ -315,7 +304,7 @@ export class WorkflowRuns extends Context.Service<
             return;
           }
 
-          const hasGh = (yield* executor.exitCode("which", ["gh"])) === 0;
+          const hasGh = yield* github.isAvailable();
           if (!hasGh) {
             currentState = buildState(
               resolved.targets.map((target) => ({

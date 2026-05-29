@@ -4,6 +4,7 @@ import { CommandExecutor } from "./services/CommandExecutor.js";
 import { OutputLog } from "./services/OutputLog.js";
 import { Launcher } from "./services/Launcher.js";
 import { DotDiff } from "./services/DotDiff.js";
+import { GitHub } from "./services/GitHub.js";
 import { WorkflowRuns } from "./services/WorkflowRuns.js";
 import { parseFlags, resolveSubcommand, printHelp } from "./flags.js";
 import { menuItemsById } from "./menu.js";
@@ -145,6 +146,7 @@ type NativeEnv =
   | Config
   | CommandExecutor
   | DotDiff
+  | GitHub
   | Launcher
   | OutputLog
   | WorkflowRuns;
@@ -156,6 +158,7 @@ type NativeEffect = Effect.Effect<void, unknown, NativeEnv>;
 const CliLayers = Launcher.cliLayer.pipe(
   Layer.provideMerge(DotDiff.layer),
   Layer.provideMerge(WorkflowRuns.layer),
+  Layer.provideMerge(GitHub.layer),
   Layer.provideMerge(OutputLog.cliLayer),
   Layer.provideMerge(CommandExecutor.layer),
   Layer.provideMerge(Config.layer),
@@ -368,6 +371,7 @@ if (mode.type === "native") {
   const TuiLayers = RepoWatcher.layer.pipe(
     Layer.provideMerge(WorkflowRuns.layer),
     Layer.provideMerge(DotDiff.layer),
+    Layer.provideMerge(GitHub.layer),
     Layer.provideMerge(WaybarCache.layer),
     Layer.provideMerge(GitStaging.layer),
     Layer.provideMerge(CommitSuggest.layer),

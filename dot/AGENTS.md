@@ -60,6 +60,7 @@ src/
     CommandRunner.ts      — Suspend/resume + silent + notify command execution (plain object)
     CommitSuggest.ts      — AI commit suggestions via OpenCode SDK
     DotDiff.ts            — Effect service wrapping diff shell commands
+    GitHub.ts             — Shared GitHub CLI/API wrapper with rate-limit checks and retries
     GitStaging.ts         — Git status/add/reset/commit operations
     Launcher.ts           — Process lifecycle (exit handling)
     ModelDiscovery.ts     — OpenCode model discovery

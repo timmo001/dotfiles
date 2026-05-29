@@ -1,8 +1,9 @@
-import { Effect, Schedule } from "effect";
+import { Effect } from "effect";
 import { readdirSync, existsSync, readFileSync, mkdirSync } from "fs";
 import { writeFileSync } from "fs";
 import { join, basename, dirname, relative } from "path";
-import { CommandExecutor, CommandError } from "../services/CommandExecutor.js";
+import { CommandExecutor } from "../services/CommandExecutor.js";
+import { GitHub } from "../services/GitHub.js";
 
 // ---------------------------------------------------------------------------
 // Domain Types
@@ -287,19 +288,11 @@ export function writeSha(skillMdPath: string, sha: string): void {
 // GitHub API Helpers (via gh CLI)
 // ---------------------------------------------------------------------------
 
-/** Run `gh api` with retry logic (exponential backoff, 3 attempts) */
+/** Run `gh api` through the shared GitHub service. */
 export const ghApi = (endpoint: string, jqFilter?: string) =>
   Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
-    const args = ["api", endpoint];
-    if (jqFilter) {
-      args.push("--jq", jqFilter);
-    }
-
-    return yield* executor.run("gh", args).pipe(
-      Effect.retry(Schedule.exponential("1 second").pipe(Schedule.take(2))),
-      Effect.map((s: string) => s.trim()),
-    );
+    const github = yield* GitHub;
+    return yield* github.api(endpoint, { jq: jqFilter });
   });
 
 /** Get the latest commit SHA touching a path in a GitHub repo */
@@ -323,11 +316,7 @@ export const fetchFile = (origin: SkillOrigin, filePath: string) =>
 
     if (!base64Content) {
       return yield* Effect.fail(
-        new CommandError({
-          command: `gh api ${endpoint}`,
-          exitCode: 1,
-          stderr: "Empty content returned",
-        }),
+        new Error(`Empty content returned from gh api ${endpoint}`),
       );
     }
 

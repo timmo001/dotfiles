@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
+import { GitHub } from "../../services/GitHub.js";
 import type { CheckResult } from "../types.js";
 
 interface ToolDef {
@@ -43,6 +44,7 @@ const TOOLS: readonly ToolDef[] = [
 /** Check that required and optional CLI tools are available */
 export const checkDependencies = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
+  const github = yield* GitHub;
   const results: CheckResult[] = [];
 
   for (const tool of TOOLS) {
@@ -76,13 +78,10 @@ export const checkDependencies = Effect.gen(function* () {
   });
 
   // gh authentication check
-  const ghExit = yield* executor.exitCode("which", ["gh"]);
-  if (ghExit === 0) {
-    const ghUser = yield* executor
-      .run("bash", [
-        "-c",
-        "GH_PROMPT_DISABLED=1 gh api user --jq .login 2>/dev/null",
-      ])
+  const ghAvailable = yield* github.isAvailable();
+  if (ghAvailable) {
+    const ghUser = yield* github
+      .api("user", { jq: ".login" })
       .pipe(Effect.catch(() => Effect.succeed("")));
     const username = ghUser.trim();
     if (username) {

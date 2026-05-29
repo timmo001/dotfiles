@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
+import { GitHub } from "../services/GitHub.js";
 import { checkDependencies } from "./checks/dependencies.js";
 import { checkSecretService } from "./checks/secretService.js";
 import { checkRepos, checkPrivateAccess } from "./checks/repos.js";
@@ -31,7 +32,7 @@ interface SectionDef {
   readonly check: Effect.Effect<
     CheckResult[],
     unknown,
-    Config | CommandExecutor
+    Config | CommandExecutor | GitHub
   >;
   readonly requiresPrivate?: boolean;
 }
@@ -74,7 +75,7 @@ const sections: readonly SectionDef[] = [
 export const runDoctor: Effect.Effect<
   DoctorReport,
   never,
-  Config | CommandExecutor
+  Config | CommandExecutor | GitHub
 > = Effect.gen(function* () {
   const config = yield* Config;
 
