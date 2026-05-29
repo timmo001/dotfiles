@@ -313,7 +313,6 @@ if (mode.type === "native") {
     );
     log("App created");
 
-    const diffView = app.getDiffView();
     const workflowsView = app.getWorkflowsView();
 
     // Subscribe to watcher state changes and update the diff view
@@ -323,7 +322,7 @@ if (mode.type === "native") {
           log(
             `State update: ${state.changed.length} changed, ${state.unchanged.length} unchanged`,
           );
-          diffView.update(state);
+          app.updateDiffState(state);
         }),
       ),
       Effect.forkScoped,
@@ -347,7 +346,7 @@ if (mode.type === "native") {
     log(
       `Initial state: ${initialState.changed.length} changed, ${initialState.unchanged.length} unchanged`,
     );
-    diffView.update(initialState);
+    app.updateDiffState(initialState);
 
     const initialWorkflowState = yield* workflows.getState();
     workflowsView.update(initialWorkflowState);

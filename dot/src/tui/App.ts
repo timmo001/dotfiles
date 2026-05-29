@@ -4,6 +4,7 @@ import type {
   MenuItem,
   MenuAction,
   Repo,
+  RepoState,
   WorkflowRun,
 } from "../types.js";
 import type { Theme } from "../theme.js";
@@ -31,6 +32,9 @@ const setTerminalTitle = (title: string): void => {
 
 const diffTitle = "Dot TUI \u203A Diff";
 const stagingTitle = "Dot TUI \u203A Diff \u203A Stage";
+
+const formatDiffTitle = (changedCount: number): string =>
+  `${diffTitle} (${changedCount})`;
 
 /** Wrap a string in single quotes, escaping embedded single quotes for safe shell interpolation */
 const shellQuote = (s: string): string => `'${s.replace(/'/g, "'\\''")}'`;
@@ -76,6 +80,7 @@ export class App {
   private variantPopup: VariantPopup;
   private activeView: ViewId = "main";
   private viewStack: ViewId[] = [];
+  private diffChangedCount = 0;
   /** Repo path passed through the staging → commit flow */
   private commitRepoPath = "";
   /** Repo display name passed through the staging → commit flow */
@@ -96,7 +101,7 @@ export class App {
       initialTab: options.initialDiffTab ?? "changed",
       onSelect: async (repo) => {
         await openLazygit(deps.renderer, repo.path, () => {
-          setTerminalTitle(diffTitle);
+          setTerminalTitle(formatDiffTitle(this.diffChangedCount));
         });
         deps.onRefreshDiff();
       },
@@ -308,14 +313,18 @@ export class App {
     // If stack is empty we're at main — stay there
   }
 
-  /** Get the diff view for direct state updates from the watcher */
-  getDiffView(): DiffView {
-    return this.diffView;
-  }
-
   /** Get the workflow runs view for direct state updates from the watcher */
   getWorkflowsView(): WorkflowRunsView {
     return this.workflowsView;
+  }
+
+  /** Update the diff view and terminal title with the latest watcher state. */
+  updateDiffState(state: RepoState): void {
+    this.diffChangedCount = state.changed.length;
+    this.diffView.update(state);
+    if (this.activeView === "diff") {
+      setTerminalTitle(formatDiffTitle(this.diffChangedCount));
+    }
   }
 
   /** Get the output pane for streaming command output */
@@ -345,7 +354,7 @@ export class App {
         this.mainMenu.resetAndFocus();
         break;
       case "diff":
-        setTerminalTitle(diffTitle);
+        setTerminalTitle(formatDiffTitle(this.diffChangedCount));
         this.diffView.setVisible(true);
         this.diffView.focus();
         break;
