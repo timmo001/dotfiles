@@ -303,7 +303,7 @@ export class WorkflowRunsView {
   }
 
   private formatRepoDescription(repo: WorkflowRepoRuns): string {
-    const branch = repo.defaultBranch ?? "default branch";
+    const branch = repo.branch ?? "current branch";
     const commit = repo.headSha
       ? `${branch}@${shortSha(repo.headSha)}`
       : branch;

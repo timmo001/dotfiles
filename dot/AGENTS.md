@@ -66,7 +66,7 @@ src/
     OutputLog.ts          — Scrollable output log service
     Renderer.ts           — OpenTUI renderer service
     RepoWatcher.ts        — Hybrid poll loop (Waybar cache → 10s poll), PubSub state
-    WorkflowRuns.ts       — Watched GitHub Actions run state for default-branch HEAD commits
+    WorkflowRuns.ts       — Watched GitHub Actions run state for locally checked-out HEAD commits
     Toast.ts              — Toast notification overlay service
     WaybarCache.ts        — Waybar cache JSON reader for fast startup
   tui/
@@ -254,7 +254,7 @@ The build is also triggered by `dot update`.
 ## External Dependencies
 
 - `~/.cache/waybar/dot-diff-waybar.json` — Waybar cache for fast startup
-- `~/.config/dotfiles-private/.git-workflow-watch-repos` — watched GitHub repos for the workflows view and workflow notifications
+- `~/.config/dotfiles-private/.git-workflow-watch-repos` — watched GitHub repos for the workflows view and workflow notifications; `dot workflows` applies matching `.dot-extra-repos` schedules before querying GitHub
 - `lazygit` — launched via suspend/resume on Enter in diff view
 - `opencode` — CLI for model discovery; SDK for AI commit suggestions
 - `@opencode-ai/sdk` — OpenCode SDK for programmatic session/prompt calls

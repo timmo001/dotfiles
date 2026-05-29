@@ -52,7 +52,7 @@ dot doctor
 - `dot update` - Omarchy + public/private pull (including optional extra private repos and split Omarchy repo worktrees), then stow refresh and workflow-watch reconfiguration
 - `dot stow` - stow refresh only (no git pull)
 - `dot diff` - git status + staged/unstaged summaries with fetched unpushed/incoming commit checks across managed repos (including optional extra private repos and split Omarchy repo worktrees); use `dot diff --waybar` for one-line Waybar JSON
-- `dot workflows` - two-pane watched GitHub workflow runs view for each repo's default-branch HEAD commit
+- `dot workflows` - two-pane watched GitHub workflow runs view for each repo's locally checked-out HEAD commit
 - `dot setup [--confirm]` - package install step only
 - `dot install` - backup/adopt install flow for public/private dotfiles
 - `dot clean` - unstow private then public
@@ -79,7 +79,7 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 - Private dotfiles provide the watchlist in `~/.config/dotfiles-private/.git-workflow-watch-repos`
 - The global hook queues pushed commits only for watched GitHub repositories and only when the commit matches the local git identity
 - The watcher polls `gh run list --commit <sha>` and sends one desktop notification per workflow run as each run completes
-- `dot workflows` reads the same watchlist and shows watched repos on the left, with workflow runs for the selected default-branch HEAD commit on the right
+- `dot workflows` reads the same watchlist and shows watched repos on the left, with workflow runs for the selected locally checked-out HEAD commit on the right
 - Failed workflow runs are cached for Waybar; left click opens all tracked failed run URLs, right click clears the list, and stale failures expire automatically after 1 hour by default
 - `dot init`, `dot install`, and `dot update` configure the global `core.hooksPath` and enable `git-workflow-watch.timer`; `dot stow` only links files
 - `dot doctor` verifies the hooks path, watchlist file, timer state, and active Waybar workflow-failures module wiring
@@ -96,7 +96,7 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 - `DOTFILES_PRIVATE_DIR` - private dotfiles path (default `~/.config/dotfiles-private`)
 - `DOT_ALLOW_PRIVATE` - `auto|always|never` (default `auto`)
 - `DOT_PRIVATE_GH_USER` - expected GitHub user for private actions (default `timmo001`)
-- `DOT_PRIVATE_EXTRA_REPOS_FILE` - extra private repo config file for `dot diff`/`dot update`/`dot doctor` (default `$DOTFILES_PRIVATE_DIR/.dot-extra-repos`, format: `name|path[|schedule]` or just `path`; 5-field cron schedules such as `* 8-15 * * 1-5` filter diff/Waybar visibility only; `dot doctor` expects each repo to be on a named branch with an upstream)
+- `DOT_PRIVATE_EXTRA_REPOS_FILE` - extra private repo config file for `dot diff`/`dot update`/`dot doctor` (default `$DOTFILES_PRIVATE_DIR/.dot-extra-repos`, format: `name|path[|schedule]` or just `path`; 5-field cron schedules such as `* 8-15 * * 1-5` filter diff/Waybar and matching `dot workflows` visibility; `dot doctor` expects each repo to be on a named branch with an upstream)
 - `DOT_PRIVATE_PACKAGE_REPO_FILE` - private pacman repo config for `dot` (default `$DOTFILES_PRIVATE_DIR/.dot-private-package-repo`)
 - `DOT_PRIVATE_PACKAGES_FILE` - private package list for `dot` (default `$DOTFILES_PRIVATE_DIR/.dot-private-packages`)
 - `DOT_PRIVATE_PACMAN_REPO_CONFIG` - pacman repo snippet path written by `dot` (default `/etc/pacman.d/timmo-private.conf`)

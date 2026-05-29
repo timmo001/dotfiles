@@ -4,7 +4,8 @@ import { basename, join } from "path";
 import { createHash } from "crypto";
 import type { DiffRepo, Repo } from "../types.js";
 import { CommandExecutor } from "./CommandExecutor.js";
-import { Config, type ExtraRepo } from "./Config.js";
+import { Config } from "./Config.js";
+import { extraRepoVisible } from "./repoSchedule.js";
 
 const DEBUG = !!process.env.DOT_DEBUG;
 const log = (msg: string) => {
@@ -68,79 +69,6 @@ function recordFetch(repoPath: string, upstreamRef: string): void {
   } catch {
     // Non-fatal — cache write failure doesn't block diff
   }
-}
-
-// ---------------------------------------------------------------------------
-// Cron schedule matching (port of dot-cron-lib)
-// ---------------------------------------------------------------------------
-
-/** Check if a single cron field matches a value (supports *, ranges, lists) */
-function cronFieldMatches(
-  value: number,
-  expr: string,
-  min: number,
-  max: number,
-): boolean {
-  const trimmed = expr.trim();
-  if (trimmed === "*" || trimmed === "?") return true;
-
-  // Handle comma-separated list
-  const parts = trimmed.split(",");
-  for (const part of parts) {
-    // Handle step: */2 or 1-5/2
-    const [rangePart, stepStr] = part.split("/", 2);
-    const step = stepStr ? parseInt(stepStr, 10) : 1;
-
-    if (rangePart === "*") {
-      // */step
-      for (let i = min; i <= max; i += step) {
-        if (i === value) return true;
-      }
-    } else if (rangePart.includes("-")) {
-      // Range: 8-15
-      const [startStr, endStr] = rangePart.split("-", 2);
-      const start = parseInt(startStr, 10);
-      const end = parseInt(endStr, 10);
-      for (let i = start; i <= end; i += step) {
-        if (i === value) return true;
-      }
-    } else {
-      // Single value
-      if (parseInt(rangePart, 10) === value) return true;
-    }
-  }
-
-  return false;
-}
-
-/** Check if a cron expression matches the current time */
-function cronScheduleActive(schedule: string): boolean {
-  if (!schedule.trim()) return true;
-
-  const fields = schedule.trim().split(/\s+/);
-  if (fields.length < 5) return true; // Malformed — treat as always active
-
-  const now = new Date();
-  const [minuteExpr, hourExpr, domExpr, monthExpr, dowExpr] = fields;
-
-  const minute = now.getMinutes();
-  const hour = now.getHours();
-  const dom = now.getDate();
-  const month = now.getMonth() + 1; // 1-indexed
-  const dow = now.getDay(); // 0=Sunday
-
-  return (
-    cronFieldMatches(minute, minuteExpr, 0, 59) &&
-    cronFieldMatches(hour, hourExpr, 0, 23) &&
-    cronFieldMatches(dom, domExpr, 1, 31) &&
-    cronFieldMatches(month, monthExpr, 1, 12) &&
-    cronFieldMatches(dow, dowExpr, 0, 6)
-  );
-}
-
-/** Check if an extra repo is currently visible based on its schedule */
-function extraRepoVisible(repo: ExtraRepo): boolean {
-  return cronScheduleActive(repo.schedule);
 }
 
 /** Domain error for `dot diff` command failures */

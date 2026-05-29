@@ -224,7 +224,7 @@ Examples:
 
 Open the watched GitHub workflow runs view. The left pane lists watched
 repositories from the workflow-watch repo list. The right pane lists runs for
-the selected repo's default-branch HEAD commit.
+the selected repo's locally checked-out HEAD commit.
 
 Options:
   --help, -h  Show this help message

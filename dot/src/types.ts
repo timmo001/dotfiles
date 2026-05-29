@@ -86,15 +86,15 @@ export interface WorkflowRun {
 export interface WorkflowRepoRuns {
   /** GitHub owner/repo slug */
   readonly slug: string;
-  /** Default branch name used as the head branch */
-  readonly defaultBranch: string | null;
-  /** Default-branch HEAD commit SHA */
+  /** Current locally checked-out branch name used as the head branch */
+  readonly branch: string | null;
+  /** Current locally checked-out HEAD commit SHA */
   readonly headSha: string | null;
-  /** Default-branch HEAD commit subject */
+  /** Current locally checked-out HEAD commit subject */
   readonly commitSubject: string | null;
-  /** Browser URL for the default-branch HEAD commit */
+  /** Browser URL for the current locally checked-out HEAD commit */
   readonly commitUrl: string | null;
-  /** Latest workflow runs for the default-branch HEAD commit */
+  /** Latest workflow runs for the current locally checked-out HEAD commit */
   readonly runs: readonly WorkflowRun[];
   /** Fetch error, if this repo could not be queried */
   readonly error?: string;

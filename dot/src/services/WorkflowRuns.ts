@@ -8,7 +8,8 @@ import type {
   WorkflowState,
 } from "../types.js";
 import { CommandExecutor } from "./CommandExecutor.js";
-import { Config } from "./Config.js";
+import { Config, type ExtraRepo } from "./Config.js";
+import { findWorkflowExtraRepo, workflowSlugVisible } from "./repoSchedule.js";
 
 const HOME = process.env.HOME ?? `/home/${process.env.USER ?? ""}`;
 const RUN_LIMIT = 100;
@@ -31,6 +32,7 @@ interface WatchlistResult {
 
 interface CommitInfo {
   readonly sha: string;
+  readonly branch: string;
   readonly subject: string | null;
   readonly url: string | null;
 }
@@ -60,7 +62,10 @@ export class WorkflowRuns extends Context.Service<
       const executor = yield* CommandExecutor;
       const pubsub = yield* PubSub.unbounded<WorkflowState>();
 
-      const initialWatchlist = readWatchlist(getWatchlistPath(config));
+      const initialWatchlist = applyExtraRepoSchedules(
+        readWatchlist(getWatchlistPath(config)),
+        config.extraRepos,
+      );
       let currentState = buildState(
         initialWatchlist.slugs.map(emptyRepo),
         new Date(yield* Clock.currentTimeMillis),
@@ -72,26 +77,20 @@ export class WorkflowRuns extends Context.Service<
       const fetchRepoRuns = Effect.fn("WorkflowRuns.fetchRepoRuns")(function* (
         slug: string,
       ) {
-        const defaultBranch = (yield* executor.run("gh", [
-          "api",
-          `repos/${slug}`,
-          "--jq",
-          ".default_branch",
-        ])).trim();
-
-        if (!defaultBranch) {
+        const checkout = findWorkflowExtraRepo(slug, config.extraRepos);
+        if (!checkout) {
           return {
             ...emptyRepo(slug),
-            error: "default branch not found",
+            error: "local checkout not found in .dot-extra-repos",
           };
         }
 
-        const commit = yield* getHeadCommit(slug, defaultBranch);
-        const runs = yield* getRuns(slug, defaultBranch, commit.sha);
+        const commit = yield* getHeadCommit(slug, checkout.path);
+        const runs = yield* getRuns(slug, commit.branch, commit.sha);
 
         return {
           slug,
-          defaultBranch,
+          branch: commit.branch,
           headSha: commit.sha,
           commitSubject: commit.subject,
           commitUrl: commit.url,
@@ -101,29 +100,34 @@ export class WorkflowRuns extends Context.Service<
 
       const getHeadCommit = Effect.fn("WorkflowRuns.getHeadCommit")(function* (
         slug: string,
-        branch: string,
+        repoPath: string,
       ) {
-        const raw = yield* executor.run("gh", [
-          "api",
-          `repos/${slug}/commits/${encodeURIComponent(branch)}`,
-          "--jq",
-          '{sha: .sha, subject: (.commit.message | split("\\n")[0]), url: .html_url}',
-        ]);
-        const record = yield* Effect.try({
-          try: () => parseJsonRecord(raw),
-          catch: (error) =>
-            error instanceof Error ? error : new Error(String(error)),
-        });
-        const sha = stringField(record, "sha");
+        const branch = (yield* executor.run(
+          "git",
+          ["branch", "--show-current"],
+          { cwd: repoPath },
+        )).trim();
 
-        if (!sha) {
-          return yield* Effect.fail(new Error("head commit not found"));
+        if (!branch) {
+          return yield* Effect.fail(new Error("current branch not found"));
         }
+
+        const sha = (yield* executor.run("git", ["rev-parse", "HEAD"], {
+          cwd: repoPath,
+        })).trim();
+        const subject = (yield* executor.run(
+          "git",
+          ["log", "-1", "--pretty=%s"],
+          {
+            cwd: repoPath,
+          },
+        )).trim();
 
         return {
           sha,
-          subject: nullableStringField(record, "subject"),
-          url: nullableStringField(record, "url"),
+          branch,
+          subject: subject || null,
+          url: `https://github.com/${slug}/commit/${sha}`,
         };
       });
 
@@ -157,7 +161,10 @@ export class WorkflowRuns extends Context.Service<
 
       const refresh = Effect.gen(function* () {
         log("Refreshing workflow runs...");
-        const watchlist = readWatchlist(getWatchlistPath(config));
+        const watchlist = applyExtraRepoSchedules(
+          readWatchlist(getWatchlistPath(config)),
+          config.extraRepos,
+        );
         currentState = buildState(
           watchlist.slugs.map(emptyRepo),
           new Date(yield* Clock.currentTimeMillis),
@@ -287,6 +294,37 @@ function readWatchlist(path: string): WatchlistResult {
   }
 }
 
+function applyExtraRepoSchedules(
+  watchlist: WatchlistResult,
+  extraRepos: readonly ExtraRepo[],
+): WatchlistResult {
+  const visibleSlugs = watchlist.slugs.filter((slug) =>
+    workflowSlugVisible(slug, extraRepos),
+  );
+
+  if (visibleSlugs.length === watchlist.slugs.length) return watchlist;
+
+  const hiddenCount = watchlist.slugs.length - visibleSlugs.length;
+  return {
+    ...watchlist,
+    slugs: visibleSlugs,
+    message: scheduleHiddenMessage(
+      watchlist.message,
+      visibleSlugs.length,
+      hiddenCount,
+    ),
+  };
+}
+
+function scheduleHiddenMessage(
+  currentMessage: string | undefined,
+  visibleCount: number,
+  hiddenCount: number,
+): string | undefined {
+  if (currentMessage || visibleCount > 0) return currentMessage;
+  return `${hiddenCount} watched repo${hiddenCount === 1 ? " is" : "s are"} hidden by schedule`;
+}
+
 function parseGithubRepoSlug(value: string): string | null {
   let slug = value.trim();
   if (slug.startsWith("git@github.com:")) {
@@ -308,7 +346,7 @@ function parseGithubRepoSlug(value: string): string | null {
 function emptyRepo(slug: string): WorkflowRepoRuns {
   return {
     slug,
-    defaultBranch: null,
+    branch: null,
     headSha: null,
     commitSubject: null,
     commitUrl: null,
@@ -334,27 +372,6 @@ function buildState(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function parseJsonRecord(raw: string): Record<string, unknown> {
-  const parsed = JSON.parse(raw) as unknown;
-  if (!isRecord(parsed)) {
-    throw new Error("expected JSON object");
-  }
-  return parsed;
-}
-
-function stringField(record: Record<string, unknown>, key: string): string {
-  const value = record[key];
-  return typeof value === "string" ? value : "";
-}
-
-function nullableStringField(
-  record: Record<string, unknown>,
-  key: string,
-): string | null {
-  const value = record[key];
-  return typeof value === "string" && value.length > 0 ? value : null;
 }
 
 function isRunRecord(value: unknown): value is GhRunRecord {
