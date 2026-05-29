@@ -195,13 +195,13 @@ export class WorkflowRunsView {
   /** Update both panes and the status bar with a new workflow state snapshot */
   update(state: WorkflowState): void {
     this.state = state;
-    this.repos = state.repos;
+    this.repos = visibleReposForState(state);
 
     const selectedSlug = this.pickSelectedRepoSlug();
     this.selectedRepoSlug = selectedSlug;
 
     this.repoList.setItems(
-      state.repos.map((repo) => this.repoListItem(repo)),
+      this.repos.map((repo) => this.repoListItem(repo)),
       selectedSlug,
     );
 
@@ -353,15 +353,15 @@ export class WorkflowRunsView {
       return;
     }
 
-    if (this.state.repos.length === 0) {
-      this.statusBar.content = t`${fg(th.fgMuted)("No watched workflow repositories configured")}`;
+    if (this.repos.length === 0) {
+      this.statusBar.content = t`${fg(th.fgMuted)(emptyReposMessage(this.state))}`;
       return;
     }
 
-    const failed = this.state.repos.filter((repo) =>
+    const failed = this.repos.filter((repo) =>
       repo.runs.some(runFailed),
     ).length;
-    const running = this.state.repos.filter((repo) =>
+    const running = this.repos.filter((repo) =>
       repo.runs.some(runRunning),
     ).length;
     const dot = failed > 0 ? fg(th.red)("●") : fg(th.green)("●");
@@ -377,4 +377,17 @@ export class WorkflowRunsView {
 
     this.statusBar.content = t`${fg(th.fgMuted)(`Last checked: ${formatWorkflowTimeAgo(this.state.lastChecked.toISOString())}`)}${since}    ${dot}  ${summary}`;
   }
+}
+
+function visibleReposForState(
+  state: WorkflowState,
+): readonly WorkflowRepoRuns[] {
+  if (!state.since || state.loading || !state.loaded) return state.repos;
+  return state.repos.filter((repo) => repo.runs.length > 0 || !!repo.error);
+}
+
+function emptyReposMessage(state: WorkflowState): string {
+  return state.since
+    ? "No workflow runs in selected timeframe"
+    : "No watched workflow repositories configured";
 }
