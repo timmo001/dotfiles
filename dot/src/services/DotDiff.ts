@@ -1,10 +1,5 @@
 import { Context, Effect, Layer, Schema } from "effect";
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { basename, join } from "path";
 import { createHash } from "crypto";
 import type { DiffRepo, Repo } from "../types.js";
@@ -45,7 +40,9 @@ function shouldFetch(repoPath: string, upstreamRef: string): boolean {
     if (!isNaN(lastAttempt)) {
       const now = Math.floor(Date.now() / 1000);
       if (now - lastAttempt < FETCH_TTL_SECONDS) {
-        log(`${repoPath}: fetch cache hit (${now - lastAttempt}s < ${FETCH_TTL_SECONDS}s TTL)`);
+        log(
+          `${repoPath}: fetch cache hit (${now - lastAttempt}s < ${FETCH_TTL_SECONDS}s TTL)`,
+        );
         return false;
       }
     }

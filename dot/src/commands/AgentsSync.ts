@@ -147,5 +147,3 @@ export const agentsSync = Effect.gen(function* () {
     yield* log.info(`${target.name}: ${displayPath(dest)}`);
   }
 });
-
-

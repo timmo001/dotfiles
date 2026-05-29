@@ -159,7 +159,11 @@ if (mode.type === "fallback") {
   // Run a natively-ported command with CLI layers
   const resolveDiff = (
     args: readonly string[],
-  ): Effect.Effect<void, never, DotDiff | Config | OutputLog | CommandExecutor> => {
+  ): Effect.Effect<
+    void,
+    never,
+    DotDiff | Config | OutputLog | CommandExecutor
+  > => {
     const noFetch = args.includes("--no-fetch");
     const opts = noFetch ? { noFetch: true } : undefined;
     if (args.includes("--waybar")) return diffWaybar(opts);

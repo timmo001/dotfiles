@@ -56,7 +56,9 @@ export const diffWaybar = (opts?: DiffScanOptions) =>
     }
 
     yield* Effect.sync(() =>
-      process.stdout.write(JSON.stringify({ text, tooltip, class: cls }) + "\n"),
+      process.stdout.write(
+        JSON.stringify({ text, tooltip, class: cls }) + "\n",
+      ),
     );
   }).pipe(Effect.withSpan("diff.waybar"), handleDiffError);
 
@@ -131,10 +133,17 @@ export const diffRaw = (opts?: DiffScanOptions) =>
       }
 
       // Ahead/behind commits
-      if (repo.ahead > 0 || repo.behind > 0 || (!repo.isDirty && repo.ahead === 0 && repo.behind === 0)) {
+      if (
+        repo.ahead > 0 ||
+        repo.behind > 0 ||
+        (!repo.isDirty && repo.ahead === 0 && repo.behind === 0)
+      ) {
         // Check if upstream is configured
-        const hasUpstream = yield* executor
-          .exitCode("git", ["rev-parse", "@{u}"], { cwd: repo.path });
+        const hasUpstream = yield* executor.exitCode(
+          "git",
+          ["rev-parse", "@{u}"],
+          { cwd: repo.path },
+        );
 
         if (hasUpstream === 0) {
           // Unpushed commits (up to 20)

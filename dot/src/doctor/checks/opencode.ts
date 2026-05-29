@@ -20,12 +20,7 @@ const RESOURCE_NAMES = [
 ] as const;
 
 /** Legacy singular names that should no longer exist */
-const LEGACY_SINGULAR_NAMES = [
-  "agent",
-  "command",
-  "plugin",
-  "rule",
-] as const;
+const LEGACY_SINGULAR_NAMES = ["agent", "command", "plugin", "rule"] as const;
 
 /** Check OpenCode binary and config locations for legacy remnants */
 export const checkOpencode = Effect.gen(function* () {

@@ -1,5 +1,12 @@
 import { Effect } from "effect";
-import { existsSync, lstatSync, readdirSync, readlinkSync, symlinkSync, unlinkSync } from "fs";
+import {
+  existsSync,
+  lstatSync,
+  readdirSync,
+  readlinkSync,
+  symlinkSync,
+  unlinkSync,
+} from "fs";
 import { join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
