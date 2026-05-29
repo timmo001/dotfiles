@@ -25,7 +25,7 @@ const HELP: readonly HelpEntry[] = [
   { key: "p", action: "pull" },
   { key: "P", action: "push" },
   { key: "x", action: "unlock" },
-  { key: "t", action: "tmux" },
+  { key: "t", action: "tmux current pane" },
   { key: "o", action: "open" },
   { key: "w", action: "web" },
   { key: "r", action: "refresh" },

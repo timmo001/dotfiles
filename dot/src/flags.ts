@@ -289,7 +289,7 @@ Keybindings (TUI mode):
   c              Open commit flow (staging → commit)
   p              Pull selected repo
   P              Push selected repo
-  t              Open tmux session for repos
+  t              Open tmux session for current pane (Changed=changed, Other=all)
   o              Open terminal in repo directory
   w              Open repo on GitHub
   r              Manual refresh

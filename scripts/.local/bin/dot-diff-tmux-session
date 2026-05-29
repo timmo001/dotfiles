@@ -28,13 +28,13 @@ notify_no_changed_repos() {
   if command -v notify-send >/dev/null 2>&1; then
     notify-send \
       'Dot diff' \
-      'No repositories have changes. Right click the indicator or press Ctrl+Alt+Shift+R to open all tracked repositories.' \
+      'No changed repositories to open. In dot diff, press Tab to focus Other, then t to open all tracked repositories.' \
       >/dev/null 2>&1 || true
   fi
 }
 
 show_popup() {
-  local message="${1:-Loading dot diff session...}"
+  local message="${1:-Opening dot tmux session...}"
 
   if [[ -x "$POPUP_LOADING_BIN" ]]; then
     "$POPUP_LOADING_BIN" show "$message" >/dev/null 2>&1 || true
@@ -125,7 +125,7 @@ case "$MODE" in
 esac
 
 if [[ "$MODE" == "changed" ]]; then
-  show_popup "Checking changed dot repos..."
+  show_popup "Finding changed repos for tmux..."
   if ! load_changed_repos_from_waybar_cache; then
     while IFS='|' read -r name path; do
       if [[ -z "$name" || -z "$path" ]]; then
@@ -137,7 +137,7 @@ if [[ "$MODE" == "changed" ]]; then
     done < <("$DOT_BIN" diff "$diff_arg")
   fi
 else
-  show_popup "Listing all dot repos..."
+  show_popup "Finding all dot repos for tmux..."
   while IFS='|' read -r name path; do
     if [[ -z "$name" || -z "$path" ]]; then
       continue

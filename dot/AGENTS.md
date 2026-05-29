@@ -222,7 +222,7 @@ The build is also triggered by `dot update`.
 | `c` | Open commit flow (staging → commit) for selected repo |
 | `p` | Pull selected repo (`git pull --rebase --no-edit`) |
 | `P` | Push selected repo (`git push`) |
-| `t` | Open tmux session (changed repos if Changed pane, all repos if Other pane) |
+| `t` | Open tmux session (Changed pane opens changed repos, Other pane opens all repos) |
 | `o` | Open terminal in selected repo directory |
 | `w` | Open selected repo on GitHub in browser |
 | `r` | Manual refresh |
