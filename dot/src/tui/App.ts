@@ -29,6 +29,9 @@ const setTerminalTitle = (title: string): void => {
   process.stdout.write(`\x1b]0;${title}\x07`);
 };
 
+const diffTitle = "Dot TUI \u203A Diff";
+const stagingTitle = "Dot TUI \u203A Diff \u203A Stage";
+
 /** Wrap a string in single quotes, escaping embedded single quotes for safe shell interpolation */
 const shellQuote = (s: string): string => `'${s.replace(/'/g, "'\\''")}'`;
 
@@ -92,7 +95,9 @@ export class App {
     this.diffView = new DiffView(deps.renderer, deps.theme, {
       initialTab: options.initialDiffTab ?? "changed",
       onSelect: async (repo) => {
-        await openLazygit(deps.renderer, repo.path);
+        await openLazygit(deps.renderer, repo.path, () => {
+          setTerminalTitle(diffTitle);
+        });
         deps.onRefreshDiff();
       },
       onCommit: (repo) => {
@@ -185,7 +190,9 @@ export class App {
           this.pushView("commit");
         },
         onLazygit: async (repoPath) => {
-          await openLazygit(deps.renderer, repoPath);
+          await openLazygit(deps.renderer, repoPath, () => {
+            setTerminalTitle(stagingTitle);
+          });
           this.stagingView.openForRepo(repoPath, this.commitRepoName);
           deps.onRefreshDiff();
         },
@@ -338,7 +345,7 @@ export class App {
         this.mainMenu.resetAndFocus();
         break;
       case "diff":
-        setTerminalTitle("Dot TUI \u203A Diff");
+        setTerminalTitle(diffTitle);
         this.diffView.setVisible(true);
         this.diffView.focus();
         break;
@@ -353,7 +360,7 @@ export class App {
         // OmarchyMenu updates the terminal title itself via onTitleChange
         break;
       case "staging":
-        setTerminalTitle("Dot TUI \u203A Diff \u203A Stage");
+        setTerminalTitle(stagingTitle);
         this.stagingView.setVisible(true);
         this.stagingView.focus();
         break;
