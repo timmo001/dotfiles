@@ -46,7 +46,7 @@ _dot_terminal_title() {
   local last_status=$?
   local dir="${PWD/#$HOME/~}"
   local title="$dir"
-  local branch commit dirty
+  local branch git_status
 
   if command git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     branch=$(command git branch --show-current 2>/dev/null)
@@ -54,21 +54,47 @@ _dot_terminal_title() {
       branch=$(command git rev-parse --short HEAD 2>/dev/null)
     fi
 
-    commit=$(command git log -1 --format='%h %s' --no-show-signature 2>/dev/null)
-    if [[ -n "$(command git --no-optional-locks status --porcelain 2>/dev/null)" ]]; then
-      dirty="*"
+    local conflicted stashed deleted renamed modified staged untracked
+    local line index_status worktree_status
+    if command git rev-parse --verify --quiet refs/stash >/dev/null 2>&1; then
+      stashed='$'
+    fi
+    for line in "${(@f)$(command git --no-optional-locks status --porcelain=v1 2>/dev/null)}"; do
+      index_status="${line[1,1]}"
+      worktree_status="${line[2,2]}"
+
+      if [[ "$index_status$worktree_status" == "??" ]]; then
+        untracked="?"
+        continue
+      fi
+      if [[ "$index_status" == "U" || "$worktree_status" == "U" || "$index_status$worktree_status" == "AA" || "$index_status$worktree_status" == "DD" ]]; then
+        conflicted="="
+      fi
+      if [[ "$index_status" == "D" || "$worktree_status" == "D" ]]; then
+        deleted="✘"
+      fi
+      if [[ "$index_status" == "R" ]]; then
+        renamed="»"
+      fi
+      if [[ "$index_status" == "A" || "$index_status" == "M" ]]; then
+        staged="+"
+      fi
+      if [[ "$worktree_status" == "M" || "$worktree_status" == "T" ]]; then
+        modified="!"
+      fi
+    done
+    git_status="${conflicted}${stashed}${deleted}${renamed}${modified}${staged}${untracked}"
+    if [[ -n "$git_status" ]]; then
+      git_status="[$git_status]"
     fi
 
     if [[ -n "$branch" ]]; then
-      title="$title | $branch$dirty"
-    fi
-    if [[ -n "$commit" ]]; then
-      title="$title | $commit"
+      title="$title | $branch$git_status"
     fi
   fi
 
   if (( last_status != 0 )); then
-    title="✘ $last_status | $title"
+    title="❯ $last_status | $title"
   fi
 
   _dot_set_terminal_title "$title"
