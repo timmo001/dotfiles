@@ -146,6 +146,7 @@ Modes:
   --list-all       Pipe-delimited list of all tracked repos (name|path)
 
 Options:
+  --no-fetch                       Skip fetching from remotes (use local refs only)
   --tab <changed|other|unchanged>  Initial pane to focus in TUI (default: changed)
   --help, -h                       Show this help message
 

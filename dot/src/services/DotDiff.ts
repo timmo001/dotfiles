@@ -1,6 +1,12 @@
 import { Context, Effect, Layer, Schema } from "effect";
-import { existsSync } from "fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "fs";
 import { basename, join } from "path";
+import { createHash } from "crypto";
 import type { DiffRepo, Repo } from "../types.js";
 import { CommandExecutor } from "./CommandExecutor.js";
 import { Config, type ExtraRepo } from "./Config.js";
@@ -9,6 +15,63 @@ const DEBUG = !!process.env.DOT_DEBUG;
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot:DotDiff] ${msg}`);
 };
+
+// ---------------------------------------------------------------------------
+// Fetch TTL cache (port of fetch_repo_upstream from dot-legacy)
+// ---------------------------------------------------------------------------
+
+const FETCH_TTL_SECONDS = parseInt(
+  process.env.DOT_FETCH_TTL_SECONDS ?? "300",
+  10,
+);
+const FETCH_CACHE_DIR = join(
+  process.env.XDG_CACHE_HOME ?? join(process.env.HOME ?? "", ".cache"),
+  "dot",
+  "fetch-upstream",
+);
+
+/** Check if a fetch is needed based on TTL cache */
+function shouldFetch(repoPath: string, upstreamRef: string): boolean {
+  if (FETCH_TTL_SECONDS <= 0) return true;
+
+  mkdirSync(FETCH_CACHE_DIR, { recursive: true });
+  const cacheKey = createHash("sha1")
+    .update(`${repoPath}\n${upstreamRef}\n`)
+    .digest("hex");
+  const cacheFile = join(FETCH_CACHE_DIR, cacheKey);
+
+  try {
+    const lastAttempt = parseInt(readFileSync(cacheFile, "utf-8").trim(), 10);
+    if (!isNaN(lastAttempt)) {
+      const now = Math.floor(Date.now() / 1000);
+      if (now - lastAttempt < FETCH_TTL_SECONDS) {
+        log(`${repoPath}: fetch cache hit (${now - lastAttempt}s < ${FETCH_TTL_SECONDS}s TTL)`);
+        return false;
+      }
+    }
+  } catch {
+    // Cache miss or unreadable — proceed with fetch
+  }
+
+  return true;
+}
+
+/** Record a fetch attempt timestamp in the TTL cache */
+function recordFetch(repoPath: string, upstreamRef: string): void {
+  if (FETCH_TTL_SECONDS <= 0) return;
+
+  try {
+    mkdirSync(FETCH_CACHE_DIR, { recursive: true });
+    const cacheKey = createHash("sha1")
+      .update(`${repoPath}\n${upstreamRef}\n`)
+      .digest("hex");
+    const cacheFile = join(FETCH_CACHE_DIR, cacheKey);
+    const now = Math.floor(Date.now() / 1000);
+    writeFileSync(cacheFile, `${now}\n`);
+  } catch {
+    // Non-fatal — cache write failure doesn't block diff
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Cron schedule matching (port of dot-cron-lib)
@@ -91,14 +154,24 @@ export class DotDiffError extends Schema.TaggedErrorClass<DotDiffError>()(
   },
 ) {}
 
+/** Options for controlling diff scan behaviour */
+export interface DiffScanOptions {
+  /** Skip fetching from remotes (use local tracking refs only) */
+  readonly noFetch?: boolean;
+}
+
 /** Service interface for computing diff state across tracked repositories */
 interface DotDiffService {
   /** List repositories that have uncommitted or unpushed changes */
-  readonly listChanged: () => Effect.Effect<readonly Repo[], DotDiffError>;
-  /** List all tracked repositories */
+  readonly listChanged: (
+    opts?: DiffScanOptions,
+  ) => Effect.Effect<readonly Repo[], DotDiffError>;
+  /** List all tracked repositories (lightweight, no git scan) */
   readonly listAll: () => Effect.Effect<readonly Repo[], DotDiffError>;
   /** Get enriched diff state for all tracked repositories */
-  readonly getAll: () => Effect.Effect<readonly DiffRepo[], DotDiffError>;
+  readonly getAll: (
+    opts?: DiffScanOptions,
+  ) => Effect.Effect<readonly DiffRepo[], DotDiffError>;
 }
 
 /** Effect service for {@link DotDiffService} */
@@ -218,6 +291,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
       const scanRepo = Effect.fn("DotDiff.scanRepo")(function* (
         name: string,
         repoPath: string,
+        opts?: DiffScanOptions,
       ): Effect.fn.Return<DiffRepo | null, DotDiffError> {
         if (!isGitRepo(repoPath)) {
           log(`${name}: not a git repo, skipping`);
@@ -248,6 +322,38 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
         );
 
         if (hasUpstream === 0) {
+          // Fetch from remote to ensure tracking ref is up to date (TTL-cached)
+          if (!opts?.noFetch) {
+            const upstreamRef = yield* executor
+              .run("git", ["rev-parse", "--abbrev-ref", "@{u}"], {
+                cwd: repoPath,
+              })
+              .pipe(Effect.catch(() => Effect.succeed("")));
+
+            const trimmedRef = upstreamRef.trim();
+            if (trimmedRef && shouldFetch(repoPath, trimmedRef)) {
+              const [remoteName] = trimmedRef.split("/", 1);
+              const remoteBranch = trimmedRef.slice(remoteName.length + 1);
+              const fetchExit = yield* executor
+                .exitCode(
+                  "git",
+                  ["fetch", "--quiet", remoteName, remoteBranch],
+                  { cwd: repoPath },
+                )
+                .pipe(Effect.catch(() => Effect.succeed(1)));
+
+              // Fallback: fetch without branch if specific branch fetch failed
+              if (fetchExit !== 0) {
+                yield* executor
+                  .exitCode("git", ["fetch", "--quiet", remoteName], {
+                    cwd: repoPath,
+                  })
+                  .pipe(Effect.catch(() => Effect.succeed(1)));
+              }
+              recordFetch(repoPath, trimmedRef);
+            }
+          }
+
           const aheadStr = yield* executor
             .run("git", ["rev-list", "--count", "@{u}..HEAD"], {
               cwd: repoPath,
@@ -267,15 +373,14 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
       });
 
       /** Get all repos with enriched diff state */
-      const getAll = Effect.fn("DotDiff.getAll")(function* (): Effect.fn.Return<
-        readonly DiffRepo[],
-        DotDiffError
-      > {
+      const getAll = Effect.fn("DotDiff.getAll")(function* (
+        opts?: DiffScanOptions,
+      ): Effect.fn.Return<readonly DiffRepo[], DotDiffError> {
         const repoList = buildRepoList();
         log(`Scanning ${repoList.length} repositories...`);
 
         const results = yield* Effect.all(
-          repoList.map((r) => scanRepo(r.name, r.path)),
+          repoList.map((r) => scanRepo(r.name, r.path, opts)),
           { concurrency: 4 },
         );
 
@@ -285,7 +390,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
       });
 
       return {
-        getAll: () => getAll(),
+        getAll: (opts) => getAll(opts),
         listAll: () =>
           Effect.gen(function* () {
             const repoList = buildRepoList();
@@ -293,9 +398,9 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
               .filter((r) => isGitRepo(r.path))
               .map((r) => ({ name: r.name, path: r.path, locked: false }));
           }),
-        listChanged: () =>
+        listChanged: (opts) =>
           Effect.gen(function* () {
-            const all = yield* getAll();
+            const all = yield* getAll(opts);
             return all
               .filter((r) => r.isDirty || r.ahead > 0 || r.behind > 0)
               .map((r) => ({ name: r.name, path: r.path, locked: false }));

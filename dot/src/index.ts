@@ -159,11 +159,13 @@ if (mode.type === "fallback") {
   // Run a natively-ported command with CLI layers
   const resolveDiff = (
     args: readonly string[],
-  ): Effect.Effect<void, never, DotDiff | Config | OutputLog> => {
-    if (args.includes("--waybar")) return diffWaybar;
-    if (args.includes("--list-changed")) return diffListChanged;
+  ): Effect.Effect<void, never, DotDiff | Config | OutputLog | CommandExecutor> => {
+    const noFetch = args.includes("--no-fetch");
+    const opts = noFetch ? { noFetch: true } : undefined;
+    if (args.includes("--waybar")) return diffWaybar(opts);
+    if (args.includes("--list-changed")) return diffListChanged(opts);
     if (args.includes("--list-all")) return diffListAll;
-    return diffRaw;
+    return diffRaw(opts);
   };
 
   const resolveNative = (command: string, args: readonly string[]) => {
