@@ -92,6 +92,7 @@ export const checkStow = Effect.gen(function* () {
           results.push({
             severity: "warn",
             message: `Stow package '${folder}' in ${displayPath(repoDir)} needs restow`,
+            detail: "Run on this machine: dot stow",
           });
         }
       }

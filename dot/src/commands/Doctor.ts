@@ -88,6 +88,9 @@ export const doctor = (opts?: { readonly openOpencode?: boolean }) =>
         yield* log.info(`  ${section.name}`);
         for (const r of errors) {
           yield* log.error(`    ${r.message}`);
+          if (r.detail) {
+            yield* log.info(`      ${r.detail}`);
+          }
         }
       }
     }

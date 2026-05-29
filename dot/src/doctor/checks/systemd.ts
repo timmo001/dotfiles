@@ -30,16 +30,24 @@ function pathExistsOrSymlink(path: string): boolean {
   }
 }
 
+function obsoletePathCleanupDetail(
+  path: string,
+  removalFlag: "-f" | "-rf",
+): string {
+  return `Remove on this machine after updating dotfiles: rm ${removalFlag} ${displayPath(path)}`;
+}
+
 function addObsoletePathCheck(
   results: CheckResult[],
   path: string,
   label: string,
+  removalFlag: "-f" | "-rf" = "-f",
 ): void {
   if (pathExistsOrSymlink(path)) {
     results.push({
       severity: "error",
       message: `Obsolete ${label} still exists: ${displayPath(path)}`,
-      detail: "Remove the legacy workflow notification watcher leftovers",
+      detail: obsoletePathCleanupDetail(path, removalFlag),
     });
   } else {
     results.push({
@@ -55,6 +63,7 @@ const checkObsoleteUserUnit = (
   unit: string,
 ) =>
   Effect.gen(function* () {
+    const cleanupDetail = `Run on this machine: systemctl --user disable --now ${LEGACY_WORKFLOW_WATCH_TIMER_UNIT} ${LEGACY_WORKFLOW_WATCH_SERVICE_UNIT}; systemctl --user reset-failed ${LEGACY_WORKFLOW_WATCH_TIMER_UNIT} ${LEGACY_WORKFLOW_WATCH_SERVICE_UNIT}; systemctl --user daemon-reload`;
     const enabled = yield* executor.exitCode("systemctl", [
       "--user",
       "is-enabled",
@@ -64,7 +73,7 @@ const checkObsoleteUserUnit = (
       results.push({
         severity: "error",
         message: `Obsolete workflow watch unit is still enabled: ${unit}`,
-        detail: `Run: systemctl --user disable --now ${unit}`,
+        detail: cleanupDetail,
       });
     } else {
       results.push({
@@ -82,7 +91,7 @@ const checkObsoleteUserUnit = (
       results.push({
         severity: "error",
         message: `Obsolete workflow watch unit is still active: ${unit}`,
-        detail: `Run: systemctl --user disable --now ${unit}`,
+        detail: cleanupDetail,
       });
     } else {
       results.push({
@@ -178,7 +187,12 @@ export const checkWorkflowRuns = Effect.gen(function* () {
     LEGACY_WORKFLOW_WATCH_TIMER_UNIT,
   );
 
-  addObsoletePathCheck(results, legacyHooksPath, "workflow watch hooks path");
+  addObsoletePathCheck(
+    results,
+    legacyHooksPath,
+    "workflow watch hooks path",
+    "-rf",
+  );
   addObsoletePathCheck(results, legacyWatchScript, "workflow watch script");
   addObsoletePathCheck(
     results,
@@ -203,7 +217,7 @@ export const checkWorkflowRuns = Effect.gen(function* () {
     results.push({
       severity: "error",
       message: `Global git hooksPath still points to obsolete workflow watch hooks: ${displayPath(legacyHooksPath)}`,
-      detail: "Run: git config --global --unset core.hooksPath",
+      detail: "Run on this machine: git config --global --unset core.hooksPath",
     });
   } else if (trimmedHooksPath) {
     results.push({
@@ -330,6 +344,8 @@ export const checkWorkflowRuns = Effect.gen(function* () {
       results.push({
         severity: "error",
         message: `Active Waybar config still references obsolete git-workflow-watch: ${displayPath(waybarConfig)}`,
+        detail:
+          "Update/re-stow the Waybar config on this machine, or remove the legacy git-workflow-watch module/action references from the active Waybar config",
       });
     } else {
       results.push({
