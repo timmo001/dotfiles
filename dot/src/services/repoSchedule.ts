@@ -53,7 +53,9 @@ export function workflowSlugVisible(
   extraRepos: readonly ExtraRepo[],
   now: Date = new Date(),
 ): boolean {
-  const repo = findWorkflowExtraRepo(slug, extraRepos);
+  const repo = extraRepos.find((extraRepo) =>
+    extraRepoScheduleMatchesGithubSlug(extraRepo, slug),
+  );
   return repo ? extraRepoVisible(repo, now) : true;
 }
 
@@ -72,9 +74,22 @@ function extraRepoMatchesGithubSlug(repo: ExtraRepo, slug: string): boolean {
   if (!parsed) return false;
 
   const repoName = normalizeSlug(repo.name);
-  if (repoName === parsed.slug || repoName === `${parsed.owner}/*`) return true;
+  if (repoName === parsed.slug) return true;
 
   return repoPathSlug(repo.path) === parsed.slug;
+}
+
+function extraRepoScheduleMatchesGithubSlug(
+  repo: ExtraRepo,
+  slug: string,
+): boolean {
+  const parsed = parseOwnerRepo(slug);
+  if (!parsed) return false;
+
+  const repoName = normalizeSlug(repo.name);
+  return (
+    repoName === `${parsed.owner}/*` || extraRepoMatchesGithubSlug(repo, slug)
+  );
 }
 
 function cronFieldPartMatches(

@@ -9,7 +9,11 @@ import type {
 } from "../types.js";
 import { CommandExecutor } from "./CommandExecutor.js";
 import { Config, type ExtraRepo } from "./Config.js";
-import { findWorkflowExtraRepo, workflowSlugVisible } from "./repoSchedule.js";
+import {
+  extraRepoVisible,
+  findWorkflowExtraRepo,
+  workflowSlugVisible,
+} from "./repoSchedule.js";
 
 const HOME = process.env.HOME ?? `/home/${process.env.USER ?? ""}`;
 const RUN_LIMIT = 100;
@@ -30,11 +34,27 @@ interface WatchlistResult {
   readonly message?: string;
 }
 
+interface WorkflowTarget {
+  readonly slug: string;
+  readonly checkoutPath: string | null;
+  readonly error?: string;
+}
+
+interface ResolvedWatchlist {
+  readonly targets: readonly WorkflowTarget[];
+  readonly message?: string;
+}
+
 interface CommitInfo {
   readonly sha: string;
   readonly branch: string;
   readonly subject: string | null;
   readonly url: string | null;
+}
+
+interface WorkflowCheckoutCandidate {
+  readonly path: string;
+  readonly visible: boolean;
 }
 
 interface GhRunRecord {
@@ -62,10 +82,7 @@ export class WorkflowRuns extends Context.Service<
       const executor = yield* CommandExecutor;
       const pubsub = yield* PubSub.unbounded<WorkflowState>();
 
-      const initialWatchlist = applyExtraRepoSchedules(
-        readWatchlist(getWatchlistPath(config)),
-        config.extraRepos,
-      );
+      const initialWatchlist = readWatchlist(getWatchlistPath(config));
       let currentState = buildState(
         initialWatchlist.slugs.map(emptyRepo),
         new Date(yield* Clock.currentTimeMillis),
@@ -74,18 +91,19 @@ export class WorkflowRuns extends Context.Service<
         initialWatchlist.message,
       );
 
-      const fetchRepoRuns = Effect.fn("WorkflowRuns.fetchRepoRuns")(function* (
-        slug: string,
-      ) {
-        const checkout = findWorkflowExtraRepo(slug, config.extraRepos);
-        if (!checkout) {
+      const fetchRepoRuns = Effect.fn("WorkflowRuns.fetchRepoRuns")(function* ({
+        slug,
+        checkoutPath,
+        error,
+      }: WorkflowTarget) {
+        if (!checkoutPath) {
           return {
             ...emptyRepo(slug),
-            error: "local checkout not found in .dot-extra-repos",
+            error: error ?? "local checkout not found in .dot-extra-repos",
           };
         }
 
-        const commit = yield* getHeadCommit(slug, checkout.path);
+        const commit = yield* getHeadCommit(slug, checkoutPath);
         const runs = yield* getRuns(slug, commit.branch, commit.sha);
 
         return {
@@ -159,28 +177,73 @@ export class WorkflowRuns extends Context.Service<
         return parsed.filter(isRunRecord).map(toWorkflowRun);
       });
 
+      const resolveWorkflowTarget = Effect.fn(
+        "WorkflowRuns.resolveWorkflowTarget",
+      )(function* (slug: string) {
+        if (!workflowSlugVisible(slug, config.extraRepos)) return null;
+
+        const directMatch = findWorkflowExtraRepo(slug, config.extraRepos);
+        const candidate = directMatch
+          ? { path: directMatch.path, visible: extraRepoVisible(directMatch) }
+          : yield* findConfiguredRepoByRemoteSlug(slug);
+        return workflowTargetFromCandidate(slug, candidate);
+      });
+
+      const findConfiguredRepoByRemoteSlug = Effect.fn(
+        "WorkflowRuns.findConfiguredRepoByRemoteSlug",
+      )(function* (slug: string) {
+        for (const repo of configuredRepoCandidates(config)) {
+          const remote = yield* executor
+            .run("git", ["config", "--get", "remote.origin.url"], {
+              cwd: repo.path,
+            })
+            .pipe(Effect.catch(() => Effect.succeed("")));
+          if (parseGithubRepoSlug(remote.trim()) === slug) return repo;
+        }
+
+        return undefined;
+      });
+
+      const resolveWatchlist = Effect.fn("WorkflowRuns.resolveWatchlist")(
+        function* (watchlist: WatchlistResult) {
+          const targets: readonly (WorkflowTarget | null)[] = yield* Effect.all(
+            watchlist.slugs.map((slug) => resolveWorkflowTarget(slug)),
+            { concurrency: 4 },
+          );
+          const visibleTargets = targets.filter(
+            (target): target is WorkflowTarget => target !== null,
+          );
+          return {
+            targets: visibleTargets,
+            message: resolvedWatchlistMessage(
+              watchlist.message,
+              watchlist.slugs.length,
+              visibleTargets.length,
+            ),
+          };
+        },
+      );
+
       const refresh = Effect.gen(function* () {
         log("Refreshing workflow runs...");
-        const watchlist = applyExtraRepoSchedules(
-          readWatchlist(getWatchlistPath(config)),
-          config.extraRepos,
-        );
+        const watchlist = readWatchlist(getWatchlistPath(config));
+        const resolved = yield* resolveWatchlist(watchlist);
         currentState = buildState(
-          watchlist.slugs.map(emptyRepo),
+          resolved.targets.map(targetToLoadingRepo),
           new Date(yield* Clock.currentTimeMillis),
           true,
           currentState.loaded,
-          watchlist.message,
+          resolved.message,
         );
         yield* PubSub.publish(pubsub, currentState);
 
-        if (watchlist.slugs.length === 0) {
+        if (resolved.targets.length === 0) {
           currentState = buildState(
             [],
             new Date(yield* Clock.currentTimeMillis),
             false,
             true,
-            watchlist.message,
+            resolved.message,
           );
           yield* PubSub.publish(pubsub, currentState);
           return;
@@ -189,25 +252,25 @@ export class WorkflowRuns extends Context.Service<
         const hasGh = (yield* executor.exitCode("which", ["gh"])) === 0;
         if (!hasGh) {
           currentState = buildState(
-            watchlist.slugs.map((slug) => ({
-              ...emptyRepo(slug),
+            resolved.targets.map((target) => ({
+              ...emptyRepo(target.slug),
               error: "gh CLI not found",
             })),
             new Date(yield* Clock.currentTimeMillis),
             false,
             true,
-            watchlist.message,
+            resolved.message,
           );
           yield* PubSub.publish(pubsub, currentState);
           return;
         }
 
         const repos = yield* Effect.all(
-          watchlist.slugs.map((slug) =>
-            fetchRepoRuns(slug).pipe(
+          resolved.targets.map((target) =>
+            fetchRepoRuns(target).pipe(
               Effect.catch((error) =>
                 Effect.succeed({
-                  ...emptyRepo(slug),
+                  ...emptyRepo(target.slug),
                   error: formatError(error),
                 }),
               ),
@@ -221,7 +284,7 @@ export class WorkflowRuns extends Context.Service<
           new Date(yield* Clock.currentTimeMillis),
           false,
           true,
-          watchlist.message,
+          resolved.message,
         );
         yield* PubSub.publish(pubsub, currentState);
         log(`Refresh complete: ${repos.length} watched repos`);
@@ -259,6 +322,30 @@ function getWatchlistPath(config: { readonly privateDotfiles: string | null }) {
   );
 }
 
+function configuredRepoCandidates(config: {
+  readonly publicDotfiles: string;
+  readonly privateDotfiles: string | null;
+  readonly notesDir: string | null;
+  readonly extraRepos: readonly ExtraRepo[];
+}): readonly WorkflowCheckoutCandidate[] {
+  const seen = new Set<string>();
+  const repos: WorkflowCheckoutCandidate[] = [];
+  const add = (repo: WorkflowCheckoutCandidate | null) => {
+    if (!repo || seen.has(repo.path)) return;
+    seen.add(repo.path);
+    repos.push(repo);
+  };
+
+  add({ path: config.publicDotfiles, visible: true });
+  if (config.privateDotfiles)
+    add({ path: config.privateDotfiles, visible: true });
+  if (config.notesDir) add({ path: config.notesDir, visible: true });
+  for (const repo of config.extraRepos) {
+    add({ path: repo.path, visible: extraRepoVisible(repo) });
+  }
+  return repos;
+}
+
 function readWatchlist(path: string): WatchlistResult {
   if (!existsSync(path)) {
     return {
@@ -294,35 +381,40 @@ function readWatchlist(path: string): WatchlistResult {
   }
 }
 
-function applyExtraRepoSchedules(
-  watchlist: WatchlistResult,
-  extraRepos: readonly ExtraRepo[],
-): WatchlistResult {
-  const visibleSlugs = watchlist.slugs.filter((slug) =>
-    workflowSlugVisible(slug, extraRepos),
-  );
-
-  if (visibleSlugs.length === watchlist.slugs.length) return watchlist;
-
-  const hiddenCount = watchlist.slugs.length - visibleSlugs.length;
+function targetToLoadingRepo(target: WorkflowTarget): WorkflowRepoRuns {
   return {
-    ...watchlist,
-    slugs: visibleSlugs,
-    message: scheduleHiddenMessage(
-      watchlist.message,
-      visibleSlugs.length,
-      hiddenCount,
-    ),
+    ...emptyRepo(target.slug),
+    ...(target.error && { error: target.error }),
   };
 }
 
-function scheduleHiddenMessage(
+function workflowTargetFromCandidate(
+  slug: string,
+  candidate: WorkflowCheckoutCandidate | undefined,
+): WorkflowTarget | null {
+  if (!candidate) {
+    return {
+      slug,
+      checkoutPath: null,
+      error: "local checkout not found in .dot-extra-repos",
+    };
+  }
+  return candidate.visible ? { slug, checkoutPath: candidate.path } : null;
+}
+
+function resolvedWatchlistMessage(
   currentMessage: string | undefined,
-  visibleCount: number,
-  hiddenCount: number,
+  watchedCount: number,
+  targetCount: number,
 ): string | undefined {
-  if (currentMessage || visibleCount > 0) return currentMessage;
-  return `${hiddenCount} watched repo${hiddenCount === 1 ? " is" : "s are"} hidden by schedule`;
+  if (currentMessage) return currentMessage;
+  if (targetCount > 0) return undefined;
+  if (watchedCount === 0) return undefined;
+  return `${watchedCount} watched ${hiddenRepoPhrase(watchedCount)} hidden by schedule`;
+}
+
+function hiddenRepoPhrase(count: number): string {
+  return count === 1 ? "repo is" : "repos are";
 }
 
 function parseGithubRepoSlug(value: string): string | null {
