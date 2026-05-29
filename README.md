@@ -79,7 +79,7 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 - Private dotfiles provide the watchlist in `~/.config/dotfiles-private/.git-workflow-watch-repos`
 - The global hook queues pushed commits only for watched GitHub repositories and only when the commit matches the local git identity
 - The watcher polls `gh run list --commit <sha>` and sends one desktop notification per workflow run as each run completes
-- `dot workflows` reads the same watchlist and shows watched repos on the left, with workflow runs for the selected locally checked-out HEAD commit on the right; `dot workflows --waybar --since "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"` emits one-line Waybar JSON for runs created, rerun, or updated in the window, and `--list-repos`/`--list-runs` emit pipe-friendly listings
+- `dot workflows` reads the same watchlist and shows watched repos on the left, with workflow runs for the selected locally checked-out HEAD commit on the right; disabled workflows are hidden; `dot workflows --waybar --since "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"` emits one-line Waybar JSON for runs created, rerun, or updated in the window, and `--list-repos`/`--list-runs` emit pipe-friendly listings
 - The Waybar workflow module refreshes `dot workflows --waybar --since <one-hour-ago>` through its own short-lived cache; left click opens the filtered TUI and right click refreshes the cache
 - `dot init`, `dot install`, and `dot update` configure the global `core.hooksPath` and enable `git-workflow-watch.timer`; `dot stow` only links files
 - `dot doctor` verifies the hooks path, watchlist file, timer state, and active Waybar workflow-runs module wiring

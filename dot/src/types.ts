@@ -64,6 +64,8 @@ export type WorkflowRunStatus =
 export interface WorkflowRun {
   /** Stable GitHub run database ID */
   readonly id: string;
+  /** GitHub workflow database ID for filtering disabled workflow runs */
+  readonly workflowId: string | null;
   /** Workflow display name */
   readonly workflowName: string;
   /** Run title, usually the commit subject or workflow-provided title */

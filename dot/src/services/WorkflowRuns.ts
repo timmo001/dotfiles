@@ -63,6 +63,7 @@ interface WorkflowCheckoutCandidate {
 
 interface GhRunRecord {
   readonly databaseId?: unknown;
+  readonly workflowDatabaseId?: unknown;
   readonly status?: unknown;
   readonly conclusion?: unknown;
   readonly workflowName?: unknown;
@@ -72,6 +73,11 @@ interface GhRunRecord {
   readonly createdAt?: unknown;
   readonly startedAt?: unknown;
   readonly updatedAt?: unknown;
+}
+
+interface GhWorkflowRecord {
+  readonly id?: unknown;
+  readonly state?: unknown;
 }
 
 /** Effect service for {@link WorkflowRunsService} */
@@ -160,6 +166,7 @@ export class WorkflowRuns extends Context.Service<
         sha: string,
         opts?: WorkflowRunQueryOptions,
       ) {
+        const activeWorkflowIds = yield* getActiveWorkflowIds(slug);
         const raw = yield* executor.run(
           "gh",
           runListArgs(slug, branch, sha, opts),
@@ -173,7 +180,29 @@ export class WorkflowRuns extends Context.Service<
         return parsed
           .filter(isRunRecord)
           .map(toWorkflowRun)
+          .filter((run) => runMatchesActiveWorkflow(run, activeWorkflowIds))
           .filter((run) => runMatchesSince(run, opts?.since));
+      });
+
+      const getActiveWorkflowIds = Effect.fn(
+        "WorkflowRuns.getActiveWorkflowIds",
+      )(function* (slug: string) {
+        const raw = yield* executor.run("gh", workflowListArgs(slug));
+        const parsed = yield* Effect.try({
+          try: () => JSON.parse(raw) as unknown,
+          catch: (error) =>
+            error instanceof Error ? error : new Error(String(error)),
+        });
+
+        return new Set(
+          Array.isArray(parsed)
+            ? parsed
+                .filter(isWorkflowRecord)
+                .filter(workflowIsActive)
+                .map(workflowId)
+                .filter((id): id is string => id !== null)
+            : [],
+        );
       });
 
       const runListArgs = (
@@ -194,10 +223,22 @@ export class WorkflowRuns extends Context.Service<
           "--limit",
           String(RUN_LIMIT),
           "--json",
-          "databaseId,status,conclusion,workflowName,displayTitle,url,event,createdAt,startedAt,updatedAt",
+          "databaseId,workflowDatabaseId,status,conclusion,workflowName,displayTitle,url,event,createdAt,startedAt,updatedAt",
         ];
         return args;
       };
+
+      const workflowListArgs = (slug: string): readonly string[] => [
+        "workflow",
+        "list",
+        "--repo",
+        slug,
+        "--all",
+        "--limit",
+        "1000",
+        "--json",
+        "id,state",
+      ];
 
       const resolveWorkflowTarget = Effect.fn(
         "WorkflowRuns.resolveWorkflowTarget",
@@ -500,6 +541,10 @@ function isRunRecord(value: unknown): value is GhRunRecord {
   return isRecord(value);
 }
 
+function isWorkflowRecord(value: unknown): value is GhWorkflowRecord {
+  return isRecord(value);
+}
+
 function toWorkflowRun(record: GhRunRecord): WorkflowRun {
   const id =
     typeof record.databaseId === "number" ||
@@ -511,6 +556,7 @@ function toWorkflowRun(record: GhRunRecord): WorkflowRun {
 
   return {
     id,
+    workflowId: nullableIdValue(record.workflowDatabaseId),
     workflowName,
     displayTitle,
     status: normalizeStatus(stringValue(record.status)),
@@ -521,6 +567,21 @@ function toWorkflowRun(record: GhRunRecord): WorkflowRun {
     startedAt: nullableStringValue(record.startedAt),
     updatedAt: nullableStringValue(record.updatedAt),
   };
+}
+
+function workflowId(record: GhWorkflowRecord): string | null {
+  return nullableIdValue(record.id);
+}
+
+function workflowIsActive(record: GhWorkflowRecord): boolean {
+  return record.state === "active";
+}
+
+function runMatchesActiveWorkflow(
+  run: WorkflowRun,
+  activeWorkflowIds: ReadonlySet<string>,
+): boolean {
+  return run.workflowId === null || activeWorkflowIds.has(run.workflowId);
 }
 
 function runMatchesSince(run: WorkflowRun, since: string | undefined): boolean {
@@ -548,6 +609,12 @@ function stringValue(value: unknown): string {
 
 function nullableStringValue(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function nullableIdValue(value: unknown): string | null {
+  return typeof value === "number" || typeof value === "string"
+    ? String(value)
+    : null;
 }
 
 function normalizeStatus(status: string): WorkflowRunStatus {

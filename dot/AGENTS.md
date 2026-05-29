@@ -261,7 +261,7 @@ The build is also triggered by `dot update`.
 ## External Dependencies
 
 - `~/.cache/waybar/dot-diff-waybar.json` — Waybar cache for fast startup
-- `~/.config/dotfiles-private/.git-workflow-watch-repos` — watched GitHub repos for the workflows view and workflow notifications; `dot workflows` applies matching `.dot-extra-repos` schedules before querying GitHub and supports `--since <date>` for activity-time filtering
+- `~/.config/dotfiles-private/.git-workflow-watch-repos` — watched GitHub repos for the workflows view and workflow notifications; `dot workflows` applies matching `.dot-extra-repos` schedules before querying GitHub, hides disabled workflows, and supports `--since <date>` for activity-time filtering
 - `lazygit` — launched via suspend/resume on Enter in diff view
 - `opencode` — CLI for model discovery; SDK for AI commit suggestions
 - `@opencode-ai/sdk` — OpenCode SDK for programmatic session/prompt calls
