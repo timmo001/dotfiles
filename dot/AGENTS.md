@@ -66,6 +66,7 @@ src/
     OutputLog.ts          — Scrollable output log service
     Renderer.ts           — OpenTUI renderer service
     RepoWatcher.ts        — Hybrid poll loop (Waybar cache → 10s poll), PubSub state
+    WorkflowRuns.ts       — Watched GitHub Actions run state for default-branch HEAD commits
     Toast.ts              — Toast notification overlay service
     WaybarCache.ts        — Waybar cache JSON reader for fast startup
   tui/
@@ -73,6 +74,7 @@ src/
     MainMenu.ts           — SelectRenderable menu built from menu registry
     MenuList.ts           — Reusable menu list renderable
     DiffView.ts           — Two-pane layout (Changed/Other) with repo watcher
+    WorkflowRunsView.ts   — Two-pane watched GitHub workflow runs view
     OmarchyMenu.ts        — Inline omarchy submenu tree with breadcrumb navigation
     VariantPopup.ts       — Centred popup overlay for menu item variant selection
     Lazygit.ts            — Suspend/resume lazygit spawn
@@ -97,7 +99,7 @@ src/
 1. `index.ts` parses CLI flags → resolves mode (TUI / native / fallback)
 2. Native commands run with `CliLayers` (no renderer, no TUI)
 3. TUI mode composes full layer stack including RepoWatcher, GitStaging, CommitSuggest, Renderer, Toast
-4. `App` manages a view stack (main menu ↔ diff view ↔ omarchy menu ↔ staging view ↔ commit view)
+4. `App` manages a view stack (main menu ↔ diff view ↔ workflows view ↔ omarchy menu ↔ staging view ↔ commit view)
 5. Menu items have typed actions: `command` (suspend/resume), `silent` (background), `notify` (background + toast), `view` (navigate), `submenu` (nested)
 6. `CommandRunner` handles suspend/resume for terminal commands, silent background execution, and notify-style commands with toast feedback
 7. `RepoWatcher` loads Waybar cache for instant diff first paint, then polls every 10s
@@ -139,6 +141,7 @@ MenuItem action types:
 dot                           # Main menu (TUI)
 dot diff                      # Diff view (TUI)
 dot diff --tab other          # Diff view, Other tab focused (TUI)
+dot workflows                 # Watched GitHub workflow runs view (TUI)
 dot diff --raw                # CLI diff output (no TUI)
 dot diff --waybar             # Machine-readable JSON for Waybar
 dot diff --list-changed       # Pipe-friendly changed repo list
@@ -184,6 +187,16 @@ The build is also triggered by `dot update`.
 |-----|--------|
 | `↑↓` / typing | Navigate/filter list |
 | `Enter` | Select item (opens variant popup if variants exist) |
+| `Ctrl+c` | Quit |
+
+### Workflows View
+| Key | Action |
+|-----|--------|
+| `↑↓` | Navigate active pane |
+| `Tab` | Switch between Repos/Runs pane |
+| `Enter` | Focus runs from Repos, open selected run from Runs |
+| `r` | Refresh workflow runs |
+| `Esc/Backspace` | Back to main menu |
 | `Ctrl+c` | Quit |
 
 ### Variant Popup
@@ -241,6 +254,7 @@ The build is also triggered by `dot update`.
 ## External Dependencies
 
 - `~/.cache/waybar/dot-diff-waybar.json` — Waybar cache for fast startup
+- `~/.config/dotfiles-private/.git-workflow-watch-repos` — watched GitHub repos for the workflows view and workflow notifications
 - `lazygit` — launched via suspend/resume on Enter in diff view
 - `opencode` — CLI for model discovery; SDK for AI commit suggestions
 - `@opencode-ai/sdk` — OpenCode SDK for programmatic session/prompt calls

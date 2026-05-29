@@ -230,6 +230,7 @@ if (mode.type === "native") {
   const { Toast } = await import("./services/Toast.js");
   const { WaybarCache } = await import("./services/WaybarCache.js");
   const { RepoWatcher } = await import("./services/RepoWatcher.js");
+  const { WorkflowRuns } = await import("./services/WorkflowRuns.js");
   const { GitStaging } = await import("./services/GitStaging.js");
   const { CommitSuggest } = await import("./services/CommitSuggest.js");
   const { shutdownServer } = await import("./services/OpenCodeServer.js");
@@ -243,6 +244,7 @@ if (mode.type === "native") {
   const tuiProgram = Effect.gen(function* () {
     log("Starting...");
     const watcher = yield* RepoWatcher;
+    const workflows = yield* WorkflowRuns;
     const gitStaging = yield* GitStaging;
     const commitSuggest = yield* CommitSuggest;
     const renderer = yield* Renderer;
@@ -262,6 +264,9 @@ if (mode.type === "native") {
         onRefreshDiff: () => {
           Effect.runFork(watcher.refresh());
         },
+        onRefreshWorkflows: () => {
+          Effect.runFork(workflows.refresh());
+        },
       },
       {
         initialView,
@@ -272,6 +277,7 @@ if (mode.type === "native") {
     log("App created");
 
     const diffView = app.getDiffView();
+    const workflowsView = app.getWorkflowsView();
 
     // Subscribe to watcher state changes and update the diff view
     yield* watcher.subscribe().pipe(
@@ -287,12 +293,27 @@ if (mode.type === "native") {
     );
     log("Subscribed to state stream");
 
+    // Subscribe to workflow state changes and update the workflows view
+    yield* workflows.subscribe().pipe(
+      Stream.runForEach((state) =>
+        Effect.sync(() => {
+          log(`Workflow update: ${state.repos.length} watched repos`);
+          workflowsView.update(state);
+        }),
+      ),
+      Effect.forkScoped,
+    );
+    log("Subscribed to workflow stream");
+
     // Push current state immediately for first paint
     const initialState = yield* watcher.getState();
     log(
       `Initial state: ${initialState.changed.length} changed, ${initialState.unchanged.length} unchanged`,
     );
     diffView.update(initialState);
+
+    const initialWorkflowState = yield* workflows.getState();
+    workflowsView.update(initialWorkflowState);
 
     // Resize window if floating on Hyprland
     yield* resizeIfFloating(500, 600);
@@ -309,6 +330,7 @@ if (mode.type === "native") {
   const theme = Effect.runSync(loadTheme);
 
   const TuiLayers = RepoWatcher.layer.pipe(
+    Layer.provideMerge(WorkflowRuns.layer),
     Layer.provideMerge(DotDiff.layer),
     Layer.provideMerge(WaybarCache.layer),
     Layer.provideMerge(GitStaging.layer),

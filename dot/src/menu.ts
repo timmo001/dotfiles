@@ -98,6 +98,16 @@ const dotItems: readonly MenuItem[] = [
     "Dotfiles",
   ),
   item(
+    "workflows",
+    "󰜎",
+    "Workflows",
+    "Watched GitHub workflow runs",
+    view("workflows"),
+    undefined,
+    ["github", "actions", "runs", "ci", "watch", "watched", "workflow"],
+    "Dotfiles",
+  ),
+  item(
     "stow",
     "󰏗",
     "Stow",

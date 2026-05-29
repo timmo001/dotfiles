@@ -1,5 +1,11 @@
 import type { CliRenderer } from "@opentui/core";
-import type { ViewId, MenuItem, MenuAction, Repo } from "../types.js";
+import type {
+  ViewId,
+  MenuItem,
+  MenuAction,
+  Repo,
+  WorkflowRun,
+} from "../types.js";
 import type { Theme } from "../theme.js";
 import { menuItemsById, submenus } from "../menu.js";
 import type { CommandRunnerService } from "../services/CommandRunner.js";
@@ -7,6 +13,7 @@ import type { GitStagingService } from "../services/GitStaging.js";
 import type { CommitSuggestService } from "../services/CommitSuggest.js";
 import { MainMenu } from "./MainMenu.js";
 import { DiffView } from "./DiffView.js";
+import { WorkflowRunsView } from "./WorkflowRunsView.js";
 import { OmarchyMenu } from "./OmarchyMenu.js";
 import { StagingView } from "./StagingView.js";
 import { CommitView } from "./CommitView.js";
@@ -48,6 +55,8 @@ export interface AppDeps {
   readonly commitSuggest: CommitSuggestService;
   /** Callback to trigger an immediate diff refresh (wired to RepoWatcher) */
   readonly onRefreshDiff: () => void;
+  /** Callback to trigger an immediate workflow refresh */
+  readonly onRefreshWorkflows: () => void;
 }
 
 /** Top-level TUI application shell managing a view stack and global keyboard */
@@ -56,6 +65,7 @@ export class App {
   private commandRunner: CommandRunnerService;
   private mainMenu: MainMenu;
   private diffView: DiffView;
+  private workflowsView: WorkflowRunsView;
   private omarchyMenu: OmarchyMenu;
   private stagingView: StagingView;
   private commitView: CommitView;
@@ -142,6 +152,19 @@ export class App {
       onBack: () => this.popView(),
     });
 
+    this.workflowsView = new WorkflowRunsView(deps.renderer, deps.theme, {
+      onRefresh: () => deps.onRefreshWorkflows(),
+      onOpenRun: (run: WorkflowRun) => {
+        if (!run.url) return;
+        deps.commandRunner
+          .runSilent(`xdg-open ${shellQuote(run.url)}`)
+          .catch((err) => {
+            log(`Open workflow run error: ${err}`);
+          });
+      },
+      onBack: () => this.popView(),
+    });
+
     this.omarchyMenu = new OmarchyMenu(deps.renderer, deps.theme, {
       onAction: (item) => this.handleMenuAction(item),
       onBack: () => this.popView(),
@@ -205,6 +228,7 @@ export class App {
     // --- Hide all views initially ---
     this.mainMenu.setVisible(false);
     this.diffView.setVisible(false);
+    this.workflowsView.setVisible(false);
     this.omarchyMenu.setVisible(false);
     this.stagingView.setVisible(false);
     this.commitView.setVisible(false);
@@ -282,6 +306,11 @@ export class App {
     return this.diffView;
   }
 
+  /** Get the workflow runs view for direct state updates from the watcher */
+  getWorkflowsView(): WorkflowRunsView {
+    return this.workflowsView;
+  }
+
   /** Get the output pane for streaming command output */
   getOutputPane(): OutputPane {
     return this.outputPane;
@@ -293,6 +322,7 @@ export class App {
     // Hide all
     this.mainMenu.setVisible(false);
     this.diffView.setVisible(false);
+    this.workflowsView.setVisible(false);
     this.omarchyMenu.setVisible(false);
     this.stagingView.setVisible(false);
     this.commitView.setVisible(false);
@@ -311,6 +341,11 @@ export class App {
         setTerminalTitle("Dot TUI \u203A Diff");
         this.diffView.setVisible(true);
         this.diffView.focus();
+        break;
+      case "workflows":
+        setTerminalTitle("Dot TUI \u203A Workflows");
+        this.workflowsView.setVisible(true);
+        this.workflowsView.focus();
         break;
       case "omarchy":
         this.omarchyMenu.setVisible(true);
@@ -404,6 +439,9 @@ export class App {
         break;
       case "diff":
         this.diffView.focus();
+        break;
+      case "workflows":
+        this.workflowsView.focus();
         break;
       case "omarchy":
         this.omarchyMenu.focus();

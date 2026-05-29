@@ -42,10 +42,77 @@ export interface RepoState {
 export type ViewId =
   | "main"
   | "diff"
+  | "workflows"
   | "omarchy"
   | "staging"
   | "commit"
   | "output";
+
+// --- GitHub workflow run types ---
+
+/** GitHub Actions run status returned by `gh run list` */
+export type WorkflowRunStatus =
+  | "completed"
+  | "in_progress"
+  | "queued"
+  | "requested"
+  | "waiting"
+  | "pending"
+  | "unknown";
+
+/** A GitHub Actions workflow run associated with a watched repo head commit */
+export interface WorkflowRun {
+  /** Stable GitHub run database ID */
+  readonly id: string;
+  /** Workflow display name */
+  readonly workflowName: string;
+  /** Run title, usually the commit subject or workflow-provided title */
+  readonly displayTitle: string;
+  /** GitHub Actions status */
+  readonly status: WorkflowRunStatus;
+  /** Completed run conclusion, if available */
+  readonly conclusion: string | null;
+  /** Browser URL for the workflow run */
+  readonly url: string;
+  /** Event that triggered the run */
+  readonly event: string;
+  /** Run creation timestamp from GitHub */
+  readonly createdAt: string | null;
+  /** Last update timestamp from GitHub */
+  readonly updatedAt: string | null;
+}
+
+/** Workflow run data for one watched GitHub repository */
+export interface WorkflowRepoRuns {
+  /** GitHub owner/repo slug */
+  readonly slug: string;
+  /** Default branch name used as the head branch */
+  readonly defaultBranch: string | null;
+  /** Default-branch HEAD commit SHA */
+  readonly headSha: string | null;
+  /** Default-branch HEAD commit subject */
+  readonly commitSubject: string | null;
+  /** Browser URL for the default-branch HEAD commit */
+  readonly commitUrl: string | null;
+  /** Latest workflow runs for the default-branch HEAD commit */
+  readonly runs: readonly WorkflowRun[];
+  /** Fetch error, if this repo could not be queried */
+  readonly error?: string;
+}
+
+/** Snapshot of all watched workflow repos and their latest run state */
+export interface WorkflowState {
+  /** Watched repositories from the workflow watchlist */
+  readonly repos: readonly WorkflowRepoRuns[];
+  /** Timestamp of the last refresh attempt */
+  readonly lastChecked: Date;
+  /** Whether a refresh is currently running */
+  readonly loading: boolean;
+  /** Whether at least one refresh has completed */
+  readonly loaded: boolean;
+  /** Optional global status message, such as a missing watchlist */
+  readonly message?: string;
+}
 
 // --- Git staging types ---
 

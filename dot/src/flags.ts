@@ -26,7 +26,12 @@ function parseDiffTab(value: string): DiffTab {
 
 /** Check whether a candidate string matches any known view, menu item, or submenu */
 function isKnownTarget(candidate: string): boolean {
-  if (candidate === "diff" || candidate === "omarchy") return true;
+  if (
+    candidate === "diff" ||
+    candidate === "workflows" ||
+    candidate === "omarchy"
+  )
+    return true;
   if (menuItemsById.has(candidate) || submenus.has(candidate)) return true;
   return false;
 }
@@ -116,6 +121,7 @@ export function resolveSubcommand(
   | undefined {
   // Direct view names
   if (sub === "diff") return { type: "view", viewId: "diff" };
+  if (sub === "workflows") return { type: "view", viewId: "workflows" };
   if (sub === "omarchy") return { type: "view", viewId: "omarchy" };
 
   // Match against menu item IDs or submenu keys
@@ -213,6 +219,29 @@ Examples:
     return;
   }
 
+  if (subcommand === "workflows") {
+    console.log(`Usage: dot workflows [options]
+
+Open the watched GitHub workflow runs view. The left pane lists watched
+repositories from the workflow-watch repo list. The right pane lists runs for
+the selected repo's default-branch HEAD commit.
+
+Options:
+  --help, -h  Show this help message
+
+Keybindings (TUI mode):
+  ↑↓             Navigate the active pane
+  Tab            Switch between Repos/Runs pane
+  Enter          Focus runs from Repos, open selected run from Runs
+  r              Refresh workflow runs
+  Esc/Backspace  Back to main menu
+  Ctrl+c         Quit
+
+Examples:
+  dot workflows          Interactive workflow runs TUI`);
+    return;
+  }
+
   if (subcommand === "omarchy" || subcommand?.startsWith("omarchy.")) {
     console.log(`Usage: dot omarchy [submenu...]
 
@@ -252,6 +281,7 @@ Launch the dot TUI dashboard. Without a subcommand, opens the main menu.
 
 Subcommands:
   diff                 Open the diff/repo watcher view
+  workflows            Open watched GitHub workflow runs
   update               Run dot update
   stow                 Run dot stow
   doctor               Run dot doctor
@@ -270,6 +300,7 @@ Examples:
   dot diff --raw           CLI diff summary
   dot diff --waybar        Waybar JSON output
   dot diff --tab other     Diff view, Other pane focused
+  dot workflows            Watched workflow runs TUI
   dot omarchy theme        Omarchy theme submenu
   dot omarchy theme set    Execute omarchy theme set
 
