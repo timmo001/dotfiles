@@ -324,11 +324,11 @@ export class WorkflowRunsView {
   private repoStatusIcon(repo: WorkflowRepoRuns): string {
     if (repo.error) return "×";
     if (repo.runs.some((run) => run.status !== "completed")) return "●";
-    const failed = repo.runs.some((run) => run.conclusion !== "success");
-    const passed = repo.runs.some((run) => run.conclusion === "success");
+    const failed = repo.runs.some(runFailed);
+    const passed = repo.runs.some(runPassed);
     if (failed && passed) return "●";
     if (failed) return "×";
-    if (repo.runs.length > 0) return "✓";
+    if (passed) return "✓";
     return "○";
   }
 
@@ -340,17 +340,15 @@ export class WorkflowRunsView {
     const running = repo.runs.filter(
       (run) => run.status !== "completed",
     ).length;
-    const failed = repo.runs.filter(
-      (run) => run.status === "completed" && run.conclusion !== "success",
-    ).length;
-    const passed = repo.runs.filter(
-      (run) => run.status === "completed" && run.conclusion === "success",
-    ).length;
+    const failed = repo.runs.filter(runFailed).length;
+    const passed = repo.runs.filter(runPassed).length;
+    const skipped = repo.runs.filter(runSkipped).length;
 
     const parts: string[] = [];
     if (running > 0) parts.push(`${running} running`);
     if (failed > 0) parts.push(`${failed} failed`);
     if (passed > 0) parts.push(`${passed} passed`);
+    if (skipped > 0) parts.push(`${skipped} skipped`);
     return parts.join(", ") || "no completed runs";
   }
 
@@ -359,17 +357,18 @@ export class WorkflowRunsView {
     if (repo.runs.some((run) => run.status !== "completed")) {
       return this.theme.yellow;
     }
-    const failed = repo.runs.some((run) => run.conclusion !== "success");
-    const passed = repo.runs.some((run) => run.conclusion === "success");
+    const failed = repo.runs.some(runFailed);
+    const passed = repo.runs.some(runPassed);
     if (failed && passed) return this.theme.yellow;
     if (failed) return this.theme.red;
-    if (repo.runs.length > 0) return this.theme.green;
+    if (passed) return this.theme.green;
     return this.theme.fgMuted;
   }
 
   private runStatusColor(run: WorkflowRun): string {
     if (run.status !== "completed") return this.theme.yellow;
-    return run.conclusion === "success" ? this.theme.green : this.theme.red;
+    if (runPassed(run)) return this.theme.green;
+    return runSkipped(run) ? this.theme.fgMuted : this.theme.red;
   }
 
   private updateStatusBar(): void {
@@ -392,9 +391,7 @@ export class WorkflowRunsView {
     }
 
     const failed = this.state.repos.filter((repo) =>
-      repo.runs.some(
-        (run) => run.status === "completed" && run.conclusion !== "success",
-      ),
+      repo.runs.some(runFailed),
     ).length;
     const running = this.state.repos.filter((repo) =>
       repo.runs.some((run) => run.status !== "completed"),
@@ -432,10 +429,27 @@ function shortSha(sha: string): string {
 
 function runStatusIcon(run: WorkflowRun): string {
   if (run.status !== "completed") return "●";
-  return run.conclusion === "success" ? "✓" : "×";
+  if (runPassed(run)) return "✓";
+  return runSkipped(run) ? "○" : "×";
 }
 
 function runStatusText(run: WorkflowRun): string {
   if (run.status !== "completed") return run.status.replace(/_/g, " ");
   return run.conclusion ?? "completed";
+}
+
+function runPassed(run: WorkflowRun): boolean {
+  return run.status === "completed" && run.conclusion === "success";
+}
+
+function runSkipped(run: WorkflowRun): boolean {
+  return run.status === "completed" && run.conclusion === "skipped";
+}
+
+function runFailed(run: WorkflowRun): boolean {
+  return (
+    run.status === "completed" &&
+    run.conclusion !== "success" &&
+    run.conclusion !== "skipped"
+  );
 }
