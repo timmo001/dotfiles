@@ -24,8 +24,8 @@ source "$ZSH/oh-my-zsh.sh"
 # ------------------------------
 # Starship
 # ------------------------------
-eval "$(starship init zsh)"
 export STARSHIP_CONFIG=~/.config/starship/starship.toml
+eval "$(starship init zsh)"
 
 # ------------------------------
 # Ripgrep
