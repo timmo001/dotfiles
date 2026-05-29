@@ -1,7 +1,10 @@
 import { Effect } from "effect";
-import { existsSync, readFileSync } from "fs";
+import { existsSync, lstatSync, readFileSync } from "fs";
 import { join, dirname } from "path";
-import { CommandExecutor } from "../../services/CommandExecutor.js";
+import {
+  CommandExecutor,
+  type CommandExecutorService,
+} from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import type { CheckResult } from "../types.js";
 
@@ -12,10 +15,82 @@ function displayPath(p: string): string {
   return p.replace(HOME, "~");
 }
 
-// Timer unit names from legacy bash
-const WORKFLOW_WATCH_TIMER_UNIT = "git-workflow-watch.timer";
+// Obsolete workflow notification units that should no longer be installed.
+const LEGACY_WORKFLOW_WATCH_SERVICE_UNIT = "git-workflow-watch.service";
+const LEGACY_WORKFLOW_WATCH_TIMER_UNIT = "git-workflow-watch.timer";
 const DOCTOR_STARTUP_TIMER_UNIT = "dot-doctor-startup.timer";
 const DAILY_VOLUME_ZERO_TIMER_UNIT = "daily-volume-zero.timer";
+
+function pathExistsOrSymlink(path: string): boolean {
+  try {
+    lstatSync(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function addObsoletePathCheck(
+  results: CheckResult[],
+  path: string,
+  label: string,
+): void {
+  if (pathExistsOrSymlink(path)) {
+    results.push({
+      severity: "error",
+      message: `Obsolete ${label} still exists: ${displayPath(path)}`,
+      detail: "Remove the legacy workflow notification watcher leftovers",
+    });
+  } else {
+    results.push({
+      severity: "ok",
+      message: `Obsolete ${label} is absent: ${displayPath(path)}`,
+    });
+  }
+}
+
+const checkObsoleteUserUnit = (
+  results: CheckResult[],
+  executor: CommandExecutorService,
+  unit: string,
+) =>
+  Effect.gen(function* () {
+    const enabled = yield* executor.exitCode("systemctl", [
+      "--user",
+      "is-enabled",
+      unit,
+    ]);
+    if (enabled === 0) {
+      results.push({
+        severity: "error",
+        message: `Obsolete workflow watch unit is still enabled: ${unit}`,
+        detail: `Run: systemctl --user disable --now ${unit}`,
+      });
+    } else {
+      results.push({
+        severity: "ok",
+        message: `Obsolete workflow watch unit is not enabled: ${unit}`,
+      });
+    }
+
+    const active = yield* executor.exitCode("systemctl", [
+      "--user",
+      "is-active",
+      unit,
+    ]);
+    if (active === 0) {
+      results.push({
+        severity: "error",
+        message: `Obsolete workflow watch unit is still active: ${unit}`,
+        detail: `Run: systemctl --user disable --now ${unit}`,
+      });
+    } else {
+      results.push({
+        severity: "ok",
+        message: `Obsolete workflow watch unit is not active: ${unit}`,
+      });
+    }
+  });
 
 // ---------------------------------------------------------------------------
 // Waybar config walk helpers (matches legacy _waybar_config_walk pattern)
@@ -82,56 +157,66 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** Check workflow watch hooks, timer, scripts, and Waybar integration */
-export const checkWorkflowWatch = Effect.gen(function* () {
+/** Check workflow runs integration and absence of the legacy notification watcher. */
+export const checkWorkflowRuns = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
   const config = yield* Config;
   const results: CheckResult[] = [];
 
-  const hooksPath = join(HOME, ".config", "git", "workflow-watch-hooks");
-  if (existsSync(hooksPath)) {
-    results.push({
-      severity: "ok",
-      message: `Workflow watch hooks path exists: ${displayPath(hooksPath)}`,
-    });
-  } else {
-    results.push({
-      severity: "warn",
-      message: `Workflow watch hooks path is missing: ${displayPath(hooksPath)}`,
-      detail:
-        "Run dot stow or dot init to install the workflow watch hook package",
-    });
-  }
+  const legacyHooksPath = join(HOME, ".config", "git", "workflow-watch-hooks");
+  const legacyWatchScript = join(HOME, ".local", "bin", "git-workflow-watch");
+  const legacyServiceUnitPath = join(
+    XDG_CONFIG_HOME,
+    "systemd",
+    "user",
+    LEGACY_WORKFLOW_WATCH_SERVICE_UNIT,
+  );
+  const legacyTimerUnitPath = join(
+    XDG_CONFIG_HOME,
+    "systemd",
+    "user",
+    LEGACY_WORKFLOW_WATCH_TIMER_UNIT,
+  );
 
-  // Check global git hooksPath
+  addObsoletePathCheck(results, legacyHooksPath, "workflow watch hooks path");
+  addObsoletePathCheck(results, legacyWatchScript, "workflow watch script");
+  addObsoletePathCheck(
+    results,
+    legacyServiceUnitPath,
+    "workflow watch service unit",
+  );
+  addObsoletePathCheck(
+    results,
+    legacyTimerUnitPath,
+    "workflow watch timer unit",
+  );
+
   const configuredHooksPath = yield* executor
     .run("git", ["config", "--global", "core.hooksPath"])
     .pipe(Effect.catch(() => Effect.succeed("")));
   const trimmedHooksPath = configuredHooksPath.trim();
 
   if (
-    trimmedHooksPath === hooksPath ||
-    trimmedHooksPath === displayPath(hooksPath)
+    trimmedHooksPath === legacyHooksPath ||
+    trimmedHooksPath === displayPath(legacyHooksPath)
   ) {
     results.push({
-      severity: "ok",
-      message: `Global git hooksPath points to workflow watch hooks: ${displayPath(hooksPath)}`,
+      severity: "error",
+      message: `Global git hooksPath still points to obsolete workflow watch hooks: ${displayPath(legacyHooksPath)}`,
+      detail: "Run: git config --global --unset core.hooksPath",
     });
   } else if (trimmedHooksPath) {
     results.push({
-      severity: "warn",
-      message: `Global git hooksPath differs from workflow watch hooks (${displayPath(trimmedHooksPath)})`,
-      detail: "Run dot init to configure global workflow watch hooks",
+      severity: "ok",
+      message: `Global git hooksPath does not use workflow watch hooks (${displayPath(trimmedHooksPath)})`,
     });
   } else {
     results.push({
-      severity: "warn",
+      severity: "ok",
       message: "Global git hooksPath is not configured",
-      detail: "Run dot init to configure global workflow watch hooks",
     });
   }
 
-  // Check repos file (lives in private dotfiles)
   const reposFile =
     process.env.DOT_WORKFLOW_WATCH_REPOS_FILE ??
     (config.privateDotfiles
@@ -140,73 +225,34 @@ export const checkWorkflowWatch = Effect.gen(function* () {
   if (reposFile && existsSync(reposFile)) {
     results.push({
       severity: "ok",
-      message: `Workflow watch repo list found: ${displayPath(reposFile)}`,
+      message: `Workflow runs repo list found: ${displayPath(reposFile)}`,
     });
   } else {
     results.push({
       severity: "warn",
-      message: `Workflow watch repo list missing: ${displayPath(reposFile ?? "~/.config/dotfiles-private/.git-workflow-watch-repos")}`,
+      message: `Workflow runs repo list missing: ${displayPath(reposFile ?? "~/.config/dotfiles-private/.git-workflow-watch-repos")}`,
       detail:
-        "Add watched repositories in private dotfiles to enable workflow monitoring",
+        "Add watched repositories in private dotfiles to enable dot workflows",
     });
   }
 
-  // Systemctl timer checks
   const hasSystemctl = (yield* executor.exitCode("which", ["systemctl"])) === 0;
   if (hasSystemctl) {
-    const enabled = yield* executor.exitCode("systemctl", [
-      "--user",
-      "is-enabled",
-      WORKFLOW_WATCH_TIMER_UNIT,
-    ]);
-    if (enabled === 0) {
-      results.push({
-        severity: "ok",
-        message: `Workflow watch timer enabled: ${WORKFLOW_WATCH_TIMER_UNIT}`,
-      });
-    } else {
-      results.push({
-        severity: "warn",
-        message: `Workflow watch timer is not enabled: ${WORKFLOW_WATCH_TIMER_UNIT}`,
-        detail: "Run dot init to enable the workflow watch timer",
-      });
-    }
-
-    const active = yield* executor.exitCode("systemctl", [
-      "--user",
-      "is-active",
-      WORKFLOW_WATCH_TIMER_UNIT,
-    ]);
-    if (active === 0) {
-      results.push({
-        severity: "ok",
-        message: `Workflow watch timer active: ${WORKFLOW_WATCH_TIMER_UNIT}`,
-      });
-    } else {
-      results.push({
-        severity: "warn",
-        message: `Workflow watch timer is not active: ${WORKFLOW_WATCH_TIMER_UNIT}`,
-      });
-    }
+    yield* checkObsoleteUserUnit(
+      results,
+      executor,
+      LEGACY_WORKFLOW_WATCH_SERVICE_UNIT,
+    );
+    yield* checkObsoleteUserUnit(
+      results,
+      executor,
+      LEGACY_WORKFLOW_WATCH_TIMER_UNIT,
+    );
   } else {
     results.push({
       severity: "warn",
-      message: "Skipping workflow watch timer checks (systemctl not found)",
-    });
-  }
-
-  // Check script executable
-  const watchScript = join(HOME, ".local", "bin", "git-workflow-watch");
-  if (existsSync(watchScript)) {
-    results.push({
-      severity: "ok",
-      message: `Workflow watch script is executable: ${displayPath(watchScript)}`,
-    });
-  } else {
-    results.push({
-      severity: "warn",
-      message: `Workflow watch script is missing or not executable: ${displayPath(watchScript)}`,
-      detail: "Run dot stow or dot init to install the workflow watch script",
+      message:
+        "Skipping legacy workflow watch systemd state checks (systemctl not found)",
     });
   }
 
@@ -273,12 +319,24 @@ export const checkWorkflowWatch = Effect.gen(function* () {
   if (existsSync(waybarConfig)) {
     results.push({
       severity: "ok",
-      message: `Workflow watch active Waybar config: ${displayPath(waybarConfig)}`,
+      message: `Workflow runs active Waybar config: ${displayPath(waybarConfig)}`,
     });
 
     // Walk config and includes to check for module, click actions, and ordering
     const configContains = (needle: string): boolean =>
       waybarConfigWalkContains(waybarConfig, needle);
+
+    if (configContains("git-workflow-watch")) {
+      results.push({
+        severity: "error",
+        message: `Active Waybar config still references obsolete git-workflow-watch: ${displayPath(waybarConfig)}`,
+      });
+    } else {
+      results.push({
+        severity: "ok",
+        message: "Active Waybar config has no legacy workflow-watch actions",
+      });
+    }
 
     if (configContains('"custom/github-workflows"')) {
       results.push({
@@ -348,27 +406,6 @@ export const checkWorkflowWatch = Effect.gen(function* () {
       severity: "warn",
       message: `Active Waybar config is missing: ${displayPath(waybarConfig)}`,
     });
-  }
-
-  // notify-send action support
-  const hasNotifySend =
-    (yield* executor.exitCode("which", ["notify-send"])) === 0;
-  if (hasNotifySend) {
-    const helpOutput = yield* executor
-      .run("bash", ["-c", "notify-send --help 2>&1"])
-      .pipe(Effect.catch(() => Effect.succeed("")));
-    if (helpOutput.includes("--action")) {
-      results.push({
-        severity: "ok",
-        message: "notify-send supports clickable notification actions",
-      });
-    } else {
-      results.push({
-        severity: "warn",
-        message:
-          "notify-send does not advertise action support; workflow notifications may not open runs on click",
-      });
-    }
   }
 
   return results;

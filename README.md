@@ -10,7 +10,7 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 - TUI dashboard with diff view, workflow runs, omarchy menus, git staging, and AI commit suggestions
 - Optional private overlays from `~/.config/dotfiles-private`
 - Omarchy repo sync for `bootstrap`, `hypr`, `waybar`, `ghostty`, and `uwsm`
-- Global git workflow watch for watched GitHub repos on this machine
+- GitHub workflow run status for watched repos via `dot workflows` and Waybar
 
 ## Repository layout
 
@@ -48,15 +48,15 @@ dot doctor
 
 ## Command reference
 
-- `dot init` - questionnaire (when available), Omarchy sync (including split-repo worktree setup like `hypr-desktop`), package setup, optional public/private Arch package install, then public/private install and workflow-watch setup
-- `dot update` - Omarchy + public/private pull (including optional extra private repos and split Omarchy repo worktrees), then stow refresh and workflow-watch reconfiguration
+- `dot init` - questionnaire (when available), Omarchy sync (including split-repo worktree setup like `hypr-desktop`), package setup, optional public/private Arch package install, then public/private install
+- `dot update` - Omarchy + public/private pull (including optional extra private repos and split Omarchy repo worktrees), then stow refresh
 - `dot stow` - stow refresh only (no git pull)
 - `dot diff` - git status + staged/unstaged summaries with fetched unpushed/incoming commit checks across managed repos (including optional extra private repos and split Omarchy repo worktrees); use `dot diff --waybar` for one-line Waybar JSON
-- `dot workflows` - two-pane watched GitHub workflow runs view for each repo's locally checked-out HEAD commit; use `--since <date>` to filter by creation time, and `--raw`, `--waybar`, `--list-repos`, or `--list-runs` for CLI output
+- `dot workflows` - two-pane watched GitHub workflow runs view for each repo's locally checked-out HEAD commit; use `--since <date>` to filter by activity time, and `--raw`, `--waybar`, `--list-repos`, or `--list-runs` for CLI output
 - `dot setup [--confirm]` - package install step only
 - `dot install` - backup/adopt install flow for public/private dotfiles
 - `dot clean` - unstow private then public
-- `dot doctor` - tool, repo, workflow watch, extra repo, remote, public/private package, private package repo, and Chromium extension health checks
+- `dot doctor` - tool, repo, workflow runs, extra repo, remote, public/private package, private package repo, and Chromium extension health checks
 - `dot opencode-debug [--agent <name>]` - run `opencode debug paths`, `config`, `skill`, and `info` together; optionally inspect one agent with `opencode debug agent <name>`
 - `dot private-pkg-publish [--no-git] [--skip-build] [--install] <package>` - build and publish a mapped private package into the private pacman repo, sync the mirror, refresh pacman metadata, optionally install it, and commit/push by default
 - `dot agents-sync` - copy `~/.config/opencode/AGENTS.md` into `agents/.cursor/rules/global-agents.mdc` in private dotfiles by default (`alwaysApply: true` + body; stows to `~/.cursor/rules/`). **`dot update`** and **`dot diff`** run this automatically by default (see env vars below).
@@ -73,16 +73,13 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 - `system-health-check` - friendly multi-snapshot system health report for CPU, memory, network, pressure, and known logs
 - Add `--open-opencode` to run `opencode run` against the saved report, then open a full interactive OpenCode session with `opencode --continue`
 
-## Workflow watch
+## Workflow runs
 
-- Public dotfiles provide the global `pre-push` hook, poller, and user systemd units
-- Private dotfiles provide the watchlist in `~/.config/dotfiles-private/.git-workflow-watch-repos`
-- The global hook queues pushed commits only for watched GitHub repositories and only when the commit matches the local git identity
-- The watcher polls `gh run list --commit <sha>` and sends one desktop notification per workflow run as each run completes
-- `dot workflows` reads the same watchlist and shows watched repos on the left, with workflow runs for the selected locally checked-out HEAD commit on the right; disabled workflows are hidden; `dot workflows --waybar --since "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"` emits one-line Waybar JSON for runs created, rerun, or updated in the window, and `--list-repos`/`--list-runs` emit pipe-friendly listings
+- Private dotfiles provide the watched repo list in `~/.config/dotfiles-private/.git-workflow-watch-repos`
+- `dot workflows` shows watched repos on the left, with workflow runs for the selected locally checked-out HEAD commit on the right; disabled workflows are hidden; `dot workflows --waybar --since "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"` emits one-line Waybar JSON for runs created, rerun, or updated in the window, and `--list-repos`/`--list-runs` emit pipe-friendly listings
 - The Waybar workflow module refreshes `dot workflows --waybar --since <one-hour-ago>` through its own short-lived cache; left click opens the filtered TUI and right click refreshes the cache
-- `dot init`, `dot install`, and `dot update` configure the global `core.hooksPath` and enable `git-workflow-watch.timer`; `dot stow` only links files
-- `dot doctor` verifies the hooks path, watchlist file, timer state, and active Waybar workflow-runs module wiring
+- `git-workflow-watch`, its global hook, and its user systemd timer are obsolete and should not be installed
+- `dot doctor` verifies the watched repo list, active Waybar workflow-runs module wiring, and absence of legacy `git-workflow-watch` leftovers
 
 ## Daily volume reset
 
@@ -106,9 +103,7 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 - `DOT_INCLUDE_OMARCHY_DIFF_REPOS` - include Omarchy repos in `dot diff` (`1|0`, default `1`)
 - `DOT_INCLUDE_OMARCHY_UPDATE_REPOS` - include Omarchy repos in `dot update` sync (`1|0`, default `1`)
 - `DOT_INIT_NONINTERACTIVE` - skip init questionnaire (`1|0`, default `0`)
-- `DOT_WORKFLOW_WATCH_HOOKS_PATH` - global git hooks path for workflow watch (default `~/.config/git/workflow-watch-hooks`)
-- `DOT_WORKFLOW_WATCH_REPOS_FILE` - watched repo list file (default `$DOTFILES_PRIVATE_DIR/.git-workflow-watch-repos`)
-- `DOT_WORKFLOW_WATCH_TIMER_UNIT` - workflow polling timer unit name (default `git-workflow-watch.timer`)
+- `DOT_WORKFLOW_WATCH_REPOS_FILE` - watched repo list file used by `dot workflows` (default `$DOTFILES_PRIVATE_DIR/.git-workflow-watch-repos`)
 - `DOT_DAILY_VOLUME_ZERO_TIMER_UNIT` - 5am volume reset timer unit name (default `daily-volume-zero.timer`)
 - `DOT_AUTO_CD` - zsh wrapper auto-cd to first repo with changes after `dot diff`; otherwise restore original dir (failed diff falls back to `~/.config/dotfiles`) (`1|0`, default `1`)
 - `DOT_AGENTS_SYNC_SOURCE` - AGENTS file to mirror (default `~/.config/opencode/AGENTS.md`)

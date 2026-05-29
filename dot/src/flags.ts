@@ -324,7 +324,7 @@ Checks performed:
   Stow integrity       Dry-run restow to detect drift
   OpenCode location    Canonical paths, legacy remnants
   Git config           Managed include is active
-  Workflow watch       Hooks, timer, scripts, Waybar integration
+  Workflow runs        Repo list, Waybar integration, legacy watcher removal
   Doctor startup       Startup notification timer
   Daily volume reset   Laptop-only optional timer
   Omarchy repos        Diff repos + worktree branch correctness
@@ -349,8 +349,8 @@ Examples:
     console.log(`Usage: dot workflows [options]
 
 Open the watched GitHub workflow runs view. The left pane lists watched
-repositories from the workflow-watch repo list. The right pane lists runs for
-the selected repo's locally checked-out HEAD commit.
+repositories from the private repo list. The right pane lists runs for the
+selected repo's locally checked-out HEAD commit.
 
 Modes:
   (default)      Interactive workflow runs TUI

@@ -9,7 +9,7 @@ import { checkStow } from "./checks/stow.js";
 import { checkOpencode } from "./checks/opencode.js";
 import { checkGitConfig } from "./checks/gitConfig.js";
 import {
-  checkWorkflowWatch,
+  checkWorkflowRuns,
   checkDoctorStartup,
   checkDailyVolumeReset,
 } from "./checks/systemd.js";
@@ -45,7 +45,7 @@ const sections: readonly SectionDef[] = [
   { name: "Stow integrity", check: checkStow },
   { name: "OpenCode location checks", check: checkOpencode },
   { name: "Git config include", check: checkGitConfig },
-  { name: "Workflow watch checks", check: checkWorkflowWatch },
+  { name: "Workflow runs checks", check: checkWorkflowRuns },
   { name: "Doctor startup notification", check: checkDoctorStartup },
   { name: "Daily volume reset", check: checkDailyVolumeReset },
   { name: "Omarchy repository checks", check: checkOmarchy },
