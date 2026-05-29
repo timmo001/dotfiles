@@ -18,14 +18,71 @@ export PATH="$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
 # ------------------------------
 export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME=""  # Starship owns the prompt
+DISABLE_AUTO_TITLE=true  # Custom hooks below own the terminal title
+if [[ -n "${GHOSTTY_SHELL_FEATURES:-}" ]]; then
+  typeset -a _dot_ghostty_features
+  _dot_ghostty_features=("${(@s:,:)GHOSTTY_SHELL_FEATURES}")
+  _dot_ghostty_features=("${(@)_dot_ghostty_features:#title}")
+  _dot_ghostty_features=("${(@)_dot_ghostty_features:#no-title}")
+  export GHOSTTY_SHELL_FEATURES="${(j:,:)_dot_ghostty_features}"
+  unset _dot_ghostty_features
+fi
 plugins=(git zsh-autosuggestions zsh-syntax-highlighting fast-syntax-highlighting zsh-autocomplete)
 source "$ZSH/oh-my-zsh.sh"
+
+# ------------------------------
+# Terminal title
+# ------------------------------
+autoload -Uz add-zsh-hook
+
+_dot_set_terminal_title() {
+  local title="$1"
+  title=${title//$'\a'/}
+  title=${title//$'\e'/}
+  print -rn -- $'\e]2;'"${title[1,160]}"$'\a'
+}
+
+_dot_terminal_title() {
+  local last_status=$?
+  local dir="${PWD/#$HOME/~}"
+  local title="$dir"
+  local branch commit dirty
+
+  if command git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    branch=$(command git branch --show-current 2>/dev/null)
+    if [[ -z "$branch" ]]; then
+      branch=$(command git rev-parse --short HEAD 2>/dev/null)
+    fi
+
+    commit=$(command git log -1 --format='%h %s' --no-show-signature 2>/dev/null)
+    if [[ -n "$(command git --no-optional-locks status --porcelain 2>/dev/null)" ]]; then
+      dirty="*"
+    fi
+
+    if [[ -n "$branch" ]]; then
+      title="$title | $branch$dirty"
+    fi
+    if [[ -n "$commit" ]]; then
+      title="$title | $commit"
+    fi
+  fi
+
+  if (( last_status != 0 )); then
+    title="✘ $last_status | $title"
+  fi
+
+  _dot_set_terminal_title "$title"
+  return $last_status
+}
 
 # ------------------------------
 # Starship
 # ------------------------------
 export STARSHIP_CONFIG=~/.config/starship/starship.toml
 eval "$(starship init zsh)"
+
+add-zsh-hook -d precmd _dot_terminal_title 2>/dev/null
+add-zsh-hook precmd _dot_terminal_title
 
 # ------------------------------
 # Ripgrep
