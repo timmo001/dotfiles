@@ -108,7 +108,10 @@ export function workflowRepoStatusText(repo: WorkflowRepoRuns): string {
     textWhen(!repo.headSha, "not loaded"),
     textWhen(repo.runs.length === 0, "no runs for head commit"),
   ];
-  return directStatus.find(isString) ?? workflowRunCountsText(workflowRunCounts(repo));
+  return (
+    directStatus.find(isString) ??
+    workflowRunCountsText(workflowRunCounts(repo))
+  );
 }
 
 /** Return the display icon for an individual workflow run. */
@@ -137,7 +140,9 @@ export function formatWorkflowRepoDetail(repo: WorkflowRepoRuns): string {
 /** Return the display text for one workflow run. */
 export function formatWorkflowRunDetail(run: WorkflowRun): string {
   const event = run.event ? ` • ${run.event}` : "";
-  const when = formatWorkflowTimeAgo(run.updatedAt ?? run.createdAt);
+  const when = formatWorkflowTimeAgo(
+    run.updatedAt ?? run.startedAt ?? run.createdAt,
+  );
   return `${workflowRunStatusText(run)}${event} • ${when} • ${run.displayTitle}`;
 }
 

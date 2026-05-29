@@ -1,5 +1,10 @@
 import { Effect } from "effect";
-import type { WorkflowRepoRuns, WorkflowRun, WorkflowState } from "../types.js";
+import type {
+  WorkflowRepoRuns,
+  WorkflowRun,
+  WorkflowRunQueryOptions,
+  WorkflowState,
+} from "../types.js";
 import { WorkflowRuns } from "../services/WorkflowRuns.js";
 import {
   formatWorkflowRepoDetail,
@@ -20,45 +25,49 @@ const handleWorkflowError = Effect.catch((error: unknown) =>
 );
 
 /** CLI text output: --raw workflow summary. */
-export const workflowsRaw = Effect.gen(function* () {
-  const state = yield* refreshWorkflowState();
-  yield* Effect.sync(() => process.stdout.write(formatRaw(state)));
-}).pipe(Effect.withSpan("workflows.raw"), handleWorkflowError);
+export const workflowsRaw = (opts?: WorkflowRunQueryOptions) =>
+  Effect.gen(function* () {
+    const state = yield* refreshWorkflowState(opts);
+    yield* Effect.sync(() => process.stdout.write(formatRaw(state)));
+  }).pipe(Effect.withSpan("workflows.raw"), handleWorkflowError);
 
 /** Machine output: --waybar JSON. */
-export const workflowsWaybar = Effect.gen(function* () {
-  const state = yield* refreshWorkflowState();
-  yield* Effect.sync(() =>
-    process.stdout.write(JSON.stringify(formatWaybar(state)) + "\n"),
-  );
-}).pipe(Effect.withSpan("workflows.waybar"), handleWorkflowError);
+export const workflowsWaybar = (opts?: WorkflowRunQueryOptions) =>
+  Effect.gen(function* () {
+    const state = yield* refreshWorkflowState(opts);
+    yield* Effect.sync(() =>
+      process.stdout.write(JSON.stringify(formatWaybar(state)) + "\n"),
+    );
+  }).pipe(Effect.withSpan("workflows.waybar"), handleWorkflowError);
 
 /** Machine output: --list-repos pipe-delimited repository rows. */
-export const workflowsListRepos = Effect.gen(function* () {
-  const state = yield* refreshWorkflowState();
-  yield* Effect.sync(() => {
-    for (const repo of state.repos) {
-      process.stdout.write(formatRepoRow(repo) + "\n");
-    }
-  });
-}).pipe(Effect.withSpan("workflows.listRepos"), handleWorkflowError);
+export const workflowsListRepos = (opts?: WorkflowRunQueryOptions) =>
+  Effect.gen(function* () {
+    const state = yield* refreshWorkflowState(opts);
+    yield* Effect.sync(() => {
+      for (const repo of state.repos) {
+        process.stdout.write(formatRepoRow(repo) + "\n");
+      }
+    });
+  }).pipe(Effect.withSpan("workflows.listRepos"), handleWorkflowError);
 
 /** Machine output: --list-runs pipe-delimited workflow run rows. */
-export const workflowsListRuns = Effect.gen(function* () {
-  const state = yield* refreshWorkflowState();
-  yield* Effect.sync(() => {
-    for (const repo of state.repos) {
-      for (const run of repo.runs) {
-        process.stdout.write(formatRunRow(repo, run) + "\n");
+export const workflowsListRuns = (opts?: WorkflowRunQueryOptions) =>
+  Effect.gen(function* () {
+    const state = yield* refreshWorkflowState(opts);
+    yield* Effect.sync(() => {
+      for (const repo of state.repos) {
+        for (const run of repo.runs) {
+          process.stdout.write(formatRunRow(repo, run) + "\n");
+        }
       }
-    }
-  });
-}).pipe(Effect.withSpan("workflows.listRuns"), handleWorkflowError);
+    });
+  }).pipe(Effect.withSpan("workflows.listRuns"), handleWorkflowError);
 
-function refreshWorkflowState() {
+function refreshWorkflowState(opts?: WorkflowRunQueryOptions) {
   return Effect.gen(function* () {
     const workflows = yield* WorkflowRuns;
-    yield* workflows.refresh();
+    yield* workflows.refresh(opts);
     return yield* workflows.getState();
   });
 }
@@ -68,6 +77,7 @@ function formatRaw(state: WorkflowState): string {
     "Workflow Runs",
     `Last checked: ${formatWorkflowTimeAgo(state.lastChecked.toISOString())}`,
   ];
+  if (state.since) lines.push(`Since: ${state.since}`);
   if (state.message) lines.push(`Message: ${state.message}`);
   if (state.repos.length === 0) {
     lines.push("", "No watched workflow repositories configured.");
@@ -102,13 +112,11 @@ function formatWaybar(state: WorkflowState): {
         ? `\u25cf ${summary.runningRuns}`
         : "";
   const cls =
-    summary.attentionCount > 0
-      ? "workflows-attention"
-      : summary.runningRuns > 0
-        ? "workflows-running"
-        : state.repos.length > 0
-          ? "workflows-ok"
-          : "hidden";
+    summary.attentionCount === 0 && summary.runningRuns === 0
+      ? "hidden"
+      : summary.attentionCount > 0
+        ? "workflows-attention"
+        : "workflows-running";
 
   return {
     text,
@@ -130,6 +138,7 @@ function formatWaybarTooltip(
   const lines = [
     `GitHub workflows: ${summary.failedRuns} failed, ${summary.errorRepos} repo errors, ${summary.runningRuns} running, ${summary.passedRuns} passed, ${summary.skippedRuns} skipped.`,
   ];
+  if (state.since) lines.push(`Since: ${state.since}`);
   if (state.message) lines.push(state.message);
   for (const repo of state.repos) {
     lines.push(`${repo.slug}: ${workflowRepoStatusText(repo)}`);

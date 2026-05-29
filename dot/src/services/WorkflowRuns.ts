@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type {
   WorkflowRepoRuns,
+  WorkflowRunQueryOptions,
   WorkflowRun,
   WorkflowRunStatus,
   WorkflowState,
@@ -26,7 +27,7 @@ interface WorkflowRunsService {
   /** Subscribe to workflow run state snapshots */
   readonly subscribe: () => Stream.Stream<WorkflowState>;
   /** Refresh watched repo workflow runs from GitHub */
-  readonly refresh: () => Effect.Effect<void>;
+  readonly refresh: (opts?: WorkflowRunQueryOptions) => Effect.Effect<void>;
   /** Return the most recent workflow run state */
   readonly getState: () => Effect.Effect<WorkflowState>;
 }
@@ -69,6 +70,7 @@ interface GhRunRecord {
   readonly url?: unknown;
   readonly event?: unknown;
   readonly createdAt?: unknown;
+  readonly startedAt?: unknown;
   readonly updatedAt?: unknown;
 }
 
@@ -92,13 +94,13 @@ export class WorkflowRuns extends Context.Service<
         false,
         false,
         initialWatchlist.message,
+        undefined,
       );
 
-      const fetchRepoRuns = Effect.fn("WorkflowRuns.fetchRepoRuns")(function* ({
-        slug,
-        checkoutPath,
-        error,
-      }: WorkflowTarget) {
+      const fetchRepoRuns = Effect.fn("WorkflowRuns.fetchRepoRuns")(function* (
+        { slug, checkoutPath, error }: WorkflowTarget,
+        opts?: WorkflowRunQueryOptions,
+      ) {
         if (!checkoutPath) {
           return {
             ...emptyRepo(slug),
@@ -107,7 +109,7 @@ export class WorkflowRuns extends Context.Service<
         }
 
         const commit = yield* getHeadCommit(slug, checkoutPath);
-        const runs = yield* getRuns(slug, commit.branch, commit.sha);
+        const runs = yield* getRuns(slug, commit.branch, commit.sha, opts);
 
         return {
           slug,
@@ -156,8 +158,31 @@ export class WorkflowRuns extends Context.Service<
         slug: string,
         branch: string,
         sha: string,
+        opts?: WorkflowRunQueryOptions,
       ) {
-        const raw = yield* executor.run("gh", [
+        const raw = yield* executor.run(
+          "gh",
+          runListArgs(slug, branch, sha, opts),
+        );
+        const parsed = yield* Effect.try({
+          try: () => JSON.parse(raw) as unknown,
+          catch: (error) =>
+            error instanceof Error ? error : new Error(String(error)),
+        });
+        if (!Array.isArray(parsed)) return [];
+        return parsed
+          .filter(isRunRecord)
+          .map(toWorkflowRun)
+          .filter((run) => runMatchesSince(run, opts?.since));
+      });
+
+      const runListArgs = (
+        slug: string,
+        branch: string,
+        sha: string,
+        opts?: WorkflowRunQueryOptions,
+      ): readonly string[] => {
+        const args = [
           "run",
           "list",
           "--repo",
@@ -169,16 +194,10 @@ export class WorkflowRuns extends Context.Service<
           "--limit",
           String(RUN_LIMIT),
           "--json",
-          "databaseId,status,conclusion,workflowName,displayTitle,url,event,createdAt,updatedAt",
-        ]);
-        const parsed = yield* Effect.try({
-          try: () => JSON.parse(raw) as unknown,
-          catch: (error) =>
-            error instanceof Error ? error : new Error(String(error)),
-        });
-        if (!Array.isArray(parsed)) return [];
-        return parsed.filter(isRunRecord).map(toWorkflowRun);
-      });
+          "databaseId,status,conclusion,workflowName,displayTitle,url,event,createdAt,startedAt,updatedAt",
+        ];
+        return args;
+      };
 
       const resolveWorkflowTarget = Effect.fn(
         "WorkflowRuns.resolveWorkflowTarget",
@@ -227,88 +246,94 @@ export class WorkflowRuns extends Context.Service<
         },
       );
 
-      const refresh = Effect.gen(function* () {
-        log("Refreshing workflow runs...");
-        const watchlist = readWatchlist(getWatchlistPath(config));
-        const resolved = yield* resolveWatchlist(watchlist);
-        currentState = buildState(
-          resolved.targets.map(targetToLoadingRepo),
-          new Date(yield* Clock.currentTimeMillis),
-          true,
-          currentState.loaded,
-          resolved.message,
-        );
-        yield* PubSub.publish(pubsub, currentState);
-
-        if (resolved.targets.length === 0) {
+      const refresh = (opts?: WorkflowRunQueryOptions) =>
+        Effect.gen(function* () {
+          log("Refreshing workflow runs...");
+          const watchlist = readWatchlist(getWatchlistPath(config));
+          const resolved = yield* resolveWatchlist(watchlist);
           currentState = buildState(
-            [],
+            resolved.targets.map(targetToLoadingRepo),
             new Date(yield* Clock.currentTimeMillis),
-            false,
             true,
+            currentState.loaded,
             resolved.message,
+            opts,
           );
           yield* PubSub.publish(pubsub, currentState);
-          return;
-        }
 
-        const hasGh = (yield* executor.exitCode("which", ["gh"])) === 0;
-        if (!hasGh) {
-          currentState = buildState(
-            resolved.targets.map((target) => ({
-              ...emptyRepo(target.slug),
-              error: "gh CLI not found",
-            })),
-            new Date(yield* Clock.currentTimeMillis),
-            false,
-            true,
-            resolved.message,
-          );
-          yield* PubSub.publish(pubsub, currentState);
-          return;
-        }
+          if (resolved.targets.length === 0) {
+            currentState = buildState(
+              [],
+              new Date(yield* Clock.currentTimeMillis),
+              false,
+              true,
+              resolved.message,
+              opts,
+            );
+            yield* PubSub.publish(pubsub, currentState);
+            return;
+          }
 
-        const repos = yield* Effect.all(
-          resolved.targets.map((target) =>
-            fetchRepoRuns(target).pipe(
-              Effect.catch((error) =>
-                Effect.succeed({
-                  ...emptyRepo(target.slug),
-                  error: formatError(error),
-                }),
+          const hasGh = (yield* executor.exitCode("which", ["gh"])) === 0;
+          if (!hasGh) {
+            currentState = buildState(
+              resolved.targets.map((target) => ({
+                ...emptyRepo(target.slug),
+                error: "gh CLI not found",
+              })),
+              new Date(yield* Clock.currentTimeMillis),
+              false,
+              true,
+              resolved.message,
+              opts,
+            );
+            yield* PubSub.publish(pubsub, currentState);
+            return;
+          }
+
+          const repos = yield* Effect.all(
+            resolved.targets.map((target) =>
+              fetchRepoRuns(target, opts).pipe(
+                Effect.catch((error) =>
+                  Effect.succeed({
+                    ...emptyRepo(target.slug),
+                    error: formatError(error),
+                  }),
+                ),
               ),
             ),
-          ),
-          { concurrency: 4 },
-        );
-
-        currentState = buildState(
-          repos,
-          new Date(yield* Clock.currentTimeMillis),
-          false,
-          true,
-          resolved.message,
-        );
-        yield* PubSub.publish(pubsub, currentState);
-        log(`Refresh complete: ${repos.length} watched repos`);
-      }).pipe(
-        Effect.withSpan("WorkflowRuns.refresh"),
-        Effect.catch((error) => {
-          log(`Refresh failed: ${formatError(error)}`);
-          currentState = buildState(
-            currentState.repos,
-            new Date(),
-            false,
-            currentState.loaded,
-            formatError(error),
+            { concurrency: 4 },
           );
-          return PubSub.publish(pubsub, currentState).pipe(Effect.asVoid);
-        }),
-      );
+
+          currentState = buildState(
+            repos,
+            new Date(yield* Clock.currentTimeMillis),
+            false,
+            true,
+            resolved.message,
+            opts,
+          );
+          yield* PubSub.publish(pubsub, currentState);
+          log(`Refresh complete: ${repos.length} watched repos`);
+        }).pipe(
+          Effect.withSpan("WorkflowRuns.refresh"),
+          Effect.catch((error) => {
+            log(`Refresh failed: ${formatError(error)}`);
+            currentState = buildState(
+              currentState.repos,
+              new Date(),
+              false,
+              currentState.loaded,
+              formatError(error),
+              { since: opts?.since ?? currentState.since ?? undefined },
+            );
+            return PubSub.publish(pubsub, currentState).pipe(Effect.asVoid);
+          }),
+        );
 
       return {
         subscribe: () => Stream.fromPubSub(pubsub),
-        refresh: () => refresh,
+        refresh: (opts) => refresh(opts),
         getState: () => Effect.succeed(currentState),
       };
     }),
@@ -455,12 +480,14 @@ function buildState(
   loading: boolean,
   loaded: boolean,
   message?: string,
+  opts?: WorkflowRunQueryOptions,
 ): WorkflowState {
   return {
     repos,
     lastChecked,
     loading,
     loaded,
+    since: opts?.since ?? null,
     ...(message && { message }),
   };
 }
@@ -491,8 +518,28 @@ function toWorkflowRun(record: GhRunRecord): WorkflowRun {
     url: stringValue(record.url),
     event: stringValue(record.event),
     createdAt: nullableStringValue(record.createdAt),
+    startedAt: nullableStringValue(record.startedAt),
     updatedAt: nullableStringValue(record.updatedAt),
   };
+}
+
+function runMatchesSince(run: WorkflowRun, since: string | undefined): boolean {
+  if (!since) return true;
+  const activityAt = workflowActivityTime(run);
+  const sinceAt = Date.parse(since);
+  return Number.isFinite(activityAt) && activityAt >= sinceAt;
+}
+
+function workflowActivityTime(run: WorkflowRun): number {
+  return Math.max(
+    parseWorkflowTime(run.createdAt),
+    parseWorkflowTime(run.startedAt),
+    parseWorkflowTime(run.updatedAt),
+  );
+}
+
+function parseWorkflowTime(value: string | null): number {
+  return value ? Date.parse(value) : NaN;
 }
 
 function stringValue(value: unknown): string {

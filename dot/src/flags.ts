@@ -9,6 +9,8 @@ export interface Flags {
   readonly subcommand: string | undefined;
   /** Initial tab for the diff view */
   readonly tab: DiffTab;
+  /** Normalized ISO timestamp for workflow run filters */
+  readonly since: string | undefined;
   /** Show help and exit */
   readonly help: boolean;
   /** Remaining args not consumed by subcommand or flag parsing */
@@ -22,6 +24,180 @@ function parseDiffTab(value: string): DiffTab {
     `Unknown --tab value: ${value} (expected: changed, other, unchanged)`,
   );
   process.exit(1);
+}
+
+function parseSince(value: string): string {
+  const trimmed = value.trim();
+  const timestamp = parseSinceTimestamp(trimmed);
+
+  if (!Number.isFinite(timestamp)) {
+    console.error(
+      `Unknown --since value: ${value} (expected an ISO/RFC date or epoch timestamp)`,
+    );
+    process.exit(1);
+  }
+
+  return new Date(timestamp).toISOString();
+}
+
+function parseSinceTimestamp(value: string): number {
+  if (/^\d+$/.test(value)) return normalizeEpoch(Number(value));
+  return Date.parse(value);
+}
+
+function normalizeEpoch(epoch: number): number {
+  return epoch < 10_000_000_000 ? epoch * 1000 : epoch;
+}
+
+function stripTuiPrefix(args: readonly string[]): readonly string[] {
+  return args.length > 0 && args[0] === "tui" ? args.slice(1) : args;
+}
+
+function collectLeadingPositionals(args: readonly string[]): {
+  readonly positionals: readonly string[];
+  readonly startIndex: number;
+} {
+  const positionals: string[] = [];
+  let index = 0;
+
+  while (index < args.length && !args[index].startsWith("-")) {
+    positionals.push(args[index]);
+    index++;
+  }
+
+  return { positionals, startIndex: index };
+}
+
+function findKnownTargetLength(positionals: readonly string[]): number {
+  for (let len = positionals.length; len >= 1; len--) {
+    if (isKnownTarget(positionals.slice(0, len).join("."))) return len;
+  }
+
+  return 0;
+}
+
+function resolvePositionals(positionals: readonly string[]): {
+  readonly subcommand: string | undefined;
+  readonly rest: readonly string[];
+} {
+  if (positionals.length === 0) return { subcommand: undefined, rest: [] };
+
+  const consumed = findKnownTargetLength(positionals);
+  const resolvedCount = consumed === 0 ? 1 : consumed;
+  const subcommand = positionals.slice(0, resolvedCount).join(".");
+
+  return { subcommand, rest: positionals.slice(resolvedCount) };
+}
+
+type ParsedOptions = {
+  tab: DiffTab;
+  since: string | undefined;
+  help: boolean;
+  rest: string[];
+};
+
+type FlagHandler = (
+  args: readonly string[],
+  index: number,
+  parsed: ParsedOptions,
+) => number;
+
+function createParsedOptions(): ParsedOptions {
+  return { tab: "changed", since: undefined, help: false, rest: [] };
+}
+
+function setHelp(
+  _args: readonly string[],
+  _index: number,
+  parsed: ParsedOptions,
+): number {
+  parsed.help = true;
+  return 0;
+}
+
+function consumeSinceEquals(
+  args: readonly string[],
+  index: number,
+  parsed: ParsedOptions,
+): number {
+  parsed.since = parseSince(args[index].slice("--since=".length));
+  return 0;
+}
+
+function consumeSinceOption(
+  args: readonly string[],
+  index: number,
+  parsed: ParsedOptions,
+): number {
+  const values = collectFlagValues(args, index + 1);
+
+  if (values.length === 0) {
+    console.error("--since requires a date value");
+    process.exit(1);
+  }
+
+  parsed.since = parseSince(values.join(" "));
+  return values.length;
+}
+
+function consumeTabOption(
+  args: readonly string[],
+  index: number,
+  parsed: ParsedOptions,
+): number {
+  const next = args[index + 1];
+
+  if (!next || next.startsWith("-")) {
+    console.error("--tab requires a value (e.g. --tab changed or --tab other)");
+    process.exit(1);
+  }
+
+  parsed.tab = parseDiffTab(next);
+  return 1;
+}
+
+function collectFlagValues(
+  args: readonly string[],
+  startIndex: number,
+): string[] {
+  const values: string[] = [];
+
+  for (let index = startIndex; index < args.length; index++) {
+    if (args[index].startsWith("--")) break;
+    values.push(args[index]);
+  }
+
+  return values;
+}
+
+const flagHandlers = new Map<string, FlagHandler>([
+  ["--help", setHelp],
+  ["-h", setHelp],
+  ["--since", consumeSinceOption],
+  ["--tab", consumeTabOption],
+]);
+
+function parseOptions(
+  args: readonly string[],
+  startIndex: number,
+): ParsedOptions {
+  const parsed = createParsedOptions();
+
+  for (let index = startIndex; index < args.length; index++) {
+    const arg = args[index];
+    const handler = arg.startsWith("--since=")
+      ? consumeSinceEquals
+      : flagHandlers.get(arg);
+
+    if (!handler) {
+      parsed.rest.push(arg);
+      continue;
+    }
+
+    index += handler(args, index, parsed);
+  }
+
+  return parsed;
 }
 
 /** Check whether a candidate string matches any known view, menu item, or submenu */
@@ -48,68 +224,18 @@ function isKnownTarget(candidate: string): boolean {
  * positionals and flags are processed normally.
  */
 export function parseFlags(args: readonly string[]): Flags {
-  // Strip leading "tui" prefix — it's a no-op alias for the TUI entry point
-  const effectiveArgs =
-    args.length > 0 && args[0] === "tui" ? args.slice(1) : args;
+  const effectiveArgs = stripTuiPrefix(args);
+  const { positionals, startIndex } = collectLeadingPositionals(effectiveArgs);
+  const resolved = resolvePositionals(positionals);
+  const parsed = parseOptions(effectiveArgs, startIndex);
 
-  let subcommand: string | undefined;
-  let tab: DiffTab = "changed";
-  let help = false;
-  const rest: string[] = [];
-
-  let i = 0;
-
-  // Collect all leading positional args (before any flags)
-  const positionals: string[] = [];
-  while (i < effectiveArgs.length && !effectiveArgs[i].startsWith("-")) {
-    positionals.push(effectiveArgs[i]);
-    i++;
-  }
-
-  // Greedy longest-match resolution for subcommand path
-  if (positionals.length > 0) {
-    let consumed = 0;
-    // Try longest candidate first, shrink until a match is found
-    for (let len = positionals.length; len >= 1; len--) {
-      const candidate = positionals.slice(0, len).join(".");
-      if (isKnownTarget(candidate)) {
-        subcommand = candidate;
-        consumed = len;
-        break;
-      }
-    }
-    if (consumed === 0) {
-      // No match — use first positional (will fail in resolveSubcommand)
-      subcommand = positionals[0];
-      consumed = 1;
-    }
-    // Push unconsumed positionals to rest
-    for (let j = consumed; j < positionals.length; j++) {
-      rest.push(positionals[j]);
-    }
-  }
-
-  // Parse remaining flags
-  for (; i < effectiveArgs.length; i++) {
-    const arg = effectiveArgs[i];
-    if (arg === "--help" || arg === "-h") {
-      help = true;
-    } else if (arg === "--tab") {
-      const next = effectiveArgs[i + 1];
-      if (!next || next.startsWith("-")) {
-        console.error(
-          "--tab requires a value (e.g. --tab changed or --tab other)",
-        );
-        process.exit(1);
-      }
-      tab = parseDiffTab(next);
-      i++;
-    } else {
-      rest.push(arg);
-    }
-  }
-
-  return { subcommand, tab, help, rest };
+  return {
+    subcommand: resolved.subcommand,
+    tab: parsed.tab,
+    since: parsed.since,
+    help: parsed.help,
+    rest: [...resolved.rest, ...parsed.rest],
+  };
 }
 
 /** Resolve a subcommand string to a navigation target */
@@ -234,6 +360,7 @@ Modes:
   --list-runs    Pipe-delimited workflow run rows
 
 Options:
+  --since <date> Only include runs active at or after this date (ISO/RFC/epoch)
   --help, -h     Show this help message
 
 Keybindings (TUI mode):
@@ -248,6 +375,7 @@ Examples:
   dot workflows              Interactive workflow runs TUI
   dot workflows --raw        CLI summary of watched workflow runs
   dot workflows --waybar     JSON for Waybar integration
+  dot workflows --since "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"
   dot workflows --list-runs  Pipe-friendly workflow run list`);
     return;
   }

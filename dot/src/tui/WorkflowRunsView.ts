@@ -371,7 +371,10 @@ export class WorkflowRunsView {
         : running > 0
           ? fg(th.yellow)(`${running} repo${running === 1 ? "" : "s"} running`)
           : fg(th.green)("all watched runs passing or quiet");
+    const since = this.state.since
+      ? fg(th.fgMuted)(` since ${formatWorkflowTimeAgo(this.state.since)}`)
+      : "";
 
-    this.statusBar.content = t`${fg(th.fgMuted)(`Last checked: ${formatWorkflowTimeAgo(this.state.lastChecked.toISOString())}`)}    ${dot}  ${summary}`;
+    this.statusBar.content = t`${fg(th.fgMuted)(`Last checked: ${formatWorkflowTimeAgo(this.state.lastChecked.toISOString())}`)}${since}    ${dot}  ${summary}`;
   }
 }

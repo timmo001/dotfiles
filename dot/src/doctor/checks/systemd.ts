@@ -215,19 +215,19 @@ export const checkWorkflowWatch = Effect.gen(function* () {
     XDG_CONFIG_HOME,
     "waybar",
     "scripts",
-    "github-workflow-failures-waybar.sh",
+    "github-workflows-waybar.sh",
   );
   if (existsSync(waybarScript)) {
     results.push({
       severity: "ok",
-      message: `Workflow watch Waybar script is executable: ${displayPath(waybarScript)}`,
+      message: `Workflow runs Waybar script is executable: ${displayPath(waybarScript)}`,
     });
   } else {
     results.push({
       severity: "warn",
-      message: `Workflow watch Waybar script is missing or not executable: ${displayPath(waybarScript)}`,
+      message: `Workflow runs Waybar script is missing or not executable: ${displayPath(waybarScript)}`,
       detail:
-        "Stow or update the Waybar repo to install the workflow failures module script",
+        "Stow or update the Waybar repo to install the workflow runs module script",
     });
   }
 
@@ -236,17 +236,17 @@ export const checkWorkflowWatch = Effect.gen(function* () {
   if (existsSync(waybarStyle)) {
     try {
       const styleContent = readFileSync(waybarStyle, "utf-8");
-      if (styleContent.includes("#custom-github-workflow-failures.hidden")) {
+      if (styleContent.includes("#custom-github-workflows.hidden")) {
         results.push({
           severity: "ok",
-          message: `Workflow watch Waybar hidden-empty CSS found: ${displayPath(waybarStyle)}`,
+          message: `Workflow runs Waybar hidden-empty CSS found: ${displayPath(waybarStyle)}`,
         });
       } else {
         results.push({
           severity: "warn",
-          message: `Workflow watch Waybar hidden-empty CSS is missing: ${displayPath(waybarStyle)}`,
+          message: `Workflow runs Waybar hidden-empty CSS is missing: ${displayPath(waybarStyle)}`,
           detail:
-            "Update the Waybar style so the workflow failure icon hides when there are no failures",
+            "Update the Waybar style so the workflow icon hides when there are no recent runs needing attention",
         });
       }
     } catch {
@@ -280,67 +280,67 @@ export const checkWorkflowWatch = Effect.gen(function* () {
     const configContains = (needle: string): boolean =>
       waybarConfigWalkContains(waybarConfig, needle);
 
-    if (configContains('"custom/github-workflow-failures"')) {
+    if (configContains('"custom/github-workflows"')) {
       results.push({
         severity: "ok",
-        message: "Workflow watch Waybar module is present in the active config",
+        message: "Workflow runs Waybar module is present in the active config",
       });
     } else {
       results.push({
         severity: "warn",
-        message: `Workflow watch Waybar module is missing from ${displayPath(waybarConfig)}`,
+        message: `Workflow runs Waybar module is missing from ${displayPath(waybarConfig)}`,
         detail:
-          "Add custom/github-workflow-failures before custom/dot-diff in the active Waybar config",
+          "Add custom/github-workflows before custom/dot-diff in the active Waybar config",
       });
     }
 
     if (
       configContains(
-        '"on-click": "~/.local/bin/git-workflow-watch open-failed-runs"',
+        '"on-click": "~/.config/waybar/scripts/github-workflows-waybar.sh open"',
       )
     ) {
       results.push({
         severity: "ok",
-        message: "Workflow watch Waybar left click opens failed runs",
+        message: "Workflow runs Waybar left click opens the filtered TUI",
       });
     } else {
       results.push({
         severity: "warn",
-        message: `Workflow watch Waybar left-click action is missing in ${displayPath(waybarConfig)}`,
+        message: `Workflow runs Waybar left-click action is missing in ${displayPath(waybarConfig)}`,
       });
     }
 
     if (
       configContains(
-        '"on-click-right": "~/.local/bin/git-workflow-watch clear-failed-runs"',
+        '"on-click-right": "~/.config/waybar/scripts/github-workflows-waybar.sh refresh"',
       )
     ) {
       results.push({
         severity: "ok",
-        message: "Workflow watch Waybar right click clears failed runs",
+        message: "Workflow runs Waybar right click refreshes the cache",
       });
     } else {
       results.push({
         severity: "warn",
-        message: `Workflow watch Waybar right-click clear action is missing in ${displayPath(waybarConfig)}`,
+        message: `Workflow runs Waybar right-click refresh action is missing in ${displayPath(waybarConfig)}`,
       });
     }
 
     if (
       waybarConfigWalkOrdersBefore(
         waybarConfig,
-        '"custom/github-workflow-failures"',
+        '"custom/github-workflows"',
         '"custom/dot-diff"',
       )
     ) {
       results.push({
         severity: "ok",
-        message: "Workflow watch Waybar module is ordered before dot diff",
+        message: "Workflow runs Waybar module is ordered before dot diff",
       });
     } else {
       results.push({
         severity: "warn",
-        message: `Workflow watch Waybar module is not ordered before dot diff in ${displayPath(waybarConfig)}`,
+        message: `Workflow runs Waybar module is not ordered before dot diff in ${displayPath(waybarConfig)}`,
       });
     }
   } else {

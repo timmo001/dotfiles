@@ -78,6 +78,8 @@ export interface WorkflowRun {
   readonly event: string;
   /** Run creation timestamp from GitHub */
   readonly createdAt: string | null;
+  /** Run start timestamp from GitHub, updated on reruns */
+  readonly startedAt: string | null;
   /** Last update timestamp from GitHub */
   readonly updatedAt: string | null;
 }
@@ -100,6 +102,12 @@ export interface WorkflowRepoRuns {
   readonly error?: string;
 }
 
+/** Query options for fetching watched GitHub workflow runs. */
+export interface WorkflowRunQueryOptions {
+  /** Only include workflow runs created, started, or updated at or after this ISO timestamp. */
+  readonly since?: string;
+}
+
 /** Snapshot of all watched workflow repos and their latest run state */
 export interface WorkflowState {
   /** Watched repositories from the workflow watchlist */
@@ -110,6 +118,8 @@ export interface WorkflowState {
   readonly loading: boolean;
   /** Whether at least one refresh has completed */
   readonly loaded: boolean;
+  /** Active ISO timestamp filter for workflow run activity time */
+  readonly since: string | null;
   /** Optional global status message, such as a missing watchlist */
   readonly message?: string;
 }

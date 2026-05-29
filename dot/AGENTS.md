@@ -33,7 +33,7 @@ Always apply these skills when editing code in this directory:
 src/
   index.ts                — Entry point, CLI mode resolution, Effect bootstrap
   types.ts                — Repo, RepoState, MenuItem, MenuAction, ViewId, StagedFile, CommitSuggestion
-  flags.ts                — CLI parser: subcommands, --tab, --raw, --help
+  flags.ts                — CLI parser: subcommands, --tab, --since, --raw, --help
   menu.ts                 — Menu registry: Map<string, MenuItem> for dot + omarchy items
   theme.ts                — Theme loading (Omarchy theme → TUI colours)
   commands/
@@ -49,7 +49,7 @@ src/
     SkillUpdates.ts       — dot skill-updates
     Stow.ts               — dot stow
     Update.ts             — dot update
-    Workflows.ts          — dot workflows (--waybar, --list-repos, --list-runs, --raw)
+    Workflows.ts          — dot workflows (--since, --waybar, --list-repos, --list-runs, --raw)
   doctor/
     types.ts              — DoctorCheck, DoctorResult types
     runner.ts             — Parallel check runner with output formatting
@@ -149,6 +149,7 @@ dot diff --waybar             # Machine-readable JSON for Waybar
 dot diff --list-changed       # Pipe-friendly changed repo list
 dot diff --list-all           # Pipe-friendly all repo list
 dot workflows --raw           # CLI workflow run summary
+dot workflows --since <date>  # Filter workflow runs by creation time (TUI or CLI)
 dot workflows --waybar        # Machine-readable workflow JSON for Waybar
 dot workflows --list-repos    # Pipe-friendly watched repo workflow list
 dot workflows --list-runs     # Pipe-friendly watched workflow run list
@@ -260,7 +261,7 @@ The build is also triggered by `dot update`.
 ## External Dependencies
 
 - `~/.cache/waybar/dot-diff-waybar.json` — Waybar cache for fast startup
-- `~/.config/dotfiles-private/.git-workflow-watch-repos` — watched GitHub repos for the workflows view and workflow notifications; `dot workflows` applies matching `.dot-extra-repos` schedules before querying GitHub
+- `~/.config/dotfiles-private/.git-workflow-watch-repos` — watched GitHub repos for the workflows view and workflow notifications; `dot workflows` applies matching `.dot-extra-repos` schedules before querying GitHub and supports `--since <date>` for activity-time filtering
 - `lazygit` — launched via suspend/resume on Enter in diff view
 - `opencode` — CLI for model discovery; SDK for AI commit suggestions
 - `@opencode-ai/sdk` — OpenCode SDK for programmatic session/prompt calls

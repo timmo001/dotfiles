@@ -30,7 +30,7 @@ import {
   workflowsRaw,
   workflowsWaybar,
 } from "./commands/Workflows.js";
-import type { ViewId } from "./types.js";
+import type { ViewId, WorkflowRunQueryOptions } from "./types.js";
 
 const DEBUG = !!process.env.DOT_DEBUG;
 const log = (msg: string) => {
@@ -137,6 +137,9 @@ function resolveMode(): Mode {
 }
 
 const mode = resolveMode();
+const workflowOpts: WorkflowRunQueryOptions | undefined = flags.since
+  ? { since: flags.since }
+  : undefined;
 
 type NativeEnv =
   | Config
@@ -172,10 +175,10 @@ if (mode.type === "native") {
   };
 
   const resolveWorkflows = (args: readonly string[]): NativeEffect => {
-    if (args.includes("--waybar")) return workflowsWaybar;
-    if (args.includes("--list-repos")) return workflowsListRepos;
-    if (args.includes("--list-runs")) return workflowsListRuns;
-    return workflowsRaw;
+    if (args.includes("--waybar")) return workflowsWaybar(workflowOpts);
+    if (args.includes("--list-repos")) return workflowsListRepos(workflowOpts);
+    if (args.includes("--list-runs")) return workflowsListRuns(workflowOpts);
+    return workflowsRaw(workflowOpts);
   };
 
   const resolveNative = (
@@ -299,7 +302,7 @@ if (mode.type === "native") {
           Effect.runFork(watcher.refresh());
         },
         onRefreshWorkflows: () => {
-          Effect.runFork(workflows.refresh());
+          Effect.runFork(workflows.refresh(workflowOpts));
         },
       },
       {
