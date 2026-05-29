@@ -226,8 +226,15 @@ Open the watched GitHub workflow runs view. The left pane lists watched
 repositories from the workflow-watch repo list. The right pane lists runs for
 the selected repo's locally checked-out HEAD commit.
 
+Modes:
+  (default)      Interactive workflow runs TUI
+  --raw          Human-readable CLI summary of watched workflow runs
+  --waybar       Single-line JSON for Waybar status module
+  --list-repos   Pipe-delimited repo summaries
+  --list-runs    Pipe-delimited workflow run rows
+
 Options:
-  --help, -h  Show this help message
+  --help, -h     Show this help message
 
 Keybindings (TUI mode):
   ↑↓             Navigate the active pane
@@ -238,7 +245,10 @@ Keybindings (TUI mode):
   Ctrl+c         Quit
 
 Examples:
-  dot workflows          Interactive workflow runs TUI`);
+  dot workflows              Interactive workflow runs TUI
+  dot workflows --raw        CLI summary of watched workflow runs
+  dot workflows --waybar     JSON for Waybar integration
+  dot workflows --list-runs  Pipe-friendly workflow run list`);
     return;
   }
 
@@ -301,6 +311,7 @@ Examples:
   dot diff --waybar        Waybar JSON output
   dot diff --tab other     Diff view, Other pane focused
   dot workflows            Watched workflow runs TUI
+  dot workflows --waybar   Workflow runs Waybar JSON output
   dot omarchy theme        Omarchy theme submenu
   dot omarchy theme set    Execute omarchy theme set
 

@@ -17,7 +17,10 @@ import {
 
 const HOME = process.env.HOME ?? `/home/${process.env.USER ?? ""}`;
 const RUN_LIMIT = 100;
-const log = (msg: string) => console.error(`[dot:WorkflowRuns] ${msg}`);
+const DEBUG = !!process.env.DOT_DEBUG;
+const log = (msg: string) => {
+  if (DEBUG) console.error(`[dot:WorkflowRuns] ${msg}`);
+};
 
 interface WorkflowRunsService {
   /** Subscribe to workflow run state snapshots */

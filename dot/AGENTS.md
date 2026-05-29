@@ -49,6 +49,7 @@ src/
     SkillUpdates.ts       — dot skill-updates
     Stow.ts               — dot stow
     Update.ts             — dot update
+    Workflows.ts          — dot workflows (--waybar, --list-repos, --list-runs, --raw)
   doctor/
     types.ts              — DoctorCheck, DoctorResult types
     runner.ts             — Parallel check runner with output formatting
@@ -67,6 +68,7 @@ src/
     Renderer.ts           — OpenTUI renderer service
     RepoWatcher.ts        — Hybrid poll loop (Waybar cache → 10s poll), PubSub state
     WorkflowRuns.ts       — Watched GitHub Actions run state for locally checked-out HEAD commits
+    workflowStatus.ts     — Shared GitHub Actions status classification helpers
     Toast.ts              — Toast notification overlay service
     WaybarCache.ts        — Waybar cache JSON reader for fast startup
   tui/
@@ -146,6 +148,10 @@ dot diff --raw                # CLI diff output (no TUI)
 dot diff --waybar             # Machine-readable JSON for Waybar
 dot diff --list-changed       # Pipe-friendly changed repo list
 dot diff --list-all           # Pipe-friendly all repo list
+dot workflows --raw           # CLI workflow run summary
+dot workflows --waybar        # Machine-readable workflow JSON for Waybar
+dot workflows --list-repos    # Pipe-friendly watched repo workflow list
+dot workflows --list-runs     # Pipe-friendly watched workflow run list
 dot update                    # Full update (pull, stow, rebuild)
 dot update --pull             # Pull repos only
 dot update --stow             # Stow only

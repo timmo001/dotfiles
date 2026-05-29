@@ -4,6 +4,7 @@ import { CommandExecutor } from "./services/CommandExecutor.js";
 import { OutputLog } from "./services/OutputLog.js";
 import { Launcher } from "./services/Launcher.js";
 import { DotDiff } from "./services/DotDiff.js";
+import { WorkflowRuns } from "./services/WorkflowRuns.js";
 import { parseFlags, resolveSubcommand, printHelp } from "./flags.js";
 import { menuItemsById } from "./menu.js";
 import { stow } from "./commands/Stow.js";
@@ -23,6 +24,12 @@ import {
   diffListAll,
   diffRaw,
 } from "./commands/Diff.js";
+import {
+  workflowsListRepos,
+  workflowsListRuns,
+  workflowsRaw,
+  workflowsWaybar,
+} from "./commands/Workflows.js";
 import type { ViewId } from "./types.js";
 
 const DEBUG = !!process.env.DOT_DEBUG;
@@ -48,6 +55,7 @@ const nativeCommands = new Set([
   "stow",
   "update",
   "diff",
+  "workflows",
   "doctor",
   "help",
   "clean",
@@ -76,6 +84,17 @@ function resolveMode(): Mode {
         flags.rest.includes("--raw");
       if (!hasMachineFlag) {
         return { type: "tui", initialView: "diff" };
+      }
+    }
+    // Workflows without machine/listing flags opens the TUI workflows view
+    if (flags.subcommand === "workflows") {
+      const hasMachineFlag =
+        flags.rest.includes("--waybar") ||
+        flags.rest.includes("--list-repos") ||
+        flags.rest.includes("--list-runs") ||
+        flags.rest.includes("--raw");
+      if (!hasMachineFlag) {
+        return { type: "tui", initialView: "workflows" };
       }
     }
     return { type: "native", command: flags.subcommand, args: flags.rest };
@@ -119,11 +138,21 @@ function resolveMode(): Mode {
 
 const mode = resolveMode();
 
+type NativeEnv =
+  | Config
+  | CommandExecutor
+  | DotDiff
+  | Launcher
+  | OutputLog
+  | WorkflowRuns;
+type NativeEffect = Effect.Effect<void, unknown, NativeEnv>;
+
 // --- Layer Composition ---
 
 /** Minimal layers for native CLI commands (no renderer, no TUI services) */
 const CliLayers = Launcher.cliLayer.pipe(
   Layer.provideMerge(DotDiff.layer),
+  Layer.provideMerge(WorkflowRuns.layer),
   Layer.provideMerge(OutputLog.cliLayer),
   Layer.provideMerge(CommandExecutor.layer),
   Layer.provideMerge(Config.layer),
@@ -133,13 +162,7 @@ const CliLayers = Launcher.cliLayer.pipe(
 
 if (mode.type === "native") {
   // Run a natively-ported command with CLI layers
-  const resolveDiff = (
-    args: readonly string[],
-  ): Effect.Effect<
-    void,
-    never,
-    DotDiff | Config | OutputLog | CommandExecutor
-  > => {
+  const resolveDiff = (args: readonly string[]): NativeEffect => {
     const noFetch = args.includes("--no-fetch");
     const opts = noFetch ? { noFetch: true } : undefined;
     if (args.includes("--waybar")) return diffWaybar(opts);
@@ -148,7 +171,17 @@ if (mode.type === "native") {
     return diffRaw(opts);
   };
 
-  const resolveNative = (command: string, args: readonly string[]) => {
+  const resolveWorkflows = (args: readonly string[]): NativeEffect => {
+    if (args.includes("--waybar")) return workflowsWaybar;
+    if (args.includes("--list-repos")) return workflowsListRepos;
+    if (args.includes("--list-runs")) return workflowsListRuns;
+    return workflowsRaw;
+  };
+
+  const resolveNative = (
+    command: string,
+    args: readonly string[],
+  ): NativeEffect => {
     switch (command) {
       case "stow":
         return stow({
@@ -161,6 +194,8 @@ if (mode.type === "native") {
           stow: args.includes("--stow"),
           tui: args.includes("--tui"),
         });
+      case "workflows":
+        return resolveWorkflows(args);
       case "doctor":
         return doctor({
           openOpencode: args.includes("--open-opencode"),
@@ -230,7 +265,6 @@ if (mode.type === "native") {
   const { Toast } = await import("./services/Toast.js");
   const { WaybarCache } = await import("./services/WaybarCache.js");
   const { RepoWatcher } = await import("./services/RepoWatcher.js");
-  const { WorkflowRuns } = await import("./services/WorkflowRuns.js");
   const { GitStaging } = await import("./services/GitStaging.js");
   const { CommitSuggest } = await import("./services/CommitSuggest.js");
   const { shutdownServer } = await import("./services/OpenCodeServer.js");

@@ -7,6 +7,17 @@ import {
 } from "@opentui/core";
 import type { WorkflowRepoRuns, WorkflowRun, WorkflowState } from "../types.js";
 import type { Theme } from "../theme.js";
+import {
+  formatWorkflowRepoDetail,
+  formatWorkflowRunDetail,
+  formatWorkflowTimeAgo,
+  runFailed,
+  runPassed,
+  runRunning,
+  workflowRepoStatus,
+  workflowRepoStatusIcon,
+  workflowRunStatusIcon,
+} from "../services/workflowStatus.js";
 import { formatBreadcrumb } from "./breadcrumb.js";
 import { formatHelpBar, GLOBAL_HELP, type HelpEntry } from "./helpBar.js";
 import { StatusList, type StatusListItem } from "./StatusList.js";
@@ -259,7 +270,7 @@ export class WorkflowRunsView {
     return {
       id: repo.slug,
       title: this.formatRepoName(repo),
-      description: this.formatRepoDescription(repo),
+      description: formatWorkflowRepoDetail(repo),
       color: this.repoStatusColor(repo),
       value: repo,
     };
@@ -269,7 +280,7 @@ export class WorkflowRunsView {
     return {
       id: run.id || run.url || run.workflowName,
       title: this.formatRunName(run),
-      description: this.formatRunDescription(run),
+      description: formatWorkflowRunDetail(run),
       color: this.runStatusColor(run),
       value: run,
     };
@@ -299,76 +310,33 @@ export class WorkflowRunsView {
   }
 
   private formatRepoName(repo: WorkflowRepoRuns): string {
-    return `${this.repoStatusIcon(repo)} ${repo.slug}`;
-  }
-
-  private formatRepoDescription(repo: WorkflowRepoRuns): string {
-    const branch = repo.branch ?? "current branch";
-    const commit = repo.headSha
-      ? `${branch}@${shortSha(repo.headSha)}`
-      : branch;
-    const subject = repo.commitSubject ? ` • ${repo.commitSubject}` : "";
-    return `${commit} • ${this.repoStatusText(repo)}${subject}`;
+    return `${workflowRepoStatusIcon(repo)} ${repo.slug}`;
   }
 
   private formatRunName(run: WorkflowRun): string {
-    return `${runStatusIcon(run)} ${run.workflowName}`;
-  }
-
-  private formatRunDescription(run: WorkflowRun): string {
-    const when = this.formatTimeAgo(run.updatedAt ?? run.createdAt);
-    const event = run.event ? ` • ${run.event}` : "";
-    return `${runStatusText(run)}${event} • ${when} • ${run.displayTitle}`;
-  }
-
-  private repoStatusIcon(repo: WorkflowRepoRuns): string {
-    if (repo.error) return "×";
-    if (repo.runs.some((run) => run.status !== "completed")) return "●";
-    const failed = repo.runs.some(runFailed);
-    const passed = repo.runs.some(runPassed);
-    if (failed && passed) return "●";
-    if (failed) return "×";
-    if (passed) return "✓";
-    return "○";
-  }
-
-  private repoStatusText(repo: WorkflowRepoRuns): string {
-    if (repo.error) return `error: ${repo.error}`;
-    if (!repo.headSha) return "not loaded";
-    if (repo.runs.length === 0) return "no runs for head commit";
-
-    const running = repo.runs.filter(
-      (run) => run.status !== "completed",
-    ).length;
-    const failed = repo.runs.filter(runFailed).length;
-    const passed = repo.runs.filter(runPassed).length;
-    const skipped = repo.runs.filter(runSkipped).length;
-
-    const parts: string[] = [];
-    if (running > 0) parts.push(`${running} running`);
-    if (failed > 0) parts.push(`${failed} failed`);
-    if (passed > 0) parts.push(`${passed} passed`);
-    if (skipped > 0) parts.push(`${skipped} skipped`);
-    return parts.join(", ") || "no completed runs";
+    return `${workflowRunStatusIcon(run)} ${run.workflowName}`;
   }
 
   private repoStatusColor(repo: WorkflowRepoRuns): string {
-    if (repo.error) return this.theme.red;
-    if (repo.runs.some((run) => run.status !== "completed")) {
-      return this.theme.yellow;
+    switch (workflowRepoStatus(repo)) {
+      case "error":
+      case "failed":
+        return this.theme.red;
+      case "running":
+      case "mixed":
+        return this.theme.yellow;
+      case "passed":
+        return this.theme.green;
+      case "not-loaded":
+      case "quiet":
+        return this.theme.fgMuted;
     }
-    const failed = repo.runs.some(runFailed);
-    const passed = repo.runs.some(runPassed);
-    if (failed && passed) return this.theme.yellow;
-    if (failed) return this.theme.red;
-    if (passed) return this.theme.green;
-    return this.theme.fgMuted;
   }
 
   private runStatusColor(run: WorkflowRun): string {
-    if (run.status !== "completed") return this.theme.yellow;
+    if (runRunning(run)) return this.theme.yellow;
     if (runPassed(run)) return this.theme.green;
-    return runSkipped(run) ? this.theme.fgMuted : this.theme.red;
+    return runFailed(run) ? this.theme.red : this.theme.fgMuted;
   }
 
   private updateStatusBar(): void {
@@ -394,7 +362,7 @@ export class WorkflowRunsView {
       repo.runs.some(runFailed),
     ).length;
     const running = this.state.repos.filter((repo) =>
-      repo.runs.some((run) => run.status !== "completed"),
+      repo.runs.some(runRunning),
     ).length;
     const dot = failed > 0 ? fg(th.red)("●") : fg(th.green)("●");
     const summary =
@@ -404,52 +372,6 @@ export class WorkflowRunsView {
           ? fg(th.yellow)(`${running} repo${running === 1 ? "" : "s"} running`)
           : fg(th.green)("all watched runs passing or quiet");
 
-    this.statusBar.content = t`${fg(th.fgMuted)(`Last checked: ${this.formatTimeAgo(this.state.lastChecked.toISOString())}`)}    ${dot}  ${summary}`;
+    this.statusBar.content = t`${fg(th.fgMuted)(`Last checked: ${formatWorkflowTimeAgo(this.state.lastChecked.toISOString())}`)}    ${dot}  ${summary}`;
   }
-
-  private formatTimeAgo(value: string | null): string {
-    if (!value) return "unknown";
-    const time = new Date(value).getTime();
-    if (!Number.isFinite(time)) return "unknown";
-    const seconds = Math.floor((Date.now() - time) / 1000);
-    if (seconds < 5) return "just now";
-    if (seconds < 60) return `${seconds}s ago`;
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    return `${days}d ago`;
-  }
-}
-
-function shortSha(sha: string): string {
-  return sha.slice(0, 7);
-}
-
-function runStatusIcon(run: WorkflowRun): string {
-  if (run.status !== "completed") return "●";
-  if (runPassed(run)) return "✓";
-  return runSkipped(run) ? "○" : "×";
-}
-
-function runStatusText(run: WorkflowRun): string {
-  if (run.status !== "completed") return run.status.replace(/_/g, " ");
-  return run.conclusion ?? "completed";
-}
-
-function runPassed(run: WorkflowRun): boolean {
-  return run.status === "completed" && run.conclusion === "success";
-}
-
-function runSkipped(run: WorkflowRun): boolean {
-  return run.status === "completed" && run.conclusion === "skipped";
-}
-
-function runFailed(run: WorkflowRun): boolean {
-  return (
-    run.status === "completed" &&
-    run.conclusion !== "success" &&
-    run.conclusion !== "skipped"
-  );
 }
