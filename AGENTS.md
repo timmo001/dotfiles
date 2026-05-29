@@ -24,7 +24,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 
 - Main entrypoint: `scripts/.local/bin/dot` (compiled binary from `dot/src/`)
 - Source: `dot/` (Bun + Effect v4 + OpenTUI; excluded from stow)
-- Legacy bash fallback: `scripts/.local/bin/dot-legacy` (reference/fallback; being phased out)
+- Legacy bash script: `scripts/.local/bin/dot-legacy` (reference only; no longer invoked at runtime, runnable directly)
 - Stow config: `.stowrc`
 - Main docs: `README.md`
 - OpenCode config source: `agents/.config/opencode/`
@@ -96,7 +96,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 
 - When editing files under `dot/`, always follow `dot/AGENTS.md` (validation steps, skills, patterns).
 - When adding new `dot` subcommands that users may want quick access to, also add them to the menu registry in `dot/src/menu.ts`.
-- Legacy bash fallback script: `scripts/.local/bin/dot-legacy` (kept as reference; removal tracked in Phase 99).
+- Legacy bash script: `scripts/.local/bin/dot-legacy` (reference only; no longer invoked at runtime, removal tracked in Phase 99).
 
 ## Script Configuration Policy
 

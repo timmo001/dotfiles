@@ -6,7 +6,6 @@ import { Launcher } from "./services/Launcher.js";
 import { DotDiff } from "./services/DotDiff.js";
 import { parseFlags, resolveSubcommand, printHelp } from "./flags.js";
 import { menuItemsById } from "./menu.js";
-import { bashFallback } from "./commands/BashFallback.js";
 import { stow } from "./commands/Stow.js";
 import { update } from "./commands/Update.js";
 import { doctor } from "./commands/Doctor.js";
@@ -42,8 +41,7 @@ if (flags.help) {
 // --- Determine execution mode ---
 type Mode =
   | { type: "tui"; initialView: ViewId; executeItemId?: string }
-  | { type: "native"; command: string; args: readonly string[] }
-  | { type: "fallback"; subcommand: string; args: readonly string[] };
+  | { type: "native"; command: string; args: readonly string[] };
 
 /** Commands ported natively to TypeScript Effect */
 const nativeCommands = new Set([
@@ -86,12 +84,9 @@ function resolveMode(): Mode {
   const resolved = resolveSubcommand(flags.subcommand);
 
   if (!resolved) {
-    // Unknown subcommand — fall back to dot-legacy
-    return {
-      type: "fallback",
-      subcommand: flags.subcommand.replace(/\./g, " "),
-      args: flags.rest,
-    };
+    console.error(`dot: unknown command '${flags.subcommand}'`);
+    console.error("Run 'dot --help' to see available commands.");
+    process.exit(1);
   }
 
   if (resolved.type === "view") {
@@ -112,12 +107,10 @@ function resolveMode(): Mode {
         executeItemId: resolved.itemId,
       };
     }
-    // command, silent, notify — fall back to dot-legacy
-    return {
-      type: "fallback",
-      subcommand: flags.subcommand!.replace(/\./g, " "),
-      args: flags.rest,
-    };
+    // command, silent, notify items are only runnable from the TUI
+    console.error(`dot: unknown command '${flags.subcommand}'`);
+    console.error("Run 'dot --help' to see available commands.");
+    process.exit(1);
   }
 
   // Submenu key without a direct item — open in TUI
@@ -128,7 +121,7 @@ const mode = resolveMode();
 
 // --- Layer Composition ---
 
-/** Minimal layers for CLI fallback commands (no renderer, no TUI services) */
+/** Minimal layers for native CLI commands (no renderer, no TUI services) */
 const CliLayers = Launcher.cliLayer.pipe(
   Layer.provideMerge(DotDiff.layer),
   Layer.provideMerge(OutputLog.cliLayer),
@@ -138,24 +131,7 @@ const CliLayers = Launcher.cliLayer.pipe(
 
 // --- Execution ---
 
-if (mode.type === "fallback") {
-  // Run the legacy bash script for unported commands
-  const program = bashFallback(mode.subcommand, mode.args).pipe(
-    Effect.provide(CliLayers),
-    Effect.catch((err: unknown) =>
-      Effect.sync(() => {
-        console.error(err);
-        process.exit(1);
-      }),
-    ),
-  );
-
-  Effect.runPromise(program).catch((err) => {
-    log(`Fatal error: ${err}`);
-    console.error(err);
-    process.exit(1);
-  });
-} else if (mode.type === "native") {
+if (mode.type === "native") {
   // Run a natively-ported command with CLI layers
   const resolveDiff = (
     args: readonly string[],
@@ -218,7 +194,10 @@ if (mode.type === "fallback") {
           openOpencode: args.includes("--open-opencode"),
         });
       default:
-        return bashFallback(command, args);
+        return Effect.sync(() => {
+          console.error(`dot: unknown command '${command}'`);
+          process.exit(1);
+        });
     }
   };
 
