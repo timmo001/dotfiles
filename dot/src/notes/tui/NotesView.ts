@@ -26,7 +26,6 @@ import { StatusList, type StatusListItem } from "../../tui/StatusList.js";
 const HELP: readonly HelpEntry[] = [
   { key: "↑↓", action: "navigate" },
   { key: "Tab", action: "pane" },
-  { key: "Enter", action: "preview" },
   { key: "r", action: "refresh" },
   { key: "Esc/Backspace", action: "back" },
   ...GLOBAL_HELP,
@@ -60,6 +59,7 @@ export class NotesView {
   private noteList: StatusList<NoteEntry>;
   private listTitle: TextRenderable;
   private contentTitle: TextRenderable;
+  private footer: BoxRenderable;
   private noteHeading: TextRenderable;
   private noteDescription: TextRenderable;
   private noteTags: TextRenderable;
@@ -257,18 +257,28 @@ export class NotesView {
     paneContainer.add(this.rightPane);
     this.root.add(paneContainer);
 
+    this.footer = new BoxRenderable(renderer, {
+      id: "notes-footer",
+      flexDirection: "column",
+      width: "100%",
+      flexShrink: 0,
+      backgroundColor: theme.bg,
+      zIndex: 10,
+    });
+
     this.statusBar = new TextRenderable(renderer, {
       id: "notes-status-bar",
       content: t`${fg(theme.fgMuted)("Loading...")}`,
       marginTop: 1,
     });
-    this.root.add(this.statusBar);
+    this.footer.add(this.statusBar);
 
-    addResponsiveHelpBar(renderer, this.root, {
+    addResponsiveHelpBar(renderer, this.footer, {
       id: "notes-help-bar",
       theme,
       entries: HELP,
     });
+    this.root.add(this.footer);
 
     const handleNotesKeyPress = (key: KeyEvent) => this.handleKeyPress(key);
     renderer.keyInput.on("keypress", handleNotesKeyPress);
