@@ -6,6 +6,7 @@ import { Launcher } from "./services/Launcher.js";
 import { DotDiff } from "./git/services/DotDiff.js";
 import { GitHub } from "./git/services/GitHub.js";
 import { WorkflowRuns } from "./git/services/WorkflowRuns.js";
+import { Notes } from "./notes/services/Notes.js";
 import { parseFlags, resolveSubcommand, printHelp } from "./flags.js";
 import { menuItemsById } from "./menu.js";
 import { stow } from "./commands/Stow.js";
@@ -19,6 +20,7 @@ import { install } from "./commands/Install.js";
 import { setup } from "./commands/Setup.js";
 import { skillUpdates } from "./commands/SkillUpdates.js";
 import { skillCheck } from "./commands/SkillCheck.js";
+import { noteCommand, notesCommand } from "./notes/commands/Notes.js";
 import {
   diffWaybar,
   diffListChanged,
@@ -58,6 +60,8 @@ const nativeCommands = new Set([
   "diff",
   "git-diff",
   "git-workflows",
+  "notes",
+  "note",
   "doctor",
   "help",
   "clean",
@@ -149,6 +153,7 @@ type NativeEnv =
   | DotDiff
   | GitHub
   | Launcher
+  | Notes
   | OutputLog
   | WorkflowRuns;
 type NativeEffect = Effect.Effect<void, unknown, NativeEnv>;
@@ -159,6 +164,7 @@ type NativeEffect = Effect.Effect<void, unknown, NativeEnv>;
 const CliLayers = Launcher.cliLayer.pipe(
   Layer.provideMerge(DotDiff.layer),
   Layer.provideMerge(WorkflowRuns.layer),
+  Layer.provideMerge(Notes.layer),
   Layer.provideMerge(GitHub.layer),
   Layer.provideMerge(OutputLog.cliLayer),
   Layer.provideMerge(CommandExecutor.layer),
@@ -203,6 +209,10 @@ if (mode.type === "native") {
         });
       case "git-workflows":
         return resolveWorkflows(args);
+      case "notes":
+        return notesCommand(args);
+      case "note":
+        return noteCommand(args);
       case "doctor":
         return doctor({
           openOpencode: args.includes("--open-opencode"),

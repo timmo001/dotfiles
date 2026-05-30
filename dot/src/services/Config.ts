@@ -4,6 +4,10 @@ import { basename, join } from "path";
 
 const HOME = process.env.HOME ?? "/home/" + process.env.USER;
 
+function expandHomePath(path: string): string {
+  return path.replace(/^~(?=\/|$)/, HOME);
+}
+
 /** Omarchy repo configuration for diff tracking */
 export interface OmarchyRepoConfig {
   /** Base directory for omarchy repos (default: ~/.config) */
@@ -36,10 +40,10 @@ export interface ConfigService {
   readonly privateDotfiles: string | null;
   /** Whether private dotfiles are available and accessible */
   readonly canUsePrivate: boolean;
-  /** Human-readable reason for private availability status */
+  /** Reason shown for private availability status */
   readonly privateReason: string;
-  /** Path to the notes repository (null if private not available) */
-  readonly notesDir: string | null;
+  /** Path to the notes repository */
+  readonly notesDir: string;
   /** Omarchy repository configuration */
   readonly omarchy: OmarchyRepoConfig;
   /** Extra repos loaded from private config file */
@@ -121,9 +125,11 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
 
       const privateDotfiles = canUsePrivate ? privatePath : null;
 
-      const notesDir = canUsePrivate
-        ? (process.env.DOT_NOTES_DIR ?? join(HOME, "Documents", "notes"))
-        : null;
+      const notesDir = expandHomePath(
+        process.env.NOTES ||
+          process.env.DOT_NOTES_DIR ||
+          join(HOME, "Documents", "notes"),
+      );
 
       // Omarchy config
       const omarchyRepoBase =

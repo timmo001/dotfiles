@@ -76,7 +76,7 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 ## Workflow runs
 
 - Private dotfiles provide the watched repo list in `~/.config/dotfiles-private/.git-workflow-watch-repos`
-- `dot git-workflows` shows watched repos on the left, with workflow runs for the selected locally checked-out HEAD commit on the right; disabled workflows are hidden; `dot git-workflows --waybar --since "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"` emits one-line Waybar JSON for runs created, rerun, or updated in the window, and `--list-repos`/`--list-runs` emit pipe-friendly listings
+- `dot git-workflows` shows watched repos on the left, with workflow runs for the selected locally checked-out HEAD commit on the right; disabled workflows are hidden; `dot git-workflows --waybar --since "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"` emits one-line Waybar JSON for runs created, rerun, or updated in the window, and `--list-repos`/`--list-runs` emit plain text rows
 - The Waybar workflow module refreshes `dot git-workflows --waybar --since <one-hour-ago>` through its own short-lived cache; left click opens the filtered TUI and right click refreshes the cache
 - `git-workflow-watch`, its global hook, and its user systemd timer are obsolete and should not be installed
 - `dot doctor` verifies the watched repo list, active Waybar workflow-runs module wiring, and absence of legacy `git-workflow-watch` leftovers
@@ -109,7 +109,8 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 - `DOT_AGENTS_SYNC_SOURCE` - AGENTS file to mirror (default `~/.config/opencode/AGENTS.md`)
 - `DOT_AGENTS_SYNC_RULE_FILE` - Cursor rule output path (default `$DOTFILES_PRIVATE_DIR/agents/.cursor/rules/global-agents.mdc`, else `~/.cursor/rules/global-agents.mdc`)
 - `DOT_AGENTS_SYNC_ON_UPDATE` - run `agents-sync` after `dot update` (`1|0`, default `1`)
-- `DOT_NOTES_DIR` - notes vault git repo (default `~/Documents/notes`)
+- `NOTES` - notes vault git repo used by `dot notes` and OpenCode note commands (preferred; default `~/Documents/notes`)
+- `DOT_NOTES_DIR` - compatibility notes vault override used when `NOTES` is unset
 - `DOT_FETCH_TTL_SECONDS` - seconds to reuse last upstream fetch (default `300`)
 
 ## New machine checklist

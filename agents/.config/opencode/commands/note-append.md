@@ -8,7 +8,7 @@ Follow these steps exactly:
 
 ## Step 1: Check for existing notes
 
-If `notes_directory_exists: no` appears in the injected context, or `<existing-notes>` contains "(notes directory does not exist yet)" or "(no .md files found in notes directory)", stop and tell the user:
+If `Notes directory exists: no` appears in the injected `<repository>` section, or `<existing-notes>` contains "(notes directory does not exist yet)" or "(no .md files found in notes directory)", stop and tell the user:
 
 > No notes exist yet for `{owner}/{repo}`. Run `/note-create` to create the first note.
 

@@ -179,14 +179,14 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
               path: config.privateDotfiles,
             });
           }
+        }
 
-          // Notes
-          if (config.notesDir && existsSync(config.notesDir)) {
-            repos.push({
-              name: basename(config.notesDir),
-              path: config.notesDir,
-            });
-          }
+        // Notes
+        if (existsSync(config.notesDir)) {
+          repos.push({
+            name: basename(config.notesDir),
+            path: config.notesDir,
+          });
         }
 
         // Omarchy repos

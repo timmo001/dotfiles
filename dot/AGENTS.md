@@ -48,6 +48,10 @@ src/
     SkillUpdates.ts       — dot skill-updates
     Stow.ts               — dot stow
     Update.ts             — dot update
+  notes/
+    types.ts              — Repo-note data types and legacy label formatting
+    commands/Notes.ts     — dot notes / dot note native CLI handlers
+    services/Notes.ts     — Effect service for OpenCode notes context and note I/O
   doctor/
     types.ts              — DoctorCheck, DoctorResult types
     runner.ts             — Parallel check runner with output formatting
@@ -150,17 +154,24 @@ MenuItem action types:
 dot                           # Main menu (TUI)
 dot git-diff                  # Diff view (TUI)
 dot git-diff --tab other      # Diff view, Other tab focused (TUI)
-dot diff                      # Compatibility alias for human use
+dot diff                      # Short alias for git-diff
 dot git-workflows             # Watched GitHub workflow runs view (TUI)
 dot git-diff --raw            # CLI diff output (no TUI)
-dot git-diff --waybar         # Machine-readable JSON for Waybar
-dot git-diff --list-changed   # Pipe-friendly changed repo list
-dot git-diff --list-all       # Pipe-friendly all repo list
+dot git-diff --waybar         # JSON output for Waybar
+dot git-diff --list-changed   # Changed repo rows
+dot git-diff --list-all       # All repo rows
 dot git-workflows --raw       # CLI workflow run summary
 dot git-workflows --since <date> # Filter workflow runs by creation time (TUI or CLI)
-dot git-workflows --waybar    # Machine-readable workflow JSON for Waybar
-dot git-workflows --list-repos # Pipe-friendly watched repo workflow list
-dot git-workflows --list-runs # Pipe-friendly watched workflow run list
+dot git-workflows --waybar    # JSON output for Waybar
+dot git-workflows --list-repos # Watched repo rows
+dot git-workflows --list-runs # Workflow run rows
+dot notes root             # Print notes vault root
+dot notes root --repo-notes # Print repository notes directory
+dot notes context --command notes-list # Print OpenCode notes context
+dot notes list --format json # List current repo notes as JSON
+dot note read --path <path> # Read a note file
+dot note write --path <path> --stdin # Write stdin to a note file and commit it
+dot note delete --path <path> # Delete a note file and commit it
 dot update                    # Full update (pull, stow, rebuild)
 dot update --pull             # Pull repos only
 dot update --stow             # Stow only
@@ -269,6 +280,7 @@ The build is also triggered by `dot update`.
 ## External Dependencies
 
 - `~/.cache/waybar/git-diff-waybar.json` — Waybar cache for fast startup
+- `NOTES` / `DOT_NOTES_DIR` — notes vault used by `dot notes` and OpenCode note commands
 - `~/.config/dotfiles-private/.git-workflow-watch-repos` — watched GitHub repos for `dot git-workflows`; `dot git-workflows` applies matching `.dot-extra-repos` schedules before querying GitHub, hides disabled workflows, and supports `--since <date>` for activity-time filtering
 - `lazygit` — launched via suspend/resume on Enter in diff view
 - `opencode` — CLI for model discovery; SDK for AI commit suggestions

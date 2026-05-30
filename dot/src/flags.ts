@@ -206,6 +206,8 @@ function isKnownTarget(candidate: string): boolean {
     candidate === "diff" ||
     candidate === "git-diff" ||
     candidate === "git-workflows" ||
+    candidate === "notes" ||
+    candidate === "note" ||
     candidate === "omarchy"
   )
     return true;
@@ -246,13 +248,14 @@ export function resolveSubcommand(
   | { type: "view"; viewId: ViewId }
   | { type: "item"; itemId: string }
   | undefined {
-  // Direct view names. `diff` remains a compatibility alias for humans.
+  // Direct view names. `diff` is a short alias for `git-diff`.
   if (sub === "git-diff" || sub === "diff") {
     return { type: "view", viewId: "git-diff" };
   }
   if (sub === "git-workflows") {
     return { type: "view", viewId: "git-workflows" };
   }
+  if (sub === "notes" || sub === "note") return undefined;
   if (sub === "omarchy") return { type: "view", viewId: "omarchy" };
 
   // Match against menu item IDs or submenu keys
@@ -277,10 +280,10 @@ Open the diff/repo watcher view. Without flags, opens the interactive TUI.
 
 Modes:
   (default)        Interactive TUI diff view
-  --raw            Coloured CLI summary of repos with changes
-  --waybar         Single-line JSON for Waybar status module
-  --list-changed   Pipe-delimited list of repos with changes (name|path)
-  --list-all       Pipe-delimited list of all tracked repos (name|path)
+  --raw            Text summary of repos with changes
+  --waybar         JSON output for Waybar
+  --list-changed   Changed repos as name|path rows
+  --list-all       All tracked repos as name|path rows
 
 Options:
   --no-fetch                       Skip fetching from remotes (use local refs only)
@@ -303,10 +306,10 @@ Keybindings (TUI mode):
 
 Examples:
   dot git-diff             Interactive TUI
-  dot git-diff --raw       CLI summary of changed repos
-  dot git-diff --waybar    JSON for Waybar integration
+  dot git-diff --raw       Text summary of changed repos
+  dot git-diff --waybar    Waybar JSON output
   dot git-diff --tab other TUI with Other pane focused
-  dot diff --waybar        Compatibility alias for human use`);
+  dot diff --waybar        Same as git-diff --waybar`);
     return;
   }
 
@@ -320,7 +323,7 @@ All checks run in parallel. Results are printed per-section with a grouped
 summary at the end. A log file is always written to ~/.local/state/dot/logs/.
 
 Options:
-  --open-opencode    Save report and launch an OpenCode session to analyse it
+  --open-opencode    Save report and open it in OpenCode
   --help, -h         Show this help message
 
 Checks performed:
@@ -330,7 +333,7 @@ Checks performed:
   Stow integrity       Dry-run restow to detect drift
   OpenCode location    Canonical paths, legacy remnants
   Git config           Managed include is active
-  Workflow runs        Repo list, Waybar integration, legacy watcher removal
+  Workflow runs        Repo list, Waybar config, legacy watcher cleanup
   Doctor startup       Startup notification timer
   Daily volume reset   Laptop-only optional timer
   Omarchy repos        Diff repos + worktree branch correctness
@@ -347,7 +350,7 @@ Exit codes:
 
 Examples:
   dot doctor                  Run all checks
-  dot doctor --open-opencode  Run checks then hand off to OpenCode for analysis`);
+  dot doctor --open-opencode  Run checks, then open OpenCode with the report`);
     return;
   }
 
@@ -360,10 +363,10 @@ selected repo's locally checked-out HEAD commit.
 
 Modes:
   (default)      Interactive workflow runs TUI
-  --raw          Human-readable CLI summary of watched workflow runs
-  --waybar       Single-line JSON for Waybar status module
-  --list-repos   Pipe-delimited repo summaries
-  --list-runs    Pipe-delimited workflow run rows
+  --raw          Text summary of watched workflow runs
+  --waybar       JSON output for Waybar
+  --list-repos   Watched repo summaries as rows
+  --list-runs    Workflow runs as rows
 
 Options:
   --since <date> Only include runs active at or after this date (ISO/RFC/epoch)
@@ -379,18 +382,60 @@ Keybindings (TUI mode):
 
 Examples:
   dot git-workflows              Interactive workflow runs TUI
-  dot git-workflows --raw        CLI summary of watched workflow runs
-  dot git-workflows --waybar     JSON for Waybar integration
+  dot git-workflows --raw        Text summary of watched workflow runs
+  dot git-workflows --waybar     Waybar JSON output
   dot git-workflows --since "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"
-  dot git-workflows --list-runs  Pipe-friendly workflow run list`);
+  dot git-workflows --list-runs  List workflow runs`);
+    return;
+  }
+
+  if (subcommand === "notes") {
+    console.log(`Usage: dot notes <command> [options]
+
+Manage repository notes used by OpenCode note commands.
+
+Commands:
+  root                         Print the notes vault root
+  root --repo-notes            Print the repository notes directory
+  context --command <name>     Print the context block for OpenCode notes
+  list [--format labels|json]  List notes for the current repository
+
+Options:
+  --help, -h  Show this help message
+
+Examples:
+  dot notes root
+  dot notes context --command notes-list
+  dot notes list --format json`);
+    return;
+  }
+
+  if (subcommand === "note") {
+    console.log(`Usage: dot note <command> [options]
+
+Read, write, and delete note files. Writes and deletes are committed to the
+notes vault when possible.
+
+Commands:
+  read --path <path>            Print a note file
+  write --path <path> --stdin   Write stdin to a note file and commit it
+  delete --path <path>          Delete a note file and commit it
+
+Options:
+  --help, -h  Show this help message
+
+Examples:
+  dot note read --path ~/Documents/notes/repo-notes/owner/repo/topic.md
+  dot note write --path /tmp/notes/repo-notes/owner/repo/topic.md --stdin
+  dot note delete --path /tmp/notes/repo-notes/owner/repo/topic.md`);
     return;
   }
 
   if (subcommand === "omarchy" || subcommand?.startsWith("omarchy.")) {
     console.log(`Usage: dot omarchy [submenu...]
 
-Open the Omarchy desktop controls menu. Submenus can be specified
-as space-separated paths:
+Open the Omarchy desktop controls menu. Pass a submenu path to jump straight
+to it:
 
   dot omarchy theme        Theme submenu
   dot omarchy theme set    Execute theme set directly
@@ -426,6 +471,8 @@ Launch the dot TUI dashboard. Without a subcommand, opens the main menu.
 Subcommands:
   git-diff             Open the git diff/repo watcher view
   git-workflows        Open watched GitHub workflow runs
+  notes                Manage repository notes
+  note                 Read, write, or delete note files
   update               Run dot update
   stow                 Run dot stow
   doctor               Run dot doctor
@@ -433,7 +480,7 @@ Subcommands:
   skill-updates        Run dot skill-updates
   skill-check          Validate skill references
   topgrade             Run topgrade
-  omarchy [submenu..]  Open the Omarchy submenu (space-separated paths)
+  omarchy [submenu..]  Open an Omarchy submenu by path
 
 Options:
   --help, -h                       Show this help message
@@ -441,11 +488,13 @@ Options:
 Examples:
   dot                      Main menu
   dot git-diff             Interactive diff TUI
-  dot git-diff --raw       CLI diff summary
+  dot git-diff --raw       Text diff summary
   dot git-diff --waybar    Waybar JSON output
-  dot diff --waybar        Compatibility alias for human use
+  dot diff --waybar        Same as git-diff --waybar
   dot git-workflows        Watched workflow runs TUI
-  dot git-workflows --waybar Workflow runs Waybar JSON output
+  dot git-workflows --waybar Waybar JSON output
+  dot notes root           Print notes vault root
+  dot notes context --command notes-list
   dot omarchy theme        Omarchy theme submenu
   dot omarchy theme set    Execute omarchy theme set
 

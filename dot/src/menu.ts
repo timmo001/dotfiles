@@ -108,6 +108,37 @@ const dotItems: readonly MenuItem[] = [
     "Dotfiles",
   ),
   item(
+    "notes",
+    "󰎞",
+    "Repo Notes",
+    "List repository notes and vault paths",
+    cmd("dot notes list"),
+    [
+      {
+        label: "List",
+        description: "List notes for the current repository",
+        action: cmd("dot notes list"),
+      },
+      {
+        label: "JSON",
+        description: "List current repository notes as JSON",
+        action: cmd("dot notes list --format json"),
+      },
+      {
+        label: "Vault Root",
+        description: "Print the notes vault root",
+        action: cmd("dot notes root"),
+      },
+      {
+        label: "Repo Notes Root",
+        description: "Print the repo-notes directory",
+        action: cmd("dot notes root --repo-notes"),
+      },
+    ],
+    ["notes", "note", "repo-notes", "vault", "obsidian", "handoff"],
+    "Dotfiles",
+  ),
+  item(
     "stow",
     "󰏗",
     "Stow",

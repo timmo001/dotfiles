@@ -163,9 +163,7 @@ export const update = (opts?: {
         .pipe(Effect.catch(() => Effect.succeed([])));
 
       if (!config.canUsePrivate) {
-        yield* log.warn(
-          `Skipping private and notes pull (${config.privateReason})`,
-        );
+        yield* log.warn(`Skipping private pull (${config.privateReason})`);
       }
 
       const changed = repos.filter(

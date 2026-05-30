@@ -180,8 +180,6 @@ export const diffRaw = (opts?: DiffScanOptions) =>
     }
 
     if (!config.canUsePrivate) {
-      yield* log.warn(
-        `Skipping private and notes diff (${config.privateReason})`,
-      );
+      yield* log.warn(`Skipping private diff (${config.privateReason})`);
     }
   }).pipe(Effect.withSpan("diff.raw"), handleDiffError);
