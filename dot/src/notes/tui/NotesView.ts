@@ -42,7 +42,10 @@ const HELP: readonly HelpEntry[] = [
 type NotesPane = "list" | "content";
 type MarkdownRenderNode = NonNullable<MarkdownOptions["renderNode"]>;
 type MarkdownToken = Parameters<MarkdownRenderNode>[0];
-type BlockRenderer = (token: MarkdownToken) => Renderable | null;
+type BlockRenderer = (
+  token: MarkdownToken,
+  isFirstBlock: boolean,
+) => Renderable | null;
 type InlineRenderer = (
   token: MarkdownToken,
   theme: Theme,
@@ -141,6 +144,7 @@ export class NotesView {
   private isVisible = false;
   private requestedInitialRefresh = false;
   private loadVersion = 0;
+  private renderedMarkdownBlockCount = 0;
   private readonly keyHandlers: Readonly<Record<string, () => void>>;
   private readonly blockRenderers: Readonly<Record<string, BlockRenderer>>;
 
@@ -162,7 +166,8 @@ export class NotesView {
     this.blockRenderers = {
       blockquote: (token) => this.renderMarkdownBlockquote(token),
       code: (token) => this.renderMarkdownCode(token),
-      heading: (token) => this.renderMarkdownHeading(token),
+      heading: (token, isFirstBlock) =>
+        this.renderMarkdownHeading(token, isFirstBlock),
       hr: () => this.renderMarkdownRule(),
       list: (token) =>
         isListToken(token) ? this.renderMarkdownList(token) : null,
@@ -440,7 +445,7 @@ export class NotesView {
     this.selectedEntry = entry;
     this.updateHeader(entry);
     this.updatePaneTitles();
-    this.markdown.content = "Loading note content...";
+    this.setMarkdownContent("Loading note content...");
     this.bodyScroll.scrollTo(0);
     this.statusBar.content = t`${fg(this.theme.yellow)(`Loading ${entry.filename}...`)}`;
 
@@ -454,7 +459,7 @@ export class NotesView {
 
   private renderLoadedNote(version: number, content: string): void {
     if (version !== this.loadVersion) return;
-    this.markdown.content = noteBodyContent(content);
+    this.setMarkdownContent(noteBodyContent(content));
     this.bodyScroll.scrollTo(0);
     this.updateStatusBar();
   }
@@ -466,7 +471,7 @@ export class NotesView {
   ): void {
     if (version !== this.loadVersion) return;
     const message = errorMessage(error);
-    this.markdown.content = `Failed to read note content.\n\n${message}`;
+    this.setMarkdownContent(`Failed to read note content.\n\n${message}`);
     this.bodyScroll.scrollTo(0);
     this.statusBar.content = t`${fg(this.theme.red)(`Failed to read ${entry.filename}: ${message}`)}`;
   }
@@ -519,7 +524,7 @@ export class NotesView {
     this.noteTags.content = t``;
     this.noteFile.content = t``;
     this.noteModified.content = t``;
-    this.markdown.content = body;
+    this.setMarkdownContent(body);
     this.bodyScroll.scrollTo(0);
     this.updatePaneTitles();
   }
@@ -573,11 +578,15 @@ export class NotesView {
     defaultRender: () => Renderable | null,
   ): Renderable | null {
     const renderBlock = this.blockRenderers[token.type];
-    return renderBlock ? renderBlock(token) : defaultRender();
+    const rendered = renderBlock
+      ? renderBlock(token, this.renderedMarkdownBlockCount === 0)
+      : defaultRender();
+    if (rendered && !isH1Token(token)) this.renderedMarkdownBlockCount += 1;
+    return rendered;
   }
 
   private renderMarkdownBlock(token: MarkdownToken): Renderable | null {
-    return this.blockRenderers[token.type]?.(token) ?? null;
+    return this.blockRenderers[token.type]?.(token, false) ?? null;
   }
 
   private renderMarkdownText(chunks: readonly TextChunk[]): TextRenderable {
@@ -591,7 +600,10 @@ export class NotesView {
     });
   }
 
-  private renderMarkdownHeading(token: MarkdownToken): BoxRenderable {
+  private renderMarkdownHeading(
+    token: MarkdownToken,
+    isFirstBlock: boolean,
+  ): BoxRenderable {
     if (isH1Token(token)) return this.renderEmptyMarkdownBlock();
 
     const heading = new BoxRenderable(this.renderer, {
@@ -600,7 +612,7 @@ export class NotesView {
       flexShrink: 0,
       backgroundColor: this.theme.bgElevated,
     });
-    heading.add(this.renderHeadingGap());
+    if (!isFirstBlock) heading.add(this.renderHeadingGap());
     heading.add(
       this.renderMarkdownText(
         tokenChunks(token, this.theme, headingStyle(this.theme, token)),
@@ -679,6 +691,7 @@ export class NotesView {
     token.items.forEach((item, index) => {
       const row = new BoxRenderable(this.renderer, {
         flexDirection: "row",
+        alignItems: "flex-start",
         width: "100%",
         flexShrink: 0,
       });
@@ -689,20 +702,37 @@ export class NotesView {
           flexShrink: 0,
         }),
       );
-
-      const content = new BoxRenderable(this.renderer, {
-        flexDirection: "column",
-        flexGrow: 1,
-        flexShrink: 1,
-        minHeight: 0,
-        backgroundColor: this.theme.bgElevated,
-      });
-      this.addMarkdownChildren(content, item.tokens, item.text);
-      row.add(content);
+      row.add(this.renderMarkdownListItemContent(item));
       list.add(row);
     });
 
     return list;
+  }
+
+  private renderMarkdownListItemContent(item: MarkdownListItem): Renderable {
+    const inlineToken = singleInlineListToken(item.tokens);
+    if (inlineToken) {
+      return new TextRenderable(this.renderer, {
+        content: new StyledText(tokenChunks(inlineToken, this.theme)),
+        width: "100%",
+        wrapMode: "word",
+        fg: this.theme.fg,
+        bg: this.theme.bgElevated,
+        flexGrow: 1,
+        flexShrink: 1,
+        minHeight: 0,
+      });
+    }
+
+    const content = new BoxRenderable(this.renderer, {
+      flexDirection: "column",
+      flexGrow: 1,
+      flexShrink: 1,
+      minHeight: 0,
+      backgroundColor: this.theme.bgElevated,
+    });
+    this.addMarkdownChildren(content, item.tokens, item.text);
+    return content;
   }
 
   private addMarkdownChildren(
@@ -719,6 +749,11 @@ export class NotesView {
       : [this.renderMarkdownText([textChunk(fallbackText, this.theme)])];
 
     for (const child of renderables) parent.add(child);
+  }
+
+  private setMarkdownContent(content: string): void {
+    this.renderedMarkdownBlockCount = 0;
+    this.markdown.content = content;
   }
 }
 
@@ -827,6 +862,20 @@ function textChunk(
 function childTokens(token: MarkdownToken): readonly MarkdownToken[] {
   if (!("tokens" in token) || !Array.isArray(token.tokens)) return [];
   return token.tokens;
+}
+
+function singleInlineListToken(
+  tokens: readonly MarkdownToken[],
+): MarkdownToken | null {
+  const visibleTokens = tokens.filter((token) => token.type !== "space");
+  const token = visibleTokens[0];
+  return visibleTokens.length === 1 && isInlineListToken(token) ? token : null;
+}
+
+function isInlineListToken(
+  token: MarkdownToken | undefined,
+): token is MarkdownToken {
+  return token?.type === "text" || token?.type === "paragraph";
 }
 
 function tokenText(token: MarkdownToken): string {
