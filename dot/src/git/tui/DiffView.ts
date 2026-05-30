@@ -16,6 +16,10 @@ import {
   GLOBAL_HELP,
   type HelpEntry,
 } from "../../tui/helpBar.js";
+import {
+  editorLabel,
+  type ExternalEditorKind,
+} from "../../tui/externalEditor.js";
 import { formatPaneTitle } from "../../tui/paneTitle.js";
 import { StatusList } from "../../tui/StatusList.js";
 
@@ -25,6 +29,8 @@ const HELP: readonly HelpEntry[] = [
   { key: "Tab", action: "pane" },
   { key: "Enter", action: "lazygit" },
   { key: "c", action: "commit" },
+  { key: "e", action: "edit" },
+  { key: "E", action: "visual edit" },
   { key: "p", action: "pull" },
   { key: "P", action: "push" },
   { key: "x", action: "unlock" },
@@ -42,6 +48,11 @@ export interface DiffViewOptions {
   readonly onSelect: (repo: Repo) => void;
   /** Called when the user presses 'c' to open the commit/staging flow for the selected repo */
   readonly onCommit: (repo: Repo) => void;
+  /** Called to open the selected repo directory in an external editor */
+  readonly onOpenEditor: (
+    repo: Repo,
+    kind: ExternalEditorKind,
+  ) => Promise<void>;
   /** Called to open a tmux session — "changed" repos when the Changed pane is active, "all" when Other */
   readonly onOpenTmux: (mode: "changed" | "all") => void;
   /** Called to open a plain terminal in the selected repo's directory */
@@ -83,6 +94,7 @@ export class DiffView {
   private unchangedRepos: readonly Repo[] = [];
   private lastChecked: Date = new Date();
   private isVisible = false;
+  private openingEditor = false;
 
   constructor(renderer: CliRenderer, theme: Theme, callbacks: DiffViewOptions) {
     this.renderer = renderer;
@@ -91,6 +103,8 @@ export class DiffView {
     this.keyHandlers = {
       tab: () => this.togglePane(),
       c: () => this.runRepoAction((repo) => this.callbacks.onCommit(repo)),
+      e: () => void this.openSelectedInEditor("editor"),
+      "shift+e": () => void this.openSelectedInEditor("visual"),
       t: () =>
         this.callbacks.onOpenTmux(
           this.activePane === "changed" ? "changed" : "all",
@@ -269,6 +283,31 @@ export class DiffView {
     if (repo) action(repo);
   }
 
+  private async openSelectedInEditor(kind: ExternalEditorKind): Promise<void> {
+    if (this.openingEditor) {
+      this.statusBar.content = t`${fg(this.theme.yellow)("An editor is already open")}`;
+      return;
+    }
+
+    const repo = this.getActiveRepo();
+    if (!repo) {
+      this.statusBar.content = t`${fg(this.theme.yellow)("Select a repo before opening editor")}`;
+      return;
+    }
+
+    this.openingEditor = true;
+    this.statusBar.content = t`${fg(this.theme.yellow)(`Opening ${repo.name} in ${editorLabel(kind)}...`)}`;
+
+    try {
+      await this.callbacks.onOpenEditor(repo, kind);
+      this.statusBar.content = t`${fg(this.theme.green)(`Updated ${repo.name}`)}`;
+    } catch (error) {
+      this.statusBar.content = t`${fg(this.theme.red)(`Failed to open ${repo.name}: ${errorMessage(error)}`)}`;
+    } finally {
+      this.openingEditor = false;
+    }
+  }
+
   private focusPane(pane: Pane): void {
     this.activePane = pane;
     this.changedList.setActive(pane === "changed");
@@ -369,4 +408,9 @@ export class DiffView {
   destroy(): void {
     this.renderer.root.remove(this.root.id);
   }
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
 }

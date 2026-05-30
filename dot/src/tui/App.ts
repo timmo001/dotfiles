@@ -39,6 +39,7 @@ import { OutputPane } from "./OutputPane.js";
 import { Toast } from "./Toast.js";
 import { VariantPopup } from "./VariantPopup.js";
 import { openLazygit } from "../git/tui/Lazygit.js";
+import { openPathInEditor } from "./externalEditor.js";
 
 const log = (msg: string) => console.error(`[dot:App] ${msg}`);
 
@@ -155,6 +156,15 @@ export class App {
         this.commitRepoName = repo.name;
         this.stagingView.openForRepo(repo.path, repo.name);
         this.pushView("staging");
+      },
+      onOpenEditor: async (repo, kind) => {
+        try {
+          await openPathInEditor(deps.renderer, repo.path, kind, () => {
+            setTerminalTitle(formatDiffTitle(this.diffChangedCount));
+          });
+        } finally {
+          deps.onRefreshDiff();
+        }
       },
       onOpenTmux: (mode) => {
         deps.commandRunner

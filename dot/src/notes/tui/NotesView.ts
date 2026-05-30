@@ -34,6 +34,7 @@ import {
   GLOBAL_HELP,
   type HelpEntry,
 } from "../../tui/helpBar.js";
+import { editorLabel } from "../../tui/externalEditor.js";
 import { StatusList, type StatusListItem } from "../../tui/StatusList.js";
 import type { NoteEditorKind } from "./NoteEditor.js";
 import {
@@ -1494,10 +1495,6 @@ function filterStatusText(
 
 function selectedStatusText(entry: NoteEntry | null): string {
   return entry ? `Selected: ${notePathLabel(entry)}` : "Select a note";
-}
-
-function editorLabel(kind: NoteEditorKind): string {
-  return kind === "visual" ? "visual editor" : "editor";
 }
 
 function formatListDescription(entry: NoteEntry): string {
