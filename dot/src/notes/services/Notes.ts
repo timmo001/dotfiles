@@ -15,6 +15,8 @@ import {
   formatNoteLabel,
   type NoteCommitResult,
   type NoteContextOptions,
+  type NoteCreateDraft,
+  type NoteCreateKind,
   type NoteDeleteResult,
   type NoteEntry,
   type NoteFrontmatter,
@@ -63,6 +65,16 @@ interface NotesService {
   readonly delete: (
     filePath: string,
   ) => Effect.Effect<NoteDeleteResult, NotesError>;
+  /** Create a draft note file with seed content (no git commit yet). */
+  readonly createDraft: (
+    kind: NoteCreateKind,
+    name: string,
+    description: string,
+  ) => Effect.Effect<NoteCreateDraft, NotesError>;
+  /** Commit a draft note file after editor exit. */
+  readonly finaliseDraft: (
+    filePath: string,
+  ) => Effect.Effect<NoteCommitResult, NotesError>;
 }
 
 type CommandResult =
@@ -148,6 +160,88 @@ function listNoteEntries(notesPath: string): readonly NoteEntry[] {
       };
     })
     .sort((a, b) => b.mtime - a.mtime);
+}
+
+function slugifyName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+function collisionFreePath(dir: string, slug: string): string {
+  const base = join(dir, slug);
+  if (!existsSync(base)) return base;
+
+  const ext = ".md";
+  const stem = slug.slice(0, -ext.length);
+  for (let suffix = 2; suffix < 100; suffix++) {
+    const candidate = join(dir, `${stem}-${suffix}${ext}`);
+    if (!existsSync(candidate)) return candidate;
+  }
+  return base;
+}
+
+function draftSeedContent(
+  kind: NoteCreateKind,
+  identity: RepoNoteIdentity,
+  now: Date,
+  name: string,
+  description: string,
+): string {
+  const date = now.toISOString().slice(0, 10);
+  const repo = `${identity.owner}/${identity.repo}`;
+  const desc =
+    description ||
+    `Draft ${kind === "handoff" ? "handoff" : "repository"} note.`;
+
+  if (kind === "handoff") {
+    return [
+      "---",
+      `repo: ${repo}`,
+      `branch: ${identity.branch}`,
+      `date: ${date}`,
+      "type: handoff",
+      `name: ${name}`,
+      `description: ${desc}`,
+      "tags: [handoff, draft]",
+      "---",
+      "",
+      `# ${name}`,
+      "",
+      "## Summary",
+      "",
+      "",
+      "## Next Focus",
+      "",
+      "",
+      "## Suggested Skills",
+      "",
+      "",
+      "## Artifact References",
+      "",
+      "",
+      "## Open Threads",
+      "",
+      "",
+    ].join("\n");
+  }
+
+  return [
+    "---",
+    `repo: ${repo}`,
+    `branch: ${identity.branch}`,
+    `date: ${date}`,
+    `name: ${name}`,
+    `description: ${desc}`,
+    "tags: [draft]",
+    "---",
+    "",
+    `# ${name}`,
+    "",
+    "",
+  ].join("\n");
 }
 
 function formatTag(
@@ -566,6 +660,56 @@ export class Notes extends Context.Service<Notes, NotesService>()("Notes") {
             ].join("\n");
 
             return { path: resolvedPath, output, commit };
+          }),
+        createDraft: (kind, name, description) =>
+          Effect.gen(function* () {
+            const { identity } = yield* resolveIdentity();
+            const notesPath = join(
+              repoNotesRoot,
+              identity.owner,
+              identity.repo,
+            );
+            const slug = slugifyName(name);
+            const filePath = collisionFreePath(notesPath, `${slug}.md`);
+            const content = draftSeedContent(
+              kind,
+              identity,
+              new Date(),
+              name,
+              description,
+            );
+
+            yield* Effect.try({
+              try: () => {
+                mkdirSync(notesPath, { recursive: true });
+                writeFileSync(filePath, content);
+              },
+              catch: (error) =>
+                fail(
+                  `createDraft: failed to write draft: ${errorMessage(error)}`,
+                ),
+            });
+
+            const stat = statSync(filePath);
+            const frontmatter = readNoteFrontmatter(filePath);
+            const entry: NoteEntry = {
+              filename: basename(filePath),
+              filePath,
+              mtime: stat.mtimeMs / 1000,
+              ...frontmatter,
+            };
+
+            return { entry, content };
+          }),
+        finaliseDraft: (filePath) =>
+          Effect.gen(function* () {
+            const resolvedPath = yield* assertInsideNotesRoot(filePath);
+            if (!existsSync(resolvedPath)) {
+              return { ok: true, text: "draft file was removed" };
+            }
+            const filename = basename(resolvedPath);
+            const message = `notes: create ${filename}`;
+            return yield* gitCommit(resolvedPath, message);
           }),
       };
     }),

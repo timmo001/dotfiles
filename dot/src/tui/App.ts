@@ -10,7 +10,12 @@ import type {
   GitNotificationThread,
   WorkflowRun,
 } from "../types.js";
-import type { NoteDeleteResult, NoteEntry } from "../notes/types.js";
+import type {
+  NoteCreateDraft,
+  NoteCreateKind,
+  NoteDeleteResult,
+  NoteEntry,
+} from "../notes/types.js";
 import type { Theme } from "../theme.js";
 import { menuItemsById, submenus } from "../menu.js";
 import type { CommandRunnerService } from "../services/CommandRunner.js";
@@ -87,6 +92,14 @@ export interface AppDeps {
   readonly readNote: (filePath: string) => Promise<string>;
   /** Delete a note file from the notes vault. */
   readonly deleteNote: (filePath: string) => Promise<NoteDeleteResult>;
+  /** Create a draft note file with seed content. */
+  readonly createNoteDraft: (
+    kind: NoteCreateKind,
+    name: string,
+    description: string,
+  ) => Promise<NoteCreateDraft>;
+  /** Commit a draft note after editor exit. */
+  readonly finaliseNoteDraft: (filePath: string) => Promise<void>;
 }
 
 /** Top-level TUI application shell managing a view stack and global keyboard */
@@ -231,6 +244,8 @@ export class App {
       listNotes: deps.listNotes,
       readNote: deps.readNote,
       deleteNote: deps.deleteNote,
+      createNoteDraft: deps.createNoteDraft,
+      finaliseNoteDraft: deps.finaliseNoteDraft,
       onEditNote: (entry, kind) =>
         openNoteInEditor(deps.renderer, entry, kind, () => {
           setTerminalTitle(`Dot TUI › ${this.notesTitle()}`);

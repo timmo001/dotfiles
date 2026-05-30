@@ -68,6 +68,17 @@ export interface NoteDeleteResult {
   readonly commit: NoteCommitResult;
 }
 
+/** Kind of note to create via the add-item flow. */
+export type NoteCreateKind = "note" | "handoff";
+
+/** Draft note returned after initial file creation (before editor launch). */
+export interface NoteCreateDraft {
+  /** The NoteEntry for the newly created draft file. */
+  readonly entry: NoteEntry;
+  /** The initial seed content written to the file. */
+  readonly content: string;
+}
+
 /** Supported `dot notes list` output formats. */
 export type NotesListFormat = "labels" | "json";
 

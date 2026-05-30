@@ -20,7 +20,12 @@ import {
 } from "@opentui/core";
 import type { NotesViewFilter } from "../../types.js";
 import type { Theme } from "../../theme.js";
-import type { NoteDeleteResult, NoteEntry } from "../types.js";
+import type {
+  NoteCreateDraft,
+  NoteCreateKind,
+  NoteDeleteResult,
+  NoteEntry,
+} from "../types.js";
 import { formatBreadcrumb } from "../../tui/breadcrumb.js";
 import { formatPaneTitle } from "../../tui/paneTitle.js";
 import {
@@ -30,11 +35,17 @@ import {
 } from "../../tui/helpBar.js";
 import { StatusList, type StatusListItem } from "../../tui/StatusList.js";
 import type { NoteEditorKind } from "./NoteEditor.js";
+import {
+  NoteCreatePrompt,
+  type NoteCreatePromptResult,
+} from "./NoteCreatePrompt.js";
 
 /** Help entries for the repository notes view. */
 const HELP: readonly HelpEntry[] = [
   { key: "↑↓", action: "navigate" },
   { key: "Tab", action: "pane" },
+  { key: "a", action: "add" },
+  { key: "A", action: "add visual" },
   { key: "e", action: "edit" },
   { key: "E", action: "visual edit" },
   { key: "o", action: "OpenCode" },
@@ -116,6 +127,14 @@ export interface NotesViewOptions {
   readonly readNote: (filePath: string) => Promise<string>;
   /** Delete a note file from the notes vault. */
   readonly deleteNote: (filePath: string) => Promise<NoteDeleteResult>;
+  /** Create a draft note file with seed content. */
+  readonly createNoteDraft: (
+    kind: NoteCreateKind,
+    name: string,
+    description: string,
+  ) => Promise<NoteCreateDraft>;
+  /** Commit a draft note file after editor exit. */
+  readonly finaliseNoteDraft: (filePath: string) => Promise<void>;
   /** Open the selected note in an external editor. */
   readonly onEditNote: (
     entry: NoteEntry,
@@ -154,6 +173,7 @@ export class NotesView {
   private deletePromptTitle: TextRenderable;
   private deletePromptFile: TextRenderable;
   private deletePromptHelp: TextRenderable;
+  private createPrompt: NoteCreatePrompt;
 
   private filter: NotesViewFilter | null = null;
   private activePane: NotesPane = "list";
@@ -164,6 +184,8 @@ export class NotesView {
   private isVisible = false;
   private openingOpenCode = false;
   private editingFilePath: string | null = null;
+  private creatingNote = false;
+  private createEditorKind: NoteEditorKind = "editor";
   private deleteConfirmation: NoteEntry | null = null;
   private deletingFilePath: string | null = null;
   private requestedInitialRefresh = false;
@@ -186,6 +208,8 @@ export class NotesView {
     this.syntaxStyle = createMarkdownSyntaxStyle(theme);
     this.keyHandlers = {
       tab: () => this.togglePane(),
+      a: () => this.startCreateFlow("editor"),
+      "shift+a": () => this.startCreateFlow("visual"),
       e: () => void this.openSelectedInEditor("editor"),
       "shift+e": () => void this.openSelectedInEditor("visual"),
       o: () => void this.openSelectedInOpenCode(),
@@ -435,6 +459,11 @@ export class NotesView {
     this.deletePrompt.add(this.deletePromptFile);
     this.deletePrompt.add(this.deletePromptHelp);
 
+    this.createPrompt = new NoteCreatePrompt(renderer, theme, {
+      onSubmit: (result) => void this.executeCreateFlow(result),
+      onDismiss: () => this.cancelCreateFlow(),
+    });
+
     const handleNotesKeyPress = (key: KeyEvent) => this.handleKeyPress(key);
     renderer.keyInput.on("keypress", handleNotesKeyPress);
     renderer.root.add(this.root);
@@ -477,6 +506,7 @@ export class NotesView {
   /** Remove the notes view from the render tree. */
   destroy(): void {
     this.syntaxStyle.destroy();
+    this.createPrompt.destroy();
     this.renderer.root.remove(this.root.id);
     this.renderer.root.remove(this.deletePrompt.id);
   }
@@ -621,6 +651,81 @@ export class NotesView {
     }
   }
 
+  private startCreateFlow(editorKind: NoteEditorKind): void {
+    if (this.creatingNote || this.editingFilePath) {
+      this.statusBar.content = t`${fg(this.theme.yellow)("An editor is already open")}`;
+      return;
+    }
+    this.createEditorKind = editorKind;
+    const preferHandoff = this.filter?.tag?.toLowerCase() === "handoff";
+    this.noteList.setActive(false);
+    this.bodyScroll.blur();
+    this.createPrompt.show(preferHandoff);
+  }
+
+  private cancelCreateFlow(): void {
+    this.statusBar.content = t`${fg(this.theme.fgMuted)("Create cancelled")}`;
+    this.focusPane(this.activePane);
+  }
+
+  private async executeCreateFlow(
+    result: NoteCreatePromptResult,
+  ): Promise<void> {
+    this.creatingNote = true;
+    this.statusBar.content = t`${fg(this.theme.yellow)(`Creating ${result.kind} draft...`)}`;
+    this.focusPane(this.activePane);
+
+    let draft: NoteCreateDraft;
+    try {
+      draft = await this.callbacks.createNoteDraft(
+        result.kind,
+        result.name,
+        result.description,
+      );
+    } catch (error) {
+      this.creatingNote = false;
+      this.statusBar.content = t`${fg(this.theme.red)(`Failed to create draft: ${errorMessage(error)}`)}`;
+      return;
+    }
+
+    this.selectedFilePath = draft.entry.filePath;
+    this.statusBar.content = t`${fg(this.theme.yellow)(`Opening ${draft.entry.filename} in ${editorLabel(this.createEditorKind)}...`)}`;
+
+    let editError: unknown;
+    try {
+      try {
+        await this.callbacks.onEditNote(draft.entry, this.createEditorKind);
+      } catch (error) {
+        editError = error;
+      }
+
+      try {
+        await this.callbacks.finaliseNoteDraft(draft.entry.filePath);
+      } catch {
+        // Non-fatal: git commit failure does not block the flow.
+      }
+
+      await this.refresh();
+    } finally {
+      this.creatingNote = false;
+    }
+
+    if (editError) {
+      this.statusBar.content = t`${fg(this.theme.red)(`Editor error for ${draft.entry.filename}: ${errorMessage(editError)}`)}`;
+      return;
+    }
+
+    const matchesActiveFilter = this.visibleEntries.some(
+      (entry) => entry.filePath === draft.entry.filePath,
+    );
+
+    if (matchesActiveFilter) {
+      this.statusBar.content = t`${fg(this.theme.green)(`Created ${draft.entry.filename}`)}`;
+    } else {
+      this.statusBar.content = t`${fg(this.theme.yellow)(`Created ${draft.entry.filename} (hidden by current filter)`)}`;
+    }
+  }
+
   private requestDeleteSelected(): void {
     if (this.deletingFilePath) {
       this.statusBar.content = t`${fg(this.theme.yellow)("A note deletion is already in progress")}`;
@@ -736,6 +841,10 @@ export class NotesView {
 
   private handleKeyPress(key: KeyEvent): void {
     if (!this.isVisible) return;
+    if (this.createPrompt.visible) {
+      this.createPrompt.handleKeyPress(key);
+      return;
+    }
     if (this.deleteConfirmation) {
       this.handleDeleteConfirmationKey(key);
       return;
