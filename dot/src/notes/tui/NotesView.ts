@@ -39,6 +39,7 @@ import {
   NoteCreatePrompt,
   type NoteCreatePromptResult,
 } from "./NoteCreatePrompt.js";
+import type { OpenCodeNoteMode } from "./OpenCodeNote.js";
 
 /** Help entries for the repository notes view. */
 const HELP: readonly HelpEntry[] = [
@@ -49,6 +50,7 @@ const HELP: readonly HelpEntry[] = [
   { key: "e", action: "edit" },
   { key: "E", action: "visual edit" },
   { key: "o", action: "OpenCode" },
+  { key: "O", action: "OpenCode plan" },
   { key: "r", action: "refresh" },
   { key: "d", action: "delete" },
   { key: "Esc/Backspace", action: "back" },
@@ -141,7 +143,10 @@ export interface NotesViewOptions {
     kind: NoteEditorKind,
   ) => Promise<void>;
   /** Open the selected note in a full OpenCode session. */
-  readonly onOpenOpencode: (entry: NoteEntry) => Promise<void>;
+  readonly onOpenOpencode: (
+    entry: NoteEntry,
+    mode: OpenCodeNoteMode,
+  ) => Promise<void>;
   /** Called when the user navigates back. */
   readonly onBack: () => void;
 }
@@ -212,7 +217,8 @@ export class NotesView {
       "shift+a": () => this.startCreateFlow("visual"),
       e: () => void this.openSelectedInEditor("editor"),
       "shift+e": () => void this.openSelectedInEditor("visual"),
-      o: () => void this.openSelectedInOpenCode(),
+      o: () => void this.openSelectedInOpenCode("default"),
+      "shift+o": () => void this.openSelectedInOpenCode("plan"),
       r: () => void this.refresh(),
       d: () => this.requestDeleteSelected(),
       escape: () => this.callbacks.onBack(),
@@ -592,7 +598,7 @@ export class NotesView {
     this.focusPane(this.activePane === "list" ? "content" : "list");
   }
 
-  private async openSelectedInOpenCode(): Promise<void> {
+  private async openSelectedInOpenCode(mode: OpenCodeNoteMode): Promise<void> {
     if (this.openingOpenCode) return;
     const entry = this.selectedEntry;
     if (!entry) {
@@ -601,9 +607,10 @@ export class NotesView {
     }
 
     this.openingOpenCode = true;
-    this.statusBar.content = t`${fg(this.theme.yellow)(`Opening ${entry.filename} in OpenCode...`)}`;
+    const modeLabel = mode === "plan" ? "OpenCode plan" : "OpenCode";
+    this.statusBar.content = t`${fg(this.theme.yellow)(`Opening ${entry.filename} in ${modeLabel}...`)}`;
     try {
-      await this.callbacks.onOpenOpencode(entry);
+      await this.callbacks.onOpenOpencode(entry, mode);
       this.updateStatusBar();
     } catch (error) {
       this.statusBar.content = t`${fg(this.theme.red)(`Failed to open OpenCode: ${errorMessage(error)}`)}`;

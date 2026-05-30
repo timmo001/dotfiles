@@ -1,37 +1,58 @@
 import type { CliRenderer } from "@opentui/core";
 import type { NoteEntry } from "../types.js";
 
+/** Supported OpenCode launch modes for repository notes. */
+export type OpenCodeNoteMode = "default" | "plan";
+
+/** Options for launching OpenCode from the notes TUI. */
+export interface OpenNoteInOpenCodeOptions {
+  /** Which OpenCode agent mode to use. */
+  readonly mode?: OpenCodeNoteMode;
+  /** Callback to run after the TUI resumes. */
+  readonly afterResume?: () => void;
+}
+
 /** Suspend the TUI, launch a full OpenCode session for a note, then resume. */
 export async function openNoteInOpenCode(
   renderer: CliRenderer,
   entry: NoteEntry,
-  afterResume?: () => void,
+  options: OpenNoteInOpenCodeOptions = {},
 ): Promise<void> {
+  const mode = options.mode ?? "default";
+  const prompt = opencodeNotePrompt(entry, mode);
+  const args =
+    mode === "plan"
+      ? ["opencode", "--agent", "plan", "--prompt", prompt]
+      : ["opencode", "--prompt", prompt];
+
   renderer.suspend();
   renderer.currentRenderBuffer.clear();
   try {
-    const proc = Bun.spawn(
-      ["opencode", "--prompt", opencodeNotePrompt(entry)],
-      {
-        stdin: "inherit",
-        stdout: "inherit",
-        stderr: "inherit",
-      },
-    );
+    const proc = Bun.spawn(args, {
+      stdin: "inherit",
+      stdout: "inherit",
+      stderr: "inherit",
+    });
     await proc.exited;
   } finally {
     renderer.currentRenderBuffer.clear();
     renderer.resume();
-    afterResume?.();
+    options.afterResume?.();
     renderer.requestRender();
   }
 }
 
-function opencodeNotePrompt(entry: NoteEntry): string {
+function opencodeNotePrompt(entry: NoteEntry, mode: OpenCodeNoteMode): string {
   const displayPath = repoNotesDisplayPath(entry);
   return [
     `Load the repository note ${entry.filename} into this OpenCode session, following the note-reference flow.`,
     `The note file path is ${entry.filePath}.`,
+    ...(mode === "plan"
+      ? [
+          "",
+          "This OpenCode process was launched with --agent plan. You are already running inside the plan agent, so finalise the implementation plan directly and do not suggest entering /plan.",
+        ]
+      : []),
     "",
     "Step 1: Use the note_read tool first to read that exact file. Do not use built-in read, bash, or other filesystem tools for the notes vault.",
     "Keep the full note content in context for this session.",

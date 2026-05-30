@@ -27,7 +27,10 @@ import { GitNotificationsView } from "../git/tui/GitNotificationsView.js";
 import { WorkflowRunsView } from "../git/tui/WorkflowRunsView.js";
 import { NotesView } from "../notes/tui/NotesView.js";
 import { openNoteInEditor } from "../notes/tui/NoteEditor.js";
-import { openNoteInOpenCode } from "../notes/tui/OpenCodeNote.js";
+import {
+  openNoteInOpenCode,
+  type OpenCodeNoteMode,
+} from "../notes/tui/OpenCodeNote.js";
 import { OmarchyMenu } from "./OmarchyMenu.js";
 import { StagingView } from "../git/tui/StagingView.js";
 import { CommitView } from "../git/tui/CommitView.js";
@@ -250,9 +253,12 @@ export class App {
         openNoteInEditor(deps.renderer, entry, kind, () => {
           setTerminalTitle(`Dot TUI › ${this.notesTitle()}`);
         }),
-      onOpenOpencode: (entry) =>
-        openNoteInOpenCode(deps.renderer, entry, () => {
-          setTerminalTitle(`Dot TUI › ${this.notesTitle()}`);
+      onOpenOpencode: (entry, mode: OpenCodeNoteMode) =>
+        openNoteInOpenCode(deps.renderer, entry, {
+          mode,
+          afterResume: () => {
+            setTerminalTitle(`Dot TUI › ${this.notesTitle()}`);
+          },
         }),
       onBack: () => this.popView(),
     });
