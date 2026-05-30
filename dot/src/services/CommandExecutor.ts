@@ -15,6 +15,46 @@ export class CommandError extends Schema.TaggedErrorClass<CommandError>()(
   },
 ) {}
 
+interface CommandFailure {
+  readonly command: string;
+  readonly exitCode: number;
+  readonly stderr: string;
+}
+
+type ProcessStreamName = "stdout" | "stderr";
+
+interface ProcessLineResult {
+  readonly source: ProcessStreamName;
+  readonly result: IteratorResult<string>;
+}
+
+function isCommandFailure(error: unknown): error is CommandFailure {
+  if (!error || typeof error !== "object") return false;
+
+  const candidate = error as Record<string, unknown>;
+  return (
+    typeof candidate.command === "string" &&
+    typeof candidate.exitCode === "number" &&
+    typeof candidate.stderr === "string"
+  );
+}
+
+function toCommandError(error: unknown, command: string): CommandError {
+  if (isCommandFailure(error)) {
+    return new CommandError({
+      command: error.command,
+      exitCode: error.exitCode,
+      stderr: error.stderr,
+    });
+  }
+
+  return new CommandError({
+    command,
+    exitCode: 1,
+    stderr: error instanceof Error ? error.message : String(error),
+  });
+}
+
 /** Service interface for executing subprocess commands via Effect */
 export interface CommandExecutorService {
   /** Run a command and return its stdout as a string. Fails on non-zero exit. */
@@ -72,6 +112,80 @@ async function* lineIterator(
   }
 }
 
+function nextProcessLine(
+  source: ProcessStreamName,
+  iterator: AsyncIterator<string>,
+): Promise<ProcessLineResult> {
+  return iterator.next().then((result) => ({ source, result }));
+}
+
+async function* processLineIterator(
+  fullCmd: string[],
+  opts?: { readonly cwd?: string },
+): AsyncGenerator<string, void, unknown> {
+  const proc = Bun.spawn(fullCmd, {
+    stdout: "pipe",
+    stderr: "pipe",
+    cwd: opts?.cwd,
+  });
+
+  const stdout = lineIterator(proc.stdout as ReadableStream<Uint8Array>)[
+    Symbol.asyncIterator
+  ]();
+  const stderr = lineIterator(proc.stderr as ReadableStream<Uint8Array>)[
+    Symbol.asyncIterator
+  ]();
+  const stderrLines: string[] = [];
+
+  let stdoutNext: Promise<ProcessLineResult> | undefined = nextProcessLine(
+    "stdout",
+    stdout,
+  );
+  let stderrNext: Promise<ProcessLineResult> | undefined = nextProcessLine(
+    "stderr",
+    stderr,
+  );
+
+  while (stdoutNext || stderrNext) {
+    const pending = [stdoutNext, stderrNext].filter(
+      (promise): promise is Promise<ProcessLineResult> => promise !== undefined,
+    );
+    if (pending.length === 0) break;
+
+    const next = await Promise.race(pending);
+    if (next.result.done) {
+      if (next.source === "stdout") {
+        stdoutNext = undefined;
+      } else {
+        stderrNext = undefined;
+      }
+      continue;
+    }
+
+    if (next.source === "stderr") {
+      stderrLines.push(next.result.value);
+    }
+
+    yield next.result.value;
+
+    if (next.source === "stdout") {
+      stdoutNext = nextProcessLine("stdout", stdout);
+    } else {
+      stderrNext = nextProcessLine("stderr", stderr);
+    }
+  }
+
+  const exitCode = await proc.exited;
+  if (exitCode !== 0) {
+    const failure: CommandFailure = {
+      command: fullCmd.join(" "),
+      exitCode,
+      stderr: stderrLines.join("\n").trim(),
+    };
+    throw failure;
+  }
+}
+
 /** Effect service for {@link CommandExecutorService} */
 export class CommandExecutor extends Context.Service<
   CommandExecutor,
@@ -106,31 +220,12 @@ export class CommandExecutor extends Context.Service<
           return stdout;
         },
         catch: (error) => {
-          if (
-            error &&
-            typeof error === "object" &&
-            "exitCode" in error &&
-            "stderr" in error &&
-            "command" in error
-          ) {
-            const e = error as {
-              exitCode: number;
-              stderr: string;
-              command: string;
-            };
-            log(`Failed (exit ${e.exitCode}): ${e.command}`);
-            return new CommandError({
-              command: e.command,
-              exitCode: e.exitCode,
-              stderr: e.stderr,
-            });
-          }
-          const msg = error instanceof Error ? error.message : String(error);
-          return new CommandError({
-            command: `${cmd} ${args.join(" ")}`,
-            exitCode: 1,
-            stderr: msg,
-          });
+          const command = `${cmd} ${args.join(" ")}`;
+          const commandError = toCommandError(error, command);
+          log(
+            `Failed (exit ${commandError.exitCode}): ${commandError.command}`,
+          );
+          return commandError;
         },
       }),
 
@@ -142,20 +237,9 @@ export class CommandExecutor extends Context.Service<
 
       return Stream.unwrap(
         Effect.sync(() => {
-          const proc = Bun.spawn(fullCmd, {
-            stdout: "pipe",
-            stderr: "pipe",
-            cwd: opts?.cwd,
-          });
-
           return Stream.fromAsyncIterable(
-            lineIterator(proc.stdout as ReadableStream<Uint8Array>),
-            (error) =>
-              new CommandError({
-                command: fullCmd.join(" "),
-                exitCode: 1,
-                stderr: error instanceof Error ? error.message : String(error),
-              }),
+            processLineIterator(fullCmd, opts),
+            (error) => toCommandError(error, fullCmd.join(" ")),
           );
         }),
       );

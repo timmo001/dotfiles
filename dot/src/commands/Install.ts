@@ -125,7 +125,20 @@ const stowRepo = (
       yield* log.info(`[${scope}] stow ${folder} (repo: ${displayPath})`);
 
       // Unstow first (clean slate)
-      yield* launcher.stream(`stow -D ${folder}`, { cwd: repoDir });
+      const unstowExit = yield* launcher.stream(`stow -D ${folder}`, {
+        cwd: repoDir,
+      });
+      if (unstowExit !== 0) {
+        yield* log.error(
+          `[${scope}] unstow ${folder} failed (exit ${unstowExit})`,
+        );
+        return yield* Effect.fail(
+          new LauncherError(
+            `${scope} install unstow failed on ${folder}`,
+            unstowExit,
+          ),
+        );
+      }
 
       // Build stow command with folder-specific flags
       const flags: string[] = [];

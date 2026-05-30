@@ -140,7 +140,15 @@ const stowRepo = (
 
       // Unstow first, then restow (equivalent to --restow per folder)
       const unstowCmd = `stow -D ${folder}`;
-      yield* launcher.stream(unstowCmd, { cwd: repoDir });
+      const unstowExit = yield* launcher.stream(unstowCmd, { cwd: repoDir });
+      if (unstowExit !== 0) {
+        yield* log.error(
+          `[${scope}] unstow ${folder} failed (exit ${unstowExit})`,
+        );
+        return yield* Effect.fail(
+          new LauncherError(`${scope} unstow failed on ${folder}`, unstowExit),
+        );
+      }
 
       // Build restow command with folder-specific flags
       const flags: string[] = [];
