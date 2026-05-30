@@ -5,6 +5,8 @@ description: Compact the current conversation into a handoff document for anothe
 
 Write a handoff note summarising the current conversation so a fresh agent can continue the work. The note is stored in the repo notes vault alongside regular notes, using the `note_write` tool.
 
+Configuration invariant: every primary agent should have access to the repo notes tools, especially `note_write`, so explicit handoff and note workflows are not blocked. Tool access does not imply autonomous note manipulation: use `note_read`, `note_write`, and `note_delete` only when a note command or skill instructs it, or when the user explicitly asks to create, update, read, or delete notes. Search-only or narrowly scoped subagents do not need notes access unless their workflow explicitly requires it.
+
 ## Output
 
 Read `Notes path` from the `<repository>` section of the injected `<repo-note-context>`.
