@@ -274,8 +274,8 @@ export function resolveSubcommand(
 /**
  * Print help text, optionally scoped to a specific subcommand.
  *
- * - `git-diff` — shows diff-specific flags and keybindings
- * - `git-notifications` — shows GitHub inbox flags, actions, and keybindings
+ * - `git-diff` — shows diff-specific flags
+ * - `git-notifications` — shows GitHub inbox flags and actions
  * - `omarchy` — shows available omarchy submenus and space-separated navigation
  * - No subcommand — shows the full generic help
  */
@@ -296,20 +296,6 @@ Options:
   --no-fetch                       Skip fetching from remotes (use local refs only)
   --tab <changed|other|unchanged>  Initial pane to focus in TUI (default: changed)
   --help, -h                       Show this help message
-
-Keybindings (TUI mode):
-  ↑↓             Navigate the repo list
-  Tab            Switch between Changed/Other pane
-  Enter          Open lazygit for the selected repo
-  c              Open commit flow (staging → commit)
-  p              Pull selected repo
-  P              Push selected repo
-  t              Open tmux session for current pane (Changed=changed, Other=all)
-  o              Open terminal in repo directory
-  w              Open repo on GitHub
-  r              Manual refresh
-  Esc/Backspace  Back to main menu
-  Ctrl+c         Quit
 
 Examples:
   dot git-diff             Interactive TUI
@@ -380,14 +366,6 @@ Options:
   --since <date> Only include runs active at or after this date (ISO/RFC/epoch)
   --help, -h     Show this help message
 
-Keybindings (TUI mode):
-  ↑↓             Navigate the active pane
-  Tab            Switch between Repos/Runs pane
-  Enter          Focus runs from Repos, open selected run from Runs
-  r              Refresh workflow runs
-  Esc/Backspace  Back to main menu
-  Ctrl+c         Quit
-
 Examples:
   dot git-workflows              Interactive workflow runs TUI
   dot git-workflows --raw        Text summary of watched workflow runs
@@ -420,17 +398,6 @@ Actions:
   --ignore <id>     Ignore future notifications for a thread
   --unignore <id>   Stop ignoring future notifications for a thread
 
-Keybindings (TUI mode):
-  ↑↓             Navigate notifications
-  Enter          Open selected notification in browser
-  r              Refresh notifications
-  m              Mark selected thread read
-  d              Mark selected thread done
-  i              Ignore selected thread
-  u              Unignore selected thread
-  Esc/Backspace  Back to main menu
-  Ctrl+c         Quit
-
 Examples:
   dot git-notifications                    Interactive notifications TUI
   dot git-notifications --waybar           Waybar JSON output
@@ -456,18 +423,6 @@ Commands:
 Options:
   --help, -h  Show this help message
 
-Keybindings (TUI mode):
-  ↑↓             Navigate notes or scroll content
-  Tab            Switch between list/content panes
-  Enter          Focus note preview from the list
-  e              Open selected note in $EDITOR (nvim fallback)
-  E              Open selected note in $VISUAL ($EDITOR, then nvim fallback)
-  o              Open selected note in a full OpenCode session
-  r              Refresh notes
-  d              Delete selected note after confirmation
-  Esc/Backspace  Back to main menu
-  Ctrl+c         Quit
-
 Examples:
   dot notes
   dot notes root
@@ -486,19 +441,7 @@ Aliases:
   dot handoffs
 
 Options:
-  --help, -h  Show this help message
-
-Keybindings (TUI mode):
-  ↑↓             Navigate handoffs or scroll content
-  Tab            Switch between list/content panes
-  Enter          Focus handoff preview from the list
-  e              Open selected handoff in $EDITOR (nvim fallback)
-  E              Open selected handoff in $VISUAL ($EDITOR, then nvim fallback)
-  o              Open selected handoff in a full OpenCode session
-  r              Refresh handoffs
-  d              Delete selected handoff after confirmation
-  Esc/Backspace  Back to main menu
-  Ctrl+c         Quit`);
+  --help, -h  Show this help message`);
     return;
   }
 
