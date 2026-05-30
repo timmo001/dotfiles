@@ -10,7 +10,7 @@ import type {
   GitNotificationThread,
   WorkflowRun,
 } from "../types.js";
-import type { NoteEntry } from "../notes/types.js";
+import type { NoteDeleteResult, NoteEntry } from "../notes/types.js";
 import type { Theme } from "../theme.js";
 import { menuItemsById, submenus } from "../menu.js";
 import type { CommandRunnerService } from "../services/CommandRunner.js";
@@ -84,6 +84,8 @@ export interface AppDeps {
   readonly listNotes: () => Promise<readonly NoteEntry[]>;
   /** Read the full markdown content for a note file. */
   readonly readNote: (filePath: string) => Promise<string>;
+  /** Delete a note file from the notes vault. */
+  readonly deleteNote: (filePath: string) => Promise<NoteDeleteResult>;
 }
 
 /** Top-level TUI application shell managing a view stack and global keyboard */
@@ -227,6 +229,7 @@ export class App {
     this.notesView = new NotesView(deps.renderer, deps.theme, {
       listNotes: deps.listNotes,
       readNote: deps.readNote,
+      deleteNote: deps.deleteNote,
       onOpenOpencode: (entry) =>
         openNoteInOpenCode(deps.renderer, entry, () => {
           setTerminalTitle(`Dot TUI › ${this.notesTitle()}`);

@@ -20,7 +20,7 @@ import {
 } from "@opentui/core";
 import type { NotesViewFilter } from "../../types.js";
 import type { Theme } from "../../theme.js";
-import type { NoteEntry } from "../types.js";
+import type { NoteDeleteResult, NoteEntry } from "../types.js";
 import { formatBreadcrumb } from "../../tui/breadcrumb.js";
 import { formatPaneTitle } from "../../tui/paneTitle.js";
 import {
@@ -36,6 +36,7 @@ const HELP: readonly HelpEntry[] = [
   { key: "Tab", action: "pane" },
   { key: "o", action: "OpenCode" },
   { key: "r", action: "refresh" },
+  { key: "d", action: "delete" },
   { key: "Esc/Backspace", action: "back" },
   ...GLOBAL_HELP,
 ];
@@ -78,6 +79,8 @@ type MarkdownListToken = MarkdownToken & {
 type MarkdownHeadingToken = MarkdownToken & { readonly depth: number };
 
 const INACTIVE_OPACITY = 0.45;
+const DELETE_PROMPT_WIDTH = 58;
+const DELETE_PROMPT_HEIGHT = 7;
 const INLINE_RENDERERS: Readonly<Record<string, InlineRenderer>> = {
   br: (token, theme, style) => [textChunk("\n", theme, style)],
   codespan: (token, theme, style) => [
@@ -108,6 +111,8 @@ export interface NotesViewOptions {
   readonly listNotes: () => Promise<readonly NoteEntry[]>;
   /** Read the full markdown content for a note file. */
   readonly readNote: (filePath: string) => Promise<string>;
+  /** Delete a note file from the notes vault. */
+  readonly deleteNote: (filePath: string) => Promise<NoteDeleteResult>;
   /** Open the selected note in a full OpenCode session. */
   readonly onOpenOpencode: (entry: NoteEntry) => Promise<void>;
   /** Called when the user navigates back. */
@@ -137,6 +142,10 @@ export class NotesView {
   private bodyScroll: ScrollBoxRenderable;
   private markdown: MarkdownRenderable;
   private statusBar: TextRenderable;
+  private deletePrompt: BoxRenderable;
+  private deletePromptTitle: TextRenderable;
+  private deletePromptFile: TextRenderable;
+  private deletePromptHelp: TextRenderable;
 
   private filter: NotesViewFilter | null = null;
   private activePane: NotesPane = "list";
@@ -146,10 +155,15 @@ export class NotesView {
   private selectedEntry: NoteEntry | null = null;
   private isVisible = false;
   private openingOpenCode = false;
+  private deleteConfirmation: NoteEntry | null = null;
+  private deletingFilePath: string | null = null;
   private requestedInitialRefresh = false;
   private loadVersion = 0;
   private renderedMarkdownBlockCount = 0;
   private readonly keyHandlers: Readonly<Record<string, () => void>>;
+  private readonly deleteConfirmationKeyHandlers: Readonly<
+    Record<string, () => void>
+  >;
   private readonly blockRenderers: Readonly<Record<string, BlockRenderer>>;
 
   constructor(
@@ -165,8 +179,15 @@ export class NotesView {
       tab: () => this.togglePane(),
       o: () => void this.openSelectedInOpenCode(),
       r: () => void this.refresh(),
+      d: () => this.requestDeleteSelected(),
       escape: () => this.callbacks.onBack(),
       backspace: () => this.callbacks.onBack(),
+    };
+    this.deleteConfirmationKeyHandlers = {
+      y: () => void this.confirmDeleteSelected(),
+      n: () => this.cancelDeleteConfirmation(),
+      escape: () => this.cancelDeleteConfirmation(),
+      backspace: () => this.cancelDeleteConfirmation(),
     };
     this.blockRenderers = {
       blockquote: (token) => this.renderMarkdownBlockquote(token),
@@ -367,9 +388,46 @@ export class NotesView {
     });
     this.root.add(this.footer);
 
+    this.deletePrompt = new BoxRenderable(renderer, {
+      id: "notes-delete-prompt",
+      position: "absolute",
+      width: DELETE_PROMPT_WIDTH,
+      height: DELETE_PROMPT_HEIGHT,
+      zIndex: 160,
+      visible: false,
+      borderStyle: "rounded",
+      borderColor: theme.red,
+      backgroundColor: theme.bgElevated,
+      flexDirection: "column",
+      paddingLeft: 1,
+      paddingRight: 1,
+      paddingTop: 0,
+      paddingBottom: 0,
+    });
+    this.deletePromptTitle = new TextRenderable(renderer, {
+      id: "notes-delete-prompt-title",
+      content: t``,
+      marginBottom: 1,
+    });
+    this.deletePromptFile = new TextRenderable(renderer, {
+      id: "notes-delete-prompt-file",
+      content: t``,
+      width: "100%",
+      truncate: true,
+    });
+    this.deletePromptHelp = new TextRenderable(renderer, {
+      id: "notes-delete-prompt-help",
+      content: t``,
+      marginTop: 1,
+    });
+    this.deletePrompt.add(this.deletePromptTitle);
+    this.deletePrompt.add(this.deletePromptFile);
+    this.deletePrompt.add(this.deletePromptHelp);
+
     const handleNotesKeyPress = (key: KeyEvent) => this.handleKeyPress(key);
     renderer.keyInput.on("keypress", handleNotesKeyPress);
     renderer.root.add(this.root);
+    renderer.root.add(this.deletePrompt);
     this.focus();
   }
 
@@ -378,6 +436,7 @@ export class NotesView {
     const previous = this.filterKey;
     this.filter = filter;
     if (previous !== this.filterKey) {
+      this.clearDeleteConfirmation(false);
       this.selectedFilePath = null;
       this.selectedEntry = null;
       this.titleBar.content = this.formatTitle();
@@ -390,7 +449,11 @@ export class NotesView {
   setVisible(visible: boolean): void {
     this.isVisible = visible;
     this.root.visible = visible;
-    if (!visible || this.requestedInitialRefresh) return;
+    if (!visible) {
+      this.clearDeleteConfirmation(false);
+      return;
+    }
+    if (this.requestedInitialRefresh) return;
     this.requestedInitialRefresh = true;
     void this.refresh();
   }
@@ -404,29 +467,32 @@ export class NotesView {
   destroy(): void {
     this.syntaxStyle.destroy();
     this.renderer.root.remove(this.root.id);
+    this.renderer.root.remove(this.deletePrompt.id);
   }
 
   private get filterKey(): string {
     return this.filter?.tag?.toLowerCase() ?? "";
   }
 
-  private async refresh(): Promise<void> {
+  private async refresh(): Promise<boolean> {
     const version = ++this.loadVersion;
     this.statusBar.content = t`${fg(this.theme.yellow)("Refreshing notes...")}`;
 
     try {
       const entries = await this.callbacks.listNotes();
-      if (version !== this.loadVersion) return;
+      if (version !== this.loadVersion) return false;
       this.entries = entries;
       this.applyFilter();
       this.updateStatusBar();
+      return true;
     } catch (error) {
-      if (version !== this.loadVersion) return;
+      if (version !== this.loadVersion) return false;
       this.entries = [];
       this.visibleEntries = [];
       this.noteList.setItems([]);
       this.showEmptyContent("Unable to load notes", errorMessage(error));
       this.statusBar.content = t`${fg(this.theme.red)(`Unable to load notes: ${errorMessage(error)}`)}`;
+      return false;
     }
   }
 
@@ -505,8 +571,125 @@ export class NotesView {
     }
   }
 
+  private requestDeleteSelected(): void {
+    if (this.deletingFilePath) {
+      this.statusBar.content = t`${fg(this.theme.yellow)("A note deletion is already in progress")}`;
+      return;
+    }
+
+    const entry = this.selectedEntry;
+    if (!entry) {
+      this.statusBar.content = t`${fg(this.theme.yellow)("Select a note before deleting")}`;
+      return;
+    }
+
+    this.deleteConfirmation = entry;
+    this.showDeletePrompt(entry);
+  }
+
+  private async confirmDeleteSelected(): Promise<void> {
+    const entry = this.deleteConfirmation;
+    if (!entry) return;
+    if (this.deletingFilePath) return;
+
+    this.deletingFilePath = entry.filePath;
+    this.clearDeleteConfirmation();
+    this.loadVersion += 1;
+    this.statusBar.content = t`${fg(this.theme.yellow)(`Deleting ${entry.filename}...`)}`;
+
+    try {
+      await this.deleteSelectedEntry(entry);
+    } catch (error) {
+      this.statusBar.content = t`${fg(this.theme.red)(`Failed to delete ${entry.filename}: ${errorMessage(error)}`)}`;
+    } finally {
+      this.deletingFilePath = null;
+    }
+  }
+
+  private async deleteSelectedEntry(entry: NoteEntry): Promise<void> {
+    const nextSelectedFilePath = this.nextSelectedFilePathAfterDelete(
+      entry.filePath,
+    );
+    const result = await this.callbacks.deleteNote(entry.filePath);
+    this.clearDeletedSelection(entry.filePath, nextSelectedFilePath);
+    if (await this.refresh()) this.showDeleteSuccess(entry.filename, result);
+  }
+
+  private nextSelectedFilePathAfterDelete(filePath: string): string | null {
+    const deletedIndex = this.visibleEntries.findIndex(
+      (visibleEntry) => visibleEntry.filePath === filePath,
+    );
+    if (deletedIndex === -1) return null;
+
+    const nextEntry = this.visibleEntries[deletedIndex + 1];
+    if (nextEntry) return nextEntry.filePath;
+
+    const previousEntry = this.visibleEntries[deletedIndex - 1];
+    return previousEntry ? previousEntry.filePath : null;
+  }
+
+  private clearDeletedSelection(
+    deletedFilePath: string,
+    nextSelectedFilePath: string | null,
+  ): void {
+    if (this.selectedFilePath === deletedFilePath) {
+      this.selectedFilePath = nextSelectedFilePath;
+    }
+
+    const selectedEntry = this.selectedEntry;
+    if (selectedEntry && selectedEntry.filePath === deletedFilePath) {
+      this.selectedEntry = null;
+    }
+  }
+
+  private showDeleteSuccess(filename: string, result: NoteDeleteResult): void {
+    const message = result.commit.ok
+      ? `Deleted ${filename}`
+      : `Deleted ${filename}; git commit failed: ${result.commit.error ?? "unknown error"}`;
+    this.statusBar.content = t`${fg(result.commit.ok ? this.theme.green : this.theme.yellow)(message)}`;
+  }
+
+  private showDeletePrompt(entry: NoteEntry): void {
+    this.deletePromptTitle.content = t`${bold(fg(this.theme.red)("Delete note?"))}`;
+    this.deletePromptFile.content = t`${fg(this.theme.fgMuted)("File: ")}${fg(this.theme.fg)(entry.filename)}`;
+    this.deletePromptHelp.content = t`${dim("y")} ${dim("delete")}  ${dim("n/Esc")} ${dim("cancel")}`;
+    this.deletePrompt.top = Math.max(
+      1,
+      Math.floor((this.renderer.height - DELETE_PROMPT_HEIGHT) / 2),
+    );
+    this.deletePrompt.left = Math.max(
+      1,
+      Math.floor((this.renderer.width - DELETE_PROMPT_WIDTH) / 2),
+    );
+    this.deletePrompt.visible = true;
+    this.noteList.setActive(false);
+    this.bodyScroll.blur();
+  }
+
+  private cancelDeleteConfirmation(): void {
+    const entry = this.deleteConfirmation;
+    this.clearDeleteConfirmation();
+    if (entry) {
+      this.statusBar.content = t`${fg(this.theme.fgMuted)(`Delete cancelled: ${entry.filename}`)}`;
+    }
+  }
+
+  private clearDeleteConfirmation(refocus = true): void {
+    this.deleteConfirmation = null;
+    this.deletePrompt.visible = false;
+    if (refocus && this.isVisible) this.focusPane(this.activePane);
+  }
+
+  private handleDeleteConfirmationKey(key: KeyEvent): void {
+    this.deleteConfirmationKeyHandlers[key.name]?.();
+  }
+
   private handleKeyPress(key: KeyEvent): void {
     if (!this.isVisible) return;
+    if (this.deleteConfirmation) {
+      this.handleDeleteConfirmationKey(key);
+      return;
+    }
     this.keyHandlers[key.name]?.();
   }
 

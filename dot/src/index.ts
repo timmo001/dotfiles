@@ -485,6 +485,7 @@ if (mode.type === "native") {
         },
         listNotes: () => Effect.runPromise(notes.list()),
         readNote: (filePath) => Effect.runPromise(notes.read(filePath)),
+        deleteNote: (filePath) => Effect.runPromise(notes.delete(filePath)),
       },
       {
         initialView,

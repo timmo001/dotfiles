@@ -262,6 +262,7 @@ The build is also triggered by `dot update`.
 | `Enter` | Focus note preview from the list |
 | `o` | Open selected note in a full OpenCode session |
 | `r` | Refresh notes |
+| `d` | Delete selected note after confirmation |
 | `Esc/Backspace` | Back to main menu |
 | `Ctrl+c` | Quit |
 
