@@ -7,10 +7,10 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 - Stow-based dotfiles rooted at `~/.config/dotfiles`
 - Public config for shell, editor, and tooling
 - Single compiled binary at `scripts/.local/bin/dot` (Bun + Effect v4 + OpenTUI)
-- TUI dashboard with git diff view, git workflow runs, omarchy menus, git staging, and AI commit suggestions
+- TUI dashboard with git diff view, GitHub workflow runs, GitHub notifications, omarchy menus, git staging, and AI commit suggestions
 - Optional private overlays from `~/.config/dotfiles-private`
 - Omarchy repo sync for `bootstrap`, `hypr`, `waybar`, `ghostty`, and `uwsm`
-- GitHub workflow run status for watched repos via `dot git-workflows` and Waybar
+- GitHub workflow run status and notification inbox via `dot git-workflows`, `dot git-notifications`, and Waybar
 
 ## Repository layout
 
@@ -53,6 +53,7 @@ dot doctor
 - `dot stow` - stow refresh only (no git pull)
 - `dot git-diff` - git status + staged/unstaged summaries with fetched unpushed/incoming commit checks across managed repos (including optional extra private repos and split Omarchy repo worktrees); use `dot git-diff --waybar` for one-line Waybar JSON (`dot diff` remains a human compatibility alias)
 - `dot git-workflows` - two-pane watched GitHub workflow runs view for each repo's locally checked-out HEAD commit; use `--since <date>` to filter by activity time, and `--raw`, `--waybar`, `--list-repos`, or `--list-runs` for CLI output
+- `dot git-notifications` - GitHub notification inbox with open, mark-read, done, ignore, and unignore actions; use `--all`, `--participating`, `--since <date>`, `--raw`, `--waybar`, `--list-threads`, `--mark-read <id>`, `--mark-done <id>`, `--ignore <id>`, or `--unignore <id>` for CLI output/actions
 - `dot setup [--confirm]` - package install step only
 - `dot install` - backup/adopt install flow for public/private dotfiles
 - `dot clean` - unstow private then public
@@ -73,13 +74,16 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 - `system-health-check` - friendly multi-snapshot system health report for CPU, memory, network, pressure, and known logs
 - Add `--open-opencode` to run `opencode run` against the saved report, then open a full interactive OpenCode session with `opencode --continue`
 
-## Workflow runs
+## GitHub Workflow Runs And Notifications
 
 - Private dotfiles provide the watched repo list in `~/.config/dotfiles-private/.git-workflow-watch-repos`
 - `dot git-workflows` shows watched repos on the left, with workflow runs for the selected locally checked-out HEAD commit on the right; disabled workflows are hidden; `dot git-workflows --waybar --since "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"` emits one-line Waybar JSON for runs created, rerun, or updated in the window, and `--list-repos`/`--list-runs` emit plain text rows
 - The Waybar workflow module refreshes `dot git-workflows --waybar --since <one-hour-ago>` through its own short-lived cache; left click opens the filtered TUI and right click refreshes the cache
 - `git-workflow-watch`, its global hook, and its user systemd timer are obsolete and should not be installed
 - `dot doctor` verifies the watched repo list, active Waybar workflow-runs module wiring, and absence of legacy `git-workflow-watch` leftovers
+- `dot git-notifications` shows the authenticated user's GitHub notification inbox; the API requires `gh` authenticated with a classic token carrying `notifications` or `repo` scope
+- The Waybar notification module refreshes `dot git-notifications --waybar` through its own short-lived cache; left click opens the notifications TUI and right click refreshes the cache
+- `dot doctor` verifies GitHub notification API access plus the active Waybar notification module wiring
 
 ## Daily volume reset
 

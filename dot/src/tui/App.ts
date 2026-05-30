@@ -5,6 +5,8 @@ import type {
   MenuAction,
   Repo,
   RepoState,
+  GitNotificationAction,
+  GitNotificationThread,
   WorkflowRun,
 } from "../types.js";
 import type { Theme } from "../theme.js";
@@ -14,6 +16,7 @@ import type { GitStagingService } from "../git/services/GitStaging.js";
 import type { CommitSuggestService } from "../git/services/CommitSuggest.js";
 import { MainMenu } from "./MainMenu.js";
 import { DiffView } from "../git/tui/DiffView.js";
+import { GitNotificationsView } from "../git/tui/GitNotificationsView.js";
 import { WorkflowRunsView } from "../git/tui/WorkflowRunsView.js";
 import { OmarchyMenu } from "./OmarchyMenu.js";
 import { StagingView } from "../git/tui/StagingView.js";
@@ -64,6 +67,13 @@ export interface AppDeps {
   readonly onRefreshDiff: () => void;
   /** Callback to trigger an immediate workflow refresh */
   readonly onRefreshWorkflows: () => void;
+  /** Callback to trigger an immediate GitHub notification refresh */
+  readonly onRefreshNotifications: () => void;
+  /** Callback to apply a mutating notification thread action */
+  readonly onNotificationAction: (
+    action: GitNotificationAction,
+    threadId: string,
+  ) => void;
 }
 
 /** Top-level TUI application shell managing a view stack and global keyboard */
@@ -73,6 +83,7 @@ export class App {
   private mainMenu: MainMenu;
   private diffView: DiffView;
   private workflowsView: WorkflowRunsView;
+  private notificationsView: GitNotificationsView;
   private omarchyMenu: OmarchyMenu;
   private stagingView: StagingView;
   private commitView: CommitView;
@@ -175,6 +186,32 @@ export class App {
       onBack: () => this.popView(),
     });
 
+    this.notificationsView = new GitNotificationsView(
+      deps.renderer,
+      deps.theme,
+      {
+        onRefresh: () => deps.onRefreshNotifications(),
+        onOpenThread: (thread: GitNotificationThread) => {
+          deps.commandRunner
+            .runSilent(`xdg-open ${shellQuote(thread.webUrl)}`)
+            .catch((err) => {
+              log(`Open notification thread error: ${err}`);
+            });
+        },
+        onOpenInbox: () => {
+          deps.commandRunner
+            .runSilent("xdg-open https://github.com/notifications")
+            .catch((err) => {
+              log(`Open notifications inbox error: ${err}`);
+            });
+        },
+        onAction: (action, thread) => {
+          deps.onNotificationAction(action, thread.id);
+        },
+        onBack: () => this.popView(),
+      },
+    );
+
     this.omarchyMenu = new OmarchyMenu(deps.renderer, deps.theme, {
       onAction: (item) => this.handleMenuAction(item),
       onBack: () => this.popView(),
@@ -238,13 +275,7 @@ export class App {
     });
 
     // --- Hide all views initially ---
-    this.mainMenu.setVisible(false);
-    this.diffView.setVisible(false);
-    this.workflowsView.setVisible(false);
-    this.omarchyMenu.setVisible(false);
-    this.stagingView.setVisible(false);
-    this.commitView.setVisible(false);
-    this.outputPane.setVisible(false);
+    this.hideAllViews();
 
     // --- Global keyboard ---
     // Ctrl+C is handled by OpenTUI's exitOnCtrlC option which ensures
@@ -318,6 +349,11 @@ export class App {
     return this.workflowsView;
   }
 
+  /** Get the GitHub notifications view for direct state updates from the watcher */
+  getNotificationsView(): GitNotificationsView {
+    return this.notificationsView;
+  }
+
   /** Update the diff view and terminal title with the latest watcher state. */
   updateDiffState(state: RepoState): void {
     this.diffChangedCount = state.changed.length;
@@ -327,22 +363,10 @@ export class App {
     }
   }
 
-  /** Get the output pane for streaming command output */
-  getOutputPane(): OutputPane {
-    return this.outputPane;
-  }
-
   private showView(viewId: ViewId): void {
     log(`Switching to view: ${viewId}`);
 
-    // Hide all
-    this.mainMenu.setVisible(false);
-    this.diffView.setVisible(false);
-    this.workflowsView.setVisible(false);
-    this.omarchyMenu.setVisible(false);
-    this.stagingView.setVisible(false);
-    this.commitView.setVisible(false);
-    this.outputPane.setVisible(false);
+    this.hideAllViews();
 
     this.activeView = viewId;
 
@@ -362,6 +386,11 @@ export class App {
         setTerminalTitle("Dot TUI \u203A Workflows");
         this.workflowsView.setVisible(true);
         this.workflowsView.focus();
+        break;
+      case "git-notifications":
+        setTerminalTitle("Dot TUI \u203A Notifications");
+        this.notificationsView.setVisible(true);
+        this.notificationsView.focus();
         break;
       case "omarchy":
         this.omarchyMenu.setVisible(true);
@@ -396,6 +425,17 @@ export class App {
     }
 
     this.dispatchAction(item.action);
+  }
+
+  private hideAllViews(): void {
+    this.mainMenu.setVisible(false);
+    this.diffView.setVisible(false);
+    this.workflowsView.setVisible(false);
+    this.notificationsView.setVisible(false);
+    this.omarchyMenu.setVisible(false);
+    this.stagingView.setVisible(false);
+    this.commitView.setVisible(false);
+    this.outputPane.setVisible(false);
   }
 
   /** Dispatch a menu action (command, silent, notify, view, or submenu) */
@@ -458,6 +498,9 @@ export class App {
         break;
       case "git-workflows":
         this.workflowsView.focus();
+        break;
+      case "git-notifications":
+        this.notificationsView.focus();
         break;
       case "omarchy":
         this.omarchyMenu.focus();

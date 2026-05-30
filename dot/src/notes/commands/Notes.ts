@@ -1,19 +1,7 @@
 import { Effect } from "effect";
+import { optionValue } from "../../lib/args.js";
 import { Notes, NotesError } from "../services/Notes.js";
 import { formatNoteLabel, type NotesListFormat } from "../types.js";
-
-function optionValue(
-  args: readonly string[],
-  name: string,
-): string | undefined {
-  const equalsPrefix = `${name}=`;
-  const equalsArg = args.find((arg) => arg.startsWith(equalsPrefix));
-  if (equalsArg) return equalsArg.slice(equalsPrefix.length);
-
-  const index = args.indexOf(name);
-  const value = index === -1 ? undefined : args[index + 1];
-  return value && !value.startsWith("--") ? value : undefined;
-}
 
 function notesUsage(): string {
   return `Usage: dot notes <command> [options]

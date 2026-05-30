@@ -55,22 +55,25 @@ src/
   doctor/
     types.ts              — DoctorCheck, DoctorResult types
     runner.ts             — Parallel check runner with output formatting
-    checks/               — 13 check modules (dependencies, repos, packages, etc.)
+    checks/               — Doctor check modules (dependencies, repos, packages, etc.)
   git/
     commands/
       Diff.ts             — dot git-diff (--waybar, --list-changed, --list-all, --raw)
+      Notifications.ts    — dot git-notifications (--waybar, --list-threads, actions, --raw)
       Workflows.ts        — dot git-workflows (--since, --waybar, --list-repos, --list-runs, --raw)
     doctor/
       gitConfig.ts        — managed Git config doctor check
     services/
       DotDiff.ts          — Effect service wrapping git diff state
       GitHub.ts           — Shared GitHub CLI/API wrapper with rate-limit checks and retries
+      GitNotifications.ts — GitHub notification inbox state and thread actions
       GitStaging.ts       — Git status/add/reset/commit operations
       RepoWatcher.ts      — Hybrid poll loop (Waybar cache → 10s poll), PubSub state
       WorkflowRuns.ts     — Watched GitHub Actions run state for locally checked-out HEAD commits
       workflowStatus.ts   — Shared GitHub Actions status classification helpers
     tui/
       DiffView.ts         — Two-pane layout (Changed/Other) with repo watcher
+      GitNotificationsView.ts — GitHub notification inbox with read/done/ignore actions
       WorkflowRunsView.ts — Two-pane watched GitHub workflow runs view
       Lazygit.ts          — Suspend/resume lazygit spawn
       StagingView.ts      — Two-pane staging view (Staged/Unstaged) for git commit flow
@@ -111,8 +114,8 @@ src/
 
 1. `index.ts` parses CLI flags → resolves mode (TUI / native / fallback)
 2. Native commands run with `CliLayers` (no renderer, no TUI)
-3. TUI mode composes full layer stack including RepoWatcher, GitStaging, CommitSuggest, Renderer, Toast
-4. `App` manages a view stack (main menu ↔ diff view ↔ workflows view ↔ omarchy menu ↔ staging view ↔ commit view)
+3. TUI mode composes full layer stack including RepoWatcher, WorkflowRuns, GitNotifications, GitStaging, CommitSuggest, Renderer, Toast
+4. `App` manages a view stack (main menu ↔ diff view ↔ workflows view ↔ notifications view ↔ omarchy menu ↔ staging view ↔ commit view)
 5. Menu items have typed actions: `command` (suspend/resume), `silent` (background), `notify` (background + toast), `view` (navigate), `submenu` (nested)
 6. `CommandRunner` handles suspend/resume for terminal commands, silent background execution, and notify-style commands with toast feedback
 7. `RepoWatcher` loads Waybar cache for instant diff first paint, then polls every 10s
@@ -156,6 +159,7 @@ dot git-diff                  # Diff view (TUI)
 dot git-diff --tab other      # Diff view, Other tab focused (TUI)
 dot diff                      # Short alias for git-diff
 dot git-workflows             # Watched GitHub workflow runs view (TUI)
+dot git-notifications         # GitHub notification inbox view (TUI)
 dot git-diff --raw            # CLI diff output (no TUI)
 dot git-diff --waybar         # JSON output for Waybar
 dot git-diff --list-changed   # Changed repo rows
@@ -165,6 +169,13 @@ dot git-workflows --since <date> # Filter workflow runs by creation time (TUI or
 dot git-workflows --waybar    # JSON output for Waybar
 dot git-workflows --list-repos # Watched repo rows
 dot git-workflows --list-runs # Workflow run rows
+dot git-notifications --raw   # CLI notification summary
+dot git-notifications --waybar # JSON output for Waybar
+dot git-notifications --list-threads # Notification thread rows
+dot git-notifications --mark-read <id> # Mark a notification read
+dot git-notifications --mark-done <id> # Mark a notification done
+dot git-notifications --ignore <id> # Ignore future notifications for a thread
+dot git-notifications --unignore <id> # Stop ignoring a thread
 dot notes root             # Print notes vault root
 dot notes root --repo-notes # Print repository notes directory
 dot notes context --command notes-list # Print OpenCode notes context
@@ -225,6 +236,20 @@ The build is also triggered by `dot update`.
 | `Esc/Backspace` | Back to main menu |
 | `Ctrl+c` | Quit |
 
+### Notifications View
+| Key | Action |
+|-----|--------|
+| `↑↓` | Navigate notifications |
+| `Enter` | Open selected notification in browser |
+| `w` | Open GitHub notifications inbox |
+| `r` | Refresh notifications |
+| `m` | Mark selected thread read |
+| `d` | Mark selected thread done |
+| `i` | Ignore selected thread |
+| `u` | Unignore selected thread |
+| `Esc/Backspace` | Back to main menu |
+| `Ctrl+c` | Quit |
+
 ### Variant Popup
 | Key | Action |
 |-----|--------|
@@ -282,6 +307,7 @@ The build is also triggered by `dot update`.
 - `~/.cache/waybar/git-diff-waybar.json` — Waybar cache for fast startup
 - `NOTES` / `DOT_NOTES_DIR` — notes vault used by `dot notes` and OpenCode note commands
 - `~/.config/dotfiles-private/.git-workflow-watch-repos` — watched GitHub repos for `dot git-workflows`; `dot git-workflows` applies matching `.dot-extra-repos` schedules before querying GitHub, hides disabled workflows, and supports `--since <date>` for activity-time filtering
+- `gh` authenticated with a classic token carrying `notifications` or `repo` scope — required for `dot git-notifications` and its Waybar module
 - `lazygit` — launched via suspend/resume on Enter in diff view
 - `opencode` — CLI for model discovery; SDK for AI commit suggestions
 - `@opencode-ai/sdk` — OpenCode SDK for programmatic session/prompt calls
@@ -308,6 +334,8 @@ dot                          # smoke test: main menu renders, Ctrl+c quits
 dot git-diff                 # smoke test: diff view renders
 dot git-diff --raw           # smoke test: CLI diff output
 dot git-diff --waybar        # smoke test: JSON output
+dot git-notifications --raw  # smoke test: CLI notification output
+dot git-notifications --waybar # smoke test: notification JSON output
 dot doctor                   # smoke test: health checks run
 dot help                     # smoke test: help prints
 ```

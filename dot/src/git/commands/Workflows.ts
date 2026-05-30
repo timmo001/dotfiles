@@ -16,6 +16,7 @@ import {
   workflowRunCounts,
   workflowRunStatusIcon,
 } from "../services/workflowStatus.js";
+import { pipeRow } from "./rows.js";
 
 const handleWorkflowError = Effect.catch((error: unknown) =>
   Effect.sync(() => {
@@ -205,14 +206,6 @@ function formatRunRow(repo: WorkflowRepoRuns, run: WorkflowRun): string {
     run.url,
     run.displayTitle,
   ]);
-}
-
-function pipeRow(fields: readonly (string | null | undefined)[]): string {
-  return fields.map(pipeField).join("|");
-}
-
-function pipeField(value: string | null | undefined): string {
-  return (value ?? "").replace(/[|\r\n]+/g, " ").trim();
 }
 
 function formatError(error: unknown): string {

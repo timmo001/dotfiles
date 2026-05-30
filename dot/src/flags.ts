@@ -206,6 +206,7 @@ function isKnownTarget(candidate: string): boolean {
     candidate === "diff" ||
     candidate === "git-diff" ||
     candidate === "git-workflows" ||
+    candidate === "git-notifications" ||
     candidate === "notes" ||
     candidate === "note" ||
     candidate === "omarchy"
@@ -255,6 +256,9 @@ export function resolveSubcommand(
   if (sub === "git-workflows") {
     return { type: "view", viewId: "git-workflows" };
   }
+  if (sub === "git-notifications") {
+    return { type: "view", viewId: "git-notifications" };
+  }
   if (sub === "notes" || sub === "note") return undefined;
   if (sub === "omarchy") return { type: "view", viewId: "omarchy" };
 
@@ -269,6 +273,7 @@ export function resolveSubcommand(
  * Print help text, optionally scoped to a specific subcommand.
  *
  * - `git-diff` — shows diff-specific flags and keybindings
+ * - `git-notifications` — shows GitHub inbox flags, actions, and keybindings
  * - `omarchy` — shows available omarchy submenus and space-separated navigation
  * - No subcommand — shows the full generic help
  */
@@ -334,6 +339,7 @@ Checks performed:
   OpenCode location    Canonical paths, legacy remnants
   Git config           Managed include is active
   Workflow runs        Repo list, Waybar config, legacy watcher cleanup
+  Git notifications    API scope and Waybar notification module wiring
   Doctor startup       Startup notification timer
   Daily volume reset   Laptop-only optional timer
   Omarchy repos        Diff repos + worktree branch correctness
@@ -386,6 +392,48 @@ Examples:
   dot git-workflows --waybar     Waybar JSON output
   dot git-workflows --since "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"
   dot git-workflows --list-runs  List workflow runs`);
+    return;
+  }
+
+  if (subcommand === "git-notifications") {
+    console.log(`Usage: dot git-notifications [options]
+
+Open the authenticated user's GitHub notification inbox. Without machine or
+action flags, opens the interactive TUI.
+
+Modes:
+  (default)       Interactive notifications TUI
+  --raw           Text summary of notification threads
+  --waybar        JSON output for Waybar
+  --list-threads  Notification threads as rows
+
+Filters:
+  --all             Include read notifications
+  --participating   Only include participating or mentioned threads
+  --since <date>    Only include notifications updated after this date
+
+Actions:
+  --mark-read <id>  Mark a notification thread as read
+  --mark-done <id>  Mark a notification thread as done
+  --ignore <id>     Ignore future notifications for a thread
+  --unignore <id>   Stop ignoring future notifications for a thread
+
+Keybindings (TUI mode):
+  ↑↓             Navigate notifications
+  Enter          Open selected notification in browser
+  r              Refresh notifications
+  m              Mark selected thread read
+  d              Mark selected thread done
+  i              Ignore selected thread
+  u              Unignore selected thread
+  Esc/Backspace  Back to main menu
+  Ctrl+c         Quit
+
+Examples:
+  dot git-notifications                    Interactive notifications TUI
+  dot git-notifications --waybar           Waybar JSON output
+  dot git-notifications --participating    TUI with participating filter
+  dot git-notifications --mark-read 12345  Mark thread read`);
     return;
   }
 
@@ -471,6 +519,7 @@ Launch the dot TUI dashboard. Without a subcommand, opens the main menu.
 Subcommands:
   git-diff             Open the git diff/repo watcher view
   git-workflows        Open watched GitHub workflow runs
+  git-notifications    Open GitHub notification inbox
   notes                Manage repository notes
   note                 Read, write, or delete note files
   update               Run dot update
@@ -493,6 +542,8 @@ Examples:
   dot diff --waybar        Same as git-diff --waybar
   dot git-workflows        Watched workflow runs TUI
   dot git-workflows --waybar Waybar JSON output
+  dot git-notifications    GitHub notifications TUI
+  dot git-notifications --waybar Waybar JSON output
   dot notes root           Print notes vault root
   dot notes context --command notes-list
   dot omarchy theme        Omarchy theme submenu

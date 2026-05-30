@@ -43,6 +43,7 @@ export type ViewId =
   | "main"
   | "git-diff"
   | "git-workflows"
+  | "git-notifications"
   | "omarchy"
   | "staging"
   | "commit"
@@ -124,6 +125,92 @@ export interface WorkflowState {
   readonly since: string | null;
   /** Optional global status message, such as a missing watchlist */
   readonly message?: string;
+}
+
+// --- GitHub notification types ---
+
+/** GitHub notification thread subject type. */
+export type GitNotificationSubjectType =
+  | "CheckSuite"
+  | "Commit"
+  | "Discussion"
+  | "Issue"
+  | "PullRequest"
+  | "Release"
+  | "RepositoryAdvisory"
+  | "SecurityAdvisory"
+  | "WorkflowRun"
+  | "unknown";
+
+/** A single GitHub notification thread from the authenticated user's inbox. */
+export interface GitNotificationThread {
+  /** Stable GitHub notification thread ID. */
+  readonly id: string;
+  /** GitHub owner/repo slug for the notification. */
+  readonly repo: string;
+  /** Browser URL for the repository. */
+  readonly repoUrl: string;
+  /** Notification subject title. */
+  readonly title: string;
+  /** Notification subject type. */
+  readonly type: GitNotificationSubjectType;
+  /** GitHub notification reason, such as `mention` or `review_requested`. */
+  readonly reason: string;
+  /** Whether GitHub currently marks the thread unread. */
+  readonly unread: boolean;
+  /** Last notification update timestamp from GitHub. */
+  readonly updatedAt: string | null;
+  /** Last read timestamp from GitHub, if available. */
+  readonly lastReadAt: string | null;
+  /** Browser URL for the notification subject, best-effort derived from the API URL. */
+  readonly webUrl: string;
+  /** REST API URL for the notification thread. */
+  readonly apiUrl: string;
+  /** REST API URL for the notification subject. */
+  readonly subjectApiUrl: string | null;
+  /** REST API URL for the latest comment, if GitHub provided one. */
+  readonly latestCommentApiUrl: string | null;
+}
+
+/** Query options for fetching GitHub notifications. */
+export interface GitNotificationQueryOptions {
+  /** Include read notifications when true. */
+  readonly all?: boolean;
+  /** Restrict results to participating or mentioned threads when true. */
+  readonly participating?: boolean;
+  /** Only include notifications updated at or after this ISO timestamp. */
+  readonly since?: string;
+}
+
+/** Snapshot of the authenticated user's GitHub notification inbox. */
+export interface GitNotificationState {
+  /** Notification threads returned by GitHub. */
+  readonly threads: readonly GitNotificationThread[];
+  /** Session-local thread IDs hidden after a successful Done action. */
+  readonly hiddenThreadIds: readonly string[];
+  /** Timestamp of the last refresh attempt. */
+  readonly lastChecked: Date;
+  /** Whether a refresh is currently running. */
+  readonly loading: boolean;
+  /** Whether at least one refresh has completed. */
+  readonly loaded: boolean;
+  /** Active query options used to fetch this state. */
+  readonly query: GitNotificationQueryOptions;
+  /** Optional global status message, such as an authentication error. */
+  readonly message?: string;
+}
+
+/** Mutating GitHub notification action. */
+export type GitNotificationAction = "read" | "done" | "ignore" | "unignore";
+
+/** Result from a mutating GitHub notification action. */
+export interface GitNotificationActionResult {
+  /** Action that was applied. */
+  readonly action: GitNotificationAction;
+  /** Notification thread ID the action targeted. */
+  readonly threadId: string;
+  /** Human-readable action result. */
+  readonly message: string;
 }
 
 // --- Git staging types ---

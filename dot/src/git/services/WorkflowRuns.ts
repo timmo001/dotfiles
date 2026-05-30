@@ -16,6 +16,12 @@ import {
   findWorkflowExtraRepo,
   workflowSlugVisible,
 } from "./repoSchedule.js";
+import {
+  formatGhError,
+  nullableIdValue,
+  nullableStringValue,
+  stringValue,
+} from "./record.js";
 
 const HOME = process.env.HOME ?? `/home/${process.env.USER ?? ""}`;
 const RUN_LIMIT = 100;
@@ -327,7 +333,7 @@ export class WorkflowRuns extends Context.Service<
                 Effect.catch((error) =>
                   Effect.succeed({
                     ...emptyRepo(target.slug),
-                    error: formatError(error),
+                    error: formatGhError(error),
                   }),
                 ),
               ),
@@ -348,13 +354,13 @@ export class WorkflowRuns extends Context.Service<
         }).pipe(
           Effect.withSpan("WorkflowRuns.refresh"),
           Effect.catch((error) => {
-            log(`Refresh failed: ${formatError(error)}`);
+            log(`Refresh failed: ${formatGhError(error)}`);
             currentState = buildState(
               currentState.repos,
               new Date(),
               false,
               currentState.loaded,
-              formatError(error),
+              formatGhError(error),
               { since: opts?.since ?? currentState.since ?? undefined },
             );
             return PubSub.publish(pubsub, currentState).pipe(Effect.asVoid);
@@ -434,7 +440,7 @@ function readWatchlist(path: string): WatchlistResult {
     return {
       path,
       slugs: [],
-      message: `Could not read ${displayPath(path)}: ${formatError(error)}`,
+      message: `Could not read ${displayPath(path)}: ${formatGhError(error)}`,
     };
   }
 }
@@ -592,20 +598,6 @@ function parseWorkflowTime(value: string | null): number {
   return value ? Date.parse(value) : NaN;
 }
 
-function stringValue(value: unknown): string {
-  return typeof value === "string" ? value : "";
-}
-
-function nullableStringValue(value: unknown): string | null {
-  return typeof value === "string" && value.length > 0 ? value : null;
-}
-
-function nullableIdValue(value: unknown): string | null {
-  return typeof value === "number" || typeof value === "string"
-    ? String(value)
-    : null;
-}
-
 function normalizeStatus(status: string): WorkflowRunStatus {
   switch (status) {
     case "completed":
@@ -618,15 +610,6 @@ function normalizeStatus(status: string): WorkflowRunStatus {
     default:
       return "unknown";
   }
-}
-
-function formatError(error: unknown): string {
-  if (error && typeof error === "object" && "stderr" in error) {
-    const stderr = (error as { readonly stderr?: unknown }).stderr;
-    if (typeof stderr === "string" && stderr.length > 0) return stderr;
-  }
-  if (error instanceof Error) return error.message;
-  return String(error);
 }
 
 function displayPath(path: string): string {

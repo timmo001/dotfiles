@@ -117,6 +117,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - OpenCode frontend debug command: `/debug-frontend <page or issue>`
 - OpenCode fallow audit command: `/fallow-audit [workspace]`
 - OpenCode fallow project analysis command: `/fallow-project-analyse [workspace]`
+- GitHub notifications command: `dot git-notifications` (`--waybar`, `--list-threads`, and thread actions)
 - Git diff behavior: `dot git-diff` (`dot diff` is a human compatibility alias)
 
 ## Safety

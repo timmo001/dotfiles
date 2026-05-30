@@ -1,11 +1,12 @@
 import { Effect } from "effect";
-import { existsSync, lstatSync, readFileSync } from "fs";
+import { accessSync, constants, existsSync, lstatSync, readFileSync } from "fs";
 import { join, dirname } from "path";
 import {
   CommandExecutor,
   type CommandExecutorService,
 } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
+import { GitHub } from "../../git/services/GitHub.js";
 import type { CheckResult } from "../types.js";
 
 const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
@@ -24,6 +25,15 @@ const DAILY_VOLUME_ZERO_TIMER_UNIT = "daily-volume-zero.timer";
 function pathExistsOrSymlink(path: string): boolean {
   try {
     lstatSync(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function executableExists(path: string): boolean {
+  try {
+    accessSync(path, constants.X_OK);
     return true;
   } catch {
     return false;
@@ -166,6 +176,106 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function activeWaybarConfigPath(): string {
+  const omarchyHost = process.env.OMARCHY_HOST ?? "";
+  const waybarConfigDir = join(XDG_CONFIG_HOME, "waybar");
+  const hostConfig = omarchyHost
+    ? join(waybarConfigDir, `config.${omarchyHost}.jsonc`)
+    : "";
+  return hostConfig && existsSync(hostConfig)
+    ? hostConfig
+    : join(waybarConfigDir, "config.jsonc");
+}
+
+function addWaybarScriptCheck(
+  results: CheckResult[],
+  scriptName: string,
+  label: string,
+  missingDetail: string,
+): void {
+  const waybarScript = join(XDG_CONFIG_HOME, "waybar", "scripts", scriptName);
+  results.push(
+    executableExists(waybarScript)
+      ? {
+          severity: "ok",
+          message: `${label} Waybar script is executable: ${displayPath(waybarScript)}`,
+        }
+      : {
+          severity: "warn",
+          message: `${label} Waybar script is missing or not executable: ${displayPath(waybarScript)}`,
+          detail: missingDetail,
+        },
+  );
+}
+
+function addWaybarHiddenCssCheck(
+  results: CheckResult[],
+  selector: string,
+  label: string,
+  missingDetail: string,
+): void {
+  const waybarStyle = join(XDG_CONFIG_HOME, "waybar", "style.css");
+  if (!existsSync(waybarStyle)) {
+    results.push({
+      severity: "warn",
+      message: `Waybar style file is missing: ${displayPath(waybarStyle)}`,
+    });
+    return;
+  }
+
+  try {
+    const styleContent = readFileSync(waybarStyle, "utf-8");
+    results.push(
+      styleContent.includes(selector)
+        ? {
+            severity: "ok",
+            message: `${label} Waybar hidden-empty CSS found: ${displayPath(waybarStyle)}`,
+          }
+        : {
+            severity: "warn",
+            message: `${label} Waybar hidden-empty CSS is missing: ${displayPath(waybarStyle)}`,
+            detail: missingDetail,
+          },
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+function addWaybarConfigContainsCheck(
+  results: CheckResult[],
+  waybarConfig: string,
+  needle: string,
+  okMessage: string,
+  warnMessage: string,
+  detail?: string,
+): void {
+  if (waybarConfigWalkContains(waybarConfig, needle)) {
+    results.push({ severity: "ok", message: okMessage });
+  } else {
+    results.push({
+      severity: "warn",
+      message: warnMessage,
+      ...(detail && { detail }),
+    });
+  }
+}
+
+function addWaybarConfigOrderCheck(
+  results: CheckResult[],
+  waybarConfig: string,
+  first: string,
+  second: string,
+  okMessage: string,
+  warnMessage: string,
+): void {
+  results.push(
+    waybarConfigWalkOrdersBefore(waybarConfig, first, second)
+      ? { severity: "ok", message: okMessage }
+      : { severity: "warn", message: warnMessage },
+  );
+}
+
 /** Check workflow runs integration and absence of the legacy notification watcher. */
 export const checkWorkflowRuns = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
@@ -270,65 +380,20 @@ export const checkWorkflowRuns = Effect.gen(function* () {
     });
   }
 
-  // Waybar script
-  const waybarScript = join(
-    XDG_CONFIG_HOME,
-    "waybar",
-    "scripts",
+  addWaybarScriptCheck(
+    results,
     "git-workflows-waybar.sh",
+    "Workflow runs",
+    "Stow or update the Waybar repo to install the workflow runs module script",
   );
-  if (existsSync(waybarScript)) {
-    results.push({
-      severity: "ok",
-      message: `Workflow runs Waybar script is executable: ${displayPath(waybarScript)}`,
-    });
-  } else {
-    results.push({
-      severity: "warn",
-      message: `Workflow runs Waybar script is missing or not executable: ${displayPath(waybarScript)}`,
-      detail:
-        "Stow or update the Waybar repo to install the workflow runs module script",
-    });
-  }
+  addWaybarHiddenCssCheck(
+    results,
+    "#custom-git-workflows.hidden",
+    "Workflow runs",
+    "Update the Waybar style so the workflow icon hides when there are no recent runs needing attention",
+  );
 
-  // Waybar style CSS hidden-empty
-  const waybarStyle = join(XDG_CONFIG_HOME, "waybar", "style.css");
-  if (existsSync(waybarStyle)) {
-    try {
-      const styleContent = readFileSync(waybarStyle, "utf-8");
-      if (styleContent.includes("#custom-git-workflows.hidden")) {
-        results.push({
-          severity: "ok",
-          message: `Workflow runs Waybar hidden-empty CSS found: ${displayPath(waybarStyle)}`,
-        });
-      } else {
-        results.push({
-          severity: "warn",
-          message: `Workflow runs Waybar hidden-empty CSS is missing: ${displayPath(waybarStyle)}`,
-          detail:
-            "Update the Waybar style so the workflow icon hides when there are no recent runs needing attention",
-        });
-      }
-    } catch {
-      /* ignore */
-    }
-  } else {
-    results.push({
-      severity: "warn",
-      message: `Waybar style file is missing: ${displayPath(waybarStyle)}`,
-    });
-  }
-
-  // Waybar config — find host-specific or default
-  const omarchyHost = process.env.OMARCHY_HOST ?? "";
-  const waybarConfigDir = join(XDG_CONFIG_HOME, "waybar");
-  const hostConfig = omarchyHost
-    ? join(waybarConfigDir, `config.${omarchyHost}.jsonc`)
-    : "";
-  const waybarConfig =
-    hostConfig && existsSync(hostConfig)
-      ? hostConfig
-      : join(waybarConfigDir, "config.jsonc");
+  const waybarConfig = activeWaybarConfigPath();
 
   if (existsSync(waybarConfig)) {
     results.push({
@@ -354,69 +419,129 @@ export const checkWorkflowRuns = Effect.gen(function* () {
       });
     }
 
-    if (configContains('"custom/git-workflows"')) {
+    addWaybarConfigContainsCheck(
+      results,
+      waybarConfig,
+      '"custom/git-workflows"',
+      "Workflow runs Waybar module is present in the active config",
+      `Workflow runs Waybar module is missing from ${displayPath(waybarConfig)}`,
+      "Add custom/git-workflows before custom/git-diff in the active Waybar config",
+    );
+    addWaybarConfigContainsCheck(
+      results,
+      waybarConfig,
+      '"on-click": "~/.config/waybar/scripts/git-workflows-waybar.sh open"',
+      "Workflow runs Waybar left click opens the filtered TUI",
+      `Workflow runs Waybar left-click action is missing in ${displayPath(waybarConfig)}`,
+    );
+    addWaybarConfigContainsCheck(
+      results,
+      waybarConfig,
+      '"on-click-right": "~/.config/waybar/scripts/git-workflows-waybar.sh refresh"',
+      "Workflow runs Waybar right click refreshes the cache",
+      `Workflow runs Waybar right-click refresh action is missing in ${displayPath(waybarConfig)}`,
+    );
+    addWaybarConfigOrderCheck(
+      results,
+      waybarConfig,
+      '"custom/git-workflows"',
+      '"custom/git-diff"',
+      "Workflow runs Waybar module is ordered before git diff",
+      `Workflow runs Waybar module is not ordered before git diff in ${displayPath(waybarConfig)}`,
+    );
+  } else {
+    results.push({
+      severity: "warn",
+      message: `Active Waybar config is missing: ${displayPath(waybarConfig)}`,
+    });
+  }
+
+  return results;
+});
+
+/** Check GitHub notifications API access and Waybar integration. */
+export const checkGitNotifications = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const github = yield* GitHub;
+  const results: CheckResult[] = [];
+
+  const hasGh = yield* github.isAvailable();
+  if (!hasGh) {
+    results.push({
+      severity: "warn",
+      message: "Skipping GitHub notifications API check (gh CLI not found)",
+    });
+  } else {
+    const notificationsAccess = yield* executor.exitCode("gh", [
+      "api",
+      "notifications?per_page=1",
+    ]);
+    if (notificationsAccess === 0) {
       results.push({
         severity: "ok",
-        message: "Workflow runs Waybar module is present in the active config",
+        message: "GitHub notifications API is accessible",
       });
     } else {
       results.push({
         severity: "warn",
-        message: `Workflow runs Waybar module is missing from ${displayPath(waybarConfig)}`,
+        message: "GitHub notifications API is not accessible",
         detail:
-          "Add custom/git-workflows before custom/git-diff in the active Waybar config",
+          "Authenticate gh with a classic token that has notifications or repo scope",
       });
     }
+  }
 
-    if (
-      configContains(
-        '"on-click": "~/.config/waybar/scripts/git-workflows-waybar.sh open"',
-      )
-    ) {
-      results.push({
-        severity: "ok",
-        message: "Workflow runs Waybar left click opens the filtered TUI",
-      });
-    } else {
-      results.push({
-        severity: "warn",
-        message: `Workflow runs Waybar left-click action is missing in ${displayPath(waybarConfig)}`,
-      });
-    }
+  addWaybarScriptCheck(
+    results,
+    "git-notifications-waybar.sh",
+    "Git notifications",
+    "Stow or update the Waybar repo to install the Git notifications module script",
+  );
+  addWaybarHiddenCssCheck(
+    results,
+    "#custom-git-notifications.hidden",
+    "Git notifications",
+    "Update the Waybar style so the notification icon hides when the inbox is clear",
+  );
 
-    if (
-      configContains(
-        '"on-click-right": "~/.config/waybar/scripts/git-workflows-waybar.sh refresh"',
-      )
-    ) {
-      results.push({
-        severity: "ok",
-        message: "Workflow runs Waybar right click refreshes the cache",
-      });
-    } else {
-      results.push({
-        severity: "warn",
-        message: `Workflow runs Waybar right-click refresh action is missing in ${displayPath(waybarConfig)}`,
-      });
-    }
+  const waybarConfig = activeWaybarConfigPath();
 
-    if (
-      waybarConfigWalkOrdersBefore(
-        waybarConfig,
-        '"custom/git-workflows"',
-        '"custom/git-diff"',
-      )
-    ) {
-      results.push({
-        severity: "ok",
-        message: "Workflow runs Waybar module is ordered before git diff",
-      });
-    } else {
-      results.push({
-        severity: "warn",
-        message: `Workflow runs Waybar module is not ordered before git diff in ${displayPath(waybarConfig)}`,
-      });
-    }
+  if (existsSync(waybarConfig)) {
+    results.push({
+      severity: "ok",
+      message: `Git notifications active Waybar config: ${displayPath(waybarConfig)}`,
+    });
+
+    addWaybarConfigContainsCheck(
+      results,
+      waybarConfig,
+      '"custom/git-notifications"',
+      "Git notifications Waybar module is present in the active config",
+      `Git notifications Waybar module is missing from ${displayPath(waybarConfig)}`,
+      "Add custom/git-notifications before custom/git-workflows in the active Waybar config",
+    );
+    addWaybarConfigContainsCheck(
+      results,
+      waybarConfig,
+      '"on-click": "~/.config/waybar/scripts/git-notifications-waybar.sh open"',
+      "Git notifications Waybar left click opens the TUI",
+      `Git notifications Waybar left-click action is missing in ${displayPath(waybarConfig)}`,
+    );
+    addWaybarConfigContainsCheck(
+      results,
+      waybarConfig,
+      '"on-click-right": "~/.config/waybar/scripts/git-notifications-waybar.sh refresh"',
+      "Git notifications Waybar right click refreshes the cache",
+      `Git notifications Waybar right-click refresh action is missing in ${displayPath(waybarConfig)}`,
+    );
+    addWaybarConfigOrderCheck(
+      results,
+      waybarConfig,
+      '"custom/git-notifications"',
+      '"custom/git-workflows"',
+      "Git notifications Waybar module is ordered before workflows",
+      `Git notifications Waybar module is not ordered before workflows in ${displayPath(waybarConfig)}`,
+    );
   } else {
     results.push({
       severity: "warn",
