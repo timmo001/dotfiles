@@ -260,6 +260,7 @@ The build is also triggered by `dot update`.
 | `↑↓` | Navigate notes or scroll content |
 | `Tab` | Switch between list/content panes |
 | `Enter` | Focus note preview from the list |
+| `o` | Open selected note in a full OpenCode session |
 | `r` | Refresh notes |
 | `Esc/Backspace` | Back to main menu |
 | `Ctrl+c` | Quit |

@@ -34,6 +34,7 @@ import { StatusList, type StatusListItem } from "../../tui/StatusList.js";
 const HELP: readonly HelpEntry[] = [
   { key: "↑↓", action: "navigate" },
   { key: "Tab", action: "pane" },
+  { key: "o", action: "OpenCode" },
   { key: "r", action: "refresh" },
   { key: "Esc/Backspace", action: "back" },
   ...GLOBAL_HELP,
@@ -107,6 +108,8 @@ export interface NotesViewOptions {
   readonly listNotes: () => Promise<readonly NoteEntry[]>;
   /** Read the full markdown content for a note file. */
   readonly readNote: (filePath: string) => Promise<string>;
+  /** Open the selected note in a full OpenCode session. */
+  readonly onOpenOpencode: (entry: NoteEntry) => Promise<void>;
   /** Called when the user navigates back. */
   readonly onBack: () => void;
 }
@@ -142,6 +145,7 @@ export class NotesView {
   private selectedFilePath: string | null = null;
   private selectedEntry: NoteEntry | null = null;
   private isVisible = false;
+  private openingOpenCode = false;
   private requestedInitialRefresh = false;
   private loadVersion = 0;
   private renderedMarkdownBlockCount = 0;
@@ -159,6 +163,7 @@ export class NotesView {
     this.syntaxStyle = createMarkdownSyntaxStyle(theme);
     this.keyHandlers = {
       tab: () => this.togglePane(),
+      o: () => void this.openSelectedInOpenCode(),
       r: () => void this.refresh(),
       escape: () => this.callbacks.onBack(),
       backspace: () => this.callbacks.onBack(),
@@ -478,6 +483,26 @@ export class NotesView {
 
   private togglePane(): void {
     this.focusPane(this.activePane === "list" ? "content" : "list");
+  }
+
+  private async openSelectedInOpenCode(): Promise<void> {
+    if (this.openingOpenCode) return;
+    const entry = this.selectedEntry;
+    if (!entry) {
+      this.statusBar.content = t`${fg(this.theme.yellow)("Select a note before opening OpenCode")}`;
+      return;
+    }
+
+    this.openingOpenCode = true;
+    this.statusBar.content = t`${fg(this.theme.yellow)(`Opening ${entry.filename} in OpenCode...`)}`;
+    try {
+      await this.callbacks.onOpenOpencode(entry);
+      this.updateStatusBar();
+    } catch (error) {
+      this.statusBar.content = t`${fg(this.theme.red)(`Failed to open OpenCode: ${errorMessage(error)}`)}`;
+    } finally {
+      this.openingOpenCode = false;
+    }
   }
 
   private handleKeyPress(key: KeyEvent): void {

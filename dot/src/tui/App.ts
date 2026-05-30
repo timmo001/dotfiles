@@ -21,6 +21,7 @@ import { DiffView } from "../git/tui/DiffView.js";
 import { GitNotificationsView } from "../git/tui/GitNotificationsView.js";
 import { WorkflowRunsView } from "../git/tui/WorkflowRunsView.js";
 import { NotesView } from "../notes/tui/NotesView.js";
+import { openNoteInOpenCode } from "../notes/tui/OpenCodeNote.js";
 import { OmarchyMenu } from "./OmarchyMenu.js";
 import { StagingView } from "../git/tui/StagingView.js";
 import { CommitView } from "../git/tui/CommitView.js";
@@ -226,6 +227,10 @@ export class App {
     this.notesView = new NotesView(deps.renderer, deps.theme, {
       listNotes: deps.listNotes,
       readNote: deps.readNote,
+      onOpenOpencode: (entry) =>
+        openNoteInOpenCode(deps.renderer, entry, () => {
+          setTerminalTitle(`Dot TUI › ${this.notesTitle()}`);
+        }),
       onBack: () => this.popView(),
     });
     this.setNotesFilter(options.initialNotesFilter ?? null);
