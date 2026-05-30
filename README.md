@@ -54,8 +54,8 @@ dot doctor
 - `dot git-diff` - git status + staged/unstaged summaries with fetched unpushed/incoming commit checks across managed repos (including optional extra private repos and split Omarchy repo worktrees); use `dot git-diff --waybar` for one-line Waybar JSON (`dot diff` remains a human compatibility alias)
 - `dot git-workflows` - two-pane watched GitHub workflow runs view for each repo's locally checked-out HEAD commit; use `--since <date>` to filter by activity time, and `--raw`, `--waybar`, `--list-repos`, or `--list-runs` for CLI output
 - `dot git-notifications` - GitHub notification inbox with open, mark-read, done, ignore, and unignore actions; use `--all`, `--participating`, `--since <date>`, `--raw`, `--waybar`, `--list-threads`, `--mark-read <id>`, `--mark-done <id>`, `--ignore <id>`, or `--unignore <id>` for CLI output/actions
-- `dot notes` - two-pane repository notes browser; `dot notes list`, `dot notes root`, and `dot notes context --command <name>` keep the CLI utility behaviours
-- `dot handoffs` / `dot handoff` - open the notes browser filtered to notes tagged `handoff`
+- `dot notes` - two-pane repository notes browser; use `--all` or press `g` to browse every repo notes directory, and `dot notes list --all` for CLI output grouped by repo
+- `dot handoffs` / `dot handoff` - open the notes browser filtered to notes tagged `handoff`; use `--all` to browse handoffs across every repo
 - `dot setup [--confirm]` - package install step only
 - `dot install` - backup/adopt install flow for public/private dotfiles
 - `dot clean` - unstow private then public

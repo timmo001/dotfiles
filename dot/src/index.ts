@@ -76,6 +76,13 @@ const handoffNotesFilter = {
   tag: "handoff",
   title: "Handoffs",
 } satisfies NotesViewFilter;
+const allNotesFilter = {
+  includeAllRepos: true,
+} satisfies NotesViewFilter;
+
+function includeAllRepos(filter: NotesViewFilter): NotesViewFilter {
+  return { ...filter, includeAllRepos: true };
+}
 
 /** Commands ported natively to TypeScript Effect */
 const nativeCommands = new Set([
@@ -118,11 +125,18 @@ function resolveMode(): Mode {
 
   // Native commands bypass the menu/fallback system entirely
   if (nativeCommands.has(flags.subcommand)) {
-    if (flags.subcommand === "notes" && flags.rest.length === 0) {
-      return { type: "tui", initialView: "notes" };
+    if (flags.subcommand === "notes" && isNotesTuiInvocation(flags.rest)) {
+      return flags.rest.includes("--all")
+        ? {
+            type: "tui",
+            initialView: "notes",
+            initialNotesFilter: allNotesFilter,
+          }
+        : { type: "tui", initialView: "notes" };
     }
     if (flags.subcommand === "handoff" || flags.subcommand === "handoffs") {
-      if (flags.rest.length > 0) {
+      const unsupported = flags.rest.filter((arg) => arg !== "--all");
+      if (unsupported.length > 0) {
         console.error(`dot ${flags.subcommand} does not accept arguments`);
         console.error("Run 'dot handoffs --help' to see available commands.");
         process.exit(1);
@@ -130,7 +144,9 @@ function resolveMode(): Mode {
       return {
         type: "tui",
         initialView: "notes",
-        initialNotesFilter: handoffNotesFilter,
+        initialNotesFilter: flags.rest.includes("--all")
+          ? includeAllRepos(handoffNotesFilter)
+          : handoffNotesFilter,
       };
     }
     // Git diff without machine flags opens the TUI diff view.
@@ -235,6 +251,10 @@ function hasNotificationNativeFlag(args: readonly string[]): boolean {
     args.includes("--raw") ||
     NOTIFICATION_ACTION_FLAGS.some(({ flag }) => hasOption(args, flag))
   );
+}
+
+function isNotesTuiInvocation(args: readonly string[]): boolean {
+  return args.length === 0 || (args.length === 1 && args[0] === "--all");
 }
 
 function notificationActionArg(args: readonly string[]): {
@@ -484,6 +504,7 @@ if (mode.type === "native") {
           );
         },
         listNotes: () => Effect.runPromise(notes.list()),
+        listAllNotes: () => Effect.runPromise(notes.listAll()),
         readNote: (filePath) => Effect.runPromise(notes.read(filePath)),
         deleteNote: (filePath) => Effect.runPromise(notes.delete(filePath)),
         createNoteDraft: (kind, name, description) =>

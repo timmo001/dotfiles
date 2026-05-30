@@ -6,6 +6,7 @@ import {
   type KeyEvent,
   t,
   fg,
+  bold,
 } from "@opentui/core";
 import type { Theme } from "../theme.js";
 
@@ -19,6 +20,8 @@ export interface StatusListItem<T> {
   readonly description: string;
   /** Colour used for the first line in both selected and unselected states */
   readonly color: string;
+  /** Optional non-selectable section heading shown before grouped items. */
+  readonly section?: string;
   /** Source value associated with this item */
   readonly value: T;
 }
@@ -53,6 +56,7 @@ export class StatusList<T> extends ScrollBoxRenderable {
   private readonly onSelect: (item: StatusListItem<T>) => void;
   private readonly onItemSelectionChanged?: (item: StatusListItem<T>) => void;
   private readonly selectOnEnter: boolean;
+  private sectionHeaders: BoxRenderable[] = [];
   private rows: StatusListRow<T>[] = [];
   private items: readonly StatusListItem<T>[] = [];
   private selectedIndex = 0;
@@ -160,15 +164,28 @@ export class StatusList<T> extends ScrollBoxRenderable {
   }
 
   private clearRows(): void {
+    for (const header of this.sectionHeaders) {
+      this.remove(header.id);
+    }
     for (const row of this.rows) {
       this.remove(row.container.id);
     }
+    this.sectionHeaders = [];
     this.rows = [];
   }
 
   private buildRows(): void {
+    let lastSection: string | undefined;
     for (let index = 0; index < this.items.length; index++) {
-      const row = this.createRow(this.items[index], index);
+      const item = this.items[index];
+      if (item.section && item.section !== lastSection) {
+        const header = this.createSectionHeader(item.section, index);
+        this.sectionHeaders.push(header);
+        this.add(header);
+      }
+      lastSection = item.section;
+
+      const row = this.createRow(item, index);
       this.rows.push(row);
       this.add(row.container);
     }
@@ -202,6 +219,26 @@ export class StatusList<T> extends ScrollBoxRenderable {
     container.add(titleText);
     container.add(descText);
     return { container, titleText, descText, item };
+  }
+
+  private createSectionHeader(section: string, index: number): BoxRenderable {
+    const id = `${this.id}-section-${index}`;
+    const container = new BoxRenderable(this.renderer, {
+      id,
+      flexDirection: "column",
+      width: "100%",
+      flexShrink: 0,
+      backgroundColor: this.theme.bgElevated,
+      paddingLeft: 1,
+      paddingTop: index > 0 ? 1 : 0,
+    });
+    container.add(
+      new TextRenderable(this.renderer, {
+        id: `${id}-title`,
+        content: t`${bold(fg(this.theme.fgSubtle)(section))}`,
+      }),
+    );
+    return container;
   }
 
   private refreshRowStyles(): void {

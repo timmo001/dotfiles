@@ -56,6 +56,8 @@ export interface NotesViewFilter {
   readonly tag?: string;
   /** Display title used for filtered notes views such as Handoffs. */
   readonly title?: string;
+  /** Show notes from every repository note directory instead of only the current repo. */
+  readonly includeAllRepos?: boolean;
 }
 
 // --- GitHub workflow run types ---

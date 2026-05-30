@@ -407,32 +407,37 @@ Examples:
   }
 
   if (subcommand === "notes") {
-    console.log(`Usage: dot notes [command] [options]
+    console.log(`Usage: dot notes [--all] [command] [options]
 
 Manage repository notes used by OpenCode note commands.
 
 Modes:
   (default)                    Interactive notes TUI
+  --all                        Interactive notes TUI across all repos
 
 Commands:
   root                         Print the notes vault root
   root --repo-notes            Print the repository notes directory
   context --command <name>     Print the context block for OpenCode notes
-  list [--format labels|json]  List notes for the current repository
+  list [--all] [--format labels|json]
+                               List notes for the current repository or all repos
 
 Options:
+  --all       Show notes from every repo-notes directory
   --help, -h  Show this help message
 
 Examples:
   dot notes
+  dot notes --all
   dot notes root
   dot notes context --command notes-list
+  dot notes list --all
   dot notes list --format json`);
     return;
   }
 
   if (subcommand === "handoff" || subcommand === "handoffs") {
-    console.log(`Usage: dot handoffs
+    console.log(`Usage: dot handoffs [--all]
 
 Open the interactive notes TUI filtered to notes tagged handoff.
 
@@ -441,6 +446,7 @@ Aliases:
   dot handoffs
 
 Options:
+  --all       Show handoff notes from every repo-notes directory
   --help, -h  Show this help message`);
     return;
   }

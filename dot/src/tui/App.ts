@@ -15,6 +15,7 @@ import type {
   NoteCreateKind,
   NoteDeleteResult,
   NoteEntry,
+  NoteRepoSection,
 } from "../notes/types.js";
 import type { Theme } from "../theme.js";
 import { menuItemsById, submenus } from "../menu.js";
@@ -91,6 +92,8 @@ export interface AppDeps {
   ) => void;
   /** List note entries for the current repository. */
   readonly listNotes: () => Promise<readonly NoteEntry[]>;
+  /** List note entries grouped by every repository notes directory. */
+  readonly listAllNotes: () => Promise<readonly NoteRepoSection[]>;
   /** Read the full markdown content for a note file. */
   readonly readNote: (filePath: string) => Promise<string>;
   /** Delete a note file from the notes vault. */
@@ -245,6 +248,7 @@ export class App {
 
     this.notesView = new NotesView(deps.renderer, deps.theme, {
       listNotes: deps.listNotes,
+      listAllNotes: deps.listAllNotes,
       readNote: deps.readNote,
       deleteNote: deps.deleteNote,
       createNoteDraft: deps.createNoteDraft,
@@ -490,7 +494,9 @@ export class App {
   }
 
   private notesTitle(): string {
-    return this.activeNotesFilter?.title ?? "Notes";
+    const title = this.activeNotesFilter?.title ?? "Notes";
+    if (!this.activeNotesFilter?.includeAllRepos) return title;
+    return title.startsWith("All ") ? title : `All ${title}`;
   }
 
   private hideAllViews(): void {

@@ -1,24 +1,32 @@
 import { Effect } from "effect";
-import { optionValue } from "../../lib/args.js";
+import { hasOption, optionValue } from "../../lib/args.js";
 import { Notes, NotesError } from "../services/Notes.js";
-import { formatNoteLabel, type NotesListFormat } from "../types.js";
+import {
+  formatNoteLabel,
+  formatNoteSections,
+  type NotesListFormat,
+} from "../types.js";
 
 function notesUsage(): string {
-  return `Usage: dot notes [command] [options]
+  return `Usage: dot notes [--all] [command] [options]
 
 Modes:
   (default)                    Interactive notes TUI
+  --all                        Interactive notes TUI across all repos
 
 Commands:
   root                         Print the notes vault root
   root --repo-notes            Print the repository notes directory
   context --command <name>     Print the context block for OpenCode notes
-  list [--format labels|json]  List notes for the current repository
+  list [--all] [--format labels|json]
+                               List notes for the current repository or all repos
 
 Examples:
   dot notes
+  dot notes --all
   dot notes root
   dot notes context --command notes-list
+  dot notes list --all
   dot notes list --format json`;
 }
 
@@ -95,6 +103,17 @@ export function notesCommand(args: readonly string[]) {
         }
         case "list": {
           const format = parseListFormat(rest);
+          const all = hasOption(rest, "--all");
+          if (all) {
+            const sections = yield* notes.listAll();
+            const output =
+              format === "json"
+                ? JSON.stringify(sections, null, 2)
+                : formatNoteSections(sections);
+            yield* Effect.sync(() => process.stdout.write(`${output}\n`));
+            return;
+          }
+
           const entries = yield* notes.list();
           const output =
             format === "json"

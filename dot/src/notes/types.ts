@@ -28,8 +28,20 @@ export interface NoteEntry extends NoteFrontmatter {
   readonly filename: string;
   /** Absolute note file path. */
   readonly filePath: string;
+  /** Repository section slug (`owner/repo`) when listed across all repos. */
+  readonly repoSlug?: string;
   /** Modification time in epoch seconds. */
   readonly mtime: number;
+}
+
+/** Notes grouped under one `repo-notes/<owner>/<repo>` directory. */
+export interface NoteRepoSection {
+  /** Repository slug used as the section heading. */
+  readonly repoSlug: string;
+  /** Absolute directory path for this repository's notes. */
+  readonly notesPath: string;
+  /** Note entries in this repository, sorted newest-first. */
+  readonly entries: readonly NoteEntry[];
 }
 
 /** Options for rendering the OpenCode notes context block. */
@@ -96,4 +108,17 @@ export function formatNoteLabel(entry: NoteEntry): string {
   }
 
   return `${entry.filename}${tagPart} (last modified: ${date})`;
+}
+
+/** Render repo-grouped note labels with Markdown-style section headings. */
+export function formatNoteSections(
+  sections: readonly NoteRepoSection[],
+): string {
+  return sections
+    .map((section) =>
+      [`## ${section.repoSlug}`, ...section.entries.map(formatNoteLabel)].join(
+        "\n",
+      ),
+    )
+    .join("\n\n");
 }

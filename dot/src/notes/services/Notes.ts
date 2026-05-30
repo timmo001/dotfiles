@@ -20,6 +20,7 @@ import {
   type NoteDeleteResult,
   type NoteEntry,
   type NoteFrontmatter,
+  type NoteRepoSection,
   type RepoNoteIdentity,
   type NoteWriteResult,
 } from "../types.js";
@@ -54,6 +55,8 @@ interface NotesService {
   ) => Effect.Effect<string, NotesError>;
   /** List note entries for the current repository. */
   readonly list: () => Effect.Effect<readonly NoteEntry[], NotesError>;
+  /** List note entries grouped by every repository notes directory. */
+  readonly listAll: () => Effect.Effect<readonly NoteRepoSection[], NotesError>;
   /** Read a note file from the notes vault. */
   readonly read: (filePath: string) => Effect.Effect<string, NotesError>;
   /** Write a note file and best-effort git commit it. */
@@ -144,7 +147,10 @@ function readNoteFrontmatter(filePath: string): NoteFrontmatter {
   return { name, description, tags: tagsRaw ? parseTags(tagsRaw) : [] };
 }
 
-function listNoteEntries(notesPath: string): readonly NoteEntry[] {
+function listNoteEntries(
+  notesPath: string,
+  repoSlug?: string,
+): readonly NoteEntry[] {
   if (!existsSync(notesPath)) return [];
 
   return readdirSync(notesPath)
@@ -155,11 +161,37 @@ function listNoteEntries(notesPath: string): readonly NoteEntry[] {
       return {
         filename,
         filePath,
+        repoSlug,
         mtime: stat.mtimeMs / 1000,
         ...readNoteFrontmatter(filePath),
       };
     })
     .sort((a, b) => b.mtime - a.mtime);
+}
+
+function sortedDirectories(path: string) {
+  return readdirSync(path, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function listNoteRepoSections(
+  repoNotesRoot: string,
+): readonly NoteRepoSection[] {
+  if (!existsSync(repoNotesRoot)) return [];
+
+  const sections: NoteRepoSection[] = [];
+  for (const owner of sortedDirectories(repoNotesRoot)) {
+    const ownerPath = join(repoNotesRoot, owner.name);
+    for (const repo of sortedDirectories(ownerPath)) {
+      const repoSlug = `${owner.name}/${repo.name}`;
+      const notesPath = join(ownerPath, repo.name);
+      const entries = listNoteEntries(notesPath, repoSlug);
+      if (entries.length > 0) sections.push({ repoSlug, notesPath, entries });
+    }
+  }
+
+  return sections;
 }
 
 function slugifyName(name: string): string {
@@ -573,6 +605,14 @@ export class Notes extends Context.Service<Notes, NotesService>()("Notes") {
           Effect.gen(function* () {
             const notesPath = yield* currentNotesPath();
             return listNoteEntries(notesPath);
+          }),
+        listAll: () =>
+          Effect.try({
+            try: () => listNoteRepoSections(repoNotesRoot),
+            catch: (error) =>
+              fail(
+                `notes list --all: failed to list notes: ${errorMessage(error)}`,
+              ),
           }),
         read: (filePath) =>
           Effect.gen(function* () {

@@ -25,6 +25,7 @@ import type {
   NoteCreateKind,
   NoteDeleteResult,
   NoteEntry,
+  NoteRepoSection,
 } from "../types.js";
 import { formatBreadcrumb } from "../../tui/breadcrumb.js";
 import { formatPaneTitle } from "../../tui/paneTitle.js";
@@ -47,6 +48,7 @@ const HELP: readonly HelpEntry[] = [
   { key: "Tab", action: "pane" },
   { key: "a", action: "add" },
   { key: "A", action: "add visual" },
+  { key: "g", action: "toggle all" },
   { key: "e", action: "edit" },
   { key: "E", action: "visual edit" },
   { key: "o", action: "OpenCode" },
@@ -125,6 +127,8 @@ const STYLE_APPLIERS: readonly StyleApplier[] = [
 export interface NotesViewOptions {
   /** List note entries for the current repository. */
   readonly listNotes: () => Promise<readonly NoteEntry[]>;
+  /** List note entries grouped by every repository notes directory. */
+  readonly listAllNotes: () => Promise<readonly NoteRepoSection[]>;
   /** Read the full markdown content for a note file. */
   readonly readNote: (filePath: string) => Promise<string>;
   /** Delete a note file from the notes vault. */
@@ -184,6 +188,8 @@ export class NotesView {
   private activePane: NotesPane = "list";
   private entries: readonly NoteEntry[] = [];
   private visibleEntries: readonly NoteEntry[] = [];
+  private showingAllRepos = false;
+  private usingAllReposFallback = false;
   private selectedFilePath: string | null = null;
   private selectedEntry: NoteEntry | null = null;
   private isVisible = false;
@@ -215,6 +221,7 @@ export class NotesView {
       tab: () => this.togglePane(),
       a: () => this.startCreateFlow("editor"),
       "shift+a": () => this.startCreateFlow("visual"),
+      g: () => this.toggleAllRepos(),
       e: () => void this.openSelectedInEditor("editor"),
       "shift+e": () => void this.openSelectedInEditor("visual"),
       o: () => void this.openSelectedInOpenCode("default"),
@@ -485,6 +492,8 @@ export class NotesView {
       this.clearDeleteConfirmation(false);
       this.selectedFilePath = null;
       this.selectedEntry = null;
+      this.showingAllRepos = filter?.includeAllRepos === true;
+      this.usingAllReposFallback = false;
       this.titleBar.content = this.formatTitle();
       this.applyFilter();
       if (this.isVisible) void this.refresh();
@@ -518,7 +527,9 @@ export class NotesView {
   }
 
   private get filterKey(): string {
-    return this.filter?.tag?.toLowerCase() ?? "";
+    const tag = this.filter?.tag?.toLowerCase() ?? "";
+    const scope = this.filter?.includeAllRepos ? "all" : "current";
+    return `${tag}:${scope}`;
   }
 
   private async refresh(): Promise<boolean> {
@@ -526,9 +537,12 @@ export class NotesView {
     this.statusBar.content = t`${fg(this.theme.yellow)("Refreshing notes...")}`;
 
     try {
-      const entries = await this.callbacks.listNotes();
+      const loaded = await this.loadEntriesForActiveScope();
       if (version !== this.loadVersion) return false;
-      this.entries = entries;
+      this.entries = loaded.entries;
+      this.showingAllRepos = loaded.allRepos;
+      this.usingAllReposFallback = loaded.fallback;
+      this.titleBar.content = this.formatTitle();
       this.applyFilter();
       this.updateStatusBar();
       return true;
@@ -543,6 +557,34 @@ export class NotesView {
     }
   }
 
+  private async loadEntriesForActiveScope(): Promise<{
+    readonly entries: readonly NoteEntry[];
+    readonly allRepos: boolean;
+    readonly fallback: boolean;
+  }> {
+    if (this.filter?.includeAllRepos) {
+      return {
+        entries: flattenNoteSections(await this.callbacks.listAllNotes()),
+        allRepos: true,
+        fallback: false,
+      };
+    }
+
+    const currentEntries = await this.callbacks.listNotes();
+    const currentVisible = currentEntries.filter((entry) =>
+      matchesFilter(entry, this.filter),
+    );
+    if (currentVisible.length > 0) {
+      return { entries: currentEntries, allRepos: false, fallback: false };
+    }
+
+    return {
+      entries: flattenNoteSections(await this.callbacks.listAllNotes()),
+      allRepos: true,
+      fallback: true,
+    };
+  }
+
   private applyFilter(): void {
     this.visibleEntries = this.entries.filter((entry) =>
       matchesFilter(entry, this.filter),
@@ -551,6 +593,7 @@ export class NotesView {
       this.visibleEntries.map((entry) => this.listItem(entry)),
       this.selectedFilePath,
     );
+    this.titleBar.content = this.formatTitle();
     this.updatePaneTitles();
 
     if (this.visibleEntries.length === 0) {
@@ -558,14 +601,29 @@ export class NotesView {
     }
   }
 
+  private toggleAllRepos(): void {
+    const currentFilter = this.filter;
+    if (currentFilter?.includeAllRepos) {
+      const nextFilter: NotesViewFilter = {
+        ...(currentFilter.tag && { tag: currentFilter.tag }),
+        ...(currentFilter.title && { title: currentFilter.title }),
+      };
+      this.setFilter(Object.keys(nextFilter).length > 0 ? nextFilter : null);
+      return;
+    }
+
+    this.setFilter({ ...(currentFilter ?? {}), includeAllRepos: true });
+  }
+
   private async loadNote(entry: NoteEntry): Promise<void> {
     const version = ++this.loadVersion;
+    const label = notePathLabel(entry);
     this.selectedEntry = entry;
     this.updateHeader(entry);
     this.updatePaneTitles();
     this.setMarkdownContent("Loading note content...");
     this.bodyScroll.scrollTo(0);
-    this.statusBar.content = t`${fg(this.theme.yellow)(`Loading ${entry.filename}...`)}`;
+    this.statusBar.content = t`${fg(this.theme.yellow)(`Loading ${label}...`)}`;
 
     try {
       const content = await this.callbacks.readNote(entry.filePath);
@@ -589,9 +647,10 @@ export class NotesView {
   ): void {
     if (version !== this.loadVersion) return;
     const message = errorMessage(error);
+    const label = notePathLabel(entry);
     this.setMarkdownContent(`Failed to read note content.\n\n${message}`);
     this.bodyScroll.scrollTo(0);
-    this.statusBar.content = t`${fg(this.theme.red)(`Failed to read ${entry.filename}: ${message}`)}`;
+    this.statusBar.content = t`${fg(this.theme.red)(`Failed to read ${label}: ${message}`)}`;
   }
 
   private togglePane(): void {
@@ -608,7 +667,8 @@ export class NotesView {
 
     this.openingOpenCode = true;
     const modeLabel = mode === "plan" ? "OpenCode plan" : "OpenCode";
-    this.statusBar.content = t`${fg(this.theme.yellow)(`Opening ${entry.filename} in ${modeLabel}...`)}`;
+    const label = notePathLabel(entry);
+    this.statusBar.content = t`${fg(this.theme.yellow)(`Opening ${label} in ${modeLabel}...`)}`;
     try {
       await this.callbacks.onOpenOpencode(entry, mode);
       this.updateStatusBar();
@@ -633,7 +693,8 @@ export class NotesView {
 
     this.editingFilePath = entry.filePath;
     this.selectedFilePath = entry.filePath;
-    this.statusBar.content = t`${fg(this.theme.yellow)(`Opening ${entry.filename} in ${editorLabel(kind)}...`)}`;
+    const label = notePathLabel(entry);
+    this.statusBar.content = t`${fg(this.theme.yellow)(`Opening ${label} in ${editorLabel(kind)}...`)}`;
 
     let editError: unknown;
     let refreshed = false;
@@ -649,12 +710,12 @@ export class NotesView {
     }
 
     if (editError) {
-      this.statusBar.content = t`${fg(this.theme.red)(`Failed to edit ${entry.filename}: ${errorMessage(editError)}`)}`;
+      this.statusBar.content = t`${fg(this.theme.red)(`Failed to edit ${label}: ${errorMessage(editError)}`)}`;
       return;
     }
 
     if (refreshed) {
-      this.statusBar.content = t`${fg(this.theme.green)(`Updated ${entry.filename}`)}`;
+      this.statusBar.content = t`${fg(this.theme.green)(`Updated ${label}`)}`;
     }
   }
 
@@ -757,12 +818,13 @@ export class NotesView {
     this.deletingFilePath = entry.filePath;
     this.clearDeleteConfirmation();
     this.loadVersion += 1;
-    this.statusBar.content = t`${fg(this.theme.yellow)(`Deleting ${entry.filename}...`)}`;
+    const label = notePathLabel(entry);
+    this.statusBar.content = t`${fg(this.theme.yellow)(`Deleting ${label}...`)}`;
 
     try {
       await this.deleteSelectedEntry(entry);
     } catch (error) {
-      this.statusBar.content = t`${fg(this.theme.red)(`Failed to delete ${entry.filename}: ${errorMessage(error)}`)}`;
+      this.statusBar.content = t`${fg(this.theme.red)(`Failed to delete ${label}: ${errorMessage(error)}`)}`;
     } finally {
       this.deletingFilePath = null;
     }
@@ -774,7 +836,8 @@ export class NotesView {
     );
     const result = await this.callbacks.deleteNote(entry.filePath);
     this.clearDeletedSelection(entry.filePath, nextSelectedFilePath);
-    if (await this.refresh()) this.showDeleteSuccess(entry.filename, result);
+    if (await this.refresh())
+      this.showDeleteSuccess(notePathLabel(entry), result);
   }
 
   private nextSelectedFilePathAfterDelete(filePath: string): string | null {
@@ -804,16 +867,16 @@ export class NotesView {
     }
   }
 
-  private showDeleteSuccess(filename: string, result: NoteDeleteResult): void {
+  private showDeleteSuccess(label: string, result: NoteDeleteResult): void {
     const message = result.commit.ok
-      ? `Deleted ${filename}`
-      : `Deleted ${filename}; git commit failed: ${result.commit.error ?? "unknown error"}`;
+      ? `Deleted ${label}`
+      : `Deleted ${label}; git commit failed: ${result.commit.error ?? "unknown error"}`;
     this.statusBar.content = t`${fg(result.commit.ok ? this.theme.green : this.theme.yellow)(message)}`;
   }
 
   private showDeletePrompt(entry: NoteEntry): void {
     this.deletePromptTitle.content = t`${bold(fg(this.theme.red)("Delete note?"))}`;
-    this.deletePromptFile.content = t`${fg(this.theme.fgMuted)("File: ")}${fg(this.theme.fg)(entry.filename)}`;
+    this.deletePromptFile.content = t`${fg(this.theme.fgMuted)("File: ")}${fg(this.theme.fg)(notePathLabel(entry))}`;
     this.deletePromptHelp.content = t`${dim("y")} ${dim("delete")}  ${dim("n/Esc")} ${dim("cancel")}`;
     this.deletePrompt.top = Math.max(
       1,
@@ -832,7 +895,7 @@ export class NotesView {
     const entry = this.deleteConfirmation;
     this.clearDeleteConfirmation();
     if (entry) {
-      this.statusBar.content = t`${fg(this.theme.fgMuted)(`Delete cancelled: ${entry.filename}`)}`;
+      this.statusBar.content = t`${fg(this.theme.fgMuted)(`Delete cancelled: ${notePathLabel(entry)}`)}`;
     }
   }
 
@@ -875,6 +938,7 @@ export class NotesView {
       title: entry.name ?? stripMarkdownExtension(entry.filename),
       description: formatListDescription(entry),
       color: this.theme.fg,
+      section: this.showingAllRepos ? entry.repoSlug : undefined,
       value: entry,
     };
   }
@@ -882,12 +946,13 @@ export class NotesView {
   private updateHeader(entry: NoteEntry): void {
     const name = entry.name ?? stripMarkdownExtension(entry.filename);
     const modified = formatDate(entry.mtime);
+    const fileLabel = notePathLabel(entry);
     this.noteHeading.content = t`${fg(this.theme.fgMuted)("Name: ")}${bold(fg(this.theme.accent)(name))}`;
     this.noteDescription.content = entry.description
       ? t`${fg(this.theme.fgMuted)("Description: ")}${fg(this.theme.fg)(entry.description)}`
       : t`${fg(this.theme.fgMuted)("Description: ")}${fg(this.theme.fgSubtle)("No description")}`;
     this.noteTags.content = t`${fg(this.theme.fgMuted)("Tags: ")}${fg(this.theme.fg)(formatTags(entry.tags))}`;
-    this.noteFile.content = t`${fg(this.theme.fgMuted)("File: ")}${fg(this.theme.fg)(entry.filename)}`;
+    this.noteFile.content = t`${fg(this.theme.fgMuted)("File: ")}${fg(this.theme.fg)(fileLabel)}`;
     this.noteModified.content = t`${fg(this.theme.fgMuted)("Modified: ")}${fg(this.theme.fg)(modified)}`;
   }
 
@@ -906,7 +971,7 @@ export class NotesView {
   private updatePaneTitles(): void {
     this.listTitle.content = formatPaneTitle(
       this.theme,
-      notesDisplayTitle(this.filter),
+      notesDisplayTitle(this.filter, this.showingAllRepos),
       this.visibleEntries.length,
       this.activePane === "list",
       countColor(this.theme, this.visibleEntries.length),
@@ -926,14 +991,20 @@ export class NotesView {
       return;
     }
 
-    this.statusBar.content = t`${fg(this.theme.fgMuted)(formatStatusBarText(this.visibleEntries.length, this.selectedEntry, this.filter))}`;
+    this.statusBar.content = t`${fg(this.theme.fgMuted)(formatStatusBarText(this.visibleEntries.length, this.selectedEntry, this.filter, this.showingAllRepos, this.usingAllReposFallback))}`;
   }
 
   private emptyTitle(): string {
-    return this.filter?.title ? `No ${this.filter.title}` : "No notes";
+    return `No ${notesDisplayTitle(this.filter, this.showingAllRepos)}`;
   }
 
   private emptyBody(): string {
+    if (this.showingAllRepos) {
+      return this.filter?.tag
+        ? `No notes tagged ${this.filter.tag} found in any repository.`
+        : "No notes found in any repository.";
+    }
+
     return this.filter?.tag
       ? `No notes tagged ${this.filter.tag} found for this repository.`
       : "No notes found for this repository.";
@@ -942,8 +1013,8 @@ export class NotesView {
   private formatTitle() {
     return formatBreadcrumb(
       this.theme,
-      ["Dot", notesDisplayTitle(this.filter)],
-      notesSubtitle(this.filter),
+      ["Dot", notesDisplayTitle(this.filter, this.showingAllRepos)],
+      notesSubtitle(this.filter, this.showingAllRepos),
     );
   }
 
@@ -1318,6 +1389,12 @@ function matchesFilter(
   return entry.tags.some((tag) => tag.toLowerCase() === wanted);
 }
 
+function flattenNoteSections(
+  sections: readonly NoteRepoSection[],
+): readonly NoteEntry[] {
+  return sections.flatMap((section) => section.entries);
+}
+
 function splitNoteBody(content: string): string {
   const match = content.match(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/);
   return match ? content.slice(match[0].length) : content;
@@ -1335,12 +1412,21 @@ function noteBodyContent(content: string): string {
   return body || "No content after frontmatter.";
 }
 
-function notesDisplayTitle(filter: NotesViewFilter | null): string {
-  return filter?.title ?? "Notes";
+function notesDisplayTitle(
+  filter: NotesViewFilter | null,
+  showingAllRepos: boolean,
+): string {
+  const title = filter?.title ?? "Notes";
+  if (!showingAllRepos) return title;
+  return title.startsWith("All ") ? title : `All ${title}`;
 }
 
-function notesSubtitle(filter: NotesViewFilter | null): string {
-  return filter?.tag ? `tag:${filter.tag}` : "repo notes";
+function notesSubtitle(
+  filter: NotesViewFilter | null,
+  showingAllRepos: boolean,
+): string {
+  const scope = showingAllRepos ? "all repos" : "repo notes";
+  return filter?.tag ? `tag:${filter.tag} • ${scope}` : scope;
 }
 
 function countColor(theme: Theme, count: number): string {
@@ -1359,20 +1445,32 @@ function formatStatusBarText(
   count: number,
   selectedEntry: NoteEntry | null,
   filter: NotesViewFilter | null,
+  showingAllRepos: boolean,
+  usingAllReposFallback: boolean,
 ): string {
-  return `${count} ${noteLabel(count)}${filterStatusText(filter)}    ${selectedStatusText(selectedEntry)}`;
+  return `${count} ${noteLabel(count)}${filterStatusText(filter, showingAllRepos, usingAllReposFallback)}    ${selectedStatusText(selectedEntry)}`;
 }
 
 function noteLabel(count: number): string {
   return count === 1 ? "note" : "notes";
 }
 
-function filterStatusText(filter: NotesViewFilter | null): string {
-  return filter?.tag ? ` • tag:${filter.tag}` : "";
+function filterStatusText(
+  filter: NotesViewFilter | null,
+  showingAllRepos: boolean,
+  usingAllReposFallback: boolean,
+): string {
+  const parts = [
+    ...(filter?.tag ? [`tag:${filter.tag}`] : []),
+    ...(showingAllRepos
+      ? [usingAllReposFallback ? "all repos fallback" : "all repos"]
+      : []),
+  ];
+  return parts.length ? ` • ${parts.join(" • ")}` : "";
 }
 
 function selectedStatusText(entry: NoteEntry | null): string {
-  return entry ? `Selected: ${entry.filename}` : "Select a note";
+  return entry ? `Selected: ${notePathLabel(entry)}` : "Select a note";
 }
 
 function editorLabel(kind: NoteEditorKind): string {
@@ -1387,6 +1485,12 @@ function formatListDescription(entry: NoteEntry): string {
 
 function formatTags(tags: readonly string[]): string {
   return tags.length > 0 ? tags.join(", ") : "untagged";
+}
+
+function notePathLabel(entry: NoteEntry): string {
+  return entry.repoSlug
+    ? `${entry.repoSlug}/${entry.filename}`
+    : entry.filename;
 }
 
 function stripMarkdownExtension(filename: string): string {

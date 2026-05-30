@@ -162,7 +162,9 @@ dot diff                      # Short alias for git-diff
 dot git-workflows             # Watched GitHub workflow runs view (TUI)
 dot git-notifications         # GitHub notification inbox view (TUI)
 dot notes                     # Repository notes browser (TUI)
+dot notes --all               # Repository notes browser across all repos (TUI)
 dot handoffs                  # Handoff notes browser (TUI, tag: handoff)
+dot handoffs --all            # Handoff notes browser across all repos (TUI)
 dot handoff                   # Alias for dot handoffs
 dot git-diff --raw            # CLI diff output (no TUI)
 dot git-diff --waybar         # JSON output for Waybar
@@ -183,6 +185,7 @@ dot git-notifications --unignore <id> # Stop ignoring a thread
 dot notes root             # Print notes vault root (CLI)
 dot notes root --repo-notes # Print repository notes directory (CLI)
 dot notes context --command notes-list # Print OpenCode notes context (CLI)
+dot notes list --all       # List all repo notes with repo section headings (CLI)
 dot notes list --format json # List current repo notes as JSON (CLI)
 dot note read --path <path> # Read a note file
 dot note write --path <path> --stdin # Write stdin to a note file and commit it
