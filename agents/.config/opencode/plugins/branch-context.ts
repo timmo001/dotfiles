@@ -7,6 +7,53 @@
  * commands that receive a narrower diff.
  */
 
+import type { Plugin } from "@opencode-ai/plugin"
+
+type CommandResult =
+  | { readonly ok: true; readonly text: string }
+  | { readonly ok: false; readonly error: string }
+
+type JsonRecord = Record<string, unknown>
+
+interface TruncatedText {
+  readonly text: string
+  readonly truncated: boolean
+  readonly omitted: number
+}
+
+interface BranchMetadataInput {
+  readonly branchResult: CommandResult
+  readonly defaultRemote: string
+  readonly defaultBranch: string
+  readonly baseRef: string
+  readonly onDefaultBranch: boolean
+  readonly remotes: readonly string[]
+}
+
+interface WorkScopeInput {
+  readonly unstagedNameStatusResult: CommandResult
+  readonly stagedNameStatusResult: CommandResult
+  readonly commitsResult: CommandResult
+  readonly nameStatusResult: CommandResult
+  readonly statResult: CommandResult
+}
+
+interface PullRequestContextInput {
+  readonly prViewResult: CommandResult | null
+  readonly prData: JsonRecord | null
+  readonly prMissing: boolean
+  readonly checksResult: CommandResult | null
+}
+
+interface RenderBranchContextInput {
+  readonly contextMetadata: readonly string[]
+  readonly branchMetadata: readonly string[]
+  readonly statusLines: readonly string[]
+  readonly workScopeLines: readonly string[]
+  readonly pullRequestLines: readonly string[] | null
+  readonly warnings: readonly string[]
+}
+
 const BRANCH_CONTEXT_COMMANDS = new Set([
   // General
   "inject-context",
@@ -39,7 +86,7 @@ const COMMITS_CHAR_LIMIT = 30000
 const NAME_STATUS_CHAR_LIMIT = 30000
 const DIFF_STAT_CHAR_LIMIT = 20000
 
-const truncate = (text, maxChars) => {
+const truncate = (text: string, maxChars: number): TruncatedText => {
   if (text.length <= maxChars) {
     return { text, truncated: false, omitted: 0 }
   }
@@ -50,18 +97,21 @@ const truncate = (text, maxChars) => {
   }
 }
 
-const errorMessage = (error) => {
+const errorMessage = (error: unknown): string => {
   if (!error) return "Unknown error"
   if (typeof error === "string") return error
-  if (error.stderr) {
-    const stderr = String(error.stderr).trim()
+  if (typeof error === "object") {
+    const record = error as Record<string, unknown>
+    const stderrValue = record.stderr
+    const stderr = typeof stderrValue === "string" ? stderrValue.trim() : ""
     if (stderr) return stderr
+    const message = record.message
+    if (typeof message === "string" && message) return message
   }
-  if (error.message) return error.message
   return String(error)
 }
 
-const run = async (execute) => {
+const run = async (execute: () => Promise<unknown>): Promise<CommandResult> => {
   try {
     const output = await execute()
     return {
@@ -76,32 +126,46 @@ const run = async (execute) => {
   }
 }
 
-const skipped = (text) => ({
+const skipped = (text: string): CommandResult => ({
   ok: true,
   text,
 })
 
-const limitedText = (text, maxChars) => {
+const limitedText = (text: string, maxChars: number): string => {
   const limited = truncate(text, maxChars)
   return limited.text + (limited.truncated ? `\n\n[TRUNCATED ${String(limited.omitted)} CHARS]` : "")
 }
 
-const parseDefaultBranch = (ref, remote) => {
+const parseDefaultBranch = (ref: string, remote: string): string => {
   const prefix = `refs/remotes/${remote}/`
   if (ref.startsWith(prefix)) return ref.slice(prefix.length)
   const parts = ref.split("/")
   return parts[parts.length - 1] || "main"
 }
 
-const parseJSON = (text) => {
+const isRecord = (value: unknown): value is JsonRecord =>
+  typeof value === "object" && value !== null && !Array.isArray(value)
+
+const stringField = (record: JsonRecord, field: string): string => {
+  const value = record[field]
+  return typeof value === "string" ? value : ""
+}
+
+const booleanField = (record: JsonRecord, field: string): boolean => {
+  const value = record[field]
+  return typeof value === "boolean" ? value : false
+}
+
+const parseJSON = (text: string): JsonRecord | null => {
   try {
-    return JSON.parse(text)
+    const parsed: unknown = JSON.parse(text)
+    return isRecord(parsed) ? parsed : null
   } catch {
     return null
   }
 }
 
-const formatTag = (name, description, lines) => {
+const formatTag = (name: string, description: string, lines: readonly string[]): string => {
   const body = [
     `Description: ${description}`,
     ...lines.filter(Boolean),
@@ -112,7 +176,7 @@ const formatTag = (name, description, lines) => {
   return [`<${name}>`, body || "(empty)", `</${name}>`].join("\n")
 }
 
-const formatErrorContext = (message, error) => {
+const formatErrorContext = (message: string, error: string | null): string => {
   return [
     "<branch-context>",
     formatTag(
@@ -131,7 +195,7 @@ const formatErrorContext = (message, error) => {
     .join("\n\n")
 }
 
-const formatList = (title, value) => {
+const formatList = (title: string, value: string): string => {
   const text = value && value.trim() ? value.trim() : "(empty)"
   return `${title}:\n${text}`
 }
@@ -143,7 +207,7 @@ const collectBranchMetadata = ({
   baseRef,
   onDefaultBranch,
   remotes,
-}) => {
+}: BranchMetadataInput): string[] => {
   return [
     `Current branch: ${branchResult.ok && branchResult.text ? branchResult.text : "(unknown)"}`,
     `Default remote: ${defaultRemote}`,
@@ -154,7 +218,7 @@ const collectBranchMetadata = ({
   ]
 }
 
-const collectStatus = (statusResult) => {
+const collectStatus = (statusResult: CommandResult): string[] => {
   if (!statusResult.ok) return [`ERROR: ${statusResult.error}`]
   return [statusResult.text || "(empty)"]
 }
@@ -165,7 +229,7 @@ const collectWorkScope = ({
   commitsResult,
   nameStatusResult,
   statResult,
-}) => {
+}: WorkScopeInput): string[] => {
   return [
     formatList(
       "Unstaged changed files",
@@ -194,18 +258,25 @@ const collectWorkScope = ({
   ]
 }
 
-const collectPullRequestContext = ({ prViewResult, prData, prMissing, checksResult }) => {
+const collectPullRequestContext = ({
+  prViewResult,
+  prData,
+  prMissing,
+  checksResult,
+}: PullRequestContextInput): string[] | null => {
   if (!prViewResult) return null
   if (prData) {
     return [
       `PR number: ${String(prData.number)}`,
-      `Title: ${prData.title || "(no title)"}`,
-      `URL: ${prData.url || "(unknown)"}`,
-      `State: ${prData.state || "(unknown)"}`,
-      `Draft: ${prData.isDraft ? "yes" : "no"}`,
-      `Review decision: ${prData.reviewDecision || "(none)"}`,
-      `Merge state: ${prData.mergeStateStatus || "(unknown)"}`,
-      `Branches: ${prData.headRefName || "(unknown)"} -> ${prData.baseRefName || "(unknown)"}`,
+      `Title: ${stringField(prData, "title") || "(no title)"}`,
+      `URL: ${stringField(prData, "url") || "(unknown)"}`,
+      `State: ${stringField(prData, "state") || "(unknown)"}`,
+      `Draft: ${booleanField(prData, "isDraft") ? "yes" : "no"}`,
+      `Review decision: ${stringField(prData, "reviewDecision") || "(none)"}`,
+      `Merge state: ${stringField(prData, "mergeStateStatus") || "(unknown)"}`,
+      `Branches: ${stringField(prData, "headRefName") || "(unknown)"} -> ${
+        stringField(prData, "baseRefName") || "(unknown)"
+      }`,
       "",
       formatList(
         "Checks",
@@ -223,7 +294,14 @@ const collectPullRequestContext = ({ prViewResult, prData, prMissing, checksResu
   return ["Pull request data was requested but could not be collected."]
 }
 
-const renderBranchContext = ({ contextMetadata, branchMetadata, statusLines, workScopeLines, pullRequestLines, warnings }) => {
+const renderBranchContext = ({
+  contextMetadata,
+  branchMetadata,
+  statusLines,
+  workScopeLines,
+  pullRequestLines,
+  warnings,
+}: RenderBranchContextInput): string => {
   const lines = [
     "<branch-context>",
     formatTag(
@@ -272,9 +350,13 @@ const renderBranchContext = ({ contextMetadata, branchMetadata, statusLines, wor
   return lines.join("\n\n")
 }
 
-export const BranchContextPlugin = async ({ $ }) => {
-  const buildBranchContext = async ({ includePullRequest }) => {
-    const warnings = []
+export const BranchContextPlugin = (async ({ $ }) => {
+  const buildBranchContext = async ({
+    includePullRequest,
+  }: {
+    readonly includePullRequest: boolean
+  }): Promise<string> => {
+    const warnings: string[] = []
 
     const inRepo = await run(() => $`git rev-parse --is-inside-work-tree`.text())
     if (!inRepo.ok || inRepo.text !== "true") {
@@ -339,7 +421,9 @@ export const BranchContextPlugin = async ({ $ }) => {
         )
       : null
     const prData = prViewResult && prViewResult.ok ? parseJSON(prViewResult.text) : null
-    const prMissing = prViewResult && !prViewResult.ok && /no pull requests found/i.test(prViewResult.error)
+    const prMissing = Boolean(
+      prViewResult && !prViewResult.ok && /no pull requests found/i.test(prViewResult.error),
+    )
     const checksResult = prData ? await run(() => $`gh pr checks ${String(prData.number)}`.text()) : null
 
     if (prViewResult && !prData && !prMissing && !prViewResult.ok) {
@@ -362,11 +446,14 @@ export const BranchContextPlugin = async ({ $ }) => {
       onDefaultBranch,
       remotes,
     })
-    const statusLines = collectStatus({
-      ok: statusResult.ok,
-      text: statusResult.ok ? limitedText(statusResult.text, STATUS_CHAR_LIMIT) : "",
-      error: statusResult.ok ? null : statusResult.error,
-    })
+    const statusLines = collectStatus(
+      statusResult.ok
+        ? {
+            ok: true,
+            text: limitedText(statusResult.text, STATUS_CHAR_LIMIT),
+          }
+        : statusResult,
+    )
     const workScopeLines = collectWorkScope({
       unstagedNameStatusResult,
       stagedNameStatusResult,
@@ -398,4 +485,6 @@ export const BranchContextPlugin = async ({ $ }) => {
       })
     },
   }
-}
+}) satisfies Plugin
+
+export default BranchContextPlugin
