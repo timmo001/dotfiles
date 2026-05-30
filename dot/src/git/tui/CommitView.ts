@@ -160,7 +160,13 @@ export class CommitView {
     // Help bar
     this.helpBar = new TextRenderable(renderer, {
       id: "commit-help-bar",
-      content: formatHelpBar(theme, HELP_DEFAULT),
+      content: formatHelpBar(
+        theme,
+        HELP_DEFAULT,
+        undefined,
+        renderer.terminalWidth,
+      ),
+      width: "100%",
     });
     this.root.add(this.helpBar);
 
@@ -406,6 +412,11 @@ export class CommitView {
     const modelId = this.commitSuggest.getModelId();
     const entries = this.suggestionsVisible ? HELP_SUGGESTIONS : HELP_DEFAULT;
     const suffix = modelId ? fg(this.theme.fgGhost)(`[${modelId}]`) : undefined;
-    this.helpBar.content = formatHelpBar(this.theme, entries, suffix);
+    this.helpBar.content = formatHelpBar(
+      this.theme,
+      entries,
+      suffix,
+      this.renderer.terminalWidth,
+    );
   }
 }

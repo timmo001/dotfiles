@@ -115,6 +115,8 @@ export class NotesView {
       id: "notes-pane-container",
       flexDirection: "row",
       flexGrow: 1,
+      flexShrink: 1,
+      minHeight: 0,
       gap: 2,
     });
 
@@ -122,7 +124,9 @@ export class NotesView {
       id: "notes-left-pane",
       flexDirection: "column",
       flexGrow: 1,
+      flexShrink: 1,
       flexBasis: 0,
+      minHeight: 0,
     });
 
     this.listTitle = new TextRenderable(renderer, {
@@ -141,13 +145,17 @@ export class NotesView {
         void this.loadNote(item.value);
       },
     });
+    this.noteList.flexShrink = 1;
+    this.noteList.minHeight = 0;
     this.leftPane.add(this.noteList);
 
     this.rightPane = new BoxRenderable(renderer, {
       id: "notes-right-pane",
       flexDirection: "column",
       flexGrow: 1,
+      flexShrink: 1,
       flexBasis: 0,
+      minHeight: 0,
     });
 
     this.contentTitle = new TextRenderable(renderer, {
@@ -206,11 +214,23 @@ export class NotesView {
     this.bodyScroll = new ScrollBoxRenderable(renderer, {
       id: "notes-content-scroll",
       flexGrow: 1,
+      flexShrink: 1,
+      minHeight: 0,
       width: "100%",
       scrollY: true,
       scrollX: false,
       backgroundColor: theme.bgElevated,
       focusable: true,
+      wrapperOptions: {
+        flexGrow: 1,
+        flexShrink: 1,
+        minHeight: 0,
+      },
+      viewportOptions: {
+        flexGrow: 1,
+        flexShrink: 1,
+        minHeight: 0,
+      },
       contentOptions: {
         flexDirection: "column",
         width: "100%",

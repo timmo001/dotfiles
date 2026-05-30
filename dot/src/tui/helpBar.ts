@@ -35,6 +35,11 @@ export const GLOBAL_HELP: readonly HelpEntry[] = [
 
 /** Separator between key-action pairs (visible width) */
 const SEPARATOR = "   ";
+const HELP_BAR_HORIZONTAL_MARGIN = 4;
+
+function visibleWidth(value: string): number {
+  return Array.from(value).length;
+}
 
 /**
  * Format help bar entries into styled text with automatic row wrapping.
@@ -46,24 +51,26 @@ const SEPARATOR = "   ";
  * @param theme - Active colour theme
  * @param entries - Key-action pairs to display
  * @param suffix - Optional styled suffix appended after the last row (e.g. model ID badge)
+ * @param maxColumns - Available terminal columns before root padding and safety margins
  */
 export function formatHelpBar(
   theme: Theme,
   entries: readonly HelpEntry[],
   suffix?: TextChunk,
+  maxColumns = process.stdout.columns || 80,
 ): StyledText {
   const plainParts = entries.map((e) => `${e.key} ${e.action}`);
-  const columns = process.stdout.columns || 80;
+  const columns = Math.max(20, maxColumns - HELP_BAR_HORIZONTAL_MARGIN);
 
   // Wrap into rows that fit within terminal width using plain-text widths
   const rows: number[][] = [];
   let currentWidth = 0;
   let currentRow: number[] = [];
   for (let i = 0; i < plainParts.length; i++) {
-    const partWidth = plainParts[i].length;
+    const partWidth = visibleWidth(plainParts[i]);
     const candidateWidth =
       currentRow.length > 0
-        ? currentWidth + SEPARATOR.length + partWidth
+        ? currentWidth + visibleWidth(SEPARATOR) + partWidth
         : partWidth;
     if (currentRow.length > 0 && candidateWidth > columns) {
       rows.push(currentRow);
@@ -105,7 +112,13 @@ export function addResponsiveHelpBar(
 ): TextRenderable {
   const helpBarOptions = {
     id: options.id,
-    content: formatHelpBar(options.theme, options.entries),
+    content: formatHelpBar(
+      options.theme,
+      options.entries,
+      undefined,
+      renderer.terminalWidth,
+    ),
+    width: "100%" as const,
     ...(options.marginTop === undefined
       ? {}
       : { marginTop: options.marginTop }),
@@ -113,7 +126,12 @@ export function addResponsiveHelpBar(
   const helpBar = new TextRenderable(renderer, helpBarOptions);
   root.add(helpBar);
   renderer.on("resize", () => {
-    helpBar.content = formatHelpBar(options.theme, options.entries);
+    helpBar.content = formatHelpBar(
+      options.theme,
+      options.entries,
+      undefined,
+      renderer.terminalWidth,
+    );
   });
   return helpBar;
 }
