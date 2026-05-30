@@ -456,6 +456,18 @@ Commands:
 Options:
   --help, -h  Show this help message
 
+Keybindings (TUI mode):
+  ↑↓             Navigate notes or scroll content
+  Tab            Switch between list/content panes
+  Enter          Focus note preview from the list
+  e              Open selected note in $EDITOR (nvim fallback)
+  E              Open selected note in $VISUAL ($EDITOR, then nvim fallback)
+  o              Open selected note in a full OpenCode session
+  r              Refresh notes
+  d              Delete selected note after confirmation
+  Esc/Backspace  Back to main menu
+  Ctrl+c         Quit
+
 Examples:
   dot notes
   dot notes root
@@ -474,7 +486,19 @@ Aliases:
   dot handoffs
 
 Options:
-  --help, -h  Show this help message`);
+  --help, -h  Show this help message
+
+Keybindings (TUI mode):
+  ↑↓             Navigate handoffs or scroll content
+  Tab            Switch between list/content panes
+  Enter          Focus handoff preview from the list
+  e              Open selected handoff in $EDITOR (nvim fallback)
+  E              Open selected handoff in $VISUAL ($EDITOR, then nvim fallback)
+  o              Open selected handoff in a full OpenCode session
+  r              Refresh handoffs
+  d              Delete selected handoff after confirmation
+  Esc/Backspace  Back to main menu
+  Ctrl+c         Quit`);
     return;
   }
 

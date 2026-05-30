@@ -260,6 +260,8 @@ The build is also triggered by `dot update`.
 | `↑↓` | Navigate notes or scroll content |
 | `Tab` | Switch between list/content panes |
 | `Enter` | Focus note preview from the list |
+| `e` | Open selected note in `$EDITOR` (`nvim` fallback) |
+| `E` | Open selected note in `$VISUAL` (`$EDITOR`, then `nvim` fallback) |
 | `o` | Open selected note in a full OpenCode session |
 | `r` | Refresh notes |
 | `d` | Delete selected note after confirmation |

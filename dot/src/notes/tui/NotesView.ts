@@ -29,11 +29,14 @@ import {
   type HelpEntry,
 } from "../../tui/helpBar.js";
 import { StatusList, type StatusListItem } from "../../tui/StatusList.js";
+import type { NoteEditorKind } from "./NoteEditor.js";
 
 /** Help entries for the repository notes view. */
 const HELP: readonly HelpEntry[] = [
   { key: "↑↓", action: "navigate" },
   { key: "Tab", action: "pane" },
+  { key: "e", action: "edit" },
+  { key: "E", action: "visual edit" },
   { key: "o", action: "OpenCode" },
   { key: "r", action: "refresh" },
   { key: "d", action: "delete" },
@@ -113,6 +116,11 @@ export interface NotesViewOptions {
   readonly readNote: (filePath: string) => Promise<string>;
   /** Delete a note file from the notes vault. */
   readonly deleteNote: (filePath: string) => Promise<NoteDeleteResult>;
+  /** Open the selected note in an external editor. */
+  readonly onEditNote: (
+    entry: NoteEntry,
+    kind: NoteEditorKind,
+  ) => Promise<void>;
   /** Open the selected note in a full OpenCode session. */
   readonly onOpenOpencode: (entry: NoteEntry) => Promise<void>;
   /** Called when the user navigates back. */
@@ -155,6 +163,7 @@ export class NotesView {
   private selectedEntry: NoteEntry | null = null;
   private isVisible = false;
   private openingOpenCode = false;
+  private editingFilePath: string | null = null;
   private deleteConfirmation: NoteEntry | null = null;
   private deletingFilePath: string | null = null;
   private requestedInitialRefresh = false;
@@ -177,6 +186,8 @@ export class NotesView {
     this.syntaxStyle = createMarkdownSyntaxStyle(theme);
     this.keyHandlers = {
       tab: () => this.togglePane(),
+      e: () => void this.openSelectedInEditor("editor"),
+      "shift+e": () => void this.openSelectedInEditor("visual"),
       o: () => void this.openSelectedInOpenCode(),
       r: () => void this.refresh(),
       d: () => this.requestDeleteSelected(),
@@ -571,6 +582,45 @@ export class NotesView {
     }
   }
 
+  private async openSelectedInEditor(kind: NoteEditorKind): Promise<void> {
+    if (this.editingFilePath) {
+      this.statusBar.content = t`${fg(this.theme.yellow)("An editor is already open")}`;
+      return;
+    }
+
+    const entry = this.selectedEntry;
+    if (!entry) {
+      this.statusBar.content = t`${fg(this.theme.yellow)("Select a note before editing")}`;
+      return;
+    }
+
+    this.editingFilePath = entry.filePath;
+    this.selectedFilePath = entry.filePath;
+    this.statusBar.content = t`${fg(this.theme.yellow)(`Opening ${entry.filename} in ${editorLabel(kind)}...`)}`;
+
+    let editError: unknown;
+    let refreshed = false;
+    try {
+      try {
+        await this.callbacks.onEditNote(entry, kind);
+      } catch (error) {
+        editError = error;
+      }
+      refreshed = await this.refresh();
+    } finally {
+      this.editingFilePath = null;
+    }
+
+    if (editError) {
+      this.statusBar.content = t`${fg(this.theme.red)(`Failed to edit ${entry.filename}: ${errorMessage(editError)}`)}`;
+      return;
+    }
+
+    if (refreshed) {
+      this.statusBar.content = t`${fg(this.theme.green)(`Updated ${entry.filename}`)}`;
+    }
+  }
+
   private requestDeleteSelected(): void {
     if (this.deletingFilePath) {
       this.statusBar.content = t`${fg(this.theme.yellow)("A note deletion is already in progress")}`;
@@ -690,7 +740,7 @@ export class NotesView {
       this.handleDeleteConfirmationKey(key);
       return;
     }
-    this.keyHandlers[key.name]?.();
+    this.keyHandlers[`${key.shift ? "shift+" : ""}${key.name}`]?.();
   }
 
   private focusPane(pane: NotesPane): void {
@@ -1207,6 +1257,10 @@ function filterStatusText(filter: NotesViewFilter | null): string {
 
 function selectedStatusText(entry: NoteEntry | null): string {
   return entry ? `Selected: ${entry.filename}` : "Select a note";
+}
+
+function editorLabel(kind: NoteEditorKind): string {
+  return kind === "visual" ? "visual editor" : "editor";
 }
 
 function formatListDescription(entry: NoteEntry): string {

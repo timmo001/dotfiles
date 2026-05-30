@@ -21,6 +21,7 @@ import { DiffView } from "../git/tui/DiffView.js";
 import { GitNotificationsView } from "../git/tui/GitNotificationsView.js";
 import { WorkflowRunsView } from "../git/tui/WorkflowRunsView.js";
 import { NotesView } from "../notes/tui/NotesView.js";
+import { openNoteInEditor } from "../notes/tui/NoteEditor.js";
 import { openNoteInOpenCode } from "../notes/tui/OpenCodeNote.js";
 import { OmarchyMenu } from "./OmarchyMenu.js";
 import { StagingView } from "../git/tui/StagingView.js";
@@ -230,6 +231,10 @@ export class App {
       listNotes: deps.listNotes,
       readNote: deps.readNote,
       deleteNote: deps.deleteNote,
+      onEditNote: (entry, kind) =>
+        openNoteInEditor(deps.renderer, entry, kind, () => {
+          setTerminalTitle(`Dot TUI › ${this.notesTitle()}`);
+        }),
       onOpenOpencode: (entry) =>
         openNoteInOpenCode(deps.renderer, entry, () => {
           setTerminalTitle(`Dot TUI › ${this.notesTitle()}`);
