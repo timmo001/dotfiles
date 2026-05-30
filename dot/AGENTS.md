@@ -52,6 +52,7 @@ src/
     types.ts              — Repo-note data types and legacy label formatting
     commands/Notes.ts     — dot notes / dot note native CLI handlers
     services/Notes.ts     — Effect service for OpenCode notes context and note I/O
+    tui/NotesView.ts      — Two-pane repo notes browser with markdown preview
   doctor/
     types.ts              — DoctorCheck, DoctorResult types
     runner.ts             — Parallel check runner with output formatting
@@ -115,7 +116,7 @@ src/
 1. `index.ts` parses CLI flags → resolves mode (TUI / native / fallback)
 2. Native commands run with `CliLayers` (no renderer, no TUI)
 3. TUI mode composes full layer stack including RepoWatcher, WorkflowRuns, GitNotifications, GitStaging, CommitSuggest, Renderer, Toast
-4. `App` manages a view stack (main menu ↔ diff view ↔ workflows view ↔ notifications view ↔ omarchy menu ↔ staging view ↔ commit view)
+4. `App` manages a view stack (main menu ↔ diff view ↔ workflows view ↔ notifications view ↔ notes view ↔ omarchy menu ↔ staging view ↔ commit view)
 5. Menu items have typed actions: `command` (suspend/resume), `silent` (background), `notify` (background + toast), `view` (navigate), `submenu` (nested)
 6. `CommandRunner` handles suspend/resume for terminal commands, silent background execution, and notify-style commands with toast feedback
 7. `RepoWatcher` loads Waybar cache for instant diff first paint, then polls every 10s
@@ -160,6 +161,9 @@ dot git-diff --tab other      # Diff view, Other tab focused (TUI)
 dot diff                      # Short alias for git-diff
 dot git-workflows             # Watched GitHub workflow runs view (TUI)
 dot git-notifications         # GitHub notification inbox view (TUI)
+dot notes                     # Repository notes browser (TUI)
+dot handoffs                  # Handoff notes browser (TUI, tag: handoff)
+dot handoff                   # Alias for dot handoffs
 dot git-diff --raw            # CLI diff output (no TUI)
 dot git-diff --waybar         # JSON output for Waybar
 dot git-diff --list-changed   # Changed repo rows
@@ -176,10 +180,10 @@ dot git-notifications --mark-read <id> # Mark a notification read
 dot git-notifications --mark-done <id> # Mark a notification done
 dot git-notifications --ignore <id> # Ignore future notifications for a thread
 dot git-notifications --unignore <id> # Stop ignoring a thread
-dot notes root             # Print notes vault root
-dot notes root --repo-notes # Print repository notes directory
-dot notes context --command notes-list # Print OpenCode notes context
-dot notes list --format json # List current repo notes as JSON
+dot notes root             # Print notes vault root (CLI)
+dot notes root --repo-notes # Print repository notes directory (CLI)
+dot notes context --command notes-list # Print OpenCode notes context (CLI)
+dot notes list --format json # List current repo notes as JSON (CLI)
 dot note read --path <path> # Read a note file
 dot note write --path <path> --stdin # Write stdin to a note file and commit it
 dot note delete --path <path> # Delete a note file and commit it
@@ -247,6 +251,16 @@ The build is also triggered by `dot update`.
 | `d` | Mark selected thread done |
 | `i` | Ignore selected thread |
 | `u` | Unignore selected thread |
+| `Esc/Backspace` | Back to main menu |
+| `Ctrl+c` | Quit |
+
+### Notes View
+| Key | Action |
+|-----|--------|
+| `↑↓` | Navigate notes or scroll content |
+| `Tab` | Switch between list/content panes |
+| `Enter` | Focus note preview from the list |
+| `r` | Refresh notes |
 | `Esc/Backspace` | Back to main menu |
 | `Ctrl+c` | Quit |
 
@@ -336,6 +350,8 @@ dot git-diff --raw           # smoke test: CLI diff output
 dot git-diff --waybar        # smoke test: JSON output
 dot git-notifications --raw  # smoke test: CLI notification output
 dot git-notifications --waybar # smoke test: notification JSON output
+dot notes                    # smoke test: notes view renders
+dot handoffs                 # smoke test: handoff-filtered notes view renders
 dot doctor                   # smoke test: health checks run
 dot help                     # smoke test: help prints
 ```

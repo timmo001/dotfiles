@@ -4,7 +4,10 @@ import { Notes, NotesError } from "../services/Notes.js";
 import { formatNoteLabel, type NotesListFormat } from "../types.js";
 
 function notesUsage(): string {
-  return `Usage: dot notes <command> [options]
+  return `Usage: dot notes [command] [options]
+
+Modes:
+  (default)                    Interactive notes TUI
 
 Commands:
   root                         Print the notes vault root
@@ -13,6 +16,7 @@ Commands:
   list [--format labels|json]  List notes for the current repository
 
 Examples:
+  dot notes
   dot notes root
   dot notes context --command notes-list
   dot notes list --format json`;

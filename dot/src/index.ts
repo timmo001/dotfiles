@@ -44,6 +44,7 @@ import {
 import type {
   GitNotificationAction,
   GitNotificationQueryOptions,
+  NotesViewFilter,
   ViewId,
   WorkflowRunQueryOptions,
 } from "./types.js";
@@ -63,8 +64,18 @@ if (flags.help) {
 
 // --- Determine execution mode ---
 type Mode =
-  | { type: "tui"; initialView: ViewId; executeItemId?: string }
+  | {
+      type: "tui";
+      initialView: ViewId;
+      executeItemId?: string;
+      initialNotesFilter?: NotesViewFilter;
+    }
   | { type: "native"; command: string; args: readonly string[] };
+
+const handoffNotesFilter = {
+  tag: "handoff",
+  title: "Handoffs",
+} satisfies NotesViewFilter;
 
 /** Commands ported natively to TypeScript Effect */
 const nativeCommands = new Set([
@@ -76,6 +87,8 @@ const nativeCommands = new Set([
   "git-notifications",
   "notes",
   "note",
+  "handoff",
+  "handoffs",
   "doctor",
   "help",
   "clean",
@@ -105,6 +118,21 @@ function resolveMode(): Mode {
 
   // Native commands bypass the menu/fallback system entirely
   if (nativeCommands.has(flags.subcommand)) {
+    if (flags.subcommand === "notes" && flags.rest.length === 0) {
+      return { type: "tui", initialView: "notes" };
+    }
+    if (flags.subcommand === "handoff" || flags.subcommand === "handoffs") {
+      if (flags.rest.length > 0) {
+        console.error(`dot ${flags.subcommand} does not accept arguments`);
+        console.error("Run 'dot handoffs --help' to see available commands.");
+        process.exit(1);
+      }
+      return {
+        type: "tui",
+        initialView: "notes",
+        initialNotesFilter: handoffNotesFilter,
+      };
+    }
     // Git diff without machine flags opens the TUI diff view.
     if (flags.subcommand === "git-diff" || flags.subcommand === "diff") {
       const hasMachineFlag =
@@ -412,13 +440,14 @@ if (mode.type === "native") {
   const { App } = await import("./tui/App.js");
   const { resizeIfFloating } = await import("./tui/hyprland.js");
 
-  const { initialView, executeItemId } = mode;
+  const { initialView, executeItemId, initialNotesFilter } = mode;
 
   const tuiProgram = Effect.gen(function* () {
     log("Starting...");
     const watcher = yield* RepoWatcher;
     const workflows = yield* WorkflowRuns;
     const notifications = yield* GitNotifications;
+    const notes = yield* Notes;
     const gitStaging = yield* GitStaging;
     const commitSuggest = yield* CommitSuggest;
     const renderer = yield* Renderer;
@@ -454,11 +483,14 @@ if (mode.type === "native") {
             ),
           );
         },
+        listNotes: () => Effect.runPromise(notes.list()),
+        readNote: (filePath) => Effect.runPromise(notes.read(filePath)),
       },
       {
         initialView,
         initialDiffTab: flags.tab,
         executeItemId,
+        initialNotesFilter,
       },
     );
     log("App created");
@@ -534,6 +566,7 @@ if (mode.type === "native") {
   const TuiLayers = RepoWatcher.layer.pipe(
     Layer.provideMerge(WorkflowRuns.layer),
     Layer.provideMerge(GitNotifications.layer),
+    Layer.provideMerge(Notes.layer),
     Layer.provideMerge(DotDiff.layer),
     Layer.provideMerge(GitHub.layer),
     Layer.provideMerge(GitDiffWaybarCache.layer),

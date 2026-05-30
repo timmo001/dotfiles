@@ -1,4 +1,10 @@
-import type { MenuItem, MenuVariant, NotifyConfig, ViewId } from "./types.js";
+import type {
+  MenuItem,
+  MenuVariant,
+  NotesViewFilter,
+  NotifyConfig,
+  ViewId,
+} from "./types.js";
 
 // --- Helpers ---
 
@@ -36,8 +42,11 @@ function notify(command: string, config: NotifyConfig): MenuItem["action"] {
   return { type: "notify", cmd: command, notify: config };
 }
 
-function view(viewId: ViewId): MenuItem["action"] {
-  return { type: "view", viewId };
+function view(
+  viewId: ViewId,
+  notesFilter?: NotesViewFilter,
+): MenuItem["action"] {
+  return { type: "view", viewId, ...(notesFilter && { notesFilter }) };
 }
 
 function submenu(menuId: string): MenuItem["action"] {
@@ -129,32 +138,21 @@ const dotItems: readonly MenuItem[] = [
     "notes",
     "󰎞",
     "Repo Notes",
-    "List repository notes and vault paths",
-    cmd("dot notes list"),
-    [
-      {
-        label: "List",
-        description: "List notes for the current repository",
-        action: cmd("dot notes list"),
-      },
-      {
-        label: "JSON",
-        description: "List current repository notes as JSON",
-        action: cmd("dot notes list --format json"),
-      },
-      {
-        label: "Vault Root",
-        description: "Print the notes vault root",
-        action: cmd("dot notes root"),
-      },
-      {
-        label: "Repo Notes Root",
-        description: "Print the repo-notes directory",
-        action: cmd("dot notes root --repo-notes"),
-      },
-    ],
-    ["notes", "note", "repo-notes", "vault", "obsidian", "handoff"],
-    "Dotfiles",
+    "Browse repository notes",
+    view("notes"),
+    undefined,
+    ["notes", "note", "repo-notes", "vault", "obsidian", "markdown"],
+    "Notes",
+  ),
+  item(
+    "handoffs",
+    "󰈚",
+    "Handoffs",
+    "Browse handoff notes for this repository",
+    view("notes", { tag: "handoff", title: "Handoffs" }),
+    undefined,
+    ["handoff", "handoffs", "notes", "agent", "continuation"],
+    "Notes",
   ),
   item(
     "stow",

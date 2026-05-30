@@ -209,6 +209,8 @@ function isKnownTarget(candidate: string): boolean {
     candidate === "git-notifications" ||
     candidate === "notes" ||
     candidate === "note" ||
+    candidate === "handoff" ||
+    candidate === "handoffs" ||
     candidate === "omarchy"
   )
     return true;
@@ -438,9 +440,12 @@ Examples:
   }
 
   if (subcommand === "notes") {
-    console.log(`Usage: dot notes <command> [options]
+    console.log(`Usage: dot notes [command] [options]
 
 Manage repository notes used by OpenCode note commands.
+
+Modes:
+  (default)                    Interactive notes TUI
 
 Commands:
   root                         Print the notes vault root
@@ -452,9 +457,24 @@ Options:
   --help, -h  Show this help message
 
 Examples:
+  dot notes
   dot notes root
   dot notes context --command notes-list
   dot notes list --format json`);
+    return;
+  }
+
+  if (subcommand === "handoff" || subcommand === "handoffs") {
+    console.log(`Usage: dot handoffs
+
+Open the interactive notes TUI filtered to notes tagged handoff.
+
+Aliases:
+  dot handoff
+  dot handoffs
+
+Options:
+  --help, -h  Show this help message`);
     return;
   }
 
@@ -520,7 +540,9 @@ Subcommands:
   git-diff             Open the git diff/repo watcher view
   git-workflows        Open watched GitHub workflow runs
   git-notifications    Open GitHub notification inbox
-  notes                Manage repository notes
+  notes                Open repository notes or run note utility commands
+  handoffs             Open handoff notes
+  handoff              Open handoff notes
   note                 Read, write, or delete note files
   update               Run dot update
   stow                 Run dot stow
@@ -544,6 +566,8 @@ Examples:
   dot git-workflows --waybar Waybar JSON output
   dot git-notifications    GitHub notifications TUI
   dot git-notifications --waybar Waybar JSON output
+  dot notes                Repository notes TUI
+  dot handoffs             Handoff notes TUI
   dot notes root           Print notes vault root
   dot notes context --command notes-list
   dot omarchy theme        Omarchy theme submenu
