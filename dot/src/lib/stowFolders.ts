@@ -1,11 +1,13 @@
 import { readdirSync, statSync } from "fs";
 import { join } from "path";
 
+const INTERNAL_FOLDERS = new Set(["dot", "dot-migration"]);
+
 /**
  * List top-level stow package directories in a repo.
  *
- * Filters out non-directory entries, dotfiles, the backup folder, and
- * host-specific packages that don't match `OMARCHY_HOST`.
+ * Filters out non-directory entries, dotfiles, internal folders, the backup
+ * folder, and host-specific packages that don't match `OMARCHY_HOST`.
  */
 export function listStowFolders(repoDir: string): string[] {
   const host = process.env.OMARCHY_HOST ?? "";
@@ -21,6 +23,9 @@ export function listStowFolders(repoDir: string): string[] {
 
     // Skip backup folder (only used during install)
     if (entry === "backup") return false;
+
+    // Skip repo internals that are not stow packages.
+    if (INTERNAL_FOLDERS.has(entry)) return false;
 
     // Skip dot-internal directories that aren't stow packages
     if (entry.startsWith(".")) return false;

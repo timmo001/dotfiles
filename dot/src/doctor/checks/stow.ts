@@ -1,6 +1,6 @@
 import { Effect } from "effect";
-import { existsSync, readdirSync, statSync } from "fs";
-import { join, basename } from "path";
+import { existsSync } from "fs";
+import { listStowFolders } from "../../lib/stowFolders.js";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import type { CheckResult } from "../types.js";
@@ -9,30 +9,6 @@ const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
 
 function displayPath(p: string): string {
   return p.replace(HOME, "~");
-}
-
-/** List stow package directories (matches Stow.ts logic) */
-function listStowFolders(repoDir: string): string[] {
-  const host = process.env.OMARCHY_HOST ?? "";
-  try {
-    return readdirSync(repoDir).filter((entry) => {
-      const fullPath = join(repoDir, entry);
-      try {
-        if (!statSync(fullPath).isDirectory()) return false;
-      } catch {
-        return false;
-      }
-      if (entry === "backup") return false;
-      if (entry.startsWith(".")) return false;
-      if (entry.includes("--")) {
-        const hostSuffix = entry.split("--").pop()!;
-        if (hostSuffix !== host) return false;
-      }
-      return true;
-    });
-  } catch {
-    return [];
-  }
 }
 
 /** Check stow integrity by running dry-run restow on all packages */
