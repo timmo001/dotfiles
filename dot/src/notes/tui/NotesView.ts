@@ -38,6 +38,7 @@ import {
   editorLabel,
   editorLaunchesDetached,
 } from "../../tui/externalEditor.js";
+import { openCodeSessionLabel } from "../../tui/openCodeSession.js";
 import { StatusList, type StatusListItem } from "../../tui/StatusList.js";
 import type { NoteEditorKind } from "./NoteEditor.js";
 import {
@@ -679,7 +680,7 @@ export class NotesView {
     }
 
     this.openingOpenCode = true;
-    const modeLabel = mode === "plan" ? "OpenCode plan" : "OpenCode";
+    const modeLabel = openCodeSessionLabel(mode);
     const label = notePathLabel(entry);
     this.statusBar.content = t`${fg(this.theme.yellow)(`Opening ${label} in ${modeLabel}...`)}`;
     try {

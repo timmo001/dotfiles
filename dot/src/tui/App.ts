@@ -44,6 +44,7 @@ import {
   openEditorInDirectory,
   openPathInEditor,
 } from "./externalEditor.js";
+import { openOpenCodeSession } from "./openCodeSession.js";
 
 const log = (msg: string) => console.error(`[dot:App] ${msg}`);
 
@@ -170,6 +171,19 @@ export class App {
               setTerminalTitle(formatDiffTitle(this.diffChangedCount));
             });
           }
+        } finally {
+          deps.onRefreshDiff();
+        }
+      },
+      onOpenOpencode: async (repo, mode) => {
+        try {
+          await openOpenCodeSession(deps.renderer, {
+            mode,
+            cwd: repo.path,
+            afterResume: () => {
+              setTerminalTitle(formatDiffTitle(this.diffChangedCount));
+            },
+          });
         } finally {
           deps.onRefreshDiff();
         }

@@ -20,6 +20,10 @@ import {
   editorLabel,
   type ExternalEditorKind,
 } from "../../tui/externalEditor.js";
+import {
+  openCodeSessionLabel,
+  type OpenCodeSessionMode,
+} from "../../tui/openCodeSession.js";
 import { formatPaneTitle } from "../../tui/paneTitle.js";
 import { StatusList } from "../../tui/StatusList.js";
 
@@ -31,6 +35,8 @@ const HELP: readonly HelpEntry[] = [
   { key: "c", action: "commit" },
   { key: "e", action: "edit" },
   { key: "E", action: "visual edit" },
+  { key: "o", action: "OpenCode" },
+  { key: "O", action: "OpenCode plan" },
   { key: "p", action: "pull" },
   { key: "P", action: "push" },
   { key: "x", action: "unlock" },
@@ -52,6 +58,11 @@ export interface DiffViewOptions {
   readonly onOpenEditor: (
     repo: Repo,
     kind: ExternalEditorKind,
+  ) => Promise<void>;
+  /** Called to open an interactive OpenCode session in the selected repo directory. */
+  readonly onOpenOpencode: (
+    repo: Repo,
+    mode: OpenCodeSessionMode,
   ) => Promise<void>;
   /** Called to open a tmux session — "changed" repos when the Changed pane is active, "all" when Other */
   readonly onOpenTmux: (mode: "changed" | "all") => void;
@@ -95,6 +106,7 @@ export class DiffView {
   private lastChecked: Date = new Date();
   private isVisible = false;
   private openingEditor = false;
+  private openingOpenCode = false;
 
   constructor(renderer: CliRenderer, theme: Theme, callbacks: DiffViewOptions) {
     this.renderer = renderer;
@@ -111,6 +123,8 @@ export class DiffView {
         this.callbacks.onOpenTmux(
           this.activePane === "changed" ? "changed" : "all",
         ),
+      o: () => void this.openSelectedInOpenCode("default"),
+      "shift+o": () => void this.openSelectedInOpenCode("plan"),
       w: () => this.runRepoAction((repo) => this.callbacks.onOpenWeb(repo)),
       p: () => this.runRepoAction((repo) => this.callbacks.onPull(repo)),
       "shift+p": () =>
@@ -305,6 +319,34 @@ export class DiffView {
       this.statusBar.content = t`${fg(this.theme.red)(`Failed to open ${repo.name}: ${errorMessage(error)}`)}`;
     } finally {
       this.openingEditor = false;
+    }
+  }
+
+  private async openSelectedInOpenCode(
+    mode: OpenCodeSessionMode,
+  ): Promise<void> {
+    if (this.openingOpenCode) {
+      this.statusBar.content = t`${fg(this.theme.yellow)("An OpenCode session is already open")}`;
+      return;
+    }
+
+    const repo = this.getActiveRepo();
+    if (!repo) {
+      this.statusBar.content = t`${fg(this.theme.yellow)("Select a repo before opening OpenCode")}`;
+      return;
+    }
+
+    this.openingOpenCode = true;
+    const label = openCodeSessionLabel(mode);
+    this.statusBar.content = t`${fg(this.theme.yellow)(`Opening ${repo.name} in ${label}...`)}`;
+
+    try {
+      await this.callbacks.onOpenOpencode(repo, mode);
+      this.statusBar.content = t`${fg(this.theme.green)(`Closed ${label} for ${repo.name}`)}`;
+    } catch (error) {
+      this.statusBar.content = t`${fg(this.theme.red)(`Failed to open ${label} for ${repo.name}: ${errorMessage(error)}`)}`;
+    } finally {
+      this.openingOpenCode = false;
     }
   }
 

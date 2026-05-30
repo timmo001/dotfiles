@@ -1,8 +1,12 @@
 import type { CliRenderer } from "@opentui/core";
 import type { NoteEntry } from "../types.js";
+import {
+  openOpenCodeSession,
+  type OpenCodeSessionMode,
+} from "../../tui/openCodeSession.js";
 
 /** Supported OpenCode launch modes for repository notes. */
-export type OpenCodeNoteMode = "default" | "plan";
+export type OpenCodeNoteMode = OpenCodeSessionMode;
 
 /** Options for launching OpenCode from the notes TUI. */
 export interface OpenNoteInOpenCodeOptions {
@@ -20,27 +24,11 @@ export async function openNoteInOpenCode(
   options: OpenNoteInOpenCodeOptions = {},
 ): Promise<void> {
   const mode = options.mode ?? "default";
-  const prompt = opencodeNotePrompt(entry, noteContent, mode);
-  const args =
-    mode === "plan"
-      ? ["opencode", "--agent", "plan", "--prompt", prompt]
-      : ["opencode", "--prompt", prompt];
-
-  renderer.suspend();
-  renderer.currentRenderBuffer.clear();
-  try {
-    const proc = Bun.spawn(args, {
-      stdin: "inherit",
-      stdout: "inherit",
-      stderr: "inherit",
-    });
-    await proc.exited;
-  } finally {
-    renderer.currentRenderBuffer.clear();
-    renderer.resume();
-    options.afterResume?.();
-    renderer.requestRender();
-  }
+  await openOpenCodeSession(renderer, {
+    mode,
+    prompt: opencodeNotePrompt(entry, noteContent, mode),
+    afterResume: options.afterResume,
+  });
 }
 
 function opencodeNotePrompt(
