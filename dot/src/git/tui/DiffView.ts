@@ -34,8 +34,8 @@ const HELP: readonly HelpEntry[] = [
   { key: "p", action: "pull" },
   { key: "P", action: "push" },
   { key: "x", action: "unlock" },
-  { key: "t", action: "tmux current pane" },
-  { key: "o", action: "open" },
+  { key: "t", action: "terminal" },
+  { key: "T", action: "tmux current pane" },
   { key: "w", action: "web" },
   { key: "r", action: "refresh" },
   { key: "Esc/Backspace", action: "back" },
@@ -106,11 +106,11 @@ export class DiffView {
       e: () => void this.openSelectedInEditor("editor"),
       "shift+e": () => void this.openSelectedInEditor("visual"),
       t: () =>
+        this.runRepoAction((repo) => this.callbacks.onOpenTerminal(repo)),
+      "shift+t": () =>
         this.callbacks.onOpenTmux(
           this.activePane === "changed" ? "changed" : "all",
         ),
-      o: () =>
-        this.runRepoAction((repo) => this.callbacks.onOpenTerminal(repo)),
       w: () => this.runRepoAction((repo) => this.callbacks.onOpenWeb(repo)),
       p: () => this.runRepoAction((repo) => this.callbacks.onPull(repo)),
       "shift+p": () =>
