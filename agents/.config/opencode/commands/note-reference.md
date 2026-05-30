@@ -1,5 +1,5 @@
 ---
-description: Load one or more notes for the current repository into context
+description: Load one or more notes, relevant skills, and next steps for the current repository
 ---
 
 A `<repo-note-context>` block has been injected above by RepoNotesPlugin. It contains:
@@ -43,6 +43,26 @@ If the user's text suggests a topic rather than a specific filename, rank the ca
 
 For each selected note, find the matching `<note file="…">` block inside `<note-contents>` and hold its full content in context for this session.
 
+## Step 5: Load relevant skills
+
+Inspect the loaded note content for explicit skill names or clearly required skill workflows. Load each relevant skill with the `skill` tool before presenting next steps.
+
+- Prefer skills explicitly listed in note sections such as `Skills`, `Applicable Skills`, `Required Skills`, `Workflow`, or `Next Steps`.
+- Also load a skill when the note clearly maps to a known skill trigger, such as a handoff, TypeScript work, OpenCode config, dotfiles stow maintenance, frontend debugging, or architecture review.
+- Do not invent skill names. If no relevant skill is explicit or clearly triggered, skip this step silently.
+
+## Step 6: Present next steps without acting
+
+Unless the user's invoking message explicitly asks to implement, fix, edit, run, or otherwise make the change, treat `/note-reference` as read-only context loading. This applies even when running in a build agent.
+
+After loading the note and skills, present the immediate next step only:
+
+- If the loaded note is a plan, suggest entering plan mode with `/plan` to finalise it before implementation.
+- If already running inside the plan agent, do not suggest plan mode; instead finalise the plan directly and get it ready for execution.
+- If the loaded note is research, suggest the next research, validation, or implementation step implied by the note.
+- If the note is a handoff, suggest the single next action needed to resume from the handoff.
+- If multiple notes imply different follow-ups, list the next step for each note briefly.
+
 Confirm to the user:
 
 ```
@@ -51,4 +71,4 @@ Loaded: repo-notes/{owner}/{repo}/{filename}
 
 One line per loaded note. If multiple notes were loaded, list them all.
 
-The content is now in context. Answer any follow-up questions about it directly.
+The content is now in context. Answer follow-up questions about it directly, but do not make changes unless the user explicitly asks for them.
