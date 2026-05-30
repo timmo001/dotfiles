@@ -5,10 +5,20 @@
  * `.env.*` (except `.env.example`) throws before the read reaches disk.
  */
 
-export const EnvProtection = async ({ project, client, $, directory, worktree }) => {
+import type { Plugin } from "@opencode-ai/plugin"
+
+function argRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {}
+}
+
+function stringArg(value: unknown): string {
+  return typeof value === "string" ? value : ""
+}
+
+export const EnvProtection = (async () => {
   return {
     "tool.execute.before": async (input, output) => {
-      const filePath = output.args?.filePath ?? ""
+      const filePath = stringArg(argRecord(output.args).filePath)
       const fileName = filePath.split(/[\\/]/).pop() ?? ""
       const isProtectedEnvFile =
         fileName === ".env" || (fileName.startsWith(".env.") && fileName !== ".env.example")
@@ -18,4 +28,6 @@ export const EnvProtection = async ({ project, client, $, directory, worktree })
       }
     },
   }
-}
+}) satisfies Plugin
+
+export default EnvProtection
