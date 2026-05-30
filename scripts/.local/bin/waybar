@@ -4,8 +4,6 @@ set -euo pipefail
 
 config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/waybar"
 cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/waybar"
-git_diff_cache_file="$cache_dir/git-diff-waybar.json"
-git_diff_lock_dir="$cache_dir/git-diff-waybar.lock"
 host="${OMARCHY_HOST:-}"
 config_path=""
 selected_config_path=""
@@ -15,9 +13,9 @@ prepare_selected_config_path() {
   selected_config_path="$cache_dir/config.selected-output.jsonc"
 }
 
-reset_git_diff_cache() {
-  rm -f "$git_diff_cache_file"
-  rmdir "$git_diff_lock_dir" 2>/dev/null || true
+reset_git_waybar_caches() {
+  rm -f "$cache_dir"/git-*-waybar.json "$cache_dir"/git-*-waybar.json.tmp
+  rmdir "$cache_dir"/git-*-waybar.lock 2>/dev/null || true
 }
 
 resolve_active_outputs() {
@@ -152,13 +150,13 @@ fi
 for arg in "$@"; do
   case "$arg" in
     -c|--config|--config=*|-o|--output|--output=*)
-      reset_git_diff_cache
+      reset_git_waybar_caches
       exec "$real_waybar_bin" "$@"
       ;;
   esac
 done
 
-reset_git_diff_cache
+reset_git_waybar_caches
 
 full_config_path="$config_path"
 if [[ -z "$full_config_path" ]]; then

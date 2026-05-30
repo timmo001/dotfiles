@@ -4,9 +4,18 @@
 # Restarts services that don't recover well after suspend.
 
 LOG_FILE="/tmp/on-resume.log"
+CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+WAYBAR_CACHE_DIR="$CACHE_HOME/waybar"
+DOT_FETCH_CACHE_DIR="$CACHE_HOME/dot/fetch-upstream"
 
 log() {
   echo "[$(date '+%H:%M:%S')] $1" >> "$LOG_FILE"
+}
+
+clear_git_caches() {
+  rm -f "$WAYBAR_CACHE_DIR"/git-*-waybar.json "$WAYBAR_CACHE_DIR"/git-*-waybar.json.tmp
+  rmdir "$WAYBAR_CACHE_DIR"/git-*-waybar.lock 2>/dev/null || true
+  rm -rf "$DOT_FETCH_CACHE_DIR"
 }
 
 if [[ "${ON_RESUME_DETACHED:-0}" != "1" ]]; then
@@ -19,13 +28,15 @@ fi
 log "Resume started"
 
 # Restart twitch-notifications
-pkill -f '/usr/bin/twitch-notifications( |$)' >/dev/null 2>&1 || pkill -f '(^| )twitch-notifications( |$)' >/dev/null 2>&1 || true
+pkill -f '/usr/bin/[t]witch-notifications( |$)' >/dev/null 2>&1 || pkill -f '(^| )[t]witch-notifications( |$)' >/dev/null 2>&1 || true
 log "Killed twitch-notifications"
 
-# Clear git-diff cache and restart waybar
-rm -f ~/.cache/waybar/git-diff-waybar.json
+# Clear git caches and restart waybar so modules refresh after network resume
+clear_git_caches
+pkill -x waybar >/dev/null 2>&1 || true
+sleep 0.2
 pkill -9 -x waybar >/dev/null 2>&1 || true
-log "Killed waybar, cleared git-diff cache"
+log "Killed waybar, cleared git caches"
 
 uwsm-app -- waybar >/dev/null 2>&1 &
 log "Waybar restarted"
