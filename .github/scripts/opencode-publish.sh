@@ -117,7 +117,7 @@ cd opencode-config
 # Copy individual items
 cp -r skills/diagnose ~/.agents/skills/
 cp commands/inject-context.md ~/.config/opencode/commands/
-cp plugins/env-protection.js ~/.config/opencode/plugins/
+cp plugins/env-protection.ts ~/.config/opencode/plugins/
 cp agents/reviewer.md ~/.config/opencode/agents/
 
 # Or copy everything
@@ -241,10 +241,10 @@ EOF
     printf '\n## Plugins\n\n'
     printf '| Plugin | Description |\n|---|---|\n'
 
-    for plugin_file in "${CONFIG_DIR}/plugins"/*.js; do
+    for plugin_file in "${CONFIG_DIR}/plugins"/*.ts; do
       [[ -f "$plugin_file" ]] || continue
       local name desc
-      name="$(basename "$plugin_file" .js)"
+      name="$(basename "$plugin_file" .ts)"
       desc="$(plugin_desc "$plugin_file")"
       printf '| `%s` | %s |\n' "$name" "$desc"
     done | sort
@@ -282,7 +282,7 @@ Do not edit files here directly. Make changes in the [source dotfiles repo](${DO
 skills/      OpenCode skills (SKILL.md per directory, optional references/)
 agents/      Agent definitions (YAML frontmatter + Markdown body)
 commands/    Slash commands (YAML frontmatter + Markdown workflow)
-plugins/     Lifecycle plugins (ESM JavaScript)
+plugins/     Lifecycle plugins (ESM TypeScript)
 \`\`\`
 
 ## Skills
