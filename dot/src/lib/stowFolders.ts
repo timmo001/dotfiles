@@ -1,7 +1,10 @@
 import { readdirSync, statSync } from "fs";
 import { join } from "path";
 
-const INTERNAL_FOLDERS = new Set(["dot", "dot-migration"]);
+/** Top-level repo directories that are not active stow packages. */
+export const INTERNAL_STOW_FOLDERS = ["dot", "dot-migration"] as const;
+
+const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);
 
 /**
  * List top-level stow package directories in a repo.
