@@ -257,8 +257,8 @@ export class App {
         openNoteInEditor(deps.renderer, entry, kind, () => {
           setTerminalTitle(`Dot TUI › ${this.notesTitle()}`);
         }),
-      onOpenOpencode: (entry, mode: OpenCodeNoteMode) =>
-        openNoteInOpenCode(deps.renderer, entry, {
+      onOpenOpencode: (entry, noteContent, mode: OpenCodeNoteMode) =>
+        openNoteInOpenCode(deps.renderer, entry, noteContent, {
           mode,
           afterResume: () => {
             setTerminalTitle(`Dot TUI › ${this.notesTitle()}`);

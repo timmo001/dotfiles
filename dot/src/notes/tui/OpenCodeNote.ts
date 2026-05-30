@@ -16,10 +16,11 @@ export interface OpenNoteInOpenCodeOptions {
 export async function openNoteInOpenCode(
   renderer: CliRenderer,
   entry: NoteEntry,
+  noteContent: string,
   options: OpenNoteInOpenCodeOptions = {},
 ): Promise<void> {
   const mode = options.mode ?? "default";
-  const prompt = opencodeNotePrompt(entry, mode);
+  const prompt = opencodeNotePrompt(entry, noteContent, mode);
   const args =
     mode === "plan"
       ? ["opencode", "--agent", "plan", "--prompt", prompt]
@@ -42,10 +43,14 @@ export async function openNoteInOpenCode(
   }
 }
 
-function opencodeNotePrompt(entry: NoteEntry, mode: OpenCodeNoteMode): string {
+function opencodeNotePrompt(
+  entry: NoteEntry,
+  noteContent: string,
+  mode: OpenCodeNoteMode,
+): string {
   const displayPath = repoNotesDisplayPath(entry);
   return [
-    `Load the repository note ${entry.filename} into this OpenCode session, following the note-reference flow.`,
+    `Use the repository note ${entry.filename} included below as loaded context for this OpenCode session, following the note-reference next-step flow.`,
     `The note file path is ${entry.filePath}.`,
     ...(mode === "plan"
       ? [
@@ -56,8 +61,12 @@ function opencodeNotePrompt(entry: NoteEntry, mode: OpenCodeNoteMode): string {
         ]
       : []),
     "",
-    "Step 1: Use the note_read tool first to read that exact file. Do not use built-in read, bash, or other filesystem tools for the notes vault.",
+    "Step 1: Keep the full loaded note content below in context for this session. Do not call note_read just to load this note; the dot TUI already supplied it.",
     "Keep the full note content in context for this session.",
+    "",
+    `----- BEGIN LOADED NOTE: ${displayPath} -----`,
+    noteContent.length > 0 ? noteContent : "(empty note)",
+    `----- END LOADED NOTE: ${displayPath} -----`,
     "",
     "Step 2: Inspect the loaded note content for explicit skill names or clearly required skill workflows. Load each relevant skill with the skill tool before presenting next steps.",
     "Prefer skills explicitly listed in note sections such as Skills, Applicable Skills, Required Skills, Workflow, or Next Steps.",

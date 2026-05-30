@@ -149,6 +149,7 @@ export interface NotesViewOptions {
   /** Open the selected note in a full OpenCode session. */
   readonly onOpenOpencode: (
     entry: NoteEntry,
+    noteContent: string,
     mode: OpenCodeNoteMode,
   ) => Promise<void>;
   /** Called when the user navigates back. */
@@ -192,6 +193,8 @@ export class NotesView {
   private usingAllReposFallback = false;
   private selectedFilePath: string | null = null;
   private selectedEntry: NoteEntry | null = null;
+  private loadedNoteContent: string | null = null;
+  private loadedNoteContentPath: string | null = null;
   private isVisible = false;
   private openingOpenCode = false;
   private editingFilePath: string | null = null;
@@ -492,6 +495,8 @@ export class NotesView {
       this.clearDeleteConfirmation(false);
       this.selectedFilePath = null;
       this.selectedEntry = null;
+      this.loadedNoteContent = null;
+      this.loadedNoteContentPath = null;
       this.showingAllRepos = filter?.includeAllRepos === true;
       this.usingAllReposFallback = false;
       this.titleBar.content = this.formatTitle();
@@ -619,6 +624,8 @@ export class NotesView {
     const version = ++this.loadVersion;
     const label = notePathLabel(entry);
     this.selectedEntry = entry;
+    this.loadedNoteContent = null;
+    this.loadedNoteContentPath = entry.filePath;
     this.updateHeader(entry);
     this.updatePaneTitles();
     this.setMarkdownContent("Loading note content...");
@@ -635,6 +642,7 @@ export class NotesView {
 
   private renderLoadedNote(version: number, content: string): void {
     if (version !== this.loadVersion) return;
+    this.loadedNoteContent = content;
     this.setMarkdownContent(noteBodyContent(content));
     this.bodyScroll.scrollTo(0);
     this.updateStatusBar();
@@ -646,6 +654,7 @@ export class NotesView {
     error: unknown,
   ): void {
     if (version !== this.loadVersion) return;
+    this.loadedNoteContent = null;
     const message = errorMessage(error);
     const label = notePathLabel(entry);
     this.setMarkdownContent(`Failed to read note content.\n\n${message}`);
@@ -670,7 +679,14 @@ export class NotesView {
     const label = notePathLabel(entry);
     this.statusBar.content = t`${fg(this.theme.yellow)(`Opening ${label} in ${modeLabel}...`)}`;
     try {
-      await this.callbacks.onOpenOpencode(entry, mode);
+      const content =
+        this.loadedNoteContentPath === entry.filePath &&
+        this.loadedNoteContent !== null
+          ? this.loadedNoteContent
+          : await this.callbacks.readNote(entry.filePath);
+      this.loadedNoteContent = content;
+      this.loadedNoteContentPath = entry.filePath;
+      await this.callbacks.onOpenOpencode(entry, content, mode);
       this.updateStatusBar();
     } catch (error) {
       this.statusBar.content = t`${fg(this.theme.red)(`Failed to open OpenCode: ${errorMessage(error)}`)}`;
@@ -865,6 +881,11 @@ export class NotesView {
     if (selectedEntry && selectedEntry.filePath === deletedFilePath) {
       this.selectedEntry = null;
     }
+
+    if (this.loadedNoteContentPath === deletedFilePath) {
+      this.loadedNoteContent = null;
+      this.loadedNoteContentPath = null;
+    }
   }
 
   private showDeleteSuccess(label: string, result: NoteDeleteResult): void {
@@ -958,6 +979,8 @@ export class NotesView {
 
   private showEmptyContent(title: string, body: string): void {
     this.selectedEntry = null;
+    this.loadedNoteContent = null;
+    this.loadedNoteContentPath = null;
     this.noteHeading.content = t`${bold(fg(this.theme.fgMuted)(title))}`;
     this.noteDescription.content = t``;
     this.noteTags.content = t``;
