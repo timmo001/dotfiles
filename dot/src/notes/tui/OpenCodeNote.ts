@@ -50,7 +50,9 @@ function opencodeNotePrompt(entry: NoteEntry, mode: OpenCodeNoteMode): string {
     ...(mode === "plan"
       ? [
           "",
-          "This OpenCode process was launched with --agent plan. You are already running inside the plan agent, so finalise the implementation plan directly and do not suggest entering /plan.",
+          "This OpenCode process was launched with --agent plan. You are already running inside the plan agent.",
+          "After loading the note and relevant skills, present an execution-ready plan directly. Do not suggest entering /plan and do not stop at a single next action.",
+          "If the note does not contain enough detail for a safe plan, automatically gather the missing repository context with read-only tools first, then present the plan. If the plan is still blocked after gathering context, state exactly what remains missing.",
         ]
       : []),
     "",
@@ -62,12 +64,19 @@ function opencodeNotePrompt(entry: NoteEntry, mode: OpenCodeNoteMode): string {
     "Also load a skill when the note clearly maps to a known skill trigger, such as a handoff, TypeScript work, OpenCode config, dotfiles stow maintenance, frontend debugging, or architecture review.",
     "Do not invent skill names. If no relevant skill is explicit or clearly triggered, skip skill loading silently.",
     "",
-    "Step 3: Treat this as read-only context loading unless the user's follow-up explicitly asks to implement, fix, edit, run, or otherwise make a change.",
-    "Present the immediate next step only:",
-    "- If the loaded note is a plan, suggest entering plan mode with /plan to finalise it before implementation.",
-    "- If already running inside the plan agent, do not suggest plan mode; instead finalise the plan directly and get it ready for execution.",
-    "- If the loaded note is research, suggest the next research, validation, or implementation step implied by the note.",
-    "- If the note is a handoff, suggest the single next action needed to resume from the handoff.",
+    ...(mode === "plan"
+      ? [
+          "Step 3: Treat this as planning context. Present a complete implementation plan for resuming from the loaded note.",
+          "Do not make changes unless the user explicitly asks to implement, fix, edit, run, or otherwise make a change.",
+        ]
+      : [
+          "Step 3: Treat this as read-only context loading unless the user's follow-up explicitly asks to implement, fix, edit, run, or otherwise make a change.",
+          "Present the immediate next step only:",
+          "- If the loaded note is a plan, suggest entering plan mode with /plan to finalise it before implementation.",
+          "- If already running inside the plan agent, do not suggest plan mode; instead finalise the plan directly and get it ready for execution.",
+          "- If the loaded note is research, suggest the next research, validation, or implementation step implied by the note.",
+          "- If the note is a handoff, suggest the single next action needed to resume from the handoff.",
+        ]),
     "",
     "Confirm exactly:",
     `Loaded: ${displayPath}`,
