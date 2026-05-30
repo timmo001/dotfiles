@@ -3,10 +3,12 @@ import type { CliRenderer } from "@opentui/core";
 /** Supported external editor launch modes. */
 export type ExternalEditorKind = "editor" | "visual";
 
-const WAITING_VISUAL_EDITORS = new Set(["code", "cursor"]);
-const QUOTED_TOKEN_PATTERN = /^(['"])(.*)\1$/;
+/** Launch mode that should start the external editor detached from the TUI. */
+export function editorLaunchesDetached(kind: ExternalEditorKind): boolean {
+  return kind === "visual";
+}
 
-/** Suspend the TUI, launch a path in an external editor, then resume. */
+/** Launch a path in an external editor. Editor mode waits; visual mode detaches. */
 export async function openPathInEditor(
   renderer: CliRenderer,
   path: string,
@@ -14,11 +16,44 @@ export async function openPathInEditor(
   afterResume?: () => void,
 ): Promise<void> {
   const command = editorCommand(path, kind);
+
+  if (editorLaunchesDetached(kind)) {
+    launchDetached(command);
+    return;
+  }
+
   renderer.suspend();
   renderer.currentRenderBuffer.clear();
 
   try {
     const proc = Bun.spawn(["bash", "-lc", command], {
+      stdin: "inherit",
+      stdout: "inherit",
+      stderr: "inherit",
+    });
+    const exitCode = await proc.exited;
+    if (exitCode !== 0) throw new ExternalEditorExitError(exitCode);
+  } finally {
+    renderer.currentRenderBuffer.clear();
+    renderer.resume();
+    afterResume?.();
+    renderer.requestRender();
+  }
+}
+
+/** Suspend the TUI, launch the terminal editor in a working directory, then resume. */
+export async function openEditorInDirectory(
+  renderer: CliRenderer,
+  cwd: string,
+  afterResume?: () => void,
+): Promise<void> {
+  const command = resolveEditorCommand("editor");
+  renderer.suspend();
+  renderer.currentRenderBuffer.clear();
+
+  try {
+    const proc = Bun.spawn(["bash", "-lc", command], {
+      cwd,
       stdin: "inherit",
       stdout: "inherit",
       stderr: "inherit",
@@ -53,12 +88,9 @@ function editorCommand(path: string, kind: ExternalEditorKind): string {
 }
 
 function resolveEditorCommand(kind: ExternalEditorKind): string {
-  const command =
-    kind === "visual"
-      ? firstNonEmpty(process.env.VISUAL, process.env.EDITOR, "nvim")
-      : firstNonEmpty(process.env.EDITOR, "nvim");
-
-  return kind === "visual" ? withWaitFlag(command) : command;
+  return kind === "visual"
+    ? firstNonEmpty(process.env.VISUAL, process.env.EDITOR, "nvim")
+    : firstNonEmpty(process.env.EDITOR, "nvim");
 }
 
 function firstNonEmpty(...values: readonly (string | undefined)[]): string {
@@ -67,31 +99,16 @@ function firstNonEmpty(...values: readonly (string | undefined)[]): string {
   );
 }
 
-function withWaitFlag(command: string): string {
-  if (!needsWaitFlag(command) || hasWaitFlag(command)) return command;
-  return `${command} --wait`;
-}
-
-function needsWaitFlag(command: string): boolean {
-  const name = commandName(command);
-  return name ? WAITING_VISUAL_EDITORS.has(name) : false;
-}
-
-function hasWaitFlag(command: string): boolean {
-  return /(?:^|\s)(?:--wait(?:[=\s]|$)|-w(?:\s|$))/.test(command);
-}
-
-function commandName(command: string): string | null {
-  const token = firstShellToken(command);
-  if (!token) return null;
-  return token.split(/[\\/]/).pop()?.toLowerCase() ?? null;
-}
-
-function firstShellToken(command: string): string | null {
-  const token = command.trim().match(/^(?:"[^"]+"|'[^']+'|\S+)/)?.[0];
-  return token ? token.replace(QUOTED_TOKEN_PATTERN, "$2") : null;
-}
-
 function shellQuote(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+function launchDetached(command: string): void {
+  const proc = Bun.spawn(["bash", "-lc", command], {
+    stdin: "ignore",
+    stdout: "ignore",
+    stderr: "ignore",
+    detached: true,
+  });
+  proc.unref();
 }

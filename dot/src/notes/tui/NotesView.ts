@@ -34,7 +34,10 @@ import {
   GLOBAL_HELP,
   type HelpEntry,
 } from "../../tui/helpBar.js";
-import { editorLabel } from "../../tui/externalEditor.js";
+import {
+  editorLabel,
+  editorLaunchesDetached,
+} from "../../tui/externalEditor.js";
 import { StatusList, type StatusListItem } from "../../tui/StatusList.js";
 import type { NoteEditorKind } from "./NoteEditor.js";
 import {
@@ -711,6 +714,7 @@ export class NotesView {
     this.editingFilePath = entry.filePath;
     this.selectedFilePath = entry.filePath;
     const label = notePathLabel(entry);
+    const detached = editorLaunchesDetached(kind);
     this.statusBar.content = t`${fg(this.theme.yellow)(`Opening ${label} in ${editorLabel(kind)}...`)}`;
 
     let editError: unknown;
@@ -732,7 +736,9 @@ export class NotesView {
     }
 
     if (refreshed) {
-      this.statusBar.content = t`${fg(this.theme.green)(`Updated ${label}`)}`;
+      this.statusBar.content = detached
+        ? t`${fg(this.theme.green)(`Opened ${label} in ${editorLabel(kind)}`)}`
+        : t`${fg(this.theme.green)(`Updated ${label}`)}`;
     }
   }
 
@@ -774,6 +780,7 @@ export class NotesView {
     }
 
     this.selectedFilePath = draft.entry.filePath;
+    const detached = editorLaunchesDetached(this.createEditorKind);
     this.statusBar.content = t`${fg(this.theme.yellow)(`Opening ${draft.entry.filename} in ${editorLabel(this.createEditorKind)}...`)}`;
 
     let editError: unknown;
@@ -784,10 +791,12 @@ export class NotesView {
         editError = error;
       }
 
-      try {
-        await this.callbacks.finaliseNoteDraft(draft.entry.filePath);
-      } catch {
-        // Non-fatal: git commit failure does not block the flow.
+      if (!detached) {
+        try {
+          await this.callbacks.finaliseNoteDraft(draft.entry.filePath);
+        } catch {
+          // Non-fatal: git commit failure does not block the flow.
+        }
       }
 
       await this.refresh();
@@ -805,9 +814,13 @@ export class NotesView {
     );
 
     if (matchesActiveFilter) {
-      this.statusBar.content = t`${fg(this.theme.green)(`Created ${draft.entry.filename}`)}`;
+      this.statusBar.content = detached
+        ? t`${fg(this.theme.green)(`Created draft ${draft.entry.filename} in ${editorLabel(this.createEditorKind)}`)}`
+        : t`${fg(this.theme.green)(`Created ${draft.entry.filename}`)}`;
     } else {
-      this.statusBar.content = t`${fg(this.theme.yellow)(`Created ${draft.entry.filename} (hidden by current filter)`)}`;
+      this.statusBar.content = detached
+        ? t`${fg(this.theme.yellow)(`Created draft ${draft.entry.filename} in ${editorLabel(this.createEditorKind)} (hidden by current filter)`)}`
+        : t`${fg(this.theme.yellow)(`Created ${draft.entry.filename} (hidden by current filter)`)}`;
     }
   }
 

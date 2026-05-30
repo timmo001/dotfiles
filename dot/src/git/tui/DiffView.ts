@@ -300,7 +300,7 @@ export class DiffView {
 
     try {
       await this.callbacks.onOpenEditor(repo, kind);
-      this.statusBar.content = t`${fg(this.theme.green)(`Updated ${repo.name}`)}`;
+      this.statusBar.content = t`${fg(this.theme.green)(`Opened ${repo.name} in ${editorLabel(kind)}`)}`;
     } catch (error) {
       this.statusBar.content = t`${fg(this.theme.red)(`Failed to open ${repo.name}: ${errorMessage(error)}`)}`;
     } finally {
