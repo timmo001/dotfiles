@@ -1,17 +1,17 @@
 import { Effect } from "effect";
-import { CommandExecutor } from "../services/CommandExecutor.js";
-import { Config } from "../services/Config.js";
+import { CommandExecutor } from "../../services/CommandExecutor.js";
+import { Config } from "../../services/Config.js";
 import {
   DotDiff,
   DotDiffError,
   type DiffScanOptions,
 } from "../services/DotDiff.js";
-import { OutputLog } from "../services/OutputLog.js";
+import { OutputLog } from "../../services/OutputLog.js";
 
 /** Handle DotDiffError by printing to stderr and exiting */
 const handleDiffError = Effect.catch((e: DotDiffError) =>
   Effect.sync(() => {
-    console.error(`[dot diff] ${e.message}`);
+    console.error(`[dot git-diff] ${e.message}`);
     process.exit(1);
   }),
 );

@@ -5,7 +5,7 @@ import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
-import { GitHub } from "../services/GitHub.js";
+import { GitHub } from "../git/services/GitHub.js";
 import {
   scanSkills,
   checkSkill,

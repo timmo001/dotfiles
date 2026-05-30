@@ -1,5 +1,5 @@
 import { Context, Effect, Layer, Schema } from "effect";
-import type { GitStatusCode, StagedFile } from "../types.js";
+import type { GitStatusCode, StagedFile } from "../../types.js";
 
 const log = (msg: string) => console.error(`[dot:GitStaging] ${msg}`);
 

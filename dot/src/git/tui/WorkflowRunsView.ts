@@ -6,8 +6,12 @@ import {
   t,
   fg,
 } from "@opentui/core";
-import type { WorkflowRepoRuns, WorkflowRun, WorkflowState } from "../types.js";
-import type { Theme } from "../theme.js";
+import type {
+  WorkflowRepoRuns,
+  WorkflowRun,
+  WorkflowState,
+} from "../../types.js";
+import type { Theme } from "../../theme.js";
 import {
   formatWorkflowRepoDetail,
   formatWorkflowRunDetail,
@@ -19,13 +23,13 @@ import {
   workflowRepoStatusIcon,
   workflowRunStatusIcon,
 } from "../services/workflowStatus.js";
-import { formatBreadcrumb } from "./breadcrumb.js";
+import { formatBreadcrumb } from "../../tui/breadcrumb.js";
 import {
   addResponsiveHelpBar,
   GLOBAL_HELP,
   type HelpEntry,
-} from "./helpBar.js";
-import { StatusList, type StatusListItem } from "./StatusList.js";
+} from "../../tui/helpBar.js";
+import { StatusList, type StatusListItem } from "../../tui/StatusList.js";
 
 /** Help entries for the workflow runs view */
 const HELP: readonly HelpEntry[] = [

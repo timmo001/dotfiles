@@ -7,9 +7,9 @@ import type {
   WorkflowRun,
   WorkflowRunStatus,
   WorkflowState,
-} from "../types.js";
-import { CommandExecutor } from "./CommandExecutor.js";
-import { Config, type ExtraRepo } from "./Config.js";
+} from "../../types.js";
+import { CommandExecutor } from "../../services/CommandExecutor.js";
+import { Config, type ExtraRepo } from "../../services/Config.js";
 import { GitHub } from "./GitHub.js";
 import {
   extraRepoVisible,

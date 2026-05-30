@@ -3,9 +3,9 @@ import { Config } from "./services/Config.js";
 import { CommandExecutor } from "./services/CommandExecutor.js";
 import { OutputLog } from "./services/OutputLog.js";
 import { Launcher } from "./services/Launcher.js";
-import { DotDiff } from "./services/DotDiff.js";
-import { GitHub } from "./services/GitHub.js";
-import { WorkflowRuns } from "./services/WorkflowRuns.js";
+import { DotDiff } from "./git/services/DotDiff.js";
+import { GitHub } from "./git/services/GitHub.js";
+import { WorkflowRuns } from "./git/services/WorkflowRuns.js";
 import { parseFlags, resolveSubcommand, printHelp } from "./flags.js";
 import { menuItemsById } from "./menu.js";
 import { stow } from "./commands/Stow.js";
@@ -24,13 +24,13 @@ import {
   diffListChanged,
   diffListAll,
   diffRaw,
-} from "./commands/Diff.js";
+} from "./git/commands/Diff.js";
 import {
   workflowsListRepos,
   workflowsListRuns,
   workflowsRaw,
   workflowsWaybar,
-} from "./commands/Workflows.js";
+} from "./git/commands/Workflows.js";
 import type { ViewId, WorkflowRunQueryOptions } from "./types.js";
 
 const DEBUG = !!process.env.DOT_DEBUG;
@@ -56,7 +56,8 @@ const nativeCommands = new Set([
   "stow",
   "update",
   "diff",
-  "workflows",
+  "git-diff",
+  "git-workflows",
   "doctor",
   "help",
   "clean",
@@ -76,26 +77,26 @@ function resolveMode(): Mode {
 
   // Native commands bypass the menu/fallback system entirely
   if (nativeCommands.has(flags.subcommand)) {
-    // Diff without machine flags opens the TUI diff view
-    if (flags.subcommand === "diff") {
+    // Git diff without machine flags opens the TUI diff view.
+    if (flags.subcommand === "git-diff" || flags.subcommand === "diff") {
       const hasMachineFlag =
         flags.rest.includes("--waybar") ||
         flags.rest.includes("--list-changed") ||
         flags.rest.includes("--list-all") ||
         flags.rest.includes("--raw");
       if (!hasMachineFlag) {
-        return { type: "tui", initialView: "diff" };
+        return { type: "tui", initialView: "git-diff" };
       }
     }
-    // Workflows without machine/listing flags opens the TUI workflows view
-    if (flags.subcommand === "workflows") {
+    // Git workflows without machine/listing flags opens the TUI workflows view.
+    if (flags.subcommand === "git-workflows") {
       const hasMachineFlag =
         flags.rest.includes("--waybar") ||
         flags.rest.includes("--list-repos") ||
         flags.rest.includes("--list-runs") ||
         flags.rest.includes("--raw");
       if (!hasMachineFlag) {
-        return { type: "tui", initialView: "workflows" };
+        return { type: "tui", initialView: "git-workflows" };
       }
     }
     return { type: "native", command: flags.subcommand, args: flags.rest };
@@ -200,7 +201,7 @@ if (mode.type === "native") {
           stow: args.includes("--stow"),
           tui: args.includes("--tui"),
         });
-      case "workflows":
+      case "git-workflows":
         return resolveWorkflows(args);
       case "doctor":
         return doctor({
@@ -243,7 +244,7 @@ if (mode.type === "native") {
   };
 
   const program =
-    mode.command === "diff"
+    mode.command === "git-diff" || mode.command === "diff"
       ? resolveDiff(mode.args).pipe(Effect.provide(CliLayers))
       : resolveNative(mode.command, mode.args).pipe(
           Effect.provide(CliLayers),
@@ -269,10 +270,11 @@ if (mode.type === "native") {
 
   const { Renderer } = await import("./services/Renderer.js");
   const { Toast } = await import("./services/Toast.js");
-  const { WaybarCache } = await import("./services/WaybarCache.js");
-  const { RepoWatcher } = await import("./services/RepoWatcher.js");
-  const { GitStaging } = await import("./services/GitStaging.js");
-  const { CommitSuggest } = await import("./services/CommitSuggest.js");
+  const { GitDiffWaybarCache } =
+    await import("./git/services/GitDiffWaybarCache.js");
+  const { RepoWatcher } = await import("./git/services/RepoWatcher.js");
+  const { GitStaging } = await import("./git/services/GitStaging.js");
+  const { CommitSuggest } = await import("./git/services/CommitSuggest.js");
   const { shutdownServer } = await import("./services/OpenCodeServer.js");
   const { createCommandRunner } = await import("./services/CommandRunner.js");
   const { loadTheme } = await import("./theme.js");
@@ -372,7 +374,7 @@ if (mode.type === "native") {
     Layer.provideMerge(WorkflowRuns.layer),
     Layer.provideMerge(DotDiff.layer),
     Layer.provideMerge(GitHub.layer),
-    Layer.provideMerge(WaybarCache.layer),
+    Layer.provideMerge(GitDiffWaybarCache.layer),
     Layer.provideMerge(GitStaging.layer),
     Layer.provideMerge(CommitSuggest.layer),
     Layer.provideMerge(Toast.layer(theme)),

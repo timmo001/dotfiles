@@ -1,11 +1,11 @@
 import { Context, Effect, Layer, Schema } from "effect";
-import type { CommitSuggestion } from "../types.js";
+import type { CommitSuggestion } from "../../types.js";
 import {
   getCachedModel,
   setCachedModel,
   discoverFastModel,
-} from "./ModelDiscovery.js";
-import { ensureServer } from "./OpenCodeServer.js";
+} from "../../services/ModelDiscovery.js";
+import { ensureServer } from "../../services/OpenCodeServer.js";
 
 const log = (msg: string) => console.error(`[dot:CommitSuggest] ${msg}`);
 

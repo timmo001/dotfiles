@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
-import type { CheckResult } from "../types.js";
+import type { CheckResult } from "../../doctor/types.js";
 
 const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
 

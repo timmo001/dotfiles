@@ -4,7 +4,7 @@ Instructions for coding agents working in this repository.
 
 This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGENTS.md` from the repo root (and from nested directories when working under those paths). For Cursor-only behavior (globs, `alwaysApply`), use `.cursor/rules/`; that stays separate from this portable file.
 
-**Shared global instructions** (OpenCode and any Cursor project): one on-disk file at `~/.config/opencode/AGENTS.md`, stowed from `~/.config/dotfiles-private/agents/.config/opencode/AGENTS.md` when private dotfiles are installed. **`dot agents-sync`** writes the mirrored Cursor rule to **`dotfiles-private/agents/.cursor/rules/global-agents.mdc`** by default (stows to `~/.cursor/rules/`) with **`alwaysApply: true`**; **`dot update`** and **`dot diff`** run the sync by default (`DOT_AGENTS_SYNC_ON_*`). Claude Code config is in the same private **`agents/`** tree (`.claude/`, `.claude.json`). To reuse AGENTS in another repo: `ln -sf ~/.config/opencode/AGENTS.md AGENTS.md` in that project’s root (or **Cursor → Settings → Rules**).
+**Shared global instructions** (OpenCode and any Cursor project): one on-disk file at `~/.config/opencode/AGENTS.md`, stowed from `~/.config/dotfiles-private/agents/.config/opencode/AGENTS.md` when private dotfiles are installed. **`dot agents-sync`** writes the mirrored Cursor rule to **`dotfiles-private/agents/.cursor/rules/global-agents.mdc`** by default (stows to `~/.cursor/rules/`) with **`alwaysApply: true`**; **`dot update`** and **`dot git-diff`** run the sync by default (`DOT_AGENTS_SYNC_ON_*`). Claude Code config is in the same private **`agents/`** tree (`.claude/`, `.claude.json`). To reuse AGENTS in another repo: `ln -sf ~/.config/opencode/AGENTS.md AGENTS.md` in that project’s root (or **Cursor → Settings → Rules**).
 
 ## Scope
 
@@ -117,7 +117,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - OpenCode frontend debug command: `/debug-frontend <page or issue>`
 - OpenCode fallow audit command: `/fallow-audit [workspace]`
 - OpenCode fallow project analysis command: `/fallow-project-analyse [workspace]`
-- Diff behavior: `dot diff`
+- Git diff behavior: `dot git-diff` (`dot diff` is a human compatibility alias)
 
 ## Safety
 

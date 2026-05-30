@@ -2,9 +2,9 @@ import { Context, Effect, Layer, Schema } from "effect";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { basename, join } from "path";
 import { createHash } from "crypto";
-import type { DiffRepo, Repo } from "../types.js";
-import { CommandExecutor } from "./CommandExecutor.js";
-import { Config } from "./Config.js";
+import type { DiffRepo, Repo } from "../../types.js";
+import { CommandExecutor } from "../../services/CommandExecutor.js";
+import { Config } from "../../services/Config.js";
 import { extraRepoVisible } from "./repoSchedule.js";
 
 const DEBUG = !!process.env.DOT_DEBUG;
@@ -71,7 +71,7 @@ function recordFetch(repoPath: string, upstreamRef: string): void {
   }
 }
 
-/** Domain error for `dot diff` command failures */
+/** Domain error for `dot git-diff` command failures */
 export class DotDiffError extends Schema.TaggedErrorClass<DotDiffError>()(
   "DotDiffError",
   {

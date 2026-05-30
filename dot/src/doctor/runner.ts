@@ -1,13 +1,13 @@
 import { Effect } from "effect";
 import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
-import { GitHub } from "../services/GitHub.js";
+import { GitHub } from "../git/services/GitHub.js";
 import { checkDependencies } from "./checks/dependencies.js";
 import { checkSecretService } from "./checks/secretService.js";
 import { checkRepos, checkPrivateAccess } from "./checks/repos.js";
 import { checkStow } from "./checks/stow.js";
 import { checkOpencode } from "./checks/opencode.js";
-import { checkGitConfig } from "./checks/gitConfig.js";
+import { checkGitConfig } from "../git/doctor/gitConfig.js";
 import {
   checkWorkflowRuns,
   checkDoctorStartup,

@@ -1,5 +1,8 @@
 import { Clock, Context, Duration, Effect, Layer, Schema } from "effect";
-import { CommandExecutor, type CommandError } from "./CommandExecutor.js";
+import {
+  CommandExecutor,
+  type CommandError,
+} from "../../services/CommandExecutor.js";
 
 const DEBUG = !!process.env.DOT_DEBUG;
 const log = (msg: string) => {

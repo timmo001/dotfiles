@@ -234,5 +234,5 @@ Expected `--raw` output shape (similar to legacy):
 - `--raw` mode uses OutputLog with section headings per scope and per-repo detail lines
 - Refactoring DotDiff to compute state directly (no self-calling the binary)
 - Existing DiffView and RepoWatcher must continue working unchanged
-- WaybarCache integration stays (reads `~/.cache/waybar/dot-diff-waybar.json`)
+- WaybarCache integration stays (reads `~/.cache/waybar/git-diff-waybar.json`)
 - No artificial "Complete" section at the end of `--raw` output

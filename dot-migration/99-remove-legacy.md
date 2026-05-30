@@ -21,7 +21,7 @@ Remove all legacy bash scripts once confident nothing depends on them.
 Search for any references to `dot-legacy` or the bash helper scripts:
 
 ```bash
-rg -l 'dot-legacy|dot-lib|dot-cron-lib|dot-doctor-lib|dot-doctor-notify|dot-diff-tmux-session|dot-omarchy-lib|dot-private-pkg-lib|dot-skill-updates-lib' ~/.config/dotfiles/ ~/.config/dotfiles-private/ 2>/dev/null
+rg -l 'dot-legacy|dot-lib|dot-cron-lib|dot-doctor-lib|dot-doctor-notify|git-diff-tmux-session|dot-omarchy-lib|dot-private-pkg-lib|dot-skill-updates-lib' ~/.config/dotfiles/ ~/.config/dotfiles-private/ 2>/dev/null
 ```
 
 ### 3B.2 Remove bash scripts
@@ -32,7 +32,7 @@ Delete from `scripts/.local/bin/`:
 - `dot-cron-lib`
 - `dot-doctor-lib`
 - `dot-doctor-notify`
-- `dot-diff-tmux-session`
+- `git-diff-tmux-session`
 - `dot-omarchy-lib`
 - `dot-private-pkg-lib`
 - `dot-skill-updates-lib`

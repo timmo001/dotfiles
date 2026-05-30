@@ -1,5 +1,5 @@
 import { basename, dirname } from "node:path";
-import type { ExtraRepo } from "./Config.js";
+import type { ExtraRepo } from "../../services/Config.js";
 
 /** Check if a single cron field matches a value (supports *, ranges, lists, and steps). */
 function cronFieldMatches(

@@ -246,7 +246,7 @@ export const checkWorkflowRuns = Effect.gen(function* () {
       severity: "warn",
       message: `Workflow runs repo list missing: ${displayPath(reposFile ?? "~/.config/dotfiles-private/.git-workflow-watch-repos")}`,
       detail:
-        "Add watched repositories in private dotfiles to enable dot workflows",
+        "Add watched repositories in private dotfiles to enable dot git-workflows",
     });
   }
 
@@ -275,7 +275,7 @@ export const checkWorkflowRuns = Effect.gen(function* () {
     XDG_CONFIG_HOME,
     "waybar",
     "scripts",
-    "github-workflows-waybar.sh",
+    "git-workflows-waybar.sh",
   );
   if (existsSync(waybarScript)) {
     results.push({
@@ -296,7 +296,7 @@ export const checkWorkflowRuns = Effect.gen(function* () {
   if (existsSync(waybarStyle)) {
     try {
       const styleContent = readFileSync(waybarStyle, "utf-8");
-      if (styleContent.includes("#custom-github-workflows.hidden")) {
+      if (styleContent.includes("#custom-git-workflows.hidden")) {
         results.push({
           severity: "ok",
           message: `Workflow runs Waybar hidden-empty CSS found: ${displayPath(waybarStyle)}`,
@@ -354,7 +354,7 @@ export const checkWorkflowRuns = Effect.gen(function* () {
       });
     }
 
-    if (configContains('"custom/github-workflows"')) {
+    if (configContains('"custom/git-workflows"')) {
       results.push({
         severity: "ok",
         message: "Workflow runs Waybar module is present in the active config",
@@ -364,13 +364,13 @@ export const checkWorkflowRuns = Effect.gen(function* () {
         severity: "warn",
         message: `Workflow runs Waybar module is missing from ${displayPath(waybarConfig)}`,
         detail:
-          "Add custom/github-workflows before custom/dot-diff in the active Waybar config",
+          "Add custom/git-workflows before custom/git-diff in the active Waybar config",
       });
     }
 
     if (
       configContains(
-        '"on-click": "~/.config/waybar/scripts/github-workflows-waybar.sh open"',
+        '"on-click": "~/.config/waybar/scripts/git-workflows-waybar.sh open"',
       )
     ) {
       results.push({
@@ -386,7 +386,7 @@ export const checkWorkflowRuns = Effect.gen(function* () {
 
     if (
       configContains(
-        '"on-click-right": "~/.config/waybar/scripts/github-workflows-waybar.sh refresh"',
+        '"on-click-right": "~/.config/waybar/scripts/git-workflows-waybar.sh refresh"',
       )
     ) {
       results.push({
@@ -403,18 +403,18 @@ export const checkWorkflowRuns = Effect.gen(function* () {
     if (
       waybarConfigWalkOrdersBefore(
         waybarConfig,
-        '"custom/github-workflows"',
-        '"custom/dot-diff"',
+        '"custom/git-workflows"',
+        '"custom/git-diff"',
       )
     ) {
       results.push({
         severity: "ok",
-        message: "Workflow runs Waybar module is ordered before dot diff",
+        message: "Workflow runs Waybar module is ordered before git diff",
       });
     } else {
       results.push({
         severity: "warn",
-        message: `Workflow runs Waybar module is not ordered before dot diff in ${displayPath(waybarConfig)}`,
+        message: `Workflow runs Waybar module is not ordered before git diff in ${displayPath(waybarConfig)}`,
       });
     }
   } else {

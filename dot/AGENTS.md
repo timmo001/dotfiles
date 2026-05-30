@@ -39,7 +39,6 @@ src/
   commands/
     AgentsSync.ts         — dot agents-sync
     Clean.ts              — dot clean
-    Diff.ts               — dot diff (--waybar, --list-changed, --list-all, --raw)
     Doctor.ts             — dot doctor
     Help.ts               — dot help
     Install.ts            — dot install
@@ -49,40 +48,47 @@ src/
     SkillUpdates.ts       — dot skill-updates
     Stow.ts               — dot stow
     Update.ts             — dot update
-    Workflows.ts          — dot workflows (--since, --waybar, --list-repos, --list-runs, --raw)
   doctor/
     types.ts              — DoctorCheck, DoctorResult types
     runner.ts             — Parallel check runner with output formatting
     checks/               — 13 check modules (dependencies, repos, packages, etc.)
+  git/
+    commands/
+      Diff.ts             — dot git-diff (--waybar, --list-changed, --list-all, --raw)
+      Workflows.ts        — dot git-workflows (--since, --waybar, --list-repos, --list-runs, --raw)
+    doctor/
+      gitConfig.ts        — managed Git config doctor check
+    services/
+      DotDiff.ts          — Effect service wrapping git diff state
+      GitHub.ts           — Shared GitHub CLI/API wrapper with rate-limit checks and retries
+      GitStaging.ts       — Git status/add/reset/commit operations
+      RepoWatcher.ts      — Hybrid poll loop (Waybar cache → 10s poll), PubSub state
+      WorkflowRuns.ts     — Watched GitHub Actions run state for locally checked-out HEAD commits
+      workflowStatus.ts   — Shared GitHub Actions status classification helpers
+    tui/
+      DiffView.ts         — Two-pane layout (Changed/Other) with repo watcher
+      WorkflowRunsView.ts — Two-pane watched GitHub workflow runs view
+      Lazygit.ts          — Suspend/resume lazygit spawn
+      StagingView.ts      — Two-pane staging view (Staged/Unstaged) for git commit flow
+      CommitView.ts       — Commit message input with AI suggestion list
   services/
     Config.ts             — Dotfiles paths, env config
     CommandExecutor.ts    — Shell command execution Effect service
     CommandRunner.ts      — Suspend/resume + silent + notify command execution (plain object)
     CommitSuggest.ts      — AI commit suggestions via OpenCode SDK
-    DotDiff.ts            — Effect service wrapping diff shell commands
-    GitHub.ts             — Shared GitHub CLI/API wrapper with rate-limit checks and retries
-    GitStaging.ts         — Git status/add/reset/commit operations
     Launcher.ts           — Process lifecycle (exit handling)
     ModelDiscovery.ts     — OpenCode model discovery
     OpenCodeServer.ts     — OpenCode server lifecycle
     OutputLog.ts          — Scrollable output log service
     Renderer.ts           — OpenTUI renderer service
-    RepoWatcher.ts        — Hybrid poll loop (Waybar cache → 10s poll), PubSub state
-    WorkflowRuns.ts       — Watched GitHub Actions run state for locally checked-out HEAD commits
-    workflowStatus.ts     — Shared GitHub Actions status classification helpers
     Toast.ts              — Toast notification overlay service
     WaybarCache.ts        — Waybar cache JSON reader for fast startup
   tui/
     App.ts                — Top-level app shell, view stack, global keyboard, action routing
     MainMenu.ts           — MenuList menu built from menu registry
     MenuList.ts           — Reusable menu list renderable
-    DiffView.ts           — Two-pane layout (Changed/Other) with repo watcher
-    WorkflowRunsView.ts   — Two-pane watched GitHub workflow runs view
     OmarchyMenu.ts        — Inline omarchy submenu tree with breadcrumb navigation
     VariantPopup.ts       — Centred popup overlay for menu item variant selection
-    Lazygit.ts            — Suspend/resume lazygit spawn
-    StagingView.ts        — Two-pane staging view (Staged/Unstaged) for git commit flow
-    CommitView.ts         — Commit message input with AI suggestion list
     OutputPane.ts         — Scrollable command output pane
     Toast.ts              — Toast renderable
     breadcrumb.ts         — Breadcrumb navigation helper
@@ -142,18 +148,19 @@ MenuItem action types:
 
 ```
 dot                           # Main menu (TUI)
-dot diff                      # Diff view (TUI)
-dot diff --tab other          # Diff view, Other tab focused (TUI)
-dot workflows                 # Watched GitHub workflow runs view (TUI)
-dot diff --raw                # CLI diff output (no TUI)
-dot diff --waybar             # Machine-readable JSON for Waybar
-dot diff --list-changed       # Pipe-friendly changed repo list
-dot diff --list-all           # Pipe-friendly all repo list
-dot workflows --raw           # CLI workflow run summary
-dot workflows --since <date>  # Filter workflow runs by creation time (TUI or CLI)
-dot workflows --waybar        # Machine-readable workflow JSON for Waybar
-dot workflows --list-repos    # Pipe-friendly watched repo workflow list
-dot workflows --list-runs     # Pipe-friendly watched workflow run list
+dot git-diff                  # Diff view (TUI)
+dot git-diff --tab other      # Diff view, Other tab focused (TUI)
+dot diff                      # Compatibility alias for human use
+dot git-workflows             # Watched GitHub workflow runs view (TUI)
+dot git-diff --raw            # CLI diff output (no TUI)
+dot git-diff --waybar         # Machine-readable JSON for Waybar
+dot git-diff --list-changed   # Pipe-friendly changed repo list
+dot git-diff --list-all       # Pipe-friendly all repo list
+dot git-workflows --raw       # CLI workflow run summary
+dot git-workflows --since <date> # Filter workflow runs by creation time (TUI or CLI)
+dot git-workflows --waybar    # Machine-readable workflow JSON for Waybar
+dot git-workflows --list-repos # Pipe-friendly watched repo workflow list
+dot git-workflows --list-runs # Pipe-friendly watched workflow run list
 dot update                    # Full update (pull, stow, rebuild)
 dot update --pull             # Pull repos only
 dot update --stow             # Stow only
@@ -261,8 +268,8 @@ The build is also triggered by `dot update`.
 
 ## External Dependencies
 
-- `~/.cache/waybar/dot-diff-waybar.json` — Waybar cache for fast startup
-- `~/.config/dotfiles-private/.git-workflow-watch-repos` — watched GitHub repos for `dot workflows`; `dot workflows` applies matching `.dot-extra-repos` schedules before querying GitHub, hides disabled workflows, and supports `--since <date>` for activity-time filtering
+- `~/.cache/waybar/git-diff-waybar.json` — Waybar cache for fast startup
+- `~/.config/dotfiles-private/.git-workflow-watch-repos` — watched GitHub repos for `dot git-workflows`; `dot git-workflows` applies matching `.dot-extra-repos` schedules before querying GitHub, hides disabled workflows, and supports `--since <date>` for activity-time filtering
 - `lazygit` — launched via suspend/resume on Enter in diff view
 - `opencode` — CLI for model discovery; SDK for AI commit suggestions
 - `@opencode-ai/sdk` — OpenCode SDK for programmatic session/prompt calls
@@ -286,9 +293,9 @@ For dead-code analysis, use the MCP `analyze` tool with `root: dot`, or `/fallow
 Smoke tests:
 ```bash
 dot                          # smoke test: main menu renders, Ctrl+c quits
-dot diff                     # smoke test: diff view renders
-dot diff --raw               # smoke test: CLI diff output
-dot diff --waybar            # smoke test: JSON output
+dot git-diff                 # smoke test: diff view renders
+dot git-diff --raw           # smoke test: CLI diff output
+dot git-diff --waybar        # smoke test: JSON output
 dot doctor                   # smoke test: health checks run
 dot help                     # smoke test: help prints
 ```
@@ -309,7 +316,7 @@ Related bash helpers (also still in place):
 - `dot-cron-lib` — cron/timer helpers
 - `dot-doctor-lib` — doctor check functions
 - `dot-doctor-notify` — doctor notification helper
-- `dot-diff-tmux-session` — tmux session launcher for diff
+- `git-diff-tmux-session` — tmux session launcher for git diff
 - `dot-omarchy-lib` — omarchy sync helpers
 - `dot-private-pkg-lib` — private package repo helpers
 - `dot-skill-updates-lib` — skill update checking logic

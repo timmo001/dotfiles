@@ -5,7 +5,7 @@ import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher } from "../services/Launcher.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
-import { DotDiff } from "../services/DotDiff.js";
+import { DotDiff } from "../git/services/DotDiff.js";
 import { stow as runStow } from "./Stow.js";
 import { agentsSync } from "./AgentsSync.js";
 import { skillUpdates } from "./SkillUpdates.js";

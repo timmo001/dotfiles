@@ -41,8 +41,8 @@ export interface RepoState {
 /** Identifies a top-level TUI view for navigation */
 export type ViewId =
   | "main"
-  | "diff"
-  | "workflows"
+  | "git-diff"
+  | "git-workflows"
   | "omarchy"
   | "staging"
   | "commit"

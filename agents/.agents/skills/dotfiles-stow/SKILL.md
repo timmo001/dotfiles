@@ -58,11 +58,11 @@ Use `dot` as the canonical workflow command instead of raw `stow` for normal ope
 
 - `dot stow` - run after local edits to stowed files to re-apply links without pulling repos.
 - `dot update` - run when you need latest repo changes plus re-stow (`pull + stow` workflow).
-- `dot diff` - run to review current repo status across managed repos.
+- `dot git-diff` - run to review current repo status across managed repos (`dot diff` is a human compatibility alias).
 - `dot doctor` - run to verify tool/repo health when setup issues are suspected.
 - `dot init` - run for first-time setup on a machine.
 - `dot install` - run for backup/adopt install flow.
-- `dot agents-sync` - run when AGENTS mirroring is specifically needed (also runs automatically in `dot update`/`dot diff` by default).
+- `dot agents-sync` - run when AGENTS mirroring is specifically needed (also runs automatically in `dot update`/`dot git-diff` by default).
 
 ## Safety Rules
 

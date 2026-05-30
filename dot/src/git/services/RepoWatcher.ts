@@ -9,9 +9,9 @@ import {
 } from "effect";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { Repo, RepoState } from "../types.js";
+import type { Repo, RepoState } from "../../types.js";
 import { DotDiff } from "./DotDiff.js";
-import { WaybarCache } from "./WaybarCache.js";
+import { GitDiffWaybarCache } from "./GitDiffWaybarCache.js";
 
 const log = (msg: string) => console.error(`[dot:Watcher] ${msg}`);
 
@@ -35,7 +35,7 @@ export class RepoWatcher extends Context.Service<
     Effect.gen(function* () {
       log("Initialising RepoWatcher...");
       const dotDiff = yield* DotDiff;
-      const waybarCache = yield* WaybarCache;
+      const waybarCache = yield* GitDiffWaybarCache;
       const pubsub = yield* PubSub.unbounded<RepoState>();
 
       let currentState: RepoState = {
@@ -44,9 +44,9 @@ export class RepoWatcher extends Context.Service<
         lastChecked: new Date(yield* Clock.currentTimeMillis),
       };
 
-      // Full poll: runs dot diff for both lists
+      // Full poll: runs dot git-diff for both lists
       const poll = Effect.gen(function* () {
-        log("Polling dot diff...");
+        log("Polling dot git-diff...");
         const [all, changed] = yield* Effect.all(
           [dotDiff.listAll(), dotDiff.listChanged()],
           { concurrency: 2 },

@@ -3,7 +3,7 @@ import { readdirSync, existsSync, readFileSync, mkdirSync } from "fs";
 import { writeFileSync } from "fs";
 import { join, basename, dirname, relative } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
-import { GitHub } from "../services/GitHub.js";
+import { GitHub } from "../git/services/GitHub.js";
 
 // ---------------------------------------------------------------------------
 // Domain Types

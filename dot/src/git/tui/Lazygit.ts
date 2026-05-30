@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import type { CliRenderer } from "@opentui/core";
-import { resizeIfFloating } from "./hyprland.js";
+import { resizeIfFloating } from "../../tui/hyprland.js";
 
 /** Suspend the TUI, launch lazygit in the given repo, then resume rendering. */
 export async function openLazygit(

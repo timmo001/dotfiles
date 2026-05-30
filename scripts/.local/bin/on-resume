@@ -22,10 +22,10 @@ log "Resume started"
 pkill -f '/usr/bin/twitch-notifications( |$)' >/dev/null 2>&1 || pkill -f '(^| )twitch-notifications( |$)' >/dev/null 2>&1 || true
 log "Killed twitch-notifications"
 
-# Clear dot-diff cache and restart waybar
-rm -f ~/.cache/waybar/dot-diff-waybar.json
+# Clear git-diff cache and restart waybar
+rm -f ~/.cache/waybar/git-diff-waybar.json
 pkill -9 -x waybar >/dev/null 2>&1 || true
-log "Killed waybar, cleared dot-diff cache"
+log "Killed waybar, cleared git-diff cache"
 
 uwsm-app -- waybar >/dev/null 2>&1 &
 log "Waybar restarted"

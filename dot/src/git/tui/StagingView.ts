@@ -6,17 +6,17 @@ import {
   fg,
 } from "@opentui/core";
 import { Effect } from "effect";
-import type { StagedFile } from "../types.js";
-import type { Theme } from "../theme.js";
+import type { StagedFile } from "../../types.js";
+import type { Theme } from "../../theme.js";
 import type { GitStagingService } from "../services/GitStaging.js";
-import { formatBreadcrumb } from "./breadcrumb.js";
+import { formatBreadcrumb } from "../../tui/breadcrumb.js";
 import {
   addResponsiveHelpBar,
   GLOBAL_HELP,
   type HelpEntry,
-} from "./helpBar.js";
-import { formatPaneTitle } from "./paneTitle.js";
-import { StatusList } from "./StatusList.js";
+} from "../../tui/helpBar.js";
+import { formatPaneTitle } from "../../tui/paneTitle.js";
+import { StatusList } from "../../tui/StatusList.js";
 
 /** Help entries for the staging view */
 const HELP: readonly HelpEntry[] = [

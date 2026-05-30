@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
-import { GitHub } from "../../services/GitHub.js";
+import { GitHub } from "../../git/services/GitHub.js";
 import type { CheckResult } from "../types.js";
 
 interface ToolDef {

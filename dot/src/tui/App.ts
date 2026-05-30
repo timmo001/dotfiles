@@ -10,18 +10,18 @@ import type {
 import type { Theme } from "../theme.js";
 import { menuItemsById, submenus } from "../menu.js";
 import type { CommandRunnerService } from "../services/CommandRunner.js";
-import type { GitStagingService } from "../services/GitStaging.js";
-import type { CommitSuggestService } from "../services/CommitSuggest.js";
+import type { GitStagingService } from "../git/services/GitStaging.js";
+import type { CommitSuggestService } from "../git/services/CommitSuggest.js";
 import { MainMenu } from "./MainMenu.js";
-import { DiffView } from "./DiffView.js";
-import { WorkflowRunsView } from "./WorkflowRunsView.js";
+import { DiffView } from "../git/tui/DiffView.js";
+import { WorkflowRunsView } from "../git/tui/WorkflowRunsView.js";
 import { OmarchyMenu } from "./OmarchyMenu.js";
-import { StagingView } from "./StagingView.js";
-import { CommitView } from "./CommitView.js";
+import { StagingView } from "../git/tui/StagingView.js";
+import { CommitView } from "../git/tui/CommitView.js";
 import { OutputPane } from "./OutputPane.js";
 import { Toast } from "./Toast.js";
 import { VariantPopup } from "./VariantPopup.js";
-import { openLazygit } from "./Lazygit.js";
+import { openLazygit } from "../git/tui/Lazygit.js";
 
 const log = (msg: string) => console.error(`[dot:App] ${msg}`);
 
@@ -113,7 +113,7 @@ export class App {
       },
       onOpenTmux: (mode) => {
         deps.commandRunner
-          .runSilent(`dot-diff-tmux-session ${mode}`)
+          .runSilent(`git-diff-tmux-session ${mode}`)
           .catch((err) => {
             log(`Tmux session error: ${err}`);
           });
@@ -322,7 +322,7 @@ export class App {
   updateDiffState(state: RepoState): void {
     this.diffChangedCount = state.changed.length;
     this.diffView.update(state);
-    if (this.activeView === "diff") {
+    if (this.activeView === "git-diff") {
       setTerminalTitle(formatDiffTitle(this.diffChangedCount));
     }
   }
@@ -353,12 +353,12 @@ export class App {
         this.mainMenu.setVisible(true);
         this.mainMenu.resetAndFocus();
         break;
-      case "diff":
+      case "git-diff":
         setTerminalTitle(formatDiffTitle(this.diffChangedCount));
         this.diffView.setVisible(true);
         this.diffView.focus();
         break;
-      case "workflows":
+      case "git-workflows":
         setTerminalTitle("Dot TUI \u203A Workflows");
         this.workflowsView.setVisible(true);
         this.workflowsView.focus();
@@ -453,10 +453,10 @@ export class App {
       case "main":
         this.mainMenu.focus();
         break;
-      case "diff":
+      case "git-diff":
         this.diffView.focus();
         break;
-      case "workflows":
+      case "git-workflows":
         this.workflowsView.focus();
         break;
       case "omarchy":

@@ -4,7 +4,7 @@ import type {
   WorkflowRun,
   WorkflowRunQueryOptions,
   WorkflowState,
-} from "../types.js";
+} from "../../types.js";
 import { WorkflowRuns } from "../services/WorkflowRuns.js";
 import {
   formatWorkflowRepoDetail,
@@ -19,7 +19,7 @@ import {
 
 const handleWorkflowError = Effect.catch((error: unknown) =>
   Effect.sync(() => {
-    console.error(`[dot workflows] ${formatError(error)}`);
+    console.error(`[dot git-workflows] ${formatError(error)}`);
     process.exit(1);
   }),
 );

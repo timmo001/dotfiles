@@ -1,4 +1,4 @@
-import type { WorkflowRepoRuns, WorkflowRun } from "../types.js";
+import type { WorkflowRepoRuns, WorkflowRun } from "../../types.js";
 
 /** Aggregated workflow run counts for one repository. */
 export interface WorkflowRunCounts {

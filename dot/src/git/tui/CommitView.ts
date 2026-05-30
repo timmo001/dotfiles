@@ -9,13 +9,17 @@ import {
   bold,
 } from "@opentui/core";
 import { Effect } from "effect";
-import type { CommitSuggestion } from "../types.js";
-import type { Theme } from "../theme.js";
+import type { CommitSuggestion } from "../../types.js";
+import type { Theme } from "../../theme.js";
 import type { GitStagingService } from "../services/GitStaging.js";
 import type { CommitSuggestService } from "../services/CommitSuggest.js";
-import { formatBreadcrumb } from "./breadcrumb.js";
-import { formatHelpBar, GLOBAL_HELP, type HelpEntry } from "./helpBar.js";
-import { StatusList } from "./StatusList.js";
+import { formatBreadcrumb } from "../../tui/breadcrumb.js";
+import {
+  formatHelpBar,
+  GLOBAL_HELP,
+  type HelpEntry,
+} from "../../tui/helpBar.js";
+import { StatusList } from "../../tui/StatusList.js";
 
 /** Help entries for the commit view (default state) */
 const HELP_DEFAULT: readonly HelpEntry[] = [

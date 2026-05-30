@@ -204,7 +204,8 @@ function parseOptions(
 function isKnownTarget(candidate: string): boolean {
   if (
     candidate === "diff" ||
-    candidate === "workflows" ||
+    candidate === "git-diff" ||
+    candidate === "git-workflows" ||
     candidate === "omarchy"
   )
     return true;
@@ -219,8 +220,8 @@ function isKnownTarget(candidate: string): boolean {
  * the menu registry. For example, `["omarchy", "theme", "set"]` resolves
  * to subcommand `"omarchy.theme.set"` if that ID exists in the registry.
  *
- * The `tui` prefix is a transparent alias — `dot tui diff` is equivalent to
- * `dot diff`. It is stripped before subcommand resolution so remaining
+ * The `tui` prefix is a transparent alias — `dot tui git-diff` is equivalent to
+ * `dot git-diff`. It is stripped before subcommand resolution so remaining
  * positionals and flags are processed normally.
  */
 export function parseFlags(args: readonly string[]): Flags {
@@ -245,9 +246,13 @@ export function resolveSubcommand(
   | { type: "view"; viewId: ViewId }
   | { type: "item"; itemId: string }
   | undefined {
-  // Direct view names
-  if (sub === "diff") return { type: "view", viewId: "diff" };
-  if (sub === "workflows") return { type: "view", viewId: "workflows" };
+  // Direct view names. `diff` remains a compatibility alias for humans.
+  if (sub === "git-diff" || sub === "diff") {
+    return { type: "view", viewId: "git-diff" };
+  }
+  if (sub === "git-workflows") {
+    return { type: "view", viewId: "git-workflows" };
+  }
   if (sub === "omarchy") return { type: "view", viewId: "omarchy" };
 
   // Match against menu item IDs or submenu keys
@@ -260,13 +265,13 @@ export function resolveSubcommand(
 /**
  * Print help text, optionally scoped to a specific subcommand.
  *
- * - `diff` — shows diff-specific flags and keybindings
+ * - `git-diff` — shows diff-specific flags and keybindings
  * - `omarchy` — shows available omarchy submenus and space-separated navigation
  * - No subcommand — shows the full generic help
  */
 export function printHelp(subcommand?: string): void {
-  if (subcommand === "diff") {
-    console.log(`Usage: dot diff [options]
+  if (subcommand === "git-diff" || subcommand === "diff") {
+    console.log(`Usage: dot git-diff [options]
 
 Open the diff/repo watcher view. Without flags, opens the interactive TUI.
 
@@ -297,10 +302,11 @@ Keybindings (TUI mode):
   Ctrl+c         Quit
 
 Examples:
-  dot diff                 Interactive TUI
-  dot diff --raw           CLI summary of changed repos
-  dot diff --waybar        JSON for Waybar integration
-  dot diff --tab other     TUI with Other pane focused`);
+  dot git-diff             Interactive TUI
+  dot git-diff --raw       CLI summary of changed repos
+  dot git-diff --waybar    JSON for Waybar integration
+  dot git-diff --tab other TUI with Other pane focused
+  dot diff --waybar        Compatibility alias for human use`);
     return;
   }
 
@@ -345,8 +351,8 @@ Examples:
     return;
   }
 
-  if (subcommand === "workflows") {
-    console.log(`Usage: dot workflows [options]
+  if (subcommand === "git-workflows") {
+    console.log(`Usage: dot git-workflows [options]
 
 Open the watched GitHub workflow runs view. The left pane lists watched
 repositories from the private repo list. The right pane lists runs for the
@@ -372,11 +378,11 @@ Keybindings (TUI mode):
   Ctrl+c         Quit
 
 Examples:
-  dot workflows              Interactive workflow runs TUI
-  dot workflows --raw        CLI summary of watched workflow runs
-  dot workflows --waybar     JSON for Waybar integration
-  dot workflows --since "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"
-  dot workflows --list-runs  Pipe-friendly workflow run list`);
+  dot git-workflows              Interactive workflow runs TUI
+  dot git-workflows --raw        CLI summary of watched workflow runs
+  dot git-workflows --waybar     JSON for Waybar integration
+  dot git-workflows --since "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"
+  dot git-workflows --list-runs  Pipe-friendly workflow run list`);
     return;
   }
 
@@ -418,8 +424,8 @@ Options:
 Launch the dot TUI dashboard. Without a subcommand, opens the main menu.
 
 Subcommands:
-  diff                 Open the diff/repo watcher view
-  workflows            Open watched GitHub workflow runs
+  git-diff             Open the git diff/repo watcher view
+  git-workflows        Open watched GitHub workflow runs
   update               Run dot update
   stow                 Run dot stow
   doctor               Run dot doctor
@@ -434,12 +440,12 @@ Options:
 
 Examples:
   dot                      Main menu
-  dot diff                 Interactive diff TUI
-  dot diff --raw           CLI diff summary
-  dot diff --waybar        Waybar JSON output
-  dot diff --tab other     Diff view, Other pane focused
-  dot workflows            Watched workflow runs TUI
-  dot workflows --waybar   Workflow runs Waybar JSON output
+  dot git-diff             Interactive diff TUI
+  dot git-diff --raw       CLI diff summary
+  dot git-diff --waybar    Waybar JSON output
+  dot diff --waybar        Compatibility alias for human use
+  dot git-workflows        Watched workflow runs TUI
+  dot git-workflows --waybar Workflow runs Waybar JSON output
   dot omarchy theme        Omarchy theme submenu
   dot omarchy theme set    Execute omarchy theme set
 
