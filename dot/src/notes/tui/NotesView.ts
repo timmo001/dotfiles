@@ -1,14 +1,22 @@
 import {
   type CliRenderer,
   BoxRenderable,
+  type MarkdownOptions,
   MarkdownRenderable,
+  type Renderable,
   ScrollBoxRenderable,
+  StyledText,
   SyntaxStyle,
   TextRenderable,
+  type TextChunk,
   type KeyEvent,
   t,
   bold,
+  dim,
   fg,
+  italic,
+  strikethrough,
+  underline,
 } from "@opentui/core";
 import type { NotesViewFilter } from "../../types.js";
 import type { Theme } from "../../theme.js";
@@ -32,8 +40,63 @@ const HELP: readonly HelpEntry[] = [
 ];
 
 type NotesPane = "list" | "content";
+type MarkdownRenderNode = NonNullable<MarkdownOptions["renderNode"]>;
+type MarkdownToken = Parameters<MarkdownRenderNode>[0];
+type BlockRenderer = (token: MarkdownToken) => Renderable | null;
+type InlineRenderer = (
+  token: MarkdownToken,
+  theme: Theme,
+  style: InlineStyle,
+) => TextChunk[];
+type StyleApplier = (chunk: TextChunk, style: InlineStyle) => TextChunk;
+
+interface InlineStyle {
+  readonly fg?: string;
+  readonly bold?: boolean;
+  readonly dim?: boolean;
+  readonly italic?: boolean;
+  readonly strikethrough?: boolean;
+  readonly underline?: boolean;
+}
+
+interface MarkdownListItem {
+  readonly task?: boolean;
+  readonly checked?: boolean;
+  readonly text: string;
+  readonly tokens: readonly MarkdownToken[];
+}
+
+type MarkdownListToken = MarkdownToken & {
+  readonly ordered: boolean;
+  readonly start: number | "";
+  readonly items: readonly MarkdownListItem[];
+};
+type MarkdownHeadingToken = MarkdownToken & { readonly depth: number };
 
 const INACTIVE_OPACITY = 0.45;
+const INLINE_RENDERERS: Readonly<Record<string, InlineRenderer>> = {
+  br: (token, theme, style) => [textChunk("\n", theme, style)],
+  codespan: (token, theme, style) => [
+    textChunk(tokenText(token), theme, { ...style, fg: theme.green }),
+  ],
+  del: (token, theme, style) =>
+    tokenChunks(token, theme, { ...style, strikethrough: true }),
+  em: (token, theme, style) =>
+    tokenChunks(token, theme, { ...style, italic: true }),
+  escape: (token, theme, style) => [textChunk(tokenText(token), theme, style)],
+  image: imageChunks,
+  link: linkChunks,
+  strong: (token, theme, style) =>
+    tokenChunks(token, theme, { ...style, bold: true }),
+  text: tokenChunks,
+};
+const STYLE_APPLIERS: readonly StyleApplier[] = [
+  (chunk, style) => (style.bold ? bold(chunk) : chunk),
+  (chunk, style) => (style.dim ? dim(chunk) : chunk),
+  (chunk, style) => (style.italic ? italic(chunk) : chunk),
+  (chunk, style) => (style.strikethrough ? strikethrough(chunk) : chunk),
+  (chunk, style) => (style.underline ? underline(chunk) : chunk),
+];
 
 /** Configuration callbacks for the repository notes view. */
 export interface NotesViewOptions {
@@ -79,6 +142,7 @@ export class NotesView {
   private requestedInitialRefresh = false;
   private loadVersion = 0;
   private readonly keyHandlers: Readonly<Record<string, () => void>>;
+  private readonly blockRenderers: Readonly<Record<string, BlockRenderer>>;
 
   constructor(
     renderer: CliRenderer,
@@ -94,6 +158,17 @@ export class NotesView {
       r: () => void this.refresh(),
       escape: () => this.callbacks.onBack(),
       backspace: () => this.callbacks.onBack(),
+    };
+    this.blockRenderers = {
+      blockquote: (token) => this.renderMarkdownBlockquote(token),
+      code: (token) => this.renderMarkdownCode(token),
+      heading: (token) => this.renderMarkdownHeading(token),
+      hr: () => this.renderMarkdownRule(),
+      list: (token) =>
+        isListToken(token) ? this.renderMarkdownList(token) : null,
+      paragraph: (token) =>
+        this.renderMarkdownText(tokenChunks(token, this.theme)),
+      text: (token) => this.renderMarkdownText(tokenChunks(token, this.theme)),
     };
 
     this.root = new BoxRenderable(renderer, {
@@ -245,6 +320,8 @@ export class NotesView {
       bg: theme.bgElevated,
       conceal: true,
       internalBlockMode: "top-level",
+      renderNode: (token, context) =>
+        this.renderMarkdownNode(token, context.defaultRender),
       tableOptions: {
         widthMode: "full",
         wrapMode: "word",
@@ -490,16 +567,323 @@ export class NotesView {
       notesSubtitle(this.filter),
     );
   }
+
+  private renderMarkdownNode(
+    token: MarkdownToken,
+    defaultRender: () => Renderable | null,
+  ): Renderable | null {
+    const renderBlock = this.blockRenderers[token.type];
+    return renderBlock ? renderBlock(token) : defaultRender();
+  }
+
+  private renderMarkdownBlock(token: MarkdownToken): Renderable | null {
+    return this.blockRenderers[token.type]?.(token) ?? null;
+  }
+
+  private renderMarkdownText(chunks: readonly TextChunk[]): TextRenderable {
+    return new TextRenderable(this.renderer, {
+      content: new StyledText([...chunks]),
+      width: "100%",
+      wrapMode: "word",
+      fg: this.theme.fg,
+      bg: this.theme.bgElevated,
+      flexShrink: 0,
+    });
+  }
+
+  private renderMarkdownHeading(token: MarkdownToken): BoxRenderable {
+    if (isH1Token(token)) return this.renderEmptyMarkdownBlock();
+
+    const heading = new BoxRenderable(this.renderer, {
+      flexDirection: "column",
+      width: "100%",
+      flexShrink: 0,
+      backgroundColor: this.theme.bgElevated,
+    });
+    heading.add(this.renderHeadingGap());
+    heading.add(
+      this.renderMarkdownText(
+        tokenChunks(token, this.theme, headingStyle(this.theme, token)),
+      ),
+    );
+    heading.add(this.renderHeadingGap());
+    return heading;
+  }
+
+  private renderEmptyMarkdownBlock(): BoxRenderable {
+    return new BoxRenderable(this.renderer, {
+      width: "100%",
+      height: 0,
+      flexShrink: 0,
+      backgroundColor: this.theme.bgElevated,
+    });
+  }
+
+  private renderHeadingGap(): BoxRenderable {
+    return new BoxRenderable(this.renderer, {
+      width: "100%",
+      height: 1,
+      flexShrink: 0,
+      backgroundColor: this.theme.bgElevated,
+    });
+  }
+
+  private renderMarkdownBlockquote(token: MarkdownToken): BoxRenderable {
+    const quote = new BoxRenderable(this.renderer, {
+      flexDirection: "column",
+      width: "100%",
+      flexShrink: 0,
+      border: ["left"],
+      borderColor: this.theme.fgMuted,
+      paddingLeft: 1,
+      backgroundColor: this.theme.bgElevated,
+    });
+    this.addMarkdownChildren(quote, childTokens(token), tokenText(token));
+    return quote;
+  }
+
+  private renderMarkdownCode(token: MarkdownToken): TextRenderable {
+    return new TextRenderable(this.renderer, {
+      content: tokenText(token),
+      width: "100%",
+      wrapMode: "word",
+      fg: this.theme.green,
+      bg: this.theme.bgElevated,
+      flexShrink: 0,
+    });
+  }
+
+  private renderMarkdownRule(): BoxRenderable {
+    return new BoxRenderable(this.renderer, {
+      width: "100%",
+      height: 1,
+      flexShrink: 0,
+      border: ["top"],
+      borderColor: this.theme.fgMuted,
+      backgroundColor: this.theme.bgElevated,
+    });
+  }
+
+  private renderMarkdownList(token: MarkdownListToken): BoxRenderable {
+    const list = new BoxRenderable(this.renderer, {
+      flexDirection: "column",
+      width: "100%",
+      flexShrink: 0,
+      backgroundColor: this.theme.bgElevated,
+    });
+    const markers = token.items.map((item, index) =>
+      listMarker(token, item, index),
+    );
+    const markerWidth = Math.max(...markers.map((marker) => marker.length), 1);
+
+    token.items.forEach((item, index) => {
+      const row = new BoxRenderable(this.renderer, {
+        flexDirection: "row",
+        width: "100%",
+        flexShrink: 0,
+      });
+      row.add(
+        new TextRenderable(this.renderer, {
+          content: t`${fg(this.theme.fgMuted)(markers[index].padStart(markerWidth))} `,
+          width: markerWidth + 1,
+          flexShrink: 0,
+        }),
+      );
+
+      const content = new BoxRenderable(this.renderer, {
+        flexDirection: "column",
+        flexGrow: 1,
+        flexShrink: 1,
+        minHeight: 0,
+        backgroundColor: this.theme.bgElevated,
+      });
+      this.addMarkdownChildren(content, item.tokens, item.text);
+      row.add(content);
+      list.add(row);
+    });
+
+    return list;
+  }
+
+  private addMarkdownChildren(
+    parent: BoxRenderable,
+    tokens: readonly MarkdownToken[],
+    fallbackText: string,
+  ): void {
+    const children = tokens
+      .filter((token) => token.type !== "space")
+      .map((token) => this.renderMarkdownBlock(token))
+      .filter(isRenderable);
+    const renderables = children.length
+      ? children
+      : [this.renderMarkdownText([textChunk(fallbackText, this.theme)])];
+
+    for (const child of renderables) parent.add(child);
+  }
 }
 
 function createMarkdownSyntaxStyle(theme: Theme): SyntaxStyle {
   return SyntaxStyle.fromStyles({
-    heading: { fg: theme.accent, bold: true },
-    strong: { bold: true },
-    emphasis: { italic: true },
-    code: { fg: theme.green },
-    link: { fg: theme.accent, underline: true },
+    default: { fg: theme.fg },
+    conceal: { fg: theme.fgMuted },
+    "markup.heading": { fg: theme.accent, bold: true },
+    "markup.strong": { bold: true },
+    "markup.italic": { italic: true },
+    "markup.raw": { fg: theme.green },
+    "markup.link": { fg: theme.accent, underline: true },
+    "markup.link.label": { fg: theme.accent, underline: true },
+    "markup.link.url": { fg: theme.fgMuted, dim: true },
   });
+}
+
+function isRenderable(value: Renderable | null): value is Renderable {
+  return value !== null;
+}
+
+function tokenChunks(
+  token: MarkdownToken,
+  theme: Theme,
+  style: InlineStyle = {},
+): TextChunk[] {
+  const children = childTokens(token);
+  if (children.length === 0) return [textChunk(tokenText(token), theme, style)];
+  return inlineChunks(children, theme, style);
+}
+
+function inlineChunks(
+  tokens: readonly MarkdownToken[],
+  theme: Theme,
+  style: InlineStyle = {},
+): TextChunk[] {
+  return tokens.flatMap((token) => inlineTokenChunks(token, theme, style));
+}
+
+function inlineTokenChunks(
+  token: MarkdownToken,
+  theme: Theme,
+  style: InlineStyle,
+): TextChunk[] {
+  return (INLINE_RENDERERS[token.type] ?? fallbackInlineChunks)(
+    token,
+    theme,
+    style,
+  );
+}
+
+function linkChunks(
+  token: MarkdownToken,
+  theme: Theme,
+  style: InlineStyle,
+): TextChunk[] {
+  const href = tokenHref(token);
+  const label = tokenChunks(token, theme, {
+    ...style,
+    fg: theme.accent,
+    underline: true,
+  });
+  if (!href) return label;
+  return [
+    ...label,
+    textChunk(` (${href})`, theme, { fg: theme.fgMuted, dim: true }),
+  ];
+}
+
+function imageChunks(
+  token: MarkdownToken,
+  theme: Theme,
+  style: InlineStyle,
+): TextChunk[] {
+  const href = tokenHref(token);
+  const label = tokenText(token) || "image";
+  const chunks = [textChunk(label, theme, { ...style, fg: theme.accent })];
+  if (!href) return chunks;
+  return [
+    ...chunks,
+    textChunk(` (${href})`, theme, { fg: theme.fgMuted, dim: true }),
+  ];
+}
+
+function fallbackInlineChunks(
+  token: MarkdownToken,
+  theme: Theme,
+  style: InlineStyle,
+): TextChunk[] {
+  const children = childTokens(token);
+  if (children.length > 0) return inlineChunks(children, theme, style);
+  return [textChunk(tokenText(token), theme, style)];
+}
+
+function textChunk(
+  text: string,
+  theme: Theme,
+  style: InlineStyle = {},
+): TextChunk {
+  return STYLE_APPLIERS.reduce(
+    (chunk, applyStyle) => applyStyle(chunk, style),
+    fg(style.fg ?? theme.fg)(text),
+  );
+}
+
+function childTokens(token: MarkdownToken): readonly MarkdownToken[] {
+  if (!("tokens" in token) || !Array.isArray(token.tokens)) return [];
+  return token.tokens;
+}
+
+function tokenText(token: MarkdownToken): string {
+  return (
+    tokenStringProperty(token, "text") || tokenStringProperty(token, "raw")
+  );
+}
+
+function tokenStringProperty(token: MarkdownToken, key: string): string {
+  const value = (token as Record<string, unknown>)[key];
+  return typeof value === "string" ? value : "";
+}
+
+function tokenHref(token: MarkdownToken): string | null {
+  return "href" in token && typeof token.href === "string" ? token.href : null;
+}
+
+function headingStyle(theme: Theme, token: MarkdownToken): InlineStyle {
+  return isHeadingToken(token) && token.depth > 3
+    ? { fg: theme.fgMuted, bold: true }
+    : { fg: theme.accent, bold: true };
+}
+
+function isHeadingToken(token: MarkdownToken): token is MarkdownHeadingToken {
+  return "depth" in token && typeof token.depth === "number";
+}
+
+function isH1Token(token: MarkdownToken): boolean {
+  return isHeadingToken(token) && token.depth === 1;
+}
+
+function isListToken(token: MarkdownToken): token is MarkdownListToken {
+  return (
+    "items" in token &&
+    Array.isArray(token.items) &&
+    "ordered" in token &&
+    typeof token.ordered === "boolean"
+  );
+}
+
+function listMarker(
+  token: MarkdownListToken,
+  item: MarkdownListItem,
+  index: number,
+): string {
+  if (item.task) return taskMarker(item);
+  return orderedListMarker(token, index);
+}
+
+function taskMarker(item: MarkdownListItem): string {
+  return item.checked ? "[x]" : "[ ]";
+}
+
+function orderedListMarker(token: MarkdownListToken, index: number): string {
+  if (!token.ordered) return "-";
+  const start = typeof token.start === "number" ? token.start : 1;
+  return `${start + index}.`;
 }
 
 function matchesFilter(
@@ -516,8 +900,15 @@ function splitNoteBody(content: string): string {
   return match ? content.slice(match[0].length) : content;
 }
 
+function stripH1Headings(content: string): string {
+  return content
+    .split(/\r?\n/)
+    .filter((line) => !/^#(?!#)\s+/.test(line))
+    .join("\n");
+}
+
 function noteBodyContent(content: string): string {
-  const body = splitNoteBody(content).trim();
+  const body = stripH1Headings(splitNoteBody(content)).trim();
   return body || "No content after frontmatter.";
 }
 
