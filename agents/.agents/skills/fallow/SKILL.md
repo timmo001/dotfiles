@@ -2,7 +2,7 @@
 name: fallow
 description: Codebase intelligence for JavaScript and TypeScript. Free static layer finds unused code (files, exports, types, dependencies), code duplication, circular dependencies, complexity hotspots, architecture boundary violations, and feature flag patterns. Runtime coverage merges production execution data into the same health report for hot-path review, cold-path deletion confidence, and stale-flag evidence - a single local capture is free, while continuous/cloud runtime monitoring is paid. 94 framework plugins, zero configuration, sub-second static analysis. Use when asked to analyze code health, find unused code, detect duplicates, check circular dependencies, audit complexity, check architecture boundaries, detect feature flags, clean up the codebase, auto-fix issues, merge runtime coverage, or run fallow.
 # origin: https://github.com/fallow-rs/fallow-skills/tree/main/fallow/skills/fallow
-# upstream-sha: db19d84ef2fe6d3828151cb6774d5bd2ef0fe7ed
+# upstream-sha: 2046a3f0156523fedcb396a8d6775e85a4ae4a56
 ---
 
 # Fallow: codebase intelligence for JavaScript and TypeScript
@@ -131,6 +131,7 @@ When using fallow via MCP (`fallow-mcp`), the following tools are available:
 | `trace_file` | Trace all graph edges for a file (`fallow dead-code --trace-file PATH --format json`). Required `file`. Returns reachability, exports, imports-from, imported-by, and re-exports. Use to decide whether a file is isolated, barrel-only, or imported by live entry points |
 | `trace_dependency` | Trace where a dependency is imported (`fallow dead-code --trace-dependency PACKAGE --format json`). Required `package_name`. Returns importing files, type-only importers, total import count, `used_in_scripts` (true when invoked from package.json scripts or CI configs), and `is_used` (combined import + script signal; mirrors the unused-deps detector so build tools like `microbundle` or `vitest` are not falsely flagged as unused). Use before removing a dependency or moving between `dependencies` and `devDependencies` |
 | `trace_clone` | Deep-dive a duplicate-code clone group (`fallow dupes --trace <spec> --format json`). Address by exactly one of: `file` + `line` (a source location), or `fingerprint` (a `dup:<id>` from a prior `find_dupes` `clone_groups[].fingerprint`, usually `dup:<8hex>` and widened only on rare report collisions). Returns the matched clone instance plus every clone group containing it; each traced group carries its `fingerprint`, an extract-function `suggestion` with estimated savings, and a best-effort `suggested_name` (omitted when no confident name). Supports `mode`, `min_tokens`, `min_lines`, `threshold`, `skip_local`, `cross_language`, `ignore_imports`. Use to consolidate duplication when you need exact sibling locations and a refactor target |
+| `impact` | Read the local, opt-in Fallow Impact value report (`fallow impact --format json`). Runs no analysis: current surfacing counts, trend since the last recorded run, pre-commit gate containment, and (on impact v1.5+) resolved/suppressed attribution. Read-only and `root`-only; the mutating `enable` / `disable` lifecycle is not exposed. A never-enabled project returns a populated `{"enabled": false, ...}` report (never `{}`); branch on `enabled` then `record_count` and recommend the user run `fallow impact enable` rather than toggling it. Local-developer signal: empty in ephemeral CI runners, so not a CI metric |
 
 Runtime source-map confidence for cloud runtime tools:
 
@@ -141,7 +142,7 @@ Runtime source-map confidence for cloud runtime tools:
 | `unresolved` + `low` | No matching source map was uploaded for this bundle and commit. | Ask the operator to upload the source map before acting on file-level coverage signals. |
 | `null` + `null` | The row does not include source-map confidence metadata. | Treat the row as missing confidence metadata. Do not downgrade it to `low` without other evidence. |
 
-All tools accept `root`, `config`, `no_cache`, and `threads` params. The MCP server subprocess timeout defaults to 120s, configurable via `FALLOW_TIMEOUT_SECS`.
+All tools accept `root`, `config`, `no_cache`, and `threads` params (except `impact`, which takes only `root`). The MCP server subprocess timeout defaults to 120s, configurable via `FALLOW_TIMEOUT_SECS`.
 
 All JSON responses include structured `actions` arrays on every finding (dead code, health, duplication), enabling programmatic fix application or suppression.
 
