@@ -272,6 +272,8 @@ dot init --help              # smoke test: init help prints without side effects
 dot help                     # smoke test: help prints
 ```
 
+`dot init` clones the managed Omarchy repos into `~/.config/{hypr,waybar,ghostty,uwsm}`. If a stock Omarchy config directory already exists there and is not a git repo, init moves it aside with a `.dot-init-backup-*` suffix before cloning; do not delete those backups automatically.
+
 ## Logging Style
 
 Keep logging readable and consistent:

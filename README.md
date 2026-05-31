@@ -135,6 +135,7 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 1. Run `cd ~/.config/dotfiles/dot && bun install && bun run build`
 1. Confirm `gh auth status` works
 1. Run `~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive --confirm` for VM/non-interactive setup, or `dot init` in an interactive shell
+1. If stock Omarchy config directories already exist at `~/.config/hypr`, `~/.config/waybar`, `~/.config/ghostty`, or `~/.config/uwsm`, `dot init` backs them up with a `.dot-init-backup-*` suffix before cloning the managed repos
 1. Restart shell and confirm `dot help` is on `PATH`
 1. Run `dot git-diff` and verify expected repo state
 1. Run `dot update` for ongoing sync, stow, rebuild, and init-state backfill

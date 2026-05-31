@@ -1,5 +1,5 @@
 import { Effect, Schema } from "effect";
-import { existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync, renameSync } from "fs";
 import { join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
@@ -93,6 +93,31 @@ function ensureRepoBase(
       new OmarchySyncError({
         message: `Could not create Omarchy repo base ${displayPath(config.omarchy.repoBase)}: ${String(error)}`,
       }),
+  });
+}
+
+function backupPath(repoPath: string): string {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  return `${repoPath}.dot-init-backup-${timestamp}`;
+}
+
+function backupExistingTarget(
+  repoName: string,
+  repoPath: string,
+): Effect.Effect<void, OmarchySyncError, OutputLog> {
+  return Effect.gen(function* () {
+    const log = yield* OutputLog;
+    const target = backupPath(repoPath);
+    yield* log.warn(
+      `Moving existing non-git Omarchy ${repoName} config to ${displayPath(target)}`,
+    );
+    yield* Effect.try({
+      try: () => renameSync(repoPath, target),
+      catch: (error) =>
+        new OmarchySyncError({
+          message: `Could not back up existing Omarchy target ${displayPath(repoPath)}: ${String(error)}`,
+        }),
+    });
   });
 }
 
@@ -223,6 +248,10 @@ function syncExistingRepo(
   });
 }
 
+function isGitRepo(repoPath: string): boolean {
+  return existsSync(join(repoPath, ".git"));
+}
+
 function cloneRepo(
   repoPath: string,
   slug: string,
@@ -252,6 +281,13 @@ function syncRepo(
 
     yield* log.section(`Omarchy sync: ${repoName}`);
     if (existsSync(repoPath)) {
+      if (!isGitRepo(repoPath)) {
+        yield* backupExistingTarget(repoName, repoPath);
+        yield* cloneRepo(repoPath, slug);
+        yield* checkoutBranch(repoName, repoPath, branch);
+        return;
+      }
+
       yield* syncExistingRepo(repoName, repoPath, slug, branch);
       return;
     }
