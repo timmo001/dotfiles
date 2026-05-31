@@ -14,10 +14,12 @@ export interface OmarchyRepoConfig {
   readonly repoBase: string;
   /** Repos to include in diff (e.g. ["hypr", "waybar", "bootstrap"]) */
   readonly diffRepos: readonly string[];
-  /** Repos with multiple worktree branches (e.g. ["hypr"]) */
+  /** Repos with multiple worktree branches */
   readonly worktreeRepos: readonly string[];
-  /** Branch names for worktrees (e.g. ["desktop", "laptop"]) */
+  /** Branch names for worktrees */
   readonly worktreeBranches: readonly string[];
+  /** Expected branch for each Omarchy diff repo */
+  readonly expectedBranches: Readonly<Record<string, string>>;
   /** Whether omarchy diff repos are enabled */
   readonly enabled: boolean;
 }
@@ -141,8 +143,15 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
         "ghostty",
         "uwsm",
       ];
-      const omarchyWorktreeRepos = ["hypr"];
+      const omarchyWorktreeRepos: readonly string[] = [];
       const omarchyWorktreeBranches = ["desktop", "laptop"];
+      const omarchyExpectedBranches = {
+        hypr: "main",
+        waybar: "main",
+        bootstrap: "distro/omarchy",
+        ghostty: "main",
+        uwsm: "main",
+      } satisfies Readonly<Record<string, string>>;
       const omarchyEnabled =
         (process.env.DOT_INCLUDE_OMARCHY_DIFF_REPOS ?? "1") !== "0";
 
@@ -151,6 +160,7 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
         diffRepos: omarchyDiffRepos,
         worktreeRepos: omarchyWorktreeRepos,
         worktreeBranches: omarchyWorktreeBranches,
+        expectedBranches: omarchyExpectedBranches,
         enabled: omarchyEnabled,
       };
 

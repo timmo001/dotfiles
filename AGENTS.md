@@ -77,12 +77,13 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - For Effect-TS code (`effect`, `@effect/platform`, `Context.Tag`, `Layer`, `Effect.gen`), apply the `effect` skill.
 - For OpenTUI code (`@opentui/core`, renderables, keyboard handling, suspend/resume), apply the `opentui` skill.
 
-## Split Worktrees
+## Omarchy Host Overrides
 
-- The current desktop/laptop split worktree repo is `hypr`.
-- On `OMARCHY_HOST=desktop`: active worktree `~/.config/hypr` on branch `desktop`; laptop companion `~/.config/hypr-laptop` on branch `laptop`.
-- On `OMARCHY_HOST=laptop`: active worktree `~/.config/hypr` on branch `laptop`; desktop companion `~/.config/hypr-desktop` on branch `desktop`.
-- If this worktree layout changes, update all relevant `README.md`, `AGENTS.md`, and skill documentation together so repo instructions stay consistent.
+- `hypr`, `waybar`, `ghostty`, and `uwsm` are single-branch Omarchy repos expected on `main`.
+- `bootstrap` is expected on `distro/omarchy`.
+- Hypr host-specific overrides live under `~/.config/hypr/hosts/$OMARCHY_HOST`.
+- `dot stow` creates `~/.config/hypr/host` as the active host symlink and `dot doctor` checks it.
+- If this host override layout changes, update all relevant `README.md`, `AGENTS.md`, and skill documentation together so repo instructions stay consistent.
 
 ## Stow Rules
 

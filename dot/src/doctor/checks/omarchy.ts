@@ -1,15 +1,18 @@
 import { Effect } from "effect";
-import { existsSync } from "fs";
-import { join } from "path";
+import { existsSync, lstatSync, readlinkSync } from "fs";
+import { dirname, join } from "path";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import type { CheckResult } from "../types.js";
-
-const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
-
-function displayPath(p: string): string {
-  return p.replace(HOME, "~");
-}
+import { readGitBranch, readGitUpstream, upstreamBranch } from "../git.js";
+import {
+  currentOmarchyHost,
+  displayPath,
+  hyprRepoPath,
+  resolveLinkTarget,
+} from "../../lib/omarchyHost.js";
+import type { CommandExecutorService } from "../../services/CommandExecutor.js";
+import type { ConfigService } from "../../services/Config.js";
 
 /** Map repo name to expected GitHub org/repo slug (matches legacy omarchy_repo_slug) */
 function omarchyRepoSlug(repoName: string): string | null {
@@ -29,84 +32,252 @@ function omarchyRepoSlug(repoName: string): string | null {
   }
 }
 
-/** Single-branch repos that should not have worktree checks */
-const SINGLE_BRANCH_REPOS = new Set(["bootstrap", "waybar", "ghostty", "uwsm"]);
+function isNamedBranch(branch: string): boolean {
+  return branch !== "" && branch !== "HEAD";
+}
 
-/** Check omarchy diff repos exist with correct remotes and worktree branches */
-export const checkOmarchy = Effect.gen(function* () {
-  const config = yield* Config;
-  const executor = yield* CommandExecutor;
-  const results: CheckResult[] = [];
+function remoteResult(repoName: string, remote: string): CheckResult {
+  const slug = omarchyRepoSlug(repoName);
 
-  if (!config.omarchy.enabled) {
-    results.push({
+  if (!remote) {
+    return { severity: "warn", message: `Remote mismatch for ${repoName}` };
+  }
+
+  if (!slug) {
+    return { severity: "ok", message: `Remote OK for ${repoName}` };
+  }
+
+  if (remote.includes(slug)) {
+    return {
       severity: "ok",
-      message: "Omarchy diff repos are disabled",
-    });
-    return results;
+      message: `Remote OK for ${repoName} (${slug})`,
+    };
   }
 
-  const repoBase = config.omarchy.repoBase;
+  return {
+    severity: "warn",
+    message: `Remote mismatch for ${repoName} (expected ${slug})`,
+  };
+}
 
-  // Check each diff repo exists and has correct remote
-  for (const repoName of config.omarchy.diffRepos) {
-    const repoPath = join(repoBase, repoName);
+function branchResults(
+  repoName: string,
+  branch: string,
+  expectedBranch: string | undefined,
+): CheckResult[] {
+  if (!isNamedBranch(branch)) {
+    return [
+      { severity: "warn", message: `${repoName} is not on a named branch` },
+    ];
+  }
 
-    if (!existsSync(join(repoPath, ".git"))) {
-      results.push({
+  if (!expectedBranch) return [];
+
+  if (branch === expectedBranch) {
+    return [{ severity: "ok", message: `${repoName} branch OK ('${branch}')` }];
+  }
+
+  return [
+    {
+      severity: "warn",
+      message: `${repoName} branch mismatch (expected '${expectedBranch}', found '${branch}')`,
+    },
+  ];
+}
+
+function upstreamResult(
+  repoName: string,
+  branch: string,
+  upstream: string,
+  expectedBranch: string | undefined,
+): CheckResult {
+  if (!upstream) {
+    return {
+      severity: "warn",
+      message: `${repoName} branch '${branchNameOrUnknown(branch)}' has no upstream`,
+    };
+  }
+
+  if (expectedBranch) {
+    if (upstreamBranch(upstream) !== expectedBranch) {
+      return {
         severity: "warn",
-        message: `Missing git repo ${displayPath(repoPath)}`,
-      });
-      continue;
+        message: `${repoName} upstream mismatch (expected '${expectedBranch}', found '${upstream}')`,
+      };
+    }
+  }
+
+  return {
+    severity: "ok",
+    message: `${repoName} upstream OK ('${upstream}')`,
+  };
+}
+
+function branchNameOrUnknown(branch: string): string {
+  return branch === "" ? "unknown" : branch;
+}
+
+function checkHyprHostLink(
+  hostLink: string,
+  hostDir: string,
+  host: string,
+): CheckResult {
+  try {
+    const stat = lstatSync(hostLink);
+    if (!stat.isSymbolicLink()) {
+      return {
+        severity: "warn",
+        message: `${displayPath(hostLink)} exists but is not a symlink`,
+      };
     }
 
-    results.push({ severity: "ok", message: `Found ${displayPath(repoPath)}` });
-
-    // Check remote matches expected slug pattern
-    const remoteResult = yield* executor
-      .run("git", ["-C", repoPath, "remote", "get-url", "origin"])
-      .pipe(Effect.catch(() => Effect.succeed("")));
-    const remote = remoteResult.trim();
-    const slug = omarchyRepoSlug(repoName);
-
-    if (remote && slug && remote.includes(slug)) {
-      results.push({
+    const target = resolveLinkTarget(hostLink, readlinkSync(hostLink));
+    if (target === hostDir) {
+      return {
         severity: "ok",
-        message: `Remote OK for ${repoName} (${slug})`,
-      });
-    } else if (remote && slug) {
-      results.push({
-        severity: "warn",
-        message: `Remote mismatch for ${repoName} (expected ${slug})`,
-      });
-    } else if (remote) {
-      results.push({ severity: "ok", message: `Remote OK for ${repoName}` });
-    } else {
-      results.push({
-        severity: "warn",
-        message: `Remote mismatch for ${repoName}`,
-      });
+        message: `Hypr host link OK (${displayPath(hostLink)} -> hosts/${host})`,
+      };
     }
+
+    return {
+      severity: "warn",
+      message: `Hypr host link mismatch (expected hosts/${host}, found ${displayPath(target)})`,
+    };
+  } catch {
+    return {
+      severity: "warn",
+      message: `Missing Hypr host link ${displayPath(hostLink)} (run: dot stow)`,
+    };
+  }
+}
+
+function checkHyprHost(config: ConfigService): CheckResult[] {
+  const host = currentOmarchyHost();
+  if (!host) {
+    return [
+      {
+        severity: "warn",
+        message: "OMARCHY_HOST is not set — cannot check Hypr host link",
+      },
+    ];
   }
 
-  // Check worktree branches — report single-branch repos as skipped
-  for (const repoName of config.omarchy.diffRepos) {
-    const repoPath = join(repoBase, repoName);
+  const repoPath = hyprRepoPath(config);
+  const hostDir = join(repoPath, "hosts", host);
+  const hostLink = join(repoPath, "host");
 
-    // Single-branch repos don't have worktrees
-    if (SINGLE_BRANCH_REPOS.has(repoName)) {
-      if (!config.omarchy.worktreeRepos.includes(repoName)) {
-        results.push({
-          severity: "ok",
-          message: `Skipping branch checks for ${repoName} (single-branch repo)`,
-        });
-      }
-      continue;
+  if (!existsSync(hostDir)) {
+    return [
+      {
+        severity: "warn",
+        message: `Missing Hypr host config ${displayPath(hostDir)}`,
+      },
+    ];
+  }
+
+  return [checkHyprHostLink(hostLink, hostDir, host)];
+}
+
+const checkOmarchyRepo = (
+  config: ConfigService,
+  executor: CommandExecutorService,
+  repoName: string,
+) =>
+  Effect.gen(function* () {
+    const repoPath = join(config.omarchy.repoBase, repoName);
+    if (!existsSync(join(repoPath, ".git"))) {
+      return [
+        {
+          severity: "warn",
+          message: `Missing git repo ${displayPath(repoPath)}`,
+        },
+      ] satisfies CheckResult[];
     }
 
-    // Only process repos that are in the worktreeRepos list
-    if (!config.omarchy.worktreeRepos.includes(repoName)) continue;
+    const remote = (yield* executor
+      .run("git", ["-C", repoPath, "remote", "get-url", "origin"])
+      .pipe(Effect.catch(() => Effect.succeed("")))).trim();
+    const branch = yield* readGitBranch(executor, repoPath);
+    const upstream = yield* readGitUpstream(executor, repoPath);
+    const expectedBranch = config.omarchy.expectedBranches[repoName];
 
+    return [
+      { severity: "ok", message: `Found ${displayPath(repoPath)}` },
+      remoteResult(repoName, remote),
+      ...branchResults(repoName, branch, expectedBranch),
+      upstreamResult(repoName, branch, upstream, expectedBranch),
+    ] satisfies CheckResult[];
+  });
+
+const checkWorktreeBranch = (
+  executor: CommandExecutorService,
+  repoPath: string,
+  repoName: string,
+  branchName: string,
+) =>
+  Effect.gen(function* () {
+    const branchExists = yield* executor.exitCode("git", [
+      "-C",
+      repoPath,
+      "rev-parse",
+      "--verify",
+      `refs/heads/${branchName}`,
+    ]);
+    if (branchExists !== 0) {
+      return [
+        {
+          severity: "ok",
+          message: `Skipping ${repoName}-${branchName} check (branch '${branchName}' not found)`,
+        },
+      ] satisfies CheckResult[];
+    }
+
+    const worktreePath = join(dirname(repoPath), `${repoName}-${branchName}`);
+    const worktreeIsGit = yield* executor.exitCode("git", [
+      "-C",
+      worktreePath,
+      "rev-parse",
+      "--is-inside-work-tree",
+    ]);
+    if (worktreeIsGit !== 0) {
+      return [
+        {
+          severity: "warn",
+          message: `Missing worktree ${displayPath(worktreePath)} for branch '${branchName}'`,
+        },
+      ] satisfies CheckResult[];
+    }
+
+    const wtBranch = yield* readGitBranch(executor, worktreePath);
+    return [
+      wtBranch === branchName
+        ? {
+            severity: "ok",
+            message: `Found ${displayPath(worktreePath)} (branch '${branchName}')`,
+          }
+        : {
+            severity: "warn",
+            message: `Worktree branch mismatch for ${displayPath(worktreePath)} (expected '${branchName}', found '${wtBranch}')`,
+          },
+    ] satisfies CheckResult[];
+  });
+
+const checkOmarchyWorktrees = (
+  config: ConfigService,
+  executor: CommandExecutorService,
+  repoName: string,
+) =>
+  Effect.gen(function* () {
+    if (!config.omarchy.worktreeRepos.includes(repoName)) {
+      return [
+        {
+          severity: "ok",
+          message: `Skipping worktree checks for ${repoName} (single-branch repo)`,
+        },
+      ] satisfies CheckResult[];
+    }
+
+    const repoPath = join(config.omarchy.repoBase, repoName);
     const isGit = yield* executor.exitCode("git", [
       "-C",
       repoPath,
@@ -114,72 +285,54 @@ export const checkOmarchy = Effect.gen(function* () {
       "--is-inside-work-tree",
     ]);
     if (isGit !== 0) {
-      results.push({
-        severity: "warn",
-        message: `Skipping worktree checks for ${repoName} (base repo missing): ${displayPath(repoPath)}`,
-      });
-      continue;
-    }
-
-    // Get current branch of main worktree
-    const currentBranchResult = yield* executor
-      .run("git", ["-C", repoPath, "rev-parse", "--abbrev-ref", "HEAD"])
-      .pipe(Effect.catch(() => Effect.succeed("")));
-    const currentBranch = currentBranchResult.trim();
-
-    for (const branchName of config.omarchy.worktreeBranches) {
-      // Skip if this IS the current branch
-      if (branchName === currentBranch) continue;
-
-      // Check if branch ref exists
-      const branchExists = yield* executor.exitCode("git", [
-        "-C",
-        repoPath,
-        "rev-parse",
-        "--verify",
-        `refs/heads/${branchName}`,
-      ]);
-      if (branchExists !== 0) {
-        results.push({
-          severity: "ok",
-          message: `Skipping ${repoName}-${branchName} check (branch '${branchName}' not found)`,
-        });
-        continue;
-      }
-
-      const worktreePath = join(repoBase, `${repoName}-${branchName}`);
-      const worktreeIsGit = yield* executor.exitCode("git", [
-        "-C",
-        worktreePath,
-        "rev-parse",
-        "--is-inside-work-tree",
-      ]);
-
-      if (worktreeIsGit === 0) {
-        const wtBranchResult = yield* executor
-          .run("git", ["-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD"])
-          .pipe(Effect.catch(() => Effect.succeed("")));
-        const wtBranch = wtBranchResult.trim();
-
-        if (wtBranch === branchName) {
-          results.push({
-            severity: "ok",
-            message: `Found ${displayPath(worktreePath)} (branch '${branchName}')`,
-          });
-        } else {
-          results.push({
-            severity: "warn",
-            message: `Worktree branch mismatch for ${displayPath(worktreePath)} (expected '${branchName}', found '${wtBranch}')`,
-          });
-        }
-      } else {
-        results.push({
+      return [
+        {
           severity: "warn",
-          message: `Missing worktree ${displayPath(worktreePath)} for branch '${branchName}'`,
-        });
-      }
+          message: `Skipping worktree checks for ${repoName} (base repo missing): ${displayPath(repoPath)}`,
+        },
+      ] satisfies CheckResult[];
     }
+
+    const results: CheckResult[] = [];
+    const currentBranch = yield* readGitBranch(executor, repoPath);
+    const branchNames = config.omarchy.worktreeBranches.filter(
+      (branchName) => branchName !== currentBranch,
+    );
+
+    for (const branchName of branchNames) {
+      results.push(
+        ...(yield* checkWorktreeBranch(
+          executor,
+          repoPath,
+          repoName,
+          branchName,
+        )),
+      );
+    }
+
+    return results;
+  });
+
+/** Check Omarchy diff repos, expected branches, and Hypr host-link state */
+export const checkOmarchy = Effect.gen(function* () {
+  const config = yield* Config;
+  const executor = yield* CommandExecutor;
+  const results: CheckResult[] = [];
+
+  if (!config.omarchy.enabled) {
+    return [
+      { severity: "ok", message: "Omarchy diff repos are disabled" },
+    ] satisfies CheckResult[];
   }
 
+  for (const repoName of config.omarchy.diffRepos) {
+    results.push(...(yield* checkOmarchyRepo(config, executor, repoName)));
+  }
+
+  for (const repoName of config.omarchy.diffRepos) {
+    results.push(...(yield* checkOmarchyWorktrees(config, executor, repoName)));
+  }
+
+  results.push(...checkHyprHost(config));
   return results;
 });

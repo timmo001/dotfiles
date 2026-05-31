@@ -23,12 +23,13 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 - `agents/` - agent tooling: public OpenCode (`.opencode/`), Cursor launcher script (`.local/bin/cursor`); private overlay adds `~/.cursor/` (`argv.json`, `mcp.json`, rules), Claude Code, OpenCode secrets, `~/.config/opencode/` (see `dot agents-sync`). OpenCode skills, agents, commands, and plugins are published to [`timmo001/opencode-config`](https://github.com/timmo001/opencode-config) automatically on push.
 - `editorconfig/` - editor config
 
-## Split worktrees
+## Omarchy Host Overrides
 
-- Current desktop/laptop split worktree repo: `hypr`
-- On `OMARCHY_HOST=desktop`: active worktree `~/.config/hypr` on branch `desktop`; laptop companion `~/.config/hypr-laptop` on branch `laptop`
-- On `OMARCHY_HOST=laptop`: active worktree `~/.config/hypr` on branch `laptop`; desktop companion `~/.config/hypr-desktop` on branch `desktop`
-- If this split-worktree setup changes, update the relevant `README.md`, `AGENTS.md`, and skill documentation together so the documented layout stays accurate
+- `hypr`, `waybar`, `ghostty`, and `uwsm` are single-branch Omarchy repos expected on `main`.
+- `bootstrap` is expected on `distro/omarchy`.
+- Hypr host-specific overrides live under `~/.config/hypr/hosts/$OMARCHY_HOST`.
+- `dot stow` creates `~/.config/hypr/host` as the active host symlink and `dot doctor` checks it.
+- If this host override setup changes, update the relevant `README.md`, `AGENTS.md`, and skill documentation together so the documented layout stays accurate.
 
 ## Quick start
 
@@ -48,10 +49,10 @@ dot doctor
 
 ## Command reference
 
-- `dot init` - questionnaire (when available), Omarchy sync (including host-dependent split-repo worktree setup), package setup, optional public/private Arch package install, then public/private install
-- `dot update` - Omarchy + public/private pull (including optional extra private repos and split Omarchy repo worktrees), then stow refresh
+- `dot init` - questionnaire (when available), Omarchy sync, Hypr host-link setup, package setup, optional public/private Arch package install, then public/private install
+- `dot update` - Omarchy + public/private pull (including optional extra private repos), then stow refresh and Hypr host-link setup
 - `dot stow` - stow refresh only (no git pull)
-- `dot git-diff` - git status + staged/unstaged summaries with fetched unpushed/incoming commit checks across managed repos (including optional extra private repos and split Omarchy repo worktrees); use `dot git-diff --waybar` for one-line Waybar JSON (`dot diff` remains a human compatibility alias)
+- `dot git-diff` - git status + staged/unstaged summaries with fetched unpushed/incoming commit checks across managed repos (including optional extra private repos and Omarchy repos); use `dot git-diff --waybar` for one-line Waybar JSON (`dot diff` remains a human compatibility alias)
 - `dot git-workflows` - two-pane watched GitHub workflow runs view for each repo's locally checked-out HEAD commit; use `--since <date>` to filter by activity time, and `--raw`, `--waybar`, `--list-repos`, or `--list-runs` for CLI output
 - `dot git-notifications` - GitHub notification inbox with open, mark-read, done, ignore, and unignore actions; use `--all`, `--participating`, `--since <date>`, `--raw`, `--waybar`, `--list-threads`, `--mark-read <id>`, `--mark-done <id>`, `--ignore <id>`, or `--unignore <id>` for CLI output/actions
 - `dot notes` - two-pane repository notes browser; use `--all` or press `g` to browse every repo notes directory, and `dot notes list --all` for CLI output grouped by repo
@@ -104,7 +105,7 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 - `DOT_PRIVATE_PACKAGES_FILE` - private package list for `dot` (default `$DOTFILES_PRIVATE_DIR/.dot-private-packages`)
 - `DOT_PRIVATE_PACMAN_REPO_CONFIG` - pacman repo snippet path written by `dot` (default `/etc/pacman.d/timmo-private.conf`)
 - `OMARCHY_REPO_BASE_DIR` - Omarchy repo base path (default `~/.config`)
-- `DOT_OMARCHY_BRANCH` - branch override for split Omarchy repos (currently `hypr`)
+- `DOT_OMARCHY_BRANCH` - branch override for non-bootstrap Omarchy repos during sync
 - `DOT_BOOTSTRAP_BRANCH` - branch for `bootstrap` sync (default `distro/omarchy`)
 - `DOT_INCLUDE_OMARCHY_DIFF_REPOS` - include Omarchy repos in `dot git-diff` (`1|0`, default `1`)
 - `DOT_INCLUDE_OMARCHY_UPDATE_REPOS` - include Omarchy repos in `dot update` sync (`1|0`, default `1`)

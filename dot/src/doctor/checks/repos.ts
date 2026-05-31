@@ -2,6 +2,7 @@ import { Effect } from "effect";
 import { existsSync } from "fs";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
+import { readGitBranch, readGitUpstream } from "../git.js";
 import type { CheckResult } from "../types.js";
 
 const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
@@ -82,10 +83,7 @@ export const checkRepos = Effect.gen(function* () {
         });
 
         // Check on a named branch
-        const branchResult = yield* executor
-          .run("git", ["-C", repo.path, "rev-parse", "--abbrev-ref", "HEAD"])
-          .pipe(Effect.catch(() => Effect.succeed("")));
-        const branch = branchResult.trim();
+        const branch = yield* readGitBranch(executor, repo.path);
 
         if (!branch || branch === "HEAD") {
           results.push({
@@ -96,16 +94,11 @@ export const checkRepos = Effect.gen(function* () {
         }
 
         // Check upstream
-        const upstreamResult = yield* executor
-          .run("git", [
-            "-C",
-            repo.path,
-            "rev-parse",
-            "--abbrev-ref",
-            `${branch}@{upstream}`,
-          ])
-          .pipe(Effect.catch(() => Effect.succeed("")));
-        const upstream = upstreamResult.trim();
+        const upstream = yield* readGitUpstream(
+          executor,
+          repo.path,
+          `${branch}@{upstream}`,
+        );
 
         if (!upstream) {
           results.push({

@@ -5,6 +5,7 @@ import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
 import { listStowFolders } from "../lib/stowFolders.js";
+import { ensureHyprHostLink } from "../lib/omarchyHost.js";
 
 const HOME = process.env.HOME ?? "/home/" + process.env.USER;
 
@@ -34,6 +35,9 @@ export const install = Effect.gen(function* () {
 
   yield* log.section("Install Public Dotfiles");
   yield* stowRepo(config.publicDotfiles, "public", "install", launcher, log);
+
+  yield* log.section("Omarchy Host Links");
+  yield* ensureHyprHostLink(config, log);
 
   if (config.canUsePrivate && config.privateDotfiles) {
     yield* log.section("Install Private Dotfiles");

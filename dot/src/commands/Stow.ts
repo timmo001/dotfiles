@@ -12,6 +12,7 @@ import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
 import { INTERNAL_STOW_FOLDERS, listStowFolders } from "../lib/stowFolders.js";
+import { ensureHyprHostLink } from "../lib/omarchyHost.js";
 
 /** Extra stow flags for the agents folder (matches legacy behaviour) */
 const AGENTS_PRIVATE_IGNORES = [
@@ -102,6 +103,9 @@ export const stow = (opts?: {
     if (runPublic) {
       yield* log.section("Stow Public Dotfiles");
       yield* stowRepo(config.publicDotfiles, "public", launcher, log);
+
+      yield* log.section("Omarchy Host Links");
+      yield* ensureHyprHostLink(config, log);
     }
 
     if (runPrivate) {
