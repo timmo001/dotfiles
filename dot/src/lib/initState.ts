@@ -13,6 +13,7 @@ class InitStateError extends Schema.TaggedErrorClass<InitStateError>()(
 ) {}
 
 type InitCompleteSource = "init" | "update";
+export type InitCompleteMarkerStatus = "created" | "exists" | "in-progress";
 
 /** Return the complete marker path for first-use setup state. */
 export function initCompleteMarker(config: ConfigService): string {
@@ -78,8 +79,11 @@ export function writeInitCompleteMarker(
 export function ensureInitCompleteMarker(
   config: ConfigService,
   source: InitCompleteSource,
-): Effect.Effect<void, InitStateError> {
-  if (existsSync(initCompleteMarker(config))) return Effect.void;
-  if (existsSync(initInProgressMarker(config))) return Effect.void;
-  return writeInitCompleteMarker(config, source);
+): Effect.Effect<InitCompleteMarkerStatus, InitStateError> {
+  return Effect.gen(function* () {
+    if (existsSync(initCompleteMarker(config))) return "exists";
+    if (existsSync(initInProgressMarker(config))) return "in-progress";
+    yield* writeInitCompleteMarker(config, source);
+    return "created";
+  });
 }

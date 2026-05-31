@@ -390,7 +390,7 @@ if (mode.type === "native") {
         doctor({
           openOpencode: args.includes("--open-opencode"),
         }),
-      help: () => help,
+      help,
       clean: () => clean,
       "agents-sync": () => agentsSync,
       "opencode-debug": (args) => {

@@ -10,10 +10,34 @@ import { stow as runStow } from "./Stow.js";
 import { agentsSync } from "./AgentsSync.js";
 import { skillUpdates } from "./SkillUpdates.js";
 import { rebuild } from "../lib/selfUpdate.js";
-import { ensureInitCompleteMarker } from "../lib/initState.js";
+import {
+  ensureInitCompleteMarker,
+  initCompleteMarker,
+} from "../lib/initState.js";
+import type { ConfigService } from "../services/Config.js";
+import type { InitCompleteMarkerStatus } from "../lib/initState.js";
 
 const displayPath = (p: string): string =>
   p.replace(process.env.HOME ?? "", "~");
+
+function logInitMarkerStatus(
+  status: InitCompleteMarkerStatus,
+  config: ConfigService,
+): Effect.Effect<void, never, OutputLog> {
+  return Effect.gen(function* () {
+    const log = yield* OutputLog;
+    const marker = displayPath(initCompleteMarker(config));
+    if (status === "created") {
+      yield* log.info(`Init state complete: ${marker}`);
+      return;
+    }
+    if (status === "exists") {
+      yield* log.info(`Init state already complete: ${marker}`);
+      return;
+    }
+    yield* log.info("Init state backfill skipped: init is in progress");
+  });
+}
 
 /**
  * Safely pull a single repo, mirroring legacy `_git_clear_lock_and_pull`.
@@ -215,6 +239,7 @@ export const update = (opts?: {
     }
 
     if (isFullUpdate) {
-      yield* ensureInitCompleteMarker(config, "update");
+      const markerStatus = yield* ensureInitCompleteMarker(config, "update");
+      yield* logInitMarkerStatus(markerStatus, config);
     }
   });
