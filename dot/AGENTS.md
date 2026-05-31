@@ -232,18 +232,16 @@ bun run build    # outputs to ../scripts/.local/bin/dot
 
 The build is also triggered by `dot update`.
 
-Fresh-machine bootstrap should use mise-managed Bun rather than installing Bun globally:
+Fresh-machine bootstrap uses system mise to run Bun before `dot init` can manage global tool versions:
 
 ```bash
-sudo pacman -S --needed git mise stow
-stow -d ~/.config/dotfiles-private -t ~ mise
-mise install
+sudo pacman -S --needed git mise
 cd ~/.config/dotfiles/dot
-mise exec -- bun install
-mise exec -- bun run build
+mise --no-config exec bun@latest -- bun install
+mise --no-config exec bun@latest -- bun run build
 ```
 
-`dot init` runs `mise install` immediately after `dot install` stows public/private configs and before managed Arch/AUR package installation, so stowed mise config owns Bun, Node, pnpm, and similar tools.
+After that bootstrap build, run the checked-out binary directly. `dot init` installs stow if needed, stows public/private configs, runs `mise install`, and only then installs managed Arch/AUR package lists, so stowed mise config owns Bun, Node, pnpm, and similar tools for ongoing use.
 
 ## External Dependencies
 

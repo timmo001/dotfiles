@@ -34,22 +34,18 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 ## Quick start
 
 ```bash
-# Fresh Arch/Omarchy machine prerequisites
-sudo pacman -S --needed git mise stow
+# Fresh Arch/Omarchy machine bootstrap prerequisites
+sudo pacman -S --needed git mise
 
 # Clone public dotfiles first; clone dotfiles-private too if available.
 git clone git@github.com:timmo001/dotfiles.git ~/.config/dotfiles
 
-# Bootstrap only: stow mise config before asking mise for tool versions.
-stow -d ~/.config/dotfiles-private -t ~ mise
-mise install
-
-# Build the checked-out dot binary with mise-managed tools before it is on PATH.
+# Build the checked-out dot binary before it is on PATH.
 cd ~/.config/dotfiles/dot
-mise exec -- bun install
-mise exec -- bun run build
+mise --no-config exec bun@latest -- bun install
+mise --no-config exec bun@latest -- bun run build
 
-# First-use setup ends by running dot update.
+# First-use setup stows configs, installs mise tools, and ends with dot update.
 ~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive --confirm
 
 # Ongoing workflow after restarting the shell
@@ -139,9 +135,8 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 
 1. Clone `dotfiles` to `~/.config/dotfiles`
 1. Clone `dotfiles-private` to `~/.config/dotfiles-private` (if available)
-1. Install bootstrap prerequisites: `sudo pacman -S --needed git mise stow`
-1. Stow the mise config before installing mise tools: `stow -d ~/.config/dotfiles-private -t ~ mise && mise install`
-1. Run `cd ~/.config/dotfiles/dot && mise exec -- bun install && mise exec -- bun run build`
+1. Install bootstrap build prerequisites: `sudo pacman -S --needed git mise`
+1. Run `cd ~/.config/dotfiles/dot && mise --no-config exec bun@latest -- bun install && mise --no-config exec bun@latest -- bun run build`
 1. Confirm `gh auth status` works
 1. Run `~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive --confirm` for VM/non-interactive setup, or `dot init` in an interactive shell
 1. If stock Omarchy config directories already exist at `~/.config/hypr`, `~/.config/waybar`, `~/.config/ghostty`, or `~/.config/uwsm`, `dot init` backs them up with a `.dot-init-backup-*` suffix before cloning the managed repos
