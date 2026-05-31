@@ -1,6 +1,6 @@
-import { Context, Effect, Layer, PubSub, Stream, Queue } from "effect";
-import { appendFileSync, writeFileSync } from "fs";
-import { join } from "path";
+import { Context, Effect, Layer, PubSub, Stream } from "effect";
+import { appendFileSync, mkdirSync, writeFileSync } from "fs";
+import { dirname, join } from "path";
 import { Config } from "./Config.js";
 
 /** Severity levels for log entries */
@@ -61,6 +61,38 @@ function formatAnsi(entry: LogEntry): string {
   }
 }
 
+function expandHomePath(path: string): string {
+  return path.replace(/^~(?=\/|$)/, process.env.HOME ?? "");
+}
+
+function logFiles(defaultLogFile: string): readonly string[] {
+  const configuredLogFile = process.env.DOT_LOG_FILE
+    ? expandHomePath(process.env.DOT_LOG_FILE)
+    : undefined;
+  const paths = configuredLogFile
+    ? [defaultLogFile, configuredLogFile]
+    : [defaultLogFile];
+  return [...new Set(paths)];
+}
+
+function initialiseLogFiles(paths: readonly string[]): void {
+  const configuredLogFile = process.env.DOT_LOG_FILE
+    ? expandHomePath(process.env.DOT_LOG_FILE)
+    : null;
+  for (const path of paths) {
+    mkdirSync(dirname(path), { recursive: true });
+    if (configuredLogFile === path && process.env.DOT_TEE_INHERIT_LOG === "1") {
+      continue;
+    }
+    writeFileSync(path, "");
+  }
+}
+
+function appendLogFiles(paths: readonly string[], entry: LogEntry): void {
+  const line = formatPlain(entry) + "\n";
+  for (const path of paths) appendFileSync(path, line);
+}
+
 /** Effect service for {@link OutputLogService} */
 export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
   "OutputLog",
@@ -72,19 +104,19 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
       const config = yield* Config;
       const pubsub = yield* PubSub.unbounded<LogEntry>();
       const entries: LogEntry[] = [];
-      const logFile = join(
+      const defaultLogFile = join(
         config.logDir,
         `${new Date().toISOString().replace(/[:.]/g, "-")}.log`,
       );
+      const paths = logFiles(defaultLogFile);
 
-      // Create empty log file
-      writeFileSync(logFile, "");
+      initialiseLogFiles(paths);
 
       const emit = (level: LogLevel, message: string): Effect.Effect<void> =>
         Effect.gen(function* () {
           const entry: LogEntry = { level, message, timestamp: Date.now() };
           entries.push(entry);
-          appendFileSync(logFile, formatPlain(entry) + "\n");
+          appendLogFiles(paths, entry);
           yield* PubSub.publish(pubsub, entry);
         });
 
@@ -105,18 +137,19 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
     Effect.gen(function* () {
       const config = yield* Config;
       const entries: LogEntry[] = [];
-      const logFile = join(
+      const defaultLogFile = join(
         config.logDir,
         `${new Date().toISOString().replace(/[:.]/g, "-")}.log`,
       );
+      const paths = logFiles(defaultLogFile);
 
-      writeFileSync(logFile, "");
+      initialiseLogFiles(paths);
 
       const emit = (level: LogLevel, message: string): Effect.Effect<void> =>
         Effect.sync(() => {
           const entry: LogEntry = { level, message, timestamp: Date.now() };
           entries.push(entry);
-          appendFileSync(logFile, formatPlain(entry) + "\n");
+          appendLogFiles(paths, entry);
           process.stdout.write(formatAnsi(entry) + "\n");
         });
 

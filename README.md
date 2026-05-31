@@ -37,15 +37,18 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 # Fresh Arch/Omarchy machine bootstrap prerequisites
 sudo pacman -S --needed git mise
 
-# Clone public dotfiles first; clone dotfiles-private too if available.
+# Clone public dotfiles first. If private dotfiles are wanted, authenticate gh
+# before dot init; init clones dotfiles-private automatically when gh auth works.
 git clone git@github.com:timmo001/dotfiles.git ~/.config/dotfiles
+gh auth status || gh auth login
 
 # Build the checked-out dot binary before it is on PATH.
 cd ~/.config/dotfiles/dot
 mise --no-config exec bun@latest -- bun install
 mise --no-config exec bun@latest -- bun run build
 
-# First-use setup stows configs, installs mise tools, and ends with dot update.
+# First-use setup logs to /tmp/dot-init.log by default, stows configs,
+# installs mise tools, and ends with dot update.
 ~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive --confirm
 
 # Ongoing workflow after restarting the shell
@@ -56,7 +59,7 @@ dot doctor
 
 ## Command reference
 
-- `dot init` - one-time first-use setup for fresh machines: Omarchy sync, early Hypr host-link setup (`--host <name>`, default `OMARCHY_HOST` or `desktop`), install/adopt, stowed mise tool install, package setup, machine hooks, agents sync, then `dot update`; fails fast after successful init
+- `dot init` - one-time first-use setup for fresh machines: private dotfiles bootstrap when `gh auth` is available, Omarchy sync, early Hypr host-link setup (`--host <name>`, default `OMARCHY_HOST` or `desktop`), install/adopt, stowed mise tool install, package setup, machine hooks, agents sync, then `dot update`; logs to `/tmp/dot-init.log` by default or `--log <path>`; fails fast after successful init
 - `dot install` - ensure prerequisites, then run the backup/adopt install flow for public/private dotfiles
 - `dot update` - Omarchy + public/private pull (including optional extra private repos), then stow refresh, Hypr host-link setup, binary rebuild, and first-use completion marker backfill for already-setup machines
 - `dot stow` - stow refresh only (no git pull)
@@ -122,6 +125,7 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 - `DOT_INCLUDE_OMARCHY_DIFF_REPOS` - include Omarchy repos in `dot git-diff` (`1|0`, default `1`)
 - `DOT_INCLUDE_OMARCHY_UPDATE_REPOS` - include Omarchy repos in `dot update` sync (`1|0`, default `1`)
 - `DOT_INIT_NONINTERACTIVE` - force non-interactive init mode (`1|0`, default `0`)
+- `DOT_INIT_LOG_FILE` - default `dot init` log path when `--log` is not passed (default `/tmp/dot-init.log`)
 - `DOT_WORKFLOW_WATCH_REPOS_FILE` - watched repo list file used by `dot git-workflows` (default `$DOTFILES_PRIVATE_DIR/.git-workflow-watch-repos`)
 - `DOT_DAILY_VOLUME_ZERO_TIMER_UNIT` - 5am volume reset timer unit name (default `daily-volume-zero.timer`)
 - `DOT_AUTO_CD` - zsh wrapper auto-cd to first repo with changes after `dot git-diff`; otherwise restore original dir (failed diff falls back to `~/.config/dotfiles`) (`1|0`, default `1`)
@@ -135,10 +139,9 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 ## New machine checklist
 
 1. Clone `dotfiles` to `~/.config/dotfiles`
-1. Clone `dotfiles-private` to `~/.config/dotfiles-private` (if available)
+1. If private dotfiles are wanted, confirm `gh auth status` works before `dot init`; init clones `dotfiles-private` to `~/.config/dotfiles-private` automatically when auth is available
 1. Install bootstrap build prerequisites: `sudo pacman -S --needed git mise`
 1. Run `cd ~/.config/dotfiles/dot && mise --no-config exec bun@latest -- bun install && mise --no-config exec bun@latest -- bun run build`
-1. Confirm `gh auth status` works
 1. Run `~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive --confirm` for desktop/VM setup, `dot init --host laptop --noninteractive --confirm` for laptop setup, or `dot init` in an interactive shell
 1. If stock Omarchy config directories already exist at `~/.config/hypr`, `~/.config/waybar`, `~/.config/ghostty`, or `~/.config/uwsm`, `dot init` backs them up with a `.dot-init-backup-*` suffix before cloning the managed repos
 1. Restart shell and confirm `dot help` is on `PATH`
@@ -146,3 +149,5 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 1. Run `dot update` for ongoing sync, stow, rebuild, and init-state backfill
 
 `dot init` creates `~/.config/hypr/host` immediately after syncing Omarchy repos and before stow/package setup. It then runs `mise install` immediately after stowing dotfiles and before installing managed Arch/AUR package lists, so Bun, Node, pnpm, and similar developer tools should come from the stowed mise config rather than global pacman packages.
+
+For GNOME Boxes shared folders, Arch provides `spice-webdavd` in the `phodav` package. Share a host folder from Boxes and pass `--log <shared-path>/dot-init.log` when you want init output written somewhere visible from the host.

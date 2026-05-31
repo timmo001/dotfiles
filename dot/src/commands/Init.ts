@@ -55,6 +55,7 @@ interface InitOptions {
   readonly branch?: string;
   readonly bootstrapBranch?: string;
   readonly host?: string;
+  readonly log?: string;
 }
 
 interface InitOptionsDraft {
@@ -63,6 +64,7 @@ interface InitOptionsDraft {
   branch?: string;
   bootstrapBranch?: string;
   host?: string;
+  log?: string;
 }
 
 type ParsedInitArgs =
@@ -94,6 +96,7 @@ const valueInitOptions = new Map<string, ValueInitOptionHandler>([
     (options, value) => void (options.bootstrapBranch = value),
   ],
   ["--host", (options, value) => void (options.host = value)],
+  ["--log", (options, value) => void (options.log = value)],
 ]);
 
 function fail(message: string): Effect.Effect<never, InitError> {
@@ -265,6 +268,7 @@ Options:
   --noninteractive          Skip interactive prompts for this run
   --interactive             Allow interactive prompts for this run
   --host <name>             Hypr host to link before stow (default: OMARCHY_HOST or desktop)
+  --log <path>              Init log path (default: /tmp/dot-init.log)
   --branch <name>           Branch override for non-bootstrap Omarchy repos
   --bootstrap-branch <name> Branch override for bootstrap
   --help, -h                Show this help message
@@ -530,11 +534,15 @@ function syncAgentsStrict(): Effect.Effect<
   Config | OutputLog
 > {
   return Effect.gen(function* () {
+    const log = yield* OutputLog;
     const source =
       process.env.DOT_AGENTS_SYNC_SOURCE ??
       join(HOME, ".config", "opencode", "AGENTS.md");
     if (!existsSync(source)) {
-      return yield* fail(`Agents sync source missing: ${displayPath(source)}`);
+      yield* log.warn(
+        `Skipping agents sync; source missing: ${displayPath(source)}`,
+      );
+      return;
     }
     yield* agentsSync;
   });
@@ -578,6 +586,9 @@ export function init(rawArgs: readonly string[]) {
     if (parsed.type === "error") return yield* fail(parsed.message);
 
     yield* log.section("Initialization Workflow");
+    if (process.env.DOT_LOG_FILE) {
+      yield* log.info(`Init log: ${displayPath(process.env.DOT_LOG_FILE)}`);
+    }
     yield* assertFreshInitTarget(config);
     const options = yield* resolveInitOptions(parsed.options);
     yield* writeInitInProgressMarker(config, options);

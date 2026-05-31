@@ -1,4 +1,6 @@
 import { Effect, Layer, Stream } from "effect";
+import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "fs";
+import { dirname, join } from "path";
 import { Config } from "./services/Config.js";
 import { CommandExecutor } from "./services/CommandExecutor.js";
 import { OutputLog } from "./services/OutputLog.js";
@@ -52,6 +54,8 @@ import type {
 } from "./types.js";
 
 const DEBUG = !!process.env.DOT_DEBUG;
+const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
+const PRIVATE_DOTFILES_REPO = "timmo001/dotfiles-private";
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot] ${msg}`);
 };
@@ -221,6 +225,113 @@ function resolveMode(): Mode {
 }
 
 const mode = resolveMode();
+
+function expandHomePath(path: string): string {
+  return path.replace(/^~(?=\/|$)/, HOME);
+}
+
+function initLogPath(args: readonly string[]): string {
+  return expandHomePath(
+    optionValue(args, "--log") ??
+      process.env.DOT_INIT_LOG_FILE ??
+      join("/tmp", "dot-init.log"),
+  );
+}
+
+function appendBootstrapLog(message: string | Uint8Array): void {
+  const logFile = process.env.DOT_LOG_FILE;
+  if (!logFile) return;
+  mkdirSync(dirname(logFile), { recursive: true });
+  appendFileSync(logFile, message);
+}
+
+function formatUnknownError(error: unknown): string {
+  if (error instanceof Error) return error.stack ?? error.message;
+  return typeof error === "string" ? error : JSON.stringify(error, null, 2);
+}
+
+function configureInitLogging(mode: Mode): void {
+  if (mode.type !== "native" || mode.command !== "init") return;
+  if (mode.args.includes("--help") || mode.args.includes("-h")) return;
+
+  process.env.DOT_LOG_FILE = initLogPath(mode.args);
+  process.env.DOT_TEE_INHERIT_LOG = "1";
+  mkdirSync(dirname(process.env.DOT_LOG_FILE), { recursive: true });
+  writeFileSync(process.env.DOT_LOG_FILE, "");
+}
+
+function privateDotfilesPath(): string {
+  return expandHomePath(
+    process.env.DOTFILES_PRIVATE_DIR ??
+      join(HOME, ".config", "dotfiles-private"),
+  );
+}
+
+function commandExitCode(command: readonly string[]): number {
+  try {
+    return Bun.spawnSync([...command], {
+      stdout: "ignore",
+      stderr: "ignore",
+    }).exitCode;
+  } catch {
+    return 127;
+  }
+}
+
+function runBootstrapCommand(command: readonly string[]): number {
+  appendBootstrapLog(`\n$ ${command.join(" ")}\n`);
+  const proc = Bun.spawnSync([...command], {
+    stdin: "inherit",
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  process.stdout.write(proc.stdout);
+  process.stderr.write(proc.stderr);
+  appendBootstrapLog(proc.stdout);
+  appendBootstrapLog(proc.stderr);
+  return proc.exitCode;
+}
+
+function bootstrapPrivateDotfilesForInit(mode: Mode): void {
+  if (mode.type !== "native" || mode.command !== "init") return;
+  if (mode.args.includes("--help") || mode.args.includes("-h")) return;
+  if (process.env.DOT_ALLOW_PRIVATE === "never") return;
+
+  const privatePath = privateDotfilesPath();
+  if (existsSync(join(privatePath, ".git"))) return;
+
+  if (commandExitCode(["gh", "auth", "status"]) !== 0) {
+    const message =
+      "[WARN] Skipping private dotfiles clone; run `gh auth login` before `dot init` if private dotfiles are wanted.\n";
+    if (process.env.DOT_ALLOW_PRIVATE === "always") {
+      process.stderr.write(message);
+      appendBootstrapLog(message);
+      process.exit(1);
+    }
+    process.stderr.write(message);
+    appendBootstrapLog(message);
+    return;
+  }
+
+  mkdirSync(dirname(privatePath), { recursive: true });
+  const exitCode = runBootstrapCommand([
+    "gh",
+    "repo",
+    "clone",
+    PRIVATE_DOTFILES_REPO,
+    privatePath,
+  ]);
+  if (exitCode !== 0) {
+    process.stderr.write(
+      `Failed to clone ${PRIVATE_DOTFILES_REPO} to ${privatePath}\n`,
+    );
+    process.exit(exitCode);
+  }
+}
+
+configureInitLogging(mode);
+bootstrapPrivateDotfilesForInit(mode);
+
 const workflowOpts: WorkflowRunQueryOptions | undefined = flags.since
   ? { since: flags.since }
   : undefined;
@@ -434,6 +545,7 @@ if (mode.type === "native") {
           Effect.provide(CliLayers),
           Effect.catch((err: unknown) =>
             Effect.sync(() => {
+              appendBootstrapLog(`\n[ERROR] ${formatUnknownError(err)}\n`);
               console.error(err);
               process.exit(1);
             }),
@@ -442,6 +554,7 @@ if (mode.type === "native") {
 
   Effect.runPromise(program).catch((err) => {
     log(`Fatal error: ${err}`);
+    appendBootstrapLog(`\n[ERROR] ${formatUnknownError(err)}\n`);
     console.error(err);
     process.exit(1);
   });

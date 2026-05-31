@@ -161,9 +161,10 @@ MenuItem action types:
 
 ```
 dot                           # Main menu (TUI)
-dot init                      # One-time first-use setup, ending with dot update
+dot init                      # One-time first-use setup, ending with dot update; logs to /tmp/dot-init.log
 dot init --noninteractive --confirm # Non-interactive first setup for VMs
 dot init --host laptop --noninteractive --confirm # First setup with laptop host overrides
+dot init --log ~/Public/init.log # First setup with an explicit log path
 dot install                   # Ensure prerequisites, then backup/adopt install flow
 dot update                    # Full update (pull, stow, rebuild, init-state backfill)
 dot update --pull             # Pull repos only
@@ -242,7 +243,7 @@ mise --no-config exec bun@latest -- bun install
 mise --no-config exec bun@latest -- bun run build
 ```
 
-After that bootstrap build, run the checked-out binary directly. `dot init` installs stow if needed, stows public/private configs, runs `mise install`, and only then installs managed Arch/AUR package lists, so stowed mise config owns Bun, Node, pnpm, and similar tools for ongoing use.
+After that bootstrap build, run the checked-out binary directly. If private dotfiles are wanted, authenticate `gh` before `dot init`; init clones `timmo001/dotfiles-private` to `~/.config/dotfiles-private` when `gh auth status` works. `dot init` installs stow if needed, stows public/private configs, runs `mise install`, and only then installs managed Arch/AUR package lists, so stowed mise config owns Bun, Node, pnpm, and similar tools for ongoing use.
 
 ## External Dependencies
 

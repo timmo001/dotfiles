@@ -1,4 +1,6 @@
 import { Context, Effect, Layer, Schema, Stream } from "effect";
+import { appendFileSync, mkdirSync } from "fs";
+import { dirname } from "path";
 
 const DEBUG = !!process.env.DOT_DEBUG;
 const log = (msg: string) => {
@@ -53,6 +55,40 @@ function toCommandError(error: unknown, command: string): CommandError {
     exitCode: 1,
     stderr: error instanceof Error ? error.message : String(error),
   });
+}
+
+function expandHomePath(path: string): string {
+  return path.replace(/^~(?=\/|$)/, process.env.HOME ?? "");
+}
+
+function inheritedCommandLogFile(): string | null {
+  if (process.env.DOT_TEE_INHERIT_LOG !== "1") return null;
+  return process.env.DOT_LOG_FILE
+    ? expandHomePath(process.env.DOT_LOG_FILE)
+    : null;
+}
+
+function appendRawLog(
+  logFile: string | null,
+  chunk: Uint8Array | string,
+): void {
+  if (!logFile) return;
+  mkdirSync(dirname(logFile), { recursive: true });
+  appendFileSync(logFile, chunk);
+}
+
+async function pipeProcessOutput(
+  stream: ReadableStream<Uint8Array>,
+  output: { readonly write: (chunk: Uint8Array) => unknown },
+  logFile: string | null,
+): Promise<void> {
+  const reader = stream.getReader();
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) return;
+    output.write(value);
+    appendRawLog(logFile, value);
+  }
 }
 
 /** Service interface for executing subprocess commands via Effect */
@@ -265,6 +301,30 @@ export class CommandExecutor extends Context.Service<
         log(
           `inherit: ${fullCmd.join(" ")}${opts?.cwd ? ` (cwd: ${opts.cwd})` : ""}`,
         );
+        const commandLogFile = inheritedCommandLogFile();
+        if (commandLogFile) {
+          appendRawLog(commandLogFile, `\n$ ${fullCmd.join(" ")}\n`);
+          const proc = Bun.spawn(fullCmd, {
+            stdin: "inherit",
+            stdout: "pipe",
+            stderr: "pipe",
+            cwd: opts?.cwd,
+          });
+          const stdout = pipeProcessOutput(
+            proc.stdout as ReadableStream<Uint8Array>,
+            process.stdout,
+            commandLogFile,
+          );
+          const stderr = pipeProcessOutput(
+            proc.stderr as ReadableStream<Uint8Array>,
+            process.stderr,
+            commandLogFile,
+          );
+          const exitCode = await proc.exited;
+          await Promise.all([stdout, stderr]);
+          return exitCode;
+        }
+
         const proc = Bun.spawn(fullCmd, {
           stdin: "inherit",
           stdout: "inherit",

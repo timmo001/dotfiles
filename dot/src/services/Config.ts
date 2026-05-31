@@ -96,9 +96,14 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
   static readonly layer = Layer.effect(
     Config,
     Effect.sync(() => {
-      const publicDotfiles = join(HOME, ".config", "dotfiles");
+      const publicDotfiles = expandHomePath(
+        process.env.DOTFILES_PUBLIC_DIR ?? join(HOME, ".config", "dotfiles"),
+      );
 
-      const privatePath = join(HOME, ".config", "dotfiles-private");
+      const privatePath = expandHomePath(
+        process.env.DOTFILES_PRIVATE_DIR ??
+          join(HOME, ".config", "dotfiles-private"),
+      );
       const privateExists = existsSync(join(privatePath, ".git"));
       let canUsePrivate = false;
       let privateReason: string;
