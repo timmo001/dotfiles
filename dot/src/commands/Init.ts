@@ -387,11 +387,9 @@ function ensureInitHyprHostLink(
   });
 }
 
-function configureGitInclude(): Effect.Effect<
-  void,
-  InitError,
-  CommandExecutor | OutputLog
-> {
+function configureGitInclude(
+  config: ConfigService,
+): Effect.Effect<void, InitError, CommandExecutor | OutputLog> {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
     const log = yield* OutputLog;
@@ -399,6 +397,13 @@ function configureGitInclude(): Effect.Effect<
 
     yield* log.section("Configure Git");
     if (!existsSync(managedConfig)) {
+      if (!config.canUsePrivate) {
+        yield* log.warn(
+          `Skipping managed Git include (${config.privateReason})`,
+        );
+        return;
+      }
+
       return yield* fail(
         `Stowed git config.dotfiles not found: ${displayPath(managedConfig)}`,
       );
@@ -589,7 +594,7 @@ export function init(rawArgs: readonly string[]) {
       confirm: options.confirm,
     });
     yield* setupPrivatePackages(config, options);
-    yield* configureGitInclude();
+    yield* configureGitInclude(config);
     yield* installPacmanHooks();
     yield* enableDoctorStartupTimer();
     yield* syncAgentsStrict();
