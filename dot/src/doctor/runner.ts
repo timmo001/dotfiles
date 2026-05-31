@@ -12,6 +12,7 @@ import {
   checkGitNotifications,
   checkWorkflowRuns,
   checkDoctorStartup,
+  checkResumeMonitor,
   checkDailyVolumeReset,
 } from "./checks/systemd.js";
 import { checkOmarchy } from "./checks/omarchy.js";
@@ -49,6 +50,7 @@ const sections: readonly SectionDef[] = [
   { name: "Workflow runs checks", check: checkWorkflowRuns },
   { name: "Git notification checks", check: checkGitNotifications },
   { name: "Doctor startup notification", check: checkDoctorStartup },
+  { name: "Resume recovery monitor", check: checkResumeMonitor },
   { name: "Daily volume reset", check: checkDailyVolumeReset },
   { name: "Omarchy repository checks", check: checkOmarchy },
   { name: "Private access", check: checkPrivateAccess },

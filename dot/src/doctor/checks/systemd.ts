@@ -21,6 +21,7 @@ const LEGACY_WORKFLOW_WATCH_SERVICE_UNIT = "git-workflow-watch.service";
 const LEGACY_WORKFLOW_WATCH_TIMER_UNIT = "git-workflow-watch.timer";
 const DOCTOR_STARTUP_TIMER_UNIT = "dot-doctor-startup.timer";
 const DAILY_VOLUME_ZERO_TIMER_UNIT = "daily-volume-zero.timer";
+const RESUME_MONITOR_SERVICE_UNIT = "dot-on-resume-monitor.service";
 
 function pathExistsOrSymlink(path: string): boolean {
   try {
@@ -66,6 +67,87 @@ function addObsoletePathCheck(
     });
   }
 }
+
+function addExecutablePresenceCheck(
+  results: CheckResult[],
+  path: string,
+  okMessage: string,
+  warnMessage: string,
+  detail?: string,
+): void {
+  results.push(
+    executableExists(path)
+      ? { severity: "ok", message: okMessage }
+      : {
+          severity: "warn",
+          message: warnMessage,
+          ...(detail && { detail }),
+        },
+  );
+}
+
+function addFilePresenceCheck(
+  results: CheckResult[],
+  path: string,
+  okMessage: string,
+  warnMessage: string,
+  detail: string,
+): void {
+  results.push(
+    existsSync(path)
+      ? { severity: "ok", message: okMessage }
+      : { severity: "warn", message: warnMessage, detail },
+  );
+}
+
+const checkRequiredUserUnit = (
+  results: CheckResult[],
+  executor: CommandExecutorService,
+  unit: string,
+  label: string,
+  enableDetail: string,
+) =>
+  Effect.gen(function* () {
+    const hasSystemctl =
+      (yield* executor.exitCode("which", ["systemctl"])) === 0;
+    if (!hasSystemctl) {
+      results.push({
+        severity: "warn",
+        message: `Skipping ${label.toLowerCase()} checks (systemctl not found)`,
+      });
+      return;
+    }
+
+    const enabled = yield* executor.exitCode("systemctl", [
+      "--user",
+      "is-enabled",
+      unit,
+    ]);
+    if (enabled === 0) {
+      results.push({ severity: "ok", message: `${label} enabled: ${unit}` });
+    } else {
+      results.push({
+        severity: "warn",
+        message: `${label} is disabled: ${unit}`,
+        detail: enableDetail,
+      });
+    }
+
+    const active = yield* executor.exitCode("systemctl", [
+      "--user",
+      "is-active",
+      unit,
+    ]);
+    if (active === 0) {
+      results.push({ severity: "ok", message: `${label} active: ${unit}` });
+    } else {
+      results.push({
+        severity: "warn",
+        message: `${label} is not active: ${unit}`,
+        detail: enableDetail,
+      });
+    }
+  });
 
 const checkObsoleteUserUnit = (
   results: CheckResult[],
@@ -564,74 +646,67 @@ export const checkDoctorStartup = Effect.gen(function* () {
     "user",
     DOCTOR_STARTUP_TIMER_UNIT,
   );
+  const enableDetail = `Enable with: systemctl --user enable --now ${DOCTOR_STARTUP_TIMER_UNIT}`;
 
-  if (existsSync(notifyScript)) {
-    results.push({
-      severity: "ok",
-      message: `Doctor startup notify script found: ${displayPath(notifyScript)}`,
-    });
-  } else {
-    results.push({
-      severity: "warn",
-      message: `Doctor startup notify script missing or not executable: ${displayPath(notifyScript)}`,
-    });
-  }
+  addExecutablePresenceCheck(
+    results,
+    notifyScript,
+    `Doctor startup notify script found: ${displayPath(notifyScript)}`,
+    `Doctor startup notify script missing or not executable: ${displayPath(notifyScript)}`,
+  );
+  addFilePresenceCheck(
+    results,
+    unitPath,
+    `Doctor startup timer unit file found: ${displayPath(unitPath)}`,
+    `Doctor startup timer unit file missing: ${displayPath(unitPath)}`,
+    "Run dot stow (or dot install) to link systemd user units",
+  );
+  yield* checkRequiredUserUnit(
+    results,
+    executor,
+    DOCTOR_STARTUP_TIMER_UNIT,
+    "Doctor startup timer",
+    enableDetail,
+  );
 
-  if (existsSync(unitPath)) {
-    results.push({
-      severity: "ok",
-      message: `Doctor startup timer unit file found: ${displayPath(unitPath)}`,
-    });
-  } else {
-    results.push({
-      severity: "warn",
-      message: `Doctor startup timer unit file missing: ${displayPath(unitPath)}`,
-      detail: "Run dot stow (or dot install) to link systemd user units",
-    });
-  }
+  return results;
+});
 
-  const hasSystemctl = (yield* executor.exitCode("which", ["systemctl"])) === 0;
-  if (hasSystemctl) {
-    const enabled = yield* executor.exitCode("systemctl", [
-      "--user",
-      "is-enabled",
-      DOCTOR_STARTUP_TIMER_UNIT,
-    ]);
-    if (enabled === 0) {
-      results.push({
-        severity: "ok",
-        message: `Doctor startup timer enabled: ${DOCTOR_STARTUP_TIMER_UNIT}`,
-      });
-    } else {
-      results.push({
-        severity: "warn",
-        message: `Doctor startup timer is disabled: ${DOCTOR_STARTUP_TIMER_UNIT}`,
-        detail: `Enable with: systemctl --user enable --now ${DOCTOR_STARTUP_TIMER_UNIT}`,
-      });
-    }
+/** Check resume recovery monitor service used after hypridle is removed. */
+export const checkResumeMonitor = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const results: CheckResult[] = [];
 
-    const active = yield* executor.exitCode("systemctl", [
-      "--user",
-      "is-active",
-      DOCTOR_STARTUP_TIMER_UNIT,
-    ]);
-    if (active === 0) {
-      results.push({
-        severity: "ok",
-        message: `Doctor startup timer active: ${DOCTOR_STARTUP_TIMER_UNIT}`,
-      });
-    } else {
-      results.push({
-        severity: "warn",
-        message: `Doctor startup timer is not active: ${DOCTOR_STARTUP_TIMER_UNIT}`,
-      });
-    }
-  } else {
-    results.push({
-      severity: "warn",
-      message: "Skipping doctor startup timer checks (systemctl not found)",
-    });
-  }
+  const monitorScript = join(HOME, ".local", "bin", "on-resume-monitor");
+  const unitPath = join(
+    XDG_CONFIG_HOME,
+    "systemd",
+    "user",
+    RESUME_MONITOR_SERVICE_UNIT,
+  );
+  const enableDetail = `Enable with: systemctl --user enable --now ${RESUME_MONITOR_SERVICE_UNIT}`;
+
+  addExecutablePresenceCheck(
+    results,
+    monitorScript,
+    `Resume monitor script is executable: ${displayPath(monitorScript)}`,
+    `Resume monitor script is missing or not executable: ${displayPath(monitorScript)}`,
+    "Run dot stow (or dot install) to link the resume monitor script",
+  );
+  addFilePresenceCheck(
+    results,
+    unitPath,
+    `Resume monitor service unit file found: ${displayPath(unitPath)}`,
+    `Resume monitor service unit file missing: ${displayPath(unitPath)}`,
+    "Run dot stow (or dot install) to link systemd user units",
+  );
+  yield* checkRequiredUserUnit(
+    results,
+    executor,
+    RESUME_MONITOR_SERVICE_UNIT,
+    "Resume monitor service",
+    enableDetail,
+  );
 
   return results;
 });
