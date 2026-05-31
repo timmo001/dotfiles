@@ -10,7 +10,7 @@ import {
   symlinkSync,
   unlinkSync,
 } from "fs";
-import { basename, join } from "path";
+import { basename, dirname, join, relative } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
@@ -31,6 +31,12 @@ const AGENTS_PRIVATE_IGNORES = [
   "--ignore='bun\\.lock'",
   "--ignore='\\.gitignore'",
 ];
+const AGENTS_PRIVATE_IGNORED_ENTRIES = new Set([
+  "node_modules",
+  "package.json",
+  "bun.lock",
+  ".gitignore",
+]);
 
 /**
  * Install dotfiles: backup existing files, then stow with `--adopt`.
@@ -81,19 +87,43 @@ interface ExternalSymlink {
 function backupPrivateFiles(privateDotfiles: string): void {
   const backupRoot = join(privateDotfiles, "backup");
 
-  const targets = [
-    {
-      source: join(HOME, ".config/opencode/opencode.json"),
-      backupDir: join(backupRoot, ".config/opencode"),
-    },
-    {
-      source: join(HOME, ".cursor/rules/global-agents.mdc"),
-      backupDir: join(backupRoot, ".cursor/rules"),
-    },
-  ];
+  for (const folder of listStowFolders(privateDotfiles).sort()) {
+    const packageRoot = join(privateDotfiles, folder);
+    for (const target of listStowTargets(packageRoot, folder)) {
+      backupFileIfUnmanaged(
+        target,
+        join(backupRoot, dirname(relative(HOME, target))),
+      );
+    }
+  }
+}
 
-  for (const { source, backupDir } of targets) {
-    backupFileIfUnmanaged(source, backupDir);
+/** List target paths that a stow package would manage. */
+function listStowTargets(packageRoot: string, folder: string): string[] {
+  const targets: string[] = [];
+  collectStowTargets(packageRoot, packageRoot, folder, targets);
+  return targets;
+}
+
+/** Recursively collect file-like stow package entries as home-relative targets. */
+function collectStowTargets(
+  packageRoot: string,
+  currentDir: string,
+  folder: string,
+  targets: string[],
+): void {
+  for (const entry of readdirSync(currentDir, { withFileTypes: true })) {
+    if (folder === "agents" && AGENTS_PRIVATE_IGNORED_ENTRIES.has(entry.name)) {
+      continue;
+    }
+
+    const source = join(currentDir, entry.name);
+    if (entry.isDirectory()) {
+      collectStowTargets(packageRoot, source, folder, targets);
+      continue;
+    }
+
+    targets.push(join(HOME, relative(packageRoot, source)));
   }
 }
 
