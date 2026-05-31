@@ -13,7 +13,7 @@ const log = (msg: string) => {
 };
 
 // ---------------------------------------------------------------------------
-// Fetch TTL cache (port of fetch_repo_upstream from dot-legacy)
+// Fetch TTL cache for upstream git fetches
 // ---------------------------------------------------------------------------
 
 const FETCH_TTL_SECONDS = parseInt(

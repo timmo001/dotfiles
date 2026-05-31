@@ -271,21 +271,11 @@ Keep logging readable and consistent:
 - Log labels uppercase (`[INFO]`, `[WARN]`, `[ERROR]`)
 - Message text in sentence case
 
-## Legacy Bash Script
+## Shell Helpers
 
-`scripts/.local/bin/dot-legacy` is the original bash implementation. It remains in place as a reference for debugging behaviour differences or understanding the original logic for a given command, and can still be invoked directly (e.g. `dot-legacy init`). The TS binary no longer falls back to it — unknown subcommands print an error and exit non-zero.
-
-Related bash helpers (also still in place):
-- `dot-lib` — shared shell functions
-- `dot-cron-lib` — cron/timer helpers
-- `dot-doctor-lib` — doctor check functions
+Current shell helpers still used by the TS app or systemd units:
 - `dot-doctor-notify` — doctor notification helper
 - `git-diff-tmux-session` — tmux session launcher for git diff
-- `dot-omarchy-lib` — omarchy sync helpers
-- `dot-private-pkg-lib` — private package repo helpers
-- `dot-skill-updates-lib` — skill update checking logic
-
-These will be removed in Phase 99 of the migration once all fallback paths are confirmed unused.
 
 ## Debugging
 

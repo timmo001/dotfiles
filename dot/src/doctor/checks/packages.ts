@@ -276,7 +276,7 @@ function privatePackageRepoResults(config: ConfigService): CheckResult[] {
   ];
 }
 
-/** Special package name alias handling (matches dot-lib) */
+/** Special package name alias handling */
 function resolvePackageName(name: string): {
   display: string;
   installed: string;
