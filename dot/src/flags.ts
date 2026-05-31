@@ -568,8 +568,7 @@ Launch the dot TUI dashboard. Without a subcommand, opens the main menu.
 
 Subcommands:
   init                 Run one-time first-use machine setup
-  setup                Install minimal prerequisites
-  install              Backup/adopt and stow dotfiles
+  install              Ensure prerequisites, then backup/adopt dotfiles
   update               Run dot update
   stow                 Run dot stow
   doctor               Run dot doctor

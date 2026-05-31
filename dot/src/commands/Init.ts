@@ -16,10 +16,7 @@ import { update } from "./Update.js";
 import { setupPrivatePackageRepo } from "./SetupPrivateRepo.js";
 import { loadPrivatePackageRepoConfig } from "../doctor/checks/packages.js";
 import { runElevated } from "../lib/elevatedCommand.js";
-import {
-  ensureStowInstalled,
-  installMissingArchPackages,
-} from "../lib/packageSetup.js";
+import { installMissingArchPackages } from "../lib/packageSetup.js";
 import { syncOmarchyRepos } from "../lib/omarchySync.js";
 import { displayPath, resolveLinkTarget } from "../lib/omarchyHost.js";
 import {
@@ -450,7 +447,6 @@ export function init(rawArgs: readonly string[]) {
     yield* assertFreshInitTarget(config);
     yield* writeInitInProgressMarker(config, parsed.options);
 
-    yield* ensureStowInstalled;
     yield* syncOmarchyRepos({
       branch: parsed.options.branch,
       bootstrapBranch: parsed.options.bootstrapBranch,

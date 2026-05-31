@@ -57,8 +57,7 @@ dot doctor
 ## Command reference
 
 - `dot init` - one-time first-use setup for fresh machines: prerequisites, Omarchy sync, package setup, install/adopt, machine hooks, agents sync, then `dot update`; fails fast after successful init
-- `dot setup` - install minimal prerequisites needed before stow/install workflows
-- `dot install` - backup/adopt install flow for public/private dotfiles
+- `dot install` - ensure prerequisites, then run the backup/adopt install flow for public/private dotfiles
 - `dot update` - Omarchy + public/private pull (including optional extra private repos), then stow refresh, Hypr host-link setup, binary rebuild, and first-use completion marker backfill for already-setup machines
 - `dot stow` - stow refresh only (no git pull)
 - `dot doctor` - tool, repo, workflow runs, extra repo, remote, public/private package, private package repo, and Chromium extension health checks

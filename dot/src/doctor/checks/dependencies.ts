@@ -15,7 +15,7 @@ const TOOLS: readonly ToolDef[] = [
   { name: "bash", purpose: "dot runtime", required: true },
   {
     name: "omarchy-pkg-add",
-    purpose: "dot setup/init installs stow when missing",
+    purpose: "dot init/install installs stow when missing",
     required: false,
   },
   {

@@ -38,7 +38,6 @@ src/
   theme.ts                — Theme loading (Omarchy theme → TUI colours)
   commands/
     Init.ts               — dot init first-use setup workflow
-    Setup.ts              — dot setup
     Install.ts            — dot install
     Update.ts             — dot update
     Stow.ts               — dot stow
@@ -110,7 +109,7 @@ src/
     extractNativeLib.ts   — Native .so extraction from bunfs
     initState.ts          — First-use setup state marker helpers
     omarchySync.ts        — First-use Omarchy repo clone/sync helpers
-    packageSetup.ts       — Strict package setup helpers for init/setup
+    packageSetup.ts       — Strict package setup helpers for init/install
     selfUpdate.ts         — Binary rebuild logic
     skillCheck.ts         — Skill reference validation logic
     skillUpdates.ts       — Skill update checking/applying logic
@@ -164,8 +163,7 @@ MenuItem action types:
 dot                           # Main menu (TUI)
 dot init                      # One-time first-use setup, ending with dot update
 dot init --noninteractive --confirm # Non-interactive first setup for VMs
-dot setup                     # Install minimal prerequisites
-dot install                   # Backup/adopt install flow
+dot install                   # Ensure prerequisites, then backup/adopt install flow
 dot update                    # Full update (pull, stow, rebuild, init-state backfill)
 dot update --pull             # Pull repos only
 dot update --stow             # Stow only

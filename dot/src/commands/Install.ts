@@ -6,6 +6,7 @@ import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
 import { listStowFolders } from "../lib/stowFolders.js";
 import { ensureHyprHostLink } from "../lib/omarchyHost.js";
+import { ensureStowInstalled } from "../lib/packageSetup.js";
 
 const HOME = process.env.HOME ?? "/home/" + process.env.USER;
 
@@ -20,14 +21,16 @@ const AGENTS_PRIVATE_IGNORES = [
 /**
  * Install dotfiles: backup existing files, then stow with `--adopt`.
  *
- * Backs up known conflict files (`.zshrc`, `.editorconfig`, ghostty config,
- * nvim directory) before stowing the public dotfiles. Private dotfiles are
- * stowed afterwards if available.
+ * Ensures stow is installed, backs up known conflict files (`.zshrc`,
+ * `.editorconfig`, ghostty config, nvim directory), then stows public and
+ * private dotfiles.
  */
 export const install = Effect.gen(function* () {
   const config = yield* Config;
   const log = yield* OutputLog;
   const launcher = yield* Launcher;
+
+  yield* ensureStowInstalled;
 
   yield* log.section("Backup");
   yield* Effect.sync(() => backupPublicFiles(config.publicDotfiles));

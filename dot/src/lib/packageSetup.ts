@@ -15,7 +15,7 @@ class PackageSetupError extends Schema.TaggedErrorClass<PackageSetupError>()(
   },
 ) {}
 
-/** Arch package list scope handled by init/setup. */
+/** Arch package list scope handled by init. */
 export type ArchPackageScope = "public" | "private";
 
 function packageListPath(

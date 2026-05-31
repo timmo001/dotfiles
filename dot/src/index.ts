@@ -12,7 +12,6 @@ import { parseFlags, resolveSubcommand, printHelp } from "./flags.js";
 import { hasOption, optionValue } from "./lib/args.js";
 import { menuItemsById } from "./menu.js";
 import { init } from "./commands/Init.js";
-import { setup } from "./commands/Setup.js";
 import { install } from "./commands/Install.js";
 import { update } from "./commands/Update.js";
 import { stow } from "./commands/Stow.js";
@@ -90,7 +89,6 @@ function includeAllRepos(filter: NotesViewFilter): NotesViewFilter {
 /** Commands ported natively to TypeScript Effect */
 const nativeCommands = new Set([
   "init",
-  "setup",
   "install",
   "update",
   "stow",
@@ -372,7 +370,6 @@ if (mode.type === "native") {
   const nativeCommandHandlers: Readonly<Record<string, NativeCommandHandler>> =
     {
       init,
-      setup: () => setup,
       install: () => install,
       update: (args) =>
         update({
