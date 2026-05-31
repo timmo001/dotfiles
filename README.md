@@ -62,7 +62,7 @@ dot doctor
 - `dot clean` - unstow private then public
 - `dot doctor` - tool, repo, workflow runs, extra repo, remote, public/private package, private package repo, and Chromium extension health checks
 - `dot opencode-debug [--agent <name>]` - run `opencode debug paths`, `config`, `skill`, and `info` together; optionally inspect one agent with `opencode debug agent <name>`
-- `dot private-pkg-publish [--no-git] [--skip-build] [--install] <package>` - build and publish a mapped private package into the private pacman repo, sync the mirror, refresh pacman metadata, optionally install it, and commit/push by default (`dot private-package-publish` is an alias)
+- `dot private-pkg-publish [--no-git] [--skip-build] [--install] <package>` - build and publish a mapped private package into the private pacman repo, sync the mirror, refresh pacman metadata, optionally install it, and commit/push by default
 - `dot agents-sync` - copy `~/.config/opencode/AGENTS.md` into `agents/.cursor/rules/global-agents.mdc` in private dotfiles by default (`alwaysApply: true` + body; stows to `~/.cursor/rules/`). **`dot update`** and **`dot git-diff`** run this automatically by default (see env vars below).
 
 ## OpenCode

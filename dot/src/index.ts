@@ -107,7 +107,6 @@ const nativeCommands = new Set([
   "setup",
   "setup-private-repo",
   "private-pkg-publish",
-  "private-package-publish",
   "skill-updates",
   "skill-check",
 ]);
@@ -259,7 +258,7 @@ function hasNotificationNativeFlag(args: readonly string[]): boolean {
 }
 
 function hasBarJsonFlag(args: readonly string[]): boolean {
-  return args.includes("--bar-json") || args.includes("--waybar");
+  return args.includes("--bar-json");
 }
 
 function isNotesTuiInvocation(args: readonly string[]): boolean {
@@ -404,7 +403,6 @@ if (mode.type === "native") {
       setup: () => setup,
       "setup-private-repo": () => setupPrivateRepo,
       "private-pkg-publish": privatePkgPublish,
-      "private-package-publish": privatePkgPublish,
       "skill-updates": (args) =>
         skillUpdates({
           check: args.includes("--check"),

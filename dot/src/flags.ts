@@ -213,7 +213,6 @@ function isKnownTarget(candidate: string): boolean {
     candidate === "handoffs" ||
     candidate === "setup-private-repo" ||
     candidate === "private-pkg-publish" ||
-    candidate === "private-package-publish" ||
     candidate === "omarchy"
   )
     return true;
@@ -292,7 +291,6 @@ Modes:
   (default)        Interactive TUI diff view
   --raw            Text summary of repos with changes
   --bar-json      JSON output for status bars and shell modules
-  --waybar        Legacy alias for --bar-json
   --list-changed   Changed repos as name|path rows
   --list-all       All tracked repos as name|path rows
 
@@ -305,8 +303,7 @@ Examples:
   dot git-diff             Interactive TUI
   dot git-diff --raw       Text summary of changed repos
   dot git-diff --bar-json  Status bar JSON output
-  dot git-diff --tab other TUI with Other pane focused
-  dot diff --waybar        Legacy alias for git-diff --bar-json`);
+  dot git-diff --tab other TUI with Other pane focused`);
     return;
   }
 
@@ -369,16 +366,10 @@ Examples:
     return;
   }
 
-  if (
-    subcommand === "private-pkg-publish" ||
-    subcommand === "private-package-publish"
-  ) {
+  if (subcommand === "private-pkg-publish") {
     console.log(`Usage: dot private-pkg-publish [options] <package-name>
 
 Build and publish a mapped private package into the private pacman repo.
-
-Aliases:
-  dot private-package-publish
 
 Options:
   --no-git       Skip package repo commit and push
@@ -403,7 +394,6 @@ Modes:
   (default)      Interactive workflow runs TUI
   --raw          Text summary of watched workflow runs
   --bar-json    JSON output for status bars and shell modules
-  --waybar      Legacy alias for --bar-json
   --list-repos   Watched repo summaries as rows
   --list-runs    Workflow runs as rows
 
@@ -430,7 +420,6 @@ Modes:
   (default)       Interactive notifications TUI
   --raw           Text summary of notification threads
   --bar-json     JSON output for status bars and shell modules
-  --waybar       Legacy alias for --bar-json
   --list-threads  Notification threads as rows
 
 Filters:
@@ -582,7 +571,6 @@ Examples:
   dot git-diff             Interactive diff TUI
   dot git-diff --raw       Text diff summary
   dot git-diff --bar-json  Status bar JSON output
-  dot diff --waybar        Legacy alias for git-diff --bar-json
   dot git-workflows        Watched workflow runs TUI
   dot git-workflows --bar-json Status bar JSON output
   dot git-notifications    GitHub notifications TUI

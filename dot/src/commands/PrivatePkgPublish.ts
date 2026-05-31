@@ -407,9 +407,6 @@ function printPrivatePkgPublishHelp(): void {
 
 Build and publish a mapped private package into the private pacman repo.
 
-Aliases:
-  dot private-package-publish
-
 Options:
   --no-git       Skip package repo commit and push
   --skip-build   Publish an existing dist package artifact
