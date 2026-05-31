@@ -1,6 +1,5 @@
 import { Context, Effect, Layer, Schema, Stream } from "effect";
-import { appendFileSync, mkdirSync } from "fs";
-import { dirname } from "path";
+import { writeMirroredLog } from "../lib/logMirror.js";
 
 const DEBUG = !!process.env.DOT_DEBUG;
 const log = (msg: string) => {
@@ -73,8 +72,7 @@ function appendRawLog(
   chunk: Uint8Array | string,
 ): void {
   if (!logFile) return;
-  mkdirSync(dirname(logFile), { recursive: true });
-  appendFileSync(logFile, chunk);
+  writeMirroredLog(logFile, chunk);
 }
 
 async function pipeProcessOutput(

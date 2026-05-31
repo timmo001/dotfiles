@@ -2,6 +2,7 @@ import { Context, Effect, Layer, PubSub, Stream } from "effect";
 import { appendFileSync, mkdirSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { Config } from "./Config.js";
+import { mirrorConfiguredLog } from "../lib/logMirror.js";
 
 /** Severity levels for log entries */
 export type LogLevel = "info" | "warn" | "error" | "section";
@@ -86,11 +87,13 @@ function initialiseLogFiles(paths: readonly string[]): void {
     }
     writeFileSync(path, "");
   }
+  mirrorConfiguredLog();
 }
 
 function appendLogFiles(paths: readonly string[], entry: LogEntry): void {
   const line = formatPlain(entry) + "\n";
   for (const path of paths) appendFileSync(path, line);
+  mirrorConfiguredLog();
 }
 
 /** Effect service for {@link OutputLogService} */

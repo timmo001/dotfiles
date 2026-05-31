@@ -1,5 +1,5 @@
 import { Effect, Layer, Stream } from "effect";
-import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync } from "fs";
 import { dirname, join } from "path";
 import { Config } from "./services/Config.js";
 import { CommandExecutor } from "./services/CommandExecutor.js";
@@ -12,6 +12,7 @@ import { WorkflowRuns } from "./git/services/WorkflowRuns.js";
 import { Notes } from "./notes/services/Notes.js";
 import { parseFlags, resolveSubcommand, printHelp } from "./flags.js";
 import { hasOption, optionValue } from "./lib/args.js";
+import { isGvfsPath, writeMirroredLog } from "./lib/logMirror.js";
 import { menuItemsById } from "./menu.js";
 import { init } from "./commands/Init.js";
 import { install } from "./commands/Install.js";
@@ -55,6 +56,7 @@ import type {
 
 const DEBUG = !!process.env.DOT_DEBUG;
 const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
+const DEFAULT_INIT_LOG_FILE = join("/tmp", "dot-init.log");
 const PRIVATE_DOTFILES_REPO = "timmo001/dotfiles-private";
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot] ${msg}`);
@@ -234,15 +236,14 @@ function initLogPath(args: readonly string[]): string {
   return expandHomePath(
     optionValue(args, "--log") ??
       process.env.DOT_INIT_LOG_FILE ??
-      join("/tmp", "dot-init.log"),
+      DEFAULT_INIT_LOG_FILE,
   );
 }
 
 function appendBootstrapLog(message: string | Uint8Array): void {
   const logFile = process.env.DOT_LOG_FILE;
   if (!logFile) return;
-  mkdirSync(dirname(logFile), { recursive: true });
-  appendFileSync(logFile, message);
+  writeMirroredLog(logFile, message);
 }
 
 function formatUnknownError(error: unknown): string {
@@ -254,10 +255,18 @@ function configureInitLogging(mode: Mode): void {
   if (mode.type !== "native" || mode.command !== "init") return;
   if (mode.args.includes("--help") || mode.args.includes("-h")) return;
 
-  process.env.DOT_LOG_FILE = initLogPath(mode.args);
+  const requestedLogFile = initLogPath(mode.args);
+  process.env.DOT_LOG_FILE = isGvfsPath(requestedLogFile)
+    ? DEFAULT_INIT_LOG_FILE
+    : requestedLogFile;
+  if (process.env.DOT_LOG_FILE !== requestedLogFile) {
+    process.env.DOT_LOG_MIRROR_FILE = requestedLogFile;
+  } else {
+    delete process.env.DOT_LOG_MIRROR_FILE;
+  }
   process.env.DOT_TEE_INHERIT_LOG = "1";
   mkdirSync(dirname(process.env.DOT_LOG_FILE), { recursive: true });
-  writeFileSync(process.env.DOT_LOG_FILE, "");
+  writeMirroredLog(process.env.DOT_LOG_FILE, "", { truncate: true });
 }
 
 function privateDotfilesPath(): string {
