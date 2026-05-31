@@ -13,6 +13,7 @@ import {
   checkGitNotifications,
   checkWorkflowRuns,
   checkDoctorStartup,
+  checkResumeMonitor,
   checkDailyVolumeReset,
   checkMhoc303ClockSync,
 } from "./checks/systemd.js";
@@ -52,6 +53,7 @@ const sections: readonly SectionDef[] = [
   { name: "Workflow runs checks", check: checkWorkflowRuns },
   { name: "Git notification checks", check: checkGitNotifications },
   { name: "Doctor startup notification", check: checkDoctorStartup },
+  { name: "Resume recovery monitor", check: checkResumeMonitor },
   { name: "Daily volume reset", check: checkDailyVolumeReset },
   { name: "MHO-C303 clock sync", check: checkMhoc303ClockSync },
   { name: "Omarchy repository checks", check: checkOmarchy },
