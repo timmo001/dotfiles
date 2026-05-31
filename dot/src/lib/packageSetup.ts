@@ -190,6 +190,28 @@ export const ensureStowInstalled: Effect.Effect<
   );
 });
 
+/** Ensure gum is installed before interactive init prompts run. */
+export const ensureGumInstalled: Effect.Effect<
+  void,
+  PackageSetupError,
+  CommandExecutor | OutputLog
+> = Effect.gen(function* () {
+  const log = yield* OutputLog;
+
+  yield* log.section("Init Questionnaire Prerequisites");
+
+  if (yield* commandAvailable("gum")) {
+    yield* log.info("gum is already installed");
+    return;
+  }
+
+  yield* installWithOmarchyPkgAdd("gum", "interactive init questionnaire");
+  yield* assertCommandAvailable(
+    "gum",
+    "gum is still unavailable after installation",
+  );
+});
+
 function miseConfigExists(): boolean {
   return [
     process.env.MISE_GLOBAL_CONFIG_FILE,

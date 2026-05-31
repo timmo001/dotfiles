@@ -17,6 +17,7 @@ import { setupPrivatePackageRepo } from "./SetupPrivateRepo.js";
 import { loadPrivatePackageRepoConfig } from "../doctor/checks/packages.js";
 import { runElevated } from "../lib/elevatedCommand.js";
 import {
+  ensureGumInstalled,
   installMissingArchPackages,
   installMiseTools,
 } from "../lib/packageSetup.js";
@@ -41,6 +42,7 @@ const XDG_CONFIG_HOME = process.env.XDG_CONFIG_HOME ?? join(HOME, ".config");
 const GIT_INCLUDE_PATH = "~/.config/git/config.dotfiles";
 const DOCTOR_STARTUP_TIMER_UNIT = "dot-doctor-startup.timer";
 const DEFAULT_INIT_OMARCHY_HOST = "desktop";
+const INIT_OMARCHY_HOSTS = ["desktop", "laptop"] as const;
 
 /** Domain error for first-use init failures. */
 class InitError extends Schema.TaggedErrorClass<InitError>()("InitError", {
@@ -279,6 +281,89 @@ function initOmarchyHost(options: InitOptions): string {
   );
 }
 
+function shouldPromptForHost(options: InitOptions): boolean {
+  return (
+    !options.noninteractive && !options.host?.trim() && !currentOmarchyHost()
+  );
+}
+
+function assertQuestionnaireTty(): Effect.Effect<void, InitError> {
+  return process.stdin.isTTY && process.stdout.isTTY
+    ? Effect.void
+    : fail(
+        "Interactive init questionnaire requires a TTY. Pass --noninteractive or --host <name>.",
+      );
+}
+
+function promptForHost(): Effect.Effect<
+  string,
+  InitError,
+  CommandExecutor | OutputLog
+> {
+  return Effect.gen(function* () {
+    const executor = yield* CommandExecutor;
+    if ((yield* executor.exitCode("which", ["gum"])) !== 0) {
+      return yield* fail(
+        "Interactive init questionnaire requires gum. Install gum or pass --noninteractive/--host <name>.",
+      );
+    }
+
+    return yield* Effect.tryPromise({
+      try: async () => {
+        const proc = Bun.spawn(
+          [
+            "gum",
+            "choose",
+            "--header",
+            "Select Omarchy host for this machine",
+            "--selected",
+            DEFAULT_INIT_OMARCHY_HOST,
+            ...INIT_OMARCHY_HOSTS,
+          ],
+          {
+            stdin: "inherit",
+            stdout: "pipe",
+            stderr: "inherit",
+          },
+        );
+        const output = await new Response(proc.stdout).text();
+        const exitCode = await proc.exited;
+        if (exitCode !== 0) {
+          throw new Error(`gum choose exited ${exitCode}`);
+        }
+        return output.trim();
+      },
+      catch: (error) =>
+        new InitError({
+          message: `Init questionnaire failed: ${error instanceof Error ? error.message : String(error)}`,
+        }),
+    });
+  });
+}
+
+function resolveInitOptions(
+  options: InitOptions,
+): Effect.Effect<InitOptions, InitError, CommandExecutor | OutputLog> {
+  return Effect.gen(function* () {
+    const log = yield* OutputLog;
+    yield* log.section("Init Questionnaire");
+
+    if (shouldPromptForHost(options)) {
+      yield* assertQuestionnaireTty();
+      yield* ensureGumInstalled.pipe(
+        Effect.mapError((error) => new InitError({ message: error.message })),
+      );
+      const host = yield* promptForHost();
+      yield* log.info(`Selected Hypr host: ${host}`);
+      return { ...options, host };
+    }
+
+    const host = initOmarchyHost(options);
+    yield* log.info(`Using Hypr host: ${host}`);
+    return { ...options, host };
+  });
+}
+
 function ensureInitHyprHostLink(
   config: ConfigService,
   options: InitOptions,
@@ -489,20 +574,21 @@ export function init(rawArgs: readonly string[]) {
 
     yield* log.section("Initialization Workflow");
     yield* assertFreshInitTarget(config);
-    yield* writeInitInProgressMarker(config, parsed.options);
+    const options = yield* resolveInitOptions(parsed.options);
+    yield* writeInitInProgressMarker(config, options);
 
     yield* syncOmarchyRepos({
-      branch: parsed.options.branch,
-      bootstrapBranch: parsed.options.bootstrapBranch,
+      branch: options.branch,
+      bootstrapBranch: options.bootstrapBranch,
     });
-    yield* ensureInitHyprHostLink(config, parsed.options);
+    yield* ensureInitHyprHostLink(config, options);
     yield* install;
     yield* installMiseTools;
     yield* installMissingArchPackages({
       scope: "public",
-      confirm: parsed.options.confirm,
+      confirm: options.confirm,
     });
-    yield* setupPrivatePackages(config, parsed.options);
+    yield* setupPrivatePackages(config, options);
     yield* configureGitInclude();
     yield* installPacmanHooks();
     yield* enableDoctorStartupTimer();
