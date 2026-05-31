@@ -34,14 +34,21 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 ## Quick start
 
 ```bash
-# Before dot is on PATH
-~/.config/dotfiles/scripts/.local/bin/dot help
+# Fresh Arch/Omarchy machine prerequisites
+sudo pacman -S --needed git bun
 
-# Build the binary (requires bun)
-cd ~/.config/dotfiles/dot && bun run build
+# Clone public dotfiles first; clone dotfiles-private too if available.
+git clone git@github.com:timmo001/dotfiles.git ~/.config/dotfiles
 
-# Typical workflow
-dot init
+# Build the checked-out dot binary before it is on PATH.
+cd ~/.config/dotfiles/dot
+bun install
+bun run build
+
+# First-use setup ends by running dot update.
+~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive --confirm
+
+# Ongoing workflow after restarting the shell
 dot update
 dot git-diff
 dot doctor
@@ -49,15 +56,15 @@ dot doctor
 
 ## Command reference
 
-- `dot init` - questionnaire (when available), Omarchy sync, Hypr host-link setup, package setup, optional public/private Arch package install, then public/private install
-- `dot update` - Omarchy + public/private pull (including optional extra private repos), then stow refresh and Hypr host-link setup
+- `dot init` - one-time first-use setup for fresh machines: prerequisites, Omarchy sync, package setup, install/adopt, machine hooks, agents sync, then `dot update`; fails fast after successful init
+- `dot update` - Omarchy + public/private pull (including optional extra private repos), then stow refresh, Hypr host-link setup, binary rebuild, and first-use completion marker backfill for already-setup machines
 - `dot stow` - stow refresh only (no git pull)
 - `dot git-diff` - git status + staged/unstaged summaries with fetched unpushed/incoming commit checks across managed repos (including optional extra private repos and Omarchy repos); use `dot git-diff --bar-json` for one-line status bar JSON (`dot diff` remains a human compatibility alias)
 - `dot git-workflows` - two-pane watched GitHub workflow runs view for each repo's locally checked-out HEAD commit; use `--since <date>` to filter by activity time, and `--raw`, `--bar-json`, `--list-repos`, or `--list-runs` for CLI output
 - `dot git-notifications` - GitHub notification inbox with open, mark-read, done, ignore, and unignore actions; use `--all`, `--participating`, `--since <date>`, `--raw`, `--bar-json`, `--list-threads`, `--mark-read <id>`, `--mark-done <id>`, `--ignore <id>`, or `--unignore <id>` for CLI output/actions
 - `dot notes` - two-pane repository notes browser; use `--all` or press `g` to browse every repo notes directory, and `dot notes list --all` for CLI output grouped by repo
 - `dot handoffs` / `dot handoff` - open the notes browser filtered to notes tagged `handoff`; use `--all` to browse handoffs across every repo
-- `dot setup [--confirm]` - package install step only
+- `dot setup` - install minimal prerequisites needed before stow/install workflows
 - `dot install` - backup/adopt install flow for public/private dotfiles
 - `dot clean` - unstow private then public
 - `dot doctor` - tool, repo, workflow runs, extra repo, remote, public/private package, private package repo, and Chromium extension health checks
@@ -109,7 +116,7 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 - `DOT_BOOTSTRAP_BRANCH` - branch for `bootstrap` sync (default `distro/omarchy`)
 - `DOT_INCLUDE_OMARCHY_DIFF_REPOS` - include Omarchy repos in `dot git-diff` (`1|0`, default `1`)
 - `DOT_INCLUDE_OMARCHY_UPDATE_REPOS` - include Omarchy repos in `dot update` sync (`1|0`, default `1`)
-- `DOT_INIT_NONINTERACTIVE` - skip init questionnaire (`1|0`, default `0`)
+- `DOT_INIT_NONINTERACTIVE` - force non-interactive init mode (`1|0`, default `0`)
 - `DOT_WORKFLOW_WATCH_REPOS_FILE` - watched repo list file used by `dot git-workflows` (default `$DOTFILES_PRIVATE_DIR/.git-workflow-watch-repos`)
 - `DOT_DAILY_VOLUME_ZERO_TIMER_UNIT` - 5am volume reset timer unit name (default `daily-volume-zero.timer`)
 - `DOT_AUTO_CD` - zsh wrapper auto-cd to first repo with changes after `dot git-diff`; otherwise restore original dir (failed diff falls back to `~/.config/dotfiles`) (`1|0`, default `1`)
@@ -124,9 +131,10 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 
 1. Clone `dotfiles` to `~/.config/dotfiles`
 1. Clone `dotfiles-private` to `~/.config/dotfiles-private` (if available)
+1. Install build prerequisites: `sudo pacman -S --needed git bun`
+1. Run `cd ~/.config/dotfiles/dot && bun install && bun run build`
 1. Confirm `gh auth status` works
-1. Run `~/.config/dotfiles/scripts/.local/bin/dot doctor`
-1. Run `~/.config/dotfiles/scripts/.local/bin/dot init`
+1. Run `~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive --confirm` for VM/non-interactive setup, or `dot init` in an interactive shell
 1. Restart shell and confirm `dot help` is on `PATH`
 1. Run `dot git-diff` and verify expected repo state
-1. Run `dot update` to validate sync + stow end-to-end
+1. Run `dot update` for ongoing sync, stow, rebuild, and init-state backfill

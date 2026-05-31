@@ -211,6 +211,7 @@ function isKnownTarget(candidate: string): boolean {
     candidate === "note" ||
     candidate === "handoff" ||
     candidate === "handoffs" ||
+    candidate === "init" ||
     candidate === "setup-private-repo" ||
     candidate === "private-pkg-publish" ||
     candidate === "omarchy"
@@ -346,6 +347,27 @@ Exit codes:
 Examples:
   dot doctor                  Run all checks
   dot doctor --open-opencode  Run checks, then open OpenCode with the report`);
+    return;
+  }
+
+  if (subcommand === "init") {
+    console.log(`Usage: dot init [options]
+
+Run the one-time first-use setup workflow for a fresh machine. Init prepares
+repos, packages, stow links, machine hooks, and then finishes by running
+dot update. After init completes, use dot update for ongoing maintenance.
+
+Options:
+  --confirm                 Acknowledge non-interactive package helpers
+  --noninteractive          Skip interactive prompts for this run
+  --interactive             Allow interactive prompts for this run
+  --branch <name>           Branch override for non-bootstrap Omarchy repos
+  --bootstrap-branch <name> Branch override for bootstrap
+  --help, -h                Show this help message
+
+Examples:
+  dot init --noninteractive --confirm
+  dot init --branch main --bootstrap-branch distro/omarchy`);
     return;
   }
 
@@ -553,6 +575,7 @@ Subcommands:
   handoff              Open handoff notes
   note                 Read, write, or delete note files
   update               Run dot update
+  init                 Run one-time first-use machine setup
   stow                 Run dot stow
   doctor               Run dot doctor
   setup-private-repo   Register private pacman repo include
@@ -579,6 +602,7 @@ Examples:
   dot handoffs             Handoff notes TUI
   dot notes root           Print notes vault root
   dot notes context --command notes-list
+  dot init --noninteractive --confirm
   dot setup-private-repo Repair private pacman repo include
   dot private-pkg-publish twitch-notifications --install
   dot omarchy theme        Omarchy theme submenu

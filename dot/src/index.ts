@@ -18,6 +18,7 @@ import { help } from "./commands/Help.js";
 import { clean } from "./commands/Clean.js";
 import { agentsSync } from "./commands/AgentsSync.js";
 import { opencodeDebug } from "./commands/OpencodeDebug.js";
+import { init } from "./commands/Init.js";
 import { install } from "./commands/Install.js";
 import { setup } from "./commands/Setup.js";
 import { setupPrivateRepo } from "./commands/SetupPrivateRepo.js";
@@ -103,6 +104,7 @@ const nativeCommands = new Set([
   "clean",
   "agents-sync",
   "opencode-debug",
+  "init",
   "install",
   "setup",
   "setup-private-repo",
@@ -399,6 +401,7 @@ if (mode.type === "native") {
             : undefined;
         return opencodeDebug({ agent });
       },
+      init,
       install: () => install,
       setup: () => setup,
       "setup-private-repo": () => setupPrivateRepo,

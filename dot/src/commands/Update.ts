@@ -10,6 +10,7 @@ import { stow as runStow } from "./Stow.js";
 import { agentsSync } from "./AgentsSync.js";
 import { skillUpdates } from "./SkillUpdates.js";
 import { rebuild } from "../lib/selfUpdate.js";
+import { ensureInitCompleteMarker } from "../lib/initState.js";
 
 const displayPath = (p: string): string =>
   p.replace(process.env.HOME ?? "", "~");
@@ -146,6 +147,7 @@ export const update = (opts?: {
     const doPull = anyFlag ? !!opts?.pull : true;
     const doStow = anyFlag ? !!opts?.stow : true;
     const doTui = anyFlag ? !!opts?.tui : true;
+    const isFullUpdate = doPull && doStow && doTui;
 
     const config = yield* Config;
     const log = yield* OutputLog;
@@ -210,5 +212,9 @@ export const update = (opts?: {
     if (updatedNames.length > 0) {
       yield* notifyUpdated(updatedNames);
       yield* postHooks;
+    }
+
+    if (isFullUpdate) {
+      yield* ensureInitCompleteMarker(config, "update");
     }
   });

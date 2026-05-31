@@ -41,6 +41,7 @@ src/
     Clean.ts              — dot clean
     Doctor.ts             — dot doctor
     Help.ts               — dot help
+    Init.ts               — dot init first-use setup workflow
     Install.ts            — dot install
     OpencodeDebug.ts      — dot opencode-debug
     Setup.ts              — dot setup
@@ -105,6 +106,9 @@ src/
     paneTitle.ts          — Shared two-pane title formatter
   lib/
     extractNativeLib.ts   — Native .so extraction from bunfs
+    initState.ts          — First-use setup state marker helpers
+    omarchySync.ts        — First-use Omarchy repo clone/sync helpers
+    packageSetup.ts       — Strict package setup helpers for init/setup
     selfUpdate.ts         — Binary rebuild logic
     skillCheck.ts         — Skill reference validation logic
     skillUpdates.ts       — Skill update checking/applying logic
@@ -190,10 +194,12 @@ dot notes list --format json # List current repo notes as JSON (CLI)
 dot note read --path <path> # Read a note file
 dot note write --path <path> --stdin # Write stdin to a note file and commit it
 dot note delete --path <path> # Delete a note file and commit it
-dot update                    # Full update (pull, stow, rebuild)
+dot update                    # Full update (pull, stow, rebuild, init-state backfill)
 dot update --pull             # Pull repos only
 dot update --stow             # Stow only
 dot update --tui              # Rebuild binary only
+dot init                      # One-time first-use setup, ending with dot update
+dot init --noninteractive --confirm # Non-interactive first setup for VMs
 dot stow                      # Stow public + private
 dot stow --public             # Stow public only
 dot stow --private            # Stow private only
@@ -205,7 +211,7 @@ dot agents-sync               # Sync AGENTS.md to Cursor rule
 dot opencode-debug            # Debug OpenCode config
 dot opencode-debug --agent x  # Debug specific agent
 dot install                   # Backup/adopt install flow
-dot setup                     # Package install step
+dot setup                     # Install minimal prerequisites
 dot private-pkg-publish <pkg> --install # Build, publish, and install a mapped private package
 dot skill-updates             # Check/apply skill updates
 dot skill-updates --check     # Check only (no apply)
@@ -262,6 +268,7 @@ dot git-notifications --bar-json # smoke test: notification JSON output
 dot notes                    # smoke test: notes view renders
 dot handoffs                 # smoke test: handoff-filtered notes view renders
 dot doctor                   # smoke test: health checks run
+dot init --help              # smoke test: init help prints without side effects
 dot help                     # smoke test: help prints
 ```
 
