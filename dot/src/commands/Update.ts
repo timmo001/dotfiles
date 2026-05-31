@@ -10,6 +10,7 @@ import { stow as runStow } from "./Stow.js";
 import { agentsSync } from "./AgentsSync.js";
 import { skillUpdates } from "./SkillUpdates.js";
 import { rebuild } from "../lib/selfUpdate.js";
+import { cloneMissingExtraRepos } from "../lib/extraRepos.js";
 import {
   ensureInitCompleteMarker,
   initCompleteMarker,
@@ -182,6 +183,7 @@ export const update = (opts?: {
 
     if (doPull) {
       yield* log.section("Pull Repositories");
+      yield* cloneMissingExtraRepos({ strict: false });
 
       const dotDiff = yield* DotDiff;
       const repos = yield* dotDiff

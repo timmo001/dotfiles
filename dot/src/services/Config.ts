@@ -32,6 +32,8 @@ export interface ExtraRepo {
   readonly path: string;
   /** Schedule constraint (empty string means always visible) */
   readonly schedule: string;
+  /** Optional GitHub repository used to clone the checkout when missing */
+  readonly remote: string | null;
 }
 
 /** Service interface providing resolved paths and environment detection */
@@ -70,7 +72,7 @@ function loadExtraRepos(filePath: string): readonly ExtraRepo[] {
       if (!line || line.startsWith("#")) continue;
 
       if (line.includes("|")) {
-        const [name, path, schedule] = line.split("|", 3);
+        const [name, path, schedule, remote] = line.split("|", 4);
         const trimmedPath = (path ?? "").trim().replace(/^~/, HOME);
         const trimmedName = (name ?? "").trim() || basename(trimmedPath);
         if (!trimmedPath) continue;
@@ -78,10 +80,16 @@ function loadExtraRepos(filePath: string): readonly ExtraRepo[] {
           name: trimmedName,
           path: trimmedPath,
           schedule: (schedule ?? "").trim(),
+          remote: (remote ?? "").trim() || null,
         });
       } else {
         const repoPath = line.replace(/^~/, HOME);
-        repos.push({ name: basename(repoPath), path: repoPath, schedule: "" });
+        repos.push({
+          name: basename(repoPath),
+          path: repoPath,
+          schedule: "",
+          remote: null,
+        });
       }
     }
 
