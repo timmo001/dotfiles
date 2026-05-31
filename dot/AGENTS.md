@@ -109,7 +109,7 @@ src/
     extractNativeLib.ts   — Native .so extraction from bunfs
     initState.ts          — First-use setup state marker helpers
     omarchySync.ts        — First-use Omarchy repo clone/sync helpers
-    packageSetup.ts       — Strict package setup helpers for init/install
+    packageSetup.ts       — Strict package and mise setup helpers for init/install
     selfUpdate.ts         — Binary rebuild logic
     skillCheck.ts         — Skill reference validation logic
     skillUpdates.ts       — Skill update checking/applying logic
@@ -231,6 +231,19 @@ bun run build    # outputs to ../scripts/.local/bin/dot
 ```
 
 The build is also triggered by `dot update`.
+
+Fresh-machine bootstrap should use mise-managed Bun rather than installing Bun globally:
+
+```bash
+sudo pacman -S --needed git mise stow
+stow -d ~/.config/dotfiles-private -t ~ mise
+mise install
+cd ~/.config/dotfiles/dot
+mise exec -- bun install
+mise exec -- bun run build
+```
+
+`dot init` runs `mise install` immediately after `dot install` stows public/private configs and before managed Arch/AUR package installation, so stowed mise config owns Bun, Node, pnpm, and similar tools.
 
 ## External Dependencies
 

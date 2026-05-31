@@ -24,6 +24,11 @@ const TOOLS: readonly ToolDef[] = [
     required: false,
   },
   {
+    name: "mise",
+    purpose: "managed Bun, Node, pnpm, and language tool versions",
+    required: false,
+  },
+  {
     name: "yay",
     purpose: "used by omarchy-pkg-aur-add and AUR version checks",
     required: false,

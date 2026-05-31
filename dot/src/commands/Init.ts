@@ -16,7 +16,10 @@ import { update } from "./Update.js";
 import { setupPrivatePackageRepo } from "./SetupPrivateRepo.js";
 import { loadPrivatePackageRepoConfig } from "../doctor/checks/packages.js";
 import { runElevated } from "../lib/elevatedCommand.js";
-import { installMissingArchPackages } from "../lib/packageSetup.js";
+import {
+  installMissingArchPackages,
+  installMiseTools,
+} from "../lib/packageSetup.js";
 import { syncOmarchyRepos } from "../lib/omarchySync.js";
 import { displayPath, resolveLinkTarget } from "../lib/omarchyHost.js";
 import {
@@ -242,7 +245,7 @@ function printInitHelp(): void {
   console.log(`Usage: dot init [options]
 
 Run the one-time first-use setup workflow for a fresh machine. Init prepares
-repos, packages, stow links, machine hooks, and then finishes by running
+repos, stow links, mise tools, packages, machine hooks, and then finishes by running
 dot update. After init completes, use dot update for ongoing maintenance.
 
 Options:
@@ -451,12 +454,13 @@ export function init(rawArgs: readonly string[]) {
       branch: parsed.options.branch,
       bootstrapBranch: parsed.options.bootstrapBranch,
     });
+    yield* install;
+    yield* installMiseTools;
     yield* installMissingArchPackages({
       scope: "public",
       confirm: parsed.options.confirm,
     });
     yield* setupPrivatePackages(config, parsed.options);
-    yield* install;
     yield* configureGitInclude();
     yield* installPacmanHooks();
     yield* enableDoctorStartupTimer();

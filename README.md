@@ -35,15 +35,19 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 
 ```bash
 # Fresh Arch/Omarchy machine prerequisites
-sudo pacman -S --needed git bun
+sudo pacman -S --needed git mise stow
 
 # Clone public dotfiles first; clone dotfiles-private too if available.
 git clone git@github.com:timmo001/dotfiles.git ~/.config/dotfiles
 
-# Build the checked-out dot binary before it is on PATH.
+# Bootstrap only: stow mise config before asking mise for tool versions.
+stow -d ~/.config/dotfiles-private -t ~ mise
+mise install
+
+# Build the checked-out dot binary with mise-managed tools before it is on PATH.
 cd ~/.config/dotfiles/dot
-bun install
-bun run build
+mise exec -- bun install
+mise exec -- bun run build
 
 # First-use setup ends by running dot update.
 ~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive --confirm
@@ -56,7 +60,7 @@ dot doctor
 
 ## Command reference
 
-- `dot init` - one-time first-use setup for fresh machines: prerequisites, Omarchy sync, package setup, install/adopt, machine hooks, agents sync, then `dot update`; fails fast after successful init
+- `dot init` - one-time first-use setup for fresh machines: Omarchy sync, install/adopt, stowed mise tool install, package setup, machine hooks, agents sync, then `dot update`; fails fast after successful init
 - `dot install` - ensure prerequisites, then run the backup/adopt install flow for public/private dotfiles
 - `dot update` - Omarchy + public/private pull (including optional extra private repos), then stow refresh, Hypr host-link setup, binary rebuild, and first-use completion marker backfill for already-setup machines
 - `dot stow` - stow refresh only (no git pull)
@@ -135,11 +139,14 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 
 1. Clone `dotfiles` to `~/.config/dotfiles`
 1. Clone `dotfiles-private` to `~/.config/dotfiles-private` (if available)
-1. Install build prerequisites: `sudo pacman -S --needed git bun`
-1. Run `cd ~/.config/dotfiles/dot && bun install && bun run build`
+1. Install bootstrap prerequisites: `sudo pacman -S --needed git mise stow`
+1. Stow the mise config before installing mise tools: `stow -d ~/.config/dotfiles-private -t ~ mise && mise install`
+1. Run `cd ~/.config/dotfiles/dot && mise exec -- bun install && mise exec -- bun run build`
 1. Confirm `gh auth status` works
 1. Run `~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive --confirm` for VM/non-interactive setup, or `dot init` in an interactive shell
 1. If stock Omarchy config directories already exist at `~/.config/hypr`, `~/.config/waybar`, `~/.config/ghostty`, or `~/.config/uwsm`, `dot init` backs them up with a `.dot-init-backup-*` suffix before cloning the managed repos
 1. Restart shell and confirm `dot help` is on `PATH`
 1. Run `dot git-diff` and verify expected repo state
 1. Run `dot update` for ongoing sync, stow, rebuild, and init-state backfill
+
+`dot init` runs `mise install` immediately after stowing dotfiles and before installing managed Arch/AUR package lists, so Bun, Node, pnpm, and similar developer tools should come from the stowed mise config rather than global pacman packages.

@@ -7,6 +7,9 @@ import { OutputLog } from "../services/OutputLog.js";
 import { displayPath } from "./omarchyHost.js";
 import type { ConfigService } from "../services/Config.js";
 
+const HOME = process.env.HOME ?? "/home/" + process.env.USER;
+const XDG_CONFIG_HOME = process.env.XDG_CONFIG_HOME ?? join(HOME, ".config");
+
 /** Domain error for package setup failures. */
 class PackageSetupError extends Schema.TaggedErrorClass<PackageSetupError>()(
   "PackageSetupError",
@@ -134,25 +137,24 @@ function missingPackages(
   });
 }
 
-function installStowPackage(): Effect.Effect<
-  void,
-  PackageSetupError,
-  CommandExecutor | OutputLog
-> {
+function installWithOmarchyPkgAdd(
+  packageName: string,
+  reason: string,
+): Effect.Effect<void, PackageSetupError, CommandExecutor | OutputLog> {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
     const log = yield* OutputLog;
 
     if (!(yield* commandAvailable("omarchy-pkg-add"))) {
       return yield* fail(
-        "Required command missing: omarchy-pkg-add (needed to install stow)",
+        `Required command missing: omarchy-pkg-add (needed to install ${packageName} for ${reason})`,
       );
     }
 
-    yield* log.info("Installing: stow");
-    const exitCode = yield* executor.inherit("omarchy-pkg-add", ["stow"]);
+    yield* log.info(`Installing: ${packageName}`);
+    const exitCode = yield* executor.inherit("omarchy-pkg-add", [packageName]);
     if (exitCode !== 0) {
-      return yield* fail(`omarchy-pkg-add stow exited ${exitCode}`);
+      return yield* fail(`omarchy-pkg-add ${packageName} exited ${exitCode}`);
     }
   });
 }
@@ -181,11 +183,54 @@ export const ensureStowInstalled: Effect.Effect<
     return;
   }
 
-  yield* installStowPackage();
+  yield* installWithOmarchyPkgAdd("stow", "dotfile linking");
   yield* assertCommandAvailable(
     "stow",
     "stow is still unavailable after installation",
   );
+});
+
+function miseConfigExists(): boolean {
+  return [
+    process.env.MISE_GLOBAL_CONFIG_FILE,
+    join(XDG_CONFIG_HOME, "mise", "config.toml"),
+    join(XDG_CONFIG_HOME, "mise", "config.json"),
+    join(HOME, ".config", "mise", "config.toml"),
+    join(HOME, ".config", "mise", "config.json"),
+    join(HOME, ".mise.toml"),
+    join(HOME, ".tool-versions"),
+  ].some((filePath) => filePath !== undefined && existsSync(filePath));
+}
+
+/** Ensure mise is installed and install stowed mise-managed tool versions. */
+export const installMiseTools: Effect.Effect<
+  void,
+  PackageSetupError,
+  CommandExecutor | OutputLog
+> = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const log = yield* OutputLog;
+
+  yield* log.section("Install Mise Tools");
+
+  if (!miseConfigExists()) {
+    yield* log.info("No mise config found; skipping mise install");
+    return;
+  }
+
+  if (!(yield* commandAvailable("mise"))) {
+    yield* installWithOmarchyPkgAdd("mise", "tool version setup");
+  }
+
+  yield* assertCommandAvailable(
+    "mise",
+    "mise is still unavailable after installation",
+  );
+
+  const exitCode = yield* executor.inherit("mise", ["install"], { cwd: HOME });
+  if (exitCode !== 0) {
+    return yield* fail(`mise install exited ${exitCode}`);
+  }
 });
 
 function shouldSkipPackageScope(

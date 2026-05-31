@@ -354,8 +354,8 @@ Examples:
     console.log(`Usage: dot init [options]
 
 Run the one-time first-use setup workflow for a fresh machine. Init prepares
-repos, packages, stow links, machine hooks, and then finishes by running
-dot update. After init completes, use dot update for ongoing maintenance.
+repos, stow links, mise tools, packages, machine hooks, and then finishes by
+running dot update. After init completes, use dot update for ongoing maintenance.
 
 Options:
   --confirm                 Acknowledge non-interactive package helpers
