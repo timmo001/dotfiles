@@ -212,6 +212,8 @@ function isKnownTarget(candidate: string): boolean {
     candidate === "handoff" ||
     candidate === "handoffs" ||
     candidate === "setup-private-repo" ||
+    candidate === "private-pkg-publish" ||
+    candidate === "private-package-publish" ||
     candidate === "omarchy"
   )
     return true;
@@ -364,6 +366,29 @@ Options:
 
 Examples:
   dot setup-private-repo`);
+    return;
+  }
+
+  if (
+    subcommand === "private-pkg-publish" ||
+    subcommand === "private-package-publish"
+  ) {
+    console.log(`Usage: dot private-pkg-publish [options] <package-name>
+
+Build and publish a mapped private package into the private pacman repo.
+
+Aliases:
+  dot private-package-publish
+
+Options:
+  --no-git       Skip package repo commit and push
+  --skip-build   Publish an existing dist package artifact
+  --install      Install the published package after syncing the mirror
+  --help, -h     Show this help message
+
+Examples:
+  dot private-pkg-publish twitch-notifications --install
+  dot private-pkg-publish --skip-build --no-git twitch-notifications`);
     return;
   }
 
@@ -542,6 +567,7 @@ Subcommands:
   stow                 Run dot stow
   doctor               Run dot doctor
   setup-private-repo   Register private pacman repo include
+  private-pkg-publish  Build and publish a private package
   system-health        Run system-health-check
   skill-updates        Run dot skill-updates
   skill-check          Validate skill references
@@ -566,6 +592,7 @@ Examples:
   dot notes root           Print notes vault root
   dot notes context --command notes-list
   dot setup-private-repo Repair private pacman repo include
+  dot private-pkg-publish twitch-notifications --install
   dot omarchy theme        Omarchy theme submenu
   dot omarchy theme set    Execute omarchy theme set
 

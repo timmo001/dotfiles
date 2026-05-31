@@ -4,6 +4,7 @@ import { join } from "path";
 import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
+import { runElevated } from "../lib/elevatedCommand.js";
 import {
   loadPrivatePackageRepoConfig,
   privatePackageRepoConfigContents,
@@ -20,37 +21,6 @@ const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
 
 function displayPath(path: string): string {
   return path.replace(HOME, "~");
-}
-
-function isRoot(): boolean {
-  return process.getuid?.() === 0;
-}
-
-function elevatedCommand(
-  command: string,
-  args: readonly string[],
-): Effect.Effect<readonly [string, readonly string[]], never, CommandExecutor> {
-  return Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
-    if (isRoot()) return [command, args] as const;
-
-    if ((yield* executor.exitCode("which", ["pkexec"])) === 0) {
-      return ["pkexec", [command, ...args]] as const;
-    }
-
-    return ["sudo", [command, ...args]] as const;
-  });
-}
-
-function runElevated(
-  command: string,
-  args: readonly string[],
-): Effect.Effect<number, never, CommandExecutor> {
-  return Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
-    const [elevated, elevatedArgs] = yield* elevatedCommand(command, args);
-    return yield* executor.inherit(elevated, elevatedArgs);
-  });
 }
 
 function privatePackageRepoReady(repo: PrivatePackageRepoConfig): boolean {

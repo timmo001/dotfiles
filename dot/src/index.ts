@@ -21,6 +21,7 @@ import { opencodeDebug } from "./commands/OpencodeDebug.js";
 import { install } from "./commands/Install.js";
 import { setup } from "./commands/Setup.js";
 import { setupPrivateRepo } from "./commands/SetupPrivateRepo.js";
+import { privatePkgPublish } from "./commands/PrivatePkgPublish.js";
 import { skillUpdates } from "./commands/SkillUpdates.js";
 import { skillCheck } from "./commands/SkillCheck.js";
 import { noteCommand, notesCommand } from "./notes/commands/Notes.js";
@@ -105,6 +106,8 @@ const nativeCommands = new Set([
   "install",
   "setup",
   "setup-private-repo",
+  "private-pkg-publish",
+  "private-package-publish",
   "skill-updates",
   "skill-check",
 ]);
@@ -364,70 +367,66 @@ if (mode.type === "native") {
     return notificationsRaw(notificationOpts);
   };
 
-  const resolveNative = (
-    command: string,
-    args: readonly string[],
-  ): NativeEffect => {
-    switch (command) {
-      case "stow":
-        return stow({
+  type NativeCommandHandler = (args: readonly string[]) => NativeEffect;
+  const nativeCommandHandlers: Readonly<Record<string, NativeCommandHandler>> =
+    {
+      stow: (args) =>
+        stow({
           publicOnly: args.includes("--public"),
           privateOnly: args.includes("--private"),
-        });
-      case "update":
-        return update({
+        }),
+      update: (args) =>
+        update({
           pull: args.includes("--pull"),
           stow: args.includes("--stow"),
           tui: args.includes("--tui"),
-        });
-      case "git-workflows":
-        return resolveWorkflows(args);
-      case "git-notifications":
-        return resolveNotifications(args);
-      case "notes":
-        return notesCommand(args);
-      case "note":
-        return noteCommand(args);
-      case "doctor":
-        return doctor({
+        }),
+      "git-workflows": resolveWorkflows,
+      "git-notifications": resolveNotifications,
+      notes: notesCommand,
+      note: noteCommand,
+      doctor: (args) =>
+        doctor({
           openOpencode: args.includes("--open-opencode"),
-        });
-      case "help":
-        return help;
-      case "clean":
-        return clean;
-      case "agents-sync":
-        return agentsSync;
-      case "opencode-debug": {
+        }),
+      help: () => help,
+      clean: () => clean,
+      "agents-sync": () => agentsSync,
+      "opencode-debug": (args) => {
         const agentIdx = args.indexOf("--agent");
         const agent =
           agentIdx !== -1 && args[agentIdx + 1]
             ? (args[agentIdx + 1] as string)
             : undefined;
         return opencodeDebug({ agent });
-      }
-      case "install":
-        return install;
-      case "setup":
-        return setup;
-      case "setup-private-repo":
-        return setupPrivateRepo;
-      case "skill-updates":
-        return skillUpdates({
+      },
+      install: () => install,
+      setup: () => setup,
+      "setup-private-repo": () => setupPrivateRepo,
+      "private-pkg-publish": privatePkgPublish,
+      "private-package-publish": privatePkgPublish,
+      "skill-updates": (args) =>
+        skillUpdates({
           check: args.includes("--check"),
           update: args.includes("--update"),
           skipReview: args.includes("--skip-review"),
-        });
-      case "skill-check":
-        return skillCheck({
+        }),
+      "skill-check": (args) =>
+        skillCheck({
           openOpencode: args.includes("--open-opencode"),
-        });
-      default:
-        return Effect.sync(() => {
-          console.error(`dot: unknown command '${command}'`);
-          process.exit(1);
-        });
-    }
+        }),
+    };
+
+  const resolveNative = (
+    command: string,
+    args: readonly string[],
+  ): NativeEffect => {
+    const handler = nativeCommandHandlers[command];
+    if (handler) return handler(args);
+    return Effect.sync(() => {
+      console.error(`dot: unknown command '${command}'`);
+      process.exit(1);
+    });
   };
 
   const program =

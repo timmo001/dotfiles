@@ -206,6 +206,7 @@ dot opencode-debug            # Debug OpenCode config
 dot opencode-debug --agent x  # Debug specific agent
 dot install                   # Backup/adopt install flow
 dot setup                     # Package install step
+dot private-pkg-publish <pkg> --install # Build, publish, and install a mapped private package
 dot skill-updates             # Check/apply skill updates
 dot skill-updates --check     # Check only (no apply)
 dot skill-updates --update    # Auto-apply clean updates
