@@ -5,7 +5,7 @@ function isRoot(): boolean {
   return process.getuid?.() === 0;
 }
 
-/** Resolve a command through pkexec/sudo when the current process is not root. */
+/** Resolve a command through sudo/pkexec when the current process is not root. */
 export function elevatedCommand(
   command: string,
   args: readonly string[],
@@ -14,11 +14,11 @@ export function elevatedCommand(
     const executor = yield* CommandExecutor;
     if (isRoot()) return [command, args] as const;
 
-    if ((yield* executor.exitCode("which", ["pkexec"])) === 0) {
-      return ["pkexec", [command, ...args]] as const;
+    if ((yield* executor.exitCode("which", ["sudo"])) === 0) {
+      return ["sudo", [command, ...args]] as const;
     }
 
-    return ["sudo", [command, ...args]] as const;
+    return ["pkexec", [command, ...args]] as const;
   });
 }
 
