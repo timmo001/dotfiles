@@ -318,7 +318,7 @@ function installWithPacman(
     const exitCode = yield* runElevated("pacman", [
       "-Sy",
       "--needed",
-      ...(opts.confirm ? ["--noconfirm"] : []),
+      "--noconfirm",
       ...missing,
     ]);
     if (exitCode !== 0) {
