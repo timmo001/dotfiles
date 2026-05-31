@@ -211,6 +211,7 @@ function isKnownTarget(candidate: string): boolean {
     candidate === "note" ||
     candidate === "handoff" ||
     candidate === "handoffs" ||
+    candidate === "setup-private-repo" ||
     candidate === "omarchy"
   )
     return true;
@@ -345,6 +346,23 @@ Exit codes:
 Examples:
   dot doctor                  Run all checks
   dot doctor --open-opencode  Run checks, then open OpenCode with the report`);
+    return;
+  }
+
+  if (subcommand === "setup-private-repo") {
+    console.log(`Usage: dot setup-private-repo
+
+Sync the private Arch package repo mirror, write the private pacman repo
+snippet, and add the Include line to /etc/pacman.conf when it is missing.
+
+This repairs Omarchy pacman.conf refreshes that remove local repository
+includes. Privileged writes prefer pkexec and fall back to sudo.
+
+Options:
+  --help, -h  Show this help message
+
+Examples:
+  dot setup-private-repo`);
     return;
   }
 
@@ -520,6 +538,7 @@ Subcommands:
   update               Run dot update
   stow                 Run dot stow
   doctor               Run dot doctor
+  setup-private-repo   Register private pacman repo include
   system-health        Run system-health-check
   skill-updates        Run dot skill-updates
   skill-check          Validate skill references
@@ -543,6 +562,7 @@ Examples:
   dot handoffs             Handoff notes TUI
   dot notes root           Print notes vault root
   dot notes context --command notes-list
+  dot setup-private-repo Repair private pacman repo include
   dot omarchy theme        Omarchy theme submenu
   dot omarchy theme set    Execute omarchy theme set
 

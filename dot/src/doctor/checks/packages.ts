@@ -3,12 +3,277 @@ import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
+import type { ConfigService } from "../../services/Config.js";
 import type { CheckResult } from "../types.js";
 
 const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
+const DEFAULT_PRIVATE_PACMAN_REPO_CONFIG = "/etc/pacman.d/timmo-private.conf";
+const DEFAULT_PRIVATE_PACMAN_MAIN_CONFIG = "/etc/pacman.conf";
+
+/** Private Arch package repository settings loaded from private dotfiles. */
+export interface PrivatePackageRepoConfig {
+  /** Pacman repository name, e.g. timmo-private. */
+  readonly name: string;
+  /** Source repository containing package artifacts. */
+  readonly path: string;
+  /** Local mirror path served to pacman via file://. */
+  readonly mirrorPath: string;
+  /** Pacman SigLevel line value for this repository. */
+  readonly sigLevel: string;
+}
+
+interface PrivatePackageRepoConfigDraft {
+  name: string;
+  path: string;
+  mirrorPath: string;
+  sigLevel: string;
+}
+
+type PrivatePackageRepoConfigSetter = (
+  draft: PrivatePackageRepoConfigDraft,
+  value: string,
+) => void;
+
+const privatePackageRepoConfigSetters: Readonly<
+  Record<string, PrivatePackageRepoConfigSetter>
+> = {
+  name: (draft, value) => {
+    draft.name = value;
+  },
+  path: (draft, value) => {
+    draft.path = value.replace(/^~/, HOME);
+  },
+  mirror_path: (draft, value) => {
+    draft.mirrorPath = value.replace(/^~/, HOME);
+  },
+  siglevel: (draft, value) => {
+    draft.sigLevel = value;
+  },
+};
 
 function displayPath(p: string): string {
   return p.replace(HOME, "~");
+}
+
+function privatePackageRepoConfigFile(config: ConfigService): string | null {
+  return (
+    process.env.DOT_PRIVATE_PACKAGE_REPO_FILE ??
+    (config.privateDotfiles
+      ? join(config.privateDotfiles, ".dot-private-package-repo")
+      : null)
+  );
+}
+
+function applyPrivatePackageRepoConfigLine(
+  draft: PrivatePackageRepoConfigDraft,
+  line: string,
+): void {
+  const eqIdx = line.indexOf("=");
+  if (eqIdx < 0) return;
+
+  const key = line.slice(0, eqIdx).trim();
+  const value = line.slice(eqIdx + 1).trim();
+  privatePackageRepoConfigSetters[key]?.(draft, value);
+}
+
+function completePrivatePackageRepoConfig(
+  draft: PrivatePackageRepoConfigDraft,
+): PrivatePackageRepoConfig | null {
+  if (!draft.name || !draft.path || !draft.mirrorPath) return null;
+  return {
+    name: draft.name,
+    path: draft.path,
+    mirrorPath: draft.mirrorPath,
+    sigLevel: draft.sigLevel,
+  };
+}
+
+function readPrivatePackageRepoConfigLines(filePath: string): string[] | null {
+  try {
+    return readFileSync(filePath, "utf-8")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("#"));
+  } catch {
+    return null;
+  }
+}
+
+/** Path to the private pacman repository snippet. */
+export function privatePacmanRepoConfigPath(): string {
+  return (
+    process.env.DOT_PRIVATE_PACMAN_REPO_CONFIG ??
+    DEFAULT_PRIVATE_PACMAN_REPO_CONFIG
+  );
+}
+
+/** Path to the main pacman configuration file. */
+export function privatePacmanMainConfigPath(): string {
+  return (
+    process.env.DOT_PRIVATE_PACMAN_MAIN_CONFIG ??
+    DEFAULT_PRIVATE_PACMAN_MAIN_CONFIG
+  );
+}
+
+/** Load private pacman repo settings from the private dotfiles config file. */
+export function loadPrivatePackageRepoConfig(
+  config: ConfigService,
+): PrivatePackageRepoConfig | null {
+  const repoConfigFile = privatePackageRepoConfigFile(config);
+
+  if (!repoConfigFile || !existsSync(repoConfigFile)) return null;
+
+  const draft: PrivatePackageRepoConfigDraft = {
+    name: "",
+    path: "",
+    mirrorPath: "",
+    sigLevel: "Optional TrustAll",
+  };
+
+  const lines = readPrivatePackageRepoConfigLines(repoConfigFile);
+  if (!lines) return null;
+
+  for (const line of lines) {
+    applyPrivatePackageRepoConfigLine(draft, line);
+  }
+
+  return completePrivatePackageRepoConfig(draft);
+}
+
+/** Expected contents for the private pacman repo snippet. */
+export function privatePackageRepoConfigContents(
+  repo: PrivatePackageRepoConfig,
+): string {
+  return `[${repo.name}]\nSigLevel = ${repo.sigLevel}\nServer = file://${repo.mirrorPath}\n`;
+}
+
+/** Include line that registers the private repo snippet with pacman. */
+export function privatePackageRepoIncludeLine(): string {
+  return `Include = ${privatePacmanRepoConfigPath()}`;
+}
+
+/** Whether the private repo snippet exists and declares the expected repo. */
+export function privatePackageRepoRegistered(
+  repo: PrivatePackageRepoConfig,
+): boolean {
+  const configPath = privatePacmanRepoConfigPath();
+  if (!existsSync(configPath)) return false;
+  return readFileSync(configPath, "utf-8").includes(`[${repo.name}]`);
+}
+
+/** Whether the private repo snippet exactly matches the expected contents. */
+export function privatePackageRepoConfigMatches(
+  repo: PrivatePackageRepoConfig,
+): boolean {
+  const configPath = privatePacmanRepoConfigPath();
+  if (!existsSync(configPath)) return false;
+  const actual = readFileSync(configPath, "utf-8").trimEnd();
+  return actual === privatePackageRepoConfigContents(repo).trimEnd();
+}
+
+/** Whether the main pacman config includes the private repo snippet. */
+export function privatePackageRepoIncludeRegistered(): boolean {
+  const mainConfigPath = privatePacmanMainConfigPath();
+  if (!existsSync(mainConfigPath)) return false;
+  return readFileSync(mainConfigPath, "utf-8")
+    .split("\n")
+    .some((line) => line.trim() === privatePackageRepoIncludeLine());
+}
+
+function missingPrivatePackageRepoConfigResult(
+  config: ConfigService,
+): CheckResult {
+  return {
+    severity: "warn",
+    message: `Missing private package repo config: ${displayPath(
+      privatePackageRepoConfigFile(config) ?? "",
+    )}`,
+  };
+}
+
+function privatePackageRepoStatusResult(
+  repo: PrivatePackageRepoConfig,
+): CheckResult | null {
+  const checks: readonly {
+    readonly when: boolean;
+    readonly result: CheckResult;
+  }[] = [
+    {
+      when: !existsSync(repo.mirrorPath),
+      result: {
+        severity: "warn",
+        message: `Missing private package repo mirror: ${displayPath(repo.mirrorPath)}`,
+        detail: "Run dot setup-private-repo to sync the mirror",
+      },
+    },
+    {
+      when: !privatePackageRepoRegistered(repo),
+      result: {
+        severity: "warn",
+        message: `Private pacman repo is not configured in ${displayPath(
+          privatePacmanRepoConfigPath(),
+        )}`,
+        detail: "Run dot setup-private-repo to configure it",
+      },
+    },
+    {
+      when: !privatePackageRepoIncludeRegistered(),
+      result: {
+        severity: "warn",
+        message: `Private pacman repo include is missing from ${displayPath(
+          privatePacmanMainConfigPath(),
+        )}`,
+        detail: "Run dot setup-private-repo to add it",
+      },
+    },
+    {
+      when: !privatePackageRepoConfigMatches(repo),
+      result: {
+        severity: "warn",
+        message: `Private pacman repo config differs from expected contents: ${displayPath(
+          privatePacmanRepoConfigPath(),
+        )}`,
+        detail: "Run dot setup-private-repo to rewrite it",
+      },
+    },
+  ];
+
+  return checks.find(({ when }) => when)?.result ?? null;
+}
+
+function privatePackageRepoResults(config: ConfigService): CheckResult[] {
+  if (!config.canUsePrivate) {
+    return [
+      {
+        severity: "warn",
+        message: `Skipping private package repo checks (${config.privateReason})`,
+      },
+    ];
+  }
+
+  const repo = loadPrivatePackageRepoConfig(config);
+  if (!repo) return [missingPrivatePackageRepoConfigResult(config)];
+
+  const cloneResult = !existsSync(repo.path)
+    ? [
+        {
+          severity: "warn" as const,
+          message: `Missing private package repo clone: ${displayPath(repo.path)}`,
+        },
+      ]
+    : [];
+  const repoStatus = privatePackageRepoStatusResult(repo);
+  if (repoStatus) return [...cloneResult, repoStatus];
+
+  return [
+    ...cloneResult,
+    {
+      severity: "ok",
+      message: `Private pacman repo is configured (${displayPath(
+        privatePacmanRepoConfigPath(),
+      )})`,
+    },
+  ];
 }
 
 /** Special package name alias handling (matches dot-lib) */
@@ -120,78 +385,7 @@ export const checkPublicPackages = Effect.gen(function* () {
 /** Check private package repo configuration */
 export const checkPrivatePackageRepo = Effect.gen(function* () {
   const config = yield* Config;
-  const executor = yield* CommandExecutor;
-  const results: CheckResult[] = [];
-
-  if (!config.canUsePrivate) {
-    results.push({
-      severity: "warn",
-      message: `Skipping private package repo checks (${config.privateReason})`,
-    });
-    return results;
-  }
-
-  // Check for private package repo config
-  const repoConfigFile =
-    process.env.DOT_PRIVATE_PACKAGE_REPO_FILE ??
-    (config.privateDotfiles
-      ? join(config.privateDotfiles, ".dot-private-package-repo")
-      : null);
-
-  if (!repoConfigFile || !existsSync(repoConfigFile)) {
-    results.push({
-      severity: "warn",
-      message: `Missing private package repo config: ${displayPath(repoConfigFile ?? "")}`,
-    });
-    return results;
-  }
-
-  // Parse key=value config (skip comments and blank lines)
-  let repoName = "";
-  let repoPath = "";
-  let mirrorPath = "";
-  try {
-    const lines = readFileSync(repoConfigFile, "utf-8")
-      .split("\n")
-      .map((l) => l.trim())
-      .filter((l) => l && !l.startsWith("#"));
-    for (const line of lines) {
-      const eqIdx = line.indexOf("=");
-      if (eqIdx < 0) continue;
-      const key = line.slice(0, eqIdx).trim();
-      const value = line.slice(eqIdx + 1).trim();
-      if (key === "name") repoName = value;
-      else if (key === "path") repoPath = value.replace(/^~/, HOME);
-      else if (key === "mirror_path") mirrorPath = value.replace(/^~/, HOME);
-    }
-  } catch {
-    /* ignore */
-  }
-
-  if (repoPath && !existsSync(repoPath)) {
-    results.push({
-      severity: "warn",
-      message: `Missing private package repo clone: ${displayPath(repoPath)}`,
-    });
-  }
-
-  if (mirrorPath && !existsSync(mirrorPath)) {
-    results.push({
-      severity: "warn",
-      message: `Missing private package repo mirror: ${displayPath(mirrorPath)}`,
-      detail: "Run dot setup-private-repo to sync the mirror",
-    });
-  } else if (mirrorPath) {
-    const pacmanConf = repoName
-      ? `/etc/pacman.d/${repoName}.conf`
-      : "/etc/pacman.d/private.conf";
-    results.push({
-      severity: "ok",
-      message: `Private pacman repo is configured (${pacmanConf})`,
-    });
-  }
-
-  return results;
+  return privatePackageRepoResults(config);
 });
 
 /** Check private packages are installed */

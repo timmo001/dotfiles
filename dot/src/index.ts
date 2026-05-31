@@ -20,6 +20,7 @@ import { agentsSync } from "./commands/AgentsSync.js";
 import { opencodeDebug } from "./commands/OpencodeDebug.js";
 import { install } from "./commands/Install.js";
 import { setup } from "./commands/Setup.js";
+import { setupPrivateRepo } from "./commands/SetupPrivateRepo.js";
 import { skillUpdates } from "./commands/SkillUpdates.js";
 import { skillCheck } from "./commands/SkillCheck.js";
 import { noteCommand, notesCommand } from "./notes/commands/Notes.js";
@@ -103,6 +104,7 @@ const nativeCommands = new Set([
   "opencode-debug",
   "install",
   "setup",
+  "setup-private-repo",
   "skill-updates",
   "skill-check",
 ]);
@@ -404,6 +406,8 @@ if (mode.type === "native") {
         return install;
       case "setup":
         return setup;
+      case "setup-private-repo":
+        return setupPrivateRepo;
       case "skill-updates":
         return skillUpdates({
           check: args.includes("--check"),
