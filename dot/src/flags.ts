@@ -361,12 +361,14 @@ Options:
   --confirm                 Acknowledge non-interactive package helpers
   --noninteractive          Skip interactive prompts for this run
   --interactive             Allow interactive prompts for this run
+  --host <name>             Hypr host to link before stow (default: OMARCHY_HOST or desktop)
   --branch <name>           Branch override for non-bootstrap Omarchy repos
   --bootstrap-branch <name> Branch override for bootstrap
   --help, -h                Show this help message
 
 Examples:
   dot init --noninteractive --confirm
+  dot init --host laptop --noninteractive --confirm
   dot init --branch main --bootstrap-branch distro/omarchy`);
     return;
   }

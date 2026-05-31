@@ -163,6 +163,7 @@ MenuItem action types:
 dot                           # Main menu (TUI)
 dot init                      # One-time first-use setup, ending with dot update
 dot init --noninteractive --confirm # Non-interactive first setup for VMs
+dot init --host laptop --noninteractive --confirm # First setup with laptop host overrides
 dot install                   # Ensure prerequisites, then backup/adopt install flow
 dot update                    # Full update (pull, stow, rebuild, init-state backfill)
 dot update --pull             # Pull repos only

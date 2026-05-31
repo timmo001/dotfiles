@@ -21,7 +21,13 @@ import {
   installMiseTools,
 } from "../lib/packageSetup.js";
 import { syncOmarchyRepos } from "../lib/omarchySync.js";
-import { displayPath, resolveLinkTarget } from "../lib/omarchyHost.js";
+import {
+  currentOmarchyHost,
+  displayPath,
+  ensureHyprHostLink,
+  hyprRepoPath,
+  resolveLinkTarget,
+} from "../lib/omarchyHost.js";
 import {
   initCompleteMarker,
   initInProgressMarker,
@@ -34,6 +40,7 @@ const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
 const XDG_CONFIG_HOME = process.env.XDG_CONFIG_HOME ?? join(HOME, ".config");
 const GIT_INCLUDE_PATH = "~/.config/git/config.dotfiles";
 const DOCTOR_STARTUP_TIMER_UNIT = "dot-doctor-startup.timer";
+const DEFAULT_INIT_OMARCHY_HOST = "desktop";
 
 /** Domain error for first-use init failures. */
 class InitError extends Schema.TaggedErrorClass<InitError>()("InitError", {
@@ -45,6 +52,7 @@ interface InitOptions {
   readonly noninteractive: boolean;
   readonly branch?: string;
   readonly bootstrapBranch?: string;
+  readonly host?: string;
 }
 
 interface InitOptionsDraft {
@@ -52,6 +60,7 @@ interface InitOptionsDraft {
   noninteractive: boolean;
   branch?: string;
   bootstrapBranch?: string;
+  host?: string;
 }
 
 type ParsedInitArgs =
@@ -82,6 +91,7 @@ const valueInitOptions = new Map<string, ValueInitOptionHandler>([
     "--bootstrap-branch",
     (options, value) => void (options.bootstrapBranch = value),
   ],
+  ["--host", (options, value) => void (options.host = value)],
 ]);
 
 function fail(message: string): Effect.Effect<never, InitError> {
@@ -252,13 +262,44 @@ Options:
   --confirm                 Acknowledge non-interactive package helpers
   --noninteractive          Skip interactive prompts for this run
   --interactive             Allow interactive prompts for this run
+  --host <name>             Hypr host to link before stow (default: OMARCHY_HOST or desktop)
   --branch <name>           Branch override for non-bootstrap Omarchy repos
   --bootstrap-branch <name> Branch override for bootstrap
   --help, -h                Show this help message
 
 Examples:
   dot init --noninteractive --confirm
+  dot init --host laptop --noninteractive --confirm
   dot init --branch main --bootstrap-branch distro/omarchy`);
+}
+
+function initOmarchyHost(options: InitOptions): string {
+  return (
+    options.host?.trim() || currentOmarchyHost() || DEFAULT_INIT_OMARCHY_HOST
+  );
+}
+
+function ensureInitHyprHostLink(
+  config: ConfigService,
+  options: InitOptions,
+): Effect.Effect<void, InitError, OutputLog> {
+  return Effect.gen(function* () {
+    const log = yield* OutputLog;
+    if (!config.omarchy.enabled) return;
+
+    const host = initOmarchyHost(options);
+    const hostDir = join(hyprRepoPath(config), "hosts", host);
+
+    yield* log.section("Omarchy Host Links");
+    if (!existsSync(hostDir)) {
+      return yield* fail(
+        `Missing Hypr host config ${displayPath(hostDir)}. Pass --host <name> or set OMARCHY_HOST to one of the configured hosts.`,
+      );
+    }
+
+    process.env.OMARCHY_HOST = host;
+    yield* ensureHyprHostLink(config, log, { host });
+  });
 }
 
 function configureGitInclude(): Effect.Effect<
@@ -454,6 +495,7 @@ export function init(rawArgs: readonly string[]) {
       branch: parsed.options.branch,
       bootstrapBranch: parsed.options.bootstrapBranch,
     });
+    yield* ensureInitHyprHostLink(config, parsed.options);
     yield* install;
     yield* installMiseTools;
     yield* installMissingArchPackages({

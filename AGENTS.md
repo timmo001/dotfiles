@@ -82,7 +82,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - `hypr`, `waybar`, `ghostty`, and `uwsm` are single-branch Omarchy repos expected on `main`.
 - `bootstrap` is expected on `distro/omarchy`.
 - Hypr host-specific overrides live under `~/.config/hypr/hosts/$OMARCHY_HOST`.
-- `dot stow` creates `~/.config/hypr/host` as the active host symlink and `dot doctor` checks it.
+- `dot init` creates `~/.config/hypr/host` early after Omarchy repo sync; `dot stow` repairs it and `dot doctor` checks it.
 - If this host override layout changes, update all relevant `README.md`, `AGENTS.md`, and skill documentation together so repo instructions stay consistent.
 
 ## Stow Rules

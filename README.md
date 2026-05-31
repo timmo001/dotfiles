@@ -56,7 +56,7 @@ dot doctor
 
 ## Command reference
 
-- `dot init` - one-time first-use setup for fresh machines: Omarchy sync, install/adopt, stowed mise tool install, package setup, machine hooks, agents sync, then `dot update`; fails fast after successful init
+- `dot init` - one-time first-use setup for fresh machines: Omarchy sync, early Hypr host-link setup (`--host <name>`, default `OMARCHY_HOST` or `desktop`), install/adopt, stowed mise tool install, package setup, machine hooks, agents sync, then `dot update`; fails fast after successful init
 - `dot install` - ensure prerequisites, then run the backup/adopt install flow for public/private dotfiles
 - `dot update` - Omarchy + public/private pull (including optional extra private repos), then stow refresh, Hypr host-link setup, binary rebuild, and first-use completion marker backfill for already-setup machines
 - `dot stow` - stow refresh only (no git pull)
@@ -116,6 +116,7 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 - `DOT_PRIVATE_PACKAGES_FILE` - private package list for `dot` (default `$DOTFILES_PRIVATE_DIR/.dot-private-packages`)
 - `DOT_PRIVATE_PACMAN_REPO_CONFIG` - pacman repo snippet path written by `dot` (default `/etc/pacman.d/timmo-private.conf`)
 - `OMARCHY_REPO_BASE_DIR` - Omarchy repo base path (default `~/.config`)
+- `OMARCHY_HOST` - Hypr host override name used for host-specific packages and `~/.config/hypr/host`; `dot init` defaults to `desktop` when this is unset unless `--host <name>` is passed
 - `DOT_OMARCHY_BRANCH` - branch override for non-bootstrap Omarchy repos during sync
 - `DOT_BOOTSTRAP_BRANCH` - branch for `bootstrap` sync (default `distro/omarchy`)
 - `DOT_INCLUDE_OMARCHY_DIFF_REPOS` - include Omarchy repos in `dot git-diff` (`1|0`, default `1`)
@@ -138,10 +139,10 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 1. Install bootstrap build prerequisites: `sudo pacman -S --needed git mise`
 1. Run `cd ~/.config/dotfiles/dot && mise --no-config exec bun@latest -- bun install && mise --no-config exec bun@latest -- bun run build`
 1. Confirm `gh auth status` works
-1. Run `~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive --confirm` for VM/non-interactive setup, or `dot init` in an interactive shell
+1. Run `~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive --confirm` for desktop/VM setup, `dot init --host laptop --noninteractive --confirm` for laptop setup, or `dot init` in an interactive shell
 1. If stock Omarchy config directories already exist at `~/.config/hypr`, `~/.config/waybar`, `~/.config/ghostty`, or `~/.config/uwsm`, `dot init` backs them up with a `.dot-init-backup-*` suffix before cloning the managed repos
 1. Restart shell and confirm `dot help` is on `PATH`
 1. Run `dot git-diff` and verify expected repo state
 1. Run `dot update` for ongoing sync, stow, rebuild, and init-state backfill
 
-`dot init` runs `mise install` immediately after stowing dotfiles and before installing managed Arch/AUR package lists, so Bun, Node, pnpm, and similar developer tools should come from the stowed mise config rather than global pacman packages.
+`dot init` creates `~/.config/hypr/host` immediately after syncing Omarchy repos and before stow/package setup. It then runs `mise install` immediately after stowing dotfiles and before installing managed Arch/AUR package lists, so Bun, Node, pnpm, and similar developer tools should come from the stowed mise config rather than global pacman packages.

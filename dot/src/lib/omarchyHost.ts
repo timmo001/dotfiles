@@ -110,10 +110,32 @@ function inspectHostLink(hostLink: string, hostDir: string): HostLinkStatus {
   return link.target === hostDir ? "ok" : "repair";
 }
 
-function hyprHostLinkRequest(config: ConfigService): HostLinkRequest {
+function requestedOmarchyHost(hostOverride?: string): string | null {
+  return hostOverride?.trim() || currentOmarchyHost();
+}
+
+function hostLinkRequestForHost(
+  config: ConfigService,
+  host: string,
+): HostLinkRequest {
+  const repoPath = hyprRepoPath(config);
+  const hostDir = join(repoPath, "hosts", host);
+
+  return existsSync(hostDir)
+    ? { status: "ensure", host, hostDir, hostLink: join(repoPath, "host") }
+    : {
+        status: "skip",
+        message: `Skipping Hypr host link (missing ${displayPath(hostDir)})`,
+      };
+}
+
+function hyprHostLinkRequest(
+  config: ConfigService,
+  hostOverride?: string,
+): HostLinkRequest {
   if (!config.omarchy.enabled) return { status: "disabled" };
 
-  const host = currentOmarchyHost();
+  const host = requestedOmarchyHost(hostOverride);
   if (!host) {
     return {
       status: "skip",
@@ -121,16 +143,7 @@ function hyprHostLinkRequest(config: ConfigService): HostLinkRequest {
     };
   }
 
-  const repoPath = hyprRepoPath(config);
-  const hostDir = join(repoPath, "hosts", host);
-  if (!existsSync(hostDir)) {
-    return {
-      status: "skip",
-      message: `Skipping Hypr host link (missing ${displayPath(hostDir)})`,
-    };
-  }
-
-  return { status: "ensure", host, hostDir, hostLink: join(repoPath, "host") };
+  return hostLinkRequestForHost(config, host);
 }
 
 const updateHyprHostLink = (
@@ -167,9 +180,10 @@ const updateHyprHostLink = (
 export const ensureHyprHostLink = (
   config: ConfigService,
   log: Pick<OutputLogService, "info" | "warn">,
+  opts?: { readonly host?: string },
 ) =>
   Effect.gen(function* () {
-    const request = hyprHostLinkRequest(config);
+    const request = hyprHostLinkRequest(config, opts?.host);
     if (request.status === "disabled") return;
 
     if (request.status === "skip") {
