@@ -1,21 +1,23 @@
 #!/bin/bash
 
-# Called by hypridle after_sleep_cmd on system resume from sleep.
+# Called after system resume from sleep.
 # Restarts services that don't recover well after suspend.
 
 LOG_FILE="/tmp/on-resume.log"
 CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 WAYBAR_CACHE_DIR="$CACHE_HOME/waybar"
-DOT_FETCH_CACHE_DIR="$CACHE_HOME/dot/fetch-upstream"
 
 log() {
   echo "[$(date '+%H:%M:%S')] $1" >> "$LOG_FILE"
 }
 
-clear_git_caches() {
-  rm -f "$WAYBAR_CACHE_DIR"/git-*-waybar.json "$WAYBAR_CACHE_DIR"/git-*-waybar.json.tmp
+clear_git_refresh_locks() {
+  rm -f "$WAYBAR_CACHE_DIR"/git-*-waybar.json.tmp
   rmdir "$WAYBAR_CACHE_DIR"/git-*-waybar.lock 2>/dev/null || true
-  rm -rf "$DOT_FETCH_CACHE_DIR"
+}
+
+refresh_shell_indicators() {
+  omarchy-shell -q omarchy.indicators refresh || true
 }
 
 if [[ "${ON_RESUME_DETACHED:-0}" != "1" ]]; then
@@ -31,15 +33,13 @@ log "Resume started"
 pkill -f '/usr/bin/[t]witch-notifications( |$)' >/dev/null 2>&1 || pkill -f '(^| )[t]witch-notifications( |$)' >/dev/null 2>&1 || true
 log "Killed twitch-notifications"
 
-# Clear git caches and restart waybar so modules refresh after network resume
-clear_git_caches
-pkill -x waybar >/dev/null 2>&1 || true
-sleep 0.2
-pkill -9 -x waybar >/dev/null 2>&1 || true
-log "Killed waybar, cleared git caches"
+# Clear stale git watcher locks while keeping cached JSON for restart efficiency.
+clear_git_refresh_locks
+log "Cleared stale git watcher locks and temporary cache files"
 
-uwsm-app -- waybar >/dev/null 2>&1 &
-log "Waybar restarted"
+# Ask the shell to repaint state that may have changed while suspended.
+refresh_shell_indicators
+log "Requested Omarchy shell indicator refresh"
 
 # Restart twitch-notifications after brief delay
 sleep 1
