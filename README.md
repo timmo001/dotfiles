@@ -57,20 +57,25 @@ dot doctor
 ## Command reference
 
 - `dot init` - one-time first-use setup for fresh machines: prerequisites, Omarchy sync, package setup, install/adopt, machine hooks, agents sync, then `dot update`; fails fast after successful init
+- `dot setup` - install minimal prerequisites needed before stow/install workflows
+- `dot install` - backup/adopt install flow for public/private dotfiles
 - `dot update` - Omarchy + public/private pull (including optional extra private repos), then stow refresh, Hypr host-link setup, binary rebuild, and first-use completion marker backfill for already-setup machines
 - `dot stow` - stow refresh only (no git pull)
+- `dot doctor` - tool, repo, workflow runs, extra repo, remote, public/private package, private package repo, and Chromium extension health checks
+- `dot clean` - unstow private then public
 - `dot git-diff` - git status + staged/unstaged summaries with fetched unpushed/incoming commit checks across managed repos (including optional extra private repos and Omarchy repos); use `dot git-diff --bar-json` for one-line status bar JSON (`dot diff` remains a human compatibility alias)
 - `dot git-workflows` - two-pane watched GitHub workflow runs view for each repo's locally checked-out HEAD commit; use `--since <date>` to filter by activity time, and `--raw`, `--bar-json`, `--list-repos`, or `--list-runs` for CLI output
 - `dot git-notifications` - GitHub notification inbox with open, mark-read, done, ignore, and unignore actions; use `--all`, `--participating`, `--since <date>`, `--raw`, `--bar-json`, `--list-threads`, `--mark-read <id>`, `--mark-done <id>`, `--ignore <id>`, or `--unignore <id>` for CLI output/actions
 - `dot notes` - two-pane repository notes browser; use `--all` or press `g` to browse every repo notes directory, and `dot notes list --all` for CLI output grouped by repo
 - `dot handoffs` / `dot handoff` - open the notes browser filtered to notes tagged `handoff`; use `--all` to browse handoffs across every repo
-- `dot setup` - install minimal prerequisites needed before stow/install workflows
-- `dot install` - backup/adopt install flow for public/private dotfiles
-- `dot clean` - unstow private then public
-- `dot doctor` - tool, repo, workflow runs, extra repo, remote, public/private package, private package repo, and Chromium extension health checks
-- `dot opencode-debug [--agent <name>]` - run `opencode debug paths`, `config`, `skill`, and `info` together; optionally inspect one agent with `opencode debug agent <name>`
-- `dot private-pkg-publish [--no-git] [--skip-build] [--install] <package>` - build and publish a mapped private package into the private pacman repo, sync the mirror, refresh pacman metadata, optionally install it, and commit/push by default
 - `dot agents-sync` - copy `~/.config/opencode/AGENTS.md` into `agents/.cursor/rules/global-agents.mdc` in private dotfiles by default (`alwaysApply: true` + body; stows to `~/.cursor/rules/`). **`dot update`** and **`dot git-diff`** run this automatically by default (see env vars below).
+- `dot opencode-debug [--agent <name>]` - run `opencode debug paths`, `config`, `skill`, and `info` together; optionally inspect one agent with `opencode debug agent <name>`
+- `dot setup-private-repo` - sync the private Arch package repo mirror and repair the pacman include snippet
+- `dot private-pkg-publish [--no-git] [--skip-build] [--install] <package>` - build and publish a mapped private package into the private pacman repo, sync the mirror, refresh pacman metadata, optionally install it, and commit/push by default
+- `dot skill-updates` - check or apply upstream updates for imported skills
+- `dot skill-check` - validate skill references across AGENTS and agent files
+- `dot omarchy` - open the Omarchy desktop controls menu
+- `dot help` - show the CLI help menu
 
 ## OpenCode
 

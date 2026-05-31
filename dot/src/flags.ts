@@ -203,6 +203,7 @@ function parseOptions(
 /** Check whether a candidate string matches any known view, menu item, or submenu */
 function isKnownTarget(candidate: string): boolean {
   if (
+    candidate === "init" ||
     candidate === "diff" ||
     candidate === "git-diff" ||
     candidate === "git-workflows" ||
@@ -211,7 +212,6 @@ function isKnownTarget(candidate: string): boolean {
     candidate === "note" ||
     candidate === "handoff" ||
     candidate === "handoffs" ||
-    candidate === "init" ||
     candidate === "setup-private-repo" ||
     candidate === "private-pkg-publish" ||
     candidate === "omarchy"
@@ -567,6 +567,13 @@ Options:
 Launch the dot TUI dashboard. Without a subcommand, opens the main menu.
 
 Subcommands:
+  init                 Run one-time first-use machine setup
+  setup                Install minimal prerequisites
+  install              Backup/adopt and stow dotfiles
+  update               Run dot update
+  stow                 Run dot stow
+  doctor               Run dot doctor
+  clean                Unstow managed dotfiles
   git-diff             Open the git diff/repo watcher view
   git-workflows        Open watched GitHub workflow runs
   git-notifications    Open GitHub notification inbox
@@ -574,23 +581,24 @@ Subcommands:
   handoffs             Open handoff notes
   handoff              Open handoff notes
   note                 Read, write, or delete note files
-  update               Run dot update
-  init                 Run one-time first-use machine setup
-  stow                 Run dot stow
-  doctor               Run dot doctor
+  agents-sync          Sync AGENTS.md to Cursor rule
+  opencode-debug       Debug OpenCode config and paths
   setup-private-repo   Register private pacman repo include
   private-pkg-publish  Build and publish a private package
-  system-health        Run system-health-check
   skill-updates        Run dot skill-updates
   skill-check          Validate skill references
-  topgrade             Run topgrade
   omarchy [submenu..]  Open an Omarchy submenu by path
+  help                 Show this help menu
 
 Options:
   --help, -h                       Show this help message
 
 Examples:
   dot                      Main menu
+  dot init --noninteractive --confirm
+  dot update
+  dot stow
+  dot doctor
   dot git-diff             Interactive diff TUI
   dot git-diff --raw       Text diff summary
   dot git-diff --bar-json  Status bar JSON output
@@ -602,7 +610,7 @@ Examples:
   dot handoffs             Handoff notes TUI
   dot notes root           Print notes vault root
   dot notes context --command notes-list
-  dot init --noninteractive --confirm
+  dot opencode-debug --agent reviewer
   dot setup-private-repo Repair private pacman repo include
   dot private-pkg-publish twitch-notifications --install
   dot omarchy theme        Omarchy theme submenu

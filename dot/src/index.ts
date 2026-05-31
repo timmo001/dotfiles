@@ -11,20 +11,20 @@ import { Notes } from "./notes/services/Notes.js";
 import { parseFlags, resolveSubcommand, printHelp } from "./flags.js";
 import { hasOption, optionValue } from "./lib/args.js";
 import { menuItemsById } from "./menu.js";
-import { stow } from "./commands/Stow.js";
+import { init } from "./commands/Init.js";
+import { setup } from "./commands/Setup.js";
+import { install } from "./commands/Install.js";
 import { update } from "./commands/Update.js";
+import { stow } from "./commands/Stow.js";
 import { doctor } from "./commands/Doctor.js";
-import { help } from "./commands/Help.js";
 import { clean } from "./commands/Clean.js";
 import { agentsSync } from "./commands/AgentsSync.js";
 import { opencodeDebug } from "./commands/OpencodeDebug.js";
-import { init } from "./commands/Init.js";
-import { install } from "./commands/Install.js";
-import { setup } from "./commands/Setup.js";
 import { setupPrivateRepo } from "./commands/SetupPrivateRepo.js";
 import { privatePkgPublish } from "./commands/PrivatePkgPublish.js";
 import { skillUpdates } from "./commands/SkillUpdates.js";
 import { skillCheck } from "./commands/SkillCheck.js";
+import { help } from "./commands/Help.js";
 import { noteCommand, notesCommand } from "./notes/commands/Notes.js";
 import {
   diffBarJson,
@@ -89,8 +89,13 @@ function includeAllRepos(filter: NotesViewFilter): NotesViewFilter {
 
 /** Commands ported natively to TypeScript Effect */
 const nativeCommands = new Set([
-  "stow",
+  "init",
+  "setup",
+  "install",
   "update",
+  "stow",
+  "doctor",
+  "clean",
   "diff",
   "git-diff",
   "git-workflows",
@@ -99,18 +104,13 @@ const nativeCommands = new Set([
   "note",
   "handoff",
   "handoffs",
-  "doctor",
-  "help",
-  "clean",
   "agents-sync",
   "opencode-debug",
-  "init",
-  "install",
-  "setup",
   "setup-private-repo",
   "private-pkg-publish",
   "skill-updates",
   "skill-check",
+  "help",
 ]);
 
 const NOTIFICATION_ACTION_FLAGS: readonly {
@@ -371,27 +371,29 @@ if (mode.type === "native") {
   type NativeCommandHandler = (args: readonly string[]) => NativeEffect;
   const nativeCommandHandlers: Readonly<Record<string, NativeCommandHandler>> =
     {
-      stow: (args) =>
-        stow({
-          publicOnly: args.includes("--public"),
-          privateOnly: args.includes("--private"),
-        }),
+      init,
+      setup: () => setup,
+      install: () => install,
       update: (args) =>
         update({
           pull: args.includes("--pull"),
           stow: args.includes("--stow"),
           tui: args.includes("--tui"),
         }),
-      "git-workflows": resolveWorkflows,
-      "git-notifications": resolveNotifications,
-      notes: notesCommand,
-      note: noteCommand,
+      stow: (args) =>
+        stow({
+          publicOnly: args.includes("--public"),
+          privateOnly: args.includes("--private"),
+        }),
       doctor: (args) =>
         doctor({
           openOpencode: args.includes("--open-opencode"),
         }),
-      help,
       clean: () => clean,
+      "git-workflows": resolveWorkflows,
+      "git-notifications": resolveNotifications,
+      notes: notesCommand,
+      note: noteCommand,
       "agents-sync": () => agentsSync,
       "opencode-debug": (args) => {
         const agentIdx = args.indexOf("--agent");
@@ -401,9 +403,6 @@ if (mode.type === "native") {
             : undefined;
         return opencodeDebug({ agent });
       },
-      init,
-      install: () => install,
-      setup: () => setup,
       "setup-private-repo": () => setupPrivateRepo,
       "private-pkg-publish": privatePkgPublish,
       "skill-updates": (args) =>
@@ -416,6 +415,7 @@ if (mode.type === "native") {
         skillCheck({
           openOpencode: args.includes("--open-opencode"),
         }),
+      help,
     };
 
   const resolveNative = (

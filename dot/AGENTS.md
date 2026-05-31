@@ -37,18 +37,20 @@ src/
   menu.ts                 — Menu registry: Map<string, MenuItem> for dot + omarchy items
   theme.ts                — Theme loading (Omarchy theme → TUI colours)
   commands/
-    AgentsSync.ts         — dot agents-sync
-    Clean.ts              — dot clean
-    Doctor.ts             — dot doctor
-    Help.ts               — dot help
     Init.ts               — dot init first-use setup workflow
-    Install.ts            — dot install
-    OpencodeDebug.ts      — dot opencode-debug
     Setup.ts              — dot setup
-    SkillCheck.ts         — dot skill-check
-    SkillUpdates.ts       — dot skill-updates
-    Stow.ts               — dot stow
+    Install.ts            — dot install
     Update.ts             — dot update
+    Stow.ts               — dot stow
+    Doctor.ts             — dot doctor
+    Clean.ts              — dot clean
+    AgentsSync.ts         — dot agents-sync
+    OpencodeDebug.ts      — dot opencode-debug
+    SetupPrivateRepo.ts   — dot setup-private-repo
+    PrivatePkgPublish.ts  — dot private-pkg-publish
+    SkillUpdates.ts       — dot skill-updates
+    SkillCheck.ts         — dot skill-check
+    Help.ts               — dot help
   notes/
     types.ts              — Repo-note data types and legacy label formatting
     commands/Notes.ts     — dot notes / dot note native CLI handlers
@@ -160,25 +162,34 @@ MenuItem action types:
 
 ```
 dot                           # Main menu (TUI)
+dot init                      # One-time first-use setup, ending with dot update
+dot init --noninteractive --confirm # Non-interactive first setup for VMs
+dot setup                     # Install minimal prerequisites
+dot install                   # Backup/adopt install flow
+dot update                    # Full update (pull, stow, rebuild, init-state backfill)
+dot update --pull             # Pull repos only
+dot update --stow             # Stow only
+dot update --tui              # Rebuild binary only
+dot stow                      # Stow public + private
+dot stow --public             # Stow public only
+dot stow --private            # Stow private only
+dot doctor                    # Health checks
+dot doctor --open-opencode    # Health checks + OpenCode analysis
+dot clean                     # Unstow private then public
 dot git-diff                  # Diff view (TUI)
 dot git-diff --tab other      # Diff view, Other tab focused (TUI)
 dot diff                      # Short alias for git-diff
-dot git-workflows             # Watched GitHub workflow runs view (TUI)
-dot git-notifications         # GitHub notification inbox view (TUI)
-dot notes                     # Repository notes browser (TUI)
-dot notes --all               # Repository notes browser across all repos (TUI)
-dot handoffs                  # Handoff notes browser (TUI, tag: handoff)
-dot handoffs --all            # Handoff notes browser across all repos (TUI)
-dot handoff                   # Alias for dot handoffs
 dot git-diff --raw            # CLI diff output (no TUI)
 dot git-diff --bar-json       # JSON output for status bars and shell modules
 dot git-diff --list-changed   # Changed repo rows
 dot git-diff --list-all       # All repo rows
+dot git-workflows             # Watched GitHub workflow runs view (TUI)
 dot git-workflows --raw       # CLI workflow run summary
 dot git-workflows --since <date> # Filter workflow runs by creation time (TUI or CLI)
 dot git-workflows --bar-json  # JSON output for status bars and shell modules
 dot git-workflows --list-repos # Watched repo rows
 dot git-workflows --list-runs # Workflow run rows
+dot git-notifications         # GitHub notification inbox view (TUI)
 dot git-notifications --raw   # CLI notification summary
 dot git-notifications --bar-json # JSON output for status bars and shell modules
 dot git-notifications --list-threads # Notification thread rows
@@ -186,32 +197,23 @@ dot git-notifications --mark-read <id> # Mark a notification read
 dot git-notifications --mark-done <id> # Mark a notification done
 dot git-notifications --ignore <id> # Ignore future notifications for a thread
 dot git-notifications --unignore <id> # Stop ignoring a thread
+dot notes                     # Repository notes browser (TUI)
+dot notes --all               # Repository notes browser across all repos (TUI)
 dot notes root             # Print notes vault root (CLI)
 dot notes root --repo-notes # Print repository notes directory (CLI)
 dot notes context --command notes-list # Print OpenCode notes context (CLI)
 dot notes list --all       # List all repo notes with repo section headings (CLI)
 dot notes list --format json # List current repo notes as JSON (CLI)
+dot handoffs                  # Handoff notes browser (TUI, tag: handoff)
+dot handoffs --all            # Handoff notes browser across all repos (TUI)
+dot handoff                   # Alias for dot handoffs
 dot note read --path <path> # Read a note file
 dot note write --path <path> --stdin # Write stdin to a note file and commit it
 dot note delete --path <path> # Delete a note file and commit it
-dot update                    # Full update (pull, stow, rebuild, init-state backfill)
-dot update --pull             # Pull repos only
-dot update --stow             # Stow only
-dot update --tui              # Rebuild binary only
-dot init                      # One-time first-use setup, ending with dot update
-dot init --noninteractive --confirm # Non-interactive first setup for VMs
-dot stow                      # Stow public + private
-dot stow --public             # Stow public only
-dot stow --private            # Stow private only
-dot doctor                    # Health checks
-dot doctor --open-opencode    # Health checks + OpenCode analysis
-dot help                      # Show help
-dot clean                     # Unstow private then public
 dot agents-sync               # Sync AGENTS.md to Cursor rule
 dot opencode-debug            # Debug OpenCode config
 dot opencode-debug --agent x  # Debug specific agent
-dot install                   # Backup/adopt install flow
-dot setup                     # Install minimal prerequisites
+dot setup-private-repo        # Register private pacman repo include
 dot private-pkg-publish <pkg> --install # Build, publish, and install a mapped private package
 dot skill-updates             # Check/apply skill updates
 dot skill-updates --check     # Check only (no apply)
@@ -219,6 +221,7 @@ dot skill-updates --update    # Auto-apply clean updates
 dot skill-updates --skip-review # Skip local-edit review
 dot skill-check               # Validate skill references
 dot omarchy                   # Omarchy submenu (TUI)
+dot help                      # Show help
 dot --help                    # Show help
 ```
 
