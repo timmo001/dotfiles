@@ -1,5 +1,15 @@
 import { Effect } from "effect";
-import { existsSync, lstatSync, mkdirSync, renameSync, statSync } from "fs";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  readlinkSync,
+  renameSync,
+  statSync,
+  symlinkSync,
+  unlinkSync,
+} from "fs";
 import { basename, join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
@@ -9,6 +19,10 @@ import { ensureHyprHostLink } from "../lib/omarchyHost.js";
 import { ensureStowInstalled } from "../lib/packageSetup.js";
 
 const HOME = process.env.HOME ?? "/home/" + process.env.USER;
+const EXTERNAL_SKILL_DIRS = [
+  join(HOME, ".agents", "skills"),
+  join(HOME, ".claude", "skills"),
+];
 
 /** Extra stow flags for the agents folder (matches legacy behaviour) */
 const AGENTS_PRIVATE_IGNORES = [
@@ -43,14 +57,10 @@ export const install = Effect.gen(function* () {
   yield* ensureHyprHostLink(config, log);
 
   if (config.canUsePrivate && config.privateDotfiles) {
+    const privateDotfiles = config.privateDotfiles;
     yield* log.section("Install Private Dotfiles");
-    yield* stowRepo(
-      config.privateDotfiles,
-      "private",
-      "install",
-      launcher,
-      log,
-    );
+    yield* Effect.sync(() => backupPrivateFiles(privateDotfiles));
+    yield* stowRepo(privateDotfiles, "private", "install", launcher, log);
   } else {
     yield* log.warn(
       "Skipping private install (private dotfiles not available)",
@@ -60,6 +70,57 @@ export const install = Effect.gen(function* () {
   yield* log.section("Complete");
   yield* log.info("Dotfiles installed successfully");
 });
+
+/** Stored external symlink for save/restore around stow. */
+interface ExternalSymlink {
+  readonly path: string;
+  readonly target: string;
+}
+
+/** Backup known private files that may pre-exist before private stow owns them. */
+function backupPrivateFiles(privateDotfiles: string): void {
+  const backupRoot = join(privateDotfiles, "backup");
+
+  const targets = [
+    {
+      source: join(HOME, ".config/opencode/opencode.json"),
+      backupDir: join(backupRoot, ".config/opencode"),
+    },
+    {
+      source: join(HOME, ".cursor/rules/global-agents.mdc"),
+      backupDir: join(backupRoot, ".cursor/rules"),
+    },
+  ];
+
+  for (const { source, backupDir } of targets) {
+    backupFileIfUnmanaged(source, backupDir);
+  }
+}
+
+/** Move an unmanaged path to the repo backup folder, preserving symlinks. */
+function backupFileIfUnmanaged(source: string, backupDir: string): void {
+  if (!existsSync(source)) return;
+
+  try {
+    if (lstatSync(source).isSymbolicLink()) return;
+  } catch {
+    return;
+  }
+
+  mkdirSync(backupDir, { recursive: true });
+  const name = basename(source);
+  let dest = join(backupDir, name);
+
+  if (existsSync(dest)) {
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, "-")
+      .slice(0, 19);
+    dest = join(backupDir, `${name}.${timestamp}`);
+  }
+
+  renameSync(source, dest);
+}
 
 /**
  * Backup known files that may conflict with public stow packages.
@@ -82,29 +143,53 @@ function backupPublicFiles(publicDotfiles: string): void {
   ];
 
   for (const { source, backupDir } of targets) {
-    if (!existsSync(source)) continue;
+    backupFileIfUnmanaged(source, backupDir);
+  }
+}
 
-    // Skip symlinks — already managed
+/** Find symlinks in external skill dirs that stow would otherwise reject. */
+function findExternalSkillSymlinks(repoDir: string): ExternalSymlink[] {
+  const results: ExternalSymlink[] = [];
+  for (const skillsDir of EXTERNAL_SKILL_DIRS) {
+    if (!existsSync(skillsDir)) continue;
+    for (const entry of readdirSync(skillsDir)) {
+      const fullPath = join(skillsDir, entry);
+      try {
+        const stat = lstatSync(fullPath);
+        if (!stat.isSymbolicLink()) continue;
+        const target = readlinkSync(fullPath);
+        if (!target.startsWith(repoDir)) {
+          results.push({ path: fullPath, target });
+        }
+      } catch {
+        // Entry disappeared or unreadable; skip.
+      }
+    }
+  }
+  return results;
+}
+
+/** Remove external symlinks temporarily, returning them for later restore. */
+function removeExternalSymlinks(links: readonly ExternalSymlink[]): void {
+  for (const link of links) {
     try {
-      if (lstatSync(source).isSymbolicLink()) continue;
+      unlinkSync(link.path);
     } catch {
-      continue;
+      // Already gone; fine.
     }
+  }
+}
 
-    mkdirSync(backupDir, { recursive: true });
-    const name = basename(source);
-    let dest = join(backupDir, name);
-
-    // Avoid overwriting existing backups
-    if (existsSync(dest)) {
-      const timestamp = new Date()
-        .toISOString()
-        .replace(/[:.]/g, "-")
-        .slice(0, 19);
-      dest = join(backupDir, `${name}.${timestamp}`);
+/** Restore previously removed external symlinks. */
+function restoreExternalSymlinks(links: readonly ExternalSymlink[]): void {
+  for (const link of links) {
+    try {
+      if (!existsSync(link.path)) {
+        symlinkSync(link.target, link.path);
+      }
+    } catch {
+      // Best effort; stow result is the authoritative failure signal.
     }
-
-    renameSync(source, dest);
   }
 }
 
@@ -149,10 +234,15 @@ const stowRepo = (
 
       // Build stow command with folder-specific flags
       const flags: string[] = [];
+      let externalLinks: ExternalSymlink[] = [];
       if (folder === "agents") {
         flags.push("--no-folding");
         if (scope === "private") {
           flags.push(...AGENTS_PRIVATE_IGNORES);
+        }
+        externalLinks = findExternalSkillSymlinks(repoDir);
+        if (externalLinks.length > 0) {
+          removeExternalSymlinks(externalLinks);
         }
       }
 
@@ -163,6 +253,10 @@ const stowRepo = (
 
       const stowCmd = ["stow", ...flags, folder].join(" ");
       const exit = yield* launcher.stream(stowCmd, { cwd: repoDir });
+
+      if (externalLinks.length > 0) {
+        restoreExternalSymlinks(externalLinks);
+      }
 
       if (exit !== 0) {
         yield* log.error(`[${scope}] stow ${folder} failed (exit ${exit})`);

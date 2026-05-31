@@ -24,8 +24,11 @@ const AGENTS_PRIVATE_IGNORES = [
 
 const HOME = process.env.HOME ?? "/home/" + process.env.USER;
 
-/** Path where external tools (e.g. omarchy) may place skill symlinks */
-const SKILLS_DIR = join(HOME, ".agents", "skills");
+/** Paths where external tools (e.g. omarchy) may place skill symlinks. */
+const EXTERNAL_SKILL_DIRS = [
+  join(HOME, ".agents", "skills"),
+  join(HOME, ".claude", "skills"),
+];
 
 /** Stored external symlink for save/restore around stow */
 interface ExternalSymlink {
@@ -39,20 +42,22 @@ interface ExternalSymlink {
  * stow's --no-folding mode.
  */
 function findExternalSkillSymlinks(repoDir: string): ExternalSymlink[] {
-  if (!existsSync(SKILLS_DIR)) return [];
   const results: ExternalSymlink[] = [];
-  for (const entry of readdirSync(SKILLS_DIR)) {
-    const fullPath = join(SKILLS_DIR, entry);
-    try {
-      const stat = lstatSync(fullPath);
-      if (!stat.isSymbolicLink()) continue;
-      const target = readlinkSync(fullPath);
-      // Stow-managed links point into the repo source
-      if (!target.startsWith(repoDir)) {
-        results.push({ path: fullPath, target });
+  for (const skillsDir of EXTERNAL_SKILL_DIRS) {
+    if (!existsSync(skillsDir)) continue;
+    for (const entry of readdirSync(skillsDir)) {
+      const fullPath = join(skillsDir, entry);
+      try {
+        const stat = lstatSync(fullPath);
+        if (!stat.isSymbolicLink()) continue;
+        const target = readlinkSync(fullPath);
+        // Stow-managed links point into the repo source
+        if (!target.startsWith(repoDir)) {
+          results.push({ path: fullPath, target });
+        }
+      } catch {
+        // Entry disappeared or unreadable — skip
       }
-    } catch {
-      // Entry disappeared or unreadable — skip
     }
   }
   return results;
