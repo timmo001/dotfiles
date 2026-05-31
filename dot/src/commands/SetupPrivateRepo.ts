@@ -1,6 +1,6 @@
 import { Effect, Schema } from "effect";
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "fs";
-import { join } from "path";
+import { dirname, join } from "path";
 import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
@@ -49,6 +49,36 @@ function privatePacmanRepoConfigCurrent(
 
 function fail(message: string): Effect.Effect<never, SetupPrivateRepoError> {
   return Effect.fail(new SetupPrivateRepoError({ message }));
+}
+
+function clonePrivatePackageRepo(
+  repo: PrivatePackageRepoConfig,
+): Effect.Effect<void, SetupPrivateRepoError, CommandExecutor | OutputLog> {
+  return Effect.gen(function* () {
+    const executor = yield* CommandExecutor;
+    const log = yield* OutputLog;
+
+    if (existsSync(repo.path)) return;
+    if (!repo.remote) {
+      return yield* fail(
+        `Missing private package repo source clone: ${displayPath(repo.path)}`,
+      );
+    }
+
+    yield* log.section("Clone private package repo");
+    mkdirSync(dirname(repo.path), { recursive: true });
+    const exitCode = yield* executor.inherit("gh", [
+      "repo",
+      "clone",
+      repo.remote,
+      repo.path,
+    ]);
+    if (exitCode !== 0) {
+      return yield* fail(
+        `gh repo clone ${repo.remote} ${displayPath(repo.path)} exited ${exitCode}`,
+      );
+    }
+  });
 }
 
 function removeTempFile(
@@ -185,6 +215,7 @@ export const setupPrivatePackageRepo = (
   repo: PrivatePackageRepoConfig,
 ): Effect.Effect<void, SetupPrivateRepoError, CommandExecutor | OutputLog> =>
   Effect.gen(function* () {
+    yield* clonePrivatePackageRepo(repo);
     yield* syncPrivatePackageRepoMirror(repo);
     yield* configurePrivatePacmanRepo(repo);
     yield* registerPrivatePacmanRepoInclude();

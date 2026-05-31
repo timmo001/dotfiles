@@ -307,7 +307,22 @@ function bootstrapPrivateDotfilesForInit(mode: Mode): void {
   if (process.env.DOT_ALLOW_PRIVATE === "never") return;
 
   const privatePath = privateDotfilesPath();
-  if (existsSync(join(privatePath, ".git"))) return;
+  if (existsSync(join(privatePath, ".git"))) {
+    const exitCode = runBootstrapCommand([
+      "git",
+      "-C",
+      privatePath,
+      "pull",
+      "--rebase",
+    ]);
+    if (exitCode !== 0) {
+      const message = `Failed to update private dotfiles at ${privatePath}\n`;
+      process.stderr.write(message);
+      appendBootstrapLog(message);
+      if (process.env.DOT_ALLOW_PRIVATE === "always") process.exit(exitCode);
+    }
+    return;
+  }
 
   if (commandExitCode(["gh", "auth", "status"]) !== 0) {
     const message =

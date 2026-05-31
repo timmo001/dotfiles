@@ -14,6 +14,8 @@ const DEFAULT_PRIVATE_PACMAN_MAIN_CONFIG = "/etc/pacman.conf";
 export interface PrivatePackageRepoConfig {
   /** Pacman repository name, e.g. timmo-private. */
   readonly name: string;
+  /** Optional GitHub repository to clone when the source path is missing. */
+  readonly remote: string | null;
   /** Source repository containing package artifacts. */
   readonly path: string;
   /** Local mirror path served to pacman via file://. */
@@ -24,6 +26,7 @@ export interface PrivatePackageRepoConfig {
 
 interface PrivatePackageRepoConfigDraft {
   name: string;
+  remote: string | null;
   path: string;
   mirrorPath: string;
   sigLevel: string;
@@ -39,6 +42,9 @@ const privatePackageRepoConfigSetters: Readonly<
 > = {
   name: (draft, value) => {
     draft.name = value;
+  },
+  remote: (draft, value) => {
+    draft.remote = value;
   },
   path: (draft, value) => {
     draft.path = value.replace(/^~/, HOME);
@@ -82,6 +88,7 @@ function completePrivatePackageRepoConfig(
   if (!draft.name || !draft.path || !draft.mirrorPath) return null;
   return {
     name: draft.name,
+    remote: draft.remote,
     path: draft.path,
     mirrorPath: draft.mirrorPath,
     sigLevel: draft.sigLevel,
@@ -125,6 +132,7 @@ export function loadPrivatePackageRepoConfig(
 
   const draft: PrivatePackageRepoConfigDraft = {
     name: "",
+    remote: null,
     path: "",
     mirrorPath: "",
     sigLevel: "Optional TrustAll",
