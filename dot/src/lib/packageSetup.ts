@@ -5,6 +5,7 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { displayPath } from "./omarchyHost.js";
+import { runElevated } from "./elevatedCommand.js";
 import type { ConfigService } from "../services/Config.js";
 
 const HOME = process.env.HOME ?? "/home/" + process.env.USER;
@@ -302,6 +303,30 @@ function installWithAurHelper(
   });
 }
 
+function installWithPacman(
+  opts: {
+    readonly scope: ArchPackageScope;
+    readonly confirm?: boolean;
+  },
+  missing: readonly string[],
+): Effect.Effect<void, PackageSetupError, CommandExecutor | OutputLog> {
+  return Effect.gen(function* () {
+    const log = yield* OutputLog;
+
+    yield* log.section(`Install ${opts.scope} Arch packages`);
+    yield* log.info(`Installing: ${missing.join(" ")}`);
+    const exitCode = yield* runElevated("pacman", [
+      "-Sy",
+      "--needed",
+      ...(opts.confirm ? ["--noconfirm"] : []),
+      ...missing,
+    ]);
+    if (exitCode !== 0) {
+      return yield* fail(`pacman -Sy ${missing.join(" ")} exited ${exitCode}`);
+    }
+  });
+}
+
 /** Install missing Arch/AUR packages listed for the given scope. */
 export function installMissingArchPackages(opts: {
   readonly scope: ArchPackageScope;
@@ -324,6 +349,10 @@ export function installMissingArchPackages(opts: {
       return;
     }
 
-    yield* installWithAurHelper(opts, missing);
+    if (opts.scope === "private") {
+      yield* installWithPacman(opts, missing);
+    } else {
+      yield* installWithAurHelper(opts, missing);
+    }
   });
 }
