@@ -74,8 +74,8 @@ Use `dot` as the canonical workflow command instead of raw `stow` for normal ope
 ## Split Worktree Documentation Rules
 
 - The current desktop/laptop split worktree repo is `hypr`.
-- Laptop worktree: `~/.config/hypr` on branch `laptop`.
-- Desktop worktree: `~/.config/hypr-desktop` on branch `desktop`.
+- On `OMARCHY_HOST=desktop`: active worktree `~/.config/hypr` on branch `desktop`; laptop companion `~/.config/hypr-laptop` on branch `laptop`.
+- On `OMARCHY_HOST=laptop`: active worktree `~/.config/hypr` on branch `laptop`; desktop companion `~/.config/hypr-desktop` on branch `desktop`.
 - When changing split-worktree layout or guidance, update the relevant `README.md`, `AGENTS.md`, and skill documentation together.
 - Repos that use desktop/laptop worktrees should have their own `README.md` and `AGENTS.md` that explicitly state the worktree arrangement and the requirement to keep related documentation in sync when it changes.
 

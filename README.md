@@ -26,8 +26,8 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 ## Split worktrees
 
 - Current desktop/laptop split worktree repo: `hypr`
-- Laptop worktree: `~/.config/hypr` on branch `laptop`
-- Desktop worktree: `~/.config/hypr-desktop` on branch `desktop`
+- On `OMARCHY_HOST=desktop`: active worktree `~/.config/hypr` on branch `desktop`; laptop companion `~/.config/hypr-laptop` on branch `laptop`
+- On `OMARCHY_HOST=laptop`: active worktree `~/.config/hypr` on branch `laptop`; desktop companion `~/.config/hypr-desktop` on branch `desktop`
 - If this split-worktree setup changes, update the relevant `README.md`, `AGENTS.md`, and skill documentation together so the documented layout stays accurate
 
 ## Quick start
@@ -48,7 +48,7 @@ dot doctor
 
 ## Command reference
 
-- `dot init` - questionnaire (when available), Omarchy sync (including split-repo worktree setup like `hypr-desktop`), package setup, optional public/private Arch package install, then public/private install
+- `dot init` - questionnaire (when available), Omarchy sync (including host-dependent split-repo worktree setup), package setup, optional public/private Arch package install, then public/private install
 - `dot update` - Omarchy + public/private pull (including optional extra private repos and split Omarchy repo worktrees), then stow refresh
 - `dot stow` - stow refresh only (no git pull)
 - `dot git-diff` - git status + staged/unstaged summaries with fetched unpushed/incoming commit checks across managed repos (including optional extra private repos and split Omarchy repo worktrees); use `dot git-diff --waybar` for one-line Waybar JSON (`dot diff` remains a human compatibility alias)

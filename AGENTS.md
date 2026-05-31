@@ -81,8 +81,8 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 ## Split Worktrees
 
 - The current desktop/laptop split worktree repo is `hypr`.
-- Laptop worktree: `~/.config/hypr` on branch `laptop`.
-- Desktop worktree: `~/.config/hypr-desktop` on branch `desktop`.
+- On `OMARCHY_HOST=desktop`: active worktree `~/.config/hypr` on branch `desktop`; laptop companion `~/.config/hypr-laptop` on branch `laptop`.
+- On `OMARCHY_HOST=laptop`: active worktree `~/.config/hypr` on branch `laptop`; desktop companion `~/.config/hypr-desktop` on branch `desktop`.
 - If this worktree layout changes, update all relevant `README.md`, `AGENTS.md`, and skill documentation together so repo instructions stay consistent.
 
 ## Stow Rules
