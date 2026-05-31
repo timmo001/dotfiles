@@ -5,15 +5,17 @@
 
 LOG_FILE="/tmp/on-resume.log"
 CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
-WAYBAR_CACHE_DIR="$CACHE_HOME/waybar"
+# The git status modules keep the legacy Waybar cache namespace until their
+# shell module port lands.
+GIT_MODULE_CACHE_DIR="$CACHE_HOME/waybar"
 
 log() {
   echo "[$(date '+%H:%M:%S')] $1" >> "$LOG_FILE"
 }
 
 clear_git_refresh_locks() {
-  rm -f "$WAYBAR_CACHE_DIR"/git-*-waybar.json.tmp
-  rmdir "$WAYBAR_CACHE_DIR"/git-*-waybar.lock 2>/dev/null || true
+  rm -f "$GIT_MODULE_CACHE_DIR"/git-*-waybar.json.tmp
+  rmdir "$GIT_MODULE_CACHE_DIR"/git-*-waybar.lock 2>/dev/null || true
 }
 
 refresh_shell_indicators() {

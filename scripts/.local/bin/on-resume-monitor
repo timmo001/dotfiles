@@ -1,0 +1,28 @@
+#!/bin/bash
+
+set -euo pipefail
+
+sleep_signal="type='signal',sender='org.freedesktop.login1',interface='org.freedesktop.login1.Manager',member='PrepareForSleep'"
+saw_sleep=0
+
+run_resume_recovery() {
+  sleep 1
+  "$HOME/.local/bin/on-resume"
+}
+
+while IFS= read -r line; do
+  case "$line" in
+    *"boolean true"*)
+      saw_sleep=1
+      ;;
+    *"boolean false"*)
+      if (( saw_sleep )); then
+        run_resume_recovery
+      fi
+      saw_sleep=0
+      ;;
+  esac
+done < <(dbus-monitor --system "$sleep_signal")
+
+# Restart the user service if dbus-monitor exits unexpectedly.
+exit 1
