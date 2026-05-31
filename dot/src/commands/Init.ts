@@ -13,8 +13,7 @@ import { OutputLog } from "../services/OutputLog.js";
 import { agentsSync } from "./AgentsSync.js";
 import { install } from "./Install.js";
 import { update } from "./Update.js";
-import { setupPrivatePackageRepo } from "./SetupPrivateRepo.js";
-import { loadPrivatePackageRepoConfig } from "../doctor/checks/packages.js";
+import { setupPrivateRepo } from "./SetupPrivateRepo.js";
 import { runElevated } from "../lib/elevatedCommand.js";
 import {
   ensureGumInstalled,
@@ -561,10 +560,7 @@ function setupPrivatePackages(
       return;
     }
 
-    const repo = loadPrivatePackageRepoConfig(config);
-    if (!repo) return yield* fail("Missing private package repo config");
-
-    yield* setupPrivatePackageRepo(repo);
+    yield* setupPrivateRepo;
     yield* installMissingArchPackages({
       scope: "private",
       confirm: options.confirm,

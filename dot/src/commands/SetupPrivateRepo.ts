@@ -127,15 +127,19 @@ function syncPrivatePackageRepoMirror(
       );
     }
 
-    try {
-      mkdirSync(repo.mirrorPath, { recursive: true });
-    } catch (error) {
+    const mkdirExitCode = yield* runElevated("install", [
+      "-d",
+      "-m",
+      "0755",
+      repo.mirrorPath,
+    ]);
+    if (mkdirExitCode !== 0) {
       return yield* fail(
-        `Cannot create private package repo mirror path ${displayPath(repo.mirrorPath)}: ${String(error)}`,
+        `Cannot create private package repo mirror path ${displayPath(repo.mirrorPath)} (install exited ${mkdirExitCode})`,
       );
     }
 
-    const exitCode = yield* executor.inherit("rsync", [
+    const exitCode = yield* runElevated("rsync", [
       "-a",
       "--delete",
       "--exclude",

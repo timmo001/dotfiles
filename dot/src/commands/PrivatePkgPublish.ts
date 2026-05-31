@@ -449,6 +449,7 @@ export const privatePkgPublish = (rawArgs: readonly string[]) =>
       yield* markFailure(log, "Missing private package repo config");
       return;
     }
+    yield* setupPrivateRepo;
 
     const packageMap = readPrivatePackageMap(config);
     const sourceRepo = packageMap.get(parsed.args.packageName);
