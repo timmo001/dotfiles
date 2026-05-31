@@ -10,6 +10,7 @@ import type {
 } from "../../types.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config, type ExtraRepo } from "../../services/Config.js";
+import { gitOutput } from "../../lib/git.js";
 import { GitHub } from "./GitHub.js";
 import {
   extraRepoVisible,
@@ -139,26 +140,20 @@ export class WorkflowRuns extends Context.Service<
         slug: string,
         repoPath: string,
       ) {
-        const branch = (yield* executor.run(
-          "git",
-          ["branch", "--show-current"],
-          { cwd: repoPath },
-        )).trim();
+        const branch = (yield* gitOutput(["branch", "--show-current"], {
+          cwd: repoPath,
+        }).pipe(Effect.provideService(CommandExecutor, executor))).trim();
 
         if (!branch) {
           return yield* Effect.fail(new Error("current branch not found"));
         }
 
-        const sha = (yield* executor.run("git", ["rev-parse", "HEAD"], {
+        const sha = (yield* gitOutput(["rev-parse", "HEAD"], {
           cwd: repoPath,
-        })).trim();
-        const subject = (yield* executor.run(
-          "git",
-          ["log", "-1", "--pretty=%s"],
-          {
-            cwd: repoPath,
-          },
-        )).trim();
+        }).pipe(Effect.provideService(CommandExecutor, executor))).trim();
+        const subject = (yield* gitOutput(["log", "-1", "--pretty=%s"], {
+          cwd: repoPath,
+        }).pipe(Effect.provideService(CommandExecutor, executor))).trim();
 
         return {
           sha,
@@ -251,11 +246,15 @@ export class WorkflowRuns extends Context.Service<
         "WorkflowRuns.findConfiguredRepoByRemoteSlug",
       )(function* (slug: string) {
         for (const repo of configuredRepoCandidates(config)) {
-          const remote = yield* executor
-            .run("git", ["config", "--get", "remote.origin.url"], {
+          const remote = yield* gitOutput(
+            ["config", "--get", "remote.origin.url"],
+            {
               cwd: repo.path,
-            })
-            .pipe(Effect.catch(() => Effect.succeed("")));
+            },
+          ).pipe(
+            Effect.provideService(CommandExecutor, executor),
+            Effect.catch(() => Effect.succeed("")),
+          );
           if (parseGithubRepoSlug(remote.trim()) === slug) return repo;
         }
 

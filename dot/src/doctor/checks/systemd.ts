@@ -461,7 +461,6 @@ export const checkWorkflowRuns = Effect.gen(function* () {
 
 /** Check GitHub notifications API access and Waybar integration. */
 export const checkGitNotifications = Effect.gen(function* () {
-  const executor = yield* CommandExecutor;
   const github = yield* GitHub;
   const results: CheckResult[] = [];
 
@@ -472,11 +471,13 @@ export const checkGitNotifications = Effect.gen(function* () {
       message: "Skipping GitHub notifications API check (gh CLI not found)",
     });
   } else {
-    const notificationsAccess = yield* executor.exitCode("gh", [
-      "api",
-      "notifications?per_page=1",
-    ]);
-    if (notificationsAccess === 0) {
+    const notificationsAccess = yield* github
+      .api("notifications?per_page=1")
+      .pipe(
+        Effect.map(() => true),
+        Effect.catch(() => Effect.succeed(false)),
+      );
+    if (notificationsAccess) {
       results.push({
         severity: "ok",
         message: "GitHub notifications API is accessible",

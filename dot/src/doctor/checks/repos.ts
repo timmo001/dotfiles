@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { existsSync } from "fs";
 import { Config } from "../../services/Config.js";
-import { CommandExecutor } from "../../services/CommandExecutor.js";
+import { gitExitCode } from "../../lib/git.js";
 import { readGitBranch, readGitUpstream } from "../git.js";
 import type { CheckResult } from "../types.js";
 
@@ -15,7 +15,6 @@ function displayPath(p: string): string {
 /** Check public/private dotfiles repos and extra private repos */
 export const checkRepos = Effect.gen(function* () {
   const config = yield* Config;
-  const executor = yield* CommandExecutor;
   const results: CheckResult[] = [];
 
   // Public dotfiles
@@ -63,12 +62,10 @@ export const checkRepos = Effect.gen(function* () {
         }
 
         // Check it's a git repo
-        const isGit = yield* executor.exitCode("git", [
-          "-C",
-          repo.path,
-          "rev-parse",
-          "--is-inside-work-tree",
-        ]);
+        const isGit = yield* gitExitCode(
+          ["rev-parse", "--is-inside-work-tree"],
+          { cwd: repo.path },
+        );
         if (isGit !== 0) {
           results.push({
             severity: "warn",
@@ -83,7 +80,7 @@ export const checkRepos = Effect.gen(function* () {
         });
 
         // Check on a named branch
-        const branch = yield* readGitBranch(executor, repo.path);
+        const branch = yield* readGitBranch(repo.path);
 
         if (!branch || branch === "HEAD") {
           results.push({
@@ -95,7 +92,6 @@ export const checkRepos = Effect.gen(function* () {
 
         // Check upstream
         const upstream = yield* readGitUpstream(
-          executor,
           repo.path,
           `${branch}@{upstream}`,
         );

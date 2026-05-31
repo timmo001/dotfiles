@@ -12,6 +12,7 @@ import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog, type OutputLogService } from "../services/OutputLog.js";
 import { elevatedCommand } from "../lib/elevatedCommand.js";
+import { gitExitCode, gitRequired } from "../lib/git.js";
 import { setupPrivateRepo } from "./SetupPrivateRepo.js";
 import { loadPrivatePackageRepoConfig } from "../doctor/checks/packages.js";
 import type { ConfigService } from "../services/Config.js";
@@ -376,13 +377,12 @@ function commitAndPushPackageRepo(
   return Effect.gen(function* () {
     const log = yield* OutputLog;
     yield* log.section("Commit private package repo");
-    if (!(yield* runRequired("git", ["add", "."], { cwd: repoPath }))) {
+    if (!(yield* runGitPublishStep(["add", "."], repoPath))) {
       return false;
     }
 
-    const executor = yield* CommandExecutor;
     const hasChanges =
-      (yield* executor.exitCode("git", ["diff", "--cached", "--quiet"], {
+      (yield* gitExitCode(["diff", "--cached", "--quiet"], {
         cwd: repoPath,
       })) !== 0;
     if (!hasChanges) {
@@ -391,14 +391,29 @@ function commitAndPushPackageRepo(
     }
 
     const message = `publish ${packageName} package`;
-    if (
-      !(yield* runRequired("git", ["commit", "-m", message], { cwd: repoPath }))
-    ) {
+    if (!(yield* runGitPublishStep(["commit", "-m", message], repoPath))) {
       return false;
     }
 
     yield* log.section("Push private package repo");
-    return yield* runRequired("git", ["push"], { cwd: repoPath });
+    return yield* runGitPublishStep(["push"], repoPath);
+  });
+}
+
+function runGitPublishStep(
+  args: readonly string[],
+  repoPath: string,
+): Effect.Effect<boolean, never, CommandExecutor | OutputLog> {
+  return Effect.gen(function* () {
+    const log = yield* OutputLog;
+    const gitError = yield* gitRequired(args, { cwd: repoPath }).pipe(
+      Effect.map(() => null),
+      Effect.catchTag("GitCommandError", (error) =>
+        Effect.succeed(error.message),
+      ),
+    );
+    if (!gitError) return true;
+    return yield* markFailure(log, gitError);
   });
 }
 

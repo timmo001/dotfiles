@@ -2,16 +2,15 @@ import { Effect } from "effect";
 import { existsSync, lstatSync, readlinkSync } from "fs";
 import { dirname, join } from "path";
 import { Config } from "../../services/Config.js";
-import { CommandExecutor } from "../../services/CommandExecutor.js";
 import type { CheckResult } from "../types.js";
 import { readGitBranch, readGitUpstream, upstreamBranch } from "../git.js";
+import { gitExitCode, gitOutput, isGitRepo } from "../../lib/git.js";
 import {
   currentOmarchyHost,
   displayPath,
   hyprRepoPath,
   resolveLinkTarget,
 } from "../../lib/omarchyHost.js";
-import type { CommandExecutorService } from "../../services/CommandExecutor.js";
 import type { ConfigService } from "../../services/Config.js";
 
 /** Map repo name to expected GitHub org/repo slug (matches legacy omarchy_repo_slug) */
@@ -178,14 +177,10 @@ function checkHyprHost(config: ConfigService): CheckResult[] {
   return [checkHyprHostLink(hostLink, hostDir, host)];
 }
 
-const checkOmarchyRepo = (
-  config: ConfigService,
-  executor: CommandExecutorService,
-  repoName: string,
-) =>
+const checkOmarchyRepo = (config: ConfigService, repoName: string) =>
   Effect.gen(function* () {
     const repoPath = join(config.omarchy.repoBase, repoName);
-    if (!existsSync(join(repoPath, ".git"))) {
+    if (!isGitRepo(repoPath)) {
       return [
         {
           severity: "warn",
@@ -194,11 +189,11 @@ const checkOmarchyRepo = (
       ] satisfies CheckResult[];
     }
 
-    const remote = (yield* executor
-      .run("git", ["-C", repoPath, "remote", "get-url", "origin"])
-      .pipe(Effect.catch(() => Effect.succeed("")))).trim();
-    const branch = yield* readGitBranch(executor, repoPath);
-    const upstream = yield* readGitUpstream(executor, repoPath);
+    const remote = (yield* gitOutput(["remote", "get-url", "origin"], {
+      cwd: repoPath,
+    }).pipe(Effect.catch(() => Effect.succeed("")))).trim();
+    const branch = yield* readGitBranch(repoPath);
+    const upstream = yield* readGitUpstream(repoPath);
     const expectedBranch = config.omarchy.expectedBranches[repoName];
 
     return [
@@ -210,19 +205,15 @@ const checkOmarchyRepo = (
   });
 
 const checkWorktreeBranch = (
-  executor: CommandExecutorService,
   repoPath: string,
   repoName: string,
   branchName: string,
 ) =>
   Effect.gen(function* () {
-    const branchExists = yield* executor.exitCode("git", [
-      "-C",
-      repoPath,
-      "rev-parse",
-      "--verify",
-      `refs/heads/${branchName}`,
-    ]);
+    const branchExists = yield* gitExitCode(
+      ["rev-parse", "--verify", `refs/heads/${branchName}`],
+      { cwd: repoPath },
+    );
     if (branchExists !== 0) {
       return [
         {
@@ -233,12 +224,10 @@ const checkWorktreeBranch = (
     }
 
     const worktreePath = join(dirname(repoPath), `${repoName}-${branchName}`);
-    const worktreeIsGit = yield* executor.exitCode("git", [
-      "-C",
-      worktreePath,
-      "rev-parse",
-      "--is-inside-work-tree",
-    ]);
+    const worktreeIsGit = yield* gitExitCode(
+      ["rev-parse", "--is-inside-work-tree"],
+      { cwd: worktreePath },
+    );
     if (worktreeIsGit !== 0) {
       return [
         {
@@ -248,7 +237,7 @@ const checkWorktreeBranch = (
       ] satisfies CheckResult[];
     }
 
-    const wtBranch = yield* readGitBranch(executor, worktreePath);
+    const wtBranch = yield* readGitBranch(worktreePath);
     return [
       wtBranch === branchName
         ? {
@@ -262,11 +251,7 @@ const checkWorktreeBranch = (
     ] satisfies CheckResult[];
   });
 
-const checkOmarchyWorktrees = (
-  config: ConfigService,
-  executor: CommandExecutorService,
-  repoName: string,
-) =>
+const checkOmarchyWorktrees = (config: ConfigService, repoName: string) =>
   Effect.gen(function* () {
     if (!config.omarchy.worktreeRepos.includes(repoName)) {
       return [
@@ -278,12 +263,9 @@ const checkOmarchyWorktrees = (
     }
 
     const repoPath = join(config.omarchy.repoBase, repoName);
-    const isGit = yield* executor.exitCode("git", [
-      "-C",
-      repoPath,
-      "rev-parse",
-      "--is-inside-work-tree",
-    ]);
+    const isGit = yield* gitExitCode(["rev-parse", "--is-inside-work-tree"], {
+      cwd: repoPath,
+    });
     if (isGit !== 0) {
       return [
         {
@@ -294,19 +276,14 @@ const checkOmarchyWorktrees = (
     }
 
     const results: CheckResult[] = [];
-    const currentBranch = yield* readGitBranch(executor, repoPath);
+    const currentBranch = yield* readGitBranch(repoPath);
     const branchNames = config.omarchy.worktreeBranches.filter(
       (branchName) => branchName !== currentBranch,
     );
 
     for (const branchName of branchNames) {
       results.push(
-        ...(yield* checkWorktreeBranch(
-          executor,
-          repoPath,
-          repoName,
-          branchName,
-        )),
+        ...(yield* checkWorktreeBranch(repoPath, repoName, branchName)),
       );
     }
 
@@ -316,7 +293,6 @@ const checkOmarchyWorktrees = (
 /** Check Omarchy diff repos, expected branches, and Hypr host-link state */
 export const checkOmarchy = Effect.gen(function* () {
   const config = yield* Config;
-  const executor = yield* CommandExecutor;
   const results: CheckResult[] = [];
 
   if (!config.omarchy.enabled) {
@@ -326,11 +302,11 @@ export const checkOmarchy = Effect.gen(function* () {
   }
 
   for (const repoName of config.omarchy.diffRepos) {
-    results.push(...(yield* checkOmarchyRepo(config, executor, repoName)));
+    results.push(...(yield* checkOmarchyRepo(config, repoName)));
   }
 
   for (const repoName of config.omarchy.diffRepos) {
-    results.push(...(yield* checkOmarchyWorktrees(config, executor, repoName)));
+    results.push(...(yield* checkOmarchyWorktrees(config, repoName)));
   }
 
   results.push(...checkHyprHost(config));

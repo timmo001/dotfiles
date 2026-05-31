@@ -1,5 +1,5 @@
 import { Effect, Layer, Stream } from "effect";
-import { existsSync, mkdirSync } from "fs";
+import { mkdirSync } from "fs";
 import { dirname, join } from "path";
 import { Config } from "./services/Config.js";
 import { CommandExecutor } from "./services/CommandExecutor.js";
@@ -12,6 +12,12 @@ import { WorkflowRuns } from "./git/services/WorkflowRuns.js";
 import { Notes } from "./notes/services/Notes.js";
 import { parseFlags, resolveSubcommand, printHelp } from "./flags.js";
 import { hasOption, optionValue } from "./lib/args.js";
+import {
+  bootstrapGhRepoClone,
+  bootstrapGitPullRebase,
+  bootstrapGitRepoExists,
+  ghAuthenticated,
+} from "./lib/bootstrapGit.js";
 import { isGvfsPath, writeMirroredLog } from "./lib/logMirror.js";
 import { menuItemsById } from "./menu.js";
 import { init } from "./commands/Init.js";
@@ -276,45 +282,14 @@ function privateDotfilesPath(): string {
   );
 }
 
-function commandExitCode(command: readonly string[]): number {
-  try {
-    return Bun.spawnSync([...command], {
-      stdout: "ignore",
-      stderr: "ignore",
-    }).exitCode;
-  } catch {
-    return 127;
-  }
-}
-
-function runBootstrapCommand(command: readonly string[]): number {
-  appendBootstrapLog(`\n$ ${command.join(" ")}\n`);
-  const proc = Bun.spawnSync([...command], {
-    stdin: "inherit",
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  process.stdout.write(proc.stdout);
-  process.stderr.write(proc.stderr);
-  appendBootstrapLog(proc.stdout);
-  appendBootstrapLog(proc.stderr);
-  return proc.exitCode;
-}
-
 function bootstrapPrivateDotfilesForInit(mode: Mode): void {
   if (mode.type !== "native" || mode.command !== "init") return;
   if (mode.args.includes("--help") || mode.args.includes("-h")) return;
   if (process.env.DOT_ALLOW_PRIVATE === "never") return;
 
   const privatePath = privateDotfilesPath();
-  if (existsSync(join(privatePath, ".git"))) {
-    const exitCode = runBootstrapCommand([
-      "git",
-      "-C",
-      privatePath,
-      "pull",
-      "--rebase",
-    ]);
+  if (bootstrapGitRepoExists(privatePath)) {
+    const exitCode = bootstrapGitPullRebase(privatePath, appendBootstrapLog);
     if (exitCode !== 0) {
       const message = `Failed to update private dotfiles at ${privatePath}\n`;
       process.stderr.write(message);
@@ -324,7 +299,7 @@ function bootstrapPrivateDotfilesForInit(mode: Mode): void {
     return;
   }
 
-  if (commandExitCode(["gh", "auth", "status"]) !== 0) {
+  if (!ghAuthenticated()) {
     const message =
       "[WARN] Skipping private dotfiles clone; run `gh auth login` before `dot init` if private dotfiles are wanted.\n";
     if (process.env.DOT_ALLOW_PRIVATE === "always") {
@@ -337,14 +312,11 @@ function bootstrapPrivateDotfilesForInit(mode: Mode): void {
     return;
   }
 
-  mkdirSync(dirname(privatePath), { recursive: true });
-  const exitCode = runBootstrapCommand([
-    "gh",
-    "repo",
-    "clone",
+  const exitCode = bootstrapGhRepoClone(
     PRIVATE_DOTFILES_REPO,
     privatePath,
-  ]);
+    appendBootstrapLog,
+  );
   if (exitCode !== 0) {
     process.stderr.write(
       `Failed to clone ${PRIVATE_DOTFILES_REPO} to ${privatePath}\n`,

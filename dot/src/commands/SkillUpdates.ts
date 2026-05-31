@@ -6,6 +6,7 @@ import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { GitHub } from "../git/services/GitHub.js";
+import { gitExitCode, gitRequired } from "../lib/git.js";
 import {
   scanSkills,
   checkSkill,
@@ -42,7 +43,6 @@ export const skillUpdates = (opts?: {
     const config = yield* Config;
     const log = yield* OutputLog;
     const launcher = yield* Launcher;
-    const executor = yield* CommandExecutor;
     const github = yield* GitHub;
 
     const mode: Mode = opts?.check
@@ -179,29 +179,23 @@ export const skillUpdates = (opts?: {
 
       // git add all updated dirs
       for (const dir of updatedDirs) {
-        yield* launcher.stream(
-          `git -C "${config.publicDotfiles}" add "${dir}"`,
-        );
+        yield* gitRequired(["add", "--", dir], {
+          cwd: config.publicDotfiles,
+        });
       }
 
       // Check if there are staged changes
-      const diffExit = yield* executor.exitCode("git", [
-        "-C",
-        config.publicDotfiles,
-        "diff",
-        "--cached",
-        "--quiet",
-      ]);
+      const diffExit = yield* gitExitCode(["diff", "--cached", "--quiet"], {
+        cwd: config.publicDotfiles,
+      });
 
       if (diffExit !== 0) {
         // There are staged changes — commit
         const commitMsg = `Update skills: ${updatedNames.join(", ")}`;
-        const commitExit = yield* launcher.stream(
-          `git -C "${config.publicDotfiles}" commit -m "${commitMsg}" --no-verify`,
-        );
-        if (commitExit === 0) {
-          yield* log.info(`Committed: ${commitMsg}`);
-        }
+        yield* gitRequired(["commit", "-m", commitMsg, "--no-verify"], {
+          cwd: config.publicDotfiles,
+        });
+        yield* log.info(`Committed: ${commitMsg}`);
       } else {
         yield* log.info(
           "No staged changes to commit (files unchanged on disk)",

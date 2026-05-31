@@ -3,7 +3,6 @@ import { existsSync, unlinkSync } from "fs";
 import { join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
-import { Launcher } from "../services/Launcher.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { DotDiff } from "../git/services/DotDiff.js";
 import { stow as runStow } from "./Stow.js";
@@ -15,6 +14,7 @@ import {
   ensureInitCompleteMarker,
   initCompleteMarker,
 } from "../lib/initState.js";
+import { gitHead, gitPullRebase, gitWorkingTreeClean } from "../lib/git.js";
 import type { ConfigService } from "../services/Config.js";
 import type { InitCompleteMarkerStatus } from "../lib/initState.js";
 
@@ -50,7 +50,6 @@ function logInitMarkerStatus(
 const safePull = (name: string, path: string) =>
   Effect.gen(function* () {
     const log = yield* OutputLog;
-    const launcher = yield* Launcher;
     const executor = yield* CommandExecutor;
 
     // Clear a stale index lock; skip if held by a running git process.
@@ -77,34 +76,30 @@ const safePull = (name: string, path: string) =>
     }
 
     // Skip repos with uncommitted changes.
-    const status = yield* executor
-      .run("git", ["-C", path, "status", "--porcelain"])
-      .pipe(Effect.catch(() => Effect.succeed("")));
-    if (status.trim()) {
+    const clean = yield* gitWorkingTreeClean(path).pipe(
+      Effect.catch(() => Effect.succeed(false)),
+    );
+    if (!clean) {
       yield* log.warn(
         `Skipping ${name} pull (working tree not clean): ${displayPath(path)}`,
       );
       return false;
     }
 
-    const before = yield* executor
-      .run("git", ["-C", path, "rev-parse", "HEAD"])
-      .pipe(Effect.catch(() => Effect.succeed("")));
+    const before = yield* gitHead(path).pipe(
+      Effect.catch(() => Effect.succeed("")),
+    );
 
     yield* log.info(`Pulling ${name} (${displayPath(path)})...`);
-    const exit = yield* launcher.stream("git pull --rebase --no-edit", {
-      cwd: path,
-    });
-
-    if (exit !== 0) {
+    const pulled = yield* gitPullRebase(path);
+    if (!pulled) {
       yield* log.warn(`Pull failed for ${name} — aborting rebase`);
-      yield* executor.exitCode("git", ["-C", path, "rebase", "--abort"]);
       return false;
     }
 
-    const after = yield* executor
-      .run("git", ["-C", path, "rev-parse", "HEAD"])
-      .pipe(Effect.catch(() => Effect.succeed("")));
+    const after = yield* gitHead(path).pipe(
+      Effect.catch(() => Effect.succeed("")),
+    );
 
     return before.trim() !== "" && after.trim() !== "" && before !== after;
   });

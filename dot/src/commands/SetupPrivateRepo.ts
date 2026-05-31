@@ -1,10 +1,11 @@
 import { Effect, Schema } from "effect";
-import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "fs";
-import { dirname, join } from "path";
+import { existsSync, unlinkSync, writeFileSync } from "fs";
+import { join } from "path";
 import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { runElevated } from "../lib/elevatedCommand.js";
+import { ghRepoClone } from "../lib/git.js";
 import {
   loadPrivatePackageRepoConfig,
   privatePackageRepoConfigContents,
@@ -55,7 +56,6 @@ function clonePrivatePackageRepo(
   repo: PrivatePackageRepoConfig,
 ): Effect.Effect<void, SetupPrivateRepoError, CommandExecutor | OutputLog> {
   return Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
     const log = yield* OutputLog;
 
     if (existsSync(repo.path)) return;
@@ -66,18 +66,9 @@ function clonePrivatePackageRepo(
     }
 
     yield* log.section("Clone private package repo");
-    mkdirSync(dirname(repo.path), { recursive: true });
-    const exitCode = yield* executor.inherit("gh", [
-      "repo",
-      "clone",
-      repo.remote,
-      repo.path,
-    ]);
-    if (exitCode !== 0) {
-      return yield* fail(
-        `gh repo clone ${repo.remote} ${displayPath(repo.path)} exited ${exitCode}`,
-      );
-    }
+    yield* ghRepoClone(repo.remote, repo.path).pipe(
+      Effect.catchTag("GitCommandError", (error) => fail(error.message)),
+    );
   });
 }
 

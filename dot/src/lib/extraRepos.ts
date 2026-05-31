@@ -1,9 +1,8 @@
 import { Effect, Schema } from "effect";
-import { existsSync, mkdirSync } from "fs";
-import { dirname } from "path";
+import { existsSync } from "fs";
 import { Config } from "../services/Config.js";
-import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
+import { ghRepoClone } from "./git.js";
 import { displayPath } from "./omarchyHost.js";
 
 /** Domain error for extra repository bootstrap failures. */
@@ -22,7 +21,6 @@ function fail(message: string): Effect.Effect<never, ExtraRepoError> {
 export function cloneMissingExtraRepos(opts?: { readonly strict?: boolean }) {
   return Effect.gen(function* () {
     const config = yield* Config;
-    const executor = yield* CommandExecutor;
     const log = yield* OutputLog;
 
     if (!config.canUsePrivate) {
@@ -43,17 +41,15 @@ export function cloneMissingExtraRepos(opts?: { readonly strict?: boolean }) {
       }
 
       yield* log.info(`Cloning ${repo.name} (${repo.remote})`);
-      mkdirSync(dirname(repo.path), { recursive: true });
-      const exitCode = yield* executor.inherit("gh", [
-        "repo",
-        "clone",
-        repo.remote,
-        repo.path,
-      ]);
-      if (exitCode !== 0) {
-        const message = `gh repo clone ${repo.remote} ${displayPath(repo.path)} exited ${exitCode}`;
-        if (opts?.strict) return yield* fail(message);
-        yield* log.warn(message);
+      const cloneError = yield* ghRepoClone(repo.remote, repo.path).pipe(
+        Effect.map(() => null),
+        Effect.catchTag("GitCommandError", (error) =>
+          Effect.succeed(error.message),
+        ),
+      );
+      if (cloneError) {
+        if (opts?.strict) return yield* fail(cloneError);
+        yield* log.warn(cloneError);
       }
     }
   });

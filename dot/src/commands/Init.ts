@@ -15,6 +15,7 @@ import { install } from "./Install.js";
 import { update } from "./Update.js";
 import { setupPrivateRepo } from "./SetupPrivateRepo.js";
 import { runElevated } from "../lib/elevatedCommand.js";
+import { gitRequired } from "../lib/git.js";
 import {
   ensureGumInstalled,
   installMissingArchPackages,
@@ -395,7 +396,6 @@ function configureGitInclude(
   config: ConfigService,
 ): Effect.Effect<void, InitError, CommandExecutor | OutputLog> {
   return Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
     const log = yield* OutputLog;
     const managedConfig = join(HOME, ".config", "git", "config.dotfiles");
 
@@ -418,16 +418,13 @@ function configureGitInclude(
       return;
     }
 
-    const exitCode = yield* executor.inherit("git", [
+    yield* gitRequired([
       "config",
       "--global",
       "--add",
       "include.path",
       GIT_INCLUDE_PATH,
-    ]);
-    if (exitCode !== 0) {
-      return yield* fail(`git config include.path exited ${exitCode}`);
-    }
+    ]).pipe(Effect.catchTag("GitCommandError", (error) => fail(error.message)));
     yield* log.info(`Added git config include: ${GIT_INCLUDE_PATH}`);
   });
 }

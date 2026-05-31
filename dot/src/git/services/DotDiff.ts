@@ -5,6 +5,7 @@ import { createHash } from "crypto";
 import type { DiffRepo, Repo } from "../../types.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
+import { gitCurrentBranchSync, isGitRepo } from "../../lib/git.js";
 import { extraRepoVisible } from "./repoSchedule.js";
 
 const DEBUG = !!process.env.DOT_DEBUG;
@@ -109,12 +110,6 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
       const config = yield* Config;
       const executor = yield* CommandExecutor;
 
-      /** Check if a path is a valid git repository */
-      const isGitRepo = (repoPath: string): boolean => {
-        if (!existsSync(repoPath)) return false;
-        return existsSync(join(repoPath, ".git"));
-      };
-
       /** Discover all omarchy repo targets (including worktrees) */
       const discoverOmarchyRepos = (): Array<{
         name: string;
@@ -135,16 +130,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
           if (!isGitRepo(repoPath)) continue;
 
           // Get current branch to skip it in worktree enumeration
-          let currentBranch = "";
-          try {
-            const result = Bun.spawnSync(
-              ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-              { cwd: repoPath, stdout: "pipe", stderr: "pipe" },
-            );
-            currentBranch = new TextDecoder().decode(result.stdout).trim();
-          } catch {
-            // ignore
-          }
+          const currentBranch = gitCurrentBranchSync(repoPath);
 
           for (const branch of worktreeBranches) {
             if (branch === currentBranch) continue;

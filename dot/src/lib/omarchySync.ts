@@ -4,8 +4,15 @@ import { join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
+import {
+  ghRepoClone,
+  gitExitCode,
+  gitOutput,
+  gitRequired,
+  gitWorkingTreeClean,
+  isGitRepo,
+} from "./git.js";
 import { displayPath } from "./omarchyHost.js";
-import type { CommandError } from "../services/CommandExecutor.js";
 import type { ConfigService } from "../services/Config.js";
 
 /** Domain error for Omarchy repository sync failures. */
@@ -38,50 +45,6 @@ const REPO_SLUGS: Readonly<Record<string, string>> = {
 
 function repoSlug(repoName: string): string | null {
   return REPO_SLUGS[repoName] ?? null;
-}
-
-function commandText(command: string, args: readonly string[]): string {
-  return [command, ...args].join(" ");
-}
-
-function commandFailureMessage(
-  command: string,
-  args: readonly string[],
-  error: CommandError,
-): string {
-  const stderr = error.stderr ? `: ${error.stderr}` : "";
-  return `${commandText(command, args)} failed with exit ${error.exitCode}${stderr}`;
-}
-
-function runOutput(
-  command: string,
-  args: readonly string[],
-  opts?: { readonly cwd?: string },
-): Effect.Effect<string, OmarchySyncError, CommandExecutor> {
-  return Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
-    return yield* executor
-      .run(command, args, opts)
-      .pipe(
-        Effect.catchTag("CommandError", (error) =>
-          fail(commandFailureMessage(command, args, error)),
-        ),
-      );
-  });
-}
-
-function runRequired(
-  command: string,
-  args: readonly string[],
-  opts?: { readonly cwd?: string },
-): Effect.Effect<void, OmarchySyncError, CommandExecutor> {
-  return Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
-    const exitCode = yield* executor.inherit(command, args, opts);
-    if (exitCode !== 0) {
-      return yield* fail(`${commandText(command, args)} exited ${exitCode}`);
-    }
-  });
 }
 
 function ensureRepoBase(
@@ -155,10 +118,10 @@ function ensureCleanRepo(
   repoPath: string,
 ): Effect.Effect<void, OmarchySyncError, CommandExecutor> {
   return Effect.gen(function* () {
-    const status = (yield* runOutput("git", ["status", "--porcelain"], {
-      cwd: repoPath,
-    })).trim();
-    if (status) {
+    const clean = yield* gitWorkingTreeClean(repoPath).pipe(
+      Effect.catchTag("GitCommandError", (error) => fail(error.message)),
+    );
+    if (!clean) {
       return yield* fail(
         `Omarchy repo ${repoName} has local changes: ${displayPath(repoPath)}`,
       );
@@ -172,13 +135,11 @@ function checkoutBranch(
   branch: string,
 ): Effect.Effect<void, OmarchySyncError, CommandExecutor | OutputLog> {
   return Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
     const log = yield* OutputLog;
     if (!branch) return;
 
     const remoteBranchExists =
-      (yield* executor.exitCode(
-        "git",
+      (yield* gitExitCode(
         ["ls-remote", "--exit-code", "--heads", "origin", branch],
         { cwd: repoPath },
       )) === 0;
@@ -187,34 +148,31 @@ function checkoutBranch(
     }
 
     yield* log.info(`Checking out ${repoName} branch '${branch}'`);
-    yield* runRequired("git", ["fetch", "origin", branch], { cwd: repoPath });
+    yield* gitRequired(["fetch", "origin", branch], { cwd: repoPath }).pipe(
+      Effect.catchTag("GitCommandError", (error) => fail(error.message)),
+    );
 
     const localBranchExists =
-      (yield* executor.exitCode(
-        "git",
+      (yield* gitExitCode(
         ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`],
         { cwd: repoPath },
       )) === 0;
 
     if (localBranchExists) {
-      yield* runRequired("git", ["checkout", branch], { cwd: repoPath });
+      yield* gitRequired(["checkout", branch], { cwd: repoPath }).pipe(
+        Effect.catchTag("GitCommandError", (error) => fail(error.message)),
+      );
     } else {
-      yield* runRequired(
-        "git",
-        ["checkout", "-B", branch, `origin/${branch}`],
-        {
-          cwd: repoPath,
-        },
+      yield* gitRequired(["checkout", "-B", branch, `origin/${branch}`], {
+        cwd: repoPath,
+      }).pipe(
+        Effect.catchTag("GitCommandError", (error) => fail(error.message)),
       );
     }
 
-    yield* runRequired(
-      "git",
-      ["branch", "--set-upstream-to", `origin/${branch}`],
-      {
-        cwd: repoPath,
-      },
-    );
+    yield* gitRequired(["branch", "--set-upstream-to", `origin/${branch}`], {
+      cwd: repoPath,
+    }).pipe(Effect.catchTag("GitCommandError", (error) => fail(error.message)));
   });
 }
 
@@ -231,9 +189,11 @@ function syncExistingRepo(
       );
     }
 
-    const remote = (yield* runOutput("git", ["remote", "get-url", "origin"], {
+    const remote = (yield* gitOutput(["remote", "get-url", "origin"], {
       cwd: repoPath,
-    })).trim();
+    }).pipe(
+      Effect.catchTag("GitCommandError", (error) => fail(error.message)),
+    )).trim();
     if (!remote.includes(slug)) {
       return yield* fail(
         `Omarchy repo ${repoName} remote mismatch (expected ${slug}, found ${remote})`,
@@ -242,14 +202,10 @@ function syncExistingRepo(
 
     yield* ensureCleanRepo(repoName, repoPath);
     yield* checkoutBranch(repoName, repoPath, branch);
-    yield* runRequired("git", ["pull", "--rebase", "--no-edit"], {
+    yield* gitRequired(["pull", "--rebase", "--no-edit"], {
       cwd: repoPath,
-    });
+    }).pipe(Effect.catchTag("GitCommandError", (error) => fail(error.message)));
   });
-}
-
-function isGitRepo(repoPath: string): boolean {
-  return existsSync(join(repoPath, ".git"));
 }
 
 function cloneRepo(
@@ -259,11 +215,9 @@ function cloneRepo(
   return Effect.gen(function* () {
     const log = yield* OutputLog;
     yield* log.info(`Cloning ${slug} -> ${displayPath(repoPath)}`);
-    yield* runRequired("git", [
-      "clone",
-      `https://github.com/${slug}.git`,
-      repoPath,
-    ]);
+    yield* ghRepoClone(slug, repoPath).pipe(
+      Effect.catchTag("GitCommandError", (error) => fail(error.message)),
+    );
   });
 }
 

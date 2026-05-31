@@ -1,4 +1,6 @@
 import { Context, Effect, Layer, Schema } from "effect";
+import { gitOutput, gitRequired } from "../../lib/git.js";
+import { CommandExecutor } from "../../services/CommandExecutor.js";
 import type { GitStatusCode, StagedFile } from "../../types.js";
 
 const log = (msg: string) => console.error(`[dot:GitStaging] ${msg}`);
@@ -46,97 +48,96 @@ export class GitStaging extends Context.Service<
   GitStaging,
   GitStagingService
 >()("GitStaging") {
-  static readonly layer = Layer.succeed(GitStaging, {
-    getStatus: (repoPath) =>
-      runGit(repoPath, ["status", "--porcelain"]).pipe(
-        Effect.map((stdout) => {
-          const files = stdout
-            .split("\n")
-            .filter((line) => line.length > 0)
-            .flatMap(parseStatusLine);
-          log(`Status for ${repoPath}: ${files.length} entries`);
-          return files;
-        }),
-      ),
+  static readonly layer = Layer.effect(
+    GitStaging,
+    Effect.gen(function* () {
+      const executor = yield* CommandExecutor;
+      const provideExecutor = <A, E>(
+        effect: Effect.Effect<A, E, CommandExecutor>,
+      ) => effect.pipe(Effect.provideService(CommandExecutor, executor));
 
-    stageFile: (repoPath, file) => {
-      log(`Staging: ${file}`);
-      return runGitVoid(repoPath, ["add", "--", file]);
-    },
-
-    unstageFile: (repoPath, file) => {
-      log(`Unstaging: ${file}`);
-      return runGitVoid(repoPath, ["reset", "HEAD", "--", file]);
-    },
-
-    stageAll: (repoPath) => {
-      log(`Staging all in ${repoPath}`);
-      return runGitVoid(repoPath, ["add", "-A"]);
-    },
-
-    commit: (repoPath, message) => {
-      log(`Committing in ${repoPath}: ${message}`);
-      return runGitVoid(repoPath, ["commit", "-m", message]);
-    },
-
-    getRecentCommits: (repoPath, count) =>
-      runGit(repoPath, ["log", "--oneline", `-${count}`]).pipe(
-        Effect.map((stdout) =>
-          stdout
-            .trim()
-            .split("\n")
-            .filter((line) => line.length > 0)
-            .map((line) => {
-              // Strip the short hash prefix: "abc1234 Fix something" -> "Fix something"
-              const spaceIdx = line.indexOf(" ");
-              return spaceIdx > 0 ? line.slice(spaceIdx + 1) : line;
+      return {
+        getStatus: (repoPath) =>
+          provideExecutor(runGit(repoPath, ["status", "--porcelain"])).pipe(
+            Effect.map((stdout) => {
+              const files = stdout
+                .split("\n")
+                .filter((line) => line.length > 0)
+                .flatMap(parseStatusLine);
+              log(`Status for ${repoPath}: ${files.length} entries`);
+              return files;
             }),
-        ),
-        Effect.catch(() => Effect.succeed([] as readonly string[])),
-      ),
-  });
+          ),
+
+        stageFile: (repoPath, file) => {
+          log(`Staging: ${file}`);
+          return provideExecutor(runGitVoid(repoPath, ["add", "--", file]));
+        },
+
+        unstageFile: (repoPath, file) => {
+          log(`Unstaging: ${file}`);
+          return provideExecutor(
+            runGitVoid(repoPath, ["reset", "HEAD", "--", file]),
+          );
+        },
+
+        stageAll: (repoPath) => {
+          log(`Staging all in ${repoPath}`);
+          return provideExecutor(runGitVoid(repoPath, ["add", "-A"]));
+        },
+
+        commit: (repoPath, message) => {
+          log(`Committing in ${repoPath}: ${message}`);
+          return provideExecutor(
+            runGitVoid(repoPath, ["commit", "-m", message]),
+          );
+        },
+
+        getRecentCommits: (repoPath, count) =>
+          provideExecutor(
+            runGit(repoPath, ["log", "--oneline", `-${count}`]),
+          ).pipe(
+            Effect.map((stdout) =>
+              stdout
+                .trim()
+                .split("\n")
+                .filter((line) => line.length > 0)
+                .map((line) => {
+                  const spaceIdx = line.indexOf(" ");
+                  return spaceIdx > 0 ? line.slice(spaceIdx + 1) : line;
+                }),
+            ),
+            Effect.catch(() => Effect.succeed([] as readonly string[])),
+          ),
+      } satisfies GitStagingService;
+    }),
+  );
 }
 
 /** Run a git command in the given repo directory and return stdout */
 const runGit = Effect.fn("GitStaging.runGit")(function* (
   repoPath: string,
   args: readonly string[],
-): Effect.fn.Return<string, GitStagingError> {
-  return yield* Effect.tryPromise({
-    try: async () => {
-      const cmd = ["git", "-C", repoPath, ...args];
-      log(`Running: ${cmd.join(" ")}`);
-      const proc = Bun.spawn(cmd, {
-        stdout: "pipe",
-        stderr: "pipe",
-      });
-
-      const stdout = await new Response(proc.stdout).text();
-      const exitCode = await proc.exited;
-
-      if (exitCode !== 0) {
-        const stderr = await new Response(proc.stderr).text();
-        throw new Error(
-          `git ${args[0]} failed (exit ${exitCode}): ${stderr.trim()}`,
-        );
-      }
-
-      return stdout;
-    },
-    catch: (error) => {
-      const msg = error instanceof Error ? error.message : String(error);
-      log(`Error: ${msg}`);
-      return new GitStagingError({ message: msg });
-    },
-  });
+) {
+  return yield* gitOutput(args, { cwd: repoPath }).pipe(
+    Effect.tapError((error) =>
+      Effect.sync(() => log(`Error: ${error.message}`)),
+    ),
+    Effect.mapError((error) => new GitStagingError({ message: error.message })),
+  );
 });
 
 /** Run a git command that produces no meaningful output */
 function runGitVoid(
   repoPath: string,
   args: readonly string[],
-): Effect.Effect<void, GitStagingError> {
-  return runGit(repoPath, args).pipe(Effect.asVoid);
+): Effect.Effect<void, GitStagingError, CommandExecutor> {
+  return gitRequired(args, { cwd: repoPath }).pipe(
+    Effect.tapError((error) =>
+      Effect.sync(() => log(`Error: ${error.message}`)),
+    ),
+    Effect.mapError((error) => new GitStagingError({ message: error.message })),
+  );
 }
 
 /**
