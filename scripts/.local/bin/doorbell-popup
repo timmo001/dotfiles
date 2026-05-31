@@ -381,7 +381,7 @@ watch_motion() {
 
   while true; do
     coproc MOTION_WATCH {
-      exec go-automate ha bridge watch entity --waybar --icon '' "$MOTION_ENTITY" 2>/dev/null
+      exec go-automate ha bridge watch entity --bar-json --icon '' "$MOTION_ENTITY" 2>/dev/null
     }
 
     watch_pid="${MOTION_WATCH_PID:-}"

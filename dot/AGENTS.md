@@ -59,9 +59,9 @@ src/
     checks/               — Doctor check modules (dependencies, repos, packages, etc.)
   git/
     commands/
-      Diff.ts             — dot git-diff (--waybar, --list-changed, --list-all, --raw)
-      Notifications.ts    — dot git-notifications (--waybar, --list-threads, actions, --raw)
-      Workflows.ts        — dot git-workflows (--since, --waybar, --list-repos, --list-runs, --raw)
+      Diff.ts             — dot git-diff (--bar-json, --list-changed, --list-all, --raw)
+      Notifications.ts    — dot git-notifications (--bar-json, --list-threads, actions, --raw)
+      Workflows.ts        — dot git-workflows (--since, --bar-json, --list-repos, --list-runs, --raw)
     doctor/
       gitConfig.ts        — managed Git config doctor check
     services/
@@ -167,16 +167,16 @@ dot handoffs                  # Handoff notes browser (TUI, tag: handoff)
 dot handoffs --all            # Handoff notes browser across all repos (TUI)
 dot handoff                   # Alias for dot handoffs
 dot git-diff --raw            # CLI diff output (no TUI)
-dot git-diff --waybar         # JSON output for Waybar
+dot git-diff --bar-json       # JSON output for status bars and shell modules
 dot git-diff --list-changed   # Changed repo rows
 dot git-diff --list-all       # All repo rows
 dot git-workflows --raw       # CLI workflow run summary
 dot git-workflows --since <date> # Filter workflow runs by creation time (TUI or CLI)
-dot git-workflows --waybar    # JSON output for Waybar
+dot git-workflows --bar-json  # JSON output for status bars and shell modules
 dot git-workflows --list-repos # Watched repo rows
 dot git-workflows --list-runs # Workflow run rows
 dot git-notifications --raw   # CLI notification summary
-dot git-notifications --waybar # JSON output for Waybar
+dot git-notifications --bar-json # JSON output for status bars and shell modules
 dot git-notifications --list-threads # Notification thread rows
 dot git-notifications --mark-read <id> # Mark a notification read
 dot git-notifications --mark-done <id> # Mark a notification done
@@ -255,9 +255,9 @@ Smoke tests:
 dot                          # smoke test: main menu renders, Ctrl+c quits
 dot git-diff                 # smoke test: diff view renders
 dot git-diff --raw           # smoke test: CLI diff output
-dot git-diff --waybar        # smoke test: JSON output
+dot git-diff --bar-json      # smoke test: JSON output
 dot git-notifications --raw  # smoke test: CLI notification output
-dot git-notifications --waybar # smoke test: notification JSON output
+dot git-notifications --bar-json # smoke test: notification JSON output
 dot notes                    # smoke test: notes view renders
 dot handoffs                 # smoke test: handoff-filtered notes view renders
 dot doctor                   # smoke test: health checks run

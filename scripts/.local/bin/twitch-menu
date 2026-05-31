@@ -27,7 +27,7 @@ channels_menu() {
     fi
   done < "$config_file"
 
-  status_json="$(twitch-notifications --status-waybar 2>/dev/null || true)"
+  status_json="$(twitch-notifications --status-bar-json 2>/dev/null || true)"
   tooltip="$(jq -r '.tooltip // empty' <<<"$status_json" 2>/dev/null || true)"
 
   while IFS= read -r line; do

@@ -20,13 +20,13 @@ Usage: ha-watch-singleton --module <id> --entity <entity_id> [options]
 Options:
   --module <id>           Module identifier used in singleton key
   --entity <entity_id>    Home Assistant entity id to watch
-  --icon <icon>           Waybar icon for on/off states
-  --text-on <text>        Waybar text when state is on
-  --text-off <text>       Waybar text when state is not on
-  --tooltip-on <text>     Waybar tooltip when state is on
-  --tooltip-off <text>    Waybar tooltip when state is not on
-  --class-on <class>      Waybar CSS class when state is on
-  --class-off <class>     Waybar CSS class when state is not on
+  --icon <icon>           Status bar icon for on/off states
+  --text-on <text>        Status bar text when state is on
+  --text-off <text>       Status bar text when state is not on
+  --tooltip-on <text>     Status bar tooltip when state is on
+  --tooltip-off <text>    Status bar tooltip when state is not on
+  --class-on <class>      Status bar class when state is on
+  --class-off <class>     Status bar class when state is not on
   --hide-off              Hide module when state is not on
   --help                  Show this help
 EOF
@@ -125,7 +125,7 @@ find_waybar_ancestor_pid() {
 }
 
 build_watch_command() {
-  WATCH_CMD=(go-automate ha bridge watch entity --waybar)
+  WATCH_CMD=(go-automate ha bridge watch entity --bar-json)
 
   if [[ -n "$ICON" ]]; then
     WATCH_CMD+=(--icon "$ICON")

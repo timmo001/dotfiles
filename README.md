@@ -52,9 +52,9 @@ dot doctor
 - `dot init` - questionnaire (when available), Omarchy sync, Hypr host-link setup, package setup, optional public/private Arch package install, then public/private install
 - `dot update` - Omarchy + public/private pull (including optional extra private repos), then stow refresh and Hypr host-link setup
 - `dot stow` - stow refresh only (no git pull)
-- `dot git-diff` - git status + staged/unstaged summaries with fetched unpushed/incoming commit checks across managed repos (including optional extra private repos and Omarchy repos); use `dot git-diff --waybar` for one-line Waybar JSON (`dot diff` remains a human compatibility alias)
-- `dot git-workflows` - two-pane watched GitHub workflow runs view for each repo's locally checked-out HEAD commit; use `--since <date>` to filter by activity time, and `--raw`, `--waybar`, `--list-repos`, or `--list-runs` for CLI output
-- `dot git-notifications` - GitHub notification inbox with open, mark-read, done, ignore, and unignore actions; use `--all`, `--participating`, `--since <date>`, `--raw`, `--waybar`, `--list-threads`, `--mark-read <id>`, `--mark-done <id>`, `--ignore <id>`, or `--unignore <id>` for CLI output/actions
+- `dot git-diff` - git status + staged/unstaged summaries with fetched unpushed/incoming commit checks across managed repos (including optional extra private repos and Omarchy repos); use `dot git-diff --bar-json` for one-line status bar JSON (`dot diff` remains a human compatibility alias)
+- `dot git-workflows` - two-pane watched GitHub workflow runs view for each repo's locally checked-out HEAD commit; use `--since <date>` to filter by activity time, and `--raw`, `--bar-json`, `--list-repos`, or `--list-runs` for CLI output
+- `dot git-notifications` - GitHub notification inbox with open, mark-read, done, ignore, and unignore actions; use `--all`, `--participating`, `--since <date>`, `--raw`, `--bar-json`, `--list-threads`, `--mark-read <id>`, `--mark-done <id>`, `--ignore <id>`, or `--unignore <id>` for CLI output/actions
 - `dot notes` - two-pane repository notes browser; use `--all` or press `g` to browse every repo notes directory, and `dot notes list --all` for CLI output grouped by repo
 - `dot handoffs` / `dot handoff` - open the notes browser filtered to notes tagged `handoff`; use `--all` to browse handoffs across every repo
 - `dot setup [--confirm]` - package install step only
@@ -80,12 +80,12 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 ## GitHub Workflow Runs And Notifications
 
 - Private dotfiles provide the watched repo list in `~/.config/dotfiles-private/.git-workflow-watch-repos`
-- `dot git-workflows` shows watched repos on the left, with workflow runs for the selected locally checked-out HEAD commit on the right; disabled workflows are hidden; `dot git-workflows --waybar --since "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"` emits one-line Waybar JSON for runs created, rerun, or updated in the window, and `--list-repos`/`--list-runs` emit plain text rows
-- The Waybar workflow module refreshes `dot git-workflows --waybar --since <one-hour-ago>` through its own short-lived cache; left click opens the filtered TUI and right click refreshes the cache
+- `dot git-workflows` shows watched repos on the left, with workflow runs for the selected locally checked-out HEAD commit on the right; disabled workflows are hidden; `dot git-workflows --bar-json --since "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"` emits one-line status bar JSON for runs created, rerun, or updated in the window, and `--list-repos`/`--list-runs` emit plain text rows
+- The Waybar workflow module refreshes `dot git-workflows --bar-json --since <one-hour-ago>` through its own short-lived cache; left click opens the filtered TUI and right click refreshes the cache
 - `git-workflow-watch`, its global hook, and its user systemd timer are obsolete and should not be installed
 - `dot doctor` verifies the watched repo list, active Waybar workflow-runs module wiring, and absence of legacy `git-workflow-watch` leftovers
 - `dot git-notifications` shows the authenticated user's GitHub notification inbox; the API requires `gh` authenticated with a classic token carrying `notifications` or `repo` scope
-- The Waybar notification module refreshes `dot git-notifications --waybar` through its own short-lived cache; left click opens the notifications TUI and right click refreshes the cache
+- The Waybar notification module refreshes `dot git-notifications --bar-json` through its own short-lived cache; left click opens the notifications TUI and right click refreshes the cache
 - `dot doctor` verifies GitHub notification API access plus the active Waybar notification module wiring
 
 ## Daily volume reset

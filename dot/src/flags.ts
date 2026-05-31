@@ -289,7 +289,8 @@ Open the diff/repo watcher view. Without flags, opens the interactive TUI.
 Modes:
   (default)        Interactive TUI diff view
   --raw            Text summary of repos with changes
-  --waybar         JSON output for Waybar
+  --bar-json      JSON output for status bars and shell modules
+  --waybar        Legacy alias for --bar-json
   --list-changed   Changed repos as name|path rows
   --list-all       All tracked repos as name|path rows
 
@@ -301,9 +302,9 @@ Options:
 Examples:
   dot git-diff             Interactive TUI
   dot git-diff --raw       Text summary of changed repos
-  dot git-diff --waybar    Waybar JSON output
+  dot git-diff --bar-json  Status bar JSON output
   dot git-diff --tab other TUI with Other pane focused
-  dot diff --waybar        Same as git-diff --waybar`);
+  dot diff --waybar        Legacy alias for git-diff --bar-json`);
     return;
   }
 
@@ -376,7 +377,8 @@ selected repo's locally checked-out HEAD commit.
 Modes:
   (default)      Interactive workflow runs TUI
   --raw          Text summary of watched workflow runs
-  --waybar       JSON output for Waybar
+  --bar-json    JSON output for status bars and shell modules
+  --waybar      Legacy alias for --bar-json
   --list-repos   Watched repo summaries as rows
   --list-runs    Workflow runs as rows
 
@@ -387,7 +389,7 @@ Options:
 Examples:
   dot git-workflows              Interactive workflow runs TUI
   dot git-workflows --raw        Text summary of watched workflow runs
-  dot git-workflows --waybar     Waybar JSON output
+  dot git-workflows --bar-json   Status bar JSON output
   dot git-workflows --since "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"
   dot git-workflows --list-runs  List workflow runs`);
     return;
@@ -402,7 +404,8 @@ action flags, opens the interactive TUI.
 Modes:
   (default)       Interactive notifications TUI
   --raw           Text summary of notification threads
-  --waybar        JSON output for Waybar
+  --bar-json     JSON output for status bars and shell modules
+  --waybar       Legacy alias for --bar-json
   --list-threads  Notification threads as rows
 
 Filters:
@@ -418,7 +421,7 @@ Actions:
 
 Examples:
   dot git-notifications                    Interactive notifications TUI
-  dot git-notifications --waybar           Waybar JSON output
+  dot git-notifications --bar-json         Status bar JSON output
   dot git-notifications --participating    TUI with participating filter
   dot git-notifications --mark-read 12345  Mark thread read`);
     return;
@@ -552,12 +555,12 @@ Examples:
   dot                      Main menu
   dot git-diff             Interactive diff TUI
   dot git-diff --raw       Text diff summary
-  dot git-diff --waybar    Waybar JSON output
-  dot diff --waybar        Same as git-diff --waybar
+  dot git-diff --bar-json  Status bar JSON output
+  dot diff --waybar        Legacy alias for git-diff --bar-json
   dot git-workflows        Watched workflow runs TUI
-  dot git-workflows --waybar Waybar JSON output
+  dot git-workflows --bar-json Status bar JSON output
   dot git-notifications    GitHub notifications TUI
-  dot git-notifications --waybar Waybar JSON output
+  dot git-notifications --bar-json Status bar JSON output
   dot notes                Repository notes TUI
   dot handoffs             Handoff notes TUI
   dot notes root           Print notes vault root

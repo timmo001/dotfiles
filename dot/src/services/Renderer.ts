@@ -19,7 +19,7 @@ export class Renderer extends Context.Service<Renderer, CliRenderer>()(
    * and destroys it on scope finalisation.
    *
    * The `@opentui/core` module is imported lazily here so that CLI-only code
-   * paths (e.g. `dot git-diff --waybar`) never trigger the native library load.
+   * paths (e.g. `dot git-diff --bar-json`) never trigger the native library load.
    *
    * @param theme - The resolved theme for colours/background.
    * @param nativeLibPath - Optional pre-extracted native lib path from

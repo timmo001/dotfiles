@@ -31,14 +31,14 @@ export const notificationsRaw = (opts?: GitNotificationQueryOptions) =>
     yield* Effect.sync(() => process.stdout.write(formatRaw(state)));
   }).pipe(Effect.withSpan("notifications.raw"), handleNotificationError);
 
-/** Machine output: --waybar JSON. */
-export const notificationsWaybar = (opts?: GitNotificationQueryOptions) =>
+/** Machine output: status bar JSON. */
+export const notificationsBarJson = (opts?: GitNotificationQueryOptions) =>
   Effect.gen(function* () {
     const state = yield* refreshNotificationState(opts);
     yield* Effect.sync(() =>
-      process.stdout.write(JSON.stringify(formatWaybar(state)) + "\n"),
+      process.stdout.write(JSON.stringify(formatBarJson(state)) + "\n"),
     );
-  }).pipe(Effect.withSpan("notifications.waybar"), handleNotificationError);
+  }).pipe(Effect.withSpan("notifications.barJson"), handleNotificationError);
 
 /** Machine output: --list-threads pipe-delimited notification rows. */
 export const notificationsListThreads = (opts?: GitNotificationQueryOptions) =>
@@ -104,33 +104,40 @@ function formatRaw(state: GitNotificationState): string {
   return lines.join("\n") + "\n";
 }
 
-function formatWaybar(state: GitNotificationState): {
+function formatBarJson(state: GitNotificationState): {
   readonly text: string;
   readonly tooltip: string;
   readonly class: string;
 } {
   const summary = notificationStateSummary(state);
-  const text = state.message
-    ? "\uf071 ?"
-    : summary.unreadCount > 0
-      ? `\uf0f3 ${summary.unreadCount}`
-      : "";
-  const cls = state.message
-    ? "notifications-unknown"
-    : summary.unreadCount > 0
-      ? summary.importantUnreadCount > 0
-        ? "notifications-attention"
-        : "notifications-unread"
-      : "hidden";
 
   return {
-    text,
-    tooltip: formatWaybarTooltip(state, summary),
-    class: cls,
+    text: notificationBarText(state, summary),
+    tooltip: formatBarJsonTooltip(state, summary),
+    class: notificationBarClass(state, summary),
   };
 }
 
-function formatWaybarTooltip(
+function notificationBarText(
+  state: GitNotificationState,
+  summary: ReturnType<typeof notificationStateSummary>,
+): string {
+  if (state.message) return "\uf071 ?";
+  if (summary.unreadCount === 0) return "";
+  return `\uf0f3 ${summary.unreadCount}`;
+}
+
+function notificationBarClass(
+  state: GitNotificationState,
+  summary: ReturnType<typeof notificationStateSummary>,
+): string {
+  if (state.message) return "notifications-unknown";
+  if (summary.unreadCount === 0) return "hidden";
+  if (summary.importantUnreadCount > 0) return "notifications-attention";
+  return "notifications-unread";
+}
+
+function formatBarJsonTooltip(
   state: GitNotificationState,
   summary: ReturnType<typeof notificationStateSummary>,
 ): string {
@@ -141,13 +148,18 @@ function formatWaybarTooltip(
     `GitHub notifications: ${summary.unreadCount} unread, ${summary.importantUnreadCount} important, ${state.threads.length} shown.`,
   ];
   appendNotificationQueryLines(lines, state.query);
-  for (const thread of state.threads.slice(0, 10)) {
+  appendNotificationThreadLines(lines, state.threads);
+  return lines.join("\n");
+}
+
+function appendNotificationThreadLines(
+  lines: string[],
+  threads: readonly GitNotificationThread[],
+): void {
+  for (const thread of threads.slice(0, 10)) {
     lines.push(`${thread.repo}: ${thread.title} (${thread.reason})`);
   }
-  if (state.threads.length > 10) {
-    lines.push(`+${state.threads.length - 10} more`);
-  }
-  return lines.join("\n");
+  if (threads.length > 10) lines.push(`+${threads.length - 10} more`);
 }
 
 function notificationStateSummary(state: GitNotificationState): {

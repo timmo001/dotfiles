@@ -25,7 +25,7 @@ import { skillUpdates } from "./commands/SkillUpdates.js";
 import { skillCheck } from "./commands/SkillCheck.js";
 import { noteCommand, notesCommand } from "./notes/commands/Notes.js";
 import {
-  diffWaybar,
+  diffBarJson,
   diffListChanged,
   diffListAll,
   diffRaw,
@@ -34,13 +34,13 @@ import {
   workflowsListRepos,
   workflowsListRuns,
   workflowsRaw,
-  workflowsWaybar,
+  workflowsBarJson,
 } from "./git/commands/Workflows.js";
 import {
   notificationsAction,
   notificationsListThreads,
   notificationsRaw,
-  notificationsWaybar,
+  notificationsBarJson,
 } from "./git/commands/Notifications.js";
 import type {
   GitNotificationAction,
@@ -154,7 +154,7 @@ function resolveMode(): Mode {
     // Git diff without machine flags opens the TUI diff view.
     if (flags.subcommand === "git-diff" || flags.subcommand === "diff") {
       const hasMachineFlag =
-        flags.rest.includes("--waybar") ||
+        hasBarJsonFlag(flags.rest) ||
         flags.rest.includes("--list-changed") ||
         flags.rest.includes("--list-all") ||
         flags.rest.includes("--raw");
@@ -165,7 +165,7 @@ function resolveMode(): Mode {
     // Git workflows without machine/listing flags opens the TUI workflows view.
     if (flags.subcommand === "git-workflows") {
       const hasMachineFlag =
-        flags.rest.includes("--waybar") ||
+        hasBarJsonFlag(flags.rest) ||
         flags.rest.includes("--list-repos") ||
         flags.rest.includes("--list-runs") ||
         flags.rest.includes("--raw");
@@ -248,11 +248,15 @@ function parseNotificationOpts(
 
 function hasNotificationNativeFlag(args: readonly string[]): boolean {
   return (
-    args.includes("--waybar") ||
+    hasBarJsonFlag(args) ||
     args.includes("--list-threads") ||
     args.includes("--raw") ||
     NOTIFICATION_ACTION_FLAGS.some(({ flag }) => hasOption(args, flag))
   );
+}
+
+function hasBarJsonFlag(args: readonly string[]): boolean {
+  return args.includes("--bar-json") || args.includes("--waybar");
 }
 
 function isNotesTuiInvocation(args: readonly string[]): boolean {
@@ -337,14 +341,14 @@ if (mode.type === "native") {
   const resolveDiff = (args: readonly string[]): NativeEffect => {
     const noFetch = args.includes("--no-fetch");
     const opts = noFetch ? { noFetch: true } : undefined;
-    if (args.includes("--waybar")) return diffWaybar(opts);
+    if (hasBarJsonFlag(args)) return diffBarJson(opts);
     if (args.includes("--list-changed")) return diffListChanged(opts);
     if (args.includes("--list-all")) return diffListAll;
     return diffRaw(opts);
   };
 
   const resolveWorkflows = (args: readonly string[]): NativeEffect => {
-    if (args.includes("--waybar")) return workflowsWaybar(workflowOpts);
+    if (hasBarJsonFlag(args)) return workflowsBarJson(workflowOpts);
     if (args.includes("--list-repos")) return workflowsListRepos(workflowOpts);
     if (args.includes("--list-runs")) return workflowsListRuns(workflowOpts);
     return workflowsRaw(workflowOpts);
@@ -353,7 +357,7 @@ if (mode.type === "native") {
   const resolveNotifications = (args: readonly string[]): NativeEffect => {
     const action = notificationActionArg(args);
     if (action) return notificationsAction(action.action, action.threadId);
-    if (args.includes("--waybar")) return notificationsWaybar(notificationOpts);
+    if (hasBarJsonFlag(args)) return notificationsBarJson(notificationOpts);
     if (args.includes("--list-threads")) {
       return notificationsListThreads(notificationOpts);
     }

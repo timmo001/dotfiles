@@ -32,14 +32,14 @@ export const workflowsRaw = (opts?: WorkflowRunQueryOptions) =>
     yield* Effect.sync(() => process.stdout.write(formatRaw(state)));
   }).pipe(Effect.withSpan("workflows.raw"), handleWorkflowError);
 
-/** Machine output: --waybar JSON. */
-export const workflowsWaybar = (opts?: WorkflowRunQueryOptions) =>
+/** Machine output: status bar JSON. */
+export const workflowsBarJson = (opts?: WorkflowRunQueryOptions) =>
   Effect.gen(function* () {
     const state = yield* refreshWorkflowState(opts);
     yield* Effect.sync(() =>
-      process.stdout.write(JSON.stringify(formatWaybar(state)) + "\n"),
+      process.stdout.write(JSON.stringify(formatBarJson(state)) + "\n"),
     );
-  }).pipe(Effect.withSpan("workflows.waybar"), handleWorkflowError);
+  }).pipe(Effect.withSpan("workflows.barJson"), handleWorkflowError);
 
 /** Machine output: --list-repos pipe-delimited repository rows. */
 export const workflowsListRepos = (opts?: WorkflowRunQueryOptions) =>
@@ -100,33 +100,37 @@ function formatRaw(state: WorkflowState): string {
   return lines.join("\n") + "\n";
 }
 
-function formatWaybar(state: WorkflowState): {
+function formatBarJson(state: WorkflowState): {
   readonly text: string;
   readonly tooltip: string;
   readonly class: string;
 } {
   const summary = workflowStateSummary(state);
-  const text =
-    summary.attentionCount > 0
-      ? `\uf057 ${summary.attentionCount}`
-      : summary.runningRuns > 0
-        ? `\u25cf ${summary.runningRuns}`
-        : "";
-  const cls =
-    summary.attentionCount === 0 && summary.runningRuns === 0
-      ? "hidden"
-      : summary.attentionCount > 0
-        ? "workflows-attention"
-        : "workflows-running";
 
   return {
-    text,
-    tooltip: formatWaybarTooltip(state, summary),
-    class: cls,
+    text: workflowBarText(summary),
+    tooltip: formatBarJsonTooltip(state, summary),
+    class: workflowBarClass(summary),
   };
 }
 
-function formatWaybarTooltip(
+function workflowBarText(
+  summary: ReturnType<typeof workflowStateSummary>,
+): string {
+  if (summary.attentionCount > 0) return `\uf057 ${summary.attentionCount}`;
+  if (summary.runningRuns > 0) return `\u25cf ${summary.runningRuns}`;
+  return "";
+}
+
+function workflowBarClass(
+  summary: ReturnType<typeof workflowStateSummary>,
+): string {
+  if (summary.attentionCount > 0) return "workflows-attention";
+  if (summary.runningRuns > 0) return "workflows-running";
+  return "hidden";
+}
+
+function formatBarJsonTooltip(
   state: WorkflowState,
   summary: ReturnType<typeof workflowStateSummary>,
 ): string {
@@ -139,12 +143,23 @@ function formatWaybarTooltip(
   const lines = [
     `GitHub workflows: ${summary.failedRuns} failed, ${summary.errorRepos} repo errors, ${summary.runningRuns} running, ${summary.passedRuns} passed, ${summary.skippedRuns} skipped.`,
   ];
+  appendWorkflowQueryLines(lines, state);
+  appendWorkflowRepoLines(lines, state.repos);
+  return lines.join("\n");
+}
+
+function appendWorkflowQueryLines(lines: string[], state: WorkflowState): void {
   if (state.since) lines.push(`Since: ${state.since}`);
   if (state.message) lines.push(state.message);
-  for (const repo of state.repos) {
+}
+
+function appendWorkflowRepoLines(
+  lines: string[],
+  repos: readonly WorkflowRepoRuns[],
+): void {
+  for (const repo of repos) {
     lines.push(`${repo.slug}: ${workflowRepoStatusText(repo)}`);
   }
-  return lines.join("\n");
 }
 
 function workflowStateSummary(state: WorkflowState): {

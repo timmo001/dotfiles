@@ -61,7 +61,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 
 - For Home Assistant entity watchers used by Waybar/scripts, use `go-automate ha bridge watch entity` by default.
 - Treat `go-automate ha watch entity` direct-style usage as a fallback only when bridge mode is unavailable.
-- Prefer `--waybar` output for machine-consumed flows; plain text output should be treated as human-facing unless explicitly needed.
+- Prefer `--bar-json` output for machine-consumed flows; plain text output should be treated as human-facing unless explicitly needed.
 
 ## Skill Application
 
@@ -116,7 +116,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - OpenCode frontend debug command: `/debug-frontend <page or issue>`
 - OpenCode fallow audit command: `/fallow-audit [workspace]`
 - OpenCode fallow project analysis command: `/fallow-project-analyse [workspace]`
-- GitHub notifications command: `dot git-notifications` (`--waybar`, `--list-threads`, and thread actions)
+- GitHub notifications command: `dot git-notifications` (`--bar-json`, `--list-threads`, and thread actions)
 - Git diff behavior: `dot git-diff` (`dot diff` is a human compatibility alias)
 
 ## Safety

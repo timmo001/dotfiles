@@ -7,6 +7,7 @@ import {
   type DiffScanOptions,
 } from "../services/DotDiff.js";
 import { OutputLog } from "../../services/OutputLog.js";
+import type { DiffRepo } from "../../types.js";
 
 /** Handle DotDiffError by printing to stderr and exiting */
 const handleDiffError = Effect.catch((e: DotDiffError) =>
@@ -16,14 +17,12 @@ const handleDiffError = Effect.catch((e: DotDiffError) =>
   }),
 );
 
-/** Machine output: --waybar JSON */
-export const diffWaybar = (opts?: DiffScanOptions) =>
+/** Machine output: status bar JSON. */
+export const diffBarJson = (opts?: DiffScanOptions) =>
   Effect.gen(function* () {
     const dotDiff = yield* DotDiff;
     const repos = yield* dotDiff.getAll(opts);
-    const changed = repos.filter(
-      (r) => r.isDirty || r.ahead > 0 || r.behind > 0,
-    );
+    const changed = changedRepos(repos);
 
     const text = changed.length > 0 ? `\uF418 ${changed.length}` : "";
     const tooltip =
@@ -60,16 +59,14 @@ export const diffWaybar = (opts?: DiffScanOptions) =>
         JSON.stringify({ text, tooltip, class: cls }) + "\n",
       ),
     );
-  }).pipe(Effect.withSpan("diff.waybar"), handleDiffError);
+  }).pipe(Effect.withSpan("diff.barJson"), handleDiffError);
 
 /** Machine output: --list-changed */
 export const diffListChanged = (opts?: DiffScanOptions) =>
   Effect.gen(function* () {
     const dotDiff = yield* DotDiff;
     const repos = yield* dotDiff.getAll(opts);
-    const changed = repos.filter(
-      (r) => r.isDirty || r.ahead > 0 || r.behind > 0,
-    );
+    const changed = changedRepos(repos);
     yield* Effect.sync(() => {
       for (const r of changed) process.stdout.write(`${r.name}|${r.path}\n`);
     });
@@ -183,3 +180,7 @@ export const diffRaw = (opts?: DiffScanOptions) =>
       yield* log.warn(`Skipping private diff (${config.privateReason})`);
     }
   }).pipe(Effect.withSpan("diff.raw"), handleDiffError);
+
+function changedRepos(repos: readonly DiffRepo[]): DiffRepo[] {
+  return repos.filter((r) => r.isDirty || r.ahead > 0 || r.behind > 0);
+}
