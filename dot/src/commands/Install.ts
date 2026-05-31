@@ -1,28 +1,21 @@
 import { Effect } from "effect";
-import {
-  existsSync,
-  lstatSync,
-  mkdirSync,
-  readdirSync,
-  readlinkSync,
-  renameSync,
-  statSync,
-  symlinkSync,
-  unlinkSync,
-} from "fs";
-import { basename, dirname, join, relative } from "path";
+import { join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
 import { listStowFolders } from "../lib/stowFolders.js";
 import { ensureHyprHostLink } from "../lib/omarchyHost.js";
 import { ensureStowInstalled } from "../lib/packageSetup.js";
+import {
+  backupFileIfUnmanaged,
+  backupPrivateStowTargets,
+  findExternalSkillSymlinks,
+  removeExternalSymlinks,
+  restoreExternalSymlinks,
+  type ExternalSymlink,
+} from "../lib/stowConflicts.js";
 
 const HOME = process.env.HOME ?? "/home/" + process.env.USER;
-const EXTERNAL_SKILL_DIRS = [
-  join(HOME, ".agents", "skills"),
-  join(HOME, ".claude", "skills"),
-];
 
 /** Extra stow flags for the agents folder (matches legacy behaviour) */
 const AGENTS_PRIVATE_IGNORES = [
@@ -31,12 +24,6 @@ const AGENTS_PRIVATE_IGNORES = [
   "--ignore='bun\\.lock'",
   "--ignore='\\.gitignore'",
 ];
-const AGENTS_PRIVATE_IGNORED_ENTRIES = new Set([
-  "node_modules",
-  "package.json",
-  "bun.lock",
-  ".gitignore",
-]);
 
 /**
  * Install dotfiles: backup existing files, then stow with `--adopt`.
@@ -65,7 +52,7 @@ export const install = Effect.gen(function* () {
   if (config.canUsePrivate && config.privateDotfiles) {
     const privateDotfiles = config.privateDotfiles;
     yield* log.section("Install Private Dotfiles");
-    yield* Effect.sync(() => backupPrivateFiles(privateDotfiles));
+    yield* Effect.sync(() => backupPrivateStowTargets(privateDotfiles));
     yield* stowRepo(privateDotfiles, "private", "install", launcher, log);
   } else {
     yield* log.warn(
@@ -76,81 +63,6 @@ export const install = Effect.gen(function* () {
   yield* log.section("Complete");
   yield* log.info("Dotfiles installed successfully");
 });
-
-/** Stored external symlink for save/restore around stow. */
-interface ExternalSymlink {
-  readonly path: string;
-  readonly target: string;
-}
-
-/** Backup known private files that may pre-exist before private stow owns them. */
-function backupPrivateFiles(privateDotfiles: string): void {
-  const backupRoot = join(privateDotfiles, "backup");
-
-  for (const folder of listStowFolders(privateDotfiles).sort()) {
-    const packageRoot = join(privateDotfiles, folder);
-    for (const target of listStowTargets(packageRoot, folder)) {
-      backupFileIfUnmanaged(
-        target,
-        join(backupRoot, dirname(relative(HOME, target))),
-      );
-    }
-  }
-}
-
-/** List target paths that a stow package would manage. */
-function listStowTargets(packageRoot: string, folder: string): string[] {
-  const targets: string[] = [];
-  collectStowTargets(packageRoot, packageRoot, folder, targets);
-  return targets;
-}
-
-/** Recursively collect file-like stow package entries as home-relative targets. */
-function collectStowTargets(
-  packageRoot: string,
-  currentDir: string,
-  folder: string,
-  targets: string[],
-): void {
-  for (const entry of readdirSync(currentDir, { withFileTypes: true })) {
-    if (folder === "agents" && AGENTS_PRIVATE_IGNORED_ENTRIES.has(entry.name)) {
-      continue;
-    }
-
-    const source = join(currentDir, entry.name);
-    if (entry.isDirectory()) {
-      collectStowTargets(packageRoot, source, folder, targets);
-      continue;
-    }
-
-    targets.push(join(HOME, relative(packageRoot, source)));
-  }
-}
-
-/** Move an unmanaged path to the repo backup folder, preserving symlinks. */
-function backupFileIfUnmanaged(source: string, backupDir: string): void {
-  if (!existsSync(source)) return;
-
-  try {
-    if (lstatSync(source).isSymbolicLink()) return;
-  } catch {
-    return;
-  }
-
-  mkdirSync(backupDir, { recursive: true });
-  const name = basename(source);
-  let dest = join(backupDir, name);
-
-  if (existsSync(dest)) {
-    const timestamp = new Date()
-      .toISOString()
-      .replace(/[:.]/g, "-")
-      .slice(0, 19);
-    dest = join(backupDir, `${name}.${timestamp}`);
-  }
-
-  renameSync(source, dest);
-}
 
 /**
  * Backup known files that may conflict with public stow packages.
@@ -174,52 +86,6 @@ function backupPublicFiles(publicDotfiles: string): void {
 
   for (const { source, backupDir } of targets) {
     backupFileIfUnmanaged(source, backupDir);
-  }
-}
-
-/** Find symlinks in external skill dirs that stow would otherwise reject. */
-function findExternalSkillSymlinks(repoDir: string): ExternalSymlink[] {
-  const results: ExternalSymlink[] = [];
-  for (const skillsDir of EXTERNAL_SKILL_DIRS) {
-    if (!existsSync(skillsDir)) continue;
-    for (const entry of readdirSync(skillsDir)) {
-      const fullPath = join(skillsDir, entry);
-      try {
-        const stat = lstatSync(fullPath);
-        if (!stat.isSymbolicLink()) continue;
-        const target = readlinkSync(fullPath);
-        if (!target.startsWith(repoDir)) {
-          results.push({ path: fullPath, target });
-        }
-      } catch {
-        // Entry disappeared or unreadable; skip.
-      }
-    }
-  }
-  return results;
-}
-
-/** Remove external symlinks temporarily, returning them for later restore. */
-function removeExternalSymlinks(links: readonly ExternalSymlink[]): void {
-  for (const link of links) {
-    try {
-      unlinkSync(link.path);
-    } catch {
-      // Already gone; fine.
-    }
-  }
-}
-
-/** Restore previously removed external symlinks. */
-function restoreExternalSymlinks(links: readonly ExternalSymlink[]): void {
-  for (const link of links) {
-    try {
-      if (!existsSync(link.path)) {
-        symlinkSync(link.target, link.path);
-      }
-    } catch {
-      // Best effort; stow result is the authoritative failure signal.
-    }
   }
 }
 
