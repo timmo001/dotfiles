@@ -7,7 +7,7 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 - Stow-based dotfiles rooted at `~/.config/dotfiles`
 - Public config for shell, editor, and tooling
 - Single compiled binary at `scripts/.local/bin/dot` (Bun + Effect v4 + OpenTUI)
-- TUI dashboard with git diff view, GitHub workflow runs, GitHub notifications, repo notes, omarchy menus, git staging, and AI commit suggestions
+- TUI dashboard with git diff/log views, GitHub workflow runs, GitHub notifications, repo notes, omarchy menus, git staging, and AI commit suggestions
 - Optional private overlays from `~/.config/dotfiles-private`
 - Omarchy repo sync for `bootstrap`, `hypr`, `waybar`, `ghostty`, and `uwsm`
 - GitHub workflow run status and notification inbox via `dot git-workflows`, `dot git-notifications`, and Waybar
@@ -66,6 +66,7 @@ dot doctor
 - `dot doctor` - tool, repo, workflow runs, extra repo, remote, public/private package, private package repo, and Chromium extension health checks
 - `dot clean` - unstow private then public
 - `dot git-diff` - git status + staged/unstaged summaries with fetched unpushed/incoming commit checks across managed repos (including optional extra private repos and Omarchy repos); use `dot git-diff --bar-json` for one-line status bar JSON (`dot diff` remains a human compatibility alias)
+- `dot git-log` - recent commits across the same tracked repos as `dot git-diff`, sorted by latest commit activity; use `--raw` for CLI text output
 - `dot git-workflows` - two-pane watched GitHub workflow runs view for each repo's locally checked-out HEAD commit; use `--since <date>` to filter by activity time, and `--raw`, `--bar-json`, `--list-repos`, or `--list-runs` for CLI output
 - `dot git-notifications` - GitHub notification inbox with open, mark-read, done, ignore, and unignore actions; use `--all`, `--participating`, `--since <date>`, `--raw`, `--bar-json`, `--list-threads`, `--mark-read <id>`, `--mark-done <id>`, `--ignore <id>`, or `--unignore <id>` for CLI output/actions
 - `dot notes` - two-pane repository notes browser; use `--all` or press `g` to browse every repo notes directory, and `dot notes list --all` for CLI output grouped by repo

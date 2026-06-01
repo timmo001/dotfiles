@@ -1,0 +1,68 @@
+import { Effect } from "effect";
+import type { GitLogRepo, GitLogState } from "../../types.js";
+import { GitLog } from "../services/GitLog.js";
+import {
+  formatGitLogCommitDetail,
+  formatGitLogRepoDetail,
+  formatGitLogTimeAgo,
+} from "../services/gitLogStatus.js";
+
+const HOME = process.env.HOME ?? `/home/${process.env.USER ?? ""}`;
+
+const handleGitLogError = Effect.catch((error: unknown) =>
+  Effect.sync(() => {
+    console.error(`[dot git-log] ${formatError(error)}`);
+    process.exit(1);
+  }),
+);
+
+/** CLI text output: --raw recent commit history. */
+export const gitLogRaw = Effect.gen(function* () {
+  const gitLog = yield* GitLog;
+  yield* gitLog.refresh();
+  const state = yield* gitLog.getState();
+  yield* Effect.sync(() => process.stdout.write(formatRaw(state)));
+}).pipe(Effect.withSpan("gitLog.raw"), handleGitLogError);
+
+function formatRaw(state: GitLogState): string {
+  const lines = [
+    "Git Log",
+    `Last checked: ${formatGitLogTimeAgo(state.lastChecked.toISOString())}`,
+  ];
+  if (state.message) lines.push(`Message: ${state.message}`);
+  if (state.repos.length === 0) {
+    lines.push("", "No tracked repositories found.");
+    return lines.join("\n") + "\n";
+  }
+
+  for (const repo of state.repos) {
+    appendRepoLines(lines, repo);
+  }
+
+  return lines.join("\n") + "\n";
+}
+
+function appendRepoLines(lines: string[], repo: GitLogRepo): void {
+  lines.push("", repo.name, `  ${displayPath(repo.path)}`);
+  lines.push(`  ${formatGitLogRepoDetail(repo)}`);
+
+  if (repo.commits.length === 0) {
+    if (!repo.error) lines.push("  No commits.");
+    return;
+  }
+
+  for (const commit of repo.commits) {
+    lines.push(
+      `  ${commit.shortSha}  ${formatGitLogCommitDetail(commit)}  ${commit.subject}`,
+    );
+  }
+}
+
+function displayPath(path: string): string {
+  return path.startsWith(HOME) ? `~${path.slice(HOME.length)}` : path;
+}
+
+function formatError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}

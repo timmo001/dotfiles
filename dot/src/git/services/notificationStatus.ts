@@ -1,4 +1,5 @@
 import type { GitNotificationThread } from "../../types.js";
+import { formatRelativeTimeAgo } from "./relativeTime.js";
 
 const IMPORTANT_NOTIFICATION_REASONS = new Set([
   "approval_requested",
@@ -31,19 +32,5 @@ export function formatNotificationThreadDetail(
 
 /** Format an ISO timestamp as a compact relative time. */
 export function formatNotificationTimeAgo(value: string | null): string {
-  const time = value ? new Date(value).getTime() : NaN;
-  if (!Number.isFinite(time)) return "unknown";
-
-  const seconds = Math.max(0, Math.floor((Date.now() - time) / 1000));
-  const units = [
-    { max: 60, size: 1, suffix: "s" },
-    { max: 3600, size: 60, suffix: "m" },
-    { max: 86400, size: 3600, suffix: "h" },
-  ];
-  if (seconds < 5) return "just now";
-
-  const unit = units.find(({ max }) => seconds < max);
-  return unit
-    ? `${Math.floor(seconds / unit.size)}${unit.suffix} ago`
-    : `${Math.floor(seconds / 86400)}d ago`;
+  return formatRelativeTimeAgo(value);
 }

@@ -32,7 +32,7 @@ Always apply these skills when editing code in this directory:
 ```
 src/
   index.ts                — Entry point, CLI mode resolution, Effect bootstrap
-  types.ts                — Repo, RepoState, MenuItem, MenuAction, ViewId, StagedFile, CommitSuggestion
+  types.ts                — Repo, RepoState, GitLogState, MenuItem, MenuAction, ViewId, StagedFile, CommitSuggestion
   flags.ts                — CLI parser: subcommands, --tab, --since, --raw, --help
   menu.ts                 — Menu registry: Map<string, MenuItem> for dot + omarchy items
   theme.ts                — Theme loading (Omarchy theme → TUI colours)
@@ -62,23 +62,29 @@ src/
   git/
     commands/
       Diff.ts             — dot git-diff (--bar-json, --list-changed, --list-all, --raw)
+      Log.ts              — dot git-log (--raw)
       Notifications.ts    — dot git-notifications (--bar-json, --list-threads, actions, --raw)
       Workflows.ts        — dot git-workflows (--since, --bar-json, --list-repos, --list-runs, --raw)
     doctor/
       gitConfig.ts        — managed Git config doctor check
     services/
       DotDiff.ts          — Effect service wrapping git diff state
+      GitLog.ts           — Recent commit history state for tracked repositories
       GitHub.ts           — Shared GitHub CLI/API wrapper with rate-limit checks and retries
       GitNotifications.ts — GitHub notification inbox state and thread actions
       GitStaging.ts       — Git status/add/reset/commit operations
       RepoWatcher.ts      — Hybrid poll loop (Waybar cache → 10s poll), PubSub state
+      relativeTime.ts     — Shared compact relative timestamp formatter
       WorkflowRuns.ts     — Watched GitHub Actions run state for locally checked-out HEAD commits
       workflowStatus.ts   — Shared GitHub Actions status classification helpers
     tui/
       DiffView.ts         — Two-pane layout (Changed/Other) with repo watcher
+      GitLogView.ts       — Two-pane recent commit history view
+      GitShow.ts          — Suspend/resume git show pager launcher
       GitNotificationsView.ts — GitHub notification inbox with read/done/ignore actions
       WorkflowRunsView.ts — Two-pane watched GitHub workflow runs view
       Lazygit.ts          — Suspend/resume lazygit spawn
+      SuspendedCommand.ts — Shared suspend/resume inherited-stdio command helper
       StagingView.ts      — Two-pane staging view (Staged/Unstaged) for git commit flow
       CommitView.ts       — Commit message input with AI suggestion list
   services/
@@ -120,8 +126,8 @@ src/
 
 1. `index.ts` parses CLI flags → resolves mode (TUI / native / fallback)
 2. Native commands run with `CliLayers` (no renderer, no TUI)
-3. TUI mode composes full layer stack including RepoWatcher, WorkflowRuns, GitNotifications, GitStaging, CommitSuggest, Renderer, Toast
-4. `App` manages a view stack (main menu ↔ diff view ↔ workflows view ↔ notifications view ↔ notes view ↔ omarchy menu ↔ staging view ↔ commit view)
+3. TUI mode composes full layer stack including RepoWatcher, GitLog, WorkflowRuns, GitNotifications, GitStaging, CommitSuggest, Renderer, Toast
+4. `App` manages a view stack (main menu ↔ diff view ↔ git log view ↔ workflows view ↔ notifications view ↔ notes view ↔ omarchy menu ↔ staging view ↔ commit view)
 5. Menu items have typed actions: `command` (suspend/resume), `silent` (background), `notify` (background + toast), `view` (navigate), `submenu` (nested)
 6. `CommandRunner` handles suspend/resume for terminal commands, silent background execution, and notify-style commands with toast feedback
 7. `RepoWatcher` loads Waybar cache for instant diff first paint, then polls every 10s
@@ -184,6 +190,8 @@ dot git-diff --raw            # CLI diff output (no TUI)
 dot git-diff --bar-json       # JSON output for status bars and shell modules
 dot git-diff --list-changed   # Changed repo rows
 dot git-diff --list-all       # All repo rows
+dot git-log                   # Recent commits view (TUI)
+dot git-log --raw             # CLI recent commit output (20 commits per repo)
 dot git-workflows             # Watched GitHub workflow runs view (TUI)
 dot git-workflows --raw       # CLI workflow run summary
 dot git-workflows --since <date> # Filter workflow runs by creation time (TUI or CLI)
@@ -278,6 +286,8 @@ dot                          # smoke test: main menu renders, Ctrl+c quits
 dot git-diff                 # smoke test: diff view renders
 dot git-diff --raw           # smoke test: CLI diff output
 dot git-diff --bar-json      # smoke test: JSON output
+dot git-log                  # smoke test: git log view renders
+dot git-log --raw            # smoke test: CLI git log output
 dot git-notifications --raw  # smoke test: CLI notification output
 dot git-notifications --bar-json # smoke test: notification JSON output
 dot notes                    # smoke test: notes view renders

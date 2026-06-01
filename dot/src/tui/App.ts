@@ -8,6 +8,8 @@ import type {
   RepoState,
   GitNotificationAction,
   GitNotificationThread,
+  GitLogCommit,
+  GitLogRepo,
   WorkflowRun,
 } from "../types.js";
 import type {
@@ -24,6 +26,7 @@ import type { GitStagingService } from "../git/services/GitStaging.js";
 import type { CommitSuggestService } from "../git/services/CommitSuggest.js";
 import { MainMenu } from "./MainMenu.js";
 import { DiffView } from "../git/tui/DiffView.js";
+import { GitLogView } from "../git/tui/GitLogView.js";
 import { GitNotificationsView } from "../git/tui/GitNotificationsView.js";
 import { WorkflowRunsView } from "../git/tui/WorkflowRunsView.js";
 import { NotesView } from "../notes/tui/NotesView.js";
@@ -39,6 +42,7 @@ import { OutputPane } from "./OutputPane.js";
 import { Toast } from "./Toast.js";
 import { VariantPopup } from "./VariantPopup.js";
 import { openLazygit } from "../git/tui/Lazygit.js";
+import { openGitShow } from "../git/tui/GitShow.js";
 import {
   editorLaunchesDetached,
   openEditorInDirectory,
@@ -54,6 +58,7 @@ const setTerminalTitle = (title: string): void => {
 };
 
 const diffTitle = "Dot TUI \u203A Diff";
+const gitLogTitle = "Dot TUI \u203A Git Log";
 const stagingTitle = "Dot TUI \u203A Diff \u203A Stage";
 
 const formatDiffTitle = (changedCount: number): string =>
@@ -87,6 +92,8 @@ export interface AppDeps {
   readonly commitSuggest: CommitSuggestService;
   /** Callback to trigger an immediate diff refresh (wired to RepoWatcher) */
   readonly onRefreshDiff: () => void;
+  /** Callback to trigger an immediate git log refresh */
+  readonly onRefreshGitLog: () => void;
   /** Callback to trigger an immediate workflow refresh */
   readonly onRefreshWorkflows: () => void;
   /** Callback to trigger an immediate GitHub notification refresh */
@@ -120,6 +127,7 @@ export class App {
   private commandRunner: CommandRunnerService;
   private mainMenu: MainMenu;
   private diffView: DiffView;
+  private gitLogView: GitLogView;
   private workflowsView: WorkflowRunsView;
   private notificationsView: GitNotificationsView;
   private notesView: NotesView;
@@ -236,6 +244,16 @@ export class App {
           });
       },
       onRefresh: () => deps.onRefreshDiff(),
+      onBack: () => this.popView(),
+    });
+
+    this.gitLogView = new GitLogView(deps.renderer, deps.theme, {
+      onRefresh: () => deps.onRefreshGitLog(),
+      onOpenCommit: async (repo: GitLogRepo, commit: GitLogCommit) => {
+        await openGitShow(deps.renderer, repo.path, commit.sha, () => {
+          setTerminalTitle(gitLogTitle);
+        });
+      },
       onBack: () => this.popView(),
     });
 
@@ -441,6 +459,11 @@ export class App {
     return this.workflowsView;
   }
 
+  /** Get the git log view for direct state updates from the watcher. */
+  getGitLogView(): GitLogView {
+    return this.gitLogView;
+  }
+
   /** Get the GitHub notifications view for direct state updates from the watcher */
   getNotificationsView(): GitNotificationsView {
     return this.notificationsView;
@@ -473,6 +496,11 @@ export class App {
         setTerminalTitle(formatDiffTitle(this.diffChangedCount));
         this.diffView.setVisible(true);
         this.diffView.focus();
+        break;
+      case "git-log":
+        setTerminalTitle(gitLogTitle);
+        this.gitLogView.setVisible(true);
+        this.gitLogView.focus();
         break;
       case "git-workflows":
         setTerminalTitle("Dot TUI \u203A Workflows");
@@ -538,6 +566,7 @@ export class App {
   private hideAllViews(): void {
     this.mainMenu.setVisible(false);
     this.diffView.setVisible(false);
+    this.gitLogView.setVisible(false);
     this.workflowsView.setVisible(false);
     this.notificationsView.setVisible(false);
     this.notesView.setVisible(false);
@@ -614,6 +643,9 @@ export class App {
         break;
       case "git-diff":
         this.diffView.focus();
+        break;
+      case "git-log":
+        this.gitLogView.focus();
         break;
       case "git-workflows":
         this.workflowsView.focus();

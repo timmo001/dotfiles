@@ -206,6 +206,7 @@ function isKnownTarget(candidate: string): boolean {
     candidate === "init" ||
     candidate === "diff" ||
     candidate === "git-diff" ||
+    candidate === "git-log" ||
     candidate === "git-workflows" ||
     candidate === "git-notifications" ||
     candidate === "notes" ||
@@ -258,6 +259,9 @@ export function resolveSubcommand(
   if (sub === "git-diff" || sub === "diff") {
     return { type: "view", viewId: "git-diff" };
   }
+  if (sub === "git-log") {
+    return { type: "view", viewId: "git-log" };
+  }
   if (sub === "git-workflows") {
     return { type: "view", viewId: "git-workflows" };
   }
@@ -278,6 +282,7 @@ export function resolveSubcommand(
  * Print help text, optionally scoped to a specific subcommand.
  *
  * - `git-diff` — shows diff-specific flags
+ * - `git-log` — shows recent commit history flags
  * - `git-notifications` — shows GitHub inbox flags and actions
  * - `omarchy` — shows available omarchy submenus and space-separated navigation
  * - No subcommand — shows the full generic help
@@ -347,6 +352,26 @@ Exit codes:
 Examples:
   dot doctor                  Run all checks
   dot doctor --open-opencode  Run checks, then open OpenCode with the report`);
+    return;
+  }
+
+  if (subcommand === "git-log") {
+    console.log(`Usage: dot git-log [options]
+
+Open the recent commit history view. The left pane lists tracked repositories
+from dot git-diff, sorted by latest commit activity. The right pane lists recent
+commits for the selected repository.
+
+Modes:
+  (default)      Interactive git log TUI
+  --raw          Text summary of recent commits
+
+Options:
+  --help, -h     Show this help message
+
+Examples:
+  dot git-log        Interactive git log TUI
+  dot git-log --raw  Text summary of recent commits`);
     return;
   }
 
@@ -577,6 +602,7 @@ Subcommands:
   doctor               Run dot doctor
   clean                Unstow managed dotfiles
   git-diff             Open the git diff/repo watcher view
+  git-log              Open recent commits across tracked repos
   git-workflows        Open watched GitHub workflow runs
   git-notifications    Open GitHub notification inbox
   notes                Open repository notes or run note utility commands
@@ -604,6 +630,8 @@ Examples:
   dot git-diff             Interactive diff TUI
   dot git-diff --raw       Text diff summary
   dot git-diff --bar-json  Status bar JSON output
+  dot git-log              Recent commits TUI
+  dot git-log --raw        Text commit history summary
   dot git-workflows        Watched workflow runs TUI
   dot git-workflows --bar-json Status bar JSON output
   dot git-notifications    GitHub notifications TUI

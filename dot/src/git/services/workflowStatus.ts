@@ -1,4 +1,5 @@
 import type { WorkflowRepoRuns, WorkflowRun } from "../../types.js";
+import { formatRelativeTimeAgo } from "./relativeTime.js";
 
 /** Aggregated workflow run counts for one repository. */
 export interface WorkflowRunCounts {
@@ -38,17 +39,6 @@ const COMPLETED_REPO_STATUS: Record<string, WorkflowRepoStatus> = {
   "1:0": "failed",
   "1:1": "mixed",
 };
-
-const RELATIVE_TIME_UNITS: readonly {
-  readonly limit: number;
-  readonly seconds: number;
-  readonly suffix: string | null;
-}[] = [
-  { limit: 5, seconds: 1, suffix: null },
-  { limit: 60, seconds: 1, suffix: "s" },
-  { limit: 3600, seconds: 60, suffix: "m" },
-  { limit: 86400, seconds: 3600, suffix: "h" },
-];
 
 /** Return true when a workflow run is still active. */
 export function runRunning(run: WorkflowRun): boolean {
@@ -148,16 +138,7 @@ export function formatWorkflowRunDetail(run: WorkflowRun): string {
 
 /** Return a compact relative timestamp for workflow UI and CLI output. */
 export function formatWorkflowTimeAgo(value: string | null): string {
-  const time = value ? new Date(value).getTime() : NaN;
-  if (!Number.isFinite(time)) return "unknown";
-
-  const seconds = Math.floor((Date.now() - time) / 1000);
-  const unit = RELATIVE_TIME_UNITS.find(
-    (candidate) => seconds < candidate.limit,
-  );
-  return unit
-    ? formatRelativeTime(seconds, unit)
-    : `${Math.floor(seconds / 86400)}d ago`;
+  return formatRelativeTimeAgo(value);
 }
 
 function workflowRunCountsText(counts: WorkflowRunCounts): string {
@@ -197,13 +178,4 @@ function isString(value: string | null): value is string {
 
 function shortWorkflowSha(sha: string): string {
   return sha.slice(0, 7);
-}
-
-function formatRelativeTime(
-  seconds: number,
-  unit: (typeof RELATIVE_TIME_UNITS)[number],
-): string {
-  return unit.suffix
-    ? `${Math.floor(seconds / unit.seconds)}${unit.suffix} ago`
-    : "just now";
 }

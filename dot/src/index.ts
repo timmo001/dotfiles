@@ -6,6 +6,7 @@ import { CommandExecutor } from "./services/CommandExecutor.js";
 import { OutputLog } from "./services/OutputLog.js";
 import { Launcher } from "./services/Launcher.js";
 import { DotDiff } from "./git/services/DotDiff.js";
+import { GitLog } from "./git/services/GitLog.js";
 import { GitHub } from "./git/services/GitHub.js";
 import { GitNotifications } from "./git/services/GitNotifications.js";
 import { WorkflowRuns } from "./git/services/WorkflowRuns.js";
@@ -40,6 +41,7 @@ import {
   diffListAll,
   diffRaw,
 } from "./git/commands/Diff.js";
+import { gitLogRaw } from "./git/commands/Log.js";
 import {
   workflowsListRepos,
   workflowsListRuns,
@@ -110,6 +112,7 @@ const nativeCommands = new Set([
   "clean",
   "diff",
   "git-diff",
+  "git-log",
   "git-workflows",
   "git-notifications",
   "notes",
@@ -176,6 +179,12 @@ function resolveMode(): Mode {
         flags.rest.includes("--raw");
       if (!hasMachineFlag) {
         return { type: "tui", initialView: "git-diff" };
+      }
+    }
+    // Git log without raw output opens the TUI git log view.
+    if (flags.subcommand === "git-log") {
+      if (!flags.rest.includes("--raw")) {
+        return { type: "tui", initialView: "git-log" };
       }
     }
     // Git workflows without machine/listing flags opens the TUI workflows view.
@@ -423,6 +432,7 @@ type NativeEnv =
   | Config
   | CommandExecutor
   | DotDiff
+  | GitLog
   | GitHub
   | GitNotifications
   | Launcher
@@ -434,8 +444,10 @@ type NativeEffect = Effect.Effect<void, unknown, NativeEnv>;
 // --- Layer Composition ---
 
 /** Minimal layers for native CLI commands (no renderer, no TUI services) */
+const GitLogLayer = GitLog.layer.pipe(Layer.provideMerge(DotDiff.layer));
+
 const CliLayers = Launcher.cliLayer.pipe(
-  Layer.provideMerge(DotDiff.layer),
+  Layer.provideMerge(GitLogLayer),
   Layer.provideMerge(WorkflowRuns.layer),
   Layer.provideMerge(GitNotifications.layer),
   Layer.provideMerge(Notes.layer),
@@ -500,6 +512,7 @@ if (mode.type === "native") {
           openOpencode: args.includes("--open-opencode"),
         }),
       clean: () => clean,
+      "git-log": () => gitLogRaw,
       "git-workflows": resolveWorkflows,
       "git-notifications": resolveNotifications,
       notes: notesCommand,
@@ -585,6 +598,7 @@ if (mode.type === "native") {
   const tuiProgram = Effect.gen(function* () {
     log("Starting...");
     const watcher = yield* RepoWatcher;
+    const gitLog = yield* GitLog;
     const workflows = yield* WorkflowRuns;
     const notifications = yield* GitNotifications;
     const notes = yield* Notes;
@@ -606,6 +620,9 @@ if (mode.type === "native") {
         commitSuggest,
         onRefreshDiff: () => {
           Effect.runFork(watcher.refresh());
+        },
+        onRefreshGitLog: () => {
+          Effect.runFork(gitLog.refresh());
         },
         onRefreshWorkflows: () => {
           Effect.runFork(workflows.refresh(workflowOpts));
@@ -641,6 +658,7 @@ if (mode.type === "native") {
     );
     log("App created");
 
+    const gitLogView = app.getGitLogView();
     const workflowsView = app.getWorkflowsView();
     const notificationsView = app.getNotificationsView();
 
@@ -657,6 +675,18 @@ if (mode.type === "native") {
       Effect.forkScoped,
     );
     log("Subscribed to state stream");
+
+    // Subscribe to git log state changes and update the git log view
+    yield* gitLog.subscribe().pipe(
+      Stream.runForEach((state) =>
+        Effect.sync(() => {
+          log(`Git log update: ${state.repos.length} repositories`);
+          gitLogView.update(state);
+        }),
+      ),
+      Effect.forkScoped,
+    );
+    log("Subscribed to git log stream");
 
     // Subscribe to workflow state changes and update the workflows view
     yield* workflows.subscribe().pipe(
@@ -689,6 +719,9 @@ if (mode.type === "native") {
     );
     app.updateDiffState(initialState);
 
+    const initialGitLogState = yield* gitLog.getState();
+    gitLogView.update(initialGitLogState);
+
     const initialWorkflowState = yield* workflows.getState();
     workflowsView.update(initialWorkflowState);
 
@@ -710,10 +743,10 @@ if (mode.type === "native") {
   const theme = Effect.runSync(loadTheme);
 
   const TuiLayers = RepoWatcher.layer.pipe(
+    Layer.provideMerge(GitLogLayer),
     Layer.provideMerge(WorkflowRuns.layer),
     Layer.provideMerge(GitNotifications.layer),
     Layer.provideMerge(Notes.layer),
-    Layer.provideMerge(DotDiff.layer),
     Layer.provideMerge(GitHub.layer),
     Layer.provideMerge(GitDiffWaybarCache.layer),
     Layer.provideMerge(GitStaging.layer),
