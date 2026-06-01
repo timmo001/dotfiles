@@ -5,11 +5,6 @@ set -euo pipefail
 sleep_signal="type='signal',sender='org.freedesktop.login1',interface='org.freedesktop.login1.Manager',member='PrepareForSleep'"
 saw_sleep=0
 
-run_resume_recovery() {
-  sleep 1
-  "$HOME/.local/bin/on-resume"
-}
-
 while IFS= read -r line; do
   case "$line" in
     *"boolean true"*)
@@ -17,7 +12,8 @@ while IFS= read -r line; do
       ;;
     *"boolean false"*)
       if (( saw_sleep )); then
-        run_resume_recovery
+        sleep 1
+        "$HOME/.local/bin/on-resume"
       fi
       saw_sleep=0
       ;;

@@ -19,6 +19,22 @@ const DAILY_VOLUME_ZERO_TIMER_UNIT = "daily-volume-zero.timer";
 const MHOC303_CLOCK_SYNC_TIMER_UNIT = "mhoc303-clock-sync.timer";
 const MHOC303_CLOCK_SYNC_ON_CALENDAR = "OnCalendar=Sun *-*-* 03:00:00";
 const RESUME_MONITOR_SERVICE_UNIT = "dot-on-resume-monitor.service";
+const DOCTOR_STARTUP_NOTIFY_SCRIPT = join(
+  HOME_DIR,
+  ".local",
+  "bin",
+  "dot-doctor-notify",
+);
+const RESUME_MONITOR_SCRIPT = join(
+  HOME_DIR,
+  ".local",
+  "bin",
+  "on-resume-monitor",
+);
+
+function userSystemdUnitPath(unit: string): string {
+  return join(CONFIG_DIR, "systemd", "user", unit);
+}
 
 function pathExistsOrSymlink(path: string): boolean {
   try {
@@ -144,6 +160,50 @@ const checkRequiredUserUnit = (
         detail: enableDetail,
       });
     }
+  });
+
+interface RequiredUserUnitSetup {
+  readonly scriptPath: string;
+  readonly scriptOkMessage: string;
+  readonly scriptWarnMessage: string;
+  readonly scriptDetail?: string;
+  readonly unitPath: string;
+  readonly unitOkMessage: string;
+  readonly unitWarnMessage: string;
+  readonly unitDetail: string;
+  readonly unit: string;
+  readonly unitLabel: string;
+}
+
+const checkRequiredUserUnitSetup = (setup: RequiredUserUnitSetup) =>
+  Effect.gen(function* () {
+    const executor = yield* CommandExecutor;
+    const results: CheckResult[] = [];
+    const enableDetail = `Enable with: systemctl --user enable --now ${setup.unit}`;
+
+    addExecutablePresenceCheck(
+      results,
+      setup.scriptPath,
+      setup.scriptOkMessage,
+      setup.scriptWarnMessage,
+      setup.scriptDetail,
+    );
+    addFilePresenceCheck(
+      results,
+      setup.unitPath,
+      setup.unitOkMessage,
+      setup.unitWarnMessage,
+      setup.unitDetail,
+    );
+    yield* checkRequiredUserUnit(
+      results,
+      executor,
+      setup.unit,
+      setup.unitLabel,
+      enableDetail,
+    );
+
+    return results;
   });
 
 const checkObsoleteUserUnit = (
@@ -563,80 +623,31 @@ export const checkGitNotifications = Effect.gen(function* () {
 });
 
 /** Check doctor startup notification timer */
-export const checkDoctorStartup = Effect.gen(function* () {
-  const executor = yield* CommandExecutor;
-  const results: CheckResult[] = [];
-
-  const notifyScript = join(HOME_DIR, ".local", "bin", "dot-doctor-notify");
-  const unitPath = join(
-    CONFIG_DIR,
-    "systemd",
-    "user",
-    DOCTOR_STARTUP_TIMER_UNIT,
-  );
-  const enableDetail = `Enable with: systemctl --user enable --now ${DOCTOR_STARTUP_TIMER_UNIT}`;
-
-  addExecutablePresenceCheck(
-    results,
-    notifyScript,
-    `Doctor startup notify script found: ${displayPath(notifyScript)}`,
-    `Doctor startup notify script missing or not executable: ${displayPath(notifyScript)}`,
-  );
-  addFilePresenceCheck(
-    results,
-    unitPath,
-    `Doctor startup timer unit file found: ${displayPath(unitPath)}`,
-    `Doctor startup timer unit file missing: ${displayPath(unitPath)}`,
-    "Run dot stow (or dot install) to link systemd user units",
-  );
-  yield* checkRequiredUserUnit(
-    results,
-    executor,
-    DOCTOR_STARTUP_TIMER_UNIT,
-    "Doctor startup timer",
-    enableDetail,
-  );
-
-  return results;
+export const checkDoctorStartup = checkRequiredUserUnitSetup({
+  scriptPath: DOCTOR_STARTUP_NOTIFY_SCRIPT,
+  scriptOkMessage: `Doctor startup notify script found: ${displayPath(DOCTOR_STARTUP_NOTIFY_SCRIPT)}`,
+  scriptWarnMessage: `Doctor startup notify script missing or not executable: ${displayPath(DOCTOR_STARTUP_NOTIFY_SCRIPT)}`,
+  unitPath: userSystemdUnitPath(DOCTOR_STARTUP_TIMER_UNIT),
+  unitOkMessage: `Doctor startup timer unit file found: ${displayPath(userSystemdUnitPath(DOCTOR_STARTUP_TIMER_UNIT))}`,
+  unitWarnMessage: `Doctor startup timer unit file missing: ${displayPath(userSystemdUnitPath(DOCTOR_STARTUP_TIMER_UNIT))}`,
+  unitDetail: "Run dot stow (or dot install) to link systemd user units",
+  unit: DOCTOR_STARTUP_TIMER_UNIT,
+  unitLabel: "Doctor startup timer",
 });
 
 /** Check resume recovery monitor service used after hypridle is removed. */
-export const checkResumeMonitor = Effect.gen(function* () {
-  const executor = yield* CommandExecutor;
-  const results: CheckResult[] = [];
-
-  const monitorScript = join(HOME, ".local", "bin", "on-resume-monitor");
-  const unitPath = join(
-    XDG_CONFIG_HOME,
-    "systemd",
-    "user",
-    RESUME_MONITOR_SERVICE_UNIT,
-  );
-  const enableDetail = `Enable with: systemctl --user enable --now ${RESUME_MONITOR_SERVICE_UNIT}`;
-
-  addExecutablePresenceCheck(
-    results,
-    monitorScript,
-    `Resume monitor script is executable: ${displayPath(monitorScript)}`,
-    `Resume monitor script is missing or not executable: ${displayPath(monitorScript)}`,
+export const checkResumeMonitor = checkRequiredUserUnitSetup({
+  scriptPath: RESUME_MONITOR_SCRIPT,
+  scriptOkMessage: `Resume monitor script is executable: ${displayPath(RESUME_MONITOR_SCRIPT)}`,
+  scriptWarnMessage: `Resume monitor script is missing or not executable: ${displayPath(RESUME_MONITOR_SCRIPT)}`,
+  scriptDetail:
     "Run dot stow (or dot install) to link the resume monitor script",
-  );
-  addFilePresenceCheck(
-    results,
-    unitPath,
-    `Resume monitor service unit file found: ${displayPath(unitPath)}`,
-    `Resume monitor service unit file missing: ${displayPath(unitPath)}`,
-    "Run dot stow (or dot install) to link systemd user units",
-  );
-  yield* checkRequiredUserUnit(
-    results,
-    executor,
-    RESUME_MONITOR_SERVICE_UNIT,
-    "Resume monitor service",
-    enableDetail,
-  );
-
-  return results;
+  unitPath: userSystemdUnitPath(RESUME_MONITOR_SERVICE_UNIT),
+  unitOkMessage: `Resume monitor service unit file found: ${displayPath(userSystemdUnitPath(RESUME_MONITOR_SERVICE_UNIT))}`,
+  unitWarnMessage: `Resume monitor service unit file missing: ${displayPath(userSystemdUnitPath(RESUME_MONITOR_SERVICE_UNIT))}`,
+  unitDetail: "Run dot stow (or dot install) to link systemd user units",
+  unit: RESUME_MONITOR_SERVICE_UNIT,
+  unitLabel: "Resume monitor service",
 });
 
 /** Check daily volume reset timer (laptop-only, informational) */
@@ -646,9 +657,8 @@ export const checkDailyVolumeReset = Effect.gen(function* () {
   const host = envString(ENV.OMARCHY_HOST) ?? "unset";
 
   const script = join(HOME_DIR, ".local", "bin", "daily-volume-zero");
-  const systemdDir = join(CONFIG_DIR, "systemd", "user");
-  const serviceUnit = join(systemdDir, "daily-volume-zero.service");
-  const timerUnit = join(systemdDir, DAILY_VOLUME_ZERO_TIMER_UNIT);
+  const serviceUnit = userSystemdUnitPath("daily-volume-zero.service");
+  const timerUnit = userSystemdUnitPath(DAILY_VOLUME_ZERO_TIMER_UNIT);
 
   if (existsSync(script)) {
     results.push({
