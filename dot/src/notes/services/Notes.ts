@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { Clock, Context, Effect, Layer, Schema } from "effect";
 import {
   existsSync,
   mkdirSync,
@@ -24,6 +24,7 @@ import {
   type RepoNoteIdentity,
   type NoteWriteResult,
 } from "../types.js";
+import { formatNoteTimestamp } from "../time.js";
 
 const NOTES_SUBDIR = "repo-notes";
 const COMMANDS_NEEDING_LIST = new Set<string>([
@@ -222,7 +223,7 @@ function draftSeedContent(
   name: string,
   description: string,
 ): string {
-  const date = now.toISOString().slice(0, 10);
+  const date = formatNoteTimestamp(now);
   const repo = `${identity.owner}/${identity.repo}`;
   const desc =
     description ||
@@ -711,10 +712,11 @@ export class Notes extends Context.Service<Notes, NotesService>()("Notes") {
             );
             const slug = slugifyName(name);
             const filePath = collisionFreePath(notesPath, `${slug}.md`);
+            const now = new Date(yield* Clock.currentTimeMillis);
             const content = draftSeedContent(
               kind,
               identity,
-              new Date(),
+              now,
               name,
               description,
             );

@@ -45,7 +45,7 @@ Use this exact format for `content`:
 ---
 repo: {owner}/{repo}
 branch: {branch}
-date: {YYYY-MM-DD}
+date: {current ISO-8601 full datetime with timezone, e.g. 2026-06-01T14:30:00+01:00}
 name: {Short human-readable title, 3–6 words, Title Case}
 description: {One sentence describing what this note covers}
 tags: [{2–5 kebab-case tags derived from the conversation content, e.g. authentication, jwt, api-design}]

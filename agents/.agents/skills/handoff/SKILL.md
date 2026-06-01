@@ -31,7 +31,7 @@ Do **not** use the `write`, `bash`, or any other tool to write the file — only
 ---
 repo: {owner}/{repo}
 branch: {branch}
-date: {YYYY-MM-DD}
+date: {current ISO-8601 full datetime with timezone, e.g. 2026-06-01T14:30:00+01:00}
 type: handoff
 name: {Short human-readable title, 3–6 words, Title Case}
 description: {One sentence describing the handoff purpose}

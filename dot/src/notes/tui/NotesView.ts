@@ -46,6 +46,7 @@ import {
   type NoteCreatePromptResult,
 } from "./NoteCreatePrompt.js";
 import type { OpenCodeNoteMode } from "./OpenCodeNote.js";
+import { formatLocalNoteDateTimeFromEpochSeconds } from "../time.js";
 
 /** Help entries for the repository notes view. */
 const HELP: readonly HelpEntry[] = [
@@ -981,7 +982,7 @@ export class NotesView {
 
   private updateHeader(entry: NoteEntry): void {
     const name = entry.name ?? stripMarkdownExtension(entry.filename);
-    const modified = formatDate(entry.mtime);
+    const modified = formatLocalNoteDateTimeFromEpochSeconds(entry.mtime);
     const fileLabel = notePathLabel(entry);
     this.noteHeading.content = t`${fg(this.theme.fgMuted)("Name: ")}${bold(fg(this.theme.accent)(name))}`;
     this.noteDescription.content = entry.description
@@ -1514,7 +1515,7 @@ function selectedStatusText(entry: NoteEntry | null): string {
 function formatListDescription(entry: NoteEntry): string {
   const description = entry.description ?? "No description";
   const tags = entry.tags.length ? ` [${entry.tags.join(", ")}]` : "";
-  return `${description}${tags} • ${formatDate(entry.mtime)}`;
+  return `${description}${tags} • ${formatLocalNoteDateTimeFromEpochSeconds(entry.mtime)}`;
 }
 
 function formatTags(tags: readonly string[]): string {
@@ -1529,10 +1530,6 @@ function notePathLabel(entry: NoteEntry): string {
 
 function stripMarkdownExtension(filename: string): string {
   return filename.replace(/\.md$/i, "");
-}
-
-function formatDate(epochSeconds: number): string {
-  return new Date(epochSeconds * 1000).toISOString().slice(0, 10);
 }
 
 function errorMessage(error: unknown): string {

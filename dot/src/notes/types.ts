@@ -1,3 +1,5 @@
+import { formatLocalNoteDateTimeFromEpochSeconds } from "./time.js";
+
 /** Parsed Git repository identity for repo-scoped notes. */
 export interface RepoNoteIdentity {
   /** GitHub owner or organisation parsed from the selected remote. */
@@ -96,7 +98,7 @@ export type NotesListFormat = "labels" | "json";
 
 /** Render a note label in the legacy RepoNotesPlugin format. */
 export function formatNoteLabel(entry: NoteEntry): string {
-  const date = new Date(entry.mtime * 1000).toISOString().slice(0, 10);
+  const date = formatLocalNoteDateTimeFromEpochSeconds(entry.mtime);
   const tagPart = entry.tags.length ? ` [tags: ${entry.tags.join(", ")}]` : "";
 
   if (entry.name && entry.description) {

@@ -51,7 +51,7 @@ Omit any section that has no new content for this session.
    - If a section in the existing note is missing but has new content, add it
    - Do not duplicate existing items
    - Do not change the frontmatter (repo, branch, date, name, description, tags) — those reflect the original session
-3. Add a new `## Update — {YYYY-MM-DD}` section at the bottom of the file with a brief sentence summarising what this append session added (2–3 sentences max)
+3. Add a new `## Update — {current ISO-8601 full datetime with timezone}` section at the bottom of the file with a brief sentence summarising what this append session added (2–3 sentences max)
 4. Call the `note_write` tool with:
    - `path`: `{notes_path}/{filename}`
    - `content`: the complete updated file content

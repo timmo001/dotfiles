@@ -30,14 +30,14 @@ Present the matching entries as a markdown table, newest-first:
 
 | # | Name | Description | Tags | Modified |
 |---|------|-------------|------|----------|
-| 1 | {name} | {description} | `{tag1}`, `{tag2}` | {YYYY-MM-DD} |
+| 1 | {name} | {description} | `{tag1}`, `{tag2}` | {localised datetime} |
 
 Rules:
 - `#` column is a sequential row number
 - `Name` is the frontmatter name (no bold, no filename)
 - `Description` is the frontmatter description. Keep it readable — if it's over ~100 chars, truncate at a natural word boundary and append `...`, but if the full text is only a few words beyond that just include it all
 - `Tags` uses inline code spans per tag, comma-separated
-- `Modified` is the YYYY-MM-DD date
+- `Modified` is the localised date and time from the injected note label
 - After the table, list the filenames for reference and suggest next actions:
 
 Files:

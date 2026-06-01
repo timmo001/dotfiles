@@ -30,7 +30,7 @@ The question should look like:
 
 List each option using the full label format:
 ```
-filename — Name: Description [tags: a, b, c] (last modified: YYYY-MM-DD)
+filename — Name: Description [tags: a, b, c] (last modified: localised datetime)
 ```
 
 Wait for the user to confirm before continuing.

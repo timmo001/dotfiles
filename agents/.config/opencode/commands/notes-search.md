@@ -28,7 +28,7 @@ Score every note in `<existing-notes>` against the user's query using these sign
 
 Present the results as a ranked list, highest relevance first. For each entry include:
 
-- The full label: `filename — Name: Description [tags: a, b, c] (last modified: YYYY-MM-DD)`
+- The full label: `filename — Name: Description [tags: a, b, c] (last modified: localised datetime)`
 - One line explaining the relevance match (e.g. "tags `jwt`, `authentication` match directly")
 
 Omit notes with no meaningful relevance to the query.
