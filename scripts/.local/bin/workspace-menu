@@ -2,6 +2,24 @@
 
 set -euo pipefail
 
+menu_select() {
+  local prompt="$1"
+  local width="$2"
+  local maxheight="$3"
+  shift 3
+
+  if command -v omarchy-menu-select >/dev/null 2>&1; then
+    omarchy-menu-select "$prompt" "$@" -- --width "$width" --minheight 1 --maxheight "$maxheight" 2>/dev/null || true
+    return 0
+  fi
+
+  if command -v omarchy-launch-walker >/dev/null 2>&1; then
+    printf '%s\n' "$@" | omarchy-launch-walker --dmenu --width "$width" --minheight 1 --maxheight "$maxheight" -p "$prompt…" 2>/dev/null || true
+  fi
+
+  return 0
+}
+
 while true; do
   options=(
     '󰙀  Relayout current workspace'
@@ -15,7 +33,7 @@ while true; do
     options=('󰣇  Setup workspace' "${options[@]}")
   fi
 
-  choice="$(printf '%s\n' "${options[@]}" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 420 -p 'Workspace…' 2>/dev/null || true)"
+  choice="$(menu_select 'Workspace' 360 420 "${options[@]}")"
   choice="${choice#*  }"
 
   case "$choice" in

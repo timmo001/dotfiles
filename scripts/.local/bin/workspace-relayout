@@ -80,6 +80,28 @@ notify() {
   notify-send "$NOTIFY_TITLE" "$1"
 }
 
+menu_select() {
+  local prompt="$1"
+  local width="$2"
+  local maxheight="$3"
+  shift 3
+
+  if command -v omarchy-menu-select >/dev/null 2>&1; then
+    omarchy-menu-select "$prompt" "$@" -- --width "$width" --minheight 1 --maxheight "$maxheight" 2>/dev/null || true
+    return 0
+  fi
+
+  if command -v omarchy-launch-walker >/dev/null 2>&1; then
+    printf '%s\n' "$@" | omarchy-launch-walker --dmenu --width "$width" --minheight 1 --maxheight "$maxheight" -p "$prompt…" 2>/dev/null || true
+  fi
+
+  return 0
+}
+
+menu_selector_available() {
+  command -v omarchy-menu-select >/dev/null 2>&1 || command -v omarchy-launch-walker >/dev/null 2>&1
+}
+
 focus_addr() {
   local addr="$1"
   [ -n "$addr" ] || return 1
@@ -228,13 +250,13 @@ choose_layout() {
   local three_lmr_quarter_label
   local three_lmr_wide_label
 
-  if ! command -v omarchy-launch-walker >/dev/null 2>&1; then
-    notify "omarchy-launch-walker is not available"
+  if ! menu_selector_available; then
+    notify "No Omarchy menu selector is available"
     return 1
   fi
 
   option_count="$(jq -r 'length' <<< "$clients_json")"
-  prompt="$option_count window layout..."
+  prompt="$option_count window layout"
   two_label='1 top / 1 bottom [74/26]'
   two_alt_label='1 top / 1 bottom [63/37]'
   two_half_label='1 top / 1 bottom [50/50]'
@@ -255,13 +277,13 @@ choose_layout() {
 
   case "$option_count" in
     2)
-      choice="$(printf '%s\n' "$two_label" "$two_alt_label" "$two_half_label" "$two_lr_label" "$two_lr_one_third_label" "$two_lr_small_left_label" | omarchy-launch-walker --dmenu --width 400 --minheight 1 --maxheight 320 -p "$prompt" 2>/dev/null || true)"
+      choice="$(menu_select "$prompt" 400 320 "$two_label" "$two_alt_label" "$two_half_label" "$two_lr_label" "$two_lr_one_third_label" "$two_lr_small_left_label")"
       ;;
     4)
-      choice="$(printf '%s\n' "$grid_label" "$grid_half_label" "$top_bottom_label" "$top_bottom_current_label" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 240 -p "$prompt" 2>/dev/null || true)"
+      choice="$(menu_select "$prompt" 360 240 "$grid_label" "$grid_half_label" "$top_bottom_label" "$top_bottom_current_label")"
       ;;
     3)
-      choice="$(printf '%s\n' "$three_label" "$three_current_label" "$three_half_label" "$three_left_stack_label" "$three_lmr_label" "$three_lmr_quarter_label" "$three_lmr_wide_label" | omarchy-launch-walker --dmenu --width 420 --minheight 1 --maxheight 300 -p "$prompt" 2>/dev/null || true)"
+      choice="$(menu_select "$prompt" 420 300 "$three_label" "$three_current_label" "$three_half_label" "$three_left_stack_label" "$three_lmr_label" "$three_lmr_quarter_label" "$three_lmr_wide_label")"
       ;;
     *)
       notify "Expected 2, 3, or 4 visible tiled windows on this workspace, found $option_count"

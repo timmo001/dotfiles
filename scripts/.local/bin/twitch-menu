@@ -1,6 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+menu_select() {
+  local prompt="$1"
+  local width="$2"
+  local maxheight="$3"
+  shift 3
+
+  if command -v omarchy-menu-select >/dev/null 2>&1; then
+    omarchy-menu-select "$prompt" "$@" -- --width "$width" --minheight 1 --maxheight "$maxheight" 2>/dev/null || true
+    return 0
+  fi
+
+  if command -v omarchy-launch-walker >/dev/null 2>&1; then
+    printf '%s\n' "$@" | omarchy-launch-walker --dmenu --width "$width" --minheight 1 --maxheight "$maxheight" -p "$prompt…" 2>/dev/null || true
+  fi
+
+  return 0
+}
+
 open_url() {
   local url="${1:?}"
   local host="${OMARCHY_HOST:-}"
@@ -56,7 +74,7 @@ channels_menu() {
     fi
   done
 
-  choice="$(printf '%s\n' "${options[@]}" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 630 -p 'Twitch channels…' 2>/dev/null || true)"
+  choice="$(menu_select 'Twitch channels' 360 630 "${options[@]}")"
   choice_label="${choice#*  }"
   [[ $choice_label == 'Open all live autolaunch' ]] && exec twitch-notifications --recheck --open
   selected="${choice_label% \[offline\]}"
@@ -70,7 +88,7 @@ channels_menu() {
 }
 
 while true; do
-  choice="$(printf '%s\n' '  Recheck notifications' '󰜉  Restart notifications' '  Open following' '  Open following live' '  Open channel(s)..' | omarchy-launch-walker --dmenu --width 295 --minheight 1 --maxheight 630 -p 'Twitch…' 2>/dev/null || true)"
+  choice="$(menu_select 'Twitch' 295 630 '  Recheck notifications' '󰜉  Restart notifications' '  Open following' '  Open following live' '  Open channel(s)..')"
   choice="${choice#*  }"
 
   case "$choice" in
