@@ -32,8 +32,9 @@ Auto-generate a kebab-case slug from the summary topic. Rules:
 
 Read `Notes path` from the `<repository>` section of the injected context.
 
-1. Generate the full note content using the format below.
-2. Call the `note_write` tool with:
+1. Get the current full local timestamp with `date -Is`; use that exact value for `date:`.
+2. Generate the full note content using the format below.
+3. Call the `note_write` tool with:
    - `path`: `{notes_path}/{slug}.md`
    - `content`: the full note content
 
@@ -45,7 +46,7 @@ Use this exact format for `content`:
 ---
 repo: {owner}/{repo}
 branch: {branch}
-date: {current ISO-8601 full datetime with timezone, e.g. 2026-06-01T14:30:00+01:00}
+date: {current `date -Is` value, e.g. 2026-06-01T14:30:00+01:00}
 name: {Short human-readable title, 3–6 words, Title Case}
 description: {One sentence describing what this note covers}
 tags: [{2–5 kebab-case tags derived from the conversation content, e.g. authentication, jwt, api-design}]

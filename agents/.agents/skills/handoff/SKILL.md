@@ -12,7 +12,8 @@ Configuration invariant: every primary agent should have access to the repo note
 Read `Notes path` from the `<repository>` section of the injected `<repo-note-context>`.
 
 1. Generate a slug prefixed with `handoff-` (e.g. `handoff-auth-refactor`, `handoff-migrate-to-v4`).
-2. Call the `note_write` tool with:
+2. Get the current full local timestamp with `date -Is`; use that exact value for `date:`.
+3. Call the `note_write` tool with:
    - `path`: `{notes_path}/handoff-{slug}.md`
    - `content`: the full note content (see format below)
 
@@ -31,7 +32,7 @@ Do **not** use the `write`, `bash`, or any other tool to write the file — only
 ---
 repo: {owner}/{repo}
 branch: {branch}
-date: {current ISO-8601 full datetime with timezone, e.g. 2026-06-01T14:30:00+01:00}
+date: {current `date -Is` value, e.g. 2026-06-01T14:30:00+01:00}
 type: handoff
 name: {Short human-readable title, 3–6 words, Title Case}
 description: {One sentence describing the handoff purpose}
