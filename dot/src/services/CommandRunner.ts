@@ -1,8 +1,22 @@
 import type { CliRenderer } from "@opentui/core";
+import { destroyRendererForCommand } from "./Renderer.js";
 import type { NotifyConfig } from "../types.js";
 import type { ToastService } from "./Toast.js";
 
 const log = (msg: string) => console.error(`[dot:CommandRunner] ${msg}`);
+
+async function runCaptured(cmd: string): Promise<{
+  readonly exitCode: number;
+  readonly stderr: string;
+}> {
+  const proc = Bun.spawn(["bash", "-c", cmd], {
+    stdout: "ignore",
+    stderr: "pipe",
+  });
+  const exitCode = await proc.exited;
+  const stderr = exitCode === 0 ? "" : await new Response(proc.stderr).text();
+  return { exitCode, stderr };
+}
 
 /** Service for executing shell commands with TUI suspend/resume lifecycle */
 export interface CommandRunnerService {
@@ -16,6 +30,9 @@ export interface CommandRunnerService {
 
   /** Run a command silently with toast notifications for progress and result. */
   readonly runNotify: (cmd: string, notify: NotifyConfig) => Promise<void>;
+
+  /** Destroy the TUI, then run a command as a normal CLI process. */
+  readonly exitAndRun: (cmd: string) => Promise<never>;
 }
 
 /** Create a {@link CommandRunnerService} bound to the given renderer for suspend/resume */
@@ -60,14 +77,9 @@ export function createCommandRunner(
 
     runSilent: async (cmd) => {
       log(`Running silently: ${cmd}`);
-      const proc = Bun.spawn(["bash", "-c", cmd], {
-        stdout: "pipe",
-        stderr: "pipe",
-      });
-      const exitCode = await proc.exited;
+      const { exitCode, stderr } = await runCaptured(cmd);
 
       if (exitCode !== 0) {
-        const stderr = await new Response(proc.stderr).text();
         log(`Silent command failed (exit ${exitCode}): ${stderr}`);
       } else {
         log(`Silent command completed: ${cmd}`);
@@ -78,14 +90,9 @@ export function createCommandRunner(
       log(`Running with notification: ${cmd}`);
       toast.show(notify.id, notify.progress, "info");
 
-      const proc = Bun.spawn(["bash", "-c", cmd], {
-        stdout: "pipe",
-        stderr: "pipe",
-      });
-      const exitCode = await proc.exited;
+      const { exitCode, stderr } = await runCaptured(cmd);
 
       if (exitCode !== 0) {
-        const stderr = await new Response(proc.stderr).text();
         const errMsg = stderr.trim().split("\n")[0] || "Command failed";
         log(`Notify command failed (exit ${exitCode}): ${stderr}`);
         toast.show(notify.id, errMsg, "error");
@@ -93,6 +100,20 @@ export function createCommandRunner(
         log(`Notify command completed: ${cmd}`);
         toast.show(notify.id, notify.success, "success");
       }
+    },
+
+    exitAndRun: async (cmd) => {
+      log(`Exiting TUI for: ${cmd}`);
+      renderer.currentRenderBuffer.clear();
+      destroyRendererForCommand(renderer);
+
+      const proc = Bun.spawn(["bash", "-c", cmd], {
+        stdin: "inherit",
+        stdout: "inherit",
+        stderr: "inherit",
+      });
+      const exitCode = await proc.exited;
+      process.exit(exitCode);
     },
   };
 }

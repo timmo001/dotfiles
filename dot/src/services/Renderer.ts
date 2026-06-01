@@ -4,6 +4,18 @@ import { shutdownServer } from "./OpenCodeServer.js";
 import type { Theme } from "../theme.js";
 
 const log = (msg: string) => console.error(`[dot:Renderer] ${msg}`);
+let suppressNextDestroyExit = false;
+
+/** Destroy the renderer without exiting the process, for handoff to a CLI command. */
+export function destroyRendererForCommand(renderer: CliRenderer): void {
+  try {
+    suppressNextDestroyExit = true;
+    renderer.destroy();
+  } catch (error) {
+    suppressNextDestroyExit = false;
+    throw error;
+  }
+}
 
 /**
  * Effect service wrapping the OpenTUI {@link CliRenderer} with scoped lifecycle.
@@ -45,7 +57,9 @@ export class Renderer extends Context.Service<Renderer, CliRenderer>()(
             backgroundColor: theme.transparent ? "transparent" : theme.bg,
             onDestroy: () => {
               shutdownServer();
-              process.exit(0);
+              const shouldExit = !suppressNextDestroyExit;
+              suppressNextDestroyExit = false;
+              if (shouldExit) process.exit(0);
             },
           });
         }),

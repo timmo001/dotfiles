@@ -393,12 +393,16 @@ export class App {
         const { action } = item;
         if (
           action.type === "command" ||
+          action.type === "exit-command" ||
           action.type === "silent" ||
           action.type === "notify"
         ) {
           setTimeout(() => {
-            this.commandRunner
-              .runSuspended(action.cmd, true)
+            const run =
+              action.type === "exit-command"
+                ? this.commandRunner.exitAndRun(action.cmd)
+                : this.commandRunner.runSuspended(action.cmd, true);
+            run
               .then(() => deps.renderer.destroy())
               .catch((err) => {
                 log(`Execute error: ${err}`);
@@ -554,6 +558,13 @@ export class App {
           .catch((err) => {
             log(`Command error: ${err}`);
           });
+        break;
+
+      case "exit-command":
+        this.commandRunner.exitAndRun(action.cmd).catch((err) => {
+          log(`Exit command error: ${err}`);
+          this.renderer.destroy();
+        });
         break;
 
       case "silent":

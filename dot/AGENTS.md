@@ -136,6 +136,7 @@ src/
 
 MenuItem action types:
 - `command` — suspend TUI, run command, optional "press any key" wait, resume
+- `exit-command` — destroy TUI, then run command as a normal CLI process
 - `silent` — run in background, no TUI interruption
 - `notify` — run in background with toast progress/success feedback
 - `view` — navigate to a sub-view (diff, omarchy)
@@ -166,10 +167,10 @@ dot init --noninteractive --confirm # Non-interactive first setup for VMs
 dot init --host laptop --noninteractive --confirm # First setup with laptop host overrides
 dot init --log ~/Public/init.log # First setup with an explicit log path
 dot install                   # Ensure prerequisites, then backup/adopt install flow
-dot update                    # Full update (pull, stow, rebuild, init-state backfill)
+dot update                    # Full update (install deps, rebuild, restart, pull, stow, init-state backfill)
 dot update --pull             # Pull repos only
 dot update --stow             # Stow only
-dot update --tui              # Rebuild binary only
+dot update --tui              # Install deps and rebuild binary only
 dot stow                      # Stow public + private
 dot stow --public             # Stow public only
 dot stow --private            # Stow private only
@@ -232,7 +233,7 @@ cd ~/.config/dotfiles/dot
 bun run build    # outputs to ../scripts/.local/bin/dot
 ```
 
-The build is also triggered by `dot update`.
+The build is also triggered by `dot update`, which runs `bun install` before compiling the binary.
 
 Fresh-machine bootstrap uses system mise to run Bun before `dot init` can manage global tool versions:
 

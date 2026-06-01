@@ -34,6 +34,10 @@ function cmd(command: string, wait = true): MenuItem["action"] {
   return { type: "command", cmd: command, wait };
 }
 
+function exitCmd(command: string): MenuItem["action"] {
+  return { type: "exit-command", cmd: command };
+}
+
 function silent(command: string): MenuItem["action"] {
   return { type: "silent", cmd: command };
 }
@@ -56,28 +60,28 @@ const dotItems: readonly MenuItem[] = [
     "update",
     "󰚰",
     "Update",
-    "Pull repos, stow dotfiles, rebuild",
-    cmd("dot update"),
+    "Pull repos, stow dotfiles, install deps, rebuild",
+    exitCmd("dot update"),
     [
       {
         label: "Full",
-        description: "Pull, stow, rebuild TUI, run hooks",
-        action: cmd("dot update"),
+        description: "Install, rebuild, restart, pull, stow",
+        action: exitCmd("dot update"),
       },
       {
         label: "Pull",
         description: "Pull all repos (dotfiles, private, omarchy)",
-        action: cmd("dot update --pull"),
+        action: exitCmd("dot update --pull"),
       },
       {
         label: "Stow",
         description: "Re-stow dotfiles without pulling",
-        action: cmd("dot update --stow"),
+        action: exitCmd("dot update --stow"),
       },
       {
         label: "TUI",
-        description: "Rebuild dot binary only",
-        action: cmd("dot update --tui"),
+        description: "Install deps and rebuild dot binary only",
+        action: exitCmd("dot update --tui"),
       },
     ],
     ["upd", "pull", "fetch", "sync", "refresh", "rebuild", "dotfiles"],

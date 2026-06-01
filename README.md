@@ -61,7 +61,7 @@ dot doctor
 
 - `dot init` - one-time first-use setup for fresh machines: private dotfiles bootstrap when `gh auth` is available, Omarchy sync, early Hypr host-link setup (`--host <name>`, default `OMARCHY_HOST` or `desktop`), install/adopt, stowed mise tool install, package setup, machine hooks, agents sync, then `dot update`; logs to `/tmp/dot-init.log` by default or `--log <path>`; fails fast after successful init
 - `dot install` - ensure prerequisites, then run the backup/adopt install flow for public/private dotfiles
-- `dot update` - Omarchy + public/private pull (including optional extra private repos), then stow refresh, Hypr host-link setup, binary rebuild, and first-use completion marker backfill for already-setup machines
+- `dot update` - self-update public dotfiles first, install dependencies, rebuild and restart on the rebuilt binary, then run Omarchy + public/private pull (including optional extra private repos), stow refresh, Hypr host-link setup, and first-use completion marker backfill for already-setup machines
 - `dot stow` - stow refresh only (no git pull)
 - `dot doctor` - tool, repo, workflow runs, extra repo, remote, public/private package, private package repo, and Chromium extension health checks
 - `dot clean` - unstow private then public

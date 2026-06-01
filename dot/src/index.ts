@@ -64,6 +64,8 @@ const DEBUG = !!process.env.DOT_DEBUG;
 const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
 const DEFAULT_INIT_LOG_FILE = join("/tmp", "dot-init.log");
 const PRIVATE_DOTFILES_REPO = "timmo001/dotfiles-private";
+const UPDATE_DISABLE_SELF_UPDATE_ARG = "--no-self-update";
+const UPDATE_POST_HOOK_REPO_ARG = "--post-hook-repo";
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot] ${msg}`);
 };
@@ -478,12 +480,16 @@ if (mode.type === "native") {
     {
       init,
       install: () => install,
-      update: (args) =>
-        update({
+      update: (args) => {
+        const postHookRepo = optionValue(args, UPDATE_POST_HOOK_REPO_ARG);
+        return update({
           pull: args.includes("--pull"),
           stow: args.includes("--stow"),
           tui: args.includes("--tui"),
-        }),
+          selfUpdate: !hasOption(args, UPDATE_DISABLE_SELF_UPDATE_ARG),
+          postHookRepos: postHookRepo ? [postHookRepo] : [],
+        });
+      },
       stow: (args) =>
         stow({
           publicOnly: args.includes("--public"),

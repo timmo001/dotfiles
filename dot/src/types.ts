@@ -253,6 +253,12 @@ export interface CommandAction {
   readonly wait: boolean;
 }
 
+/** Action that exits the TUI and then runs a command with normal CLI stdio. */
+export interface ExitCommandAction {
+  readonly type: "exit-command";
+  readonly cmd: string;
+}
+
 /** Action that runs a command in the background without suspending */
 export interface SilentAction {
   readonly type: "silent";
@@ -301,6 +307,7 @@ export interface QuitAction {
 /** Discriminated union of all possible menu item actions */
 export type MenuAction =
   | CommandAction
+  | ExitCommandAction
   | SilentAction
   | NotifyAction
   | ViewAction

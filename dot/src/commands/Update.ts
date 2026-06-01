@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { existsSync, unlinkSync } from "fs";
-import { join } from "path";
+import { basename, join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -8,7 +8,7 @@ import { DotDiff } from "../git/services/DotDiff.js";
 import { stow as runStow } from "./Stow.js";
 import { agentsSync } from "./AgentsSync.js";
 import { skillUpdates } from "./SkillUpdates.js";
-import { rebuild } from "../lib/selfUpdate.js";
+import { rebuild, restartDot } from "../lib/selfUpdate.js";
 import { cloneMissingExtraRepos } from "../lib/extraRepos.js";
 import {
   ensureInitCompleteMarker,
@@ -17,6 +17,28 @@ import {
 import { gitHead, gitPullRebase, gitWorkingTreeClean } from "../lib/git.js";
 import type { ConfigService } from "../services/Config.js";
 import type { InitCompleteMarkerStatus } from "../lib/initState.js";
+
+const DISABLE_SELF_UPDATE_ARG = "--no-self-update";
+const POST_HOOK_REPO_ARG = "--post-hook-repo";
+const SELECTABLE_UPDATE_FLAGS = [
+  ["--pull", "pull"],
+  ["--stow", "stow"],
+  ["--tui", "tui"],
+] as const;
+
+/** Options controlling which phases `dot update` runs. */
+export interface UpdateOptions {
+  /** Run the repository pull phase. */
+  readonly pull?: boolean;
+  /** Run the stow refresh phase. */
+  readonly stow?: boolean;
+  /** Run the dot binary rebuild phase. */
+  readonly tui?: boolean;
+  /** Run the initial self-update/restart phase before the selected phases. */
+  readonly selfUpdate?: boolean;
+  /** Repository names already pulled before restart, for post-hook handling. */
+  readonly postHookRepos?: readonly string[];
+}
 
 const displayPath = (p: string): string =>
   p.replace(process.env.HOME ?? "", "~");
@@ -123,6 +145,40 @@ const notifyUpdated = (names: readonly string[]) =>
       .pipe(Effect.catch(() => Effect.succeed(0)));
   });
 
+function selectedUpdateFlags(opts?: UpdateOptions): readonly string[] {
+  return SELECTABLE_UPDATE_FLAGS.filter(([, key]) => opts?.[key]).map(
+    ([flag]) => flag,
+  );
+}
+
+function restartUpdateArgs(
+  opts: UpdateOptions | undefined,
+  pulledRepoName?: string,
+): readonly string[] {
+  return [
+    "update",
+    ...selectedUpdateFlags(opts),
+    DISABLE_SELF_UPDATE_ARG,
+    ...(pulledRepoName ? [POST_HOOK_REPO_ARG, pulledRepoName] : []),
+  ];
+}
+
+function selfUpdateAndRestart(
+  config: ConfigService,
+  opts: UpdateOptions | undefined,
+) {
+  return Effect.gen(function* () {
+    const log = yield* OutputLog;
+    yield* log.section("Self Update");
+    const repoName = basename(config.publicDotfiles);
+    const moved = yield* safePull(repoName, config.publicDotfiles);
+    yield* rebuild;
+    yield* log.info("Self update successful");
+    yield* log.info("Restarting update with rebuilt dot binary");
+    yield* restartDot(restartUpdateArgs(opts, moved ? repoName : undefined));
+  });
+}
+
 /** Run post-update hooks (agents-sync, skill-updates) */
 const postHooks = Effect.gen(function* () {
   const log = yield* OutputLog;
@@ -147,34 +203,37 @@ const postHooks = Effect.gen(function* () {
 });
 
 /**
- * Run `dot update`: pull behind repos, restow dotfiles, rebuild the binary.
+ * Run `dot update`: self-update, pull behind repos, restow dotfiles, rebuild.
  *
  * Flags are inclusive — passing any of pull/stow/tui selects only those
  * steps; if none are set, all three run (legacy semantics).
  *
  * The pull phase fetch-scans every tracked repo (public, private, notes,
  * omarchy + worktrees, schedule-gated extras) via {@link DotDiff} and only
- * pulls repos that are behind upstream. Post-hooks (agents-sync, skill
- * updates, notifications) run only when a repo was actually pulled.
+ * pulls repos that are behind upstream. Full updates pull public dotfiles,
+ * rebuild, and restart without self-update before continuing the workflow.
+ * Post-hooks (agents-sync, skill updates, notifications) run only when a repo
+ * was actually pulled.
  */
-export const update = (opts?: {
-  readonly pull?: boolean;
-  readonly stow?: boolean;
-  readonly tui?: boolean;
-}) =>
+export const update = (opts?: UpdateOptions) =>
   Effect.gen(function* () {
     const anyFlag = !!(opts?.pull || opts?.stow || opts?.tui);
     const doPull = anyFlag ? !!opts?.pull : true;
     const doStow = anyFlag ? !!opts?.stow : true;
-    const doTui = anyFlag ? !!opts?.tui : true;
-    const isFullUpdate = doPull && doStow && doTui;
+    const doTui = anyFlag ? !!opts?.tui : opts?.selfUpdate !== false;
+    const isFullUpdate = anyFlag ? doPull && doStow && doTui : true;
 
     const config = yield* Config;
     const log = yield* OutputLog;
 
     yield* log.section("Update Workflow");
 
-    const updatedNames: string[] = [];
+    if (isFullUpdate && opts?.selfUpdate !== false) {
+      yield* selfUpdateAndRestart(config, opts);
+      return;
+    }
+
+    const updatedNames = [...(opts?.postHookRepos ?? [])];
 
     if (doPull) {
       yield* log.section("Pull Repositories");

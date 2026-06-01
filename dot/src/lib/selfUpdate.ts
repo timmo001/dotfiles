@@ -1,5 +1,6 @@
 import { Effect } from "effect";
-import { CommandExecutor } from "../services/CommandExecutor.js";
+import { CommandError, CommandExecutor } from "../services/CommandExecutor.js";
+import { OutputLog } from "../services/OutputLog.js";
 import { renameSync, chmodSync, realpathSync } from "fs";
 import { join, dirname } from "path";
 
@@ -28,19 +29,20 @@ const DOT_SRC = join(dirname(BIN_PATH), "..", "..", "..", "dot");
  * Rebuild the dot binary from source.
  *
  * Runs `bun install` then `bun build --compile` to a temporary path,
- * then atomically renames over the current binary. The process should
- * exit 0 after this completes — no relaunch needed.
+ * then atomically renames over the current binary. Callers may relaunch when
+ * the rebuilt code must continue the current workflow.
  */
 export const rebuild = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
+  const outputLog = yield* OutputLog;
 
   log(`Rebuilding from: ${DOT_SRC}`);
 
-  // Install deps
+  yield* outputLog.info("Installing dot dependencies");
   yield* executor.run("bun", ["install"], { cwd: DOT_SRC });
   log("Dependencies installed");
 
-  // Build to temp path (use resolved BIN_PATH to avoid overwriting stow symlinks)
+  yield* outputLog.info("Compiling dot binary");
   const tmpPath = `${BIN_PATH}.new`;
   yield* executor.run(
     "bun",
@@ -56,3 +58,19 @@ export const rebuild = Effect.gen(function* () {
   });
   log("Binary replaced");
 });
+
+/** Restart the rebuilt dot binary with inherited stdio and fail on non-zero exit. */
+export const restartDot = (
+  args: readonly string[],
+): Effect.Effect<void, CommandError, CommandExecutor> =>
+  Effect.gen(function* () {
+    const executor = yield* CommandExecutor;
+    const command = `${BIN_PATH} ${args.join(" ")}`;
+    log(`Restarting: ${command}`);
+    const exitCode = yield* executor.inherit(BIN_PATH, args);
+    if (exitCode !== 0) {
+      return yield* Effect.fail(
+        new CommandError({ command, exitCode, stderr: "" }),
+      );
+    }
+  });
