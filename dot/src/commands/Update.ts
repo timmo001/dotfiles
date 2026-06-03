@@ -43,6 +43,11 @@ export interface UpdateOptions {
 const displayPath = (p: string): string =>
   p.replace(process.env.HOME ?? "", "~");
 
+const onResumeHelperPath = (): string | null => {
+  const home = process.env.HOME;
+  return home ? join(home, ".local", "bin", "on-resume") : null;
+};
+
 function logInitMarkerStatus(
   status: InitCompleteMarkerStatus,
   config: ConfigService,
@@ -202,6 +207,31 @@ const postHooks = Effect.gen(function* () {
   );
 });
 
+/** Run the resume refresh helper so status-bar services pick up update changes. */
+const runResumeRefresh = Effect.gen(function* () {
+  const log = yield* OutputLog;
+  const executor = yield* CommandExecutor;
+  const helper = onResumeHelperPath();
+
+  yield* log.section("Resume Refresh");
+
+  if (!helper || !existsSync(helper)) {
+    yield* log.warn("Skipping on-resume helper (not installed)");
+    return;
+  }
+
+  const exitCode = yield* executor
+    .exitCode(helper, [])
+    .pipe(Effect.catch(() => Effect.succeed(1)));
+
+  if (exitCode !== 0) {
+    yield* log.warn(`On-resume helper failed (exit ${exitCode})`);
+    return;
+  }
+
+  yield* log.info("On-resume helper started");
+});
+
 /**
  * Run `dot update`: self-update, pull behind repos, restow dotfiles, rebuild.
  *
@@ -298,4 +328,6 @@ export const update = (opts?: UpdateOptions) =>
       const markerStatus = yield* ensureInitCompleteMarker(config, "update");
       yield* logInitMarkerStatus(markerStatus, config);
     }
+
+    yield* runResumeRefresh;
   });
