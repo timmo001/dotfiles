@@ -61,11 +61,11 @@ dot doctor
 
 - `dot init` - one-time first-use setup for fresh machines: private dotfiles bootstrap when `gh auth` is available, Omarchy sync, early Hypr host-link setup (`--host <name>`, default `OMARCHY_HOST` or `desktop`), install/adopt, stowed mise tool install, package setup, machine hooks, agents sync, then `dot update`; logs to `/tmp/dot-init.log` by default or `--log <path>`; fails fast after successful init
 - `dot install` - ensure prerequisites, then run the backup/adopt install flow for public/private dotfiles
-- `dot update` - self-update public dotfiles first, install dependencies, rebuild and restart on the rebuilt binary, then run Omarchy + public/private pull (including optional extra private repos), stow refresh, Hypr host-link setup, and first-use completion marker backfill for already-setup machines
+- `dot update` - self-update public dotfiles first, install dependencies, rebuild and restart on the rebuilt binary, then run Omarchy + public/private pull (including configured private git repos), stow refresh, Hypr host-link setup, and first-use completion marker backfill for already-setup machines
 - `dot stow` - stow refresh only (no git pull)
-- `dot doctor` - tool, repo, workflow runs, extra repo, remote, public/private package, private package repo, and Chromium extension health checks
+- `dot doctor` - tool, repo, workflow runs, private git repo, remote, public/private package, private package repo, and Chromium extension health checks
 - `dot clean` - unstow private then public
-- `dot git-diff` - git status + staged/unstaged summaries with fetched unpushed/incoming commit checks across managed repos (including optional extra private repos and Omarchy repos); use `dot git-diff --bar-json` for one-line status bar JSON (`dot diff` remains a human compatibility alias)
+- `dot git-diff` - git status + staged/unstaged summaries with fetched unpushed/incoming commit checks across managed repos (including private git repos with `activity.enabled: true` and Omarchy repos); use `dot git-diff --bar-json` for one-line status bar JSON (`dot diff` remains a human compatibility alias)
 - `dot git-log` - recent commits across the same tracked repos as `dot git-diff`, sorted by latest commit activity; use `--raw` for CLI text output
 - `dot git-workflows` - two-pane watched GitHub workflow runs view for each repo's locally checked-out HEAD commit; use `--since <date>` to filter by activity time, and `--raw`, `--bar-json`, `--list-repos`, or `--list-runs` for CLI output
 - `dot git-notifications` - GitHub notification inbox with open, mark-read, done, ignore, and unignore actions; use `--all`, `--participating`, `--since <date>`, `--raw`, `--bar-json`, `--list-threads`, `--mark-read <id>`, `--mark-done <id>`, `--ignore <id>`, or `--unignore <id>` for CLI output/actions
@@ -94,11 +94,11 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 
 ## GitHub Workflow Runs And Notifications
 
-- Private dotfiles provide the watched repo list in `~/.config/dotfiles-private/.git-workflow-watch-repos`
+- Private dotfiles provide repo activity and workflow config in `~/.config/dotfiles-private/dot-git.yml`
 - `dot git-workflows` shows watched repos on the left, with workflow runs for the selected locally checked-out HEAD commit on the right; disabled workflows are hidden; `dot git-workflows --bar-json --since "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"` emits one-line status bar JSON for runs created, rerun, or updated in the window, and `--list-repos`/`--list-runs` emit plain text rows
 - The Waybar workflow module refreshes `dot git-workflows --bar-json --since <one-hour-ago>` through its own short-lived cache; left click opens the filtered TUI and right click refreshes the cache
 - `git-workflow-watch`, its global hook, and its user systemd timer are obsolete and should not be installed
-- `dot doctor` verifies the watched repo list, active Waybar workflow-runs module wiring, and absence of legacy `git-workflow-watch` leftovers
+- `dot doctor` verifies `dot-git.yml`, active Waybar workflow-runs module wiring, and absence of legacy `git-workflow-watch` leftovers
 - `dot git-notifications` shows the authenticated user's GitHub notification inbox; the API requires `gh` authenticated with a classic token carrying `notifications` or `repo` scope
 - The Waybar notification module refreshes `dot git-notifications --bar-json` through its own short-lived cache; left click opens the notifications TUI and right click refreshes the cache
 - `dot doctor` verifies GitHub notification API access plus the active Waybar notification module wiring
@@ -115,7 +115,7 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 - `DOTFILES_PRIVATE_DIR` - private dotfiles path (default `~/.config/dotfiles-private`)
 - `DOT_ALLOW_PRIVATE` - `auto|always|never` (default `auto`)
 - `DOT_PRIVATE_GH_USER` - expected GitHub user for private actions (default `timmo001`)
-- `DOT_PRIVATE_EXTRA_REPOS_FILE` - extra private repo config file for `dot git-diff`/`dot update`/`dot doctor` (default `$DOTFILES_PRIVATE_DIR/.dot-extra-repos`, format: `name|path[|schedule]` or just `path`; 5-field cron schedules such as `* 8-15 * * 1-5` filter diff/Waybar and matching `dot git-workflows` visibility; `dot doctor` expects each repo to be on a named branch with an upstream)
+- `DOT_GIT_CONFIG_FILE` - private git repo config file for `dot git-diff`, `dot git-log`, `dot git-workflows`, `dot update`, and `dot doctor` (default `$DOTFILES_PRIVATE_DIR/dot-git.yml`; each repo has required `activity` and `workflows` checks with explicit `enabled` and 5-field cron `schedule` keys)
 - `DOT_PRIVATE_PACKAGE_REPO_FILE` - private pacman repo config for `dot` (default `$DOTFILES_PRIVATE_DIR/.dot-private-package-repo`)
 - `DOT_PRIVATE_PACKAGES_FILE` - private package list for `dot` (default `$DOTFILES_PRIVATE_DIR/.dot-private-packages`)
 - `DOT_PRIVATE_PACMAN_REPO_CONFIG` - pacman repo snippet path written by `dot` (default `/etc/pacman.d/timmo-private.conf`)
@@ -127,7 +127,6 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 - `DOT_INCLUDE_OMARCHY_UPDATE_REPOS` - include Omarchy repos in `dot update` sync (`1|0`, default `1`)
 - `DOT_INIT_NONINTERACTIVE` - force non-interactive init mode (`1|0`, default `0`)
 - `DOT_INIT_LOG_FILE` - default `dot init` log path when `--log` is not passed (default `/tmp/dot-init.log`)
-- `DOT_WORKFLOW_WATCH_REPOS_FILE` - watched repo list file used by `dot git-workflows` (default `$DOTFILES_PRIVATE_DIR/.git-workflow-watch-repos`)
 - `DOT_DAILY_VOLUME_ZERO_TIMER_UNIT` - 5am volume reset timer unit name (default `daily-volume-zero.timer`)
 - `DOT_AUTO_CD` - zsh wrapper auto-cd to first repo with changes after `dot git-diff`; otherwise restore original dir (failed diff falls back to `~/.config/dotfiles`) (`1|0`, default `1`)
 - `DOT_AGENTS_SYNC_SOURCE` - AGENTS file to mirror (default `~/.config/opencode/AGENTS.md`)

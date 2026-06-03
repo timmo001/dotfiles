@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 import { existsSync } from "fs";
 import { Config } from "../../services/Config.js";
+import { managedGitRepos } from "../../services/GitConfig.js";
 import { gitExitCode } from "../../lib/git.js";
 import { readGitBranch, readGitUpstream } from "../git.js";
 import type { CheckResult } from "../types.js";
@@ -12,7 +13,7 @@ function displayPath(p: string): string {
   return p.replace(HOME, "~");
 }
 
-/** Check public/private dotfiles repos and extra private repos */
+/** Check public/private dotfiles repos and private git config repos. */
 export const checkRepos = Effect.gen(function* () {
   const config = yield* Config;
   const results: CheckResult[] = [];
@@ -44,19 +45,23 @@ export const checkRepos = Effect.gen(function* () {
     });
   }
 
-  // Extra private repos
+  // Private git config repos
   if (config.canUsePrivate) {
-    if (config.extraRepos.length === 0) {
+    if (!config.gitConfig.valid) {
+      for (const diagnostic of config.gitConfig.diagnostics) {
+        results.push({ severity: "error", message: diagnostic });
+      }
+    } else if (config.gitConfig.repositories.length === 0) {
       results.push({
         severity: "ok",
-        message: "No additional private repos configured",
+        message: "No private git repos configured",
       });
     } else {
-      for (const repo of config.extraRepos) {
+      for (const repo of managedGitRepos(config.gitConfig)) {
         if (!existsSync(repo.path)) {
           results.push({
             severity: "warn",
-            message: `Missing extra repo ${repo.name}: ${displayPath(repo.path)}`,
+            message: `Missing private git repo ${repo.name}: ${displayPath(repo.path)}`,
           });
           continue;
         }
@@ -69,14 +74,14 @@ export const checkRepos = Effect.gen(function* () {
         if (isGit !== 0) {
           results.push({
             severity: "warn",
-            message: `Extra repo ${repo.name} is not a git repo: ${displayPath(repo.path)}`,
+            message: `Private git repo ${repo.name} is not a git repo: ${displayPath(repo.path)}`,
           });
           continue;
         }
 
         results.push({
           severity: "ok",
-          message: `Found extra repo ${repo.name}: ${displayPath(repo.path)}`,
+          message: `Found private git repo ${repo.name}: ${displayPath(repo.path)}`,
         });
 
         // Check on a named branch
@@ -85,7 +90,7 @@ export const checkRepos = Effect.gen(function* () {
         if (!branch || branch === "HEAD") {
           results.push({
             severity: "warn",
-            message: `Extra repo ${repo.name} is not on a named branch`,
+            message: `Private git repo ${repo.name} is not on a named branch`,
           });
           continue;
         }
@@ -99,12 +104,12 @@ export const checkRepos = Effect.gen(function* () {
         if (!upstream) {
           results.push({
             severity: "warn",
-            message: `Extra repo ${repo.name} branch '${branch}' has no upstream`,
+            message: `Private git repo ${repo.name} branch '${branch}' has no upstream`,
           });
         } else {
           results.push({
             severity: "ok",
-            message: `Extra repo ${repo.name} branch OK ('${branch}' -> '${upstream}')`,
+            message: `Private git repo ${repo.name} branch OK ('${branch}' -> '${upstream}')`,
           });
         }
       }
@@ -112,7 +117,7 @@ export const checkRepos = Effect.gen(function* () {
   } else {
     results.push({
       severity: "warn",
-      message: `Skipping additional private repo checks (${config.privateReason})`,
+      message: `Skipping private git repo checks (${config.privateReason})`,
     });
   }
 

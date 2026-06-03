@@ -6,7 +6,7 @@ import type { DiffRepo, Repo } from "../../types.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import { gitCurrentBranchSync, isGitRepo } from "../../lib/git.js";
-import { extraRepoVisible } from "./repoSchedule.js";
+import { activeGitReposForCheck } from "../../services/GitConfig.js";
 
 const DEBUG = !!process.env.DOT_DEBUG;
 const log = (msg: string) => {
@@ -148,10 +148,16 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
       /** Build the full list of tracked repos */
       const buildRepoList = (): Array<{ name: string; path: string }> => {
         const repos: Array<{ name: string; path: string }> = [];
+        const seenPaths = new Set<string>();
+        const addRepo = (repo: { name: string; path: string }): void => {
+          if (seenPaths.has(repo.path)) return;
+          seenPaths.add(repo.path);
+          repos.push(repo);
+        };
 
         // Public dotfiles
         if (existsSync(config.publicDotfiles)) {
-          repos.push({
+          addRepo({
             name: basename(config.publicDotfiles),
             path: config.publicDotfiles,
           });
@@ -160,7 +166,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
         // Private dotfiles
         if (config.canUsePrivate && config.privateDotfiles) {
           if (existsSync(config.privateDotfiles)) {
-            repos.push({
+            addRepo({
               name: basename(config.privateDotfiles),
               path: config.privateDotfiles,
             });
@@ -169,7 +175,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
 
         // Notes
         if (existsSync(config.notesDir)) {
-          repos.push({
+          addRepo({
             name: basename(config.notesDir),
             path: config.notesDir,
           });
@@ -179,18 +185,18 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
         const omarchyTargets = discoverOmarchyRepos();
         for (const target of omarchyTargets) {
           if (existsSync(target.path)) {
-            repos.push(target);
+            addRepo(target);
           }
         }
 
-        // Extra repos (schedule-gated, sorted alphabetically)
+        // Private git config activity repos (schedule-gated, sorted alphabetically)
         if (config.canUsePrivate) {
-          const visible = config.extraRepos
-            .filter((r) => extraRepoVisible(r))
-            .sort((a, b) => a.name.localeCompare(b.name));
+          const visible = [
+            ...activeGitReposForCheck(config.gitConfig, "activity"),
+          ].sort((a, b) => a.name.localeCompare(b.name));
           for (const extra of visible) {
             if (existsSync(extra.path)) {
-              repos.push({ name: `extra:${extra.name}`, path: extra.path });
+              addRepo({ name: `private:${extra.name}`, path: extra.path });
             }
           }
         }

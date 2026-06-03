@@ -40,9 +40,6 @@ const HELP_SUGGESTIONS: readonly HelpEntry[] = [
 
 const log = (msg: string) => console.error(`[dot:CommitView] ${msg}`);
 
-/** Extra repo paths file used by `dot` for tracking additional repositories */
-const EXTRA_REPOS_FILE = `${process.env.HOME}/.config/dotfiles-private/.dot-extra-repos`;
-
 /** Configuration and callbacks for the commit view */
 export interface CommitViewOptions {
   /** Called after a successful commit to trigger a diff refresh */
@@ -322,50 +319,19 @@ export class CommitView {
   }
 
   /**
-   * Gather 20-30 recent commits across core repos for style reference.
-   * 10 from the target repo, 2-3 from each repo in `.dot-extra-repos`.
+   * Gather recent commits from the target repo for style reference.
    */
   private gatherRecentCommits(): Effect.Effect<readonly string[], Error> {
     return Effect.gen({ self: this }, function* () {
-      const commits: string[] = [];
-
-      // 10 from the target repo
       const targetCommits = yield* this.gitStaging.getRecentCommits(
         this.repoPath,
         10,
       );
-      commits.push(...targetCommits);
 
-      // Read extra repos file for additional style samples
-      const extraRepos = yield* Effect.tryPromise({
-        try: async (): Promise<readonly { name: string; path: string }[]> => {
-          const file = Bun.file(EXTRA_REPOS_FILE);
-          if (!(await file.exists())) return [];
-          const text = await file.text();
-          return text
-            .trim()
-            .split("\n")
-            .filter((line) => line.includes("|"))
-            .map((line) => {
-              const parts = line.split("|");
-              return { name: parts[0], path: parts[1] };
-            })
-            .filter((r) => r.path !== this.repoPath); // skip target repo
-        },
-        catch: (e) => new Error(`Failed to read extra repos: ${e}`),
-      });
-
-      // 2 commits from each extra repo (up to ~20 extra)
-      for (const repo of extraRepos.slice(0, 10)) {
-        const repoCommits = yield* this.gitStaging.getRecentCommits(
-          repo.path,
-          2,
-        );
-        commits.push(...repoCommits);
-      }
-
-      log(`Gathered ${commits.length} recent commits for style reference`);
-      return commits;
+      log(
+        `Gathered ${targetCommits.length} recent commits for style reference`,
+      );
+      return targetCommits;
     });
   }
 

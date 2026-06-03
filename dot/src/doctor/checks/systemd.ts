@@ -341,22 +341,28 @@ export const checkWorkflowRuns = Effect.gen(function* () {
     });
   }
 
-  const reposFile =
-    process.env.DOT_WORKFLOW_WATCH_REPOS_FILE ??
-    (config.privateDotfiles
-      ? join(config.privateDotfiles, ".git-workflow-watch-repos")
-      : null);
-  if (reposFile && existsSync(reposFile)) {
-    results.push({
-      severity: "ok",
-      message: `Workflow runs repo list found: ${displayPath(reposFile)}`,
-    });
-  } else {
+  if (!config.canUsePrivate) {
     results.push({
       severity: "warn",
-      message: `Workflow runs repo list missing: ${displayPath(reposFile ?? "~/.config/dotfiles-private/.git-workflow-watch-repos")}`,
-      detail:
-        "Add watched repositories in private dotfiles to enable dot git-workflows",
+      message: `Skipping workflow config checks (${config.privateReason})`,
+    });
+  } else if (!config.gitConfig.present) {
+    results.push({
+      severity: "warn",
+      message: config.gitConfig.diagnostics.join("; "),
+      detail: "Add dot-git.yml in private dotfiles to enable dot git-workflows",
+    });
+  } else if (!config.gitConfig.valid) {
+    for (const diagnostic of config.gitConfig.diagnostics) {
+      results.push({ severity: "error", message: diagnostic });
+    }
+  } else {
+    const workflowCount = config.gitConfig.repositories.filter(
+      (repo) => repo.workflows.enabled,
+    ).length;
+    results.push({
+      severity: "ok",
+      message: `Workflow git config found: ${displayPath(config.gitConfig.filePath)} (${workflowCount} workflow repos enabled)`,
     });
   }
 

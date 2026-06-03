@@ -169,7 +169,7 @@ export interface WorkflowRunQueryOptions {
 
 /** Snapshot of all watched workflow repos and their latest run state */
 export interface WorkflowState {
-  /** Watched repositories from the workflow watchlist */
+  /** Workflow repositories from dot-git.yml */
   readonly repos: readonly WorkflowRepoRuns[];
   /** Timestamp of the last refresh attempt */
   readonly lastChecked: Date;
@@ -179,7 +179,7 @@ export interface WorkflowState {
   readonly loaded: boolean;
   /** Active ISO timestamp filter for workflow run activity time */
   readonly since: string | null;
-  /** Optional global status message, such as a missing watchlist */
+  /** Optional global status message, such as an invalid git config */
   readonly message?: string;
 }
 

@@ -22,7 +22,7 @@ import {
   installMiseTools,
 } from "../lib/packageSetup.js";
 import { syncOmarchyRepos } from "../lib/omarchySync.js";
-import { cloneMissingExtraRepos } from "../lib/extraRepos.js";
+import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
 import {
   currentOmarchyHost,
   displayPath,
@@ -599,7 +599,7 @@ export function init(rawArgs: readonly string[]) {
       confirm: options.confirm,
     });
     yield* setupPrivatePackages(config, options);
-    yield* cloneMissingExtraRepos({ strict: true });
+    yield* cloneMissingGitConfigRepos({ strict: true });
     yield* configureGitInclude(config);
     yield* installPacmanHooks();
     yield* enableDoctorStartupTimer();

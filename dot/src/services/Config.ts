@@ -1,6 +1,12 @@
 import { Context, Effect, Layer } from "effect";
-import { existsSync, mkdirSync, readFileSync, statSync } from "fs";
-import { basename, join } from "path";
+import { existsSync, mkdirSync, statSync } from "fs";
+import { join } from "path";
+import {
+  defaultDotGitConfigPath,
+  emptyDotGitConfig,
+  loadDotGitConfig,
+  type DotGitConfig,
+} from "./GitConfig.js";
 
 const HOME = process.env.HOME ?? "/home/" + process.env.USER;
 
@@ -24,18 +30,6 @@ export interface OmarchyRepoConfig {
   readonly enabled: boolean;
 }
 
-/** Extra repository entry loaded from the private config file */
-export interface ExtraRepo {
-  /** Short display name */
-  readonly name: string;
-  /** Absolute filesystem path */
-  readonly path: string;
-  /** Schedule constraint (empty string means always visible) */
-  readonly schedule: string;
-  /** Optional GitHub repository used to clone the checkout when missing */
-  readonly remote: string | null;
-}
-
 /** Service interface providing resolved paths and environment detection */
 export interface ConfigService {
   /** Path to the public dotfiles repository */
@@ -50,53 +44,14 @@ export interface ConfigService {
   readonly notesDir: string;
   /** Omarchy repository configuration */
   readonly omarchy: OmarchyRepoConfig;
-  /** Extra repos loaded from private config file */
-  readonly extraRepos: readonly ExtraRepo[];
+  /** Private git repository and workflow configuration. */
+  readonly gitConfig: DotGitConfig;
   /** XDG cache directory for dot */
   readonly cacheDir: string;
   /** XDG state directory for dot */
   readonly stateDir: string;
   /** Log directory under stateDir */
   readonly logDir: string;
-}
-
-/** Load extra repos from the pipe-delimited config file */
-function loadExtraRepos(filePath: string): readonly ExtraRepo[] {
-  try {
-    if (!existsSync(filePath)) return [];
-    const content = readFileSync(filePath, "utf-8");
-    const repos: ExtraRepo[] = [];
-
-    for (const rawLine of content.split("\n")) {
-      const line = rawLine.trim();
-      if (!line || line.startsWith("#")) continue;
-
-      if (line.includes("|")) {
-        const [name, path, schedule, remote] = line.split("|", 4);
-        const trimmedPath = (path ?? "").trim().replace(/^~/, HOME);
-        const trimmedName = (name ?? "").trim() || basename(trimmedPath);
-        if (!trimmedPath) continue;
-        repos.push({
-          name: trimmedName,
-          path: trimmedPath,
-          schedule: (schedule ?? "").trim(),
-          remote: (remote ?? "").trim() || null,
-        });
-      } else {
-        const repoPath = line.replace(/^~/, HOME);
-        repos.push({
-          name: basename(repoPath),
-          path: repoPath,
-          schedule: "",
-          remote: null,
-        });
-      }
-    }
-
-    return repos;
-  } catch {
-    return [];
-  }
 }
 
 /** Effect service for {@link ConfigService} */
@@ -177,11 +132,11 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
         enabled: omarchyEnabled,
       };
 
-      // Extra repos from private config
-      const extraReposFile =
-        process.env.DOT_PRIVATE_EXTRA_REPOS_FILE ??
-        join(privatePath, ".dot-extra-repos");
-      const extraRepos = canUsePrivate ? loadExtraRepos(extraReposFile) : [];
+      const gitConfigFile =
+        process.env.DOT_GIT_CONFIG_FILE ?? defaultDotGitConfigPath(privatePath);
+      const gitConfig = canUsePrivate
+        ? loadDotGitConfig(gitConfigFile)
+        : emptyDotGitConfig(gitConfigFile);
 
       const xdgCache = process.env.XDG_CACHE_HOME ?? join(HOME, ".cache");
       const xdgState =
@@ -202,7 +157,7 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
         privateReason,
         notesDir,
         omarchy,
-        extraRepos,
+        gitConfig,
         cacheDir,
         stateDir,
         logDir,

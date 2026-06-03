@@ -40,7 +40,9 @@ export const diffBarJson = (opts?: DiffScanOptions) =>
       const hasBehind = changed.some((r) => r.behind > 0);
       const onlyPulls = hasBehind && !hasDirty && !hasAhead;
       const onlyExtra =
-        changed.every((r) => r.name.startsWith("extra:")) &&
+        changed.every(
+          (r) => r.name.startsWith("private:") || r.name.startsWith("extra:"),
+        ) &&
         hasDirty &&
         !hasAhead &&
         !hasBehind;

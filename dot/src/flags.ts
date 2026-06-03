@@ -329,7 +329,7 @@ Options:
 Checks performed:
   Dependencies         Required/optional CLI tools (git, stow, gh, gum, ...)
   Secret Service       kwallet vs gnome-keyring provider
-  Repositories         Public/private dotfiles + extra repos exist and have upstreams
+  Repositories         Public/private dotfiles + private git repos exist and have upstreams
   Stow integrity       Dry-run restow to detect drift
   OpenCode location    Canonical paths, legacy remnants
   Git config           Managed include is active
