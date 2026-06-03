@@ -1,11 +1,17 @@
 ---
 name: home-assistant-lazy-context
-description: Home Assistant frontend lazy-context and memoization guidance for context-aware components.
+description: 'Home Assistant frontend lazy-context, memoization, and `hass` removal guidance. Use when migrating Lit components from `hass!: HomeAssistant`, `.hass=${...}`, or broad `hass` access to context slices.'
 ---
 
 # Home Assistant Lazy Context
 
 Use this skill when reviewing or editing Home Assistant frontend context, memoization, or `hass` removal work.
+
+## Default Migration Rule
+
+When a component adopts context, remove its `hass` property and replace each `this.hass.*` access with the narrowest context or value that supplies that data. Also remove `.hass=${...}` passthroughs to migrated child components; if a child still needs data, either migrate the child to context or pass a narrow prop such as `localize`, `states`, or `Pick<HomeAssistant, "callWS">`.
+
+Do not keep `hass!: HomeAssistant` just to preserve the old public API unless the component is intentionally reused outside the app context tree or the user explicitly asks for compatibility.
 
 ## Context Architecture (`src/data/context/index.ts`)
 
@@ -131,7 +137,7 @@ Usage: `this._api.callWS(...)`, `this._i18n.localize(...)`, `this._states[entity
 ## Rules
 
 ### General
-- Preserve runtime behavior and public API shape unless the user asked otherwise.
+- Preserve runtime behavior and public API shape except for the `hass` API intentionally removed by context migrations.
 - Use the narrowest correct data source; prefer contexts, lazy contexts, and entity decorators over broad `hass` access.
 - Do not use deprecated contexts; use the replacement named in `@deprecated` comments.
 - Do not replicate `hass` or build local objects that mirror large parts of `HomeAssistant`.
