@@ -42,6 +42,39 @@ _dot_set_terminal_title() {
   print -rn -- $'\e]2;'"${title[1,160]}"$'\a'
 }
 
+typeset -gA DOT_TERMINAL_TITLE_ALIASES
+
+_dot_terminal_title_alias() {
+  local command_line="$1"
+  local command_name=""
+  local -a command_words
+
+  command_words=(${(z)command_line})
+  command_name="${command_words[1]}"
+
+  if [[ -n "$command_name" && -n "${DOT_TERMINAL_TITLE_ALIASES[$command_name]-}" ]]; then
+    print -rn -- "$DOT_TERMINAL_TITLE_ALIASES[$command_name]"
+  fi
+}
+
+_dot_terminal_title_command() {
+  local command_line="$1"
+  local expanded_line="${2:-}"
+  local title=""
+
+  title="$(_dot_terminal_title_alias "$command_line")"
+
+  if [[ -z "$title" && -n "$expanded_line" ]]; then
+    title="$(_dot_terminal_title_alias "$expanded_line")"
+  fi
+
+  if [[ -n "$title" ]]; then
+    print -rn -- "$title"
+  else
+    print -rn -- "$command_line"
+  fi
+}
+
 _dot_terminal_title_context() {
   local dir="${PWD/#$HOME/~}"
   local title="$dir"
@@ -97,9 +130,14 @@ _dot_terminal_title_context() {
 
 _dot_terminal_title_preexec() {
   local command_line="$1"
+  local expanded_line="${3:-}"
+  local command_title=""
   command_line=${command_line//$'\n'/ }
   command_line=${command_line//$'\r'/ }
-  _dot_set_terminal_title "$command_line | $(_dot_terminal_title_context)"
+  expanded_line=${expanded_line//$'\n'/ }
+  expanded_line=${expanded_line//$'\r'/ }
+  command_title="$(_dot_terminal_title_command "$command_line" "$expanded_line")"
+  _dot_set_terminal_title "$command_title | $(_dot_terminal_title_context)"
 }
 
 _dot_terminal_title() {
