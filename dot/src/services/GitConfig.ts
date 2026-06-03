@@ -492,7 +492,8 @@ function rangeMatches(
   ].every(Boolean);
 }
 
-function normalizeGitHubSlug(value: string): string | null {
+/** Normalise a GitHub remote URL or owner/repo string to an owner/repo slug. */
+export function normalizeGitHubSlug(value: string): string | null {
   let slug = value.trim();
   if (slug.startsWith("git@github.com:")) {
     slug = slug.slice("git@github.com:".length);
