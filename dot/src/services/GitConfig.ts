@@ -4,8 +4,17 @@ import { join } from "path";
 const HOME = process.env.HOME ?? `/home/${process.env.USER ?? ""}`;
 
 const TOP_LEVEL_KEYS = new Set(["schema_version", "repositories"]);
-const REPO_KEYS = new Set(["name", "path", "github", "activity", "workflows"]);
+const REPO_KEYS = new Set([
+  "name",
+  "path",
+  "github",
+  "activity",
+  "workflows",
+  "notifications",
+]);
 const CHECK_KEYS = new Set(["enabled", "schedule"]);
+const NOTIFICATION_KEYS = new Set(["enabled", "schedule", "bar"]);
+const NOTIFICATION_BAR_KEYS = new Set(["ignore_bot_activity"]);
 
 /** Git checks that can be independently toggled and scheduled. */
 export type GitRepoCheckName = "activity" | "workflows";
@@ -16,6 +25,18 @@ export interface GitRepoCheckConfig {
   readonly enabled: boolean;
   /** Five-field cron schedule in local time. */
   readonly schedule: string;
+}
+
+/** Status-bar output filters for a managed repository. */
+export interface GitRepoNotificationBarConfig {
+  /** Hide bot-only activity from bar JSON outputs for this repository. */
+  readonly ignoreBotActivity: boolean;
+}
+
+/** GitHub notification check config for a managed repository. */
+export interface GitRepoNotificationConfig extends GitRepoCheckConfig {
+  /** Status-bar output filters. */
+  readonly bar: GitRepoNotificationBarConfig;
 }
 
 /** A repository managed by the private dot git config. */
@@ -30,6 +51,8 @@ export interface GitManagedRepo {
   readonly activity: GitRepoCheckConfig;
   /** GitHub Actions workflow run check. */
   readonly workflows: GitRepoCheckConfig;
+  /** GitHub notification check and status-bar filters. */
+  readonly notifications: GitRepoNotificationConfig;
 }
 
 /** Loaded private dot git config and validation diagnostics. */
@@ -119,6 +142,35 @@ export function activeGitReposForCheck(
   );
 }
 
+/** Return repositories with enabled GitHub notifications whose schedule is active. */
+export function activeGitReposForNotifications(
+  gitConfig: DotGitConfig,
+  now: Date = new Date(),
+): readonly GitManagedRepo[] {
+  return managedGitRepos(gitConfig).filter((repo) =>
+    gitRepoNotificationsActive(repo, now),
+  );
+}
+
+/** Return the managed repository for an absolute path, when present. */
+export function managedGitRepoForPath(
+  gitConfig: DotGitConfig,
+  path: string,
+): GitManagedRepo | undefined {
+  return managedGitRepos(gitConfig).find((repo) => repo.path === path);
+}
+
+/** Return the managed repository for a GitHub owner/repo slug, when present. */
+export function managedGitRepoForGitHub(
+  gitConfig: DotGitConfig,
+  github: string,
+): GitManagedRepo | undefined {
+  const normalized = github.toLowerCase();
+  return managedGitRepos(gitConfig).find(
+    (repo) => repo.github.toLowerCase() === normalized,
+  );
+}
+
 /** Check whether a repository check is enabled and currently in schedule. */
 export function gitRepoCheckActive(
   repo: GitManagedRepo,
@@ -127,6 +179,15 @@ export function gitRepoCheckActive(
 ): boolean {
   const config = repo[check];
   return config.enabled && cronScheduleActive(config.schedule, now);
+}
+
+/** Check whether a repository notification check is enabled and currently in schedule. */
+export function gitRepoNotificationsActive(
+  repo: GitManagedRepo,
+  now: Date = new Date(),
+): boolean {
+  return repo.notifications.enabled &&
+    cronScheduleActive(repo.notifications.schedule, now);
 }
 
 function parseDotGitConfig(value: unknown): ParsedGitConfig {
@@ -139,8 +200,8 @@ function parseDotGitConfig(value: unknown): ParsedGitConfig {
   }
 
   pushUnknownKeyDiagnostics(diagnostics, value, TOP_LEVEL_KEYS, "root");
-  if (value.schema_version !== 1) {
-    diagnostics.push("root.schema_version must be 1");
+  if (value.schema_version !== 2) {
+    diagnostics.push("root.schema_version must be 2");
   }
   if (!Array.isArray(value.repositories)) {
     diagnostics.push("root.repositories must be an array");
@@ -186,12 +247,18 @@ function parseRepo(
     `${location}.workflows`,
     diagnostics,
   );
+  const notifications = parseNotifications(
+    value.notifications,
+    `${location}.notifications`,
+    diagnostics,
+  );
   const github = rawGithub ? normalizeGitHubSlug(rawGithub) : null;
   if (rawGithub && !github) {
     diagnostics.push(`${location}.github must be a GitHub owner/repo slug`);
   }
 
-  if (!name || !rawPath || !github || !activity || !workflows) return [];
+  if (!name || !rawPath || !github || !activity || !workflows || !notifications)
+    return [];
   return [
     {
       name,
@@ -199,8 +266,71 @@ function parseRepo(
       github,
       activity,
       workflows,
+      notifications,
     },
   ];
+}
+
+function parseNotifications(
+  value: unknown,
+  location: string,
+  diagnostics: string[],
+): GitRepoNotificationConfig | null {
+  if (!isRecord(value)) {
+    diagnostics.push(`${location} must be an object`);
+    return null;
+  }
+
+  pushUnknownKeyDiagnostics(diagnostics, value, NOTIFICATION_KEYS, location);
+  const enabled = requiredBoolean(
+    value.enabled,
+    `${location}.enabled`,
+    diagnostics,
+  );
+  const schedule = requiredString(
+    value.schedule,
+    `${location}.schedule`,
+    diagnostics,
+  );
+  if (schedule && !validCronSchedule(schedule)) {
+    diagnostics.push(
+      `${location}.schedule must be a five-field cron expression`,
+    );
+  }
+  const bar = parseNotificationBar(
+    value.bar,
+    `${location}.bar`,
+    diagnostics,
+  );
+
+  return enabled === null || !schedule || !bar
+    ? null
+    : { enabled, schedule, bar };
+}
+
+function parseNotificationBar(
+  value: unknown,
+  location: string,
+  diagnostics: string[],
+): GitRepoNotificationBarConfig | null {
+  if (!isRecord(value)) {
+    diagnostics.push(`${location} must be an object`);
+    return null;
+  }
+
+  pushUnknownKeyDiagnostics(
+    diagnostics,
+    value,
+    NOTIFICATION_BAR_KEYS,
+    location,
+  );
+  const ignoreBotActivity = requiredBoolean(
+    value.ignore_bot_activity,
+    `${location}.ignore_bot_activity`,
+    diagnostics,
+  );
+
+  return ignoreBotActivity === null ? null : { ignoreBotActivity };
 }
 
 function parseCheck(
