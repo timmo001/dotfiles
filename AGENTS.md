@@ -45,7 +45,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - Use `/explore-codebase` for broad discovery questions and use subagents for other parallelizable multi-step work instead of doing long serial searches in one agent.
 - Use `/improve-codebase-architecture <area>` when you want a focused architecture review of a named feature, subsystem, or file family without editing first.
 - Use `/debug-frontend` for browser-specific investigation before falling back to source-only reasoning.
-- Use `/fallow-audit` when JS/TS changes need dead-code, complexity, or duplication evidence before cleanup or review follow-up.
+- Use `/fallow-audit` only when the user explicitly asks for a Fallow changed-code audit.
 - Use `/fallow-project-analyse` when you want broader Fallow project analysis beyond changed-code audit scope.
 - For frontend debugging, prefer Chrome DevTools tools (snapshot, console, network, Lighthouse, performance trace) over static reasoning alone when the issue is browser-behavior-dependent.
 
