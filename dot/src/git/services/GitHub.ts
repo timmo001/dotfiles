@@ -48,7 +48,7 @@ interface GitHubApiOptions extends GitHubCommandOptions {
 }
 
 /** Service interface for all GitHub CLI/API communication. */
-interface GitHubService {
+export interface GitHubService {
   /** Return whether the GitHub CLI is available on PATH. */
   readonly isAvailable: () => Effect.Effect<boolean>;
   /** Run a raw `gh` command with rate-limit checks and retries. */

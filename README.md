@@ -94,7 +94,7 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 
 ## GitHub Workflow Runs And Notifications
 
-- Private dotfiles provide repo activity and workflow config in `~/.config/dotfiles-private/dot-git.yml`
+- Private dotfiles provide repo activity, workflow, and GitHub notification config in `~/.config/dotfiles-private/dot-git.yml`
 - `dot git-workflows` shows watched repos on the left, with workflow runs for the selected locally checked-out HEAD commit on the right; disabled workflows are hidden; `dot git-workflows --bar-json --since "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"` emits one-line status bar JSON for runs created, rerun, or updated in the window, and `--list-repos`/`--list-runs` emit plain text rows
 - The Waybar workflow module refreshes `dot git-workflows --bar-json --since <one-hour-ago>` through its own short-lived cache; left click opens the filtered TUI and right click refreshes the cache
 - `git-workflow-watch`, its global hook, and its user systemd timer are obsolete and should not be installed
@@ -115,7 +115,7 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 - `DOTFILES_PRIVATE_DIR` - private dotfiles path (default `~/.config/dotfiles-private`)
 - `DOT_ALLOW_PRIVATE` - `auto|always|never` (default `auto`)
 - `DOT_PRIVATE_GH_USER` - expected GitHub user for private actions (default `timmo001`)
-- `DOT_GIT_CONFIG_FILE` - private git repo config file for `dot git-diff`, `dot git-log`, `dot git-workflows`, `dot update`, and `dot doctor` (default `$DOTFILES_PRIVATE_DIR/dot-git.yml`; each repo has required `activity` and `workflows` checks with explicit `enabled` and 5-field cron `schedule` keys)
+- `DOT_GIT_CONFIG_FILE` - private git repo config file for `dot git-diff`, `dot git-log`, `dot git-workflows`, `dot git-notifications --bar-json`, `dot update`, and `dot doctor` (default `$DOTFILES_PRIVATE_DIR/dot-git.yml`; each repo has required `activity`, `workflows`, and `notifications` checks with explicit `enabled` and 5-field cron `schedule` keys, plus `notifications.bar.ignore_bot_activity` for status-bar noise control)
 - `DOT_PRIVATE_PACKAGE_REPO_FILE` - private pacman repo config for `dot` (default `$DOTFILES_PRIVATE_DIR/.dot-private-package-repo`)
 - `DOT_PRIVATE_PACKAGES_FILE` - private package list for `dot` (default `$DOTFILES_PRIVATE_DIR/.dot-private-packages`)
 - `DOT_PRIVATE_PACMAN_REPO_CONFIG` - pacman repo snippet path written by `dot` (default `/etc/pacman.d/timmo-private.conf`)

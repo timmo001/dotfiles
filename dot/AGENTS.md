@@ -258,7 +258,7 @@ After that bootstrap build, run the checked-out binary directly. If private dotf
 
 - `~/.cache/waybar/git-diff-waybar.json` — Waybar cache for fast startup
 - `NOTES` / `DOT_NOTES_DIR` — notes vault used by `dot notes` and OpenCode note commands
-- `~/.config/dotfiles-private/dot-git.yml` — private git repo config for `dot git-diff`, `dot git-log`, and `dot git-workflows`; each repo is managed for clone/bootstrap and doctor checks, `activity` controls diff/log visibility, `workflows` controls GitHub Actions watches, and both checks require explicit `enabled` plus 5-field cron `schedule` keys
+- `~/.config/dotfiles-private/dot-git.yml` — private git repo config for clone/bootstrap, doctor checks, `dot git-diff`, `dot git-log`, `dot git-workflows`, and `dot git-notifications --bar-json`; `activity`, `workflows`, and `notifications` each require explicit `enabled` plus 5-field cron `schedule` keys, and `notifications.bar.ignore_bot_activity` controls status-bar bot noise
 - `gh` authenticated with a classic token carrying `notifications` or `repo` scope — required for `dot git-notifications` and its Waybar module
 - `lazygit` — launched via suspend/resume on Enter in diff view
 - `opencode` — CLI for model discovery; SDK for AI commit suggestions

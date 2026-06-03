@@ -141,6 +141,10 @@ export interface WorkflowRun {
   readonly startedAt: string | null;
   /** Last update timestamp from GitHub */
   readonly updatedAt: string | null;
+  /** Branch the run executed for, when available from GitHub. */
+  readonly headBranch?: string | null;
+  /** Commit SHA the run executed for, when available from GitHub. */
+  readonly headSha?: string | null;
 }
 
 /** Workflow run data for one watched GitHub repository */

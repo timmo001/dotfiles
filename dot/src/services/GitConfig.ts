@@ -186,8 +186,10 @@ export function gitRepoNotificationsActive(
   repo: GitManagedRepo,
   now: Date = new Date(),
 ): boolean {
-  return repo.notifications.enabled &&
-    cronScheduleActive(repo.notifications.schedule, now);
+  return (
+    repo.notifications.enabled &&
+    cronScheduleActive(repo.notifications.schedule, now)
+  );
 }
 
 function parseDotGitConfig(value: unknown): ParsedGitConfig {
@@ -297,11 +299,7 @@ function parseNotifications(
       `${location}.schedule must be a five-field cron expression`,
     );
   }
-  const bar = parseNotificationBar(
-    value.bar,
-    `${location}.bar`,
-    diagnostics,
-  );
+  const bar = parseNotificationBar(value.bar, `${location}.bar`, diagnostics);
 
   return enabled === null || !schedule || !bar
     ? null

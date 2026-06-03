@@ -5,6 +5,14 @@ import type {
   GitNotificationState,
   GitNotificationThread,
 } from "../../types.js";
+import { Config } from "../../services/Config.js";
+import {
+  gitRepoNotificationsActive,
+  managedGitRepoForGitHub,
+} from "../../services/GitConfig.js";
+import { GitHub, type GitHubService } from "../services/GitHub.js";
+import { valuesLookLikeBotActivity } from "../services/botActivity.js";
+import { nullableStringValue, stringValue } from "../services/record.js";
 import {
   GitNotificationError,
   GitNotifications,
@@ -35,8 +43,9 @@ export const notificationsRaw = (opts?: GitNotificationQueryOptions) =>
 export const notificationsBarJson = (opts?: GitNotificationQueryOptions) =>
   Effect.gen(function* () {
     const state = yield* refreshNotificationState(opts);
+    const filteredState = yield* filterNotificationBarState(state);
     yield* Effect.sync(() =>
-      process.stdout.write(JSON.stringify(formatBarJson(state)) + "\n"),
+      process.stdout.write(JSON.stringify(formatBarJson(filteredState)) + "\n"),
     );
   }).pipe(Effect.withSpan("notifications.barJson"), handleNotificationError);
 
@@ -77,6 +86,123 @@ function refreshNotificationState(opts?: GitNotificationQueryOptions) {
     yield* notifications.refresh(opts);
     return yield* notifications.getState();
   });
+}
+
+function filterNotificationBarState(state: GitNotificationState) {
+  return Effect.gen(function* () {
+    const config = yield* Config;
+    if (!config.canUsePrivate || !config.gitConfig.valid) return state;
+
+    const github = yield* GitHub;
+    const filtered = yield* Effect.all(
+      state.threads.map((thread) =>
+        includeNotificationBarThread(thread, github),
+      ),
+      { concurrency: 4 },
+    );
+
+    return {
+      ...state,
+      threads: filtered.filter(
+        (thread): thread is GitNotificationThread => thread !== null,
+      ),
+    } satisfies GitNotificationState;
+
+    function includeNotificationBarThread(
+      thread: GitNotificationThread,
+      github: GitHubService,
+    ) {
+      return Effect.gen(function* () {
+        const repo = managedGitRepoForGitHub(config.gitConfig, thread.repo);
+        if (!repo) return thread;
+        if (!gitRepoNotificationsActive(repo)) return null;
+        if (!repo.notifications.bar.ignoreBotActivity) return thread;
+        const botThread = yield* notificationThreadLooksBot(thread, github);
+        return botThread ? null : thread;
+      });
+    }
+  });
+}
+
+function notificationThreadLooksBot(
+  thread: GitNotificationThread,
+  github: GitHubService,
+) {
+  if (valuesLookLikeBotActivity([thread.title, thread.webUrl])) {
+    return Effect.succeed(true);
+  }
+
+  switch (thread.type) {
+    case "PullRequest":
+      return pullRequestThreadLooksBot(thread, github);
+    case "WorkflowRun":
+    case "CheckSuite":
+      return workflowNotificationThreadLooksBot(thread, github);
+    default:
+      return Effect.succeed(false);
+  }
+}
+
+function pullRequestThreadLooksBot(
+  thread: GitNotificationThread,
+  github: GitHubService,
+) {
+  const endpoint = apiEndpointFromUrl(thread.subjectApiUrl);
+  if (!endpoint) return Effect.succeed(false);
+  return github.json(["api", endpoint]).pipe(
+    Effect.map((value) => {
+      if (!isRecord(value)) return false;
+      const user = recordValue(value.user);
+      const head = recordValue(value.head);
+      return valuesLookLikeBotActivity([
+        stringValue(user.login),
+        stringValue(head.ref),
+      ]);
+    }),
+    Effect.catch(() => Effect.succeed(false)),
+  );
+}
+
+function workflowNotificationThreadLooksBot(
+  thread: GitNotificationThread,
+  github: GitHubService,
+) {
+  const endpoint = apiEndpointFromUrl(thread.subjectApiUrl);
+  if (!endpoint) return Effect.succeed(false);
+  return github.json(["api", endpoint]).pipe(
+    Effect.map((value) => {
+      if (!isRecord(value)) return false;
+      const actor = recordValue(value.actor);
+      const headCommit = recordValue(value.head_commit);
+      const author = recordValue(headCommit.author);
+      return valuesLookLikeBotActivity([
+        stringValue(actor.login),
+        nullableStringValue(value.head_branch),
+        stringValue(author.name),
+        stringValue(author.email),
+      ]);
+    }),
+    Effect.catch(() => Effect.succeed(false)),
+  );
+}
+
+function apiEndpointFromUrl(url: string | null): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname !== "api.github.com") return null;
+    return parsed.pathname.replace(/^\//, "");
+  } catch {
+    return null;
+  }
+}
+
+function recordValue(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function formatRaw(state: GitNotificationState): string {

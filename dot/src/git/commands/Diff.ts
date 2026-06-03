@@ -7,7 +7,9 @@ import {
   type DiffScanOptions,
 } from "../services/DotDiff.js";
 import { OutputLog } from "../../services/OutputLog.js";
+import { managedGitRepoForPath } from "../../services/GitConfig.js";
 import type { DiffRepo } from "../../types.js";
+import { textLooksLikeBotActivity } from "../services/botActivity.js";
 
 /** Handle DotDiffError by printing to stderr and exiting */
 const handleDiffError = Effect.catch((e: DotDiffError) =>
@@ -20,9 +22,38 @@ const handleDiffError = Effect.catch((e: DotDiffError) =>
 /** Machine output: status bar JSON. */
 export const diffBarJson = (opts?: DiffScanOptions) =>
   Effect.gen(function* () {
+    const config = yield* Config;
     const dotDiff = yield* DotDiff;
+    const executor = yield* CommandExecutor;
     const repos = yield* dotDiff.getAll(opts);
-    const changed = changedRepos(repos);
+    const includeBarRepo = Effect.fn("diff.includeBarRepo")(function* (
+      repo: DiffRepo,
+    ) {
+      const managedRepo = managedGitRepoForPath(config.gitConfig, repo.path);
+      if (!managedRepo?.notifications.bar.ignoreBotActivity) return repo;
+      if (repo.isDirty || repo.ahead > 0 || repo.behind === 0) return repo;
+
+      const output = yield* executor
+        .run("git", ["log", "HEAD..@{u}", "--pretty=%an <%ae>"], {
+          cwd: repo.path,
+        })
+        .pipe(Effect.catch(() => Effect.succeed(null)));
+      if (output === null) return repo;
+
+      const authors = output
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+      if (authors.length === 0) return repo;
+
+      return authors.every(textLooksLikeBotActivity) ? null : repo;
+    });
+    const changed = (yield* Effect.all(
+      changedRepos(repos).map(includeBarRepo),
+      {
+        concurrency: 4,
+      },
+    )).filter((repo): repo is DiffRepo => repo !== null);
 
     const text = changed.length > 0 ? `\uF418 ${changed.length}` : "";
     const tooltip =
