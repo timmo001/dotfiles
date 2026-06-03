@@ -1,0 +1,100 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://timmo.dev/schemas/dot-git.schema.yml"
+title: dot-git config
+description: Private git repository config for dot git-diff, git-log, git-workflows, and git-notifications.
+type: object
+additionalProperties: false
+
+required:
+  - schema_version
+  - repositories
+
+properties:
+  schema_version:
+    description: dot-git.yml schema version.
+    const: 2
+
+  repositories:
+    description: Repositories managed by dot.
+    type: array
+    minItems: 1
+    items:
+      $ref: "#/$defs/repository"
+
+$defs:
+  repository:
+    type: object
+    additionalProperties: false
+    required:
+      - name
+      - path
+      - github
+      - activity
+      - workflows
+      - notifications
+    properties:
+      name:
+        type: string
+        minLength: 1
+        description: Friendly display label.
+      path:
+        type: string
+        minLength: 1
+        description: Repository path. `~` is allowed and expanded by dot.
+      github:
+        type: string
+        pattern: "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        description: GitHub owner/repo slug.
+      activity:
+        $ref: "#/$defs/scheduled_check"
+      workflows:
+        $ref: "#/$defs/scheduled_check"
+      notifications:
+        $ref: "#/$defs/notifications"
+
+  scheduled_check:
+    type: object
+    additionalProperties: false
+    required:
+      - enabled
+      - schedule
+    properties:
+      enabled:
+        type: boolean
+        description: Enables this scheduled check for the repository.
+      schedule:
+        $ref: "#/$defs/cron_schedule"
+
+  notifications:
+    type: object
+    additionalProperties: false
+    required:
+      - enabled
+      - schedule
+      - bar
+    properties:
+      enabled:
+        type: boolean
+        description: Enables GitHub notification checks for this repository.
+      schedule:
+        $ref: "#/$defs/cron_schedule"
+      bar:
+        $ref: "#/$defs/bar_notifications"
+
+  bar_notifications:
+    type: object
+    additionalProperties: false
+    required:
+      - ignore_bot_activity
+    properties:
+      ignore_bot_activity:
+        type: boolean
+        description: Suppress bot-only activity from status-bar JSON output after the relevant schedule gate passes.
+
+  cron_schedule:
+    type: string
+    pattern: "^\\S+\\s+\\S+\\s+\\S+\\s+\\S+\\s+\\S+$"
+    description: Five-field cron expression in local time.
+    examples:
+      - "* * * * *"
+      - "* 8-15 * * 1-5"
