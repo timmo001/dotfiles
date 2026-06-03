@@ -68,7 +68,7 @@ dot doctor
 - `dot git-diff` - git status + staged/unstaged summaries with fetched unpushed/incoming commit checks across managed repos (including private git repos with `activity.enabled: true` and Omarchy repos); use `dot git-diff --bar-json` for one-line status bar JSON (`dot diff` remains a human compatibility alias)
 - `dot git-log` - recent commits across the same tracked repos as `dot git-diff`, sorted by latest commit activity; use `--raw` for CLI text output
 - `dot git-workflows` - two-pane watched GitHub workflow runs view for each repo's locally checked-out HEAD commit; use `--since <date>` to filter by activity time, and `--raw`, `--bar-json`, `--list-repos`, or `--list-runs` for CLI output
-- `dot git-notifications` - GitHub notification inbox with open, mark-read, done, ignore, and unignore actions; use `--all`, `--participating`, `--since <date>`, `--raw`, `--bar-json`, `--list-threads`, `--mark-read <id>`, `--mark-done <id>`, `--ignore <id>`, or `--unignore <id>` for CLI output/actions
+- `dot git-notifications` - GitHub notification inbox with open, mark-read, done, ignore, and unignore actions; use `--all`, `--participating`, `--since <date>`, `--bar-filter`, `--raw`, `--bar-json`, `--list-threads`, `--mark-read <id>`, `--mark-done <id>`, `--ignore <id>`, or `--unignore <id>` for CLI output/actions
 - `dot notes` - two-pane repository notes browser; use `--all` or press `g` to browse every repo notes directory, and `dot notes list --all` for CLI output grouped by repo
 - `dot handoffs` / `dot handoff` - open the notes browser filtered to notes tagged `handoff`; use `--all` to browse handoffs across every repo
 - `dot agents-sync` - copy `~/.config/opencode/AGENTS.md` into `agents/.cursor/rules/global-agents.mdc` in private dotfiles by default (`alwaysApply: true` + body; stows to `~/.cursor/rules/`). **`dot update`** and **`dot git-diff`** run this automatically by default (see env vars below).
@@ -100,7 +100,7 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 - `git-workflow-watch`, its global hook, and its user systemd timer are obsolete and should not be installed
 - `dot doctor` verifies `dot-git.yml`, active Waybar workflow-runs module wiring, and absence of legacy `git-workflow-watch` leftovers
 - `dot git-notifications` shows the authenticated user's GitHub notification inbox; the API requires `gh` authenticated with a classic token carrying `notifications` or `repo` scope
-- The Waybar notification module refreshes `dot git-notifications --bar-json` through its own short-lived cache; left click opens the notifications TUI and right click refreshes the cache
+- The Waybar notification module refreshes `dot git-notifications --bar-json` through its own short-lived cache; left click opens `dot git-notifications --bar-filter` so the TUI matches status-bar repo schedule and bot filters, and right click refreshes the cache
 - `dot doctor` verifies GitHub notification API access plus the active Waybar notification module wiring
 
 ## Daily volume reset

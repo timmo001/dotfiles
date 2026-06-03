@@ -357,6 +357,7 @@ function notificationFilterText(state: GitNotificationState): string {
     state.query.since
       ? `since ${formatNotificationTimeAgo(state.query.since)}`
       : null,
+    state.query.barFilter ? "bar filtered" : null,
   ].filter((part): part is string => part !== null);
   return parts.length > 0 ? ` • ${parts.join(", ")}` : "";
 }

@@ -7,7 +7,13 @@ import type {
   GitNotificationSubjectType,
   GitNotificationThread,
 } from "../../types.js";
-import { GitHub } from "./GitHub.js";
+import { Config } from "../../services/Config.js";
+import {
+  gitRepoNotificationsActive,
+  managedGitRepoForGitHub,
+} from "../../services/GitConfig.js";
+import { valuesLookLikeBotActivity } from "./botActivity.js";
+import { GitHub, type GitHubService } from "./GitHub.js";
 import { formatGhError, nullableStringValue, stringValue } from "./record.js";
 
 const NOTIFICATION_LIMIT = 50;
@@ -84,6 +90,7 @@ export class GitNotifications extends Context.Service<
     Effect.gen(function* () {
       log("Initialising GitNotifications...");
       const github = yield* GitHub;
+      const config = yield* Config;
       const pubsub = yield* PubSub.unbounded<GitNotificationState>();
       const hiddenThreadIds = new Set<string>();
 
@@ -139,9 +146,13 @@ export class GitNotifications extends Context.Service<
             return;
           }
 
-          const threads = filterHiddenThreads(
+          const visibleThreads = filterHiddenThreads(
             yield* fetchThreads(query),
             hiddenThreadIds,
+          );
+          const threads = yield* filterBarThreadsIfNeeded(
+            visibleThreads,
+            query,
           );
           currentState = buildState(
             threads,
@@ -169,6 +180,40 @@ export class GitNotifications extends Context.Service<
             return PubSub.publish(pubsub, currentState).pipe(Effect.asVoid);
           }),
         );
+
+      const filterBarThreadsIfNeeded = (
+        threads: readonly GitNotificationThread[],
+        query: GitNotificationQueryOptions,
+      ) => {
+        if (
+          !query.barFilter ||
+          !config.canUsePrivate ||
+          !config.gitConfig.valid
+        ) {
+          return Effect.succeed(threads);
+        }
+
+        return Effect.all(
+          threads.map((thread) => includeBarThread(thread)),
+          { concurrency: 4 },
+        ).pipe(
+          Effect.map((filtered) =>
+            filtered.filter(
+              (thread): thread is GitNotificationThread => thread !== null,
+            ),
+          ),
+        );
+      };
+
+      const includeBarThread = (thread: GitNotificationThread) =>
+        Effect.gen(function* () {
+          const repo = managedGitRepoForGitHub(config.gitConfig, thread.repo);
+          if (!repo) return thread;
+          if (!gitRepoNotificationsActive(repo)) return null;
+          if (!repo.notifications.bar.ignoreBotActivity) return thread;
+          const botThread = yield* notificationThreadLooksBot(thread, github);
+          return botThread ? null : thread;
+        });
 
       const runAction = Effect.fn("GitNotifications.runAction")(function* (
         action: GitNotificationAction,
@@ -281,7 +326,81 @@ function normalizeQuery(
     ...(opts?.all && { all: true }),
     ...(opts?.participating && { participating: true }),
     ...(opts?.since && { since: opts.since }),
+    ...(opts?.barFilter && { barFilter: true }),
   };
+}
+
+function notificationThreadLooksBot(
+  thread: GitNotificationThread,
+  github: GitHubService,
+) {
+  if (valuesLookLikeBotActivity([thread.title, thread.webUrl])) {
+    return Effect.succeed(true);
+  }
+
+  switch (thread.type) {
+    case "PullRequest":
+      return pullRequestThreadLooksBot(thread, github);
+    case "WorkflowRun":
+    case "CheckSuite":
+      return workflowNotificationThreadLooksBot(thread, github);
+    default:
+      return Effect.succeed(false);
+  }
+}
+
+function pullRequestThreadLooksBot(
+  thread: GitNotificationThread,
+  github: GitHubService,
+) {
+  const endpoint = apiEndpointFromUrl(thread.subjectApiUrl);
+  if (!endpoint) return Effect.succeed(false);
+  return github.json(["api", endpoint]).pipe(
+    Effect.map((value) => {
+      if (!isRecord(value)) return false;
+      const user = recordValue(value.user);
+      const head = recordValue(value.head);
+      return valuesLookLikeBotActivity([
+        stringValue(user.login),
+        stringValue(head.ref),
+      ]);
+    }),
+    Effect.catch(() => Effect.succeed(false)),
+  );
+}
+
+function workflowNotificationThreadLooksBot(
+  thread: GitNotificationThread,
+  github: GitHubService,
+) {
+  const endpoint = apiEndpointFromUrl(thread.subjectApiUrl);
+  if (!endpoint) return Effect.succeed(false);
+  return github.json(["api", endpoint]).pipe(
+    Effect.map((value) => {
+      if (!isRecord(value)) return false;
+      const actor = recordValue(value.actor);
+      const headCommit = recordValue(value.head_commit);
+      const author = recordValue(headCommit.author);
+      return valuesLookLikeBotActivity([
+        stringValue(actor.login),
+        nullableStringValue(value.head_branch),
+        stringValue(author.name),
+        stringValue(author.email),
+      ]);
+    }),
+    Effect.catch(() => Effect.succeed(false)),
+  );
+}
+
+function apiEndpointFromUrl(url: string | null): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname !== "api.github.com") return null;
+    return parsed.pathname.replace(/^\//, "");
+  } catch {
+    return null;
+  }
 }
 
 function notificationThreadKey(thread: GitNotificationThread): string {

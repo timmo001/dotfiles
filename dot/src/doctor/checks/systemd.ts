@@ -531,7 +531,7 @@ export const checkGitNotifications = Effect.gen(function* () {
       results,
       waybarConfig,
       '"on-click": "~/.config/waybar/scripts/git-notifications-waybar.sh open"',
-      "Git notifications Waybar left click opens the TUI",
+      "Git notifications Waybar left click opens the filtered TUI",
       `Git notifications Waybar left-click action is missing in ${displayPath(waybarConfig)}`,
     );
     addWaybarConfigContainsCheck(

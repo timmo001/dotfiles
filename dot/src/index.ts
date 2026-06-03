@@ -358,11 +358,13 @@ function parseNotificationOpts(
 ): GitNotificationQueryOptions | undefined {
   const all = args.includes("--all");
   const participating = args.includes("--participating");
-  if (!all && !participating && !since) return undefined;
+  const barFilter = args.includes("--bar-filter");
+  if (!all && !participating && !since && !barFilter) return undefined;
   return {
     ...(all && { all: true }),
     ...(participating && { participating: true }),
     ...(since && { since }),
+    ...(barFilter && { barFilter: true }),
   };
 }
 

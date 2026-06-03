@@ -240,6 +240,8 @@ export interface GitNotificationQueryOptions {
   readonly participating?: boolean;
   /** Only include notifications updated at or after this ISO timestamp. */
   readonly since?: string;
+  /** Apply status-bar repo schedule and bot-activity filters. */
+  readonly barFilter?: boolean;
 }
 
 /** Snapshot of the authenticated user's GitHub notification inbox. */
