@@ -13,11 +13,10 @@ import {
   gitRepoNotificationsActive,
   managedGitRepos,
   managedGitRepoForGitHub,
-  normalizeGitHubSlug,
-  type GitManagedRepo,
 } from "../../services/GitConfig.js";
 import { valuesLookLikeBotActivity } from "./botActivity.js";
 import { GitHub, type GitHubService } from "./GitHub.js";
+import { managedRepoGitHubSlugs } from "./repoRelations.js";
 import { formatGhError, nullableStringValue, stringValue } from "./record.js";
 
 const NOTIFICATION_LIMIT = 50;
@@ -98,7 +97,6 @@ export class GitNotifications extends Context.Service<
       const executor = yield* CommandExecutor;
       const pubsub = yield* PubSub.unbounded<GitNotificationState>();
       const hiddenThreadIds = new Set<string>();
-      const upstreamRemoteCache = new Map<string, string | null>();
 
       let currentState = buildState(
         [],
@@ -191,13 +189,11 @@ export class GitNotifications extends Context.Service<
         threads: readonly GitNotificationThread[],
         query: GitNotificationQueryOptions,
       ) => {
-        if (
-          !query.barFilter ||
-          !config.canUsePrivate ||
-          !config.gitConfig.valid
-        ) {
+        if (!query.barFilter) {
           return Effect.succeed(threads);
         }
+        if (!config.canUsePrivate || !config.gitConfig.valid)
+          return Effect.succeed([]);
 
         return Effect.all(
           threads.map((thread) => includeBarThread(thread)),
@@ -214,7 +210,7 @@ export class GitNotifications extends Context.Service<
       const includeBarThread = (thread: GitNotificationThread) =>
         Effect.gen(function* () {
           const repo = yield* managedRepoForNotification(thread.repo);
-          if (!repo) return thread;
+          if (!repo) return null;
           if (!gitRepoNotificationsActive(repo)) return null;
           if (!repo.notifications.bar.ignoreBotActivity) return thread;
           const botThread = yield* notificationThreadLooksBot(thread, github);
@@ -231,31 +227,17 @@ export class GitNotifications extends Context.Service<
 
           const normalizedNotificationRepo = notificationRepo.toLowerCase();
           for (const repo of managedGitRepos(config.gitConfig)) {
-            const upstream = yield* upstreamGitHubSlug(repo);
-            if (upstream?.toLowerCase() === normalizedNotificationRepo) {
+            const slugs = yield* managedRepoGitHubSlugs(repo, executor);
+            if (
+              slugs.some(
+                (slug) => slug.toLowerCase() === normalizedNotificationRepo,
+              )
+            ) {
               return repo;
             }
           }
 
           return undefined;
-        });
-
-      const upstreamGitHubSlug = (repo: GitManagedRepo) =>
-        Effect.gen(function* () {
-          if (upstreamRemoteCache.has(repo.path)) {
-            return upstreamRemoteCache.get(repo.path) ?? null;
-          }
-
-          const upstream = yield* executor
-            .run("git", ["config", "--get", "remote.upstream.url"], {
-              cwd: repo.path,
-            })
-            .pipe(
-              Effect.map((output) => normalizeGitHubSlug(output.trim())),
-              Effect.catch(() => Effect.succeed(null)),
-            );
-          upstreamRemoteCache.set(repo.path, upstream);
-          return upstream;
         });
 
       const runAction = Effect.fn("GitNotifications.runAction")(function* (

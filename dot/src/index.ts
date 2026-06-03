@@ -342,7 +342,11 @@ bootstrapPrivateDotfilesForInit(mode);
 const workflowOpts: WorkflowRunQueryOptions | undefined = flags.since
   ? { since: flags.since }
   : undefined;
-const notificationOpts = parseNotificationOpts(flags.rest, flags.since);
+const notificationOpts = parseNotificationOpts(
+  flags.rest,
+  flags.since,
+  mode.type === "tui",
+);
 
 type NotificationActionService = {
   readonly refresh: (opts?: GitNotificationQueryOptions) => Effect.Effect<void>;
@@ -355,10 +359,11 @@ type NotificationActionService = {
 function parseNotificationOpts(
   args: readonly string[],
   since: string | undefined,
+  defaultBarFilter = false,
 ): GitNotificationQueryOptions | undefined {
   const all = args.includes("--all");
   const participating = args.includes("--participating");
-  const barFilter = args.includes("--bar-filter");
+  const barFilter = defaultBarFilter || args.includes("--bar-filter");
   if (!all && !participating && !since && !barFilter) return undefined;
   return {
     ...(all && { all: true }),

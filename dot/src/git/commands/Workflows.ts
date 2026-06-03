@@ -22,6 +22,7 @@ import {
   textLooksLikeBotActivity,
   valuesLookLikeBotActivity,
 } from "../services/botActivity.js";
+import { managedRepoGitHubSlugs } from "../services/repoRelations.js";
 import {
   nullableIdValue,
   nullableStringValue,
@@ -170,16 +171,14 @@ function loadWorkflowBarRepo(
     const branches = yield* localBranches(repo.path, executor);
     if (branches.length === 0) return emptyRepo(repo.github);
 
-    const workflowIds = yield* fetchActiveWorkflowIds(repo.github, github);
-    const branchRuns = yield* Effect.all(
-      branches.map((branch) =>
-        branchWorkflowRuns(repo.github, branch, opts, github),
-      ),
+    const slugs = yield* managedRepoGitHubSlugs(repo, executor);
+    const slugRuns = yield* Effect.all(
+      slugs.map((slug) => workflowRunsForSlug(slug, branches, opts, github)),
       { concurrency: 2 },
     );
-    const runs = uniqueWorkflowRuns(branchRuns.flat())
-      .filter((run) => workflowRunMatchesActiveWorkflow(run, workflowIds))
-      .filter((run) => workflowRunMatchesSince(run, opts?.since));
+    const runs = uniqueWorkflowRuns(slugRuns.flat()).filter((run) =>
+      workflowRunMatchesSince(run, opts?.since),
+    );
     const filteredRuns = repo.notifications.bar.ignoreBotActivity
       ? yield* Effect.all(
           runs.map((run) => workflowRunVisible(run, repo.path, executor)),
@@ -212,6 +211,24 @@ function loadWorkflowBarRepo(
       }),
     ),
   );
+}
+
+function workflowRunsForSlug(
+  slug: string,
+  branches: readonly string[],
+  opts: WorkflowRunQueryOptions | undefined,
+  github: GitHubService,
+) {
+  return Effect.gen(function* () {
+    const workflowIds = yield* fetchActiveWorkflowIds(slug, github);
+    const branchRuns = yield* Effect.all(
+      branches.map((branch) => branchWorkflowRuns(slug, branch, opts, github)),
+      { concurrency: 2 },
+    );
+    return uniqueWorkflowRuns(branchRuns.flat()).filter((run) =>
+      workflowRunMatchesActiveWorkflow(run, workflowIds),
+    );
+  });
 }
 
 function localBranches(repoPath: string, executor: CommandExecutorService) {

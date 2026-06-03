@@ -22,6 +22,7 @@ import {
   nullableStringValue,
   stringValue,
 } from "./record.js";
+import { repoGitHubSlugs } from "./repoRelations.js";
 
 const RUN_LIMIT = 100;
 const DEBUG = !!process.env.DOT_DEBUG;
@@ -105,7 +106,17 @@ export class WorkflowRuns extends Context.Service<
         }
 
         const commit = yield* getHeadCommit(slug, checkoutPath);
-        const runs = yield* getRuns(slug, commit.branch, commit.sha, opts);
+        const slugs = yield* repoGitHubSlugs(slug, checkoutPath, executor);
+        const slugRuns = yield* Effect.all(
+          slugs.map((candidate) => {
+            const runs = getRuns(candidate, commit.branch, commit.sha, opts);
+            return candidate === slug
+              ? runs
+              : runs.pipe(Effect.catch(() => Effect.succeed([])));
+          }),
+          { concurrency: 2 },
+        );
+        const runs = uniqueWorkflowRuns(slugRuns.flat());
 
         return {
           slug,
@@ -355,6 +366,24 @@ function emptyRepo(slug: string): WorkflowRepoRuns {
     commitUrl: null,
     runs: [],
   };
+}
+
+function uniqueWorkflowRuns(
+  runs: readonly WorkflowRun[],
+): readonly WorkflowRun[] {
+  const seen = new Set<string>();
+  const unique: WorkflowRun[] = [];
+
+  for (const run of runs) {
+    const key = run.id || run.url;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(run);
+  }
+
+  return unique.sort(
+    (a, b) => workflowActivityTime(b) - workflowActivityTime(a),
+  );
 }
 
 function buildState(

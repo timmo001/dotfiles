@@ -471,7 +471,7 @@ Modes:
   --raw           Text summary of notification threads
   --bar-json     JSON output for status bars and shell modules
   --list-threads  Notification threads as rows
-  --bar-filter    Apply status-bar filtering in TUI/raw/list output
+  --bar-filter    Apply watched-repo filtering in raw/list output
 
 Filters:
   --all             Include read notifications

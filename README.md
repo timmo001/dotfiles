@@ -100,7 +100,7 @@ OpenCode skills, agents, commands, and plugins live in `agents/.config/opencode/
 - `git-workflow-watch`, its global hook, and its user systemd timer are obsolete and should not be installed
 - `dot doctor` verifies `dot-git.yml`, active Waybar workflow-runs module wiring, and absence of legacy `git-workflow-watch` leftovers
 - `dot git-notifications` shows the authenticated user's GitHub notification inbox; the API requires `gh` authenticated with a classic token carrying `notifications` or `repo` scope
-- The Waybar notification module refreshes `dot git-notifications --bar-json` through its own short-lived cache; left click opens `dot git-notifications --bar-filter` so the TUI matches status-bar repo schedule and bot filters, including upstream notifications that match a managed fork's `remote.upstream.url`, and right click refreshes the cache
+- The Waybar notification module refreshes `dot git-notifications --bar-json` through its own short-lived cache; notification surfaces hide repos that are not enabled in `dot-git.yml`, while upstream notifications can match a managed fork's `remote.upstream.url`; left click opens `dot git-notifications --bar-filter` and right click refreshes the cache
 - `dot doctor` verifies GitHub notification API access plus the active Waybar notification module wiring
 
 ## Daily volume reset
