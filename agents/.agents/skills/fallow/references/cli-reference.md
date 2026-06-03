@@ -51,6 +51,7 @@ Analyzes the project for unused files, exports, dependencies, types, members, an
 | `--workspace` | string | — | Scope to one or more workspaces. Comma-separated values, globs (`apps/*`, `@scope/*`), and `!`-prefixed negation (`!apps/legacy`) supported. Matched against package name AND workspace path relative to repo root. |
 | `--changed-workspaces` | string (git ref) | — | Git-derived monorepo CI scoping: scope to workspaces containing any file changed since `REF` (e.g. `origin/main`). Auto-derives the workspace set from `git diff`. Mutually exclusive with `--workspace`. Missing ref is a hard error (exit 2), not silent full-scope fallback. |
 | `--include-dupes` | bool | `false` | Cross-reference with duplication findings |
+| `--dupes-min-occurrences` | number | `config` | Override the minimum clone occurrences in combined mode (must be >= 2). Falls back to the config value when unset. Mirrors the standalone `dupes --min-occurrences`. |
 | `--file` | path (multiple) | — | Scope output to specific files. Only issues in the specified files are reported. Project-wide dependency issues are suppressed. Warns on non-existent paths. Useful for lint-staged |
 | `--include-entry-exports` | bool | `false` | Report unused exports in entry files (package.json `main`/`exports`, framework pages). Catches typos like `meatdata` vs `metadata`. Global flag, also accepted on combined mode (`fallow --include-entry-exports`) and `fallow audit`. Also configurable as `includeEntryExports: true` in fallow config |
 | `--trace` | `FILE:EXPORT` | — | Trace export usage chain |
@@ -485,7 +486,7 @@ fallow health --format json --quiet --trend
 {
   "kind": "health",
   "schema_version": 7,
-  "version": "2.87.0",
+  "version": "2.88.0",
   "elapsed_ms": 32,
   "summary": {
     "files_analyzed": 482,
@@ -875,7 +876,7 @@ fallow audit \
 {
   "kind": "audit",
   "schema_version": 7,
-  "version": "2.87.0",
+  "version": "2.88.0",
   "command": "audit",
   "verdict": "fail",
   "changed_files_count": 12,
@@ -948,7 +949,7 @@ fallow flags --format json --quiet --workspace my-package
 ```json
 {
   "schema_version": 7,
-  "version": "2.87.0",
+  "version": "2.88.0",
   "elapsed_ms": 116,
   "feature_flags": [],
   "total_flags": 0
@@ -1487,7 +1488,7 @@ The HTTP layer mirrors the bash `gh_api_retry` / `curl_retry` helpers: `FALLOW_A
 {
   "kind": "dead-code",
   "schema_version": 7,
-  "version": "2.87.0",
+  "version": "2.88.0",
   "elapsed_ms": 45,
   "total_issues": 12,
   "entry_points": {
@@ -1647,7 +1648,7 @@ When `--baseline` is used in combined output, the JSON includes a `baseline_delt
 {
   "kind": "dupes",
   "schema_version": 7,
-  "version": "2.87.0",
+  "version": "2.88.0",
   "elapsed_ms": 82,
   "total_clones": 15,
   "total_lines_duplicated": 230,
@@ -1691,11 +1692,11 @@ When running `fallow` with no subcommand (all analyses), the JSON output combine
 {
   "kind": "combined",
   "schema_version": 7,
-  "version": "2.87.0",
+  "version": "2.88.0",
   "elapsed_ms": 159,
   "check": {
     "schema_version": 7,
-    "version": "2.87.0",
+    "version": "2.88.0",
     "elapsed_ms": 45,
     "total_issues": 12,
     "unused_files": [],
