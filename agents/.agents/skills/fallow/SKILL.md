@@ -2,7 +2,7 @@
 name: fallow
 description: Codebase intelligence for JavaScript and TypeScript. Free static layer finds unused code (files, exports, types, dependencies), code duplication, circular dependencies, complexity hotspots, architecture boundary violations, and feature flag patterns. Runtime coverage merges production execution data into the same health report for hot-path review, cold-path deletion confidence, and stale-flag evidence - a single local capture is free, while continuous/cloud runtime monitoring is paid. 94 framework plugins, zero configuration, sub-second static analysis. Use when asked to analyze code health, find unused code, detect duplicates, check circular dependencies, audit complexity, check architecture boundaries, detect feature flags, clean up the codebase, auto-fix issues, merge runtime coverage, or run fallow.
 # origin: https://github.com/fallow-rs/fallow-skills/tree/main/fallow/skills/fallow
-# upstream-sha: 9a88b0b1d53a78e6caa00b7f9e02ce1a245b7078
+# upstream-sha: edf1a2ef130a840962d38f431088b136771218c6
 ---
 
 # Fallow: codebase intelligence for JavaScript and TypeScript
@@ -115,6 +115,7 @@ When using fallow via MCP (`fallow-mcp`), the following tools are available:
 |------|-------------|
 | `analyze` | Full dead code analysis (unused files/exports/types/dependencies/members + circular dependencies + re-export cycles (barrel files that form a structural loop, silently breaking re-exports) + boundary violations + stale suppressions). Private type leaks are an opt-in API hygiene check via `issue_types: ["private-type-leaks"]`. Set `boundary_violations: true` as a convenience alias for `issue_types: ["boundary-violations"]`. Set `group_by` to `"owner"`, `"directory"`, `"package"`, or `"section"` to partition results. The `section` mode reads GitLab CODEOWNERS `[Section]` headers and emits `owners` metadata per group |
 | `check_changed` | Incremental analysis of files changed since a git ref |
+| `security_candidates` | Unverified local security candidates, not confirmed vulnerabilities (`fallow security --format json`). Read `security_findings[]` for category, CWE, evidence, and trace; verify trace and evidence before editing code. Supports `root`, `config`, `workspace`, `changed_since`, `changed_workspaces`, `no_cache`, and `threads`; inherits `FALLOW_DIFF_FILE` from the server environment for line-level diff scoping; raise `FALLOW_TIMEOUT_SECS` for large repos. |
 | `find_dupes` | Code duplication detection. Set `changed_since` to scope to changed files since a git ref. Set `min_occurrences` (≥ 2, default 2) to hide pair-only clones and focus on widespread copy-paste; JSON gains `stats.clone_groups_below_min_occurrences` when the filter hides anything. Each `clone_groups[]` entry carries a stable `fingerprint`, usually `dup:<8hex>` and widened only on rare report collisions; pass it to `trace_clone` to deep-dive that group |
 | `fix_preview` | Dry-run auto-fix preview |
 | `fix_apply` | Apply auto-fixes (destructive) |
@@ -231,7 +232,7 @@ fallow list --entry-points --format json --quiet
 fallow list --plugins --format json --quiet
 ```
 
-Shows detected entry points and active framework plugins (114 built-in: Next.js, Vite, Ember, Wuchale, Jest, Storybook, Tailwind, PandaCSS, Contentlayer, tap, tsd, etc.).
+Shows detected entry points and active framework plugins (118 built-in: Next.js, Vite, Ember, Wuchale, Jest, Storybook, Tailwind, PandaCSS, Contentlayer, tap, tsd, etc.).
 
 ### Production-only analysis
 
@@ -336,7 +337,7 @@ When `--format json` is active and exit code is 2, errors are emitted as JSON on
 
 ## Configuration
 
-Fallow reads config from project root: `.fallowrc.json` > `.fallowrc.jsonc` > `fallow.toml` > `.fallow.toml`. Both `.fallowrc.json` and `.fallowrc.jsonc` accept JSON-with-comments syntax (same parser); the `.jsonc` extension lets editors auto-detect JSONC syntax highlighting. Most projects work with zero configuration thanks to 114 auto-detecting framework plugins.
+Fallow reads config from project root: `.fallowrc.json` > `.fallowrc.jsonc` > `fallow.toml` > `.fallow.toml`. Both `.fallowrc.json` and `.fallowrc.jsonc` accept JSON-with-comments syntax (same parser); the `.jsonc` extension lets editors auto-detect JSONC syntax highlighting. Most projects work with zero configuration thanks to 118 auto-detecting framework plugins.
 
 ```jsonc
 {
