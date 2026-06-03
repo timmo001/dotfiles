@@ -59,6 +59,9 @@ Do not use. Each has a `@deprecated` comment naming the replacement:
 - `@consumeEntityState({ entityIdPath })` — resolves entity ID from host config path, subscribes to `statesContext`, returns `HassEntity`
 - `@consumeEntityStates({ entityIdPath })` — same for array of entity IDs → `HassEntity[]`
 - `@consumeEntityRegistryEntry({ entityIdPath })` — subscribes to `entitiesContext`, returns `EntityRegistryDisplayEntry`
+- `@consumeLocalize()` — subscribes to `internationalizationContext` and narrows it to `LocalizeFunc`
+
+Use `@consumeLocalize()` when a component only needs `localize`. Use `internationalizationContext` directly when it also needs `locale`, `language`, `translationMetadata`, `loadBackendTranslation`, or `loadFragmentTranslation`.
 
 ## Migration: Removing `hass`
 
@@ -133,6 +136,13 @@ private _states!: ContextType<typeof statesContext>;
 ```
 
 Usage: `this._api.callWS(...)`, `this._i18n.localize(...)`, `this._states[entityId]`.
+
+For localize-only components, prefer the helper:
+
+```ts
+@consumeLocalize()
+private _localize!: LocalizeFunc;
+```
 
 ## Rules
 
