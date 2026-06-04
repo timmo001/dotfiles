@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { readdirSync, existsSync, readFileSync, mkdirSync } from "fs";
-import { writeFileSync } from "fs";
+import { writeFileSync, unlinkSync } from "fs";
 import { join, basename, dirname, relative } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { GitHub } from "../git/services/GitHub.js";
@@ -401,6 +401,32 @@ export function listLocalFiles(skillDir: string): readonly string[] {
 
 const SKILL_DIFF_TMP_DIR = "/tmp/opencode";
 
+/** Remove temporary skill-diff files, ignoring missing-file errors. */
+function removeSkillDiffTmp(...paths: readonly string[]): void {
+  for (const path of paths) {
+    try {
+      unlinkSync(path);
+    } catch {
+      // Already gone — fine
+    }
+  }
+}
+
+/**
+ * Remove leftover `skill-diff-*` temp files from the shared tmp dir.
+ *
+ * Only targets files this module creates; the directory itself is shared with
+ * OpenCode and is never removed.
+ */
+export function cleanupSkillDiffCache(): void {
+  if (!existsSync(SKILL_DIFF_TMP_DIR)) return;
+  for (const name of readdirSync(SKILL_DIFF_TMP_DIR)) {
+    if (name.startsWith("skill-diff-")) {
+      removeSkillDiffTmp(join(SKILL_DIFF_TMP_DIR, name));
+    }
+  }
+}
+
 /** Generate a unified diff between two strings (uses external diff command) */
 export const generateDiff = (
   localContent: string,
@@ -421,26 +447,34 @@ export const generateDiff = (
     writeFileSync(tmpLocal, localContent + "\n");
     writeFileSync(tmpUpstream, upstreamContent + "\n");
 
-    const exitCode = yield* executor.exitCode("diff", [
-      "--unified=2",
-      tmpLocal,
-      tmpUpstream,
-    ]);
+    const produce = Effect.gen(function* () {
+      const exitCode = yield* executor.exitCode("diff", [
+        "--unified=2",
+        tmpLocal,
+        tmpUpstream,
+      ]);
 
-    if (exitCode === 0) {
-      // Files are identical
-      return "";
-    }
+      if (exitCode === 0) {
+        // Files are identical
+        return "";
+      }
 
-    // exitCode 1 means differences found — read output
-    const result = yield* executor
-      .run("diff", ["--unified=2", tmpLocal, tmpUpstream])
-      .pipe(Effect.catch(() => Effect.succeed("")));
+      // exitCode 1 means differences found — read output
+      const result = yield* executor
+        .run("diff", ["--unified=2", tmpLocal, tmpUpstream])
+        .pipe(Effect.catch(() => Effect.succeed("")));
 
-    // Strip header lines and optionally truncate
-    const lines = result.split("\n").slice(2);
-    const truncated = maxLines ? lines.slice(0, maxLines) : lines;
-    return truncated.join("\n");
+      // Strip header lines and optionally truncate
+      const lines = result.split("\n").slice(2);
+      const truncated = maxLines ? lines.slice(0, maxLines) : lines;
+      return truncated.join("\n");
+    });
+
+    return yield* produce.pipe(
+      Effect.ensuring(
+        Effect.sync(() => removeSkillDiffTmp(tmpLocal, tmpUpstream)),
+      ),
+    );
   });
 
 /** Generate a full unified diff for display (with labels) */
@@ -463,7 +497,7 @@ export const generateFullDiff = (
     writeFileSync(tmpLocal, localContent + "\n");
     writeFileSync(tmpUpstream, upstreamContent + "\n");
 
-    const result = yield* executor
+    return yield* executor
       .run("diff", [
         "--unified=5",
         `--label=${localLabel}`,
@@ -471,9 +505,12 @@ export const generateFullDiff = (
         tmpLocal,
         tmpUpstream,
       ])
-      .pipe(Effect.catch(() => Effect.succeed("")));
-
-    return result;
+      .pipe(
+        Effect.catch(() => Effect.succeed("")),
+        Effect.ensuring(
+          Effect.sync(() => removeSkillDiffTmp(tmpLocal, tmpUpstream)),
+        ),
+      );
   });
 
 // ---------------------------------------------------------------------------

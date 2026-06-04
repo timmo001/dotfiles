@@ -13,6 +13,7 @@ import {
   applySkillUpdate,
   writeSha,
   buildSingleDiff,
+  cleanupSkillDiffCache,
   type SkillMeta,
   type CheckResult,
 } from "../lib/skillUpdates.js";
@@ -55,6 +56,9 @@ export const skillUpdates = (opts?: {
         : "interactive";
 
     yield* log.section("Skill Origin Updates");
+
+    // Sweep any leftover diff temp files from prior or interrupted runs.
+    yield* Effect.sync(cleanupSkillDiffCache);
 
     // Check for gh CLI availability
     const ghAvailable = yield* github.isAvailable();

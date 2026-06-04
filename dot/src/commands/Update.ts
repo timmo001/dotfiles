@@ -296,8 +296,9 @@ const reviewSkillUpdates = Effect.gen(function* () {
  * omarchy + worktrees, schedule-gated extras) via {@link DotDiff} and only
  * pulls repos that are behind upstream. Full updates pull public dotfiles,
  * rebuild, and restart without self-update before continuing the workflow.
- * Post-hooks (agents-sync, skill updates, notifications) run only when a repo
- * was actually pulled.
+ * Pull notifications fire only when a repo actually moved, while post-hooks
+ * (agents-sync, skill updates) run on every full update regardless of pulls
+ * and are skipped for flag-scoped runs (e.g. `--stow`/`--tui`/`--pull` only).
  */
 export const update = (opts?: UpdateOptions) =>
   Effect.gen(function* () {
@@ -372,10 +373,15 @@ export const update = (opts?: UpdateOptions) =>
       yield* log.info("Build successful");
     }
 
-    // Post-hooks run only when a repo was actually pulled (legacy semantics).
-    let skillDiffCreated = false;
+    // Notify only when a repo actually moved.
     if (updatedNames.length > 0) {
       yield* notifyUpdated(updatedNames);
+    }
+
+    // Post-hooks (agents-sync, skill updates) run on every full update,
+    // independent of whether a repo was pulled; flag-scoped runs skip them.
+    let skillDiffCreated = false;
+    if (isFullUpdate) {
       skillDiffCreated = yield* postHooks;
     }
 
