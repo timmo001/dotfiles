@@ -399,6 +399,8 @@ export function listLocalFiles(skillDir: string): readonly string[] {
 // Diff Generation
 // ---------------------------------------------------------------------------
 
+const SKILL_DIFF_TMP_DIR = "/tmp/opencode";
+
 /** Generate a unified diff between two strings (uses external diff command) */
 export const generateDiff = (
   localContent: string,
@@ -409,8 +411,12 @@ export const generateDiff = (
     const executor = yield* CommandExecutor;
 
     // Write to temp files for diff
-    const tmpLocal = `/tmp/opencode/skill-diff-local-${Date.now()}`;
-    const tmpUpstream = `/tmp/opencode/skill-diff-upstream-${Date.now()}`;
+    mkdirSync(SKILL_DIFF_TMP_DIR, { recursive: true });
+    const tmpLocal = join(SKILL_DIFF_TMP_DIR, `skill-diff-local-${Date.now()}`);
+    const tmpUpstream = join(
+      SKILL_DIFF_TMP_DIR,
+      `skill-diff-upstream-${Date.now()}`,
+    );
 
     writeFileSync(tmpLocal, localContent + "\n");
     writeFileSync(tmpUpstream, upstreamContent + "\n");
@@ -447,8 +453,12 @@ export const generateFullDiff = (
   Effect.gen(function* () {
     const executor = yield* CommandExecutor;
 
-    const tmpLocal = `/tmp/opencode/skill-diff-local-${Date.now()}`;
-    const tmpUpstream = `/tmp/opencode/skill-diff-upstream-${Date.now()}`;
+    mkdirSync(SKILL_DIFF_TMP_DIR, { recursive: true });
+    const tmpLocal = join(SKILL_DIFF_TMP_DIR, `skill-diff-local-${Date.now()}`);
+    const tmpUpstream = join(
+      SKILL_DIFF_TMP_DIR,
+      `skill-diff-upstream-${Date.now()}`,
+    );
 
     writeFileSync(tmpLocal, localContent + "\n");
     writeFileSync(tmpUpstream, upstreamContent + "\n");
