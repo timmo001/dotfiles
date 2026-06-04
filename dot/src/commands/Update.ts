@@ -4,6 +4,7 @@ import { basename, join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
+import { Launcher } from "../services/Launcher.js";
 import { DotDiff } from "../git/services/DotDiff.js";
 import { stow as runStow } from "./Stow.js";
 import { agentsSync } from "./AgentsSync.js";
@@ -184,7 +185,11 @@ function selfUpdateAndRestart(
   });
 }
 
-/** Run post-update hooks (agents-sync, skill-updates) */
+/**
+ * Run post-update hooks (agents-sync, skill-updates).
+ *
+ * Resolves to `true` when skill updates created a reviewable commit.
+ */
 const postHooks = Effect.gen(function* () {
   const log = yield* OutputLog;
 
@@ -198,10 +203,11 @@ const postHooks = Effect.gen(function* () {
     ),
   );
 
-  yield* skillUpdates({ update: true }).pipe(
+  return yield* skillUpdates({ update: true }).pipe(
     Effect.catch(() =>
       Effect.gen(function* () {
         yield* log.warn("Skill updates failed (non-fatal)");
+        return false;
       }),
     ),
   );
@@ -230,6 +236,54 @@ const runResumeRefresh = Effect.gen(function* () {
   }
 
   yield* log.info("On-resume helper started");
+});
+
+/** True when attached to an interactive terminal and not in tee-log mode. */
+const isInteractiveSession = (): boolean =>
+  !!process.stdin.isTTY &&
+  !!process.stdout.isTTY &&
+  process.env.DOT_TEE_INHERIT_LOG !== "1";
+
+/** Block until the user presses any key, restoring the prior raw-mode state. */
+const waitForKeypress = Effect.promise(
+  () =>
+    new Promise<void>((resolve) => {
+      process.stdout.write(
+        "\n\x1b[90mPress any key to open dot git-diff...\x1b[0m",
+      );
+      const wasRaw = process.stdin.isRaw;
+      if (process.stdin.isTTY) process.stdin.setRawMode(true);
+      process.stdin.resume();
+      process.stdin.once("data", () => {
+        if (process.stdin.isTTY) process.stdin.setRawMode(wasRaw);
+        process.stdin.pause();
+        resolve();
+      });
+    }),
+);
+
+/**
+ * Surface the diff created by skill updates at the end of an update.
+ *
+ * In an interactive session: print a brief message, pause for a keypress, then
+ * launch `dot git-diff` to review the new commit. Otherwise just log a hint.
+ */
+const reviewSkillUpdates = Effect.gen(function* () {
+  const log = yield* OutputLog;
+
+  yield* log.section("Skill Updates Review");
+
+  if (!isInteractiveSession()) {
+    yield* log.info(
+      "Skill updates created a commit; run dot git-diff to review",
+    );
+    return;
+  }
+
+  const launcher = yield* Launcher;
+  yield* log.info("Skill updates created a commit. Review it in dot git-diff.");
+  yield* waitForKeypress;
+  yield* launcher.suspend("dot git-diff").pipe(Effect.catch(() => Effect.void));
 });
 
 /**
@@ -319,9 +373,10 @@ export const update = (opts?: UpdateOptions) =>
     }
 
     // Post-hooks run only when a repo was actually pulled (legacy semantics).
+    let skillDiffCreated = false;
     if (updatedNames.length > 0) {
       yield* notifyUpdated(updatedNames);
-      yield* postHooks;
+      skillDiffCreated = yield* postHooks;
     }
 
     if (isFullUpdate) {
@@ -330,4 +385,8 @@ export const update = (opts?: UpdateOptions) =>
     }
 
     yield* runResumeRefresh;
+
+    if (skillDiffCreated) {
+      yield* reviewSkillUpdates;
+    }
   });

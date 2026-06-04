@@ -33,6 +33,9 @@ interface ReviewItem {
  * - `check`: Report only, exit with failure if updates available
  * - `update`: Auto-apply changes without prompting
  * - `interactive`: Prompt per skill; launch OpenCode for local-edit conflicts
+ *
+ * Resolves to `true` when a skill update commit was created (a reviewable
+ * diff now exists), otherwise `false`.
  */
 export const skillUpdates = (opts?: {
   readonly check?: boolean;
@@ -58,7 +61,7 @@ export const skillUpdates = (opts?: {
 
     if (!ghAvailable) {
       yield* log.warn("gh CLI not available; skipping skill origin checks");
-      return;
+      return false;
     }
 
     const skillsDir = join(config.publicDotfiles, "agents/.agents/skills");
@@ -66,7 +69,7 @@ export const skillUpdates = (opts?: {
 
     if (skills.length === 0) {
       yield* log.info("No imported skills with origin tracking");
-      return;
+      return false;
     }
 
     yield* log.info(
@@ -77,6 +80,7 @@ export const skillUpdates = (opts?: {
     let errors = 0;
     let available = 0;
     let shaQueryFailed = false;
+    let committed = false;
     const updatedDirs: string[] = [];
     const reviewItems: ReviewItem[] = [];
 
@@ -196,6 +200,7 @@ export const skillUpdates = (opts?: {
           cwd: config.publicDotfiles,
         });
         yield* log.info(`Committed: ${commitMsg}`);
+        committed = true;
       } else {
         yield* log.info(
           "No staged changes to commit (files unchanged on disk)",
@@ -222,7 +227,7 @@ export const skillUpdates = (opts?: {
           new LauncherError("Skill updates available", 1),
         );
       }
-      return;
+      return false;
     }
 
     // Interactive mode: handle local-edit skills
@@ -255,6 +260,8 @@ export const skillUpdates = (opts?: {
     ) {
       yield* log.info("All imported skills are up to date");
     }
+
+    return committed;
   });
 
 // ---------------------------------------------------------------------------

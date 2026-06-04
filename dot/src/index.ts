@@ -540,7 +540,7 @@ if (mode.type === "native") {
           check: args.includes("--check"),
           update: args.includes("--update"),
           skipReview: args.includes("--skip-review"),
-        }),
+        }).pipe(Effect.asVoid),
       "skill-check": (args) =>
         skillCheck({
           openOpencode: args.includes("--open-opencode"),
