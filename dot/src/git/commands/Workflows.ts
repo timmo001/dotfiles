@@ -423,7 +423,6 @@ function workflowBarText(
   summary: ReturnType<typeof workflowStateSummary>,
 ): string {
   if (summary.attentionCount > 0) return `\uf057 ${summary.attentionCount}`;
-  if (summary.runningRuns > 0) return `\u25cf ${summary.runningRuns}`;
   return "";
 }
 
@@ -431,7 +430,6 @@ function workflowBarClass(
   summary: ReturnType<typeof workflowStateSummary>,
 ): string {
   if (summary.attentionCount > 0) return "workflows-attention";
-  if (summary.runningRuns > 0) return "workflows-running";
   return "hidden";
 }
 
