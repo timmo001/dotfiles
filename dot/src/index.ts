@@ -33,6 +33,7 @@ import { setupPrivateRepo } from "./commands/SetupPrivateRepo.js";
 import { privatePkgPublish } from "./commands/PrivatePkgPublish.js";
 import { skillUpdates } from "./commands/SkillUpdates.js";
 import { skillCheck } from "./commands/SkillCheck.js";
+import { completions } from "./commands/Completions.js";
 import { help } from "./commands/Help.js";
 import { noteCommand, notesCommand } from "./notes/commands/Notes.js";
 import {
@@ -126,6 +127,7 @@ const nativeCommands = new Set([
   "private-pkg-publish",
   "skill-updates",
   "skill-check",
+  "completions",
   "help",
 ]);
 
@@ -552,6 +554,7 @@ if (mode.type === "native") {
         skillCheck({
           openOpencode: args.includes("--open-opencode"),
         }),
+      completions,
       help,
     };
 

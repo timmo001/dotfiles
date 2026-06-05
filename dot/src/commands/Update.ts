@@ -8,6 +8,7 @@ import { Launcher } from "../services/Launcher.js";
 import { DotDiff } from "../git/services/DotDiff.js";
 import { stow as runStow } from "./Stow.js";
 import { agentsSync } from "./AgentsSync.js";
+import { writeZshCompletions } from "./Completions.js";
 import { skillUpdates } from "./SkillUpdates.js";
 import { rebuild, restartDot } from "../lib/selfUpdate.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
@@ -364,6 +365,12 @@ export const update = (opts?: UpdateOptions) =>
     }
 
     if (doStow) {
+      yield* log.section("Completions");
+      const completionTarget = yield* writeZshCompletions;
+      yield* log.info(
+        `Generated zsh completions: ${displayPath(completionTarget)}`,
+      );
+
       yield* runStow();
     }
 

@@ -215,6 +215,7 @@ function isKnownTarget(candidate: string): boolean {
     candidate === "handoffs" ||
     candidate === "setup-private-repo" ||
     candidate === "private-pkg-publish" ||
+    candidate === "completions" ||
     candidate === "omarchy"
   )
     return true;
@@ -433,6 +434,24 @@ Examples:
     return;
   }
 
+  if (subcommand === "completions") {
+    console.log(`Usage: dot completions [zsh] [--stdout]
+
+Generate shell completions for dot.
+
+By default this writes the managed Zsh completion file in the public dotfiles
+repo so the next dot stow installs it to ~/.local/share/zsh/site-functions/_dot.
+
+Options:
+  --stdout    Print the completion script instead of writing it
+  --help, -h  Show this help message
+
+Examples:
+  dot completions zsh
+  dot completions zsh --stdout`);
+    return;
+  }
+
   if (subcommand === "git-workflows") {
     console.log(`Usage: dot git-workflows [options]
 
@@ -617,6 +636,7 @@ Subcommands:
   opencode-debug       Debug OpenCode config and paths
   setup-private-repo   Register private pacman repo include
   private-pkg-publish  Build and publish a private package
+  completions          Generate shell completions
   skill-updates        Run dot skill-updates
   skill-check          Validate skill references
   omarchy [submenu..]  Open an Omarchy submenu by path
@@ -647,6 +667,7 @@ Examples:
   dot opencode-debug --agent reviewer
   dot setup-private-repo Repair private pacman repo include
   dot private-pkg-publish twitch-notifications --install
+  dot completions zsh
   dot omarchy theme        Omarchy theme submenu
   dot omarchy theme set    Execute omarchy theme set
 

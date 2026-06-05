@@ -49,6 +49,7 @@ src/
     PrivatePkgPublish.ts  — dot private-pkg-publish
     SkillUpdates.ts       — dot skill-updates
     SkillCheck.ts         — dot skill-check
+    Completions.ts        — dot completions zsh generator for stowed shell completions
     Help.ts               — dot help
   notes/
     types.ts              — Repo-note data types and legacy label formatting
@@ -231,6 +232,7 @@ dot skill-updates --check     # Check only (no apply)
 dot skill-updates --update    # Auto-apply clean updates
 dot skill-updates --skip-review # Skip local-edit review
 dot skill-check               # Validate skill references
+dot completions zsh           # Generate stowed Zsh completions
 dot omarchy                   # Omarchy submenu (TUI)
 dot help                      # Show help
 dot --help                    # Show help

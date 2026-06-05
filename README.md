@@ -77,6 +77,7 @@ dot doctor
 - `dot private-pkg-publish [--no-git] [--skip-build] [--install] <package>` - build and publish a mapped private package into the private pacman repo, sync the mirror, refresh pacman metadata, optionally install it, and commit/push by default
 - `dot skill-updates` - check or apply upstream updates for imported skills
 - `dot skill-check` - validate skill references across AGENTS and agent files
+- `dot completions zsh` - generate the managed Zsh completion file; `dot update` runs this before stowing
 - `dot omarchy` - open the Omarchy desktop controls menu
 - `dot help` - show the CLI help menu
 
