@@ -279,7 +279,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
       },
       {
         name: "--tab",
-        valueName: "changed|other|unchanged",
+        valueName: "tab",
         description: "Initial pane to focus in TUI (default: changed)",
         choices: [
           { value: "changed" },

@@ -34,10 +34,19 @@ function zshDescription(value: string): string {
   return value.replaceAll("\\", "\\\\").replaceAll("]", "\\]");
 }
 
+function zshActionWord(value: string): string {
+  return value
+    .replaceAll("\\", "\\\\")
+    .replaceAll(":", "\\:")
+    .replaceAll(" ", "\\ ")
+    .replaceAll("(", "\\(")
+    .replaceAll(")", "\\)");
+}
+
 function zshChoice(choice: CliValueChoice): string {
-  const value = choice.value.replaceAll(":", "\\:");
+  const value = zshActionWord(choice.value);
   if (!choice.description) return value;
-  return `${value}:${choice.description.replaceAll(":", "\\:")}`;
+  return `${value}:${zshActionWord(choice.description)}`;
 }
 
 function zshChoiceList(choices: readonly CliValueChoice[]): string {
@@ -46,13 +55,20 @@ function zshChoiceList(choices: readonly CliValueChoice[]): string {
     : `(${choices.map((choice) => choice.value).join(" ")})`;
 }
 
+function zshAction(
+  spec: Pick<CliOptionSpec | CliArgumentSpec, "choices" | "completion">,
+): string | undefined {
+  if (spec.choices) return zshChoiceList(spec.choices);
+  if (spec.completion === "file") return "_files";
+  return undefined;
+}
+
 function zshValueCompletion(
   valueName: string,
   spec: Pick<CliOptionSpec | CliArgumentSpec, "choices" | "completion">,
 ): string {
-  if (spec.choices) return `:${valueName}:${zshChoiceList(spec.choices)}`;
-  if (spec.completion === "file") return `:${valueName}:_files`;
-  return `:${valueName}:`;
+  const action = zshAction(spec);
+  return action ? `:${valueName}:${action}` : `:${valueName}:`;
 }
 
 function zshOptionSpecs(option: CliOptionSpec): readonly string[] {
@@ -75,9 +91,12 @@ function zshOptionSpecs(option: CliOptionSpec): readonly string[] {
 }
 
 function zshArgumentSpec(argument: CliArgumentSpec, index: number): string {
-  const valueCompletion = zshValueCompletion(argument.name, argument);
+  const action = zshAction(argument);
   const prefix = argument.repeatable ? "*" : String(index);
-  return `${prefix}:${argument.description ?? argument.name}${valueCompletion}`;
+  const description = argument.description ?? argument.name;
+  return action
+    ? `${prefix}:${description}:${action}`
+    : `${prefix}:${description}:`;
 }
 
 function continued(
