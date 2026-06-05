@@ -4,15 +4,15 @@ const tui: TuiPlugin = async (api) => {
   api.keymap.registerLayer({
     commands: [
       {
-        name: "lazygit.open",
-        title: "Open lazygit",
+        name: "dot-git-diff.open",
+        title: "Open dot git-diff",
         category: "Plugin",
         namespace: "palette",
-        slashName: "lazygit",
+        slashName: "dot-git-diff",
         run() {
           api.renderer.suspend()
           try {
-            Bun.spawnSync(["lazygit"], {
+            Bun.spawnSync(["dot", "git-diff"], {
               stdin: "inherit",
               stdout: "inherit",
               stderr: "inherit",
@@ -24,12 +24,14 @@ const tui: TuiPlugin = async (api) => {
         },
       },
     ],
-    bindings: [{ key: "ctrl+g", cmd: "lazygit.open", desc: "Open lazygit" }],
+    bindings: [
+      { key: "ctrl+shift+g", cmd: "dot-git-diff.open", desc: "Open dot git-diff" },
+    ],
   })
 }
 
 const plugin: TuiPluginModule & { id: string } = {
-  id: "lazygit",
+  id: "dot-git-diff",
   tui,
 }
 
