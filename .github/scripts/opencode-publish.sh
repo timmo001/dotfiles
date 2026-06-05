@@ -3,16 +3,21 @@
 # syncs the subtree contents into the target publish repo and pushes.
 #
 # Expected environment:
-#   DOTFILES_REPO   - owner/repo of the dotfiles source (e.g. timmo001/dotfiles)
-#   PUBLISH_REPO    - owner/repo of the target publish repo (e.g. timmo001/opencode-config)
-#   SOURCE_PREFIX   - subtree path within dotfiles (e.g. agents/.config/opencode)
-#   SOURCE_BRANCH - branch name in dotfiles repo (e.g. distro/arch-omarchy)
-#   PUBLISH_DIR     - local checkout of the publish repo
+#   DOTFILES_REPO          - owner/repo of the dotfiles source (e.g. timmo001/dotfiles)
+#   PUBLISH_REPO           - owner/repo of the target publish repo (e.g. timmo001/opencode-config)
+#   OPENCODE_SOURCE_PREFIX - OpenCode config path within dotfiles (e.g. agents/.config/opencode)
+#   SKILLS_SOURCE_PREFIX   - shared skills path within dotfiles (e.g. agents/.agents/skills)
+#   SOURCE_BRANCH          - branch name in dotfiles repo (e.g. distro/arch-omarchy)
+#   PUBLISH_DIR            - local checkout of the publish repo
 set -euo pipefail
 
-CONFIG_DIR="${SOURCE_PREFIX}"
+OPENCODE_SOURCE_PREFIX="${OPENCODE_SOURCE_PREFIX:-${SOURCE_PREFIX:-agents/.config/opencode}}"
+SKILLS_SOURCE_PREFIX="${SKILLS_SOURCE_PREFIX:-agents/.agents/skills}"
+CONFIG_DIR="${OPENCODE_SOURCE_PREFIX}"
+SKILLS_DIR="${SKILLS_SOURCE_PREFIX}"
 DOTFILES_URL="https://github.com/${DOTFILES_REPO}"
-SOURCE_URL="${DOTFILES_URL}/tree/${SOURCE_BRANCH}/${SOURCE_PREFIX}"
+OPENCODE_SOURCE_URL="${DOTFILES_URL}/tree/${SOURCE_BRANCH}/${OPENCODE_SOURCE_PREFIX}"
+SKILLS_SOURCE_URL="${DOTFILES_URL}/tree/${SOURCE_BRANCH}/${SKILLS_SOURCE_PREFIX}"
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -55,7 +60,7 @@ requires() {
   local ref
   for ref in $(grep -P '[Ll]oad\b.*`[a-z][-a-z0-9]*`' "$file" 2>/dev/null \
     | grep -oP '`[a-z][-a-z0-9]*`' | tr -d '`' | sort -u); do
-    if [[ -d "${CONFIG_DIR}/skills/${ref}" ]]; then
+    if [[ -d "${SKILLS_DIR}/${ref}" ]]; then
       local self
       self="$(basename "$(dirname "$file")")"
       [[ "$ref" == "$self" || "$ref" == "$(basename "$file" .md)" ]] && continue
@@ -72,7 +77,7 @@ works_with() {
   required="$(requires "$file")"
   local ref
   for ref in $(grep -oP '`[a-z][-a-z0-9]*`' "$file" 2>/dev/null | tr -d '`' | sort -u); do
-    if [[ -d "${CONFIG_DIR}/skills/${ref}" ]]; then
+    if [[ -d "${SKILLS_DIR}/${ref}" ]]; then
       local self
       self="$(basename "$(dirname "$file")")"
       [[ "$ref" == "$self" || "$ref" == "$(basename "$file" .md)" ]] && continue
@@ -104,7 +109,7 @@ generate_readme() {
 
 Shared [OpenCode](https://opencode.ai) skills, agents, plugins, and commands.
 
-Published from [\`${DOTFILES_REPO}\`](${DOTFILES_URL}) — source at [\`${SOURCE_PREFIX}/\`](${SOURCE_URL}).
+Published from [\`${DOTFILES_REPO}\`](${DOTFILES_URL}) — OpenCode config at [\`${OPENCODE_SOURCE_PREFIX}/\`](${OPENCODE_SOURCE_URL}) and shared skills at [\`${SKILLS_SOURCE_PREFIX}/\`](${SKILLS_SOURCE_URL}).
 
 ## Installation
 
@@ -173,7 +178,7 @@ The config is built around a few patterns:
 |---|---|---|---|
 EOF
 
-    for skill_dir in "${CONFIG_DIR}/skills"/*/; do
+    for skill_dir in "${SKILLS_DIR}"/*/; do
       [[ -f "${skill_dir}SKILL.md" ]] || continue
       local o
       o="$(origin "${skill_dir}SKILL.md")"
@@ -196,7 +201,7 @@ These skills were imported from other repos. Some are used as-is; others have be
 |---|---|---|---|---|
 EOF
 
-    for skill_dir in "${CONFIG_DIR}/skills"/*/; do
+    for skill_dir in "${SKILLS_DIR}"/*/; do
       [[ -f "${skill_dir}SKILL.md" ]] || continue
       local o
       o="$(origin "${skill_dir}SKILL.md")"
@@ -253,8 +258,9 @@ EOF
 
 ## Publishing
 
-This repo is published automatically via GitHub Actions when the source
-[\`${SOURCE_PREFIX}/\`](${SOURCE_URL}) changes.
+This repo is published automatically via GitHub Actions when the OpenCode config
+[\`${OPENCODE_SOURCE_PREFIX}/\`](${OPENCODE_SOURCE_URL}) or shared skills
+[\`${SKILLS_SOURCE_PREFIX}/\`](${SKILLS_SOURCE_URL}) change.
 EOF
   } > "${OUTPUT_DIR}/README.md"
 }
@@ -272,7 +278,9 @@ Instructions for coding agents working in this repository.
 
 This repo is a published snapshot of OpenCode configuration from [\`${DOTFILES_REPO}\`](${DOTFILES_URL}).
 
-Source files: [\`${SOURCE_PREFIX}/\`](${SOURCE_URL})
+OpenCode config source: [\`${OPENCODE_SOURCE_PREFIX}/\`](${OPENCODE_SOURCE_URL})
+
+Shared skills source: [\`${SKILLS_SOURCE_PREFIX}/\`](${SKILLS_SOURCE_URL})
 
 Do not edit files here directly. Make changes in the [source dotfiles repo](${DOTFILES_URL}) and push — a GitHub Actions workflow publishes automatically.
 
@@ -312,8 +320,17 @@ sync_to_publish() {
   # Clean target (preserve .git)
   find "${PUBLISH_DIR}" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
 
-  # Copy subtree contents
-  cp -a "${CONFIG_DIR}/." "${PUBLISH_DIR}/"
+  [[ -d "${CONFIG_DIR}" ]] || { echo "::error::OpenCode config source not found: ${CONFIG_DIR}"; return 1; }
+  [[ -d "${SKILLS_DIR}" ]] || { echo "::error::Shared skills source not found: ${SKILLS_DIR}"; return 1; }
+
+  # Copy OpenCode config directories from their stow source.
+  for dir in agents commands plugins; do
+    [[ -d "${CONFIG_DIR}/${dir}" ]] || continue
+    cp -a "${CONFIG_DIR}/${dir}" "${PUBLISH_DIR}/"
+  done
+
+  # Shared skills are stowed separately but published at the repo root.
+  cp -a "${SKILLS_DIR}" "${PUBLISH_DIR}/skills"
 
   echo "::endgroup::"
 }
@@ -327,6 +344,12 @@ commit_and_push() {
   git add -A
   if git diff --cached --quiet; then
     echo "No changes to publish"
+    return 0
+  fi
+
+  if [[ "${PUBLISH_DRY_RUN:-}" == "1" ]]; then
+    echo "Dry run enabled; skipping commit and push"
+    git diff --cached --stat
     return 0
   fi
 

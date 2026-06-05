@@ -6,6 +6,7 @@ on:
       - distro/arch-omarchy
     paths:
       - 'agents/.config/opencode/**'
+      - 'agents/.agents/skills/**'
       - '.github/workflows/opencode-publish.yml'
       - '.github/scripts/opencode-publish.sh'
   workflow_dispatch:
@@ -36,7 +37,8 @@ jobs:
         env:
           DOTFILES_REPO: ${{ github.repository }}
           PUBLISH_REPO: ${{ github.repository_owner }}/opencode-config
-          SOURCE_PREFIX: agents/.config/opencode
+          OPENCODE_SOURCE_PREFIX: agents/.config/opencode
+          SKILLS_SOURCE_PREFIX: agents/.agents/skills
           SOURCE_BRANCH: ${{ github.ref_name }}
           PUBLISH_DIR: ${{ github.workspace }}/_publish
         run: .github/scripts/opencode-publish.sh
