@@ -2,6 +2,8 @@ import { Clock, Context, Effect, Layer, PubSub, Schema, Stream } from "effect";
 import type {
   GitNotificationAction,
   GitNotificationActionResult,
+  GitNotificationBotReadOptions,
+  GitNotificationBotReadResult,
   GitNotificationQueryOptions,
   GitNotificationState,
   GitNotificationSubjectType,
@@ -58,6 +60,11 @@ interface GitNotificationsService {
   readonly markRead: (
     threadId: string,
   ) => Effect.Effect<GitNotificationActionResult, GitNotificationError>;
+  /** Mark unread bot notification threads as read, or preview them in dry-run mode. */
+  readonly markBotRead: (
+    opts?: GitNotificationQueryOptions,
+    actionOpts?: GitNotificationBotReadOptions,
+  ) => Effect.Effect<GitNotificationBotReadResult, GitNotificationError>;
   /** Mark a notification thread as done. */
   readonly markDone: (
     threadId: string,
@@ -270,6 +277,76 @@ export class GitNotifications extends Context.Service<
           threadEndpoint(threadId),
         ]);
 
+      const markBotRead = (
+        opts?: GitNotificationQueryOptions,
+        actionOpts?: GitNotificationBotReadOptions,
+      ) =>
+        Effect.gen(function* () {
+          const query = normalizeQuery(opts);
+          const threads = yield* fetchThreads(query);
+          const unreadThreads = threads.filter((thread) => thread.unread);
+          const botChecks = yield* Effect.all(
+            unreadThreads.map((thread) =>
+              notificationThreadLooksBot(thread, github).pipe(
+                Effect.map((bot) => ({ thread, bot })),
+              ),
+            ),
+            { concurrency: 4 },
+          );
+          const matched = botChecks
+            .filter((check) => check.bot)
+            .map((check) => check.thread);
+          const dryRun = actionOpts?.dryRun === true;
+
+          if (dryRun) {
+            return {
+              dryRun,
+              matched,
+              marked: [],
+              failed: [],
+            } satisfies GitNotificationBotReadResult;
+          }
+
+          const results = yield* Effect.all(
+            matched.map((thread) =>
+              markRead(thread.id).pipe(
+                Effect.matchEffect({
+                  onSuccess: () =>
+                    Effect.succeed({ type: "marked" as const, thread }),
+                  onFailure: (error) =>
+                    Effect.succeed({
+                      type: "failed" as const,
+                      thread,
+                      message: error.message,
+                    }),
+                }),
+              ),
+            ),
+            { concurrency: 4 },
+          );
+          const marked = results
+            .filter((result) => result.type === "marked")
+            .map((result) => result.thread);
+          const failed = results
+            .filter((result) => result.type === "failed")
+            .map((result) => ({
+              thread: result.thread,
+              message: result.message,
+            }));
+
+          return { dryRun, matched, marked, failed };
+        }).pipe(
+          Effect.withSpan("GitNotifications.markBotRead"),
+          Effect.mapError((error) =>
+            error instanceof GitNotificationError
+              ? error
+              : new GitNotificationError({
+                  message: formatGhError(error),
+                  action: "mark-bot-read",
+                }),
+          ),
+        );
+
       const markDone = (threadId: string) =>
         Effect.gen(function* () {
           const result = yield* runAction("done", threadId, [
@@ -303,6 +380,7 @@ export class GitNotifications extends Context.Service<
         refresh,
         getState: () => Effect.succeed(currentState),
         markRead,
+        markBotRead,
         markDone,
         ignore,
         unignore,

@@ -203,6 +203,8 @@ dot git-notifications --raw   # CLI notification summary
 dot git-notifications --bar-json # JSON output for status bars and shell modules
 dot git-notifications --list-threads # Notification thread rows
 dot git-notifications --mark-read <id> # Mark a notification read
+dot git-notifications --mark-bot-read --dry-run # Preview bot notifications to mark read
+dot git-notifications --mark-bot-read # Mark unread bot notifications read
 dot git-notifications --mark-done <id> # Mark a notification done
 dot git-notifications --ignore <id> # Ignore future notifications for a thread
 dot git-notifications --unignore <id> # Stop ignoring a thread

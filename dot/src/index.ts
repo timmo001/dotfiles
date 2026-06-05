@@ -53,6 +53,7 @@ import {
   notificationsListThreads,
   notificationsRaw,
   notificationsBarJson,
+  notificationsMarkBotRead,
 } from "./git/commands/Notifications.js";
 import type {
   GitNotificationAction,
@@ -376,6 +377,7 @@ function parseNotificationOpts(
 function hasNotificationNativeFlag(args: readonly string[]): boolean {
   return (
     hasBarJsonFlag(args) ||
+    args.includes("--mark-bot-read") ||
     args.includes("--list-threads") ||
     args.includes("--raw") ||
     NOTIFICATION_ACTION_FLAGS.some(({ flag }) => hasOption(args, flag))
@@ -487,6 +489,11 @@ if (mode.type === "native") {
   const resolveNotifications = (args: readonly string[]): NativeEffect => {
     const action = notificationActionArg(args);
     if (action) return notificationsAction(action.action, action.threadId);
+    if (args.includes("--mark-bot-read")) {
+      return notificationsMarkBotRead(notificationOpts, {
+        dryRun: args.includes("--dry-run"),
+      });
+    }
     if (hasBarJsonFlag(args)) return notificationsBarJson(notificationOpts);
     if (args.includes("--list-threads")) {
       return notificationsListThreads(notificationOpts);

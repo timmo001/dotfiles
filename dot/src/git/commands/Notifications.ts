@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 import type {
   GitNotificationAction,
+  GitNotificationBotReadResult,
   GitNotificationQueryOptions,
   GitNotificationState,
   GitNotificationThread,
@@ -73,6 +74,20 @@ export const notificationsAction = (
     const result = yield* actionEffects[action](threadId);
     yield* Effect.sync(() => process.stdout.write(`${result.message}\n`));
   }).pipe(Effect.withSpan("notifications.action"), handleNotificationError);
+
+/** Mark unread bot notification threads as read, or preview them with --dry-run. */
+export const notificationsMarkBotRead = (
+  opts?: GitNotificationQueryOptions,
+  actionOpts?: { readonly dryRun?: boolean },
+) =>
+  Effect.gen(function* () {
+    const notifications = yield* GitNotifications;
+    const result = yield* notifications.markBotRead(opts, actionOpts);
+    yield* Effect.sync(() => process.stdout.write(formatBotReadResult(result)));
+  }).pipe(
+    Effect.withSpan("notifications.markBotRead"),
+    handleNotificationError,
+  );
 
 function refreshNotificationState(opts?: GitNotificationQueryOptions) {
   return Effect.gen(function* () {
@@ -192,6 +207,46 @@ function formatThreadRow(thread: GitNotificationThread): string {
     thread.title,
     thread.webUrl,
   ]);
+}
+
+function formatBotReadResult(result: GitNotificationBotReadResult): string {
+  const action = result.dryRun ? "Would mark" : "Marked";
+  const lines = [
+    `${action} ${result.dryRun ? result.matched.length : result.marked.length} bot notification${pluralSuffix(result.dryRun ? result.matched.length : result.marked.length)} read.`,
+  ];
+
+  if (!result.dryRun && result.failed.length > 0) {
+    lines.push(
+      `Failed: ${result.failed.length} notification${pluralSuffix(result.failed.length)}.`,
+    );
+  }
+
+  const threads = result.dryRun ? result.matched : result.marked;
+  if (threads.length > 0) {
+    lines.push("", "Matched threads:");
+    for (const thread of threads) {
+      lines.push(`  ${formatBotReadThread(thread)}`);
+    }
+  }
+
+  if (result.failed.length > 0) {
+    lines.push("", "Failures:");
+    for (const failure of result.failed) {
+      lines.push(
+        `  ${formatBotReadThread(failure.thread)}: ${failure.message}`,
+      );
+    }
+  }
+
+  return lines.join("\n") + "\n";
+}
+
+function formatBotReadThread(thread: GitNotificationThread): string {
+  return `${thread.id} | ${thread.repo} | ${thread.type} | ${thread.title}`;
+}
+
+function pluralSuffix(count: number): string {
+  return count === 1 ? "" : "s";
 }
 
 function appendNotificationQueryLines(

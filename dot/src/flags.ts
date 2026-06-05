@@ -480,6 +480,8 @@ Filters:
 
 Actions:
   --mark-read <id>  Mark a notification thread as read
+  --mark-bot-read   Mark unread Renovate/Dependabot/bot notifications as read
+  --dry-run         Preview --mark-bot-read without mutating GitHub state
   --mark-done <id>  Mark a notification thread as done
   --ignore <id>     Ignore future notifications for a thread
   --unignore <id>   Stop ignoring future notifications for a thread
@@ -488,6 +490,7 @@ Examples:
   dot git-notifications                    Interactive notifications TUI
   dot git-notifications --bar-json         Status bar JSON output
   dot git-notifications --participating    TUI with participating filter
+  dot git-notifications --mark-bot-read --dry-run
   dot git-notifications --mark-read 12345  Mark thread read`);
     return;
   }

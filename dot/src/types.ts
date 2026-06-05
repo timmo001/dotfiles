@@ -265,6 +265,12 @@ export interface GitNotificationState {
 /** Mutating GitHub notification action. */
 export type GitNotificationAction = "read" | "done" | "ignore" | "unignore";
 
+/** Options for batch bot notification read actions. */
+export interface GitNotificationBotReadOptions {
+  /** Report matching bot notifications without mutating GitHub state. */
+  readonly dryRun?: boolean;
+}
+
 /** Result from a mutating GitHub notification action. */
 export interface GitNotificationActionResult {
   /** Action that was applied. */
@@ -273,6 +279,26 @@ export interface GitNotificationActionResult {
   readonly threadId: string;
   /** Human-readable action result. */
   readonly message: string;
+}
+
+/** Failed batch notification mark-read attempt. */
+export interface GitNotificationBotReadFailure {
+  /** Notification thread that could not be marked read. */
+  readonly thread: GitNotificationThread;
+  /** Human-readable failure reason. */
+  readonly message: string;
+}
+
+/** Summary of a batch bot notification mark-read operation. */
+export interface GitNotificationBotReadResult {
+  /** Whether this run only reported matches without mutating GitHub state. */
+  readonly dryRun: boolean;
+  /** Bot notification threads matched by the detector. */
+  readonly matched: readonly GitNotificationThread[];
+  /** Bot notification threads successfully marked read. */
+  readonly marked: readonly GitNotificationThread[];
+  /** Bot notification threads that could not be marked read. */
+  readonly failed: readonly GitNotificationBotReadFailure[];
 }
 
 // --- Git staging types ---
