@@ -375,6 +375,7 @@ Angular templates contribute synthetic `<template>` complexity findings whenever
 | `--top` | number | — | Only show the top N most complex functions (and file scores/hotspots/targets) |
 | `--sort` | `cyclomatic\|cognitive\|lines\|severity` | `cyclomatic` | Sort order for complexity findings |
 | `--complexity` | bool | `false` | Show only function complexity findings. When no section flags are set, all sections are shown by default. |
+| `--complexity-breakdown` | bool | `false` | Add a per-decision-point `contributions[]` array to each complexity finding in `--format json`. Each entry names the construct (`if`, `else-if`, `ternary`, boolean operator, loop, `case`, `catch`, `optional-chain`, ...) and carries its source line, the metric it adds to (`cyclomatic` or `cognitive`), its weight, and the nesting depth, so a consumer can explain WHY a function scored high. Off by default (no change to existing JSON/SARIF/markdown). Used by the VS Code inline editor breakdown and the MCP `check_health` `complexity_breakdown` param. |
 | `--file-scores` | bool | `false` | Show only per-file health scores (maintainability index, LOC, fan-in, fan-out, dead code ratio, complexity density, CRAP risk). Runs the full analysis pipeline. Sorted by risk-aware triage concern: lower maintainability index and higher CRAP risk first. When no section flags are set, all sections are shown by default. |
 | `--hotspots` | bool | `false` | Show only hotspots: files that are both complex and frequently changing. Combines git churn history with complexity data. Requires a git repository. When no section flags are set, all sections are shown by default. |
 | `--targets` | bool | `false` | Show only refactoring targets: ranked recommendations based on complexity, coupling, churn, and dead code signals. Categories: churn+complexity, circular dep, high impact, dead code, complexity, coupling. When no section flags are set, all sections are shown by default. |
@@ -383,8 +384,9 @@ Angular templates contribute synthetic `<template>` complexity findings whenever
 | `--min-score` | number | — | Fail (exit 1) only when the health score is below this threshold. Implies `--score`. Authoritative CI quality gate: when set, complexity findings are demoted to informational and the exit code is driven solely by the score, so `--min-score 0` always exits 0. Composes with `--min-severity`. |
 | `--min-severity` | `moderate\|high\|critical` | — | Only exit with an error for findings at or above this severity. Composes with `--min-score` (the run fails if either gate trips). |
 | `--report-only` | bool | `false` | Print the score and findings but never fail CI (always exit 0). Advisory mode. Mutually exclusive with `--min-score` and `--min-severity`. |
-| `--since` | string | `6m` | Git history window for hotspot analysis. Accepts durations (`6m`, `90d`, `1y`, `2w`) or ISO dates (`2025-06-01`). |
+| `--since` | string | `6m` | Git history window for hotspot analysis. Accepts durations (`6m`, `90d`, `1y`, `2w`) or ISO dates (`2025-06-01`). Ignored when `--churn-file` is set. |
 | `--min-commits` | number | `3` | Minimum number of commits for a file to be included in hotspot ranking. |
+| `--churn-file` | string | (none) | Import change history from a `fallow-churn/v1` JSON file (`{schema, events:[{path, timestamp, author, added, deleted}]}`, one entry per changed file per commit) instead of `git log`, so `--hotspots`/`--ownership`/`--targets` work on non-git VCS (Yandex Arc, Mercurial, Perforce). Resolved relative to `--root`; wins over git. Authoritative for the window, so `--since` then only labels output. Malformed file exits 2; `audit`/`impact`/`--changed-since` still require git. |
 | `--ownership` | bool | `false` | Attach ownership signals to hotspot entries: bus factor (Avelino truck factor), contributor count, top contributor with stale-days, recent contributors (top-3), `suggested_reviewers`, declared CODEOWNERS owner, `ownership_state`, ownership drift, unowned-hotspot detection. Human output gains a project-level summary line. JSON adds `low-bus-factor`, `unowned-hotspot`, `ownership-drift` action types. Test files get a `[test]` tag. Implies `--hotspots`. Requires git. |
 | `--ownership-emails` | `raw\|handle\|anonymized\|hash` | `handle` | Privacy mode for author emails. `handle` shows the local-part only (default, with GitHub noreply unwrap and deterministic same-handle disambiguation). `anonymized` emits stable `xxh3:` pseudonyms; `hash` remains accepted as the legacy spelling. `raw` shows full addresses. Use `anonymized` in regulated environments. Implies `--ownership`. Configure default via `health.ownership.emailMode`. |
 | `--changed-since` | string | — | Only analyze files changed since a git ref |
@@ -493,7 +495,7 @@ fallow health --format json --quiet --trend
 {
   "kind": "health",
   "schema_version": 7,
-  "version": "2.88.3",
+  "version": "2.89.0",
   "elapsed_ms": 32,
   "summary": {
     "files_analyzed": 482,
@@ -883,7 +885,7 @@ fallow audit \
 {
   "kind": "audit",
   "schema_version": 7,
-  "version": "2.88.3",
+  "version": "2.89.0",
   "command": "audit",
   "verdict": "fail",
   "changed_files_count": 12,
@@ -956,7 +958,7 @@ fallow flags --format json --quiet --workspace my-package
 ```json
 {
   "schema_version": 7,
-  "version": "2.88.3",
+  "version": "2.89.0",
   "elapsed_ms": 116,
   "feature_flags": [],
   "total_flags": 0
@@ -1396,6 +1398,7 @@ Available on all commands:
 | `FALLOW_EXTENDS_TIMEOUT_SECS` | Timeout for fetching remote config inheritance in seconds (default: `5`). Do not raise this for untrusted sources. |
 | `FALLOW_CACHE_MAX_SIZE` | Maximum on-disk extraction cache (`.fallow/cache.bin`) size in megabytes (default: `256`). Triggers LRU eviction when crossed. Wins over `cache.maxSizeMb` config field. Intended for CI runners with disk quotas. `--no-cache` short-circuits this knob. |
 | `FALLOW_AUDIT_CACHE_MAX_AGE_DAYS` | Max age (in days since last reuse or fresh create) of a persistent reusable `fallow audit` base-snapshot worktree cache. Older entries are reclaimed at the top of the next `fallow audit` invocation (default: `30`). Wins over `audit.cacheMaxAgeDays` config field. `0` disables the GC; invalid values silently fall back to config / default. |
+| `FALLOW_UPDATE_CHECK` | Set to `off`, `0`, `false`, `disabled`, or `no` to disable the human-TTY upgrade nudge and its background latest-version check. `DO_NOT_TRACK`, `FALLOW_TELEMETRY_DISABLED`, and CI also suppress it. |
 | `FALLOW_COMMAND` | GitLab CI: command to run (default: `dead-code`). |
 | `FALLOW_FAIL_ON_ISSUES` | GitLab CI: set to `true` to exit 1 if issues found. |
 | `FALLOW_CHANGED_SINCE` | GitLab CI: git ref for incremental analysis. Auto-detected in MR pipelines. |
@@ -1495,7 +1498,7 @@ The HTTP layer mirrors the bash `gh_api_retry` / `curl_retry` helpers: `FALLOW_A
 {
   "kind": "dead-code",
   "schema_version": 7,
-  "version": "2.88.3",
+  "version": "2.89.0",
   "elapsed_ms": 45,
   "total_issues": 12,
   "entry_points": {
@@ -1655,7 +1658,7 @@ When `--baseline` is used in combined output, the JSON includes a `baseline_delt
 {
   "kind": "dupes",
   "schema_version": 7,
-  "version": "2.88.3",
+  "version": "2.89.0",
   "elapsed_ms": 82,
   "total_clones": 15,
   "total_lines_duplicated": 230,
@@ -1699,11 +1702,11 @@ When running `fallow` with no subcommand (all analyses), the JSON output combine
 {
   "kind": "combined",
   "schema_version": 7,
-  "version": "2.88.3",
+  "version": "2.89.0",
   "elapsed_ms": 159,
   "check": {
     "schema_version": 7,
-    "version": "2.88.3",
+    "version": "2.89.0",
     "elapsed_ms": 45,
     "total_issues": 12,
     "unused_files": [],
