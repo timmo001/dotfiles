@@ -167,11 +167,12 @@ MenuItem action types:
 
 ## CLI
 
-Command and flag metadata is currently split across `flags.ts`, `index.ts`,
-individual command handlers, and `commands/Completions.ts`. When changing any
-command, subcommand, alias, or flag, update the completion generator and run
-`dot completions zsh` after rebuilding the binary so
-`zsh/.local/share/zsh/site-functions/_dot` is regenerated before stow.
+Command and flag metadata lives in `src/cli/spec.ts`. Help rendering,
+completion generation, known-command detection, and native command recognition
+consume that registry. When changing any command, subcommand, alias, or flag,
+update the command spec and run `dot completions zsh` after rebuilding the
+binary so `zsh/.local/share/zsh/site-functions/_dot` is regenerated before
+stow.
 
 ```
 dot                           # Main menu (TUI)

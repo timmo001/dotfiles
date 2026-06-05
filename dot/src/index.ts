@@ -63,6 +63,7 @@ import type {
   ViewId,
   WorkflowRunQueryOptions,
 } from "./types.js";
+import { nativeCommandNames } from "./cli/spec.js";
 
 const DEBUG = !!process.env.DOT_DEBUG;
 const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
@@ -104,33 +105,6 @@ function includeAllRepos(filter: NotesViewFilter): NotesViewFilter {
   return { ...filter, includeAllRepos: true };
 }
 
-/** Commands ported natively to TypeScript Effect */
-const nativeCommands = new Set([
-  "init",
-  "install",
-  "update",
-  "stow",
-  "doctor",
-  "clean",
-  "diff",
-  "git-diff",
-  "git-log",
-  "git-workflows",
-  "git-notifications",
-  "notes",
-  "note",
-  "handoff",
-  "handoffs",
-  "agents-sync",
-  "opencode-debug",
-  "setup-private-repo",
-  "private-pkg-publish",
-  "skill-updates",
-  "skill-check",
-  "completions",
-  "help",
-]);
-
 const NOTIFICATION_ACTION_FLAGS: readonly {
   readonly flag: string;
   readonly action: GitNotificationAction;
@@ -148,7 +122,7 @@ function resolveMode(): Mode {
   }
 
   // Native commands bypass the menu/fallback system entirely
-  if (nativeCommands.has(flags.subcommand)) {
+  if (nativeCommandNames.has(flags.subcommand)) {
     if (flags.subcommand === "notes" && isNotesTuiInvocation(flags.rest)) {
       return flags.rest.includes("--all")
         ? {

@@ -14,7 +14,7 @@ dot_commands=(
   'git-log:Open recent commits across tracked repos'
   'git-workflows:Open watched GitHub workflow runs'
   'git-notifications:Open GitHub notification inbox'
-  'notes:Open repository notes or run note utilities'
+  'notes:Open repository notes or run note utility commands'
   'handoffs:Open handoff notes'
   'handoff:Alias for handoffs'
   'note:Read, write, or delete note files'
@@ -26,264 +26,360 @@ dot_commands=(
   'skill-check:Validate skill references'
   'completions:Generate shell completions'
   'omarchy:Open an Omarchy submenu by path'
-  'help:Show help'
+  'help:Show this help menu'
 )
 
-local -a dot_init_hosts dot_notes_commands dot_note_commands dot_note_formats
-dot_init_hosts=('desktop:Desktop Hypr host' 'laptop:Laptop Hypr host')
-dot_notes_commands=(
-  'root:Print the notes vault root'
-  'context:Print OpenCode notes context'
-  'list:List repository notes'
-)
-dot_note_commands=(
-  'read:Print a note file'
-  'write:Write stdin to a note file and commit it'
-  'delete:Delete a note file and commit it'
-)
-dot_note_formats=('labels:Human-readable note labels' 'json:JSON output')
-
-local -a dot_omarchy_submenus
-dot_omarchy_submenus=(
-  'theme:Theme management'
-  'font:Font management'
-  'toggle:Toggle system features'
-  'capture:Screenshots and recordings'
-  'system:Lock, logout, reboot, shutdown'
-  'launch:Launch applications'
-  'refresh:Refresh system components'
-  'restart:Restart system services'
-  'install:Install software and tools'
-  'remove:Remove software and features'
-  'packages:Package management'
-  'share:Share clipboard, files, folders'
-  'reminder:Reminders'
-  'setup:DNS, security setup'
-  'snapshot:System snapshots'
-  'brightness:Display and keyboard brightness'
-  'power:Power profiles'
-)
-
-_dot_path_option() {
+_dot_cmd_init() {
   _arguments -S \
-    '(-h --help)'{-h,--help}'[Show help message]' \
-    '--path[Note file path]:file:_files' \
+    '--confirm[Acknowledge non-interactive package helpers]' \
+    '--noninteractive[Skip interactive prompts for this run]' \
+    '--interactive[Allow interactive prompts for this run]' \
+    '--host[Hypr host to link before stow (default: OMARCHY_HOST or desktop)]:name:((desktop:Desktop Hypr host laptop:Laptop Hypr host))' \
+    '--log[Init log path (default: /tmp/dot-init.log)]:path:_files' \
+    '--branch[Branch override for non-bootstrap Omarchy repos]:name:' \
+    '--bootstrap-branch[Branch override for bootstrap]:name:' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
     '*::arg:->args'
 }
-
-_dot_git_diff() {
+_dot_cmd_install() {
   _arguments -S \
-    '(-h --help)'{-h,--help}'[Show help message]' \
-    '--no-fetch[Skip fetching from remotes]' \
-    '--raw[Text summary of repos with changes]' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
+_dot_cmd_update() {
+  _arguments -S \
+    '--pull[Pull repos only]' \
+    '--stow[Stow only]' \
+    '--tui[Install deps and rebuild dot binary only]' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
+_dot_cmd_stow() {
+  _arguments -S \
+    '--public[Stow public dotfiles only]' \
+    '--private[Stow private dotfiles only]' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
+_dot_cmd_doctor() {
+  _arguments -S \
+    '--open-opencode[Save report and open it in OpenCode]' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
+_dot_cmd_clean() {
+  _arguments -S \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
+_dot_cmd_git_diff() {
+  _arguments -S \
+    '--no-fetch[Skip fetching from remotes (use local refs only)]' \
+    '--tab[Initial pane to focus in TUI (default: changed)]:changed|other|unchanged:(changed other unchanged)' \
+    '--raw[Text summary output]' \
     '--bar-json[JSON output for status bars and shell modules]' \
     '--list-changed[Changed repos as rows]' \
     '--list-all[All tracked repos as rows]' \
-    '--tab[Initial TUI pane]:tab:(changed other unchanged)' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
     '*::arg:->args'
 }
-
-_dot_git_workflows() {
+_dot_cmd_git_log() {
   _arguments -S \
-    '(-h --help)'{-h,--help}'[Show help message]' \
+    '--raw[Text summary of recent commits]' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
+_dot_cmd_git_workflows() {
+  _arguments -S \
+    '--since[Only include runs active at or after this date (ISO/RFC/epoch)]:date:' \
     '--raw[Text summary of watched workflow runs]' \
     '--bar-json[JSON output for status bars and shell modules]' \
     '--list-repos[Watched repo summaries as rows]' \
     '--list-runs[Workflow runs as rows]' \
-    '--since[Only include runs active at or after date]:date:' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
     '*::arg:->args'
 }
-
-_dot_git_notifications() {
+_dot_cmd_git_notifications() {
   _arguments -S \
-    '(-h --help)'{-h,--help}'[Show help message]' \
     '--raw[Text summary of notification threads]' \
     '--bar-json[JSON output for status bars and shell modules]' \
     '--list-threads[Notification threads as rows]' \
-    '--bar-filter[Apply watched-repo filtering]' \
+    '--bar-filter[Apply watched-repo filtering in raw/list output]' \
     '--all[Include read notifications]' \
     '--participating[Only include participating or mentioned threads]' \
-    '--since[Only include notifications updated after date]:date:' \
-    '--mark-read[Mark a notification thread as read]:thread id:' \
-    '--mark-bot-read[Mark unread bot notifications as read]' \
+    '--since[Only include notifications updated after this date]:date:' \
+    '--mark-read[Mark a notification thread as read]:id:' \
+    '--mark-bot-read[Mark unread Renovate/Dependabot/bot notifications as read]' \
     '--dry-run[Preview --mark-bot-read without mutating GitHub state]' \
-    '--mark-done[Mark a notification thread as done]:thread id:' \
-    '--ignore[Ignore future notifications for a thread]:thread id:' \
-    '--unignore[Stop ignoring future notifications for a thread]:thread id:' \
+    '--mark-done[Mark a notification thread as done]:id:' \
+    '--ignore[Ignore future notifications for a thread]:id:' \
+    '--unignore[Stop ignoring future notifications for a thread]:id:' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
     '*::arg:->args'
 }
-
-_dot_notes() {
+_dot_cmd_notes() {
+  local -a _dot_cmd_notes_commands
+  _dot_cmd_notes_commands=(
+    'root:Print the notes vault root'
+    'context:Print the context block for OpenCode notes'
+    'list:List repository notes'
+  )
   local state
   _arguments -C -S \
-    '(-h --help)'{-h,--help}'[Show help message]' \
     '--all[Show notes from every repo-notes directory]' \
-    '1:notes command:->notes_command' \
-    '*::arg:->notes_args' && return
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '1:notes command:->command' \
+    '*::arg:->args'
 
   case $state in
-    notes_command)
-      _describe -t commands 'notes command' dot_notes_commands
+    command)
+      _describe -t commands 'notes command' _dot_cmd_notes_commands
       ;;
-    notes_args)
-      case \${words[2]} in
+    args)
+      local subcommand=${words[2]}
+      shift words
+      (( CURRENT-- ))
+      case $subcommand in
         root)
-          _arguments -S '--repo-notes[Print repository notes directory]'
+          _dot_cmd_notes_root
           ;;
         context)
-          _arguments -S '--command[OpenCode command name]:command:'
+          _dot_cmd_notes_context
           ;;
         list)
-          _arguments -S \
-            '--all[List notes from every repo-notes directory]' \
-            '--format[Output format]:format:((labels\:Human-readable\ note\ labels json\:JSON\ output))'
+          _dot_cmd_notes_list
           ;;
       esac
       ;;
   esac
 }
-
-_dot_note() {
+_dot_cmd_notes_root() {
+  _arguments -S \
+    '--repo-notes[Print repository notes directory]' \
+    '*::arg:->args'
+}
+_dot_cmd_notes_context() {
+  _arguments -S \
+    '--command[OpenCode command name]:name:' \
+    '*::arg:->args'
+}
+_dot_cmd_notes_list() {
+  _arguments -S \
+    '--all[Show notes from every repo-notes directory]' \
+    '--format[Output format]:labels|json:(labels json)' \
+    '*::arg:->args'
+}
+_dot_cmd_handoffs() {
+  _arguments -S \
+    '--all[Show handoff notes from every repo-notes directory]' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
+_dot_cmd_note() {
+  local -a _dot_cmd_note_commands
+  _dot_cmd_note_commands=(
+    'read:Print a note file'
+    'write:Write stdin to a note file and commit it'
+    'delete:Delete a note file and commit it'
+  )
   local state
   _arguments -C -S \
-    '(-h --help)'{-h,--help}'[Show help message]' \
-    '1:note command:->note_command' \
-    '*::arg:->note_args' && return
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '1:note command:->command' \
+    '*::arg:->args'
 
   case $state in
-    note_command)
-      _describe -t commands 'note command' dot_note_commands
+    command)
+      _describe -t commands 'note command' _dot_cmd_note_commands
       ;;
-    note_args)
-      case \${words[2]} in
-        read|delete)
-          _dot_path_option
+    args)
+      local subcommand=${words[2]}
+      shift words
+      (( CURRENT-- ))
+      case $subcommand in
+        read)
+          _dot_cmd_note_read
           ;;
         write)
-          _arguments -S \
-            '(-h --help)'{-h,--help}'[Show help message]' \
-            '--path[Note file path]:file:_files' \
-            '--stdin[Read note content from stdin]' \
-            '*::arg:->args'
+          _dot_cmd_note_write
+          ;;
+        delete)
+          _dot_cmd_note_delete
           ;;
       esac
       ;;
   esac
 }
-
-_dot_omarchy() {
+_dot_cmd_note_read() {
   _arguments -S \
-    '(-h --help)'{-h,--help}'[Show help message]' \
-    '*:submenu:_describe -t submenus "omarchy submenu" dot_omarchy_submenus'
+    '--path[Note file path]:path:_files' \
+    '*::arg:->args'
 }
-
+_dot_cmd_note_write() {
+  _arguments -S \
+    '--path[Note file path]:path:_files' \
+    '--stdin[Read note content from stdin]' \
+    '*::arg:->args'
+}
+_dot_cmd_note_delete() {
+  _arguments -S \
+    '--path[Note file path]:path:_files' \
+    '*::arg:->args'
+}
+_dot_cmd_agents_sync() {
+  _arguments -S \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
+_dot_cmd_opencode_debug() {
+  _arguments -S \
+    '--agent[Debug a specific OpenCode agent]:name:' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
+_dot_cmd_setup_private_repo() {
+  _arguments -S \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
+_dot_cmd_private_pkg_publish() {
+  _arguments -S \
+    '--no-git[Skip package repo commit and push]' \
+    '--skip-build[Publish an existing dist package artifact]' \
+    '--install[Install the published package after syncing the mirror]' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '1:package-name:package-name:' \
+    '*::arg:->args'
+}
+_dot_cmd_skill_updates() {
+  _arguments -S \
+    '--check[Check only without applying]' \
+    '--update[Auto-apply clean updates]' \
+    '--skip-review[Skip local-edit review]' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
+_dot_cmd_skill_check() {
+  _arguments -S \
+    '--open-opencode[Run checks then open OpenCode analysis]' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
+_dot_cmd_completions() {
+  _arguments -S \
+    '--stdout[Print the completion script instead of writing it]' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '1:shell:shell:(zsh)' \
+    '*::arg:->args'
+}
+_dot_cmd_omarchy() {
+  _arguments -S \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '*:submenu:submenu:((theme:Theme management font:Font management toggle:Toggle system features capture:Screenshots and recordings system:Lock, logout, reboot, shutdown launch:Launch applications refresh:Refresh system components restart:Restart system services install:Install software and tools remove:Remove software and features packages:Package management share:Share clipboard, files, folders reminder:Reminders setup:DNS, security setup snapshot:System snapshots brightness:Display and keyboard brightness power:Power profiles))' \
+    '*::arg:->args'
+}
+_dot_cmd_help() {
+  _arguments -S \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
 _dot_complete_command() {
   local command=$1
 
   case $command in
     init)
-      _arguments -S \
-        '(-h --help)'{-h,--help}'[Show help message]' \
-        '--confirm[Acknowledge non-interactive package helpers]' \
-        '--noninteractive[Skip interactive prompts]' \
-        '--interactive[Allow interactive prompts]' \
-        '--host[Hypr host to link before stow]:host:_describe -t hosts "host" dot_init_hosts' \
-        '--log[Init log path]:file:_files' \
-        '--branch[Branch override for non-bootstrap Omarchy repos]:branch:' \
-        '--bootstrap-branch[Branch override for bootstrap]:branch:' \
-        '*::arg:->args'
+      _dot_cmd_init
+      ;;
+    install)
+      _dot_cmd_install
       ;;
     update)
-      _arguments -S \
-        '(-h --help)'{-h,--help}'[Show help message]' \
-        '--pull[Pull repos only]' \
-        '--stow[Stow only]' \
-        '--tui[Install deps and rebuild dot binary only]' \
-        '*::arg:->args'
+      _dot_cmd_update
       ;;
     stow)
-      _arguments -S \
-        '(-h --help)'{-h,--help}'[Show help message]' \
-        '--public[Stow public dotfiles only]' \
-        '--private[Stow private dotfiles only]' \
-        '*::arg:->args'
+      _dot_cmd_stow
       ;;
-    doctor|skill-check)
-      _arguments -S \
-        '(-h --help)'{-h,--help}'[Show help message]' \
-        '--open-opencode[Run checks then open OpenCode analysis]' \
-        '*::arg:->args'
+    doctor)
+      _dot_cmd_doctor
+      ;;
+    clean)
+      _dot_cmd_clean
       ;;
     git-diff|diff)
-      _dot_git_diff
+      _dot_cmd_git_diff
       ;;
     git-log)
-      _arguments -S \
-        '(-h --help)'{-h,--help}'[Show help message]' \
-        '--raw[Text summary of recent commits]' \
-        '*::arg:->args'
+      _dot_cmd_git_log
       ;;
     git-workflows)
-      _dot_git_workflows
+      _dot_cmd_git_workflows
       ;;
     git-notifications)
-      _dot_git_notifications
+      _dot_cmd_git_notifications
       ;;
     notes)
-      _dot_notes
+      _dot_cmd_notes
       ;;
     handoffs|handoff)
-      _arguments -S \
-        '(-h --help)'{-h,--help}'[Show help message]' \
-        '--all[Show handoff notes from every repo-notes directory]' \
-        '*::arg:->args'
+      _dot_cmd_handoffs
       ;;
     note)
-      _dot_note
+      _dot_cmd_note
+      ;;
+    agents-sync)
+      _dot_cmd_agents_sync
       ;;
     opencode-debug)
-      _arguments -S \
-        '(-h --help)'{-h,--help}'[Show help message]' \
-        '--agent[Debug a specific OpenCode agent]:agent:' \
-        '*::arg:->args'
+      _dot_cmd_opencode_debug
+      ;;
+    setup-private-repo)
+      _dot_cmd_setup_private_repo
       ;;
     private-pkg-publish)
-      _arguments -S \
-        '(-h --help)'{-h,--help}'[Show help message]' \
-        '--no-git[Skip package repo commit and push]' \
-        '--skip-build[Publish an existing dist package artifact]' \
-        '--install[Install the published package after syncing mirror]' \
-        '1:package name:' \
-        '*::arg:->args'
+      _dot_cmd_private_pkg_publish
       ;;
     skill-updates)
-      _arguments -S \
-        '(-h --help)'{-h,--help}'[Show help message]' \
-        '--check[Check only without applying]' \
-        '--update[Auto-apply clean updates]' \
-        '--skip-review[Skip local-edit review]' \
-        '*::arg:->args'
+      _dot_cmd_skill_updates
+      ;;
+    skill-check)
+      _dot_cmd_skill_check
       ;;
     completions)
-      _arguments -S \
-        '(-h --help)'{-h,--help}'[Show help message]' \
-        '--stdout[Print completion script instead of writing it]' \
-        '1:shell:(zsh)' \
-        '*::arg:->args'
+      _dot_cmd_completions
       ;;
     omarchy)
-      _dot_omarchy
+      _dot_cmd_omarchy
       ;;
-    install|clean|agents-sync|setup-private-repo|help)
-      _arguments -S \
-        '(-h --help)'{-h,--help}'[Show help message]' \
-        '*::arg:->args'
+    help)
+      _dot_cmd_help
       ;;
   esac
 }
 
 if (( CURRENT > 2 )); then
-  local command=\${words[2]}
+  local command=${words[2]}
   shift words
   (( CURRENT-- ))
   _dot_complete_command "$command"
@@ -292,7 +388,8 @@ fi
 
 local state
 _arguments -C -S \
-  '(-h --help)'{-h,--help}'[Show help message]' \
+  '(-h --help)-h[Show help message]' \
+  '(-h --help)--help[Show help message]' \
   '1:dot command:->command' && return
 
 case $state in
@@ -300,4 +397,3 @@ case $state in
     _describe -t commands 'dot command' dot_commands
     ;;
 esac
-
