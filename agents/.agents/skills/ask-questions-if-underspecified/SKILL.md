@@ -2,7 +2,7 @@
 name: ask-questions-if-underspecified
 description: Ask minimal clarifying questions only when ambiguity materially changes implementation
 # origin: https://github.com/trailofbits/skills/tree/main/plugins/ask-questions-if-underspecified/skills/ask-questions-if-underspecified
-# upstream-sha: 650f6e370031ced31f924d4c1c453a64a4063709
+# upstream-sha: d5fe2e6a7896236c3102fd5477e833623ad70298
 # local-edits:
 #   - description rewritten for brevity
 #   - body condensed from detailed template-based process to concise OpenCode workflow
