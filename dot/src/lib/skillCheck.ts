@@ -114,24 +114,34 @@ export function discoverSkills(
  * Pattern: backtick-quoted name followed by "skill" keyword.
  * Matches: `skill-name` skill, `skill-name` skill when...
  */
-const SKILL_TRAILING_RE = /`([a-z][a-z0-9-]*)`\s+skill\b/g;
+const SKILL_TRAILING_RE = /`([a-z][a-z0-9]*(?:-[a-z0-9]+)*)`\s+skill\b/g;
 
 /**
  * Pattern: "apply/load" verb + optional "the" + backtick-quoted name.
  * "apply" and "load" are strong skill indicators; "use" is too generic.
  */
-const SKILL_APPLY_RE = /(?:apply|load)\s+(?:the\s+)?`([a-z][a-z0-9-]*)`/g;
+const SKILL_APPLY_RE =
+  /(?:apply|load)\s+(?:the\s+)?`([a-z][a-z0-9]*(?:-[a-z0-9]+)*)`/g;
 
 /**
  * Pattern: "use the `name` skill" — requires trailing "skill" to avoid
  * matching tool/plugin references like "use the `task` tool".
  */
-const SKILL_USE_RE = /use\s+(?:the\s+)?`([a-z][a-z0-9-]*)`\s+skill\b/g;
+const SKILL_USE_RE =
+  /use\s+(?:the\s+)?`([a-z][a-z0-9]*(?:-[a-z0-9]+)*)`\s+skill\b/g;
 
 /**
  * Pattern: explicit skill loading in commands (Load the `name` skill).
  */
-const SKILL_LOAD_RE = /[Ll]oad\s+(?:the\s+)?`([a-z][a-z0-9-]*)`\s+skill\b/g;
+const SKILL_LOAD_RE =
+  /[Ll]oad\s+(?:the\s+)?`([a-z][a-z0-9]*(?:-[a-z0-9]+)*)`\s+skill\b/g;
+
+/** Pattern: any backtick-quoted complete skill-like name on a line about skills. */
+const BACKTICK_NAME_RE = /`([a-z][a-z0-9]*(?:-[a-z0-9]+)*)`/g;
+
+/** Pattern: a line that is explicitly about applying, loading, or using skills. */
+const SKILL_CONTEXT_RE =
+  /\b(?:apply|load|use)\b.*\bskills?\b|\bskills?\b.*\b(?:apply|load|use)\b/i;
 
 /** Common non-skill terms that might match patterns above */
 const IGNORE_TERMS = new Set([
@@ -152,6 +162,9 @@ const IGNORE_TERMS = new Set([
   "task",
   "write",
   "read",
+  "skill",
+  "pkill",
+  "killall",
 ]);
 
 /** Extract skill references from file content */
@@ -175,6 +188,14 @@ function extractReferences(
       seen.add(key);
       refs.push({ name, file: filePath, line: i + 1 });
     };
+
+    if (SKILL_CONTEXT_RE.test(line)) {
+      BACKTICK_NAME_RE.lastIndex = 0;
+      let m: RegExpExecArray | null;
+      while ((m = BACKTICK_NAME_RE.exec(line)) !== null) {
+        addRef(m[1]);
+      }
+    }
 
     // Match all patterns
     for (const re of [
@@ -235,6 +256,14 @@ const SCAN_PATHS = [
   ".opencode/commands",
 ];
 
+/** Private dotfiles paths to scan for skill references. */
+const PRIVATE_SCAN_PATHS = [
+  "agents/.config/opencode/AGENTS.md",
+  "agents/.config/opencode/agents",
+  "agents/.config/opencode/commands",
+  ".opencode/commands",
+];
+
 /** Scan all relevant files and collect skill references */
 export function scanReferences(
   publicDotfiles: string,
@@ -242,38 +271,31 @@ export function scanReferences(
 ): readonly SkillReference[] {
   const refs: SkillReference[] = [];
 
-  for (const scanPath of SCAN_PATHS) {
-    const fullPath = join(publicDotfiles, scanPath);
-    if (!existsSync(fullPath)) continue;
+  const scanPath = (dotfilesRoot: string, path: string, relPrefix = "") => {
+    const fullPath = join(dotfilesRoot, path);
+    if (!existsSync(fullPath)) return;
 
     if (fullPath.endsWith(".md")) {
       // Direct file
       const content = readFileSync(fullPath, "utf-8");
-      const relPath = relative(publicDotfiles, fullPath);
+      const relPath = `${relPrefix}${relative(dotfilesRoot, fullPath)}`;
       refs.push(...extractReferences(content, relPath));
     } else if (existsSync(fullPath)) {
       // Directory — scan .md files within
-      for (const file of scanMarkdownFiles(fullPath, publicDotfiles)) {
+      for (const file of scanMarkdownFiles(fullPath, dotfilesRoot)) {
         const content = readFileSync(file.fullPath, "utf-8");
-        refs.push(...extractReferences(content, file.relPath));
+        refs.push(...extractReferences(content, `${relPrefix}${file.relPath}`));
       }
     }
+  };
+
+  for (const path of SCAN_PATHS) {
+    scanPath(publicDotfiles, path);
   }
 
-  // Also scan the global AGENTS.md from private dotfiles if available
   if (privateDotfiles) {
-    const globalAgents = join(
-      privateDotfiles,
-      "agents/.config/opencode/AGENTS.md",
-    );
-    if (existsSync(globalAgents)) {
-      const content = readFileSync(globalAgents, "utf-8");
-      refs.push(
-        ...extractReferences(
-          content,
-          "~private/agents/.config/opencode/AGENTS.md",
-        ),
-      );
+    for (const path of PRIVATE_SCAN_PATHS) {
+      scanPath(privateDotfiles, path, "~private/");
     }
   }
 
