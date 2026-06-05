@@ -104,13 +104,8 @@ export const skillUpdates = (opts?: {
             yield* log.info(`  ${meta.name}: up to date (cached)`);
           } else {
             // Write the SHA since content matched despite SHA mismatch
-            if (mode !== "check") {
-              writeSha(join(meta.dir, "SKILL.md"), result.cached ? "" : "");
-              // For non-cached up-to-date, need to get the sha from upstream
-              // This path means content matches but SHA was different
-              // The checkSkill function should have returned writeSha in this case
-              // but up-to-date doesn't carry it. We handle this inside checkSkill
-              // by writing SHA there.
+            if (mode !== "check" && result.writeSha) {
+              writeSha(join(meta.dir, "SKILL.md"), result.writeSha);
             }
             yield* log.info(`  ${meta.name}: up to date`);
           }

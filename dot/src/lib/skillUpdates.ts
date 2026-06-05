@@ -37,7 +37,11 @@ export interface FileChange {
 
 /** Result of checking a single skill against upstream */
 export type CheckResult =
-  | { readonly type: "up-to-date"; readonly cached: boolean }
+  | {
+      readonly type: "up-to-date";
+      readonly cached: boolean;
+      readonly writeSha?: string;
+    }
   | {
       readonly type: "changes";
       readonly files: readonly FileChange[];
@@ -602,7 +606,7 @@ export const checkSkill = (meta: SkillMeta) =>
 
     if (changes.length === 0) {
       // No content changes despite SHA mismatch — write SHA and report up-to-date
-      return { type: "up-to-date", cached: false } as CheckResult;
+      return { type: "up-to-date", cached: false, writeSha } as CheckResult;
     }
 
     // Build summary
