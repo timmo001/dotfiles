@@ -19,8 +19,8 @@ export PATH="$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
 export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME=""  # Starship owns the prompt
 DISABLE_AUTO_TITLE=true  # Custom hooks below own the terminal title
-if [[ -d "$HOME/.zsh/completions" ]]; then
-  fpath=("$HOME/.zsh/completions" $fpath)
+if [[ -d "${XDG_DATA_HOME:-$HOME/.local/share}/zsh/site-functions" ]]; then
+  fpath=("${XDG_DATA_HOME:-$HOME/.local/share}/zsh/site-functions" $fpath)
 fi
 if [[ -n "${GHOSTTY_SHELL_FEATURES:-}" ]]; then
   typeset -a _dot_ghostty_features
@@ -32,6 +32,8 @@ if [[ -n "${GHOSTTY_SHELL_FEATURES:-}" ]]; then
 fi
 plugins=(git zsh-autosuggestions zsh-syntax-highlighting fast-syntax-highlighting zsh-autocomplete)
 source "$ZSH/oh-my-zsh.sh"
+autoload -Uz _dot 2>/dev/null
+compdef _dot dot 2>/dev/null
 
 # ------------------------------
 # Terminal title

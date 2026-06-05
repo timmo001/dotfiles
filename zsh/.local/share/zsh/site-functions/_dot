@@ -124,7 +124,7 @@ _dot_notes() {
       _describe -t commands 'notes command' dot_notes_commands
       ;;
     notes_args)
-      case ${words[3]} in
+      case ${words[2]} in
         root)
           _arguments -S '--repo-notes[Print repository notes directory]'
           ;;
@@ -153,7 +153,7 @@ _dot_note() {
       _describe -t commands 'note command' dot_note_commands
       ;;
     note_args)
-      case ${words[3]} in
+      case ${words[2]} in
         read|delete)
           _dot_path_option
           ;;
@@ -175,105 +175,119 @@ _dot_omarchy() {
     '*:submenu:_describe -t submenus "omarchy submenu" dot_omarchy_submenus'
 }
 
-local state command
+_dot_complete_command() {
+  local command=$1
+
+  case $command in
+    init)
+      _arguments -S \
+        '(-h --help)'{-h,--help}'[Show help message]' \
+        '--confirm[Acknowledge non-interactive package helpers]' \
+        '--noninteractive[Skip interactive prompts]' \
+        '--interactive[Allow interactive prompts]' \
+        '--host[Hypr host to link before stow]:host:_describe -t hosts "host" dot_init_hosts' \
+        '--log[Init log path]:file:_files' \
+        '--branch[Branch override for non-bootstrap Omarchy repos]:branch:' \
+        '--bootstrap-branch[Branch override for bootstrap]:branch:' \
+        '*::arg:->args'
+      ;;
+    update)
+      _arguments -S \
+        '(-h --help)'{-h,--help}'[Show help message]' \
+        '--pull[Pull repos only]' \
+        '--stow[Stow only]' \
+        '--tui[Install deps and rebuild dot binary only]' \
+        '*::arg:->args'
+      ;;
+    stow)
+      _arguments -S \
+        '(-h --help)'{-h,--help}'[Show help message]' \
+        '--public[Stow public dotfiles only]' \
+        '--private[Stow private dotfiles only]' \
+        '*::arg:->args'
+      ;;
+    doctor|skill-check)
+      _arguments -S \
+        '(-h --help)'{-h,--help}'[Show help message]' \
+        '--open-opencode[Run checks then open OpenCode analysis]' \
+        '*::arg:->args'
+      ;;
+    git-diff|diff)
+      _dot_git_diff
+      ;;
+    git-log)
+      _arguments -S \
+        '(-h --help)'{-h,--help}'[Show help message]' \
+        '--raw[Text summary of recent commits]' \
+        '*::arg:->args'
+      ;;
+    git-workflows)
+      _dot_git_workflows
+      ;;
+    git-notifications)
+      _dot_git_notifications
+      ;;
+    notes)
+      _dot_notes
+      ;;
+    handoffs|handoff)
+      _arguments -S \
+        '(-h --help)'{-h,--help}'[Show help message]' \
+        '--all[Show handoff notes from every repo-notes directory]' \
+        '*::arg:->args'
+      ;;
+    note)
+      _dot_note
+      ;;
+    opencode-debug)
+      _arguments -S \
+        '(-h --help)'{-h,--help}'[Show help message]' \
+        '--agent[Debug a specific OpenCode agent]:agent:' \
+        '*::arg:->args'
+      ;;
+    private-pkg-publish)
+      _arguments -S \
+        '(-h --help)'{-h,--help}'[Show help message]' \
+        '--no-git[Skip package repo commit and push]' \
+        '--skip-build[Publish an existing dist package artifact]' \
+        '--install[Install the published package after syncing mirror]' \
+        '1:package name:' \
+        '*::arg:->args'
+      ;;
+    skill-updates)
+      _arguments -S \
+        '(-h --help)'{-h,--help}'[Show help message]' \
+        '--check[Check only without applying]' \
+        '--update[Auto-apply clean updates]' \
+        '--skip-review[Skip local-edit review]' \
+        '*::arg:->args'
+      ;;
+    omarchy)
+      _dot_omarchy
+      ;;
+    install|clean|agents-sync|setup-private-repo|help)
+      _arguments -S \
+        '(-h --help)'{-h,--help}'[Show help message]' \
+        '*::arg:->args'
+      ;;
+  esac
+}
+
+if (( CURRENT > 2 )); then
+  local command=${words[2]}
+  shift words
+  (( CURRENT-- ))
+  _dot_complete_command "$command"
+  return
+fi
+
+local state
 _arguments -C -S \
   '(-h --help)'{-h,--help}'[Show help message]' \
-  '1:dot command:->command' \
-  '*::arg:->args' && return
+  '1:dot command:->command' && return
 
 case $state in
   command)
     _describe -t commands 'dot command' dot_commands
-    ;;
-  args)
-    command=${words[2]}
-    case $command in
-      init)
-        _arguments -S \
-          '(-h --help)'{-h,--help}'[Show help message]' \
-          '--confirm[Acknowledge non-interactive package helpers]' \
-          '--noninteractive[Skip interactive prompts]' \
-          '--interactive[Allow interactive prompts]' \
-          '--host[Hypr host to link before stow]:host:_describe -t hosts "host" dot_init_hosts' \
-          '--log[Init log path]:file:_files' \
-          '--branch[Branch override for non-bootstrap Omarchy repos]:branch:' \
-          '--bootstrap-branch[Branch override for bootstrap]:branch:' \
-          '*::arg:->args'
-        ;;
-      update)
-        _arguments -S \
-          '(-h --help)'{-h,--help}'[Show help message]' \
-          '--pull[Pull repos only]' \
-          '--stow[Stow only]' \
-          '--tui[Install deps and rebuild dot binary only]' \
-          '*::arg:->args'
-        ;;
-      stow)
-        _arguments -S \
-          '(-h --help)'{-h,--help}'[Show help message]' \
-          '--public[Stow public dotfiles only]' \
-          '--private[Stow private dotfiles only]' \
-          '*::arg:->args'
-        ;;
-      doctor|skill-check)
-        _arguments -S \
-          '(-h --help)'{-h,--help}'[Show help message]' \
-          '--open-opencode[Run checks then open OpenCode analysis]' \
-          '*::arg:->args'
-        ;;
-      git-diff|diff)
-        _dot_git_diff
-        ;;
-      git-log)
-        _arguments -S \
-          '(-h --help)'{-h,--help}'[Show help message]' \
-          '--raw[Text summary of recent commits]' \
-          '*::arg:->args'
-        ;;
-      git-workflows)
-        _dot_git_workflows
-        ;;
-      git-notifications)
-        _dot_git_notifications
-        ;;
-      notes)
-        _dot_notes
-        ;;
-      handoffs|handoff)
-        _arguments -S \
-          '(-h --help)'{-h,--help}'[Show help message]' \
-          '--all[Show handoff notes from every repo-notes directory]' \
-          '*::arg:->args'
-        ;;
-      note)
-        _dot_note
-        ;;
-      opencode-debug)
-        _arguments -S \
-          '(-h --help)'{-h,--help}'[Show help message]' \
-          '--agent[Debug a specific OpenCode agent]:agent:' \
-          '*::arg:->args'
-        ;;
-      private-pkg-publish)
-        _arguments -S \
-          '(-h --help)'{-h,--help}'[Show help message]' \
-          '--no-git[Skip package repo commit and push]' \
-          '--skip-build[Publish an existing dist package artifact]' \
-          '--install[Install the published package after syncing mirror]' \
-          '1:package name:' \
-          '*::arg:->args'
-        ;;
-      skill-updates)
-        _arguments -S \
-          '(-h --help)'{-h,--help}'[Show help message]' \
-          '--check[Check only without applying]' \
-          '--update[Auto-apply clean updates]' \
-          '--skip-review[Skip local-edit review]' \
-          '*::arg:->args'
-        ;;
-      omarchy)
-        _dot_omarchy
-        ;;
-    esac
     ;;
 esac
