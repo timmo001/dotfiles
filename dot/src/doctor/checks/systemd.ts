@@ -796,19 +796,6 @@ export const checkMhoc303ClockSync = Effect.gen(function* () {
 
     try {
       const scriptContent = readFileSync(script, "utf-8");
-      if (scriptContent.includes("omarchy update time")) {
-        results.push({
-          severity: "ok",
-          message: "MHO-C303 clock sync runs Omarchy time sync first",
-        });
-      } else {
-        results.push({
-          severity: "warn",
-          message: "MHO-C303 clock sync does not run Omarchy time sync first",
-          detail: `Expected omarchy update time in ${displayPath(script)}`,
-        });
-      }
-
       if (scriptContent.includes(".mho-c303-mac-address")) {
         results.push({
           severity: "ok",

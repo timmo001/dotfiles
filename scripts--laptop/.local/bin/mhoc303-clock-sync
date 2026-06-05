@@ -13,5 +13,4 @@ MAC_ADDRESS=${MAC_ADDRESS//$'\n'/}
 MAC_ADDRESS=${MAC_ADDRESS//$'\r'/}
 
 cd "$HOME/repos/mhoc303-clock-sync"
-omarchy update time
 exec uv run mhoc303-clock-sync sync "$MAC_ADDRESS" --timeout 20 --attempts 20 --retry-delay 5
