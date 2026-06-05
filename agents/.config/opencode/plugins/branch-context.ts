@@ -61,8 +61,6 @@ const BRANCH_CONTEXT_COMMANDS = new Set([
   "reset-branch-reapply",
   "review-current-work",
 
-  // Private
-  "timmo001-private/deslopify",
 ])
 const WORK_SCOPE_COMMANDS = new Set([
   // General
@@ -73,6 +71,7 @@ const WORK_SCOPE_COMMANDS = new Set([
   // Private
   "all-lit-skills",
   "all-ts-skills",
+  "timmo001-private/deslopify",
 
   // Home Assistant
   "home-assistant/all-frontend-skills",

@@ -27,6 +27,9 @@ export const skillCheck = (opts?: { readonly openOpencode?: boolean }) =>
     // Summary
     yield* log.info(`Skills discovered: ${result.skills.length}`);
     yield* log.info(`References found: ${result.references.length}`);
+    yield* log.info(
+      `Branch-context consumers found: ${result.branchContextConsumers.length}`,
+    );
 
     // Broken references
     if (result.broken.length > 0) {
@@ -49,15 +52,27 @@ export const skillCheck = (opts?: { readonly openOpencode?: boolean }) =>
       }
     }
 
+    if (result.branchContextIssues.length > 0) {
+      yield* log.section("Branch Context Registration Issues");
+      for (const issue of result.branchContextIssues) {
+        yield* log.error(
+          `${issue.command} in ${issue.file}:${issue.line} — ${issue.reason}`,
+        );
+      }
+    }
+
     // Verdict
-    if (result.broken.length > 0) {
+    if (result.broken.length > 0 || result.branchContextIssues.length > 0) {
       yield* log.error(`${result.broken.length} broken reference(s) found.`);
+      yield* log.error(
+        `${result.branchContextIssues.length} branch context registration issue(s) found.`,
+      );
       yield* Effect.sync(() => {
         process.exitCode = 1;
       });
     } else {
       yield* log.info(
-        "No broken references. All skill names resolve correctly.",
+        "No broken references. All skill names resolve correctly and branch-context commands are registered.",
       );
     }
 
@@ -71,6 +86,9 @@ export const skillCheck = (opts?: { readonly openOpencode?: boolean }) =>
         result.unreferenced.length > 0
           ? `${result.unreferenced.length} unreferenced skill(s): ${result.unreferenced.map((s) => s.name).join(", ")}`
           : "All skills referenced.",
+        result.branchContextIssues.length > 0
+          ? `${result.branchContextIssues.length} branch-context registration issue(s): ${result.branchContextIssues.map((issue) => issue.command).join(", ")}`
+          : "All branch-context commands are registered.",
       ].join(" ");
 
       const opencodePrompt = `Skill check results: ${summary}\n\nAnalyse the unreferenced skills and suggest whether they should be explicitly referenced in AGENTS.md or agent definitions, or whether their descriptions are sufficient for the LLM to discover them. Also check if any unreferenced skills might be obsolete.`;
