@@ -290,28 +290,12 @@ const opencodeReview = (
   },
 ) =>
   Effect.gen(function* () {
-    // Check opencode is available
     const executor = yield* CommandExecutor;
-    const ocAvailable = yield* executor
-      .exitCode("which", ["opencode"])
-      .pipe(Effect.map((code) => code === 0));
-
-    if (!ocAvailable) {
-      yield* log.error(
-        "opencode command not found. Skipping OpenCode handoff.",
-      );
-      return;
-    }
 
     for (const { meta, writeSha: sha } of items) {
       yield* log.section(`Skill Review: ${meta.name}`);
       yield* log.info(`Origin: ${meta.originUrl}`);
       yield* log.info(`Path:   ${meta.dir}`);
-
-      // Write SHA before the OpenCode session
-      if (sha) {
-        writeSha(join(meta.dir, "SKILL.md"), sha);
-      }
 
       // Build the diff report
       const diffContent = yield* buildSingleDiff(meta).pipe(
@@ -321,6 +305,23 @@ const opencodeReview = (
       if (!diffContent) {
         yield* log.info(`  No upstream diff to review for ${meta.name}.`);
         continue;
+      }
+
+      // Check opencode is available only when there is a real diff to review.
+      const ocAvailable = yield* executor
+        .exitCode("which", ["opencode"])
+        .pipe(Effect.map((code) => code === 0));
+
+      if (!ocAvailable) {
+        yield* log.error(
+          "opencode command not found. Skipping OpenCode handoff.",
+        );
+        return;
+      }
+
+      // Write SHA before the OpenCode session
+      if (sha) {
+        writeSha(join(meta.dir, "SKILL.md"), sha);
       }
 
       // Compose the prompt

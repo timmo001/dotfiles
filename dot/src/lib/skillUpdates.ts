@@ -349,27 +349,50 @@ const listUpstreamDir = (origin: SkillOrigin, dirPath: string) =>
 /** Recursively list all files in an upstream skill directory */
 export const listUpstreamFiles = (origin: SkillOrigin) =>
   Effect.gen(function* () {
-    const entries = yield* listUpstreamDir(origin, origin.path);
     const files: string[] = [];
 
-    for (const entry of entries) {
-      if (entry.type === "file") {
-        files.push(entry.name);
-      } else if (entry.type === "dir") {
-        const subEntries = yield* listUpstreamDir(
-          origin,
-          `${origin.path}/${entry.name}`,
-        );
-        for (const sub of subEntries) {
-          if (sub.type === "file") {
-            files.push(`${entry.name}/${sub.name}`);
+    const walk = (
+      upstreamDir: string,
+      relativeDir: string,
+    ): Effect.Effect<void, never, GitHub> =>
+      Effect.gen(function* () {
+        const entries = yield* listUpstreamDir(origin, upstreamDir);
+
+        for (const entry of entries) {
+          const relativePath = relativeDir
+            ? `${relativeDir}/${entry.name}`
+            : entry.name;
+
+          if (entry.type === "file") {
+            files.push(relativePath);
+          } else if (entry.type === "dir") {
+            yield* walk(`${upstreamDir}/${entry.name}`, relativePath);
           }
         }
-      }
-    }
+      });
 
-    return files;
+    yield* walk(origin.path, "");
+    return files.sort();
   });
+
+/** Read local skill file content when present. */
+function readLocalSkillFile(skillDir: string, file: string): string | null {
+  const localPath = join(skillDir, file);
+  if (!existsSync(localPath)) return null;
+  return readFileSync(localPath, "utf-8");
+}
+
+/** Normalise a skill file pair for comparison. */
+function normaliseSkillPair(
+  file: string,
+  localContent: string,
+  upstreamContent: string,
+): readonly [string, string] {
+  if (file === "SKILL.md") {
+    return [normaliseLocal(localContent), normaliseUpstream(upstreamContent)];
+  }
+  return [localContent, upstreamContent];
+}
 
 // ---------------------------------------------------------------------------
 // Local File Listing
@@ -535,38 +558,45 @@ export const checkSkill = (meta: SkillMeta) =>
       return { type: "up-to-date", cached: true } as CheckResult;
     }
 
-    // Compare local files against upstream
+    // Compare all local and upstream files, including references/**.
     const localFiles = listLocalFiles(dir);
+    const upstreamFiles = yield* listUpstreamFiles(origin);
+    const allFiles = Array.from(
+      new Set([...localFiles, ...upstreamFiles]),
+    ).sort();
     const changes: FileChange[] = [];
 
-    for (const file of localFiles) {
-      const localPath = join(dir, file);
-      const localContent = readFileSync(localPath, "utf-8");
+    for (const file of allFiles) {
+      const localContent = readLocalSkillFile(dir, file);
 
       const upstreamContent = yield* fetchFile(origin, file).pipe(
         Effect.catch(() => Effect.succeed("")),
       );
+
+      if (localContent === null) {
+        if (upstreamContent) {
+          const diffPreview = yield* generateDiff("", upstreamContent, 20);
+          changes.push({ path: file, status: "added-upstream", diffPreview });
+        }
+        continue;
+      }
 
       if (!upstreamContent) {
         changes.push({ path: file, status: "removed-upstream" });
         continue;
       }
 
-      // Normalise and compare
-      let localNorm: string;
-      let upstreamNorm: string;
-
-      if (file === "SKILL.md") {
-        localNorm = normaliseLocal(localContent);
-        upstreamNorm = normaliseUpstream(upstreamContent);
-      } else {
-        localNorm = localContent;
-        upstreamNorm = upstreamContent;
-      }
+      const [localNorm, upstreamNorm] = normaliseSkillPair(
+        file,
+        localContent,
+        upstreamContent,
+      );
 
       if (localNorm !== upstreamNorm) {
         const diffPreview = yield* generateDiff(localNorm, upstreamNorm, 20);
-        changes.push({ path: file, status: "modified", diffPreview });
+        if (diffPreview) {
+          changes.push({ path: file, status: "modified", diffPreview });
+        }
       }
     }
 
@@ -676,15 +706,37 @@ export const buildSingleDiff = (meta: SkillMeta) =>
     }
 
     const localFiles = listLocalFiles(dir);
+    const upstreamFiles = yield* listUpstreamFiles(origin);
+    const allFiles = Array.from(
+      new Set([...localFiles, ...upstreamFiles]),
+    ).sort();
     let hasDiff = false;
 
-    for (const file of localFiles) {
-      const localPath = join(dir, file);
-      const localContent = readFileSync(localPath, "utf-8");
+    for (const file of allFiles) {
+      const localContent = readLocalSkillFile(dir, file);
 
       const upstreamContent = yield* fetchFile(origin, file).pipe(
         Effect.catch(() => Effect.succeed("")),
       );
+
+      if (localContent === null) {
+        if (upstreamContent) {
+          const diff = yield* generateFullDiff(
+            "",
+            upstreamContent,
+            `local/${file}`,
+            `upstream/${file}`,
+          );
+          if (diff) {
+            parts.push(`### ${file} (new upstream)\n`);
+            parts.push("```diff");
+            parts.push(diff);
+            parts.push("```\n");
+            hasDiff = true;
+          }
+        }
+        continue;
+      }
 
       if (!upstreamContent) {
         parts.push(`### ${file} (removed upstream)\n`);
@@ -692,15 +744,11 @@ export const buildSingleDiff = (meta: SkillMeta) =>
         continue;
       }
 
-      let localNorm: string;
-      let upstreamNorm: string;
-      if (file === "SKILL.md") {
-        localNorm = normaliseLocal(localContent);
-        upstreamNorm = normaliseUpstream(upstreamContent);
-      } else {
-        localNorm = localContent;
-        upstreamNorm = upstreamContent;
-      }
+      const [localNorm, upstreamNorm] = normaliseSkillPair(
+        file,
+        localContent,
+        upstreamContent,
+      );
 
       if (localNorm !== upstreamNorm) {
         const diff = yield* generateFullDiff(
@@ -709,11 +757,13 @@ export const buildSingleDiff = (meta: SkillMeta) =>
           `local/${file}`,
           `upstream/${file}`,
         );
-        parts.push(`### ${file}\n`);
-        parts.push("```diff");
-        parts.push(diff);
-        parts.push("```\n");
-        hasDiff = true;
+        if (diff) {
+          parts.push(`### ${file}\n`);
+          parts.push("```diff");
+          parts.push(diff);
+          parts.push("```\n");
+          hasDiff = true;
+        }
       }
     }
 
