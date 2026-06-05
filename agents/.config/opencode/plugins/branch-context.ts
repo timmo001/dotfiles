@@ -77,6 +77,7 @@ const WORK_SCOPE_COMMANDS = new Set([
   // Home Assistant
   "home-assistant/all-frontend-skills",
   "home-assistant/lazy-context",
+  "home-assistant/list-components",
   "home-assistant/lit-rendering",
 ])
 const TARGET_COMMANDS = new Set([...BRANCH_CONTEXT_COMMANDS, ...WORK_SCOPE_COMMANDS])
