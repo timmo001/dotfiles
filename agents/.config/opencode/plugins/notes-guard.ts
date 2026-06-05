@@ -1,23 +1,20 @@
-import { isAbsolute, relative, resolve } from "node:path"
 import type { Plugin } from "@opencode-ai/plugin"
+import {
+  argRecord,
+  commandMentionsPath,
+  expandHome,
+  stringArg,
+  targetIsInsideDirectory,
+} from "../lib/guard-paths"
 
-function expandHome(filePath: string): string {
-  const home = process.env.HOME ?? ""
-  return home && filePath.startsWith("~/") ? `${home}/${filePath.slice(2)}` : filePath
-}
-
-function isInsideDirectory(parent: string, child: string): boolean {
-  const relativePath = relative(resolve(parent), resolve(child))
-  return relativePath === "" || (!relativePath.startsWith("..") && !isAbsolute(relativePath))
-}
-
-function argRecord(value: unknown): Record<string, unknown> {
-  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {}
-}
-
-function stringArg(value: unknown): string {
-  return typeof value === "string" ? value : ""
-}
+const PATH_ARG_TOOLS = new Set([
+  "read",
+  "write",
+  "edit",
+  "grep",
+  "glob",
+  "list",
+])
 
 async function dotRepoNotesRoot(): Promise<string | null> {
   try {
@@ -27,14 +24,20 @@ async function dotRepoNotesRoot(): Promise<string | null> {
       stderr: "pipe",
       env: process.env,
     })
-    const [stdout, exitCode] = await Promise.all([new Response(proc.stdout).text(), proc.exited])
+    const [stdout, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      proc.exited,
+    ])
     if (exitCode === 0 && stdout.trim()) return stdout.trim()
   } catch {}
   return null
 }
 
 async function fallbackRepoNotesRoot(): Promise<string> {
-  const notesRoot = process.env.NOTES || process.env.DOT_NOTES_DIR || `${process.env.HOME ?? "~"}/Documents/notes`
+  const notesRoot =
+    process.env.NOTES ||
+    process.env.DOT_NOTES_DIR ||
+    `${process.env.HOME ?? "~"}/Documents/notes`
   return `${notesRoot}/repo-notes`
 }
 
@@ -47,8 +50,15 @@ export const NotesGuardPlugin = (async () => {
   const expandedVaultPath = expandHome(vaultPath)
 
   const isInsideVault = (filePath: string) => {
-    if (!filePath) return false
-    return isInsideDirectory(expandedVaultPath, expandHome(filePath))
+    return targetIsInsideDirectory(expandedVaultPath, filePath)
+  }
+
+  const toolTargetsVault = (tool: string, args: Record<string, unknown>) => {
+    if (!PATH_ARG_TOOLS.has(tool)) return false
+
+    return [args.filePath, args.path, args.pattern].some((value) =>
+      isInsideVault(stringArg(value)),
+    )
   }
 
   const guardMessage = (tool: string) =>
@@ -61,22 +71,15 @@ export const NotesGuardPlugin = (async () => {
       const tool = input.tool
       const args = argRecord(output.args)
 
-      if (tool === "read" || tool === "write" || tool === "edit") {
-        const filePath = stringArg(args.filePath) || stringArg(args.path)
-        if (isInsideVault(filePath)) throw new Error(guardMessage(tool))
-      }
+      if (toolTargetsVault(tool, args)) throw new Error(guardMessage(tool))
 
       if (tool === "bash") {
         const cmd = stringArg(args.command)
-        if (cmd.includes(expandedVaultPath) || cmd.includes(vaultPath)) {
+        if (
+          commandMentionsPath(cmd, expandedVaultPath) ||
+          commandMentionsPath(cmd, vaultPath)
+        )
           throw new Error(guardMessage("bash"))
-        }
-
-        const home = process.env.HOME ?? ""
-        if (home && expandedVaultPath.startsWith(home)) {
-          const tildeVault = `~/${expandedVaultPath.slice(home.length + 1)}`
-          if (cmd.includes(tildeVault)) throw new Error(guardMessage("bash"))
-        }
       }
     },
   }

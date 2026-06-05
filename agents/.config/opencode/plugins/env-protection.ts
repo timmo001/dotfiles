@@ -1,29 +1,48 @@
 /**
- * @file Blocks reads of .env files to prevent leaking secrets.
+ * @file Blocks direct access to .env files to prevent leaking secrets.
  *
- * Guards `tool.execute.before` on the `read` tool. Any file named `.env` or
- * `.env.*` (except `.env.example`) throws before the read reaches disk.
+ * Guards tool calls that target `.env` or `.env.*` files, except the exact
+ * `.env.example` template.
  */
 
 import type { Plugin } from "@opencode-ai/plugin"
+import { argRecord, stringArg, targetsProtectedEnv } from "../lib/guard-paths"
 
-function argRecord(value: unknown): Record<string, unknown> {
-  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {}
+const ENV_COMMAND_PATTERN =
+  /(?:^|[\s;&|()])(?:cat|cd|cp|env|grep|head|less|ls|more|mv|open|rg|rm|source|tail|test|vim|vi|nvim|\.|<|>|\[)\b|[<>]/
+
+function toolTargetsProtectedEnv(
+  tool: string,
+  args: Record<string, unknown>,
+): boolean {
+  if (tool === "read") return targetsProtectedEnv(stringArg(args.filePath) || stringArg(args.path))
+
+  if (tool === "grep") {
+    return [args.path, args.include].some((value) => targetsProtectedEnv(stringArg(value)))
+  }
+
+  if (tool === "glob") {
+    return [args.pattern, args.path].some((value) => targetsProtectedEnv(stringArg(value)))
+  }
+
+  return false
 }
 
-function stringArg(value: unknown): string {
-  return typeof value === "string" ? value : ""
+function commandTargetsProtectedEnv(command: string): boolean {
+  if (!targetsProtectedEnv(command)) return false
+  return ENV_COMMAND_PATTERN.test(command)
 }
 
 export const EnvProtection = (async () => {
   return {
     "tool.execute.before": async (input, output) => {
-      const filePath = stringArg(argRecord(output.args).filePath)
-      const fileName = filePath.split(/[\\/]/).pop() ?? ""
-      const isProtectedEnvFile =
-        fileName === ".env" || (fileName.startsWith(".env.") && fileName !== ".env.example")
+      const args = argRecord(output.args)
+      const command = stringArg(args.command)
 
-      if (input.tool === "read" && isProtectedEnvFile) {
+      if (
+        toolTargetsProtectedEnv(input.tool, args) ||
+        (input.tool === "bash" && commandTargetsProtectedEnv(command))
+      ) {
         throw new Error("Do not read .env files")
       }
     },
