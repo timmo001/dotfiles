@@ -167,6 +167,12 @@ MenuItem action types:
 
 ## CLI
 
+Command and flag metadata is currently split across `flags.ts`, `index.ts`,
+individual command handlers, and `commands/Completions.ts`. When changing any
+command, subcommand, alias, or flag, update the completion generator and run
+`dot completions zsh` after rebuilding the binary so
+`zsh/.local/share/zsh/site-functions/_dot` is regenerated before stow.
+
 ```
 dot                           # Main menu (TUI)
 dot init                      # One-time first-use setup, ending with dot update; logs to /tmp/dot-init.log

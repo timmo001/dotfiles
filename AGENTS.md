@@ -96,6 +96,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 
 - When editing files under `dot/`, always follow `dot/AGENTS.md` (validation steps, skills, patterns).
 - When adding new `dot` subcommands that users may want quick access to, also add them to the menu registry in `dot/src/menu.ts`.
+- When changing `dot` commands, subcommands, aliases, or flags, run `dot completions zsh` after rebuilding so the stowed Zsh completion file stays in sync.
 
 ## Script Configuration Policy
 
