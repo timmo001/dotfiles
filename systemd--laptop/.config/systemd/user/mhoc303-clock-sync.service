@@ -1,0 +1,7 @@
+[Unit]
+Description=Synchronize MHO-C303 clock over Bluetooth
+After=bluetooth.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/mhoc303-clock-sync

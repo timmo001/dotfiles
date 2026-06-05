@@ -21,6 +21,8 @@ const LEGACY_WORKFLOW_WATCH_SERVICE_UNIT = "git-workflow-watch.service";
 const LEGACY_WORKFLOW_WATCH_TIMER_UNIT = "git-workflow-watch.timer";
 const DOCTOR_STARTUP_TIMER_UNIT = "dot-doctor-startup.timer";
 const DAILY_VOLUME_ZERO_TIMER_UNIT = "daily-volume-zero.timer";
+const MHOC303_CLOCK_SYNC_TIMER_UNIT = "mhoc303-clock-sync.timer";
+const MHOC303_CLOCK_SYNC_ON_CALENDAR = "OnCalendar=Sun *-*-* 03:00:00";
 
 function pathExistsOrSymlink(path: string): boolean {
   try {
@@ -744,6 +746,201 @@ export const checkDailyVolumeReset = Effect.gen(function* () {
     results.push({
       severity: "ok",
       message: "Skipping daily volume reset timer checks (systemctl not found)",
+    });
+  }
+
+  return results;
+});
+
+/** Check MHO-C303 clock sync timer (laptop-only) */
+export const checkMhoc303ClockSync = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const results: CheckResult[] = [];
+  const host = process.env.OMARCHY_HOST ?? "unset";
+
+  const macAddressFile = join(HOME, ".mho-c303-mac-address");
+  const script = join(HOME, ".local", "bin", "mhoc303-clock-sync");
+  const systemdDir = join(XDG_CONFIG_HOME, "systemd", "user");
+  const serviceUnit = join(systemdDir, "mhoc303-clock-sync.service");
+  const timerUnit = join(systemdDir, MHOC303_CLOCK_SYNC_TIMER_UNIT);
+  const laptopDetail =
+    "Run dot stow, then enable with: systemctl --user enable --now mhoc303-clock-sync.timer";
+
+  if (host !== "laptop") {
+    results.push({
+      severity: "ok",
+      message: `MHO-C303 clock sync is laptop-only; skipping for OMARCHY_HOST=${host}`,
+    });
+    return results;
+  }
+
+  if (existsSync(macAddressFile)) {
+    results.push({
+      severity: "ok",
+      message: `MHO-C303 MAC address file found: ${displayPath(macAddressFile)}`,
+    });
+  } else {
+    results.push({
+      severity: "warn",
+      message: `MHO-C303 MAC address file missing: ${displayPath(macAddressFile)}`,
+      detail:
+        "Create it in private dotfiles at scripts/.mho-c303-mac-address, then run dot stow",
+    });
+  }
+
+  if (executableExists(script)) {
+    results.push({
+      severity: "ok",
+      message: `MHO-C303 clock sync script found: ${displayPath(script)}`,
+    });
+
+    try {
+      const scriptContent = readFileSync(script, "utf-8");
+      if (scriptContent.includes("omarchy update time")) {
+        results.push({
+          severity: "ok",
+          message: "MHO-C303 clock sync runs Omarchy time sync first",
+        });
+      } else {
+        results.push({
+          severity: "warn",
+          message: "MHO-C303 clock sync does not run Omarchy time sync first",
+          detail: `Expected omarchy update time in ${displayPath(script)}`,
+        });
+      }
+
+      if (scriptContent.includes(".mho-c303-mac-address")) {
+        results.push({
+          severity: "ok",
+          message: "MHO-C303 clock sync reads MAC address from private file",
+        });
+      } else {
+        results.push({
+          severity: "warn",
+          message:
+            "MHO-C303 clock sync does not read MAC address from private file",
+          detail: `Expected .mho-c303-mac-address in ${displayPath(script)}`,
+        });
+      }
+
+      if (/[0-9a-f]{2}(:[0-9a-f]{2}){5}/i.test(scriptContent)) {
+        results.push({
+          severity: "warn",
+          message:
+            "MHO-C303 clock sync script contains a hardcoded MAC address",
+          detail: `Move the MAC address to ${displayPath(macAddressFile)}`,
+        });
+      } else {
+        results.push({
+          severity: "ok",
+          message:
+            "MHO-C303 clock sync script does not hardcode the MAC address",
+        });
+      }
+    } catch {
+      results.push({
+        severity: "warn",
+        message: `Unable to read MHO-C303 clock sync script: ${displayPath(script)}`,
+      });
+    }
+  } else {
+    results.push({
+      severity: "warn",
+      message: `MHO-C303 clock sync script missing or not executable: ${displayPath(script)}`,
+      detail: laptopDetail,
+    });
+  }
+
+  if (existsSync(serviceUnit)) {
+    results.push({
+      severity: "ok",
+      message: `MHO-C303 clock sync service unit file found: ${displayPath(serviceUnit)}`,
+    });
+  } else {
+    results.push({
+      severity: "warn",
+      message: `MHO-C303 clock sync service unit file missing: ${displayPath(serviceUnit)}`,
+      detail: laptopDetail,
+    });
+  }
+
+  if (existsSync(timerUnit)) {
+    results.push({
+      severity: "ok",
+      message: `MHO-C303 clock sync timer unit file found: ${displayPath(timerUnit)}`,
+    });
+
+    try {
+      const timerContent = readFileSync(timerUnit, "utf-8");
+      if (timerContent.includes(MHOC303_CLOCK_SYNC_ON_CALENDAR)) {
+        results.push({
+          severity: "ok",
+          message: "MHO-C303 clock sync timer schedule is Sunday at 3am",
+        });
+      } else {
+        results.push({
+          severity: "warn",
+          message: "MHO-C303 clock sync timer schedule is not Sunday at 3am",
+          detail: `Expected ${MHOC303_CLOCK_SYNC_ON_CALENDAR} in ${displayPath(timerUnit)}`,
+        });
+      }
+    } catch {
+      results.push({
+        severity: "warn",
+        message: `Unable to read MHO-C303 clock sync timer unit file: ${displayPath(timerUnit)}`,
+      });
+    }
+  } else {
+    results.push({
+      severity: "warn",
+      message: `MHO-C303 clock sync timer unit file missing: ${displayPath(timerUnit)}`,
+      detail: laptopDetail,
+    });
+  }
+
+  const hasSystemctl = (yield* executor.exitCode("which", ["systemctl"])) === 0;
+  if (!hasSystemctl) {
+    results.push({
+      severity: "warn",
+      message:
+        "Skipping MHO-C303 clock sync timer checks (systemctl not found)",
+    });
+    return results;
+  }
+
+  const enabled = yield* executor.exitCode("systemctl", [
+    "--user",
+    "is-enabled",
+    MHOC303_CLOCK_SYNC_TIMER_UNIT,
+  ]);
+  if (enabled === 0) {
+    results.push({
+      severity: "ok",
+      message: `MHO-C303 clock sync timer enabled: ${MHOC303_CLOCK_SYNC_TIMER_UNIT}`,
+    });
+  } else {
+    results.push({
+      severity: "warn",
+      message: `MHO-C303 clock sync timer is disabled: ${MHOC303_CLOCK_SYNC_TIMER_UNIT}`,
+      detail: `Enable with: systemctl --user enable --now ${MHOC303_CLOCK_SYNC_TIMER_UNIT}`,
+    });
+  }
+
+  const active = yield* executor.exitCode("systemctl", [
+    "--user",
+    "is-active",
+    MHOC303_CLOCK_SYNC_TIMER_UNIT,
+  ]);
+  if (active === 0) {
+    results.push({
+      severity: "ok",
+      message: `MHO-C303 clock sync timer active: ${MHOC303_CLOCK_SYNC_TIMER_UNIT}`,
+    });
+  } else {
+    results.push({
+      severity: "warn",
+      message: `MHO-C303 clock sync timer is not active: ${MHOC303_CLOCK_SYNC_TIMER_UNIT}`,
+      detail: `Start with: systemctl --user start ${MHOC303_CLOCK_SYNC_TIMER_UNIT}`,
     });
   }
 

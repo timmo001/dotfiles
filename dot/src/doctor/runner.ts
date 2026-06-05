@@ -13,6 +13,7 @@ import {
   checkWorkflowRuns,
   checkDoctorStartup,
   checkDailyVolumeReset,
+  checkMhoc303ClockSync,
 } from "./checks/systemd.js";
 import { checkOmarchy } from "./checks/omarchy.js";
 import { checkBrowserFlags } from "./checks/browserFlags.js";
@@ -50,6 +51,7 @@ const sections: readonly SectionDef[] = [
   { name: "Git notification checks", check: checkGitNotifications },
   { name: "Doctor startup notification", check: checkDoctorStartup },
   { name: "Daily volume reset", check: checkDailyVolumeReset },
+  { name: "MHO-C303 clock sync", check: checkMhoc303ClockSync },
   { name: "Omarchy repository checks", check: checkOmarchy },
   { name: "Private access", check: checkPrivateAccess },
   { name: "Browser flags", check: checkBrowserFlags },
