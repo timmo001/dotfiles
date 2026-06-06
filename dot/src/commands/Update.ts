@@ -19,6 +19,7 @@ import {
 import { gitHead, gitPullRebase, gitWorkingTreeClean } from "../lib/git.js";
 import type { ConfigService } from "../services/Config.js";
 import type { InitCompleteMarkerStatus } from "../lib/initState.js";
+import type { DiffRepo } from "../types.js";
 
 const DISABLE_SELF_UPDATE_ARG = "--no-self-update";
 const POST_HOOK_REPO_ARG = "--post-hook-repo";
@@ -44,6 +45,14 @@ export interface UpdateOptions {
 
 const displayPath = (p: string): string =>
   p.replace(process.env.HOME ?? "", "~");
+
+const repoStatus = (repo: DiffRepo): string => {
+  const parts: string[] = [];
+  if (repo.isDirty) parts.push(`${repo.modified} modified`);
+  if (repo.ahead > 0) parts.push(`${repo.ahead} ahead`);
+  if (repo.behind > 0) parts.push(`${repo.behind} behind`);
+  return parts.length > 0 ? parts.join(", ") : "up to date";
+};
 
 const onResumeHelperPath = (): string | null => {
   const home = process.env.HOME;
@@ -329,6 +338,11 @@ export const update = (opts?: UpdateOptions) =>
       const repos = yield* dotDiff
         .getAll()
         .pipe(Effect.catch(() => Effect.succeed([])));
+      for (const repo of repos) {
+        yield* log.info(
+          `${repo.name}: ${repoStatus(repo)} (${displayPath(repo.path)})`,
+        );
+      }
 
       if (!config.canUsePrivate) {
         yield* log.warn(`Skipping private pull (${config.privateReason})`);
