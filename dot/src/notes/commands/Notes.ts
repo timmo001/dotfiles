@@ -46,9 +46,7 @@ Examples:
 
 function invalid(message: string, usage: string): Effect.Effect<void> {
   return Effect.sync(() => {
-    console.error(message);
-    console.error(usage);
-    process.exit(1);
+    exitWithError([message, usage]);
   });
 }
 
@@ -56,19 +54,35 @@ function handleNotesError<R>(effect: Effect.Effect<void, NotesError, R>) {
   return effect.pipe(
     Effect.catch((error) =>
       Effect.sync(() => {
-        console.error(`[dot notes] ${error.message}`);
-        if (error.detail) console.error(error.detail);
-        process.exit(1);
+        exitWithError(
+          error.detail
+            ? [`[dot notes] ${error.message}`, error.detail]
+            : [`[dot notes] ${error.message}`],
+        );
       }),
     ),
   );
 }
 
+function writeText(text: string): Effect.Effect<void> {
+  return Effect.sync(() => process.stdout.write(text));
+}
+
+function writeLine(text: string): Effect.Effect<void> {
+  return writeText(`${text}\n`);
+}
+
+function exitWithError(lines: readonly string[]): never {
+  for (const line of lines) console.error(line);
+  process.exit(1);
+}
+
 function parseListFormat(args: readonly string[]): NotesListFormat {
   const format = optionValue(args, "--format") ?? "labels";
   if (format === "labels" || format === "json") return format;
-  console.error(`Unknown --format value: ${format} (expected: labels or json)`);
-  process.exit(1);
+  exitWithError([
+    `Unknown --format value: ${format} (expected: labels or json)`,
+  ]);
 }
 
 /** Execute the native `dot notes` command namespace. */
@@ -85,7 +99,7 @@ export function notesCommand(args: readonly string[]) {
           const root = rest.includes("--repo-notes")
             ? yield* notes.repoNotesRoot
             : yield* notes.root;
-          yield* Effect.sync(() => process.stdout.write(`${root}\n`));
+          yield* writeLine(root);
           return;
         }
         case "context": {
@@ -98,7 +112,7 @@ export function notesCommand(args: readonly string[]) {
             return;
           }
           const context = yield* notes.context({ command });
-          yield* Effect.sync(() => process.stdout.write(`${context}\n`));
+          yield* writeLine(context);
           return;
         }
         case "list": {
@@ -110,7 +124,7 @@ export function notesCommand(args: readonly string[]) {
               format === "json"
                 ? JSON.stringify(sections, null, 2)
                 : formatNoteSections(sections);
-            yield* Effect.sync(() => process.stdout.write(`${output}\n`));
+            yield* writeLine(output);
             return;
           }
 
@@ -119,7 +133,7 @@ export function notesCommand(args: readonly string[]) {
             format === "json"
               ? JSON.stringify(entries, null, 2)
               : entries.map(formatNoteLabel).join("\n");
-          yield* Effect.sync(() => process.stdout.write(`${output}\n`));
+          yield* writeLine(output);
           return;
         }
         default:
@@ -153,7 +167,7 @@ export function noteCommand(args: readonly string[]) {
       switch (subcommand) {
         case "read": {
           const content = yield* notes.read(filePath);
-          yield* Effect.sync(() => process.stdout.write(content));
+          yield* writeText(content);
           return;
         }
         case "write": {
@@ -163,12 +177,12 @@ export function noteCommand(args: readonly string[]) {
           }
           const content = yield* Effect.promise(() => Bun.stdin.text());
           const result = yield* notes.write(filePath, content);
-          yield* Effect.sync(() => process.stdout.write(`${result.output}\n`));
+          yield* writeLine(result.output);
           return;
         }
         case "delete": {
           const result = yield* notes.delete(filePath);
-          yield* Effect.sync(() => process.stdout.write(`${result.output}\n`));
+          yield* writeLine(result.output);
           return;
         }
         default:
