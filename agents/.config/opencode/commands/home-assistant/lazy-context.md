@@ -11,28 +11,11 @@ Load and apply the `home-assistant-frontend` and `home-assistant-lazy-context` s
 
 Load the `branch-context-consumer` skill. Use work-scope mode.
 
-1. Work only from files in that scope.
+Work only from files in the injected `<work-scope>`. Use `${ARGUMENTS}` only to narrow that current-work scope.
 
 ## Inspect Before Editing
 
-Read these files when provider/context behavior is relevant:
-
-```text
-src/data/context/index.ts
-src/state/context-mixin.ts
-src/state/lazy-context-provider.ts
-```
-
-Use these repository references to match local patterns:
-
-```text
-src/components/ha-label-picker.ts
-src/components/ha-selector/ha-selector-select.ts
-src/components/ha-target-picker.ts
-src/components/ha-navigation-picker.ts
-src/panels/config/integrations/integration-panels/zwave_js/dialog-zwave_js-rebuild-network-routes/dialog-zwave_js-rebuild-network-routes-detail.ts
-src/panels/lovelace/cards/hui-button-card.ts
-```
+Use the skill's provider, context, and repository reference guidance before changing context behavior.
 
 If the scope is primarily Lit rendering and picker callback-shape changes, also apply `home-assistant/lit-rendering` (which applies both `lit-rendering` and `home-assistant-lit-rendering` skills).
 
@@ -45,9 +28,4 @@ If the scope is primarily Lit rendering and picker callback-shape changes, also 
 
 ## Final Report
 
-Report only:
-
-- Scope source used (`BranchContextPlugin` context)
-- Context/memoization issues fixed
-- Files changed
-- Verification run and result
+Report only the scope source used, context or memoization issues fixed, files changed, and verification result.

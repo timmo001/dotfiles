@@ -11,17 +11,11 @@ Load and apply the `home-assistant-frontend`, `lit-rendering`, and `home-assista
 
 Load the `branch-context-consumer` skill. Use work-scope mode.
 
-1. Work only from files in that scope.
+Work only from files in the injected `<work-scope>`. Use `${ARGUMENTS}` only to narrow that current-work scope.
 
 ## Inspect Before Editing
 
-Use these repository references as the primary pattern sources:
-
-```text
-src/components/ha-selector/ha-selector-select.ts
-src/components/ha-target-picker.ts
-src/components/ha-navigation-picker.ts
-```
+Use the skills' repository reference guidance as the primary pattern source.
 
 When context/lazy-context usage is part of the same change, also apply `home-assistant/lazy-context`.
 
@@ -34,9 +28,4 @@ When context/lazy-context usage is part of the same change, also apply `home-ass
 
 ## Final Report
 
-Report only:
-
-- Scope source used (`BranchContextPlugin` context)
-- Lit rendering/callback-shape issues fixed
-- Files changed
-- Verification run and result
+Report only the scope source used, Lit rendering or callback-shape issues fixed, files changed, and verification result.

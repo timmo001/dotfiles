@@ -30,24 +30,11 @@ Current baseline examples:
 
 Load the `branch-context-consumer` skill. Use work-scope mode.
 
-1. Work only from files in that scope.
-2. Optionally narrow scope by `${ARGUMENTS}` when provided.
-3. Before final verification, re-scan touched files for avoidable aliases, one-shot object variables, inferred `: void` annotations, unused helper wrappers, and mode/capability gates that do not match existing behavior.
+Work only from files in the injected `<work-scope>`. Use `${ARGUMENTS}` only to narrow that current-work scope.
 
 ## References
 
-Use these Home Assistant references first when relevant:
-
-```text
-src/data/context/index.ts
-src/state/context-mixin.ts
-src/state/lazy-context-provider.ts
-src/components/ha-selector/ha-selector-select.ts
-src/components/ha-target-picker.ts
-src/components/ha-navigation-picker.ts
-src/components/ha-label-picker.ts
-src/panels/lovelace/cards/hui-button-card.ts
-```
+Use the loaded skills' repository references and review rules before introducing new local patterns.
 
 ## Verification
 
@@ -58,10 +45,4 @@ src/panels/lovelace/cards/hui-button-card.ts
 
 ## Final Report
 
-Report only:
-
-- Scope source used (`BranchContextPlugin` context)
-- Skills applied
-- Issues fixed
-- Files changed
-- Verification run and result
+Report only the scope source used, skills applied, issues fixed, files changed, and verification result.

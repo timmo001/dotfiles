@@ -11,30 +11,15 @@ Load and apply the `home-assistant-frontend`, `home-assistant-list-components`, 
 
 Load the `branch-context-consumer` skill. Use work-scope mode.
 
-1. Work only from files in that scope.
-2. Optionally narrow scope by `${ARGUMENTS}` when provided.
+Work only from files in the injected `<work-scope>`. Use `${ARGUMENTS}` only to narrow that current-work scope.
 
 ## Inspect Before Editing
 
-Use these repository references as the primary pattern sources:
-
-```text
-src/panels/config/components/ha-config-navigation-list.ts
-src/panels/config/devices/ha-config-device-page.ts
-gallery/src/pages/components/ha-list.markdown
-```
+Use the `home-assistant-list-components` skill's migration rules and repository references as the primary pattern source.
 
 ## Migration Steps
 
-For each file in scope containing `ha-list`, `ha-md-list`, `ha-list-item`, or `ha-md-list-item`:
-
-1. Identify the interactivity of each list item (navigation, action, selection, display).
-2. Replace the container with the appropriate new container (`ha-list-nav`, `ha-list-selectable`, or `ha-list-base`).
-3. Replace each item with the correct new item variant.
-4. Remap slots: `graphic` to `start`, `meta` to `end`, text to `headline`/`supporting-text`.
-5. Remove MWC-only attributes (`twoline`, `hasMeta`, `hasGraphic`, `noninteractive`, `activated`).
-6. Update event handlers (`@request-selected` to `ha-list-selected` or `@click`/`ha-list-activated`).
-7. Update imports to the new component paths.
+Migrate only list containers or items in scope that the skill identifies as safe to update.
 
 ## Verification
 
@@ -44,9 +29,4 @@ For each file in scope containing `ha-list`, `ha-md-list`, `ha-list-item`, or `h
 
 ## Final Report
 
-Report only:
-
-- Scope source used (`BranchContextPlugin` context)
-- Components migrated (old to new)
-- Files changed
-- Verification run and result
+Report only the scope source used, components migrated, files changed, and verification result.

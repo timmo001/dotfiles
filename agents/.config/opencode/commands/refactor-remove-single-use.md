@@ -6,16 +6,10 @@ agent: refactorer
 Load and apply the `remove-single-use-functions` skill before editing.
 Load the `branch-context-consumer` skill. Use work-scope mode.
 
-1. From files in scope (optionally narrowed by `${ARGUMENTS}`), find functions added or modified in the current work that are now used exactly once.
+Use the injected `<work-scope>` as the refactor boundary. Use `${ARGUMENTS}` only to narrow that current-work scope.
 
-2. Apply the smallest safe cleanup that satisfies the `remove-single-use-functions` skill.
+Find functions added or modified in scope that are now used exactly once. Apply the smallest safe cleanup that satisfies the skill.
 
-3. Run the smallest relevant verification for the touched code (targeted test, typecheck, lint, or build check).
-
-4. Report briefly:
-    - scope source used (`BranchContextPlugin` context)
-    - functions removed
-    - files changed
-    - verification run + result
+Run the smallest relevant verification. Report the scope source used, functions removed, files changed, and verification result.
 
 If no safe single-use function exists, report that and make no edits.

@@ -17,14 +17,10 @@ At minimum, apply:
 
 Load the `branch-context-consumer` skill. Use work-scope mode.
 
-1. Limit work to TypeScript files in scope (`.ts`, `.tsx`, `.mts`, `.cts`).
-2. Optionally narrow scope by `${ARGUMENTS}` when provided.
-3. Apply the smallest safe changes that satisfy all applicable `*-ts` and cleanup skills.
-4. Run the smallest relevant verification (targeted typecheck/test/lint/build).
-5. Report briefly:
-   - scope source used (`BranchContextPlugin` context)
-   - TS skills applied
-   - files changed
-   - verification run + result
+Use the injected `<work-scope>` as the refactor boundary. Use `${ARGUMENTS}` only to narrow that current-work scope.
+
+Limit work to TypeScript files in scope (`.ts`, `.tsx`, `.mts`, `.cts`). Apply the smallest safe changes that satisfy all applicable `*-ts` and cleanup skills.
+
+Run the smallest relevant verification. Report the scope source used, TS skills applied, files changed, and verification result.
 
 If no safe TypeScript skill improvement exists, report that and make no edits.
