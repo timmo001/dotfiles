@@ -6,6 +6,7 @@ description: Review a codebase area for architectural friction and propose focus
 # local-edits:
 #   - SKILL.md: condensed body, rewritten description, OpenCode tool references, plan-mode gated side effects
 #   - INTERFACE-DESIGN.md: Claude sub-agent spawning replaced with direct process
+#   - references/*.md retained locally after upstream removal because SKILL.md links to them as workflow references
 ---
 
 # Improve Codebase Architecture
