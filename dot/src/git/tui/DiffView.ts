@@ -24,7 +24,7 @@ import {
   openCodeSessionLabel,
   type OpenCodeSessionMode,
 } from "../../tui/openCodeSession.js";
-import { formatPaneTitle } from "../../tui/paneTitle.js";
+import { formatPaneTitle, setTwoPaneActive } from "../../tui/paneTitle.js";
 import { StatusList } from "../../tui/StatusList.js";
 import { displayPath } from "../../lib/paths.js";
 
@@ -353,8 +353,13 @@ export class DiffView {
 
   private focusPane(pane: Pane): void {
     this.activePane = pane;
-    this.changedList.setActive(pane === "changed");
-    this.unchangedList.setActive(pane === "unchanged");
+    setTwoPaneActive(
+      pane,
+      "changed",
+      this.changedList,
+      "unchanged",
+      this.unchangedList,
+    );
     this.updatePaneTitles();
   }
 

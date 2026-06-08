@@ -24,6 +24,7 @@ import {
   workflowRunStatusIcon,
 } from "../services/workflowStatus.js";
 import { formatBreadcrumb } from "../../tui/breadcrumb.js";
+import { formatCountPaneTitle, setTwoPaneActive } from "../../tui/paneTitle.js";
 import {
   addResponsiveHelpBar,
   GLOBAL_HELP,
@@ -128,7 +129,7 @@ export class WorkflowRunsView {
 
     this.repoTitle = new TextRenderable(renderer, {
       id: "workflows-repo-title",
-      content: this.formatPaneTitle("Repos", 0, true),
+      content: formatCountPaneTitle(theme, "Repos", 0, true),
       marginBottom: 0,
     });
     this.leftPane.add(this.repoTitle);
@@ -153,7 +154,7 @@ export class WorkflowRunsView {
 
     this.runTitle = new TextRenderable(renderer, {
       id: "workflows-run-title",
-      content: this.formatPaneTitle("Runs", 0, false),
+      content: formatCountPaneTitle(theme, "Runs", 0, false),
       marginBottom: 0,
     });
     this.rightPane.add(this.runTitle);
@@ -248,18 +249,19 @@ export class WorkflowRunsView {
     this.activePane = pane;
     this.leftPane.opacity = pane === "repos" ? 1 : INACTIVE_OPACITY;
     this.rightPane.opacity = pane === "runs" ? 1 : INACTIVE_OPACITY;
-    this.repoList.setActive(pane === "repos");
-    this.runList.setActive(pane === "runs");
+    setTwoPaneActive(pane, "repos", this.repoList, "runs", this.runList);
     this.updatePaneTitles();
   }
 
   private updatePaneTitles(): void {
-    this.repoTitle.content = this.formatPaneTitle(
+    this.repoTitle.content = formatCountPaneTitle(
+      this.theme,
       "Repos",
       this.repos.length,
       this.activePane === "repos",
     );
-    this.runTitle.content = this.formatPaneTitle(
+    this.runTitle.content = formatCountPaneTitle(
+      this.theme,
       "Runs",
       this.runs.length,
       this.activePane === "runs",
@@ -309,13 +311,6 @@ export class WorkflowRunsView {
   private getSelectedRepo(): WorkflowRepoRuns | undefined {
     if (!this.selectedRepoSlug) return undefined;
     return this.repos.find((repo) => repo.slug === this.selectedRepoSlug);
-  }
-
-  private formatPaneTitle(label: string, count: number, active: boolean) {
-    const indicator = active ? "▸" : " ";
-    const color = active ? this.theme.accent : this.theme.fgMuted;
-    const countColor = count > 0 ? this.theme.accent : this.theme.fgMuted;
-    return t`${fg(color)(`${indicator} ${label}`)} ${fg(countColor)(`(${count})`)}`;
   }
 
   private formatRepoName(repo: WorkflowRepoRuns): string {

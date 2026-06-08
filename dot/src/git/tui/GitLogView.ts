@@ -14,7 +14,11 @@ import {
   GLOBAL_HELP,
   type HelpEntry,
 } from "../../tui/helpBar.js";
-import { formatPaneTitle } from "../../tui/paneTitle.js";
+import {
+  formatCountPaneTitle,
+  formatPaneTitle,
+  setTwoPaneActive,
+} from "../../tui/paneTitle.js";
 import { StatusList, type StatusListItem } from "../../tui/StatusList.js";
 import {
   formatGitLogCommitDetail,
@@ -244,8 +248,7 @@ export class GitLogView {
     this.activePane = pane;
     this.leftPane.opacity = pane === "repos" ? 1 : INACTIVE_OPACITY;
     this.rightPane.opacity = pane === "commits" ? 1 : INACTIVE_OPACITY;
-    this.repoList.setActive(pane === "repos");
-    this.commitList.setActive(pane === "commits");
+    setTwoPaneActive(pane, "repos", this.repoList, "commits", this.commitList);
     this.updatePaneTitles();
   }
 
@@ -307,19 +310,17 @@ export class GitLogView {
   }
 
   private updatePaneTitles(): void {
-    this.repoTitle.content = formatPaneTitle(
+    this.repoTitle.content = formatCountPaneTitle(
       this.theme,
       "Repos",
       this.repos.length,
       this.activePane === "repos",
-      this.repos.length > 0 ? this.theme.accent : this.theme.fgMuted,
     );
-    this.commitTitle.content = formatPaneTitle(
+    this.commitTitle.content = formatCountPaneTitle(
       this.theme,
       "Commits",
       this.commits.length,
       this.activePane === "commits",
-      this.commits.length > 0 ? this.theme.accent : this.theme.fgMuted,
     );
   }
 
