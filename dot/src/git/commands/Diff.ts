@@ -11,14 +11,16 @@ import { managedGitRepoForPath } from "../../services/GitConfig.js";
 import { displayPath } from "../../lib/paths.js";
 import type { DiffRepo } from "../../types.js";
 import { textLooksLikeBotActivity } from "../services/botActivity.js";
+import {
+  handleCommandError,
+  pipeRow,
+  writeJsonLine,
+  writeRows,
+  writeText,
+} from "./rows.js";
 
 /** Handle DotDiffError by printing to stderr and exiting */
-const handleDiffError = Effect.catch((e: DotDiffError) =>
-  Effect.sync(() => {
-    console.error(`[dot git-diff] ${e.message}`);
-    process.exit(1);
-  }),
-);
+const handleDiffError = handleCommandError("dot git-diff");
 
 /** Machine output: status bar JSON. */
 export const diffBarJson = (opts?: DiffScanOptions) =>
@@ -88,11 +90,7 @@ export const diffBarJson = (opts?: DiffScanOptions) =>
       }
     }
 
-    yield* Effect.sync(() =>
-      process.stdout.write(
-        JSON.stringify({ text, tooltip, class: cls }) + "\n",
-      ),
-    );
+    yield* writeJsonLine({ text, tooltip, class: cls });
   }).pipe(Effect.withSpan("diff.barJson"), handleDiffError);
 
 /** Machine output: --list-changed */
@@ -101,18 +99,14 @@ export const diffListChanged = (opts?: DiffScanOptions) =>
     const dotDiff = yield* DotDiff;
     const repos = yield* dotDiff.getAll(opts);
     const changed = changedRepos(repos);
-    yield* Effect.sync(() => {
-      for (const r of changed) process.stdout.write(`${r.name}|${r.path}\n`);
-    });
+    yield* writeRows(changed.map((repo) => pipeRow([repo.name, repo.path])));
   }).pipe(Effect.withSpan("diff.listChanged"), handleDiffError);
 
 /** Machine output: --list-all (lightweight, no git scan) */
 export const diffListAll = Effect.gen(function* () {
   const dotDiff = yield* DotDiff;
   const repos = yield* dotDiff.listAll();
-  yield* Effect.sync(() => {
-    for (const r of repos) process.stdout.write(`${r.name}|${r.path}\n`);
-  });
+  yield* writeRows(repos.map((repo) => pipeRow([repo.name, repo.path])));
 }).pipe(Effect.withSpan("diff.listAll"), handleDiffError);
 
 /** CLI text output: --raw (detailed, shows all repos like legacy) */
@@ -135,7 +129,7 @@ export const diffRaw = (opts?: DiffScanOptions) =>
         .pipe(Effect.catch(() => Effect.succeed("")));
       if (statusOut.trim()) {
         yield* log.info("Git status:");
-        yield* Effect.sync(() => process.stdout.write(statusOut));
+        yield* writeText(statusOut);
       } else {
         yield* log.info("Git status: clean");
       }
@@ -146,7 +140,7 @@ export const diffRaw = (opts?: DiffScanOptions) =>
         .pipe(Effect.catch(() => Effect.succeed("")));
       if (unstagedOut.trim()) {
         yield* log.info("Unstaged diff:");
-        yield* Effect.sync(() => process.stdout.write(unstagedOut));
+        yield* writeText(unstagedOut);
       } else {
         yield* log.info("Unstaged diff: none");
       }
@@ -157,7 +151,7 @@ export const diffRaw = (opts?: DiffScanOptions) =>
         .pipe(Effect.catch(() => Effect.succeed("")));
       if (stagedOut.trim()) {
         yield* log.info("Staged diff:");
-        yield* Effect.sync(() => process.stdout.write(stagedOut));
+        yield* writeText(stagedOut);
       } else {
         yield* log.info("Staged diff: none");
       }
@@ -184,7 +178,7 @@ export const diffRaw = (opts?: DiffScanOptions) =>
             .pipe(Effect.catch(() => Effect.succeed("")));
           if (unpushedOut.trim()) {
             yield* log.info("Unpushed commits:");
-            yield* Effect.sync(() => process.stdout.write(unpushedOut));
+            yield* writeText(unpushedOut);
           } else {
             yield* log.info("Unpushed commits: none");
           }
@@ -197,7 +191,7 @@ export const diffRaw = (opts?: DiffScanOptions) =>
             .pipe(Effect.catch(() => Effect.succeed("")));
           if (unpulledOut.trim()) {
             yield* log.info("Unpulled commits:");
-            yield* Effect.sync(() => process.stdout.write(unpulledOut));
+            yield* writeText(unpulledOut);
           } else {
             yield* log.info("Unpulled commits: none");
           }

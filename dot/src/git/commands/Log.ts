@@ -7,20 +7,16 @@ import {
   formatGitLogTimeAgo,
 } from "../services/gitLogStatus.js";
 import { displayPath } from "../../lib/paths.js";
+import { handleCommandError, writeText } from "./rows.js";
 
-const handleGitLogError = Effect.catch((error: unknown) =>
-  Effect.sync(() => {
-    console.error(`[dot git-log] ${formatError(error)}`);
-    process.exit(1);
-  }),
-);
+const handleGitLogError = handleCommandError("dot git-log");
 
 /** CLI text output: --raw recent commit history. */
 export const gitLogRaw = Effect.gen(function* () {
   const gitLog = yield* GitLog;
   yield* gitLog.refresh();
   const state = yield* gitLog.getState();
-  yield* Effect.sync(() => process.stdout.write(formatRaw(state)));
+  yield* writeText(formatRaw(state));
 }).pipe(Effect.withSpan("gitLog.raw"), handleGitLogError);
 
 function formatRaw(state: GitLogState): string {
@@ -55,9 +51,4 @@ function appendRepoLines(lines: string[], repo: GitLogRepo): void {
       `  ${commit.shortSha}  ${formatGitLogCommitDetail(commit)}  ${commit.subject}`,
     );
   }
-}
-
-function formatError(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  return String(error);
 }

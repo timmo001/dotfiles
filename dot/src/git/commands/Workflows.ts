@@ -38,31 +38,31 @@ import {
   workflowRunCounts,
   workflowRunStatusIcon,
 } from "../services/workflowStatus.js";
-import { pipeRow } from "./rows.js";
+import {
+  formatCommandError,
+  handleCommandError,
+  pipeRow,
+  writeJsonLine,
+  writeRows,
+  writeText,
+} from "./rows.js";
 
 const BAR_BRANCH_RUN_LIMIT = 20;
 
-const handleWorkflowError = Effect.catch((error: unknown) =>
-  Effect.sync(() => {
-    console.error(`[dot git-workflows] ${formatError(error)}`);
-    process.exit(1);
-  }),
-);
+const handleWorkflowError = handleCommandError("dot git-workflows");
 
 /** CLI text output: --raw workflow summary. */
 export const workflowsRaw = (opts?: WorkflowRunQueryOptions) =>
   Effect.gen(function* () {
     const state = yield* refreshWorkflowState(opts);
-    yield* Effect.sync(() => process.stdout.write(formatRaw(state)));
+    yield* writeText(formatRaw(state));
   }).pipe(Effect.withSpan("workflows.raw"), handleWorkflowError);
 
 /** Machine output: status bar JSON. */
 export const workflowsBarJson = (opts?: WorkflowRunQueryOptions) =>
   Effect.gen(function* () {
     const state = yield* refreshWorkflowBarState(opts);
-    yield* Effect.sync(() =>
-      process.stdout.write(JSON.stringify(formatBarJson(state)) + "\n"),
-    );
+    yield* writeJsonLine(formatBarJson(state));
   }).pipe(Effect.withSpan("workflows.barJson"), handleWorkflowError);
 
 interface GhBarRunRecord {
@@ -90,24 +90,18 @@ interface GhWorkflowRecord {
 export const workflowsListRepos = (opts?: WorkflowRunQueryOptions) =>
   Effect.gen(function* () {
     const state = yield* refreshWorkflowState(opts);
-    yield* Effect.sync(() => {
-      for (const repo of state.repos) {
-        process.stdout.write(formatRepoRow(repo) + "\n");
-      }
-    });
+    yield* writeRows(state.repos.map(formatRepoRow));
   }).pipe(Effect.withSpan("workflows.listRepos"), handleWorkflowError);
 
 /** Machine output: --list-runs pipe-delimited workflow run rows. */
 export const workflowsListRuns = (opts?: WorkflowRunQueryOptions) =>
   Effect.gen(function* () {
     const state = yield* refreshWorkflowState(opts);
-    yield* Effect.sync(() => {
-      for (const repo of state.repos) {
-        for (const run of repo.runs) {
-          process.stdout.write(formatRunRow(repo, run) + "\n");
-        }
-      }
-    });
+    yield* writeRows(
+      state.repos.flatMap((repo) =>
+        repo.runs.map((run) => formatRunRow(repo, run)),
+      ),
+    );
   }).pipe(Effect.withSpan("workflows.listRuns"), handleWorkflowError);
 
 function refreshWorkflowState(opts?: WorkflowRunQueryOptions) {
@@ -611,6 +605,5 @@ function formatRunRow(repo: WorkflowRepoRuns, run: WorkflowRun): string {
 }
 
 function formatError(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  return String(error);
+  return formatCommandError(error);
 }
