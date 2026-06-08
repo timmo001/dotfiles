@@ -2,6 +2,7 @@ import type { CliRenderer } from "@opentui/core";
 import { destroyRendererForCommand } from "./Renderer.js";
 import type { NotifyConfig } from "../types.js";
 import type { ToastService } from "./Toast.js";
+import { waitForKeypress } from "../lib/terminal.js";
 
 const log = (msg: string) => console.error(`[dot:CommandRunner] ${msg}`);
 
@@ -55,17 +56,9 @@ export function createCommandRunner(
         await proc.exited;
 
         if (wait) {
-          process.stdout.write("\n\x1b[90mPress any key to continue...\x1b[0m");
-          await new Promise<void>((resolve) => {
-            const wasRaw = process.stdin.isRaw;
-            if (process.stdin.isTTY) process.stdin.setRawMode(true);
-            process.stdin.resume();
-            process.stdin.once("data", () => {
-              if (process.stdin.isTTY) process.stdin.setRawMode(wasRaw);
-              process.stdin.pause();
-              resolve();
-            });
-          });
+          await waitForKeypress(
+            "\n\x1b[90mPress any key to continue...\x1b[0m",
+          );
         }
       } finally {
         renderer.currentRenderBuffer.clear();

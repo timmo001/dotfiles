@@ -18,6 +18,7 @@ import {
 } from "../lib/initState.js";
 import { gitHead, gitPullRebase, gitWorkingTreeClean } from "../lib/git.js";
 import { HOME_DIR, displayPath } from "../lib/paths.js";
+import { waitForKeypress as waitForTerminalKeypress } from "../lib/terminal.js";
 import type { ConfigService } from "../services/Config.js";
 import type { InitCompleteMarkerStatus } from "../lib/initState.js";
 import type { DiffRepo } from "../types.js";
@@ -253,22 +254,11 @@ const isInteractiveSession = (): boolean =>
   !!process.stdout.isTTY &&
   process.env.DOT_TEE_INHERIT_LOG !== "1";
 
-/** Block until the user presses any key, restoring the prior raw-mode state. */
-const waitForKeypress = Effect.promise(
-  () =>
-    new Promise<void>((resolve) => {
-      process.stdout.write(
-        "\n\x1b[90mPress any key to open dot git-diff...\x1b[0m",
-      );
-      const wasRaw = process.stdin.isRaw;
-      if (process.stdin.isTTY) process.stdin.setRawMode(true);
-      process.stdin.resume();
-      process.stdin.once("data", () => {
-        if (process.stdin.isTTY) process.stdin.setRawMode(wasRaw);
-        process.stdin.pause();
-        resolve();
-      });
-    }),
+/** Block until the user presses any key before opening the diff view. */
+const waitForDiffKeypress = Effect.promise(() =>
+  waitForTerminalKeypress(
+    "\n\x1b[90mPress any key to open dot git-diff...\x1b[0m",
+  ),
 );
 
 /**
@@ -291,7 +281,7 @@ const reviewSkillUpdates = Effect.gen(function* () {
 
   const launcher = yield* Launcher;
   yield* log.info("Skill updates created a commit. Review it in dot git-diff.");
-  yield* waitForKeypress;
+  yield* waitForDiffKeypress;
   yield* launcher.suspend("dot git-diff").pipe(Effect.catch(() => Effect.void));
 });
 

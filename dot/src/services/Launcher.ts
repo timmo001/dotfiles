@@ -2,6 +2,7 @@ import { Context, Effect, Layer, Stream } from "effect";
 import type { CliRenderer } from "@opentui/core";
 import { CommandExecutor, CommandError } from "./CommandExecutor.js";
 import { OutputLog } from "./OutputLog.js";
+import { waitForKeypress } from "../lib/terminal.js";
 
 const DEBUG = !!process.env.DOT_DEBUG;
 const log = (msg: string) => {
@@ -69,22 +70,10 @@ export class Launcher extends Context.Service<Launcher, LauncherService>()(
                 const exitCode = yield* executor.inherit("bash", ["-c", cmd]);
 
                 if (opts?.waitForKey) {
-                  yield* Effect.promise(
-                    () =>
-                      new Promise<void>((resolve) => {
-                        process.stdout.write(
-                          "\n\x1b[90mPress any key to continue...\x1b[0m",
-                        );
-                        const wasRaw = process.stdin.isRaw;
-                        if (process.stdin.isTTY) process.stdin.setRawMode(true);
-                        process.stdin.resume();
-                        process.stdin.once("data", () => {
-                          if (process.stdin.isTTY)
-                            process.stdin.setRawMode(wasRaw);
-                          process.stdin.pause();
-                          resolve();
-                        });
-                      }),
+                  yield* Effect.promise(() =>
+                    waitForKeypress(
+                      "\n\x1b[90mPress any key to continue...\x1b[0m",
+                    ),
                   );
                 }
 
