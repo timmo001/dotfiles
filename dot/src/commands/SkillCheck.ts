@@ -26,8 +26,8 @@ export const skillCheck = (opts?: {
     const log = yield* OutputLog;
     const launcher = yield* Launcher;
 
-    if (opts?.diffOrigin) {
-      yield* diffSkillOrigins(config.publicDotfiles);
+    if (opts?.diffOrigin && !opts.openOpencode) {
+      yield* printSkillOriginDiff(config.publicDotfiles);
       return;
     }
 
@@ -102,7 +102,15 @@ export const skillCheck = (opts?: {
           : "All branch-context commands are registered.",
       ].join(" ");
 
-      const opencodePrompt = `Skill check results: ${summary}\n\nAnalyse the unreferenced skills and suggest whether they should be explicitly referenced in AGENTS.md or agent definitions, or whether their descriptions are sufficient for the LLM to discover them. Also check if any unreferenced skills might be obsolete.`;
+      const originDiff = opts?.diffOrigin
+        ? yield* collectSkillOriginDiff(config.publicDotfiles)
+        : "";
+
+      const diffInstruction = originDiff
+        ? `\n\nThe following diff report compares imported skills against their upstream origins. Analyse whether local adaptations should be kept, upstream removals should be mirrored, or any files should be updated.\n\n<skill-origin-diff>\n${originDiff}\n</skill-origin-diff>`
+        : "";
+
+      const opencodePrompt = `Skill check results: ${summary}\n\nAnalyse the unreferenced skills and suggest whether they should be explicitly referenced in AGENTS.md or agent definitions, or whether their descriptions are sufficient for the LLM to discover them. Also check if any unreferenced skills might be obsolete.${diffInstruction}`;
 
       yield* launcher
         .suspend(`opencode --prompt ${JSON.stringify(opencodePrompt)}`)
@@ -110,42 +118,49 @@ export const skillCheck = (opts?: {
     }
   });
 
-/** Print upstream diffs for every imported public skill with origin tracking. */
-const diffSkillOrigins = (publicDotfiles: string) =>
+/** Collect upstream diffs for every imported public skill with origin tracking. */
+const collectSkillOriginDiff = (publicDotfiles: string) =>
   Effect.gen(function* () {
-    const log = yield* OutputLog;
     const github = yield* GitHub;
-
-    yield* log.section("Skill Origin Diff");
 
     const ghAvailable = yield* github.isAvailable();
     if (!ghAvailable) {
-      yield* log.warn("gh CLI not available; skipping skill origin diffs");
-      return;
+      return "gh CLI not available; skipping skill origin diffs";
     }
 
     const skillsDir = join(publicDotfiles, "agents/.agents/skills");
     const skills = scanSkills(skillsDir);
 
     if (skills.length === 0) {
-      yield* log.info("No imported skills with origin tracking");
-      return;
+      return "No imported skills with origin tracking";
     }
 
-    let changed = 0;
+    const parts: string[] = [];
     for (const skill of skills) {
       const diff = yield* buildSingleDiff(skill).pipe(
         Effect.catch(() => Effect.succeed("")),
       );
       if (!diff) continue;
 
-      changed++;
-      yield* log.info(diff);
+      parts.push(diff);
     }
 
-    if (changed === 0) {
-      yield* log.info("No origin diffs found");
+    if (parts.length === 0) {
+      return "No origin diffs found";
+    }
+    return `${parts.join("\n\n")}\n\n${parts.length} skill(s) differ from origin`;
+  });
+
+/** Print upstream diffs for every imported public skill with origin tracking. */
+const printSkillOriginDiff = (publicDotfiles: string) =>
+  Effect.gen(function* () {
+    const log = yield* OutputLog;
+    yield* log.section("Skill Origin Diff");
+
+    const diff = yield* collectSkillOriginDiff(publicDotfiles);
+    if (diff.includes("gh CLI not available")) {
+      yield* log.warn(diff);
     } else {
-      yield* log.info(`${changed} skill(s) differ from origin`);
+      yield* log.info(diff);
     }
   });

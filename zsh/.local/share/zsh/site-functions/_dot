@@ -280,7 +280,7 @@ _dot_cmd_skill_updates() {
 _dot_cmd_skill_check() {
   _arguments -S \
     '--open-opencode[Run checks then open OpenCode analysis]' \
-    '--diff-origin[Diff imported skills against their upstream origins]' \
+    '--diff-origin[Diff imported skills against their upstream origins; with --open-opencode, include the diff in the prompt]' \
     '(-h --help)-h[Show this help message]' \
     '(-h --help)--help[Show this help message]' \
     '*::arg:->args'

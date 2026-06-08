@@ -626,7 +626,8 @@ export const cliCommands: readonly CliCommandSpec[] = [
       openOpencodeOption,
       {
         name: "--diff-origin",
-        description: "Diff imported skills against their upstream origins",
+        description:
+          "Diff imported skills against their upstream origins; with --open-opencode, include the diff in the prompt",
       },
       helpOption,
     ],
