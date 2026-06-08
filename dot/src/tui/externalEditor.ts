@@ -1,4 +1,5 @@
 import type { CliRenderer } from "@opentui/core";
+import { ENV, envString } from "../lib/env.js";
 
 /** Supported external editor launch modes. */
 export type ExternalEditorKind = "editor" | "visual";
@@ -89,8 +90,8 @@ function editorCommand(path: string, kind: ExternalEditorKind): string {
 
 function resolveEditorCommand(kind: ExternalEditorKind): string {
   return kind === "visual"
-    ? firstNonEmpty(process.env.VISUAL, process.env.EDITOR, "nvim")
-    : firstNonEmpty(process.env.EDITOR, "nvim");
+    ? firstNonEmpty(envString(ENV.VISUAL), envString(ENV.EDITOR), "nvim")
+    : firstNonEmpty(envString(ENV.EDITOR), "nvim");
 }
 
 function firstNonEmpty(...values: readonly (string | undefined)[]): string {

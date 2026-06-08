@@ -7,6 +7,7 @@ import { OutputLog } from "../services/OutputLog.js";
 import { runElevated } from "../lib/elevatedCommand.js";
 import { ghRepoClone } from "../lib/git.js";
 import { displayPath } from "../lib/paths.js";
+import { ENV, envString } from "../lib/env.js";
 import {
   loadPrivatePackageRepoConfig,
   privatePackageRepoConfigContents,
@@ -85,7 +86,7 @@ function writeTempPrivatePacmanRepoConfig(
   return Effect.try({
     try: () => {
       const tempPath = join(
-        process.env.TMPDIR ?? "/tmp",
+        envString(ENV.TMPDIR) ?? "/tmp",
         `dot-private-pacman-${process.pid}.conf`,
       );
       writeFileSync(tempPath, privatePackageRepoConfigContents(repo));

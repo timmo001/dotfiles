@@ -3,8 +3,9 @@ import { CommandError, CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { renameSync, chmodSync, realpathSync } from "fs";
 import { join, dirname } from "path";
+import { ENV, envString } from "./env.js";
 
-const DEBUG = !!process.env.DOT_DEBUG;
+const DEBUG = !!envString(ENV.DOT_DEBUG);
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot:selfUpdate] ${msg}`);
 };

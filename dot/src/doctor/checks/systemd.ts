@@ -8,6 +8,7 @@ import {
 import { Config } from "../../services/Config.js";
 import { GitHub } from "../../git/services/GitHub.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../../lib/paths.js";
+import { ENV, envString } from "../../lib/env.js";
 import type { CheckResult } from "../types.js";
 
 // Obsolete workflow notification units that should no longer be installed.
@@ -173,7 +174,7 @@ function escapeRegex(s: string): string {
 }
 
 function activeWaybarConfigPath(): string {
-  const omarchyHost = process.env.OMARCHY_HOST ?? "";
+  const omarchyHost = envString(ENV.OMARCHY_HOST) ?? "";
   const waybarConfigDir = join(CONFIG_DIR, "waybar");
   const hostConfig = omarchyHost
     ? join(waybarConfigDir, `config.${omarchyHost}.jsonc`)
@@ -648,7 +649,7 @@ export const checkDoctorStartup = Effect.gen(function* () {
 export const checkDailyVolumeReset = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
   const results: CheckResult[] = [];
-  const host = process.env.OMARCHY_HOST ?? "unset";
+  const host = envString(ENV.OMARCHY_HOST) ?? "unset";
 
   const script = join(HOME_DIR, ".local", "bin", "daily-volume-zero");
   const systemdDir = join(CONFIG_DIR, "systemd", "user");
@@ -755,7 +756,7 @@ export const checkDailyVolumeReset = Effect.gen(function* () {
 export const checkMhoc303ClockSync = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
   const results: CheckResult[] = [];
-  const host = process.env.OMARCHY_HOST ?? "unset";
+  const host = envString(ENV.OMARCHY_HOST) ?? "unset";
 
   const macAddressFile = join(HOME_DIR, ".mho-c303-mac-address");
   const script = join(HOME_DIR, ".local", "bin", "mhoc303-clock-sync");

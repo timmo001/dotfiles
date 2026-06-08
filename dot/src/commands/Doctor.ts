@@ -6,6 +6,7 @@ import { OutputLog } from "../services/OutputLog.js";
 import { Launcher } from "../services/Launcher.js";
 import { runDoctor } from "../doctor/runner.js";
 import { displayPath } from "../lib/paths.js";
+import { ENV, envString } from "../lib/env.js";
 import type { DoctorReport } from "../doctor/types.js";
 
 /** Format a doctor report as plain text for file output */
@@ -51,7 +52,9 @@ export const doctor = (opts?: { readonly openOpencode?: boolean }) =>
     if (config.notesDir) {
       yield* log.info(`Notes repo: ${displayPath(config.notesDir)}`);
     }
-    yield* log.info(`Private mode: ${process.env.DOT_ALLOW_PRIVATE ?? "auto"}`);
+    yield* log.info(
+      `Private mode: ${envString(ENV.DOT_ALLOW_PRIVATE) ?? "auto"}`,
+    );
 
     // Stream results section by section
     for (const section of report.sections) {

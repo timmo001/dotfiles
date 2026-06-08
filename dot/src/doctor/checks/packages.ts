@@ -4,6 +4,7 @@ import { join } from "path";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { displayPath, expandHomePath } from "../../lib/paths.js";
+import { ENV, envString } from "../../lib/env.js";
 import type { ConfigService } from "../../services/Config.js";
 import type { CheckResult } from "../types.js";
 
@@ -59,7 +60,7 @@ const privatePackageRepoConfigSetters: Readonly<
 
 function privatePackageRepoConfigFile(config: ConfigService): string | null {
   return (
-    process.env.DOT_PRIVATE_PACKAGE_REPO_FILE ??
+    envString(ENV.DOT_PRIVATE_PACKAGE_REPO_FILE) ??
     (config.privateDotfiles
       ? join(config.privateDotfiles, ".dot-private-package-repo")
       : null)
@@ -105,7 +106,7 @@ function readPrivatePackageRepoConfigLines(filePath: string): string[] | null {
 /** Path to the private pacman repository snippet. */
 export function privatePacmanRepoConfigPath(): string {
   return (
-    process.env.DOT_PRIVATE_PACMAN_REPO_CONFIG ??
+    envString(ENV.DOT_PRIVATE_PACMAN_REPO_CONFIG) ??
     DEFAULT_PRIVATE_PACMAN_REPO_CONFIG
   );
 }
@@ -113,7 +114,7 @@ export function privatePacmanRepoConfigPath(): string {
 /** Path to the main pacman configuration file. */
 export function privatePacmanMainConfigPath(): string {
   return (
-    process.env.DOT_PRIVATE_PACMAN_MAIN_CONFIG ??
+    envString(ENV.DOT_PRIVATE_PACMAN_MAIN_CONFIG) ??
     DEFAULT_PRIVATE_PACMAN_MAIN_CONFIG
   );
 }
@@ -316,7 +317,7 @@ export const checkPublicPackages = Effect.gen(function* () {
   const updatePackages: string[] = [];
 
   const packagesFile =
-    process.env.DOT_PUBLIC_PACKAGES_FILE ??
+    envString(ENV.DOT_PUBLIC_PACKAGES_FILE) ??
     join(config.publicDotfiles, ".dot-public-packages");
 
   const packages = loadPackageList(packagesFile);
@@ -407,7 +408,7 @@ export const checkPrivatePackages = Effect.gen(function* () {
   }
 
   const packagesFile =
-    process.env.DOT_PRIVATE_PACKAGES_FILE ??
+    envString(ENV.DOT_PRIVATE_PACKAGES_FILE) ??
     (config.privateDotfiles
       ? join(config.privateDotfiles, ".dot-private-packages")
       : null);

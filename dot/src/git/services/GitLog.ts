@@ -2,10 +2,11 @@ import { Clock, Context, Effect, Layer, PubSub, Stream } from "effect";
 import type { GitLogCommit, GitLogRepo, GitLogState } from "../../types.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { DotDiff } from "./DotDiff.js";
+import { ENV, envString } from "../../lib/env.js";
 
 const COMMIT_SEPARATOR = String.fromCharCode(31);
 const DEFAULT_LIMIT = 20;
-const DEBUG = !!process.env.DOT_DEBUG;
+const DEBUG = !!envString(ENV.DOT_DEBUG);
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot:GitLog] ${msg}`);
 };

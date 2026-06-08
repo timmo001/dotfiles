@@ -7,9 +7,10 @@ import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import { gitCurrentBranchSync, isGitRepo } from "../../lib/git.js";
 import { CACHE_DIR } from "../../lib/paths.js";
+import { ENV, envInt, envString } from "../../lib/env.js";
 import { activeGitReposForCheck } from "../../services/GitConfig.js";
 
-const DEBUG = !!process.env.DOT_DEBUG;
+const DEBUG = !!envString(ENV.DOT_DEBUG);
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot:DotDiff] ${msg}`);
 };
@@ -18,10 +19,7 @@ const log = (msg: string) => {
 // Fetch TTL cache for upstream git fetches
 // ---------------------------------------------------------------------------
 
-const FETCH_TTL_SECONDS = parseInt(
-  process.env.DOT_FETCH_TTL_SECONDS ?? "300",
-  10,
-);
+const FETCH_TTL_SECONDS = envInt(ENV.DOT_FETCH_TTL_SECONDS, 300);
 const FETCH_CACHE_DIR = join(CACHE_DIR, "dot", "fetch-upstream");
 
 /** Check if a fetch is needed based on TTL cache */

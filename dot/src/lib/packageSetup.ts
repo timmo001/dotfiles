@@ -6,6 +6,7 @@ import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "./paths.js";
 import { runElevated } from "./elevatedCommand.js";
+import { ENV, envString } from "./env.js";
 import type { ConfigService } from "../services/Config.js";
 
 /** Domain error for package setup failures. */
@@ -36,14 +37,14 @@ function packageListPath(
 
 function publicPackageListPath(config: ConfigService): string {
   return (
-    process.env.DOT_PUBLIC_PACKAGES_FILE ??
+    envString(ENV.DOT_PUBLIC_PACKAGES_FILE) ??
     join(config.publicDotfiles, ".dot-public-packages")
   );
 }
 
 function privatePackageListPath(config: ConfigService): string | null {
   return (
-    process.env.DOT_PRIVATE_PACKAGES_FILE ??
+    envString(ENV.DOT_PRIVATE_PACKAGES_FILE) ??
     (config.privateDotfiles
       ? join(config.privateDotfiles, ".dot-private-packages")
       : null)
@@ -212,7 +213,7 @@ export const ensureGumInstalled: Effect.Effect<
 
 function miseConfigExists(): boolean {
   return [
-    process.env.MISE_GLOBAL_CONFIG_FILE,
+    envString(ENV.MISE_GLOBAL_CONFIG_FILE),
     join(CONFIG_DIR, "mise", "config.toml"),
     join(CONFIG_DIR, "mise", "config.json"),
     join(HOME_DIR, ".mise.toml"),

@@ -3,21 +3,22 @@ import {
   CommandExecutor,
   type CommandError,
 } from "../../services/CommandExecutor.js";
+import { ENV, envNonNegativeInt, envString } from "../../lib/env.js";
 
-const DEBUG = !!process.env.DOT_DEBUG;
+const DEBUG = !!envString(ENV.DOT_DEBUG);
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot:GitHub] ${msg}`);
 };
 
-const DEFAULT_RETRIES = readNonNegativeInt("DOT_GITHUB_RETRIES", 2);
+const DEFAULT_RETRIES = envNonNegativeInt(ENV.DOT_GITHUB_RETRIES, 2);
 const RATE_LIMIT_TTL_MS =
-  readNonNegativeInt("DOT_GITHUB_RATE_LIMIT_TTL_SECONDS", 60) * 1000;
-const RATE_LIMIT_MIN_REMAINING = readNonNegativeInt(
-  "DOT_GITHUB_RATE_LIMIT_MIN_REMAINING",
+  envNonNegativeInt(ENV.DOT_GITHUB_RATE_LIMIT_TTL_SECONDS, 60) * 1000;
+const RATE_LIMIT_MIN_REMAINING = envNonNegativeInt(
+  ENV.DOT_GITHUB_RATE_LIMIT_MIN_REMAINING,
   0,
 );
-const RATE_LIMIT_MAX_WAIT_SECONDS = readNonNegativeInt(
-  "DOT_GITHUB_RATE_LIMIT_MAX_WAIT_SECONDS",
+const RATE_LIMIT_MAX_WAIT_SECONDS = envNonNegativeInt(
+  ENV.DOT_GITHUB_RATE_LIMIT_MAX_WAIT_SECONDS,
   60,
 );
 
@@ -241,11 +242,6 @@ export class GitHub extends Context.Service<GitHub, GitHubService>()("GitHub") {
       return { isAvailable, run, api, json };
     }),
   );
-}
-
-function readNonNegativeInt(name: string, fallback: number): number {
-  const parsed = Number.parseInt(process.env[name] ?? "", 10);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
 function parseRateLimit(

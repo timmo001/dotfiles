@@ -19,6 +19,7 @@ import {
 import { gitHead, gitPullRebase, gitWorkingTreeClean } from "../lib/git.js";
 import { HOME_DIR, displayPath } from "../lib/paths.js";
 import { waitForKeypress as waitForTerminalKeypress } from "../lib/terminal.js";
+import { ENV, envString } from "../lib/env.js";
 import type { ConfigService } from "../services/Config.js";
 import type { InitCompleteMarkerStatus } from "../lib/initState.js";
 import type { DiffRepo } from "../types.js";
@@ -252,7 +253,7 @@ const runResumeRefresh = Effect.gen(function* () {
 const isInteractiveSession = (): boolean =>
   !!process.stdin.isTTY &&
   !!process.stdout.isTTY &&
-  process.env.DOT_TEE_INHERIT_LOG !== "1";
+  envString(ENV.DOT_TEE_INHERIT_LOG) !== "1";
 
 /** Block until the user presses any key before opening the diff view. */
 const waitForDiffKeypress = Effect.promise(() =>

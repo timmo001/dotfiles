@@ -1,5 +1,6 @@
 import { readdirSync, statSync } from "fs";
 import { join } from "path";
+import { ENV, envString } from "./env.js";
 
 /** Top-level repo directories that are not active stow packages. */
 export const INTERNAL_STOW_FOLDERS = ["dot", "dot-migration"] as const;
@@ -13,7 +14,7 @@ const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);
  * folder, and host-specific packages that don't match `OMARCHY_HOST`.
  */
 export function listStowFolders(repoDir: string): string[] {
-  const host = process.env.OMARCHY_HOST ?? "";
+  const host = envString(ENV.OMARCHY_HOST) ?? "";
   const entries = readdirSync(repoDir);
 
   return entries.filter((entry) => {

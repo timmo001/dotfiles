@@ -20,6 +20,7 @@ import { valuesLookLikeBotActivity } from "./botActivity.js";
 import { GitHub, type GitHubService } from "./GitHub.js";
 import { managedRepoGitHubSlugs } from "./repoRelations.js";
 import { formatGhError, nullableStringValue, stringValue } from "./record.js";
+import { ENV, envString } from "../../lib/env.js";
 
 const NOTIFICATION_LIMIT = 50;
 const SUBJECT_TYPE_SET: ReadonlySet<string> = new Set([
@@ -33,7 +34,7 @@ const SUBJECT_TYPE_SET: ReadonlySet<string> = new Set([
   "SecurityAdvisory",
   "WorkflowRun",
 ]);
-const DEBUG = !!process.env.DOT_DEBUG;
+const DEBUG = !!envString(ENV.DOT_DEBUG);
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot:GitNotifications] ${msg}`);
 };

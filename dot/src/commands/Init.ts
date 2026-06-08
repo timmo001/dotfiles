@@ -36,6 +36,7 @@ import {
   writeInitCompleteMarker,
   writeInitInProgressMarker,
 } from "../lib/initState.js";
+import { ENV, envFlag, envString, setEnv } from "../lib/env.js";
 import type { ConfigService } from "../services/Config.js";
 
 const GIT_INCLUDE_PATH = "~/.config/git/config.dotfiles";
@@ -241,7 +242,7 @@ function parseInitArg(
 function parseInitArgs(args: readonly string[]): ParsedInitArgs {
   const options: InitOptionsDraft = {
     confirm: false,
-    noninteractive: process.env.DOT_INIT_NONINTERACTIVE === "1",
+    noninteractive: envFlag(ENV.DOT_INIT_NONINTERACTIVE),
   };
 
   for (let index = 0; index < args.length; index++) {
@@ -383,7 +384,7 @@ function ensureInitHyprHostLink(
       );
     }
 
-    process.env.OMARCHY_HOST = host;
+    setEnv(ENV.OMARCHY_HOST, host);
     yield* ensureHyprHostLink(config, log, { host });
   });
 }
@@ -529,7 +530,7 @@ function syncAgentsStrict(): Effect.Effect<
   return Effect.gen(function* () {
     const log = yield* OutputLog;
     const source =
-      process.env.DOT_AGENTS_SYNC_SOURCE ??
+      envString(ENV.DOT_AGENTS_SYNC_SOURCE) ??
       join(CONFIG_DIR, "opencode", "AGENTS.md");
     if (!existsSync(source)) {
       yield* log.warn(
@@ -576,8 +577,8 @@ export function init(rawArgs: readonly string[]) {
     if (parsed.type === "error") return yield* fail(parsed.message);
 
     yield* log.section("Initialization Workflow");
-    if (process.env.DOT_LOG_FILE) {
-      yield* log.info(`Init log: ${displayPath(process.env.DOT_LOG_FILE)}`);
+    if (envString(ENV.DOT_LOG_FILE)) {
+      yield* log.info(`Init log: ${displayPath(envString(ENV.DOT_LOG_FILE)!)}`);
     }
     yield* assertFreshInitTarget(config);
     const options = yield* resolveInitOptions(parsed.options);

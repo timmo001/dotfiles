@@ -23,9 +23,10 @@ import {
   stringValue,
 } from "./record.js";
 import { repoGitHubSlugs } from "./repoRelations.js";
+import { ENV, envString } from "../../lib/env.js";
 
 const RUN_LIMIT = 100;
-const DEBUG = !!process.env.DOT_DEBUG;
+const DEBUG = !!envString(ENV.DOT_DEBUG);
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot:WorkflowRuns] ${msg}`);
 };

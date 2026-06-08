@@ -1,8 +1,9 @@
 import { Context, Effect, Layer, Schema, Stream } from "effect";
 import { writeMirroredLog } from "../lib/logMirror.js";
 import { expandHomePath } from "../lib/paths.js";
+import { ENV, envString } from "../lib/env.js";
 
-const DEBUG = !!process.env.DOT_DEBUG;
+const DEBUG = !!envString(ENV.DOT_DEBUG);
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot:CommandExecutor] ${msg}`);
 };
@@ -58,10 +59,9 @@ function toCommandError(error: unknown, command: string): CommandError {
 }
 
 function inheritedCommandLogFile(): string | null {
-  if (process.env.DOT_TEE_INHERIT_LOG !== "1") return null;
-  return process.env.DOT_LOG_FILE
-    ? expandHomePath(process.env.DOT_LOG_FILE)
-    : null;
+  if (envString(ENV.DOT_TEE_INHERIT_LOG) !== "1") return null;
+  const logFile = envString(ENV.DOT_LOG_FILE);
+  return logFile ? expandHomePath(logFile) : null;
 }
 
 function appendRawLog(

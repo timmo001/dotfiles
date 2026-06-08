@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { Config } from "../../services/Config.js";
 import { displayPath, expandHomePath } from "../../lib/paths.js";
+import { ENV, envString } from "../../lib/env.js";
 import type { CheckResult } from "../types.js";
 
 /**
@@ -24,7 +25,7 @@ export const checkBrowserExtensions = Effect.gen(function* () {
   }
 
   const configFile =
-    process.env.DOT_PRIVATE_BROWSER_CHECKS_FILE ??
+    envString(ENV.DOT_PRIVATE_BROWSER_CHECKS_FILE) ??
     (config.privateDotfiles
       ? join(config.privateDotfiles, ".dot-browser-checks")
       : null);

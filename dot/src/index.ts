@@ -21,6 +21,7 @@ import {
 } from "./lib/bootstrapGit.js";
 import { isGvfsPath, writeMirroredLog } from "./lib/logMirror.js";
 import { CONFIG_DIR, expandHomePath } from "./lib/paths.js";
+import { ENV, envString, setEnv, unsetEnv } from "./lib/env.js";
 import { menuItemsById } from "./menu.js";
 import { init } from "./commands/Init.js";
 import { install } from "./commands/Install.js";
@@ -66,7 +67,7 @@ import type {
 } from "./types.js";
 import { nativeCommandNames } from "./cli/spec.js";
 
-const DEBUG = !!process.env.DOT_DEBUG;
+const DEBUG = !!envString(ENV.DOT_DEBUG);
 const DEFAULT_INIT_LOG_FILE = join("/tmp", "dot-init.log");
 const PRIVATE_DOTFILES_REPO = "timmo001/dotfiles-private";
 const UPDATE_DISABLE_SELF_UPDATE_ARG = "--no-self-update";
@@ -225,13 +226,13 @@ const mode = resolveMode();
 function initLogPath(args: readonly string[]): string {
   return expandHomePath(
     optionValue(args, "--log") ??
-      process.env.DOT_INIT_LOG_FILE ??
+      envString(ENV.DOT_INIT_LOG_FILE) ??
       DEFAULT_INIT_LOG_FILE,
   );
 }
 
 function appendBootstrapLog(message: string | Uint8Array): void {
-  const logFile = process.env.DOT_LOG_FILE;
+  const logFile = envString(ENV.DOT_LOG_FILE);
   if (!logFile) return;
   writeMirroredLog(logFile, message);
 }
@@ -246,29 +247,31 @@ function configureInitLogging(mode: Mode): void {
   if (mode.args.includes("--help") || mode.args.includes("-h")) return;
 
   const requestedLogFile = initLogPath(mode.args);
-  process.env.DOT_LOG_FILE = isGvfsPath(requestedLogFile)
-    ? DEFAULT_INIT_LOG_FILE
-    : requestedLogFile;
-  if (process.env.DOT_LOG_FILE !== requestedLogFile) {
-    process.env.DOT_LOG_MIRROR_FILE = requestedLogFile;
+  setEnv(
+    ENV.DOT_LOG_FILE,
+    isGvfsPath(requestedLogFile) ? DEFAULT_INIT_LOG_FILE : requestedLogFile,
+  );
+  if (envString(ENV.DOT_LOG_FILE) !== requestedLogFile) {
+    setEnv(ENV.DOT_LOG_MIRROR_FILE, requestedLogFile);
   } else {
-    delete process.env.DOT_LOG_MIRROR_FILE;
+    unsetEnv(ENV.DOT_LOG_MIRROR_FILE);
   }
-  process.env.DOT_TEE_INHERIT_LOG = "1";
-  mkdirSync(dirname(process.env.DOT_LOG_FILE), { recursive: true });
-  writeMirroredLog(process.env.DOT_LOG_FILE, "", { truncate: true });
+  setEnv(ENV.DOT_TEE_INHERIT_LOG, "1");
+  const logFile = envString(ENV.DOT_LOG_FILE)!;
+  mkdirSync(dirname(logFile), { recursive: true });
+  writeMirroredLog(logFile, "", { truncate: true });
 }
 
 function privateDotfilesPath(): string {
   return expandHomePath(
-    process.env.DOTFILES_PRIVATE_DIR ?? join(CONFIG_DIR, "dotfiles-private"),
+    envString(ENV.DOTFILES_PRIVATE_DIR) ?? join(CONFIG_DIR, "dotfiles-private"),
   );
 }
 
 function bootstrapPrivateDotfilesForInit(mode: Mode): void {
   if (mode.type !== "native" || mode.command !== "init") return;
   if (mode.args.includes("--help") || mode.args.includes("-h")) return;
-  if (process.env.DOT_ALLOW_PRIVATE === "never") return;
+  if (envString(ENV.DOT_ALLOW_PRIVATE) === "never") return;
 
   const privatePath = privateDotfilesPath();
   if (bootstrapGitRepoExists(privatePath)) {
@@ -277,7 +280,7 @@ function bootstrapPrivateDotfilesForInit(mode: Mode): void {
       const message = `Failed to update private dotfiles at ${privatePath}\n`;
       process.stderr.write(message);
       appendBootstrapLog(message);
-      if (process.env.DOT_ALLOW_PRIVATE === "always") process.exit(exitCode);
+      if (envString(ENV.DOT_ALLOW_PRIVATE) === "always") process.exit(exitCode);
     }
     return;
   }
@@ -285,7 +288,7 @@ function bootstrapPrivateDotfilesForInit(mode: Mode): void {
   if (!ghAuthenticated()) {
     const message =
       "[WARN] Skipping private dotfiles clone; run `gh auth login` before `dot init` if private dotfiles are wanted.\n";
-    if (process.env.DOT_ALLOW_PRIVATE === "always") {
+    if (envString(ENV.DOT_ALLOW_PRIVATE) === "always") {
       process.stderr.write(message);
       appendBootstrapLog(message);
       process.exit(1);

@@ -4,6 +4,7 @@ import { dirname, join } from "path";
 import { Config } from "./Config.js";
 import { mirrorConfiguredLog } from "../lib/logMirror.js";
 import { expandHomePath } from "../lib/paths.js";
+import { ENV, envString } from "../lib/env.js";
 
 /** Severity levels for log entries */
 export type LogLevel = "info" | "warn" | "error" | "section";
@@ -64,8 +65,8 @@ function formatAnsi(entry: LogEntry): string {
 }
 
 function logFiles(defaultLogFile: string): readonly string[] {
-  const configuredLogFile = process.env.DOT_LOG_FILE
-    ? expandHomePath(process.env.DOT_LOG_FILE)
+  const configuredLogFile = envString(ENV.DOT_LOG_FILE)
+    ? expandHomePath(envString(ENV.DOT_LOG_FILE)!)
     : undefined;
   const paths = configuredLogFile
     ? [defaultLogFile, configuredLogFile]
@@ -74,12 +75,15 @@ function logFiles(defaultLogFile: string): readonly string[] {
 }
 
 function initialiseLogFiles(paths: readonly string[]): void {
-  const configuredLogFile = process.env.DOT_LOG_FILE
-    ? expandHomePath(process.env.DOT_LOG_FILE)
+  const configuredLogFile = envString(ENV.DOT_LOG_FILE)
+    ? expandHomePath(envString(ENV.DOT_LOG_FILE)!)
     : null;
   for (const path of paths) {
     mkdirSync(dirname(path), { recursive: true });
-    if (configuredLogFile === path && process.env.DOT_TEE_INHERIT_LOG === "1") {
+    if (
+      configuredLogFile === path &&
+      envString(ENV.DOT_TEE_INHERIT_LOG) === "1"
+    ) {
       continue;
     }
     writeFileSync(path, "");

@@ -11,6 +11,7 @@ import { dirname, join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../lib/paths.js";
+import { ENV, envString } from "../lib/env.js";
 
 /** Metadata attached to each sync operation */
 interface SyncMetadata {
@@ -54,7 +55,7 @@ function atomicWrite(dest: string, content: string): void {
 const cursorTarget: HarnessTarget = {
   name: "cursor",
   outputPath: () =>
-    process.env.DOT_AGENTS_SYNC_RULE_FILE ??
+    envString(ENV.DOT_AGENTS_SYNC_RULE_FILE) ??
     join(HOME_DIR, ".cursor", "rules", "global-agents.mdc"),
   transform: (content, meta) =>
     [
@@ -119,7 +120,7 @@ export const agentsSync = Effect.gen(function* () {
   yield* log.section("Agents Rules Sync");
 
   const source =
-    process.env.DOT_AGENTS_SYNC_SOURCE ??
+    envString(ENV.DOT_AGENTS_SYNC_SOURCE) ??
     join(CONFIG_DIR, "opencode", "AGENTS.md");
 
   if (!existsSync(source)) {

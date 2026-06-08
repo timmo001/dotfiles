@@ -3,8 +3,9 @@ import type { CliRenderer } from "@opentui/core";
 import { CommandExecutor, CommandError } from "./CommandExecutor.js";
 import { OutputLog } from "./OutputLog.js";
 import { waitForKeypress } from "../lib/terminal.js";
+import { ENV, envString } from "../lib/env.js";
 
-const DEBUG = !!process.env.DOT_DEBUG;
+const DEBUG = !!envString(ENV.DOT_DEBUG);
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot:Launcher] ${msg}`);
 };

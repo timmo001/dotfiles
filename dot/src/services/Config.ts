@@ -14,6 +14,7 @@ import {
   STATE_DIR,
   expandHomePath,
 } from "../lib/paths.js";
+import { ENV, envString } from "../lib/env.js";
 
 /** Omarchy repo configuration for diff tracking */
 export interface OmarchyRepoConfig {
@@ -61,20 +62,20 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
     Config,
     Effect.sync(() => {
       const publicDotfiles = expandHomePath(
-        process.env.DOTFILES_PUBLIC_DIR ?? join(CONFIG_DIR, "dotfiles"),
+        envString(ENV.DOTFILES_PUBLIC_DIR) ?? join(CONFIG_DIR, "dotfiles"),
       );
 
       const privatePath = expandHomePath(
-        process.env.DOTFILES_PRIVATE_DIR ??
+        envString(ENV.DOTFILES_PRIVATE_DIR) ??
           join(CONFIG_DIR, "dotfiles-private"),
       );
       const privateExists = existsSync(join(privatePath, ".git"));
       let canUsePrivate = false;
       let privateReason: string;
 
-      if (process.env.DOT_ALLOW_PRIVATE === "never") {
+      if (envString(ENV.DOT_ALLOW_PRIVATE) === "never") {
         privateReason = "DOT_ALLOW_PRIVATE=never";
-      } else if (process.env.DOT_ALLOW_PRIVATE === "always") {
+      } else if (envString(ENV.DOT_ALLOW_PRIVATE) === "always") {
         canUsePrivate = true;
         privateReason = "DOT_ALLOW_PRIVATE=always";
       } else if (!privateExists) {
@@ -97,13 +98,14 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
       const privateDotfiles = canUsePrivate ? privatePath : null;
 
       const notesDir = expandHomePath(
-        process.env.NOTES ||
-          process.env.DOT_NOTES_DIR ||
+        envString(ENV.NOTES) ||
+          envString(ENV.DOT_NOTES_DIR) ||
           join(HOME_DIR, "Documents", "notes"),
       );
 
       // Omarchy config
-      const omarchyRepoBase = process.env.OMARCHY_REPO_BASE_DIR ?? CONFIG_DIR;
+      const omarchyRepoBase =
+        envString(ENV.OMARCHY_REPO_BASE_DIR) ?? CONFIG_DIR;
       const omarchyDiffRepos = [
         "hypr",
         "waybar",
@@ -121,7 +123,7 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
         uwsm: "main",
       } satisfies Readonly<Record<string, string>>;
       const omarchyEnabled =
-        (process.env.DOT_INCLUDE_OMARCHY_DIFF_REPOS ?? "1") !== "0";
+        (envString(ENV.DOT_INCLUDE_OMARCHY_DIFF_REPOS) ?? "1") !== "0";
 
       const omarchy: OmarchyRepoConfig = {
         repoBase: omarchyRepoBase,
@@ -133,7 +135,8 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
       };
 
       const gitConfigFile =
-        process.env.DOT_GIT_CONFIG_FILE ?? defaultDotGitConfigPath(privatePath);
+        envString(ENV.DOT_GIT_CONFIG_FILE) ??
+        defaultDotGitConfigPath(privatePath);
       const gitConfig = canUsePrivate
         ? loadDotGitConfig(gitConfigFile)
         : emptyDotGitConfig(gitConfigFile);

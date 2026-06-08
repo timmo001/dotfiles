@@ -14,6 +14,7 @@ import { OutputLog, type OutputLogService } from "../services/OutputLog.js";
 import { elevatedCommand } from "../lib/elevatedCommand.js";
 import { gitExitCode, gitRequired } from "../lib/git.js";
 import { displayPath, expandHomePath } from "../lib/paths.js";
+import { ENV, envString } from "../lib/env.js";
 import { setupPrivateRepo } from "./SetupPrivateRepo.js";
 import { loadPrivatePackageRepoConfig } from "../doctor/checks/packages.js";
 import type { ConfigService } from "../services/Config.js";
@@ -56,7 +57,7 @@ const privatePkgOptionHandlers = new Map<
 
 function packageMapFile(config: ConfigService): string | null {
   return (
-    process.env.DOT_PRIVATE_PACKAGE_MAP_FILE ??
+    envString(ENV.DOT_PRIVATE_PACKAGE_MAP_FILE) ??
     (config.privateDotfiles
       ? join(config.privateDotfiles, ".dot-private-package-map")
       : null)

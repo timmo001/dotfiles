@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "fs";
 import { join, basename } from "path";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../../lib/paths.js";
+import { ENV, envString } from "../../lib/env.js";
 import type { CheckResult } from "../types.js";
 
 /** Check VAAPI hardware video decode support */
@@ -49,7 +50,7 @@ export const checkHardwareVideo = Effect.gen(function* () {
   }
 
   // VAAPI driver env
-  const currentVaapiDriver = process.env.LIBVA_DRIVER_NAME ?? "auto";
+  const currentVaapiDriver = envString(ENV.LIBVA_DRIVER_NAME) ?? "auto";
   results.push({
     severity: "ok",
     message: `LIBVA_DRIVER_NAME=${currentVaapiDriver} (session default)`,

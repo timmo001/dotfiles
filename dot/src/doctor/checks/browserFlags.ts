@@ -4,6 +4,7 @@ import { join } from "path";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../../lib/paths.js";
+import { ENV, envString } from "../../lib/env.js";
 import type { CheckResult } from "../types.js";
 
 /** Check browser flags symlinks from private dotfiles */
@@ -12,7 +13,7 @@ export const checkBrowserFlags = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
   const results: CheckResult[] = [];
 
-  const host = process.env.OMARCHY_HOST ?? "";
+  const host = envString(ENV.OMARCHY_HOST) ?? "";
   const browserFlagsHostPkg = `chromium--${host}`;
   const browserFlagsPkgDir = config.privateDotfiles
     ? join(config.privateDotfiles, browserFlagsHostPkg)

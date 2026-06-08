@@ -1,5 +1,6 @@
 import { appendFileSync, mkdirSync, writeFileSync } from "fs";
 import { dirname } from "path";
+import { ENV, envString } from "./env.js";
 
 /** Return whether a path points at the GVfs FUSE mount used by desktop shares. */
 export function isGvfsPath(path: string): boolean {
@@ -19,8 +20,8 @@ function copyFile(command: readonly string[]): number {
 
 /** Mirror the active init log to `DOT_LOG_MIRROR_FILE` when configured. */
 export function mirrorConfiguredLog(): void {
-  const source = process.env.DOT_LOG_FILE;
-  const target = process.env.DOT_LOG_MIRROR_FILE;
+  const source = envString(ENV.DOT_LOG_FILE);
+  const target = envString(ENV.DOT_LOG_MIRROR_FILE);
   if (!source || !target || source === target) return;
 
   if (copyFile(["gio", "copy", "-f", source, target]) === 0) return;

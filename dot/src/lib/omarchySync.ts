@@ -13,6 +13,7 @@ import {
   isGitRepo,
 } from "./git.js";
 import { displayPath } from "./paths.js";
+import { ENV, envString } from "./env.js";
 import type { ConfigService } from "../services/Config.js";
 
 /** Domain error for Omarchy repository sync failures. */
@@ -93,8 +94,8 @@ function branchOption(
 
 function branchEnvironment(repoName: string): string | undefined {
   return repoName === "bootstrap"
-    ? process.env.DOT_BOOTSTRAP_BRANCH
-    : process.env.DOT_OMARCHY_BRANCH;
+    ? envString(ENV.DOT_BOOTSTRAP_BRANCH)
+    : envString(ENV.DOT_OMARCHY_BRANCH);
 }
 
 function fallbackBranch(config: ConfigService, repoName: string): string {

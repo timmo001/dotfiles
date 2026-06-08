@@ -10,6 +10,7 @@ import { dirname, join, resolve } from "path";
 import type { ConfigService } from "../services/Config.js";
 import type { OutputLogService } from "../services/OutputLog.js";
 import { displayPath } from "./paths.js";
+import { ENV, envString } from "./env.js";
 
 /** Resolve a symlink target exactly as the filesystem would from the link path. */
 export function resolveLinkTarget(linkPath: string, target: string): string {
@@ -18,7 +19,7 @@ export function resolveLinkTarget(linkPath: string, target: string): string {
 
 /** Return the currently requested Omarchy host, if configured. */
 export function currentOmarchyHost(): string | null {
-  const host = process.env.OMARCHY_HOST?.trim();
+  const host = envString(ENV.OMARCHY_HOST)?.trim();
   return host ? host : null;
 }
 
