@@ -1,10 +1,8 @@
 # DOTFILES AGENTS
 
-Instructions for coding agents working in this repository.
+Repository-specific instructions for coding agents working in this public dotfiles repo.
 
-This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGENTS.md` from the repo root (and from nested directories when working under those paths). For Cursor-only behavior (globs, `alwaysApply`), use `.cursor/rules/`; that stays separate from this portable file.
-
-**Shared global instructions** (OpenCode and any Cursor project): one on-disk file at `~/.config/opencode/AGENTS.md`, stowed from `~/.config/dotfiles-private/agents/.config/opencode/AGENTS.md` when private dotfiles are installed. **`dot agents-sync`** writes the mirrored Cursor rule to **`dotfiles-private/agents/.cursor/rules/global-agents.mdc`** by default (stows to `~/.cursor/rules/`) with **`alwaysApply: true`**; **`dot update`** and **`dot git-diff`** run the sync by default (`DOT_AGENTS_SYNC_ON_*`). Claude Code config is in the same private **`agents/`** tree (`.claude/`, `.claude.json`). To reuse AGENTS in another repo: `ln -sf ~/.config/opencode/AGENTS.md AGENTS.md` in that project’s root (or **Cursor → Settings → Rules**).
+Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGENTS.md`. This file should only describe this repo's source layout, stow workflow, repo-local commands, and validation expectations.
 
 ## Scope
 
@@ -30,48 +28,13 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - Skills source: `agents/.agents/skills/` (stows to `~/.agents/skills/`; shared by OpenCode + Codex)
 - Published OpenCode config: [`timmo001/opencode-config`](https://github.com/timmo001/opencode-config)
 
-## OpenCode Workflow
+## OpenCode Assets
 
-- Prefer `/inject-context` and `/review-current-work` for current-branch context instead of rebuilding that snapshot with repeated `git status`, `git diff`, `git log`, or `gh pr` calls. `/inject-context` accepts an optional inline instruction (e.g. `/inject-context add x to the y`); without one it injects context and waits.
-- Use `/refactor-current-work` for behaviour-preserving cleanup within the current branch scope instead of rebuilding that scope manually before a refactor.
-- Use `/plan` as the manual entrypoint to native planning mode when explicit implementation planning would help; reuse the existing conversation context instead of rebuilding it from scratch.
-- Use `/grill` when the user wants extended one-question-at-a-time planning questions, plan stress-testing, or a larger question window before `/plan` or implementation.
-- Some execution-oriented agents can now call native `plan_enter` themselves for broad, multi-step, sequencing-heavy, or materially ambiguous work; prefer that automatic handoff when the agent is already in execution flow.
-- `/inject-context`, `/review-current-work`, and the scoped cleanup/type commands use `BranchContextPlugin`; treat its injected `<work-scope>` section as the canonical scope source unless the user explicitly asks for a refresh.
 - For human-written command names and command/docs prose in this repo, prefer UK spelling. Keep upstream tool, API, or MCP names unchanged when they use US spelling.
-- Use first-class agents intentionally: `ask` for clarification/light investigation, `reviewer` via `/review-current-work` for reviews, and `refactorer` for behavior-preserving cleanup.
-- Use `/investigate` as the default shared `ask` entrypoint for general investigation, triage, and context gathering when the work is not specifically codebase exploration, frontend debugging, or Fallow analysis.
-- Use the `diagnose` skill for hard bug reports, regressions, flaky behaviour, and performance diagnosis when the work needs a reproducible feedback loop before fixing.
-- Use the `improve-codebase-architecture` skill for architecture reviews, maintainability analysis, and structural follow-up when an area feels scattered, tightly coupled, or hard to reason about.
-- Use `/explore-codebase` for broad discovery questions and use subagents for other parallelizable multi-step work instead of doing long serial searches in one agent.
-- Use `/improve-codebase-architecture <area>` when you want a focused architecture review of a named feature, subsystem, or file family without editing first.
-- Use `/debug-frontend` for browser-specific investigation before falling back to source-only reasoning.
-- Use `/fallow-audit` only when the user explicitly asks for a Fallow changed-code audit.
-- Use `/fallow-project-analyse` when you want broader Fallow project analysis beyond changed-code audit scope.
-- For frontend debugging, prefer Chrome DevTools tools (snapshot, console, network, Lighthouse, performance trace) over static reasoning alone when the issue is browser-behavior-dependent.
-
-## Documentation and External Lookups
-
-- For library or framework documentation, prefer `context7` tools over `webfetch` or `gh` CLI.
-- For GitHub-hosted documentation, code patterns, or real-world usage examples, prefer `gh_grep` over `webfetch`, `gh api`, or `gh repo view` of raw file content.
-- For community troubleshooting context, use Answer Overflow tools.
-- Reserve `gh` CLI for GitHub workflow operations (PRs, issues, checks, runs) and local repo metadata, not for reading documentation or searching code patterns.
-- Reserve `webfetch` as a fallback for URLs that are not GitHub-hosted repos or indexed library docs.
-
-## Go Automate Home Assistant Bridge Policy
-
-- For Home Assistant entity watchers used by Waybar/scripts, use `go-automate ha bridge watch entity` by default.
-- Treat `go-automate ha watch entity` direct-style usage as a fallback only when bridge mode is unavailable.
-- Prefer `--bar-json` output for machine-consumed flows; plain text output should be treated as human-facing unless explicitly needed.
-
-## Skill Application
-
-- For every code change, apply all matching OpenCode skills before editing.
-- If a user asks for a local "rule" in OpenCode context, treat that as a request for the corresponding skill and use "skill" in new docs/config.
-- If a change spans multiple scopes, apply all relevant skills together (not just one).
-- Use the `write-a-skill` skill when adding or revising local OpenCode skills so descriptions, supporting files, and scripts stay minimal and consistent.
-- Use the `skill-notes` skill alongside `import-external-skill` and `write-a-skill` when evaluating, importing, or recommending skills.
-- Skills in `agents/.agents/skills/` are stowed globally (cross-project, shared by OpenCode + Codex via `~/.agents/skills/`). Skills in `.opencode/skills/` are repo-local (this repo only).
+- `agents/.config/opencode/` contains the shared OpenCode config source published from this repo.
+- `agents/.agents/skills/` contains globally stowed skills shared by OpenCode and Codex via `~/.agents/skills/`.
+- `.opencode/skills/` contains repo-local skills for this repo only.
+- `dot agents-sync` mirrors the global private AGENTS source into Cursor rules; `dot update` and `dot git-diff` run that sync by default (`DOT_AGENTS_SYNC_ON_*`).
 
 ## Repo-Specific Skills
 
@@ -122,13 +85,3 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - OpenCode fallow project analysis command: `/fallow-project-analyse [workspace]`
 - GitHub notifications command: `dot git-notifications` (`--bar-json`, `--list-threads`, and thread actions)
 - Git diff behavior: `dot git-diff` (`dot diff` is a human compatibility alias)
-
-## Safety
-
-- Do not run destructive git commands unless explicitly requested.
-- Do not commit or push unless explicitly requested.
-- Preserve user changes in a dirty working tree; do not revert unrelated edits.
-
-## Response Style
-
-- End task updates with a short finish message: what changed, what was verified, and what remains (if anything).
