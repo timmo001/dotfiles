@@ -2,13 +2,10 @@ import { Effect } from "effect";
 import { existsSync, readFileSync } from "fs";
 import { join, basename } from "path";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
+import { displayPath, homeDir } from "../../lib/paths.js";
 import type { CheckResult } from "../types.js";
 
-const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
-
-function displayPath(p: string): string {
-  return p.replace(HOME, "~");
-}
+const HOME = homeDir();
 
 /** Check VAAPI hardware video decode support */
 export const checkHardwareVideo = Effect.gen(function* () {

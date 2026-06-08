@@ -4,11 +4,11 @@ import { join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
-import { displayPath } from "./omarchyHost.js";
+import { displayPath, homeDir } from "./paths.js";
 import { runElevated } from "./elevatedCommand.js";
 import type { ConfigService } from "../services/Config.js";
 
-const HOME = process.env.HOME ?? "/home/" + process.env.USER;
+const HOME = homeDir();
 const XDG_CONFIG_HOME = process.env.XDG_CONFIG_HOME ?? join(HOME, ".config");
 
 /** Domain error for package setup failures. */

@@ -17,6 +17,7 @@ import {
   initCompleteMarker,
 } from "../lib/initState.js";
 import { gitHead, gitPullRebase, gitWorkingTreeClean } from "../lib/git.js";
+import { displayPath } from "../lib/paths.js";
 import type { ConfigService } from "../services/Config.js";
 import type { InitCompleteMarkerStatus } from "../lib/initState.js";
 import type { DiffRepo } from "../types.js";
@@ -42,9 +43,6 @@ export interface UpdateOptions {
   /** Repository names already pulled before restart, for post-hook handling. */
   readonly postHookRepos?: readonly string[];
 }
-
-const displayPath = (p: string): string =>
-  p.replace(process.env.HOME ?? "", "~");
 
 const repoStatus = (repo: DiffRepo): string => {
   const parts: string[] = [];

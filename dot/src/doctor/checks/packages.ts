@@ -3,10 +3,11 @@ import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
+import { displayPath, expandHomePath, homeDir } from "../../lib/paths.js";
 import type { ConfigService } from "../../services/Config.js";
 import type { CheckResult } from "../types.js";
 
-const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
+const HOME = homeDir();
 const DEFAULT_PRIVATE_PACMAN_REPO_CONFIG = "/etc/pacman.d/timmo-private.conf";
 const DEFAULT_PRIVATE_PACMAN_MAIN_CONFIG = "/etc/pacman.conf";
 
@@ -47,19 +48,15 @@ const privatePackageRepoConfigSetters: Readonly<
     draft.remote = value;
   },
   path: (draft, value) => {
-    draft.path = value.replace(/^~/, HOME);
+    draft.path = expandHomePath(value);
   },
   mirror_path: (draft, value) => {
-    draft.mirrorPath = value.replace(/^~/, HOME);
+    draft.mirrorPath = expandHomePath(value);
   },
   siglevel: (draft, value) => {
     draft.sigLevel = value;
   },
 };
-
-function displayPath(p: string): string {
-  return p.replace(HOME, "~");
-}
 
 function privatePackageRepoConfigFile(config: ConfigService): string | null {
   return (

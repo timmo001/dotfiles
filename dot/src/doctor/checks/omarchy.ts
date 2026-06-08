@@ -5,9 +5,9 @@ import { Config } from "../../services/Config.js";
 import type { CheckResult } from "../types.js";
 import { readGitBranch, readGitUpstream, upstreamBranch } from "../git.js";
 import { gitExitCode, gitOutput, isGitRepo } from "../../lib/git.js";
+import { displayPath } from "../../lib/paths.js";
 import {
   currentOmarchyHost,
-  displayPath,
   hyprRepoPath,
   resolveLinkTarget,
 } from "../../lib/omarchyHost.js";

@@ -3,15 +3,11 @@ import { existsSync } from "fs";
 import { Config } from "../../services/Config.js";
 import { managedGitRepos } from "../../services/GitConfig.js";
 import { gitExitCode } from "../../lib/git.js";
+import { displayPath, homeDir } from "../../lib/paths.js";
 import { readGitBranch, readGitUpstream } from "../git.js";
 import type { CheckResult } from "../types.js";
 
-const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
-
-/** Display path with ~ for HOME */
-function displayPath(p: string): string {
-  return p.replace(HOME, "~");
-}
+const HOME = homeDir();
 
 /** Check public/private dotfiles repos and private git config repos. */
 export const checkRepos = Effect.gen(function* () {

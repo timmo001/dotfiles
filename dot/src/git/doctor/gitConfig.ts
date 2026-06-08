@@ -1,9 +1,10 @@
 import { Effect } from "effect";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
+import { displayPath, homeDir } from "../../lib/paths.js";
 import type { CheckResult } from "../../doctor/types.js";
 
-const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
+const HOME = homeDir();
 
 /** Check git config includes the managed dotfiles settings */
 export const checkGitConfig = Effect.gen(function* () {
@@ -39,7 +40,7 @@ export const checkGitConfig = Effect.gen(function* () {
       results.push({
         severity: "warn",
         message: "Git config file does not exist",
-        detail: `Expected: ${gitConfigFile.replace(HOME, "~")}`,
+        detail: `Expected: ${displayPath(gitConfigFile)}`,
       });
     }
   } else {

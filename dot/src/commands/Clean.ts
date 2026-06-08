@@ -3,6 +3,7 @@ import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
 import { listStowFolders } from "../lib/stowFolders.js";
+import { displayPath } from "../lib/paths.js";
 
 /**
  * Unstow all packages from private (if available) and public dotfiles repos.
@@ -44,10 +45,10 @@ const unstowRepo = (
 ) =>
   Effect.gen(function* () {
     const folders = listStowFolders(repoDir).sort();
-    const displayPath = repoDir.replace(process.env.HOME ?? "", "~");
+    const repoDisplayPath = displayPath(repoDir);
 
     for (const folder of folders) {
-      yield* log.info(`[${scope}] unstow ${folder} (repo: ${displayPath})`);
+      yield* log.info(`[${scope}] unstow ${folder} (repo: ${repoDisplayPath})`);
       const exit = yield* launcher.stream(`stow -D ${folder}`, {
         cwd: repoDir,
       });

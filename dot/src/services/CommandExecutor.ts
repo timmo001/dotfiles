@@ -1,5 +1,6 @@
 import { Context, Effect, Layer, Schema, Stream } from "effect";
 import { writeMirroredLog } from "../lib/logMirror.js";
+import { expandHomePath } from "../lib/paths.js";
 
 const DEBUG = !!process.env.DOT_DEBUG;
 const log = (msg: string) => {
@@ -54,10 +55,6 @@ function toCommandError(error: unknown, command: string): CommandError {
     exitCode: 1,
     stderr: error instanceof Error ? error.message : String(error),
   });
-}
-
-function expandHomePath(path: string): string {
-  return path.replace(/^~(?=\/|$)/, process.env.HOME ?? "");
 }
 
 function inheritedCommandLogFile(): string | null {

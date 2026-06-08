@@ -9,9 +9,10 @@ import {
   unlinkSync,
 } from "fs";
 import { basename, dirname, join, relative } from "path";
+import { homeDir } from "./paths.js";
 import { listStowFolders } from "./stowFolders.js";
 
-const HOME = process.env.HOME ?? "/home/" + process.env.USER;
+const HOME = homeDir();
 const EXTERNAL_SKILL_DIRS = [
   join(HOME, ".agents", "skills"),
   join(HOME, ".claude", "skills"),

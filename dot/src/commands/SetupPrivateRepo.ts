@@ -6,6 +6,7 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { runElevated } from "../lib/elevatedCommand.js";
 import { ghRepoClone } from "../lib/git.js";
+import { displayPath } from "../lib/paths.js";
 import {
   loadPrivatePackageRepoConfig,
   privatePackageRepoConfigContents,
@@ -18,8 +19,6 @@ import {
 } from "../doctor/checks/packages.js";
 import type { PrivatePackageRepoConfig } from "../doctor/checks/packages.js";
 
-const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
-
 /** Domain error for private pacman repository setup failures. */
 class SetupPrivateRepoError extends Schema.TaggedErrorClass<SetupPrivateRepoError>()(
   "SetupPrivateRepoError",
@@ -27,10 +26,6 @@ class SetupPrivateRepoError extends Schema.TaggedErrorClass<SetupPrivateRepoErro
     message: Schema.String,
   },
 ) {}
-
-function displayPath(path: string): string {
-  return path.replace(HOME, "~");
-}
 
 function privatePackageRepoReady(repo: PrivatePackageRepoConfig): boolean {
   return (

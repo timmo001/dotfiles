@@ -13,12 +13,11 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog, type OutputLogService } from "../services/OutputLog.js";
 import { elevatedCommand } from "../lib/elevatedCommand.js";
 import { gitExitCode, gitRequired } from "../lib/git.js";
+import { displayPath, expandHomePath } from "../lib/paths.js";
 import { setupPrivateRepo } from "./SetupPrivateRepo.js";
 import { loadPrivatePackageRepoConfig } from "../doctor/checks/packages.js";
 import type { ConfigService } from "../services/Config.js";
 import type { PrivatePackageRepoConfig } from "../doctor/checks/packages.js";
-
-const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
 
 interface PrivatePkgPublishArgs {
   readonly packageName: string;
@@ -54,14 +53,6 @@ const privatePkgOptionHandlers = new Map<
   ["--skip-build", (draft) => void (draft.buildPackage = false)],
   ["--install", (draft) => void (draft.installPackage = true)],
 ]);
-
-function displayPath(path: string): string {
-  return path.replace(HOME, "~");
-}
-
-function expandHomePath(path: string): string {
-  return path.replace(/^~(?=\/|$)/, HOME);
-}
 
 function packageMapFile(config: ConfigService): string | null {
   return (

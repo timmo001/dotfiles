@@ -2,13 +2,8 @@ import { Effect } from "effect";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { Config } from "../../services/Config.js";
+import { displayPath, expandHomePath } from "../../lib/paths.js";
 import type { CheckResult } from "../types.js";
-
-const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
-
-function displayPath(p: string): string {
-  return p.replace(HOME, "~");
-}
 
 /**
  * Check browser extensions from private config.
@@ -62,7 +57,7 @@ export const checkBrowserExtensions = Effect.gen(function* () {
       .map((s) => s.trim());
     if (!kind || !rawProfileDir || !target || !label) continue;
 
-    const profileDir = rawProfileDir.replace(/^~/, HOME);
+    const profileDir = expandHomePath(rawProfileDir);
 
     if (!existsSync(profileDir)) {
       results.push({

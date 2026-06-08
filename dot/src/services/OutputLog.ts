@@ -3,6 +3,7 @@ import { appendFileSync, mkdirSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { Config } from "./Config.js";
 import { mirrorConfiguredLog } from "../lib/logMirror.js";
+import { expandHomePath } from "../lib/paths.js";
 
 /** Severity levels for log entries */
 export type LogLevel = "info" | "warn" | "error" | "section";
@@ -60,10 +61,6 @@ function formatAnsi(entry: LogEntry): string {
     case "error":
       return `  ${ansi.red}[ERROR]${ansi.reset} ${entry.message}`;
   }
-}
-
-function expandHomePath(path: string): string {
-  return path.replace(/^~(?=\/|$)/, process.env.HOME ?? "");
 }
 
 function logFiles(defaultLogFile: string): readonly string[] {

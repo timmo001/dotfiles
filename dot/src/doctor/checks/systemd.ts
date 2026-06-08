@@ -7,14 +7,11 @@ import {
 } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import { GitHub } from "../../git/services/GitHub.js";
+import { displayPath, homeDir } from "../../lib/paths.js";
 import type { CheckResult } from "../types.js";
 
-const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
+const HOME = homeDir();
 const XDG_CONFIG_HOME = process.env.XDG_CONFIG_HOME ?? join(HOME, ".config");
-
-function displayPath(p: string): string {
-  return p.replace(HOME, "~");
-}
 
 // Obsolete workflow notification units that should no longer be installed.
 const LEGACY_WORKFLOW_WATCH_SERVICE_UNIT = "git-workflow-watch.service";

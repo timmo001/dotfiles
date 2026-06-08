@@ -10,8 +10,9 @@ import {
 import { dirname, join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
+import { displayPath, homeDir } from "../lib/paths.js";
 
-const HOME = process.env.HOME ?? "/home/" + process.env.USER;
+const HOME = homeDir();
 
 /** Metadata attached to each sync operation */
 interface SyncMetadata {
@@ -24,11 +25,6 @@ interface HarnessTarget {
   readonly name: string;
   readonly outputPath: () => string;
   readonly transform: (content: string, metadata: SyncMetadata) => string;
-}
-
-/** Replace $HOME prefix with ~ for display */
-function displayPath(p: string): string {
-  return p.replace(HOME, "~");
 }
 
 /** Atomic write: mkdir -p, write to temp, rename over destination */

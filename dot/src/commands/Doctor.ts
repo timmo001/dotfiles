@@ -5,6 +5,7 @@ import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher } from "../services/Launcher.js";
 import { runDoctor } from "../doctor/runner.js";
+import { displayPath } from "../lib/paths.js";
 import type { DoctorReport } from "../doctor/types.js";
 
 /** Format a doctor report as plain text for file output */
@@ -43,18 +44,12 @@ export const doctor = (opts?: { readonly openOpencode?: boolean }) =>
     const report = yield* runDoctor;
 
     // Header summary (matches legacy)
-    yield* log.info(
-      `Public repo: ${config.publicDotfiles.replace(process.env.HOME ?? "", "~")}`,
-    );
+    yield* log.info(`Public repo: ${displayPath(config.publicDotfiles)}`);
     if (config.privateDotfiles) {
-      yield* log.info(
-        `Private repo: ${config.privateDotfiles.replace(process.env.HOME ?? "", "~")}`,
-      );
+      yield* log.info(`Private repo: ${displayPath(config.privateDotfiles)}`);
     }
     if (config.notesDir) {
-      yield* log.info(
-        `Notes repo: ${config.notesDir.replace(process.env.HOME ?? "", "~")}`,
-      );
+      yield* log.info(`Notes repo: ${displayPath(config.notesDir)}`);
     }
     yield* log.info(`Private mode: ${process.env.DOT_ALLOW_PRIVATE ?? "auto"}`);
 

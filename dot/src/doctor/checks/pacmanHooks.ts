@@ -2,9 +2,10 @@ import { Effect } from "effect";
 import { existsSync, readdirSync, readFileSync } from "fs";
 import { join, basename } from "path";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
+import { homeDir } from "../../lib/paths.js";
 import type { CheckResult } from "../types.js";
 
-const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
+const HOME = homeDir();
 const XDG_CONFIG_HOME = process.env.XDG_CONFIG_HOME ?? join(HOME, ".config");
 
 /** Check pacman hooks are installed and up to date */

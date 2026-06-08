@@ -1,15 +1,10 @@
 import { Effect } from "effect";
 import { existsSync } from "fs";
 import { listStowFolders } from "../../lib/stowFolders.js";
+import { displayPath } from "../../lib/paths.js";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import type { CheckResult } from "../types.js";
-
-const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
-
-function displayPath(p: string): string {
-  return p.replace(HOME, "~");
-}
 
 /** Check stow integrity by running dry-run restow on all packages */
 export const checkStow = Effect.gen(function* () {

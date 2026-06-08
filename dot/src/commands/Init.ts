@@ -23,9 +23,9 @@ import {
 } from "../lib/packageSetup.js";
 import { syncOmarchyRepos } from "../lib/omarchySync.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
+import { displayPath, homeDir } from "../lib/paths.js";
 import {
   currentOmarchyHost,
-  displayPath,
   ensureHyprHostLink,
   hyprRepoPath,
   resolveLinkTarget,
@@ -38,7 +38,7 @@ import {
 } from "../lib/initState.js";
 import type { ConfigService } from "../services/Config.js";
 
-const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
+const HOME = homeDir();
 const XDG_CONFIG_HOME = process.env.XDG_CONFIG_HOME ?? join(HOME, ".config");
 const GIT_INCLUDE_PATH = "~/.config/git/config.dotfiles";
 const DOCTOR_STARTUP_TIMER_UNIT = "dot-doctor-startup.timer";

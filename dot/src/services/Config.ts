@@ -7,12 +7,9 @@ import {
   loadDotGitConfig,
   type DotGitConfig,
 } from "./GitConfig.js";
+import { expandHomePath, homeDir } from "../lib/paths.js";
 
-const HOME = process.env.HOME ?? "/home/" + process.env.USER;
-
-function expandHomePath(path: string): string {
-  return path.replace(/^~(?=\/|$)/, HOME);
-}
+const HOME = homeDir();
 
 /** Omarchy repo configuration for diff tracking */
 export interface OmarchyRepoConfig {

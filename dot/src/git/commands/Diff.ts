@@ -8,6 +8,7 @@ import {
 } from "../services/DotDiff.js";
 import { OutputLog } from "../../services/OutputLog.js";
 import { managedGitRepoForPath } from "../../services/GitConfig.js";
+import { displayPath } from "../../lib/paths.js";
 import type { DiffRepo } from "../../types.js";
 import { textLooksLikeBotActivity } from "../services/botActivity.js";
 
@@ -126,8 +127,7 @@ export const diffRaw = (opts?: DiffScanOptions) =>
     yield* log.section("Diff Workflow");
 
     for (const repo of repos) {
-      const displayPath = repo.path.replace(process.env.HOME ?? "", "~");
-      yield* log.section(`${repo.name} repo: ${displayPath}`);
+      yield* log.section(`${repo.name} repo: ${displayPath(repo.path)}`);
 
       // Git status (short)
       const statusOut = yield* executor

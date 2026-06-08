@@ -5,6 +5,7 @@ import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
 import { INTERNAL_STOW_FOLDERS, listStowFolders } from "../lib/stowFolders.js";
+import { displayPath, homeDir } from "../lib/paths.js";
 import { ensureHyprHostLink } from "../lib/omarchyHost.js";
 import {
   backupPrivateStowTargets,
@@ -22,7 +23,7 @@ const AGENTS_PRIVATE_IGNORES = [
   "--ignore='\\.gitignore'",
 ];
 
-const HOME = process.env.HOME ?? "/home/" + process.env.USER;
+const HOME = homeDir();
 
 /**
  * Run GNU Stow per-folder for the public and (optionally) private dotfiles repos.
@@ -81,14 +82,19 @@ const stowRepo = (
 ) =>
   Effect.gen(function* () {
     const folders = listStowFolders(repoDir).sort();
-    const displayPath = repoDir.replace(process.env.HOME ?? "", "~");
+    const repoDisplayPath = displayPath(repoDir);
 
     if (scope === "public") {
-      yield* unstowLegacyInternalFolders(repoDir, displayPath, launcher, log);
+      yield* unstowLegacyInternalFolders(
+        repoDir,
+        repoDisplayPath,
+        launcher,
+        log,
+      );
     }
 
     for (const folder of folders) {
-      yield* log.info(`[${scope}] stow ${folder} (repo: ${displayPath})`);
+      yield* log.info(`[${scope}] stow ${folder} (repo: ${repoDisplayPath})`);
 
       // Unstow first, then restow (equivalent to --restow per folder)
       const unstowCmd = `stow -D ${folder}`;

@@ -3,13 +3,10 @@ import { existsSync, lstatSync } from "fs";
 import { join } from "path";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
+import { displayPath, homeDir } from "../../lib/paths.js";
 import type { CheckResult } from "../types.js";
 
-const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
-
-function displayPath(p: string): string {
-  return p.replace(HOME, "~");
-}
+const HOME = homeDir();
 
 /** Check browser flags symlinks from private dotfiles */
 export const checkBrowserFlags = Effect.gen(function* () {

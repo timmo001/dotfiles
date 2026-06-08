@@ -12,7 +12,7 @@ import {
   gitWorkingTreeClean,
   isGitRepo,
 } from "./git.js";
-import { displayPath } from "./omarchyHost.js";
+import { displayPath } from "./paths.js";
 import type { ConfigService } from "../services/Config.js";
 
 /** Domain error for Omarchy repository sync failures. */

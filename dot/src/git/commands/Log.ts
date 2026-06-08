@@ -6,8 +6,7 @@ import {
   formatGitLogRepoDetail,
   formatGitLogTimeAgo,
 } from "../services/gitLogStatus.js";
-
-const HOME = process.env.HOME ?? `/home/${process.env.USER ?? ""}`;
+import { displayPath } from "../../lib/paths.js";
 
 const handleGitLogError = Effect.catch((error: unknown) =>
   Effect.sync(() => {
@@ -56,10 +55,6 @@ function appendRepoLines(lines: string[], repo: GitLogRepo): void {
       `  ${commit.shortSha}  ${formatGitLogCommitDetail(commit)}  ${commit.subject}`,
     );
   }
-}
-
-function displayPath(path: string): string {
-  return path.startsWith(HOME) ? `~${path.slice(HOME.length)}` : path;
 }
 
 function formatError(error: unknown): string {

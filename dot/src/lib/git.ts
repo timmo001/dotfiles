@@ -3,7 +3,7 @@ import { existsSync, mkdirSync } from "fs";
 import { dirname, join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Launcher } from "../services/Launcher.js";
-import { displayPath } from "./omarchyHost.js";
+import { displayPath } from "./paths.js";
 import type { CommandError } from "../services/CommandExecutor.js";
 
 /** Options for git commands that run inside a repository. */

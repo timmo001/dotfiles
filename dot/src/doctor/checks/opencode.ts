@@ -2,13 +2,10 @@ import { Effect } from "effect";
 import { existsSync, lstatSync, readlinkSync } from "fs";
 import { join } from "path";
 import { Config } from "../../services/Config.js";
+import { displayPath, homeDir } from "../../lib/paths.js";
 import type { CheckResult } from "../types.js";
 
-const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
-
-function displayPath(p: string): string {
-  return p.replace(HOME, "~");
-}
+const HOME = homeDir();
 
 /** Canonical OpenCode resource names (plural) under ~/.config/opencode/ */
 const RESOURCE_NAMES = [

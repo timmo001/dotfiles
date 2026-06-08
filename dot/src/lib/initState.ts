@@ -1,7 +1,7 @@
 import { Effect, Schema } from "effect";
 import { existsSync, unlinkSync, writeFileSync } from "fs";
 import { join } from "path";
-import { displayPath } from "./omarchyHost.js";
+import { displayPath } from "./paths.js";
 import type { ConfigService } from "../services/Config.js";
 
 /** Domain error for init state marker failures. */

@@ -4,6 +4,7 @@ import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
 import { listStowFolders } from "../lib/stowFolders.js";
+import { displayPath, homeDir } from "../lib/paths.js";
 import { ensureHyprHostLink } from "../lib/omarchyHost.js";
 import { ensureStowInstalled } from "../lib/packageSetup.js";
 import {
@@ -15,7 +16,7 @@ import {
   type ExternalSymlink,
 } from "../lib/stowConflicts.js";
 
-const HOME = process.env.HOME ?? "/home/" + process.env.USER;
+const HOME = homeDir();
 
 /** Extra stow flags for the agents folder (matches legacy behaviour) */
 const AGENTS_PRIVATE_IGNORES = [
@@ -107,10 +108,10 @@ const stowRepo = (
 ) =>
   Effect.gen(function* () {
     const folders = listStowFolders(repoDir).sort();
-    const displayPath = repoDir.replace(HOME, "~");
+    const repoDisplayPath = displayPath(repoDir);
 
     for (const folder of folders) {
-      yield* log.info(`[${scope}] stow ${folder} (repo: ${displayPath})`);
+      yield* log.info(`[${scope}] stow ${folder} (repo: ${repoDisplayPath})`);
 
       // Unstow first (clean slate)
       const unstowExit = yield* launcher.stream(`stow -D ${folder}`, {

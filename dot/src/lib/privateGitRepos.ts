@@ -4,7 +4,7 @@ import { Config } from "../services/Config.js";
 import { managedGitRepos } from "../services/GitConfig.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { ghRepoClone } from "./git.js";
-import { displayPath } from "./omarchyHost.js";
+import { displayPath } from "./paths.js";
 
 /** Domain error for private git repository bootstrap failures. */
 export class GitConfigRepoError extends Schema.TaggedErrorClass<GitConfigRepoError>()(

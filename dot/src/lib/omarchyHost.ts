@@ -9,13 +9,7 @@ import {
 import { dirname, join, resolve } from "path";
 import type { ConfigService } from "../services/Config.js";
 import type { OutputLogService } from "../services/OutputLog.js";
-
-const HOME = process.env.HOME ?? `/home/${process.env.USER}`;
-
-/** Display an absolute path relative to the user's home directory when possible. */
-export function displayPath(path: string): string {
-  return path.replace(HOME, "~");
-}
+import { displayPath } from "./paths.js";
 
 /** Resolve a symlink target exactly as the filesystem would from the link path. */
 export function resolveLinkTarget(linkPath: string, target: string): string {

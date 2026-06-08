@@ -1,7 +1,6 @@
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
-
-const HOME = process.env.HOME ?? `/home/${process.env.USER ?? ""}`;
+import { displayPath, expandHomePath } from "../lib/paths.js";
 
 const TOP_LEVEL_KEYS = new Set(["schema_version", "repositories"]);
 const REPO_KEYS = new Set([
@@ -509,14 +508,6 @@ export function normalizeGitHubSlug(value: string): string | null {
 
   slug = slug.replace(/\.git$/, "").replace(/\/$/, "");
   return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(slug) ? slug : null;
-}
-
-function expandHomePath(path: string): string {
-  return path.replace(/^~(?=\/|$)/, HOME);
-}
-
-function displayPath(path: string): string {
-  return path.replace(HOME, "~");
 }
 
 function formatError(error: unknown): string {
