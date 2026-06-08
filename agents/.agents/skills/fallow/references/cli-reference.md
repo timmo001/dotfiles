@@ -40,9 +40,11 @@ Analyzes the project for unused files, exports, dependencies, types, members, an
 |------|------|---------|-------------|
 | `--format` | `human\|json\|sarif\|compact\|markdown\|codeclimate\|gitlab-codequality\|pr-comment-github\|pr-comment-gitlab\|review-github\|review-gitlab` | `human` | Output format |
 | `--quiet` | bool | `false` | Suppress progress bars and timing on stderr |
+| `-o, --output-file` | path | (none) | Write the report to a file instead of stdout, for any `--format` (no ANSI codes). Progress and a confirmation stay on stderr (suppressed by `--quiet`). Valid with dead-code/dupes/health/security/bare; composes with `--sarif-file`. |
 | `--legacy-envelope` | bool | `false` | Remove the top-level `kind` field from typed JSON roots for one migration cycle |
 | `--changed-since` | string | — | Only analyze files changed since a git ref (e.g., `main`, `HEAD~3`) |
 | `--production` | bool | `false` | Exclude test/dev files, only start/build scripts (applies to every analysis) |
+| `--no-production` | bool | `false` | Force production mode off, overriding a project config's `production: true` (applies to every analysis; conflicts with `--production`) |
 | `--production-dead-code` | bool | `false` | Per-analysis production mode for dead-code. Bare combined runs and `fallow audit` only. |
 | `--production-health` | bool | `false` | Per-analysis production mode for health. Bare combined runs and `fallow audit` only. |
 | `--production-dupes` | bool | `false` | Per-analysis production mode for duplication. Bare combined runs and `fallow audit` only. |
@@ -234,7 +236,7 @@ Auto-removes unused exports, dependencies, enum members, and pnpm catalog entrie
 
 ### On-disk drift protection
 
-`fallow fix` captures every parsed source file's xxh3 content hash during the in-process analysis and recomputes it at fix time. Files whose hash drifted between analysis and write (parallel editor save, CI rebase, concurrent tool) are skipped with `{"type": "skipped", "path": "...", "skipped": true, "skip_reason": "content_changed"}` in the JSON output and `Skipping <path>: file content changed since fallow check ran. Re-run fallow fix to refresh the analysis first.` on stderr (gated on non-quiet). A run with any content-changed skip exits with code 2 so CI does not treat the partial run as a clean no-op. The JSON envelope's top-level `skipped_content_changed: number` is always present and disjoint from `skipped` (which still tallies catalog / YAML guard skips only). Per-file writes are batched: each rewrite is staged to a sibling temp file, and the orchestrator promotes the batch only after every stage succeeds. A stage failure leaves every target file at its original content. Hash precondition covers source files (TS, JS, Vue, Svelte, Astro, MDX); `package.json` and `pnpm-workspace.yaml` are not in the captured hash map because the extract layer does not parse them, but the dep and catalog fixers re-parse those files at fix time as the natural safety net.
+`fallow fix` captures every parsed source file's xxh3 content hash during the in-process analysis and recomputes it at fix time. Files whose hash drifted between analysis and write (parallel editor save, CI rebase, concurrent tool) are skipped with `{"type": "skipped", "path": "...", "skipped": true, "skip_reason": "content_changed"}` in the JSON output and `Skipping <path>: file content changed since fallow dead-code ran. Re-run fallow fix to refresh the analysis first.` on stderr (gated on non-quiet). A run with any content-changed skip exits with code 2 so CI does not treat the partial run as a clean no-op. The JSON envelope's top-level `skipped_content_changed: number` is always present and disjoint from `skipped` (which still tallies catalog / YAML guard skips only). Per-file writes are batched: each rewrite is staged to a sibling temp file, and the orchestrator promotes the batch only after every stage succeeds. A stage failure leaves every target file at its original content. Hash precondition covers source files (TS, JS, Vue, Svelte, Astro, MDX); `package.json` and `pnpm-workspace.yaml` are not in the captured hash map because the extract layer does not parse them, but the dep and catalog fixers re-parse those files at fix time as the natural safety net.
 
 ### Low-confidence export removals
 
@@ -243,7 +245,7 @@ Issue #602: `fallow fix` withholds unused-export removals when the consumer may 
 - **Off-graph consumer directories.** The file is under any of `__mocks__`, `__fixtures__`, `fixtures`, `e2e`, `e2e-tests`, `cypress`, `playwright`, `examples`, `evals`, `golden` (matched on any path segment). Catches Vitest mock aliases, off-workspace e2e suites, and fixture / golden harnesses. Plain `test` / `tests` / `__tests__` are deliberately NOT on the list, so genuinely-dead test helpers still auto-remove.
 - **Files with an unresolved import.** The file itself imports something fallow could not resolve, so its local usage graph is incomplete.
 
-JSON output carries `{"type": "skipped", "path": "...", "skipped": true, "skip_reason": "low_confidence_off_graph"}` (or `"low_confidence_unresolved_imports"`) plus a top-level counter `skipped_low_confidence_exports: number` (always present), disjoint from `skipped`. Unlike the drift and encoding skips this is INTENTIONAL and does NOT change the exit code; the export stays reported by `fallow check` for manual review. High-confidence exports in normal source files are removed unchanged. The AI agent should report kept exports to the user and let them decide whether the export is truly unused before removing it by hand.
+JSON output carries `{"type": "skipped", "path": "...", "skipped": true, "skip_reason": "low_confidence_off_graph"}` (or `"low_confidence_unresolved_imports"`) plus a top-level counter `skipped_low_confidence_exports: number` (always present), disjoint from `skipped`. Unlike the drift and encoding skips this is INTENTIONAL and does NOT change the exit code; the export stays reported by `fallow dead-code` for manual review. High-confidence exports in normal source files are removed unchanged. The AI agent should report kept exports to the user and let them decide whether the export is truly unused before removing it by hand.
 
 ### File encoding contract
 
@@ -294,7 +296,7 @@ fallow list --workspaces --format json --quiet
 fallow workspaces --format json --quiet  # alias of `fallow list --workspaces`
 ```
 
-The `--workspaces` JSON output carries `workspaces[]` (name, project-root-relative path, `is_internal_dependency` bool) plus `workspace_diagnostics[]`. Each diagnostic has a `kind` discriminator (`undeclared-workspace`, `malformed-package-json`, `glob-matched-no-package-json`, `malformed-tsconfig`, `tsconfig-reference-dir-missing`) with a typed payload (`error`, `pattern`, or none). The same `workspace_diagnostics[]` array is also surfaced on `fallow check --format json`, `fallow dupes --format json`, and `fallow health --format json` envelopes (omitted when empty). A malformed ROOT `package.json` exits 2 at config load; everything else warns and continues.
+The `--workspaces` JSON output carries `workspaces[]` (name, project-root-relative path, `is_internal_dependency` bool) plus `workspace_diagnostics[]`. Each diagnostic has a `kind` discriminator (`undeclared-workspace`, `malformed-package-json`, `glob-matched-no-package-json`, `malformed-tsconfig`, `tsconfig-reference-dir-missing`) with a typed payload (`error`, `pattern`, or none). The same `workspace_diagnostics[]` array is also surfaced on `fallow dead-code --format json`, `fallow dupes --format json`, and `fallow health --format json` envelopes (omitted when empty). A malformed ROOT `package.json` exits 2 at config load; everything else warns and continues.
 
 The `--boundaries` JSON output carries `boundaries.logical_groups[]` alongside the existing `zones[]` / `rules[]` arrays. Each logical-group entry surfaces a user-authored `autoDiscover` parent zone (which expansion otherwise flattens into per-child zones like `features/auth` / `features/billing`): `name`, `children`, `auto_discover` (verbatim user strings), `status` (`ok` / `empty` / `invalid_path`), `source_zone_index`, summed `file_count`, optional `authored_rule` (the pre-expansion `{ allow, allowTypeOnly }` keyed on the parent), optional `fallback_zone` cross-reference when the parent also kept its own `patterns` (Bulletproof case), optional `merged_from` (parent zone indices when the user declared the same parent name twice; surfaces the duplicate in JSON instead of only in `tracing::warn!`), optional `original_zone_root` (echo of the parent's `root` subtree scope for monorepo patchers), and optional `child_source_indices` (parallel to `children`, attributing each child to a specific `auto_discover` entry when multiple paths were authored). The full shape is documented in `docs/output-schema.json` under `ListBoundariesOutput`.
 
@@ -805,6 +807,7 @@ Audits changed files for dead code, complexity, and duplication. Returns a verdi
 | `--base` | string | auto-detect | Git ref to compare against (alias for `--changed-since`) |
 | `--gate` | `new-only\|all` | `new-only` | Which findings affect the verdict. `new-only` gates only introduced findings; `all` gates every finding in changed files and skips the extra base-snapshot attribution pass. |
 | `--production` | bool | false | Exclude test/story/dev files (applies to dead-code, health, and dupes) |
+| `--no-production` | bool | false | Force production mode off, overriding a project config's `production: true` (conflicts with `--production`) |
 | `--production-dead-code` | bool | false | Per-analysis production mode for the dead-code sub-analysis only |
 | `--production-health` | bool | false | Per-analysis production mode for the health sub-analysis only |
 | `--production-dupes` | bool | false | Per-analysis production mode for the duplication sub-analysis only |
@@ -973,21 +976,56 @@ Surfaces local security candidates for agent or human verification. The first ru
 
 Findings are not confirmed vulnerabilities. Use the structural trace to verify whether the value can actually reach client-bundled code. Public env conventions (`NODE_ENV`, `NEXT_PUBLIC_*`, `VITE_*`, `NUXT_PUBLIC_*`, `REACT_APP_*`, `PUBLIC_*`, `GATSBY_*`, `EXPO_PUBLIC_*`, `STORYBOOK_*`) are excluded.
 
-The second rule family is a data-driven `tainted-sink` catalogue: syntactic dangerous-sink candidates across 9 CWE categories. A candidate fires only when the relevant argument is non-literal, so a fully-literal value (`el.innerHTML = "<b>x</b>"`, `child_process.exec("ls")`) never fires; fallow prefers false-negatives over false-positives.
+The second rule family is a data-driven `tainted-sink` catalogue: syntactic dangerous-sink candidates across 42 catalogue categories. Most rows require a non-literal argument; narrowly literal-aware rows flag deterministic unsafe literals such as wildcard `postMessage` origins, weak crypto algorithms, disabled TLS validation, and JWT algorithm issues. Fallow prefers false-negatives over false-positives.
 
 | Category | CWE | Sink |
 |----------|-----|------|
 | `dangerous-html` | 79 | `innerHTML` / `outerHTML` / `insertAdjacentHTML` / `dangerouslySetInnerHTML` |
+| `template-escape-bypass` | 79 | template-engine `SafeString(...)` wrapping a non-literal value |
 | `command-injection` | 78 | `child_process` `exec` / `execSync` / `spawn` / `spawnSync` (provenance-gated to `node:child_process`) |
 | `code-injection` | 94 | `eval` / `vm.runInNewContext` |
+| `dynamic-regex` | 1333 | `RegExp(...)` / `new RegExp(...)` with a non-literal pattern |
+| `redos-regex` | 1333 | vulnerable regex literals tested with source-backed input |
+| `resource-amplification` | 400 | source-backed size into `Array(...)` / `new Array(...)` / `Buffer.alloc*` / `String.prototype.repeat` / `padStart` / `padEnd` (directly `Math.min`-clamped sizes stay quiet) |
+| `dynamic-module-load` | 95 | dynamic `require(...)` |
 | `sql-injection` | 89 | string concat or interpolated template into `.query()` / `.execute()`, and `sql.raw(...)`. Parameterized `` sql`${x}` `` and the object form `.execute({ sql, args })` are NOT flagged |
-| `ssrf` | 918 | `fetch` / `axios` / `http(s).request` |
-| `path-traversal` | 22 | `fs.*` / `path.join` / `path.resolve` |
-| `open-redirect` | 601 | `res.redirect` |
+| `ssrf` | 918 | `fetch` / `got` / `ky` / `needle` / `request` / `axios` / `superagent` / `undici` / `http(s).request` |
+| `path-traversal` | 22 | `path.join` / `path.resolve` / `node:fs` path methods / route `sendFile` |
+| `header-injection` | 113 | response `setHeader` / `writeHead` |
+| `open-redirect` | 601 | `res.redirect` / `location.href` / `location.assign` / `window.open` |
+| `postmessage-wildcard-origin` | 346 | `postMessage(..., "*")` |
+| `tls-validation-disabled` | 295 | HTTPS/TLS options with `rejectUnauthorized: false`, plus `NODE_TLS_REJECT_UNAUTHORIZED = "0"` |
+| `cleartext-transport` | 319 | cleartext `http://` URLs in fetch-like calls and WebSocket constructors |
+| `electron-unsafe-webpreferences` | 1188 | Electron `webPreferences` with unsafe literal options |
+| `world-writable-permission` | 732 | `chmod` / `chmodSync` with world-writable modes |
+| `insecure-temp-file` | 377 | predictable temporary file paths in `fs` writes |
+| `mysql-multiple-statements` | 89 | MySQL connection options with `multipleStatements: true` |
+| `permissive-cors` | 942 | CORS wildcard origin with credentials |
+| `insecure-cookie` | 614 | cookie options missing or disabling `httpOnly` / `secure` |
+| `mass-assignment` | 915 | source-backed `Object.assign(target, source)` |
 | `weak-crypto` | 327 | runtime-selectable hash / cipher algorithm |
+| `deprecated-cipher` | 327 | `crypto.createCipher` / `createDecipher` |
+| `insecure-randomness` | 338 | `crypto.pseudoRandomBytes(...)` and token-like `Math.random()` use |
+| `jwt-alg-none` | 347 | JWT signing with algorithm `none` |
+| `jwt-verify-missing-algorithms` | 347 | `jsonwebtoken` verify calls missing an `algorithms` allowlist |
+| `unsafe-buffer-alloc` | 1188 | `Buffer.allocUnsafe` / `allocUnsafeSlow` |
 | `unsafe-deserialization` | 502 | `js-yaml` `load` / `node-serialize` |
+| `angular-trusted-html` | 79 | Angular `bypassSecurityTrust*` |
+| `nextjs-open-redirect` | 601 | Next.js `redirect` / `permanentRedirect` |
+| `dom-document-write` | 79 | `document.write` / `document.writeln` |
+| `jquery-html` | 79 | jQuery `.html(value)` |
+| `route-send-file` | 22 | Express / Fastify / Hono route `sendFile` |
+| `webview-injection` | 94 | react-native-webview injected JavaScript |
+| `prototype-pollution` | 1321 | `__proto__` writes and recursive merge sources |
+| `zip-slip` | 22 | archive extraction destination paths |
+| `nosql-injection` | 943 | Mongo / Mongoose query object passthrough |
+| `ssti` | 1336 | template engine compile / render calls |
+| `xxe` | 611 | XML parse calls |
+| `secret-pii-log` | 532 | source-backed secrets or request PII reaching logs |
+| `hardcoded-secret` | 798 | provider-prefix credentials and high-entropy literals assigned to secret-shaped identifiers (include-required) |
+| `xpath-injection` | 643 | `xpath.select` / `select1` with a non-literal expression |
 
-Build-config and test files are excluded from candidate generation. Both rule families default to `off` and are surfaced only by `fallow security`, never under bare `fallow` or the `audit` gate. Scope which catalogue categories run with `security.categories` include / exclude lists in config.
+Build-config and test files are excluded from candidate generation. Security rule families default to `off` and are surfaced only by `fallow security`, never under bare `fallow` or the `audit` gate. Scope which catalogue categories run with `security.categories` include / exclude lists in config. `hardcoded-secret` is intentionally include-required and only runs when listed in `security.categories.include`.
 
 ### Flags
 
@@ -1000,7 +1038,10 @@ Build-config and test files are excluded from candidate generation. Both rule fa
 | `--fail-on-issues` | bool | `false` | Exit 1 when candidates are found |
 | `--sarif-file` | path | none | Write SARIF in addition to the primary output |
 | `--changed-since` | git ref | none | Scope to candidates whose client anchor or trace hops touch changed files |
+| `--file` | path, repeatable | none | Scope output to candidates whose finding anchor or trace hop matches the selected file. The full graph is still analyzed |
 | `--diff-file` | path | none | Scope candidates to added hunks on the client anchor or import trace. Secret-source hops use file-level retention because member-access spans are not yet stored. Use `-` for stdin |
+| `--diff-stdin` | bool | `false` | Read the unified diff from stdin (equivalent to `--diff-file -`) for line-level scoping and the regression gate |
+| `--gate` | `new` | none | Fail (exit code **8**) only when the change introduces a NEW security-sink candidate in the changed lines, not on the whole candidate backlog. Requires a diff source (`--changed-since`, `--diff-file`, or `--diff-stdin`); a diff the gate cannot compute is a loud exit 2, never a green gate. Human output says `REVIEW REQUIRED` (not `FAIL`); SARIF keeps every result at `level: note` with the verdict in `run.properties.fallowGate`; `--format json` carries an additive `gate` block (`mode` / `verdict` / `new_count`) |
 | `--workspace` | string | none | Scope to selected workspace packages |
 | `--changed-workspaces` | git ref | none | Scope to workspaces changed since a git ref |
 
@@ -1010,6 +1051,9 @@ Build-config and test files are excluded from candidate generation. Both rule fa
 fallow security --format json --quiet
 fallow security --ci --sarif-file fallow-security.sarif
 git diff --unified=0 origin/main...HEAD | fallow security --diff-file -
+# Regression gate: fail (exit 8) only on candidates introduced in the changed lines
+fallow security --gate new --changed-since origin/main
+git diff --cached --unified=0 | fallow security --gate new --diff-stdin
 ```
 
 ### JSON Output Structure
@@ -1024,7 +1068,16 @@ git diff --unified=0 origin/main...HEAD | fallow security --diff-file -
 }
 ```
 
-Each finding includes `kind`, `path`, `line`, `col`, `evidence`, `trace`, and `actions`. `tainted-sink` findings additionally carry `category` (the catalogue id, e.g. `"dangerous-html"`) and `cwe`; `client-server-leak` findings omit both. `unresolved_edge_files` (client-server-leak) and `unresolved_callee_sites` (tainted-sink) are in-band blind-spot counters: a zero finding count with a non-zero counter is not a clean bill. Suppress a verified false positive with `// fallow-ignore-file security-client-server-leak` (client-server-leak) or `// fallow-ignore-file security-sink` (any tainted-sink category).
+Each finding includes `kind`, `path`, `line`, `col`, `evidence`, `trace`, `actions`, and optional `reachability`. `tainted-sink` findings additionally carry `category` (the catalogue id, e.g. `"dangerous-html"`) and `cwe`; `client-server-leak` findings omit both. `tainted-sink` findings can also include `reachability.untrusted_source_trace` when a module with a known untrusted source imports the sink module; it is ranking and triage context only, not proof that a specific value reaches the sink. `unresolved_edge_files` (client-server-leak) and `unresolved_callee_sites` (tainted-sink) are in-band blind-spot counters: a zero finding count with a non-zero counter is not a clean bill. Suppress a verified false positive with `// fallow-ignore-file security-client-server-leak` (client-server-leak) or `// fallow-ignore-file security-sink` (any tainted-sink category).
+
+Every finding also carries an agent-actionable `candidate { source_kind, sink, boundary }`, an optional `taint_flow { source, sink, path }`, and a stable `finding_id`:
+
+- `candidate.source_kind`: the untrusted-input kind that reaches the sink, as a stable catalogue id (`"http-request-input"`, `"process-env"`, `"process-argv"`, `"message-event-data"`, `"location-input"`, ...). Absent when no source matched (always absent for `client-server-leak`). Treat an unknown id as an untrusted source of unknown kind; never drop the candidate on that basis.
+- `candidate.sink`: a self-contained sink (`path`, `line`, `col`, `category`, `cwe`, `callee`), actionable without reading the rest of the finding.
+- `candidate.boundary`: `client_server` (a `"use client"` file in the trace), `cross_module` (the source reaches the sink across import hops), and optional `architecture_zone` (`from`/`to`) when the anchor also crosses a declared architecture boundary.
+- There is no `impact` field: deciding exploitability is the verifying agent's job.
+- `taint_flow`: present only when an untrusted source is import-reachable to the sink. `path` is the compact `{ intra_module, cross_module_hops }` shape; the full ordered hops stay in `reachability.untrusted_source_trace`.
+- `finding_id`: a stable correlation id, identical across runs for the same rule/path/line and identical to the SARIF `partialFingerprints` value, for tracking a candidate across runs and joining JSON with SARIF.
 
 ---
 
@@ -1396,6 +1449,7 @@ Available on all commands:
 | `FALLOW_BIN` | Path to fallow binary (used by the MCP server). |
 | `FALLOW_TIMEOUT_SECS` | MCP server subprocess timeout in seconds (default: `120`). Increase for very large codebases. |
 | `FALLOW_EXTENDS_TIMEOUT_SECS` | Timeout for fetching remote config inheritance in seconds (default: `5`). Do not raise this for untrusted sources. |
+| `FALLOW_CACHE_DIR` | Override the persistent extraction cache directory. Wins over `cache.dir`. Useful for read-only checkouts or CI cache volumes. `--no-cache` disables this knob. |
 | `FALLOW_CACHE_MAX_SIZE` | Maximum on-disk extraction cache (`.fallow/cache.bin`) size in megabytes (default: `256`). Triggers LRU eviction when crossed. Wins over `cache.maxSizeMb` config field. Intended for CI runners with disk quotas. `--no-cache` short-circuits this knob. |
 | `FALLOW_AUDIT_CACHE_MAX_AGE_DAYS` | Max age (in days since last reuse or fresh create) of a persistent reusable `fallow audit` base-snapshot worktree cache. Older entries are reclaimed at the top of the next `fallow audit` invocation (default: `30`). Wins over `audit.cacheMaxAgeDays` config field. `0` disables the GC; invalid values silently fall back to config / default. |
 | `FALLOW_UPDATE_CHECK` | Set to `off`, `0`, `false`, `disabled`, or `no` to disable the human-TTY upgrade nudge and its background latest-version check. `DO_NOT_TRACK`, `FALLOW_TELEMETRY_DISABLED`, and CI also suppress it. |
@@ -1812,6 +1866,12 @@ Config files are searched in priority order: `.fallowrc.json` > `.fallowrc.jsonc
     "ignoreDefaults": true,
     "skipLocal": false,
     "ignorePatterns": ["**/*.generated.ts"]
+  },
+
+  // Extraction cache settings. FALLOW_CACHE_DIR overrides cache.dir.
+  "cache": {
+    "dir": "/tmp/fallow-cache",
+    "maxSizeMb": 256
   },
 
   // Architecture boundaries (preset, custom zones/rules, or auto-discovered feature zones)
