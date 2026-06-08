@@ -3,6 +3,9 @@ import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher } from "../services/Launcher.js";
 import { checkSkills } from "../lib/skillCheck.js";
+import { buildSingleDiff, scanSkills } from "../lib/skillUpdates.js";
+import { GitHub } from "../git/services/GitHub.js";
+import { join } from "path";
 
 /**
  * Validate skill references across AGENTS.md, agent definitions, and commands.
@@ -14,11 +17,19 @@ import { checkSkills } from "../lib/skillCheck.js";
  * Exit code 1 if broken references are found; 0 otherwise.
  * With `--open-opencode`, launches an OpenCode session to analyse the results.
  */
-export const skillCheck = (opts?: { readonly openOpencode?: boolean }) =>
+export const skillCheck = (opts?: {
+  readonly openOpencode?: boolean;
+  readonly diffOrigin?: boolean;
+}) =>
   Effect.gen(function* () {
     const config = yield* Config;
     const log = yield* OutputLog;
     const launcher = yield* Launcher;
+
+    if (opts?.diffOrigin) {
+      yield* diffSkillOrigins(config.publicDotfiles);
+      return;
+    }
 
     yield* log.section("Skill Reference Check");
 
@@ -96,5 +107,45 @@ export const skillCheck = (opts?: { readonly openOpencode?: boolean }) =>
       yield* launcher
         .suspend(`opencode --prompt ${JSON.stringify(opencodePrompt)}`)
         .pipe(Effect.catch(() => Effect.void));
+    }
+  });
+
+/** Print upstream diffs for every imported public skill with origin tracking. */
+const diffSkillOrigins = (publicDotfiles: string) =>
+  Effect.gen(function* () {
+    const log = yield* OutputLog;
+    const github = yield* GitHub;
+
+    yield* log.section("Skill Origin Diff");
+
+    const ghAvailable = yield* github.isAvailable();
+    if (!ghAvailable) {
+      yield* log.warn("gh CLI not available; skipping skill origin diffs");
+      return;
+    }
+
+    const skillsDir = join(publicDotfiles, "agents/.agents/skills");
+    const skills = scanSkills(skillsDir);
+
+    if (skills.length === 0) {
+      yield* log.info("No imported skills with origin tracking");
+      return;
+    }
+
+    let changed = 0;
+    for (const skill of skills) {
+      const diff = yield* buildSingleDiff(skill).pipe(
+        Effect.catch(() => Effect.succeed("")),
+      );
+      if (!diff) continue;
+
+      changed++;
+      yield* log.info(diff);
+    }
+
+    if (changed === 0) {
+      yield* log.info("No origin diffs found");
+    } else {
+      yield* log.info(`${changed} skill(s) differ from origin`);
     }
   });

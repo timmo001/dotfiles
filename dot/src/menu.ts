@@ -230,6 +230,11 @@ const dotItems: readonly MenuItem[] = [
         description: "Run checks + OpenCode analysis",
         action: cmd("dot skill-check --open-opencode"),
       },
+      {
+        label: "Diff origin",
+        description: "Diff imported skills against upstream origins",
+        action: cmd("dot skill-check --diff-origin"),
+      },
     ],
     ["validate", "lint", "skills", "references", "tooling"],
     "AI Tooling",

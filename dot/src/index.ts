@@ -527,6 +527,7 @@ if (mode.type === "native") {
       "skill-check": (args) =>
         skillCheck({
           openOpencode: args.includes("--open-opencode"),
+          diffOrigin: args.includes("--diff-origin"),
         }),
       completions,
       help,

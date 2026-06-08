@@ -622,7 +622,14 @@ export const cliCommands: readonly CliCommandSpec[] = [
   {
     name: "skill-check",
     summary: "Validate skill references",
-    options: [openOpencodeOption, helpOption],
+    options: [
+      openOpencodeOption,
+      {
+        name: "--diff-origin",
+        description: "Diff imported skills against their upstream origins",
+      },
+      helpOption,
+    ],
   },
   {
     name: "completions",
