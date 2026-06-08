@@ -14,6 +14,33 @@ export interface SuspendedCommandOptions {
   readonly afterResume?: () => void;
 }
 
+/** Options for running arbitrary async work while OpenTUI is suspended. */
+export interface RendererSuspensionOptions {
+  /** Active OpenTUI renderer to suspend and resume. */
+  readonly renderer: CliRenderer;
+  /** Called after the renderer resumes. */
+  readonly afterResume?: () => void;
+}
+
+/** Suspend the TUI, run async work, then restore rendering. */
+export async function runWithRendererSuspended<T>(
+  options: RendererSuspensionOptions,
+  work: () => Promise<T>,
+): Promise<T> {
+  const { renderer, afterResume } = options;
+  renderer.suspend();
+  renderer.currentRenderBuffer.clear();
+
+  try {
+    return await work();
+  } finally {
+    renderer.currentRenderBuffer.clear();
+    renderer.resume();
+    afterResume?.();
+    renderer.requestRender();
+  }
+}
+
 /** Suspend the TUI, run a command with inherited stdio, then resume rendering. */
 export async function runSuspendedCommand({
   renderer,
@@ -21,22 +48,18 @@ export async function runSuspendedCommand({
   cwd,
   afterResume,
 }: SuspendedCommandOptions): Promise<void> {
-  renderer.suspend();
-  renderer.currentRenderBuffer.clear();
   await Effect.runPromise(resizeIfFloating(1020, 700));
   try {
-    const proc = Bun.spawn([...command], {
-      cwd,
-      stdin: "inherit",
-      stdout: "inherit",
-      stderr: "inherit",
+    await runWithRendererSuspended({ renderer, afterResume }, async () => {
+      const proc = Bun.spawn([...command], {
+        cwd,
+        stdin: "inherit",
+        stdout: "inherit",
+        stderr: "inherit",
+      });
+      await proc.exited;
     });
-    await proc.exited;
   } finally {
     await Effect.runPromise(resizeIfFloating(500, 600));
-    renderer.currentRenderBuffer.clear();
-    renderer.resume();
-    afterResume?.();
-    renderer.requestRender();
   }
 }

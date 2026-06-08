@@ -1,5 +1,6 @@
 import type { CliRenderer } from "@opentui/core";
 import { ENV, envString } from "../lib/env.js";
+import { runWithRendererSuspended } from "../git/tui/SuspendedCommand.js";
 
 /** Supported external editor launch modes. */
 export type ExternalEditorKind = "editor" | "visual";
@@ -23,10 +24,7 @@ export async function openPathInEditor(
     return;
   }
 
-  renderer.suspend();
-  renderer.currentRenderBuffer.clear();
-
-  try {
+  await runWithRendererSuspended({ renderer, afterResume }, async () => {
     const proc = Bun.spawn(["bash", "-lc", command], {
       stdin: "inherit",
       stdout: "inherit",
@@ -34,12 +32,7 @@ export async function openPathInEditor(
     });
     const exitCode = await proc.exited;
     if (exitCode !== 0) throw new ExternalEditorExitError(exitCode);
-  } finally {
-    renderer.currentRenderBuffer.clear();
-    renderer.resume();
-    afterResume?.();
-    renderer.requestRender();
-  }
+  });
 }
 
 /** Suspend the TUI, launch the terminal editor in a working directory, then resume. */
@@ -49,10 +42,7 @@ export async function openEditorInDirectory(
   afterResume?: () => void,
 ): Promise<void> {
   const command = resolveEditorCommand("editor");
-  renderer.suspend();
-  renderer.currentRenderBuffer.clear();
-
-  try {
+  await runWithRendererSuspended({ renderer, afterResume }, async () => {
     const proc = Bun.spawn(["bash", "-lc", command], {
       cwd,
       stdin: "inherit",
@@ -61,12 +51,7 @@ export async function openEditorInDirectory(
     });
     const exitCode = await proc.exited;
     if (exitCode !== 0) throw new ExternalEditorExitError(exitCode);
-  } finally {
-    renderer.currentRenderBuffer.clear();
-    renderer.resume();
-    afterResume?.();
-    renderer.requestRender();
-  }
+  });
 }
 
 /** Human-readable label for an external editor launch mode. */

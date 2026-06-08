@@ -1,4 +1,5 @@
 import type { CliRenderer } from "@opentui/core";
+import { runWithRendererSuspended } from "../git/tui/SuspendedCommand.js";
 
 /** Supported OpenCode launch modes. */
 export type OpenCodeSessionMode = "default" | "plan";
@@ -20,23 +21,18 @@ export async function openOpenCodeSession(
   renderer: CliRenderer,
   options: OpenCodeSessionOptions = {},
 ): Promise<void> {
-  renderer.suspend();
-  renderer.currentRenderBuffer.clear();
-
-  try {
-    const proc = Bun.spawn(openCodeArgs(options), {
-      cwd: options.cwd,
-      stdin: "inherit",
-      stdout: "inherit",
-      stderr: "inherit",
-    });
-    await proc.exited;
-  } finally {
-    renderer.currentRenderBuffer.clear();
-    renderer.resume();
-    options.afterResume?.();
-    renderer.requestRender();
-  }
+  await runWithRendererSuspended(
+    { renderer, afterResume: options.afterResume },
+    async () => {
+      const proc = Bun.spawn(openCodeArgs(options), {
+        cwd: options.cwd,
+        stdin: "inherit",
+        stdout: "inherit",
+        stderr: "inherit",
+      });
+      await proc.exited;
+    },
+  );
 }
 
 /** Human-readable label for an OpenCode session mode. */
