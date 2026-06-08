@@ -36,6 +36,14 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - `.opencode/skills/` contains repo-local skills for this repo only.
 - `dot agents-sync` mirrors the global private AGENTS source into Cursor rules; `dot update` and `dot git-diff` run that sync by default (`DOT_AGENTS_SYNC_ON_*`).
 
+### OpenCode Layer Boundaries
+
+- Commands are routing prompts: identify the user-facing intent, map `${ARGUMENTS}` to the target, name required skills or injected context, and define the output shape. Keep command-specific safety constraints visible.
+- Agents own execution posture: permissions, tool access, delegation defaults, and whether native plan mode is allowed. Do not duplicate reusable domain workflows in agent prompts.
+- Skills own reusable workflows and behavioural contracts. Prefer updating a skill when the same guidance would otherwise be repeated across commands or agents.
+- Plugins provide context, evidence, or enforcement hooks. Commands opt into plugin-provided context, and skills define how to consume it.
+- AGENTS guidance should stay to invariant repo policy, source-of-truth rules, and routing conventions rather than step-by-step command workflows.
+
 ## Repo-Specific Skills
 
 - For Effect-TS code (`effect`, `@effect/platform`, `Context.Tag`, `Layer`, `Effect.gen`), apply the `effect` skill.
