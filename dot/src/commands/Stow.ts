@@ -5,7 +5,7 @@ import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
 import { INTERNAL_STOW_FOLDERS, listStowFolders } from "../lib/stowFolders.js";
-import { displayPath, homeDir } from "../lib/paths.js";
+import { displayPath } from "../lib/paths.js";
 import { ensureHyprHostLink } from "../lib/omarchyHost.js";
 import {
   backupPrivateStowTargets,
@@ -22,8 +22,6 @@ const AGENTS_PRIVATE_IGNORES = [
   "--ignore='bun\\.lock'",
   "--ignore='\\.gitignore'",
 ];
-
-const HOME = homeDir();
 
 /**
  * Run GNU Stow per-folder for the public and (optionally) private dotfiles repos.

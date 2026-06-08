@@ -3,11 +3,10 @@ import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
-import { displayPath, expandHomePath, homeDir } from "../../lib/paths.js";
+import { displayPath, expandHomePath } from "../../lib/paths.js";
 import type { ConfigService } from "../../services/Config.js";
 import type { CheckResult } from "../types.js";
 
-const HOME = homeDir();
 const DEFAULT_PRIVATE_PACMAN_REPO_CONFIG = "/etc/pacman.d/timmo-private.conf";
 const DEFAULT_PRIVATE_PACMAN_MAIN_CONFIG = "/etc/pacman.conf";
 

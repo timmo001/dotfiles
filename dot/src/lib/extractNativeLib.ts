@@ -7,6 +7,7 @@ import {
   writeFileSync,
 } from "fs";
 import { basename, join } from "path";
+import { CACHE_DIR } from "./paths.js";
 
 const DEBUG = !!process.env.DOT_DEBUG;
 const log = (msg: string) => {
@@ -56,12 +57,7 @@ export async function extractNativeLibIfNeeded(): Promise<string | undefined> {
 
   log("Compiled binary detected, extracting native library...");
 
-  const cacheDir = join(
-    process.env.HOME ?? "/tmp",
-    ".cache",
-    "dot",
-    "native-lib",
-  );
+  const cacheDir = join(CACHE_DIR, "dot", "native-lib");
 
   // Dynamically import the platform-specific native package to get the .so path.
   // In compiled mode, the "bun" export condition resolves to the bunfs-embedded path.

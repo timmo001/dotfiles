@@ -3,11 +3,9 @@ import { existsSync } from "fs";
 import { Config } from "../../services/Config.js";
 import { managedGitRepos } from "../../services/GitConfig.js";
 import { gitExitCode } from "../../lib/git.js";
-import { displayPath, homeDir } from "../../lib/paths.js";
+import { HOME_DIR, displayPath } from "../../lib/paths.js";
 import { readGitBranch, readGitUpstream } from "../git.js";
 import type { CheckResult } from "../types.js";
-
-const HOME = homeDir();
 
 /** Check public/private dotfiles repos and private git config repos. */
 export const checkRepos = Effect.gen(function* () {
@@ -28,7 +26,7 @@ export const checkRepos = Effect.gen(function* () {
   }
 
   // Private dotfiles
-  const privatePath = `${HOME}/.config/dotfiles-private`;
+  const privatePath = `${HOME_DIR}/.config/dotfiles-private`;
   if (existsSync(privatePath)) {
     results.push({
       severity: "ok",

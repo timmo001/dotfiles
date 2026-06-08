@@ -7,11 +7,8 @@ import {
 } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import { GitHub } from "../../git/services/GitHub.js";
-import { displayPath, homeDir } from "../../lib/paths.js";
+import { CONFIG_DIR, HOME_DIR, displayPath } from "../../lib/paths.js";
 import type { CheckResult } from "../types.js";
-
-const HOME = homeDir();
-const XDG_CONFIG_HOME = process.env.XDG_CONFIG_HOME ?? join(HOME, ".config");
 
 // Obsolete workflow notification units that should no longer be installed.
 const LEGACY_WORKFLOW_WATCH_SERVICE_UNIT = "git-workflow-watch.service";
@@ -166,7 +163,7 @@ function parseWaybarIncludes(
     .map((e) => e.trim().replace(/^"|"$/g, ""))
     .filter(Boolean)
     .map((e) => {
-      const expanded = e.replace(/^~/, HOME);
+      const expanded = e.replace(/^~/, HOME_DIR);
       return expanded.startsWith("/") ? expanded : join(configDir, expanded);
     });
 }
@@ -177,7 +174,7 @@ function escapeRegex(s: string): string {
 
 function activeWaybarConfigPath(): string {
   const omarchyHost = process.env.OMARCHY_HOST ?? "";
-  const waybarConfigDir = join(XDG_CONFIG_HOME, "waybar");
+  const waybarConfigDir = join(CONFIG_DIR, "waybar");
   const hostConfig = omarchyHost
     ? join(waybarConfigDir, `config.${omarchyHost}.jsonc`)
     : "";
@@ -192,7 +189,7 @@ function addWaybarScriptCheck(
   label: string,
   missingDetail: string,
 ): void {
-  const waybarScript = join(XDG_CONFIG_HOME, "waybar", "scripts", scriptName);
+  const waybarScript = join(CONFIG_DIR, "waybar", "scripts", scriptName);
   results.push(
     executableExists(waybarScript)
       ? {
@@ -213,7 +210,7 @@ function addWaybarHiddenCssCheck(
   label: string,
   missingDetail: string,
 ): void {
-  const waybarStyle = join(XDG_CONFIG_HOME, "waybar", "style.css");
+  const waybarStyle = join(CONFIG_DIR, "waybar", "style.css");
   if (!existsSync(waybarStyle)) {
     results.push({
       severity: "warn",
@@ -281,16 +278,21 @@ export const checkWorkflowRuns = Effect.gen(function* () {
   const config = yield* Config;
   const results: CheckResult[] = [];
 
-  const legacyHooksPath = join(HOME, ".config", "git", "workflow-watch-hooks");
-  const legacyWatchScript = join(HOME, ".local", "bin", "git-workflow-watch");
+  const legacyHooksPath = join(CONFIG_DIR, "git", "workflow-watch-hooks");
+  const legacyWatchScript = join(
+    HOME_DIR,
+    ".local",
+    "bin",
+    "git-workflow-watch",
+  );
   const legacyServiceUnitPath = join(
-    XDG_CONFIG_HOME,
+    CONFIG_DIR,
     "systemd",
     "user",
     LEGACY_WORKFLOW_WATCH_SERVICE_UNIT,
   );
   const legacyTimerUnitPath = join(
-    XDG_CONFIG_HOME,
+    CONFIG_DIR,
     "systemd",
     "user",
     LEGACY_WORKFLOW_WATCH_TIMER_UNIT,
@@ -563,9 +565,9 @@ export const checkDoctorStartup = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
   const results: CheckResult[] = [];
 
-  const notifyScript = join(HOME, ".local", "bin", "dot-doctor-notify");
+  const notifyScript = join(HOME_DIR, ".local", "bin", "dot-doctor-notify");
   const unitPath = join(
-    XDG_CONFIG_HOME,
+    CONFIG_DIR,
     "systemd",
     "user",
     DOCTOR_STARTUP_TIMER_UNIT,
@@ -648,8 +650,8 @@ export const checkDailyVolumeReset = Effect.gen(function* () {
   const results: CheckResult[] = [];
   const host = process.env.OMARCHY_HOST ?? "unset";
 
-  const script = join(HOME, ".local", "bin", "daily-volume-zero");
-  const systemdDir = join(XDG_CONFIG_HOME, "systemd", "user");
+  const script = join(HOME_DIR, ".local", "bin", "daily-volume-zero");
+  const systemdDir = join(CONFIG_DIR, "systemd", "user");
   const serviceUnit = join(systemdDir, "daily-volume-zero.service");
   const timerUnit = join(systemdDir, DAILY_VOLUME_ZERO_TIMER_UNIT);
 
@@ -755,9 +757,9 @@ export const checkMhoc303ClockSync = Effect.gen(function* () {
   const results: CheckResult[] = [];
   const host = process.env.OMARCHY_HOST ?? "unset";
 
-  const macAddressFile = join(HOME, ".mho-c303-mac-address");
-  const script = join(HOME, ".local", "bin", "mhoc303-clock-sync");
-  const systemdDir = join(XDG_CONFIG_HOME, "systemd", "user");
+  const macAddressFile = join(HOME_DIR, ".mho-c303-mac-address");
+  const script = join(HOME_DIR, ".local", "bin", "mhoc303-clock-sync");
+  const systemdDir = join(CONFIG_DIR, "systemd", "user");
   const serviceUnit = join(systemdDir, "mhoc303-clock-sync.service");
   const timerUnit = join(systemdDir, MHOC303_CLOCK_SYNC_TIMER_UNIT);
   const laptopDetail =

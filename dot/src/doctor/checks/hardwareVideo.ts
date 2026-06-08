@@ -2,10 +2,8 @@ import { Effect } from "effect";
 import { existsSync, readFileSync } from "fs";
 import { join, basename } from "path";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
-import { displayPath, homeDir } from "../../lib/paths.js";
+import { CONFIG_DIR, HOME_DIR, displayPath } from "../../lib/paths.js";
 import type { CheckResult } from "../types.js";
-
-const HOME = homeDir();
 
 /** Check VAAPI hardware video decode support */
 export const checkHardwareVideo = Effect.gen(function* () {
@@ -138,10 +136,10 @@ export const checkHardwareVideo = Effect.gen(function* () {
 
   // Check browser wrappers
   const browsers: Array<{ name: string; wrapper: string }> = [
-    { name: "Chromium", wrapper: join(HOME, ".local", "bin", "chromium") },
+    { name: "Chromium", wrapper: join(HOME_DIR, ".local", "bin", "chromium") },
     {
       name: "Chrome",
-      wrapper: join(HOME, ".local", "bin", "google-chrome-stable"),
+      wrapper: join(HOME_DIR, ".local", "bin", "google-chrome-stable"),
     },
   ];
 
@@ -172,8 +170,8 @@ export const checkHardwareVideo = Effect.gen(function* () {
 
   // Check flags.conf for video decode features
   const flagsFiles: Array<{ name: string; path: string }> = [
-    { name: "chromium", path: join(HOME, ".config", "chromium-flags.conf") },
-    { name: "chrome", path: join(HOME, ".config", "chrome-flags.conf") },
+    { name: "chromium", path: join(CONFIG_DIR, "chromium-flags.conf") },
+    { name: "chrome", path: join(CONFIG_DIR, "chrome-flags.conf") },
   ];
 
   for (const { name, path } of flagsFiles) {

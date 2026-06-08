@@ -9,13 +9,12 @@ import {
   unlinkSync,
 } from "fs";
 import { basename, dirname, join, relative } from "path";
-import { homeDir } from "./paths.js";
+import { HOME_DIR } from "./paths.js";
 import { listStowFolders } from "./stowFolders.js";
 
-const HOME = homeDir();
 const EXTERNAL_SKILL_DIRS = [
-  join(HOME, ".agents", "skills"),
-  join(HOME, ".claude", "skills"),
+  join(HOME_DIR, ".agents", "skills"),
+  join(HOME_DIR, ".claude", "skills"),
 ];
 
 const AGENTS_PRIVATE_IGNORED_ENTRIES = new Set([
@@ -65,7 +64,7 @@ export function backupPrivateStowTargets(privateDotfiles: string): void {
     for (const target of listStowTargets(packageRoot, folder)) {
       backupFileIfUnmanaged(
         target,
-        join(backupRoot, dirname(relative(HOME, target))),
+        join(backupRoot, dirname(relative(HOME_DIR, target))),
       );
     }
   }
@@ -146,6 +145,6 @@ function collectStowTargets(
       continue;
     }
 
-    targets.push(join(HOME, relative(packageRoot, source)));
+    targets.push(join(HOME_DIR, relative(packageRoot, source)));
   }
 }

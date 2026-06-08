@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { CONFIG_DIR } from "./lib/paths.js";
 
 /** Semantic colour tokens for the TUI, derived from the active Omarchy theme */
 export interface Theme {
@@ -56,8 +57,11 @@ const FALLBACK: Theme = {
 };
 
 const COLORS_TOML_PATH = join(
-  process.env.HOME ?? "~",
-  ".config/omarchy/current/theme/colors.toml",
+  CONFIG_DIR,
+  "omarchy",
+  "current",
+  "theme",
+  "colors.toml",
 );
 
 // --- Colour math helpers ---

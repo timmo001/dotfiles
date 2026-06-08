@@ -20,7 +20,7 @@ import {
   ghAuthenticated,
 } from "./lib/bootstrapGit.js";
 import { isGvfsPath, writeMirroredLog } from "./lib/logMirror.js";
-import { expandHomePath, homeDir } from "./lib/paths.js";
+import { CONFIG_DIR, expandHomePath } from "./lib/paths.js";
 import { menuItemsById } from "./menu.js";
 import { init } from "./commands/Init.js";
 import { install } from "./commands/Install.js";
@@ -67,7 +67,6 @@ import type {
 import { nativeCommandNames } from "./cli/spec.js";
 
 const DEBUG = !!process.env.DOT_DEBUG;
-const HOME = homeDir();
 const DEFAULT_INIT_LOG_FILE = join("/tmp", "dot-init.log");
 const PRIVATE_DOTFILES_REPO = "timmo001/dotfiles-private";
 const UPDATE_DISABLE_SELF_UPDATE_ARG = "--no-self-update";
@@ -262,8 +261,7 @@ function configureInitLogging(mode: Mode): void {
 
 function privateDotfilesPath(): string {
   return expandHomePath(
-    process.env.DOTFILES_PRIVATE_DIR ??
-      join(HOME, ".config", "dotfiles-private"),
+    process.env.DOTFILES_PRIVATE_DIR ?? join(CONFIG_DIR, "dotfiles-private"),
   );
 }
 

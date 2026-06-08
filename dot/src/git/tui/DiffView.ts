@@ -26,6 +26,7 @@ import {
 } from "../../tui/openCodeSession.js";
 import { formatPaneTitle } from "../../tui/paneTitle.js";
 import { StatusList } from "../../tui/StatusList.js";
+import { displayPath } from "../../lib/paths.js";
 
 /** Help entries for the diff view */
 const HELP: readonly HelpEntry[] = [
@@ -439,11 +440,7 @@ export class DiffView {
   }
 
   private shortenPath(path: string): string {
-    const home = process.env.HOME || "~";
-    if (path.startsWith(home)) {
-      return "~" + path.slice(home.length);
-    }
-    return path;
+    return displayPath(path);
   }
 
   /** Remove the diff view from the render tree */

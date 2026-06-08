@@ -10,9 +10,7 @@ import {
 import { dirname, join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
-import { displayPath, homeDir } from "../lib/paths.js";
-
-const HOME = homeDir();
+import { CONFIG_DIR, HOME_DIR, displayPath } from "../lib/paths.js";
 
 /** Metadata attached to each sync operation */
 interface SyncMetadata {
@@ -57,7 +55,7 @@ const cursorTarget: HarnessTarget = {
   name: "cursor",
   outputPath: () =>
     process.env.DOT_AGENTS_SYNC_RULE_FILE ??
-    join(HOME, ".cursor", "rules", "global-agents.mdc"),
+    join(HOME_DIR, ".cursor", "rules", "global-agents.mdc"),
   transform: (content, meta) =>
     [
       "---",
@@ -73,7 +71,7 @@ const cursorTarget: HarnessTarget = {
 
 const claudeTarget: HarnessTarget = {
   name: "claude",
-  outputPath: () => join(HOME, ".claude", "CLAUDE.md"),
+  outputPath: () => join(HOME_DIR, ".claude", "CLAUDE.md"),
   transform: (content, meta) =>
     [
       `<!-- dot agents-sync: source=${meta.source} synced=${meta.timestamp} -->`,
@@ -84,7 +82,7 @@ const claudeTarget: HarnessTarget = {
 
 const codexTarget: HarnessTarget = {
   name: "codex",
-  outputPath: () => join(HOME, ".codex", "AGENTS.md"),
+  outputPath: () => join(HOME_DIR, ".codex", "AGENTS.md"),
   transform: (content, meta) =>
     [
       `<!-- dot agents-sync: source=${meta.source} synced=${meta.timestamp} -->`,
@@ -122,7 +120,7 @@ export const agentsSync = Effect.gen(function* () {
 
   const source =
     process.env.DOT_AGENTS_SYNC_SOURCE ??
-    join(HOME, ".config", "opencode", "AGENTS.md");
+    join(CONFIG_DIR, "opencode", "AGENTS.md");
 
   if (!existsSync(source)) {
     yield* log.warn(`Skipped (missing source): ${displayPath(source)}`);

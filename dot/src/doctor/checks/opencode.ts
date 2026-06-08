@@ -2,10 +2,8 @@ import { Effect } from "effect";
 import { existsSync, lstatSync, readlinkSync } from "fs";
 import { join } from "path";
 import { Config } from "../../services/Config.js";
-import { displayPath, homeDir } from "../../lib/paths.js";
+import { CONFIG_DIR, HOME_DIR, displayPath } from "../../lib/paths.js";
 import type { CheckResult } from "../types.js";
-
-const HOME = homeDir();
 
 /** Canonical OpenCode resource names (plural) under ~/.config/opencode/ */
 const RESOURCE_NAMES = [
@@ -31,7 +29,7 @@ export const checkOpencode = Effect.gen(function* () {
   });
 
   // Check external skills directory (~/.agents/skills/)
-  const externalSkillsPath = join(HOME, ".agents", "skills");
+  const externalSkillsPath = join(HOME_DIR, ".agents", "skills");
   if (existsSync(externalSkillsPath)) {
     results.push({
       severity: "ok",
@@ -45,7 +43,7 @@ export const checkOpencode = Effect.gen(function* () {
   }
 
   // Warn if legacy skills dir still exists under ~/.config/opencode/
-  const legacySkillsPath = join(HOME, ".config", "opencode", "skills");
+  const legacySkillsPath = join(CONFIG_DIR, "opencode", "skills");
   if (existsSync(legacySkillsPath) || lstatExists(legacySkillsPath)) {
     results.push({
       severity: "warn",
@@ -56,8 +54,8 @@ export const checkOpencode = Effect.gen(function* () {
   let foundLegacy = false;
 
   for (const name of RESOURCE_NAMES) {
-    const canonicalPath = join(HOME, ".config", "opencode", name);
-    const legacyPath = join(HOME, ".opencode", name);
+    const canonicalPath = join(CONFIG_DIR, "opencode", name);
+    const legacyPath = join(HOME_DIR, ".opencode", name);
 
     if (existsSync(canonicalPath)) {
       results.push({
@@ -97,8 +95,8 @@ export const checkOpencode = Effect.gen(function* () {
   // Check legacy singular names
   for (const name of LEGACY_SINGULAR_NAMES) {
     for (const base of [
-      join(HOME, ".config", "opencode"),
-      join(HOME, ".opencode"),
+      join(CONFIG_DIR, "opencode"),
+      join(HOME_DIR, ".opencode"),
     ]) {
       const path = join(base, name);
       if (existsSync(path) || lstatExists(path)) {

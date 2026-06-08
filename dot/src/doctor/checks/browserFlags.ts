@@ -3,10 +3,8 @@ import { existsSync, lstatSync } from "fs";
 import { join } from "path";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
-import { displayPath, homeDir } from "../../lib/paths.js";
+import { CONFIG_DIR, HOME_DIR, displayPath } from "../../lib/paths.js";
 import type { CheckResult } from "../types.js";
-
-const HOME = homeDir();
 
 /** Check browser flags symlinks from private dotfiles */
 export const checkBrowserFlags = Effect.gen(function* () {
@@ -20,7 +18,7 @@ export const checkBrowserFlags = Effect.gen(function* () {
     ? join(config.privateDotfiles, browserFlagsHostPkg)
     : null;
   const omarchyDefaultFlags = join(
-    HOME,
+    HOME_DIR,
     ".local",
     "share",
     "omarchy",
@@ -32,8 +30,8 @@ export const checkBrowserFlags = Effect.gen(function* () {
     let flagsOk = true;
 
     for (const flagFile of [
-      join(HOME, ".config", "chromium-flags.conf"),
-      join(HOME, ".config", "chrome-flags.conf"),
+      join(CONFIG_DIR, "chromium-flags.conf"),
+      join(CONFIG_DIR, "chrome-flags.conf"),
     ]) {
       if (!existsSync(flagFile)) {
         results.push({
@@ -86,7 +84,7 @@ export const checkBrowserFlags = Effect.gen(function* () {
   // Diff live flags against omarchy defaults
   if (
     existsSync(omarchyDefaultFlags) &&
-    existsSync(join(HOME, ".config", "chromium-flags.conf"))
+    existsSync(join(CONFIG_DIR, "chromium-flags.conf"))
   ) {
     const diffResult = yield* executor
       .run("bash", [

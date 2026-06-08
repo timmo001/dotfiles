@@ -4,7 +4,7 @@ import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
 import { listStowFolders } from "../lib/stowFolders.js";
-import { displayPath, homeDir } from "../lib/paths.js";
+import { HOME_DIR, displayPath } from "../lib/paths.js";
 import { ensureHyprHostLink } from "../lib/omarchyHost.js";
 import { ensureStowInstalled } from "../lib/packageSetup.js";
 import {
@@ -15,8 +15,6 @@ import {
   restoreExternalSymlinks,
   type ExternalSymlink,
 } from "../lib/stowConflicts.js";
-
-const HOME = homeDir();
 
 /** Extra stow flags for the agents folder (matches legacy behaviour) */
 const AGENTS_PRIVATE_IGNORES = [
@@ -73,14 +71,14 @@ function backupPublicFiles(publicDotfiles: string): void {
   const backupRoot = join(publicDotfiles, "backup");
 
   const targets = [
-    { source: join(HOME, ".zshrc"), backupDir: backupRoot },
-    { source: join(HOME, ".editorconfig"), backupDir: backupRoot },
+    { source: join(HOME_DIR, ".zshrc"), backupDir: backupRoot },
+    { source: join(HOME_DIR, ".editorconfig"), backupDir: backupRoot },
     {
-      source: join(HOME, ".config/ghostty/config.toml"),
+      source: join(HOME_DIR, ".config/ghostty/config.toml"),
       backupDir: join(backupRoot, ".config/ghostty"),
     },
     {
-      source: join(HOME, ".config/nvim"),
+      source: join(HOME_DIR, ".config/nvim"),
       backupDir: join(backupRoot, ".config"),
     },
   ];

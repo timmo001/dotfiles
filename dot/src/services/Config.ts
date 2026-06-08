@@ -7,9 +7,13 @@ import {
   loadDotGitConfig,
   type DotGitConfig,
 } from "./GitConfig.js";
-import { expandHomePath, homeDir } from "../lib/paths.js";
-
-const HOME = homeDir();
+import {
+  CACHE_DIR,
+  CONFIG_DIR,
+  HOME_DIR,
+  STATE_DIR,
+  expandHomePath,
+} from "../lib/paths.js";
 
 /** Omarchy repo configuration for diff tracking */
 export interface OmarchyRepoConfig {
@@ -57,12 +61,12 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
     Config,
     Effect.sync(() => {
       const publicDotfiles = expandHomePath(
-        process.env.DOTFILES_PUBLIC_DIR ?? join(HOME, ".config", "dotfiles"),
+        process.env.DOTFILES_PUBLIC_DIR ?? join(CONFIG_DIR, "dotfiles"),
       );
 
       const privatePath = expandHomePath(
         process.env.DOTFILES_PRIVATE_DIR ??
-          join(HOME, ".config", "dotfiles-private"),
+          join(CONFIG_DIR, "dotfiles-private"),
       );
       const privateExists = existsSync(join(privatePath, ".git"));
       let canUsePrivate = false;
@@ -95,12 +99,11 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
       const notesDir = expandHomePath(
         process.env.NOTES ||
           process.env.DOT_NOTES_DIR ||
-          join(HOME, "Documents", "notes"),
+          join(HOME_DIR, "Documents", "notes"),
       );
 
       // Omarchy config
-      const omarchyRepoBase =
-        process.env.OMARCHY_REPO_BASE_DIR ?? join(HOME, ".config");
+      const omarchyRepoBase = process.env.OMARCHY_REPO_BASE_DIR ?? CONFIG_DIR;
       const omarchyDiffRepos = [
         "hypr",
         "waybar",
@@ -135,12 +138,8 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
         ? loadDotGitConfig(gitConfigFile)
         : emptyDotGitConfig(gitConfigFile);
 
-      const xdgCache = process.env.XDG_CACHE_HOME ?? join(HOME, ".cache");
-      const xdgState =
-        process.env.XDG_STATE_HOME ?? join(HOME, ".local", "state");
-
-      const cacheDir = join(xdgCache, "dot");
-      const stateDir = join(xdgState, "dot");
+      const cacheDir = join(CACHE_DIR, "dot");
+      const stateDir = join(STATE_DIR, "dot");
       const logDir = join(stateDir, "logs");
 
       // Ensure directories exist

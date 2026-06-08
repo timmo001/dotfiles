@@ -4,12 +4,9 @@ import { join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
-import { displayPath, homeDir } from "./paths.js";
+import { CONFIG_DIR, HOME_DIR, displayPath } from "./paths.js";
 import { runElevated } from "./elevatedCommand.js";
 import type { ConfigService } from "../services/Config.js";
-
-const HOME = homeDir();
-const XDG_CONFIG_HOME = process.env.XDG_CONFIG_HOME ?? join(HOME, ".config");
 
 /** Domain error for package setup failures. */
 class PackageSetupError extends Schema.TaggedErrorClass<PackageSetupError>()(
@@ -216,12 +213,10 @@ export const ensureGumInstalled: Effect.Effect<
 function miseConfigExists(): boolean {
   return [
     process.env.MISE_GLOBAL_CONFIG_FILE,
-    join(XDG_CONFIG_HOME, "mise", "config.toml"),
-    join(XDG_CONFIG_HOME, "mise", "config.json"),
-    join(HOME, ".config", "mise", "config.toml"),
-    join(HOME, ".config", "mise", "config.json"),
-    join(HOME, ".mise.toml"),
-    join(HOME, ".tool-versions"),
+    join(CONFIG_DIR, "mise", "config.toml"),
+    join(CONFIG_DIR, "mise", "config.json"),
+    join(HOME_DIR, ".mise.toml"),
+    join(HOME_DIR, ".tool-versions"),
   ].some((filePath) => filePath !== undefined && existsSync(filePath));
 }
 
@@ -250,7 +245,9 @@ export const installMiseTools: Effect.Effect<
     "mise is still unavailable after installation",
   );
 
-  const exitCode = yield* executor.inherit("mise", ["install"], { cwd: HOME });
+  const exitCode = yield* executor.inherit("mise", ["install"], {
+    cwd: HOME_DIR,
+  });
   if (exitCode !== 0) {
     return yield* fail(`mise install exited ${exitCode}`);
   }

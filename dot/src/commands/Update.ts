@@ -17,7 +17,7 @@ import {
   initCompleteMarker,
 } from "../lib/initState.js";
 import { gitHead, gitPullRebase, gitWorkingTreeClean } from "../lib/git.js";
-import { displayPath } from "../lib/paths.js";
+import { HOME_DIR, displayPath } from "../lib/paths.js";
 import type { ConfigService } from "../services/Config.js";
 import type { InitCompleteMarkerStatus } from "../lib/initState.js";
 import type { DiffRepo } from "../types.js";
@@ -53,8 +53,7 @@ const repoStatus = (repo: DiffRepo): string => {
 };
 
 const onResumeHelperPath = (): string | null => {
-  const home = process.env.HOME;
-  return home ? join(home, ".local", "bin", "on-resume") : null;
+  return join(HOME_DIR, ".local", "bin", "on-resume");
 };
 
 function logInitMarkerStatus(

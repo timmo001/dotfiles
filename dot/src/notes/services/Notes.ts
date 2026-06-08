@@ -11,6 +11,7 @@ import {
 import { basename, dirname, isAbsolute, join, relative, resolve } from "path";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
+import { HOME_DIR, expandHomePath } from "../../lib/paths.js";
 import {
   formatNoteLabel,
   type NoteCommitResult,
@@ -100,10 +101,7 @@ function errorMessage(error: unknown): string {
 }
 
 function expandHome(filePath: string): string {
-  const home = process.env.HOME ?? "";
-  return home && filePath.startsWith("~/")
-    ? join(home, filePath.slice(2))
-    : filePath;
+  return expandHomePath(filePath);
 }
 
 function isInsideDirectory(parent: string, child: string): boolean {
@@ -396,7 +394,7 @@ export class Notes extends Context.Service<Notes, NotesService>()("Notes") {
       const config = yield* Config;
       const executor = yield* CommandExecutor;
       const notesRoot = resolve(
-        config.notesDir ?? join(process.env.HOME ?? "", "Documents", "notes"),
+        config.notesDir ?? join(HOME_DIR, "Documents", "notes"),
       );
       const repoNotesRoot = join(notesRoot, NOTES_SUBDIR);
 

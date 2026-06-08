@@ -1,17 +1,15 @@
 import { Effect } from "effect";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
-import { displayPath, homeDir } from "../../lib/paths.js";
+import { CONFIG_DIR, displayPath } from "../../lib/paths.js";
 import type { CheckResult } from "../../doctor/types.js";
-
-const HOME = homeDir();
 
 /** Check git config includes the managed dotfiles settings */
 export const checkGitConfig = Effect.gen(function* () {
   const results: CheckResult[] = [];
 
-  const gitConfigFile = join(HOME, ".config", "git", "config");
-  const gitConfigDotfiles = join(HOME, ".config", "git", "config.dotfiles");
+  const gitConfigFile = join(CONFIG_DIR, "git", "config");
+  const gitConfigDotfiles = join(CONFIG_DIR, "git", "config.dotfiles");
   const gitIncludePath = "~/.config/git/config.dotfiles";
 
   if (existsSync(gitConfigDotfiles)) {

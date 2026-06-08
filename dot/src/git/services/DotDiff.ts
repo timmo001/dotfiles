@@ -6,6 +6,7 @@ import type { DiffRepo, Repo } from "../../types.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import { gitCurrentBranchSync, isGitRepo } from "../../lib/git.js";
+import { CACHE_DIR } from "../../lib/paths.js";
 import { activeGitReposForCheck } from "../../services/GitConfig.js";
 
 const DEBUG = !!process.env.DOT_DEBUG;
@@ -21,11 +22,7 @@ const FETCH_TTL_SECONDS = parseInt(
   process.env.DOT_FETCH_TTL_SECONDS ?? "300",
   10,
 );
-const FETCH_CACHE_DIR = join(
-  process.env.XDG_CACHE_HOME ?? join(process.env.HOME ?? "", ".cache"),
-  "dot",
-  "fetch-upstream",
-);
+const FETCH_CACHE_DIR = join(CACHE_DIR, "dot", "fetch-upstream");
 
 /** Check if a fetch is needed based on TTL cache */
 function shouldFetch(repoPath: string, upstreamRef: string): boolean {

@@ -1,6 +1,7 @@
 import { Context, Effect, Layer } from "effect";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { CACHE_DIR } from "../../lib/paths.js";
 
 /** Shape of the JSON written by the Waybar `git-diff` module */
 interface GitDiffWaybarCacheData {
@@ -54,7 +55,5 @@ export class GitDiffWaybarCache extends Context.Service<
 }
 
 function getCachePath(): string {
-  const cacheHome =
-    process.env.XDG_CACHE_HOME || join(process.env.HOME || "~", ".cache");
-  return join(cacheHome, "waybar", "git-diff-waybar.json");
+  return join(CACHE_DIR, "waybar", "git-diff-waybar.json");
 }

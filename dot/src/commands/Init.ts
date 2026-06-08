@@ -23,7 +23,7 @@ import {
 } from "../lib/packageSetup.js";
 import { syncOmarchyRepos } from "../lib/omarchySync.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
-import { displayPath, homeDir } from "../lib/paths.js";
+import { CONFIG_DIR, HOME_DIR, displayPath } from "../lib/paths.js";
 import {
   currentOmarchyHost,
   ensureHyprHostLink,
@@ -38,8 +38,6 @@ import {
 } from "../lib/initState.js";
 import type { ConfigService } from "../services/Config.js";
 
-const HOME = homeDir();
-const XDG_CONFIG_HOME = process.env.XDG_CONFIG_HOME ?? join(HOME, ".config");
 const GIT_INCLUDE_PATH = "~/.config/git/config.dotfiles";
 const DOCTOR_STARTUP_TIMER_UNIT = "dot-doctor-startup.timer";
 const DEFAULT_INIT_OMARCHY_HOST = "desktop";
@@ -127,7 +125,7 @@ function isManagedSymlink(path: string, config: ConfigService): boolean {
 }
 
 function gitConfigIncludesManagedPath(): boolean {
-  const gitConfigFile = join(HOME, ".config", "git", "config");
+  const gitConfigFile = join(CONFIG_DIR, "git", "config");
   if (!existsSync(gitConfigFile)) return false;
   return readFileSync(gitConfigFile, "utf-8").includes(
     `path = ${GIT_INCLUDE_PATH}`,
@@ -139,12 +137,10 @@ function existingInitSignals(config: ConfigService): readonly string[] {
   if (gitConfigIncludesManagedPath()) {
     signals.push(`managed git include (${GIT_INCLUDE_PATH})`);
   }
-  if (isManagedSymlink(join(HOME, ".local", "bin", "dot"), config)) {
+  if (isManagedSymlink(join(HOME_DIR, ".local", "bin", "dot"), config)) {
     signals.push("managed dot binary symlink (~/.local/bin/dot)");
   }
-  if (
-    isManagedSymlink(join(HOME, ".config", "git", "config.dotfiles"), config)
-  ) {
+  if (isManagedSymlink(join(CONFIG_DIR, "git", "config.dotfiles"), config)) {
     signals.push("managed git config symlink (~/.config/git/config.dotfiles)");
   }
   return signals;
@@ -397,7 +393,7 @@ function configureGitInclude(
 ): Effect.Effect<void, InitError, CommandExecutor | OutputLog> {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
-    const managedConfig = join(HOME, ".config", "git", "config.dotfiles");
+    const managedConfig = join(CONFIG_DIR, "git", "config.dotfiles");
 
     yield* log.section("Configure Git");
     if (!existsSync(managedConfig)) {
@@ -458,7 +454,7 @@ function installPacmanHooks(): Effect.Effect<
 > {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
-    const hooksSource = join(XDG_CONFIG_HOME, "pacman-hooks");
+    const hooksSource = join(CONFIG_DIR, "pacman-hooks");
 
     yield* log.section("Install Pacman Hooks");
     if (!existsSync(hooksSource)) {
@@ -503,7 +499,7 @@ function enableDoctorStartupTimer(): Effect.Effect<
     const executor = yield* CommandExecutor;
     const log = yield* OutputLog;
     const unitPath = join(
-      XDG_CONFIG_HOME,
+      CONFIG_DIR,
       "systemd",
       "user",
       DOCTOR_STARTUP_TIMER_UNIT,
@@ -534,7 +530,7 @@ function syncAgentsStrict(): Effect.Effect<
     const log = yield* OutputLog;
     const source =
       process.env.DOT_AGENTS_SYNC_SOURCE ??
-      join(HOME, ".config", "opencode", "AGENTS.md");
+      join(CONFIG_DIR, "opencode", "AGENTS.md");
     if (!existsSync(source)) {
       yield* log.warn(
         `Skipping agents sync; source missing: ${displayPath(source)}`,

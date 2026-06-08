@@ -2,18 +2,15 @@ import { Effect } from "effect";
 import { existsSync, readdirSync, readFileSync } from "fs";
 import { join, basename } from "path";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
-import { homeDir } from "../../lib/paths.js";
+import { CONFIG_DIR } from "../../lib/paths.js";
 import type { CheckResult } from "../types.js";
-
-const HOME = homeDir();
-const XDG_CONFIG_HOME = process.env.XDG_CONFIG_HOME ?? join(HOME, ".config");
 
 /** Check pacman hooks are installed and up to date */
 export const checkPacmanHooks = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
   const results: CheckResult[] = [];
 
-  const hooksSource = join(XDG_CONFIG_HOME, "pacman-hooks");
+  const hooksSource = join(CONFIG_DIR, "pacman-hooks");
   if (!existsSync(hooksSource)) {
     // No hooks configured, nothing to check
     return results;
