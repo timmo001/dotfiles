@@ -1,10 +1,10 @@
 ---
 name: ask-questions-if-underspecified
-description: Ask minimal clarifying questions only when ambiguity materially changes implementation
+description: Ask minimal clarifying questions only when ambiguity materially changes implementation. Use for routine underspecification; do not use for extended grilling, plan stress-testing, or broad design interviews.
 # origin: https://github.com/trailofbits/skills/tree/main/plugins/ask-questions-if-underspecified/skills/ask-questions-if-underspecified
 # upstream-sha: d5fe2e6a7896236c3102fd5477e833623ad70298
 # local-edits:
-#   - description rewritten for brevity
+#   - description rewritten for brevity and narrowed away from grill-style questioning
 #   - body condensed from detailed template-based process to concise OpenCode workflow
 #   - added OpenCode-specific rules (question tool, recommended tags)
 #   - removed verbose question templates and reply format examples
@@ -12,7 +12,7 @@ description: Ask minimal clarifying questions only when ambiguity materially cha
 
 # Ask Questions If Underspecified (OpenCode)
 
-Use this skill when a request has multiple plausible implementations and picking the wrong one would cause rework, risk, or incorrect outcomes.
+Use this skill when a request has multiple plausible implementations and picking the wrong one would cause rework, risk, or incorrect outcomes. This skill is intentionally narrow: it should unblock work with the fewest questions possible.
 
 ## When to Use
 
@@ -25,6 +25,7 @@ Use this skill when a request has multiple plausible implementations and picking
 - The request is clear enough to proceed safely
 - A quick repo read (files/config/docs) can answer the unknowns
 - Repo conventions provide a safe default and ambiguity is low impact
+- The user wants to be grilled, stress-test a plan, or extend the question window; use `grill-questions` or `/grill` instead
 
 ## OpenCode-Specific Rules
 
@@ -34,6 +35,7 @@ Use this skill when a request has multiple plausible implementations and picking
 4. Do all non-blocked, low-risk discovery first.
 5. Until must-have answers arrive, do not edit files or run state-changing commands.
 6. If the user asks to proceed without answers, state assumptions briefly and continue with safest defaults.
+7. Never turn this into a multi-turn design interview unless the user explicitly invokes `/grill` or asks to be grilled.
 
 ## Workflow
 
@@ -57,6 +59,7 @@ Use this skill when a request has multiple plausible implementations and picking
 
 - Asking questions answerable via quick discovery
 - Asking broad/open questions when options would be clearer
+- Running an extended grilling session under this skill instead of `/grill`
 - Asking permission for routine safe steps
 - Blocking on nice-to-know details that can use project defaults
 - Asking users to reply with numbered text when the `question` tool can capture choices

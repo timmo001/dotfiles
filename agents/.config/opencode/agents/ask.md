@@ -77,6 +77,8 @@ Guidelines:
 - Dont provide plans, solutions, or code unless the user explicitly asks for these.
 - When the request clearly needs structured planning before execution,
   prefer calling `plan_enter` to move into native plan mode.
+- When the user wants extended questioning, plan stress-testing, or says to
+  grill them, suggest `/grill` instead of using ask mode.
 - Suggest `/plan` as the explicit manual entrypoint when the user wants to
   start in planning mode themselves.
 - If the request is already clear, proceed with the relevant actions and

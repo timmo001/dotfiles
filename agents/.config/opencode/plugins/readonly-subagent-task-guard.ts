@@ -7,7 +7,7 @@
  * commands so allowlisted commands cannot be turned into file writes.
  *
  * Dotfiles agents under agents/.config/opencode/agents (audit):
- * - reviewer, ask, general-readonly — deny edit and write on normal paths → guarded
+ * - grill, reviewer, ask, general-readonly — deny edit and write on normal paths → guarded
  * - build-locked — edit allow, write deny (can change existing files) → not read-only
  * - build-ask — edit/write ask → not read-only
  * - refactorer — sparse permission front matter (inherits writable defaults) → not read-only

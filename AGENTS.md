@@ -35,6 +35,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - Prefer `/inject-context` and `/review-current-work` for current-branch context instead of rebuilding that snapshot with repeated `git status`, `git diff`, `git log`, or `gh pr` calls. `/inject-context` accepts an optional inline instruction (e.g. `/inject-context add x to the y`); without one it injects context and waits.
 - Use `/refactor-current-work` for behaviour-preserving cleanup within the current branch scope instead of rebuilding that scope manually before a refactor.
 - Use `/plan` as the manual entrypoint to native planning mode when explicit implementation planning would help; reuse the existing conversation context instead of rebuilding it from scratch.
+- Use `/grill` when the user wants extended one-question-at-a-time planning questions, plan stress-testing, or a larger question window before `/plan` or implementation.
 - Some execution-oriented agents can now call native `plan_enter` themselves for broad, multi-step, sequencing-heavy, or materially ambiguous work; prefer that automatic handoff when the agent is already in execution flow.
 - `/inject-context`, `/review-current-work`, and the scoped cleanup/type commands use `BranchContextPlugin`; treat its injected `<work-scope>` section as the canonical scope source unless the user explicitly asks for a refresh.
 - For human-written command names and command/docs prose in this repo, prefer UK spelling. Keep upstream tool, API, or MCP names unchanged when they use US spelling.
@@ -111,6 +112,7 @@ This file is plain Markdown. [Cursor](https://cursor.com/docs/rules) loads `AGEN
 - OpenCode debug wrapper: `dot opencode-debug`
 - OpenCode context injection command: `/inject-context [instruction]`
 - OpenCode planning command: `/plan [focus]` (manual entrypoint; some agents can also switch into plan mode via native `plan_enter`)
+- OpenCode grilling command: `/grill [focus]` (extended one-question-at-a-time plan stress-testing before `/plan` or implementation)
 - OpenCode review command: `/review-current-work`
 - OpenCode current-work refactor command: `/refactor-current-work [scope]`
 - OpenCode investigation command: `/investigate <topic>`

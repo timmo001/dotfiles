@@ -85,6 +85,7 @@ dot doctor
 
 OpenCode agents, commands, and plugins live in `agents/.config/opencode/`; shared skills live in `agents/.agents/skills/`. They are automatically published together to [`timmo001/opencode-config`](https://github.com/timmo001/opencode-config) so they can be browsed, imported, and installed independently of the full dotfiles repo — see that repo for documentation and installation instructions.
 
+- Questioning workflow: use `/investigate` for read-only facts, `/grill` for extended one-question-at-a-time plan stress-testing, and `/plan` for concise implementation planning.
 - Debug: `dot opencode-debug [--agent <name>]`
 - Publishing is automatic via GitHub Actions on push
 

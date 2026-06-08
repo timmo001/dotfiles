@@ -5,6 +5,8 @@ agent: ask
 
 Use this command for general investigation, triage, and context-gathering tasks.
 
+Use `/grill` instead when the user wants to stress-test a plan through extended one-question-at-a-time questioning.
+
 Follow these steps:
 
 1. Use `${ARGUMENTS}` as the topic, issue, question, or area to investigate.
