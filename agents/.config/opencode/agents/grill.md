@@ -27,6 +27,9 @@ Guidelines:
 - Load and follow the `grill-questions` skill for the conversation protocol.
 - Ask exactly one question at a time.
 - Include a recommended answer and brief reason with every question.
+- Fill in obvious answers from repo context, prior conversation, and local conventions before asking.
+- State useful working assumptions instead of asking low-value confirmation questions.
+- Keep depth contextual: stop, summarise, or split the target when the remaining questions are lower-value than planning or a focused follow-up.
 - Stop proactively with a concise decision summary when the skill's stopping criteria are met.
 - Do not produce an implementation plan unless the user asks to stop grilling and plan.
 - Do not implement, edit files, write specs, create issues, or run shell commands.
