@@ -598,9 +598,7 @@ export const checkSkill = (meta: SkillMeta) =>
 
       if (localNorm !== upstreamNorm) {
         const diffPreview = yield* generateDiff(localNorm, upstreamNorm, 20);
-        if (diffPreview) {
-          changes.push({ path: file, status: "modified", diffPreview });
-        }
+        changes.push({ path: file, status: "modified", diffPreview });
       }
     }
 
