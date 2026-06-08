@@ -213,7 +213,9 @@ const postHooks = Effect.gen(function* () {
     ),
   );
 
-  return yield* skillUpdates({ update: true }).pipe(
+  const skillUpdateMode = isInteractiveSession() ? undefined : { update: true };
+
+  return yield* skillUpdates(skillUpdateMode).pipe(
     Effect.catch(() =>
       Effect.gen(function* () {
         yield* log.warn("Skill updates failed (non-fatal)");
