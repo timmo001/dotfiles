@@ -140,8 +140,16 @@ function readNoteFrontmatter(filePath: string): NoteFrontmatter {
   } catch {
     return { name: null, description: null, tags: [] };
   }
-  const name = head.match(/^name:\s*(.+)$/m)?.[1]?.trim() ?? null;
-  const description = head.match(/^description:\s*(.+)$/m)?.[1]?.trim() ?? null;
+  const name =
+    head
+      .match(/^name:\s*(.+)$/m)?.[1]
+      ?.trim()
+      .replace(/^["']|["']$/g, "") || null;
+  const description =
+    head
+      .match(/^description:\s*(.+)$/m)?.[1]
+      ?.trim()
+      .replace(/^["']|["']$/g, "") || null;
   const tagsRaw = head.match(/^tags:\s*\[(.+)\]$/m)?.[1];
   return { name, description, tags: tagsRaw ? parseTags(tagsRaw) : [] };
 }

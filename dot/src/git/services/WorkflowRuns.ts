@@ -25,7 +25,7 @@ import {
 import { repoGitHubSlugs } from "./repoRelations.js";
 import { ENV, envString } from "../../lib/env.js";
 
-const RUN_LIMIT = 100;
+const BRANCH_RUN_LIMIT = 30;
 const DEBUG = !!envString(ENV.DOT_DEBUG);
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot:WorkflowRuns] ${msg}`);
@@ -64,6 +64,8 @@ interface GhRunRecord {
   readonly createdAt?: unknown;
   readonly startedAt?: unknown;
   readonly updatedAt?: unknown;
+  readonly headBranch?: unknown;
+  readonly headSha?: unknown;
 }
 
 interface GhWorkflowRecord {
@@ -106,22 +108,28 @@ export class WorkflowRuns extends Context.Service<
           };
         }
 
+        const branches = yield* localBranches(checkoutPath);
+        if (branches.length === 0) return emptyRepo(slug);
+
         const commit = yield* getHeadCommit(slug, checkoutPath);
         const slugs = yield* repoGitHubSlugs(slug, checkoutPath, executor);
         const slugRuns = yield* Effect.all(
-          slugs.map((candidate) => {
-            const runs = getRuns(candidate, commit.branch, commit.sha, opts);
-            return candidate === slug
-              ? runs
-              : runs.pipe(Effect.catch(() => Effect.succeed([])));
-          }),
-          { concurrency: 2 },
+          slugs.flatMap((candidate) =>
+            branches.map((branch) => {
+              const runs = getRuns(candidate, branch, opts);
+              return candidate === slug
+                ? runs
+                : runs.pipe(Effect.catch(() => Effect.succeed([])));
+            }),
+          ),
+          { concurrency: 4 },
         );
         const runs = uniqueWorkflowRuns(slugRuns.flat());
 
         return {
           slug,
-          branch: commit.branch,
+          branch:
+            branches.length === 1 ? branches[0] : commit.branch || null,
           headSha: commit.sha,
           commitSubject: commit.subject,
           commitUrl: commit.url,
@@ -156,14 +164,28 @@ export class WorkflowRuns extends Context.Service<
         };
       });
 
+      const localBranches = (repoPath: string) =>
+        gitOutput(
+          ["for-each-ref", "--format=%(refname:short)", "refs/heads"],
+          { cwd: repoPath },
+        ).pipe(
+          Effect.provideService(CommandExecutor, executor),
+          Effect.map((output) =>
+            output
+              .split("\n")
+              .map((b) => b.trim())
+              .filter((b) => b.length > 0),
+          ),
+          Effect.catch(() => Effect.succeed([])),
+        );
+
       const getRuns = Effect.fn("WorkflowRuns.getRuns")(function* (
         slug: string,
         branch: string,
-        sha: string,
         opts?: WorkflowRunQueryOptions,
       ) {
         const activeWorkflowIds = yield* getActiveWorkflowIds(slug);
-        const parsed = yield* github.json(runListArgs(slug, branch, sha, opts));
+        const parsed = yield* github.json(runListArgs(slug, branch));
         if (!Array.isArray(parsed)) return [];
         return parsed
           .filter(isRunRecord)
@@ -191,25 +213,18 @@ export class WorkflowRuns extends Context.Service<
       const runListArgs = (
         slug: string,
         branch: string,
-        sha: string,
-        opts?: WorkflowRunQueryOptions,
-      ): readonly string[] => {
-        const args = [
-          "run",
-          "list",
-          "--repo",
-          slug,
-          "--branch",
-          branch,
-          "--commit",
-          sha,
-          "--limit",
-          String(RUN_LIMIT),
-          "--json",
-          "databaseId,workflowDatabaseId,status,conclusion,workflowName,displayTitle,url,event,createdAt,startedAt,updatedAt",
-        ];
-        return args;
-      };
+      ): readonly string[] => [
+        "run",
+        "list",
+        "--repo",
+        slug,
+        "--branch",
+        branch,
+        "--limit",
+        String(BRANCH_RUN_LIMIT),
+        "--json",
+        "databaseId,workflowDatabaseId,status,conclusion,workflowName,displayTitle,url,event,createdAt,startedAt,updatedAt,headBranch,headSha",
+      ];
 
       const workflowListArgs = (slug: string): readonly string[] => [
         "workflow",
@@ -438,6 +453,8 @@ function toWorkflowRun(record: GhRunRecord): WorkflowRun {
     createdAt: nullableStringValue(record.createdAt),
     startedAt: nullableStringValue(record.startedAt),
     updatedAt: nullableStringValue(record.updatedAt),
+    headBranch: nullableStringValue(record.headBranch),
+    headSha: nullableStringValue(record.headSha),
   };
 }
 
