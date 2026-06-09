@@ -183,6 +183,7 @@ _dot_cmd_notes_list() {
 _dot_cmd_handoffs() {
   _arguments -S \
     '--all[Show handoff notes from every repo-notes directory]' \
+    '--list[List handoff notes to stdout without opening the TUI]' \
     '(-h --help)-h[Show this help message]' \
     '(-h --help)--help[Show this help message]' \
     '*::arg:->args'

@@ -225,6 +225,8 @@ dot notes list --all       # List all repo notes with repo section headings (CLI
 dot notes list --format json # List current repo notes as JSON (CLI)
 dot handoffs                  # Handoff notes browser (TUI, tag: handoff)
 dot handoffs --all            # Handoff notes browser across all repos (TUI)
+dot handoffs --list           # List handoff notes to stdout (CLI)
+dot handoffs --list --all     # List handoff notes across all repos (CLI)
 dot handoff                   # Alias for dot handoffs
 dot note read --path <path> # Read a note file
 dot note write --path <path> --stdin # Write stdin to a note file and commit it

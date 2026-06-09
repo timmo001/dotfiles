@@ -19,6 +19,37 @@ Read `Notes path` from the `<repository>` section of the injected `<repo-note-co
 
 Do **not** use the `write`, `bash`, or any other tool to write the file — only `note_write`.
 
+## Multi-phase guard
+
+Before writing a handoff, assess whether the work spans multiple logical phases that would each become a separate branch or PR (e.g. "phase 1: add schema, phase 2: migrate data, phase 3: update UI"). If so, **do not** create a single combined handoff. Instead:
+
+1. Use the **question tool** to present choices:
+   - **Create separate handoffs** (one per phase/branch) — recommended when reviewers benefit from smaller, isolated diffs.
+   - **Create a single handoff anyway** — acceptable for personal projects or repos where large multi-phase branches are normal.
+   - **Hand off only the first phase** — write a handoff for phase 1 only; the next agent can hand off subsequent phases when ready.
+2. If the user picks separate handoffs, write one note per phase using the prefixed naming convention below.
+
+**When reading an existing handoff** that describes multiple phases or a large multi-step plan spanning distinct concerns, suggest to the user that subsequent phases be handed off to separate branches. Offer the option to continue with the full plan as a last resort.
+
+## Multi-phase naming convention
+
+When creating handoffs that are part of a related group, use a **shared feature prefix** so they sort together when listed with `dot handoffs --list`:
+
+- **Slug pattern:** `handoff-{feature}-{phase-slug}` — the shared prefix is the key grouping mechanism.
+  - e.g. `handoff-query-params-calendar-api`, `handoff-query-params-voice-assistants`, `handoff-query-params-energy-navigation`
+- **Numbered variant** (optional): add a number between feature and slug when execution order matters.
+  - e.g. `handoff-gallery-1-component-shell`, `handoff-gallery-2-routing`, `handoff-gallery-3-descriptions`
+- **Title pattern:** `"{Feature} Phase {N}: {Phase Title}"` for sequential work, or just a descriptive title for async/parallel work.
+
+When to number:
+- Phases depend on each other or have a natural execution order — number them.
+- Phases are independent and can be worked in any order — skip numbering, the shared prefix is sufficient.
+
+This ensures:
+- `dot handoffs --list` groups related handoffs together alphabetically by feature prefix.
+- Each handoff is independently actionable on its own branch.
+- Numbered prefixes preserve execution order only when it matters.
+
 ## Content guidelines
 
 - Do not duplicate content already captured in other artifacts (PRDs, plans, ADRs, issues, commits, diffs). Reference them by path or URL instead.

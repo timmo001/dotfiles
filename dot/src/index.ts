@@ -38,6 +38,7 @@ import { skillCheck } from "./commands/SkillCheck.js";
 import { completions } from "./commands/Completions.js";
 import { help } from "./commands/Help.js";
 import { noteCommand, notesCommand } from "./notes/commands/Notes.js";
+import { handoffsList } from "./notes/commands/Handoffs.js";
 import {
   diffBarJson,
   diffListChanged,
@@ -134,6 +135,13 @@ function resolveMode(): Mode {
         : { type: "tui", initialView: "notes" };
     }
     if (flags.subcommand === "handoff" || flags.subcommand === "handoffs") {
+      if (flags.rest.includes("--list")) {
+        return {
+          type: "native",
+          command: "handoffs",
+          args: flags.rest,
+        };
+      }
       const unsupported = flags.rest.filter((arg) => arg !== "--all");
       if (unsupported.length > 0) {
         console.error(`dot ${flags.subcommand} does not accept arguments`);
@@ -527,6 +535,7 @@ if (mode.type === "native") {
           openOpencode: args.includes("--open-opencode"),
           diffOrigin: args.includes("--diff-origin"),
         }),
+      handoffs: (args) => handoffsList(args.includes("--all")),
       completions,
       help,
     };

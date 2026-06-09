@@ -487,15 +487,20 @@ export const cliCommands: readonly CliCommandSpec[] = [
     name: "handoffs",
     aliases: ["handoff"],
     summary: "Open handoff notes",
-    usage: "[--all]",
+    usage: "[--all] [--list]",
     description: [
       "Open the interactive notes TUI filtered to notes tagged handoff.",
+      "Use --list for a plain text listing without the TUI.",
     ],
     sections: [{ title: "Aliases", lines: ["dot handoff", "dot handoffs"] }],
     options: [
       {
         name: "--all",
         description: "Show handoff notes from every repo-notes directory",
+      },
+      {
+        name: "--list",
+        description: "List handoff notes to stdout without opening the TUI",
       },
       helpOption,
     ],

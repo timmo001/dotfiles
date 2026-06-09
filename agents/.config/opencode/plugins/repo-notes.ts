@@ -146,6 +146,62 @@ const note_delete = {
   },
 }
 
+interface NoteListArgs {
+  readonly tag?: string
+  readonly all?: boolean
+}
+
+const note_list = {
+  description:
+    "List note files in the notes vault for the current repository. " +
+    "Returns JSON with filename, name, description, tags, and modification time for each note. " +
+    "Optionally filter by tag (e.g. 'handoff') or list notes from all repositories.",
+  args: {
+    tag: {
+      type: "string",
+      description:
+        "Optional tag to filter notes by (e.g. 'handoff'). Only notes with this tag are returned.",
+    },
+    all: {
+      type: "boolean",
+      description:
+        "List notes from all repositories instead of just the current one.",
+    },
+  },
+  async execute(args: NoteListArgs) {
+    try {
+      const cliArgs = ["notes", "list", "--format", "json"]
+      if (args.all) cliArgs.push("--all")
+      const output = await runDot(cliArgs)
+      if (!args.tag) return output
+
+      const parsed = JSON.parse(output)
+      const tag = args.tag.toLowerCase()
+
+      if (args.all && Array.isArray(parsed)) {
+        // Grouped by repo sections
+        const filtered = parsed
+          .map((section: { entries: Array<{ tags: string[] }> }) => ({
+            ...section,
+            entries: section.entries.filter((entry: { tags: string[] }) =>
+              entry.tags.some((t: string) => t.toLowerCase() === tag),
+            ),
+          }))
+          .filter((section: { entries: unknown[] }) => section.entries.length > 0)
+        return JSON.stringify(filtered, null, 2)
+      }
+
+      // Flat list for current repo
+      const filtered = parsed.filter((entry: { tags: string[] }) =>
+        entry.tags.some((t: string) => t.toLowerCase() === tag),
+      )
+      return JSON.stringify(filtered, null, 2)
+    } catch (error) {
+      throw new Error(`note_list: failed to list notes: ${errorMessage(error)}`)
+    }
+  },
+}
+
 export const RepoNotesPlugin = (async () => ({
   "command.execute.before": async (input, output) => {
     if (!NOTE_COMMANDS.has(input.command)) return
@@ -156,6 +212,7 @@ export const RepoNotesPlugin = (async () => ({
     note_read,
     note_write,
     note_delete,
+    note_list,
   },
 })) satisfies Plugin
 
