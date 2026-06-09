@@ -2,7 +2,7 @@
 name: fallow
 description: Codebase intelligence for JavaScript and TypeScript. Free static layer finds unused code (files, exports, types, dependencies), code duplication, circular dependencies, complexity hotspots, architecture boundary violations, and feature flag patterns. Runtime coverage merges production execution data into the same health report for hot-path review, cold-path deletion confidence, and stale-flag evidence - a single local capture is free, while continuous/cloud runtime monitoring is paid. 94 framework plugins, zero configuration, sub-second static analysis. Use when asked to analyze code health, find unused code, detect duplicates, check circular dependencies, audit complexity, check architecture boundaries, detect feature flags, clean up the codebase, auto-fix issues, merge runtime coverage, or run fallow.
 # origin: https://github.com/fallow-rs/fallow-skills/tree/main/fallow/skills/fallow
-# upstream-sha: a2b075d115e60c71a629f49397a347de90fe40d6
+# upstream-sha: add0d8285791f3da25c69578102c5914c62d9b7f
 ---
 
 # Fallow: codebase intelligence for JavaScript and TypeScript
