@@ -438,7 +438,7 @@ function formatBarJsonTooltip(
   }
 
   const lines = [
-    `GitHub workflows: ${summary.failedRuns} failed, ${summary.errorRepos} repo errors, ${summary.runningRuns} running, ${summary.passedRuns} passed, ${summary.skippedRuns} skipped.`,
+    `GitHub workflows: ${summary.failedRuns} failed, ${summary.errorRepos} repo errors, ${summary.runningRuns} running, ${summary.passedRuns} passed, ${summary.skippedRuns} skipped, ${summary.cancelledRuns} cancelled.`,
   ];
   appendWorkflowQueryLines(lines, state);
   appendWorkflowRepoLines(lines, state.repos);
@@ -465,6 +465,7 @@ function workflowStateSummary(state: WorkflowState): {
   readonly runningRuns: number;
   readonly passedRuns: number;
   readonly skippedRuns: number;
+  readonly cancelledRuns: number;
   readonly attentionCount: number;
 } {
   let errorRepos = 0;
@@ -472,6 +473,7 @@ function workflowStateSummary(state: WorkflowState): {
   let runningRuns = 0;
   let passedRuns = 0;
   let skippedRuns = 0;
+  let cancelledRuns = 0;
 
   for (const repo of state.repos) {
     if (repo.error) errorRepos += 1;
@@ -480,6 +482,7 @@ function workflowStateSummary(state: WorkflowState): {
     runningRuns += counts.running;
     passedRuns += counts.passed;
     skippedRuns += counts.skipped;
+    cancelledRuns += counts.cancelled;
   }
 
   return {
@@ -488,6 +491,7 @@ function workflowStateSummary(state: WorkflowState): {
     runningRuns,
     passedRuns,
     skippedRuns,
+    cancelledRuns,
     attentionCount: errorRepos + failedRuns,
   };
 }

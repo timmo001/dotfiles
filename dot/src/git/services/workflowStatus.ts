@@ -117,6 +117,7 @@ export function workflowRepoStatusText(repo: WorkflowRepoRuns): string {
 export function workflowRunStatusIcon(run: WorkflowRun): string {
   if (runRunning(run)) return "\u25cf";
   if (runPassed(run)) return "\u2713";
+  if (runCancelled(run)) return "\u25cb";
   return runSkipped(run) ? "\u25cb" : "\u00d7";
 }
 

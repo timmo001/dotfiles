@@ -341,6 +341,7 @@ export class WorkflowRunsView {
   private runStatusColor(run: WorkflowRun): string {
     if (runRunning(run)) return this.theme.yellow;
     if (runPassed(run)) return this.theme.green;
+    if (runCancelled(run)) return this.theme.fgMuted;
     return runFailed(run) ? this.theme.red : this.theme.fgMuted;
   }
 
