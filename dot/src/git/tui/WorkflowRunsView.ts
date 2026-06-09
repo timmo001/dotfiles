@@ -16,6 +16,7 @@ import {
   formatWorkflowRepoDetail,
   formatWorkflowRunDetail,
   formatWorkflowTimeAgo,
+  runCancelled,
   runFailed,
   runPassed,
   runRunning,

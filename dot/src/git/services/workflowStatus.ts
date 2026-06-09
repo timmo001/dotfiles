@@ -11,6 +11,8 @@ export interface WorkflowRunCounts {
   readonly passed: number;
   /** Completed skipped runs. */
   readonly skipped: number;
+  /** Completed cancelled runs (not a failure). */
+  readonly cancelled: number;
 }
 
 /** Repository-level workflow state derived from the run list. */
@@ -54,22 +56,29 @@ function runSkipped(run: WorkflowRun): boolean {
   return run.status === "completed" && run.conclusion === "skipped";
 }
 
+/** Return true when a completed workflow run was cancelled. */
+export function runCancelled(run: WorkflowRun): boolean {
+  return run.status === "completed" && run.conclusion === "cancelled";
+}
+
 /** Return true when a completed workflow run should be treated as failed. */
 export function runFailed(run: WorkflowRun): boolean {
   return (
     run.status === "completed" &&
     run.conclusion !== "success" &&
-    run.conclusion !== "skipped"
+    run.conclusion !== "skipped" &&
+    run.conclusion !== "cancelled"
   );
 }
 
-/** Count running, failed, passed, and skipped runs for one repository. */
+/** Count running, failed, passed, skipped, and cancelled runs for one repository. */
 export function workflowRunCounts(repo: WorkflowRepoRuns): WorkflowRunCounts {
   return {
     running: repo.runs.filter(runRunning).length,
     failed: repo.runs.filter(runFailed).length,
     passed: repo.runs.filter(runPassed).length,
     skipped: repo.runs.filter(runSkipped).length,
+    cancelled: repo.runs.filter(runCancelled).length,
   };
 }
 
@@ -147,6 +156,7 @@ function workflowRunCountsText(counts: WorkflowRunCounts): string {
     countText(counts.failed, "failed"),
     countText(counts.passed, "passed"),
     countText(counts.skipped, "skipped"),
+    countText(counts.cancelled, "cancelled"),
   ].filter((part): part is string => part !== null);
   return parts.length > 0 ? parts.join(", ") : "no completed runs";
 }
