@@ -93,6 +93,8 @@ _dot_cmd_git_diff() {
 }
 _dot_cmd_git_status() {
   _arguments -S \
+    '--diff[Append full unstaged and staged diffs for changed files]' \
+    '--branch-diff[Append the merge-base diff vs the default branch (errors on the default branch)]' \
     '(-h --help)-h[Show this help message]' \
     '(-h --help)--help[Show this help message]' \
     '*::arg:->args'

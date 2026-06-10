@@ -1,7 +1,23 @@
 import { Effect } from "effect";
+import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { gitOutput } from "../../lib/git.js";
 import { formatRelativeTimeAgo } from "../services/relativeTime.js";
 import { handleCommandError, writeText } from "./rows.js";
+
+/** Extra diff detail controls for {@link gitStatusRaw}. */
+export interface GitStatusOptions {
+  /**
+   * Append the full unified diffs of unstaged and staged changes beneath the
+   * respective working-tree sections.
+   */
+  readonly diff: boolean;
+  /**
+   * Append the full diff of the current branch against the default branch,
+   * measured from their merge base so committed branch work and uncommitted
+   * edits both show. Fails when HEAD is already on the default branch.
+   */
+  readonly branchDiff: boolean;
+}
 
 const handleStatusError = handleCommandError("dot git-status");
 
@@ -53,11 +69,7 @@ function parseDefaultBranch(ref: string, remote: string): string {
 /** Attempt to run a git command, returning empty string on failure. */
 function tryGit(
   args: readonly string[],
-): Effect.Effect<
-  string,
-  never,
-  import("../../services/CommandExecutor.js").CommandExecutor
-> {
+): Effect.Effect<string, never, CommandExecutor> {
   return gitOutput(args).pipe(
     Effect.map((output) => output.trim()),
     Effect.catch(() => Effect.succeed("")),
@@ -154,111 +166,219 @@ function parseNumstatLog(output: string): Map<string, Map<string, DiffCounts>> {
  * limit; on the default branch it covers the last {@link RECENT_COMMIT_LIMIT}
  * commits. Designed to be the one command agents run to get full working-tree
  * and branch context.
+ *
+ * {@link GitStatusOptions} layer optional detail on top of the summary:
+ * `diff` appends full unstaged and staged diffs under their sections, and
+ * `branchDiff` appends the merge-base diff against the default branch (and
+ * fails when HEAD is on the default branch, where that range is empty).
  */
-export const gitStatusRaw = Effect.gen(function* () {
-  const branch = yield* tryGit(["branch", "--show-current"]);
-  const remotesOutput = yield* tryGit(["remote"]);
-  const { remote } = resolveDefaultRemote(remotesOutput);
+export function gitStatusRaw(
+  options: GitStatusOptions,
+): Effect.Effect<void, never, CommandExecutor> {
+  return Effect.gen(function* () {
+    const branch = yield* tryGit(["branch", "--show-current"]);
+    const remotesOutput = yield* tryGit(["remote"]);
+    const { remote } = resolveDefaultRemote(remotesOutput);
 
-  let defaultBranch = "main";
-  const symbolicRef = yield* tryGit([
-    "symbolic-ref",
-    `refs/remotes/${remote}/HEAD`,
-  ]);
-  if (symbolicRef) {
-    defaultBranch = parseDefaultBranch(symbolicRef, remote);
-  }
+    let defaultBranch = "main";
+    const symbolicRef = yield* tryGit([
+      "symbolic-ref",
+      `refs/remotes/${remote}/HEAD`,
+    ]);
+    if (symbolicRef) {
+      defaultBranch = parseDefaultBranch(symbolicRef, remote);
+    }
 
-  // Compare against the branch's upstream tracking ref so locally committed
-  // work that has not been pushed yet always shows, even on the default
-  // branch. Fall back to the remote's default branch when no upstream is set.
-  const upstream = yield* tryGit([
-    "rev-parse",
-    "--abbrev-ref",
-    "--symbolic-full-name",
-    "@{upstream}",
-  ]);
-  const baseRef = upstream || `${remote}/${defaultBranch}`;
+    // Compare against the branch's upstream tracking ref so locally committed
+    // work that has not been pushed yet always shows, even on the default
+    // branch. Fall back to the remote's default branch when no upstream is set.
+    const upstream = yield* tryGit([
+      "rev-parse",
+      "--abbrev-ref",
+      "--symbolic-full-name",
+      "@{upstream}",
+    ]);
+    const baseRef = upstream || `${remote}/${defaultBranch}`;
 
-  // `--name-status` gives the change type (M/A/D/R); `--numstat` gives line
-  // counts. Git emits only one when both are passed, so fetch separately and
-  // merge by path to show each file's status and `(+added -deleted)`.
-  const unstaged = appendCounts(
-    yield* tryGit(["diff", "--name-status"]),
-    parseNumstat(yield* tryGit(["diff", "--numstat"])),
-  );
-  const staged = appendCounts(
-    yield* tryGit(["diff", "--cached", "--name-status"]),
-    parseNumstat(yield* tryGit(["diff", "--cached", "--numstat"])),
-  );
+    // `--name-status` gives the change type (M/A/D/R); `--numstat` gives line
+    // counts. Git emits only one when both are passed, so fetch separately and
+    // merge by path to show each file's status and `(+added -deleted)`.
+    const unstaged = appendCounts(
+      yield* tryGit(["diff", "--name-status"]),
+      parseNumstat(yield* tryGit(["diff", "--numstat"])),
+    );
+    const staged = appendCounts(
+      yield* tryGit(["diff", "--cached", "--name-status"]),
+      parseNumstat(yield* tryGit(["diff", "--cached", "--numstat"])),
+    );
 
-  // A commit is "pushed" when it is reachable from the base ref. `rev-list
-  // base..HEAD` lists exactly the local commits not yet on the remote;
-  // everything else in recent history is already pushed. When the base ref
-  // does not exist (no remote tracking), treat all commits as local.
-  const baseExists =
-    (yield* tryGit(["rev-parse", "--verify", "--quiet", baseRef])) !== "";
-  const aheadOutput = baseExists
-    ? yield* tryGit(["rev-list", `${baseRef}..HEAD`])
-    : "";
-  const aheadHashes = new Set(
-    aheadOutput
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean),
-  );
+    // Full working-tree diffs, only fetched when --diff is requested. Empty
+    // output means the section has no changes and renders no diff block.
+    const unstagedDiff = options.diff ? yield* tryGit(["diff"]) : "";
+    const stagedDiff = options.diff ? yield* tryGit(["diff", "--cached"]) : "";
 
-  // Scope the recent-commit list. On a feature branch, list every commit
-  // unique to the branch (`<defaultBranch>..HEAD`) with no count limit so the
-  // full branch story shows. On the default branch itself — or when its remote
-  // ref cannot be resolved — fall back to the last RECENT_COMMIT_LIMIT commits.
-  // The fork base uses the remote's default branch (origin/HEAD), independent
-  // of the current branch's own upstream used for push-status above.
-  const defaultBranchRef = `${remote}/${defaultBranch}`;
-  const onDefaultBranch = branch === defaultBranch;
-  const defaultRefExists =
-    !onDefaultBranch &&
-    (yield* tryGit(["rev-parse", "--verify", "--quiet", defaultBranchRef])) !==
-      "";
-  const forkBase = defaultRefExists ? defaultBranchRef : null;
-  const rangeArgs = commitRangeArgs(forkBase);
+    // A commit is "pushed" when it is reachable from the base ref. `rev-list
+    // base..HEAD` lists exactly the local commits not yet on the remote;
+    // everything else in recent history is already pushed. When the base ref
+    // does not exist (no remote tracking), treat all commits as local.
+    const baseExists =
+      (yield* tryGit(["rev-parse", "--verify", "--quiet", baseRef])) !== "";
+    const aheadOutput = baseExists
+      ? yield* tryGit(["rev-list", `${baseRef}..HEAD`])
+      : "";
+    const aheadHashes = new Set(
+      aheadOutput
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean),
+    );
 
-  // Fields per commit: full hash, short hash, committer ISO date, subject.
-  // `--name-status` appends each commit's changed files beneath its header so
-  // they render inline and contextual to the commit that made them. A parallel
-  // `--numstat` log supplies per-file line counts merged in during parsing.
-  const logOutput = yield* tryGit([
-    "log",
-    "--name-status",
-    `--format=${COMMIT_SEPARATOR}%H%x09%h%x09%cI%x09%s`,
-    ...rangeArgs,
-  ]);
-  const numstatLog = yield* tryGit([
-    "log",
-    "--numstat",
-    `--format=${COMMIT_SEPARATOR}%H`,
-    ...rangeArgs,
-  ]);
-  const commits = parseCommits(
-    logOutput,
-    aheadHashes,
-    baseExists,
-    parseNumstatLog(numstatLog),
-  );
+    // Scope the recent-commit list. On a feature branch, list every commit
+    // unique to the branch (`<defaultBranch>..HEAD`) with no count limit so the
+    // full branch story shows. On the default branch itself — or when its remote
+    // ref cannot be resolved — fall back to the last RECENT_COMMIT_LIMIT commits.
+    // The fork base uses the remote's default branch (origin/HEAD), independent
+    // of the current branch's own upstream used for push-status above.
+    const defaultBranchRef = `${remote}/${defaultBranch}`;
+    const onDefaultBranch = branch === defaultBranch;
+    const defaultRefExists =
+      !onDefaultBranch &&
+      (yield* tryGit([
+        "rev-parse",
+        "--verify",
+        "--quiet",
+        defaultBranchRef,
+      ])) !== "";
 
-  yield* writeText(
-    formatStatus({
-      branch,
-      baseRef,
-      unstaged,
-      staged,
-      commits,
-      commitsHeading: forkBase
-        ? `Branch commits since ${forkBase} (↑ local, ✓ pushed):`
-        : "Recent commits (↑ local, ✓ pushed):",
-    }),
-  );
-}).pipe(Effect.withSpan("gitStatus.raw"), handleStatusError);
+    // Resolve --branch-diff before emitting any output so failures surface
+    // cleanly instead of trailing a half-printed status. The diff is measured
+    // from the merge base so committed branch work and uncommitted edits show.
+    const branchDiff = options.branchDiff
+      ? yield* resolveBranchDiff({
+          branch,
+          defaultBranch,
+          defaultBranchRef,
+          onDefaultBranch,
+          defaultRefExists,
+        })
+      : undefined;
+
+    const forkBase = defaultRefExists ? defaultBranchRef : null;
+    const rangeArgs = commitRangeArgs(forkBase);
+
+    // Fields per commit: full hash, short hash, committer ISO date, subject.
+    // `--name-status` appends each commit's changed files beneath its header so
+    // they render inline and contextual to the commit that made them. A parallel
+    // `--numstat` log supplies per-file line counts merged in during parsing.
+    const logOutput = yield* tryGit([
+      "log",
+      "--name-status",
+      `--format=${COMMIT_SEPARATOR}%H%x09%h%x09%cI%x09%s`,
+      ...rangeArgs,
+    ]);
+    const numstatLog = yield* tryGit([
+      "log",
+      "--numstat",
+      `--format=${COMMIT_SEPARATOR}%H`,
+      ...rangeArgs,
+    ]);
+    const commits = parseCommits(
+      logOutput,
+      aheadHashes,
+      baseExists,
+      parseNumstatLog(numstatLog),
+    );
+
+    yield* writeText(
+      formatStatus({
+        branch,
+        baseRef,
+        unstaged,
+        staged,
+        unstagedDiff: options.diff ? unstagedDiff : undefined,
+        stagedDiff: options.diff ? stagedDiff : undefined,
+        branchDiff,
+        commits,
+        commitsHeading: forkBase
+          ? `Branch commits since ${forkBase} (↑ local, ✓ pushed):`
+          : "Recent commits (↑ local, ✓ pushed):",
+      }),
+    );
+  }).pipe(Effect.withSpan("gitStatus.raw"), handleStatusError);
+}
+
+/** Resolved default-branch diff details rendered by `--branch-diff`. */
+interface BranchDiffSection {
+  /** Default branch ref the diff is computed against (e.g. `origin/main`). */
+  readonly ref: string;
+  /** Abbreviated merge-base commit the working tree is diffed against. */
+  readonly mergeBase: string;
+  /** Full unified diff: committed branch work plus uncommitted edits. */
+  readonly diff: string;
+}
+
+/** Inputs needed to resolve the `--branch-diff` section. */
+interface BranchDiffContext {
+  /** Current branch name, empty when HEAD is detached. */
+  readonly branch: string;
+  /** Resolved default branch name (e.g. `main`). */
+  readonly defaultBranch: string;
+  /** Remote-qualified default branch ref (e.g. `origin/main`). */
+  readonly defaultBranchRef: string;
+  /** Whether HEAD is on the default branch. */
+  readonly onDefaultBranch: boolean;
+  /** Whether {@link BranchDiffContext.defaultBranchRef} resolves to a commit. */
+  readonly defaultRefExists: boolean;
+}
+
+/**
+ * Compute the merge-base diff of HEAD against the default branch for
+ * `--branch-diff`. Fails (with a CLI-friendly message) when HEAD is on the
+ * default branch — where the range is empty by definition — or when the
+ * default branch ref or merge base cannot be resolved.
+ */
+function resolveBranchDiff(
+  context: BranchDiffContext,
+): Effect.Effect<BranchDiffSection, Error, CommandExecutor> {
+  return Effect.gen(function* () {
+    if (context.onDefaultBranch) {
+      return yield* Effect.fail(
+        new Error(
+          `On the default branch (${context.defaultBranch}); --branch-diff requires a feature branch.`,
+        ),
+      );
+    }
+    if (!context.defaultRefExists) {
+      return yield* Effect.fail(
+        new Error(
+          `Cannot resolve default branch ref '${context.defaultBranchRef}' for --branch-diff.`,
+        ),
+      );
+    }
+
+    // Diff from the merge base (not the branch tip) so committed branch work
+    // and uncommitted working-tree edits both appear in one diff.
+    const mergeBase = yield* tryGit([
+      "merge-base",
+      context.defaultBranchRef,
+      "HEAD",
+    ]);
+    if (!mergeBase) {
+      return yield* Effect.fail(
+        new Error(
+          `Cannot find a merge base between ${context.defaultBranchRef} and HEAD for --branch-diff.`,
+        ),
+      );
+    }
+
+    const diff = yield* tryGit(["diff", mergeBase]);
+    return {
+      ref: context.defaultBranchRef,
+      mergeBase: mergeBase.slice(0, 7),
+      diff,
+    };
+  });
+}
 
 /** A single recent commit with its remote status and changed files. */
 interface CommitRecord {
@@ -339,9 +459,26 @@ interface StatusData {
   readonly baseRef: string;
   readonly unstaged: string;
   readonly staged: string;
+  /** Full unstaged diff to render under the section, when `--diff` is set. */
+  readonly unstagedDiff?: string;
+  /** Full staged diff to render under the section, when `--diff` is set. */
+  readonly stagedDiff?: string;
+  /** Default-branch diff to append, when `--branch-diff` is set. */
+  readonly branchDiff?: BranchDiffSection;
   readonly commits: readonly CommitRecord[];
   /** Heading for the commit list, reflecting its scope (branch vs recent). */
   readonly commitsHeading: string;
+}
+
+/**
+ * Append a blank separator line followed by a unified diff, but only when the
+ * diff has content. A `--diff` section with no changes (empty string) or one
+ * not requested (`undefined`) adds nothing beyond the file list above it.
+ */
+function appendDiffBlock(lines: string[], diff: string | undefined): void {
+  if (!diff) return;
+  lines.push("");
+  lines.push(diff);
 }
 
 function formatStatus(data: StatusData): string {
@@ -353,10 +490,12 @@ function formatStatus(data: StatusData): string {
 
   lines.push("Unstaged:");
   lines.push(data.unstaged || "  (none)");
+  appendDiffBlock(lines, data.unstagedDiff);
   lines.push("");
 
   lines.push("Staged:");
   lines.push(data.staged || "  (none)");
+  appendDiffBlock(lines, data.stagedDiff);
   lines.push("");
 
   lines.push(data.commitsHeading);
@@ -372,6 +511,14 @@ function formatStatus(data: StatusData): string {
         lines.push(`    ${file}`);
       }
     }
+  }
+
+  if (data.branchDiff) {
+    lines.push("");
+    lines.push(
+      `Diff vs ${data.branchDiff.ref} (merge-base ${data.branchDiff.mergeBase}):`,
+    );
+    lines.push(data.branchDiff.diff || "  (no differences)");
   }
 
   return lines.join("\n") + "\n";

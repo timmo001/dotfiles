@@ -314,9 +314,36 @@ export const cliCommands: readonly CliCommandSpec[] = [
       "Substitutes running these separately: git status, git diff --stat /",
       "git diff --numstat, git diff --cached --stat, git log --oneline --stat,",
       "and git log @{upstream}..HEAD (ahead/pushed check).",
+      "",
+      "Add --diff to append the full unstaged and staged diffs under their",
+      "sections, and --branch-diff to append the full diff of the current branch",
+      "against the default branch (measured from their merge base so committed",
+      "and uncommitted changes both show). --branch-diff errors on the default",
+      "branch, where that range is empty. The flags combine.",
     ],
-    options: [helpOption],
-    examples: ["dot git-status"],
+    modes: [
+      "(default)       Status summary: unstaged, staged, recent commits",
+      "--diff          Also print full unstaged and staged diffs",
+      "--branch-diff   Also print the full diff vs the default branch",
+    ],
+    options: [
+      {
+        name: "--diff",
+        description: "Append full unstaged and staged diffs for changed files",
+      },
+      {
+        name: "--branch-diff",
+        description:
+          "Append the merge-base diff vs the default branch (errors on the default branch)",
+      },
+      helpOption,
+    ],
+    examples: [
+      "dot git-status",
+      "dot git-status --diff",
+      "dot git-status --branch-diff",
+      "dot git-status --diff --branch-diff",
+    ],
   },
   {
     name: "git-log",

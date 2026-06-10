@@ -202,6 +202,8 @@ dot git-diff --list-all       # All repo rows
 dot git-log                   # Recent commits view (TUI)
 dot git-log --raw             # CLI recent commit output (20 commits per repo)
 dot git-status                # Branch status: unstaged, staged, last 10 commits (timestamp, push status, files, line counts)
+dot git-status --diff         # Branch status plus full unstaged and staged diffs
+dot git-status --branch-diff  # Branch status plus full merge-base diff vs the default branch (errors on the default branch)
 dot git-workflows             # Watched GitHub workflow runs view (TUI)
 dot git-workflows --raw       # CLI workflow run summary
 dot git-workflows --since <date> # Filter workflow runs by creation time (TUI or CLI)
@@ -304,6 +306,8 @@ dot git-diff --bar-json      # smoke test: JSON output
 dot git-log                  # smoke test: git log view renders
 dot git-log --raw            # smoke test: CLI git log output
 dot git-status               # smoke test: branch status output
+dot git-status --diff        # smoke test: branch status with working-tree diffs
+dot git-status --branch-diff # smoke test: branch status with default-branch diff (errors on the default branch)
 dot git-notifications --raw  # smoke test: CLI notification output
 dot git-notifications --bar-json # smoke test: notification JSON output
 dot notes                    # smoke test: notes view renders

@@ -510,7 +510,11 @@ if (mode.type === "native") {
         }),
       clean: () => clean,
       "git-log": () => gitLogRaw,
-      "git-status": () => gitStatusRaw,
+      "git-status": (args) =>
+        gitStatusRaw({
+          diff: args.includes("--diff"),
+          branchDiff: args.includes("--branch-diff"),
+        }),
       "git-workflows": resolveWorkflows,
       "git-notifications": resolveNotifications,
       notes: notesCommand,
