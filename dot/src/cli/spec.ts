@@ -301,6 +301,20 @@ export const cliCommands: readonly CliCommandSpec[] = [
     ],
   },
   {
+    name: "git-status",
+    summary: "Show branch status for the current repository",
+    usage: "[options]",
+    description: [
+      "Print unstaged files, staged files, and the last 10 commits — each with a",
+      "compact relative timestamp, a pushed/local remote marker, and its changed",
+      "files inline with (+added -deleted) line counts — for the current git",
+      "repository. Designed as a single command for agents to get full",
+      "working-tree and branch context.",
+    ],
+    options: [helpOption],
+    examples: ["dot git-status"],
+  },
+  {
     name: "git-log",
     summary: "Open recent commits across tracked repos",
     usage: "[options]",

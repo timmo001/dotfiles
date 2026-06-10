@@ -93,7 +93,10 @@ function extractFrontmatterField(
     const line = lines[i]!;
     const prefix = `${field} `;
     if (line.startsWith(prefix)) {
-      return line.slice(prefix.length).trim().replace(/^["']|["']$/g, "");
+      return line
+        .slice(prefix.length)
+        .trim()
+        .replace(/^["']|["']$/g, "");
     }
   }
   return null;

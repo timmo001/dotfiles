@@ -46,6 +46,7 @@ import {
   diffRaw,
 } from "./git/commands/Diff.js";
 import { gitLogRaw } from "./git/commands/Log.js";
+import { gitStatusRaw } from "./git/commands/Status.js";
 import {
   workflowsListRepos,
   workflowsListRuns,
@@ -509,6 +510,7 @@ if (mode.type === "native") {
         }),
       clean: () => clean,
       "git-log": () => gitLogRaw,
+      "git-status": () => gitStatusRaw,
       "git-workflows": resolveWorkflows,
       "git-notifications": resolveNotifications,
       notes: notesCommand,

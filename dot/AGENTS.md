@@ -65,6 +65,7 @@ src/
       Diff.ts             — dot git-diff (--bar-json, --list-changed, --list-all, --raw)
       Log.ts              — dot git-log (--raw)
       Notifications.ts    — dot git-notifications (--bar-json, --list-threads, actions, --raw)
+      Status.ts           — dot git-status (branch status for agents)
       Workflows.ts        — dot git-workflows (--since, --bar-json, --list-repos, --list-runs, --raw)
     doctor/
       gitConfig.ts        — managed Git config doctor check
@@ -200,6 +201,7 @@ dot git-diff --list-changed   # Changed repo rows
 dot git-diff --list-all       # All repo rows
 dot git-log                   # Recent commits view (TUI)
 dot git-log --raw             # CLI recent commit output (20 commits per repo)
+dot git-status                # Branch status: unstaged, staged, last 10 commits (timestamp, push status, files, line counts)
 dot git-workflows             # Watched GitHub workflow runs view (TUI)
 dot git-workflows --raw       # CLI workflow run summary
 dot git-workflows --since <date> # Filter workflow runs by creation time (TUI or CLI)
@@ -301,6 +303,7 @@ dot git-diff --raw           # smoke test: CLI diff output
 dot git-diff --bar-json      # smoke test: JSON output
 dot git-log                  # smoke test: git log view renders
 dot git-log --raw            # smoke test: CLI git log output
+dot git-status               # smoke test: branch status output
 dot git-notifications --raw  # smoke test: CLI notification output
 dot git-notifications --bar-json # smoke test: notification JSON output
 dot notes                    # smoke test: notes view renders

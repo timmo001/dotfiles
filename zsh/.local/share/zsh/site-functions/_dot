@@ -11,6 +11,7 @@ dot_commands=(
   'clean:Unstow managed dotfiles'
   'git-diff:Open the git diff/repo watcher view'
   'diff:Alias for git-diff'
+  'git-status:Show branch status for the current repository'
   'git-log:Open recent commits across tracked repos'
   'git-workflows:Open watched GitHub workflow runs'
   'git-notifications:Open GitHub notification inbox'
@@ -86,6 +87,12 @@ _dot_cmd_git_diff() {
     '--bar-json[JSON output for status bars and shell modules]' \
     '--list-changed[Changed repos as rows]' \
     '--list-all[All tracked repos as rows]' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
+_dot_cmd_git_status() {
+  _arguments -S \
     '(-h --help)-h[Show this help message]' \
     '(-h --help)--help[Show this help message]' \
     '*::arg:->args'
@@ -331,6 +338,9 @@ _dot_complete_command() {
       ;;
     git-diff|diff)
       _dot_cmd_git_diff
+      ;;
+    git-status)
+      _dot_cmd_git_status
       ;;
     git-log)
       _dot_cmd_git_log

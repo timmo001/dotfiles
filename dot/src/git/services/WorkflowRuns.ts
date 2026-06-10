@@ -128,8 +128,7 @@ export class WorkflowRuns extends Context.Service<
 
         return {
           slug,
-          branch:
-            branches.length === 1 ? branches[0] : commit.branch || null,
+          branch: branches.length === 1 ? branches[0] : commit.branch || null,
           headSha: commit.sha,
           commitSubject: commit.subject,
           commitUrl: commit.url,
@@ -165,10 +164,9 @@ export class WorkflowRuns extends Context.Service<
       });
 
       const localBranches = (repoPath: string) =>
-        gitOutput(
-          ["for-each-ref", "--format=%(refname:short)", "refs/heads"],
-          { cwd: repoPath },
-        ).pipe(
+        gitOutput(["for-each-ref", "--format=%(refname:short)", "refs/heads"], {
+          cwd: repoPath,
+        }).pipe(
           Effect.provideService(CommandExecutor, executor),
           Effect.map((output) =>
             output
@@ -210,10 +208,7 @@ export class WorkflowRuns extends Context.Service<
         );
       });
 
-      const runListArgs = (
-        slug: string,
-        branch: string,
-      ): readonly string[] => [
+      const runListArgs = (slug: string, branch: string): readonly string[] => [
         "run",
         "list",
         "--repo",
