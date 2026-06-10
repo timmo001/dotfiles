@@ -289,6 +289,16 @@ export function gitStatusRaw(
       parseNumstatLog(numstatLog),
     );
 
+    // On the basic command (no detail flag), point at the contextual full-diff
+    // flag. --branch-diff only works on a feature branch with a resolvable
+    // default ref (forkBase set), so the default branch falls back to --diff.
+    const hint =
+      options.diff || options.branchDiff
+        ? undefined
+        : forkBase
+          ? `Run \`dot git-status --branch-diff\` for the full diff vs ${forkBase}.`
+          : "Run `dot git-status --diff` for the full staged and unstaged diff.";
+
     yield* writeText(
       formatStatus({
         branch,
@@ -302,6 +312,7 @@ export function gitStatusRaw(
         commitsHeading: forkBase
           ? `Branch commits since ${forkBase} (↑ local, ✓ pushed):`
           : "Recent commits (↑ local, ✓ pushed):",
+        hint,
       }),
     );
   }).pipe(Effect.withSpan("gitStatus.raw"), handleStatusError);
@@ -468,6 +479,8 @@ interface StatusData {
   readonly commits: readonly CommitRecord[];
   /** Heading for the commit list, reflecting its scope (branch vs recent). */
   readonly commitsHeading: string;
+  /** Trailing discoverability tip for the full-diff flags, when applicable. */
+  readonly hint?: string;
 }
 
 /**
@@ -519,6 +532,11 @@ function formatStatus(data: StatusData): string {
       `Diff vs ${data.branchDiff.ref} (merge-base ${data.branchDiff.mergeBase}):`,
     );
     lines.push(data.branchDiff.diff || "  (no differences)");
+  }
+
+  if (data.hint) {
+    lines.push("");
+    lines.push(data.hint);
   }
 
   return lines.join("\n") + "\n";
