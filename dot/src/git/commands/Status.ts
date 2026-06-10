@@ -5,7 +5,11 @@ import { handleCommandError, writeText } from "./rows.js";
 
 const handleStatusError = handleCommandError("dot git-status");
 
-/** Number of recent commits to list in the status output. */
+/**
+ * Number of recent commits to list when HEAD is on the repo's default branch.
+ * On a feature branch the full set of branch-unique commits is listed instead,
+ * with no limit.
+ */
 const RECENT_COMMIT_LIMIT = 10;
 
 /**
@@ -143,10 +147,13 @@ function parseNumstatLog(output: string): Map<string, Map<string, DiffCounts>> {
 /**
  * CLI output: concise branch status for agent consumption.
  *
- * Outputs unstaged files, staged files, and the last {@link RECENT_COMMIT_LIMIT}
- * commits — each with a compact relative timestamp, a pushed/local remote
- * marker, and its changed files inline — in a single invocation. Designed to
- * be the one command agents run to get full working-tree and branch context.
+ * Outputs unstaged files, staged files, and recent commits — each with a
+ * compact relative timestamp, a pushed/local remote marker, and its changed
+ * files inline — in a single invocation. On a feature branch the commit list
+ * covers every commit unique to the branch (`<defaultBranch>..HEAD`) with no
+ * limit; on the default branch it covers the last {@link RECENT_COMMIT_LIMIT}
+ * commits. Designed to be the one command agents run to get full working-tree
+ * and branch context.
  */
 export const gitStatusRaw = Effect.gen(function* () {
   const branch = yield* tryGit(["branch", "--show-current"]);
@@ -201,25 +208,36 @@ export const gitStatusRaw = Effect.gen(function* () {
       .filter(Boolean),
   );
 
+  // Scope the recent-commit list. On a feature branch, list every commit
+  // unique to the branch (`<defaultBranch>..HEAD`) with no count limit so the
+  // full branch story shows. On the default branch itself — or when its remote
+  // ref cannot be resolved — fall back to the last RECENT_COMMIT_LIMIT commits.
+  // The fork base uses the remote's default branch (origin/HEAD), independent
+  // of the current branch's own upstream used for push-status above.
+  const defaultBranchRef = `${remote}/${defaultBranch}`;
+  const onDefaultBranch = branch === defaultBranch;
+  const defaultRefExists =
+    !onDefaultBranch &&
+    (yield* tryGit(["rev-parse", "--verify", "--quiet", defaultBranchRef])) !==
+      "";
+  const forkBase = defaultRefExists ? defaultBranchRef : null;
+  const rangeArgs = commitRangeArgs(forkBase);
+
   // Fields per commit: full hash, short hash, committer ISO date, subject.
   // `--name-status` appends each commit's changed files beneath its header so
   // they render inline and contextual to the commit that made them. A parallel
   // `--numstat` log supplies per-file line counts merged in during parsing.
   const logOutput = yield* tryGit([
     "log",
-    "-n",
-    String(RECENT_COMMIT_LIMIT),
     "--name-status",
     `--format=${COMMIT_SEPARATOR}%H%x09%h%x09%cI%x09%s`,
-    "HEAD",
+    ...rangeArgs,
   ]);
   const numstatLog = yield* tryGit([
     "log",
-    "-n",
-    String(RECENT_COMMIT_LIMIT),
     "--numstat",
     `--format=${COMMIT_SEPARATOR}%H`,
-    "HEAD",
+    ...rangeArgs,
   ]);
   const commits = parseCommits(
     logOutput,
@@ -235,6 +253,9 @@ export const gitStatusRaw = Effect.gen(function* () {
       unstaged,
       staged,
       commits,
+      commitsHeading: forkBase
+        ? `Branch commits since ${forkBase} (↑ local, ✓ pushed):`
+        : "Recent commits (↑ local, ✓ pushed):",
     }),
   );
 }).pipe(Effect.withSpan("gitStatus.raw"), handleStatusError);
@@ -251,6 +272,21 @@ interface CommitRecord {
   readonly pushed: boolean;
   /** `--name-status` lines for files changed by the commit, with line counts. */
   readonly files: readonly string[];
+}
+
+/**
+ * Build the trailing `git log` revision arguments that scope which commits the
+ * status output lists.
+ *
+ * On a feature branch (HEAD is not the repo's default branch and the default
+ * branch ref is resolvable), every commit unique to the branch is listed via
+ * `<defaultBranch>..HEAD`, with no count limit. On the default branch — or when
+ * the fork base cannot be resolved — the last {@link RECENT_COMMIT_LIMIT}
+ * commits reachable from `HEAD` are listed instead.
+ */
+function commitRangeArgs(forkBase: string | null): readonly string[] {
+  if (forkBase) return [`${forkBase}..HEAD`];
+  return ["-n", String(RECENT_COMMIT_LIMIT), "HEAD"];
 }
 
 /**
@@ -304,6 +340,8 @@ interface StatusData {
   readonly unstaged: string;
   readonly staged: string;
   readonly commits: readonly CommitRecord[];
+  /** Heading for the commit list, reflecting its scope (branch vs recent). */
+  readonly commitsHeading: string;
 }
 
 function formatStatus(data: StatusData): string {
@@ -321,7 +359,7 @@ function formatStatus(data: StatusData): string {
   lines.push(data.staged || "  (none)");
   lines.push("");
 
-  lines.push("Recent commits (↑ local, ✓ pushed):");
+  lines.push(data.commitsHeading);
   if (data.commits.length === 0) {
     lines.push("  (none)");
   } else {
