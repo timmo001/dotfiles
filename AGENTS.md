@@ -93,4 +93,4 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - OpenCode fallow project analysis command: `/fallow-project-analyse [workspace]`
 - GitHub notifications command: `dot git-notifications` (`--bar-json`, `--list-threads`, and thread actions)
 - Git diff behavior: `dot git-diff` (`dot diff` is a human compatibility alias)
-- Git status command: `dot git-status` (unstaged, staged, and recent commits with timestamps and remote push status in one shot)
+- Git status command: `dot git-status` (unstaged, staged, and recent commits with timestamps and remote push status in one shot; substitutes `git status`, `git diff --stat`/`git diff --numstat`, `git diff --cached --stat`, `git log --oneline --stat`, and `git log @{upstream}..HEAD`)
