@@ -4,12 +4,10 @@ import { basename, join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
-import { Launcher } from "../services/Launcher.js";
 import { DotDiff } from "../git/services/DotDiff.js";
 import { stow as runStow } from "./Stow.js";
 import { agentsSync } from "./AgentsSync.js";
 import { writeZshCompletions } from "./Completions.js";
-import { skillUpdates } from "./SkillUpdates.js";
 import { rebuild, restartDot } from "../lib/selfUpdate.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
 import {
@@ -18,8 +16,6 @@ import {
 } from "../lib/initState.js";
 import { gitHead, gitPullRebase, gitWorkingTreeClean } from "../lib/git.js";
 import { HOME_DIR, displayPath } from "../lib/paths.js";
-import { waitForKeypress as waitForTerminalKeypress } from "../lib/terminal.js";
-import { ENV, envString } from "../lib/env.js";
 import type { ConfigService } from "../services/Config.js";
 import type { InitCompleteMarkerStatus } from "../lib/initState.js";
 import type { DiffRepo } from "../types.js";
@@ -195,9 +191,7 @@ function selfUpdateAndRestart(
 }
 
 /**
- * Run post-update hooks (agents-sync, skill-updates).
- *
- * Resolves to `true` when skill updates created a reviewable commit.
+ * Run post-update hooks (agents-sync).
  */
 const postHooks = Effect.gen(function* () {
   const log = yield* OutputLog;
@@ -208,17 +202,6 @@ const postHooks = Effect.gen(function* () {
     Effect.catch(() =>
       Effect.gen(function* () {
         yield* log.warn("Agents sync failed (non-fatal)");
-      }),
-    ),
-  );
-
-  const skillUpdateMode = isInteractiveSession() ? undefined : { update: true };
-
-  return yield* skillUpdates(skillUpdateMode).pipe(
-    Effect.catch(() =>
-      Effect.gen(function* () {
-        yield* log.warn("Skill updates failed (non-fatal)");
-        return false;
       }),
     ),
   );
@@ -249,43 +232,6 @@ const runResumeRefresh = Effect.gen(function* () {
   yield* log.info("On-resume helper started");
 });
 
-/** True when attached to an interactive terminal and not in tee-log mode. */
-const isInteractiveSession = (): boolean =>
-  !!process.stdin.isTTY &&
-  !!process.stdout.isTTY &&
-  envString(ENV.DOT_TEE_INHERIT_LOG) !== "1";
-
-/** Block until the user presses any key before opening the diff view. */
-const waitForDiffKeypress = Effect.promise(() =>
-  waitForTerminalKeypress(
-    "\n\x1b[90mPress any key to open dot git-diff...\x1b[0m",
-  ),
-);
-
-/**
- * Surface the diff created by skill updates at the end of an update.
- *
- * In an interactive session: print a brief message, pause for a keypress, then
- * launch `dot git-diff` to review the new commit. Otherwise just log a hint.
- */
-const reviewSkillUpdates = Effect.gen(function* () {
-  const log = yield* OutputLog;
-
-  yield* log.section("Skill Updates Review");
-
-  if (!isInteractiveSession()) {
-    yield* log.info(
-      "Skill updates created a commit; run dot git-diff to review",
-    );
-    return;
-  }
-
-  const launcher = yield* Launcher;
-  yield* log.info("Skill updates created a commit. Review it in dot git-diff.");
-  yield* waitForDiffKeypress;
-  yield* launcher.suspend("dot git-diff").pipe(Effect.catch(() => Effect.void));
-});
-
 /**
  * Run `dot update`: self-update, pull behind repos, restow dotfiles, rebuild.
  *
@@ -297,7 +243,7 @@ const reviewSkillUpdates = Effect.gen(function* () {
  * pulls repos that are behind upstream. Full updates pull public dotfiles,
  * rebuild, and restart without self-update before continuing the workflow.
  * Pull notifications fire only when a repo actually moved, while post-hooks
- * (agents-sync, skill updates) run on every full update regardless of pulls
+ * (agents-sync) run on every full update regardless of pulls
  * and are skipped for flag-scoped runs (e.g. `--stow`/`--tui`/`--pull` only).
  */
 export const update = (opts?: UpdateOptions) =>
@@ -389,11 +335,10 @@ export const update = (opts?: UpdateOptions) =>
       yield* notifyUpdated(updatedNames);
     }
 
-    // Post-hooks (agents-sync, skill updates) run on every full update,
+    // Post-hooks (agents-sync) run on every full update,
     // independent of whether a repo was pulled; flag-scoped runs skip them.
-    let skillDiffCreated = false;
     if (isFullUpdate) {
-      skillDiffCreated = yield* postHooks;
+      yield* postHooks;
     }
 
     if (isFullUpdate) {
@@ -402,8 +347,4 @@ export const update = (opts?: UpdateOptions) =>
     }
 
     yield* runResumeRefresh;
-
-    if (skillDiffCreated) {
-      yield* reviewSkillUpdates;
-    }
   });
