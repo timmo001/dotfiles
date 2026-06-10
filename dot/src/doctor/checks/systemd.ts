@@ -128,29 +128,6 @@ function waybarConfigWalkContains(configPath: string, needle: string): boolean {
   return false;
 }
 
-/** Walk a Waybar config and its includes, checking if `first` appears before `second` */
-function waybarConfigWalkOrdersBefore(
-  configPath: string,
-  first: string,
-  second: string,
-): boolean {
-  if (!existsSync(configPath)) return false;
-  try {
-    const content = readFileSync(configPath, "utf-8");
-    const flat = content.replace(/[\n\r]/g, "");
-    const re = new RegExp(
-      escapeRegex(first) + "\\s*,\\s*" + escapeRegex(second),
-    );
-    if (re.test(flat)) return true;
-    for (const includePath of parseWaybarIncludes(configPath, content)) {
-      if (waybarConfigWalkOrdersBefore(includePath, first, second)) return true;
-    }
-  } catch {
-    /* ignore */
-  }
-  return false;
-}
-
 /** Parse "include" array entries from a Waybar JSONC config file */
 function parseWaybarIncludes(
   configPath: string,
@@ -167,10 +144,6 @@ function parseWaybarIncludes(
       const expanded = e.replace(/^~/, HOME_DIR);
       return expanded.startsWith("/") ? expanded : join(configDir, expanded);
     });
-}
-
-function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function activeWaybarConfigPath(): string {
@@ -256,21 +229,6 @@ function addWaybarConfigContainsCheck(
       ...(detail && { detail }),
     });
   }
-}
-
-function addWaybarConfigOrderCheck(
-  results: CheckResult[],
-  waybarConfig: string,
-  first: string,
-  second: string,
-  okMessage: string,
-  warnMessage: string,
-): void {
-  results.push(
-    waybarConfigWalkOrdersBefore(waybarConfig, first, second)
-      ? { severity: "ok", message: okMessage }
-      : { severity: "warn", message: warnMessage },
-  );
 }
 
 /** Check workflow runs integration and absence of the legacy notification watcher. */
@@ -426,37 +384,6 @@ export const checkWorkflowRuns = Effect.gen(function* () {
         message: "Active Waybar config has no legacy workflow-watch actions",
       });
     }
-
-    addWaybarConfigContainsCheck(
-      results,
-      waybarConfig,
-      '"custom/git-workflows"',
-      "Workflow runs Waybar module is present in the active config",
-      `Workflow runs Waybar module is missing from ${displayPath(waybarConfig)}`,
-      "Add custom/git-workflows before custom/git-diff in the active Waybar config",
-    );
-    addWaybarConfigContainsCheck(
-      results,
-      waybarConfig,
-      '"on-click": "~/.config/waybar/scripts/git-workflows-waybar.sh open"',
-      "Workflow runs Waybar left click opens the filtered TUI",
-      `Workflow runs Waybar left-click action is missing in ${displayPath(waybarConfig)}`,
-    );
-    addWaybarConfigContainsCheck(
-      results,
-      waybarConfig,
-      '"on-click-right": "~/.config/waybar/scripts/git-workflows-waybar.sh refresh"',
-      "Workflow runs Waybar right click refreshes the cache",
-      `Workflow runs Waybar right-click refresh action is missing in ${displayPath(waybarConfig)}`,
-    );
-    addWaybarConfigOrderCheck(
-      results,
-      waybarConfig,
-      '"custom/git-workflows"',
-      '"custom/git-diff"',
-      "Workflow runs Waybar module is ordered before git diff",
-      `Workflow runs Waybar module is not ordered before git diff in ${displayPath(waybarConfig)}`,
-    );
   } else {
     results.push({
       severity: "warn",
@@ -527,7 +454,7 @@ export const checkGitNotifications = Effect.gen(function* () {
       '"custom/git-notifications"',
       "Git notifications Waybar module is present in the active config",
       `Git notifications Waybar module is missing from ${displayPath(waybarConfig)}`,
-      "Add custom/git-notifications before custom/git-workflows in the active Waybar config",
+      "Add custom/git-notifications before custom/git-diff in the active Waybar config",
     );
     addWaybarConfigContainsCheck(
       results,
@@ -542,14 +469,6 @@ export const checkGitNotifications = Effect.gen(function* () {
       '"on-click-right": "~/.config/waybar/scripts/git-notifications-waybar.sh refresh"',
       "Git notifications Waybar right click refreshes the cache",
       `Git notifications Waybar right-click refresh action is missing in ${displayPath(waybarConfig)}`,
-    );
-    addWaybarConfigOrderCheck(
-      results,
-      waybarConfig,
-      '"custom/git-notifications"',
-      '"custom/git-workflows"',
-      "Git notifications Waybar module is ordered before workflows",
-      `Git notifications Waybar module is not ordered before workflows in ${displayPath(waybarConfig)}`,
     );
   } else {
     results.push({
