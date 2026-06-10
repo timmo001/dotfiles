@@ -25,7 +25,7 @@ import { ENV, envString, setEnv, unsetEnv } from "./lib/env.js";
 import { menuItemsById } from "./menu.js";
 import { init } from "./commands/Init.js";
 import { install } from "./commands/Install.js";
-import { update } from "./commands/Update.js";
+import { update, updateCheck } from "./commands/Update.js";
 import { stow } from "./commands/Stow.js";
 import { doctor } from "./commands/Doctor.js";
 import { clean } from "./commands/Clean.js";
@@ -490,6 +490,9 @@ if (mode.type === "native") {
       init,
       install: () => install,
       update: (args) => {
+        if (args.includes("--check") || args.includes("--check-all")) {
+          return updateCheck({ all: args.includes("--check-all") });
+        }
         const postHookRepo = optionValue(args, UPDATE_POST_HOOK_REPO_ARG);
         return update({
           pull: args.includes("--pull"),

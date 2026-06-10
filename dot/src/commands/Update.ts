@@ -18,7 +18,7 @@ import { gitHead, gitPullRebase, gitWorkingTreeClean } from "../lib/git.js";
 import { HOME_DIR, displayPath } from "../lib/paths.js";
 import type { ConfigService } from "../services/Config.js";
 import type { InitCompleteMarkerStatus } from "../lib/initState.js";
-import type { DiffRepo } from "../types.js";
+import type { DiffRepo, RepoCategory } from "../types.js";
 
 const DISABLE_SELF_UPDATE_ARG = "--no-self-update";
 const POST_HOOK_REPO_ARG = "--post-hook-repo";
@@ -207,6 +207,13 @@ const postHooks = Effect.gen(function* () {
   );
 });
 
+/**
+ * Argument passed to the on-resume helper after an update so it refreshes
+ * status-bar services without re-running the dotfiles update-available prompt
+ * (which would otherwise pop up immediately after a successful update).
+ */
+const ON_RESUME_POST_UPDATE_ARG = "--post-update";
+
 /** Run the resume refresh helper so status-bar services pick up update changes. */
 const runResumeRefresh = Effect.gen(function* () {
   const log = yield* OutputLog;
@@ -221,7 +228,7 @@ const runResumeRefresh = Effect.gen(function* () {
   }
 
   const exitCode = yield* executor
-    .exitCode(helper, [])
+    .exitCode(helper, [ON_RESUME_POST_UPDATE_ARG])
     .pipe(Effect.catch(() => Effect.succeed(1)));
 
   if (exitCode !== 0) {
@@ -231,6 +238,81 @@ const runResumeRefresh = Effect.gen(function* () {
 
   yield* log.info("On-resume helper started");
 });
+
+/** Exit code from `dot update --check` when in-scope updates are available. */
+export const UPDATE_CHECK_AVAILABLE_EXIT = 10;
+
+/** Exit code from `dot update --check` when the repo scan could not complete. */
+export const UPDATE_CHECK_ERROR_EXIT = 2;
+
+/** Repo categories treated as "core/system" by `dot update --check`. */
+const CORE_CHECK_CATEGORIES: ReadonlySet<RepoCategory> = new Set([
+  "dotfiles",
+  "omarchy",
+]);
+
+/** Options controlling `dot update --check`. */
+export interface UpdateCheckOptions {
+  /** Check every tracked repo instead of only core/system repos. */
+  readonly all?: boolean;
+}
+
+/**
+ * Report tracked repos that are behind upstream without pulling or stowing.
+ *
+ * Scans repos via {@link DotDiff} (TTL-cached fetch). By default only
+ * core/system repos (dotfiles + omarchy) are considered; `all` widens the
+ * scope to every tracked repo. Sets the process exit code to
+ * {@link UPDATE_CHECK_AVAILABLE_EXIT} when at least one in-scope repo is behind
+ * upstream and {@link UPDATE_CHECK_ERROR_EXIT} when the scan fails; the code is
+ * left at 0 when everything in scope is up to date. Used by the on-resume
+ * dotfiles update prompt.
+ */
+export const updateCheck = (opts?: UpdateCheckOptions) =>
+  Effect.gen(function* () {
+    const log = yield* OutputLog;
+    const dotDiff = yield* DotDiff;
+
+    const scopeRepos = opts?.all ? "tracked repos" : "core/system repos";
+    yield* log.section("Update Check");
+
+    const repos = yield* dotDiff.getAll().pipe(
+      Effect.catch((error) =>
+        Effect.gen(function* () {
+          yield* log.error(`Update check failed: ${error.message}`);
+          return null;
+        }),
+      ),
+    );
+
+    if (repos === null) {
+      yield* Effect.sync(() => {
+        process.exitCode = UPDATE_CHECK_ERROR_EXIT;
+      });
+      return;
+    }
+
+    const scoped = opts?.all
+      ? repos
+      : repos.filter((repo) => CORE_CHECK_CATEGORIES.has(repo.category));
+    const behind = scoped.filter((repo) => repo.behind > 0);
+
+    if (behind.length === 0) {
+      yield* log.info(`All ${scopeRepos} are up to date`);
+      return;
+    }
+
+    yield* log.info(
+      `${behind.length} of ${scoped.length} ${scopeRepos} behind upstream:`,
+    );
+    for (const repo of behind) {
+      yield* log.info(`  ${repo.name}: ${repo.behind} behind`);
+    }
+    yield* log.info("Run `dot update` to apply.");
+    yield* Effect.sync(() => {
+      process.exitCode = UPDATE_CHECK_AVAILABLE_EXIT;
+    });
+  });
 
 /**
  * Run `dot update`: self-update, pull behind repos, restow dotfiles, rebuild.

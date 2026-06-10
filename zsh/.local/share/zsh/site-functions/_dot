@@ -54,6 +54,8 @@ _dot_cmd_update() {
     '--pull[Pull repos only]' \
     '--stow[Stow only]' \
     '--tui[Install deps and rebuild dot binary only]' \
+    '--check[Report core/system repos behind upstream (no update); exit 10 if any]' \
+    '--check-all[Report all tracked repos behind upstream (no update); exit 10 if any]' \
     '(-h --help)-h[Show this help message]' \
     '(-h --help)--help[Show this help message]' \
     '*::arg:->args'

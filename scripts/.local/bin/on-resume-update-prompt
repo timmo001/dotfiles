@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+
+# Check for core dotfiles/system repo updates and, when present, open a
+# floating terminal prompting to apply them with `dot update`.
+#
+# Modes:
+#   (default) / --launch  Launcher: run `dot update --check` (core/system
+#                         scope) and, when updates are available, open a
+#                         floating terminal running this script in
+#                         --interactive mode. Invoked from on-resume after
+#                         wake. Always exits 0 so callers never block.
+#   --interactive         Runs inside the floating terminal: show what is
+#                         behind, prompt to update, and on confirmation run
+#                         `dot update`. The terminal is left open with an
+#                         interactive shell afterwards (it is never closed).
+
+set -euo pipefail
+
+# Exit code emitted by `dot update --check` when in-scope updates are available.
+readonly UPDATES_AVAILABLE_EXIT=10
+# Hyprland/Omarchy app-id that is auto-floated, centered, and sized.
+readonly FLOAT_APP_ID="TUI.float"
+
+usage() {
+  cat <<'EOF'
+Usage: on-resume-update-prompt [--launch | --interactive | --help]
+
+  --launch        Check for core/system updates; open a floating update
+                  prompt terminal when any are available (default).
+  --interactive   Prompt to run `dot update`, then keep the terminal open.
+  --help          Show this help.
+EOF
+}
+
+# Launcher: open the prompt terminal only when core/system repos are behind.
+run_launcher() {
+  local code=0
+  dot update --check >/dev/null 2>&1 || code=$?
+
+  # 0 = up to date, 2 = scan error, anything else = nothing to prompt for.
+  if [[ "$code" -ne "$UPDATES_AVAILABLE_EXIT" ]]; then
+    exit 0
+  fi
+
+  setsid uwsm-app -- xdg-terminal-exec \
+    --app-id="$FLOAT_APP_ID" \
+    --title='Dotfiles Update' \
+    -e on-resume-update-prompt --interactive >/dev/null 2>&1 &
+
+  exit 0
+}
+
+# Interactive prompt shown inside the floating terminal.
+run_interactive() {
+  printf 'Checking for dotfiles and system updates...\n\n'
+  # Show which repos are behind; exit 10 here just means "updates available".
+  dot update --check || true
+  printf '\n'
+
+  local answer=""
+  if ! read -r -p 'Apply updates now with `dot update`? [Y/n] ' answer; then
+    printf '\nNo input received; skipping update.\n'
+    exit 0
+  fi
+
+  case "${answer,,}" in
+    "" | y | yes) ;;
+    *)
+      printf 'Update skipped.\n'
+      exit 0
+      ;;
+  esac
+
+  printf '\n'
+  # Keep going even if the update fails so the error stays visible.
+  dot update || true
+
+  printf '\nUpdate finished. This terminal is left open for a fresh command.\n\n'
+  exec "${SHELL:-/usr/bin/zsh}" -i
+}
+
+main() {
+  case "${1:-}" in
+    --interactive)
+      run_interactive
+      ;;
+    "" | --launch)
+      run_launcher
+      ;;
+    -h | --help)
+      usage
+      ;;
+    *)
+      printf 'Unknown argument: %s\n\n' "$1" >&2
+      usage >&2
+      exit 64
+      ;;
+  esac
+}
+
+main "$@"

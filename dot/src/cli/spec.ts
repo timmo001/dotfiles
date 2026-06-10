@@ -189,6 +189,16 @@ export const cliCommands: readonly CliCommandSpec[] = [
         name: "--tui",
         description: "Install deps and rebuild dot binary only",
       },
+      {
+        name: "--check",
+        description:
+          "Report core/system repos behind upstream (no update); exit 10 if any",
+      },
+      {
+        name: "--check-all",
+        description:
+          "Report all tracked repos behind upstream (no update); exit 10 if any",
+      },
       helpOption,
     ],
   },

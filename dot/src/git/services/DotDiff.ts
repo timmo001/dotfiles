@@ -2,7 +2,7 @@ import { Context, Effect, Layer, Schema } from "effect";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { basename, join } from "path";
 import { createHash } from "crypto";
-import type { DiffRepo, Repo } from "../../types.js";
+import type { DiffRepo, Repo, RepoCategory } from "../../types.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import { gitCurrentBranchSync, isGitRepo } from "../../lib/git.js";
@@ -109,16 +109,25 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
       const discoverOmarchyRepos = (): Array<{
         name: string;
         path: string;
+        category: RepoCategory;
       }> => {
         if (!config.omarchy.enabled) return [];
 
-        const targets: Array<{ name: string; path: string }> = [];
+        const targets: Array<{
+          name: string;
+          path: string;
+          category: RepoCategory;
+        }> = [];
         const { repoBase, diffRepos, worktreeRepos, worktreeBranches } =
           config.omarchy;
 
         for (const repoName of diffRepos) {
           const repoPath = join(repoBase, repoName);
-          targets.push({ name: `omarchy:${repoName}`, path: repoPath });
+          targets.push({
+            name: `omarchy:${repoName}`,
+            path: repoPath,
+            category: "omarchy",
+          });
 
           // Check for worktree branches
           if (!worktreeRepos.includes(repoName)) continue;
@@ -133,6 +142,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
             targets.push({
               name: `omarchy:${repoName}-${branch}`,
               path: worktreePath,
+              category: "omarchy",
             });
           }
         }
@@ -141,10 +151,22 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
       };
 
       /** Build the full list of tracked repos */
-      const buildRepoList = (): Array<{ name: string; path: string }> => {
-        const repos: Array<{ name: string; path: string }> = [];
+      const buildRepoList = (): Array<{
+        name: string;
+        path: string;
+        category: RepoCategory;
+      }> => {
+        const repos: Array<{
+          name: string;
+          path: string;
+          category: RepoCategory;
+        }> = [];
         const seenPaths = new Set<string>();
-        const addRepo = (repo: { name: string; path: string }): void => {
+        const addRepo = (repo: {
+          name: string;
+          path: string;
+          category: RepoCategory;
+        }): void => {
           if (seenPaths.has(repo.path)) return;
           seenPaths.add(repo.path);
           repos.push(repo);
@@ -155,6 +177,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
           addRepo({
             name: basename(config.publicDotfiles),
             path: config.publicDotfiles,
+            category: "dotfiles",
           });
         }
 
@@ -164,6 +187,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
             addRepo({
               name: basename(config.privateDotfiles),
               path: config.privateDotfiles,
+              category: "dotfiles",
             });
           }
         }
@@ -173,6 +197,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
           addRepo({
             name: basename(config.notesDir),
             path: config.notesDir,
+            category: "notes",
           });
         }
 
@@ -191,7 +216,11 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
           ].sort((a, b) => a.name.localeCompare(b.name));
           for (const extra of visible) {
             if (existsSync(extra.path)) {
-              addRepo({ name: `private:${extra.name}`, path: extra.path });
+              addRepo({
+                name: `private:${extra.name}`,
+                path: extra.path,
+                category: "private",
+              });
             }
           }
         }
@@ -203,6 +232,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
       const scanRepo = Effect.fn("DotDiff.scanRepo")(function* (
         name: string,
         repoPath: string,
+        category: RepoCategory,
         opts?: DiffScanOptions,
       ): Effect.fn.Return<DiffRepo | null, DotDiffError> {
         if (!isGitRepo(repoPath)) {
@@ -281,7 +311,15 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
           behind = parseInt(behindStr.trim(), 10) || 0;
         }
 
-        return { name, path: repoPath, isDirty, modified, ahead, behind };
+        return {
+          name,
+          path: repoPath,
+          category,
+          isDirty,
+          modified,
+          ahead,
+          behind,
+        };
       });
 
       /** Get all repos with enriched diff state */
@@ -292,7 +330,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
         log(`Scanning ${repoList.length} repositories...`);
 
         const results = yield* Effect.all(
-          repoList.map((r) => scanRepo(r.name, r.path, opts)),
+          repoList.map((r) => scanRepo(r.name, r.path, r.category, opts)),
           { concurrency: 4 },
         );
 

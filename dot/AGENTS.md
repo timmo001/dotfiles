@@ -186,6 +186,8 @@ dot update                    # Full update (install deps, rebuild, restart, pul
 dot update --pull             # Pull repos only
 dot update --stow             # Stow only
 dot update --tui              # Install deps and rebuild binary only
+dot update --check            # Report core/system repos behind upstream (no update); exit 10 if any
+dot update --check-all        # Report all tracked repos behind upstream (no update); exit 10 if any
 dot stow                      # Stow public + private
 dot stow --public             # Stow public only
 dot stow --private            # Stow private only

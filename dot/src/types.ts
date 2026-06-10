@@ -10,12 +10,25 @@ export interface Repo {
   readonly locked: boolean;
 }
 
+/**
+ * Classification of a tracked repository, used to scope operations such as
+ * `dot update --check` to core/system repos.
+ *
+ * - `dotfiles`: public or private dotfiles repositories
+ * - `omarchy`: Omarchy system repos (hypr, waybar, ghostty, uwsm, bootstrap)
+ * - `notes`: the notes vault repository
+ * - `private`: schedule-gated activity repos from `dot-git.yml`
+ */
+export type RepoCategory = "dotfiles" | "omarchy" | "notes" | "private";
+
 /** Enriched repository state with git status counts for diff modes */
 export interface DiffRepo {
   /** Short display name (e.g. "dotfiles", "omarchy:hypr") */
   readonly name: string;
   /** Absolute filesystem path to the repository root */
   readonly path: string;
+  /** Repository classification used to scope operations like update checks */
+  readonly category: RepoCategory;
   /** Whether the repo has any uncommitted changes (modified, untracked, etc.) */
   readonly isDirty: boolean;
   /** Number of modified/untracked/deleted files */
