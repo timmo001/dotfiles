@@ -14,7 +14,12 @@ import {
   ensureInitCompleteMarker,
   initCompleteMarker,
 } from "../lib/initState.js";
-import { gitHead, gitPullRebase, gitWorkingTreeClean } from "../lib/git.js";
+import {
+  gitHead,
+  gitPullRebase,
+  gitRefreshRemoteHead,
+  gitWorkingTreeClean,
+} from "../lib/git.js";
 import { HOME_DIR, displayPath } from "../lib/paths.js";
 import type { ConfigService } from "../services/Config.js";
 import type { InitCompleteMarkerStatus } from "../lib/initState.js";
@@ -365,6 +370,14 @@ export const update = (opts?: UpdateOptions) =>
         yield* log.info(
           `${repo.name}: ${repoStatus(repo)} (${displayPath(repo.path)})`,
         );
+      }
+
+      // Keep each tracked repo's local <remote>/HEAD pointing at the remote's
+      // current default branch. Clones capture it once and never refresh it, so
+      // a default-branch rename leaves it stale and misleads default-branch
+      // detection in dot git-status, dot git-log, and the branch-context plugin.
+      for (const repo of repos) {
+        yield* gitRefreshRemoteHead(repo.path);
       }
 
       if (!config.canUsePrivate) {

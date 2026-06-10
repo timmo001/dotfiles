@@ -8,6 +8,7 @@ import { checkRepos, checkPrivateAccess } from "./checks/repos.js";
 import { checkStow } from "./checks/stow.js";
 import { checkOpencode } from "./checks/opencode.js";
 import { checkGitConfig } from "../git/doctor/gitConfig.js";
+import { checkOriginHead } from "../git/doctor/originHead.js";
 import {
   checkGitNotifications,
   checkWorkflowRuns,
@@ -44,6 +45,7 @@ const sections: readonly SectionDef[] = [
   { name: "Dependency checks", check: checkDependencies },
   { name: "Secret Service checks", check: checkSecretService },
   { name: "Repository checks", check: checkRepos },
+  { name: "Origin HEAD freshness", check: checkOriginHead },
   { name: "Stow integrity", check: checkStow },
   { name: "OpenCode location checks", check: checkOpencode },
   { name: "Git config include", check: checkGitConfig },

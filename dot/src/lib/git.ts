@@ -143,6 +143,26 @@ export function gitHead(
   );
 }
 
+/**
+ * Refresh a repository's local `<remote>/HEAD` symbolic-ref so it tracks the
+ * remote's current default branch. Clones capture `<remote>/HEAD` once and never
+ * auto-update it, so a default-branch rename on the remote leaves the local ref
+ * stale and misleads tooling that derives the default branch from it (e.g.
+ * `dot git-status`, `dot git-log`, the branch-context plugin).
+ *
+ * Queries the remote (`git remote set-head <remote> --auto`) and is non-fatal:
+ * a missing remote, offline state, or any other failure resolves to no-op so
+ * callers in the update/pull flow never break on it.
+ */
+export function gitRefreshRemoteHead(
+  repoPath: string,
+  remote = "origin",
+): Effect.Effect<void, never, CommandExecutor> {
+  return gitExitCode(["remote", "set-head", remote, "--auto"], {
+    cwd: repoPath,
+  }).pipe(Effect.asVoid);
+}
+
 /** Pull a repository with rebase, streaming output through the launcher. */
 export function gitPullRebase(
   repoPath: string,

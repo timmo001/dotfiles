@@ -69,6 +69,7 @@ src/
       Workflows.ts        — dot git-workflows (--since, --bar-json, --list-repos, --list-runs, --raw)
     doctor/
       gitConfig.ts        — managed Git config doctor check
+      originHead.ts       — stale local origin/HEAD doctor check (default-branch ref freshness)
     services/
       DotDiff.ts          — Effect service wrapping git diff state
       GitLog.ts           — Recent commit history state for tracked repositories
