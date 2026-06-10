@@ -10,7 +10,7 @@ Use `/grill` instead when the user wants to stress-test a plan through extended 
 Follow these steps:
 
 1. Use `${ARGUMENTS}` as the topic, issue, question, or area to investigate.
-2. If `${ARGUMENTS}` is empty or too vague to investigate safely, ask one concise question to get the missing target.
+2. If `${ARGUMENTS}` is empty or too vague to investigate safely, ask one concise question with the `question` tool to get the missing target.
 3. Choose the right workflow for the request instead of forcing one tool path:
    - use the `diagnose` skill for concrete bug reports, regressions, flaky behaviour, or performance problems that need a reproducible feedback loop before fixing
    - use direct reads/searches for narrow local repo lookups

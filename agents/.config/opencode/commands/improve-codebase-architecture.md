@@ -7,7 +7,7 @@ Use this command for architecture-focused investigation in a named area, feature
 
 Load and follow the `improve-codebase-architecture` skill as the primary review workflow for this command.
 
-Use `${ARGUMENTS}` as the area, subsystem, feature, file family, or concern to review. If it is empty, ask one concise question to learn what area to focus on.
+Use `${ARGUMENTS}` as the area, subsystem, feature, file family, or concern to review. If it is empty, ask one concise question with the `question` tool to learn what area to focus on.
 
 Keep the work investigation and planning only. Make no file edits or code changes from this command.
 

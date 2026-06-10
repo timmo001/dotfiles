@@ -23,8 +23,8 @@ Use this skill for deliberate extended questioning before implementation. This i
 
 ## Rules
 
-1. Ask exactly one question per turn until the session ends.
-2. Include a recommended answer with every question, plus a brief reason for that recommendation.
+1. Ask exactly one question per turn, as a single `question` tool call, until the session ends.
+2. Make the recommended answer the first option in the `question` tool call, append `(Recommended)` to its label, and put the brief reason in that option's description.
 3. Do not ask questions that quick read-only discovery can answer; inspect the repo, docs, or config instead.
 4. Fill in obvious answers as working assumptions instead of asking the user to confirm defaults that are already implied by the repo, prior conversation, or normal local conventions.
 5. Keep questions low-fidelity: scope, behaviour, constraints, tradeoffs, acceptance criteria, ordering, safety, and boundaries.
@@ -35,20 +35,14 @@ Use this skill for deliberate extended questioning before implementation. This i
 ## Workflow
 
 1. Identify the grilling target from the user's prompt, arguments, and current conversation context.
-2. If the target is too broad, split it into 2-5 smaller grillable chunks and ask which chunk to grill first.
+2. If the target is too broad, split it into 2-5 smaller grillable chunks and ask which chunk to grill first with the `question` tool (one option per chunk).
 3. Run a short read-only context pass when local files or previous messages can answer obvious setup questions.
 4. Before asking, separate what is already safe to assume from what materially changes the direction.
-5. Ask the next highest-leverage unresolved question using this format:
-
-```markdown
-Working assumptions: {only include when useful; brief bullets or one sentence}
-
-Question: {one question}
-
-Recommended answer: {specific recommendation}
-
-Why: {brief reason}
-```
+5. Ask the next highest-leverage unresolved question with the `question` tool:
+   - State any working assumptions briefly in your reply text before the call, only when useful.
+   - Send exactly one question, with a short `header` (max 30 characters).
+   - Make the recommended answer the first option and append `(Recommended)` to its label; put the brief reason in that option's description.
+   - Add the other plausible answers as concrete options so the user can pick fast. Do not add an "Other" or catch-all option; the tool adds "Type your own answer" automatically.
 
 6. After the user's answer, update your internal understanding and ask the next highest-leverage question.
 7. Stop when one of these is true:

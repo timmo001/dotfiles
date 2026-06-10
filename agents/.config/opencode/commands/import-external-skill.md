@@ -6,7 +6,7 @@ Load and follow the `import-external-skill` skill.
 
 1. Use `${ARGUMENTS}` as the source. This is typically a URL to a skill file, skill directory, or skill repository.
 
-2. If `${ARGUMENTS}` is empty, ask one concise question to get the source URL or repo.
+2. If `${ARGUMENTS}` is empty, ask one concise question with the `question` tool to get the source URL or repo.
 
 3. Determine the scope from the URL:
    - **Specific skill** (URL points to a SKILL.md or skill directory): follow Path 1 (Direct Import) or Path 2 (Adaptation) from the skill, depending on whether the skill overlaps with an existing local skill.

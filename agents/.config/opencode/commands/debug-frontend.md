@@ -8,7 +8,7 @@ Use Chrome DevTools tools as the primary workflow for this command.
 Follow these steps:
 
 1. Use `${ARGUMENTS}` as the issue description, page URL, or area to inspect.
-2. If `${ARGUMENTS}` does not clearly identify a page, route, or problem, ask one concise question to get the missing target.
+2. If `${ARGUMENTS}` does not clearly identify a page, route, or problem, ask one concise question with the `question` tool to get the missing target.
 3. Start with the default inspection sequence:
    - take a page snapshot
    - list console messages
