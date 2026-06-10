@@ -5,10 +5,11 @@
 #
 # Modes:
 #   (default) / --launch  Launcher: run `dot update --check` (core/system
-#                         scope) and, when updates are available, open a
-#                         floating terminal running this script in
-#                         --interactive mode. Invoked from on-resume after
-#                         wake. Always exits 0 so callers never block.
+#                         scope). When updates are available, open a floating
+#                         terminal running this script in --interactive mode;
+#                         when already up to date, send a desktop notification.
+#                         Invoked from on-resume after wake. Always exits 0 so
+#                         callers never block.
 #   --interactive         Runs inside the floating terminal: show what is
 #                         behind, prompt to update, and on confirmation run
 #                         `dot update`. The terminal is left open with an
@@ -32,20 +33,28 @@ Usage: on-resume-update-prompt [--launch | --interactive | --help]
 EOF
 }
 
-# Launcher: open the prompt terminal only when core/system repos are behind.
+# Launcher: when core/system repos are behind, open the prompt terminal; when
+# everything is already up to date, send an unobtrusive desktop notification.
 run_launcher() {
-  local code=0
-  dot update --check >/dev/null 2>&1 || code=$?
+  local code=0 output
+  output="$(dot update --check 2>/dev/null)" || code=$?
 
-  # 0 = up to date, 2 = scan error, anything else = nothing to prompt for.
-  if [[ "$code" -ne "$UPDATES_AVAILABLE_EXIT" ]]; then
-    exit 0
+  if [[ "$code" -eq "$UPDATES_AVAILABLE_EXIT" ]]; then
+    setsid uwsm-app -- xdg-terminal-exec \
+      --app-id="$FLOAT_APP_ID" \
+      --title='Dotfiles Update' \
+      -e on-resume-update-prompt --interactive >/dev/null 2>&1 &
+  elif [[ "$code" -eq 0 ]]; then
+    # Exit 0 = check passed with no core/system updates. List the repos that
+    # were checked, taken from the check output.
+    local repos body
+    repos="$(printf '%s\n' "$output" | sed -n 's/^[[:space:]]*Checked[^:]*: *//p')"
+    repos="${repos//omarchy:/}"
+    body="Everything is current."
+    [[ -n "$repos" ]] && body="Up to date: ${repos}"
+    notify-send -a dotfiles -u low 'Dotfiles up to date' "$body" >/dev/null 2>&1 || true
   fi
-
-  setsid uwsm-app -- xdg-terminal-exec \
-    --app-id="$FLOAT_APP_ID" \
-    --title='Dotfiles Update' \
-    -e on-resume-update-prompt --interactive >/dev/null 2>&1 &
+  # Any other code (e.g. 2 = scan error) stays silent.
 
   exit 0
 }

@@ -295,6 +295,11 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
     const scoped = opts?.all
       ? repos
       : repos.filter((repo) => CORE_CHECK_CATEGORIES.has(repo.category));
+    yield* log.info(
+      `Checked ${scoped.length} ${scopeRepos}: ${scoped
+        .map((repo) => repo.name)
+        .join(", ")}`,
+    );
     const behind = scoped.filter((repo) => repo.behind > 0);
 
     if (behind.length === 0) {
