@@ -33,7 +33,7 @@ Drafting the text is never permission to perform the action.
 - Concise but informative: say what changed and, where it helps, the effect. Describe the change, do not restate the filename.
 - Avoid bare single-word subjects ("Upd", "Note", "Fix" alone) when the change deserves a few words. Prefer "Notify on resume if clean" over "Note".
 - No Conventional Commit prefixes (feat:, fix:) in personal repos. Follow the repo's convention where one exists.
-- Add a body only when it earns its place: lead with the problem or reason in plain prose, then a short bullet list of concrete changes. Dense and technical is fine; lowercase bullet fragments, no trailing full stops on short bullets.
+- Always a single line. No body, no bullet lists, no multi-line messages. Multi-line bodies read as LLM-generated; keep the whole message to one concise subject line. Follow the repo's convention where one requires a body.
 
 ## PR and issue text
 
