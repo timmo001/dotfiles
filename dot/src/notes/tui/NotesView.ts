@@ -60,12 +60,24 @@ const HELP: readonly HelpEntry[] = [
   { key: "o", action: "OpenCode" },
   { key: "O", action: "OpenCode plan" },
   { key: "r", action: "refresh" },
+  { key: "s", action: "sort" },
   { key: "d", action: "delete" },
   { key: "Esc/Backspace", action: "back" },
   ...GLOBAL_HELP,
 ];
 
 type NotesPane = "list" | "content";
+
+/** Ordering applied to the visible note list. */
+type NoteSortMode = "modified-desc" | "modified-asc" | "name-asc" | "name-desc";
+
+/** Sort modes in the order the sort key cycles through them. */
+const SORT_CYCLE: readonly NoteSortMode[] = [
+  "modified-desc",
+  "modified-asc",
+  "name-asc",
+  "name-desc",
+];
 type MarkdownRenderNode = NonNullable<MarkdownOptions["renderNode"]>;
 type MarkdownToken = Parameters<MarkdownRenderNode>[0];
 type BlockRenderer = (
@@ -193,6 +205,7 @@ export class NotesView {
 
   private filter: NotesViewFilter | null = null;
   private activePane: NotesPane = "list";
+  private sortMode: NoteSortMode = "modified-desc";
   private entries: readonly NoteEntry[] = [];
   private visibleEntries: readonly NoteEntry[] = [];
   private showingAllRepos = false;
@@ -236,6 +249,7 @@ export class NotesView {
       o: () => void this.openSelectedInOpenCode("default"),
       "shift+o": () => void this.openSelectedInOpenCode("plan"),
       r: () => void this.refresh(),
+      s: () => this.cycleSortMode(),
       d: () => this.requestDeleteSelected(),
       escape: () => this.callbacks.onBack(),
       backspace: () => this.callbacks.onBack(),
@@ -597,8 +611,8 @@ export class NotesView {
   }
 
   private applyFilter(): void {
-    this.visibleEntries = this.entries.filter((entry) =>
-      matchesFilter(entry, this.filter),
+    this.visibleEntries = this.sortEntries(
+      this.entries.filter((entry) => matchesFilter(entry, this.filter)),
     );
     this.noteList.setItems(
       this.visibleEntries.map((entry) => this.listItem(entry)),
@@ -610,6 +624,36 @@ export class NotesView {
     if (this.visibleEntries.length === 0) {
       this.showEmptyContent(this.emptyTitle(), this.emptyBody());
     }
+  }
+
+  /** Advance to the next sort mode and re-render the list. */
+  private cycleSortMode(): void {
+    const nextIndex =
+      (SORT_CYCLE.indexOf(this.sortMode) + 1) % SORT_CYCLE.length;
+    this.sortMode = SORT_CYCLE[nextIndex];
+    this.applyFilter();
+    this.updateStatusBar();
+  }
+
+  /**
+   * Sort entries by the active mode, keeping all-repos sections grouped so the
+   * list's section headers stay contiguous.
+   */
+  private sortEntries(entries: readonly NoteEntry[]): readonly NoteEntry[] {
+    const compare = sortComparator(this.sortMode);
+    if (!this.showingAllRepos) return [...entries].sort(compare);
+
+    const sectionOrder = new Map<string, number>();
+    for (const entry of entries) {
+      const key = entry.repoSlug ?? "";
+      if (!sectionOrder.has(key)) sectionOrder.set(key, sectionOrder.size);
+    }
+    return [...entries].sort((a, b) => {
+      const sectionDelta =
+        (sectionOrder.get(a.repoSlug ?? "") ?? 0) -
+        (sectionOrder.get(b.repoSlug ?? "") ?? 0);
+      return sectionDelta !== 0 ? sectionDelta : compare(a, b);
+    });
   }
 
   private toggleAllRepos(): void {
@@ -1010,7 +1054,7 @@ export class NotesView {
   private updatePaneTitles(): void {
     this.listTitle.content = formatPaneTitle(
       this.theme,
-      notesDisplayTitle(this.filter, this.showingAllRepos),
+      `${notesDisplayTitle(this.filter, this.showingAllRepos)} • ${sortModeLabel(this.sortMode)}`,
       this.visibleEntries.length,
       this.activePane === "list",
       countColor(this.theme, this.visibleEntries.length),
@@ -1426,6 +1470,38 @@ function matchesFilter(
   if (!filter?.tag) return true;
   const wanted = filter.tag.toLowerCase();
   return entry.tags.some((tag) => tag.toLowerCase() === wanted);
+}
+
+function sortComparator(
+  mode: NoteSortMode,
+): (a: NoteEntry, b: NoteEntry) => number {
+  switch (mode) {
+    case "modified-desc":
+      return (a, b) => b.mtime - a.mtime;
+    case "modified-asc":
+      return (a, b) => a.mtime - b.mtime;
+    case "name-asc":
+      return (a, b) => noteSortName(a).localeCompare(noteSortName(b));
+    case "name-desc":
+      return (a, b) => noteSortName(b).localeCompare(noteSortName(a));
+  }
+}
+
+function noteSortName(entry: NoteEntry): string {
+  return (entry.name ?? stripMarkdownExtension(entry.filename)).toLowerCase();
+}
+
+function sortModeLabel(mode: NoteSortMode): string {
+  switch (mode) {
+    case "modified-desc":
+      return "modified ↓";
+    case "modified-asc":
+      return "modified ↑";
+    case "name-asc":
+      return "name ↑";
+    case "name-desc":
+      return "name ↓";
+  }
 }
 
 function flattenNoteSections(
