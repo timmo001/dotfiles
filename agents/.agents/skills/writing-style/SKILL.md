@@ -18,7 +18,9 @@ Drafting the text is never permission to perform the action.
 - Producing a commit message, PR description, or issue body on request does not authorise committing, pushing, or submitting it. Hand back the text and stop.
 - Any action the user must explicitly request, never assume it. When unsure, ask first.
 
-## Always (every context)
+## Always (every artifact in scope)
+
+These rules cover the artifacts this skill governs (commits, PR and issue text, docs, comments, user-facing strings). They are not the agent's whole obligation: chat replies and any other output are governed by AGENTS.md, which carries the same no-em-dash and no-robotic-tone rules and applies everywhere.
 
 - Never use an em-dash (—) or a spaced en-dash (–) as a substitute. Use a hyphen, comma, colon, parentheses, or split the sentence.
 - No robotic or marketing tone. Drop filler such as "seamlessly", "robust", "powerful", "effortless", "leverage", "delve", and throat-clearing such as "In order to", "It is worth noting", "Furthermore".
