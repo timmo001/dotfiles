@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { accessSync, constants, existsSync, lstatSync, readFileSync } from "fs";
-import { join, dirname } from "path";
+import { join, dirname, resolve } from "path";
 import {
   CommandExecutor,
   type CommandExecutorService,
@@ -18,6 +18,8 @@ const DOCTOR_STARTUP_TIMER_UNIT = "dot-doctor-startup.timer";
 const DAILY_VOLUME_ZERO_TIMER_UNIT = "daily-volume-zero.timer";
 const MHOC303_CLOCK_SYNC_TIMER_UNIT = "mhoc303-clock-sync.timer";
 const MHOC303_CLOCK_SYNC_ON_CALENDAR = "OnCalendar=Sun *-*-* 03:00:00";
+const LOCAL_BIN_DIR = join(HOME_DIR, ".local", "bin");
+const UWSM_ENV_FILE = join(CONFIG_DIR, "uwsm", "env");
 
 function pathExistsOrSymlink(path: string): boolean {
   try {
@@ -847,6 +849,85 @@ export const checkMhoc303ClockSync = Effect.gen(function* () {
       severity: "warn",
       message: `MHO-C303 clock sync timer is not active: ${MHOC303_CLOCK_SYNC_TIMER_UNIT}`,
       detail: `Start with: systemctl --user start ${MHOC303_CLOCK_SYNC_TIMER_UNIT}`,
+    });
+  }
+
+  return results;
+});
+
+/** Extract the colon-separated PATH entries from `systemctl --user show-environment` output. */
+function userEnvironmentPathEntries(
+  showEnvironment: string,
+): readonly string[] {
+  const pathLine = showEnvironment
+    .split("\n")
+    .find((line) => line.startsWith("PATH="));
+  if (!pathLine) return [];
+  return pathLine.slice("PATH=".length).split(":").filter(Boolean);
+}
+
+/**
+ * Check that ~/.local/bin is on the uwsm/systemd user-environment PATH.
+ *
+ * `uwsm app` resolves binaries against the systemd user-environment PATH, which
+ * is seeded by ~/.config/uwsm/env (not the login shell). Stowed ~/.local/bin
+ * shims only resolve under `uwsm app` when that PATH includes ~/.local/bin.
+ */
+export const checkLocalBinPath = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const results: CheckResult[] = [];
+
+  // Durable source: the uwsm env file should add ~/.local/bin to the session PATH.
+  if (existsSync(UWSM_ENV_FILE)) {
+    const envContent = readFileSync(UWSM_ENV_FILE, "utf-8");
+    if (/(\$HOME|~)\/\.local\/bin/.test(envContent)) {
+      results.push({
+        severity: "ok",
+        message: `uwsm env adds ~/.local/bin to PATH: ${displayPath(UWSM_ENV_FILE)}`,
+      });
+    } else {
+      results.push({
+        severity: "warn",
+        message: `uwsm env does not add ~/.local/bin to PATH: ${displayPath(UWSM_ENV_FILE)}`,
+        detail:
+          "Add 'export PATH=$HOME/.local/bin:$PATH' to the omarchy-uwsm fork env so uwsm app resolves stowed ~/.local/bin shims",
+      });
+    }
+  } else {
+    results.push({
+      severity: "warn",
+      message: `uwsm env file missing: ${displayPath(UWSM_ENV_FILE)}`,
+    });
+  }
+
+  // Live session PATH that uwsm app resolves against.
+  const hasSystemctl = (yield* executor.exitCode("which", ["systemctl"])) === 0;
+  if (!hasSystemctl) {
+    results.push({
+      severity: "warn",
+      message: "Skipping uwsm session PATH check (systemctl not found)",
+    });
+    return results;
+  }
+
+  const showEnvironment = yield* executor
+    .run("systemctl", ["--user", "show-environment"])
+    .pipe(Effect.catch(() => Effect.succeed("")));
+  const onPath = userEnvironmentPathEntries(showEnvironment).some(
+    (entry) => resolve(entry) === LOCAL_BIN_DIR,
+  );
+
+  if (onPath) {
+    results.push({
+      severity: "ok",
+      message: `~/.local/bin is on the uwsm session PATH: ${displayPath(LOCAL_BIN_DIR)}`,
+    });
+  } else {
+    results.push({
+      severity: "warn",
+      message: "~/.local/bin is not on the uwsm session PATH",
+      detail:
+        "Relaunch Hyprland after adding ~/.local/bin to the uwsm env; uwsm app cannot resolve stowed ~/.local/bin shims without it",
     });
   }
 

@@ -43,6 +43,7 @@ const GIT_INCLUDE_PATH = "~/.config/git/config.dotfiles";
 const DOCTOR_STARTUP_TIMER_UNIT = "dot-doctor-startup.timer";
 const DEFAULT_INIT_OMARCHY_HOST = "desktop";
 const INIT_OMARCHY_HOSTS = ["desktop", "laptop"] as const;
+const ETC_SHELLS = "/etc/shells";
 
 /** Domain error for first-use init failures. */
 class InitError extends Schema.TaggedErrorClass<InitError>()("InitError", {
@@ -563,6 +564,119 @@ function setupPrivatePackages(
   });
 }
 
+/** Resolve the absolute zsh path on PATH, or null when zsh is not installed. */
+function resolveZshPath(): Effect.Effect<
+  string | null,
+  never,
+  CommandExecutor
+> {
+  return Effect.gen(function* () {
+    const executor = yield* CommandExecutor;
+    const output = yield* executor
+      .run("which", ["zsh"])
+      .pipe(Effect.catch(() => Effect.succeed("")));
+    const path = output.trim();
+    return path.length > 0 ? path : null;
+  });
+}
+
+/** Read the current user's login shell from the passwd database. */
+function currentLoginShell(): Effect.Effect<
+  string | null,
+  never,
+  CommandExecutor
+> {
+  return Effect.gen(function* () {
+    const executor = yield* CommandExecutor;
+    const uid = process.getuid?.();
+    if (uid === undefined) return null;
+    const output = yield* executor
+      .run("getent", ["passwd", String(uid)])
+      .pipe(Effect.catch(() => Effect.succeed("")));
+    const fields = output.trim().split(":");
+    return fields.length >= 7 ? fields[6] : null;
+  });
+}
+
+/** Resolve the current user's login name for chsh. */
+function currentUsername(): Effect.Effect<
+  string | null,
+  never,
+  CommandExecutor
+> {
+  return Effect.gen(function* () {
+    const executor = yield* CommandExecutor;
+    const output = yield* executor
+      .run("id", ["-un"])
+      .pipe(Effect.catch(() => Effect.succeed("")));
+    const name = output.trim();
+    return name.length > 0 ? name : null;
+  });
+}
+
+/** Whether the given shell path is already registered in /etc/shells. */
+function shellRegisteredInEtcShells(shellPath: string): boolean {
+  if (!existsSync(ETC_SHELLS)) return false;
+  return readFileSync(ETC_SHELLS, "utf-8")
+    .split("\n")
+    .map((line) => line.trim())
+    .includes(shellPath);
+}
+
+/**
+ * Ensure zsh is the user's login shell.
+ *
+ * Idempotent: registers zsh in /etc/shells only when missing and only runs
+ * chsh when the current login shell is not already zsh. Privileged steps use
+ * the shared elevated-command pattern. Skips with a warning when zsh is absent.
+ */
+function ensureLoginShellZsh(): Effect.Effect<
+  void,
+  InitError,
+  CommandExecutor | OutputLog
+> {
+  return Effect.gen(function* () {
+    const log = yield* OutputLog;
+    yield* log.section("Login Shell");
+
+    const zshPath = yield* resolveZshPath();
+    if (!zshPath) {
+      yield* log.warn("Skipping login shell setup (zsh not found on PATH)");
+      return;
+    }
+
+    if (!shellRegisteredInEtcShells(zshPath)) {
+      const exitCode = yield* runElevated("sh", [
+        "-c",
+        `echo ${JSON.stringify(zshPath)} >> ${ETC_SHELLS}`,
+      ]);
+      if (exitCode !== 0) {
+        return yield* fail(
+          `Failed to register ${zshPath} in ${ETC_SHELLS} (exit ${exitCode})`,
+        );
+      }
+      yield* log.info(`Registered ${zshPath} in ${ETC_SHELLS}`);
+    }
+
+    const loginShell = yield* currentLoginShell();
+    if (loginShell === zshPath) {
+      yield* log.info(`Login shell is already ${zshPath}`);
+      return;
+    }
+
+    const username = yield* currentUsername();
+    if (!username) {
+      return yield* fail("Unable to determine current username for chsh");
+    }
+
+    const exitCode = yield* runElevated("chsh", ["-s", zshPath, username]);
+    if (exitCode !== 0) {
+      return yield* fail(`chsh -s ${zshPath} ${username} exited ${exitCode}`);
+    }
+    yield* log.info(`Set login shell to ${zshPath} for ${username}`);
+  });
+}
+
 /** Run the one-time first-use setup workflow for a fresh machine. */
 export function init(rawArgs: readonly string[]) {
   return Effect.gen(function* () {
@@ -595,6 +709,7 @@ export function init(rawArgs: readonly string[]) {
       scope: "public",
       confirm: options.confirm,
     });
+    yield* ensureLoginShellZsh();
     yield* setupPrivatePackages(config, options);
     yield* cloneMissingGitConfigRepos({ strict: true });
     yield* configureGitInclude(config);
