@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# virt-manager imports the system PyGObject (gi) module, but mise's python3 is
+# first on PATH and has no gi, so the stock `#!/usr/bin/env python3` shebang
+# fails. Run the real launcher with the system interpreter instead.
+system_python="/usr/bin/python3"
+real_launcher="/usr/bin/virt-manager"
+
+if [[ ! -x "$system_python" ]]; then
+  printf 'virt-manager wrapper: %s not found\n' "$system_python" >&2
+  exit 1
+fi
+
+exec "$system_python" "$real_launcher" "$@"
