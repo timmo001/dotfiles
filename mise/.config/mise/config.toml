@@ -24,4 +24,4 @@ zls = "0.16.0"
 zoxide = "0.9.9"
 
 [settings]
-idiomatic_version_file_enable_tools = ["node"]
+idiomatic_version_file_enable_tools = ["bun", "deno", "go", "node", "python"]
