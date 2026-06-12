@@ -2,6 +2,7 @@
 # One package per line, comments and blank lines are ignored.
 
 bmon
+catppuccin-cursors-mocha
 cpio
 go-automate-git
 home-assistant-tui-git
