@@ -1,5 +1,11 @@
 import { Context, Effect, Layer, PubSub, Schedule, Stream } from "effect";
-import { appendFileSync, mkdirSync, writeFileSync } from "fs";
+import {
+  appendFileSync,
+  mkdirSync,
+  readdirSync,
+  unlinkSync,
+  writeFileSync,
+} from "fs";
 import { dirname, join } from "path";
 import { Config } from "./Config.js";
 import { mirrorConfiguredLog } from "../lib/logMirror.js";
@@ -141,6 +147,40 @@ function appendLogFiles(paths: readonly string[], entry: LogEntry): void {
   mirrorConfiguredLog();
 }
 
+/** Number of recent auto-generated per-run log files to retain in the log dir. */
+const LOG_RETENTION_COUNT = 100;
+
+/** Matches the auto-generated per-run log file name (ISO timestamp + `.log`). */
+const RUN_LOG_RE = /^\d{4}-\d{2}-\d{2}T[\d-]+Z\.log$/;
+
+/**
+ * Delete old auto-generated per-run log files, keeping the most recent
+ * {@link LOG_RETENTION_COUNT}.
+ *
+ * Only targets files named like the per-run default log (ISO timestamp), so
+ * `doctor-*.log` reports and any other files are left untouched. ISO names
+ * sort chronologically, so a lexicographic sort orders them oldest-first.
+ * Best-effort: a missing directory or a file removed by a concurrent run is
+ * ignored.
+ */
+function pruneRunLogs(logDir: string, keep: number): void {
+  let names: string[];
+  try {
+    names = readdirSync(logDir).filter((name) => RUN_LOG_RE.test(name));
+  } catch {
+    return;
+  }
+  if (names.length <= keep) return;
+  names.sort();
+  for (const name of names.slice(0, names.length - keep)) {
+    try {
+      unlinkSync(join(logDir, name));
+    } catch {
+      // Already gone or removed by a concurrent run — fine.
+    }
+  }
+}
+
 /** Effect service for {@link OutputLogService} */
 export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
   "OutputLog",
@@ -158,10 +198,19 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
       );
       const paths = logFiles(defaultLogFile);
 
-      initialiseLogFiles(paths);
+      // Create/prune log files lazily on first emit so query/machine commands
+      // that never log (e.g. Waybar bar-json polls) leave no files behind.
+      let initialised = false;
+      const ensureInitialised = (): void => {
+        if (initialised) return;
+        initialised = true;
+        pruneRunLogs(config.logDir, LOG_RETENTION_COUNT);
+        initialiseLogFiles(paths);
+      };
 
       const emit = (level: LogLevel, message: string): Effect.Effect<void> =>
         Effect.gen(function* () {
+          ensureInitialised();
           const entry: LogEntry = { level, message, timestamp: Date.now() };
           entries.push(entry);
           appendLogFiles(paths, entry);
@@ -203,7 +252,15 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
       );
       const paths = logFiles(defaultLogFile);
 
-      initialiseLogFiles(paths);
+      // Create/prune log files lazily on first emit so query/machine commands
+      // that never log (e.g. Waybar bar-json polls) leave no files behind.
+      let initialised = false;
+      const ensureInitialised = (): void => {
+        if (initialised) return;
+        initialised = true;
+        pruneRunLogs(config.logDir, LOG_RETENTION_COUNT);
+        initialiseLogFiles(paths);
+      };
 
       // Animate the spinner only on an interactive TTY so frames and cursor
       // escapes never leak into piped output, redirects, or the init log tee.
@@ -227,6 +284,7 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
 
       const emit = (level: LogLevel, message: string): Effect.Effect<void> =>
         Effect.sync(() => {
+          ensureInitialised();
           const entry: LogEntry = { level, message, timestamp: Date.now() };
           entries.push(entry);
           appendLogFiles(paths, entry);
