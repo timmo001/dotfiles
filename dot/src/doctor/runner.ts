@@ -3,6 +3,7 @@ import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { GitHub } from "../git/services/GitHub.js";
 import { checkDependencies } from "./checks/dependencies.js";
+import { checkLocale } from "./checks/locale.js";
 import { checkSecretService } from "./checks/secretService.js";
 import { checkRepos, checkPrivateAccess } from "./checks/repos.js";
 import { checkStow } from "./checks/stow.js";
@@ -45,6 +46,7 @@ interface SectionDef {
 /** All doctor check sections in display order */
 const sections: readonly SectionDef[] = [
   { name: "Dependency checks", check: checkDependencies },
+  { name: "Locale", check: checkLocale },
   { name: "Secret Service checks", check: checkSecretService },
   { name: "Repository checks", check: checkRepos },
   { name: "Origin HEAD freshness", check: checkOriginHead },

@@ -3,13 +3,14 @@ import {
   lstatSync,
   mkdirSync,
   readdirSync,
+  readFileSync,
   readlinkSync,
   renameSync,
   symlinkSync,
   unlinkSync,
 } from "fs";
 import { basename, dirname, join, relative } from "path";
-import { HOME_DIR } from "./paths.js";
+import { displayPath, HOME_DIR } from "./paths.js";
 import { listStowFolders } from "./stowFolders.js";
 
 const EXTERNAL_SKILL_DIRS = [
@@ -61,12 +62,63 @@ export function backupPrivateStowTargets(privateDotfiles: string): void {
 
   for (const folder of listStowFolders(privateDotfiles).sort()) {
     const packageRoot = join(privateDotfiles, folder);
-    for (const target of listStowTargets(packageRoot, folder)) {
+    for (const { target } of listStowTargetPairs(packageRoot, folder)) {
       backupFileIfUnmanaged(
         target,
         join(backupRoot, dirname(relative(HOME_DIR, target))),
       );
     }
+  }
+}
+
+/**
+ * Back up live public stow targets whose content differs from their committed
+ * repo source before an `--adopt` stow, returning their home-relative display
+ * paths.
+ *
+ * `stow --adopt` imports any real file found at a target into the repo,
+ * overwriting committed config (for example stock files written by an Omarchy
+ * upgrade). Moving the conflicting live file to `backup/` first leaves the
+ * target absent, so adopt creates a symlink to the committed source instead of
+ * clobbering it. Symlinks and identical files are left untouched, so a
+ * steady-state machine is a no-op.
+ */
+export function backupConflictingPublicTargets(
+  publicDotfiles: string,
+): string[] {
+  const backupRoot = join(publicDotfiles, "backup");
+  const backedUp: string[] = [];
+
+  for (const folder of listStowFolders(publicDotfiles).sort()) {
+    const packageRoot = join(publicDotfiles, folder);
+    for (const { source, target } of listStowTargetPairs(packageRoot, folder)) {
+      if (!liveTargetConflicts(source, target)) continue;
+      backupFileIfUnmanaged(
+        target,
+        join(backupRoot, dirname(relative(HOME_DIR, target))),
+      );
+      backedUp.push(displayPath(target));
+    }
+  }
+
+  return backedUp;
+}
+
+/** True when the live target is a real file whose bytes differ from source. */
+function liveTargetConflicts(source: string, target: string): boolean {
+  let stat;
+  try {
+    stat = lstatSync(target);
+  } catch {
+    return false;
+  }
+  // lstat reports a symlink as a non-file, so this also skips managed targets.
+  if (!stat.isFile()) return false;
+
+  try {
+    return !readFileSync(target).equals(readFileSync(source));
+  } catch {
+    return false;
   }
 }
 
@@ -120,19 +172,28 @@ export function restoreExternalSymlinks(
   }
 }
 
-/** List target paths that a stow package would manage. */
-function listStowTargets(packageRoot: string, folder: string): string[] {
-  const targets: string[] = [];
-  collectStowTargets(packageRoot, packageRoot, folder, targets);
-  return targets;
+/** A stow package source file and the home path it maps to. */
+interface StowTargetPair {
+  readonly source: string;
+  readonly target: string;
 }
 
-/** Recursively collect file-like stow package entries as home-relative targets. */
-function collectStowTargets(
+/** List source/target pairs that a stow package would manage. */
+function listStowTargetPairs(
+  packageRoot: string,
+  folder: string,
+): StowTargetPair[] {
+  const pairs: StowTargetPair[] = [];
+  collectStowTargetPairs(packageRoot, packageRoot, folder, pairs);
+  return pairs;
+}
+
+/** Recursively collect file-like stow package entries as source/target pairs. */
+function collectStowTargetPairs(
   packageRoot: string,
   currentDir: string,
   folder: string,
-  targets: string[],
+  pairs: StowTargetPair[],
 ): void {
   for (const entry of readdirSync(currentDir, { withFileTypes: true })) {
     if (folder === "agents" && AGENTS_PRIVATE_IGNORED_ENTRIES.has(entry.name)) {
@@ -141,10 +202,13 @@ function collectStowTargets(
 
     const source = join(currentDir, entry.name);
     if (entry.isDirectory()) {
-      collectStowTargets(packageRoot, source, folder, targets);
+      collectStowTargetPairs(packageRoot, source, folder, pairs);
       continue;
     }
 
-    targets.push(join(HOME_DIR, relative(packageRoot, source)));
+    pairs.push({
+      source,
+      target: join(HOME_DIR, relative(packageRoot, source)),
+    });
   }
 }

@@ -8,6 +8,7 @@ import { HOME_DIR, displayPath } from "../lib/paths.js";
 import { ensureHyprHostLink } from "../lib/omarchyHost.js";
 import { ensureStowInstalled } from "../lib/packageSetup.js";
 import {
+  backupConflictingPublicTargets,
   backupFileIfUnmanaged,
   backupPrivateStowTargets,
   findExternalSkillSymlinks,
@@ -42,8 +43,30 @@ export const install = Effect.gen(function* () {
   yield* Effect.sync(() => backupPublicFiles(config.publicDotfiles));
   yield* log.info("Backed up existing files (if any)");
 
+  // Committed-wins pre-pass: move live files that differ from their committed
+  // source out of the way so the public `--adopt` stow symlinks the committed
+  // config instead of overwriting the repo with stock leftovers.
+  const protectedTargets = yield* Effect.sync(() =>
+    backupConflictingPublicTargets(config.publicDotfiles),
+  );
+  if (protectedTargets.length > 0) {
+    yield* log.info(
+      `Protected ${protectedTargets.length} committed file(s) from --adopt (live copies moved to backup/):`,
+    );
+    for (const target of protectedTargets) {
+      yield* log.info(`  ${target}`);
+    }
+  }
+
   yield* log.section("Install Public Dotfiles");
+  const beforeStow = yield* publicRepoStatus(config.publicDotfiles, launcher);
   yield* stowRepo(config.publicDotfiles, "public", "install", launcher, log);
+  yield* warnIfAdoptDirtiedRepo(
+    config.publicDotfiles,
+    beforeStow,
+    launcher,
+    log,
+  );
 
   yield* log.section("Omarchy Host Links");
   yield* ensureHyprHostLink(config, log);
@@ -87,6 +110,67 @@ function backupPublicFiles(publicDotfiles: string): void {
     backupFileIfUnmanaged(source, backupDir);
   }
 }
+
+/** Read `git status --porcelain` for a repo, returning "" on failure. */
+const publicRepoStatus = (
+  repoDir: string,
+  launcher: {
+    readonly silent: (cmd: string) => Effect.Effect<string, LauncherError>;
+  },
+) =>
+  launcher
+    .silent(`git -C '${repoDir}' status --porcelain`)
+    .pipe(Effect.catch(() => Effect.succeed("")));
+
+/** Collect the home-relative paths that already have a working-tree status. */
+function dirtyPaths(porcelain: string): Set<string> {
+  const paths = new Set<string>();
+  for (const line of porcelain.split("\n")) {
+    if (line.length < 4) continue;
+    paths.add(line.slice(3));
+  }
+  return paths;
+}
+
+/**
+ * Warn when `stow --adopt` overwrote committed files in the public repo.
+ *
+ * Diffs the repo's working-tree status before and after stowing and flags
+ * tracked files that became dirty during the adopt, pointing at the
+ * `git restore` remedy. Pre-existing local edits are ignored so the warning
+ * only fires on genuine adopt clobbering the committed-wins pre-pass missed.
+ */
+const warnIfAdoptDirtiedRepo = (
+  repoDir: string,
+  before: string,
+  launcher: {
+    readonly silent: (cmd: string) => Effect.Effect<string, LauncherError>;
+  },
+  log: { readonly warn: (msg: string) => Effect.Effect<void> },
+) =>
+  Effect.gen(function* () {
+    const after = yield* publicRepoStatus(repoDir, launcher);
+    const beforeDirty = dirtyPaths(before);
+
+    const adopted: string[] = [];
+    for (const line of after.split("\n")) {
+      if (line.length < 4) continue;
+      const status = line.slice(0, 2);
+      const path = line.slice(3);
+      if (status === "??" || beforeDirty.has(path)) continue;
+      adopted.push(path);
+    }
+    if (adopted.length === 0) return;
+
+    yield* log.warn("stow --adopt changed committed files in the public repo:");
+    for (const path of adopted) {
+      yield* log.warn(`  ${path}`);
+    }
+    yield* log.warn(`Review: git -C ${displayPath(repoDir)} diff`);
+    yield* log.warn(
+      `Discard leftovers: git -C ${displayPath(repoDir)} restore <path>`,
+    );
+  });
 
 /** Stow all folders in a repo using install mode (--adopt for public, normal for private) */
 const stowRepo = (

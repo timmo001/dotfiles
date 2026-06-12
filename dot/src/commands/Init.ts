@@ -22,6 +22,7 @@ import {
   installMiseTools,
 } from "../lib/packageSetup.js";
 import { syncOmarchyRepos } from "../lib/omarchySync.js";
+import { ensureLocalesGenerated } from "../lib/localeSetup.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../lib/paths.js";
 import {
@@ -704,6 +705,7 @@ export function init(rawArgs: readonly string[]) {
     const options = yield* resolveInitOptions(parsed.options);
     yield* writeInitInProgressMarker(config, options);
 
+    yield* ensureLocalesGenerated;
     yield* syncOmarchyRepos({
       branch: options.branch,
       bootstrapBranch: options.bootstrapBranch,
