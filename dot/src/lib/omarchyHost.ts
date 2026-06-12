@@ -9,6 +9,7 @@ import {
 import { dirname, join, resolve } from "path";
 import type { ConfigService } from "../services/Config.js";
 import type { OutputLogService } from "../services/OutputLog.js";
+import { gitRemoteOriginSync, isGitRepo } from "./git.js";
 import { displayPath } from "./paths.js";
 import { ENV, envString } from "./env.js";
 
@@ -26,6 +27,39 @@ export function currentOmarchyHost(): string | null {
 /** Return the base Hypr repository path from the Omarchy repo config. */
 export function hyprRepoPath(config: ConfigService): string {
   return join(config.omarchy.repoBase, "hypr");
+}
+
+/** Remote slug of the retired external Hypr config repo, now vendored into dotfiles. */
+export const LEGACY_HYPR_REPO_SLUG = "timmo001/omarchy-hypr";
+
+/** Result of probing `~/.config/hypr` for the retired external Hypr clone. */
+export interface LegacyHyprRepo {
+  /** Whether `~/.config/hypr` is still the retired `omarchy-hypr` git clone. */
+  readonly present: boolean;
+  /** Absolute path probed (`~/.config/hypr`). */
+  readonly repoPath: string;
+  /** The `origin` remote URL found, if any. */
+  readonly remote: string;
+}
+
+/**
+ * Detect whether `~/.config/hypr` is still the retired external Hypr clone.
+ *
+ * The Hypr config is now a stowed dotfiles package; a machine still tracking
+ * {@link LEGACY_HYPR_REPO_SLUG} at `~/.config/hypr` must back it up before stow
+ * can take over. Used by the doctor check and the `dot update` migration halt.
+ */
+export function detectLegacyHyprRepo(config: ConfigService): LegacyHyprRepo {
+  const repoPath = hyprRepoPath(config);
+  if (!isGitRepo(repoPath)) {
+    return { present: false, repoPath, remote: "" };
+  }
+  const remote = gitRemoteOriginSync(repoPath);
+  return {
+    present: remote.includes(LEGACY_HYPR_REPO_SLUG),
+    repoPath,
+    remote,
+  };
 }
 
 type HostLinkStatus =

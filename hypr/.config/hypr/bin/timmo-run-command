@@ -1,0 +1,38 @@
+#!/bin/bash
+# Generic wrapper script to check if a command is installed before running it
+# Usage: timmo-run-command <command> [args...]
+
+if [[ $# -eq 0 ]]; then
+    echo "Error: No command specified" >&2
+    echo "Usage: timmo-run-command <command> [args...]" >&2
+    exit 1
+fi
+
+COMMAND="$1"
+shift
+
+if ! command -v "$COMMAND" &>/dev/null; then
+    # Try to find a package to install
+    PACKAGE=""
+
+    # Check if exact package name exists
+    if yay -Ss "^$COMMAND$" &>/dev/null | grep -q "^"; then
+        PACKAGE="$COMMAND"
+    # Try with -bin suffix
+    elif yay -Ss "^${COMMAND}-bin$" &>/dev/null | grep -q "^"; then
+        PACKAGE="${COMMAND}-bin"
+    # Try with -git suffix
+    elif yay -Ss "^${COMMAND}-git$" &>/dev/null | grep -q "^"; then
+        PACKAGE="${COMMAND}-git"
+    fi
+
+    if [[ -n "$PACKAGE" ]]; then
+        notify-send -u normal "$COMMAND not found" "Install with: yay -S $PACKAGE" -i dialog-warning
+    else
+        notify-send -u normal "$COMMAND not found" "Please install $COMMAND to use this feature" -i dialog-warning
+    fi
+    exit 1
+fi
+
+# Run the command with all arguments passed to this script
+exec "$COMMAND" "$@"

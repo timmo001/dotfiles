@@ -21,6 +21,7 @@ import {
   gitWorkingTreeClean,
 } from "../lib/git.js";
 import { HOME_DIR, displayPath } from "../lib/paths.js";
+import { detectLegacyHyprRepo } from "../lib/omarchyHost.js";
 import type { ConfigService } from "../services/Config.js";
 import type { InitCompleteMarkerStatus } from "../lib/initState.js";
 import type { DiffRepo, RepoCategory } from "../types.js";
@@ -327,6 +328,39 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
     });
   });
 
+/** Exit code from `dot update` when a machine still needs the Hypr migration. */
+export const MIGRATION_REQUIRED_EXIT = 11;
+
+/**
+ * Halt the update when `~/.config/hypr` is still the retired omarchy-hypr clone.
+ *
+ * The Hypr config is now a stowed dotfiles package. A machine still tracking
+ * the external clone must back it up before stow can take over, so this stops
+ * the pull/stow phases, prints manual remediation, and sets a non-zero exit.
+ * Returns true when the update should halt.
+ */
+const haltOnLegacyHyprRepo = (config: ConfigService) =>
+  Effect.gen(function* () {
+    const legacy = detectLegacyHyprRepo(config);
+    if (!legacy.present) return false;
+
+    const log = yield* OutputLog;
+    const path = displayPath(legacy.repoPath);
+    yield* log.section("Migration Required");
+    yield* log.error(`Legacy omarchy-hypr clone present at ${path}`);
+    yield* log.error(
+      "Hypr config is now a stowed dotfiles package — update halted.",
+    );
+    yield* log.info("Resolve on this machine, then re-run dot update:");
+    yield* log.info(`  mv ${path} ${path}.bak`);
+    yield* log.info("  dot stow --public");
+    yield* log.info(`  cp -a ${path}.bak/shaders ${path}/`);
+    yield* Effect.sync(() => {
+      process.exitCode = MIGRATION_REQUIRED_EXIT;
+    });
+    return true;
+  });
+
 /**
  * Run `dot update`: self-update, pull behind repos, restow dotfiles, rebuild.
  *
@@ -357,6 +391,15 @@ export const update = (opts?: UpdateOptions) =>
     if (isFullUpdate && opts?.selfUpdate !== false) {
       yield* selfUpdateAndRestart(config, opts);
       return;
+    }
+
+    // Migration halt: a machine still on the retired omarchy-hypr clone must
+    // back it up before stow can take over. Runs after the self-update restart
+    // so the rebuilt binary (carrying this guard) performs the check, halting
+    // the first phase until the legacy repo is resolved.
+    if (doPull || doStow) {
+      const halted = yield* haltOnLegacyHyprRepo(config);
+      if (halted) return;
     }
 
     const updatedNames = [...(opts?.postHookRepos ?? [])];

@@ -320,7 +320,7 @@ dot init --help              # smoke test: init help prints without side effects
 dot help                     # smoke test: help prints
 ```
 
-`dot init` clones the managed Omarchy repos into `~/.config/{hypr,waybar,ghostty,uwsm}`. If a stock Omarchy config directory already exists there and is not a git repo, init moves it aside with a `.dot-init-backup-*` suffix before cloning; do not delete those backups automatically.
+`dot init` clones the managed Omarchy repos into `~/.config/{waybar,ghostty,uwsm}`. If a stock Omarchy config directory already exists there and is not a git repo, init moves it aside with a `.dot-init-backup-*` suffix before cloning; do not delete those backups automatically. Hyprland config is no longer a tracked repo: it is a stowed dotfiles package (`hypr/.config/hypr/`, conf-only) laid down with `--no-folding`, with the runtime `~/.config/hypr/host` symlink selecting the host overrides.
 
 ## Logging Style
 

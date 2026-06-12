@@ -9,7 +9,7 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 - Single compiled binary at `scripts/.local/bin/dot` (Bun + Effect v4 + OpenTUI)
 - TUI dashboard with git diff/log views, GitHub workflow runs, GitHub notifications, repo notes, omarchy menus, git staging, and AI commit suggestions
 - Optional private overlays from `~/.config/dotfiles-private`
-- Omarchy repo sync for `bootstrap`, `hypr`, `waybar`, `ghostty`, and `uwsm`
+- Omarchy repo sync for `bootstrap`, `waybar`, `ghostty`, and `uwsm`
 - GitHub workflow run status and notification inbox via `dot git-workflows`, `dot git-notifications`, and Waybar
 
 ## Repository layout
@@ -25,10 +25,11 @@ My public Arch/Omarchy dotfiles, managed with GNU Stow and the `dot` command.
 
 ## Omarchy Host Overrides
 
-- `hypr`, `waybar`, `ghostty`, and `uwsm` are single-branch Omarchy repos expected on `main`.
+- Hyprland config is a stowed dotfiles package (`hypr/.config/hypr/`, conf-only), not a tracked Omarchy repo.
+- `waybar`, `ghostty`, and `uwsm` are single-branch Omarchy repos expected on `main`.
 - `bootstrap` is expected on `distro/omarchy`.
 - Hypr host-specific overrides live under `~/.config/hypr/hosts/$OMARCHY_HOST`.
-- `dot stow` creates `~/.config/hypr/host` as the active host symlink and `dot doctor` checks it.
+- `dot stow` lays down the Hypr package with `--no-folding`, creates `~/.config/hypr/host` as the active host symlink, and `dot doctor` checks it (and flags any leftover legacy `omarchy-hypr` clone).
 - If this host override setup changes, update the relevant `README.md`, `AGENTS.md`, and skill documentation together so the documented layout stays accurate.
 
 ## Quick start
@@ -59,9 +60,9 @@ dot doctor
 
 ## Command reference
 
-- `dot init` - one-time first-use setup for fresh machines: private dotfiles bootstrap when `gh auth` is available, Omarchy sync, early Hypr host-link setup (`--host <name>`, default `OMARCHY_HOST` or `desktop`), install/adopt, stowed mise tool install, package setup, machine hooks, agents sync, then `dot update`; logs to `/tmp/dot-init.log` by default or `--log <path>`; fails fast after successful init
+- `dot init` - one-time first-use setup for fresh machines: private dotfiles bootstrap when `gh auth` is available, Omarchy sync, Hypr host selection (`--host <name>`, default `OMARCHY_HOST` or `desktop`), install/adopt, stowed mise tool install, package setup, machine hooks, agents sync, then `dot update`; logs to `/tmp/dot-init.log` by default or `--log <path>`; fails fast after successful init
 - `dot install` - ensure prerequisites, then run the backup/adopt install flow for public/private dotfiles
-- `dot update` - self-update public dotfiles first, install dependencies, rebuild and restart on the rebuilt binary, then run Omarchy + public/private pull (including configured private git repos), stow refresh, Hypr host-link setup, and first-use completion marker backfill for already-setup machines
+- `dot update` - self-update public dotfiles first, install dependencies, rebuild and restart on the rebuilt binary, then run Omarchy + public/private pull (including configured private git repos), stow refresh, Hypr host-link setup, and first-use completion marker backfill for already-setup machines; halts after the restart if `~/.config/hypr` is still the retired `omarchy-hypr` clone
 - `dot stow` - stow refresh only (no git pull)
 - `dot doctor` - tool, repo, workflow runs, private git repo, remote, public/private package, private package repo, and Chromium extension health checks
 - `dot clean` - unstow private then public
@@ -146,11 +147,11 @@ OpenCode agents, commands, and plugins live in `agents/.config/opencode/`; share
 1. Install bootstrap build prerequisites: `sudo pacman -S --needed git mise`
 1. Run `cd ~/.config/dotfiles/dot && mise --no-config exec bun@latest -- bun install && mise --no-config exec bun@latest -- bun run build`
 1. Run `~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive --confirm` for desktop/VM setup, `dot init --host laptop --noninteractive --confirm` for laptop setup, or `dot init` in an interactive shell
-1. If stock Omarchy config directories already exist at `~/.config/hypr`, `~/.config/waybar`, `~/.config/ghostty`, or `~/.config/uwsm`, `dot init` backs them up with a `.dot-init-backup-*` suffix before cloning the managed repos
+1. If stock Omarchy config directories already exist at `~/.config/waybar`, `~/.config/ghostty`, or `~/.config/uwsm`, `dot init` backs them up with a `.dot-init-backup-*` suffix before cloning the managed repos; Hyprland config is stowed from the `hypr/` package instead
 1. Restart shell and confirm `dot help` is on `PATH`
 1. Run `dot git-diff` and verify expected repo state
 1. Run `dot update` for ongoing sync, stow, rebuild, and init-state backfill
 
-`dot init` creates `~/.config/hypr/host` immediately after syncing Omarchy repos and before stow/package setup. It then runs `mise install` immediately after stowing dotfiles and before installing managed Arch/AUR package lists, so Bun, Node, pnpm, and similar developer tools should come from the stowed mise config rather than global pacman packages.
+`dot init` selects the Hypr host early (setting `OMARCHY_HOST`) and the stow phase of the final update creates `~/.config/hypr/host`. It then runs `mise install` immediately after stowing dotfiles and before installing managed Arch/AUR package lists, so Bun, Node, pnpm, and similar developer tools should come from the stowed mise config rather than global pacman packages.
 
 For GNOME Boxes shared folders, Arch provides `spice-webdavd` in the `phodav` package. Share a host folder from Boxes and pass `--log <shared-path>/dot-init.log` when you want init output written somewhere visible from the host.

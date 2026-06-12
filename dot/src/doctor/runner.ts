@@ -18,6 +18,7 @@ import {
   checkLocalBinPath,
 } from "./checks/systemd.js";
 import { checkOmarchy } from "./checks/omarchy.js";
+import { checkLegacyHyprRepo } from "./checks/legacyHypr.js";
 import { checkBrowserFlags } from "./checks/browserFlags.js";
 import { checkHardwareVideo } from "./checks/hardwareVideo.js";
 import { checkBrowserExtensions } from "./checks/browserExtensions.js";
@@ -57,6 +58,7 @@ const sections: readonly SectionDef[] = [
   { name: "Daily volume reset", check: checkDailyVolumeReset },
   { name: "MHO-C303 clock sync", check: checkMhoc303ClockSync },
   { name: "Omarchy repository checks", check: checkOmarchy },
+  { name: "Legacy Hypr repo check", check: checkLegacyHyprRepo },
   { name: "Private access", check: checkPrivateAccess },
   { name: "Browser flags", check: checkBrowserFlags },
   { name: "Hardware video decode", check: checkHardwareVideo },

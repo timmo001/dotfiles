@@ -58,6 +58,21 @@ export function gitCurrentBranchSync(repoPath: string): string {
   }
 }
 
+/** Return the `origin` remote URL synchronously, or an empty string when unavailable. */
+export function gitRemoteOriginSync(repoPath: string): string {
+  try {
+    const result = Bun.spawnSync(["git", "remote", "get-url", "origin"], {
+      cwd: repoPath,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    if (result.exitCode !== 0) return "";
+    return new TextDecoder().decode(result.stdout).trim();
+  } catch {
+    return "";
+  }
+}
+
 /** Run `git <args>` and return stdout. */
 export function gitOutput(
   args: readonly string[],

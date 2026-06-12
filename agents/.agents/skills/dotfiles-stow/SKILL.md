@@ -73,10 +73,11 @@ Use `dot` as the canonical workflow command instead of raw `stow` for normal ope
 
 ## Omarchy Host Override Documentation Rules
 
-- `hypr`, `waybar`, `ghostty`, and `uwsm` are single-branch Omarchy repos expected on `main`.
+- Hyprland config is a stowed dotfiles package (`hypr/.config/hypr/`, conf-only), not a tracked Omarchy repo.
+- `waybar`, `ghostty`, and `uwsm` are single-branch Omarchy repos expected on `main`.
 - `bootstrap` is expected on `distro/omarchy`.
-- Hypr host-specific overrides live under `~/.config/hypr/hosts/$OMARCHY_HOST`.
-- `dot init` creates `~/.config/hypr/host` early after Omarchy repo sync; `dot stow` repairs it and `dot doctor` checks it.
+- Hypr host-specific overrides live under `~/.config/hypr/hosts/$OMARCHY_HOST`, selected by the runtime `~/.config/hypr/host` symlink.
+- `dot stow` lays down the Hypr package with `--no-folding` and creates/repairs `~/.config/hypr/host`; `dot doctor` checks it and flags any leftover legacy `omarchy-hypr` clone.
 - When changing host override layout or guidance, update the relevant `README.md`, `AGENTS.md`, and skill documentation together.
 - Repos that use host-specific overrides should have their own `README.md` and `AGENTS.md` that explicitly state the arrangement and the requirement to keep related documentation in sync when it changes.
 

@@ -1,0 +1,46 @@
+#!/bin/bash
+
+CONFIG="$HOME/.config/hypr/host/hyprsunset.conf"
+STEP=5
+MIN_GAMMA=5
+MAX_GAMMA=100
+STATE_DIR="$HOME/.config/hypr/.state"
+STATE_FILE="$STATE_DIR/hyprsunset-dim-enabled"
+LEVEL_FILE="$STATE_DIR/hyprsunset-dim-level"
+TOGGLE_SCRIPT="$HOME/.config/hypr/bin/hyprsunset-toggle-dim"
+
+if ! pgrep -x hyprsunset >/dev/null; then
+  setsid uwsm-app -- hyprsunset --config "$CONFIG" &
+  sleep 1
+fi
+
+if [[ ! -f "$STATE_FILE" ]]; then
+  "$TOGGLE_SCRIPT" >/dev/null 2>&1
+fi
+
+if [[ -f "$LEVEL_FILE" ]]; then
+  CURRENT_GAMMA=$(cat "$LEVEL_FILE")
+else
+  CURRENT_GAMMA=$(hyprctl hyprsunset gamma 2>/dev/null | grep -oE '[0-9]+')
+fi
+if [[ -z "$CURRENT_GAMMA" ]]; then
+  CURRENT_GAMMA=$MAX_GAMMA
+fi
+
+case "$1" in
+  up) NEW_GAMMA=$((CURRENT_GAMMA + STEP)) ;;
+  down) NEW_GAMMA=$((CURRENT_GAMMA - STEP)) ;;
+  *) exit 1 ;;
+esac
+
+if (( NEW_GAMMA < MIN_GAMMA )); then
+  NEW_GAMMA=$MIN_GAMMA
+elif (( NEW_GAMMA > MAX_GAMMA )); then
+  NEW_GAMMA=$MAX_GAMMA
+fi
+
+mkdir -p "$STATE_DIR"
+hyprctl hyprsunset identity
+hyprctl hyprsunset gamma "$NEW_GAMMA"
+echo "$NEW_GAMMA" > "$LEVEL_FILE"
+notify-send "Dim level: ${NEW_GAMMA}%"

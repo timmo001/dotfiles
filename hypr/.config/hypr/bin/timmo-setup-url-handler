@@ -1,0 +1,203 @@
+#!/bin/bash
+# Setup script for Omarchy URL Handler
+#
+# This script is idempotent - it checks if changes are already in place
+# before applying them. Safe to run multiple times.
+#
+# What it does:
+# 1. Creates a .desktop file for the URL handler
+# 2. Symlinks it to ~/.local/share/applications/
+# 3. Updates ~/.config/mimeapps.list to set this as the default URL handler
+# 4. Updates the desktop database to register the handler
+#
+# Usage:
+#   ./setup-url-handler.sh        # Install/update the handler
+#   ./setup-url-handler.sh remove # Remove the handler
+
+set -e
+
+# Configuration
+URL_HANDLER_DIR="$HOME/.config/hypr/url-handler"
+HANDLER_SCRIPT="timmo-url-handler"
+DESKTOP_FILE="$URL_HANDLER_DIR/omarchy-url-handler.desktop"
+APPLICATIONS_DIR="$HOME/.local/share/applications"
+DESKTOP_LINK="$APPLICATIONS_DIR/omarchy-url-handler.desktop"
+MIMEAPPS_FILE="$HOME/.config/mimeapps.list"
+
+# Function to create the .desktop file
+create_desktop_file() {
+    echo "Creating desktop file..."
+    cat > "$DESKTOP_FILE" <<EOF
+[Desktop Entry]
+Version=1.0
+Name=Omarchy URL Handler
+Comment=Custom URL handler that routes to webapp or browser based on patterns
+Exec=$HANDLER_SCRIPT %u
+Type=Application
+NoDisplay=true
+MimeType=x-scheme-handler/http;x-scheme-handler/https;x-scheme-handler/about;x-scheme-handler/unknown;
+Terminal=false
+StartupNotify=false
+EOF
+    echo "  ✓ Desktop file created at: $DESKTOP_FILE"
+}
+
+# Function to create symlink to applications directory
+create_symlink() {
+    if [[ -L "$DESKTOP_LINK" ]]; then
+        local current_target=$(readlink "$DESKTOP_LINK")
+        if [[ "$current_target" == "$DESKTOP_FILE" ]]; then
+            echo "  ✓ Symlink already exists and points to correct location"
+            return 0
+        else
+            echo "  → Updating symlink (was pointing to: $current_target)"
+            rm "$DESKTOP_LINK"
+        fi
+    elif [[ -e "$DESKTOP_LINK" ]]; then
+        echo "  → Removing existing file at symlink location"
+        rm "$DESKTOP_LINK"
+    fi
+
+    echo "Creating symlink..."
+    mkdir -p "$APPLICATIONS_DIR"
+    ln -s "$DESKTOP_FILE" "$DESKTOP_LINK"
+    echo "  ✓ Symlink created: $DESKTOP_LINK → $DESKTOP_FILE"
+}
+
+# Function to update mimeapps.list
+update_mimeapps() {
+    echo "Updating mimeapps.list..."
+
+    # Create file if it doesn't exist
+    if [[ ! -f "$MIMEAPPS_FILE" ]]; then
+        mkdir -p "$(dirname "$MIMEAPPS_FILE")"
+        cat > "$MIMEAPPS_FILE" <<EOF
+[Default Applications]
+EOF
+        echo "  → Created new mimeapps.list"
+    fi
+
+    # Check if our handler is already set
+    local schemes=(
+        "x-scheme-handler/http"
+        "x-scheme-handler/https"
+        "x-scheme-handler/about"
+        "x-scheme-handler/unknown"
+    )
+
+    local needs_update=false
+    for scheme in "${schemes[@]}"; do
+        if ! grep -q "^$scheme=omarchy-url-handler.desktop" "$MIMEAPPS_FILE"; then
+            needs_update=true
+            break
+        fi
+    done
+
+    if [[ "$needs_update" == false ]]; then
+        echo "  ✓ mimeapps.list already configured correctly"
+        return 0
+    fi
+
+    # Backup existing file
+    cp "$MIMEAPPS_FILE" "$MIMEAPPS_FILE.backup"
+    echo "  → Created backup: $MIMEAPPS_FILE.backup"
+
+    # Update or add entries
+    for scheme in "${schemes[@]}"; do
+        if grep -q "^$scheme=" "$MIMEAPPS_FILE"; then
+            # Update existing entry
+            sed -i "s|^$scheme=.*|$scheme=omarchy-url-handler.desktop|" "$MIMEAPPS_FILE"
+        else
+            # Add new entry under [Default Applications]
+            if grep -q "^\[Default Applications\]" "$MIMEAPPS_FILE"; then
+                sed -i "/^\[Default Applications\]/a $scheme=omarchy-url-handler.desktop" "$MIMEAPPS_FILE"
+            else
+                echo "" >> "$MIMEAPPS_FILE"
+                echo "[Default Applications]" >> "$MIMEAPPS_FILE"
+                echo "$scheme=omarchy-url-handler.desktop" >> "$MIMEAPPS_FILE"
+            fi
+        fi
+    done
+
+    echo "  ✓ Updated mimeapps.list"
+}
+
+# Function to update desktop database
+update_database() {
+    echo "Updating desktop database..."
+    if command -v update-desktop-database &> /dev/null; then
+        update-desktop-database "$APPLICATIONS_DIR" 2>/dev/null || true
+        echo "  ✓ Desktop database updated"
+    else
+        echo "  ⚠ update-desktop-database not found, skipping"
+    fi
+}
+
+# Function to remove the handler
+remove_handler() {
+    echo "Removing Omarchy URL Handler..."
+
+    # Remove symlink
+    if [[ -L "$DESKTOP_LINK" ]]; then
+        rm "$DESKTOP_LINK"
+        echo "  ✓ Removed symlink"
+    fi
+
+    # Remove desktop file
+    if [[ -f "$DESKTOP_FILE" ]]; then
+        rm "$DESKTOP_FILE"
+        echo "  ✓ Removed desktop file"
+    fi
+
+    # Restore previous handler in mimeapps.list
+    if [[ -f "$MIMEAPPS_FILE.backup" ]]; then
+        mv "$MIMEAPPS_FILE.backup" "$MIMEAPPS_FILE"
+        echo "  ✓ Restored mimeapps.list from backup"
+    else
+        echo "  ⚠ No backup found, manual cleanup of mimeapps.list may be needed"
+    fi
+
+    update_database
+    echo "✓ Handler removed successfully"
+}
+
+# Main installation process
+install_handler() {
+    echo "=== Omarchy URL Handler Setup ==="
+    echo ""
+
+    # Check if handler script exists in PATH
+    if ! command -v "$HANDLER_SCRIPT" &>/dev/null; then
+        echo "Error: Handler script '$HANDLER_SCRIPT' not found in PATH" >&2
+        echo "Make sure ~/.config/hypr/bin is in your PATH" >&2
+        exit 1
+    fi
+
+    # Perform installation steps
+    create_desktop_file
+    create_symlink
+    update_mimeapps
+    update_database
+
+    echo ""
+    echo "=== Setup Complete ==="
+    echo ""
+    echo "The URL handler is now installed and configured."
+    echo ""
+    echo "Configuration:"
+    echo "  • Handler script: $HANDLER_SCRIPT"
+    echo "  • Pattern rules:  $URL_HANDLER_DIR/patterns.conf"
+    echo ""
+    echo "To customize URL routing, edit: $URL_HANDLER_DIR/patterns.conf"
+    echo "To remove the handler, run: $0 remove"
+}
+
+# Main script logic
+case "${1:-}" in
+    remove)
+        remove_handler
+        ;;
+    *)
+        install_handler
+        ;;
+esac

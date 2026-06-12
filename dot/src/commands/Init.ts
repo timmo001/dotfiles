@@ -376,16 +376,22 @@ function ensureInitHyprHostLink(
     if (!config.omarchy.enabled) return;
 
     const host = initOmarchyHost(options);
-    const hostDir = join(hyprRepoPath(config), "hosts", host);
 
     yield* log.section("Omarchy Host Links");
+    // Select the host now so host-suffixed stow packages and the Hypr host
+    // link resolve correctly during the stow phase.
+    setEnv(ENV.OMARCHY_HOST, host);
+
+    const hostDir = join(hyprRepoPath(config), "hosts", host);
     if (!existsSync(hostDir)) {
-      return yield* fail(
-        `Missing Hypr host config ${displayPath(hostDir)}. Pass --host <name> or set OMARCHY_HOST to one of the configured hosts.`,
+      // Hypr config is now a stowed dotfiles package; the hosts directory and
+      // host link are created during the stow phase of the final update.
+      yield* log.info(
+        `Hypr host config ${displayPath(hostDir)} not present yet; stow will create the host link`,
       );
+      return;
     }
 
-    setEnv(ENV.OMARCHY_HOST, host);
     yield* ensureHyprHostLink(config, log, { host });
   });
 }

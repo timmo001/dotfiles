@@ -1,0 +1,81 @@
+#!/bin/bash
+# URL Handler for Omarchy
+# Routes URLs to either webapp or browser based on pattern rules
+
+# Get the URL from arguments
+url="$1"
+
+if [[ -z "$url" ]]; then
+    echo "Usage: $0 <url>" >&2
+    exit 1
+fi
+
+# Patterns file location
+PATTERNS_FILE="$HOME/.config/hypr/url-handler/patterns.conf"
+
+# Default action if no pattern matches
+DEFAULT_ACTION="browser"
+
+# Function to check if URL matches a glob pattern
+match_pattern() {
+    local url="$1"
+    local pattern="$2"
+
+    # Extract domain from URL for matching
+    local domain=$(echo "$url" | sed -E 's|^[a-zA-Z]+://([^/]+).*|\1|')
+
+    # Try matching against full URL
+    case "$url" in
+        $pattern) return 0 ;;
+    esac
+
+    # Try matching against domain
+    case "$domain" in
+        $pattern) return 0 ;;
+    esac
+
+    return 1
+}
+
+# Read patterns file and determine action
+action=""
+if [[ -f "$PATTERNS_FILE" ]]; then
+    while IFS= read -r line; do
+        # Skip empty lines and comments
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+
+        # Parse pattern line
+        if [[ "$line" =~ ^webapp:(.+) ]]; then
+            pattern="${BASH_REMATCH[1]}"
+            if match_pattern "$url" "$pattern"; then
+                action="webapp"
+                break
+            fi
+        elif [[ "$line" =~ ^browser:(.+) ]]; then
+            pattern="${BASH_REMATCH[1]}"
+            if match_pattern "$url" "$pattern"; then
+                action="browser"
+                break
+            fi
+        fi
+    done < "$PATTERNS_FILE"
+fi
+
+# Use default action if no match found
+[[ -z "$action" ]] && action="$DEFAULT_ACTION"
+
+# Execute the appropriate launcher
+case "$action" in
+    webapp)
+        exec omarchy-launch-webapp "$url"
+        ;;
+    browser)
+        # Launch browser directly to avoid recursive loop
+        # (since this handler is now the default-web-browser)
+        exec setsid uwsm-app -- /usr/bin/chromium "$url"
+        ;;
+    *)
+        echo "Unknown action: $action" >&2
+        exec setsid uwsm-app -- /usr/bin/chromium "$url"
+        ;;
+esac

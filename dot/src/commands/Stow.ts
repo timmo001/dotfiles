@@ -109,8 +109,13 @@ const stowRepo = (
       // Build restow command with folder-specific flags
       const flags: string[] = [];
       let externalLinks: ExternalSymlink[] = [];
-      if (folder === "agents") {
+      // hypr must stay a real directory (not a folded symlink) so the runtime
+      // ~/.config/hypr/host symlink, omarchy-provided shaders/, and
+      // ~/.local/state toggles can live alongside the stowed config.
+      if (folder === "agents" || folder === "hypr") {
         flags.push("--no-folding");
+      }
+      if (folder === "agents") {
         if (scope === "private") {
           flags.push(...AGENTS_PRIVATE_IGNORES);
         }
