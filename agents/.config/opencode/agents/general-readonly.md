@@ -30,6 +30,7 @@ permission:
     "gh pr list*": allow
     "gh pr status*": allow
     "gh pr view*": allow
+    "gh release view*": allow
     "gh repo view*": allow
     "gh run view*": allow
     "gh search code*": allow
@@ -48,9 +49,11 @@ permission:
     "git cat-file*": allow
     "git describe*": allow
     "git diff*": allow
+    "git fetch*": allow
     "git log*": allow
     "git ls-files*": allow
     "git ls-tree*": allow
+    "git reflog*": allow
     "git remote": allow
     "git remote -v": allow
     "git remote get-url*": allow
@@ -59,6 +62,9 @@ permission:
     "git show*": allow
     "git show-ref*": allow
     "git status*": allow
+    "git symbolic-ref*": allow
+    "git tag": allow
+    "git tag -l": allow
     "id": allow
     "ls*": allow
     "pwd": allow

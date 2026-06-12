@@ -21,6 +21,7 @@ permission:
     "gh issue list*": allow
     "gh issue view*": allow
     "gh pr checks*": allow
+    "gh pr diff*": allow
     "gh pr list*": allow
     "gh pr status*": allow
     "gh pr view*": allow
@@ -39,16 +40,18 @@ permission:
     "git branch -r": allow
     "git branch -v": allow
     "git branch -vv": allow
+    "git branch --list*": allow
     "git cat-file*": allow
     "git describe*": allow
     "git diff*": allow
     "git fetch*": allow
     "git log*": allow
-    "git ls-files": allow
+    "git ls-files*": allow
     "git ls-tree*": allow
-    "git reflog": allow
+    "git reflog*": allow
     "git remote": allow
     "git remote -v": allow
+    "git remote get-url*": allow
     "git rev-parse*": allow
     "git shortlog*": allow
     "git show*": allow
