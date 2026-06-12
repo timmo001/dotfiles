@@ -122,6 +122,38 @@ export function ghRepoClone(
   });
 }
 
+/**
+ * Clone a GitHub repository with captured stdio, returning only on success.
+ *
+ * Unlike {@link ghRepoClone} this runs through `executor.run`, so clone
+ * progress never reaches the terminal. Use it on flows that pin a spinner
+ * (e.g. `dot init`), where inherited git/gh output would clash with the
+ * animated line. Captured stdio cannot answer interactive prompts, so reserve
+ * it for public repositories or callers that already hold `gh` auth.
+ */
+export function ghRepoCloneCaptured(
+  remote: string,
+  repoPath: string,
+): Effect.Effect<void, GitCommandError, CommandExecutor> {
+  return Effect.gen(function* () {
+    mkdirSync(dirname(repoPath), { recursive: true });
+    const executor = yield* CommandExecutor;
+    yield* executor
+      .run("gh", ["repo", "clone", remote, repoPath])
+      .pipe(
+        Effect.catchTag("CommandError", (error) =>
+          fail(
+            commandFailureMessage(
+              "gh",
+              ["repo", "clone", remote, repoPath],
+              error,
+            ),
+          ),
+        ),
+      );
+  });
+}
+
 /** Return true when `repoPath` has no porcelain status entries. */
 export function gitWorkingTreeClean(
   repoPath: string,

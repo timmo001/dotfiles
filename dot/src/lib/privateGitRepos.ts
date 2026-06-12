@@ -3,7 +3,7 @@ import { existsSync } from "fs";
 import { Config } from "../services/Config.js";
 import { managedGitRepos } from "../services/GitConfig.js";
 import { OutputLog } from "../services/OutputLog.js";
-import { ghRepoClone } from "./git.js";
+import { ghRepoClone, ghRepoCloneCaptured } from "./git.js";
 import { displayPath } from "./paths.js";
 
 /** Domain error for private git repository bootstrap failures. */
@@ -18,9 +18,16 @@ function fail(message: string): Effect.Effect<never, GitConfigRepoError> {
   return Effect.fail(new GitConfigRepoError({ message }));
 }
 
-/** Clone configured private git repositories that are missing locally. */
+/**
+ * Clone configured private git repositories that are missing locally.
+ *
+ * Set `captured` to clone through {@link ghRepoCloneCaptured} under a per-repo
+ * spinner (used by `dot init`); leave it unset for the default inherited-stdio
+ * clone that streams git/gh progress (used by `dot update`).
+ */
 export function cloneMissingGitConfigRepos(opts?: {
   readonly strict?: boolean;
+  readonly captured?: boolean;
 }) {
   return Effect.gen(function* () {
     const config = yield* Config;
@@ -48,7 +55,13 @@ export function cloneMissingGitConfigRepos(opts?: {
     yield* log.section("Clone Private Git Repositories");
     for (const repo of missing) {
       yield* log.info(`Cloning ${repo.name} (${repo.github})`);
-      const cloneError = yield* ghRepoClone(repo.github, repo.path).pipe(
+      const clone = opts?.captured
+        ? log.withSpinner(
+            `Cloning ${repo.name}`,
+            ghRepoCloneCaptured(repo.github, repo.path),
+          )
+        : ghRepoClone(repo.github, repo.path);
+      const cloneError = yield* clone.pipe(
         Effect.map(() => null),
         Effect.catchTag("GitCommandError", (error) =>
           Effect.succeed(error.message),

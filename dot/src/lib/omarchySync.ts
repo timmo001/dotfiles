@@ -5,10 +5,9 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import {
-  ghRepoClone,
+  ghRepoCloneCaptured,
   gitExitCode,
   gitOutput,
-  gitRequired,
   gitWorkingTreeClean,
   isGitRepo,
 } from "./git.js";
@@ -149,7 +148,8 @@ function checkoutBranch(
     }
 
     yield* log.info(`Checking out ${repoName} branch '${branch}'`);
-    yield* gitRequired(["fetch", "origin", branch], { cwd: repoPath }).pipe(
+    yield* gitOutput(["fetch", "origin", branch], { cwd: repoPath }).pipe(
+      Effect.asVoid,
       Effect.catchTag("GitCommandError", (error) => fail(error.message)),
     );
 
@@ -160,20 +160,25 @@ function checkoutBranch(
       )) === 0;
 
     if (localBranchExists) {
-      yield* gitRequired(["checkout", branch], { cwd: repoPath }).pipe(
+      yield* gitOutput(["checkout", branch], { cwd: repoPath }).pipe(
+        Effect.asVoid,
         Effect.catchTag("GitCommandError", (error) => fail(error.message)),
       );
     } else {
-      yield* gitRequired(["checkout", "-B", branch, `origin/${branch}`], {
+      yield* gitOutput(["checkout", "-B", branch, `origin/${branch}`], {
         cwd: repoPath,
       }).pipe(
+        Effect.asVoid,
         Effect.catchTag("GitCommandError", (error) => fail(error.message)),
       );
     }
 
-    yield* gitRequired(["branch", "--set-upstream-to", `origin/${branch}`], {
+    yield* gitOutput(["branch", "--set-upstream-to", `origin/${branch}`], {
       cwd: repoPath,
-    }).pipe(Effect.catchTag("GitCommandError", (error) => fail(error.message)));
+    }).pipe(
+      Effect.asVoid,
+      Effect.catchTag("GitCommandError", (error) => fail(error.message)),
+    );
   });
 }
 
@@ -203,9 +208,12 @@ function syncExistingRepo(
 
     yield* ensureCleanRepo(repoName, repoPath);
     yield* checkoutBranch(repoName, repoPath, branch);
-    yield* gitRequired(["pull", "--rebase", "--no-edit"], {
+    yield* gitOutput(["pull", "--rebase", "--no-edit"], {
       cwd: repoPath,
-    }).pipe(Effect.catchTag("GitCommandError", (error) => fail(error.message)));
+    }).pipe(
+      Effect.asVoid,
+      Effect.catchTag("GitCommandError", (error) => fail(error.message)),
+    );
   });
 }
 
@@ -216,7 +224,7 @@ function cloneRepo(
   return Effect.gen(function* () {
     const log = yield* OutputLog;
     yield* log.info(`Cloning ${slug} -> ${displayPath(repoPath)}`);
-    yield* ghRepoClone(slug, repoPath).pipe(
+    yield* ghRepoCloneCaptured(slug, repoPath).pipe(
       Effect.catchTag("GitCommandError", (error) => fail(error.message)),
     );
   });
@@ -234,21 +242,25 @@ function syncRepo(
     const repoPath = join(config.omarchy.repoBase, repoName);
     const branch = desiredBranch(config, opts, repoName);
 
-    yield* log.section(`Omarchy sync: ${repoName}`);
-    if (existsSync(repoPath)) {
-      if (!isGitRepo(repoPath)) {
-        yield* backupExistingTarget(repoName, repoPath);
+    yield* log.withSpinner(
+      `Syncing Omarchy ${repoName}`,
+      Effect.gen(function* () {
+        if (existsSync(repoPath)) {
+          if (!isGitRepo(repoPath)) {
+            yield* backupExistingTarget(repoName, repoPath);
+            yield* cloneRepo(repoPath, slug);
+            yield* checkoutBranch(repoName, repoPath, branch);
+            return;
+          }
+
+          yield* syncExistingRepo(repoName, repoPath, slug, branch);
+          return;
+        }
+
         yield* cloneRepo(repoPath, slug);
         yield* checkoutBranch(repoName, repoPath, branch);
-        return;
-      }
-
-      yield* syncExistingRepo(repoName, repoPath, slug, branch);
-      return;
-    }
-
-    yield* cloneRepo(repoPath, slug);
-    yield* checkoutBranch(repoName, repoPath, branch);
+      }),
+    );
   });
 }
 

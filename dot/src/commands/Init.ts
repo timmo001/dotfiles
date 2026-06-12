@@ -711,7 +711,7 @@ export function init(rawArgs: readonly string[]) {
     });
     yield* ensureLoginShellZsh();
     yield* setupPrivatePackages(config, options);
-    yield* cloneMissingGitConfigRepos({ strict: true });
+    yield* cloneMissingGitConfigRepos({ strict: true, captured: true });
     yield* configureGitInclude(config);
     yield* installPacmanHooks();
     yield* enableDoctorStartupTimer();
