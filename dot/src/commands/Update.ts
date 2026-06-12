@@ -281,12 +281,15 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
     const scopeRepos = opts?.all ? "tracked repos" : "core/system repos";
     yield* log.section("Update Check");
 
-    const repos = yield* dotDiff.getAll().pipe(
-      Effect.catch((error) =>
-        Effect.gen(function* () {
-          yield* log.error(`Update check failed: ${error.message}`);
-          return null;
-        }),
+    const repos = yield* log.withSpinner(
+      "Checking repositories",
+      dotDiff.getAll().pipe(
+        Effect.catch((error) =>
+          Effect.gen(function* () {
+            yield* log.error(`Update check failed: ${error.message}`);
+            return null;
+          }),
+        ),
       ),
     );
 
@@ -363,9 +366,10 @@ export const update = (opts?: UpdateOptions) =>
       yield* cloneMissingGitConfigRepos({ strict: false });
 
       const dotDiff = yield* DotDiff;
-      const repos = yield* dotDiff
-        .getAll()
-        .pipe(Effect.catch(() => Effect.succeed([])));
+      const repos = yield* log.withSpinner(
+        "Scanning repositories",
+        dotDiff.getAll().pipe(Effect.catch(() => Effect.succeed([]))),
+      );
       for (const repo of repos) {
         yield* log.info(
           `${repo.name}: ${repoStatus(repo)} (${displayPath(repo.path)})`,
@@ -376,9 +380,12 @@ export const update = (opts?: UpdateOptions) =>
       // current default branch. Clones capture it once and never refresh it, so
       // a default-branch rename leaves it stale and misleads default-branch
       // detection in dot git-status, dot git-log, and the branch-context plugin.
-      for (const repo of repos) {
-        yield* gitRefreshRemoteHead(repo.path);
-      }
+      yield* log.withSpinner(
+        "Refreshing remote branches",
+        Effect.forEach(repos, (repo) => gitRefreshRemoteHead(repo.path), {
+          discard: true,
+        }),
+      );
 
       if (!config.canUsePrivate) {
         yield* log.warn(`Skipping private pull (${config.privateReason})`);

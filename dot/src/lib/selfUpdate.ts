@@ -40,15 +40,21 @@ export const rebuild = Effect.gen(function* () {
   log(`Rebuilding from: ${DOT_SRC}`);
 
   yield* outputLog.info("Installing dot dependencies");
-  yield* executor.run("bun", ["install"], { cwd: DOT_SRC });
+  yield* outputLog.withSpinner(
+    "Installing dot dependencies",
+    executor.run("bun", ["install"], { cwd: DOT_SRC }),
+  );
   log("Dependencies installed");
 
-  yield* outputLog.info("Compiling dot binary");
   const tmpPath = `${BIN_PATH}.new`;
-  yield* executor.run(
-    "bun",
-    ["build", "src/index.ts", "--compile", "--outfile", tmpPath],
-    { cwd: DOT_SRC },
+  yield* outputLog.info("Compiling dot binary");
+  yield* outputLog.withSpinner(
+    "Compiling dot binary",
+    executor.run(
+      "bun",
+      ["build", "src/index.ts", "--compile", "--outfile", tmpPath],
+      { cwd: DOT_SRC },
+    ),
   );
   log(`Built to: ${tmpPath}`);
 

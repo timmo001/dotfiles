@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { Config } from "../services/Config.js";
-import { OutputLog } from "../services/OutputLog.js";
+import { OutputLog, type OutputLogService } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { GitHub } from "../git/services/GitHub.js";
@@ -89,12 +89,15 @@ export const skillUpdates = (opts?: {
     const reviewItems: ReviewItem[] = [];
 
     for (const meta of skills) {
-      const result: CheckResult = yield* checkSkill(meta).pipe(
-        Effect.catch((err) =>
-          Effect.succeed({
-            type: "error" as const,
-            reason: String(err),
-          }),
+      const result: CheckResult = yield* log.withSpinner(
+        `Checking ${meta.name}`,
+        checkSkill(meta).pipe(
+          Effect.catch((err) =>
+            Effect.succeed({
+              type: "error" as const,
+              reason: String(err),
+            }),
+          ),
         ),
       );
 
@@ -132,10 +135,11 @@ export const skillUpdates = (opts?: {
           }
 
           // In update and interactive modes: auto-apply
-          const applied = yield* applySkillUpdate(meta, result.writeSha).pipe(
-            Effect.catch((err) => {
-              return Effect.succeed(false);
-            }),
+          const applied = yield* log.withSpinner(
+            `Applying ${meta.name}`,
+            applySkillUpdate(meta, result.writeSha).pipe(
+              Effect.catch(() => Effect.succeed(false)),
+            ),
           );
 
           if (applied) {
@@ -277,12 +281,7 @@ const opencodeReview = (
       opts?: { readonly waitForKey?: boolean },
     ) => Effect.Effect<void, LauncherError>;
   },
-  log: {
-    readonly info: (msg: string) => Effect.Effect<void>;
-    readonly warn: (msg: string) => Effect.Effect<void>;
-    readonly error: (msg: string) => Effect.Effect<void>;
-    readonly section: (title: string) => Effect.Effect<void>;
-  },
+  log: OutputLogService,
 ) =>
   Effect.gen(function* () {
     const executor = yield* CommandExecutor;
@@ -293,8 +292,9 @@ const opencodeReview = (
       yield* log.info(`Path:   ${meta.dir}`);
 
       // Build the diff report
-      const diffContent = yield* buildSingleDiff(meta).pipe(
-        Effect.catch(() => Effect.succeed("")),
+      const diffContent = yield* log.withSpinner(
+        `Building diff for ${meta.name}`,
+        buildSingleDiff(meta).pipe(Effect.catch(() => Effect.succeed(""))),
       );
 
       if (!diffContent) {

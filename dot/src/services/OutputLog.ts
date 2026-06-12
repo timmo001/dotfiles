@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, PubSub, Stream } from "effect";
+import { Context, Effect, Layer, PubSub, Schedule, Stream } from "effect";
 import { appendFileSync, mkdirSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { Config } from "./Config.js";
@@ -30,6 +30,18 @@ export interface OutputLogService {
   readonly stream: Stream.Stream<LogEntry>;
   /** Flush all buffered entries as a single formatted string */
   readonly flush: Effect.Effect<string>;
+  /**
+   * Run `effect` while showing an animated single-line spinner labelled
+   * `label`.
+   *
+   * Animates only on an interactive stdout TTY (CLI mode); on a non-TTY or
+   * in the TUI layer it runs `effect` unchanged. The spinner line is always
+   * cleared when `effect` completes, fails, or is interrupted.
+   */
+  readonly withSpinner: <A, E, R>(
+    label: string,
+    effect: Effect.Effect<A, E, R>,
+  ) => Effect.Effect<A, E, R>;
 }
 
 /** ANSI colour helpers for CLI output */
@@ -42,6 +54,32 @@ const ansi = {
   green: "\x1b[32m",
   cyan: "\x1b[36m",
 } as const;
+
+/** Braille spinner frames, matching opencode's standard Spinner (cli-spinners "dots"). */
+const SPINNER_FRAMES = [
+  "⠋",
+  "⠙",
+  "⠹",
+  "⠸",
+  "⠼",
+  "⠴",
+  "⠦",
+  "⠧",
+  "⠇",
+  "⠏",
+] as const;
+
+/** Spinner animation interval, matching opencode's 80ms cadence. */
+const SPINNER_INTERVAL = "80 millis";
+
+/** ANSI escape: return the cursor to column 0 and clear to end of line. */
+const CLEAR_LINE = "\r\x1b[K";
+
+/** ANSI escape: hide the terminal cursor. */
+const HIDE_CURSOR = "\x1b[?25l";
+
+/** ANSI escape: show the terminal cursor. */
+const SHOW_CURSOR = "\x1b[?25h";
 
 /** Format a log entry as a plain text line (for log file) */
 function formatPlain(entry: LogEntry): string {
@@ -131,6 +169,8 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
         section: (title) => emit("section", title),
         stream: Stream.fromPubSub(pubsub),
         flush: Effect.sync(() => entries.map(formatPlain).join("\n")),
+        // The TUI renders its own progress UI; spinner is a CLI-only concern.
+        withSpinner: (_label, effect) => effect,
       };
     }),
   );
@@ -149,13 +189,71 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
 
       initialiseLogFiles(paths);
 
+      // Animate the spinner only on an interactive TTY so frames and cursor
+      // escapes never leak into piped output, redirects, or the init log tee.
+      const spinnerEnabled = process.stdout.isTTY === true;
+      let spinner: {
+        label: string;
+        frame: number;
+        startedAt: number;
+      } | null = null;
+
+      const renderSpinner = (): void => {
+        if (!spinner) return;
+        const frame = SPINNER_FRAMES[spinner.frame % SPINNER_FRAMES.length]!;
+        const seconds = Math.floor((Date.now() - spinner.startedAt) / 1000);
+        const elapsed =
+          seconds >= 1 ? ` ${ansi.dim}(${seconds}s)${ansi.reset}` : "";
+        process.stdout.write(
+          `${CLEAR_LINE}${ansi.cyan}${frame}${ansi.reset} ${spinner.label}${elapsed}`,
+        );
+      };
+
       const emit = (level: LogLevel, message: string): Effect.Effect<void> =>
         Effect.sync(() => {
           const entry: LogEntry = { level, message, timestamp: Date.now() };
           entries.push(entry);
           appendLogFiles(paths, entry);
+          // Clear the spinner line before a real log line, then redraw it
+          // beneath so the spinner stays pinned to the bottom.
+          if (spinner) process.stdout.write(CLEAR_LINE);
           process.stdout.write(formatAnsi(entry) + "\n");
+          if (spinner) renderSpinner();
         });
+
+      const tick = Effect.sync(() => {
+        if (!spinner) return;
+        spinner.frame += 1;
+        renderSpinner();
+      });
+
+      const withSpinner = <A, E, R>(
+        label: string,
+        effect: Effect.Effect<A, E, R>,
+      ): Effect.Effect<A, E, R> => {
+        if (!spinnerEnabled) return effect;
+        return Effect.scoped(
+          Effect.gen(function* () {
+            yield* Effect.acquireRelease(
+              Effect.sync(() => {
+                spinner = { label, frame: 0, startedAt: Date.now() };
+                process.stdout.write(HIDE_CURSOR);
+                renderSpinner();
+              }),
+              () =>
+                Effect.sync(() => {
+                  spinner = null;
+                  process.stdout.write(CLEAR_LINE + SHOW_CURSOR);
+                }),
+            );
+            yield* tick.pipe(
+              Effect.repeat(Schedule.spaced(SPINNER_INTERVAL)),
+              Effect.forkScoped,
+            );
+            return yield* effect;
+          }),
+        );
+      };
 
       return {
         info: (msg) => emit("info", msg),
@@ -164,6 +262,7 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
         section: (title) => emit("section", title),
         stream: Stream.empty,
         flush: Effect.sync(() => entries.map(formatPlain).join("\n")),
+        withSpinner,
       };
     }),
   );

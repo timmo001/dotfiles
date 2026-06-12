@@ -42,7 +42,7 @@ export const doctor = (opts?: { readonly openOpencode?: boolean }) =>
     const log = yield* OutputLog;
     const launcher = yield* Launcher;
 
-    const report = yield* runDoctor;
+    const report = yield* log.withSpinner("Running health checks", runDoctor);
 
     // Header summary (matches legacy)
     yield* log.info(`Public repo: ${displayPath(config.publicDotfiles)}`);
