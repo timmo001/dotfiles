@@ -20,7 +20,11 @@ permission:
     "gh pr view*": allow
     "gh repo view*": allow
     "gh run view*": allow
+    "gh search code*": allow
+    "gh search commits*": allow
+    "gh search issues*": allow
     "gh search prs*": allow
+    "gh search repos*": allow
     "git branch*": allow
     "git cat-file*": allow
     "git diff*": allow
