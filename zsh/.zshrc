@@ -30,8 +30,21 @@ if [[ -n "${GHOSTTY_SHELL_FEATURES:-}" ]]; then
   export GHOSTTY_SHELL_FEATURES="${(j:,:)_dot_ghostty_features}"
   unset _dot_ghostty_features
 fi
-plugins=(git zsh-autosuggestions zsh-syntax-highlighting fast-syntax-highlighting zsh-autocomplete)
+plugins=(git)
 source "$ZSH/oh-my-zsh.sh"
+
+# ------------------------------
+# Zsh plugins (pacman/AUR, managed by dot via .dot-public-packages)
+# fast-syntax-highlighting replaces zsh-syntax-highlighting; do not load both.
+# zsh-autocomplete loads last so it sees the widgets the others define.
+# ------------------------------
+[[ -r /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ]] && \
+  source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+[[ -r /usr/share/zsh/plugins/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh ]] && \
+  source /usr/share/zsh/plugins/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh
+[[ -r /usr/share/zsh/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh ]] && \
+  source /usr/share/zsh/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh
+
 autoload -Uz _dot 2>/dev/null
 compdef _dot dot 2>/dev/null
 

@@ -15,3 +15,6 @@ sysbench
 sysstat
 topgrade-bin
 zsh
+zsh-autocomplete
+zsh-autosuggestions
+zsh-fast-syntax-highlighting
