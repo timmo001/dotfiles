@@ -1,0 +1,49 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "formatter": true,
+  "permission": {
+    "external_directory": {
+      "~/.config/opencode/**": "allow",
+      "~/.config/hypr/**": "allow",
+      "~/.config/hypr-desktop/**": "allow",
+      "~/.config/hypr-laptop/**": "allow",
+      "~/.config/waybar/**": "allow",
+      "~/.agents/skills/**": "allow",
+      "/tmp/**": "allow"
+    }
+  },
+  "references": {
+    "chromium-relaunch-as-app": {
+      "repository": "timmo001/chromium-relaunch-as-app",
+      "description": "Use for the Chromium relaunch-as-app extension behind the omarchy-launch-webapp binds"
+    },
+    "effect": {
+      "repository": "Effect-TS/effect",
+      "description": "Use for Effect v4 APIs when working in dot/"
+    },
+    "go-automate": {
+      "repository": "timmo001/go-automate",
+      "description": "Use for the go-automate CLI and HA bridge invoked by Waybar, Hypr binds, and dotfiles scripts"
+    },
+    "omarchy": {
+      "repository": "basecamp/omarchy",
+      "description": "Use for Omarchy desktop, Hyprland, and Waybar customisation details"
+    },
+    "opencode": {
+      "repository": "anomalyco/opencode",
+      "description": "Use for OpenCode config, agents, commands, skills, and plugin behaviour"
+    },
+    "opencode-config": {
+      "repository": "timmo001/opencode-config",
+      "description": "Use for the published OpenCode config mirrored from this repo"
+    },
+    "opentui": {
+      "repository": "anomalyco/opentui",
+      "description": "Use for OpenTUI core, renderables, and keyboard handling when working in dot/"
+    },
+    "system-bridge": {
+      "repository": "timmo001/system-bridge",
+      "description": "Use for the system-bridge backend autostarted via Hypr and its API/WebSocket behaviour"
+    }
+  }
+}

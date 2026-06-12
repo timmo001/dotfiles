@@ -10,5 +10,6 @@
 --ignore=\.dot-public-packages
 --ignore=^/\.opencode
 --ignore=renovate.json
+--ignore=^/opencode.json
 --ignore=^/dot
 --ignore=^/dot-migration
