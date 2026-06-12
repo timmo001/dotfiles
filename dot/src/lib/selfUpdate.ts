@@ -39,7 +39,6 @@ export const rebuild = Effect.gen(function* () {
 
   log(`Rebuilding from: ${DOT_SRC}`);
 
-  yield* outputLog.info("Installing dot dependencies");
   yield* outputLog.withSpinner(
     "Installing dot dependencies",
     executor.run("bun", ["install"], { cwd: DOT_SRC }),
@@ -47,7 +46,6 @@ export const rebuild = Effect.gen(function* () {
   log("Dependencies installed");
 
   const tmpPath = `${BIN_PATH}.new`;
-  yield* outputLog.info("Compiling dot binary");
   yield* outputLog.withSpinner(
     "Compiling dot binary",
     executor.run(

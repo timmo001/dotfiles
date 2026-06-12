@@ -34,9 +34,10 @@ export interface OutputLogService {
    * Run `effect` while showing an animated single-line spinner labelled
    * `label`.
    *
-   * Animates only on an interactive stdout TTY (CLI mode); on a non-TTY or
-   * in the TUI layer it runs `effect` unchanged. The spinner line is always
-   * cleared when `effect` completes, fails, or is interrupted.
+   * Animates only on an interactive stdout TTY (CLI mode); on a non-TTY the
+   * effect runs without animation. The spinner line is always cleared when
+   * `effect` completes, fails, or is interrupted. On successful completion a
+   * `<label> (<duration>)` line is logged (file + stdout, all environments).
    */
   readonly withSpinner: <A, E, R>(
     label: string,
@@ -80,6 +81,11 @@ const HIDE_CURSOR = "\x1b[?25l";
 
 /** ANSI escape: show the terminal cursor. */
 const SHOW_CURSOR = "\x1b[?25h";
+
+/** Format an elapsed duration with adaptive precision (ms under 1s, else one-decimal seconds). */
+function formatDuration(ms: number): string {
+  return ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`;
+}
 
 /** Format a log entry as a plain text line (for log file) */
 function formatPlain(entry: LogEntry): string {
@@ -169,8 +175,18 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
         section: (title) => emit("section", title),
         stream: Stream.fromPubSub(pubsub),
         flush: Effect.sync(() => entries.map(formatPlain).join("\n")),
-        // The TUI renders its own progress UI; spinner is a CLI-only concern.
-        withSpinner: (_label, effect) => effect,
+        // The TUI renders its own progress UI, so there is no animation here;
+        // still log the duration on completion to match the CLI contract.
+        withSpinner: (label, effect) =>
+          Effect.gen(function* () {
+            const startedAt = Date.now();
+            const result = yield* effect;
+            yield* emit(
+              "info",
+              `${label} (${formatDuration(Date.now() - startedAt)})`,
+            );
+            return result;
+          }),
       };
     }),
   );
@@ -227,16 +243,16 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
         renderSpinner();
       });
 
-      const withSpinner = <A, E, R>(
+      const runSpinner = <A, E, R>(
         label: string,
+        startedAt: number,
         effect: Effect.Effect<A, E, R>,
-      ): Effect.Effect<A, E, R> => {
-        if (!spinnerEnabled) return effect;
-        return Effect.scoped(
+      ): Effect.Effect<A, E, R> =>
+        Effect.scoped(
           Effect.gen(function* () {
             yield* Effect.acquireRelease(
               Effect.sync(() => {
-                spinner = { label, frame: 0, startedAt: Date.now() };
+                spinner = { label, frame: 0, startedAt };
                 process.stdout.write(HIDE_CURSOR);
                 renderSpinner();
               }),
@@ -253,7 +269,23 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
             return yield* effect;
           }),
         );
-      };
+
+      const withSpinner = <A, E, R>(
+        label: string,
+        effect: Effect.Effect<A, E, R>,
+      ): Effect.Effect<A, E, R> =>
+        Effect.gen(function* () {
+          const startedAt = Date.now();
+          // Animate only on a TTY; the duration line is logged either way.
+          const result = yield* spinnerEnabled
+            ? runSpinner(label, startedAt, effect)
+            : effect;
+          yield* emit(
+            "info",
+            `${label} (${formatDuration(Date.now() - startedAt)})`,
+          );
+          return result;
+        });
 
       return {
         info: (msg) => emit("info", msg),
