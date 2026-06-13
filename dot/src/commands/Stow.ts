@@ -98,7 +98,8 @@ const stowRepo = (
     for (const folder of folders) {
       yield* log.info(`[${scope}] stow ${folder} (repo: ${repoDisplayPath})`);
 
-      if (folder === "hypr") {
+      const isHypr = folder === "hypr";
+      if (isHypr) {
         // Never unstow hypr: Hyprland autoreload regenerates a default stub the
         // instant hyprland.conf goes missing, and that stub real file then
         // blocks the restow. Repair the link atomically instead and let the
@@ -154,6 +155,14 @@ const stowRepo = (
         return yield* Effect.fail(
           new LauncherError(`${scope} stow failed on ${folder}`, exit),
         );
+      }
+
+      // Apply any added or changed config and clear any prior emergency state.
+      // Ignore failure: Hyprland may not be running (headless, SSH).
+      if (isHypr) {
+        yield* launcher
+          .stream("hyprctl reload", { cwd: repoDir })
+          .pipe(Effect.catch(() => Effect.void));
       }
     }
   });
