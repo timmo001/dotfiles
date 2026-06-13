@@ -6,7 +6,10 @@ import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
 import { INTERNAL_STOW_FOLDERS, listStowFolders } from "../lib/stowFolders.js";
 import { displayPath } from "../lib/paths.js";
-import { ensureHyprHostLink } from "../lib/omarchyHost.js";
+import {
+  ensureHyprConfigLink,
+  ensureHyprHostLink,
+} from "../lib/omarchyHost.js";
 import {
   backupPrivateStowTargets,
   findExternalSkillSymlinks,
@@ -75,6 +78,7 @@ const stowRepo = (
   },
   log: {
     readonly info: (msg: string) => Effect.Effect<void>;
+    readonly warn: (msg: string) => Effect.Effect<void>;
     readonly error: (msg: string) => Effect.Effect<void>;
   },
 ) =>
@@ -94,16 +98,27 @@ const stowRepo = (
     for (const folder of folders) {
       yield* log.info(`[${scope}] stow ${folder} (repo: ${repoDisplayPath})`);
 
-      // Unstow first, then restow (equivalent to --restow per folder)
-      const unstowCmd = `stow -D ${folder}`;
-      const unstowExit = yield* launcher.stream(unstowCmd, { cwd: repoDir });
-      if (unstowExit !== 0) {
-        yield* log.error(
-          `[${scope}] unstow ${folder} failed (exit ${unstowExit})`,
-        );
-        return yield* Effect.fail(
-          new LauncherError(`${scope} unstow failed on ${folder}`, unstowExit),
-        );
+      if (folder === "hypr") {
+        // Never unstow hypr: Hyprland autoreload regenerates a default stub the
+        // instant hyprland.conf goes missing, and that stub real file then
+        // blocks the restow. Repair the link atomically instead and let the
+        // idempotent stow below fill in any missing files with no gap.
+        yield* ensureHyprConfigLink(repoDir, log);
+      } else {
+        // Unstow first, then restow (equivalent to --restow per folder)
+        const unstowCmd = `stow -D ${folder}`;
+        const unstowExit = yield* launcher.stream(unstowCmd, { cwd: repoDir });
+        if (unstowExit !== 0) {
+          yield* log.error(
+            `[${scope}] unstow ${folder} failed (exit ${unstowExit})`,
+          );
+          return yield* Effect.fail(
+            new LauncherError(
+              `${scope} unstow failed on ${folder}`,
+              unstowExit,
+            ),
+          );
+        }
       }
 
       // Build restow command with folder-specific flags

@@ -3,10 +3,12 @@ import {
   existsSync,
   lstatSync,
   readlinkSync,
+  renameSync,
   symlinkSync,
   unlinkSync,
 } from "fs";
-import { dirname, join, resolve } from "path";
+import { homedir } from "os";
+import { dirname, join, relative, resolve } from "path";
 import type { ConfigService } from "../services/Config.js";
 import type { OutputLogService } from "../services/OutputLog.js";
 import { gitRemoteOriginSync, isGitRepo } from "./git.js";
@@ -202,6 +204,80 @@ const updateHyprHostLink = (
     symlinkSync(request.hostDir, request.hostLink, "dir");
     yield* log.info(
       `Hypr host link set (${displayPath(request.hostLink)} -> hosts/${request.host})`,
+    );
+  });
+
+/** Path of the Hypr main config within both the hypr stow package and `~`. */
+const HYPR_CONFIG_REL = join(".config", "hypr", "hyprland.conf");
+
+/**
+ * Spell a packaged file's symlink the way GNU Stow does: relative to the stow
+ * target root (`~`), walking up to the root and back down through the stow
+ * directory. Stow only treats a link as its own when the spelling matches
+ * exactly, so a repaired link must reproduce this form rather than a
+ * shortest-path or absolute link.
+ */
+function stowLinkContent(
+  targetRoot: string,
+  linkPath: string,
+  sourceFile: string,
+): string {
+  return join(
+    relative(dirname(linkPath), targetRoot),
+    relative(targetRoot, sourceFile),
+  );
+}
+
+/**
+ * Atomically ensure `~/.config/hypr/hyprland.conf` is the stow-owned symlink
+ * before the hypr package is stowed.
+ *
+ * Hyprland enables config autoreload by default and writes a default stub
+ * config the instant the file goes missing. The previous unstow-then-restow
+ * stow flow removed this link, so Hyprland regenerated a stub real file that
+ * then blocked the restow. Replacing it through an atomic rename leaves no
+ * missing-file window, so Hyprland never regenerates and stow accepts the link
+ * as its own. A no-op when the link is already correct, or when the source or
+ * live `~/.config/hypr` directory is absent (a fresh machine stows cleanly).
+ */
+export const ensureHyprConfigLink = (
+  repoDir: string,
+  log: Pick<OutputLogService, "info" | "warn">,
+) =>
+  Effect.gen(function* () {
+    const home = homedir();
+    const linkPath = join(home, HYPR_CONFIG_REL);
+    const sourceFile = join(repoDir, "hypr", HYPR_CONFIG_REL);
+
+    if (!existsSync(sourceFile)) return;
+    if (!existsSync(dirname(linkPath))) return;
+
+    const linkContent = stowLinkContent(home, linkPath, sourceFile);
+
+    try {
+      const stat = lstatSync(linkPath);
+      if (stat.isSymbolicLink() && readlinkSync(linkPath) === linkContent) {
+        return;
+      }
+    } catch (error) {
+      if (!isMissingLinkError(error)) {
+        yield* log.warn(
+          `Skipping Hypr config link repair (could not inspect ${displayPath(linkPath)})`,
+        );
+        return;
+      }
+    }
+
+    const tmpLink = `${linkPath}.dot-${process.pid}`;
+    try {
+      unlinkSync(tmpLink);
+    } catch {
+      // No stale temp link to clear.
+    }
+    symlinkSync(linkContent, tmpLink);
+    renameSync(tmpLink, linkPath);
+    yield* log.info(
+      `Repaired Hypr config link (${displayPath(linkPath)} -> hyprland.conf)`,
     );
   });
 
