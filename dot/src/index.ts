@@ -651,11 +651,18 @@ if (mode.type === "native") {
         listNotes: () => Effect.runPromise(notes.list()),
         listAllNotes: () => Effect.runPromise(notes.listAll()),
         readNote: (filePath) => Effect.runPromise(notes.read(filePath)),
-        deleteNote: (filePath) => Effect.runPromise(notes.delete(filePath)),
+        deleteNote: (filePath) =>
+          Effect.runPromise(notes.delete(filePath, { sync: true })),
         createNoteDraft: (kind, name, description) =>
           Effect.runPromise(notes.createDraft(kind, name, description)),
         finaliseNoteDraft: (filePath) =>
-          Effect.runPromise(notes.finaliseDraft(filePath)).then(() => {}),
+          Effect.runPromise(notes.finaliseDraft(filePath, { sync: true })).then(
+            () => {},
+          ),
+        finaliseNoteEdit: (filePath) =>
+          Effect.runPromise(notes.finaliseEdit(filePath, { sync: true })).then(
+            () => {},
+          ),
       },
       {
         initialView,

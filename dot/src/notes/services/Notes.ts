@@ -45,6 +45,21 @@ export class NotesError extends Schema.TaggedErrorClass<NotesError>()(
   },
 ) {}
 
+/**
+ * Options controlling remote sync around a note mutation.
+ *
+ * Sync is for direct user actions in the `dot notes` / `dot handoffs` TUI only.
+ * The OpenCode note tools and the `dot note` CLI never set this.
+ */
+interface NoteSyncOptions {
+  /**
+   * When true, after the local commit, pull the notes vault with rebase and
+   * push it to its remote. Best-effort: pull/push failures never fail the note
+   * operation.
+   */
+  readonly sync?: boolean;
+}
+
 /** Service interface for repo-scoped note context and file I/O. */
 interface NotesService {
   /** Resolve the notes vault root. */
@@ -69,6 +84,7 @@ interface NotesService {
   /** Delete a note file and best-effort git commit it. */
   readonly delete: (
     filePath: string,
+    options?: NoteSyncOptions,
   ) => Effect.Effect<NoteDeleteResult, NotesError>;
   /** Create a draft note file with seed content (no git commit yet). */
   readonly createDraft: (
@@ -76,9 +92,15 @@ interface NotesService {
     name: string,
     description: string,
   ) => Effect.Effect<NoteCreateDraft, NotesError>;
-  /** Commit a draft note file after editor exit. */
+  /** Commit a freshly created draft note file after editor exit. */
   readonly finaliseDraft: (
     filePath: string,
+    options?: NoteSyncOptions,
+  ) => Effect.Effect<NoteCommitResult, NotesError>;
+  /** Commit an edited existing note file after editor exit. */
+  readonly finaliseEdit: (
+    filePath: string,
+    options?: NoteSyncOptions,
   ) => Effect.Effect<NoteCommitResult, NotesError>;
 }
 
@@ -394,6 +416,19 @@ function commitOutputLine(result: NoteCommitResult, message: string): string[] {
   return result.ok ? ["", `Committed to git: \`${message}\``] : [];
 }
 
+type SyncStepResult =
+  | { readonly ok: true; readonly text: string }
+  | { readonly ok: false; readonly error: string };
+
+function syncOutputLine(
+  label: string,
+  result: SyncStepResult | undefined,
+): string[] {
+  if (!result) return [];
+  if (result.ok) return [`${label}: ${result.text || "ok"}`];
+  return [`${label} failed (non-fatal): ${result.error}`];
+}
+
 /** Effect service for {@link NotesService}. */
 export class Notes extends Context.Service<Notes, NotesService>()("Notes") {
   static readonly layer = Layer.effect(
@@ -564,6 +599,63 @@ export class Notes extends Context.Service<Notes, NotesService>()("Notes") {
         return { ok: true, text: commit.text };
       });
 
+      const hasRemote = Effect.fn("Notes.hasRemote")(function* () {
+        const isRepo = yield* commandResult("git", [
+          "-C",
+          notesRoot,
+          "rev-parse",
+          "--is-inside-work-tree",
+        ]);
+        if (!isRepo.ok) return false;
+        const remotes = yield* commandResult("git", [
+          "-C",
+          notesRoot,
+          "remote",
+        ]);
+        return remotes.ok && remotes.text.trim().length > 0;
+      });
+
+      const gitPull = Effect.fn("Notes.gitPull")(function* () {
+        if (!(yield* hasRemote())) {
+          return { ok: true as const, text: "no remote; skipped pull" };
+        }
+        const pull = yield* commandResult("git", [
+          "-C",
+          notesRoot,
+          "pull",
+          "--rebase",
+          "--autostash",
+        ]);
+        return pull.ok
+          ? { ok: true as const, text: pull.text }
+          : { ok: false as const, error: pull.error };
+      });
+
+      const gitPush = Effect.fn("Notes.gitPush")(function* () {
+        if (!(yield* hasRemote())) {
+          return { ok: true as const, text: "no remote; skipped push" };
+        }
+        const push = yield* commandResult("git", ["-C", notesRoot, "push"]);
+        return push.ok
+          ? { ok: true as const, text: push.text }
+          : { ok: false as const, error: push.error };
+      });
+
+      // After a successful local commit, pull (rebase) then push. Best-effort:
+      // returns human-readable output lines and never fails the note operation.
+      const syncAfterCommit = Effect.fn("Notes.syncAfterCommit")(function* (
+        commitOk: boolean,
+        sync: boolean | undefined,
+      ) {
+        if (!sync || !commitOk) return [] as string[];
+        const pull = yield* gitPull();
+        const push = yield* gitPush();
+        return [
+          ...syncOutputLine("Pulled from remote", pull),
+          ...syncOutputLine("Pushed to remote", push),
+        ];
+      });
+
       return {
         root: Effect.succeed(notesRoot),
         repoNotesRoot: Effect.succeed(repoNotesRoot),
@@ -669,7 +761,7 @@ export class Notes extends Context.Service<Notes, NotesService>()("Notes") {
 
             return { path: resolvedPath, output, commit };
           }),
-        delete: (filePath) =>
+        delete: (filePath, options) =>
           Effect.gen(function* () {
             const resolvedPath = yield* assertInsideNotesRoot(filePath);
             const dir = dirname(resolvedPath);
@@ -691,9 +783,11 @@ export class Notes extends Context.Service<Notes, NotesService>()("Notes") {
 
             const message = `notes: delete ${filename}`;
             const commit = yield* gitCommit(resolvedPath, message);
+            const syncLines = yield* syncAfterCommit(commit.ok, options?.sync);
             const output = [
               `Deleted: ${resolvedPath}`,
               ...commitOutputLine(commit, message),
+              ...syncLines,
               "",
               "## How to undo",
               "",
@@ -749,7 +843,7 @@ export class Notes extends Context.Service<Notes, NotesService>()("Notes") {
 
             return { entry, content };
           }),
-        finaliseDraft: (filePath) =>
+        finaliseDraft: (filePath, options) =>
           Effect.gen(function* () {
             const resolvedPath = yield* assertInsideNotesRoot(filePath);
             if (!existsSync(resolvedPath)) {
@@ -757,7 +851,21 @@ export class Notes extends Context.Service<Notes, NotesService>()("Notes") {
             }
             const filename = basename(resolvedPath);
             const message = `notes: create ${filename}`;
-            return yield* gitCommit(resolvedPath, message);
+            const commit = yield* gitCommit(resolvedPath, message);
+            yield* syncAfterCommit(commit.ok, options?.sync);
+            return commit;
+          }),
+        finaliseEdit: (filePath, options) =>
+          Effect.gen(function* () {
+            const resolvedPath = yield* assertInsideNotesRoot(filePath);
+            if (!existsSync(resolvedPath)) {
+              return { ok: true, text: "note file was removed" };
+            }
+            const filename = basename(resolvedPath);
+            const message = `notes: edit ${filename}`;
+            const commit = yield* gitCommit(resolvedPath, message);
+            yield* syncAfterCommit(commit.ok, options?.sync);
+            return commit;
           }),
       };
     }),

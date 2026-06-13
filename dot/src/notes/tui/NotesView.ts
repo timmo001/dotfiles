@@ -159,6 +159,8 @@ export interface NotesViewOptions {
   ) => Promise<NoteCreateDraft>;
   /** Commit a draft note file after editor exit. */
   readonly finaliseNoteDraft: (filePath: string) => Promise<void>;
+  /** Commit an edited existing note file after editor exit. */
+  readonly finaliseNoteEdit: (filePath: string) => Promise<void>;
   /** Open the selected note in an external editor. */
   readonly onEditNote: (
     entry: NoteEntry,
@@ -768,6 +770,13 @@ export class NotesView {
     try {
       try {
         await this.callbacks.onEditNote(entry, kind);
+        if (!detached) {
+          try {
+            await this.callbacks.finaliseNoteEdit(entry.filePath);
+          } catch {
+            // Non-fatal: git commit/sync failure does not block the flow.
+          }
+        }
       } catch (error) {
         editError = error;
       }

@@ -119,6 +119,8 @@ export interface AppDeps {
   ) => Promise<NoteCreateDraft>;
   /** Commit a draft note after editor exit. */
   readonly finaliseNoteDraft: (filePath: string) => Promise<void>;
+  /** Commit an edited note after editor exit. */
+  readonly finaliseNoteEdit: (filePath: string) => Promise<void>;
 }
 
 /** Top-level TUI application shell managing a view stack and global keyboard */
@@ -303,6 +305,7 @@ export class App {
       deleteNote: deps.deleteNote,
       createNoteDraft: deps.createNoteDraft,
       finaliseNoteDraft: deps.finaliseNoteDraft,
+      finaliseNoteEdit: deps.finaliseNoteEdit,
       onEditNote: (entry, kind) =>
         openNoteInEditor(deps.renderer, entry, kind, () => {
           setTerminalTitle(`Dot TUI › ${this.notesTitle()}`);
