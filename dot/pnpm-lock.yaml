@@ -19,7 +19,7 @@ importers:
         version: 4.4.0
       effect:
         specifier: ^4.0.0-beta.66
-        version: 4.0.0-beta.80
+        version: 4.0.0-beta.83
       fuse.js:
         specifier: ^7.3.0
         version: 7.4.2
@@ -149,8 +149,8 @@ packages:
     resolution: {integrity: sha512-svtcdpS8CgJyqAjEQIXdb3OjhFVVYjzGAPO8WGCmRbrml64SPw/jJD4GoE98aR7r25A0XcgrK3F02yw9R/vhQw==}
     engines: {node: '>=0.3.1'}
 
-  effect@4.0.0-beta.80:
-    resolution: {integrity: sha512-MZuGfTbpHJosdl2WbO7jz4JN+J/rzDqPuobWwmVD4mrSaK/kUt+Mw7Vb+7AUgx3Iiysdbi6Q1C8wqB1NTGRSCA==}
+  effect@4.0.0-beta.83:
+    resolution: {integrity: sha512-0wsak8RtgGAr9UWSbVDgJHZcUqMSvicHcvaZv1MbMM7MCGgW4Rn/137J1MHQbwYPcwYGxT/IqehFd+UbYuj78w==}
 
   emoji-regex@10.6.0:
     resolution: {integrity: sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A==}
@@ -362,7 +362,7 @@ snapshots:
 
   diff@9.0.0: {}
 
-  effect@4.0.0-beta.80:
+  effect@4.0.0-beta.83:
     dependencies:
       '@standard-schema/spec': 1.1.0
       fast-check: 4.8.0
