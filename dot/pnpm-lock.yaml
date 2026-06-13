@@ -13,7 +13,7 @@ importers:
         version: 1.17.4
       '@opentui/core':
         specifier: ^0.4.0
-        version: 0.4.0(typescript@5.9.3)(web-tree-sitter@0.25.10)
+        version: 0.4.1(typescript@5.9.3)(web-tree-sitter@0.25.10)
       date-fns:
         specifier: ^4.4.0
         version: 4.4.0
@@ -66,50 +66,50 @@ packages:
   '@opencode-ai/sdk@1.17.4':
     resolution: {integrity: sha512-OdHkBoNIQOjQsPnFtkcxAp9HsLAKn/MQiq7wIQURkRARmw8yhFqGiMPYbNm+UfLn6bMkx97rdPkWQARejMyiXQ==}
 
-  '@opentui/core-darwin-arm64@0.4.0':
-    resolution: {integrity: sha512-t7VGLn2LyCGWSrhYdQ2xnq0L0sjg6VOdM6OyFxrZC3HU69m+PXqIhWMpGw/m8V6W7//uM1RX2GQrB/mgJ1Ce0Q==}
+  '@opentui/core-darwin-arm64@0.4.1':
+    resolution: {integrity: sha512-ocs73hj9n0zLArOTpUWIXCWU6ERThG+3wQzO78EvfaR4hb5FRrDHGKWTzXpr6ukSKsUtKdztK5XYTPsJ5e3vww==}
     cpu: [arm64]
     os: [darwin]
 
-  '@opentui/core-darwin-x64@0.4.0':
-    resolution: {integrity: sha512-/3goEuLFxn9df4fsLw9MSzbp8T3Rcs0NltCS3k73LcCb27pBmHH2FFNDKIj96m5ktK2JIWglEXcX85/i1qy4ug==}
+  '@opentui/core-darwin-x64@0.4.1':
+    resolution: {integrity: sha512-YogRtDBfxGeOkcSHDMsGkKFBIt3cWPMPGNu2AmEN6a5KKjDYwAZCudwbDJaUbZDCJjfAUHz9iXjhJVXJBXs9vQ==}
     cpu: [x64]
     os: [darwin]
 
-  '@opentui/core-linux-arm64-musl@0.4.0':
-    resolution: {integrity: sha512-8SL+HCpXc1Ott4MYfPzBdNM6XUhknBlqAKOmdDnTxkFSnnadJxhBJo+JYX1jxQP/lkd3jKUpEKDc51k9wud4tg==}
+  '@opentui/core-linux-arm64-musl@0.4.1':
+    resolution: {integrity: sha512-Eps9qB+vQ/Lel4ZYqMH87Um9oiU17Vu4oWzvRi40Yf+69vA1a3R4D7KUCeY3OxKWnRnwAHkMU9TxNnjKngPH/w==}
     cpu: [arm64]
     os: [linux]
     libc: [musl]
 
-  '@opentui/core-linux-arm64@0.4.0':
-    resolution: {integrity: sha512-KBv05c0e+FRUpPKRqrE5bDmmIhiJsho43EDXJuYOUYJAuGsTii8J8ws0Q4GYBIxZa/atG1Wv3rEKR7+RSd29lA==}
+  '@opentui/core-linux-arm64@0.4.1':
+    resolution: {integrity: sha512-sBZTS1eEGeVSQ8fAmDALKQcT7FckrhK64oHfEO7W0lJ+lXapfJuOKtTM33na54V56GAM9guk4RD4cbPeTXEh4g==}
     cpu: [arm64]
     os: [linux]
 
-  '@opentui/core-linux-x64-musl@0.4.0':
-    resolution: {integrity: sha512-EpBHP5S8O83VgI4YIM/CPZTUVIGJjYyk+dcYJl76phtRYF4CwZTvomQqyHb0lzXGZ7LwSDoQxsWtLs/hEOVyPA==}
+  '@opentui/core-linux-x64-musl@0.4.1':
+    resolution: {integrity: sha512-UYcp8XGX4DZXN+VYUVuCrJkbFMJ0L+VUVu0t5KqqaeJ74fI4NZ+DmwNqPPg1+C+EIzoW4QChlEUdhlZRdiEQiA==}
     cpu: [x64]
     os: [linux]
     libc: [musl]
 
-  '@opentui/core-linux-x64@0.4.0':
-    resolution: {integrity: sha512-n2aZdF2vkzXyV0C0JL9Ok3EDImtWqewZVcFutMkCRK+EQk3a4oa+bl2Y07XpxGN8FZyJxS+R/HWSoDbKBNKDAg==}
+  '@opentui/core-linux-x64@0.4.1':
+    resolution: {integrity: sha512-9/xjYGzX5RdUl0qmGQY0OCayjJ4VffDhsBmApQdseUkMT6LGL3RumI4zPK3Y9vo1fuy6ffLnriLFOktOgutXDg==}
     cpu: [x64]
     os: [linux]
 
-  '@opentui/core-win32-arm64@0.4.0':
-    resolution: {integrity: sha512-nUoKrHTHDMyqDGSqN7XfKvjaevgS460Pd99tzLCY4rTZcyDTdEUDfnLgEQrkURRCfUsBbwB1lNnq1aP4u+GeZQ==}
+  '@opentui/core-win32-arm64@0.4.1':
+    resolution: {integrity: sha512-hkIbpUJcKd4iLetTygPlFS45teOBTto49aXuxNeafYQUNd3ehiSwJENNBlAGULLfq+KP3dMJoWUiOcbuPVOQRA==}
     cpu: [arm64]
     os: [win32]
 
-  '@opentui/core-win32-x64@0.4.0':
-    resolution: {integrity: sha512-3uHjGfgjhw+tyxDoF6bs11Gbrt+8VP7k6vAMm9Qyvd8cExDFaNcR1E5Tf/6yR7oxGfh9E951ALue8M7h6l/lLQ==}
+  '@opentui/core-win32-x64@0.4.1':
+    resolution: {integrity: sha512-s1kGBcloy4ksl3wFCMqqOUFtXWlTTpzxe6pkLFhFhzgqKsMXHE9pwebiS3pzJkkFUxah5MYG+kbcn2Dw2Gdncg==}
     cpu: [x64]
     os: [win32]
 
-  '@opentui/core@0.4.0':
-    resolution: {integrity: sha512-G3TmJmaPoxD6SadwevZNE30H/pMZsr/qneVaKc7bmFBxA+uHgxFSAsMoFYaEqcFJM1dGt22kMJb+YY2ZahzqVw==}
+  '@opentui/core@0.4.1':
+    resolution: {integrity: sha512-ejlunoFCGLcghYGdfamI/DlWHsgCTLbuoL2JeOmFuLsN+DM5phje3CQbGR4tpl24cadCgHJQFomjoQ9Htvin+Q==}
     peerDependencies:
       web-tree-sitter: 0.25.10
 
@@ -261,9 +261,6 @@ packages:
     engines: {node: '>= 14.6'}
     hasBin: true
 
-  yoga-layout@3.2.1:
-    resolution: {integrity: sha512-0LPOt3AxKqMdFBZA3HBAt/t/8vIKq7VaQYbuA8WxCgung+p9TVyKRYdpvCb80HcdTN2NkbIKbhNwKUfm3tQywQ==}
-
 snapshots:
 
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4':
@@ -288,31 +285,31 @@ snapshots:
     dependencies:
       cross-spawn: 7.0.6
 
-  '@opentui/core-darwin-arm64@0.4.0':
+  '@opentui/core-darwin-arm64@0.4.1':
     optional: true
 
-  '@opentui/core-darwin-x64@0.4.0':
+  '@opentui/core-darwin-x64@0.4.1':
     optional: true
 
-  '@opentui/core-linux-arm64-musl@0.4.0':
+  '@opentui/core-linux-arm64-musl@0.4.1':
     optional: true
 
-  '@opentui/core-linux-arm64@0.4.0':
+  '@opentui/core-linux-arm64@0.4.1':
     optional: true
 
-  '@opentui/core-linux-x64-musl@0.4.0':
+  '@opentui/core-linux-x64-musl@0.4.1':
     optional: true
 
-  '@opentui/core-linux-x64@0.4.0':
+  '@opentui/core-linux-x64@0.4.1':
     optional: true
 
-  '@opentui/core-win32-arm64@0.4.0':
+  '@opentui/core-win32-arm64@0.4.1':
     optional: true
 
-  '@opentui/core-win32-x64@0.4.0':
+  '@opentui/core-win32-x64@0.4.1':
     optional: true
 
-  '@opentui/core@0.4.0(typescript@5.9.3)(web-tree-sitter@0.25.10)':
+  '@opentui/core@0.4.1(typescript@5.9.3)(web-tree-sitter@0.25.10)':
     dependencies:
       bun-ffi-structs: 0.2.3(typescript@5.9.3)
       diff: 9.0.0
@@ -320,16 +317,15 @@ snapshots:
       string-width: 7.2.0
       strip-ansi: 7.1.2
       web-tree-sitter: 0.25.10
-      yoga-layout: 3.2.1
     optionalDependencies:
-      '@opentui/core-darwin-arm64': 0.4.0
-      '@opentui/core-darwin-x64': 0.4.0
-      '@opentui/core-linux-arm64': 0.4.0
-      '@opentui/core-linux-arm64-musl': 0.4.0
-      '@opentui/core-linux-x64': 0.4.0
-      '@opentui/core-linux-x64-musl': 0.4.0
-      '@opentui/core-win32-arm64': 0.4.0
-      '@opentui/core-win32-x64': 0.4.0
+      '@opentui/core-darwin-arm64': 0.4.1
+      '@opentui/core-darwin-x64': 0.4.1
+      '@opentui/core-linux-arm64': 0.4.1
+      '@opentui/core-linux-arm64-musl': 0.4.1
+      '@opentui/core-linux-x64': 0.4.1
+      '@opentui/core-linux-x64-musl': 0.4.1
+      '@opentui/core-win32-arm64': 0.4.1
+      '@opentui/core-win32-x64': 0.4.1
     transitivePeerDependencies:
       - typescript
 
@@ -459,5 +455,3 @@ snapshots:
       isexe: 2.0.0
 
   yaml@2.9.0: {}
-
-  yoga-layout@3.2.1: {}
