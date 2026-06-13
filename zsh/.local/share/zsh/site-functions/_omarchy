@@ -1,0 +1,56 @@
+#compdef omarchy
+# Dynamic completion for the omarchy dispatcher. Scans omarchy-* binaries at
+# completion time because omarchy is third-party and its commands change on update.
+
+local omarchy_path bin_dir
+omarchy_path=$(command -v omarchy 2>/dev/null) || return 0
+bin_dir=${$(readlink -f -- "$omarchy_path" 2>/dev/null || print -r -- "$omarchy_path"):h}
+[[ -d $bin_dir ]] || return 0
+
+# Build the binary prefix from the non-flag words already typed, skipping
+# the leading "omarchy" and the word currently under the cursor.
+local prefix="omarchy"
+local part
+local i
+for (( i = 2; i < CURRENT; i++ )); do
+  part=$words[i]
+  [[ -z $part || $part == -* ]] && continue
+  prefix+="-$part"
+done
+
+local -A seen
+local -a candidates
+local file basename rest next
+for file in $bin_dir/$prefix-*(N); do
+  [[ -f $file && -x $file ]] || continue
+  basename=${file:t}
+  rest=${basename#${prefix}-}
+  next=${rest%%-*}
+  if [[ -n $next && -z ${seen[$next]:-} ]]; then
+    seen[$next]=1
+    candidates+=("$next")
+  fi
+done
+
+# First positional also offers the synthetic "commands" listing.
+if (( CURRENT == 2 )); then
+  candidates+=("commands")
+fi
+
+# "omarchy commands" takes its own flags.
+if [[ ${words[2]:-} == commands ]] && (( CURRENT >= 3 )); then
+  candidates+=("--all" "--json" "--markdown" "--check")
+fi
+
+# Leaf fallback: a single executable target may declare an args enum.
+if (( ${#candidates} == 0 )) && [[ -x $bin_dir/$prefix ]]; then
+  local args enum
+  args=$(grep -m 1 '^# omarchy:args=<' "$bin_dir/$prefix" 2>/dev/null)
+  enum=${args#*<}
+  enum=${enum%%>*}
+  if [[ $enum == *"|"* && $enum != *" "* ]]; then
+    candidates+=(${(s:|:)enum})
+  fi
+fi
+
+(( ${#candidates} )) && compadd -- $candidates

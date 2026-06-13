@@ -48,6 +48,9 @@ source "$ZSH/oh-my-zsh.sh"
 autoload -Uz _dot 2>/dev/null
 compdef _dot dot 2>/dev/null
 
+autoload -Uz _omarchy 2>/dev/null
+compdef _omarchy omarchy 2>/dev/null
+
 # ------------------------------
 # Terminal title
 # ------------------------------
