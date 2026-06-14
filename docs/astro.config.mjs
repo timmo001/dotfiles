@@ -111,12 +111,6 @@ export default defineConfig({
           label: 'OpenCode & Agents',
           items: [
             { label: 'Overview', slug: 'opencode' },
-          ],
-        },
-        {
-          label: 'Reference',
-          items: [
-            { label: 'Overview', slug: 'reference' },
             { label: 'Agents', slug: 'reference/agents' },
             { label: 'Commands', slug: 'reference/commands' },
             { label: 'Skills', slug: 'reference/skills' },

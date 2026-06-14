@@ -54,7 +54,7 @@ Everything is documented at <https://dotfiles.timmo.dev>:
 - [Stow Workflow](https://dotfiles.timmo.dev/stow/)
 - [Git & GitHub](https://dotfiles.timmo.dev/git/) — diff, log, status, workflows, notifications
 - [Omarchy & Hyprland](https://dotfiles.timmo.dev/omarchy/) — managed repos and host overrides
-- [OpenCode & Agents](https://dotfiles.timmo.dev/opencode/) and the [reference](https://dotfiles.timmo.dev/reference/)
+- [OpenCode & Agents](https://dotfiles.timmo.dev/opencode/) — agents, commands, skills, plugins, and the generated reference
 - [Notes & Handoffs](https://dotfiles.timmo.dev/notes/)
 - [Private Packages](https://dotfiles.timmo.dev/private-packages/)
 - [System Utilities](https://dotfiles.timmo.dev/utilities/)
