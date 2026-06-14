@@ -86,10 +86,11 @@ export default defineConfig({
           items: [
             { label: 'Overview', slug: 'dot' },
             { label: 'Command Reference', slug: 'dot/commands' },
+            { label: 'Stow Workflow', slug: 'dot/stow' },
+            { label: 'Notes & Handoffs', slug: 'dot/notes' },
+            { label: 'System Utilities', slug: 'dot/utilities' },
           ],
         },
-        { label: 'Bar Integrations', slug: 'bar-integrations' },
-        { label: 'Stow Workflow', slug: 'stow' },
         {
           label: 'Git & GitHub',
           items: [
@@ -97,6 +98,7 @@ export default defineConfig({
             { label: 'Status, Diff & Log', slug: 'git/status' },
             { label: 'Workflow Runs', slug: 'git/workflows' },
             { label: 'Notifications', slug: 'git/notifications' },
+            { label: 'Bar Integrations', slug: 'git/bar-integrations' },
           ],
         },
         {
@@ -117,15 +119,13 @@ export default defineConfig({
             { label: 'Plugins', slug: 'reference/plugins' },
           ],
         },
-        { label: 'Notes & Handoffs', slug: 'notes' },
-        { label: 'Private Packages', slug: 'private-packages' },
-        { label: 'System Utilities', slug: 'utilities' },
         {
-          label: 'Configuration',
+          label: 'Configuration & Reference',
           items: [
             { label: 'Overview', slug: 'configuration' },
             { label: 'Environment Variables', slug: 'configuration/environment' },
             { label: 'Private Git Config', slug: 'configuration/private-git' },
+            { label: 'Private Packages', slug: 'configuration/private-packages' },
           ],
         },
         { label: 'LLMs', slug: 'llms' },

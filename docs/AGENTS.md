@@ -10,7 +10,7 @@ This directory is the Astro + Starlight documentation site for the dotfiles repo
 ## Layout
 
 - Content: `src/content/docs/` (Markdown/MDX with YAML frontmatter; file names map to routes).
-- Components: `src/components/` (`LandingCard.astro`, `PageFrame.astro`).
+- Components: `src/components/` (`LandingCard.astro`).
 - Styles: `src/styles/starlight.css`.
 - Branding: `src/assets/logo.svg` + `public/favicon.svg` (twemoji toolbox).
 - Nav, site config, and OG meta: `astro.config.mjs`.

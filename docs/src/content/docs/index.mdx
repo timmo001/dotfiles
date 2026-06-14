@@ -3,9 +3,23 @@ title: Overview
 description: Public Omarchy dotfiles managed with GNU Stow and the dot command.
 ---
 
-import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+import { CardGrid } from '@astrojs/starlight/components';
 import { Icon } from 'astro-icon/components';
 import LandingCard from '../../components/LandingCard.astro';
+import LinkCardGrid from '../../components/LinkCardGrid.astro';
+
+export const getStartedCards = [
+  { title: 'Getting Started', href: '/getting-started/', description: 'Bootstrap a fresh machine and run the ongoing workflow.' },
+  { title: 'New Machine Checklist', href: '/getting-started/new-machine/', description: 'Step-by-step setup for a new Omarchy machine.' },
+];
+
+export const exploreCards = [
+  { title: 'The dot Command', href: '/dot/', description: 'The TUI dashboard and CLI, with the stow, notes, and utilities workflows.' },
+  { title: 'Git & GitHub', href: '/git/', description: 'Diff, log, status, workflow runs, notifications, and bar integrations.' },
+  { title: 'Omarchy & Hyprland', href: '/omarchy/', description: 'Managed Omarchy repos and per-host Hyprland overrides.' },
+  { title: 'OpenCode & Agents', href: '/opencode/', description: 'Agents, commands, skills, and plugins, with the generated reference.' },
+  { title: 'Configuration & Reference', href: '/configuration/', description: 'Environment options, private git config, and private packages.' },
+];
 
 These are my public [Omarchy](https://omarchy.org) dotfiles (Omarchy is an Arch Linux based distro), managed with [GNU Stow](https://www.gnu.org/software/stow/) and a single compiled `dot` binary. They cover shell, editor, and desktop config, plus the tooling that keeps multiple machines in sync.
 
@@ -50,22 +64,8 @@ Large parts of this project - including this documentation and much of the codeb
 
 ## Get started
 
-<CardGrid>
-  <LinkCard title="Getting Started" href="/getting-started/" description="Bootstrap a fresh machine and run the ongoing workflow." />
-  <LinkCard title="New Machine Checklist" href="/getting-started/new-machine/" description="Step-by-step setup for a new Omarchy machine." />
-</CardGrid>
+<LinkCardGrid cards={getStartedCards} />
 
 ## Explore
 
-<CardGrid>
-  <LinkCard title="The dot Command" href="/dot/" description="The TUI dashboard and CLI that drives everything." />
-  <LinkCard title="Stow Workflow" href="/stow/" description="How packages are stowed into your home directory." />
-  <LinkCard title="Git & GitHub" href="/git/" description="Diff, log, status, workflow runs, and notifications." />
-  <LinkCard title="Omarchy & Hyprland" href="/omarchy/" description="Managed Omarchy repos and per-host Hyprland overrides." />
-  <LinkCard title="OpenCode & Agents" href="/opencode/" description="Agents, commands, skills, and plugins, with the generated reference." />
-  <LinkCard title="Notes & Handoffs" href="/notes/" description="The repository notes browser and handoff workflow." />
-  <LinkCard title="Private Packages" href="/private-packages/" description="Build and publish to the private pacman repo." />
-  <LinkCard title="System Utilities" href="/utilities/" description="Health checks, benchmarks, and optional timers." />
-  <LinkCard title="Configuration" href="/configuration/" description="Environment options and private git config." />
-  <LinkCard title="LLMs" href="/llms/" description="Feed this documentation to an agent with llms.txt." />
-</CardGrid>
+<LinkCardGrid cards={exploreCards} />

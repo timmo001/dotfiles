@@ -1,0 +1,21 @@
+---
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+export interface LinkCardItem {
+  title: string;
+  href: string;
+  description?: string;
+}
+
+interface Props {
+  cards: readonly LinkCardItem[];
+}
+
+const { cards } = Astro.props;
+---
+
+<CardGrid>
+  {cards.map((card) => (
+    <LinkCard title={card.title} href={card.href} description={card.description} />
+  ))}
+</CardGrid>

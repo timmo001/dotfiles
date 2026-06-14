@@ -50,15 +50,12 @@ See the [install guide](https://dotfiles.timmo.dev/getting-started/install/) and
 Everything is documented at <https://dotfiles.timmo.dev>:
 
 - [Getting Started](https://dotfiles.timmo.dev/getting-started/) — install and new-machine checklist
-- [The `dot` Command](https://dotfiles.timmo.dev/dot/) — TUI + CLI, with the full [command reference](https://dotfiles.timmo.dev/dot/commands/)
-- [Stow Workflow](https://dotfiles.timmo.dev/stow/)
-- [Git & GitHub](https://dotfiles.timmo.dev/git/) — diff, log, status, workflows, notifications
+- [The `dot` Command](https://dotfiles.timmo.dev/dot/) — TUI + CLI, with the full [command reference](https://dotfiles.timmo.dev/dot/commands/), [stow workflow](https://dotfiles.timmo.dev/dot/stow/), [notes & handoffs](https://dotfiles.timmo.dev/dot/notes/), and [system utilities](https://dotfiles.timmo.dev/dot/utilities/)
+- [Git & GitHub](https://dotfiles.timmo.dev/git/) — diff, log, status, workflows, notifications, and bar integrations
 - [Omarchy & Hyprland](https://dotfiles.timmo.dev/omarchy/) — managed repos and host overrides
 - [OpenCode & Agents](https://dotfiles.timmo.dev/opencode/) — agents, commands, skills, plugins, and the generated reference
-- [Notes & Handoffs](https://dotfiles.timmo.dev/notes/)
-- [Private Packages](https://dotfiles.timmo.dev/private-packages/)
-- [System Utilities](https://dotfiles.timmo.dev/utilities/)
-- [Configuration](https://dotfiles.timmo.dev/configuration/) — environment options and private git config
+- [Configuration & Reference](https://dotfiles.timmo.dev/configuration/) — environment options, private git config, and [private packages](https://dotfiles.timmo.dev/configuration/private-packages/)
+- [LLMs](https://dotfiles.timmo.dev/llms/) — feed the docs to an agent with llms.txt
 
 ## Repository layout
 
