@@ -1,0 +1,28 @@
+---
+title: Bar Integrations
+description: Drive a status bar from dot's --bar-json git and GitHub commands.
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+Several `dot` commands emit one-line `--bar-json` output (with `text`, `tooltip`, and `class` fields) meant to be polled by a status bar module through its own short-lived cache. Left click opens the relevant TUI; right click refreshes the cache.
+
+The JSON format is bar-agnostic: it works with [Waybar](https://github.com/Alexays/Waybar), [Quickshell](https://quickshell.outfoxxed.me), or any bar that can run a command and parse JSON. My own setup uses Waybar, so the bundled modules and `dot doctor` checks target Waybar, but the commands themselves do not depend on it.
+
+## Commands with bar output
+
+<CardGrid>
+  <LinkCard title="Status & Diff" href="/git/status/" description="dot git-diff --bar-json flags managed repos that have uncommitted or unpushed changes." />
+  <LinkCard title="Workflow Runs" href="/git/workflows/" description="dot git-workflows --bar-json --since surfaces recent GitHub Actions activity for each repo's checked-out commit." />
+  <LinkCard title="Notifications" href="/git/notifications/" description="dot git-notifications --bar-json shows the GitHub notification inbox; left click opens the filtered TUI." />
+</CardGrid>
+
+The [command reference](/dot/commands/) lists the full `--bar-json` flag set on each command.
+
+## Configuration
+
+Which repos and which activity reach the bar is controlled by the private `dot-git.yml` config; the `notifications.bar.ignore_bot_activity` key tames bot noise. See [Private Git Config](/configuration/private-git/).
+
+## Health checks
+
+`dot doctor` verifies the active status-bar module wiring for `git-workflows` and `git-notifications`, alongside `dot-git.yml` and the absence of legacy `git-workflow-watch` leftovers.

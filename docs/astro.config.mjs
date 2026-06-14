@@ -96,6 +96,7 @@ export default defineConfig({
             { label: 'Status, Diff & Log', slug: 'git/status' },
             { label: 'Workflow Runs', slug: 'git/workflows' },
             { label: 'Notifications', slug: 'git/notifications' },
+            { label: 'Bar Integrations', slug: 'git/bar-integrations' },
           ],
         },
         {

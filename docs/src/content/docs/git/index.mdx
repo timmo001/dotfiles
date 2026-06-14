@@ -11,13 +11,12 @@ import { CardGrid, LinkCard } from '@astrojs/starlight/components';
   <LinkCard title="Status, Diff & Log" href="/git/status/" description="Branch status, diff/repo watcher, and recent commit history." />
   <LinkCard title="Workflow Runs" href="/git/workflows/" description="Watched GitHub Actions runs for each repo's checked-out HEAD." />
   <LinkCard title="Notifications" href="/git/notifications/" description="The GitHub notification inbox with read/done/ignore actions." />
+  <LinkCard title="Bar Integrations" href="/git/bar-integrations/" description="Drive a status bar from the --bar-json commands." />
 </CardGrid>
 
 ## Status bar integration
 
-The `git-workflows` and `git-notifications` commands emit one-line `--bar-json` output (with `text`, `tooltip`, and `class` fields) consumed by a status bar through a short-lived cache. Left click opens the relevant TUI; right click refreshes the cache. `dot doctor` verifies the active status-bar module wiring for both.
-
-The JSON format is bar-agnostic: it works with [Waybar](https://github.com/Alexays/Waybar), [Quickshell](https://quickshell.outfoxxed.me), or any bar that can run a command and parse JSON. My own setup uses Waybar, so the bundled modules and `dot doctor` checks target Waybar, but the commands themselves do not depend on it.
+Several of these commands emit `--bar-json` output for a status bar module. See [Bar Integrations](/git/bar-integrations/) for the JSON format, click actions, and which commands support it.
 
 ## Private repo configuration
 
