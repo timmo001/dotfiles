@@ -24,7 +24,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - Source: `dot/` (Bun + Effect v4 + OpenTUI; excluded from stow)
 - Docs site: `docs/` (Astro + Starlight, bun; excluded from stow; deploys to `dotfiles.timmo.dev`)
 - Stow config: `.stowrc`
-- Main docs: `README.md`
+- Readme: `README.md` (slim pointer; links to the docs site, which is the canonical human documentation)
 - OpenCode config source: `agents/.config/opencode/`
 - Skills source: `agents/.agents/skills/` (stows to `~/.agents/skills/`; shared by OpenCode + Codex)
 - Published OpenCode config: [`timmo001/opencode-config`](https://github.com/timmo001/opencode-config)
@@ -58,7 +58,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - Hypr host-specific overrides live under `~/.config/hypr/hosts/$OMARCHY_HOST`, selected by the runtime `~/.config/hypr/host` symlink.
 - `dot stow` lays down the Hypr package with `--no-folding` and creates/repairs `~/.config/hypr/host`; `dot doctor` checks the host link and flags any leftover legacy `omarchy-hypr` clone.
 - A machine still on the retired `~/.config/hypr` `omarchy-hypr` clone halts `dot update` until the clone is backed up and re-stowed.
-- If this host override layout changes, update all relevant `README.md`, `AGENTS.md`, and skill documentation together so repo instructions stay consistent.
+- If this host override layout changes, update the docs site (`docs/src/content/docs/`), `README.md`, `AGENTS.md`, and skill documentation together so repo instructions stay consistent.
 
 ## Stow Rules
 
@@ -79,6 +79,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 ## Documentation Site
 
 - `docs/` is the Astro + Starlight site published to `dotfiles.timmo.dev`; it is the single source of truth for human documentation. `README.md` links to it rather than duplicating content.
+- When you change documented behaviour (commands, flags, workflows, paths, or config), update the relevant page under `docs/src/content/docs/` in the same change. The docs site is canonical: do not document new or changed behaviour only in `README.md` or code comments.
 - Two sections are generated, not hand-written: `docs/src/content/docs/dot/commands.md` (from `dot/src/cli/spec.ts` via `bun run gen:cli`) and `docs/src/content/docs/reference/{agents,commands,skills,plugins}.md` (from the OpenCode assets via `bun run gen:opencode`). Edit the sources, not the generated pages.
 - The `opencode-publish` workflow regenerates and commits the OpenCode reference pages when the assets change; `tui-build` regenerates and commits the command reference when `dot/src/cli/spec.ts` changes.
 - Use **bun** in `docs/` (`bun install`, `bun run dev`, `bun run build`). `bun run build` runs `starlight-links-validator`; broken internal links fail the build.
