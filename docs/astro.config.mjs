@@ -88,6 +88,7 @@ export default defineConfig({
             { label: 'Command Reference', slug: 'dot/commands' },
           ],
         },
+        { label: 'Bar Integrations', slug: 'bar-integrations' },
         { label: 'Stow Workflow', slug: 'stow' },
         {
           label: 'Git & GitHub',
@@ -96,7 +97,6 @@ export default defineConfig({
             { label: 'Status, Diff & Log', slug: 'git/status' },
             { label: 'Workflow Runs', slug: 'git/workflows' },
             { label: 'Notifications', slug: 'git/notifications' },
-            { label: 'Bar Integrations', slug: 'git/bar-integrations' },
           ],
         },
         {
