@@ -3,7 +3,12 @@ title: Notes & Handoffs
 description: The repository notes browser and the handoff workflow.
 ---
 
-`dot` includes a repository notes system used by the OpenCode note commands. Notes live in a notes vault git repo (`~/Documents/notes` by default, overridable with the `NOTES` environment variable).
+`dot` includes a repository notes system used by the OpenCode note commands. Notes live in a notes vault git repo (`~/Documents/notes` by default, overridable with the `NOTES` environment variable). Inside the vault, notes are filed per repository under `repo-notes/{owner}/{repo}/`, keyed off the current git remote and branch.
+
+There are two ways into the same vault:
+
+- The **`dot notes` / `dot note` CLI** below, for humans browsing and editing notes directly.
+- The **OpenCode integration** ([slash commands, plugins, and the handoff skill](#opencode-integration)), for agents creating and loading notes during a session.
 
 ## Browse notes
 
@@ -43,6 +48,37 @@ dot note delete --path <path>          # delete a note file and commit it
 ```
 
 Writes and deletes are committed to the notes vault when possible.
+
+## OpenCode integration
+
+Agents do not touch the vault with the `dot note` CLI directly. The same files are created and loaded inside an OpenCode session through a set of slash commands, backed by two plugins.
+
+### Slash commands
+
+| Command | What it does |
+| --- | --- |
+| `/note-create` | Summarise the current conversation into a new note for this repo. |
+| `/note-append` | Add new content to an existing note (pick from a ranked list). |
+| `/note-reference` | Load one or more notes, any skills they reference, and suggested next steps into context. |
+| `/notes-list` | List this repo's notes, optionally filtered by tag. |
+| `/notes-search` | Rank this repo's notes against a topic, keyword, or tag. |
+| `/handoff` | Write a handoff document for the next agent session. |
+| `/handoffs-list` | List handoff notes for this repo (equivalent to `/notes-list handoff`). |
+
+See the [commands reference](/reference/commands/) for the full list.
+
+### How it works
+
+Two OpenCode [plugins](/reference/plugins/) wire the commands to the vault:
+
+- **`repo-notes`** injects a `<repo-note-context>` block at the top of each note command. It runs `dot notes context --command <name>`, which resolves the owner, repo, and branch from git and reports the target notes path. For listing and search commands it also includes existing note metadata; `/note-reference` additionally gets the full note bodies. The plugin also registers the `note_read`, `note_write`, `note_delete`, and `note_list` tools, each a thin wrapper over the `dot note` CLI.
+- **`notes-guard`** blocks the built-in `read`, `write`, `edit`, `grep`, `glob`, `list`, and `bash` tools from touching the vault, so the `note_*` tools are the only way in.
+
+So a typical create flow is: run `/note-create` → `repo-notes` injects the repo context → the command summarises the conversation and calls `note_write` → `dot note write` validates the path, writes the file, and commits it to the vault.
+
+### Handoffs
+
+`/handoff` defers to the [`handoff` skill](/reference/skills/), which compacts the conversation into a `handoff-{slug}.md` note tagged `handoff`. For work spanning multiple phases, branches, or PRs, the skill offers to split the handoff rather than writing one combined note, using a shared `handoff-{feature}-{phase}` naming convention so related handoffs group together under `dot handoffs --list`.
 
 ## Configuration
 
