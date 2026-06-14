@@ -51,10 +51,11 @@ Everything is documented at <https://dotfiles.timmo.dev>:
 
 - [Getting Started](https://dotfiles.timmo.dev/getting-started/) — install and new-machine checklist
 - [The `dot` Command](https://dotfiles.timmo.dev/dot/) — TUI + CLI, with the full [command reference](https://dotfiles.timmo.dev/dot/commands/), [stow workflow](https://dotfiles.timmo.dev/dot/stow/), [notes & handoffs](https://dotfiles.timmo.dev/dot/notes/), and [system utilities](https://dotfiles.timmo.dev/dot/utilities/)
-- [Git & GitHub](https://dotfiles.timmo.dev/git/) — diff, log, status, workflows, notifications, and bar integrations
+- [Git & GitHub](https://dotfiles.timmo.dev/git/) — diff, log, status, workflows, notifications
 - [Omarchy & Hyprland](https://dotfiles.timmo.dev/omarchy/) — managed repos and host overrides
 - [OpenCode & Agents](https://dotfiles.timmo.dev/opencode/) — agents, commands, skills, plugins, and the generated reference
 - [Configuration & Reference](https://dotfiles.timmo.dev/configuration/) — environment options, private git config, and [private packages](https://dotfiles.timmo.dev/configuration/private-packages/)
+- [Bar Integrations](https://dotfiles.timmo.dev/bar-integrations/) — the `--bar-json` status-bar contract shared by `dot` and external tools
 - [LLMs](https://dotfiles.timmo.dev/llms/) — feed the docs to an agent with llms.txt
 
 ## Repository layout

@@ -98,7 +98,6 @@ export default defineConfig({
             { label: 'Status, Diff & Log', slug: 'git/status' },
             { label: 'Workflow Runs', slug: 'git/workflows' },
             { label: 'Notifications', slug: 'git/notifications' },
-            { label: 'Bar Integrations', slug: 'git/bar-integrations' },
           ],
         },
         {
@@ -128,6 +127,7 @@ export default defineConfig({
             { label: 'Private Packages', slug: 'configuration/private-packages' },
           ],
         },
+        { label: 'Bar Integrations', slug: 'bar-integrations' },
         { label: 'LLMs', slug: 'llms' },
       ],
     }),
