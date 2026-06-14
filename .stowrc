@@ -13,3 +13,4 @@
 --ignore=^/opencode.json
 --ignore=^/dot
 --ignore=^/dot-migration
+--ignore=^/docs

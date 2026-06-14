@@ -1,3 +1,10 @@
+/**
+ * @file Restricts file tools to the repository notes directory for note commands.
+ *
+ * Blocks read/write/edit/grep/glob/list tool calls that target paths outside the
+ * notes vault while a note command is running, so agents cannot reach other files.
+ */
+
 import type { Plugin } from "@opencode-ai/plugin"
 import {
   argRecord,

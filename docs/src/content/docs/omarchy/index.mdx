@@ -1,0 +1,23 @@
+---
+title: Omarchy & Hyprland
+description: Managed Omarchy repos and per-host Hyprland overrides.
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+These dotfiles run on [Omarchy](https://omarchy.org). Some Omarchy components are tracked as managed git repos that `dot` keeps in sync, while [Hyprland](https://hyprland.org) config is a stowed dotfiles package with per-host overrides.
+
+<CardGrid>
+  <LinkCard title="Host Overrides" href="/omarchy/host-overrides/" description="Managed Omarchy repos and per-host Hyprland config." />
+  <LinkCard title="Controls" href="/omarchy/controls/" description="The dot omarchy desktop controls menu." />
+</CardGrid>
+
+## Managed Omarchy repos
+
+- `waybar`, `ghostty`, and `uwsm` are single-branch Omarchy repos expected on `main`.
+- `bootstrap` is expected on `distro/omarchy`.
+- `dot update` syncs these by default; `dot doctor` verifies their worktree branches.
+
+## Hyprland
+
+Hyprland config is **not** a tracked Omarchy repo. It is a stowed dotfiles package (`hypr/.config/hypr/`, conf-only) laid down with `--no-folding`, with host-specific overrides selected by a runtime symlink. See [Host Overrides](/omarchy/host-overrides/).

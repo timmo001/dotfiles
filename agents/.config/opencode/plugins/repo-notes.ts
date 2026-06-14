@@ -1,3 +1,10 @@
+/**
+ * @file Routes OpenCode note commands through `dot note` against the notes vault.
+ *
+ * Backs note-create, note-append, notes-list, notes-search, note-reference,
+ * handoff, and handoffs-list by reading and writing note files via the dot CLI.
+ */
+
 import type { Plugin } from "@opencode-ai/plugin"
 
 const NOTE_COMMANDS = new Set([

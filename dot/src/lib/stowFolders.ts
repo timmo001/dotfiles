@@ -3,7 +3,7 @@ import { join } from "path";
 import { ENV, envString } from "./env.js";
 
 /** Top-level repo directories that are not active stow packages. */
-export const INTERNAL_STOW_FOLDERS = ["dot", "dot-migration"] as const;
+export const INTERNAL_STOW_FOLDERS = ["dot", "dot-migration", "docs"] as const;
 
 const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);
 

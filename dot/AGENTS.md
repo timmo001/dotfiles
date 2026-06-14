@@ -176,6 +176,12 @@ update the command spec and run `dot completions zsh` after rebuilding the
 binary so `zsh/.local/share/zsh/site-functions/_dot` is regenerated before
 stow.
 
+`spec.ts` is also the source for the docs command reference at
+`docs/src/content/docs/dot/commands.md`. After changing the spec, regenerate it
+with `bun run gen:cli` in `../docs` (alongside `dot completions zsh`) and commit
+the result. The `tui-build` workflow regenerates and commits it on changes to
+`dot/`.
+
 ```
 dot                           # Main menu (TUI)
 dot init                      # One-time first-use setup, ending with dot update; logs to /tmp/dot-init.log

@@ -1,0 +1,36 @@
+---
+title: OpenCode & Agents
+description: Shared OpenCode agents, commands, skills, and plugins.
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+The repo ships a shared [OpenCode](https://opencode.ai) configuration: agents, slash commands, skills, and lifecycle plugins. The source lives in `agents/.config/opencode/` (agents, commands, plugins) and `agents/.agents/skills/` (skills shared by OpenCode and Codex via `~/.agents/skills/`).
+
+These are generated from this dotfiles repo and published automatically to [`timmo001/opencode-config`](https://github.com/timmo001/opencode-config) so they can be browsed, imported, and installed independently of the full dotfiles repo.
+
+:::tip[The portable basis]
+Unlike the rest of these (personal) dotfiles, the OpenCode config is built to be reused. `opencode-config` is a standalone, portable export with its own install instructions, so you can adopt individual agents, commands, skills, or plugins without taking on anything else here.
+:::
+
+<CardGrid>
+  <LinkCard title="Agents" href="/reference/agents/" description="Execution posture: permissions, tools, and delegation." />
+  <LinkCard title="Commands" href="/reference/commands/" description="Slash commands that route to agents and skills." />
+  <LinkCard title="Skills" href="/reference/skills/" description="Reusable workflows and behavioural contracts." />
+  <LinkCard title="Plugins" href="/reference/plugins/" description="Context, evidence, and enforcement hooks." />
+</CardGrid>
+
+## How it fits together
+
+- **Graduated agent permissions** — agents range from fully read-only (`reviewer`, `ask`) through ask-gated (`build-ask`) to edit-capable (`refactorer`, `build-locked`). A guard plugin stops read-only agents from escalating via subagent delegation.
+- **Skill-based routing** — commands are thin wrappers that name an agent, declare required skills, and state whether branch context is needed. The workflow logic lives in skills and plugins.
+- **Branch context injection** — the `branch-context` plugin pre-computes git/PR state once per command and injects it as structured XML, so commands do not run their own `git`/`gh` calls.
+- **Secret protection** — the `env-protection` plugin blocks reads of `.env` files (except `.env.example`).
+
+## Tooling
+
+- `dot agents-sync` — mirror `~/.config/opencode/AGENTS.md` into a Cursor rule.
+- `dot opencode-debug [--agent <name>]` — inspect resolved OpenCode config, paths, and skills.
+- `dot skill-updates` / `dot skill-check` — check/apply upstream skill updates and validate skill references.
+
+Publishing to `opencode-config` happens automatically via GitHub Actions on push. The full, always-current lists are in the generated [Reference](/reference/).

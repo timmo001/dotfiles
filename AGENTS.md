@@ -22,6 +22,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 - Main entrypoint: `scripts/.local/bin/dot` (compiled binary from `dot/src/`)
 - Source: `dot/` (Bun + Effect v4 + OpenTUI; excluded from stow)
+- Docs site: `docs/` (Astro + Starlight, bun; excluded from stow; deploys to `dotfiles.timmo.dev`)
 - Stow config: `.stowrc`
 - Main docs: `README.md`
 - OpenCode config source: `agents/.config/opencode/`
@@ -63,6 +64,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 - Repo root is a stow package root targeting `~/`.
 - Top-level docs for humans/agents must be ignored by stow.
+- The `docs/` site directory is ignored by stow (`--ignore=^/docs`); the repo root stows to `~/`, so any new root-level directory that should not be symlinked needs a matching `.stowrc` ignore.
 - Keep `.stowrc` ignore rules in sync when adding root-only files.
 - **Always run `dot stow`** (or `dot update`, which refreshes stow) to apply packages. Do **not** invoke GNU `stow` directly from the repo root: `dot` applies the correct adopt/no-folding flow and public-then-private ordering.
 
@@ -72,6 +74,14 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - When adding new `dot` subcommands that users may want quick access to, also add them to the menu registry in `dot/src/menu.ts`.
 - Keep command and flag metadata in `dot/src/cli/spec.ts`; help and completion generation consume that registry.
 - When changing `dot` commands, subcommands, aliases, or flags, run `dot completions zsh` after rebuilding so the stowed Zsh completion file stays in sync.
+- The `docs/` command reference (`docs/src/content/docs/dot/commands.md`) is generated from `dot/src/cli/spec.ts`. After changing commands, regenerate it with `bun run gen:cli` in `docs/` (alongside `dot completions zsh`) and commit the result.
+
+## Documentation Site
+
+- `docs/` is the Astro + Starlight site published to `dotfiles.timmo.dev`; it is the single source of truth for human documentation. `README.md` links to it rather than duplicating content.
+- Two sections are generated, not hand-written: `docs/src/content/docs/dot/commands.md` (from `dot/src/cli/spec.ts` via `bun run gen:cli`) and `docs/src/content/docs/reference/{agents,commands,skills,plugins}.md` (from the OpenCode assets via `bun run gen:opencode`). Edit the sources, not the generated pages.
+- The `opencode-publish` workflow regenerates and commits the OpenCode reference pages when the assets change; `tui-build` regenerates and commits the command reference when `dot/src/cli/spec.ts` changes.
+- Use **bun** in `docs/` (`bun install`, `bun run dev`, `bun run build`). `bun run build` runs `starlight-links-validator`; broken internal links fail the build.
 
 ## Script Configuration Policy
 

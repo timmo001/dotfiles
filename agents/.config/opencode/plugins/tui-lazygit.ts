@@ -1,3 +1,7 @@
+/**
+ * @file Registers a TUI keybinding to open lazygit.
+ */
+
 import type { TuiPlugin, TuiPluginModule } from "@opencode-ai/plugin/tui"
 
 const tui: TuiPlugin = async (api) => {

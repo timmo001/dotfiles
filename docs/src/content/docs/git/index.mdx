@@ -1,0 +1,24 @@
+---
+title: Git & GitHub
+description: Diff, log, status, workflow runs, and a notification inbox across managed repos.
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+`dot` includes a suite of git and GitHub tools that work across every managed repo (public and private dotfiles, configured private git repos, and Omarchy repos). Most have an interactive TUI plus `--raw` and `--bar-json` output for scripts and status bars.
+
+<CardGrid>
+  <LinkCard title="Status, Diff & Log" href="/git/status/" description="Branch status, diff/repo watcher, and recent commit history." />
+  <LinkCard title="Workflow Runs" href="/git/workflows/" description="Watched GitHub Actions runs for each repo's checked-out HEAD." />
+  <LinkCard title="Notifications" href="/git/notifications/" description="The GitHub notification inbox with read/done/ignore actions." />
+</CardGrid>
+
+## Status bar integration
+
+The `git-workflows` and `git-notifications` commands emit one-line `--bar-json` output (with `text`, `tooltip`, and `class` fields) consumed by a status bar through a short-lived cache. Left click opens the relevant TUI; right click refreshes the cache. `dot doctor` verifies the active status-bar module wiring for both.
+
+The JSON format is bar-agnostic: it works with [Waybar](https://github.com/Alexays/Waybar), [Quickshell](https://quickshell.outfoxxed.me), or any bar that can run a command and parse JSON. My own setup uses Waybar, so the bundled modules and `dot doctor` checks target Waybar, but the commands themselves do not depend on it.
+
+## Private repo configuration
+
+Repo activity, workflow, and notification settings live in the private `dot-git.yml` config. See [Private Git Config](/configuration/private-git/) for the schema.

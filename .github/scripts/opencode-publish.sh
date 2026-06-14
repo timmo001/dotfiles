@@ -58,8 +58,8 @@ requires() {
     deps+=('`branch-context` plugin')
   fi
   local ref
-  for ref in $(grep -P '[Ll]oad\b.*`[a-z][-a-z0-9]*`' "$file" 2>/dev/null \
-    | grep -oP '`[a-z][-a-z0-9]*`' | tr -d '`' | sort -u); do
+  for ref in $(grep -P '[Ll]oad\b.*`[a-z][-a-z0-9]*`' "$file" 2>/dev/null |
+    grep -oP '`[a-z][-a-z0-9]*`' | tr -d '`' | sort -u); do
     if [[ -d "${SKILLS_DIR}/${ref}" ]]; then
       local self
       self="$(basename "$(dirname "$file")")"
@@ -109,7 +109,7 @@ generate_readme() {
 
 Shared [OpenCode](https://opencode.ai) skills, agents, plugins, and commands.
 
-Published from [\`${DOTFILES_REPO}\`](${DOTFILES_URL}) — OpenCode config at [\`${OPENCODE_SOURCE_PREFIX}/\`](${OPENCODE_SOURCE_URL}) and shared skills at [\`${SKILLS_SOURCE_PREFIX}/\`](${SKILLS_SOURCE_URL}).
+Generated and published from [\`${DOTFILES_REPO}\`](${DOTFILES_URL}) — OpenCode config at [\`${OPENCODE_SOURCE_PREFIX}/\`](${OPENCODE_SOURCE_URL}) and shared skills at [\`${SKILLS_SOURCE_PREFIX}/\`](${SKILLS_SOURCE_URL}).
 
 ## Installation
 
@@ -262,21 +262,21 @@ This repo is published automatically via GitHub Actions when the OpenCode config
 [\`${OPENCODE_SOURCE_PREFIX}/\`](${OPENCODE_SOURCE_URL}) or shared skills
 [\`${SKILLS_SOURCE_PREFIX}/\`](${SKILLS_SOURCE_URL}) change.
 EOF
-  } > "${OUTPUT_DIR}/README.md"
+  } >"${OUTPUT_DIR}/README.md"
 }
 
 # ---------------------------------------------------------------------------
 # Generate AGENTS.md
 # ---------------------------------------------------------------------------
 generate_agents() {
-  cat <<EOF > "${OUTPUT_DIR}/AGENTS.md"
+  cat <<EOF >"${OUTPUT_DIR}/AGENTS.md"
 # AGENTS
 
 Instructions for coding agents working in this repository.
 
 ## Source
 
-This repo is a published snapshot of OpenCode configuration from [\`${DOTFILES_REPO}\`](${DOTFILES_URL}).
+This repo is generated from the OpenCode configuration in [\`${DOTFILES_REPO}\`](${DOTFILES_URL}).
 
 OpenCode config source: [\`${OPENCODE_SOURCE_PREFIX}/\`](${OPENCODE_SOURCE_URL})
 
@@ -320,8 +320,14 @@ sync_to_publish() {
   # Clean target (preserve .git)
   find "${PUBLISH_DIR}" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
 
-  [[ -d "${CONFIG_DIR}" ]] || { echo "::error::OpenCode config source not found: ${CONFIG_DIR}"; return 1; }
-  [[ -d "${SKILLS_DIR}" ]] || { echo "::error::Shared skills source not found: ${SKILLS_DIR}"; return 1; }
+  [[ -d "${CONFIG_DIR}" ]] || {
+    echo "::error::OpenCode config source not found: ${CONFIG_DIR}"
+    return 1
+  }
+  [[ -d "${SKILLS_DIR}" ]] || {
+    echo "::error::Shared skills source not found: ${SKILLS_DIR}"
+    return 1
+  }
 
   # Copy OpenCode config directories from their stow source.
   for dir in agents commands plugins; do

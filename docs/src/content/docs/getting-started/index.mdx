@@ -1,0 +1,27 @@
+---
+title: Getting Started
+description: Bootstrap a fresh Omarchy machine and run the ongoing dotfiles workflow.
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+The dotfiles are designed to bootstrap a fresh [Omarchy](https://omarchy.org) machine and then keep it in sync with a single command. Start with the install guide, then use the checklist for a clean walkthrough.
+
+:::caution[Personal dotfiles]
+These are my own dotfiles, tuned for [Omarchy](https://omarchy.org) and my machines, and they lean on a deeply integrated private overlay that is not public. Don't install them wholesale on a machine you care about, and don't expect them to work on plain Arch without replicating my setup. Read them, take the bits you want, and fold them into your own dotfiles instead. The steps below are how *I* set up a new machine, documented for reference.
+:::
+
+<CardGrid>
+  <LinkCard title="Install" href="/getting-started/install/" description="Prerequisites, bootstrap build, and the ongoing workflow." />
+  <LinkCard title="New Machine Checklist" href="/getting-started/new-machine/" description="A numbered, end-to-end setup for a new machine." />
+</CardGrid>
+
+## How it fits together
+
+- Public dotfiles live at `~/.config/dotfiles` and are applied with GNU Stow.
+- Optional private dotfiles at `~/.config/dotfiles-private` overlay machine-specific config.
+- The [`dot`](/dot/) binary owns setup (`dot init`), ongoing sync (`dot update`), and day-to-day tooling.
+
+:::note
+The `dot` binary is compiled from `dot/` in the repo. On a fresh machine you build it once with system `mise` before it is on your `PATH`. See [Install](/getting-started/install/).
+:::

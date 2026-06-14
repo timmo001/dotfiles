@@ -1,3 +1,7 @@
+/**
+ * @file Registers a TUI keybinding (ctrl+shift+g) to open `dot git-diff`.
+ */
+
 import type { TuiPlugin, TuiPluginModule } from "@opencode-ai/plugin/tui"
 
 const tui: TuiPlugin = async (api) => {

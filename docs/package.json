@@ -1,0 +1,31 @@
+{
+  "name": "dotfiles-docs",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "og": "bun scripts/generate-og.mjs",
+    "gen:cli": "bun scripts/generate-cli-reference.ts",
+    "gen:opencode": "bun scripts/generate-opencode-reference.ts",
+    "gen": "bun run gen:cli && bun run gen:opencode",
+    "predev": "bun run gen"
+  },
+  "dependencies": {
+    "@astrojs/markdown-remark": "^7.2.0",
+    "@astrojs/sitemap": "^3.7.3",
+    "@astrojs/starlight": "^0.40.0",
+    "@iconify-json/mdi": "^1.2.3",
+    "astro": "^6.4.6",
+    "astro-icon": "^1.1.5",
+    "rehype-external-links": "^3.0.0",
+    "sharp": "^0.35.1",
+    "starlight-contextual-menu": "^0.1.5",
+    "starlight-links-validator": "^0.24.1",
+    "starlight-llms-txt": "^0.10.0"
+  },
+  "trustedDependencies": ["esbuild", "sharp"]
+}
