@@ -1,8 +1,8 @@
-# Dotfiles
+# 🧰 Dotfiles
 
 My public [Omarchy](https://omarchy.org) dotfiles, managed with GNU Stow and the `dot` command.
 
-> **Full documentation:** <https://dotfiles.timmo.dev>
+**Full documentation:** <https://dotfiles.timmo.dev>
 
 > [!CAUTION]
 > These are my personal dotfiles, tightly tuned for [Omarchy](https://omarchy.org) (an Arch Linux based desktop) and my specific machines. They are **not** meant to be installed as-is by anyone else: they are unlikely to work on plain Arch without replicating my setup, and they lean on a deeply integrated private overlay (`dotfiles-private`) that is not public, so the public repo alone is an incomplete picture. Use them as a reference to borrow from, or pull individual pieces into your own dotfiles. The shared OpenCode config is the exception: it is generated from this repo and published as [`opencode-config`](https://github.com/timmo001/opencode-config), written to be portable and reusable on its own.
