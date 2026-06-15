@@ -18,6 +18,7 @@ import {
   strikethrough,
   underline,
 } from "@opentui/core";
+import Fuse, { type IFuseOptions } from "fuse.js";
 import type { NotesViewFilter } from "../../types.js";
 import type { Theme } from "../../theme.js";
 import type {
@@ -60,6 +61,7 @@ const HELP: readonly HelpEntry[] = [
   { key: "o", action: "OpenCode" },
   { key: "O", action: "OpenCode plan" },
   { key: "r", action: "refresh" },
+  { key: "/", action: "search" },
   { key: "s", action: "sort" },
   { key: "d", action: "delete" },
   { key: "Esc/Backspace", action: "back" },
@@ -78,6 +80,18 @@ const SORT_CYCLE: readonly NoteSortMode[] = [
   "name-asc",
   "name-desc",
 ];
+
+/** Fuse.js weighting for the type-to-filter note search over metadata. */
+const NOTE_SEARCH_OPTIONS: IFuseOptions<NoteEntry> = {
+  keys: [
+    { name: "name", weight: 4 },
+    { name: "tags", weight: 2 },
+    { name: "description", weight: 1 },
+    { name: "filename", weight: 1 },
+  ],
+  threshold: 0.4,
+  ignoreLocation: true,
+};
 type MarkdownRenderNode = NonNullable<MarkdownOptions["renderNode"]>;
 type MarkdownToken = Parameters<MarkdownRenderNode>[0];
 type BlockRenderer = (
@@ -208,6 +222,9 @@ export class NotesView {
   private filter: NotesViewFilter | null = null;
   private activePane: NotesPane = "list";
   private sortMode: NoteSortMode = "modified-desc";
+  private searchActive = false;
+  private searchQuery = "";
+  private searchIndex: Fuse<NoteEntry> | null = null;
   private entries: readonly NoteEntry[] = [];
   private visibleEntries: readonly NoteEntry[] = [];
   private showingAllRepos = false;
@@ -251,6 +268,7 @@ export class NotesView {
       o: () => void this.openSelectedInOpenCode("default"),
       "shift+o": () => void this.openSelectedInOpenCode("plan"),
       r: () => void this.refresh(),
+      "/": () => this.enterSearch(),
       s: () => this.cycleSortMode(),
       d: () => this.requestDeleteSelected(),
       escape: () => this.callbacks.onBack(),
@@ -515,6 +533,9 @@ export class NotesView {
     this.filter = filter;
     if (previous !== this.filterKey) {
       this.clearDeleteConfirmation(false);
+      this.searchActive = false;
+      this.searchQuery = "";
+      this.searchIndex = null;
       this.selectedFilePath = null;
       this.selectedEntry = null;
       this.loadedNoteContent = null;
@@ -567,6 +588,7 @@ export class NotesView {
       const loaded = await this.loadEntriesForActiveScope();
       if (version !== this.loadVersion) return false;
       this.entries = loaded.entries;
+      this.searchIndex = null;
       this.showingAllRepos = loaded.allRepos;
       this.usingAllReposFallback = loaded.fallback;
       this.titleBar.content = this.formatTitle();
@@ -576,6 +598,7 @@ export class NotesView {
     } catch (error) {
       if (version !== this.loadVersion) return false;
       this.entries = [];
+      this.searchIndex = null;
       this.visibleEntries = [];
       this.noteList.setItems([]);
       this.showEmptyContent("Unable to load notes", errorMessage(error));
@@ -613,11 +636,16 @@ export class NotesView {
   }
 
   private applyFilter(): void {
-    this.visibleEntries = this.sortEntries(
-      this.entries.filter((entry) => matchesFilter(entry, this.filter)),
+    const tagFiltered = this.entries.filter((entry) =>
+      matchesFilter(entry, this.filter),
     );
+    const query = this.searchQuery.trim();
+    const searching = query.length > 0;
+    this.visibleEntries = searching
+      ? this.searchEntries(tagFiltered, query)
+      : this.sortEntries(tagFiltered);
     this.noteList.setItems(
-      this.visibleEntries.map((entry) => this.listItem(entry)),
+      this.visibleEntries.map((entry) => this.listItem(entry, !searching)),
       this.selectedFilePath,
     );
     this.titleBar.content = this.formatTitle();
@@ -625,6 +653,88 @@ export class NotesView {
 
     if (this.visibleEntries.length === 0) {
       this.showEmptyContent(this.emptyTitle(), this.emptyBody());
+    }
+  }
+
+  /**
+   * Rank metadata-matching notes by Fuse relevance. Ranking overrides the sort
+   * mode and flattens all-repos section grouping while a query is active.
+   */
+  private searchEntries(
+    candidates: readonly NoteEntry[],
+    query: string,
+  ): readonly NoteEntry[] {
+    if (!this.searchIndex) {
+      this.searchIndex = new Fuse([...candidates], NOTE_SEARCH_OPTIONS);
+    }
+    return this.searchIndex.search(query).map((result) => result.item);
+  }
+
+  /**
+   * Begin type-to-filter search mode. The list is highlighted but not focused,
+   * so this view's global handler owns every keystroke and no other keybound
+   * action fires until Esc or Enter leaves search mode.
+   */
+  private enterSearch(): void {
+    if (this.searchActive) return;
+    this.searchActive = true;
+    this.activePane = "list";
+    this.leftPane.opacity = 1;
+    this.rightPane.opacity = INACTIVE_OPACITY;
+    this.noteList.setActive(true, { focus: false });
+    this.bodyScroll.blur();
+    this.updatePaneTitles();
+    this.updateStatusBar();
+  }
+
+  /**
+   * Leave search mode and return focus to the list, keeping the current query
+   * so the results stay filtered. The filter is reset on view re-entry.
+   */
+  private exitSearch(): void {
+    this.searchActive = false;
+    this.applyFilter();
+    this.focusPane("list");
+    this.updateStatusBar();
+  }
+
+  /** Re-filter the list live after the query changes. */
+  private applySearchQuery(): void {
+    this.applyFilter();
+    this.updateStatusBar();
+  }
+
+  private handleSearchKey(key: KeyEvent): void {
+    if (key.name === "escape" || key.name === "return") {
+      this.exitSearch();
+      return;
+    }
+    if (key.name === "up") {
+      this.noteList.selectPrevious();
+      return;
+    }
+    if (key.name === "down") {
+      this.noteList.selectNext();
+      return;
+    }
+    if (key.name === "backspace") {
+      if (this.searchQuery.length > 0) {
+        this.searchQuery = this.searchQuery.slice(0, -1);
+        this.applySearchQuery();
+      } else {
+        this.exitSearch();
+      }
+      return;
+    }
+    if (
+      key.sequence &&
+      key.sequence.length === 1 &&
+      !key.ctrl &&
+      !key.meta &&
+      key.sequence >= " "
+    ) {
+      this.searchQuery += key.sequence;
+      this.applySearchQuery();
     }
   }
 
@@ -1009,6 +1119,11 @@ export class NotesView {
       this.handleDeleteConfirmationKey(key);
       return;
     }
+    if (this.searchActive) {
+      key.preventDefault();
+      this.handleSearchKey(key);
+      return;
+    }
     this.keyHandlers[`${key.shift ? "shift+" : ""}${key.name}`]?.();
   }
 
@@ -1022,13 +1137,16 @@ export class NotesView {
     this.updatePaneTitles();
   }
 
-  private listItem(entry: NoteEntry): StatusListItem<NoteEntry> {
+  private listItem(
+    entry: NoteEntry,
+    showSection: boolean,
+  ): StatusListItem<NoteEntry> {
     return {
       id: entry.filePath,
       title: entry.name ?? stripMarkdownExtension(entry.filename),
       description: formatListDescription(entry),
       color: this.theme.fg,
-      section: this.showingAllRepos ? entry.repoSlug : undefined,
+      section: showSection && this.showingAllRepos ? entry.repoSlug : undefined,
       value: entry,
     };
   }
@@ -1061,9 +1179,14 @@ export class NotesView {
   }
 
   private updatePaneTitles(): void {
+    const query = this.searchQuery.trim();
+    const detail =
+      this.searchActive || query.length > 0
+        ? `search "${query}"`
+        : sortModeLabel(this.sortMode);
     this.listTitle.content = formatPaneTitle(
       this.theme,
-      `${notesDisplayTitle(this.filter, this.showingAllRepos)} • ${sortModeLabel(this.sortMode)}`,
+      `${notesDisplayTitle(this.filter, this.showingAllRepos)} • ${detail}`,
       this.visibleEntries.length,
       this.activePane === "list",
       countColor(this.theme, this.visibleEntries.length),
@@ -1078,8 +1201,23 @@ export class NotesView {
   }
 
   private updateStatusBar(): void {
+    if (this.searchActive && this.searchQuery.trim().length === 0) {
+      this.statusBar.content = t`${fg(this.theme.yellow)("Search:")}${fg(this.theme.fgMuted)(" type to filter")}    ${fg(this.theme.fgSubtle)("Enter/Esc exit")}`;
+      return;
+    }
+
     if (this.visibleEntries.length === 0) {
       this.statusBar.content = t`${fg(this.theme.fgMuted)(this.emptyBody())}`;
+      return;
+    }
+
+    const query = this.searchQuery.trim();
+    if (query.length > 0) {
+      const count = this.visibleEntries.length;
+      const hint = this.searchActive
+        ? "type to filter • Enter/Esc exit"
+        : "/ edit search";
+      this.statusBar.content = t`${fg(this.theme.fgMuted)(`${count} ${matchLabel(count)} for "${query}"`)}    ${fg(this.theme.fgSubtle)(hint)}`;
       return;
     }
 
@@ -1087,10 +1225,16 @@ export class NotesView {
   }
 
   private emptyTitle(): string {
+    if (this.searchQuery.trim().length > 0) return "No matches";
     return `No ${notesDisplayTitle(this.filter, this.showingAllRepos)}`;
   }
 
   private emptyBody(): string {
+    const query = this.searchQuery.trim();
+    if (query.length > 0) {
+      return `No notes match "${query}".`;
+    }
+
     if (this.showingAllRepos) {
       return this.filter?.tag
         ? `No notes tagged ${this.filter.tag} found in any repository.`
@@ -1583,6 +1727,10 @@ function formatStatusBarText(
 
 function noteLabel(count: number): string {
   return count === 1 ? "note" : "notes";
+}
+
+function matchLabel(count: number): string {
+  return count === 1 ? "match" : "matches";
 }
 
 function filterStatusText(

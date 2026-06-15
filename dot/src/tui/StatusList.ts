@@ -104,13 +104,23 @@ export class StatusList<T> extends ScrollBoxRenderable {
     return this.items[this.selectedIndex];
   }
 
-  /** Mark this list as the active pane and focus it */
-  setActive(active: boolean): void {
+  /** Mark this list as the active pane and optionally focus it */
+  setActive(active: boolean, options?: { readonly focus?: boolean }): void {
     this.active = active;
     this.opacity = active ? 1 : 0.45;
-    if (active) this.focus();
+    if (active && (options?.focus ?? true)) this.focus();
     else this.blur();
     this.refreshRowStyles();
+  }
+
+  /** Move the highlight to the next item without requiring focus */
+  selectNext(): void {
+    this.moveSelection(1);
+  }
+
+  /** Move the highlight to the previous item without requiring focus */
+  selectPrevious(): void {
+    this.moveSelection(-1);
   }
 
   /** Handle list navigation and selection keys */
