@@ -1490,9 +1490,15 @@ function sortComparator(
     case "modified-asc":
       return (a, b) => a.mtime - b.mtime;
     case "name-asc":
-      return (a, b) => noteSortName(a).localeCompare(noteSortName(b));
+      return (a, b) =>
+        noteSortName(a).localeCompare(noteSortName(b), undefined, {
+          numeric: true,
+        });
     case "name-desc":
-      return (a, b) => noteSortName(b).localeCompare(noteSortName(a));
+      return (a, b) =>
+        noteSortName(b).localeCompare(noteSortName(a), undefined, {
+          numeric: true,
+        });
   }
 }
 
