@@ -221,7 +221,7 @@ export class NotesView {
 
   private filter: NotesViewFilter | null = null;
   private activePane: NotesPane = "list";
-  private sortMode: NoteSortMode = "modified-desc";
+  private sortMode: NoteSortMode = "name-asc";
   private searchActive = false;
   private searchQuery = "";
   private searchIndex: Fuse<NoteEntry> | null = null;
