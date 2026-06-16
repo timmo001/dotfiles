@@ -3,7 +3,7 @@ title: Notes & Handoffs
 description: The repository notes browser and the handoff workflow.
 ---
 
-`dot` includes a repository notes system used by the OpenCode note commands. Notes live in a notes vault git repo (`~/Documents/notes` by default, overridable with the `NOTES` environment variable). Inside the vault, notes are filed per repository under `repo-notes/{owner}/{repo}/`, keyed off the current git remote and branch.
+`dot` includes a repository notes system used by the OpenCode note commands. Notes live in a notes vault git repo (`~/Documents/notes` by default, overridable with the `NOTES` environment variable). Inside the vault, notes are filed per repository under `repo-notes/{owner}/{repo}/`, keyed off the current git remote.
 
 There are two ways into the same vault:
 
@@ -83,7 +83,7 @@ See the [commands reference](/reference/commands/) for the full list.
 
 Two OpenCode [plugins](/reference/plugins/) wire the commands to the vault:
 
-- **`repo-notes`** injects a `<repo-note-context>` block at the top of each note command. It runs `dot notes context --command <name>`, which resolves the owner, repo, and branch from git and reports the target notes path. For listing and search commands it also includes existing note metadata; `/note-reference` additionally gets the full note bodies. The plugin also registers the `note_read`, `note_write`, `note_delete`, and `note_list` tools, each a thin wrapper over the `dot note` CLI.
+- **`repo-notes`** injects a `<repo-note-context>` block at the top of each note command. It runs `dot notes context --command <name>`, which resolves the owner and repo from git and reports the target notes path. For listing and search commands it also includes existing note metadata; `/note-reference` additionally gets the full note bodies. The plugin also registers the `note_read`, `note_write`, `note_delete`, and `note_list` tools, each a thin wrapper over the `dot note` CLI.
 - **`notes-guard`** blocks the built-in `read`, `write`, `edit`, `grep`, `glob`, `list`, and `bash` tools from touching the vault, so the `note_*` tools are the only way in.
 
 So a typical create flow is: run `/note-create` → `repo-notes` injects the repo context → the command summarises the conversation and calls `note_write` → `dot note write` validates the path, writes the file, and commits it to the vault.

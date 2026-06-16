@@ -63,7 +63,6 @@ This ensures:
 ```markdown
 ---
 repo: {owner}/{repo}
-branch: {branch}
 date: {current `date -Is` value, e.g. 2026-06-01T14:30:00+01:00}
 type: handoff
 name: {Short human-readable title, 3–6 words, Title Case}

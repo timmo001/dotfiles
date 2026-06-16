@@ -10,8 +10,6 @@ export interface RepoNoteIdentity {
   readonly remote: string;
   /** Raw remote URL used to resolve owner/repo. */
   readonly remoteUrl: string;
-  /** Current branch name, or `(unknown)` when detached/unavailable. */
-  readonly branch: string;
 }
 
 /** Handoff priority level, highest urgency first when ranked. */

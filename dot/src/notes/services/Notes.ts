@@ -315,7 +315,6 @@ function draftSeedContent(
     return [
       "---",
       `repo: ${repo}`,
-      `branch: ${identity.branch}`,
       `date: ${date}`,
       "type: handoff",
       `name: ${name}`,
@@ -347,7 +346,6 @@ function draftSeedContent(
   return [
     "---",
     `repo: ${repo}`,
-    `branch: ${identity.branch}`,
     `date: ${date}`,
     `name: ${name}`,
     `description: ${desc}`,
@@ -404,7 +402,6 @@ function formatContextBlock(args: {
     `Owner: ${args.identity.owner}`,
     `Repo: ${args.identity.repo}`,
     `Remote: ${args.identity.remote} (${args.identity.remoteUrl})`,
-    `Branch: ${args.identity.branch}`,
     `Notes root: ${args.notesRoot}`,
     `Notes path: ${args.notesPath}`,
     `Notes directory exists: ${args.notesExist ? "yes" : "no"}`,
@@ -581,21 +578,11 @@ export class Notes extends Context.Service<Notes, NotesService>()("Notes") {
           );
         }
 
-        const branchResult = yield* commandResult("git", [
-          "branch",
-          "--show-current",
-        ]);
-        const branch =
-          branchResult.ok && branchResult.text
-            ? branchResult.text
-            : "(unknown)";
-
         return {
           identity: {
             ...parsed,
             remote,
             remoteUrl: remoteUrl.text,
-            branch,
           },
           warnings,
         };

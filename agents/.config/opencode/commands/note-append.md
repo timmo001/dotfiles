@@ -51,7 +51,7 @@ Omit any section that has no new content for this session.
     - Append new bullet items to existing sections (Key Ideas, Decisions, Actions Taken, Open Threads)
     - If a section in the existing note is missing but has new content, add it
     - Do not duplicate existing items
-    - Do not change the frontmatter (repo, branch, date, name, description, tags) — those reflect the original session
+    - Do not change the frontmatter (repo, date, name, description, tags) — those reflect the original session
 4. Add a new `## Update — {current date -Is value}` section at the bottom of the file with a brief sentence summarising what this append session added (2–3 sentences max)
 5. Call the `note_write` tool with:
    - `path`: `{notes_path}/{filename}`

@@ -2,7 +2,7 @@
 description: Create a new note for the current repository in your Obsidian notes vault
 ---
 
-A `<repo-note-context>` block has been injected above by RepoNotesPlugin. It contains the resolved `owner`, `repo`, `notes_path`, and `branch` for the current repository.
+A `<repo-note-context>` block has been injected above by RepoNotesPlugin. It contains the resolved `owner`, `repo`, and `notes_path` for the current repository.
 
 Follow these steps exactly:
 
@@ -45,7 +45,6 @@ Use this exact format for `content`:
 ```markdown
 ---
 repo: {owner}/{repo}
-branch: {branch}
 date: {current `date -Is` value, e.g. 2026-06-01T14:30:00+01:00}
 name: {Short human-readable title, 3–6 words, Title Case}
 description: {One sentence describing what this note covers}
