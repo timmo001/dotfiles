@@ -35,7 +35,7 @@ const HELP: readonly HelpEntry[] = [
 ];
 
 /** Fixed width of each rich card; drives how many cards wrap per row. */
-const CARD_WIDTH = 44;
+const CARD_WIDTH = 42;
 
 const INITIAL_STATE = {
   summaryHeadline: "Loading dashboard sources",
@@ -344,6 +344,7 @@ export class DashboardView {
       paddingY: 0,
       backgroundColor: this.theme.bgElevated,
       flexDirection: "column",
+      overflow: "hidden",
       onMouseDown: (event) => {
         if (event.button !== 0) return;
         event.stopPropagation();
@@ -356,12 +357,16 @@ export class DashboardView {
       id: `dashboard-card-${card.id}-headline`,
       content: t`${fg(toneColor)(card.headline)}`,
       width: "100%",
+      flexShrink: 0,
       selectable: false,
     });
     const details = new TextRenderable(this.renderer, {
       id: `dashboard-card-${card.id}-details`,
       content: this.formatCardLines(card),
       width: "100%",
+      flexGrow: 1,
+      flexShrink: 1,
+      minHeight: 0,
       wrapMode: "word",
       selectable: false,
     });
@@ -369,6 +374,7 @@ export class DashboardView {
       id: `dashboard-card-${card.id}-action`,
       content: this.formatCardAction(card),
       width: "100%",
+      flexShrink: 0,
       selectable: false,
     });
 
