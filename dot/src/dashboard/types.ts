@@ -42,6 +42,8 @@ export interface DashboardBarValue {
   readonly unit?: string;
   /** Structured Home Assistant entity name (device + entity), if present. */
   readonly name?: string;
+  /** Shell command run to open this source (e.g. Home Assistant more-info), from source config. */
+  readonly openCommand?: string;
   /** Timestamp of the last source read attempt. */
   readonly updatedAt: Date;
   /** Human-readable source diagnostic for missing/error states. */

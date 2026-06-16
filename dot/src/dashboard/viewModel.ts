@@ -309,6 +309,11 @@ function environmentCard(
         ? "ok"
         : toneForBarValue(value, "muted"),
     lines: value.name ? [value.name] : [],
+    ...(value.openCommand && {
+      command: value.openCommand,
+      commandMode: "silent" as const,
+      actionLabel: "Open in Home Assistant",
+    }),
   };
 }
 

@@ -50,6 +50,7 @@ interface DashboardService {
 interface DashboardSourceCommand {
   readonly command: string;
   readonly unit?: string;
+  readonly openCommand?: string;
 }
 
 /** Effect service for dashboard live source snapshots. */
@@ -192,7 +193,10 @@ function loadBarValue(
         Effect.succeed(JSON.stringify({ error: formatError(error) })),
       ),
     );
-    return parseBarValue(id, output, updatedAt, source.unit);
+    return parseBarValue(id, output, updatedAt, {
+      unit: source.unit,
+      openCommand: source.openCommand,
+    });
   });
 }
 
@@ -242,7 +246,7 @@ function parseBarValue(
   id: DashboardBarModuleId,
   output: string,
   updatedAt: Date,
-  unit?: string,
+  config: { readonly unit?: string; readonly openCommand?: string } = {},
 ): DashboardBarValue {
   const trimmed = output.trim().split("\n")[0]?.trim() ?? "";
   if (!trimmed) {
@@ -280,8 +284,9 @@ function parseBarValue(
       text,
       tooltip,
       className,
-      ...(unit && { unit }),
+      ...(config.unit && { unit: config.unit }),
       ...(name && { name }),
+      ...(config.openCommand && { openCommand: config.openCommand }),
       updatedAt,
     };
   } catch {
@@ -355,7 +360,14 @@ function parseDashboardCommands(
       const rawUnit = (source as Record<string, unknown>).unit;
       const unit =
         typeof rawUnit === "string" && rawUnit.trim() ? rawUnit : undefined;
-      commands[key] = { command, ...(unit && { unit }) };
+      const rawOpen = (source as Record<string, unknown>).open_command;
+      const openCommand =
+        typeof rawOpen === "string" && rawOpen.trim() ? rawOpen : undefined;
+      commands[key] = {
+        command,
+        ...(unit && { unit }),
+        ...(openCommand && { openCommand }),
+      };
     }
   }
   return commands;
