@@ -2,7 +2,7 @@
 name: fallow
 description: Codebase intelligence for JavaScript and TypeScript. Free static layer finds unused code (files, exports, types, dependencies), code duplication, circular dependencies, complexity hotspots, architecture boundary violations, and feature flag patterns. Runtime coverage merges production execution data into the same health report for hot-path review, cold-path deletion confidence, and stale-flag evidence - a single local capture is free, while continuous/cloud runtime monitoring is paid. 94 framework plugins, zero configuration, sub-second static analysis. Use when asked to analyze code health, find unused code, detect duplicates, check circular dependencies, audit complexity, check architecture boundaries, detect feature flags, clean up the codebase, auto-fix issues, merge runtime coverage, or run fallow.
 # origin: https://github.com/fallow-rs/fallow-skills/tree/main/fallow/skills/fallow
-# upstream-sha: b513f11b36941206e6f63e29c5e3818814715f74
+# upstream-sha: 943c866d35be5c80925da9e1fb24e8074953660a
 ---
 
 # Fallow: codebase intelligence for JavaScript and TypeScript
@@ -103,12 +103,12 @@ Route by intent before reaching for the big analysis commands. Same matrix as `f
 | `config` | Show the loaded config path and resolved config (verifies which `.fallowrc.json` is in effect) | `--path` |
 | `list` | Inspect project structure | `--files`, `--entry-points`, `--plugins`, `--boundaries`, `--workspaces` |
 | `workspaces` | Inspect monorepo workspaces + discovery diagnostics (shorthand for `list --workspaces`) | (no flags) |
-| `dupes` | Code duplication detection | `--mode`, `--threshold`, `--top`, `--changed-since`, `--workspace`, `--changed-workspaces`, `--skip-local`, `--cross-language`, `--ignore-imports`, `--explain-skipped`, `--fail-on-regression`, `--tolerance`, `--regression-baseline`, `--save-regression-baseline` |
+| `dupes` | Code duplication detection | `--mode`, `--threshold`, `--top`, `--changed-since`, `--workspace`, `--changed-workspaces`, `--skip-local`, `--cross-language`, `--ignore-imports`, `--no-ignore-imports`, `--explain-skipped`, `--fail-on-regression`, `--tolerance`, `--regression-baseline`, `--save-regression-baseline` |
 | `health` | Function complexity analysis (also covers Angular templates as synthetic `<template>` findings: external `.html` files via `templateUrl` AND inline `@Component({ template: \`...\` })` literals; suppress external with `<!-- fallow-ignore-file complexity -->` at the top of the `.html` file, suppress inline with `// fallow-ignore-next-line complexity` directly above the `@Component` decorator) | `--complexity`, `--max-cyclomatic`, `--max-cognitive`, `--max-crap`, `--top`, `--sort`, `--file-scores`, `--hotspots`, `--ownership`, `--ownership-emails`, `--targets`, `--effort`, `--score`, `--min-score`, `--since`, `--min-commits`, `--save-snapshot`, `--trend`, `--coverage-gaps`, `--coverage`, `--coverage-root`, `--runtime-coverage`, `--min-invocations-hot`, `--min-observation-volume`, `--low-traffic-threshold`, `--workspace`, `--changed-workspaces`, `--baseline`, `--save-baseline` |
 | `flags` | Detect feature flag patterns (env vars, SDK calls, config objects) | `--top` |
 | `explain` | Explain one issue type without running analysis | `<issue-type>`, `--format json` |
 | `audit` | Combined dead-code + complexity + duplication for changed files | `--base`, `--gate`, `--production`, `--production-dead-code`, `--production-health`, `--production-dupes`, `--workspace`, `--changed-workspaces`, `--ci`, `--fail-on-issues`, `--explain`, `--explain-skipped`, `--dead-code-baseline`, `--health-baseline`, `--dupes-baseline`, `--max-crap`, `--coverage`, `--coverage-root`, `--include-entry-exports` |
-| `impact` | Show what fallow has done for you: how many issues it is surfacing, the trend since the last recorded run, and how many commits it contained at the pre-commit gate |  |
+| `impact` | Show what fallow has done for you: how many issues it is surfacing, the trend since the last recorded run, and how many commits it contained at the pre-commit gate | `--all`, `--sort`, `--limit` |
 | `security` | Surface opt-in local security candidates for agent verification (not confirmed vulnerabilities). Rule families include the graph rule `client-server-leak`, a data-driven `tainted-sink` catalogue, and the include-required `hardcoded-secret` category for provider-prefix credentials and high-entropy literals assigned to secret-shaped identifiers. Most catalogue rows require non-literal input; narrowly literal-aware rows flag deterministic unsafe literals. Rules default off; suppress a file with `// fallow-ignore-file security-sink`; scope categories with `security.categories`. Add project-local request object names with `security.requestReceivers`; it extends the built-in `req` / `request` / `ctx` / `context` / `event` allowlist for HTTP `query`, `params`, and `body` reads. `hardcoded-secret` runs only when listed in `security.categories.include`. | `--format human\|json\|sarif`, `--changed-since`, `--file`, `--diff-file`, `--workspace`, `--changed-workspaces`, `--surface`, `--ci`, `--fail-on-issues`, `--sarif-file`, `--summary` |
 | `schema` | Dump CLI definition as JSON |  |
 | `ci-template` | Print or vendor CI integration templates |  |
@@ -138,6 +138,7 @@ Run `fallow <command> --help` for the full flag list per command (see also refer
 | `test-only-dependency` | `--unused-deps` | - | - | Production deps only imported from test files (should be devDependencies) |
 | `unused-enum-member` | `--unused-enum-members` | yes | `// fallow-ignore-next-line unused-enum-member` | Enum values never referenced |
 | `unused-class-member` | `--unused-class-members` | - | `// fallow-ignore-next-line unused-class-member` | Methods and properties |
+| `unused-store-member` | `--unused-store-members` | - | `// fallow-ignore-next-line unused-store-member` | Pinia store state/getter/action (needs `pinia` dep) |
 | `unresolved-import` | `--unresolved-imports` | - | `// fallow-ignore-next-line unresolved-import` | Imports that can't be resolved |
 | `unlisted-dependency` | `--unlisted-deps` | - | - | Used packages missing from package.json. In monorepos, importing a workspace package from a workspace whose own `package.json` does not list it is reported here too; self-references stay allowed without requiring a package to depend on itself. |
 | `duplicate-export` | `--duplicate-exports` | - | `// fallow-ignore-file duplicate-export` | Same symbol exported from multiple modules |
@@ -146,13 +147,29 @@ Run `fallow <command> --help` for the full flag list per command (see also refer
 | `boundary-violation` | `--boundary-violations` | - | `// fallow-ignore-next-line boundary-violation` | Imports crossing architecture zone boundaries. Presets: `layered`, `hexagonal`, `feature-sliced`, `bulletproof`; `autoDiscover` can create one zone per feature directory; per-rule `allowTypeOnly: [zones]` admits `import type` / `export type` crossings while still blocking value imports. Optional sections: `boundaries.coverage.requireAllFiles` reports unzoned source files (`allowUnmatched` globs exempt intentional ones), and `boundaries.calls.forbidden` bans callee patterns per zone (segment-aware and import-resolved, so `child_process.*` covers `node:child_process` named/namespace/default imports; direct callees only, zoned files only). The whole family shares the `boundary-violation` rule and suppression token (`boundary-call-violation` and `boundary-call-violations` accepted as aliases); start the rule at `warn` for a staged rollout |
 | `boundary-coverage` | - | - | `// fallow-ignore-file boundary-violation` | Source file matches no configured architecture boundary zone; Requires boundaries.coverage.requireAllFiles |
 | `boundary-call-violation` | - | - | `// fallow-ignore-next-line boundary-call-violation` | Zoned file calls a callee its zone forbids; Requires boundaries.calls.forbidden patterns |
-| `policy-violation` | `--policy-violations` | - | `// fallow-ignore-next-line policy-violation` | Calls or imports banned by a declarative rule pack (`rulePacks` config key lists standalone JSON/JSONC files of `banned-call` / `banned-import` rules; pure data, no project code executes). Findings identified as `<pack>/<rule-id>`. Default `warn` master; per-rule `severity` overrides per finding and the exit gate reads the effective severity. Invalid or missing packs fail config load with exit 2. `fallow rule-pack-schema` prints the pack JSON Schema. Suppress with `// fallow-ignore-next-line policy-violation` (one token covers every pack rule on the line). |
+| `policy-violation` | `--policy-violations` | - | `// fallow-ignore-next-line policy-violation` | Calls or imports banned by a declarative rule pack (`rulePacks` config key lists standalone JSON/JSONC files of `banned-call` / `banned-import` rules; pure data, no project code executes). Findings identified as `<pack>/<rule-id>`. Default `warn` master; per-rule `severity` overrides per finding and the exit gate reads the effective severity. Invalid or missing packs fail config load with exit 2. `fallow rule-pack-schema` prints the pack JSON Schema. Use the scoped token to suppress one rule; bare `policy-violation` still covers every pack rule on the line or file. |
 | `stale-suppression` | `--stale-suppressions` | - | - | `fallow-ignore` comments or `@expected-unused` JSDoc tags that no longer match any issue |
 | `unused-catalog-entry` | `--unused-catalog-entries` | yes | - | `pnpm-workspace.yaml` entries no workspace package.json references via `catalog:` (default `warn`) |
 | `empty-catalog-group` | `--empty-catalog-groups` | - | - | Named `catalogs.<name>:` groups in `pnpm-workspace.yaml` with no entries. Top-level `catalog:` placeholders are ignored. Default `warn`. |
 | `unresolved-catalog-reference` | `--unresolved-catalog-references` | - | - | `package.json` references to `catalog:` / `catalog:<name>` whose catalog does not declare the package; `pnpm install` would fail. Default `error`. Suppress via `ignoreCatalogReferences: [{ package, catalog?, consumer? }]` in fallow config (package.json has no comment syntax). |
 | `unused-dependency-override` | `--unused-dependency-overrides` | - | - | `pnpm-workspace.yaml#overrides` / `package.json#pnpm.overrides` entries whose target package is not declared by any workspace `package.json` and is not present in `pnpm-lock.yaml`. Default `warn`. When the lockfile is missing or unreadable the check degrades to a manifest-only fallback and every finding carries a `hint` reminding consumers to verify before removal. Suppress via `ignoreDependencyOverrides: [{ package, source? }]` in fallow config. |
 | `misconfigured-dependency-override` | `--misconfigured-dependency-overrides` | - | - | `pnpm.overrides` entries whose key is unparsable (empty, dangling separators, malformed selectors) or value is missing/empty. `pnpm install` would fail. Default `error`. Suppression: same `ignoreDependencyOverrides` config rule. |
+| `invalid-client-export` | - | - | `// fallow-ignore-next-line invalid-client-export` | "use client" file exports a server-only / route-config name; Requires the project to declare next |
+| `mixed-client-server-barrel` | - | - | `// fallow-ignore-next-line mixed-client-server-barrel` | Barrel re-exports both a "use client" module and a server-only module; Requires the project to declare next |
+| `misplaced-directive` | - | - | `// fallow-ignore-next-line misplaced-directive` | "use client" / "use server" directive is not in the leading position and is ignored; Requires the project to declare next |
+| `unprovided-inject` | `--unprovided-injects` | - | `// fallow-ignore-next-line unprovided-inject` | inject() / getContext() reads a key that no provide() / setContext() supplies |
+| `unrendered-component` | `--unrendered-components` | - | `// fallow-ignore-next-line unrendered-component` | A Vue / Svelte component is reachable through a barrel but rendered nowhere |
+| `unused-component-prop` | `--unused-component-props` | - | `// fallow-ignore-next-line unused-component-prop` | A Vue defineProps prop or React component prop is referenced nowhere in its own component |
+| `unused-component-emit` | `--unused-component-emits` | - | `// fallow-ignore-next-line unused-component-emit` | A Vue <script setup> defineEmits event is emitted nowhere in its own component |
+| `unused-component-input` | `--unused-component-inputs` | - | `// fallow-ignore-next-line unused-component-input` | An Angular @Input() / signal input() / model() is read nowhere in its own component (class body or template); needs `@angular/core` dep |
+| `unused-component-output` | `--unused-component-outputs` | - | `// fallow-ignore-next-line unused-component-output` | An Angular @Output() / signal output() is emitted (.emit()) nowhere in its own component; needs `@angular/core` dep |
+| `unused-server-action` | `--unused-server-actions` | - | `// fallow-ignore-next-line unused-server-action` | A Next.js Server Action exported from a "use server" file is referenced by no code in the project |
+| `unused-load-data-key` | `--unused-load-data-keys` | - | `// fallow-ignore-next-line unused-load-data-key` | A SvelteKit load() return-object key is read by no consumer (needs @sveltejs/kit dep) |
+| `prop-drilling` | - | - | `// fallow-ignore-next-line prop-drilling` | A React/Preact prop is forwarded unchanged through 3+ pass-through components to a distant consumer; Opt-in: set rules.prop-drilling to warn or error to enable. Defaults to off. |
+| `thin-wrapper` | - | - | `// fallow-ignore-next-line thin-wrapper` | A React/Preact component whose whole body is a single spread-forwarded child render (a candidate for inlining); Opt-in: set rules.thin-wrapper to warn or error to enable. Defaults to off. |
+| `duplicate-prop-shape` | - | - | `// fallow-ignore-next-line duplicate-prop-shape` | Three or more React/Preact components across two or more files declare an identical prop-name set (a missing shared Props type); Opt-in: set rules.duplicate-prop-shape to warn or error to enable. Defaults to off. |
+| `route-collision` | - | - | - | Two or more Next.js App Router route files resolve to the same URL |
+| `dynamic-segment-name-conflict` | - | - | - | Sibling Next.js dynamic route segments use different slug names at the same position |
 | `high-cyclomatic-complexity` | `--complexity` | - | `// fallow-ignore-next-line complexity` | Function has high cyclomatic complexity |
 | `high-cognitive-complexity` | `--complexity` | - | `// fallow-ignore-next-line complexity` | Function has high cognitive complexity |
 | `high-complexity` | `--complexity` | - | `// fallow-ignore-next-line complexity` | Function exceeds both complexity thresholds |
@@ -195,7 +212,8 @@ When using fallow via MCP (`fallow-mcp`), the following tools are available:
 | `project_info` | introspection | free | `entry_points`, `files`, `plugins`, `boundaries` | Project metadata. Set `entry_points`, `files`, `plugins`, or `boundaries` to `true` to request specific sections |
 | `list_boundaries` | introspection | free | - | Architecture boundary zones, access rules, and pre-expansion `autoDiscover` `logical_groups[]` (user-authored parent name, verbatim paths, discovered children, `status` enum, summed `file_count`). Returns `{"configured": false}` if no boundaries configured |
 | `feature_flags` | analysis | free | `workspace`, `production` | Detect feature flag patterns (env vars, SDK calls, config objects). Set `top` to limit results |
-| `impact` | introspection | free | `root` | Read the local, opt-in Fallow Impact value report (`fallow impact --format json`). Runs no analysis: current surfacing counts, trend since the last recorded run, pre-commit gate containment, and (on impact v1.5+) resolved/suppressed attribution. Read-only and `root`-only; the mutating `enable` / `disable` lifecycle is not exposed. A never-enabled project returns a populated `{"enabled": false, ...}` report (never `{}`); branch on `enabled` then `record_count` and recommend the user run `fallow impact enable` rather than toggling it. Local-developer signal: empty in ephemeral CI runners, so not a CI metric |
+| `impact` | introspection | free | `root` | Read the local, opt-in Fallow Impact value report (`fallow impact --format json`). Runs no analysis: current surfacing counts, trend since the last recorded run, pre-commit gate containment, and (on impact v1.5+) resolved/suppressed attribution. History is read from a per-project file in the user's private config dir (never inside the repo). Read-only and `root`-only; the mutating `enable` / `disable` / `default` lifecycle is not exposed. A never-enabled project returns a populated `{"enabled": false, ...}` report (never `{}`); branch on `enabled` and `enabled_source` (`project` / `user` / `default`) then `record_count`, recommending `fallow impact enable` only when `explicit_decision` is `false` (never asked) and staying silent when `true` (deliberately disabled here). Local-developer signal: fallow never records in CI, so empty there and not a CI metric |
+| `impact_all` | introspection | free | `sort`, `limit` | Roll every tracked fallow project on this machine into one cross-repo value report (hashed keys plus basename labels, never paths; local-dev only) |
 | `trace_export` | trace | free | `file`, `export_name` | Trace why an export is used or unused (`fallow dead-code --trace FILE:EXPORT_NAME --format json`). Required `file` and `export_name`. Returns file reachability, entry-point status, direct references, re-export chains, and a reason string. Use before deleting a supposedly-unused export |
 | `trace_file` | trace | free | `file` | Trace all graph edges for a file (`fallow dead-code --trace-file PATH --format json`). Required `file`. Returns reachability, exports, imports-from, imported-by, and re-exports. Use to decide whether a file is isolated, barrel-only, or imported by live entry points |
 | `trace_dependency` | trace | free | `package_name` | Trace where a dependency is imported (`fallow dead-code --trace-dependency PACKAGE --format json`). Required `package_name`. Returns importing files, type-only importers, total import count, `used_in_scripts` (true when invoked from package.json scripts or CI configs), and `is_used` (combined import + script signal; mirrors the unused-deps detector so build tools like `microbundle` or `vitest` are not falsely flagged as unused). Use before removing a dependency or moving between `dependencies` and `devDependencies` |
@@ -215,14 +233,14 @@ Most tools accept `root`, `config`, `no_cache`, and `threads` params. Exceptions
 
 All JSON responses include structured `actions` arrays on every finding (dead code, health, duplication), enabling programmatic fix application or suppression.
 
+`health.thresholdOverrides[]` lets projects keep known legacy functions visible as configured local ceilings instead of hiding them with suppressions. Each entry has `files` globs, optional exact `functions`, one or more of `maxCyclomatic`, `maxCognitive`, or `maxCrap`, and optional `reason`. Health JSON may include top-level `threshold_overrides[]` entries with `active`, `stale`, or `no_match` status, and complexity findings that use an override carry `effective_thresholds` plus `threshold_source: "override"`.
+
 `dead-code`, `health`, `dupes`, bare `fallow`, and `audit` JSON output also carry a top-level `next_steps` array of read-only follow-up commands computed from the run's findings: each entry is `{ id, command, reason }`. The `command` is runnable as-is (never a placeholder, never `fix` or any other mutating command); the stable kebab-case `id` (`setup`, `impact-report`, `trace-unused-export`, `trace-clone`, `complexity-breakdown`, `scope-workspaces`, `audit-changed`) maps to a verification step you should run BEFORE acting, for example tracing an export before deleting it. A leading `setup` step (command: `fallow schema`) appears only on unconfigured, non-CI projects with findings and doubles as the onboarding trigger below; it disappears after setup or `fallow init --decline`. An at-most-weekly `impact-report` step (command: `fallow impact`) carries the local value digest when impact tracking has non-zero results; it may ride a clean run. When running via MCP, dispatch on the `id` to the matching tool / `code_execute` host call (`trace_export`, `trace_clone`, `check_health` with `complexity_breakdown: true`, `audit`) rather than shelling out the CLI string. The array is deduplicated, capped at three, and omitted when empty; set `FALLOW_SUGGESTIONS=off` to suppress it.
 
 ## Node.js Bindings
-
 Embedding fallow in a Node.js process (editor extensions, servers, custom tooling)? Use the `@fallow-cli/fallow-node` NAPI bindings instead of spawning the CLI: six async functions (`detectDeadCode`, `detectCircularDependencies`, `detectBoundaryViolations`, `detectDuplication`, `computeComplexity`, `computeHealth`) returning the same JSON envelopes as `--format json`. Read-only analysis only; use the CLI for write-path commands. Details: [Node Bindings](references/node-bindings.md).
 
 ## References
-
 - [CLI Reference](references/cli-reference.md): complete command and flag specifications, plus configuration field details
 - [Gotchas](references/gotchas.md): common pitfalls, edge cases, and correct usage patterns
 - [Patterns](references/patterns.md): workflow recipes for CI, monorepos, migration, and incremental adoption
@@ -231,7 +249,6 @@ Embedding fallow in a Node.js process (editor extensions, servers, custom toolin
 ## Common Workflows
 
 ### Audit a project for cleanup opportunities
-
 ```bash
 fallow dead-code --format json --quiet
 ```
@@ -239,13 +256,11 @@ fallow dead-code --format json --quiet
 Parse the JSON output. It contains arrays for each issue type (`unused_files`, `unused_exports`, `unused_types`, `unused_dependencies`, etc.) plus `total_issues` and `elapsed_ms` metadata. Each issue object includes an `actions` array with structured fix suggestions (action type, `auto_fixable` flag, description, and optional suppression comment). For dependency findings, a non-empty `used_in_workspaces` array means the package is imported elsewhere in the monorepo; treat it as a workspace placement issue and do not auto-remove it.
 
 ### Find only unused exports (smaller output)
-
 ```bash
 fallow dead-code --format json --quiet --unused-exports
 ```
 
 ### Check if a PR introduces quality risk
-
 ```bash
 fallow audit --format json --quiet --base main
 ```
@@ -253,7 +268,6 @@ fallow audit --format json --quiet --base main
 Returns a pass/warn/fail verdict for issues introduced by the PR. Only analyzes files changed since the `main` branch.
 
 ### Find code duplication
-
 ```bash
 fallow dupes --format json --quiet
 fallow dupes --format json --quiet --mode semantic
@@ -262,7 +276,6 @@ fallow dupes --format json --quiet --mode semantic
 The `semantic` mode detects renamed variables. Other modes: `strict` (exact), `mild` (default, syntax normalized), `weak` (different literals).
 
 ### Safe auto-fix cycle
-
 ```bash
 fallow fix --dry-run --format json --quiet   # 1. preview what will be removed
 fallow fix --yes --format json --quiet       # 2. review the preview, then apply
@@ -272,7 +285,6 @@ fallow dead-code --format json --quiet       # 3. verify the fix worked
 The `--yes` flag is required in non-TTY environments (agent subprocesses). Without it, `fix` exits with code 2.
 
 ### Discover project structure
-
 ```bash
 fallow list --entry-points --format json --quiet
 fallow list --plugins --format json --quiet
@@ -281,7 +293,6 @@ fallow list --plugins --format json --quiet
 Shows detected entry points and active framework plugins (122 built-in: Next.js, Vite, Ember, Wuchale, Jest, Storybook, Tailwind, PandaCSS, Contentlayer, tap, tsd, etc.).
 
 ### Production-only analysis
-
 ```bash
 fallow dead-code --format json --quiet --production
 ```
@@ -289,7 +300,6 @@ fallow dead-code --format json --quiet --production
 Excludes test/dev files (`*.test.*`, `*.spec.*`, `*.stories.*`) and only analyzes production scripts.
 
 ### Analyze specific workspaces
-
 ```bash
 fallow dead-code --format json --quiet --workspace my-package                # single package (lists: web,admin)
 fallow dead-code --format json --quiet --workspace 'apps/*,!apps/legacy'    # glob + !-exclude
@@ -299,7 +309,6 @@ fallow dead-code --format json --quiet --changed-workspaces origin/main     # CI
 Scopes output while keeping the full cross-workspace graph. Patterns are tested against BOTH the package name AND the workspace path relative to the repo root; either match counts. `--changed-workspaces <REF>` auto-derives the set from `git diff` (the CI primitive; mutually exclusive with `--workspace`); a missing ref or non-git directory is a hard error (exit 2) rather than a silent full-scope fallback.
 
 ### Scope to specific files (lint-staged)
-
 ```bash
 fallow dead-code --format json --quiet --file src/utils.ts --file src/helpers.ts
 ```
@@ -307,7 +316,6 @@ fallow dead-code --format json --quiet --file src/utils.ts --file src/helpers.ts
 Only reports issues in the specified files. Project-wide dependency issues are suppressed. Warns on non-existent paths.
 
 ### Catch typos in entry file exports
-
 ```bash
 fallow dead-code --format json --quiet --include-entry-exports
 ```
@@ -315,7 +323,6 @@ fallow dead-code --format json --quiet --include-entry-exports
 Reports unused exports in entry files (package.json `main`/`exports`, framework pages). By default, exports in entry files are assumed externally consumed. This flag catches typos like `meatdata` instead of `metadata`.
 
 ### Detect feature flag patterns
-
 ```bash
 fallow flags --format json --quiet
 fallow flags --format json --quiet --top 20
@@ -324,7 +331,6 @@ fallow flags --format json --quiet --top 20
 Reports environment-variable gates (`process.env.FEATURE_*`), SDK calls from common flag providers, and config-object patterns, with flag locations, detection confidence, and a cross-reference against dead code. Only `--top N` is command-specific.
 
 ### Surface security candidates for verification
-
 ```bash
 fallow security --format json --quiet
 fallow security --format json --quiet --surface
@@ -335,7 +341,6 @@ git diff --cached --unified=0 | fallow security --gate new --diff-stdin --format
 These are unverified candidates, not confirmed vulnerabilities; an agent must verify trace, reachability, and evidence before editing. `--surface` adds a top-level `attack_surface[]` inventory for a verifier. The gate modes are `new` (candidates introduced on changed lines) and `newly-reachable` (candidates that became reachable from entry points, which needs `--changed-since <ref>`); there is no `all` mode by design. The gate fails with exit 8, distinct from the standard exit ladder.
 
 ### Find untested runtime-reachable code (coverage gaps)
-
 ```bash
 fallow health --format json --quiet --coverage-gaps
 ```
@@ -343,7 +348,6 @@ fallow health --format json --quiet --coverage-gaps
 Reports `untested-file` and `untested-export` findings: runtime-reachable code with no dependency path from any discovered test root. Opt-in and requires the full analysis pipeline.
 
 ### Find complexity hotspots, owners, and refactoring targets
-
 ```bash
 # Files that are both complex and frequently changing (needs a git repo)
 fallow health --format json --quiet --hotspots
@@ -358,7 +362,6 @@ fallow health --format json --quiet --hotspots --group-by owner
 `--ownership` implies `--hotspots` and `--effort` implies `--targets`. The global `--group-by` accepts `owner`, `directory`, `package`, or `section` (the `section` mode reads GitLab CODEOWNERS `[Section]` headers). Hotspots and ownership require a git repository.
 
 ### Explain why a complex function scored high
-
 ```bash
 fallow health --format json --quiet --complexity --complexity-breakdown
 ```
@@ -366,7 +369,6 @@ fallow health --format json --quiet --complexity --complexity-breakdown
 Adds a per-decision-point `contributions[]` array to every complexity finding (each `if`, `else-if`, loop, boolean operator, and `case` with its source line and cyclomatic/cognitive weight), so you can pinpoint the exact refactor target.
 
 ### Gate CI on regressions (baselines)
-
 ```bash
 # 1. Save the current issue counts as a regression baseline
 fallow dead-code --format json --quiet --save-regression-baseline .fallow/baseline.json
@@ -380,7 +382,6 @@ fallow dead-code --format json --quiet --baseline .fallow/snapshot.json
 `--save-regression-baseline` / `--regression-baseline` / `--fail-on-regression` / `--tolerance` are count-based gates; `--save-baseline` / `--baseline` are identity-based (track finding identity, fail on new). All six are global flags, so they also work on `health` and `dupes`. `audit` rejects the global baseline flags and uses `--dead-code-baseline` / `--health-baseline` / `--dupes-baseline` instead.
 
 ### Explain an issue type without running analysis
-
 ```bash
 fallow explain unused-export --format json
 fallow explain code-duplication
@@ -389,7 +390,6 @@ fallow explain code-duplication
 The issue type is a positional argument and accepts forms like `unused-export`, `fallow/unused-export`, `unused exports`, or `code duplication`. It runs no analysis and returns the rule rationale, a worked example, fix guidance, and the docs URL.
 
 ### Show what fallow has surfaced over time (Impact)
-
 ```bash
 # Enable once (local-only, opt-in, never uploads, never affects exit codes)
 fallow impact enable
@@ -397,10 +397,9 @@ fallow impact enable
 fallow impact --format json --quiet
 ```
 
-`fallow impact enable` is a one-time, user-owned local action; the agent-facing line is the read step. The store lives at `.fallow/impact.json` (gitignored), the report is read-only, and it is empty in ephemeral CI runners.
+`fallow impact enable` is a one-time, user-owned local action; the agent-facing line is the read step. History is stored per-project in the user's private config dir (never inside the repo, so no `.fallow/` or `.gitignore` changes); `fallow impact default on` enables it for every project at once. The report is read-only and is empty in CI (fallow never records there).
 
 ### Debug why something is flagged
-
 ```bash
 fallow dead-code --format json --quiet --trace src/utils.ts:myFunction   # trace an export's usage chain
 fallow dead-code --format json --quiet --trace-file src/utils.ts        # trace all edges for a file
@@ -408,7 +407,6 @@ fallow dead-code --format json --quiet --trace-dependency lodash        # trace 
 ```
 
 ### Migrate from knip or jscpd
-
 ```bash
 fallow migrate --dry-run   # preview
 fallow migrate             # apply; mirrors the source extension (knip.jsonc -> .fallowrc.jsonc); --jsonc / --toml force a format
@@ -417,7 +415,6 @@ fallow migrate             # apply; mirrors the source extension (knip.jsonc -> 
 Auto-detects `knip.json`, `knip.jsonc`, `.knip.json`, `.knip.jsonc`, `.jscpd.json`, and package.json embedded configs.
 
 ### Initialize a new config
-
 ```bash
 fallow init              # creates .fallowrc.json, adds .fallow/ to .gitignore (--toml for fallow.toml)
 fallow init --agents     # scaffolds a starter AGENTS.md prefilled from detected project info (never overwrites)
@@ -458,7 +455,6 @@ Fallow reads config from project root: `.fallowrc.json` > `.fallowrc.jsonc` > `f
 Rules: `"error"` (fail CI), `"warn"` (report only), `"off"` (skip detection). Other high-value fields: `ignoreDependencies`, `publicPackages` (public library packages whose exported API is never flagged), `cache.dir` / `cache.maxSizeMb`, `usedClassMembers` (extend the framework-invoked member allowlist), `resolve.conditions` (extra package.json export conditions). Field semantics and examples: [CLI Reference](references/cli-reference.md), "Configuration field notes".
 
 ### Inline suppression
-
 ```typescript
 // fallow-ignore-next-line
 export const keepThis = 1;
