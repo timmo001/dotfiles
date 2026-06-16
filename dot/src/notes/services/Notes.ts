@@ -14,6 +14,7 @@ import { Config } from "../../services/Config.js";
 import { HOME_DIR, expandHomePath } from "../../lib/paths.js";
 import {
   formatNoteLabel,
+  parseNotePriority,
   type NoteCommitResult,
   type NoteContextOptions,
   type NoteCreateDraft,
@@ -21,6 +22,7 @@ import {
   type NoteDeleteResult,
   type NoteEntry,
   type NoteFrontmatter,
+  type NotePriority,
   type NoteRepoSection,
   type RepoNoteIdentity,
   type NoteWriteResult,
@@ -102,6 +104,12 @@ interface NotesService {
     filePath: string,
     options?: NoteSyncOptions,
   ) => Effect.Effect<NoteCommitResult, NotesError>;
+  /** Set the handoff priority in a note's frontmatter and commit it. */
+  readonly setPriority: (
+    filePath: string,
+    priority: NotePriority,
+    options?: NoteSyncOptions,
+  ) => Effect.Effect<NoteCommitResult, NotesError>;
 }
 
 type CommandResult =
@@ -160,7 +168,7 @@ function readNoteFrontmatter(filePath: string): NoteFrontmatter {
   try {
     head = readFileSync(filePath, "utf-8").split("\n").slice(0, 20).join("\n");
   } catch {
-    return { name: null, description: null, tags: [] };
+    return { name: null, description: null, tags: [], priority: null };
   }
   const name =
     head
@@ -173,7 +181,53 @@ function readNoteFrontmatter(filePath: string): NoteFrontmatter {
       ?.trim()
       .replace(/^["']|["']$/g, "") || null;
   const tagsRaw = head.match(/^tags:\s*\[(.+)\]$/m)?.[1];
-  return { name, description, tags: tagsRaw ? parseTags(tagsRaw) : [] };
+  const priorityRaw = head.match(/^priority:\s*(.+)$/m)?.[1];
+  return {
+    name,
+    description,
+    tags: tagsRaw ? parseTags(tagsRaw) : [],
+    priority: priorityRaw ? parseNotePriority(priorityRaw) : null,
+  };
+}
+
+/**
+ * Set or replace the `priority:` line within a note's YAML frontmatter.
+ *
+ * Returns the updated content, or null when the file has no frontmatter block.
+ * A new line is inserted after `description:`, before `tags:`, or at the end of
+ * the frontmatter body, whichever is found first.
+ */
+function setFrontmatterPriority(
+  content: string,
+  priority: NotePriority,
+): string | null {
+  const frontmatter = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!frontmatter) return null;
+
+  const newline = content.includes("\r\n") ? "\r\n" : "\n";
+  const priorityLine = `priority: ${priority}`;
+  const lines = frontmatter[1].split(/\r?\n/);
+
+  const existingIndex = lines.findIndex((line) => /^priority:\s*/.test(line));
+  if (existingIndex !== -1) {
+    lines[existingIndex] = priorityLine;
+  } else {
+    const descIndex = lines.findIndex((line) => /^description:\s*/.test(line));
+    const tagsIndex = lines.findIndex((line) => /^tags:\s*/.test(line));
+    const insertAt =
+      descIndex !== -1
+        ? descIndex + 1
+        : tagsIndex !== -1
+          ? tagsIndex
+          : lines.length;
+    lines.splice(insertAt, 0, priorityLine);
+  }
+
+  const body = lines.join(newline);
+  return content.replace(
+    frontmatter[0],
+    () => `---${newline}${body}${newline}---`,
+  );
 }
 
 function listNoteEntries(
@@ -266,6 +320,7 @@ function draftSeedContent(
       "type: handoff",
       `name: ${name}`,
       `description: ${desc}`,
+      "priority: medium",
       "tags: [handoff, draft]",
       "---",
       "",
@@ -863,6 +918,40 @@ export class Notes extends Context.Service<Notes, NotesService>()("Notes") {
             }
             const filename = basename(resolvedPath);
             const message = `notes: edit ${filename}`;
+            const commit = yield* gitCommit(resolvedPath, message);
+            yield* syncAfterCommit(commit.ok, options?.sync);
+            return commit;
+          }),
+        setPriority: (filePath, priority, options) =>
+          Effect.gen(function* () {
+            const resolvedPath = yield* assertInsideNotesRoot(filePath);
+            const content = yield* Effect.try({
+              try: () => readFileSync(resolvedPath, "utf-8"),
+              catch: (error) =>
+                fail(
+                  `setPriority: failed to read file ${filePath}: ${errorMessage(error)}`,
+                ),
+            });
+
+            const updated = setFrontmatterPriority(content, priority);
+            if (updated === null) {
+              return yield* Effect.fail(
+                fail(
+                  `setPriority: no frontmatter found in ${filePath}; cannot set priority`,
+                ),
+              );
+            }
+
+            yield* Effect.try({
+              try: () => writeFileSync(resolvedPath, updated),
+              catch: (error) =>
+                fail(
+                  `setPriority: failed to write file ${filePath}: ${errorMessage(error)}`,
+                ),
+            });
+
+            const filename = basename(resolvedPath);
+            const message = `notes: set priority ${filename}`;
             const commit = yield* gitCommit(resolvedPath, message);
             yield* syncAfterCommit(commit.ok, options?.sync);
             return commit;

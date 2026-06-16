@@ -14,6 +14,26 @@ export interface RepoNoteIdentity {
   readonly branch: string;
 }
 
+/** Handoff priority level, highest urgency first when ranked. */
+export type NotePriority = "low" | "medium" | "high" | "critical";
+
+/** Grouping dimension applied to the notes list. Extensible for future modes. */
+export type NoteGroupMode = "none" | "priority";
+
+/** Group modes cycled by the notes view grouping key, in order. */
+export const GROUP_CYCLE: readonly NoteGroupMode[] = ["priority", "none"];
+
+/** Priority levels ordered highest-first for display and selection. */
+export const PRIORITY_LEVELS: readonly NotePriority[] = [
+  "critical",
+  "high",
+  "medium",
+  "low",
+];
+
+/** Priority applied to handoffs that declare none. */
+export const DEFAULT_NOTE_PRIORITY: NotePriority = "medium";
+
 /** Frontmatter extracted from a note file. */
 export interface NoteFrontmatter {
   /** Display title from frontmatter. */
@@ -22,6 +42,8 @@ export interface NoteFrontmatter {
   readonly description: string | null;
   /** Kebab-case tags parsed from frontmatter. */
   readonly tags: readonly string[];
+  /** Handoff priority parsed from frontmatter, or null when absent/invalid. */
+  readonly priority: NotePriority | null;
 }
 
 /** Repo note entry with file metadata and parsed frontmatter. */
@@ -123,4 +145,30 @@ export function formatNoteSections(
       ),
     )
     .join("\n\n");
+}
+
+/** Parse a frontmatter priority value, returning null when unrecognised. */
+export function parseNotePriority(value: string): NotePriority | null {
+  const normalised = value
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .toLowerCase();
+  return PRIORITY_LEVELS.includes(normalised as NotePriority)
+    ? (normalised as NotePriority)
+    : null;
+}
+
+/** Resolve an entry's effective priority, defaulting absent values to medium. */
+export function notePriority(entry: NoteEntry): NotePriority {
+  return entry.priority ?? DEFAULT_NOTE_PRIORITY;
+}
+
+/** Render a priority as a capitalised display label. */
+export function priorityLabel(priority: NotePriority): string {
+  return priority.charAt(0).toUpperCase() + priority.slice(1);
+}
+
+/** Rank a priority for sorting, highest urgency first (critical = 0). */
+export function priorityRank(priority: NotePriority): number {
+  return PRIORITY_LEVELS.indexOf(priority);
 }

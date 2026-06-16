@@ -663,6 +663,10 @@ if (mode.type === "native") {
           Effect.runPromise(notes.finaliseEdit(filePath, { sync: true })).then(
             () => {},
           ),
+        updateNotePriority: (filePath, priority) =>
+          Effect.runPromise(
+            notes.setPriority(filePath, priority, { sync: true }),
+          ).then(() => {}),
       },
       {
         initialView,

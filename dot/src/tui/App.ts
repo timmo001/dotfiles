@@ -17,6 +17,7 @@ import type {
   NoteCreateKind,
   NoteDeleteResult,
   NoteEntry,
+  NotePriority,
   NoteRepoSection,
 } from "../notes/types.js";
 import type { Theme } from "../theme.js";
@@ -121,6 +122,11 @@ export interface AppDeps {
   readonly finaliseNoteDraft: (filePath: string) => Promise<void>;
   /** Commit an edited note after editor exit. */
   readonly finaliseNoteEdit: (filePath: string) => Promise<void>;
+  /** Set the handoff priority for a note and commit it. */
+  readonly updateNotePriority: (
+    filePath: string,
+    priority: NotePriority,
+  ) => Promise<void>;
 }
 
 /** Top-level TUI application shell managing a view stack and global keyboard */
@@ -306,6 +312,7 @@ export class App {
       createNoteDraft: deps.createNoteDraft,
       finaliseNoteDraft: deps.finaliseNoteDraft,
       finaliseNoteEdit: deps.finaliseNoteEdit,
+      onSetPriority: deps.updateNotePriority,
       onEditNote: (entry, kind) =>
         openNoteInEditor(deps.renderer, entry, kind, () => {
           setTerminalTitle(`Dot TUI › ${this.notesTitle()}`);

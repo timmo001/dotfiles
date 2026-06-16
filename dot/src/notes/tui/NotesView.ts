@@ -28,6 +28,14 @@ import type {
   NoteEntry,
   NoteRepoSection,
 } from "../types.js";
+import {
+  GROUP_CYCLE,
+  notePriority,
+  priorityLabel,
+  priorityRank,
+  type NoteGroupMode,
+  type NotePriority,
+} from "../types.js";
 import { formatBreadcrumb } from "../../tui/breadcrumb.js";
 import { formatPaneTitle } from "../../tui/paneTitle.js";
 import {
@@ -46,6 +54,7 @@ import {
   NoteCreatePrompt,
   type NoteCreatePromptResult,
 } from "./NoteCreatePrompt.js";
+import { PriorityPopup, priorityColor } from "./PriorityPopup.js";
 import type { OpenCodeNoteMode } from "./OpenCodeNote.js";
 import { formatLocalNoteDateTimeFromEpochSeconds } from "../time.js";
 
@@ -55,7 +64,7 @@ const HELP: readonly HelpEntry[] = [
   { key: "Tab", action: "pane" },
   { key: "a", action: "add" },
   { key: "A", action: "add visual" },
-  { key: "g", action: "toggle all" },
+  { key: "v", action: "all repos" },
   { key: "e", action: "edit" },
   { key: "E", action: "visual edit" },
   { key: "o", action: "OpenCode" },
@@ -63,6 +72,8 @@ const HELP: readonly HelpEntry[] = [
   { key: "r", action: "refresh" },
   { key: "/", action: "search" },
   { key: "s", action: "sort" },
+  { key: "g", action: "group" },
+  { key: "p", action: "priority" },
   { key: "d", action: "delete" },
   { key: "Esc/Backspace", action: "back" },
   ...GLOBAL_HELP,
@@ -186,6 +197,11 @@ export interface NotesViewOptions {
     noteContent: string,
     mode: OpenCodeNoteMode,
   ) => Promise<void>;
+  /** Set the handoff priority for a note and commit it. */
+  readonly onSetPriority: (
+    filePath: string,
+    priority: NotePriority,
+  ) => Promise<void>;
   /** Called when the user navigates back. */
   readonly onBack: () => void;
 }
@@ -208,6 +224,7 @@ export class NotesView {
   private noteHeading: TextRenderable;
   private noteDescription: TextRenderable;
   private noteTags: TextRenderable;
+  private notePriorityText: TextRenderable;
   private noteFile: TextRenderable;
   private noteModified: TextRenderable;
   private bodyScroll: ScrollBoxRenderable;
@@ -218,10 +235,12 @@ export class NotesView {
   private deletePromptFile: TextRenderable;
   private deletePromptHelp: TextRenderable;
   private createPrompt: NoteCreatePrompt;
+  private priorityPopup: PriorityPopup;
 
   private filter: NotesViewFilter | null = null;
   private activePane: NotesPane = "list";
   private sortMode: NoteSortMode = "name-asc";
+  private groupMode: NoteGroupMode = "priority";
   private searchActive = false;
   private searchQuery = "";
   private searchIndex: Fuse<NoteEntry> | null = null;
@@ -240,6 +259,7 @@ export class NotesView {
   private createEditorKind: NoteEditorKind = "editor";
   private deleteConfirmation: NoteEntry | null = null;
   private deletingFilePath: string | null = null;
+  private settingPriorityPath: string | null = null;
   private requestedInitialRefresh = false;
   private loadVersion = 0;
   private renderedMarkdownBlockCount = 0;
@@ -262,7 +282,7 @@ export class NotesView {
       tab: () => this.togglePane(),
       a: () => this.startCreateFlow("editor"),
       "shift+a": () => this.startCreateFlow("visual"),
-      g: () => this.toggleAllRepos(),
+      v: () => this.toggleAllRepos(),
       e: () => void this.openSelectedInEditor("editor"),
       "shift+e": () => void this.openSelectedInEditor("visual"),
       o: () => void this.openSelectedInOpenCode("default"),
@@ -270,6 +290,8 @@ export class NotesView {
       r: () => void this.refresh(),
       "/": () => this.enterSearch(),
       s: () => this.cycleSortMode(),
+      g: () => this.cycleGroupMode(),
+      p: () => this.requestChangePriority(),
       d: () => this.requestDeleteSelected(),
       escape: () => this.callbacks.onBack(),
       backspace: () => this.callbacks.onBack(),
@@ -389,6 +411,12 @@ export class NotesView {
       width: "100%",
       truncate: true,
     });
+    this.notePriorityText = new TextRenderable(renderer, {
+      id: "notes-content-heading-priority",
+      content: t``,
+      width: "100%",
+      truncate: true,
+    });
     this.noteFile = new TextRenderable(renderer, {
       id: "notes-content-heading-file",
       content: t``,
@@ -404,6 +432,7 @@ export class NotesView {
     heading.add(this.noteHeading);
     heading.add(this.noteDescription);
     heading.add(this.noteTags);
+    heading.add(this.notePriorityText);
     heading.add(this.noteFile);
     heading.add(this.noteModified);
     this.rightPane.add(heading);
@@ -520,6 +549,11 @@ export class NotesView {
       onDismiss: () => this.cancelCreateFlow(),
     });
 
+    this.priorityPopup = new PriorityPopup(renderer, theme, {
+      onSelect: (priority) => void this.executeSetPriority(priority),
+      onDismiss: () => this.cancelChangePriority(),
+    });
+
     const handleNotesKeyPress = (key: KeyEvent) => this.handleKeyPress(key);
     renderer.keyInput.on("keypress", handleNotesKeyPress);
     renderer.root.add(this.root);
@@ -570,6 +604,7 @@ export class NotesView {
   destroy(): void {
     this.syntaxStyle.destroy();
     this.createPrompt.destroy();
+    this.priorityPopup.destroy();
     this.renderer.root.remove(this.root.id);
     this.renderer.root.remove(this.deletePrompt.id);
   }
@@ -748,11 +783,44 @@ export class NotesView {
   }
 
   /**
-   * Sort entries by the active mode, keeping all-repos sections grouped so the
-   * list's section headers stay contiguous.
+   * Advance to the next grouping mode and re-render the list. Only handoff
+   * views currently have applicable group modes, so this is a no-op elsewhere.
+   */
+  private cycleGroupMode(): void {
+    if (!this.isHandoffFilter()) return;
+    const nextIndex =
+      (GROUP_CYCLE.indexOf(this.groupMode) + 1) % GROUP_CYCLE.length;
+    this.groupMode = GROUP_CYCLE[nextIndex];
+    this.applyFilter();
+    this.updateStatusBar();
+  }
+
+  /** Whether the active filter is the handoff tag view. */
+  private isHandoffFilter(): boolean {
+    return this.filter?.tag?.toLowerCase() === "handoff";
+  }
+
+  /** Whether the list is currently grouped into priority sections. */
+  private groupingByPriority(): boolean {
+    return this.isHandoffFilter() && this.groupMode === "priority";
+  }
+
+  /**
+   * Sort entries by the active mode, keeping grouped sections contiguous. When
+   * priority grouping is active it takes precedence; otherwise all-repos
+   * sections stay grouped by repository so section headers remain contiguous.
    */
   private sortEntries(entries: readonly NoteEntry[]): readonly NoteEntry[] {
     const compare = sortComparator(this.sortMode);
+
+    if (this.groupingByPriority()) {
+      return [...entries].sort((a, b) => {
+        const rankDelta =
+          priorityRank(notePriority(a)) - priorityRank(notePriority(b));
+        return rankDelta !== 0 ? rankDelta : compare(a, b);
+      });
+    }
+
     if (!this.showingAllRepos) return [...entries].sort(compare);
 
     const sectionOrder = new Map<string, number>();
@@ -989,6 +1057,56 @@ export class NotesView {
     }
   }
 
+  private requestChangePriority(): void {
+    if (!this.isHandoffFilter()) return;
+    if (this.settingPriorityPath) {
+      this.statusBar.content = t`${fg(this.theme.yellow)("A priority update is already in progress")}`;
+      return;
+    }
+
+    const entry = this.selectedEntry;
+    if (!entry) {
+      this.statusBar.content = t`${fg(this.theme.yellow)("Select a handoff before changing priority")}`;
+      return;
+    }
+
+    this.noteList.setActive(false);
+    this.bodyScroll.blur();
+    this.priorityPopup.show(
+      notePriority(entry),
+      entry.name ?? stripMarkdownExtension(entry.filename),
+    );
+  }
+
+  private cancelChangePriority(): void {
+    this.statusBar.content = t`${fg(this.theme.fgMuted)("Priority change cancelled")}`;
+    this.focusPane(this.activePane);
+  }
+
+  private async executeSetPriority(priority: NotePriority): Promise<void> {
+    const entry = this.selectedEntry;
+    if (!entry) {
+      this.focusPane(this.activePane);
+      return;
+    }
+
+    this.settingPriorityPath = entry.filePath;
+    this.selectedFilePath = entry.filePath;
+    const label = notePathLabel(entry);
+    this.statusBar.content = t`${fg(this.theme.yellow)(`Setting ${label} to ${priorityLabel(priority)}...`)}`;
+    this.focusPane(this.activePane);
+
+    try {
+      await this.callbacks.onSetPriority(entry.filePath, priority);
+      await this.refresh();
+      this.statusBar.content = t`${fg(this.theme.green)(`Set ${label} priority to ${priorityLabel(priority)}`)}`;
+    } catch (error) {
+      this.statusBar.content = t`${fg(this.theme.red)(`Failed to set priority: ${errorMessage(error)}`)}`;
+    } finally {
+      this.settingPriorityPath = null;
+    }
+  }
+
   private requestDeleteSelected(): void {
     if (this.deletingFilePath) {
       this.statusBar.content = t`${fg(this.theme.yellow)("A note deletion is already in progress")}`;
@@ -1115,6 +1233,10 @@ export class NotesView {
       this.createPrompt.handleKeyPress(key);
       return;
     }
+    if (this.priorityPopup.visible) {
+      this.priorityPopup.handleKeyPress(key);
+      return;
+    }
     if (this.deleteConfirmation) {
       this.handleDeleteConfirmationKey(key);
       return;
@@ -1145,10 +1267,21 @@ export class NotesView {
       id: entry.filePath,
       title: entry.name ?? stripMarkdownExtension(entry.filename),
       description: formatListDescription(entry),
-      color: this.theme.fg,
-      section: showSection && this.showingAllRepos ? entry.repoSlug : undefined,
+      color: isHandoffEntry(entry)
+        ? priorityColor(this.theme, notePriority(entry))
+        : this.theme.fg,
+      section: this.listItemSection(entry, showSection),
       value: entry,
     };
+  }
+
+  private listItemSection(
+    entry: NoteEntry,
+    showSection: boolean,
+  ): string | undefined {
+    if (!showSection) return undefined;
+    if (this.groupingByPriority()) return priorityLabel(notePriority(entry));
+    return this.showingAllRepos ? entry.repoSlug : undefined;
   }
 
   private updateHeader(entry: NoteEntry): void {
@@ -1160,6 +1293,12 @@ export class NotesView {
       ? t`${fg(this.theme.fgMuted)("Description: ")}${fg(this.theme.fg)(entry.description)}`
       : t`${fg(this.theme.fgMuted)("Description: ")}${fg(this.theme.fgSubtle)("No description")}`;
     this.noteTags.content = t`${fg(this.theme.fgMuted)("Tags: ")}${fg(this.theme.fg)(formatTags(entry.tags))}`;
+    if (isHandoffEntry(entry)) {
+      const priority = notePriority(entry);
+      this.notePriorityText.content = t`${fg(this.theme.fgMuted)("Priority: ")}${bold(fg(priorityColor(this.theme, priority))(priorityLabel(priority)))}`;
+    } else {
+      this.notePriorityText.content = t``;
+    }
     this.noteFile.content = t`${fg(this.theme.fgMuted)("File: ")}${fg(this.theme.fg)(fileLabel)}`;
     this.noteModified.content = t`${fg(this.theme.fgMuted)("Modified: ")}${fg(this.theme.fg)(modified)}`;
   }
@@ -1171,6 +1310,7 @@ export class NotesView {
     this.noteHeading.content = t`${bold(fg(this.theme.fgMuted)(title))}`;
     this.noteDescription.content = t``;
     this.noteTags.content = t``;
+    this.notePriorityText.content = t``;
     this.noteFile.content = t``;
     this.noteModified.content = t``;
     this.setMarkdownContent(body);
@@ -1183,7 +1323,9 @@ export class NotesView {
     const detail =
       this.searchActive || query.length > 0
         ? `search "${query}"`
-        : sortModeLabel(this.sortMode);
+        : this.groupingByPriority()
+          ? `group:priority • ${sortModeLabel(this.sortMode)}`
+          : sortModeLabel(this.sortMode);
     this.listTitle.content = formatPaneTitle(
       this.theme,
       `${notesDisplayTitle(this.filter, this.showingAllRepos)} • ${detail}`,
@@ -1623,6 +1765,10 @@ function matchesFilter(
   if (!filter?.tag) return true;
   const wanted = filter.tag.toLowerCase();
   return entry.tags.some((tag) => tag.toLowerCase() === wanted);
+}
+
+function isHandoffEntry(entry: NoteEntry): boolean {
+  return entry.tags.some((tag) => tag.toLowerCase() === "handoff");
 }
 
 function sortComparator(

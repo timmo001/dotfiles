@@ -14,7 +14,7 @@ There are two ways into the same vault:
 
 ```bash
 dot notes              # two-pane repository notes browser (TUI)
-dot notes --all        # browse every repo-notes directory (or press g in the TUI)
+dot notes --all        # browse every repo-notes directory (or press v in the TUI)
 dot notes list --all   # CLI listing grouped by repo
 ```
 
@@ -38,6 +38,18 @@ dot handoffs --list    # list handoff notes to stdout
 ```
 
 `dot handoff` is an alias for `dot handoffs`.
+
+### Priority
+
+Handoffs carry a `priority` of `low`, `medium`, `high`, or `critical`. New handoff drafts start at `medium`, and any handoff without an explicit `priority` is treated as `medium`.
+
+In the handoffs TUI:
+
+- `p` opens a picker (the same style as the menu variant popup) to set the selected handoff's priority. The change is written to frontmatter and committed.
+- `g` cycles the grouping mode. The list is grouped into `Critical` / `High` / `Medium` / `Low` sections by default; press `g` again to switch to a flat list. The active sort (`s`) applies within each group.
+- `v` toggles the all-repos scope (this moved off `g`).
+
+Priority is a handoff concept, so `p` and priority grouping apply only in the handoffs view; `dot notes` is unaffected. `dot handoffs --list` prefixes each entry with its priority, for example `[High] handoff-auth-refactor.md ...`.
 
 ## Read / write note files
 

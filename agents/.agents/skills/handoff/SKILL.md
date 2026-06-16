@@ -53,6 +53,7 @@ This ensures:
 ## Content guidelines
 
 - Do not duplicate content already captured in other artifacts (PRDs, plans, ADRs, issues, commits, diffs). Reference them by path or URL instead.
+- Set `priority` to `low`, `medium`, `high`, or `critical` based on how urgently the next session should pick the work up. Handoffs without a priority are treated as `medium`.
 - Redact any sensitive information, such as API keys, passwords, or personally identifiable information.
 - If the user passed arguments, treat them as a description of what the next session will focus on and tailor the doc accordingly.
 - If the conversation was trivial or too short to be worth a handoff, say so and ask the user if they still want to save it.
@@ -67,6 +68,7 @@ date: {current `date -Is` value, e.g. 2026-06-01T14:30:00+01:00}
 type: handoff
 name: {Short human-readable title, 3–6 words, Title Case}
 description: {One sentence describing the handoff purpose}
+priority: {low | medium | high | critical, default medium}
 tags: [handoff, {2–4 additional kebab-case tags from the conversation}]
 ---
 

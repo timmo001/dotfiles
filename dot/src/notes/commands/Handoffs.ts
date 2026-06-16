@@ -1,6 +1,29 @@
 import { Effect } from "effect";
 import { Notes, NotesError } from "../services/Notes.js";
-import { formatNoteLabel, formatNoteSections } from "../types.js";
+import {
+  formatNoteLabel,
+  notePriority,
+  priorityLabel,
+  type NoteEntry,
+  type NoteRepoSection,
+} from "../types.js";
+
+/** Render a handoff label prefixed with its effective priority. */
+function formatHandoffLabel(entry: NoteEntry): string {
+  return `[${priorityLabel(notePriority(entry))}] ${formatNoteLabel(entry)}`;
+}
+
+/** Render repo-grouped handoff labels with Markdown-style section headings. */
+function formatHandoffSections(sections: readonly NoteRepoSection[]): string {
+  return sections
+    .map((section) =>
+      [
+        `## ${section.repoSlug}`,
+        ...section.entries.map(formatHandoffLabel),
+      ].join("\n"),
+    )
+    .join("\n\n");
+}
 
 /** Execute `dot handoffs --list [--all]`: list handoff-tagged notes to stdout. */
 export function handoffsList(all: boolean) {
@@ -22,7 +45,7 @@ export function handoffsList(all: boolean) {
         process.stdout.write("No handoff notes found.\n");
         return;
       }
-      process.stdout.write(formatNoteSections(filtered) + "\n");
+      process.stdout.write(formatHandoffSections(filtered) + "\n");
     } else {
       const entries = yield* notes.list();
       const filtered = entries.filter((entry) =>
@@ -33,7 +56,7 @@ export function handoffsList(all: boolean) {
         process.stdout.write("No handoff notes found.\n");
         return;
       }
-      process.stdout.write(filtered.map(formatNoteLabel).join("\n") + "\n");
+      process.stdout.write(filtered.map(formatHandoffLabel).join("\n") + "\n");
     }
   }).pipe(
     Effect.catch((error) =>
