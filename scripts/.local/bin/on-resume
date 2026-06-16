@@ -38,7 +38,7 @@ sleep 0.2
 pkill -9 -x waybar >/dev/null 2>&1 || true
 log "Killed waybar, cleared git caches"
 
-uwsm-app -- waybar >/dev/null 2>&1 &
+setsid uwsm-app -- waybar >/dev/null 2>&1 &
 log "Waybar restarted"
 
 # Restart twitch-notifications after brief delay
