@@ -60,6 +60,6 @@ export async function runSuspendedCommand({
       await proc.exited;
     });
   } finally {
-    await Effect.runPromise(resizeIfFloating(500, 600));
+    await Effect.runPromise(resizeIfFloating(960, 600));
   }
 }

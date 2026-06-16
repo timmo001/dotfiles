@@ -797,7 +797,7 @@ if (mode.type === "native") {
     updateDashboardView();
 
     // Resize window if floating on Hyprland
-    yield* resizeIfFloating(500, 600);
+    yield* resizeIfFloating(960, 600);
 
     log("Starting renderer...");
     renderer.start();
