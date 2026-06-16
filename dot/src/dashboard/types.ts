@@ -38,6 +38,8 @@ export interface DashboardBarValue {
   readonly tooltip: string;
   /** Module class field, if present. */
   readonly className: string;
+  /** Unit of measurement appended to the reading, from source config. */
+  readonly unit?: string;
   /** Timestamp of the last source read attempt. */
   readonly updatedAt: Date;
   /** Human-readable source diagnostic for missing/error states. */

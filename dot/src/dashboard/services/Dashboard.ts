@@ -49,6 +49,7 @@ interface DashboardService {
 
 interface DashboardSourceCommand {
   readonly command: string;
+  readonly unit?: string;
 }
 
 /** Effect service for dashboard live source snapshots. */
@@ -191,7 +192,7 @@ function loadBarValue(
         Effect.succeed(JSON.stringify({ error: formatError(error) })),
       ),
     );
-    return parseBarValue(id, output, updatedAt);
+    return parseBarValue(id, output, updatedAt, source.unit);
   });
 }
 
@@ -241,6 +242,7 @@ function parseBarValue(
   id: DashboardBarModuleId,
   output: string,
   updatedAt: Date,
+  unit?: string,
 ): DashboardBarValue {
   const trimmed = output.trim().split("\n")[0]?.trim() ?? "";
   if (!trimmed) {
@@ -277,6 +279,7 @@ function parseBarValue(
       text,
       tooltip,
       className,
+      ...(unit && { unit }),
       updatedAt,
     };
   } catch {
@@ -347,7 +350,10 @@ function parseDashboardCommands(
     if (!source || typeof source !== "object") continue;
     const command = (source as Record<string, unknown>).command;
     if (typeof command === "string" && command.trim()) {
-      commands[key] = { command };
+      const rawUnit = (source as Record<string, unknown>).unit;
+      const unit =
+        typeof rawUnit === "string" && rawUnit.trim() ? rawUnit : undefined;
+      commands[key] = { command, ...(unit && { unit }) };
     }
   }
   return commands;

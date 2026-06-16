@@ -38,7 +38,24 @@ export function buildDashboardState(
       input.workflows,
     ),
     live: liveCard(input.sourceState.bar.twitch),
-    environment: environmentCard(input.sourceState),
+    temperature: environmentCard(
+      "environment-temperature",
+      "Temperature",
+      input.sourceState.bar.temperature,
+      "No temperature reading",
+    ),
+    co2: environmentCard(
+      "environment-co2",
+      "CO2",
+      input.sourceState.bar.co2,
+      "No CO2 reading",
+    ),
+    voc: environmentCard(
+      "environment-voc",
+      "VOC",
+      input.sourceState.bar.voc,
+      "No VOC reading",
+    ),
     myTasks: todoCard(
       "my-tasks",
       "My Tasks",
@@ -57,7 +74,6 @@ export function buildDashboardState(
     ...(nextHour ? [nextHour] : []),
     cards.updates,
     cards.live,
-    cards.environment,
   ];
   const attentionCards = Object.values(cards).filter(
     (card) => card.tone === "attention",
@@ -86,6 +102,10 @@ export function buildDashboardState(
       { title: "Overview", cards: overviewCards },
       { title: "Git", cards: [cards.gitDiff, cards.gitNotifications] },
       { title: "Todos", cards: [cards.myTasks, cards.workTasks] },
+      {
+        title: "Environment",
+        cards: [cards.temperature, cards.co2, cards.voc],
+      },
     ],
     lastChecked: latestDate([
       input.repoState.lastChecked,
@@ -263,36 +283,32 @@ function todoCard(
   };
 }
 
-function environmentCard(source: DashboardSourceState): DashboardCard {
-  const values = [source.bar.temperature, source.bar.co2, source.bar.voc];
-  const attention = values.filter((value) =>
-    ["warning", "critical"].includes(value.className),
-  );
-  const visible = values.filter(barVisible);
-  const temperature = cleanText(source.bar.temperature.text);
+function environmentCard(
+  id: string,
+  title: string,
+  value: DashboardBarValue,
+  fallback: string,
+): DashboardCard {
+  const attention = ["warning", "critical"].includes(value.className);
+  const visible = barVisible(value);
+  const reading = cleanText(value.text);
+  const headline =
+    visible && reading
+      ? value.unit
+        ? `${reading} ${value.unit}`
+        : reading
+      : statusHeadline(value, fallback);
   return {
-    id: "environment",
-    section: "Overview",
-    title: "Environment",
-    headline:
-      attention.length > 0
-        ? `${attention.length} air quality alert${plural(attention.length)}`
-        : temperature
-          ? `${temperature} C and air OK`
-          : "Environment sources calm",
-    tone:
-      attention.length > 0
-        ? "attention"
-        : visible.length > 0
-          ? "ok"
-          : toneForBarValue(values[0], "muted"),
-    lines: [
-      source.bar.temperature.tooltip || source.bar.temperature.message,
-      source.bar.co2.tooltip || source.bar.co2.message,
-      source.bar.voc.tooltip || source.bar.voc.message,
-    ]
-      .filter((line): line is string => Boolean(line))
-      .map(firstTooltipLine),
+    id,
+    section: "Environment",
+    title,
+    headline,
+    tone: attention
+      ? "attention"
+      : visible
+        ? "ok"
+        : toneForBarValue(value, "muted"),
+    lines: [],
   };
 }
 
