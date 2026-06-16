@@ -355,7 +355,7 @@ function workflowTargetMessage(
     (repo) => repo.workflows.enabled,
   ).length;
   if (targetCount > 0 || enabledCount === 0) return undefined;
-  return `${enabledCount} workflow ${hiddenRepoPhrase(enabledCount)} hidden by schedule`;
+  return `${enabledCount} workflow ${repoNoun(enabledCount)} hidden by schedule`;
 }
 
 function targetToLoadingRepo(target: WorkflowTarget): WorkflowRepoRuns {
@@ -364,8 +364,8 @@ function targetToLoadingRepo(target: WorkflowTarget): WorkflowRepoRuns {
   };
 }
 
-function hiddenRepoPhrase(count: number): string {
-  return count === 1 ? "repo is" : "repos are";
+function repoNoun(count: number): string {
+  return count === 1 ? "repo" : "repos";
 }
 
 function emptyRepo(slug: string): WorkflowRepoRuns {
