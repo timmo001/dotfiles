@@ -57,6 +57,16 @@ function view(
 
 const dotItems: readonly MenuItem[] = [
   item(
+    "dashboard",
+    "󰕮",
+    "Dashboard",
+    "Mission Control prototype with sample cards",
+    view("dashboard"),
+    undefined,
+    ["dash", "overview", "mission", "control", "status", "summary", "cards"],
+    "Dotfiles",
+  ),
+  item(
     "update",
     "󰚰",
     "Update",

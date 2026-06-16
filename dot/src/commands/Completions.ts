@@ -12,14 +12,37 @@ import { renderHelp } from "../cli/help.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 
-type CompletionShell = "zsh";
+const SUPPORTED_SHELLS = ["bash", "fish", "zsh"] as const;
 
+type CompletionShell = (typeof SUPPORTED_SHELLS)[number];
+
+const BASH_COMPLETION_RELATIVE_PATH =
+  "bash/.local/share/bash-completion/completions/dot";
+const FISH_COMPLETION_RELATIVE_PATH = "fish/.config/fish/completions/dot.fish";
 const ZSH_COMPLETION_RELATIVE_PATH = "zsh/.local/share/zsh/site-functions/_dot";
 const ZSH_CONTINUATION = ` ${"\\"}`;
 
+const COMPLETION_TARGETS = {
+  bash: BASH_COMPLETION_RELATIVE_PATH,
+  fish: FISH_COMPLETION_RELATIVE_PATH,
+  zsh: ZSH_COMPLETION_RELATIVE_PATH,
+} satisfies Record<CompletionShell, string>;
+
 interface CompletionOptions {
-  readonly shell?: CompletionShell;
+  readonly shell: CompletionShell;
   readonly stdout?: boolean;
+}
+
+function isCompletionShell(shell: string): shell is CompletionShell {
+  return (SUPPORTED_SHELLS as readonly string[]).includes(shell);
+}
+
+function shellList(): string {
+  return SUPPORTED_SHELLS.join(", ");
+}
+
+function shellIdentifier(value: string): string {
+  return value.replace(/[^A-Za-z0-9_]/g, "_");
 }
 
 function zshQuote(value: string): string {
@@ -27,7 +50,7 @@ function zshQuote(value: string): string {
 }
 
 function zshIdentifier(value: string): string {
-  return value.replace(/[^A-Za-z0-9_]/g, "_");
+  return shellIdentifier(value);
 }
 
 function zshDescription(value: string): string {

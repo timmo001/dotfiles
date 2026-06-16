@@ -2,6 +2,7 @@ import { cliCommands, getCliCommand, type CliCommandSpec } from "./spec.js";
 
 const rootExamples = [
   "dot                      Main menu",
+  "dot dashboard            Mission Control prototype",
   "dot init --noninteractive --confirm",
   "dot update",
   "dot stow",
@@ -126,7 +127,7 @@ function renderRootHelp(): string {
   return [
     "Usage: dot [subcommand] [options]",
     "",
-    "Launch the dot TUI dashboard. Without a subcommand, opens the main menu.",
+    "Launch the dot TUI. Without a subcommand, opens the main menu.",
     "",
     ...renderAligned(
       "Subcommands",

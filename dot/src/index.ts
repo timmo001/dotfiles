@@ -10,6 +10,8 @@ import { GitLog } from "./git/services/GitLog.js";
 import { GitHub } from "./git/services/GitHub.js";
 import { GitNotifications } from "./git/services/GitNotifications.js";
 import { WorkflowRuns } from "./git/services/WorkflowRuns.js";
+import { Dashboard } from "./dashboard/services/Dashboard.js";
+import { buildDashboardState } from "./dashboard/viewModel.js";
 import { Notes } from "./notes/services/Notes.js";
 import { parseFlags, resolveSubcommand, printHelp } from "./flags.js";
 import { hasOption, optionValue } from "./lib/args.js";
@@ -156,6 +158,9 @@ function resolveMode(): Mode {
           ? includeAllRepos(handoffNotesFilter)
           : handoffNotesFilter,
       };
+    }
+    if (flags.subcommand === "dashboard") {
+      return { type: "tui", initialView: "dashboard" };
     }
     // Git diff without machine flags opens the TUI diff view.
     if (flags.subcommand === "git-diff" || flags.subcommand === "diff") {
@@ -437,6 +442,7 @@ type NativeEffect = Effect.Effect<void, unknown, NativeEnv>;
 
 /** Minimal layers for native CLI commands (no renderer, no TUI services) */
 const GitLogLayer = GitLog.layer.pipe(Layer.provideMerge(DotDiff.layer));
+const DashboardLayer = Dashboard.layer.pipe(Layer.provideMerge(DotDiff.layer));
 
 const CliLayers = Launcher.cliLayer.pipe(
   Layer.provideMerge(GitLogLayer),
@@ -609,6 +615,7 @@ if (mode.type === "native") {
     const gitLog = yield* GitLog;
     const workflows = yield* WorkflowRuns;
     const notifications = yield* GitNotifications;
+    const dashboard = yield* Dashboard;
     const notes = yield* Notes;
     const gitStaging = yield* GitStaging;
     const commitSuggest = yield* CommitSuggest;
@@ -637,6 +644,11 @@ if (mode.type === "native") {
         },
         onRefreshNotifications: () => {
           Effect.runFork(notifications.refresh(notificationOpts));
+        },
+        onRefreshDashboard: () => {
+          Effect.runFork(dashboard.refresh());
+          Effect.runFork(notifications.refresh(notificationOpts));
+          Effect.runFork(workflows.refresh(workflowOpts));
         },
         onNotificationAction: (action, threadId) => {
           Effect.runFork(
@@ -681,6 +693,22 @@ if (mode.type === "native") {
     const workflowsView = app.getWorkflowsView();
     const notificationsView = app.getNotificationsView();
 
+    let currentRepoState = yield* watcher.getState();
+    let currentDashboardState = yield* dashboard.getState();
+    let currentWorkflowState = yield* workflows.getState();
+    let currentNotificationState = yield* notifications.getState();
+
+    const updateDashboardView = () => {
+      app.updateDashboardState(
+        buildDashboardState({
+          repoState: currentRepoState,
+          sourceState: currentDashboardState,
+          notifications: currentNotificationState,
+          workflows: currentWorkflowState,
+        }),
+      );
+    };
+
     // Subscribe to watcher state changes and update the diff view
     yield* watcher.subscribe().pipe(
       Stream.runForEach((state) =>
@@ -688,7 +716,9 @@ if (mode.type === "native") {
           log(
             `State update: ${state.changed.length} changed, ${state.unchanged.length} unchanged`,
           );
+          currentRepoState = state;
           app.updateDiffState(state);
+          updateDashboardView();
         }),
       ),
       Effect.forkScoped,
@@ -712,7 +742,9 @@ if (mode.type === "native") {
       Stream.runForEach((state) =>
         Effect.sync(() => {
           log(`Workflow update: ${state.repos.length} watched repos`);
+          currentWorkflowState = state;
           workflowsView.update(state);
+          updateDashboardView();
         }),
       ),
       Effect.forkScoped,
@@ -724,15 +756,30 @@ if (mode.type === "native") {
       Stream.runForEach((state) =>
         Effect.sync(() => {
           log(`Notification update: ${state.threads.length} threads`);
+          currentNotificationState = state;
           notificationsView.update(state);
+          updateDashboardView();
         }),
       ),
       Effect.forkScoped,
     );
     log("Subscribed to notification stream");
 
+    // Subscribe to dashboard source state and update dashboard cards
+    yield* dashboard.subscribe().pipe(
+      Stream.runForEach((state) =>
+        Effect.sync(() => {
+          log("Dashboard source update");
+          currentDashboardState = state;
+          updateDashboardView();
+        }),
+      ),
+      Effect.forkScoped,
+    );
+    log("Subscribed to dashboard stream");
+
     // Push current state immediately for first paint
-    const initialState = yield* watcher.getState();
+    const initialState = currentRepoState;
     log(
       `Initial state: ${initialState.changed.length} changed, ${initialState.unchanged.length} unchanged`,
     );
@@ -741,11 +788,13 @@ if (mode.type === "native") {
     const initialGitLogState = yield* gitLog.getState();
     gitLogView.update(initialGitLogState);
 
-    const initialWorkflowState = yield* workflows.getState();
+    const initialWorkflowState = currentWorkflowState;
     workflowsView.update(initialWorkflowState);
 
-    const initialNotificationState = yield* notifications.getState();
+    const initialNotificationState = currentNotificationState;
     notificationsView.update(initialNotificationState);
+
+    updateDashboardView();
 
     // Resize window if floating on Hyprland
     yield* resizeIfFloating(500, 600);
@@ -764,6 +813,7 @@ if (mode.type === "native") {
   const TuiLayers = RepoWatcher.layer.pipe(
     Layer.provideMerge(GitLogLayer),
     Layer.provideMerge(WorkflowRuns.layer),
+    Layer.provideMerge(DashboardLayer),
     Layer.provideMerge(GitNotifications.layer),
     Layer.provideMerge(Notes.layer),
     Layer.provideMerge(GitHub.layer),

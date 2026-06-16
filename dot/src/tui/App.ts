@@ -12,6 +12,7 @@ import type {
   GitLogRepo,
   WorkflowRun,
 } from "../types.js";
+import type { DashboardState } from "../dashboard/types.js";
 import type {
   NoteCreateDraft,
   NoteCreateKind,
@@ -26,6 +27,7 @@ import type { CommandRunnerService } from "../services/CommandRunner.js";
 import type { GitStagingService } from "../git/services/GitStaging.js";
 import type { CommitSuggestService } from "../git/services/CommitSuggest.js";
 import { MainMenu } from "./MainMenu.js";
+import { DashboardView } from "../dashboard/tui/DashboardView.js";
 import { DiffView } from "../git/tui/DiffView.js";
 import { GitLogView } from "../git/tui/GitLogView.js";
 import { GitNotificationsView } from "../git/tui/GitNotificationsView.js";
@@ -99,6 +101,8 @@ export interface AppDeps {
   readonly onRefreshWorkflows: () => void;
   /** Callback to trigger an immediate GitHub notification refresh */
   readonly onRefreshNotifications: () => void;
+  /** Callback to trigger an immediate dashboard source refresh. */
+  readonly onRefreshDashboard: () => void;
   /** Callback to apply a mutating notification thread action */
   readonly onNotificationAction: (
     action: GitNotificationAction,
@@ -134,6 +138,7 @@ export class App {
   private renderer: CliRenderer;
   private commandRunner: CommandRunnerService;
   private mainMenu: MainMenu;
+  private dashboardView: DashboardView;
   private diffView: DiffView;
   private gitLogView: GitLogView;
   private workflowsView: WorkflowRunsView;
@@ -162,6 +167,12 @@ export class App {
     this.mainMenu = new MainMenu(deps.renderer, deps.theme, {
       onSelect: (item) => this.handleMenuAction(item),
       initialSelectedId: options.executeItemId,
+    });
+
+    this.dashboardView = new DashboardView(deps.renderer, deps.theme, {
+      onOpenView: (viewId) => this.pushView(viewId),
+      onRefresh: () => deps.onRefreshDashboard(),
+      onBack: () => this.popView(),
     });
 
     this.diffView = new DiffView(deps.renderer, deps.theme, {
@@ -488,6 +499,11 @@ export class App {
     }
   }
 
+  /** Update the dashboard view with the latest composed live state. */
+  updateDashboardState(state: DashboardState): void {
+    this.dashboardView.update(state);
+  }
+
   private showView(viewId: ViewId): void {
     log(`Switching to view: ${viewId}`);
 
@@ -501,6 +517,11 @@ export class App {
         setTerminalTitle("Dot TUI");
         this.mainMenu.setVisible(true);
         this.mainMenu.resetAndFocus();
+        break;
+      case "dashboard":
+        setTerminalTitle("Dot TUI \u203A Dashboard");
+        this.dashboardView.setVisible(true);
+        this.dashboardView.focus();
         break;
       case "git-diff":
         setTerminalTitle(formatDiffTitle(this.diffChangedCount));
@@ -575,6 +596,7 @@ export class App {
 
   private hideAllViews(): void {
     this.mainMenu.setVisible(false);
+    this.dashboardView.setVisible(false);
     this.diffView.setVisible(false);
     this.gitLogView.setVisible(false);
     this.workflowsView.setVisible(false);
@@ -650,6 +672,9 @@ export class App {
     switch (this.activeView) {
       case "main":
         this.mainMenu.focus();
+        break;
+      case "dashboard":
+        this.dashboardView.focus();
         break;
       case "git-diff":
         this.diffView.focus();

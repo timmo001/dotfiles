@@ -98,6 +98,7 @@ export interface GitLogState {
 /** Identifies a top-level TUI view for navigation */
 export type ViewId =
   | "main"
+  | "dashboard"
   | "git-diff"
   | "git-log"
   | "git-workflows"

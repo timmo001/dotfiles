@@ -25,6 +25,7 @@ It has two faces:
 
 | Command | What it does |
 | --- | --- |
+| `dot dashboard` | Open the Mission Control dashboard. |
 | `dot init` | One-time first-use setup for a fresh machine. |
 | `dot update` | Self-update, install deps, rebuild, pull, stow, restart. |
 | `dot stow` | Stow refresh only (no git pull). |
@@ -34,6 +35,10 @@ It has two faces:
 | `dot omarchy` | Open the Omarchy desktop controls menu. |
 
 See the full [Command Reference](/dot/commands/) for every subcommand and flag.
+
+## Dashboard
+
+`dot dashboard` opens a full-screen Mission Control dashboard. It combines tracked repo state, GitHub notifications, workflow runs, and selected bounded status-bar sources such as Twitch, environment, and calendar modules. Cards are intentionally readable and always present; Enter opens an existing deeper TUI view when a card has one.
 
 ## Source of truth
 

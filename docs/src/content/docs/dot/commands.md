@@ -7,6 +7,30 @@ description: Every dot command, alias, flag and example, generated from the CLI 
 
 This page lists every `dot` command, generated from the same registry that powers `dot help` and shell completions. Run any command with `--help` to see the same details at the terminal.
 
+## `dot dashboard`
+
+Open the Mission Control dashboard prototype
+
+```text
+dot dashboard [options]
+```
+
+Open the full-screen Mission Control dashboard. It combines tracked repo
+state, GitHub notifications, workflow runs, and selected bounded status-bar
+sources such as Twitch, environment, and calendar modules.
+
+**Modes**
+
+```text
+(default)      Interactive Mission Control dashboard
+```
+
+**Examples**
+
+```bash
+dot dashboard
+```
+
 ## `dot init`
 
 Run one-time first-use machine setup

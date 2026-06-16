@@ -243,6 +243,9 @@ export function resolveSubcommand(
   | { type: "item"; itemId: string }
   | undefined {
   // Direct view names. `diff` is a short alias for `git-diff`.
+  if (sub === "dashboard") {
+    return { type: "view", viewId: "dashboard" };
+  }
   if (sub === "git-diff" || sub === "diff") {
     return { type: "view", viewId: "git-diff" };
   }

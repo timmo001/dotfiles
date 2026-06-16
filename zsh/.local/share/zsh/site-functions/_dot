@@ -3,6 +3,7 @@
 
 local -a dot_commands
 dot_commands=(
+  'dashboard:Open the Mission Control dashboard prototype'
   'init:Run one-time first-use machine setup'
   'install:Ensure prerequisites, then backup/adopt dotfiles'
   'update:Pull repos, stow dotfiles, install deps, rebuild'
@@ -30,6 +31,12 @@ dot_commands=(
   'help:Show this help menu'
 )
 
+_dot_cmd_dashboard() {
+  _arguments -S \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
 _dot_cmd_init() {
   _arguments -S \
     '--confirm[Acknowledge non-interactive package helpers]' \
@@ -322,6 +329,9 @@ _dot_complete_command() {
   local command=$1
 
   case $command in
+    dashboard)
+      _dot_cmd_dashboard
+      ;;
     init)
       _dot_cmd_init
       ;;
