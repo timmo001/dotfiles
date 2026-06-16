@@ -171,6 +171,16 @@ export class App {
 
     this.dashboardView = new DashboardView(deps.renderer, deps.theme, {
       onOpenView: (viewId) => this.pushView(viewId),
+      onRunCommand: (command, mode) => {
+        const run =
+          mode === "exit"
+            ? this.commandRunner.exitAndRun(command)
+            : this.commandRunner.runSilent(command);
+        run.catch((err) => {
+          log(`Dashboard command error: ${err}`);
+          if (mode === "exit") this.renderer.destroy();
+        });
+      },
       onRefresh: () => deps.onRefreshDashboard(),
       onBack: () => this.popView(),
     });
@@ -508,6 +518,7 @@ export class App {
     log(`Switching to view: ${viewId}`);
 
     this.hideAllViews();
+    this.clearForViewSwitch();
 
     this.activeView = viewId;
 
@@ -606,6 +617,11 @@ export class App {
     this.stagingView.setVisible(false);
     this.commitView.setVisible(false);
     this.outputPane.setVisible(false);
+  }
+
+  private clearForViewSwitch(): void {
+    this.renderer.currentRenderBuffer.clear();
+    this.renderer.requestRender();
   }
 
   /** Dispatch a menu action (command, silent, notify, view, or submenu) */

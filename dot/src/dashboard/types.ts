@@ -8,7 +8,7 @@ export type DashboardTone =
   | "muted"
   | "prototype";
 
-/** Waybar-compatible module IDs read by the dashboard source layer. */
+/** Bounded external source IDs read by the dashboard source layer. */
 export type DashboardBarModuleId =
   | "twitch"
   | "temperature"
@@ -16,7 +16,7 @@ export type DashboardBarModuleId =
   | "voc"
   | "calendar";
 
-/** Runtime state for a bounded status-bar-compatible source command. */
+/** Runtime state for a bounded dashboard source command. */
 export type DashboardBarStatus =
   | "loading"
   | "ok"
@@ -24,7 +24,7 @@ export type DashboardBarStatus =
   | "missing"
   | "error";
 
-/** One parsed `--bar-json` style source value. */
+/** One parsed JSON source value with `text`, `tooltip`, and `class` fields. */
 export interface DashboardBarValue {
   /** Logical source ID. */
   readonly id: DashboardBarModuleId;
@@ -46,7 +46,7 @@ export interface DashboardBarValue {
 export interface DashboardSourceState {
   /** Enriched repo diff data from DotDiff. */
   readonly diffRepos: readonly DiffRepo[];
-  /** Parsed one-shot bar module values by source ID. */
+  /** Parsed one-shot dashboard source values by source ID. */
   readonly bar: Readonly<Record<DashboardBarModuleId, DashboardBarValue>>;
   /** Timestamp of the last source refresh attempt. */
   readonly lastChecked: Date;
@@ -74,6 +74,10 @@ export interface DashboardCard {
   readonly lines: readonly string[];
   /** Existing TUI view opened with Enter, when available. */
   readonly viewId?: ViewId;
+  /** Shell command run when Enter activates this card, when available. */
+  readonly command?: string;
+  /** How a dashboard shell command should be run. Defaults to silent. */
+  readonly commandMode?: "silent" | "exit";
   /** Help text describing the Enter action. */
   readonly actionLabel?: string;
 }

@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -eq 0 ]]; then
+  printf 'Usage: ha-entity-bar-json-once [go-automate bar-json flags] <entity_id>\n' >&2
+  exit 1
+fi
+
+line=""
+watch_pid=""
+
+coproc ENTITY_WATCH {
+  exec go-automate ha bridge watch entity --bar-json "$@" 2>/dev/null
+}
+
+watch_pid="${ENTITY_WATCH_PID:-}"
+IFS= read -r line <&"${ENTITY_WATCH[0]}" || true
+
+if [[ -n "$watch_pid" ]]; then
+  kill -- "-$watch_pid" 2>/dev/null || kill "$watch_pid" 2>/dev/null || true
+  wait "$watch_pid" 2>/dev/null || true
+fi
+
+if [[ -n "$line" ]]; then
+  printf '%s\n' "$line"
+else
+  printf '{"text":"","class":"hidden","tooltip":""}\n'
+fi

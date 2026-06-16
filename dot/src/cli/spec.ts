@@ -124,8 +124,8 @@ export const cliCommands: readonly CliCommandSpec[] = [
     usage: "[options]",
     description: [
       "Open the full-screen Mission Control dashboard. It combines tracked repo",
-      "state, GitHub notifications, workflow runs, and selected bounded status-bar",
-      "sources such as Twitch, environment, and calendar modules.",
+      "state, GitHub notifications, workflow runs, and optional bounded source",
+      "commands for Twitch, environment, and calendar cards.",
     ],
     modes: ["(default)      Interactive Mission Control dashboard"],
     options: [helpOption],

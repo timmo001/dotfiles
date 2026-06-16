@@ -37,11 +37,7 @@ const HELP: readonly HelpEntry[] = [
 const INITIAL_STATE = {
   summaryHeadline: "Loading dashboard sources",
   summaryTone: "muted",
-  summaryLines: [
-    "Reading tracked repos, GitHub, Twitch, environment, and calendar sources.",
-    "Sources update independently and may take a few seconds on first load.",
-    "Enter opens an existing deeper TUI view when a card supports it.",
-  ],
+  summaryLines: [],
   lastChecked: new Date(),
   loading: true,
   columns: [
@@ -54,25 +50,25 @@ const INITIAL_STATE = {
           title: "Updates",
           headline: "Loading update state",
           tone: "muted",
-          lines: ["Waiting for tracked repo scan"],
+          lines: [],
         },
         {
           id: "git",
           section: "Work",
-          title: "Git",
+          title: "Git Diff",
           headline: "Loading git state",
           tone: "muted",
-          lines: ["Waiting for repo watcher"],
+          lines: [],
           viewId: "git-diff",
           actionLabel: "Open Git Diff",
         },
         {
           id: "github",
           section: "Work",
-          title: "GitHub",
+          title: "Git Notifications",
           headline: "Loading GitHub state",
           tone: "muted",
-          lines: ["Waiting for notifications and workflows"],
+          lines: [],
           viewId: "git-notifications",
           actionLabel: "Open Notifications",
         },
@@ -87,7 +83,7 @@ const INITIAL_STATE = {
           title: "Live Channels",
           headline: "Loading live channels",
           tone: "muted",
-          lines: ["Waiting for Twitch status"],
+          lines: [],
         },
         {
           id: "environment",
@@ -95,7 +91,7 @@ const INITIAL_STATE = {
           title: "Environment",
           headline: "Loading environment",
           tone: "muted",
-          lines: ["Waiting for Home Assistant sensors"],
+          lines: [],
         },
         {
           id: "today",
@@ -103,7 +99,7 @@ const INITIAL_STATE = {
           title: "Today",
           headline: "Loading calendar",
           tone: "muted",
-          lines: ["Waiting for calendar source"],
+          lines: [],
         },
       ],
     },
@@ -122,6 +118,11 @@ interface DashboardCardRenderables {
 export interface DashboardViewOptions {
   /** Called when the user opens a linked TUI view from a dashboard card. */
   readonly onOpenView: (viewId: ViewId) => void;
+  /** Called when the user runs a dashboard card command. */
+  readonly onRunCommand: (
+    command: string,
+    mode: DashboardCard["commandMode"],
+  ) => void;
   /** Called when the user requests a dashboard source refresh. */
   readonly onRefresh: () => void;
   /** Called when the user navigates back. */
@@ -135,9 +136,6 @@ export class DashboardView {
   private readonly callbacks: DashboardViewOptions;
   private readonly root: BoxRenderable;
   private readonly body: ScrollBoxRenderable;
-  private readonly summaryBox: BoxRenderable;
-  private readonly summaryTitle: TextRenderable;
-  private readonly summaryText: TextRenderable;
   private readonly columnsContainer: BoxRenderable;
   private readonly statusBar: TextRenderable;
   private readonly renderedCards: DashboardCardRenderables[] = [];
@@ -208,38 +206,6 @@ export class DashboardView {
     });
     this.root.add(this.body);
 
-    this.summaryBox = new BoxRenderable(renderer, {
-      id: "dashboard-summary-card",
-      width: "100%",
-      height: 7,
-      flexShrink: 0,
-      border: true,
-      borderStyle: "rounded",
-      borderColor: this.toneColor(this.state.summaryTone),
-      title: "Attention",
-      titleColor: this.toneColor(this.state.summaryTone),
-      paddingX: 1,
-      paddingY: 0,
-      backgroundColor: theme.bgElevated,
-      flexDirection: "column",
-    });
-    this.summaryTitle = new TextRenderable(renderer, {
-      id: "dashboard-summary-title",
-      content: this.formatSummaryTitle(),
-      width: "100%",
-      selectable: false,
-    });
-    this.summaryText = new TextRenderable(renderer, {
-      id: "dashboard-summary-text",
-      content: this.formatSummaryText(),
-      width: "100%",
-      wrapMode: "word",
-      selectable: false,
-    });
-    this.summaryBox.add(this.summaryTitle);
-    this.summaryBox.add(this.summaryText);
-    this.body.add(this.summaryBox);
-
     this.columnsContainer = new BoxRenderable(renderer, {
       id: "dashboard-columns",
       flexDirection: this.columnDirection(),
@@ -275,10 +241,6 @@ export class DashboardView {
   update(state: DashboardState): void {
     const selectedId = this.renderedCards[this.selectedIndex]?.card.id;
     this.state = state;
-    this.summaryBox.borderColor = this.toneColor(state.summaryTone);
-    this.summaryBox.titleColor = this.toneColor(state.summaryTone);
-    this.summaryTitle.content = this.formatSummaryTitle();
-    this.summaryText.content = this.formatSummaryText();
     this.rebuildColumns();
     if (selectedId) this.selectCard(selectedId, { fallbackToFirst: true });
     else this.refreshSelectionStyles();
@@ -459,6 +421,10 @@ export class DashboardView {
     if (!card) return;
     const viewId = card.viewId;
     if (viewId) queueMicrotask(() => this.callbacks.onOpenView(viewId));
+    else if (card.command)
+      queueMicrotask(() =>
+        this.callbacks.onRunCommand(card.command!, card.commandMode),
+      );
   }
 
   private refresh(): void {
@@ -484,17 +450,6 @@ export class DashboardView {
     }
     this.statusBar.content = this.formatStatusBar();
     this.focus();
-  }
-
-  private formatSummaryTitle(): StyledText {
-    return t`${bold(fg(this.toneColor(this.state.summaryTone))(this.state.summaryHeadline))} ${fg(this.theme.fgMuted)(this.state.loading ? "refreshing" : "live")}`;
-  }
-
-  private formatSummaryText(): StyledText {
-    const [first = "", second = "", third = ""] = this.state.summaryLines;
-    return t`${fg(this.theme.fg)(first)}
-${fg(this.theme.fgMuted)(second)}
-${fg(this.theme.fgMuted)(third)}`;
   }
 
   private formatStatusBar(prefix?: string): StyledText {

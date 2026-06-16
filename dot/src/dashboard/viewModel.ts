@@ -32,12 +32,18 @@ export function buildDashboardState(
 ): DashboardState {
   const cards = {
     updates: updatesCard(input.sourceState),
-    git: gitCard(input.repoState, input.sourceState),
-    github: githubCard(input.notifications, input.workflows),
+    gitDiff: gitDiffCard(input.repoState, input.sourceState),
+    gitNotifications: gitNotificationsCard(
+      input.notifications,
+      input.workflows,
+    ),
     live: liveCard(input.sourceState.bar.twitch),
     environment: environmentCard(input.sourceState),
-    today: todayCard(input.sourceState.bar.calendar),
   };
+  const nextHour = nextHourCard(input.sourceState.bar.calendar);
+  const lifeCards = nextHour
+    ? [cards.live, cards.environment, nextHour]
+    : [cards.live, cards.environment];
   const attentionCards = Object.values(cards).filter(
     (card) => card.tone === "attention",
   );
@@ -62,8 +68,11 @@ export function buildDashboardState(
     summaryTone: attentionCards.length > 0 ? "attention" : "ok",
     summaryLines,
     columns: [
-      { title: "Work", cards: [cards.updates, cards.git, cards.github] },
-      { title: "Life", cards: [cards.live, cards.environment, cards.today] },
+      {
+        title: "Work",
+        cards: [cards.updates, cards.gitDiff, cards.gitNotifications],
+      },
+      { title: "Life", cards: lifeCards },
     ],
     lastChecked: latestDate([
       input.repoState.lastChecked,
@@ -95,6 +104,7 @@ function updatesCard(source: DashboardSourceState): DashboardCard {
       ? `Dirty repos: ${dirty.length}`
       : "No dirty update blockers",
   ];
+  const hasUpdate = coreBehind.length > 0;
   return {
     id: "updates",
     section: "Work",
@@ -105,13 +115,17 @@ function updatesCard(source: DashboardSourceState): DashboardCard {
         : behind.length > 0
           ? `${behind.length} repo update${plural(behind.length)}`
           : "Tracked repos up to date",
-    tone:
-      coreBehind.length > 0 ? "attention" : behind.length > 0 ? "active" : "ok",
-    lines,
+    tone: hasUpdate ? "attention" : behind.length > 0 ? "active" : "ok",
+    lines: lines.filter((line) => !line.startsWith("No ")),
+    ...(hasUpdate && {
+      command: "dot update",
+      commandMode: "exit" as const,
+      actionLabel: "Run Update",
+    }),
   };
 }
 
-function gitCard(
+function gitDiffCard(
   repoState: RepoState,
   source: DashboardSourceState,
 ): DashboardCard {
@@ -122,7 +136,7 @@ function gitCard(
   return {
     id: "git",
     section: "Work",
-    title: "Git",
+    title: "Git Diff",
     headline:
       changed > 0
         ? `${changed} repo${plural(changed)} changed`
@@ -144,7 +158,7 @@ function gitCard(
   };
 }
 
-function githubCard(
+function gitNotificationsCard(
   notifications: GitNotificationState,
   workflows: WorkflowState,
 ): DashboardCard {
@@ -158,37 +172,41 @@ function githubCard(
     (sum, counts) => sum + counts.running,
     0,
   );
-  const message = notifications.message ?? workflows.message;
+  const workflowErrors = workflows.repos.filter((repo) => repo.error).length;
+  const errorMessage = notifications.message;
+  const workflowMessage = workflows.message;
   return {
     id: "github",
     section: "Work",
-    title: "GitHub",
-    headline: message
-      ? "GitHub status limited"
-      : important > 0
-        ? `${important} important notification${plural(important)}`
-        : unread > 0
-          ? `${unread} unread notification${plural(unread)}`
-          : failed > 0
-            ? `${failed} workflow failure${plural(failed)}`
-            : "Inbox and workflows calm",
+    title: "Git Notifications",
+    headline: errorMessage
+      ? "Notifications unavailable"
+      : workflowErrors > 0
+        ? `${workflowErrors} workflow repo${plural(workflowErrors)} unavailable`
+        : important > 0
+          ? `${important} important notification${plural(important)}`
+          : unread > 0
+            ? `${unread} unread notification${plural(unread)}`
+            : failed > 0
+              ? `${failed} workflow failure${plural(failed)}`
+              : "Inbox and workflows calm",
     tone:
-      message || important > 0 || failed > 0
+      errorMessage || workflowErrors > 0 || important > 0 || failed > 0
         ? "attention"
         : unread > 0 || running > 0
           ? "active"
           : "ok",
     lines: [
-      message
-        ? `Message: ${message}`
-        : `${unread} unread, ${important} important`,
+      errorMessage ?? `${unread} unread, ${important} important`,
       failed > 0
         ? `${failed} workflow failure${plural(failed)}`
-        : "No workflow failures",
+        : workflowErrors > 0
+          ? `${workflowErrors} workflow repo${plural(workflowErrors)} unavailable`
+          : "No workflow failures",
       running > 0
         ? `${running} workflow${plural(running)} running`
-        : "No active workflow runs",
-    ],
+        : workflowMessage || "No active workflow runs",
+    ].filter((line): line is string => Boolean(line)),
     viewId: "git-notifications",
     actionLabel: "Open Notifications",
   };
@@ -204,11 +222,9 @@ function liveCard(twitch: DashboardBarValue): DashboardCard {
       ? liveHeadline(twitch.text)
       : statusHeadline(twitch, "No channels live"),
     tone: visible ? "active" : toneForBarValue(twitch, "ok"),
-    lines: barLines(twitch, [
-      "Twitch source ready",
-      "No live notifications",
-      "Menu opens from Waybar",
-    ]),
+    lines: barLines(twitch),
+    command: "twitch-menu",
+    actionLabel: "Open Twitch Menu",
   };
 }
 
@@ -236,34 +252,27 @@ function environmentCard(source: DashboardSourceState): DashboardCard {
           ? "ok"
           : toneForBarValue(values[0], "muted"),
     lines: [
-      source.bar.temperature.tooltip ||
-        source.bar.temperature.message ||
-        "Temperature hidden",
-      source.bar.co2.tooltip ||
-        source.bar.co2.message ||
-        "CO2 below alert threshold",
-      source.bar.voc.tooltip ||
-        source.bar.voc.message ||
-        "VOC below alert threshold",
-    ].map(firstTooltipLine),
+      source.bar.temperature.tooltip || source.bar.temperature.message,
+      source.bar.co2.tooltip || source.bar.co2.message,
+      source.bar.voc.tooltip || source.bar.voc.message,
+    ]
+      .filter((line): line is string => Boolean(line))
+      .map(firstTooltipLine),
   };
 }
 
-function todayCard(calendar: DashboardBarValue): DashboardCard {
+function nextHourCard(calendar: DashboardBarValue): DashboardCard | null {
+  if (calendar.status === "missing") return null;
   const visible = barVisible(calendar);
   return {
-    id: "today",
+    id: "next-hour",
     section: "Life",
-    title: "Today",
+    title: "Events in the next hour",
     headline: visible
       ? cleanText(calendar.text)
-      : statusHeadline(calendar, "No event in the next hour"),
+      : statusHeadline(calendar, "No events in the next hour"),
     tone: visible ? "active" : toneForBarValue(calendar, "ok"),
-    lines: barLines(calendar, [
-      "Calendar source currently mirrors Waybar",
-      "Today-wide calendar source still pending",
-      "Todo source still pending",
-    ]),
+    lines: barLines(calendar),
   };
 }
 
@@ -275,18 +284,17 @@ function barVisible(value: DashboardBarValue): boolean {
 
 function barLines(
   value: DashboardBarValue,
-  fallback: readonly string[],
+  fallback: readonly string[] = [],
 ): readonly string[] {
   if (value.tooltip)
     return value.tooltip.split("\n").slice(0, 3).map(firstTooltipLine);
-  if (value.message) return [value.message, ...fallback].slice(0, 3);
   return fallback;
 }
 
 function statusHeadline(value: DashboardBarValue, fallback: string): string {
-  if (value.status === "missing") return "Source not configured";
-  if (value.status === "error") return "Source unavailable";
-  if (value.status === "loading") return "Loading source";
+  if (value.status === "missing") return "Not configured";
+  if (value.status === "error") return "Unavailable";
+  if (value.status === "loading") return "Loading";
   return fallback;
 }
 

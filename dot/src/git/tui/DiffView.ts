@@ -277,6 +277,10 @@ export class DiffView {
   setVisible(visible: boolean): void {
     this.root.visible = visible;
     this.isVisible = visible;
+    if (!visible) {
+      this.changedList.setActive(false);
+      this.unchangedList.setActive(false);
+    }
   }
 
   /** Give keyboard focus to the currently active pane */
