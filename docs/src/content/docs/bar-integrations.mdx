@@ -25,6 +25,12 @@ The [command reference](/dot/commands/) lists the full `--bar-json` flag set on 
 
 `--bar-json` is not limited to `dot`. Other tools in this setup emit the same bar-friendly JSON, so one bar can poll them the same way. [go-automate](https://go-automate.timmo.dev) is one example: its [`--bar-json` reference](https://go-automate.timmo.dev/reference/bar-json/) documents the Home Assistant watcher output it exposes to a status bar.
 
+go-automate's entity watcher is a long-running stream, but a polled bar module or a dashboard source card wants one line per refresh. The bundled `ha-entity-bar-json-once` script bridges the two: it runs `go-automate ha bridge watch entity --bar-json`, reads the first line, stops the watcher, and prints that single line (or a hidden placeholder if nothing arrives). It takes the same flags as the watcher, for example:
+
+```bash
+ha-entity-bar-json-once --icon '' input_text.current_next_event_in_an_hour
+```
+
 ## Configuration
 
 Which repos and which activity reach the bar is controlled by the private `dot-git.yml` config; the `notifications.bar.ignore_bot_activity` key tames bot noise. See [Private Git Config](/configuration/private-git/).
