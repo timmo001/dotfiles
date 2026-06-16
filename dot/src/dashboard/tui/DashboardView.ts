@@ -48,18 +48,18 @@ const INITIAL_STATE = {
       title: "Overview",
       cards: [
         {
-          id: "today",
-          section: "Overview",
-          title: "Events in the next hour",
-          headline: "Loading calendar",
-          tone: "muted",
-          lines: [],
-        },
-        {
           id: "updates",
           section: "Overview",
           title: "Updates",
           headline: "Loading update state",
+          tone: "muted",
+          lines: [],
+        },
+        {
+          id: "today",
+          section: "Overview",
+          title: "Events in the next hour",
+          headline: "Loading calendar",
           tone: "muted",
           lines: [],
         },
