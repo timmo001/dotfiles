@@ -21,6 +21,7 @@ set -euo pipefail
 readonly UPDATES_AVAILABLE_EXIT=10
 # Hyprland/Omarchy app-id that is auto-floated, centered, and sized.
 readonly FLOAT_APP_ID="TUI.float"
+readonly CHECK_TIMEOUT_SECONDS=30
 
 usage() {
   cat <<'EOF'
@@ -37,7 +38,7 @@ EOF
 # everything is already up to date, send an unobtrusive desktop notification.
 run_launcher() {
   local code=0 output
-  output="$(dot update --check 2>/dev/null)" || code=$?
+  output="$(timeout "$CHECK_TIMEOUT_SECONDS" dot update --check 2>/dev/null)" || code=$?
 
   if [[ "$code" -eq "$UPDATES_AVAILABLE_EXIT" ]]; then
     setsid uwsm-app -- xdg-terminal-exec \
@@ -63,8 +64,19 @@ run_launcher() {
 run_interactive() {
   printf 'Checking for dotfiles and system updates...\n\n'
   # Show which repos are behind; exit 10 here just means "updates available".
-  dot update --check || true
+  local code=0
+  dot update --check || code=$?
   printf '\n'
+
+  if [[ "$code" -eq 0 ]]; then
+    printf 'No updates available. Closing prompt.\n'
+    exit 0
+  fi
+
+  if [[ "$code" -ne "$UPDATES_AVAILABLE_EXIT" ]]; then
+    printf 'Update check failed; not running dot update automatically.\n'
+    exit 0
+  fi
 
   local answer=""
   if ! read -r -p 'Apply updates now with `dot update`? [Y/n] ' answer; then
