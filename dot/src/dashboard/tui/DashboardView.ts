@@ -258,6 +258,7 @@ export class DashboardView {
       width: "100%",
       flexGrow: 0,
       flexShrink: 0,
+      alignItems: "stretch",
       rowGap: 0,
       columnGap: 1,
     });
@@ -356,7 +357,8 @@ export class DashboardView {
     const box = new BoxRenderable(this.renderer, {
       id: `dashboard-card-${card.id}`,
       width: CARD_WIDTH,
-      height: 8,
+      minHeight: 0,
+      maxHeight: 8,
       flexGrow: 0,
       flexShrink: 0,
       border: true,
