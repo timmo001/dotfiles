@@ -710,12 +710,12 @@ export const cliCommands: readonly CliCommandSpec[] = [
   {
     name: "completions",
     summary: "Generate shell completions",
-    usage: "[zsh] [--stdout]",
+    usage: "[bash|fish|zsh] [--stdout]",
     description: [
       "Generate shell completions for dot.",
       "",
-      "By default this writes the managed Zsh completion file in the public dotfiles",
-      "repo so the next dot stow installs it to ~/.local/share/zsh/site-functions/_dot.",
+      "By default this writes the managed completion file for the selected shell",
+      "in the public dotfiles repo so the next dot stow installs it.",
     ],
     options: [
       {
@@ -727,11 +727,15 @@ export const cliCommands: readonly CliCommandSpec[] = [
     arguments: [
       {
         name: "shell",
-        choices: [{ value: "zsh" }],
+        choices: [{ value: "bash" }, { value: "fish" }, { value: "zsh" }],
         completion: "shell",
       },
     ],
-    examples: ["dot completions zsh", "dot completions zsh --stdout"],
+    examples: [
+      "dot completions zsh",
+      "dot completions bash --stdout",
+      "dot completions fish --stdout",
+    ],
   },
   {
     name: "omarchy",

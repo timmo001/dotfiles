@@ -309,7 +309,7 @@ _dot_cmd_completions() {
     '--stdout[Print the completion script instead of writing it]' \
     '(-h --help)-h[Show this help message]' \
     '(-h --help)--help[Show this help message]' \
-    '1:shell:(zsh)' \
+    '1:shell:(bash fish zsh)' \
     '*::arg:->args'
 }
 _dot_cmd_omarchy() {

@@ -16,17 +16,13 @@ const SUPPORTED_SHELLS = ["bash", "fish", "zsh"] as const;
 
 type CompletionShell = (typeof SUPPORTED_SHELLS)[number];
 
-const BASH_COMPLETION_RELATIVE_PATH =
-  "bash/.local/share/bash-completion/completions/dot";
-const FISH_COMPLETION_RELATIVE_PATH = "fish/.config/fish/completions/dot.fish";
-const ZSH_COMPLETION_RELATIVE_PATH = "zsh/.local/share/zsh/site-functions/_dot";
-const ZSH_CONTINUATION = ` ${"\\"}`;
-
 const COMPLETION_TARGETS = {
-  bash: BASH_COMPLETION_RELATIVE_PATH,
-  fish: FISH_COMPLETION_RELATIVE_PATH,
-  zsh: ZSH_COMPLETION_RELATIVE_PATH,
+  bash: "bash/.local/share/bash-completion/completions/dot",
+  fish: "fish/.config/fish/completions/dot.fish",
+  zsh: "zsh/.local/share/zsh/site-functions/_dot",
 } satisfies Record<CompletionShell, string>;
+
+const ZSH_CONTINUATION = ` ${"\\"}`;
 
 interface CompletionOptions {
   readonly shell: CompletionShell;
@@ -43,6 +39,14 @@ function shellList(): string {
 
 function shellIdentifier(value: string): string {
   return value.replace(/[^A-Za-z0-9_]/g, "_");
+}
+
+function bashQuote(value: string): string {
+  return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+function fishQuote(value: string): string {
+  return `'${value.replaceAll("\\", "\\\\").replaceAll("'", "\\'")}'`;
 }
 
 function zshQuote(value: string): string {
@@ -152,6 +156,273 @@ function commandEntries(
 
 function commandPatterns(command: CliCommandSpec): string {
   return [command.name, ...(command.aliases ?? [])].join("|");
+}
+
+function commandWords(command: CliCommandSpec): readonly string[] {
+  return [command.name, ...(command.aliases ?? [])];
+}
+
+function optionWords(options: readonly CliOptionSpec[]): readonly string[] {
+  return options.flatMap((option) => [
+    option.name,
+    ...(option.short ? [option.short] : []),
+  ]);
+}
+
+function choiceWords(choices: readonly CliValueChoice[]): string {
+  return choices.map((choice) => choice.value).join(" ");
+}
+
+function bashValueCases(options: readonly CliOptionSpec[]): readonly string[] {
+  const cases = options.flatMap((option) => {
+    if (!option.valueName) return [];
+    const patterns = [
+      option.name,
+      ...(option.short ? [option.short] : []),
+    ].join("|");
+    const completion = option.choices
+      ? `COMPREPLY=( $(compgen -W ${bashQuote(choiceWords(option.choices))} -- "$cur") )`
+      : option.completion === "file"
+        ? 'COMPREPLY=( $(compgen -f -- "$cur") )'
+        : undefined;
+    if (!completion) return [];
+    return [
+      `    ${patterns})`,
+      `      ${completion}`,
+      "      return",
+      "      ;;",
+    ];
+  });
+  if (cases.length === 0) return [];
+  return ["  case $prev in", ...cases, "  esac", ""];
+}
+
+function bashArgumentLines(
+  command: CliCommandSpec,
+  baseIndex: number,
+): readonly string[] {
+  return (command.arguments ?? []).flatMap((argument, index) => {
+    const position = baseIndex + index;
+    const guard = argument.repeatable
+      ? `(( cword >= ${position} ))`
+      : `(( cword == ${position} ))`;
+    const completion = argument.choices
+      ? `COMPREPLY=( $(compgen -W ${bashQuote(choiceWords(argument.choices))} -- "$cur") )`
+      : argument.completion === "file"
+        ? 'COMPREPLY=( $(compgen -f -- "$cur") )'
+        : undefined;
+    if (!completion) return [];
+    return [`  if ${guard}; then`, `    ${completion}`, "    return", "  fi"];
+  });
+}
+
+function bashOptionLines(options: readonly CliOptionSpec[]): readonly string[] {
+  const words = optionWords(options);
+  if (words.length === 0) return [];
+  return [
+    "  if [[ $cur == -* ]]; then",
+    `    COMPREPLY=( $(compgen -W ${bashQuote(words.join(" "))} -- "$cur") )`,
+    "    return",
+    "  fi",
+  ];
+}
+
+function renderBashLeafCommandFunction(
+  command: CliCommandSpec,
+  parent?: string,
+): string {
+  const functionName = commandFunctionName(command, parent);
+  const options = command.options ?? [];
+  const baseIndex = parent ? 3 : 2;
+  return [
+    `${functionName}() {`,
+    "  local cur prev cword",
+    "  cur=${COMP_WORDS[COMP_CWORD]}",
+    "  prev=${COMP_WORDS[COMP_CWORD-1]}",
+    "  cword=$COMP_CWORD",
+    ...bashValueCases(options),
+    ...bashOptionLines(options),
+    ...bashArgumentLines(command, baseIndex),
+    "}",
+  ].join("\n");
+}
+
+function renderBashBranchCommandFunction(command: CliCommandSpec): string {
+  const functionName = commandFunctionName(command);
+  const options = command.options ?? [];
+  const subcommands = command.commands ?? [];
+  const subcommandWords = subcommands.flatMap(commandWords).join(" ");
+  const topWords = [
+    ...optionWords(options),
+    ...subcommands.flatMap(commandWords),
+  ];
+  return [
+    `${functionName}() {`,
+    "  local cur prev cword subcommand",
+    "  cur=${COMP_WORDS[COMP_CWORD]}",
+    "  prev=${COMP_WORDS[COMP_CWORD-1]}",
+    "  cword=$COMP_CWORD",
+    "  subcommand=${COMP_WORDS[2]-}",
+    ...bashValueCases(options),
+    "  if (( cword > 2 )); then",
+    "    case $subcommand in",
+    ...subcommands.flatMap((subcommand) => [
+      `      ${commandPatterns(subcommand)})`,
+      `        ${commandFunctionName(subcommand, command.name)}`,
+      "        return",
+      "        ;;",
+    ]),
+    "    esac",
+    "  fi",
+    ...bashOptionLines(options),
+    "  if (( cword == 2 )); then",
+    `    COMPREPLY=( $(compgen -W ${bashQuote(topWords.join(" "))} -- "$cur") )`,
+    "    return",
+    "  fi",
+    ...(subcommandWords
+      ? [
+          `  COMPREPLY=( $(compgen -W ${bashQuote(subcommandWords)} -- "$cur") )`,
+        ]
+      : []),
+    "}",
+  ].join("\n");
+}
+
+function renderBashCommandFunction(command: CliCommandSpec): string {
+  return command.commands && command.commands.length > 0
+    ? renderBashBranchCommandFunction(command)
+    : renderBashLeafCommandFunction(command);
+}
+
+function renderBashDispatcher(): string {
+  const rootWords = [...cliCommands.flatMap(commandWords), "-h", "--help"].join(
+    " ",
+  );
+  return [
+    "_dot() {",
+    "  local cur cword command",
+    "  COMPREPLY=()",
+    "  cur=${COMP_WORDS[COMP_CWORD]}",
+    "  cword=$COMP_CWORD",
+    "  command=${COMP_WORDS[1]-}",
+    "",
+    "  if (( cword == 1 )); then",
+    `    COMPREPLY=( $(compgen -W ${bashQuote(rootWords)} -- "$cur") )`,
+    "    return",
+    "  fi",
+    "",
+    "  case $command in",
+    ...cliCommands.flatMap((command) => [
+      `    ${commandPatterns(command)})`,
+      `      ${commandFunctionName(command)}`,
+      "      ;;",
+    ]),
+    "  esac",
+    "}",
+    "",
+    "complete -F _dot dot",
+  ].join("\n");
+}
+
+/** Render the Bash completion script for `dot`. */
+export function renderBashCompletions(): string {
+  return [
+    "# bash completion for dot",
+    "# Generated by dot completions bash. Do not edit by hand.",
+    "",
+    ...cliCommands.flatMap((command) => [
+      renderBashCommandFunction(command),
+      ...(command.commands?.map((subcommand) =>
+        renderBashLeafCommandFunction(subcommand, command.name),
+      ) ?? []),
+    ]),
+    renderBashDispatcher(),
+    "",
+  ].join("\n");
+}
+
+function fishCommandCondition(command: CliCommandSpec): string {
+  return `__fish_seen_subcommand_from ${commandWords(command).join(" ")}`;
+}
+
+function fishChildCondition(
+  command: CliCommandSpec,
+  child?: CliCommandSpec,
+): string {
+  const parentCondition = fishCommandCondition(command);
+  if (child) return `${parentCondition}; and ${fishCommandCondition(child)}`;
+  const childWords = command.commands?.flatMap(commandWords).join(" ");
+  return childWords
+    ? `${parentCondition}; and not __fish_seen_subcommand_from ${childWords}`
+    : parentCondition;
+}
+
+function fishOptionParts(option: CliOptionSpec): readonly string[] {
+  const parts = ["complete", "-c", "dot"];
+  if (option.short) parts.push("-s", option.short.slice(1));
+  parts.push("-l", option.name.slice(2), "-d", fishQuote(option.description));
+  if (option.valueName) parts.push("-r");
+  if (option.completion === "file") parts.push("-F");
+  if (option.choices) parts.push("-a", fishQuote(choiceWords(option.choices)));
+  return parts;
+}
+
+function fishOptionLine(condition: string, option: CliOptionSpec): string {
+  return [...fishOptionParts(option), "-n", fishQuote(condition)].join(" ");
+}
+
+function fishArgumentLines(
+  condition: string,
+  command: CliCommandSpec,
+): readonly string[] {
+  return (command.arguments ?? []).flatMap((argument) => {
+    if (!argument.choices) return [];
+    return [
+      `complete -c dot -n ${fishQuote(condition)} -a ${fishQuote(choiceWords(argument.choices))}`,
+    ];
+  });
+}
+
+/** Render the Fish completion script for `dot`. */
+export function renderFishCompletions(): string {
+  const lines = [
+    "# fish completion for dot",
+    "# Generated by dot completions fish. Do not edit by hand.",
+    "",
+    "complete -c dot -f",
+    "complete -c dot -s h -l help -d 'Show help message'",
+  ];
+
+  for (const command of cliCommands) {
+    for (const word of commandWords(command)) {
+      const description =
+        word === command.name ? command.summary : `Alias for ${command.name}`;
+      lines.push(
+        `complete -c dot -n '__fish_use_subcommand' -a ${fishQuote(word)} -d ${fishQuote(description)}`,
+      );
+    }
+    const condition = fishChildCondition(command);
+    for (const option of command.options ?? []) {
+      lines.push(fishOptionLine(condition, option));
+    }
+    lines.push(...fishArgumentLines(condition, command));
+    for (const child of command.commands ?? []) {
+      for (const word of commandWords(child)) {
+        const description =
+          word === child.name ? child.summary : `Alias for ${child.name}`;
+        lines.push(
+          `complete -c dot -n ${fishQuote(fishChildCondition(command))} -a ${fishQuote(word)} -d ${fishQuote(description)}`,
+        );
+      }
+      const childCondition = fishChildCondition(command, child);
+      for (const option of child.options ?? []) {
+        lines.push(fishOptionLine(childCondition, option));
+      }
+      lines.push(...fishArgumentLines(childCondition, child));
+    }
+  }
+
+  return `${lines.join("\n")}\n`;
 }
 
 function renderLeafCommandFunction(
@@ -287,27 +558,51 @@ export function renderZshCompletions(): string {
   ].join("\n");
 }
 
+/** Render the completion script for `dot` and a supported shell. */
+export function renderCompletions(shell: CompletionShell): string {
+  switch (shell) {
+    case "bash":
+      return renderBashCompletions();
+    case "fish":
+      return renderFishCompletions();
+    case "zsh":
+      return renderZshCompletions();
+  }
+}
+
 function parseCompletionArgs(args: readonly string[]): CompletionOptions {
   const shellArg = args.find((arg) => !arg.startsWith("-"));
   const shell = shellArg ?? "zsh";
-  if (shell !== "zsh") {
-    console.error(`dot completions: unsupported shell '${shell}'`);
+  if (!isCompletionShell(shell)) {
+    console.error(
+      `dot completions: unsupported shell '${shell}' (expected: ${shellList()})`,
+    );
     process.exit(1);
   }
 
   return { shell, stdout: args.includes("--stdout") };
 }
 
-/** Write generated Zsh completions into the public dotfiles stow package. */
-export const writeZshCompletions = Effect.gen(function* () {
-  const config = yield* Config;
-  const target = join(config.publicDotfiles, ZSH_COMPLETION_RELATIVE_PATH);
-  yield* Effect.sync(() => {
-    mkdirSync(dirname(target), { recursive: true });
-    writeFileSync(target, renderZshCompletions());
+/** Write generated completions into the public dotfiles stow package. */
+export function writeCompletions(shell: CompletionShell) {
+  return Effect.gen(function* () {
+    const config = yield* Config;
+    const target = join(config.publicDotfiles, COMPLETION_TARGETS[shell]);
+    yield* Effect.sync(() => {
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, renderCompletions(shell));
+    });
+    return target;
   });
-  return target;
-});
+}
+
+/** Write generated completions for every supported shell. */
+export const writeAllCompletions = Effect.all(
+  SUPPORTED_SHELLS.map((shell) => writeCompletions(shell)),
+);
+
+/** Backwards-compatible Zsh completion writer for existing callers. */
+export const writeZshCompletions = writeCompletions("zsh");
 
 /** Generate shell completions for `dot`. */
 export function completions(args: readonly string[] = []) {
@@ -319,14 +614,14 @@ export function completions(args: readonly string[] = []) {
 
     const options = parseCompletionArgs(args);
     if (options.stdout) {
-      yield* Effect.sync(() => process.stdout.write(renderZshCompletions()));
+      yield* Effect.sync(() =>
+        process.stdout.write(renderCompletions(options.shell)),
+      );
       return;
     }
 
-    const target = yield* writeZshCompletions;
+    const target = yield* writeCompletions(options.shell);
     const log = yield* OutputLog;
-    yield* log.info(
-      `Generated ${options.shell ?? "zsh"} completions: ${target}`,
-    );
+    yield* log.info(`Generated ${options.shell} completions: ${target}`);
   });
 }

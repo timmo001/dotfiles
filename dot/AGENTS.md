@@ -49,7 +49,7 @@ src/
     PrivatePkgPublish.ts  — dot private-pkg-publish
     SkillUpdates.ts       — dot skill-updates
     SkillCheck.ts         — dot skill-check
-    Completions.ts        — dot completions zsh generator for stowed shell completions
+    Completions.ts        — dot completions generator for stowed shell completions
     Help.ts               — dot help
   notes/
     types.ts              — Repo-note data types and legacy label formatting
@@ -172,13 +172,13 @@ MenuItem action types:
 Command and flag metadata lives in `src/cli/spec.ts`. Help rendering,
 completion generation, known-command detection, and native command recognition
 consume that registry. When changing any command, subcommand, alias, or flag,
-update the command spec and run `dot completions zsh` after rebuilding the
-binary so `zsh/.local/share/zsh/site-functions/_dot` is regenerated before
+update the command spec and run `dot completions` for each supported shell after
+rebuilding the binary so stowed shell completion files are regenerated before
 stow.
 
 `spec.ts` is also the source for the docs command reference at
 `docs/src/content/docs/dot/commands.md`. After changing the spec, regenerate it
-with `bun run gen:cli` in `../docs` (alongside `dot completions zsh`) and commit
+with `bun run gen:cli` in `../docs` (alongside shell completions) and commit
 the result. The `tui-build` workflow regenerates and commits it on changes to
 `dot/`.
 
@@ -254,7 +254,7 @@ dot skill-updates --check     # Check only (no apply)
 dot skill-updates --update    # Auto-apply clean updates
 dot skill-updates --skip-review # Skip local-edit review
 dot skill-check               # Validate skill references
-dot completions zsh           # Generate stowed Zsh completions
+dot completions zsh           # Generate stowed shell completions
 dot omarchy                   # Omarchy submenu (TUI)
 dot help                      # Show help
 dot --help                    # Show help

@@ -73,8 +73,8 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - When editing files under `dot/`, always follow `dot/AGENTS.md` (validation steps, skills, patterns).
 - When adding new `dot` subcommands that users may want quick access to, also add them to the menu registry in `dot/src/menu.ts`.
 - Keep command and flag metadata in `dot/src/cli/spec.ts`; help and completion generation consume that registry.
-- When changing `dot` commands, subcommands, aliases, or flags, run `dot completions zsh` after rebuilding so the stowed Zsh completion file stays in sync.
-- The `docs/` command reference (`docs/src/content/docs/dot/commands.md`) is generated from `dot/src/cli/spec.ts`. After changing commands, regenerate it with `bun run gen:cli` in `docs/` (alongside `dot completions zsh`) and commit the result.
+- When changing `dot` commands, subcommands, aliases, or flags, run `dot completions` for each supported shell after rebuilding so the stowed completion files stay in sync.
+- The `docs/` command reference (`docs/src/content/docs/dot/commands.md`) is generated from `dot/src/cli/spec.ts`. After changing commands, regenerate it with `bun run gen:cli` in `docs/` (alongside shell completions) and commit the result.
 
 ## Documentation Site
 

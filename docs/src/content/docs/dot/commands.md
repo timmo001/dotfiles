@@ -658,13 +658,13 @@ dot skill-check
 Generate shell completions
 
 ```text
-dot completions [zsh] [--stdout]
+dot completions [bash|fish|zsh] [--stdout]
 ```
 
 Generate shell completions for dot.
 
-By default this writes the managed Zsh completion file in the public dotfiles
-repo so the next dot stow installs it to ~/.local/share/zsh/site-functions/_dot.
+By default this writes the managed completion file for the selected shell
+in the public dotfiles repo so the next dot stow installs it.
 
 **Options**
 
@@ -676,13 +676,14 @@ repo so the next dot stow installs it to ~/.local/share/zsh/site-functions/_dot.
 
 | Argument | Description |
 | --- | --- |
-| `<shell>` | One of: `zsh`. |
+| `<shell>` | One of: `bash`, `fish`, `zsh`. |
 
 **Examples**
 
 ```bash
 dot completions zsh
-dot completions zsh --stdout
+dot completions bash --stdout
+dot completions fish --stdout
 ```
 
 ## `dot omarchy`
