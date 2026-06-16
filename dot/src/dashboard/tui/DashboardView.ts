@@ -37,6 +37,9 @@ const HELP: readonly HelpEntry[] = [
 /** Fixed width of each rich card; drives how many cards wrap per row. */
 const CARD_WIDTH = 42;
 
+/** Icon shown in a card's title border when the card opens a view or command. */
+const OPEN_ICON = "󰏌";
+
 const INITIAL_STATE = {
   summaryHeadline: "Loading dashboard sources",
   summaryTone: "muted",
@@ -156,7 +159,6 @@ interface DashboardCardRenderables {
   readonly box: BoxRenderable;
   readonly headline: TextRenderable;
   readonly details: TextRenderable;
-  readonly action: TextRenderable;
 }
 
 /** Configuration callbacks for the dashboard view. */
@@ -364,7 +366,7 @@ export class DashboardView {
       border: true,
       borderStyle: "rounded",
       borderColor: toneColor,
-      title: card.title,
+      title: card.actionLabel ? `${card.title} ${OPEN_ICON}` : card.title,
       titleColor: toneColor,
       paddingX: 1,
       paddingY: 0,
@@ -396,18 +398,10 @@ export class DashboardView {
       wrapMode: "word",
       selectable: false,
     });
-    const action = new TextRenderable(this.renderer, {
-      id: `dashboard-card-${card.id}-action`,
-      content: this.formatCardAction(card),
-      width: "100%",
-      flexShrink: 0,
-      selectable: false,
-    });
 
     box.add(headline);
     box.add(details);
-    box.add(action);
-    return { card, box, headline, details, action };
+    return { card, box, headline, details };
   }
 
   private handleKeyPress(key: KeyEvent): void {
@@ -517,10 +511,6 @@ export class DashboardView {
         : this.theme.bgElevated;
       renderable.box.titleColor = selected ? this.theme.accent : toneColor;
       renderable.headline.content = t`${fg(toneColor)(renderable.card.headline)}`;
-      renderable.action.content = this.formatCardAction(
-        renderable.card,
-        selected,
-      );
     }
     this.statusBar.content = this.formatStatusBar();
     this.focus();
@@ -542,11 +532,6 @@ export class DashboardView {
 
   private formatCardLines(card: DashboardCard): StyledText {
     return t`${fg(this.theme.fgMuted)(card.lines.join("\n"))}`;
-  }
-
-  private formatCardAction(card: DashboardCard, selected = false): StyledText {
-    if (!card.actionLabel) return t``;
-    return t`${fg(selected ? this.theme.accent : this.theme.fgSubtle)(`-> ${card.actionLabel}`)}`;
   }
 
   private toneColor(tone: DashboardTone): string {
