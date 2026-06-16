@@ -292,14 +292,14 @@ export class DashboardView {
   }
 
   private buildSections(): void {
-    let firstSection = true;
     for (const section of this.state.sections) {
       const slug = section.title.toLowerCase().replace(/\s+/g, "-");
       const headingBox = new BoxRenderable(this.renderer, {
         id: `dashboard-section-${slug}`,
         width: "100%",
         flexShrink: 0,
-        marginTop: firstSection ? 0 : 1,
+        marginTop: 1,
+        marginBottom: 1,
       });
       headingBox.add(
         new TextRenderable(this.renderer, {
@@ -315,8 +315,6 @@ export class DashboardView {
         this.renderedCards.push(renderables);
         this.gridContainer.add(renderables.box);
       }
-
-      firstSection = false;
     }
   }
 
