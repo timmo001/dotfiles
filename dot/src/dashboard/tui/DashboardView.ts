@@ -287,10 +287,13 @@ export class DashboardView {
   /** Update the dashboard cards and summary from live source state. */
   update(state: DashboardState): void {
     const selectedId = this.renderedCards[this.selectedIndex]?.card.id;
+    const scrollTop = this.body.scrollTop;
     this.state = state;
     this.rebuildSections();
     if (selectedId) this.selectCard(selectedId, { fallbackToFirst: true });
     else this.refreshSelectionStyles();
+    this.body.updateFromLayout();
+    this.body.scrollTop = scrollTop;
   }
 
   /** Show or hide the dashboard view. */
@@ -419,6 +422,7 @@ export class DashboardView {
     const count = this.renderedCards.length;
     this.selectedIndex = (this.selectedIndex + delta + count) % count;
     this.refreshSelectionStyles();
+    this.scrollSelectedIntoView();
   }
 
   private moveSelection(direction: "left" | "right" | "up" | "down"): void {
@@ -465,6 +469,7 @@ export class DashboardView {
     if (bestIndex === -1) return;
     this.selectedIndex = bestIndex;
     this.refreshSelectionStyles();
+    this.scrollSelectedIntoView();
   }
 
   private selectCard(
@@ -516,9 +521,13 @@ export class DashboardView {
       );
     }
     this.statusBar.content = this.formatStatusBar();
+    this.focus();
+  }
+
+  /** Scroll the currently selected card into view within the body. */
+  private scrollSelectedIntoView(): void {
     const selected = this.renderedCards[this.selectedIndex];
     if (selected) this.body.scrollChildIntoView(selected.box.id);
-    this.focus();
   }
 
   private formatStatusBar(prefix?: string): StyledText {
