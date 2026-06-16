@@ -60,10 +60,10 @@ const dotItems: readonly MenuItem[] = [
     "dashboard",
     "󰕮",
     "Dashboard",
-    "Mission Control prototype with sample cards",
+    "Full-screen dashboard of tracked sources",
     view("dashboard"),
     undefined,
-    ["dash", "overview", "mission", "control", "status", "summary", "cards"],
+    ["dash", "overview", "status", "summary", "cards"],
     "Dotfiles",
   ),
   item(

@@ -120,14 +120,14 @@ const omarchySubmenuChoices: readonly CliValueChoice[] = [
 export const cliCommands: readonly CliCommandSpec[] = [
   {
     name: "dashboard",
-    summary: "Open the Mission Control dashboard prototype",
+    summary: "Open the dot dashboard",
     usage: "[options]",
     description: [
-      "Open the full-screen Mission Control dashboard. It combines tracked repo",
+      "Open the full-screen dot dashboard. It combines tracked repo",
       "state, GitHub notifications, workflow runs, and optional bounded source",
       "commands for Twitch, environment, and calendar cards.",
     ],
-    modes: ["(default)      Interactive Mission Control dashboard"],
+    modes: ["(default)      Interactive dashboard"],
     options: [helpOption],
     examples: ["dot dashboard"],
   },

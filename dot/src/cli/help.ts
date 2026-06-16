@@ -2,7 +2,7 @@ import { cliCommands, getCliCommand, type CliCommandSpec } from "./spec.js";
 
 const rootExamples = [
   "dot                      Main menu",
-  "dot dashboard            Mission Control prototype",
+  "dot dashboard            Full-screen dashboard",
   "dot init --noninteractive --confirm",
   "dot update",
   "dot stow",

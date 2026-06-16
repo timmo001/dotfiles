@@ -9,20 +9,20 @@ This page lists every `dot` command, generated from the same registry that power
 
 ## `dot dashboard`
 
-Open the Mission Control dashboard prototype
+Open the dot dashboard
 
 ```text
 dot dashboard [options]
 ```
 
-Open the full-screen Mission Control dashboard. It combines tracked repo
+Open the full-screen dot dashboard. It combines tracked repo
 state, GitHub notifications, workflow runs, and optional bounded source
 commands for Twitch, environment, and calendar cards.
 
 **Modes**
 
 ```text
-(default)      Interactive Mission Control dashboard
+(default)      Interactive dashboard
 ```
 
 **Examples**

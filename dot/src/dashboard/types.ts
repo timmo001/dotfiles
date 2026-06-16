@@ -64,7 +64,7 @@ export interface DashboardSourceState {
   readonly message?: string;
 }
 
-/** A single large dashboard card shown in the Mission Control prototype. */
+/** A single large dashboard card. */
 export interface DashboardCard {
   /** Stable card identifier used for focus and selection. */
   readonly id: string;

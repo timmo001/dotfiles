@@ -174,7 +174,7 @@ export interface DashboardViewOptions {
   readonly onBack: () => void;
 }
 
-/** Mission Control style dashboard view. */
+/** Dashboard view. */
 export class DashboardView {
   private readonly renderer: CliRenderer;
   private readonly theme: Theme;
@@ -221,7 +221,7 @@ export class DashboardView {
 
     const titleBar = new TextRenderable(renderer, {
       id: "dashboard-title-bar",
-      content: formatBreadcrumb(theme, ["Dot", "Dashboard"], "Mission Control"),
+      content: formatBreadcrumb(theme, ["Dot", "Dashboard"]),
       width: "100%",
     });
     this.root.add(titleBar);
