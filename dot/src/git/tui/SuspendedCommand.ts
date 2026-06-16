@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import type { CliRenderer } from "@opentui/core";
-import { resizeIfFloating } from "../../tui/hyprland.js";
+import { resizeIfFloating, DEFAULT_FLOATING_SIZE } from "../../tui/hyprland.js";
 
 /** Options for running an inherited-stdio command while OpenTUI is suspended. */
 export interface SuspendedCommandOptions {
@@ -60,6 +60,11 @@ export async function runSuspendedCommand({
       await proc.exited;
     });
   } finally {
-    await Effect.runPromise(resizeIfFloating(960, 600));
+    await Effect.runPromise(
+      resizeIfFloating(
+        DEFAULT_FLOATING_SIZE.width,
+        DEFAULT_FLOATING_SIZE.height,
+      ),
+    );
   }
 }

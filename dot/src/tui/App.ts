@@ -1,4 +1,5 @@
 import type { CliRenderer } from "@opentui/core";
+import { Effect } from "effect";
 import type {
   ViewId,
   MenuItem,
@@ -52,6 +53,11 @@ import {
   openPathInEditor,
 } from "./externalEditor.js";
 import { openOpenCodeSession } from "./openCodeSession.js";
+import {
+  resizeIfFloating,
+  DEFAULT_FLOATING_SIZE,
+  DASHBOARD_FLOATING_SIZE,
+} from "./hyprland.js";
 
 const log = (msg: string) => console.error(`[dot:App] ${msg}`);
 
@@ -519,6 +525,16 @@ export class App {
     this.dashboardView.update(state);
   }
 
+  /**
+   * Resize the floating Hyprland window for the given view: the dashboard uses
+   * a custom size, every other view resets to the Omarchy default.
+   */
+  private resizeForView(viewId: ViewId): void {
+    const size =
+      viewId === "dashboard" ? DASHBOARD_FLOATING_SIZE : DEFAULT_FLOATING_SIZE;
+    void Effect.runPromise(resizeIfFloating(size.width, size.height));
+  }
+
   private showView(viewId: ViewId): void {
     log(`Switching to view: ${viewId}`);
 
@@ -526,6 +542,7 @@ export class App {
     this.clearForViewSwitch();
 
     this.activeView = viewId;
+    this.resizeForView(viewId);
 
     // Show the target and reset filter state (fresh view entry)
     switch (viewId) {

@@ -605,7 +605,6 @@ if (mode.type === "native") {
   const { createCommandRunner } = await import("./services/CommandRunner.js");
   const { loadTheme } = await import("./theme.js");
   const { App } = await import("./tui/App.js");
-  const { resizeIfFloating } = await import("./tui/hyprland.js");
 
   const { initialView, executeItemId, initialNotesFilter } = mode;
 
@@ -795,9 +794,6 @@ if (mode.type === "native") {
     notificationsView.update(initialNotificationState);
 
     updateDashboardView();
-
-    // Resize window if floating on Hyprland
-    yield* resizeIfFloating(960, 600);
 
     log("Starting renderer...");
     renderer.start();
