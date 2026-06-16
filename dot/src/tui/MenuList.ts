@@ -339,12 +339,18 @@ export class MenuList extends ScrollBoxRenderable {
       rowIndex++;
     }
 
-    // Ensure initial selection is on a selectable row
+    // Ensure initial selection is on a selectable row. When the selected index
+    // lands on a group header (e.g. the first row is a section header), advance
+    // to the next selectable row and apply the selected styling, which the
+    // creation-time `isSelected` check missed because the index shifted.
     if (
       this._rows.length > 0 &&
       this._rows[this._selectedIndex]?.isGroupHeader
     ) {
-      this._selectedIndex = this._nextSelectableIndex(this._selectedIndex, 1);
+      const resolved = this._nextSelectableIndex(this._selectedIndex, 1);
+      this._selectedIndex = resolved;
+      const row = this._rows[resolved];
+      if (row && !row.isGroupHeader) this._styleRow(row, true);
     }
   }
 
