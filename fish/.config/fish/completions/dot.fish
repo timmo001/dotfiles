@@ -3,7 +3,7 @@
 
 complete -c dot -f
 complete -c dot -s h -l help -d 'Show help message'
-complete -c dot -n '__fish_use_subcommand' -a 'dashboard' -d 'Open the Mission Control dashboard prototype'
+complete -c dot -n '__fish_use_subcommand' -a 'dashboard' -d 'Open the dot dashboard'
 complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from dashboard'
 complete -c dot -n '__fish_use_subcommand' -a 'init' -d 'Run one-time first-use machine setup'
 complete -c dot -l confirm -d 'Acknowledge non-interactive package helpers' -n '__fish_seen_subcommand_from init'

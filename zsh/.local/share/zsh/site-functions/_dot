@@ -3,7 +3,7 @@
 
 local -a dot_commands
 dot_commands=(
-  'dashboard:Open the Mission Control dashboard prototype'
+  'dashboard:Open the dot dashboard'
   'init:Run one-time first-use machine setup'
   'install:Ensure prerequisites, then backup/adopt dotfiles'
   'update:Pull repos, stow dotfiles, install deps, rebuild'
