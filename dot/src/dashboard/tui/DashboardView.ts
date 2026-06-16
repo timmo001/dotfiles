@@ -63,6 +63,22 @@ const INITIAL_STATE = {
           tone: "muted",
           lines: [],
         },
+        {
+          id: "live",
+          section: "Overview",
+          title: "Live Channels",
+          headline: "Loading live channels",
+          tone: "muted",
+          lines: [],
+        },
+        {
+          id: "environment",
+          section: "Overview",
+          title: "Environment",
+          headline: "Loading environment",
+          tone: "muted",
+          lines: [],
+        },
       ],
     },
     {
@@ -106,27 +122,6 @@ const INITIAL_STATE = {
           section: "Todos",
           title: "Work Tasks",
           headline: "Loading tasks",
-          tone: "muted",
-          lines: [],
-        },
-      ],
-    },
-    {
-      title: "Home",
-      cards: [
-        {
-          id: "live",
-          section: "Home",
-          title: "Live Channels",
-          headline: "Loading live channels",
-          tone: "muted",
-          lines: [],
-        },
-        {
-          id: "environment",
-          section: "Home",
-          title: "Environment",
-          headline: "Loading environment",
           tone: "muted",
           lines: [],
         },
@@ -242,7 +237,8 @@ export class DashboardView {
       width: "100%",
       flexGrow: 0,
       flexShrink: 0,
-      gap: 1,
+      rowGap: 0,
+      columnGap: 1,
     });
     this.body.add(this.gridContainer);
     this.buildSections();

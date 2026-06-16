@@ -53,7 +53,12 @@ export function buildDashboardState(
     ),
   };
   const nextHour = nextHourCard(input.sourceState.bar.calendar);
-  const overviewCards = nextHour ? [nextHour, cards.updates] : [cards.updates];
+  const overviewCards = [
+    ...(nextHour ? [nextHour] : []),
+    cards.updates,
+    cards.live,
+    cards.environment,
+  ];
   const attentionCards = Object.values(cards).filter(
     (card) => card.tone === "attention",
   );
@@ -81,7 +86,6 @@ export function buildDashboardState(
       { title: "Overview", cards: overviewCards },
       { title: "Git", cards: [cards.gitDiff, cards.gitNotifications] },
       { title: "Todos", cards: [cards.myTasks, cards.workTasks] },
-      { title: "Home", cards: [cards.live, cards.environment] },
     ],
     lastChecked: latestDate([
       input.repoState.lastChecked,
@@ -225,7 +229,7 @@ function liveCard(twitch: DashboardBarValue): DashboardCard {
   const visible = barVisible(twitch);
   return {
     id: "live",
-    section: "Home",
+    section: "Overview",
     title: "Live Channels",
     headline: visible
       ? liveHeadline(twitch.text)
@@ -268,7 +272,7 @@ function environmentCard(source: DashboardSourceState): DashboardCard {
   const temperature = cleanText(source.bar.temperature.text);
   return {
     id: "environment",
-    section: "Home",
+    section: "Overview",
     title: "Environment",
     headline:
       attention.length > 0
