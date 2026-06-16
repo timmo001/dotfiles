@@ -308,7 +308,7 @@ function environmentCard(
       : visible
         ? "ok"
         : toneForBarValue(value, "muted"),
-    lines: [],
+    lines: value.name ? [value.name] : [],
   };
 }
 

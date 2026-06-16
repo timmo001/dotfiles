@@ -40,6 +40,8 @@ export interface DashboardBarValue {
   readonly className: string;
   /** Unit of measurement appended to the reading, from source config. */
   readonly unit?: string;
+  /** Structured Home Assistant entity name (device + entity), if present. */
+  readonly name?: string;
   /** Timestamp of the last source read attempt. */
   readonly updatedAt: Date;
   /** Human-readable source diagnostic for missing/error states. */

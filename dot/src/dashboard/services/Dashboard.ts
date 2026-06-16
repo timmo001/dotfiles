@@ -272,6 +272,7 @@ function parseBarValue(
     const text = stringField(parsed, "text");
     const tooltip = stringField(parsed, "tooltip");
     const className = stringField(parsed, "class");
+    const name = stringField(parsed, "name");
     return {
       id,
       status:
@@ -280,6 +281,7 @@ function parseBarValue(
       tooltip,
       className,
       ...(unit && { unit }),
+      ...(name && { name }),
       updatedAt,
     };
   } catch {
