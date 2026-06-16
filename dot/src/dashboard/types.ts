@@ -84,11 +84,11 @@ export interface DashboardCard {
   readonly actionLabel?: string;
 }
 
-/** Dashboard card column used by the stable two-column layout. */
-export interface DashboardColumn {
-  /** Column heading. */
+/** Dashboard card section used by the stacked, wrapping grid layout. */
+export interface DashboardSection {
+  /** Section heading shown above the card grid. */
   readonly title: string;
-  /** Cards rendered from top to bottom. */
+  /** Cards wrapped into a grid within the section. */
   readonly cards: readonly DashboardCard[];
 }
 
@@ -100,8 +100,8 @@ export interface DashboardState {
   readonly summaryTone: DashboardTone;
   /** Supporting summary lines. */
   readonly summaryLines: readonly string[];
-  /** Dashboard columns and cards. */
-  readonly columns: readonly DashboardColumn[];
+  /** Dashboard sections and cards. */
+  readonly sections: readonly DashboardSection[];
   /** Timestamp of the freshest source included in the dashboard. */
   readonly lastChecked: Date;
   /** Whether any live dashboard source is still loading. */

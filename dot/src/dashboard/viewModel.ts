@@ -6,7 +6,7 @@ import type {
 import type {
   DashboardBarValue,
   DashboardCard,
-  DashboardColumn,
+  DashboardSection,
   DashboardSourceState,
   DashboardState,
   DashboardTone,
@@ -53,9 +53,7 @@ export function buildDashboardState(
     ),
   };
   const nextHour = nextHourCard(input.sourceState.bar.calendar);
-  const lifeCards = nextHour
-    ? [cards.live, cards.environment, cards.myTasks, cards.workTasks, nextHour]
-    : [cards.live, cards.environment, cards.myTasks, cards.workTasks];
+  const overviewCards = nextHour ? [nextHour, cards.updates] : [cards.updates];
   const attentionCards = Object.values(cards).filter(
     (card) => card.tone === "attention",
   );
@@ -79,12 +77,11 @@ export function buildDashboardState(
         : "All tracked sources look calm",
     summaryTone: attentionCards.length > 0 ? "attention" : "ok",
     summaryLines,
-    columns: [
-      {
-        title: "Work",
-        cards: [cards.updates, cards.gitDiff, cards.gitNotifications],
-      },
-      { title: "Life", cards: lifeCards },
+    sections: [
+      { title: "Overview", cards: overviewCards },
+      { title: "Git", cards: [cards.gitDiff, cards.gitNotifications] },
+      { title: "Todos", cards: [cards.myTasks, cards.workTasks] },
+      { title: "Home", cards: [cards.live, cards.environment] },
     ],
     lastChecked: latestDate([
       input.repoState.lastChecked,
@@ -119,7 +116,7 @@ function updatesCard(source: DashboardSourceState): DashboardCard {
   const hasUpdate = coreBehind.length > 0;
   return {
     id: "updates",
-    section: "Work",
+    section: "Overview",
     title: "Updates",
     headline:
       coreBehind.length > 0
@@ -147,7 +144,7 @@ function gitDiffCard(
   const behind = source.diffRepos.filter((repo) => repo.behind > 0).length;
   return {
     id: "git",
-    section: "Work",
+    section: "Git",
     title: "Git Diff",
     headline:
       changed > 0
@@ -189,7 +186,7 @@ function gitNotificationsCard(
   const workflowMessage = workflows.message;
   return {
     id: "github",
-    section: "Work",
+    section: "Git",
     title: "Git Notifications",
     headline: errorMessage
       ? "Notifications unavailable"
@@ -228,7 +225,7 @@ function liveCard(twitch: DashboardBarValue): DashboardCard {
   const visible = barVisible(twitch);
   return {
     id: "live",
-    section: "Life",
+    section: "Home",
     title: "Live Channels",
     headline: visible
       ? liveHeadline(twitch.text)
@@ -249,7 +246,7 @@ function todoCard(
   const visible = barVisible(value);
   return {
     id,
-    section: "Life",
+    section: "Todos",
     title,
     headline: visible
       ? todoHeadline(value.text)
@@ -271,7 +268,7 @@ function environmentCard(source: DashboardSourceState): DashboardCard {
   const temperature = cleanText(source.bar.temperature.text);
   return {
     id: "environment",
-    section: "Life",
+    section: "Home",
     title: "Environment",
     headline:
       attention.length > 0
@@ -300,7 +297,7 @@ function nextHourCard(calendar: DashboardBarValue): DashboardCard | null {
   const visible = barVisible(calendar);
   return {
     id: "next-hour",
-    section: "Life",
+    section: "Overview",
     title: "Events in the next hour",
     headline: visible
       ? cleanText(calendar.text)

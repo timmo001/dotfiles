@@ -13,7 +13,7 @@ import type { Theme } from "../../theme.js";
 import type { ViewId } from "../../types.js";
 import type {
   DashboardCard,
-  DashboardColumn,
+  DashboardSection,
   DashboardState,
   DashboardTone,
 } from "../types.js";
@@ -34,27 +34,43 @@ const HELP: readonly HelpEntry[] = [
   ...GLOBAL_HELP,
 ];
 
+/** Fixed width of each rich card; drives how many cards wrap per row. */
+const CARD_WIDTH = 44;
+
 const INITIAL_STATE = {
   summaryHeadline: "Loading dashboard sources",
   summaryTone: "muted",
   summaryLines: [],
   lastChecked: new Date(),
   loading: true,
-  columns: [
+  sections: [
     {
-      title: "Work",
+      title: "Overview",
       cards: [
         {
+          id: "today",
+          section: "Overview",
+          title: "Events in the next hour",
+          headline: "Loading calendar",
+          tone: "muted",
+          lines: [],
+        },
+        {
           id: "updates",
-          section: "Work",
+          section: "Overview",
           title: "Updates",
           headline: "Loading update state",
           tone: "muted",
           lines: [],
         },
+      ],
+    },
+    {
+      title: "Git",
+      cards: [
         {
           id: "git",
-          section: "Work",
+          section: "Git",
           title: "Git Diff",
           headline: "Loading git state",
           tone: "muted",
@@ -64,7 +80,7 @@ const INITIAL_STATE = {
         },
         {
           id: "github",
-          section: "Work",
+          section: "Git",
           title: "Git Notifications",
           headline: "Loading GitHub state",
           tone: "muted",
@@ -75,27 +91,11 @@ const INITIAL_STATE = {
       ],
     },
     {
-      title: "Life",
+      title: "Todos",
       cards: [
         {
-          id: "live",
-          section: "Life",
-          title: "Live Channels",
-          headline: "Loading live channels",
-          tone: "muted",
-          lines: [],
-        },
-        {
-          id: "environment",
-          section: "Life",
-          title: "Environment",
-          headline: "Loading environment",
-          tone: "muted",
-          lines: [],
-        },
-        {
           id: "my-tasks",
-          section: "Life",
+          section: "Todos",
           title: "My Tasks",
           headline: "Loading tasks",
           tone: "muted",
@@ -103,17 +103,30 @@ const INITIAL_STATE = {
         },
         {
           id: "work-tasks",
-          section: "Life",
+          section: "Todos",
           title: "Work Tasks",
           headline: "Loading tasks",
           tone: "muted",
           lines: [],
         },
+      ],
+    },
+    {
+      title: "Home",
+      cards: [
         {
-          id: "today",
-          section: "Life",
-          title: "Events in the next hour",
-          headline: "Loading calendar",
+          id: "live",
+          section: "Home",
+          title: "Live Channels",
+          headline: "Loading live channels",
+          tone: "muted",
+          lines: [],
+        },
+        {
+          id: "environment",
+          section: "Home",
+          title: "Environment",
+          headline: "Loading environment",
           tone: "muted",
           lines: [],
         },
@@ -152,7 +165,7 @@ export class DashboardView {
   private readonly callbacks: DashboardViewOptions;
   private readonly root: BoxRenderable;
   private readonly body: ScrollBoxRenderable;
-  private readonly columnsContainer: BoxRenderable;
+  private readonly gridContainer: BoxRenderable;
   private readonly statusBar: TextRenderable;
   private readonly renderedCards: DashboardCardRenderables[] = [];
   private state: DashboardState = INITIAL_STATE;
@@ -171,10 +184,10 @@ export class DashboardView {
     this.callbacks = callbacks;
     this.keyHandlers = {
       tab: () => this.selectRelative(1),
-      up: () => this.selectVertical(-1),
-      down: () => this.selectVertical(1),
-      left: () => this.selectHorizontal(-1),
-      right: () => this.selectHorizontal(1),
+      up: () => this.moveSelection("up"),
+      down: () => this.moveSelection("down"),
+      left: () => this.moveSelection("left"),
+      right: () => this.moveSelection("right"),
       return: () => this.openSelectedCard(),
       r: () => this.refresh(),
       escape: () => this.callbacks.onBack(),
@@ -222,16 +235,17 @@ export class DashboardView {
     });
     this.root.add(this.body);
 
-    this.columnsContainer = new BoxRenderable(renderer, {
-      id: "dashboard-columns",
-      flexDirection: this.columnDirection(),
+    this.gridContainer = new BoxRenderable(renderer, {
+      id: "dashboard-grid",
+      flexDirection: "row",
+      flexWrap: "wrap",
       width: "100%",
       flexGrow: 0,
       flexShrink: 0,
-      gap: 2,
+      gap: 1,
     });
-    this.body.add(this.columnsContainer);
-    this.buildColumns();
+    this.body.add(this.gridContainer);
+    this.buildSections();
 
     this.statusBar = new TextRenderable(renderer, {
       id: "dashboard-status-bar",
@@ -257,7 +271,7 @@ export class DashboardView {
   update(state: DashboardState): void {
     const selectedId = this.renderedCards[this.selectedIndex]?.card.id;
     this.state = state;
-    this.rebuildColumns();
+    this.rebuildSections();
     if (selectedId) this.selectCard(selectedId, { fallbackToFirst: true });
     else this.refreshSelectionStyles();
   }
@@ -281,41 +295,49 @@ export class DashboardView {
     this.renderer.root.remove(this.root.id);
   }
 
-  private buildColumns(): void {
-    for (const column of this.state.columns) {
-      const columnBox = new BoxRenderable(this.renderer, {
-        id: `dashboard-column-${column.title.toLowerCase()}`,
-        flexDirection: "column",
-        flexGrow: 1,
-        flexBasis: 0,
+  private buildSections(): void {
+    let firstSection = true;
+    for (const section of this.state.sections) {
+      const slug = section.title.toLowerCase().replace(/\s+/g, "-");
+      const headingBox = new BoxRenderable(this.renderer, {
+        id: `dashboard-section-${slug}`,
+        width: "100%",
         flexShrink: 0,
-        gap: 1,
+        marginTop: firstSection ? 0 : 1,
       });
+      headingBox.add(
+        new TextRenderable(this.renderer, {
+          id: `dashboard-section-${slug}-title`,
+          content: t`${bold(fg(this.theme.fgSubtle)(section.title))}`,
+          selectable: false,
+        }),
+      );
+      this.gridContainer.add(headingBox);
 
-      for (const card of column.cards) {
+      for (const card of section.cards) {
         const renderables = this.createCard(card);
         this.renderedCards.push(renderables);
-        columnBox.add(renderables.box);
+        this.gridContainer.add(renderables.box);
       }
 
-      this.columnsContainer.add(columnBox);
+      firstSection = false;
     }
   }
 
-  private rebuildColumns(): void {
-    for (const child of this.columnsContainer.getChildren()) {
-      this.columnsContainer.remove(child.id);
+  private rebuildSections(): void {
+    for (const child of this.gridContainer.getChildren()) {
+      this.gridContainer.remove(child.id);
       child.destroyRecursively();
     }
     this.renderedCards.length = 0;
-    this.buildColumns();
+    this.buildSections();
   }
 
   private createCard(card: DashboardCard): DashboardCardRenderables {
     const toneColor = this.toneColor(card.tone);
     const box = new BoxRenderable(this.renderer, {
       id: `dashboard-card-${card.id}`,
-      width: "100%",
+      width: CARD_WIDTH,
       height: 8,
       flexGrow: 0,
       flexShrink: 0,
@@ -368,12 +390,8 @@ export class DashboardView {
   }
 
   private handleResize(): void {
-    this.columnsContainer.flexDirection = this.columnDirection();
     this.statusBar.content = this.formatStatusBar();
-  }
-
-  private columnDirection(): "row" | "column" {
-    return "row";
+    this.refreshSelectionStyles();
   }
 
   private selectRelative(delta: number): void {
@@ -382,39 +400,50 @@ export class DashboardView {
     this.refreshSelectionStyles();
   }
 
-  private selectVertical(delta: number): void {
-    const card = this.renderedCards[this.selectedIndex]?.card;
-    if (!card) return;
-    const column = this.state.columns.find((candidate) =>
-      candidate.cards.some((item) => item.id === card.id),
-    );
-    if (!column) return;
-    const columnIndex = column.cards.findIndex((item) => item.id === card.id);
-    const nextColumnIndex =
-      (columnIndex + delta + column.cards.length) % column.cards.length;
-    this.selectCard(column.cards[nextColumnIndex].id);
-  }
+  private moveSelection(direction: "left" | "right" | "up" | "down"): void {
+    const current = this.renderedCards[this.selectedIndex];
+    if (!current) return;
+    this.body.updateFromLayout();
 
-  private selectHorizontal(delta: number): void {
-    const card = this.renderedCards[this.selectedIndex]?.card;
-    if (!card) return;
-    const currentColumnIndex = this.state.columns.findIndex((column) =>
-      column.cards.some((item) => item.id === card.id),
-    );
-    if (currentColumnIndex === -1) return;
+    const origin = cardCentre(current.box);
+    let bestIndex = -1;
+    let bestScore = Number.POSITIVE_INFINITY;
 
-    const currentColumn = this.state.columns[currentColumnIndex];
-    const rowIndex = currentColumn.cards.findIndex(
-      (item) => item.id === card.id,
-    );
-    const nextColumn =
-      this.state.columns[
-        (currentColumnIndex + delta + this.state.columns.length) %
-          this.state.columns.length
-      ];
-    const nextCard =
-      nextColumn.cards[Math.min(rowIndex, nextColumn.cards.length - 1)];
-    this.selectCard(nextCard.id);
+    for (let index = 0; index < this.renderedCards.length; index++) {
+      if (index === this.selectedIndex) continue;
+      const candidate = cardCentre(this.renderedCards[index].box);
+      const dx = candidate.x - origin.x;
+      const dy = candidate.y - origin.y;
+
+      let matches = false;
+      let score = 0;
+      switch (direction) {
+        case "right":
+          matches = dx > 0;
+          score = Math.abs(dy) * 1000 + dx;
+          break;
+        case "left":
+          matches = dx < 0;
+          score = Math.abs(dy) * 1000 - dx;
+          break;
+        case "down":
+          matches = dy > 0;
+          score = Math.abs(dx) * 1000 + dy;
+          break;
+        case "up":
+          matches = dy < 0;
+          score = Math.abs(dx) * 1000 - dy;
+          break;
+      }
+
+      if (!matches || score >= bestScore) continue;
+      bestScore = score;
+      bestIndex = index;
+    }
+
+    if (bestIndex === -1) return;
+    this.selectedIndex = bestIndex;
+    this.refreshSelectionStyles();
   }
 
   private selectCard(
@@ -466,6 +495,8 @@ export class DashboardView {
       );
     }
     this.statusBar.content = this.formatStatusBar();
+    const selected = this.renderedCards[this.selectedIndex];
+    if (selected) this.body.scrollChildIntoView(selected.box.id);
     this.focus();
   }
 
@@ -507,4 +538,12 @@ export class DashboardView {
     if (seconds < 60) return `${seconds}s ago`;
     return `${Math.floor(seconds / 60)}m ago`;
   }
+}
+
+/** Centre point of a laid-out card box, used for spatial grid navigation. */
+function cardCentre(box: BoxRenderable): {
+  readonly x: number;
+  readonly y: number;
+} {
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
