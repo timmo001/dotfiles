@@ -14,7 +14,9 @@ export type DashboardBarModuleId =
   | "temperature"
   | "co2"
   | "voc"
-  | "calendar";
+  | "calendar"
+  | "todo_my_tasks"
+  | "todo_work";
 
 /** Runtime state for a bounded dashboard source command. */
 export type DashboardBarStatus =
@@ -77,7 +79,7 @@ export interface DashboardCard {
   /** Shell command run when Enter activates this card, when available. */
   readonly command?: string;
   /** How a dashboard shell command should be run. Defaults to silent. */
-  readonly commandMode?: "silent" | "exit";
+  readonly commandMode?: "silent" | "suspend" | "exit";
   /** Help text describing the Enter action. */
   readonly actionLabel?: string;
 }

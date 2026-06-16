@@ -39,11 +39,23 @@ export function buildDashboardState(
     ),
     live: liveCard(input.sourceState.bar.twitch),
     environment: environmentCard(input.sourceState),
+    myTasks: todoCard(
+      "my-tasks",
+      "My Tasks",
+      input.sourceState.bar.todo_my_tasks,
+      "home-assistant-tui todo todo.my_tasks",
+    ),
+    workTasks: todoCard(
+      "work-tasks",
+      "Work Tasks",
+      input.sourceState.bar.todo_work,
+      "home-assistant-tui todo todo.work",
+    ),
   };
   const nextHour = nextHourCard(input.sourceState.bar.calendar);
   const lifeCards = nextHour
-    ? [cards.live, cards.environment, nextHour]
-    : [cards.live, cards.environment];
+    ? [cards.live, cards.environment, cards.myTasks, cards.workTasks, nextHour]
+    : [cards.live, cards.environment, cards.myTasks, cards.workTasks];
   const attentionCards = Object.values(cards).filter(
     (card) => card.tone === "attention",
   );
@@ -228,6 +240,28 @@ function liveCard(twitch: DashboardBarValue): DashboardCard {
   };
 }
 
+function todoCard(
+  id: string,
+  title: string,
+  value: DashboardBarValue,
+  command: string,
+): DashboardCard {
+  const visible = barVisible(value);
+  return {
+    id,
+    section: "Life",
+    title,
+    headline: visible
+      ? todoHeadline(value.text)
+      : statusHeadline(value, "No active items"),
+    tone: visible ? "active" : toneForBarValue(value, "ok"),
+    lines: barLines(value),
+    command,
+    commandMode: "suspend",
+    actionLabel: `Open ${title}`,
+  };
+}
+
 function environmentCard(source: DashboardSourceState): DashboardCard {
   const values = [source.bar.temperature, source.bar.co2, source.bar.voc];
   const attention = values.filter((value) =>
@@ -319,6 +353,13 @@ function liveHeadline(text: string): string {
     .replace(/\s+/g, " ")
     .trim();
   return cleaned || "Live channels active";
+}
+
+function todoHeadline(text: string): string {
+  const cleaned = cleanText(text).replace(/^\D+/, "").trim();
+  return cleaned
+    ? `${cleaned} active item${cleaned === "1" ? "" : "s"}`
+    : "Active items";
 }
 
 function firstTooltipLine(line: string): string {

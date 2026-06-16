@@ -172,10 +172,15 @@ export class App {
     this.dashboardView = new DashboardView(deps.renderer, deps.theme, {
       onOpenView: (viewId) => this.pushView(viewId),
       onRunCommand: (command, mode) => {
-        const run =
-          mode === "exit"
-            ? this.commandRunner.exitAndRun(command)
-            : this.commandRunner.runSilent(command);
+        const run = (() => {
+          if (mode === "exit") return this.commandRunner.exitAndRun(command);
+          if (mode === "suspend") {
+            return this.commandRunner.runSuspended(command, false).then(() => {
+              deps.onRefreshDashboard();
+            });
+          }
+          return this.commandRunner.runSilent(command);
+        })();
         run.catch((err) => {
           log(`Dashboard command error: ${err}`);
           if (mode === "exit") this.renderer.destroy();

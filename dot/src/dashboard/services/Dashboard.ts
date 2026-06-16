@@ -33,6 +33,8 @@ const BAR_MODULES: readonly DashboardBarModuleId[] = [
   "co2",
   "voc",
   "calendar",
+  "todo_my_tasks",
+  "todo_work",
 ];
 
 /** Service interface for dashboard live source snapshots. */

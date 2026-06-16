@@ -94,9 +94,25 @@ const INITIAL_STATE = {
           lines: [],
         },
         {
+          id: "my-tasks",
+          section: "Life",
+          title: "My Tasks",
+          headline: "Loading tasks",
+          tone: "muted",
+          lines: [],
+        },
+        {
+          id: "work-tasks",
+          section: "Life",
+          title: "Work Tasks",
+          headline: "Loading tasks",
+          tone: "muted",
+          lines: [],
+        },
+        {
           id: "today",
           section: "Life",
-          title: "Today",
+          title: "Events in the next hour",
           headline: "Loading calendar",
           tone: "muted",
           lines: [],
@@ -420,10 +436,11 @@ export class DashboardView {
     const card = this.renderedCards[this.selectedIndex]?.card;
     if (!card) return;
     const viewId = card.viewId;
+    const command = card.command;
     if (viewId) queueMicrotask(() => this.callbacks.onOpenView(viewId));
-    else if (card.command)
+    else if (command)
       queueMicrotask(() =>
-        this.callbacks.onRunCommand(card.command!, card.commandMode),
+        this.callbacks.onRunCommand(command, card.commandMode),
       );
   }
 
