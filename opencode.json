@@ -27,6 +27,7 @@
     },
     "omarchy": {
       "repository": "basecamp/omarchy",
+      "branch": "master",
       "description": "Use for Omarchy desktop, Hyprland, and Waybar customisation details"
     },
     "opencode": {
