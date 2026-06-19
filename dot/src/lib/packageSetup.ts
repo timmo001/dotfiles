@@ -64,6 +64,18 @@ function installedPackageCandidates(packageName: string): readonly string[] {
     : [packageName];
 }
 
+/**
+ * Public AUR packages that conflict with an official-repo package which must be
+ * removed first. The AUR helper runs `yay -S --noconfirm`, and pacman only
+ * auto-removes a conflict when the new package `Replaces` the old one; these do
+ * not, so a non-interactive install aborts on the conflict prompt unless the
+ * official package is removed beforehand.
+ */
+const conflictingOfficialPackage: Readonly<Record<string, string>> = {
+  // mise-bin (AUR, current) replaces the stale extra/mise base package.
+  "mise-bin": "mise",
+};
+
 const scopeLabel = (scope: ArchPackageScope): string =>
   scope === "public" ? "Public" : "Private";
 
@@ -325,6 +337,42 @@ function installWithPacman(
   });
 }
 
+/**
+ * Remove official-repo packages that block a non-interactive AUR install of a
+ * conflicting replacement (see {@link conflictingOfficialPackage}). Skips any
+ * package whose official counterpart is not installed, so it is idempotent.
+ */
+function replaceConflictingOfficialPackages(
+  missing: readonly string[],
+): Effect.Effect<void, PackageSetupError, CommandExecutor | OutputLog> {
+  return Effect.gen(function* () {
+    const executor = yield* CommandExecutor;
+    const log = yield* OutputLog;
+
+    for (const packageName of missing) {
+      const official = conflictingOfficialPackage[packageName];
+      if (!official) continue;
+      if ((yield* executor.exitCode("pacman", ["-Q", official])) !== 0) {
+        continue;
+      }
+
+      yield* log.info(
+        `Removing ${official} (conflicts with ${packageName}) before install`,
+      );
+      const exitCode = yield* runElevated("pacman", [
+        "-Rdd",
+        "--noconfirm",
+        official,
+      ]);
+      if (exitCode !== 0) {
+        return yield* fail(
+          `pacman -Rdd ${official} exited ${exitCode}; cannot install ${packageName}`,
+        );
+      }
+    }
+  });
+}
+
 /** Install missing Arch/AUR packages listed for the given scope. */
 export function installMissingArchPackages(opts: {
   readonly scope: ArchPackageScope;
@@ -350,6 +398,7 @@ export function installMissingArchPackages(opts: {
     if (opts.scope === "private") {
       yield* installWithPacman(opts, missing);
     } else {
+      yield* replaceConflictingOfficialPackages(missing);
       yield* installWithAurHelper(opts, missing);
     }
   });
