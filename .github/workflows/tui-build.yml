@@ -6,6 +6,7 @@ on:
       - distro/arch-omarchy
     paths:
       - 'dot/**'
+      - 'docs/**'
       - '.github/workflows/tui-build.yml'
   pull_request: {}
 
@@ -27,9 +28,12 @@ jobs:
             dot:
               - 'dot/**'
               - '.github/workflows/tui-build.yml'
+            docs:
+              - 'docs/**'
+              - '.github/workflows/tui-build.yml'
 
       - name: Setup mise
-        if: steps.changes.outputs.dot == 'true'
+        if: steps.changes.outputs.dot == 'true' || steps.changes.outputs.docs == 'true'
         uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
         with:
           install: false
@@ -57,7 +61,7 @@ jobs:
         working-directory: dot
 
       - name: Install docs tools
-        if: steps.changes.outputs.dot == 'true'
+        if: steps.changes.outputs.dot == 'true' || steps.changes.outputs.docs == 'true'
         run: |
           mise trust
           mise install
@@ -66,6 +70,16 @@ jobs:
       - name: Regenerate docs command reference
         if: steps.changes.outputs.dot == 'true'
         run: mise run gen:cli
+        working-directory: docs
+
+      - name: Install docs dependencies
+        if: steps.changes.outputs.dot == 'true' || steps.changes.outputs.docs == 'true'
+        run: bun install --frozen-lockfile
+        working-directory: docs
+
+      - name: Build docs
+        if: steps.changes.outputs.dot == 'true' || steps.changes.outputs.docs == 'true'
+        run: mise run build
         working-directory: docs
 
       - name: Commit regenerated command reference
