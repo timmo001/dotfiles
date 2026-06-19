@@ -264,10 +264,12 @@ dot --help                    # Show help
 
 ```bash
 cd ~/.config/dotfiles/dot
-bun run build    # outputs to ../scripts/.local/bin/dot
+mise run build   # outputs to ../scripts/.local/bin/dot (wraps bun run build)
 ```
 
-The build is also triggered by `dot update`, which runs `bun install` before compiling the binary.
+`dot/mise.toml` defines the dev tasks (`build`, `dev`, `typecheck`, `format`, `format:check`, `check`) as the unified entrypoint; each wraps the matching `bun run` script, so `bun run build` still works for the fresh-machine bootstrap. CI runs these via `mise run`. Run `mise tasks` to list them.
+
+The build is also triggered by `dot update`, which runs `bun install` before compiling the binary. `dot update`'s rebuild (`src/lib/selfUpdate.ts`) intentionally does **not** use the `build` task: it compiles to a temp path and atomically renames over the running binary to avoid `ETXTBSY`, which a direct `--outfile` over the live binary would hit.
 
 Fresh-machine bootstrap uses system mise to run Bun before `dot init` can manage global tool versions:
 
@@ -299,10 +301,12 @@ Always run type check, format, and build after every final code change:
 
 ```bash
 cd ~/.config/dotfiles/dot
-bunx tsc --noEmit            # type check
-bun run format               # format with prettier (required before every commit)
-bun run build                # compile binary
+mise run check               # type check + prettier format check
+mise run format              # format with prettier (required before every commit)
+mise run build               # compile binary
 ```
+
+The underlying `bunx tsc --noEmit` / `bun run format` / `bun run build` commands remain valid equivalents.
 
 For dead-code analysis, use the MCP `analyze` tool with `root: dot`, or `/fallow-audit`.
 

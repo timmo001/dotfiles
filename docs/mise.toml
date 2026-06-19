@@ -3,3 +3,31 @@ min_version = "2025.1.0"
 [tools]
 node = "26.3.1"
 bun = "1.3.14"
+
+[tasks.dev]
+description = "Run the docs dev server (regenerates references first)"
+run = "bun run dev"
+
+[tasks.build]
+description = "Build the docs site"
+run = "bun run build"
+
+[tasks.preview]
+description = "Preview the built docs site"
+run = "bun run preview"
+
+[tasks.og]
+description = "Regenerate the Open Graph image"
+run = "bun run og"
+
+[tasks."gen:cli"]
+description = "Regenerate the dot command reference"
+run = "bun run gen:cli"
+
+[tasks."gen:opencode"]
+description = "Regenerate the OpenCode reference pages"
+run = "bun run gen:opencode"
+
+[tasks.gen]
+description = "Regenerate all generated reference pages"
+run = "bun run gen"

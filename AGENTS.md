@@ -74,15 +74,15 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - When adding new `dot` subcommands that users may want quick access to, also add them to the menu registry in `dot/src/menu.ts`.
 - Keep command and flag metadata in `dot/src/cli/spec.ts`; help and completion generation consume that registry.
 - When changing `dot` commands, subcommands, aliases, or flags, run `dot completions` for each supported shell after rebuilding so the stowed completion files stay in sync.
-- The `docs/` command reference (`docs/src/content/docs/dot/commands.md`) is generated from `dot/src/cli/spec.ts`. After changing commands, regenerate it with `bun run gen:cli` in `docs/` (alongside shell completions) and commit the result.
+- The `docs/` command reference (`docs/src/content/docs/dot/commands.md`) is generated from `dot/src/cli/spec.ts`. After changing commands, regenerate it with `mise run gen:cli` in `docs/` (alongside shell completions) and commit the result.
 
 ## Documentation Site
 
 - `docs/` is the Astro + Starlight site published to `dotfiles.timmo.dev`; it is the single source of truth for human documentation. `README.md` links to it rather than duplicating content.
 - When you change documented behaviour (commands, flags, workflows, paths, or config), update the relevant page under `docs/src/content/docs/` in the same change. The docs site is canonical: do not document new or changed behaviour only in `README.md` or code comments.
-- Two sections are generated, not hand-written: `docs/src/content/docs/dot/commands.md` (from `dot/src/cli/spec.ts` via `bun run gen:cli`) and `docs/src/content/docs/reference/{agents,commands,skills,plugins}.md` (from the OpenCode assets via `bun run gen:opencode`). Edit the sources, not the generated pages.
+- Two sections are generated, not hand-written: `docs/src/content/docs/dot/commands.md` (from `dot/src/cli/spec.ts` via `mise run gen:cli`) and `docs/src/content/docs/reference/{agents,commands,skills,plugins}.md` (from the OpenCode assets via `mise run gen:opencode`). Edit the sources, not the generated pages.
 - The `opencode-publish` workflow regenerates and commits the OpenCode reference pages when the assets change; `tui-build` regenerates and commits the command reference when `dot/src/cli/spec.ts` changes.
-- Use **bun** in `docs/` (`bun install`, `bun run dev`, `bun run build`). `bun run build` runs `starlight-links-validator`; broken internal links fail the build.
+- Dev tasks for `dot/` and `docs/` are defined as mise tasks in each directory's `mise.toml` (run `mise tasks` to list, `mise run <task>` to run). They wrap the matching `bun run` scripts, so `bun run build` etc. still work; CI (`tui-build`, `opencode-publish`) and the fresh-machine bootstrap rely on that. Use **bun** in `docs/` for dependencies (`bun install`); `mise run build` (wrapping `bun run build`) runs `starlight-links-validator`, so broken internal links fail the build.
 
 ## Script Configuration Policy
 
@@ -93,6 +93,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 ## Validation
 
 - Basic health check: `dot doctor`
+- Dev tasks: `mise run <task>` in `dot/` (`build`, `typecheck`, `format`, `check`) and `docs/` (`build`, `dev`, `gen`); `mise tasks` lists them.
 - OpenCode debug wrapper: `dot opencode-debug`
 - OpenCode context injection command: `/inject-context [instruction]`
 - OpenCode planning command: `/plan [focus]` (manual entrypoint; some agents can also switch into plan mode via native `plan_enter`)
