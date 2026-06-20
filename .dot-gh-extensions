@@ -1,0 +1,12 @@
+# Public GitHub CLI extensions managed by dot.
+# One owner/repo per line, comments and blank lines are ignored.
+
+github/gh-aw
+github/gh-copilot
+dlvhdr/gh-dash
+github/gh-models
+seachicken/gh-poi
+github/gh-projects
+basecamp/gh-signoff
+github/gh-skyline
+github/gh-stack

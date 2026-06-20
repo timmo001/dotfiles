@@ -23,6 +23,7 @@ import {
 } from "../lib/packageSetup.js";
 import { syncOmarchyRepos } from "../lib/omarchySync.js";
 import { ensureLocalesGenerated } from "../lib/localeSetup.js";
+import { installGhExtensions } from "../lib/ghExtensions.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../lib/paths.js";
 import {
@@ -730,6 +731,7 @@ export function init(rawArgs: readonly string[]) {
       scope: "public",
       confirm: options.confirm,
     });
+    yield* installGhExtensions;
     yield* ensureLoginShellZsh();
     yield* setupPrivatePackages(config, options);
     yield* cloneMissingGitConfigRepos({ strict: true, captured: true });
