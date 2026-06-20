@@ -218,6 +218,32 @@ def ops($tree):
       | { ops: ([{ dir: node.dir, ratio: node.ratio, anchor: ai, new: $bi }] + $ra.ops + $rb.ops), next: $rb.next }
     end;
   w($tree; 0; 1).ops;
+# Simulate the build ops on a unit box to get each window index final box.
+def _sim($ops):
+  reduce $ops[] as $op ({ "0": [0, 0, 1, 1] };
+    (.[$op.anchor | tostring]) as $bx | ($op.ratio / 100) as $r
+    | if $op.dir == "lr"
+      then .[$op.anchor | tostring] = [$bx[0], $bx[1], $bx[2] * $r, $bx[3]]
+         | .[$op.new | tostring]    = [$bx[0] + $bx[2] * $r, $bx[1], $bx[2] * (1 - $r), $bx[3]]
+      else .[$op.anchor | tostring] = [$bx[0], $bx[1], $bx[2], $bx[3] * $r]
+         | .[$op.new | tostring]    = [$bx[0], $bx[1] + $bx[3] * $r, $bx[2], $bx[3] * (1 - $r)]
+      end);
+# Order the current windows (input: clients array) so that window index i is
+# the window currently nearest leaf i target position, keeping windows in place
+# when re-applying a layout. Output: array of addresses by index.
+def assign($tree):
+  . as $W | ($W | length) as $n
+  | (ops($tree)) as $o | (_sim($o)) as $boxes
+  | ([range(0; $n)] | map((($boxes[tostring]) // [0, 0, 1, 1]) as $b | { idx: ., cx: ($b[0] + $b[2] / 2), cy: ($b[1] + $b[3] / 2) })) as $T
+  | ($W | map(.at[0]) | min) as $x0 | ($W | map(.at[1]) | min) as $y0
+  | (($W | map(.at[0] + .size[0]) | max) - $x0) as $dx | (($W | map(.at[1] + .size[1]) | max) - $y0) as $dy
+  | ($W | map({ addr: .address,
+                cx: ((.at[0] + .size[0] / 2 - $x0) / (if $dx == 0 then 1 else $dx end)),
+                cy: ((.at[1] + .size[1] / 2 - $y0) / (if $dy == 0 then 1 else $dy end)) })) as $WC
+  | ($T | sort_by(.cy, .cx) | map(.idx)) as $torder
+  | ($WC | sort_by(.cy, .cx) | map(.addr)) as $worder
+  | (reduce range(0; $n) as $k ({}; .[$torder[$k] | tostring] = $worder[$k])) as $byidx
+  | [range(0; $n) | $byidx[tostring]];
 '
 
 # Reconstruct a split-tree from the current workspace window geometry.
@@ -240,7 +266,7 @@ apply_tree() {
   local n dir ratio ai ni pdir
 
   load_restore_addr
-  mapfile -t win < <(jq -r '.[].address' <<< "$clients_json")
+  mapfile -t win < <(jq -r --argjson t "$tree" "$TREE_JQ"' assign($t)[]' <<< "$clients_json")
   n="${#win[@]}"
   [ "$n" -ge 2 ] || return 0
 
