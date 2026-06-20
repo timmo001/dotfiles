@@ -34,6 +34,13 @@ const SELECTABLE_UPDATE_FLAGS = [
   ["--tui", "tui"],
 ] as const;
 
+/**
+ * Concurrency for the background `git remote set-head --auto` refresh. Each call
+ * hits the network per repo, so a small bound kicks several off at once without
+ * spiking load while the pull stage runs alongside it.
+ */
+const REFRESH_REMOTE_HEAD_CONCURRENCY = 6;
+
 /** Options controlling which phases `dot update` runs. */
 export interface UpdateOptions {
   /** Run the repository pull phase. */
@@ -419,49 +426,64 @@ export const update = (opts?: UpdateOptions) =>
         );
       }
 
-      // Keep each tracked repo's local <remote>/HEAD pointing at the remote's
-      // current default branch. Clones capture it once and never refresh it, so
-      // a default-branch rename leaves it stale and misleads default-branch
-      // detection in dot git-status, dot git-log, and the branch-context plugin.
-      yield* log.withSpinner(
-        "Refreshing remote branches",
-        Effect.forEach(repos, (repo) => gitRefreshRemoteHead(repo.path), {
-          discard: true,
+      // Race the best-effort branch refresh against the pull: whichever finishes
+      // first, the update continues. `git remote set-head --auto` re-points each
+      // repo's local <remote>/HEAD at the remote default branch (so a rename does
+      // not mislead default-branch detection in dot git-status, dot git-log, and
+      // the branch-context plugin), but it hits the network per repo and can hang
+      // on a slow remote. Rather than block on it, we fork it into this scope and
+      // let the pull below be the spine: when the pull finishes the scope closes
+      // and any still-running refresh is interrupted. This is safe because the
+      // refresh is purely cosmetic, the origin/HEAD doctor check catches any
+      // staleness, and set-head calls already spawned still complete in the
+      // background.
+      yield* Effect.scoped(
+        Effect.gen(function* () {
+          yield* Effect.forEach(
+            repos,
+            (repo) => gitRefreshRemoteHead(repo.path),
+            { discard: true, concurrency: REFRESH_REMOTE_HEAD_CONCURRENCY },
+          ).pipe(
+            Effect.andThen(log.info("Refreshed remote branches")),
+            Effect.forkScoped,
+          );
+
+          if (!config.canUsePrivate) {
+            yield* log.warn(`Skipping private pull (${config.privateReason})`);
+          }
+
+          const changed = repos.filter(
+            (r) => r.isDirty || r.ahead > 0 || r.behind > 0,
+          );
+          const behind = repos.filter((r) => r.behind > 0);
+
+          if (behind.length === 0) {
+            if (changed.length > 0) {
+              yield* log.info("Nothing to pull (no repos behind upstream)");
+
+              const notes: string[] = [];
+              if (changed.some((r) => r.isDirty))
+                notes.push("dirty working tree");
+              if (changed.some((r) => r.ahead > 0))
+                notes.push("ahead of upstream");
+              yield* log.warn(
+                `${changed.length} repo(s) need attention: ${notes.join(", ")}`,
+              );
+              for (const repo of changed) {
+                yield* log.warn(`  - ${repo.name}: ${displayPath(repo.path)}`);
+              }
+            } else {
+              yield* log.info("All repositories are up to date");
+            }
+          } else {
+            yield* log.info(`${changed.length} repo(s) need attention`);
+            for (const repo of behind) {
+              const moved = yield* safePull(repo.name, repo.path);
+              if (moved) updatedNames.push(repo.name);
+            }
+          }
         }),
       );
-
-      if (!config.canUsePrivate) {
-        yield* log.warn(`Skipping private pull (${config.privateReason})`);
-      }
-
-      const changed = repos.filter(
-        (r) => r.isDirty || r.ahead > 0 || r.behind > 0,
-      );
-      const behind = repos.filter((r) => r.behind > 0);
-
-      if (behind.length === 0) {
-        if (changed.length > 0) {
-          yield* log.info("Nothing to pull (no repos behind upstream)");
-
-          const notes: string[] = [];
-          if (changed.some((r) => r.isDirty)) notes.push("dirty working tree");
-          if (changed.some((r) => r.ahead > 0)) notes.push("ahead of upstream");
-          yield* log.warn(
-            `${changed.length} repo(s) need attention: ${notes.join(", ")}`,
-          );
-          for (const repo of changed) {
-            yield* log.warn(`  - ${repo.name}: ${displayPath(repo.path)}`);
-          }
-        } else {
-          yield* log.info("All repositories are up to date");
-        }
-      } else {
-        yield* log.info(`${changed.length} repo(s) need attention`);
-        for (const repo of behind) {
-          const moved = yield* safePull(repo.name, repo.path);
-          if (moved) updatedNames.push(repo.name);
-        }
-      }
     }
 
     if (doStow) {
