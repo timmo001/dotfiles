@@ -14,15 +14,21 @@ PRESETS_FILE="${XDG_DATA_HOME:-$HOME/.local/share}/workspace-relayout/presets.js
 # which sets the focused window's parent split. From the dwindle algorithm,
 # the first child of a split gets `box_size / 2 * splitRatio`, so the first
 # child's fraction f maps to splitRatio = 2 * f. set_split takes that fraction
-# as a percentage (the same numbers shown in the menu labels) and lets
-# Hyprland do all the pixel, gap, and border maths.
+# as a percentage and lets Hyprland do all the pixel, gap, and border maths.
 #
-# Presets live in $PRESETS_FILE grouped by window count under .layouts.<count>
-# (".layouts.2", ".layouts.3", ".layouts.4"), each a list of { family, name,
-# params } records. The window count is the group key, so the menu shown is
-# driven by how many tiled windows are on the workspace. Edit mode (--edit)
-# captures the current window split ratios back into a preset, either
-# overwriting an existing one or adding a new one.
+# A layout is stored as a generic guillotine split-tree, not a named family:
+#   leaf  -> "w"
+#   split -> { dir: "lr"|"tb", ratio: <first-child %>, a: <node>, b: <node> }
+# Capture reconstructs this tree from the live window geometry (any dwindle
+# layout is a recursive series of full-span cuts), and apply replays it by
+# placing windows with preselect + setting each split's ratio. Because the
+# engine is generic, any arrangement of any window count works with no
+# per-layout code.
+#
+# Presets live in $PRESETS_FILE grouped by window count under .layouts.<count>,
+# each a list of { name, tree } records. Edit mode (--edit) captures the
+# current window arrangement back into a preset, overwriting an existing one or
+# adding a new one (no layout "type" to pick).
 
 # Set by capture_active_workspace before other logic runs.
 WS_ID_JSON=""
@@ -121,43 +127,11 @@ window_count() {
   jq -r 'length' <<< "$clients_json"
 }
 
-require_window_count() {
-  local expected="$1"
-  local count
-  count="$(window_count)"
-
-  if [ "$count" -ne "$expected" ]; then
-    notify "Expected $expected visible tiled windows on this workspace, found $count"
-    exit 1
-  fi
-}
-
 load_restore_addr() {
   restore_addr="$(hyprctl activewindow -j | jq -r --argjson ws "$WS_ID_JSON" '
     select((.workspace.id // -1) == $ws)
     | .address // empty
   ')"
-}
-
-load_grid_addresses() {
-  mapfile -t grid_addrs < <(jq -r '
-    sort_by(.at[0], .at[1])
-    | .[].address
-  ' <<< "$clients_json")
-}
-
-load_row_addresses() {
-  mapfile -t row_addrs < <(jq -r '
-    sort_by(.at[1], .at[0])
-    | .[].address
-  ' <<< "$clients_json")
-}
-
-load_column_addresses() {
-  mapfile -t column_addrs < <(jq -r '
-    sort_by(.at[0], .at[1])
-    | .[].address
-  ' <<< "$clients_json")
 }
 
 move_windows_to_temp() {
@@ -177,494 +151,109 @@ restore_focus() {
 }
 
 # ---------------------------------------------------------------------------
-# Layout families
-#
-# Each family has a fixed window count, a build+ratio apply function, a
-# capture function that measures the current window split ratios into a
-# params object, and a bracket renderer for the menu label. The params keys
-# are the same percentages the apply functions and set_split consume.
+# Generic guillotine split-tree engine (capture, replay, describe)
 # ---------------------------------------------------------------------------
 
-family_default_name() {
-  case "$1" in
-    top-bottom-two) echo "1 top / 1 bottom" ;;
-    left-right) echo "1 left / 1 right" ;;
-    left-middle-right) echo "1 left / 1 middle / 1 right" ;;
-    top-two-bottom) echo "1 top / 2 bottom" ;;
-    two-left-one-right) echo "2 left / 1 right" ;;
-    grid) echo "2 left / 2 right" ;;
-    top-bottom) echo "1 top / 3 bottom" ;;
-    top-four-bottom) echo "1 top / 4 bottom" ;;
-    *) echo "Layout" ;;
-  esac
-}
-
-families_for_count() {
-  case "$1" in
-    2) echo "top-bottom-two left-right" ;;
-    3) echo "top-two-bottom two-left-one-right left-middle-right" ;;
-    4) echo "grid top-bottom" ;;
-    5) echo "top-four-bottom" ;;
-    *) echo "" ;;
-  esac
-}
-
-# Shared jq definitions for rendering a preset's split-ratio brackets (the
-# "[74/26]" part of a menu label) and its full label. Computed in jq so the
-# menu can be built in a single jq pass instead of one subprocess per field.
-# shellcheck disable=SC2016  # $f/$q are jq variables, not shell expansions.
-JQ_BRACKETS='
-def _brackets:
-  .family as $f | .params as $q
-  | if $f == "top-bottom-two" then "\($q.top|round)/\(100 - $q.top|round)"
-    elif $f == "left-right" then "\($q.left|round)/\(100 - $q.left|round)"
-    elif $f == "left-middle-right" then
-      ($q.left) as $l | ((100 - $l) * $q.mid / 100) as $b | ((100 - $l) * (100 - $q.mid) / 100) as $c
-      | "\($l|round)/\($b|round)/\($c|round)"
-    elif $f == "top-two-bottom" then "\($q.top|round)/\(100 - $q.top|round), \($q.bl|round)/\(100 - $q.bl|round)"
-    elif $f == "two-left-one-right" then "\($q.left_top|round)/\(100 - $q.left_top|round), \($q.left_column|round)/\(100 - $q.left_column|round)"
-    elif $f == "grid" then "50/50, \($q.left_column|round)/\(100 - $q.left_column|round)"
-    elif $f == "top-bottom" then
-      ($q.bl) as $l | ((100 - $l) * $q.bm / 100) as $b | ((100 - $l) * (100 - $q.bm) / 100) as $c
-      | "\($q.top|round)/\(100 - $q.top|round), \($l|round)/\($b|round)/\($c|round)"
-    elif $f == "top-four-bottom" then
-      ($q.b1) as $p0 | (100 - $p0) as $r1
-      | ($r1 * $q.b2 / 100) as $p1 | ($r1 * (100 - $q.b2) / 100) as $r2
-      | ($r2 * $q.b3 / 100) as $p2 | ($r2 * (100 - $q.b3) / 100) as $p3
-      | "\($q.top|round)/\(100 - $q.top|round), \($p0|round)/\($p1|round)/\($p2|round)/\($p3|round)"
-    else "?" end;
-def _label: "\(.name) [\(_brackets)]";
+# jq library shared by capture_tree / apply_tree / describe_tree.
+#   tree      : array of windows -> split-tree (leaf "w" or {dir,ratio,a,b})
+#   ops($t)   : split-tree -> ordered build ops [{dir,ratio,anchor,new}]
+#   describe  : split-tree -> human label ("1 top / 4 bottom", "3 columns", ...)
+# shellcheck disable=SC2016  # all $-names below are jq variables, not shell.
+TREE_JQ='
+def _l: map(.at[0]) | min;
+def _t: map(.at[1]) | min;
+def _r: map(.at[0] + .size[0]) | max;
+def _b: map(.at[1] + .size[1]) | max;
+def _vk:
+  (sort_by(.at[0])) as $s | (length) as $n
+  | (first( range(1; $n) as $k
+      | select( ($s[0:$k] | map(.at[0] + .size[0]) | max) <= ($s[$k:] | map(.at[0]) | min) ) | $k )) // null;
+def _hk:
+  (sort_by(.at[1])) as $s | (length) as $n
+  | (first( range(1; $n) as $k
+      | select( ($s[0:$k] | map(.at[1] + .size[1]) | max) <= ($s[$k:] | map(.at[1]) | min) ) | $k )) // null;
+def tree:
+  if length <= 1 then "w"
+  else (_vk) as $vk
+    | if $vk != null then
+        (sort_by(.at[0])) as $s | ($s[0:$vk]) as $A | ($s[$vk:]) as $B
+        | (($A | map(.at[0] + .size[0]) | max) - (_l)) as $ea | ((_r) - ($B | map(.at[0]) | min)) as $eb
+        | { dir: "lr", ratio: (($ea / ($ea + $eb)) * 10000 | round) / 100, a: ($A | tree), b: ($B | tree) }
+      else
+        (_hk) as $hk | (sort_by(.at[1])) as $s
+        | (if $hk != null then $hk else 1 end) as $k
+        | ($s[0:$k]) as $A | ($s[$k:]) as $B
+        | (($A | map(.at[1] + .size[1]) | max) - (_t)) as $ea | ((_b) - ($B | map(.at[1]) | min)) as $eb
+        | { dir: "tb", ratio: (($ea / ($ea + $eb)) * 10000 | round) / 100, a: ($A | tree), b: ($B | tree) }
+      end
+  end;
+def leaves: if type == "string" then 1 else (.a | leaves) + (.b | leaves) end;
+def allcols: if type == "string" then true elif .dir == "lr" then (.a | allcols) and (.b | allcols) else false end;
+def allrows: if type == "string" then true elif .dir == "tb" then (.a | allrows) and (.b | allrows) else false end;
+def describe:
+  (leaves) as $n
+  | if type == "string" then "1 window"
+    elif allcols then "\($n) columns"
+    elif allrows then "\($n) rows"
+    elif .dir == "tb" and (.a | allcols) and (.b | allcols) then "\(.a | leaves) top / \(.b | leaves) bottom"
+    elif .dir == "lr" and (.a | allrows) and (.b | allrows) then "\(.a | leaves) left / \(.b | leaves) right"
+    else "\($n) windows" end;
+def ops($tree):
+  def w(node; ai; ni):
+    if (node | type) == "string" then { ops: [], next: ni }
+    else (ni) as $bi
+      | (w(node.a; ai; ni + 1)) as $ra
+      | (w(node.b; $bi; $ra.next)) as $rb
+      | { ops: ([{ dir: node.dir, ratio: node.ratio, anchor: ai, new: $bi }] + $ra.ops + $rb.ops), next: $rb.next }
+    end;
+  w($tree; 0; 1).ops;
 '
 
-# Render just the brackets for one family + params object (used in edit-mode
-# notifications, where a single call is fine).
-family_brackets() {
-  jq -rn "$JQ_BRACKETS"' { family: $f, params: $p } | _brackets' --arg f "$1" --argjson p "$2"
+# Reconstruct a split-tree from the current workspace window geometry.
+capture_tree() {
+  jq -c "$TREE_JQ"' tree' <<< "$clients_json"
 }
 
-# Measure the current workspace windows into a params object for $1's family.
-# Percentages are first-child shares, matching what the apply functions and
-# set_split consume. Values are rounded to two decimals.
-family_capture() {
-  local fam="$1"
-
-  case "$fam" in
-    top-bottom-two)
-      jq -c 'sort_by(.at[1])
-        | (.[0].size[1]) as $a | (.[1].size[1]) as $b
-        | { top: (($a / ($a + $b) * 10000 | round) / 100) }' <<< "$clients_json"
-      ;;
-    left-right)
-      jq -c 'sort_by(.at[0])
-        | (.[0].size[0]) as $a | (.[1].size[0]) as $b
-        | { left: (($a / ($a + $b) * 10000 | round) / 100) }' <<< "$clients_json"
-      ;;
-    left-middle-right)
-      jq -c 'sort_by(.at[0])
-        | (.[0].size[0]) as $a | (.[1].size[0]) as $b | (.[2].size[0]) as $c
-        | { left: (($a / ($a + $b + $c) * 10000 | round) / 100),
-            mid: (($b / ($b + $c) * 10000 | round) / 100) }' <<< "$clients_json"
-      ;;
-    top-two-bottom)
-      jq -c 'sort_by(.at[1])
-        | .[0] as $top | (.[1:] | sort_by(.at[0])) as $bot
-        | $top.size[1] as $th | $bot[0].size[1] as $bh
-        | $bot[0].size[0] as $w0 | $bot[1].size[0] as $w1
-        | { top: (($th / ($th + $bh) * 10000 | round) / 100),
-            bl: (($w0 / ($w0 + $w1) * 10000 | round) / 100) }' <<< "$clients_json"
-      ;;
-    two-left-one-right)
-      jq -c 'sort_by(.at[0])
-        | (.[0].size[0]) as $lw | (.[2].size[0]) as $rw
-        | ([.[0], .[1]] | sort_by(.at[1])) as $lc
-        | $lc[0].size[1] as $th | $lc[1].size[1] as $bh
-        | { left_column: (($lw / ($lw + $rw) * 10000 | round) / 100),
-            left_top: (($th / ($th + $bh) * 10000 | round) / 100) }' <<< "$clients_json"
-      ;;
-    grid)
-      jq -c 'sort_by(.at[0])
-        | (.[0].size[0]) as $l | (.[3].size[0]) as $r
-        | { left_column: (($l / ($l + $r) * 10000 | round) / 100) }' <<< "$clients_json"
-      ;;
-    top-bottom)
-      jq -c 'sort_by(.at[1])
-        | .[0] as $top | (.[1:] | sort_by(.at[0])) as $bot
-        | $top.size[1] as $th | $bot[0].size[1] as $bh
-        | $bot[0].size[0] as $w0 | $bot[1].size[0] as $w1 | $bot[2].size[0] as $w2
-        | { top: (($th / ($th + $bh) * 10000 | round) / 100),
-            bl: (($w0 / ($w0 + $w1 + $w2) * 10000 | round) / 100),
-            bm: (($w1 / ($w1 + $w2) * 10000 | round) / 100) }' <<< "$clients_json"
-      ;;
-    top-four-bottom)
-      jq -c 'sort_by(.at[1])
-        | .[0] as $top | (.[1:] | sort_by(.at[0])) as $bot
-        | $top.size[1] as $th | $bot[0].size[1] as $bh
-        | $bot[0].size[0] as $w0 | $bot[1].size[0] as $w1
-        | $bot[2].size[0] as $w2 | $bot[3].size[0] as $w3
-        | { top: (($th / ($th + $bh) * 10000 | round) / 100),
-            b1: (($w0 / ($w0 + $w1 + $w2 + $w3) * 10000 | round) / 100),
-            b2: (($w1 / ($w1 + $w2 + $w3) * 10000 | round) / 100),
-            b3: (($w2 / ($w2 + $w3) * 10000 | round) / 100) }' <<< "$clients_json"
-      ;;
-    *)
-      echo "{}"
-      ;;
-  esac
+# Human label for a split-tree (used as the default preset name).
+describe_tree() {
+  jq -rn --argjson t "$1" "$TREE_JQ"' $t | describe'
 }
 
-apply_preset() {
-  local fam="$1"
-  local p="$2"
+# Rebuild the current workspace into the given split-tree. Windows are
+# interchangeable, so any window fills any leaf. Each split's ratio is set
+# right after it is created (while both sides are single windows), which is
+# what makes balanced splits like a 2x2 grid reproduce exactly.
+apply_tree() {
+  local tree="$1"
+  local -a win
+  local n dir ratio ai ni pdir
 
-  case "$fam" in
-    top-bottom-two)
-      apply_top_bottom_two_layout "$(jq -r '.top' <<< "$p")"
-      ;;
-    left-right)
-      apply_left_right_layout "$(jq -r '.left' <<< "$p")"
-      ;;
-    left-middle-right)
-      apply_left_middle_right_layout "$(jq -r '.left' <<< "$p")" "$(jq -r '.mid' <<< "$p")"
-      ;;
-    top-two-bottom)
-      apply_top_two_bottom_layout "$(jq -r '.top' <<< "$p")" "$(jq -r '.bl' <<< "$p")"
-      ;;
-    two-left-one-right)
-      apply_two_left_one_right_layout "$(jq -r '.left_column' <<< "$p")" "$(jq -r '.left_top' <<< "$p")"
-      ;;
-    grid)
-      apply_grid_layout "$(jq -r '.left_column' <<< "$p")"
-      ;;
-    top-bottom)
-      apply_top_bottom_layout "$(jq -r '.top' <<< "$p")" "$(jq -r '.bl' <<< "$p")" "$(jq -r '.bm' <<< "$p")"
-      ;;
-    top-four-bottom)
-      apply_top_four_bottom_layout "$(jq -r '.top' <<< "$p")" "$(jq -r '.b1' <<< "$p")" "$(jq -r '.b2' <<< "$p")" "$(jq -r '.b3' <<< "$p")"
-      ;;
-    *)
-      notify "Unknown layout family: $fam"
-      exit 1
-      ;;
-  esac
-}
-
-# ---------------------------------------------------------------------------
-# Apply functions: rebuild the dwindle tree via a temp workspace and set each
-# split's ratio. See the header comment for the splitratio maths.
-# ---------------------------------------------------------------------------
-
-# 2 windows, stacked top/bottom. Root split top/bottom, both children leaves.
-apply_top_bottom_two_layout() {
-  local top_addr bottom_addr
-  local top_pct="$1"
-
-  require_window_count 2
   load_restore_addr
-  load_row_addresses
+  mapfile -t win < <(jq -r '.[].address' <<< "$clients_json")
+  n="${#win[@]}"
+  [ "$n" -ge 2 ] || return 0
 
-  top_addr="${row_addrs[0]}"
-  bottom_addr="${row_addrs[1]}"
+  move_windows_to_temp "${win[@]}"
 
-  move_windows_to_temp "$top_addr" "$bottom_addr"
+  move_to_workspace "$WS_ID_STR" "${win[0]}"
+  sleep 0.1
 
-  move_to_workspace "$WS_ID_STR" "$top_addr"
-  focus_addr "$top_addr"
-  hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
-  sleep 0.05
+  while IFS=$'\t' read -r dir ratio ai ni; do
+    [ -n "$dir" ] || continue
+    if [ "$dir" = "lr" ]; then pdir="r"; else pdir="d"; fi
 
-  move_to_workspace "$WS_ID_STR" "$bottom_addr"
-  sleep 0.15
+    focus_addr "${win[$ai]}"
+    hyprctl dispatch layoutmsg preselect "$pdir" >/dev/null 2>&1 || true
+    sleep 0.05
 
-  set_split "$top_addr" "$top_pct"
+    move_to_workspace "$WS_ID_STR" "${win[$ni]}"
+    sleep 0.05
+
+    set_split "${win[$ai]}" "$ratio"
+  done < <(jq -rn --argjson t "$tree" "$TREE_JQ"' ops($t)[] | [.dir, .ratio, .anchor, .new] | @tsv')
 
   restore_focus
-  notify "Applied 1 top / 1 bottom"
-}
-
-# 2 windows, side by side left/right. Root split left/right, both leaves.
-apply_left_right_layout() {
-  local left_addr right_addr
-  local left_pct="$1"
-
-  require_window_count 2
-  load_restore_addr
-  load_column_addresses
-
-  left_addr="${column_addrs[0]}"
-  right_addr="${column_addrs[1]}"
-
-  move_windows_to_temp "$left_addr" "$right_addr"
-
-  move_to_workspace "$WS_ID_STR" "$left_addr"
-  focus_addr "$left_addr"
-  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
-  sleep 0.05
-
-  move_to_workspace "$WS_ID_STR" "$right_addr"
-  sleep 0.15
-
-  set_split "$left_addr" "$left_pct"
-
-  restore_focus
-  notify "Applied 1 left / 1 right"
-}
-
-# 3 windows side by side: root left | (middle | right). Both splits keep a
-# leaf child, so each is set after the tree is built.
-apply_left_middle_right_layout() {
-  local left_addr mid_addr right_addr
-  local left_pct="$1"
-  local mid_pct="$2"
-
-  require_window_count 3
-  load_restore_addr
-  load_column_addresses
-
-  left_addr="${column_addrs[0]}"
-  mid_addr="${column_addrs[1]}"
-  right_addr="${column_addrs[2]}"
-
-  move_windows_to_temp "$left_addr" "$mid_addr" "$right_addr"
-
-  move_to_workspace "$WS_ID_STR" "$left_addr"
-  focus_addr "$left_addr"
-  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
-  sleep 0.05
-
-  move_to_workspace "$WS_ID_STR" "$mid_addr"
-  focus_addr "$mid_addr"
-  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
-  sleep 0.05
-
-  move_to_workspace "$WS_ID_STR" "$right_addr"
-  sleep 0.15
-
-  set_split "$left_addr" "$left_pct"
-  set_split "$mid_addr" "$mid_pct"
-
-  restore_focus
-  notify "Applied 1 left / 1 middle / 1 right"
-}
-
-# 4 windows, 2x2 grid. Root left/right splits the two columns, then each
-# column splits top/bottom. The root split has no leaf child once the columns
-# are subdivided, so its ratio is set while both columns are still single
-# windows; the stored splitRatio survives subdivision.
-apply_grid_layout() {
-  local top_left_addr bottom_left_addr top_right_addr bottom_right_addr
-  local left_column_pct="$1"
-
-  require_window_count 4
-  load_restore_addr
-  load_grid_addresses
-
-  top_left_addr="${grid_addrs[0]}"
-  bottom_left_addr="${grid_addrs[1]}"
-  top_right_addr="${grid_addrs[2]}"
-  bottom_right_addr="${grid_addrs[3]}"
-
-  move_windows_to_temp "$top_left_addr" "$bottom_left_addr" "$top_right_addr" "$bottom_right_addr"
-
-  move_to_workspace "$WS_ID_STR" "$top_left_addr"
-  focus_addr "$top_left_addr"
-  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
-  sleep 0.05
-
-  move_to_workspace "$WS_ID_STR" "$top_right_addr"
-  sleep 0.15
-
-  # Root left/right ratio, set while both columns are still leaves.
-  set_split "$top_left_addr" "$left_column_pct"
-
-  focus_addr "$top_left_addr"
-  hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
-  sleep 0.05
-
-  move_to_workspace "$WS_ID_STR" "$bottom_left_addr"
-  focus_addr "$top_right_addr"
-  hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
-  sleep 0.05
-
-  move_to_workspace "$WS_ID_STR" "$bottom_right_addr"
-  sleep 0.15
-
-  set_split "$top_left_addr" 50
-  set_split "$top_right_addr" 50
-
-  restore_focus
-  notify "Applied 2 left / 2 right"
-}
-
-# 4 windows, 1 on top spanning full width, 3 along the bottom row.
-# Bottom row nests as (left | (middle | right)); every split keeps a leaf.
-apply_top_bottom_layout() {
-  local top_addr bottom_left_addr bottom_middle_addr bottom_right_addr
-  local top_pct="$1"
-  local bottom_left_pct="$2"
-  local bottom_middle_pct="$3"
-
-  require_window_count 4
-  load_restore_addr
-  load_row_addresses
-
-  top_addr="${row_addrs[0]}"
-  bottom_left_addr="${row_addrs[1]}"
-  bottom_middle_addr="${row_addrs[2]}"
-  bottom_right_addr="${row_addrs[3]}"
-
-  move_windows_to_temp "$top_addr" "$bottom_left_addr" "$bottom_middle_addr" "$bottom_right_addr"
-
-  move_to_workspace "$WS_ID_STR" "$top_addr"
-  focus_addr "$top_addr"
-  hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
-  sleep 0.05
-
-  move_to_workspace "$WS_ID_STR" "$bottom_left_addr"
-  focus_addr "$bottom_left_addr"
-  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
-  sleep 0.05
-
-  move_to_workspace "$WS_ID_STR" "$bottom_middle_addr"
-  focus_addr "$bottom_middle_addr"
-  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
-  sleep 0.05
-
-  move_to_workspace "$WS_ID_STR" "$bottom_right_addr"
-  sleep 0.15
-
-  set_split "$top_addr" "$top_pct"
-  set_split "$bottom_left_addr" "$bottom_left_pct"
-  set_split "$bottom_middle_addr" "$bottom_middle_pct"
-
-  restore_focus
-  notify "Applied 1 top / 3 bottom"
-}
-
-# 5 windows, 1 on top spanning full width, 4 along the bottom row.
-# Bottom row nests as (b1 | (b2 | (b3 | b4))); every split keeps a leaf.
-apply_top_four_bottom_layout() {
-  local top_addr b1_addr b2_addr b3_addr b4_addr
-  local top_pct="$1"
-  local b1_pct="$2"
-  local b2_pct="$3"
-  local b3_pct="$4"
-
-  require_window_count 5
-  load_restore_addr
-  load_row_addresses
-
-  top_addr="${row_addrs[0]}"
-  b1_addr="${row_addrs[1]}"
-  b2_addr="${row_addrs[2]}"
-  b3_addr="${row_addrs[3]}"
-  b4_addr="${row_addrs[4]}"
-
-  move_windows_to_temp "$top_addr" "$b1_addr" "$b2_addr" "$b3_addr" "$b4_addr"
-
-  move_to_workspace "$WS_ID_STR" "$top_addr"
-  focus_addr "$top_addr"
-  hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
-  sleep 0.05
-
-  move_to_workspace "$WS_ID_STR" "$b1_addr"
-  focus_addr "$b1_addr"
-  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
-  sleep 0.05
-
-  move_to_workspace "$WS_ID_STR" "$b2_addr"
-  focus_addr "$b2_addr"
-  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
-  sleep 0.05
-
-  move_to_workspace "$WS_ID_STR" "$b3_addr"
-  focus_addr "$b3_addr"
-  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
-  sleep 0.05
-
-  move_to_workspace "$WS_ID_STR" "$b4_addr"
-  sleep 0.15
-
-  set_split "$top_addr" "$top_pct"
-  set_split "$b1_addr" "$b1_pct"
-  set_split "$b2_addr" "$b2_pct"
-  set_split "$b3_addr" "$b3_pct"
-
-  restore_focus
-  notify "Applied 1 top / 4 bottom"
-}
-
-# 3 windows, 1 on top spanning full width, 2 along the bottom row.
-# Root top/bottom (top is a leaf), then bottom splits left/right (both leaves).
-apply_top_two_bottom_layout() {
-  local top_addr bottom_left_addr bottom_right_addr
-  local top_pct="$1"
-  local bottom_left_pct="$2"
-
-  require_window_count 3
-  load_restore_addr
-  load_row_addresses
-
-  top_addr="${row_addrs[0]}"
-  bottom_left_addr="${row_addrs[1]}"
-  bottom_right_addr="${row_addrs[2]}"
-
-  move_windows_to_temp "$top_addr" "$bottom_left_addr" "$bottom_right_addr"
-
-  move_to_workspace "$WS_ID_STR" "$top_addr"
-  focus_addr "$top_addr"
-  hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
-  sleep 0.05
-
-  move_to_workspace "$WS_ID_STR" "$bottom_left_addr"
-  focus_addr "$bottom_left_addr"
-  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
-  sleep 0.05
-
-  move_to_workspace "$WS_ID_STR" "$bottom_right_addr"
-  sleep 0.15
-
-  set_split "$top_addr" "$top_pct"
-  set_split "$bottom_left_addr" "$bottom_left_pct"
-
-  restore_focus
-  notify "Applied 1 top / 2 bottom"
-}
-
-# 3 windows, 2 stacked on the left, 1 filling the right.
-# Root left/right (right is a leaf), then the left column splits top/bottom.
-apply_two_left_one_right_layout() {
-  local top_left_addr bottom_left_addr right_addr
-  local left_column_pct="$1"
-  local left_top_pct="$2"
-
-  require_window_count 3
-  load_restore_addr
-  load_grid_addresses
-
-  top_left_addr="${grid_addrs[0]}"
-  bottom_left_addr="${grid_addrs[1]}"
-  right_addr="${grid_addrs[2]}"
-
-  move_windows_to_temp "$top_left_addr" "$bottom_left_addr" "$right_addr"
-
-  move_to_workspace "$WS_ID_STR" "$top_left_addr"
-  focus_addr "$top_left_addr"
-  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
-  sleep 0.05
-
-  move_to_workspace "$WS_ID_STR" "$right_addr"
-  focus_addr "$top_left_addr"
-  hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
-  sleep 0.05
-
-  move_to_workspace "$WS_ID_STR" "$bottom_left_addr"
-  sleep 0.15
-
-  set_split "$right_addr" "$left_column_pct"
-  set_split "$top_left_addr" "$left_top_pct"
-
-  restore_focus
-  notify "Applied 2 left / 1 right"
+  notify "Applied $(describe_tree "$tree")"
 }
 
 # ---------------------------------------------------------------------------
@@ -678,8 +267,25 @@ walker_pick() {
   printf '%s\n' "$@" | omarchy-launch-walker --dmenu --width 460 --minheight 1 --maxheight 360 -p "$prompt" 2>/dev/null || true
 }
 
-# Index of $1 in the remaining args, or -1. Used to map a picked label back to
-# its preset without relying on walker's index output.
+# Free-text prompt for a layout name, prefilled (via placeholder) with $1.
+# Walker has no editable-prefill, so the default shows as the placeholder and
+# an empty submit keeps it; typing overrides it.
+prompt_name() {
+  local default="$1"
+  local out=""
+
+  if command -v omarchy-launch-walker >/dev/null 2>&1; then
+    out="$(omarchy-launch-walker --dmenu --inputonly --width 460 --minheight 1 --maxheight 1 -p "$default" 2>/dev/null || true)"
+  fi
+
+  if [ -n "$out" ]; then
+    printf '%s' "$out"
+  else
+    printf '%s' "$default"
+  fi
+}
+
+# Index of $1 in the remaining args, or -1.
 index_of() {
   local needle="$1"
   shift
@@ -695,26 +301,21 @@ index_of() {
   echo "-1"
 }
 
-# Populate sel_fam/sel_params/sel_label for presets in the $1 window group.
-sel_fam=()
-sel_params=()
-sel_label=()
+# Populate sel_name/sel_tree for presets in the $1 window group.
+sel_name=()
+sel_tree=()
 load_presets_for_count() {
   local count="$1"
-  local fam params label
+  local name tree
 
-  sel_fam=()
-  sel_params=()
-  sel_label=()
+  sel_name=()
+  sel_tree=()
 
-  while IFS=$'\t' read -r fam params label; do
-    [ -n "$fam" ] || continue
-    sel_fam+=("$fam")
-    sel_params+=("$params")
-    sel_label+=("$label")
-  done < <(jq -r --arg c "$count" "$JQ_BRACKETS"'
-    .layouts[$c][] | [.family, (.params | tojson), _label] | @tsv
-  ' "$PRESETS_FILE")
+  while IFS=$'\t' read -r name tree; do
+    [ -n "$name" ] || continue
+    sel_name+=("$name")
+    sel_tree+=("$tree")
+  done < <(jq -r --arg c "$count" '(.layouts[$c] // [])[] | [.name, (.tree | tojson)] | @tsv' "$PRESETS_FILE")
 }
 
 # Write JSON ($1) back to the presets file through the stow symlink, leaving
@@ -734,64 +335,46 @@ apply_menu() {
   local choice idx
 
   load_presets_for_count "$count"
-  if [ "${#sel_label[@]}" -eq 0 ]; then
-    notify "No presets for $count windows"
+  if [ "${#sel_name[@]}" -eq 0 ]; then
+    notify "No presets for $count windows yet - use edit mode to add one"
     exit 0
   fi
 
-  choice="$(walker_pick "$count window layout..." "${sel_label[@]}")"
+  choice="$(walker_pick "$count window layout..." "${sel_name[@]}")"
   [ -n "$choice" ] || exit 0
 
-  idx="$(index_of "$choice" "${sel_label[@]}")"
+  idx="$(index_of "$choice" "${sel_name[@]}")"
   [ "$idx" -ge 0 ] || exit 0
 
-  apply_preset "${sel_fam[$idx]}" "${sel_params[$idx]}"
+  apply_tree "${sel_tree[$idx]}"
 }
 
 edit_overwrite() {
   local count="$1"
   local i="$2"
-  local fam params new
+  local tree new
 
-  fam="${sel_fam[$i]}"
-  params="$(family_capture "$fam")"
+  tree="$(capture_tree)"
 
-  new="$(jq --arg c "$count" --argjson i "$i" --argjson p "$params" '.layouts[$c][$i].params = $p' "$PRESETS_FILE")"
+  new="$(jq --arg c "$count" --argjson i "$i" --argjson t "$tree" '.layouts[$c][$i].tree = $t' "$PRESETS_FILE")"
   save_presets "$new"
 
-  notify "Updated $(family_default_name "$fam") [$(family_brackets "$fam" "$params")]"
+  notify "Updated ${sel_name[$i]}"
 }
 
 edit_add_new() {
   local count="$1"
-  local fams fam choice name params new
-  local -a family_ids=()
-  local -a family_labels=()
+  local tree default name new
 
-  read -r -a fams <<< "$(families_for_count "$count")"
-  for fam in "${fams[@]}"; do
-    family_ids+=("$fam")
-    family_labels+=("$(family_default_name "$fam")")
-  done
+  tree="$(capture_tree)"
+  default="$(describe_tree "$tree")"
+  name="$(prompt_name "$default")"
 
-  choice="$(walker_pick "Layout type..." "${family_labels[@]}")"
-  [ -n "$choice" ] || exit 0
-
-  local fidx
-  fidx="$(index_of "$choice" "${family_labels[@]}")"
-  [ "$fidx" -ge 0 ] || exit 0
-  fam="${family_ids[$fidx]}"
-
-  params="$(family_capture "$fam")"
-
-  name="$(omarchy-launch-walker --dmenu --inputonly --width 460 --minheight 1 --maxheight 1 -p "Layout name" 2>/dev/null || true)"
-  [ -n "$name" ] || name="$(family_default_name "$fam")"
-
-  new="$(jq --arg c "$count" --arg f "$fam" --arg n "$name" --argjson p "$params" \
-    '.layouts[$c] += [{ family: $f, name: $n, params: $p }]' "$PRESETS_FILE")"
+  new="$(jq --arg c "$count" --arg n "$name" --argjson t "$tree" \
+    '.layouts[$c] = ((.layouts[$c] // []) + [{ name: $n, tree: $t }])' "$PRESETS_FILE")"
   save_presets "$new"
 
-  notify "Added $name [$(family_brackets "$fam" "$params")]"
+  notify "Added $name"
 }
 
 edit_menu() {
@@ -801,7 +384,7 @@ edit_menu() {
 
   load_presets_for_count "$count"
 
-  choice="$(walker_pick "Edit $count window layouts..." "${sel_label[@]}" "$add_label")"
+  choice="$(walker_pick "Edit $count window layouts..." "${sel_name[@]}" "$add_label")"
   [ -n "$choice" ] || exit 0
 
   if [ "$choice" = "$add_label" ]; then
@@ -809,7 +392,7 @@ edit_menu() {
     return
   fi
 
-  idx="$(index_of "$choice" "${sel_label[@]}")"
+  idx="$(index_of "$choice" "${sel_name[@]}")"
   [ "$idx" -ge 0 ] || exit 0
 
   edit_overwrite "$count" "$idx"
@@ -844,8 +427,8 @@ main() {
 
   local count
   count="$(window_count)"
-  if [ "$count" -lt 2 ] || [ "$count" -gt 5 ]; then
-    notify "Expected 2, 3, 4, or 5 visible tiled windows on this workspace, found $count"
+  if [ "$count" -lt 2 ]; then
+    notify "Need at least 2 tiled windows on this workspace, found $count"
     exit 0
   fi
 
