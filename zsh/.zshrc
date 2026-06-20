@@ -661,12 +661,20 @@ alias ou="omarchy-update"
 alias ouf="omarchy-update-firmware"
 
 # ------------------------------
-# Omarchy Part 1 - History
-# Part of ~/.local/share/omarchy/default/bash/shell
+# History
+# zsh-native settings (oh-my-zsh used to provide these). HISTFILE/SAVEHIST
+# must be set or zsh keeps no persistent history, which leaves
+# zsh-autosuggestions with nothing to suggest.
 # ------------------------------
-HISTCONTROL=ignoreboth
+HISTFILE="$HOME/.zsh_history"
 HISTSIZE=32768
-HISTFILESIZE="${HISTSIZE}"
+SAVEHIST=32768
+setopt SHARE_HISTORY        # share history across running shells
+setopt EXTENDED_HISTORY     # record timestamps
+setopt INC_APPEND_HISTORY   # append as commands run, not just on exit
+setopt HIST_IGNORE_ALL_DUPS # drop older duplicate of a repeated command
+setopt HIST_IGNORE_SPACE    # ignore commands that start with a space
+setopt HIST_REDUCE_BLANKS   # tidy surplus whitespace
 
 # ------------------------------
 # Omarchy Part 2
