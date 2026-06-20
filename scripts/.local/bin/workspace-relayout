@@ -198,6 +198,17 @@ def describe:
     elif .dir == "tb" and (.a | allcols) and (.b | allcols) then "\(.a | leaves) top / \(.b | leaves) bottom"
     elif .dir == "lr" and (.a | allrows) and (.b | allrows) then "\(.a | leaves) left / \(.b | leaves) right"
     else "\($n) windows" end;
+def strip_pcts:
+  if type == "string" then [100]
+  else .ratio as $r
+    | ((.a | strip_pcts) | map(. * $r / 100)) + ((.b | strip_pcts) | map(. * (100 - $r) / 100))
+  end;
+def brackets:
+  if type == "string" then ""
+  elif allcols or allrows then (strip_pcts | map(round | tostring) | join("/"))
+  else (["\(.ratio | round)/\(100 - .ratio | round)"] + ([.a, .b] | map(brackets) | map(select(. != "")))) | join(", ")
+  end;
+def preset_label: "\(.name) [\(.tree | brackets)]";
 def ops($tree):
   def w(node; ai; ni):
     if (node | type) == "string" then { ops: [], next: ni }
@@ -301,21 +312,26 @@ index_of() {
   echo "-1"
 }
 
-# Populate sel_name/sel_tree for presets in the $1 window group.
+# Populate sel_name/sel_tree/sel_label for presets in the $1 window group.
+# sel_label is the menu line ("<name> [<ratios>]"); sel_name/sel_tree are the
+# raw values used after a pick.
 sel_name=()
 sel_tree=()
+sel_label=()
 load_presets_for_count() {
   local count="$1"
-  local name tree
+  local name tree lbl
 
   sel_name=()
   sel_tree=()
+  sel_label=()
 
-  while IFS=$'\t' read -r name tree; do
+  while IFS=$'\t' read -r name tree lbl; do
     [ -n "$name" ] || continue
     sel_name+=("$name")
     sel_tree+=("$tree")
-  done < <(jq -r --arg c "$count" '(.layouts[$c] // [])[] | [.name, (.tree | tojson)] | @tsv' "$PRESETS_FILE")
+    sel_label+=("$lbl")
+  done < <(jq -r --arg c "$count" "$TREE_JQ"' (.layouts[$c] // [])[] | [.name, (.tree | tojson), preset_label] | @tsv' "$PRESETS_FILE")
 }
 
 # Write JSON ($1) back to the presets file through the stow symlink, leaving
@@ -340,10 +356,10 @@ apply_menu() {
     exit 0
   fi
 
-  choice="$(walker_pick "$count window layout..." "${sel_name[@]}")"
+  choice="$(walker_pick "$count window layout..." "${sel_label[@]}")"
   [ -n "$choice" ] || exit 0
 
-  idx="$(index_of "$choice" "${sel_name[@]}")"
+  idx="$(index_of "$choice" "${sel_label[@]}")"
   [ "$idx" -ge 0 ] || exit 0
 
   apply_tree "${sel_tree[$idx]}"
@@ -384,7 +400,7 @@ edit_menu() {
 
   load_presets_for_count "$count"
 
-  choice="$(walker_pick "Edit $count window layouts..." "${sel_name[@]}" "$add_label")"
+  choice="$(walker_pick "Edit $count window layouts..." "${sel_label[@]}" "$add_label")"
   [ -n "$choice" ] || exit 0
 
   if [ "$choice" = "$add_label" ]; then
@@ -392,7 +408,7 @@ edit_menu() {
     return
   fi
 
-  idx="$(index_of "$choice" "${sel_name[@]}")"
+  idx="$(index_of "$choice" "${sel_label[@]}")"
   [ "$idx" -ge 0 ] || exit 0
 
   edit_overwrite "$count" "$idx"
