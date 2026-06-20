@@ -14,14 +14,17 @@ fi
 export PATH="$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
 
 # ------------------------------
-# Oh my zsh
+# Completion fpath
+# (compinit is handled by zsh-autocomplete, loaded below)
 # ------------------------------
-export ZSH="$HOME/.oh-my-zsh"
-ZSH_THEME=""  # Starship owns the prompt
-DISABLE_AUTO_TITLE=true  # Custom hooks below own the terminal title
 if [[ -d "${XDG_DATA_HOME:-$HOME/.local/share}/zsh/site-functions" ]]; then
   fpath=("${XDG_DATA_HOME:-$HOME/.local/share}/zsh/site-functions" $fpath)
 fi
+
+# ------------------------------
+# Ghostty shell features
+# Strip title features; the hooks below own the terminal title.
+# ------------------------------
 if [[ -n "${GHOSTTY_SHELL_FEATURES:-}" ]]; then
   typeset -a _dot_ghostty_features
   _dot_ghostty_features=("${(@s:,:)GHOSTTY_SHELL_FEATURES}")
@@ -30,8 +33,6 @@ if [[ -n "${GHOSTTY_SHELL_FEATURES:-}" ]]; then
   export GHOSTTY_SHELL_FEATURES="${(j:,:)_dot_ghostty_features}"
   unset _dot_ghostty_features
 fi
-plugins=(git)
-source "$ZSH/oh-my-zsh.sh"
 
 # ------------------------------
 # Zsh plugins (pacman/AUR, managed by dot via .dot-public-packages)
@@ -224,7 +225,7 @@ export QT_QPA_PLATFORM=xcb
 export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
 export ELECTRON_OZONE_PLATFORM_HINT=wayland
 
-. "$HOME/.local/bin/env"
+[ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env"
 
 # Opencode
 OPENCODE_ENABLE_EXA=1
@@ -671,7 +672,12 @@ HISTFILESIZE="${HISTSIZE}"
 # ------------------------------
 # source ~/.local/share/omarchy/default/bash/shell
 source ~/.local/share/omarchy/default/bash/aliases
+# Omarchy's worktree helpers define ga()/gd(); our `ga` alias (go-automate)
+# would make zsh fail to parse those functions, so drop it first.
+unalias ga 2>/dev/null
 source ~/.local/share/omarchy/default/bash/functions
+# Re-assert our preferred ga: go-automate wins over the worktree helper.
+alias ga="go-automate"
 # source ~/.local/share/omarchy/default/bash/prompt
 
 # ------------------------------
@@ -721,11 +727,6 @@ bindkey "^[[1;3C" forward-word
 # ------------------------------
 # Commands
 # ------------------------------
-# Clear screen on first interactive shell (skip in tmux, subshells, or when opted out)
-if [[ -z "$TMUX" && "$SHLVL" -le 1 && "${DOT_CLEAR_ON_STARTUP:-1}" == "1" ]]; then
-  clear
-fi
-
 # Fastfetch
 # ff
 
