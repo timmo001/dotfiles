@@ -256,7 +256,7 @@ function liveCard(twitch: DashboardBarValue): DashboardCard {
       : statusHeadline(twitch, "No channels live"),
     tone: visible ? "active" : toneForBarValue(twitch, "ok"),
     lines: barLines(twitch),
-    command: "twitch-menu",
+    command: "twitch-menu channels",
     actionLabel: "Open Twitch Menu",
   };
 }
