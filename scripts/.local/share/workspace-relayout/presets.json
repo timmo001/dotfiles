@@ -58,8 +58,8 @@
         "family": "top-two-bottom",
         "name": "1 top / 2 bottom",
         "params": {
-          "top": 63,
-          "bl": 39
+          "top": 63.1,
+          "bl": 39.83
         }
       },
       {
