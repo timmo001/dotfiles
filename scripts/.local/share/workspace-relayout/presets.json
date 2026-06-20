@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "layouts": {
+    "2": [
+      {
+        "family": "top-bottom-two",
+        "name": "1 top / 1 bottom",
+        "params": {
+          "top": 75.29
+        }
+      },
+      {
+        "family": "top-bottom-two",
+        "name": "1 top / 1 bottom",
+        "params": {
+          "top": 63
+        }
+      },
+      {
+        "family": "top-bottom-two",
+        "name": "1 top / 1 bottom",
+        "params": {
+          "top": 50
+        }
+      },
+      {
+        "family": "left-right",
+        "name": "1 left / 1 right",
+        "params": {
+          "left": 50
+        }
+      },
+      {
+        "family": "left-right",
+        "name": "1 left / 1 right",
+        "params": {
+          "left": 33.3333
+        }
+      },
+      {
+        "family": "left-right",
+        "name": "1 left / 1 right",
+        "params": {
+          "left": 25
+        }
+      }
+    ],
+    "3": [
+      {
+        "family": "top-two-bottom",
+        "name": "1 top / 2 bottom",
+        "params": {
+          "top": 74,
+          "bl": 28
+        }
+      },
+      {
+        "family": "top-two-bottom",
+        "name": "1 top / 2 bottom",
+        "params": {
+          "top": 63,
+          "bl": 39
+        }
+      },
+      {
+        "family": "top-two-bottom",
+        "name": "1 top / 2 bottom",
+        "params": {
+          "top": 50,
+          "bl": 26
+        }
+      },
+      {
+        "family": "two-left-one-right",
+        "name": "2 left / 1 right",
+        "params": {
+          "left_column": 25,
+          "left_top": 50
+        }
+      },
+      {
+        "family": "left-middle-right",
+        "name": "1 left / 1 middle / 1 right",
+        "params": {
+          "left": 33.3333,
+          "mid": 50
+        }
+      },
+      {
+        "family": "left-middle-right",
+        "name": "1 left / 1 middle / 1 right",
+        "params": {
+          "left": 25,
+          "mid": 66.6667
+        }
+      },
+      {
+        "family": "left-middle-right",
+        "name": "1 left / 1 middle / 1 right",
+        "params": {
+          "left": 28,
+          "mid": 61.1111
+        }
+      }
+    ],
+    "4": [
+      {
+        "family": "grid",
+        "name": "2 left / 2 right",
+        "params": {
+          "left_column": 25
+        }
+      },
+      {
+        "family": "grid",
+        "name": "2 left / 2 right",
+        "params": {
+          "left_column": 50
+        }
+      },
+      {
+        "family": "top-bottom",
+        "name": "1 top / 3 bottom",
+        "params": {
+          "top": 74,
+          "bl": 21.2121,
+          "bm": 26.9231
+        }
+      },
+      {
+        "family": "top-bottom",
+        "name": "1 top / 3 bottom",
+        "params": {
+          "top": 54,
+          "bl": 21.2121,
+          "bm": 26.9231
+        }
+      }
+    ]
+  }
+}

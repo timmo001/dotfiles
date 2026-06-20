@@ -4,6 +4,7 @@ set -euo pipefail
 
 TEMP_WORKSPACE="${WORKSPACE_RELAYOUT_TEMP_WS:-${WORKSPACE_1_RELAYOUT_TEMP_WS:-99}}"
 NOTIFY_TITLE="Workspace relayout"
+PRESETS_FILE="${XDG_DATA_HOME:-$HOME/.local/share}/workspace-relayout/presets.json"
 
 # Layouts are ratio-based, not pixel-based, so they look identical on any
 # monitor regardless of resolution, scale, reserved bars, or gaps.
@@ -15,10 +16,19 @@ NOTIFY_TITLE="Workspace relayout"
 # child's fraction f maps to splitRatio = 2 * f. set_split takes that fraction
 # as a percentage (the same numbers shown in the menu labels) and lets
 # Hyprland do all the pixel, gap, and border maths.
+#
+# Presets live in $PRESETS_FILE grouped by window count under .layouts.<count>
+# (".layouts.2", ".layouts.3", ".layouts.4"), each a list of { family, name,
+# params } records. The window count is the group key, so the menu shown is
+# driven by how many tiled windows are on the workspace. Edit mode (--edit)
+# captures the current window split ratios back into a preset, either
+# overwriting an existing one or adding a new one.
 
 # Set by capture_active_workspace before other logic runs.
 WS_ID_JSON=""
 WS_ID_STR=""
+clients_json="[]"
+restore_addr=""
 
 notify() {
   notify-send "$NOTIFY_TITLE" "$1"
@@ -54,18 +64,16 @@ set_split() {
 }
 
 require_dependencies() {
-  if ! command -v hyprctl >/dev/null 2>&1; then
-    notify "hyprctl is not available"
-    exit 1
-  fi
+  local dep
+  for dep in hyprctl jq awk; do
+    if ! command -v "$dep" >/dev/null 2>&1; then
+      notify "$dep is not available"
+      exit 1
+    fi
+  done
 
-  if ! command -v jq >/dev/null 2>&1; then
-    notify "jq is not available"
-    exit 1
-  fi
-
-  if ! command -v awk >/dev/null 2>&1; then
-    notify "awk is not available"
+  if [ ! -f "$PRESETS_FILE" ]; then
+    notify "Presets file not found: $PRESETS_FILE"
     exit 1
   fi
 }
@@ -109,13 +117,17 @@ load_workspace_clients() {
   ')"
 }
 
+window_count() {
+  jq -r 'length' <<< "$clients_json"
+}
+
 require_window_count() {
   local expected="$1"
-  local window_count
-  window_count="$(jq -r 'length' <<< "$clients_json")"
+  local count
+  count="$(window_count)"
 
-  if [ "$window_count" -ne "$expected" ]; then
-    notify "Expected $expected visible tiled windows on this workspace, found $window_count"
+  if [ "$count" -ne "$expected" ]; then
+    notify "Expected $expected visible tiled windows on this workspace, found $count"
     exit 1
   fi
 }
@@ -164,126 +176,200 @@ restore_focus() {
   fi
 }
 
-choose_layout() {
-  local choice
-  local option_count
-  local prompt
-  local two_label
-  local two_alt_label
-  local two_half_label
-  local two_lr_label
-  local two_lr_one_third_label
-  local two_lr_small_left_label
-  local grid_label
-  local grid_half_label
-  local top_bottom_label
-  local top_bottom_current_label
-  local three_label
-  local three_current_label
-  local three_half_label
-  local three_left_stack_label
-  local three_lmr_label
-  local three_lmr_quarter_label
-  local three_lmr_wide_label
+# ---------------------------------------------------------------------------
+# Layout families
+#
+# Each family has a fixed window count, a build+ratio apply function, a
+# capture function that measures the current window split ratios into a
+# params object, and a bracket renderer for the menu label. The params keys
+# are the same percentages the apply functions and set_split consume.
+# ---------------------------------------------------------------------------
 
-  if ! command -v omarchy-launch-walker >/dev/null 2>&1; then
-    notify "omarchy-launch-walker is not available"
-    return 1
-  fi
-
-  option_count="$(jq -r 'length' <<< "$clients_json")"
-  prompt="$option_count window layout..."
-  two_label='1 top / 1 bottom [74/26]'
-  two_alt_label='1 top / 1 bottom [63/37]'
-  two_half_label='1 top / 1 bottom [50/50]'
-  two_lr_label='1 left / 1 right [50/50]'
-  two_lr_one_third_label='1 left / 1 right [1/3, 2/3]'
-  two_lr_small_left_label='1 left / 1 right [25/75]'
-  grid_label='2 left / 2 right [50/50, 25/75]'
-  grid_half_label='2 left / 2 right [50/50, 50/50]'
-  top_bottom_label='1 top / 3 bottom [74/26, 21/21/57]'
-  top_bottom_current_label='1 top / 3 bottom [54/46, 21/21/57]'
-  three_label='1 top / 2 bottom [74/26, 28/72]'
-  three_current_label='1 top / 2 bottom [63/37, 39/61]'
-  three_half_label='1 top / 2 bottom [50/50, 26/74]'
-  three_left_stack_label='2 left / 1 right [50/50, 25/75]'
-  three_lmr_label='1 left / 1 middle / 1 right [1/3, 1/3, 1/3]'
-  three_lmr_quarter_label='1 left / 1 middle / 1 right [25/50/25]'
-  three_lmr_wide_label='1 left / 1 middle / 1 right [28/44/28]'
-
-  case "$option_count" in
-    2)
-      choice="$(printf '%s\n' "$two_label" "$two_alt_label" "$two_half_label" "$two_lr_label" "$two_lr_one_third_label" "$two_lr_small_left_label" | omarchy-launch-walker --dmenu --width 400 --minheight 1 --maxheight 320 -p "$prompt" 2>/dev/null || true)"
-      ;;
-    4)
-      choice="$(printf '%s\n' "$grid_label" "$grid_half_label" "$top_bottom_label" "$top_bottom_current_label" | omarchy-launch-walker --dmenu --width 360 --minheight 1 --maxheight 240 -p "$prompt" 2>/dev/null || true)"
-      ;;
-    3)
-      choice="$(printf '%s\n' "$three_label" "$three_current_label" "$three_half_label" "$three_left_stack_label" "$three_lmr_label" "$three_lmr_quarter_label" "$three_lmr_wide_label" | omarchy-launch-walker --dmenu --width 420 --minheight 1 --maxheight 300 -p "$prompt" 2>/dev/null || true)"
-      ;;
-    *)
-      notify "Expected 2, 3, or 4 visible tiled windows on this workspace, found $option_count"
-      return 1
-      ;;
+family_default_name() {
+  case "$1" in
+    top-bottom-two) echo "1 top / 1 bottom" ;;
+    left-right) echo "1 left / 1 right" ;;
+    left-middle-right) echo "1 left / 1 middle / 1 right" ;;
+    top-two-bottom) echo "1 top / 2 bottom" ;;
+    two-left-one-right) echo "2 left / 1 right" ;;
+    grid) echo "2 left / 2 right" ;;
+    top-bottom) echo "1 top / 3 bottom" ;;
+    *) echo "Layout" ;;
   esac
+}
 
-  case "$choice" in
-    "$two_label")
-      printf 'top-bottom-two\n'
+families_for_count() {
+  case "$1" in
+    2) echo "top-bottom-two left-right" ;;
+    3) echo "top-two-bottom two-left-one-right left-middle-right" ;;
+    4) echo "grid top-bottom" ;;
+    *) echo "" ;;
+  esac
+}
+
+# Round a number to a whole percentage for display.
+r() {
+  printf '%.0f' "$1"
+}
+
+# Complement of a percentage (100 - x), rounded.
+rc() {
+  awk -v x="$1" 'BEGIN { printf "%.0f", 100 - x }'
+}
+
+family_brackets() {
+  local fam="$1"
+  local p="$2"
+
+  case "$fam" in
+    top-bottom-two)
+      local top
+      top="$(jq -r '.top' <<< "$p")"
+      printf '%s/%s' "$(r "$top")" "$(rc "$top")"
       ;;
-    "$two_alt_label")
-      printf 'top-bottom-two-alt\n'
+    left-right)
+      local left
+      left="$(jq -r '.left' <<< "$p")"
+      printf '%s/%s' "$(r "$left")" "$(rc "$left")"
       ;;
-    "$two_half_label")
-      printf 'top-bottom-two-half\n'
+    left-middle-right)
+      local left mid a b c
+      left="$(jq -r '.left' <<< "$p")"
+      mid="$(jq -r '.mid' <<< "$p")"
+      a="$(r "$left")"
+      b="$(awk -v l="$left" -v m="$mid" 'BEGIN { printf "%.0f", (100 - l) * m / 100 }')"
+      c="$(awk -v l="$left" -v m="$mid" 'BEGIN { printf "%.0f", (100 - l) * (100 - m) / 100 }')"
+      printf '%s/%s/%s' "$a" "$b" "$c"
       ;;
-    "$two_lr_label")
-      printf 'left-right-half\n'
+    top-two-bottom)
+      local top bl
+      top="$(jq -r '.top' <<< "$p")"
+      bl="$(jq -r '.bl' <<< "$p")"
+      printf '%s/%s, %s/%s' "$(r "$top")" "$(rc "$top")" "$(r "$bl")" "$(rc "$bl")"
       ;;
-    "$two_lr_one_third_label")
-      printf 'left-right-one-third\n'
+    two-left-one-right)
+      local lc lt
+      lc="$(jq -r '.left_column' <<< "$p")"
+      lt="$(jq -r '.left_top' <<< "$p")"
+      printf '%s/%s, %s/%s' "$(r "$lt")" "$(rc "$lt")" "$(r "$lc")" "$(rc "$lc")"
       ;;
-    "$two_lr_small_left_label")
-      printf 'left-right-small-left\n'
+    grid)
+      local lc
+      lc="$(jq -r '.left_column' <<< "$p")"
+      printf '50/50, %s/%s' "$(r "$lc")" "$(rc "$lc")"
       ;;
-    "$grid_label")
-      printf 'grid\n'
-      ;;
-    "$grid_half_label")
-      printf 'grid-half\n'
-      ;;
-    "$top_bottom_label")
-      printf 'top-bottom\n'
-      ;;
-    "$top_bottom_current_label")
-      printf 'top-bottom-current\n'
-      ;;
-    "$three_label")
-      printf 'top-two-bottom\n'
-      ;;
-    "$three_current_label")
-      printf 'top-two-bottom-current\n'
-      ;;
-    "$three_half_label")
-      printf 'top-two-bottom-half\n'
-      ;;
-    "$three_left_stack_label")
-      printf 'two-left-one-right\n'
-      ;;
-    "$three_lmr_label")
-      printf 'left-middle-right-thirds\n'
-      ;;
-    "$three_lmr_quarter_label")
-      printf 'left-middle-right-quarter\n'
-      ;;
-    "$three_lmr_wide_label")
-      printf 'left-middle-right-wide\n'
+    top-bottom)
+      local top bl bm a b c
+      top="$(jq -r '.top' <<< "$p")"
+      bl="$(jq -r '.bl' <<< "$p")"
+      bm="$(jq -r '.bm' <<< "$p")"
+      a="$(r "$bl")"
+      b="$(awk -v l="$bl" -v m="$bm" 'BEGIN { printf "%.0f", (100 - l) * m / 100 }')"
+      c="$(awk -v l="$bl" -v m="$bm" 'BEGIN { printf "%.0f", (100 - l) * (100 - m) / 100 }')"
+      printf '%s/%s, %s/%s/%s' "$(r "$top")" "$(rc "$top")" "$a" "$b" "$c"
       ;;
     *)
-      return 1
+      printf '?'
       ;;
   esac
 }
+
+# Measure the current workspace windows into a params object for $1's family.
+# Percentages are first-child shares, matching what the apply functions and
+# set_split consume. Values are rounded to two decimals.
+family_capture() {
+  local fam="$1"
+
+  case "$fam" in
+    top-bottom-two)
+      jq -c 'sort_by(.at[1])
+        | (.[0].size[1]) as $a | (.[1].size[1]) as $b
+        | { top: (($a / ($a + $b) * 10000 | round) / 100) }' <<< "$clients_json"
+      ;;
+    left-right)
+      jq -c 'sort_by(.at[0])
+        | (.[0].size[0]) as $a | (.[1].size[0]) as $b
+        | { left: (($a / ($a + $b) * 10000 | round) / 100) }' <<< "$clients_json"
+      ;;
+    left-middle-right)
+      jq -c 'sort_by(.at[0])
+        | (.[0].size[0]) as $a | (.[1].size[0]) as $b | (.[2].size[0]) as $c
+        | { left: (($a / ($a + $b + $c) * 10000 | round) / 100),
+            mid: (($b / ($b + $c) * 10000 | round) / 100) }' <<< "$clients_json"
+      ;;
+    top-two-bottom)
+      jq -c 'sort_by(.at[1])
+        | .[0] as $top | (.[1:] | sort_by(.at[0])) as $bot
+        | $top.size[1] as $th | $bot[0].size[1] as $bh
+        | $bot[0].size[0] as $w0 | $bot[1].size[0] as $w1
+        | { top: (($th / ($th + $bh) * 10000 | round) / 100),
+            bl: (($w0 / ($w0 + $w1) * 10000 | round) / 100) }' <<< "$clients_json"
+      ;;
+    two-left-one-right)
+      jq -c 'sort_by(.at[0])
+        | (.[0].size[0]) as $lw | (.[2].size[0]) as $rw
+        | ([.[0], .[1]] | sort_by(.at[1])) as $lc
+        | $lc[0].size[1] as $th | $lc[1].size[1] as $bh
+        | { left_column: (($lw / ($lw + $rw) * 10000 | round) / 100),
+            left_top: (($th / ($th + $bh) * 10000 | round) / 100) }' <<< "$clients_json"
+      ;;
+    grid)
+      jq -c 'sort_by(.at[0])
+        | (.[0].size[0]) as $l | (.[3].size[0]) as $r
+        | { left_column: (($l / ($l + $r) * 10000 | round) / 100) }' <<< "$clients_json"
+      ;;
+    top-bottom)
+      jq -c 'sort_by(.at[1])
+        | .[0] as $top | (.[1:] | sort_by(.at[0])) as $bot
+        | $top.size[1] as $th | $bot[0].size[1] as $bh
+        | $bot[0].size[0] as $w0 | $bot[1].size[0] as $w1 | $bot[2].size[0] as $w2
+        | { top: (($th / ($th + $bh) * 10000 | round) / 100),
+            bl: (($w0 / ($w0 + $w1 + $w2) * 10000 | round) / 100),
+            bm: (($w1 / ($w1 + $w2) * 10000 | round) / 100) }' <<< "$clients_json"
+      ;;
+    *)
+      echo "{}"
+      ;;
+  esac
+}
+
+apply_preset() {
+  local fam="$1"
+  local p="$2"
+
+  case "$fam" in
+    top-bottom-two)
+      apply_top_bottom_two_layout "$(jq -r '.top' <<< "$p")"
+      ;;
+    left-right)
+      apply_left_right_layout "$(jq -r '.left' <<< "$p")"
+      ;;
+    left-middle-right)
+      apply_left_middle_right_layout "$(jq -r '.left' <<< "$p")" "$(jq -r '.mid' <<< "$p")"
+      ;;
+    top-two-bottom)
+      apply_top_two_bottom_layout "$(jq -r '.top' <<< "$p")" "$(jq -r '.bl' <<< "$p")"
+      ;;
+    two-left-one-right)
+      apply_two_left_one_right_layout "$(jq -r '.left_column' <<< "$p")" "$(jq -r '.left_top' <<< "$p")"
+      ;;
+    grid)
+      apply_grid_layout "$(jq -r '.left_column' <<< "$p")"
+      ;;
+    top-bottom)
+      apply_top_bottom_layout "$(jq -r '.top' <<< "$p")" "$(jq -r '.bl' <<< "$p")" "$(jq -r '.bm' <<< "$p")"
+      ;;
+    *)
+      notify "Unknown layout family: $fam"
+      exit 1
+      ;;
+  esac
+}
+
+# ---------------------------------------------------------------------------
+# Apply functions: rebuild the dwindle tree via a temp workspace and set each
+# split's ratio. See the header comment for the splitratio maths.
+# ---------------------------------------------------------------------------
 
 # 2 windows, stacked top/bottom. Root split top/bottom, both children leaves.
 apply_top_bottom_two_layout() {
@@ -546,76 +632,194 @@ apply_two_left_one_right_layout() {
   notify "Applied 2 left / 1 right"
 }
 
+# ---------------------------------------------------------------------------
+# Menu + presets
+# ---------------------------------------------------------------------------
+
+# Show a walker dmenu of the given options and echo the chosen line.
+walker_pick() {
+  local prompt="$1"
+  shift
+  printf '%s\n' "$@" | omarchy-launch-walker --dmenu --width 460 --minheight 1 --maxheight 360 -p "$prompt" 2>/dev/null || true
+}
+
+# Index of $1 in the remaining args, or -1. Used to map a picked label back to
+# its preset without relying on walker's index output.
+index_of() {
+  local needle="$1"
+  shift
+  local i=0
+  local item
+  for item in "$@"; do
+    if [ "$item" = "$needle" ]; then
+      echo "$i"
+      return 0
+    fi
+    i=$((i + 1))
+  done
+  echo "-1"
+}
+
+# Populate sel_fam/sel_params/sel_label for presets in the $1 window group.
+sel_fam=()
+sel_params=()
+sel_label=()
+load_presets_for_count() {
+  local count="$1"
+  local total gi fam params name
+
+  sel_fam=()
+  sel_params=()
+  sel_label=()
+
+  total="$(jq -r --arg c "$count" '.layouts[$c] | length' "$PRESETS_FILE")"
+  for ((gi = 0; gi < total; gi++)); do
+    fam="$(jq -r --arg c "$count" --argjson i "$gi" '.layouts[$c][$i].family' "$PRESETS_FILE")"
+    params="$(jq -c --arg c "$count" --argjson i "$gi" '.layouts[$c][$i].params' "$PRESETS_FILE")"
+    name="$(jq -r --arg c "$count" --argjson i "$gi" '.layouts[$c][$i].name' "$PRESETS_FILE")"
+    sel_fam+=("$fam")
+    sel_params+=("$params")
+    sel_label+=("$name [$(family_brackets "$fam" "$params")]")
+  done
+}
+
+# Write JSON ($1) back to the presets file through the stow symlink, leaving
+# the symlink intact by truncating the resolved target in place.
+save_presets() {
+  local new="$1"
+  local real tmp
+  real="$(readlink -f "$PRESETS_FILE")"
+  tmp="$(mktemp)"
+  printf '%s\n' "$new" | jq '.' > "$tmp"
+  cat "$tmp" > "$real"
+  rm -f "$tmp"
+}
+
+apply_menu() {
+  local count="$1"
+  local choice idx
+
+  load_presets_for_count "$count"
+  if [ "${#sel_label[@]}" -eq 0 ]; then
+    notify "No presets for $count windows"
+    exit 0
+  fi
+
+  choice="$(walker_pick "$count window layout..." "${sel_label[@]}")"
+  [ -n "$choice" ] || exit 0
+
+  idx="$(index_of "$choice" "${sel_label[@]}")"
+  [ "$idx" -ge 0 ] || exit 0
+
+  apply_preset "${sel_fam[$idx]}" "${sel_params[$idx]}"
+}
+
+edit_overwrite() {
+  local count="$1"
+  local i="$2"
+  local fam params new
+
+  fam="${sel_fam[$i]}"
+  params="$(family_capture "$fam")"
+
+  new="$(jq --arg c "$count" --argjson i "$i" --argjson p "$params" '.layouts[$c][$i].params = $p' "$PRESETS_FILE")"
+  save_presets "$new"
+
+  notify "Updated $(family_default_name "$fam") [$(family_brackets "$fam" "$params")]"
+}
+
+edit_add_new() {
+  local count="$1"
+  local fams fam choice name params new
+  local -a family_ids=()
+  local -a family_labels=()
+
+  read -r -a fams <<< "$(families_for_count "$count")"
+  for fam in "${fams[@]}"; do
+    family_ids+=("$fam")
+    family_labels+=("$(family_default_name "$fam")")
+  done
+
+  choice="$(walker_pick "Layout type..." "${family_labels[@]}")"
+  [ -n "$choice" ] || exit 0
+
+  local fidx
+  fidx="$(index_of "$choice" "${family_labels[@]}")"
+  [ "$fidx" -ge 0 ] || exit 0
+  fam="${family_ids[$fidx]}"
+
+  params="$(family_capture "$fam")"
+
+  name="$(omarchy-launch-walker --dmenu --inputonly --width 460 --minheight 1 --maxheight 1 -p "Layout name" 2>/dev/null || true)"
+  [ -n "$name" ] || name="$(family_default_name "$fam")"
+
+  new="$(jq --arg c "$count" --arg f "$fam" --arg n "$name" --argjson p "$params" \
+    '.layouts[$c] += [{ family: $f, name: $n, params: $p }]' "$PRESETS_FILE")"
+  save_presets "$new"
+
+  notify "Added $name [$(family_brackets "$fam" "$params")]"
+}
+
+edit_menu() {
+  local count="$1"
+  local add_label="➕  Add new layout"
+  local choice idx
+
+  load_presets_for_count "$count"
+
+  choice="$(walker_pick "Edit $count window layouts..." "${sel_label[@]}" "$add_label")"
+  [ -n "$choice" ] || exit 0
+
+  if [ "$choice" = "$add_label" ]; then
+    edit_add_new "$count"
+    return
+  fi
+
+  idx="$(index_of "$choice" "${sel_label[@]}")"
+  [ "$idx" -ge 0 ] || exit 0
+
+  edit_overwrite "$count" "$idx"
+}
+
 main() {
-  local layout="${1:-menu}"
+  local mode="apply"
+
+  case "${1:-}" in
+    --edit | edit)
+      mode="edit"
+      ;;
+    "")
+      mode="apply"
+      ;;
+    *)
+      notify "Unknown argument: $1"
+      exit 1
+      ;;
+  esac
 
   require_dependencies
+
+  if ! command -v omarchy-launch-walker >/dev/null 2>&1; then
+    notify "omarchy-launch-walker is not available"
+    exit 1
+  fi
+
   capture_active_workspace
   validate_temp_workspace
   load_workspace_clients
 
-  if [ "$layout" = "menu" ]; then
-    layout="$(choose_layout || true)"
-    [ -n "$layout" ] || exit 0
+  local count
+  count="$(window_count)"
+  if [ "$count" -lt 2 ] || [ "$count" -gt 4 ]; then
+    notify "Expected 2, 3, or 4 visible tiled windows on this workspace, found $count"
+    exit 0
   fi
 
-  case "$layout" in
-    top-bottom-two|top1-bottom1|1-top-1-bottom)
-      apply_top_bottom_two_layout 74
-      ;;
-    top-bottom-two-alt|top1-bottom1-alt|1-top-1-bottom-alt)
-      apply_top_bottom_two_layout 63
-      ;;
-    top-bottom-two-half|top1-bottom1-half|1-top-1-bottom-half)
-      apply_top_bottom_two_layout 50
-      ;;
-    left-right-half|left-right|side-by-side|1-left-1-right|lr-half)
-      apply_left_right_layout 50
-      ;;
-    left-right-one-third|lr-one-third|1-3-2-3|lr-1323)
-      apply_left_right_layout 33.3333
-      ;;
-    left-right-small-left|lr-small-left|lr-2575|1-left-1-right-small-left)
-      apply_left_right_layout 25
-      ;;
-    grid|2x2)
-      apply_grid_layout 25
-      ;;
-    grid-half|2x2-half|2-left-2-right-half)
-      apply_grid_layout 50
-      ;;
-    top-bottom|top3|1-top-3-bottom)
-      apply_top_bottom_layout 74 21.2121 26.9231
-      ;;
-    top-bottom-current|top3-current|1-top-3-bottom-current)
-      apply_top_bottom_layout 54 21.2121 26.9231
-      ;;
-    top-two-bottom|top2|1-top-2-bottom)
-      apply_top_two_bottom_layout 74 28
-      ;;
-    top-two-bottom-current|top2-current|1-top-2-bottom-current)
-      apply_top_two_bottom_layout 63 39
-      ;;
-    top-two-bottom-half|top2-half|1-top-2-bottom-half)
-      apply_top_two_bottom_layout 50 26
-      ;;
-    two-left-one-right|2-left-1-right|left-stack-right)
-      apply_two_left_one_right_layout 25 50
-      ;;
-    left-middle-right-thirds|lmr-thirds|lmr3|1-left-1-middle-1-right)
-      apply_left_middle_right_layout 33.3333 50
-      ;;
-    left-middle-right-quarter|lmr-quarter|lmr-255025|1-left-1-middle-1-right-quarter)
-      apply_left_middle_right_layout 25 66.6667
-      ;;
-    left-middle-right-wide|lmr-wide|lmr-current|1-left-1-middle-1-right-wide)
-      apply_left_middle_right_layout 28 61.1111
-      ;;
-    *)
-      notify "Unknown layout: $layout"
-      exit 1
-      ;;
-  esac
+  if [ "$mode" = "edit" ]; then
+    edit_menu "$count"
+  else
+    apply_menu "$count"
+  fi
 }
 
 main "$@"
