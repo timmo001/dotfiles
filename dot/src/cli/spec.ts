@@ -194,6 +194,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
   },
   {
     name: "update",
+    aliases: ["up"],
     summary: "Pull repos, stow dotfiles, install deps, rebuild",
     options: [
       { name: "--pull", description: "Pull repos only" },

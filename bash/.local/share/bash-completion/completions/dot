@@ -407,7 +407,7 @@ _dot() {
   command=${COMP_WORDS[1]-}
 
   if (( cword == 1 )); then
-    COMPREPLY=( $(compgen -W 'dashboard init install update stow doctor clean git-diff diff git-status git-log git-workflows git-notifications notes handoffs handoff note agents-sync opencode-debug setup-private-repo private-pkg-publish skill-updates skill-check completions omarchy help -h --help' -- "$cur") )
+    COMPREPLY=( $(compgen -W 'dashboard init install update up stow doctor clean git-diff diff git-status git-log git-workflows git-notifications notes handoffs handoff note agents-sync opencode-debug setup-private-repo private-pkg-publish skill-updates skill-check completions omarchy help -h --help' -- "$cur") )
     return
   fi
 
@@ -421,7 +421,7 @@ _dot() {
     install)
       _dot_cmd_install
       ;;
-    update)
+    update|up)
       _dot_cmd_update
       ;;
     stow)

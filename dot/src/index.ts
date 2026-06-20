@@ -69,7 +69,7 @@ import type {
   ViewId,
   WorkflowRunQueryOptions,
 } from "./types.js";
-import { nativeCommandNames } from "./cli/spec.js";
+import { getCliCommand, nativeCommandNames } from "./cli/spec.js";
 
 const DEBUG = !!envString(ENV.DOT_DEBUG);
 const DEFAULT_INIT_LOG_FILE = join("/tmp", "dot-init.log");
@@ -559,7 +559,8 @@ if (mode.type === "native") {
     command: string,
     args: readonly string[],
   ): NativeEffect => {
-    const handler = nativeCommandHandlers[command];
+    const canonical = getCliCommand(command)?.name ?? command;
+    const handler = nativeCommandHandlers[canonical];
     if (handler) return handler(args);
     return Effect.sync(() => {
       console.error(`dot: unknown command '${command}'`);

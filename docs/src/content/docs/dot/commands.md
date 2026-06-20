@@ -73,6 +73,8 @@ dot install
 
 ## `dot update`
 
+Aliases: `dot up`
+
 Pull repos, stow dotfiles, install deps, rebuild
 
 ```text

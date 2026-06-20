@@ -7,6 +7,7 @@ dot_commands=(
   'init:Run one-time first-use machine setup'
   'install:Ensure prerequisites, then backup/adopt dotfiles'
   'update:Pull repos, stow dotfiles, install deps, rebuild'
+  'up:Alias for update'
   'stow:Re-stow public/private dotfiles'
   'doctor:Run dotfiles system health checks'
   'clean:Unstow managed dotfiles'
@@ -338,7 +339,7 @@ _dot_complete_command() {
     install)
       _dot_cmd_install
       ;;
-    update)
+    update|up)
       _dot_cmd_update
       ;;
     stow)
