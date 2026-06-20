@@ -22,7 +22,7 @@ My public [Omarchy](https://omarchy.org) dotfiles, managed with GNU Stow and the
 
 ```bash
 # Fresh Omarchy machine bootstrap prerequisites
-sudo pacman -S --needed git mise
+yay -S --needed git mise-bin
 
 # Clone public dotfiles. For private dotfiles, authenticate gh before dot init;
 # init clones dotfiles-private automatically when gh auth works.

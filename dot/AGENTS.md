@@ -274,7 +274,7 @@ The build is also triggered by `dot update`, which runs `bun install` before com
 Fresh-machine bootstrap uses system mise to run Bun before `dot init` can manage global tool versions:
 
 ```bash
-sudo pacman -S --needed git mise
+yay -S --needed git mise-bin
 cd ~/.config/dotfiles/dot
 mise --no-config exec bun@latest -- bun install
 mise --no-config exec bun@latest -- bun run build
