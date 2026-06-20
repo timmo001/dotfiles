@@ -41,52 +41,52 @@ checksum = "sha256:4c5bf3f7e24ebdaff76758b35911cf5d84d316e80f534dd7426493459ba8b
 url = "https://github.com/coder/boo/releases/download/v0.5.24/boo-x86_64-macos.tar.gz"
 
 [[tools."aqua:fallow-rs/fallow"]]
-version = "2.99.0"
+version = "2.100.0"
 backend = "aqua:fallow-rs/fallow"
 
 [tools."aqua:fallow-rs/fallow"."platforms.linux-arm64"]
-checksum = "sha256:32191a412f373e37e03fa979398ec4dfe3a09f36a8738068224c9727e07aa8bc"
-url = "https://github.com/fallow-rs/fallow/releases/download/v2.99.0/fallow-aarch64-unknown-linux-musl.tar.gz"
+checksum = "sha256:a2dfe4459d46db91324584a527b4de10ad480ca9b206a286fed3358ed425f47e"
+url = "https://github.com/fallow-rs/fallow/releases/download/v2.100.0/fallow-aarch64-unknown-linux-musl.tar.gz"
 
 [tools."aqua:fallow-rs/fallow"."platforms.linux-arm64-musl"]
-checksum = "sha256:32191a412f373e37e03fa979398ec4dfe3a09f36a8738068224c9727e07aa8bc"
-url = "https://github.com/fallow-rs/fallow/releases/download/v2.99.0/fallow-aarch64-unknown-linux-musl.tar.gz"
+checksum = "sha256:a2dfe4459d46db91324584a527b4de10ad480ca9b206a286fed3358ed425f47e"
+url = "https://github.com/fallow-rs/fallow/releases/download/v2.100.0/fallow-aarch64-unknown-linux-musl.tar.gz"
 
 [tools."aqua:fallow-rs/fallow"."platforms.linux-x64"]
-checksum = "sha256:81deaa05a4448acae37b0ada23950ad59f41f0162f4b760e17d767808e15b3ce"
-url = "https://github.com/fallow-rs/fallow/releases/download/v2.99.0/fallow-x86_64-unknown-linux-musl.tar.gz"
+checksum = "sha256:c73aea891cb67e6ff8b88bce04a715e66fc2ccea55585028deea3ea10ed226a5"
+url = "https://github.com/fallow-rs/fallow/releases/download/v2.100.0/fallow-x86_64-unknown-linux-musl.tar.gz"
 
 [tools."aqua:fallow-rs/fallow"."platforms.linux-x64-baseline"]
-checksum = "sha256:81deaa05a4448acae37b0ada23950ad59f41f0162f4b760e17d767808e15b3ce"
-url = "https://github.com/fallow-rs/fallow/releases/download/v2.99.0/fallow-x86_64-unknown-linux-musl.tar.gz"
+checksum = "sha256:c73aea891cb67e6ff8b88bce04a715e66fc2ccea55585028deea3ea10ed226a5"
+url = "https://github.com/fallow-rs/fallow/releases/download/v2.100.0/fallow-x86_64-unknown-linux-musl.tar.gz"
 
 [tools."aqua:fallow-rs/fallow"."platforms.linux-x64-musl"]
-checksum = "sha256:81deaa05a4448acae37b0ada23950ad59f41f0162f4b760e17d767808e15b3ce"
-url = "https://github.com/fallow-rs/fallow/releases/download/v2.99.0/fallow-x86_64-unknown-linux-musl.tar.gz"
+checksum = "sha256:c73aea891cb67e6ff8b88bce04a715e66fc2ccea55585028deea3ea10ed226a5"
+url = "https://github.com/fallow-rs/fallow/releases/download/v2.100.0/fallow-x86_64-unknown-linux-musl.tar.gz"
 
 [tools."aqua:fallow-rs/fallow"."platforms.linux-x64-musl-baseline"]
-checksum = "sha256:81deaa05a4448acae37b0ada23950ad59f41f0162f4b760e17d767808e15b3ce"
-url = "https://github.com/fallow-rs/fallow/releases/download/v2.99.0/fallow-x86_64-unknown-linux-musl.tar.gz"
+checksum = "sha256:c73aea891cb67e6ff8b88bce04a715e66fc2ccea55585028deea3ea10ed226a5"
+url = "https://github.com/fallow-rs/fallow/releases/download/v2.100.0/fallow-x86_64-unknown-linux-musl.tar.gz"
 
 [tools."aqua:fallow-rs/fallow"."platforms.macos-arm64"]
-checksum = "sha256:8f3e75a04692f7acbb579bff66af82fa6c1f0d005228a73c81e2de9f0b42396d"
-url = "https://github.com/fallow-rs/fallow/releases/download/v2.99.0/fallow-aarch64-apple-darwin.tar.gz"
+checksum = "sha256:9ad6431a79fc7445ab4d49a7590786173c9f6424338c6d77bc1017a058e5fbb6"
+url = "https://github.com/fallow-rs/fallow/releases/download/v2.100.0/fallow-aarch64-apple-darwin.tar.gz"
 
 [tools."aqua:fallow-rs/fallow"."platforms.macos-x64"]
-checksum = "sha256:73a7d0ace244fd68d2b90859d456851a94febfac4a77ee77a652af2ca74844f7"
-url = "https://github.com/fallow-rs/fallow/releases/download/v2.99.0/fallow-x86_64-apple-darwin.tar.gz"
+checksum = "sha256:1de86a520170120cfe874cf61330c18d420e8db7fd1ed338013b41a064ec64e6"
+url = "https://github.com/fallow-rs/fallow/releases/download/v2.100.0/fallow-x86_64-apple-darwin.tar.gz"
 
 [tools."aqua:fallow-rs/fallow"."platforms.macos-x64-baseline"]
-checksum = "sha256:73a7d0ace244fd68d2b90859d456851a94febfac4a77ee77a652af2ca74844f7"
-url = "https://github.com/fallow-rs/fallow/releases/download/v2.99.0/fallow-x86_64-apple-darwin.tar.gz"
+checksum = "sha256:1de86a520170120cfe874cf61330c18d420e8db7fd1ed338013b41a064ec64e6"
+url = "https://github.com/fallow-rs/fallow/releases/download/v2.100.0/fallow-x86_64-apple-darwin.tar.gz"
 
 [tools."aqua:fallow-rs/fallow"."platforms.windows-x64"]
-checksum = "sha256:1b4c8902b8bdeb01fb847133155203d3753e7fee01cb9cc7da2f27c919dc5e2f"
-url = "https://github.com/fallow-rs/fallow/releases/download/v2.99.0/fallow-x86_64-pc-windows-msvc.zip"
+checksum = "sha256:1e8739eba7af072afe3d9eb9637f52569c1828316d1fe1b39fadd2f20d292c88"
+url = "https://github.com/fallow-rs/fallow/releases/download/v2.100.0/fallow-x86_64-pc-windows-msvc.zip"
 
 [tools."aqua:fallow-rs/fallow"."platforms.windows-x64-baseline"]
-checksum = "sha256:1b4c8902b8bdeb01fb847133155203d3753e7fee01cb9cc7da2f27c919dc5e2f"
-url = "https://github.com/fallow-rs/fallow/releases/download/v2.99.0/fallow-x86_64-pc-windows-msvc.zip"
+checksum = "sha256:1e8739eba7af072afe3d9eb9637f52569c1828316d1fe1b39fadd2f20d292c88"
+url = "https://github.com/fallow-rs/fallow/releases/download/v2.100.0/fallow-x86_64-pc-windows-msvc.zip"
 
 [[tools.bat]]
 version = "0.26.1"
@@ -889,6 +889,10 @@ url = "https://github.com/BurntSushi/ripgrep/releases/download/15.1.0/ripgrep-15
 [tools.ripgrep."platforms.windows-x64-baseline"]
 checksum = "sha256:124510b94b6baa3380d051fdf4650eaa80a302c876d611e9dba0b2e18d87493a"
 url = "https://github.com/BurntSushi/ripgrep/releases/download/15.1.0/ripgrep-15.1.0-x86_64-pc-windows-msvc.zip"
+
+[[tools.rust]]
+version = "1.96.0"
+backend = "core:rust"
 
 [[tools.shellcheck]]
 version = "0.11.0"
