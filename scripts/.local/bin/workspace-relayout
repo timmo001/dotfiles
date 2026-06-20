@@ -194,6 +194,7 @@ family_default_name() {
     two-left-one-right) echo "2 left / 1 right" ;;
     grid) echo "2 left / 2 right" ;;
     top-bottom) echo "1 top / 3 bottom" ;;
+    top-four-bottom) echo "1 top / 4 bottom" ;;
     *) echo "Layout" ;;
   esac
 }
@@ -203,6 +204,7 @@ families_for_count() {
     2) echo "top-bottom-two left-right" ;;
     3) echo "top-two-bottom two-left-one-right left-middle-right" ;;
     4) echo "grid top-bottom" ;;
+    5) echo "top-four-bottom" ;;
     *) echo "" ;;
   esac
 }
@@ -225,6 +227,11 @@ def _brackets:
     elif $f == "top-bottom" then
       ($q.bl) as $l | ((100 - $l) * $q.bm / 100) as $b | ((100 - $l) * (100 - $q.bm) / 100) as $c
       | "\($q.top|round)/\(100 - $q.top|round), \($l|round)/\($b|round)/\($c|round)"
+    elif $f == "top-four-bottom" then
+      ($q.b1) as $p0 | (100 - $p0) as $r1
+      | ($r1 * $q.b2 / 100) as $p1 | ($r1 * (100 - $q.b2) / 100) as $r2
+      | ($r2 * $q.b3 / 100) as $p2 | ($r2 * (100 - $q.b3) / 100) as $p3
+      | "\($q.top|round)/\(100 - $q.top|round), \($p0|round)/\($p1|round)/\($p2|round)/\($p3|round)"
     else "?" end;
 def _label: "\(.name) [\(_brackets)]";
 '
@@ -288,6 +295,17 @@ family_capture() {
             bl: (($w0 / ($w0 + $w1 + $w2) * 10000 | round) / 100),
             bm: (($w1 / ($w1 + $w2) * 10000 | round) / 100) }' <<< "$clients_json"
       ;;
+    top-four-bottom)
+      jq -c 'sort_by(.at[1])
+        | .[0] as $top | (.[1:] | sort_by(.at[0])) as $bot
+        | $top.size[1] as $th | $bot[0].size[1] as $bh
+        | $bot[0].size[0] as $w0 | $bot[1].size[0] as $w1
+        | $bot[2].size[0] as $w2 | $bot[3].size[0] as $w3
+        | { top: (($th / ($th + $bh) * 10000 | round) / 100),
+            b1: (($w0 / ($w0 + $w1 + $w2 + $w3) * 10000 | round) / 100),
+            b2: (($w1 / ($w1 + $w2 + $w3) * 10000 | round) / 100),
+            b3: (($w2 / ($w2 + $w3) * 10000 | round) / 100) }' <<< "$clients_json"
+      ;;
     *)
       echo "{}"
       ;;
@@ -319,6 +337,9 @@ apply_preset() {
       ;;
     top-bottom)
       apply_top_bottom_layout "$(jq -r '.top' <<< "$p")" "$(jq -r '.bl' <<< "$p")" "$(jq -r '.bm' <<< "$p")"
+      ;;
+    top-four-bottom)
+      apply_top_four_bottom_layout "$(jq -r '.top' <<< "$p")" "$(jq -r '.b1' <<< "$p")" "$(jq -r '.b2' <<< "$p")" "$(jq -r '.b3' <<< "$p")"
       ;;
     *)
       notify "Unknown layout family: $fam"
@@ -517,6 +538,59 @@ apply_top_bottom_layout() {
 
   restore_focus
   notify "Applied 1 top / 3 bottom"
+}
+
+# 5 windows, 1 on top spanning full width, 4 along the bottom row.
+# Bottom row nests as (b1 | (b2 | (b3 | b4))); every split keeps a leaf.
+apply_top_four_bottom_layout() {
+  local top_addr b1_addr b2_addr b3_addr b4_addr
+  local top_pct="$1"
+  local b1_pct="$2"
+  local b2_pct="$3"
+  local b3_pct="$4"
+
+  require_window_count 5
+  load_restore_addr
+  load_row_addresses
+
+  top_addr="${row_addrs[0]}"
+  b1_addr="${row_addrs[1]}"
+  b2_addr="${row_addrs[2]}"
+  b3_addr="${row_addrs[3]}"
+  b4_addr="${row_addrs[4]}"
+
+  move_windows_to_temp "$top_addr" "$b1_addr" "$b2_addr" "$b3_addr" "$b4_addr"
+
+  move_to_workspace "$WS_ID_STR" "$top_addr"
+  focus_addr "$top_addr"
+  hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
+  sleep 0.05
+
+  move_to_workspace "$WS_ID_STR" "$b1_addr"
+  focus_addr "$b1_addr"
+  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
+  sleep 0.05
+
+  move_to_workspace "$WS_ID_STR" "$b2_addr"
+  focus_addr "$b2_addr"
+  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
+  sleep 0.05
+
+  move_to_workspace "$WS_ID_STR" "$b3_addr"
+  focus_addr "$b3_addr"
+  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
+  sleep 0.05
+
+  move_to_workspace "$WS_ID_STR" "$b4_addr"
+  sleep 0.15
+
+  set_split "$top_addr" "$top_pct"
+  set_split "$b1_addr" "$b1_pct"
+  set_split "$b2_addr" "$b2_pct"
+  set_split "$b3_addr" "$b3_pct"
+
+  restore_focus
+  notify "Applied 1 top / 4 bottom"
 }
 
 # 3 windows, 1 on top spanning full width, 2 along the bottom row.
@@ -770,8 +844,8 @@ main() {
 
   local count
   count="$(window_count)"
-  if [ "$count" -lt 2 ] || [ "$count" -gt 4 ]; then
-    notify "Expected 2, 3, or 4 visible tiled windows on this workspace, found $count"
+  if [ "$count" -lt 2 ] || [ "$count" -gt 5 ]; then
+    notify "Expected 2, 3, 4, or 5 visible tiled windows on this workspace, found $count"
     exit 0
   fi
 
