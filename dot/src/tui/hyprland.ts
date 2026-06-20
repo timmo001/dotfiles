@@ -13,7 +13,7 @@ export const DEFAULT_FLOATING_SIZE: FloatingSize = { width: 875, height: 600 };
 
 /** Custom floating size used by the dashboard view. */
 export const DASHBOARD_FLOATING_SIZE: FloatingSize = {
-  width: 960,
+  width: 996,
   height: 600,
 };
 
