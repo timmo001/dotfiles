@@ -26,6 +26,7 @@ export const checkHardwareVideo = Effect.gen(function* () {
     .pipe(Effect.catch(() => Effect.succeed("")));
 
   let vaapiDriverExpected = "";
+  let hasNvidiaNode = false;
   for (const nodePath of renderNodesOutput.trim().split("\n").filter(Boolean)) {
     const driverLink = join(nodePath, "device", "driver");
     if (!existsSync(driverLink)) continue;
@@ -45,6 +46,9 @@ export const checkHardwareVideo = Effect.gen(function* () {
         break;
       case "amdgpu":
         vaapiDriverExpected = "radeonsi";
+        break;
+      case "nvidia":
+        hasNvidiaNode = true;
         break;
     }
   }
@@ -88,6 +92,9 @@ export const checkHardwareVideo = Effect.gen(function* () {
           break;
         case "amdgpu":
           renderVaapiDriver = "radeonsi";
+          break;
+        case "nvidia":
+          renderVaapiDriver = "nvidia";
           break;
       }
 
@@ -227,6 +234,23 @@ export const checkHardwareVideo = Effect.gen(function* () {
       message:
         "No VAAPI driver package installed (need intel-media-driver, libva-mesa-driver, or similar)",
     });
+  }
+
+  // On NVIDIA hybrid setups the dGPU render node only exposes VAAPI through the
+  // VAAPI->NVDEC shim, which lives in libva-nvidia-driver.
+  if (hasNvidiaNode) {
+    const nvidiaDriverExit = yield* executor.exitCode("pacman", [
+      "-Qi",
+      "libva-nvidia-driver",
+    ]);
+    if (nvidiaDriverExit !== 0) {
+      results.push({
+        severity: "warn",
+        message:
+          "libva-nvidia-driver is not installed (needed for NVIDIA VAAPI/NVDEC)",
+        detail: "Install with: pacman -S libva-nvidia-driver",
+      });
+    }
   }
 
   return results;
