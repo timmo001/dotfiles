@@ -154,6 +154,10 @@ export const cliCommands: readonly CliCommandSpec[] = [
         description: "Allow interactive prompts for this run",
       },
       {
+        name: "--force",
+        description: "Re-run init even if the machine looks initialised",
+      },
+      {
         name: "--host",
         valueName: "name",
         description:
@@ -184,6 +188,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
     examples: [
       "dot init --noninteractive --confirm",
       "dot init --host laptop --noninteractive --confirm",
+      "dot init --force --noninteractive --confirm",
       "dot init --branch main --bootstrap-branch distro/omarchy",
     ],
   },

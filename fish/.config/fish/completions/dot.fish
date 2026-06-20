@@ -9,6 +9,7 @@ complete -c dot -n '__fish_use_subcommand' -a 'init' -d 'Run one-time first-use 
 complete -c dot -l confirm -d 'Acknowledge non-interactive package helpers' -n '__fish_seen_subcommand_from init'
 complete -c dot -l noninteractive -d 'Skip interactive prompts for this run' -n '__fish_seen_subcommand_from init'
 complete -c dot -l interactive -d 'Allow interactive prompts for this run' -n '__fish_seen_subcommand_from init'
+complete -c dot -l force -d 'Re-run init even if the machine looks initialised' -n '__fish_seen_subcommand_from init'
 complete -c dot -l host -d 'Hypr host to link before stow (default: OMARCHY_HOST or desktop)' -r -a 'desktop laptop' -n '__fish_seen_subcommand_from init'
 complete -c dot -l log -d 'Init log path (default: /tmp/dot-init.log)' -r -F -n '__fish_seen_subcommand_from init'
 complete -c dot -l branch -d 'Branch override for non-bootstrap Omarchy repos' -r -n '__fish_seen_subcommand_from init'

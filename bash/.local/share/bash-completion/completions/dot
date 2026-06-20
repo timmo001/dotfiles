@@ -28,7 +28,7 @@ _dot_cmd_init() {
   esac
 
   if [[ $cur == -* ]]; then
-    COMPREPLY=( $(compgen -W '--confirm --noninteractive --interactive --host --log --branch --bootstrap-branch --help -h' -- "$cur") )
+    COMPREPLY=( $(compgen -W '--confirm --noninteractive --interactive --force --host --log --branch --bootstrap-branch --help -h' -- "$cur") )
     return
   fi
 }

@@ -50,6 +50,7 @@ running dot update. After init completes, use dot update for ongoing maintenance
 | `--confirm` | Acknowledge non-interactive package helpers |
 | `--noninteractive` | Skip interactive prompts for this run |
 | `--interactive` | Allow interactive prompts for this run |
+| `--force` | Re-run init even if the machine looks initialised |
 | `--host` `<name>` | Hypr host to link before stow (default: OMARCHY_HOST or desktop) (one of: `desktop`, `laptop`) |
 | `--log` `<path>` | Init log path (default: /tmp/dot-init.log) |
 | `--branch` `<name>` | Branch override for non-bootstrap Omarchy repos |
@@ -60,6 +61,7 @@ running dot update. After init completes, use dot update for ongoing maintenance
 ```bash
 dot init --noninteractive --confirm
 dot init --host laptop --noninteractive --confirm
+dot init --force --noninteractive --confirm
 dot init --branch main --bootstrap-branch distro/omarchy
 ```
 

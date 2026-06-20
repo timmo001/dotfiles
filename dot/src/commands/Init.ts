@@ -54,6 +54,7 @@ class InitError extends Schema.TaggedErrorClass<InitError>()("InitError", {
 interface InitOptions {
   readonly confirm: boolean;
   readonly noninteractive: boolean;
+  readonly force: boolean;
   readonly branch?: string;
   readonly bootstrapBranch?: string;
   readonly host?: string;
@@ -63,6 +64,7 @@ interface InitOptions {
 interface InitOptionsDraft {
   confirm: boolean;
   noninteractive: boolean;
+  force: boolean;
   branch?: string;
   bootstrapBranch?: string;
   host?: string;
@@ -89,6 +91,7 @@ const booleanInitOptions = new Map<string, BooleanInitOptionHandler>([
   ["--confirm", (options) => void (options.confirm = true)],
   ["--noninteractive", (options) => void (options.noninteractive = true)],
   ["--interactive", (options) => void (options.noninteractive = false)],
+  ["--force", (options) => void (options.force = true)],
 ]);
 
 const valueInitOptions = new Map<string, ValueInitOptionHandler>([
@@ -151,11 +154,19 @@ function existingInitSignals(config: ConfigService): readonly string[] {
 
 function assertFreshInitTarget(
   config: ConfigService,
+  force: boolean,
 ): Effect.Effect<void, InitError, OutputLog> {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
     const completeMarker = initCompleteMarker(config);
     const inProgressMarker = initInProgressMarker(config);
+
+    if (force) {
+      yield* log.warn(
+        "Forcing init: skipping already-initialised guards (--force)",
+      );
+      return;
+    }
 
     if (existsSync(completeMarker)) {
       return yield* fail(
@@ -245,6 +256,7 @@ function parseInitArgs(args: readonly string[]): ParsedInitArgs {
   const options: InitOptionsDraft = {
     confirm: false,
     noninteractive: envFlag(ENV.DOT_INIT_NONINTERACTIVE),
+    force: false,
   };
 
   for (let index = 0; index < args.length; index++) {
@@ -267,6 +279,7 @@ Options:
   --confirm                 Acknowledge non-interactive package helpers
   --noninteractive          Skip interactive prompts for this run
   --interactive             Allow interactive prompts for this run
+  --force                   Re-run init even if the machine looks initialised
   --host <name>             Hypr host to link before stow (default: OMARCHY_HOST or desktop)
   --log <path>              Init log path (default: /tmp/dot-init.log)
   --branch <name>           Branch override for non-bootstrap Omarchy repos
@@ -701,7 +714,7 @@ export function init(rawArgs: readonly string[]) {
     if (envString(ENV.DOT_LOG_FILE)) {
       yield* log.info(`Init log: ${displayPath(envString(ENV.DOT_LOG_FILE)!)}`);
     }
-    yield* assertFreshInitTarget(config);
+    yield* assertFreshInitTarget(config, parsed.options.force);
     const options = yield* resolveInitOptions(parsed.options);
     yield* writeInitInProgressMarker(config, options);
 

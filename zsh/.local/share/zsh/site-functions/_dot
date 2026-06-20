@@ -43,6 +43,7 @@ _dot_cmd_init() {
     '--confirm[Acknowledge non-interactive package helpers]' \
     '--noninteractive[Skip interactive prompts for this run]' \
     '--interactive[Allow interactive prompts for this run]' \
+    '--force[Re-run init even if the machine looks initialised]' \
     '--host[Hypr host to link before stow (default: OMARCHY_HOST or desktop)]:name:((desktop:Desktop\ Hypr\ host laptop:Laptop\ Hypr\ host))' \
     '--log[Init log path (default: /tmp/dot-init.log)]:path:_files' \
     '--branch[Branch override for non-bootstrap Omarchy repos]:name:' \
