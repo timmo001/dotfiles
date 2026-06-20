@@ -11,3 +11,4 @@ dot/.fallow/
 dot/bun.lock
 scripts/.local/bin/dot
 scripts/.local/bin/dot*
+zsh/.local/share/zsh/chpwd-recent-dirs
