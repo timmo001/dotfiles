@@ -207,71 +207,32 @@ families_for_count() {
   esac
 }
 
-# Round a number to a whole percentage for display.
-r() {
-  printf '%.0f' "$1"
-}
+# Shared jq definitions for rendering a preset's split-ratio brackets (the
+# "[74/26]" part of a menu label) and its full label. Computed in jq so the
+# menu can be built in a single jq pass instead of one subprocess per field.
+# shellcheck disable=SC2016  # $f/$q are jq variables, not shell expansions.
+JQ_BRACKETS='
+def _brackets:
+  .family as $f | .params as $q
+  | if $f == "top-bottom-two" then "\($q.top|round)/\(100 - $q.top|round)"
+    elif $f == "left-right" then "\($q.left|round)/\(100 - $q.left|round)"
+    elif $f == "left-middle-right" then
+      ($q.left) as $l | ((100 - $l) * $q.mid / 100) as $b | ((100 - $l) * (100 - $q.mid) / 100) as $c
+      | "\($l|round)/\($b|round)/\($c|round)"
+    elif $f == "top-two-bottom" then "\($q.top|round)/\(100 - $q.top|round), \($q.bl|round)/\(100 - $q.bl|round)"
+    elif $f == "two-left-one-right" then "\($q.left_top|round)/\(100 - $q.left_top|round), \($q.left_column|round)/\(100 - $q.left_column|round)"
+    elif $f == "grid" then "50/50, \($q.left_column|round)/\(100 - $q.left_column|round)"
+    elif $f == "top-bottom" then
+      ($q.bl) as $l | ((100 - $l) * $q.bm / 100) as $b | ((100 - $l) * (100 - $q.bm) / 100) as $c
+      | "\($q.top|round)/\(100 - $q.top|round), \($l|round)/\($b|round)/\($c|round)"
+    else "?" end;
+def _label: "\(.name) [\(_brackets)]";
+'
 
-# Complement of a percentage (100 - x), rounded.
-rc() {
-  awk -v x="$1" 'BEGIN { printf "%.0f", 100 - x }'
-}
-
+# Render just the brackets for one family + params object (used in edit-mode
+# notifications, where a single call is fine).
 family_brackets() {
-  local fam="$1"
-  local p="$2"
-
-  case "$fam" in
-    top-bottom-two)
-      local top
-      top="$(jq -r '.top' <<< "$p")"
-      printf '%s/%s' "$(r "$top")" "$(rc "$top")"
-      ;;
-    left-right)
-      local left
-      left="$(jq -r '.left' <<< "$p")"
-      printf '%s/%s' "$(r "$left")" "$(rc "$left")"
-      ;;
-    left-middle-right)
-      local left mid a b c
-      left="$(jq -r '.left' <<< "$p")"
-      mid="$(jq -r '.mid' <<< "$p")"
-      a="$(r "$left")"
-      b="$(awk -v l="$left" -v m="$mid" 'BEGIN { printf "%.0f", (100 - l) * m / 100 }')"
-      c="$(awk -v l="$left" -v m="$mid" 'BEGIN { printf "%.0f", (100 - l) * (100 - m) / 100 }')"
-      printf '%s/%s/%s' "$a" "$b" "$c"
-      ;;
-    top-two-bottom)
-      local top bl
-      top="$(jq -r '.top' <<< "$p")"
-      bl="$(jq -r '.bl' <<< "$p")"
-      printf '%s/%s, %s/%s' "$(r "$top")" "$(rc "$top")" "$(r "$bl")" "$(rc "$bl")"
-      ;;
-    two-left-one-right)
-      local lc lt
-      lc="$(jq -r '.left_column' <<< "$p")"
-      lt="$(jq -r '.left_top' <<< "$p")"
-      printf '%s/%s, %s/%s' "$(r "$lt")" "$(rc "$lt")" "$(r "$lc")" "$(rc "$lc")"
-      ;;
-    grid)
-      local lc
-      lc="$(jq -r '.left_column' <<< "$p")"
-      printf '50/50, %s/%s' "$(r "$lc")" "$(rc "$lc")"
-      ;;
-    top-bottom)
-      local top bl bm a b c
-      top="$(jq -r '.top' <<< "$p")"
-      bl="$(jq -r '.bl' <<< "$p")"
-      bm="$(jq -r '.bm' <<< "$p")"
-      a="$(r "$bl")"
-      b="$(awk -v l="$bl" -v m="$bm" 'BEGIN { printf "%.0f", (100 - l) * m / 100 }')"
-      c="$(awk -v l="$bl" -v m="$bm" 'BEGIN { printf "%.0f", (100 - l) * (100 - m) / 100 }')"
-      printf '%s/%s, %s/%s/%s' "$(r "$top")" "$(rc "$top")" "$a" "$b" "$c"
-      ;;
-    *)
-      printf '?'
-      ;;
-  esac
+  jq -rn "$JQ_BRACKETS"' { family: $f, params: $p } | _brackets' --arg f "$1" --argjson p "$2"
 }
 
 # Measure the current workspace windows into a params object for $1's family.
@@ -666,21 +627,20 @@ sel_params=()
 sel_label=()
 load_presets_for_count() {
   local count="$1"
-  local total gi fam params name
+  local fam params label
 
   sel_fam=()
   sel_params=()
   sel_label=()
 
-  total="$(jq -r --arg c "$count" '.layouts[$c] | length' "$PRESETS_FILE")"
-  for ((gi = 0; gi < total; gi++)); do
-    fam="$(jq -r --arg c "$count" --argjson i "$gi" '.layouts[$c][$i].family' "$PRESETS_FILE")"
-    params="$(jq -c --arg c "$count" --argjson i "$gi" '.layouts[$c][$i].params' "$PRESETS_FILE")"
-    name="$(jq -r --arg c "$count" --argjson i "$gi" '.layouts[$c][$i].name' "$PRESETS_FILE")"
+  while IFS=$'\t' read -r fam params label; do
+    [ -n "$fam" ] || continue
     sel_fam+=("$fam")
     sel_params+=("$params")
-    sel_label+=("$name [$(family_brackets "$fam" "$params")]")
-  done
+    sel_label+=("$label")
+  done < <(jq -r --arg c "$count" "$JQ_BRACKETS"'
+    .layouts[$c][] | [.family, (.params | tojson), _label] | @tsv
+  ' "$PRESETS_FILE")
 }
 
 # Write JSON ($1) back to the presets file through the stow symlink, leaving
