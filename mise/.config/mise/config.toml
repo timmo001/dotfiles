@@ -33,3 +33,7 @@ zoxide = "0.9.9"
 [settings]
 idiomatic_version_file_enable_tools = ["bun", "deno", "go", "node", "python"]
 lockfile = true
+# Don't treat build/cache dirs as mise projects. Stops AUR builds (yay cd's into
+# ~/.cache/yay/<pkg>/src, which contains package.json/.tool-versions/mise.toml)
+# from auto-installing and reshimming all shims on every update.
+ignored_config_paths = ["~/.cache"]
