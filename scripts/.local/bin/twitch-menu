@@ -69,6 +69,11 @@ channels_menu() {
   fi
 }
 
+if [[ "${1:-}" == 'channels' ]]; then
+  channels_menu
+  exit 0
+fi
+
 while true; do
   choice="$(printf '%s\n' '  Recheck notifications' '󰜉  Restart notifications' '  Open following' '  Open following live' '  Open channel(s)..' | omarchy-launch-walker --dmenu --width 295 --minheight 1 --maxheight 630 -p 'Twitch…' 2>/dev/null || true)"
   choice="${choice#*  }"
