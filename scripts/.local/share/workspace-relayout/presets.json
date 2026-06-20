@@ -108,7 +108,7 @@
         "family": "grid",
         "name": "2 left / 2 right",
         "params": {
-          "left_column": 25
+          "left_column": 27.16
         }
       },
       {
@@ -122,9 +122,9 @@
         "family": "top-bottom",
         "name": "1 top / 3 bottom",
         "params": {
-          "top": 74,
-          "bl": 21.2121,
-          "bm": 26.9231
+          "top": 75.52,
+          "bl": 21.13,
+          "bm": 26.88
         }
       },
       {
