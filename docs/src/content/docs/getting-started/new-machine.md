@@ -9,7 +9,7 @@ A clean, end-to-end walkthrough for setting up a new machine.
 2. If you want private dotfiles, confirm `gh auth status` works before `dot init`; init clones `dotfiles-private` to `~/.config/dotfiles-private` automatically when auth is available.
 3. Install bootstrap build prerequisites:
    ```bash
-   sudo pacman -S --needed git mise
+    yay -S --needed git mise-bin
    ```
 4. Build the `dot` binary:
    ```bash

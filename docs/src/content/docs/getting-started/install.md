@@ -8,7 +8,7 @@ description: Prerequisites, bootstrap build, and the ongoing dotfiles workflow.
 On a fresh [Omarchy](https://omarchy.org) machine, install the bootstrap build prerequisites ([git](https://git-scm.com) and [mise](https://mise.jdx.dev)):
 
 ```bash
-sudo pacman -S --needed git mise
+yay -S --needed git mise-bin
 ```
 
 If you want the private dotfiles overlay, authenticate [`gh`](https://cli.github.com) (the GitHub CLI) before `dot init` so it can clone `dotfiles-private` automatically:
