@@ -19,7 +19,7 @@ importers:
         version: 4.4.0
       effect:
         specifier: ^4.0.0-beta.66
-        version: 4.0.0-beta.85
+        version: 4.0.0-beta.86
       fuse.js:
         specifier: ^7.3.0
         version: 7.4.2
@@ -149,8 +149,8 @@ packages:
     resolution: {integrity: sha512-svtcdpS8CgJyqAjEQIXdb3OjhFVVYjzGAPO8WGCmRbrml64SPw/jJD4GoE98aR7r25A0XcgrK3F02yw9R/vhQw==}
     engines: {node: '>=0.3.1'}
 
-  effect@4.0.0-beta.85:
-    resolution: {integrity: sha512-Cjv9YQyv4CiIccmRAQIWAoeESCpCpiuHYY8zb5vqiYs3Ac2yE5RQAnKq7z4Ir/3VJYZb8kxh6rS8czDDnpTdkQ==}
+  effect@4.0.0-beta.86:
+    resolution: {integrity: sha512-+Y16hy3LhAju/FM3dz3Xp+aGi8dw9AtEzswcvwxREpeEPq+rL8TFS1PgWAO1+/3kKKH4bq9NdBGtfhHzM2K7Ow==}
 
   emoji-regex@10.6.0:
     resolution: {integrity: sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A==}
@@ -239,8 +239,8 @@ packages:
   undici-types@7.24.6:
     resolution: {integrity: sha512-WRNW+sJgj5OBN4/0JpHFqtqzhpbnV0GuB+OozA9gCL7a993SmU+1JBZCzLNxYsbMfIeDL+lTsphD5jN5N+n0zg==}
 
-  uuid@14.0.0:
-    resolution: {integrity: sha512-Qo+uWgilfSmAhXCMav1uYFynlQO7fMFiMVZsQqZRMIXp0O7rR7qjkj+cPvBHLgBqi960QCoo/PH2/6ZtVqKvrg==}
+  uuid@14.0.1:
+    resolution: {integrity: sha512-6ZxzVpzDXDa3bJWaHilVayA+BH/1zmxCJoVgvmqJnid/gPoKHxUrS/aC/T6LGQtNHT+XHG9fXPJB4d+IrU30Ew==}
     hasBin: true
 
   web-tree-sitter@0.25.10:
@@ -362,7 +362,7 @@ snapshots:
 
   diff@9.0.0: {}
 
-  effect@4.0.0-beta.85:
+  effect@4.0.0-beta.86:
     dependencies:
       '@standard-schema/spec': 1.1.0
       fast-check: 4.8.0
@@ -372,7 +372,7 @@ snapshots:
       msgpackr: 2.0.4
       multipasta: 0.2.7
       toml: 4.1.1
-      uuid: 14.0.0
+      uuid: 14.0.1
       yaml: 2.9.0
 
   emoji-regex@10.6.0: {}
@@ -446,7 +446,7 @@ snapshots:
 
   undici-types@7.24.6: {}
 
-  uuid@14.0.0: {}
+  uuid@14.0.1: {}
 
   web-tree-sitter@0.25.10: {}
 
