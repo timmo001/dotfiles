@@ -254,7 +254,6 @@ export const cliCommands: readonly CliCommandSpec[] = [
         lines: [
           "Dependencies         Required/optional CLI tools (git, stow, gh, gum, ...)",
           "gh extensions        Configured gh CLI extensions are installed",
-          "Secret Service       kwallet vs gnome-keyring provider",
           "Repositories         Public/private dotfiles + private git repos exist and have upstreams",
           "Origin HEAD          Local origin/HEAD tracks the remote default branch (not stale)",
           "Stow integrity       Dry-run restow to detect drift",
