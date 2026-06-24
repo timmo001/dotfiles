@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { existsSync, readFileSync, readdirSync } from "fs";
 import { join } from "path";
-import { hyprRepoPath } from "../../lib/omarchyHost.js";
+import { currentOmarchyHost, hyprRepoPath } from "../../lib/omarchyHost.js";
 import { CONFIG_DIR, displayPath } from "../../lib/paths.js";
 import { Config, type ConfigService } from "../../services/Config.js";
 import type { CheckResult } from "../types.js";
@@ -123,7 +123,15 @@ function autostartResults(autostarts: readonly HostAutostart[]): CheckResult[] {
     });
   }
 
-  if (serverHosts.length > 0) {
+  // The password file lives at a machine-specific path, so only check it on the
+  // host that actually runs the server. Otherwise every machine that has the
+  // desktop host config committed to the repo would warn about a file it never
+  // needs.
+  const currentHost = currentOmarchyHost();
+  const currentHostStartsServer = serverHosts.some(
+    (autostart) => autostart.host === currentHost,
+  );
+  if (currentHostStartsServer) {
     results.push(passwordResult());
   }
 
