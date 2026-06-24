@@ -22,9 +22,10 @@ A clean, end-to-end walkthrough for setting up a new machine.
    - Laptop: `dot init --host laptop --noninteractive --confirm`
    - Interactive: `dot init` in an interactive shell
 6. If stock Omarchy config directories already exist at `~/.config/waybar`, `~/.config/ghostty`, or `~/.config/uwsm`, `dot init` backs them up with a `.dot-init-backup-*` suffix before cloning the managed repos. Hyprland config is stowed from the `hypr/` package instead.
-7. Restart your shell and confirm `dot help` is on `PATH`.
-8. Run `dot git-diff` and verify the expected repo state.
-9. Run `dot update` for ongoing sync, stow, rebuild, and init-state backfill.
+7. `dot init` opens the managed [firewall rules](/dot/utilities/#firewall-rules) (KDE Connect, Home Assistant, and the OpenCode server) when `ufw` is installed.
+8. Restart your shell and confirm `dot help` is on `PATH`.
+9. Run `dot git-diff` and verify the expected repo state.
+10. Run `dot update` for ongoing sync, stow, rebuild, and init-state backfill.
 
 :::tip[Hypr host and mise tools]
 `dot init` selects the Hypr host early (setting `OMARCHY_HOST`), and the stow phase of the final update creates `~/.config/hypr/host`. It runs `mise install` immediately after stowing dotfiles and before installing managed Arch/AUR package lists, so Bun, Node, pnpm, and similar tools come from the stowed mise config rather than global pacman packages.

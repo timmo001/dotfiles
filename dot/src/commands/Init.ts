@@ -23,6 +23,7 @@ import {
 } from "../lib/packageSetup.js";
 import { syncOmarchyRepos } from "../lib/omarchySync.js";
 import { ensureLocalesGenerated } from "../lib/localeSetup.js";
+import { configureFirewallRules } from "../lib/firewallSetup.js";
 import { installGhExtensions } from "../lib/ghExtensions.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../lib/paths.js";
@@ -731,6 +732,7 @@ export function init(rawArgs: readonly string[]) {
       scope: "public",
       confirm: options.confirm,
     });
+    yield* configureFirewallRules;
     yield* installGhExtensions;
     yield* ensureLoginShellZsh();
     yield* setupPrivatePackages(config, options);

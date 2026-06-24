@@ -31,6 +31,7 @@ import {
   checkPrivatePackages,
 } from "./checks/packages.js";
 import { checkPacmanHooks } from "./checks/pacmanHooks.js";
+import { checkFirewall } from "./checks/firewall.js";
 import type { CheckResult, CheckSection, DoctorReport } from "./types.js";
 
 /** A section definition: name, check effect, and whether it requires private access */
@@ -85,6 +86,7 @@ const sections: readonly SectionDef[] = [
     requiresPrivate: true,
   },
   { name: "Pacman hooks", check: checkPacmanHooks },
+  { name: "Firewall rules", check: checkFirewall },
 ];
 
 /** Run all doctor checks in parallel and produce a structured report */

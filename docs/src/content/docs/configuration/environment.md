@@ -47,6 +47,7 @@ These variables tune paths and behaviour for `dot`. Most have sensible defaults;
 | --- | --- |
 | `DOT_INIT_NONINTERACTIVE` | Force non-interactive init mode (`1\|0`, default `0`). |
 | `DOT_INIT_LOG_FILE` | Default `dot init` log path when `--log` is not passed (default `/tmp/dot-init.log`). |
+| `DOT_UFW_RULES_FILE` | ufw rules file scanned by the firewall setup and doctor check (default `/etc/ufw/user.rules`). |
 | `DOT_DAILY_VOLUME_ZERO_TIMER_UNIT` | 5am volume reset timer unit name (default `daily-volume-zero.timer`). |
 
 ## Agents sync

@@ -37,6 +37,19 @@ The repo includes minimal system-wide benchmark and resource-leak test scripts u
 - Scripts use ANSI colour output by default; set `NO_COLOR=1` to disable.
 - All scripts include an uptime/load snapshot near the top of output.
 
+## Firewall rules
+
+`dot init` configures a managed set of inbound [ufw](https://wiki.archlinux.org/title/Uncomplicated_Firewall) rules, and `dot doctor` verifies they are still present. The setup reads the world-readable ufw rules file first, so a fully configured machine adds nothing and never prompts for a password; only missing rules are added, followed by a single `ufw reload`. Each rule is tagged with its purpose as a ufw comment, so it appears in `ufw status`.
+
+| Port(s) | Protocol | Purpose |
+| --- | --- | --- |
+| `1714:1764` | UDP + TCP | KDE Connect device discovery and transfer. |
+| `8123` | TCP | Home Assistant frontend. |
+| `8124` | TCP | Home Assistant companion port. |
+| `4096` | TCP | dot OpenCode server. |
+
+If `ufw` is not installed, both init and doctor skip the firewall step with a warning. The doctor check reports any missing rule with the `sudo ufw allow ...` command to add it, or a rule present without its managed comment, and you can re-run `dot init` to reconcile. Override the scanned rules file with `DOT_UFW_RULES_FILE`.
+
 ## Daily volume reset (laptop only)
 
 Public dotfiles provide `daily-volume-zero.timer` in laptop-only stow packages (`scripts--laptop` and `systemd--laptop`), a user systemd timer that runs at 5am local time.
