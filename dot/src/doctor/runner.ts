@@ -17,7 +17,6 @@ import {
   checkWorkflowRuns,
   checkDoctorStartup,
   checkDailyVolumeReset,
-  checkMhoc303ClockSync,
   checkLocalBinPath,
 } from "./checks/systemd.js";
 import { checkOmarchy } from "./checks/omarchy.js";
@@ -63,7 +62,6 @@ const sections: readonly SectionDef[] = [
   { name: "Doctor startup notification", check: checkDoctorStartup },
   { name: "uwsm session PATH", check: checkLocalBinPath },
   { name: "Daily volume reset", check: checkDailyVolumeReset },
-  { name: "MHO-C303 clock sync", check: checkMhoc303ClockSync },
   { name: "Omarchy repository checks", check: checkOmarchy },
   { name: "Legacy Hypr repo check", check: checkLegacyHyprRepo },
   { name: "Private access", check: checkPrivateAccess },
