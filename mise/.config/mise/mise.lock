@@ -694,7 +694,7 @@ version = "24.18.0"
 backend = "core:node"
 
 [[tools."npm:pnpm"]]
-version = "11.8.0"
+version = "11.9.0"
 backend = "npm:pnpm"
 
 [[tools.opencode]]
