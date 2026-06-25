@@ -1,6 +1,6 @@
 [tools]
 bat = "0.26.1"
-"aqua:coder/boo" = "latest"
+"aqua:coder/boo" = "0.6.1"
 bun = "1.3.14"
 claude = "latest"
 codex = "latest"
@@ -17,7 +17,6 @@ jq = "1.8.2"
 lazygit = "0.62.2"
 node = "26.3.1"
 "npm:pnpm" = "11.9.0"
-opencode = "latest"
 python = "3.14.6"
 ripgrep = "15.1.0"
 rust = "1.96.0"
@@ -31,9 +30,14 @@ zig = "0.16.0"
 zls = "0.16.0"
 zoxide = "0.9.9"
 
+[tools."aqua:anomalyco/opencode"]
+version = "latest"
+minimum_release_age = "2h"
+
 [settings]
 idiomatic_version_file_enable_tools = ["bun", "deno", "go", "node", "python"]
 lockfile = true
+minimum_release_age = "7d"
 # Don't treat build/cache dirs as mise projects. Stops AUR builds (yay cd's into
 # ~/.cache/yay/<pkg>/src, which contains package.json/.tool-versions/mise.toml)
 # from auto-installing and reshimming all shims on every update.
