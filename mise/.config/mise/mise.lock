@@ -738,8 +738,52 @@ checksum = "sha256:805bfcb2445273b77a32b7758dfb5d2d8dbd7b80b7336ab868935584a2fad
 url = "https://github.com/jesseduffield/lazygit/releases/download/v0.62.2/lazygit_0.62.2_windows_x86_64.zip"
 
 [[tools.node]]
-version = "26.3.1"
+version = "26.4.0"
 backend = "core:node"
+
+[tools.node."platforms.linux-arm64"]
+checksum = "sha256:773d9ec67266838270ddc105c2548ae8aaff28bc8fe6f34c55d1094043c4165e"
+url = "https://nodejs.org/dist/v26.4.0/node-v26.4.0-linux-arm64.tar.gz"
+
+[tools.node."platforms.linux-arm64-musl"]
+checksum = "sha256:d2ad8c6e9fa955edf0337078c1d1acda345d36a84986b218cce3cfd1d2d26920"
+url = "https://unofficial-builds.nodejs.org/download/release/v26.4.0/node-v26.4.0-linux-arm64-musl.tar.gz"
+
+[tools.node."platforms.linux-x64"]
+checksum = "sha256:f221dab30d0e9d544332f06fbee2c62186c97d864d5cac8482dba34f1e38b8dc"
+url = "https://nodejs.org/dist/v26.4.0/node-v26.4.0-linux-x64.tar.gz"
+
+[tools.node."platforms.linux-x64-baseline"]
+checksum = "sha256:f221dab30d0e9d544332f06fbee2c62186c97d864d5cac8482dba34f1e38b8dc"
+url = "https://nodejs.org/dist/v26.4.0/node-v26.4.0-linux-x64.tar.gz"
+
+[tools.node."platforms.linux-x64-musl"]
+checksum = "sha256:554e960f6570bd3d1987f5170d8f2a373a21818581a8d307b697e7839988314a"
+url = "https://unofficial-builds.nodejs.org/download/release/v26.4.0/node-v26.4.0-linux-x64-musl.tar.gz"
+
+[tools.node."platforms.linux-x64-musl-baseline"]
+checksum = "sha256:554e960f6570bd3d1987f5170d8f2a373a21818581a8d307b697e7839988314a"
+url = "https://unofficial-builds.nodejs.org/download/release/v26.4.0/node-v26.4.0-linux-x64-musl.tar.gz"
+
+[tools.node."platforms.macos-arm64"]
+checksum = "sha256:4f4fbcacf6b1ff1a95deedba7bd7b2d79efecaa53a8ecb0530546dc9063fefbc"
+url = "https://nodejs.org/dist/v26.4.0/node-v26.4.0-darwin-arm64.tar.gz"
+
+[tools.node."platforms.macos-x64"]
+checksum = "sha256:eb3bdd8dec3ff2558ee10e284da7d2a3865af0cbda21f06d397b0265837c641e"
+url = "https://nodejs.org/dist/v26.4.0/node-v26.4.0-darwin-x64.tar.gz"
+
+[tools.node."platforms.macos-x64-baseline"]
+checksum = "sha256:eb3bdd8dec3ff2558ee10e284da7d2a3865af0cbda21f06d397b0265837c641e"
+url = "https://nodejs.org/dist/v26.4.0/node-v26.4.0-darwin-x64.tar.gz"
+
+[tools.node."platforms.windows-x64"]
+checksum = "sha256:5f87d038c6ec442aa46b9126f8ca170acbd2f3b9b9152ca798cf54596a31e214"
+url = "https://nodejs.org/dist/v26.4.0/node-v26.4.0-win-x64.zip"
+
+[tools.node."platforms.windows-x64-baseline"]
+checksum = "sha256:5f87d038c6ec442aa46b9126f8ca170acbd2f3b9b9152ca798cf54596a31e214"
+url = "https://nodejs.org/dist/v26.4.0/node-v26.4.0-win-x64.zip"
 
 [[tools."npm:pnpm"]]
 version = "11.9.0"
