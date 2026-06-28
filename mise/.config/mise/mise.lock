@@ -738,7 +738,7 @@ checksum = "sha256:805bfcb2445273b77a32b7758dfb5d2d8dbd7b80b7336ab868935584a2fad
 url = "https://github.com/jesseduffield/lazygit/releases/download/v0.62.2/lazygit_0.62.2_windows_x86_64.zip"
 
 [[tools.node]]
-version = "24.18.0"
+version = "26.4.0"
 backend = "core:node"
 
 [[tools."npm:pnpm"]]
