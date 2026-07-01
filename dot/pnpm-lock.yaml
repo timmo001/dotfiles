@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@opencode-ai/sdk':
         specifier: ^1.14.48
-        version: 1.17.11
+        version: 1.17.12
       '@opentui/core':
         specifier: ^0.4.0
         version: 0.4.2(typescript@5.9.3)(web-tree-sitter@0.25.10)
@@ -63,8 +63,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@opencode-ai/sdk@1.17.11':
-    resolution: {integrity: sha512-UdSwnNM4/cD5rHnI8O7VaHuiwYnsEOglpRPVeeYE2S5Nm1K34ijCyZGDvBecb0ShdBQgn49XvyQWJH6cREsIPw==}
+  '@opencode-ai/sdk@1.17.12':
+    resolution: {integrity: sha512-N8kazWO0ZLCHWYFuZQt1UJM+bWxY6g1auSG6SvD1+K3+W+nw2qIhDAUGNCD0KVW3bY2LCwvfWvpG2ZbVGCHC0Q==}
 
   '@opentui/core-darwin-arm64@0.4.2':
     resolution: {integrity: sha512-is+O+sS/l3E9cZXyM9pRF1WhqnE+hYSPYoZkbseR9CthJcaWPGi3R3jUJa1cLj325252jWgxVupnDqFUtKg36w==}
@@ -281,7 +281,7 @@ snapshots:
   '@msgpackr-extract/msgpackr-extract-win32-x64@3.0.4':
     optional: true
 
-  '@opencode-ai/sdk@1.17.11':
+  '@opencode-ai/sdk@1.17.12':
     dependencies:
       cross-spawn: 7.0.6
 
