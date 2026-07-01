@@ -16,3 +16,29 @@ export function optionValue(
   const value = index === -1 ? undefined : args[index + 1];
   return value && !value.startsWith("--") ? value : undefined;
 }
+
+/**
+ * Collect every value for a repeatable option, accepting both `--flag value`
+ * and `--flag=value` forms. Order is preserved and empty values are dropped.
+ */
+export function optionValues(
+  args: readonly string[],
+  name: string,
+): readonly string[] {
+  const equalsPrefix = `${name}=`;
+  const values: string[] = [];
+  for (let index = 0; index < args.length; index++) {
+    const arg = args[index];
+    if (arg === name) {
+      const next = args[index + 1];
+      if (next && !next.startsWith("-")) {
+        values.push(next);
+        index++;
+      }
+    } else if (arg.startsWith(equalsPrefix)) {
+      const value = arg.slice(equalsPrefix.length);
+      if (value) values.push(value);
+    }
+  }
+  return values;
+}

@@ -379,6 +379,68 @@ export const cliCommands: readonly CliCommandSpec[] = [
     ],
   },
   {
+    name: "git-commit",
+    summary: "Commit staged changes through the guarded gateway",
+    usage: "--message <subject> [options]",
+    description: [
+      "Create a commit through dot's guarded gateway instead of raw git commit.",
+      "The subject is validated as a single line with no trailing full stop and",
+      "a length limit, then the staged set (or an explicit --path scope) is",
+      "committed. It never runs git add -A.",
+      "",
+      "Agents are routed here by the git-commit skill and blocked from raw",
+      "git commit in the OpenCode permission config, so commits stay in the",
+      "maintainer's concise one-line style.",
+    ],
+    modes: [
+      "(default)     Commit the staged set",
+      "--path        Commit only the named files",
+      "--dry-run     Preview the plan, change nothing",
+    ],
+    options: [
+      {
+        name: "--message",
+        short: "-m",
+        valueName: "subject",
+        description: "Single-line commit subject (required)",
+      },
+      {
+        name: "--path",
+        valueName: "file",
+        completion: "file",
+        description: "Commit only this file; repeatable",
+      },
+      {
+        name: "--push",
+        description: "Push the current branch after committing (never forces)",
+      },
+      {
+        name: "--dry-run",
+        description:
+          "Preview the commit and push plan without changing anything",
+      },
+      helpOption,
+    ],
+    sections: [
+      {
+        title: "Message guards",
+        lines: [
+          "Single line     Rejects multi-line messages",
+          "No em/en-dash   Rejects '\u2014' and '\u2013'; use a hyphen",
+          "No full stop    Rejects a trailing '.'",
+          "Warn over 60    Warns on stderr, still commits",
+          "Reject over 120 Fails; shorten the subject",
+        ],
+      },
+    ],
+    examples: [
+      'dot git-commit -m "Add commit gateway"',
+      'dot git-commit -m "Scope to one file" --path src/git/commands/Status.ts',
+      'dot git-commit -m "Commit and push" --push',
+      'dot git-commit -m "Preview only" --dry-run',
+    ],
+  },
+  {
     name: "git-log",
     summary: "Open recent commits across tracked repos",
     usage: "[options]",

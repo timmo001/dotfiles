@@ -62,11 +62,13 @@ src/
     checks/               — Doctor check modules (dependencies, repos, packages, etc.)
   git/
     commands/
+      Commit.ts           — dot git-commit (guarded gateway: message validation, --path, --push, --dry-run)
       Diff.ts             — dot git-diff (--bar-json, --list-changed, --list-all, --raw)
       Log.ts              — dot git-log (--raw)
       Notifications.ts    — dot git-notifications (--bar-json, --list-threads, actions, --raw)
       Status.ts           — dot git-status (branch status for agents)
       Workflows.ts        — dot git-workflows (--since, --bar-json, --list-repos, --list-runs, --raw)
+    remotes.ts            — Shared default-remote/branch resolver (git-status + git-commit)
     doctor/
       gitConfig.ts        — managed Git config doctor check
       originHead.ts       — stale local origin/HEAD doctor check (default-branch ref freshness)
@@ -213,6 +215,10 @@ dot git-log --raw             # CLI recent commit output (20 commits per repo)
 dot git-status                # Branch status: unstaged, staged, last 10 commits (timestamp, push status, files, line counts)
 dot git-status --diff         # Branch status plus full unstaged and staged diffs
 dot git-status --branch-diff  # Branch status plus full merge-base diff vs the default branch (errors on the default branch)
+dot git-commit -m "msg"       # Guarded commit gateway: validates a single-line subject, commits the staged set
+dot git-commit -m "msg" --path src/x.ts # Commit only the named file(s) (repeatable), never git add -A
+dot git-commit -m "msg" --push # Commit then push the current branch (sets upstream when missing, never forces)
+dot git-commit -m "msg" --dry-run # Preview the commit/push plan without changing anything
 dot git-workflows             # Watched GitHub workflow runs view (TUI)
 dot git-workflows --raw       # CLI workflow run summary
 dot git-workflows --since <date> # Filter workflow runs by creation time (TUI or CLI)
@@ -321,6 +327,8 @@ dot git-log --raw            # smoke test: CLI git log output
 dot git-status               # smoke test: branch status output
 dot git-status --diff        # smoke test: branch status with working-tree diffs
 dot git-status --branch-diff # smoke test: branch status with default-branch diff (errors on the default branch)
+dot git-commit --help        # smoke test: gateway help prints without side effects
+dot git-commit --dry-run -m "Test subject" # smoke test: dry-run plan, no commit
 dot git-notifications --raw  # smoke test: CLI notification output
 dot git-notifications --bar-json # smoke test: notification JSON output
 dot notes                    # smoke test: notes view renders

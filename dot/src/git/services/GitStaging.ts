@@ -1,9 +1,13 @@
 import { Context, Effect, Layer, Schema } from "effect";
 import { gitOutput, gitRequired } from "../../lib/git.js";
+import { ENV, envString } from "../../lib/env.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import type { GitStatusCode, StagedFile } from "../../types.js";
 
-const log = (msg: string) => console.error(`[dot:GitStaging] ${msg}`);
+const DEBUG = !!envString(ENV.DOT_DEBUG);
+const log = (msg: string) => {
+  if (DEBUG) console.error(`[dot:GitStaging] ${msg}`);
+};
 
 /** Domain error for git staging operations */
 export class GitStagingError extends Schema.TaggedErrorClass<GitStagingError>()(
@@ -31,10 +35,15 @@ export interface GitStagingService {
   ) => Effect.Effect<void, GitStagingError>;
   /** Stage all files via `git add -A` */
   readonly stageAll: (repoPath: string) => Effect.Effect<void, GitStagingError>;
-  /** Commit staged changes with the given message */
+  /**
+   * Commit with the given message. When `paths` is provided, the commit is
+   * scoped to those pathspecs (`git commit -m <message> -- <paths>`) so only
+   * those files are recorded regardless of what else is staged.
+   */
   readonly commit: (
     repoPath: string,
     message: string,
+    paths?: readonly string[],
   ) => Effect.Effect<void, GitStagingError>;
   /** Get recent commit messages from a repository */
   readonly getRecentCommits: (
@@ -86,10 +95,11 @@ export class GitStaging extends Context.Service<
           return provideExecutor(runGitVoid(repoPath, ["add", "-A"]));
         },
 
-        commit: (repoPath, message) => {
+        commit: (repoPath, message, paths) => {
+          const pathArgs = paths && paths.length > 0 ? ["--", ...paths] : [];
           log(`Committing in ${repoPath}: ${message}`);
           return provideExecutor(
-            runGitVoid(repoPath, ["commit", "-m", message]),
+            runGitVoid(repoPath, ["commit", "-m", message, ...pathArgs]),
           );
         },
 

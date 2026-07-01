@@ -9,12 +9,13 @@ import { DotDiff } from "./git/services/DotDiff.js";
 import { GitLog } from "./git/services/GitLog.js";
 import { GitHub } from "./git/services/GitHub.js";
 import { GitNotifications } from "./git/services/GitNotifications.js";
+import { GitStaging } from "./git/services/GitStaging.js";
 import { WorkflowRuns } from "./git/services/WorkflowRuns.js";
 import { Dashboard } from "./dashboard/services/Dashboard.js";
 import { buildDashboardState } from "./dashboard/viewModel.js";
 import { Notes } from "./notes/services/Notes.js";
 import { parseFlags, resolveSubcommand, printHelp } from "./flags.js";
-import { hasOption, optionValue } from "./lib/args.js";
+import { hasOption, optionValue, optionValues } from "./lib/args.js";
 import {
   bootstrapGhRepoClone,
   bootstrapGitPullRebase,
@@ -49,6 +50,7 @@ import {
 } from "./git/commands/Diff.js";
 import { gitLogRaw } from "./git/commands/Log.js";
 import { gitStatusRaw } from "./git/commands/Status.js";
+import { gitCommitRaw } from "./git/commands/Commit.js";
 import {
   workflowsListRepos,
   workflowsListRuns,
@@ -432,6 +434,7 @@ type NativeEnv =
   | GitLog
   | GitHub
   | GitNotifications
+  | GitStaging
   | Launcher
   | Notes
   | OutputLog
@@ -448,6 +451,7 @@ const CliLayers = Launcher.cliLayer.pipe(
   Layer.provideMerge(GitLogLayer),
   Layer.provideMerge(WorkflowRuns.layer),
   Layer.provideMerge(GitNotifications.layer),
+  Layer.provideMerge(GitStaging.layer),
   Layer.provideMerge(Notes.layer),
   Layer.provideMerge(GitHub.layer),
   Layer.provideMerge(OutputLog.cliLayer),
@@ -523,6 +527,13 @@ if (mode.type === "native") {
         gitStatusRaw({
           diff: args.includes("--diff"),
           branchDiff: args.includes("--branch-diff"),
+        }),
+      "git-commit": (args) =>
+        gitCommitRaw({
+          message: optionValue(args, "--message") ?? optionValue(args, "-m"),
+          paths: optionValues(args, "--path"),
+          push: args.includes("--push"),
+          dryRun: args.includes("--dry-run"),
         }),
       "git-workflows": resolveWorkflows,
       "git-notifications": resolveNotifications,
@@ -600,7 +611,6 @@ if (mode.type === "native") {
   const { GitDiffWaybarCache } =
     await import("./git/services/GitDiffWaybarCache.js");
   const { RepoWatcher } = await import("./git/services/RepoWatcher.js");
-  const { GitStaging } = await import("./git/services/GitStaging.js");
   const { CommitSuggest } = await import("./git/services/CommitSuggest.js");
   const { shutdownServer } = await import("./services/OpenCodeServer.js");
   const { createCommandRunner } = await import("./services/CommandRunner.js");

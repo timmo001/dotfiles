@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { gitOutput } from "../../lib/git.js";
+import { parseDefaultBranch, resolveDefaultRemote } from "../remotes.js";
 import { formatRelativeTimeAgo } from "../services/relativeTime.js";
 import { handleCommandError, writeText } from "./rows.js";
 
@@ -34,37 +35,6 @@ const RECENT_COMMIT_LIMIT = 10;
  * byte, so it cleanly delimits commit headers from their file lists.
  */
 const COMMIT_SEPARATOR = "\x1e";
-
-/**
- * Resolve the default remote (upstream > origin > first available).
- * Returns the remote name or "origin" as fallback.
- */
-function resolveDefaultRemote(remotesOutput: string): {
-  remote: string;
-  remotes: readonly string[];
-} {
-  const remotes = remotesOutput
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const remote = remotes.includes("upstream")
-    ? "upstream"
-    : remotes.includes("origin")
-      ? "origin"
-      : remotes[0] || "origin";
-  return { remote, remotes };
-}
-
-/**
- * Parse the symbolic-ref output to extract the default branch name.
- * Falls back to "main" if parsing fails.
- */
-function parseDefaultBranch(ref: string, remote: string): string {
-  const prefix = `refs/remotes/${remote}/`;
-  if (ref.startsWith(prefix)) return ref.slice(prefix.length);
-  const parts = ref.split("/");
-  return parts[parts.length - 1] || "main";
-}
 
 /** Attempt to run a git command, returning empty string on failure. */
 function tryGit(
