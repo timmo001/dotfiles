@@ -600,6 +600,12 @@ alias dpa="docker ps -a"
 alias dl="docker ps -l -q"
 alias dx="docker exec -it"
 
+# cwd is not a command: remind, then run the real one (pwd)
+cwd() {
+  print -P "%F{yellow}cwd isn't a command, the real one is: pwd%f" >&2
+  pwd
+}
+
 # Dirs
 alias ..="cd .."
 alias ...="cd ../.."
