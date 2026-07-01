@@ -171,7 +171,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
         name: "--log",
         valueName: "path",
         completion: "file",
-        description: "Init log path (default: /tmp/dot-init.log)",
+        description: "Init log path (default: ~/.local/state/dot/init.log)",
       },
       {
         name: "--branch",

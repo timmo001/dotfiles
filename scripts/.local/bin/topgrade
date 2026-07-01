@@ -1,13 +1,15 @@
 #!/bin/bash
 
 # Wrapper around topgrade that logs the full session (mimics omarchy-update pattern).
-# Log is stored at /tmp/topgrade.log for post-run review.
+# Log is stored at $XDG_STATE_HOME/topgrade.log (default ~/.local/state) for post-run review.
 # Adds --sudoloop for steps that need root (system, firmware, containers) so credentials
 # stay cached during long runs, but skips it for user-only steps.
 
 if [[ -z $TOPGRADE_LOGGED ]]; then
+  log_file="${XDG_STATE_HOME:-$HOME/.local/state}/topgrade.log"
+  mkdir -p "$(dirname "$log_file")"
   script_command=$(printf '%q ' "$0" "$@")
-  exec env TOPGRADE_LOGGED=1 script -qefc "$script_command" "/tmp/topgrade.log"
+  exec env TOPGRADE_LOGGED=1 script -qefc "$script_command" "$log_file"
 fi
 
 # Determine if the run includes steps that need sudo.

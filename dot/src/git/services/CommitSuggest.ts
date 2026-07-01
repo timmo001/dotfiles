@@ -1,4 +1,5 @@
 import { Context, Effect, Layer, Schema } from "effect";
+import { join } from "path";
 import type { CommitSuggestion } from "../../types.js";
 import {
   getCachedModel,
@@ -6,10 +7,13 @@ import {
   discoverFastModel,
 } from "../../services/ModelDiscovery.js";
 import { ensureServer } from "../../services/OpenCodeServer.js";
+import { STATE_DIR } from "../../lib/paths.js";
+import { ENV, envString } from "../../lib/env.js";
 
 const log = (msg: string) => console.error(`[dot:CommitSuggest] ${msg}`);
 
-const DEBUG_FILE = "/tmp/dot-debug.json";
+const DEBUG = !!envString(ENV.DOT_DEBUG);
+const DEBUG_FILE = join(STATE_DIR, "dot", "commit-suggest-debug.json");
 
 /** Domain error for AI commit suggestion failures */
 export class CommitSuggestError extends Schema.TaggedErrorClass<CommitSuggestError>()(
@@ -19,8 +23,9 @@ export class CommitSuggestError extends Schema.TaggedErrorClass<CommitSuggestErr
   },
 ) {}
 
-/** Append a debug entry to the debug log file */
+/** Append a debug entry to the debug log file (only when DOT_DEBUG is set). */
 function debugLog(label: string, data: unknown): void {
+  if (!DEBUG) return;
   const entry = { time: new Date().toISOString(), label, data };
   try {
     const existing = Bun.file(DEBUG_FILE);

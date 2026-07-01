@@ -283,7 +283,7 @@ Options:
   --interactive             Allow interactive prompts for this run
   --force                   Re-run init even if the machine looks initialised
   --host <name>             Hypr host to link before stow (default: OMARCHY_HOST or desktop)
-  --log <path>              Init log path (default: /tmp/dot-init.log)
+  --log <path>              Init log path (default: ~/.local/state/dot/init.log)
   --branch <name>           Branch override for non-bootstrap Omarchy repos
   --bootstrap-branch <name> Branch override for bootstrap
   --help, -h                Show this help message

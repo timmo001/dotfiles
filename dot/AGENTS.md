@@ -186,7 +186,7 @@ the result. The `tui-build` workflow regenerates and commits it on changes to
 
 ```
 dot                           # Main menu (TUI)
-dot init                      # One-time first-use setup, ending with dot update; logs to /tmp/dot-init.log
+dot init                      # One-time first-use setup, ending with dot update; logs to ~/.local/state/dot/init.log
 dot init --noninteractive --confirm # Non-interactive first setup for VMs
 dot init --host laptop --noninteractive --confirm # First setup with laptop host overrides
 dot init --log ~/Public/init.log # First setup with an explicit log path

@@ -31,7 +31,7 @@ mise --no-config exec bun@latest -- bun run build
 
 ## First-use setup
 
-`dot init` runs the one-time first-use setup: it bootstraps private dotfiles when `gh auth` is available, syncs Omarchy repos, selects the Hypr host, installs and adopts config, installs stowed mise tools, sets up packages and machine hooks, syncs agents, and finishes with `dot update`. It logs to `/tmp/dot-init.log` by default.
+`dot init` runs the one-time first-use setup: it bootstraps private dotfiles when `gh auth` is available, syncs Omarchy repos, selects the Hypr host, installs and adopts config, installs stowed mise tools, sets up packages and machine hooks, syncs agents, and finishes with `dot update`. It logs to `~/.local/state/dot/init.log` by default.
 
 ```bash
 ~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive --confirm

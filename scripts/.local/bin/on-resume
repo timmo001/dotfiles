@@ -3,12 +3,13 @@
 # Called by hypridle after_sleep_cmd on system resume from sleep.
 # Restarts services that don't recover well after suspend.
 
-LOG_FILE="/tmp/on-resume.log"
+LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/on-resume.log"
 CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 WAYBAR_CACHE_DIR="$CACHE_HOME/waybar"
 DOT_FETCH_CACHE_DIR="$CACHE_HOME/dot/fetch-upstream"
 
 log() {
+  mkdir -p "$(dirname "$LOG_FILE")"
   echo "[$(date '+%H:%M:%S')] $1" >> "$LOG_FILE"
 }
 

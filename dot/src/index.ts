@@ -23,7 +23,7 @@ import {
   ghAuthenticated,
 } from "./lib/bootstrapGit.js";
 import { isGvfsPath, writeMirroredLog } from "./lib/logMirror.js";
-import { CONFIG_DIR, expandHomePath } from "./lib/paths.js";
+import { CONFIG_DIR, STATE_DIR, expandHomePath } from "./lib/paths.js";
 import { ENV, envString, setEnv, unsetEnv } from "./lib/env.js";
 import { menuItemsById } from "./menu.js";
 import { init } from "./commands/Init.js";
@@ -74,7 +74,7 @@ import type {
 import { getCliCommand, nativeCommandNames } from "./cli/spec.js";
 
 const DEBUG = !!envString(ENV.DOT_DEBUG);
-const DEFAULT_INIT_LOG_FILE = join("/tmp", "dot-init.log");
+const DEFAULT_INIT_LOG_FILE = join(STATE_DIR, "dot", "init.log");
 const PRIVATE_DOTFILES_REPO = "timmo001/dotfiles-private";
 const UPDATE_DISABLE_SELF_UPDATE_ARG = "--no-self-update";
 const UPDATE_POST_HOOK_REPO_ARG = "--post-hook-repo";
