@@ -4,7 +4,8 @@ description: Commit current changes via the dot git-commit gateway, then push th
 
 Invoking this command is explicit authorisation to create a commit and push it.
 
-Load and follow the `git-commit` skill. Commit and push through
+Load and follow the `git-commit` skill, and load the `writing-style` skill to
+author the commit subject in the maintainer's voice. Commit and push through
 `dot git-commit --push` (never raw `git commit`/`git push`); it is intended for a
 build agent, so if `dot git-commit` is denied by permissions, stop and report
 rather than falling back. `--push` sets the upstream when missing and never
