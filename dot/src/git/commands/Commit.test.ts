@@ -3,6 +3,8 @@ import {
   branchProtectionError,
   COMMIT_SUBJECT_MAX,
   COMMIT_SUBJECT_SOFT,
+  foreignRemoteSlug,
+  parseRemotes,
   validateCommitMessage,
 } from "./Commit.js";
 
@@ -87,44 +89,104 @@ describe("validateCommitMessage", () => {
   });
 });
 
+describe("parseRemotes", () => {
+  test("collapses fetch/push lines into one ref per remote", () => {
+    const output = [
+      "origin\tgit@github.com:timmo001/frontend.git (fetch)",
+      "origin\tgit@github.com:timmo001/frontend.git (push)",
+      "upstream\thttps://github.com/home-assistant/frontend.git (fetch)",
+      "upstream\thttps://github.com/home-assistant/frontend.git (push)",
+    ].join("\n");
+    expect(parseRemotes(output)).toEqual([
+      { name: "origin", slug: "timmo001/frontend" },
+      { name: "upstream", slug: "home-assistant/frontend" },
+    ]);
+  });
+
+  test("keeps a null slug for non-GitHub remotes", () => {
+    expect(parseRemotes("origin\tgit@gitlab.com:me/x.git (fetch)")).toEqual([
+      { name: "origin", slug: null },
+    ]);
+  });
+});
+
+describe("foreignRemoteSlug", () => {
+  const owners = ["timmo001"];
+
+  test("flags a direct clone of someone else's repo (foreign origin)", () => {
+    expect(
+      foreignRemoteSlug(
+        [{ name: "origin", slug: "home-assistant/frontend" }],
+        owners,
+      ),
+    ).toBe("home-assistant/frontend");
+  });
+
+  test("flags a fork kept for upstream PRs (foreign upstream)", () => {
+    expect(
+      foreignRemoteSlug(
+        [
+          { name: "origin", slug: "timmo001/frontend" },
+          { name: "upstream", slug: "home-assistant/frontend" },
+        ],
+        owners,
+      ),
+    ).toBe("home-assistant/frontend");
+  });
+
+  test("allows your own repo", () => {
+    expect(
+      foreignRemoteSlug(
+        [{ name: "origin", slug: "timmo001/dotfiles" }],
+        owners,
+      ),
+    ).toBeNull();
+  });
+
+  test("allows a takeover fork with no foreign remote", () => {
+    expect(
+      foreignRemoteSlug(
+        [{ name: "origin", slug: "timmo001/frontend" }],
+        owners,
+      ),
+    ).toBeNull();
+  });
+
+  test("is opt-in: no configured owners means no guard", () => {
+    expect(
+      foreignRemoteSlug(
+        [{ name: "origin", slug: "home-assistant/frontend" }],
+        [],
+      ),
+    ).toBeNull();
+  });
+
+  test("owner match is case-insensitive", () => {
+    expect(
+      foreignRemoteSlug(
+        [{ name: "origin", slug: "TimMo001/dotfiles" }],
+        owners,
+      ),
+    ).toBeNull();
+  });
+});
+
 describe("branchProtectionError", () => {
   const base = {
-    owner: "home-assistant",
-    slug: "home-assistant/frontend",
+    foreignSlug: "home-assistant/frontend",
     branch: "dev",
-    myOwners: ["timmo001"],
-    protectedBranches: ["dev"],
+    baseBranch: "dev",
   };
 
-  test("blocks the default branch on a repo you do not own", () => {
+  test("blocks the base branch of a repo you do not own", () => {
     const reason = branchProtectionError(base);
     expect(reason).not.toBeNull();
     expect(reason).toContain("home-assistant/frontend");
     expect(reason).toContain("dev");
   });
 
-  test("is opt-in: no configured owners means no guard", () => {
-    expect(branchProtectionError({ ...base, myOwners: [] })).toBeNull();
-  });
-
-  test("allows repos you own, even on a protected branch", () => {
-    expect(
-      branchProtectionError({
-        ...base,
-        owner: "timmo001",
-        slug: "timmo001/dotfiles",
-      }),
-    ).toBeNull();
-  });
-
-  test("owner match is case-insensitive", () => {
-    expect(
-      branchProtectionError({
-        ...base,
-        owner: "TimMo001",
-        slug: "TimMo001/dotfiles",
-      }),
-    ).toBeNull();
+  test("allows your own repo (no foreign slug), even on its base branch", () => {
+    expect(branchProtectionError({ ...base, foreignSlug: null })).toBeNull();
   });
 
   test("allows a feature branch on a repo you do not own", () => {
@@ -133,15 +195,13 @@ describe("branchProtectionError", () => {
     ).toBeNull();
   });
 
-  test("ignores non-GitHub or unknown remotes", () => {
+  test("base-branch match is case-insensitive", () => {
     expect(
-      branchProtectionError({ ...base, owner: null, slug: null }),
-    ).toBeNull();
+      branchProtectionError({ ...base, branch: "Dev", baseBranch: "dev" }),
+    ).not.toBeNull();
   });
 
-  test("does not fire when the default branch cannot be resolved", () => {
-    expect(
-      branchProtectionError({ ...base, protectedBranches: [] }),
-    ).toBeNull();
+  test("does not fire when the base branch cannot be resolved", () => {
+    expect(branchProtectionError({ ...base, baseBranch: null })).toBeNull();
   });
 });

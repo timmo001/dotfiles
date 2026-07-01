@@ -433,11 +433,11 @@ export const cliCommands: readonly CliCommandSpec[] = [
         ],
       },
       {
-        title: "Branch guard",
+        title: "Base branch guard",
         lines: [
-          "Refuses commits to a repo's default branch on repos you do not",
-          "own (owners in `git config dot.owner`). Add more protected",
-          "branches with `git config --add dot.protectedBranch <name>`.",
+          "Refuses commits to the base branch of a repo you do not own,",
+          "including a fork kept for upstream PRs. Owners you control are",
+          "listed in `git config dot.owner`. Work on a feature branch.",
         ],
       },
     ],

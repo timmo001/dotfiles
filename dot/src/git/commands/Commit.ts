@@ -61,42 +61,76 @@ const SMART_QUOTES = /[\u2018\u2019\u201C\u201D]/;
 /** Two or more consecutive spaces, usually an accidental double space. */
 const DOUBLE_SPACE = / {2,}/;
 
-/** Inputs for the branch-protection guard, all pre-resolved. */
-export interface BranchProtectionInput {
-  /** Owner segment of the origin repo slug, or null when not a GitHub remote. */
-  readonly owner: string | null;
-  /** Full origin `owner/repo` slug for the message, or null. */
+/** A git remote and its normalised GitHub `owner/repo` slug, if any. */
+export interface RemoteRef {
+  /** Remote name, e.g. `origin` or `upstream`. */
+  readonly name: string;
+  /** Normalised `owner/repo` slug, or null when not a GitHub remote. */
   readonly slug: string | null;
-  /** Current branch name (empty when detached). */
-  readonly branch: string;
-  /** Owners the user controls, from `git config --get-all dot.owner`. */
-  readonly myOwners: readonly string[];
-  /** Branch names treated as protected. */
-  readonly protectedBranches: readonly string[];
+}
+
+/** Parse `git remote -v` output into one {@link RemoteRef} per remote name. */
+export function parseRemotes(remoteVerbose: string): readonly RemoteRef[] {
+  const byName = new Map<string, string | null>();
+  for (const line of remoteVerbose.split("\n")) {
+    const [name, url] = line.trim().split(/\s+/);
+    if (!name || !url) continue;
+    if (!byName.has(name)) byName.set(name, normalizeGitHubSlug(url));
+  }
+  return [...byName].map(([name, slug]) => ({ name, slug }));
 }
 
 /**
- * Return a rejection reason when the commit targets a protected branch on a
- * repo the user does not own, otherwise null. The guard is opt-in: with no
- * `dot.owner` configured it never fires, and a repo whose owner is in
- * `dot.owner` is always allowed (you commit to your own default branches
- * freely). Pure and side-effect free.
+ * Return the `owner/repo` slug of a remote owned by someone outside the user's
+ * `dot.owner` allowlist, marking the repo as one to PR to rather than commit to
+ * directly. This catches both a direct clone of someone else's repo (foreign
+ * `origin`) and a fork kept for upstream PRs (foreign `upstream`). Prefers
+ * `upstream`, then `origin`, then any other remote. Returns null when every
+ * remote is the user's own (including a takeover fork with no foreign remote)
+ * or when no owners are configured, keeping the guard opt-in. Pure.
+ */
+export function foreignRemoteSlug(
+  remotes: readonly RemoteRef[],
+  myOwners: readonly string[],
+): string | null {
+  if (myOwners.length === 0) return null;
+  const mine = new Set(myOwners.map((owner) => owner.toLowerCase()));
+  const isForeign = (remote: RemoteRef): boolean =>
+    remote.slug !== null &&
+    !mine.has((remote.slug.split("/")[0] ?? "").toLowerCase());
+
+  const foreign =
+    remotes.find((remote) => remote.name === "upstream" && isForeign(remote)) ??
+    remotes.find((remote) => remote.name === "origin" && isForeign(remote)) ??
+    remotes.find(isForeign);
+  return foreign?.slug ?? null;
+}
+
+/** Inputs for the base-branch guard, all pre-resolved. */
+export interface BaseBranchGuardInput {
+  /** Slug of a repo to PR to, or null when the repo is the user's own. */
+  readonly foreignSlug: string | null;
+  /** Current branch name (empty when detached). */
+  readonly branch: string;
+  /** The repo's resolved base/default branch, or null when unresolved. */
+  readonly baseBranch: string | null;
+}
+
+/**
+ * Return a rejection reason when the commit targets the base branch of a repo
+ * the user does not own, otherwise null. Working directly on the base branch of
+ * someone else's repo, including a fork kept for upstream PRs, is refused; use a
+ * feature branch. The user's own repos, takeover forks with no foreign remote,
+ * and every non-base branch are allowed. Pure and side-effect free.
  */
 export function branchProtectionError(
-  input: BranchProtectionInput,
+  input: BaseBranchGuardInput,
 ): string | null {
-  if (input.myOwners.length === 0) return null;
-  if (!input.owner || !input.slug || !input.branch) return null;
-
-  const mine = new Set(input.myOwners.map((owner) => owner.toLowerCase()));
-  if (mine.has(input.owner.toLowerCase())) return null;
-
-  const protectedSet = new Set(
-    input.protectedBranches.map((branch) => branch.toLowerCase()),
-  );
-  if (!protectedSet.has(input.branch.toLowerCase())) return null;
-
-  return `Refusing to commit to protected branch '${input.branch}' on ${input.slug}: you do not own this repo. Use a feature branch.`;
+  if (!input.foreignSlug || !input.branch || !input.baseBranch) return null;
+  if (input.branch.toLowerCase() !== input.baseBranch.toLowerCase()) {
+    return null;
+  }
+  return `Refusing to commit to base branch '${input.branch}' of ${input.foreignSlug}: do not work on the base branch of a repo you do not own. Use a feature branch.`;
 }
 
 /**
@@ -211,8 +245,9 @@ function readGitConfigAll(
 }
 
 /**
- * Resolve the protected-branch guard against the origin repo owner and the
- * configured owner allowlist, returning a rejection reason or null.
+ * Resolve the base-branch guard: refuse committing to the base branch of a repo
+ * the user does not own (a foreign origin, or a fork with a foreign upstream),
+ * returning a rejection reason or null.
  */
 function checkBranchProtection(): Effect.Effect<
   string | null,
@@ -220,44 +255,34 @@ function checkBranchProtection(): Effect.Effect<
   CommandExecutor
 > {
   return Effect.gen(function* () {
-    const branch = yield* readGit(["branch", "--show-current"]);
-    const slug = normalizeGitHubSlug(
-      yield* readGit(["remote", "get-url", "origin"]),
-    );
-    const owner = slug ? (slug.split("/")[0] ?? null) : null;
+    const remotes = parseRemotes(yield* readGit(["remote", "-v"]));
     const myOwners = yield* readGitConfigAll("dot.owner");
-    const extraProtected = yield* readGitConfigAll("dot.protectedBranch");
-    return branchProtectionError({
-      owner,
-      slug,
-      branch,
-      myOwners,
-      protectedBranches: [
-        ...(yield* resolveDefaultBranch()),
-        ...extraProtected,
-      ],
-    });
+    const foreignSlug = foreignRemoteSlug(remotes, myOwners);
+    if (!foreignSlug) return null;
+
+    const branch = yield* readGit(["branch", "--show-current"]);
+    const baseBranch = yield* resolveBaseBranch();
+    return branchProtectionError({ foreignSlug, branch, baseBranch });
   });
 }
 
 /**
- * Resolve the repo's default branch from `<remote>/HEAD`. This is the branch you
+ * Resolve the repo's base branch from `origin/HEAD`. This is the branch you
  * should not commit to directly on a repo you do not own; no branch names are
- * assumed. Returns an empty list when it cannot be resolved, so the guard fails
- * open rather than blocking on a guess.
+ * assumed. Returns null when it cannot be resolved, so the guard fails open
+ * rather than blocking on a guess.
  */
-function resolveDefaultBranch(): Effect.Effect<
-  readonly string[],
+function resolveBaseBranch(): Effect.Effect<
+  string | null,
   never,
   CommandExecutor
 > {
   return Effect.gen(function* () {
-    const { remote } = resolveDefaultRemote(yield* readGit(["remote"]));
     const symbolicRef = yield* readGit([
       "symbolic-ref",
-      `refs/remotes/${remote}/HEAD`,
+      "refs/remotes/origin/HEAD",
     ]);
-    return symbolicRef ? [parseDefaultBranch(symbolicRef, remote)] : [];
+    return symbolicRef ? parseDefaultBranch(symbolicRef, "origin") : null;
   });
 }
 
