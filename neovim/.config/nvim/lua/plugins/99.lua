@@ -12,7 +12,7 @@ return {
 
     -- visual must be set in visual mode; uses the current/last visual selection
     vim.keymap.set("v", "<leader>9v", function()
-      _99.visual()
+      _99.visual({})
     end, { desc = "99: Visual" })
 
     vim.keymap.set("n", "<leader>9x", function()
@@ -20,7 +20,7 @@ return {
     end, { desc = "99: Stop all" })
 
     vim.keymap.set("n", "<leader>9s", function()
-      _99.search()
+      _99.search({})
     end, { desc = "99: Search" })
 
     vim.keymap.set("n", "<leader>9V", function()
@@ -44,7 +44,7 @@ return {
     end, { desc = "99: Info" })
 
     vim.keymap.set("n", "<leader>9t", function()
-      _99.tutorial()
+      _99.tutorial({})
     end, { desc = "99: Tutorial" })
   end,
 }
