@@ -27,6 +27,10 @@ staging, and message authoring around it.
 
 ## 3. Decide the scope (confirm before staging)
 
+- Prefer several small, coherent commits over one large one. Commit per change,
+  step, or phase so each commit is concise and self-contained; do not lump an
+  entire task into a single commit. This trades some rebase friction for a
+  cleaner, non-conflicting history, which is the preferred tradeoff.
 - If the user already staged files, commit that set. If you also made unrelated
   edits this session, ask before adding them rather than bundling silently.
 - If nothing is staged, show the changed files and confirm which to include
@@ -38,7 +42,8 @@ staging, and message authoring around it.
   of the main commit. Offer a separate follow-up commit for it unless the user
   says otherwise.
 - Prefer `--path <file>` (repeatable) to scope the commit to exact files; it
-  commits only those and leaves any other staged files untouched.
+  commits only those and leaves any other staged files untouched. This is also
+  how you make several scoped commits from one working tree.
 
 ## 4. Write the subject
 
@@ -59,6 +64,11 @@ dot git-commit -m "<subject>" --dry-run       # preview, change nothing
 
 - Use `--dry-run` first when unsure what is staged.
 - If the gateway rejects the subject, fix it and rerun; do not work around it.
+- The gateway refuses to commit to a repo's default branch on a repo you do not
+  own (owners in `git config dot.owner`), so you do not commit to, say, `dev` on
+  `home-assistant/frontend`. The default branch is resolved from the remote, not
+  assumed. Move to a feature branch and open a PR; do not try to work around the
+  guard.
 
 ## 6. Push (only when asked)
 
