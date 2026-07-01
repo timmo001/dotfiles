@@ -5,6 +5,7 @@ import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { displayPath, expandHomePath } from "../../lib/paths.js";
 import { ENV, envString } from "../../lib/env.js";
+import { isPackageInstalled, loadPackageList } from "../../lib/archPackages.js";
 import type { ConfigService } from "../../services/Config.js";
 import type { CheckResult } from "../types.js";
 
@@ -281,31 +282,9 @@ function privatePackageRepoResults(config: ConfigService): CheckResult[] {
   ];
 }
 
-/** Special package name alias handling */
-function resolvePackageName(name: string): {
-  display: string;
-  installed: string;
-} {
-  if (name === "go-automate-git") {
-    return {
-      display: "go-automate (go-automate-git)",
-      installed: "go-automate-git",
-    };
-  }
-  return { display: name, installed: name };
-}
-
-/** Load package list from a file (one per line, skip comments/blanks) */
-function loadPackageList(filePath: string): string[] {
-  try {
-    if (!existsSync(filePath)) return [];
-    return readFileSync(filePath, "utf-8")
-      .split("\n")
-      .map((l) => l.trim())
-      .filter((l) => l && !l.startsWith("#"));
-  } catch {
-    return [];
-  }
+/** Human-facing package label, annotating aliased AUR names. */
+function packageDisplayName(name: string): string {
+  return name === "go-automate-git" ? "go-automate (go-automate-git)" : name;
 }
 
 /** Check public AUR packages are installed and up-to-date */
@@ -330,16 +309,9 @@ export const checkPublicPackages = Effect.gen(function* () {
   }
 
   for (const pkg of packages) {
-    const { display, installed } = resolvePackageName(pkg);
+    const display = packageDisplayName(pkg);
 
-    // Check if installed (try both names for aliased packages)
-    const isInstalled = yield* executor.exitCode("pacman", ["-Q", installed]);
-    const altInstalled =
-      pkg !== installed
-        ? yield* executor.exitCode("pacman", ["-Q", pkg])
-        : isInstalled;
-
-    if (isInstalled !== 0 && altInstalled !== 0) {
+    if (!(yield* isPackageInstalled(pkg))) {
       results.push({ severity: "warn", message: `${display} is missing` });
       missingPackages.push(pkg);
       continue;
@@ -349,10 +321,7 @@ export const checkPublicPackages = Effect.gen(function* () {
 
     // Version comparison (best effort)
     const installedVersion = yield* executor
-      .run("bash", [
-        "-c",
-        `pacman -Q ${installed} 2>/dev/null | awk '{ print $2 }'`,
-      ])
+      .run("bash", ["-c", `pacman -Q ${pkg} 2>/dev/null | awk '{ print $2 }'`])
       .pipe(Effect.catch(() => Effect.succeed("")));
 
     const hasYay = (yield* executor.exitCode("which", ["yay"])) === 0;
@@ -396,7 +365,6 @@ export const checkPrivatePackageRepo = Effect.gen(function* () {
 /** Check private packages are installed */
 export const checkPrivatePackages = Effect.gen(function* () {
   const config = yield* Config;
-  const executor = yield* CommandExecutor;
   const results: CheckResult[] = [];
 
   if (!config.canUsePrivate) {
@@ -429,8 +397,7 @@ export const checkPrivatePackages = Effect.gen(function* () {
 
   const missingPackages: string[] = [];
   for (const pkg of packages) {
-    const isInstalled = yield* executor.exitCode("pacman", ["-Q", pkg]);
-    if (isInstalled === 0) {
+    if (yield* isPackageInstalled(pkg)) {
       results.push({ severity: "ok", message: `${pkg} is installed` });
     } else {
       results.push({ severity: "warn", message: `${pkg} is missing` });

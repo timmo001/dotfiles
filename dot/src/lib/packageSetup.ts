@@ -1,5 +1,5 @@
 import { Effect, Schema } from "effect";
-import { existsSync, readFileSync } from "fs";
+import { existsSync } from "fs";
 import { join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
@@ -7,6 +7,7 @@ import { OutputLog } from "../services/OutputLog.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "./paths.js";
 import { runElevated } from "./elevatedCommand.js";
 import { ENV, envString } from "./env.js";
+import { isPackageInstalled, loadPackageList } from "./archPackages.js";
 import type { ConfigService } from "../services/Config.js";
 
 /** Domain error for package setup failures. */
@@ -51,19 +52,6 @@ function privatePackageListPath(config: ConfigService): string | null {
   );
 }
 
-function loadPackageList(filePath: string): readonly string[] {
-  return readFileSync(filePath, "utf-8")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith("#"));
-}
-
-function installedPackageCandidates(packageName: string): readonly string[] {
-  return packageName === "go-automate-git"
-    ? ["go-automate-git", "go-automate"]
-    : [packageName];
-}
-
 /**
  * Public AUR packages that conflict with an official-repo package which must be
  * removed first. The AUR helper runs `yay -S --noconfirm`, and pacman only
@@ -92,20 +80,6 @@ function commandAvailable(
   });
 }
 
-function packageInstalled(
-  packageName: string,
-): Effect.Effect<boolean, never, CommandExecutor> {
-  return Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
-    for (const candidate of installedPackageCandidates(packageName)) {
-      if ((yield* executor.exitCode("pacman", ["-Q", candidate])) === 0) {
-        return true;
-      }
-    }
-    return false;
-  });
-}
-
 function requirePackageListPath(
   config: ConfigService,
   scope: ArchPackageScope,
@@ -131,7 +105,7 @@ function missingFromPackageList(
   return Effect.gen(function* () {
     const missing: string[] = [];
     for (const packageName of packages) {
-      if (!(yield* packageInstalled(packageName))) missing.push(packageName);
+      if (!(yield* isPackageInstalled(packageName))) missing.push(packageName);
     }
     return missing;
   });

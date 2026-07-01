@@ -4,6 +4,7 @@ import { join, basename } from "path";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../../lib/paths.js";
 import { ENV, envString } from "../../lib/env.js";
+import { isPackageInstalled } from "../../lib/archPackages.js";
 import type { CheckResult } from "../types.js";
 
 /** Check VAAPI hardware video decode support */
@@ -207,8 +208,7 @@ export const checkHardwareVideo = Effect.gen(function* () {
   }
 
   // Check required VAAPI packages
-  const libvaExit = yield* executor.exitCode("pacman", ["-Qi", "libva"]);
-  if (libvaExit !== 0) {
+  if (!(yield* isPackageInstalled("libva"))) {
     results.push({
       severity: "error",
       message: "libva is not installed (required for VAAPI)",
@@ -222,8 +222,7 @@ export const checkHardwareVideo = Effect.gen(function* () {
     "libva-nvidia-driver",
     "libva-mesa-driver",
   ]) {
-    const pkgExit = yield* executor.exitCode("pacman", ["-Qi", pkg]);
-    if (pkgExit === 0) {
+    if (yield* isPackageInstalled(pkg)) {
       results.push({ severity: "ok", message: `${pkg} is installed` });
       hasVaapiDriverPkg = true;
     }
@@ -239,11 +238,7 @@ export const checkHardwareVideo = Effect.gen(function* () {
   // On NVIDIA hybrid setups the dGPU render node only exposes VAAPI through the
   // VAAPI->NVDEC shim, which lives in libva-nvidia-driver.
   if (hasNvidiaNode) {
-    const nvidiaDriverExit = yield* executor.exitCode("pacman", [
-      "-Qi",
-      "libva-nvidia-driver",
-    ]);
-    if (nvidiaDriverExit !== 0) {
+    if (!(yield* isPackageInstalled("libva-nvidia-driver"))) {
       results.push({
         severity: "warn",
         message:
