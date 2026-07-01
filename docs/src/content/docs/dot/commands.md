@@ -297,7 +297,7 @@ maintainer's concise one-line style.
 | --- | --- |
 | `--message` `-m` `<subject>` | Single-line commit subject (required) |
 | `--path` `<file>` | Commit only this file; repeatable |
-| `--push` | Push the current branch after committing (never forces) |
+| `--push` | Push the current branch after committing (pulls --rebase first, never forces) |
 | `--dry-run` | Preview the commit and push plan without changing anything |
 
 **Message guards**

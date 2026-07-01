@@ -101,6 +101,17 @@ export function gitExitCode(
   });
 }
 
+/** Run `git <args>` with inherited stdio and return the exit code without failing. */
+export function gitInheritExitCode(
+  args: readonly string[],
+  opts?: GitCommandOptions,
+): Effect.Effect<number, never, CommandExecutor> {
+  return Effect.gen(function* () {
+    const executor = yield* CommandExecutor;
+    return yield* executor.inherit("git", args, opts);
+  });
+}
+
 /** Run `git <args>` with inherited stdio and fail on non-zero exit. */
 export function gitRequired(
   args: readonly string[],

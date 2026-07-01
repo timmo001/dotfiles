@@ -412,7 +412,8 @@ export const cliCommands: readonly CliCommandSpec[] = [
       },
       {
         name: "--push",
-        description: "Push the current branch after committing (never forces)",
+        description:
+          "Push the current branch after committing (pulls --rebase first, never forces)",
       },
       {
         name: "--dry-run",

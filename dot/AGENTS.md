@@ -217,7 +217,7 @@ dot git-status --diff         # Branch status plus full unstaged and staged diff
 dot git-status --branch-diff  # Branch status plus full merge-base diff vs the default branch (errors on the default branch)
 dot git-commit -m "msg"       # Guarded commit gateway: validates a single-line subject, commits the staged set
 dot git-commit -m "msg" --path src/x.ts # Commit only the named file(s) (repeatable), never git add -A
-dot git-commit -m "msg" --push # Commit then push the current branch (sets upstream when missing, never forces)
+dot git-commit -m "msg" --push # Commit then push the current branch (pulls --rebase first, sets upstream when missing, never forces)
 dot git-commit -m "msg" --dry-run # Preview the commit/push plan without changing anything
 dot git-workflows             # Watched GitHub workflow runs view (TUI)
 dot git-workflows --raw       # CLI workflow run summary

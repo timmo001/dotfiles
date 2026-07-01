@@ -78,8 +78,11 @@ dot git-commit -m "<subject>" --dry-run       # preview, change nothing
 dot git-commit -m "<subject>" --push
 ```
 
-- `--push` sets the upstream when missing and never force-pushes. Only push when
-  the user asked (a `/commit-push` invocation or explicit "push").
+- `--push` pulls with `--rebase` (autostashing local edits) before pushing so a
+  moved-ahead remote fast-forwards, sets the upstream when missing, and never
+  force-pushes. On a rebase conflict it aborts and keeps your commit for manual
+  integration. Only push when the user asked (a `/commit-push` invocation or
+  explicit "push").
 
 ## 7. Report
 

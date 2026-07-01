@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { gitOutput, gitRequired } from "../../lib/git.js";
+import { gitInheritExitCode, gitOutput, gitRequired } from "../../lib/git.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { normalizeGitHubSlug } from "../../services/GitConfig.js";
 import { GitStaging } from "../services/GitStaging.js";
@@ -392,14 +392,27 @@ function reportDryRun(
       lines.push(`  ${files.length} file(s): ${files.join(", ")}`);
     }
     if (input.push) {
-      lines.push(`[dry-run] Would push: ${yield* describePushTarget}`);
+      const { target, hasUpstream } = yield* describePushTarget;
+      lines.push(
+        hasUpstream
+          ? `[dry-run] Would pull --rebase then push: ${target}`
+          : `[dry-run] Would push: ${target}`,
+      );
     }
     yield* writeText(`${lines.join("\n")}\n`);
   });
 }
 
-/** Resolve a human description of where the current branch would push to. */
-const describePushTarget: Effect.Effect<string, never, CommandExecutor> =
+/** A resolved push target and whether it already has an upstream to rebase on. */
+interface PushTarget {
+  /** Human description of where the current branch would push to. */
+  readonly target: string;
+  /** True when an upstream is set, so a real run would pull --rebase first. */
+  readonly hasUpstream: boolean;
+}
+
+/** Resolve where the current branch would push to and whether it has an upstream. */
+const describePushTarget: Effect.Effect<PushTarget, never, CommandExecutor> =
   Effect.gen(function* () {
     const branch = yield* readGit(["branch", "--show-current"]);
     const upstream = yield* readGit([
@@ -408,14 +421,41 @@ const describePushTarget: Effect.Effect<string, never, CommandExecutor> =
       "--symbolic-full-name",
       "@{upstream}",
     ]);
-    if (upstream) return upstream;
+    if (upstream) return { target: upstream, hasUpstream: true };
     const { remote } = resolveDefaultRemote(yield* readGit(["remote"]));
-    return `${remote}/${branch || "(detached)"} (new upstream)`;
+    return {
+      target: `${remote}/${branch || "(detached)"} (new upstream)`,
+      hasUpstream: false,
+    };
   });
 
 /**
- * Push the current branch. Uses the existing upstream when set, otherwise sets
- * one via `-u` against the resolved default remote. Never force-pushes.
+ * Rebase the current branch onto its upstream before pushing, so a remote that
+ * moved ahead (a teammate or bot pushed while you worked) fast-forwards instead
+ * of rejecting the push. Autostashes unstaged changes so a scoped `--path`
+ * commit that left other edits behind still rebases. On a conflict or any other
+ * failure it aborts the rebase to restore the pre-pull state and fails with
+ * guidance, keeping the local commit for manual integration. Never force-pushes.
+ */
+const rebaseOnUpstreamBeforePush = Effect.gen(function* () {
+  const exitCode = yield* gitInheritExitCode([
+    "pull",
+    "--rebase",
+    "--autostash",
+    "--no-edit",
+  ]);
+  if (exitCode === 0) return;
+  yield* gitInheritExitCode(["rebase", "--abort"]);
+  return yield* failCommit(
+    "Could not rebase on the upstream before pushing; aborted the rebase and kept your local commit. Integrate the remote changes manually with git pull --rebase, then push.",
+  );
+});
+
+/**
+ * Push the current branch. When an upstream is set, rebases onto it first (see
+ * {@link rebaseOnUpstreamBeforePush}) so a moved-ahead remote fast-forwards;
+ * otherwise sets a new upstream via `-u` against the resolved default remote.
+ * Never force-pushes.
  */
 const pushCurrentBranch = Effect.gen(function* () {
   const branch = yield* readGit(["branch", "--show-current"]);
@@ -429,6 +469,7 @@ const pushCurrentBranch = Effect.gen(function* () {
     "@{upstream}",
   ]);
   if (upstream) {
+    yield* rebaseOnUpstreamBeforePush;
     yield* gitRequired(["push"]);
     yield* writeText(`Pushed to ${upstream}\n`);
   } else {
