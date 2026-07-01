@@ -64,11 +64,13 @@ dot git-commit -m "<subject>" --dry-run       # preview, change nothing
 
 - Use `--dry-run` first when unsure what is staged.
 - If the gateway rejects the subject, fix it and rerun; do not work around it.
-- The gateway refuses to commit to a repo's default branch on a repo you do not
-  own (owners in `git config dot.owner`), so you do not commit to, say, `dev` on
-  `home-assistant/frontend`. The default branch is resolved from the remote, not
-  assumed. Move to a feature branch and open a PR; do not try to work around the
-  guard.
+- The gateway refuses to commit to the base branch of a repo you do not own
+  (owners in `git config dot.owner`), so you do not commit to, say, `dev` on
+  `home-assistant/frontend`. This also applies to a fork kept for upstream PRs
+  (foreign `upstream` remote): work on a feature branch, not the fork's base
+  branch. A takeover fork with no foreign remote, and every non-base branch, are
+  fine. The base branch is resolved from `origin/HEAD`, not assumed. Move to a
+  feature branch and open a PR; do not try to work around the guard.
 
 ## 6. Push (only when asked)
 
