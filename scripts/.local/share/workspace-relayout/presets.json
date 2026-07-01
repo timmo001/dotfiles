@@ -266,6 +266,25 @@
             "b": "w"
           }
         }
+      },
+      {
+        "name": "4 windows (3 streams left, terminal right)",
+        "tree": {
+          "dir": "lr",
+          "ratio": 63.93,
+          "a": {
+            "dir": "tb",
+            "ratio": 74.83,
+            "a": {
+              "dir": "lr",
+              "ratio": 50,
+              "a": "w",
+              "b": "w"
+            },
+            "b": "w"
+          },
+          "b": "w"
+        }
       }
     ],
     "5": [
