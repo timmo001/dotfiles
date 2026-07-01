@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# Wrapper around topgrade that logs the full session (mimics omarchy-update pattern).
+# Log is stored at /tmp/topgrade.log for post-run review.
+# Adds --sudoloop for steps that need root (system, firmware, containers) so credentials
+# stay cached during long runs, but skips it for user-only steps.
+
+if [[ -z $TOPGRADE_LOGGED ]]; then
+  script_command=$(printf '%q ' "$0" "$@")
+  exec env TOPGRADE_LOGGED=1 script -qefc "$script_command" "/tmp/topgrade.log"
+fi
+
+# Determine if the run includes steps that need sudo.
+needs_sudo=0
+if [[ $# -eq 0 ]]; then
+  # Full run — includes system packages.
+  needs_sudo=1
+else
+  for arg in "$@"; do
+    case "$arg" in
+      system|firmware|containers) needs_sudo=1 ;;
+    esac
+  done
+fi
+
+args=("$@")
+if [[ "$needs_sudo" -eq 1 ]]; then
+  args+=(--sudoloop)
+fi
+
+/usr/bin/topgrade "${args[@]}"
+exit $?

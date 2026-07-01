@@ -1,0 +1,68 @@
+[misc]
+# Let steps request sudo inline when needed (avoids prompting for user-only steps)
+pre_sudo = false
+
+# Keep sudo credentials alive during long runs (e.g. yay)
+sudo_loop = true
+
+# topgrade-bin is AUR-managed; don't self-update over pacman
+no_self_update = true
+
+# Disable specific steps
+# - cursor/node/pnpm: not used
+# - pi/git_repos: not applicable
+# - go/deno/bun/bun_packages/pip3: managed by mise
+# - lensfun: broken (missing python module)
+# - system: skip OS package manager updates
+disable = ["cursor", "node", "pnpm", "pi", "git_repos", "go", "deno", "bun", "bun_packages", "pip3", "lensfun", "system"]
+
+# Cleanup temporary or old files after a run
+cleanup = false
+
+# Desktop notification only on failure
+notify_end = "on_failure"
+
+
+# Commands to run before anything
+[pre_commands]
+
+
+# Commands to run after anything
+[post_commands]
+# omarchy update replaces the built-in system step (updates Omarchy + system packages)
+"Omarchy Update" = "omarchy update"
+
+
+# Custom commands (run as named steps, respect --only/--disable)
+[commands]
+
+
+[linux]
+yay_arguments = "--noconfirm --cleanafter"
+show_arch_news = true
+
+
+[mise]
+bump = true
+
+
+[firmware]
+# Only show available updates, don't install
+upgrade = false
+
+
+[flatpak]
+
+
+[distrobox]
+# containers = ["archlinux-latest"]
+
+
+[vscode]
+# profile = ""
+
+
+[cargo]
+
+
+[rustup]
