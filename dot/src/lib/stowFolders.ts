@@ -16,11 +16,20 @@ const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);
  *   alongside the stowed skills.
  * - `hypr`: the runtime `~/.config/hypr/host` symlink, omarchy shaders, and
  *   `~/.local/state` toggles live alongside the stowed config.
+ * - `neovim`: `omarchy-nvim-setup` owns `~/.config/nvim` and writes into it
+ *   (the `lua/plugins/theme.lua` symlink and its default plugin files);
+ *   folding would make that the repo directory, so omarchy would write inside
+ *   the repo.
  * - `zsh`: tool-generated completions (e.g. `_copilot` from the Copilot CLI)
  *   are written into `~/.local/share/zsh/site-functions/`; folding would make
  *   that the repo directory, so external tools would write inside the repo.
  */
-const NO_FOLDING_STOW_FOLDERS = new Set<string>(["agents", "hypr", "zsh"]);
+const NO_FOLDING_STOW_FOLDERS = new Set<string>([
+  "agents",
+  "hypr",
+  "neovim",
+  "zsh",
+]);
 
 /** Whether a stow package must be laid down with `--no-folding`. */
 export function requiresNoFolding(folder: string): boolean {
