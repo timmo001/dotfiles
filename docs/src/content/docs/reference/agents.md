@@ -15,4 +15,5 @@ Agents set the execution posture (permissions, tool access, delegation) for Open
 | [`general-readonly`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/general-readonly.md) | General-style parallel subagent that researches with read-only tools and a narrow shell inspection allowlist (for delegation from read-only primaries). |
 | [`grill`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/grill.md) | Extended read-only planning interview agent for one-question-at-a-time grilling |
 | [`refactorer`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/refactorer.md) | Refactor code while preserving behavior and following local command and skill workflows |
+| [`researcher`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/researcher.md) | Research a topic against primary sources and return cited findings |
 | [`reviewer`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/reviewer.md) | Reviews code for quality, bugs, security, and best practices |

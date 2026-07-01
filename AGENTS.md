@@ -103,6 +103,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - OpenCode commit command: `/commit [subject]` (routes through the `git-commit` skill and `dot git-commit`)
 - OpenCode commit and push command: `/commit-push [subject]` (commits then pushes via `dot git-commit --push`)
 - OpenCode investigation command: `/investigate <topic>`
+- OpenCode research command: `/research [topic]` (external primary-source research with citations, via the `researcher` agent)
 - OpenCode exploration command: `/explore-codebase <topic>`
 - OpenCode frontend debug command: `/debug-frontend <page or issue>`
 - OpenCode fallow audit command: `/fallow-audit [workspace]`

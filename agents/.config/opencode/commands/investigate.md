@@ -15,6 +15,7 @@ Follow these steps:
    - use the `diagnose` skill for concrete bug reports, regressions, flaky behaviour, or performance problems that need a reproducible feedback loop before fixing
    - use direct reads/searches for narrow local repo lookups
    - use the `task` tool with `subagent_type: "explore"` for broad codebase discovery
+   - use the `task` tool with `subagent_type: "researcher"` for external primary-source research that needs citations (docs, specs, APIs, library or GitHub behaviour)
    - use Chrome DevTools tools for browser-specific investigation
    - use Fallow MCP tools for JavaScript or TypeScript structural analysis
    - use `context7` tools for library/framework documentation lookups
