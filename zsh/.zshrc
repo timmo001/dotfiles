@@ -733,6 +733,20 @@ bindkey "^[[1;5C" forward-word
 bindkey "^[[1;3D" backward-word
 bindkey "^[[1;3C" forward-word
 
+# Standard editing keys (previously provided by oh-my-zsh's key-bindings.zsh,
+# lost when omz was removed). Bind the literal xterm/ghostty sequences plus
+# terminfo fallbacks so Delete/Home/End/Insert work.
+bindkey "^[[3~" delete-char        # Delete
+bindkey "^[[2~" overwrite-mode     # Insert
+bindkey "^[[H"  beginning-of-line  # Home
+bindkey "^[[F"  end-of-line        # End
+bindkey "^[[1~" beginning-of-line  # Home (vt variant)
+bindkey "^[[4~" end-of-line        # End (vt variant)
+[[ -n "${terminfo[kdch1]}" ]] && bindkey "${terminfo[kdch1]}" delete-char
+[[ -n "${terminfo[khome]}" ]] && bindkey "${terminfo[khome]}" beginning-of-line
+[[ -n "${terminfo[kend]}"  ]] && bindkey "${terminfo[kend]}"  end-of-line
+[[ -n "${terminfo[kich1]}" ]] && bindkey "${terminfo[kich1]}" overwrite-mode
+
 # ------------------------------
 # Commands
 # ------------------------------
