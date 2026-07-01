@@ -20,6 +20,7 @@ import {
 } from "./checks/systemd.js";
 import { checkOmarchy } from "./checks/omarchy.js";
 import { checkLegacyHyprRepo } from "./checks/legacyHypr.js";
+import { checkNvimThemeLink } from "./checks/omarchyNvim.js";
 import { checkBrowserFlags } from "./checks/browserFlags.js";
 import { checkHardwareVideo } from "./checks/hardwareVideo.js";
 import { checkBrowserExtensions } from "./checks/browserExtensions.js";
@@ -62,6 +63,7 @@ const sections: readonly SectionDef[] = [
   { name: "Daily volume reset", check: checkDailyVolumeReset },
   { name: "Omarchy repository checks", check: checkOmarchy },
   { name: "Legacy Hypr repo check", check: checkLegacyHyprRepo },
+  { name: "Neovim theme link", check: checkNvimThemeLink },
   { name: "Private access", check: checkPrivateAccess },
   { name: "Browser flags", check: checkBrowserFlags },
   { name: "Hardware video decode", check: checkHardwareVideo },

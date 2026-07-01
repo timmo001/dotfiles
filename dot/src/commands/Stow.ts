@@ -14,6 +14,7 @@ import {
   ensureHyprConfigLink,
   ensureHyprHostLink,
 } from "../lib/omarchyHost.js";
+import { ensureNvimThemeLink } from "../lib/omarchyNvim.js";
 import {
   backupPrivateStowTargets,
   findExternalSkillSymlinks,
@@ -54,6 +55,9 @@ export const stow = (opts?: {
 
       yield* log.section("Omarchy Host Links");
       yield* ensureHyprHostLink(config, log);
+
+      yield* log.section("Omarchy Neovim Theme");
+      yield* ensureNvimThemeLink(log);
     }
 
     if (runPrivate) {

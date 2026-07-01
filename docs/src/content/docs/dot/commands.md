@@ -144,6 +144,7 @@ Doctor startup       Startup notification timer
 Daily volume reset   Laptop-only optional timer
 Omarchy repos        Diff repos + worktree branch correctness
 Legacy Hypr repo     Flags a retired omarchy-hypr clone at ~/.config/hypr
+Neovim theme link    Repairs a mislocated omarchy-nvim theme.lua symlink
 Browser flags        Symlinks from private stow package
 Hardware video       VAAPI render nodes, drivers, packages
 Browser extensions   Private extension check list
