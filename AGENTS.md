@@ -100,6 +100,8 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - OpenCode grilling command: `/grill [focus]` (extended one-question-at-a-time plan stress-testing before `/plan` or implementation)
 - OpenCode review command: `/review-current-work`
 - OpenCode current-work refactor command: `/refactor-current-work [scope]`
+- OpenCode commit command: `/commit [subject]` (routes through the `git-commit` skill and `dot git-commit`)
+- OpenCode commit and push command: `/commit-push [subject]` (commits then pushes via `dot git-commit --push`)
 - OpenCode investigation command: `/investigate <topic>`
 - OpenCode exploration command: `/explore-codebase <topic>`
 - OpenCode frontend debug command: `/debug-frontend <page or issue>`
@@ -108,3 +110,4 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - GitHub notifications command: `dot git-notifications` (`--bar-json`, `--list-threads`, and thread actions)
 - Git diff behavior: `dot git-diff` (`dot diff` is a human compatibility alias)
 - Git status command: `dot git-status` (unstaged, staged, and recent commits with timestamps and remote push status in one shot; substitutes `git status`, `git diff --stat`/`git diff --numstat`, `git diff --cached --stat`, `git log --oneline --stat`, and `git log @{upstream}..HEAD`). Add `--diff` for full unstaged and staged diffs, and `--branch-diff` for the full merge-base diff against the default branch (errors on the default branch).
+- Git commit command: `dot git-commit -m "<subject>"` (guarded commit gateway used by `/commit` and the `git-commit` skill; validates a single-line subject, commits the staged set or `--path` scope, never `git add -A`, `--push` to push, `--dry-run` to preview). Agents commit through this, not raw `git commit`.
