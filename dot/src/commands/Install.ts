@@ -3,7 +3,7 @@ import { join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
-import { listStowFolders } from "../lib/stowFolders.js";
+import { listStowFolders, requiresNoFolding } from "../lib/stowFolders.js";
 import { HOME_DIR, displayPath } from "../lib/paths.js";
 import { ensureHyprHostLink } from "../lib/omarchyHost.js";
 import { ensureStowInstalled } from "../lib/packageSetup.js";
@@ -214,8 +214,10 @@ const stowRepo = (
       // Build stow command with folder-specific flags
       const flags: string[] = [];
       let externalLinks: ExternalSymlink[] = [];
-      if (folder === "agents") {
+      if (requiresNoFolding(folder)) {
         flags.push("--no-folding");
+      }
+      if (folder === "agents") {
         if (scope === "private") {
           flags.push(...AGENTS_PRIVATE_IGNORES);
         }

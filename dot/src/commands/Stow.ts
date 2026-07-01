@@ -4,7 +4,11 @@ import { join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
-import { INTERNAL_STOW_FOLDERS, listStowFolders } from "../lib/stowFolders.js";
+import {
+  INTERNAL_STOW_FOLDERS,
+  listStowFolders,
+  requiresNoFolding,
+} from "../lib/stowFolders.js";
 import { displayPath } from "../lib/paths.js";
 import {
   ensureHyprConfigLink,
@@ -125,10 +129,10 @@ const stowRepo = (
       // Build restow command with folder-specific flags
       const flags: string[] = [];
       let externalLinks: ExternalSymlink[] = [];
-      // hypr must stay a real directory (not a folded symlink) so the runtime
-      // ~/.config/hypr/host symlink, omarchy-provided shaders/, and
-      // ~/.local/state toggles can live alongside the stowed config.
-      if (folder === "agents" || folder === "hypr") {
+      // Some packages must stay real directories (not folded symlinks) so
+      // runtime symlinks, host overrides, and tool-generated files can live
+      // alongside the stowed config. See requiresNoFolding for the rationale.
+      if (requiresNoFolding(folder)) {
         flags.push("--no-folding");
       }
       if (folder === "agents") {

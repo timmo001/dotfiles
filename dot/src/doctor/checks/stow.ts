@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { existsSync } from "fs";
-import { listStowFolders } from "../../lib/stowFolders.js";
+import { listStowFolders, requiresNoFolding } from "../../lib/stowFolders.js";
 import { displayPath } from "../../lib/paths.js";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
@@ -30,16 +30,16 @@ export const checkStow = Effect.gen(function* () {
 
       for (const folder of folders) {
         const extraArgs: string[] = [];
-        if (folder === "agents") {
+        if (requiresNoFolding(folder)) {
           extraArgs.push("--no-folding");
-          if (scope === "private") {
-            extraArgs.push(
-              "--ignore=node_modules",
-              "--ignore=package\\.json",
-              "--ignore=bun\\.lock",
-              "--ignore=\\.gitignore",
-            );
-          }
+        }
+        if (folder === "agents" && scope === "private") {
+          extraArgs.push(
+            "--ignore=node_modules",
+            "--ignore=package\\.json",
+            "--ignore=bun\\.lock",
+            "--ignore=\\.gitignore",
+          );
         }
 
         const cmd = ["stow", "-n", "-v", ...extraArgs, folder].join(" ");
