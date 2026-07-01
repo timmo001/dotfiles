@@ -28,7 +28,7 @@ A clean, end-to-end walkthrough for setting up a new machine.
 10. Run `dot update` for ongoing sync, stow, rebuild, and init-state backfill.
 
 :::tip[Hypr host and mise tools]
-`dot init` selects the Hypr host early (setting `OMARCHY_HOST`), and the stow phase of the final update creates `~/.config/hypr/host`. It runs `mise install` immediately after stowing dotfiles and before installing managed Arch/AUR package lists, so Bun, Node, pnpm, and similar tools come from the stowed mise config rather than global pacman packages.
+`dot init` selects the Hypr host early (setting `OMARCHY_HOST`), and the stow phase of the final update creates `~/.config/hypr/host`. It runs `mise install` immediately after stowing dotfiles and before installing managed Arch/AUR package lists, so Bun, Node, pnpm, and similar tools come from the stowed mise config rather than global pacman packages. Each `dot update` (and so the final update in `dot init`) also trusts the mise configs in the repos dot tracks, so `mise` never prompts to trust them on this machine.
 :::
 
 :::note[GNOME Boxes shared folders]

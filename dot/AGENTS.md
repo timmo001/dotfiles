@@ -189,7 +189,7 @@ dot init --noninteractive --confirm # Non-interactive first setup for VMs
 dot init --host laptop --noninteractive --confirm # First setup with laptop host overrides
 dot init --log ~/Public/init.log # First setup with an explicit log path
 dot install                   # Ensure prerequisites, then backup/adopt install flow
-dot update                    # Full update (install deps, rebuild, restart, pull, stow, init-state backfill)
+dot update                    # Full update (install deps, rebuild, restart, pull, trust mise configs, stow, init-state backfill)
 dot update --pull             # Pull repos only
 dot update --stow             # Stow only
 dot update --tui              # Install deps and rebuild binary only

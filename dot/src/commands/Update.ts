@@ -10,6 +10,7 @@ import { agentsSync } from "./AgentsSync.js";
 import { writeAllCompletions } from "./Completions.js";
 import { rebuild, restartDot } from "../lib/selfUpdate.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
+import { trustTrackedMiseConfigs } from "../lib/miseTrust.js";
 import {
   ensureInitCompleteMarker,
   initCompleteMarker,
@@ -376,7 +377,9 @@ const haltOnLegacyHyprRepo = (config: ConfigService) =>
  *
  * The pull phase fetch-scans every tracked repo (public, private, notes,
  * omarchy + worktrees, schedule-gated extras) via {@link DotDiff} and only
- * pulls repos that are behind upstream. Full updates pull public dotfiles,
+ * pulls repos that are behind upstream. It then marks any mise config files in
+ * the tracked repos as trusted (best-effort) so `mise` never prompts for them
+ * on this machine. Full updates pull public dotfiles,
  * rebuild, and restart without self-update before continuing the workflow.
  * Pull notifications fire only when a repo actually moved, while post-hooks
  * (agents-sync) run on every full update regardless of pulls
@@ -484,6 +487,10 @@ export const update = (opts?: UpdateOptions) =>
           }
         }),
       );
+
+      // Trust mise configs in freshly pulled/cloned repos so mise never
+      // prompts for them on this machine.
+      yield* trustTrackedMiseConfigs;
     }
 
     if (doStow) {
