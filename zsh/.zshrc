@@ -22,6 +22,20 @@ if [[ -d "${XDG_DATA_HOME:-$HOME/.local/share}/zsh/site-functions" ]]; then
 fi
 
 # ------------------------------
+# mise completions
+# Generated at runtime into a live (non-stowed) path; regenerates when the
+# mise binary is upgraded. Runs before zsh-autocomplete's compinit so _mise
+# is discovered on fpath in the same session. Not version-controlled.
+# ------------------------------
+if command -v mise &> /dev/null; then
+  _mise_comp="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/site-functions/_mise"
+  if [[ ! -e "$_mise_comp" || "$(command -v mise)" -nt "$_mise_comp" ]]; then
+    mise completion zsh > "$_mise_comp" 2>/dev/null
+  fi
+  unset _mise_comp
+fi
+
+# ------------------------------
 # Ghostty shell features
 # Strip title features; the hooks below own the terminal title.
 # ------------------------------
@@ -51,6 +65,9 @@ compdef _dot dot 2>/dev/null
 
 autoload -Uz _omarchy 2>/dev/null
 compdef _omarchy omarchy 2>/dev/null
+
+autoload -Uz _mise 2>/dev/null
+compdef _mise mise 2>/dev/null
 
 # ------------------------------
 # Terminal title
