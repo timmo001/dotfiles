@@ -1,6 +1,6 @@
 ---
 name: pitchfork-dev-servers
-description: Prefer pitchfork-backed workflows for long-running local dev servers and check available MCP/tooling first. Use when starting, stopping, checking, or tailing development servers, background servers, `pitchfork.toml`, pitchfork MCP tools, or local AGENTS/mise tasks that mention pitchfork.
+description: Prefer pitchfork-backed workflows for long-running local dev servers and check available MCP/tooling first. Use when starting, stopping, restarting, checking, or tailing development servers, background servers, `pitchfork.toml`, pitchfork MCP tools, or local AGENTS/mise tasks that mention pitchfork.
 ---
 
 # Pitchfork Dev Servers
@@ -20,7 +20,7 @@ Use this skill when a task involves starting or managing a long-running local se
 2. Defer to local `AGENTS.md`, project skills, and repo tasks for the exact command. Do not invent a naming convention when the repo has one.
 3. Use foreground commands only for explicit foreground debugging, one-shot checks, or when pitchfork is unavailable.
 4. Do not assume MCP `pitchfork_start` can start per-repo daemons from any cwd. If start fails with no matching daemon, run the repo's local pitchfork-backed task from that repo directory.
-5. Use pitchfork MCP status, logs, and stop tools when available once a daemon exists. Otherwise use the matching CLI commands.
+5. Use pitchfork MCP status, logs, restart, and stop tools when available once a daemon exists. Otherwise use the matching CLI commands.
 6. When wrappers stop production resource owners, avoid replacing them with broad process kills. Prefer resource-targeted commands like `fuser <port>/tcp` or `fuser <socket>`.
 
 ## Command Discovery
@@ -28,7 +28,7 @@ Use this skill when a task involves starting or managing a long-running local se
 1. Read local `AGENTS.md` first for the repo's preferred dev-server commands.
 2. Use `mise tasks` when the command name is not obvious.
 3. If there is no wrapper task but `pitchfork.toml` exists, run pitchfork directly from the repo directory.
-4. Typical operations are `pitchfork start <daemon>`, `pitchfork status`, `pitchfork logs -t <daemon>`, and `pitchfork stop <daemon>`.
+4. Typical operations are `pitchfork start <daemon>`, `pitchfork status`, `pitchfork logs -t <daemon>`, `pitchfork restart <daemon>`, and `pitchfork stop <daemon>`.
 5. Treat `serve:*` as a common local convention, not a requirement.
 
 ## Notes
