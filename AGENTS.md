@@ -93,7 +93,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 ## Validation
 
 - Basic health check: `dot doctor`
-- Dev tasks: `mise run <task>` in `dot/` (`build`, `typecheck`, `format`, `check`) and `docs/` (`build`, `dev`, `gen`); `mise tasks` lists them.
+- Dev tasks: `mise run <task>` in `dot/` (`build`, `typecheck`, `format`, `check`) and `docs/` (`build`, `dev`, `gen`, `check`); `mise tasks` lists them.
 - OpenCode debug wrapper: `dot opencode-debug`
 - OpenCode context injection command: `/inject-context [instruction]`
 - OpenCode planning command: `/plan [focus]` (manual entrypoint; some agents can also switch into plan mode via native `plan_enter`)

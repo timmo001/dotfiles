@@ -31,3 +31,7 @@ run = "bun run gen:opencode"
 [tasks.gen]
 description = "Regenerate all generated reference pages"
 run = "bun run gen"
+
+[tasks.check]
+description = "Build the docs site (validates internal links)"
+depends = ["build"]
