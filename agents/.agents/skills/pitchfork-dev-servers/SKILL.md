@@ -22,6 +22,7 @@ Use this skill when a task involves starting or managing a long-running local se
 4. Do not assume MCP `pitchfork_start` can start per-repo daemons from any cwd. If start fails with no matching daemon, run the repo's local pitchfork-backed task from that repo directory.
 5. Use pitchfork MCP status, logs, restart, and stop tools when available once a daemon exists. Otherwise use the matching CLI commands.
 6. When wrappers stop production resource owners, avoid replacing them with broad process kills. Prefer resource-targeted commands like `fuser <port>/tcp` or `fuser <socket>`.
+7. OpenCode's `pitchfork-dev-server-guard` plugin redirects known foreground dev-server shell commands to pitchfork-backed tasks in repos that declare `pitchfork.toml`; if a command is rejected, follow the replacement command in the error.
 
 ## Command Discovery
 
