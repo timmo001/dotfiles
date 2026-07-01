@@ -22,9 +22,9 @@ Two areas are generated from the single source of truth in the repo:
 - `src/content/docs/dot/commands.md` ← `dot/src/cli/spec.ts` via `mise run gen:cli` (wraps `bun run gen:cli`).
 - `src/content/docs/reference/{agents,commands,skills,plugins}.md` ← `agents/.config/opencode/**` and `agents/.agents/skills/**` via `mise run gen:opencode` (wraps `bun run gen:opencode`).
 
-`mise run dev` (and `bun run dev`) regenerates both first (via `predev`). `bun run build` does **not** regenerate (Vercel builds the committed output). CI regenerates and commits these via `mise run gen:cli` / `mise run gen:opencode` when their sources change. When you change a `dot` command or an OpenCode asset, run `mise run gen` and commit the result (the `dot` reference also pairs with shell completions).
+`mise run dev` (and `bun run dev`) regenerates both first (via `predev`). `bun run build` does **not** regenerate (Vercel builds the committed output). CI regenerates these references and fails if the committed output is stale. When you change a `dot` command or an OpenCode asset, run `mise run gen` and commit the result (the `dot` reference also pairs with shell completions).
 
-The `docs-drift` workflow enforces this on pull requests: it runs `mise run gen` and fails when the committed `commands.md` or `reference/*.md` differ from a fresh regeneration, so regenerate and commit before opening a PR. The push-time auto-commit above still self-heals direct pushes to the default branch.
+The `docs-drift`, `tui-build`, and `opencode-publish` workflows enforce this on pull requests and direct pushes: they regenerate the relevant pages and fail when the committed `commands.md` or `reference/*.md` differ from a fresh regeneration. Regenerate and commit the generated files before pushing.
 
 The `tui-build` workflow also builds the docs site (`mise run build`, which runs `starlight-links-validator`) on `docs/**` or `dot/**` changes, so broken internal links fail CI before Vercel deploys.
 

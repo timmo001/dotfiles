@@ -82,16 +82,10 @@ jobs:
         run: mise run build
         working-directory: docs
 
-      - name: Commit regenerated command reference
+      - name: Verify regenerated command reference is committed
         if: steps.changes.outputs.dot == 'true' && github.event_name == 'push'
         run: |
-          if git diff --quiet -- docs/src/content/docs/dot/commands.md; then
-            echo "No command reference changes to commit"
-            exit 0
+          if ! git diff --exit-code -- docs/src/content/docs/dot/commands.md; then
+            echo "::error::Dot command reference is out of date. Run 'mise run gen:cli' in docs/ and commit the result (and run dot completions when command metadata changes)."
+            exit 1
           fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add docs/src/content/docs/dot/commands.md
-          git commit -m "docs: regenerate dot command reference from ${GITHUB_SHA::7}"
-          git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
