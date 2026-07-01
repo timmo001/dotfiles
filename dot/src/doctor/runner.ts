@@ -5,6 +5,7 @@ import { GitHub } from "../git/services/GitHub.js";
 import { checkDependencies } from "./checks/dependencies.js";
 import { checkGhExtensions } from "./checks/ghExtensions.js";
 import { checkLocale } from "./checks/locale.js";
+import { checkZshKeybindings } from "./checks/zshKeybindings.js";
 import { checkRepos, checkPrivateAccess } from "./checks/repos.js";
 import { checkStow } from "./checks/stow.js";
 import { checkOpencode } from "./checks/opencode.js";
@@ -50,6 +51,7 @@ const sections: readonly SectionDef[] = [
   { name: "Dependency checks", check: checkDependencies },
   { name: "gh extension checks", check: checkGhExtensions },
   { name: "Locale", check: checkLocale },
+  { name: "Zsh key bindings", check: checkZshKeybindings },
   { name: "Repository checks", check: checkRepos },
   { name: "Origin HEAD freshness", check: checkOriginHead },
   { name: "Stow integrity", check: checkStow },
