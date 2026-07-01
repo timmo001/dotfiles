@@ -432,6 +432,14 @@ export const cliCommands: readonly CliCommandSpec[] = [
           "Reject over 120 Fails; shorten the subject",
         ],
       },
+      {
+        title: "Branch guard",
+        lines: [
+          "Refuses commits to a repo's default branch on repos you do not",
+          "own (owners in `git config dot.owner`). Add more protected",
+          "branches with `git config --add dot.protectedBranch <name>`.",
+        ],
+      },
     ],
     examples: [
       'dot git-commit -m "Add commit gateway"',

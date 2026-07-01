@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  branchProtectionError,
   COMMIT_SUBJECT_MAX,
   COMMIT_SUBJECT_SOFT,
   validateCommitMessage,
@@ -83,5 +84,64 @@ describe("validateCommitMessage", () => {
     const result = validateCommitMessage("Update");
     expect(result.ok).toBe(true);
     expect(result.warnings.join(" ")).toContain("single word");
+  });
+});
+
+describe("branchProtectionError", () => {
+  const base = {
+    owner: "home-assistant",
+    slug: "home-assistant/frontend",
+    branch: "dev",
+    myOwners: ["timmo001"],
+    protectedBranches: ["dev"],
+  };
+
+  test("blocks the default branch on a repo you do not own", () => {
+    const reason = branchProtectionError(base);
+    expect(reason).not.toBeNull();
+    expect(reason).toContain("home-assistant/frontend");
+    expect(reason).toContain("dev");
+  });
+
+  test("is opt-in: no configured owners means no guard", () => {
+    expect(branchProtectionError({ ...base, myOwners: [] })).toBeNull();
+  });
+
+  test("allows repos you own, even on a protected branch", () => {
+    expect(
+      branchProtectionError({
+        ...base,
+        owner: "timmo001",
+        slug: "timmo001/dotfiles",
+      }),
+    ).toBeNull();
+  });
+
+  test("owner match is case-insensitive", () => {
+    expect(
+      branchProtectionError({
+        ...base,
+        owner: "TimMo001",
+        slug: "TimMo001/dotfiles",
+      }),
+    ).toBeNull();
+  });
+
+  test("allows a feature branch on a repo you do not own", () => {
+    expect(
+      branchProtectionError({ ...base, branch: "feature/thing" }),
+    ).toBeNull();
+  });
+
+  test("ignores non-GitHub or unknown remotes", () => {
+    expect(
+      branchProtectionError({ ...base, owner: null, slug: null }),
+    ).toBeNull();
+  });
+
+  test("does not fire when the default branch cannot be resolved", () => {
+    expect(
+      branchProtectionError({ ...base, protectedBranches: [] }),
+    ).toBeNull();
   });
 });

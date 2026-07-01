@@ -310,6 +310,14 @@ Warn over 60    Warns on stderr, still commits
 Reject over 120 Fails; shorten the subject
 ```
 
+**Branch guard**
+
+```text
+Refuses commits to a repo's default branch on repos you do not
+own (owners in `git config dot.owner`). Add more protected
+branches with `git config --add dot.protectedBranch <name>`.
+```
+
 **Examples**
 
 ```bash

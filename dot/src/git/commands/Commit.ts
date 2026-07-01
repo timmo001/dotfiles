@@ -1,8 +1,9 @@
 import { Effect } from "effect";
 import { gitOutput, gitRequired } from "../../lib/git.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
+import { normalizeGitHubSlug } from "../../services/GitConfig.js";
 import { GitStaging } from "../services/GitStaging.js";
-import { resolveDefaultRemote } from "../remotes.js";
+import { resolveDefaultRemote, parseDefaultBranch } from "../remotes.js";
 import { handleCommandError, writeText } from "./rows.js";
 
 /**
@@ -59,6 +60,44 @@ const SMART_QUOTES = /[\u2018\u2019\u201C\u201D]/;
 
 /** Two or more consecutive spaces, usually an accidental double space. */
 const DOUBLE_SPACE = / {2,}/;
+
+/** Inputs for the branch-protection guard, all pre-resolved. */
+export interface BranchProtectionInput {
+  /** Owner segment of the origin repo slug, or null when not a GitHub remote. */
+  readonly owner: string | null;
+  /** Full origin `owner/repo` slug for the message, or null. */
+  readonly slug: string | null;
+  /** Current branch name (empty when detached). */
+  readonly branch: string;
+  /** Owners the user controls, from `git config --get-all dot.owner`. */
+  readonly myOwners: readonly string[];
+  /** Branch names treated as protected. */
+  readonly protectedBranches: readonly string[];
+}
+
+/**
+ * Return a rejection reason when the commit targets a protected branch on a
+ * repo the user does not own, otherwise null. The guard is opt-in: with no
+ * `dot.owner` configured it never fires, and a repo whose owner is in
+ * `dot.owner` is always allowed (you commit to your own default branches
+ * freely). Pure and side-effect free.
+ */
+export function branchProtectionError(
+  input: BranchProtectionInput,
+): string | null {
+  if (input.myOwners.length === 0) return null;
+  if (!input.owner || !input.slug || !input.branch) return null;
+
+  const mine = new Set(input.myOwners.map((owner) => owner.toLowerCase()));
+  if (mine.has(input.owner.toLowerCase())) return null;
+
+  const protectedSet = new Set(
+    input.protectedBranches.map((branch) => branch.toLowerCase()),
+  );
+  if (!protectedSet.has(input.branch.toLowerCase())) return null;
+
+  return `Refusing to commit to protected branch '${input.branch}' on ${input.slug}: you do not own this repo. Use a feature branch.`;
+}
 
 /**
  * Validate a commit subject against the maintainer's style guards: single line,
@@ -156,6 +195,72 @@ function readGit(
   );
 }
 
+/** Read a multi-valued git config key into trimmed, non-empty values. */
+function readGitConfigAll(
+  key: string,
+): Effect.Effect<readonly string[], never, CommandExecutor> {
+  return gitOutput(["config", "--get-all", key]).pipe(
+    Effect.map((output) =>
+      output
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean),
+    ),
+    Effect.catch(() => Effect.succeed([] as readonly string[])),
+  );
+}
+
+/**
+ * Resolve the protected-branch guard against the origin repo owner and the
+ * configured owner allowlist, returning a rejection reason or null.
+ */
+function checkBranchProtection(): Effect.Effect<
+  string | null,
+  never,
+  CommandExecutor
+> {
+  return Effect.gen(function* () {
+    const branch = yield* readGit(["branch", "--show-current"]);
+    const slug = normalizeGitHubSlug(
+      yield* readGit(["remote", "get-url", "origin"]),
+    );
+    const owner = slug ? (slug.split("/")[0] ?? null) : null;
+    const myOwners = yield* readGitConfigAll("dot.owner");
+    const extraProtected = yield* readGitConfigAll("dot.protectedBranch");
+    return branchProtectionError({
+      owner,
+      slug,
+      branch,
+      myOwners,
+      protectedBranches: [
+        ...(yield* resolveDefaultBranch()),
+        ...extraProtected,
+      ],
+    });
+  });
+}
+
+/**
+ * Resolve the repo's default branch from `<remote>/HEAD`. This is the branch you
+ * should not commit to directly on a repo you do not own; no branch names are
+ * assumed. Returns an empty list when it cannot be resolved, so the guard fails
+ * open rather than blocking on a guess.
+ */
+function resolveDefaultBranch(): Effect.Effect<
+  readonly string[],
+  never,
+  CommandExecutor
+> {
+  return Effect.gen(function* () {
+    const { remote } = resolveDefaultRemote(yield* readGit(["remote"]));
+    const symbolicRef = yield* readGit([
+      "symbolic-ref",
+      `refs/remotes/${remote}/HEAD`,
+    ]);
+    return symbolicRef ? [parseDefaultBranch(symbolicRef, remote)] : [];
+  });
+}
+
 /** Write a line to stderr without failing. */
 function writeStderr(text: string): Effect.Effect<void> {
   return Effect.sync(() => process.stderr.write(text));
@@ -177,6 +282,11 @@ export function gitCommitRaw(
     ]);
     if (insideWorkTree !== "true") {
       return yield* failCommit("Not inside a git repository.");
+    }
+
+    const protection = yield* checkBranchProtection();
+    if (protection) {
+      return yield* failCommit(protection);
     }
 
     if (options.message === undefined) {
