@@ -1,0 +1,52 @@
+name: Docs drift
+
+# Fails a pull request when the generated docs are stale: it regenerates the
+# command reference and OpenCode reference, then fails if the committed pages
+# differ. This complements the auto-commit on push in tui-build.yml and
+# opencode-publish.yml, which self-heals direct pushes to the default branch.
+
+on:
+  pull_request:
+    paths:
+      - 'dot/src/cli/spec.ts'
+      - 'agents/.config/opencode/**'
+      - 'agents/.agents/skills/**'
+      - 'docs/scripts/generate-cli-reference.ts'
+      - 'docs/scripts/generate-opencode-reference.ts'
+      - 'docs/src/content/docs/dot/commands.md'
+      - 'docs/src/content/docs/reference/**'
+      - '.github/workflows/docs-drift.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Setup mise
+        uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+        with:
+          install: false
+
+      - name: Install docs tools
+        run: |
+          mise trust
+          mise install
+        working-directory: docs
+
+      - name: Regenerate generated docs
+        run: mise run gen
+        working-directory: docs
+
+      - name: Verify generated docs are in sync
+        run: |
+          if ! git diff --exit-code -- \
+            docs/src/content/docs/dot/commands.md \
+            docs/src/content/docs/reference; then
+            echo "::error::Generated docs are out of date. Run 'mise run gen' in docs/ and commit the result (the dot command reference also pairs with 'dot completions')."
+            exit 1
+          fi

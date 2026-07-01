@@ -1,6 +1,6 @@
 ---
 title: System Utilities
-description: Health checks, benchmarks, and optional timers.
+description: Health checks, system updates, benchmarks, and optional timers.
 ---
 
 ## System health check
@@ -13,6 +13,21 @@ system-health-check --open-opencode # run opencode run against the report, then 
 ```
 
 Add `--open-opencode` to run `opencode run` against the saved report and then open a full interactive OpenCode session with `opencode --continue`.
+
+## System updates
+
+[topgrade](https://github.com/topgrade-rs/topgrade) runs the machine's update steps (AUR via `yay`, Flatpak, firmware checks, `mise` tools, `rustup`, `cargo`, and more) in one pass. The repo stows a tuned config to `~/.config/topgrade.toml` and a logging wrapper at `scripts/.local/bin/topgrade` that shadows the system binary via `~/.local/bin` on `PATH`.
+
+```bash
+topgrade            # full run (all enabled steps)
+topgrade mise cargo # run only named steps
+```
+
+- The wrapper logs the full session to `$XDG_STATE_HOME/topgrade.log` (default `~/.local/state/topgrade.log`) with `script`, mirroring the `omarchy-update` pattern, so you can review a run afterwards.
+- It adds `--sudoloop` automatically when a run includes steps that need root (a full run, or the `system`, `firmware`, or `containers` steps) so credentials stay cached during long runs, and skips it for user-only steps.
+- `omarchy update -y` runs as a post-command in place of topgrade's built-in `system` step (which is disabled), so Omarchy and OS packages update through Omarchy's own flow.
+- Firmware is check-only, `mise` bumps tool versions, and `yay` runs with `--noconfirm --cleanafter`.
+- Steps managed elsewhere or unused are disabled (for example `bun`, `deno`, `go`, and `pnpm` come from `mise`; `hyprpm` is skipped because it drops the shared sudo credential and would force `omarchy update` to re-authenticate). A desktop notification fires only on failure.
 
 ## Benchmarks and tests
 

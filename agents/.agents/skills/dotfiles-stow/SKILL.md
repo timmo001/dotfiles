@@ -71,6 +71,16 @@ Use `dot` as the canonical workflow command instead of raw `stow` for normal ope
 - Preserve existing unrelated changes in dirty worktrees.
 - If private repo access is unavailable, continue with public-safe steps and clearly report what private actions were skipped.
 
+## Documentation Sync Rules
+
+When editing the public dotfiles repo (`~/.config/dotfiles`), treat a docs update as part of the change, not a follow-up:
+
+- The Astro + Starlight site under `docs/` is the canonical human documentation. Any change to documented behaviour (commands, flags, workflows, paths, config, stow packages, or user-facing scripts) must update the relevant page under `docs/src/content/docs/` in the same commit.
+- New stow packages and user-facing scripts (for example a `topgrade/` package or a `scripts/.local/bin/*` tool) are not generated. Add or extend a hand-written page under `configuration/`, `dot/`, `omarchy/`, or `getting-started/`.
+- `docs/src/content/docs/dot/commands.md` and `docs/src/content/docs/reference/{agents,commands,skills,plugins}.md` are generated. Edit their sources (`dot/src/cli/spec.ts` and the OpenCode assets under `agents/**`), then run `mise run gen` in `docs/` and commit the result; the `dot` reference also pairs with `dot completions`.
+- The `docs-drift` CI workflow fails a pull request when a fresh `mise run gen` would change those generated pages, so regenerate and commit before opening a PR.
+- See the repo `AGENTS.md` "Documentation Site" section for the full source-to-page mapping.
+
 ## Omarchy Host Override Documentation Rules
 
 - Hyprland config is a stowed dotfiles package (`hypr/.config/hypr/`, conf-only), not a tracked Omarchy repo.
