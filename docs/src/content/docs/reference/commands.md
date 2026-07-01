@@ -12,6 +12,8 @@ Commands are thin routing prompts: they name an agent, declare required skills o
 | [`/all-lit-skills`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/all-lit-skills.md) | Apply all Lit rendering skills in current git scope | `default` |
 | [`/all-ts-skills`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/all-ts-skills.md) | Apply all TypeScript-specific skills in current git scope | `default` |
 | [`/check-skill-updates`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/check-skill-updates.md) | Check imported skills for upstream updates | `default` |
+| [`/commit-push`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/commit-push.md) | Commit current changes via the dot git-commit gateway, then push the branch | `default` |
+| [`/commit`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/commit.md) | Commit current changes via the dot git-commit gateway in the maintainer's one-line style | `default` |
 | [`/debug-frontend`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/debug-frontend.md) | Debug browser-specific UI issues with Chrome DevTools tools first | `ask` |
 | [`/explore-codebase`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/explore-codebase.md) | Explore a codebase topic with the task explore subagent | `ask` |
 | [`/fallow-audit`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/fallow-audit.md) | Audit changed JavaScript or TypeScript code with Fallow | `ask` |
