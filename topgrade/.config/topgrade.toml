@@ -14,7 +14,9 @@ no_self_update = true
 # - go/deno/bun/bun_packages/pip3: managed by mise
 # - lensfun: broken (missing python module)
 # - system: skip OS package manager updates
-disable = ["cursor", "node", "pnpm", "pi", "git_repos", "go", "deno", "bun", "bun_packages", "pip3", "lensfun", "system"]
+# - hyprpm: no plugins installed; it caches then drops sudo (sudo -k), which
+#   wipes the shared credential and forces omarchy update to re-auth
+disable = ["cursor", "node", "pnpm", "pi", "git_repos", "go", "deno", "bun", "bun_packages", "pip3", "lensfun", "system", "hyprpm"]
 
 # Cleanup temporary or old files after a run
 cleanup = false
@@ -30,7 +32,8 @@ notify_end = "on_failure"
 # Commands to run after anything
 [post_commands]
 # omarchy update replaces the built-in system step (updates Omarchy + system packages)
-"Omarchy Update" = "omarchy update"
+# -y skips the interactive "Ready to update?" confirmation (topgrade already gates the run)
+"Omarchy Update" = "omarchy update -y"
 
 
 # Custom commands (run as named steps, respect --only/--disable)
