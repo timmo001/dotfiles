@@ -17,13 +17,7 @@ export interface WorkflowRunCounts {
 
 /** Repository-level workflow state derived from the run list. */
 export type WorkflowRepoStatus =
-  | "error"
-  | "not-loaded"
-  | "running"
-  | "mixed"
-  | "failed"
-  | "passed"
-  | "quiet";
+  "error" | "not-loaded" | "running" | "mixed" | "failed" | "passed" | "quiet";
 
 const REPO_STATUS_ICONS: Record<WorkflowRepoStatus, string> = {
   error: "\u00d7",

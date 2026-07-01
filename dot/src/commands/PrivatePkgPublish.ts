@@ -40,8 +40,7 @@ type ParsedPrivatePkgPublishArgs =
   | { readonly type: "error"; readonly message: string };
 
 type ParseArgResult =
-  | { readonly type: "continue" }
-  | ParsedPrivatePkgPublishArgs;
+  { readonly type: "continue" } | ParsedPrivatePkgPublishArgs;
 
 const PRIVATE_PKG_PUBLISH_USAGE =
   "Usage: dot private-pkg-publish [--no-git] [--skip-build] [--install] <package-name>";

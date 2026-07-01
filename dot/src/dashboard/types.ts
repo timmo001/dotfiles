@@ -2,11 +2,7 @@ import type { DiffRepo, ViewId } from "../types.js";
 
 /** Visual state used to colour a dashboard card. */
 export type DashboardTone =
-  | "attention"
-  | "active"
-  | "ok"
-  | "muted"
-  | "prototype";
+  "attention" | "active" | "ok" | "muted" | "prototype";
 
 /** Bounded external source IDs read by the dashboard source layer. */
 export type DashboardBarModuleId =
@@ -20,11 +16,7 @@ export type DashboardBarModuleId =
 
 /** Runtime state for a bounded dashboard source command. */
 export type DashboardBarStatus =
-  | "loading"
-  | "ok"
-  | "hidden"
-  | "missing"
-  | "error";
+  "loading" | "ok" | "hidden" | "missing" | "error";
 
 /** One parsed JSON source value with `text`, `tooltip`, and `class` fields. */
 export interface DashboardBarValue {

@@ -65,11 +65,7 @@ export function detectLegacyHyprRepo(config: ConfigService): LegacyHyprRepo {
 }
 
 type HostLinkStatus =
-  | "missing"
-  | "ok"
-  | "repair"
-  | "not-symlink"
-  | "inspect-failed";
+  "missing" | "ok" | "repair" | "not-symlink" | "inspect-failed";
 
 type HostLinkRequest =
   | { readonly status: "disabled" }

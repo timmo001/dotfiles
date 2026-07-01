@@ -324,15 +324,13 @@ export class NoteCreatePrompt {
     this.descInput.blur();
 
     this.templateList.setItems(
-      ALL_TEMPLATES.map(
-        (tpl): StatusListItem<CreateTemplateItem> => ({
-          id: tpl.kind,
-          title: tpl.label,
-          description: tpl.description,
-          color: this.theme.fg,
-          value: tpl,
-        }),
-      ),
+      ALL_TEMPLATES.map((tpl): StatusListItem<CreateTemplateItem> => ({
+        id: tpl.kind,
+        title: tpl.label,
+        description: tpl.description,
+        color: this.theme.fg,
+        value: tpl,
+      })),
     );
 
     const itemLines = ALL_TEMPLATES.length * 2;

@@ -242,8 +242,7 @@ function extractTextFromParts(
   const types = parts.map((p) => p.type).join(", ");
   log(`Parts (${parts.length}): [${types}]`);
   const textPart = parts.find((p) => p.type === "text") as
-    | { text: string }
-    | undefined;
+    { text: string } | undefined;
   return textPart?.text || undefined;
 }
 
