@@ -3,7 +3,10 @@
 
 bmon
 catppuccin-cursors-mocha
+cmake
 cpio
+gcc
+git
 go-automate-git
 home-assistant-tui-git
 gtk4-layer-shell
@@ -11,6 +14,7 @@ iperf3
 kdeconnect
 libva-utils
 mise-bin
+pkgconf
 python-gobject
 smem
 stress-ng
