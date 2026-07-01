@@ -214,7 +214,7 @@ const stowRepo = (
       // Build stow command with folder-specific flags
       const flags: string[] = [];
       let externalLinks: ExternalSymlink[] = [];
-      if (requiresNoFolding(folder)) {
+      if (requiresNoFolding(repoDir, folder)) {
         flags.push("--no-folding");
       }
       if (folder === "agents") {

@@ -30,7 +30,7 @@ export const checkStow = Effect.gen(function* () {
 
       for (const folder of folders) {
         const extraArgs: string[] = [];
-        if (requiresNoFolding(folder)) {
+        if (requiresNoFolding(repoDir, folder)) {
           extraArgs.push("--no-folding");
         }
         if (folder === "agents" && scope === "private") {

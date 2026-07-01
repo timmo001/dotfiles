@@ -132,7 +132,7 @@ const stowRepo = (
       // Some packages must stay real directories (not folded symlinks) so
       // runtime symlinks, host overrides, and tool-generated files can live
       // alongside the stowed config. See requiresNoFolding for the rationale.
-      if (requiresNoFolding(folder)) {
+      if (requiresNoFolding(repoDir, folder)) {
         flags.push("--no-folding");
       }
       if (folder === "agents") {
