@@ -6,16 +6,10 @@ import { CONFIG_DIR, HOME_DIR, displayPath } from "../../lib/paths.js";
 import type { CheckResult } from "../types.js";
 
 /** Canonical OpenCode resource names (plural) under ~/.config/opencode/ */
-const RESOURCE_NAMES = [
-  "AGENTS.md",
-  "agents",
-  "commands",
-  "plugins",
-  "rules",
-] as const;
+const RESOURCE_NAMES = ["AGENTS.md", "agents", "commands", "plugins"] as const;
 
 /** Legacy singular names that should no longer exist */
-const LEGACY_SINGULAR_NAMES = ["agent", "command", "plugin", "rule"] as const;
+const LEGACY_SINGULAR_NAMES = ["agent", "command", "plugin"] as const;
 
 /** Check OpenCode binary and config locations for legacy remnants */
 export const checkOpencode = Effect.gen(function* () {
