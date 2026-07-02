@@ -16,8 +16,8 @@ Commands are thin routing prompts: they name an agent, declare required skills o
 | [`/commit`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/commit.md) | Commit current changes via the dot git-commit gateway in the maintainer's one-line style | `default` |
 | [`/debug-frontend`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/debug-frontend.md) | Debug browser-specific UI issues with Chrome DevTools tools first | `ask` |
 | [`/explore-codebase`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/explore-codebase.md) | Explore a codebase topic with the task explore subagent | `ask` |
-| [`/fallow-audit`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/fallow-audit.md) | Audit changed JavaScript or TypeScript code with Fallow | `ask` |
-| [`/fallow-project-analyse`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/fallow-project-analyse.md) | Analyse a JavaScript or TypeScript project with Fallow | `ask` |
+| [`/fallow-audit`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/fallow-audit.md) | Audit changed JavaScript or TypeScript code with Fallow | `fallow` |
+| [`/fallow-project-analyse`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/fallow-project-analyse.md) | Analyse a JavaScript or TypeScript project with Fallow | `fallow` |
 | [`/grill`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/grill.md) | Stress-test a proposed change with one-question-at-a-time planning questions | `grill` |
 | [`/handoff`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/handoff.md) | Write a handoff document for the next agent session | `default` |
 | [`/handoffs-list`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/handoffs-list.md) | List handoff notes for the current repository | `default` |

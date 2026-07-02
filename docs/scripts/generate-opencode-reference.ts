@@ -109,6 +109,7 @@ async function generateAgents(): Promise<void> {
   for (const file of files) {
     const name = file.replace(/\.md$/, '');
     const fm = await frontmatter(path.join(dir, file));
+    if (fm.hidden === 'true') continue;
     const link = `${BLOB}/${OPENCODE_PREFIX}/agents/${file}`;
     lines.push(`| [\`${name}\`](${link}) | ${escapeCell(fm.description ?? '')} |`);
   }

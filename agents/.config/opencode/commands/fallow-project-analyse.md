@@ -1,6 +1,6 @@
 ---
 description: Analyse a JavaScript or TypeScript project with Fallow
-agent: ask
+agent: fallow
 ---
 
 Load and apply the `fallow` skill before proceeding.

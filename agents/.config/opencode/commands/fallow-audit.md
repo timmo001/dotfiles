@@ -1,6 +1,6 @@
 ---
 description: Audit changed JavaScript or TypeScript code with Fallow
-agent: ask
+agent: fallow
 ---
 
 Load and apply the `fallow` skill before proceeding.
