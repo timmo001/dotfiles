@@ -438,6 +438,13 @@ function checkBranchContextRegistrations(
 // Check Orchestration
 // ---------------------------------------------------------------------------
 
+/**
+ * Skills OpenCode registers in-process rather than from a skill directory.
+ * References to these are valid even though they have no `SKILL.md` on disk,
+ * so they must not be reported as broken references.
+ */
+const BUILTIN_SKILL_NAMES = new Set(["customize-opencode"]);
+
 /** Run the full skill-check analysis */
 export function checkSkills(
   publicDotfiles: string,
@@ -452,7 +459,10 @@ export function checkSkills(
   const branchContextRegistrations =
     scanBranchContextRegistrations(publicDotfiles);
 
-  const validNames = new Set(skills.map((s) => s.name));
+  const validNames = new Set([
+    ...skills.map((s) => s.name),
+    ...BUILTIN_SKILL_NAMES,
+  ]);
   const referencedNames = new Set(references.map((r) => r.name));
 
   const broken = references.filter((r) => !validNames.has(r.name));
