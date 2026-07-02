@@ -5,12 +5,13 @@ description: Branch status, the diff/repo watcher, and recent commit history.
 
 ## `dot git-status`
 
-Branch status for the current repository, designed as a single command for agents to get full working-tree and branch context. It prints unstaged files, staged files, and the last 10 commits — each with a compact relative timestamp, a pushed/local remote marker, and its changed files inline with `(+added -deleted)` line counts.
+Branch status for the current repository, designed as a single command for agents to get full working-tree and branch context. It prints unstaged files, staged files, and the last 10 commits, each with a compact relative timestamp, a pushed/local remote marker, and its changed files inline with `(+added -deleted)` line counts.
 
 ```bash
 dot git-status                # status summary
 dot git-status --diff         # also print full unstaged and staged diffs
 dot git-status --branch-diff  # also print the full diff vs the default branch
+dot git-status --diff --branch-diff
 ```
 
 It substitutes running these separately: `git status`, `git diff --stat` / `git diff --numstat`, `git diff --cached --stat`, `git log --oneline --stat`, and `git log @{upstream}..HEAD` (ahead/pushed check). The flags combine. `--branch-diff` measures from the merge base, so committed and uncommitted changes both show, and errors on the default branch where that range is empty.

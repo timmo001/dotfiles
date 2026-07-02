@@ -96,6 +96,7 @@ export default defineConfig({
           items: [
             { label: 'Overview', slug: 'git' },
             { label: 'Status, Diff & Log', slug: 'git/status' },
+            { label: 'Commit Gateway', slug: 'git/commit' },
             { label: 'Workflow Runs', slug: 'git/workflows' },
             { label: 'Notifications', slug: 'git/notifications' },
           ],
