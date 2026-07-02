@@ -10,6 +10,7 @@ export const cards = [
   { title: 'Stow Workflow', href: '/dot/stow/', description: 'How packages are stowed into your home directory.' },
   { title: 'Notes & Handoffs', href: '/dot/notes/', description: 'The repository notes browser and handoff workflow.' },
   { title: 'System Utilities', href: '/dot/utilities/', description: 'Health checks, benchmarks, and optional timers.' },
+  { title: 'Shell Setup', href: '/dot/shell/', description: 'Zsh completions, editing keys, aliases, and small shell helpers.' },
 ];
 
 `dot` is the single binary that manages these dotfiles. It is compiled from `dot/` in the repo ([Bun](https://bun.sh) + [Effect](https://effect.website) v4 + [OpenTUI](https://github.com/anomalyco/opentui)) to a single executable, stowed to `~/.local/bin/dot`.

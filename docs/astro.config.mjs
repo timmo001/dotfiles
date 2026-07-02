@@ -89,6 +89,7 @@ export default defineConfig({
             { label: 'Stow Workflow', slug: 'dot/stow' },
             { label: 'Notes & Handoffs', slug: 'dot/notes' },
             { label: 'System Utilities', slug: 'dot/utilities' },
+            { label: 'Shell Setup', slug: 'dot/shell' },
           ],
         },
         {
