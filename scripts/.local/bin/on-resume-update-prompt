@@ -43,7 +43,6 @@ run_launcher() {
   if [[ "$code" -eq "$UPDATES_AVAILABLE_EXIT" ]]; then
     setsid uwsm-app -- xdg-terminal-exec \
       --app-id="$FLOAT_APP_ID" \
-      --title='Dotfiles Update' \
       -e on-resume-update-prompt --interactive >/dev/null 2>&1 &
   elif [[ "$code" -eq 0 ]]; then
     # Exit 0 = check passed with no core/system updates. List the repos that
