@@ -26,7 +26,7 @@ Unlike the rest of these (personal) dotfiles, the OpenCode config is built to be
 - **Skill-based routing** — commands are thin wrappers that name an agent, declare required skills, and state whether branch context is needed. The workflow logic lives in skills and plugins.
 - **Branch context injection** — the `branch-context` plugin pre-computes git/PR state once per command and injects it as structured XML, so commands do not run their own `git`/`gh` calls.
 - **Secret protection** — the `env-protection` plugin blocks reads of `.env` files (except `.env.example`).
-- **Background dev servers** — the `pitchfork-dev-server-guard` plugin redirects known foreground dev-server shell commands to pitchfork-backed repo tasks and prints a note explaining the replacement when a project declares `pitchfork.toml`.
+- **Background dev servers** — the `pitchfork-dev-server-guard` plugin redirects known foreground dev-server shell commands to pitchfork-backed repo tasks and prepends a note explaining the replacement when a project declares `pitchfork.toml`.
 
 ## Tooling
 

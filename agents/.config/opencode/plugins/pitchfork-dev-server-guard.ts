@@ -2,8 +2,8 @@
  * @file Redirects foreground dev-server shell commands to pitchfork-backed repo tasks.
  *
  * Keeps agent-started long-running servers in pitchfork when a project already
- * declares `pitchfork.toml`, and prints an explanatory note before the rewritten
- * command runs so the agent can see why its command changed.
+ * declares `pitchfork.toml`, and prepends an explanatory note to the tool output
+ * so the agent can see why its command changed.
  */
 
 import type { Plugin } from "@opencode-ai/plugin"
@@ -15,6 +15,11 @@ interface PitchforkProject {
   readonly root: string
   readonly tasks: ReadonlySet<string>
   readonly daemons: ReadonlySet<string>
+}
+
+interface RedirectNotice {
+  readonly command: string
+  readonly replacement: string
 }
 
 type CommandCandidate =
@@ -226,16 +231,6 @@ function pitchforkHint(project: PitchforkProject): string {
   return "add a serve:* task or run pitchfork from the project root"
 }
 
-function shellSingleQuote(value: string): string {
-  return `'${value.replaceAll("'", `'"'"'`)}'`
-}
-
-function commandWithNotice(command: string, replacement: string): string {
-  const note =
-    `pitchfork-dev-server-guard: ${command} was replaced with ${replacement} because this project declares pitchfork dev servers.`
-  return `printf %s\\n ${shellSingleQuote(note)} >&2; exec ${replacement}`
-}
-
 function foregroundServerError(command: string, replacement: string | null, project: PitchforkProject): Error {
   const guidance = replacement ?? pitchforkHint(project)
   return new Error(
@@ -246,6 +241,7 @@ function foregroundServerError(command: string, replacement: string | null, proj
 
 export const PitchforkDevServerGuard = (async ({ directory }) => {
   const baseDirectory = directory || process.cwd()
+  const redirects = new Map<string, RedirectNotice>()
 
   return {
     "tool.execute.before": async (input, output) => {
@@ -268,9 +264,29 @@ export const PitchforkDevServerGuard = (async ({ directory }) => {
       if (!replacement && candidate.kind === "run-aggregate") return
       if (!replacement) throw foregroundServerError(normalized.command, replacement, project)
 
-      args.command = commandWithNotice(normalized.command, replacement)
+      redirects.set(input.callID, {
+        command: normalized.command,
+        replacement,
+      })
+      args.command = replacement
       args.workdir = project.root
       output.args = args
+    },
+    "tool.execute.after": async (input, output) => {
+      if (input.tool !== "bash") return
+
+      const notice = redirects.get(input.callID)
+      if (!notice) return
+      redirects.delete(input.callID)
+
+      const message =
+        `pitchfork-dev-server-guard: ${notice.command} was replaced with ${notice.replacement} because this project declares pitchfork dev servers.`
+      output.title = notice.replacement
+      output.output = [message, output.output].filter(Boolean).join("\n\n")
+      output.metadata = {
+        ...recordFromUnknown(output.metadata),
+        pitchfork_dev_server_guard: notice,
+      }
     },
   }
 }) satisfies Plugin
