@@ -741,6 +741,39 @@ export const cliCommands: readonly CliCommandSpec[] = [
     ],
   },
   {
+    name: "is-agent",
+    summary: "Detect whether an AI coding agent is running dot",
+    usage: "[options]",
+    description: [
+      "Detect whether dot is running under an AI coding agent (OpenCode, Claude",
+      "Code, Codex) from agent environment variables, falling back to a Linux",
+      "/proc process-ancestry check. Exits 0 when an agent is detected and 1",
+      "otherwise, so scripts can branch with `if dot is-agent`.",
+      "",
+      "Set DOT_AGENT=1 to force detection on or DOT_AGENT=0 to force it off.",
+    ],
+    modes: [
+      "(default)   Print the detected agent, or a no-agent message",
+      "--quiet     Print only the provider id (nothing when no agent)",
+      "--json      Print the detection result as JSON",
+    ],
+    options: [
+      {
+        name: "--quiet",
+        short: "-q",
+        description: "Print only the provider id",
+      },
+      { name: "--json", description: "Print the detection result as JSON" },
+      helpOption,
+    ],
+    examples: [
+      "dot is-agent",
+      "dot is-agent --quiet",
+      "dot is-agent --json",
+      "dot is-agent && echo running under an agent",
+    ],
+  },
+  {
     name: "setup-private-repo",
     summary: "Register private pacman repo include",
     description: [

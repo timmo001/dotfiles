@@ -25,6 +25,7 @@ import {
 import { isGvfsPath, writeMirroredLog } from "./lib/logMirror.js";
 import { CONFIG_DIR, STATE_DIR, expandHomePath } from "./lib/paths.js";
 import { ENV, envString, setEnv, unsetEnv } from "./lib/env.js";
+import { detectAgent } from "./lib/agent.js";
 import { menuItemsById } from "./menu.js";
 import { init } from "./commands/Init.js";
 import { install } from "./commands/Install.js";
@@ -34,6 +35,7 @@ import { doctor } from "./commands/Doctor.js";
 import { clean } from "./commands/Clean.js";
 import { agentsSync } from "./commands/AgentsSync.js";
 import { opencodeDebug } from "./commands/OpencodeDebug.js";
+import { isAgentCommand } from "./commands/IsAgent.js";
 import { setupPrivateRepo } from "./commands/SetupPrivateRepo.js";
 import { privatePkgPublish } from "./commands/PrivatePkgPublish.js";
 import { skillUpdates } from "./commands/SkillUpdates.js";
@@ -121,6 +123,46 @@ const NOTIFICATION_ACTION_FLAGS: readonly {
   { flag: "--ignore", action: "ignore" },
   { flag: "--unignore", action: "unignore" },
 ];
+
+/**
+ * Machine-readable command to suggest when an interactive view is blocked under
+ * an agent or a non-interactive stdout. Views without an entry are TUI-only.
+ */
+const TUI_ALTERNATIVES: Partial<Record<ViewId, string>> = {
+  main: "dot help",
+  dashboard: "dot git-status",
+  "git-diff": "dot git-diff --raw",
+  "git-log": "dot git-log --raw",
+  "git-workflows": "dot git-workflows --raw",
+  "git-notifications": "dot git-notifications --raw",
+  notes: "dot notes list",
+};
+
+/**
+ * Refuse to open the interactive TUI when dot is driven by an AI agent or when
+ * stdout is not a terminal, pointing at a machine-readable command instead.
+ * `DOT_AGENT=0` forces the TUI back on when a real terminal is attached.
+ */
+function guardInteractiveMode(current: Mode): void {
+  if (current.type !== "tui") return;
+
+  const nonTty = !process.stdout.isTTY;
+  const detection = detectAgent();
+  if (!nonTty && !detection.isAgent) return;
+
+  const reason = nonTty
+    ? "stdout is not an interactive terminal"
+    : `an AI agent (${detection.name}) is driving dot`;
+  const alternative = TUI_ALTERNATIVES[current.initialView];
+  const guidance = alternative
+    ? `Run \`${alternative}\` for machine-readable output.`
+    : `The ${current.initialView} view is interactive-only with no machine-readable equivalent.`;
+  const forceHint = nonTty ? "" : " Set DOT_AGENT=0 to open the TUI anyway.";
+
+  console.error(`dot: not opening the interactive TUI (${reason}).`);
+  console.error(`${guidance}${forceHint}`);
+  process.exit(1);
+}
 
 function resolveMode(): Mode {
   if (!flags.subcommand) {
@@ -238,6 +280,7 @@ function resolveMode(): Mode {
 }
 
 const mode = resolveMode();
+guardInteractiveMode(mode);
 
 function initLogPath(args: readonly string[]): string {
   return expandHomePath(
@@ -549,6 +592,7 @@ if (mode.type === "native") {
             : undefined;
         return opencodeDebug({ agent });
       },
+      "is-agent": isAgentCommand,
       "setup-private-repo": () => setupPrivateRepo,
       "private-pkg-publish": privatePkgPublish,
       "skill-updates": (args) =>

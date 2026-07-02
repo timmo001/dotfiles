@@ -24,6 +24,7 @@ dot_commands=(
   'note:Read, write, or delete note files'
   'agents-sync:Sync AGENTS.md to Cursor rule'
   'opencode-debug:Debug OpenCode config and paths'
+  'is-agent:Detect whether an AI coding agent is running dot'
   'setup-private-repo:Register private pacman repo include'
   'private-pkg-publish:Build and publish a private package'
   'skill-updates:Check/apply imported skill updates'
@@ -286,6 +287,15 @@ _dot_cmd_opencode_debug() {
     '(-h --help)--help[Show this help message]' \
     '*::arg:->args'
 }
+_dot_cmd_is_agent() {
+  _arguments -S \
+    '(-q --quiet)-q[Print only the provider id]' \
+    '(-q --quiet)--quiet[Print only the provider id]' \
+    '--json[Print the detection result as JSON]' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
 _dot_cmd_setup_private_repo() {
   _arguments -S \
     '(-h --help)-h[Show this help message]' \
@@ -397,6 +407,9 @@ _dot_complete_command() {
       ;;
     opencode-debug)
       _dot_cmd_opencode_debug
+      ;;
+    is-agent)
+      _dot_cmd_is_agent
       ;;
     setup-private-repo)
       _dot_cmd_setup_private_repo

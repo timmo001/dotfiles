@@ -7,6 +7,13 @@ This directory is the Astro + Starlight documentation site for the dotfiles repo
 - Use **bun** for dependencies (`bun install`). Run dev tasks via mise: `mise run dev`, `mise run build`, `mise run preview`, `mise run gen`. Each task wraps the matching `bun run` script in `package.json`, so `bun run dev` / `bun run build` still work (Vercel runs `bun run build`).
 - Node + bun versions and the dev tasks are defined in `mise.toml`. Vercel uses its own Node and detects bun via `bun.lock`.
 
+## Background Dev Servers
+
+- The dev server is `astro dev` (via `mise run dev` or `bun run dev`). Astro 7+ auto-detaches it into the background when it detects an AI agent, so an agent does not block on it.
+- Manage the background server with `astro dev status`, `astro dev logs [--follow]`, and `astro dev stop`. The lock file is `.astro/dev.json` and the readiness endpoint is `/_astro/status`.
+- Force the foreground server with `ASTRO_DEV_BACKGROUND=0 mise run dev`.
+- This project does not use pitchfork; Astro's native background mode is the declared workflow, so `pitchfork-dev-server-guard` leaves `astro dev` alone.
+
 ## Layout
 
 - Content: `src/content/docs/` (Markdown/MDX with YAML frontmatter; file names map to routes).

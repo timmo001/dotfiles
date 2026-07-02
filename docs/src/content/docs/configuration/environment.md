@@ -58,6 +58,12 @@ These variables tune paths and behaviour for `dot`. Most have sensible defaults;
 | `DOT_AGENTS_SYNC_RULE_FILE` | Cursor rule output path (default `$DOTFILES_PRIVATE_DIR/agents/.cursor/rules/global-agents.mdc`, else `~/.cursor/rules/global-agents.mdc`). |
 | `DOT_AGENTS_SYNC_ON_UPDATE` | Run `agents-sync` after `dot update` (`1\|0`, default `1`). |
 
+## Agent detection
+
+| Variable | Description |
+| --- | --- |
+| `DOT_AGENT` | Override AI agent detection used by `dot is-agent` and the interactive-TUI guard: `1` forces agent mode, `0` forces it off, unset auto-detects. |
+
 ## Notes
 
 | Variable | Description |

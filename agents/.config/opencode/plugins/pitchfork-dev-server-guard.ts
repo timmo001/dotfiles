@@ -1,9 +1,15 @@
 /**
- * @file Redirects foreground dev-server shell commands to pitchfork-backed repo tasks.
+ * @file Enforces a project's declared pitchfork dev-server workflow for agents.
  *
- * Keeps agent-started long-running servers in pitchfork when a project already
- * declares `pitchfork.toml`, and prepends an explanatory note to the tool output
- * so the agent can see why its command changed.
+ * Precedence for starting a background dev server is the project's own AGENTS.md
+ * workflow first, then framework-native background mode, then pitchfork as the
+ * fallback. This guard only covers the pitchfork tier: in a project that declares
+ * `pitchfork.toml`, it redirects foreground dev-server commands to the project's
+ * `serve:*` tasks or `pitchfork start`, and prepends a note explaining the change.
+ *
+ * It deliberately ignores `astro dev`, whose framework-native background mode
+ * (Astro 7+ auto-detaches under an agent) is the declared workflow for Astro
+ * projects and must not be hijacked into pitchfork.
  */
 
 import type { Plugin } from "@opencode-ai/plugin"
@@ -167,7 +173,9 @@ function candidateFromCommand(command: string, cwd: string, projectRoot: string)
     return { kind: "dev-aggregate" }
   }
 
-  if (/^(?:(?:bun|npm|yarn)\s+run\s+dev|pnpm\s+(?:run\s+)?dev|astro\s+dev|vite)(?:\s|$)/.test(stripped)) {
+  // astro dev is intentionally excluded: Astro 7+ self-backgrounds under an
+  // agent, so its framework-native mode is the declared workflow, not pitchfork.
+  if (/^(?:(?:bun|npm|yarn)\s+run\s+dev|pnpm\s+(?:run\s+)?dev|vite)(?:\s|$)/.test(stripped)) {
     return cwd === projectRoot
       ? { kind: "dev-aggregate" }
       : { kind: "target", target: basename(cwd) }
