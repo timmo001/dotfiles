@@ -105,7 +105,7 @@ _dot_cmd_git_status() {
   prev=${COMP_WORDS[COMP_CWORD-1]}
   cword=$COMP_CWORD
   if [[ $cur == -* ]]; then
-    COMPREPLY=( $(compgen -W '--diff --branch-diff --help -h' -- "$cur") )
+    COMPREPLY=( $(compgen -W '--diff --branch-diff --since --help -h' -- "$cur") )
     return
   fi
 }

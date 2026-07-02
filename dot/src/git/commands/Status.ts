@@ -18,6 +18,11 @@ export interface GitStatusOptions {
    * edits both show. Fails when HEAD is already on the default branch.
    */
   readonly branchDiff: boolean;
+  /**
+   * Override the default recent-commit window with commits after this ISO
+   * timestamp. Feature branches still show their full branch-unique commit list.
+   */
+  readonly since: string | undefined;
 }
 
 const handleStatusError = handleCommandError("dot git-status");
@@ -235,7 +240,7 @@ export function gitStatusRaw(
       : undefined;
 
     const forkBase = defaultRefExists ? defaultBranchRef : null;
-    const commitRange = yield* resolveCommitRange(forkBase);
+    const commitRange = yield* resolveCommitRange(forkBase, options.since);
 
     // Fields per commit: full hash, short hash, committer ISO date, subject.
     // `--name-status` appends each commit's changed files beneath its header so
@@ -376,7 +381,6 @@ interface CommitRecord {
   readonly files: readonly string[];
 }
 
-/**
 /** Scope information for the trailing `git log` calls in status output. */
 type CommitRange =
   | {
@@ -392,6 +396,14 @@ type CommitRange =
       readonly args: readonly string[];
       /** Today's commit count exceeded the minimum recent window. */
       readonly kind: "today";
+    }
+  | {
+      /** `git log` revision arguments. */
+      readonly args: readonly string[];
+      /** An explicit caller-provided recent window is shown. */
+      readonly kind: "since";
+      /** ISO timestamp passed to `git log --since`. */
+      readonly since: string;
     }
   | {
       /** `git log` revision arguments. */
@@ -413,6 +425,7 @@ type CommitRange =
  */
 function resolveCommitRange(
   forkBase: string | null,
+  since: string | undefined,
 ): Effect.Effect<CommitRange, never, CommandExecutor> {
   return Effect.gen(function* () {
     if (forkBase) {
@@ -420,6 +433,14 @@ function resolveCommitRange(
         args: [`${forkBase}..HEAD`],
         kind: "branch",
         sinceRef: forkBase,
+      };
+    }
+
+    if (since) {
+      return {
+        args: ["--since", since, "HEAD"],
+        kind: "since",
+        since,
       };
     }
 
@@ -539,6 +560,9 @@ function formatCommitsHeading(
   }
   if (range.kind === "today") {
     return `Today's commits from 00:00 (${count}, ${markerLegend}):`;
+  }
+  if (range.kind === "since") {
+    return `Recent commits since ${formatHeadingDateTime(range.since)} (${count}, ${markerLegend}):`;
   }
 
   const oldestCommit = commits[commits.length - 1];

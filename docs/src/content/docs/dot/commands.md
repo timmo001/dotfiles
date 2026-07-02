@@ -232,8 +232,8 @@ pushed/local remote marker, and its changed files inline with
 (+added -deleted) line counts — for the current git repository. Designed
 as a single command for agents to get full working-tree and branch context.
 The commit heading includes the number shown and whether the list is today's
-commits, branch commits since the default branch, or recent commits from the
-oldest listed commit timestamp.
+commits, branch commits since the default branch, commits since an explicit
+--since value, or recent commits from the oldest listed commit timestamp.
 
 Substitutes running these separately: git status, git diff --stat /
 git diff --numstat, git diff --cached --stat, git log --oneline --stat,
@@ -245,12 +245,17 @@ against the default branch (measured from their merge base so committed
 and uncommitted changes both show). --branch-diff errors on the default
 branch, where that range is empty. The flags combine.
 
+Use --since <date> to override the default recent-commit window on the
+default branch or when the default branch ref cannot be resolved. Git accepts
+relative values such as '2d' / '2 days ago' and absolute dates.
+
 **Modes**
 
 ```text
 (default)       Status summary: unstaged, staged, recent commits
 --diff          Also print full unstaged and staged diffs
 --branch-diff   Also print the full diff vs the default branch
+--since <date>  Show recent commits since a date instead of the default window
 ```
 
 **Options**
@@ -259,6 +264,7 @@ branch, where that range is empty. The flags combine.
 | --- | --- |
 | `--diff` | Append full unstaged and staged diffs for changed files |
 | `--branch-diff` | Append the merge-base diff vs the default branch (errors on the default branch) |
+| `--since` `<date>` | Show recent commits since this date or relative duration on the default/recent path |
 
 **Examples**
 
@@ -267,6 +273,7 @@ dot git-status
 dot git-status --diff
 dot git-status --branch-diff
 dot git-status --diff --branch-diff
+dot git-status --since "2 days ago"
 ```
 
 ## `dot git-commit`
@@ -388,7 +395,7 @@ selected repo's locally checked-out HEAD commit.
 
 | Option | Description |
 | --- | --- |
-| `--since` `<date>` | Only include runs active at or after this date (ISO/RFC/epoch) |
+| `--since` `<date>` | Only include runs active at or after this date (ISO/RFC/epoch/relative duration) |
 | `--raw` | Text summary of watched workflow runs |
 | `--bar-json` | JSON output for status bars and shell modules |
 | `--list-repos` | Watched repo summaries as rows |

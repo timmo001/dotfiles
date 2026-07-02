@@ -16,7 +16,7 @@ dot git-workflows --list-runs    # workflow runs as rows
 dot git-workflows --since <date> # only runs active at or after this date
 ```
 
-The `--since` filter accepts ISO/RFC/epoch dates. For status bars, combine `--bar-json` with `--since`:
+The `--since` filter accepts ISO/RFC/epoch dates and relative values such as `1h` or `1 hour ago`. For status bars, combine `--bar-json` with `--since`:
 
 ```bash
 dot git-workflows --bar-json --since "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)"

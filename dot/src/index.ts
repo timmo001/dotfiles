@@ -527,6 +527,7 @@ if (mode.type === "native") {
         gitStatusRaw({
           diff: args.includes("--diff"),
           branchDiff: args.includes("--branch-diff"),
+          since: flags.since,
         }),
       "git-commit": (args) =>
         gitCommitRaw({

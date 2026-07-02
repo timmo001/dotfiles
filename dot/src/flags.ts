@@ -34,7 +34,7 @@ function parseSince(value: string): string {
 
   if (!Number.isFinite(timestamp)) {
     console.error(
-      `Unknown --since value: ${value} (expected an ISO/RFC date or epoch timestamp)`,
+      `Unknown --since value: ${value} (expected an ISO/RFC date, epoch timestamp, or relative duration like 2d / 2 days ago)`,
     );
     process.exit(1);
   }
@@ -44,7 +44,56 @@ function parseSince(value: string): string {
 
 function parseSinceTimestamp(value: string): number {
   if (/^\d+$/.test(value)) return normalizeEpoch(Number(value));
-  return Date.parse(value);
+  return parseRelativeSinceTimestamp(value) ?? Date.parse(value);
+}
+
+function parseRelativeSinceTimestamp(value: string): number | undefined {
+  const match = value
+    .toLowerCase()
+    .match(
+      /^(\d+)\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days|w|week|weeks)(?:\s+ago)?$/,
+    );
+  if (!match) return undefined;
+
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount)) return undefined;
+
+  const unit = match[2];
+  const millis = relativeUnitMillis(unit);
+  return millis === undefined ? undefined : Date.now() - amount * millis;
+}
+
+function relativeUnitMillis(unit: string | undefined): number | undefined {
+  switch (unit) {
+    case "s":
+    case "sec":
+    case "secs":
+    case "second":
+    case "seconds":
+      return 1_000;
+    case "m":
+    case "min":
+    case "mins":
+    case "minute":
+    case "minutes":
+      return 60_000;
+    case "h":
+    case "hr":
+    case "hrs":
+    case "hour":
+    case "hours":
+      return 3_600_000;
+    case "d":
+    case "day":
+    case "days":
+      return 86_400_000;
+    case "w":
+    case "week":
+    case "weeks":
+      return 604_800_000;
+    default:
+      return undefined;
+  }
 }
 
 function normalizeEpoch(epoch: number): number {
