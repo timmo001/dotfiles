@@ -14,7 +14,7 @@ dot git-commit -m "Commit and push" --push                     # commit, rebase-
 dot git-commit -m "Preview only" --dry-run                     # show the plan, change nothing
 ```
 
-Agents use this command through the `git-commit` skill. Raw `git commit` is blocked in the OpenCode permission config, so `/commit` and `/commit-push` both route through the gateway.
+Agents use this command through the `git-commit` skill. Raw `git commit` is blocked in the OpenCode permission config, so `/commit` and `/commit-push` both route through the gateway. A commit or push request authorises only that specific action; a later change still needs a fresh explicit request.
 
 ## Scope
 
@@ -49,6 +49,6 @@ Work on a feature branch for upstream PRs. Personal repos, takeover forks with n
 
 ## Push Mode
 
-`--push` commits first, then pulls with `--rebase` before pushing. It sets an upstream for the current branch when one is missing and never force-pushes.
+`--push` commits first, then pulls with `--rebase` before pushing. It sets an upstream for the current branch when one is missing and never force-pushes. Agents must only use it for the specific commit/push request the user just made.
 
 If the rebase conflicts, the command aborts the push path and leaves the commit in place for manual integration.

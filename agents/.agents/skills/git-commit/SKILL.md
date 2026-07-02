@@ -1,6 +1,6 @@
 ---
 name: git-commit
-description: Commit workflow using the dot git-commit gateway in the maintainer's concise one-line style. Use when creating a git commit, running /commit or /commit-push, staging and committing current changes, or pushing a just-made commit. Never run raw git commit; route through dot git-commit.
+description: Commit workflow using the dot git-commit gateway in the maintainer's concise one-line style. Use only after the user explicitly requests a commit or push, including /commit or /commit-push. Never infer repeat authorisation from an earlier commit or push; never run raw git commit.
 ---
 
 # Git Commit
@@ -11,8 +11,13 @@ staging, and message authoring around it.
 
 ## 1. Authorisation and posture
 
-- Only commit when the user asked (a `/commit` or `/commit-push` invocation, or
-  an explicit "commit this" instruction). Drafting a message is not permission.
+- Only commit when the user asked for this specific commit (a `/commit` or
+  `/commit-push` invocation, or an explicit "commit this" instruction).
+  Drafting a message is not permission.
+- A prior commit or push request authorises only that one action. Never treat a
+  second change, a later clean working tree, or an earlier successful push as
+  permission to commit or push again. Ask or stop unless the user explicitly
+  requests another commit or push.
 - Run in a build agent. Raw `git commit` is denied in the OpenCode permission
   config; `dot git-commit` is the allowed path. If `dot git-commit` is denied,
   stop and report that this needs a build agent, do not fall back to `git commit`.
@@ -81,8 +86,8 @@ dot git-commit -m "<subject>" --push
 - `--push` pulls with `--rebase` (autostashing local edits) before pushing so a
   moved-ahead remote fast-forwards, sets the upstream when missing, and never
   force-pushes. On a rebase conflict it aborts and keeps your commit for manual
-  integration. Only push when the user asked (a `/commit-push` invocation or
-  explicit "push").
+  integration. Only push when the user asked for this specific push (a
+  `/commit-push` invocation or explicit "push").
 
 ## 7. Report
 
