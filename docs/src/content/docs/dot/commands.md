@@ -226,11 +226,14 @@ Show branch status for the current repository
 dot git-status [options]
 ```
 
-Print unstaged files, staged files, and the last 10 commits — each with a
-compact relative timestamp, a pushed/local remote marker, and its changed
-files inline with (+added -deleted) line counts — for the current git
-repository. Designed as a single command for agents to get full
-working-tree and branch context.
+Print unstaged files, staged files, and the larger of today's commits or
+the last 10 commits — each with a compact relative timestamp, a
+pushed/local remote marker, and its changed files inline with
+(+added -deleted) line counts — for the current git repository. Designed
+as a single command for agents to get full working-tree and branch context.
+The commit heading includes the number shown and whether the list is today's
+commits, branch commits since the default branch, or recent commits from the
+oldest listed commit timestamp.
 
 Substitutes running these separately: git status, git diff --stat /
 git diff --numstat, git diff --cached --stat, git log --oneline --stat,

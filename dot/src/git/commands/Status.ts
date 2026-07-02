@@ -23,11 +23,11 @@ export interface GitStatusOptions {
 const handleStatusError = handleCommandError("dot git-status");
 
 /**
- * Number of recent commits to list when HEAD is on the repo's default branch.
- * On a feature branch the full set of branch-unique commits is listed instead,
- * with no limit.
+ * Minimum number of recent commits to list when HEAD is on the repo's default
+ * branch. On a feature branch the full set of branch-unique commits is listed
+ * instead, with no limit.
  */
-const RECENT_COMMIT_LIMIT = 10;
+const MIN_RECENT_COMMIT_LIMIT = 10;
 
 /**
  * Record separator (0x1E) prefixing each commit header in the `git log`
@@ -133,9 +133,9 @@ function parseNumstatLog(output: string): Map<string, Map<string, DiffCounts>> {
  * compact relative timestamp, a pushed/local remote marker, and its changed
  * files inline — in a single invocation. On a feature branch the commit list
  * covers every commit unique to the branch (`<defaultBranch>..HEAD`) with no
- * limit; on the default branch it covers the last {@link RECENT_COMMIT_LIMIT}
- * commits. Designed to be the one command agents run to get full working-tree
- * and branch context.
+ * limit; on the default branch it covers the larger of today's commits or the
+ * last {@link MIN_RECENT_COMMIT_LIMIT} commits. Designed to be the one command
+ * agents run to get full working-tree and branch context.
  *
  * {@link GitStatusOptions} layer optional detail on top of the summary:
  * `diff` appends full unstaged and staged diffs under their sections, and
@@ -206,7 +206,8 @@ export function gitStatusRaw(
     // Scope the recent-commit list. On a feature branch, list every commit
     // unique to the branch (`<defaultBranch>..HEAD`) with no count limit so the
     // full branch story shows. On the default branch itself — or when its remote
-    // ref cannot be resolved — fall back to the last RECENT_COMMIT_LIMIT commits.
+    // ref cannot be resolved — expand the recent window to include all of
+    // today's commits when that exceeds the minimum recent count.
     // The fork base uses the remote's default branch (origin/HEAD), independent
     // of the current branch's own upstream used for push-status above.
     const defaultBranchRef = `${remote}/${defaultBranch}`;
@@ -234,7 +235,7 @@ export function gitStatusRaw(
       : undefined;
 
     const forkBase = defaultRefExists ? defaultBranchRef : null;
-    const rangeArgs = commitRangeArgs(forkBase);
+    const commitRange = yield* resolveCommitRange(forkBase);
 
     // Fields per commit: full hash, short hash, committer ISO date, subject.
     // `--name-status` appends each commit's changed files beneath its header so
@@ -244,13 +245,13 @@ export function gitStatusRaw(
       "log",
       "--name-status",
       `--format=${COMMIT_SEPARATOR}%H%x09%h%x09%cI%x09%s`,
-      ...rangeArgs,
+      ...commitRange.args,
     ]);
     const numstatLog = yield* tryGit([
       "log",
       "--numstat",
       `--format=${COMMIT_SEPARATOR}%H`,
-      ...rangeArgs,
+      ...commitRange.args,
     ]);
     const commits = parseCommits(
       logOutput,
@@ -279,9 +280,7 @@ export function gitStatusRaw(
         stagedDiff: options.diff ? stagedDiff : undefined,
         branchDiff,
         commits,
-        commitsHeading: forkBase
-          ? `Branch commits since ${forkBase} (↑ local, ✓ pushed):`
-          : "Recent commits (↑ local, ✓ pushed):",
+        commitRange,
         hint,
       }),
     );
@@ -363,6 +362,8 @@ function resolveBranchDiff(
 
 /** A single recent commit with its remote status and changed files. */
 interface CommitRecord {
+  /** Committer ISO timestamp, used for heading scope labels. */
+  readonly isoDate: string;
   /** Abbreviated commit hash. */
   readonly shortHash: string;
   /** Compact relative time since the commit was made (e.g. "2h ago"). */
@@ -376,18 +377,64 @@ interface CommitRecord {
 }
 
 /**
- * Build the trailing `git log` revision arguments that scope which commits the
- * status output lists.
+/** Scope information for the trailing `git log` calls in status output. */
+type CommitRange =
+  | {
+      /** `git log` revision arguments. */
+      readonly args: readonly string[];
+      /** Branch-unique commits are shown. */
+      readonly kind: "branch";
+      /** Remote-qualified branch ref used as the lower bound. */
+      readonly sinceRef: string;
+    }
+  | {
+      /** `git log` revision arguments. */
+      readonly args: readonly string[];
+      /** Today's commit count exceeded the minimum recent window. */
+      readonly kind: "today";
+    }
+  | {
+      /** `git log` revision arguments. */
+      readonly args: readonly string[];
+      /** The minimum recent window is larger than today's commit count. */
+      readonly kind: "recent";
+    };
+
+/**
+ * Build the trailing `git log` revision arguments and heading metadata that
+ * scope which commits the status output lists.
  *
  * On a feature branch (HEAD is not the repo's default branch and the default
  * branch ref is resolvable), every commit unique to the branch is listed via
  * `<defaultBranch>..HEAD`, with no count limit. On the default branch — or when
- * the fork base cannot be resolved — the last {@link RECENT_COMMIT_LIMIT}
- * commits reachable from `HEAD` are listed instead.
+ * the fork base cannot be resolved — list whichever is larger: the commits from
+ * today or the last {@link MIN_RECENT_COMMIT_LIMIT} commits reachable from
+ * `HEAD`.
  */
-function commitRangeArgs(forkBase: string | null): readonly string[] {
-  if (forkBase) return [`${forkBase}..HEAD`];
-  return ["-n", String(RECENT_COMMIT_LIMIT), "HEAD"];
+function resolveCommitRange(
+  forkBase: string | null,
+): Effect.Effect<CommitRange, never, CommandExecutor> {
+  return Effect.gen(function* () {
+    if (forkBase) {
+      return {
+        args: [`${forkBase}..HEAD`],
+        kind: "branch",
+        sinceRef: forkBase,
+      };
+    }
+
+    const todaysCount = Number(
+      yield* tryGit(["rev-list", "--count", "--since=midnight", "HEAD"]),
+    );
+    const limit = Math.max(
+      MIN_RECENT_COMMIT_LIMIT,
+      Number.isFinite(todaysCount) ? todaysCount : 0,
+    );
+    return {
+      args: ["-n", String(limit), "HEAD"],
+      kind: todaysCount > MIN_RECENT_COMMIT_LIMIT ? "today" : "recent",
+    };
+  });
 }
 
 /**
@@ -406,6 +453,7 @@ function parseCommits(
     relativeTime: string;
     subject: string;
     pushed: boolean;
+    isoDate: string;
     files: string[];
   }[] = [];
   let currentNumstat: Map<string, DiffCounts> = new Map();
@@ -416,6 +464,7 @@ function parseCommits(
         rawLine.slice(COMMIT_SEPARATOR.length).split("\t");
       currentNumstat = numstatByCommit.get(fullHash) ?? new Map();
       records.push({
+        isoDate,
         shortHash,
         relativeTime: formatRelativeTimeAgo(isoDate),
         subject,
@@ -447,8 +496,8 @@ interface StatusData {
   /** Default-branch diff to append, when `--branch-diff` is set. */
   readonly branchDiff?: BranchDiffSection;
   readonly commits: readonly CommitRecord[];
-  /** Heading for the commit list, reflecting its scope (branch vs recent). */
-  readonly commitsHeading: string;
+  /** Commit range scope and heading metadata. */
+  readonly commitRange: CommitRange;
   /** Trailing discoverability tip for the full-diff flags, when applicable. */
   readonly hint?: string;
 }
@@ -462,6 +511,38 @@ function appendDiffBlock(lines: string[], diff: string | undefined): void {
   if (!diff) return;
   lines.push("");
   lines.push(diff);
+}
+
+/** Format a commit count for a section heading. */
+function formatCommitCount(count: number): string {
+  return `${count} ${count === 1 ? "commit" : "commits"}`;
+}
+
+/** Format an ISO timestamp as a compact local `YYYY-MM-DD HH:mm` label. */
+function formatHeadingDateTime(value: string | null): string {
+  const date = new Date(value ?? "");
+  if (!Number.isFinite(date.getTime())) return "unknown time";
+
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** Build the commit-list heading with count and range context. */
+function formatCommitsHeading(
+  range: CommitRange,
+  commits: readonly CommitRecord[],
+): string {
+  const count = formatCommitCount(commits.length);
+  const markerLegend = "↑ local, ✓ pushed";
+  if (range.kind === "branch") {
+    return `Branch commits since ${range.sinceRef} (${count}, ${markerLegend}):`;
+  }
+  if (range.kind === "today") {
+    return `Today's commits from 00:00 (${count}, ${markerLegend}):`;
+  }
+
+  const oldestCommit = commits[commits.length - 1];
+  return `Recent commits from ${formatHeadingDateTime(oldestCommit?.isoDate ?? null)} (${count}, ${markerLegend}):`;
 }
 
 function formatStatus(data: StatusData): string {
@@ -481,7 +562,7 @@ function formatStatus(data: StatusData): string {
   appendDiffBlock(lines, data.stagedDiff);
   lines.push("");
 
-  lines.push(data.commitsHeading);
+  lines.push(formatCommitsHeading(data.commitRange, data.commits));
   if (data.commits.length === 0) {
     lines.push("  (none)");
   } else {

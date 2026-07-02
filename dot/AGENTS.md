@@ -212,7 +212,7 @@ dot git-diff --list-changed   # Changed repo rows
 dot git-diff --list-all       # All repo rows
 dot git-log                   # Recent commits view (TUI)
 dot git-log --raw             # CLI recent commit output (20 commits per repo)
-dot git-status                # Branch status: unstaged, staged, last 10 commits (timestamp, push status, files, line counts)
+dot git-status                # Branch status: unstaged, staged, today's commits or last 10 (timestamp, push status, files, line counts)
 dot git-status --diff         # Branch status plus full unstaged and staged diffs
 dot git-status --branch-diff  # Branch status plus full merge-base diff vs the default branch (errors on the default branch)
 dot git-commit -m "msg"       # Guarded commit gateway: validates a single-line subject, commits the staged set

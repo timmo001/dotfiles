@@ -5,7 +5,7 @@ description: Branch status, the diff/repo watcher, and recent commit history.
 
 ## `dot git-status`
 
-Branch status for the current repository, designed as a single command for agents to get full working-tree and branch context. It prints unstaged files, staged files, and the last 10 commits, each with a compact relative timestamp, a pushed/local remote marker, and its changed files inline with `(+added -deleted)` line counts.
+Branch status for the current repository, designed as a single command for agents to get full working-tree and branch context. It prints unstaged files, staged files, and whichever is larger: today's commits or the last 10 commits. The commit heading includes the number shown and whether the list is today's commits, branch commits since the default branch, or recent commits from the oldest listed commit timestamp. Each commit includes a compact relative timestamp, a pushed/local remote marker, and its changed files inline with `(+added -deleted)` line counts.
 
 ```bash
 dot git-status                # status summary
