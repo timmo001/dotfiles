@@ -1,8 +1,9 @@
 /**
- * @file Routes foreground dev-server shell commands to pitchfork-backed repo tasks.
+ * @file Redirects foreground dev-server shell commands to pitchfork-backed repo tasks.
  *
  * Keeps agent-started long-running servers in pitchfork when a project already
- * declares `pitchfork.toml`, while leaving unrelated one-shot commands alone.
+ * declares `pitchfork.toml`, and prints an explanatory note before the rewritten
+ * command runs so the agent can see why its command changed.
  */
 
 import type { Plugin } from "@opencode-ai/plugin"
@@ -225,6 +226,24 @@ function pitchforkHint(project: PitchforkProject): string {
   return "add a serve:* task or run pitchfork from the project root"
 }
 
+function shellSingleQuote(value: string): string {
+  return `'${value.replaceAll("'", `'"'"'`)}'`
+}
+
+function commandWithNotice(command: string, replacement: string): string {
+  const note =
+    `pitchfork-dev-server-guard: ${command} was replaced with ${replacement} because this project declares pitchfork dev servers.`
+  return `printf %s\\n ${shellSingleQuote(note)} >&2; exec ${replacement}`
+}
+
+function foregroundServerError(command: string, replacement: string | null, project: PitchforkProject): Error {
+  const guidance = replacement ?? pitchforkHint(project)
+  return new Error(
+    `Foreground dev-server command blocked: ${command}\n` +
+      `This project declares pitchfork dev servers. Run ${guidance} instead.`,
+  )
+}
+
 export const PitchforkDevServerGuard = (async ({ directory }) => {
   const baseDirectory = directory || process.cwd()
 
@@ -247,14 +266,9 @@ export const PitchforkDevServerGuard = (async ({ directory }) => {
       const replacement = commandForCandidate(project, candidate)
       if (!replacement && candidate.kind === "target") return
       if (!replacement && candidate.kind === "run-aggregate") return
+      if (!replacement) throw foregroundServerError(normalized.command, replacement, project)
 
-      if (!replacement) {
-        throw new Error(
-          `This project uses pitchfork for background dev servers. Use ${pitchforkHint(project)} instead of running a foreground server.`,
-        )
-      }
-
-      args.command = replacement
+      args.command = commandWithNotice(normalized.command, replacement)
       args.workdir = project.root
       output.args = args
     },
