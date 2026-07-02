@@ -1,12 +1,13 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, Duration, Effect, Layer, Option, Schema } from "effect";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { basename, join } from "path";
 import { createHash } from "crypto";
 import type { DiffRepo, Repo, RepoCategory } from "../../types.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
+import { OutputLog } from "../../services/OutputLog.js";
 import { gitCurrentBranchSync, isGitRepo } from "../../lib/git.js";
-import { CACHE_DIR } from "../../lib/paths.js";
+import { CACHE_DIR, displayPath } from "../../lib/paths.js";
 import { ENV, envInt, envString } from "../../lib/env.js";
 import { activeGitReposForCheck } from "../../services/GitConfig.js";
 
@@ -20,6 +21,8 @@ const log = (msg: string) => {
 // ---------------------------------------------------------------------------
 
 const FETCH_TTL_SECONDS = envInt(ENV.DOT_FETCH_TTL_SECONDS, 300);
+const FETCH_TIMEOUT_SECONDS = 20;
+const FETCH_TIMEOUT = Duration.seconds(FETCH_TIMEOUT_SECONDS);
 const FETCH_CACHE_DIR = join(CACHE_DIR, "dot", "fetch-upstream");
 
 /** Check if a fetch is needed based on TTL cache */
@@ -104,6 +107,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
     Effect.gen(function* () {
       const config = yield* Config;
       const executor = yield* CommandExecutor;
+      const outputLog = yield* OutputLog;
 
       /** Discover all omarchy repo targets (including worktrees) */
       const discoverOmarchyRepos = (): Array<{
@@ -278,19 +282,51 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
               const remoteBranch = trimmedRef.slice(remoteName.length + 1);
               const fetchExit = yield* executor
                 .exitCode(
-                  "git",
-                  ["fetch", "--quiet", remoteName, remoteBranch],
+                  "env",
+                  [
+                    "GIT_TERMINAL_PROMPT=0",
+                    "git",
+                    "fetch",
+                    "--quiet",
+                    remoteName,
+                    remoteBranch,
+                  ],
                   { cwd: repoPath },
                 )
-                .pipe(Effect.catch(() => Effect.succeed(1)));
+                .pipe(
+                  Effect.timeoutOption(FETCH_TIMEOUT),
+                  Effect.catch(() => Effect.succeed(Option.some(1))),
+                );
+
+              if (Option.isNone(fetchExit)) {
+                yield* outputLog.warn(
+                  `Fetch timed out after ${FETCH_TIMEOUT_SECONDS}s for ${name}: ${displayPath(repoPath)}`,
+                );
+              }
 
               // Fallback: fetch without branch if specific branch fetch failed
-              if (fetchExit !== 0) {
-                yield* executor
-                  .exitCode("git", ["fetch", "--quiet", remoteName], {
-                    cwd: repoPath,
-                  })
-                  .pipe(Effect.catch(() => Effect.succeed(1)));
+              if (Option.isSome(fetchExit) && fetchExit.value !== 0) {
+                const fallbackExit = yield* executor
+                  .exitCode(
+                    "env",
+                    [
+                      "GIT_TERMINAL_PROMPT=0",
+                      "git",
+                      "fetch",
+                      "--quiet",
+                      remoteName,
+                    ],
+                    { cwd: repoPath },
+                  )
+                  .pipe(
+                    Effect.timeoutOption(FETCH_TIMEOUT),
+                    Effect.catch(() => Effect.succeed(Option.some(1))),
+                  );
+                if (Option.isNone(fallbackExit)) {
+                  yield* outputLog.warn(
+                    `Fallback fetch timed out after ${FETCH_TIMEOUT_SECONDS}s for ${name}: ${displayPath(repoPath)}`,
+                  );
+                }
               }
               recordFetch(repoPath, trimmedRef);
             }

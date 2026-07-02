@@ -1,4 +1,4 @@
-import { Effect, Schema } from "effect";
+import { Duration, Effect, Schema } from "effect";
 import { existsSync, mkdirSync } from "fs";
 import { dirname, join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -202,6 +202,14 @@ export function gitHead(
 }
 
 /**
+ * Bound the background `git remote set-head --auto` refresh. Each call queries
+ * the remote over the network, so a single slow or unreachable remote would
+ * otherwise keep the forked refresh (and the pull scope that awaits it) alive
+ * indefinitely. On timeout the process is killed and the refresh is skipped.
+ */
+const REFRESH_REMOTE_HEAD_TIMEOUT = Duration.seconds(15);
+
+/**
  * Refresh a repository's local `<remote>/HEAD` symbolic-ref so it tracks the
  * remote's current default branch. Clones capture `<remote>/HEAD` once and never
  * auto-update it, so a default-branch rename on the remote leaves the local ref
@@ -209,35 +217,53 @@ export function gitHead(
  * `dot git-status`, `dot git-log`, the branch-context plugin).
  *
  * Queries the remote (`git remote set-head <remote> --auto`) and is non-fatal:
- * a missing remote, offline state, or any other failure resolves to no-op so
- * callers in the update/pull flow never break on it.
+ * a missing remote, offline state, timeout, or any other failure resolves to
+ * no-op so callers in the update/pull flow never break on it. Runs with
+ * `GIT_TERMINAL_PROMPT=0` and a hard timeout so a private or unreachable remote
+ * cannot block on a credential prompt or a stalled network connection.
  */
 export function gitRefreshRemoteHead(
   repoPath: string,
   remote = "origin",
 ): Effect.Effect<void, never, CommandExecutor> {
-  return gitExitCode(["remote", "set-head", remote, "--auto"], {
-    cwd: repoPath,
-  }).pipe(Effect.asVoid);
+  return Effect.gen(function* () {
+    const executor = yield* CommandExecutor;
+    yield* executor
+      .exitCode(
+        "env",
+        [
+          "GIT_TERMINAL_PROMPT=0",
+          "git",
+          "remote",
+          "set-head",
+          remote,
+          "--auto",
+        ],
+        { cwd: repoPath },
+      )
+      .pipe(Effect.timeoutOption(REFRESH_REMOTE_HEAD_TIMEOUT), Effect.asVoid);
+  });
 }
 
-/** Pull a repository with rebase, streaming output through the launcher. */
+/**
+ * Pull a repository with rebase, streaming output through the launcher. Returns
+ * true only when the pull succeeds (exit 0). Runs with `GIT_TERMINAL_PROMPT=0`
+ * so a private or unreachable remote fails fast instead of blocking on a
+ * credential prompt. Timeout, retry, and post-failure `rebase --abort` cleanup
+ * are owned by the caller (see `safePull` in the update flow), which holds the
+ * per-repo context needed to report and retry.
+ */
 export function gitPullRebase(
   repoPath: string,
 ): Effect.Effect<boolean, never, CommandExecutor | Launcher> {
   return Effect.gen(function* () {
     const launcher = yield* Launcher;
     const exitCode = yield* launcher
-      .stream("git pull --rebase --no-edit", {
+      .stream("GIT_TERMINAL_PROMPT=0 git pull --rebase --no-edit", {
         cwd: repoPath,
       })
       .pipe(Effect.catch(() => Effect.succeed(1)));
 
-    if (exitCode === 0) return true;
-
-    yield* gitExitCode(["rebase", "--abort"], { cwd: repoPath }).pipe(
-      Effect.catch(() => Effect.succeed(1)),
-    );
-    return false;
+    return exitCode === 0;
   });
 }

@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Duration, Effect, Option } from "effect";
 import { existsSync, unlinkSync } from "fs";
 import { basename, join } from "path";
 import { Config } from "../services/Config.js";
@@ -16,6 +16,7 @@ import {
   initCompleteMarker,
 } from "../lib/initState.js";
 import {
+  gitExitCode,
   gitHead,
   gitPullRebase,
   gitRefreshRemoteHead,
@@ -41,6 +42,56 @@ const SELECTABLE_UPDATE_FLAGS = [
  * spiking load while the pull stage runs alongside it.
  */
 const REFRESH_REMOTE_HEAD_CONCURRENCY = 6;
+
+/**
+ * Per-attempt bound for a single repo pull. A slow response is assumed to be
+ * GitHub under load or a flaky local connection rather than something worth
+ * waiting on, so this is deliberately short; the pull is retried once.
+ */
+const PULL_ATTEMPT_TIMEOUT_SECONDS = 30;
+const PULL_ATTEMPT_TIMEOUT = Duration.seconds(PULL_ATTEMPT_TIMEOUT_SECONDS);
+
+/** Attempts per repo: the initial pull plus one retry. */
+const PULL_MAX_ATTEMPTS = 2;
+
+/**
+ * Upper bound (seconds) for each update step. A step that exceeds its bound is
+ * interrupted and reported, so one hung phase surfaces in the output instead of
+ * stalling `dot update` silently.
+ */
+const STEP_TIMEOUT_SECONDS = {
+  pull: 8 * 60,
+  stow: 3 * 60,
+  rebuild: 5 * 60,
+  postHooks: 2 * 60,
+  resume: 60,
+} as const;
+
+/**
+ * Run one update step under an upper time bound. On timeout the step is
+ * interrupted (killing any child process it spawned, since command execution is
+ * interruptible) and a warning is logged, then the workflow continues. The
+ * step's own failures pass through unchanged.
+ */
+const withStepTimeout = <E, R>(
+  label: string,
+  seconds: number,
+  step: Effect.Effect<void, E, R>,
+): Effect.Effect<boolean, E, R | OutputLog> =>
+  Effect.gen(function* () {
+    const log = yield* OutputLog;
+    const completed = yield* log.withSpinner(
+      label,
+      step.pipe(Effect.timeoutOption(Duration.seconds(seconds))),
+    );
+    if (Option.isNone(completed)) {
+      yield* log.warn(
+        `Step "${label}" exceeded ${seconds}s and was stopped; continuing`,
+      );
+      return false;
+    }
+    return true;
+  });
 
 /** Options controlling which phases `dot update` runs. */
 export interface UpdateOptions {
@@ -138,11 +189,39 @@ const safePull = (name: string, path: string) =>
     );
 
     yield* log.info(`Pulling ${name} (${displayPath(path)})...`);
-    const pulled = yield* gitPullRebase(path);
-    if (!pulled) {
-      yield* log.warn(`Pull failed for ${name} — aborting rebase`);
-      return false;
+
+    let pulled = false;
+    for (let attempt = 1; attempt <= PULL_MAX_ATTEMPTS; attempt++) {
+      const outcome = yield* log.withSpinner(
+        `Pulling ${name} (${attempt}/${PULL_MAX_ATTEMPTS}, timeout ${PULL_ATTEMPT_TIMEOUT_SECONDS}s)`,
+        gitPullRebase(path).pipe(Effect.timeoutOption(PULL_ATTEMPT_TIMEOUT)),
+      );
+      if (Option.isSome(outcome) && outcome.value) {
+        pulled = true;
+        break;
+      }
+
+      // Clean up any half-applied rebase left by a failed or interrupted pull
+      // before retrying or moving on.
+      yield* gitExitCode(["rebase", "--abort"], { cwd: path }).pipe(
+        Effect.catch(() => Effect.succeed(1)),
+      );
+
+      const reason = Option.isNone(outcome)
+        ? `timed out after ${PULL_ATTEMPT_TIMEOUT_SECONDS}s`
+        : "failed";
+      if (attempt < PULL_MAX_ATTEMPTS) {
+        yield* log.warn(
+          `Pull ${reason} for ${name}, retrying (${attempt + 1}/${PULL_MAX_ATTEMPTS})...`,
+        );
+      } else {
+        yield* log.warn(
+          `Pull ${reason} for ${name} after ${PULL_MAX_ATTEMPTS} attempts, skipping`,
+        );
+      }
     }
+
+    if (!pulled) return false;
 
     const after = yield* gitHead(path).pipe(
       Effect.catch(() => Effect.succeed("")),
@@ -197,7 +276,15 @@ function selfUpdateAndRestart(
     yield* log.section("Self Update");
     const repoName = basename(config.publicDotfiles);
     const moved = yield* safePull(repoName, config.publicDotfiles);
-    yield* rebuild;
+    const rebuilt = yield* withStepTimeout(
+      "Rebuild",
+      STEP_TIMEOUT_SECONDS.rebuild,
+      rebuild,
+    );
+    if (!rebuilt) {
+      yield* log.warn("Self update rebuild timed out; skipping restart");
+      return;
+    }
     yield* log.info("Self update successful");
     yield* log.info("Restarting update with rebuilt dot binary");
     yield* restartDot(restartUpdateArgs(opts, moved ? repoName : undefined));
@@ -415,100 +502,122 @@ export const update = (opts?: UpdateOptions) =>
     const updatedNames = [...(opts?.postHookRepos ?? [])];
 
     if (doPull) {
-      yield* log.section("Pull Repositories");
-      yield* cloneMissingGitConfigRepos({ strict: false });
-
-      const dotDiff = yield* DotDiff;
-      const repos = yield* log.withSpinner(
-        "Scanning repositories",
-        dotDiff.getAll().pipe(Effect.catch(() => Effect.succeed([]))),
-      );
-      for (const repo of repos) {
-        yield* log.info(
-          `${repo.name}: ${repoStatus(repo)} (${displayPath(repo.path)})`,
-        );
-      }
-
-      // Race the best-effort branch refresh against the pull: whichever finishes
-      // first, the update continues. `git remote set-head --auto` re-points each
-      // repo's local <remote>/HEAD at the remote default branch (so a rename does
-      // not mislead default-branch detection in dot git-status, dot git-log, and
-      // the branch-context plugin), but it hits the network per repo and can hang
-      // on a slow remote. Rather than block on it, we fork it into this scope and
-      // let the pull below be the spine: when the pull finishes the scope closes
-      // and any still-running refresh is interrupted. This is safe because the
-      // refresh is purely cosmetic, the origin/HEAD doctor check catches any
-      // staleness, and set-head calls already spawned still complete in the
-      // background.
-      yield* Effect.scoped(
+      yield* withStepTimeout(
+        "Pull Repositories",
+        STEP_TIMEOUT_SECONDS.pull,
         Effect.gen(function* () {
-          yield* Effect.forEach(
-            repos,
-            (repo) => gitRefreshRemoteHead(repo.path),
-            { discard: true, concurrency: REFRESH_REMOTE_HEAD_CONCURRENCY },
-          ).pipe(
-            Effect.andThen(log.info("Refreshed remote branches")),
-            Effect.forkScoped,
-          );
+          yield* log.section("Pull Repositories");
+          yield* cloneMissingGitConfigRepos({ strict: false });
 
-          if (!config.canUsePrivate) {
-            yield* log.warn(`Skipping private pull (${config.privateReason})`);
+          const dotDiff = yield* DotDiff;
+          const repos = yield* log.withSpinner(
+            "Scanning repositories",
+            dotDiff.getAll().pipe(Effect.catch(() => Effect.succeed([]))),
+          );
+          for (const repo of repos) {
+            yield* log.info(
+              `${repo.name}: ${repoStatus(repo)} (${displayPath(repo.path)})`,
+            );
           }
 
-          const changed = repos.filter(
-            (r) => r.isDirty || r.ahead > 0 || r.behind > 0,
-          );
-          const behind = repos.filter((r) => r.behind > 0);
-
-          if (behind.length === 0) {
-            if (changed.length > 0) {
-              yield* log.info("Nothing to pull (no repos behind upstream)");
-
-              const notes: string[] = [];
-              if (changed.some((r) => r.isDirty))
-                notes.push("dirty working tree");
-              if (changed.some((r) => r.ahead > 0))
-                notes.push("ahead of upstream");
-              yield* log.warn(
-                `${changed.length} repo(s) need attention: ${notes.join(", ")}`,
+          // Race the best-effort branch refresh against the pull: whichever finishes
+          // first, the update continues. `git remote set-head --auto` re-points each
+          // repo's local <remote>/HEAD at the remote default branch (so a rename does
+          // not mislead default-branch detection in dot git-status, dot git-log, and
+          // the branch-context plugin), but it hits the network per repo and can hang
+          // on a slow remote. Rather than block on it, we fork it into this scope and
+          // let the pull below be the spine: when the pull finishes the scope closes
+          // and any still-running refresh is interrupted. This is safe because the
+          // refresh is purely cosmetic, the origin/HEAD doctor check catches any
+          // staleness, and set-head calls already spawned still complete in the
+          // background.
+          yield* Effect.scoped(
+            Effect.gen(function* () {
+              yield* Effect.forEach(
+                repos,
+                (repo) => gitRefreshRemoteHead(repo.path),
+                { discard: true, concurrency: REFRESH_REMOTE_HEAD_CONCURRENCY },
+              ).pipe(
+                Effect.andThen(log.info("Refreshed remote branches")),
+                Effect.forkScoped,
               );
-              for (const repo of changed) {
-                yield* log.warn(`  - ${repo.name}: ${displayPath(repo.path)}`);
+
+              if (!config.canUsePrivate) {
+                yield* log.warn(
+                  `Skipping private pull (${config.privateReason})`,
+                );
               }
-            } else {
-              yield* log.info("All repositories are up to date");
-            }
-          } else {
-            yield* log.info(`${changed.length} repo(s) need attention`);
-            for (const repo of behind) {
-              const moved = yield* safePull(repo.name, repo.path);
-              if (moved) updatedNames.push(repo.name);
-            }
-          }
+
+              const changed = repos.filter(
+                (r) => r.isDirty || r.ahead > 0 || r.behind > 0,
+              );
+              const behind = repos.filter((r) => r.behind > 0);
+
+              if (behind.length === 0) {
+                if (changed.length > 0) {
+                  yield* log.info("Nothing to pull (no repos behind upstream)");
+
+                  const notes: string[] = [];
+                  if (changed.some((r) => r.isDirty))
+                    notes.push("dirty working tree");
+                  if (changed.some((r) => r.ahead > 0))
+                    notes.push("ahead of upstream");
+                  yield* log.warn(
+                    `${changed.length} repo(s) need attention: ${notes.join(", ")}`,
+                  );
+                  for (const repo of changed) {
+                    yield* log.warn(
+                      `  - ${repo.name}: ${displayPath(repo.path)}`,
+                    );
+                  }
+                } else {
+                  yield* log.info("All repositories are up to date");
+                }
+              } else {
+                yield* log.info(`${changed.length} repo(s) need attention`);
+                for (const repo of behind) {
+                  const moved = yield* safePull(repo.name, repo.path);
+                  if (moved) updatedNames.push(repo.name);
+                }
+              }
+            }),
+          );
+
+          // Trust mise configs in freshly pulled/cloned repos so mise never
+          // prompts for them on this machine.
+          yield* trustTrackedMiseConfigs;
         }),
       );
-
-      // Trust mise configs in freshly pulled/cloned repos so mise never
-      // prompts for them on this machine.
-      yield* trustTrackedMiseConfigs;
     }
 
     if (doStow) {
-      yield* log.section("Completions");
-      const completionTargets = yield* writeAllCompletions;
-      for (const completionTarget of completionTargets) {
-        yield* log.info(
-          `Generated completions: ${displayPath(completionTarget)}`,
-        );
-      }
+      yield* withStepTimeout(
+        "Stow",
+        STEP_TIMEOUT_SECONDS.stow,
+        Effect.gen(function* () {
+          yield* log.section("Completions");
+          const completionTargets = yield* writeAllCompletions;
+          for (const completionTarget of completionTargets) {
+            yield* log.info(
+              `Generated completions: ${displayPath(completionTarget)}`,
+            );
+          }
 
-      yield* runStow();
+          yield* runStow();
+        }),
+      );
     }
 
     if (doTui) {
-      yield* log.section("Rebuild");
-      yield* rebuild;
-      yield* log.info("Build successful");
+      yield* withStepTimeout(
+        "Rebuild",
+        STEP_TIMEOUT_SECONDS.rebuild,
+        Effect.gen(function* () {
+          yield* log.section("Rebuild");
+          yield* rebuild;
+          yield* log.info("Build successful");
+        }),
+      );
     }
 
     // Notify only when a repo actually moved.
@@ -519,7 +628,11 @@ export const update = (opts?: UpdateOptions) =>
     // Post-hooks (agents-sync) run on every full update,
     // independent of whether a repo was pulled; flag-scoped runs skip them.
     if (isFullUpdate) {
-      yield* postHooks;
+      yield* withStepTimeout(
+        "Post-Hooks",
+        STEP_TIMEOUT_SECONDS.postHooks,
+        postHooks,
+      );
     }
 
     if (isFullUpdate) {
@@ -527,5 +640,9 @@ export const update = (opts?: UpdateOptions) =>
       yield* logInitMarkerStatus(markerStatus, config);
     }
 
-    yield* runResumeRefresh;
+    yield* withStepTimeout(
+      "Resume Refresh",
+      STEP_TIMEOUT_SECONDS.resume,
+      runResumeRefresh,
+    );
   });

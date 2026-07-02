@@ -875,6 +875,7 @@ if (mode.type === "native") {
     Layer.provideMerge(CommitSuggest.layer),
     Layer.provideMerge(Toast.layer(theme)),
     Layer.provideMerge(Renderer.layer(theme, nativeLibPath)),
+    Layer.provideMerge(OutputLog.tuiLayer),
     Layer.provideMerge(CommandExecutor.layer),
     Layer.provideMerge(Config.layer),
   );

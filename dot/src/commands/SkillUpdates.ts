@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Duration, Effect, Option } from "effect";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { Config } from "../services/Config.js";
@@ -20,6 +20,20 @@ import {
 
 /** Mode of operation for the skill-updates command */
 type Mode = "check" | "update" | "interactive";
+
+const SKILL_CHECK_TIMEOUT_SECONDS = 45;
+const SKILL_APPLY_TIMEOUT_SECONDS = 60;
+const SKILL_DIFF_TIMEOUT_SECONDS = 45;
+
+const skillCheckTimeout = Duration.seconds(SKILL_CHECK_TIMEOUT_SECONDS);
+const skillApplyTimeout = Duration.seconds(SKILL_APPLY_TIMEOUT_SECONDS);
+const skillDiffTimeout = Duration.seconds(SKILL_DIFF_TIMEOUT_SECONDS);
+
+const timeoutResult = <A, E, R>(
+  effect: Effect.Effect<A, E, R>,
+  duration: Duration.Duration,
+): Effect.Effect<Option.Option<A>, E, R> =>
+  effect.pipe(Effect.timeoutOption(duration));
 
 /** Collected review item for skills with local edits needing manual review */
 interface ReviewItem {
@@ -89,17 +103,34 @@ export const skillUpdates = (opts?: {
     const reviewItems: ReviewItem[] = [];
 
     for (const meta of skills) {
-      const result: CheckResult = yield* log.withSpinner(
+      const checked = yield* log.withSpinner(
         `Checking ${meta.name}`,
-        checkSkill(meta).pipe(
-          Effect.catch((err) =>
-            Effect.succeed({
-              type: "error" as const,
-              reason: String(err),
-            }),
+        timeoutResult(
+          checkSkill(meta).pipe(
+            Effect.catch((err) =>
+              Effect.succeed({
+                type: "error" as const,
+                reason: String(err),
+              }),
+            ),
           ),
+          skillCheckTimeout,
         ),
       );
+      const result: CheckResult = yield* Option.match(checked, {
+        onNone: () =>
+          Effect.succeed({
+            type: "error" as const,
+            reason: `timed out after ${SKILL_CHECK_TIMEOUT_SECONDS}s`,
+          }),
+        onSome: (value) => Effect.succeed(value),
+      });
+
+      if (Option.isNone(checked)) {
+        yield* log.warn(
+          `  ${meta.name}: check timed out after ${SKILL_CHECK_TIMEOUT_SECONDS}s`,
+        );
+      }
 
       switch (result.type) {
         case "up-to-date": {
@@ -135,12 +166,22 @@ export const skillUpdates = (opts?: {
           }
 
           // In update and interactive modes: auto-apply
-          const applied = yield* log.withSpinner(
+          const appliedResult = yield* log.withSpinner(
             `Applying ${meta.name}`,
-            applySkillUpdate(meta, result.writeSha).pipe(
-              Effect.catch(() => Effect.succeed(false)),
+            timeoutResult(
+              applySkillUpdate(meta, result.writeSha).pipe(
+                Effect.catch(() => Effect.succeed(false)),
+              ),
+              skillApplyTimeout,
             ),
           );
+          const applied = Option.getOrElse(appliedResult, () => false);
+
+          if (Option.isNone(appliedResult)) {
+            yield* log.warn(
+              `  ${meta.name}: apply timed out after ${SKILL_APPLY_TIMEOUT_SECONDS}s`,
+            );
+          }
 
           if (applied) {
             updatedDirs.push(meta.dir);
@@ -158,7 +199,7 @@ export const skillUpdates = (opts?: {
           // Report changes + local edits
           yield* log.info(`  ${meta.name}: upstream changes detected`);
           yield* log.info(
-            "    [local edits — diffs expected, skipping auto-apply]",
+            "    [local edits, diffs expected, skipping auto-apply]",
           );
           for (const edit of meta.localEdits) {
             yield* log.info(`      - ${edit}`);
@@ -292,10 +333,20 @@ const opencodeReview = (
       yield* log.info(`Path:   ${meta.dir}`);
 
       // Build the diff report
-      const diffContent = yield* log.withSpinner(
+      const diffResult = yield* log.withSpinner(
         `Building diff for ${meta.name}`,
-        buildSingleDiff(meta).pipe(Effect.catch(() => Effect.succeed(""))),
+        timeoutResult(
+          buildSingleDiff(meta).pipe(Effect.catch(() => Effect.succeed(""))),
+          skillDiffTimeout,
+        ),
       );
+      const diffContent = Option.getOrElse(diffResult, () => "");
+
+      if (Option.isNone(diffResult)) {
+        yield* log.warn(
+          `  ${meta.name}: diff build timed out after ${SKILL_DIFF_TIMEOUT_SECONDS}s`,
+        );
+      }
 
       if (!diffContent) {
         yield* log.info(`  No upstream diff to review for ${meta.name}.`);

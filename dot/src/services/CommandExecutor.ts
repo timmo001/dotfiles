@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Schema, Stream } from "effect";
+import { Cause, Context, Effect, Layer, Queue, Schema, Stream } from "effect";
 import { writeMirroredLog } from "../lib/logMirror.js";
 import { expandHomePath } from "../lib/paths.js";
 import { ENV, envString } from "../lib/env.js";
@@ -7,6 +7,33 @@ const DEBUG = !!envString(ENV.DOT_DEBUG);
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot:CommandExecutor] ${msg}`);
 };
+
+/** Minimal view of a spawned process needed to terminate it. */
+type KillableProcess = Pick<Bun.Subprocess, "exitCode" | "kill">;
+
+/** Terminate a spawned process if it is still running; a no-op once it has exited. */
+function killProcess(proc: KillableProcess): void {
+  if (proc.exitCode !== null) return;
+  try {
+    proc.kill();
+  } catch {
+    // Raced with the process exiting between the check and the kill.
+  }
+}
+
+/**
+ * Terminate `proc` when `signal` aborts. Effect aborts this signal on fiber
+ * interruption (including timeouts and scope close), so a spawned command that
+ * stalls on the network no longer keeps the fiber alive: the process is killed
+ * and the interruption proceeds.
+ */
+function killOnAbort(proc: KillableProcess, signal: AbortSignal): void {
+  if (signal.aborted) {
+    killProcess(proc);
+    return;
+  }
+  signal.addEventListener("abort", () => killProcess(proc), { once: true });
+}
 
 /** Domain error for command execution failures */
 export class CommandError extends Schema.TaggedErrorClass<CommandError>()(
@@ -22,13 +49,6 @@ interface CommandFailure {
   readonly command: string;
   readonly exitCode: number;
   readonly stderr: string;
-}
-
-type ProcessStreamName = "stdout" | "stderr";
-
-interface ProcessLineResult {
-  readonly source: ProcessStreamName;
-  readonly result: IteratorResult<string>;
 }
 
 function isCommandFailure(error: unknown): error is CommandFailure {
@@ -117,11 +137,11 @@ export interface CommandExecutorService {
   ) => Effect.Effect<number>;
 }
 
-/** Create an async iterable of lines from a subprocess stdout */
-async function* lineIterator(
-  stdout: ReadableStream<Uint8Array>,
-): AsyncGenerator<string, void, unknown> {
-  const reader = stdout.getReader();
+async function pipeLines(
+  stream: ReadableStream<Uint8Array>,
+  onLine: (line: string) => void,
+): Promise<void> {
+  const reader = stream.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
 
@@ -133,88 +153,80 @@ async function* lineIterator(
     const lines = buffer.split("\n");
     buffer = lines.pop() ?? "";
     for (const line of lines) {
-      yield line;
+      onLine(line);
     }
   }
 
-  // Flush remaining buffer
   if (buffer.length > 0) {
-    yield buffer;
+    onLine(buffer);
   }
 }
 
-function nextProcessLine(
-  source: ProcessStreamName,
-  iterator: AsyncIterator<string>,
-): Promise<ProcessLineResult> {
-  return iterator.next().then((result) => ({ source, result }));
-}
-
-async function* processLineIterator(
-  fullCmd: string[],
+function processLineStream(
+  fullCmd: readonly string[],
   opts?: { readonly cwd?: string },
-): AsyncGenerator<string, void, unknown> {
-  const proc = Bun.spawn(fullCmd, {
-    stdout: "pipe",
-    stderr: "pipe",
-    cwd: opts?.cwd,
-  });
+): Stream.Stream<string, CommandError> {
+  return Stream.unwrap(
+    Effect.acquireRelease(
+      Effect.gen(function* () {
+        const queue = yield* Queue.unbounded<
+          string,
+          CommandError | Cause.Done
+        >();
+        const proc = Bun.spawn([...fullCmd], {
+          stdout: "pipe",
+          stderr: "pipe",
+          cwd: opts?.cwd,
+        });
+        const stderrLines: string[] = [];
 
-  const stdout = lineIterator(proc.stdout as ReadableStream<Uint8Array>)[
-    Symbol.asyncIterator
-  ]();
-  const stderr = lineIterator(proc.stderr as ReadableStream<Uint8Array>)[
-    Symbol.asyncIterator
-  ]();
-  const stderrLines: string[] = [];
+        const stdout = pipeLines(
+          proc.stdout as ReadableStream<Uint8Array>,
+          (line) => {
+            Queue.offerUnsafe(queue, line);
+          },
+        );
+        const stderr = pipeLines(
+          proc.stderr as ReadableStream<Uint8Array>,
+          (line) => {
+            stderrLines.push(line);
+            Queue.offerUnsafe(queue, line);
+          },
+        );
 
-  let stdoutNext: Promise<ProcessLineResult> | undefined = nextProcessLine(
-    "stdout",
-    stdout,
+        void Promise.all([stdout, stderr, proc.exited])
+          .then(([, , exitCode]) => {
+            if (exitCode === 0) {
+              Queue.endUnsafe(queue);
+              return;
+            }
+            Queue.failCauseUnsafe(
+              queue,
+              Cause.fail(
+                new CommandError({
+                  command: fullCmd.join(" "),
+                  exitCode,
+                  stderr: stderrLines.join("\n").trim(),
+                }),
+              ),
+            );
+          })
+          .catch((error: unknown) => {
+            Queue.failCauseUnsafe(
+              queue,
+              Cause.fail(toCommandError(error, fullCmd.join(" "))),
+            );
+          });
+
+        return { proc, queue };
+      }),
+      ({ proc, queue }) =>
+        Effect.gen(function* () {
+          killProcess(proc);
+          yield* Queue.shutdown(queue);
+        }),
+    ).pipe(Effect.map(({ queue }) => Stream.fromQueue(queue))),
   );
-  let stderrNext: Promise<ProcessLineResult> | undefined = nextProcessLine(
-    "stderr",
-    stderr,
-  );
-
-  while (stdoutNext || stderrNext) {
-    const pending = [stdoutNext, stderrNext].filter(
-      (promise): promise is Promise<ProcessLineResult> => promise !== undefined,
-    );
-    if (pending.length === 0) break;
-
-    const next = await Promise.race(pending);
-    if (next.result.done) {
-      if (next.source === "stdout") {
-        stdoutNext = undefined;
-      } else {
-        stderrNext = undefined;
-      }
-      continue;
-    }
-
-    if (next.source === "stderr") {
-      stderrLines.push(next.result.value);
-    }
-
-    yield next.result.value;
-
-    if (next.source === "stdout") {
-      stdoutNext = nextProcessLine("stdout", stdout);
-    } else {
-      stderrNext = nextProcessLine("stderr", stderr);
-    }
-  }
-
-  const exitCode = await proc.exited;
-  if (exitCode !== 0) {
-    const failure: CommandFailure = {
-      command: fullCmd.join(" "),
-      exitCode,
-      stderr: stderrLines.join("\n").trim(),
-    };
-    throw failure;
-  }
 }
 
 /** Effect service for {@link CommandExecutorService} */
@@ -225,7 +237,7 @@ export class CommandExecutor extends Context.Service<
   static readonly layer = Layer.succeed(CommandExecutor, {
     run: (cmd, args, opts) =>
       Effect.tryPromise({
-        try: async () => {
+        try: async (signal) => {
           const fullCmd = [cmd, ...args];
           log(
             `run: ${fullCmd.join(" ")}${opts?.cwd ? ` (cwd: ${opts.cwd})` : ""}`,
@@ -235,6 +247,7 @@ export class CommandExecutor extends Context.Service<
             stderr: "pipe",
             cwd: opts?.cwd,
           });
+          killOnAbort(proc, signal);
 
           const stdout = await new Response(proc.stdout).text();
           const exitCode = await proc.exited;
@@ -266,18 +279,11 @@ export class CommandExecutor extends Context.Service<
         `stream: ${fullCmd.join(" ")}${opts?.cwd ? ` (cwd: ${opts.cwd})` : ""}`,
       );
 
-      return Stream.unwrap(
-        Effect.sync(() => {
-          return Stream.fromAsyncIterable(
-            processLineIterator(fullCmd, opts),
-            (error) => toCommandError(error, fullCmd.join(" ")),
-          );
-        }),
-      );
+      return processLineStream(fullCmd, opts);
     },
 
     exitCode: (cmd, args, opts) =>
-      Effect.promise(async () => {
+      Effect.promise((signal) => {
         const fullCmd = [cmd, ...args];
         log(
           `exitCode: ${fullCmd.join(" ")}${opts?.cwd ? ` (cwd: ${opts.cwd})` : ""}`,
@@ -287,11 +293,12 @@ export class CommandExecutor extends Context.Service<
           stderr: "ignore",
           cwd: opts?.cwd,
         });
+        killOnAbort(proc, signal);
         return proc.exited;
       }),
 
     inherit: (cmd, args, opts) =>
-      Effect.promise(async () => {
+      Effect.promise(async (signal) => {
         const fullCmd = [cmd, ...args];
         log(
           `inherit: ${fullCmd.join(" ")}${opts?.cwd ? ` (cwd: ${opts.cwd})` : ""}`,
@@ -305,6 +312,7 @@ export class CommandExecutor extends Context.Service<
             stderr: "pipe",
             cwd: opts?.cwd,
           });
+          killOnAbort(proc, signal);
           const stdout = pipeProcessOutput(
             proc.stdout as ReadableStream<Uint8Array>,
             process.stdout,
@@ -326,6 +334,7 @@ export class CommandExecutor extends Context.Service<
           stderr: "inherit",
           cwd: opts?.cwd,
         });
+        killOnAbort(proc, signal);
         return proc.exited;
       }),
   });

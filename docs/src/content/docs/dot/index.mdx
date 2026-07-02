@@ -38,6 +38,12 @@ It has two faces:
 
 See the full [Command Reference](/dot/commands/) for every subcommand and flag.
 
+## Update safeguards
+
+`dot update` keeps each phase bounded so a slow remote, stuck hook, or helper process cannot leave the update sitting silently. The pull phase times out each repo fetch and retries each repo pull once before skipping it. When a timeout happens, the output names the step or repo, shows the timeout, and continues with the rest of the update.
+
+The final resume refresh is also bounded, because it only needs to trigger status-bar refresh work. If the helper does not return, the step is stopped and the update moves on.
+
 ## Dashboard
 
 `dot dashboard` opens a full-screen dashboard. It combines tracked repo state, GitHub notifications, workflow runs, and optional bounded source commands for Twitch, environment, todo, and calendar cards. Cards are intentionally readable and always present; Enter opens an existing deeper TUI view, or suspends `dot` while another TUI runs, when a card has one.
