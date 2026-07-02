@@ -396,12 +396,17 @@ export const cliCommands: readonly CliCommandSpec[] = [
   {
     name: "git-commit",
     summary: "Commit staged changes through the guarded gateway",
-    usage: "--message <subject> [options]",
+    usage: "--message <subject> [options] | --amend [options]",
     description: [
       "Create a commit through dot's guarded gateway instead of raw git commit.",
       "The subject is validated as a single line with no trailing full stop and",
       "a length limit, then the staged set (or an explicit --path scope) is",
       "committed. It never runs git add -A.",
+      "",
+      "Pass --amend to rewrite the previous commit instead of creating a new",
+      "one; it keeps the existing message unless you pass --message. With",
+      "--push, an amend force-pushes with --force-with-lease (never a plain",
+      "force).",
       "",
       "Agents are routed here by the git-commit skill and blocked from raw",
       "git commit in the OpenCode permission config, so commits stay in the",
@@ -410,6 +415,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
     modes: [
       "(default)     Commit the staged set",
       "--path        Commit only the named files",
+      "--amend       Rewrite the previous commit",
       "--dry-run     Preview the plan, change nothing",
     ],
     options: [
@@ -417,7 +423,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
         name: "--message",
         short: "-m",
         valueName: "subject",
-        description: "Single-line commit subject (required)",
+        description: "Single-line commit subject (required unless --amend)",
       },
       {
         name: "--path",
@@ -426,9 +432,14 @@ export const cliCommands: readonly CliCommandSpec[] = [
         description: "Commit only this file; repeatable",
       },
       {
+        name: "--amend",
+        description:
+          "Amend the previous commit; keeps its message unless --message is given",
+      },
+      {
         name: "--push",
         description:
-          "Push the current branch after committing (pulls --rebase first, never forces)",
+          "Push the current branch after committing (pulls --rebase first, or force-with-lease when amending, never a plain force)",
       },
       {
         name: "--dry-run",
@@ -461,6 +472,8 @@ export const cliCommands: readonly CliCommandSpec[] = [
       'dot git-commit -m "Add commit gateway"',
       'dot git-commit -m "Scope to one file" --path src/git/commands/Status.ts',
       'dot git-commit -m "Commit and push" --push',
+      "dot git-commit --amend",
+      'dot git-commit --amend -m "Reword the previous commit"',
       'dot git-commit -m "Preview only" --dry-run',
     ],
   },

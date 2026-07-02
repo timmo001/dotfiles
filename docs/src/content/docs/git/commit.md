@@ -11,6 +11,8 @@ description: Guarded commits through dot git-commit instead of raw git commit.
 dot git-commit -m "Add commit gateway"                         # commit the staged set
 dot git-commit -m "Scope to one file" --path src/git/Status.ts # commit only named files
 dot git-commit -m "Commit and push" --push                     # commit, rebase-pull, then push
+dot git-commit --amend                                         # fold staged changes into HEAD, keep its message
+dot git-commit --amend -m "Reword last commit"                 # rewrite HEAD's subject
 dot git-commit -m "Preview only" --dry-run                     # show the plan, change nothing
 ```
 
@@ -23,6 +25,10 @@ Without `--path`, the command commits the current staged set. It never runs `git
 Use repeated `--path <file>` flags when one working tree contains several unrelated changes. That commits only those files and leaves other staged or unstaged files alone.
 
 `--dry-run` validates the message, resolves the target branch, prints the commit or push plan, and exits before staging, committing, or pushing.
+
+## Amend Mode
+
+`--amend` rewrites the previous commit instead of creating a new one. It folds the staged set (or a `--path` scope) into HEAD and, without `--message`, keeps HEAD's existing message. Pass `--message` to reword the subject; it runs through the same message guards. An amend with nothing staged is allowed, so `--amend -m "..."` is the way to reword the last commit.
 
 ## Message Guards
 
@@ -49,6 +55,8 @@ Work on a feature branch for upstream PRs. Personal repos, takeover forks with n
 
 ## Push Mode
 
-`--push` commits first, then pulls with `--rebase` before pushing. It sets an upstream for the current branch when one is missing and never force-pushes. Agents must only use it for the specific commit/push request the user just made.
+`--push` commits first, then pulls with `--rebase` before pushing. It sets an upstream for the current branch when one is missing and never runs a plain force-push. Agents must only use it for the specific commit/push request the user just made.
+
+When combined with `--amend`, the push instead uses `--force-with-lease`: the rewritten commit only overwrites the remote branch when it still matches the ref we last saw, so a teammate's or bot's newer commit blocks the push rather than being clobbered. The pull-rebase step is skipped in this case.
 
 If the rebase conflicts, the command aborts the push path and leaves the commit in place for manual integration.

@@ -234,7 +234,7 @@ export class CommitView {
     this.statusBar.content = t`${fg(this.theme.yellow)("Committing...")}`;
 
     Effect.runPromise(
-      this.gitStaging.commit(this.repoPath, message).pipe(
+      this.gitStaging.commit(this.repoPath, { message }).pipe(
         Effect.catch((err) => {
           log(`Commit error: ${err.message}`);
           this.statusBar.content = t`${fg(this.theme.red)(`Commit failed: ${err.message}`)}`;

@@ -17,6 +17,16 @@ export class GitStagingError extends Schema.TaggedErrorClass<GitStagingError>()(
   },
 ) {}
 
+/** Options for {@link GitStagingService.commit}. */
+export interface CommitOptions {
+  /** Commit subject. Omit under `amend` to keep HEAD's message (`--no-edit`). */
+  readonly message?: string;
+  /** Pathspecs to scope the commit to; empty commits the staged set. */
+  readonly paths?: readonly string[];
+  /** Rewrite HEAD via `git commit --amend` instead of creating a new commit. */
+  readonly amend?: boolean;
+}
+
 /** Service interface for git staging operations scoped to a single repository */
 export interface GitStagingService {
   /** Parse `git status --porcelain` output into staged and unstaged file lists */
@@ -36,14 +46,15 @@ export interface GitStagingService {
   /** Stage all files via `git add -A` */
   readonly stageAll: (repoPath: string) => Effect.Effect<void, GitStagingError>;
   /**
-   * Commit with the given message. When `paths` is provided, the commit is
+   * Commit with the given options. When `paths` is provided, the commit is
    * scoped to those pathspecs (`git commit -m <message> -- <paths>`) so only
-   * those files are recorded regardless of what else is staged.
+   * those files are recorded regardless of what else is staged. When `amend`
+   * is set the commit rewrites HEAD, and an omitted `message` keeps HEAD's
+   * existing message via `--no-edit`.
    */
   readonly commit: (
     repoPath: string,
-    message: string,
-    paths?: readonly string[],
+    options: CommitOptions,
   ) => Effect.Effect<void, GitStagingError>;
   /** Get recent commit messages from a repository */
   readonly getRecentCommits: (
@@ -95,11 +106,21 @@ export class GitStaging extends Context.Service<
           return provideExecutor(runGitVoid(repoPath, ["add", "-A"]));
         },
 
-        commit: (repoPath, message, paths) => {
+        commit: (repoPath, { message, paths, amend }) => {
+          const amendArgs = amend ? ["--amend"] : [];
+          const messageArgs =
+            message !== undefined ? ["-m", message] : ["--no-edit"];
           const pathArgs = paths && paths.length > 0 ? ["--", ...paths] : [];
-          log(`Committing in ${repoPath}: ${message}`);
+          log(
+            `${amend ? "Amending" : "Committing"} in ${repoPath}: ${message ?? "(keep message)"}`,
+          );
           return provideExecutor(
-            runGitVoid(repoPath, ["commit", "-m", message, ...pathArgs]),
+            runGitVoid(repoPath, [
+              "commit",
+              ...amendArgs,
+              ...messageArgs,
+              ...pathArgs,
+            ]),
           );
         },
 

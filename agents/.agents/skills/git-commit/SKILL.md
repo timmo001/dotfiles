@@ -64,10 +64,17 @@ staging, and message authoring around it.
 ```bash
 dot git-commit -m "<subject>"                 # commit the staged set
 dot git-commit -m "<subject>" --path src/x.ts # commit only these files
+dot git-commit --amend                        # fold staged changes into HEAD, keep its message
+dot git-commit --amend -m "<subject>"         # rewrite HEAD's subject (reword)
 dot git-commit -m "<subject>" --dry-run       # preview, change nothing
 ```
 
 - Use `--dry-run` first when unsure what is staged.
+- Use `--amend` only to fix up the previous commit the user just made, and only
+  when they ask for an amend. Without `--message` it keeps HEAD's message; pass
+  `--message` to reword. An amend with nothing staged is allowed, so
+  `--amend -m "<subject>"` is how you reword the last commit. Do not amend a
+  commit someone else may have based work on.
 - If the gateway rejects the subject, fix it and rerun; do not work around it.
 - The gateway refuses to commit to the base branch of a repo you do not own
   (owners in `git config dot.owner`), so you do not commit to, say, `dev` on
@@ -88,6 +95,10 @@ dot git-commit -m "<subject>" --push
   force-pushes. On a rebase conflict it aborts and keeps your commit for manual
   integration. Only push when the user asked for this specific push (a
   `/commit-push` invocation or explicit "push").
+- Combining `--amend --push` force-pushes with `--force-with-lease` (never a
+  plain force): it overwrites the remote branch only when it still matches the
+  ref last seen, so a teammate's or bot's newer commit blocks the push instead
+  of being clobbered. Only do this on a branch that is safe to rewrite.
 
 ## 7. Report
 

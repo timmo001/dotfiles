@@ -115,10 +115,11 @@ _dot_cmd_git_status() {
 }
 _dot_cmd_git_commit() {
   _arguments -S \
-    '(-m --message)-m[Single-line commit subject (required)]:subject:' \
-    '(-m --message)--message[Single-line commit subject (required)]:subject:' \
+    '(-m --message)-m[Single-line commit subject (required unless --amend)]:subject:' \
+    '(-m --message)--message[Single-line commit subject (required unless --amend)]:subject:' \
     '--path[Commit only this file; repeatable]:file:_files' \
-    '--push[Push the current branch after committing (pulls --rebase first, never forces)]' \
+    '--amend[Amend the previous commit; keeps its message unless --message is given]' \
+    '--push[Push the current branch after committing (pulls --rebase first, or force-with-lease when amending, never a plain force)]' \
     '--dry-run[Preview the commit and push plan without changing anything]' \
     '(-h --help)-h[Show this help message]' \
     '(-h --help)--help[Show this help message]' \

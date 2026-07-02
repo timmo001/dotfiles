@@ -122,7 +122,7 @@ _dot_cmd_git_commit() {
   esac
 
   if [[ $cur == -* ]]; then
-    COMPREPLY=( $(compgen -W '--message -m --path --push --dry-run --help -h' -- "$cur") )
+    COMPREPLY=( $(compgen -W '--message -m --path --amend --push --dry-run --help -h' -- "$cur") )
     return
   fi
 }

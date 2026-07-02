@@ -210,6 +210,8 @@ export interface GitCommitOptions {
   readonly push: boolean;
   /** Preview the plan without staging, committing, or pushing. */
   readonly dryRun: boolean;
+  /** Amend HEAD instead of creating a new commit. Keeps HEAD's message when no `--message` is given. */
+  readonly amend: boolean;
 }
 
 const handleCommitError = handleCommandError("dot git-commit");
@@ -314,20 +316,24 @@ export function gitCommitRaw(
       return yield* failCommit(protection);
     }
 
-    if (options.message === undefined) {
+    if (options.message === undefined && !options.amend) {
       return yield* failCommit(
         'A commit message is required. Pass --message "<subject>".',
       );
     }
 
-    const check = validateCommitMessage(options.message);
-    for (const warning of check.warnings) {
-      yield* writeStderr(`[dot git-commit] warning: ${warning}\n`);
+    // Amend without --message keeps HEAD's existing message (--no-edit).
+    let subject: string | undefined;
+    if (options.message !== undefined) {
+      const check = validateCommitMessage(options.message);
+      for (const warning of check.warnings) {
+        yield* writeStderr(`[dot git-commit] warning: ${warning}\n`);
+      }
+      if (!check.ok) {
+        return yield* failCommit(check.errors.join(" "));
+      }
+      subject = check.subject;
     }
-    if (!check.ok) {
-      return yield* failCommit(check.errors.join(" "));
-    }
-    const subject = check.subject;
 
     const staging = yield* GitStaging;
     const status = yield* staging.getStatus(process.cwd());
@@ -343,6 +349,7 @@ export function gitCommitRaw(
         paths: options.paths,
         staged: stagedFiles,
         push: options.push,
+        amend: options.amend,
       });
     }
 
@@ -350,33 +357,47 @@ export function gitCommitRaw(
       for (const path of options.paths) {
         yield* staging.stageFile(process.cwd(), path);
       }
-      yield* staging.commit(process.cwd(), subject, options.paths);
+      yield* staging.commit(process.cwd(), {
+        message: subject,
+        paths: options.paths,
+        amend: options.amend,
+      });
     } else {
-      if (stagedFiles.length === 0) {
+      // A plain amend with nothing staged just rewrites HEAD (e.g. a message
+      // change), so only require a staged set for non-amend commits.
+      if (stagedFiles.length === 0 && !options.amend) {
         return yield* failCommit(
           "Nothing staged. Stage changes first, or pass --path <file> to commit specific files.",
         );
       }
-      yield* staging.commit(process.cwd(), subject);
+      yield* staging.commit(process.cwd(), {
+        message: subject,
+        amend: options.amend,
+      });
     }
 
     const shortHash = yield* readGit(["rev-parse", "--short", "HEAD"]);
+    const reportSubject =
+      subject ?? (yield* readGit(["log", "-1", "--pretty=%s"]));
     const committed = scoped ? options.paths : stagedFiles;
-    yield* writeText(formatCommitReport(shortHash, subject, committed));
+    yield* writeText(
+      formatCommitReport(shortHash, reportSubject, committed, options.amend),
+    );
 
     if (options.push) {
-      yield* pushCurrentBranch;
+      yield* pushCurrentBranch(options.amend);
     }
   }).pipe(Effect.withSpan("gitCommit.raw"), handleCommitError);
 }
 
 /** Inputs for the `--dry-run` plan preview. */
 interface DryRunInput {
-  readonly subject: string;
+  readonly subject: string | undefined;
   readonly scoped: boolean;
   readonly paths: readonly string[];
   readonly staged: readonly string[];
   readonly push: boolean;
+  readonly amend: boolean;
 }
 
 /** Print what a real run would stage, commit, and push, changing nothing. */
@@ -384,20 +405,33 @@ function reportDryRun(
   input: DryRunInput,
 ): Effect.Effect<void, never, CommandExecutor> {
   return Effect.gen(function* () {
-    const lines = [`[dry-run] Would commit: ${input.subject}`];
+    const action = input.amend ? "Would amend HEAD" : "Would commit";
+    const messagePart =
+      input.subject !== undefined
+        ? `: ${input.subject}`
+        : " (keep existing message)";
+    const lines = [`[dry-run] ${action}${messagePart}`];
     const files = input.scoped ? input.paths : input.staged;
     if (!input.scoped && input.staged.length === 0) {
-      lines.push("  nothing staged (would fail without --path)");
+      lines.push(
+        input.amend
+          ? "  no staged changes (amends the commit as-is)"
+          : "  nothing staged (would fail without --path)",
+      );
     } else {
       lines.push(`  ${files.length} file(s): ${files.join(", ")}`);
     }
     if (input.push) {
       const { target, hasUpstream } = yield* describePushTarget;
-      lines.push(
-        hasUpstream
-          ? `[dry-run] Would pull --rebase then push: ${target}`
-          : `[dry-run] Would push: ${target}`,
-      );
+      if (input.amend && hasUpstream) {
+        lines.push(`[dry-run] Would force-push (with lease): ${target}`);
+      } else {
+        lines.push(
+          hasUpstream
+            ? `[dry-run] Would pull --rebase then push: ${target}`
+            : `[dry-run] Would push: ${target}`,
+        );
+      }
     }
     yield* writeText(`${lines.join("\n")}\n`);
   });
@@ -452,41 +486,54 @@ const rebaseOnUpstreamBeforePush = Effect.gen(function* () {
 });
 
 /**
- * Push the current branch. When an upstream is set, rebases onto it first (see
- * {@link rebaseOnUpstreamBeforePush}) so a moved-ahead remote fast-forwards;
- * otherwise sets a new upstream via `-u` against the resolved default remote.
- * Never force-pushes.
+ * Push the current branch. When an upstream is set, a normal commit rebases
+ * onto it first (see {@link rebaseOnUpstreamBeforePush}) so a moved-ahead remote
+ * fast-forwards; an amend instead force-pushes with `--force-with-lease`, which
+ * overwrites the rewritten commit only when the remote still matches what we
+ * last saw. Without an upstream it sets a new one via `-u` against the resolved
+ * default remote. Never does a plain (leaseless) force-push.
  */
-const pushCurrentBranch = Effect.gen(function* () {
-  const branch = yield* readGit(["branch", "--show-current"]);
-  if (!branch) {
-    return yield* failCommit("Cannot push from a detached HEAD.");
-  }
-  const upstream = yield* readGit([
-    "rev-parse",
-    "--abbrev-ref",
-    "--symbolic-full-name",
-    "@{upstream}",
-  ]);
-  if (upstream) {
-    yield* rebaseOnUpstreamBeforePush;
-    yield* gitRequired(["push"]);
-    yield* writeText(`Pushed to ${upstream}\n`);
-  } else {
-    const { remote } = resolveDefaultRemote(yield* readGit(["remote"]));
-    yield* gitRequired(["push", "-u", remote, branch]);
-    yield* writeText(`Pushed to ${remote}/${branch} (new upstream)\n`);
-  }
-});
+function pushCurrentBranch(
+  amend: boolean,
+): Effect.Effect<void, Error, CommandExecutor> {
+  return Effect.gen(function* () {
+    const branch = yield* readGit(["branch", "--show-current"]);
+    if (!branch) {
+      return yield* failCommit("Cannot push from a detached HEAD.");
+    }
+    const upstream = yield* readGit([
+      "rev-parse",
+      "--abbrev-ref",
+      "--symbolic-full-name",
+      "@{upstream}",
+    ]);
+    if (upstream) {
+      if (amend) {
+        yield* gitRequired(["push", "--force-with-lease"]);
+        yield* writeText(`Force-pushed (with lease) to ${upstream}\n`);
+      } else {
+        yield* rebaseOnUpstreamBeforePush;
+        yield* gitRequired(["push"]);
+        yield* writeText(`Pushed to ${upstream}\n`);
+      }
+    } else {
+      const { remote } = resolveDefaultRemote(yield* readGit(["remote"]));
+      yield* gitRequired(["push", "-u", remote, branch]);
+      yield* writeText(`Pushed to ${remote}/${branch} (new upstream)\n`);
+    }
+  });
+}
 
 /** Format the post-commit summary line and its file list. */
 function formatCommitReport(
   shortHash: string,
   subject: string,
   files: readonly string[],
+  amend: boolean,
 ): string {
   const list =
     files.length > 0 ? `\n  ${files.length} file(s): ${files.join(", ")}` : "";
   const hash = shortHash ? `${shortHash} ` : "";
-  return `Committed ${hash}${subject}${list}\n`;
+  const verb = amend ? "Amended" : "Committed";
+  return `${verb} ${hash}${subject}${list}\n`;
 }

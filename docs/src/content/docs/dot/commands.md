@@ -281,13 +281,18 @@ dot git-status --since "2 days ago"
 Commit staged changes through the guarded gateway
 
 ```text
-dot git-commit --message <subject> [options]
+dot git-commit --message <subject> [options] | --amend [options]
 ```
 
 Create a commit through dot's guarded gateway instead of raw git commit.
 The subject is validated as a single line with no trailing full stop and
 a length limit, then the staged set (or an explicit --path scope) is
 committed. It never runs git add -A.
+
+Pass --amend to rewrite the previous commit instead of creating a new
+one; it keeps the existing message unless you pass --message. With
+--push, an amend force-pushes with --force-with-lease (never a plain
+force).
 
 Agents are routed here by the git-commit skill and blocked from raw
 git commit in the OpenCode permission config, so commits stay in the
@@ -298,6 +303,7 @@ maintainer's concise one-line style.
 ```text
 (default)     Commit the staged set
 --path        Commit only the named files
+--amend       Rewrite the previous commit
 --dry-run     Preview the plan, change nothing
 ```
 
@@ -305,9 +311,10 @@ maintainer's concise one-line style.
 
 | Option | Description |
 | --- | --- |
-| `--message` `-m` `<subject>` | Single-line commit subject (required) |
+| `--message` `-m` `<subject>` | Single-line commit subject (required unless --amend) |
 | `--path` `<file>` | Commit only this file; repeatable |
-| `--push` | Push the current branch after committing (pulls --rebase first, never forces) |
+| `--amend` | Amend the previous commit; keeps its message unless --message is given |
+| `--push` | Push the current branch after committing (pulls --rebase first, or force-with-lease when amending, never a plain force) |
 | `--dry-run` | Preview the commit and push plan without changing anything |
 
 **Message guards**
@@ -334,6 +341,8 @@ listed in `git config dot.owner`. Work on a feature branch.
 dot git-commit -m "Add commit gateway"
 dot git-commit -m "Scope to one file" --path src/git/commands/Status.ts
 dot git-commit -m "Commit and push" --push
+dot git-commit --amend
+dot git-commit --amend -m "Reword the previous commit"
 dot git-commit -m "Preview only" --dry-run
 ```
 

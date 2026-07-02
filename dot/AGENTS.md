@@ -218,6 +218,8 @@ dot git-status --diff         # Branch status plus full unstaged and staged diff
 dot git-status --branch-diff  # Branch status plus full merge-base diff vs the default branch (errors on the default branch)
 dot git-commit -m "msg"       # Guarded commit gateway: validates a single-line subject, commits the staged set
 dot git-commit -m "msg" --path src/x.ts # Commit only the named file(s) (repeatable), never git add -A
+dot git-commit --amend                # Amend the previous commit, keeping its message (folds in staged changes)
+dot git-commit --amend -m "msg"       # Amend the previous commit and reword its subject
 dot git-commit -m "msg" --push # Commit then push the current branch (pulls --rebase first, sets upstream when missing, never forces)
 dot git-commit -m "msg" --dry-run # Preview the commit/push plan without changing anything
 dot git-workflows             # Watched GitHub workflow runs view (TUI)
@@ -330,6 +332,7 @@ dot git-status --diff        # smoke test: branch status with working-tree diffs
 dot git-status --branch-diff # smoke test: branch status with default-branch diff (errors on the default branch)
 dot git-commit --help        # smoke test: gateway help prints without side effects
 dot git-commit --dry-run -m "Test subject" # smoke test: dry-run plan, no commit
+dot git-commit --amend --dry-run # smoke test: amend plan (keep message), no commit
 dot git-notifications --raw  # smoke test: CLI notification output
 dot git-notifications --bar-json # smoke test: notification JSON output
 dot notes                    # smoke test: notes view renders

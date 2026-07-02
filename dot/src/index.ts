@@ -578,6 +578,7 @@ if (mode.type === "native") {
           paths: optionValues(args, "--path"),
           push: args.includes("--push"),
           dryRun: args.includes("--dry-run"),
+          amend: args.includes("--amend"),
         }),
       "git-workflows": resolveWorkflows,
       "git-notifications": resolveNotifications,
