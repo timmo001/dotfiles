@@ -1,10 +1,10 @@
 ---
 name: diagnose
 description: Disciplined diagnosis workflow for hard bugs, regressions, flaky behavior, and performance issues. Use when behavior is broken, failing, intermittent, or slower than expected and the agent needs a reproducible feedback loop before fixing.
-# origin: https://github.com/mattpocock/skills/tree/main/skills/engineering/diagnose
-# upstream-sha: 7afa86d3a5dd96edde06ffa014e16c64e733681e
+# origin: https://github.com/mattpocock/skills/tree/main/skills/engineering/diagnosing-bugs
+# upstream-sha: 221ffca96736afefdc08ca7cf0b3965e9ea83f41
 # local-edits:
-#   - SKILL.md: condensed body, rewritten description, OpenCode tool guidance, no test-first workflow
+#   - SKILL.md: local name retained after upstream rename, condensed body, rewritten description, OpenCode tool guidance, no test-first workflow
 #   - hitl-loop.template.sh: verbatim from upstream
 ---
 
@@ -44,22 +44,29 @@ Use this skill for debugging work where ad-hoc inspection is likely to miss the 
    - Iterate on the loop itself: make it faster, make the signal sharper, make it more deterministic. A 2-second deterministic loop is a debugging superpower.
    - For non-deterministic bugs: loop the trigger 100x, parallelise, add stress, narrow timing windows, inject sleeps. Raise reproduction rate until debuggable.
    - If you genuinely cannot build a loop, stop and say so. List what you tried. Ask the user for environment access, a captured artifact, or permission to add temporary instrumentation.
-2. Reproduce the reported problem.
-   - Confirm the loop matches the user's actual failure, not a nearby symptom.
-   - If the issue is flaky, work on increasing reproduction rate before hypothesising.
-3. Rank hypotheses.
-   - Generate 3-5 falsifiable hypotheses when the cause is not obvious.
-   - Share the ranked list when user or domain context is likely to change the order materially.
-4. Instrument narrowly.
-   - Prefer debuggers, targeted logs, or focused measurements over broad logging.
-   - Tag temporary debug logs with a unique prefix so they are easy to remove.
-5. Fix with lightweight verification.
-   - Prefer the smallest verification that proves the real failure path is fixed.
-   - Add or adapt a regression test only when it is clearly worthwhile, reproducible, or already fits an existing well-used helper or test seam.
-   - If no good test seam exists, do not force one just for process.
-6. Re-run the original loop and clean up.
-   - Confirm the original repro no longer fails.
-   - Remove temporary instrumentation and throwaway harnesses unless they remain intentionally useful.
+    - Before moving on, name one command or script you have already run at least once. It should drive the real bug path, be able to catch the user's exact symptom, be deterministic enough to trust, run in seconds where possible, and be agent-runnable unless the HITL template is required.
+    - If you catch yourself reading code to build a theory before this command exists, stop and tighten the loop first.
+ 2. Reproduce and minimise the reported problem.
+    - Confirm the loop matches the user's actual failure, not a nearby symptom.
+    - If the issue is flaky, work on increasing reproduction rate before hypothesising.
+    - Shrink the repro one input, caller, config value, data item, or step at a time. Keep only elements that are load-bearing for the failure.
+ 3. Rank hypotheses.
+    - Generate 3-5 falsifiable hypotheses when the cause is not obvious.
+    - Use this shape: "If <X> is the cause, then <changing Y> will make the bug disappear or <changing Z> will make it worse."
+    - Share the ranked list when user or domain context is likely to change the order materially.
+ 4. Instrument narrowly.
+    - Prefer debuggers, targeted logs, or focused measurements over broad logging.
+    - Map each probe to one hypothesis prediction and change one variable at a time.
+    - For performance regressions, establish a baseline measurement first. Prefer profilers, timing harnesses, query plans, and bisection over logs.
+    - Tag temporary debug logs with a unique prefix so they are easy to remove.
+ 5. Fix with lightweight verification.
+    - Prefer the smallest verification that proves the real failure path is fixed.
+    - Add or adapt a regression test only when it is clearly worthwhile, reproducible, or already fits an existing well-used helper or test seam.
+    - If no good test seam exists, do not force one just for process. Call out the missing seam as an architecture follow-up when it matters.
+ 6. Re-run the original loop and clean up.
+    - Confirm the original repro no longer fails.
+    - Remove temporary instrumentation and throwaway harnesses unless they remain intentionally useful.
+    - State the hypothesis that turned out to be correct in the final explanation, commit message, or PR text where relevant.
 
 ## Tool Guidance
 
