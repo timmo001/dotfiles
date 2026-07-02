@@ -1,6 +1,6 @@
 ---
 name: skill-notes
-description: Standing preferences and constraints for evaluating, importing, or recommending skills. Use alongside import-external-skill and write-a-skill when assessing external skill sets or proposing new skills.
+description: Standing preferences and constraints for evaluating, importing, or recommending skills. Use alongside import-external-skill when assessing external skill sets or proposing new skills.
 ---
 
 # Skill Notes
