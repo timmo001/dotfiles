@@ -3,6 +3,7 @@
  *
  * Built-in `general` / Cursor-style `generalPurpose` subagent types are
  * rewritten to `general-readonly` when the delegating agent is read-only.
+ * The tool result is annotated so the agent can see why its delegation changed.
  * `general-readonly` bash calls are also restricted to simple inspection
  * commands so allowlisted commands cannot be turned into file writes.
  *
@@ -35,6 +36,12 @@ interface AgentDefinition {
 
 interface DirectoryQuery {
   readonly directory: string;
+}
+
+interface DelegationRewriteNotice {
+  readonly parentAgent: string;
+  readonly requested: string;
+  readonly replacement: string;
 }
 
 /** Agents that match read-only probes but must still be allowed writable subagents */
@@ -203,6 +210,7 @@ export const ReadonlySubagentTaskGuard = (async ({ client, directory }) => {
   const query: DirectoryQuery | undefined = directory
     ? { directory }
     : undefined;
+  const delegationRewrites = new Map<string, DelegationRewriteNotice>();
 
   return {
     "tool.execute.before": async (input, output) => {
@@ -260,6 +268,11 @@ export const ReadonlySubagentTaskGuard = (async ({ client, directory }) => {
         (a) => a.name === READONLY_GENERAL_AGENT,
       );
       if (WRITABLE_GENERAL_ALIASES.has(subagentType) && readonlyGeneral) {
+        delegationRewrites.set(input.callID, {
+          parentAgent: parent.name,
+          requested: subagentType,
+          replacement: READONLY_GENERAL_AGENT,
+        });
         args.subagent_type = READONLY_GENERAL_AGENT;
         return;
       }
@@ -267,6 +280,21 @@ export const ReadonlySubagentTaskGuard = (async ({ client, directory }) => {
       throw new Error(
         'Read-only agents cannot delegate to subagents that may modify files. Use subagent_type "general" (routed to read-only general), "explore", or switch to an agent that can edit.',
       );
+    },
+    "tool.execute.after": async (input, output) => {
+      if (input.tool !== "task") return;
+
+      const notice = delegationRewrites.get(input.callID);
+      if (!notice) return;
+      delegationRewrites.delete(input.callID);
+
+      const message =
+        `readonly-subagent-task-guard: subagent_type ${notice.requested} was replaced with ${notice.replacement} because ${notice.parentAgent} is read-only.`;
+      output.output = [message, output.output].filter(Boolean).join("\n\n");
+      output.metadata = {
+        ...recordFromUnknown(output.metadata),
+        readonly_subagent_task_guard: notice,
+      };
     },
   };
 }) satisfies Plugin;
