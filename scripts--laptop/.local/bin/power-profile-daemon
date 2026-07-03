@@ -2,15 +2,23 @@
 # power-profile-daemon: own the power profile across AC transitions on the laptop.
 #
 # Replaces Omarchy's udev auto-switch (which forces performance on AC).
-#   - startup: default to balanced ("balanced most of the time")
-#   - unplug (AC -> battery): drop performance to balanced; leave balanced
-#     and power-saver as they are
-#   - plug in (battery -> AC): relax power-saver to balanced; leave balanced
-#     and performance as they are
+#   - startup: balanced (or power-saver if on battery in the night window)
+#   - unplug (AC -> battery): drop performance to balanced; leave balanced and
+#     power-saver as they are. In the night window (01:00-07:00) set power-saver
+#     instead.
+#   - plug in (battery -> AC): relax power-saver to balanced; leave balanced and
+#     performance as they are
+#   - night window on battery: set power-saver once when the window starts (or on
+#     unplug during it); a manual change afterwards is respected. At the end of
+#     the window, revert to balanced only if still on that auto power-saver.
 #
 # Launched via exec-once from the laptop host autostart.
 
 set -uo pipefail
+
+# Night window (local time): power-saver on battery between these hours.
+NIGHT_START=1 # 01:00
+NIGHT_END=7   # 07:00
 
 pidfile="${XDG_RUNTIME_DIR:-/tmp}/power-profile-daemon.pid"
 
@@ -25,6 +33,9 @@ notify() {
   command -v notify-send >/dev/null 2>&1 && notify-send -a "Power" "$@" 2>/dev/null || true
 }
 
+profile() { powerprofilesctl get 2>/dev/null; }
+set_profile() { powerprofilesctl set "$1" 2>/dev/null || true; }
+
 ac_online() {
   local ps type
   for ps in /sys/class/power_supply/*; do
@@ -36,35 +47,88 @@ ac_online() {
   return 1
 }
 
+in_night() {
+  local h=$((10#$(date +%H)))
+  ((h >= NIGHT_START && h < NIGHT_END))
+}
+
+night_applied=0
+
+# Apply the night power-saver once; a later manual change is respected.
+apply_night_saver() {
+  if [[ $(profile) != "power-saver" ]]; then
+    set_profile power-saver
+    notify "Power profile" "On battery after 1am, switched to Power Saver"
+  fi
+  night_applied=1
+}
+
 on_battery() {
-  # Unplugged: drop performance to balanced; leave balanced/power-saver as-is.
-  if [[ $(powerprofilesctl get 2>/dev/null) == "performance" ]]; then
-    powerprofilesctl set balanced 2>/dev/null || true
+  # Unplugged outside the night window: drop performance to balanced.
+  if [[ $(profile) == "performance" ]]; then
+    set_profile balanced
     notify "Power profile" "On battery, switched to Balanced"
   fi
 }
 
 on_ac() {
-  # Plugged in: relax power-saver to balanced; leave balanced/performance as-is.
-  if [[ $(powerprofilesctl get 2>/dev/null) == "power-saver" ]]; then
-    powerprofilesctl set balanced 2>/dev/null || true
+  # Plugged in: relax power-saver to balanced.
+  if [[ $(profile) == "power-saver" ]]; then
+    set_profile balanced
     notify "Power profile" "On AC, switched to Balanced"
   fi
+  night_applied=0
 }
 
-# Default to balanced at startup.
-powerprofilesctl set balanced 2>/dev/null || true
-
+# Initial state.
 state="battery"
 ac_online && state="ac"
+was_night=0
+in_night && was_night=1
 
-# Poll for AC transitions. A couple of seconds' latency is fine, and this avoids
-# a long-lived monitor subprocess that could be orphaned on restart.
+if [[ $state == "battery" ]] && ((was_night)); then
+  apply_night_saver
+else
+  set_profile balanced
+fi
+
+# Poll for AC and time-window transitions. A couple of seconds' latency is fine,
+# and this avoids a long-lived monitor subprocess that could be orphaned.
 while :; do
   sleep 2
   cur="battery"
   ac_online && cur="ac"
-  [[ $cur == "$state" ]] && continue
-  state="$cur"
-  if [[ $cur == "ac" ]]; then on_ac; else on_battery; fi
+  night=0
+  in_night && night=1
+
+  # AC transitions.
+  if [[ $cur != "$state" ]]; then
+    if [[ $cur == "ac" ]]; then
+      on_ac
+    elif ((night)); then
+      apply_night_saver
+    else
+      on_battery
+    fi
+    state="$cur"
+  fi
+
+  # Night window starts while already on battery.
+  if [[ $cur == "battery" ]] && ((night && !was_night)); then
+    apply_night_saver
+  fi
+
+  # Respect a manual change away from our auto power-saver.
+  if ((night_applied)) && [[ $(profile) != "power-saver" ]]; then
+    night_applied=0
+  fi
+
+  # Night window ends while on battery: revert only if still on our auto saver.
+  if [[ $cur == "battery" ]] && ((!night && was_night && night_applied)); then
+    set_profile balanced
+    notify "Power profile" "Morning, back to Balanced"
+    night_applied=0
+  fi
+
+  was_night=$night
 done
