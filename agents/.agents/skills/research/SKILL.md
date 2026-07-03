@@ -18,7 +18,7 @@ Answer a question by reading the sources that own the answer, then hand back fin
 1. **Frame the question.** State what you are trying to establish. If the topic is too vague to research and you are running interactively, ask one clarifying question. When delegated as a subagent, proceed and return findings.
 2. **Pick the source that owns the answer**, then reach for the tool that reads it:
    - `context7` for library and framework documentation.
-   - `gh_grep` for code and docs hosted on GitHub.
+   - `grep` for code and docs hosted on GitHub.
    - `gh search` plus raw-file `webfetch` for issues, PRs, comments, and source in a specific repo. `gh api` GETs against a specific issue or PR are fine for maintainer comments.
    - `webfetch` and `websearch` for official docs and specs off GitHub.
    - Answer Overflow only for community context when the primary sources fall short.

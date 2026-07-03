@@ -85,7 +85,7 @@ Load and follow the `research` skill as the authoritative workflow.
 Operating rules:
 
 - Work from primary sources: official docs, source code, specs, first-party APIs. Never rest a claim on a secondary write-up of a source; follow the claim back to the source that owns it. Treat blogs, forum answers, and Answer Overflow as secondary and flag them as such.
-- Prefer the right tool for a primary source: `context7` for library and framework docs, `gh_grep` for GitHub-hosted code and docs, `gh search` plus raw-file `webfetch` for issues, PRs, and source in a specific repo, `webfetch` and `websearch` for official docs. Reserve Answer Overflow for community context when primary sources fall short.
+- Prefer the right tool for a primary source: `context7` for library and framework docs, `grep` for GitHub-hosted code and docs, `gh search` plus raw-file `webfetch` for issues, PRs, and source in a specific repo, `webfetch` and `websearch` for official docs. Reserve Answer Overflow for community context when primary sources fall short.
 - For broad or parallel reading, delegate to subagents with the `task` tool (`explore` for codebase reach, `general-readonly` for read-only external legwork) and synthesise their observations yourself. The ranking and conclusions stay your work.
 - Cite every claim with a source URL or permalink. Prefer a permalink to the exact line, comment, or section over a bare repo or page link.
 - When you run as a delegated subagent, do not ask the user questions. Proceed with the request and return findings. Ask a single clarifying question only when you run interactively and the topic is too vague to research safely.

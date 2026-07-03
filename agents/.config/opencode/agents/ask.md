@@ -94,7 +94,7 @@ Guidelines:
   provide the results without asking for approval.
 - Use the tools at your disposal; prefer cli commands for local repo queries.
 - For library or framework documentation, prefer `context7` tools over `webfetch` or `gh` CLI.
-- For GitHub-hosted docs, code patterns, or real-world usage examples, prefer the `gh_grep` MCP tool over `webfetch`, `gh api`, or `gh repo view` of raw file content.
+- For GitHub-hosted docs, code patterns, or real-world usage examples, prefer the `grep` MCP tool over `webfetch`, `gh api`, or `gh repo view` of raw file content.
 - To read a specific GitHub file's full contents (not just search snippets), use `gh api repos/<owner>/<repo>/contents/<path>` or fetch the raw URL; `gh api` is gated to prompt for approval, so expect a confirmation rather than a silent denial.
 - Reserve `gh` CLI for GitHub workflow operations (PRs, issues, checks, runs) and local repo metadata.
 - Load the `git-context` skill when working with branches, remotes, or diffs.

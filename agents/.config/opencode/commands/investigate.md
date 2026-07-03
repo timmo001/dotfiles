@@ -19,7 +19,7 @@ Follow these steps:
    - use Chrome DevTools tools for browser-specific investigation
    - use Fallow MCP tools for JavaScript or TypeScript structural analysis
    - use `context7` tools for library/framework documentation lookups
-   - use `gh_grep` for GitHub-hosted docs or real-world code-pattern investigation
+   - use `grep` for GitHub-hosted docs or real-world code-pattern investigation
    - use Answer Overflow tools when community troubleshooting context is likely to help
 4. Prefer MCP tools over ad-hoc web or shell workflows when an appropriate MCP integration exists.
 5. Do not edit files by default. Stay in investigation mode unless the user explicitly asks for changes.

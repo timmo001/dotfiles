@@ -28,7 +28,7 @@ External skill repos are often written for a specific agent framework (e.g. Clau
 
 Use when the external skill is useful as-is and does not overlap with an existing local skill.
 
-1. Fetch the raw SKILL.md and any reference files from the source. Prefer `gh_grep` for fetching file content over `gh api` to reduce rate-limit pressure.
+1. Fetch the raw SKILL.md and any reference files from the source. Fetch each file's full contents verbatim with `gh api repos/<owner>/<repo>/contents/<path>` or the raw `githubusercontent` URL via `webfetch`; use `grep` only to locate paths, since it returns ranked snippets, not complete files.
 2. Write them verbatim into new files under the local skills path. Do not rewrite content by hand -- copy the upstream text exactly, then make targeted edits. This ensures diffs against upstream stay minimal and reviewable.
 3. Add `# origin:` and `# upstream-sha:` comments to the frontmatter. The origin is the source tree URL; the SHA is the latest upstream commit that touched the skill. Keep all existing fields; unknown frontmatter is silently ignored.
 4. Diff each local file against the upstream original to verify the only changes are the frontmatter adjustment and any framework-specific cleanup.
@@ -39,7 +39,7 @@ Use when the external skill is useful as-is and does not overlap with an existin
 
 Use when the external skill overlaps with or extends an existing local skill.
 
-1. Fetch the external SKILL.md and any reference files. Prefer `gh_grep` over `gh api` for content fetches.
+1. Fetch the external SKILL.md and any reference files. Fetch full contents verbatim with `gh api repos/<owner>/<repo>/contents/<path>` or the raw `githubusercontent` URL via `webfetch`; `grep` finds paths but returns snippets, not complete files.
 2. For new reference files being added to an existing skill, write the upstream content verbatim first, then make targeted edits. Do not rewrite files from scratch -- this guarantees diffs against upstream are minimal and reviewable.
 3. Compare against the existing local skill, identifying gaps and conflicts.
 4. Present the comparison: what the external skill adds, what overlaps, and what conflicts with existing rules.
