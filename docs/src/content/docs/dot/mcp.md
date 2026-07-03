@@ -1,0 +1,55 @@
+---
+title: MCP Server
+description: Run dot as a Model Context Protocol server over stdio.
+---
+
+`dot mcp` starts a [Model Context Protocol](https://modelcontextprotocol.io) server over stdio. It exposes the repository notes vault to any MCP-capable harness (OpenCode, Codex, Cursor, Copilot CLI, VS Code, Gemini) through the same `dot` binary, so every tool talks to one implementation.
+
+The server is launched by an MCP client, not run interactively. It speaks JSON-RPC on stdout and sends all logging to stderr, so stdout stays protocol-clean.
+
+## Tools
+
+| Tool | Description |
+| --- | --- |
+| `note_read` | Read a note file from the vault. |
+| `note_list` | List notes for the current repository (optionally filtered by tag, or across all repositories). |
+| `note_write` | Write a note file, then commit and best-effort push it. |
+| `note_delete` | Delete a note file, then commit and best-effort push it. |
+
+The tools call `dot`'s in-process notes service directly, so they behave like `dot note` and `dot notes` on the command line. Read and list are annotated read-only; write and delete are annotated destructive.
+
+## Notifications
+
+Mutating actions (`note_write`, `note_delete`) emit a desktop notification via `notify-send`, so you stay aware of changes an agent makes in the background regardless of which harness launched the server. The notification is best-effort and never blocks the action.
+
+## Launching from a harness
+
+Point an MCP client at the `dot` binary with the `mcp` argument. For an OpenCode `opencode.json`:
+
+```json
+{
+  "mcp": {
+    "dot": {
+      "type": "local",
+      "command": ["dot", "mcp"],
+      "enabled": true
+    }
+  }
+}
+```
+
+Other harnesses use their own MCP config format but launch the same `dot mcp` command over stdio.
+
+## Smoke test
+
+Pipe JSON-RPC requests directly to confirm the server responds:
+
+```bash
+printf '%s\n' \
+  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"0.0.0"}}}' \
+  '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+  '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
+  | dot mcp
+```
+
+See the [command reference](/dot/commands/#dot-mcp) for the command entry.

@@ -88,6 +88,7 @@ export default defineConfig({
             { label: 'Command Reference', slug: 'dot/commands' },
             { label: 'Stow Workflow', slug: 'dot/stow' },
             { label: 'Notes & Handoffs', slug: 'dot/notes' },
+            { label: 'MCP Server', slug: 'dot/mcp' },
             { label: 'System Utilities', slug: 'dot/utilities' },
             { label: 'Shell Setup', slug: 'dot/shell' },
           ],

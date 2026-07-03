@@ -659,6 +659,28 @@ dot opencode-debug
 | --- | --- |
 | `--agent` `<name>` | Debug a specific OpenCode agent |
 
+## `dot mcp`
+
+Run the dot MCP server over stdio
+
+```text
+dot mcp
+```
+
+Start a Model Context Protocol server that exposes the notes vault and
+read-only repository context to any MCP-capable harness (OpenCode, Codex,
+Cursor, Copilot CLI, VS Code, Gemini).
+
+The server speaks JSON-RPC over stdio and is meant to be launched by an
+MCP client, not run interactively. Mutating note actions emit a desktop
+notification. All logging goes to stderr so stdout stays protocol-clean.
+
+**Examples**
+
+```bash
+dot mcp
+```
+
 ## `dot is-agent`
 
 Detect whether an AI coding agent is running dot
