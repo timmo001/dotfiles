@@ -36,6 +36,53 @@ const REPO_REQUIRED_MARKERS: Record<string, readonly string[]> = {
     "astro.config.js",
     "astro.config.cjs",
   ],
+  // chrome-devtools is ~27 tools (~4.3k tokens of schema) and only useful for
+  // browser/UI work, so gate it behind a frontend signal. Any one marker (a
+  // static entry point or a web-framework/bundler config) keeps it loaded,
+  // including static sites without a package.json. The tradeoff, agreed
+  // deliberately: if you attach DevTools to an arbitrary page from a
+  // non-frontend directory, restart OpenCode there to bring the server back
+  // (MCP config is not hot-reloaded).
+  "chrome-devtools": [
+    "index.html",
+    "astro.config.mjs",
+    "astro.config.ts",
+    "astro.config.mts",
+    "astro.config.js",
+    "astro.config.cjs",
+    "vite.config.ts",
+    "vite.config.js",
+    "vite.config.mjs",
+    "vite.config.mts",
+    "vite.config.cts",
+    "vite.config.cjs",
+    "next.config.js",
+    "next.config.mjs",
+    "next.config.ts",
+    "nuxt.config.ts",
+    "nuxt.config.js",
+    "svelte.config.js",
+    "vue.config.js",
+    "angular.json",
+    // Bundlers/task runners that signal a browser build (e.g. Home Assistant
+    // frontend uses rspack + gulp). Kept broad on purpose: a false positive
+    // only costs tokens in that repo, a false negative hides DevTools where it
+    // is wanted.
+    "webpack.config.js",
+    "webpack.config.cjs",
+    "webpack.config.mjs",
+    "webpack.config.ts",
+    "rspack.config.js",
+    "rspack.config.cjs",
+    "rspack.config.mjs",
+    "rspack.config.ts",
+    "rollup.config.js",
+    "rollup.config.mjs",
+    "rollup.config.ts",
+    "gulpfile.js",
+    "gulpfile.mjs",
+    ".storybook",
+  ],
 }
 
 /** Directory names never descended into when scanning downward for a marker. */

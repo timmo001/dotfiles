@@ -1,6 +1,6 @@
 ---
 name: remove-single-use-functions
-description: Safe single-use function removal guidance for code review and refactoring.
+description: Safe inlining and removal of single-use functions during code review and refactoring. Use when a local, non-exported helper has exactly one real call site and inlining preserves behaviour and readability.
 ---
 
 # Remove Single-Use Functions
