@@ -10,6 +10,7 @@ import { checkRepos, checkPrivateAccess } from "./checks/repos.js";
 import { checkStow } from "./checks/stow.js";
 import { checkOpencode } from "./checks/opencode.js";
 import { checkOpencodeServer } from "./checks/opencodeServer.js";
+import { checkGithubMcpAuth } from "./checks/githubMcpAuth.js";
 import { checkGitConfig } from "../git/doctor/gitConfig.js";
 import { checkOriginHead } from "../git/doctor/originHead.js";
 import {
@@ -57,6 +58,7 @@ const sections: readonly SectionDef[] = [
   { name: "Stow integrity", check: checkStow },
   { name: "OpenCode location checks", check: checkOpencode },
   { name: "OpenCode server checks", check: checkOpencodeServer },
+  { name: "GitHub MCP auth", check: checkGithubMcpAuth },
   { name: "Git config include", check: checkGitConfig },
   { name: "Workflow runs checks", check: checkWorkflowRuns },
   { name: "Git notification checks", check: checkGitNotifications },

@@ -746,6 +746,13 @@ if [ -f ~/.zshrc-private ]; then
 fi
 
 # ------------------------------
+# GitHub MCP bearer (OpenCode + Cursor)
+# ------------------------------
+# Sources the token from gh's keyring at shell start, so no secret lives here.
+# Custom name to avoid generic credential-env sniffing; read via {env:DOT_GH_MCP_BEARER}.
+command -v gh >/dev/null 2>&1 && export DOT_GH_MCP_BEARER="$(gh auth token 2>/dev/null)"
+
+# ------------------------------
 # Key bindings for word navigation
 # ------------------------------
 # Ctrl+Left/Right for word navigation
