@@ -111,6 +111,8 @@ complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcomm
 complete -c dot -n '__fish_use_subcommand' -a 'opencode-debug' -d 'Debug OpenCode config and paths'
 complete -c dot -l agent -d 'Debug a specific OpenCode agent' -r -n '__fish_seen_subcommand_from opencode-debug'
 complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from opencode-debug'
+complete -c dot -n '__fish_use_subcommand' -a 'mcp' -d 'Run the dot MCP server over stdio'
+complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from mcp'
 complete -c dot -n '__fish_use_subcommand' -a 'is-agent' -d 'Detect whether an AI coding agent is running dot'
 complete -c dot -s q -l quiet -d 'Print only the provider id' -n '__fish_seen_subcommand_from is-agent'
 complete -c dot -l json -d 'Print the detection result as JSON' -n '__fish_seen_subcommand_from is-agent'
