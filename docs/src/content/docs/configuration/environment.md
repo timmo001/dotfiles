@@ -70,12 +70,3 @@ These variables tune paths and behaviour for `dot`. Most have sensible defaults;
 | --- | --- |
 | `NOTES` | Notes vault git repo used by `dot notes` and OpenCode note commands (preferred; default `~/Documents/notes`). |
 | `DOT_NOTES_DIR` | Compatibility notes vault override used when `NOTES` is unset. |
-
-## MCP servers
-
-Credentials for the MCP servers declared in the OpenCode config. They are referenced from `opencode.json` with `{env:...}`, so no secret is stored in the file. See [MCP Servers](/opencode/mcp/).
-
-| Variable | Description |
-| --- | --- |
-| `CONTEXT7_API_KEY` | API key for the `context7` documentation server. |
-| `DOT_GH_MCP_BEARER` | Bearer token for the read-only `github` MCP endpoint. |
