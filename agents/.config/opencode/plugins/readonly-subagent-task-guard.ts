@@ -3,7 +3,8 @@
  *
  * Built-in `general` / Cursor-style `generalPurpose` subagent types are
  * rewritten to `general-readonly` when the delegating agent is read-only.
- * The tool result is annotated so the agent can see why its delegation changed.
+ * The tool result is annotated so the agent can see why its delegation changed,
+ * and the reroute is toasted to the interactive session.
  * `general-readonly` bash calls are also restricted to simple inspection
  * commands so allowlisted commands cannot be turned into file writes.
  *
@@ -18,6 +19,7 @@
  */
 
 import type { Plugin } from "@opencode-ai/plugin";
+import { showToast } from "../lib/toast";
 
 type OpenCodeClient = Parameters<Plugin>[0]["client"];
 type PermissionAction = "allow" | "ask" | "deny";
@@ -274,6 +276,12 @@ export const ReadonlySubagentTaskGuard = (async ({ client, directory }) => {
           replacement: READONLY_GENERAL_AGENT,
         });
         args.subagent_type = READONLY_GENERAL_AGENT;
+        await showToast(client, {
+          title: "Delegation rerouted",
+          message: `${subagentType} → ${READONLY_GENERAL_AGENT} (${parent.name} is read-only)`,
+          variant: "info",
+          duration: 5000,
+        });
         return;
       }
 

@@ -6,6 +6,7 @@
  */
 
 import type { Plugin, PluginInput } from "@opencode-ai/plugin"
+import { showToast } from "../lib/toast"
 
 const NOTE_COMMANDS = new Set([
   "note-create",
@@ -117,24 +118,22 @@ function noteName(path: string): string {
  * never added to the tool output, so the writing agent is not told about it.
  */
 async function showPushToast(path: string, push: NotePushResult): Promise<void> {
-  if (!toastClient) return
-  try {
-    await toastClient.tui.showToast({
-      body: push.ok
-        ? {
-            title: "Notes pushed",
-            message: `${noteName(path)}: ${push.message}`,
-            variant: "success",
-            duration: 4000,
-          }
-        : {
-            title: "Notes push failed",
-            message: `${noteName(path)}: ${push.error ?? "unknown error"}`,
-            variant: "warning",
-            duration: 6000,
-          },
-    })
-  } catch {}
+  await showToast(
+    toastClient,
+    push.ok
+      ? {
+          title: "Notes pushed",
+          message: `${noteName(path)}: ${push.message}`,
+          variant: "success",
+          duration: 4000,
+        }
+      : {
+          title: "Notes push failed",
+          message: `${noteName(path)}: ${push.error ?? "unknown error"}`,
+          variant: "warning",
+          duration: 6000,
+        },
+  )
 }
 
 const note_read = {

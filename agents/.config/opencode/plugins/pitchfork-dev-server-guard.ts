@@ -5,7 +5,9 @@
  * workflow first, then framework-native background mode, then pitchfork as the
  * fallback. This guard only covers the pitchfork tier: in a project that declares
  * `pitchfork.toml`, it redirects foreground dev-server commands to the project's
- * `serve:*` tasks or `pitchfork start`, and prepends a note explaining the change.
+ * `serve:*` tasks or `pitchfork start`, prepends a note explaining the change,
+ * and toasts the redirect to the interactive session so it is visible outside
+ * the agent's tool output.
  *
  * It deliberately ignores `astro dev`, whose framework-native background mode
  * (Astro 7+ auto-detaches under an agent) is the declared workflow for Astro
@@ -16,6 +18,7 @@ import type { Plugin } from "@opencode-ai/plugin"
 import { access, readFile } from "node:fs/promises"
 import { basename, dirname, isAbsolute, join, resolve } from "node:path"
 import { homedir } from "node:os"
+import { showToast } from "../lib/toast"
 
 interface PitchforkProject {
   readonly root: string
@@ -247,7 +250,7 @@ function foregroundServerError(command: string, replacement: string | null, proj
   )
 }
 
-export const PitchforkDevServerGuard = (async ({ directory }) => {
+export const PitchforkDevServerGuard = (async ({ directory, client }) => {
   const baseDirectory = directory || process.cwd()
   const redirects = new Map<string, RedirectNotice>()
 
@@ -279,6 +282,13 @@ export const PitchforkDevServerGuard = (async ({ directory }) => {
       args.command = replacement
       args.workdir = project.root
       output.args = args
+
+      await showToast(client, {
+        title: "Dev server redirected",
+        message: `${normalized.command} → ${replacement}`,
+        variant: "info",
+        duration: 5000,
+      })
     },
     "tool.execute.after": async (input, output) => {
       if (input.tool !== "bash") return
