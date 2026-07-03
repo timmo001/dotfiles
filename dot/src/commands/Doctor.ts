@@ -7,7 +7,7 @@ import { Launcher } from "../services/Launcher.js";
 import { runDoctor } from "../doctor/runner.js";
 import { displayPath } from "../lib/paths.js";
 import { ENV, envString } from "../lib/env.js";
-import type { DoctorReport } from "../doctor/types.js";
+import type { CheckSection, DoctorReport } from "../doctor/types.js";
 
 /** Format a doctor report as plain text for file output */
 function formatReport(report: DoctorReport): string {
@@ -42,9 +42,7 @@ export const doctor = (opts?: { readonly openOpencode?: boolean }) =>
     const log = yield* OutputLog;
     const launcher = yield* Launcher;
 
-    const report = yield* log.withSpinner("Running health checks", runDoctor);
-
-    // Header summary (matches legacy)
+    // Header summary (matches legacy), printed before checks start streaming
     yield* log.info(`Public repo: ${displayPath(config.publicDotfiles)}`);
     if (config.privateDotfiles) {
       yield* log.info(`Private repo: ${displayPath(config.privateDotfiles)}`);
@@ -56,26 +54,35 @@ export const doctor = (opts?: { readonly openOpencode?: boolean }) =>
       `Private mode: ${envString(ENV.DOT_ALLOW_PRIVATE) ?? "auto"}`,
     );
 
-    // Stream results section by section
-    for (const section of report.sections) {
-      yield* log.section(section.name);
-      for (const result of section.results) {
-        switch (result.severity) {
-          case "ok":
-            yield* log.info(result.message);
-            break;
-          case "warn":
-            yield* log.warn(result.message);
-            break;
-          case "error":
-            yield* log.error(result.message);
-            break;
+    // Render one section's heading and result lines. Streamed live as each
+    // check completes (completion order); the ordered summary follows below.
+    const renderSection = (section: CheckSection) =>
+      Effect.gen(function* () {
+        yield* log.section(section.name);
+        for (const result of section.results) {
+          switch (result.severity) {
+            case "ok":
+              yield* log.info(result.message);
+              break;
+            case "warn":
+              yield* log.warn(result.message);
+              break;
+            case "error":
+              yield* log.error(result.message);
+              break;
+          }
+          if (result.detail) {
+            yield* log.info(`  ${result.detail}`);
+          }
         }
-        if (result.detail) {
-          yield* log.info(`  ${result.detail}`);
-        }
-      }
-    }
+      });
+
+    // Run checks in parallel behind a single liveness spinner, streaming each
+    // section's detail as it finishes (completion order).
+    const report = yield* log.withSpinner(
+      "Running health checks",
+      runDoctor(renderSection),
+    );
 
     // Grouped summary: errors by section, then warnings by section
     if (report.errors > 0) {

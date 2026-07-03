@@ -119,8 +119,10 @@ dot doctor [options]
 Run health checks on the dotfiles system. Verifies dependencies, repos,
 stow integrity, systemd timers, packages, browser config, and more.
 
-All checks run in parallel. Results are printed per-section with a grouped
-summary at the end. A log file is always written to ~/.local/state/dot/logs/.
+All checks run in parallel and each section streams to the terminal as it
+finishes, so sections appear in completion order. A grouped summary of any
+errors and warnings, ordered by section, follows at the end. A log file is
+always written to ~/.local/state/dot/logs/.
 
 **Options**
 

@@ -91,46 +91,61 @@ const sections: readonly SectionDef[] = [
   { name: "Firewall rules", check: checkFirewall },
 ];
 
-/** Run all doctor checks in parallel and produce a structured report */
-export const runDoctor: Effect.Effect<
-  DoctorReport,
-  never,
-  Config | CommandExecutor | GitHub
-> = Effect.gen(function* () {
-  const config = yield* Config;
+/**
+ * Run all doctor checks in parallel and produce a structured report.
+ *
+ * `onSection` is invoked with each section as soon as its check resolves, in
+ * completion order (not declaration order), letting callers stream per-check
+ * results live while the remaining checks are still running. The returned
+ * report's `sections` array stays in declaration order (`Effect.all` preserves
+ * input order regardless of concurrency), so the ordered final summary is
+ * unaffected.
+ *
+ * @param onSection - Effect run per section on completion; defaults to a no-op.
+ */
+export const runDoctor = (
+  onSection: (section: CheckSection) => Effect.Effect<void> = () => Effect.void,
+): Effect.Effect<DoctorReport, never, Config | CommandExecutor | GitHub> =>
+  Effect.gen(function* () {
+    const config = yield* Config;
 
-  // Filter out private-only checks when private is unavailable
-  // (individual checks also handle this gracefully, but this avoids unnecessary work)
-  const applicable = sections.filter(
-    (s) => !s.requiresPrivate || config.canUsePrivate,
-  );
+    // Filter out private-only checks when private is unavailable
+    // (individual checks also handle this gracefully, but this avoids unnecessary work)
+    const applicable = sections.filter(
+      (s) => !s.requiresPrivate || config.canUsePrivate,
+    );
 
-  // Run all checks in parallel, catching crashes per-section
-  const completedSections = yield* Effect.all(
-    applicable.map((s) =>
-      s.check.pipe(
-        Effect.map((results): CheckSection => ({ name: s.name, results })),
-        Effect.catch((err: unknown) =>
-          Effect.succeed({
-            name: s.name,
-            results: [
-              { severity: "error" as const, message: `Check crashed: ${err}` },
-            ],
-          }),
+    // Run all checks in parallel, catching crashes per-section, and stream each
+    // section to `onSection` as it resolves (completion order).
+    const completedSections = yield* Effect.all(
+      applicable.map((s) =>
+        s.check.pipe(
+          Effect.map((results): CheckSection => ({ name: s.name, results })),
+          Effect.catch((err: unknown): Effect.Effect<CheckSection> =>
+            Effect.succeed({
+              name: s.name,
+              results: [
+                {
+                  severity: "error" as const,
+                  message: `Check crashed: ${err}`,
+                },
+              ],
+            }),
+          ),
+          Effect.tap((section) => onSection(section)),
         ),
       ),
-    ),
-    { concurrency: "unbounded" },
-  );
+      { concurrency: "unbounded" },
+    );
 
-  const allResults = completedSections.flatMap((s) => s.results);
-  const warnings = allResults.filter((r) => r.severity === "warn").length;
-  const errors = allResults.filter((r) => r.severity === "error").length;
+    const allResults = completedSections.flatMap((s) => s.results);
+    const warnings = allResults.filter((r) => r.severity === "warn").length;
+    const errors = allResults.filter((r) => r.severity === "error").length;
 
-  return {
-    sections: completedSections,
-    warnings,
-    errors,
-    timestamp: Date.now(),
-  };
-});
+    return {
+      sections: completedSections,
+      warnings,
+      errors,
+      timestamp: Date.now(),
+    };
+  });
