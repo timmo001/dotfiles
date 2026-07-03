@@ -19,3 +19,6 @@
 --ignore=^/dot
 --ignore=^/dot-migration
 --ignore=^/docs
+--ignore=^/package\.json
+--ignore=^/node_modules
+--ignore=^/bun\.lock
