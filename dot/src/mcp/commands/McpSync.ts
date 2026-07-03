@@ -22,7 +22,6 @@ import { OutputLog } from "../../services/OutputLog.js";
 import { displayPath } from "../../lib/paths.js";
 import {
   MCP_HARNESSES,
-  MCP_STUB_HARNESSES,
   serversForHarness,
   type McpHarness,
   type McpSyncSpec,
@@ -139,9 +138,5 @@ export const mcpSync = Effect.gen(function* () {
     yield* log.info(
       `${harness}: ${count} server${count === 1 ? "" : "s"} -> ${displayPath(dest)}`,
     );
-  }
-
-  for (const stub of MCP_STUB_HARNESSES) {
-    yield* log.info(`${stub.harness} (stub, not generated): ${stub.note}`);
   }
 });
