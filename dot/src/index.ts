@@ -719,22 +719,17 @@ if (mode.type === "native") {
         listNotes: () => Effect.runPromise(notes.list()),
         listAllNotes: () => Effect.runPromise(notes.listAll()),
         readNote: (filePath) => Effect.runPromise(notes.read(filePath)),
-        deleteNote: (filePath) =>
-          Effect.runPromise(notes.delete(filePath, { sync: true })),
+        deleteNote: (filePath) => Effect.runPromise(notes.delete(filePath)),
         createNoteDraft: (kind, name, description) =>
           Effect.runPromise(notes.createDraft(kind, name, description)),
         finaliseNoteDraft: (filePath) =>
-          Effect.runPromise(notes.finaliseDraft(filePath, { sync: true })).then(
-            () => {},
-          ),
+          Effect.runPromise(notes.finaliseDraft(filePath)).then(() => {}),
         finaliseNoteEdit: (filePath) =>
-          Effect.runPromise(notes.finaliseEdit(filePath, { sync: true })).then(
+          Effect.runPromise(notes.finaliseEdit(filePath)).then(() => {}),
+        updateNotePriority: (filePath, priority) =>
+          Effect.runPromise(notes.setPriority(filePath, priority)).then(
             () => {},
           ),
-        updateNotePriority: (filePath, priority) =>
-          Effect.runPromise(
-            notes.setPriority(filePath, priority, { sync: true }),
-          ).then(() => {}),
       },
       {
         initialView,

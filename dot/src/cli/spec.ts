@@ -687,8 +687,8 @@ export const cliCommands: readonly CliCommandSpec[] = [
     summary: "Read, write, or delete note files",
     usage: "<command> [options]",
     description: [
-      "Read, write, and delete note files. Writes and deletes are committed to the",
-      "notes vault when possible.",
+      "Read, write, and delete note files. Writes and deletes are committed and",
+      "pushed to the notes vault when possible.",
     ],
     commands: [
       {
@@ -705,7 +705,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
       },
       {
         name: "write",
-        summary: "Write stdin to a note file and commit it",
+        summary: "Write stdin to a note file, then commit and push it",
         options: [
           {
             name: "--path",
@@ -714,17 +714,25 @@ export const cliCommands: readonly CliCommandSpec[] = [
             description: "Note file path",
           },
           { name: "--stdin", description: "Read note content from stdin" },
+          {
+            name: "--json",
+            description: "Emit the note output and push status as JSON",
+          },
         ],
       },
       {
         name: "delete",
-        summary: "Delete a note file and commit it",
+        summary: "Delete a note file, then commit and push it",
         options: [
           {
             name: "--path",
             valueName: "path",
             completion: "file",
             description: "Note file path",
+          },
+          {
+            name: "--json",
+            description: "Emit the note output and push status as JSON",
           },
         ],
       },

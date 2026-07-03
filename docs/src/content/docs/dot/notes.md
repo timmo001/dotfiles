@@ -55,11 +55,11 @@ Priority is a handoff concept, so `p` and priority grouping apply only in the ha
 
 ```bash
 dot note read --path <path>            # print a note file
-dot note write --path <path> --stdin   # write stdin to a note file and commit it
-dot note delete --path <path>          # delete a note file and commit it
+dot note write --path <path> --stdin   # write stdin to a note file, then commit and push it
+dot note delete --path <path>          # delete a note file, then commit and push it
 ```
 
-Writes and deletes are committed to the notes vault when possible.
+Writes and deletes are committed to the notes vault and pushed when it has a remote. The push is best-effort: it reuses the same rebase-then-push as `dot git-commit`, and a failed or skipped push never fails the note operation. Pass `--json` to get the note output and the push status as a JSON object (`{ "output": ..., "push": ... }`); the `repo-notes` plugin uses this to report the push to the interactive session without adding it to the writing agent's tool output.
 
 ## OpenCode integration
 
@@ -86,7 +86,7 @@ Two OpenCode [plugins](/reference/plugins/) wire the commands to the vault:
 - **`repo-notes`** injects a `<repo-note-context>` block at the top of each note command. It runs `dot notes context --command <name>`, which resolves the owner and repo from git and reports the target notes path. For listing and search commands it also includes existing note metadata; `/note-reference` additionally gets the full note bodies. The plugin also registers the `note_read`, `note_write`, `note_delete`, and `note_list` tools, each a thin wrapper over the `dot note` CLI.
 - **`notes-guard`** blocks the built-in `read`, `write`, `edit`, `grep`, `glob`, `list`, and `bash` tools from touching the vault, so the `note_*` tools are the only way in.
 
-So a typical create flow is: run `/note-create` → `repo-notes` injects the repo context → the command summarises the conversation and calls `note_write` → `dot note write` validates the path, writes the file, and commits it to the vault.
+So a typical create flow is: run `/note-create` → `repo-notes` injects the repo context → the command summarises the conversation and calls `note_write` → `dot note write` validates the path, writes the file, commits it, and best-effort pushes the vault. The push result is shown to the interactive session as a toast rather than returned to the writing agent.
 
 ### Handoffs
 

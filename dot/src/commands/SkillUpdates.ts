@@ -6,7 +6,7 @@ import { OutputLog, type OutputLogService } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { GitHub } from "../git/services/GitHub.js";
-import { gitExitCode, gitRequired } from "../lib/git.js";
+import { commitIn, stageIn } from "../git/committer.js";
 import {
   scanSkills,
   checkSkill,
@@ -225,24 +225,27 @@ export const skillUpdates = (opts?: {
     if (updatedDirs.length > 0) {
       const updatedNames = updatedDirs.map((d) => d.split("/").pop() ?? d);
 
-      // git add all updated dirs
-      for (const dir of updatedDirs) {
-        yield* gitRequired(["add", "--", dir], {
-          cwd: config.publicDotfiles,
-        });
+      const staged = yield* stageIn(
+        { mode: "paths", paths: updatedDirs },
+        { cwd: config.publicDotfiles },
+      );
+      if (!staged.ok) {
+        return yield* Effect.fail(new Error(staged.error ?? "git add failed"));
       }
 
-      // Check if there are staged changes
-      const diffExit = yield* gitExitCode(["diff", "--cached", "--quiet"], {
+      const commitMsg = `Update skills: ${updatedNames.join(", ")}`;
+      const outcome = yield* commitIn({
         cwd: config.publicDotfiles,
+        message: commitMsg,
+        noVerify: true,
+        tolerateEmpty: true,
       });
-
-      if (diffExit !== 0) {
-        // There are staged changes — commit
-        const commitMsg = `Update skills: ${updatedNames.join(", ")}`;
-        yield* gitRequired(["commit", "-m", commitMsg, "--no-verify"], {
-          cwd: config.publicDotfiles,
-        });
+      if (!outcome.ok) {
+        return yield* Effect.fail(
+          new Error(outcome.error ?? "git commit failed"),
+        );
+      }
+      if (outcome.committed) {
         yield* log.info(`Committed: ${commitMsg}`);
         committed = true;
       } else {

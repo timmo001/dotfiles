@@ -297,7 +297,7 @@ _dot_cmd_note_write() {
   esac
 
   if [[ $cur == -* ]]; then
-    COMPREPLY=( $(compgen -W '--path --stdin' -- "$cur") )
+    COMPREPLY=( $(compgen -W '--path --stdin --json' -- "$cur") )
     return
   fi
 }
@@ -314,7 +314,7 @@ _dot_cmd_note_delete() {
   esac
 
   if [[ $cur == -* ]]; then
-    COMPREPLY=( $(compgen -W '--path' -- "$cur") )
+    COMPREPLY=( $(compgen -W '--path --json' -- "$cur") )
     return
   fi
 }

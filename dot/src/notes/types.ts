@@ -82,6 +82,21 @@ export interface NoteCommitResult {
   readonly error?: string;
 }
 
+/**
+ * Outcome of the best-effort push after a note mutation.
+ *
+ * Surfaced to the interactive session (a repo-notes toast, or the CLI's plain
+ * output) rather than folded into the writing agent's tool output.
+ */
+export interface NotePushResult {
+  /** Whether the push completed. */
+  readonly ok: boolean;
+  /** Human summary of what was pushed, e.g. `Pushed to origin/main`. */
+  readonly message: string;
+  /** Non-fatal error message when the push did not complete. */
+  readonly error?: string;
+}
+
 /** Result returned after writing a note file. */
 export interface NoteWriteResult {
   /** Absolute path written. */
@@ -90,6 +105,8 @@ export interface NoteWriteResult {
   readonly output: string;
   /** Git commit outcome for the write. */
   readonly commit: NoteCommitResult;
+  /** Best-effort push outcome, or undefined when the vault has no remote. */
+  readonly push?: NotePushResult;
 }
 
 /** Result returned after deleting a note file. */
@@ -100,6 +117,8 @@ export interface NoteDeleteResult {
   readonly output: string;
   /** Git commit outcome for the deletion. */
   readonly commit: NoteCommitResult;
+  /** Best-effort push outcome, or undefined when the vault has no remote. */
+  readonly push?: NotePushResult;
 }
 
 /** Kind of note to create via the add-item flow. */

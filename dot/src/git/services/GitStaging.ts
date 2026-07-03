@@ -1,5 +1,6 @@
 import { Context, Effect, Layer, Schema } from "effect";
 import { gitOutput, gitRequired } from "../../lib/git.js";
+import { commitIn } from "../committer.js";
 import { ENV, envString } from "../../lib/env.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import type { GitStatusCode, StagedFile } from "../../types.js";
@@ -107,20 +108,21 @@ export class GitStaging extends Context.Service<
         },
 
         commit: (repoPath, { message, paths, amend }) => {
-          const amendArgs = amend ? ["--amend"] : [];
-          const messageArgs =
-            message !== undefined ? ["-m", message] : ["--no-edit"];
-          const pathArgs = paths && paths.length > 0 ? ["--", ...paths] : [];
           log(
             `${amend ? "Amending" : "Committing"} in ${repoPath}: ${message ?? "(keep message)"}`,
           );
           return provideExecutor(
-            runGitVoid(repoPath, [
-              "commit",
-              ...amendArgs,
-              ...messageArgs,
-              ...pathArgs,
-            ]),
+            commitIn({ cwd: repoPath, message, paths, amend }).pipe(
+              Effect.flatMap((outcome) =>
+                outcome.ok
+                  ? Effect.void
+                  : Effect.fail(
+                      new GitStagingError({
+                        message: outcome.error ?? "git commit failed",
+                      }),
+                    ),
+              ),
+            ),
           );
         },
 

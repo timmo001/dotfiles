@@ -12,7 +12,8 @@ import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog, type OutputLogService } from "../services/OutputLog.js";
 import { elevatedCommand } from "../lib/elevatedCommand.js";
-import { gitExitCode, gitRequired } from "../lib/git.js";
+import { gitRequired } from "../lib/git.js";
+import { commitIn, hasStagedChanges, pushBranch } from "../git/committer.js";
 import { displayPath, expandHomePath } from "../lib/paths.js";
 import { ENV, envString } from "../lib/env.js";
 import { setupPrivateRepo } from "./SetupPrivateRepo.js";
@@ -40,7 +41,8 @@ type ParsedPrivatePkgPublishArgs =
   | { readonly type: "error"; readonly message: string };
 
 type ParseArgResult =
-  { readonly type: "continue" } | ParsedPrivatePkgPublishArgs;
+  | { readonly type: "continue" }
+  | ParsedPrivatePkgPublishArgs;
 
 const PRIVATE_PKG_PUBLISH_USAGE =
   "Usage: dot private-pkg-publish [--no-git] [--skip-build] [--install] <package-name>";
@@ -372,22 +374,24 @@ function commitAndPushPackageRepo(
       return false;
     }
 
-    const hasChanges =
-      (yield* gitExitCode(["diff", "--cached", "--quiet"], {
-        cwd: repoPath,
-      })) !== 0;
-    if (!hasChanges) {
+    if (!(yield* hasStagedChanges(repoPath))) {
       yield* log.info("No private package repo changes to commit");
       return true;
     }
 
     const message = `publish ${packageName} package`;
-    if (!(yield* runGitPublishStep(["commit", "-m", message], repoPath))) {
-      return false;
+    const commit = yield* commitIn({ cwd: repoPath, message });
+    if (!commit.ok) {
+      return yield* markFailure(log, commit.error ?? "git commit failed");
     }
 
     yield* log.section("Push private package repo");
-    return yield* runGitPublishStep(["push"], repoPath);
+    const pushed = yield* pushBranch({ cwd: repoPath });
+    if (!pushed.ok) {
+      return yield* markFailure(log, pushed.error ?? "git push failed");
+    }
+    yield* log.info(pushed.message);
+    return true;
   });
 }
 

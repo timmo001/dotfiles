@@ -4,7 +4,10 @@ import { Notes, NotesError } from "../services/Notes.js";
 import {
   formatNoteLabel,
   formatNoteSections,
+  type NoteDeleteResult,
+  type NotePushResult,
   type NotesListFormat,
+  type NoteWriteResult,
 } from "../types.js";
 
 function notesUsage(): string {
@@ -35,8 +38,9 @@ function noteUsage(): string {
 
 Commands:
   read --path <path>            Print a note file
-  write --path <path> --stdin   Write stdin to a note file and commit it
-  delete --path <path>          Delete a note file and commit it
+  write --path <path> --stdin [--json]
+                                Write stdin to a note file, then commit and push it
+  delete --path <path> [--json] Delete a note file, then commit and push it
 
 Examples:
   dot note read --path ~/Documents/notes/repo-notes/owner/repo/topic.md
@@ -83,6 +87,34 @@ function parseListFormat(args: readonly string[]): NotesListFormat {
   exitWithError([
     `Unknown --format value: ${format} (expected: labels or json)`,
   ]);
+}
+
+/** Render the best-effort push outcome for a note mutation as a plain line. */
+function formatPushLine(push: NotePushResult): string {
+  return push.ok
+    ? `Pushed to remote: ${push.message}`
+    : `Push failed (non-fatal): ${push.error ?? "unknown error"}`;
+}
+
+/**
+ * Emit a note write/delete result. With `--json` the push outcome is returned
+ * on a separate `push` field so callers (the repo-notes plugin) can surface it
+ * to the interactive session without folding it into the writing agent's output;
+ * the plain form appends a human push line instead.
+ */
+function emitNoteResult(
+  result: NoteWriteResult | NoteDeleteResult,
+  json: boolean,
+): Effect.Effect<void> {
+  if (json) {
+    return writeLine(
+      JSON.stringify({ output: result.output, push: result.push ?? null }),
+    );
+  }
+  return Effect.gen(function* () {
+    yield* writeLine(result.output);
+    if (result.push) yield* writeLine(formatPushLine(result.push));
+  });
 }
 
 /** Execute the native `dot notes` command namespace. */
@@ -177,12 +209,12 @@ export function noteCommand(args: readonly string[]) {
           }
           const content = yield* Effect.promise(() => Bun.stdin.text());
           const result = yield* notes.write(filePath, content);
-          yield* writeLine(result.output);
+          yield* emitNoteResult(result, rest.includes("--json"));
           return;
         }
         case "delete": {
           const result = yield* notes.delete(filePath);
-          yield* writeLine(result.output);
+          yield* emitNoteResult(result, rest.includes("--json"));
           return;
         }
         default:

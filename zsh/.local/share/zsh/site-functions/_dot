@@ -227,8 +227,8 @@ _dot_cmd_note() {
   local -a _dot_cmd_note_commands
   _dot_cmd_note_commands=(
     'read:Print a note file'
-    'write:Write stdin to a note file and commit it'
-    'delete:Delete a note file and commit it'
+    'write:Write stdin to a note file, then commit and push it'
+    'delete:Delete a note file, then commit and push it'
   )
   local state
   _arguments -C -S \
@@ -268,11 +268,13 @@ _dot_cmd_note_write() {
   _arguments -S \
     '--path[Note file path]:path:_files' \
     '--stdin[Read note content from stdin]' \
+    '--json[Emit the note output and push status as JSON]' \
     '*::arg:->args'
 }
 _dot_cmd_note_delete() {
   _arguments -S \
     '--path[Note file path]:path:_files' \
+    '--json[Emit the note output and push status as JSON]' \
     '*::arg:->args'
 }
 _dot_cmd_agents_sync() {

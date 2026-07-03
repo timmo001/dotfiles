@@ -5,7 +5,7 @@
  * handoff, and handoffs-list by reading and writing note files via the dot CLI.
  */
 
-import type { Plugin } from "@opencode-ai/plugin"
+import type { Plugin, PluginInput } from "@opencode-ai/plugin"
 
 const NOTE_COMMANDS = new Set([
   "note-create",
@@ -71,6 +71,72 @@ async function runDot(
   return options?.trimEnd === false ? stdout : stdout.trimEnd()
 }
 
+/**
+ * OpenCode client captured at plugin init so the note tools can toast the
+ * interactive session. Toasts show on the TUI regardless of which (sub)agent
+ * triggered the write, which is how the push is reported to the interactive
+ * user without ever entering the writing agent's tool output.
+ */
+let toastClient: PluginInput["client"] | undefined
+
+interface NotePushResult {
+  readonly ok: boolean
+  readonly message: string
+  readonly error?: string
+}
+
+interface NoteResult {
+  readonly output: string
+  readonly push: NotePushResult | null
+}
+
+function isNotePushResult(value: unknown): value is NotePushResult {
+  if (!value || typeof value !== "object") return false
+  const record = value as Record<string, unknown>
+  return typeof record.ok === "boolean" && typeof record.message === "string"
+}
+
+function parseNoteResult(raw: string): NoteResult {
+  try {
+    const parsed = JSON.parse(raw) as { output?: unknown; push?: unknown }
+    const output = typeof parsed.output === "string" ? parsed.output : raw
+    const push = isNotePushResult(parsed.push) ? parsed.push : null
+    return { output, push }
+  } catch {
+    return { output: raw, push: null }
+  }
+}
+
+function noteName(path: string): string {
+  const parts = path.split("/")
+  return parts[parts.length - 1] || path
+}
+
+/**
+ * Report a best-effort note push to the interactive session as a toast. It is
+ * never added to the tool output, so the writing agent is not told about it.
+ */
+async function showPushToast(path: string, push: NotePushResult): Promise<void> {
+  if (!toastClient) return
+  try {
+    await toastClient.tui.showToast({
+      body: push.ok
+        ? {
+            title: "Notes pushed",
+            message: `${noteName(path)}: ${push.message}`,
+            variant: "success",
+            duration: 4000,
+          }
+        : {
+            title: "Notes push failed",
+            message: `${noteName(path)}: ${push.error ?? "unknown error"}`,
+            variant: "warning",
+            duration: 6000,
+          },
+    })
+  } catch {}
+}
+
 const note_read = {
   description:
     "Read the full content of a note file from the notes vault. " +
@@ -115,11 +181,13 @@ const note_write = {
   },
   async execute(args: NoteWriteArgs) {
     try {
-      const output = await runDot(
-        ["note", "write", "--path", args.path, "--stdin"],
+      const raw = await runDot(
+        ["note", "write", "--path", args.path, "--stdin", "--json"],
         args.content,
       )
-      return { title: args.path, output }
+      const result = parseNoteResult(raw)
+      if (result.push) await showPushToast(args.path, result.push)
+      return { title: args.path, output: result.output }
     } catch (error) {
       throw new Error(
         `note_write: failed to write file ${args.path}: ${errorMessage(error)}`,
@@ -144,7 +212,16 @@ const note_delete = {
   },
   async execute(args: NoteReadArgs) {
     try {
-      return await runDot(["note", "delete", "--path", args.path])
+      const raw = await runDot([
+        "note",
+        "delete",
+        "--path",
+        args.path,
+        "--json",
+      ])
+      const result = parseNoteResult(raw)
+      if (result.push) await showPushToast(args.path, result.push)
+      return { title: args.path, output: result.output }
     } catch (error) {
       throw new Error(
         `note_delete: failed to delete file ${args.path}: ${errorMessage(error)}`,
@@ -209,18 +286,21 @@ const note_list = {
   },
 }
 
-export const RepoNotesPlugin = (async () => ({
-  "command.execute.before": async (input, output) => {
-    if (!NOTE_COMMANDS.has(input.command)) return
-    const text = await runDot(["notes", "context", "--command", input.command])
-    output.parts.unshift({ type: "text", text })
-  },
-  tool: {
-    note_read,
-    note_write,
-    note_delete,
-    note_list,
-  },
-})) satisfies Plugin
+export const RepoNotesPlugin = (async ({ client }) => {
+  toastClient = client
+  return {
+    "command.execute.before": async (input, output) => {
+      if (!NOTE_COMMANDS.has(input.command)) return
+      const text = await runDot(["notes", "context", "--command", input.command])
+      output.parts.unshift({ type: "text", text })
+    },
+    tool: {
+      note_read,
+      note_write,
+      note_delete,
+      note_list,
+    },
+  }
+}) satisfies Plugin
 
 export default RepoNotesPlugin

@@ -581,8 +581,8 @@ Read, write, or delete note files
 dot note <command> [options]
 ```
 
-Read, write, and delete note files. Writes and deletes are committed to the
-notes vault when possible.
+Read, write, and delete note files. Writes and deletes are committed and
+pushed to the notes vault when possible.
 
 **Examples**
 
@@ -608,7 +608,7 @@ dot note read
 
 ### `dot note write`
 
-Write stdin to a note file and commit it
+Write stdin to a note file, then commit and push it
 
 ```text
 dot note write
@@ -620,10 +620,11 @@ dot note write
 | --- | --- |
 | `--path` `<path>` | Note file path |
 | `--stdin` | Read note content from stdin |
+| `--json` | Emit the note output and push status as JSON |
 
 ### `dot note delete`
 
-Delete a note file and commit it
+Delete a note file, then commit and push it
 
 ```text
 dot note delete
@@ -634,6 +635,7 @@ dot note delete
 | Option | Description |
 | --- | --- |
 | `--path` `<path>` | Note file path |
+| `--json` | Emit the note output and push status as JSON |
 
 ## `dot agents-sync`
 
