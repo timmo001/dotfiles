@@ -11,12 +11,21 @@ permissions:
   contents: read
 
 jobs:
-  # actionlint (workflow YAML) + markdownlint. YAML is handled by the dedicated
-  # yamllint job below, so it is disabled here to keep one predictable config.
-  general:
-    uses: timmo001/workflows/.github/workflows/lint-general.yml@3d829185994b734af661e78194e16873707456a5 # master
-    with:
-      lint-yaml: false
+  actionlint:
+    uses: timmo001/workflows/.github/workflows/lint-actionlint.yml@1ca3fad5f54e1c97fde46febeb84bdae2d770341 # master
+
+  # markdownlint-cli honours our .markdownlint.json; the shared lint-markdownlint
+  # uses ruby mdl, which would ignore it. Kept as its own job.
+  markdownlint:
+    name: MarkdownLint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Setup bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: Run markdownlint-cli
+        run: bunx markdownlint-cli .
 
   yamllint:
     uses: timmo001/workflows/.github/workflows/lint-yamllint.yml@3d829185994b734af661e78194e16873707456a5 # master
