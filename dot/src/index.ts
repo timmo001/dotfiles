@@ -35,6 +35,7 @@ import { doctor } from "./commands/Doctor.js";
 import { clean } from "./commands/Clean.js";
 import { agentsSync } from "./commands/AgentsSync.js";
 import { opencodeDebug } from "./commands/OpencodeDebug.js";
+import { mcpCommand } from "./mcp/commands/Mcp.js";
 import { isAgentCommand } from "./commands/IsAgent.js";
 import { setupPrivateRepo } from "./commands/SetupPrivateRepo.js";
 import { privatePkgPublish } from "./commands/PrivatePkgPublish.js";
@@ -593,6 +594,7 @@ if (mode.type === "native") {
             : undefined;
         return opencodeDebug({ agent });
       },
+      mcp: mcpCommand,
       "is-agent": isAgentCommand,
       "setup-private-repo": () => setupPrivateRepo,
       "private-pkg-publish": privatePkgPublish,

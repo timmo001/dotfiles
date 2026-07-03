@@ -762,6 +762,21 @@ export const cliCommands: readonly CliCommandSpec[] = [
     ],
   },
   {
+    name: "mcp",
+    summary: "Run the dot MCP server over stdio",
+    description: [
+      "Start a Model Context Protocol server that exposes the notes vault and",
+      "read-only repository context to any MCP-capable harness (OpenCode, Codex,",
+      "Cursor, Copilot CLI, VS Code, Gemini).",
+      "",
+      "The server speaks JSON-RPC over stdio and is meant to be launched by an",
+      "MCP client, not run interactively. Mutating note actions emit a desktop",
+      "notification. All logging goes to stderr so stdout stays protocol-clean.",
+    ],
+    options: [helpOption],
+    examples: ["dot mcp"],
+  },
+  {
     name: "is-agent",
     summary: "Detect whether an AI coding agent is running dot",
     usage: "[options]",
