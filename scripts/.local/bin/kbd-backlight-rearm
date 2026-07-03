@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Re-arm the laptop keyboard backlight after screen wake, unlock, or resume.
+#
+# EC-managed backlights (e.g. Dell) turn the light off after a short idle
+# timeout and back on when you type, restoring to the stored base brightness.
+# If that base is left at 0, the on-use trigger has nothing to show. Omarchy's
+# idle-lock saves and restores 0 in that case (the EC has usually already
+# dimmed to 0 by the time the save runs), leaving the light dark until you
+# press keyboard-brightness-up.
+#
+# Restore a non-zero base only when it has been zeroed, so the EC keeps doing
+# off-on-idle and on-on-use. Any non-zero level restored by Omarchy is left
+# untouched. No-op on machines with no keyboard backlight.
+
+device=""
+for candidate in /sys/class/leds/*kbd_backlight*; do
+  if [[ -e $candidate ]]; then
+    device="$(basename "$candidate")"
+    break
+  fi
+done
+
+[[ -z $device ]] && exit 0
+
+current="$(brightnessctl -d "$device" get 2>/dev/null)" || exit 0
+
+if [[ $current == "0" ]]; then
+  max="$(brightnessctl -d "$device" max 2>/dev/null)" || exit 0
+  brightnessctl -d "$device" set "$max" >/dev/null 2>&1 || true
+fi
