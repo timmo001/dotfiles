@@ -10,7 +10,7 @@ import { Layer, Logger } from "effect";
 import { NodeStdio } from "@effect/platform-node";
 import { McpServer } from "effect/unstable/ai";
 import { Notifier } from "./services/Notifier.js";
-import { NotesToolkit, NotesToolkitHandlers } from "./tools/notes.js";
+import { registerNotesTools } from "./tools/notes.js";
 
 /** MCP server name reported to clients. */
 const SERVER_NAME = "dot";
@@ -21,10 +21,7 @@ const SERVER_VERSION = "0.1.0";
  * Fully composed MCP server layer. Remaining requirements (`Notes`,
  * `CommandExecutor`) are provided by the CLI layer stack when launched.
  */
-export const McpServerLayer = Layer.effectDiscard(
-  McpServer.registerToolkit(NotesToolkit),
-).pipe(
-  Layer.provide(NotesToolkitHandlers),
+export const McpServerLayer = Layer.effectDiscard(registerNotesTools).pipe(
   Layer.provide(Notifier.layerNotifySend),
   Layer.provide(
     McpServer.layerStdio({ name: SERVER_NAME, version: SERVER_VERSION }),
