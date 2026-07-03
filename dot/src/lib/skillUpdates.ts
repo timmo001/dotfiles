@@ -55,6 +55,7 @@ export type CheckResult =
       readonly writeSha: string;
     }
   | { readonly type: "error"; readonly reason: string }
+  | { readonly type: "origin-gone"; readonly reason: string }
   | { readonly type: "skipped" };
 
 // ---------------------------------------------------------------------------
@@ -568,6 +569,20 @@ export const checkSkill = (meta: SkillMeta) =>
     // Compare all local and upstream files, including references/**.
     const localFiles = listLocalFiles(dir);
     const upstreamFiles = yield* listUpstreamFiles(origin);
+
+    // Guard: an empty upstream listing means the tracked origin path no longer
+    // resolves (renamed, moved, or removed upstream) or could not be read. Do
+    // not fall through and mark every local file "removed-upstream", which would
+    // route the skill into the review flow and let a session delete it. Report a
+    // distinct state that needs a manual origin update instead.
+    if (upstreamFiles.length === 0 && localFiles.length > 0) {
+      return {
+        type: "origin-gone",
+        reason:
+          "upstream origin path returned no files (renamed, moved, removed, or unavailable)",
+      } as CheckResult;
+    }
+
     const allFiles = Array.from(
       new Set([...localFiles, ...upstreamFiles]),
     ).sort();

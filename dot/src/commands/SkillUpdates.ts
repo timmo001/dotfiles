@@ -1,5 +1,5 @@
 import { Duration, Effect, Option } from "effect";
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog, type OutputLogService } from "../services/OutputLog.js";
@@ -149,6 +149,14 @@ export const skillUpdates = (opts?: {
         case "error": {
           errors++;
           yield* log.warn(`  ${meta.name}: ${result.reason}`);
+          break;
+        }
+
+        case "origin-gone": {
+          errors++;
+          yield* log.warn(
+            `  ${meta.name}: upstream origin not found (${result.reason}); skipping, not deleting. Update the # origin: path or remove the skill manually.`,
+          );
           break;
         }
 
@@ -402,12 +410,18 @@ const opencodeReview = (
         // Prompt: commit / skip / quit
         const choice = yield* promptReviewAction(meta.name, launcher, log);
         if (choice === "commit") {
-          yield* launcher
-            .suspend(
-              `git -C "${publicDotfiles}" add "${meta.dir}" && git -C "${publicDotfiles}" commit -m "Update skill: ${meta.name}" --no-verify`,
-            )
-            .pipe(Effect.catch(() => Effect.void));
-          yield* log.info(`Committed: Update skill: ${meta.name}`);
+          if (!existsSync(join(meta.dir, "SKILL.md"))) {
+            yield* log.warn(
+              `  ${meta.name}: SKILL.md was removed during review; not auto-committing a skill deletion. If intended, remove and commit it manually; otherwise restore with: git -C "${publicDotfiles}" checkout -- "${meta.dir}"`,
+            );
+          } else {
+            yield* launcher
+              .suspend(
+                `git -C "${publicDotfiles}" add "${meta.dir}" && git -C "${publicDotfiles}" commit -m "Update skill: ${meta.name}" --no-verify`,
+              )
+              .pipe(Effect.catch(() => Effect.void));
+            yield* log.info(`Committed: Update skill: ${meta.name}`);
+          }
         } else if (choice === "quit") {
           yield* log.info("Quitting skill review.");
           return;
