@@ -8,6 +8,12 @@ import {
   type DotGitConfig,
 } from "./GitConfig.js";
 import {
+  defaultMcpConfigPath,
+  emptyMcpConfig,
+  loadMcpConfig,
+  type DotMcpConfig,
+} from "../mcp/sync/loadSpec.js";
+import {
   CACHE_DIR,
   CONFIG_DIR,
   HOME_DIR,
@@ -48,6 +54,8 @@ export interface ConfigService {
   readonly omarchy: OmarchyRepoConfig;
   /** Private git repository and workflow configuration. */
   readonly gitConfig: DotGitConfig;
+  /** Private MCP server sync configuration. */
+  readonly mcpConfig: DotMcpConfig;
   /** XDG cache directory for dot */
   readonly cacheDir: string;
   /** XDG state directory for dot */
@@ -134,6 +142,12 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
         ? loadDotGitConfig(gitConfigFile)
         : emptyDotGitConfig(gitConfigFile);
 
+      const mcpConfigFile =
+        envString(ENV.DOT_MCP_CONFIG_FILE) ?? defaultMcpConfigPath(privatePath);
+      const mcpConfig = canUsePrivate
+        ? loadMcpConfig(mcpConfigFile)
+        : emptyMcpConfig(mcpConfigFile);
+
       const cacheDir = join(CACHE_DIR, "dot");
       const stateDir = join(STATE_DIR, "dot");
       const logDir = join(stateDir, "logs");
@@ -150,6 +164,7 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
         notesDir,
         omarchy,
         gitConfig,
+        mcpConfig,
         cacheDir,
         stateDir,
         logDir,

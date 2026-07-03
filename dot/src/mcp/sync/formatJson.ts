@@ -1,0 +1,76 @@
+/**
+ * @file Prettier-compatible JSON serialiser for generated harness configs.
+ *
+ * Matches the hand-authored style of the MCP config files: 2-space indent,
+ * non-empty objects always broken onto multiple lines, and arrays kept inline
+ * while they fit within the print width, otherwise one element per line. This
+ * keeps `dot mcp-sync` output diff-clean against the existing files without
+ * bundling Prettier into the binary.
+ */
+const PRINT_WIDTH = 80;
+const INDENT = "  ";
+
+function pad(depth: number): string {
+  return INDENT.repeat(depth);
+}
+
+function isPrimitive(value: unknown): boolean {
+  return value === null || typeof value !== "object";
+}
+
+function formatInline(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(formatInline).join(", ")}]`;
+  }
+  if (value !== null && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>);
+    if (entries.length === 0) return "{}";
+    return `{ ${entries
+      .map(([key, item]) => `${JSON.stringify(key)}: ${formatInline(item)}`)
+      .join(", ")} }`;
+  }
+  return JSON.stringify(value);
+}
+
+function formatValue(value: unknown, depth: number, column: number): string {
+  if (Array.isArray(value)) return formatArray(value, depth, column);
+  if (value !== null && typeof value === "object") {
+    return formatObject(value as Record<string, unknown>, depth);
+  }
+  return JSON.stringify(value);
+}
+
+function formatArray(
+  value: readonly unknown[],
+  depth: number,
+  column: number,
+): string {
+  if (value.length === 0) return "[]";
+  const inline = formatInline(value);
+  if (value.every(isPrimitive) && column + inline.length <= PRINT_WIDTH) {
+    return inline;
+  }
+  const items = value
+    .map(
+      (item) =>
+        `${pad(depth + 1)}${formatValue(item, depth + 1, pad(depth + 1).length)}`,
+    )
+    .join(",\n");
+  return `[\n${items}\n${pad(depth)}]`;
+}
+
+function formatObject(value: Record<string, unknown>, depth: number): string {
+  const entries = Object.entries(value);
+  if (entries.length === 0) return "{}";
+  const lines = entries.map(([key, item]) => {
+    const keyText = `${JSON.stringify(key)}: `;
+    const column = pad(depth + 1).length + keyText.length;
+    return `${pad(depth + 1)}${keyText}${formatValue(item, depth + 1, column)}`;
+  });
+  return `{\n${lines.join(",\n")}\n${pad(depth)}}`;
+}
+
+/** Serialise a value as prettier-style JSON with a trailing newline. */
+export function formatJson(value: unknown): string {
+  return `${formatValue(value, 0, 0)}\n`;
+}

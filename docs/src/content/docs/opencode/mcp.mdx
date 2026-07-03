@@ -17,10 +17,10 @@ Unlike the agents, commands, skills, and plugins, the `opencode.json` that decla
 | `astro-docs` | remote | Search the official Astro framework docs. |
 | `chrome-devtools` | local | Drive Chrome DevTools for frontend debugging: page snapshots, console, network, Lighthouse, performance traces. |
 | `context7` | remote | Up-to-date library and framework documentation with code examples. Needs an API key. |
-| `fallow` | local | Codebase intelligence for JavaScript and TypeScript: unused code, duplication, circular deps, complexity. Disabled by default (see below). |
+| `fallow` | local | Codebase intelligence for JavaScript and TypeScript: unused code, duplication, circular deps, complexity. Opt-in, held out of default tools (see below). |
 | `github` | remote | Read-only GitHub access: issues, PRs, Actions, code scanning, Dependabot, discussions, projects. Needs a bearer token. |
 | `grep` | remote | Search real-world code across public GitHub repos via [grep.app](https://grep.app). |
-| `pitchfork` | local | Manage long-running dev-server daemons: start, stop, restart, status, logs. |
+| `pitchfork` | local | Manage long-running dev-server daemons: start, stop, restart, status, logs. Loaded only in repos with a `pitchfork.toml` (see below). |
 | `system-bridge` | local | System Bridge: system info modules (cpu, memory, disks, media) and media control. |
 
 Remote servers connect over HTTP to a hosted endpoint. Local servers are launched on demand over stdio (`opencode x`, `npx`, or an installed binary).
@@ -29,9 +29,34 @@ Remote servers connect over HTTP to a hosted endpoint. Local servers are launche
 `context7` and `github` need credentials, supplied through the environment and referenced from `opencode.json` with `{env:...}` so no secret ever lands in the config file.
 :::
 
-## Fallow is opt-in
+## Generated from one spec
 
-Fallow is registered but disabled by default with a `tools` glob, so it never runs automatically on a TypeScript edit:
+Every harness's MCP config is generated from a single private spec, `~/.config/dotfiles-private/mcp.yml`, by `dot mcp-sync`. One edit to the spec regenerates each harness's native config in the stowed source tree, so the harnesses stay aligned instead of drifting apart by hand.
+
+Active harnesses (generated):
+
+- **OpenCode** (`agents/.config/opencode/opencode.json`, `mcp` block)
+- **Cursor** (`agents/.cursor/mcp.json`, `mcpServers`)
+- **VS Code** (`agents/.config/Code/User/mcp.json`, `servers`)
+- **Copilot CLI** (`agents/.copilot/mcp-config.json`, `mcpServers`)
+
+The spec defines each server once and enables it for every active harness, so all four expose the same set. Enablement is written out as an explicit per-harness matrix, so any single cell can be flipped later. A canonical `{env:VAR}` reference is rewritten to each harness's native syntax (`{env:VAR}`, `${env:VAR}`, or `${VAR}`), and commands that differ by harness (such as the OpenCode `opencode x` runner for `chrome-devtools`) are carried as per-harness overrides.
+
+The OpenCode config is written as a full catalogue: every server appears with an explicit `enabled: true` or `enabled: false`, so a server can be turned off in place while staying documented. The other harnesses list only their enabled servers.
+
+Three more harnesses are kept as documented stubs, not generated:
+
+- **Gemini CLI** would need an `mcpServers` block in `~/.gemini/settings.json` using `$VAR` env syntax.
+- **Codex CLI** would need `[mcp_servers.NAME]` TOML tables in `~/.codex/config.toml`.
+- **Claude Code** is special: `~/.claude.json` is a live runtime state file Claude rewrites, so it is wired with `claude mcp add`, not file generation.
+
+Run `dot mcp-sync` after editing the spec, then `dot stow`. `dot update` runs it automatically before re-stowing.
+
+## Context gating
+
+Two kinds of gating keep sessions light without hiding tools you actually want.
+
+**Opt-in servers.** Fallow is registered but held out of the default tools with a `tools` glob, so it never runs automatically on a TypeScript edit:
 
 ```json
 {
@@ -41,11 +66,21 @@ Fallow is registered but disabled by default with a `tools` glob, so it never ru
 }
 ```
 
-It runs only when invoked by name or through a `/fallow-*` command. This keeps static analysis out of routine edits while leaving it one command away.
+It runs only when invoked by name or through a `/fallow-*` command.
+
+**Per-repo servers.** Some servers are only useful in repos with a matching marker file. The `mcp-repo-gate` plugin prunes them from the merged config at startup when the marker is absent, so their tools do not load where they are irrelevant. For example, `pitchfork` is dropped in any repo without a `pitchfork.toml`, and kept in repos that have one:
+
+```ts
+const REPO_REQUIRED_FILE: Record<string, string> = {
+  pitchfork: "pitchfork.toml",
+};
+```
+
+The plugin is deliberately conservative: only servers listed in that map are ever removed, and only when the marker is missing from the project directory up to the filesystem root. Every other server stays on everywhere, so no tool is hidden where it might be wanted.
 
 ## Example config
 
-A trimmed, sanitised `opencode.json`. Machine-specific repository paths are removed from the permission allow-lists, and secrets are `{env:...}` references with generic `FOO`/`BAR` placeholders standing in for real variable names. Adjust the `permission` allow-lists to your own trusted paths.
+A trimmed, sanitised `opencode.json`. Machine-specific repository paths are removed from the permission allow-lists, and secrets are `{env:...}` references with generic `FOO`/`BAR` placeholders standing in for real variable names. Adjust the `permission` allow-lists to your own trusted paths. In the real generated file every server also carries an explicit `"enabled": true` (or `false`), which is omitted here for brevity.
 
 ```json
 {

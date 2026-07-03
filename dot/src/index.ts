@@ -37,6 +37,7 @@ import { clean } from "./commands/Clean.js";
 import { agentsSync } from "./commands/AgentsSync.js";
 import { opencodeDebug } from "./commands/OpencodeDebug.js";
 import { mcpServer, mcpTeardown } from "./mcp/commands/Mcp.js";
+import { mcpSync } from "./mcp/commands/McpSync.js";
 import { isAgentCommand } from "./commands/IsAgent.js";
 import { setupPrivateRepo } from "./commands/SetupPrivateRepo.js";
 import { privatePkgPublish } from "./commands/PrivatePkgPublish.js";
@@ -595,6 +596,7 @@ if (mode.type === "native" && mode.command === "mcp") {
       notes: notesCommand,
       note: noteCommand,
       "agents-sync": () => agentsSync,
+      "mcp-sync": () => mcpSync,
       "opencode-debug": (args) => {
         const agentIdx = args.indexOf("--agent");
         const agent =

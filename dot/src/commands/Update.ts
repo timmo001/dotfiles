@@ -7,6 +7,7 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 import { DotDiff } from "../git/services/DotDiff.js";
 import { stow as runStow } from "./Stow.js";
 import { agentsSync } from "./AgentsSync.js";
+import { mcpSync } from "../mcp/commands/McpSync.js";
 import { writeAllCompletions } from "./Completions.js";
 import { rebuild, restartDot } from "../lib/selfUpdate.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
@@ -602,6 +603,10 @@ export const update = (opts?: UpdateOptions) =>
               `Generated completions: ${displayPath(completionTarget)}`,
             );
           }
+
+          yield* mcpSync.pipe(
+            Effect.catch(() => log.warn("MCP sync failed (non-fatal)")),
+          );
 
           yield* runStow();
         }),

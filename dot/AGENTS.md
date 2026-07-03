@@ -56,6 +56,14 @@ src/
     commands/Notes.ts     — dot notes / dot note native CLI handlers
     services/Notes.ts     — Effect service for OpenCode notes context and note I/O
     tui/NotesView.ts      — Two-pane repo notes browser with markdown preview
+  mcp/
+    server.ts             — dot mcp stdio server layer (notes + repo context)
+    commands/Mcp.ts       — dot mcp native command handler
+    commands/McpSync.ts   — dot mcp-sync: regenerate harness MCP configs from the spec
+    sync/spec.ts          — MCP sync spec types, stub-harness notes, pure helpers
+    sync/loadSpec.ts      — Load/validate the private mcp.yml spec
+    sync/adapters.ts      — Per-harness entry shaping and OpenCode tools-gate keys
+    sync/formatJson.ts    — Prettier-style JSON serialiser for generated configs
   doctor/
     types.ts              — DoctorCheck, DoctorResult types
     runner.ts             — Parallel check runner with output formatting
@@ -254,6 +262,7 @@ dot note read --path <path> # Read a note file
 dot note write --path <path> --stdin # Write stdin to a note file and commit it
 dot note delete --path <path> # Delete a note file and commit it
 dot agents-sync               # Sync AGENTS.md to Cursor rule
+dot mcp-sync                  # Regenerate MCP configs for all harnesses from the private spec
 dot opencode-debug            # Debug OpenCode config
 dot opencode-debug --agent x  # Debug specific agent
 dot setup-private-repo        # Register private pacman repo include

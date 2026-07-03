@@ -25,6 +25,7 @@ dot_commands=(
   'agents-sync:Sync AGENTS.md to Cursor rule'
   'opencode-debug:Debug OpenCode config and paths'
   'mcp:Run the dot MCP server over stdio'
+  'mcp-sync:Regenerate MCP configs for all harnesses from the spec'
   'is-agent:Detect whether an AI coding agent is running dot'
   'setup-private-repo:Register private pacman repo include'
   'private-pkg-publish:Build and publish a private package'
@@ -297,6 +298,12 @@ _dot_cmd_mcp() {
     '(-h --help)--help[Show this help message]' \
     '*::arg:->args'
 }
+_dot_cmd_mcp_sync() {
+  _arguments -S \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
 _dot_cmd_is_agent() {
   _arguments -S \
     '(-q --quiet)-q[Print only the provider id]' \
@@ -420,6 +427,9 @@ _dot_complete_command() {
       ;;
     mcp)
       _dot_cmd_mcp
+      ;;
+    mcp-sync)
+      _dot_cmd_mcp_sync
       ;;
     is-agent)
       _dot_cmd_is_agent

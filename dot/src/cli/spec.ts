@@ -779,6 +779,22 @@ export const cliCommands: readonly CliCommandSpec[] = [
     examples: ["dot mcp"],
   },
   {
+    name: "mcp-sync",
+    summary: "Regenerate MCP configs for all harnesses from the spec",
+    description: [
+      "Regenerate each active harness's native MCP config from the single",
+      "private spec (mcp.yml), keeping OpenCode, Cursor, VS Code, and Copilot",
+      "aligned. Writes into the stowed private source tree; run dot stow after.",
+      "",
+      "Gemini, Codex, and Claude Code are documented stubs and are not written.",
+      "OpenCode gated servers also receive a default-off tools gate so their",
+      "tool schemas stay out of the baseline context until an agent re-enables",
+      "them.",
+    ],
+    options: [helpOption],
+    examples: ["dot mcp-sync"],
+  },
+  {
     name: "is-agent",
     summary: "Detect whether an AI coding agent is running dot",
     usage: "[options]",

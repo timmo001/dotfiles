@@ -683,6 +683,29 @@ notification. All logging goes to stderr so stdout stays protocol-clean.
 dot mcp
 ```
 
+## `dot mcp-sync`
+
+Regenerate MCP configs for all harnesses from the spec
+
+```text
+dot mcp-sync
+```
+
+Regenerate each active harness's native MCP config from the single
+private spec (mcp.yml), keeping OpenCode, Cursor, VS Code, and Copilot
+aligned. Writes into the stowed private source tree; run dot stow after.
+
+Gemini, Codex, and Claude Code are documented stubs and are not written.
+OpenCode gated servers also receive a default-off tools gate so their
+tool schemas stay out of the baseline context until an agent re-enables
+them.
+
+**Examples**
+
+```bash
+dot mcp-sync
+```
+
 ## `dot is-agent`
 
 Detect whether an AI coding agent is running dot
