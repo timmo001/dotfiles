@@ -45,7 +45,7 @@ Omit any section that has no new content for this session.
 ## Step 4: Rewrite the note with integrated content
 
 1. Get the current full local timestamp with `date -Is`; use that exact value for the update section heading.
-2. Call the `note_read` tool with `path: {notes_path}/{filename}` to get the full existing content.
+2. Call the `dot_note_read` tool with `path: {notes_path}/{filename}` to get the full existing content.
    Do **not** use the built-in `read` tool — it is blocked for the notes vault.
 3. Integrate the new content into the appropriate sections:
     - Append new bullet items to existing sections (Key Ideas, Decisions, Actions Taken, Open Threads)
@@ -53,11 +53,11 @@ Omit any section that has no new content for this session.
     - Do not duplicate existing items
     - Do not change the frontmatter (repo, date, name, description, tags) — those reflect the original session
 4. Add a new `## Update — {current date -Is value}` section at the bottom of the file with a brief sentence summarising what this append session added (2–3 sentences max)
-5. Call the `note_write` tool with:
+5. Call the `dot_note_write` tool with:
    - `path`: `{notes_path}/{filename}`
    - `content`: the complete updated file content
 
-Do **not** use the `write`, `bash`, or any other tool to write the file — only `note_write`.
+Do **not** use the `write`, `bash`, or any other tool to write the file — only `dot_note_write`.
 
 ## Step 5: Confirm
 

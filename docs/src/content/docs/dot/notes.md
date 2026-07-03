@@ -83,10 +83,10 @@ See the [commands reference](/reference/commands/) for the full list.
 
 Two OpenCode [plugins](/reference/plugins/) wire the commands to the vault:
 
-- **`repo-notes`** injects a `<repo-note-context>` block at the top of each note command. It runs `dot notes context --command <name>`, which resolves the owner and repo from git and reports the target notes path. For listing and search commands it also includes existing note metadata; `/note-reference` additionally gets the full note bodies. The plugin also registers the `note_read`, `note_write`, `note_delete`, and `note_list` tools, each a thin wrapper over the `dot note` CLI.
-- **`notes-guard`** blocks the built-in `read`, `write`, `edit`, `grep`, `glob`, `list`, and `bash` tools from touching the vault, so the `note_*` tools are the only way in.
+- **`repo-notes`** injects a `<repo-note-context>` block at the top of each note command. It runs `dot notes context --command <name>`, which resolves the owner and repo from git and reports the target notes path. For listing and search commands it also includes existing note metadata; `/note-reference` additionally gets the full note bodies. The note tools themselves (`dot_note_read`, `dot_note_write`, `dot_note_delete`, and `dot_note_list`) come from the [`dot mcp` server](/dot/mcp/), not this plugin.
+- **`notes-guard`** blocks the built-in `read`, `write`, `edit`, `grep`, `glob`, `list`, and `bash` tools from touching the vault, so the `dot_note_*` tools are the only way in.
 
-So a typical create flow is: run `/note-create` → `repo-notes` injects the repo context → the command summarises the conversation and calls `note_write` → `dot note write` validates the path, writes the file, commits it, and best-effort pushes the vault. The push result is shown to the interactive session as a toast rather than returned to the writing agent.
+So a typical create flow is: run `/note-create` → `repo-notes` injects the repo context → the command summarises the conversation and calls `dot_note_write` → the `dot mcp` server writes the file, commits it, and best-effort pushes the vault, then emits a desktop notification with the push result.
 
 ### Handoffs
 

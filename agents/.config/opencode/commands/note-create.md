@@ -34,11 +34,11 @@ Read `Notes path` from the `<repository>` section of the injected context.
 
 1. Get the current full local timestamp with `date -Is`; use that exact value for `date:`.
 2. Generate the full note content using the format below.
-3. Call the `note_write` tool with:
+3. Call the `dot_note_write` tool with:
    - `path`: `{notes_path}/{slug}.md`
    - `content`: the full note content
 
-Do **not** use the `write`, `bash`, or any other tool to write the file — only `note_write`.
+Do **not** use the `write`, `bash`, or any other tool to write the file — only `dot_note_write`.
 
 Use this exact format for `content`:
 

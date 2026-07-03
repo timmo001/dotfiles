@@ -746,7 +746,7 @@ export class Notes extends Context.Service<Notes, NotesService>()("Notes") {
               try: () => readFileSync(resolvedPath, "utf-8"),
               catch: (error) =>
                 fail(
-                  `note_read: failed to read file ${filePath}: ${errorMessage(error)}`,
+                  `Failed to read note file ${filePath}: ${errorMessage(error)}`,
                 ),
             });
           }),
@@ -762,7 +762,7 @@ export class Notes extends Context.Service<Notes, NotesService>()("Notes") {
               },
               catch: (error) =>
                 fail(
-                  `note_write: failed to write file ${filePath}: ${errorMessage(error)}`,
+                  `Failed to write note file ${filePath}: ${errorMessage(error)}`,
                 ),
             });
 
@@ -804,8 +804,8 @@ export class Notes extends Context.Service<Notes, NotesService>()("Notes") {
                     : undefined;
                 return fail(
                   code === "ENOENT"
-                    ? `note_delete: file does not exist: ${filePath}`
-                    : `note_delete: failed to delete file ${filePath}: ${errorMessage(error)}`,
+                    ? `Note file does not exist: ${filePath}`
+                    : `Failed to delete note file ${filePath}: ${errorMessage(error)}`,
                 );
               },
             });

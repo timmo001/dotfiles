@@ -49,7 +49,7 @@ function opencodeNotePrompt(
         ]
       : []),
     "",
-    "Step 1: Keep the full loaded note content below in context for this session. Do not call note_read just to load this note; the dot TUI already supplied it.",
+    "Step 1: Keep the full loaded note content below in context for this session. Do not call dot_note_read just to load this note; the dot TUI already supplied it.",
     "Keep the full note content in context for this session.",
     "",
     `----- BEGIN LOADED NOTE: ${displayPath} -----`,

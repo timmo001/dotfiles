@@ -70,8 +70,8 @@ export const NotesGuardPlugin = (async () => {
 
   const guardMessage = (tool: string) =>
     `Direct '${tool}' access to the notes vault is blocked.\n` +
-    `The vault at ${expandedVaultPath} is exclusively managed by the note_read, note_write, and note_delete tools.\n` +
-    "Use note_read to read a note, note_write to create or update one, or note_delete to remove one."
+    `The vault at ${expandedVaultPath} is exclusively managed by the dot_note_read, dot_note_write, and dot_note_delete tools.\n` +
+    "Use dot_note_read to read a note, dot_note_write to create or update one, or dot_note_delete to remove one."
 
   return {
     "tool.execute.before": async (input, output) => {

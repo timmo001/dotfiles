@@ -3,9 +3,9 @@ name: handoff
 description: Compact the current conversation into a handoff document for another agent to pick up.
 ---
 
-Write a handoff note summarising the current conversation so a fresh agent can continue the work. The note is stored in the repo notes vault alongside regular notes, using the `note_write` tool.
+Write a handoff note summarising the current conversation so a fresh agent can continue the work. The note is stored in the repo notes vault alongside regular notes, using the note-writing tool (`dot_note_write` in OpenCode).
 
-Configuration invariant: every primary agent should have access to the repo notes tools, especially `note_write`, so explicit handoff and note workflows are not blocked. Tool access does not imply autonomous note manipulation: use `note_read`, `note_write`, and `note_delete` only when a note command or skill instructs it, or when the user explicitly asks to create, update, read, or delete notes. Search-only or narrowly scoped subagents do not need notes access unless their workflow explicitly requires it.
+Configuration invariant: every primary agent should have access to the repo notes tools, especially the note-writing tool, so explicit handoff and note workflows are not blocked. Tool access does not imply autonomous note manipulation: use the note-read, note-write, and note-delete tools (`dot_note_read`, `dot_note_write`, `dot_note_delete` in OpenCode) only when a note command or skill instructs it, or when the user explicitly asks to create, update, read, or delete notes. Search-only or narrowly scoped subagents do not need notes access unless their workflow explicitly requires it.
 
 ## Output
 
@@ -13,11 +13,11 @@ Read `Notes path` from the `<repository>` section of the injected `<repo-note-co
 
 1. Generate a slug prefixed with `handoff-` (e.g. `handoff-auth-refactor`, `handoff-migrate-to-v4`).
 2. Get the current full local timestamp with `date -Is`; use that exact value for `date:`.
-3. Call the `note_write` tool with:
+3. Call the note-writing tool (`dot_note_write` in OpenCode) with:
    - `path`: `{notes_path}/handoff-{slug}.md`
    - `content`: the full note content (see format below)
 
-Do **not** use the `write`, `bash`, or any other tool to write the file — only `note_write`.
+Do **not** use the `write`, `bash`, or any other tool to write the file — only the note-writing tool.
 
 ## Multi-phase guard
 
