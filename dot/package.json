@@ -11,10 +11,11 @@
     "prepare": "effect-language-service patch"
   },
   "dependencies": {
+    "@effect/platform-node": "^4.0.0-beta.93",
     "@opencode-ai/sdk": "^1.14.48",
     "@opentui/core": "^0.4.0",
     "date-fns": "^4.4.0",
-    "effect": "^4.0.0-beta.66",
+    "effect": "^4.0.0-beta.93",
     "fuse.js": "^7.3.0"
   },
   "devDependencies": {
