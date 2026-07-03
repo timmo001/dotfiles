@@ -119,6 +119,7 @@ export default defineConfig({
             { label: 'Commands', slug: 'reference/commands' },
             { label: 'Skills', slug: 'reference/skills' },
             { label: 'Plugins', slug: 'reference/plugins' },
+            { label: 'MCP Servers', slug: 'opencode/mcp' },
           ],
         },
         {

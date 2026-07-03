@@ -1,0 +1,140 @@
+---
+title: MCP Servers
+description: The Model Context Protocol servers wired into the OpenCode config, and a sanitised opencode.json example.
+---
+
+The OpenCode setup wires in a set of [Model Context Protocol](https://modelcontextprotocol.io) servers. They give agents documentation lookups, code search, browser control, system data, and dev-server management without shelling out for everything.
+
+:::note[Where the real config lives]
+Unlike the agents, commands, skills, and plugins, the `opencode.json` that declares these servers is **not** published. It lives only in the private overlay (`~/.config/dotfiles-private/agents/.config/opencode/opencode.json`), because the same file carries machine-specific repository paths in its permission allow-lists. The servers themselves hold no secrets: the two that need credentials read them from the environment. This page documents the servers and a sanitised config so the setup can be reproduced.
+:::
+
+## Servers in use
+
+| Server | Transport | Purpose |
+| --- | --- | --- |
+| `answer-overflow` | remote | Searchable archive of programming Discord help channels. Community troubleshooting context. |
+| `astro-docs` | remote | Search the official Astro framework docs. |
+| `chrome-devtools` | local | Drive Chrome DevTools for frontend debugging: page snapshots, console, network, Lighthouse, performance traces. |
+| `context7` | remote | Up-to-date library and framework documentation with code examples. Needs an API key. |
+| `fallow` | local | Codebase intelligence for JavaScript and TypeScript: unused code, duplication, circular deps, complexity. Disabled by default (see below). |
+| `github` | remote | Read-only GitHub access: issues, PRs, Actions, code scanning, Dependabot, discussions, projects. Needs a bearer token. |
+| `grep` | remote | Search real-world code across public GitHub repos via [grep.app](https://grep.app). |
+| `pitchfork` | local | Manage long-running dev-server daemons: start, stop, restart, status, logs. |
+| `system-bridge` | local | System Bridge: system info modules (cpu, memory, disks, media) and media control. |
+
+Remote servers connect over HTTP to a hosted endpoint. Local servers are launched on demand over stdio (`opencode x`, `npx`, or an installed binary).
+
+:::note[Credentials]
+`context7` and `github` need credentials, supplied through the environment and referenced from `opencode.json` with `{env:...}` so no secret ever lands in the config file. See [Environment Variables](/configuration/environment/).
+:::
+
+## Fallow is opt-in
+
+Fallow is registered but disabled by default with a `tools` glob, so it never runs automatically on a TypeScript edit:
+
+```json
+{
+  "tools": {
+    "fallow*": false
+  }
+}
+```
+
+It runs only when invoked by name or through a `/fallow-*` command. This keeps static analysis out of routine edits while leaving it one command away.
+
+## Example config
+
+A trimmed, sanitised `opencode.json`. Machine-specific repository paths are removed from the permission allow-lists, and secrets are `{env:...}` references with generic `FOO`/`BAR` placeholders standing in for real variable names. Adjust the `permission` allow-lists to your own trusted paths.
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "autoupdate": false,
+  "shell": "/bin/zsh -l",
+  "permission": {
+    "external_directory": {
+      "~/.config/dotfiles/**": "allow",
+      "/tmp/**": "allow",
+      "**/.ssh/**": "deny",
+      "**/.aws/**": "deny",
+      "**/.gnupg/**": "deny",
+      "**/.kube/**": "deny",
+      "~/.docker/config.json": "deny",
+      "~/.config/gh/hosts.yml": "deny",
+      "~/.local/share/opencode/mcp-auth.json": "deny"
+    },
+    "read": {
+      "/tmp/**": "allow",
+      "**/.env.example": "allow",
+      "**/.env": "deny",
+      "**/.env.*": "deny",
+      "*.pem": "deny",
+      "*.key": "deny",
+      "**/.ssh/**": "deny",
+      "**/.gnupg/**": "deny"
+    },
+    "bash": {
+      "git commit": "deny",
+      "git commit *": "deny",
+      "git commit --amend": "ask",
+      "dot": "allow",
+      "dot *": "allow"
+    },
+    "lsp": "allow",
+    "webfetch": "allow",
+    "websearch": "allow"
+  },
+  "lsp": true,
+  "tools": {
+    "fallow*": false
+  },
+  "mcp": {
+    "answer-overflow": {
+      "type": "remote",
+      "url": "https://www.answeroverflow.com/mcp"
+    },
+    "astro-docs": {
+      "type": "remote",
+      "url": "https://mcp.docs.astro.build/mcp"
+    },
+    "chrome-devtools": {
+      "type": "local",
+      "command": ["opencode", "x", "chrome-devtools-mcp@latest"]
+    },
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "{env:FOO}"
+      }
+    },
+    "fallow": {
+      "type": "local",
+      "command": ["npx", "-y", "--package", "fallow@latest", "fallow-mcp"]
+    },
+    "github": {
+      "type": "remote",
+      "url": "https://api.githubcopilot.com/mcp/x/all/readonly",
+      "oauth": false,
+      "headers": {
+        "Authorization": "Bearer {env:BAR}"
+      }
+    },
+    "grep": {
+      "type": "remote",
+      "url": "https://mcp.grep.app"
+    },
+    "pitchfork": {
+      "type": "local",
+      "command": ["pitchfork", "mcp"]
+    },
+    "system-bridge": {
+      "type": "local",
+      "command": ["system-bridge-mcp"]
+    }
+  }
+}
+```
+
+The `dot` binary also ships its own MCP server for the notes vault. That is separate from the servers above and is documented under [the dot Command MCP Server](/dot/mcp/).
