@@ -27,6 +27,7 @@ import { dirname, join } from "node:path"
  */
 const REPO_REQUIRED_MARKERS: Record<string, readonly string[]> = {
   pitchfork: ["pitchfork.toml"],
+  fallow: ["package.json"],
   convex: ["convex.json", "convex"],
   "astro-docs": [
     "astro.config.mjs",

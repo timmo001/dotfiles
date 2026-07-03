@@ -18,7 +18,7 @@ Unlike the agents, commands, skills, and plugins, the `opencode.json` that decla
 | `chrome-devtools` | local | Drive Chrome DevTools for frontend debugging: page snapshots, console, network, Lighthouse, performance traces. |
 | `context7` | remote | Up-to-date library and framework documentation with code examples. Needs an API key. |
 | `convex` | local | Convex backend tooling: query data, run functions, inspect deployments. Loaded only in Convex projects (a `convex.json` or `convex/` marker, see below). |
-| `fallow` | local | Codebase intelligence for JavaScript and TypeScript: unused code, duplication, circular deps, complexity. Opt-in, held out of default tools (see below). |
+| `fallow` | local | Codebase intelligence for JavaScript and TypeScript: unused code, duplication, circular deps, complexity. Opt-in (held out of default tools) and loaded only in JS/TS repos (a `package.json` marker, see below). |
 | `github` | remote | Read-only GitHub access: issues, PRs, Actions, code scanning, Dependabot, discussions, projects. Needs a bearer token. |
 | `grep` | remote | Search real-world code across public GitHub repos via [grep.app](https://grep.app). |
 | `pitchfork` | local | Manage long-running dev-server daemons: start, stop, restart, status, logs. Loaded only in repos with a `pitchfork.toml` (see below). |
@@ -67,13 +67,14 @@ Two kinds of gating keep sessions light without hiding tools you actually want.
 }
 ```
 
-It runs only when invoked by name or through a `/fallow-*` command.
+It runs only when invoked by name or through a `/fallow-*` command. The `tools` glob only holds Fallow's tools out of the default set; the server itself still connects wherever it is enabled, so it is also repo-gated below to stop it connecting outside JS/TS repos.
 
-**Per-repo servers.** Some servers are only useful in repos with a matching marker. The `mcp-repo-gate` plugin prunes them from the merged config at startup when none of their markers are present, so their tools do not load where they are irrelevant. Each server maps to one or more markers (files or directories); any one, found in the project directory, an ancestor, or a nearby descendant (up to two levels down, so a monorepo whose project sits in a subdirectory still counts), keeps the server. For example, `pitchfork` is dropped in any repo without a `pitchfork.toml`, `convex` is dropped outside Convex projects, and `astro-docs` is dropped outside Astro projects:
+**Per-repo servers.** Some servers are only useful in repos with a matching marker. The `mcp-repo-gate` plugin prunes them from the merged config at startup when none of their markers are present, so their tools do not load where they are irrelevant. Each server maps to one or more markers (files or directories); any one, found in the project directory, an ancestor, or a nearby descendant (up to two levels down, so a monorepo whose project sits in a subdirectory still counts), keeps the server. For example, `pitchfork` is dropped in any repo without a `pitchfork.toml`, `fallow` outside JS/TS repos, `convex` outside Convex projects, and `astro-docs` outside Astro projects:
 
 ```ts
 const REPO_REQUIRED_MARKERS: Record<string, readonly string[]> = {
   pitchfork: ["pitchfork.toml"],
+  fallow: ["package.json"],
   convex: ["convex.json", "convex"],
   "astro-docs": [
     "astro.config.mjs",
