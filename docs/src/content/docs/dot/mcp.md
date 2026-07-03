@@ -42,14 +42,17 @@ Other harnesses use their own MCP config format but launch the same `dot mcp` co
 
 ## Smoke test
 
-Pipe JSON-RPC requests directly to confirm the server responds:
+Pipe JSON-RPC requests to confirm the server responds. A quoted heredoc keeps the JSON intact (no shell escaping), and the trailing `sleep` holds stdin open long enough for the server to reply before it reaches end-of-input:
 
 ```bash
-printf '%s\n' \
-  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"0.0.0"}}}' \
-  '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
-  '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
-  | dot mcp
+{ cat <<'EOF'
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"0.0.0"}}}
+{"jsonrpc":"2.0","method":"notifications/initialized"}
+{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}
+EOF
+sleep 1; } | dot mcp
 ```
+
+The server prints the `initialize` and `tools/list` results, then exits when stdin closes. A client disconnect (stdin end, `SIGINT`, or `SIGTERM`) is a normal shutdown, so `dot mcp` returns exit code 0 without an error.
 
 See the [command reference](/dot/commands/#dot-mcp) for the command entry.
