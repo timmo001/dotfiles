@@ -9,9 +9,8 @@
  * than JSON-escaping every result. Mutating tools emit a desktop notification
  * via {@link Notifier}.
  */
-import { Cause, Context, Effect, Schema } from "effect";
-import { McpSchema, McpServer, Tool } from "effect/unstable/ai";
-import { Notes, type NotesError } from "../../notes/services/Notes.js";
+import { Effect, Schema } from "effect";
+import { Notes } from "../../notes/services/Notes.js";
 import type {
   NoteDeleteResult,
   NoteEntry,
@@ -19,6 +18,11 @@ import type {
   NoteWriteResult,
 } from "../../notes/types.js";
 import { Notifier, type NotifierService } from "../services/Notifier.js";
+import {
+  DESTRUCTIVE_HINTS,
+  makeToolRegistrar,
+  READONLY_HINTS,
+} from "./register.js";
 
 const NoteReadParams = Schema.Struct({
   path: Schema.String.annotate({
@@ -59,22 +63,6 @@ const NoteDeleteParams = Schema.Struct({
       "Absolute path to the note file to delete (e.g. /home/user/Documents/notes/repo-notes/owner/repo/slug.md)",
   }),
 });
-
-/** MCP tool annotations for a read-only, closed-world, idempotent tool. */
-const READONLY_HINTS = {
-  readOnlyHint: true,
-  destructiveHint: false,
-  idempotentHint: true,
-  openWorldHint: false,
-} as const;
-
-/** MCP tool annotations for a destructive, closed-world tool. */
-const DESTRUCTIVE_HINTS = {
-  readOnlyHint: false,
-  destructiveHint: true,
-  idempotentHint: false,
-  openWorldHint: false,
-} as const;
 
 /** Case-insensitive tag match against a note entry. */
 function hasTag(entry: NoteEntry, tag: string): boolean {
@@ -130,51 +118,14 @@ function notifyMutation(
 }
 
 /**
- * Register the four note tools on the current {@link McpServer}. Requires the
- * {@link Notes} and {@link Notifier} services, captured once here so the tool
- * handlers close over them and return raw text.
+ * Register the four note tools via the shared {@link makeToolRegistrar}.
+ * Requires the {@link Notes} and {@link Notifier} services, resolved once here
+ * so the tool handlers close over them and return raw text.
  */
 export const registerNotesTools = Effect.gen(function* () {
-  const server = yield* McpServer.McpServer;
+  const register = yield* makeToolRegistrar;
   const notes = yield* Notes;
   const notifier = yield* Notifier;
-
-  const register = <
-    S extends Schema.Codec<unknown, unknown, never, never>,
-  >(options: {
-    readonly name: string;
-    readonly description: string;
-    readonly parameters: S;
-    readonly annotations: typeof READONLY_HINTS | typeof DESTRUCTIVE_HINTS;
-    readonly handle: (params: S["Type"]) => Effect.Effect<string, NotesError>;
-  }): Effect.Effect<void> => {
-    const decode = Schema.decodeEffect(options.parameters);
-    return server.addTool({
-      tool: new McpSchema.Tool({
-        name: options.name,
-        description: options.description,
-        inputSchema: Tool.getJsonSchemaFromSchema(options.parameters),
-        annotations: options.annotations,
-      }),
-      annotations: Context.empty(),
-      handle: (payload) =>
-        decode(payload).pipe(
-          Effect.flatMap(options.handle),
-          Effect.matchCause({
-            onFailure: (cause) =>
-              new McpSchema.CallToolResult({
-                isError: true,
-                content: [{ type: "text", text: Cause.pretty(cause) }],
-              }),
-            onSuccess: (text) =>
-              new McpSchema.CallToolResult({
-                isError: false,
-                content: [{ type: "text", text }],
-              }),
-          }),
-        ),
-    });
-  };
 
   yield* register({
     name: "note_read",

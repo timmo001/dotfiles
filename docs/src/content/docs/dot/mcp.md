@@ -3,11 +3,13 @@ title: MCP Server
 description: Run dot as a Model Context Protocol server over stdio.
 ---
 
-`dot mcp` starts a [Model Context Protocol](https://modelcontextprotocol.io) server over stdio. It exposes the repository notes vault to any MCP-capable harness (OpenCode, Codex, Cursor, Copilot CLI, VS Code, Gemini) through the same `dot` binary, so every tool talks to one implementation.
+`dot mcp` starts a [Model Context Protocol](https://modelcontextprotocol.io) server over stdio. It exposes the repository notes vault and read-only repository context to any MCP-capable harness (OpenCode, Codex, Cursor, Copilot CLI, VS Code, Gemini) through the same `dot` binary, so every tool talks to one implementation.
 
 The server is launched by an MCP client, not run interactively. It speaks JSON-RPC on stdout and sends all logging to stderr, so stdout stays protocol-clean.
 
 ## Tools
+
+### Notes tools
 
 | Tool | Description |
 | --- | --- |
@@ -17,6 +19,16 @@ The server is launched by an MCP client, not run interactively. It speaks JSON-R
 | `note_delete` | Delete a note file, then commit and best-effort push it. |
 
 The tools call `dot`'s in-process notes service directly, so they behave like `dot note` and `dot notes` on the command line. Read and list are annotated read-only; write and delete are annotated destructive.
+
+### Context tools
+
+| Tool | Description |
+| --- | --- |
+| `git_status` | Branch status for the current repository: unstaged files, staged files, and recent commits, with optional working-tree diffs (`diff`) or the merge-base diff against the default branch (`branchDiff`). |
+| `command_help` | `dot` CLI help. Omit `name` for the full overview, or pass a subcommand (e.g. `git-status`) to scope it. |
+| `opencode_debug` | Combined output of the OpenCode debug commands (`paths`, `config`, `skill`, `info`), optionally also inspecting a named `agent`. |
+
+These are all read-only. `git_status` reuses the same output as `dot git-status`, `command_help` reuses `dot help`, and `opencode_debug` runs the `opencode debug` subcommands and returns their captured output as one text block.
 
 ## Notifications
 

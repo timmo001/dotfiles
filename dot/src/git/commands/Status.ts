@@ -5,7 +5,7 @@ import { parseDefaultBranch, resolveDefaultRemote } from "../remotes.js";
 import { formatRelativeTimeAgo } from "../services/relativeTime.js";
 import { handleCommandError, writeText } from "./rows.js";
 
-/** Extra diff detail controls for {@link gitStatusRaw}. */
+/** Extra diff detail controls for {@link gitStatusText}. */
 export interface GitStatusOptions {
   /**
    * Append the full unified diffs of unstaged and staged changes beneath the
@@ -132,7 +132,7 @@ function parseNumstatLog(output: string): Map<string, Map<string, DiffCounts>> {
 }
 
 /**
- * CLI output: concise branch status for agent consumption.
+ * Build the concise branch-status text for agent consumption.
  *
  * Outputs unstaged files, staged files, and recent commits — each with a
  * compact relative timestamp, a pushed/local remote marker, and its changed
@@ -147,9 +147,9 @@ function parseNumstatLog(output: string): Map<string, Map<string, DiffCounts>> {
  * `branchDiff` appends the merge-base diff against the default branch (and
  * fails when HEAD is on the default branch, where that range is empty).
  */
-export function gitStatusRaw(
+export function gitStatusText(
   options: GitStatusOptions,
-): Effect.Effect<void, never, CommandExecutor> {
+): Effect.Effect<string, Error, CommandExecutor> {
   return Effect.gen(function* () {
     const branch = yield* tryGit(["branch", "--show-current"]);
     const remotesOutput = yield* tryGit(["remote"]);
@@ -275,21 +275,33 @@ export function gitStatusRaw(
           ? `Run \`dot git-status --branch-diff\` for the full diff vs ${forkBase}.`
           : "Run `dot git-status --diff` for the full staged and unstaged diff.";
 
-    yield* writeText(
-      formatStatus({
-        branch,
-        baseRef,
-        unstaged,
-        staged,
-        unstagedDiff: options.diff ? unstagedDiff : undefined,
-        stagedDiff: options.diff ? stagedDiff : undefined,
-        branchDiff,
-        commits,
-        commitRange,
-        hint,
-      }),
-    );
-  }).pipe(Effect.withSpan("gitStatus.raw"), handleStatusError);
+    return formatStatus({
+      branch,
+      baseRef,
+      unstaged,
+      staged,
+      unstagedDiff: options.diff ? unstagedDiff : undefined,
+      stagedDiff: options.diff ? stagedDiff : undefined,
+      branchDiff,
+      commits,
+      commitRange,
+      hint,
+    });
+  }).pipe(Effect.withSpan("gitStatus.text"));
+}
+
+/**
+ * CLI output: write {@link gitStatusText} to stdout, mapping any failure to a
+ * CLI-friendly message and a non-zero exit via {@link handleStatusError}.
+ */
+export function gitStatusRaw(
+  options: GitStatusOptions,
+): Effect.Effect<void, never, CommandExecutor> {
+  return gitStatusText(options).pipe(
+    Effect.flatMap(writeText),
+    Effect.withSpan("gitStatus.raw"),
+    handleStatusError,
+  );
 }
 
 /** Resolved default-branch diff details rendered by `--branch-diff`. */
