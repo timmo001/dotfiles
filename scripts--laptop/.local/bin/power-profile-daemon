@@ -1,0 +1,70 @@
+#!/bin/bash
+# power-profile-daemon: own the power profile across AC transitions on the laptop.
+#
+# Replaces Omarchy's udev auto-switch (which forces performance on AC).
+#   - startup: default to balanced ("balanced most of the time")
+#   - unplug (AC -> battery): drop performance to balanced; leave balanced
+#     and power-saver as they are
+#   - plug in (battery -> AC): relax power-saver to balanced; leave balanced
+#     and performance as they are
+#
+# Launched via exec-once from the laptop host autostart.
+
+set -uo pipefail
+
+pidfile="${XDG_RUNTIME_DIR:-/tmp}/power-profile-daemon.pid"
+
+# Single instance only. A stale pidfile (dead PID) is ignored.
+if [[ -f $pidfile ]] && kill -0 "$(cat "$pidfile" 2>/dev/null)" 2>/dev/null; then
+  exit 0
+fi
+echo $$ >"$pidfile"
+trap 'rm -f "$pidfile"' EXIT
+
+notify() {
+  command -v notify-send >/dev/null 2>&1 && notify-send -a "Power" "$@" 2>/dev/null || true
+}
+
+ac_online() {
+  local ps type
+  for ps in /sys/class/power_supply/*; do
+    [[ -r $ps/online && -r $ps/type ]] || continue
+    type=$(<"$ps/type")
+    [[ $type == "Mains" || $type == "USB" ]] || continue
+    [[ $(<"$ps/online") == "1" ]] && return 0
+  done
+  return 1
+}
+
+on_battery() {
+  # Unplugged: drop performance to balanced; leave balanced/power-saver as-is.
+  if [[ $(powerprofilesctl get 2>/dev/null) == "performance" ]]; then
+    powerprofilesctl set balanced 2>/dev/null || true
+    notify "Power profile" "On battery, switched to Balanced"
+  fi
+}
+
+on_ac() {
+  # Plugged in: relax power-saver to balanced; leave balanced/performance as-is.
+  if [[ $(powerprofilesctl get 2>/dev/null) == "power-saver" ]]; then
+    powerprofilesctl set balanced 2>/dev/null || true
+    notify "Power profile" "On AC, switched to Balanced"
+  fi
+}
+
+# Default to balanced at startup.
+powerprofilesctl set balanced 2>/dev/null || true
+
+state="battery"
+ac_online && state="ac"
+
+# Poll for AC transitions. A couple of seconds' latency is fine, and this avoids
+# a long-lived monitor subprocess that could be orphaned on restart.
+while :; do
+  sleep 2
+  cur="battery"
+  ac_online && cur="ac"
+  [[ $cur == "$state" ]] && continue
+  state="$cur"
+  if [[ $cur == "ac" ]]; then on_ac; else on_battery; fi
+done
