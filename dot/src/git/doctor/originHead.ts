@@ -3,12 +3,21 @@ import { existsSync } from "fs";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { managedGitRepos } from "../../services/GitConfig.js";
-import { gitOutput, isGitRepo } from "../../lib/git.js";
+import { gitOutput, gitRemoteOutput, isGitRepo } from "../../lib/git.js";
 import { HOME_DIR, displayPath } from "../../lib/paths.js";
 import type { CheckResult } from "../../doctor/types.js";
 
 /** Remote whose HEAD symbolic-ref drives default-branch detection. */
 const REMOTE = "origin";
+
+/**
+ * Max concurrent origin/HEAD comparisons. Each does a network `ls-remote`, so a
+ * serial loop over many managed repos dominates doctor's runtime; a small
+ * fan-out cuts that to a few waves without bursting SSH connections to the point
+ * the remote throttles them. Each command is independently timeout-bounded (see
+ * {@link gitRemoteOutput}), so a stalled remote never blocks the wave.
+ */
+const HEAD_CHECK_CONCURRENCY = 4;
 
 /** A managed checkout to inspect for a stale `origin/HEAD`. */
 interface RepoTarget {
@@ -68,9 +77,11 @@ function checkRepoHead(
     if (!existsSync(target.path) || !isGitRepo(target.path)) return null;
 
     const remoteBranch = parseRemoteHeadBranch(
-      yield* tryGit(["ls-remote", "--symref", REMOTE, "HEAD"], target.path),
+      yield* gitRemoteOutput(["ls-remote", "--symref", REMOTE, "HEAD"], {
+        cwd: target.path,
+      }).pipe(Effect.catch(() => Effect.succeed(""))),
     );
-    // No origin remote, offline, or remote advertises no HEAD: cannot judge.
+    // No origin remote, offline, timed out, or remote advertises no HEAD.
     if (!remoteBranch) return null;
 
     const localBranch = parseLocalHeadBranch(
@@ -126,11 +137,15 @@ export const checkOriginHead = Effect.gen(function* () {
     }
   }
 
-  const results: CheckResult[] = [];
-  for (const target of targets) {
-    const result = yield* checkRepoHead(target);
-    if (result) results.push(result);
-  }
+  // Compare each repo's origin/HEAD concurrently. `Effect.all` preserves input
+  // order, so results stay in declaration order for the report.
+  const checked = yield* Effect.all(
+    targets.map((target) => checkRepoHead(target)),
+    { concurrency: HEAD_CHECK_CONCURRENCY },
+  );
+  const results: CheckResult[] = checked.filter(
+    (result): result is CheckResult => result !== null,
+  );
 
   if (results.length === 0) {
     results.push({

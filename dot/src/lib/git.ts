@@ -90,6 +90,44 @@ export function gitOutput(
   });
 }
 
+/** Default hard timeout for a networked git command (ls-remote, fetch, set-head). */
+export const GIT_REMOTE_TIMEOUT = Duration.seconds(10);
+
+/**
+ * Run a networked `git <args>` and return trimmed stdout, bounded by a timeout.
+ *
+ * Mirrors the update flow's remote-git pattern (see {@link gitRefreshRemoteHead}):
+ * credential prompts are disabled with `GIT_TERMINAL_PROMPT=0`, and a hard
+ * timeout interrupts the fiber when it fires, which kills the spawned process
+ * (see `killOnAbort` in CommandExecutor). A slow or unreachable remote can never
+ * block the caller. Shared so every remote git access in checks is prompt-free
+ * and time-bounded rather than able to stall indefinitely.
+ */
+export function gitRemoteOutput(
+  args: readonly string[],
+  opts?: GitCommandOptions,
+  timeout: Duration.Duration = GIT_REMOTE_TIMEOUT,
+): Effect.Effect<string, GitCommandError, CommandExecutor> {
+  return Effect.gen(function* () {
+    const executor = yield* CommandExecutor;
+    return yield* executor
+      .run("env", ["GIT_TERMINAL_PROMPT=0", "git", ...args], opts)
+      .pipe(
+        Effect.map((output) => output.trim()),
+        Effect.catchTag("CommandError", (error) =>
+          fail(commandFailureMessage("git", args, error)),
+        ),
+        Effect.timeoutOrElse({
+          duration: timeout,
+          orElse: () =>
+            fail(
+              `${commandText("git", args)} timed out after ${Duration.toSeconds(timeout)}s`,
+            ),
+        }),
+      );
+  });
+}
+
 /** Run `git <args>` and return the exit code without failing on non-zero. */
 export function gitExitCode(
   args: readonly string[],

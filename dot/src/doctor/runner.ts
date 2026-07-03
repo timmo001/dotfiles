@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Duration, Effect } from "effect";
 import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { GitHub } from "../git/services/GitHub.js";
@@ -34,6 +34,14 @@ import {
 import { checkPacmanHooks } from "./checks/pacmanHooks.js";
 import { checkFirewall } from "./checks/firewall.js";
 import type { CheckResult, CheckSection, DoctorReport } from "./types.js";
+
+/**
+ * Per-check backstop timeout. Individual git commands are already bounded (see
+ * `gitRemoteOutput`), but this guards any check from hanging the whole run on a
+ * stalled subprocess or network call; on timeout the check is interrupted (its
+ * spawned processes killed) and reported as a warning rather than blocking.
+ */
+const CHECK_TIMEOUT = Duration.seconds(45);
 
 /** A section definition: name, check effect, and whether it requires private access */
 interface SectionDef {
@@ -125,12 +133,26 @@ export const runDoctor = (
     // concurrency they all begin at once.
     yield* onStart(applicable.map((s) => s.name));
 
-    // Run all checks in parallel, catching crashes per-section, and stream each
-    // section to `onSection` as it resolves (completion order).
+    // Run all checks in parallel, each bounded by a backstop timeout, catching
+    // crashes per-section, and stream each section to `onSection` as it resolves
+    // (completion order).
     const completedSections = yield* Effect.all(
       applicable.map((s) =>
         s.check.pipe(
           Effect.map((results): CheckSection => ({ name: s.name, results })),
+          Effect.timeoutOrElse({
+            duration: CHECK_TIMEOUT,
+            orElse: (): Effect.Effect<CheckSection> =>
+              Effect.succeed({
+                name: s.name,
+                results: [
+                  {
+                    severity: "warn" as const,
+                    message: `Check timed out after ${Duration.toSeconds(CHECK_TIMEOUT)}s`,
+                  },
+                ],
+              }),
+          }),
           Effect.catch((err: unknown): Effect.Effect<CheckSection> =>
             Effect.succeed({
               name: s.name,
