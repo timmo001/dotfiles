@@ -16,11 +16,15 @@ const tui: TuiPlugin = async (api) => {
         run() {
           api.renderer.suspend()
           try {
+            // The renderer is suspended and stdio is inherited, so dot runs
+            // against the real TTY. dot's agent gate would otherwise detect
+            // OpenCode as an ancestor process and refuse to open the TUI, so
+            // force it on with DOT_AGENT=0 (its documented escape hatch).
             Bun.spawnSync(["dot", "git-diff"], {
               stdin: "inherit",
               stdout: "inherit",
               stderr: "inherit",
-              env: process.env,
+              env: { ...process.env, DOT_AGENT: "0" },
             })
           } finally {
             api.renderer.resume()
