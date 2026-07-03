@@ -319,6 +319,12 @@ The underlying `bunx tsc --noEmit` / `bun run format` / `bun run build` commands
 
 For dead-code analysis, use the MCP `analyze` tool with `root: dot`, or `/fallow-audit`.
 
+### Effect language service
+
+`@effect/language-service` is enabled in `tsconfig.json`, and the `prepare` script patches the local TypeScript (`effect-language-service patch`) so `mise run typecheck` surfaces the official Effect v4 diagnostics inline. Effect errors fail the typecheck; warnings and messages stay advisory (`ignoreEffectWarningsInTscExitCode` is set), so keep them visible but non-blocking. Editors and OpenCode also pick up the plugin's refactors and diagnostics through the TypeScript LSP when the workspace TypeScript version is used. For a report without patching, run `effect-language-service diagnostics --project tsconfig.json` (also `overview`, `quickfixes`, `layerinfo`) from `dot/`, always via the local install rather than a bare remote `bunx`/`npx`.
+
+Dependency note: the tracked lockfile is `pnpm-lock.yaml` (`bun.lock` is gitignored, and CI's `bun install --frozen-lockfile` migrates from `pnpm-lock.yaml`). After changing dependencies with `bun add`, run `pnpm install --lockfile-only` to update the tracked lockfile, otherwise the CI frozen install fails.
+
 Smoke tests:
 ```bash
 dot                          # smoke test: main menu renders, Ctrl+c quits

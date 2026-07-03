@@ -79,7 +79,7 @@ export class Launcher extends Context.Service<Launcher, LauncherService>()(
                 }
 
                 if (exitCode !== 0) {
-                  yield* Effect.fail(
+                  return yield* Effect.fail(
                     new LauncherError(`Command failed: ${cmd}`, exitCode),
                   );
                 }
@@ -149,7 +149,7 @@ export class Launcher extends Context.Service<Launcher, LauncherService>()(
             log(`Running (CLI): ${cmd}`);
             const exitCode = yield* executor.inherit("bash", ["-c", cmd]);
             if (exitCode !== 0) {
-              yield* Effect.fail(
+              return yield* Effect.fail(
                 new LauncherError(`Command failed: ${cmd}`, exitCode),
               );
             }

@@ -852,7 +852,7 @@ if (mode.type === "native") {
     log("Renderer started — TUI is live");
 
     // Keep alive until the process exits
-    yield* Effect.never;
+    return yield* Effect.never;
   });
 
   // Resolve theme synchronously (uses readFileSync, no async deps)
