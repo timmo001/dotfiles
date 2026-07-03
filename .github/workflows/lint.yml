@@ -12,42 +12,23 @@ permissions:
 
 jobs:
   actionlint:
-    uses: timmo001/workflows/.github/workflows/lint-actionlint.yml@3d829185994b734af661e78194e16873707456a5 # master
+    uses: timmo001/workflows/.github/workflows/lint-actionlint.yml@8ceab27dc74b541451e1418a4268913bfc253165 # master
 
-  # markdownlint-cli honours our .markdownlint.json; the shared lint-markdownlint
-  # uses ruby mdl, which would ignore it. Kept as its own job.
   markdownlint:
-    name: MarkdownLint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - name: Setup bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-      - name: Run markdownlint-cli
-        run: bunx markdownlint-cli .
+    uses: timmo001/workflows/.github/workflows/lint-markdownlint.yml@8ceab27dc74b541451e1418a4268913bfc253165 # master
 
   yamllint:
-    uses: timmo001/workflows/.github/workflows/lint-yamllint.yml@3d829185994b734af661e78194e16873707456a5 # master
+    uses: timmo001/workflows/.github/workflows/lint-yamllint.yml@8ceab27dc74b541451e1418a4268913bfc253165 # master
 
   jsonlint:
-    uses: timmo001/workflows/.github/workflows/lint-jsonlint.yml@3d829185994b734af661e78194e16873707456a5 # master
+    uses: timmo001/workflows/.github/workflows/lint-jsonlint.yml@8ceab27dc74b541451e1418a4268913bfc253165 # master
 
   markdown-links:
-    uses: timmo001/workflows/.github/workflows/lint-markdown-links.yml@3d829185994b734af661e78194e16873707456a5 # master
+    uses: timmo001/workflows/.github/workflows/lint-markdown-links.yml@8ceab27dc74b541451e1418a4268913bfc253165 # master
 
-  # timmo001/workflows has no shellcheck workflow, so run it directly. Scoped to
-  # scripts/.local/bin at error severity (green-first). gh-import-dotenv-to-secrets
-  # is a zsh script, which shellcheck cannot parse.
   shellcheck:
-    name: ShellCheck
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - name: Run ShellCheck
-        uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # 2.0.0
-        with:
-          severity: error
-          scandir: ./scripts/.local/bin
-          ignore_names: gh-import-dotenv-to-secrets
+    uses: timmo001/workflows/.github/workflows/lint-shellcheck.yml@8ceab27dc74b541451e1418a4268913bfc253165 # master
+    with:
+      scandir: ./scripts/.local/bin
+      severity: error
+      ignore_names: gh-import-dotenv-to-secrets
