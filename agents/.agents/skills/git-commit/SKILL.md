@@ -69,7 +69,9 @@ dot git-commit --amend -m "<subject>"         # rewrite HEAD's subject (reword)
 dot git-commit -m "<subject>" --dry-run       # preview, change nothing
 ```
 
-- Use `--dry-run` first when unsure what is staged.
+- Skip `--dry-run` when you already know what is staged and are safe to commit;
+  `dot git-status` (step 2) is the check for that, and the preview adds little
+  beyond it. Reserve `--dry-run` for when you are genuinely unsure what is staged.
 - Use `--amend` only to fix up the previous commit the user just made, and only
   when they ask for an amend. Without `--message` it keeps HEAD's message; pass
   `--message` to reword. An amend with nothing staged is allowed, so
