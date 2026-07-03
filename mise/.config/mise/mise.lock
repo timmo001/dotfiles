@@ -233,83 +233,95 @@ checksum = "sha256:538f9c846355d9e847b2671bc00c47da4229a0befb24df3282b739770f3b4
 url = "https://github.com/oven-sh/bun/releases/download/bun-v1.3.14/bun-windows-x64-baseline.zip"
 
 [[tools.claude]]
-version = "2.1.193"
+version = "2.1.195"
 backend = "aqua:anthropics/claude-code"
 
 [tools.claude."platforms.linux-arm64"]
-url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.193/linux-arm64/claude"
+url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.195/linux-arm64/claude"
 
 [tools.claude."platforms.linux-arm64-musl"]
-url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.193/linux-arm64-musl/claude"
+url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.195/linux-arm64-musl/claude"
 
 [tools.claude."platforms.linux-x64"]
-url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.193/linux-x64/claude"
+checksum = "blake3:7afa49d3e734a63fc03f450a376c689fee408b7a5ceb432a18e79db7e03671b4"
+url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.195/linux-x64/claude"
 
 [tools.claude."platforms.linux-x64-baseline"]
-url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.193/linux-x64/claude"
+url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.195/linux-x64/claude"
 
 [tools.claude."platforms.linux-x64-musl"]
-url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.193/linux-x64-musl/claude"
+url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.195/linux-x64-musl/claude"
 
 [tools.claude."platforms.linux-x64-musl-baseline"]
-url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.193/linux-x64-musl/claude"
+url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.195/linux-x64-musl/claude"
 
 [tools.claude."platforms.macos-arm64"]
-url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.193/darwin-arm64/claude"
+url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.195/darwin-arm64/claude"
 
 [tools.claude."platforms.macos-x64"]
-url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.193/darwin-x64/claude"
+url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.195/darwin-x64/claude"
 
 [tools.claude."platforms.macos-x64-baseline"]
-url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.193/darwin-x64/claude"
+url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.195/darwin-x64/claude"
 
 [[tools.codex]]
-version = "0.142.0"
+version = "0.142.2"
 backend = "aqua:openai/codex"
 
 [tools.codex."platforms.linux-arm64"]
-checksum = "sha256:628421aa8dfcd729fd0dcc490b1617f34b1a22fb676cc231438418ddc1eb3664"
-url = "https://github.com/openai/codex/releases/download/rust-v0.142.0/codex-aarch64-unknown-linux-musl.zst"
+checksum = "sha256:880b61ed0871f862e3a281ad05fedfa1a90c0664de893d781b6b7517127ccaee"
+url = "https://github.com/openai/codex/releases/download/rust-v0.142.2/codex-aarch64-unknown-linux-musl.zst"
+url_api = "https://api.github.com/repos/openai/codex/releases/assets/457407960"
 
 [tools.codex."platforms.linux-arm64-musl"]
-checksum = "sha256:628421aa8dfcd729fd0dcc490b1617f34b1a22fb676cc231438418ddc1eb3664"
-url = "https://github.com/openai/codex/releases/download/rust-v0.142.0/codex-aarch64-unknown-linux-musl.zst"
+checksum = "sha256:880b61ed0871f862e3a281ad05fedfa1a90c0664de893d781b6b7517127ccaee"
+url = "https://github.com/openai/codex/releases/download/rust-v0.142.2/codex-aarch64-unknown-linux-musl.zst"
+url_api = "https://api.github.com/repos/openai/codex/releases/assets/457407960"
 
 [tools.codex."platforms.linux-x64"]
-checksum = "sha256:ece3179b5609cc3e234d76d9aa7bd8a3b16c66bd184f8e050e35ca0dbb49321b"
-url = "https://github.com/openai/codex/releases/download/rust-v0.142.0/codex-x86_64-unknown-linux-musl.zst"
+checksum = "sha256:b0eb5e450a2e0bab298db724e895b3f86881f3653b4f12042e24699c112bb322"
+url = "https://github.com/openai/codex/releases/download/rust-v0.142.2/codex-x86_64-unknown-linux-musl.zst"
+url_api = "https://api.github.com/repos/openai/codex/releases/assets/457407863"
 
 [tools.codex."platforms.linux-x64-baseline"]
-checksum = "sha256:ece3179b5609cc3e234d76d9aa7bd8a3b16c66bd184f8e050e35ca0dbb49321b"
-url = "https://github.com/openai/codex/releases/download/rust-v0.142.0/codex-x86_64-unknown-linux-musl.zst"
+checksum = "sha256:b0eb5e450a2e0bab298db724e895b3f86881f3653b4f12042e24699c112bb322"
+url = "https://github.com/openai/codex/releases/download/rust-v0.142.2/codex-x86_64-unknown-linux-musl.zst"
+url_api = "https://api.github.com/repos/openai/codex/releases/assets/457407863"
 
 [tools.codex."platforms.linux-x64-musl"]
-checksum = "sha256:ece3179b5609cc3e234d76d9aa7bd8a3b16c66bd184f8e050e35ca0dbb49321b"
-url = "https://github.com/openai/codex/releases/download/rust-v0.142.0/codex-x86_64-unknown-linux-musl.zst"
+checksum = "sha256:b0eb5e450a2e0bab298db724e895b3f86881f3653b4f12042e24699c112bb322"
+url = "https://github.com/openai/codex/releases/download/rust-v0.142.2/codex-x86_64-unknown-linux-musl.zst"
+url_api = "https://api.github.com/repos/openai/codex/releases/assets/457407863"
 
 [tools.codex."platforms.linux-x64-musl-baseline"]
-checksum = "sha256:ece3179b5609cc3e234d76d9aa7bd8a3b16c66bd184f8e050e35ca0dbb49321b"
-url = "https://github.com/openai/codex/releases/download/rust-v0.142.0/codex-x86_64-unknown-linux-musl.zst"
+checksum = "sha256:b0eb5e450a2e0bab298db724e895b3f86881f3653b4f12042e24699c112bb322"
+url = "https://github.com/openai/codex/releases/download/rust-v0.142.2/codex-x86_64-unknown-linux-musl.zst"
+url_api = "https://api.github.com/repos/openai/codex/releases/assets/457407863"
 
 [tools.codex."platforms.macos-arm64"]
-checksum = "sha256:4e09a67765f0a151dfb673311e42e9a70c464a9259080736c98410547c480185"
-url = "https://github.com/openai/codex/releases/download/rust-v0.142.0/codex-aarch64-apple-darwin.zst"
+checksum = "sha256:bda03bc5361a25a8a0315c336bb7ff22652ff5e5a0b2c17892876a9f0e2806d9"
+url = "https://github.com/openai/codex/releases/download/rust-v0.142.2/codex-aarch64-apple-darwin.zst"
+url_api = "https://api.github.com/repos/openai/codex/releases/assets/457408003"
 
 [tools.codex."platforms.macos-x64"]
-checksum = "sha256:23bf76238f29bfbe33f7068b8bcad1da94566887cc30f0518b3a2705e25d87a7"
-url = "https://github.com/openai/codex/releases/download/rust-v0.142.0/codex-x86_64-apple-darwin.zst"
+checksum = "sha256:c574842008a4869495ae63c5ba3df5533f3c143d101d61965951a0ef5db6241b"
+url = "https://github.com/openai/codex/releases/download/rust-v0.142.2/codex-x86_64-apple-darwin.zst"
+url_api = "https://api.github.com/repos/openai/codex/releases/assets/457407938"
 
 [tools.codex."platforms.macos-x64-baseline"]
-checksum = "sha256:23bf76238f29bfbe33f7068b8bcad1da94566887cc30f0518b3a2705e25d87a7"
-url = "https://github.com/openai/codex/releases/download/rust-v0.142.0/codex-x86_64-apple-darwin.zst"
+checksum = "sha256:c574842008a4869495ae63c5ba3df5533f3c143d101d61965951a0ef5db6241b"
+url = "https://github.com/openai/codex/releases/download/rust-v0.142.2/codex-x86_64-apple-darwin.zst"
+url_api = "https://api.github.com/repos/openai/codex/releases/assets/457407938"
 
 [tools.codex."platforms.windows-x64"]
-checksum = "sha256:d46f0a43da34e437ad1b5d85cd03cfb6a7e2cd0685c9bca0ad6d52c778761108"
-url = "https://github.com/openai/codex/releases/download/rust-v0.142.0/codex-x86_64-pc-windows-msvc.exe.zst"
+checksum = "sha256:35ed3d1a8cac2a6c0fc5b72f7f1061c8dbac0d6e26e5f9553a3dba659e85a47d"
+url = "https://github.com/openai/codex/releases/download/rust-v0.142.2/codex-x86_64-pc-windows-msvc.exe.zst"
+url_api = "https://api.github.com/repos/openai/codex/releases/assets/457407887"
 
 [tools.codex."platforms.windows-x64-baseline"]
-checksum = "sha256:d46f0a43da34e437ad1b5d85cd03cfb6a7e2cd0685c9bca0ad6d52c778761108"
-url = "https://github.com/openai/codex/releases/download/rust-v0.142.0/codex-x86_64-pc-windows-msvc.exe.zst"
+checksum = "sha256:35ed3d1a8cac2a6c0fc5b72f7f1061c8dbac0d6e26e5f9553a3dba659e85a47d"
+url = "https://github.com/openai/codex/releases/download/rust-v0.142.2/codex-x86_64-pc-windows-msvc.exe.zst"
+url_api = "https://api.github.com/repos/openai/codex/releases/assets/457407887"
 
 [[tools.deno]]
 version = "2.9.1"
@@ -834,55 +846,6 @@ url = "https://github.com/jdx/pitchfork/releases/download/v2.15.0/pitchfork-x86_
 [[tools.python]]
 version = "3.14.6"
 backend = "core:python"
-
-[tools.python."platforms.linux-arm64"]
-checksum = "sha256:9124d5c41739d78a446f1f29c1953bf41071abcbf18e6daec201a27608648195"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260610/cpython-3.14.6+20260610-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz"
-
-[tools.python."platforms.linux-arm64-musl"]
-checksum = "sha256:9124d5c41739d78a446f1f29c1953bf41071abcbf18e6daec201a27608648195"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260610/cpython-3.14.6+20260610-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz"
-
-[tools.python."platforms.linux-x64"]
-checksum = "sha256:0881fbde2c78605720fb2e240d1a6df38652a896e40a5fce2e10908dbee5f5b7"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260610/cpython-3.14.6+20260610-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
-provenance = "github-attestations"
-
-[tools.python."platforms.linux-x64-baseline"]
-checksum = "sha256:0881fbde2c78605720fb2e240d1a6df38652a896e40a5fce2e10908dbee5f5b7"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260610/cpython-3.14.6+20260610-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
-provenance = "github-attestations"
-
-[tools.python."platforms.linux-x64-musl"]
-checksum = "sha256:0881fbde2c78605720fb2e240d1a6df38652a896e40a5fce2e10908dbee5f5b7"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260610/cpython-3.14.6+20260610-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
-
-[tools.python."platforms.linux-x64-musl-baseline"]
-checksum = "sha256:54eca143d09ed3c596ecad5e3bfcb7724387818f8f984f44f3d8c0e9f36681d3"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260610/cpython-3.14.6+20260610-x86_64-unknown-linux-musl-install_only_stripped.tar.gz"
-provenance = "github-attestations"
-
-[tools.python."platforms.macos-arm64"]
-checksum = "sha256:875516e13be36296f8f7dd0972b22ba3bed069ed08d27d5f0069caf227522921"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260610/cpython-3.14.6+20260610-aarch64-apple-darwin-install_only_stripped.tar.gz"
-
-[tools.python."platforms.macos-x64"]
-checksum = "sha256:6f85cbb2a0fef4b90fc63aadcfe383c22db5eb7933066ca6ea384828a6b3f2d2"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260610/cpython-3.14.6+20260610-x86_64-apple-darwin-install_only_stripped.tar.gz"
-
-[tools.python."platforms.macos-x64-baseline"]
-checksum = "sha256:6f85cbb2a0fef4b90fc63aadcfe383c22db5eb7933066ca6ea384828a6b3f2d2"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260610/cpython-3.14.6+20260610-x86_64-apple-darwin-install_only_stripped.tar.gz"
-provenance = "github-attestations"
-
-[tools.python."platforms.windows-x64"]
-checksum = "sha256:49f0c7e8d1c2eaba70c5516ca6c01b6b766f6ff473f1209a76fd01783e7c75ae"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260610/cpython-3.14.6+20260610-x86_64-pc-windows-msvc-install_only_stripped.tar.gz"
-
-[tools.python."platforms.windows-x64-baseline"]
-checksum = "sha256:49f0c7e8d1c2eaba70c5516ca6c01b6b766f6ff473f1209a76fd01783e7c75ae"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260610/cpython-3.14.6+20260610-x86_64-pc-windows-msvc-install_only_stripped.tar.gz"
-provenance = "github-attestations"
 
 [[tools.ripgrep]]
 version = "15.1.0"
