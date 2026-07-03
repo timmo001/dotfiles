@@ -12,6 +12,10 @@
 --ignore=^/\.opencode
 --ignore=renovate.json
 --ignore=^/opencode.json
+--ignore=^/\.markdownlint\.json
+--ignore=^/\.markdownlintignore
+--ignore=^/\.yamllint\.yml
+--ignore=^/mlc_config\.json
 --ignore=^/dot
 --ignore=^/dot-migration
 --ignore=^/docs

@@ -1,0 +1,20 @@
+---
+# Green-first config: relaxed rules so CI passes now; tighten later.
+# The dedicated lint-yamllint workflow runs with strict: false, so only
+# error-level problems fail. Warnings are left visible but non-blocking.
+extends: default
+
+ignore: |
+  node_modules/
+  docs/dist/
+  docs/.astro/
+  **/pnpm-lock.yaml
+
+rules:
+  line-length: disable
+  document-start: disable
+  truthy:
+    check-keys: false
+  # SHA-pinned action refs use "@sha # tag" with a single space.
+  comments:
+    min-spaces-from-content: 1

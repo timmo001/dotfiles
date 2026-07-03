@@ -1,0 +1,48 @@
+name: Lint
+
+on:
+  push:
+    branches:
+      - distro/arch-omarchy
+  pull_request: {}
+  workflow_dispatch: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # actionlint (workflow YAML) + markdownlint. YAML is handled by the dedicated
+  # yamllint job below, so it is disabled here to keep one predictable config.
+  general:
+    uses: timmo001/workflows/.github/workflows/lint-general.yml@3d829185994b734af661e78194e16873707456a5 # master
+    with:
+      lint-yaml: false
+
+  yamllint:
+    uses: timmo001/workflows/.github/workflows/lint-yamllint.yml@3d829185994b734af661e78194e16873707456a5 # master
+
+  jsonlint:
+    uses: timmo001/workflows/.github/workflows/lint-jsonlint.yml@3d829185994b734af661e78194e16873707456a5 # master
+
+  markdown-links:
+    uses: timmo001/workflows/.github/workflows/lint-markdown-links.yml@3d829185994b734af661e78194e16873707456a5 # master
+
+  # timmo001/workflows has no shellcheck workflow, so run it directly. Scoped to
+  # scripts/.local/bin at error severity (green-first). gh-import-dotenv-to-secrets
+  # is a zsh script, which shellcheck cannot parse.
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # 2.0.0
+        with:
+          severity: error
+          scandir: ./scripts/.local/bin
+          ignore_names: gh-import-dotenv-to-secrets

@@ -1,0 +1,8 @@
+# Dependencies and build output
+node_modules/
+docs/dist/
+docs/.astro/
+
+# Generated, committed docs (regenerated from source, not hand-linted)
+docs/src/content/docs/dot/commands.md
+docs/src/content/docs/reference/
