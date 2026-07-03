@@ -37,7 +37,7 @@ minimum_release_age = "2h"
 [settings]
 idiomatic_version_file_enable_tools = ["bun", "deno", "go", "node", "python"]
 lockfile = true
-minimum_release_age = "7d"
+minimum_release_age = "2d"
 # Don't treat build/cache dirs as mise projects. Stops AUR builds (yay cd's into
 # ~/.cache/yay/<pkg>/src, which contains package.json/.tool-versions/mise.toml)
 # from auto-installing and reshimming all shims on every update.
