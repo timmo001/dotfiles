@@ -49,6 +49,15 @@ export interface OutputLogService {
     label: string,
     effect: Effect.Effect<A, E, R>,
   ) => Effect.Effect<A, E, R>;
+  /**
+   * Update the label of the currently active spinner, if one is running.
+   *
+   * Lets a long-running {@link withSpinner} effect reflect live progress (for
+   * example which checks are still in flight). No-op when no spinner is active,
+   * on a non-TTY where the spinner does not animate, or in the TUI which
+   * renders its own progress UI.
+   */
+  readonly updateSpinner: (label: string) => Effect.Effect<void>;
 }
 
 /** ANSI colour helpers for CLI output */
@@ -236,6 +245,9 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
             );
             return result;
           }),
+        // Spinner label updates are a CLI concern; the TUI renders its own
+        // progress UI.
+        updateSpinner: () => Effect.void,
       };
     }),
   );
@@ -275,10 +287,22 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
         if (!spinner) return;
         const frame = SPINNER_FRAMES[spinner.frame % SPINNER_FRAMES.length]!;
         const seconds = Math.floor((Date.now() - spinner.startedAt) / 1000);
-        const elapsed =
-          seconds >= 1 ? ` ${ansi.dim}(${seconds}s)${ansi.reset}` : "";
+        const elapsedText = seconds >= 1 ? ` (${seconds}s)` : "";
+        // Keep the whole spinner on one physical row. A wrapped line breaks the
+        // in-place CLEAR_LINE redraw (it only clears the last row) and leaves a
+        // trail of stale spinner lines, so truncate the label to fit the width.
+        // `|| 80` (not `??`) so a pty reporting 0 columns falls back sensibly.
+        const columns = process.stdout.columns || 80;
+        const maxLabel = Math.max(0, columns - 2 - elapsedText.length - 1);
+        const label =
+          spinner.label.length > maxLabel
+            ? spinner.label.slice(0, Math.max(0, maxLabel - 1)) + "\u2026"
+            : spinner.label;
+        const elapsed = elapsedText
+          ? `${ansi.dim}${elapsedText}${ansi.reset}`
+          : "";
         process.stdout.write(
-          `${CLEAR_LINE}${ansi.cyan}${frame}${ansi.reset} ${spinner.label}${elapsed}`,
+          `${CLEAR_LINE}${ansi.cyan}${frame}${ansi.reset} ${label}${elapsed}`,
         );
       };
 
@@ -353,6 +377,12 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
         stream: Stream.empty,
         flush: Effect.sync(() => entries.map(formatPlain).join("\n")),
         withSpinner,
+        updateSpinner: (label) =>
+          Effect.sync(() => {
+            if (!spinner) return;
+            spinner.label = label;
+            renderSpinner();
+          }),
       };
     }),
   );

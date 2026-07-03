@@ -94,17 +94,23 @@ const sections: readonly SectionDef[] = [
 /**
  * Run all doctor checks in parallel and produce a structured report.
  *
- * `onSection` is invoked with each section as soon as its check resolves, in
- * completion order (not declaration order), letting callers stream per-check
- * results live while the remaining checks are still running. The returned
- * report's `sections` array stays in declaration order (`Effect.all` preserves
- * input order regardless of concurrency), so the ordered final summary is
- * unaffected.
+ * `onStart` is called once with every applicable check name before the checks
+ * run, so callers can seed a live "running" view (all checks start at once
+ * under unbounded concurrency). `onSection` is then invoked with each section
+ * as soon as its check resolves, in completion order (not declaration order),
+ * letting callers stream per-check results and retire the check from that view
+ * while the rest are still running. The returned report's `sections` array
+ * stays in declaration order (`Effect.all` preserves input order regardless of
+ * concurrency), so the ordered final summary is unaffected.
  *
  * @param onSection - Effect run per section on completion; defaults to a no-op.
+ * @param onStart - Effect run once with all applicable check names before the
+ *   checks start; defaults to a no-op.
  */
 export const runDoctor = (
   onSection: (section: CheckSection) => Effect.Effect<void> = () => Effect.void,
+  onStart: (names: readonly string[]) => Effect.Effect<void> = () =>
+    Effect.void,
 ): Effect.Effect<DoctorReport, never, Config | CommandExecutor | GitHub> =>
   Effect.gen(function* () {
     const config = yield* Config;
@@ -114,6 +120,10 @@ export const runDoctor = (
     const applicable = sections.filter(
       (s) => !s.requiresPrivate || config.canUsePrivate,
     );
+
+    // Seed the running view before any check starts; under unbounded
+    // concurrency they all begin at once.
+    yield* onStart(applicable.map((s) => s.name));
 
     // Run all checks in parallel, catching crashes per-section, and stream each
     // section to `onSection` as it resolves (completion order).

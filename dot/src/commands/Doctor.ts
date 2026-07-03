@@ -54,10 +54,32 @@ export const doctor = (opts?: { readonly openOpencode?: boolean }) =>
       `Private mode: ${envString(ENV.DOT_ALLOW_PRIVATE) ?? "auto"}`,
     );
 
-    // Render one section's heading and result lines. Streamed live as each
-    // check completes (completion order); the ordered summary follows below.
+    // Track in-flight checks so the spinner shows what is still running. Checks
+    // run in parallel, so this starts as every check and shrinks to the slow
+    // ones (typically the network checks) as the fast ones finish.
+    const running = new Set<string>();
+    const runningLabel = (): string => {
+      if (running.size === 0) return "Running health checks";
+      const names = [...running];
+      const shown = names.slice(0, 3).join(", ");
+      const more = names.length > 3 ? ` +${names.length - 3} more` : "";
+      return `Running health checks (${running.size}): ${shown}${more}`;
+    };
+
+    // Seed the spinner with every check as they all start at once.
+    const onStart = (names: readonly string[]) =>
+      Effect.gen(function* () {
+        for (const name of names) running.add(name);
+        yield* log.updateSpinner(runningLabel());
+      });
+
+    // Retire a finished check from the spinner, then stream its heading and
+    // result lines. Streamed live as each check completes (completion order);
+    // the ordered summary follows below.
     const renderSection = (section: CheckSection) =>
       Effect.gen(function* () {
+        running.delete(section.name);
+        yield* log.updateSpinner(runningLabel());
         yield* log.section(section.name);
         for (const result of section.results) {
           switch (result.severity) {
@@ -77,11 +99,11 @@ export const doctor = (opts?: { readonly openOpencode?: boolean }) =>
         }
       });
 
-    // Run checks in parallel behind a single liveness spinner, streaming each
-    // section's detail as it finishes (completion order).
+    // Run checks in parallel behind a single spinner that shows the checks
+    // still running, streaming each section's detail as it finishes.
     const report = yield* log.withSpinner(
       "Running health checks",
-      runDoctor(renderSection),
+      runDoctor(renderSection, onStart),
     );
 
     // Grouped summary: errors by section, then warnings by section
