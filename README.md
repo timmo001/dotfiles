@@ -2,6 +2,8 @@
 
 My public [Omarchy](https://omarchy.org) dotfiles, managed with GNU Stow and the `dot` command.
 
+test commit
+
 **Full documentation:** <https://dotfiles.timmo.dev>
 
 > [!CAUTION]
