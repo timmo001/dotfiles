@@ -46,5 +46,12 @@
       "repository": "timmo001/system-bridge",
       "description": "Use for the system-bridge backend autostarted via Hypr and its API/WebSocket behaviour"
     }
+  },
+  "mcp": {
+    "dot": {
+      "type": "local",
+      "command": ["dot", "mcp"],
+      "enabled": true
+    }
   }
 }
