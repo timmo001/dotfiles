@@ -30,6 +30,18 @@ The tools call `dot`'s in-process notes service directly, so they behave like `d
 
 These are all read-only. `git_status` reuses the same output as `dot git-status`, `command_help` reuses `dot help`, and `opencode_debug` runs the `opencode debug` subcommands and returns their captured output as one text block.
 
+## Resources
+
+The server also exposes read-only [resources](https://modelcontextprotocol.io/specification/latest/server/resources) a client can pull in as context. Resource support varies by harness, so they are a progressive enhancement on top of the tools.
+
+| Resource | Description |
+| --- | --- |
+| `dot://notes/context` | The current repository's OpenCode repo-note context block: identity, notes path, and recent notes. |
+| `dot://git-status` | Concise branch status for the current repository. |
+| `dot://command/{name}` | Help text for a single dot command (template). `{name}` completes from the known commands, e.g. `dot://command/git-status`. |
+
+Each resource re-runs on every read, so it reflects the current state. `dot://git-status` mirrors the `git_status` tool and `dot://command/{name}` mirrors `command_help`; the resource forms let a client attach them as context without an explicit tool call.
+
 ## Notifications
 
 Mutating actions (`note_write`, `note_delete`) emit a desktop notification via `notify-send`, so you stay aware of changes an agent makes in the background regardless of which harness launched the server. The notification is best-effort and never blocks the action.
