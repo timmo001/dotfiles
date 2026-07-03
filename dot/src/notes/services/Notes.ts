@@ -70,10 +70,17 @@ interface NotesService {
   readonly listAll: () => Effect.Effect<readonly NoteRepoSection[], NotesError>;
   /** Read a note file from the notes vault. */
   readonly read: (filePath: string) => Effect.Effect<string, NotesError>;
-  /** Write a note file, then commit and best-effort push it. */
+  /**
+   * Write a note file, then commit and best-effort push it.
+   *
+   * When `stampDate` is true (the default), the frontmatter `date:` line is set
+   * or refreshed to the current local timestamp before writing, so callers
+   * never need to read the date themselves.
+   */
   readonly write: (
     filePath: string,
     content: string,
+    stampDate?: boolean,
   ) => Effect.Effect<NoteWriteResult, NotesError>;
   /** Delete a note file, then commit and best-effort push it. */
   readonly delete: (
@@ -209,6 +216,36 @@ function setFrontmatterPriority(
           ? tagsIndex
           : lines.length;
     lines.splice(insertAt, 0, priorityLine);
+  }
+
+  const body = lines.join(newline);
+  return content.replace(
+    frontmatter[0],
+    () => `---${newline}${body}${newline}---`,
+  );
+}
+
+/**
+ * Set or replace the `date:` line within a note's YAML frontmatter.
+ *
+ * Returns the updated content, or null when the file has no frontmatter block.
+ * A new line is inserted after `repo:`, or at the top of the frontmatter body
+ * when no `repo:` line is present.
+ */
+function setFrontmatterDate(content: string, date: string): string | null {
+  const frontmatter = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!frontmatter) return null;
+
+  const newline = content.includes("\r\n") ? "\r\n" : "\n";
+  const dateLine = `date: ${date}`;
+  const lines = frontmatter[1].split(/\r?\n/);
+
+  const existingIndex = lines.findIndex((line) => /^date:\s*/.test(line));
+  if (existingIndex !== -1) {
+    lines[existingIndex] = dateLine;
+  } else {
+    const repoIndex = lines.findIndex((line) => /^repo:\s*/.test(line));
+    lines.splice(repoIndex !== -1 ? repoIndex + 1 : 0, 0, dateLine);
   }
 
   const body = lines.join(newline);
@@ -750,15 +787,21 @@ export class Notes extends Context.Service<Notes, NotesService>()("Notes") {
                 ),
             });
           }),
-        write: (filePath, content) =>
+        write: (filePath, content, stampDate = true) =>
           Effect.gen(function* () {
             const resolvedPath = yield* assertInsideNotesRoot(filePath);
             const dir = dirname(resolvedPath);
             const filename = basename(resolvedPath);
+            const stamped = stampDate
+              ? (setFrontmatterDate(
+                  content,
+                  formatNoteTimestamp(new Date(yield* Clock.currentTimeMillis)),
+                ) ?? content)
+              : content;
             yield* Effect.try({
               try: () => {
                 mkdirSync(dir, { recursive: true });
-                writeFileSync(resolvedPath, content);
+                writeFileSync(resolvedPath, stamped);
               },
               catch: (error) =>
                 fail(
@@ -775,7 +818,7 @@ export class Notes extends Context.Service<Notes, NotesService>()("Notes") {
               `Written: ${resolvedPath}`,
               "",
               "```markdown",
-              content,
+              stamped,
               "```",
               ...commitOutputLine(commit, message),
               "",

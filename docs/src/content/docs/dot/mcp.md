@@ -15,7 +15,7 @@ The server is launched by an MCP client, not run interactively. It speaks JSON-R
 | --- | --- |
 | `note_read` | Read a note file from the vault. |
 | `note_list` | List notes for the current repository (optionally filtered by tag, or across all repositories). |
-| `note_write` | Write a note file, then commit and best-effort push it. |
+| `note_write` | Write a note file, then commit and best-effort push it. Sets or refreshes the frontmatter `date:` to the current local timestamp automatically. |
 | `note_delete` | Delete a note file, then commit and best-effort push it. |
 
 The tools call `dot`'s in-process notes service directly, so they behave like `dot note` and `dot notes` on the command line. Read and list are annotated read-only; write and delete are annotated destructive.

@@ -167,6 +167,7 @@ export const registerNotesTools = Effect.gen(function* () {
     name: "note_write",
     description:
       "Write a note file to the notes vault, then commit and best-effort push it. " +
+      "Sets or refreshes the frontmatter `date:` to the current local timestamp automatically, so you never need to read the date yourself. " +
       "Creates parent directories automatically. " +
       "This is the ONLY permitted way to write note files - the built-in write, edit, and bash tools are blocked for the notes vault.",
     parameters: NoteWriteParams,

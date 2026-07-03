@@ -12,10 +12,11 @@ Configuration invariant: every primary agent should have access to the repo note
 Read `Notes path` from the `<repository>` section of the injected `<repo-note-context>`.
 
 1. Generate a slug prefixed with `handoff-` (e.g. `handoff-auth-refactor`, `handoff-migrate-to-v4`).
-2. Get the current full local timestamp with `date -Is`; use that exact value for `date:`.
-3. Call the note-writing tool (`dot_note_write` in OpenCode) with:
+2. Call the note-writing tool (`dot_note_write` in OpenCode) with:
    - `path`: `{notes_path}/handoff-{slug}.md`
    - `content`: the full note content (see format below)
+
+The note-writing tool sets the frontmatter `date:` for you; leave the placeholder in the template below and do not read the date yourself.
 
 Do **not** use the `write`, `bash`, or any other tool to write the file — only the note-writing tool.
 
@@ -63,7 +64,7 @@ This ensures:
 ```markdown
 ---
 repo: {owner}/{repo}
-date: {current `date -Is` value, e.g. 2026-06-01T14:30:00+01:00}
+date: {leave as-is; the note-writing tool fills this in}
 type: handoff
 name: {Short human-readable title, 3–6 words, Title Case}
 description: {One sentence describing the handoff purpose}
