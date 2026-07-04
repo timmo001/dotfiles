@@ -11,6 +11,9 @@
 #   - night window on battery: set power-saver once when the window starts (or on
 #     unplug during it); a manual change afterwards is respected. At the end of
 #     the window, revert to balanced only if still on that auto power-saver.
+#   - low battery on battery: set power-saver once when the charge drops below the
+#     threshold (or on unplug below it); a manual change afterwards is respected.
+#     Relaxed back to balanced on AC (via the plug-in handler).
 #
 # Launched via exec-once from the laptop host autostart.
 
@@ -19,6 +22,9 @@ set -uo pipefail
 # Night window (local time): power-saver on battery between these hours.
 NIGHT_START=1 # 01:00
 NIGHT_END=7   # 07:00
+
+# Low-battery threshold (percent): power-saver on battery below this.
+LOW_THRESHOLD=20
 
 pidfile="${XDG_RUNTIME_DIR:-/tmp}/power-profile-daemon.pid"
 
@@ -52,6 +58,23 @@ in_night() {
   ((h >= NIGHT_START && h < NIGHT_END))
 }
 
+battery_pct() {
+  local ps cap
+  for ps in /sys/class/power_supply/*; do
+    [[ -r $ps/type && -r $ps/capacity ]] || continue
+    [[ $(<"$ps/type") == "Battery" ]] || continue
+    cap=$(<"$ps/capacity")
+    [[ $cap =~ ^[0-9]+$ ]] && { echo "$cap"; return 0; }
+  done
+  return 1
+}
+
+low_battery() {
+  local pct
+  pct=$(battery_pct) || return 1
+  ((pct < LOW_THRESHOLD))
+}
+
 night_applied=0
 
 # Apply the night power-saver once; a later manual change is respected.
@@ -61,6 +84,14 @@ apply_night_saver() {
     notify "Power profile" "On battery after 1am, switched to Power Saver"
   fi
   night_applied=1
+}
+
+# Apply the low-battery power-saver; a later manual change is respected.
+apply_low_saver() {
+  if [[ $(profile) != "power-saver" ]]; then
+    set_profile power-saver
+    notify "Power profile" "Battery below ${LOW_THRESHOLD}%, switched to Power Saver"
+  fi
 }
 
 on_battery() {
@@ -85,9 +116,13 @@ state="battery"
 ac_online && state="ac"
 was_night=0
 in_night && was_night=1
+was_low=0
+[[ $state == "battery" ]] && low_battery && was_low=1
 
 if [[ $state == "battery" ]] && ((was_night)); then
   apply_night_saver
+elif [[ $state == "battery" ]] && ((was_low)); then
+  apply_low_saver
 else
   set_profile balanced
 fi
@@ -100,6 +135,8 @@ while :; do
   ac_online && cur="ac"
   night=0
   in_night && night=1
+  low=0
+  [[ $cur == "battery" ]] && low_battery && low=1
 
   # AC transitions.
   if [[ $cur != "$state" ]]; then
@@ -118,17 +155,26 @@ while :; do
     apply_night_saver
   fi
 
+  # Battery drops below the threshold while on battery.
+  if [[ $cur == "battery" ]] && ((low && !was_low)); then
+    apply_low_saver
+  fi
+
   # Respect a manual change away from our auto power-saver.
   if ((night_applied)) && [[ $(profile) != "power-saver" ]]; then
     night_applied=0
   fi
 
   # Night window ends while on battery: revert only if still on our auto saver.
+  # Stay in power-saver when the battery is still below the threshold.
   if [[ $cur == "battery" ]] && ((!night && was_night && night_applied)); then
-    set_profile balanced
-    notify "Power profile" "Morning, back to Balanced"
+    if ((!low)); then
+      set_profile balanced
+      notify "Power profile" "Morning, back to Balanced"
+    fi
     night_applied=0
   fi
 
   was_night=$night
+  was_low=$low
 done
