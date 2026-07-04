@@ -93,7 +93,7 @@ export class StatusList<T> extends ScrollBoxRenderable {
     this.selectedIndex = this.resolveSelectedIndex(items, selectedId);
     this.rowGeneration += 1;
     this.buildRows();
-    this.syncSelectionScroll();
+    if (items.length === 0) this.scrollTop = 0;
     this.emitSelectionChanged();
   }
 
@@ -270,19 +270,5 @@ export class StatusList<T> extends ScrollBoxRenderable {
       if (index >= 0) return index;
     }
     return Math.min(this.selectedIndex, items.length - 1);
-  }
-
-  /** Keep scroll offset and highlight aligned after OpenTUI rebuilds list children. */
-  private syncSelectionScroll(): void {
-    if (this.items.length === 0) {
-      this.scrollTop = 0;
-      this.requestRender();
-      return;
-    }
-
-    this.selectedIndex = Math.min(this.selectedIndex, this.items.length - 1);
-    const row = this.rows[this.selectedIndex];
-    if (row) this.scrollChildIntoView(row.container.id);
-    this.requestRender();
   }
 }
