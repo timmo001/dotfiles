@@ -1,9 +1,8 @@
 /**
  * @file Shared git commit and push primitives used by every dot committer.
  *
- * The `dot git-commit` gateway, the interactive commit view (through
- * {@link GitStaging}), the skill-update and private-package flows, and the
- * repo-notes writer all go through these helpers so staging, the safe
+ * The `dot git-commit` gateway, the skill-update and private-package flows,
+ * and the repo-notes writer all go through these helpers so staging, the safe
  * rebase-then-push, and `--force-with-lease` on amend behave identically no
  * matter who commits. Callers choose {@link GitIo} `inherit` to stream git's
  * own output to the terminal, or `capture` when the surrounding process emits
