@@ -122,7 +122,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - OpenCode frontend debug command: `/debug-frontend <page or issue>`
 - OpenCode fallow audit command: `/fallow-audit [workspace]`
 - OpenCode fallow project analysis command: `/fallow-project-analyse [workspace]`
-- OpenCode docs maintenance command: `/update-docs [focus or since]` (updates documentation for recent changes via the `maintain-docs` skill; routes to `build-ask`, stops before commit)
+- OpenCode docs maintenance command: `/update-docs [focus or since]` (updates documentation for recent changes via the `maintain-docs` skill; runs in the active build agent, stops before commit)
 - GitHub notifications command: `dot git-notifications` (`--bar-json`, `--list-threads`, and thread actions)
 - Git diff behavior: `dot git-diff` (`dot diff` is a human compatibility alias)
 - Git context command: `dot git-context` (repo/branch/PR summary, ahead/behind state, unstaged, staged, untracked, branch files, and recent commits with timestamps and remote push status in one shot; substitutes `git status`, `git diff --stat`/`git diff --numstat`, `git diff --cached --stat`, `git log --oneline --stat`, and `git log @{upstream}..HEAD`). On a feature branch it shows the PR summary and description; add `--comments`, `--reviews`, `--labels`, or `--checks` for those sections. Add `--remotes` for fetch/push URLs, `--diff` for full unstaged and staged diffs, `--branch-diff` for the full merge-base diff against the default branch (errors on the default branch), and `--json` for the structured branch-context payload consumed by the OpenCode branch-context plugin.

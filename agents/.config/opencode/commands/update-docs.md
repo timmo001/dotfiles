@@ -1,9 +1,10 @@
 ---
 description: Keep documentation current with recent code changes, via git-context and delegated investigation
-agent: build-ask
 ---
 
 Load the `maintain-docs` skill as the authoritative workflow, and load the `writing-style` skill alongside it before authoring any docs.
+
+This flow edits docs, runs shell verification, and delegates to subagents, so run it in a build agent; if edits, writes, or the required shell commands are denied by permissions, stop and report rather than falling back.
 
 Treat `${ARGUMENTS}` as an optional focus (subsystem, path, or topic) and/or a `since` window (a date or relative duration such as "2 weeks ago"). If it is empty, use the default recent-commit window across the whole repo.
 
