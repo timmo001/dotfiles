@@ -65,6 +65,55 @@ The pull request summary and description are on by default on a feature branch; 
 
 The review decision and comment count are part of the always-on PR summary, so they need no flag. On the default branch the PR block is skipped regardless of `--no-pr`. Flags combine freely, for example `dot git-context --json --comments --reviews --labels --checks` is what the branch-context plugin runs.
 
+### OpenCode branch-context plugin
+
+The OpenCode [`branch-context`](/reference/plugins/) plugin is a thin consumer of `dot git-context --json`. It runs once per eligible slash command (on the `command.execute.before` hook), then injects a `<branch-context>` XML block into the prompt so agents do not re-run `git`/`gh` for scope.
+
+Two injection tiers:
+
+| Tier | `dot git-context` invocation | XML sections |
+| --- | --- | --- |
+| Full branch context | `--json --labels --comments --reviews --checks` | `<branch-metadata>`, `<status>`, `<work-scope>`, `<pull-request>`, `<warnings>` |
+| Work scope only | `--json --no-pr` | `<branch-metadata>`, `<status>`, `<work-scope>`, `<warnings>` |
+
+Full-context commands include `/review-current-work`, `/refactor-current-work`, `/inject-context`, and `/reset-branch-reapply`. Work-scope commands include scoped refactor and skill-routing commands that only need changed files (see the plugin source for the current command list). Commands that depend on injected context should follow the [`branch-context-consumer`](/reference/skills/) skill: use the precomputed `<work-scope>` block instead of rebuilding scope with separate git calls.
+
+### JSON payload (`--json`)
+
+`--json` emits one structured snapshot from the same producer as the text output. The OpenCode plugin parses this payload and renders XML; the MCP server and other automation can consume it directly.
+
+Top-level fields:
+
+| Field | When present | Purpose |
+| --- | --- | --- |
+| `inRepo` | always | `false` when the cwd is not inside a git worktree |
+| `branchMetadata` | default on | Repository root, branch, HEAD, remotes, ahead/behind, base ref |
+| `status` | default on | Compact `git status -sb` plus unstaged, staged, and untracked name-status lists |
+| `workScope` | default on | Branch-only commits, changed files, and diff stat vs the default branch |
+| `pullRequest` | feature branch, unless `--no-pr` | PR summary plus any opt-in detail sections |
+| `warnings` | always | Non-fatal collection issues (missing `gh`, fetch failure, truncation) |
+
+Large text blocks are truncated in the JSON renderer so prompt size stays bounded. Overflow appends `[TRUNCATED N CHARS]`:
+
+| Block | Character limit |
+| --- | --- |
+| `status.short` | 12,000 |
+| `status.*` file lists, `workScope.branchFiles` | 30,000 each |
+| `workScope.branchCommits` | 30,000 |
+| `workScope.branchDiffStat` | 20,000 |
+| `pullRequest.checks` | 40,000 |
+
+Use `--no-branch-metadata`, `--no-status`, or `--no-work-scope` to omit sections from both text and JSON. Full working-tree or merge-base diffs are text-only today (`--diff`, `--branch-diff`); they are not part of the JSON payload the plugin consumes.
+
+### Agent workflow
+
+For agents and harnesses:
+
+1. Prefer `dot git-context` (or the MCP `git_context` tool) over separate `git status`, `git diff`, and `gh pr view` calls.
+2. When OpenCode injects `<branch-context>`, treat it as the primary source; do not rebuild scope unless the user asks for a fresh snapshot.
+3. Use `--diff` or `--branch-diff` when file lists are not enough; use `--json` only when you need the structured payload (plugin format or programmatic parsing).
+4. Piped, redirected, and MCP output is always plain text without ANSI colour. Set `NO_COLOR=1` to force plain text on a TTY.
+
 ## `dot git-diff`
 
 The diff / repo watcher view. Without flags it opens the interactive TUI showing managed repos with changes, including fetched unpushed/incoming commit checks. The alias `dot diff` remains for compatibility.
