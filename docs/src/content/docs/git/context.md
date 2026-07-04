@@ -19,6 +19,24 @@ dot git-context --json              # structured branch-context payload (plugin 
 dot git-context --since "2 days ago"
 ```
 
+### Text output and colour
+
+Plain text is the default output. On an interactive TTY, `dot git-context` colours headings, PR labels, warning lines, hint commands, and the pushed/local commit markers to make the scan path clearer:
+
+- section headings such as `Branch:`, `Unstaged:`, `Staged:`, and `Diff vs ...` are bold cyan;
+- PR metadata labels such as `State:`, `Review decision:`, and `URL:` are bold;
+- pushed commits show a green `✓`; local-only commits show a dim `↑`;
+- trailing hint commands such as `dot git-context --branch-diff` are green.
+
+Automation remains plain by design. Piped output, redirects, captured agent context, and the MCP branch-context layer use the same text without ANSI escape codes. Set `NO_COLOR` to any non-empty value to force plain text even on a TTY:
+
+```bash
+dot git-context > context.txt
+NO_COLOR=1 dot git-context
+```
+
+`--json` always emits the structured branch-context payload without terminal styling.
+
 It substitutes running these separately: `git status`, `git diff --stat` / `git diff --numstat`, `git diff --cached --stat`, `git log --oneline --stat`, and `git log @{upstream}..HEAD` (ahead/pushed check). The flags combine. `--branch-diff` measures from the merge base, so committed and uncommitted changes both show, and errors on the default branch where that range is empty. `--since <date>` overrides the default recent-commit window on the default branch or when the default branch ref cannot be resolved; it accepts ISO/RFC dates, epoch timestamps, and relative values such as `2d` or `2 days ago`.
 
 `--json` emits the structured branch-context payload consumed by the OpenCode branch-context plugin instead of text; the `--no-*` section flags control which blocks it carries.
