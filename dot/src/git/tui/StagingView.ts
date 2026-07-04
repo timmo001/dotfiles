@@ -215,7 +215,7 @@ export class StagingView {
 
   /** Remove the staging view from the render tree */
   destroy(): void {
-    this.renderer.root.remove(this.root.id);
+    this.renderer.root.remove(this.root);
   }
 
   /** Refresh the file lists from git status */

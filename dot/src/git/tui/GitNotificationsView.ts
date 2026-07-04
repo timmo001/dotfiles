@@ -171,7 +171,7 @@ export class GitNotificationsView {
 
   /** Remove the notifications view from the render tree. */
   destroy(): void {
-    this.renderer.root.remove(this.root.id);
+    this.renderer.root.remove(this.root);
   }
 
   private handleKeyPress(key: KeyEvent): void {

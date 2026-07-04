@@ -454,7 +454,7 @@ export class DiffView {
 
   /** Remove the diff view from the render tree */
   destroy(): void {
-    this.renderer.root.remove(this.root.id);
+    this.renderer.root.remove(this.root);
   }
 }
 

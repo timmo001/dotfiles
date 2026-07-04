@@ -605,8 +605,8 @@ export class NotesView {
     this.syntaxStyle.destroy();
     this.createPrompt.destroy();
     this.priorityPopup.destroy();
-    this.renderer.root.remove(this.root.id);
-    this.renderer.root.remove(this.deletePrompt.id);
+    this.renderer.root.remove(this.root);
+    this.renderer.root.remove(this.deletePrompt);
   }
 
   private get filterKey(): string {

@@ -175,10 +175,10 @@ export class StatusList<T> extends ScrollBoxRenderable {
 
   private clearRows(): void {
     for (const header of this.sectionHeaders) {
-      this.remove(header.id);
+      this.remove(header);
     }
     for (const row of this.rows) {
-      this.remove(row.container.id);
+      this.remove(row.container);
     }
     this.sectionHeaders = [];
     this.rows = [];
