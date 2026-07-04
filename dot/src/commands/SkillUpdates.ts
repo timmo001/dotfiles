@@ -238,7 +238,10 @@ export const skillUpdates = (opts?: {
         { cwd: config.publicDotfiles },
       );
       if (!staged.ok) {
-        return yield* Effect.fail(new Error(staged.error ?? "git add failed"));
+        return yield* new LauncherError({
+          message: staged.error ?? "git add failed",
+          exitCode: 1,
+        });
       }
 
       const commitMsg = `Update skills: ${updatedNames.join(", ")}`;
@@ -249,9 +252,10 @@ export const skillUpdates = (opts?: {
         tolerateEmpty: true,
       });
       if (!outcome.ok) {
-        return yield* Effect.fail(
-          new Error(outcome.error ?? "git commit failed"),
-        );
+        return yield* new LauncherError({
+          message: outcome.error ?? "git commit failed",
+          exitCode: 1,
+        });
       }
       if (outcome.committed) {
         yield* log.info(`Committed: ${commitMsg}`);
@@ -278,9 +282,10 @@ export const skillUpdates = (opts?: {
       const total = available + reviewItems.length;
       if (total > 0) {
         yield* log.info(`${total} skill(s) have upstream updates available`);
-        return yield* Effect.fail(
-          new LauncherError("Skill updates available", 1),
-        );
+        return yield* new LauncherError({
+          message: "Skill updates available",
+          exitCode: 1,
+        });
       }
       return false;
     }

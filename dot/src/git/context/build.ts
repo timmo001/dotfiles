@@ -7,7 +7,7 @@
  * (the OpenCode branch-context plugin) format that one snapshot, so the two
  * consumers can never drift.
  */
-import { Effect } from "effect";
+import { Clock, Effect } from "effect";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { gitOutput } from "../../lib/git.js";
 import { GitHub } from "../services/GitHub.js";
@@ -332,11 +332,13 @@ function collectCommits(
       `--format=${COMMIT_SEPARATOR}%H`,
       ...range.args,
     ]);
+    const now = yield* Clock.currentTimeMillis;
     const records = parseCommits(
       logOutput,
       aheadHashes,
       baseExists,
       parseNumstatLog(numstatLog),
+      now,
     );
     return { range, records };
   });
@@ -466,6 +468,7 @@ function parseCommits(
   aheadHashes: ReadonlySet<string>,
   baseExists: boolean,
   numstatByCommit: Map<string, Map<string, DiffCounts>>,
+  now: number,
 ): CommitRecord[] {
   const records: {
     shortHash: string;
@@ -485,7 +488,7 @@ function parseCommits(
       records.push({
         isoDate,
         shortHash,
-        relativeTime: formatRelativeTimeAgo(isoDate),
+        relativeTime: formatRelativeTimeAgo(isoDate, now),
         subject,
         pushed: baseExists && !aheadHashes.has(fullHash),
         files: [],

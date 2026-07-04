@@ -10,11 +10,14 @@ const RELATIVE_TIME_UNITS: readonly {
 ];
 
 /** Format an ISO timestamp as a compact relative time. */
-export function formatRelativeTimeAgo(value: string | null): string {
+export function formatRelativeTimeAgo(
+  value: string | null,
+  now: number = Date.now(),
+): string {
   const time = new Date(value ?? "").getTime();
   if (!Number.isFinite(time)) return "unknown";
 
-  const seconds = Math.max(0, Math.floor((Date.now() - time) / 1000));
+  const seconds = Math.max(0, Math.floor((now - time) / 1000));
   const unit = RELATIVE_TIME_UNITS.find(
     (candidate) => seconds < candidate.limit,
   );

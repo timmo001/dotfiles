@@ -55,9 +55,10 @@ const unstowRepo = (
 
       if (exit !== 0) {
         yield* log.error(`[${scope}] unstow ${folder} failed (exit ${exit})`);
-        return yield* Effect.fail(
-          new LauncherError(`${scope} unstow failed on ${folder}`, exit),
-        );
+        return yield* new LauncherError({
+          message: `${scope} unstow failed on ${folder}`,
+          exitCode: exit,
+        });
       }
     }
   });

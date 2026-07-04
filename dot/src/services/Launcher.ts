@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Stream } from "effect";
+import { Context, Effect, Layer, Schema, Stream } from "effect";
 import type { CliRenderer } from "@opentui/core";
 import { CommandExecutor, CommandError } from "./CommandExecutor.js";
 import { OutputLog } from "./OutputLog.js";
@@ -11,13 +11,13 @@ const log = (msg: string) => {
 };
 
 /** Domain error for launcher operations */
-export class LauncherError {
-  readonly _tag = "LauncherError";
-  constructor(
-    readonly message: string,
-    readonly exitCode?: number,
-  ) {}
-}
+export class LauncherError extends Schema.TaggedErrorClass<LauncherError>()(
+  "LauncherError",
+  {
+    message: Schema.String,
+    exitCode: Schema.optional(Schema.Number),
+  },
+) {}
 
 /** Service interface for high-level command execution with output routing */
 export interface LauncherService {
@@ -79,9 +79,10 @@ export class Launcher extends Context.Service<Launcher, LauncherService>()(
                 }
 
                 if (exitCode !== 0) {
-                  return yield* Effect.fail(
-                    new LauncherError(`Command failed: ${cmd}`, exitCode),
-                  );
+                  return yield* new LauncherError({
+                    message: `Command failed: ${cmd}`,
+                    exitCode,
+                  });
                 }
               } finally {
                 renderer.currentRenderBuffer.clear();
@@ -115,18 +116,16 @@ export class Launcher extends Context.Service<Launcher, LauncherService>()(
           silent: (cmd) =>
             Effect.gen(function* () {
               log(`Silent: ${cmd}`);
-              return yield* executor
-                .run("bash", ["-c", cmd])
-                .pipe(
-                  Effect.catchTag("CommandError", (err: CommandError) =>
-                    Effect.fail(
-                      new LauncherError(
-                        `Command failed: ${cmd}\n${err.stderr}`,
-                        err.exitCode,
-                      ),
-                    ),
+              return yield* executor.run("bash", ["-c", cmd]).pipe(
+                Effect.catchTag("CommandError", (err: CommandError) =>
+                  Effect.fail(
+                    new LauncherError({
+                      message: `Command failed: ${cmd}\n${err.stderr}`,
+                      exitCode: err.exitCode,
+                    }),
                   ),
-                );
+                ),
+              );
             }),
         };
       }),
@@ -149,9 +148,10 @@ export class Launcher extends Context.Service<Launcher, LauncherService>()(
             log(`Running (CLI): ${cmd}`);
             const exitCode = yield* executor.inherit("bash", ["-c", cmd]);
             if (exitCode !== 0) {
-              return yield* Effect.fail(
-                new LauncherError(`Command failed: ${cmd}`, exitCode),
-              );
+              return yield* new LauncherError({
+                message: `Command failed: ${cmd}`,
+                exitCode,
+              });
             }
           }),
 
@@ -179,18 +179,16 @@ export class Launcher extends Context.Service<Launcher, LauncherService>()(
         silent: (cmd) =>
           Effect.gen(function* () {
             log(`Silent (CLI): ${cmd}`);
-            return yield* executor
-              .run("bash", ["-c", cmd])
-              .pipe(
-                Effect.catchTag("CommandError", (err: CommandError) =>
-                  Effect.fail(
-                    new LauncherError(
-                      `Command failed: ${cmd}\n${err.stderr}`,
-                      err.exitCode,
-                    ),
-                  ),
+            return yield* executor.run("bash", ["-c", cmd]).pipe(
+              Effect.catchTag("CommandError", (err: CommandError) =>
+                Effect.fail(
+                  new LauncherError({
+                    message: `Command failed: ${cmd}\n${err.stderr}`,
+                    exitCode: err.exitCode,
+                  }),
                 ),
-              );
+              ),
+            );
           }),
       };
     }),

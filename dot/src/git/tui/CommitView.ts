@@ -8,7 +8,7 @@ import {
   fg,
   bold,
 } from "@opentui/core";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import type { CommitSuggestion } from "../../types.js";
 import type { Theme } from "../../theme.js";
 import type { GitStagingService } from "../services/GitStaging.js";
@@ -39,6 +39,13 @@ const HELP_SUGGESTIONS: readonly HelpEntry[] = [
 ];
 
 const log = (msg: string) => console.error(`[dot:CommitView] ${msg}`);
+
+class CommitViewError extends Schema.TaggedErrorClass<CommitViewError>()(
+  "CommitViewError",
+  {
+    message: Schema.String,
+  },
+) {}
 
 /** Configuration and callbacks for the commit view */
 export interface CommitViewOptions {
@@ -288,7 +295,8 @@ export class CommitView {
           await proc.exited;
           return stdout;
         },
-        catch: (e) => new Error(`Failed to get diff: ${e}`),
+        catch: (error) =>
+          new CommitViewError({ message: `Failed to get diff: ${error}` }),
       });
 
       // Get recent commits from this repo and others
@@ -321,7 +329,7 @@ export class CommitView {
   /**
    * Gather recent commits from the target repo for style reference.
    */
-  private gatherRecentCommits(): Effect.Effect<readonly string[], Error> {
+  private gatherRecentCommits() {
     return Effect.gen({ self: this }, function* () {
       const targetCommits = yield* this.gitStaging.getRecentCommits(
         this.repoPath,

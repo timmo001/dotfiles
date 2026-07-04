@@ -1,4 +1,4 @@
-import { Clock, Context, Effect, Layer, PubSub, Stream } from "effect";
+import { Clock, Context, Effect, Layer, PubSub, Schema, Stream } from "effect";
 import { existsSync } from "node:fs";
 import type {
   WorkflowRepoRuns,
@@ -30,6 +30,13 @@ const DEBUG = !!envString(ENV.DOT_DEBUG);
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot:WorkflowRuns] ${msg}`);
 };
+
+class WorkflowRunsError extends Schema.TaggedErrorClass<WorkflowRunsError>()(
+  "WorkflowRunsError",
+  {
+    message: Schema.String,
+  },
+) {}
 
 interface WorkflowRunsService {
   /** Subscribe to workflow run state snapshots */
@@ -145,7 +152,9 @@ export class WorkflowRuns extends Context.Service<
         }).pipe(Effect.provideService(CommandExecutor, executor))).trim();
 
         if (!branch) {
-          return yield* Effect.fail(new Error("current branch not found"));
+          return yield* new WorkflowRunsError({
+            message: "current branch not found",
+          });
         }
 
         const sha = (yield* gitOutput(["rev-parse", "HEAD"], {
@@ -304,18 +313,20 @@ export class WorkflowRuns extends Context.Service<
           log(`Refresh complete: ${repos.length} workflow repos`);
         }).pipe(
           Effect.withSpan("WorkflowRuns.refresh"),
-          Effect.catch((error) => {
-            log(`Refresh failed: ${formatGhError(error)}`);
-            currentState = buildState(
-              currentState.repos,
-              new Date(),
-              false,
-              currentState.loaded,
-              formatGhError(error),
-              { since: opts?.since ?? currentState.since ?? undefined },
-            );
-            return PubSub.publish(pubsub, currentState).pipe(Effect.asVoid);
-          }),
+          Effect.catch((error) =>
+            Effect.gen(function* () {
+              log(`Refresh failed: ${formatGhError(error)}`);
+              currentState = buildState(
+                currentState.repos,
+                new Date(yield* Clock.currentTimeMillis),
+                false,
+                currentState.loaded,
+                formatGhError(error),
+                { since: opts?.since ?? currentState.since ?? undefined },
+              );
+              yield* PubSub.publish(pubsub, currentState);
+            }),
+          ),
         );
 
       return {
