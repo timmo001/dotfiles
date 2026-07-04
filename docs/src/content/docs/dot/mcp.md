@@ -24,7 +24,7 @@ The tools call `dot`'s in-process notes service directly, so they behave like `d
 
 | Tool | Description |
 | --- | --- |
-| `git_context` | Branch context for the current repository: branch/base header, the pull request summary for a feature branch, unstaged files, staged files, and recent commits, with optional PR comments (`comments`), reviews (`reviews`), labels (`labels`), CI checks (`checks`), working-tree diffs (`diff`), or the merge-base diff against the default branch (`branchDiff`). |
+| `git_context` | Branch context for the current repository: repository/branch/base header, ahead/behind state, the pull request summary for a feature branch, unstaged files, staged files, untracked files, branch changed files, and recent commits, with optional remote URLs (`remotes`), PR comments (`comments`), reviews (`reviews`), labels (`labels`), CI checks (`checks`), working-tree diffs (`diff`), or the merge-base diff against the default branch (`branchDiff`). |
 | `command_help` | `dot` CLI help. Omit `name` for the full overview, or pass a subcommand (e.g. `git-context`) to scope it. |
 | `opencode_debug` | Combined output of the OpenCode debug commands (`paths`, `config`, `skill`, `info`), optionally also inspecting a named `agent`. |
 

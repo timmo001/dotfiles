@@ -77,6 +77,10 @@ export function renderBranchContextJson(data: BranchContextData): string {
               nameStatusText(data.status.staged),
               CHAR_LIMITS.nameStatus,
             ),
+            untracked: limited(
+              nameStatusText(data.status.untracked),
+              CHAR_LIMITS.nameStatus,
+            ),
           },
         }
       : {}),

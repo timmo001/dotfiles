@@ -9,6 +9,7 @@ import { formatRelativeTimeAgo } from "../services/relativeTime.js";
 import { plainStyler, type Styler } from "../../lib/ansi.js";
 import type {
   BranchContextData,
+  BranchMetadata,
   CommitRange,
   CommitRecord,
   FileChange,
@@ -34,6 +35,11 @@ function formatFileList(files: readonly FileChange[]): string {
 /** Format a count with a singular/plural noun. */
 function pluralise(count: number, noun: string): string {
   return `${count} ${count === 1 ? noun : `${noun}s`}`;
+}
+
+/** Render ahead/behind counts for the base line. */
+function formatAheadBehind(meta: BranchMetadata): string {
+  return `${meta.ahead} ahead, ${meta.behind} behind`;
 }
 
 /** Format an ISO timestamp as a compact local `YYYY-MM-DD HH:mm` label. */
@@ -69,6 +75,25 @@ function appendDiffBlock(lines: string[], diff: string | undefined): void {
   if (!diff) return;
   lines.push("");
   lines.push(diff);
+}
+
+/** Append optional remote URL details. */
+function appendRemoteDetails(
+  lines: string[],
+  meta: BranchMetadata,
+  styler: Styler,
+): void {
+  if (!meta.remoteDetails) return;
+  lines.push(styler.heading("Remotes:"));
+  if (meta.remoteDetails.length === 0) {
+    lines.push("  (none)");
+    return;
+  }
+  for (const remote of meta.remoteDetails) {
+    lines.push(`  ${remote.name}:`);
+    lines.push(`    fetch: ${remote.fetchUrl || "(unknown)"}`);
+    lines.push(`    push: ${remote.pushUrl || "(unknown)"}`);
+  }
 }
 
 /** Append the labelled pull request block. */
@@ -194,10 +219,23 @@ export function renderBranchContextText(
   const lines: string[] = [];
   const meta = data.branchMetadata;
 
-  lines.push(
-    `${styler.heading("Branch:")} ${meta?.currentBranch || "(detached)"}`,
-  );
-  if (meta) lines.push(`${styler.heading("Base:")} ${meta.baseRef}`);
+  if (meta) {
+    lines.push(
+      `${styler.heading("Repository:")} ${meta.repositoryName || "(unknown)"} (${meta.repositoryRoot || "(unknown)"})`,
+    );
+    lines.push(
+      `${styler.heading("Branch:")} ${meta.currentBranch || "(detached)"}${meta.headSha ? ` @ ${meta.headSha}` : ""}`,
+    );
+    lines.push(
+      `${styler.heading("Base:")} ${meta.baseRef} (${formatAheadBehind(meta)})`,
+    );
+    lines.push(
+      `${styler.heading("Default:")} ${meta.defaultRemote}/${meta.defaultBranch}`,
+    );
+    appendRemoteDetails(lines, meta, styler);
+  } else {
+    lines.push(`${styler.heading("Branch:")} (metadata omitted)`);
+  }
   lines.push("");
 
   if (data.pullRequest) {
@@ -214,6 +252,27 @@ export function renderBranchContextText(
     lines.push(styler.heading("Staged:"));
     lines.push(formatFileList(data.status.staged));
     appendDiffBlock(lines, data.diffs?.staged);
+    lines.push("");
+
+    lines.push("Untracked:");
+    lines.push(formatFileList(data.status.untracked));
+    lines.push("");
+  }
+
+  if (data.workScope && !data.workScope.skipped) {
+    const comparisonRef =
+      data.commits?.range.kind === "branch"
+        ? data.commits.range.sinceRef
+        : "default branch";
+    lines.push(`Branch changes vs ${comparisonRef}:`);
+    lines.push(formatFileList(data.workScope.branchFiles));
+    if (data.workScope.branchDiffStat.trim()) {
+      lines.push("");
+      lines.push("Diff stat:");
+      for (const line of data.workScope.branchDiffStat.split("\n")) {
+        if (line.trim()) lines.push(`  ${line}`);
+      }
+    }
     lines.push("");
   }
 

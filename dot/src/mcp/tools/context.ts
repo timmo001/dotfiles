@@ -65,6 +65,11 @@ const GitContextParams = Schema.Struct({
       description: "Include the pull request block at all (default true).",
     }),
   ),
+  remotes: Schema.optional(
+    Schema.Boolean.annotate({
+      description: "Include remote fetch/push URLs in the branch metadata.",
+    }),
+  ),
   since: Schema.optional(
     Schema.String.annotate({
       description:
@@ -154,11 +159,12 @@ export const registerContextTools = Effect.gen(function* () {
   yield* register({
     name: "git_context",
     description:
-      "Concise branch context for the current repository: branch/base header, the pull " +
-      "request for the branch (feature branches), unstaged files, staged files, and recent " +
+      "Concise branch context for the current repository: repository/branch/base header, " +
+      "ahead/behind state, the pull request for the branch (feature branches), unstaged " +
+      "files, staged files, untracked files, branch changed files, and recent " +
       "commits, each with a relative timestamp, a pushed/local marker, and its changed files " +
-      "with line counts. Include PR comments, reviews, labels, or CI checks, or append full " +
-      "working-tree diffs or the merge-base diff against the default branch.",
+      "with line counts. Include remote URLs, PR comments, reviews, labels, or CI checks, " +
+      "or append full working-tree diffs or the merge-base diff against the default branch.",
     parameters: GitContextParams,
     annotations: READONLY_HINTS,
     handle: (params) =>
@@ -173,6 +179,7 @@ export const registerContextTools = Effect.gen(function* () {
           checks: params.checks ?? false,
           description: params.description ?? true,
           pullRequest: params.pullRequest ?? true,
+          remoteDetails: params.remotes ?? false,
         }),
       ).pipe(
         Effect.provideService(CommandExecutor, executor),
