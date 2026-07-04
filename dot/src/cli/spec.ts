@@ -810,7 +810,8 @@ export const cliCommands: readonly CliCommandSpec[] = [
   },
   {
     name: "agents-sync",
-    summary: "Sync AGENTS.md to Cursor rule",
+    summary:
+      "Mirror AGENTS.md to Cursor, Claude Code, and Codex instruction files",
     options: [helpOption],
   },
   {

@@ -61,12 +61,20 @@ These variables tune paths and behaviour for `dot`. Most have sensible defaults;
 
 ## Agents sync
 
-`dot agents-sync` runs automatically at the end of `dot update` and `dot init`; there is no environment toggle to disable it.
+`dot agents-sync` mirrors `~/.config/opencode/AGENTS.md` to harness instruction files. It runs automatically at the end of `dot update` and `dot init`; there is no environment toggle to disable it.
+
+| Harness | Default output path |
+| --- | --- |
+| Cursor | `~/.cursor/rules/global-agents.mdc` (override with `DOT_AGENTS_SYNC_RULE_FILE`) |
+| Claude Code | `~/.claude/CLAUDE.md` |
+| Codex | `~/.codex/AGENTS.md` |
+
+Each target receives a transformed copy (Cursor wraps frontmatter; all targets include a `dot agents-sync` HTML comment with source path and timestamp). OpenCode remains the single source of truth; other harnesses get plain file copies, not symlinks.
 
 | Variable | Description |
 | --- | --- |
 | `DOT_AGENTS_SYNC_SOURCE` | AGENTS file to mirror (default `~/.config/opencode/AGENTS.md`). |
-| `DOT_AGENTS_SYNC_RULE_FILE` | Cursor rule output path (default `$DOTFILES_PRIVATE_DIR/agents/.cursor/rules/global-agents.mdc`, else `~/.cursor/rules/global-agents.mdc`). |
+| `DOT_AGENTS_SYNC_RULE_FILE` | Cursor rule output path (default `~/.cursor/rules/global-agents.mdc`). |
 
 ## MCP sync
 

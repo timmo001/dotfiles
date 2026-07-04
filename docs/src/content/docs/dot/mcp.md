@@ -9,6 +9,8 @@ The server is launched by an MCP client, not run interactively. It speaks JSON-R
 
 ## Tools
 
+Harnesses that load this server under the name `dot` expose tools with a `dot_` prefix (for example `dot_note_read` in OpenCode). The tables below use the raw MCP tool names from `tools/list`.
+
 ### Notes tools
 
 | Tool | Description |

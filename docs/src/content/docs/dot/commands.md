@@ -669,7 +669,7 @@ dot note delete
 
 ## `dot agents-sync`
 
-Sync AGENTS.md to Cursor rule
+Mirror AGENTS.md to Cursor, Claude Code, and Codex instruction files
 
 ```text
 dot agents-sync
