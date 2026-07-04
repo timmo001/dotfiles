@@ -90,6 +90,14 @@ const stringArray = (value: unknown): string[] =>
 const recordArray = (value: unknown): JsonRecord[] =>
   Array.isArray(value) ? value.filter(isRecord) : []
 
+const remoteDetails = (value: unknown): string[] =>
+  recordArray(value).map((remote) => {
+    const name = stringField(remote, "name") || "(unknown)"
+    const fetchUrl = stringField(remote, "fetchUrl") || "(unknown)"
+    const pushUrl = stringField(remote, "pushUrl") || "(unknown)"
+    return `${name}: fetch ${fetchUrl}; push ${pushUrl}`
+  })
+
 const parseJSON = (text: string): JsonRecord | null => {
   try {
     const parsed: unknown = JSON.parse(text)
@@ -131,13 +139,20 @@ const formatErrorContext = (message: string, error: string | null): string => {
 const renderBranchMetadata = (meta: JsonRecord | null): string[] => {
   if (!meta) return ["(unavailable)"]
   const remotes = stringArray(meta.remotes)
+  const details = remoteDetails(meta.remoteDetails)
   return [
+    `Repository: ${stringField(meta, "repositoryName") || "(unknown)"}`,
+    `Repository root: ${stringField(meta, "repositoryRoot") || "(unknown)"}`,
     `Current branch: ${stringField(meta, "currentBranch") || "(unknown)"}`,
+    `HEAD: ${stringField(meta, "headSha") || "(unknown)"}`,
     `Default remote: ${stringField(meta, "defaultRemote") || "(unknown)"}`,
     `Default branch: ${stringField(meta, "defaultBranch") || "(unknown)"}`,
     `Base ref: ${stringField(meta, "baseRef") || "(unknown)"}`,
+    `Upstream ref: ${stringField(meta, "upstreamRef") || "(none)"}`,
+    `Ahead/behind base: ${numberField(meta, "ahead")} ahead, ${numberField(meta, "behind")} behind`,
     `On default branch: ${booleanField(meta, "onDefaultBranch") ? "yes" : "no"}`,
     `Known remotes: ${remotes.length ? remotes.join(", ") : "(none)"}`,
+    ...(details.length ? ["Remote URLs:", ...details.map((detail) => `  ${detail}`)] : []),
   ]
 }
 
@@ -146,6 +161,8 @@ const renderWorkScope = (status: JsonRecord | null, workScope: JsonRecord | null
     formatList("Unstaged changed files", status ? stringField(status, "unstaged") : ""),
     "",
     formatList("Staged changed files", status ? stringField(status, "staged") : ""),
+    "",
+    formatList("Untracked files", status ? stringField(status, "untracked") : ""),
     "",
     formatList("Branch-only commits", workScope ? stringField(workScope, "branchCommits") : ""),
     "",

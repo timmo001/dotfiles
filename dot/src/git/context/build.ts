@@ -24,6 +24,7 @@ import type {
   CommitsSection,
   DiffSection,
   FileChange,
+  RemoteDetail,
   WorkingTreeStatus,
   WorkScope,
 } from "./model.js";
@@ -130,6 +131,46 @@ function toFileChanges(
     .map((line) => toFileChange(line, numstat));
 }
 
+/** Build file records for untracked files, which have no git numstat yet. */
+function toUntrackedFileChanges(output: string): FileChange[] {
+  return output
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((path) => ({
+      raw: `??\t${path}`,
+      status: "??",
+      path,
+      countsKnown: false,
+      added: null,
+      deleted: null,
+    }));
+}
+
+/** Parse `git rev-list --left-right --count base...HEAD` output. */
+function parseAheadBehind(output: string): { ahead: number; behind: number } {
+  const [behindText = "0", aheadText = "0"] = output.trim().split(/\s+/);
+  const behind = Number(behindText);
+  const ahead = Number(aheadText);
+  return {
+    ahead: Number.isFinite(ahead) ? ahead : 0,
+    behind: Number.isFinite(behind) ? behind : 0,
+  };
+}
+
+/** Strip credentials from HTTP(S) remote URLs before exposing them to agents. */
+function sanitiseRemoteUrl(url: string): string {
+  if (!/^https?:\/\//i.test(url)) return url;
+  try {
+    const parsed = new URL(url);
+    parsed.username = "";
+    parsed.password = "";
+    return parsed.toString();
+  } catch {
+    return url.replace(/^(https?:\/\/)[^/@]+@/i, "$1");
+  }
+}
+
 /**
  * Build the full structured branch-context snapshot. Fails only on an
  * unexpected git error; a missing worktree resolves to `{ inRepo: false }` and
@@ -159,6 +200,10 @@ export function buildBranchContext(
 
     const branch = yield* tryGit(["branch", "--show-current"]);
     const onDefaultBranch = branch === defaultBranch;
+    const repositoryRoot = yield* tryGit(["rev-parse", "--show-toplevel"]);
+    const repositoryName =
+      repositoryRoot.split("/").filter(Boolean).pop() ?? "";
+    const headSha = yield* tryGit(["rev-parse", "--short", "HEAD"]);
 
     // Compare against the branch's upstream tracking ref so locally committed
     // work that has not been pushed yet always shows. Fall back to the remote's
@@ -170,6 +215,18 @@ export function buildBranchContext(
       "@{upstream}",
     ]);
     const baseRef = upstream || `${remote}/${defaultBranch}`;
+    const baseExists =
+      (yield* tryGit(["rev-parse", "--verify", "--quiet", baseRef])) !== "";
+    const { ahead, behind } = baseExists
+      ? parseAheadBehind(
+          yield* tryGit([
+            "rev-list",
+            "--left-right",
+            "--count",
+            `${baseRef}...HEAD`,
+          ]),
+        )
+      : { ahead: 0, behind: 0 };
 
     const defaultBranchRef = `${remote}/${defaultBranch}`;
     const defaultRefExists =
@@ -185,11 +242,20 @@ export function buildBranchContext(
     const branchMetadata: BranchMetadata | undefined = options.branchMetadata
       ? {
           currentBranch: branch,
+          repositoryRoot,
+          repositoryName,
+          headSha,
           defaultRemote: remote,
           defaultBranch,
           baseRef,
+          upstreamRef: upstream,
+          ahead,
+          behind,
           onDefaultBranch,
           remotes,
+          ...(options.remoteDetails
+            ? { remoteDetails: yield* collectRemoteDetails(remotes) }
+            : {}),
         }
       : undefined;
 
@@ -245,8 +311,30 @@ function collectStatus(): Effect.Effect<
       yield* tryGit(["diff", "--cached", "--name-status"]),
       parseNumstat(yield* tryGit(["diff", "--cached", "--numstat"])),
     );
+    const untracked = toUntrackedFileChanges(
+      yield* tryGit(["ls-files", "--others", "--exclude-standard"]),
+    );
     const short = yield* tryGit(["status", "-sb"]);
-    return { unstaged, staged, short };
+    return { unstaged, staged, untracked, short };
+  });
+}
+
+/** Collect optional remote URL details for agent repository disambiguation. */
+function collectRemoteDetails(
+  remotes: readonly string[],
+): Effect.Effect<readonly RemoteDetail[], never, CommandExecutor> {
+  return Effect.gen(function* () {
+    const details: RemoteDetail[] = [];
+    for (const name of remotes) {
+      details.push({
+        name,
+        fetchUrl: sanitiseRemoteUrl(yield* tryGit(["remote", "get-url", name])),
+        pushUrl: sanitiseRemoteUrl(
+          yield* tryGit(["remote", "get-url", "--push", name]),
+        ),
+      });
+    }
+    return details;
   });
 }
 

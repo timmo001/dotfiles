@@ -228,20 +228,22 @@ Show branch context for the current repository
 dot git-context [options]
 ```
 
-Print branch context for the current git repository: branch/base header,
-the pull request for the branch (on a feature branch), unstaged and staged
-files, and the larger of today's commits or the last 10 commits — each with
-a compact relative timestamp, a pushed/local remote marker, and its changed
-files inline with (+added -deleted) line counts. Designed as a single
-command for agents to get full working-tree and branch context, and as the
-shared producer for the OpenCode branch-context plugin (via --json).
+Print branch context for the current git repository: repository root,
+branch/base header, HEAD, ahead/behind state, the pull request for the
+branch (on a feature branch), unstaged, staged, untracked, and branch changed
+files, and the larger of today's commits or the last 10 commits — each with a
+compact relative timestamp, a pushed/local remote marker, and its changed files
+inline with (+added -deleted) line counts. Designed as a single command for
+agents to get full working-tree and branch context, and as the shared producer
+for the OpenCode branch-context plugin (via --json).
 
 On a feature branch the pull request summary is always shown: number, state,
 title, comment count, review decision, mergeability, draft state, branches,
 and URL, plus the description. It is resilient and omitted when gh is
 missing, no PR exists, or the request fails. Add --comments, --reviews,
 --labels, or --checks to include those sections; --checks makes a second gh
-call. Use --no-description or --no-pr to trim the PR block.
+call. Use --remotes when remote fetch/push URLs are needed. Use
+--no-description or --no-pr to trim the PR block.
 
 Substitutes running these separately: git status, git diff --stat /
 git diff --numstat, git diff --cached --stat, git log --oneline --stat,
@@ -264,10 +266,11 @@ relative values such as '2d' / '2 days ago' and absolute dates.
 **Modes**
 
 ```text
-(default)       Context summary: branch, PR, status, recent commits
+(default)       Context summary: repo, branch, PR, status, branch files, commits
 --json          Emit the structured branch-context payload
 --diff          Also print full unstaged and staged diffs
 --branch-diff   Also print the full diff vs the default branch
+--remotes       Also include remote fetch/push URLs
 --since <date>  Show recent commits since a date instead of the default window
 ```
 
@@ -282,9 +285,10 @@ relative values such as '2d' / '2 days ago' and absolute dates.
 | `--checks` | Include CI check runs (makes a second gh call) |
 | `--no-description` | Omit the pull request description |
 | `--no-pr` | Omit the pull request block entirely |
-| `--no-branch-metadata` | Omit the branch metadata block (affects --json) |
-| `--no-status` | Omit the working-tree status block (affects --json) |
-| `--no-work-scope` | Omit the branch work-scope block (affects --json) |
+| `--remotes` | Include remote fetch/push URLs in the branch metadata |
+| `--no-branch-metadata` | Omit the branch metadata block |
+| `--no-status` | Omit the working-tree status block |
+| `--no-work-scope` | Omit the branch work-scope block |
 | `--diff` | Append full unstaged and staged diffs for changed files |
 | `--branch-diff` | Append the merge-base diff vs the default branch (errors on the default branch) |
 | `--since` `<date>` | Show recent commits since this date or relative duration on the default/recent path |
@@ -295,6 +299,7 @@ relative values such as '2d' / '2 days ago' and absolute dates.
 dot git-context
 dot git-context --comments --reviews
 dot git-context --labels --checks
+dot git-context --remotes
 dot git-context --diff
 dot git-context --branch-diff
 dot git-context --json

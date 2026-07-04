@@ -51,7 +51,7 @@ export const registerContextResources = Effect.gen(function* () {
     uri: "dot://git-context",
     name: "git context",
     description:
-      "Concise branch context for the current repository: branch/base header, the pull request summary for a feature branch, unstaged files, staged files, and recent commits with push markers.",
+      "Concise branch context for the current repository: repository/branch/base header, ahead/behind state, PR summary for a feature branch, unstaged, staged, untracked, and branch changed files, and recent commits with push markers.",
     mimeType: "text/plain",
     content: gitContextText(gitContextOptions({})),
   });

@@ -16,6 +16,8 @@
 export interface BranchContextOptions {
   /** Include repository/branch identity (remote, default branch, base ref). */
   readonly branchMetadata: boolean;
+  /** Include remote fetch/push URLs in branch metadata. */
+  readonly remoteDetails: boolean;
   /** Include working-tree status (unstaged and staged file lists). */
   readonly status: boolean;
   /** Include branch-scope aggregates (branch commits, files, diff stat). */
@@ -46,6 +48,7 @@ export interface BranchContextOptions {
  */
 export const GIT_CONTEXT_DEFAULTS: BranchContextOptions = {
   branchMetadata: true,
+  remoteDetails: false,
   status: true,
   workScope: true,
   pullRequest: true,
@@ -77,18 +80,42 @@ export interface FileChange {
 
 /** Repository and branch identity used to interpret the rest of the context. */
 export interface BranchMetadata {
+  /** Absolute repository root path. */
+  readonly repositoryRoot: string;
+  /** Repository directory name, derived from {@link repositoryRoot}. */
+  readonly repositoryName: string;
   /** Current branch name, empty when HEAD is detached. */
   readonly currentBranch: string;
+  /** Abbreviated HEAD commit SHA. */
+  readonly headSha: string;
   /** Chosen default remote (upstream > origin > first). */
   readonly defaultRemote: string;
   /** Resolved default branch name (e.g. `main`). */
   readonly defaultBranch: string;
   /** Remote-qualified base ref used for push status (upstream or default). */
   readonly baseRef: string;
+  /** Upstream tracking ref, empty when the branch has none. */
+  readonly upstreamRef: string;
+  /** Commits reachable from HEAD but not the base ref. */
+  readonly ahead: number;
+  /** Commits reachable from the base ref but not HEAD. */
+  readonly behind: number;
   /** Whether HEAD is on the repository's default branch. */
   readonly onDefaultBranch: boolean;
   /** All configured remote names, in `git remote` order. */
   readonly remotes: readonly string[];
+  /** Optional remote URL details, shown only when requested. */
+  readonly remoteDetails?: readonly RemoteDetail[];
+}
+
+/** Fetch/push URL details for a configured git remote. */
+export interface RemoteDetail {
+  /** Remote name. */
+  readonly name: string;
+  /** Fetch URL returned by `git remote get-url <name>`. */
+  readonly fetchUrl: string;
+  /** Push URL returned by `git remote get-url --push <name>`. */
+  readonly pushUrl: string;
 }
 
 /** Working-tree status: structured file lists plus the `git status -sb` line. */
@@ -97,6 +124,8 @@ export interface WorkingTreeStatus {
   readonly unstaged: readonly FileChange[];
   /** Staged changed files. */
   readonly staged: readonly FileChange[];
+  /** Untracked files not ignored by git. */
+  readonly untracked: readonly FileChange[];
   /** Raw `git status -sb` output for the compact plugin `<status>` block. */
   readonly short: string;
 }

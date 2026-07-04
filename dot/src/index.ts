@@ -593,6 +593,7 @@ if (mode.type === "native" && mode.command === "mcp") {
           checks: args.includes("--checks"),
           pullRequest: !args.includes("--no-pr"),
           branchMetadata: !args.includes("--no-branch-metadata"),
+          remoteDetails: args.includes("--remotes"),
           status: !args.includes("--no-status"),
           workScope: !args.includes("--no-work-scope"),
         });
