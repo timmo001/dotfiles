@@ -66,6 +66,22 @@ interface DiffCounts {
 }
 
 /**
+ * Resolve the destination path from a `--numstat` path field. Git renders
+ * renames as `old => new` or `pre{old => new}post`; both must resolve to the
+ * new path so `--name-status` lookups (which use the new path) find their
+ * counts instead of reporting the file as binary.
+ */
+function numstatFinalPath(field: string): string {
+  const brace = field.match(/^(.*)\{.* => (.*)\}(.*)$/);
+  if (brace) {
+    const [, prefix = "", middle = "", suffix = ""] = brace;
+    return `${prefix}${middle}${suffix}`.replace(/\/{2,}/g, "/");
+  }
+  const arrow = field.indexOf(" => ");
+  return arrow === -1 ? field : field.slice(arrow + " => ".length);
+}
+
+/**
  * Parse `git diff --numstat` output (`added\tdeleted\tpath`) into a map keyed
  * by path. Binary files report `-` for both counts and map to `null`.
  */
@@ -76,7 +92,7 @@ function parseNumstat(numstat: string): Map<string, DiffCounts> {
     const [addedField = "", deletedField = "", ...pathParts] = line.split("\t");
     const path = pathParts.join("\t");
     if (!path) continue;
-    map.set(path, {
+    map.set(numstatFinalPath(path), {
       added: addedField === "-" ? null : Number(addedField),
       deleted: deletedField === "-" ? null : Number(deletedField),
     });
@@ -100,7 +116,7 @@ function parseNumstatLog(output: string): Map<string, Map<string, DiffCounts>> {
         line.split("\t");
       const path = pathParts.join("\t");
       if (!path) continue;
-      current.set(path, {
+      current.set(numstatFinalPath(path), {
         added: addedField === "-" ? null : Number(addedField),
         deleted: deletedField === "-" ? null : Number(deletedField),
       });

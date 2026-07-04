@@ -3,6 +3,7 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  renameSync,
   unlinkSync,
   writeFileSync,
 } from "fs";
@@ -110,7 +111,21 @@ export async function extractNativeLibIfNeeded(): Promise<string | undefined> {
 
   // Read from Bun's virtual filesystem (Bun handles /$bunfs/ transparently)
   const libData = readFileSync(embeddedLibPath);
-  writeFileSync(destPath, libData, { mode: 0o755 });
+  // Write to a unique temp path then atomically rename into place, so a second
+  // `dot` starting concurrently can never observe (and dlopen) a half-written
+  // library at destPath.
+  const tmpPath = `${destPath}.tmp-${process.pid}-${Date.now()}`;
+  try {
+    writeFileSync(tmpPath, libData, { mode: 0o755 });
+    renameSync(tmpPath, destPath);
+  } catch (e) {
+    try {
+      if (existsSync(tmpPath)) unlinkSync(tmpPath);
+    } catch {
+      // Best-effort cleanup of the temp file.
+    }
+    throw e;
+  }
 
   log(`Extracted native library (${libData.byteLength} bytes)`);
   return destPath;

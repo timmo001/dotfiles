@@ -383,14 +383,28 @@ function uniqueWorkflowRuns(
 
   for (const run of runs) {
     const key = run.id || run.url;
-    if (seen.has(key)) continue;
-    seen.add(key);
+    // Only dedupe on a real identity; runs with neither id nor url must not
+    // collapse into a single empty-string key.
+    if (key) {
+      if (seen.has(key)) continue;
+      seen.add(key);
+    }
     unique.push(run);
   }
 
   return unique.sort(
-    (a, b) => workflowActivityTime(b) - workflowActivityTime(a),
+    (a, b) => sortableActivityTime(b) - sortableActivityTime(a),
   );
+}
+
+/**
+ * Activity time for sorting, mapping undated runs (all timestamps null, so
+ * {@link workflowActivityTime} is `NaN`) to a finite sentinel that sorts them
+ * last and keeps the comparator total.
+ */
+function sortableActivityTime(run: WorkflowRun): number {
+  const time = workflowActivityTime(run);
+  return Number.isFinite(time) ? time : -1;
 }
 
 function buildState(

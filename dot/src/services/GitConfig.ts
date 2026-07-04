@@ -455,8 +455,9 @@ function cronFieldPartMatches(
   max: number,
 ): boolean {
   const [rangePart, stepStr] = part.split("/", 2);
-  const step = stepStr ? parseInt(stepStr, 10) : 1;
-  const range = parseCronRange(rangePart, min, max);
+  const hasStep = stepStr !== undefined;
+  const step = hasStep ? parseInt(stepStr, 10) : 1;
+  const range = parseCronRange(rangePart, min, max, hasStep);
   return rangeMatches(value, range.start, range.end, step);
 }
 
@@ -464,11 +465,14 @@ function parseCronRange(
   rangePart: string,
   min: number,
   max: number,
+  hasStep: boolean,
 ): { readonly start: number; readonly end: number } {
   if (rangePart === "*") return { start: min, end: max };
   if (!rangePart.includes("-")) {
     const value = parseInt(rangePart, 10);
-    return { start: value, end: value };
+    // A bare value with a step (`N/step`) means "from N through max, every
+    // step"; without a step it matches only N.
+    return { start: value, end: hasStep ? max : value };
   }
 
   const [startStr, endStr] = rangePart.split("-", 2);
