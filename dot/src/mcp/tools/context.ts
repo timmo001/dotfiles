@@ -2,12 +2,13 @@
  * @file MCP context tools.
  *
  * Registers read-only context tools on the MCP server: `git_context` (current
- * repository branch context), `command_help` (dot CLI help), and
- * `opencode_debug` (captured `opencode debug` output). Each reuses existing
- * string-returning code where it exists (`gitContextText`, `renderHelp`) or is
- * rebuilt over {@link CommandExecutor} where the CLI handler is TUI-bound, so
- * results are raw text and never touch the JSON-RPC stdout stream. Tools are
- * registered via the shared {@link makeToolRegistrar}.
+ * repository branch context), `stack_context` (deterministic codebase stack),
+ * `command_help` (dot CLI help), and `opencode_debug` (captured `opencode
+ * debug` output). Each reuses existing string-returning code where it exists
+ * (`gitContextText`, `stackContextText`, `renderHelp`) or is rebuilt over
+ * {@link CommandExecutor} where the CLI handler is TUI-bound, so results are raw
+ * text and never touch the JSON-RPC stdout stream. Tools are registered via the
+ * shared {@link makeToolRegistrar}.
  */
 import { Effect, Schema } from "effect";
 import { renderHelp } from "../../cli/help.js";
@@ -204,10 +205,11 @@ export const registerContextTools = Effect.gen(function* () {
     name: "stack_context",
     description:
       "Deterministic tech-stack summary for a directory: detected languages with " +
-      "their general locations, package ecosystems (from manifests), and frameworks " +
-      "(from declared dependencies). Uses no LLM and no external tools; reads only " +
-      "manifests and an extension/filename census. Defaults to the current working " +
-      "directory. Pass dir to scan a specific project.",
+      "their general locations, package ecosystems (from manifests), tooling " +
+      "(from lockfiles, configs, and declared dependencies), and frameworks (from " +
+      "declared dependencies). Uses no LLM and no external tools; reads only " +
+      "manifests/configs and an extension/filename census. Defaults to the current " +
+      "working directory. Pass dir to scan a specific project.",
     parameters: StackContextParams,
     annotations: READONLY_HINTS,
     handle: (params) =>

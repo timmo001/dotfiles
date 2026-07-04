@@ -5,7 +5,7 @@ description: Deterministic tech-stack detection for the current directory, for a
 
 ## `dot stack-context`
 
-Detect a directory's tech stack deterministically from its files, with no LLM and no external tools. It reports the languages present (with their general locations), the package ecosystems declared by manifests, and the frameworks pulled in as dependencies. It is designed as a single command for agents to learn a project's stack, and as the shared producer for the OpenCode stack-context plugin (via `--json`).
+Detect a directory's tech stack deterministically from its files, with no LLM and no external tools. It reports the languages present (with their general locations), the package ecosystems declared by manifests, development tooling, and the frameworks pulled in as dependencies. It is designed as a single command for agents to learn a project's stack, and as the shared producer for the OpenCode stack-context plugin (via `--json`).
 
 It scans the directory you pass, or the current working directory when you pass none. Unlike [`dot git-context`](/git/context/), it does not require a git repository.
 
@@ -17,7 +17,7 @@ dot stack-context ~/projects/app   # scan a specific directory
 
 ## How detection works
 
-Detection is a single directory walk that reads only manifests and takes an extension and filename census. It never reads source file bodies, runs a subprocess, or resolves a dependency closure, so it stays fast (sub-25ms even on large repositories). A [Phase 0 benchmark](/dot/stack-context/#why-native-detection) chose this native approach over a compiled `syft` + `tokei` composition, which was 100 to 2000 times slower and added external binaries.
+Detection is a single directory walk that reads only manifests and config files and takes an extension and filename census. It never reads source file bodies, runs a subprocess, or resolves a dependency closure, so it stays fast (sub-25ms even on large repositories). A [Phase 0 benchmark](/dot/stack-context/#why-native-detection) chose this native approach over a compiled `syft` + `tokei` composition, which was 100 to 2000 times slower and added external binaries.
 
 The walk skips heavy or vendored directories (`node_modules`, `dist`, `build`, `.git`, `target`, `.venv`, and similar) and is bounded by a depth cap and a file cap. When the file cap is hit the result is marked truncated and a warning is added.
 
@@ -25,11 +25,12 @@ Signals carry a confidence tier so agents can weight them:
 
 - **Languages** are `heuristic`: attributed by file extension or filename, aggregated by file count with their top general locations (the leading directories they live in).
 - **Ecosystems** are `authoritative`: taken from manifest and lockfile presence (`package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`, and others), plus GitHub Actions workflows.
-- **Frameworks** are `authoritative` for npm (parsed from `package.json` dependency keys against a curated allowlist) and `strong` for Go, Cargo, and Python (matched by scanning the manifest for the package token). Keying on real package names avoids false positives, and reading declared dependencies catches a project's own framework even when a dependency scanner would miss it.
+- **Tooling** is `authoritative`: taken from lockfiles, known config files, `package.json`'s `packageManager` field, and declared dependency names. It currently covers package managers, linters, formatters, task runners, build tools and bundlers, and test runners.
+- **Frameworks** are `authoritative` for npm (parsed from `package.json` dependency keys against a curated allowlist) and `strong` for Go, Cargo, and Python (matched by scanning the manifest for the package token). Keying on real package names avoids false positives, and reading declared dependencies catches a project's own framework even when a dependency scanner would miss it. Vite, Vitest, and Jest are treated as tooling rather than frameworks.
 
 ## Output
 
-Plain text is the default. The summary has three sections:
+Plain text is the default. The summary has four sections:
 
 ```text
 Stack: app (/home/user/projects/app)
@@ -44,12 +45,17 @@ Ecosystems:
   npm: package.json, packages/core/package.json
   github-actions: .github/workflows/ci.yml
 
+Tooling:
+  Bun  (package manager; lockfile: bun.lock)
+  Vite  (build tool; npm dep: vite)
+  Vitest  (test runner; npm dep: vitest)
+
 Frameworks:
   Astro  (npm dep: astro)
   Effect  (npm dep: effect)
 ```
 
-`--json` emits the structured stack-context payload consumed by the OpenCode stack-context plugin instead of text: `root`, `name`, `scannedFiles`, `truncated`, and the `languages`, `ecosystems`, and `frameworks` arrays (each list length-capped to bound the prompt), plus any `warnings`.
+`--json` emits the structured stack-context payload consumed by the OpenCode stack-context plugin instead of text: `root`, `name`, `scannedFiles`, `truncated`, and the `languages`, `ecosystems`, `tooling`, and `frameworks` arrays (each list length-capped to bound the prompt), plus any `warnings`.
 
 ## OpenCode stack-context plugin
 
@@ -58,7 +64,7 @@ The `stack-context` plugin runs `dot stack-context --json` against the repositor
 - **On command** (`command.execute.before`): for `/inject-stack`, the dedicated command, and for `/inject-context`, alongside the [branch-context plugin](/git/context/#opencode-branch-context-plugin), so one command injects branch and stack context together.
 - **Automatically** (`chat.message`): on the first message of a session, when the working directory is a git repository, so a session starts with the project's stack in its initial context without a slash command. There is no session-start hook, so the plugin injects on the first user message and tracks the session id to fire at most once per session. It is skipped outside a git repository and when nothing is detected.
 
-The block carries `<context-metadata>`, `<languages>`, `<ecosystems>`, `<frameworks>`, and an optional `<warnings>` section, each with a short description line.
+The block carries `<context-metadata>`, `<languages>`, `<ecosystems>`, `<tooling>`, `<frameworks>`, and an optional `<warnings>` section, each with a short description line.
 
 ### Troubleshooting automatic injection
 
@@ -71,8 +77,8 @@ The same producer is exposed through the [`dot mcp`](/dot/mcp/) server as the re
 ## Agent guidance
 
 1. Prefer `dot stack-context` (or the MCP `stack_context` tool) over guessing the stack or re-scanning the tree by hand.
-2. When OpenCode injects `<stack-context>`, treat it as the primary source for the project's languages, ecosystems, and frameworks.
-3. Weight the signals by their confidence: ecosystems and npm frameworks are authoritative; language attribution is heuristic.
+2. When OpenCode injects `<stack-context>`, treat it as the primary source for the project's languages, ecosystems, tooling, and frameworks.
+3. Weight the signals by their confidence: ecosystems, tooling, and npm frameworks are authoritative; language attribution is heuristic.
 
 ## Why native detection
 

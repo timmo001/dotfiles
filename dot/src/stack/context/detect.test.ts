@@ -20,10 +20,19 @@ beforeAll(() => {
   writeFileSync(
     join(dir, "package.json"),
     JSON.stringify({
-      dependencies: { astro: "^4.0.0", effect: "^3.0.0" },
-      devDependencies: { typescript: "^5.0.0" },
+      packageManager: "bun@1.2.0",
+      dependencies: { astro: "^4.0.0", effect: "^3.0.0", vite: "^7.0.0" },
+      devDependencies: {
+        prettier: "^3.0.0",
+        typescript: "^5.0.0",
+        vitest: "^3.0.0",
+      },
     }),
   );
+  writeFileSync(join(dir, "bun.lock"), "");
+  writeFileSync(join(dir, ".prettierrc"), "{}\n");
+  writeFileSync(join(dir, "mise.toml"), "[tasks]\n");
+  writeFileSync(join(dir, "vite.config.ts"), "export default {};\n");
   writeFileSync(
     join(dir, "go.mod"),
     "module example.com/x\n\nrequire github.com/spf13/cobra v1.8.0\n",
@@ -51,7 +60,7 @@ afterAll(() => {
 test("censuses languages by extension and ignores node_modules", () => {
   const data = detectStack(options(dir));
   const files = new Map(data.languages.map((lang) => [lang.name, lang.files]));
-  expect(files.get("TypeScript")).toBe(2); // index.ts + app.tsx, not the ignored one
+  expect(files.get("TypeScript")).toBe(3); // source files + vite config, not the ignored one
   expect(files.get("Go")).toBe(1);
   expect(files.get("Markdown")).toBe(1);
   expect(data.languages.every((lang) => lang.confidence === "heuristic")).toBe(
@@ -76,12 +85,26 @@ test("detects frameworks with the right confidence per source", () => {
   expect(frameworks.get("Astro")).toBe("authoritative"); // parsed npm dep
   expect(frameworks.get("Effect")).toBe("authoritative");
   expect(frameworks.get("Cobra")).toBe("strong"); // go manifest text scan
+  expect(frameworks.has("Vite")).toBe(false);
+});
+
+test("detects tooling from lockfiles, configs, and declared dependencies", () => {
+  const tooling = new Map(
+    detectStack(options(dir)).tooling.map((tool) => [tool.name, tool]),
+  );
+  expect(tooling.get("Bun")?.kinds).toContain("package manager");
+  expect(tooling.get("Prettier")?.kinds).toContain("formatter");
+  expect(tooling.get("mise")?.kinds).toContain("task runner");
+  expect(tooling.get("Vite")?.kinds).toContain("build tool");
+  expect(tooling.get("Vitest")?.kinds).toContain("test runner");
+  expect(tooling.get("Vite")?.evidence).toContain("npm dep: vite");
 });
 
 test("returns a warning and no results for a non-directory root", () => {
   const data = detectStack(options(join(dir, "does-not-exist")));
   expect(data.languages).toHaveLength(0);
   expect(data.ecosystems).toHaveLength(0);
+  expect(data.tooling).toHaveLength(0);
   expect(data.warnings.length).toBeGreaterThan(0);
 });
 

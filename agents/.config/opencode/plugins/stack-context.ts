@@ -2,7 +2,7 @@
  * @file Injects codebase stack-context blocks into prompts.
  *
  * Two entry points share one `<stack-context>` block describing the
- * repository's languages, package ecosystems, and frameworks:
+ * repository's languages, package ecosystems, tooling, and frameworks:
  *
  * - `command.execute.before` injects it for the stack-context command allowlist
  *   (`/inject-stack`, and `/inject-context` alongside branch context).
@@ -155,6 +155,7 @@ const parseJSON = (text: string): JsonRecord | null => {
 const isEmpty = (data: JsonRecord): boolean =>
   recordArray(data.languages).length === 0 &&
   recordArray(data.ecosystems).length === 0 &&
+  recordArray(data.tooling).length === 0 &&
   recordArray(data.frameworks).length === 0
 
 const formatTag = (name: string, description: string, lines: readonly string[]): string => {
@@ -178,6 +179,16 @@ const renderEcosystems = (ecosystems: JsonRecord[]): string[] => {
   return ecosystems.map((ecosystem) => {
     const manifests = stringArray(ecosystem.manifests)
     return `${stringField(ecosystem, "name")}: ${manifests.join(", ") || "(none)"}`
+  })
+}
+
+const renderTooling = (tools: JsonRecord[]): string[] => {
+  if (!tools.length) return ["(none detected)"]
+  return tools.map((tool) => {
+    const kinds = stringArray(tool.kinds)
+    const evidence = stringArray(tool.evidence)
+    const suffix = [kinds.join(", "), evidence.join(", ")].filter(Boolean).join("; ")
+    return `${stringField(tool, "name")}${suffix ? ` (${suffix})` : ""}`
   })
 }
 
@@ -228,8 +239,13 @@ const renderStackContext = (data: JsonRecord): string => {
       renderEcosystems(recordArray(data.ecosystems)),
     ),
     formatTag(
+      "tooling",
+      "Package managers, linters, formatters, task runners, build tools, and test runners detected from lockfiles, configs, and declared dependencies.",
+      renderTooling(recordArray(data.tooling)),
+    ),
+    formatTag(
       "frameworks",
-      "Frameworks and tools detected from declared dependencies.",
+      "Frameworks and libraries detected from declared dependencies.",
       renderFrameworks(recordArray(data.frameworks)),
     ),
   ]

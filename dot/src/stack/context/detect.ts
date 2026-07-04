@@ -16,8 +16,15 @@ import {
   FILENAME_LANG,
   FRAMEWORK_INDEX,
   IGNORE_DIRS,
+  CONFIG_TOOLING,
+  LOCKFILE_TOOLING,
   MANIFEST_ECO,
+  MANIFEST_TOOLING,
+  NPM_TOOLING,
+  PACKAGE_MANAGER_FIELD_TOOLING,
+  TEXT_TOOLING,
   TEXT_SCANNED_ECOSYSTEMS,
+  type ToolingRule,
 } from "./catalog.js";
 import {
   type EcosystemEntry,
@@ -25,6 +32,8 @@ import {
   type LanguageEntry,
   type StackContextData,
   type StackContextOptions,
+  type ToolingEntry,
+  type ToolingKind,
 } from "./model.js";
 
 /** GitHub Actions ecosystem name and the workflow path fragment that marks it. */
@@ -36,8 +45,15 @@ interface WalkAccumulator {
   readonly langFiles: Map<string, number>;
   readonly langDirs: Map<string, Map<string, number>>;
   readonly manifests: Map<string, string[]>;
+  readonly tooling: Map<string, MutableToolingEntry>;
   scannedFiles: number;
   truncated: boolean;
+}
+
+/** Mutable tooling entry collected before rendering a stable sorted snapshot. */
+interface MutableToolingEntry {
+  readonly kinds: Set<ToolingKind>;
+  readonly evidence: string[];
 }
 
 /** Increment a key in a count map. */
@@ -87,10 +103,36 @@ function recordManifest(acc: WalkAccumulator, eco: string, rel: string): void {
   acc.manifests.set(eco, list);
 }
 
+/** Record tooling evidence, merging duplicate rules by display name. */
+function recordTooling(
+  acc: WalkAccumulator,
+  rule: ToolingRule,
+  evidence: string,
+): void {
+  const entry =
+    acc.tooling.get(rule.name) ??
+    ({
+      kinds: new Set<ToolingKind>(),
+      evidence: [],
+    } satisfies MutableToolingEntry);
+  for (const kind of rule.kinds) entry.kinds.add(kind);
+  if (!entry.evidence.includes(evidence)) entry.evidence.push(evidence);
+  acc.tooling.set(rule.name, entry);
+}
+
 /** Classify a single file: manifest, GitHub Actions workflow, and/or language. */
 function classifyFile(acc: WalkAccumulator, name: string, rel: string): void {
   const eco = MANIFEST_ECO[name];
   if (eco) recordManifest(acc, eco, rel);
+
+  const manifestTool = MANIFEST_TOOLING[name];
+  if (manifestTool) recordTooling(acc, manifestTool, `manifest: ${rel}`);
+
+  const lockfileTool = LOCKFILE_TOOLING[name];
+  if (lockfileTool) recordTooling(acc, lockfileTool, `lockfile: ${rel}`);
+
+  const configTool = CONFIG_TOOLING[name];
+  if (configTool) recordTooling(acc, configTool, `config: ${rel}`);
 
   const ext = extname(name).toLowerCase();
   if ((ext === ".yml" || ext === ".yaml") && rel.includes(WORKFLOWS_FRAGMENT)) {
@@ -109,6 +151,7 @@ function walk(root: string, options: StackContextOptions): WalkAccumulator {
     langFiles: new Map(),
     langDirs: new Map(),
     manifests: new Map(),
+    tooling: new Map(),
     scannedFiles: 0,
     truncated: false,
   };
@@ -140,8 +183,16 @@ function walk(root: string, options: StackContextOptions): WalkAccumulator {
   return acc;
 }
 
-/** Parse the dependency names declared by a package.json file. */
-function npmDependencyNames(text: string): readonly string[] {
+/** Parsed package.json fields used by framework and tooling detection. */
+interface PackageJsonData {
+  /** Dependency names across dependency blocks. */
+  readonly dependencyNames: readonly string[];
+  /** Corepack-style package-manager declaration, when present. */
+  readonly packageManager: string | null;
+}
+
+/** Parse the package-manager declaration and dependency names in package.json. */
+function packageJsonData(text: string): PackageJsonData {
   const pkg = JSON.parse(text) as Record<string, unknown>;
   const names = new Set<string>();
   for (const field of [
@@ -155,7 +206,16 @@ function npmDependencyNames(text: string): readonly string[] {
       for (const key of Object.keys(block as object)) names.add(key);
     }
   }
-  return [...names];
+  const packageManager = pkg.packageManager;
+  return {
+    dependencyNames: [...names],
+    packageManager: typeof packageManager === "string" ? packageManager : null,
+  };
+}
+
+/** Extract the package-manager tool name from a Corepack declaration. */
+function packageManagerName(value: string): string {
+  return value.split("@")[0] ?? value;
 }
 
 /** Whether `token` appears as a standalone package token in manifest `text`. */
@@ -179,7 +239,9 @@ function detectFrameworks(
   for (const rel of manifests.get("npm") ?? []) {
     let names: readonly string[];
     try {
-      names = npmDependencyNames(readFileSync(join(root, rel), "utf-8"));
+      names = packageJsonData(
+        readFileSync(join(root, rel), "utf-8"),
+      ).dependencyNames;
     } catch {
       if (warnings.length < 5) warnings.push(`Could not parse ${rel}.`);
       continue;
@@ -220,6 +282,64 @@ function detectFrameworks(
   return [...found.values()];
 }
 
+/** Add npm package-manager, linter, formatter, task, build, and test tools. */
+function detectNpmTooling(
+  root: string,
+  manifests: ReadonlyMap<string, string[]>,
+  acc: WalkAccumulator,
+  warnings: string[],
+): void {
+  for (const rel of manifests.get("npm") ?? []) {
+    let pkg: PackageJsonData;
+    try {
+      pkg = packageJsonData(readFileSync(join(root, rel), "utf-8"));
+    } catch {
+      if (warnings.length < 5) warnings.push(`Could not parse ${rel}.`);
+      continue;
+    }
+
+    if (pkg.packageManager) {
+      const rule =
+        PACKAGE_MANAGER_FIELD_TOOLING[packageManagerName(pkg.packageManager)];
+      if (rule) {
+        recordTooling(
+          acc,
+          rule,
+          `packageManager: ${pkg.packageManager} (${rel})`,
+        );
+      }
+    }
+
+    for (const dep of pkg.dependencyNames) {
+      const rule = NPM_TOOLING[dep];
+      if (rule) recordTooling(acc, rule, `npm dep: ${dep}`);
+    }
+  }
+}
+
+/** Add tooling rules from non-npm manifests scanned as text. */
+function detectTextTooling(
+  root: string,
+  manifests: ReadonlyMap<string, string[]>,
+  acc: WalkAccumulator,
+): void {
+  for (const eco of TEXT_SCANNED_ECOSYSTEMS) {
+    for (const rel of manifests.get(eco) ?? []) {
+      let text: string;
+      try {
+        text = readFileSync(join(root, rel), "utf-8");
+      } catch {
+        continue;
+      }
+      for (const rule of TEXT_TOOLING) {
+        if (rule.eco === eco && manifestMentions(text, rule.pkg)) {
+          recordTooling(acc, rule, `${eco} manifest: ${rule.pkg}`);
+        }
+      }
+    }
+  }
+}
+
 /** Build the language entries, ordered by file count then name. */
 function buildLanguages(
   acc: WalkAccumulator,
@@ -242,6 +362,18 @@ function buildEcosystems(acc: WalkAccumulator): EcosystemEntry[] {
     .map(([name, rels]) => ({
       name,
       manifests: [...rels].sort(),
+      confidence: "authoritative",
+    }));
+}
+
+/** Build the tooling entries, ordered by name. */
+function buildTooling(acc: WalkAccumulator): ToolingEntry[] {
+  return [...acc.tooling.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([name, entry]) => ({
+      name,
+      kinds: [...entry.kinds].sort(),
+      evidence: [...entry.evidence].sort(),
       confidence: "authoritative",
     }));
 }
@@ -274,6 +406,7 @@ export function detectStack(options: StackContextOptions): StackContextData {
       truncated: false,
       languages: [],
       ecosystems: [],
+      tooling: [],
       frameworks: [],
       warnings: [`'${root}' is not a readable directory.`],
     };
@@ -285,6 +418,8 @@ export function detectStack(options: StackContextOptions): StackContextData {
       `Scan stopped at the ${options.maxFiles}-file cap; results are partial.`,
     );
   }
+  detectNpmTooling(root, acc.manifests, acc, warnings);
+  detectTextTooling(root, acc.manifests, acc);
 
   return {
     root,
@@ -293,6 +428,7 @@ export function detectStack(options: StackContextOptions): StackContextData {
     truncated: acc.truncated,
     languages: buildLanguages(acc, options.topLocations),
     ecosystems: buildEcosystems(acc),
+    tooling: buildTooling(acc),
     frameworks: detectFrameworks(root, acc.manifests, warnings),
     warnings,
   };

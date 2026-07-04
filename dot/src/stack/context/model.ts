@@ -3,12 +3,13 @@
  *
  * `detectStack` (see `detect.ts`) walks the target directory once and produces a
  * single {@link StackContextData} snapshot: detected languages (with their
- * general locations), package ecosystems (from manifests), and frameworks (from
- * declared dependencies). The text renderer (`dot stack-context`) and the JSON
- * renderer (consumed by the OpenCode stack-context plugin) both format that one
- * snapshot, so the two consumers can never drift. Detection is pure filesystem
- * work: no subprocess and no external dependency, which is why it stays
- * sub-25ms even on large repositories (see the Phase 0 benchmark).
+ * general locations), package ecosystems (from manifests), tooling (from
+ * lockfiles, configs, and declared dependencies), and frameworks (from declared
+ * dependencies). The text renderer (`dot stack-context`) and the JSON renderer
+ * (consumed by the OpenCode stack-context plugin) both format that one snapshot,
+ * so the two consumers can never drift. Detection is pure filesystem work: no
+ * subprocess and no external dependency, which is why it stays sub-25ms even on
+ * large repositories (see the Phase 0 benchmark).
  */
 
 /** Confidence in a detected signal. */
@@ -55,13 +56,34 @@ export interface EcosystemEntry {
   readonly confidence: StackConfidence;
 }
 
-/** A detected framework/tool and what signalled it. */
+/** A detected framework/library and what signalled it. */
 export interface FrameworkEntry {
   /** Framework display name (e.g. `Astro`, `Effect`, `Lit`). */
   readonly name: string;
   /** What signalled it, e.g. `npm dep: effect`. */
   readonly via: string;
   /** `authoritative` for parsed npm deps, `strong` for text-matched manifests. */
+  readonly confidence: StackConfidence;
+}
+
+/** Broad category for a detected development tool. */
+export type ToolingKind =
+  | "package manager"
+  | "linter"
+  | "formatter"
+  | "task runner"
+  | "build tool"
+  | "test runner";
+
+/** A detected tool, its categories, and what evidenced it. */
+export interface ToolingEntry {
+  /** Tool display name (e.g. `Bun`, `Prettier`, `Vite`). */
+  readonly name: string;
+  /** Tool categories; tools like Biome can span multiple categories. */
+  readonly kinds: readonly ToolingKind[];
+  /** Evidence strings, e.g. `lockfile: bun.lock` or `npm dep: vite`. */
+  readonly evidence: readonly string[];
+  /** Always `authoritative`: lockfile, config file, or declared dependency. */
   readonly confidence: StackConfidence;
 }
 
@@ -79,7 +101,9 @@ export interface StackContextData {
   readonly languages: readonly LanguageEntry[];
   /** Detected package ecosystems. */
   readonly ecosystems: readonly EcosystemEntry[];
-  /** Detected frameworks/tools. */
+  /** Detected development tooling. */
+  readonly tooling: readonly ToolingEntry[];
+  /** Detected frameworks/libraries. */
   readonly frameworks: readonly FrameworkEntry[];
   /** Non-fatal collection issues (e.g. an unreadable manifest). */
   readonly warnings: readonly string[];
@@ -92,6 +116,8 @@ export interface StackContextData {
 export const STACK_LIMITS = {
   languages: 40,
   ecosystems: 40,
+  tooling: 60,
   frameworks: 60,
   manifestsPerEcosystem: 12,
+  evidencePerTool: 12,
 } as const;

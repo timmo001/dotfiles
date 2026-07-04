@@ -316,7 +316,8 @@ dot stack-context [dir] [options]
 
 Detect a directory's tech stack deterministically from its files, with no
 LLM and no external tools: languages (with their general locations), package
-ecosystems (from manifests), and frameworks (from declared dependencies).
+ecosystems (from manifests), tooling (from lockfiles, configs, and
+declared dependencies), and frameworks (from declared dependencies).
 Scans the given directory or the current working directory. Unlike
 git-context it does not require a git repository.
 
@@ -328,7 +329,7 @@ OpenCode stack-context plugin (via --json).
 **Modes**
 
 ```text
-(default)       Stack summary: languages, ecosystems, frameworks
+(default)       Stack summary: languages, ecosystems, tooling, frameworks
 --json          Emit the structured stack-context payload
 ```
 

@@ -3,10 +3,11 @@
  *
  * Registers read-only resources on the MCP server: the current repository's
  * repo-note context block (`dot://notes/context`), its branch context
- * (`dot://git-context`), and per-command help (`dot://command/{name}`). Each
- * reuses the same in-process services as the context tools, so a client can
- * pull this context in as an attachment without an explicit tool call. Content
- * effects re-run on every read, so resources reflect the current state.
+ * (`dot://git-context`), its stack context (`dot://stack-context`), and
+ * per-command help (`dot://command/{name}`). Each reuses the same in-process
+ * services as the context tools, so a client can pull this context in as an
+ * attachment without an explicit tool call. Content effects re-run on every
+ * read, so resources reflect the current state.
  */
 import { Effect, Schema } from "effect";
 import { McpSchema, McpServer } from "effect/unstable/ai";
@@ -64,7 +65,7 @@ export const registerContextResources = Effect.gen(function* () {
     uri: "dot://stack-context",
     name: "stack context",
     description:
-      "Deterministic tech-stack summary for the current directory: detected languages with their general locations, package ecosystems from manifests, and frameworks from declared dependencies. No LLM and no external tools.",
+      "Deterministic tech-stack summary for the current directory: detected languages with their general locations, package ecosystems from manifests, tooling from lockfiles/configs/dependencies, and frameworks from declared dependencies. No LLM and no external tools.",
     mimeType: "text/plain",
     content: stackContextText(stackContextOptions({})),
   });

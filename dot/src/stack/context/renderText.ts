@@ -2,7 +2,8 @@
  * @file Text renderer for `dot stack-context`.
  *
  * Formats a {@link StackContextData} snapshot into the human/agent-facing text
- * output: a header, then the languages, ecosystems, and frameworks sections.
+ * output: a header, then the languages, ecosystems, tooling, and frameworks
+ * sections.
  * Pass a colour-emitting `styler` for interactive terminal output; the default
  * {@link plainStyler} leaves the text unstyled for pipes, captured agent
  * context, and the MCP layer.
@@ -13,6 +14,7 @@ import type {
   FrameworkEntry,
   LanguageEntry,
   StackContextData,
+  ToolingEntry,
 } from "./model.js";
 
 /** Manifests shown inline per ecosystem before collapsing to a count. */
@@ -40,6 +42,11 @@ function formatFramework(framework: FrameworkEntry): string {
   return `${framework.name}  (${framework.via})`;
 }
 
+/** Render tooling as `Name  (kind, kind; evidence, evidence)`. */
+function formatTooling(tool: ToolingEntry): string {
+  return `${tool.name}  (${tool.kinds.join(", ")}; ${tool.evidence.join(", ")})`;
+}
+
 /** Append a titled section, or a `(none detected)` placeholder when empty. */
 function appendSection(
   lines: string[],
@@ -58,8 +65,9 @@ function appendSection(
 
 /**
  * Render the stack-context snapshot as `dot stack-context` text output: a
- * header line, the scanned-file count, then the languages, ecosystems, and
- * frameworks sections, plus any warnings and a discoverability hint.
+ * header line, the scanned-file count, then the languages, ecosystems,
+ * tooling, and frameworks sections, plus any warnings and a discoverability
+ * hint.
  */
 export function renderStackContextText(
   data: StackContextData,
@@ -84,6 +92,7 @@ export function renderStackContextText(
     "Ecosystems:",
     data.ecosystems.map(formatEcosystem),
   );
+  appendSection(lines, styler, "Tooling:", data.tooling.map(formatTooling));
   appendSection(
     lines,
     styler,

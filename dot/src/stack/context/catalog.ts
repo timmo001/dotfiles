@@ -2,11 +2,12 @@
  * @file Detection catalog for the stack-context producer.
  *
  * Fixed maps and the framework allowlist that {@link detectStack} keys on. Kept
- * separate from the walk logic so the language/ecosystem/framework coverage can
- * grow without touching the traversal. Framework rules are Vercel-style: keyed
- * on the real package name so a declared dependency maps to a framework without
- * false positives.
+ * separate from the walk logic so the language/ecosystem/tooling/framework
+ * coverage can grow without touching the traversal. Rules are Vercel-style:
+ * keyed on real filenames or package names so declared dependencies and config
+ * files map to stack signals without false positives.
  */
+import type { ToolingKind } from "./model.js";
 
 /** Directory names skipped by the walk (heavy, derived, or vendored trees). */
 export const IGNORE_DIRS: ReadonlySet<string> = new Set([
@@ -131,6 +132,214 @@ export const MANIFEST_ECO: Readonly<Record<string, string>> = {
   "Package.swift": "swiftpm",
 };
 
+/** Tool category constants reused by the tooling detection catalog. */
+export const TOOL_KIND = {
+  packageManager: "package manager",
+  linter: "linter",
+  formatter: "formatter",
+  taskRunner: "task runner",
+  buildTool: "build tool",
+  testRunner: "test runner",
+} as const satisfies Readonly<Record<string, ToolingKind>>;
+
+/** A development-tool signal keyed by package name, config filename, or lockfile. */
+export interface ToolingRule {
+  /** Tool display name. */
+  readonly name: string;
+  /** Broad tool categories this rule contributes. */
+  readonly kinds: readonly ToolingKind[];
+}
+
+/** Lockfile/manager file -> package-manager rule. */
+export const LOCKFILE_TOOLING: Readonly<Record<string, ToolingRule>> = {
+  "bun.lock": { name: "Bun", kinds: [TOOL_KIND.packageManager] },
+  "bun.lockb": { name: "Bun", kinds: [TOOL_KIND.packageManager] },
+  "pnpm-lock.yaml": { name: "pnpm", kinds: [TOOL_KIND.packageManager] },
+  "package-lock.json": { name: "npm", kinds: [TOOL_KIND.packageManager] },
+  "npm-shrinkwrap.json": { name: "npm", kinds: [TOOL_KIND.packageManager] },
+  "yarn.lock": { name: "Yarn", kinds: [TOOL_KIND.packageManager] },
+  "Cargo.lock": { name: "Cargo", kinds: [TOOL_KIND.packageManager] },
+  "go.sum": { name: "Go modules", kinds: [TOOL_KIND.packageManager] },
+  "poetry.lock": { name: "Poetry", kinds: [TOOL_KIND.packageManager] },
+  "uv.lock": { name: "uv", kinds: [TOOL_KIND.packageManager] },
+  "Pipfile.lock": { name: "Pipenv", kinds: [TOOL_KIND.packageManager] },
+  "composer.lock": { name: "Composer", kinds: [TOOL_KIND.packageManager] },
+  "Gemfile.lock": { name: "Bundler", kinds: [TOOL_KIND.packageManager] },
+  "pubspec.lock": { name: "pub", kinds: [TOOL_KIND.packageManager] },
+  "mix.lock": { name: "Mix", kinds: [TOOL_KIND.packageManager] },
+  "Package.resolved": {
+    name: "Swift Package Manager",
+    kinds: [TOOL_KIND.packageManager],
+  },
+};
+
+/** Manifest files that also identify a non-npm package manager. */
+export const MANIFEST_TOOLING: Readonly<Record<string, ToolingRule>> = {
+  "go.mod": { name: "Go modules", kinds: [TOOL_KIND.packageManager] },
+  "Cargo.toml": { name: "Cargo", kinds: [TOOL_KIND.packageManager] },
+  "composer.json": { name: "Composer", kinds: [TOOL_KIND.packageManager] },
+  Gemfile: { name: "Bundler", kinds: [TOOL_KIND.packageManager] },
+  "pubspec.yaml": { name: "pub", kinds: [TOOL_KIND.packageManager] },
+  "mix.exs": { name: "Mix", kinds: [TOOL_KIND.packageManager] },
+  "Package.swift": {
+    name: "Swift Package Manager",
+    kinds: [TOOL_KIND.packageManager],
+  },
+};
+
+/** Exact config filename -> tooling rule. */
+export const CONFIG_TOOLING: Readonly<Record<string, ToolingRule>> = {
+  "biome.json": {
+    name: "Biome",
+    kinds: [TOOL_KIND.linter, TOOL_KIND.formatter],
+  },
+  "biome.jsonc": {
+    name: "Biome",
+    kinds: [TOOL_KIND.linter, TOOL_KIND.formatter],
+  },
+  ".eslintrc": { name: "ESLint", kinds: [TOOL_KIND.linter] },
+  ".eslintrc.cjs": { name: "ESLint", kinds: [TOOL_KIND.linter] },
+  ".eslintrc.js": { name: "ESLint", kinds: [TOOL_KIND.linter] },
+  ".eslintrc.json": { name: "ESLint", kinds: [TOOL_KIND.linter] },
+  ".eslintrc.yaml": { name: "ESLint", kinds: [TOOL_KIND.linter] },
+  ".eslintrc.yml": { name: "ESLint", kinds: [TOOL_KIND.linter] },
+  "eslint.config.cjs": { name: "ESLint", kinds: [TOOL_KIND.linter] },
+  "eslint.config.js": { name: "ESLint", kinds: [TOOL_KIND.linter] },
+  "eslint.config.mjs": { name: "ESLint", kinds: [TOOL_KIND.linter] },
+  "eslint.config.ts": { name: "ESLint", kinds: [TOOL_KIND.linter] },
+  ".oxlintrc.json": { name: "oxlint", kinds: [TOOL_KIND.linter] },
+  ".stylelintrc": { name: "Stylelint", kinds: [TOOL_KIND.linter] },
+  ".stylelintrc.cjs": { name: "Stylelint", kinds: [TOOL_KIND.linter] },
+  ".stylelintrc.js": { name: "Stylelint", kinds: [TOOL_KIND.linter] },
+  ".stylelintrc.json": { name: "Stylelint", kinds: [TOOL_KIND.linter] },
+  ".golangci.yml": { name: "golangci-lint", kinds: [TOOL_KIND.linter] },
+  ".golangci.yaml": { name: "golangci-lint", kinds: [TOOL_KIND.linter] },
+  "ruff.toml": { name: "Ruff", kinds: [TOOL_KIND.linter, TOOL_KIND.formatter] },
+  ".ruff.toml": {
+    name: "Ruff",
+    kinds: [TOOL_KIND.linter, TOOL_KIND.formatter],
+  },
+  "clippy.toml": { name: "Clippy", kinds: [TOOL_KIND.linter] },
+  ".clippy.toml": { name: "Clippy", kinds: [TOOL_KIND.linter] },
+  "rustfmt.toml": { name: "rustfmt", kinds: [TOOL_KIND.formatter] },
+  ".rustfmt.toml": { name: "rustfmt", kinds: [TOOL_KIND.formatter] },
+  ".prettierrc": { name: "Prettier", kinds: [TOOL_KIND.formatter] },
+  ".prettierrc.cjs": { name: "Prettier", kinds: [TOOL_KIND.formatter] },
+  ".prettierrc.js": { name: "Prettier", kinds: [TOOL_KIND.formatter] },
+  ".prettierrc.json": { name: "Prettier", kinds: [TOOL_KIND.formatter] },
+  ".prettierrc.mjs": { name: "Prettier", kinds: [TOOL_KIND.formatter] },
+  ".prettierrc.yaml": { name: "Prettier", kinds: [TOOL_KIND.formatter] },
+  ".prettierrc.yml": { name: "Prettier", kinds: [TOOL_KIND.formatter] },
+  "prettier.config.cjs": { name: "Prettier", kinds: [TOOL_KIND.formatter] },
+  "prettier.config.js": { name: "Prettier", kinds: [TOOL_KIND.formatter] },
+  "prettier.config.mjs": { name: "Prettier", kinds: [TOOL_KIND.formatter] },
+  "dprint.json": { name: "dprint", kinds: [TOOL_KIND.formatter] },
+  "dprint.jsonc": { name: "dprint", kinds: [TOOL_KIND.formatter] },
+  "mise.toml": { name: "mise", kinds: [TOOL_KIND.taskRunner] },
+  ".mise.toml": { name: "mise", kinds: [TOOL_KIND.taskRunner] },
+  "mise.yaml": { name: "mise", kinds: [TOOL_KIND.taskRunner] },
+  "mise.yml": { name: "mise", kinds: [TOOL_KIND.taskRunner] },
+  Justfile: { name: "just", kinds: [TOOL_KIND.taskRunner] },
+  justfile: { name: "just", kinds: [TOOL_KIND.taskRunner] },
+  Makefile: { name: "make", kinds: [TOOL_KIND.taskRunner] },
+  "Taskfile.yml": { name: "Task", kinds: [TOOL_KIND.taskRunner] },
+  "Taskfile.yaml": { name: "Task", kinds: [TOOL_KIND.taskRunner] },
+  "turbo.json": { name: "Turborepo", kinds: [TOOL_KIND.taskRunner] },
+  "nx.json": { name: "Nx", kinds: [TOOL_KIND.taskRunner] },
+  "vite.config.cjs": { name: "Vite", kinds: [TOOL_KIND.buildTool] },
+  "vite.config.js": { name: "Vite", kinds: [TOOL_KIND.buildTool] },
+  "vite.config.mjs": { name: "Vite", kinds: [TOOL_KIND.buildTool] },
+  "vite.config.ts": { name: "Vite", kinds: [TOOL_KIND.buildTool] },
+  "webpack.config.cjs": { name: "webpack", kinds: [TOOL_KIND.buildTool] },
+  "webpack.config.js": { name: "webpack", kinds: [TOOL_KIND.buildTool] },
+  "webpack.config.mjs": { name: "webpack", kinds: [TOOL_KIND.buildTool] },
+  "rollup.config.cjs": { name: "Rollup", kinds: [TOOL_KIND.buildTool] },
+  "rollup.config.js": { name: "Rollup", kinds: [TOOL_KIND.buildTool] },
+  "rollup.config.mjs": { name: "Rollup", kinds: [TOOL_KIND.buildTool] },
+  "rollup.config.ts": { name: "Rollup", kinds: [TOOL_KIND.buildTool] },
+  "tsup.config.ts": { name: "tsup", kinds: [TOOL_KIND.buildTool] },
+  "tsup.config.js": { name: "tsup", kinds: [TOOL_KIND.buildTool] },
+  "vitest.config.cjs": { name: "Vitest", kinds: [TOOL_KIND.testRunner] },
+  "vitest.config.js": { name: "Vitest", kinds: [TOOL_KIND.testRunner] },
+  "vitest.config.mjs": { name: "Vitest", kinds: [TOOL_KIND.testRunner] },
+  "vitest.config.ts": { name: "Vitest", kinds: [TOOL_KIND.testRunner] },
+  "jest.config.cjs": { name: "Jest", kinds: [TOOL_KIND.testRunner] },
+  "jest.config.js": { name: "Jest", kinds: [TOOL_KIND.testRunner] },
+  "jest.config.mjs": { name: "Jest", kinds: [TOOL_KIND.testRunner] },
+  "jest.config.ts": { name: "Jest", kinds: [TOOL_KIND.testRunner] },
+  "playwright.config.ts": { name: "Playwright", kinds: [TOOL_KIND.testRunner] },
+  "playwright.config.js": { name: "Playwright", kinds: [TOOL_KIND.testRunner] },
+  "cypress.config.ts": { name: "Cypress", kinds: [TOOL_KIND.testRunner] },
+  "cypress.config.js": { name: "Cypress", kinds: [TOOL_KIND.testRunner] },
+};
+
+/** npm package name -> tooling rule. */
+export const NPM_TOOLING: Readonly<Record<string, ToolingRule>> = {
+  bun: { name: "Bun", kinds: [TOOL_KIND.packageManager] },
+  pnpm: { name: "pnpm", kinds: [TOOL_KIND.packageManager] },
+  yarn: { name: "Yarn", kinds: [TOOL_KIND.packageManager] },
+  npm: { name: "npm", kinds: [TOOL_KIND.packageManager] },
+  eslint: { name: "ESLint", kinds: [TOOL_KIND.linter] },
+  oxlint: { name: "oxlint", kinds: [TOOL_KIND.linter] },
+  "@biomejs/biome": {
+    name: "Biome",
+    kinds: [TOOL_KIND.linter, TOOL_KIND.formatter],
+  },
+  stylelint: { name: "Stylelint", kinds: [TOOL_KIND.linter] },
+  prettier: { name: "Prettier", kinds: [TOOL_KIND.formatter] },
+  dprint: { name: "dprint", kinds: [TOOL_KIND.formatter] },
+  mise: { name: "mise", kinds: [TOOL_KIND.taskRunner] },
+  just: { name: "just", kinds: [TOOL_KIND.taskRunner] },
+  turbo: { name: "Turborepo", kinds: [TOOL_KIND.taskRunner] },
+  nx: { name: "Nx", kinds: [TOOL_KIND.taskRunner] },
+  vite: { name: "Vite", kinds: [TOOL_KIND.buildTool] },
+  webpack: { name: "webpack", kinds: [TOOL_KIND.buildTool] },
+  rollup: { name: "Rollup", kinds: [TOOL_KIND.buildTool] },
+  esbuild: { name: "esbuild", kinds: [TOOL_KIND.buildTool] },
+  tsup: { name: "tsup", kinds: [TOOL_KIND.buildTool] },
+  parcel: { name: "Parcel", kinds: [TOOL_KIND.buildTool] },
+  vitest: { name: "Vitest", kinds: [TOOL_KIND.testRunner] },
+  jest: { name: "Jest", kinds: [TOOL_KIND.testRunner] },
+  playwright: { name: "Playwright", kinds: [TOOL_KIND.testRunner] },
+  "@playwright/test": { name: "Playwright", kinds: [TOOL_KIND.testRunner] },
+  cypress: { name: "Cypress", kinds: [TOOL_KIND.testRunner] },
+};
+
+/** package.json `packageManager` field value prefix -> package-manager rule. */
+export const PACKAGE_MANAGER_FIELD_TOOLING: Readonly<
+  Record<string, ToolingRule>
+> = {
+  bun: { name: "Bun", kinds: [TOOL_KIND.packageManager] },
+  npm: { name: "npm", kinds: [TOOL_KIND.packageManager] },
+  pnpm: { name: "pnpm", kinds: [TOOL_KIND.packageManager] },
+  yarn: { name: "Yarn", kinds: [TOOL_KIND.packageManager] },
+};
+
+/** A tooling signal matched from a non-npm manifest package token. */
+export interface TextToolingRule extends ToolingRule {
+  /** Ecosystem the package token belongs to. */
+  readonly eco: string;
+  /** Exact package token to match in manifest text. */
+  readonly pkg: string;
+}
+
+/** Tooling rules for ecosystems where manifests are scanned as text. */
+export const TEXT_TOOLING: readonly TextToolingRule[] = [
+  {
+    name: "pytest",
+    kinds: [TOOL_KIND.testRunner],
+    eco: "python",
+    pkg: "pytest",
+  },
+  {
+    name: "Ruff",
+    kinds: [TOOL_KIND.linter, TOOL_KIND.formatter],
+    eco: "python",
+    pkg: "ruff",
+  },
+  { name: "Black", kinds: [TOOL_KIND.formatter], eco: "python", pkg: "black" },
+];
+
 /** A framework signal: a package name in an ecosystem maps to a framework. */
 export interface FrameworkRule {
   /** Framework display name. */
@@ -163,9 +372,6 @@ export const FRAMEWORKS: readonly FrameworkRule[] = [
   { name: "Effect", pkg: "effect", eco: "npm" },
   { name: "OpenTUI", pkg: "@opentui/core", eco: "npm" },
   { name: "Ink", pkg: "ink", eco: "npm" },
-  { name: "Vite", pkg: "vite", eco: "npm" },
-  { name: "Vitest", pkg: "vitest", eco: "npm" },
-  { name: "Jest", pkg: "jest", eco: "npm" },
   { name: "Express", pkg: "express", eco: "npm" },
   { name: "Fastify", pkg: "fastify", eco: "npm" },
   { name: "NestJS", pkg: "@nestjs/core", eco: "npm" },
