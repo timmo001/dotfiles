@@ -8,6 +8,7 @@
  */
 import { Effect } from "effect";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
+import { cliStyler, plainStyler, type Styler } from "../../lib/ansi.js";
 import { GitHub } from "../services/GitHub.js";
 import { buildBranchContext } from "../context/build.js";
 import {
@@ -27,12 +28,17 @@ export function gitContextOptions(
   return { ...GIT_CONTEXT_DEFAULTS, ...overrides };
 }
 
-/** Build the git-context text output for the given options. */
+/**
+ * Build the git-context text output for the given options. Defaults to the
+ * plain {@link plainStyler} so string consumers (the MCP layer, tests) get
+ * unstyled text; pass a colour-emitting `styler` for interactive CLI output.
+ */
 export function gitContextText(
   options: BranchContextOptions,
+  styler: Styler = plainStyler,
 ): Effect.Effect<string, Error, CommandExecutor | GitHub> {
   return buildBranchContext(options).pipe(
-    Effect.map(renderBranchContextText),
+    Effect.map((data) => renderBranchContextText(data, styler)),
     Effect.withSpan("gitContext.text"),
   );
 }
@@ -47,11 +53,11 @@ export function gitContextJson(
   );
 }
 
-/** CLI: write the git-context text output to stdout. */
+/** CLI: write the git-context text output to stdout, colourised on a TTY. */
 export function gitContextRaw(
   options: BranchContextOptions,
 ): Effect.Effect<void, never, CommandExecutor | GitHub> {
-  return gitContextText(options).pipe(
+  return gitContextText(options, cliStyler(process.stdout)).pipe(
     Effect.flatMap(writeText),
     Effect.withSpan("gitContext.raw"),
     handleContextError,

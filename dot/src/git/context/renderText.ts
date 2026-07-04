@@ -6,6 +6,7 @@
  * sections, the recent-commit list, and optional full diffs.
  */
 import { formatRelativeTimeAgo } from "../services/relativeTime.js";
+import { plainStyler, type Styler } from "../../lib/ansi.js";
 import type {
   BranchContextData,
   CommitRange,
@@ -71,28 +72,36 @@ function appendDiffBlock(lines: string[], diff: string | undefined): void {
 }
 
 /** Append the labelled pull request block. */
-function appendPullRequest(lines: string[], pr: PullRequestData): void {
+function appendPullRequest(
+  lines: string[],
+  pr: PullRequestData,
+  styler: Styler,
+): void {
   const s = pr.summary;
-  lines.push(`Pull request #${s.number}: ${s.title}`);
+  lines.push(styler.heading(`Pull request #${s.number}: ${s.title}`));
   lines.push(
-    `  State: ${s.state || "(unknown)"} · Draft: ${s.isDraft ? "yes" : "no"}`,
+    `  ${styler.label("State:")} ${s.state || "(unknown)"} · ${styler.label("Draft:")} ${s.isDraft ? "yes" : "no"}`,
   );
-  lines.push(`  Review decision: ${s.reviewDecision || "(none)"}`);
-  lines.push(`  Mergeability: ${s.mergeStateStatus || "(unknown)"}`);
   lines.push(
-    `  Branches: ${s.headRefName || "(unknown)"} → ${s.baseRefName || "(unknown)"}`,
+    `  ${styler.label("Review decision:")} ${s.reviewDecision || "(none)"}`,
   );
-  lines.push(`  Comments: ${s.commentCount}`);
+  lines.push(
+    `  ${styler.label("Mergeability:")} ${s.mergeStateStatus || "(unknown)"}`,
+  );
+  lines.push(
+    `  ${styler.label("Branches:")} ${s.headRefName || "(unknown)"} → ${s.baseRefName || "(unknown)"}`,
+  );
+  lines.push(`  ${styler.label("Comments:")} ${s.commentCount}`);
   if (pr.labels) {
     lines.push(
-      `  Labels: ${pr.labels.length ? pr.labels.join(", ") : "(none)"}`,
+      `  ${styler.label("Labels:")} ${pr.labels.length ? pr.labels.join(", ") : "(none)"}`,
     );
   }
-  lines.push(`  URL: ${s.url || "(unknown)"}`);
+  lines.push(`  ${styler.label("URL:")} ${s.url || "(unknown)"}`);
 
   if (pr.description !== undefined) {
     lines.push("");
-    lines.push("  Description:");
+    lines.push(`  ${styler.heading("Description:")}`);
     const body = pr.description.replace(/\r\n?/g, "\n").trim();
     if (body) {
       for (const line of body.split("\n")) lines.push(`    ${line}`);
@@ -101,18 +110,19 @@ function appendPullRequest(lines: string[], pr: PullRequestData): void {
     }
   }
 
-  if (pr.comments) appendComments(lines, pr.comments);
-  if (pr.reviews) appendReviews(lines, pr.reviews);
-  if (pr.checks !== undefined) appendChecks(lines, pr.checks);
+  if (pr.comments) appendComments(lines, pr.comments, styler);
+  if (pr.reviews) appendReviews(lines, pr.reviews, styler);
+  if (pr.checks !== undefined) appendChecks(lines, pr.checks, styler);
 }
 
 /** Append the PR comments block, indenting each comment body. */
 function appendComments(
   lines: string[],
   comments: readonly PullRequestComment[],
+  styler: Styler,
 ): void {
   lines.push("");
-  lines.push(`  Comments (${comments.length}):`);
+  lines.push(`  ${styler.heading(`Comments (${comments.length}):`)}`);
   if (comments.length === 0) {
     lines.push("    (none)");
     return;
@@ -134,9 +144,10 @@ function appendComments(
 function appendReviews(
   lines: string[],
   reviews: readonly PullRequestReview[],
+  styler: Styler,
 ): void {
   lines.push("");
-  lines.push(`  Reviews (${reviews.length}):`);
+  lines.push(`  ${styler.heading(`Reviews (${reviews.length}):`)}`);
   if (reviews.length === 0) {
     lines.push("    (none)");
     return;
@@ -154,9 +165,9 @@ function appendReviews(
 }
 
 /** Append the CI checks block. */
-function appendChecks(lines: string[], checks: string): void {
+function appendChecks(lines: string[], checks: string, styler: Styler): void {
   lines.push("");
-  lines.push("  Checks:");
+  lines.push(`  ${styler.heading("Checks:")}`);
   const trimmed = checks.trim();
   if (!trimmed) {
     lines.push("    (none)");
@@ -168,9 +179,14 @@ function appendChecks(lines: string[], checks: string): void {
 /**
  * Render the branch-context snapshot as `dot git-context` text output. Only the
  * sections present in {@link BranchContextData} are shown, so the enabled
- * options drive the layout.
+ * options drive the layout. Pass a colour-emitting `styler` for interactive
+ * terminal output; the default {@link plainStyler} leaves the text unstyled for
+ * pipes, redirects, captured agent context, and the MCP layer.
  */
-export function renderBranchContextText(data: BranchContextData): string {
+export function renderBranchContextText(
+  data: BranchContextData,
+  styler: Styler = plainStyler,
+): string {
   if (!data.inRepo) {
     return "Not a git repository.\n";
   }
@@ -178,34 +194,40 @@ export function renderBranchContextText(data: BranchContextData): string {
   const lines: string[] = [];
   const meta = data.branchMetadata;
 
-  lines.push(`Branch: ${meta?.currentBranch || "(detached)"}`);
-  if (meta) lines.push(`Base: ${meta.baseRef}`);
+  lines.push(
+    `${styler.heading("Branch:")} ${meta?.currentBranch || "(detached)"}`,
+  );
+  if (meta) lines.push(`${styler.heading("Base:")} ${meta.baseRef}`);
   lines.push("");
 
   if (data.pullRequest) {
-    appendPullRequest(lines, data.pullRequest);
+    appendPullRequest(lines, data.pullRequest, styler);
     lines.push("");
   }
 
   if (data.status) {
-    lines.push("Unstaged:");
+    lines.push(styler.heading("Unstaged:"));
     lines.push(formatFileList(data.status.unstaged));
     appendDiffBlock(lines, data.diffs?.unstaged);
     lines.push("");
 
-    lines.push("Staged:");
+    lines.push(styler.heading("Staged:"));
     lines.push(formatFileList(data.status.staged));
     appendDiffBlock(lines, data.diffs?.staged);
     lines.push("");
   }
 
   if (data.commits) {
-    lines.push(formatCommitsHeading(data.commits.range, data.commits.records));
+    lines.push(
+      styler.heading(
+        formatCommitsHeading(data.commits.range, data.commits.records),
+      ),
+    );
     if (data.commits.records.length === 0) {
       lines.push("  (none)");
     } else {
       for (const commit of data.commits.records) {
-        const marker = commit.pushed ? "✓" : "↑";
+        const marker = commit.pushed ? styler.success("✓") : styler.dim("↑");
         lines.push(
           `${marker} ${commit.shortHash} ${commit.relativeTime} — ${commit.subject}`,
         );
@@ -219,20 +241,23 @@ export function renderBranchContextText(data: BranchContextData): string {
   if (branchDiff) {
     lines.push("");
     lines.push(
-      `Diff vs ${branchDiff.ref} (merge-base ${branchDiff.mergeBase}):`,
+      styler.heading(
+        `Diff vs ${branchDiff.ref} (merge-base ${branchDiff.mergeBase}):`,
+      ),
     );
     lines.push(branchDiff.diff || "  (no differences)");
   }
 
   if (data.warnings.length) {
     lines.push("");
-    for (const warning of data.warnings) lines.push(`! ${warning}`);
+    for (const warning of data.warnings)
+      lines.push(styler.warn(`! ${warning}`));
   }
 
   const hint = formatHint(data);
   if (hint) {
     lines.push("");
-    lines.push(hint);
+    lines.push(styler.markdown(hint));
   }
 
   return lines.join("\n") + "\n";

@@ -8,6 +8,7 @@ import {
 } from "fs";
 import { dirname, join } from "path";
 import { Config } from "./Config.js";
+import { ANSI } from "../lib/ansi.js";
 import { mirrorConfiguredLog } from "../lib/logMirror.js";
 import { expandHomePath } from "../lib/paths.js";
 import { ENV, envString } from "../lib/env.js";
@@ -60,17 +61,6 @@ export interface OutputLogService {
   readonly updateSpinner: (label: string) => Effect.Effect<void>;
 }
 
-/** ANSI colour helpers for CLI output */
-const ansi = {
-  reset: "\x1b[0m",
-  bold: "\x1b[1m",
-  dim: "\x1b[2m",
-  red: "\x1b[31m",
-  yellow: "\x1b[33m",
-  green: "\x1b[32m",
-  cyan: "\x1b[36m",
-} as const;
-
 /** Braille spinner frames, matching opencode's standard Spinner (cli-spinners "dots"). */
 const SPINNER_FRAMES = [
   "⠋",
@@ -113,13 +103,13 @@ function formatPlain(entry: LogEntry): string {
 function formatAnsi(entry: LogEntry): string {
   switch (entry.level) {
     case "section":
-      return `\n${ansi.bold}${ansi.cyan}${entry.message}${ansi.reset}`;
+      return `\n${ANSI.bold}${ANSI.cyan}${entry.message}${ANSI.reset}`;
     case "info":
       return `  ${entry.message}`;
     case "warn":
-      return `  ${ansi.yellow}[WARN]${ansi.reset} ${entry.message}`;
+      return `  ${ANSI.yellow}[WARN]${ANSI.reset} ${entry.message}`;
     case "error":
-      return `  ${ansi.red}[ERROR]${ansi.reset} ${entry.message}`;
+      return `  ${ANSI.red}[ERROR]${ANSI.reset} ${entry.message}`;
   }
 }
 
@@ -299,10 +289,10 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
             ? spinner.label.slice(0, Math.max(0, maxLabel - 1)) + "\u2026"
             : spinner.label;
         const elapsed = elapsedText
-          ? `${ansi.dim}${elapsedText}${ansi.reset}`
+          ? `${ANSI.dim}${elapsedText}${ANSI.reset}`
           : "";
         process.stdout.write(
-          `${CLEAR_LINE}${ansi.cyan}${frame}${ansi.reset} ${label}${elapsed}`,
+          `${CLEAR_LINE}${ANSI.cyan}${frame}${ANSI.reset} ${label}${elapsed}`,
         );
       };
 
