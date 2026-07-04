@@ -11,6 +11,7 @@ It scans the directory you pass, or the current working directory when you pass 
 
 ```bash
 dot stack-context                  # stack summary for the current directory
+dot stack-context --plain          # stack summary without ANSI styling
 dot stack-context --json           # structured stack-context payload (plugin format)
 dot stack-context ~/projects/app   # scan a specific directory
 ```
@@ -25,34 +26,41 @@ Signals carry a confidence tier so agents can weight them:
 
 - **Languages** are `heuristic`: attributed by file extension or filename, aggregated by file count with their top general locations (the leading directories they live in).
 - **Ecosystems** are `authoritative`: taken from manifest and lockfile presence (`package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`, and others), plus GitHub Actions workflows.
-- **Tooling** is `authoritative`: taken from lockfiles, known config files, `package.json`'s `packageManager` field, and declared dependency names. It currently covers package managers, linters, formatters, task runners, build tools and bundlers, and test runners.
+- **Tooling** is `authoritative`: taken from lockfiles, known config files, `package.json`'s `packageManager` field, and declared dependency names. It currently covers package managers, linters, formatters, task runners, build tools and bundlers, test runners, git hook tools, and release tools.
 - **Frameworks** are `authoritative` for npm (parsed from `package.json` dependency keys against a curated allowlist) and `strong` for Go, Cargo, and Python (matched by scanning the manifest for the package token). Keying on real package names avoids false positives, and reading declared dependencies catches a project's own framework even when a dependency scanner would miss it. Vite, Vitest, and Jest are treated as tooling rather than frameworks.
 
 ## Output
 
-Plain text is the default. The summary has four sections:
+Plain text is the default. In an interactive terminal, headings and labels are styled; pipes, redirects, `NO_COLOR`, and `--plain` keep output unstyled. The summary has four counted sections, with tooling grouped by category:
 
 ```text
 Stack: app (/home/user/projects/app)
 412 files scanned
 
-Languages:
-  TypeScript  318 files  · src, packages
-  CSS  20 files  · src/styles
+Languages (3):
+  TypeScript  318 files (77%)  · src, packages
+  CSS  20 files (5%)  · src/styles
   ...
 
-Ecosystems:
+Ecosystems (2):
   npm: package.json, packages/core/package.json
   github-actions: .github/workflows/ci.yml
 
-Tooling:
-  Bun  (package manager; lockfile: bun.lock)
-  Vite  (build tool; npm dep: vite)
-  Vitest  (test runner; npm dep: vitest)
+Tooling (5):
+  package manager:
+    Bun  package manager  · lockfile: bun.lock
+  build tool:
+    Vite  build tool  · npm dep: vite
+  test runner:
+    Vitest  test runner  · npm dep: vitest
+  git hook:
+    Lefthook  git hook  · config: lefthook.yml
+  release tool:
+    Changesets  release tool  · npm dep: @changesets/cli
 
-Frameworks:
-  Astro  (npm dep: astro)
-  Effect  (npm dep: effect)
+Frameworks (2):
+  Astro  npm dep: astro
+  Effect  npm dep: effect
 ```
 
 `--json` emits the structured stack-context payload consumed by the OpenCode stack-context plugin instead of text: `root`, `name`, `scannedFiles`, `truncated`, and the `languages`, `ecosystems`, `tooling`, and `frameworks` arrays (each list length-capped to bound the prompt), plus any `warnings`.

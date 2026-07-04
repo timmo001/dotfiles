@@ -73,7 +73,9 @@ export type ToolingKind =
   | "formatter"
   | "task runner"
   | "build tool"
-  | "test runner";
+  | "test runner"
+  | "git hook"
+  | "release tool";
 
 /** A detected tool, its categories, and what evidenced it. */
 export interface ToolingEntry {

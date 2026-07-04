@@ -115,7 +115,7 @@ _dot_cmd_stack_context() {
   prev=${COMP_WORDS[COMP_CWORD-1]}
   cword=$COMP_CWORD
   if [[ $cur == -* ]]; then
-    COMPREPLY=( $(compgen -W '--json --help -h' -- "$cur") )
+    COMPREPLY=( $(compgen -W '--json --plain --help -h' -- "$cur") )
     return
   fi
   if (( cword == 2 )); then

@@ -59,11 +59,12 @@ export function stackContextJson(
 /** CLI: write the stack-context text output to stdout, colourised on a TTY. */
 export function stackContextRaw(
   options: StackContextOptions,
+  plain = false,
 ): Effect.Effect<void> {
-  return stackContextText(options, cliStyler(process.stdout)).pipe(
-    Effect.flatMap(writeText),
-    Effect.withSpan("stackContext.raw"),
-  );
+  return stackContextText(
+    options,
+    plain ? plainStyler : cliStyler(process.stdout),
+  ).pipe(Effect.flatMap(writeText), Effect.withSpan("stackContext.raw"));
 }
 
 /** CLI: write the stack-context JSON output to stdout. */

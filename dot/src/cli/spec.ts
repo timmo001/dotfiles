@@ -477,6 +477,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
     modes: [
       "(default)       Stack summary: languages, ecosystems, tooling, frameworks",
       "--json          Emit the structured stack-context payload",
+      "--plain         Disable ANSI styling in text output",
     ],
     arguments: [
       {
@@ -491,10 +492,15 @@ export const cliCommands: readonly CliCommandSpec[] = [
         description:
           "Emit the structured stack-context payload (plugin format) instead of text",
       },
+      {
+        name: "--plain",
+        description: "Disable ANSI styling in text output",
+      },
       helpOption,
     ],
     examples: [
       "dot stack-context",
+      "dot stack-context --plain",
       "dot stack-context --json",
       "dot stack-context ~/projects/app",
     ],

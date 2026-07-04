@@ -140,6 +140,8 @@ export const TOOL_KIND = {
   taskRunner: "task runner",
   buildTool: "build tool",
   testRunner: "test runner",
+  gitHook: "git hook",
+  releaseTool: "release tool",
 } as const satisfies Readonly<Record<string, ToolingKind>>;
 
 /** A development-tool signal keyed by package name, config filename, or lockfile. */
@@ -244,6 +246,46 @@ export const CONFIG_TOOLING: Readonly<Record<string, ToolingRule>> = {
   Makefile: { name: "make", kinds: [TOOL_KIND.taskRunner] },
   "Taskfile.yml": { name: "Task", kinds: [TOOL_KIND.taskRunner] },
   "Taskfile.yaml": { name: "Task", kinds: [TOOL_KIND.taskRunner] },
+  "lefthook.yml": { name: "Lefthook", kinds: [TOOL_KIND.gitHook] },
+  "lefthook.yaml": { name: "Lefthook", kinds: [TOOL_KIND.gitHook] },
+  "commitlint.config.cjs": { name: "commitlint", kinds: [TOOL_KIND.gitHook] },
+  "commitlint.config.js": { name: "commitlint", kinds: [TOOL_KIND.gitHook] },
+  "commitlint.config.mjs": { name: "commitlint", kinds: [TOOL_KIND.gitHook] },
+  "commitlint.config.ts": { name: "commitlint", kinds: [TOOL_KIND.gitHook] },
+  ".releaserc": { name: "semantic-release", kinds: [TOOL_KIND.releaseTool] },
+  ".releaserc.json": {
+    name: "semantic-release",
+    kinds: [TOOL_KIND.releaseTool],
+  },
+  ".releaserc.yaml": {
+    name: "semantic-release",
+    kinds: [TOOL_KIND.releaseTool],
+  },
+  ".releaserc.yml": {
+    name: "semantic-release",
+    kinds: [TOOL_KIND.releaseTool],
+  },
+  ".releaserc.js": { name: "semantic-release", kinds: [TOOL_KIND.releaseTool] },
+  ".releaserc.cjs": {
+    name: "semantic-release",
+    kinds: [TOOL_KIND.releaseTool],
+  },
+  "release.config.js": {
+    name: "semantic-release",
+    kinds: [TOOL_KIND.releaseTool],
+  },
+  "release.config.cjs": {
+    name: "semantic-release",
+    kinds: [TOOL_KIND.releaseTool],
+  },
+  "release-please-config.json": {
+    name: "release-please",
+    kinds: [TOOL_KIND.releaseTool],
+  },
+  ".changeset/config.json": {
+    name: "Changesets",
+    kinds: [TOOL_KIND.releaseTool],
+  },
   "turbo.json": { name: "Turborepo", kinds: [TOOL_KIND.taskRunner] },
   "nx.json": { name: "Nx", kinds: [TOOL_KIND.taskRunner] },
   "vite.config.cjs": { name: "Vite", kinds: [TOOL_KIND.buildTool] },
@@ -288,6 +330,15 @@ export const NPM_TOOLING: Readonly<Record<string, ToolingRule>> = {
   stylelint: { name: "Stylelint", kinds: [TOOL_KIND.linter] },
   prettier: { name: "Prettier", kinds: [TOOL_KIND.formatter] },
   dprint: { name: "dprint", kinds: [TOOL_KIND.formatter] },
+  lefthook: { name: "Lefthook", kinds: [TOOL_KIND.gitHook] },
+  "lint-staged": { name: "lint-staged", kinds: [TOOL_KIND.gitHook] },
+  "@commitlint/cli": { name: "commitlint", kinds: [TOOL_KIND.gitHook] },
+  "semantic-release": {
+    name: "semantic-release",
+    kinds: [TOOL_KIND.releaseTool],
+  },
+  "release-please": { name: "release-please", kinds: [TOOL_KIND.releaseTool] },
+  "@changesets/cli": { name: "Changesets", kinds: [TOOL_KIND.releaseTool] },
   mise: { name: "mise", kinds: [TOOL_KIND.taskRunner] },
   just: { name: "just", kinds: [TOOL_KIND.taskRunner] },
   turbo: { name: "Turborepo", kinds: [TOOL_KIND.taskRunner] },

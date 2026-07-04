@@ -612,7 +612,7 @@ if (mode.type === "native" && mode.command === "mcp") {
         });
         return args.includes("--json")
           ? stackContextRawJson(options)
-          : stackContextRaw(options);
+          : stackContextRaw(options, args.includes("--plain"));
       },
       "git-commit": (args) =>
         gitCommitRaw({

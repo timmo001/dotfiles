@@ -61,6 +61,7 @@ complete -c dot -l since -d 'Show recent commits since this date or relative dur
 complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from git-context'
 complete -c dot -n '__fish_use_subcommand' -a 'stack-context' -d 'Detect the tech stack of a directory for agents'
 complete -c dot -l json -d 'Emit the structured stack-context payload (plugin format) instead of text' -n '__fish_seen_subcommand_from stack-context'
+complete -c dot -l plain -d 'Disable ANSI styling in text output' -n '__fish_seen_subcommand_from stack-context'
 complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from stack-context'
 complete -c dot -n '__fish_use_subcommand' -a 'git-commit' -d 'Commit staged changes through the guarded gateway'
 complete -c dot -s m -l message -d 'Single-line commit subject (required unless --amend)' -r -n '__fish_seen_subcommand_from git-commit'

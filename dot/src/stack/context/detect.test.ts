@@ -26,13 +26,21 @@ beforeAll(() => {
         prettier: "^3.0.0",
         typescript: "^5.0.0",
         vitest: "^3.0.0",
+        "@changesets/cli": "^2.29.0",
+        "@commitlint/cli": "^19.0.0",
+        "lint-staged": "^15.0.0",
+        "release-please": "^16.0.0",
       },
     }),
   );
   writeFileSync(join(dir, "bun.lock"), "");
   writeFileSync(join(dir, ".prettierrc"), "{}\n");
+  writeFileSync(join(dir, "lefthook.yml"), "pre-commit:\n");
+  writeFileSync(join(dir, "release-please-config.json"), "{}\n");
   writeFileSync(join(dir, "mise.toml"), "[tasks]\n");
   writeFileSync(join(dir, "vite.config.ts"), "export default {};\n");
+  mkdirSync(join(dir, ".changeset"), { recursive: true });
+  writeFileSync(join(dir, ".changeset", "config.json"), "{}\n");
   writeFileSync(
     join(dir, "go.mod"),
     "module example.com/x\n\nrequire github.com/spf13/cobra v1.8.0\n",
@@ -97,7 +105,15 @@ test("detects tooling from lockfiles, configs, and declared dependencies", () =>
   expect(tooling.get("mise")?.kinds).toContain("task runner");
   expect(tooling.get("Vite")?.kinds).toContain("build tool");
   expect(tooling.get("Vitest")?.kinds).toContain("test runner");
+  expect(tooling.get("Lefthook")?.kinds).toContain("git hook");
+  expect(tooling.get("lint-staged")?.kinds).toContain("git hook");
+  expect(tooling.get("commitlint")?.kinds).toContain("git hook");
+  expect(tooling.get("release-please")?.kinds).toContain("release tool");
+  expect(tooling.get("Changesets")?.kinds).toContain("release tool");
   expect(tooling.get("Vite")?.evidence).toContain("npm dep: vite");
+  expect(tooling.get("Changesets")?.evidence).toContain(
+    "config: .changeset/config.json",
+  );
 });
 
 test("returns a warning and no results for a non-directory root", () => {

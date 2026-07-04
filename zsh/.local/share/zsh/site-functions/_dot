@@ -130,6 +130,7 @@ _dot_cmd_git_context() {
 _dot_cmd_stack_context() {
   _arguments -S \
     '--json[Emit the structured stack-context payload (plugin format) instead of text]' \
+    '--plain[Disable ANSI styling in text output]' \
     '(-h --help)-h[Show this help message]' \
     '(-h --help)--help[Show this help message]' \
     '1:Directory to scan (default: current working directory):_files' \

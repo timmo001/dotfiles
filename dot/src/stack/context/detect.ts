@@ -131,7 +131,7 @@ function classifyFile(acc: WalkAccumulator, name: string, rel: string): void {
   const lockfileTool = LOCKFILE_TOOLING[name];
   if (lockfileTool) recordTooling(acc, lockfileTool, `lockfile: ${rel}`);
 
-  const configTool = CONFIG_TOOLING[name];
+  const configTool = CONFIG_TOOLING[name] ?? CONFIG_TOOLING[rel];
   if (configTool) recordTooling(acc, configTool, `config: ${rel}`);
 
   const ext = extname(name).toLowerCase();

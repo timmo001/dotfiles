@@ -331,6 +331,7 @@ OpenCode stack-context plugin (via --json).
 ```text
 (default)       Stack summary: languages, ecosystems, tooling, frameworks
 --json          Emit the structured stack-context payload
+--plain         Disable ANSI styling in text output
 ```
 
 **Options**
@@ -338,6 +339,7 @@ OpenCode stack-context plugin (via --json).
 | Option | Description |
 | --- | --- |
 | `--json` | Emit the structured stack-context payload (plugin format) instead of text |
+| `--plain` | Disable ANSI styling in text output |
 
 **Arguments**
 
@@ -349,6 +351,7 @@ OpenCode stack-context plugin (via --json).
 
 ```bash
 dot stack-context
+dot stack-context --plain
 dot stack-context --json
 dot stack-context ~/projects/app
 ```
