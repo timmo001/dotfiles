@@ -115,9 +115,10 @@ _dot_cmd_git_context() {
     '--checks[Include CI check runs (makes a second gh call)]' \
     '--no-description[Omit the pull request description]' \
     '--no-pr[Omit the pull request block entirely]' \
-    '--no-branch-metadata[Omit the branch metadata block (affects --json)]' \
-    '--no-status[Omit the working-tree status block (affects --json)]' \
-    '--no-work-scope[Omit the branch work-scope block (affects --json)]' \
+    '--remotes[Include remote fetch/push URLs in the branch metadata]' \
+    '--no-branch-metadata[Omit the branch metadata block]' \
+    '--no-status[Omit the working-tree status block]' \
+    '--no-work-scope[Omit the branch work-scope block]' \
     '--diff[Append full unstaged and staged diffs for changed files]' \
     '--branch-diff[Append the merge-base diff vs the default branch (errors on the default branch)]' \
     '--since[Show recent commits since this date or relative duration on the default/recent path]:date:' \
