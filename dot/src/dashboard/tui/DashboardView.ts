@@ -315,7 +315,7 @@ export class DashboardView {
 
   /** Remove the dashboard view from the render tree. */
   destroy(): void {
-    this.renderer.root.remove(this.root.id);
+    this.renderer.root.remove(this.root);
   }
 
   private buildSections(): void {
@@ -347,7 +347,7 @@ export class DashboardView {
 
   private rebuildSections(): void {
     for (const child of this.gridContainer.getChildren()) {
-      this.gridContainer.remove(child.id);
+      this.gridContainer.remove(child);
       child.destroyRecursively();
     }
     this.renderedCards.length = 0;

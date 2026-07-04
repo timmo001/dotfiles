@@ -233,7 +233,7 @@ export class WorkflowRunsView {
 
   /** Remove the workflow runs view from the render tree */
   destroy(): void {
-    this.renderer.root.remove(this.root.id);
+    this.renderer.root.remove(this.root);
   }
 
   private togglePane(): void {

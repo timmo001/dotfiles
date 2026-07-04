@@ -295,7 +295,7 @@ export class NoteCreatePrompt {
   /** Remove the prompt from the render tree. */
   destroy(): void {
     this.hide();
-    this.renderer.root.remove(this.root.id);
+    this.renderer.root.remove(this.root);
   }
 
   private advanceToDetails(kind: NoteCreateKind): void {

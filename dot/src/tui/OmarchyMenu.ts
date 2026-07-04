@@ -166,7 +166,7 @@ export class OmarchyMenu {
     this.filterBar.content = t`${fg(this.theme.fgSubtle)("/")}`;
 
     // Recreate the menu list with new items (ensures correct 2-row layout)
-    this.root.remove(this.menuList.id);
+    this.root.remove(this.menuList);
     this.menuList = this.createMenuList(items);
     this.root.insertBefore(this.menuList, this.helpBar);
     this.menuList.focus();
@@ -234,6 +234,6 @@ export class OmarchyMenu {
 
   /** Remove the omarchy menu from the render tree */
   destroy(): void {
-    this.renderer.root.remove(this.root.id);
+    this.renderer.root.remove(this.root);
   }
 }

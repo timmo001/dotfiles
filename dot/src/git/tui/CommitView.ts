@@ -225,7 +225,7 @@ export class CommitView {
 
   /** Remove the commit view from the render tree */
   destroy(): void {
-    this.renderer.root.remove(this.root.id);
+    this.renderer.root.remove(this.root);
   }
 
   /** Execute the commit with the given message */

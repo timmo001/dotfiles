@@ -105,7 +105,7 @@ export class OutputPane {
   clear(): void {
     const children = this.scrollBox.getChildren();
     for (const child of children) {
-      this.scrollBox.remove(child.id);
+      this.scrollBox.remove(child);
     }
     this.lineCount = 0;
   }
@@ -129,7 +129,7 @@ export class OutputPane {
 
   /** Remove from the render tree */
   destroy(): void {
-    this.renderer.root.remove(this.root.id);
+    this.renderer.root.remove(this.root);
   }
 
   /** Format a log entry with themed colours */
