@@ -30,6 +30,25 @@ The tools call `dot`'s in-process notes service directly, so they behave like `d
 
 These are all read-only. `git_context` reuses the same text output as `dot git-context`, `command_help` reuses `dot help`, and `opencode_debug` runs the `opencode debug` subcommands and returns their captured output as one text block.
 
+#### `git_context` parameters
+
+Boolean parameters mirror `dot git-context` flags. All are optional; omitted fields use the CLI defaults (PR summary and description on for feature branches; comments, reviews, labels, checks, remotes, and full diffs off).
+
+| Parameter | Default | CLI equivalent |
+| --- | --- | --- |
+| `diff` | `false` | `--diff` |
+| `branchDiff` | `false` | `--branch-diff` |
+| `comments` | `false` | `--comments` |
+| `reviews` | `false` | `--reviews` |
+| `labels` | `false` | `--labels` |
+| `checks` | `false` | `--checks` |
+| `description` | `true` | omit `--no-description` |
+| `pullRequest` | `true` | omit `--no-pr` |
+| `remotes` | `false` | `--remotes` |
+| `since` | — | `--since <date>` (ISO 8601 or git-relative date) |
+
+See [Context, Diff & Log](/git/context/) for output sections, the OpenCode branch-context plugin, and the `--json` payload shape.
+
 ## Resources
 
 The server also exposes read-only [resources](https://modelcontextprotocol.io/specification/latest/server/resources) a client can pull in as context. Resource support varies by harness, so they are a progressive enhancement on top of the tools.
