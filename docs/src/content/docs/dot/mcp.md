@@ -61,10 +61,11 @@ Commits and best-effort pushes the deletion. Deletion is irreversible; agents sh
 | Tool | Description |
 | --- | --- |
 | `git_context` | Branch context for the current repository: repository/branch/base header, ahead/behind state, the pull request summary for a feature branch, unstaged files, staged files, untracked files, branch changed files, and recent commits, with optional remote URLs (`remotes`), PR comments (`comments`), reviews (`reviews`), labels (`labels`), CI checks (`checks`), working-tree diffs (`diff`), or the merge-base diff against the default branch (`branchDiff`). |
+| `stack_context` | Deterministic tech-stack summary for a directory: detected languages with their general locations, package ecosystems (from manifests), and frameworks (from declared dependencies). Optional `dir` scopes the scan. No LLM and no external tools. |
 | `command_help` | `dot` CLI help. Omit `name` for the full overview, or pass a subcommand (e.g. `git-context`) to scope it. |
 | `opencode_debug` | Combined output of the OpenCode debug commands (`paths`, `config`, `skill`, `info`), optionally also inspecting a named `agent`. |
 
-These are all read-only. `git_context` reuses the same text output as `dot git-context`, `command_help` reuses `dot help`, and `opencode_debug` runs the `opencode debug` subcommands and returns their captured output as one text block.
+These are all read-only. `git_context` reuses the same text output as `dot git-context`, `stack_context` reuses `dot stack-context`, `command_help` reuses `dot help`, and `opencode_debug` runs the `opencode debug` subcommands and returns their captured output as one text block.
 
 #### `git_context` parameters
 
@@ -84,6 +85,14 @@ Boolean parameters mirror `dot git-context` flags. All are optional; omitted fie
 | `since` | — | `--since <date>` (ISO 8601 or git-relative date) |
 
 See [Context, Diff & Log](/git/context/) for output sections, the OpenCode branch-context plugin, and the `--json` payload shape.
+
+#### `stack_context` parameters
+
+| Parameter | Default | Purpose |
+| --- | --- | --- |
+| `dir` | — | Directory to scan. Omit to scan the server's current working directory. |
+
+See [Stack Context](/dot/stack-context/) for the detection method, output sections, and the OpenCode stack-context plugin.
 
 #### `command_help` parameters
 
@@ -107,9 +116,10 @@ The server also exposes read-only [resources](https://modelcontextprotocol.io/sp
 | --- | --- |
 | `dot://notes/context` | The current repository's OpenCode repo-note context block: identity, notes path, and recent notes. |
 | `dot://git-context` | Concise branch context for the current repository. |
+| `dot://stack-context` | Deterministic tech-stack summary for the current directory. |
 | `dot://command/{name}` | Help text for a single dot command (template). `{name}` completes from the known commands, e.g. `dot://command/git-context`. |
 
-Each resource re-runs on every read, so it reflects the current state. `dot://git-context` mirrors the `git_context` tool with default parameters (no PR detail flags, no diffs) and `dot://command/{name}` mirrors `command_help`; the resource forms let a client attach them as context without an explicit tool call. Use the `git_context` tool when you need opt-in PR sections or full diffs.
+Each resource re-runs on every read, so it reflects the current state. `dot://git-context` mirrors the `git_context` tool with default parameters (no PR detail flags, no diffs), `dot://stack-context` mirrors the `stack_context` tool for the current directory, and `dot://command/{name}` mirrors `command_help`; the resource forms let a client attach them as context without an explicit tool call. Use the `git_context` tool when you need opt-in PR sections or full diffs.
 
 ## Notifications
 

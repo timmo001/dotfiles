@@ -15,6 +15,10 @@ import {
   gitContextOptions,
   gitContextText,
 } from "../../git/commands/Context.js";
+import {
+  stackContextOptions,
+  stackContextText,
+} from "../../stack/commands/Context.js";
 import { GitHub } from "../../git/services/GitHub.js";
 import {
   CommandExecutor,
@@ -74,6 +78,15 @@ const GitContextParams = Schema.Struct({
     Schema.String.annotate({
       description:
         "Only include recent commits after this ISO 8601 timestamp. Feature branches still list their full branch-unique commits.",
+    }),
+  ),
+});
+
+const StackContextParams = Schema.Struct({
+  dir: Schema.optional(
+    Schema.String.annotate({
+      description:
+        "Directory to scan (default: the server's current working directory).",
     }),
   ),
 });
@@ -185,6 +198,20 @@ export const registerContextTools = Effect.gen(function* () {
         Effect.provideService(CommandExecutor, executor),
         Effect.provideService(GitHub, github),
       ),
+  });
+
+  yield* register({
+    name: "stack_context",
+    description:
+      "Deterministic tech-stack summary for a directory: detected languages with " +
+      "their general locations, package ecosystems (from manifests), and frameworks " +
+      "(from declared dependencies). Uses no LLM and no external tools; reads only " +
+      "manifests and an extension/filename census. Defaults to the current working " +
+      "directory. Pass dir to scan a specific project.",
+    parameters: StackContextParams,
+    annotations: READONLY_HINTS,
+    handle: (params) =>
+      stackContextText(stackContextOptions({ root: params.dir })),
   });
 
   yield* register({

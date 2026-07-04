@@ -57,6 +57,9 @@ requires() {
   if grep -qi 'BranchContextPlugin\|branch-context' "$file" 2>/dev/null; then
     deps+=('`branch-context` plugin')
   fi
+  if grep -qi 'StackContextPlugin\|stack-context' "$file" 2>/dev/null; then
+    deps+=('`stack-context` plugin')
+  fi
   local ref
   for ref in $(grep -P '[Ll]oad\b.*`[a-z][-a-z0-9]*`' "$file" 2>/dev/null |
     grep -oP '`[a-z][-a-z0-9]*`' | tr -d '`' | sort -u); do

@@ -1,8 +1,8 @@
 ---
-description: Inject branch and codebase stack context and optionally execute an instruction
+description: Inject codebase stack context and optionally execute an instruction
 ---
 
-Branch context and codebase stack context have been injected above.
+Codebase stack context has been injected above.
 
 If the user provided an instruction after the command name, execute it now.
 If no instruction was provided, wait for the user's next message before taking any action.

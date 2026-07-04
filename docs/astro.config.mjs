@@ -86,6 +86,7 @@ export default defineConfig({
           items: [
             { label: 'Overview', slug: 'dot' },
             { label: 'Command Reference', slug: 'dot/commands' },
+            { label: 'Stack Context', slug: 'dot/stack-context' },
             { label: 'Stow Workflow', slug: 'dot/stow' },
             { label: 'Notes & Handoffs', slug: 'dot/notes' },
             { label: 'MCP Server', slug: 'dot/mcp' },

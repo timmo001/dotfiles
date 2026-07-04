@@ -109,6 +109,20 @@ _dot_cmd_git_context() {
     return
   fi
 }
+_dot_cmd_stack_context() {
+  local cur prev cword
+  cur=${COMP_WORDS[COMP_CWORD]}
+  prev=${COMP_WORDS[COMP_CWORD-1]}
+  cword=$COMP_CWORD
+  if [[ $cur == -* ]]; then
+    COMPREPLY=( $(compgen -W '--json --help -h' -- "$cur") )
+    return
+  fi
+  if (( cword == 2 )); then
+    COMPREPLY=( $(compgen -f -- "$cur") )
+    return
+  fi
+}
 _dot_cmd_git_commit() {
   local cur prev cword
   cur=${COMP_WORDS[COMP_CWORD]}
@@ -454,7 +468,7 @@ _dot() {
   command=${COMP_WORDS[1]-}
 
   if (( cword == 1 )); then
-    COMPREPLY=( $(compgen -W 'dashboard init install update up stow doctor clean git-diff diff git-context git-commit git-log git-workflows git-notifications notes handoffs handoff note agents-sync opencode-debug mcp mcp-sync is-agent setup-private-repo private-pkg-publish skill-updates skill-check completions omarchy help -h --help' -- "$cur") )
+    COMPREPLY=( $(compgen -W 'dashboard init install update up stow doctor clean git-diff diff git-context stack-context git-commit git-log git-workflows git-notifications notes handoffs handoff note agents-sync opencode-debug mcp mcp-sync is-agent setup-private-repo private-pkg-publish skill-updates skill-check completions omarchy help -h --help' -- "$cur") )
     return
   fi
 
@@ -485,6 +499,9 @@ _dot() {
       ;;
     git-context)
       _dot_cmd_git_context
+      ;;
+    stack-context)
+      _dot_cmd_stack_context
       ;;
     git-commit)
       _dot_cmd_git_commit

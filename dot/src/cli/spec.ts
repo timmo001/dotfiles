@@ -458,6 +458,47 @@ export const cliCommands: readonly CliCommandSpec[] = [
     ],
   },
   {
+    name: "stack-context",
+    summary: "Detect the tech stack of a directory for agents",
+    usage: "[dir] [options]",
+    description: [
+      "Detect a directory's tech stack deterministically from its files, with no",
+      "LLM and no external tools: languages (with their general locations), package",
+      "ecosystems (from manifests), and frameworks (from declared dependencies).",
+      "Scans the given directory or the current working directory. Unlike",
+      "git-context it does not require a git repository.",
+      "",
+      "Reads only manifests and takes an extension/filename census (never source",
+      "bodies), so it stays fast even on large trees. Designed as a single command",
+      "for agents to learn a project's stack, and as the shared producer for the",
+      "OpenCode stack-context plugin (via --json).",
+    ],
+    modes: [
+      "(default)       Stack summary: languages, ecosystems, frameworks",
+      "--json          Emit the structured stack-context payload",
+    ],
+    arguments: [
+      {
+        name: "dir",
+        description: "Directory to scan (default: current working directory)",
+        completion: "file",
+      },
+    ],
+    options: [
+      {
+        name: "--json",
+        description:
+          "Emit the structured stack-context payload (plugin format) instead of text",
+      },
+      helpOption,
+    ],
+    examples: [
+      "dot stack-context",
+      "dot stack-context --json",
+      "dot stack-context ~/projects/app",
+    ],
+  },
+  {
     name: "git-commit",
     summary: "Commit staged changes through the guarded gateway",
     usage: "--message <subject> [options] | --amend [options]",

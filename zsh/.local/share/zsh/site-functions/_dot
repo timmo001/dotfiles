@@ -14,6 +14,7 @@ dot_commands=(
   'git-diff:Open the git diff/repo watcher view'
   'diff:Alias for git-diff'
   'git-context:Show branch context for the current repository'
+  'stack-context:Detect the tech stack of a directory for agents'
   'git-commit:Commit staged changes through the guarded gateway'
   'git-log:Open recent commits across tracked repos'
   'git-workflows:Open watched GitHub workflow runs'
@@ -124,6 +125,14 @@ _dot_cmd_git_context() {
     '--since[Show recent commits since this date or relative duration on the default/recent path]:date:' \
     '(-h --help)-h[Show this help message]' \
     '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
+_dot_cmd_stack_context() {
+  _arguments -S \
+    '--json[Emit the structured stack-context payload (plugin format) instead of text]' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '1:Directory to scan (default: current working directory):_files' \
     '*::arg:->args'
 }
 _dot_cmd_git_commit() {
@@ -408,6 +417,9 @@ _dot_complete_command() {
       ;;
     git-context)
       _dot_cmd_git_context
+      ;;
+    stack-context)
+      _dot_cmd_stack_context
       ;;
     git-commit)
       _dot_cmd_git_commit

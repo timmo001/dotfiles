@@ -16,6 +16,10 @@ import {
   gitContextOptions,
   gitContextText,
 } from "../../git/commands/Context.js";
+import {
+  stackContextOptions,
+  stackContextText,
+} from "../../stack/commands/Context.js";
 import { Notes } from "../../notes/services/Notes.js";
 
 /** Named template parameter for the per-command help resource. */
@@ -54,6 +58,15 @@ export const registerContextResources = Effect.gen(function* () {
       "Concise branch context for the current repository: repository/branch/base header, ahead/behind state, PR summary for a feature branch, unstaged, staged, untracked, and branch changed files, and recent commits with push markers.",
     mimeType: "text/plain",
     content: gitContextText(gitContextOptions({})),
+  });
+
+  yield* McpServer.registerResource({
+    uri: "dot://stack-context",
+    name: "stack context",
+    description:
+      "Deterministic tech-stack summary for the current directory: detected languages with their general locations, package ecosystems from manifests, and frameworks from declared dependencies. No LLM and no external tools.",
+    mimeType: "text/plain",
+    content: stackContextText(stackContextOptions({})),
   });
 
   yield* McpServer.registerResource`dot://command/${commandParam}`({

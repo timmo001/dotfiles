@@ -59,6 +59,11 @@ import {
   gitContextRaw,
   gitContextRawJson,
 } from "./git/commands/Context.js";
+import {
+  stackContextOptions,
+  stackContextRaw,
+  stackContextRawJson,
+} from "./stack/commands/Context.js";
 import { gitCommitRaw } from "./git/commands/Commit.js";
 import {
   workflowsListRepos,
@@ -600,6 +605,14 @@ if (mode.type === "native" && mode.command === "mcp") {
         return args.includes("--json")
           ? gitContextRawJson(options)
           : gitContextRaw(options);
+      },
+      "stack-context": (args) => {
+        const options = stackContextOptions({
+          root: args.find((arg) => !arg.startsWith("-")),
+        });
+        return args.includes("--json")
+          ? stackContextRawJson(options)
+          : stackContextRaw(options);
       },
       "git-commit": (args) =>
         gitCommitRaw({

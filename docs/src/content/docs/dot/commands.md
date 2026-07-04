@@ -306,6 +306,52 @@ dot git-context --json
 dot git-context --since "2 days ago"
 ```
 
+## `dot stack-context`
+
+Detect the tech stack of a directory for agents
+
+```text
+dot stack-context [dir] [options]
+```
+
+Detect a directory's tech stack deterministically from its files, with no
+LLM and no external tools: languages (with their general locations), package
+ecosystems (from manifests), and frameworks (from declared dependencies).
+Scans the given directory or the current working directory. Unlike
+git-context it does not require a git repository.
+
+Reads only manifests and takes an extension/filename census (never source
+bodies), so it stays fast even on large trees. Designed as a single command
+for agents to learn a project's stack, and as the shared producer for the
+OpenCode stack-context plugin (via --json).
+
+**Modes**
+
+```text
+(default)       Stack summary: languages, ecosystems, frameworks
+--json          Emit the structured stack-context payload
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Emit the structured stack-context payload (plugin format) instead of text |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<dir>` | Directory to scan (default: current working directory) |
+
+**Examples**
+
+```bash
+dot stack-context
+dot stack-context --json
+dot stack-context ~/projects/app
+```
+
 ## `dot git-commit`
 
 Commit staged changes through the guarded gateway
