@@ -195,20 +195,28 @@ const stowRepo = (
     for (const folder of folders) {
       yield* log.info(`[${scope}] stow ${folder} (repo: ${repoDisplayPath})`);
 
-      // Unstow first (clean slate)
-      const unstowExit = yield* launcher.stream(`stow -D ${folder}`, {
-        cwd: repoDir,
-      });
-      if (unstowExit !== 0) {
-        yield* log.error(
-          `[${scope}] unstow ${folder} failed (exit ${unstowExit})`,
-        );
-        return yield* Effect.fail(
-          new LauncherError(
-            `${scope} install unstow failed on ${folder}`,
-            unstowExit,
-          ),
-        );
+      // Hyprland watches its live config and auto-reloads on change. Unstowing
+      // briefly removes every hypr symlink (hyprland.lua included), and Hyprland
+      // reloads into that gap and drops into emergency mode. Skip the clean-slate
+      // unstow for hypr (stow --adopt stays idempotent on correct links) and
+      // reload Hyprland afterwards.
+      const isHypr = folder === "hypr";
+      if (!isHypr) {
+        // Unstow first (clean slate)
+        const unstowExit = yield* launcher.stream(`stow -D ${folder}`, {
+          cwd: repoDir,
+        });
+        if (unstowExit !== 0) {
+          yield* log.error(
+            `[${scope}] unstow ${folder} failed (exit ${unstowExit})`,
+          );
+          return yield* Effect.fail(
+            new LauncherError(
+              `${scope} install unstow failed on ${folder}`,
+              unstowExit,
+            ),
+          );
+        }
       }
 
       // Build stow command with folder-specific flags
@@ -225,6 +233,11 @@ const stowRepo = (
         if (externalLinks.length > 0) {
           removeExternalSymlinks(externalLinks);
         }
+      }
+      // Keep ~/.config/hypr a real directory so the runtime host symlink and
+      // Hyprland runtime state live in the live tree, not the stow source.
+      if (folder === "hypr") {
+        flags.push("--no-folding");
       }
 
       // Install mode uses --adopt for public scope
@@ -244,6 +257,14 @@ const stowRepo = (
         return yield* Effect.fail(
           new LauncherError(`${scope} install stow failed on ${folder}`, exit),
         );
+      }
+
+      // Apply any added or changed config and clear any prior emergency state.
+      // Ignore failure: Hyprland may not be running (fresh install, headless).
+      if (isHypr) {
+        yield* launcher
+          .stream("hyprctl reload", { cwd: repoDir })
+          .pipe(Effect.catch(() => Effect.void));
       }
     }
   });

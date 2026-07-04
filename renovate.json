@@ -8,11 +8,27 @@
   ],
   "dependencyDashboard": true,
   "labels": ["dependencies"],
+  "customManagers": [
+    {
+      "description": "Keep QUICKSHELL_VERSION in sync with the Arch quickshell package (what the Omarchy shell runs on)",
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github/workflows/quickshell-lint\\.ya?ml$/"],
+      "matchStrings": ["QUICKSHELL_VERSION: \"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "arch/quickshell",
+      "datasourceTemplate": "repology",
+      "versioningTemplate": "loose"
+    }
+  ],
   "packageRules": [
     {
       "description": "Group GitHub Actions.",
       "groupName": "github actions",
       "matchManagers": ["github-actions"]
+    },
+    {
+      "description": "Group the Quickshell lint version updates.",
+      "groupName": "quickshell lint version",
+      "matchDepNames": ["arch/quickshell"]
     }
   ]
 }

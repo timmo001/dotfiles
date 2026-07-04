@@ -454,7 +454,7 @@ const dotItems: readonly MenuItem[] = [
       success: "Services restarted",
     }),
     undefined,
-    ["resume", "suspend", "sleep", "wake", "waybar", "restart", "system"],
+    ["resume", "suspend", "sleep", "wake", "shell", "restart", "system"],
     "System",
   ),
   item(

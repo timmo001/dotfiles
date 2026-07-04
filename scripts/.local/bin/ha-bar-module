@@ -1,0 +1,765 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+MODE=""
+ENTITY_ID=""
+ENTITY_NAME=""
+ICON=""
+UNIT=""
+ICON_PREFIX=""
+UNIT_SUFFIX=""
+QUALITY_ENTITY=""
+VALUE_ENTITY=""
+SWITCH_ENTITY=""
+INACTIVE_SCRIPT_ENTITY=""
+SIMULATE_STATE=""
+FORCE_TRUE=0
+FAKE_STATE=""
+STREAM_KEY=""
+
+TRIGGER_STATE=""
+TRIGGER_COMMAND=""
+TRIGGER_ON="transition"
+TRIGGER_INITIAL=0
+TRIGGER_COOLDOWN=0
+TRIGGER_KEY=""
+
+BAR_PARENT_PID=""
+BAR_PARENT_STARTTIME=""
+LAST_OUTPUT=""
+
+usage() {
+  cat <<'EOF'
+Usage: ha-bar-module <mode> [options]
+
+Emits single-line status-bar JSON (text/class/tooltip) for Home Assistant
+entities. Polling modes print one line and exit; the doorbell mode streams
+continuous lines for a long-running bar widget.
+
+Modes:
+  temperature
+  co2-alert
+  voc-alert
+  nas-activity
+  current-next-event
+  doorbell
+
+Common options:
+  --entity <id>                  Primary entity id
+  --name <label>                 Primary entity display name
+  --icon <text>                  Icon/text when active
+  --unit <text>                  Unit suffix appended to the value (e.g. °C, ppm)
+  --help                         Show this help
+
+Mode options:
+  --quality-entity <id>          VOC quality entity (voc-alert)
+  --value-entity <id>            VOC numeric entity (voc-alert)
+  --switch-entity <id>           Gate switch entity (nas-activity)
+  --inactive-script-entity <id>  Inactive script entity (nas-activity)
+  --simulate <on|off>            Emit simulated state and exit (doorbell)
+  --force-true                   Force simulated on and exit (doorbell)
+  --fake-state <warning|critical> Emit fake warning/critical output
+  --stream-key <key>             Override singleton stream key (doorbell)
+
+Generic trigger options:
+  --trigger-state <value>        Trigger when observed state matches value
+  --trigger-command <command>    Command to run when trigger fires
+  --trigger-on <transition|match>
+                                 Trigger mode (default: transition)
+  --trigger-initial <true|false> Allow first observed state to trigger
+                                 (default: false)
+  --trigger-cooldown <seconds>   Minimum seconds between trigger fires
+                                 (default: 0)
+  --trigger-key <key>            Runtime key for trigger state persistence
+EOF
+}
+
+sanitize_key() {
+  local key="$1"
+  key="${key//[^a-zA-Z0-9._-]/_}"
+  printf '%s' "$key"
+}
+
+set_mode_defaults() {
+  case "$MODE" in
+    temperature)
+      ENTITY_ID="sensor.meter_plus_378b_temperature"
+      ENTITY_NAME="Meter Plus Temperature"
+      ;;
+    co2-alert)
+      ENTITY_ID="sensor.apollo_air_1_806d64_co2"
+      ENTITY_NAME="Apollo Air 1 CO2"
+      ;;
+    voc-alert)
+      QUALITY_ENTITY="sensor.apollo_air_1_806d64_voc_quality"
+      VALUE_ENTITY="sensor.apollo_air_1_806d64_sen55_voc"
+      ENTITY_NAME="Apollo Air 1 VOC"
+      ;;
+    nas-activity)
+      ENTITY_ID="sensor.nas_activity"
+      ENTITY_NAME="NAS Activity"
+      SWITCH_ENTITY="switch.nas"
+      INACTIVE_SCRIPT_ENTITY="script.turn_off_nas_when_inactive"
+      ;;
+    current-next-event)
+      ENTITY_ID="input_text.current_next_event_in_an_hour"
+      ;;
+    doorbell)
+      ENTITY_ID="input_boolean.doorbell"
+      ICON="D"
+      ;;
+    *)
+      printf 'ha-bar-module: unsupported mode: %s\n' "$MODE" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+}
+
+parse_bool_flag() {
+  case "$1" in
+    true|1|yes|on)
+      printf '1'
+      ;;
+    false|0|no|off)
+      printf '0'
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --entity)
+        ENTITY_ID="$2"
+        shift 2
+        ;;
+      --name)
+        ENTITY_NAME="$2"
+        shift 2
+        ;;
+      --icon)
+        ICON="$2"
+        shift 2
+        ;;
+      --unit)
+        UNIT="$2"
+        shift 2
+        ;;
+      --quality-entity)
+        QUALITY_ENTITY="$2"
+        shift 2
+        ;;
+      --value-entity)
+        VALUE_ENTITY="$2"
+        shift 2
+        ;;
+      --switch-entity)
+        SWITCH_ENTITY="$2"
+        shift 2
+        ;;
+      --inactive-script-entity)
+        INACTIVE_SCRIPT_ENTITY="$2"
+        shift 2
+        ;;
+      --simulate)
+        SIMULATE_STATE="$2"
+        shift 2
+        ;;
+      --force-true)
+        FORCE_TRUE=1
+        shift
+        ;;
+      --fake-state)
+        FAKE_STATE="$2"
+        shift 2
+        ;;
+      --stream-key)
+        STREAM_KEY="$2"
+        shift 2
+        ;;
+      --trigger-state)
+        TRIGGER_STATE="$2"
+        shift 2
+        ;;
+      --trigger-command)
+        TRIGGER_COMMAND="$2"
+        shift 2
+        ;;
+      --trigger-on)
+        TRIGGER_ON="$2"
+        shift 2
+        ;;
+      --trigger-initial)
+        TRIGGER_INITIAL="$(parse_bool_flag "$2" || true)"
+        if [[ -z "$TRIGGER_INITIAL" ]]; then
+          printf 'ha-bar-module: --trigger-initial must be true or false\n' >&2
+          exit 1
+        fi
+        shift 2
+        ;;
+      --trigger-cooldown)
+        TRIGGER_COOLDOWN="$2"
+        shift 2
+        ;;
+      --trigger-key)
+        TRIGGER_KEY="$2"
+        shift 2
+        ;;
+      --help|-h)
+        usage
+        exit 0
+        ;;
+      --*)
+        printf 'ha-bar-module: unknown option: %s\n' "$1" >&2
+        usage >&2
+        exit 1
+        ;;
+      *)
+        printf 'ha-bar-module: unexpected argument: %s\n' "$1" >&2
+        usage >&2
+        exit 1
+        ;;
+    esac
+  done
+}
+
+validate_args() {
+  if [[ -n "$TRIGGER_STATE" && -z "$TRIGGER_COMMAND" ]]; then
+    printf 'ha-bar-module: --trigger-command is required with --trigger-state\n' >&2
+    exit 1
+  fi
+
+  if [[ -n "$TRIGGER_COMMAND" && -z "$TRIGGER_STATE" ]]; then
+    printf 'ha-bar-module: --trigger-state is required with --trigger-command\n' >&2
+    exit 1
+  fi
+
+  case "$TRIGGER_ON" in
+    transition|match)
+      ;;
+    *)
+      printf 'ha-bar-module: --trigger-on must be transition or match\n' >&2
+      exit 1
+      ;;
+  esac
+
+  if [[ ! "$TRIGGER_COOLDOWN" =~ ^[0-9]+$ ]]; then
+    printf 'ha-bar-module: --trigger-cooldown must be a non-negative integer\n' >&2
+    exit 1
+  fi
+
+  if [[ -z "$TRIGGER_KEY" ]]; then
+    TRIGGER_KEY="$MODE"
+    if [[ -n "$ENTITY_ID" ]]; then
+      TRIGGER_KEY+=".${ENTITY_ID}"
+    fi
+  fi
+
+  if [[ -z "$STREAM_KEY" ]]; then
+    STREAM_KEY="$MODE"
+    if [[ -n "$ENTITY_ID" ]]; then
+      STREAM_KEY+=".${ENTITY_ID}"
+    fi
+  fi
+}
+
+require_commands() {
+  local cmd
+  for cmd in go-automate jq; do
+    command -v "$cmd" >/dev/null 2>&1 || {
+      printf 'ha-bar-module: missing command: %s\n' "$cmd" >&2
+      exit 1
+    }
+  done
+
+  if [[ "$MODE" == "doorbell" ]]; then
+    command -v singleton-stream >/dev/null 2>&1 || {
+      printf 'ha-bar-module: missing command: singleton-stream\n' >&2
+      exit 1
+    }
+  fi
+}
+
+read_entity_line() {
+  local watch_entity_id="$1"
+  local line=""
+  local watch_pid=""
+
+  coproc ENTITY_WATCH {
+    exec go-automate ha bridge watch entity --bar-json --icon '' "$watch_entity_id" 2>/dev/null
+  }
+
+  watch_pid="${ENTITY_WATCH_PID:-}"
+  IFS= read -r line <&"${ENTITY_WATCH[0]}" || true
+
+  if [[ -n "$watch_pid" ]]; then
+    kill -- "-$watch_pid" 2>/dev/null || kill "$watch_pid" 2>/dev/null || true
+    wait "$watch_pid" 2>/dev/null || true
+  fi
+
+  printf '%s' "$line"
+}
+
+extract_class_field() {
+  local line="$1"
+  local state
+
+  state="${line#*\"class\":\"}"
+  state="${state%%\"*}"
+  printf '%s' "$state"
+}
+
+emit_hidden() {
+  printf '{"text":"","class":"hidden"}\n'
+}
+
+emit_if_changed() {
+  local json="$1"
+
+  if [[ "$json" != "$LAST_OUTPUT" ]]; then
+    printf '%s\n' "$json"
+    LAST_OUTPUT="$json"
+  fi
+}
+
+trigger_state_file() {
+  printf '%s/ha-bar-trigger-%s.state' "${XDG_RUNTIME_DIR:-/tmp}" "$(sanitize_key "$TRIGGER_KEY")"
+}
+
+trigger_cooldown_file() {
+  printf '%s/ha-bar-trigger-%s.last' "${XDG_RUNTIME_DIR:-/tmp}" "$(sanitize_key "$TRIGGER_KEY")"
+}
+
+run_trigger_command() {
+  [[ -n "$TRIGGER_COMMAND" ]] || return
+  nohup setsid bash -lc "$TRIGGER_COMMAND" >/dev/null 2>&1 < /dev/null &
+}
+
+maybe_run_trigger() {
+  local current_state="$1"
+  local state_file
+  local cooldown_file
+  local previous_state=""
+  local should_fire=0
+  local now=0
+  local last=0
+
+  if [[ -z "$TRIGGER_STATE" || -z "$TRIGGER_COMMAND" ]]; then
+    return 0
+  fi
+
+  state_file="$(trigger_state_file)"
+  cooldown_file="$(trigger_cooldown_file)"
+
+  if [[ -f "$state_file" ]]; then
+    previous_state="$(< "$state_file")"
+  fi
+
+  if (( TRIGGER_INITIAL == 0 )) && [[ ! -f "$state_file" ]]; then
+    printf '%s\n' "$current_state" > "$state_file"
+    return
+  fi
+
+  case "$TRIGGER_ON" in
+    transition)
+      if [[ "$previous_state" != "$TRIGGER_STATE" && "$current_state" == "$TRIGGER_STATE" ]]; then
+        should_fire=1
+      fi
+      ;;
+    match)
+      if [[ "$current_state" == "$TRIGGER_STATE" ]]; then
+        should_fire=1
+      fi
+      ;;
+  esac
+
+  printf '%s\n' "$current_state" > "$state_file"
+
+  if (( should_fire )) && (( TRIGGER_COOLDOWN > 0 )); then
+    now="$(date +%s)"
+    if [[ -f "$cooldown_file" ]]; then
+      last="$(< "$cooldown_file")"
+    fi
+
+    if [[ "$last" =~ ^[0-9]+$ ]] && (( now - last < TRIGGER_COOLDOWN )); then
+      should_fire=0
+    else
+      printf '%s\n' "$now" > "$cooldown_file"
+    fi
+  fi
+
+  if (( should_fire )); then
+    run_trigger_command
+  fi
+}
+
+# Walk up the process tree to find the bar host (Quickshell) so the singleton
+# stream can be tied to the shell's lifetime. Falls back to the direct parent.
+find_bar_ancestor_pid() {
+  local pid="$PPID"
+  local depth=0
+  local comm=""
+  local next_pid=""
+
+  while [[ "$pid" =~ ^[0-9]+$ ]] && (( pid > 1 )) && (( depth < 8 )); do
+    comm="$(awk '{print $2}' "/proc/$pid/stat" 2>/dev/null || true)"
+    if [[ "$comm" == "(quickshell)" ]]; then
+      printf '%s' "$pid"
+      return 0
+    fi
+
+    next_pid="$(awk '{print $4}' "/proc/$pid/stat" 2>/dev/null || true)"
+    if [[ ! "$next_pid" =~ ^[0-9]+$ ]] || (( next_pid <= 1 )); then
+      break
+    fi
+
+    pid="$next_pid"
+    depth=$((depth + 1))
+  done
+
+  return 1
+}
+
+capture_bar_parent_starttime() {
+  BAR_PARENT_PID="$(find_bar_ancestor_pid || printf '%s' "$PPID")"
+  BAR_PARENT_STARTTIME="$(awk '{print $22}' "/proc/$BAR_PARENT_PID/stat" 2>/dev/null || true)"
+
+  if [[ -z "$BAR_PARENT_STARTTIME" ]]; then
+    printf 'ha-bar-module: unable to read bar host parent starttime\n' >&2
+    exit 1
+  fi
+}
+
+# Build the optional icon prefix and unit suffix from the bar config so the
+# producer stays presentation-agnostic and adds no stray spacing when unset.
+set_decorations() {
+  ICON_PREFIX=""
+  UNIT_SUFFIX=""
+  if [[ -n "$ICON" ]]; then
+    ICON_PREFIX="$ICON "
+  fi
+  if [[ -n "$UNIT" ]]; then
+    UNIT_SUFFIX=" $UNIT"
+  fi
+}
+
+run_temperature() {
+  local line=""
+  local state=""
+
+  set_decorations
+
+  line="$(read_entity_line "$ENTITY_ID")"
+  if [[ -z "$line" ]]; then
+    emit_hidden
+    return
+  fi
+
+  state="$(extract_class_field "$line")"
+  if [[ ! "$state" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    emit_hidden
+    return
+  fi
+
+  printf '{"text":"%s%.1f%s","class":"temperature","tooltip":"%s (%s): %.1f%s"}\n' "$ICON_PREFIX" "$state" "$UNIT_SUFFIX" "$ENTITY_NAME" "$ENTITY_ID" "$state" "$UNIT_SUFFIX"
+  maybe_run_trigger "$state"
+}
+
+run_co2_alert() {
+  local line=""
+  local state=""
+  local co2_ppm=0
+
+  set_decorations
+
+  case "$FAKE_STATE" in
+    critical)
+      printf '{"text":"%s2200%s","class":"critical","tooltip":"%s (%s): 2200%s"}\n' "$ICON_PREFIX" "$UNIT_SUFFIX" "$ENTITY_NAME" "$ENTITY_ID" "$UNIT_SUFFIX"
+      maybe_run_trigger "critical"
+      return
+      ;;
+    warning)
+      printf '{"text":"%s1600%s","class":"warning","tooltip":"%s (%s): 1600%s"}\n' "$ICON_PREFIX" "$UNIT_SUFFIX" "$ENTITY_NAME" "$ENTITY_ID" "$UNIT_SUFFIX"
+      maybe_run_trigger "warning"
+      return
+      ;;
+  esac
+
+  line="$(read_entity_line "$ENTITY_ID")"
+  if [[ -z "$line" ]]; then
+    emit_hidden
+    return
+  fi
+
+  state="$(extract_class_field "$line")"
+  if [[ ! "$state" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    emit_hidden
+    return
+  fi
+
+  co2_ppm="${state%%.*}"
+  maybe_run_trigger "$state"
+
+  if (( co2_ppm > 2000 )); then
+    printf '{"text":"%s%.0f%s","class":"critical","tooltip":"%s (%s): %.0f%s"}\n' "$ICON_PREFIX" "$state" "$UNIT_SUFFIX" "$ENTITY_NAME" "$ENTITY_ID" "$state" "$UNIT_SUFFIX"
+  elif (( co2_ppm > 1400 )); then
+    printf '{"text":"%s%.0f%s","class":"warning","tooltip":"%s (%s): %.0f%s"}\n' "$ICON_PREFIX" "$state" "$UNIT_SUFFIX" "$ENTITY_NAME" "$ENTITY_ID" "$state" "$UNIT_SUFFIX"
+  else
+    emit_hidden
+  fi
+}
+
+run_voc_alert() {
+  local quality_line=""
+  local value_line=""
+  local quality_state=""
+  local quality_normalized=""
+  local value_state=""
+
+  set_decorations
+
+  case "$FAKE_STATE" in
+    critical)
+      printf '{"text":"%s410","class":"critical","tooltip":"%s (%s): 410\nVOC Quality (%s): Extremely abnormal"}\n' "$ICON_PREFIX" "$ENTITY_NAME" "$VALUE_ENTITY" "$QUALITY_ENTITY"
+      maybe_run_trigger "extremely abnormal"
+      return
+      ;;
+    warning)
+      printf '{"text":"%s240","class":"warning","tooltip":"%s (%s): 240\nVOC Quality (%s): Very abnormal"}\n' "$ICON_PREFIX" "$ENTITY_NAME" "$VALUE_ENTITY" "$QUALITY_ENTITY"
+      maybe_run_trigger "very abnormal"
+      return
+      ;;
+  esac
+
+  quality_line="$(read_entity_line "$QUALITY_ENTITY")"
+  value_line="$(read_entity_line "$VALUE_ENTITY")"
+
+  if [[ -z "$quality_line" || -z "$value_line" ]]; then
+    emit_hidden
+    return
+  fi
+
+  quality_state="$(extract_class_field "$quality_line")"
+  quality_normalized="${quality_state,,}"
+  value_state="$(extract_class_field "$value_line")"
+
+  if [[ ! "$value_state" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    emit_hidden
+    return
+  fi
+
+  maybe_run_trigger "$quality_state"
+
+  if [[ "$quality_normalized" == "extremely abnormal" ]]; then
+    printf '{"text":"%s%.0f","class":"critical","tooltip":"%s (%s): %.0f\nVOC Quality (%s): %s"}\n' "$ICON_PREFIX" "$value_state" "$ENTITY_NAME" "$VALUE_ENTITY" "$value_state" "$QUALITY_ENTITY" "$quality_state"
+  elif [[ "$quality_normalized" == "very abnormal" ]]; then
+    printf '{"text":"%s%.0f","class":"warning","tooltip":"%s (%s): %.0f\nVOC Quality (%s): %s"}\n' "$ICON_PREFIX" "$value_state" "$ENTITY_NAME" "$VALUE_ENTITY" "$value_state" "$QUALITY_ENTITY" "$quality_state"
+  else
+    emit_hidden
+  fi
+}
+
+run_nas_activity() {
+  local activity_line=""
+  local switch_line=""
+  local inactive_line=""
+  local activity_state=""
+  local switch_state=""
+  local inactive_state=""
+  local class_name=""
+
+  set_decorations
+
+  activity_line="$(read_entity_line "$ENTITY_ID")"
+  switch_line="$(read_entity_line "$SWITCH_ENTITY")"
+  inactive_line="$(read_entity_line "$INACTIVE_SCRIPT_ENTITY")"
+
+  if [[ -z "$activity_line" || -z "$switch_line" || -z "$inactive_line" ]]; then
+    emit_hidden
+    return
+  fi
+
+  switch_state="$(extract_class_field "$switch_line")"
+  if [[ "$switch_state" != "on" ]]; then
+    maybe_run_trigger "$switch_state"
+    emit_hidden
+    return
+  fi
+
+  activity_state="$(extract_class_field "$activity_line")"
+  if [[ ! "$activity_state" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    emit_hidden
+    return
+  fi
+
+  inactive_state="$(extract_class_field "$inactive_line")"
+  if [[ "$inactive_state" == "on" ]]; then
+    class_name="active"
+  fi
+
+  printf '{"text":"%s%s","class":"%s","tooltip":"%s (%s): %s\nTurn Off NAS When Inactive (%s): %s"}\n' "$ICON_PREFIX" "$activity_state" "$class_name" "$ENTITY_NAME" "$ENTITY_ID" "$activity_state" "$INACTIVE_SCRIPT_ENTITY" "$inactive_state"
+  maybe_run_trigger "$activity_state"
+}
+
+run_current_next_event() {
+  local line=""
+  local state=""
+
+  set_decorations
+
+  line="$(read_entity_line "$ENTITY_ID")"
+  if [[ -z "$line" ]] || [[ "$line" == *'"text":""'* ]]; then
+    emit_hidden
+    return
+  fi
+
+  state="$(extract_class_field "$line")"
+  if [[ -n "$ICON_PREFIX" ]]; then
+    line="${line/\"text\":\"/\"text\":\"$ICON_PREFIX}"
+  fi
+  printf '%s\n' "$line"
+  maybe_run_trigger "$state"
+}
+
+doorbell_emit_on() {
+  printf '{"class":"active","text":"%s","tooltip":"Doorbell (%s): Active"}\n' "$ICON" "$ENTITY_ID"
+}
+
+doorbell_emit_off() {
+  printf '{"class":"hidden","text":"","tooltip":"Doorbell (%s): Inactive"}\n' "$ENTITY_ID"
+}
+
+doorbell_state_from_line() {
+  local line="$1"
+  local state=""
+
+  state="$(extract_class_field "$line")"
+  state="${state%% *}"
+  if [[ "$state" == "on" ]]; then
+    printf 'on'
+  else
+    printf 'off'
+  fi
+}
+
+run_doorbell_stream() {
+  local line=""
+  local state=""
+  local json=""
+  local stream_pid=""
+
+  cleanup_doorbell_stream() {
+    if [[ -n "$stream_pid" ]]; then
+      kill -- "-$stream_pid" 2>/dev/null || kill "$stream_pid" 2>/dev/null || true
+      wait "$stream_pid" 2>/dev/null || true
+      stream_pid=""
+    fi
+  }
+
+  capture_bar_parent_starttime
+
+  coproc DOORBELL_STREAM {
+    exec singleton-stream \
+      --key "$STREAM_KEY" \
+      --parent-pid "$BAR_PARENT_PID" \
+      --parent-starttime "$BAR_PARENT_STARTTIME" \
+      -- go-automate ha bridge watch entity --bar-json --icon '' "$ENTITY_ID"
+  }
+  stream_pid="${DOORBELL_STREAM_PID:-}"
+
+  trap cleanup_doorbell_stream EXIT
+  trap 'exit 0' HUP INT TERM
+
+  while IFS= read -r line <&"${DOORBELL_STREAM[0]}"; do
+    state="$(doorbell_state_from_line "$line")"
+
+    if [[ "$state" == "on" ]]; then
+      json="$(doorbell_emit_on)"
+    else
+      json="$(doorbell_emit_off)"
+    fi
+
+    emit_if_changed "$json"
+    maybe_run_trigger "$state"
+  done
+
+  cleanup_doorbell_stream
+  trap - EXIT HUP INT TERM
+}
+
+run_doorbell() {
+  if (( FORCE_TRUE )); then
+    SIMULATE_STATE="on"
+  fi
+
+  case "$SIMULATE_STATE" in
+    on)
+      doorbell_emit_on
+      maybe_run_trigger "on"
+      return
+      ;;
+    off)
+      doorbell_emit_off
+      maybe_run_trigger "off"
+      return
+      ;;
+    '')
+      ;;
+    *)
+      printf 'ha-bar-module: unsupported --simulate value: %s\n' "$SIMULATE_STATE" >&2
+      exit 1
+      ;;
+  esac
+
+  run_doorbell_stream
+}
+
+main() {
+  if [[ $# -eq 0 ]]; then
+    usage >&2
+    exit 1
+  fi
+
+  case "$1" in
+    --help|-h)
+      usage
+      exit 0
+      ;;
+  esac
+
+  MODE="$1"
+  shift
+
+  set_mode_defaults
+  parse_args "$@"
+  validate_args
+  require_commands
+
+  case "$MODE" in
+    temperature)
+      run_temperature
+      ;;
+    co2-alert)
+      run_co2_alert
+      ;;
+    voc-alert)
+      run_voc_alert
+      ;;
+    nas-activity)
+      run_nas_activity
+      ;;
+    current-next-event)
+      run_current_next_event
+      ;;
+    doorbell)
+      run_doorbell
+      ;;
+  esac
+}
+
+main "$@"

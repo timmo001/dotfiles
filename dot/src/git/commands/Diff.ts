@@ -58,7 +58,9 @@ export const diffBarJson = (opts?: DiffScanOptions) =>
       },
     )).filter((repo): repo is DiffRepo => repo !== null);
 
-    const text = changed.length > 0 ? `\uF418 ${changed.length}` : "";
+    // Always emit the icon and count so the widget shows "0" when everything
+    // is up to date, rather than collapsing to an empty (hidden) cell.
+    const text = `\uF418 ${changed.length}`;
     const tooltip =
       changed.length > 0
         ? `Repositories with changes pending: ${changed.map((r) => r.name).join("; ")}`

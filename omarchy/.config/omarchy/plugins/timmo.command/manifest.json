@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "timmo.command",
+  "name": "Command",
+  "version": "1.0.0",
+  "author": "Aidan Timson",
+  "description": "Runs a shell command on an interval and renders its status-bar JSON (text/tooltip/class) output",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Widget.qml" },
+  "barWidget": {
+    "displayName": "Command",
+    "description": "Polling command module (the Waybar custom/* equivalent)",
+    "category": "Custom",
+    "allowMultiple": true
+  }
+}

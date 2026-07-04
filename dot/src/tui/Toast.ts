@@ -84,7 +84,7 @@ export class Toast {
    * If `id` matches the current toast, the message and variant are replaced
    * in-place. Otherwise the previous toast is dismissed and a new one shown.
    *
-   * @param id - Stable grouping identifier (e.g. "memory", "restart.waybar")
+   * @param id - Stable grouping identifier (e.g. "memory", "restart.shell")
    * @param message - Display text
    * @param variant - Controls border colour and auto-dismiss timing
    */

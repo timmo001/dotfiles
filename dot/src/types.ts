@@ -15,7 +15,7 @@ export interface Repo {
  * `dot update --check` to core/system repos.
  *
  * - `dotfiles`: public or private dotfiles repositories
- * - `omarchy`: Omarchy system repos (hypr, waybar, ghostty, uwsm, bootstrap)
+ * - `omarchy`: Omarchy system repos (hypr, ghostty, uwsm, bootstrap)
  * - `notes`: the notes vault repository
  * - `private`: schedule-gated activity repos from `dot-git.yml`
  */

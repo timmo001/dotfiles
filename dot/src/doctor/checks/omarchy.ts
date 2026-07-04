@@ -18,8 +18,6 @@ function omarchyRepoSlug(repoName: string): string | null {
   switch (repoName) {
     case "bootstrap":
       return "timmo001/bootstrap";
-    case "waybar":
-      return "timmo001/omarchy-waybar";
     case "ghostty":
       return "timmo001/omarchy-ghostty";
     case "uwsm":
