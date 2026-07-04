@@ -43,3 +43,4 @@ Commands are thin routing prompts: they name an agent, declare required skills o
 | [`/research`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/research.md) | Research a topic against primary sources and return cited findings | `researcher` |
 | [`/reset-branch-reapply`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/reset-branch-reapply.md) | Reset branch to default and reapply current diff staged | `build` |
 | [`/review-current-work`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/review-current-work.md) | Review current branch work with BranchContextPlugin context | `reviewer` |
+| [`/update-docs`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/update-docs.md) | Keep documentation current with recent code changes, via git-context and delegated investigation | `build-ask` |
