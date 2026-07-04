@@ -2,7 +2,7 @@
 
 Repository-specific instructions for coding agents working in this public dotfiles repo.
 
-Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGENTS.md`. This file should only describe this repo's source layout, stow workflow, repo-local commands, and validation expectations.
+Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGENTS.md`. This file should only describe this repo's source layout, stow workflow, repo-local commands, and validation expectations. Don't catalogue skills or commands here: skills self-document via their injected `description`, commands via their frontmatter and the generated docs reference. Keep only repo facts and routing those don't capture.
 
 ## Scope
 
@@ -13,10 +13,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 ## Private Repositories
 
-- Before adding repo-specific logic, paths, or checks to this public repo, determine whether the target repository is public or private.
-- For repository visibility, check the git remote and hosting visibility instead of assuming from the folder name or local path.
-- Keep private repository lists, private package manifests, browser checks, and other machine-specific repo metadata in `~/.config/dotfiles-private`.
-- In this public repo, keep only the shared logic that reads optional private repo config such as `dot-git.yml`, `.dot-browser-checks`, or future private package config files.
+- The global "Private Repos And Files" policy governs the public/private split and the git-remote visibility check; this repo just consumes it, reading optional private config such as `dot-git.yml`, `.dot-browser-checks`, or future private package config files.
 
 ## Key Paths
 
@@ -54,8 +51,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 ## Repo-Specific Skills
 
-- For Effect-TS code (`effect`, `@effect/platform`, `Context.Tag`, `Layer`, `Effect.gen`), apply the `effect` skill.
-- For OpenTUI code (`@opentui/core`, renderables, keyboard handling, suspend/resume), apply the `opentui` skill.
+- The repo-relevant skills are `effect` (Effect v4 code in `dot/`) and `opentui` (OpenTUI code in `dot/`); both self-document their triggers.
 
 ## Omarchy Host Overrides
 
@@ -109,21 +105,4 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - Dev tasks: `mise run <task>` from the repo root, namespaced by project - `dot:*` (`dot:build`, `dot:typecheck`, `dot:format`, `dot:check`) and `docs:*` (`docs:build`, `docs:dev`, `docs:gen`, `docs:check`); `mise tasks` lists them.
 - OpenCode debug wrapper: `dot opencode-debug`
 - MCP config sync: `dot mcp-sync` regenerates each active agent harness's MCP config from the single private spec `dotfiles-private/mcp.yml`; some agent harnesses are documented stubs. Runs automatically in `dot update` before re-stow; run `dot stow` after a manual sync.
-- OpenCode context injection command: `/inject-context [instruction]`
-- OpenCode planning command: `/plan [focus]` (manual entrypoint; some agents can also switch into plan mode via native `plan_enter`)
-- OpenCode grilling command: `/grill [focus]` (extended one-question-at-a-time plan stress-testing before `/plan` or implementation)
-- OpenCode review command: `/review-current-work`
-- OpenCode current-work refactor command: `/refactor-current-work [scope]`
-- OpenCode commit command: `/commit [subject]` (routes through the `git-commit` skill and `dot git-commit`)
-- OpenCode commit and push command: `/commit-push [subject]` (commits then pushes via `dot git-commit --push`)
-- OpenCode investigation command: `/investigate <topic>`
-- OpenCode research command: `/research [topic]` (external primary-source research with citations, via the `researcher` agent)
-- OpenCode exploration command: `/explore-codebase <topic>`
-- OpenCode frontend debug command: `/debug-frontend <page or issue>`
-- OpenCode fallow audit command: `/fallow-audit [workspace]`
-- OpenCode fallow project analysis command: `/fallow-project-analyse [workspace]`
-- OpenCode docs maintenance command: `/update-docs [focus or since]` (updates documentation for recent changes via the `maintain-docs` skill; runs in the active build agent, stops before commit)
-- GitHub notifications command: `dot git-notifications` (`--bar-json`, `--list-threads`, and thread actions)
-- Git diff behavior: `dot git-diff` (`dot diff` is a human compatibility alias)
-- Git context command: `dot git-context` (repo/branch/PR summary, ahead/behind state, unstaged, staged, untracked, branch files, and recent commits with timestamps and remote push status in one shot; substitutes `git status`, `git diff --stat`/`git diff --numstat`, `git diff --cached --stat`, `git log --oneline --stat`, and `git log @{upstream}..HEAD`). On a feature branch it shows the PR summary and description; add `--comments`, `--reviews`, `--labels`, or `--checks` for those sections. Add `--remotes` for fetch/push URLs, `--diff` for full unstaged and staged diffs, `--branch-diff` for the full merge-base diff against the default branch (errors on the default branch), and `--json` for the structured branch-context payload consumed by the OpenCode branch-context plugin.
-- Git commit command: `dot git-commit -m "<subject>"` (guarded commit gateway used by `/commit` and the `git-commit` skill; validates a single-line subject, commits the staged set or `--path` scope, never `git add -A`, `--push` to push, `--dry-run` to preview). Agents commit through this, not raw `git commit`.
+- OpenCode slash commands and `dot` git subcommands self-document (command frontmatter, `dot --help`) and are catalogued in the generated docs reference (`reference/commands.md`, `dot/commands.md`); don't re-document them here. The global AGENTS.md routes the behavioural ones (`/plan`, `/grill`, `/commit`, `/inject-context`, `/review-current-work`).
