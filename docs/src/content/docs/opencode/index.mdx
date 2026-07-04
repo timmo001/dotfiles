@@ -31,7 +31,7 @@ Unlike the rest of these (personal) dotfiles, the OpenCode config is built to be
 
 ## Tooling
 
-- `dot agents-sync` — mirror `~/.config/opencode/AGENTS.md` into harness instruction files: a Cursor rule (`global-agents.mdc`), `~/.claude/CLAUDE.md`, and `~/.codex/AGENTS.md`. Runs automatically at the end of `dot update` and `dot init`.
+- `dot agents-sync` — mirror `~/.config/opencode/AGENTS.md` into agent harness instruction files. Runs automatically at the end of `dot update` and `dot init`.
 - `dot opencode-debug [--agent <name>]` — inspect resolved OpenCode config, paths, and skills.
 - `dot skill-updates` / `dot skill-check` — check/apply upstream skill updates and validate skill references.
 - `dot is-agent` — detect whether dot is running under an AI agent, from agent environment variables with a Linux `/proc` ancestry fallback (exit `0`/`1`, so scripts can branch with `if dot is-agent`). `DOT_AGENT=1`/`0` overrides detection. When an agent (or a non-interactive stdout) invokes a `dot` command that would open the TUI, dot refuses and points at the machine-readable equivalent instead.

@@ -83,10 +83,12 @@ See the [commands reference](/reference/commands/) for the full list.
 
 Two OpenCode [plugins](/reference/plugins/) wire the commands to the vault:
 
-- **`repo-notes`** injects a `<repo-note-context>` block at the top of each note command. It runs `dot notes context --command <name>`, which resolves the owner and repo from git and reports the target notes path. For listing and search commands it also includes existing note metadata; `/note-reference` additionally gets the full note bodies. The note tools themselves (`note_read`, `note_write`, `note_delete`, and `note_list`) come from the [`dot mcp` server](/dot/mcp/), not this plugin.
-- **`notes-guard`** blocks the built-in `read`, `write`, `edit`, `grep`, `glob`, `list`, and `bash` tools from touching the vault, so the `note_*` MCP tools are the only way in.
+- **`repo-notes`** injects a `<repo-note-context>` block at the top of each note command. It runs `dot notes context --command <name>`, which resolves the owner and repo from git and reports the target notes path. For listing and search commands it also includes existing note metadata; `/note-reference` additionally gets the full note bodies. The note tools themselves come from the [`dot mcp` server](/dot/mcp/), not this plugin.
+- **`notes-guard`** blocks the built-in `read`, `write`, `edit`, `grep`, `glob`, `list`, and `bash` tools from touching the vault, so the note MCP tools are the only way in.
 
-So a typical create flow is: run `/note-create` → `repo-notes` injects the repo context → the command summarises the conversation and calls `note_write` → the `dot mcp` server writes the file, commits it, and best-effort pushes the vault, then emits a desktop notification with the push result.
+Agent harnesses prefix MCP server names onto tool calls, so note commands and plugins refer to `dot_note_read`, `dot_note_write`, `dot_note_delete`, and `dot_note_list`. The underlying MCP server registers them as `note_read`, `note_write`, `note_delete`, and `note_list` — see the [MCP server reference](/dot/mcp/).
+
+So a typical create flow is: run `/note-create` → `repo-notes` injects the repo context → the command summarises the conversation and calls `dot_note_write` → the `dot mcp` server writes the file, commits it, and best-effort pushes the vault, then emits a desktop notification with the push result.
 
 ### Handoffs
 

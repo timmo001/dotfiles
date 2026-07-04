@@ -62,7 +62,7 @@ Use `dot` as the canonical workflow command instead of raw `stow` for normal ope
 - `dot doctor` - run to verify tool/repo health when setup issues are suspected.
 - `dot init` - run for first-time setup on a machine.
 - `dot install` - run for backup/adopt install flow.
-- `dot agents-sync` - run when AGENTS mirroring is specifically needed (also runs automatically in `dot update`/`dot git-diff` by default).
+- `dot agents-sync` - run when AGENTS mirroring is specifically needed (also runs automatically at the end of `dot update` and `dot init`).
 
 ## Safety Rules
 
