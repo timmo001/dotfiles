@@ -70,4 +70,5 @@ A plugin is a folder with `manifest.json` (schema version 1, an `id` like `timmo
 ```bash
 QT_QPA_PLATFORM=wayland omarchy restart shell
 ```
+
 :::
