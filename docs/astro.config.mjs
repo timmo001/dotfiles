@@ -128,6 +128,7 @@ export default defineConfig({
             { label: 'Overview', slug: 'configuration' },
             { label: 'Environment Variables', slug: 'configuration/environment' },
             { label: 'Private Git Config', slug: 'configuration/private-git' },
+            { label: 'Private Dashboard Config', slug: 'configuration/private-dashboard' },
             { label: 'Private Packages', slug: 'configuration/private-packages' },
           ],
         },
