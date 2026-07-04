@@ -49,19 +49,17 @@ jobs:
         with:
           install: false
 
-      - name: Install docs tools
+      - name: Install mise tools
         run: |
           mise trust
           mise install
-        working-directory: docs
 
       - name: Regenerate docs OpenCode reference
-        run: mise run gen:opencode
-        working-directory: docs
+        run: mise run docs:gen:opencode
 
       - name: Verify regenerated reference is committed
         run: |
           if ! git diff --exit-code -- docs/src/content/docs/reference; then
-            echo "::error::OpenCode reference docs are out of date. Run 'mise run gen:opencode' in docs/ and commit the result."
+            echo "::error::OpenCode reference docs are out of date. Run 'mise run docs:gen:opencode' and commit the result."
             exit 1
           fi

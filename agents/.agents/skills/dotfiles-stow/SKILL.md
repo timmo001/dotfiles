@@ -77,8 +77,8 @@ When editing the public dotfiles repo (`~/.config/dotfiles`), treat a docs updat
 
 - The Astro + Starlight site under `docs/` is the canonical human documentation. Any change to documented behaviour (commands, flags, workflows, paths, config, stow packages, or user-facing scripts) must update the relevant page under `docs/src/content/docs/` in the same commit.
 - New stow packages and user-facing scripts (for example a `topgrade/` package or a `scripts/.local/bin/*` tool) are not generated. Add or extend a hand-written page under `configuration/`, `dot/`, `omarchy/`, or `getting-started/`.
-- `docs/src/content/docs/dot/commands.md` and `docs/src/content/docs/reference/{agents,commands,skills,plugins}.md` are generated. Edit their sources (`dot/src/cli/spec.ts` and the OpenCode assets under `agents/**`), then run `mise run gen` in `docs/` and commit the result; the `dot` reference also pairs with `dot completions`.
-- The `docs-drift` CI workflow fails a pull request when a fresh `mise run gen` would change those generated pages, so regenerate and commit before opening a PR.
+- `docs/src/content/docs/dot/commands.md` and `docs/src/content/docs/reference/{agents,commands,skills,plugins}.md` are generated. Edit their sources (`dot/src/cli/spec.ts` and the OpenCode assets under `agents/**`), then run `mise run docs:gen` and commit the result; the `dot` reference also pairs with `dot completions`.
+- The `docs-drift` CI workflow fails a pull request when a fresh `mise run docs:gen` would change those generated pages, so regenerate and commit before opening a PR.
 - See the repo `AGENTS.md` "Documentation Site" section for the full source-to-page mapping.
 
 ## Omarchy Host Override Documentation Rules

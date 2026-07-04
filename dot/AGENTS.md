@@ -283,11 +283,11 @@ dot --help                    # Show help
 ## Build
 
 ```bash
-cd ~/.config/dotfiles/dot
-mise run build   # outputs to ../scripts/.local/bin/dot (wraps bun run build)
+cd ~/.config/dotfiles
+mise run dot:build   # outputs to scripts/.local/bin/dot (wraps bun run build)
 ```
 
-`dot/mise.toml` defines the dev tasks (`build`, `dev`, `typecheck`, `format`, `format:check`, `check`) as the unified entrypoint; each wraps the matching `bun run` script, so `bun run build` still works for the fresh-machine bootstrap. CI runs these via `mise run`. Run `mise tasks` to list them.
+The single root `mise.toml` defines the dev tasks, namespaced `dot:*` (`dot:build`, `dot:dev`, `dot:typecheck`, `dot:format`, `dot:format:check`, `dot:check`) with `dir = "dot"`; each wraps the matching `bun run` script, so `bun run build` still works for the fresh-machine bootstrap. CI runs these via `mise run`. Run `mise tasks` to list them.
 
 The build is also triggered by `dot update`, which runs `bun install` before compiling the binary. `dot update`'s rebuild (`src/lib/selfUpdate.ts`) intentionally does **not** use the `build` task: it compiles to a temp path and atomically renames over the running binary to avoid `ETXTBSY`, which a direct `--outfile` over the live binary would hit.
 
@@ -320,10 +320,10 @@ After that bootstrap build, run the checked-out binary directly. If private dotf
 Always run type check, format, and build after every final code change:
 
 ```bash
-cd ~/.config/dotfiles/dot
-mise run check               # type check + prettier format check
-mise run format              # format with prettier (required before every commit)
-mise run build               # compile binary
+cd ~/.config/dotfiles
+mise run dot:check           # type check + prettier format check
+mise run dot:format          # format with prettier (required before every commit)
+mise run dot:build           # compile binary
 ```
 
 The underlying `bunx tsc --noEmit` / `bun run format` / `bun run build` commands remain valid equivalents.
@@ -332,7 +332,7 @@ For dead-code analysis, use the MCP `analyze` tool with `root: dot`, or `/fallow
 
 ### Effect language service
 
-`@effect/language-service` is enabled in `tsconfig.json`, and the `prepare` script patches the local TypeScript (`effect-language-service patch`) so `mise run typecheck` surfaces the official Effect v4 diagnostics inline. Effect errors fail the typecheck; warnings and messages stay advisory (`ignoreEffectWarningsInTscExitCode` is set), so keep them visible but non-blocking. Editors and OpenCode also pick up the plugin's refactors and diagnostics through the TypeScript LSP when the workspace TypeScript version is used. For a report without patching, run `effect-language-service diagnostics --project tsconfig.json` (also `overview`, `quickfixes`, `layerinfo`) from `dot/`, always via the local install rather than a bare remote `bunx`/`npx`.
+`@effect/language-service` is enabled in `tsconfig.json`, and the `prepare` script patches the local TypeScript (`effect-language-service patch`) so `mise run dot:typecheck` surfaces the official Effect v4 diagnostics inline. Effect errors fail the typecheck; warnings and messages stay advisory (`ignoreEffectWarningsInTscExitCode` is set), so keep them visible but non-blocking. Editors and OpenCode also pick up the plugin's refactors and diagnostics through the TypeScript LSP when the workspace TypeScript version is used. For a report without patching, run `effect-language-service diagnostics --project tsconfig.json` (also `overview`, `quickfixes`, `layerinfo`) from `dot/`, always via the local install rather than a bare remote `bunx`/`npx`.
 
 Dependency note: the tracked lockfile is `pnpm-lock.yaml` (`bun.lock` is gitignored, and CI's `bun install --frozen-lockfile` migrates from `pnpm-lock.yaml`). After changing dependencies with `bun add`, run `pnpm install --lockfile-only` to update the tracked lockfile, otherwise the CI frozen install fails.
 

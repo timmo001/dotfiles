@@ -74,7 +74,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - When adding new `dot` subcommands that users may want quick access to, also add them to the menu registry in `dot/src/menu.ts`.
 - Keep command and flag metadata in `dot/src/cli/spec.ts`; help and completion generation consume that registry.
 - When changing `dot` commands, subcommands, aliases, or flags, run `dot completions` for each supported shell after rebuilding so the stowed completion files stay in sync.
-- The `docs/` command reference (`docs/src/content/docs/dot/commands.md`) is generated from `dot/src/cli/spec.ts`. After changing commands, regenerate it with `mise run gen:cli` in `docs/` (alongside shell completions) and commit the result.
+- The `docs/` command reference (`docs/src/content/docs/dot/commands.md`) is generated from `dot/src/cli/spec.ts`. After changing commands, regenerate it with `mise run docs:gen:cli` (alongside shell completions) and commit the result.
 
 ## Documentation Site
 
@@ -86,9 +86,9 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
   - New stow package or user-facing script (for example `topgrade/` or a `scripts/.local/bin/*` tool): add or extend a hand-written page under `configuration/`, `dot/`, `omarchy/`, or `getting-started/`. Generated pages never cover these.
   - Environment variables, XDG paths, or install/bootstrap steps: `configuration/environment.md`, `getting-started/install.md`, `getting-started/new-machine.md`.
   - Hypr host-override layout: `omarchy/host-overrides.md`.
-- Two sections are generated, not hand-written: `docs/src/content/docs/dot/commands.md` (from `dot/src/cli/spec.ts` via `mise run gen:cli`) and `docs/src/content/docs/reference/{agents,commands,skills,plugins}.md` (from the OpenCode assets via `mise run gen:opencode`). Edit the sources, then run `mise run gen` in `docs/` and commit the result; never hand-edit the generated pages.
-- CI enforces generated pages on pull requests and direct pushes: `docs-drift`, `tui-build`, and `opencode-publish` regenerate the relevant reference pages and fail when the committed output is stale. Regenerate with `mise run gen` in `docs/` and commit the result before pushing. Hand-written pages are not auto-checked, so the mapping above is on you.
-- Dev tasks for `dot/` and `docs/` are defined as mise tasks in each directory's `mise.toml` (run `mise tasks` to list, `mise run <task>` to run). They wrap the matching `bun run` scripts, so `bun run build` etc. still work; CI (`tui-build`, `opencode-publish`, `docs-drift`) and the fresh-machine bootstrap rely on that. Use **bun** in `docs/` for dependencies (`bun install`); `mise run build` (wrapping `bun run build`) runs `starlight-links-validator`, so broken internal links fail the build.
+- Two sections are generated, not hand-written: `docs/src/content/docs/dot/commands.md` (from `dot/src/cli/spec.ts` via `mise run docs:gen:cli`) and `docs/src/content/docs/reference/{agents,commands,skills,plugins}.md` (from the OpenCode assets via `mise run docs:gen:opencode`). Edit the sources, then run `mise run docs:gen` and commit the result; never hand-edit the generated pages.
+- CI enforces generated pages on pull requests and direct pushes: `docs-drift`, `tui-build`, and `opencode-publish` regenerate the relevant reference pages and fail when the committed output is stale. Regenerate with `mise run docs:gen` and commit the result before pushing. Hand-written pages are not auto-checked, so the mapping above is on you.
+- Dev tasks for `dot/` and `docs/` are defined as mise tasks in the single root `mise.toml`, namespaced by project (`dot:*` and `docs:*`; run `mise tasks` to list, `mise run <task>` to run). Each task sets its own `dir` and wraps the matching `bun run` script, so `bun run build` etc. still work; CI (`tui-build`, `opencode-publish`, `docs-drift`) and the fresh-machine bootstrap rely on that. Use **bun** in `docs/` for dependencies (`bun install`); `mise run docs:build` (wrapping `bun run build`) runs `starlight-links-validator`, so broken internal links fail the build.
 
 ## Script Configuration Policy
 
@@ -99,7 +99,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 ## Validation
 
 - Basic health check: `dot doctor`
-- Dev tasks: `mise run <task>` in `dot/` (`build`, `typecheck`, `format`, `check`) and `docs/` (`build`, `dev`, `gen`, `check`); `mise tasks` lists them.
+- Dev tasks: `mise run <task>` from the repo root, namespaced by project - `dot:*` (`dot:build`, `dot:typecheck`, `dot:format`, `dot:check`) and `docs:*` (`docs:build`, `docs:dev`, `docs:gen`, `docs:check`); `mise tasks` lists them.
 - OpenCode debug wrapper: `dot opencode-debug`
 - MCP config sync: `dot mcp-sync` regenerates each active harness's MCP config (OpenCode, Cursor, VS Code, Copilot) from the single private spec `dotfiles-private/mcp.yml`; Gemini, Codex, and Claude Code are documented stubs. Runs automatically in `dot update` before re-stow; run `dot stow` after a manual sync.
 - OpenCode context injection command: `/inject-context [instruction]`

@@ -13,9 +13,9 @@ import type { ConfigService } from "../services/Config.js";
  * Git pathspecs used to list candidate mise config files in a tracked repo.
  *
  * A leading `*` matches across path separators in git's default pathspec, so
- * these catch both root-level and nested configs (e.g. `dot/mise.toml`). The
- * matches are re-checked against {@link isMiseConfigPath} to drop incidental
- * hits like `promise.toml`.
+ * these catch both root-level and nested configs (e.g. the repo-root
+ * `mise.toml`, or a `mise/config.toml`). The matches are re-checked against
+ * {@link isMiseConfigPath} to drop incidental hits like `promise.toml`.
  */
 const MISE_CONFIG_PATHSPECS = [
   "*mise.toml",

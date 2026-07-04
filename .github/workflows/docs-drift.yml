@@ -33,21 +33,19 @@ jobs:
         with:
           install: false
 
-      - name: Install docs tools
+      - name: Install mise tools
         run: |
           mise trust
           mise install
-        working-directory: docs
 
       - name: Regenerate generated docs
-        run: mise run gen
-        working-directory: docs
+        run: mise run docs:gen
 
       - name: Verify generated docs are in sync
         run: |
           if ! git diff --exit-code -- \
             docs/src/content/docs/dot/commands.md \
             docs/src/content/docs/reference; then
-            echo "::error::Generated docs are out of date. Run 'mise run gen' in docs/ and commit the result (the dot command reference also pairs with 'dot completions')."
+            echo "::error::Generated docs are out of date. Run 'mise run docs:gen' and commit the result (the dot command reference also pairs with 'dot completions')."
             exit 1
           fi
