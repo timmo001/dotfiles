@@ -59,8 +59,8 @@ The pull request summary and description are on by default on a feature branch; 
 | `--no-branch-metadata` | off (section included) | Omit the branch metadata block. |
 | `--no-status` | off (section included) | Omit the working-tree status block. |
 | `--no-work-scope` | off (section included) | Omit the branch work-scope aggregates. |
-| `--diff` | off | Append the full unstaged and staged diffs beneath their sections. |
-| `--branch-diff` | off | Append the merge-base diff vs the default branch; errors on the default branch. |
+| `--diff` | off | Append the full unstaged and staged diffs beneath their sections. Text output only; ignored with `--json` (prints a stderr warning). |
+| `--branch-diff` | off | Append the merge-base diff vs the default branch; errors on the default branch. Text output only; ignored with `--json` (prints a stderr warning). |
 | `--since <date>` | today or last 10 | Override the recent-commit window on the default/recent path. |
 
 The review decision and comment count are part of the always-on PR summary, so they need no flag. On the default branch the PR block is skipped regardless of `--no-pr`. Flags combine freely, for example `dot git-context --json --comments --reviews --labels --checks` is what the branch-context plugin runs.
@@ -78,6 +78,8 @@ Two injection tiers:
 
 Full-context commands include `/review-current-work`, `/refactor-current-work`, `/inject-context`, and `/reset-branch-reapply`. Work-scope commands include scoped refactor and skill-routing commands that only need changed files (see the plugin source for the current command list). Commands that depend on injected context should follow the [`branch-context-consumer`](/reference/skills/) skill: use the precomputed `<work-scope>` block instead of rebuilding scope with separate git calls.
 
+On the default branch, `<work-scope>` reports that branch scope is skipped and lists recent commits instead of branch-only changes, so injected context still carries history when there is no feature branch.
+
 ### JSON payload (`--json`)
 
 `--json` emits one structured snapshot from the same producer as the text output. The OpenCode plugin parses this payload and renders XML; the MCP server and other automation can consume it directly.
@@ -90,10 +92,11 @@ Top-level fields:
 | `branchMetadata` | default on | Repository root, branch, HEAD, remotes, ahead/behind, base ref |
 | `status` | default on | Compact `git status -sb` plus unstaged, staged, and untracked name-status lists |
 | `workScope` | default on | Branch-only commits, changed files, and diff stat vs the default branch |
+| `commits` | default branch only | Recent commits (marker, hash, relative time, subject), included when branch scope is skipped |
 | `pullRequest` | feature branch, unless `--no-pr` | PR summary plus any opt-in detail sections |
 | `warnings` | always | Non-fatal collection issues (missing `gh`, fetch failure, truncation) |
 
-The text renderer also prints a recent-commits section (today's window, branch-unique commits, or `--since`) with per-commit timestamps, push markers, and inline file stats. That list is not part of the `--json` payload; use text output or `git_context` with default parameters when you need it. Likewise, full working-tree or merge-base diffs (`--diff`, `--branch-diff`) are text-only and are not serialised into JSON.
+The text renderer prints a recent-commits section (today's window, branch-unique commits, or `--since`) with per-commit timestamps, push markers, and inline file stats. On a feature branch that history is the `workScope.branchCommits` list, so the payload omits the standalone `commits` field. On the default branch, where branch scope is skipped, the payload adds a compact `commits` block (pushed/local marker, hash, relative time, subject) so injected context still carries recent history. Full working-tree and merge-base diffs (`--diff`, `--branch-diff`) remain text-only and are never serialised into JSON; combining them with `--json` prints a stderr warning and is otherwise ignored.
 
 Large text blocks are truncated in the JSON renderer so prompt size stays bounded. Overflow appends `[TRUNCATED N CHARS]`:
 

@@ -17,6 +17,12 @@ type CommandResult =
 
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Commands that receive branch context are matched by exact name against these
+ * sets. Any new context-consuming command must be registered here (full context
+ * includes the pull request; work scope omits it) or the plugin will not inject
+ * for it. Keep private command names in sync with the private overlay.
+ */
 const BRANCH_CONTEXT_COMMANDS = new Set([
   // General
   "inject-context",
@@ -90,14 +96,6 @@ const stringArray = (value: unknown): string[] =>
 const recordArray = (value: unknown): JsonRecord[] =>
   Array.isArray(value) ? value.filter(isRecord) : []
 
-const remoteDetails = (value: unknown): string[] =>
-  recordArray(value).map((remote) => {
-    const name = stringField(remote, "name") || "(unknown)"
-    const fetchUrl = stringField(remote, "fetchUrl") || "(unknown)"
-    const pushUrl = stringField(remote, "pushUrl") || "(unknown)"
-    return `${name}: fetch ${fetchUrl}; push ${pushUrl}`
-  })
-
 const parseJSON = (text: string): JsonRecord | null => {
   try {
     const parsed: unknown = JSON.parse(text)
@@ -139,7 +137,6 @@ const formatErrorContext = (message: string, error: string | null): string => {
 const renderBranchMetadata = (meta: JsonRecord | null): string[] => {
   if (!meta) return ["(unavailable)"]
   const remotes = stringArray(meta.remotes)
-  const details = remoteDetails(meta.remoteDetails)
   return [
     `Repository: ${stringField(meta, "repositoryName") || "(unknown)"}`,
     `Repository root: ${stringField(meta, "repositoryRoot") || "(unknown)"}`,
@@ -152,24 +149,38 @@ const renderBranchMetadata = (meta: JsonRecord | null): string[] => {
     `Ahead/behind base: ${numberField(meta, "ahead")} ahead, ${numberField(meta, "behind")} behind`,
     `On default branch: ${booleanField(meta, "onDefaultBranch") ? "yes" : "no"}`,
     `Known remotes: ${remotes.length ? remotes.join(", ") : "(none)"}`,
-    ...(details.length ? ["Remote URLs:", ...details.map((detail) => `  ${detail}`)] : []),
   ]
 }
 
-const renderWorkScope = (status: JsonRecord | null, workScope: JsonRecord | null): string[] => {
-  return [
+const renderWorkScope = (
+  status: JsonRecord | null,
+  workScope: JsonRecord | null,
+  recentCommits: string,
+): string[] => {
+  const lines = [
     formatList("Unstaged changed files", status ? stringField(status, "unstaged") : ""),
     "",
     formatList("Staged changed files", status ? stringField(status, "staged") : ""),
     "",
     formatList("Untracked files", status ? stringField(status, "untracked") : ""),
     "",
+  ]
+  if (workScope && booleanField(workScope, "skipped")) {
+    lines.push(
+      "Branch scope: skipped (HEAD is on the default branch)",
+      "",
+      formatList("Recent commits", recentCommits),
+    )
+    return lines
+  }
+  lines.push(
     formatList("Branch-only commits", workScope ? stringField(workScope, "branchCommits") : ""),
     "",
     formatList("Branch changed files", workScope ? stringField(workScope, "branchFiles") : ""),
     "",
     formatList("Branch diff stat", workScope ? stringField(workScope, "branchDiffStat") : ""),
-  ]
+  )
+  return lines
 }
 
 const renderComments = (comments: JsonRecord[]): string => {
@@ -229,6 +240,7 @@ const renderBranchContext = (data: JsonRecord, includePullRequest: boolean): str
   const meta = isRecord(data.branchMetadata) ? data.branchMetadata : null
   const status = isRecord(data.status) ? data.status : null
   const workScope = isRecord(data.workScope) ? data.workScope : null
+  const recentCommits = stringField(data, "commits")
   const pr = isRecord(data.pullRequest) ? data.pullRequest : null
   const warnings = stringArray(data.warnings)
 
@@ -254,8 +266,8 @@ const renderBranchContext = (data: JsonRecord, includePullRequest: boolean): str
     ),
     formatTag(
       "work-scope",
-      "Current work scope in priority order. Use unstaged first, then staged, then branch-only changes.",
-      renderWorkScope(status, workScope),
+      "Current work scope in priority order: unstaged, then staged, then branch changes. On the default branch, branch scope is skipped and recent commits are shown instead.",
+      renderWorkScope(status, workScope, recentCommits),
     ),
   ]
 
@@ -309,9 +321,10 @@ export const BranchContextPlugin = (async ({ $ }) => {
       )
     }
     if (!booleanField(data, "inRepo")) {
+      const warnings = stringArray(data.warnings)
       return formatErrorContext(
         "BranchContextPlugin could not collect git context because this directory is not a git worktree.",
-        null,
+        warnings.length ? warnings.join("; ") : null,
       )
     }
 

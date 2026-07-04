@@ -64,11 +64,32 @@ export function gitContextRaw(
   );
 }
 
+/**
+ * Warn on stderr when text-only flags are combined with `--json`. `--diff` and
+ * `--branch-diff` are never serialised into the payload, so combining them with
+ * `--json` does collection work that is silently discarded. `--since` is
+ * excluded: it still shapes the recent-commit range on the default branch.
+ */
+function warnInertJsonFlags(
+  options: BranchContextOptions,
+): Effect.Effect<void> {
+  const inert: string[] = [];
+  if (options.diff) inert.push("--diff");
+  if (options.branchDiff) inert.push("--branch-diff");
+  if (inert.length === 0) return Effect.void;
+  return Effect.sync(() =>
+    console.error(
+      `[dot git-context] ${inert.join(" and ")} ${inert.length === 1 ? "is" : "are"} text-only and ignored with --json.`,
+    ),
+  );
+}
+
 /** CLI: write the git-context JSON output to stdout. */
 export function gitContextRawJson(
   options: BranchContextOptions,
 ): Effect.Effect<void, never, CommandExecutor | GitHub> {
-  return gitContextJson(options).pipe(
+  return warnInertJsonFlags(options).pipe(
+    Effect.andThen(gitContextJson(options)),
     Effect.flatMap(writeText),
     Effect.withSpan("gitContext.rawJson"),
     handleContextError,

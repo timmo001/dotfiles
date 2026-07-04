@@ -9,6 +9,7 @@
 import { CHAR_LIMITS } from "./model.js";
 import type {
   BranchContextData,
+  CommitRecord,
   FileChange,
   PullRequestData,
 } from "./model.js";
@@ -22,6 +23,19 @@ function limited(text: string, max: number): string {
 /** Join `--name-status` raw lines. */
 function nameStatusText(files: readonly FileChange[]): string {
   return files.map((file) => file.raw).join("\n");
+}
+
+/**
+ * Render recent commits as compact lines (`<marker> <hash> <time> <subject>`).
+ * Emitted only for the default-branch payload, where branch-scope commits are
+ * empty; the pushed (`✓`) / local (`↑`) marker mirrors the text legend.
+ */
+function recentCommitsText(records: readonly CommitRecord[]): string {
+  return records
+    .map((commit) =>
+      `${commit.pushed ? "✓" : "↑"} ${commit.shortHash} ${commit.relativeTime} ${commit.subject}`.trimEnd(),
+    )
+    .join("\n");
 }
 
 /** Serialised pull request block for the JSON payload. */
@@ -51,7 +65,9 @@ function toPullRequestJson(pr: PullRequestData): PullRequestJson {
 /**
  * Render the branch-context snapshot as the JSON payload consumed by the
  * plugin. Only enabled sections are present; `pullRequest` is `null` when none
- * applies, and `inRepo: false` signals the plugin to emit its error block.
+ * applies, and `inRepo: false` signals the plugin to emit its error block. The
+ * recent-commit list is serialised as `commits` only when branch scope is
+ * skipped (HEAD on the default branch), where branch-scope commits are empty.
  */
 export function renderBranchContextJson(data: BranchContextData): string {
   if (!data.inRepo) {
@@ -61,6 +77,12 @@ export function renderBranchContextJson(data: BranchContextData): string {
       warnings: data.warnings,
     });
   }
+
+  const workScopeSkipped = !data.workScope || data.workScope.skipped;
+  const recentCommits =
+    workScopeSkipped && data.commits && data.commits.records.length > 0
+      ? recentCommitsText(data.commits.records)
+      : undefined;
 
   const payload = {
     inRepo: true,
@@ -104,6 +126,9 @@ export function renderBranchContextJson(data: BranchContextData): string {
             ),
           },
         }
+      : {}),
+    ...(recentCommits !== undefined
+      ? { commits: limited(recentCommits, CHAR_LIMITS.commits) }
       : {}),
     pullRequest: data.pullRequest ? toPullRequestJson(data.pullRequest) : null,
     warnings: data.warnings,

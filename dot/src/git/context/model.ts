@@ -282,7 +282,10 @@ export interface BranchContextData {
   readonly diffs?: DiffSection;
   /** Pull request data, or `null` when none applies. */
   readonly pullRequest: PullRequestData | null;
-  /** Non-fatal collection issues (missing gh, PR fetch failure, truncation). */
+  /**
+   * Non-fatal collection issues (missing gh, PR fetch failure). Large-section
+   * truncation is applied inline by the JSON renderer, not recorded here.
+   */
   readonly warnings: readonly string[];
 }
 
