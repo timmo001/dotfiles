@@ -3,13 +3,13 @@ title: MCP Server
 description: Run dot as a Model Context Protocol server over stdio.
 ---
 
-`dot mcp` starts a [Model Context Protocol](https://modelcontextprotocol.io) server over stdio. It exposes the repository notes vault and read-only repository context to any MCP-capable harness (OpenCode, Codex, Cursor, Copilot CLI, VS Code, Gemini) through the same `dot` binary, so every tool talks to one implementation.
+`dot mcp` starts a [Model Context Protocol](https://modelcontextprotocol.io) server over stdio. It exposes the repository notes vault and read-only repository context to any MCP-capable agent harness through the same `dot` binary, so every tool talks to one implementation.
 
 The server is launched by an MCP client, not run interactively. It speaks JSON-RPC on stdout and sends all logging to stderr, so stdout stays protocol-clean.
 
 ## Tools
 
-Harnesses that load this server under the name `dot` expose tools with a `dot_` prefix (for example `dot_note_read` in OpenCode). The tables below use the raw MCP tool names from `tools/list`.
+Agent harnesses that load this server under the name `dot` expose tools with a `dot_` prefix (for example `dot_note_read`). The tables below use the raw MCP tool names from `tools/list`.
 
 ### Notes tools
 

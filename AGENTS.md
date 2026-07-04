@@ -35,7 +35,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - `agents/.config/opencode/` contains the shared OpenCode config source published from this repo.
 - `agents/.agents/skills/` contains globally stowed skills shared by OpenCode and Codex via `~/.agents/skills/`.
 - `.opencode/skills/` contains repo-local skills for this repo only.
-- `dot agents-sync` mirrors the global private AGENTS source into Cursor, Claude Code, and Codex instruction files; `dot update` and `dot init` run that sync automatically.
+- `dot agents-sync` mirrors the global private AGENTS source into agent harness instruction files; `dot update` and `dot init` run that sync automatically.
 
 ### OpenCode Layer Boundaries
 
@@ -101,7 +101,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - Basic health check: `dot doctor`
 - Dev tasks: `mise run <task>` from the repo root, namespaced by project - `dot:*` (`dot:build`, `dot:typecheck`, `dot:format`, `dot:check`) and `docs:*` (`docs:build`, `docs:dev`, `docs:gen`, `docs:check`); `mise tasks` lists them.
 - OpenCode debug wrapper: `dot opencode-debug`
-- MCP config sync: `dot mcp-sync` regenerates each active harness's MCP config (OpenCode, Cursor, VS Code, Copilot) from the single private spec `dotfiles-private/mcp.yml`; Gemini, Codex, and Claude Code are documented stubs. Runs automatically in `dot update` before re-stow; run `dot stow` after a manual sync.
+- MCP config sync: `dot mcp-sync` regenerates each active agent harness's MCP config from the single private spec `dotfiles-private/mcp.yml`; some agent harnesses are documented stubs. Runs automatically in `dot update` before re-stow; run `dot stow` after a manual sync.
 - OpenCode context injection command: `/inject-context [instruction]`
 - OpenCode planning command: `/plan [focus]` (manual entrypoint; some agents can also switch into plan mode via native `plan_enter`)
 - OpenCode grilling command: `/grill [focus]` (extended one-question-at-a-time plan stress-testing before `/plan` or implementation)

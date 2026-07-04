@@ -669,7 +669,7 @@ dot note delete
 
 ## `dot agents-sync`
 
-Mirror AGENTS.md to Cursor, Claude Code, and Codex instruction files
+Mirror AGENTS.md to agent harness instruction files
 
 ```text
 dot agents-sync
@@ -698,8 +698,7 @@ dot mcp
 ```
 
 Start a Model Context Protocol server that exposes the notes vault and
-read-only repository context to any MCP-capable harness (OpenCode, Codex,
-Cursor, Copilot CLI, VS Code, Gemini).
+read-only repository context to any MCP-capable agent harness.
 
 The server speaks JSON-RPC over stdio and is meant to be launched by an
 MCP client, not run interactively. Mutating note actions emit a desktop
@@ -720,10 +719,10 @@ dot mcp-sync
 ```
 
 Regenerate each active harness's native MCP config from the single
-private spec (mcp.yml), keeping OpenCode, Cursor, VS Code, and Copilot
-aligned. Writes into the stowed private source tree; run dot stow after.
+private spec (mcp.yml), keeping agent harness MCP configs aligned.
+Writes into the stowed private source tree; run dot stow after.
 
-Gemini, Codex, and Claude Code are documented stubs and are not written.
+Some agent harnesses are documented stubs and are not written.
 OpenCode gated servers also receive a default-off tools gate so their
 tool schemas stay out of the baseline context until an agent re-enables
 them.
@@ -742,8 +741,8 @@ Detect whether an AI coding agent is running dot
 dot is-agent [options]
 ```
 
-Detect whether dot is running under an AI coding agent (OpenCode, Claude
-Code, Codex) from agent environment variables, falling back to a Linux
+Detect whether dot is running under an agent harness from agent
+environment variables, falling back to a Linux
 /proc process-ancestry check. Exits 0 when an agent is detected and 1
 otherwise, so scripts can branch with `if dot is-agent`.
 
