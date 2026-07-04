@@ -13,12 +13,13 @@ A clean, end-to-end walkthrough for setting up a new machine.
     yay -S --needed git mise-bin
    ```
 
-4. Build the `dot` binary:
+4. Build the `dot` binary (mise trusts and installs the pinned toolchain, then the build task installs dependencies and compiles it):
 
    ```bash
-   cd ~/.config/dotfiles/dot
-   mise --no-config exec bun@latest -- bun install
-   mise --no-config exec bun@latest -- bun run build
+   cd ~/.config/dotfiles
+   mise trust
+   mise install
+   mise run dot:build
    ```
 
 5. Run first-use setup:

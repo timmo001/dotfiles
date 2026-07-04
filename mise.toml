@@ -5,6 +5,11 @@ node = "26.4.0"
 bun = "1.3.14"
 
 # dot (runs in ./dot)
+[tasks."dot:install"]
+description = "Install dot dependencies"
+dir = "dot"
+run = "bun install"
+
 [tasks."dot:dev"]
 description = "Run dot in watch mode"
 dir = "dot"
@@ -13,6 +18,7 @@ run = "bun run dev"
 [tasks."dot:build"]
 description = "Compile the dot binary to scripts/.local/bin/dot"
 dir = "dot"
+depends = ["dot:install"]
 run = "bun run build"
 
 [tasks."dot:typecheck"]

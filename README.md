@@ -30,9 +30,10 @@ git clone git@github.com:timmo001/dotfiles.git ~/.config/dotfiles
 gh auth status || gh auth login
 
 # Build the checked-out dot binary before it is on PATH.
-cd ~/.config/dotfiles/dot
-mise --no-config exec bun@latest -- bun install
-mise --no-config exec bun@latest -- bun run build
+cd ~/.config/dotfiles
+mise trust
+mise install
+mise run dot:build
 
 # One-time first-use setup, ending with dot update.
 ~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive --confirm
