@@ -53,12 +53,16 @@ Frameworks:
 
 ## OpenCode stack-context plugin
 
-The `stack-context` plugin runs `dot stack-context --json` and injects a `<stack-context>` XML block into the command prompt before execution, so an agent starts with reliable, non-hallucinated stack context instead of guessing or re-scanning the tree. It fires on:
+The `stack-context` plugin runs `dot stack-context --json` against the repository root and injects a `<stack-context>` XML block, so an agent starts with reliable, non-hallucinated stack context instead of guessing or re-scanning the tree. It injects in two ways:
 
-- `/inject-stack`, the dedicated command; and
-- `/inject-context`, alongside the [branch-context plugin](/git/context/#opencode-branch-context-plugin), so one command injects branch and stack context together.
+- **On command** (`command.execute.before`): for `/inject-stack`, the dedicated command, and for `/inject-context`, alongside the [branch-context plugin](/git/context/#opencode-branch-context-plugin), so one command injects branch and stack context together.
+- **Automatically** (`chat.message`): on the first message of a session, when the working directory is a git repository, so a session starts with the project's stack in its initial context without a slash command. There is no session-start hook, so the plugin injects on the first user message and tracks the session id to fire at most once per session. It is skipped outside a git repository and when nothing is detected.
 
 The block carries `<context-metadata>`, `<languages>`, `<ecosystems>`, `<frameworks>`, and an optional `<warnings>` section, each with a short description line.
+
+### Troubleshooting automatic injection
+
+If the first message in a new OpenCode session shows **Failed to send prompt** with **Unexpected server error**, check `~/.local/share/opencode/log/opencode.log` for `invalid user part before save` or a `ref=err_*` line. On OpenCode 1.17+, the `chat.message` hook runs after user parts are resolved, so injected parts must include `id`, `sessionID`, and `messageID` (not just `{ type, text }`). The plugin sets these; slash-command injection via `command.execute.before` is unaffected. Restart OpenCode after updating the plugin so the fix loads.
 
 ## MCP
 

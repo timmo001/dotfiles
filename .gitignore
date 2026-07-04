@@ -14,3 +14,4 @@ dot/.fallow/
 scripts/.local/bin/dot
 scripts/.local/bin/dot*
 zsh/.local/share/zsh/chpwd-recent-dirs
+/session-*.md
