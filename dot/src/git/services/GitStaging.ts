@@ -39,13 +39,6 @@ export interface GitStagingService {
     repoPath: string,
     file: string,
   ) => Effect.Effect<void, GitStagingError>;
-  /** Unstage a single file via `git reset HEAD` */
-  readonly unstageFile: (
-    repoPath: string,
-    file: string,
-  ) => Effect.Effect<void, GitStagingError>;
-  /** Stage all files via `git add -A` */
-  readonly stageAll: (repoPath: string) => Effect.Effect<void, GitStagingError>;
   /**
    * Commit with the given options. When `paths` is provided, the commit is
    * scoped to those pathspecs (`git commit -m <message> -- <paths>`) so only
@@ -57,11 +50,6 @@ export interface GitStagingService {
     repoPath: string,
     options: CommitOptions,
   ) => Effect.Effect<void, GitStagingError>;
-  /** Get recent commit messages from a repository */
-  readonly getRecentCommits: (
-    repoPath: string,
-    count: number,
-  ) => Effect.Effect<readonly string[], GitStagingError>;
 }
 
 /** Effect service for {@link GitStagingService} */
@@ -95,18 +83,6 @@ export class GitStaging extends Context.Service<
           return provideExecutor(runGitVoid(repoPath, ["add", "--", file]));
         },
 
-        unstageFile: (repoPath, file) => {
-          log(`Unstaging: ${file}`);
-          return provideExecutor(
-            runGitVoid(repoPath, ["reset", "HEAD", "--", file]),
-          );
-        },
-
-        stageAll: (repoPath) => {
-          log(`Staging all in ${repoPath}`);
-          return provideExecutor(runGitVoid(repoPath, ["add", "-A"]));
-        },
-
         commit: (repoPath, { message, paths, amend }) => {
           log(
             `${amend ? "Amending" : "Committing"} in ${repoPath}: ${message ?? "(keep message)"}`,
@@ -125,23 +101,6 @@ export class GitStaging extends Context.Service<
             ),
           );
         },
-
-        getRecentCommits: (repoPath, count) =>
-          provideExecutor(
-            runGit(repoPath, ["log", "--oneline", `-${count}`]),
-          ).pipe(
-            Effect.map((stdout) =>
-              stdout
-                .trim()
-                .split("\n")
-                .filter((line) => line.length > 0)
-                .map((line) => {
-                  const spaceIdx = line.indexOf(" ");
-                  return spaceIdx > 0 ? line.slice(spaceIdx + 1) : line;
-                }),
-            ),
-            Effect.catch(() => Effect.succeed([] as readonly string[])),
-          ),
       } satisfies GitStagingService;
     }),
   );

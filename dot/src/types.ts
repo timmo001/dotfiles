@@ -105,8 +105,6 @@ export type ViewId =
   | "git-notifications"
   | "notes"
   | "omarchy"
-  | "staging"
-  | "commit"
   | "output";
 
 /** Filter applied when opening the repository notes view. */
@@ -328,12 +326,6 @@ export interface StagedFile {
   readonly status: GitStatusCode;
   /** Whether this file is currently staged (in the index) */
   readonly staged: boolean;
-}
-
-/** A single AI-generated commit message suggestion */
-export interface CommitSuggestion {
-  /** The suggested commit message text */
-  readonly message: string;
 }
 
 /** Action that suspends the TUI and runs a command with inherited stdio */

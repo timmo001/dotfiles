@@ -33,7 +33,6 @@ const HELP: readonly HelpEntry[] = [
   { key: "↑↓", action: "navigate" },
   { key: "Tab", action: "pane" },
   { key: "Enter", action: "lazygit" },
-  { key: "c", action: "commit" },
   { key: "e", action: "edit" },
   { key: "E", action: "visual edit" },
   { key: "o", action: "OpenCode" },
@@ -53,8 +52,6 @@ const HELP: readonly HelpEntry[] = [
 export interface DiffViewOptions {
   /** Called when the user selects a repo (e.g. to open lazygit) */
   readonly onSelect: (repo: Repo) => void;
-  /** Called when the user presses 'c' to open the commit/staging flow for the selected repo */
-  readonly onCommit: (repo: Repo) => void;
   /** Called to open the selected repo directory in an external editor */
   readonly onOpenEditor: (
     repo: Repo,
@@ -115,7 +112,6 @@ export class DiffView {
     this.theme = theme;
     this.keyHandlers = {
       tab: () => this.togglePane(),
-      c: () => this.runRepoAction((repo) => this.callbacks.onCommit(repo)),
       e: () => void this.openSelectedInEditor("editor"),
       "shift+e": () => void this.openSelectedInEditor("visual"),
       t: () =>

@@ -25,8 +25,6 @@ import type {
 import type { Theme } from "../theme.js";
 import { menuItemsById, submenus } from "../menu.js";
 import type { CommandRunnerService } from "../services/CommandRunner.js";
-import type { GitStagingService } from "../git/services/GitStaging.js";
-import type { CommitSuggestService } from "../git/services/CommitSuggest.js";
 import { MainMenu } from "./MainMenu.js";
 import { DashboardView } from "../dashboard/tui/DashboardView.js";
 import { DiffView } from "../git/tui/DiffView.js";
@@ -40,8 +38,6 @@ import {
   type OpenCodeNoteMode,
 } from "../notes/tui/OpenCodeNote.js";
 import { OmarchyMenu } from "./OmarchyMenu.js";
-import { StagingView } from "../git/tui/StagingView.js";
-import { CommitView } from "../git/tui/CommitView.js";
 import { OutputPane } from "./OutputPane.js";
 import { Toast } from "./Toast.js";
 import { VariantPopup } from "./VariantPopup.js";
@@ -68,7 +64,6 @@ const setTerminalTitle = (title: string): void => {
 
 const diffTitle = "Dot TUI \u203A Diff";
 const gitLogTitle = "Dot TUI \u203A Git Log";
-const stagingTitle = "Dot TUI \u203A Diff \u203A Stage";
 
 const formatDiffTitle = (changedCount: number): string =>
   `${diffTitle} (${changedCount})`;
@@ -96,10 +91,6 @@ export interface AppDeps {
   readonly theme: Theme;
   /** Service for running shell commands with suspend/resume */
   readonly commandRunner: CommandRunnerService;
-  /** Service for git staging operations */
-  readonly gitStaging: GitStagingService;
-  /** Service for AI commit message suggestions */
-  readonly commitSuggest: CommitSuggestService;
   /** Callback to trigger an immediate diff refresh (wired to RepoWatcher) */
   readonly onRefreshDiff: () => void;
   /** Callback to trigger an immediate git log refresh */
@@ -152,18 +143,12 @@ export class App {
   private notificationsView: GitNotificationsView;
   private notesView: NotesView;
   private omarchyMenu: OmarchyMenu;
-  private stagingView: StagingView;
-  private commitView: CommitView;
   private outputPane: OutputPane;
   private variantPopup: VariantPopup;
   private activeView: ViewId = "main";
   private viewStack: ViewId[] = [];
   private diffChangedCount = 0;
   private activeNotesFilter: NotesViewFilter | null = null;
-  /** Repo path passed through the staging → commit flow */
-  private commitRepoPath = "";
-  /** Repo display name passed through the staging → commit flow */
-  private commitRepoName = "";
 
   constructor(deps: AppDeps, options: AppOptions = {}) {
     this.renderer = deps.renderer;
@@ -204,12 +189,6 @@ export class App {
           setTerminalTitle(formatDiffTitle(this.diffChangedCount));
         });
         deps.onRefreshDiff();
-      },
-      onCommit: (repo) => {
-        this.commitRepoPath = repo.path;
-        this.commitRepoName = repo.name;
-        this.stagingView.openForRepo(repo.path, repo.name);
-        this.pushView("staging");
       },
       onOpenEditor: async (repo, kind) => {
         try {
@@ -370,42 +349,6 @@ export class App {
         setTerminalTitle(`Dot TUI \u203A ${suffix}`);
       },
     });
-
-    this.stagingView = new StagingView(
-      deps.renderer,
-      deps.theme,
-      deps.gitStaging,
-      {
-        onCommit: (repoPath) => {
-          this.commitView.openForRepo(repoPath, this.commitRepoName);
-          this.pushView("commit");
-        },
-        onLazygit: async (repoPath) => {
-          await openLazygit(deps.renderer, repoPath, () => {
-            setTerminalTitle(stagingTitle);
-          });
-          this.stagingView.openForRepo(repoPath, this.commitRepoName);
-          deps.onRefreshDiff();
-        },
-        onBack: () => this.popView(),
-      },
-    );
-
-    this.commitView = new CommitView(
-      deps.renderer,
-      deps.theme,
-      deps.gitStaging,
-      deps.commitSuggest,
-      {
-        onCommitComplete: () => {
-          // Pop back to diff view (skip staging)
-          this.viewStack = this.viewStack.filter((v) => v !== "staging");
-          this.popView();
-          deps.onRefreshDiff();
-        },
-        onBack: () => this.popView(),
-      },
-    );
 
     this.variantPopup = new VariantPopup(deps.renderer, deps.theme, {
       onSelect: (action) => {
@@ -587,16 +530,6 @@ export class App {
         this.omarchyMenu.resetAndFocus();
         // OmarchyMenu updates the terminal title itself via onTitleChange
         break;
-      case "staging":
-        setTerminalTitle(stagingTitle);
-        this.stagingView.setVisible(true);
-        this.stagingView.focus();
-        break;
-      case "commit":
-        setTerminalTitle("Dot TUI \u203A Diff \u203A Commit");
-        this.commitView.setVisible(true);
-        this.commitView.focus();
-        break;
       case "output":
         setTerminalTitle("Dot \u203A Output");
         this.outputPane.setVisible(true);
@@ -637,8 +570,6 @@ export class App {
     this.notificationsView.setVisible(false);
     this.notesView.setVisible(false);
     this.omarchyMenu.setVisible(false);
-    this.stagingView.setVisible(false);
-    this.commitView.setVisible(false);
     this.outputPane.setVisible(false);
   }
 
@@ -732,12 +663,6 @@ export class App {
         break;
       case "omarchy":
         this.omarchyMenu.focus();
-        break;
-      case "staging":
-        this.stagingView.focus();
-        break;
-      case "commit":
-        this.commitView.focus();
         break;
       case "output":
         this.outputPane.focus();

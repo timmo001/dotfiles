@@ -1,6 +1,5 @@
 import { Context, Effect, Layer } from "effect";
 import type { CliRenderer } from "@opentui/core";
-import { shutdownServer } from "./OpenCodeServer.js";
 import type { Theme } from "../theme.js";
 
 const log = (msg: string) => console.error(`[dot:Renderer] ${msg}`);
@@ -56,7 +55,6 @@ export class Renderer extends Context.Service<Renderer, CliRenderer>()(
             autoFocus: true,
             backgroundColor: theme.transparent ? "transparent" : theme.bg,
             onDestroy: () => {
-              shutdownServer();
               const shouldExit = !suppressNextDestroyExit;
               suppressNextDestroyExit = false;
               if (shouldExit) process.exit(0);

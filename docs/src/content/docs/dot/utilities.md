@@ -63,7 +63,7 @@ Most rules are inbound port allows on any interface. The libvirt rules are scope
 | `1714:1764` | UDP + TCP | any | KDE Connect device discovery and transfer. |
 | `8123` | TCP | any | Home Assistant frontend. |
 | `8124` | TCP | any | Home Assistant companion port. |
-| `4096` | TCP | any | dot OpenCode server. |
+| `4096` | TCP | any | OpenCode local server. |
 | `53317` | UDP + TCP | any | LocalSend device discovery and transfer. |
 | `67` | UDP | `virbr0` | libvirt guest DHCP. |
 | `53` | TCP + UDP | `virbr0` | libvirt guest DNS. |

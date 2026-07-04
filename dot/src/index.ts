@@ -687,8 +687,6 @@ if (mode.type === "native" && mode.command === "mcp") {
   const { GitDiffWaybarCache } =
     await import("./git/services/GitDiffWaybarCache.js");
   const { RepoWatcher } = await import("./git/services/RepoWatcher.js");
-  const { CommitSuggest } = await import("./git/services/CommitSuggest.js");
-  const { shutdownServer } = await import("./services/OpenCodeServer.js");
   const { createCommandRunner } = await import("./services/CommandRunner.js");
   const { loadTheme } = await import("./theme.js");
   const { App } = await import("./tui/App.js");
@@ -703,8 +701,6 @@ if (mode.type === "native" && mode.command === "mcp") {
     const notifications = yield* GitNotifications;
     const dashboard = yield* Dashboard;
     const notes = yield* Notes;
-    const gitStaging = yield* GitStaging;
-    const commitSuggest = yield* CommitSuggest;
     const renderer = yield* Renderer;
     const toast = yield* Toast;
     const services = yield* Effect.context<never>();
@@ -720,8 +716,6 @@ if (mode.type === "native" && mode.command === "mcp") {
         renderer,
         theme,
         commandRunner,
-        gitStaging,
-        commitSuggest,
         onRefreshDiff: () => {
           runFork(watcher.refresh());
         },
@@ -897,8 +891,6 @@ if (mode.type === "native" && mode.command === "mcp") {
     Layer.provideMerge(Notes.layer),
     Layer.provideMerge(GitHub.layer),
     Layer.provideMerge(GitDiffWaybarCache.layer),
-    Layer.provideMerge(GitStaging.layer),
-    Layer.provideMerge(CommitSuggest.layer),
     Layer.provideMerge(Toast.layer(theme)),
     Layer.provideMerge(Renderer.layer(theme, nativeLibPath)),
     Layer.provideMerge(OutputLog.tuiLayer),
@@ -909,9 +901,6 @@ if (mode.type === "native" && mode.command === "mcp") {
   const runnable = tuiProgram.pipe(Effect.scoped, Effect.provide(TuiLayers));
 
   log("Launching...");
-  // Safety net: ensure OpenCode server is shut down if the process exits
-  // without going through renderer.destroy() (e.g. uncaught exception).
-  process.on("exit", shutdownServer);
 
   Effect.runPromise(runnable).catch((err) => {
     log(`Fatal error: ${err}`);

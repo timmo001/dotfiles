@@ -32,7 +32,7 @@ Always apply these skills when editing code in this directory:
 ```text
 src/
   index.ts                — Entry point, CLI mode resolution, Effect bootstrap
-  types.ts                — Repo, RepoState, GitLogState, MenuItem, MenuAction, ViewId, StagedFile, CommitSuggestion
+  types.ts                — Repo, RepoState, GitLogState, MenuItem, MenuAction, ViewId, StagedFile
   flags.ts                — CLI parser: subcommands, --tab, --since, --raw, --help
   menu.ts                 — Menu registry: Map<string, MenuItem> for dot + omarchy items
   theme.ts                — Theme loading (Omarchy theme → TUI colours)
@@ -91,7 +91,7 @@ src/
       GitLog.ts           — Recent commit history state for tracked repositories
       GitHub.ts           — Shared GitHub CLI/API wrapper with rate-limit checks and retries
       GitNotifications.ts — GitHub notification inbox state and thread actions
-      GitStaging.ts       — Git status/add/reset/commit operations
+      GitStaging.ts       — Git status/add/commit operations
       RepoWatcher.ts      — Hybrid poll loop (Waybar cache → 10s poll), PubSub state
       relativeTime.ts     — Shared compact relative timestamp formatter
       WorkflowRuns.ts     — Watched GitHub Actions run state for locally checked-out HEAD commits
@@ -104,16 +104,11 @@ src/
       WorkflowRunsView.ts — Two-pane watched GitHub workflow runs view
       Lazygit.ts          — Suspend/resume lazygit spawn
       SuspendedCommand.ts — Shared suspend/resume inherited-stdio command helper
-      StagingView.ts      — Two-pane staging view (Staged/Unstaged) for git commit flow
-      CommitView.ts       — Commit message input with AI suggestion list
   services/
     Config.ts             — Dotfiles paths, env config
     CommandExecutor.ts    — Shell command execution Effect service
     CommandRunner.ts      — Suspend/resume + silent + notify command execution (plain object)
-    CommitSuggest.ts      — AI commit suggestions via OpenCode SDK
     Launcher.ts           — Process lifecycle (exit handling)
-    ModelDiscovery.ts     — OpenCode model discovery
-    OpenCodeServer.ts     — OpenCode server lifecycle
     OutputLog.ts          — Scrollable output log service
     Renderer.ts           — OpenTUI renderer service
     Toast.ts              — Toast notification overlay service
@@ -145,8 +140,8 @@ src/
 
 1. `index.ts` parses CLI flags → resolves mode (TUI / native / fallback)
 2. Native commands run with `CliLayers` (no renderer, no TUI)
-3. TUI mode composes full layer stack including RepoWatcher, GitLog, WorkflowRuns, GitNotifications, GitStaging, CommitSuggest, Renderer, Toast
-4. `App` manages a view stack (main menu ↔ diff view ↔ git log view ↔ workflows view ↔ notifications view ↔ notes view ↔ omarchy menu ↔ staging view ↔ commit view)
+3. TUI mode composes full layer stack including RepoWatcher, GitLog, WorkflowRuns, GitNotifications, Renderer, Toast
+4. `App` manages a view stack (main menu ↔ diff view ↔ git log view ↔ workflows view ↔ notifications view ↔ notes view ↔ omarchy menu)
 5. Menu items have typed actions: `command` (suspend/resume), `silent` (background), `notify` (background + toast), `view` (navigate), `submenu` (nested)
 6. `CommandRunner` handles suspend/resume for terminal commands, silent background execution, and notify-style commands with toast feedback
 7. `RepoWatcher` loads Waybar cache for instant diff first paint, then polls every 10s
@@ -174,7 +169,7 @@ MenuItem action types:
 
 - **Services**: `Context.Service` + static `layer` property for Effect services
 - **Static layers**: Each service class exposes `ServiceName.layer` (not a separate `*Live` export). Layer is built with `Layer.effect(ServiceName, Effect.gen(...))`
-- **Domain errors**: `Schema.TaggedErrorClass` per service (`DotDiffError`, `GitStagingError`, `CommitSuggestError`). WaybarCache has no error type
+- **Domain errors**: `Schema.TaggedErrorClass` per service (`DotDiffError`, `GitStagingError`). WaybarCache has no error type
 - **Error handling**: `Effect.catch` (v4 rename of `catchAll`) for recovery; tagged errors flow through the type channel
 - **Named spans**: `Effect.fn("Name")` for effectful functions with arguments; `Effect.gen` + `Effect.withSpan("Name")` for zero-arg named effects (since `Effect.fn` returns a function, not an Effect)
 - **Testable time**: `Clock.currentTimeMillis` for timestamps instead of `new Date()`
@@ -320,8 +315,7 @@ After that bootstrap build, run the checked-out binary directly. If private dotf
 - `~/.config/dotfiles-private/dot-git.yml` — private git repo config for clone/bootstrap, doctor checks, `dot git-diff`, `dot git-log`, `dot git-workflows`, and `dot git-notifications --bar-json`; `activity`, `workflows`, and `notifications` each require explicit `enabled` plus 5-field cron `schedule` keys, and `notifications.bar.ignore_bot_activity` controls status-bar bot noise
 - `gh` authenticated with a classic token carrying `notifications` or `repo` scope — required for `dot git-notifications` and its Waybar module
 - `lazygit` — launched via suspend/resume on Enter in diff view
-- `opencode` — CLI for model discovery; SDK for AI commit suggestions
-- `@opencode-ai/sdk` — OpenCode SDK for programmatic session/prompt calls
+- `opencode` — CLI launched via suspend/resume for interactive sessions from the diff view
 - `omarchy` — various subcommands for desktop management
 - `system-health-check` — system diagnostics
 - `topgrade` — system-wide package upgrades
