@@ -76,6 +76,7 @@ const formatDiffTitle = (changedCount: number): string =>
 /** Wrap a string in single quotes, escaping embedded single quotes for safe shell interpolation */
 const shellQuote = (s: string): string => `'${s.replace(/'/g, "'\\''")}'`;
 
+/** Startup options controlling the App's initial view and pre-selected action */
 export interface AppOptions {
   /** Which view to start on (default: "main") */
   readonly initialView?: ViewId;

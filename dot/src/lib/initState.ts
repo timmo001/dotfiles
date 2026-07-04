@@ -12,7 +12,9 @@ class InitStateError extends Schema.TaggedErrorClass<InitStateError>()(
   },
 ) {}
 
+/** What triggered writing the first-use setup complete marker. */
 type InitCompleteSource = "init" | "update";
+/** Outcome of ensuring the first-use setup complete marker exists. */
 export type InitCompleteMarkerStatus = "created" | "exists" | "in-progress";
 
 /** Return the complete marker path for first-use setup state. */
