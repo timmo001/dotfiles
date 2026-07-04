@@ -54,14 +54,20 @@ The repo includes minimal system-wide benchmark and resource-leak test scripts u
 
 ## Firewall rules
 
-`dot init` configures a managed set of inbound [ufw](https://wiki.archlinux.org/title/Uncomplicated_Firewall) rules, and `dot doctor` verifies they are still present. The setup reads the world-readable ufw rules file first, so a fully configured machine adds nothing and never prompts for a password; only missing rules are added, followed by a single `ufw reload`. Each rule is tagged with its purpose as a ufw comment, so it appears in `ufw status`.
+`dot init` configures a managed set of [ufw](https://wiki.archlinux.org/title/Uncomplicated_Firewall) rules, and `dot doctor` verifies they are still present. The setup reads the world-readable ufw rules file first, so a fully configured machine adds nothing and never prompts for a password; only missing rules are added, followed by a single `ufw reload`. Each rule is tagged with its purpose as a ufw comment, so it appears in `ufw status`.
 
-| Port(s) | Protocol | Purpose |
-| --- | --- | --- |
-| `1714:1764` | UDP + TCP | KDE Connect device discovery and transfer. |
-| `8123` | TCP | Home Assistant frontend. |
-| `8124` | TCP | Home Assistant companion port. |
-| `4096` | TCP | dot OpenCode server. |
+Most rules are inbound port allows on any interface. The libvirt rules are scoped to the `virbr0` bridge: two inbound allows for guest DHCP and DNS, plus a forwarding (route) allow so the default NAT network can route guest traffic off the bridge. Without them, ufw's default `deny (incoming)` and `deny (routed)` policy leaves guests without an address or internet access.
+
+| Port(s) | Protocol | Scope | Purpose |
+| --- | --- | --- | --- |
+| `1714:1764` | UDP + TCP | any | KDE Connect device discovery and transfer. |
+| `8123` | TCP | any | Home Assistant frontend. |
+| `8124` | TCP | any | Home Assistant companion port. |
+| `4096` | TCP | any | dot OpenCode server. |
+| `53317` | UDP + TCP | any | LocalSend device discovery and transfer. |
+| `67` | UDP | `virbr0` | libvirt guest DHCP. |
+| `53` | TCP + UDP | `virbr0` | libvirt guest DNS. |
+| forward | any | `virbr0` | libvirt NAT: forward guest traffic off the bridge. |
 
 If `ufw` is not installed, both init and doctor skip the firewall step with a warning. The doctor check reports any missing rule with the `sudo ufw allow ...` command to add it, or a rule present without its managed comment, and you can re-run `dot init` to reconcile. Override the scanned rules file with `DOT_UFW_RULES_FILE`.
 

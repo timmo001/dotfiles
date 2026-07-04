@@ -274,7 +274,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
           "Public packages      AUR packages installed + version check",
           "Private packages     Private repo + packages installed",
           "Pacman hooks         Hook files installed and up to date",
-          "Firewall rules       Managed ufw ports (KDE Connect, Home Assistant, OpenCode)",
+          "Firewall rules       Managed ufw rules (KDE Connect, Home Assistant, OpenCode, LocalSend, libvirt)",
         ],
       },
       {

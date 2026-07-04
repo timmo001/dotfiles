@@ -11,8 +11,13 @@ const UFW_USER_RULES_FILE = "/etc/ufw/user.rules";
 /** Supported transport protocols for a managed firewall rule. */
 export type FirewallProtocol = "tcp" | "udp";
 
-/** A ufw allow rule managed by dot init and verified by dot doctor. */
-export interface ManagedFirewallRule {
+/**
+ * An inbound ufw allow rule for a port or port range, optionally scoped to a
+ * single interface (e.g. libvirt's `virbr0`).
+ */
+export interface ManagedPortRule {
+  /** Discriminant: a port/range allow rule. */
+  readonly kind: "port";
   /**
    * Human-readable purpose. Shown in init logs and doctor output, and stored
    * as the ufw rule comment so it appears in `ufw status`.
@@ -22,21 +27,70 @@ export interface ManagedFirewallRule {
   readonly port: string;
   /** Protocols this port should be allowed on. */
   readonly protocols: readonly FirewallProtocol[];
+  /** Interface to scope the rule to (e.g. `virbr0`); omit for any interface. */
+  readonly interface?: string;
 }
 
 /**
- * Inbound ufw rules dot keeps open.
+ * A ufw forwarding (route) allow rule for traffic arriving on an interface,
+ * used to let libvirt's NAT network forward guest traffic through the host.
+ */
+export interface ManagedRouteRule {
+  /** Discriminant: a routed/forwarded allow rule. */
+  readonly kind: "route";
+  /** Human-readable purpose, stored as the ufw rule comment. */
+  readonly label: string;
+  /** Interface routed traffic arrives on (e.g. `virbr0`). */
+  readonly interface: string;
+}
+
+/** A ufw rule managed by dot init and verified by dot doctor. */
+export type ManagedFirewallRule = ManagedPortRule | ManagedRouteRule;
+
+/**
+ * ufw rules dot keeps open.
  *
  * - KDE Connect discovers and connects over the full 1714-1764 range on both
  *   UDP (discovery) and TCP (transfer).
  * - Home Assistant serves its frontend on 8123 and its companion port 8124.
  * - The dot OpenCode server (see OpenCodeServer.ts) listens on 4096.
+ * - LocalSend discovers and transfers over 53317 on both UDP and TCP.
+ * - libvirt's default NAT network needs the host to accept guest DHCP (67) and
+ *   DNS (53) on `virbr0` and to forward (route) guest traffic off `virbr0`,
+ *   which ufw's default `deny (incoming)`/`deny (routed)` policy otherwise
+ *   blocks.
  */
 export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
-  { label: "KDE Connect", port: "1714:1764", protocols: ["udp", "tcp"] },
-  { label: "Home Assistant", port: "8123", protocols: ["tcp"] },
-  { label: "Home Assistant", port: "8124", protocols: ["tcp"] },
-  { label: "OpenCode server", port: "4096", protocols: ["tcp"] },
+  {
+    kind: "port",
+    label: "KDE Connect",
+    port: "1714:1764",
+    protocols: ["udp", "tcp"],
+  },
+  { kind: "port", label: "Home Assistant", port: "8123", protocols: ["tcp"] },
+  { kind: "port", label: "Home Assistant", port: "8124", protocols: ["tcp"] },
+  { kind: "port", label: "OpenCode server", port: "4096", protocols: ["tcp"] },
+  {
+    kind: "port",
+    label: "LocalSend",
+    port: "53317",
+    protocols: ["udp", "tcp"],
+  },
+  {
+    kind: "port",
+    label: "libvirt DHCP",
+    port: "67",
+    protocols: ["udp"],
+    interface: "virbr0",
+  },
+  {
+    kind: "port",
+    label: "libvirt DNS",
+    port: "53",
+    protocols: ["tcp", "udp"],
+    interface: "virbr0",
+  },
+  { kind: "route", label: "libvirt NAT forward", interface: "virbr0" },
 ];
 
 /** Domain error for firewall setup failures. */
@@ -47,14 +101,31 @@ export class FirewallSetupError extends Schema.TaggedErrorClass<FirewallSetupErr
   },
 ) {}
 
-/** A single protocol/port unit of a managed rule. */
+/** A single ufw rule unit derived from a managed rule (one per protocol). */
 export interface FirewallRuleSpec {
-  /** ufw argument, e.g. `1714:1764/udp` or `8123/tcp`. */
-  readonly arg: string;
-  /** Tuple key used to match `### tuple ###` lines, e.g. `udp 1714:1764`. */
+  /**
+   * ufw arguments that add this rule, excluding the trailing `comment <label>`,
+   * e.g. `["allow", "8123/tcp"]` or
+   * `["allow", "in", "on", "virbr0", "to", "any", "port", "67", "proto", "udp"]`.
+   */
+  readonly addArgs: readonly string[];
+  /**
+   * ufw arguments that delete this rule. Port rules prefix `addArgs` with
+   * `delete` (`ufw delete allow 8123/tcp`), but route rules keep `route` first
+   * (`ufw route delete allow in on virbr0`), so the delete form is stored
+   * explicitly rather than derived from `addArgs`.
+   */
+  readonly deleteArgs: readonly string[];
+  /**
+   * Tuple key used to match `### tuple ###` lines, formatted as
+   * `<action> <proto> <port> <direction>`, e.g. `allow tcp 8123 in` or
+   * `route:allow any any in_virbr0`.
+   */
   readonly tupleKey: string;
   /** Expected ufw rule comment (the owning rule's label). */
   readonly comment: string;
+  /** Short human descriptor for logs and doctor output, e.g. `67/udp on virbr0`. */
+  readonly describe: string;
 }
 
 /** Presence of a ufw allow rule and its decoded comment (null when absent). */
@@ -68,14 +139,51 @@ export function ufwRulesFilePath(): string {
   return envString(ENV.DOT_UFW_RULES_FILE) ?? UFW_USER_RULES_FILE;
 }
 
-/** Flatten the managed rules into one spec per protocol/port pair. */
+/** Build the specs (one per protocol) for a single port rule. */
+function portRuleSpecs(rule: ManagedPortRule): readonly FirewallRuleSpec[] {
+  const direction = rule.interface ? `in_${rule.interface}` : "in";
+  return rule.protocols.map((protocol) => {
+    const addArgs = rule.interface
+      ? [
+          "allow",
+          "in",
+          "on",
+          rule.interface,
+          "to",
+          "any",
+          "port",
+          rule.port,
+          "proto",
+          protocol,
+        ]
+      : ["allow", `${rule.port}/${protocol}`];
+    return {
+      addArgs,
+      deleteArgs: ["delete", ...addArgs],
+      tupleKey: `allow ${protocol} ${rule.port} ${direction}`,
+      comment: rule.label,
+      describe: rule.interface
+        ? `${rule.port}/${protocol} on ${rule.interface}`
+        : `${rule.port}/${protocol}`,
+    };
+  });
+}
+
+/** Build the spec for a single route rule. */
+function routeRuleSpec(rule: ManagedRouteRule): FirewallRuleSpec {
+  return {
+    addArgs: ["route", "allow", "in", "on", rule.interface],
+    deleteArgs: ["route", "delete", "allow", "in", "on", rule.interface],
+    tupleKey: `route:allow any any in_${rule.interface}`,
+    comment: rule.label,
+    describe: `route in on ${rule.interface}`,
+  };
+}
+
+/** Flatten the managed rules into one spec per ufw rule unit. */
 export function firewallRuleSpecs(): readonly FirewallRuleSpec[] {
   return MANAGED_FIREWALL_RULES.flatMap((rule) =>
-    rule.protocols.map((protocol) => ({
-      arg: `${rule.port}/${protocol}`,
-      tupleKey: `${protocol} ${rule.port}`,
-      comment: rule.label,
-    })),
+    rule.kind === "route" ? [routeRuleSpec(rule)] : portRuleSpecs(rule),
   );
 }
 
@@ -89,19 +197,23 @@ function decodeUfwComment(hex: string): string | null {
 }
 
 /**
- * Parse `### tuple ### allow <proto> <port>` entries from a ufw user.rules
- * file. Returns a map of `"<proto> <port>"` keys to the rule's decoded comment
- * (null when the rule carries no comment).
+ * Parse `### tuple ### <action> <proto> <port> ...` entries from a ufw
+ * user.rules file. Returns a map of `<action> <proto> <port> <direction>` keys
+ * (e.g. `allow tcp 8123 in`, `route:allow any any in_virbr0`) to the rule's
+ * decoded comment (null when the rule carries no comment).
  */
 export function parseUfwAllowTuples(
   content: string,
 ): ReadonlyMap<string, UfwTuple> {
   const tuples = new Map<string, UfwTuple>();
   for (const line of content.split("\n")) {
-    const head = line.match(/### tuple ### allow (tcp|udp) (\S+) /);
+    const head = line.match(
+      /### tuple ### (\S+) (\S+) (\S+) \S+ \S+ \S+ (\S+)/,
+    );
     if (!head) continue;
+    const [, action, proto, port, direction] = head;
     const commentMatch = line.match(/ comment=([0-9a-fA-F]+)/);
-    tuples.set(`${head[1]} ${head[2]}`, {
+    tuples.set(`${action} ${proto} ${port} ${direction}`, {
       comment: commentMatch ? decodeUfwComment(commentMatch[1]) : null,
     });
   }
@@ -137,13 +249,12 @@ function ufwAllow(
 ): Effect.Effect<void, FirewallSetupError, CommandExecutor> {
   return Effect.gen(function* () {
     const exitCode = yield* runElevated("ufw", [
-      "allow",
-      spec.arg,
+      ...spec.addArgs,
       "comment",
       spec.comment,
     ]);
     if (exitCode !== 0) {
-      return yield* fail(`ufw allow ${spec.arg} exited ${exitCode}`);
+      return yield* fail(`ufw ${spec.addArgs.join(" ")} exited ${exitCode}`);
     }
   });
 }
@@ -187,16 +298,18 @@ export const configureFirewallRules: Effect.Effect<
   }
 
   for (const spec of toRecomment) {
-    yield* log.info(`Updating comment for ${spec.arg} (${spec.comment})`);
-    const deleteExit = yield* runElevated("ufw", ["delete", "allow", spec.arg]);
+    yield* log.info(`Updating comment for ${spec.describe} (${spec.comment})`);
+    const deleteExit = yield* runElevated("ufw", [...spec.deleteArgs]);
     if (deleteExit !== 0) {
-      return yield* fail(`ufw delete allow ${spec.arg} exited ${deleteExit}`);
+      return yield* fail(
+        `ufw ${spec.deleteArgs.join(" ")} exited ${deleteExit}`,
+      );
     }
     yield* ufwAllow(spec);
   }
 
   for (const spec of toAdd) {
-    yield* log.info(`Allowing ${spec.arg} (${spec.comment})`);
+    yield* log.info(`Allowing ${spec.describe} (${spec.comment})`);
     yield* ufwAllow(spec);
   }
 

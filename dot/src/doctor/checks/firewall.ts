@@ -3,7 +3,7 @@ import { existsSync } from "fs";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { displayPath } from "../../lib/paths.js";
 import {
-  MANAGED_FIREWALL_RULES,
+  firewallRuleSpecs,
   presentUfwTuples,
   ufwRulesFilePath,
 } from "../../lib/firewallSetup.js";
@@ -15,7 +15,7 @@ import type { CheckResult } from "../types.js";
  *
  * Reads the world-readable ufw user.rules file (no elevation), so it runs
  * non-interactively inside the parallel doctor runner. Reports a warning per
- * missing protocol/port (with the command to add it), a warning when a rule
+ * missing rule unit (with the command to add it), a warning when a rule
  * exists without its expected comment, or a single warning when ufw is not
  * installed.
  */
@@ -48,35 +48,32 @@ export const checkFirewall = Effect.gen(function* () {
   const missing: string[] = [];
   let needsReconcile = false;
 
-  for (const rule of MANAGED_FIREWALL_RULES) {
-    for (const protocol of rule.protocols) {
-      const arg = `${rule.port}/${protocol}`;
-      const tuple = present.get(`${protocol} ${rule.port}`);
-      if (!tuple) {
-        results.push({
-          severity: "warn",
-          message: `Firewall rule missing: ${arg} (${rule.label})`,
-        });
-        missing.push(`${arg} comment '${rule.label}'`);
-      } else if (tuple.comment !== rule.label) {
-        needsReconcile = true;
-        results.push({
-          severity: "warn",
-          message: `Firewall rule present without its comment: ${arg} (expected '${rule.label}')`,
-        });
-      } else {
-        results.push({
-          severity: "ok",
-          message: `Firewall rule present: ${arg} (${rule.label})`,
-        });
-      }
+  for (const spec of firewallRuleSpecs()) {
+    const tuple = present.get(spec.tupleKey);
+    if (!tuple) {
+      results.push({
+        severity: "warn",
+        message: `Firewall rule missing: ${spec.describe} (${spec.comment})`,
+      });
+      missing.push(`${spec.addArgs.join(" ")} comment '${spec.comment}'`);
+    } else if (tuple.comment !== spec.comment) {
+      needsReconcile = true;
+      results.push({
+        severity: "warn",
+        message: `Firewall rule present without its comment: ${spec.describe} (expected '${spec.comment}')`,
+      });
+    } else {
+      results.push({
+        severity: "ok",
+        message: `Firewall rule present: ${spec.describe} (${spec.comment})`,
+      });
     }
   }
 
   if (missing.length > 0) {
     results.push({
       severity: "warn",
-      message: `Add with: ${missing.map((entry) => `sudo ufw allow ${entry}`).join("; ")}; sudo ufw reload`,
+      message: `Add with: ${missing.map((entry) => `sudo ufw ${entry}`).join("; ")}; sudo ufw reload`,
       detail: "Or run dot init to configure managed firewall rules",
     });
   }
