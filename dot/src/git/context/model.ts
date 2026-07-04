@@ -152,7 +152,14 @@ export type CommitRange =
       readonly kind: "branch";
       readonly sinceRef: string;
     }
-  | { readonly args: readonly string[]; readonly kind: "today" }
+  | {
+      readonly args: readonly string[];
+      readonly kind: "today";
+      /** Total number of commits made since local midnight. */
+      readonly total: number;
+      /** Maximum number of today's commits included in the context. */
+      readonly limit: number;
+    }
   | {
       readonly args: readonly string[];
       readonly kind: "since";

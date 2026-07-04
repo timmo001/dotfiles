@@ -78,7 +78,7 @@ const GitContextParams = Schema.Struct({
   since: Schema.optional(
     Schema.String.annotate({
       description:
-        "Only include recent commits after this ISO 8601 timestamp. Feature branches still list their full branch-unique commits.",
+        "Only include recent commits after this date. This explicit range is not capped; feature branches still list their full branch-unique commits.",
     }),
   ),
 });
@@ -175,8 +175,8 @@ export const registerContextTools = Effect.gen(function* () {
     description:
       "Concise branch context for the current repository: repository/branch/base header, " +
       "ahead/behind state, the pull request for the branch (feature branches), unstaged " +
-      "files, staged files, untracked files, branch changed files, and recent " +
-      "commits, each with a relative timestamp, a pushed/local marker, and its changed files " +
+      "files, staged files, untracked files, branch changed files, and default recent " +
+      "commits capped to the 10-20 window, each with a relative timestamp, a pushed/local marker, and its changed files " +
       "with line counts. Include remote URLs, PR comments, reviews, labels, or CI checks, " +
       "or append full working-tree diffs or the merge-base diff against the default branch.",
     parameters: GitContextParams,

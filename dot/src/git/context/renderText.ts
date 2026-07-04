@@ -61,6 +61,9 @@ function formatCommitsHeading(
     return `Branch commits since ${range.sinceRef} (${count}, ${legend}):`;
   }
   if (range.kind === "today") {
+    if (range.total > range.limit) {
+      return `Today's commits from 00:00 (${commits.length} of ${range.total} commits, max ${range.limit}; use --since for more, ${legend}):`;
+    }
     return `Today's commits from 00:00 (${count}, ${legend}):`;
   }
   if (range.kind === "since") {

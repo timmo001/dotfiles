@@ -223,7 +223,7 @@ dot git-diff --list-changed   # Changed repo rows
 dot git-diff --list-all       # All repo rows
 dot git-log                   # Recent commits view (TUI)
 dot git-log --raw             # CLI recent commit output (20 commits per repo)
-dot git-context               # Branch context: repo/branch/PR summary, ahead/behind, unstaged, staged, untracked, branch files, today's commits or last 10 (timestamp, push status, files, line counts)
+dot git-context               # Branch context: repo/branch/PR summary, ahead/behind, unstaged, staged, untracked, branch files, today's commits capped at 20 or last 10 (timestamp, push status, files, line counts)
 dot git-context --since "2 days ago" # Branch context with recent commits since a date
 dot git-context --comments --reviews # Include PR conversation comments and individual reviews
 dot git-context --labels --checks # Include PR labels and CI check runs (extra gh call)

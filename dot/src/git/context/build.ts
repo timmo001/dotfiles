@@ -35,6 +35,9 @@ import type {
  */
 const MIN_RECENT_COMMIT_LIMIT = 10;
 
+/** Maximum number of default-branch recent commits to include in context. */
+const MAX_RECENT_COMMIT_LIMIT = 20;
+
 /**
  * Record separator (0x1E) prefixing each commit header in the `git log`
  * format string. File status lines from `--name-status` never start with this
@@ -532,7 +535,8 @@ function resolveBranchDiff(
  * Build the trailing `git log` revision arguments and heading metadata that
  * scope which commits the context lists. On a feature branch, list every commit
  * unique to the branch; on the default branch, list whichever is larger: the
- * commits from today or the last {@link MIN_RECENT_COMMIT_LIMIT} commits.
+ * commits from today (capped at {@link MAX_RECENT_COMMIT_LIMIT}) or the last
+ * {@link MIN_RECENT_COMMIT_LIMIT} commits.
  */
 function resolveCommitRange(
   forkBase: string | null,
@@ -553,14 +557,15 @@ function resolveCommitRange(
     const todaysCount = Number(
       yield* tryGit(["rev-list", "--count", "--since=midnight", "HEAD"]),
     );
-    const limit = Math.max(
-      MIN_RECENT_COMMIT_LIMIT,
-      Number.isFinite(todaysCount) ? todaysCount : 0,
+    const total = Number.isFinite(todaysCount) ? todaysCount : 0;
+    const limit = Math.min(
+      MAX_RECENT_COMMIT_LIMIT,
+      Math.max(MIN_RECENT_COMMIT_LIMIT, total),
     );
-    return {
-      args: ["-n", String(limit), "HEAD"],
-      kind: todaysCount > MIN_RECENT_COMMIT_LIMIT ? "today" : "recent",
-    };
+    const args = ["-n", String(limit), "HEAD"];
+    return total > MIN_RECENT_COMMIT_LIMIT
+      ? { args, kind: "today", total, limit }
+      : { args, kind: "recent" };
   });
 }
 

@@ -343,7 +343,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
       "Print branch context for the current git repository: repository root,",
       "branch/base header, HEAD, ahead/behind state, the pull request for the",
       "branch (on a feature branch), unstaged, staged, untracked, and branch changed",
-      "files, and the larger of today's commits or the last 10 commits — each with a",
+      "files, and the larger of today's commits (capped at 20) or the last 10 commits — each with a",
       "compact relative timestamp, a pushed/local remote marker, and its changed files",
       "inline with (+added -deleted) line counts. Designed as a single command for",
       "agents to get full working-tree and branch context, and as the shared producer",
