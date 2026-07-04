@@ -22,7 +22,7 @@ dot_commands=(
   'handoffs:Open handoff notes'
   'handoff:Alias for handoffs'
   'note:Read, write, or delete note files'
-  'agents-sync:Sync AGENTS.md to Cursor rule'
+  'agents-sync:Mirror AGENTS.md to agent harness instruction files'
   'opencode-debug:Debug OpenCode config and paths'
   'mcp:Run the dot MCP server over stdio'
   'mcp-sync:Regenerate MCP configs for all harnesses from the spec'
