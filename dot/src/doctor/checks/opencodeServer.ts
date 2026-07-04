@@ -72,7 +72,9 @@ export function opencodeServerResults(
     existsSync(autostartPath) &&
     readFileSync(autostartPath, "utf8")
       .split("\n")
-      .some((line) => /^\s*exec-once\s*=.*\bopencode-server\b/.test(line));
+      .some((line) =>
+        /^\s*o\.exec_on_start\(["']opencode-server["']\)/.test(line),
+      );
 
   if (startsServer) {
     return [
@@ -97,7 +99,7 @@ export function opencodeServerResults(
 export const checkOpencodeServer = Effect.gen(function* () {
   const config = yield* Config;
   return opencodeServerResults(
-    join(hyprRepoPath(config), "hosts", "desktop", "autostart.conf"),
+    join(hyprRepoPath(config), "hosts", "desktop", "autostart.lua"),
     OPENCODE_ENV_PATH,
   );
 });

@@ -1,23 +1,23 @@
 ---
 title: Resume Recovery
-description: Refresh Waybar, git caches, and Twitch notifications after suspend.
+description: Refresh the Omarchy shell and Twitch notifications after suspend.
 sidebar:
   order: 11
 ---
 
 import { Steps } from '@astrojs/starlight/components';
 
-`on-resume` is the post-suspend recovery hook used by the Hypr host overrides. It restarts small desktop services that tend to go stale after sleep and refreshes git-related bar caches.
+`on-resume-monitor` watches logind for resume events and runs `on-resume`, which refreshes desktop services and shell widgets that can go stale after sleep.
 
 ## Where it runs
 
-Both desktop and laptop host `hypridle.conf` files call `on-resume` from `after_sleep_cmd` after waking the display:
+The `dot-on-resume-monitor.service` user unit runs `on-resume-monitor` throughout the session. It calls `on-resume` after logind reports that sleep has ended.
 
 ```text
-after_sleep_cmd = sleep 1 && omarchy-system-wake && on-resume
+systemctl --user status dot-on-resume-monitor.service
 ```
 
-The laptop host also re-arms keyboard backlight handling before `on-resume`.
+On the laptop, `on-resume` also re-arms keyboard backlight handling.
 
 You can run the recovery manually without auto-opening Twitch streams with the shared binding:
 
@@ -35,11 +35,10 @@ on-resume
 
 `on-resume` detaches itself, writes a fresh log, then:
 
-- Stops `twitch-notifications`.
-- Clears Waybar git module cache files under `${XDG_CACHE_HOME:-~/.cache}/waybar`.
-- Clears the dot upstream fetch cache under `${XDG_CACHE_HOME:-~/.cache}/dot/fetch-upstream`.
-- Restarts Waybar through `uwsm-app`.
-- Gracefully restarts `twitch-notifications` in auto-open mode.
+- Re-arms keyboard backlight handling when available.
+- Gracefully restarts `twitch-notifications`, auto-opening configured live channels after an automatic resume.
+- Refreshes the Omarchy shell indicators.
+- Refreshes the Quickshell git diff and notification widgets.
 
 The `SUPER+SHIFT+W` binding passes `--no-auto-open`, so manual recovery restarts Twitch without opening live channels.
 
@@ -51,28 +50,27 @@ ${XDG_STATE_HOME:-~/.local/state}/on-resume.log
 
 ## Manual recovery flow
 
-Use this when the machine wakes but the bar or desktop helpers look stale:
+Use this when the machine wakes but the shell or desktop helpers look stale:
 
 <Steps>
 
 1. Press `SUPER+SHIFT+W`, or run `on-resume`.
-2. Wait for Waybar to disappear and return.
+2. Wait for the shell indicators to refresh.
 3. If something still looks wrong, read `~/.local/state/on-resume.log`.
 
 </Steps>
 
 ## Troubleshooting
 
-If Waybar does not return, run it directly to surface errors:
+If shell widgets stay stale, restart the Omarchy shell under Wayland:
 
 ```bash
-uwsm-app -- waybar
+QT_QPA_PLATFORM=wayland omarchy restart shell
 ```
 
-If git status in the bar stays stale, remove the caches and run recovery again:
+If git status in the bar stays stale, clear the generic status-bar caches and run recovery again:
 
 ```bash
-rm -f ~/.cache/waybar/git-*-waybar.json ~/.cache/waybar/git-*-waybar.json.tmp
-rm -rf ~/.cache/dot/fetch-upstream
+rm -rf ~/.cache/status-bar/git-diff* ~/.cache/status-bar/git-notifications*
 on-resume
 ```

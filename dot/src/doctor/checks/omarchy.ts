@@ -16,8 +16,6 @@ import type { ConfigService } from "../../services/Config.js";
 /** Map repo name to expected GitHub org/repo slug (matches legacy omarchy_repo_slug) */
 function omarchyRepoSlug(repoName: string): string | null {
   switch (repoName) {
-    case "waybar":
-      return "timmo001/omarchy-waybar";
     case "uwsm":
       return "timmo001/omarchy-uwsm";
     default:

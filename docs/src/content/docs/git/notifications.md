@@ -42,4 +42,4 @@ The notification API requires `gh` authenticated with a classic token carrying t
 
 ## Status bar module
 
-A status bar module refreshes `dot git-notifications --bar-json` through its own short-lived cache. Notification surfaces hide repos that are not enabled in `dot-git.yml`, while upstream notifications can match a managed fork's `remote.upstream.url`. Left click opens `dot git-notifications --bar-filter`; right click refreshes the cache. `dot doctor` verifies GitHub notification API access plus the active notification module wiring.
+The Quickshell module refreshes `dot git-notifications --bar-json` through the stowed `git-notifications-bar` cache command. Notification surfaces hide repos that are not enabled in `dot-git.yml`, while upstream notifications can match a managed fork's `remote.upstream.url`. Left click opens `dot git-notifications --bar-filter`; right click refreshes the widget. `dot doctor` verifies GitHub notification API access.

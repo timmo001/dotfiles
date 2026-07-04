@@ -494,6 +494,47 @@ const runResumeRefresh = Effect.gen(function* () {
   yield* log.info("On-resume helper started");
 });
 
+/**
+ * Reload the running Omarchy shell after its generated `shell.json` changed.
+ *
+ * Restarts the shell so it reloads the generated layout and discovers any new
+ * plugins. Runs `omarchy` via the dispatcher and forces `QT_QPA_PLATFORM=wayland` on the
+ * restart so the relaunched shell attaches its layer-shell bar even when
+ * `dot update` is triggered from an environment that defaults to `xcb` (an SSH
+ * session, a systemd unit, or an agent shell); launching the shell under XCB
+ * silently drops the bar. `omarchy restart shell` refuses while the session is
+ * locked, which is treated as a non-fatal skip. No-op when Omarchy is disabled.
+ */
+const reloadOmarchyShell = Effect.gen(function* () {
+  const config = yield* Config;
+  const log = yield* OutputLog;
+  const executor = yield* CommandExecutor;
+
+  if (!config.omarchy.enabled) return;
+
+  yield* log.section("Reload Shell");
+
+  const exitCode = yield* executor.exitCode("omarchy", ["restart", "shell"], {
+    env: { QT_QPA_PLATFORM: "wayland" },
+  });
+
+  if (exitCode !== 0) {
+    yield* log.warn(
+      `Shell reload skipped or failed (exit ${exitCode}; session may be locked)`,
+    );
+    return;
+  }
+
+  yield* log.info("Reloaded Omarchy shell (shell.json changed)");
+});
+
+/** Reload the Omarchy shell only when stow rewrote its generated config. */
+export function reloadOmarchyShellIfChanged(
+  shellConfigChanged: boolean,
+): Effect.Effect<void, never, Config | OutputLog | CommandExecutor> {
+  return shellConfigChanged ? reloadOmarchyShell : Effect.void;
+}
+
 /** Exit code from `dot update --check` when in-scope updates are available. */
 export const UPDATE_CHECK_AVAILABLE_EXIT = 10;
 
@@ -768,6 +809,7 @@ export const update = (opts?: UpdateOptions) =>
       );
     }
 
+    let shellConfigChanged = false;
     if (doStow) {
       yield* requiredUpdateStep(
         "Stow",
@@ -783,10 +825,12 @@ export const update = (opts?: UpdateOptions) =>
 
           yield* mcpSync;
 
-          yield* runStow();
+          shellConfigChanged = yield* runStow();
         }),
       );
     }
+
+    yield* reloadOmarchyShellIfChanged(shellConfigChanged);
 
     if (doApp) {
       yield* requiredUpdateStep(

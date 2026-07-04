@@ -223,7 +223,7 @@ const updateHyprHostLink = (
   });
 
 /** Path of the Hypr main config within both the hypr stow package and `~`. */
-const HYPR_CONFIG_REL = join(".config", "hypr", "hyprland.conf");
+const HYPR_CONFIG_REL = join(".config", "hypr", "hyprland.lua");
 
 /**
  * Spell a packaged file's symlink the way GNU Stow does: relative to the stow
@@ -244,7 +244,7 @@ function stowLinkContent(
 }
 
 /**
- * Atomically ensure `~/.config/hypr/hyprland.conf` is the stow-owned symlink
+ * Atomically ensure `~/.config/hypr/hyprland.lua` is the stow-owned symlink
  * before the hypr package is stowed.
  *
  * Hyprland enables config autoreload by default and writes a default stub
@@ -283,7 +283,7 @@ export const ensureHyprConfigLink = (
     symlinkSync(linkContent, tmpLink);
     renameSync(tmpLink, linkPath);
     yield* log.info(
-      `Repaired Hypr config link (${displayPath(linkPath)} -> hyprland.conf)`,
+      `Repaired Hypr config link (${displayPath(linkPath)} -> hyprland.lua)`,
     );
   });
 

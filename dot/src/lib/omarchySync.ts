@@ -35,7 +35,6 @@ function fail(message: string): Effect.Effect<never, OmarchySyncError> {
 }
 
 const REPO_SLUGS: Readonly<Record<string, string>> = {
-  waybar: "timmo001/omarchy-waybar",
   uwsm: "timmo001/omarchy-uwsm",
 };
 

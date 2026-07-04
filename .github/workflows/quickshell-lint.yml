@@ -1,0 +1,71 @@
+---
+name: Lint Quickshell
+
+on:
+  push:
+    branches:
+      - distro/arch-omarchy
+    paths:
+      - '**/*.qml'
+      - '.github/workflows/quickshell-lint.yml'
+  pull_request:
+    paths:
+      - '**/*.qml'
+      - '.github/workflows/quickshell-lint.yml'
+
+permissions:
+  contents: read
+
+env:
+  # Version of the Arch `quickshell` package this lint runs against. The
+  # Omarchy shell runs on Arch's quickshell (which pulls qt6-declarative, i.e.
+  # qmllint), so this tracks the Arch package - not Qt and not upstream tags.
+  # Renovate keeps it in sync via the repology datasource (see the
+  # customManagers entry in renovate.json); the version check below fails if
+  # the container's quickshell has drifted from this pin, which is the signal
+  # to merge the Renovate bump.
+  QUICKSHELL_VERSION: "0.3.0"
+
+jobs:
+  qmllint:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: Install quickshell and qmllint
+        run: |
+          # Refresh the keyring first (the base image's can lag and break
+          # signature checks), then install quickshell (pulls qt6-declarative =
+          # qmllint) and git (needed by actions/checkout in this container).
+          pacman -Sy --noconfirm --needed archlinux-keyring
+          pacman -Su --noconfirm --needed quickshell qt6-declarative git
+
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Trust the checkout (container git ownership)
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Verify quickshell matches the pinned version
+        run: |
+          installed="$(pacman -Q quickshell | awk '{print $2}' | cut -d- -f1)"
+          echo "Installed quickshell: $installed (pinned QUICKSHELL_VERSION: $QUICKSHELL_VERSION)"
+          if [ "$installed" != "$QUICKSHELL_VERSION" ]; then
+            echo "::error::Arch quickshell is $installed but QUICKSHELL_VERSION is pinned to $QUICKSHELL_VERSION. Merge the Renovate bump so the pin matches the package being linted against." >&2
+            exit 1
+          fi
+
+      - name: Lint QML
+        run: |
+          export PATH="/usr/lib/qt6/bin:$PATH"
+          mapfile -t qml_files < <(git ls-files '*.qml')
+          if [ "${#qml_files[@]}" -eq 0 ]; then
+            echo 'No QML files found.'
+            exit 0
+          fi
+          printf 'Linting %s QML file(s) with %s:\n' "${#qml_files[@]}" "$(qmllint --version)"
+          printf '  %s\n' "${qml_files[@]}"
+          # quickshell installs its QML modules under /usr/lib/qt6/qml, so `-I`
+          # lets qmllint resolve `Quickshell.*`. The Omarchy shell's own `qs.*`
+          # modules ship in the (unpackaged) shell source, so the import
+          # category stays disabled; qmllint still fails on real syntax errors.
+          qmllint -I /usr/lib/qt6/qml --import disable --unqualified disable "${qml_files[@]}"

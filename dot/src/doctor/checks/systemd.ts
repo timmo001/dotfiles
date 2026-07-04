@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { accessSync, constants, existsSync, lstatSync, readFileSync } from "fs";
-import { join, dirname, resolve } from "path";
+import { join, resolve } from "path";
 import {
   CommandExecutor,
   type CommandExecutorService,
@@ -9,7 +9,6 @@ import { Config } from "../../services/Config.js";
 import type { ConfigService } from "../../services/Config.js";
 import { GitHub } from "../../git/services/GitHub.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../../lib/paths.js";
-import { ENV, envString } from "../../lib/env.js";
 import { resolvedOmarchyHost } from "../../lib/omarchyHost.js";
 import type { CheckResult } from "../types.js";
 
@@ -20,6 +19,23 @@ const DOCTOR_STARTUP_TIMER_UNIT = "dot-doctor-startup.timer";
 const DAILY_VOLUME_ZERO_TIMER_UNIT = "daily-volume-zero.timer";
 const LOCAL_BIN_DIR = join(HOME_DIR, ".local", "bin");
 const UWSM_ENV_FILE = join(CONFIG_DIR, "uwsm", "env");
+const RESUME_MONITOR_SERVICE_UNIT = "dot-on-resume-monitor.service";
+const DOCTOR_STARTUP_NOTIFY_SCRIPT = join(
+  HOME_DIR,
+  ".local",
+  "bin",
+  "dot-doctor-notify",
+);
+const RESUME_MONITOR_SCRIPT = join(
+  HOME_DIR,
+  ".local",
+  "bin",
+  "on-resume-monitor",
+);
+
+function userSystemdUnitPath(unit: string): string {
+  return join(CONFIG_DIR, "systemd", "user", unit);
+}
 
 function pathExistsOrSymlink(path: string): boolean {
   try {
@@ -66,6 +82,131 @@ function addObsoletePathCheck(
   }
 }
 
+function addExecutablePresenceCheck(
+  results: CheckResult[],
+  path: string,
+  okMessage: string,
+  warnMessage: string,
+  detail?: string,
+): void {
+  results.push(
+    executableExists(path)
+      ? { severity: "ok", message: okMessage }
+      : {
+          severity: "warn",
+          message: warnMessage,
+          ...(detail && { detail }),
+        },
+  );
+}
+
+function addFilePresenceCheck(
+  results: CheckResult[],
+  path: string,
+  okMessage: string,
+  warnMessage: string,
+  detail: string,
+): void {
+  results.push(
+    existsSync(path)
+      ? { severity: "ok", message: okMessage }
+      : { severity: "warn", message: warnMessage, detail },
+  );
+}
+
+const checkRequiredUserUnit = (
+  results: CheckResult[],
+  executor: CommandExecutorService,
+  unit: string,
+  label: string,
+  enableDetail: string,
+) =>
+  Effect.gen(function* () {
+    const hasSystemctl =
+      (yield* executor.exitCode("which", ["systemctl"])) === 0;
+    if (!hasSystemctl) {
+      results.push({
+        severity: "warn",
+        message: `Skipping ${label.toLowerCase()} checks (systemctl not found)`,
+      });
+      return;
+    }
+
+    const enabled = yield* executor.exitCode("systemctl", [
+      "--user",
+      "is-enabled",
+      unit,
+    ]);
+    if (enabled === 0) {
+      results.push({ severity: "ok", message: `${label} enabled: ${unit}` });
+    } else {
+      results.push({
+        severity: "warn",
+        message: `${label} is disabled: ${unit}`,
+        detail: enableDetail,
+      });
+    }
+
+    const active = yield* executor.exitCode("systemctl", [
+      "--user",
+      "is-active",
+      unit,
+    ]);
+    if (active === 0) {
+      results.push({ severity: "ok", message: `${label} active: ${unit}` });
+    } else {
+      results.push({
+        severity: "warn",
+        message: `${label} is not active: ${unit}`,
+        detail: enableDetail,
+      });
+    }
+  });
+
+interface RequiredUserUnitSetup {
+  readonly scriptPath: string;
+  readonly scriptOkMessage: string;
+  readonly scriptWarnMessage: string;
+  readonly scriptDetail?: string;
+  readonly unitPath: string;
+  readonly unitOkMessage: string;
+  readonly unitWarnMessage: string;
+  readonly unitDetail: string;
+  readonly unit: string;
+  readonly unitLabel: string;
+}
+
+const checkRequiredUserUnitSetup = (setup: RequiredUserUnitSetup) =>
+  Effect.gen(function* () {
+    const executor = yield* CommandExecutor;
+    const results: CheckResult[] = [];
+    const enableDetail = `Enable with: systemctl --user enable --now ${setup.unit}`;
+
+    addExecutablePresenceCheck(
+      results,
+      setup.scriptPath,
+      setup.scriptOkMessage,
+      setup.scriptWarnMessage,
+      setup.scriptDetail,
+    );
+    addFilePresenceCheck(
+      results,
+      setup.unitPath,
+      setup.unitOkMessage,
+      setup.unitWarnMessage,
+      setup.unitDetail,
+    );
+    yield* checkRequiredUserUnit(
+      results,
+      executor,
+      setup.unit,
+      setup.unitLabel,
+      enableDetail,
+    );
+
+    return results;
+  });
+
 const checkObsoleteUserUnit = (
   results: CheckResult[],
   executor: CommandExecutorService,
@@ -109,129 +250,6 @@ const checkObsoleteUserUnit = (
       });
     }
   });
-
-// ---------------------------------------------------------------------------
-// Waybar config walk helpers (matches legacy _waybar_config_walk pattern)
-// ---------------------------------------------------------------------------
-
-/** Walk a Waybar config and its includes, returning true if any file contains the needle */
-function waybarConfigWalkContains(configPath: string, needle: string): boolean {
-  if (!existsSync(configPath)) return false;
-  try {
-    const content = readFileSync(configPath, "utf-8");
-    if (content.includes(needle)) return true;
-    // Check includes
-    for (const includePath of parseWaybarIncludes(configPath, content)) {
-      if (waybarConfigWalkContains(includePath, needle)) return true;
-    }
-  } catch {
-    /* ignore */
-  }
-  return false;
-}
-
-/** Parse "include" array entries from a Waybar JSONC config file */
-function parseWaybarIncludes(
-  configPath: string,
-  content: string,
-): readonly string[] {
-  const match = content.match(/"include"\s*:\s*\[([^\]]*)\]/);
-  if (!match) return [];
-  const configDir = dirname(configPath);
-  return match[1]
-    .split(",")
-    .map((e) => e.trim().replace(/^"|"$/g, ""))
-    .filter(Boolean)
-    .map((e) => {
-      const expanded = e.replace(/^~/, HOME_DIR);
-      return expanded.startsWith("/") ? expanded : join(configDir, expanded);
-    });
-}
-
-function activeWaybarConfigPath(config: ConfigService): string {
-  const omarchyHost = resolvedOmarchyHost(config) ?? "";
-  const waybarConfigDir = join(CONFIG_DIR, "waybar");
-  const hostConfig = omarchyHost
-    ? join(waybarConfigDir, `config.${omarchyHost}.jsonc`)
-    : "";
-  return hostConfig && existsSync(hostConfig)
-    ? hostConfig
-    : join(waybarConfigDir, "config.jsonc");
-}
-
-function addLocalScriptCheck(
-  results: CheckResult[],
-  scriptName: string,
-  label: string,
-  missingDetail: string,
-): void {
-  const script = join(HOME_DIR, ".local", "bin", scriptName);
-  results.push(
-    executableExists(script)
-      ? {
-          severity: "ok",
-          message: `${label} script is executable: ${displayPath(script)}`,
-        }
-      : {
-          severity: "warn",
-          message: `${label} script is missing or not executable: ${displayPath(script)}`,
-          detail: missingDetail,
-        },
-  );
-}
-
-function addWaybarHiddenCssCheck(
-  results: CheckResult[],
-  selector: string,
-  label: string,
-  missingDetail: string,
-): void {
-  const waybarStyle = join(CONFIG_DIR, "waybar", "style.css");
-  if (!existsSync(waybarStyle)) {
-    results.push({
-      severity: "warn",
-      message: `Waybar style file is missing: ${displayPath(waybarStyle)}`,
-    });
-    return;
-  }
-
-  try {
-    const styleContent = readFileSync(waybarStyle, "utf-8");
-    results.push(
-      styleContent.includes(selector)
-        ? {
-            severity: "ok",
-            message: `${label} Waybar hidden-empty CSS found: ${displayPath(waybarStyle)}`,
-          }
-        : {
-            severity: "warn",
-            message: `${label} Waybar hidden-empty CSS is missing: ${displayPath(waybarStyle)}`,
-            detail: missingDetail,
-          },
-    );
-  } catch {
-    /* ignore */
-  }
-}
-
-function addWaybarConfigContainsCheck(
-  results: CheckResult[],
-  waybarConfig: string,
-  needle: string,
-  okMessage: string,
-  warnMessage: string,
-  detail?: string,
-): void {
-  if (waybarConfigWalkContains(waybarConfig, needle)) {
-    results.push({ severity: "ok", message: okMessage });
-  } else {
-    results.push({
-      severity: "warn",
-      message: warnMessage,
-      ...(detail && { detail }),
-    });
-  }
-}
 
 /** Check workflow runs integration and absence of the legacy notification watcher. */
 export const checkWorkflowRuns = Effect.gen(function* () {
@@ -348,55 +366,10 @@ export const checkWorkflowRuns = Effect.gen(function* () {
     });
   }
 
-  addLocalScriptCheck(
-    results,
-    "git-workflows-bar",
-    "Workflow runs",
-    "Run dot stow to install the workflow runs module script",
-  );
-  addWaybarHiddenCssCheck(
-    results,
-    "#custom-git-workflows.hidden",
-    "Workflow runs",
-    "Update the Waybar style so the workflow icon hides when there are no recent runs needing attention",
-  );
-
-  const waybarConfig = activeWaybarConfigPath(config);
-
-  if (existsSync(waybarConfig)) {
-    results.push({
-      severity: "ok",
-      message: `Workflow runs active Waybar config: ${displayPath(waybarConfig)}`,
-    });
-
-    // Walk config and includes to check for module, click actions, and ordering
-    const configContains = (needle: string): boolean =>
-      waybarConfigWalkContains(waybarConfig, needle);
-
-    if (configContains("git-workflow-watch")) {
-      results.push({
-        severity: "error",
-        message: `Active Waybar config still references obsolete git-workflow-watch: ${displayPath(waybarConfig)}`,
-        detail:
-          "Update/re-stow the Waybar config on this machine, or remove the legacy git-workflow-watch module/action references from the active Waybar config",
-      });
-    } else {
-      results.push({
-        severity: "ok",
-        message: "Active Waybar config has no legacy workflow-watch actions",
-      });
-    }
-  } else {
-    results.push({
-      severity: "warn",
-      message: `Active Waybar config is missing: ${displayPath(waybarConfig)}`,
-    });
-  }
-
   return results;
 });
 
-/** Check GitHub notifications API access and Waybar integration. */
+/** Check GitHub notifications API access. */
 export const checkGitNotifications = Effect.gen(function* () {
   const github = yield* GitHub;
   const config = yield* Config;
@@ -430,141 +403,35 @@ export const checkGitNotifications = Effect.gen(function* () {
     }
   }
 
-  addLocalScriptCheck(
-    results,
-    "git-notifications-bar",
-    "Git notifications",
-    "Run dot stow to install the Git notifications module script",
-  );
-  addWaybarHiddenCssCheck(
-    results,
-    "#custom-git-notifications.hidden",
-    "Git notifications",
-    "Update the Waybar style so the notification icon hides when the inbox is clear",
-  );
-
-  const waybarConfig = activeWaybarConfigPath(config);
-
-  if (existsSync(waybarConfig)) {
-    results.push({
-      severity: "ok",
-      message: `Git notifications active Waybar config: ${displayPath(waybarConfig)}`,
-    });
-
-    addWaybarConfigContainsCheck(
-      results,
-      waybarConfig,
-      '"custom/git-notifications"',
-      "Git notifications Waybar module is present in the active config",
-      `Git notifications Waybar module is missing from ${displayPath(waybarConfig)}`,
-      "Add custom/git-notifications before custom/git-diff in the active Waybar config",
-    );
-    addWaybarConfigContainsCheck(
-      results,
-      waybarConfig,
-      '"on-click": "git-notifications-bar open"',
-      "Git notifications Waybar left click opens the filtered TUI",
-      `Git notifications Waybar left-click action is missing in ${displayPath(waybarConfig)}`,
-    );
-    addWaybarConfigContainsCheck(
-      results,
-      waybarConfig,
-      '"on-click-right": "git-notifications-bar refresh"',
-      "Git notifications Waybar right click refreshes the cache",
-      `Git notifications Waybar right-click refresh action is missing in ${displayPath(waybarConfig)}`,
-    );
-  } else {
-    results.push({
-      severity: "warn",
-      message: `Active Waybar config is missing: ${displayPath(waybarConfig)}`,
-    });
-  }
-
   return results;
 });
 
 /** Check doctor startup notification timer */
-export const checkDoctorStartup = Effect.gen(function* () {
-  const executor = yield* CommandExecutor;
-  const results: CheckResult[] = [];
+export const checkDoctorStartup = checkRequiredUserUnitSetup({
+  scriptPath: DOCTOR_STARTUP_NOTIFY_SCRIPT,
+  scriptOkMessage: `Doctor startup notify script found: ${displayPath(DOCTOR_STARTUP_NOTIFY_SCRIPT)}`,
+  scriptWarnMessage: `Doctor startup notify script missing or not executable: ${displayPath(DOCTOR_STARTUP_NOTIFY_SCRIPT)}`,
+  unitPath: userSystemdUnitPath(DOCTOR_STARTUP_TIMER_UNIT),
+  unitOkMessage: `Doctor startup timer unit file found: ${displayPath(userSystemdUnitPath(DOCTOR_STARTUP_TIMER_UNIT))}`,
+  unitWarnMessage: `Doctor startup timer unit file missing: ${displayPath(userSystemdUnitPath(DOCTOR_STARTUP_TIMER_UNIT))}`,
+  unitDetail: "Run dot stow (or dot install) to link systemd user units",
+  unit: DOCTOR_STARTUP_TIMER_UNIT,
+  unitLabel: "Doctor startup timer",
+});
 
-  const notifyScript = join(HOME_DIR, ".local", "bin", "dot-doctor-notify");
-  const unitPath = join(
-    CONFIG_DIR,
-    "systemd",
-    "user",
-    DOCTOR_STARTUP_TIMER_UNIT,
-  );
-
-  if (existsSync(notifyScript)) {
-    results.push({
-      severity: "ok",
-      message: `Doctor startup notify script found: ${displayPath(notifyScript)}`,
-    });
-  } else {
-    results.push({
-      severity: "warn",
-      message: `Doctor startup notify script missing or not executable: ${displayPath(notifyScript)}`,
-    });
-  }
-
-  if (existsSync(unitPath)) {
-    results.push({
-      severity: "ok",
-      message: `Doctor startup timer unit file found: ${displayPath(unitPath)}`,
-    });
-  } else {
-    results.push({
-      severity: "warn",
-      message: `Doctor startup timer unit file missing: ${displayPath(unitPath)}`,
-      detail: "Run dot stow (or dot install) to link systemd user units",
-    });
-  }
-
-  const hasSystemctl = (yield* executor.exitCode("which", ["systemctl"])) === 0;
-  if (hasSystemctl) {
-    const enabled = yield* executor.exitCode("systemctl", [
-      "--user",
-      "is-enabled",
-      DOCTOR_STARTUP_TIMER_UNIT,
-    ]);
-    if (enabled === 0) {
-      results.push({
-        severity: "ok",
-        message: `Doctor startup timer enabled: ${DOCTOR_STARTUP_TIMER_UNIT}`,
-      });
-    } else {
-      results.push({
-        severity: "warn",
-        message: `Doctor startup timer is disabled: ${DOCTOR_STARTUP_TIMER_UNIT}`,
-        detail: `Enable with: systemctl --user enable --now ${DOCTOR_STARTUP_TIMER_UNIT}`,
-      });
-    }
-
-    const active = yield* executor.exitCode("systemctl", [
-      "--user",
-      "is-active",
-      DOCTOR_STARTUP_TIMER_UNIT,
-    ]);
-    if (active === 0) {
-      results.push({
-        severity: "ok",
-        message: `Doctor startup timer active: ${DOCTOR_STARTUP_TIMER_UNIT}`,
-      });
-    } else {
-      results.push({
-        severity: "warn",
-        message: `Doctor startup timer is not active: ${DOCTOR_STARTUP_TIMER_UNIT}`,
-      });
-    }
-  } else {
-    results.push({
-      severity: "warn",
-      message: "Skipping doctor startup timer checks (systemctl not found)",
-    });
-  }
-
-  return results;
+/** Check resume recovery monitor service used after hypridle is removed. */
+export const checkResumeMonitor = checkRequiredUserUnitSetup({
+  scriptPath: RESUME_MONITOR_SCRIPT,
+  scriptOkMessage: `Resume monitor script is executable: ${displayPath(RESUME_MONITOR_SCRIPT)}`,
+  scriptWarnMessage: `Resume monitor script is missing or not executable: ${displayPath(RESUME_MONITOR_SCRIPT)}`,
+  scriptDetail:
+    "Run dot stow (or dot install) to link the resume monitor script",
+  unitPath: userSystemdUnitPath(RESUME_MONITOR_SERVICE_UNIT),
+  unitOkMessage: `Resume monitor service unit file found: ${displayPath(userSystemdUnitPath(RESUME_MONITOR_SERVICE_UNIT))}`,
+  unitWarnMessage: `Resume monitor service unit file missing: ${displayPath(userSystemdUnitPath(RESUME_MONITOR_SERVICE_UNIT))}`,
+  unitDetail: "Run dot stow (or dot install) to link systemd user units",
+  unit: RESUME_MONITOR_SERVICE_UNIT,
+  unitLabel: "Resume monitor service",
 });
 
 /** Check daily volume reset timer (laptop-only, informational) */
@@ -575,9 +442,8 @@ export const checkDailyVolumeReset = Effect.gen(function* () {
   const host = resolvedOmarchyHost(config) ?? "unset";
 
   const script = join(HOME_DIR, ".local", "bin", "daily-volume-zero");
-  const systemdDir = join(CONFIG_DIR, "systemd", "user");
-  const serviceUnit = join(systemdDir, "daily-volume-zero.service");
-  const timerUnit = join(systemdDir, DAILY_VOLUME_ZERO_TIMER_UNIT);
+  const serviceUnit = userSystemdUnitPath("daily-volume-zero.service");
+  const timerUnit = userSystemdUnitPath(DAILY_VOLUME_ZERO_TIMER_UNIT);
 
   if (existsSync(script)) {
     results.push({

@@ -29,7 +29,7 @@ A clean, end-to-end walkthrough for setting up a new machine.
    ```
 
 5. Run first-use setup using the mode that matches this machine.
-6. If stock Omarchy config directories already exist at `~/.config/waybar` or `~/.config/uwsm`, `dot init` backs them up with a `.dot-init-backup-*` suffix before cloning the managed repos. Hyprland and Ghostty config are stowed from the `hypr/` and `ghostty/` packages instead.
+6. If a stock Omarchy config directory already exists at `~/.config/uwsm`, `dot init` backs it up with a `.dot-init-backup-*` suffix before cloning the managed repo. Hyprland and Ghostty config are stowed from the `hypr/` and `ghostty/` packages instead.
 7. `dot init` verifies the pinned public package signing fingerprint, registers the signed `timmo` repository before the standard repositories, and retains AUR as the fallback for packages not published there.
 8. `dot init` opens the managed [firewall rules](/dot/utilities/#firewall-rules) (KDE Connect, Home Assistant, the OpenCode server, LocalSend, and the libvirt NAT network) when `ufw` is installed.
 9. Restart your shell and confirm `dot help` is on `PATH`.
@@ -65,7 +65,7 @@ dot init
 `--noninteractive` skips the Hypr host questionnaire; elevation and package tools may still prompt. The accepted `--confirm` compatibility flag does not suppress those prompts.
 
 :::tip[Hypr host and mise tools]
-`dot init` selects the Hypr host early and creates `~/.config/hypr/host`. Reboot after init so Hyprland, Waybar, launchers, services, and new shells inherit `OMARCHY_HOST` from the stowed host config. Init runs `mise install` immediately after stowing dotfiles and before installing managed Arch/AUR package lists, so Bun, Node, pnpm, and similar tools come from the stowed mise config rather than global pacman packages. Later full `dot update` runs repo pulls, rebuilds, mise trust refreshes, MCP sync, and stow without checking or installing packages.
+`dot init` selects the Hypr host early and creates `~/.config/hypr/host`. Reboot after init so Hyprland, the Omarchy shell, launchers, services, and new shells inherit `OMARCHY_HOST` from the stowed host config. Init runs `mise install` immediately after stowing dotfiles and before installing managed Arch/AUR package lists, so Bun, Node, pnpm, and similar tools come from the stowed mise config rather than global pacman packages. Later full `dot update` runs repo pulls, rebuilds, mise trust refreshes, MCP sync, and stow without checking or installing packages.
 :::
 
 :::note[GNOME Boxes shared folders]

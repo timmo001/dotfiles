@@ -246,7 +246,11 @@ export PATH="/home/aidan/.cache/.bun/bin:$PATH"
 # ------------------------------
 export XDG_CURRENT_DESKTOP=Hyprland
 export XDG_SESSION_TYPE=wayland
-export QT_QPA_PLATFORM=xcb
+# Prefer the Wayland Qt platform (so layer-shell apps like the Omarchy
+# Quickshell bar attach correctly), falling back to XCB only if Wayland init
+# fails. A plain `xcb` here makes `omarchy restart shell` launch the bar under
+# XWayland, where it cannot attach and renders as a floating window.
+export QT_QPA_PLATFORM="wayland;xcb"
 export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
 export ELECTRON_OZONE_PLATFORM_HINT=wayland
 
@@ -847,7 +851,6 @@ source ~/.local/share/omarchy/default/bash/envs
 # Omarchy extras
 # ------------------------------
 timmo-update-extras() {
-  git-update ~/.config/waybar
   git-update ~/.config/uwsm
   git-update ~/.config/dotfiles
   git-update ~/.config/dotfiles-private

@@ -29,3 +29,9 @@ Use this skill for changes to user config managed by GNU Stow through the public
 - Reviewed third-party snapshots -> `~/repos/skills/<name>` plus `imports.json`
 
 Do not run `dot clean` unless the user explicitly asks to remove stowed configuration. Preserve unrelated worktree changes and continue with public-safe work when the private overlay is unavailable.
+
+## Omarchy Host Overrides
+
+- Hyprland config is stowed from `hypr/.config/hypr/`, with host overrides selected through `~/.config/hypr/host`.
+- The Hypr package is stowed non-destructively: `dot stow` and `dot install` never unstow it first, so `hyprland.lua` cannot disappear during Hyprland's live reload.
+- Keep the generated Omarchy `shell.json`, Lua host layout, and canonical docs in sync when their contracts change.

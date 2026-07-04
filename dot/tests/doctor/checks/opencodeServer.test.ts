@@ -16,7 +16,7 @@ function tempPaths() {
     process.env.TMPDIR ?? "/tmp",
     `opencode-server-test-${process.pid}-${Date.now()}-${tempRoots.length}`,
   );
-  const autostartPath = join(root, "hypr", "autostart.conf");
+  const autostartPath = join(root, "hypr", "autostart.lua");
   const envPath = join(root, "opencode", ".env");
   mkdirSync(join(root, "hypr"), { recursive: true });
   mkdirSync(join(root, "opencode"), { recursive: true });
@@ -27,7 +27,7 @@ function tempPaths() {
 describe("opencodeServerResults", () => {
   test("accepts desktop autostart and a configured password", () => {
     const { autostartPath, envPath } = tempPaths();
-    writeFileSync(autostartPath, "exec-once = opencode-server\n");
+    writeFileSync(autostartPath, 'o.exec_on_start("opencode-server")\n');
     writeFileSync(envPath, "OPENCODE_SERVER_PASSWORD='configured'\n");
 
     expect(opencodeServerResults(autostartPath, envPath)).toEqual([
@@ -44,7 +44,7 @@ describe("opencodeServerResults", () => {
 
   test("warns when desktop autostart does not start the server", () => {
     const { autostartPath, envPath } = tempPaths();
-    writeFileSync(autostartPath, "exec-once = another-service\n");
+    writeFileSync(autostartPath, 'o.exec_on_start("another-service")\n');
 
     expect(opencodeServerResults(autostartPath, envPath)).toEqual([
       {
@@ -57,7 +57,7 @@ describe("opencodeServerResults", () => {
 
   test("checks the local password whenever desktop autostart is enabled", () => {
     const { autostartPath, envPath } = tempPaths();
-    writeFileSync(autostartPath, "exec-once = opencode-server\n");
+    writeFileSync(autostartPath, 'o.exec_on_start("opencode-server")\n');
 
     expect(opencodeServerResults(autostartPath, envPath)[1]).toEqual({
       severity: "warn",

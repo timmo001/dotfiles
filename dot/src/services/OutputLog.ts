@@ -206,7 +206,7 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
       const paths = logFiles(defaultLogFile);
 
       // Create/prune log files lazily on first emit so query/machine commands
-      // that never log (e.g. Waybar bar-json polls) leave no files behind.
+      // that never log (e.g. status-bar JSON polls) leave no files behind.
       let initialised = false;
       const ensureInitialised = (): void => {
         if (initialised) return;
@@ -268,7 +268,7 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
       const paths = logFiles(defaultLogFile);
 
       // Create/prune log files lazily on first emit so query/machine commands
-      // that never log (e.g. Waybar bar-json polls) leave no files behind.
+      // that never log (e.g. status-bar JSON polls) leave no files behind.
       let initialised = false;
       const ensureInitialised = (): void => {
         if (initialised) return;

@@ -11,7 +11,6 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { Repo, RepoState } from "../../types.js";
 import { DotDiff } from "./DotDiff.js";
-import { GitDiffWaybarCache } from "./GitDiffWaybarCache.js";
 
 const log = (msg: string) => console.error(`[dot:Watcher] ${msg}`);
 
@@ -35,7 +34,6 @@ export class RepoWatcher extends Context.Service<
     Effect.gen(function* () {
       log("Initialising RepoWatcher...");
       const dotDiff = yield* DotDiff;
-      const waybarCache = yield* GitDiffWaybarCache;
       const pubsub = yield* PubSub.unbounded<RepoState>();
 
       let currentState: RepoState = {
@@ -67,45 +65,8 @@ export class RepoWatcher extends Context.Service<
         }),
       );
 
-      // Fast startup: try Waybar cache first, then full poll
-      const initialLoad = Effect.gen(function* () {
-        log("Trying Waybar cache for fast start...");
-        const cache = yield* waybarCache.load();
-
-        if (cache && cache.class !== "dots-unknown") {
-          const changedNames = waybarCache.parseChangedNames(cache);
-          log(
-            `Waybar cache hit: class=${cache.class}, changedNames=[${changedNames.join(", ")}]`,
-          );
-          const all = yield* dotDiff
-            .listAll()
-            .pipe(Effect.catch(() => Effect.succeed([] as readonly Repo[])));
-
-          if (all.length > 0) {
-            const changedNameSet = new Set(changedNames);
-            const changed = all.filter((r) => {
-              const baseName = r.name.includes(":")
-                ? r.name.split(":").pop()!
-                : r.name;
-              return changedNameSet.has(baseName) || changedNameSet.has(r.name);
-            });
-            const now = yield* Clock.currentTimeMillis;
-            const state = buildRepoState(all, changed, new Date(now));
-            currentState = state;
-            yield* PubSub.publish(pubsub, state);
-            log(
-              `Fast start: ${changed.length} changed, ${state.unchanged.length} unchanged`,
-            );
-            return;
-          }
-        }
-
-        log("Waybar cache miss — falling back to full poll");
-        yield* poll;
-      }).pipe(Effect.withSpan("RepoWatcher.initialLoad"));
-
-      // Run initial load
-      yield* initialLoad;
+      // Fast first paint: run a full poll before the background fiber starts
+      yield* poll;
       log("Initial load complete");
 
       // Start background poll fiber (10s interval, matching lazygit)

@@ -15,6 +15,7 @@ import {
   ensureHyprHostLink,
 } from "../lib/omarchyHost.js";
 import { ensureNvimThemeLink } from "../lib/omarchyNvim.js";
+import { applyOmarchyShellConfig } from "../lib/omarchyShellConfig.js";
 import { writeRepoPicker, writeRepoShortcuts } from "../lib/repoShortcuts.js";
 import {
   backupUnmanagedStowTargets,
@@ -42,6 +43,10 @@ const AGENTS_PRIVATE_IGNORES = [
  *
  * Matches legacy behaviour: enumerates stow package directories, logs each one,
  * and applies per-folder stow with appropriate flags.
+ *
+ * @returns `true` when the generated Omarchy `shell.json` changed during this
+ *   run, so the caller can reload the running shell. Always `false` for
+ *   private-only runs or when the shell config step is skipped.
  */
 export const stow = (opts?: {
   readonly publicOnly?: boolean;
@@ -54,6 +59,8 @@ export const stow = (opts?: {
 
     const runPublic = !opts?.privateOnly;
     const runPrivate = !opts?.publicOnly;
+
+    let shellConfigChanged = false;
 
     if (runPrivate && config.canUsePrivate && config.gitConfig.valid) {
       const shortcutsPath = yield* Effect.sync(() =>
@@ -120,6 +127,9 @@ export const stow = (opts?: {
 
       yield* log.section("Omarchy Neovim Theme");
       yield* ensureNvimThemeLink(log);
+
+      yield* log.section("Omarchy Shell Config");
+      shellConfigChanged = yield* applyOmarchyShellConfig;
     }
 
     if (runPrivate) {
@@ -141,6 +151,8 @@ export const stow = (opts?: {
         );
       }
     }
+
+    return shellConfigChanged;
   });
 
 /** Stow all folders in a single repo */
@@ -178,10 +190,11 @@ const stowRepo = (
 
       const isHypr = folder === "hypr";
       if (isHypr) {
-        // Never unstow hypr: Hyprland autoreload regenerates a default stub the
-        // instant hyprland.conf goes missing, and that stub real file then
-        // blocks the restow. Repair the link atomically instead and let the
-        // idempotent stow below fill in any missing files with no gap.
+        // Never unstow hypr: Hyprland watches its live config and auto-reloads
+        // on change. Removing the symlinks (even briefly) drops Hyprland into
+        // emergency mode, and it may regenerate a stub real config file
+        // that then blocks the restow. Repair the link atomically instead and
+        // let the idempotent stow below fill in any missing files with no gap.
         yield* ensureHyprConfigLink(repoDir, log);
       } else {
         // Unstow first, then restow (equivalent to --restow per folder)

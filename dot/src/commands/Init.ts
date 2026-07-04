@@ -1,4 +1,4 @@
-import { Effect, Schema } from "effect";
+import { Duration, Effect, Schema } from "effect";
 import {
   existsSync,
   lstatSync,
@@ -10,6 +10,7 @@ import { basename, join } from "path";
 import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
+import { Launcher } from "../services/Launcher.js";
 import { agentsSync } from "./AgentsSync.js";
 import { install } from "./Install.js";
 import { setupPrivateRepo } from "./SetupPrivateRepo.js";
@@ -45,9 +46,11 @@ import type { ConfigService } from "../services/Config.js";
 
 const GIT_INCLUDE_PATH = "~/.config/git/config.dotfiles";
 const DOCTOR_STARTUP_TIMER_UNIT = "dot-doctor-startup.timer";
+const RESUME_MONITOR_SERVICE_UNIT = "dot-on-resume-monitor.service";
 const DEFAULT_INIT_OMARCHY_HOST = "desktop";
 const INIT_OMARCHY_HOSTS = ["desktop", "laptop"] as const;
 const ETC_SHELLS = "/etc/shells";
+const OMARCHY_HOST_PERSIST_TIMEOUT_SECONDS = 10;
 
 /** Upper bound (seconds) for each init phase. */
 const INIT_STEP_TIMEOUT_SECONDS = {
@@ -408,10 +411,53 @@ function resolveInitOptions(
   });
 }
 
+function persistOmarchyHostEnv(
+  host: string,
+): Effect.Effect<void, never, CommandExecutor | OutputLog> {
+  return Effect.gen(function* () {
+    const executor = yield* CommandExecutor;
+    const log = yield* OutputLog;
+    const file = "/etc/environment";
+    const line = `OMARCHY_HOST=${host}`;
+    // Idempotent: no-op when already correct, otherwise replace any existing
+    // OMARCHY_HOST line or append one. pam_env reads /etc/environment at login,
+    // so the value reaches the graphical session and every terminal.
+    const script = [
+      `grep -qx '${line}' ${file} && exit 0`,
+      `if grep -q '^OMARCHY_HOST=' ${file}; then`,
+      `  sed -i 's|^OMARCHY_HOST=.*|${line}|' ${file}`,
+      `else`,
+      `  printf '%s\\n' '${line}' >> ${file}`,
+      `fi`,
+    ].join("\n");
+
+    const persistCommand =
+      process.getuid?.() === 0
+        ? (["bash", ["-c", script]] as const)
+        : (yield* executor.exitCode("which", ["pkexec"])) === 0
+          ? (["pkexec", ["bash", "-c", script]] as const)
+          : (["sudo", ["-n", "bash", "-c", script]] as const);
+
+    const exitCode = yield* executor
+      .exitCode(persistCommand[0], persistCommand[1])
+      .pipe(
+        Effect.timeout(Duration.seconds(OMARCHY_HOST_PERSIST_TIMEOUT_SECONDS)),
+        Effect.catch(() => Effect.succeed(1)),
+      );
+    if (exitCode === 0) {
+      yield* log.info(`Persisted ${line} to ${file}`);
+    } else {
+      yield* log.warn(
+        `Could not persist OMARCHY_HOST to ${file} (exit ${exitCode}); set it manually`,
+      );
+    }
+  });
+}
+
 function ensureInitHyprHostLink(
   config: ConfigService,
   options: InitOptions,
-): Effect.Effect<void, InitError, OutputLog> {
+): Effect.Effect<void, InitError, CommandExecutor | OutputLog> {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
     if (!config.omarchy.enabled) return;
@@ -419,16 +465,36 @@ function ensureInitHyprHostLink(
     const host = initOmarchyHost(options);
 
     yield* log.section("Omarchy Host Links");
-    // Select the host now so host-suffixed stow packages and the Hypr host
-    // link resolve correctly during the stow phase.
+    // Validate the requested host against the stowed package source so a typo
+    // fails fast, even on a fresh machine before hypr is stowed.
+    const sourceHostDir = join(
+      config.publicDotfiles,
+      "hypr",
+      ".config",
+      "hypr",
+      "hosts",
+      host,
+    );
+    if (!existsSync(sourceHostDir)) {
+      return yield* fail(
+        `Unknown Hypr host '${host}': missing ${displayPath(sourceHostDir)}. Pass --host <name> with a configured host.`,
+      );
+    }
+
+    // Select the host now so host-suffixed stow packages and the Hypr host link
+    // resolve correctly during the stow phase.
     setEnv(ENV.OMARCHY_HOST, host);
 
-    const hostDir = join(hyprRepoPath(config), "hosts", host);
-    if (!existsSync(hostDir)) {
-      // Hypr config is now a stowed dotfiles package; the hosts directory and
-      // host link are created during the install/stow phase.
+    // Persist the host for future login sessions so terminals, status scripts,
+    // and dot doctor see OMARCHY_HOST without a transient init env.
+    yield* persistOmarchyHostEnv(host);
+
+    // The live host directory only exists once hypr is stowed; when it is not
+    // there yet, the stow phase creates the host link after stowing.
+    const liveHostDir = join(hyprRepoPath(config), "hosts", host);
+    if (!existsSync(liveHostDir)) {
       yield* log.info(
-        `Hypr host config ${displayPath(hostDir)} not present yet; stow will create the host link`,
+        `Hypr host '${host}' selected; host link will be created during stow`,
       );
       return;
     }
@@ -539,24 +605,18 @@ function runUserSystemctl(
   });
 }
 
-function enableDoctorStartupTimer(): Effect.Effect<
-  void,
-  InitError,
-  CommandExecutor | OutputLog
-> {
+function enableUserUnit(
+  unit: string,
+  sectionTitle: string,
+): Effect.Effect<void, InitError, CommandExecutor | OutputLog> {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
     const log = yield* OutputLog;
-    const unitPath = join(
-      CONFIG_DIR,
-      "systemd",
-      "user",
-      DOCTOR_STARTUP_TIMER_UNIT,
-    );
+    const unitPath = join(CONFIG_DIR, "systemd", "user", unit);
 
-    yield* log.section("Enable Doctor Startup Timer");
+    yield* log.section(sectionTitle);
     if ((yield* executor.exitCode("which", ["systemctl"])) !== 0) {
-      yield* log.warn("Skipping doctor startup timer (systemctl not found)");
+      yield* log.warn(`Skipping ${unit} (systemctl not found)`);
       return;
     }
 
@@ -565,8 +625,8 @@ function enableDoctorStartupTimer(): Effect.Effect<
     }
 
     yield* runUserSystemctl(["daemon-reload"]);
-    yield* runUserSystemctl(["enable", "--now", DOCTOR_STARTUP_TIMER_UNIT]);
-    yield* log.info(`Enabled ${DOCTOR_STARTUP_TIMER_UNIT}`);
+    yield* runUserSystemctl(["enable", "--now", unit]);
+    yield* log.info(`Enabled ${unit}`);
   });
 }
 
@@ -728,7 +788,13 @@ function ensureLoginShellZsh(): Effect.Effect<
 }
 
 /** Run the one-time first-use setup workflow for a fresh machine. */
-export function init(rawArgs: readonly string[]) {
+export function init(
+  rawArgs: readonly string[],
+): Effect.Effect<
+  void,
+  unknown,
+  Config | CommandExecutor | OutputLog | Launcher
+> {
   return Effect.gen(function* () {
     const config = yield* Config;
     const log = yield* OutputLog;
@@ -826,7 +892,12 @@ export function init(rawArgs: readonly string[]) {
     yield* requiredInitStep(
       "Enable Doctor Startup Timer",
       INIT_STEP_TIMEOUT_SECONDS.doctorTimer,
-      enableDoctorStartupTimer(),
+      enableUserUnit(DOCTOR_STARTUP_TIMER_UNIT, "Enable Doctor Startup Timer"),
+    );
+    yield* requiredInitStep(
+      "Enable Resume Monitor",
+      INIT_STEP_TIMEOUT_SECONDS.doctorTimer,
+      enableUserUnit(RESUME_MONITOR_SERVICE_UNIT, "Enable Resume Monitor"),
     );
     yield* requiredInitStep(
       "Sync Agents",

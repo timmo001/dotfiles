@@ -55,7 +55,6 @@ bash tests/scripts/browser-control-extension-sync.test.sh
 bash tests/scripts/git-default-ref.test.sh
 bash tests/scripts/repo-shortcuts.test.sh
 bash tests/scripts/terminal-tab-action.test.sh
-bash tests/scripts/package-updates-bar.test.sh
 bash tests/scripts/workspace-relayout.test.sh
 bash tests/scripts/workspace-restore.test.sh
 """

@@ -50,4 +50,4 @@ The `notifications.bar.ignore_bot_activity` key controls status-bar bot noise. A
 ## Requirements
 
 - `dot git-notifications` requires `gh` authenticated with a classic token carrying the `notifications` or `repo` scope.
-- `dot doctor` verifies `dot-git.yml`, the active status-bar module wiring, and the absence of legacy `git-workflow-watch` leftovers.
+- `dot doctor` verifies `dot-git.yml` and the absence of legacy `git-workflow-watch` leftovers.

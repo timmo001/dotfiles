@@ -53,7 +53,7 @@ sources:
 Each `command` must behave like a status-bar poll, not a long-running watcher:
 
 - Print one JSON object on the first line of stdout.
-- Use the same `--bar-json` shape as Waybar modules: `text`, `tooltip`, and `class` fields. See [Bar Integrations](/bar-integrations/).
+- Use the shared `--bar-json` status-bar shape: `text`, `tooltip`, and `class` fields. See [Bar Integrations](/bar-integrations/).
 - Finish within eight seconds. `dot dashboard` kills overdue commands with `SIGTERM`.
 - Avoid unbounded stream helpers. Commands containing `ha-watch-singleton`, `singleton-stream`, or `doorbell` are rejected as unsafe.
 

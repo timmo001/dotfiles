@@ -9,9 +9,9 @@ sidebar:
 
 `dot` tracks a small set of Omarchy components as git repos and keeps them on the expected branch:
 
-- `waybar` and `uwsm` — single-branch Omarchy repos expected on `main`.
+- `uwsm` — single-branch Omarchy repo expected on `main`.
 
-`dot init` clones these into `~/.config/{waybar,uwsm}`. If a stock Omarchy config directory already exists there and is not a git repo, init moves it aside with a `.dot-init-backup-*` suffix before cloning. `dot update` syncs them, and `dot doctor` verifies their worktree branches.
+`dot init` clones this into `~/.config/uwsm`. If a stock Omarchy config directory already exists there and is not a git repo, init moves it aside with a `.dot-init-backup-*` suffix before cloning. `dot update` syncs it, and `dot doctor` verifies its branch.
 
 ## Ghostty host overrides
 
@@ -30,14 +30,14 @@ The shared config uses 8px window padding. The laptop override keeps that paddin
 
 ## Hyprland host overrides
 
-Hyprland config is a stowed dotfiles package (`hypr/.config/hypr/`, conf-only), not a tracked repo. Host-specific overrides live under `~/.config/hypr/hosts/$OMARCHY_HOST`, selected by the runtime `~/.config/hypr/host` symlink.
+Hyprland config is a stowed dotfiles package (`hypr/.config/hypr/`), not a tracked repo. Host-specific Lua overrides live under `~/.config/hypr/hosts/$OMARCHY_HOST`, selected by the runtime `~/.config/hypr/host` symlink.
 
 - `dot stow` lays down the Hypr package with `--no-folding` and creates/repairs `~/.config/hypr/host` to point at the active host.
 - `dot init` selects the Hypr host early (via `--host <name>`, defaulting to `OMARCHY_HOST` or `desktop`), and the stow phase creates the `host` symlink.
 - `dot doctor` checks the host link and flags any leftover legacy `omarchy-hypr` clone at `~/.config/hypr`.
-- Shared Hyprland-loaded config files wrap host override `source = ~/.config/hypr/host/*.conf` lines in Hyprland's `hyprlang noerror` guard, so a missing host override during stow, update, or migration does not leave Hyprland in an error loop.
+- Both host monitor overrides detect common virtual machines through DMI data and use unscaled toolkit and fallback monitor settings; bare-metal hosts keep their normal HiDPI scale.
 
-Shared Hypr autostart lives in `~/.config/hypr/autostart.conf` and runs on every host before the selected host override is sourced. Host-only services stay in `~/.config/hypr/host/autostart.conf`. KDE Connect starts on both hosts, while the OpenCode server starts only on the desktop.
+Shared Hypr autostart lives in `~/.config/hypr/autostart.lua` and runs on every host before the selected host override is loaded. Host-only services stay in `~/.config/hypr/host/autostart.lua`. KDE Connect starts on both hosts, while the OpenCode server starts only on the desktop.
 
 :::caution[Retired omarchy-hypr clone]
 A machine with the retired `~/.config/hypr` `omarchy-hypr` clone halts `dot update` until the clone is backed up and re-stowed. Hyprland config is a stowed package, not a cloned repo.

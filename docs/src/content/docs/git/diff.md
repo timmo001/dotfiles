@@ -19,7 +19,7 @@ dot git-diff --no-fetch     # skip upstream fetches; use local refs only
 dot git-diff --tab other    # open with the Other pane focused
 ```
 
-The TUI polls every ten seconds and loads Waybar cache on startup for a fast first paint. `dot git-log` reuses the same tracked repo list.
+The TUI polls every ten seconds and performs an initial poll for a fast first paint. `dot git-log` reuses the same tracked repo list.
 
 ## TUI layout
 
@@ -61,7 +61,7 @@ When a repo has an upstream configured, `dot git-diff` fetches the tracking bran
 
 ## Status bar module
 
-A status bar module polls `dot git-diff --bar-json` through its own short-lived cache; left click opens the TUI and right click refreshes the cache. See [Bar Integrations](/bar-integrations/) for the shared JSON contract.
+The Quickshell module polls `dot git-diff --bar-json` through the stowed `git-diff-bar` cache command; left click opens the TUI and right click refreshes the widget. See [Bar Integrations](/bar-integrations/) for the shared JSON contract.
 
 ## Configuration
 

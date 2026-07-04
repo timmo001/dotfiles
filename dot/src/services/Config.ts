@@ -26,7 +26,7 @@ import { ENV, envString } from "../lib/env.js";
 export interface OmarchyRepoConfig {
   /** Base directory for omarchy repos (default: ~/.config) */
   readonly repoBase: string;
-  /** Repos to include in diff (e.g. ["waybar", "uwsm"]) */
+  /** Repos to include in diff (e.g. ["uwsm"]) */
   readonly diffRepos: readonly string[];
   /** Repos with multiple worktree branches */
   readonly worktreeRepos: readonly string[];
@@ -114,11 +114,10 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
       // Omarchy config
       const omarchyRepoBase =
         envString(ENV.OMARCHY_REPO_BASE_DIR) ?? CONFIG_DIR;
-      const omarchyDiffRepos = ["waybar", "uwsm"];
+      const omarchyDiffRepos = ["uwsm"];
       const omarchyWorktreeRepos: readonly string[] = [];
       const omarchyWorktreeBranches = ["desktop", "laptop"];
       const omarchyExpectedBranches = {
-        waybar: "main",
         uwsm: "main",
       } satisfies Readonly<Record<string, string>>;
       const omarchyEnabled =

@@ -29,7 +29,7 @@ case "$*" in
 esac
 EOF
 
-cat >"$temp_dir/bin/omarchy-launch-walker" <<'EOF'
+cat >"$temp_dir/bin/omarchy-menu-select" <<'EOF'
 #!/usr/bin/env bash
 count=0
 if [[ -f "$WALKER_COUNT_FILE" ]]; then
@@ -37,7 +37,11 @@ if [[ -f "$WALKER_COUNT_FILE" ]]; then
 fi
 count=$((count + 1))
 printf '%s' "$count" >"$WALKER_COUNT_FILE"
-cat >"$WALKER_LOG_DIR/menu-$count"
+shift
+for option in "$@"; do
+  [[ "$option" == -- ]] && break
+  printf '%s\n' "$option"
+done >"$WALKER_LOG_DIR/menu-$count"
 sed -n "${count}p" "$WALKER_RESPONSES"
 EOF
 
@@ -46,7 +50,7 @@ cat >"$temp_dir/bin/omarchy" <<'EOF'
 printf '%s\n' "$*" >>"$NOTIFICATION_LOG"
 EOF
 
-chmod +x "$temp_dir/bin/hyprctl" "$temp_dir/bin/omarchy-launch-walker" "$temp_dir/bin/omarchy"
+chmod +x "$temp_dir/bin/hyprctl" "$temp_dir/bin/omarchy-menu-select" "$temp_dir/bin/omarchy"
 
 run_relayout() {
   local case_dir="$1"

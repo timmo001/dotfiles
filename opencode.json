@@ -81,8 +81,6 @@
       "~/.config/hunk/**": "allow",
       "~/.config/opencode/**": "allow",
       "~/.config/hypr/**": "allow",
-      "~/.config/hypr-desktop/**": "allow",
-      "~/.config/hypr-laptop/**": "allow",
       "~/.config/mise/**": "allow",
       "~/.config/nvim/**": "allow",
       "~/.config/ripgrep/**": "allow",
@@ -90,7 +88,6 @@
       "~/.config/systemd/user/**": "allow",
       "~/.config/tmux/**": "allow",
       "~/.config/topgrade/**": "allow",
-      "~/.config/waybar/**": "allow",
       "~/.config/yazi/**": "allow",
       "~/.agents/skills/**": "allow",
       "~/.local/*": "allow",
@@ -103,6 +100,7 @@
       "~/.local/share/omarchy/*": "allow",
       "~/.local/share/omarchy/bin/**": "allow",
       "~/.local/share/opencode/repos/github.com/anomalyco/opencode/**": "allow",
+      "~/.local/share/omarchy/**": "allow",
       "~/.local/share/workspace-relayout/**": "allow",
       "~/.local/share/zsh/*": "allow",
       "~/.local/share/zsh/site-functions/**": "allow",
@@ -125,7 +123,7 @@
     },
     "go-automate": {
       "repository": "timmo001/go-automate",
-      "description": "Use for the go-automate CLI and HA bridge invoked by Waybar, Hypr binds, and dotfiles scripts"
+      "description": "Use for the go-automate CLI and HA bridge invoked by the Omarchy shell, Hypr binds, and dotfiles scripts"
     },
     "notes": {
       "repository": "timmo001/notes",
@@ -133,8 +131,8 @@
     },
     "omarchy": {
       "repository": "basecamp/omarchy",
-      "branch": "master",
-      "description": "Use for Omarchy desktop, Hyprland, and Waybar customisation details"
+      "branch": "quattro",
+      "description": "Use for Omarchy desktop, Hyprland, and Quickshell shell customisation details"
     },
     "opencode": {
       "repository": "anomalyco/opencode",
@@ -152,6 +150,10 @@
     "opentui": {
       "repository": "anomalyco/opentui",
       "description": "Use for OpenTUI core, renderables, and keyboard handling when working in dot/"
+    },
+    "quickshell": {
+      "repository": "quickshell-mirror/quickshell",
+      "description": "Use for upstream Quickshell QML types, WlrLayershell/layer-shell, IpcHandler, reloadable config, and the qs CLI when customising the Omarchy shell bar widgets"
     },
     "system-bridge": {
       "repository": "timmo001/system-bridge",

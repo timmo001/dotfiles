@@ -189,8 +189,8 @@ OpenCode server      Shared Hypr autostart and ~/.config/opencode/.env password
 Herdr integration    Herdr binary and OpenCode integration installed
 GitHub MCP auth      gh token available for DOT_GH_MCP_BEARER
 Git config           Managed include is active
-Workflow runs        Repo list, status bar config, legacy watcher cleanup
-Git notifications    API scope and status bar notification module wiring
+Workflow runs        Repo list and legacy watcher cleanup
+Git notifications    API scope and notification access
 Doctor startup       Startup notification timer
 uwsm session PATH    ~/.local/bin on the uwsm/systemd user-environment PATH
 Daily volume reset   Laptop-only optional timer

@@ -52,7 +52,7 @@ The menu writes the selected profile with `powerprofilesctl set`, so the availab
 
 ### Laptop automation
 
-The `laptop` Hypr host starts `power-profile-daemon` from `~/.config/hypr/host/autostart.conf`. It replaces Omarchy's AC udev auto-switching, which otherwise forces `performance` on AC.
+The `laptop` Hypr host starts `power-profile-daemon` from `~/.config/hypr/host/autostart.lua`. It replaces Omarchy's AC udev auto-switching, which otherwise forces `performance` on AC.
 
 On laptops, the daemon keeps the profile conservative by default:
 
@@ -74,4 +74,4 @@ omarchy-powerprofiles-list
 pgrep -af power-profile-daemon
 ```
 
-If `SUPER+CTRL+P` opens no choices, check that `omarchy-powerprofiles-list` prints profile IDs. If the laptop policy is not running, confirm the active host symlink points at the laptop overrides and that Hyprland sourced `~/.config/hypr/host/autostart.conf`; see [Host Overrides](/omarchy/host-overrides/).
+If `SUPER+CTRL+P` opens no choices, check that `omarchy-powerprofiles-list` prints profile IDs. If the laptop policy is not running, confirm the active host symlink points at the laptop overrides and that Hyprland loaded `~/.config/hypr/host/autostart.lua`; see [Host Overrides](/omarchy/host-overrides/).

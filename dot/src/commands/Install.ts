@@ -10,6 +10,7 @@ import {
   ensureHyprHostLink,
 } from "../lib/omarchyHost.js";
 import { ensureStowInstalled } from "../lib/packageSetup.js";
+import { applyOmarchyShellConfig } from "../lib/omarchyShellConfig.js";
 import {
   backupConflictingPublicTargets,
   backupFileIfUnmanaged,
@@ -95,6 +96,9 @@ export const install = Effect.gen(function* () {
 
   yield* log.section("Omarchy Host Links");
   yield* ensureHyprHostLink(config, log);
+
+  yield* log.section("Omarchy Shell Config");
+  yield* applyOmarchyShellConfig;
 
   if (config.canUsePrivate && config.privateDotfiles) {
     const privateDotfiles = config.privateDotfiles;
@@ -240,6 +244,8 @@ const stowRepo = (
       if (isHypr) {
         yield* ensureHyprConfigLink(repoDir, log);
       } else {
+        // Unstow first (clean slate). Hyprland is excluded because removing
+        // hyprland.lua even briefly makes its live reload enter emergency mode.
         const unstowExit = yield* launcher.stream(`stow -D ${folder}`, {
           cwd: repoDir,
         });
@@ -269,6 +275,11 @@ const stowRepo = (
           removeExternalSymlinks(externalLinks);
         }
       }
+      // Keep ~/.config/hypr a real directory so the runtime host symlink and
+      // Hyprland runtime state live in the live tree, not the stow source.
+      if (folder === "hypr") {
+        flags.push("--no-folding");
+      }
 
       // Install mode uses --adopt for public scope
       if (scope === "public") {
@@ -288,6 +299,14 @@ const stowRepo = (
           message: `${scope} install stow failed on ${folder}`,
           exitCode: exit,
         });
+      }
+
+      // Apply any added or changed config and clear any prior emergency state.
+      // Ignore failure: Hyprland may not be running (fresh install, headless).
+      if (isHypr) {
+        yield* launcher
+          .stream("hyprctl reload", { cwd: repoDir })
+          .pipe(Effect.catch(() => Effect.void));
       }
     }
   });

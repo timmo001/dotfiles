@@ -26,7 +26,7 @@ dot git-workflows --bar-json --since "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:
 
 ## Status bar module
 
-A status bar module refreshes `dot git-workflows --bar-json --since <one-hour-ago>` through its own short-lived cache; left click opens the filtered TUI and right click refreshes the cache. `dot doctor` verifies `dot-git.yml`, the active workflow-runs module wiring, and the absence of legacy `git-workflow-watch` leftovers.
+The JSON mode remains available to status bars and other shell integrations. `dot doctor` verifies `dot-git.yml` and the absence of legacy `git-workflow-watch` leftovers.
 
 :::note
 The old `git-workflow-watch` hook and its user systemd timer are obsolete and should not be installed.

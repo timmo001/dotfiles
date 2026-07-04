@@ -130,7 +130,10 @@ export interface CommandExecutorService {
   readonly exitCode: (
     cmd: string,
     args: readonly string[],
-    opts?: { readonly cwd?: string },
+    opts?: {
+      readonly cwd?: string;
+      readonly env?: Readonly<Record<string, string>>;
+    },
   ) => Effect.Effect<number>;
 
   /** Run a command with inherited stdio (stdin/stdout/stderr pass through) */
@@ -299,6 +302,7 @@ export class CommandExecutor extends Context.Service<
           stderr: "ignore",
           cwd: opts?.cwd,
           detached: true,
+          ...(opts?.env ? { env: { ...process.env, ...opts.env } } : {}),
         });
         killOnAbort(proc, signal);
         return proc.exited;

@@ -78,7 +78,7 @@ src/
       GitHub.ts           — Shared GitHub CLI/API wrapper with rate-limit checks and retries
       GitNotifications.ts — GitHub notification inbox state and thread actions
       GitStaging.ts       — Git status/add/commit operations
-      RepoWatcher.ts      — Hybrid poll loop (Waybar cache → 10s poll), PubSub state
+      RepoWatcher.ts      — Hybrid poll loop (initial poll → 10s poll), PubSub state
       relativeTime.ts     — Shared compact relative timestamp formatter
       WorkflowRuns.ts     — Watched GitHub Actions run state for locally checked-out HEAD commits
       workflowStatus.ts   — Shared GitHub Actions status classification helpers
@@ -98,7 +98,6 @@ src/
     OutputLog.ts          — Scrollable output log service
     Renderer.ts           — OpenTUI renderer service
     Toast.ts              — Toast notification overlay service
-    WaybarCache.ts        — Waybar cache JSON reader for fast startup
   tui/
     App.ts                — Top-level app shell, view stack, global keyboard, action routing
     MainMenu.ts           — MenuList menu built from menu registry
@@ -132,7 +131,7 @@ src/
 4. `App` manages a view stack (main menu ↔ diff view ↔ git log view ↔ workflows view ↔ notifications view ↔ omarchy menu)
 5. Menu items have typed actions: `command` (suspend/resume), `silent` (background), `notify` (background + toast), `view` (navigate), `submenu` (nested)
 6. `CommandRunner` handles suspend/resume for terminal commands, silent background execution, and notify-style commands with toast feedback
-7. `RepoWatcher` loads Waybar cache for instant diff first paint, then polls every 10s
+7. `RepoWatcher` runs an initial poll for first paint, then polls every 10s
 
 ### Menu Registry
 
@@ -157,7 +156,7 @@ MenuItem action types:
 
 - **Services**: `Context.Service` + static `layer` property for Effect services
 - **Static layers**: Each service class exposes `ServiceName.layer` (not a separate `*Live` export). Layer is built with `Layer.effect(ServiceName, Effect.gen(...))`
-- **Domain errors**: `Schema.TaggedErrorClass` per service (`DotDiffError`, `GitStagingError`). WaybarCache has no error type
+- **Domain errors**: `Schema.TaggedErrorClass` per service (`DotDiffError`, `GitStagingError`)
 - **Error handling**: `Effect.catch` (v4 rename of `catchAll`) for recovery; tagged errors flow through the type channel
 - **Named spans**: `Effect.fn("Name")` for effectful functions with arguments; `Effect.gen` + `Effect.withSpan("Name")` for zero-arg named effects (since `Effect.fn` returns a function, not an Effect)
 - **Testable time**: `Clock.currentTimeMillis` for timestamps instead of `new Date()`
@@ -281,11 +280,10 @@ After that bootstrap build, run the checked-out binary directly. If private dotf
 
 ## External Dependencies
 
-- `~/.cache/waybar/git-diff-waybar.json` — Waybar cache for fast startup
 - `NOTES` / `DOT_NOTES_DIR` — notes vault used by the standalone `notes` CLI/MCP server and OpenCode note commands
 - `DOT_USAGE_DIR` — usage event root for `dot usage` (default `$XDG_STATE_HOME/tool-usage`). `DOT_USAGE_DISABLE` disables live dot recording
 - `~/.config/dotfiles-private/dot-git.yml` — private git repo config for clone/bootstrap, doctor checks, `dot git-diff`, `dot git-log`, `dot git-workflows`, and `dot git-notifications --bar-json`; `activity`, `workflows`, and `notifications` each require explicit `enabled` plus 5-field cron `schedule` keys, and `notifications.bar.ignore_bot_activity` controls status-bar bot noise
-- `gh` authenticated with a classic token carrying `notifications` or `repo` scope — required for `dot git-notifications` and its Waybar module
+- `gh` authenticated with a classic token carrying `notifications` or `repo` scope — required for `dot git-notifications` and its status-bar module
 - `lazygit` — launched via suspend/resume on Enter in diff view
 - `opencode` — CLI launched via suspend/resume for interactive sessions from the diff view
 - `omarchy` — various subcommands for desktop management
@@ -330,7 +328,7 @@ dot init --help              # init help prints without side effects
 dot help                     # help prints
 ```
 
-`dot init` clones the managed Omarchy repos into `~/.config/{waybar,uwsm}`. If a stock Omarchy config directory already exists there and is not a git repo, init moves it aside with a `.dot-init-backup-*` suffix before cloning; do not delete those backups automatically. Hyprland config is a stowed dotfiles package (`hypr/.config/hypr/`, conf-only) laid down with `--no-folding`, with the runtime `~/.config/hypr/host` symlink selecting the host overrides. Ghostty config is also stowed from `ghostty/.config/ghostty/`; `dot stow` backs up the retired `timmo001/omarchy-ghostty` clone before linking the stowed config.
+`dot init` clones the managed Omarchy `uwsm` repo into `~/.config/uwsm`. If a stock Omarchy config directory already exists there and is not a git repo, init moves it aside with a `.dot-init-backup-*` suffix before cloning; do not delete those backups automatically. Hyprland config is a stowed dotfiles package (`hypr/.config/hypr/`) laid down with `--no-folding`, with the runtime `~/.config/hypr/host` symlink selecting the host overrides. Ghostty config is also stowed from `ghostty/.config/ghostty/`; `dot stow` backs up the retired `timmo001/omarchy-ghostty` clone before linking the stowed config.
 
 ## Logging Style
 

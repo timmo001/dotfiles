@@ -24,8 +24,8 @@ TRIGGER_INITIAL=0
 TRIGGER_COOLDOWN=0
 TRIGGER_KEY=""
 
-WAYBAR_PARENT_PID=""
-WAYBAR_PARENT_STARTTIME=""
+BAR_PARENT_PID=""
+BAR_PARENT_STARTTIME=""
 LAST_OUTPUT=""
 
 usage() {
@@ -348,11 +348,11 @@ emit_if_changed() {
 }
 
 trigger_state_file() {
-  printf '%s/ha-waybar-trigger-%s.state' "${XDG_RUNTIME_DIR:-/tmp}" "$(sanitize_key "$TRIGGER_KEY")"
+  printf '%s/ha-bar-trigger-%s.state' "${XDG_RUNTIME_DIR:-/tmp}" "$(sanitize_key "$TRIGGER_KEY")"
 }
 
 trigger_cooldown_file() {
-  printf '%s/ha-waybar-trigger-%s.last' "${XDG_RUNTIME_DIR:-/tmp}" "$(sanitize_key "$TRIGGER_KEY")"
+  printf '%s/ha-bar-trigger-%s.last' "${XDG_RUNTIME_DIR:-/tmp}" "$(sanitize_key "$TRIGGER_KEY")"
 }
 
 run_trigger_command() {
@@ -418,7 +418,7 @@ maybe_run_trigger() {
   fi
 }
 
-find_waybar_ancestor_pid() {
+find_bar_ancestor_pid() {
   local pid="$PPID"
   local depth=0
   local comm=""
@@ -426,7 +426,7 @@ find_waybar_ancestor_pid() {
 
   while [[ "$pid" =~ ^[0-9]+$ ]] && ((pid > 1)) && ((depth < 8)); do
     comm="$(awk '{print $2}' "/proc/$pid/stat" 2>/dev/null || true)"
-    if [[ "$comm" == "(waybar)" ]]; then
+    if [[ "$comm" == "(quickshell)" || "$comm" == "(waybar)" ]]; then
       printf '%s' "$pid"
       return 0
     fi
@@ -443,12 +443,12 @@ find_waybar_ancestor_pid() {
   return 1
 }
 
-capture_waybar_parent_starttime() {
-  WAYBAR_PARENT_PID="$(find_waybar_ancestor_pid || printf '%s' "$PPID")"
-  WAYBAR_PARENT_STARTTIME="$(awk '{print $22}' "/proc/$WAYBAR_PARENT_PID/stat" 2>/dev/null || true)"
+capture_bar_parent_starttime() {
+  BAR_PARENT_PID="$(find_bar_ancestor_pid || printf '%s' "$PPID")"
+  BAR_PARENT_STARTTIME="$(awk '{print $22}' "/proc/$BAR_PARENT_PID/stat" 2>/dev/null || true)"
 
-  if [[ -z "$WAYBAR_PARENT_STARTTIME" ]]; then
-    printf 'ha-module-bar: unable to read Waybar parent starttime\n' >&2
+  if [[ -z "$BAR_PARENT_STARTTIME" ]]; then
+    printf 'ha-module-bar: unable to read bar host parent starttime\n' >&2
     exit 1
   fi
 }
@@ -702,13 +702,13 @@ run_doorbell_stream() {
     fi
   }
 
-  capture_waybar_parent_starttime
+  capture_bar_parent_starttime
 
   coproc DOORBELL_STREAM {
     exec singleton-stream \
       --key "$STREAM_KEY" \
-      --parent-pid "$WAYBAR_PARENT_PID" \
-      --parent-starttime "$WAYBAR_PARENT_STARTTIME" \
+      --parent-pid "$BAR_PARENT_PID" \
+      --parent-starttime "$BAR_PARENT_STARTTIME" \
       -- go-automate ha bridge watch entity --bar-json --icon '' "$ENTITY_ID"
   }
   stream_pid="${DOORBELL_STREAM_PID:-}"

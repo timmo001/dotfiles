@@ -19,6 +19,7 @@ import {
   checkGitNotifications,
   checkWorkflowRuns,
   checkDoctorStartup,
+  checkResumeMonitor,
   checkDailyVolumeReset,
   checkLocalBinPath,
 } from "./checks/systemd.js";
@@ -82,6 +83,7 @@ const sections: readonly SectionDef[] = [
   { name: "Git notification checks", check: checkGitNotifications },
   { name: "Doctor startup notification", check: checkDoctorStartup },
   { name: "uwsm session PATH", check: checkLocalBinPath },
+  { name: "Resume recovery monitor", check: checkResumeMonitor },
   { name: "Daily volume reset", check: checkDailyVolumeReset },
   { name: "Omarchy repository checks", check: checkOmarchy },
   { name: "Legacy Hypr repo check", check: checkLegacyHyprRepo },

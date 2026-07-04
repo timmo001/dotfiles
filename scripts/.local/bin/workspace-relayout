@@ -297,22 +297,32 @@ apply_tree() {
 # Menu + presets
 # ---------------------------------------------------------------------------
 
-# Show a walker dmenu of the given options and echo the chosen line.
-walker_pick() {
+# Show an option menu and echo the chosen line via omarchy-menu-select
+# (Omarchy 4 shell-IPC selector). Prompts omit a trailing ellipsis;
+# omarchy-menu-select appends its own.
+menu_select() {
   local prompt="$1"
-  shift
-  printf '%s\n' "$@" | omarchy-launch-walker --dmenu --width 460 --minheight 1 --maxheight 360 -p "$prompt" 2>/dev/null || true
+  local width="$2"
+  local maxheight="$3"
+  shift 3
+
+  omarchy-menu-select "$prompt" "$@" -- --width "$width" --maxheight "$maxheight" 2>/dev/null || true
 }
 
-# Free-text prompt for a layout name, prefilled (via placeholder) with $1.
-# Walker has no editable-prefill, so the default shows as the placeholder and
+menu_selector_available() {
+  command -v omarchy-menu-select >/dev/null 2>&1
+}
+
+# Free-text prompt for a layout name, defaulting to $1. Uses the Omarchy 4
+# native menu input (omarchy-menu-input, which summons omarchy.menu). The native
+# menu has no editable prefill, so the default is shown in the prompt label and
 # an empty submit keeps it; typing overrides it.
 prompt_name() {
   local default="$1"
   local out=""
 
-  if command -v omarchy-launch-walker >/dev/null 2>&1; then
-    out="$(omarchy-launch-walker --dmenu --inputonly --width 460 --minheight 1 --maxheight 1 -p "$default" 2>/dev/null || true)"
+  if command -v omarchy-menu-input >/dev/null 2>&1; then
+    out="$(omarchy-menu-input "Layout name ($default)" --width 460 2>/dev/null || true)"
   fi
 
   if [ -n "$out" ]; then
@@ -414,11 +424,11 @@ apply_menu() {
     exit 0
   fi
 
-  group="$(walker_pick "$count window layout family..." "${group_name[@]}")"
+  group="$(menu_select "$count window layout family" 460 360 "${group_name[@]}")"
   [ -n "$group" ] || exit 0
 
   filter_presets_for_group "$group"
-  choice="$(walker_pick "$group layout..." "${sel_label[@]}")"
+  choice="$(menu_select "$group layout" 460 360 "${sel_label[@]}")"
   [ -n "$choice" ] || exit 0
 
   idx="$(index_of "$choice" "${sel_label[@]}")"
@@ -464,7 +474,7 @@ edit_menu() {
 
   load_presets_for_count "$count"
 
-  group="$(walker_pick "Edit $count window layout family..." "${group_name[@]}" "$add_group_label")"
+  group="$(menu_select "Edit $count window layout family" 460 360 "${group_name[@]}" "$add_group_label")"
   [ -n "$group" ] || exit 0
 
   if [ "$group" = "$add_group_label" ]; then
@@ -474,7 +484,7 @@ edit_menu() {
   fi
 
   filter_presets_for_group "$group"
-  choice="$(walker_pick "Edit $count window layouts..." "${sel_label[@]}" "$add_label")"
+  choice="$(menu_select "Edit $count window layouts" 460 360 "${sel_label[@]}" "$add_label")"
   [ -n "$choice" ] || exit 0
 
   if [ "$choice" = "$add_label" ]; then
@@ -506,8 +516,8 @@ main() {
 
   require_dependencies
 
-  if ! command -v omarchy-launch-walker >/dev/null 2>&1; then
-    notify "omarchy-launch-walker is not available"
+  if ! menu_selector_available; then
+    notify "No Omarchy menu selector is available"
     exit 1
   fi
 

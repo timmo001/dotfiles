@@ -91,7 +91,12 @@ export default defineConfig({
         },
         {
           label: 'Omarchy & Hyprland',
-          items: [{ autogenerate: { directory: 'omarchy' } }],
+          items: [
+            { label: 'Overview', slug: 'omarchy' },
+            { label: 'Host Overrides', slug: 'omarchy/host-overrides' },
+            { label: 'Shell (Quickshell)', slug: 'omarchy/shell' },
+            { label: 'Controls', slug: 'omarchy/controls' },
+          ],
         },
         { label: 'Bar Integrations', slug: 'bar-integrations' },
         { label: 'Cleanup', slug: 'cleanup' },

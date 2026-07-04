@@ -25,6 +25,15 @@
       "versioningTemplate": "semver"
     },
     {
+      "description": "Keep QUICKSHELL_VERSION in sync with the Arch quickshell package (what the Omarchy shell runs on)",
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github/workflows/quickshell-lint\\.ya?ml$/"],
+      "matchStrings": ["QUICKSHELL_VERSION: \"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "arch/quickshell",
+      "datasourceTemplate": "repology",
+      "versioningTemplate": "loose"
+    },
+    {
       "customType": "regex",
       "description": "Update Herdr plugin commits.",
       "managerFilePatterns": [
@@ -65,6 +74,11 @@
       "groupName": "OpenCode",
       "matchDepNames": ["aqua:anomalyco/opencode", "anomalyco/opencode"],
       "minimumReleaseAge": "2 hours"
+    },
+    {
+      "description": "Group the Quickshell lint version updates.",
+      "groupName": "quickshell lint version",
+      "matchDepNames": ["arch/quickshell"]
     }
   ]
 }

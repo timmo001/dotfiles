@@ -3,9 +3,9 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import type { ConfigService } from "../../src/services/Config.js";
+import { ENV } from "../../src/lib/env.js";
 import { emptyDotGitConfig } from "../../src/services/GitConfig.js";
 import { emptyMcpConfig } from "../../src/mcp/sync/loadSpec.js";
-import { ENV } from "../../src/lib/env.js";
 import {
   listStowFolders,
   requiresNoFolding,
@@ -20,11 +20,11 @@ function tempRoot(): string {
   return root;
 }
 
-function fakeConfig(repoBase: string): ConfigService {
+function fakeConfig(repoBase: string, host = "desktop"): ConfigService {
   const omarchyRepoBase = join(repoBase, ".omarchy");
-  const desktopHost = join(omarchyRepoBase, "hypr", "hosts", "desktop");
-  mkdirSync(desktopHost, { recursive: true });
-  symlinkSync(desktopHost, join(omarchyRepoBase, "hypr", "host"), "dir");
+  const hostDir = join(omarchyRepoBase, "hypr", "hosts", host);
+  mkdirSync(hostDir, { recursive: true });
+  symlinkSync(hostDir, join(omarchyRepoBase, "hypr", "host"), "dir");
 
   return {
     publicDotfiles: repoBase,
@@ -80,6 +80,45 @@ describe("listStowFolders", () => {
     writeFileSync(join(root, "README.md"), "not a directory");
 
     expect(listStowFolders(root, fakeConfig(root)).sort()).toEqual([
+      "scripts",
+      "scripts--desktop",
+    ]);
+  });
+
+  test("selects the requested host-specific package", () => {
+    process.env[ENV.OMARCHY_HOST] = "laptop";
+    const root = tempRoot();
+    mkdirSync(join(root, "scripts"));
+    mkdirSync(join(root, "scripts--desktop"));
+    mkdirSync(join(root, "scripts--laptop"));
+
+    expect(listStowFolders(root, fakeConfig(root)).sort()).toEqual([
+      "scripts",
+      "scripts--laptop",
+    ]);
+  });
+
+  test("falls back to the persisted Hypr host link", () => {
+    delete process.env[ENV.OMARCHY_HOST];
+    const root = tempRoot();
+    mkdirSync(join(root, "scripts"));
+    mkdirSync(join(root, "scripts--desktop"));
+    mkdirSync(join(root, "scripts--laptop"));
+
+    expect(listStowFolders(root, fakeConfig(root, "laptop")).sort()).toEqual([
+      "scripts",
+      "scripts--laptop",
+    ]);
+  });
+
+  test("prefers the environment host over the persisted Hypr host link", () => {
+    process.env[ENV.OMARCHY_HOST] = "desktop";
+    const root = tempRoot();
+    mkdirSync(join(root, "scripts"));
+    mkdirSync(join(root, "scripts--desktop"));
+    mkdirSync(join(root, "scripts--laptop"));
+
+    expect(listStowFolders(root, fakeConfig(root, "laptop")).sort()).toEqual([
       "scripts",
       "scripts--desktop",
     ]);

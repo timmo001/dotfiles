@@ -23,7 +23,7 @@ Events are written per machine and per day:
 $XDG_STATE_HOME/tool-usage/events/<machine>/YYYY-MM-DD.ndjson
 ```
 
-`invoker` is one of `human`, `agent` (an AI coding agent was detected), or `automation` (a status-bar poll, detected from `--bar-json`), so Waybar polling does not drown out genuine feature usage.
+`invoker` is one of `human`, `agent` (an AI coding agent was detected), or `automation` (a status-bar poll, detected from `--bar-json`), so shell polling does not drown out genuine feature usage.
 
 ## Reporting
 
