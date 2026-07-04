@@ -20,6 +20,40 @@ The server is launched by an MCP client, not run interactively. It speaks JSON-R
 
 The tools call `dot`'s in-process notes service directly, so they behave like `dot note` and `dot notes` on the command line. Read and list are annotated read-only; write and delete are annotated destructive.
 
+#### `note_read` parameters
+
+| Parameter | Required | Purpose |
+| --- | --- | --- |
+| `path` | yes | Absolute path to the note file in the vault (for example `/home/user/Documents/notes/repo-notes/owner/repo/slug.md`). |
+
+Returns the raw markdown body. This is the only permitted way to read vault files when the `notes-guard` plugin is active.
+
+#### `note_list` parameters
+
+| Parameter | Default | Purpose |
+| --- | --- | --- |
+| `tag` | — | Optional tag filter (for example `handoff`). Case-insensitive. |
+| `all` | `false` | List notes from every `repo-notes` directory instead of the current repository only. |
+
+Returns JSON. For the current repo, the payload is a flat array of entries with `filename`, `filePath`, `name`, `description`, `tags`, `priority`, and `mtime`. With `all: true`, the payload is grouped into sections (`repoSlug`, `notesPath`, `entries`).
+
+#### `note_write` parameters
+
+| Parameter | Required | Purpose |
+| --- | --- | --- |
+| `path` | yes | Absolute path to the note file to create or overwrite. |
+| `content` | yes | Full file content, including frontmatter and body. |
+
+Commits the vault after writing and best-effort pushes when a remote is configured. Refreshes the frontmatter `date:` to the current local timestamp automatically. Output includes the commit result and, when applicable, the push outcome.
+
+#### `note_delete` parameters
+
+| Parameter | Required | Purpose |
+| --- | --- | --- |
+| `path` | yes | Absolute path to the note file to delete. |
+
+Commits and best-effort pushes the deletion. Deletion is irreversible; agents should confirm with the user before calling this tool.
+
 ### Context tools
 
 | Tool | Description |

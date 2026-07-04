@@ -48,6 +48,39 @@ The final resume refresh is also bounded, because it only needs to trigger statu
 
 `dot dashboard` opens a full-screen dashboard. It combines tracked repo state, GitHub notifications, workflow runs, and optional bounded source commands for Twitch, environment, todo, and calendar cards. Cards are intentionally readable and always present; Enter opens an existing deeper TUI view, or suspends `dot` while another TUI runs, when a card has one.
 
+### Layout
+
+Cards are grouped into four sections:
+
+| Section | Cards | Source |
+| --- | --- | --- |
+| Overview | Events in the next hour (when configured), Updates, Live Channels | Private `calendar`/`twitch` sources; in-process repo diff state |
+| Git | Git Diff, Git Notifications | In-process `DotDiff`, notification inbox, and workflow-run services |
+| Todos | My Tasks, Work Tasks | Private `todo_*` sources |
+| Environment | Temperature, CO2, VOC | Private `temperature`/`co2`/`voc` sources |
+
+The summary header at the top highlights attention signals (dirty worktrees, behind core repos, important notifications, workflow failures, environment warnings).
+
+### Keyboard
+
+| Key | Action |
+| --- | --- |
+| Arrow keys / Tab | Move between cards |
+| Enter | Open the linked view or run the card action |
+| `r` | Refresh all dashboard sources |
+| Esc / Backspace | Return to the main menu |
+
+### Enter actions
+
+| Card | Enter behaviour |
+| --- | --- |
+| Updates | Runs `dot update` when core repos are behind (exits the dashboard) |
+| Git Diff | Opens the `dot git-diff` TUI |
+| Git Notifications | Opens the `dot git-notifications` TUI (includes workflow failure counts) |
+| Live Channels | Runs `twitch-menu channels` (suspends the dashboard) |
+| Todo cards | Runs the configured Home Assistant todo TUI (suspends) |
+| Environment cards | Runs `open_command` from `dot-dashboard.yml` when set (silent) |
+
 Optional source cards read from `dot-dashboard.yml` in the private overlay. Each source runs a one-shot `--bar-json` command on refresh (eight-second timeout, 60-second auto-refresh). Without that file, git and update cards still work from in-process services. See [Private Dashboard Config](/configuration/private-dashboard/) for the schema and supported source IDs.
 
 ## Source of truth
