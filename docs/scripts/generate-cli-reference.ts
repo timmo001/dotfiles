@@ -1,6 +1,6 @@
 // Generates docs/src/content/docs/dot/commands.md from the dot CLI command
 // registry at dot/src/cli/spec.ts - the same source that drives `dot help`
-// and shell completions. Run with: bun run gen:cli
+// and shell completions. Run with: mise run docs:gen:cli
 //
 // Do not edit the generated page by hand. Change dot/src/cli/spec.ts instead
 // and re-run this script (alongside `dot completions zsh`).
@@ -145,7 +145,7 @@ push(
 push('---');
 push();
 push(
-  '<!-- Generated from dot/src/cli/spec.ts by `bun run gen:cli`. Do not edit by hand. -->',
+  '<!-- Generated from dot/src/cli/spec.ts by `mise run docs:gen:cli`. Do not edit by hand. -->',
 );
 push();
 push(

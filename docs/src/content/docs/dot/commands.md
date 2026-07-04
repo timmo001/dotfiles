@@ -3,7 +3,7 @@ title: Command Reference
 description: Every dot command, alias, flag and example, generated from the CLI registry.
 ---
 
-<!-- Generated from dot/src/cli/spec.ts by `bun run gen:cli`. Do not edit by hand. -->
+<!-- Generated from dot/src/cli/spec.ts by `mise run docs:gen:cli`. Do not edit by hand. -->
 
 This page lists every `dot` command, generated from the same registry that powers `dot help` and shell completions. Run any command with `--help` to see the same details at the terminal.
 

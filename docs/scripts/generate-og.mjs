@@ -1,5 +1,5 @@
 // Generates the Open Graph share image at public/og.png.
-// Run with: bun run og
+// Run with: mise run docs:og
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
