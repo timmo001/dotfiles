@@ -3,12 +3,10 @@
   "formatter": true,
   "permission": {
     "external_directory": {
+      "~/.agents/skills/**": "allow",
       "~/.config/opencode/**": "allow",
       "~/.config/hypr/**": "allow",
-      "~/.config/hypr-desktop/**": "allow",
-      "~/.config/hypr-laptop/**": "allow",
-      "~/.config/waybar/**": "allow",
-      "~/.agents/skills/**": "allow",
+      "~/.local/share/omarchy/**": "allow",
       "/tmp/**": "allow"
     }
   },
@@ -23,12 +21,12 @@
     },
     "go-automate": {
       "repository": "timmo001/go-automate",
-      "description": "Use for the go-automate CLI and HA bridge invoked by Waybar, Hypr binds, and dotfiles scripts"
+      "description": "Use for the go-automate CLI and HA bridge invoked by the Omarchy shell, Hypr binds, and dotfiles scripts"
     },
     "omarchy": {
       "repository": "basecamp/omarchy",
       "branch": "master",
-      "description": "Use for Omarchy desktop, Hyprland, and Waybar customisation details"
+      "description": "Use for Omarchy desktop, Hyprland, and Quickshell shell customisation details"
     },
     "opencode": {
       "repository": "anomalyco/opencode",
@@ -41,6 +39,10 @@
     "opentui": {
       "repository": "anomalyco/opentui",
       "description": "Use for OpenTUI core, renderables, and keyboard handling when working in dot/"
+    },
+    "quickshell": {
+      "repository": "quickshell-mirror/quickshell",
+      "description": "Use for upstream Quickshell QML types, WlrLayershell/layer-shell, IpcHandler, reloadable config, and the qs CLI when customising the Omarchy shell bar widgets"
     },
     "system-bridge": {
       "repository": "timmo001/system-bridge",

@@ -7,10 +7,10 @@ description: Managed Omarchy repos and per-host Hyprland configuration.
 
 `dot` tracks a small set of Omarchy components as git repos and keeps them on the expected branch:
 
-- `waybar`, `ghostty`, and `uwsm` — single-branch Omarchy repos expected on `main`.
+- `ghostty` and `uwsm` — single-branch Omarchy repos expected on `main`.
 - `bootstrap` — expected on `distro/omarchy`.
 
-`dot init` clones these into `~/.config/{waybar,ghostty,uwsm}`. If a stock Omarchy config directory already exists there and is not a git repo, init moves it aside with a `.dot-init-backup-*` suffix before cloning. `dot update` syncs them, and `dot doctor` verifies their worktree branches.
+`dot init` clones these into `~/.config/{ghostty,uwsm}`. If a stock Omarchy config directory already exists there and is not a git repo, init moves it aside with a `.dot-init-backup-*` suffix before cloning. `dot update` syncs them, and `dot doctor` verifies their worktree branches.
 
 ## Hyprland host overrides
 

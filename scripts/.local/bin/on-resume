@@ -1,22 +1,22 @@
 #!/bin/bash
 
-# Called by hypridle after_sleep_cmd on system resume from sleep.
+# Called after system resume from sleep.
 # Restarts services that don't recover well after suspend.
 
 LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/on-resume.log"
-CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
-WAYBAR_CACHE_DIR="$CACHE_HOME/waybar"
-DOT_FETCH_CACHE_DIR="$CACHE_HOME/dot/fetch-upstream"
 
 log() {
   mkdir -p "$(dirname "$LOG_FILE")"
   echo "[$(date '+%H:%M:%S')] $1" >> "$LOG_FILE"
 }
 
-clear_git_caches() {
-  rm -f "$WAYBAR_CACHE_DIR"/git-*-waybar.json "$WAYBAR_CACHE_DIR"/git-*-waybar.json.tmp
-  rmdir "$WAYBAR_CACHE_DIR"/git-*-waybar.lock 2>/dev/null || true
-  rm -rf "$DOT_FETCH_CACHE_DIR"
+refresh_shell_indicators() {
+  omarchy-shell -q omarchy.indicators refresh || true
+}
+
+refresh_git_modules() {
+  omarchy-shell -q timmo.git-diff refresh || true
+  omarchy-shell -q timmo.git-notifications refresh || true
 }
 
 if [[ "${ON_RESUME_DETACHED:-0}" != "1" ]]; then
@@ -28,19 +28,26 @@ fi
 : > "$LOG_FILE"
 log "Resume started"
 
+# Re-arm the laptop keyboard backlight, which the EC can leave at 0 after
+# suspend. No-op off the laptop (the script is a laptop-only stow package) or
+# on machines with no keyboard backlight. Omarchy 4 has no host hypridle
+# override for us to hook, so the re-arm rides the resume path instead.
+if command -v kbd-backlight-rearm >/dev/null 2>&1; then
+  kbd-backlight-rearm || true
+  log "Re-armed keyboard backlight"
+fi
+
 # Restart twitch-notifications
 pkill -f '/usr/bin/[t]witch-notifications( |$)' >/dev/null 2>&1 || pkill -f '(^| )[t]witch-notifications( |$)' >/dev/null 2>&1 || true
 log "Killed twitch-notifications"
 
-# Clear git caches and restart waybar so modules refresh after network resume
-clear_git_caches
-pkill -x waybar >/dev/null 2>&1 || true
-sleep 0.2
-pkill -9 -x waybar >/dev/null 2>&1 || true
-log "Killed waybar, cleared git caches"
+# Ask the shell to repaint state that may have changed while suspended.
+refresh_shell_indicators
+log "Requested Omarchy shell indicator refresh"
 
-setsid uwsm-app -- waybar >/dev/null 2>&1 &
-log "Waybar restarted"
+# Reload the polling git status modules so they show fresh state after wake.
+refresh_git_modules
+log "Requested git status module refresh"
 
 # Restart twitch-notifications after brief delay
 sleep 1

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "timmo.stream-command",
+  "name": "Stream command",
+  "version": "1.0.0",
+  "author": "Aidan Timson",
+  "description": "Runs a long-running command that streams status-bar JSON lines and renders the latest line",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Widget.qml" },
+  "barWidget": {
+    "displayName": "Stream command",
+    "description": "Streaming command module for long-running watchers (e.g. ha-watch-singleton)",
+    "category": "Custom",
+    "allowMultiple": true
+  }
+}

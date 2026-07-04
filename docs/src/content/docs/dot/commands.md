@@ -140,8 +140,8 @@ Origin HEAD          Local origin/HEAD tracks the remote default branch (not sta
 Stow integrity       Dry-run restow to detect drift
 OpenCode location    Canonical paths, legacy remnants
 Git config           Managed include is active
-Workflow runs        Repo list, status bar config, legacy watcher cleanup
-Git notifications    API scope and status bar notification module wiring
+Workflow runs        Repo list and legacy watcher cleanup
+Git notifications    API scope and notification access
 Doctor startup       Startup notification timer
 Daily volume reset   Laptop-only optional timer
 Omarchy repos        Diff repos + worktree branch correctness

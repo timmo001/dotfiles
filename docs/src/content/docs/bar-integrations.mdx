@@ -13,7 +13,7 @@ export const commandCards = [
 
 `--bar-json` is a shared status-bar contract rather than a single command. Tools emit one-line `--bar-json` output (with `text`, `tooltip`, and `class` fields) meant to be polled by a status bar module through its own short-lived cache. Left click opens the relevant TUI; right click refreshes the cache.
 
-The JSON format is bar-agnostic: it works with [Waybar](https://github.com/Alexays/Waybar), [Quickshell](https://quickshell.outfoxxed.me), or any bar that can run a command and parse JSON. My own setup uses Waybar, so the bundled modules and `dot doctor` checks target Waybar, but the commands themselves do not depend on it.
+The JSON format is bar-agnostic: it works with [Quickshell](https://quickshell.outfoxxed.me), [Waybar](https://github.com/Alexays/Waybar), or any bar that can run a command and parse JSON. My own setup uses the Omarchy 4 Quickshell bar, which runs these commands through `timmo.command` widgets, but the commands themselves do not depend on any particular bar. See [Shell (Quickshell)](/omarchy/shell/) for how that bar is configured.
 
 ## dot commands with bar output
 
@@ -37,4 +37,4 @@ Which repos and which activity reach the bar is controlled by the private `dot-g
 
 ## Health checks
 
-`dot doctor` verifies the active status-bar module wiring for `git-workflows` and `git-notifications`, alongside `dot-git.yml` and the absence of legacy `git-workflow-watch` leftovers.
+`dot doctor` verifies `dot-git.yml`, GitHub notification API access, and the absence of legacy `git-workflow-watch` leftovers.

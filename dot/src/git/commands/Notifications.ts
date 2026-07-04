@@ -137,7 +137,8 @@ function notificationBarText(
   summary: ReturnType<typeof notificationStateSummary>,
 ): string {
   if (state.message) return "\uf071 ?";
-  if (summary.unreadCount === 0) return "";
+  // Always emit the count (including "0") so the bar widget has an icon to
+  // reveal dimmed on hover; the "hidden" class still collapses it when clear.
   return `\uf0f3 ${summary.unreadCount}`;
 }
 

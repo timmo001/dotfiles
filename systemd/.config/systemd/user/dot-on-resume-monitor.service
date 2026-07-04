@@ -1,0 +1,13 @@
+[Unit]
+Description=Run dot resume recovery after system resume
+After=dbus.socket
+Requires=dbus.socket
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/on-resume-monitor
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target

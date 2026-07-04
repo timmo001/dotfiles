@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "timmo.workspaces",
+  "name": "Workspaces",
+  "version": "1.0.0",
+  "author": "Aidan Timson",
+  "description": "Workspace number indicators without persistent workspaces; the focused workspace is shown at full opacity and the rest are dimmed",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Widget.qml" },
+  "barWidget": {
+    "displayName": "Workspaces (Timmo)",
+    "description": "Dynamic workspace numbers: only existing workspaces, focused at full opacity, others dimmed",
+    "category": "Compositor",
+    "allowMultiple": false
+  }
+}

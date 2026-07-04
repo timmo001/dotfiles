@@ -54,7 +54,7 @@ Omarchy's restart helpers use `pkill -x <name>` which matches the process name o
 
 ```bash
 # Best: exact process name (what omarchy-restart-* uses)
-pkill -x "waybar"
+pkill -x "quickshell"
 
 # Acceptable: bracket trick when -f is needed
 pkill -f "[n]ode.*server.js"
@@ -66,7 +66,7 @@ pkill -f "node.*server.js"
 When you need to restart an Omarchy-managed app, prefer the built-in helper:
 
 ```bash
-omarchy restart waybar
+omarchy restart shell
 omarchy restart terminal
 omarchy restart-app <name> [args...]
 ```

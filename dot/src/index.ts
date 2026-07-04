@@ -574,7 +574,7 @@ if (mode.type === "native" && mode.command === "mcp") {
         stow({
           publicOnly: args.includes("--public"),
           privateOnly: args.includes("--private"),
-        }),
+        }).pipe(Effect.asVoid),
       doctor: (args) =>
         doctor({
           openOpencode: args.includes("--open-opencode"),
@@ -684,8 +684,6 @@ if (mode.type === "native" && mode.command === "mcp") {
 
   const { Renderer } = await import("./services/Renderer.js");
   const { Toast } = await import("./services/Toast.js");
-  const { GitDiffWaybarCache } =
-    await import("./git/services/GitDiffWaybarCache.js");
   const { RepoWatcher } = await import("./git/services/RepoWatcher.js");
   const { CommitSuggest } = await import("./git/services/CommitSuggest.js");
   const { shutdownServer } = await import("./services/OpenCodeServer.js");
@@ -896,7 +894,6 @@ if (mode.type === "native" && mode.command === "mcp") {
     Layer.provideMerge(GitNotifications.layer),
     Layer.provideMerge(Notes.layer),
     Layer.provideMerge(GitHub.layer),
-    Layer.provideMerge(GitDiffWaybarCache.layer),
     Layer.provideMerge(GitStaging.layer),
     Layer.provideMerge(CommitSuggest.layer),
     Layer.provideMerge(Toast.layer(theme)),

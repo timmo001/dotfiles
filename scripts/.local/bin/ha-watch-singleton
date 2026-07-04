@@ -99,7 +99,9 @@ parse_args() {
   fi
 }
 
-find_waybar_ancestor_pid() {
+# Walk up the process tree to find the bar host (Quickshell) so the singleton
+# stream can be tied to the shell's lifetime. Falls back to the direct parent.
+find_bar_ancestor_pid() {
   local pid="$PPID"
   local depth=0
   local comm=""
@@ -107,7 +109,7 @@ find_waybar_ancestor_pid() {
 
   while [[ "$pid" =~ ^[0-9]+$ ]] && (( pid > 1 )) && (( depth < 8 )); do
     comm="$(awk '{print $2}' "/proc/$pid/stat" 2>/dev/null || true)"
-    if [[ "$comm" == "(waybar)" ]]; then
+    if [[ "$comm" == "(quickshell)" ]]; then
       printf '%s' "$pid"
       return 0
     fi
@@ -156,8 +158,8 @@ build_watch_command() {
 }
 
 main() {
-  local waybar_pid=""
-  local waybar_starttime=""
+  local bar_pid=""
+  local bar_starttime=""
   local stream_key=""
 
   parse_args "$@"
@@ -167,10 +169,10 @@ main() {
     exit 1
   fi
 
-  waybar_pid="$(find_waybar_ancestor_pid || printf '%s' "$PPID")"
-  waybar_starttime="$(awk '{print $22}' "/proc/$waybar_pid/stat" 2>/dev/null || true)"
-  if [[ -z "$waybar_starttime" ]]; then
-    printf 'ha-watch-singleton: unable to read Waybar parent starttime\n' >&2
+  bar_pid="$(find_bar_ancestor_pid || printf '%s' "$PPID")"
+  bar_starttime="$(awk '{print $22}' "/proc/$bar_pid/stat" 2>/dev/null || true)"
+  if [[ -z "$bar_starttime" ]]; then
+    printf 'ha-watch-singleton: unable to read bar host parent starttime\n' >&2
     exit 1
   fi
 
@@ -179,8 +181,8 @@ main() {
 
   exec singleton-stream \
     --key "$stream_key" \
-    --parent-pid "$waybar_pid" \
-    --parent-starttime "$waybar_starttime" \
+    --parent-pid "$bar_pid" \
+    --parent-starttime "$bar_starttime" \
     -- "${WATCH_CMD[@]}"
 }
 

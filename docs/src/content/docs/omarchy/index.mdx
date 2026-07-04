@@ -9,15 +9,20 @@ These dotfiles run on [Omarchy](https://omarchy.org). Some Omarchy components ar
 
 <CardGrid>
   <LinkCard title="Host Overrides" href="/omarchy/host-overrides/" description="Managed Omarchy repos and per-host Hyprland config." />
+  <LinkCard title="Shell (Quickshell)" href="/omarchy/shell/" description="The Omarchy 4 Quickshell bar, generated shell.json, and custom plugins." />
   <LinkCard title="Controls" href="/omarchy/controls/" description="The dot omarchy desktop controls menu." />
 </CardGrid>
 
 ## Managed Omarchy repos
 
-- `waybar`, `ghostty`, and `uwsm` are single-branch Omarchy repos expected on `main`.
+- `ghostty` and `uwsm` are single-branch Omarchy repos expected on `main`.
 - `bootstrap` is expected on `distro/omarchy`.
 - `dot update` syncs these by default; `dot doctor` verifies their worktree branches.
 
 ## Hyprland
 
 Hyprland config is **not** a tracked Omarchy repo. It is a stowed dotfiles package (`hypr/.config/hypr/`, conf-only) laid down with `--no-folding`, with host-specific overrides selected by a runtime symlink. See [Host Overrides](/omarchy/host-overrides/).
+
+## Shell
+
+Omarchy 4 runs a single [Quickshell](https://quickshell.outfoxxed.me) process (`omarchy-shell`) for the bar, notifications, OSD, launcher, and settings. These dotfiles extend it through a generated `shell.json` and a few custom bar plugins rather than forking it. See [Shell (Quickshell)](/omarchy/shell/).

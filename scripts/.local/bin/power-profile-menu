@@ -1,52 +1,40 @@
 #!/bin/bash
-# Walker power-profile picker that shows the current profile in the title and
-# sets the chosen one. Replaces "omarchy menu power", which only sets.
+# Power-profile picker: shows the current profile in the prompt and sets the
+# chosen one via omarchy-menu-select (Omarchy 4). Replaces "omarchy menu power",
+# which only sets and never surfaces the current profile.
 
 set -uo pipefail
 
 pretty() {
   case "$1" in
-    performance) echo "Performance" ;;
-    balanced) echo "Balanced" ;;
-    power-saver) echo "Power Saver" ;;
+    performance) echo 'Performance' ;;
+    balanced) echo 'Balanced' ;;
+    power-saver) echo 'Power Saver' ;;
     *) echo "$1" ;;
   esac
 }
 
 ugly() {
   case "$1" in
-    Performance) echo "performance" ;;
-    Balanced) echo "balanced" ;;
-    "Power Saver") echo "power-saver" ;;
+    Performance) echo 'performance' ;;
+    Balanced) echo 'balanced' ;;
+    'Power Saver') echo 'power-saver' ;;
     *) echo "$1" ;;
   esac
 }
 
-current=$(powerprofilesctl get 2>/dev/null || echo "")
-title="Current power profile: $(pretty "$current")"
-
-# Adaptive width so the placeholder title fits without much excess.
-width=$((${#title} * 14 + 40))
-((width < 260)) && width=260
+current="$(powerprofilesctl get 2>/dev/null || echo '')"
 
 # Available profiles, newest-first to match Omarchy (power-saver, balanced, performance).
 mapfile -t ids < <(omarchy-powerprofiles-list 2>/dev/null)
 [[ ${#ids[@]} -eq 0 ]] && exit 0
 
-options=""
-current_index=""
-i=0
+options=()
 for id in "${ids[@]}"; do
-  i=$((i + 1))
-  options+="$(pretty "$id")"$'\n'
-  [[ $id == "$current" ]] && current_index=$i
+  options+=("$(pretty "$id")")
 done
-options=${options%$'\n'}
 
-args=(--dmenu --width "$width" --minheight 1 --maxheight 630 -p "$title")
-[[ -n $current_index ]] && args+=(-c "$current_index")
-
-choice=$(printf '%s' "$options" | omarchy-launch-walker "${args[@]}" 2>/dev/null) || exit 0
+choice="$(omarchy-menu-select "Power profile (now: $(pretty "$current"))" "${options[@]}" -- --width 300 --maxheight 300 2>/dev/null || true)"
 [[ -z $choice ]] && exit 0
 
 powerprofilesctl set "$(ugly "$choice")" 2>/dev/null || true

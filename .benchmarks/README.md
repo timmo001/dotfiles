@@ -1,6 +1,6 @@
 # System Tests and Benchmarks
 
-Minimal system-wide benchmarks and diagnostics (not Waybar-specific).
+Minimal system-wide benchmarks and diagnostics.
 
 - `.benchmarks/system-quick-bench.sh` — short CPU/memory/network benchmark snapshot.
 - `.tests/system-resource-leak-test.sh` — short leak and growth check over time.

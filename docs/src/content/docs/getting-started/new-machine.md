@@ -26,7 +26,7 @@ A clean, end-to-end walkthrough for setting up a new machine.
    - Desktop / VM: `~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive --confirm`
    - Laptop: `dot init --host laptop --noninteractive --confirm`
    - Interactive: `dot init` in an interactive shell
-6. If stock Omarchy config directories already exist at `~/.config/waybar`, `~/.config/ghostty`, or `~/.config/uwsm`, `dot init` backs them up with a `.dot-init-backup-*` suffix before cloning the managed repos. Hyprland config is stowed from the `hypr/` package instead.
+6. If stock Omarchy config directories already exist at `~/.config/ghostty` or `~/.config/uwsm`, `dot init` backs them up with a `.dot-init-backup-*` suffix before cloning the managed repos. Hyprland config is stowed from the `hypr/` package instead.
 7. `dot init` opens the managed [firewall rules](/dot/utilities/#firewall-rules) (KDE Connect, Home Assistant, and the OpenCode server) when `ufw` is installed.
 8. Restart your shell and confirm `dot help` is on `PATH`.
 9. Run `dot git-diff` and verify the expected repo state.
