@@ -204,9 +204,7 @@ const safePull = (name: string, path: string) =>
 
       // Clean up any half-applied rebase left by a failed or interrupted pull
       // before retrying or moving on.
-      yield* gitExitCode(["rebase", "--abort"], { cwd: path }).pipe(
-        Effect.catch(() => Effect.succeed(1)),
-      );
+      yield* gitExitCode(["rebase", "--abort"], { cwd: path });
 
       const reason = Option.isNone(outcome)
         ? `timed out after ${PULL_ATTEMPT_TIMEOUT_SECONDS}s`
@@ -245,9 +243,7 @@ const notifyUpdated = (names: readonly string[]) =>
             .map((n) => `- ${n}`)
             .join("\n")}`;
 
-    yield* executor
-      .exitCode("notify-send", [title, message])
-      .pipe(Effect.catch(() => Effect.succeed(0)));
+    yield* executor.exitCode("notify-send", [title, message]);
   });
 
 function selectedUpdateFlags(opts?: UpdateOptions): readonly string[] {
@@ -300,13 +296,7 @@ const postHooks = Effect.gen(function* () {
 
   yield* log.section("Post-Hooks");
 
-  yield* agentsSync.pipe(
-    Effect.catch(() =>
-      Effect.gen(function* () {
-        yield* log.warn("Agents sync failed (non-fatal)");
-      }),
-    ),
-  );
+  yield* agentsSync;
 });
 
 /**
@@ -329,9 +319,9 @@ const runResumeRefresh = Effect.gen(function* () {
     return;
   }
 
-  const exitCode = yield* executor
-    .exitCode(helper, [ON_RESUME_POST_UPDATE_ARG])
-    .pipe(Effect.catch(() => Effect.succeed(1)));
+  const exitCode = yield* executor.exitCode(helper, [
+    ON_RESUME_POST_UPDATE_ARG,
+  ]);
 
   if (exitCode !== 0) {
     yield* log.warn(`On-resume helper failed (exit ${exitCode})`);

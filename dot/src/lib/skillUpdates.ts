@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import { readdirSync, existsSync, readFileSync, mkdirSync } from "fs";
 import { writeFileSync, unlinkSync } from "fs";
 import { join, basename, dirname, relative } from "path";
@@ -16,6 +16,13 @@ export interface SkillOrigin {
   readonly branch: string;
   readonly path: string;
 }
+
+class SkillUpdateError extends Schema.TaggedErrorClass<SkillUpdateError>()(
+  "SkillUpdateError",
+  {
+    message: Schema.String,
+  },
+) {}
 
 /** Parsed SKILL.md frontmatter metadata */
 export interface SkillMeta {
@@ -323,9 +330,9 @@ export const fetchFile = (origin: SkillOrigin, filePath: string) =>
     const base64Content = yield* ghApi(endpoint, ".content");
 
     if (!base64Content) {
-      return yield* Effect.fail(
-        new Error(`Empty content returned from gh api ${endpoint}`),
-      );
+      return yield* new SkillUpdateError({
+        message: `Empty content returned from gh api ${endpoint}`,
+      });
     }
 
     // Decode base64 (GitHub returns content with newlines embedded)

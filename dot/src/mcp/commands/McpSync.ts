@@ -8,7 +8,7 @@
  * in the sync adapters; this orchestrator owns IO and logging, mirroring
  * {@link file://./../../commands/AgentsSync.ts}.
  */
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import {
   existsSync,
   mkdirSync,
@@ -40,6 +40,13 @@ const HARNESS_RELATIVE_PATH: Record<McpHarness, string> = {
   vscode: join("agents", ".config", "Code", "User", "mcp.json"),
   copilot: join("agents", ".copilot", "mcp-config.json"),
 };
+
+class McpSyncError extends Schema.TaggedErrorClass<McpSyncError>()(
+  "McpSyncError",
+  {
+    message: Schema.String,
+  },
+) {}
 
 /** Atomic JSON write: mkdir -p, write to temp, rename over destination. */
 function atomicWriteJson(dest: string, value: unknown): void {
@@ -122,9 +129,9 @@ export const mcpSync = Effect.gen(function* () {
     for (const diagnostic of mcpConfig.diagnostics) {
       yield* log.error(`  ${diagnostic}`);
     }
-    return yield* Effect.fail(
-      new Error(`Invalid MCP spec: ${displayPath(mcpConfig.filePath)}`),
-    );
+    return yield* new McpSyncError({
+      message: `Invalid MCP spec: ${displayPath(mcpConfig.filePath)}`,
+    });
   }
 
   const spec = mcpConfig.spec;

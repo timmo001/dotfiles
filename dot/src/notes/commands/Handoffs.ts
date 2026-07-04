@@ -60,7 +60,7 @@ export function handoffsList(all: boolean) {
     }
   }).pipe(
     Effect.catch((error) =>
-      Effect.sync(() => {
+      Effect.promise(async () => {
         const message =
           error instanceof NotesError ? error.message : String(error);
         console.error(`[dot handoffs] ${message}`);

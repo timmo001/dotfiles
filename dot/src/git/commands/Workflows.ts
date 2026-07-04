@@ -197,14 +197,7 @@ function loadWorkflowBarRepo(
         : null,
       runs: filteredRuns,
     } satisfies WorkflowRepoRuns;
-  }).pipe(
-    Effect.catch((error) =>
-      Effect.succeed({
-        ...emptyRepo(repo.github),
-        error: formatError(error),
-      }),
-    ),
-  );
+  });
 }
 
 function workflowRunsForSlug(

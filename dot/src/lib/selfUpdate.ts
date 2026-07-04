@@ -74,8 +74,6 @@ export const restartDot = (
     log(`Restarting: ${command}`);
     const exitCode = yield* executor.inherit(BIN_PATH, args);
     if (exitCode !== 0) {
-      return yield* Effect.fail(
-        new CommandError({ command, exitCode, stderr: "" }),
-      );
+      return yield* new CommandError({ command, exitCode, stderr: "" });
     }
   });

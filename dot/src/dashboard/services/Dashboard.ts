@@ -114,22 +114,7 @@ export class Dashboard extends Context.Service<Dashboard, DashboardService>()(
         );
         yield* PubSub.publish(pubsub, currentState);
         log("Dashboard refresh complete");
-      }).pipe(
-        Effect.withSpan("Dashboard.refresh"),
-        Effect.catch((error) =>
-          Effect.gen(function* () {
-            currentState = buildState(
-              currentState.diffRepos,
-              currentState.bar,
-              new Date(yield* Clock.currentTimeMillis),
-              false,
-              currentState.loaded,
-              String(error),
-            );
-            yield* PubSub.publish(pubsub, currentState);
-          }),
-        ),
-      );
+      }).pipe(Effect.withSpan("Dashboard.refresh"));
 
       yield* refresh;
       yield* refresh.pipe(

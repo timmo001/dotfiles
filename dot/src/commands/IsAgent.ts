@@ -7,7 +7,7 @@ import { detectAgent } from "../lib/agent.js";
  * so shell callers can branch with `if dot is-agent; then ...`.
  */
 export function isAgentCommand(args: readonly string[] = []) {
-  return Effect.sync(() => {
+  return Effect.promise(async () => {
     const detection = detectAgent();
     if (hasOption(args, "--json")) {
       process.stdout.write(`${JSON.stringify(detection)}\n`);

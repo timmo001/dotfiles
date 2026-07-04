@@ -310,10 +310,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
                   ],
                   { cwd: repoPath },
                 )
-                .pipe(
-                  Effect.timeoutOption(FETCH_TIMEOUT),
-                  Effect.catch(() => Effect.succeed(Option.some(1))),
-                );
+                .pipe(Effect.timeoutOption(FETCH_TIMEOUT));
 
               if (Option.isNone(fetchExit)) {
                 yield* outputLog.warn(
@@ -335,10 +332,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
                     ],
                     { cwd: repoPath },
                   )
-                  .pipe(
-                    Effect.timeoutOption(FETCH_TIMEOUT),
-                    Effect.catch(() => Effect.succeed(Option.some(1))),
-                  );
+                  .pipe(Effect.timeoutOption(FETCH_TIMEOUT));
                 if (Option.isNone(fallbackExit)) {
                   yield* outputLog.warn(
                     `Fallback fetch timed out after ${FETCH_TIMEOUT_SECONDS}s for ${name}: ${displayPath(repoPath)}`,

@@ -277,6 +277,18 @@ function listNoteEntries(
     .sort((a, b) => b.mtime - a.mtime);
 }
 
+function listNoteEntriesSafe(
+  notesPath: string,
+):
+  | { readonly ok: true; readonly entries: readonly NoteEntry[] }
+  | { readonly ok: false; readonly error: string } {
+  try {
+    return { ok: true, entries: listNoteEntries(notesPath) };
+  } catch (error) {
+    return { ok: false, error: errorMessage(error) };
+  }
+}
+
 function sortedDirectories(path: string) {
   return readdirSync(path, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
@@ -539,11 +551,9 @@ export class Notes extends Context.Service<Notes, NotesService>()("Notes") {
           "--is-inside-work-tree",
         ]);
         if (!inRepo.ok || inRepo.text !== "true") {
-          return yield* Effect.fail(
-            fail(
-              "RepoNotesPlugin: not inside a git worktree — cannot resolve owner/repo.",
-              inRepo.ok ? undefined : inRepo.error,
-            ),
+          return yield* fail(
+            "RepoNotesPlugin: not inside a git worktree — cannot resolve owner/repo.",
+            inRepo.ok ? undefined : inRepo.error,
           );
         }
 
@@ -573,20 +583,16 @@ export class Notes extends Context.Service<Notes, NotesService>()("Notes") {
         ]);
 
         if (!remoteUrl.ok) {
-          return yield* Effect.fail(
-            fail(
-              `RepoNotesPlugin: unable to read URL for remote "${remote}".`,
-              remoteUrl.error,
-            ),
+          return yield* fail(
+            `RepoNotesPlugin: unable to read URL for remote "${remote}".`,
+            remoteUrl.error,
           );
         }
 
         const parsed = parseRemoteUrl(remoteUrl.text);
         if (!parsed) {
-          return yield* Effect.fail(
-            fail(
-              `RepoNotesPlugin: could not parse owner/repo from remote URL: ${remoteUrl.text}`,
-            ),
+          return yield* fail(
+            `RepoNotesPlugin: could not parse owner/repo from remote URL: ${remoteUrl.text}`,
           );
         }
 
@@ -745,11 +751,12 @@ export class Notes extends Context.Service<Notes, NotesService>()("Notes") {
             const warnings = [...resolved.warnings];
             let entries: readonly NoteEntry[] = [];
             if (COMMANDS_NEEDING_LIST.has(command)) {
-              try {
-                entries = listNoteEntries(notesPath);
-              } catch (error) {
+              const listedEntries = listNoteEntriesSafe(notesPath);
+              if (listedEntries.ok) {
+                entries = listedEntries.entries;
+              } else {
                 warnings.push(
-                  `Unable to list existing notes: ${errorMessage(error)}`,
+                  `Unable to list existing notes: ${listedEntries.error}`,
                 );
               }
             }
@@ -951,10 +958,8 @@ export class Notes extends Context.Service<Notes, NotesService>()("Notes") {
 
             const updated = setFrontmatterPriority(content, priority);
             if (updated === null) {
-              return yield* Effect.fail(
-                fail(
-                  `setPriority: no frontmatter found in ${filePath}; cannot set priority`,
-                ),
+              return yield* fail(
+                `setPriority: no frontmatter found in ${filePath}; cannot set priority`,
               );
             }
 

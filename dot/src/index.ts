@@ -648,7 +648,7 @@ if (mode.type === "native" && mode.command === "mcp") {
     const canonical = getCliCommand(command)?.name ?? command;
     const handler = nativeCommandHandlers[canonical];
     if (handler) return handler(args);
-    return Effect.sync(() => {
+    return Effect.promise(async () => {
       console.error(`dot: unknown command '${command}'`);
       process.exit(1);
     });
@@ -660,7 +660,7 @@ if (mode.type === "native" && mode.command === "mcp") {
       : resolveNative(mode.command, mode.args).pipe(
           Effect.provide(CliLayers),
           Effect.catch((err: unknown) =>
-            Effect.sync(() => {
+            Effect.promise(async () => {
               appendBootstrapLog(`\n[ERROR] ${formatUnknownError(err)}\n`);
               console.error(err);
               process.exit(1);

@@ -149,15 +149,13 @@ export class GitHub extends Context.Service<GitHub, GitHubService>()("GitHub") {
           return;
         }
 
-        return yield* Effect.fail(
-          new GitHubError({
-            command: formatGhCommand(args),
-            exitCode: 1,
-            stderr: `GitHub REST API rate limit exhausted; resets at ${new Date(snapshot.resetEpochSeconds * 1000).toISOString()}`,
-            retryable: false,
-            rateLimited: true,
-          }),
-        );
+        return yield* new GitHubError({
+          command: formatGhCommand(args),
+          exitCode: 1,
+          stderr: `GitHub REST API rate limit exhausted; resets at ${new Date(snapshot.resetEpochSeconds * 1000).toISOString()}`,
+          retryable: false,
+          rateLimited: true,
+        });
       });
 
       const runAttempt = (args: readonly string[]) =>
@@ -187,7 +185,7 @@ export class GitHub extends Context.Service<GitHub, GitHubService>()("GitHub") {
         const { error } = result;
         clearRateLimitCache(error);
         if (!shouldRetry(error, attempt, retries)) {
-          return yield* Effect.fail(error);
+          return yield* error;
         }
 
         const delaySeconds = retryDelaySeconds(attempt);

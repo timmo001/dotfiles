@@ -242,67 +242,25 @@ export class WorkflowRuns extends Context.Service<
         "id,state",
       ];
 
-      const refresh = (opts?: WorkflowRunQueryOptions) =>
-        Effect.gen(function* () {
-          log("Refreshing workflow runs...");
-          const targets = workflowTargets(config);
-          const message = workflowTargetMessage(config, targets.length);
+      const refresh = Effect.fn("WorkflowRuns.refresh")(function* (
+        opts?: WorkflowRunQueryOptions,
+      ) {
+        log("Refreshing workflow runs...");
+        const targets = workflowTargets(config);
+        const message = workflowTargetMessage(config, targets.length);
+        currentState = buildState(
+          targets.map(targetToLoadingRepo),
+          new Date(yield* Clock.currentTimeMillis),
+          true,
+          currentState.loaded,
+          message,
+          opts,
+        );
+        yield* PubSub.publish(pubsub, currentState);
+
+        if (targets.length === 0) {
           currentState = buildState(
-            targets.map(targetToLoadingRepo),
-            new Date(yield* Clock.currentTimeMillis),
-            true,
-            currentState.loaded,
-            message,
-            opts,
-          );
-          yield* PubSub.publish(pubsub, currentState);
-
-          if (targets.length === 0) {
-            currentState = buildState(
-              [],
-              new Date(yield* Clock.currentTimeMillis),
-              false,
-              true,
-              message,
-              opts,
-            );
-            yield* PubSub.publish(pubsub, currentState);
-            return;
-          }
-
-          const hasGh = yield* github.isAvailable();
-          if (!hasGh) {
-            currentState = buildState(
-              targets.map((target) => ({
-                ...emptyRepo(target.slug),
-                error: "gh CLI not found",
-              })),
-              new Date(yield* Clock.currentTimeMillis),
-              false,
-              true,
-              message,
-              opts,
-            );
-            yield* PubSub.publish(pubsub, currentState);
-            return;
-          }
-
-          const repos = yield* Effect.all(
-            targets.map((target) =>
-              fetchRepoRuns(target, opts).pipe(
-                Effect.catch((error) =>
-                  Effect.succeed({
-                    ...emptyRepo(target.slug),
-                    error: formatGhError(error),
-                  }),
-                ),
-              ),
-            ),
-            { concurrency: 4 },
-          );
-
-          currentState = buildState(
-            repos,
+            [],
             new Date(yield* Clock.currentTimeMillis),
             false,
             true,
@@ -310,24 +268,51 @@ export class WorkflowRuns extends Context.Service<
             opts,
           );
           yield* PubSub.publish(pubsub, currentState);
-          log(`Refresh complete: ${repos.length} workflow repos`);
-        }).pipe(
-          Effect.withSpan("WorkflowRuns.refresh"),
-          Effect.catch((error) =>
-            Effect.gen(function* () {
-              log(`Refresh failed: ${formatGhError(error)}`);
-              currentState = buildState(
-                currentState.repos,
-                new Date(yield* Clock.currentTimeMillis),
-                false,
-                currentState.loaded,
-                formatGhError(error),
-                { since: opts?.since ?? currentState.since ?? undefined },
-              );
-              yield* PubSub.publish(pubsub, currentState);
-            }),
+          return;
+        }
+
+        const hasGh = yield* github.isAvailable();
+        if (!hasGh) {
+          currentState = buildState(
+            targets.map((target) => ({
+              ...emptyRepo(target.slug),
+              error: "gh CLI not found",
+            })),
+            new Date(yield* Clock.currentTimeMillis),
+            false,
+            true,
+            message,
+            opts,
+          );
+          yield* PubSub.publish(pubsub, currentState);
+          return;
+        }
+
+        const repos = yield* Effect.all(
+          targets.map((target) =>
+            fetchRepoRuns(target, opts).pipe(
+              Effect.catch((error) =>
+                Effect.succeed({
+                  ...emptyRepo(target.slug),
+                  error: formatGhError(error),
+                }),
+              ),
+            ),
           ),
+          { concurrency: 4 },
         );
+
+        currentState = buildState(
+          repos,
+          new Date(yield* Clock.currentTimeMillis),
+          false,
+          true,
+          message,
+          opts,
+        );
+        yield* PubSub.publish(pubsub, currentState);
+        log(`Refresh complete: ${repos.length} workflow repos`);
+      });
 
       return {
         subscribe: () => Stream.fromPubSub(pubsub),

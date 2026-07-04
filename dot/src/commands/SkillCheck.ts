@@ -137,9 +137,7 @@ const collectSkillOriginDiff = (publicDotfiles: string) =>
 
     const parts: string[] = [];
     for (const skill of skills) {
-      const diff = yield* buildSingleDiff(skill).pipe(
-        Effect.catch(() => Effect.succeed("")),
-      );
+      const diff = yield* buildSingleDiff(skill);
       if (!diff) continue;
 
       parts.push(diff);

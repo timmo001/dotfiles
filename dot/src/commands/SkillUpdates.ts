@@ -105,17 +105,7 @@ export const skillUpdates = (opts?: {
     for (const meta of skills) {
       const checked = yield* log.withSpinner(
         `Checking ${meta.name}`,
-        timeoutResult(
-          checkSkill(meta).pipe(
-            Effect.catch((err) =>
-              Effect.succeed({
-                type: "error" as const,
-                reason: String(err),
-              }),
-            ),
-          ),
-          skillCheckTimeout,
-        ),
+        timeoutResult(checkSkill(meta), skillCheckTimeout),
       );
       const result: CheckResult = yield* Option.match(checked, {
         onNone: () =>
@@ -177,9 +167,7 @@ export const skillUpdates = (opts?: {
           const appliedResult = yield* log.withSpinner(
             `Applying ${meta.name}`,
             timeoutResult(
-              applySkillUpdate(meta, result.writeSha).pipe(
-                Effect.catch(() => Effect.succeed(false)),
-              ),
+              applySkillUpdate(meta, result.writeSha),
               skillApplyTimeout,
             ),
           );
@@ -351,10 +339,7 @@ const opencodeReview = (
       // Build the diff report
       const diffResult = yield* log.withSpinner(
         `Building diff for ${meta.name}`,
-        timeoutResult(
-          buildSingleDiff(meta).pipe(Effect.catch(() => Effect.succeed(""))),
-          skillDiffTimeout,
-        ),
+        timeoutResult(buildSingleDiff(meta), skillDiffTimeout),
       );
       const diffContent = Option.getOrElse(diffResult, () => "");
 
