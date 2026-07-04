@@ -1,6 +1,8 @@
 ---
 title: System Utilities
 description: Health checks, system updates, benchmarks, and optional timers.
+sidebar:
+  order: 7
 ---
 
 ## System health check

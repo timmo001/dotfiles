@@ -1,36 +1,65 @@
 ---
 title: New Machine Checklist
 description: Step-by-step setup for a new Omarchy machine.
+sidebar:
+  order: 3
 ---
 
+import { Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
 A clean, end-to-end walkthrough for setting up a new machine.
+
+<Steps>
 
 1. Clone `dotfiles` to `~/.config/dotfiles`.
 2. If you want private dotfiles, confirm `gh auth status` works before `dot init`; init clones `dotfiles-private` to `~/.config/dotfiles-private` automatically when auth is available.
 3. Install bootstrap build prerequisites:
 
-   ```bash
-    yay -S --needed git mise-bin
+   ```bash title="Install bootstrap prerequisites"
+   yay -S --needed git mise-bin
    ```
 
 4. Build the `dot` binary (mise trusts and installs the pinned toolchain, then the build task installs dependencies and compiles it):
 
-   ```bash
+   ```bash title="Build dot"
    cd ~/.config/dotfiles
    mise trust
    mise install
    mise run dot:build
    ```
 
-5. Run first-use setup:
-   - Desktop / VM: `~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive --confirm`
-   - Laptop: `dot init --host laptop --noninteractive --confirm`
-   - Interactive: `dot init` in an interactive shell
+5. Run first-use setup using the mode that matches this machine.
 6. If stock Omarchy config directories already exist at `~/.config/waybar`, `~/.config/ghostty`, or `~/.config/uwsm`, `dot init` backs them up with a `.dot-init-backup-*` suffix before cloning the managed repos. Hyprland config is stowed from the `hypr/` package instead.
 7. `dot init` opens the managed [firewall rules](/dot/utilities/#firewall-rules) (KDE Connect, Home Assistant, the OpenCode server, LocalSend, and the libvirt NAT network) when `ufw` is installed.
 8. Restart your shell and confirm `dot help` is on `PATH`.
 9. Run `dot git-diff` and verify the expected repo state.
 10. Run `dot update` for ongoing sync, stow, rebuild, and init-state backfill.
+
+</Steps>
+
+<Tabs syncKey="dot-init-mode">
+  <TabItem label="Desktop / VM">
+
+```bash title="First-use setup"
+~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive --confirm
+```
+
+  </TabItem>
+  <TabItem label="Laptop">
+
+```bash title="First-use setup"
+dot init --host laptop --noninteractive --confirm
+```
+
+  </TabItem>
+  <TabItem label="Interactive">
+
+```bash title="First-use setup"
+dot init
+```
+
+  </TabItem>
+</Tabs>
 
 :::tip[Hypr host and mise tools]
 `dot init` selects the Hypr host early (setting `OMARCHY_HOST`), and the stow phase of the final update creates `~/.config/hypr/host`. It runs `mise install` immediately after stowing dotfiles and before installing managed Arch/AUR package lists, so Bun, Node, pnpm, and similar tools come from the stowed mise config rather than global pacman packages. Each `dot update` (and so the final update in `dot init`) also trusts the mise configs in the repos dot tracks, so `mise` never prompts to trust them on this machine.

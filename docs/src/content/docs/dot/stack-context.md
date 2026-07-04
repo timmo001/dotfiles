@@ -1,6 +1,8 @@
 ---
 title: Stack Context
 description: Deterministic tech-stack detection for the current directory, for agent context.
+sidebar:
+  order: 3
 ---
 
 ## `dot stack-context`

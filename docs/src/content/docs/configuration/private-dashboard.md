@@ -1,6 +1,8 @@
 ---
 title: Private Dashboard Config
 description: The dot-dashboard.yml schema for optional dashboard source cards.
+sidebar:
+  order: 4
 ---
 
 `dot dashboard` reads an optional private YAML file that wires bounded external commands into dashboard cards. It lives in the private overlay at `$DOTFILES_PRIVATE_DIR/dot-dashboard.yml` by default.

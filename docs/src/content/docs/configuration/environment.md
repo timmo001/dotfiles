@@ -1,6 +1,8 @@
 ---
 title: Environment Variables
 description: All DOT_*, DOTFILES_*, and OMARCHY_* options that influence dot.
+sidebar:
+  order: 2
 ---
 
 These variables tune paths and behaviour for `dot`. Most have sensible defaults; set them only when you need to override the default.

@@ -1,6 +1,8 @@
 ---
 title: Private Git Config
 description: The dot-git.yml schema for repo activity, workflows, and notifications.
+sidebar:
+  order: 3
 ---
 
 The git and GitHub tooling reads a private YAML config that lists the repositories to track and how. It lives in the private overlay at `$DOTFILES_PRIVATE_DIR/dot-git.yml` by default (override with `DOT_GIT_CONFIG_FILE`).

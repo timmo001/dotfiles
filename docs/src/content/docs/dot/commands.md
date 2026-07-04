@@ -1,6 +1,8 @@
 ---
 title: Command Reference
 description: Every dot command, alias, flag and example, generated from the CLI registry.
+sidebar:
+  order: 2
 ---
 
 <!-- Generated from dot/src/cli/spec.ts by `mise run docs:gen:cli`. Do not edit by hand. -->

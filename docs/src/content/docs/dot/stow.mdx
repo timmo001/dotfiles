@@ -1,15 +1,41 @@
 ---
 title: Stow Workflow
 description: How dotfiles packages are applied into your home directory with GNU Stow.
+sidebar:
+  order: 4
 ---
 
+import { FileTree } from '@astrojs/starlight/components';
+
 The repository is a [GNU Stow](https://www.gnu.org/software/stow/) package root targeting `~/`. Each top-level directory (`zsh`, `neovim`, `starship`, `hypr`, `scripts`, ...) is a stow package whose contents are symlinked into your home directory.
+
+<FileTree>
+
+- **dotfiles/** public repo root
+  - **zsh/** stow package
+    - .zshrc
+  - **neovim/** stow package
+    - .config
+      - nvim
+        - init.lua
+  - **hypr/** stow package
+    - .config
+      - hypr
+        - ...
+  - **scripts/** stow package
+    - .local
+      - bin
+        - dot
+  - docs/ ignored by `.stowrc`
+  - dot/ ignored by `.stowrc`
+
+</FileTree>
 
 ## Always use `dot stow`
 
 Apply packages with `dot stow` (or `dot update`, which refreshes stow). Do **not** run GNU `stow` directly from the repo root: `dot` applies the correct adopt / no-folding flow and the public-then-private ordering.
 
-```bash
+```bash title="Apply stow packages"
 dot stow            # stow public + private
 dot stow --public   # public only
 dot stow --private  # private only
@@ -25,7 +51,7 @@ dot stow --private  # private only
 
 Use `dot clean` when you need to remove the symlinks that `dot stow` manages, for example before inspecting a conflict or proving whether a file is coming from the dotfiles repo.
 
-```bash
+```bash title="Temporarily remove managed links"
 dot clean   # unstow private packages first, then public packages
 dot stow    # reapply the managed symlinks afterwards
 ```

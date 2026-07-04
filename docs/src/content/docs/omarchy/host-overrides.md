@@ -1,6 +1,8 @@
 ---
 title: Host Overrides
 description: Managed Omarchy repos and per-host Hyprland configuration.
+sidebar:
+  order: 2
 ---
 
 ## Managed Omarchy repos

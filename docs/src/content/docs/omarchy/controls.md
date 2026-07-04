@@ -1,6 +1,8 @@
 ---
 title: Controls
 description: The dot omarchy desktop controls menu.
+sidebar:
+  order: 3
 ---
 
 ## `dot omarchy`

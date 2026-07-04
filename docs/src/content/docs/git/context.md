@@ -1,6 +1,8 @@
 ---
 title: Context, Diff & Log
 description: Branch context, the diff/repo watcher, and recent commit history.
+sidebar:
+  order: 2
 ---
 
 ## `dot git-context`

@@ -1,6 +1,8 @@
 ---
 title: Install
 description: Prerequisites, bootstrap build, and the ongoing dotfiles workflow.
+sidebar:
+  order: 2
 ---
 
 ## Prerequisites

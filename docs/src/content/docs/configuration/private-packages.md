@@ -1,6 +1,8 @@
 ---
 title: Private Packages
 description: Build and publish Arch packages to the private pacman repo.
+sidebar:
+  order: 5
 ---
 
 `dot` can build and publish mapped private packages into a private pacman repository, and register the repo include in `pacman.conf`.

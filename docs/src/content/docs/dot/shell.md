@@ -1,6 +1,8 @@
 ---
 title: Shell Setup
 description: Zsh completions, editing keys, aliases, and small shell helpers.
+sidebar:
+  order: 8
 ---
 
 ## Zsh completions
