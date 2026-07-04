@@ -21,6 +21,19 @@ dot stow --private  # private only
 - Stows the Hypr package with `--no-folding` and creates/repairs the `~/.config/hypr/host` symlink for the active host.
 - Adopts existing files where needed so a fresh machine does not clobber stock config.
 
+## Unstowing packages
+
+Use `dot clean` when you need to remove the symlinks that `dot stow` manages, for example before inspecting a conflict or proving whether a file is coming from the dotfiles repo.
+
+```bash
+dot clean   # unstow private packages first, then public packages
+dot stow    # reapply the managed symlinks afterwards
+```
+
+`dot clean` discovers stow packages the same way `dot stow` does: top-level package directories only, excluding repo internals such as `dot/`, `docs/`, and `backup/`. Host-specific packages (`name--host`) are included only when their suffix matches `OMARCHY_HOST`. If the private overlay is available, it is unstowed before the public repo so overlay links are removed before the base packages.
+
+The command removes managed Stow links; it is not a general home-directory cleanup tool. Re-run `dot stow` or `dot update` after a clean to restore the expected links and host repairs.
+
 ## Ignore rules
 
 `.stowrc` sets the stow target and ignore rules. Files that should never be symlinked into `~/` are ignored there, including top-level docs, the `dot/` source, the `docs/` site, and repo metadata. Keep `.stowrc` ignore rules in sync when adding root-only files.
