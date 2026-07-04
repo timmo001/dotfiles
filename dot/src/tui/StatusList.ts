@@ -61,7 +61,6 @@ export class StatusList<T> extends ScrollBoxRenderable {
   private items: readonly StatusListItem<T>[] = [];
   private selectedIndex = 0;
   private active = false;
-  private rowGeneration = 0;
 
   constructor(renderer: CliRenderer, options: StatusListOptions<T>) {
     super(renderer, {
@@ -90,10 +89,13 @@ export class StatusList<T> extends ScrollBoxRenderable {
     const selectedId = preferredId ?? this.getSelectedItem()?.id ?? null;
     this.clearRows();
     this.items = items;
-    this.selectedIndex = this.resolveSelectedIndex(items, selectedId);
-    this.rowGeneration += 1;
+    this.selectedIndex = selectedId
+      ? Math.max(
+          0,
+          items.findIndex((item) => item.id === selectedId),
+        )
+      : 0;
     this.buildRows();
-    if (items.length === 0) this.scrollTop = 0;
     this.emitSelectionChanged();
   }
 
@@ -201,7 +203,7 @@ export class StatusList<T> extends ScrollBoxRenderable {
   }
 
   private createRow(item: StatusListItem<T>, index: number): StatusListRow<T> {
-    const id = `${this.id}-g${this.rowGeneration}-row-${index}`;
+    const id = `${this.id}-row-${index}`;
     const container = new BoxRenderable(this.renderer, {
       id,
       flexDirection: "column",
@@ -230,7 +232,7 @@ export class StatusList<T> extends ScrollBoxRenderable {
   }
 
   private createSectionHeader(section: string, index: number): BoxRenderable {
-    const id = `${this.id}-g${this.rowGeneration}-section-${index}`;
+    const id = `${this.id}-section-${index}`;
     const container = new BoxRenderable(this.renderer, {
       id,
       flexDirection: "column",
@@ -258,17 +260,5 @@ export class StatusList<T> extends ScrollBoxRenderable {
       row.titleText.content = t`${fg(row.item.color)(row.item.title)}`;
       row.descText.content = t`${fg(this.theme.fgMuted)(row.item.description)}`;
     }
-  }
-
-  private resolveSelectedIndex(
-    items: readonly StatusListItem<T>[],
-    selectedId: string | null,
-  ): number {
-    if (items.length === 0) return 0;
-    if (selectedId) {
-      const index = items.findIndex((item) => item.id === selectedId);
-      if (index >= 0) return index;
-    }
-    return Math.min(this.selectedIndex, items.length - 1);
   }
 }
