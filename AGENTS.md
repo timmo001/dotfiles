@@ -35,7 +35,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - `agents/.config/opencode/` contains the shared OpenCode config source published from this repo.
 - `agents/.agents/skills/` contains globally stowed skills shared by OpenCode and Codex via `~/.agents/skills/`.
 - `.opencode/skills/` contains repo-local skills for this repo only.
-- `dot agents-sync` mirrors the global private AGENTS source into Cursor rules; `dot update` and `dot git-diff` run that sync by default (`DOT_AGENTS_SYNC_ON_*`).
+- `dot agents-sync` mirrors the global private AGENTS source into Cursor, Claude Code, and Codex instruction files; `dot update` and `dot init` run that sync automatically.
 
 ### OpenCode Layer Boundaries
 
