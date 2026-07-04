@@ -31,10 +31,13 @@ Builds and publishes a mapped private package into the private pacman repo, sync
 
 ## Configuration
 
-Private package sources and the repo config live in the private overlay:
+Package lists, the repo map, and pacman paths are overridable with environment variables:
 
+- `DOT_PUBLIC_PACKAGES_FILE` — public Arch/AUR package list (default `$DOTFILES_PUBLIC_DIR/.dot-public-packages`).
 - `DOT_PRIVATE_PACKAGE_REPO_FILE` — private pacman repo config (default `$DOTFILES_PRIVATE_DIR/.dot-private-package-repo`).
 - `DOT_PRIVATE_PACKAGES_FILE` — private package list (default `$DOTFILES_PRIVATE_DIR/.dot-private-packages`).
+- `DOT_PRIVATE_PACKAGE_MAP_FILE` — package name-to-source map for `dot private-pkg-publish` (default `$DOTFILES_PRIVATE_DIR/.dot-private-package-map`).
 - `DOT_PRIVATE_PACMAN_REPO_CONFIG` — pacman repo snippet path written by `dot` (default `/etc/pacman.d/timmo-private.conf`).
+- `DOT_PRIVATE_PACMAN_MAIN_CONFIG` — main pacman config scanned for the private repo `Include` (default `/etc/pacman.conf`).
 
 See [Environment Variables](/configuration/environment/) for the full list.

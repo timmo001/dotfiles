@@ -12,7 +12,6 @@ These variables tune paths and behaviour for `dot`. Most have sensible defaults;
 | `DOTFILES_PUBLIC_DIR` | Public dotfiles path (default `~/.config/dotfiles`). |
 | `DOTFILES_PRIVATE_DIR` | Private dotfiles path (default `~/.config/dotfiles-private`). |
 | `DOT_ALLOW_PRIVATE` | `auto\|always\|never` (default `auto`). |
-| `DOT_PRIVATE_GH_USER` | Expected GitHub user for private actions (default `timmo001`). |
 
 ## Git and GitHub
 
@@ -24,17 +23,21 @@ These variables tune paths and behaviour for `dot`. Most have sensible defaults;
 | `DOT_GITHUB_RATE_LIMIT_MIN_REMAINING` | Minimum REST quota remaining before `gh` calls wait (default `0`). |
 | `DOT_GITHUB_RATE_LIMIT_MAX_WAIT_SECONDS` | Upper bound on rate-limit backoff waits (default `60`). |
 | `DOT_INCLUDE_OMARCHY_DIFF_REPOS` | Include Omarchy repos in `dot git-diff` (`1\|0`, default `1`). |
-| `DOT_INCLUDE_OMARCHY_UPDATE_REPOS` | Include Omarchy repos in `dot update` sync (`1\|0`, default `1`). |
 | `DOT_FETCH_TTL_SECONDS` | Seconds to reuse the last upstream fetch (default `300`). |
-| `DOT_AUTO_CD` | zsh wrapper auto-cd to the first repo with changes after `dot git-diff` (`1\|0`, default `1`). |
+| `DOT_GH_EXTENSIONS_FILE` | Public `gh` extension list installed by `dot init`/`update` (default `$DOTFILES_PUBLIC_DIR/.dot-gh-extensions`). |
+| `DOT_GH_MCP_BEARER` | Bearer token for the read-only GitHub MCP server. Typically exported from shell startup as `$(gh auth token)`; not read by `dot` itself. |
 
 ## Private packages
 
 | Variable | Description |
 | --- | --- |
+| `DOT_PUBLIC_PACKAGES_FILE` | Public Arch/AUR package list for `dot init`/`update` (default `$DOTFILES_PUBLIC_DIR/.dot-public-packages`). |
 | `DOT_PRIVATE_PACKAGE_REPO_FILE` | Private pacman repo config (default `$DOTFILES_PRIVATE_DIR/.dot-private-package-repo`). |
 | `DOT_PRIVATE_PACKAGES_FILE` | Private package list (default `$DOTFILES_PRIVATE_DIR/.dot-private-packages`). |
+| `DOT_PRIVATE_PACKAGE_MAP_FILE` | Private package name-to-source map for `dot private-pkg-publish` (default `$DOTFILES_PRIVATE_DIR/.dot-private-package-map`). |
 | `DOT_PRIVATE_PACMAN_REPO_CONFIG` | Pacman repo snippet path written by `dot` (default `/etc/pacman.d/timmo-private.conf`). |
+| `DOT_PRIVATE_PACMAN_MAIN_CONFIG` | Main pacman config file scanned for the private repo `Include` (default `/etc/pacman.conf`). |
+| `DOT_PRIVATE_BROWSER_CHECKS_FILE` | Private browser-extension doctor checks (default `$DOTFILES_PRIVATE_DIR/.dot-browser-checks`). |
 
 ## Omarchy and Hyprland
 
@@ -45,22 +48,25 @@ These variables tune paths and behaviour for `dot`. Most have sensible defaults;
 | `DOT_OMARCHY_BRANCH` | Branch override for non-bootstrap Omarchy repos during sync. |
 | `DOT_BOOTSTRAP_BRANCH` | Branch for `bootstrap` sync (default `distro/omarchy`). |
 
-## Init and timers
+## Init and logging
 
 | Variable | Description |
 | --- | --- |
 | `DOT_INIT_NONINTERACTIVE` | Force non-interactive init mode (`1\|0`, default `0`). |
 | `DOT_INIT_LOG_FILE` | Default `dot init` log path when `--log` is not passed (default `~/.local/state/dot/init.log`). |
+| `DOT_LOG_FILE` | Active log file for the current `dot` run. Set automatically during `dot init`; child commands inherit it when `DOT_TEE_INHERIT_LOG=1`. |
+| `DOT_LOG_MIRROR_FILE` | Secondary log destination mirrored after each write. Set automatically when `dot init --log` targets a GVFS path that cannot be written directly. |
+| `DOT_TEE_INHERIT_LOG` | When `1`, child processes launched by `dot` append stdout/stderr to `DOT_LOG_FILE` (set automatically during `dot init`). |
 | `DOT_UFW_RULES_FILE` | ufw rules file scanned by the firewall setup and doctor check (default `/etc/ufw/user.rules`). |
-| `DOT_DAILY_VOLUME_ZERO_TIMER_UNIT` | 5am volume reset timer unit name (default `daily-volume-zero.timer`). |
 
 ## Agents sync
+
+`dot agents-sync` runs automatically at the end of `dot update` and `dot init`; there is no environment toggle to disable it.
 
 | Variable | Description |
 | --- | --- |
 | `DOT_AGENTS_SYNC_SOURCE` | AGENTS file to mirror (default `~/.config/opencode/AGENTS.md`). |
 | `DOT_AGENTS_SYNC_RULE_FILE` | Cursor rule output path (default `$DOTFILES_PRIVATE_DIR/agents/.cursor/rules/global-agents.mdc`, else `~/.cursor/rules/global-agents.mdc`). |
-| `DOT_AGENTS_SYNC_ON_UPDATE` | Run `agents-sync` after `dot update` (`1\|0`, default `1`). |
 
 ## MCP sync
 

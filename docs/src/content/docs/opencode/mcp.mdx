@@ -27,7 +27,7 @@ Unlike the agents, commands, skills, and plugins, the `opencode.json` that decla
 Remote servers connect over HTTP to a hosted endpoint. Local servers are launched on demand over stdio (`opencode x`, `npx`, or an installed binary).
 
 :::note[Credentials]
-`context7` and `github` need credentials, supplied through the environment and referenced from `opencode.json` with `{env:...}` so no secret ever lands in the config file.
+`context7` and `github` need credentials, supplied through the environment and referenced from `opencode.json` with `{env:...}` so no secret ever lands in the config file. The GitHub server reads `DOT_GH_MCP_BEARER`, which shell startup typically exports as `$(gh auth token)`. `dot doctor` warns when `gh` is missing or has no token.
 :::
 
 ## Generated from one spec
