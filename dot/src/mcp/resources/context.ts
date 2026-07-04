@@ -2,8 +2,8 @@
  * @file MCP context resources.
  *
  * Registers read-only resources on the MCP server: the current repository's
- * repo-note context block (`dot://notes/context`), its branch status
- * (`dot://git-status`), and per-command help (`dot://command/{name}`). Each
+ * repo-note context block (`dot://notes/context`), its branch context
+ * (`dot://git-context`), and per-command help (`dot://command/{name}`). Each
  * reuses the same in-process services as the context tools, so a client can
  * pull this context in as an attachment without an explicit tool call. Content
  * effects re-run on every read, so resources reflect the current state.
@@ -12,7 +12,10 @@ import { Effect, Schema } from "effect";
 import { McpSchema, McpServer } from "effect/unstable/ai";
 import { renderHelp } from "../../cli/help.js";
 import { nativeCommandNames } from "../../cli/spec.js";
-import { gitStatusText } from "../../git/commands/Status.js";
+import {
+  gitContextOptions,
+  gitContextText,
+} from "../../git/commands/Context.js";
 import { Notes } from "../../notes/services/Notes.js";
 
 /** Named template parameter for the per-command help resource. */
@@ -45,22 +48,18 @@ export const registerContextResources = Effect.gen(function* () {
   });
 
   yield* McpServer.registerResource({
-    uri: "dot://git-status",
-    name: "git status",
+    uri: "dot://git-context",
+    name: "git context",
     description:
-      "Concise branch status for the current repository: unstaged files, staged files, and recent commits with push markers.",
+      "Concise branch context for the current repository: branch/base header, the pull request summary for a feature branch, unstaged files, staged files, and recent commits with push markers.",
     mimeType: "text/plain",
-    content: gitStatusText({
-      diff: false,
-      branchDiff: false,
-      since: undefined,
-    }),
+    content: gitContextText(gitContextOptions({})),
   });
 
   yield* McpServer.registerResource`dot://command/${commandParam}`({
     name: "dot command help",
     description:
-      "Help text for a single dot command, e.g. dot://command/git-status.",
+      "Help text for a single dot command, e.g. dot://command/git-context.",
     mimeType: "text/plain",
     completion: {
       name: (input) =>

@@ -1,24 +1,28 @@
 /**
  * @file MCP context tools.
  *
- * Registers read-only context tools on the MCP server: `git_status` (current
- * repository branch status), `command_help` (dot CLI help), and
+ * Registers read-only context tools on the MCP server: `git_context` (current
+ * repository branch context), `command_help` (dot CLI help), and
  * `opencode_debug` (captured `opencode debug` output). Each reuses existing
- * string-returning code where it exists (`gitStatusText`, `renderHelp`) or is
+ * string-returning code where it exists (`gitContextText`, `renderHelp`) or is
  * rebuilt over {@link CommandExecutor} where the CLI handler is TUI-bound, so
  * results are raw text and never touch the JSON-RPC stdout stream. Tools are
  * registered via the shared {@link makeToolRegistrar}.
  */
 import { Effect, Schema } from "effect";
 import { renderHelp } from "../../cli/help.js";
-import { gitStatusText } from "../../git/commands/Status.js";
+import {
+  gitContextOptions,
+  gitContextText,
+} from "../../git/commands/Context.js";
+import { GitHub } from "../../git/services/GitHub.js";
 import {
   CommandExecutor,
   type CommandExecutorService,
 } from "../../services/CommandExecutor.js";
 import { makeToolRegistrar, READONLY_HINTS } from "./register.js";
 
-const GitStatusParams = Schema.Struct({
+const GitContextParams = Schema.Struct({
   diff: Schema.optional(
     Schema.Boolean.annotate({
       description:
@@ -29,6 +33,36 @@ const GitStatusParams = Schema.Struct({
     Schema.Boolean.annotate({
       description:
         "Append the full merge-base diff of the current branch against the default branch. Errors when HEAD is on the default branch.",
+    }),
+  ),
+  comments: Schema.optional(
+    Schema.Boolean.annotate({
+      description: "Include pull request conversation comments.",
+    }),
+  ),
+  reviews: Schema.optional(
+    Schema.Boolean.annotate({
+      description: "Include individual pull request reviews.",
+    }),
+  ),
+  labels: Schema.optional(
+    Schema.Boolean.annotate({
+      description: "Include pull request labels.",
+    }),
+  ),
+  checks: Schema.optional(
+    Schema.Boolean.annotate({
+      description: "Include CI check runs (makes a second gh call).",
+    }),
+  ),
+  description: Schema.optional(
+    Schema.Boolean.annotate({
+      description: "Include the pull request description (default true).",
+    }),
+  ),
+  pullRequest: Schema.optional(
+    Schema.Boolean.annotate({
+      description: "Include the pull request block at all (default true).",
     }),
   ),
   since: Schema.optional(
@@ -43,7 +77,7 @@ const CommandHelpParams = Schema.Struct({
   name: Schema.optional(
     Schema.String.annotate({
       description:
-        "Optional subcommand to scope help to (e.g. 'git-status'). Omit for the full dot command overview.",
+        "Optional subcommand to scope help to (e.g. 'git-context'). Omit for the full dot command overview.",
     }),
   ),
 });
@@ -109,35 +143,48 @@ function opencodeDebugText(
 
 /**
  * Register the read-only context tools via the shared {@link makeToolRegistrar}.
- * Resolves {@link CommandExecutor} once so the `git_status` and `opencode_debug`
- * handlers run with it provided and return raw text.
+ * Resolves {@link CommandExecutor} and {@link GitHub} once so the `git_context`
+ * and `opencode_debug` handlers run with them provided and return raw text.
  */
 export const registerContextTools = Effect.gen(function* () {
   const register = yield* makeToolRegistrar;
   const executor = yield* CommandExecutor;
+  const github = yield* GitHub;
 
   yield* register({
-    name: "git_status",
+    name: "git_context",
     description:
-      "Concise branch status for the current repository: unstaged files, staged files, " +
-      "and recent commits, each with a relative timestamp, a pushed/local marker, and its " +
-      "changed files with line counts. Optionally append full working-tree diffs or the " +
-      "merge-base diff against the default branch.",
-    parameters: GitStatusParams,
+      "Concise branch context for the current repository: branch/base header, the pull " +
+      "request for the branch (feature branches), unstaged files, staged files, and recent " +
+      "commits, each with a relative timestamp, a pushed/local marker, and its changed files " +
+      "with line counts. Include PR comments, reviews, labels, or CI checks, or append full " +
+      "working-tree diffs or the merge-base diff against the default branch.",
+    parameters: GitContextParams,
     annotations: READONLY_HINTS,
     handle: (params) =>
-      gitStatusText({
-        diff: params.diff ?? false,
-        branchDiff: params.branchDiff ?? false,
-        since: params.since,
-      }).pipe(Effect.provideService(CommandExecutor, executor)),
+      gitContextText(
+        gitContextOptions({
+          diff: params.diff ?? false,
+          branchDiff: params.branchDiff ?? false,
+          since: params.since,
+          comments: params.comments ?? false,
+          reviews: params.reviews ?? false,
+          labels: params.labels ?? false,
+          checks: params.checks ?? false,
+          description: params.description ?? true,
+          pullRequest: params.pullRequest ?? true,
+        }),
+      ).pipe(
+        Effect.provideService(CommandExecutor, executor),
+        Effect.provideService(GitHub, github),
+      ),
   });
 
   yield* register({
     name: "command_help",
     description:
       "Show dot CLI help. Omit name for the full command overview, or pass a subcommand " +
-      "(e.g. 'git-status') to scope help to that command.",
+      "(e.g. 'git-context') to scope help to that command.",
     parameters: CommandHelpParams,
     annotations: READONLY_HINTS,
     handle: (params) => Effect.sync(() => renderHelp(params.name)),

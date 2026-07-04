@@ -1,21 +1,49 @@
 ---
-title: Status, Diff & Log
-description: Branch status, the diff/repo watcher, and recent commit history.
+title: Context, Diff & Log
+description: Branch context, the diff/repo watcher, and recent commit history.
 ---
 
-## `dot git-status`
+## `dot git-context`
 
-Branch status for the current repository, designed as a single command for agents to get full working-tree and branch context. It prints unstaged files, staged files, and whichever is larger: today's commits or the last 10 commits. The commit heading includes the number shown and whether the list is today's commits, branch commits since the default branch, commits since an explicit `--since` value, or recent commits from the oldest listed commit timestamp. Each commit includes a compact relative timestamp, a pushed/local remote marker, and its changed files inline with `(+added -deleted)` line counts.
+Branch context for the current repository, designed as a single command for agents to get full working-tree and branch context, and as the shared producer for the OpenCode branch-context plugin (via `--json`). It prints a branch/base header, the pull request for a feature branch, unstaged files, staged files, and whichever is larger: today's commits or the last 10 commits. The commit heading includes the number shown and whether the list is today's commits, branch commits since the default branch, commits since an explicit `--since` value, or recent commits from the oldest listed commit timestamp. Each commit includes a compact relative timestamp, a pushed/local remote marker, and its changed files inline with `(+added -deleted)` line counts.
+
+On a feature branch the pull request summary is always shown (via `gh pr view`): number, state, title, comment count, review decision, mergeability, draft state, branches, and URL, plus the description. The lookup is resilient: it is skipped on the default branch and omitted when `gh` is missing, no PR exists, or the request fails. Add `--comments`, `--reviews`, `--labels`, or `--checks` to include those sections (`--checks` makes a second `gh` call); `--no-description` or `--no-pr` trim the PR block.
 
 ```bash
-dot git-status                # status summary
-dot git-status --diff         # also print full unstaged and staged diffs
-dot git-status --branch-diff  # also print the full diff vs the default branch
-dot git-status --diff --branch-diff
-dot git-status --since "2 days ago"
+dot git-context                     # context summary
+dot git-context --comments --reviews # include PR comments and reviews
+dot git-context --labels --checks   # include PR labels and CI checks
+dot git-context --diff              # also print full unstaged and staged diffs
+dot git-context --branch-diff       # also print the full diff vs the default branch
+dot git-context --json              # structured branch-context payload (plugin format)
+dot git-context --since "2 days ago"
 ```
 
 It substitutes running these separately: `git status`, `git diff --stat` / `git diff --numstat`, `git diff --cached --stat`, `git log --oneline --stat`, and `git log @{upstream}..HEAD` (ahead/pushed check). The flags combine. `--branch-diff` measures from the merge base, so committed and uncommitted changes both show, and errors on the default branch where that range is empty. `--since <date>` overrides the default recent-commit window on the default branch or when the default branch ref cannot be resolved; it accepts ISO/RFC dates, epoch timestamps, and relative values such as `2d` or `2 days ago`.
+
+`--json` emits the structured branch-context payload consumed by the OpenCode branch-context plugin instead of text; the `--no-*` section flags control which blocks it carries.
+
+### Flags
+
+The pull request summary and description are on by default on a feature branch; comments, reviews, labels, and checks are opt-in. The `--no-*` flags mainly matter for `--json`, since the text output only renders the header, PR block, status, and commits.
+
+| Flag | Default | Notes |
+| --- | --- | --- |
+| `--json` | off (text) | Emit the structured branch-context payload (plugin format) instead of text. |
+| `--comments` | off | Include the PR conversation comments (fetched in the same `gh pr view` call). |
+| `--reviews` | off | Include individual PR reviews (reviewer, state, body). |
+| `--labels` | off | Include the PR labels. |
+| `--checks` | off | Include CI check runs; makes a second `gh pr checks` call. |
+| `--no-description` | description on | Omit the PR description/body. |
+| `--no-pr` | PR on (feature branch) | Omit the PR block entirely; use for branch-only context. |
+| `--no-branch-metadata` | on | Omit the branch-metadata block (affects `--json`). |
+| `--no-status` | on | Omit the working-tree status block (affects `--json`). |
+| `--no-work-scope` | on | Omit the branch work-scope aggregates (affects `--json`). |
+| `--diff` | off | Append the full unstaged and staged diffs beneath their sections. |
+| `--branch-diff` | off | Append the merge-base diff vs the default branch; errors on the default branch. |
+| `--since <date>` | today or last 10 | Override the recent-commit window on the default/recent path. |
+
+The review decision and comment count are part of the always-on PR summary, so they need no flag. On the default branch the PR block is skipped regardless of `--no-pr`. Flags combine freely, for example `dot git-context --json --comments --reviews --labels --checks` is what the branch-context plugin runs.
 
 ## `dot git-diff`
 

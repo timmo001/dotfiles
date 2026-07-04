@@ -1,7 +1,7 @@
 /**
  * @file Pure helpers for resolving a repository's default remote and branch.
  *
- * Shared by `dot git-status` and `dot git-commit` so both derive the push
+ * Shared by `dot git-context` and `dot git-commit` so both derive the push
  * target and default branch the same way.
  */
 

@@ -252,7 +252,7 @@ const REFRESH_REMOTE_HEAD_TIMEOUT = Duration.seconds(15);
  * remote's current default branch. Clones capture `<remote>/HEAD` once and never
  * auto-update it, so a default-branch rename on the remote leaves the local ref
  * stale and misleads tooling that derives the default branch from it (e.g.
- * `dot git-status`, `dot git-log`, the branch-context plugin).
+ * `dot git-context`, `dot git-log`, the branch-context plugin).
  *
  * Queries the remote (`git remote set-head <remote> --auto`) and is non-fatal:
  * a missing remote, offline state, timeout, or any other failure resolves to

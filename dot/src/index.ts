@@ -54,7 +54,11 @@ import {
   diffRaw,
 } from "./git/commands/Diff.js";
 import { gitLogRaw } from "./git/commands/Log.js";
-import { gitStatusRaw } from "./git/commands/Status.js";
+import {
+  gitContextOptions,
+  gitContextRaw,
+  gitContextRawJson,
+} from "./git/commands/Context.js";
 import { gitCommitRaw } from "./git/commands/Commit.js";
 import {
   workflowsListRepos,
@@ -133,7 +137,7 @@ const NOTIFICATION_ACTION_FLAGS: readonly {
  */
 const TUI_ALTERNATIVES: Partial<Record<ViewId, string>> = {
   main: "dot help",
-  dashboard: "dot git-status",
+  dashboard: "dot git-context",
   "git-diff": "dot git-diff --raw",
   "git-log": "dot git-log --raw",
   "git-workflows": "dot git-workflows --raw",
@@ -577,12 +581,25 @@ if (mode.type === "native" && mode.command === "mcp") {
         }),
       clean: () => clean,
       "git-log": () => gitLogRaw,
-      "git-status": (args) =>
-        gitStatusRaw({
+      "git-context": (args) => {
+        const options = gitContextOptions({
           diff: args.includes("--diff"),
           branchDiff: args.includes("--branch-diff"),
           since: flags.since,
-        }),
+          description: !args.includes("--no-description"),
+          labels: args.includes("--labels"),
+          comments: args.includes("--comments"),
+          reviews: args.includes("--reviews"),
+          checks: args.includes("--checks"),
+          pullRequest: !args.includes("--no-pr"),
+          branchMetadata: !args.includes("--no-branch-metadata"),
+          status: !args.includes("--no-status"),
+          workScope: !args.includes("--no-work-scope"),
+        });
+        return args.includes("--json")
+          ? gitContextRawJson(options)
+          : gitContextRaw(options);
+      },
       "git-commit": (args) =>
         gitCommitRaw({
           message: optionValue(args, "--message") ?? optionValue(args, "-m"),

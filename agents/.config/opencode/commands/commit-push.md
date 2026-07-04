@@ -16,7 +16,7 @@ rather than falling back. `--push` sets the upstream when missing and never
 force-pushes.
 
 Use `${ARGUMENTS}` as the commit subject when provided (still subject to the
-gateway guards); otherwise derive a concise subject from `dot git-status --diff`.
+gateway guards); otherwise derive a concise subject from `dot git-context --diff`.
 Confirm the staging scope before committing. After `dot git-commit --push`
 returns, report the result and do not perform any further commit or push work
 without a fresh explicit user request.

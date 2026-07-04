@@ -1,10 +1,12 @@
 /**
  * @file Injects branch-context blocks into command prompts before execution.
  *
- * Hooks into `command.execute.before` to collect git/gh state (branch, status,
- * diff, PR info) and inject a `<branch-context>` XML block into the command
- * prompt. Supports two tiers: full branch-context commands and work-scope-only
- * commands that receive a narrower diff.
+ * Hooks into `command.execute.before` to collect branch context and inject a
+ * `<branch-context>` XML block into the command prompt. The context itself is
+ * produced by `dot git-context --json` (the single shared producer); this
+ * plugin only renders the structured payload into XML blocks. Two tiers are
+ * supported: full branch-context commands (including the pull request) and
+ * work-scope-only commands (no pull request).
  */
 
 import type { Plugin } from "@opencode-ai/plugin"
@@ -15,52 +17,12 @@ type CommandResult =
 
 type JsonRecord = Record<string, unknown>
 
-interface TruncatedText {
-  readonly text: string
-  readonly truncated: boolean
-  readonly omitted: number
-}
-
-interface BranchMetadataInput {
-  readonly branchResult: CommandResult
-  readonly defaultRemote: string
-  readonly defaultBranch: string
-  readonly baseRef: string
-  readonly onDefaultBranch: boolean
-  readonly remotes: readonly string[]
-}
-
-interface WorkScopeInput {
-  readonly unstagedNameStatusResult: CommandResult
-  readonly stagedNameStatusResult: CommandResult
-  readonly commitsResult: CommandResult
-  readonly nameStatusResult: CommandResult
-  readonly statResult: CommandResult
-}
-
-interface PullRequestContextInput {
-  readonly prViewResult: CommandResult | null
-  readonly prData: JsonRecord | null
-  readonly prMissing: boolean
-  readonly checksResult: CommandResult | null
-}
-
-interface RenderBranchContextInput {
-  readonly contextMetadata: readonly string[]
-  readonly branchMetadata: readonly string[]
-  readonly statusLines: readonly string[]
-  readonly workScopeLines: readonly string[]
-  readonly pullRequestLines: readonly string[] | null
-  readonly warnings: readonly string[]
-}
-
 const BRANCH_CONTEXT_COMMANDS = new Set([
   // General
   "inject-context",
   "refactor-current-work",
   "reset-branch-reapply",
   "review-current-work",
-
 ])
 const WORK_SCOPE_COMMANDS = new Set([
   // General
@@ -80,22 +42,6 @@ const WORK_SCOPE_COMMANDS = new Set([
   "home-assistant/lit-rendering",
 ])
 const TARGET_COMMANDS = new Set([...BRANCH_CONTEXT_COMMANDS, ...WORK_SCOPE_COMMANDS])
-const PR_CHECKS_CHAR_LIMIT = 40000
-const STATUS_CHAR_LIMIT = 12000
-const COMMITS_CHAR_LIMIT = 30000
-const NAME_STATUS_CHAR_LIMIT = 30000
-const DIFF_STAT_CHAR_LIMIT = 20000
-
-const truncate = (text: string, maxChars: number): TruncatedText => {
-  if (text.length <= maxChars) {
-    return { text, truncated: false, omitted: 0 }
-  }
-  return {
-    text: text.slice(0, maxChars),
-    truncated: true,
-    omitted: text.length - maxChars,
-  }
-}
 
 const errorMessage = (error: unknown): string => {
   if (!error) return "Unknown error"
@@ -114,33 +60,10 @@ const errorMessage = (error: unknown): string => {
 const run = async (execute: () => Promise<unknown>): Promise<CommandResult> => {
   try {
     const output = await execute()
-    return {
-      ok: true,
-      text: String(output).trim(),
-    }
+    return { ok: true, text: String(output).trim() }
   } catch (error) {
-    return {
-      ok: false,
-      error: errorMessage(error),
-    }
+    return { ok: false, error: errorMessage(error) }
   }
-}
-
-const skipped = (text: string): CommandResult => ({
-  ok: true,
-  text,
-})
-
-const limitedText = (text: string, maxChars: number): string => {
-  const limited = truncate(text, maxChars)
-  return limited.text + (limited.truncated ? `\n\n[TRUNCATED ${String(limited.omitted)} CHARS]` : "")
-}
-
-const parseDefaultBranch = (ref: string, remote: string): string => {
-  const prefix = `refs/remotes/${remote}/`
-  if (ref.startsWith(prefix)) return ref.slice(prefix.length)
-  const parts = ref.split("/")
-  return parts[parts.length - 1] || "main"
 }
 
 const isRecord = (value: unknown): value is JsonRecord =>
@@ -151,10 +74,21 @@ const stringField = (record: JsonRecord, field: string): string => {
   return typeof value === "string" ? value : ""
 }
 
+const numberField = (record: JsonRecord, field: string): number => {
+  const value = record[field]
+  return typeof value === "number" ? value : 0
+}
+
 const booleanField = (record: JsonRecord, field: string): boolean => {
   const value = record[field]
   return typeof value === "boolean" ? value : false
 }
+
+const stringArray = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []
+
+const recordArray = (value: unknown): JsonRecord[] =>
+  Array.isArray(value) ? value.filter(isRecord) : []
 
 const parseJSON = (text: string): JsonRecord | null => {
   try {
@@ -166,14 +100,13 @@ const parseJSON = (text: string): JsonRecord | null => {
 }
 
 const formatTag = (name: string, description: string, lines: readonly string[]): string => {
-  const body = [
-    `Description: ${description}`,
-    ...lines.filter(Boolean),
-  ]
-    .join("\n")
-    .trim()
-
+  const body = [`Description: ${description}`, ...lines.filter(Boolean)].join("\n").trim()
   return [`<${name}>`, body || "(empty)", `</${name}>`].join("\n")
+}
+
+const formatList = (title: string, value: string): string => {
+  const text = value && value.trim() ? value.trim() : "(empty)"
+  return `${title}:\n${text}`
 }
 
 const formatErrorContext = (message: string, error: string | null): string => {
@@ -195,143 +128,126 @@ const formatErrorContext = (message: string, error: string | null): string => {
     .join("\n\n")
 }
 
-const formatList = (title: string, value: string): string => {
-  const text = value && value.trim() ? value.trim() : "(empty)"
-  return `${title}:\n${text}`
-}
-
-const collectBranchMetadata = ({
-  branchResult,
-  defaultRemote,
-  defaultBranch,
-  baseRef,
-  onDefaultBranch,
-  remotes,
-}: BranchMetadataInput): string[] => {
+const renderBranchMetadata = (meta: JsonRecord | null): string[] => {
+  if (!meta) return ["(unavailable)"]
+  const remotes = stringArray(meta.remotes)
   return [
-    `Current branch: ${branchResult.ok && branchResult.text ? branchResult.text : "(unknown)"}`,
-    `Default remote: ${defaultRemote}`,
-    `Default branch: ${defaultBranch}`,
-    `Base ref: ${baseRef}`,
-    `On default branch: ${onDefaultBranch ? "yes" : "no"}`,
+    `Current branch: ${stringField(meta, "currentBranch") || "(unknown)"}`,
+    `Default remote: ${stringField(meta, "defaultRemote") || "(unknown)"}`,
+    `Default branch: ${stringField(meta, "defaultBranch") || "(unknown)"}`,
+    `Base ref: ${stringField(meta, "baseRef") || "(unknown)"}`,
+    `On default branch: ${booleanField(meta, "onDefaultBranch") ? "yes" : "no"}`,
     `Known remotes: ${remotes.length ? remotes.join(", ") : "(none)"}`,
   ]
 }
 
-const collectStatus = (statusResult: CommandResult): string[] => {
-  if (!statusResult.ok) return [`ERROR: ${statusResult.error}`]
-  return [statusResult.text || "(empty)"]
-}
-
-const collectWorkScope = ({
-  unstagedNameStatusResult,
-  stagedNameStatusResult,
-  commitsResult,
-  nameStatusResult,
-  statResult,
-}: WorkScopeInput): string[] => {
+const renderWorkScope = (status: JsonRecord | null, workScope: JsonRecord | null): string[] => {
   return [
-    formatList(
-      "Unstaged changed files",
-      unstagedNameStatusResult.ok ? limitedText(unstagedNameStatusResult.text, NAME_STATUS_CHAR_LIMIT) : `ERROR: ${unstagedNameStatusResult.error}`,
-    ),
+    formatList("Unstaged changed files", status ? stringField(status, "unstaged") : ""),
     "",
-    formatList(
-      "Staged changed files",
-      stagedNameStatusResult.ok ? limitedText(stagedNameStatusResult.text, NAME_STATUS_CHAR_LIMIT) : `ERROR: ${stagedNameStatusResult.error}`,
-    ),
+    formatList("Staged changed files", status ? stringField(status, "staged") : ""),
     "",
-    formatList(
-      "Branch-only commits",
-      commitsResult.ok ? limitedText(commitsResult.text, COMMITS_CHAR_LIMIT) : `ERROR: ${commitsResult.error}`,
-    ),
+    formatList("Branch-only commits", workScope ? stringField(workScope, "branchCommits") : ""),
     "",
-    formatList(
-      "Branch changed files",
-      nameStatusResult.ok ? limitedText(nameStatusResult.text, NAME_STATUS_CHAR_LIMIT) : `ERROR: ${nameStatusResult.error}`,
-    ),
+    formatList("Branch changed files", workScope ? stringField(workScope, "branchFiles") : ""),
     "",
-    formatList(
-      "Branch diff stat",
-      statResult.ok ? limitedText(statResult.text, DIFF_STAT_CHAR_LIMIT) : `ERROR: ${statResult.error}`,
-    ),
+    formatList("Branch diff stat", workScope ? stringField(workScope, "branchDiffStat") : ""),
   ]
 }
 
-const collectPullRequestContext = ({
-  prViewResult,
-  prData,
-  prMissing,
-  checksResult,
-}: PullRequestContextInput): string[] | null => {
-  if (!prViewResult) return null
-  if (prData) {
-    return [
-      `PR number: ${String(prData.number)}`,
-      `Title: ${stringField(prData, "title") || "(no title)"}`,
-      `URL: ${stringField(prData, "url") || "(unknown)"}`,
-      `State: ${stringField(prData, "state") || "(unknown)"}`,
-      `Draft: ${booleanField(prData, "isDraft") ? "yes" : "no"}`,
-      `Review decision: ${stringField(prData, "reviewDecision") || "(none)"}`,
-      `Merge state: ${stringField(prData, "mergeStateStatus") || "(unknown)"}`,
-      `Branches: ${stringField(prData, "headRefName") || "(unknown)"} -> ${
-        stringField(prData, "baseRefName") || "(unknown)"
-      }`,
-      "",
-      formatList(
-        "Checks",
-        checksResult
-          ? checksResult.ok
-            ? limitedText(checksResult.text, PR_CHECKS_CHAR_LIMIT)
-            : `ERROR: ${checksResult.error}`
-          : "(not available)",
-      ),
-    ]
-  }
-  if (prMissing) {
-    return ["No pull request found for the current branch."]
-  }
-  return ["Pull request data was requested but could not be collected."]
+const renderComments = (comments: JsonRecord[]): string => {
+  if (!comments.length) return "(none)"
+  return comments
+    .map((comment) => `@${stringField(comment, "author")} (${stringField(comment, "createdAt")}): ${stringField(comment, "body")}`)
+    .join("\n")
 }
 
-const renderBranchContext = ({
-  contextMetadata,
-  branchMetadata,
-  statusLines,
-  workScopeLines,
-  pullRequestLines,
-  warnings,
-}: RenderBranchContextInput): string => {
+const renderReviews = (reviews: JsonRecord[]): string => {
+  if (!reviews.length) return "(none)"
+  return reviews
+    .map((review) => {
+      const header = `@${stringField(review, "author")} ${stringField(review, "state")}`
+      const body = stringField(review, "body").trim()
+      return body ? `${header}: ${body}` : header
+    })
+    .join("\n")
+}
+
+const renderPullRequest = (pr: JsonRecord): string[] => {
+  const summary = isRecord(pr.summary) ? pr.summary : null
+  if (!summary) return ["Pull request data was requested but could not be parsed."]
+
+  const lines = [
+    `PR number: ${numberField(summary, "number")}`,
+    `Title: ${stringField(summary, "title") || "(no title)"}`,
+    `URL: ${stringField(summary, "url") || "(unknown)"}`,
+    `State: ${stringField(summary, "state") || "(unknown)"}`,
+    `Draft: ${booleanField(summary, "isDraft") ? "yes" : "no"}`,
+    `Review decision: ${stringField(summary, "reviewDecision") || "(none)"}`,
+    `Merge state: ${stringField(summary, "mergeStateStatus") || "(unknown)"}`,
+    `Branches: ${stringField(summary, "headRefName") || "(unknown)"} -> ${stringField(summary, "baseRefName") || "(unknown)"}`,
+    `Comment count: ${numberField(summary, "commentCount")}`,
+  ]
+
+  if (Array.isArray(pr.labels)) {
+    const labels = stringArray(pr.labels)
+    lines.push(`Labels: ${labels.length ? labels.join(", ") : "(none)"}`)
+  }
+  if (typeof pr.description === "string") {
+    lines.push("", formatList("Description", pr.description))
+  }
+  if (Array.isArray(pr.comments)) {
+    lines.push("", formatList("Comments", renderComments(recordArray(pr.comments))))
+  }
+  if (Array.isArray(pr.reviews)) {
+    lines.push("", formatList("Reviews", renderReviews(recordArray(pr.reviews))))
+  }
+  if (typeof pr.checks === "string") {
+    lines.push("", formatList("Checks", pr.checks))
+  }
+  return lines
+}
+
+const renderBranchContext = (data: JsonRecord, includePullRequest: boolean): string => {
+  const meta = isRecord(data.branchMetadata) ? data.branchMetadata : null
+  const status = isRecord(data.status) ? data.status : null
+  const workScope = isRecord(data.workScope) ? data.workScope : null
+  const pr = isRecord(data.pullRequest) ? data.pullRequest : null
+  const warnings = stringArray(data.warnings)
+
   const lines = [
     "<branch-context>",
     formatTag(
       "context-metadata",
       "Information about how this branch context snapshot was generated.",
-      contextMetadata,
+      [
+        "Produced by `dot git-context --json`. Prefer this context over running git/gh commands unless it is missing or stale.",
+        `Generated at: ${new Date().toISOString()}`,
+      ],
     ),
     formatTag(
       "branch-metadata",
       "Repository and branch identity for interpreting the rest of the context.",
-      branchMetadata,
+      renderBranchMetadata(meta),
     ),
     formatTag(
       "status",
       "Compact git status summary for a quick overview of the working tree and branch tracking state.",
-      statusLines,
+      [status ? stringField(status, "short") || "(empty)" : "(empty)"],
     ),
     formatTag(
       "work-scope",
       "Current work scope in priority order. Use unstaged first, then staged, then branch-only changes.",
-      workScopeLines,
+      renderWorkScope(status, workScope),
     ),
   ]
 
-  if (pullRequestLines) {
+  if (includePullRequest) {
     lines.push(
       formatTag(
         "pull-request",
         "Pull request metadata and CI/check state for branch-oriented workflow commands only.",
-        pullRequestLines,
+        pr ? renderPullRequest(pr) : ["No pull request found for the current branch."],
       ),
     )
   }
@@ -356,129 +272,41 @@ export const BranchContextPlugin = (async ({ $ }) => {
   }: {
     readonly includePullRequest: boolean
   }): Promise<string> => {
-    const warnings: string[] = []
+    const args = includePullRequest
+      ? ["git-context", "--json", "--labels", "--comments", "--reviews", "--checks"]
+      : ["git-context", "--json", "--no-pr"]
 
-    const inRepo = await run(() => $`git rev-parse --is-inside-work-tree`.text())
-    if (!inRepo.ok || inRepo.text !== "true") {
+    const result = await run(() => $`dot ${args}`.text())
+    if (!result.ok) {
       return formatErrorContext(
-        "BranchContextPlugin could not collect git context because this directory is not a git worktree.",
-        inRepo.ok ? null : inRepo.error,
+        "BranchContextPlugin could not collect git context because `dot git-context` failed.",
+        result.error,
       )
     }
 
-    const remotesResult = await run(() => $`git remote`.text())
-    const remotes = remotesResult.ok
-      ? remotesResult.text
-          .split(/\r?\n/g)
-          .map((item) => item.trim())
-          .filter(Boolean)
-      : []
-    const defaultRemote = remotes.includes("upstream")
-      ? "upstream"
-      : remotes.includes("origin")
-        ? "origin"
-        : remotes[0] || "origin"
-
-    if (!remotesResult.ok) warnings.push(`Unable to list git remotes: ${remotesResult.error}`)
-    if (remotes.length === 0) warnings.push("No git remotes detected; defaulting to origin")
-
-    let defaultBranch = "main"
-    const symbolic = await run(() => $`git symbolic-ref refs/remotes/${defaultRemote}/HEAD`.text())
-    if (symbolic.ok && symbolic.text) {
-      defaultBranch = parseDefaultBranch(symbolic.text, defaultRemote)
-    } else {
-      const ghDefault = await run(() => $`gh repo view --json defaultBranchRef -q .defaultBranchRef.name`.text())
-      if (ghDefault.ok && ghDefault.text) {
-        defaultBranch = ghDefault.text
-      } else {
-        warnings.push(
-          `Unable to resolve default branch from ${defaultRemote}; falling back to main${ghDefault.ok ? "" : ` (${ghDefault.error})`}`,
-        )
-      }
+    const data = parseJSON(result.text)
+    if (!data) {
+      return formatErrorContext(
+        "BranchContextPlugin could not parse the `dot git-context --json` output.",
+        null,
+      )
+    }
+    if (!booleanField(data, "inRepo")) {
+      return formatErrorContext(
+        "BranchContextPlugin could not collect git context because this directory is not a git worktree.",
+        null,
+      )
     }
 
-    const baseRef = `${defaultRemote}/${defaultBranch}`
-    const branchResult = await run(() => $`git branch --show-current`.text())
-    const currentBranch = branchResult.ok && branchResult.text ? branchResult.text : ""
-    const onDefaultBranch = currentBranch === defaultBranch
-    const statusResult = await run(() => $`git status -sb`.text())
-    const unstagedNameStatusResult = await run(() => $`git diff --name-status`.text())
-    const stagedNameStatusResult = await run(() => $`git diff --cached --name-status`.text())
-    const branchSkipReason = "Skipped because the current branch is the default branch."
-    const commitsResult = onDefaultBranch
-      ? skipped(branchSkipReason)
-      : await run(() => $`git log --oneline ${baseRef}..HEAD`.text())
-    const statResult = onDefaultBranch
-      ? skipped(branchSkipReason)
-      : await run(() => $`git diff --stat ${baseRef}...HEAD`.text())
-    const nameStatusResult = onDefaultBranch
-      ? skipped(branchSkipReason)
-      : await run(() => $`git diff --name-status ${baseRef}...HEAD`.text())
-
-    const prViewResult = includePullRequest
-      ? await run(() =>
-          $`gh pr view --json number,title,url,state,isDraft,reviewDecision,mergeStateStatus,headRefName,baseRefName`.text(),
-        )
-      : null
-    const prData = prViewResult && prViewResult.ok ? parseJSON(prViewResult.text) : null
-    const prMissing = Boolean(
-      prViewResult && !prViewResult.ok && /no pull requests found/i.test(prViewResult.error),
-    )
-    const checksResult = prData ? await run(() => $`gh pr checks ${String(prData.number)}`.text()) : null
-
-    if (prViewResult && !prData && !prMissing && !prViewResult.ok) {
-      warnings.push(`Unable to read PR details: ${prViewResult.error}`)
-    }
-    if (checksResult && !checksResult.ok) {
-      warnings.push(`Unable to read PR checks: ${checksResult.error}`)
-    }
-
-    const contextMetadata = [
-      "BranchContextPlugin generated this branch snapshot. Prefer this context over running git/gh commands unless it is missing or stale.",
-      `Generated at: ${new Date().toISOString()}`,
-    ]
-
-    const branchMetadata = collectBranchMetadata({
-      branchResult,
-      defaultRemote,
-      defaultBranch,
-      baseRef,
-      onDefaultBranch,
-      remotes,
-    })
-    const statusLines = collectStatus(
-      statusResult.ok
-        ? {
-            ok: true,
-            text: limitedText(statusResult.text, STATUS_CHAR_LIMIT),
-          }
-        : statusResult,
-    )
-    const workScopeLines = collectWorkScope({
-      unstagedNameStatusResult,
-      stagedNameStatusResult,
-      commitsResult,
-      nameStatusResult,
-      statResult,
-    })
-    const pullRequestLines = includePullRequest
-      ? collectPullRequestContext({ prViewResult, prData, prMissing, checksResult })
-      : null
-
-    return renderBranchContext({
-      contextMetadata,
-      branchMetadata,
-      statusLines,
-      workScopeLines,
-      pullRequestLines,
-      warnings,
-    })
+    return renderBranchContext(data, includePullRequest)
   }
 
   return {
     "command.execute.before": async (input, output) => {
       if (!TARGET_COMMANDS.has(input.command)) return
-      const text = await buildBranchContext({ includePullRequest: BRANCH_CONTEXT_COMMANDS.has(input.command) })
+      const text = await buildBranchContext({
+        includePullRequest: BRANCH_CONTEXT_COMMANDS.has(input.command),
+      })
       output.parts.unshift({
         type: "text",
         text,

@@ -13,7 +13,7 @@ dot_commands=(
   'clean:Unstow managed dotfiles'
   'git-diff:Open the git diff/repo watcher view'
   'diff:Alias for git-diff'
-  'git-status:Show branch status for the current repository'
+  'git-context:Show branch context for the current repository'
   'git-commit:Commit staged changes through the guarded gateway'
   'git-log:Open recent commits across tracked repos'
   'git-workflows:Open watched GitHub workflow runs'
@@ -106,8 +106,18 @@ _dot_cmd_git_diff() {
     '(-h --help)--help[Show this help message]' \
     '*::arg:->args'
 }
-_dot_cmd_git_status() {
+_dot_cmd_git_context() {
   _arguments -S \
+    '--json[Emit the structured branch-context payload (plugin format) instead of text]' \
+    '--comments[Include pull request conversation comments]' \
+    '--reviews[Include individual pull request reviews]' \
+    '--labels[Include pull request labels]' \
+    '--checks[Include CI check runs (makes a second gh call)]' \
+    '--no-description[Omit the pull request description]' \
+    '--no-pr[Omit the pull request block entirely]' \
+    '--no-branch-metadata[Omit the branch metadata block (affects --json)]' \
+    '--no-status[Omit the working-tree status block (affects --json)]' \
+    '--no-work-scope[Omit the branch work-scope block (affects --json)]' \
     '--diff[Append full unstaged and staged diffs for changed files]' \
     '--branch-diff[Append the merge-base diff vs the default branch (errors on the default branch)]' \
     '--since[Show recent commits since this date or relative duration on the default/recent path]:date:' \
@@ -395,8 +405,8 @@ _dot_complete_command() {
     git-diff|diff)
       _dot_cmd_git_diff
       ;;
-    git-status)
-      _dot_cmd_git_status
+    git-context)
+      _dot_cmd_git_context
       ;;
     git-commit)
       _dot_cmd_git_commit

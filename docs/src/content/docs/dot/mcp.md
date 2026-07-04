@@ -24,11 +24,11 @@ The tools call `dot`'s in-process notes service directly, so they behave like `d
 
 | Tool | Description |
 | --- | --- |
-| `git_status` | Branch status for the current repository: unstaged files, staged files, and recent commits, with optional working-tree diffs (`diff`) or the merge-base diff against the default branch (`branchDiff`). |
-| `command_help` | `dot` CLI help. Omit `name` for the full overview, or pass a subcommand (e.g. `git-status`) to scope it. |
+| `git_context` | Branch context for the current repository: branch/base header, the pull request summary for a feature branch, unstaged files, staged files, and recent commits, with optional PR comments (`comments`), reviews (`reviews`), labels (`labels`), CI checks (`checks`), working-tree diffs (`diff`), or the merge-base diff against the default branch (`branchDiff`). |
+| `command_help` | `dot` CLI help. Omit `name` for the full overview, or pass a subcommand (e.g. `git-context`) to scope it. |
 | `opencode_debug` | Combined output of the OpenCode debug commands (`paths`, `config`, `skill`, `info`), optionally also inspecting a named `agent`. |
 
-These are all read-only. `git_status` reuses the same output as `dot git-status`, `command_help` reuses `dot help`, and `opencode_debug` runs the `opencode debug` subcommands and returns their captured output as one text block.
+These are all read-only. `git_context` reuses the same text output as `dot git-context`, `command_help` reuses `dot help`, and `opencode_debug` runs the `opencode debug` subcommands and returns their captured output as one text block.
 
 ## Resources
 
@@ -37,10 +37,10 @@ The server also exposes read-only [resources](https://modelcontextprotocol.io/sp
 | Resource | Description |
 | --- | --- |
 | `dot://notes/context` | The current repository's OpenCode repo-note context block: identity, notes path, and recent notes. |
-| `dot://git-status` | Concise branch status for the current repository. |
-| `dot://command/{name}` | Help text for a single dot command (template). `{name}` completes from the known commands, e.g. `dot://command/git-status`. |
+| `dot://git-context` | Concise branch context for the current repository. |
+| `dot://command/{name}` | Help text for a single dot command (template). `{name}` completes from the known commands, e.g. `dot://command/git-context`. |
 
-Each resource re-runs on every read, so it reflects the current state. `dot://git-status` mirrors the `git_status` tool and `dot://command/{name}` mirrors `command_help`; the resource forms let a client attach them as context without an explicit tool call.
+Each resource re-runs on every read, so it reflects the current state. `dot://git-context` mirrors the `git_context` tool and `dot://command/{name}` mirrors `command_help`; the resource forms let a client attach them as context without an explicit tool call.
 
 ## Notifications
 
