@@ -330,7 +330,7 @@ restore_window_shape() {
   else
     log_action "Restoring tiled size for $addr to ${width}x${height}"
     if ! $DRY_RUN; then
-      hyprctl dispatch resizewindowpixel exact "$width" "$height","address:$addr" >/dev/null 2>&1 || true
+      hyprctl dispatch resizewindowpixel exact "$width" "$height,address:$addr" >/dev/null 2>&1 || true
     fi
   fi
 }

@@ -9,7 +9,7 @@ Use this skill when working with list containers or list items in the Home Assis
 
 ## Component Hierarchy
 
-```
+```text
 ha-row-item (base row layout — slots, spacing, disabled)
 ├── ha-list-item-base (non-interactive, role="listitem")
 │   ├── ha-list-item-button (interactive, renders <a> or <button>)
@@ -70,6 +70,7 @@ ha-list-base (roving-tabindex container, role="list")
 All items expose: `base`, `start`, `content`, `headline`, `supporting-text`, `end`.
 
 Additional parts:
+
 - `ha-list-nav`: `nav` (the `<nav>` wrapper), `base` (inner div)
 - `ha-list-item-button`: `ripple`
 - `ha-list-item-option`: `ripple`, `checkbox`

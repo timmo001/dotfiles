@@ -35,6 +35,7 @@ Present the matching entries as a markdown table, newest-first:
 | 1 | {name} | {description} | `{tag1}`, `{tag2}` | {localised datetime} |
 
 Rules:
+
 - `#` column is a sequential row number
 - `Name` is the frontmatter name (no bold, no filename)
 - `Description` is the frontmatter description. Keep it readable — if it's over ~100 chars, truncate at a natural word boundary and append `...`, but if the full text is only a few words beyond that just include it all
@@ -43,6 +44,7 @@ Rules:
 - After the table, list the filenames for reference and suggest next actions:
 
 Files:
+
 - `{filename1}`
 - `{filename2}`
 

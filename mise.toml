@@ -1,0 +1,75 @@
+min_version = "2025.1.0"
+
+[tools]
+node = "26.4.0"
+bun = "1.3.14"
+
+# dot (runs in ./dot)
+[tasks."dot:dev"]
+description = "Run dot in watch mode"
+dir = "dot"
+run = "bun run dev"
+
+[tasks."dot:build"]
+description = "Compile the dot binary to scripts/.local/bin/dot"
+dir = "dot"
+run = "bun run build"
+
+[tasks."dot:typecheck"]
+description = "Type-check the dot source"
+dir = "dot"
+run = "bunx tsc --noEmit"
+
+[tasks."dot:format"]
+description = "Format the dot source with prettier"
+dir = "dot"
+run = "bun run format"
+
+[tasks."dot:format:check"]
+description = "Check dot source formatting without writing"
+dir = "dot"
+run = "bun run format:check"
+
+[tasks."dot:check"]
+description = "Type-check and verify dot formatting"
+depends = ["dot:typecheck", "dot:format:check"]
+
+# docs (runs in ./docs)
+[tasks."docs:dev"]
+description = "Run the docs dev server (regenerates references first)"
+dir = "docs"
+run = "bun run dev"
+
+[tasks."docs:build"]
+description = "Build the docs site"
+dir = "docs"
+run = "bun run build"
+
+[tasks."docs:preview"]
+description = "Preview the built docs site"
+dir = "docs"
+run = "bun run preview"
+
+[tasks."docs:og"]
+description = "Regenerate the Open Graph image"
+dir = "docs"
+run = "bun run og"
+
+[tasks."docs:gen:cli"]
+description = "Regenerate the dot command reference"
+dir = "docs"
+run = "bun run gen:cli"
+
+[tasks."docs:gen:opencode"]
+description = "Regenerate the OpenCode reference pages"
+dir = "docs"
+run = "bun run gen:opencode"
+
+[tasks."docs:gen"]
+description = "Regenerate all generated reference pages"
+dir = "docs"
+run = "bun run gen"
+
+[tasks."docs:check"]
+description = "Build the docs site (validates internal links)"
+depends = ["docs:build"]

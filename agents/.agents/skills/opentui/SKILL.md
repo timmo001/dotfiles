@@ -15,10 +15,10 @@ Inside the OpenTUI repo, this skill root lives at `packages/web/src/content/`, s
 
 ## Resources
 
-- **Repository**: https://github.com/anomalyco/opentui
-- **Docs**: https://opentui.com/docs/getting-started
-- **Examples**: https://github.com/anomalyco/opentui/tree/main/packages/examples
-- **Core examples**: https://github.com/anomalyco/opentui/tree/main/packages/core/src/examples
+- **Repository**: <https://github.com/anomalyco/opentui>
+- **Docs**: <https://opentui.com/docs/getting-started>
+- **Examples**: <https://github.com/anomalyco/opentui/tree/main/packages/examples>
+- **Core examples**: <https://github.com/anomalyco/opentui/tree/main/packages/core/src/examples>
 - **Scaffold**: `bun create tui` or `bunx create-tui -t core my-app`
 
 Use context7 to query OpenTUI docs when this skill content is insufficient. Resolve library name "opentui".

@@ -1,3 +1,4 @@
+---
 name: Build dot
 
 on:
@@ -38,12 +39,11 @@ jobs:
         with:
           install: false
 
-      - name: Install dot tools
-        if: steps.changes.outputs.dot == 'true'
+      - name: Install mise tools
+        if: steps.changes.outputs.dot == 'true' || steps.changes.outputs.docs == 'true'
         run: |
           mise trust
           mise install
-        working-directory: dot
 
       - name: Install dependencies
         if: steps.changes.outputs.dot == 'true'
@@ -52,25 +52,15 @@ jobs:
 
       - name: Type check
         if: steps.changes.outputs.dot == 'true'
-        run: mise run typecheck
-        working-directory: dot
+        run: mise run dot:typecheck
 
       - name: Build
         if: steps.changes.outputs.dot == 'true'
-        run: mise run build
-        working-directory: dot
-
-      - name: Install docs tools
-        if: steps.changes.outputs.dot == 'true' || steps.changes.outputs.docs == 'true'
-        run: |
-          mise trust
-          mise install
-        working-directory: docs
+        run: mise run dot:build
 
       - name: Regenerate docs command reference
         if: steps.changes.outputs.dot == 'true'
-        run: mise run gen:cli
-        working-directory: docs
+        run: mise run docs:gen:cli
 
       - name: Install docs dependencies
         if: steps.changes.outputs.dot == 'true' || steps.changes.outputs.docs == 'true'
@@ -79,13 +69,12 @@ jobs:
 
       - name: Build docs
         if: steps.changes.outputs.dot == 'true' || steps.changes.outputs.docs == 'true'
-        run: mise run build
-        working-directory: docs
+        run: mise run docs:build
 
       - name: Verify regenerated command reference is committed
         if: steps.changes.outputs.dot == 'true' && github.event_name == 'push'
         run: |
           if ! git diff --exit-code -- docs/src/content/docs/dot/commands.md; then
-            echo "::error::Dot command reference is out of date. Run 'mise run gen:cli' in docs/ and commit the result (and run dot completions when command metadata changes)."
+            echo "::error::Dot command reference is out of date. Run 'mise run docs:gen:cli' and commit the result (and run dot completions when command metadata changes)."
             exit 1
           fi

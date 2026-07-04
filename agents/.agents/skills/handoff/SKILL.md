@@ -43,10 +43,12 @@ When creating handoffs that are part of a related group, use a **shared feature 
 - **Title pattern:** `"{Feature} Phase {N}: {Phase Title}"` for sequential work, or just a descriptive title for async/parallel work.
 
 When to number:
+
 - Phases depend on each other or have a natural execution order — number them.
 - Phases are independent and can be worked in any order — skip numbering, the shared prefix is sufficient.
 
 This ensures:
+
 - `dot handoffs --list` groups related handoffs together alphabetically by feature prefix.
 - Each handoff is independently actionable on its own branch.
 - Numbered prefixes preserve execution order only when it matters.
@@ -99,6 +101,6 @@ tags: [handoff, {2–4 additional kebab-case tags from the conversation}]
 
 Tell the user exactly:
 
-```
+```text
 Saved: repo-notes/{owner}/{repo}/handoff-{slug}.md
 ```

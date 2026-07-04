@@ -29,7 +29,7 @@ Always apply these skills when editing code in this directory:
 
 ## Architecture
 
-```
+```text
 src/
   index.ts                — Entry point, CLI mode resolution, Effect bootstrap
   types.ts                — Repo, RepoState, GitLogState, MenuItem, MenuAction, ViewId, StagedFile, CommitSuggestion
@@ -148,12 +148,14 @@ src/
 ### Menu Registry
 
 `menu.ts` exports:
+
 - `mainMenuItems` — top-level dot menu items (update, stow, diff, doctor, etc.)
 - `submenus` — `Map<string, MenuItem[]>` for all omarchy submenus
 - `menuItemsById` — flat lookup of every item by its stable ID
 - `submenuTitles` — display titles for submenu breadcrumbs
 
 MenuItem action types:
+
 - `command` — suspend TUI, run command, optional "press any key" wait, resume
 - `exit-command` — destroy TUI, then run command as a normal CLI process
 - `silent` — run in background, no TUI interruption
@@ -192,7 +194,7 @@ with `bun run gen:cli` in `../docs` (alongside shell completions) and commit
 the result. The `tui-build` workflow regenerates and commits it on changes to
 `dot/`.
 
-```
+```text
 dot                           # Main menu (TUI)
 dot init                      # One-time first-use setup, ending with dot update; logs to ~/.local/state/dot/init.log
 dot init --noninteractive --confirm # Non-interactive first setup for VMs
@@ -335,6 +337,7 @@ For dead-code analysis, use the MCP `analyze` tool with `root: dot`, or `/fallow
 Dependency note: the tracked lockfile is `pnpm-lock.yaml` (`bun.lock` is gitignored, and CI's `bun install --frozen-lockfile` migrates from `pnpm-lock.yaml`). After changing dependencies with `bun add`, run `pnpm install --lockfile-only` to update the tracked lockfile, otherwise the CI frozen install fails.
 
 Smoke tests:
+
 ```bash
 dot                          # smoke test: main menu renders, Ctrl+c quits
 dot git-diff                 # smoke test: diff view renders
@@ -362,6 +365,7 @@ dot help                     # smoke test: help prints
 ## Logging Style
 
 Keep logging readable and consistent:
+
 - Section headings in Title Case
 - Log labels uppercase (`[INFO]`, `[WARN]`, `[ERROR]`)
 - Message text in sentence case
@@ -369,12 +373,14 @@ Keep logging readable and consistent:
 ## Shell Helpers
 
 Current shell helpers still used by the TS app or systemd units:
+
 - `dot-doctor-notify` — doctor notification helper
 - `git-diff-tmux-session` — tmux session launcher for git diff
 
 ## Debugging
 
 Run with stderr visible to see startup logging:
+
 ```bash
 DOT_DEBUG=1 dot 2>/tmp/dot.log
 # or

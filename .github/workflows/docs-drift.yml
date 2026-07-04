@@ -1,3 +1,4 @@
+---
 name: Docs drift
 
 # Fails a pull request when the generated docs are stale: it regenerates the

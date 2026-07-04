@@ -49,6 +49,7 @@ Managed by `LazyContextProvider` -- WS subscription defers until first consumer,
 ### Deprecated Contexts
 
 Do not use. Each has a `@deprecated` comment naming the replacement:
+
 - `connectionSingleContext` → `connectionContext`
 - `localizeContext`, `localeContext` → `internationalizationContext`
 - `configSingleContext`, `userContext`, `userDataContext`, `authContext` → `configContext`
@@ -147,6 +148,7 @@ private _localize!: LocalizeFunc;
 ## Rules
 
 ### General
+
 - Preserve runtime behavior and public API shape except for the `hass` API intentionally removed by context migrations.
 - Use the narrowest correct data source; prefer contexts, lazy contexts, and entity decorators over broad `hass` access.
 - Do not use deprecated contexts; use the replacement named in `@deprecated` comments.
@@ -156,12 +158,14 @@ private _localize!: LocalizeFunc;
 - Do not create wrapper helpers that only forward existing utility calls.
 
 ### Typing
+
 - Use `ContextType<typeof context>` for consumed context typing.
 - Use required (`!`) when lifecycle guarantees availability; use optional (`?`) only when value can be genuinely absent.
 - Avoid excessive defensive guards around required consumed contexts.
 - For sub-components that can't use context, type props as narrow as possible: prefer `LocalizeFunc` over `HomeAssistantInternationalization`, prefer `Pick<HomeAssistant, "callWS">` over `HomeAssistant`.
 
 ### Memoization
+
 - Pass explicit narrow inputs only (actual state slice, config, primitive, small arrays).
 - Do not pass broad objects (`hass`, `this`, large mutable maps) into `memoizeOne`.
 - Do not widen signatures with pass-through `localize`, `language`, `locale`, or config values when class/context access already exists.
@@ -169,4 +173,5 @@ private _localize!: LocalizeFunc;
 - For rarely changed values like locale/config, read from existing class/context access at point of use.
 
 ### Style
+
 - Do not add unnecessary comments or abstractions.

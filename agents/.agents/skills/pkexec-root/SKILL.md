@@ -39,8 +39,8 @@ yay -S <pkg> --sudo sudo --sudoflags ""
 yay -U "/path/to/package.pkg.tar.zst" --sudo sudo --sudoflags ""
 ```
 
-3. If `yay` itself is the problem and the package is local, install with `pkexec pacman -U ...`.
-4. If PolicyKit is unavailable or broken and the user asked you to continue, use `sudo` directly.
+1. If `yay` itself is the problem and the package is local, install with `pkexec pacman -U ...`.
+2. If PolicyKit is unavailable or broken and the user asked you to continue, use `sudo` directly.
 
 Commands covered by this skill include:
 

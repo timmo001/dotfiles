@@ -73,7 +73,7 @@ If the import adapts body content beyond the frontmatter (condensing sections, r
 
 ## Commit Format
 
-```
+```text
 Skill title
 
 Origin:

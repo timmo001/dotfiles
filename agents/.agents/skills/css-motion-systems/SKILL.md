@@ -50,6 +50,7 @@ Choose the lightest mechanism that satisfies the interaction:
 ### Individual properties (`translate:` / `rotate:` / `scale:`)
 
 Prefer when:
+
 - You want composable state layers (base styles + state overrides)
 - Different interactions control different transform channels
 - You need clearer design-token mapping
@@ -57,6 +58,7 @@ Prefer when:
 ### `transform:` shorthand
 
 Use when:
+
 - Transform order is intentionally coupled
 - You combine multiple functions and must preserve exact sequence
 - You need functions not exposed as individual props
@@ -64,6 +66,7 @@ Use when:
 ### `translate3d()` and 3D transforms
 
 Use only when:
+
 - You need actual 3D/perspective behaviour
 - You have profiled a measurable compositor benefit in a real bottleneck
 

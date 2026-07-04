@@ -8,15 +8,19 @@ A clean, end-to-end walkthrough for setting up a new machine.
 1. Clone `dotfiles` to `~/.config/dotfiles`.
 2. If you want private dotfiles, confirm `gh auth status` works before `dot init`; init clones `dotfiles-private` to `~/.config/dotfiles-private` automatically when auth is available.
 3. Install bootstrap build prerequisites:
+
    ```bash
     yay -S --needed git mise-bin
    ```
+
 4. Build the `dot` binary:
+
    ```bash
    cd ~/.config/dotfiles/dot
    mise --no-config exec bun@latest -- bun install
    mise --no-config exec bun@latest -- bun run build
    ```
+
 5. Run first-use setup:
    - Desktop / VM: `~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive --confirm`
    - Laptop: `dot init --host laptop --noninteractive --confirm`

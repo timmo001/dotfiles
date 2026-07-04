@@ -33,11 +33,13 @@ When running from an agent, only use `--check` (report) and `--update` (apply al
 Each skill's SKILL.md frontmatter stores a `# upstream-sha:` comment with the latest upstream commit SHA that was checked. On subsequent runs, if the upstream SHA hasn't changed, the skill is reported as "up to date (cached)" and the full fetch-and-diff is skipped.
 
 The SHA is written to frontmatter when:
+
 - A full comparison confirms no diff (skill is genuinely up to date).
 - An update is successfully applied (clean import).
 - A local-edits skill is reported in interactive or update mode (diffs already shown; suppressed until upstream changes again).
 
 The SHA is **not** written when:
+
 - Running in `--check` mode (report-only; stays idempotent, does not modify files).
 - The user skips a clean update in interactive mode (show it again next time).
 

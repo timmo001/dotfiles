@@ -46,6 +46,7 @@ Before finalizing a review, identify the changed file types and load only the ap
 Treat skills with a type suffix in the skill name as file-type-specific skills. Treat unsuffixed skills as generic skills that can apply across languages when their guidance is relevant.
 
 What to look for:
+
 - Bugs first: logic errors, missing guards, bad edge-case handling, broken error paths.
 - Security issues: credential leaks, unsafe shell usage, auth bypass patterns.
 - Regressions: behavior changes that break expected workflows.
@@ -53,12 +54,14 @@ What to look for:
 - Test gaps where risk is high.
 
 Before flagging:
+
 - Be certain and specific.
 - Do not invent hypothetical issues.
 - Keep style feedback secondary unless it blocks maintainability.
 - Explain the concrete risk and which skill guidance or invariant is being broken when relevant.
 
 Output:
+
 - Prioritize findings by severity.
 - Include file paths and line numbers when possible.
 - Suggest concrete fixes.

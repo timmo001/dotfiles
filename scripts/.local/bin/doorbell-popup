@@ -218,7 +218,7 @@ position_popup() {
   local addr="$1"
   local monitor_name monitor_json
   local target_workspace
-  local monitor_x monitor_y monitor_width monitor_height
+  local monitor_x monitor_y monitor_height
   local monitor_scale
   local reserved_left reserved_bottom
   local pos_x pos_y
@@ -237,7 +237,6 @@ position_popup() {
   monitor_scale="$(jq -r '.scale // 1' <<< "$monitor_json")"
   monitor_x="$(jq -r --argjson s "$monitor_scale" '((.x // 0) / $s) | floor' <<< "$monitor_json")"
   monitor_y="$(jq -r --argjson s "$monitor_scale" '((.y // 0) / $s) | floor' <<< "$monitor_json")"
-  monitor_width="$(jq -r --argjson s "$monitor_scale" '((.width // 0) / $s) | floor' <<< "$monitor_json")"
   monitor_height="$(jq -r --argjson s "$monitor_scale" '((.height // 0) / $s) | floor' <<< "$monitor_json")"
   reserved_left="$(jq -r '.reserved[0] // 0' <<< "$monitor_json")"
   reserved_bottom="$(jq -r '.reserved[3] // 0' <<< "$monitor_json")"

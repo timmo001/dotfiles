@@ -7,6 +7,7 @@ __pycache__/
 .fallow/
 /node_modules/
 /bun.lock
+/mise.lock
 dot/node_modules/
 dot/dist/
 dot/.fallow/

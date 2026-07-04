@@ -27,7 +27,6 @@ KNOWN_LOG_PATTERN='error|failed|fatal|segfault|oom|out of memory|watchdog|hang|f
 C_RESET=$'\033[0m'
 C_BOLD=$'\033[1m'
 C_RED=$'\033[31m'
-C_GREEN=$'\033[32m'
 C_YELLOW=$'\033[33m'
 C_BLUE=$'\033[34m'
 C_MAGENTA=$'\033[35m'
@@ -38,7 +37,6 @@ if [[ -n "${NO_COLOR:-}" ]] || { [[ ! -t 1 ]] && [[ -z "${FORCE_COLOR:-}" ]]; };
   C_RESET=''
   C_BOLD=''
   C_RED=''
-  C_GREEN=''
   C_YELLOW=''
   C_BLUE=''
   C_MAGENTA=''
@@ -461,7 +459,6 @@ if has_cmd fastfetch; then
     ff_val() { jq -r --arg t "$1" '.[] | select(.type == $t) | .result // empty' <<< "$ff_json"; }
 
     host_vendor="$(ff_val Host | jq -r '.vendor // empty')"
-    host_family="$(ff_val Host | jq -r '.family // empty')"
     host_name="$(ff_val Host | jq -r '.name // empty')"
     if [[ -n "$host_name" ]]; then
       log_info "Device: ${host_vendor:+$host_vendor }${host_name}"
@@ -667,8 +664,11 @@ if (( RUN_SAMPLING )); then
   fi
 
   if (( RUN_PSI )); then
+    # shellcheck disable=SC2034  # min/max/avg parsed alongside thermal summary
     read -r cpu_psi_min cpu_psi_max cpu_psi_avg <<< "$(summarize_array "${cpu_psi_tenths[@]}")"
+    # shellcheck disable=SC2034
     read -r mem_psi_min mem_psi_max mem_psi_avg <<< "$(summarize_array "${mem_psi_tenths[@]}")"
+    # shellcheck disable=SC2034
     read -r io_psi_min io_psi_max io_psi_avg <<< "$(summarize_array "${io_psi_tenths[@]}")"
   fi
 

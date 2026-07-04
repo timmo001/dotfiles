@@ -3,6 +3,7 @@ description: Load one or more notes, relevant skills, and next steps for the cur
 ---
 
 A `<repo-note-context>` block has been injected above by RepoNotesPlugin. It contains:
+
 - `<existing-notes>` — all note files with frontmatter (filename, name, description, tags, last modified)
 - `<note-contents>` — full content of every note file, each wrapped in `<note file="…">…</note>`
 
@@ -29,7 +30,8 @@ The question should look like:
 > Which note(s) should be loaded into context?
 
 List each option using the full label format:
-```
+
+```text
 filename — Name: Description [tags: a, b, c] (last modified: localised datetime)
 ```
 
@@ -65,7 +67,7 @@ After loading the note and skills, present the immediate next step only:
 
 Confirm to the user:
 
-```
+```text
 Loaded: repo-notes/{owner}/{repo}/{filename}
 ```
 

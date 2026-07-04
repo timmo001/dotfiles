@@ -35,6 +35,7 @@ Wait for the user to select a file before continuing.
 Review the current conversation and write a structured update that captures new content from this session. Focus on what is new or changed — do not repeat content already in the existing note.
 
 Write the update using the same section vocabulary as the existing note:
+
 - **Key Ideas** — new concepts, insights, or approaches from this session
 - **Decisions** — new decisions and their reasoning
 - **Actions Taken** — new files, commands, or builds (brief list)
@@ -61,6 +62,6 @@ Do **not** use the `write`, `bash`, or any other tool to write the file — only
 
 Tell the user exactly:
 
-```
+```text
 Updated: repo-notes/{owner}/{repo}/{filename}
 ```

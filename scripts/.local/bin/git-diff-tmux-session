@@ -67,7 +67,7 @@ trim_whitespace() {
 }
 
 load_changed_repos_from_waybar_cache() {
-  local cache_json tooltip line name path raw_segment segment
+  local cache_json tooltip name path raw_segment segment
   local -a cached_segments=()
 
   [[ -s "$GIT_DIFF_CACHE_FILE" ]] || return 1

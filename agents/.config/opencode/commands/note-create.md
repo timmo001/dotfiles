@@ -23,6 +23,7 @@ If the conversation was trivial or too short to be worth noting, say so and ask 
 ## Step 2: Generate a topic slug
 
 Auto-generate a kebab-case slug from the summary topic. Rules:
+
 - Max 5 words
 - Lowercase, hyphens only (no underscores, no special chars)
 - Descriptive of the session topic, not generic (avoid: `session`, `notes`, `update`)
@@ -79,6 +80,6 @@ tags: [{2–5 kebab-case tags derived from the conversation content, e.g. authen
 
 Tell the user exactly:
 
-```
+```text
 Saved: repo-notes/{owner}/{repo}/{slug}.md
 ```

@@ -14,7 +14,7 @@ Load and follow the `import-external-skill` skill.
 
 4. For direct imports:
    - Fetch raw files from the source.
-    - Copy verbatim into `agents/.agents/skills/<skill-name>/`.
+   - Copy verbatim into `agents/.agents/skills/<skill-name>/`.
    - Adjust frontmatter: keep `name` and `description`, add `# origin:` comment, drop `metadata`/`category`/`tags`.
    - Diff each file against the upstream original to verify only frontmatter changed.
    - Run `dot stow` to link into place.
