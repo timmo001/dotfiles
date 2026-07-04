@@ -27,7 +27,7 @@ usage = "3.5.3"
 yq = "4.53.3"
 zig = "0.16.0"
 zls = "0.16.0"
-zoxide = "0.9.9"
+zoxide = "0.10.0"
 just = "1.55.1"
 
 [tools."aqua:anomalyco/opencode"]
