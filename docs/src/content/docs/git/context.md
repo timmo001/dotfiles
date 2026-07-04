@@ -56,9 +56,9 @@ The pull request summary and description are on by default on a feature branch; 
 | `--no-description` | description on | Omit the PR description/body. |
 | `--no-pr` | PR on (feature branch) | Omit the PR block entirely; use for branch-only context. |
 | `--remotes` | off | Include remote fetch/push URLs in branch metadata. |
-| `--no-branch-metadata` | on | Omit the branch metadata block. |
-| `--no-status` | on | Omit the working-tree status block. |
-| `--no-work-scope` | on | Omit the branch work-scope aggregates. |
+| `--no-branch-metadata` | off (section included) | Omit the branch metadata block. |
+| `--no-status` | off (section included) | Omit the working-tree status block. |
+| `--no-work-scope` | off (section included) | Omit the branch work-scope aggregates. |
 | `--diff` | off | Append the full unstaged and staged diffs beneath their sections. |
 | `--branch-diff` | off | Append the merge-base diff vs the default branch; errors on the default branch. |
 | `--since <date>` | today or last 10 | Override the recent-commit window on the default/recent path. |
@@ -93,6 +93,8 @@ Top-level fields:
 | `pullRequest` | feature branch, unless `--no-pr` | PR summary plus any opt-in detail sections |
 | `warnings` | always | Non-fatal collection issues (missing `gh`, fetch failure, truncation) |
 
+The text renderer also prints a recent-commits section (today's window, branch-unique commits, or `--since`) with per-commit timestamps, push markers, and inline file stats. That list is not part of the `--json` payload; use text output or `git_context` with default parameters when you need it. Likewise, full working-tree or merge-base diffs (`--diff`, `--branch-diff`) are text-only and are not serialised into JSON.
+
 Large text blocks are truncated in the JSON renderer so prompt size stays bounded. Overflow appends `[TRUNCATED N CHARS]`:
 
 | Block | Character limit |
@@ -103,7 +105,7 @@ Large text blocks are truncated in the JSON renderer so prompt size stays bounde
 | `workScope.branchDiffStat` | 20,000 |
 | `pullRequest.checks` | 40,000 |
 
-Use `--no-branch-metadata`, `--no-status`, or `--no-work-scope` to omit sections from both text and JSON. Full working-tree or merge-base diffs are text-only today (`--diff`, `--branch-diff`); they are not part of the JSON payload the plugin consumes.
+Use `--no-branch-metadata`, `--no-status`, or `--no-work-scope` to omit sections from both text and JSON.
 
 ### Agent workflow
 

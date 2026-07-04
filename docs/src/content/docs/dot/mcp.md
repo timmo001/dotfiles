@@ -49,6 +49,20 @@ Boolean parameters mirror `dot git-context` flags. All are optional; omitted fie
 
 See [Context, Diff & Log](/git/context/) for output sections, the OpenCode branch-context plugin, and the `--json` payload shape.
 
+#### `command_help` parameters
+
+| Parameter | Default | Purpose |
+| --- | --- | --- |
+| `name` | — | Optional subcommand to scope help to (for example `git-context`). Omit for the full `dot` command overview. |
+
+#### `opencode_debug` parameters
+
+| Parameter | Default | Purpose |
+| --- | --- | --- |
+| `agent` | — | Optional agent name. When set, also runs `opencode debug agent <name>` and appends that section to the combined output. |
+
+When `opencode` is not on `PATH`, the tool returns a single-line error instead of failing the MCP session. Individual debug subcommands that exit non-zero are rendered as `[error] exit <code>` lines inside their section rather than aborting the whole tool.
+
 ## Resources
 
 The server also exposes read-only [resources](https://modelcontextprotocol.io/specification/latest/server/resources) a client can pull in as context. Resource support varies by harness, so they are a progressive enhancement on top of the tools.
@@ -59,7 +73,7 @@ The server also exposes read-only [resources](https://modelcontextprotocol.io/sp
 | `dot://git-context` | Concise branch context for the current repository. |
 | `dot://command/{name}` | Help text for a single dot command (template). `{name}` completes from the known commands, e.g. `dot://command/git-context`. |
 
-Each resource re-runs on every read, so it reflects the current state. `dot://git-context` mirrors the `git_context` tool and `dot://command/{name}` mirrors `command_help`; the resource forms let a client attach them as context without an explicit tool call.
+Each resource re-runs on every read, so it reflects the current state. `dot://git-context` mirrors the `git_context` tool with default parameters (no PR detail flags, no diffs) and `dot://command/{name}` mirrors `command_help`; the resource forms let a client attach them as context without an explicit tool call. Use the `git_context` tool when you need opt-in PR sections or full diffs.
 
 ## Notifications
 
