@@ -273,7 +273,7 @@ dot handoff                   # Alias for dot handoffs
 dot note read --path <path> # Read a note file
 dot note write --path <path> --stdin # Write stdin to a note file and commit it
 dot note delete --path <path> # Delete a note file and commit it
-dot agents-sync               # Sync AGENTS.md to Cursor rule
+dot agents-sync               # Mirror AGENTS.md into harness instruction files
 dot mcp-sync                  # Regenerate MCP configs for all harnesses from the private spec
 dot opencode-debug            # Debug OpenCode config
 dot opencode-debug --agent x  # Debug specific agent

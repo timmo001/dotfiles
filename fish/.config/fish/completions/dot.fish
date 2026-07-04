@@ -117,7 +117,7 @@ complete -c dot -l json -d 'Emit the note output and push status as JSON' -n '__
 complete -c dot -n '__fish_seen_subcommand_from note; and not __fish_seen_subcommand_from read write delete' -a 'delete' -d 'Delete a note file, then commit and push it'
 complete -c dot -l path -d 'Note file path' -r -F -n '__fish_seen_subcommand_from note; and __fish_seen_subcommand_from delete'
 complete -c dot -l json -d 'Emit the note output and push status as JSON' -n '__fish_seen_subcommand_from note; and __fish_seen_subcommand_from delete'
-complete -c dot -n '__fish_use_subcommand' -a 'agents-sync' -d 'Sync AGENTS.md to Cursor rule'
+complete -c dot -n '__fish_use_subcommand' -a 'agents-sync' -d 'Mirror AGENTS.md into harness instruction files'
 complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from agents-sync'
 complete -c dot -n '__fish_use_subcommand' -a 'opencode-debug' -d 'Debug OpenCode config and paths'
 complete -c dot -l agent -d 'Debug a specific OpenCode agent' -r -n '__fish_seen_subcommand_from opencode-debug'
