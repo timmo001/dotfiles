@@ -810,8 +810,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
   },
   {
     name: "agents-sync",
-    summary:
-      "Mirror AGENTS.md to agent harness instruction files",
+    summary: "Mirror AGENTS.md to agent harness instruction files",
     options: [helpOption],
   },
   {
