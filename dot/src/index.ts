@@ -649,7 +649,7 @@ if (mode.type === "native" && mode.command === "mcp") {
     const canonical = getCliCommand(command)?.name ?? command;
     const handler = nativeCommandHandlers[canonical];
     if (handler) return handler(args);
-    return Effect.sync(() => {
+    return Effect.promise(async () => {
       console.error(`dot: unknown command '${command}'`);
       process.exit(1);
     });
@@ -661,7 +661,7 @@ if (mode.type === "native" && mode.command === "mcp") {
       : resolveNative(mode.command, mode.args).pipe(
           Effect.provide(CliLayers),
           Effect.catch((err: unknown) =>
-            Effect.sync(() => {
+            Effect.promise(async () => {
               appendBootstrapLog(`\n[ERROR] ${formatUnknownError(err)}\n`);
               console.error(err);
               process.exit(1);
@@ -707,6 +707,9 @@ if (mode.type === "native" && mode.command === "mcp") {
     const commitSuggest = yield* CommitSuggest;
     const renderer = yield* Renderer;
     const toast = yield* Toast;
+    const services = yield* Effect.context<never>();
+    const runFork = Effect.runForkWith(services);
+    const runPromise = Effect.runPromiseWith(services);
     log("Services ready");
 
     const commandRunner = createCommandRunner(renderer, toast);
@@ -720,24 +723,24 @@ if (mode.type === "native" && mode.command === "mcp") {
         gitStaging,
         commitSuggest,
         onRefreshDiff: () => {
-          Effect.runFork(watcher.refresh());
+          runFork(watcher.refresh());
         },
         onRefreshGitLog: () => {
-          Effect.runFork(gitLog.refresh());
+          runFork(gitLog.refresh());
         },
         onRefreshWorkflows: () => {
-          Effect.runFork(workflows.refresh(workflowOpts));
+          runFork(workflows.refresh(workflowOpts));
         },
         onRefreshNotifications: () => {
-          Effect.runFork(notifications.refresh(notificationOpts));
+          runFork(notifications.refresh(notificationOpts));
         },
         onRefreshDashboard: () => {
-          Effect.runFork(dashboard.refresh());
-          Effect.runFork(notifications.refresh(notificationOpts));
-          Effect.runFork(workflows.refresh(workflowOpts));
+          runFork(dashboard.refresh());
+          runFork(notifications.refresh(notificationOpts));
+          runFork(workflows.refresh(workflowOpts));
         },
         onNotificationAction: (action, threadId) => {
-          Effect.runFork(
+          runFork(
             runNotificationAction(
               notifications,
               action,
@@ -746,20 +749,18 @@ if (mode.type === "native" && mode.command === "mcp") {
             ),
           );
         },
-        listNotes: () => Effect.runPromise(notes.list()),
-        listAllNotes: () => Effect.runPromise(notes.listAll()),
-        readNote: (filePath) => Effect.runPromise(notes.read(filePath)),
-        deleteNote: (filePath) => Effect.runPromise(notes.delete(filePath)),
+        listNotes: () => runPromise(notes.list()),
+        listAllNotes: () => runPromise(notes.listAll()),
+        readNote: (filePath) => runPromise(notes.read(filePath)),
+        deleteNote: (filePath) => runPromise(notes.delete(filePath)),
         createNoteDraft: (kind, name, description) =>
-          Effect.runPromise(notes.createDraft(kind, name, description)),
+          runPromise(notes.createDraft(kind, name, description)),
         finaliseNoteDraft: (filePath) =>
-          Effect.runPromise(notes.finaliseDraft(filePath)).then(() => {}),
+          runPromise(notes.finaliseDraft(filePath)).then(() => {}),
         finaliseNoteEdit: (filePath) =>
-          Effect.runPromise(notes.finaliseEdit(filePath)).then(() => {}),
+          runPromise(notes.finaliseEdit(filePath)).then(() => {}),
         updateNotePriority: (filePath, priority) =>
-          Effect.runPromise(notes.setPriority(filePath, priority)).then(
-            () => {},
-          ),
+          runPromise(notes.setPriority(filePath, priority)).then(() => {}),
       },
       {
         initialView,

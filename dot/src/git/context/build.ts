@@ -7,7 +7,7 @@
  * (the OpenCode branch-context plugin) format that one snapshot, so the two
  * consumers can never drift.
  */
-import { Effect } from "effect";
+import { Clock, Effect, Schema } from "effect";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { gitOutput } from "../../lib/git.js";
 import { GitHub } from "../services/GitHub.js";
@@ -41,6 +41,13 @@ const MIN_RECENT_COMMIT_LIMIT = 10;
  * byte, so it cleanly delimits commit headers from their file lists.
  */
 const COMMIT_SEPARATOR = "\x1e";
+
+class BranchContextError extends Schema.TaggedErrorClass<BranchContextError>()(
+  "BranchContextError",
+  {
+    message: Schema.String,
+  },
+) {}
 
 /** Attempt to run a git command, returning empty string on failure. */
 function tryGit(
@@ -420,11 +427,13 @@ function collectCommits(
       `--format=${COMMIT_SEPARATOR}%H`,
       ...range.args,
     ]);
+    const now = yield* Clock.currentTimeMillis;
     const records = parseCommits(
       logOutput,
       aheadHashes,
       baseExists,
       parseNumstatLog(numstatLog),
+      now,
     );
     return { range, records };
   });
@@ -470,21 +479,17 @@ interface BranchDiffContext {
  */
 function resolveBranchDiff(
   context: BranchDiffContext,
-): Effect.Effect<BranchDiff, Error, CommandExecutor> {
+): Effect.Effect<BranchDiff, BranchContextError, CommandExecutor> {
   return Effect.gen(function* () {
     if (context.onDefaultBranch) {
-      return yield* Effect.fail(
-        new Error(
-          `On the default branch (${context.defaultBranch}); --branch-diff requires a feature branch.`,
-        ),
-      );
+      return yield* new BranchContextError({
+        message: `On the default branch (${context.defaultBranch}); --branch-diff requires a feature branch.`,
+      });
     }
     if (!context.defaultRefExists) {
-      return yield* Effect.fail(
-        new Error(
-          `Cannot resolve default branch ref '${context.defaultBranchRef}' for --branch-diff.`,
-        ),
-      );
+      return yield* new BranchContextError({
+        message: `Cannot resolve default branch ref '${context.defaultBranchRef}' for --branch-diff.`,
+      });
     }
 
     const mergeBase = yield* tryGit([
@@ -493,11 +498,9 @@ function resolveBranchDiff(
       "HEAD",
     ]);
     if (!mergeBase) {
-      return yield* Effect.fail(
-        new Error(
-          `Cannot find a merge base between ${context.defaultBranchRef} and HEAD for --branch-diff.`,
-        ),
-      );
+      return yield* new BranchContextError({
+        message: `Cannot find a merge base between ${context.defaultBranchRef} and HEAD for --branch-diff.`,
+      });
     }
 
     const diff = yield* tryGit(["diff", mergeBase]);
@@ -554,6 +557,7 @@ function parseCommits(
   aheadHashes: ReadonlySet<string>,
   baseExists: boolean,
   numstatByCommit: Map<string, Map<string, DiffCounts>>,
+  now: number,
 ): CommitRecord[] {
   const records: {
     shortHash: string;
@@ -573,7 +577,7 @@ function parseCommits(
       records.push({
         isoDate,
         shortHash,
-        relativeTime: formatRelativeTimeAgo(isoDate),
+        relativeTime: formatRelativeTimeAgo(isoDate, now),
         subject,
         pushed: baseExists && !aheadHashes.has(fullHash),
         files: [],

@@ -178,19 +178,21 @@ export class GitNotifications extends Context.Service<
           log(`Refresh complete: ${threads.length} notification threads`);
         }).pipe(
           Effect.withSpan("GitNotifications.refresh"),
-          Effect.catch((error) => {
-            const query = normalizeQuery(opts);
-            currentState = buildState(
-              currentState.threads,
-              new Date(),
-              false,
-              currentState.loaded,
-              query,
-              hiddenThreadIds,
-              formatGhError(error),
-            );
-            return PubSub.publish(pubsub, currentState).pipe(Effect.asVoid);
-          }),
+          Effect.catch((error) =>
+            Effect.gen(function* () {
+              const query = normalizeQuery(opts);
+              currentState = buildState(
+                currentState.threads,
+                new Date(yield* Clock.currentTimeMillis),
+                false,
+                currentState.loaded,
+                query,
+                hiddenThreadIds,
+                formatGhError(error),
+              );
+              yield* PubSub.publish(pubsub, currentState);
+            }),
+          ),
         );
 
       const filterBarThreadsIfNeeded = (

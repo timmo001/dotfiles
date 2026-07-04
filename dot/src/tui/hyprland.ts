@@ -28,7 +28,10 @@ export const resizeIfFloating = (
       stderr: "ignore",
     });
     const text = yield* Effect.promise(() => new Response(proc.stdout).text());
-    const win = JSON.parse(text) as { floating?: boolean };
+    const win = yield* Effect.try({
+      try: () => JSON.parse(text) as { floating?: boolean },
+      catch: () => undefined,
+    });
     if (win.floating) {
       Bun.spawn(
         [

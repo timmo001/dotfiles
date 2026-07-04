@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import { gitOutput } from "../../lib/git.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { normalizeGitHubSlug } from "../../services/GitConfig.js";
@@ -217,9 +217,16 @@ export interface GitCommitOptions {
 
 const handleCommitError = handleCommandError("dot git-commit");
 
-/** Fail the command with a plain message rendered by {@link handleCommitError}. */
-function failCommit(message: string): Effect.Effect<never, Error> {
-  return Effect.fail(new Error(message));
+class GitCommitError extends Schema.TaggedErrorClass<GitCommitError>()(
+  "GitCommitError",
+  {
+    message: Schema.String,
+  },
+) {}
+
+/** Fail the command with a tagged message rendered by {@link handleCommitError}. */
+function failCommit(message: string): Effect.Effect<never, GitCommitError> {
+  return Effect.fail(new GitCommitError({ message }));
 }
 
 /** Run a read-only git command, resolving to trimmed stdout or "" on failure. */

@@ -5,6 +5,7 @@ import {
   Layer,
   PubSub,
   Schedule,
+  Schema,
   Stream,
 } from "effect";
 import { existsSync, readFileSync } from "node:fs";
@@ -36,6 +37,14 @@ const BAR_MODULES: readonly DashboardBarModuleId[] = [
   "todo_my_tasks",
   "todo_work",
 ];
+
+/** Domain error for dashboard source command failures. */
+class DashboardError extends Schema.TaggedErrorClass<DashboardError>()(
+  "DashboardError",
+  {
+    message: Schema.String,
+  },
+) {}
 
 /** Service interface for dashboard live source snapshots. */
 interface DashboardService {
@@ -105,22 +114,7 @@ export class Dashboard extends Context.Service<Dashboard, DashboardService>()(
         );
         yield* PubSub.publish(pubsub, currentState);
         log("Dashboard refresh complete");
-      }).pipe(
-        Effect.withSpan("Dashboard.refresh"),
-        Effect.catch((error) =>
-          Effect.gen(function* () {
-            currentState = buildState(
-              currentState.diffRepos,
-              currentState.bar,
-              new Date(yield* Clock.currentTimeMillis),
-              false,
-              currentState.loaded,
-              String(error),
-            );
-            yield* PubSub.publish(pubsub, currentState);
-          }),
-        ),
-      );
+      }).pipe(Effect.withSpan("Dashboard.refresh"));
 
       yield* refresh;
       yield* refresh.pipe(
@@ -200,7 +194,9 @@ function loadBarValue(
   });
 }
 
-function runDashboardCommand(command: string): Effect.Effect<string, Error> {
+function runDashboardCommand(
+  command: string,
+): Effect.Effect<string, DashboardError> {
   return Effect.tryPromise({
     try: async () => {
       const proc = Bun.spawn(["bash", "-lc", command], {
@@ -217,12 +213,16 @@ function runDashboardCommand(command: string): Effect.Effect<string, Error> {
       const output = await stdout;
       const errorOutput = await stderr;
       if (!output.trim() && exitCode !== 0) {
-        throw new Error(errorOutput.trim() || `exit ${exitCode}`);
+        throw new DashboardError({
+          message: errorOutput.trim() || `exit ${exitCode}`,
+        });
       }
       return output;
     },
     catch: (error) =>
-      error instanceof Error ? error : new Error(String(error)),
+      error instanceof DashboardError
+        ? error
+        : new DashboardError({ message: String(error) }),
   });
 }
 

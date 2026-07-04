@@ -250,32 +250,48 @@ export const ensureHyprConfigLink = (
 
     const linkContent = stowLinkContent(home, linkPath, sourceFile);
 
-    try {
-      const stat = lstatSync(linkPath);
-      if (stat.isSymbolicLink() && readlinkSync(linkPath) === linkContent) {
-        return;
-      }
-    } catch (error) {
-      if (!isMissingLinkError(error)) {
-        yield* log.warn(
-          `Skipping Hypr config link repair (could not inspect ${displayPath(linkPath)})`,
-        );
-        return;
-      }
+    const currentLink = inspectLink(linkPath, linkContent);
+    if (currentLink.type === "matching") return;
+    if (currentLink.type === "unreadable") {
+      yield* log.warn(
+        `Skipping Hypr config link repair (could not inspect ${displayPath(linkPath)})`,
+      );
+      return;
     }
 
     const tmpLink = `${linkPath}.dot-${process.pid}`;
-    try {
-      unlinkSync(tmpLink);
-    } catch {
-      // No stale temp link to clear.
-    }
+    removeIfPresent(tmpLink);
     symlinkSync(linkContent, tmpLink);
     renameSync(tmpLink, linkPath);
     yield* log.info(
       `Repaired Hypr config link (${displayPath(linkPath)} -> hyprland.conf)`,
     );
   });
+
+function inspectLink(
+  linkPath: string,
+  expectedContent: string,
+): { readonly type: "matching" | "different" | "missing" | "unreadable" } {
+  try {
+    const stat = lstatSync(linkPath);
+    if (stat.isSymbolicLink() && readlinkSync(linkPath) === expectedContent) {
+      return { type: "matching" };
+    }
+    return { type: "different" };
+  } catch (error) {
+    return isMissingLinkError(error)
+      ? { type: "missing" }
+      : { type: "unreadable" };
+  }
+}
+
+function removeIfPresent(path: string): void {
+  try {
+    unlinkSync(path);
+  } catch {
+    // No stale temp link to clear.
+  }
+}
 
 /** Create or repair the host-selected Hypr config symlink used by one-branch config. */
 export const ensureHyprHostLink = (

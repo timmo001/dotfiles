@@ -1,4 +1,12 @@
-import { Context, Duration, Effect, Layer, Option, Schema } from "effect";
+import {
+  Clock,
+  Context,
+  Duration,
+  Effect,
+  Layer,
+  Option,
+  Schema,
+} from "effect";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { basename, join } from "path";
 import { createHash } from "crypto";
@@ -26,7 +34,11 @@ const FETCH_TIMEOUT = Duration.seconds(FETCH_TIMEOUT_SECONDS);
 const FETCH_CACHE_DIR = join(CACHE_DIR, "dot", "fetch-upstream");
 
 /** Check if a fetch is needed based on TTL cache */
-function shouldFetch(repoPath: string, upstreamRef: string): boolean {
+function shouldFetch(
+  repoPath: string,
+  upstreamRef: string,
+  nowSeconds: number,
+): boolean {
   if (FETCH_TTL_SECONDS <= 0) return true;
 
   mkdirSync(FETCH_CACHE_DIR, { recursive: true });
@@ -38,10 +50,9 @@ function shouldFetch(repoPath: string, upstreamRef: string): boolean {
   try {
     const lastAttempt = parseInt(readFileSync(cacheFile, "utf-8").trim(), 10);
     if (!isNaN(lastAttempt)) {
-      const now = Math.floor(Date.now() / 1000);
-      if (now - lastAttempt < FETCH_TTL_SECONDS) {
+      if (nowSeconds - lastAttempt < FETCH_TTL_SECONDS) {
         log(
-          `${repoPath}: fetch cache hit (${now - lastAttempt}s < ${FETCH_TTL_SECONDS}s TTL)`,
+          `${repoPath}: fetch cache hit (${nowSeconds - lastAttempt}s < ${FETCH_TTL_SECONDS}s TTL)`,
         );
         return false;
       }
@@ -54,7 +65,11 @@ function shouldFetch(repoPath: string, upstreamRef: string): boolean {
 }
 
 /** Record a fetch attempt timestamp in the TTL cache */
-function recordFetch(repoPath: string, upstreamRef: string): void {
+function recordFetch(
+  repoPath: string,
+  upstreamRef: string,
+  nowSeconds: number,
+): void {
   if (FETCH_TTL_SECONDS <= 0) return;
 
   try {
@@ -63,8 +78,7 @@ function recordFetch(repoPath: string, upstreamRef: string): void {
       .update(`${repoPath}\n${upstreamRef}\n`)
       .digest("hex");
     const cacheFile = join(FETCH_CACHE_DIR, cacheKey);
-    const now = Math.floor(Date.now() / 1000);
-    writeFileSync(cacheFile, `${now}\n`);
+    writeFileSync(cacheFile, `${nowSeconds}\n`);
   } catch {
     // Non-fatal — cache write failure doesn't block diff
   }
@@ -277,7 +291,10 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
               .pipe(Effect.catch(() => Effect.succeed("")));
 
             const trimmedRef = upstreamRef.trim();
-            if (trimmedRef && shouldFetch(repoPath, trimmedRef)) {
+            const nowSeconds = Math.floor(
+              (yield* Clock.currentTimeMillis) / 1000,
+            );
+            if (trimmedRef && shouldFetch(repoPath, trimmedRef, nowSeconds)) {
               const [remoteName] = trimmedRef.split("/", 1);
               const remoteBranch = trimmedRef.slice(remoteName.length + 1);
               const fetchExit = yield* executor
@@ -293,10 +310,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
                   ],
                   { cwd: repoPath },
                 )
-                .pipe(
-                  Effect.timeoutOption(FETCH_TIMEOUT),
-                  Effect.catch(() => Effect.succeed(Option.some(1))),
-                );
+                .pipe(Effect.timeoutOption(FETCH_TIMEOUT));
 
               if (Option.isNone(fetchExit)) {
                 yield* outputLog.warn(
@@ -318,17 +332,14 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
                     ],
                     { cwd: repoPath },
                   )
-                  .pipe(
-                    Effect.timeoutOption(FETCH_TIMEOUT),
-                    Effect.catch(() => Effect.succeed(Option.some(1))),
-                  );
+                  .pipe(Effect.timeoutOption(FETCH_TIMEOUT));
                 if (Option.isNone(fallbackExit)) {
                   yield* outputLog.warn(
                     `Fallback fetch timed out after ${FETCH_TIMEOUT_SECONDS}s for ${name}: ${displayPath(repoPath)}`,
                   );
                 }
               }
-              recordFetch(repoPath, trimmedRef);
+              recordFetch(repoPath, trimmedRef, nowSeconds);
             }
           }
 

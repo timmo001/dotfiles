@@ -37,7 +37,7 @@ export function formatCommandError(error: unknown): string {
 /** Print a labelled command error and exit non-zero. */
 export function handleCommandError(label: string) {
   return Effect.catch((error: unknown) =>
-    Effect.sync(() => {
+    Effect.promise(async () => {
       console.error(`[${label}] ${formatCommandError(error)}`);
       process.exit(1);
     }),

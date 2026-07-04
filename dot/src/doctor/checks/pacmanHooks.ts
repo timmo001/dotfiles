@@ -16,10 +16,8 @@ export const checkPacmanHooks = Effect.gen(function* () {
     return results;
   }
 
-  let hookFiles: string[];
-  try {
-    hookFiles = readdirSync(hooksSource).filter((f) => f.endsWith(".hook"));
-  } catch {
+  const hookFiles = hookFileNames(hooksSource);
+  if (hookFiles === null) {
     return results;
   }
 
@@ -36,30 +34,42 @@ export const checkPacmanHooks = Effect.gen(function* () {
       continue;
     }
 
-    // Compare contents
-    try {
-      const sourceContent = readFileSync(sourceFile, "utf-8");
-      const installedContent = readFileSync(installedFile, "utf-8");
-
-      if (sourceContent !== installedContent) {
-        results.push({
-          severity: "warn",
-          message: `Pacman hook out of date: ${hookName}`,
-          detail: `Run: pkexec install -Dm644 ${sourceFile} ${installedFile}`,
-        });
-      } else {
-        results.push({
-          severity: "ok",
-          message: `Pacman hook installed: ${hookName}`,
-        });
-      }
-    } catch {
+    const sourceContent = readTextFile(sourceFile);
+    const installedContent = readTextFile(installedFile);
+    if (sourceContent === null || installedContent === null) {
       results.push({
         severity: "warn",
         message: `Could not compare pacman hook: ${hookName}`,
+      });
+    } else if (sourceContent !== installedContent) {
+      results.push({
+        severity: "warn",
+        message: `Pacman hook out of date: ${hookName}`,
+        detail: `Run: pkexec install -Dm644 ${sourceFile} ${installedFile}`,
+      });
+    } else {
+      results.push({
+        severity: "ok",
+        message: `Pacman hook installed: ${hookName}`,
       });
     }
   }
 
   return results;
 });
+
+function hookFileNames(path: string): string[] | null {
+  try {
+    return readdirSync(path).filter((fileName) => fileName.endsWith(".hook"));
+  } catch {
+    return null;
+  }
+}
+
+function readTextFile(path: string): string | null {
+  try {
+    return readFileSync(path, "utf-8");
+  } catch {
+    return null;
+  }
+}

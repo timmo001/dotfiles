@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CONFIG_DIR } from "./lib/paths.js";
@@ -156,6 +156,13 @@ function deriveTheme(c: Record<string, string>): Theme {
 
 // --- Theme loading ---
 
+class ThemeLoadError extends Schema.TaggedErrorClass<ThemeLoadError>()(
+  "ThemeLoadError",
+  {
+    message: Schema.String,
+  },
+) {}
+
 /**
  * Load the active Omarchy theme from `colors.toml` and derive semantic TUI tokens.
  *
@@ -169,8 +176,7 @@ function deriveTheme(c: Record<string, string>): Theme {
 export const loadTheme: Effect.Effect<Theme> = Effect.gen(function* () {
   const raw = yield* Effect.try({
     try: () => readFileSync(COLORS_TOML_PATH, "utf-8"),
-    catch: (error) =>
-      error instanceof Error ? error : new Error(String(error)),
+    catch: (error) => new ThemeLoadError({ message: String(error) }),
   });
   return deriveTheme(parseColorsToml(raw));
 }).pipe(Effect.orElseSucceed(() => FALLBACK));

@@ -42,17 +42,15 @@ export const checkBrowserFlags = Effect.gen(function* () {
         });
         flagsOk = false;
       } else {
-        try {
-          const stat = lstatSync(flagFile);
-          if (!stat.isSymbolicLink()) {
-            results.push({
-              severity: "error",
-              message: `${displayPath(flagFile)} is not a symlink`,
-              detail: "Run: dot stow",
-            });
-            flagsOk = false;
-          }
-        } catch {
+        const isSymlink = isSymbolicLink(flagFile);
+        if (isSymlink === null) {
+          flagsOk = false;
+        } else if (!isSymlink) {
+          results.push({
+            severity: "error",
+            message: `${displayPath(flagFile)} is not a symlink`,
+            detail: "Run: dot stow",
+          });
           flagsOk = false;
         }
       }
@@ -115,3 +113,11 @@ export const checkBrowserFlags = Effect.gen(function* () {
 
   return results;
 });
+
+function isSymbolicLink(path: string): boolean | null {
+  try {
+    return lstatSync(path).isSymbolicLink();
+  } catch {
+    return null;
+  }
+}

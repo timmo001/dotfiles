@@ -154,8 +154,8 @@ export const checkHardwareVideo = Effect.gen(function* () {
 
   for (const { name, wrapper } of browsers) {
     if (existsSync(wrapper)) {
-      try {
-        const content = readFileSync(wrapper, "utf-8");
+      const content = readTextFile(wrapper);
+      if (content !== null) {
         const driverMatch = content.match(
           /^\s*export\s+LIBVA_DRIVER_NAME=(\S+)/m,
         );
@@ -171,8 +171,6 @@ export const checkHardwareVideo = Effect.gen(function* () {
             message: `${name} wrapper forces Mesa EGL (hybrid GPU fix)`,
           });
         }
-      } catch {
-        /* ignore */
       }
     }
   }
@@ -185,8 +183,8 @@ export const checkHardwareVideo = Effect.gen(function* () {
 
   for (const { name, path } of flagsFiles) {
     if (existsSync(path)) {
-      try {
-        const content = readFileSync(path, "utf-8");
+      const content = readTextFile(path);
+      if (content !== null) {
         if (
           /AcceleratedVideoDecodeLinuxGL|VaapiVideoDecodeLinuxGL/.test(content)
         ) {
@@ -201,8 +199,6 @@ export const checkHardwareVideo = Effect.gen(function* () {
             detail: "AcceleratedVideoDecodeLinuxGL or VaapiVideoDecodeLinuxGL",
           });
         }
-      } catch {
-        /* ignore */
       }
     }
   }
@@ -250,3 +246,11 @@ export const checkHardwareVideo = Effect.gen(function* () {
 
   return results;
 });
+
+function readTextFile(path: string): string | null {
+  try {
+    return readFileSync(path, "utf-8");
+  } catch {
+    return null;
+  }
+}

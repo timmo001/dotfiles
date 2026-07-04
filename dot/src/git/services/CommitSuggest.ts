@@ -88,11 +88,9 @@ export class CommitSuggest extends Context.Service<
     suggest: (diff, recentCommits) =>
       Effect.gen(function* () {
         if (!diff.trim()) {
-          return yield* Effect.fail(
-            new CommitSuggestError({
-              message: "No staged changes to generate suggestions for",
-            }),
-          );
+          return yield* new CommitSuggestError({
+            message: "No staged changes to generate suggestions for",
+          });
         }
 
         // Discover fast model (cached after first call)

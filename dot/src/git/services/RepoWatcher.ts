@@ -102,13 +102,7 @@ export class RepoWatcher extends Context.Service<
 
         log("Waybar cache miss — falling back to full poll");
         yield* poll;
-      }).pipe(
-        Effect.withSpan("RepoWatcher.initialLoad"),
-        Effect.catch(() => {
-          log("Initial load error — falling back to full poll");
-          return poll;
-        }),
-      );
+      }).pipe(Effect.withSpan("RepoWatcher.initialLoad"));
 
       // Run initial load
       yield* initialLoad;

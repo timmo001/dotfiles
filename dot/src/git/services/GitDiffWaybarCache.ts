@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Schema } from "effect";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { CACHE_DIR } from "../../lib/paths.js";
@@ -23,6 +23,13 @@ interface GitDiffWaybarCacheService {
   ) => readonly string[];
 }
 
+class GitDiffWaybarCacheError extends Schema.TaggedErrorClass<GitDiffWaybarCacheError>()(
+  "GitDiffWaybarCacheError",
+  {
+    message: Schema.String,
+  },
+) {}
+
 /** Effect service for {@link GitDiffWaybarCacheService} */
 export class GitDiffWaybarCache extends Context.Service<
   GitDiffWaybarCache,
@@ -38,7 +45,7 @@ export class GitDiffWaybarCache extends Context.Service<
           return data;
         },
         catch: (error) =>
-          error instanceof Error ? error : new Error(String(error)),
+          new GitDiffWaybarCacheError({ message: String(error) }),
       }).pipe(Effect.catch(() => Effect.succeed(null))),
 
     parseChangedNames: (data: GitDiffWaybarCacheData): readonly string[] => {

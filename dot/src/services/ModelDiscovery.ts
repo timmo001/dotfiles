@@ -148,4 +148,4 @@ export const discoverFastModel: Effect.Effect<
     log(`Model discovery failed: ${msg}`);
     return undefined;
   },
-}).pipe(Effect.catch(() => Effect.succeed(undefined)));
+}).pipe(Effect.catch(() => Effect.void.pipe(Effect.as(undefined))));

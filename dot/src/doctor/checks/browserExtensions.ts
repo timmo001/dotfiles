@@ -38,10 +38,8 @@ export const checkBrowserExtensions = Effect.gen(function* () {
     return results;
   }
 
-  let content: string;
-  try {
-    content = readFileSync(configFile, "utf-8");
-  } catch {
+  const content = readTextFile(configFile);
+  if (content === null) {
     results.push({
       severity: "warn",
       message: `Could not read browser checks file: ${displayPath(configFile)}`,
@@ -77,10 +75,8 @@ export const checkBrowserExtensions = Effect.gen(function* () {
       continue;
     }
 
-    let prefs: string;
-    try {
-      prefs = readFileSync(prefsFile, "utf-8");
-    } catch {
+    const prefs = readTextFile(prefsFile);
+    if (prefs === null) {
       results.push({
         severity: "warn",
         message: `Could not read Preferences for ${label}`,
@@ -100,30 +96,7 @@ export const checkBrowserExtensions = Effect.gen(function* () {
       // Fallback: read actual manifest.json files from extension paths on disk
       // (the name may not be cached in Preferences for unpacked extensions)
       if (!found) {
-        try {
-          const parsed = JSON.parse(prefs);
-          const settings = parsed?.extensions?.settings;
-          if (settings && typeof settings === "object") {
-            for (const ext of Object.values(settings) as Array<{
-              path?: string;
-            }>) {
-              if (!ext?.path) continue;
-              const manifestPath = join(ext.path, "manifest.json");
-              if (!existsSync(manifestPath)) continue;
-              try {
-                const manifest = readFileSync(manifestPath, "utf-8");
-                if (manifest.includes(`"name": "${target}"`)) {
-                  found = true;
-                  break;
-                }
-              } catch {
-                /* skip unreadable manifests */
-              }
-            }
-          }
-        } catch {
-          /* ignore JSON parse errors */
-        }
+        found = extensionManifestIncludesName(prefs, target);
       }
     }
 
@@ -143,3 +116,33 @@ export const checkBrowserExtensions = Effect.gen(function* () {
 
   return results;
 });
+
+function readTextFile(path: string): string | null {
+  try {
+    return readFileSync(path, "utf-8");
+  } catch {
+    return null;
+  }
+}
+
+function extensionManifestIncludesName(prefs: string, target: string): boolean {
+  try {
+    const parsed = JSON.parse(prefs) as {
+      readonly extensions?: {
+        readonly settings?: Record<string, { readonly path?: string }>;
+      };
+    };
+    const settings = parsed.extensions?.settings;
+    if (!settings) return false;
+    for (const ext of Object.values(settings)) {
+      if (!ext.path) continue;
+      const manifestPath = join(ext.path, "manifest.json");
+      if (!existsSync(manifestPath)) continue;
+      const manifest = readTextFile(manifestPath);
+      if (manifest?.includes(`"name": "${target}"`)) return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}

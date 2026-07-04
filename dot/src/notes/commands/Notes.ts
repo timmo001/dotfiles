@@ -49,7 +49,7 @@ Examples:
 }
 
 function invalid(message: string, usage: string): Effect.Effect<void> {
-  return Effect.sync(() => {
+  return Effect.promise(async () => {
     exitWithError([message, usage]);
   });
 }
@@ -57,7 +57,7 @@ function invalid(message: string, usage: string): Effect.Effect<void> {
 function handleNotesError<R>(effect: Effect.Effect<void, NotesError, R>) {
   return effect.pipe(
     Effect.catch((error) =>
-      Effect.sync(() => {
+      Effect.promise(async () => {
         exitWithError(
           error.detail
             ? [`[dot notes] ${error.message}`, error.detail]

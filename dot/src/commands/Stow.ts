@@ -121,12 +121,10 @@ const stowRepo = (
           yield* log.error(
             `[${scope}] unstow ${folder} failed (exit ${unstowExit})`,
           );
-          return yield* Effect.fail(
-            new LauncherError(
-              `${scope} unstow failed on ${folder}`,
-              unstowExit,
-            ),
-          );
+          return yield* new LauncherError({
+            message: `${scope} unstow failed on ${folder}`,
+            exitCode: unstowExit,
+          });
         }
       }
 
@@ -160,9 +158,10 @@ const stowRepo = (
 
       if (exit !== 0) {
         yield* log.error(`[${scope}] stow ${folder} failed (exit ${exit})`);
-        return yield* Effect.fail(
-          new LauncherError(`${scope} stow failed on ${folder}`, exit),
-        );
+        return yield* new LauncherError({
+          message: `${scope} stow failed on ${folder}`,
+          exitCode: exit,
+        });
       }
 
       // Apply any added or changed config and clear any prior emergency state.
@@ -205,9 +204,10 @@ const unstowLegacyInternalFolders = (
         yield* log.error(
           `[public] unstow legacy ${folder} failed (exit ${exit})`,
         );
-        return yield* Effect.fail(
-          new LauncherError(`public legacy unstow failed on ${folder}`, exit),
-        );
+        return yield* new LauncherError({
+          message: `public legacy unstow failed on ${folder}`,
+          exitCode: exit,
+        });
       }
     }
   });

@@ -1,4 +1,12 @@
-import { Context, Effect, Layer, PubSub, Schedule, Stream } from "effect";
+import {
+  Clock,
+  Context,
+  Effect,
+  Layer,
+  PubSub,
+  Schedule,
+  Stream,
+} from "effect";
 import {
   appendFileSync,
   mkdirSync,
@@ -193,7 +201,7 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
       const entries: LogEntry[] = [];
       const defaultLogFile = join(
         config.logDir,
-        `${new Date().toISOString().replace(/[:.]/g, "-")}.log`,
+        `${new Date(yield* Clock.currentTimeMillis).toISOString().replace(/[:.]/g, "-")}.log`,
       );
       const paths = logFiles(defaultLogFile);
 
@@ -210,7 +218,11 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
       const emit = (level: LogLevel, message: string): Effect.Effect<void> =>
         Effect.gen(function* () {
           ensureInitialised();
-          const entry: LogEntry = { level, message, timestamp: Date.now() };
+          const entry: LogEntry = {
+            level,
+            message,
+            timestamp: yield* Clock.currentTimeMillis,
+          };
           entries.push(entry);
           appendLogFiles(paths, entry);
           yield* PubSub.publish(pubsub, entry);
@@ -227,11 +239,12 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
         // still log the duration on completion to match the CLI contract.
         withSpinner: (label, effect) =>
           Effect.gen(function* () {
-            const startedAt = Date.now();
+            const startedAt = yield* Clock.currentTimeMillis;
             const result = yield* effect;
+            const finishedAt = yield* Clock.currentTimeMillis;
             yield* emit(
               "info",
-              `${label} (${formatDuration(Date.now() - startedAt)})`,
+              `${label} (${formatDuration(finishedAt - startedAt)})`,
             );
             return result;
           }),
@@ -250,7 +263,7 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
       const entries: LogEntry[] = [];
       const defaultLogFile = join(
         config.logDir,
-        `${new Date().toISOString().replace(/[:.]/g, "-")}.log`,
+        `${new Date(yield* Clock.currentTimeMillis).toISOString().replace(/[:.]/g, "-")}.log`,
       );
       const paths = logFiles(defaultLogFile);
 
@@ -273,10 +286,10 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
         startedAt: number;
       } | null = null;
 
-      const renderSpinner = (): void => {
+      const renderSpinner = (now: number): void => {
         if (!spinner) return;
         const frame = SPINNER_FRAMES[spinner.frame % SPINNER_FRAMES.length]!;
-        const seconds = Math.floor((Date.now() - spinner.startedAt) / 1000);
+        const seconds = Math.floor((now - spinner.startedAt) / 1000);
         const elapsedText = seconds >= 1 ? ` (${seconds}s)` : "";
         // Keep the whole spinner on one physical row. A wrapped line breaks the
         // in-place CLEAR_LINE redraw (it only clears the last row) and leaves a
@@ -297,22 +310,24 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
       };
 
       const emit = (level: LogLevel, message: string): Effect.Effect<void> =>
-        Effect.sync(() => {
+        Effect.gen(function* () {
+          const now = yield* Clock.currentTimeMillis;
           ensureInitialised();
-          const entry: LogEntry = { level, message, timestamp: Date.now() };
+          const entry: LogEntry = { level, message, timestamp: now };
           entries.push(entry);
           appendLogFiles(paths, entry);
           // Clear the spinner line before a real log line, then redraw it
           // beneath so the spinner stays pinned to the bottom.
           if (spinner) process.stdout.write(CLEAR_LINE);
           process.stdout.write(formatAnsi(entry) + "\n");
-          if (spinner) renderSpinner();
+          if (spinner) renderSpinner(now);
         });
 
-      const tick = Effect.sync(() => {
+      const tick = Effect.gen(function* () {
         if (!spinner) return;
+        const now = yield* Clock.currentTimeMillis;
         spinner.frame += 1;
-        renderSpinner();
+        renderSpinner(now);
       });
 
       const runSpinner = <A, E, R>(
@@ -323,10 +338,11 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
         Effect.scoped(
           Effect.gen(function* () {
             yield* Effect.acquireRelease(
-              Effect.sync(() => {
+              Effect.gen(function* () {
+                const now = yield* Clock.currentTimeMillis;
                 spinner = { label, frame: 0, startedAt };
                 process.stdout.write(HIDE_CURSOR);
-                renderSpinner();
+                renderSpinner(now);
               }),
               () =>
                 Effect.sync(() => {
@@ -347,14 +363,15 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
         effect: Effect.Effect<A, E, R>,
       ): Effect.Effect<A, E, R> =>
         Effect.gen(function* () {
-          const startedAt = Date.now();
+          const startedAt = yield* Clock.currentTimeMillis;
           // Animate only on a TTY; the duration line is logged either way.
           const result = yield* spinnerEnabled
             ? runSpinner(label, startedAt, effect)
             : effect;
+          const finishedAt = yield* Clock.currentTimeMillis;
           yield* emit(
             "info",
-            `${label} (${formatDuration(Date.now() - startedAt)})`,
+            `${label} (${formatDuration(finishedAt - startedAt)})`,
           );
           return result;
         });
@@ -368,10 +385,11 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
         flush: Effect.sync(() => entries.map(formatPlain).join("\n")),
         withSpinner,
         updateSpinner: (label) =>
-          Effect.sync(() => {
+          Effect.gen(function* () {
             if (!spinner) return;
+            const now = yield* Clock.currentTimeMillis;
             spinner.label = label;
-            renderSpinner();
+            renderSpinner(now);
           }),
       };
     }),

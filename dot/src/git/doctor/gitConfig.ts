@@ -14,24 +14,22 @@ export const checkGitConfig = Effect.gen(function* () {
 
   if (existsSync(gitConfigDotfiles)) {
     if (existsSync(gitConfigFile)) {
-      try {
-        const content = readFileSync(gitConfigFile, "utf-8");
-        if (content.includes(`path = ${gitIncludePath}`)) {
-          results.push({
-            severity: "ok",
-            message: "Git config includes managed dotfiles settings",
-          });
-        } else {
-          results.push({
-            severity: "warn",
-            message: "Git config is missing the dotfiles include",
-            detail: `Run: git config --global --add include.path '${gitIncludePath}'`,
-          });
-        }
-      } catch {
+      const content = readTextFile(gitConfigFile);
+      if (content === null) {
         results.push({
           severity: "warn",
           message: "Could not read git config file",
+        });
+      } else if (content.includes(`path = ${gitIncludePath}`)) {
+        results.push({
+          severity: "ok",
+          message: "Git config includes managed dotfiles settings",
+        });
+      } else {
+        results.push({
+          severity: "warn",
+          message: "Git config is missing the dotfiles include",
+          detail: `Run: git config --global --add include.path '${gitIncludePath}'`,
         });
       }
     } else {
@@ -51,3 +49,11 @@ export const checkGitConfig = Effect.gen(function* () {
 
   return results;
 });
+
+function readTextFile(path: string): string | null {
+  try {
+    return readFileSync(path, "utf-8");
+  } catch {
+    return null;
+  }
+}

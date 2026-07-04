@@ -203,12 +203,10 @@ const stowRepo = (
         yield* log.error(
           `[${scope}] unstow ${folder} failed (exit ${unstowExit})`,
         );
-        return yield* Effect.fail(
-          new LauncherError(
-            `${scope} install unstow failed on ${folder}`,
-            unstowExit,
-          ),
-        );
+        return yield* new LauncherError({
+          message: `${scope} install unstow failed on ${folder}`,
+          exitCode: unstowExit,
+        });
       }
 
       // Build stow command with folder-specific flags
@@ -241,9 +239,10 @@ const stowRepo = (
 
       if (exit !== 0) {
         yield* log.error(`[${scope}] stow ${folder} failed (exit ${exit})`);
-        return yield* Effect.fail(
-          new LauncherError(`${scope} install stow failed on ${folder}`, exit),
-        );
+        return yield* new LauncherError({
+          message: `${scope} install stow failed on ${folder}`,
+          exitCode: exit,
+        });
       }
     }
   });
