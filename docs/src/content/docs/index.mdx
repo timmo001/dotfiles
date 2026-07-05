@@ -9,17 +9,23 @@ import LandingCard from '../../components/LandingCard.astro';
 import LinkCardGrid from '../../components/LinkCardGrid.astro';
 
 export const getStartedCards = [
-  { title: 'Getting Started', href: '/getting-started/', description: 'Bootstrap a fresh machine and run the ongoing workflow.' },
+  { title: 'Install', href: '/getting-started/install/', description: 'Prerequisites, bootstrap build, and the ongoing workflow.' },
   { title: 'New Machine Checklist', href: '/getting-started/new-machine/', description: 'Step-by-step setup for a new Omarchy machine.' },
 ];
 
 export const exploreCards = [
   { title: 'The dot Command', href: '/dot/', description: 'The TUI dashboard and CLI, with the stow, notes, and utilities workflows.' },
-  { title: 'Configuration & Reference', href: '/configuration/', description: 'Environment options, private git config, and private packages.' },
+  { title: 'Configuration', href: '/configuration/', description: 'Environment options, private git config, and private packages.' },
   { title: 'Git & GitHub', href: '/git/', description: 'Diff, log, status, workflow runs, and notifications.' },
   { title: 'Omarchy & Hyprland', href: '/omarchy/', description: 'Managed Omarchy repos and per-host Hyprland overrides.' },
   { title: 'Knowledge Base', href: '/knowledge-base/', description: 'Practical runbooks for system customisations and one-off fixes.' },
   { title: 'OpenCode & Agents', href: '/opencode/', description: 'Agents, commands, skills, and plugins, with the generated reference.' },
+];
+
+export const referenceCards = [
+  { title: 'Bar Integrations', href: '/bar-integrations/', description: 'The shared --bar-json status-bar contract.' },
+  { title: 'Cleanup', href: '/cleanup/', description: 'Remove stowed links and reverse setup side effects.' },
+  { title: 'Agents / LLMs', href: '/agents-llms/', description: 'llms.txt bundles for loading the docs into AI-assisted sessions.' },
 ];
 
 These are my public [Omarchy](https://omarchy.org) dotfiles (Omarchy is an Arch Linux based distro), managed with [GNU Stow](https://www.gnu.org/software/stow/) and a single compiled `dot` binary. They cover shell, editor, and desktop config, plus the tooling that keeps multiple machines in sync.
@@ -70,3 +76,7 @@ Large parts of this project - including this documentation and much of the codeb
 ## Explore
 
 <LinkCardGrid cards={exploreCards} />
+
+## Reference
+
+<LinkCardGrid cards={referenceCards} />

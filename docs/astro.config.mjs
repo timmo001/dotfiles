@@ -82,7 +82,7 @@ export default defineConfig({
           items: [{ autogenerate: { directory: 'dot' } }],
         },
         {
-          label: 'Configuration & Reference',
+          label: 'Configuration',
           items: [{ autogenerate: { directory: 'configuration' } }],
         },
         {
