@@ -1,11 +1,12 @@
-import { Effect, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 import { existsSync, unlinkSync, writeFileSync } from "fs";
 import { join } from "path";
 import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { runElevated } from "../lib/elevatedCommand.js";
-import { ghRepoClone } from "../lib/git.js";
+import { ghRepoCloneCaptured } from "../lib/git.js";
+import { withSpinnerTimeout } from "../lib/workflowStep.js";
 import { displayPath } from "../lib/paths.js";
 import { ENV, envString } from "../lib/env.js";
 import {
@@ -20,6 +21,8 @@ import {
 } from "../doctor/checks/packages.js";
 import type { PrivatePackageRepoConfig } from "../doctor/checks/packages.js";
 
+const PRIVATE_PACKAGE_REPO_CLONE_TIMEOUT_SECONDS = 45;
+
 /** Domain error for private pacman repository setup failures. */
 class SetupPrivateRepoError extends Schema.TaggedErrorClass<SetupPrivateRepoError>()(
   "SetupPrivateRepoError",
@@ -30,6 +33,15 @@ class SetupPrivateRepoError extends Schema.TaggedErrorClass<SetupPrivateRepoErro
 
 function privatePackageRepoReady(repo: PrivatePackageRepoConfig): boolean {
   return (
+    privatePackageRepoRegistered(repo) &&
+    privatePackageRepoIncludeRegistered() &&
+    privatePackageRepoConfigMatches(repo)
+  );
+}
+
+function privatePackageRepoInstalled(repo: PrivatePackageRepoConfig): boolean {
+  return (
+    existsSync(repo.mirrorPath) &&
     privatePackageRepoRegistered(repo) &&
     privatePackageRepoIncludeRegistered() &&
     privatePackageRepoConfigMatches(repo)
@@ -61,10 +73,18 @@ function clonePrivatePackageRepo(
       );
     }
 
-    yield* log.section("Clone private package repo");
-    yield* ghRepoClone(repo.remote, repo.path).pipe(
-      Effect.catchTag("GitCommandError", (error) => fail(error.message)),
+    const cloned = yield* withSpinnerTimeout(
+      "Clone private package repo",
+      PRIVATE_PACKAGE_REPO_CLONE_TIMEOUT_SECONDS,
+      ghRepoCloneCaptured(repo.remote, repo.path).pipe(
+        Effect.catchTag("GitCommandError", (error) => fail(error.message)),
+      ),
     );
+    if (Option.isNone(cloned)) {
+      return yield* fail(
+        `Private package repo clone timed out after ${PRIVATE_PACKAGE_REPO_CLONE_TIMEOUT_SECONDS}s`,
+      );
+    }
   });
 }
 
@@ -206,6 +226,14 @@ export const setupPrivatePackageRepo = (
   repo: PrivatePackageRepoConfig,
 ): Effect.Effect<void, SetupPrivateRepoError, CommandExecutor | OutputLog> =>
   Effect.gen(function* () {
+    const log = yield* OutputLog;
+    if (!existsSync(repo.path) && privatePackageRepoInstalled(repo)) {
+      yield* log.info(
+        "Private pacman repo already configured; skipping source clone",
+      );
+      return;
+    }
+
     yield* clonePrivatePackageRepo(repo);
     yield* syncPrivatePackageRepoMirror(repo);
     yield* configurePrivatePacmanRepo(repo);

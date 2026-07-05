@@ -13,7 +13,7 @@ sidebar:
 dot setup-private-repo
 ```
 
-Syncs the private Arch package repo mirror, writes the private pacman repo snippet, and adds the `Include` line to `/etc/pacman.conf` when it is missing. This repairs Omarchy `pacman.conf` refreshes that remove local repository includes. Privileged writes prefer `pkexec` and fall back to `sudo`.
+Syncs the private Arch package repo mirror, writes the private pacman repo snippet, and adds the `Include` line to `/etc/pacman.conf` when it is missing. If the local source clone is missing but the mirror and pacman config are already correct, setup skips the clone and leaves publishing workflows to create it later. This repairs Omarchy `pacman.conf` refreshes that remove local repository includes. Privileged writes prefer `pkexec` and fall back to `sudo`.
 
 ## Publish a package
 
