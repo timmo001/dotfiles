@@ -531,12 +531,12 @@ export const cliCommands: readonly CliCommandSpec[] = [
       {
         name: "--ignore",
         valueName: "id",
-        description: "Ignore future notifications for a thread",
+        description: "Ignore new notifications for a thread",
       },
       {
         name: "--unignore",
         valueName: "id",
-        description: "Stop ignoring future notifications for a thread",
+        description: "Stop ignoring notifications for a thread",
       },
       helpOption,
     ],

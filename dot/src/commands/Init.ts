@@ -840,6 +840,6 @@ export function init(rawArgs: readonly string[]) {
       "Next: reboot so the Omarchy session picks up OMARCHY_HOST and stowed user services",
     );
     yield* log.info("After reboot: run `dot doctor` to verify this setup");
-    yield* log.info("Future maintenance: run `dot update`");
+    yield* log.info("Ongoing maintenance: run `dot update`");
   }).pipe(withSudoKeepAlive);
 }

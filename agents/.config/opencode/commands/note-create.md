@@ -8,7 +8,7 @@ Follow these steps exactly:
 
 ## Step 1: Summarise the conversation
 
-Review the current conversation and write a structured summary that will be useful to a future reader who wasn't present. Focus on substance — ideas, decisions, and reasoning — not just a log of actions.
+Review the current conversation and write a structured summary that works as a durable reference for someone who wasn't present. Focus on substance: ideas, decisions, and reasoning, not just a log of actions.
 
 Structure the summary into these sections:
 

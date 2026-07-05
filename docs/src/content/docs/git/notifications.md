@@ -23,7 +23,7 @@ dot git-notifications --all              # include read notifications
 ```bash
 dot git-notifications --mark-read <id>   # mark a thread read
 dot git-notifications --mark-done <id>   # mark a thread done
-dot git-notifications --ignore <id>      # ignore future notifications for a thread
+dot git-notifications --ignore <id>      # ignore new notifications for a thread
 dot git-notifications --unignore <id>    # stop ignoring a thread
 ```
 

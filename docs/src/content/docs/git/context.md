@@ -5,9 +5,9 @@ sidebar:
   order: 2
 ---
 
-Generic branch and stack context now lives in the standalone [`context`](https://context.timmo.dev) tool.
+Generic branch and stack context is provided by the standalone [`context`](https://context.timmo.dev) tool.
 
-Use the new commands directly:
+Use the commands directly:
 
 ```bash
 context git

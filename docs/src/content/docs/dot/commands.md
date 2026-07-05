@@ -403,8 +403,8 @@ action flags, opens the interactive TUI.
 | `--mark-bot-read` | Mark unread Renovate/Dependabot/bot notifications as read |
 | `--dry-run` | Preview --mark-bot-read without mutating GitHub state |
 | `--mark-done` `<id>` | Mark a notification thread as done |
-| `--ignore` `<id>` | Ignore future notifications for a thread |
-| `--unignore` `<id>` | Stop ignoring future notifications for a thread |
+| `--ignore` `<id>` | Ignore new notifications for a thread |
+| `--unignore` `<id>` | Stop ignoring notifications for a thread |
 
 **Examples**
 

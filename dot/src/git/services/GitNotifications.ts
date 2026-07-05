@@ -70,11 +70,11 @@ interface GitNotificationsService {
   readonly markDone: (
     threadId: string,
   ) => Effect.Effect<GitNotificationActionResult, GitNotificationError>;
-  /** Ignore future notifications for a thread. */
+  /** Ignore new notifications for a thread. */
   readonly ignore: (
     threadId: string,
   ) => Effect.Effect<GitNotificationActionResult, GitNotificationError>;
-  /** Stop ignoring future notifications for a thread. */
+  /** Stop ignoring notifications for a thread. */
   readonly unignore: (
     threadId: string,
   ) => Effect.Effect<GitNotificationActionResult, GitNotificationError>;

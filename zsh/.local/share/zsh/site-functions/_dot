@@ -148,8 +148,8 @@ _dot_cmd_git_notifications() {
     '--mark-bot-read[Mark unread Renovate/Dependabot/bot notifications as read]' \
     '--dry-run[Preview --mark-bot-read without mutating GitHub state]' \
     '--mark-done[Mark a notification thread as done]:id:' \
-    '--ignore[Ignore future notifications for a thread]:id:' \
-    '--unignore[Stop ignoring future notifications for a thread]:id:' \
+    '--ignore[Ignore new notifications for a thread]:id:' \
+    '--unignore[Stop ignoring notifications for a thread]:id:' \
     '(-h --help)-h[Show this help message]' \
     '(-h --help)--help[Show this help message]' \
     '*::arg:->args'

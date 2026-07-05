@@ -23,7 +23,7 @@ Hyprland config is a stowed dotfiles package (`hypr/.config/hypr/`, conf-only), 
 - `dot doctor` checks the host link and flags any leftover legacy `omarchy-hypr` clone at `~/.config/hypr`.
 
 :::caution[Retired omarchy-hypr clone]
-A machine still on the retired `~/.config/hypr` `omarchy-hypr` clone halts `dot update` until the clone is backed up and re-stowed. Hyprland is now a stowed package, not a cloned repo.
+A machine with the retired `~/.config/hypr` `omarchy-hypr` clone halts `dot update` until the clone is backed up and re-stowed. Hyprland config is a stowed package, not a cloned repo.
 :::
 
 ## Environment

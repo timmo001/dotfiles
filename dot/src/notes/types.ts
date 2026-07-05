@@ -15,7 +15,7 @@ export interface RepoNoteIdentity {
 /** Handoff priority level, highest urgency first when ranked. */
 export type NotePriority = "low" | "medium" | "high" | "critical";
 
-/** Grouping dimension applied to the notes list. Extensible for future modes. */
+/** Grouping dimension applied to the notes list. */
 export type NoteGroupMode = "none" | "priority";
 
 /** Group modes cycled by the notes view grouping key, in order. */
