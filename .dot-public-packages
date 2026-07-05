@@ -20,6 +20,7 @@ smem
 stress-ng
 sysbench
 sysstat
+system-bridge-git
 topgrade-bin
 zsh
 zsh-autocomplete
