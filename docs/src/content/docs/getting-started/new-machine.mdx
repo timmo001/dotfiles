@@ -33,7 +33,7 @@ A clean, end-to-end walkthrough for setting up a new machine.
 7. `dot init` opens the managed [firewall rules](/dot/utilities/#firewall-rules) (KDE Connect, Home Assistant, the OpenCode server, LocalSend, and the libvirt NAT network) when `ufw` is installed.
 8. Restart your shell and confirm `dot help` is on `PATH`.
 9. Run `dot git-diff` and verify the expected repo state.
-10. Run `dot update` for ongoing sync, stow, rebuild, and init-state backfill.
+10. Run `dot doctor` to verify the setup, then use `dot update` for ongoing sync, stow, and rebuilds.
 
 </Steps>
 
@@ -62,7 +62,7 @@ dot init
 </Tabs>
 
 :::tip[Hypr host and mise tools]
-`dot init` selects the Hypr host early (setting `OMARCHY_HOST`), and the stow phase of the final update creates `~/.config/hypr/host`. It runs `mise install` immediately after stowing dotfiles and before installing managed Arch/AUR package lists, so Bun, Node, pnpm, and similar tools come from the stowed mise config rather than global pacman packages. Each `dot update` (and so the final update in `dot init`) also trusts the mise configs in the repos dot tracks, so `mise` never prompts to trust them on this machine.
+`dot init` selects the Hypr host early (setting `OMARCHY_HOST`), and the init stow phase creates `~/.config/hypr/host`. It runs `mise install` immediately after stowing dotfiles and before installing managed Arch/AUR package lists, so Bun, Node, pnpm, and similar tools come from the stowed mise config rather than global pacman packages. Later `dot update` runs handle ongoing repo pulls, stow refreshes, rebuilds, and mise trust refreshes.
 :::
 
 :::note[GNOME Boxes shared folders]

@@ -34,7 +34,7 @@ mise run dot:build
 
 ## First-use setup
 
-`dot init` runs the one-time first-use setup: it bootstraps private dotfiles when `gh auth` is available, syncs Omarchy repos, selects the Hypr host, installs and adopts config, installs stowed mise tools, sets up packages and machine hooks, syncs agents, and finishes with `dot update`. It logs to `~/.local/state/dot/init.log` by default, and each long-running phase uses the same spinner and timeout handling as `dot update`.
+`dot init` runs the one-time first-use setup: it bootstraps private dotfiles when `gh auth` is available, syncs Omarchy repos, selects the Hypr host, installs and adopts config, installs stowed mise tools, sets up packages and machine hooks, and syncs agents. It logs to `~/.local/state/dot/init.log` by default, and each long-running phase uses the same spinner and timeout handling as `dot update`.
 
 ```bash
 ~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive --confirm
@@ -54,12 +54,12 @@ If stock Omarchy directories already exist at `~/.config/waybar`, `~/.config/gho
 
 ## Ongoing workflow
 
-After restarting your shell so `dot` is on `PATH`:
+After init completes, run doctor first to verify the setup. After restarting your shell so `dot` is on `PATH`, use update for ongoing maintenance:
 
 ```bash
+dot doctor    # health checks
 dot update    # self-update, install deps, rebuild, pull, stow, restart
 dot git-diff  # review changes across managed repos
-dot doctor    # health checks
 ```
 
 `dot update` is the everyday command: it self-updates the public dotfiles, installs dependencies, rebuilds and restarts on the new binary, then runs Omarchy and public/private pulls, a stow refresh, and Hypr host-link setup. See the [Command Reference](/dot/commands/) for the full flag list.

@@ -35,13 +35,13 @@ mise trust
 mise install
 mise run dot:build
 
-# One-time first-use setup, ending with dot update.
+# One-time first-use setup.
 ~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive --confirm
 
 # Ongoing workflow after restarting the shell
+dot doctor
 dot update
 dot git-diff
-dot doctor
 ```
 
 See the [install guide](https://dotfiles.timmo.dev/getting-started/install/) and [new machine checklist](https://dotfiles.timmo.dev/getting-started/new-machine/) for the full walkthrough.

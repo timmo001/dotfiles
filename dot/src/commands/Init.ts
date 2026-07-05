@@ -12,7 +12,6 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { agentsSync } from "./AgentsSync.js";
 import { install } from "./Install.js";
-import { update } from "./Update.js";
 import { setupPrivateRepo } from "./SetupPrivateRepo.js";
 import { runElevated } from "../lib/elevatedCommand.js";
 import { gitRequired } from "../lib/git.js";
@@ -66,7 +65,6 @@ const INIT_STEP_TIMEOUT_SECONDS = {
   hooks: 2 * 60,
   doctorTimer: 60,
   agents: 2 * 60,
-  finalUpdate: 15 * 60,
 } as const;
 
 /** Domain error for first-use init failures. */
@@ -306,8 +304,8 @@ function printInitHelp(): void {
   console.log(`Usage: dot init [options]
 
 Run the one-time first-use setup workflow for a fresh machine. Init prepares
-repos, stow links, mise tools, packages, machine hooks, and then finishes by running
-dot update. After init completes, use dot update for ongoing maintenance.
+repos, stow links, mise tools, packages, and machine hooks. After init
+completes, run dot doctor, then use dot update for ongoing maintenance.
 
 Options:
   --confirm                 Acknowledge non-interactive package helpers
@@ -433,7 +431,7 @@ function ensureInitHyprHostLink(
     const hostDir = join(hyprRepoPath(config), "hosts", host);
     if (!existsSync(hostDir)) {
       // Hypr config is now a stowed dotfiles package; the hosts directory and
-      // host link are created during the stow phase of the final update.
+      // host link are created during the install/stow phase.
       yield* log.info(
         `Hypr host config ${displayPath(hostDir)} not present yet; stow will create the host link`,
       );
@@ -834,15 +832,11 @@ export function init(rawArgs: readonly string[]) {
       syncAgentsStrict(),
     );
 
-    yield* log.section("Final Update");
-    yield* requiredInitStep(
-      "Final Update",
-      INIT_STEP_TIMEOUT_SECONDS.finalUpdate,
-      update(),
-    );
     yield* writeInitCompleteMarker(config, "init");
     yield* log.info(
       `Init complete: ${displayPath(initCompleteMarker(config))}`,
     );
+    yield* log.info("Next: run `dot doctor` to verify this setup");
+    yield* log.info("Future maintenance: run `dot update`");
   });
 }
