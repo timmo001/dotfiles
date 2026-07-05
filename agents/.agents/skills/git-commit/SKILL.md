@@ -26,8 +26,8 @@ staging, and message authoring around it.
 
 ## 2. Read the working tree
 
-- Use `dot git-context` for the state: branch, staged, unstaged, untracked.
-- Use `dot git-context --diff` when you need the content to write an accurate
+- Use `context git` for the state: branch, staged, unstaged, untracked.
+- Use `context git --diff` when you need the content to write an accurate
   subject. Do not reconstruct this with raw `git status`/`git diff`.
 
 ## 3. Decide the scope (confirm before staging)
@@ -54,7 +54,7 @@ staging, and message authoring around it.
 
 - Author in the maintainer's voice per the `writing-style` skill: imperative,
   verb-first, sentence case, no trailing full stop, no Conventional Commit
-  prefix, single line. Mirror recent `dot git-context` / `git log` subjects.
+  prefix, single line. Mirror recent `context git` / `git log` subjects.
 - The gateway enforces: single line, no em/en-dash (use a hyphen), no trailing
   full stop, no tabs/control characters. It warns over 60 characters and rejects
   over 120. Aim for roughly 60 or fewer.
@@ -70,7 +70,7 @@ dot git-commit -m "<subject>" --dry-run       # preview, change nothing
 ```
 
 - Skip `--dry-run` when you already know what is staged and are safe to commit;
-  `dot git-context` (step 2) is the check for that, and the preview adds little
+  `context git` (step 2) is the check for that, and the preview adds little
   beyond it. Reserve `--dry-run` for when you are genuinely unsure what is staged.
 - Use `--amend` only to fix up the previous commit the user just made, and only
   when they ask for an amend. Without `--message` it keeps HEAD's message; pass

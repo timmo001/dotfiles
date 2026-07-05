@@ -6,17 +6,46 @@ sidebar:
   order: 1
 ---
 
-import LinkCardGrid from '../../../components/LinkCardGrid.astro';
+import LinkCardGrid from "../../../components/LinkCardGrid.astro";
 
 export const cards = [
-  { title: 'Command Reference', href: '/dot/commands/', description: 'Every command, alias, flag, and example, generated from the CLI registry.' },
-  { title: 'Stow Workflow', href: '/dot/stow/', description: 'How packages are stowed into your home directory.' },
-  { title: 'Shell Setup', href: '/dot/shell/', description: 'Zsh completions, editing keys, aliases, and small shell helpers.' },
-  { title: 'System Utilities', href: '/dot/utilities/', description: 'Health checks, benchmarks, and optional timers.' },
-  { title: 'Notes & Handoffs', href: '/dot/notes/', description: 'The repository notes browser and handoff workflow.' },
-  { title: 'Stack Context', href: '/dot/stack-context/', description: 'Deterministic tech-stack detection for agent context.' },
-  { title: 'MCP Server', href: '/dot/mcp/', description: 'Run dot as a Model Context Protocol server over stdio.' },
-  { title: 'Cleanup', href: '/cleanup/', description: 'Remove stowed links and reverse setup side effects.' },
+  {
+    title: "Command Reference",
+    href: "/dot/commands/",
+    description:
+      "Every command, alias, flag, and example, generated from the CLI registry.",
+  },
+  {
+    title: "Stow Workflow",
+    href: "/dot/stow/",
+    description: "How packages are stowed into your home directory.",
+  },
+  {
+    title: "Shell Setup",
+    href: "/dot/shell/",
+    description:
+      "Zsh completions, editing keys, aliases, and small shell helpers.",
+  },
+  {
+    title: "System Utilities",
+    href: "/dot/utilities/",
+    description: "Health checks, benchmarks, and optional timers.",
+  },
+  {
+    title: "Notes & Handoffs",
+    href: "/dot/notes/",
+    description: "The repository notes browser and handoff workflow.",
+  },
+  {
+    title: "MCP Server",
+    href: "/dot/mcp/",
+    description: "Run dot as a Model Context Protocol server over stdio.",
+  },
+  {
+    title: "Cleanup",
+    href: "/cleanup/",
+    description: "Remove stowed links and reverse setup side effects.",
+  },
 ];
 
 `dot` is the single binary that manages these dotfiles. It is compiled from `dot/` in the repo ([Bun](https://bun.sh) + [Effect](https://effect.website) v4 + [OpenTUI](https://github.com/anomalyco/opentui)) to a single executable, stowed to `~/.local/bin/dot`.
@@ -30,18 +59,18 @@ It has two faces:
 
 ## Common commands
 
-| Command | What it does |
-| --- | --- |
-| `dot dashboard` | Open the dot dashboard. |
-| `dot init` | One-time first-use setup for a fresh machine. |
-| `dot update` | Self-update, install deps, rebuild, pull, stow, restart. |
-| `dot stow` | Stow refresh only (no git pull). |
-| `dot doctor` | Run dotfiles system health checks. |
-| `dot git-diff` | Diff / repo watcher view across managed repos. |
-| `dot git-context` | Branch context for the current repo (agent context). |
-| `dot stack-context` | Tech-stack context for a directory (agent context). |
-| `dot git-commit` | Guarded commit gateway for scoped, styled commits. |
-| `dot omarchy` | Open the Omarchy desktop controls menu. |
+| Command          | What it does                                                                                             |
+| ---------------- | -------------------------------------------------------------------------------------------------------- |
+| `dot dashboard`  | Open the dot dashboard.                                                                                  |
+| `dot init`       | One-time first-use setup for a fresh machine.                                                            |
+| `dot update`     | Self-update, install deps, rebuild, pull, stow, restart.                                                 |
+| `dot stow`       | Stow refresh only (no git pull).                                                                         |
+| `dot doctor`     | Run dotfiles system health checks.                                                                       |
+| `dot git-diff`   | Diff / repo watcher view across managed repos.                                                           |
+| `context git`    | Branch context for the current repo (agent context), provided by [`context`](https://context.timmo.dev). |
+| `context stack`  | Tech-stack context for a directory (agent context), provided by [`context`](https://context.timmo.dev).  |
+| `dot git-commit` | Guarded commit gateway for scoped, styled commits.                                                       |
+| `dot omarchy`    | Open the Omarchy desktop controls menu.                                                                  |
 
 See the full [Command Reference](/dot/commands/) for every subcommand and flag.
 
@@ -63,34 +92,34 @@ The final resume refresh is also bounded, because it only needs to trigger statu
 
 Cards are grouped into four sections:
 
-| Section | Cards | Source |
-| --- | --- | --- |
-| Overview | Events in the next hour (when configured), Updates, Live Channels | Private `calendar`/`twitch` sources; in-process repo diff state |
-| Git | Git Diff, Git Notifications | In-process `DotDiff`, notification inbox, and workflow-run services |
-| Todos | My Tasks, Work Tasks | Private `todo_*` sources |
-| Environment | Temperature, CO2, VOC | Private `temperature`/`co2`/`voc` sources |
+| Section     | Cards                                                             | Source                                                              |
+| ----------- | ----------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Overview    | Events in the next hour (when configured), Updates, Live Channels | Private `calendar`/`twitch` sources; in-process repo diff state     |
+| Git         | Git Diff, Git Notifications                                       | In-process `DotDiff`, notification inbox, and workflow-run services |
+| Todos       | My Tasks, Work Tasks                                              | Private `todo_*` sources                                            |
+| Environment | Temperature, CO2, VOC                                             | Private `temperature`/`co2`/`voc` sources                           |
 
 The summary header at the top highlights attention signals (dirty worktrees, behind core repos, important notifications, workflow failures, environment warnings).
 
 ### Keyboard
 
-| Key | Action |
-| --- | --- |
-| Arrow keys / Tab | Move between cards |
-| Enter | Open the linked view or run the card action |
-| `r` | Refresh all dashboard sources |
-| Esc / Backspace | Return to the main menu |
+| Key              | Action                                      |
+| ---------------- | ------------------------------------------- |
+| Arrow keys / Tab | Move between cards                          |
+| Enter            | Open the linked view or run the card action |
+| `r`              | Refresh all dashboard sources               |
+| Esc / Backspace  | Return to the main menu                     |
 
 ### Enter actions
 
-| Card | Enter behaviour |
-| --- | --- |
-| Updates | Runs `dot update` when core repos are behind (exits the dashboard) |
-| Git Diff | Opens the `dot git-diff` TUI |
+| Card              | Enter behaviour                                                          |
+| ----------------- | ------------------------------------------------------------------------ |
+| Updates           | Runs `dot update` when core repos are behind (exits the dashboard)       |
+| Git Diff          | Opens the `dot git-diff` TUI                                             |
 | Git Notifications | Opens the `dot git-notifications` TUI (includes workflow failure counts) |
-| Live Channels | Runs `twitch-menu channels` (suspends the dashboard) |
-| Todo cards | Runs the configured Home Assistant todo TUI (suspends) |
-| Environment cards | Runs `open_command` from `dot-dashboard.yml` when set (silent) |
+| Live Channels     | Runs `twitch-menu channels` (suspends the dashboard)                     |
+| Todo cards        | Runs the configured Home Assistant todo TUI (suspends)                   |
+| Environment cards | Runs `open_command` from `dot-dashboard.yml` when set (silent)           |
 
 Optional source cards read from `dot-dashboard.yml` in the private overlay. Each source runs a one-shot `--bar-json` command on refresh (eight-second timeout, 60-second auto-refresh). Without that file, git and update cards still work from in-process services. See [Private Dashboard Config](/configuration/private-dashboard/) for the schema and supported source IDs.
 

@@ -2,25 +2,14 @@
  * @file MCP context resources.
  *
  * Registers read-only resources on the MCP server: the current repository's
- * repo-note context block (`dot://notes/context`), its branch context
- * (`dot://git-context`), its stack context (`dot://stack-context`), and
- * per-command help (`dot://command/{name}`). Each reuses the same in-process
- * services as the context tools, so a client can pull this context in as an
- * attachment without an explicit tool call. Content effects re-run on every
- * read, so resources reflect the current state.
+ * repo-note context block (`dot://notes/context`) and per-command help
+ * (`dot://command/{name}`). Generic git and stack context resources live in
+ * the standalone `context mcp` server.
  */
 import { Effect, Schema } from "effect";
 import { McpSchema, McpServer } from "effect/unstable/ai";
 import { renderHelp } from "../../cli/help.js";
 import { nativeCommandNames } from "../../cli/spec.js";
-import {
-  gitContextOptions,
-  gitContextText,
-} from "../../git/commands/Context.js";
-import {
-  stackContextOptions,
-  stackContextText,
-} from "../../stack/commands/Context.js";
 import { Notes } from "../../notes/services/Notes.js";
 
 /** Named template parameter for the per-command help resource. */
@@ -34,10 +23,7 @@ const commandParam = McpSchema.param("name", Schema.String);
 const CONTEXT_COMMAND = "notes-list";
 
 /**
- * Register the read-only context resources on the current
- * {@link McpServer}. Requires {@link Notes} and `CommandExecutor`, provided by
- * the CLI layer stack when launched; both are supplied to the content effects
- * from the ambient context on each read.
+ * Register dot-owned read-only resources on the current {@link McpServer}.
  */
 export const registerContextResources = Effect.gen(function* () {
   yield* McpServer.registerResource({
@@ -52,28 +38,10 @@ export const registerContextResources = Effect.gen(function* () {
     }),
   });
 
-  yield* McpServer.registerResource({
-    uri: "dot://git-context",
-    name: "git context",
-    description:
-      "Concise branch context for the current repository: repository/branch/base header, ahead/behind state, PR summary for a feature branch, unstaged, staged, untracked, branch changed files, and default recent commits capped to the 10-20 window with push markers.",
-    mimeType: "text/plain",
-    content: gitContextText(gitContextOptions({})),
-  });
-
-  yield* McpServer.registerResource({
-    uri: "dot://stack-context",
-    name: "stack context",
-    description:
-      "Deterministic tech-stack summary for the current directory: detected languages with their general locations, package ecosystems from manifests, tooling from lockfiles/configs/dependencies, and frameworks from declared dependencies. No LLM and no external tools.",
-    mimeType: "text/plain",
-    content: stackContextText(stackContextOptions({})),
-  });
-
   yield* McpServer.registerResource`dot://command/${commandParam}`({
     name: "dot command help",
     description:
-      "Help text for a single dot command, e.g. dot://command/git-context.",
+      "Help text for a single dot command, e.g. dot://command/notes.",
     mimeType: "text/plain",
     completion: {
       name: (input) =>

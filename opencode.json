@@ -17,6 +17,10 @@
       "repository": "timmo001/chromium-relaunch-as-app",
       "description": "Use for the Chromium relaunch-as-app extension behind the omarchy-launch-webapp binds"
     },
+    "context": {
+      "repository": "timmo001/context",
+      "description": "Use for the standalone context CLI and MCP server extracted from dot git-context and stack-context"
+    },
     "effect": {
       "repository": "Effect-TS/effect",
       "description": "Use for Effect v4 APIs when working in dot/"

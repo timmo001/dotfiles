@@ -10,7 +10,7 @@ Treat `${ARGUMENTS}` as an optional focus (subsystem, path, or topic) and/or a `
 
 Bind the skill's steps to these tools:
 
-- **Scope:** run `dot git-context` for the recent-change map (commits and their changed files). Pass `--since <date>` to widen the window past the default, and add `--diff` or `--branch-diff` when you need the actual change contents. Do not rebuild this with separate `git status` or `git log` calls.
+- **Scope:** run `context git` for the recent-change map (commits and their changed files). Pass `--since <date>` to widen the window past the default, and add `--diff` or `--branch-diff` when you need the actual change contents. Do not rebuild this with separate `git status` or `git log` calls.
 - **Investigate:** delegate deep-dives with the `task` tool, in parallel where areas are independent. Choose from the available subagents by their descriptions: local code and subsystem exploration, broad read-only upstream dependency/source/docs reconnaissance, or cited external primary-source verification. Synthesise their findings yourself.
 - **External access:** the MCP tools this workflow needs must be available; if any are missing, stop. Decide access to external docs from the environment's advertised scope - the `<env>` workspace root and any `<available_references>` directories, with `opencode.json` permissions as one indicator, not a prerequisite. If an external docs location is outside that scope, halt and ask the user to widen scope (open a session in the parent directory, or add the reference) or grant access.
 - **Verify:** use the repo's own tasks (for example its mise, package, or make targets) for the full lint, type check, docs build, and link validation, and regenerate any generated docs.

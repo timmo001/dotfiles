@@ -5,7 +5,9 @@ sidebar:
   order: 8
 ---
 
-`dot mcp` starts a [Model Context Protocol](https://modelcontextprotocol.io) server over stdio. It exposes the repository notes vault and read-only repository context to any MCP-capable agent harness through the same `dot` binary, so every tool talks to one implementation.
+`dot mcp` starts a [Model Context Protocol](https://modelcontextprotocol.io) server over stdio. It exposes the repository notes vault to any MCP-capable agent harness through the same `dot` binary, so note tools talk to one implementation.
+
+Generic git and stack context tools live in the standalone [`context`](https://context.timmo.dev) MCP server (`context mcp`).
 
 The server is launched by an MCP client, not run interactively. It speaks JSON-RPC on stdout and sends all logging to stderr, so stdout stays protocol-clean.
 
@@ -15,113 +17,70 @@ Agent harnesses that load this server under the name `dot` expose tools with a `
 
 ### Notes tools
 
-| Tool | Description |
-| --- | --- |
-| `note_read` | Read a note file from the vault. |
-| `note_list` | List notes for the current repository (optionally filtered by tag, or across all repositories). |
-| `note_write` | Write a note file, then commit and best-effort push it. Sets or refreshes the frontmatter `date:` to the current local timestamp automatically. |
-| `note_delete` | Delete a note file, then commit and best-effort push it. |
+| Tool          | Description                                                                                                                                     |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `note_read`   | Read a note file from the vault.                                                                                                                |
+| `note_list`   | List notes for the current repository (optionally filtered by tag, or across all repositories).                                                 |
+| `note_write`  | Write a note file, then commit and best-effort push it. Sets or refreshes the frontmatter `date:` to the current local timestamp automatically. |
+| `note_delete` | Delete a note file, then commit and best-effort push it.                                                                                        |
 
 The tools call `dot`'s in-process notes service directly, so they behave like `dot note` and `dot notes` on the command line. Read and list are annotated read-only; write and delete are annotated destructive.
 
 #### `note_read` parameters
 
-| Parameter | Required | Purpose |
-| --- | --- | --- |
-| `path` | yes | Absolute path to the note file in the vault (for example `/home/user/Documents/notes/repo-notes/owner/repo/slug.md`). |
+| Parameter | Required | Purpose                                                                                                               |
+| --------- | -------- | --------------------------------------------------------------------------------------------------------------------- |
+| `path`    | yes      | Absolute path to the note file in the vault (for example `/home/user/Documents/notes/repo-notes/owner/repo/slug.md`). |
 
 Returns the raw markdown body. This is the only permitted way to read vault files when the `notes-guard` plugin is active.
 
 #### `note_list` parameters
 
-| Parameter | Default | Purpose |
-| --- | --- | --- |
-| `tag` | — | Optional tag filter (for example `handoff`). Case-insensitive. |
-| `all` | `false` | List notes from every `repo-notes` directory instead of the current repository only. |
+| Parameter | Default | Purpose                                                                              |
+| --------- | ------- | ------------------------------------------------------------------------------------ |
+| `tag`     | —       | Optional tag filter (for example `handoff`). Case-insensitive.                       |
+| `all`     | `false` | List notes from every `repo-notes` directory instead of the current repository only. |
 
 Returns JSON. For the current repo, the payload is a flat array of entries with `filename`, `filePath`, `name`, `description`, `tags`, `priority`, and `mtime`. With `all: true`, the payload is grouped into sections (`repoSlug`, `notesPath`, `entries`).
 
 #### `note_write` parameters
 
-| Parameter | Required | Purpose |
-| --- | --- | --- |
-| `path` | yes | Absolute path to the note file to create or overwrite. |
-| `content` | yes | Full file content, including frontmatter and body. |
+| Parameter | Required | Purpose                                                |
+| --------- | -------- | ------------------------------------------------------ |
+| `path`    | yes      | Absolute path to the note file to create or overwrite. |
+| `content` | yes      | Full file content, including frontmatter and body.     |
 
 Commits the vault after writing and best-effort pushes when a remote is configured. Refreshes the frontmatter `date:` to the current local timestamp automatically. Output includes the commit result and, when applicable, the push outcome.
 
 #### `note_delete` parameters
 
-| Parameter | Required | Purpose |
-| --- | --- | --- |
-| `path` | yes | Absolute path to the note file to delete. |
+| Parameter | Required | Purpose                                   |
+| --------- | -------- | ----------------------------------------- |
+| `path`    | yes      | Absolute path to the note file to delete. |
 
 Commits and best-effort pushes the deletion. Deletion is irreversible; agents should confirm with the user before calling this tool.
 
 ### Context tools
 
-| Tool | Description |
-| --- | --- |
-| `git_context` | Branch context for the current repository: repository/branch/base header, ahead/behind state, the pull request summary for a feature branch, unstaged files, staged files, untracked files, branch changed files, and recent commits, with optional remote URLs (`remotes`), PR comments (`comments`), reviews (`reviews`), labels (`labels`), CI checks (`checks`), working-tree diffs (`diff`), or the merge-base diff against the default branch (`branchDiff`). |
-| `stack_context` | Deterministic tech-stack summary for a directory: detected languages with their general locations, package ecosystems (from manifests), and frameworks (from declared dependencies). Optional `dir` scopes the scan. No LLM and no external tools. |
-| `command_help` | `dot` CLI help. Omit `name` for the full overview, or pass a subcommand (e.g. `git-context`) to scope it. |
-| `opencode_debug` | Combined output of the OpenCode debug commands (`paths`, `config`, `skill`, `info`), optionally also inspecting a named `agent`. |
+Context tools moved to [`context mcp`](https://context.timmo.dev/mcp/):
 
-These are all read-only. `git_context` reuses the same text output as `dot git-context`, `stack_context` reuses `dot stack-context`, `command_help` reuses `dot help`, and `opencode_debug` runs the `opencode debug` subcommands and returns their captured output as one text block.
+- `git_context`
+- `stack_context`
+- `command_help`
+- `opencode_debug`
 
-#### `git_context` parameters
-
-Boolean parameters mirror `dot git-context` flags. All are optional; omitted fields use the CLI defaults (PR summary and description on for feature branches; comments, reviews, labels, checks, remotes, and full diffs off).
-
-| Parameter | Default | CLI equivalent |
-| --- | --- | --- |
-| `diff` | `false` | `--diff` |
-| `branchDiff` | `false` | `--branch-diff` |
-| `comments` | `false` | `--comments` |
-| `reviews` | `false` | `--reviews` |
-| `labels` | `false` | `--labels` |
-| `checks` | `false` | `--checks` |
-| `description` | `true` | omit `--no-description` |
-| `pullRequest` | `true` | omit `--no-pr` |
-| `remotes` | `false` | `--remotes` |
-| `since` | — | `--since <date>` (ISO 8601 or git-relative date) |
-
-See [Context, Diff & Log](/git/context/) for output sections, the OpenCode branch-context plugin, and the `--json` payload shape.
-
-#### `stack_context` parameters
-
-| Parameter | Default | Purpose |
-| --- | --- | --- |
-| `dir` | — | Directory to scan. Omit to scan the server's current working directory. |
-
-See [Stack Context](/dot/stack-context/) for the detection method, output sections, and the OpenCode stack-context plugin.
-
-#### `command_help` parameters
-
-| Parameter | Default | Purpose |
-| --- | --- | --- |
-| `name` | — | Optional subcommand to scope help to (for example `git-context`). Omit for the full `dot` command overview. |
-
-#### `opencode_debug` parameters
-
-| Parameter | Default | Purpose |
-| --- | --- | --- |
-| `agent` | — | Optional agent name. When set, also runs `opencode debug agent <name>` and appends that section to the combined output. |
-
-When `opencode` is not on `PATH`, the tool returns a single-line error instead of failing the MCP session. Individual debug subcommands that exit non-zero are rendered as `[error] exit <code>` lines inside their section rather than aborting the whole tool.
+Keep the `dot` MCP server for notes and load the `context` MCP server alongside it when an agent harness needs repository context tools.
 
 ## Resources
 
 The server also exposes read-only [resources](https://modelcontextprotocol.io/specification/latest/server/resources) a client can pull in as context. Resource support varies by harness, so they are a progressive enhancement on top of the tools.
 
-| Resource | Description |
-| --- | --- |
-| `dot://notes/context` | The current repository's OpenCode repo-note context block: identity, notes path, and recent notes. |
-| `dot://git-context` | Concise branch context for the current repository. |
-| `dot://stack-context` | Deterministic tech-stack summary for the current directory. |
-| `dot://command/{name}` | Help text for a single dot command (template). `{name}` completes from the known commands, e.g. `dot://command/git-context`. |
+| Resource               | Description                                                                                        |
+| ---------------------- | -------------------------------------------------------------------------------------------------- |
+| `dot://notes/context`  | The current repository's OpenCode repo-note context block: identity, notes path, and recent notes. |
+| `dot://command/{name}` | Help text for a single dot command (template).                                                     |
 
-Each resource re-runs on every read, so it reflects the current state. `dot://git-context` mirrors the `git_context` tool with default parameters (no PR detail flags, no diffs), `dot://stack-context` mirrors the `stack_context` tool for the current directory, and `dot://command/{name}` mirrors `command_help`; the resource forms let a client attach them as context without an explicit tool call. Use the `git_context` tool when you need opt-in PR sections or full diffs.
+Each resource re-runs on every read, so it reflects the current state. Use `context://git`, `context://stack`, and `context://command/{name}` from the standalone context MCP server for generic repository context resources.
 
 ## Notifications
 

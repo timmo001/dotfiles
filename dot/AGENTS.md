@@ -71,18 +71,11 @@ src/
   git/
     commands/
       Commit.ts           — dot git-commit (guarded gateway: message validation, --path, --push, --dry-run)
-      Context.ts          — dot git-context entrypoints (text/json/raw over the shared producer)
       Diff.ts             — dot git-diff (--bar-json, --list-changed, --list-all, --raw)
       Log.ts              — dot git-log (--raw)
       Notifications.ts    — dot git-notifications (--bar-json, --list-threads, actions, --raw)
       Workflows.ts        — dot git-workflows (--since, --bar-json, --list-repos, --list-runs, --raw)
-    context/              — Shared branch-context producer (git-context + branch-context plugin)
-      model.ts            — BranchContextData/Options types and section/char-limit constants
-      pullRequest.ts      — gh pr view/checks collection into structured PR data
-      build.ts            — buildBranchContext: single git/gh snapshot per options
-      renderText.ts       — git-context text renderer
-      renderJson.ts       — git-context --json payload renderer (plugin format)
-    remotes.ts            — Shared default-remote/branch resolver (git-context + git-commit)
+    remotes.ts            — Shared default-remote/branch resolver for git helpers
     doctor/
       gitConfig.ts        — managed Git config doctor check
       originHead.ts       — stale local origin/HEAD doctor check (default-branch ref freshness)
@@ -223,14 +216,7 @@ dot git-diff --list-changed   # Changed repo rows
 dot git-diff --list-all       # All repo rows
 dot git-log                   # Recent commits view (TUI)
 dot git-log --raw             # CLI recent commit output (20 commits per repo)
-dot git-context               # Branch context: repo/branch/PR summary, ahead/behind, unstaged, staged, untracked, branch files, today's commits capped at 20 or last 10 (timestamp, push status, files, line counts)
-dot git-context --since "2 days ago" # Branch context with recent commits since a date
-dot git-context --comments --reviews # Include PR conversation comments and individual reviews
-dot git-context --labels --checks # Include PR labels and CI check runs (extra gh call)
-dot git-context --remotes     # Include remote fetch/push URLs
-dot git-context --diff        # Branch context plus full unstaged and staged diffs
-dot git-context --branch-diff # Branch context plus full merge-base diff vs the default branch (errors on the default branch)
-dot git-context --json        # Structured branch-context payload (OpenCode branch-context plugin format)
+context git                   # Branch context: repo/branch/PR summary, ahead/behind, unstaged, staged, untracked, branch files, recent commits, and optional JSON/MCP output
 dot git-commit -m "msg"       # Guarded commit gateway: validates a single-line subject, commits the staged set
 dot git-commit -m "msg" --path src/x.ts # Commit only the named file(s) (repeatable), never git add -A
 dot git-commit --amend                # Amend the previous commit, keeping its message (folds in staged changes)
@@ -350,10 +336,6 @@ dot git-diff --raw           # smoke test: CLI diff output
 dot git-diff --bar-json      # smoke test: JSON output
 dot git-log                  # smoke test: git log view renders
 dot git-log --raw            # smoke test: CLI git log output
-dot git-context              # smoke test: branch context output
-dot git-context --diff       # smoke test: branch context with working-tree diffs
-dot git-context --branch-diff # smoke test: branch context with default-branch diff (errors on the default branch)
-dot git-context --json       # smoke test: structured branch-context JSON payload
 dot git-commit --help        # smoke test: gateway help prints without side effects
 dot git-commit --dry-run -m "Test subject" # smoke test: dry-run plan, no commit
 dot git-commit --amend --dry-run # smoke test: amend plan (keep message), no commit

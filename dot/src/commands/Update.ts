@@ -511,7 +511,7 @@ export const update = (opts?: UpdateOptions) =>
           // Race the best-effort branch refresh against the pull: whichever finishes
           // first, the update continues. `git remote set-head --auto` re-points each
           // repo's local <remote>/HEAD at the remote default branch (so a rename does
-          // not mislead default-branch detection in dot git-context, dot git-log, and
+          // not mislead default-branch detection in context git, dot git-log, and
           // the branch-context plugin), but it hits the network per repo and can hang
           // on a slow remote. Rather than block on it, we fork it into this scope and
           // let the pull below be the spine: when the pull finishes the scope closes

@@ -6,7 +6,7 @@ sidebar:
   order: 1
 ---
 
-import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+import { CardGrid, LinkCard } from "@astrojs/starlight/components";
 
 The repo ships a shared [OpenCode](https://opencode.ai) configuration: agents, slash commands, skills, and lifecycle plugins. The source lives in `agents/.config/opencode/` (agents, commands, plugins) and `agents/.agents/skills/` (skills shared by OpenCode and Codex via `~/.agents/skills/`).
 
@@ -17,20 +17,44 @@ Unlike the rest of these (personal) dotfiles, the OpenCode config is built to be
 :::
 
 <CardGrid>
-  <LinkCard title="Agents" href="/reference/agents/" description="Execution posture: permissions, tools, and delegation." />
-  <LinkCard title="Commands" href="/reference/commands/" description="Slash commands that route to agents and skills." />
-  <LinkCard title="Skills" href="/reference/skills/" description="Reusable workflows and behavioural contracts." />
-  <LinkCard title="Plugins" href="/reference/plugins/" description="Context, evidence, and enforcement hooks." />
-  <LinkCard title="MCP Servers" href="/opencode/mcp/" description="Model Context Protocol servers wired into the config." />
-  <LinkCard title="Agents / LLMs" href="/agents-llms/" description="llms.txt bundles for loading these docs into AI-assisted sessions." />
+  <LinkCard
+    title="Agents"
+    href="/reference/agents/"
+    description="Execution posture: permissions, tools, and delegation."
+  />
+  <LinkCard
+    title="Commands"
+    href="/reference/commands/"
+    description="Slash commands that route to agents and skills."
+  />
+  <LinkCard
+    title="Skills"
+    href="/reference/skills/"
+    description="Reusable workflows and behavioural contracts."
+  />
+  <LinkCard
+    title="Plugins"
+    href="/reference/plugins/"
+    description="Context, evidence, and enforcement hooks."
+  />
+  <LinkCard
+    title="MCP Servers"
+    href="/opencode/mcp/"
+    description="Model Context Protocol servers wired into the config."
+  />
+  <LinkCard
+    title="Agents / LLMs"
+    href="/agents-llms/"
+    description="llms.txt bundles for loading these docs into AI-assisted sessions."
+  />
 </CardGrid>
 
 ## How it fits together
 
 - **Graduated agent permissions** — agents range from fully read-only (`reviewer`, `ask`) through ask-gated (`build-ask`) to edit-capable (`refactorer`, `build-locked`). A guard plugin stops read-only agents from escalating via subagent delegation and annotates rewritten delegations so the agent can see when `general` became `general-readonly`.
 - **Skill-based routing** — commands are thin wrappers that name an agent, declare required skills, and state whether branch context is needed. The workflow logic lives in skills and plugins.
-- **Branch context injection** — the `branch-context` plugin pre-computes git/PR state once per command and injects it as structured XML, so commands do not run their own `git`/`gh` calls. See [Context, Diff & Log](/git/context/) for the shared `dot git-context` producer, injection tiers, and JSON payload.
-- **Codebase stack injection** — the `stack-context` plugin injects a deterministic tech-stack summary (languages, ecosystems, and frameworks with their general locations) computed by `dot stack-context`, so agents start with reliable, non-hallucinated stack context instead of guessing or re-scanning. It injects automatically on the first message of a session inside a git repository, and on demand via `/inject-stack` or (alongside branch context) `/inject-context`. See [Stack Context](/dot/stack-context/).
+- **Branch context injection** — the `branch-context` plugin pre-computes git/PR state once per command and injects it as structured XML, so commands do not run their own `git`/`gh` calls. It consumes the standalone [`context`](https://context.timmo.dev) CLI (`context git --json`) and keeps the plugin-specific injection rules here.
+- **Codebase stack injection** — the `stack-context` plugin injects a deterministic tech-stack summary (languages, ecosystems, and frameworks with their general locations) computed by [`context stack --json`](https://context.timmo.dev/context/stack/), so agents start with reliable, non-hallucinated stack context instead of guessing or re-scanning. It injects automatically on the first message of a session inside a git repository, and on demand via `/inject-stack` or (alongside branch context) `/inject-context`.
 - **Secret protection** — the `env-protection` plugin blocks reads of `.env` files (except `.env.example`).
 - **Background dev servers** — starting a long-running dev server follows a precedence: the project's own `AGENTS.md` workflow first, then framework-native background mode (Astro 7+ self-detaches `astro dev` under an agent), then pitchfork as the fallback. The `pitchfork-dev-server-guard` plugin covers only the pitchfork tier, redirecting foreground dev commands to `serve:*` or `pitchfork start` when a project declares `pitchfork.toml`, and it leaves `astro dev` to Astro's native mode.
 

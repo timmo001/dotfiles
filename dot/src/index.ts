@@ -55,16 +55,6 @@ import {
   diffRaw,
 } from "./git/commands/Diff.js";
 import { gitLogRaw } from "./git/commands/Log.js";
-import {
-  gitContextOptions,
-  gitContextRaw,
-  gitContextRawJson,
-} from "./git/commands/Context.js";
-import {
-  stackContextOptions,
-  stackContextRaw,
-  stackContextRawJson,
-} from "./stack/commands/Context.js";
 import { gitCommitRaw } from "./git/commands/Commit.js";
 import {
   workflowsListRepos,
@@ -143,7 +133,7 @@ const NOTIFICATION_ACTION_FLAGS: readonly {
  */
 const TUI_ALTERNATIVES: Partial<Record<ViewId, string>> = {
   main: "dot help",
-  dashboard: "dot git-context",
+  dashboard: "context git",
   "git-diff": "dot git-diff --raw",
   "git-log": "dot git-log --raw",
   "git-workflows": "dot git-workflows --raw",
@@ -625,34 +615,6 @@ if (mode.type === "native" && mode.command === "mcp") {
         }),
       clean: () => clean,
       "git-log": () => gitLogRaw,
-      "git-context": (args) => {
-        const options = gitContextOptions({
-          diff: args.includes("--diff"),
-          branchDiff: args.includes("--branch-diff"),
-          since: flags.since,
-          description: !args.includes("--no-description"),
-          labels: args.includes("--labels"),
-          comments: args.includes("--comments"),
-          reviews: args.includes("--reviews"),
-          checks: args.includes("--checks"),
-          pullRequest: !args.includes("--no-pr"),
-          branchMetadata: !args.includes("--no-branch-metadata"),
-          remoteDetails: args.includes("--remotes"),
-          status: !args.includes("--no-status"),
-          workScope: !args.includes("--no-work-scope"),
-        });
-        return args.includes("--json")
-          ? gitContextRawJson(options)
-          : gitContextRaw(options);
-      },
-      "stack-context": (args) => {
-        const options = stackContextOptions({
-          root: args.find((arg) => !arg.startsWith("-")),
-        });
-        return args.includes("--json")
-          ? stackContextRawJson(options)
-          : stackContextRaw(options, args.includes("--plain"));
-      },
       "git-commit": (args) =>
         gitCommitRaw({
           message: optionValue(args, "--message") ?? optionValue(args, "-m"),
