@@ -26,7 +26,7 @@ export const checkStow = Effect.gen(function* () {
 
   const checkRepo = (repoDir: string, scope: string) =>
     Effect.gen(function* () {
-      const folders = listStowFolders(repoDir).sort();
+      const folders = listStowFolders(repoDir, config).sort();
 
       for (const folder of folders) {
         const extraArgs: string[] = [];

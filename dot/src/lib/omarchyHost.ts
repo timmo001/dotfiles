@@ -26,6 +26,25 @@ export function currentOmarchyHost(): string | null {
   return host ? host : null;
 }
 
+/** Return the active host selected by `~/.config/hypr/host`, if available. */
+export function currentHyprHostLink(config: ConfigService): string | null {
+  const hostLink = join(hyprRepoPath(config), "host");
+  try {
+    const stat = lstatSync(hostLink);
+    if (!stat.isSymbolicLink()) return null;
+    const target = resolveLinkTarget(hostLink, readlinkSync(hostLink));
+    const host = relative(join(hyprRepoPath(config), "hosts"), target);
+    return host && !host.startsWith("..") && !host.includes("/") ? host : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Resolve the active Omarchy host from the session env, then the Hypr host link. */
+export function resolvedOmarchyHost(config: ConfigService): string | null {
+  return currentOmarchyHost() ?? currentHyprHostLink(config);
+}
+
 /** Return the base Hypr repository path from the Omarchy repo config. */
 export function hyprRepoPath(config: ConfigService): string {
   return join(config.omarchy.repoBase, "hypr");

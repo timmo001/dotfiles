@@ -1,6 +1,7 @@
 import { readdirSync, statSync } from "fs";
 import { join } from "path";
-import { ENV, envString } from "./env.js";
+import { ConfigService } from "../services/Config.js";
+import { resolvedOmarchyHost } from "./omarchyHost.js";
 
 /** Top-level repo directories that are not active stow packages. */
 export const INTERNAL_STOW_FOLDERS = ["dot", "dot-migration", "docs"] as const;
@@ -73,8 +74,11 @@ export function requiresNoFolding(repoDir: string, folder: string): boolean {
  * Filters out non-directory entries, dotfiles, internal folders, the backup
  * folder, and host-specific packages that don't match `OMARCHY_HOST`.
  */
-export function listStowFolders(repoDir: string): string[] {
-  const host = envString(ENV.OMARCHY_HOST) ?? "";
+export function listStowFolders(
+  repoDir: string,
+  config?: ConfigService,
+): string[] {
+  const host = config ? (resolvedOmarchyHost(config) ?? "") : "";
   const entries = readdirSync(repoDir);
 
   return entries.filter((entry) => {

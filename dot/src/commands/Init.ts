@@ -836,7 +836,10 @@ export function init(rawArgs: readonly string[]) {
     yield* log.info(
       `Init complete: ${displayPath(initCompleteMarker(config))}`,
     );
-    yield* log.info("Next: run `dot doctor` to verify this setup");
+    yield* log.info(
+      "Next: reboot so the Omarchy session picks up OMARCHY_HOST and stowed user services",
+    );
+    yield* log.info("After reboot: run `dot doctor` to verify this setup");
     yield* log.info("Future maintenance: run `dot update`");
   }).pipe(withSudoKeepAlive);
 }

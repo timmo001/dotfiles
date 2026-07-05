@@ -540,7 +540,6 @@ function withNativeCommandTimeout(
 
 /** Minimal layers for native CLI commands (no renderer, no TUI services) */
 const GitLogLayer = GitLog.layer.pipe(Layer.provideMerge(DotDiff.layer));
-const DashboardLayer = Dashboard.layer.pipe(Layer.provideMerge(DotDiff.layer));
 
 const CliLayers = Launcher.cliLayer.pipe(
   Layer.provideMerge(GitLogLayer),
@@ -722,12 +721,16 @@ if (mode.type === "native" && mode.command === "mcp") {
           ),
         );
 
-  Effect.runPromise(program).catch((err) => {
-    log(`Fatal error: ${err}`);
-    appendBootstrapLog(`\n[ERROR] ${formatUnknownError(err)}\n`);
-    console.error(err);
-    process.exit(1);
-  });
+  Effect.runPromise(program)
+    .then(() => {
+      process.exit(process.exitCode ?? 0);
+    })
+    .catch((err) => {
+      log(`Fatal error: ${err}`);
+      appendBootstrapLog(`\n[ERROR] ${formatUnknownError(err)}\n`);
+      console.error(err);
+      process.exit(1);
+    });
 } else {
   // TUI mode — dynamically import TUI dependencies to avoid loading the
   // OpenTUI native library on CLI-only paths (each dlopen copies ~8MB to /tmp).
@@ -935,6 +938,9 @@ if (mode.type === "native" && mode.command === "mcp") {
 
   // Resolve theme synchronously (uses readFileSync, no async deps)
   const theme = Effect.runSync(loadTheme);
+  const DashboardLayer = Dashboard.layer.pipe(
+    Layer.provideMerge(DotDiff.layer),
+  );
 
   const TuiLayers = RepoWatcher.layer.pipe(
     Layer.provideMerge(GitLogLayer),

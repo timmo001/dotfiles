@@ -16,6 +16,7 @@ import {
   restoreExternalSymlinks,
   type ExternalSymlink,
 } from "../lib/stowConflicts.js";
+import type { ConfigService } from "../services/Config.js";
 
 /** Extra stow flags for the agents folder (matches legacy behaviour) */
 const AGENTS_PRIVATE_IGNORES = [
@@ -60,7 +61,14 @@ export const install = Effect.gen(function* () {
 
   yield* log.section("Install Public Dotfiles");
   const beforeStow = yield* publicRepoStatus(config.publicDotfiles, launcher);
-  yield* stowRepo(config.publicDotfiles, "public", "install", launcher, log);
+  yield* stowRepo(
+    config.publicDotfiles,
+    "public",
+    "install",
+    launcher,
+    log,
+    config,
+  );
   yield* warnIfAdoptDirtiedRepo(
     config.publicDotfiles,
     beforeStow,
@@ -75,7 +83,14 @@ export const install = Effect.gen(function* () {
     const privateDotfiles = config.privateDotfiles;
     yield* log.section("Install Private Dotfiles");
     yield* Effect.sync(() => backupPrivateStowTargets(privateDotfiles));
-    yield* stowRepo(privateDotfiles, "private", "install", launcher, log);
+    yield* stowRepo(
+      privateDotfiles,
+      "private",
+      "install",
+      launcher,
+      log,
+      config,
+    );
   } else {
     yield* log.warn(
       "Skipping private install (private dotfiles not available)",
@@ -187,9 +202,10 @@ const stowRepo = (
     readonly info: (msg: string) => Effect.Effect<void>;
     readonly error: (msg: string) => Effect.Effect<void>;
   },
+  config: ConfigService,
 ) =>
   Effect.gen(function* () {
-    const folders = listStowFolders(repoDir).sort();
+    const folders = listStowFolders(repoDir, config).sort();
     const repoDisplayPath = displayPath(repoDir);
 
     for (const folder of folders) {

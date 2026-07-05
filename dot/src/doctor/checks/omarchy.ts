@@ -7,8 +7,8 @@ import { readGitBranch, readGitUpstream, upstreamBranch } from "../git.js";
 import { gitExitCode, gitOutput, isGitRepo } from "../../lib/git.js";
 import { displayPath } from "../../lib/paths.js";
 import {
-  currentOmarchyHost,
   hyprRepoPath,
+  resolvedOmarchyHost,
   resolveLinkTarget,
 } from "../../lib/omarchyHost.js";
 import type { ConfigService } from "../../services/Config.js";
@@ -149,7 +149,7 @@ function checkHyprHostLink(
 }
 
 function checkHyprHost(config: ConfigService): CheckResult[] {
-  const host = currentOmarchyHost();
+  const host = resolvedOmarchyHost(config);
   if (!host) {
     return [
       {

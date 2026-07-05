@@ -22,6 +22,7 @@ import {
   restoreExternalSymlinks,
   type ExternalSymlink,
 } from "../lib/stowConflicts.js";
+import type { ConfigService } from "../services/Config.js";
 
 /** Extra stow flags for the agents folder (matches legacy behaviour) */
 const AGENTS_PRIVATE_IGNORES = [
@@ -51,7 +52,7 @@ export const stow = (opts?: {
 
     if (runPublic) {
       yield* log.section("Stow Public Dotfiles");
-      yield* stowRepo(config.publicDotfiles, "public", launcher, log);
+      yield* stowRepo(config.publicDotfiles, "public", launcher, log, config);
 
       yield* log.section("Omarchy Host Links");
       yield* ensureHyprHostLink(config, log);
@@ -65,7 +66,7 @@ export const stow = (opts?: {
         const privateDotfiles = config.privateDotfiles;
         yield* log.section("Stow Private Dotfiles");
         yield* Effect.sync(() => backupPrivateStowTargets(privateDotfiles));
-        yield* stowRepo(privateDotfiles, "private", launcher, log);
+        yield* stowRepo(privateDotfiles, "private", launcher, log, config);
       } else {
         yield* log.warn(
           "Skipping private stow (private dotfiles not available)",
@@ -89,9 +90,10 @@ const stowRepo = (
     readonly warn: (msg: string) => Effect.Effect<void>;
     readonly error: (msg: string) => Effect.Effect<void>;
   },
+  config: ConfigService,
 ) =>
   Effect.gen(function* () {
-    const folders = listStowFolders(repoDir).sort();
+    const folders = listStowFolders(repoDir, config).sort();
     const repoDisplayPath = displayPath(repoDir);
 
     if (scope === "public") {

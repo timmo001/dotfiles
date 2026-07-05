@@ -6,9 +6,11 @@ import {
   type CommandExecutorService,
 } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
+import type { ConfigService } from "../../services/Config.js";
 import { GitHub } from "../../git/services/GitHub.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../../lib/paths.js";
 import { ENV, envString } from "../../lib/env.js";
+import { resolvedOmarchyHost } from "../../lib/omarchyHost.js";
 import type { CheckResult } from "../types.js";
 
 // Obsolete workflow notification units that should no longer be installed.
@@ -146,8 +148,8 @@ function parseWaybarIncludes(
     });
 }
 
-function activeWaybarConfigPath(): string {
-  const omarchyHost = envString(ENV.OMARCHY_HOST) ?? "";
+function activeWaybarConfigPath(config: ConfigService): string {
+  const omarchyHost = resolvedOmarchyHost(config) ?? "";
   const waybarConfigDir = join(CONFIG_DIR, "waybar");
   const hostConfig = omarchyHost
     ? join(waybarConfigDir, `config.${omarchyHost}.jsonc`)
@@ -359,7 +361,7 @@ export const checkWorkflowRuns = Effect.gen(function* () {
     "Update the Waybar style so the workflow icon hides when there are no recent runs needing attention",
   );
 
-  const waybarConfig = activeWaybarConfigPath();
+  const waybarConfig = activeWaybarConfigPath(config);
 
   if (existsSync(waybarConfig)) {
     results.push({
@@ -397,6 +399,7 @@ export const checkWorkflowRuns = Effect.gen(function* () {
 /** Check GitHub notifications API access and Waybar integration. */
 export const checkGitNotifications = Effect.gen(function* () {
   const github = yield* GitHub;
+  const config = yield* Config;
   const results: CheckResult[] = [];
 
   const hasGh = yield* github.isAvailable();
@@ -440,7 +443,7 @@ export const checkGitNotifications = Effect.gen(function* () {
     "Update the Waybar style so the notification icon hides when the inbox is clear",
   );
 
-  const waybarConfig = activeWaybarConfigPath();
+  const waybarConfig = activeWaybarConfigPath(config);
 
   if (existsSync(waybarConfig)) {
     results.push({
@@ -566,9 +569,10 @@ export const checkDoctorStartup = Effect.gen(function* () {
 
 /** Check daily volume reset timer (laptop-only, informational) */
 export const checkDailyVolumeReset = Effect.gen(function* () {
+  const config = yield* Config;
   const executor = yield* CommandExecutor;
   const results: CheckResult[] = [];
-  const host = envString(ENV.OMARCHY_HOST) ?? "unset";
+  const host = resolvedOmarchyHost(config) ?? "unset";
 
   const script = join(HOME_DIR, ".local", "bin", "daily-volume-zero");
   const systemdDir = join(CONFIG_DIR, "systemd", "user");

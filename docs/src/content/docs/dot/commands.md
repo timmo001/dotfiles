@@ -43,7 +43,8 @@ dot init [options]
 
 Run the one-time first-use setup workflow for a fresh machine. Init prepares
 repos, stow links, mise tools, packages, and machine hooks. After init
-completes, run dot doctor, then use dot update for ongoing maintenance.
+completes, reboot so the Omarchy session picks up host env, then run
+dot doctor. Use dot update for ongoing maintenance.
 
 **Options**
 
