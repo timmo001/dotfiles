@@ -1,4 +1,4 @@
-import { Duration, Effect, Option } from "effect";
+import { Effect, Option } from "effect";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { Config } from "../services/Config.js";
@@ -17,6 +17,7 @@ import {
   type SkillMeta,
   type CheckResult,
 } from "../lib/skillUpdates.js";
+import { withSpinnerTimeout } from "../lib/workflowStep.js";
 
 /** Mode of operation for the skill-updates command */
 type Mode = "check" | "update" | "interactive";
@@ -24,16 +25,6 @@ type Mode = "check" | "update" | "interactive";
 const SKILL_CHECK_TIMEOUT_SECONDS = 45;
 const SKILL_APPLY_TIMEOUT_SECONDS = 60;
 const SKILL_DIFF_TIMEOUT_SECONDS = 45;
-
-const skillCheckTimeout = Duration.seconds(SKILL_CHECK_TIMEOUT_SECONDS);
-const skillApplyTimeout = Duration.seconds(SKILL_APPLY_TIMEOUT_SECONDS);
-const skillDiffTimeout = Duration.seconds(SKILL_DIFF_TIMEOUT_SECONDS);
-
-const timeoutResult = <A, E, R>(
-  effect: Effect.Effect<A, E, R>,
-  duration: Duration.Duration,
-): Effect.Effect<Option.Option<A>, E, R> =>
-  effect.pipe(Effect.timeoutOption(duration));
 
 /** Collected review item for skills with local edits needing manual review */
 interface ReviewItem {
@@ -103,9 +94,10 @@ export const skillUpdates = (opts?: {
     const reviewItems: ReviewItem[] = [];
 
     for (const meta of skills) {
-      const checked = yield* log.withSpinner(
+      const checked = yield* withSpinnerTimeout(
         `Checking ${meta.name}`,
-        timeoutResult(checkSkill(meta), skillCheckTimeout),
+        SKILL_CHECK_TIMEOUT_SECONDS,
+        checkSkill(meta),
       );
       const result: CheckResult = yield* Option.match(checked, {
         onNone: () =>
@@ -164,12 +156,10 @@ export const skillUpdates = (opts?: {
           }
 
           // In update and interactive modes: auto-apply
-          const appliedResult = yield* log.withSpinner(
+          const appliedResult = yield* withSpinnerTimeout(
             `Applying ${meta.name}`,
-            timeoutResult(
-              applySkillUpdate(meta, result.writeSha),
-              skillApplyTimeout,
-            ),
+            SKILL_APPLY_TIMEOUT_SECONDS,
+            applySkillUpdate(meta, result.writeSha),
           );
           const applied = Option.getOrElse(appliedResult, () => false);
 
@@ -337,9 +327,10 @@ const opencodeReview = (
       yield* log.info(`Path:   ${meta.dir}`);
 
       // Build the diff report
-      const diffResult = yield* log.withSpinner(
+      const diffResult = yield* withSpinnerTimeout(
         `Building diff for ${meta.name}`,
-        timeoutResult(buildSingleDiff(meta), skillDiffTimeout),
+        SKILL_DIFF_TIMEOUT_SECONDS,
+        buildSingleDiff(meta),
       );
       const diffContent = Option.getOrElse(diffResult, () => "");
 

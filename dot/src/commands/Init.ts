@@ -26,6 +26,7 @@ import { ensureLocalesGenerated } from "../lib/localeSetup.js";
 import { configureFirewallRules } from "../lib/firewallSetup.js";
 import { installGhExtensions } from "../lib/ghExtensions.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
+import { withStepTimeout } from "../lib/workflowStep.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../lib/paths.js";
 import {
   currentOmarchyHost,
@@ -47,6 +48,26 @@ const DOCTOR_STARTUP_TIMER_UNIT = "dot-doctor-startup.timer";
 const DEFAULT_INIT_OMARCHY_HOST = "desktop";
 const INIT_OMARCHY_HOSTS = ["desktop", "laptop"] as const;
 const ETC_SHELLS = "/etc/shells";
+
+/** Upper bound (seconds) for each init phase. */
+const INIT_STEP_TIMEOUT_SECONDS = {
+  locale: 3 * 60,
+  omarchyRepos: 6 * 60,
+  hostLinks: 60,
+  install: 5 * 60,
+  mise: 10 * 60,
+  publicPackages: 30 * 60,
+  firewall: 3 * 60,
+  ghExtensions: 5 * 60,
+  loginShell: 2 * 60,
+  privatePackages: 30 * 60,
+  privateRepos: 10 * 60,
+  git: 2 * 60,
+  hooks: 2 * 60,
+  doctorTimer: 60,
+  agents: 2 * 60,
+  finalUpdate: 15 * 60,
+} as const;
 
 /** Domain error for first-use init failures. */
 class InitError extends Schema.TaggedErrorClass<InitError>()("InitError", {
@@ -108,6 +129,17 @@ const valueInitOptions = new Map<string, ValueInitOptionHandler>([
 
 function fail(message: string): Effect.Effect<never, InitError> {
   return Effect.fail(new InitError({ message }));
+}
+
+function requiredInitStep<E, R>(
+  label: string,
+  seconds: number,
+  step: Effect.Effect<void, E, R>,
+): Effect.Effect<void, E | InitError, R | OutputLog> {
+  return Effect.gen(function* () {
+    const completed = yield* withStepTimeout(label, seconds, step);
+    if (!completed) return yield* fail(`Init step timed out: ${label}`);
+  });
 }
 
 function symlinkTarget(path: string): string | null {
@@ -720,30 +752,94 @@ export function init(rawArgs: readonly string[]) {
     const options = yield* resolveInitOptions(parsed.options);
     yield* writeInitInProgressMarker(config, options);
 
-    yield* ensureLocalesGenerated;
-    yield* syncOmarchyRepos({
-      branch: options.branch,
-      bootstrapBranch: options.bootstrapBranch,
-    });
-    yield* ensureInitHyprHostLink(config, options);
-    yield* install;
-    yield* installMiseTools;
-    yield* installMissingArchPackages({
-      scope: "public",
-      confirm: options.confirm,
-    });
-    yield* configureFirewallRules;
-    yield* installGhExtensions;
-    yield* ensureLoginShellZsh();
-    yield* setupPrivatePackages(config, options);
-    yield* cloneMissingGitConfigRepos({ strict: true, captured: true });
-    yield* configureGitInclude(config);
-    yield* installPacmanHooks();
-    yield* enableDoctorStartupTimer();
-    yield* syncAgentsStrict();
+    yield* requiredInitStep(
+      "Locale",
+      INIT_STEP_TIMEOUT_SECONDS.locale,
+      ensureLocalesGenerated,
+    );
+    yield* requiredInitStep(
+      "Omarchy Repositories",
+      INIT_STEP_TIMEOUT_SECONDS.omarchyRepos,
+      syncOmarchyRepos({
+        branch: options.branch,
+        bootstrapBranch: options.bootstrapBranch,
+      }),
+    );
+    yield* requiredInitStep(
+      "Omarchy Host Links",
+      INIT_STEP_TIMEOUT_SECONDS.hostLinks,
+      ensureInitHyprHostLink(config, options),
+    );
+    yield* requiredInitStep(
+      "Install Dotfiles",
+      INIT_STEP_TIMEOUT_SECONDS.install,
+      install,
+    );
+    yield* requiredInitStep(
+      "Install Mise Tools",
+      INIT_STEP_TIMEOUT_SECONDS.mise,
+      installMiseTools,
+    );
+    yield* requiredInitStep(
+      "Install Public Packages",
+      INIT_STEP_TIMEOUT_SECONDS.publicPackages,
+      installMissingArchPackages({
+        scope: "public",
+        confirm: options.confirm,
+      }),
+    );
+    yield* requiredInitStep(
+      "Configure Firewall",
+      INIT_STEP_TIMEOUT_SECONDS.firewall,
+      configureFirewallRules,
+    );
+    yield* requiredInitStep(
+      "Install GitHub CLI Extensions",
+      INIT_STEP_TIMEOUT_SECONDS.ghExtensions,
+      installGhExtensions,
+    );
+    yield* requiredInitStep(
+      "Login Shell",
+      INIT_STEP_TIMEOUT_SECONDS.loginShell,
+      ensureLoginShellZsh(),
+    );
+    yield* requiredInitStep(
+      "Setup Private Packages",
+      INIT_STEP_TIMEOUT_SECONDS.privatePackages,
+      setupPrivatePackages(config, options),
+    );
+    yield* requiredInitStep(
+      "Clone Private Git Repositories",
+      INIT_STEP_TIMEOUT_SECONDS.privateRepos,
+      cloneMissingGitConfigRepos({ strict: true, captured: true }),
+    );
+    yield* requiredInitStep(
+      "Configure Git",
+      INIT_STEP_TIMEOUT_SECONDS.git,
+      configureGitInclude(config),
+    );
+    yield* requiredInitStep(
+      "Install Pacman Hooks",
+      INIT_STEP_TIMEOUT_SECONDS.hooks,
+      installPacmanHooks(),
+    );
+    yield* requiredInitStep(
+      "Enable Doctor Startup Timer",
+      INIT_STEP_TIMEOUT_SECONDS.doctorTimer,
+      enableDoctorStartupTimer(),
+    );
+    yield* requiredInitStep(
+      "Sync Agents",
+      INIT_STEP_TIMEOUT_SECONDS.agents,
+      syncAgentsStrict(),
+    );
 
     yield* log.section("Final Update");
-    yield* update();
+    yield* requiredInitStep(
+      "Final Update",
+      INIT_STEP_TIMEOUT_SECONDS.finalUpdate,
+      update(),
+    );
     yield* writeInitCompleteMarker(config, "init");
     yield* log.info(
       `Init complete: ${displayPath(initCompleteMarker(config))}`,

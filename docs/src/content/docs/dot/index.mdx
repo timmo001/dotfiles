@@ -42,9 +42,13 @@ It has two faces:
 
 See the full [Command Reference](/dot/commands/) for every subcommand and flag.
 
-## Update safeguards
+## Progress and timeouts
+
+Long-running CLI workflows use the same progress wrapper: an interactive spinner, elapsed duration logging, and a timeout that interrupts the running step. This covers first-use setup (`dot init`), updates, doctor checks, skill update checks/applies/diffs, stow/install/clean, private package publishing, and other bounded maintenance commands.
 
 `dot update` keeps each phase bounded so a slow remote, stuck hook, or helper process cannot leave the update sitting silently. The pull phase times out each repo fetch and retries each repo pull once before skipping it. When a timeout happens, the output names the step or repo, shows the timeout, and continues with the rest of the update.
+
+`dot init` uses the same spinner and timeout wrapper for each required setup phase. If a required init phase times out, init stops instead of writing the complete marker. `dot doctor` keeps its live "running checks" spinner and also times out individual checks, reporting timed-out checks as warnings.
 
 The final resume refresh is also bounded, because it only needs to trigger status-bar refresh work. If the helper does not return, the step is stopped and the update moves on.
 

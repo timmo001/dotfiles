@@ -27,6 +27,7 @@ import { isGvfsPath, writeMirroredLog } from "./lib/logMirror.js";
 import { CONFIG_DIR, STATE_DIR, expandHomePath } from "./lib/paths.js";
 import { ENV, envString, setEnv, unsetEnv } from "./lib/env.js";
 import { detectAgent } from "./lib/agent.js";
+import { withStepTimeout } from "./lib/workflowStep.js";
 import { menuItemsById } from "./menu.js";
 import { init } from "./commands/Init.js";
 import { install } from "./commands/Install.js";
@@ -496,6 +497,45 @@ type NativeEnv =
   | WorkflowRuns;
 type NativeEffect = Effect.Effect<void, unknown, NativeEnv>;
 
+const NATIVE_COMMAND_TIMEOUT_SECONDS: Partial<Record<string, number>> = {
+  install: 10 * 60,
+  stow: 3 * 60,
+  clean: 3 * 60,
+  "setup-private-repo": 10 * 60,
+  "private-pkg-publish": 30 * 60,
+  "skill-check": 5 * 60,
+  "agents-sync": 2 * 60,
+  "mcp-sync": 2 * 60,
+  completions: 2 * 60,
+};
+
+function commandLabel(command: string): string {
+  return command
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function withNativeCommandTimeout(
+  command: string,
+  effect: NativeEffect,
+): NativeEffect {
+  const seconds = NATIVE_COMMAND_TIMEOUT_SECONDS[command];
+  if (!seconds) return effect;
+  return Effect.gen(function* () {
+    const completed = yield* withStepTimeout(
+      commandLabel(command),
+      seconds,
+      effect,
+    );
+    if (!completed) {
+      yield* Effect.sync(() => {
+        process.exitCode = 1;
+      });
+    }
+  });
+}
+
 // --- Layer Composition ---
 
 /** Minimal layers for native CLI commands (no renderer, no TUI services) */
@@ -661,7 +701,7 @@ if (mode.type === "native" && mode.command === "mcp") {
   ): NativeEffect => {
     const canonical = getCliCommand(command)?.name ?? command;
     const handler = nativeCommandHandlers[canonical];
-    if (handler) return handler(args);
+    if (handler) return withNativeCommandTimeout(canonical, handler(args));
     return Effect.promise(async () => {
       console.error(`dot: unknown command '${command}'`);
       process.exit(1);

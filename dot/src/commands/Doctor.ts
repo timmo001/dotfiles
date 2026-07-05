@@ -1,13 +1,36 @@
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 import { writeFileSync } from "fs";
 import { join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher } from "../services/Launcher.js";
 import { runDoctor } from "../doctor/runner.js";
+import { withSpinnerTimeout } from "../lib/workflowStep.js";
 import { displayPath } from "../lib/paths.js";
 import { ENV, envString } from "../lib/env.js";
 import type { CheckSection, DoctorReport } from "../doctor/types.js";
+
+/** Whole-run backstop for the doctor command. Individual checks are shorter. */
+const DOCTOR_RUN_TIMEOUT_SECONDS = 60;
+
+function timedOutDoctorReport(): DoctorReport {
+  return {
+    sections: [
+      {
+        name: "Doctor run",
+        results: [
+          {
+            severity: "error",
+            message: `Doctor timed out after ${DOCTOR_RUN_TIMEOUT_SECONDS}s`,
+          },
+        ],
+      },
+    ],
+    warnings: 0,
+    errors: 1,
+    timestamp: Date.now(),
+  };
+}
 
 /** Format a doctor report as plain text for file output */
 function formatReport(report: DoctorReport): string {
@@ -101,10 +124,12 @@ export const doctor = (opts?: { readonly openOpencode?: boolean }) =>
 
     // Run checks in parallel behind a single spinner that shows the checks
     // still running, streaming each section's detail as it finishes.
-    const report = yield* log.withSpinner(
+    const reportResult = yield* withSpinnerTimeout(
       "Running health checks",
+      DOCTOR_RUN_TIMEOUT_SECONDS,
       runDoctor(renderSection, onStart),
     );
+    const report = Option.getOrElse(reportResult, timedOutDoctorReport);
 
     // Grouped summary: errors by section, then warnings by section
     if (report.errors > 0) {

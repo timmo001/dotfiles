@@ -1,4 +1,4 @@
-import { Duration, Effect } from "effect";
+import { Effect, Option } from "effect";
 import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { GitHub } from "../git/services/GitHub.js";
@@ -33,6 +33,7 @@ import {
 } from "./checks/packages.js";
 import { checkPacmanHooks } from "./checks/pacmanHooks.js";
 import { checkFirewall } from "./checks/firewall.js";
+import { withTimeoutOption } from "../lib/workflowStep.js";
 import type { CheckResult, CheckSection, DoctorReport } from "./types.js";
 
 /**
@@ -41,7 +42,7 @@ import type { CheckResult, CheckSection, DoctorReport } from "./types.js";
  * stalled subprocess or network call; on timeout the check is interrupted (its
  * spawned processes killed) and reported as a warning rather than blocking.
  */
-const CHECK_TIMEOUT = Duration.seconds(45);
+export const DOCTOR_CHECK_TIMEOUT_SECONDS = 45;
 
 /** A section definition: name, check effect, and whether it requires private access */
 interface SectionDef {
@@ -140,19 +141,20 @@ export const runDoctor = (
       applicable.map((s) =>
         s.check.pipe(
           Effect.map((results): CheckSection => ({ name: s.name, results })),
-          Effect.timeoutOrElse({
-            duration: CHECK_TIMEOUT,
-            orElse: (): Effect.Effect<CheckSection> =>
-              Effect.succeed({
-                name: s.name,
-                results: [
-                  {
-                    severity: "warn" as const,
-                    message: `Check timed out after ${Duration.toSeconds(CHECK_TIMEOUT)}s`,
-                  },
-                ],
-              }),
-          }),
+          (check) => withTimeoutOption(check, DOCTOR_CHECK_TIMEOUT_SECONDS),
+          Effect.map((timed): CheckSection =>
+            Option.isSome(timed)
+              ? timed.value
+              : {
+                  name: s.name,
+                  results: [
+                    {
+                      severity: "warn" as const,
+                      message: `Check timed out after ${DOCTOR_CHECK_TIMEOUT_SECONDS}s`,
+                    },
+                  ],
+                },
+          ),
           Effect.catch((err: unknown): Effect.Effect<CheckSection> =>
             Effect.succeed({
               name: s.name,

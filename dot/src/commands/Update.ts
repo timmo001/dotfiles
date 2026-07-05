@@ -1,4 +1,4 @@
-import { Duration, Effect, Option } from "effect";
+import { Effect, Option } from "effect";
 import { existsSync, unlinkSync } from "fs";
 import { basename, join } from "path";
 import { Config } from "../services/Config.js";
@@ -12,6 +12,7 @@ import { writeAllCompletions } from "./Completions.js";
 import { rebuild, restartDot } from "../lib/selfUpdate.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
 import { trustTrackedMiseConfigs } from "../lib/miseTrust.js";
+import { withSpinnerTimeout, withStepTimeout } from "../lib/workflowStep.js";
 import {
   ensureInitCompleteMarker,
   initCompleteMarker,
@@ -50,16 +51,14 @@ const REFRESH_REMOTE_HEAD_CONCURRENCY = 6;
  * waiting on, so this is deliberately short; the pull is retried once.
  */
 const PULL_ATTEMPT_TIMEOUT_SECONDS = 30;
-const PULL_ATTEMPT_TIMEOUT = Duration.seconds(PULL_ATTEMPT_TIMEOUT_SECONDS);
+
+/** Upper bound for repository scans that include fetches. */
+const REPO_SCAN_TIMEOUT_SECONDS = 60;
 
 /** Attempts per repo: the initial pull plus one retry. */
 const PULL_MAX_ATTEMPTS = 2;
 
-/**
- * Upper bound (seconds) for each update step. A step that exceeds its bound is
- * interrupted and reported, so one hung phase surfaces in the output instead of
- * stalling `dot update` silently.
- */
+/** Upper bound (seconds) for each update step. */
 const STEP_TIMEOUT_SECONDS = {
   pull: 8 * 60,
   stow: 3 * 60,
@@ -67,32 +66,6 @@ const STEP_TIMEOUT_SECONDS = {
   postHooks: 2 * 60,
   resume: 60,
 } as const;
-
-/**
- * Run one update step under an upper time bound. On timeout the step is
- * interrupted (killing any child process it spawned, since command execution is
- * interruptible) and a warning is logged, then the workflow continues. The
- * step's own failures pass through unchanged.
- */
-const withStepTimeout = <E, R>(
-  label: string,
-  seconds: number,
-  step: Effect.Effect<void, E, R>,
-): Effect.Effect<boolean, E, R | OutputLog> =>
-  Effect.gen(function* () {
-    const log = yield* OutputLog;
-    const completed = yield* log.withSpinner(
-      label,
-      step.pipe(Effect.timeoutOption(Duration.seconds(seconds))),
-    );
-    if (Option.isNone(completed)) {
-      yield* log.warn(
-        `Step "${label}" exceeded ${seconds}s and was stopped; continuing`,
-      );
-      return false;
-    }
-    return true;
-  });
 
 /** Options controlling which phases `dot update` runs. */
 export interface UpdateOptions {
@@ -193,9 +166,10 @@ const safePull = (name: string, path: string) =>
 
     let pulled = false;
     for (let attempt = 1; attempt <= PULL_MAX_ATTEMPTS; attempt++) {
-      const outcome = yield* log.withSpinner(
+      const outcome = yield* withSpinnerTimeout(
         `Pulling ${name} (${attempt}/${PULL_MAX_ATTEMPTS}, timeout ${PULL_ATTEMPT_TIMEOUT_SECONDS}s)`,
-        gitPullRebase(path).pipe(Effect.timeoutOption(PULL_ATTEMPT_TIMEOUT)),
+        PULL_ATTEMPT_TIMEOUT_SECONDS,
+        gitPullRebase(path),
       );
       if (Option.isSome(outcome) && outcome.value) {
         pulled = true;
@@ -368,8 +342,9 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
     const scopeRepos = opts?.all ? "tracked repos" : "core/system repos";
     yield* log.section("Update Check");
 
-    const repos = yield* log.withSpinner(
+    const scanned = yield* withSpinnerTimeout(
       "Checking repositories",
+      REPO_SCAN_TIMEOUT_SECONDS,
       dotDiff.getAll().pipe(
         Effect.catch((error) =>
           Effect.gen(function* () {
@@ -379,6 +354,17 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
         ),
       ),
     );
+
+    const repos = yield* Option.match(scanned, {
+      onNone: () =>
+        Effect.gen(function* () {
+          yield* log.error(
+            `Update check timed out after ${REPO_SCAN_TIMEOUT_SECONDS}s`,
+          );
+          return null;
+        }),
+      onSome: (value) => Effect.succeed(value),
+    });
 
     if (repos === null) {
       yield* Effect.sync(() => {
@@ -501,10 +487,21 @@ export const update = (opts?: UpdateOptions) =>
           yield* cloneMissingGitConfigRepos({ strict: false });
 
           const dotDiff = yield* DotDiff;
-          const repos = yield* log.withSpinner(
+          const scanned = yield* withSpinnerTimeout(
             "Scanning repositories",
+            REPO_SCAN_TIMEOUT_SECONDS,
             dotDiff.getAll().pipe(Effect.catch(() => Effect.succeed([]))),
           );
+          const repos = yield* Option.match(scanned, {
+            onNone: () =>
+              Effect.gen(function* () {
+                yield* log.warn(
+                  `Repository scan timed out after ${REPO_SCAN_TIMEOUT_SECONDS}s; continuing with no pull targets`,
+                );
+                return [];
+              }),
+            onSome: (value) => Effect.succeed(value),
+          });
           for (const repo of repos) {
             yield* log.info(
               `${repo.name}: ${repoStatus(repo)} (${displayPath(repo.path)})`,
