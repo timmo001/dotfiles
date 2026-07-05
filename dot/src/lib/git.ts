@@ -111,7 +111,16 @@ export function gitRemoteOutput(
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
     return yield* executor
-      .run("env", ["GIT_TERMINAL_PROMPT=0", "git", ...args], opts)
+      .run(
+        "env",
+        [
+          "GIT_TERMINAL_PROMPT=0",
+          "GIT_SSH_COMMAND=ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new",
+          "git",
+          ...args,
+        ],
+        opts,
+      )
       .pipe(
         Effect.map((output) => output.trim()),
         Effect.catchTag("CommandError", (error) =>
@@ -198,21 +207,28 @@ export function ghRepoClone(
 export function ghRepoCloneCaptured(
   remote: string,
   repoPath: string,
+  gitArgs: readonly string[] = [],
 ): Effect.Effect<void, GitCommandError, CommandExecutor> {
   return Effect.gen(function* () {
     mkdirSync(dirname(repoPath), { recursive: true });
     const executor = yield* CommandExecutor;
+    const args = [
+      "repo",
+      "clone",
+      remote,
+      repoPath,
+      ...(gitArgs.length > 0 ? ["--", ...gitArgs] : []),
+    ];
     yield* executor
-      .run("gh", ["repo", "clone", remote, repoPath])
+      .run("env", [
+        "GIT_TERMINAL_PROMPT=0",
+        "GIT_SSH_COMMAND=ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new",
+        "gh",
+        ...args,
+      ])
       .pipe(
         Effect.catchTag("CommandError", (error) =>
-          fail(
-            commandFailureMessage(
-              "gh",
-              ["repo", "clone", remote, repoPath],
-              error,
-            ),
-          ),
+          fail(commandFailureMessage("gh", args, error)),
         ),
       );
   });

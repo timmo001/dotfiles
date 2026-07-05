@@ -1,5 +1,5 @@
 import { Effect, Option, Schema } from "effect";
-import { existsSync, unlinkSync, writeFileSync } from "fs";
+import { existsSync, rmSync, unlinkSync, writeFileSync } from "fs";
 import { join } from "path";
 import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -21,7 +21,7 @@ import {
 } from "../doctor/checks/packages.js";
 import type { PrivatePackageRepoConfig } from "../doctor/checks/packages.js";
 
-const PRIVATE_PACKAGE_REPO_CLONE_TIMEOUT_SECONDS = 45;
+const PRIVATE_PACKAGE_REPO_CLONE_TIMEOUT_SECONDS = 3 * 60;
 const PRIVATE_PACKAGE_REPO_MKDIR_TIMEOUT_SECONDS = 60;
 const PRIVATE_PACKAGE_REPO_RSYNC_TIMEOUT_SECONDS = 5 * 60;
 const PRIVATE_PACKAGE_REPO_CONFIG_TIMEOUT_SECONDS = 60;
@@ -95,6 +95,18 @@ function runElevatedPrivateRepoCommand(
   );
 }
 
+function removePartialClone(
+  repo: PrivatePackageRepoConfig,
+): Effect.Effect<void, SetupPrivateRepoError> {
+  return Effect.try({
+    try: () => rmSync(repo.path, { recursive: true, force: true }),
+    catch: (error) =>
+      new SetupPrivateRepoError({
+        message: `Could not remove partial private package repo clone ${displayPath(repo.path)}: ${String(error)}`,
+      }),
+  });
+}
+
 function clonePrivatePackageRepo(
   repo: PrivatePackageRepoConfig,
 ): Effect.Effect<void, SetupPrivateRepoError, CommandExecutor | OutputLog> {
@@ -107,13 +119,19 @@ function clonePrivatePackageRepo(
     }
 
     const cloned = yield* withSpinnerTimeout(
-      "Clone private package repo",
+      `Clone private package repo to ${displayPath(repo.path)}`,
       PRIVATE_PACKAGE_REPO_CLONE_TIMEOUT_SECONDS,
-      ghRepoCloneCaptured(repo.remote, repo.path).pipe(
-        Effect.catchTag("GitCommandError", (error) => fail(error.message)),
+      ghRepoCloneCaptured(repo.remote, repo.path, ["--depth", "1"]).pipe(
+        Effect.catchTag("GitCommandError", (error) =>
+          removePartialClone(repo).pipe(
+            Effect.ignore,
+            Effect.flatMap(() => fail(error.message)),
+          ),
+        ),
       ),
     );
     if (Option.isNone(cloned)) {
+      yield* removePartialClone(repo).pipe(Effect.ignore);
       return yield* fail(
         `Private package repo clone timed out after ${PRIVATE_PACKAGE_REPO_CLONE_TIMEOUT_SECONDS}s`,
       );

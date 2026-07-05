@@ -8,6 +8,7 @@ import {
   ghRepoCloneCaptured,
   gitExitCode,
   gitOutput,
+  gitRemoteOutput,
   gitWorkingTreeClean,
   isGitRepo,
 } from "./git.js";
@@ -137,17 +138,16 @@ function checkoutBranch(
     const log = yield* OutputLog;
     if (!branch) return;
 
-    const remoteBranchExists =
-      (yield* gitExitCode(
-        ["ls-remote", "--exit-code", "--heads", "origin", branch],
-        { cwd: repoPath },
-      )) === 0;
-    if (!remoteBranchExists) {
+    const remoteBranch = yield* gitRemoteOutput(
+      ["ls-remote", "--exit-code", "--heads", "origin", branch],
+      { cwd: repoPath },
+    ).pipe(Effect.catchTag("GitCommandError", () => Effect.succeed("")));
+    if (!remoteBranch) {
       return yield* fail(`Branch '${branch}' not found for ${repoName}`);
     }
 
     yield* log.info(`Checking out ${repoName} branch '${branch}'`);
-    yield* gitOutput(["fetch", "origin", branch], { cwd: repoPath }).pipe(
+    yield* gitRemoteOutput(["fetch", "origin", branch], { cwd: repoPath }).pipe(
       Effect.asVoid,
       Effect.catchTag("GitCommandError", (error) => fail(error.message)),
     );
@@ -207,7 +207,7 @@ function syncExistingRepo(
 
     yield* ensureCleanRepo(repoName, repoPath);
     yield* checkoutBranch(repoName, repoPath, branch);
-    yield* gitOutput(["pull", "--rebase", "--no-edit"], {
+    yield* gitRemoteOutput(["pull", "--rebase", "--no-edit"], {
       cwd: repoPath,
     }).pipe(
       Effect.asVoid,
