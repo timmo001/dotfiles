@@ -49,44 +49,53 @@ checksum = "sha256:18aa3df701a6eafcca201b5bcc63e086c96c8daa6ae2495cf718e12cb0ce3
 url = "https://github.com/anomalyco/opencode/releases/download/v1.17.13/opencode-windows-x64.zip"
 
 [[tools."aqua:coder/boo"]]
-version = "0.6.3"
+version = "0.6.4"
 backend = "aqua:coder/boo"
 
 [tools."aqua:coder/boo"."platforms.linux-arm64"]
-checksum = "sha256:a0519429bc98551ff45b7a68f9dc8a78f67973611ac262e98dd8cb2894fdc39e"
-url = "https://github.com/coder/boo/releases/download/v0.6.3/boo-aarch64-linux.tar.gz"
+checksum = "sha256:7df130837018ed75d7a0a0171f7b1aaae6fcf101c12a2083f94c4e566ea8a37e"
+url = "https://github.com/coder/boo/releases/download/v0.6.4/boo-aarch64-linux.tar.gz"
+url_api = "https://api.github.com/repos/coder/boo/releases/assets/467350910"
 
 [tools."aqua:coder/boo"."platforms.linux-arm64-musl"]
-checksum = "sha256:a0519429bc98551ff45b7a68f9dc8a78f67973611ac262e98dd8cb2894fdc39e"
-url = "https://github.com/coder/boo/releases/download/v0.6.3/boo-aarch64-linux.tar.gz"
+checksum = "sha256:7df130837018ed75d7a0a0171f7b1aaae6fcf101c12a2083f94c4e566ea8a37e"
+url = "https://github.com/coder/boo/releases/download/v0.6.4/boo-aarch64-linux.tar.gz"
+url_api = "https://api.github.com/repos/coder/boo/releases/assets/467350910"
 
 [tools."aqua:coder/boo"."platforms.linux-x64"]
-checksum = "sha256:10bc720e67f55b87a6291dad84e14ab4f2613d16e63d266f6984e25850d16912"
-url = "https://github.com/coder/boo/releases/download/v0.6.3/boo-x86_64-linux.tar.gz"
+checksum = "sha256:a49d4e1d1fd5fce4e7c71d7fedd862ad4f070767280f73cfa736b6ef84b96bd7"
+url = "https://github.com/coder/boo/releases/download/v0.6.4/boo-x86_64-linux.tar.gz"
+url_api = "https://api.github.com/repos/coder/boo/releases/assets/467350908"
 
 [tools."aqua:coder/boo"."platforms.linux-x64-baseline"]
-checksum = "sha256:10bc720e67f55b87a6291dad84e14ab4f2613d16e63d266f6984e25850d16912"
-url = "https://github.com/coder/boo/releases/download/v0.6.3/boo-x86_64-linux.tar.gz"
+checksum = "sha256:a49d4e1d1fd5fce4e7c71d7fedd862ad4f070767280f73cfa736b6ef84b96bd7"
+url = "https://github.com/coder/boo/releases/download/v0.6.4/boo-x86_64-linux.tar.gz"
+url_api = "https://api.github.com/repos/coder/boo/releases/assets/467350908"
 
 [tools."aqua:coder/boo"."platforms.linux-x64-musl"]
-checksum = "sha256:10bc720e67f55b87a6291dad84e14ab4f2613d16e63d266f6984e25850d16912"
-url = "https://github.com/coder/boo/releases/download/v0.6.3/boo-x86_64-linux.tar.gz"
+checksum = "sha256:a49d4e1d1fd5fce4e7c71d7fedd862ad4f070767280f73cfa736b6ef84b96bd7"
+url = "https://github.com/coder/boo/releases/download/v0.6.4/boo-x86_64-linux.tar.gz"
+url_api = "https://api.github.com/repos/coder/boo/releases/assets/467350908"
 
 [tools."aqua:coder/boo"."platforms.linux-x64-musl-baseline"]
-checksum = "sha256:10bc720e67f55b87a6291dad84e14ab4f2613d16e63d266f6984e25850d16912"
-url = "https://github.com/coder/boo/releases/download/v0.6.3/boo-x86_64-linux.tar.gz"
+checksum = "sha256:a49d4e1d1fd5fce4e7c71d7fedd862ad4f070767280f73cfa736b6ef84b96bd7"
+url = "https://github.com/coder/boo/releases/download/v0.6.4/boo-x86_64-linux.tar.gz"
+url_api = "https://api.github.com/repos/coder/boo/releases/assets/467350908"
 
 [tools."aqua:coder/boo"."platforms.macos-arm64"]
-checksum = "sha256:e31b8f824abb5343b54252fa2de958cfbdf80a4b58f7bf2dab9e422ead1ba600"
-url = "https://github.com/coder/boo/releases/download/v0.6.3/boo-aarch64-macos.tar.gz"
+checksum = "sha256:1c22ff639ff09454d44d2f8ba12654f5ac4c6b57841f90cf80a4ee0fdb449472"
+url = "https://github.com/coder/boo/releases/download/v0.6.4/boo-aarch64-macos.tar.gz"
+url_api = "https://api.github.com/repos/coder/boo/releases/assets/467350907"
 
 [tools."aqua:coder/boo"."platforms.macos-x64"]
-checksum = "sha256:ffc6ab8bd1e6fd32c218859fc97472449941d0d4a9c76bc206409b73a6dcec57"
-url = "https://github.com/coder/boo/releases/download/v0.6.3/boo-x86_64-macos.tar.gz"
+checksum = "sha256:3c159068196d796d71e2c80948d12c790894f3792ba2b80e6ca1f7cc50d27e96"
+url = "https://github.com/coder/boo/releases/download/v0.6.4/boo-x86_64-macos.tar.gz"
+url_api = "https://api.github.com/repos/coder/boo/releases/assets/467350906"
 
 [tools."aqua:coder/boo"."platforms.macos-x64-baseline"]
-checksum = "sha256:ffc6ab8bd1e6fd32c218859fc97472449941d0d4a9c76bc206409b73a6dcec57"
-url = "https://github.com/coder/boo/releases/download/v0.6.3/boo-x86_64-macos.tar.gz"
+checksum = "sha256:3c159068196d796d71e2c80948d12c790894f3792ba2b80e6ca1f7cc50d27e96"
+url = "https://github.com/coder/boo/releases/download/v0.6.4/boo-x86_64-macos.tar.gz"
+url_api = "https://api.github.com/repos/coder/boo/releases/assets/467350906"
 
 [[tools."aqua:fallow-rs/fallow"]]
 version = "2.104.0"
