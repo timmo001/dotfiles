@@ -56,7 +56,7 @@ The repo includes minimal system-wide benchmark and resource-leak test scripts u
 
 ## Firewall rules
 
-`dot init` configures a managed set of [ufw](https://wiki.archlinux.org/title/Uncomplicated_Firewall) rules, and `dot doctor` verifies they are still present. The setup reads the world-readable ufw rules file first, so a fully configured machine adds nothing and never prompts for a password; only missing rules are added, followed by a single `ufw reload`. Each rule is tagged with its purpose as a ufw comment, so it appears in `ufw status`.
+`dot init` configures a managed set of [ufw](https://wiki.archlinux.org/title/Uncomplicated_Firewall) rules, and `dot doctor` verifies they are still present. The setup reads the world-readable ufw rules file first, so a fully configured machine adds nothing and never prompts for a password. When changes are needed, missing or stale-comment rules are applied in one elevated batch, followed by a single `ufw reload`, so the firewall step should only ask for authentication once. Each rule is tagged with its purpose as a ufw comment, so it appears in `ufw status`.
 
 Most rules are inbound port allows on any interface. The libvirt rules are scoped to the `virbr0` bridge: two inbound allows for guest DHCP and DNS, plus a forwarding (route) allow so the default NAT network can route guest traffic off the bridge. Without them, ufw's default `deny (incoming)` and `deny (routed)` policy leaves guests without an address or internet access.
 

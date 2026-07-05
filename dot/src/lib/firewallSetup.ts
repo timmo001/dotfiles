@@ -244,19 +244,27 @@ function commandAvailable(
   });
 }
 
-function ufwAllow(
-  spec: FirewallRuleSpec,
-): Effect.Effect<void, FirewallSetupError, CommandExecutor> {
-  return Effect.gen(function* () {
-    const exitCode = yield* runElevated("ufw", [
-      ...spec.addArgs,
-      "comment",
-      spec.comment,
-    ]);
-    if (exitCode !== 0) {
-      return yield* fail(`ufw ${spec.addArgs.join(" ")} exited ${exitCode}`);
-    }
-  });
+function shellQuote(value: string): string {
+  if (/^[A-Za-z0-9_@%+=:,./-]+$/.test(value)) return value;
+  return `'${value.replaceAll("'", `'"'"'`)}'`;
+}
+
+function shellCommand(args: readonly string[]): string {
+  return args.map(shellQuote).join(" ");
+}
+
+/** Build a shell script that applies several ufw commands under one elevation. */
+export function firewallSetupScript(
+  commands: readonly (readonly string[])[],
+): string {
+  return [
+    "set -e",
+    ...commands.map((args) => shellCommand(["ufw", ...args])),
+  ].join("\n");
+}
+
+function ufwAllowArgs(spec: FirewallRuleSpec): readonly string[] {
+  return [...spec.addArgs, "comment", spec.comment];
 }
 
 /**
@@ -297,25 +305,26 @@ export const configureFirewallRules: Effect.Effect<
     return;
   }
 
+  const commands: (readonly string[])[] = [];
+
   for (const spec of toRecomment) {
     yield* log.info(`Updating comment for ${spec.describe} (${spec.comment})`);
-    const deleteExit = yield* runElevated("ufw", [...spec.deleteArgs]);
-    if (deleteExit !== 0) {
-      return yield* fail(
-        `ufw ${spec.deleteArgs.join(" ")} exited ${deleteExit}`,
-      );
-    }
-    yield* ufwAllow(spec);
+    commands.push(spec.deleteArgs, ufwAllowArgs(spec));
   }
 
   for (const spec of toAdd) {
     yield* log.info(`Allowing ${spec.describe} (${spec.comment})`);
-    yield* ufwAllow(spec);
+    commands.push(ufwAllowArgs(spec));
   }
 
-  const reloadExit = yield* runElevated("ufw", ["reload"]);
-  if (reloadExit !== 0) {
-    return yield* fail(`ufw reload exited ${reloadExit}`);
+  commands.push(["reload"]);
+
+  const exitCode = yield* runElevated("sh", [
+    "-c",
+    firewallSetupScript(commands),
+  ]);
+  if (exitCode !== 0) {
+    return yield* fail(`ufw firewall setup exited ${exitCode}`);
   }
 
   const changed = toAdd.length + toRecomment.length;
