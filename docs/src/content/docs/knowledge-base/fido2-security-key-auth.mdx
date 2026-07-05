@@ -1,0 +1,140 @@
+---
+title: FIDO2 Security Key Auth
+description: Set up Omarchy FIDO2 authentication, then require a security-key PIN for sudo, polkit, and Hyprlock.
+sidebar:
+  order: 2
+---
+
+import { Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+This setup uses a FIDO2 security key through `pam-u2f`. The key becomes the preferred local authentication path for `sudo`, polkit prompts, and Hyprlock, while the account password stays available as fallback.
+
+It does not change LUKS disk decryption. Boot still uses the LUKS passphrase unless a separate LUKS token setup is configured.
+
+:::caution[Keep a fallback]
+Keep an unlocked terminal open while editing PAM files. Do not remove the password fallback unless you have a separate recovery path.
+:::
+
+## Start with the Omarchy menu
+
+Use Omarchy's built-in FIDO2 setup first:
+
+<Steps>
+
+1. Open the Omarchy menu.
+2. Go to **Setup**.
+3. Go to **Security**.
+4. Choose **Fido2**.
+5. Touch the security key when prompted.
+6. Let the script test `sudo` before closing the terminal.
+
+</Steps>
+
+The setup installs `libfido2` and `pam-u2f`, registers the key with `pamu2fcfg`, stores the mapping at `/etc/fido2/fido2`, and adds `pam_u2f.so` to `sudo` and `polkit-1`.
+
+The default Omarchy setup is touch-based. Use the next section to require the key PIN and add Hyprlock.
+
+## Require PIN verification
+
+Confirm the key is visible and supports a FIDO2 PIN:
+
+```bash
+fido2-token -L
+fido2-token -I /dev/hidrawX
+```
+
+Replace `/dev/hidrawX` with the device path from `fido2-token -L`. Look for `clientPin` in the options.
+
+Then update the `pam_u2f.so` lines in `/etc/pam.d/sudo` and `/etc/pam.d/polkit-1` to include `pinverification=1`.
+
+<Tabs syncKey="fido2-pam-line">
+  <TabItem label="With PIN">
+
+    ```text
+    auth sufficient pam_u2f.so cue [cue_prompt=Touch your security key] pinverification=1 authfile=/etc/fido2/fido2
+    ```
+
+  </TabItem>
+  <TabItem label="Omarchy default">
+
+    ```text
+    auth sufficient pam_u2f.so cue authfile=/etc/fido2/fido2
+    ```
+
+  </TabItem>
+</Tabs>
+
+Keep the existing password lines below it. With `sufficient`, a successful security-key auth skips the password prompt; failure falls through to the password fallback.
+
+## Add Hyprlock
+
+Hyprlock uses its own PAM service. Omarchy's FIDO2 setup does not add this line automatically, so prepend it to `/etc/pam.d/hyprlock`:
+
+```text
+auth sufficient pam_u2f.so cue [cue_prompt=Touch your security key] pinverification=1 authfile=/etc/fido2/fido2
+```
+
+Leave the default `auth include login` line below it so the normal password unlock still works.
+
+## Update the lock-screen prompt
+
+Hyprlock config is stowed from the dotfiles repo. Edit the active host source, not Omarchy's upstream config directory:
+
+```text
+~/.config/dotfiles/hypr/.config/hypr/hosts/<host>/hyprlock.conf
+```
+
+Use generic security-key wording so the config works with non-Yubico keys too:
+
+```ini
+input-field {
+    placeholder_text = <span> Security Key PIN or Password </span>
+    check_text = <i>Touch your security key</i>
+}
+```
+
+If the fingerprint setup script was run on a machine without a fingerprint reader, disable Hyprlock fingerprint auth in the same file:
+
+```ini
+auth {
+    fingerprint:enabled = false
+}
+```
+
+Apply the stowed config:
+
+```bash
+dot stow
+hyprctl configerrors
+```
+
+## Remove fingerprint leftovers
+
+If Omarchy's fingerprint setup was run by mistake, remove its PAM lines and packages:
+
+```bash
+pkexec sed -i '/pam_fprintd\.so/d' /etc/pam.d/sudo /etc/pam.d/polkit-1
+pkexec pacman -Rns fprintd libfprint-git
+```
+
+Keep `fingerprint:enabled = false` in the stowed Hyprlock config.
+
+## Test order
+
+Test each layer before relying on it:
+
+<Steps>
+
+1. Run `sudo -k`, then `sudo true`.
+2. Enter the security-key PIN, then touch the key.
+3. Trigger a polkit prompt if convenient.
+4. Lock the screen with Hyprlock while another session or terminal remains available.
+5. Test password fallback by trying without the security key.
+
+</Steps>
+
+## Rollback
+
+Restore the backed-up PAM files, or remove only the added `pam_u2f.so` line from `/etc/pam.d/hyprlock` if the lock screen is the only broken part.
+
+Do not delete `/etc/fido2/fido2` unless you are fully removing FIDO2 auth.

@@ -101,6 +101,10 @@ export default defineConfig({
           label: 'Configuration & Reference',
           items: [{ autogenerate: { directory: 'configuration' } }],
         },
+        {
+          label: 'Knowledge base',
+          items: [{ autogenerate: { directory: 'knowledge-base' } }],
+        },
         { label: 'Bar Integrations', slug: 'bar-integrations' },
         { label: 'Cleanup', slug: 'cleanup' },
         { label: 'Agents / LLMs', slug: 'agents-llms' },

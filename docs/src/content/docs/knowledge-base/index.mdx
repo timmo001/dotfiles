@@ -1,0 +1,17 @@
+---
+title: Knowledge Base
+description: Practical setup notes for system customisations and one-off fixes.
+sidebar:
+  label: Overview
+  order: 1
+---
+
+import LinkCardGrid from '../../../components/LinkCardGrid.astro';
+
+export const cards = [
+  { title: 'FIDO2 Security Key Auth', href: '/knowledge-base/fido2-security-key-auth/', description: 'Set up Omarchy FIDO2 auth, then require a security-key PIN for sudo, polkit, and Hyprlock.' },
+];
+
+This section collects practical runbooks that sit below the main dotfiles reference. They are for system state that is useful to repeat, but too specific for the core command docs.
+
+<LinkCardGrid cards={cards} />
