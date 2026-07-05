@@ -6,7 +6,7 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { runElevated } from "../lib/elevatedCommand.js";
 import { ghRepoCloneCaptured } from "../lib/git.js";
-import { withSpinnerTimeout } from "../lib/workflowStep.js";
+import { withSpinnerTimeout, withStepTimeout } from "../lib/workflowStep.js";
 import { displayPath } from "../lib/paths.js";
 import { ENV, envString } from "../lib/env.js";
 import {
@@ -22,6 +22,9 @@ import {
 import type { PrivatePackageRepoConfig } from "../doctor/checks/packages.js";
 
 const PRIVATE_PACKAGE_REPO_CLONE_TIMEOUT_SECONDS = 45;
+const PRIVATE_PACKAGE_REPO_MKDIR_TIMEOUT_SECONDS = 60;
+const PRIVATE_PACKAGE_REPO_RSYNC_TIMEOUT_SECONDS = 5 * 60;
+const PRIVATE_PACKAGE_REPO_CONFIG_TIMEOUT_SECONDS = 60;
 
 /** Domain error for private pacman repository setup failures. */
 class SetupPrivateRepoError extends Schema.TaggedErrorClass<SetupPrivateRepoError>()(
@@ -60,12 +63,42 @@ function fail(message: string): Effect.Effect<never, SetupPrivateRepoError> {
   return Effect.fail(new SetupPrivateRepoError({ message }));
 }
 
+function runPrivateRepoStep<R>(
+  label: string,
+  seconds: number,
+  step: Effect.Effect<void, SetupPrivateRepoError, R>,
+): Effect.Effect<void, SetupPrivateRepoError, R | OutputLog> {
+  return Effect.gen(function* () {
+    const completed = yield* withStepTimeout(label, seconds, step);
+    if (!completed) {
+      return yield* fail(
+        `Private package repo step timed out after ${seconds}s: ${label}`,
+      );
+    }
+  });
+}
+
+function runElevatedPrivateRepoCommand(
+  label: string,
+  seconds: number,
+  command: string,
+  args: readonly string[],
+  failureMessage: (exitCode: number) => string,
+): Effect.Effect<void, SetupPrivateRepoError, CommandExecutor | OutputLog> {
+  return runPrivateRepoStep(
+    label,
+    seconds,
+    Effect.gen(function* () {
+      const exitCode = yield* runElevated(command, args);
+      if (exitCode !== 0) return yield* fail(failureMessage(exitCode));
+    }),
+  );
+}
+
 function clonePrivatePackageRepo(
   repo: PrivatePackageRepoConfig,
 ): Effect.Effect<void, SetupPrivateRepoError, CommandExecutor | OutputLog> {
   return Effect.gen(function* () {
-    const log = yield* OutputLog;
-
     if (existsSync(repo.path)) return;
     if (!repo.remote) {
       return yield* fail(
@@ -124,7 +157,6 @@ function syncPrivatePackageRepoMirror(
   repo: PrivatePackageRepoConfig,
 ): Effect.Effect<void, SetupPrivateRepoError, CommandExecutor | OutputLog> {
   return Effect.gen(function* () {
-    const executor = yield* CommandExecutor;
     const log = yield* OutputLog;
 
     yield* log.section("Sync private package repo mirror");
@@ -134,31 +166,30 @@ function syncPrivatePackageRepoMirror(
       );
     }
 
-    const mkdirExitCode = yield* runElevated("install", [
-      "-d",
-      "-m",
-      "0755",
-      repo.mirrorPath,
-    ]);
-    if (mkdirExitCode !== 0) {
-      return yield* fail(
-        `Cannot create private package repo mirror path ${displayPath(repo.mirrorPath)} (install exited ${mkdirExitCode})`,
-      );
-    }
-
-    const exitCode = yield* runElevated("rsync", [
-      "-a",
-      "--delete",
-      "--exclude",
-      ".git/",
-      `${repo.path}/`,
-      `${repo.mirrorPath}/`,
-    ]);
-    if (exitCode !== 0) {
-      return yield* fail(
-        `rsync private package repo mirror exited ${exitCode}`,
-      );
-    }
+    yield* log.info(`Source: ${displayPath(repo.path)}`);
+    yield* log.info(`Mirror: ${displayPath(repo.mirrorPath)}`);
+    yield* runElevatedPrivateRepoCommand(
+      "Create private package repo mirror directory",
+      PRIVATE_PACKAGE_REPO_MKDIR_TIMEOUT_SECONDS,
+      "install",
+      ["-d", "-m", "0755", repo.mirrorPath],
+      (exitCode) =>
+        `Cannot create private package repo mirror path ${displayPath(repo.mirrorPath)} (install exited ${exitCode})`,
+    );
+    yield* runElevatedPrivateRepoCommand(
+      "Sync private package repo mirror files",
+      PRIVATE_PACKAGE_REPO_RSYNC_TIMEOUT_SECONDS,
+      "rsync",
+      [
+        "-a",
+        "--delete",
+        "--exclude",
+        ".git/",
+        `${repo.path}/`,
+        `${repo.mirrorPath}/`,
+      ],
+      (exitCode) => `rsync private package repo mirror exited ${exitCode}`,
+    );
   });
 }
 
@@ -173,26 +204,15 @@ function configurePrivatePacmanRepo(
 
     yield* log.section("Configure private pacman repo");
     const tempPath = yield* writeTempPrivatePacmanRepoConfig(repo);
-    const exitCode = yield* installPrivatePacmanRepoConfig(tempPath);
-    yield* removeTempFile(tempPath);
-    if (exitCode !== 0) {
-      return yield* fail(
+    yield* runElevatedPrivateRepoCommand(
+      "Install private pacman repo config",
+      PRIVATE_PACKAGE_REPO_CONFIG_TIMEOUT_SECONDS,
+      "install",
+      ["-D", "-m", "0644", tempPath, privatePacmanRepoConfigPath()],
+      (exitCode) =>
         `Could not install private pacman repo config (install exited ${exitCode})`,
-      );
-    }
+    ).pipe(Effect.ensuring(removeTempFile(tempPath).pipe(Effect.ignore)));
   });
-}
-
-function installPrivatePacmanRepoConfig(
-  tempPath: string,
-): Effect.Effect<number, never, CommandExecutor> {
-  return runElevated("install", [
-    "-D",
-    "-m",
-    "0644",
-    tempPath,
-    privatePacmanRepoConfigPath(),
-  ]);
 }
 
 /** Register the private pacman repository snippet from the main pacman config. */
@@ -206,18 +226,20 @@ function registerPrivatePacmanRepoInclude(): Effect.Effect<
     if (privatePackageRepoIncludeRegistered()) return;
 
     yield* log.section("Register private pacman repo include");
-    const exitCode = yield* runElevated("sh", [
-      "-c",
-      'printf "\\n%s\\n" "$1" >> "$2"',
+    yield* runElevatedPrivateRepoCommand(
+      "Register private pacman repo include",
+      PRIVATE_PACKAGE_REPO_CONFIG_TIMEOUT_SECONDS,
       "sh",
-      privatePackageRepoIncludeLine(),
-      privatePacmanMainConfigPath(),
-    ]);
-    if (exitCode !== 0) {
-      return yield* fail(
+      [
+        "-c",
+        'printf "\\n%s\\n" "$1" >> "$2"',
+        "sh",
+        privatePackageRepoIncludeLine(),
+        privatePacmanMainConfigPath(),
+      ],
+      (exitCode) =>
         `Could not write private pacman repo include to ${displayPath(privatePacmanMainConfigPath())} (exit ${exitCode})`,
-      );
-    }
+    );
   });
 }
 
