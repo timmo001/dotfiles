@@ -57,7 +57,7 @@ Everything is documented at <https://dotfiles.timmo.dev>:
 - [OpenCode & Agents](https://dotfiles.timmo.dev/opencode/) — agents, commands, skills, plugins, and the generated reference
 - [Configuration & Reference](https://dotfiles.timmo.dev/configuration/) — environment options, private git config, and [private packages](https://dotfiles.timmo.dev/configuration/private-packages/)
 - [Bar Integrations](https://dotfiles.timmo.dev/bar-integrations/) — the `--bar-json` status-bar contract shared by `dot` and external tools
-- [LLMs](https://dotfiles.timmo.dev/llms/) — feed the docs to an agent with llms.txt
+- [Agents / LLMs](https://dotfiles.timmo.dev/agents-llms/) — context bundles for AI-assisted work
 
 ## Repository layout
 

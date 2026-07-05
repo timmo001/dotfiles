@@ -103,7 +103,7 @@ export default defineConfig({
         },
         { label: 'Bar Integrations', slug: 'bar-integrations' },
         { label: 'Cleanup', slug: 'cleanup' },
-        { label: 'LLMs', slug: 'llms' },
+        { label: 'Agents / LLMs', slug: 'agents-llms' },
       ],
     }),
   ],
