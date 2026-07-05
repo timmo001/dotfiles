@@ -73,6 +73,8 @@ Most rules are inbound port allows on any interface. The libvirt rules are scope
 
 If `ufw` is not installed, both init and doctor skip the firewall step with a warning. The doctor check reports any missing rule with the `sudo ufw allow ...` command to add it, or a rule present without its managed comment, and you can re-run `dot init` to reconcile. Override the scanned rules file with `DOT_UFW_RULES_FILE`.
 
+After elevation, `dot init` re-reads the rules file and fails the firewall step when any managed rule is still missing or carries a stale comment. That catches silent ufw write failures instead of leaving init marked complete with half-applied rules.
+
 ## Daily volume reset (laptop only)
 
 Public dotfiles provide `daily-volume-zero.timer` in laptop-only stow packages (`scripts--laptop` and `systemd--laptop`), a user systemd timer that runs at 5am local time.
