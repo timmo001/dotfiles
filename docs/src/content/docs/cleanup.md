@@ -103,6 +103,17 @@ rm -rf ~/repos/private-arch-repo
 rm -rf ~/.local/state/dot
 ```
 
+If you removed Omarchy config directories that `dot init` replaces with managed repos, refresh the stock Omarchy defaults afterwards for any parts you want Omarchy to own again.
+
+```bash
+omarchy refresh shell
+omarchy refresh hyprland
+omarchy refresh config ghostty/config
+omarchy refresh config uwsm/env
+```
+
+Run `omarchy refresh --help` on the target machine for the exact refresh commands supported by that Omarchy version.
+
 Do not remove `~/.config/dotfiles` until you no longer need the `dot` binary, docs, or backup directory.
 
 ## Remove agent and MCP generated files
