@@ -114,6 +114,8 @@ Shared [OpenCode](https://opencode.ai) skills, agents, plugins, and commands.
 
 Generated and published from [\`${DOTFILES_REPO}\`](${DOTFILES_URL}) — OpenCode config at [\`${OPENCODE_SOURCE_PREFIX}/\`](${OPENCODE_SOURCE_URL}) and shared skills at [\`${SKILLS_SOURCE_PREFIX}/\`](${SKILLS_SOURCE_URL}).
 
+See the [OpenCode & Agents docs](https://dotfiles.timmo.dev/opencode/) for the overview, MCP notes, and generated reference pages.
+
 ## Installation
 
 Clone the repo and copy what you need into your OpenCode config directory:
@@ -171,7 +173,7 @@ The config is built around a few patterns:
 
 - **Branch context injection** — The \`branch-context\` plugin pre-computes git and PR state once per command and injects it as structured XML. Commands that need current-branch context declare a dependency on this plugin instead of running their own \`git\`/\`gh\` calls.
 - **Graduated agent permissions** — Agents range from fully read-only (\`reviewer\`, \`ask\`) through ask-gated (\`build-ask\`) to edit-capable (\`refactorer\`, \`build-locked\`). A guard plugin prevents read-only agents from escalating via subagent delegation.
-- **Scoped cleanup commands** — Commands like \`/types-enforce-ts\`, \`/cleanup-unnecessary-variables\`, and \`/remove-single-use-functions\` combine branch-context work-scope with a matching skill and route through the \`refactorer\` agent, keeping changes within the current git diff.
+- **Scoped cleanup commands** — Commands like \`/refactor-enforce-types\`, \`/refactor-cleanup-variables\`, and \`/refactor-remove-single-use\` combine branch-context work-scope with a matching skill and route through the \`refactorer\` agent, keeping changes within the current git diff.
 - **Skill-based routing** — Commands are thin wrappers that name an agent, declare required skills, and state whether branch context is needed. The workflow logic lives in skills and plugins, not in the command itself.
 - **Secret protection** — The \`env-protection\` plugin blocks reads of \`.env\` files (except \`.env.example\`) across all agents.
 
