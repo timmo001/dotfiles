@@ -82,12 +82,22 @@ export default defineConfig({
           items: [{ autogenerate: { directory: 'dot' } }],
         },
         {
+          label: 'Configuration & Reference',
+          items: [{ autogenerate: { directory: 'configuration' } }],
+        },
+        {
           label: 'Git & GitHub',
           items: [{ autogenerate: { directory: 'git' } }],
         },
         {
           label: 'Omarchy & Hyprland',
           items: [{ autogenerate: { directory: 'omarchy' } }],
+        },
+        { label: 'Bar Integrations', slug: 'bar-integrations' },
+        { label: 'Cleanup', slug: 'cleanup' },
+        {
+          label: 'Knowledge base',
+          items: [{ autogenerate: { directory: 'knowledge-base' } }],
         },
         {
           label: 'OpenCode & Agents',
@@ -97,16 +107,6 @@ export default defineConfig({
             { slug: 'opencode/mcp' },
           ],
         },
-        {
-          label: 'Configuration & Reference',
-          items: [{ autogenerate: { directory: 'configuration' } }],
-        },
-        {
-          label: 'Knowledge base',
-          items: [{ autogenerate: { directory: 'knowledge-base' } }],
-        },
-        { label: 'Bar Integrations', slug: 'bar-integrations' },
-        { label: 'Cleanup', slug: 'cleanup' },
         { label: 'Agents / LLMs', slug: 'agents-llms' },
       ],
     }),

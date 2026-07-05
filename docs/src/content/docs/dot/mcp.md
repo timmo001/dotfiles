@@ -2,7 +2,7 @@
 title: MCP Server
 description: Run dot as a Model Context Protocol server over stdio.
 sidebar:
-  order: 6
+  order: 8
 ---
 
 `dot mcp` starts a [Model Context Protocol](https://modelcontextprotocol.io) server over stdio. It exposes the repository notes vault and read-only repository context to any MCP-capable agent harness through the same `dot` binary, so every tool talks to one implementation.

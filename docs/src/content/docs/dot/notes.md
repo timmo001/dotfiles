@@ -2,7 +2,7 @@
 title: Notes & Handoffs
 description: The repository notes browser and the handoff workflow.
 sidebar:
-  order: 5
+  order: 6
 ---
 
 `dot` includes a repository notes system used by the OpenCode note commands. Notes live in a notes vault git repo (`~/Documents/notes` by default, overridable with the `NOTES` environment variable). Inside the vault, notes are filed per repository under `repo-notes/{owner}/{repo}/`, keyed off the current git remote.

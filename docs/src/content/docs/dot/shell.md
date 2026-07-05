@@ -2,7 +2,7 @@
 title: Shell Setup
 description: Zsh completions, editing keys, aliases, and small shell helpers.
 sidebar:
-  order: 8
+  order: 4
 ---
 
 ## Zsh completions
