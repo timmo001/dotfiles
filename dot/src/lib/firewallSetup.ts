@@ -156,7 +156,17 @@ function portRuleSpecs(rule: ManagedPortRule): readonly FirewallRuleSpec[] {
           "proto",
           protocol,
         ]
-      : ["allow", `${rule.port}/${protocol}`];
+      : [
+          "allow",
+          "proto",
+          protocol,
+          "from",
+          "any",
+          "to",
+          "any",
+          "port",
+          rule.port,
+        ];
     return {
       addArgs,
       deleteArgs: ["delete", ...addArgs],
@@ -229,6 +239,16 @@ export function presentUfwTuples(): ReadonlyMap<string, UfwTuple> {
   } catch {
     return new Map();
   }
+}
+
+function unresolvedFirewallSpecs(
+  specs: readonly FirewallRuleSpec[],
+): readonly FirewallRuleSpec[] {
+  const present = presentUfwTuples();
+  return specs.filter((spec) => {
+    const tuple = present.get(spec.tupleKey);
+    return !tuple || tuple.comment !== spec.comment;
+  });
 }
 
 function fail(message: string): Effect.Effect<never, FirewallSetupError> {
@@ -325,6 +345,15 @@ export const configureFirewallRules: Effect.Effect<
   ]);
   if (exitCode !== 0) {
     return yield* fail(`ufw firewall setup exited ${exitCode}`);
+  }
+
+  const unresolved = unresolvedFirewallSpecs(specs);
+  if (unresolved.length > 0) {
+    return yield* fail(
+      `ufw firewall setup did not persist: ${unresolved
+        .map((spec) => `${spec.describe} (${spec.comment})`)
+        .join(", ")}`,
+    );
   }
 
   const changed = toAdd.length + toRecomment.length;
