@@ -1,0 +1,117 @@
+---
+title: Workspace Relayout
+description: Apply and capture ratio-based Hyprland layouts for the active workspace.
+sidebar:
+  order: 4
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+`workspace-relayout` applies saved layout presets to the active Hyprland workspace. It works on tiled windows only, using ratio-based split trees instead of fixed pixels, so the same preset can fit different monitors, scales, gaps, and bars.
+
+Use it when a workspace has the right windows but the split tree is wrong.
+
+## Key bindings
+
+The shared Hypr bindings are:
+
+| Binding | Action |
+| --- | --- |
+| `SUPER+TAB` | Apply a saved layout preset for the active workspace window count. |
+| `SUPER+ALT+TAB` | Edit presets by capturing the current layout. |
+| `SUPER+ALT+W` | Open `workspace-menu`, which includes the relayout action. |
+
+## Presets
+
+Presets are stowed from the dotfiles repo to:
+
+```text
+~/.local/share/workspace-relayout/presets.json
+```
+
+They are grouped by tiled window count under `layouts.<count>`. Each preset has a name and a generic split tree:
+
+```json
+{
+  "name": "1 top / 2 bottom",
+  "tree": {
+    "dir": "tb",
+    "ratio": 75.29,
+    "a": "w",
+    "b": {
+      "dir": "lr",
+      "ratio": 26.67,
+      "a": "w",
+      "b": "w"
+    }
+  }
+}
+```
+
+The script writes back through the stowed symlink when you edit presets, keeping the symlink in place.
+
+## Apply a layout
+
+<Steps>
+
+1. Focus the workspace to relayout.
+2. Keep at least two tiled, mapped, non-hidden windows on that workspace.
+3. Press `SUPER+TAB`.
+4. Choose a preset from Walker.
+5. Let the script move windows through the temporary workspace and rebuild the split tree.
+
+</Steps>
+
+The script restores focus to the previously active window when it can.
+
+## Capture a new preset
+
+Use edit mode when the current workspace already has the layout you want to save:
+
+```bash
+workspace-relayout --edit
+```
+
+Or press:
+
+```text
+SUPER+ALT+TAB
+```
+
+Edit mode reconstructs the current layout into a split tree. You can overwrite an existing preset for the same window count, or add a new one with the generated name.
+
+## Temporary workspace
+
+Relayout rebuilds the split tree by moving windows through a temporary workspace. The default temporary workspace is `99`.
+
+Override it only when workspace `99` is already used for something important:
+
+```bash
+WORKSPACE_RELAYOUT_TEMP_WS=98 workspace-relayout
+```
+
+The temp workspace must be a positive numeric workspace id and must not match the active workspace.
+
+## Requirements
+
+`workspace-relayout` requires:
+
+- `hyprctl`
+- `jq`
+- `awk`
+- `omarchy-launch-walker`
+- The presets file at `~/.local/share/workspace-relayout/presets.json`
+
+If a requirement is missing, the script sends a desktop notification and exits.
+
+## Troubleshooting
+
+If the menu says there are no presets, the active workspace has a window count that is not present in `presets.json`. Use edit mode to save the current arrangement for that count.
+
+If the script says it needs at least two windows, make sure the windows are tiled. Floating windows are ignored.
+
+If a layout applies but the order feels wrong, rearrange the windows manually and save a preset in edit mode. The assignment logic keeps windows near their current target positions, but windows are still treated as interchangeable leaves.
+
+## Reset
+
+There is no persistent Hyprland state to reset. To recover from a bad relayout, use Hyprland's normal move/split controls, apply another preset, or restore a saved workspace session from [Workspace Session Recovery](/knowledge-base/workspace-session-recovery/).

@@ -1,0 +1,114 @@
+---
+title: Resume Recovery
+description: Refresh Waybar, git caches, Twitch notifications, and update prompts after suspend.
+sidebar:
+  order: 7
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+`on-resume` is the post-suspend recovery hook used by the Hypr host overrides. It restarts small desktop services that tend to go stale after sleep, refreshes git-related bar caches, and optionally opens a dotfiles update prompt.
+
+## Where it runs
+
+Both desktop and laptop host `hypridle.conf` files call `on-resume` from `after_sleep_cmd` after waking the display:
+
+```text
+after_sleep_cmd = sleep 1 && omarchy-system-wake && on-resume
+```
+
+The laptop host also re-arms keyboard backlight handling before `on-resume`.
+
+You can run the recovery manually with the shared binding:
+
+```text
+SUPER+SHIFT+W
+```
+
+Or from a terminal:
+
+```bash
+on-resume
+```
+
+## What it refreshes
+
+`on-resume` detaches itself, writes a fresh log, then:
+
+- Stops `twitch-notifications`.
+- Clears Waybar git module cache files under `${XDG_CACHE_HOME:-~/.cache}/waybar`.
+- Clears the dot upstream fetch cache under `${XDG_CACHE_HOME:-~/.cache}/dot/fetch-upstream`.
+- Restarts Waybar through `uwsm-app`.
+- Restarts `twitch-notifications` after a short delay.
+- Runs `on-resume-update-prompt --launch` unless the caller passed `--post-update`.
+
+The log is written to:
+
+```text
+${XDG_STATE_HOME:-~/.local/state}/on-resume.log
+```
+
+## Update prompt
+
+`on-resume-update-prompt --launch` runs a bounded update check:
+
+```bash
+dot update --check
+```
+
+When core or system repos are behind, it opens a floating terminal running:
+
+```bash
+on-resume-update-prompt --interactive
+```
+
+The interactive prompt shows the behind repos, asks before running `dot update`, and leaves the terminal open afterwards.
+
+When everything is current, it sends a low-urgency desktop notification instead.
+
+## Manual recovery flow
+
+Use this when the machine wakes but the bar or desktop helpers look stale:
+
+<Steps>
+
+1. Press `SUPER+SHIFT+W`, or run `on-resume`.
+2. Wait for Waybar to disappear and return.
+3. Check for the update prompt or up-to-date notification.
+4. If something still looks wrong, read `~/.local/state/on-resume.log`.
+
+</Steps>
+
+## Avoid duplicate prompts after updates
+
+`dot update` can trigger a post-update refresh. That path should call:
+
+```bash
+on-resume --post-update
+```
+
+The `--post-update` flag skips the update prompt so a successful update does not immediately ask to update again.
+
+## Troubleshooting
+
+If Waybar does not return, run it directly to surface errors:
+
+```bash
+uwsm-app -- waybar
+```
+
+If git status in the bar stays stale, remove the caches and run recovery again:
+
+```bash
+rm -f ~/.cache/waybar/git-*-waybar.json ~/.cache/waybar/git-*-waybar.json.tmp
+rm -rf ~/.cache/dot/fetch-upstream
+on-resume
+```
+
+If the update prompt never appears, run the launcher directly:
+
+```bash
+on-resume-update-prompt --launch
+```
+
+The launcher stays silent for update-check errors so resume is never blocked.

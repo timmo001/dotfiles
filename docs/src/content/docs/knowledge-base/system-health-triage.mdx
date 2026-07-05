@@ -1,0 +1,111 @@
+---
+title: System Health Triage
+description: Collect a short health report for freezes, slowdowns, thermal issues, and noisy logs.
+sidebar:
+  order: 8
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+Use `system-health-check` when the machine feels slow, hot, network-stuck, or unstable and you want one report to inspect before guessing.
+
+The command samples system signals, scans recent logs for known failure words, prints a friendly verdict, and saves the full output to a timestamped report.
+
+For the reference summary of utility commands, see [System Utilities](/dot/utilities/).
+
+## Quick run
+
+```bash
+system-health-check
+```
+
+Reports are saved under:
+
+```text
+${XDG_STATE_HOME:-~/.local/state}/system-health-check/
+```
+
+The default run collects five snapshots, fifteen seconds apart, and scans the last fifteen minutes of user and kernel journal logs.
+
+## Faster focused checks
+
+Run only the sections you need:
+
+```bash
+system-health-check --only cpu,memory,psi --samples 3 --interval 5
+system-health-check --only thermal --samples 4 --interval 10
+system-health-check --only logs --known-logs-minutes 60
+```
+
+Valid sections are:
+
+| Section | What it checks |
+| --- | --- |
+| `cpu` | Load average and CPU busy percentage. |
+| `memory` | Available memory and swap growth. |
+| `psi` | Linux pressure stall information for CPU, memory, and IO. |
+| `network` | Primary interface traffic and TCP socket growth. |
+| `disk` | Root filesystem usage. |
+| `thermal` | Thermal zone readings and temperature rise. |
+| `logs` | Recent user and kernel journal lines matching known failure patterns. |
+
+## OpenCode handoff
+
+When you want immediate AI follow-up, run:
+
+```bash
+system-health-check --open-opencode
+```
+
+After saving the report, the script opens an interactive OpenCode session with a prompt that points to the report path.
+
+Use this when you want diagnosis and next steps in the same flow. Without an interactive TTY, the script prints a warning instead of trying to open OpenCode.
+
+## Triage flow
+
+<Steps>
+
+1. Run `system-health-check` while the problem is happening or soon after it happens.
+2. Read the `Friendly Summary` section first.
+3. Treat `Watch` as a signal to monitor and `Stressed` as a signal to investigate immediately.
+4. Use the report path from the final line for follow-up analysis.
+5. If the problem is narrow, rerun with `--only` for that subsystem.
+
+</Steps>
+
+## Interpreting the verdict
+
+`Healthy` means the sampled window looked stable.
+
+`Watch` means one or more signals crossed a moderate threshold, such as elevated CPU pressure, noticeable memory drop, high disk usage, thermal rise, or noisy logs.
+
+`Stressed` means at least one stronger threshold was crossed, such as very high CPU busy, sharp swap growth, high PSI, critical disk usage, high thermal readings, or many known log matches.
+
+These are heuristics, not proof of root cause. Use them to decide where to inspect next.
+
+## Login doctor notification
+
+The repo also ships a user timer for a delayed `dot doctor` check at login:
+
+```text
+~/.config/systemd/user/dot-doctor-startup.timer
+~/.config/systemd/user/dot-doctor-startup.service
+```
+
+The timer runs `dot-doctor-notify` sixty seconds after startup. Use it as a passive startup check; run `dot doctor` directly when you need an immediate health result.
+
+Enable it if you want a startup warning for broken dotfiles state:
+
+```bash
+systemctl --user enable --now dot-doctor-startup.timer
+```
+
+## Related update checks
+
+For broader machine updates, use the `topgrade` wrapper documented in [System Utilities](/dot/utilities/). It logs the full session to:
+
+```text
+${XDG_STATE_HOME:-~/.local/state}/topgrade.log
+```
+
+Keep health triage and update runs separate: collect a health report first when debugging instability, then update once you know whether the machine is already under stress.

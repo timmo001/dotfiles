@@ -1,0 +1,156 @@
+---
+title: Workspace Session Recovery
+description: Capture and restore Hyprland window sessions after restarts, crashes, or layout experiments.
+sidebar:
+  order: 3
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+The workspace session scripts save the current Hyprland clients to JSON, then restore the latest capture by moving existing windows back to their saved workspaces and relaunching the supported missing apps.
+
+Use this before risky layout work, before restarting Hyprland, or when you want a quick recovery point for open workspaces.
+
+:::note
+This is best-effort recovery. Hyprland can move and resize windows, but some application state still belongs to the application itself.
+:::
+
+## Capture a session
+
+Capture every visible workspace:
+
+```bash
+workspace-capture
+```
+
+Capture only the active workspace:
+
+```bash
+workspace-capture --current-workspace
+```
+
+By default captures are written to:
+
+```text
+~/.local/state/workspace-sessions/workspace-<timestamp>.json
+```
+
+The script also writes a capture log to:
+
+```text
+~/.local/state/workspace-sessions/capture.log
+```
+
+To write a named capture:
+
+```bash
+workspace-capture --output=~/workspace-before-restart.json
+```
+
+## Restore safely
+
+Start with a dry run. It prints the restore plan without launching or moving windows:
+
+```bash
+workspace-restore --dry-run
+```
+
+Restore the newest capture from the state directory:
+
+```bash
+workspace-restore
+```
+
+Restore a specific file:
+
+```bash
+workspace-restore --file=~/workspace-before-restart.json
+```
+
+The restore log is written to:
+
+```text
+~/.local/state/workspace-sessions/restore.log
+```
+
+## What gets restored
+
+The restore script reads `hyprctl -j clients` and tries these paths in order:
+
+- Reuse a still-running window by saved address.
+- Match an existing window by class and workspace.
+- Launch a supported missing app, then move it to the saved workspace.
+- Restore floating geometry or tiled size when the saved client has enough geometry data.
+- Switch back to the saved active workspace at the end.
+
+Supported relaunch paths are encoded in `workspace-restore` and currently cover Chromium, work Chrome app windows, Slack, Discord, Twitch webapps, generic Chrome webapps with captured URLs, and Ghostty terminals with the saved working directory.
+
+Unsupported classes are skipped with a reason in the restore output.
+
+## Browser URLs
+
+`workspace-capture` can attach a real browser URL when the browser URL state file exists:
+
+```text
+${XDG_STATE_HOME:-~/.local/state}/browser-urls.json
+```
+
+When that file is missing, Chromium windows can still be matched or relaunched by class, but generic webapp URL recovery is limited.
+
+## Workspace menu
+
+The Walker menu wraps the common actions:
+
+```bash
+workspace-menu
+```
+
+The shared Hypr binding is:
+
+```text
+SUPER+ALT+W
+```
+
+It offers capture, dry-run restore, restore, and relayout actions. On the `desktop` host it also exposes the host-specific workspace setup action.
+
+## Recovery flow
+
+<Steps>
+
+1. Run `workspace-capture` before the risky change.
+2. Make the change, restart Hyprland, or recover from the crash.
+3. Run `workspace-restore --dry-run` and read the plan.
+4. Run `workspace-restore` when the plan looks safe.
+5. Check `restore.log` for skipped windows.
+
+</Steps>
+
+## Troubleshooting
+
+If nothing restores, check that a capture exists:
+
+```bash
+ls ~/.local/state/workspace-sessions
+```
+
+If restore launches too much, try moving only existing windows:
+
+```bash
+workspace-restore --no-launch
+```
+
+If restore launches apps but leaves current placement alone:
+
+```bash
+workspace-restore --no-move
+```
+
+If you want to inspect one capture directly:
+
+```bash
+jq '.clients[] | {workspace: .workspace.id, class, title, browser_url}' ~/.local/state/workspace-sessions/workspace-*.json
+```
+
+## Rollback
+
+The restore script only moves, resizes, and launches windows. There is no persistent layout state to undo. Move windows manually or rerun a better capture file with `--file=...`.
