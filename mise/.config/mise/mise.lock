@@ -859,7 +859,7 @@ version = "26.4.0"
 backend = "core:node"
 
 [[tools."npm:pnpm"]]
-version = "11.9.0"
+version = "11.10.0"
 backend = "npm:pnpm"
 
 [[tools.pitchfork]]
