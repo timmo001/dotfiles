@@ -1,6 +1,6 @@
 [tools]
 bat = "0.26.1"
-"aqua:coder/boo" = "0.6.3"
+"aqua:coder/boo" = "0.6.4"
 bun = "1.3.14"
 claude = "latest"
 deno = "2.9.1"
