@@ -15,9 +15,9 @@
  *   the hook (bare `{ type, text }` triggers "Failed to send prompt").
  *
  * The context is produced by `dot stack-context --json` (the single shared
- * producer, scanning the repository root); this plugin only renders the
- * structured payload into XML. Detection is deterministic and needs no LLM, so
- * the block is reliable non-hallucinated context.
+ * producer, scanning the repository root's Git-listed files); this plugin only
+ * renders the structured payload into XML. Detection is deterministic and needs
+ * no LLM, so the block is reliable non-hallucinated context.
  */
 
 import type { Plugin } from "@opencode-ai/plugin"
@@ -222,7 +222,7 @@ const renderStackContext = (data: JsonRecord): string => {
       "context-metadata",
       "How this codebase stack snapshot was generated.",
       [
-        "Produced by `dot stack-context --json`. Deterministic (no LLM); prefer it over re-scanning the tree.",
+        "Produced by `dot stack-context --json`. Git-aware and deterministic (no LLM); prefer it over re-scanning the tree.",
         `Generated at: ${new Date().toISOString()}`,
         `Root: ${stringField(data, "name") || "(unknown)"} (${stringField(data, "root") || "(unknown)"})`,
         `Files scanned: ${scanned}${truncated}`,
@@ -271,9 +271,9 @@ export const StackContextPlugin = (async ({ $ }) => {
     return result.ok && result.text ? result.text : null
   }
 
-  /** Run the producer for `root` (or the cwd when null) and parse its payload. */
-  const collectStack = async (root: string | null): Promise<StackResult> => {
-    const args = root ? ["stack-context", root, "--json"] : ["stack-context", "--json"]
+  /** Run the producer for `root` and parse its payload. */
+  const collectStack = async (root: string): Promise<StackResult> => {
+    const args = ["stack-context", root, "--json"]
     const result = await run(() => $`dot ${args}`.text())
     if (!result.ok) {
       return {
@@ -300,7 +300,9 @@ export const StackContextPlugin = (async ({ $ }) => {
   return {
     "command.execute.before": async (input, output) => {
       if (!TARGET_COMMANDS.has(input.command)) return
-      const result = await collectStack(await resolveRepoRoot())
+      const root = await resolveRepoRoot()
+      if (!root) return
+      const result = await collectStack(root)
       output.parts.unshift({
         type: "text",
         text: result.kind === "data" ? renderStackContext(result.data) : result.block,

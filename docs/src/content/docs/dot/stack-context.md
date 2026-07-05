@@ -7,9 +7,9 @@ sidebar:
 
 ## `dot stack-context`
 
-Detect a directory's tech stack deterministically from its files, with no LLM and no external tools. It reports the languages present (with their general locations), the package ecosystems declared by manifests, development tooling, and the frameworks pulled in as dependencies. It is designed as a single command for agents to learn a project's stack, and as the shared producer for the OpenCode stack-context plugin (via `--json`).
+Detect a Git worktree's tech stack deterministically from its tracked and unignored files, with no LLM. It reports the languages present (with their general locations), the package ecosystems declared by manifests, development tooling, and the frameworks pulled in as dependencies. It is designed as a single command for agents to learn a project's stack, and as the shared producer for the OpenCode stack-context plugin (via `--json`).
 
-It scans the directory you pass, or the current working directory when you pass none. Unlike [`dot git-context`](/git/context/), it does not require a git repository.
+It scans the directory you pass, or the current working directory when you pass none. The directory must be inside a Git worktree; outside Git, the command returns an empty snapshot with a warning instead of scanning arbitrary directories.
 
 ```bash
 dot stack-context                  # stack summary for the current directory
@@ -20,9 +20,9 @@ dot stack-context ~/projects/app   # scan a specific directory
 
 ## How detection works
 
-Detection is a single directory walk that reads only manifests and config files and takes an extension and filename census. It never reads source file bodies, runs a subprocess, or resolves a dependency closure, so it stays fast (sub-25ms even on large repositories). A [Phase 0 benchmark](/dot/stack-context/#why-native-detection) chose this native approach over a compiled `syft` + `tokei` composition, which was 100 to 2000 times slower and added external binaries.
+Detection asks Git for the file set using `git ls-files --cached --others --exclude-standard`, then reads only manifests and config files and takes an extension and filename census. That means tracked files and untracked files not ignored by Git are included, while `.gitignore`, `.git/info/exclude`, and global excludes are respected. It never reads source file bodies or resolves a dependency closure, so it stays fast. A [Phase 0 benchmark](/dot/stack-context/#why-native-detection) chose this native approach over a compiled `syft` + `tokei` composition, which was 100 to 2000 times slower and added external binaries.
 
-The walk skips heavy or vendored directories (`node_modules`, `dist`, `build`, `.git`, `target`, `.venv`, and similar) and is bounded by a depth cap and a file cap. When the file cap is hit the result is marked truncated and a warning is added.
+Git supplies the candidate files, and the scan is still bounded by a depth cap and a file cap. When the file cap is hit the result is marked truncated and a warning is added.
 
 Signals carry a confidence tier so agents can weight them:
 
@@ -73,6 +73,8 @@ The `stack-context` plugin runs `dot stack-context --json` against the repositor
 
 - **On command** (`command.execute.before`): for `/inject-stack`, the dedicated command, and for `/inject-context`, alongside the [branch-context plugin](/git/context/#opencode-branch-context-plugin), so one command injects branch and stack context together.
 - **Automatically** (`chat.message`): on the first message of a session, when the working directory is a git repository, so a session starts with the project's stack in its initial context without a slash command. There is no session-start hook, so the plugin injects on the first user message and tracks the session id to fire at most once per session. It is skipped outside a git repository and when nothing is detected.
+
+Both paths resolve the Git repository root first and skip injection outside a Git worktree.
 
 The block carries `<context-metadata>`, `<languages>`, `<ecosystems>`, `<tooling>`, `<frameworks>`, and an optional `<warnings>` section, each with a short description line.
 

@@ -1,21 +1,20 @@
 /**
  * @file The shared stack-context producer.
  *
- * `detectStack` walks the target directory once and returns a single
- * {@link StackContextData} snapshot. It reads only manifests and takes an
- * extension/filename census for languages: it never reads source file bodies,
- * runs a subprocess, or resolves a dependency closure, which is why it stays
- * sub-25ms even on large repositories (Phase 0 benchmark). Both the text
- * renderer (`dot stack-context`) and the JSON renderer (the OpenCode
+ * `detectStack` asks Git for the target directory's tracked files plus
+ * untracked files not ignored by Git, then returns a single
+ * {@link StackContextData} snapshot. It
+ * reads only manifests and takes an extension/filename census for languages: it
+ * never reads source file bodies or resolves a dependency closure. Both the
+ * text renderer (`dot stack-context`) and the JSON renderer (the OpenCode
  * stack-context plugin) format this one snapshot, so they cannot drift.
  */
-import { readdirSync, readFileSync, statSync, type Dirent } from "node:fs";
-import { extname, join } from "node:path";
+import { readFileSync, statSync } from "node:fs";
+import { basename, extname, join } from "node:path";
 import {
   EXT_LANG,
   FILENAME_LANG,
   FRAMEWORK_INDEX,
-  IGNORE_DIRS,
   CONFIG_TOOLING,
   LOCKFILE_TOOLING,
   MANIFEST_ECO,
@@ -50,6 +49,11 @@ interface WalkAccumulator {
   truncated: boolean;
 }
 
+/** Git-backed file list for a scan root, or the reason Git could not provide one. */
+type GitFileList =
+  | { readonly ok: true; readonly files: readonly string[] }
+  | { readonly ok: false; readonly warning: string };
+
 /** Mutable tooling entry collected before rendering a stable sorted snapshot. */
 interface MutableToolingEntry {
   readonly kinds: Set<ToolingKind>;
@@ -77,12 +81,68 @@ function locationOf(relPath: string): string {
   return parts.slice(0, 2).join("/");
 }
 
-/** Read a directory, returning an empty list when it cannot be read. */
-function readDir(dir: string): Dirent<string>[] {
+/** Decode a subprocess stdout buffer as UTF-8 text. */
+function decode(stdout: Uint8Array): string {
+  return new TextDecoder().decode(stdout).trim();
+}
+
+/** Return a readable Git failure reason without exposing command noise. */
+function gitFailure(result: Bun.SyncSubprocess): string {
+  const stderr = result.stderr ? decode(result.stderr) : "";
+  return stderr || `git exited ${result.exitCode}`;
+}
+
+/** Run `git ls-files` for the scan root, respecting Git ignore rules. */
+function gitFiles(root: string): GitFileList {
   try {
-    return readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return [];
+    const inside = Bun.spawnSync(
+      ["git", "rev-parse", "--is-inside-work-tree"],
+      {
+        cwd: root,
+        stdout: "pipe",
+        stderr: "pipe",
+      },
+    );
+    if (inside.exitCode !== 0 || decode(inside.stdout) !== "true") {
+      return {
+        ok: false,
+        warning: `No readable Git worktree at '${root}'; stack context is unavailable.`,
+      };
+    }
+
+    const listed = Bun.spawnSync(
+      [
+        "git",
+        "ls-files",
+        "-z",
+        "--cached",
+        "--others",
+        "--exclude-standard",
+        "--deduplicate",
+        "--",
+        ".",
+      ],
+      {
+        cwd: root,
+        stdout: "pipe",
+        stderr: "pipe",
+      },
+    );
+    if (listed.exitCode !== 0) {
+      return {
+        ok: false,
+        warning: `Could not list Git files: ${gitFailure(listed)}.`,
+      };
+    }
+
+    const text = new TextDecoder().decode(listed.stdout);
+    return { ok: true, files: text.split("\0").filter(Boolean) };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      ok: false,
+      warning: `Could not run git for stack context: ${message}.`,
+    };
   }
 }
 
@@ -142,11 +202,26 @@ function classifyFile(acc: WalkAccumulator, name: string, rel: string): void {
   censusFile(acc, name, rel);
 }
 
-/**
- * Walk the tree once (depth- and file-capped), censusing extensions/filenames
- * and collecting manifest paths. Directory reads that fail are skipped.
- */
-function walk(root: string, options: StackContextOptions): WalkAccumulator {
+/** Whether the file path is within the configured scan depth. */
+function withinDepth(rel: string, maxDepth: number): boolean {
+  return rel.split("/").length - 1 <= maxDepth;
+}
+
+/** Whether `rel` is a readable regular file below `root`. */
+function isReadableFile(root: string, rel: string): boolean {
+  try {
+    return statSync(join(root, rel)).isFile();
+  } catch {
+    return false;
+  }
+}
+
+/** Census Git-listed files (depth- and file-capped) and collect manifest paths. */
+function walk(
+  root: string,
+  options: StackContextOptions,
+  files: readonly string[],
+): WalkAccumulator {
   const acc: WalkAccumulator = {
     langFiles: new Map(),
     langDirs: new Map(),
@@ -155,30 +230,18 @@ function walk(root: string, options: StackContextOptions): WalkAccumulator {
     scannedFiles: 0,
     truncated: false,
   };
-  const stack: { dir: string; depth: number }[] = [{ dir: root, depth: 0 }];
 
-  while (stack.length > 0) {
-    const { dir, depth } = stack.pop() as { dir: string; depth: number };
-    for (const entry of readDir(dir)) {
-      if (entry.isDirectory()) {
-        if (!IGNORE_DIRS.has(entry.name) && depth < options.maxDepth) {
-          stack.push({ dir: join(dir, entry.name), depth: depth + 1 });
-        }
-        continue;
-      }
-      if (!entry.isFile()) continue;
-
-      acc.scannedFiles += 1;
-      if (acc.scannedFiles > options.maxFiles) {
-        acc.truncated = true;
-        return acc;
-      }
-      classifyFile(
-        acc,
-        entry.name,
-        join(dir, entry.name).slice(root.length + 1),
-      );
+  for (const rel of files) {
+    if (!withinDepth(rel, options.maxDepth) || !isReadableFile(root, rel)) {
+      continue;
     }
+
+    acc.scannedFiles += 1;
+    if (acc.scannedFiles > options.maxFiles) {
+      acc.truncated = true;
+      return acc;
+    }
+    classifyFile(acc, basename(rel), rel);
   }
   return acc;
 }
@@ -384,9 +447,10 @@ function rootName(root: string): string {
 }
 
 /**
- * Produce the compact stack summary for `options.root`. Pure filesystem work;
- * never throws for an unreadable root or manifest, degrading to warnings and
- * partial results instead.
+ * Produce the compact stack summary for `options.root`. Git supplies the file
+ * set, so ignored files are excluded and non-Git directories return an empty
+ * snapshot with a warning. The detector never throws for an unreadable root,
+ * Git failure, or manifest, degrading to warnings and partial results instead.
  */
 export function detectStack(options: StackContextOptions): StackContextData {
   const { root } = options;
@@ -412,7 +476,22 @@ export function detectStack(options: StackContextOptions): StackContextData {
     };
   }
 
-  const acc = walk(root, options);
+  const files = gitFiles(root);
+  if (!files.ok) {
+    return {
+      root,
+      name: rootName(root),
+      scannedFiles: 0,
+      truncated: false,
+      languages: [],
+      ecosystems: [],
+      tooling: [],
+      frameworks: [],
+      warnings: [files.warning],
+    };
+  }
+
+  const acc = walk(root, options, files.files);
   if (acc.truncated) {
     warnings.push(
       `Scan stopped at the ${options.maxFiles}-file cap; results are partial.`,

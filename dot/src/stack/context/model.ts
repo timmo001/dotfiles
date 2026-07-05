@@ -1,15 +1,14 @@
 /**
  * @file Data model and options for the shared stack-context producer.
  *
- * `detectStack` (see `detect.ts`) walks the target directory once and produces a
- * single {@link StackContextData} snapshot: detected languages (with their
- * general locations), package ecosystems (from manifests), tooling (from
- * lockfiles, configs, and declared dependencies), and frameworks (from declared
- * dependencies). The text renderer (`dot stack-context`) and the JSON renderer
- * (consumed by the OpenCode stack-context plugin) both format that one snapshot,
- * so the two consumers can never drift. Detection is pure filesystem work: no
- * subprocess and no external dependency, which is why it stays sub-25ms even on
- * large repositories (see the Phase 0 benchmark).
+ * `detectStack` (see `detect.ts`) uses Git to list the target directory's
+ * tracked and unignored files, then produces a single {@link StackContextData}
+ * snapshot: detected languages (with their general locations), package
+ * ecosystems (from manifests), tooling (from lockfiles, configs, and declared
+ * dependencies), and frameworks (from declared dependencies). The text renderer
+ * (`dot stack-context`) and the JSON renderer (consumed by the OpenCode
+ * stack-context plugin) both format that one snapshot, so the two consumers can
+ * never drift.
  */
 
 /** Confidence in a detected signal. */
@@ -95,7 +94,7 @@ export interface StackContextData {
   readonly root: string;
   /** Directory name of {@link root}, for a readable header. */
   readonly name: string;
-  /** Total files visited during the walk. */
+  /** Total Git-listed files visited during detection. */
   readonly scannedFiles: number;
   /** Whether the walk stopped early on {@link StackContextOptions.maxFiles}. */
   readonly truncated: boolean;

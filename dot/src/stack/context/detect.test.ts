@@ -14,9 +14,25 @@ function options(
 }
 
 let dir: string;
+let nonGitDir: string;
+
+/** Run a git command in the test repository. */
+function git(args: readonly string[]): void {
+  const result = Bun.spawnSync(["git", ...args], {
+    cwd: dir,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  if (result.exitCode !== 0) {
+    throw new Error(new TextDecoder().decode(result.stderr));
+  }
+}
 
 beforeAll(() => {
   dir = mkdtempSync(join(tmpdir(), "stack-detect-"));
+  nonGitDir = mkdtempSync(join(tmpdir(), "stack-detect-nongit-"));
+  git(["init"]);
+  writeFileSync(join(dir, ".gitignore"), "node_modules/\n");
   writeFileSync(
     join(dir, "package.json"),
     JSON.stringify({
@@ -63,9 +79,10 @@ beforeAll(() => {
 
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
+  rmSync(nonGitDir, { recursive: true, force: true });
 });
 
-test("censuses languages by extension and ignores node_modules", () => {
+test("censuses languages by extension and respects gitignore", () => {
   const data = detectStack(options(dir));
   const files = new Map(data.languages.map((lang) => [lang.name, lang.files]));
   expect(files.get("TypeScript")).toBe(3); // source files + vite config, not the ignored one
@@ -122,6 +139,17 @@ test("returns a warning and no results for a non-directory root", () => {
   expect(data.ecosystems).toHaveLength(0);
   expect(data.tooling).toHaveLength(0);
   expect(data.warnings.length).toBeGreaterThan(0);
+});
+
+test("returns a warning and no results outside a git worktree", () => {
+  writeFileSync(join(nonGitDir, "package.json"), JSON.stringify({}));
+  writeFileSync(join(nonGitDir, "index.ts"), "export const x = 1;\n");
+  const data = detectStack(options(nonGitDir));
+  expect(data.scannedFiles).toBe(0);
+  expect(data.languages).toHaveLength(0);
+  expect(data.ecosystems).toHaveLength(0);
+  expect(data.tooling).toHaveLength(0);
+  expect(data.warnings.join("\n")).toContain("No readable Git worktree");
 });
 
 test("marks the result truncated when the file cap is hit", () => {
