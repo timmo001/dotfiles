@@ -82,6 +82,10 @@ export default defineConfig({
           items: [{ autogenerate: { directory: 'dot' } }],
         },
         {
+          label: 'Cleanup',
+          items: [{ autogenerate: { directory: 'cleanup' } }],
+        },
+        {
           label: 'Git & GitHub',
           items: [{ autogenerate: { directory: 'git' } }],
         },

@@ -1,8 +1,6 @@
 ---
 title: Cleanup
 description: Remove stowed links and manually reverse first-use setup changes.
-sidebar:
-  order: 8
 ---
 
 Use this page when you want to remove the changes `dot` made to a machine. The safe first step is always `dot clean`; everything after that is optional and more destructive.
