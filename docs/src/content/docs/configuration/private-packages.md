@@ -11,7 +11,7 @@ sidebar:
 
 `dot init` and `dot update` install the Arch and AUR packages listed in `.dot-public-packages` at the repo root. The file is one package name per line; blank lines and `#` comments are ignored.
 
-The list covers shared tooling rather than desktop apps you might install separately: build helpers (`cmake`, `gcc`, `pkgconf`), diagnostics (`bmon`, `iperf3`, `sysstat`, `topgrade-bin`), shell and terminal helpers (`zsh` and its plugins, `mise-bin`), desktop integrations (`kdeconnect`, `system-bridge-git`), and other utilities referenced across the dotfiles setup. Override the path with `DOT_PUBLIC_PACKAGES_FILE`.
+The list covers shared tooling rather than desktop apps you might install separately: build helpers (`cmake`, `gcc`, `pkgconf`), diagnostics (`bmon`, `iperf3`, `sysstat`, `topgrade-bin`), shell and terminal helpers (`zsh` and its plugins, `mise-bin`), desktop integrations (`kdeconnect`, `system-bridge-git`), and other utilities referenced across the dotfiles setup. `context-git` will join this list once the standalone context package is published. Override the path with `DOT_PUBLIC_PACKAGES_FILE`.
 
 Missing public packages are installed with `omarchy-pkg-aur-add`; already-installed packages are left in place.
 
