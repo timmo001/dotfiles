@@ -13,7 +13,7 @@ import { OutputLog } from "../services/OutputLog.js";
 import { agentsSync } from "./AgentsSync.js";
 import { install } from "./Install.js";
 import { setupPrivateRepo } from "./SetupPrivateRepo.js";
-import { runElevated } from "../lib/elevatedCommand.js";
+import { runElevated, withSudoKeepAlive } from "../lib/elevatedCommand.js";
 import { gitRequired } from "../lib/git.js";
 import {
   ensureGumInstalled,
@@ -838,5 +838,5 @@ export function init(rawArgs: readonly string[]) {
     );
     yield* log.info("Next: run `dot doctor` to verify this setup");
     yield* log.info("Future maintenance: run `dot update`");
-  });
+  }).pipe(withSudoKeepAlive);
 }

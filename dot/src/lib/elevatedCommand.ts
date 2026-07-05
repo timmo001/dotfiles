@@ -2,6 +2,10 @@ import { Effect } from "effect";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { ENV, envString } from "./env.js";
 
+let sudoKeepAliveActive = false;
+
+type KeepAliveProcess = Pick<Bun.Subprocess, "kill">;
+
 function isRoot(): boolean {
   return process.getuid?.() === 0;
 }
@@ -22,6 +26,8 @@ export interface ElevationInputs {
   readonly hasSudo: boolean;
   /** Whether a graphical session can drive a polkit prompt. */
   readonly hasGraphicalSession: boolean;
+  /** Whether this process has established a sudo credential cache. */
+  readonly preferSudo?: boolean;
 }
 
 /**
@@ -36,9 +42,50 @@ export interface ElevationInputs {
 export function chooseElevationBinary(
   inputs: ElevationInputs,
 ): ElevationBinary {
+  if (inputs.preferSudo && inputs.hasSudo) return "sudo";
   if (inputs.hasPkexec && inputs.hasGraphicalSession) return "pkexec";
   if (inputs.hasSudo) return "sudo";
   return "pkexec";
+}
+
+/** Prompt once for sudo and keep the credential alive for the scoped effect. */
+export function withSudoKeepAlive<E, R>(
+  effect: Effect.Effect<void, E, R>,
+): Effect.Effect<void, E, R | CommandExecutor> {
+  if (isRoot()) return effect;
+  return Effect.acquireUseRelease(
+    Effect.gen(function* () {
+      const executor = yield* CommandExecutor;
+      if ((yield* executor.exitCode("which", ["sudo"])) !== 0) return null;
+
+      const exitCode = yield* executor.inherit("sudo", ["-v"]);
+      if (exitCode !== 0) return null;
+
+      sudoKeepAliveActive = true;
+      return Bun.spawn(
+        ["sh", "-c", "while true; do sudo -n true; sleep 60; done"],
+        {
+          stdin: "ignore",
+          stdout: "ignore",
+          stderr: "ignore",
+        },
+      );
+    }),
+    () => effect,
+    (keepAlive) =>
+      Effect.sync(() => {
+        sudoKeepAliveActive = false;
+        killKeepAlive(keepAlive);
+      }),
+  );
+}
+
+function killKeepAlive(keepAlive: KeepAliveProcess | null): void {
+  try {
+    keepAlive?.kill();
+  } catch {
+    // The keepalive process may have already exited if sudo validation expired.
+  }
 }
 
 /** Resolve a command through pkexec/sudo when the current process is not root. */
@@ -56,6 +103,7 @@ export function elevatedCommand(
       hasPkexec,
       hasSudo,
       hasGraphicalSession: hasGraphicalSession(),
+      preferSudo: sudoKeepAliveActive,
     });
     return [binary, [command, ...args]] as const;
   });

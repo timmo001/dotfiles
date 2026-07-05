@@ -22,6 +22,17 @@ describe("chooseElevationBinary", () => {
     ).toBe("pkexec");
   });
 
+  test("prefers sudo when a keepalive is active", () => {
+    expect(
+      chooseElevationBinary({
+        hasPkexec: true,
+        hasSudo: true,
+        hasGraphicalSession: true,
+        preferSudo: true,
+      }),
+    ).toBe("sudo");
+  });
+
   test("falls back to sudo without a graphical session", () => {
     expect(
       chooseElevationBinary({
