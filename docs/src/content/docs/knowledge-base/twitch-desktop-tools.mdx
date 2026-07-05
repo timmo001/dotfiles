@@ -1,0 +1,123 @@
+---
+title: Twitch Desktop Tools
+description: Use the Twitch menu, channel picker, and notification recovery scripts.
+sidebar:
+  order: 11
+---
+
+The Twitch scripts wrap `twitch-notifications` with a Walker menu, channel picker, and detached restart/recheck helpers.
+
+## Autostart
+
+Both desktop and laptop host autostart files start:
+
+```text
+twitch-notifications
+```
+
+The shared resume hook also restarts Twitch notifications after suspend. See [Resume Recovery](/knowledge-base/resume-recovery/).
+
+## Bindings
+
+| Binding | Action |
+| --- | --- |
+| `CTRL+ALT+T` | Open the main Twitch menu. |
+| `CTRL+ALT+SHIFT+T` | Open the channel picker directly. |
+| `SUPER+ALT+T` | Open the Twitch following live page as a webapp. |
+
+## Main menu
+
+Run the menu directly:
+
+```bash
+twitch-menu
+```
+
+The menu offers:
+
+- Recheck notifications.
+- Restart notifications.
+- Open following.
+- Open following live.
+- Open channel picker.
+
+On the `desktop` host, URL opening prefers `xdg-open` when available. Other hosts use `omarchy-launch-webapp`.
+
+## Channel picker
+
+Open the channel picker directly:
+
+```bash
+twitch-menu channels
+```
+
+The picker reads configured channels from:
+
+```text
+${XDG_CONFIG_HOME:-~/.config}/twitch-notifications/channels.yml
+```
+
+It checks live state with:
+
+```bash
+twitch-notifications --status-bar-json
+```
+
+Live channels are shown before offline channels. Picking an offline channel opens its archives page:
+
+```text
+https://twitch.tv/<channel>/videos?filter=archives&sort=time
+```
+
+The **Open all live autolaunch** action runs:
+
+```bash
+twitch-notifications --recheck --open
+```
+
+## Recheck notifications
+
+```bash
+twitch-notifications-recheck
+```
+
+The helper detaches from the caller. If `twitch-notifications --status` reports `active`, it runs `twitch-notifications --recheck`. Otherwise it falls back to the restart helper.
+
+## Restart notifications
+
+```bash
+twitch-notifications-restart
+```
+
+The helper detaches, stops matching `twitch-notifications` processes, waits one second, then relaunches through:
+
+```bash
+uwsm-app -- twitch-notifications
+```
+
+## Troubleshooting
+
+If the channel menu is empty, check that the channels file exists and contains `- name: ...` entries:
+
+```bash
+ls ~/.config/twitch-notifications/channels.yml
+```
+
+If live state looks stale, run:
+
+```bash
+twitch-notifications-recheck
+```
+
+If the process is wedged, run:
+
+```bash
+twitch-notifications-restart
+```
+
+If the menu opens but choosing a channel does nothing, test the launcher path directly:
+
+```bash
+twitch-menu channels
+omarchy-launch-webapp https://twitch.tv/directory/following/live
+```

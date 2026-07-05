@@ -1,0 +1,107 @@
+---
+title: Work Browser Launchers
+description: Launch work Chrome, Slack, and Discord into predictable Hyprland workspaces.
+sidebar:
+  order: 13
+---
+
+The work launchers isolate a Google Chrome work profile and place work apps on known workspaces. They are used directly by Hypr bindings and indirectly by workspace setup/restore flows.
+
+## Bindings
+
+| Binding | Action |
+| --- | --- |
+| `SUPER+ALT+B` | Launch work browser. |
+| `SUPER+SHIFT+S` | Launch Slack. |
+| `SUPER+D` | Launch Discord. |
+
+## Work Chrome profile
+
+All three launchers use `google-chrome-stable` with the work profile data directory:
+
+```text
+$HOME/.config/google-chrome-work
+```
+
+The shared Chrome flags include:
+
+```text
+--ozone-platform=wayland
+--force-device-scale-factor=0.8
+--profile-directory=Profile 1
+```
+
+The work browser also sets:
+
+```text
+--class=work-browser
+```
+
+## Work browser
+
+Launch a new work browser window on workspace `3`:
+
+```bash
+launch-work-browser
+```
+
+Open a URL in the work browser:
+
+```bash
+launch-work-browser https://example.com
+```
+
+Open as a tab instead of using the workspace-placement helper:
+
+```bash
+launch-work-browser --tab https://example.com
+```
+
+Window mode uses:
+
+```bash
+launch-on-workspace 3 '^(work-browser|google-chrome)$' '<chrome command>'
+```
+
+## Slack and Discord
+
+Slack launches as a Chrome app window on workspace `1`:
+
+```bash
+launch-work-slack
+```
+
+Discord launches as a Chrome app window on workspace `1`:
+
+```bash
+launch-work-discord
+```
+
+They match these Hyprland classes after launch:
+
+| App | Class regex |
+| --- | --- |
+| Slack | `^chrome-app\.slack\.com__client` |
+| Discord | `^chrome-discord\.com__app` |
+
+## Relationship to workspace recovery
+
+`workspace-setup` uses equivalent commands for the work slots. `workspace-restore` also knows how to relaunch Slack, Discord, and the work browser from captured client classes.
+
+If a work app does not restore correctly, test the launcher directly before debugging restore logic.
+
+## Troubleshooting
+
+If a window launches but stays on the current workspace, inspect its class:
+
+```bash
+hyprctl -j clients
+```
+
+If Chrome opens the wrong profile, check that no external launcher is overriding `--user-data-dir` and that the work profile directory exists:
+
+```bash
+ls ~/.config/google-chrome-work
+```
+
+If `--tab` opens in an unexpected existing Chrome instance, use the default window mode instead. The `--tab` path does not use `launch-on-workspace`; it asks Hyprland to execute the Chrome command directly.

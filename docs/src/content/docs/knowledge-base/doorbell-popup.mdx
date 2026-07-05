@@ -1,0 +1,157 @@
+---
+title: Doorbell Popup
+description: Open a Home Assistant camera popup from a doorbell or motion entity.
+sidebar:
+  order: 10
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+`doorbell-popup` opens a Home Assistant more-info camera popup as an Omarchy webapp and positions it as a floating Hyprland window. It can run once, or watch a Home Assistant entity and open the popup when that entity turns on.
+
+## Host bindings
+
+Both public host overrides expose a permanent open-only popup on:
+
+```text
+SUPER+ALT+C
+```
+
+The desktop host opens on monitor `DP-1` with the default camera and a larger popup. The laptop host opens on monitor `eDP-1`, sets `camera.front_door_snapshot`, and uses a smaller popup size.
+
+## Defaults
+
+The script defaults to:
+
+| Setting | Default |
+| --- | --- |
+| Motion entity | `input_boolean.doorbell` |
+| Camera entity | `camera.front_door_snapshot` |
+| Home Assistant URL | `http://homeassistant.local:8123` |
+| Target workspace | `1` |
+| Size | `640x640` |
+| Duration | `20` seconds |
+
+The popup URL is built as:
+
+```text
+<base-url>/lovelace/home?more-info-entity-id=<camera-entity>
+```
+
+## Open once
+
+Open the popup and exit:
+
+```bash
+doorbell-popup --open-only
+```
+
+Keep it open instead of scheduling the auto-close timer:
+
+```bash
+doorbell-popup --open-only --no-auto-close
+```
+
+Focus the popup after opening or repositioning:
+
+```bash
+doorbell-popup --open-only --focus-popup
+```
+
+## Watch mode
+
+Run without `--open-only` to watch the motion entity:
+
+```bash
+doorbell-popup
+```
+
+Watch mode uses:
+
+```bash
+go-automate ha bridge watch entity --bar-json --icon '' input_boolean.doorbell
+```
+
+When the emitted JSON has class `on`, the popup opens or repositions.
+
+## Positioning
+
+`doorbell-popup` chooses a monitor in this order:
+
+- The explicit `--monitor <name>` if present and found.
+- The monitor that owns the target workspace.
+- The currently focused monitor.
+
+Hyprland reports monitor geometry in raw pixels while `movewindowpixel` and `resizewindowpixel` use logical coordinates, so the script divides by monitor scale before positioning. It also accounts for reserved monitor areas.
+
+## Useful overrides
+
+```bash
+doorbell-popup --open-only --monitor DP-1 --width 640 --height 640
+doorbell-popup --entity input_boolean.doorbell --camera-entity camera.front_door_snapshot
+doorbell-popup --base-url http://homeassistant.local:8123 --workspace 1
+doorbell-popup --duration 30 --margin 20 --bottom-margin 12
+```
+
+Numeric values must be positive integers.
+
+## Test without a real event
+
+Simulate one on event:
+
+```bash
+doorbell-popup --simulate-event on --simulate-exit
+```
+
+Force the startup simulation path:
+
+```bash
+doorbell-popup --force-motion-true --simulate-exit
+```
+
+## State
+
+The script stores the last popup address at:
+
+```text
+${XDG_RUNTIME_DIR:-/tmp}/doorbell-popup.address
+```
+
+If that address still exists, the script repositions the existing popup instead of opening a duplicate. If the address is stale, it removes the file.
+
+## Recovery flow
+
+<Steps>
+
+1. Test with `doorbell-popup --open-only` first.
+2. Add `--monitor`, `--width`, and `--height` until placement is right.
+3. Test the event path with `--simulate-event on --simulate-exit`.
+4. Run watch mode only after the open-once path works.
+
+</Steps>
+
+## Troubleshooting
+
+If the script exits immediately, check required commands:
+
+```bash
+command -v go-automate hyprctl jq omarchy-launch-webapp
+```
+
+If placement is on the wrong monitor, pass `--monitor <name>` and verify monitor names with:
+
+```bash
+hyprctl -j monitors
+```
+
+If no event opens the popup, check the entity stream directly:
+
+```bash
+go-automate ha bridge watch entity --bar-json --icon '' input_boolean.doorbell
+```
+
+If the popup keeps reusing a dead address, remove the runtime file:
+
+```bash
+rm -f "${XDG_RUNTIME_DIR:-/tmp}/doorbell-popup.address"
+```

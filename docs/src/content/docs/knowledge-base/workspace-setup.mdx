@@ -1,0 +1,149 @@
+---
+title: Workspace Setup
+description: Rebuild the desktop host's work and non-work workspace layout.
+sidebar:
+  order: 9
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+`workspace-setup` is the desktop host's opinionated workspace arranger. It launches or reuses the expected apps, tags them by slot, moves them to fixed workspaces, and rebuilds the main workspace split tree.
+
+Use it when the desktop workspace set has drifted, after login, or after a restart where capture/restore is not the right tool.
+
+:::note
+This is more specific than [Workspace Relayout](/knowledge-base/workspace-relayout/). Relayout reshapes whatever tiled windows are already on the active workspace. Workspace setup chooses specific apps and workspaces.
+:::
+
+## Entry points
+
+The desktop host autostarts setup after Hyprland starts:
+
+```text
+exec-once = workspace-setup --sleep=5
+```
+
+On the `desktop` host, `workspace-menu` also exposes a **Setup workspace** action. The shared menu binding is:
+
+```text
+SUPER+ALT+W
+```
+
+You can also run it directly:
+
+```bash
+workspace-setup
+```
+
+## Work-time mode
+
+The script branches on `is-work-time`, which returns success Monday to Friday from `07:00` through `16:59` local time.
+
+During work time, setup prepares:
+
+| Workspace | Slots |
+| --- | --- |
+| `1` | Slack, personal Chromium, Ghostty in the Home Assistant frontend repo, Discord. |
+| `2` | Ghostty in the Home Assistant frontend repo. |
+| `3` | Work browser. |
+
+Outside work time, setup prepares:
+
+| Workspace | Slots |
+| --- | --- |
+| `1` | Two personal Chromium windows and Ghostty. |
+| `2` | Ghostty. |
+
+After setup, it switches to workspace `2`.
+
+## How slots are matched
+
+Each slot has a Hyprland tag such as `wssetup-ws1-slack` or `wssetup-ws1-term`. Setup prefers an existing tagged window, then an existing matching candidate, then launches the command for that slot.
+
+Before tagging a window, it removes other `wssetup-*` tags from that window and clears the target tag from any older window. This keeps each slot bound to one current address.
+
+## Debug a setup run
+
+Use step-through mode when you need to see where the arrangement goes wrong:
+
+```bash
+workspace-setup --step-through
+```
+
+Run faster when you are iterating and Hyprland is behaving reliably:
+
+```bash
+workspace-setup --fast
+```
+
+Slow it down when windows are not ready before the script tries to place them:
+
+```bash
+workspace-setup --speed-multiplier=2.5
+```
+
+Delay startup logic after login:
+
+```bash
+workspace-setup --sleep=10
+```
+
+## Logs
+
+By default logs are written under:
+
+```text
+~/.local/state/workspace-setup/runs/
+```
+
+Override the log path for one run:
+
+```bash
+WORKSPACE_SETUP_LOG_FILE=/tmp/workspace-setup.log workspace-setup --step-through
+```
+
+The script removes `workspace-setup-*.log` files older than seven days from the default log directory.
+
+## Temporary workspace
+
+Setup moves windows through a numeric temporary workspace while rebuilding split trees. The default is `99`.
+
+Override it if workspace `99` is in use:
+
+```bash
+WORKSPACE_SETUP_TEMP_WS=98 workspace-setup
+```
+
+The temp workspace must be a positive integer.
+
+## Move dispatcher
+
+The default move dispatcher is `movetoworkspace`, because `movetoworkspacesilent` has caused Hyprland crashes in this flow.
+
+Use the silent dispatcher only when intentionally testing it:
+
+```bash
+WORKSPACE_SETUP_MOVE_DISPATCHER=movetoworkspacesilent workspace-setup
+```
+
+Valid values are `movetoworkspace` and `movetoworkspacesilent`.
+
+## Recovery flow
+
+<Steps>
+
+1. Run `workspace-setup --step-through`.
+2. Watch the log output for the slot that fails to resolve.
+3. Check whether the app window class matches the slot regex.
+4. If timing is the issue, rerun with a higher `--speed-multiplier` or `--sleep`.
+5. If placement goes wrong, move windows manually or restore a capture from [Workspace Session Recovery](/knowledge-base/workspace-session-recovery/).
+
+</Steps>
+
+## Troubleshooting
+
+If a terminal slot reuses an OpenCode terminal, the setup script filters titles starting with `OC |` for terminal candidates that should not be reused.
+
+If the startup browser should become the main browser slot, focus a Chromium window before running setup. The script prefers the focused startup Chromium address for that slot.
+
+If the non-work layout puts the blank tab in the wrong slot, setup tries to detect blank Chromium tabs and swap the top/main browser tags.
