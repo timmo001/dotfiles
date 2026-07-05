@@ -68,7 +68,7 @@ gh run view <RUN_ID>
 gh pr checkout <PR_NUMBER>
 ```
 
-For upstream code patterns, API usage examples, or GitHub-hosted documentation, prefer `grep` over `webfetch` or `gh repo view` of raw file content. For library or framework documentation, prefer `context7` tools.
+For upstream code patterns, API usage examples, or GitHub-hosted documentation, prefer `grep` over `webfetch` or `gh repo view` of raw file content. For broad read-only upstream dependency/source inspection, use an available read-only research subagent when delegation is useful. For library or framework documentation, prefer `context7` tools.
 
 ## Output Format
 

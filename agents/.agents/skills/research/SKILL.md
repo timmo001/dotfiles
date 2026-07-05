@@ -22,7 +22,7 @@ Answer a question by reading the sources that own the answer, then hand back fin
    - `gh search` plus raw-file `webfetch` for issues, PRs, comments, and source in a specific repo. `gh api` GETs against a specific issue or PR are fine for maintainer comments.
    - `webfetch` and `websearch` for official docs and specs off GitHub.
    - Answer Overflow only for community context when the primary sources fall short.
-3. **Fan out when it helps.** For broad or parallel reading, delegate with the `task` tool: `explore` for codebase reach, `general-readonly` for read-only external legwork. Gather their observations; the ranking and synthesis stay your work.
+3. **Fan out when it helps.** For broad or parallel reading, delegate with the `task` tool to available subagents whose descriptions match the work, such as local codebase discovery or broad read-only upstream dependency/source/docs legwork. Gather their observations; source ranking, claim verification, and synthesis stay your work.
 4. **Verify before asserting.** Read the actual source, not just a search snippet. Follow each claim to the line, comment, or section that proves it.
 5. **Report with citations.** Every claim carries a source URL or permalink, and prefer a permalink to the exact line or comment over a bare repo or page link. Lead with the answer, then the evidence, then what is still uncertain and the smallest next check that would resolve it.
 

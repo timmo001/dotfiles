@@ -71,7 +71,7 @@ Use this skill for debugging work where ad-hoc inspection is likely to miss the 
 ## Tool Guidance
 
 - Start with narrow local reads and searches before broad exploration.
-- Use the `task` tool with `subagent_type: "explore"` for wide codebase discovery.
+- Use the `task` tool with an available local exploration subagent for wide codebase discovery.
 - Use Chrome DevTools tools for browser-specific bugs.
 - Use tests, CLI commands, curl, small repro scripts, or harnesses to create deterministic loops.
 - If project glossary, ADRs, or local architecture docs exist, use them to avoid misreading terms or constraints.

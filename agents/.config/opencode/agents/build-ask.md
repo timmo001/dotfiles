@@ -88,6 +88,7 @@ Guidelines:
 - Use the tools at your disposal; prefer cli commands for local repo queries.
 - For library or framework documentation, prefer `context7` tools over `webfetch` or `gh` CLI.
 - For GitHub-hosted docs, code patterns, or real-world usage examples, prefer `grep` over `webfetch`, `gh api`, or `gh repo view` of raw file content.
+- For broad delegated research, choose from the available task subagents by their descriptions instead of assuming a specific custom agent exists.
 - Reserve `gh` CLI for GitHub workflow operations (PRs, issues, checks, runs) and local repo metadata.
 - Load the `git-context` skill when working with branches, remotes, or diffs.
 - Load the `pr-review` skill when reviewing code changes or pull requests.
