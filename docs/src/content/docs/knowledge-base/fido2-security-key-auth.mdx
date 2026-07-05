@@ -1,13 +1,15 @@
 ---
 title: FIDO2 Security Key Auth
-description: Set up Omarchy FIDO2 authentication, then require a security-key PIN for sudo, polkit, and Hyprlock.
+description: Set up Omarchy FIDO2 authentication for sudo, polkit, and Hyprlock with touch-first daily prompts.
 sidebar:
   order: 2
 ---
 
-import { Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+import { Steps } from '@astrojs/starlight/components';
 
 This setup uses a FIDO2 security key through `pam-u2f`. The key becomes the preferred local authentication path for `sudo`, polkit prompts, and Hyprlock, while the account password stays available as fallback.
+
+The daily path is touch-only. Do not add `pinverification=1` unless you want the security-key PIN on every `sudo`, `pkexec`, and Hyprlock authentication.
 
 It does not change LUKS disk decryption. Boot still uses the LUKS passphrase unless a separate LUKS token setup is configured.
 
@@ -32,37 +34,15 @@ Use Omarchy's built-in FIDO2 setup first:
 
 The setup installs `libfido2` and `pam-u2f`, registers the key with `pamu2fcfg`, stores the mapping at `/etc/fido2/fido2`, and adds `pam_u2f.so` to `sudo` and `polkit-1`.
 
-The default Omarchy setup is touch-based. Use the next section to require the key PIN and add Hyprlock.
+The default Omarchy setup is touch-based. Keep that behaviour for daily use, then add Hyprlock manually.
 
-## Require PIN verification
+## Confirm sudo and polkit
 
-Confirm the key is visible and supports a FIDO2 PIN:
+Use this touch-only line in `/etc/pam.d/sudo` and `/etc/pam.d/polkit-1`:
 
-```bash
-fido2-token -L
-fido2-token -I /dev/hidrawX
+```text
+auth sufficient pam_u2f.so cue [cue_prompt=Touch your security key] authfile=/etc/fido2/fido2
 ```
-
-Replace `/dev/hidrawX` with the device path from `fido2-token -L`. Look for `clientPin` in the options.
-
-Then update the `pam_u2f.so` lines in `/etc/pam.d/sudo` and `/etc/pam.d/polkit-1` to include `pinverification=1`.
-
-<Tabs syncKey="fido2-pam-line">
-  <TabItem label="With PIN">
-
-    ```text
-    auth sufficient pam_u2f.so cue [cue_prompt=Touch your security key] pinverification=1 authfile=/etc/fido2/fido2
-    ```
-
-  </TabItem>
-  <TabItem label="Omarchy default">
-
-    ```text
-    auth sufficient pam_u2f.so cue authfile=/etc/fido2/fido2
-    ```
-
-  </TabItem>
-</Tabs>
 
 Keep the existing password lines below it. With `sufficient`, a successful security-key auth skips the password prompt; failure falls through to the password fallback.
 
@@ -71,7 +51,7 @@ Keep the existing password lines below it. With `sufficient`, a successful secur
 Hyprlock uses its own PAM service. Omarchy's FIDO2 setup does not add this line automatically, so prepend it to `/etc/pam.d/hyprlock`:
 
 ```text
-auth sufficient pam_u2f.so cue [cue_prompt=Touch your security key] pinverification=1 authfile=/etc/fido2/fido2
+auth sufficient pam_u2f.so cue [cue_prompt=Touch your security key] authfile=/etc/fido2/fido2
 ```
 
 Leave the default `auth include login` line below it so the normal password unlock still works.
@@ -88,7 +68,7 @@ Use generic security-key wording so the config works with non-Yubico keys too:
 
 ```ini
 input-field {
-    placeholder_text = <span> Security Key PIN or Password </span>
+    placeholder_text = <span> Touch Security Key or Type Password </span>
     check_text = <i>Touch your security key</i>
 }
 ```
@@ -119,6 +99,16 @@ pkexec pacman -Rns fprintd libfprint-git
 
 Keep `fingerprint:enabled = false` in the stowed Hyprlock config.
 
+## PIN mode
+
+`pinverification=1` is stricter, but `pam-u2f` prompts for the security-key PIN on every PAM authentication. It does not cache the PIN for the whole login session.
+
+Use PIN mode only if that tradeoff is intentional:
+
+```text
+auth sufficient pam_u2f.so cue [cue_prompt=Touch your security key] pinverification=1 authfile=/etc/fido2/fido2
+```
+
 ## Test order
 
 Test each layer before relying on it:
@@ -126,7 +116,7 @@ Test each layer before relying on it:
 <Steps>
 
 1. Run `sudo -k`, then `sudo true`.
-2. Enter the security-key PIN, then touch the key.
+2. Touch the security key when prompted.
 3. Trigger a polkit prompt if convenient.
 4. Lock the screen with Hyprlock while another session or terminal remains available.
 5. Test password fallback by trying without the security key.
