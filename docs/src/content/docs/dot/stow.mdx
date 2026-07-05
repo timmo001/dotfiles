@@ -47,6 +47,16 @@ dot stow --private  # private only
 - Stows the Hypr package with `--no-folding` and creates/repairs the `~/.config/hypr/host` symlink for the active host.
 - Adopts existing files where needed so a fresh machine does not clobber stock config.
 
+## Hypr package handling
+
+The Hypr package is treated differently from every other stow package.
+
+Hyprland enables config autoreload by default. If `~/.config/hypr/hyprland.conf` goes missing even briefly, Hyprland writes a default stub as a real file. That stub then blocks the next stow because stow cannot replace a regular file with a symlink.
+
+To avoid that gap, `dot stow` never unstows the `hypr` package. Before stowing Hypr, it atomically repairs `~/.config/hypr/hyprland.conf` when the link is missing or points at the wrong target: it creates a correctly spelled stow symlink through a temporary path and renames it into place, so Hyprland never sees a missing file. The idempotent stow step then fills in any other missing Hypr files without an unstow/restow cycle.
+
+After the Hypr package is laid down, `dot stow` also creates or repairs the `~/.config/hypr/host` symlink for the active `OMARCHY_HOST`. See [Host Overrides](/omarchy/host-overrides/) for how host overrides are selected.
+
 ## Unstowing packages
 
 Use `dot clean` when you need to remove the symlinks that `dot stow` manages, for example before inspecting a conflict or proving whether a file is coming from the dotfiles repo.
