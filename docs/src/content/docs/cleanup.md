@@ -11,20 +11,21 @@ Review each command before running it. Some steps remove system config, package 
 
 ## Remove stowed links
 
-`dot clean` only removes symlinks managed by GNU Stow. It unstows the private overlay first, then the public packages.
+`dot clean` only removes symlinks managed by GNU Stow. It unstows the private overlay first when it is available, then the public packages.
 
 ```bash
 dot clean
 ```
 
-This does not remove packages, cloned repositories, pacman config, firewall rules, systemd user units, shell changes, logs, or backup files.
+This does not remove packages, cloned repositories, pacman config, firewall rules, systemd user units, shell changes, generated agent instruction copies, logs, or backup files.
 
 ## Restore backed-up files
 
-`dot install` and `dot init` move conflicting live files into backup paths instead of deleting them. Check the public repo backup directory and any Omarchy init backups before removing the repo.
+`dot install` and `dot init` move conflicting live files into backup paths instead of deleting them. Check the public/private repo backup directories and any Omarchy init backups before removing the repos.
 
 ```bash
 ls ~/.config/dotfiles/backup
+ls ~/.config/dotfiles-private/backup
 ls ~/.config/*.dot-init-backup-*
 ```
 
@@ -32,15 +33,26 @@ Move back only the files you still want to keep.
 
 ## Disable user services
 
-Disable user timers/services that were enabled during setup.
+Disable user timers/services that were enabled from these dotfiles.
 
 ```bash
 systemctl --user disable --now dot-doctor-startup.timer
 systemctl --user disable --now daily-volume-zero.timer
+systemctl --user disable --now git-workflow-watch.timer git-workflow-watch.service
+systemctl --user reset-failed git-workflow-watch.timer git-workflow-watch.service
 systemctl --user daemon-reload
 ```
 
-`daily-volume-zero.timer` only exists on laptop stow packages, so the command may report that the unit is missing.
+`daily-volume-zero.timer` only exists on laptop stow packages, and `git-workflow-watch.*` are obsolete legacy units, so these commands may report that some units are missing.
+
+## Remove synced agent instruction copies
+
+`dot init` runs `dot agents-sync`, which mirrors the global OpenCode agent instructions into other harnesses. Remove these only if you want those harnesses unmanaged too. Check for the `dot agents-sync` header before deleting anything you may have edited by hand.
+
+```bash
+grep -H "dot agents-sync" ~/.cursor/rules/global-agents.mdc ~/.claude/CLAUDE.md ~/.codex/AGENTS.md
+rm -f ~/.cursor/rules/global-agents.mdc ~/.claude/CLAUDE.md ~/.codex/AGENTS.md
+```
 
 ## Remove managed firewall rules
 
@@ -72,6 +84,8 @@ Include = /etc/pacman.d/timmo-private.conf
 
 If your private config overrides `DOT_PRIVATE_PACMAN_REPO_CONFIG` or `DOT_PRIVATE_PACMAN_MAIN_CONFIG`, use those paths instead.
 
+`dot setup-private-repo` also syncs a local `file://` mirror from the private package repo config. If you want to remove that mirror and source clone too, check `path=` and `mirror_path=` in `~/.config/dotfiles-private/.dot-private-package-repo` and remove only those directories.
+
 ## Remove pacman hooks
 
 Public/private pacman hooks are installed into `/etc/pacman.d/hooks` from stowed hook sources. Remove only hooks that came from these dotfiles.
@@ -92,20 +106,39 @@ chsh -s /bin/bash "$USER"
 
 If init added `/usr/bin/zsh` to `/etc/shells`, leave it unless you know nothing else on the machine needs it.
 
+## Remove Git config include
+
+`dot init` adds the managed Git include to your global Git config. Remove it if you no longer want Git to load the stowed dotfiles settings.
+
+```bash
+git config --global --fixed-value --unset-all include.path "~/.config/git/config.dotfiles"
+```
+
+## Revert generated locales
+
+`dot init` ensures `en_GB.UTF-8` is enabled in `/etc/locale.gen` and runs `locale-gen`. Leave the locale in place unless you specifically want to remove it.
+
+```bash
+sudoedit /etc/locale.gen
+sudo locale-gen
+```
+
 ## Remove cloned repos and state
 
 After the stowed links and system config are removed, delete cloned repos and generated state only if you no longer need them.
 
 ```bash
 rm -rf ~/.config/dotfiles-private
-rm -rf ~/.config/waybar ~/.config/ghostty ~/.config/uwsm
-rm -rf ~/repos/private-arch-repo
-rm -rf ~/.local/state/dot
+rm -rf ~/.config/bootstrap ~/.config/waybar ~/.config/ghostty ~/.config/uwsm
+rm -rf ~/.local/state/dot ~/.cache/dot
 ```
+
+Private package repos and other private Git clones are configured by the private overlay. Review `~/.config/dotfiles-private/.dot-private-package-repo` and `~/.config/dotfiles-private/dot-git.yml`, then remove only clones and mirrors you no longer need.
 
 If you removed Omarchy config directories that `dot init` replaces with managed repos, refresh the stock Omarchy defaults afterwards for any parts you want Omarchy to own again.
 
 ```bash
+omarchy refresh waybar
 omarchy refresh shell
 omarchy refresh hyprland
 omarchy refresh config ghostty/config
@@ -116,22 +149,9 @@ Run `omarchy refresh --help` on the target machine for the exact refresh command
 
 Do not remove `~/.config/dotfiles` until you no longer need the `dot` binary, docs, or backup directory.
 
-## Remove agent and MCP generated files
-
-`dot agents-sync` and `dot mcp-sync` write generated config into other tool locations. Remove these only if you want those harnesses unmanaged too.
-
-Common generated paths include:
-
-```bash
-~/.cursor/rules/global-agents.mdc
-~/.config/opencode/mcp.json
-```
-
-Private overlays can configure additional harness targets.
-
 ## Remove installed packages
 
-`dot init` installs the public/private package lists but does not track ownership of packages afterwards. Removing packages is intentionally manual.
+`dot init` installs the public/private package lists but does not track ownership of packages afterwards. Removing packages is intentionally manual. This command only covers the default public package list; if you override `DOT_PUBLIC_PACKAGES_FILE`, use that file instead.
 
 ```bash
 comm -12 <(sort ~/.config/dotfiles/.dot-public-packages) <(pacman -Qq | sort)
@@ -144,6 +164,26 @@ sudo pacman -Rns <package>
 ```
 
 For private packages, review the private package list before removing anything.
+
+`dot install` and `dot init` may also install setup prerequisites such as `stow`, `gum`, or `mise` when they are missing. Remove those manually only if nothing else uses them.
+
+## Remove mise-managed tools
+
+`dot init` runs `mise install`, which can install language and CLI tool versions from the stowed mise config. Remove only versions you no longer use.
+
+```bash
+mise ls --installed
+mise uninstall <tool@version>
+```
+
+## Remove GitHub CLI extensions
+
+`dot init` installs the GitHub CLI extensions listed in `.dot-gh-extensions` when `gh` is available. Remove only extensions you no longer want.
+
+```bash
+gh extension list
+gh extension remove <owner/repo>
+```
 
 ## Final check
 
