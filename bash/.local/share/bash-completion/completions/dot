@@ -156,168 +156,6 @@ _dot_cmd_git_notifications() {
     return
   fi
 }
-_dot_cmd_notes() {
-  local cur prev cword subcommand
-  cur=${COMP_WORDS[COMP_CWORD]}
-  prev=${COMP_WORDS[COMP_CWORD-1]}
-  cword=$COMP_CWORD
-  subcommand=${COMP_WORDS[2]-}
-  if (( cword > 2 )); then
-    case $subcommand in
-      root)
-        _dot_cmd_notes_root
-        return
-        ;;
-      context)
-        _dot_cmd_notes_context
-        return
-        ;;
-      list)
-        _dot_cmd_notes_list
-        return
-        ;;
-    esac
-  fi
-  if [[ $cur == -* ]]; then
-    COMPREPLY=( $(compgen -W '--all --help -h' -- "$cur") )
-    return
-  fi
-  if (( cword == 2 )); then
-    COMPREPLY=( $(compgen -W '--all --help -h root context list' -- "$cur") )
-    return
-  fi
-  COMPREPLY=( $(compgen -W 'root context list' -- "$cur") )
-}
-_dot_cmd_notes_root() {
-  local cur prev cword
-  cur=${COMP_WORDS[COMP_CWORD]}
-  prev=${COMP_WORDS[COMP_CWORD-1]}
-  cword=$COMP_CWORD
-  if [[ $cur == -* ]]; then
-    COMPREPLY=( $(compgen -W '--repo-notes' -- "$cur") )
-    return
-  fi
-}
-_dot_cmd_notes_context() {
-  local cur prev cword
-  cur=${COMP_WORDS[COMP_CWORD]}
-  prev=${COMP_WORDS[COMP_CWORD-1]}
-  cword=$COMP_CWORD
-  if [[ $cur == -* ]]; then
-    COMPREPLY=( $(compgen -W '--command' -- "$cur") )
-    return
-  fi
-}
-_dot_cmd_notes_list() {
-  local cur prev cword
-  cur=${COMP_WORDS[COMP_CWORD]}
-  prev=${COMP_WORDS[COMP_CWORD-1]}
-  cword=$COMP_CWORD
-  case $prev in
-    --format)
-      COMPREPLY=( $(compgen -W 'labels json' -- "$cur") )
-      return
-      ;;
-  esac
-
-  if [[ $cur == -* ]]; then
-    COMPREPLY=( $(compgen -W '--all --format' -- "$cur") )
-    return
-  fi
-}
-_dot_cmd_handoffs() {
-  local cur prev cword
-  cur=${COMP_WORDS[COMP_CWORD]}
-  prev=${COMP_WORDS[COMP_CWORD-1]}
-  cword=$COMP_CWORD
-  if [[ $cur == -* ]]; then
-    COMPREPLY=( $(compgen -W '--all --list --help -h' -- "$cur") )
-    return
-  fi
-}
-_dot_cmd_note() {
-  local cur prev cword subcommand
-  cur=${COMP_WORDS[COMP_CWORD]}
-  prev=${COMP_WORDS[COMP_CWORD-1]}
-  cword=$COMP_CWORD
-  subcommand=${COMP_WORDS[2]-}
-  if (( cword > 2 )); then
-    case $subcommand in
-      read)
-        _dot_cmd_note_read
-        return
-        ;;
-      write)
-        _dot_cmd_note_write
-        return
-        ;;
-      delete)
-        _dot_cmd_note_delete
-        return
-        ;;
-    esac
-  fi
-  if [[ $cur == -* ]]; then
-    COMPREPLY=( $(compgen -W '--help -h' -- "$cur") )
-    return
-  fi
-  if (( cword == 2 )); then
-    COMPREPLY=( $(compgen -W '--help -h read write delete' -- "$cur") )
-    return
-  fi
-  COMPREPLY=( $(compgen -W 'read write delete' -- "$cur") )
-}
-_dot_cmd_note_read() {
-  local cur prev cword
-  cur=${COMP_WORDS[COMP_CWORD]}
-  prev=${COMP_WORDS[COMP_CWORD-1]}
-  cword=$COMP_CWORD
-  case $prev in
-    --path)
-      COMPREPLY=( $(compgen -f -- "$cur") )
-      return
-      ;;
-  esac
-
-  if [[ $cur == -* ]]; then
-    COMPREPLY=( $(compgen -W '--path' -- "$cur") )
-    return
-  fi
-}
-_dot_cmd_note_write() {
-  local cur prev cword
-  cur=${COMP_WORDS[COMP_CWORD]}
-  prev=${COMP_WORDS[COMP_CWORD-1]}
-  cword=$COMP_CWORD
-  case $prev in
-    --path)
-      COMPREPLY=( $(compgen -f -- "$cur") )
-      return
-      ;;
-  esac
-
-  if [[ $cur == -* ]]; then
-    COMPREPLY=( $(compgen -W '--path --stdin --json' -- "$cur") )
-    return
-  fi
-}
-_dot_cmd_note_delete() {
-  local cur prev cword
-  cur=${COMP_WORDS[COMP_CWORD]}
-  prev=${COMP_WORDS[COMP_CWORD-1]}
-  cword=$COMP_CWORD
-  case $prev in
-    --path)
-      COMPREPLY=( $(compgen -f -- "$cur") )
-      return
-      ;;
-  esac
-
-  if [[ $cur == -* ]]; then
-    COMPREPLY=( $(compgen -W '--path --json' -- "$cur") )
-    return
-  fi
-}
 _dot_cmd_agents_sync() {
   local cur prev cword
   cur=${COMP_WORDS[COMP_CWORD]}
@@ -444,7 +282,7 @@ _dot() {
   command=${COMP_WORDS[1]-}
 
   if (( cword == 1 )); then
-    COMPREPLY=( $(compgen -W 'dashboard init install update up stow firewall doctor clean git-diff diff git-commit git-log git-workflows git-notifications notes handoffs handoff note agents-sync mcp mcp-sync is-agent setup-private-repo private-pkg-publish skill-updates skill-check completions omarchy help -h --help' -- "$cur") )
+    COMPREPLY=( $(compgen -W 'dashboard init install update up stow firewall doctor clean git-diff diff git-commit git-log git-workflows git-notifications agents-sync mcp mcp-sync is-agent setup-private-repo private-pkg-publish skill-updates skill-check completions omarchy help -h --help' -- "$cur") )
     return
   fi
 
@@ -487,15 +325,6 @@ _dot() {
       ;;
     git-notifications)
       _dot_cmd_git_notifications
-      ;;
-    notes)
-      _dot_cmd_notes
-      ;;
-    handoffs|handoff)
-      _dot_cmd_handoffs
-      ;;
-    note)
-      _dot_cmd_note
       ;;
     agents-sync)
       _dot_cmd_agents_sync

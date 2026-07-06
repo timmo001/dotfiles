@@ -8,13 +8,12 @@ import { GitHub } from "../git/services/GitHub.js";
 import { join } from "path";
 
 /**
- * Validate skill references across AGENTS.md, agent definitions, and commands.
+ * Validate skill-related maintenance wiring.
  *
  * Reports:
- * - Broken references (skill names that don't correspond to a skill directory)
- * - Unreferenced skills (skill directories never mentioned anywhere)
+ * - Branch-context commands missing from or mismatched with BranchContextPlugin
  *
- * Exit code 1 if broken references are found; 0 otherwise.
+ * Exit code 1 if registration issues are found; 0 otherwise.
  * With `--open-opencode`, launches an OpenCode session to analyse the results.
  */
 export const skillCheck = (opts?: {
@@ -31,37 +30,13 @@ export const skillCheck = (opts?: {
       return;
     }
 
-    yield* log.section("Skill Reference Check");
+    yield* log.section("Skill Maintenance Check");
 
     const result = checkSkills(config.publicDotfiles, config.privateDotfiles);
 
-    // Summary
-    yield* log.info(`Skills discovered: ${result.skills.length}`);
-    yield* log.info(`References found: ${result.references.length}`);
     yield* log.info(
       `Branch-context consumers found: ${result.branchContextConsumers.length}`,
     );
-
-    // Broken references
-    if (result.broken.length > 0) {
-      yield* log.section("Broken References");
-      for (const ref of result.broken) {
-        yield* log.error(
-          `\`${ref.name}\` referenced in ${ref.file}:${ref.line} — no matching skill directory`,
-        );
-      }
-    }
-
-    // Unreferenced skills (informational)
-    if (result.unreferenced.length > 0) {
-      yield* log.section("Unreferenced Skills");
-      for (const entry of result.unreferenced) {
-        const scope = entry.local ? "repo-local" : "global";
-        yield* log.info(
-          `\`${entry.name}\` (${scope}) — not referenced in any scanned file`,
-        );
-      }
-    }
 
     if (result.branchContextIssues.length > 0) {
       yield* log.section("Branch Context Registration Issues");
@@ -73,8 +48,7 @@ export const skillCheck = (opts?: {
     }
 
     // Verdict
-    if (result.broken.length > 0 || result.branchContextIssues.length > 0) {
-      yield* log.error(`${result.broken.length} broken reference(s) found.`);
+    if (result.branchContextIssues.length > 0) {
       yield* log.error(
         `${result.branchContextIssues.length} branch context registration issue(s) found.`,
       );
@@ -83,20 +57,13 @@ export const skillCheck = (opts?: {
       });
     } else {
       yield* log.info(
-        "No broken references. All skill names resolve correctly and branch-context commands are registered.",
+        "All branch-context commands are registered with the expected mode.",
       );
     }
 
     // --open-opencode: hand off to opencode for analysis
     if (opts?.openOpencode) {
       const summary = [
-        `${result.skills.length} skills, ${result.references.length} references.`,
-        result.broken.length > 0
-          ? `${result.broken.length} broken reference(s): ${result.broken.map((r) => r.name).join(", ")}`
-          : "No broken references.",
-        result.unreferenced.length > 0
-          ? `${result.unreferenced.length} unreferenced skill(s): ${result.unreferenced.map((s) => s.name).join(", ")}`
-          : "All skills referenced.",
         result.branchContextIssues.length > 0
           ? `${result.branchContextIssues.length} branch-context registration issue(s): ${result.branchContextIssues.map((issue) => issue.command).join(", ")}`
           : "All branch-context commands are registered.",
@@ -110,7 +77,7 @@ export const skillCheck = (opts?: {
         ? `\n\nThe following diff report compares imported skills against their upstream origins. Analyse whether local adaptations should be kept, upstream removals should be mirrored, or any files should be updated.\n\n<skill-origin-diff>\n${originDiff}\n</skill-origin-diff>`
         : "";
 
-      const opencodePrompt = `Skill check results: ${summary}\n\nAnalyse the unreferenced skills and suggest whether they should be explicitly referenced in AGENTS.md or agent definitions, or whether their descriptions are sufficient for the LLM to discover them. Also check if any unreferenced skills might be obsolete.${diffInstruction}`;
+      const opencodePrompt = `Skill check results: ${summary}\n\nAnalyse the branch-context command registrations and any skill origin diffs included below. Do not analyse whether skills are referenced by AGENTS.md, commands, or agent definitions; skills self-define through their descriptions.${diffInstruction}`;
 
       yield* launcher
         .suspend(`opencode --prompt ${JSON.stringify(opencodePrompt)}`)

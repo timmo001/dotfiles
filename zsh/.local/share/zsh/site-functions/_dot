@@ -18,10 +18,6 @@ dot_commands=(
   'git-log:Open recent commits across tracked repos'
   'git-workflows:Open watched GitHub workflow runs'
   'git-notifications:Open GitHub notification inbox'
-  'notes:Open repository notes or run note utility commands'
-  'handoffs:Open handoff notes'
-  'handoff:Alias for handoffs'
-  'note:Read, write, or delete note files'
   'agents-sync:Mirror AGENTS.md to agent harness instruction files'
   'mcp:Run the dot MCP server over stdio'
   'mcp-sync:Regenerate MCP configs for all harnesses from the spec'
@@ -29,7 +25,7 @@ dot_commands=(
   'setup-private-repo:Register private pacman repo include'
   'private-pkg-publish:Build and publish a private package'
   'skill-updates:Check/apply imported skill updates'
-  'skill-check:Validate skill references'
+  'skill-check:Validate skill maintenance wiring'
   'completions:Generate shell completions'
   'omarchy:Open an Omarchy submenu by path'
   'help:Show this help menu'
@@ -160,121 +156,6 @@ _dot_cmd_git_notifications() {
     '(-h --help)--help[Show this help message]' \
     '*::arg:->args'
 }
-_dot_cmd_notes() {
-  local -a _dot_cmd_notes_commands
-  _dot_cmd_notes_commands=(
-    'root:Print the notes vault root'
-    'context:Print the context block for OpenCode notes'
-    'list:List repository notes'
-  )
-  local state
-  _arguments -C -S \
-    '--all[Show notes from every repo-notes directory]' \
-    '(-h --help)-h[Show this help message]' \
-    '(-h --help)--help[Show this help message]' \
-    '1:notes command:->command' \
-    '*::arg:->args'
-
-  case $state in
-    command)
-      _describe -t commands 'notes command' _dot_cmd_notes_commands
-      ;;
-    args)
-      local subcommand=${words[2]}
-      shift words
-      (( CURRENT-- ))
-      case $subcommand in
-        root)
-          _dot_cmd_notes_root
-          ;;
-        context)
-          _dot_cmd_notes_context
-          ;;
-        list)
-          _dot_cmd_notes_list
-          ;;
-      esac
-      ;;
-  esac
-}
-_dot_cmd_notes_root() {
-  _arguments -S \
-    '--repo-notes[Print repository notes directory]' \
-    '*::arg:->args'
-}
-_dot_cmd_notes_context() {
-  _arguments -S \
-    '--command[OpenCode command name]:name:' \
-    '*::arg:->args'
-}
-_dot_cmd_notes_list() {
-  _arguments -S \
-    '--all[Show notes from every repo-notes directory]' \
-    '--format[Output format]:labels|json:(labels json)' \
-    '*::arg:->args'
-}
-_dot_cmd_handoffs() {
-  _arguments -S \
-    '--all[Show handoff notes from every repo-notes directory]' \
-    '--list[List handoff notes to stdout without opening the TUI]' \
-    '(-h --help)-h[Show this help message]' \
-    '(-h --help)--help[Show this help message]' \
-    '*::arg:->args'
-}
-_dot_cmd_note() {
-  local -a _dot_cmd_note_commands
-  _dot_cmd_note_commands=(
-    'read:Print a note file'
-    'write:Write stdin to a note file, then commit and push it'
-    'delete:Delete a note file, then commit and push it'
-  )
-  local state
-  _arguments -C -S \
-    '(-h --help)-h[Show this help message]' \
-    '(-h --help)--help[Show this help message]' \
-    '1:note command:->command' \
-    '*::arg:->args'
-
-  case $state in
-    command)
-      _describe -t commands 'note command' _dot_cmd_note_commands
-      ;;
-    args)
-      local subcommand=${words[2]}
-      shift words
-      (( CURRENT-- ))
-      case $subcommand in
-        read)
-          _dot_cmd_note_read
-          ;;
-        write)
-          _dot_cmd_note_write
-          ;;
-        delete)
-          _dot_cmd_note_delete
-          ;;
-      esac
-      ;;
-  esac
-}
-_dot_cmd_note_read() {
-  _arguments -S \
-    '--path[Note file path]:path:_files' \
-    '*::arg:->args'
-}
-_dot_cmd_note_write() {
-  _arguments -S \
-    '--path[Note file path]:path:_files' \
-    '--stdin[Read note content from stdin]' \
-    '--json[Emit the note output and push status as JSON]' \
-    '*::arg:->args'
-}
-_dot_cmd_note_delete() {
-  _arguments -S \
-    '--path[Note file path]:path:_files' \
-    '--json[Emit the note output and push status as JSON]' \
-    '*::arg:->args'
-}
 _dot_cmd_agents_sync() {
   _arguments -S \
     '(-h --help)-h[Show this help message]' \
@@ -398,15 +279,6 @@ _dot_complete_command() {
       ;;
     git-notifications)
       _dot_cmd_git_notifications
-      ;;
-    notes)
-      _dot_cmd_notes
-      ;;
-    handoffs|handoff)
-      _dot_cmd_handoffs
-      ;;
-    note)
-      _dot_cmd_note
       ;;
     agents-sync)
       _dot_cmd_agents_sync

@@ -232,7 +232,7 @@ const dotItems: readonly MenuItem[] = [
     "skill-checks",
     "󰝒",
     "Skill Checks",
-    "Validate skill references across AGENTS and agent files",
+    "Validate skill maintenance wiring",
     cmd("dot skill-check"),
     [
       {
@@ -256,7 +256,7 @@ const dotItems: readonly MenuItem[] = [
         action: cmd("dot skill-check --open-opencode --diff-origin"),
       },
     ],
-    ["validate", "lint", "skills", "references", "tooling"],
+    ["validate", "lint", "skills", "tooling"],
     "AI Tooling",
   ),
   item(

@@ -672,7 +672,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
   },
   {
     name: "skill-check",
-    summary: "Validate skill references",
+    summary: "Validate skill maintenance wiring",
     options: [
       openOpencodeOption,
       {

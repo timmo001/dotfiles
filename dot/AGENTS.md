@@ -242,7 +242,7 @@ dot skill-updates             # Check/apply skill updates
 dot skill-updates --check     # Check only (no apply)
 dot skill-updates --update    # Auto-apply clean updates
 dot skill-updates --skip-review # Skip local-edit review
-dot skill-check               # Validate skill references
+dot skill-check               # Validate skill maintenance wiring
 dot completions zsh           # Generate stowed shell completions
 dot omarchy                   # Omarchy submenu (TUI)
 dot help                      # Show help

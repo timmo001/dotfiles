@@ -594,7 +594,7 @@ dot skill-updates
 
 ## `dot skill-check`
 
-Validate skill references
+Validate skill maintenance wiring
 
 ```text
 dot skill-check
