@@ -4,9 +4,7 @@
 local -a context_commands
 context_commands=(
   'git:Show branch context for the current repository'
-  'git-context:Alias for git'
   'stack:Detect the tech stack of a directory for agents'
-  'stack-context:Alias for stack'
   'opencode-debug:Run OpenCode debug commands'
   'mcp:Run the context MCP server over stdio'
   'completions:Generate shell completions'
@@ -20,7 +18,7 @@ fi
 
 local command=${words[2]}
 case $command in
-  git|git-context)
+  git)
     _arguments -S \
       '--json[Emit the structured plugin payload instead of text]' \
       '--comments[Include pull request conversation comments]' \
@@ -39,7 +37,7 @@ case $command in
       '{-h,--help}[Show this help message]' \
       '*::arg:->args'
     ;;
-  stack|stack-context)
+  stack)
     _arguments -S \
       '--json[Emit the structured plugin payload instead of text]' \
       '--plain[Disable ANSI styling in text output]' \
