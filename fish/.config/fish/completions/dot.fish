@@ -79,8 +79,6 @@ complete -c dot -l unignore -d 'Stop ignoring notifications for a thread' -r -n 
 complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from git-notifications'
 complete -c dot -n '__fish_use_subcommand' -a 'agents-sync' -d 'Mirror AGENTS.md to agent harness instruction files'
 complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from agents-sync'
-complete -c dot -n '__fish_use_subcommand' -a 'mcp' -d 'Run the dot MCP server over stdio'
-complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from mcp'
 complete -c dot -n '__fish_use_subcommand' -a 'mcp-sync' -d 'Regenerate MCP configs for all harnesses from the spec'
 complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from mcp-sync'
 complete -c dot -n '__fish_use_subcommand' -a 'is-agent' -d 'Detect whether an AI coding agent is running dot'

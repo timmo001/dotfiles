@@ -21,10 +21,10 @@ Unlike the agents, commands, skills, and plugins, the `opencode.json` that decla
 | `context` | local | Branch and tech-stack context for the current repository (`git_context`, `stack_context`, `command_help`). Runs `context mcp` from the `context-git` package installed by `dot init`. |
 | `context7` | remote | Up-to-date library and framework documentation with code examples. Needs an API key. |
 | `convex` | local | Convex backend tooling: query data, run functions, inspect deployments. Loaded only in Convex projects (a `convex.json` or `convex/` marker, see below). |
-| `dot` | local | Repository notes vault (`note_read`, `note_list`, `note_write`, `note_delete`) plus read-only `dot://` resources. Runs `dot mcp`. |
 | `fallow` | local | Codebase intelligence for JavaScript and TypeScript: unused code, duplication, circular deps, complexity. Opt-in (held out of default tools) and loaded only in JS/TS repos (a `package.json` marker, see below). |
 | `github` | remote | Read-only GitHub access: issues, PRs, Actions, code scanning, Dependabot, discussions, projects. Needs a bearer token. |
 | `grep` | remote | Search real-world code across public GitHub repos via [grep.app](https://grep.app). |
+| `notes` | local | Repository notes vault (`note_read`, `note_list`, `note_write`, `note_delete`) and notes context. Runs `notes mcp` from the `repo-notes` package installed by `dot init`. |
 | `pitchfork` | local | Manage long-running dev-server daemons: start, stop, restart, status, logs. Loaded only in repos with a `pitchfork.toml` (see below). |
 | `system-bridge` | local | System Bridge: system info modules (cpu, memory, disks, media) and media control. |
 
@@ -32,9 +32,9 @@ Remote servers connect over HTTP to a hosted endpoint. Local servers are launche
 
 The `system-bridge` server runs the `system-bridge-mcp` binary from the `system-bridge-git` AUR package. That package is listed in the public `.dot-public-packages` manifest and installed by `dot init`, so the MCP command is available on a fully set-up machine without a separate install step.
 
-The `context` server runs `context mcp` from the `context-git` AUR package (also in `.dot-public-packages`). It is separate from `dot mcp`: repository context tools and schemas live entirely in the standalone [`context`](https://context.timmo.dev) project. See [Context Integration](/git/context/) for how OpenCode plugins consume its JSON output.
+The `context` server runs `context mcp` from the `context-git` AUR package (also in `.dot-public-packages`). Repository context tools and schemas live entirely in the standalone [`context`](https://context.timmo.dev) project. See [Context Integration](/git/context/) for how OpenCode plugins consume its JSON output.
 
-The `dot` server exposes only the notes vault and dot-owned read-only resources. Generic git/stack context moved to `context mcp`; see [the dot Command MCP Server](/dot/mcp/).
+The `notes` server runs `notes mcp` from the `repo-notes` package (also in `.dot-public-packages`). Repository note commands use it for vault reads, writes, and deletes; the `repo-notes` OpenCode plugin supplies the current repository's note context.
 
 :::note[Credentials]
 `context7` and `github` need credentials, supplied through the environment and referenced from `opencode.json` with `{env:...}` so no secret ever lands in the config file. The GitHub server reads `DOT_GH_MCP_BEARER`, which shell startup typically exports as `$(gh auth token)`. `dot doctor` warns when `gh` is missing or has no token.
@@ -182,9 +182,9 @@ A trimmed, sanitised `opencode.json`. Machine-specific repository paths are remo
         "CONTEXT7_API_KEY": "{env:FOO}"
       }
     },
-    "dot": {
+    "notes": {
       "type": "local",
-      "command": ["dot", "mcp"]
+      "command": ["notes", "mcp"]
     },
     "fallow": {
       "type": "local",
@@ -213,5 +213,3 @@ A trimmed, sanitised `opencode.json`. Machine-specific repository paths are remo
   }
 }
 ```
-
-The `dot` binary also ships its own MCP server for the notes vault. Generic repository context tools live in the standalone `context` server above. See [the dot Command MCP Server](/dot/mcp/) and [Context Integration](/git/context/) for the split.

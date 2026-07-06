@@ -442,27 +442,6 @@ Mirror AGENTS.md to agent harness instruction files
 dot agents-sync
 ```
 
-## `dot mcp`
-
-Run the dot MCP server over stdio
-
-```text
-dot mcp
-```
-
-Start a Model Context Protocol server for dot-owned resources.
-Generic git and stack context tools live in the standalone context MCP server (`context mcp`).
-Repo notes tools live in the standalone notes MCP server (`notes mcp`).
-
-The server speaks JSON-RPC over stdio and is meant to be launched by an
-MCP client, not run interactively. All logging goes to stderr so stdout stays protocol-clean.
-
-**Examples**
-
-```bash
-dot mcp
-```
-
 ## `dot mcp-sync`
 
 Regenerate MCP configs for all harnesses from the spec

@@ -56,11 +56,6 @@
     }
   },
   "mcp": {
-    "dot": {
-      "type": "local",
-      "command": ["dot", "mcp"],
-      "enabled": true
-    },
     "notes": {
       "type": "local",
       "command": ["notes", "mcp"],

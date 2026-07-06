@@ -34,7 +34,7 @@ context help git            # command help (also exposed as an MCP resource)
 
 ## MCP server
 
-Repository context tools moved out of `dot mcp` into the standalone server:
+Repository context tools are provided by the standalone `context` MCP server:
 
 ```bash
 context mcp
@@ -48,7 +48,7 @@ Typical tools (names from `tools/list`):
 | `stack_context` | Tech-stack summary for a directory |
 | `command_help` | Help text for a `context` subcommand |
 
-Read-only resources include `context://git`, `context://stack`, and `context://command/{name}`. Wire the server in an agent harness the same way as [`dot mcp`](/dot/mcp/#launching-from-a-harness), using `["context", "mcp"]` as the command. Full schemas and examples are on <https://context.timmo.dev/mcp/>.
+Read-only resources include `context://git`, `context://stack`, and `context://command/{name}`. Wire the server in an agent harness with `["context", "mcp"]` as the command. Full schemas and examples are on <https://context.timmo.dev/mcp/>.
 
 Use [`notes mcp`](https://notes.timmo.dev/mcp/) for the notes vault. Agent harnesses that need repository context and notes load both standalone stdio servers side by side.
 

@@ -1,5 +1,4 @@
 import { Effect, Layer, Stream } from "effect";
-import { NodeRuntime } from "@effect/platform-node";
 import { mkdirSync } from "fs";
 import { dirname, join } from "path";
 import { Config } from "./services/Config.js";
@@ -36,7 +35,6 @@ import { stow } from "./commands/Stow.js";
 import { doctor } from "./commands/Doctor.js";
 import { clean } from "./commands/Clean.js";
 import { agentsSync } from "./commands/AgentsSync.js";
-import { mcpServer, mcpTeardown } from "./mcp/commands/Mcp.js";
 import { mcpSync } from "./mcp/commands/McpSync.js";
 import { isAgentCommand } from "./commands/IsAgent.js";
 import { setupPrivateRepo } from "./commands/SetupPrivateRepo.js";
@@ -491,15 +489,7 @@ const CliLayers = Launcher.cliLayer.pipe(
 
 // --- Execution ---
 
-if (mode.type === "native" && mode.command === "mcp") {
-  // Long-lived stdio server: run as the process main fiber so a client
-  // disconnect (stdin EOF, SIGINT, or SIGTERM, all delivered as fiber
-  // interruption) exits cleanly instead of surfacing as a fatal
-  // "all fibers interrupted" error. runMain still reports genuine crashes.
-  NodeRuntime.runMain(mcpServer.pipe(Effect.provide(CliLayers)), {
-    teardown: mcpTeardown,
-  });
-} else if (mode.type === "native") {
+if (mode.type === "native") {
   // Run a natively-ported command with CLI layers
   const resolveDiff = (args: readonly string[]): NativeEffect => {
     const noFetch = args.includes("--no-fetch");

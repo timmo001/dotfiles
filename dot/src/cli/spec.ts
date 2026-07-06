@@ -560,20 +560,6 @@ export const cliCommands: readonly CliCommandSpec[] = [
     options: [helpOption],
   },
   {
-    name: "mcp",
-    summary: "Run the dot MCP server over stdio",
-    description: [
-      "Start a Model Context Protocol server for dot-owned resources.",
-      "Generic git and stack context tools live in the standalone context MCP server (`context mcp`).",
-      "Repo notes tools live in the standalone notes MCP server (`notes mcp`).",
-      "",
-      "The server speaks JSON-RPC over stdio and is meant to be launched by an",
-      "MCP client, not run interactively. All logging goes to stderr so stdout stays protocol-clean.",
-    ],
-    options: [helpOption],
-    examples: ["dot mcp"],
-  },
-  {
     name: "mcp-sync",
     summary: "Regenerate MCP configs for all harnesses from the spec",
     description: [

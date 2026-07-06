@@ -45,12 +45,12 @@ export const MCP_STUB_HARNESSES: readonly McpStubHarnessNote[] = [
   {
     harness: "codex",
     label: "Codex CLI",
-    note: "Would need `[mcp_servers.NAME]` TOML tables in ~/.codex/config.toml (`command`/`args` for stdio, an http variant for remote). It was removed during the dot mcp migration; add a TOML adapter to reinstate it.",
+    note: "Would need `[mcp_servers.NAME]` TOML tables in ~/.codex/config.toml (`command`/`args` for stdio, an http variant for remote). Add a TOML adapter and per-server `enabled.codex` flags to activate.",
   },
   {
     harness: "claude",
     label: "Claude Code",
-    note: "Special case: ~/.claude.json is a live runtime state file Claude rewrites, so it is not stowable or file-generatable. Wire it via `claude mcp add --scope user dot -- dot mcp` from a setup step rather than emitting a file.",
+    note: "Special case: ~/.claude.json is a live runtime state file Claude rewrites, so it is not stowable or file-generatable. Wire servers with `claude mcp add --scope user NAME -- COMMAND ...` from a setup step rather than emitting a file.",
   },
 ];
 

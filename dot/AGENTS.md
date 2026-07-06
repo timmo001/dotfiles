@@ -51,8 +51,6 @@ src/
     Completions.ts        — dot completions generator for stowed shell completions
     Help.ts               — dot help
   mcp/
-    server.ts             — dot mcp stdio server layer (dot resources; generic context lives in `context mcp`, repo notes in `notes mcp`)
-    commands/Mcp.ts       — dot mcp native command handler
     commands/McpSync.ts   — dot mcp-sync: regenerate harness MCP configs from the spec
     sync/spec.ts          — MCP sync spec types, stub-harness notes, pure helpers
     sync/loadSpec.ts      — Load/validate the private mcp.yml spec
