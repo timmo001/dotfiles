@@ -98,63 +98,63 @@ url = "https://github.com/coder/boo/releases/download/v0.6.4/boo-x86_64-macos.ta
 url_api = "https://api.github.com/repos/coder/boo/releases/assets/467350906"
 
 [[tools."aqua:fallow-rs/fallow"]]
-version = "2.104.0"
+version = "3.0.0"
 backend = "aqua:fallow-rs/fallow"
 
 [tools."aqua:fallow-rs/fallow"."platforms.linux-arm64"]
-checksum = "sha256:cd79c9fdfa5a3ad05e8ca378239dc4c2f452534961483ccd893f3f21c8f695d0"
-url = "https://github.com/fallow-rs/fallow/releases/download/v2.104.0/fallow-aarch64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/fallow-rs/fallow/releases/assets/463567596"
+checksum = "sha256:ce730d765191e1c838a50d96c97e14b88594c5051c016b1cc4178623847d7938"
+url = "https://github.com/fallow-rs/fallow/releases/download/v3.0.0/fallow-aarch64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/fallow-rs/fallow/releases/assets/466238346"
 
 [tools."aqua:fallow-rs/fallow"."platforms.linux-arm64-musl"]
-checksum = "sha256:cd79c9fdfa5a3ad05e8ca378239dc4c2f452534961483ccd893f3f21c8f695d0"
-url = "https://github.com/fallow-rs/fallow/releases/download/v2.104.0/fallow-aarch64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/fallow-rs/fallow/releases/assets/463567596"
+checksum = "sha256:ce730d765191e1c838a50d96c97e14b88594c5051c016b1cc4178623847d7938"
+url = "https://github.com/fallow-rs/fallow/releases/download/v3.0.0/fallow-aarch64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/fallow-rs/fallow/releases/assets/466238346"
 
 [tools."aqua:fallow-rs/fallow"."platforms.linux-x64"]
-checksum = "sha256:6047925aa3360119a177b87382bd2919644ab38a537cc3d5324e4f1bdbcc20ff"
-url = "https://github.com/fallow-rs/fallow/releases/download/v2.104.0/fallow-x86_64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/fallow-rs/fallow/releases/assets/463567559"
+checksum = "sha256:74ecf3653c6103b1d14dfec87192ad3d0bd65e80b2a88a400b4ac1c8faa8355c"
+url = "https://github.com/fallow-rs/fallow/releases/download/v3.0.0/fallow-x86_64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/fallow-rs/fallow/releases/assets/466238297"
 
 [tools."aqua:fallow-rs/fallow"."platforms.linux-x64-baseline"]
-checksum = "sha256:6047925aa3360119a177b87382bd2919644ab38a537cc3d5324e4f1bdbcc20ff"
-url = "https://github.com/fallow-rs/fallow/releases/download/v2.104.0/fallow-x86_64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/fallow-rs/fallow/releases/assets/463567559"
+checksum = "sha256:74ecf3653c6103b1d14dfec87192ad3d0bd65e80b2a88a400b4ac1c8faa8355c"
+url = "https://github.com/fallow-rs/fallow/releases/download/v3.0.0/fallow-x86_64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/fallow-rs/fallow/releases/assets/466238297"
 
 [tools."aqua:fallow-rs/fallow"."platforms.linux-x64-musl"]
-checksum = "sha256:6047925aa3360119a177b87382bd2919644ab38a537cc3d5324e4f1bdbcc20ff"
-url = "https://github.com/fallow-rs/fallow/releases/download/v2.104.0/fallow-x86_64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/fallow-rs/fallow/releases/assets/463567559"
+checksum = "sha256:74ecf3653c6103b1d14dfec87192ad3d0bd65e80b2a88a400b4ac1c8faa8355c"
+url = "https://github.com/fallow-rs/fallow/releases/download/v3.0.0/fallow-x86_64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/fallow-rs/fallow/releases/assets/466238297"
 
 [tools."aqua:fallow-rs/fallow"."platforms.linux-x64-musl-baseline"]
-checksum = "sha256:6047925aa3360119a177b87382bd2919644ab38a537cc3d5324e4f1bdbcc20ff"
-url = "https://github.com/fallow-rs/fallow/releases/download/v2.104.0/fallow-x86_64-unknown-linux-musl.tar.gz"
-url_api = "https://api.github.com/repos/fallow-rs/fallow/releases/assets/463567559"
+checksum = "sha256:74ecf3653c6103b1d14dfec87192ad3d0bd65e80b2a88a400b4ac1c8faa8355c"
+url = "https://github.com/fallow-rs/fallow/releases/download/v3.0.0/fallow-x86_64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/fallow-rs/fallow/releases/assets/466238297"
 
 [tools."aqua:fallow-rs/fallow"."platforms.macos-arm64"]
-checksum = "sha256:7af1df339584774dbcff7261ac4436895608cf48084b554e07c511bcfbdad4df"
-url = "https://github.com/fallow-rs/fallow/releases/download/v2.104.0/fallow-aarch64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/fallow-rs/fallow/releases/assets/463567594"
+checksum = "sha256:5acb51de58563bc079cb0e57b0976fbe10a291bd6e0e34d42c173720e08b3f20"
+url = "https://github.com/fallow-rs/fallow/releases/download/v3.0.0/fallow-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/fallow-rs/fallow/releases/assets/466238343"
 
 [tools."aqua:fallow-rs/fallow"."platforms.macos-x64"]
-checksum = "sha256:e5dedc4b7d78206985b7df446b2d2d956fe155ee5796d6ee8306fcd44e9ae951"
-url = "https://github.com/fallow-rs/fallow/releases/download/v2.104.0/fallow-x86_64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/fallow-rs/fallow/releases/assets/463567566"
+checksum = "sha256:5b2830d49b27b6ef68a1e1d6af794e6a83438a595d42eed9a8caa6b3fd010180"
+url = "https://github.com/fallow-rs/fallow/releases/download/v3.0.0/fallow-x86_64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/fallow-rs/fallow/releases/assets/466238312"
 
 [tools."aqua:fallow-rs/fallow"."platforms.macos-x64-baseline"]
-checksum = "sha256:e5dedc4b7d78206985b7df446b2d2d956fe155ee5796d6ee8306fcd44e9ae951"
-url = "https://github.com/fallow-rs/fallow/releases/download/v2.104.0/fallow-x86_64-apple-darwin.tar.gz"
-url_api = "https://api.github.com/repos/fallow-rs/fallow/releases/assets/463567566"
+checksum = "sha256:5b2830d49b27b6ef68a1e1d6af794e6a83438a595d42eed9a8caa6b3fd010180"
+url = "https://github.com/fallow-rs/fallow/releases/download/v3.0.0/fallow-x86_64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/fallow-rs/fallow/releases/assets/466238312"
 
 [tools."aqua:fallow-rs/fallow"."platforms.windows-x64"]
-checksum = "sha256:3b342526822c06f5564421e1a41e90a4c9f3e547482e2b32084523df49bb8f86"
-url = "https://github.com/fallow-rs/fallow/releases/download/v2.104.0/fallow-x86_64-pc-windows-msvc.zip"
-url_api = "https://api.github.com/repos/fallow-rs/fallow/releases/assets/463567556"
+checksum = "sha256:6942d3593c9ae85c92822eaa4be6ffcd1209c192db84c649a200f27c74b00ef4"
+url = "https://github.com/fallow-rs/fallow/releases/download/v3.0.0/fallow-x86_64-pc-windows-msvc.zip"
+url_api = "https://api.github.com/repos/fallow-rs/fallow/releases/assets/466238295"
 
 [tools."aqua:fallow-rs/fallow"."platforms.windows-x64-baseline"]
-checksum = "sha256:3b342526822c06f5564421e1a41e90a4c9f3e547482e2b32084523df49bb8f86"
-url = "https://github.com/fallow-rs/fallow/releases/download/v2.104.0/fallow-x86_64-pc-windows-msvc.zip"
-url_api = "https://api.github.com/repos/fallow-rs/fallow/releases/assets/463567556"
+checksum = "sha256:6942d3593c9ae85c92822eaa4be6ffcd1209c192db84c649a200f27c74b00ef4"
+url = "https://github.com/fallow-rs/fallow/releases/download/v3.0.0/fallow-x86_64-pc-windows-msvc.zip"
+url_api = "https://api.github.com/repos/fallow-rs/fallow/releases/assets/466238295"
 
 [[tools.bat]]
 version = "0.26.1"
@@ -253,36 +253,36 @@ checksum = "sha256:538f9c846355d9e847b2671bc00c47da4229a0befb24df3282b739770f3b4
 url = "https://github.com/oven-sh/bun/releases/download/bun-v1.3.14/bun-windows-x64-baseline.zip"
 
 [[tools.claude]]
-version = "2.1.200"
+version = "2.1.201"
 backend = "aqua:anthropics/claude-code"
 
 [tools.claude."platforms.linux-arm64"]
-url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.200/linux-arm64/claude"
+url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.201/linux-arm64/claude"
 
 [tools.claude."platforms.linux-arm64-musl"]
-url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.200/linux-arm64-musl/claude"
+url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.201/linux-arm64-musl/claude"
 
 [tools.claude."platforms.linux-x64"]
-checksum = "blake3:1bd77b9363232a217b93fd117e180abb3f37b551befdb73e2d629c615a9a9096"
-url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.200/linux-x64/claude"
+checksum = "blake3:c1ccbf9b726b61f8fcb0d5715c908d5046e7da37a08e120c86351bebdefa7b7a"
+url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.201/linux-x64/claude"
 
 [tools.claude."platforms.linux-x64-baseline"]
-url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.200/linux-x64/claude"
+url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.201/linux-x64/claude"
 
 [tools.claude."platforms.linux-x64-musl"]
-url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.200/linux-x64-musl/claude"
+url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.201/linux-x64-musl/claude"
 
 [tools.claude."platforms.linux-x64-musl-baseline"]
-url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.200/linux-x64-musl/claude"
+url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.201/linux-x64-musl/claude"
 
 [tools.claude."platforms.macos-arm64"]
-url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.200/darwin-arm64/claude"
+url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.201/darwin-arm64/claude"
 
 [tools.claude."platforms.macos-x64"]
-url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.200/darwin-x64/claude"
+url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.201/darwin-x64/claude"
 
 [tools.claude."platforms.macos-x64-baseline"]
-url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.200/darwin-x64/claude"
+url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/2.1.201/darwin-x64/claude"
 
 [[tools.codex]]
 version = "0.142.2"
