@@ -1,8 +1,8 @@
 /**
- * @file Restricts file tools to the repository notes directory for note commands.
+ * @file Blocks direct file and shell access to the repository notes vault.
  *
- * Blocks read/write/edit/grep/glob/list tool calls that target paths outside the
- * notes vault while a note command is running, so agents cannot reach other files.
+ * Notes are only read, written, and deleted through the notes MCP tools, which
+ * keeps vault changes auditable and prevents bypassing notes-specific guards.
  */
 
 import type { Plugin } from "@opencode-ai/plugin"

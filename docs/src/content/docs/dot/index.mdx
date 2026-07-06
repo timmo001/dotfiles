@@ -34,7 +34,7 @@ export const cards = [
   {
     title: "Notes & Handoffs",
     href: "/dot/notes/",
-    description: "The repository notes browser and handoff workflow.",
+    description: "Standalone notes CLI, MCP server, and handoff workflow.",
   },
   {
     title: "Cleanup",
@@ -47,8 +47,8 @@ export const cards = [
 
 It has two faces:
 
-- **A TUI dashboard** — run `dot` with no arguments to open the interactive menu, with git diff/log views, GitHub workflow runs, the notification inbox, repo notes, and Omarchy menus.
-- **A native CLI** — every action is also a subcommand (`dot update`, `dot git-diff --raw`, `dot doctor`, ...), suitable for scripts and status bars.
+- **A TUI dashboard**: run `dot` with no arguments to open the interactive menu, with git diff/log views, GitHub workflow runs, the notification inbox, and Omarchy menus.
+- **A native CLI**: core maintenance actions are also subcommands (`dot update`, `dot git-diff --raw`, `dot doctor`, ...), suitable for scripts and status bars.
 
 <LinkCardGrid cards={cards} />
 
@@ -61,6 +61,7 @@ It has two faces:
 | `dot update`     | Self-update, install deps, rebuild, pull, stow, restart.                                                 |
 | `dot stow`       | Stow refresh only (no git pull).                                                                         |
 | `dot doctor`     | Run dotfiles system health checks.                                                                       |
+| `dot firewall`   | Reconcile managed ufw firewall rules.                                                                    |
 | `dot git-diff`   | Diff / repo watcher view across managed repos.                                                           |
 | `context git`    | Branch context for the current repo (agent context), provided by [`context`](https://context.timmo.dev). |
 | `context stack`  | Tech-stack context for a directory (agent context), provided by [`context`](https://context.timmo.dev).  |

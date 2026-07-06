@@ -15,7 +15,7 @@ Plugins provide context, evidence, or enforcement hooks for OpenCode. They are l
 | [`context-capture`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/context-capture.ts) | Opt-in capture of the assembled starter context for token profiling |
 | [`env-protection`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/env-protection.ts) | Blocks direct access to .env files to prevent leaking secrets |
 | [`mcp-repo-gate`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/mcp-repo-gate.ts) | Per-repo MCP server gating for OpenCode |
-| [`notes-guard`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/notes-guard.ts) | Restricts file tools to the repository notes directory for note commands |
+| [`notes-guard`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/notes-guard.ts) | Blocks direct file and shell access to the repository notes vault |
 | [`notification`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/notification.ts) | Plays a desktop notification sound when agent tasks complete |
 | [`pitchfork-dev-server-guard`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/pitchfork-dev-server-guard.ts) | Enforces a project's declared pitchfork dev-server workflow for agents |
 | [`readonly-subagent-task-guard`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/readonly-subagent-task-guard.ts) | Forces read-only primary agents to delegate only to non-modifying subagents |

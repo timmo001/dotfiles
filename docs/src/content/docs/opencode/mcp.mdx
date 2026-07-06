@@ -8,7 +8,7 @@ sidebar:
 The OpenCode setup wires in a set of [Model Context Protocol](https://modelcontextprotocol.io) servers. They give agents documentation lookups, code search, browser control, system data, and dev-server management without shelling out for everything.
 
 :::note[Where the real config lives]
-Unlike the agents, commands, skills, and plugins, the `opencode.json` that declares these servers is **not** published. It lives only in the private overlay (`~/.config/dotfiles-private/agents/.config/opencode/opencode.json`), because the same file carries machine-specific repository paths in its permission allow-lists. The servers themselves hold no secrets: the two that need credentials read them from the environment. This page documents the servers and a sanitised config so the setup can be reproduced.
+Unlike the agents, commands, skills, and plugins, the stowed harness `opencode.json` that declares these servers is **not** published. It lives only in the private overlay (`~/.config/dotfiles-private/agents/.config/opencode/opencode.json`), because the same file carries machine-specific repository paths in its permission allow-lists. The repo root `opencode.json` is a public, repo-local session config and may declare project-specific servers, but it is not the generated harness config described here. The servers themselves hold no secrets: the two that need credentials read them from the environment. This page documents the servers and a sanitised config so the setup can be reproduced.
 :::
 
 ## Servers in use
@@ -24,7 +24,7 @@ Unlike the agents, commands, skills, and plugins, the `opencode.json` that decla
 | `fallow` | local | Codebase intelligence for JavaScript and TypeScript: unused code, duplication, circular deps, complexity. Opt-in (held out of default tools) and loaded only in JS/TS repos (a `package.json` marker, see below). |
 | `github` | remote | Read-only GitHub access: issues, PRs, Actions, code scanning, Dependabot, discussions, projects. Needs a bearer token. |
 | `grep` | remote | Search real-world code across public GitHub repos via [grep.app](https://grep.app). |
-| `notes` | local | Repository notes vault (`note_read`, `note_list`, `note_write`, `note_delete`) and notes context. Runs `notes mcp` from the `repo-notes` package installed by `dot init`. |
+| `notes` | local | Repository notes vault (`note_read`, `note_list`, `note_write`, `note_delete`) and notes context. Runs `notes mcp` from the `repo-notes-git` package installed by `dot init`. |
 | `pitchfork` | local | Manage long-running dev-server daemons: start, stop, restart, status, logs. Loaded only in repos with a `pitchfork.toml` (see below). |
 | `system-bridge` | local | System Bridge: system info modules (cpu, memory, disks, media) and media control. |
 
@@ -34,7 +34,7 @@ The `system-bridge` server runs the `system-bridge-mcp` binary from the `system-
 
 The `context` server runs `context mcp` from the `context-git` AUR package (also in `.dot-public-packages`). Repository context tools and schemas live entirely in the standalone [`context`](https://context.timmo.dev) project. See [Context Integration](/git/context/) for how OpenCode plugins consume its JSON output.
 
-The `notes` server runs `notes mcp` from the `repo-notes` package (also in `.dot-public-packages`). Repository note commands use it for vault reads, writes, and deletes; the `repo-notes` OpenCode plugin supplies the current repository's note context.
+The `notes` server runs `notes mcp` from the `repo-notes-git` package (also in `.dot-public-packages`). Repository note commands use it for vault reads, writes, and deletes; the `repo-notes` OpenCode plugin supplies the current repository's note context.
 
 :::note[Credentials]
 `context7` and `github` need credentials, supplied through the environment and referenced from `opencode.json` with `{env:...}` so no secret ever lands in the config file. The GitHub server reads `DOT_GH_MCP_BEARER`, which shell startup typically exports as `$(gh auth token)`. `dot doctor` warns when `gh` is missing or has no token.
@@ -181,6 +181,10 @@ A trimmed, sanitised `opencode.json`. Machine-specific repository paths are remo
       "headers": {
         "CONTEXT7_API_KEY": "{env:FOO}"
       }
+    },
+    "convex": {
+      "type": "local",
+      "command": ["npx", "-y", "convex@latest", "mcp", "start"]
     },
     "notes": {
       "type": "local",
