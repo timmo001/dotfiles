@@ -201,6 +201,16 @@ const dotItems: readonly MenuItem[] = [
     "Dotfiles",
   ),
   item(
+    "firewall",
+    "󰌾",
+    "Firewall",
+    "Reconcile managed ufw rules",
+    exitCmd("dot firewall"),
+    undefined,
+    ["ufw", "rules", "ports", "network", "firewall"],
+    "Dotfiles",
+  ),
+  item(
     "agents-sync",
     "󰯂",
     "Agents Sync",

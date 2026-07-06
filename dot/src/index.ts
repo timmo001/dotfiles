@@ -28,6 +28,7 @@ import { CONFIG_DIR, STATE_DIR, expandHomePath } from "./lib/paths.js";
 import { ENV, envString, setEnv, unsetEnv } from "./lib/env.js";
 import { detectAgent } from "./lib/agent.js";
 import { withStepTimeout } from "./lib/workflowStep.js";
+import { configureFirewallRules } from "./lib/firewallSetup.js";
 import { menuItemsById } from "./menu.js";
 import { init } from "./commands/Init.js";
 import { install } from "./commands/Install.js";
@@ -492,6 +493,7 @@ const NATIVE_COMMAND_TIMEOUT_SECONDS: Partial<Record<string, number>> = {
   clean: 3 * 60,
   "setup-private-repo": 10 * 60,
   "private-pkg-publish": 30 * 60,
+  firewall: 3 * 60,
   "skill-check": 5 * 60,
   "agents-sync": 2 * 60,
   "mcp-sync": 2 * 60,
@@ -613,6 +615,7 @@ if (mode.type === "native" && mode.command === "mcp") {
           openOpencode: args.includes("--open-opencode"),
         }),
       clean: () => clean,
+      firewall: () => configureFirewallRules,
       "git-log": () => gitLogRaw,
       "git-commit": (args) =>
         gitCommitRaw({

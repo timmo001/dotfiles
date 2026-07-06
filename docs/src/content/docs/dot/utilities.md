@@ -56,7 +56,7 @@ The repo includes minimal system-wide benchmark and resource-leak test scripts u
 
 ## Firewall rules
 
-`dot init` configures a managed set of [ufw](https://wiki.archlinux.org/title/Uncomplicated_Firewall) rules, and `dot doctor` verifies they are still present. The setup reads the world-readable ufw rules file first, so a fully configured machine adds nothing and never prompts for a password. When changes are needed, missing or stale-comment rules are applied in one elevated batch, followed by a single `ufw reload`, so the firewall step should only ask for authentication once. Each rule is tagged with its purpose as a ufw comment, so it appears in `ufw status`.
+`dot firewall` configures a managed set of [ufw](https://wiki.archlinux.org/title/Uncomplicated_Firewall) rules, `dot init` runs it during first-use setup, and `dot doctor` verifies the rules are still present. The setup reads the world-readable ufw rules file first, so a fully configured machine adds nothing and never prompts for a password. When changes are needed, missing or stale-comment rules are applied in one elevated batch, followed by a single `ufw reload`, so the firewall step should only ask for authentication once. Each rule is tagged with its purpose as a ufw comment, so it appears in `ufw status`.
 
 Most rules are inbound port allows on any interface. The libvirt rules are scoped to the `virbr0` bridge: two inbound allows for guest DHCP and DNS, plus a forwarding (route) allow so the default NAT network can route guest traffic off the bridge. Without them, ufw's default `deny (incoming)` and `deny (routed)` policy leaves guests without an address or internet access.
 
@@ -71,9 +71,9 @@ Most rules are inbound port allows on any interface. The libvirt rules are scope
 | `53` | TCP + UDP | `virbr0` | libvirt guest DNS. |
 | forward | any | `virbr0` | libvirt NAT: forward guest traffic off the bridge. |
 
-If `ufw` is not installed, both init and doctor skip the firewall step with a warning. The doctor check reports any missing rule with the `sudo ufw allow ...` command to add it, or a rule present without its managed comment, and you can re-run `dot init` to reconcile. Override the scanned rules file with `DOT_UFW_RULES_FILE`.
+If `ufw` is not installed, firewall setup and doctor skip the firewall step with a warning. The doctor check reports any missing rule with the `sudo ufw allow ...` command to add it, or a rule present without its managed comment, and you can run `dot firewall` to reconcile. Override the scanned rules file with `DOT_UFW_RULES_FILE`.
 
-After elevation, `dot init` re-reads the rules file and fails the firewall step when any managed rule is still missing or carries a stale comment. That catches silent ufw write failures instead of leaving init marked complete with half-applied rules.
+After elevation, `dot firewall` re-reads the rules file and fails when any managed rule is still missing or carries a stale comment. That catches silent ufw write failures instead of leaving init marked complete with half-applied rules.
 
 ## Daily volume reset (laptop only)
 

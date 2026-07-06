@@ -29,7 +29,7 @@ export const checkFirewall = Effect.gen(function* () {
       severity: "warn",
       message: "ufw is not installed; firewall rules not checked",
       detail:
-        "Install ufw and run dot init to configure managed firewall rules",
+        "Install ufw and run dot firewall to configure managed firewall rules",
     });
     return results;
   }
@@ -39,7 +39,8 @@ export const checkFirewall = Effect.gen(function* () {
     results.push({
       severity: "warn",
       message: `ufw rules file not found: ${displayPath(rulesPath)}`,
-      detail: "Enable ufw and run dot init to configure managed firewall rules",
+      detail:
+        "Enable ufw and run dot firewall to configure managed firewall rules",
     });
     return results;
   }
@@ -74,7 +75,7 @@ export const checkFirewall = Effect.gen(function* () {
     results.push({
       severity: "warn",
       message: `Add with: ${missing.map((entry) => `sudo ufw ${entry}`).join("; ")}; sudo ufw reload`,
-      detail: "Or run dot init to configure managed firewall rules",
+      detail: "Or run dot firewall to configure managed firewall rules",
     });
   }
 
@@ -82,7 +83,7 @@ export const checkFirewall = Effect.gen(function* () {
     results.push({
       severity: "warn",
       message:
-        "Run dot init to re-add firewall rules with their managed comments",
+        "Run dot firewall to re-add firewall rules with their managed comments",
       detail:
         "ufw cannot edit a comment in place; dot deletes and re-adds the rule",
     });

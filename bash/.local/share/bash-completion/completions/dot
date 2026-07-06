@@ -62,6 +62,16 @@ _dot_cmd_stow() {
     return
   fi
 }
+_dot_cmd_firewall() {
+  local cur prev cword
+  cur=${COMP_WORDS[COMP_CWORD]}
+  prev=${COMP_WORDS[COMP_CWORD-1]}
+  cword=$COMP_CWORD
+  if [[ $cur == -* ]]; then
+    COMPREPLY=( $(compgen -W '--help -h' -- "$cur") )
+    return
+  fi
+}
 _dot_cmd_doctor() {
   local cur prev cword
   cur=${COMP_WORDS[COMP_CWORD]}
@@ -434,7 +444,7 @@ _dot() {
   command=${COMP_WORDS[1]-}
 
   if (( cword == 1 )); then
-    COMPREPLY=( $(compgen -W 'dashboard init install update up stow doctor clean git-diff diff git-commit git-log git-workflows git-notifications notes handoffs handoff note agents-sync mcp mcp-sync is-agent setup-private-repo private-pkg-publish skill-updates skill-check completions omarchy help -h --help' -- "$cur") )
+    COMPREPLY=( $(compgen -W 'dashboard init install update up stow firewall doctor clean git-diff diff git-commit git-log git-workflows git-notifications notes handoffs handoff note agents-sync mcp mcp-sync is-agent setup-private-repo private-pkg-publish skill-updates skill-check completions omarchy help -h --help' -- "$cur") )
     return
   fi
 
@@ -453,6 +463,9 @@ _dot() {
       ;;
     stow)
       _dot_cmd_stow
+      ;;
+    firewall)
+      _dot_cmd_firewall
       ;;
     doctor)
       _dot_cmd_doctor

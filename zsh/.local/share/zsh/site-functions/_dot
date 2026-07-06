@@ -9,6 +9,7 @@ dot_commands=(
   'update:Pull repos, stow dotfiles, install deps, rebuild'
   'up:Alias for update'
   'stow:Re-stow public/private dotfiles'
+  'firewall:Reconcile managed ufw firewall rules'
   'doctor:Run dotfiles system health checks'
   'clean:Unstow managed dotfiles'
   'git-diff:Open the git diff/repo watcher view'
@@ -75,6 +76,12 @@ _dot_cmd_stow() {
   _arguments -S \
     '--public[Stow public dotfiles only]' \
     '--private[Stow private dotfiles only]' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
+_dot_cmd_firewall() {
+  _arguments -S \
     '(-h --help)-h[Show this help message]' \
     '(-h --help)--help[Show this help message]' \
     '*::arg:->args'
@@ -367,6 +374,9 @@ _dot_complete_command() {
       ;;
     stow)
       _dot_cmd_stow
+      ;;
+    firewall)
+      _dot_cmd_firewall
       ;;
     doctor)
       _dot_cmd_doctor

@@ -111,6 +111,24 @@ dot stow
 | `--public` | Stow public dotfiles only |
 | `--private` | Stow private dotfiles only |
 
+## `dot firewall`
+
+Reconcile managed ufw firewall rules
+
+```text
+dot firewall
+```
+
+Ensure the managed ufw allow rules are present and carry their purpose
+comments. Missing rules are added, stale-comment rules are deleted and
+re-added, then ufw is reloaded once.
+
+**Examples**
+
+```bash
+dot firewall
+```
+
 ## `dot doctor`
 
 Run dotfiles system health checks
@@ -156,7 +174,7 @@ Browser extensions   Private extension check list
 Public packages      AUR packages installed + version check
 Private packages     Private repo + packages installed
 Pacman hooks         Hook files installed and up to date
-Firewall rules       Managed ufw rules (KDE Connect, Home Assistant, OpenCode, LocalSend, libvirt)
+Firewall rules       Managed ufw rules (KDE Connect, Home Assistant, OpenCode, LocalSend, libvirt); repair with dot firewall
 ```
 
 **Exit codes**

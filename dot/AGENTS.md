@@ -203,6 +203,7 @@ dot update --check-all        # Report all tracked repos behind upstream (no upd
 dot stow                      # Stow public + private
 dot stow --public             # Stow public only
 dot stow --private            # Stow private only
+dot firewall                  # Reconcile managed ufw rules and comments
 dot doctor                    # Health checks
 dot doctor --open-opencode    # Health checks + OpenCode analysis
 dot clean                     # Unstow private then public
@@ -341,6 +342,7 @@ dot git-notifications --bar-json # smoke test: notification JSON output
 dot notes                    # smoke test: notes view renders
 dot handoffs                 # smoke test: handoff-filtered notes view renders
 dot doctor                   # smoke test: health checks run
+dot firewall                 # smoke test: reconciles managed ufw rules
 dot init --help              # smoke test: init help prints without side effects
 dot help                     # smoke test: help prints
 ```

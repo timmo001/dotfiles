@@ -232,6 +232,17 @@ export const cliCommands: readonly CliCommandSpec[] = [
     ],
   },
   {
+    name: "firewall",
+    summary: "Reconcile managed ufw firewall rules",
+    description: [
+      "Ensure the managed ufw allow rules are present and carry their purpose",
+      "comments. Missing rules are added, stale-comment rules are deleted and",
+      "re-added, then ufw is reloaded once.",
+    ],
+    options: [helpOption],
+    examples: ["dot firewall"],
+  },
+  {
     name: "doctor",
     summary: "Run dotfiles system health checks",
     usage: "[options]",
@@ -275,7 +286,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
           "Public packages      AUR packages installed + version check",
           "Private packages     Private repo + packages installed",
           "Pacman hooks         Hook files installed and up to date",
-          "Firewall rules       Managed ufw rules (KDE Connect, Home Assistant, OpenCode, LocalSend, libvirt)",
+          "Firewall rules       Managed ufw rules (KDE Connect, Home Assistant, OpenCode, LocalSend, libvirt); repair with dot firewall",
         ],
       },
       {
