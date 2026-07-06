@@ -21,6 +21,10 @@ header.header .site-title {
   color: var(--sl-color-white);
 }
 
+header.header a[href='https://github.com/timmo001/dotfiles']:not(:hover) {
+  color: var(--sl-color-text);
+}
+
 @media (min-width: 50rem) {
   /* Widen the search trigger (Starlight default caps it at 22rem). */
   header.header site-search button[data-open-modal] {
