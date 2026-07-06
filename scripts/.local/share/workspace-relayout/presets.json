@@ -62,11 +62,11 @@
         "name": "1 top / 2 bottom",
         "tree": {
           "dir": "tb",
-          "ratio": 75.29,
+          "ratio": 75.4,
           "a": "w",
           "b": {
             "dir": "lr",
-            "ratio": 26.67,
+            "ratio": 40.67,
             "a": "w",
             "b": "w"
           }
