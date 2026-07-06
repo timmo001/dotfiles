@@ -29,6 +29,6 @@ Load and follow the `check-skill-updates` skill.
 
 6. Do NOT use interactive mode (no flags) — the agent cannot respond to terminal prompts.
 
-7. After applying any updates, run `dot stow` and `dot opencode-debug` to verify.
+7. After applying any updates, run `dot stow` and `opencode debug skill` to verify.
 
 8. Do not commit unless the user explicitly asks.

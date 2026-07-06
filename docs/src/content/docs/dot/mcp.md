@@ -67,7 +67,6 @@ Context tools moved to [`context mcp`](https://context.timmo.dev/mcp/):
 - `git_context`
 - `stack_context`
 - `command_help`
-- `opencode_debug`
 
 Keep the `dot` MCP server for notes and load the `context` MCP server alongside it when an agent harness needs repository context tools.
 

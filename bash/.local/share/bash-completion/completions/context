@@ -10,7 +10,7 @@ _context() {
   command=${COMP_WORDS[1]-}
 
   if (( cword == 1 )); then
-    COMPREPLY=( $(compgen -W 'git stack opencode-debug mcp completions help -h --help' -- "$cur") )
+    COMPREPLY=( $(compgen -W 'git stack mcp completions help -h --help' -- "$cur") )
     return
   fi
 
@@ -24,13 +24,6 @@ _context() {
       ;;
     stack)
       opts='--json --plain --help -h'
-      if [[ $cur == -* ]]; then
-        COMPREPLY=( $(compgen -W "$opts" -- "$cur") )
-      fi
-      return
-      ;;
-    opencode-debug)
-      opts='--agent --help -h'
       if [[ $cur == -* ]]; then
         COMPREPLY=( $(compgen -W "$opts" -- "$cur") )
       fi

@@ -33,7 +33,7 @@ Use when the external skill is useful as-is and does not overlap with an existin
 3. Add `# origin:` and `# upstream-sha:` comments to the frontmatter. The origin is the source tree URL; the SHA is the latest upstream commit that touched the skill. Keep all existing fields; unknown frontmatter is silently ignored.
 4. Diff each local file against the upstream original to verify the only changes are the frontmatter adjustment and any framework-specific cleanup.
 5. Run `dot stow` to link the new skill into place.
-6. Run `dot opencode-debug` to confirm the skill appears in the resolved config.
+6. Run `opencode debug skill` to confirm the skill appears in the resolved config.
 
 ### Path 2: Adaptation
 

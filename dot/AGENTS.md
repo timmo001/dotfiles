@@ -44,7 +44,6 @@ src/
     Doctor.ts             — dot doctor
     Clean.ts              — dot clean
     AgentsSync.ts         — dot agents-sync
-    OpencodeDebug.ts      — dot opencode-debug
     SetupPrivateRepo.ts   — dot setup-private-repo
     PrivatePkgPublish.ts  — dot private-pkg-publish
     SkillUpdates.ts       — dot skill-updates
@@ -256,8 +255,6 @@ dot note write --path <path> --stdin # Write stdin to a note file and commit it
 dot note delete --path <path> # Delete a note file and commit it
 dot agents-sync               # Mirror AGENTS.md to agent harness instruction files
 dot mcp-sync                  # Regenerate MCP configs for all harnesses from the private spec
-dot opencode-debug            # Debug OpenCode config
-dot opencode-debug --agent x  # Debug specific agent
 dot setup-private-repo        # Register private pacman repo include
 dot private-pkg-publish <pkg> --install # Build, publish, and install a mapped private package
 dot skill-updates             # Check/apply skill updates

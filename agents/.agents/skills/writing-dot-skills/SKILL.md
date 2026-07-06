@@ -45,7 +45,7 @@ Lineage: adapted from mattpocock's `write-a-skill` and trailofbits' designing-wo
    - Global skills live in `agents/.agents/skills/<name>/SKILL.md` and stow to `~/.agents/skills/`; run `dot stow` to link a new one.
    - If the skill changes a convention, update the relevant `AGENTS.md` in the same change, and run `dot agents-sync` when the global AGENTS source changed.
    - Global skills appear in the docs reference: run `mise run docs:gen:opencode` and commit the regenerated `reference/skills.md`.
-   - Confirm it loads with `dot opencode-debug`.
+   - Confirm it loads with `opencode debug skill`.
 
 ## Quality checks
 

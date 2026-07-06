@@ -693,18 +693,6 @@ export const cliCommands: readonly CliCommandSpec[] = [
     options: [helpOption],
   },
   {
-    name: "opencode-debug",
-    summary: "Debug OpenCode config and paths",
-    options: [
-      {
-        name: "--agent",
-        valueName: "name",
-        description: "Debug a specific OpenCode agent",
-      },
-      helpOption,
-    ],
-  },
-  {
     name: "mcp",
     summary: "Run the dot MCP server over stdio",
     description: [

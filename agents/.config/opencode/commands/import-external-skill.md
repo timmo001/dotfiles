@@ -18,7 +18,7 @@ Load and follow the `import-external-skill` skill.
    - Adjust frontmatter: keep `name` and `description`, add `# origin:` comment, drop `metadata`/`category`/`tags`.
    - Diff each file against the upstream original to verify only frontmatter changed.
    - Run `dot stow` to link into place.
-   - Run `dot opencode-debug` to confirm the skill loads.
+   - Run `opencode debug skill` to confirm the skill loads.
 
 5. For adaptations:
    - Fetch the external skill and compare against the existing local skill.

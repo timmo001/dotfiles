@@ -20,7 +20,6 @@ const rootExamples = [
   "dot handoffs             Handoff notes TUI",
   "dot notes root           Print notes vault root",
   "dot notes context --command notes-list",
-  "dot opencode-debug --agent reviewer",
   "dot setup-private-repo Repair private pacman repo include",
   "dot private-pkg-publish twitch-notifications --install",
   "dot completions zsh",

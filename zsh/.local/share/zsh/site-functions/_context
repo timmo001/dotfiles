@@ -5,7 +5,6 @@ local -a context_commands
 context_commands=(
   'git:Show branch context for the current repository'
   'stack:Detect the tech stack of a directory for agents'
-  'opencode-debug:Run OpenCode debug commands'
   'mcp:Run the context MCP server over stdio'
   'completions:Generate shell completions'
   'help:Show context help'
@@ -43,12 +42,6 @@ case $command in
       '--plain[Disable ANSI styling in text output]' \
       '{-h,--help}[Show this help message]' \
       '1:Directory to scan (default: current working directory):_files' \
-      '*::arg:->args'
-    ;;
-  opencode-debug)
-    _arguments -S \
-      '--agent[Also run opencode debug agent <name>]:name:' \
-      '{-h,--help}[Show this help message]' \
       '*::arg:->args'
     ;;
   mcp)

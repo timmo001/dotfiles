@@ -103,6 +103,6 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 - Basic health check: `dot doctor`
 - Dev tasks: `mise run <task>` from the repo root, namespaced by project - `dot:*` (`dot:build`, `dot:typecheck`, `dot:format`, `dot:check`) and `docs:*` (`docs:build`, `docs:dev`, `docs:gen`, `docs:check`); `mise tasks` lists them.
-- OpenCode debug wrapper: `dot opencode-debug`
+- OpenCode debug: use `opencode debug` subcommands directly, for example `opencode debug config`, `opencode debug skill`, or `opencode debug agent <name>`.
 - MCP config sync: `dot mcp-sync` regenerates each active agent harness's MCP config from the single private spec `dotfiles-private/mcp.yml`; some agent harnesses are documented stubs. Runs automatically in `dot update` before re-stow; run `dot stow` after a manual sync.
 - OpenCode slash commands and `dot` git subcommands self-document (command frontmatter, `dot --help`) and are catalogued in the generated docs reference (`reference/commands.md`, `dot/commands.md`); don't re-document them here. The global AGENTS.md routes the behavioural ones (`/plan`, `/grill`, `/commit`, `/inject-context`, `/review-current-work`).

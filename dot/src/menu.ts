@@ -394,12 +394,27 @@ const dotItems: readonly MenuItem[] = [
     "󱚟",
     "Harness Debug",
     "Debug and diagnose AI coding tools",
-    cmd("dot opencode-debug"),
+    cmd("opencode debug info"),
     [
       {
-        label: "OpenCode Debug",
-        description: "Paths, config, skills, info",
-        action: cmd("dot opencode-debug"),
+        label: "OpenCode Info",
+        description: "Runtime and environment info",
+        action: cmd("opencode debug info"),
+      },
+      {
+        label: "OpenCode Paths",
+        description: "Resolved config and data paths",
+        action: cmd("opencode debug paths"),
+      },
+      {
+        label: "OpenCode Config",
+        description: "Merged resolved config",
+        action: cmd("opencode debug config"),
+      },
+      {
+        label: "OpenCode Skills",
+        description: "Resolved skills",
+        action: cmd("opencode debug skill"),
       },
       {
         label: "Codex Doctor",
@@ -423,7 +438,7 @@ const dotItems: readonly MenuItem[] = [
           "Run all diagnostics then open OpenCode (excludes interactive Claude)",
         action: cmd(
           'log="${XDG_STATE_HOME:-$HOME/.local/state}/dot/logs/harness-debug.log"; ' +
-            "{ dot opencode-debug 2>&1; printf '\\n---\\n'; codex doctor 2>&1; printf '\\n---\\n'; codex debug models 2>&1; } | " +
+            "{ opencode debug paths 2>&1; printf '\\n---\\n'; opencode debug config 2>&1; printf '\\n---\\n'; opencode debug skill 2>&1; printf '\\n---\\n'; opencode debug info 2>&1; printf '\\n---\\n'; codex doctor 2>&1; printf '\\n---\\n'; codex debug models 2>&1; } | " +
             "sed -E 's/(ctx7sk-|sk-|ghp_|gho_|glpat-|Bearer )[A-Za-z0-9_-]+/\\1<REDACTED>/g' | tee \"$log\"; " +
             'opencode --prompt "Review the harness debug report at $log. Read it with the Read tool first. Give a concise diagnosis of issues, probable causes, and a prioritized action plan."',
           false,

@@ -22,7 +22,7 @@ Review and apply upstream changes to imported OpenCode skills that have `# origi
    - Decide per skill: apply the update, skip, or investigate further.
 4. When applying, use `dot skill-updates --update` to apply all changes at once.
 5. If `--update` fails or selective application is needed, fall back to manually fetching and writing files using the `import-external-skill` skill workflow.
-6. After applying updates, run `dot stow` to relink and `dot opencode-debug` to verify skills load.
+6. After applying updates, run `dot stow` to relink and `opencode debug skill` to verify skills load.
 
 ## Agent Usage
 

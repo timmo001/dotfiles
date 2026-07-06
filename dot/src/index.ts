@@ -36,7 +36,6 @@ import { stow } from "./commands/Stow.js";
 import { doctor } from "./commands/Doctor.js";
 import { clean } from "./commands/Clean.js";
 import { agentsSync } from "./commands/AgentsSync.js";
-import { opencodeDebug } from "./commands/OpencodeDebug.js";
 import { mcpServer, mcpTeardown } from "./mcp/commands/Mcp.js";
 import { mcpSync } from "./mcp/commands/McpSync.js";
 import { isAgentCommand } from "./commands/IsAgent.js";
@@ -629,14 +628,6 @@ if (mode.type === "native" && mode.command === "mcp") {
       note: noteCommand,
       "agents-sync": () => agentsSync,
       "mcp-sync": () => mcpSync,
-      "opencode-debug": (args) => {
-        const agentIdx = args.indexOf("--agent");
-        const agent =
-          agentIdx !== -1 && args[agentIdx + 1]
-            ? (args[agentIdx + 1] as string)
-            : undefined;
-        return opencodeDebug({ agent });
-      },
       "is-agent": isAgentCommand,
       "setup-private-repo": () => setupPrivateRepo,
       "private-pkg-publish": privatePkgPublish,

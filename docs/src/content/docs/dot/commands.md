@@ -592,20 +592,6 @@ Mirror AGENTS.md to agent harness instruction files
 dot agents-sync
 ```
 
-## `dot opencode-debug`
-
-Debug OpenCode config and paths
-
-```text
-dot opencode-debug
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--agent` `<name>` | Debug a specific OpenCode agent |
-
 ## `dot mcp`
 
 Run the dot MCP server over stdio
