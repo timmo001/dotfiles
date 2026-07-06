@@ -29,6 +29,10 @@
       "repository": "timmo001/go-automate",
       "description": "Use for the go-automate CLI and HA bridge invoked by Waybar, Hypr binds, and dotfiles scripts"
     },
+    "notes": {
+      "repository": "timmo001/notes",
+      "description": "Use for the standalone notes CLI and MCP server for repo notes and handoffs"
+    },
     "omarchy": {
       "repository": "basecamp/omarchy",
       "branch": "master",
@@ -55,6 +59,11 @@
     "dot": {
       "type": "local",
       "command": ["dot", "mcp"],
+      "enabled": true
+    },
+    "notes": {
+      "type": "local",
+      "command": ["notes", "mcp"],
       "enabled": true
     }
   }

@@ -3,16 +3,16 @@ name: handoff
 description: Compact the current conversation into a handoff document for another agent to pick up.
 ---
 
-Write a handoff note summarising the current conversation so a fresh agent can continue the work. The note is stored in the repo notes vault alongside regular notes, using the note-writing tool (`dot_note_write` in OpenCode).
+Write a handoff note summarising the current conversation so a fresh agent can continue the work. The note is stored in the repo notes vault alongside regular notes, using the note-writing tool (`notes_note_write` in OpenCode).
 
-Configuration invariant: every primary agent should have access to the repo notes tools, especially the note-writing tool, so explicit handoff and note workflows are not blocked. Tool access does not imply autonomous note manipulation: use the note-read, note-write, and note-delete tools (`dot_note_read`, `dot_note_write`, `dot_note_delete` in OpenCode) only when a note command or skill instructs it, or when the user explicitly asks to create, update, read, or delete notes. Search-only or narrowly scoped subagents do not need notes access unless their workflow explicitly requires it.
+Configuration invariant: every primary agent should have access to the repo notes tools, especially the note-writing tool, so explicit handoff and note workflows are not blocked. Tool access does not imply autonomous note manipulation: use the note-read, note-write, and note-delete tools (`notes_note_read`, `notes_note_write`, `notes_note_delete` in OpenCode) only when a note command or skill instructs it, or when the user explicitly asks to create, update, read, or delete notes. Search-only or narrowly scoped subagents do not need notes access unless their workflow explicitly requires it.
 
 ## Output
 
 Read `Notes path` from the `<repository>` section of the injected `<repo-note-context>`.
 
 1. Generate a slug prefixed with `handoff-` (e.g. `handoff-auth-refactor`, `handoff-migrate-to-v4`).
-2. Call the note-writing tool (`dot_note_write` in OpenCode) with:
+2. Call the note-writing tool (`notes_note_write` in OpenCode) with:
    - `path`: `{notes_path}/handoff-{slug}.md`
    - `content`: the full note content (see format below)
 
@@ -34,7 +34,7 @@ Before writing a handoff, assess whether the work spans multiple logical phases 
 
 ## Multi-phase naming convention
 
-When creating handoffs that are part of a related group, use a **shared feature prefix** so they sort together when listed with `dot handoffs --list`:
+When creating handoffs that are part of a related group, use a **shared feature prefix** so they sort together when listed with `notes handoffs`:
 
 - **Slug pattern:** `handoff-{feature}-{phase-slug}` — the shared prefix is the key grouping mechanism.
   - e.g. `handoff-query-params-calendar-api`, `handoff-query-params-voice-assistants`, `handoff-query-params-energy-navigation`
@@ -49,7 +49,7 @@ When to number:
 
 This ensures:
 
-- `dot handoffs --list` groups related handoffs together alphabetically by feature prefix.
+- `notes handoffs` groups related handoffs together alphabetically by feature prefix.
 - Each handoff is independently actionable on its own branch.
 - Numbered prefixes preserve execution order only when it matters.
 

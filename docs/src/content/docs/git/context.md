@@ -50,7 +50,7 @@ Typical tools (names from `tools/list`):
 
 Read-only resources include `context://git`, `context://stack`, and `context://command/{name}`. Wire the server in an agent harness the same way as [`dot mcp`](/dot/mcp/#launching-from-a-harness), using `["context", "mcp"]` as the command. Full schemas and examples are on <https://context.timmo.dev/mcp/>.
 
-Keep [`dot mcp`](/dot/mcp/) for the notes vault only. Agent harnesses that need both load two local stdio servers side by side.
+Use [`notes mcp`](https://notes.timmo.dev/mcp/) for the notes vault. Agent harnesses that need repository context and notes load both standalone stdio servers side by side.
 
 ## OpenCode plugins in dotfiles
 

@@ -31,7 +31,7 @@ Answer a question by reading the sources that own the answer, then hand back fin
 The findings live in the conversation, so persistence reuses the notes vault rather than a direct file write:
 
 - Offer `/note-create` to save a new cited note, or `/note-append` to add to an existing one.
-- Do not call the note-writing tool (`dot_note_write` in OpenCode) directly. The notes commands inject the repo note context and manage the vault path.
+- Do not call the note-writing tool (`notes_note_write` in OpenCode) directly. The notes commands inject the repo note context and manage the vault path.
 
 ## Act on the findings
 

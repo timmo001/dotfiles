@@ -45,18 +45,18 @@ Omit any section that has no new content for this session.
 
 ## Step 4: Rewrite the note with integrated content
 
-1. Call the `dot_note_read` tool with `path: {notes_path}/{filename}` to get the full existing content.
+1. Call the `notes_note_read` tool with `path: {notes_path}/{filename}` to get the full existing content.
    Do **not** use the built-in `read` tool — it is blocked for the notes vault.
 2. Integrate the new content into the appropriate sections:
     - Append new bullet items to existing sections (Key Ideas, Decisions, Actions Taken, Open Threads)
     - If a section in the existing note is missing but has new content, add it
     - Do not duplicate existing items
-    - Leave the frontmatter `name`, `description`, and `tags` unchanged (they reflect the original session). The `dot_note_write` tool refreshes the frontmatter `date:` to now automatically; do not read the date yourself.
-3. Call the `dot_note_write` tool with:
+    - Leave the frontmatter `name`, `description`, and `tags` unchanged (they reflect the original session). The `notes_note_write` tool refreshes the frontmatter `date:` to now automatically; do not read the date yourself.
+3. Call the `notes_note_write` tool with:
    - `path`: `{notes_path}/{filename}`
    - `content`: the complete updated file content
 
-Do **not** use the `write`, `bash`, or any other tool to write the file — only `dot_note_write`.
+Do **not** use the `write`, `bash`, or any other tool to write the file - only `notes_note_write`.
 
 ## Step 5: Confirm
 

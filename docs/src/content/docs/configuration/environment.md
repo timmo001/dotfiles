@@ -95,5 +95,5 @@ Each target receives a transformed copy with harness-appropriate formatting wher
 
 | Variable        | Description                                                                                                   |
 | --------------- | ------------------------------------------------------------------------------------------------------------- |
-| `NOTES`         | Notes vault git repo used by `dot notes` and OpenCode note commands (preferred; default `~/Documents/notes`). |
+| `NOTES`         | Notes vault git repo used by the standalone `notes` CLI/MCP server and OpenCode note commands (preferred; default `~/Documents/notes`). |
 | `DOT_NOTES_DIR` | Compatibility notes vault override used when `NOTES` is unset.                                                |

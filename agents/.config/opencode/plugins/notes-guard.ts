@@ -25,7 +25,7 @@ const PATH_ARG_TOOLS = new Set([
 
 async function dotRepoNotesRoot(): Promise<string | null> {
   try {
-    const proc = Bun.spawn(["dot", "notes", "root", "--repo-notes"], {
+    const proc = Bun.spawn(["notes", "root", "--repo-notes"], {
       stdin: "ignore",
       stdout: "pipe",
       stderr: "pipe",
@@ -70,8 +70,8 @@ export const NotesGuardPlugin = (async () => {
 
   const guardMessage = (tool: string) =>
     `Direct '${tool}' access to the notes vault is blocked.\n` +
-    `The vault at ${expandedVaultPath} is exclusively managed by the dot_note_read, dot_note_write, and dot_note_delete tools.\n` +
-    "Use dot_note_read to read a note, dot_note_write to create or update one, or dot_note_delete to remove one."
+    `The vault at ${expandedVaultPath} is exclusively managed by the notes_note_read, notes_note_write, and notes_note_delete tools.\n` +
+    "Use notes_note_read to read a note, notes_note_write to create or update one, or notes_note_delete to remove one."
 
   return {
     "tool.execute.before": async (input, output) => {
