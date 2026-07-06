@@ -4,7 +4,7 @@
  * Runs the stdio MCP server as the process main fiber via `NodeRuntime.runMain`,
  * which installs `SIGINT`/`SIGTERM` handling and keeps the process alive until
  * the client disconnects. The server runs under the native CLI layer stack,
- * which supplies the `Notes` and `CommandExecutor` services it needs.
+ * which supplies any services it needs.
  */
 import { Cause, Exit, Layer, Runtime } from "effect";
 import { McpServerLayer } from "../server.js";
@@ -22,7 +22,7 @@ export const mcpTeardown: Runtime.Teardown = (exit, onExit) =>
 
 /**
  * The stdio MCP server effect. Suspends until the client disconnects, then the
- * transport interrupts this fiber. Requires `Notes` and `CommandExecutor`,
- * provided by the CLI layer stack at the call site.
+ * transport interrupts this fiber. Required services are provided by the CLI
+ * layer stack at the call site.
  */
 export const mcpServer = Layer.launch(McpServerLayer);

@@ -4,7 +4,6 @@ import type {
   ViewId,
   MenuItem,
   MenuAction,
-  NotesViewFilter,
   Repo,
   RepoState,
   GitNotificationAction,
@@ -14,14 +13,6 @@ import type {
   WorkflowRun,
 } from "../types.js";
 import type { DashboardState } from "../dashboard/types.js";
-import type {
-  NoteCreateDraft,
-  NoteCreateKind,
-  NoteDeleteResult,
-  NoteEntry,
-  NotePriority,
-  NoteRepoSection,
-} from "../notes/types.js";
 import type { Theme } from "../theme.js";
 import { menuItemsById, submenus } from "../menu.js";
 import type { CommandRunnerService } from "../services/CommandRunner.js";
@@ -31,12 +22,6 @@ import { DiffView } from "../git/tui/DiffView.js";
 import { GitLogView } from "../git/tui/GitLogView.js";
 import { GitNotificationsView } from "../git/tui/GitNotificationsView.js";
 import { WorkflowRunsView } from "../git/tui/WorkflowRunsView.js";
-import { NotesView } from "../notes/tui/NotesView.js";
-import { openNoteInEditor } from "../notes/tui/NoteEditor.js";
-import {
-  openNoteInOpenCode,
-  type OpenCodeNoteMode,
-} from "../notes/tui/OpenCodeNote.js";
 import { OmarchyMenu } from "./OmarchyMenu.js";
 import { OutputPane } from "./OutputPane.js";
 import { Toast } from "./Toast.js";
@@ -79,8 +64,6 @@ export interface AppOptions {
   readonly initialDiffTab?: "changed" | "unchanged";
   /** If set, execute this menu item immediately on startup and pre-select it */
   readonly executeItemId?: string;
-  /** Optional notes filter to apply when starting on the notes view. */
-  readonly initialNotesFilter?: NotesViewFilter;
 }
 
 /** Dependencies injected into the App at construction time */
@@ -106,29 +89,6 @@ export interface AppDeps {
     action: GitNotificationAction,
     threadId: string,
   ) => void;
-  /** List note entries for the current repository. */
-  readonly listNotes: () => Promise<readonly NoteEntry[]>;
-  /** List note entries grouped by every repository notes directory. */
-  readonly listAllNotes: () => Promise<readonly NoteRepoSection[]>;
-  /** Read the full markdown content for a note file. */
-  readonly readNote: (filePath: string) => Promise<string>;
-  /** Delete a note file from the notes vault. */
-  readonly deleteNote: (filePath: string) => Promise<NoteDeleteResult>;
-  /** Create a draft note file with seed content. */
-  readonly createNoteDraft: (
-    kind: NoteCreateKind,
-    name: string,
-    description: string,
-  ) => Promise<NoteCreateDraft>;
-  /** Commit a draft note after editor exit. */
-  readonly finaliseNoteDraft: (filePath: string) => Promise<void>;
-  /** Commit an edited note after editor exit. */
-  readonly finaliseNoteEdit: (filePath: string) => Promise<void>;
-  /** Set the handoff priority for a note and commit it. */
-  readonly updateNotePriority: (
-    filePath: string,
-    priority: NotePriority,
-  ) => Promise<void>;
 }
 
 /** Top-level TUI application shell managing a view stack and global keyboard */
@@ -141,14 +101,12 @@ export class App {
   private gitLogView: GitLogView;
   private workflowsView: WorkflowRunsView;
   private notificationsView: GitNotificationsView;
-  private notesView: NotesView;
   private omarchyMenu: OmarchyMenu;
   private outputPane: OutputPane;
   private variantPopup: VariantPopup;
   private activeView: ViewId = "main";
   private viewStack: ViewId[] = [];
   private diffChangedCount = 0;
-  private activeNotesFilter: NotesViewFilter | null = null;
 
   constructor(deps: AppDeps, options: AppOptions = {}) {
     this.renderer = deps.renderer;
@@ -315,30 +273,6 @@ export class App {
         onBack: () => this.popView(),
       },
     );
-
-    this.notesView = new NotesView(deps.renderer, deps.theme, {
-      listNotes: deps.listNotes,
-      listAllNotes: deps.listAllNotes,
-      readNote: deps.readNote,
-      deleteNote: deps.deleteNote,
-      createNoteDraft: deps.createNoteDraft,
-      finaliseNoteDraft: deps.finaliseNoteDraft,
-      finaliseNoteEdit: deps.finaliseNoteEdit,
-      onSetPriority: deps.updateNotePriority,
-      onEditNote: (entry, kind) =>
-        openNoteInEditor(deps.renderer, entry, kind, () => {
-          setTerminalTitle(`Dot TUI › ${this.notesTitle()}`);
-        }),
-      onOpenOpencode: (entry, noteContent, mode: OpenCodeNoteMode) =>
-        openNoteInOpenCode(deps.renderer, entry, noteContent, {
-          mode,
-          afterResume: () => {
-            setTerminalTitle(`Dot TUI › ${this.notesTitle()}`);
-          },
-        }),
-      onBack: () => this.popView(),
-    });
-    this.setNotesFilter(options.initialNotesFilter ?? null);
 
     this.omarchyMenu = new OmarchyMenu(deps.renderer, deps.theme, {
       onAction: (item) => this.handleMenuAction(item),
@@ -520,11 +454,6 @@ export class App {
         this.notificationsView.setVisible(true);
         this.notificationsView.focus();
         break;
-      case "notes":
-        setTerminalTitle(`Dot TUI \u203A ${this.notesTitle()}`);
-        this.notesView.setVisible(true);
-        this.notesView.focus();
-        break;
       case "omarchy":
         this.omarchyMenu.setVisible(true);
         this.omarchyMenu.resetAndFocus();
@@ -550,17 +479,6 @@ export class App {
     this.dispatchAction(item.action);
   }
 
-  private setNotesFilter(filter: NotesViewFilter | null): void {
-    this.activeNotesFilter = filter;
-    this.notesView.setFilter(filter);
-  }
-
-  private notesTitle(): string {
-    const title = this.activeNotesFilter?.title ?? "Notes";
-    if (!this.activeNotesFilter?.includeAllRepos) return title;
-    return title.startsWith("All ") ? title : `All ${title}`;
-  }
-
   private hideAllViews(): void {
     this.mainMenu.setVisible(false);
     this.dashboardView.setVisible(false);
@@ -568,7 +486,6 @@ export class App {
     this.gitLogView.setVisible(false);
     this.workflowsView.setVisible(false);
     this.notificationsView.setVisible(false);
-    this.notesView.setVisible(false);
     this.omarchyMenu.setVisible(false);
     this.outputPane.setVisible(false);
   }
@@ -611,9 +528,6 @@ export class App {
         break;
 
       case "view":
-        if (action.viewId === "notes") {
-          this.setNotesFilter(action.notesFilter ?? null);
-        }
         this.pushView(action.viewId);
         break;
 
@@ -657,9 +571,6 @@ export class App {
         break;
       case "git-notifications":
         this.notificationsView.focus();
-        break;
-      case "notes":
-        this.notesView.focus();
         break;
       case "omarchy":
         this.omarchyMenu.focus();

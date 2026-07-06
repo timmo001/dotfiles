@@ -50,13 +50,8 @@ src/
     SkillCheck.ts         — dot skill-check
     Completions.ts        — dot completions generator for stowed shell completions
     Help.ts               — dot help
-  notes/
-    types.ts              — Repo-note data types and legacy label formatting
-    commands/Notes.ts     — dot notes / dot note native CLI handlers
-    services/Notes.ts     — Effect service for OpenCode notes context and note I/O
-    tui/NotesView.ts      — Two-pane repo notes browser with markdown preview
   mcp/
-    server.ts             — dot mcp stdio server layer (notes + dot resources; generic context lives in `context mcp`)
+    server.ts             — dot mcp stdio server layer (dot resources; generic context lives in `context mcp`, repo notes in `notes mcp`)
     commands/Mcp.ts       — dot mcp native command handler
     commands/McpSync.ts   — dot mcp-sync: regenerate harness MCP configs from the spec
     sync/spec.ts          — MCP sync spec types, stub-harness notes, pure helpers
@@ -133,7 +128,7 @@ src/
 1. `index.ts` parses CLI flags → resolves mode (TUI / native / fallback)
 2. Native commands run with `CliLayers` (no renderer, no TUI)
 3. TUI mode composes full layer stack including RepoWatcher, GitLog, WorkflowRuns, GitNotifications, Renderer, Toast
-4. `App` manages a view stack (main menu ↔ diff view ↔ git log view ↔ workflows view ↔ notifications view ↔ notes view ↔ omarchy menu)
+4. `App` manages a view stack (main menu ↔ diff view ↔ git log view ↔ workflows view ↔ notifications view ↔ omarchy menu)
 5. Menu items have typed actions: `command` (suspend/resume), `silent` (background), `notify` (background + toast), `view` (navigate), `submenu` (nested)
 6. `CommandRunner` handles suspend/resume for terminal commands, silent background execution, and notify-style commands with toast feedback
 7. `RepoWatcher` loads Waybar cache for instant diff first paint, then polls every 10s
@@ -239,21 +234,6 @@ dot git-notifications --mark-bot-read # Mark unread bot notifications read
 dot git-notifications --mark-done <id> # Mark a notification done
 dot git-notifications --ignore <id> # Ignore new notifications for a thread
 dot git-notifications --unignore <id> # Stop ignoring a thread
-dot notes                     # Repository notes browser (TUI)
-dot notes --all               # Repository notes browser across all repos (TUI)
-dot notes root             # Print notes vault root (CLI)
-dot notes root --repo-notes # Print repository notes directory (CLI)
-dot notes context --command notes-list # Print OpenCode notes context (CLI)
-dot notes list --all       # List all repo notes with repo section headings (CLI)
-dot notes list --format json # List current repo notes as JSON (CLI)
-dot handoffs                  # Handoff notes browser (TUI, tag: handoff)
-dot handoffs --all            # Handoff notes browser across all repos (TUI)
-dot handoffs --list           # List handoff notes to stdout (CLI)
-dot handoffs --list --all     # List handoff notes across all repos (CLI)
-dot handoff                   # Alias for dot handoffs
-dot note read --path <path> # Read a note file
-dot note write --path <path> --stdin # Write stdin to a note file and commit it
-dot note delete --path <path> # Delete a note file and commit it
 dot agents-sync               # Mirror AGENTS.md to agent harness instruction files
 dot mcp-sync                  # Regenerate MCP configs for all harnesses from the private spec
 dot setup-private-repo        # Register private pacman repo include
@@ -295,7 +275,7 @@ After that bootstrap build, run the checked-out binary directly. If private dotf
 ## External Dependencies
 
 - `~/.cache/waybar/git-diff-waybar.json` — Waybar cache for fast startup
-- `NOTES` / `DOT_NOTES_DIR` — notes vault used by `dot notes` and OpenCode note commands
+- `NOTES` / `DOT_NOTES_DIR` — notes vault used by the standalone `notes` CLI/MCP server and OpenCode note commands
 - `~/.config/dotfiles-private/dot-git.yml` — private git repo config for clone/bootstrap, doctor checks, `dot git-diff`, `dot git-log`, `dot git-workflows`, and `dot git-notifications --bar-json`; `activity`, `workflows`, and `notifications` each require explicit `enabled` plus 5-field cron `schedule` keys, and `notifications.bar.ignore_bot_activity` controls status-bar bot noise
 - `gh` authenticated with a classic token carrying `notifications` or `repo` scope — required for `dot git-notifications` and its Waybar module
 - `lazygit` — launched via suspend/resume on Enter in diff view
@@ -339,8 +319,6 @@ dot git-commit --dry-run -m "Test subject" # smoke test: dry-run plan, no commit
 dot git-commit --amend --dry-run # smoke test: amend plan (keep message), no commit
 dot git-notifications --raw  # smoke test: CLI notification output
 dot git-notifications --bar-json # smoke test: notification JSON output
-dot notes                    # smoke test: notes view renders
-dot handoffs                 # smoke test: handoff-filtered notes view renders
 dot doctor                   # smoke test: health checks run
 dot firewall                 # smoke test: reconciles managed ufw rules
 dot init --help              # smoke test: init help prints without side effects

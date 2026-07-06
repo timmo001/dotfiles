@@ -434,174 +434,6 @@ dot git-notifications --mark-bot-read --dry-run
 dot git-notifications --mark-read 12345
 ```
 
-## `dot notes`
-
-Open repository notes or run note utility commands
-
-```text
-dot notes [--all] [command] [options]
-```
-
-Manage repository notes used by OpenCode note commands.
-
-**Modes**
-
-```text
-(default)                    Interactive notes TUI
---all                        Interactive notes TUI across all repos
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--all` | Show notes from every repo-notes directory |
-
-**Examples**
-
-```bash
-dot notes
-dot notes --all
-dot notes root
-dot notes context --command notes-list
-dot notes list --all
-dot notes list --format json
-```
-
-### `dot notes root`
-
-Print the notes vault root
-
-```text
-dot notes root
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--repo-notes` | Print repository notes directory |
-
-### `dot notes context`
-
-Print the context block for OpenCode notes
-
-```text
-dot notes context
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--command` `<name>` | OpenCode command name |
-
-### `dot notes list`
-
-List repository notes
-
-```text
-dot notes list
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--all` | Show notes from every repo-notes directory |
-| `--format` `<labels|json>` | Output format (one of: `labels`, `json`) |
-
-## `dot handoffs`
-
-Aliases: `dot handoff`
-
-Open handoff notes
-
-```text
-dot handoffs [--all] [--list]
-```
-
-Open the interactive notes TUI filtered to notes tagged handoff.
-Use --list for a plain text listing without the TUI.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--all` | Show handoff notes from every repo-notes directory |
-| `--list` | List handoff notes to stdout without opening the TUI |
-
-**Aliases**
-
-```text
-dot handoff
-dot handoffs
-```
-
-## `dot note`
-
-Read, write, or delete note files
-
-```text
-dot note <command> [options]
-```
-
-Read, write, and delete note files. Writes and deletes are committed and
-pushed to the notes vault when possible.
-
-**Examples**
-
-```bash
-dot note read --path ~/Documents/notes/repo-notes/owner/repo/topic.md
-dot note write --path /tmp/notes/repo-notes/owner/repo/topic.md --stdin
-dot note delete --path /tmp/notes/repo-notes/owner/repo/topic.md
-```
-
-### `dot note read`
-
-Print a note file
-
-```text
-dot note read
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--path` `<path>` | Note file path |
-
-### `dot note write`
-
-Write stdin to a note file, then commit and push it
-
-```text
-dot note write
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--path` `<path>` | Note file path |
-| `--stdin` | Read note content from stdin |
-| `--json` | Emit the note output and push status as JSON |
-
-### `dot note delete`
-
-Delete a note file, then commit and push it
-
-```text
-dot note delete
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--path` `<path>` | Note file path |
-| `--json` | Emit the note output and push status as JSON |
-
 ## `dot agents-sync`
 
 Mirror AGENTS.md to agent harness instruction files
@@ -618,14 +450,12 @@ Run the dot MCP server over stdio
 dot mcp
 ```
 
-Start a Model Context Protocol server that exposes the notes vault and
-dot-owned read-only resources to any MCP-capable agent harness.
-Generic git and stack context tools live in the standalone context MCP
-server (`context mcp`).
+Start a Model Context Protocol server for dot-owned resources.
+Generic git and stack context tools live in the standalone context MCP server (`context mcp`).
+Repo notes tools live in the standalone notes MCP server (`notes mcp`).
 
 The server speaks JSON-RPC over stdio and is meant to be launched by an
-MCP client, not run interactively. Mutating note actions emit a desktop
-notification. All logging goes to stderr so stdout stays protocol-clean.
+MCP client, not run interactively. All logging goes to stderr so stdout stays protocol-clean.
 
 **Examples**
 

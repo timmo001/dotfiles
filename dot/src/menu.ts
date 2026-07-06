@@ -1,10 +1,4 @@
-import type {
-  MenuItem,
-  MenuVariant,
-  NotesViewFilter,
-  NotifyConfig,
-  ViewId,
-} from "./types.js";
+import type { MenuItem, MenuVariant, NotifyConfig, ViewId } from "./types.js";
 
 // --- Helpers ---
 
@@ -46,11 +40,8 @@ function notify(command: string, config: NotifyConfig): MenuItem["action"] {
   return { type: "notify", cmd: command, notify: config };
 }
 
-function view(
-  viewId: ViewId,
-  notesFilter?: NotesViewFilter,
-): MenuItem["action"] {
-  return { type: "view", viewId, ...(notesFilter && { notesFilter }) };
+function view(viewId: ViewId): MenuItem["action"] {
+  return { type: "view", viewId };
 }
 
 // --- Dot main menu ---
@@ -153,26 +144,6 @@ const dotItems: readonly MenuItem[] = [
       "pulls",
     ],
     "Git",
-  ),
-  item(
-    "notes",
-    "󰎞",
-    "Repo Notes",
-    "Browse repository notes",
-    view("notes"),
-    undefined,
-    ["notes", "note", "repo-notes", "vault", "obsidian", "markdown"],
-    "Notes",
-  ),
-  item(
-    "handoffs",
-    "󰈚",
-    "Handoffs",
-    "Browse handoff notes for this repository",
-    view("notes", { tag: "handoff", title: "Handoffs" }),
-    undefined,
-    ["handoff", "handoffs", "notes", "agent", "continuation"],
-    "Notes",
   ),
   item(
     "stow",

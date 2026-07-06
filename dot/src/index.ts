@@ -14,7 +14,6 @@ import { GitStaging } from "./git/services/GitStaging.js";
 import { WorkflowRuns } from "./git/services/WorkflowRuns.js";
 import { Dashboard } from "./dashboard/services/Dashboard.js";
 import { buildDashboardState } from "./dashboard/viewModel.js";
-import { Notes } from "./notes/services/Notes.js";
 import { parseFlags, resolveSubcommand, printHelp } from "./flags.js";
 import { hasOption, optionValue, optionValues } from "./lib/args.js";
 import {
@@ -46,8 +45,6 @@ import { skillUpdates } from "./commands/SkillUpdates.js";
 import { skillCheck } from "./commands/SkillCheck.js";
 import { completions } from "./commands/Completions.js";
 import { help } from "./commands/Help.js";
-import { noteCommand, notesCommand } from "./notes/commands/Notes.js";
-import { handoffsList } from "./notes/commands/Handoffs.js";
 import {
   diffBarJson,
   diffListChanged,
@@ -72,7 +69,6 @@ import {
 import type {
   GitNotificationAction,
   GitNotificationQueryOptions,
-  NotesViewFilter,
   ViewId,
   WorkflowRunQueryOptions,
 } from "./types.js";
@@ -101,21 +97,8 @@ type Mode =
       type: "tui";
       initialView: ViewId;
       executeItemId?: string;
-      initialNotesFilter?: NotesViewFilter;
     }
   | { type: "native"; command: string; args: readonly string[] };
-
-const handoffNotesFilter = {
-  tag: "handoff",
-  title: "Handoffs",
-} satisfies NotesViewFilter;
-const allNotesFilter = {
-  includeAllRepos: true,
-} satisfies NotesViewFilter;
-
-function includeAllRepos(filter: NotesViewFilter): NotesViewFilter {
-  return { ...filter, includeAllRepos: true };
-}
 
 const NOTIFICATION_ACTION_FLAGS: readonly {
   readonly flag: string;
@@ -138,7 +121,6 @@ const TUI_ALTERNATIVES: Partial<Record<ViewId, string>> = {
   "git-log": "dot git-log --raw",
   "git-workflows": "dot git-workflows --raw",
   "git-notifications": "dot git-notifications --raw",
-  notes: "dot notes list",
 };
 
 /**
@@ -175,37 +157,6 @@ function resolveMode(): Mode {
 
   // Native commands bypass the menu/fallback system entirely
   if (nativeCommandNames.has(flags.subcommand)) {
-    if (flags.subcommand === "notes" && isNotesTuiInvocation(flags.rest)) {
-      return flags.rest.includes("--all")
-        ? {
-            type: "tui",
-            initialView: "notes",
-            initialNotesFilter: allNotesFilter,
-          }
-        : { type: "tui", initialView: "notes" };
-    }
-    if (flags.subcommand === "handoff" || flags.subcommand === "handoffs") {
-      if (flags.rest.includes("--list")) {
-        return {
-          type: "native",
-          command: "handoffs",
-          args: flags.rest,
-        };
-      }
-      const unsupported = flags.rest.filter((arg) => arg !== "--all");
-      if (unsupported.length > 0) {
-        console.error(`dot ${flags.subcommand} does not accept arguments`);
-        console.error("Run 'dot handoffs --help' to see available commands.");
-        process.exit(1);
-      }
-      return {
-        type: "tui",
-        initialView: "notes",
-        initialNotesFilter: flags.rest.includes("--all")
-          ? includeAllRepos(handoffNotesFilter)
-          : handoffNotesFilter,
-      };
-    }
     if (flags.subcommand === "dashboard") {
       return { type: "tui", initialView: "dashboard" };
     }
@@ -424,10 +375,6 @@ function hasBarJsonFlag(args: readonly string[]): boolean {
   return args.includes("--bar-json");
 }
 
-function isNotesTuiInvocation(args: readonly string[]): boolean {
-  return args.length === 0 || (args.length === 1 && args[0] === "--all");
-}
-
 function notificationActionArg(args: readonly string[]): {
   readonly action: GitNotificationAction;
   readonly threadId: string;
@@ -482,7 +429,6 @@ type NativeEnv =
   | GitNotifications
   | GitStaging
   | Launcher
-  | Notes
   | OutputLog
   | WorkflowRuns;
 type NativeEffect = Effect.Effect<void, unknown, NativeEnv>;
@@ -537,7 +483,6 @@ const CliLayers = Launcher.cliLayer.pipe(
   Layer.provideMerge(WorkflowRuns.layer),
   Layer.provideMerge(GitNotifications.layer),
   Layer.provideMerge(GitStaging.layer),
-  Layer.provideMerge(Notes.layer),
   Layer.provideMerge(GitHub.layer),
   Layer.provideMerge(OutputLog.cliLayer),
   Layer.provideMerge(CommandExecutor.layer),
@@ -627,8 +572,6 @@ if (mode.type === "native" && mode.command === "mcp") {
         }),
       "git-workflows": resolveWorkflows,
       "git-notifications": resolveNotifications,
-      notes: notesCommand,
-      note: noteCommand,
       "agents-sync": () => agentsSync,
       "mcp-sync": () => mcpSync,
       "is-agent": isAgentCommand,
@@ -645,7 +588,6 @@ if (mode.type === "native" && mode.command === "mcp") {
           openOpencode: args.includes("--open-opencode"),
           diffOrigin: args.includes("--diff-origin"),
         }),
-      handoffs: (args) => handoffsList(args.includes("--all")),
       completions,
       help,
     };
@@ -703,7 +645,7 @@ if (mode.type === "native" && mode.command === "mcp") {
   const { loadTheme } = await import("./theme.js");
   const { App } = await import("./tui/App.js");
 
-  const { initialView, executeItemId, initialNotesFilter } = mode;
+  const { initialView, executeItemId } = mode;
 
   const tuiProgram = Effect.gen(function* () {
     log("Starting...");
@@ -712,7 +654,6 @@ if (mode.type === "native" && mode.command === "mcp") {
     const workflows = yield* WorkflowRuns;
     const notifications = yield* GitNotifications;
     const dashboard = yield* Dashboard;
-    const notes = yield* Notes;
     const renderer = yield* Renderer;
     const toast = yield* Toast;
     const services = yield* Effect.context<never>();
@@ -755,24 +696,11 @@ if (mode.type === "native" && mode.command === "mcp") {
             ),
           );
         },
-        listNotes: () => runPromise(notes.list()),
-        listAllNotes: () => runPromise(notes.listAll()),
-        readNote: (filePath) => runPromise(notes.read(filePath)),
-        deleteNote: (filePath) => runPromise(notes.delete(filePath)),
-        createNoteDraft: (kind, name, description) =>
-          runPromise(notes.createDraft(kind, name, description)),
-        finaliseNoteDraft: (filePath) =>
-          runPromise(notes.finaliseDraft(filePath)).then(() => {}),
-        finaliseNoteEdit: (filePath) =>
-          runPromise(notes.finaliseEdit(filePath)).then(() => {}),
-        updateNotePriority: (filePath, priority) =>
-          runPromise(notes.setPriority(filePath, priority)).then(() => {}),
       },
       {
         initialView,
         initialDiffTab: flags.tab,
         executeItemId,
-        initialNotesFilter,
       },
     );
     log("App created");
@@ -903,7 +831,6 @@ if (mode.type === "native" && mode.command === "mcp") {
     Layer.provideMerge(WorkflowRuns.layer),
     Layer.provideMerge(DashboardLayer),
     Layer.provideMerge(GitNotifications.layer),
-    Layer.provideMerge(Notes.layer),
     Layer.provideMerge(GitHub.layer),
     Layer.provideMerge(GitDiffWaybarCache.layer),
     Layer.provideMerge(Toast.layer(theme)),

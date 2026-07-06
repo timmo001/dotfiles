@@ -103,19 +103,8 @@ export type ViewId =
   | "git-log"
   | "git-workflows"
   | "git-notifications"
-  | "notes"
   | "omarchy"
   | "output";
-
-/** Filter applied when opening the repository notes view. */
-export interface NotesViewFilter {
-  /** Tag that note entries must contain, compared case-insensitively. */
-  readonly tag?: string;
-  /** Display title used for filtered notes views such as Handoffs. */
-  readonly title?: string;
-  /** Show notes from every repository note directory instead of only the current repo. */
-  readonly includeAllRepos?: boolean;
-}
 
 // --- GitHub workflow run types ---
 
@@ -372,8 +361,6 @@ export type ToastVariant = "info" | "success" | "error";
 export interface ViewAction {
   readonly type: "view";
   readonly viewId: ViewId;
-  /** Optional notes filter when navigating to the notes view. */
-  readonly notesFilter?: NotesViewFilter;
 }
 
 /** Action that opens a nested submenu */

@@ -76,11 +76,6 @@ const helpOption = {
   description: "Show this help message",
 } satisfies CliOptionSpec;
 
-const allNotesOption = {
-  name: "--all",
-  description: "Show notes from every repo-notes directory",
-} satisfies CliOptionSpec;
-
 const rawOption = {
   name: "--raw",
   description: "Text summary output",
@@ -560,145 +555,6 @@ export const cliCommands: readonly CliCommandSpec[] = [
     ],
   },
   {
-    name: "notes",
-    summary: "Open repository notes or run note utility commands",
-    usage: "[--all] [command] [options]",
-    description: ["Manage repository notes used by OpenCode note commands."],
-    modes: [
-      "(default)                    Interactive notes TUI",
-      "--all                        Interactive notes TUI across all repos",
-    ],
-    commands: [
-      {
-        name: "root",
-        summary: "Print the notes vault root",
-        options: [
-          {
-            name: "--repo-notes",
-            description: "Print repository notes directory",
-          },
-        ],
-      },
-      {
-        name: "context",
-        summary: "Print the context block for OpenCode notes",
-        options: [
-          {
-            name: "--command",
-            valueName: "name",
-            description: "OpenCode command name",
-          },
-        ],
-      },
-      {
-        name: "list",
-        summary: "List repository notes",
-        options: [
-          allNotesOption,
-          {
-            name: "--format",
-            valueName: "labels|json",
-            description: "Output format",
-            choices: [{ value: "labels" }, { value: "json" }],
-          },
-        ],
-      },
-    ],
-    options: [allNotesOption, helpOption],
-    examples: [
-      "dot notes",
-      "dot notes --all",
-      "dot notes root",
-      "dot notes context --command notes-list",
-      "dot notes list --all",
-      "dot notes list --format json",
-    ],
-  },
-  {
-    name: "handoffs",
-    aliases: ["handoff"],
-    summary: "Open handoff notes",
-    usage: "[--all] [--list]",
-    description: [
-      "Open the interactive notes TUI filtered to notes tagged handoff.",
-      "Use --list for a plain text listing without the TUI.",
-    ],
-    sections: [{ title: "Aliases", lines: ["dot handoff", "dot handoffs"] }],
-    options: [
-      {
-        name: "--all",
-        description: "Show handoff notes from every repo-notes directory",
-      },
-      {
-        name: "--list",
-        description: "List handoff notes to stdout without opening the TUI",
-      },
-      helpOption,
-    ],
-  },
-  {
-    name: "note",
-    summary: "Read, write, or delete note files",
-    usage: "<command> [options]",
-    description: [
-      "Read, write, and delete note files. Writes and deletes are committed and",
-      "pushed to the notes vault when possible.",
-    ],
-    commands: [
-      {
-        name: "read",
-        summary: "Print a note file",
-        options: [
-          {
-            name: "--path",
-            valueName: "path",
-            completion: "file",
-            description: "Note file path",
-          },
-        ],
-      },
-      {
-        name: "write",
-        summary: "Write stdin to a note file, then commit and push it",
-        options: [
-          {
-            name: "--path",
-            valueName: "path",
-            completion: "file",
-            description: "Note file path",
-          },
-          { name: "--stdin", description: "Read note content from stdin" },
-          {
-            name: "--json",
-            description: "Emit the note output and push status as JSON",
-          },
-        ],
-      },
-      {
-        name: "delete",
-        summary: "Delete a note file, then commit and push it",
-        options: [
-          {
-            name: "--path",
-            valueName: "path",
-            completion: "file",
-            description: "Note file path",
-          },
-          {
-            name: "--json",
-            description: "Emit the note output and push status as JSON",
-          },
-        ],
-      },
-    ],
-    options: [helpOption],
-    examples: [
-      "dot note read --path ~/Documents/notes/repo-notes/owner/repo/topic.md",
-      "dot note write --path /tmp/notes/repo-notes/owner/repo/topic.md --stdin",
-      "dot note delete --path /tmp/notes/repo-notes/owner/repo/topic.md",
-    ],
-  },
-  {
     name: "agents-sync",
     summary: "Mirror AGENTS.md to agent harness instruction files",
     options: [helpOption],
@@ -707,14 +563,12 @@ export const cliCommands: readonly CliCommandSpec[] = [
     name: "mcp",
     summary: "Run the dot MCP server over stdio",
     description: [
-      "Start a Model Context Protocol server that exposes the notes vault and",
-      "dot-owned read-only resources to any MCP-capable agent harness.",
-      "Generic git and stack context tools live in the standalone context MCP",
-      "server (`context mcp`).",
+      "Start a Model Context Protocol server for dot-owned resources.",
+      "Generic git and stack context tools live in the standalone context MCP server (`context mcp`).",
+      "Repo notes tools live in the standalone notes MCP server (`notes mcp`).",
       "",
       "The server speaks JSON-RPC over stdio and is meant to be launched by an",
-      "MCP client, not run interactively. Mutating note actions emit a desktop",
-      "notification. All logging goes to stderr so stdout stays protocol-clean.",
+      "MCP client, not run interactively. All logging goes to stderr so stdout stays protocol-clean.",
     ],
     options: [helpOption],
     examples: ["dot mcp"],

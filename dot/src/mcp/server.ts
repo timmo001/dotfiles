@@ -1,35 +1,25 @@
 /**
  * @file MCP server composition for `dot mcp`.
  *
- * Builds the stdio MCP server layer: registers the notes tools and resources,
- * wires the real {@link Notifier}, and provides the stdio transport via
- * `@effect/platform-node` `NodeStdio`. Logging is forced to stderr so stdout
- * carries only the JSON-RPC protocol stream.
+ * Builds the stdio MCP server layer for dot-owned resources. Logging is forced
+ * to stderr so stdout carries only the JSON-RPC protocol stream.
  */
-import { Effect, Layer, Logger } from "effect";
+import { Layer, Logger } from "effect";
 import { NodeStdio } from "@effect/platform-node";
 import { McpServer } from "effect/unstable/ai";
-import { Notifier } from "./services/Notifier.js";
 import { registerContextResources } from "./resources/context.js";
-import { registerNotesTools } from "./tools/notes.js";
 
 /** MCP server name reported to clients. */
 const SERVER_NAME = "dot";
 /** MCP server version reported to clients. */
 const SERVER_VERSION = "0.1.0";
 
-/** Register every dot-owned MCP tool and resource on the current server. */
-const registerAll = Effect.gen(function* () {
-  yield* registerNotesTools;
-  yield* registerContextResources;
-});
-
 /**
- * Fully composed MCP server layer. Remaining requirements (`Notes`,
- * `CommandExecutor`) are provided by the CLI layer stack when launched.
+ * Fully composed MCP server layer.
  */
-export const McpServerLayer = Layer.effectDiscard(registerAll).pipe(
-  Layer.provide(Notifier.layerNotifySend),
+export const McpServerLayer = Layer.effectDiscard(
+  registerContextResources,
+).pipe(
   Layer.provide(
     McpServer.layerStdio({ name: SERVER_NAME, version: SERVER_VERSION }),
   ),
