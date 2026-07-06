@@ -60,6 +60,9 @@ After init completes, run doctor first to verify the setup. After restarting you
 dot doctor    # health checks
 dot update    # self-update, install deps, rebuild, pull, stow, restart
 dot git-diff  # review changes across managed repos
+context git   # branch context for the current repo (from the context-git package)
 ```
+
+`context git` and `context stack` come from the `context-git` AUR package installed during init. They are used by OpenCode plugins and agent harnesses for repository context; see [Context Integration](/git/context/).
 
 `dot update` is the everyday command: it self-updates the public dotfiles, installs dependencies, rebuilds and restarts on the new binary, then runs Omarchy and public/private pulls, a stow refresh, and Hypr host-link setup. See the [Command Reference](/dot/commands/) for the full flag list.
