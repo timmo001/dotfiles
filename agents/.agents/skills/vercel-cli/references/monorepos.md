@@ -81,7 +81,7 @@ Nx requires a build target. Define it in `nx.json`:
 
 ## Example: Turborepo + pnpm + Hono
 
-```
+```text
 root/
 ├── turbo.json
 ├── package.json

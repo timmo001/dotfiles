@@ -31,7 +31,7 @@ We recommend using `export default` for the app instance, but calling `.listen()
 
 ## Minimal Express App
 
-```
+```text
 my-app/
 ├── package.json
 └── server.ts

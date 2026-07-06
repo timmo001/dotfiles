@@ -124,6 +124,7 @@ vercel ir create-threshold <resource> <minimum> <spend> <limit> --yes  # skip co
 ```
 
 Threshold parameters (dollar amounts, e.g., `50 100 500`):
+
 - **minimum** — balance floor; auto-replenish triggers when balance drops below this
 - **spend** — replenishment amount added when minimum is hit
 - **limit** — hard spending cap

@@ -129,6 +129,7 @@ Vercel OIDC federation is for **secure backend access** — letting your deploye
 **What OIDC does not do:** Authenticate the Vercel CLI in CI pipelines. All `vercel pull`, `vercel build`, and `vercel deploy` commands still require `--token=${{ secrets.VERCEL_TOKEN }}`.
 
 **When to use OIDC:**
+
 - Serverless functions that need to call AWS APIs (S3, DynamoDB, SQS)
 - Functions authenticating to GCP services via Workload Identity Federation
 - Any runtime service-to-service auth where you want to avoid storing static secrets in Vercel env vars
@@ -264,7 +265,7 @@ jobs:
 
 Present a structured deploy result block:
 
-```
+```markdown
 ## Deploy Result
 - **URL**: <deployment-url>
 - **Target**: production | preview
@@ -276,13 +277,13 @@ Present a structured deploy result block:
 
 If the deployment failed, append:
 
-```
+```markdown
 - **Error**: <summary of failure from logs>
 ```
 
 For production deploys, also include:
 
-```
+```markdown
 ### Post-Deploy Observability
 - **Error scan**: <N errors found / clean> (scanned via vercel logs --level error --since 1h)
 - **Drains**: <N configured / none>
