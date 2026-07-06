@@ -697,7 +697,9 @@ export const cliCommands: readonly CliCommandSpec[] = [
     summary: "Run the dot MCP server over stdio",
     description: [
       "Start a Model Context Protocol server that exposes the notes vault and",
-      "read-only repository context to any MCP-capable agent harness.",
+      "dot-owned read-only resources to any MCP-capable agent harness.",
+      "Generic git and stack context tools live in the standalone context MCP",
+      "server (`context mcp`).",
       "",
       "The server speaks JSON-RPC over stdio and is meant to be launched by an",
       "MCP client, not run interactively. Mutating note actions emit a desktop",

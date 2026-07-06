@@ -33,7 +33,7 @@ These variables tune paths and behaviour for `dot`. Most have sensible defaults;
 
 | Variable                          | Description                                                                                                                  |
 | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `DOT_PUBLIC_PACKAGES_FILE`        | Public Arch/AUR package list for `dot init`/`update` (default `$DOTFILES_PUBLIC_DIR/.dot-public-packages`).                  |
+| `DOT_PUBLIC_PACKAGES_FILE`        | Public Arch/AUR package list for `dot init` and package checks (default `$DOTFILES_PUBLIC_DIR/.dot-public-packages`).         |
 | `DOT_PRIVATE_PACKAGE_REPO_FILE`   | Private pacman repo config (default `$DOTFILES_PRIVATE_DIR/.dot-private-package-repo`).                                      |
 | `DOT_PRIVATE_PACKAGES_FILE`       | Private package list (default `$DOTFILES_PRIVATE_DIR/.dot-private-packages`).                                                |
 | `DOT_PRIVATE_PACKAGE_MAP_FILE`    | Private package name-to-source map for `dot private-pkg-publish` (default `$DOTFILES_PRIVATE_DIR/.dot-private-package-map`). |

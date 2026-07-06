@@ -79,7 +79,7 @@ The server also exposes read-only [resources](https://modelcontextprotocol.io/sp
 | `dot://notes/context`  | The current repository's OpenCode repo-note context block: identity, notes path, and recent notes. |
 | `dot://command/{name}` | Help text for a single dot command (template).                                                     |
 
-Each resource re-runs on every read, so it reflects the current state. Use `context://git`, `context://stack`, and `context://command/{name}` from the standalone context MCP server for generic repository context resources.
+Each resource re-runs on every read, so it reflects the current state. Use `context://git` and `context://stack` from the standalone context MCP server for generic repository context resources, and `context://command/{name}` for context CLI command help.
 
 ## Notifications
 

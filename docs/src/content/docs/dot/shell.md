@@ -1,18 +1,21 @@
 ---
 title: Shell Setup
-description: Zsh completions, editing keys, aliases, and small shell helpers.
+description: Shell completions, editing keys, aliases, and small shell helpers.
 sidebar:
   order: 4
 ---
 
-## Zsh completions
+## Shell completions
 
 The `zsh/` package adds `${XDG_DATA_HOME:-~/.local/share}/zsh/site-functions` to `fpath` before `zsh-autocomplete` runs `compinit`.
 
-Generated completions live in two places:
+Generated completions are stowed for the two local CLIs:
 
-- `dot completions zsh` writes the stowed `_dot` completion in this repo.
-- `_context` is the stowed completion for the standalone context CLI, generated from `context completions zsh`.
+- `dot completions bash|fish|zsh` writes the stowed `dot` completions in this repo.
+- `context completions bash|fish|zsh` writes the stowed `context` completions in this repo.
+
+Zsh also has a live generated completion:
+
 - `mise completion zsh` is generated at shell startup into the live, non-stowed `_mise` path and refreshed when the `mise` binary is newer than the cached completion.
 
 The live `_mise` file is intentionally not version-controlled; it tracks the installed `mise` binary on each machine.

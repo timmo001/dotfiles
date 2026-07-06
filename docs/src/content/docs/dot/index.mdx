@@ -125,4 +125,4 @@ Optional source cards read from `dot-dashboard.yml` in the private overlay. Each
 
 ## Source of truth
 
-Command and flag metadata lives in `dot/src/cli/spec.ts`. Help rendering, shell completions, and the generated [Command Reference](/dot/commands/) all read from that one registry, so they never drift. When a command changes, the reference page is regenerated from `spec.ts`.
+Command and flag metadata lives in `dot/src/cli/spec.ts`. Help rendering, shell completions, and the generated [Command Reference](/dot/commands/) all read from that one registry. When a command changes, regenerate the reference page and shell completions from `spec.ts`.

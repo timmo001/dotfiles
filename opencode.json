@@ -19,7 +19,7 @@
     },
     "context": {
       "repository": "timmo001/context",
-      "description": "Use for the standalone context CLI and MCP server extracted from dot git-context and stack-context"
+      "description": "Use for the standalone context CLI and MCP server for branch and stack context"
     },
     "effect": {
       "repository": "Effect-TS/effect",

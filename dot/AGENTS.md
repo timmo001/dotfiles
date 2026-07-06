@@ -56,7 +56,7 @@ src/
     services/Notes.ts     — Effect service for OpenCode notes context and note I/O
     tui/NotesView.ts      — Two-pane repo notes browser with markdown preview
   mcp/
-    server.ts             — dot mcp stdio server layer (notes + repo context)
+    server.ts             — dot mcp stdio server layer (notes + dot resources; generic context lives in `context mcp`)
     commands/Mcp.ts       — dot mcp native command handler
     commands/McpSync.ts   — dot mcp-sync: regenerate harness MCP configs from the spec
     sync/spec.ts          — MCP sync spec types, stub-harness notes, pure helpers
@@ -215,7 +215,7 @@ dot git-diff --list-changed   # Changed repo rows
 dot git-diff --list-all       # All repo rows
 dot git-log                   # Recent commits view (TUI)
 dot git-log --raw             # CLI recent commit output (20 commits per repo)
-context git                   # Branch context: repo/branch/PR summary, ahead/behind, unstaged, staged, untracked, branch files, recent commits, and optional JSON/MCP output
+context git                   # Branch context: repo/branch/PR summary, ahead/behind, unstaged, staged, untracked, branch files, recent commits, and optional JSON output; MCP is via `context mcp`
 dot git-commit -m "msg"       # Guarded commit gateway: validates a single-line subject, commits the staged set
 dot git-commit -m "msg" --path src/x.ts # Commit only the named file(s) (repeatable), never git add -A
 dot git-commit --amend                # Amend the previous commit, keeping its message (folds in staged changes)
