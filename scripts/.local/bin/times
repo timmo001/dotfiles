@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+format='+%-I:%M %P %Z'
+
+local_time="$(date "$format" | tr '[:lower:]' '[:upper:]')"
+pacific="$(TZ=America/Los_Angeles date "$format" | tr '[:lower:]' '[:upper:]')"
+mountain="$(TZ=America/Denver date "$format" | tr '[:lower:]' '[:upper:]')"
+central="$(TZ=America/Chicago date "$format" | tr '[:lower:]' '[:upper:]')"
+eastern="$(TZ=America/New_York date "$format" | tr '[:lower:]' '[:upper:]')"
+
+case "${1:-}" in
+  "")
+    printf '%-10s %s\n' "Local" "$local_time"
+    printf '%-10s %s\n' "Pacific" "$pacific"
+    printf '%-10s %s\n' "Mountain" "$mountain"
+    printf '%-10s %s\n' "Central" "$central"
+    printf '%-10s %s\n' "Eastern" "$eastern"
+    ;;
+  --compact)
+    printf '%-8s %s\n' "Local" "$local_time"
+    printf '%-8s %s   %-8s %s\n' "Pacific" "$pacific" "Mountain" "$mountain"
+    printf '%-8s %s   %-8s %s\n' "Central" "$central" "Eastern" "$eastern"
+    ;;
+  --notify)
+    printf '<tt>%-8s %s\n' "Local" "$local_time"
+    printf '%-8s %s   %-8s %s\n' "Pacific" "$pacific" "Mountain" "$mountain"
+    printf '%-8s %s   %-8s %s</tt>\n' "Central" "$central" "Eastern" "$eastern"
+    ;;
+  -h|--help)
+    printf 'Usage: times [--compact|--notify]\n'
+    ;;
+  *)
+    printf 'times: unknown option: %s\n' "$1" >&2
+    exit 2
+    ;;
+esac

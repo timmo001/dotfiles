@@ -623,6 +623,11 @@ cwd() {
   pwd
 }
 
+# times is a shell builtin, so forward the command name to the timezone helper.
+times() {
+  "$HOME/.local/bin/times" "$@"
+}
+
 # Dirs
 alias ..="cd .."
 alias ...="cd ../.."
@@ -782,4 +787,3 @@ bindkey "^[[4~" end-of-line        # End (vt variant)
 # ------------------------------
 # Fastfetch
 # ff
-

@@ -16,6 +16,14 @@ system-health-check --open-opencode # run opencode run against the report, then 
 
 Add `--open-opencode` to run `opencode run` against the saved report and then open a full interactive OpenCode session with `opencode --continue`.
 
+## Times
+
+`times` prints current local, Pacific, Mountain, Central, and Eastern times. `SUPER+CTRL+ALT+T` shows an aligned compact version in a desktop notification.
+
+```bash
+times
+```
+
 ## System updates
 
 [topgrade](https://github.com/topgrade-rs/topgrade) runs the machine's update steps (AUR via `yay`, Flatpak, firmware checks, `mise` tools, `rustup`, `cargo`, and more) in one pass. The repo stows a tuned config to `~/.config/topgrade.toml` and a logging wrapper at `scripts/.local/bin/topgrade` that shadows the system binary via `~/.local/bin` on `PATH`.
