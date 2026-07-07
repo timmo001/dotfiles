@@ -23,8 +23,9 @@ Answer a question by reading the sources that own the answer, then hand back fin
    - `webfetch` and `websearch` for official docs and specs off GitHub.
    - Answer Overflow only for community context when the primary sources fall short.
 3. **Fan out when it helps.** For broad or parallel reading, delegate with the `task` tool to available subagents whose descriptions match the work, such as local codebase discovery or broad read-only upstream dependency/source/docs legwork. Gather their observations; source ranking, claim verification, and synthesis stay your work.
-4. **Verify before asserting.** Read the actual source, not just a search snippet. Follow each claim to the line, comment, or section that proves it.
-5. **Report with citations.** Every claim carries a source URL or permalink, and prefer a permalink to the exact line or comment over a bare repo or page link. Lead with the answer, then the evidence, then what is still uncertain and the smallest next check that would resolve it.
+4. **Inspect large output deliberately.** Do not use `head` or `tail` to trim normal command output. For genuinely huge source or tool output, search it with `Grep` or read targeted `Read` offsets; if OpenCode saves a full `tool-output` file, delegate targeted inspection to `explore` when that preserves parent context.
+5. **Verify before asserting.** Read the actual source, not just a search snippet. Follow each claim to the line, comment, or section that proves it.
+6. **Report with citations.** Every claim carries a source URL or permalink, and prefer a permalink to the exact line or comment over a bare repo or page link. Lead with the answer, then the evidence, then what is still uncertain and the smallest next check that would resolve it.
 
 ## Keep the findings
 

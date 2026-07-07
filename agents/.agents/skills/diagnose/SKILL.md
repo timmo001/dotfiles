@@ -72,8 +72,9 @@ Use this skill for debugging work where ad-hoc inspection is likely to miss the 
 
 - Start with narrow local reads and searches before broad exploration.
 - Use the `task` tool with an available local exploration subagent for wide codebase discovery.
-- Use Chrome DevTools tools for browser-specific bugs.
+- Use Chrome DevTools tools only for browser-specific bugs.
 - Use tests, CLI commands, curl, small repro scripts, or harnesses to create deterministic loops.
+- Do not trim normal command output with `head` or `tail`. If a repro command is genuinely huge, capture output to a file and inspect targeted sections with `Grep` or `Read` offsets instead of re-running.
 - If project glossary, ADRs, or local architecture docs exist, use them to avoid misreading terms or constraints.
 - Ask one targeted question only when a missing detail blocks diagnosis.
 
