@@ -66,6 +66,9 @@ compdef _dot dot 2>/dev/null
 autoload -Uz _omarchy 2>/dev/null
 compdef _omarchy omarchy 2>/dev/null
 
+autoload -Uz _notes 2>/dev/null
+compdef _notes notes note handoffs handoff 2>/dev/null
+
 autoload -Uz _mise 2>/dev/null
 compdef _mise mise 2>/dev/null
 
@@ -641,6 +644,9 @@ alias fc="sudo resolvectl flush-caches"
 
 # Gear lever (app images)
 alias gearlever="flatpak run it.mijorus.gearlever"
+
+# Notes
+alias handoffs="notes handoffs"
 
 # Copilot CLI
 alias copilot="gh copilot"

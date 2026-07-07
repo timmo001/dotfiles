@@ -14,6 +14,8 @@ Generated completions are stowed for the two local CLIs:
 - `dot completions bash|fish|zsh` writes the stowed `dot` completions in this repo.
 - `context completions bash|fish|zsh` writes the stowed `context` completions in this repo.
 
+Installed package completions are also wired into common aliases where needed. `handoffs` completes through `_notes` and runs `notes handoffs`.
+
 Zsh also has a live generated completion:
 
 - `mise completion zsh` is generated at shell startup into the live, non-stowed `_mise` path and refreshed when the `mise` binary is newer than the cached completion.
