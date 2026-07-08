@@ -22,6 +22,8 @@ Hyprland config is a stowed dotfiles package (`hypr/.config/hypr/`, conf-only), 
 - `dot init` selects the Hypr host early (via `--host <name>`, defaulting to `OMARCHY_HOST` or `desktop`), and the stow phase creates the `host` symlink.
 - `dot doctor` checks the host link and flags any leftover legacy `omarchy-hypr` clone at `~/.config/hypr`.
 
+Shared Hypr autostart lives in `~/.config/hypr/autostart.conf` and runs on every host before the selected host override is sourced. Host-only services stay in `~/.config/hypr/host/autostart.conf`. KDE Connect is shared, so `kdeconnect-indicator` starts on both desktop and laptop sessions.
+
 :::caution[Retired omarchy-hypr clone]
 A machine with the retired `~/.config/hypr` `omarchy-hypr` clone halts `dot update` until the clone is backed up and re-stowed. Hyprland config is a stowed package, not a cloned repo.
 :::
