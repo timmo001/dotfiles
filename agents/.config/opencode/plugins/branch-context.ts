@@ -28,7 +28,7 @@ const BRANCH_CONTEXT_COMMANDS = new Set([
   "inject-context",
   "refactor-current-work",
   "reset-branch-reapply",
-  "review-current-work",
+  "code-review",
 ]);
 const WORK_SCOPE_COMMANDS = new Set([
   // General

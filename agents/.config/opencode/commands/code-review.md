@@ -1,9 +1,9 @@
 ---
-description: Review current branch work with BranchContextPlugin context
+description: Review current branch work with the code-review skill and BranchContextPlugin context
 agent: reviewer
 ---
 
-Load the `pr-review` skill before proceeding.
+Load the `code-review` skill before proceeding.
 Load the `branch-context-consumer` skill. Use full-context mode.
 
 Use the injected `<work-scope>` as the review boundary in this order: unstaged changes, staged changes, then branch diff against the default branch.

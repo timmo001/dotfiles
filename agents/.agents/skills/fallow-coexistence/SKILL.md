@@ -46,7 +46,7 @@ The knob is the same across repos; the values (globs, member names) are per-repo
 
 These consume Fallow cleanly; feed it in, let the skill judge:
 
-- `pr-review` — `audit` verdict and findings are review evidence.
+- `code-review` — `audit` verdict and findings are review evidence.
 - `improve-codebase-architecture` — `hotspots` / `targets` / `boundaries` / `dupes` are inputs; the skill supplies the structural judgment (override Fallow's mechanical `extract-shared` when it would add a shallow abstraction).
 - `diagnose` — separate lane (runtime); no overlap.
 - `branch-context-consumer` / `git-context` — supply the base ref that `audit --base` / `--changed-since` consume.

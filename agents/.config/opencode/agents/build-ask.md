@@ -92,4 +92,4 @@ Guidelines:
 - For broad delegated research, choose from the available task subagents by their descriptions instead of assuming a specific custom agent exists.
 - Reserve `gh` CLI for GitHub workflow operations (PRs, issues, checks, runs), compact Actions/check watch loops, and local repo metadata.
 - Load the `git-context` skill when working with branches, remotes, or diffs.
-- Load the `pr-review` skill when reviewing code changes or pull requests.
+- Load the `code-review` skill when reviewing code changes or pull requests.

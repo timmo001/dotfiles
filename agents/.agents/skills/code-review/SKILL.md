@@ -1,11 +1,13 @@
 ---
-name: pr-review
-description: Guidelines for reviewing pull requests - what to analyze, review etiquette, and output formatting
+name: code-review
+description: Review code changes along two axes - Standards (does it follow the repo's conventions, plus a Fowler code-smell baseline?) and Spec (does it implement what the originating issue or spec asked for?). Use when reviewing a pull request, a branch, work-in-progress changes, or a diff.
 ---
 
-# PR Review Guidelines
+# Code Review
 
-Use this skill when reviewing code changes, pull requests, or diffs.
+Use this skill when reviewing code changes, pull requests, branch work, or diffs.
+
+Lineage: locally authored. The Standards-axis Fowler smell baseline is adapted from mattpocock's `code-review` skill (https://github.com/mattpocock/skills/tree/main/skills/engineering/code-review), itself drawn from Martin Fowler, _Refactoring_, ch.3 "Bad Smells in Code".
 
 ## Two Review Axes
 
@@ -16,6 +18,26 @@ Review changes along two separate axes so one doesn't mask the other:
 - In shared repos, use the user's own recently merged PRs as the style baseline rather than guessing from docs alone.
 - Check repo-level guidance (AGENTS.md, CONTRIBUTING.md, ADRs, lint/formatter configs) but don't re-check what tooling already enforces.
 - Cite the standard or precedent when flagging a violation.
+
+On top of whatever the repo documents, the Standards axis always carries the **Fowler smell baseline** below - a fixed set of code smells that applies even when a repo documents nothing. Two rules bind it:
+
+- **The repo overrides.** A documented repo standard always wins; where it endorses something the baseline would flag, suppress the smell.
+- **Always a judgement call.** Each smell is a labelled heuristic ("possible Feature Envy"), never a hard violation - and, like any standard here, skip anything tooling already enforces.
+
+Each smell reads *what it is* → *how to fix*; match it against the diff:
+
+- **Mysterious Name** — a function, variable, or type whose name doesn't reveal what it does or holds. → rename it; if no honest name comes, the design's murky.
+- **Duplicated Code** — the same logic shape appears in more than one hunk or file in the change. → extract the shared shape, call it from both.
+- **Feature Envy** — a method that reaches into another object's data more than its own. → move the method onto the data it envies.
+- **Data Clumps** — the same few fields or params keep travelling together (a type wanting to be born). → bundle them into one type, pass that.
+- **Primitive Obsession** — a primitive or string standing in for a domain concept that deserves its own type. → give the concept its own small type.
+- **Repeated Switches** — the same `switch`/`if`-cascade on the same type recurs across the change. → replace with polymorphism, or one map both sites share.
+- **Shotgun Surgery** — one logical change forces scattered edits across many files in the diff. → gather what changes together into one module.
+- **Divergent Change** — one file or module is edited for several unrelated reasons. → split so each module changes for one reason.
+- **Speculative Generality** — abstraction, parameters, or hooks added for needs the spec doesn't have. → delete it; inline back until a real need shows.
+- **Message Chains** — long `a.b().c().d()` navigation the caller shouldn't depend on. → hide the walk behind one method on the first object.
+- **Middle Man** — a class or function that mostly just delegates onward. → cut it, call the real target direct.
+- **Refused Bequest** — a subclass or implementer that ignores or overrides most of what it inherits. → drop the inheritance, use composition.
 
 ### Spec — does the code do what was asked?
 
@@ -79,7 +101,7 @@ For upstream code patterns, API usage examples, or GitHub-hosted documentation, 
 
 When providing review feedback:
 
-1. Start with an **overview** of the PR (purpose, scope)
+1. Start with an **overview** of the change (purpose, scope)
 2. Report **Standards** and **Spec** findings separately
 3. List **specific comments** for each file/line needing attention
 4. Differentiate between blocking issues and nice-to-haves

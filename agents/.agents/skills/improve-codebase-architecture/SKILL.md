@@ -2,7 +2,10 @@
 name: improve-codebase-architecture
 description: Scan a codebase for deepening opportunities, present them as a visual HTML report, then grill through whichever one you pick.
 # origin: https://github.com/mattpocock/skills/tree/main/skills/engineering/improve-codebase-architecture
-# upstream-sha: 221ffca96736afefdc08ca7cf0b3965e9ea83f41
+# upstream-sha: d574778f94cf620fcc8ce741584093bc650a61d3
+# local-edits:
+#   - SKILL.md: rewired /grilling to the local grill-questions skill; generalised CONTEXT.md/docs-adr references to the project's domain docs (repo uses no fixed CONTEXT.md/ADR layout)
+#   - HTML-REPORT.md: generalised the ADR callout to a recorded-decision callout
 disable-model-invocation: true
 ---
 
@@ -13,13 +16,13 @@ Surface architectural friction and propose **deepening opportunities** — refac
 This command is _informed_ by the project's domain model and built on a shared design vocabulary:
 
 - Run the `/codebase-design` skill for the architecture vocabulary (**module**, **interface**, **depth**, **seam**, **adapter**, **leverage**, **locality**) and its principles (the deletion test, "the interface is the test surface", "one adapter = hypothetical seam, two = real"). Use these terms exactly in every suggestion — don't drift into "component," "service," "API," or "boundary."
-- The domain language in `CONTEXT.md` gives names to good seams; ADRs in `docs/adr/` record decisions this command should not re-litigate.
+- If the project keeps a domain glossary or domain docs, the language there gives names to good seams; any recorded design decisions cover ground this command should not re-litigate. This repo uses no fixed `CONTEXT.md`/`docs/adr/` layout, so treat these as "if present" rather than required.
 
 ## Process
 
 ### 1. Explore
 
-Read the project's domain glossary (`CONTEXT.md`) and any ADRs in the area you're touching first.
+If the project keeps a domain glossary, domain docs, or recorded design decisions, read the ones covering the area you're touching first.
 
 Then use the Agent tool with `subagent_type=Explore` to walk the codebase. Don't follow rigid heuristics — explore organically and note where you experience friction:
 
@@ -48,21 +51,21 @@ For each candidate, render a card with:
 
 End the report with a **Top recommendation** section: which candidate you'd tackle first and why.
 
-**Use CONTEXT.md vocabulary for the domain, and the `/codebase-design` vocabulary for the architecture.** If `CONTEXT.md` defines "Order," talk about "the Order intake module" — not "the FooBarHandler," and not "the Order service."
+**Use the project's own domain vocabulary for the domain (from its glossary or domain docs, if it keeps one), and the `/codebase-design` vocabulary for the architecture.** If the project's domain language names an "Order," talk about "the Order intake module" — not "the FooBarHandler," and not "the Order service."
 
-**ADR conflicts**: if a candidate contradicts an existing ADR, only surface it when the friction is real enough to warrant revisiting the ADR. Mark it clearly in the card (e.g. a warning callout: _"contradicts ADR-0007 — but worth reopening because…"_). Don't list every theoretical refactor an ADR forbids.
+**Recorded-decision conflicts**: if a candidate contradicts a design decision the project has already recorded, only surface it when the friction is real enough to warrant revisiting that decision. Mark it clearly in the card (e.g. a warning callout: _"contradicts a recorded decision — but worth reopening because…"_). Don't list every theoretical refactor a past decision forbids.
 
 See [HTML-REPORT.md](HTML-REPORT.md) for the full HTML scaffold, diagram patterns, and styling guidance.
 
-Do NOT propose interfaces yet. After the report is written, ask the user: "Which of these would you like to explore?"
+Do NOT propose interfaces yet. After the file is written, ask the user: "Which of these would you like to explore?"
 
 ### 3. Grilling loop
 
-Once the user picks a candidate, run the `/grilling` skill to walk the design tree with them — constraints, dependencies, the shape of the deepened module, what sits behind the seam, what tests survive.
+Once the user picks a candidate, run the `grill-questions` skill (`/grill`) to walk the design tree with them — constraints, dependencies, the shape of the deepened module, what sits behind the seam, what tests survive.
 
 Side effects happen inline as decisions crystallize — run the `/domain-modeling` skill to keep the domain model current as you go:
 
-- **Naming a deepened module after a concept not in `CONTEXT.md`?** Add the term to `CONTEXT.md`. Create the file lazily if it doesn't exist.
-- **Sharpening a fuzzy term during the conversation?** Update `CONTEXT.md` right there.
-- **User rejects the candidate with a load-bearing reason?** Offer an ADR, framed as: _"Want me to record this as an ADR so architecture reviews don't re-suggest it?"_ Only offer when the reason would help another reviewer avoid re-suggesting the same thing; skip ephemeral reasons ("not worth it") and self-evident ones.
+- **Naming a deepened module after a concept the project's domain docs don't cover?** Record the term wherever the project keeps its domain vocabulary, if it keeps one. Don't stand up a glossary the project hasn't asked for.
+- **Sharpening a fuzzy term during the conversation?** Capture it in the same place, right there.
+- **User rejects the candidate with a load-bearing reason?** Offer to record the decision, framed as: _"Want me to note this so architecture reviews don't re-suggest it?"_ Only offer when the reason would help another reviewer avoid re-suggesting the same thing; skip ephemeral reasons ("not worth it") and self-evident ones.
 - **Want to explore alternative interfaces for the deepened module?** Run the `/codebase-design` skill and use its design-it-twice parallel sub-agent pattern.

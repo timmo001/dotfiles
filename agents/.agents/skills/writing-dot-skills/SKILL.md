@@ -9,7 +9,7 @@ Craft guidance for writing and revising skills in this setup. It covers making a
 
 For the mechanics - the `SKILL.md` frontmatter schema, valid fields, where skill files live, registration, and the restart-after-change rule - use the `customize-opencode` skill. This skill does not repeat them.
 
-Lineage: adapted from mattpocock's `write-a-skill` and trailofbits' designing-workflow-skills, reworked for this repo and trimmed to the parts `customize-opencode` does not cover.
+Lineage: adapted from mattpocock's `writing-great-skills` and trailofbits' designing-workflow-skills, reworked for this repo and trimmed to the parts `customize-opencode` does not cover.
 
 ## Goals
 

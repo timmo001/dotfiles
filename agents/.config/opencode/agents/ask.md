@@ -100,5 +100,5 @@ Guidelines:
 - To read a specific GitHub file's full contents (not just search snippets), use `gh api repos/<owner>/<repo>/contents/<path>` or fetch the raw URL; `gh api` is gated to prompt for approval, so expect a confirmation rather than a silent denial.
 - Reserve `gh` CLI for GitHub workflow operations (PRs, issues, checks, runs), compact Actions/check watch loops, and local repo metadata.
 - Load the `git-context` skill when working with branches, remotes, or diffs.
-- Load the `pr-review` skill when reviewing code changes or pull requests.
+- Load the `code-review` skill when reviewing code changes or pull requests.
 - Use the question tool when there are unknowns that cannot be looked up.

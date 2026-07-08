@@ -1,6 +1,6 @@
 ---
 name: diagnose
-description: Disciplined diagnosis workflow for hard bugs, regressions, flaky behavior, and performance issues. Use when behavior is broken, failing, intermittent, or slower than expected and the agent needs a reproducible feedback loop before fixing.
+description: Disciplined workflow for diagnosing bugs - hard bugs, regressions, flaky behavior, and performance issues. Use when behavior is broken, failing, intermittent, or slower than expected and the agent needs a reproducible feedback loop before fixing.
 # origin: https://github.com/mattpocock/skills/tree/main/skills/engineering/diagnosing-bugs
 # upstream-sha: 221ffca96736afefdc08ca7cf0b3965e9ea83f41
 # local-edits:
