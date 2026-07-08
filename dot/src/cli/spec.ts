@@ -728,6 +728,65 @@ export const cliCommands: readonly CliCommandSpec[] = [
     options: [helpOption],
   },
   {
+    name: "usage",
+    summary: "Local-first analytics for dot, context, and notes usage",
+    usage: "[summary|stale|path|backfill] [options]",
+    description: [
+      "Report local-first usage analytics for dot, context, and notes. Each",
+      "invocation of these tools appends a privacy-conscious NDJSON event under",
+      "$XDG_STATE_HOME/tool-usage (flag names and exit status only, never",
+      "positional values). Sync that directory between machines to combine them.",
+      "",
+      "Set DOT_USAGE_DISABLE=1 to stop recording, or DOT_USAGE_DIR to relocate",
+      "the event root.",
+    ],
+    modes: [
+      "summary    Per-feature usage table (default)",
+      "stale      Features not used within the window",
+      "path       Print the event storage root",
+      "backfill   Import whitelisted invocations from shell history",
+    ],
+    options: [
+      {
+        name: "--days",
+        valueName: "n",
+        description: "Window for summary/stale (default: 90)",
+      },
+      {
+        name: "--format",
+        valueName: "fmt",
+        description: "summary format",
+        choices: [
+          { value: "text" },
+          { value: "json" },
+          { value: "agent-context" },
+        ],
+      },
+      {
+        name: "--root",
+        valueName: "path",
+        completion: "file",
+        description: "Extra event root to combine (repeatable)",
+      },
+      {
+        name: "--history",
+        description: "Backfill from shell history (accepted for clarity)",
+      },
+      {
+        name: "--apply",
+        description: "Write events during backfill (default: dry run)",
+      },
+      helpOption,
+    ],
+    examples: [
+      "dot usage summary --days 30",
+      "dot usage summary --format agent-context",
+      "dot usage stale --days 90",
+      "dot usage backfill --history",
+      "dot usage backfill --history --apply",
+    ],
+  },
+  {
     name: "help",
     summary: "Show this help menu",
     options: [helpOption],

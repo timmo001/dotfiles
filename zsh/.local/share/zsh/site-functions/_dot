@@ -27,6 +27,7 @@ dot_commands=(
   'skill-check:Validate skill maintenance wiring'
   'completions:Generate shell completions'
   'omarchy:Open an Omarchy submenu by path'
+  'usage:Local-first analytics for dot, context, and notes usage'
   'help:Show this help menu'
 )
 
@@ -224,6 +225,17 @@ _dot_cmd_omarchy() {
     '*:submenu:((theme:Theme\ management font:Font\ management toggle:Toggle\ system\ features capture:Screenshots\ and\ recordings system:Lock,\ logout,\ reboot,\ shutdown launch:Launch\ applications refresh:Refresh\ system\ components restart:Restart\ system\ services install:Install\ software\ and\ tools remove:Remove\ software\ and\ features packages:Package\ management share:Share\ clipboard,\ files,\ folders reminder:Reminders setup:DNS,\ security\ setup snapshot:System\ snapshots brightness:Display\ and\ keyboard\ brightness power:Power\ profiles))' \
     '*::arg:->args'
 }
+_dot_cmd_usage() {
+  _arguments -S \
+    '--days[Window for summary/stale (default: 90)]:n:' \
+    '--format[summary format]:fmt:(text json agent-context)' \
+    '--root[Extra event root to combine (repeatable)]:path:_files' \
+    '--history[Backfill from shell history (accepted for clarity)]' \
+    '--apply[Write events during backfill (default: dry run)]' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
 _dot_cmd_help() {
   _arguments -S \
     '(-h --help)-h[Show this help message]' \
@@ -299,6 +311,9 @@ _dot_complete_command() {
       ;;
     omarchy)
       _dot_cmd_omarchy
+      ;;
+    usage)
+      _dot_cmd_usage
       ;;
     help)
       _dot_cmd_help

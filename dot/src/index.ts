@@ -25,6 +25,7 @@ import { isGvfsPath, writeMirroredLog } from "./lib/logMirror.js";
 import { CONFIG_DIR, STATE_DIR, expandHomePath } from "./lib/paths.js";
 import { ENV, envString, setEnv, unsetEnv } from "./lib/env.js";
 import { detectAgent } from "./lib/agent.js";
+import { installUsageHook } from "./lib/usage.js";
 import { withStepTimeout } from "./lib/workflowStep.js";
 import { configureFirewallRules } from "./lib/firewallSetup.js";
 import { menuItemsById } from "./menu.js";
@@ -42,6 +43,7 @@ import { privatePkgPublish } from "./commands/PrivatePkgPublish.js";
 import { skillUpdates } from "./commands/SkillUpdates.js";
 import { skillCheck } from "./commands/SkillCheck.js";
 import { completions } from "./commands/Completions.js";
+import { usage } from "./commands/Usage.js";
 import { help } from "./commands/Help.js";
 import {
   diffBarJson,
@@ -231,7 +233,33 @@ function resolveMode(): Mode {
   return { type: "tui", initialView: "omarchy" };
 }
 
+/**
+ * Record a best-effort usage event for this invocation. The command path is the
+ * resolved subcommand (native) or the target view (TUI), never positional
+ * argument values.
+ */
+function recordUsage(current: Mode): void {
+  const command =
+    current.type === "native"
+      ? [current.command]
+      : [flags.subcommand ?? current.initialView];
+  const args = process.argv.slice(2);
+  const invoker = args.includes("--bar-json")
+    ? "automation"
+    : detectAgent().isAgent
+      ? "agent"
+      : "human";
+  installUsageHook({
+    tool: "dot",
+    invokedAs: "dot",
+    command,
+    args,
+    invoker,
+  });
+}
+
 const mode = resolveMode();
+recordUsage(mode);
 guardInteractiveMode(mode);
 
 function initLogPath(args: readonly string[]): string {
@@ -579,6 +607,7 @@ if (mode.type === "native") {
           diffOrigin: args.includes("--diff-origin"),
         }),
       completions,
+      usage,
       help,
     };
 

@@ -254,6 +254,27 @@ _dot_cmd_omarchy() {
     return
   fi
 }
+_dot_cmd_usage() {
+  local cur prev cword
+  cur=${COMP_WORDS[COMP_CWORD]}
+  prev=${COMP_WORDS[COMP_CWORD-1]}
+  cword=$COMP_CWORD
+  case $prev in
+    --format)
+      COMPREPLY=( $(compgen -W 'text json agent-context' -- "$cur") )
+      return
+      ;;
+    --root)
+      COMPREPLY=( $(compgen -f -- "$cur") )
+      return
+      ;;
+  esac
+
+  if [[ $cur == -* ]]; then
+    COMPREPLY=( $(compgen -W '--days --format --root --history --apply --help -h' -- "$cur") )
+    return
+  fi
+}
 _dot_cmd_help() {
   local cur prev cword
   cur=${COMP_WORDS[COMP_CWORD]}
@@ -272,7 +293,7 @@ _dot() {
   command=${COMP_WORDS[1]-}
 
   if (( cword == 1 )); then
-    COMPREPLY=( $(compgen -W 'dashboard init install update up stow firewall doctor clean git-diff diff git-commit git-log git-workflows git-notifications agents-sync mcp-sync is-agent setup-private-repo private-pkg-publish skill-updates skill-check completions omarchy help -h --help' -- "$cur") )
+    COMPREPLY=( $(compgen -W 'dashboard init install update up stow firewall doctor clean git-diff diff git-commit git-log git-workflows git-notifications agents-sync mcp-sync is-agent setup-private-repo private-pkg-publish skill-updates skill-check completions omarchy usage help -h --help' -- "$cur") )
     return
   fi
 
@@ -342,6 +363,9 @@ _dot() {
       ;;
     omarchy)
       _dot_cmd_omarchy
+      ;;
+    usage)
+      _dot_cmd_usage
       ;;
     help)
       _dot_cmd_help
