@@ -61,12 +61,6 @@ These variables tune paths and behaviour for `dot`. Most have sensible defaults;
 | `DOT_TEE_INHERIT_LOG`     | When `1`, child processes launched by `dot` append stdout/stderr to `DOT_LOG_FILE` (set automatically during `dot init`).                         |
 | `DOT_UFW_RULES_FILE`      | ufw rules file scanned by the firewall setup and doctor check (default `/etc/ufw/user.rules`).                                                    |
 
-## Herdr
-
-| Variable                 | Description                                                                                       |
-| ------------------------ | ------------------------------------------------------------------------------------------------- |
-| `DOT_NO_HERDR`           | Skip local Ghostty zsh auto-attach to Herdr for this shell when set to any non-empty value.        |
-
 ## Agents sync
 
 `dot agents-sync` mirrors `~/.config/opencode/AGENTS.md` to agent harness instruction files. It runs automatically at the end of `dot update` and `dot init`; there is no environment toggle to disable it.

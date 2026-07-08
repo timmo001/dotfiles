@@ -174,13 +174,11 @@ export class App {
           deps.onRefreshDiff();
         }
       },
-      onOpenHerdr: (mode) => {
+      onOpenTmux: (mode) => {
         deps.commandRunner
-          .runSilent(
-            `bash -lc 'bash "$HOME/.local/bin/git-diff-herdr-workspaces" ${mode}'`,
-          )
+          .runSilent(`git-diff-tmux-session ${mode}`)
           .catch((err) => {
-            log(`Herdr workspace error: ${err}`);
+            log(`Tmux session error: ${err}`);
           });
       },
       onOpenTerminal: (repo) => {

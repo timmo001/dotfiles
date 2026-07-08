@@ -66,8 +66,8 @@ dot init
 `dot init` selects the Hypr host early and creates `~/.config/hypr/host`. Reboot after init so Hyprland, Waybar, launchers, services, and new shells inherit `OMARCHY_HOST` from the stowed host config. Init runs `mise install` immediately after stowing dotfiles and before installing managed Arch/AUR package lists, so Bun, Node, pnpm, and similar tools come from the stowed mise config rather than global pacman packages. Later `dot update` runs handle ongoing repo pulls, stow refreshes, rebuilds, and mise trust refreshes.
 :::
 
-:::tip[Herdr default session]
-Local Ghostty zsh shells auto-attach to Herdr when it is installed. Use `DOT_NO_HERDR=1 zsh` for a plain recovery shell. See [Herdr Session](/configuration/herdr/) for the prefix and `dot` TUI shortcut.
+:::tip[Herdr config]
+`dot init` stows the shared Herdr config and runs `dot herdr-sync` for integrations. Ghostty and zsh still open as plain shells; start Herdr explicitly with `herdr` when you want it.
 :::
 
 :::note[GNOME Boxes shared folders]
