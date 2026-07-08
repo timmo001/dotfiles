@@ -18,7 +18,7 @@ sidebar:
 
 Ghostty config is a stowed dotfiles package (`ghostty/.config/ghostty/`), not a tracked Omarchy repo. The stowed `ghostty-host-config` launcher checks `OMARCHY_HOST` and loads `~/.config/ghostty/config.$OMARCHY_HOST` when present, falling back to the default `~/.config/ghostty/config` otherwise.
 
-`dot stow` backs up the retired `timmo001/omarchy-ghostty` clone at `~/.config/ghostty` before linking the stowed config.
+`dot install`, `dot init`, and `dot stow` back up the retired `timmo001/omarchy-ghostty` clone at `~/.config/ghostty` before linking the stowed config.
 
 ## Hyprland host overrides
 
@@ -27,7 +27,7 @@ Hyprland config is a stowed dotfiles package (`hypr/.config/hypr/`, conf-only), 
 - `dot stow` lays down the Hypr package with `--no-folding` and creates/repairs `~/.config/hypr/host` to point at the active host.
 - `dot init` selects the Hypr host early (via `--host <name>`, defaulting to `OMARCHY_HOST` or `desktop`), and the stow phase creates the `host` symlink.
 - `dot doctor` checks the host link and flags any leftover legacy `omarchy-hypr` clone at `~/.config/hypr`.
-- Host override `source = ~/.config/hypr/host/*.conf` lines are wrapped in Hyprland's `hyprlang noerror` guard so a missing host override during stow, update, or migration does not leave Hyprland in an error loop.
+- Shared Hyprland-loaded config files wrap host override `source = ~/.config/hypr/host/*.conf` lines in Hyprland's `hyprlang noerror` guard, so a missing host override during stow, update, or migration does not leave Hyprland in an error loop.
 
 Shared Hypr autostart lives in `~/.config/hypr/autostart.conf` and runs on every host before the selected host override is sourced. Host-only services stay in `~/.config/hypr/host/autostart.conf`. KDE Connect is shared, so `kdeconnect-indicator` starts on both desktop and laptop sessions.
 

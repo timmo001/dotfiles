@@ -54,7 +54,7 @@ If stock Omarchy directories already exist at `~/.config/bootstrap`, `~/.config/
 
 ## Ongoing workflow
 
-After init completes, run doctor first to verify the setup. After restarting your shell so `dot` is on `PATH`, use update for ongoing maintenance:
+After init completes, restart your shell so `dot` is on `PATH`, then reboot so the Omarchy session picks up `OMARCHY_HOST`. Run doctor after the reboot to verify the setup, and use update for ongoing maintenance:
 
 ```bash
 dot doctor    # health checks

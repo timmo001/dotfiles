@@ -7,7 +7,7 @@ sidebar:
 
 import { FileTree } from '@astrojs/starlight/components';
 
-The repository is a [GNU Stow](https://www.gnu.org/software/stow/) package root targeting `~/`. Each top-level directory (`zsh`, `neovim`, `starship`, `hypr`, `scripts`, ...) is a stow package whose contents are symlinked into your home directory.
+The repository is a [GNU Stow](https://www.gnu.org/software/stow/) package root targeting `~/`. Each top-level directory (`zsh`, `neovim`, `starship`, `hypr`, `ghostty`, `scripts`, ...) is a stow package whose contents are symlinked into your home directory.
 
 <FileTree>
 
@@ -22,6 +22,10 @@ The repository is a [GNU Stow](https://www.gnu.org/software/stow/) package root 
     - .config
       - hypr
         - ...
+  - **ghostty/** stow package
+    - .config
+      - ghostty
+        - config
   - **scripts/** stow package
     - .local
       - bin
@@ -33,7 +37,7 @@ The repository is a [GNU Stow](https://www.gnu.org/software/stow/) package root 
 
 ## Always use `dot stow`
 
-Apply packages with `dot stow` (or `dot update`, which refreshes stow). Do **not** run GNU `stow` directly from the repo root: `dot` applies the correct adopt / no-folding flow and the public-then-private ordering.
+Apply packages with `dot stow` (or `dot update`, which refreshes stow). Do **not** run GNU `stow` directly from the repo root: `dot` applies the correct backup, no-folding, and public-then-private flow. The first-use `dot install` and `dot init` commands add the adopt step; `dot stow` is the steady-state relink.
 
 ```bash title="Apply stow packages"
 dot stow            # stow public + private
@@ -44,9 +48,10 @@ dot stow --private  # private only
 ## What `dot stow` does
 
 - Lays down public packages first, then the private overlay from `~/.config/dotfiles-private`.
-- Stows the Hypr package with `--no-folding` and creates/repairs the `~/.config/hypr/host` symlink for the active host.
+- Stows any package that targets runtime-owned directories with `--no-folding`, including `hypr/`, `ghostty/`, shell completions, `.local/bin`, and systemd user units. For Hypr it also creates/repairs the `~/.config/hypr/host` symlink for the active host.
 - Before stow, moves unmanaged real files or directories that block active package targets into the repo's `backup/` directory and logs each source-to-backup path. This includes host-specific packages such as `chromium--laptop`.
-- Adopts existing files where needed so a fresh machine does not clobber stock config.
+- Before public stow, backs up the retired `timmo001/omarchy-ghostty` clone at `~/.config/ghostty` when present, so the `ghostty/` package can own that path.
+- During `dot install` and `dot init`, adopts existing files where needed so a fresh machine does not clobber stock config.
 
 ## Hypr package handling
 
@@ -67,7 +72,7 @@ dot clean   # unstow private packages first, then public packages
 dot stow    # reapply the managed symlinks afterwards
 ```
 
-`dot clean` discovers stow packages the same way `dot stow` does: top-level package directories only, excluding repo internals such as `dot/`, `docs/`, and `backup/`. Host-specific packages (`name--host`) are included only when their suffix matches `OMARCHY_HOST`. If the private overlay is available, it is unstowed before the public repo so overlay links are removed before the base packages.
+`dot clean` discovers stow packages the same way `dot stow` does: top-level package directories only, excluding repo internals such as `dot/`, `docs/`, and `backup/`. Host-specific packages (`name--host`) are included only when their suffix matches the resolved Omarchy host, from `OMARCHY_HOST` or the current `~/.config/hypr/host` link. If the private overlay is available, it is unstowed before the public repo so overlay links are removed before the base packages.
 
 The command removes managed Stow links; it is not a general home-directory cleanup tool. Re-run `dot stow` or `dot update` after a clean to restore the expected links and host repairs.
 

@@ -21,7 +21,7 @@ This does not remove packages, cloned repositories, pacman config, firewall rule
 
 ## Restore backed-up files
 
-`dot install` and `dot init` move conflicting live files into backup paths instead of deleting them. Check the public/private repo backup directories and any Omarchy init backups before removing the repos.
+`dot install`, `dot init`, and `dot stow` move conflicting live files into backup paths instead of deleting them. Check the public/private repo backup directories and any Omarchy init backups before removing the repos.
 
 ```bash
 ls ~/.config/dotfiles/backup

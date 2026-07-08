@@ -30,6 +30,8 @@ Unlike the agents, commands, skills, and plugins, the stowed harness `opencode.j
 
 Remote servers connect over HTTP to a hosted endpoint. Local servers are launched on demand over stdio (`opencode x`, `npx`, or an installed binary).
 
+Chrome DevTools tools can execute browser-context JavaScript. The `subagent-chrome-devtools-guard` plugin keeps them available only in top-level sessions, so delegated subagents cannot use DevTools as a research path around web, GitHub, or repository-reading tools.
+
 The `system-bridge` server runs the `system-bridge-mcp` binary from the `system-bridge-git` AUR package. That package is listed in the public `.dot-public-packages` manifest and installed by `dot init`, so the MCP command is available on a fully set-up machine without a separate install step.
 
 The `context` server runs `context mcp` from the `context-git` AUR package (also in `.dot-public-packages`). Repository context tools and schemas live entirely in the standalone [`context`](https://context.timmo.dev) project. See [Context Integration](/git/context/) for how OpenCode plugins consume its JSON output.
@@ -93,9 +95,9 @@ const REPO_REQUIRED_MARKERS: Record<string, readonly string[]> = {
     "astro.config.js",
     "astro.config.cjs",
   ],
-  // Any one frontend signal keeps chrome-devtools loaded (static entry point
-  // or a web-framework/bundler config). Attach it from a non-frontend
-  // directory by restarting OpenCode there.
+  // Any one frontend signal keeps chrome-devtools loaded (static entry point,
+  // web-framework config, bundler config, task runner, or Storybook setup).
+  // Attach it from a non-frontend directory by restarting OpenCode there.
   "chrome-devtools": [
     "index.html",
     "astro.config.mjs",
@@ -105,7 +107,12 @@ const REPO_REQUIRED_MARKERS: Record<string, readonly string[]> = {
     "svelte.config.js",
     "vue.config.js",
     "angular.json",
-    // ...plus the remaining astro/vite/next config extensions
+    "webpack.config.js",
+    "rspack.config.ts",
+    "rollup.config.mjs",
+    "gulpfile.js",
+    ".storybook",
+    // ...plus the remaining astro/vite/next/bundler config extensions
   ],
 };
 ```
