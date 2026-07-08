@@ -160,9 +160,6 @@ export const McpRepoGate = (async ({ directory }) => {
       for (const [server, markers] of Object.entries(REPO_REQUIRED_MARKERS)) {
         if (mcp[server] && !hasMarkerNearby(baseDir, markers)) {
           delete mcp[server]
-          console.error(
-            `[mcp-repo-gate] pruned "${server}" (no ${markers.join(" or ")} near ${baseDir})`,
-          )
         }
       }
     },
