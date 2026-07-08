@@ -1272,7 +1272,7 @@ url = "https://github.com/jdx/usage/releases/download/v3.5.4/usage-x86_64-pc-win
 url_api = "https://api.github.com/repos/jdx/usage/releases/assets/468428934"
 
 [[tools.yarn]]
-version = "4.17.0"
+version = "4.17.1"
 backend = "vfox:mise-plugins/vfox-yarn"
 
 [[tools.yq]]
