@@ -1,0 +1,31 @@
+tabbar {
+  background: transparent;
+  box-shadow: none;
+  margin-bottom: -16px;
+}
+
+tabbar > revealer > box {
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+tabbar tabbox {
+  background: transparent;
+  transform: translateY(-8px);
+}
+
+tabbar tabbox tab,
+tabbar tabbox button,
+windowcontrols button {
+  min-height: 20px;
+}
+
+tabbar tabbox tab {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+tabbar tabbox tab:checked {
+  background-color: alpha(@window_bg_color, 0.92);
+}

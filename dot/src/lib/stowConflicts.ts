@@ -27,6 +27,8 @@ const AGENTS_PRIVATE_IGNORED_ENTRIES = new Set([
   ".gitignore",
 ]);
 
+const LEGACY_GHOSTTY_REPO_SLUG = "timmo001/omarchy-ghostty";
+
 /** Stored external symlink for save/restore around stow. */
 export interface ExternalSymlink {
   readonly path: string;
@@ -90,6 +92,19 @@ export function backupUnmanagedStowTargets(
   }
 
   return moves;
+}
+
+/** Back up the retired cloned Ghostty Omarchy repo before stow owns it. */
+export function backupLegacyGhosttyRepo(
+  publicDotfiles: string,
+): BackupMove | null {
+  const source = join(HOME_DIR, ".config", "ghostty");
+  if (!isLegacyGhosttyRepo(source)) return null;
+
+  return backupFileIfUnmanaged(
+    source,
+    join(publicDotfiles, "backup", ".config"),
+  );
 }
 
 /**
@@ -186,6 +201,24 @@ function backupBlockingParentTargets(
 function targetAlreadyOwnedBySource(source: string, target: string): boolean {
   try {
     return realpathSync(source) === realpathSync(target);
+  } catch {
+    return false;
+  }
+}
+
+function isLegacyGhosttyRepo(source: string): boolean {
+  try {
+    const stat = lstatSync(source);
+    if (!stat.isDirectory()) return false;
+  } catch {
+    return false;
+  }
+
+  const gitConfig = join(source, ".git", "config");
+  if (!existsSync(gitConfig)) return false;
+
+  try {
+    return readFileSync(gitConfig, "utf8").includes(LEGACY_GHOSTTY_REPO_SLUG);
   } catch {
     return false;
   }

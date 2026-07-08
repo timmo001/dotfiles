@@ -14,7 +14,7 @@ My public [Omarchy](https://omarchy.org) dotfiles, managed with GNU Stow and the
 - Stow-based dotfiles rooted at `~/.config/dotfiles`, applied with the `dot` command
 - A single compiled binary at `scripts/.local/bin/dot` (Bun + Effect v4 + OpenTUI) with a TUI dashboard and a full CLI
 - Git/GitHub tooling: diff, log, status, workflow runs, and a notification inbox across managed repos, with Waybar modules
-- Managed Omarchy repos (`bootstrap`, `waybar`, `ghostty`, `uwsm`) and per-host Hyprland overrides
+- Managed Omarchy repos (`bootstrap`, `waybar`, `uwsm`) and stowed Hyprland/Ghostty config
 - Optional private overlay from `~/.config/dotfiles-private`
 - Shared OpenCode agents, commands, skills, and plugins, published to [`timmo001/opencode-config`](https://github.com/timmo001/opencode-config)
 
@@ -68,5 +68,6 @@ Everything is documented at <https://dotfiles.timmo.dev>:
 - `zsh/`, `neovim/`, `starship/`, `editorconfig/` — shell, editor, and prompt config
 - `agents/` — OpenCode config (`.config/opencode/`) and shared skills (`.agents/skills/`), published to [`opencode-config`](https://github.com/timmo001/opencode-config)
 - `hypr/` — Hyprland config (stowed with `--no-folding`, per-host overrides)
+- `ghostty/` — Ghostty config, host overrides, launcher, and desktop entry
 
 The documentation is the single source of truth; this README links to it rather than duplicating content. The `dot` command reference and the OpenCode reference on the docs site are generated from `dot/src/cli/spec.ts` and the OpenCode assets respectively.

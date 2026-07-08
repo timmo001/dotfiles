@@ -129,13 +129,13 @@ After the stowed links and system config are removed, delete cloned repos and ge
 
 ```bash
 rm -rf ~/.config/dotfiles-private
-rm -rf ~/.config/bootstrap ~/.config/waybar ~/.config/ghostty ~/.config/uwsm
+rm -rf ~/.config/bootstrap ~/.config/waybar ~/.config/uwsm
 rm -rf ~/.local/state/dot ~/.cache/dot
 ```
 
 Private package repos and other private Git clones are configured by the private overlay. Review `~/.config/dotfiles-private/.dot-private-package-repo` and `~/.config/dotfiles-private/dot-git.yml`, then remove only clones and mirrors you no longer need.
 
-If you removed Omarchy config directories that `dot init` replaces with managed repos, refresh the stock Omarchy defaults afterwards for any parts you want Omarchy to own again.
+If you removed Omarchy config directories that `dot init` replaces with managed repos, or stowed config directories that Omarchy should own again, refresh the stock Omarchy defaults afterwards.
 
 ```bash
 omarchy refresh waybar

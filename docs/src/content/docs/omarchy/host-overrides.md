@@ -1,6 +1,6 @@
 ---
 title: Host Overrides
-description: Managed Omarchy repos and per-host Hyprland configuration.
+description: Managed Omarchy repos and stowed host configuration.
 sidebar:
   order: 2
 ---
@@ -9,10 +9,16 @@ sidebar:
 
 `dot` tracks a small set of Omarchy components as git repos and keeps them on the expected branch:
 
-- `waybar`, `ghostty`, and `uwsm` — single-branch Omarchy repos expected on `main`.
+- `waybar` and `uwsm` — single-branch Omarchy repos expected on `main`.
 - `bootstrap` — expected on `distro/omarchy`.
 
-`dot init` clones these into `~/.config/{waybar,ghostty,uwsm}`. If a stock Omarchy config directory already exists there and is not a git repo, init moves it aside with a `.dot-init-backup-*` suffix before cloning. `dot update` syncs them, and `dot doctor` verifies their worktree branches.
+`dot init` clones these into `~/.config/{bootstrap,waybar,uwsm}`. If a stock Omarchy config directory already exists there and is not a git repo, init moves it aside with a `.dot-init-backup-*` suffix before cloning. `dot update` syncs them, and `dot doctor` verifies their worktree branches.
+
+## Ghostty host overrides
+
+Ghostty config is a stowed dotfiles package (`ghostty/.config/ghostty/`), not a tracked Omarchy repo. The stowed `ghostty-host-config` launcher checks `OMARCHY_HOST` and loads `~/.config/ghostty/config.$OMARCHY_HOST` when present, falling back to the default `~/.config/ghostty/config` otherwise.
+
+`dot stow` backs up the retired `timmo001/omarchy-ghostty` clone at `~/.config/ghostty` before linking the stowed config.
 
 ## Hyprland host overrides
 

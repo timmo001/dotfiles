@@ -19,6 +19,8 @@ const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);
  * - `.agents/skills`: external skill symlinks live alongside the stowed skills.
  * - `.config/fish/completions`: fish and other tools write generated
  *   completions (and fish writes `fish_variables`, `functions/`, `conf.d/`).
+ * - `.config/ghostty`: host overrides and any Ghostty-generated files live
+ *   alongside the stowed config.
  * - `.config/hypr`: the runtime `~/.config/hypr/host` symlink, omarchy shaders,
  *   and `~/.local/state` toggles live alongside the stowed config.
  * - `.config/nvim`: `omarchy-nvim-setup` owns `~/.config/nvim` and writes into
@@ -36,6 +38,7 @@ const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);
 const NO_FOLDING_TARGET_PREFIXES = [
   ".agents/skills",
   ".config/fish/completions",
+  ".config/ghostty",
   ".config/hypr",
   ".config/nvim",
   ".config/systemd/user",

@@ -741,9 +741,7 @@ source ~/.local/share/omarchy/default/bash/envs
 # Omarchy extras
 # ------------------------------
 timmo-update-extras() {
-  git-update ~/.config/hypr
   git-update ~/.config/waybar
-  git-update ~/.config/ghostty
   git-update ~/.config/uwsm
   git-update ~/.config/dotfiles
   git-update ~/.config/dotfiles-private

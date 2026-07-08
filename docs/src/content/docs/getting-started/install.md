@@ -49,7 +49,7 @@ dot init --host laptop --noninteractive --confirm
 Or run `dot init` in an interactive shell to be prompted.
 
 :::note
-If stock Omarchy directories already exist at `~/.config/waybar`, `~/.config/ghostty`, or `~/.config/uwsm`, `dot init` backs them up with a `.dot-init-backup-*` suffix before cloning the managed repos. Hyprland config is stowed from the `hypr/` package instead.
+If stock Omarchy directories already exist at `~/.config/bootstrap`, `~/.config/waybar`, or `~/.config/uwsm`, `dot init` backs them up with a `.dot-init-backup-*` suffix before cloning the managed repos. Hyprland and Ghostty config are stowed from the `hypr/` and `ghostty/` packages instead.
 :::
 
 ## Ongoing workflow

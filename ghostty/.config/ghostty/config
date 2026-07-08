@@ -1,0 +1,56 @@
+# Dynamic theme colors
+config-file = ?"~/.config/omarchy/current/theme/ghostty.conf"
+
+# Theme
+font-family = "JetBrainsMono Nerd Font"
+font-style = Regular
+font-size = 10
+background-opacity = 0.85
+# background-blur-radius = 20
+window-padding-x = 24,12
+window-padding-y = 8
+
+# Window
+mouse-hide-while-typing = true
+window-theme= ghostty
+window-decoration = auto
+window-title-font-family = "JetBrainsMono Nerd Font"
+gtk-titlebar = false
+gtk-custom-css = "~/.config/ghostty/tabs.css"
+# gtk-adwaita = true
+adw-toolbar-style = flat
+window-padding-x = 14
+window-padding-y = 14
+confirm-close-surface=false
+resize-overlay = never
+
+# Cursor styling
+cursor-style = "block"
+cursor-style-blink = false
+
+# Keyboard bindings
+keybind = f11=toggle_fullscreen
+keybind = shift+insert=paste_from_clipboard
+keybind = control+insert=copy_to_clipboard
+keybind = super+control+shift+alt+arrow_down=resize_split:down,100
+keybind = super+control+shift+alt+arrow_up=resize_split:up,100
+keybind = super+control+shift+alt+arrow_left=resize_split:left,100
+keybind = super+control+shift+alt+arrow_right=resize_split:right,100
+# Tmux window navigation (sends Ctrl+b then n/p)
+keybind = ctrl+alt+tab=text:\x02n
+keybind = ctrl+alt+shift+tab=text:\x02p
+# Quick terminal (quake style)
+keybind = global:super+backquote=toggle_quick_terminal
+
+# Shell
+# shell-integration = zsh
+shell-integration-features = no-cursor,ssh-env,no-title,no-sudo,no-ssh-terminfo,path
+
+# working-directory = /home/aidan
+keybind = shift+enter=text:\x1b\r
+
+# Slowdown mouse scrolling
+mouse-scroll-multiplier = 2.0
+
+# Fix general slowness on hyprland (https://github.com/ghostty-org/ghostty/discussions/3224)
+async-backend = epoll

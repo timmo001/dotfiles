@@ -84,7 +84,8 @@ When editing the public dotfiles repo (`~/.config/dotfiles`), treat a docs updat
 ## Omarchy Host Override Documentation Rules
 
 - Hyprland config is a stowed dotfiles package (`hypr/.config/hypr/`, conf-only), not a tracked Omarchy repo.
-- `waybar`, `ghostty`, and `uwsm` are single-branch Omarchy repos expected on `main`.
+- `waybar` and `uwsm` are single-branch Omarchy repos expected on `main`.
+- `ghostty` is a stowed package (`ghostty/.config/ghostty/`) with host overrides loaded by `ghostty-host-config`.
 - `bootstrap` is expected on `distro/omarchy`.
 - Hypr host-specific overrides live under `~/.config/hypr/hosts/$OMARCHY_HOST`, selected by the runtime `~/.config/hypr/host` symlink.
 - `dot stow` lays down the Hypr package with `--no-folding` and creates/repairs `~/.config/hypr/host`; `dot doctor` checks it and flags any leftover legacy `omarchy-hypr` clone.

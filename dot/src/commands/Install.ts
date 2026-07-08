@@ -10,6 +10,7 @@ import { ensureStowInstalled } from "../lib/packageSetup.js";
 import {
   backupConflictingPublicTargets,
   backupFileIfUnmanaged,
+  backupLegacyGhosttyRepo,
   backupUnmanagedStowTargets,
   formatBackupMove,
   findExternalSkillSymlinks,
@@ -31,9 +32,8 @@ const AGENTS_PRIVATE_IGNORES = [
 /**
  * Install dotfiles: backup existing files, then stow with `--adopt`.
  *
- * Ensures stow is installed, backs up known conflict files (`.zshrc`,
- * `.editorconfig`, ghostty config, nvim directory), then stows public and
- * private dotfiles.
+ * Ensures stow is installed, backs up known conflict files and retired cloned
+ * config repos, then stows public and private dotfiles.
  */
 export const install = Effect.gen(function* () {
   const config = yield* Config;
@@ -43,6 +43,14 @@ export const install = Effect.gen(function* () {
   yield* ensureStowInstalled;
 
   yield* log.section("Backup");
+  const legacyGhosttyMove = yield* Effect.sync(() =>
+    backupLegacyGhosttyRepo(config.publicDotfiles),
+  );
+  if (legacyGhosttyMove) {
+    yield* log.info(
+      `Backed up retired Ghostty repo: ${formatBackupMove(legacyGhosttyMove)}`,
+    );
+  }
   const knownMoves = yield* Effect.sync(() =>
     backupPublicFiles(config.publicDotfiles),
   );
@@ -125,10 +133,6 @@ function backupPublicFiles(publicDotfiles: string): BackupMove[] {
   const targets = [
     { source: join(HOME_DIR, ".zshrc"), backupDir: backupRoot },
     { source: join(HOME_DIR, ".editorconfig"), backupDir: backupRoot },
-    {
-      source: join(HOME_DIR, ".config/ghostty/config.toml"),
-      backupDir: join(backupRoot, ".config/ghostty"),
-    },
     {
       source: join(HOME_DIR, ".config/nvim"),
       backupDir: join(backupRoot, ".config"),

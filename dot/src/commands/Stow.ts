@@ -17,6 +17,7 @@ import {
 import { ensureNvimThemeLink } from "../lib/omarchyNvim.js";
 import {
   backupUnmanagedStowTargets,
+  backupLegacyGhosttyRepo,
   formatBackupMove,
   findExternalSkillSymlinks,
   removeExternalSymlinks,
@@ -53,6 +54,14 @@ export const stow = (opts?: {
 
     if (runPublic) {
       yield* log.section("Stow Public Dotfiles");
+      const legacyGhosttyMove = yield* Effect.sync(() =>
+        backupLegacyGhosttyRepo(config.publicDotfiles),
+      );
+      if (legacyGhosttyMove) {
+        yield* log.info(
+          `[public] backed up retired Ghostty repo: ${formatBackupMove(legacyGhosttyMove)}`,
+        );
+      }
       const backedUp = yield* Effect.sync(() =>
         backupUnmanagedStowTargets(config.publicDotfiles, config),
       );
