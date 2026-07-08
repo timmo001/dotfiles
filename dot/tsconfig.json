@@ -1,5 +1,5 @@
 {
-  "$schema": "./node_modules/@effect/language-service/schema.json",
+  "$schema": "https://raw.githubusercontent.com/Effect-TS/tsgo/refs/heads/main/schema.json",
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
