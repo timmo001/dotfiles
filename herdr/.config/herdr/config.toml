@@ -1,15 +1,15 @@
 onboarding = false
 # Managed by dotfiles. Herdr works without this file, but keeping the prefix
-# and local action binding here makes the session layer reproducible.
+# here makes the session layer reproducible.
 
 [keys]
 prefix = "ctrl+space"
 
 [[keys.command]]
 key = "prefix+d"
-type = "plugin_action"
-command = "timmo.dot.actions.palette"
-description = "dot actions"
+type = "shell"
+command = "dot-launch-tui"
+description = "dot TUI"
 
 [theme]
 name = "terminal"

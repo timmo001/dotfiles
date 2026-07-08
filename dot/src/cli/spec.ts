@@ -577,11 +577,10 @@ export const cliCommands: readonly CliCommandSpec[] = [
   },
   {
     name: "herdr-sync",
-    summary: "Link the Herdr plugin and integrations",
+    summary: "Install Herdr integrations",
     description: [
-      "Link the stowed Herdr dot-actions plugin into the local Herdr session",
-      "and install managed Herdr integrations such as OpenCode. Skips cleanly",
-      "when Herdr is not installed yet.",
+      "Install managed Herdr integrations such as OpenCode. Skips cleanly when",
+      "Herdr is not installed yet.",
     ],
     options: [helpOption],
     examples: ["dot herdr-sync"],

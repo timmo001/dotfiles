@@ -18,7 +18,7 @@ Add `--open-opencode` to run `opencode run` against the saved report and then op
 
 ## Herdr sync
 
-`dot herdr-sync` links the stowed Herdr dot-actions plugin and installs managed Herdr integrations such as OpenCode.
+`dot herdr-sync` installs managed Herdr integrations such as OpenCode.
 
 ```bash
 dot herdr-sync

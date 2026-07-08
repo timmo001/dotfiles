@@ -20,7 +20,7 @@ dot_commands=(
   'git-notifications:Open GitHub notification inbox'
   'agents-sync:Mirror AGENTS.md to agent harness instruction files'
   'mcp-sync:Regenerate MCP configs for all harnesses from the spec'
-  'herdr-sync:Link the Herdr plugin and integrations'
+  'herdr-sync:Install Herdr integrations'
   'is-agent:Detect whether an AI coding agent is running dot'
   'setup-private-repo:Register private pacman repo include'
   'private-pkg-publish:Build and publish a private package'

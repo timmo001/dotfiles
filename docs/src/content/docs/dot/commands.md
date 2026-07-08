@@ -467,15 +467,14 @@ dot mcp-sync
 
 ## `dot herdr-sync`
 
-Link the Herdr plugin and integrations
+Install Herdr integrations
 
 ```text
 dot herdr-sync
 ```
 
-Link the stowed Herdr dot-actions plugin into the local Herdr session
-and install managed Herdr integrations such as OpenCode. Skips cleanly
-when Herdr is not installed yet.
+Install managed Herdr integrations such as OpenCode. Skips cleanly when
+Herdr is not installed yet.
 
 **Examples**
 

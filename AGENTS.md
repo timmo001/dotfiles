@@ -39,7 +39,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - For human-written command names and command/docs prose in this repo, prefer UK spelling. Keep upstream tool, API, or MCP names unchanged when they use US spelling.
 - `agents/.config/opencode/` contains the shared OpenCode config source published from this repo.
 - `agents/.agents/skills/` contains globally stowed skills shared by OpenCode and Codex via `~/.agents/skills/`.
-- `herdr/.config/herdr/` contains the shared Herdr config, action manifest, and dot-actions plugin source.
+- `herdr/.config/herdr/` contains the shared Herdr config.
 - `.opencode/skills/` contains repo-local skills for this repo only.
 - `dot agents-sync` mirrors the global private AGENTS source into agent harness instruction files; `dot update` and `dot init` run that sync automatically.
 
@@ -108,5 +108,5 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - Dev tasks: `mise run <task>` from the repo root, namespaced by project - `dot:*` (`dot:build`, `dot:typecheck`, `dot:format`, `dot:check`) and `docs:*` (`docs:build`, `docs:dev`, `docs:gen`, `docs:check`); `mise tasks` lists them.
 - OpenCode debug: use `opencode debug` subcommands directly, for example `opencode debug config`, `opencode debug skill`, or `opencode debug agent <name>`.
 - MCP config sync: `dot mcp-sync` regenerates each active agent harness's MCP config from the single private spec `dotfiles-private/mcp.yml`; some agent harnesses are documented stubs. Runs automatically in `dot update` before re-stow; run `dot stow` after a manual sync.
-- Herdr sync: `dot herdr-sync` links the stowed Herdr dot-actions plugin and installs managed Herdr integrations. Runs automatically during `dot init` and full `dot update` when Herdr is available.
+- Herdr sync: `dot herdr-sync` installs managed Herdr integrations. Runs automatically during `dot init` and full `dot update` when Herdr is available.
 - OpenCode slash commands and `dot` git subcommands self-document (command frontmatter, `dot --help`) and are catalogued in the generated docs reference (`reference/commands.md`, `dot/commands.md`); don't re-document them here. The global AGENTS.md routes the behavioural ones (`/plan`, `/grill`, `/commit`, `/inject-context`, `/review-current-work`).

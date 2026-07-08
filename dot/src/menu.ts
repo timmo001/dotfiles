@@ -232,14 +232,14 @@ const dotItems: readonly MenuItem[] = [
     "herdr-sync",
     "H",
     "Herdr Sync",
-    "Link Herdr plugin and integrations",
+    "Install Herdr integrations",
     notify("dot herdr-sync", {
       id: "herdr-sync",
       progress: "Syncing Herdr...",
       success: "Herdr synced",
     }),
     undefined,
-    ["herdr", "plugin", "integration", "opencode", "tooling"],
+    ["herdr", "integration", "opencode", "tooling"],
     "AI Tooling",
   ),
   item(

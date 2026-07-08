@@ -34,7 +34,7 @@ A clean, end-to-end walkthrough for setting up a new machine.
 8. `dot init` runs `dot herdr-sync`; if Herdr is not installed yet, rerun `dot herdr-sync` after `mise install` completes.
 9. Restart your shell and confirm `dot help` is on `PATH`.
 10. Run `dot git-diff` and verify the expected repo state.
-11. Reboot so the Omarchy session picks up `OMARCHY_HOST`, then run `dot doctor` to verify the setup. Use `dot update` for ongoing sync, stow, Herdr plugin refresh, and rebuilds.
+11. Reboot so the Omarchy session picks up `OMARCHY_HOST`, then run `dot doctor` to verify the setup. Use `dot update` for ongoing sync, stow, Herdr integration refresh, and rebuilds.
 
 </Steps>
 
@@ -67,7 +67,7 @@ dot init
 :::
 
 :::tip[Herdr default session]
-Local Ghostty zsh shells auto-attach to Herdr when it is installed. Use `DOT_NO_HERDR=1 zsh` for a plain recovery shell. See [Herdr Session](/configuration/herdr/) for the Caps prefix and action palette.
+Local Ghostty zsh shells auto-attach to Herdr when it is installed. Use `DOT_NO_HERDR=1 zsh` for a plain recovery shell. See [Herdr Session](/configuration/herdr/) for the prefix and `dot` TUI shortcut.
 :::
 
 :::note[GNOME Boxes shared folders]

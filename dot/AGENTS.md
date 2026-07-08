@@ -339,7 +339,7 @@ Current shell helpers still used by the TS app or systemd units:
 
 - `dot-doctor-notify` — doctor notification helper
 - `git-diff-herdr-workspaces` — Herdr workspace launcher for git diff
-- `dot-herdr-actions` / `dot-herdr-open-palette` — Herdr dot-actions palette entrypoints
+- `dot-launch-tui` — context-aware desktop shortcut launcher for the `dot` TUI
 
 ## Debugging
 

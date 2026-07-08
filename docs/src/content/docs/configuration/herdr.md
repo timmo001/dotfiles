@@ -1,6 +1,6 @@
 ---
 title: Herdr Session
-description: Default terminal session, Ctrl+Space prefix, and dot actions.
+description: Default terminal session and Ctrl+Space prefix.
 sidebar:
   order: 3
 ---
@@ -19,32 +19,13 @@ DOT_NO_HERDR=1 zsh
 
 Herdr uses `Ctrl+Space` as its prefix. Press `Ctrl+Space`, then a Herdr key. Caps Lock remains the Hyprland/XKB compose key in `~/.config/hypr/input.conf`.
 
-The custom action layer is on `prefix+d`. It opens the dot actions palette:
+`prefix+d` and `SUPER+ALT+D` open the `dot` TUI. When the focused window is Ghostty, `dot-launch-tui` opens `dot` in a new Herdr tab using the focused pane cwd. From other windows it opens a floating TUI terminal.
 
-- `/` searches the curated actions.
-- `:` runs a raw command from the palette shell.
-- Repo-specific actions use the focused pane cwd when it is a git repo.
-- When a pane is not in a git repo, repo actions prompt from the tracked repos in `dot git-diff --list-all`.
+## Integrations
 
-The old OpenCode-only lazygit and `dot git-diff` TUI keybindings are removed; Herdr owns those actions from any pane.
+`dot init` and full `dot update` runs install managed Herdr integrations such as OpenCode automatically. It skips cleanly when `herdr` is not installed yet.
 
-## Plugin
-
-The stowed plugin lives at `~/.config/herdr/plugins/dot-actions` and is linked by:
-
-```bash
-dot herdr-sync
-```
-
-`dot init` and `dot update` run `dot herdr-sync` automatically. It skips cleanly when `herdr` is not installed yet.
-
-The action manifest is stowed to `~/.config/herdr/actions.json`. It includes lazygit, dot Git views, notes, handoffs, context snapshots, and confirm-gated maintenance actions such as `dot update`, `dot stow`, `dot doctor`, `dot agents-sync`, `dot mcp-sync`, `dot skill-check`, `dot skill-updates`, `dot firewall`, and `system-health-check`.
-
-## Maintenance
-
-Mutating maintenance actions ask for confirmation before running. The confirmation shows the command and requires typing `run`.
-
-Run a manual repair after changing Herdr config or plugin files:
+Run a manual repair after changing Herdr config:
 
 ```bash
 dot stow

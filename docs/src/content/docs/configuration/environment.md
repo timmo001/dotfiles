@@ -66,8 +66,6 @@ These variables tune paths and behaviour for `dot`. Most have sensible defaults;
 | Variable                 | Description                                                                                       |
 | ------------------------ | ------------------------------------------------------------------------------------------------- |
 | `DOT_NO_HERDR`           | Skip local Ghostty zsh auto-attach to Herdr for this shell when set to any non-empty value.        |
-| `DOT_HERDR_ACTIONS_FILE` | Action manifest read by `dot-herdr-actions` (default `~/.config/herdr/actions.json`).              |
-| `DOT_HERDR_SOURCE_CWD`   | Source cwd passed from the Herdr plugin opener to the action palette. Normally set automatically. |
 
 ## Agents sync
 
