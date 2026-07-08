@@ -12,10 +12,11 @@ command = "dot-launch-tui"
 description = "dot TUI"
 
 [theme]
-name = "terminal"
+name = "tokyo-night"
 auto_switch = false
 
 [ui]
+mobile_width_threshold = 90
 show_agent_labels_on_pane_borders = true
 
 agent_panel_sort = "spaces"

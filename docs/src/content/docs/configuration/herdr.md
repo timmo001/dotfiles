@@ -21,6 +21,8 @@ Herdr uses `Ctrl+Space` as its prefix. Press `Ctrl+Space`, then a Herdr key. Cap
 
 `prefix+d` and `SUPER+ALT+D` open the `dot` TUI. When the focused window is Ghostty, `dot-launch-tui` opens `dot` in a new Herdr tab using the focused pane cwd. From other windows it opens a floating TUI terminal.
 
+`prefix+b` toggles the sidebar manually. The managed config raises `mobile_width_threshold` to 90 columns so narrow terminals switch to Herdr's compact single-column layout earlier.
+
 ## Integrations
 
 `dot init` and full `dot update` runs install managed Herdr integrations such as OpenCode automatically. It skips cleanly when `herdr` is not installed yet.
