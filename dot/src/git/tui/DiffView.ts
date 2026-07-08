@@ -41,7 +41,6 @@ const HELP: readonly HelpEntry[] = [
   { key: "P", action: "push" },
   { key: "x", action: "unlock" },
   { key: "t", action: "terminal" },
-  { key: "T", action: "tmux current pane" },
   { key: "w", action: "web" },
   { key: "r", action: "refresh" },
   { key: "Esc/Backspace", action: "back" },
@@ -62,8 +61,6 @@ export interface DiffViewOptions {
     repo: Repo,
     mode: OpenCodeSessionMode,
   ) => Promise<void>;
-  /** Called to open a tmux session — "changed" repos when the Changed pane is active, "all" when Other */
-  readonly onOpenTmux: (mode: "changed" | "all") => void;
   /** Called to open a plain terminal in the selected repo's directory */
   readonly onOpenTerminal: (repo: Repo) => void;
   /** Called to open the selected repo on GitHub in the browser */
@@ -116,10 +113,6 @@ export class DiffView {
       "shift+e": () => void this.openSelectedInEditor("visual"),
       t: () =>
         this.runRepoAction((repo) => this.callbacks.onOpenTerminal(repo)),
-      "shift+t": () =>
-        this.callbacks.onOpenTmux(
-          this.activePane === "changed" ? "changed" : "all",
-        ),
       o: () => void this.openSelectedInOpenCode("default"),
       "shift+o": () => void this.openSelectedInOpenCode("plan"),
       w: () => this.runRepoAction((repo) => this.callbacks.onOpenWeb(repo)),

@@ -174,13 +174,6 @@ export class App {
           deps.onRefreshDiff();
         }
       },
-      onOpenTmux: (mode) => {
-        deps.commandRunner
-          .runSilent(`git-diff-tmux-session ${mode}`)
-          .catch((err) => {
-            log(`Tmux session error: ${err}`);
-          });
-      },
       onOpenTerminal: (repo) => {
         const p = shellQuote(repo.path);
         deps.commandRunner

@@ -1,0 +1,27 @@
+onboarding = false
+# Managed by dotfiles. Herdr works without this file, but keeping the prefix
+# here makes the session layer reproducible.
+
+[keys]
+prefix = "ctrl+space"
+
+[[keys.command]]
+key = "prefix+d"
+type = "shell"
+command = "dot-launch-tui"
+description = "dot TUI"
+
+[theme]
+name = "tokyo-night"
+auto_switch = false
+
+[ui]
+mobile_width_threshold = 90
+show_agent_labels_on_pane_borders = true
+
+agent_panel_sort = "spaces"
+[ui.toast]
+delivery = "herdr"
+
+[ui.sound]
+enabled = false

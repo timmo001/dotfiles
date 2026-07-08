@@ -338,7 +338,6 @@ Keep logging readable and consistent:
 Current shell helpers still used by the TS app or systemd units:
 
 - `dot-doctor-notify` — doctor notification helper
-- `git-diff-tmux-session` — tmux session launcher for git diff
 
 ## Debugging
 

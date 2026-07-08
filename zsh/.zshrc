@@ -762,6 +762,27 @@ fi
 command -v gh >/dev/null 2>&1 && export DOT_GH_MCP_BEARER="$(gh auth token 2>/dev/null)"
 
 # ------------------------------
+# Herdr managed session cleanup
+# ------------------------------
+_dot_herdr_stop_if_last_pane() {
+  [[ -n "${HERDR_ENV:-}" ]] || return 0
+  command -v herdr >/dev/null 2>&1 || return 0
+  command -v jq >/dev/null 2>&1 || return 0
+
+  local workspaces tabs panes
+  workspaces="$(herdr workspace list 2>/dev/null | jq -r '(.result.workspaces // .workspaces // []) | length' 2>/dev/null)"
+  tabs="$(herdr tab list 2>/dev/null | jq -r '(.result.tabs // .tabs // []) | length' 2>/dev/null)"
+  panes="$(herdr pane list 2>/dev/null | jq -r '(.result.panes // .panes // []) | length' 2>/dev/null)"
+
+  if [[ "$workspaces" == "1" && "$tabs" == "1" && "$panes" == "1" ]]; then
+    herdr server stop >/dev/null 2>&1 || true
+  fi
+}
+
+add-zsh-hook -d zshexit _dot_herdr_stop_if_last_pane 2>/dev/null
+add-zsh-hook zshexit _dot_herdr_stop_if_last_pane
+
+# ------------------------------
 # Key bindings for word navigation
 # ------------------------------
 # Ctrl+Left/Right for word navigation

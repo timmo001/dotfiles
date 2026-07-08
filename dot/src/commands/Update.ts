@@ -263,7 +263,7 @@ function selfUpdateAndRestart(
 }
 
 /**
- * Run post-update hooks (agents-sync).
+ * Run post-update hooks.
  */
 const postHooks = Effect.gen(function* () {
   const log = yield* OutputLog;
