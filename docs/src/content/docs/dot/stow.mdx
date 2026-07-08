@@ -45,6 +45,7 @@ dot stow --private  # private only
 
 - Lays down public packages first, then the private overlay from `~/.config/dotfiles-private`.
 - Stows the Hypr package with `--no-folding` and creates/repairs the `~/.config/hypr/host` symlink for the active host.
+- Before stow, moves unmanaged real files or directories that block active package targets into the repo's `backup/` directory and logs each source-to-backup path. This includes host-specific packages such as `chromium--laptop`.
 - Adopts existing files where needed so a fresh machine does not clobber stock config.
 
 ## Hypr package handling

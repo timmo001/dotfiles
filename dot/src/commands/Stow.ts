@@ -16,7 +16,8 @@ import {
 } from "../lib/omarchyHost.js";
 import { ensureNvimThemeLink } from "../lib/omarchyNvim.js";
 import {
-  backupPrivateStowTargets,
+  backupUnmanagedStowTargets,
+  formatBackupMove,
   findExternalSkillSymlinks,
   removeExternalSymlinks,
   restoreExternalSymlinks,
@@ -52,6 +53,14 @@ export const stow = (opts?: {
 
     if (runPublic) {
       yield* log.section("Stow Public Dotfiles");
+      const backedUp = yield* Effect.sync(() =>
+        backupUnmanagedStowTargets(config.publicDotfiles, config),
+      );
+      for (const move of backedUp) {
+        yield* log.info(
+          `[public] backed up unmanaged target: ${formatBackupMove(move)}`,
+        );
+      }
       yield* stowRepo(config.publicDotfiles, "public", launcher, log, config);
 
       yield* log.section("Omarchy Host Links");
@@ -65,7 +74,14 @@ export const stow = (opts?: {
       if (config.canUsePrivate && config.privateDotfiles) {
         const privateDotfiles = config.privateDotfiles;
         yield* log.section("Stow Private Dotfiles");
-        yield* Effect.sync(() => backupPrivateStowTargets(privateDotfiles));
+        const backedUp = yield* Effect.sync(() =>
+          backupUnmanagedStowTargets(privateDotfiles, config),
+        );
+        for (const move of backedUp) {
+          yield* log.info(
+            `[private] backed up unmanaged target: ${formatBackupMove(move)}`,
+          );
+        }
         yield* stowRepo(privateDotfiles, "private", launcher, log, config);
       } else {
         yield* log.warn(

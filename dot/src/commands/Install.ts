@@ -10,10 +10,12 @@ import { ensureStowInstalled } from "../lib/packageSetup.js";
 import {
   backupConflictingPublicTargets,
   backupFileIfUnmanaged,
-  backupPrivateStowTargets,
+  backupUnmanagedStowTargets,
+  formatBackupMove,
   findExternalSkillSymlinks,
   removeExternalSymlinks,
   restoreExternalSymlinks,
+  type BackupMove,
   type ExternalSymlink,
 } from "../lib/stowConflicts.js";
 import type { ConfigService } from "../services/Config.js";
@@ -41,21 +43,25 @@ export const install = Effect.gen(function* () {
   yield* ensureStowInstalled;
 
   yield* log.section("Backup");
-  yield* Effect.sync(() => backupPublicFiles(config.publicDotfiles));
-  yield* log.info("Backed up existing files (if any)");
+  const knownMoves = yield* Effect.sync(() =>
+    backupPublicFiles(config.publicDotfiles),
+  );
+  for (const move of knownMoves) {
+    yield* log.info(`Backed up existing file: ${formatBackupMove(move)}`);
+  }
 
   // Committed-wins pre-pass: move live files that differ from their committed
   // source out of the way so the public `--adopt` stow symlinks the committed
   // config instead of overwriting the repo with stock leftovers.
   const protectedTargets = yield* Effect.sync(() =>
-    backupConflictingPublicTargets(config.publicDotfiles),
+    backupConflictingPublicTargets(config.publicDotfiles, config),
   );
   if (protectedTargets.length > 0) {
     yield* log.info(
-      `Protected ${protectedTargets.length} committed file(s) from --adopt (live copies moved to backup/):`,
+      `Protected ${protectedTargets.length} public stow target(s) from --adopt (live copies moved to backup/):`,
     );
-    for (const target of protectedTargets) {
-      yield* log.info(`  ${target}`);
+    for (const move of protectedTargets) {
+      yield* log.info(`  ${formatBackupMove(move)}`);
     }
   }
 
@@ -82,7 +88,14 @@ export const install = Effect.gen(function* () {
   if (config.canUsePrivate && config.privateDotfiles) {
     const privateDotfiles = config.privateDotfiles;
     yield* log.section("Install Private Dotfiles");
-    yield* Effect.sync(() => backupPrivateStowTargets(privateDotfiles));
+    const privateMoves = yield* Effect.sync(() =>
+      backupUnmanagedStowTargets(privateDotfiles, config),
+    );
+    for (const move of privateMoves) {
+      yield* log.info(
+        `[private] backed up unmanaged target: ${formatBackupMove(move)}`,
+      );
+    }
     yield* stowRepo(
       privateDotfiles,
       "private",
@@ -105,8 +118,9 @@ export const install = Effect.gen(function* () {
  * Backup known files that may conflict with public stow packages.
  * Skips symlinks (already managed). Moves real files into `$repo/backup/`.
  */
-function backupPublicFiles(publicDotfiles: string): void {
+function backupPublicFiles(publicDotfiles: string): BackupMove[] {
   const backupRoot = join(publicDotfiles, "backup");
+  const moves: BackupMove[] = [];
 
   const targets = [
     { source: join(HOME_DIR, ".zshrc"), backupDir: backupRoot },
@@ -122,8 +136,11 @@ function backupPublicFiles(publicDotfiles: string): void {
   ];
 
   for (const { source, backupDir } of targets) {
-    backupFileIfUnmanaged(source, backupDir);
+    const move = backupFileIfUnmanaged(source, backupDir);
+    if (move) moves.push(move);
   }
+
+  return moves;
 }
 
 /** Read `git status --porcelain` for a repo, returning "" on failure. */
