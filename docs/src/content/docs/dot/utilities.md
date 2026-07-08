@@ -16,16 +16,6 @@ system-health-check --open-opencode # run opencode run against the report, then 
 
 Add `--open-opencode` to run `opencode run` against the saved report and then open a full interactive OpenCode session with `opencode --continue`.
 
-## Herdr sync
-
-`dot herdr-sync` installs managed Herdr integrations such as OpenCode.
-
-```bash
-dot herdr-sync
-```
-
-It is safe to rerun. If `herdr` is not on `PATH`, the command reports a skip instead of failing bootstrap. `dot init` and full `dot update` runs call it automatically.
-
 ## Times
 
 `times` prints current local, Pacific, Mountain, Central, and Eastern times. `SUPER+CTRL+ALT+T` shows an aligned compact version in a desktop notification.

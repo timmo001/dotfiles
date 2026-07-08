@@ -465,23 +465,6 @@ them.
 dot mcp-sync
 ```
 
-## `dot herdr-sync`
-
-Install Herdr integrations
-
-```text
-dot herdr-sync
-```
-
-Install managed Herdr integrations such as OpenCode. Skips cleanly when
-Herdr is not installed yet.
-
-**Examples**
-
-```bash
-dot herdr-sync
-```
-
 ## `dot is-agent`
 
 Detect whether an AI coding agent is running dot
