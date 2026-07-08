@@ -31,9 +31,10 @@ A clean, end-to-end walkthrough for setting up a new machine.
 5. Run first-use setup using the mode that matches this machine.
 6. If stock Omarchy config directories already exist at `~/.config/bootstrap`, `~/.config/waybar`, or `~/.config/uwsm`, `dot init` backs them up with a `.dot-init-backup-*` suffix before cloning the managed repos. Hyprland and Ghostty config are stowed from the `hypr/` and `ghostty/` packages instead.
 7. `dot init` opens the managed [firewall rules](/dot/utilities/#firewall-rules) (KDE Connect, Home Assistant, the OpenCode server, LocalSend, and the libvirt NAT network) when `ufw` is installed.
-8. Restart your shell and confirm `dot help` is on `PATH`.
-9. Run `dot git-diff` and verify the expected repo state.
-10. Reboot so the Omarchy session picks up `OMARCHY_HOST`, then run `dot doctor` to verify the setup. Use `dot update` for ongoing sync, stow, and rebuilds.
+8. `dot init` runs `dot herdr-sync`; if Herdr is not installed yet, rerun `dot herdr-sync` after `mise install` completes.
+9. Restart your shell and confirm `dot help` is on `PATH`.
+10. Run `dot git-diff` and verify the expected repo state.
+11. Reboot so the Omarchy session picks up `OMARCHY_HOST`, then run `dot doctor` to verify the setup. Use `dot update` for ongoing sync, stow, Herdr plugin refresh, and rebuilds.
 
 </Steps>
 
@@ -63,6 +64,10 @@ dot init
 
 :::tip[Hypr host and mise tools]
 `dot init` selects the Hypr host early and creates `~/.config/hypr/host`. Reboot after init so Hyprland, Waybar, launchers, services, and new shells inherit `OMARCHY_HOST` from the stowed host config. Init runs `mise install` immediately after stowing dotfiles and before installing managed Arch/AUR package lists, so Bun, Node, pnpm, and similar tools come from the stowed mise config rather than global pacman packages. Later `dot update` runs handle ongoing repo pulls, stow refreshes, rebuilds, and mise trust refreshes.
+:::
+
+:::tip[Herdr default session]
+Local Ghostty zsh shells auto-attach to Herdr when it is installed. Use `DOT_NO_HERDR=1 zsh` for a plain recovery shell. See [Herdr Session](/configuration/herdr/) for the Caps prefix and action palette.
 :::
 
 :::note[GNOME Boxes shared folders]

@@ -338,7 +338,8 @@ Keep logging readable and consistent:
 Current shell helpers still used by the TS app or systemd units:
 
 - `dot-doctor-notify` — doctor notification helper
-- `git-diff-tmux-session` — tmux session launcher for git diff
+- `git-diff-herdr-workspaces` — Herdr workspace launcher for git diff
+- `dot-herdr-actions` / `dot-herdr-open-palette` — Herdr dot-actions palette entrypoints
 
 ## Debugging
 

@@ -1,0 +1,160 @@
+{
+  "$schema": "https://dotfiles.timmo.dev/schemas/herdr-actions.json",
+  "actions": [
+    {
+      "id": "lazygit",
+      "title": "Lazygit",
+      "group": "Git",
+      "command": ["lazygit"],
+      "repo": true,
+      "placement": "workspace"
+    },
+    {
+      "id": "dot-dashboard",
+      "title": "Dot Dashboard",
+      "group": "Dot",
+      "command": ["dot", "dashboard"],
+      "placement": "workspace"
+    },
+    {
+      "id": "dot-git-diff",
+      "title": "Dot Git Diff",
+      "group": "Git",
+      "command": ["dot", "git-diff"],
+      "placement": "workspace"
+    },
+    {
+      "id": "dot-git-log",
+      "title": "Dot Git Log",
+      "group": "Git",
+      "command": ["dot", "git-log"],
+      "placement": "workspace"
+    },
+    {
+      "id": "dot-git-workflows",
+      "title": "Dot Git Workflows",
+      "group": "Git",
+      "command": ["dot", "git-workflows"],
+      "placement": "workspace"
+    },
+    {
+      "id": "dot-git-notifications",
+      "title": "Dot Git Notifications",
+      "group": "Git",
+      "command": ["dot", "git-notifications"],
+      "placement": "workspace"
+    },
+    {
+      "id": "notes",
+      "title": "Notes",
+      "group": "Notes",
+      "command": ["notes"],
+      "repo": true,
+      "placement": "workspace"
+    },
+    {
+      "id": "notes-handoffs",
+      "title": "Notes Handoffs",
+      "group": "Notes",
+      "command": ["notes", "handoffs"],
+      "repo": true,
+      "placement": "workspace"
+    },
+    {
+      "id": "context-git",
+      "title": "Context Git",
+      "group": "Context",
+      "command": ["context", "git"],
+      "repo": true,
+      "placement": "workspace"
+    },
+    {
+      "id": "context-stack",
+      "title": "Context Stack",
+      "group": "Context",
+      "command": ["context", "stack"],
+      "repo": true,
+      "placement": "workspace"
+    },
+    {
+      "id": "dot-update",
+      "title": "Dot Update",
+      "group": "Maintenance",
+      "command": ["dot", "update"],
+      "confirm": true,
+      "placement": "workspace"
+    },
+    {
+      "id": "dot-stow",
+      "title": "Dot Stow",
+      "group": "Maintenance",
+      "command": ["dot", "stow"],
+      "confirm": true,
+      "placement": "workspace"
+    },
+    {
+      "id": "dot-doctor",
+      "title": "Dot Doctor",
+      "group": "Maintenance",
+      "command": ["dot", "doctor"],
+      "confirm": true,
+      "placement": "workspace"
+    },
+    {
+      "id": "dot-agents-sync",
+      "title": "Dot Agents Sync",
+      "group": "Maintenance",
+      "command": ["dot", "agents-sync"],
+      "confirm": true,
+      "placement": "workspace"
+    },
+    {
+      "id": "dot-mcp-sync",
+      "title": "Dot MCP Sync",
+      "group": "Maintenance",
+      "command": ["dot", "mcp-sync"],
+      "confirm": true,
+      "placement": "workspace"
+    },
+    {
+      "id": "dot-herdr-sync",
+      "title": "Dot Herdr Sync",
+      "group": "Maintenance",
+      "command": ["dot", "herdr-sync"],
+      "confirm": true,
+      "placement": "workspace"
+    },
+    {
+      "id": "dot-skill-check",
+      "title": "Dot Skill Check",
+      "group": "Maintenance",
+      "command": ["dot", "skill-check"],
+      "confirm": true,
+      "placement": "workspace"
+    },
+    {
+      "id": "dot-skill-updates",
+      "title": "Dot Skill Updates",
+      "group": "Maintenance",
+      "command": ["dot", "skill-updates"],
+      "confirm": true,
+      "placement": "workspace"
+    },
+    {
+      "id": "dot-firewall",
+      "title": "Dot Firewall",
+      "group": "Maintenance",
+      "command": ["dot", "firewall"],
+      "confirm": true,
+      "placement": "workspace"
+    },
+    {
+      "id": "system-health-check",
+      "title": "System Health Check",
+      "group": "Maintenance",
+      "command": ["system-health-check"],
+      "confirm": true,
+      "placement": "workspace"
+    }
+  ]
+}

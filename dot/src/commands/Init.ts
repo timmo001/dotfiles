@@ -11,6 +11,7 @@ import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { agentsSync } from "./AgentsSync.js";
+import { herdrSync } from "./HerdrSync.js";
 import { install } from "./Install.js";
 import { setupPrivateRepo } from "./SetupPrivateRepo.js";
 import { runElevated, withSudoKeepAlive } from "../lib/elevatedCommand.js";
@@ -65,6 +66,7 @@ const INIT_STEP_TIMEOUT_SECONDS = {
   hooks: 2 * 60,
   doctorTimer: 60,
   agents: 2 * 60,
+  herdr: 2 * 60,
 } as const;
 
 /** Domain error for first-use init failures. */
@@ -830,6 +832,11 @@ export function init(rawArgs: readonly string[]) {
       "Sync Agents",
       INIT_STEP_TIMEOUT_SECONDS.agents,
       syncAgentsStrict(),
+    );
+    yield* requiredInitStep(
+      "Sync Herdr",
+      INIT_STEP_TIMEOUT_SECONDS.herdr,
+      herdrSync,
     );
 
     yield* writeInitCompleteMarker(config, "init");

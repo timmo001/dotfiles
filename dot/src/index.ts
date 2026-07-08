@@ -35,6 +35,7 @@ import { stow } from "./commands/Stow.js";
 import { doctor } from "./commands/Doctor.js";
 import { clean } from "./commands/Clean.js";
 import { agentsSync } from "./commands/AgentsSync.js";
+import { herdrSync } from "./commands/HerdrSync.js";
 import { mcpSync } from "./mcp/commands/McpSync.js";
 import { isAgentCommand } from "./commands/IsAgent.js";
 import { setupPrivateRepo } from "./commands/SetupPrivateRepo.js";
@@ -440,6 +441,7 @@ const NATIVE_COMMAND_TIMEOUT_SECONDS: Partial<Record<string, number>> = {
   firewall: 3 * 60,
   "skill-check": 5 * 60,
   "agents-sync": 2 * 60,
+  "herdr-sync": 2 * 60,
   "mcp-sync": 2 * 60,
   completions: 2 * 60,
 };
@@ -563,6 +565,7 @@ if (mode.type === "native") {
       "git-workflows": resolveWorkflows,
       "git-notifications": resolveNotifications,
       "agents-sync": () => agentsSync,
+      "herdr-sync": () => herdrSync,
       "mcp-sync": () => mcpSync,
       "is-agent": isAgentCommand,
       "setup-private-repo": () => setupPrivateRepo,

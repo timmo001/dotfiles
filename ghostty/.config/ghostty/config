@@ -36,9 +36,6 @@ keybind = super+control+shift+alt+arrow_down=resize_split:down,100
 keybind = super+control+shift+alt+arrow_up=resize_split:up,100
 keybind = super+control+shift+alt+arrow_left=resize_split:left,100
 keybind = super+control+shift+alt+arrow_right=resize_split:right,100
-# Tmux window navigation (sends Ctrl+b then n/p)
-keybind = ctrl+alt+tab=text:\x02n
-keybind = ctrl+alt+shift+tab=text:\x02p
 # Quick terminal (quake style)
 keybind = global:super+backquote=toggle_quick_terminal
 

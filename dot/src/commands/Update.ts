@@ -7,6 +7,7 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 import { DotDiff } from "../git/services/DotDiff.js";
 import { stow as runStow } from "./Stow.js";
 import { agentsSync } from "./AgentsSync.js";
+import { herdrSync } from "./HerdrSync.js";
 import { mcpSync } from "../mcp/commands/McpSync.js";
 import { writeAllCompletions } from "./Completions.js";
 import { rebuild, restartDot } from "../lib/selfUpdate.js";
@@ -263,7 +264,7 @@ function selfUpdateAndRestart(
 }
 
 /**
- * Run post-update hooks (agents-sync).
+ * Run post-update hooks.
  */
 const postHooks = Effect.gen(function* () {
   const log = yield* OutputLog;
@@ -271,6 +272,7 @@ const postHooks = Effect.gen(function* () {
   yield* log.section("Post-Hooks");
 
   yield* agentsSync;
+  yield* herdrSync;
 });
 
 /**
@@ -594,6 +596,8 @@ export const update = (opts?: UpdateOptions) =>
           yield* mcpSync.pipe(
             Effect.catch(() => log.warn("MCP sync failed (non-fatal)")),
           );
+
+          yield* herdrSync;
 
           yield* runStow();
         }),

@@ -762,6 +762,42 @@ fi
 command -v gh >/dev/null 2>&1 && export DOT_GH_MCP_BEARER="$(gh auth token 2>/dev/null)"
 
 # ------------------------------
+# Herdr default session
+# ------------------------------
+_dot_herdr_stop_if_last_pane() {
+  [[ -n "${HERDR_ENV:-}" ]] || return 0
+  command -v herdr >/dev/null 2>&1 || return 0
+  command -v jq >/dev/null 2>&1 || return 0
+
+  local workspaces tabs panes
+  workspaces="$(herdr workspace list 2>/dev/null | jq -r '(.result.workspaces // .workspaces // []) | length' 2>/dev/null)"
+  tabs="$(herdr tab list 2>/dev/null | jq -r '(.result.tabs // .tabs // []) | length' 2>/dev/null)"
+  panes="$(herdr pane list 2>/dev/null | jq -r '(.result.panes // .panes // []) | length' 2>/dev/null)"
+
+  if [[ "$workspaces" == "1" && "$tabs" == "1" && "$panes" == "1" ]]; then
+    herdr server stop >/dev/null 2>&1 || true
+  fi
+}
+
+add-zsh-hook -d zshexit _dot_herdr_stop_if_last_pane 2>/dev/null
+add-zsh-hook zshexit _dot_herdr_stop_if_last_pane
+
+_dot_maybe_start_herdr() {
+  [[ $- == *i* ]] || return 0
+  [[ -z "${HERDR_ENV:-}" ]] || return 0
+  [[ -z "${DOT_NO_HERDR:-}" ]] || return 0
+  [[ -z "${SSH_CONNECTION:-}${SSH_CLIENT:-}${SSH_TTY:-}" ]] || return 0
+  [[ -n "${GHOSTTY_RESOURCES_DIR:-}${GHOSTTY_BIN_DIR:-}" || "${TERM_PROGRAM:-}" == "ghostty" ]] || return 0
+  command -v herdr >/dev/null 2>&1 || return 0
+
+  if [[ -n "${DOT_HERDR_STARTED:-}" ]]; then
+    return 0
+  fi
+
+  DOT_HERDR_STARTED=1 exec herdr || print -u2 -- "dot: herdr failed; continuing in plain zsh"
+}
+
+# ------------------------------
 # Key bindings for word navigation
 # ------------------------------
 # Ctrl+Left/Right for word navigation
@@ -785,6 +821,9 @@ bindkey "^[[4~" end-of-line        # End (vt variant)
 [[ -n "${terminfo[khome]}" ]] && bindkey "${terminfo[khome]}" beginning-of-line
 [[ -n "${terminfo[kend]}"  ]] && bindkey "${terminfo[kend]}"  end-of-line
 [[ -n "${terminfo[kich1]}" ]] && bindkey "${terminfo[kich1]}" overwrite-mode
+
+_dot_maybe_start_herdr
+unfunction _dot_maybe_start_herdr
 
 # ------------------------------
 # Commands

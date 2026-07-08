@@ -22,5 +22,3 @@ Plugins provide context, evidence, or enforcement hooks for OpenCode. They are l
 | [`repo-notes`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/repo-notes.ts) | Injects repo-note context into OpenCode note commands |
 | [`stack-context`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/stack-context.ts) | Injects codebase stack-context blocks into prompts |
 | [`subagent-chrome-devtools-guard`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/subagent-chrome-devtools-guard.ts) | Blocks Chrome DevTools tools from delegated subagent sessions |
-| [`tui-dot-git-diff`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/tui-dot-git-diff.ts) | Registers a TUI keybinding (ctrl+shift+g) to open `dot git-diff` |
-| [`tui-lazygit`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/tui-lazygit.ts) | Registers a TUI keybinding to open lazygit |

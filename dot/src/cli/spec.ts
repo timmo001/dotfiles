@@ -576,6 +576,17 @@ export const cliCommands: readonly CliCommandSpec[] = [
     examples: ["dot mcp-sync"],
   },
   {
+    name: "herdr-sync",
+    summary: "Link the Herdr plugin and integrations",
+    description: [
+      "Link the stowed Herdr dot-actions plugin into the local Herdr session",
+      "and install managed Herdr integrations such as OpenCode. Skips cleanly",
+      "when Herdr is not installed yet.",
+    ],
+    options: [helpOption],
+    examples: ["dot herdr-sync"],
+  },
+  {
     name: "is-agent",
     summary: "Detect whether an AI coding agent is running dot",
     usage: "[options]",
