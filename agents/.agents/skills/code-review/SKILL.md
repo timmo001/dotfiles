@@ -7,7 +7,7 @@ description: Review code changes along two axes - Standards (does it follow the 
 
 Use this skill when reviewing code changes, pull requests, branch work, or diffs.
 
-Lineage: locally authored. The Standards-axis Fowler smell baseline is adapted from mattpocock's `code-review` skill (https://github.com/mattpocock/skills/tree/main/skills/engineering/code-review), itself drawn from Martin Fowler, _Refactoring_, ch.3 "Bad Smells in Code".
+Lineage: locally authored. The Standards-axis Fowler smell baseline is adapted from mattpocock's `code-review` skill (<https://github.com/mattpocock/skills/tree/main/skills/engineering/code-review>), itself drawn from Martin Fowler, _Refactoring_, ch.3 "Bad Smells in Code".
 
 ## Two Review Axes
 
@@ -24,7 +24,7 @@ On top of whatever the repo documents, the Standards axis always carries the **F
 - **The repo overrides.** A documented repo standard always wins; where it endorses something the baseline would flag, suppress the smell.
 - **Always a judgement call.** Each smell is a labelled heuristic ("possible Feature Envy"), never a hard violation - and, like any standard here, skip anything tooling already enforces.
 
-Each smell reads *what it is* → *how to fix*; match it against the diff:
+Each smell reads _what it is_ → _how to fix_; match it against the diff:
 
 - **Mysterious Name** — a function, variable, or type whose name doesn't reveal what it does or holds. → rename it; if no honest name comes, the design's murky.
 - **Duplicated Code** — the same logic shape appears in more than one hunk or file in the change. → extract the shared shape, call it from both.
