@@ -62,7 +62,7 @@ export interface DiffViewOptions {
     repo: Repo,
     mode: OpenCodeSessionMode,
   ) => Promise<void>;
-  /** Called to open a tmux session - "changed" repos when the Changed pane is active, "all" when Other */
+  /** Called to open a tmux session — "changed" repos when the Changed pane is active, "all" when Other */
   readonly onOpenTmux: (mode: "changed" | "all") => void;
   /** Called to open a plain terminal in the selected repo's directory */
   readonly onOpenTerminal: (repo: Repo) => void;
