@@ -58,15 +58,20 @@ gh pr diff <PR_NUMBER>
 # Check CI status (includes linter warnings)
 gh pr checks <PR_NUMBER>
 
-# Watch for checks only when explicitly requested by the user
+# Watch checks when the task requires waiting for CI
 gh pr checks <PR_NUMBER> --watch
 
 # View details of a specific workflow run (logs, status, jobs)
 gh run view <RUN_ID>
 
+# Watch a specific workflow run compactly after checking local CLI support
+gh run watch <RUN_ID> --compact --exit-status --interval 10
+
 # Checkout PR locally for deeper review
 gh pr checkout <PR_NUMBER>
 ```
+
+For long-running GitHub Actions waits, prefer compact `gh` watches over repeated GitHub MCP polling when the installed CLI supports them. Check `gh run watch --help` or `gh pr checks --help` first, and do not use `gh run view --watch` unless this local CLI documents it.
 
 For upstream code patterns, API usage examples, or GitHub-hosted documentation, prefer `grep` over `webfetch` or `gh repo view` of raw file content. For broad read-only upstream dependency/source inspection, use an available read-only research subagent when delegation is useful. For library or framework documentation, prefer `context7` tools.
 

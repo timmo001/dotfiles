@@ -29,6 +29,7 @@ permission:
     "gh release view*": allow
     "gh repo view*": allow
     "gh run view*": allow
+    "gh run watch*": allow
     "gh search code*": allow
     "gh search commits*": allow
     "gh search issues*": allow
@@ -97,7 +98,7 @@ Guidelines:
 - For GitHub-hosted docs, code patterns, or real-world usage examples, prefer the `grep` MCP tool over `webfetch`, `gh api`, or `gh repo view` of raw file content.
 - For broad delegated research, choose from the available task subagents by their descriptions instead of assuming a specific custom agent exists.
 - To read a specific GitHub file's full contents (not just search snippets), use `gh api repos/<owner>/<repo>/contents/<path>` or fetch the raw URL; `gh api` is gated to prompt for approval, so expect a confirmation rather than a silent denial.
-- Reserve `gh` CLI for GitHub workflow operations (PRs, issues, checks, runs) and local repo metadata.
+- Reserve `gh` CLI for GitHub workflow operations (PRs, issues, checks, runs), compact Actions/check watch loops, and local repo metadata.
 - Load the `git-context` skill when working with branches, remotes, or diffs.
 - Load the `pr-review` skill when reviewing code changes or pull requests.
 - Use the question tool when there are unknowns that cannot be looked up.

@@ -59,9 +59,11 @@ If a PR exists for the branch:
 ```bash
 gh pr view              # Read description
 gh pr checks            # Check CI status, find failing checks
-gh pr checks --watch    # Watch for checks only when explicitly requested by the user
+gh pr checks --watch    # Watch checks when the task requires waiting for CI
 gh pr diff              # See what's in the PR
 ```
+
+For long-running GitHub Actions waits, prefer compact `gh` watches over repeated GitHub MCP polling when available. Check `gh run watch --help` or `gh pr checks --help` first; this setup supports `gh run watch <run-id> --compact --exit-status --interval <seconds>` and `gh pr checks --watch`. Do not use `gh run view --watch` unless the installed CLI documents it.
 
 ## Rebases and Interactive Editor Operations
 
