@@ -299,7 +299,7 @@ For dead-code analysis, use the MCP `analyze` tool with `root: dot`, or `/fallow
 
 ### Effect language service
 
-`@effect/language-service` is enabled in `tsconfig.json`, and the `prepare` script patches the local TypeScript (`effect-language-service patch`) so `mise run dot:typecheck` surfaces the official Effect v4 diagnostics inline. Effect errors fail the typecheck; warnings and messages stay advisory (`ignoreEffectWarningsInTscExitCode` is set), so keep them visible but non-blocking. Editors and OpenCode also pick up the plugin's refactors and diagnostics through the TypeScript LSP when the workspace TypeScript version is used. For a report without patching, run `effect-language-service diagnostics --project tsconfig.json` (also `overview`, `quickfixes`, `layerinfo`) from `dot/`, always via the local install rather than a bare remote `bunx`/`npx`.
+`@effect/tsgo` patches the TypeScript 7 native binary (`effect-tsgo patch` in `prepare`) so `mise run dot:typecheck` surfaces the official Effect v4 diagnostics inline. The plugin entry in `tsconfig.json` remains named `@effect/language-service` (Effect's stable plugin id). Effect errors fail the typecheck; warnings and messages stay advisory (`ignoreEffectWarningsInTscExitCode` is set), so keep them visible but non-blocking. Editors pick up the diagnostics through the TypeScript Native Preview language server when `typescript.native-preview.tsdk` points at the workspace `typescript` install.
 
 Dependency note: the tracked lockfile is `bun.lock` (committed, matching the `docs/` package). CI runs `bun install --frozen-lockfile` against it. After changing dependencies with `bun add`/`bun update`, commit the regenerated `bun.lock`, otherwise the CI frozen install fails.
 
