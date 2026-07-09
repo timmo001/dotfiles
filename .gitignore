@@ -8,6 +8,7 @@ __pycache__/
 /node_modules/
 /bun.lock
 /mise.lock
+/mise/.config/mise/mise.lock
 dot/node_modules/
 dot/dist/
 dot/.fallow/
