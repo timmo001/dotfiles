@@ -1,10 +1,11 @@
 /**
  * @file Sends contextual desktop and terminal notifications for agent events.
  *
- * Uses OSC 777 so supported terminals can focus the originating surface when
- * the notification is clicked, BEL to request attention, and `paplay` for the
- * freedesktop message sound. Main session completions and permission prompts
- * include the session title, while background task completions stay silent.
+ * Uses `notify-send` for desktop notifications that focus the originating
+ * Hyprland window only when clicked, BEL to request attention, and `paplay`
+ * for the freedesktop message sound. Main session completions and permission
+ * prompts include the session title, while background task completions stay
+ * silent.
  */
 
 import type { Plugin } from "@opencode-ai/plugin";
@@ -23,6 +24,20 @@ function dataOrValue(value: unknown): unknown {
 export const NotificationPlugin = (async ({ $, client }) => {
   const soundPath = "/usr/share/sounds/freedesktop/stereo/message.oga";
   let canPlaySound: boolean | undefined;
+  let canNotify: boolean | undefined;
+  let originWindowAddress = "";
+
+  try {
+    const activeWindow = recordFromUnknown(
+      JSON.parse(await $`hyprctl activewindow -j`.text()),
+    );
+    if (
+      typeof activeWindow.address === "string" &&
+      /^0x[0-9a-f]+$/i.test(activeWindow.address)
+    ) {
+      originWindowAddress = activeWindow.address;
+    }
+  } catch {}
 
   const sanitizeNotificationText = (value: string, fallback: string) => {
     const sanitized = [...value]
@@ -66,6 +81,30 @@ export const NotificationPlugin = (async ({ $, client }) => {
     } catch {}
   };
 
+  const sendDesktopNotification = async (title: string, body: string) => {
+    if (canNotify === undefined) {
+      try {
+        await $`sh -lc "command -v notify-send >/dev/null 2>&1"`;
+        canNotify = true;
+      } catch {
+        canNotify = false;
+      }
+    }
+
+    if (!canNotify) return;
+
+    try {
+      void $`notify-send --app-name=OpenCode --action=default=Open ${title} ${body}`
+        .text()
+        .then(async (action) => {
+          if (action.trim() === "default" && originWindowAddress) {
+            await $`hyprctl dispatch focuswindow address:${originWindowAddress}`;
+          }
+        })
+        .catch(() => {});
+    } catch {}
+  };
+
   const getSession = async (sessionID: string) => {
     try {
       const result = await client.session.get({ path: { id: sessionID } });
@@ -75,19 +114,15 @@ export const NotificationPlugin = (async ({ $, client }) => {
     }
   };
 
-  const notifyTerminal = (title: string, body: string) => {
+  const notify = async (title: string, body: string) => {
     const safeTitle = sanitizeNotificationText(title, "OpenCode");
     const safeBody = sanitizeNotificationText(body, "Attention required");
 
     try {
-      process.stdout.write(
-        `\u001b]777;notify;${safeTitle};${safeBody}\u001b\\\u0007`,
-      );
+      process.stdout.write("\u0007");
     } catch {}
-  };
 
-  const notify = async (title: string, body: string) => {
-    notifyTerminal(title, body);
+    await sendDesktopNotification(safeTitle, safeBody);
     await playSound();
   };
 

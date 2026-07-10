@@ -61,7 +61,7 @@ Unlike the rest of these (personal) dotfiles, the OpenCode config is built to be
 - **Repository notes**: the `repo-notes` plugin injects the current repository's notes path, the `notes` MCP server owns vault reads and writes, and `notes-guard` blocks direct file or shell access to the notes vault. See [Notes & Handoffs](/dot/notes/) and [MCP Servers](/opencode/mcp/).
 - **Secret protection** — the `env-protection` plugin blocks reads of `.env` files (except `.env.example`).
 - **Background dev servers** — starting a long-running dev server follows a precedence: the project's own `AGENTS.md` workflow first, then framework-native background mode (Astro 7+ self-detaches `astro dev` under an agent), then pitchfork as the fallback. The `pitchfork-dev-server-guard` plugin covers only the pitchfork tier, redirecting foreground dev commands to `serve:*` or `pitchfork start` when a project declares `pitchfork.toml`, and it leaves `astro dev` to Astro's native mode.
-- **Contextual notifications** - top-level task completion and permission events emit an OSC 777 terminal notification, ring BEL, and play the freedesktop message sound when `paplay` is available. Background subagent completions stay silent.
+- **Contextual notifications** - top-level task completion and permission events send a desktop notification without taking focus, ring BEL, and play the freedesktop message sound when `paplay` is available. Clicking a notification focuses its originating OpenCode window under Hyprland. Background subagent completions stay silent.
 
 ## Tooling
 
