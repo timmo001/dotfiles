@@ -1,6 +1,6 @@
 ---
 title: Agents
-description: OpenCode agents defined in this repo, with their permission posture.
+description: OpenCode agents defined in this repo.
 sidebar:
   order: 2
 ---

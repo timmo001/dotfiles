@@ -67,6 +67,12 @@ Restore a specific file:
 workspace-restore --file=~/workspace-before-restart.json
 ```
 
+Search a different state directory for the newest capture and write `restore.log` there:
+
+```bash
+workspace-restore --state-dir=~/somewhere
+```
+
 The restore log is written to:
 
 ```text
@@ -83,7 +89,7 @@ The restore script reads `hyprctl -j clients` and tries these paths in order:
 - Restore floating geometry or tiled size when the saved client has enough geometry data.
 - Switch back to the saved active workspace at the end.
 
-Supported relaunch paths are encoded in `workspace-restore` and currently cover Chromium, work Chrome app windows, Slack, Discord, Twitch webapps, generic Chrome webapps with captured URLs, and Ghostty terminals with the saved working directory.
+Supported relaunch paths are encoded in `workspace-restore` and cover Chromium, work Chrome app windows, Slack, Discord, Twitch webapps, generic Chrome webapps with captured URLs, and Ghostty terminals. Ghostty launches through `ghostty-host-config` to keep the active `config.$OMARCHY_HOST` override, and passes `--working-directory` when the saved directory still exists.
 
 Captured browser URLs are passed to the Hyprland launcher as one shell-quoted argument, so query strings and shell metacharacters are preserved as URL data rather than interpreted as commands.
 

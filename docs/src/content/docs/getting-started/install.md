@@ -34,19 +34,21 @@ mise run dot:build
 
 ## First-use setup
 
-`dot init` runs the one-time first-use setup: it bootstraps private dotfiles when `gh auth` is available, syncs Omarchy repos, selects the Hypr host, installs and adopts config, installs stowed mise tools, sets up packages and machine hooks, and syncs agents. It logs to `~/.local/state/dot/init.log` by default, and each long-running phase uses the same spinner and timeout handling as `dot update`.
+`dot init` runs the one-time first-use setup: it bootstraps private dotfiles when allowed, syncs Omarchy repos, selects the Hypr host, installs and adopts config, installs stowed mise tools, sets up packages and machine hooks, and syncs agents. It logs to `~/.local/state/dot/init.log` by default. The private-overlay pull or clone runs first as an unbounded preflight; the setup phases that follow use the same spinner and timeout handling as `dot update`.
 
 ```bash
-~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive --confirm
+~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive
 ```
 
 For a laptop, select the laptop host:
 
 ```bash
-dot init --host laptop --noninteractive --confirm
+dot init --host laptop --noninteractive
 ```
 
 Or run `dot init` in an interactive shell to be prompted.
+
+`--noninteractive` skips only the Hypr host questionnaire; elevation and package tools may still prompt. `--confirm` remains accepted for compatibility but does not suppress prompts. Private overlay preflight is controlled by `DOT_ALLOW_PRIVATE`: `auto` skips without GitHub authentication and tolerates an existing-overlay pull failure, but a failed attempted clone is fatal; `always` requires the overlay to update or clone successfully; `never` skips it.
 
 :::note
 If stock Omarchy directories already exist at `~/.config/bootstrap`, `~/.config/waybar`, or `~/.config/uwsm`, `dot init` backs them up with a `.dot-init-backup-*` suffix before cloning the managed repos. Hyprland and Ghostty config are stowed from the `hypr/` and `ghostty/` packages instead.
@@ -58,11 +60,11 @@ After init completes, restart your shell so `dot` is on `PATH`, then reboot so t
 
 ```bash
 dot doctor    # health checks
-dot update    # self-update, install deps, rebuild, pull, stow, restart
+dot update    # self-update and relaunch, then pull, reconcile, stow, and rebuild
 dot git-diff  # review changes across managed repos
 context git   # branch context for the current repo (from the context-git package)
 ```
 
 `context git` and `context stack` come from the `context-git` AUR package installed during init. They are used by OpenCode plugins and agent harnesses for repository context; see [Context Integration](/git/context/).
 
-`dot update` is the everyday command: it self-updates the public dotfiles, installs dependencies, rebuilds and restarts on the new binary, then runs Omarchy and public/private pulls, a stow refresh, and Hypr host-link setup. See the [Command Reference](/dot/commands/) for the full flag list.
+`dot update` is the everyday command. It pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches on the new binary, then scans and pulls tracked repositories. The remaining full-update phases trust mise configs, regenerate completions, install missing public packages, sync MCP configs, stow, rebuild, sync agents, backfill the init marker, and refresh resume-managed services. See the [Command Reference](/dot/commands/) for scoped phase flags and exit codes.

@@ -17,10 +17,6 @@ _dot_cmd_init() {
   prev=${COMP_WORDS[COMP_CWORD-1]}
   cword=$COMP_CWORD
   case $prev in
-    --host)
-      COMPREPLY=( $(compgen -W 'desktop laptop' -- "$cur") )
-      return
-      ;;
     --log)
       COMPREPLY=( $(compgen -f -- "$cur") )
       return

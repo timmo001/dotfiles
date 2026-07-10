@@ -44,17 +44,19 @@ dot init [options]
 Run the one-time first-use setup workflow for a fresh machine. Init prepares
 repos, stow links, mise tools, packages, and machine hooks. After init
 completes, reboot so the Omarchy session picks up host env, then run
-dot doctor. Use dot update for ongoing maintenance.
+dot doctor. Before the bounded workflow starts, init updates or clones the
+optional private overlay according to DOT_ALLOW_PRIVATE. Use dot update for
+ongoing maintenance.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
-| `--confirm` | Acknowledge non-interactive package helpers |
-| `--noninteractive` | Skip interactive prompts for this run |
-| `--interactive` | Allow interactive prompts for this run |
+| `--confirm` | Compatibility flag; accepted but does not suppress prompts |
+| `--noninteractive` | Skip the Hypr host questionnaire for this run |
+| `--interactive` | Enable the Hypr host questionnaire when no host is selected |
 | `--force` | Re-run init even if the machine looks initialised |
-| `--host` `<name>` | Hypr host to link before stow (default: OMARCHY_HOST or desktop) (one of: `desktop`, `laptop`) |
+| `--host` `<name>` | Hypr host to link before stow (default: OMARCHY_HOST or desktop) |
 | `--log` `<path>` | Init log path (default: ~/.local/state/dot/init.log) |
 | `--branch` `<name>` | Branch override for non-bootstrap Omarchy repos |
 | `--bootstrap-branch` `<name>` | Branch override for bootstrap |
@@ -62,9 +64,9 @@ dot doctor. Use dot update for ongoing maintenance.
 **Examples**
 
 ```bash
-dot init --noninteractive --confirm
-dot init --host laptop --noninteractive --confirm
-dot init --force --noninteractive --confirm
+dot init --noninteractive
+dot init --host laptop --noninteractive
+dot init --force --noninteractive
 dot init --branch main --bootstrap-branch distro/omarchy
 ```
 
@@ -80,21 +82,42 @@ dot install
 
 Aliases: `dot up`
 
-Pull repos, stow dotfiles, install deps, rebuild
+Self-update, pull repos, stow dotfiles, rebuild
 
 ```text
 dot update
 ```
 
+A full update pulls the public dotfiles, installs Bun dependencies, rebuilds
+and relaunches dot, then scans and pulls tracked repositories. It trusts
+tracked mise configs, regenerates completions, installs missing public
+Arch/AUR packages, runs the required MCP sync, stows, rebuilds again, runs
+agents sync, backfills the init marker, and starts the resume refresh.
+
+Phase flags are inclusive: passing any of --pull, --stow, or --tui runs only
+the selected phases. Scoped runs skip full-update package reconciliation,
+agents sync, and init-marker backfill. Every mode that reaches the end starts
+the bounded resume refresh.
+
 **Options**
 
 | Option | Description |
 | --- | --- |
-| `--pull` | Pull repos only |
-| `--stow` | Stow only |
-| `--tui` | Install deps and rebuild dot binary only |
+| `--pull` | Run the repository pull phase only |
+| `--stow` | Generate completions, sync MCP configs, and stow only |
+| `--tui` | Install Bun dependencies and rebuild the dot binary only |
 | `--check` | Report core/system repos behind upstream (no update); exit 10 if any |
 | `--check-all` | Report all tracked repos behind upstream (no update); exit 10 if any |
+
+**Exit codes**
+
+```text
+0   Update completed, or an update check found nothing behind
+1   Fatal workflow failure
+2   Update check could not scan repositories
+10  Update check found repositories behind upstream
+11  Legacy Hypr migration is required before update can continue
+```
 
 ## `dot stow`
 
@@ -119,9 +142,10 @@ Reconcile managed ufw firewall rules
 dot firewall
 ```
 
-Ensure the managed ufw allow rules are present and carry their purpose
-comments. Missing rules are added, stale-comment rules are deleted and
-re-added, then ufw is reloaded once.
+Ensure the managed ufw allow rules are present with their exact source,
+destination, interface/direction, and purpose comment. Missing rules are
+added, stale-comment rules are deleted and re-added, then ufw is reloaded
+once. A source-restricted rule does not satisfy a managed any-source rule.
 
 **Examples**
 
@@ -149,7 +173,7 @@ always written to ~/.local/state/dot/logs/.
 
 | Option | Description |
 | --- | --- |
-| `--open-opencode` | Save report and open it in OpenCode |
+| `--open-opencode` | Save the report and attempt to open it in OpenCode |
 
 **Checks performed**
 
@@ -506,7 +530,7 @@ dot is-agent && echo running under an agent
 
 ## `dot setup-private-repo`
 
-Register private pacman repo include
+Sync and register the private pacman repository
 
 ```text
 dot setup-private-repo
@@ -583,7 +607,7 @@ dot skill-check
 
 | Option | Description |
 | --- | --- |
-| `--open-opencode` | Run checks then open OpenCode analysis |
+| `--open-opencode` | Run checks and attempt OpenCode analysis |
 | `--diff-origin` | Diff imported skills against their upstream origins; with --open-opencode, include the diff in the prompt |
 
 ## `dot completions`
@@ -669,14 +693,17 @@ Local-first analytics for dot usage
 dot usage [summary|stale|path|backfill] [options]
 ```
 
-Report local-first usage analytics for dot. Each dot invocation appends
-a privacy-conscious NDJSON event under $XDG_STATE_HOME/tool-usage (flag
-names and exit status only, never positional values). Shell-history
-backfill can also observe selected standalone tool invocations without
-requiring those tools to integrate with dot.
+Report local-first usage analytics for dot. Dispatched dot commands append
+NDJSON events under $XDG_STATE_HOME/tool-usage with timestamps, machine,
+canonical command, recognised flag names, exit status, duration, source,
+and invoker. Live dot events never store positional values.
 
-Set DOT_USAGE_DISABLE=1 to stop recording, or DOT_USAGE_DIR to relocate
-the event root.
+Optional shell-history backfill observes selected standalone tools without
+requiring integration. It uses whitespace tokenisation, so review the source
+history before applying when arguments may contain sensitive text.
+
+Set DOT_USAGE_DISABLE=1 to stop automatic live recording, or DOT_USAGE_DIR
+to relocate the event root. Explicit backfill --apply still writes events.
 
 **Modes**
 

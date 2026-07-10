@@ -6,7 +6,7 @@ dot_commands=(
   'dashboard:Open the dot dashboard'
   'init:Run one-time first-use machine setup'
   'install:Ensure prerequisites, then backup/adopt dotfiles'
-  'update:Pull repos, stow dotfiles, install deps, rebuild'
+  'update:Self-update, pull repos, stow dotfiles, rebuild'
   'up:Alias for update'
   'stow:Re-stow public/private dotfiles'
   'firewall:Reconcile managed ufw firewall rules'
@@ -21,7 +21,7 @@ dot_commands=(
   'agents-sync:Mirror AGENTS.md to agent harness instruction files'
   'mcp-sync:Regenerate MCP configs for all harnesses from the spec'
   'is-agent:Detect whether an AI coding agent is running dot'
-  'setup-private-repo:Register private pacman repo include'
+  'setup-private-repo:Sync and register the private pacman repository'
   'private-pkg-publish:Build and publish a private package'
   'skill-updates:Check/apply imported skill updates'
   'skill-check:Validate skill maintenance wiring'
@@ -39,11 +39,11 @@ _dot_cmd_dashboard() {
 }
 _dot_cmd_init() {
   _arguments -S \
-    '--confirm[Acknowledge non-interactive package helpers]' \
-    '--noninteractive[Skip interactive prompts for this run]' \
-    '--interactive[Allow interactive prompts for this run]' \
+    '--confirm[Compatibility flag; accepted but does not suppress prompts]' \
+    '--noninteractive[Skip the Hypr host questionnaire for this run]' \
+    '--interactive[Enable the Hypr host questionnaire when no host is selected]' \
     '--force[Re-run init even if the machine looks initialised]' \
-    '--host[Hypr host to link before stow (default: OMARCHY_HOST or desktop)]:name:((desktop:Desktop\ Hypr\ host laptop:Laptop\ Hypr\ host))' \
+    '--host[Hypr host to link before stow (default: OMARCHY_HOST or desktop)]:name:' \
     '--log[Init log path (default: ~/.local/state/dot/init.log)]:path:_files' \
     '--branch[Branch override for non-bootstrap Omarchy repos]:name:' \
     '--bootstrap-branch[Branch override for bootstrap]:name:' \
@@ -59,9 +59,9 @@ _dot_cmd_install() {
 }
 _dot_cmd_update() {
   _arguments -S \
-    '--pull[Pull repos only]' \
-    '--stow[Stow only]' \
-    '--tui[Install deps and rebuild dot binary only]' \
+    '--pull[Run the repository pull phase only]' \
+    '--stow[Generate completions, sync MCP configs, and stow only]' \
+    '--tui[Install Bun dependencies and rebuild the dot binary only]' \
     '--check[Report core/system repos behind upstream (no update); exit 10 if any]' \
     '--check-all[Report all tracked repos behind upstream (no update); exit 10 if any]' \
     '(-h --help)-h[Show this help message]' \
@@ -84,7 +84,7 @@ _dot_cmd_firewall() {
 }
 _dot_cmd_doctor() {
   _arguments -S \
-    '--open-opencode[Save report and open it in OpenCode]' \
+    '--open-opencode[Save the report and attempt to open it in OpenCode]' \
     '(-h --help)-h[Show this help message]' \
     '(-h --help)--help[Show this help message]' \
     '*::arg:->args'
@@ -204,7 +204,7 @@ _dot_cmd_skill_updates() {
 }
 _dot_cmd_skill_check() {
   _arguments -S \
-    '--open-opencode[Run checks then open OpenCode analysis]' \
+    '--open-opencode[Run checks and attempt OpenCode analysis]' \
     '--diff-origin[Diff imported skills against their upstream origins; with --open-opencode, include the diff in the prompt]' \
     '(-h --help)-h[Show this help message]' \
     '(-h --help)--help[Show this help message]' \

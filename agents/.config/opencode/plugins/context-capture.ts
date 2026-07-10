@@ -1,7 +1,7 @@
 /**
  * @file Opt-in capture of the assembled starter context for token profiling.
  *
- * Inert unless `DOT_CONTEXT_CAPTURE` is set in the environment, so it adds no
+ * Inert unless `DOT_CONTEXT_CAPTURE=1` is set in the environment, so it adds no
  * runtime cost to normal sessions beyond loading an early-returning module.
  * When enabled, it records the two buckets that make up the starter context:
  *
@@ -12,9 +12,9 @@
  *
  * Output lands in a private, unique child of `DOT_CONTEXT_CAPTURE_DIR` (default
  * `/tmp/opencode`): one file per system segment, a JSONL of per-tool sizes, and
- * the raw tool schemas. A companion script tokenizes these to attribute the
- * starter-context cost by source. This is a measurement harness, not a
- * behaviour change: it never mutates `system` or tool defs.
+ * the raw tool schemas. These files can be tokenized to attribute the starter-
+ * context cost by source. This is a measurement harness, not a behaviour
+ * change: it never mutates `system` or tool defs.
  */
 
 import type { Plugin } from "@opencode-ai/plugin"

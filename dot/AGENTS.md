@@ -180,19 +180,19 @@ stow.
 `spec.ts` is also the source for the docs command reference at
 `docs/src/content/docs/dot/commands.md`. After changing the spec, regenerate it
 with `bun run gen:cli` in `../docs` (alongside shell completions) and commit
-the result. The `tui-build` workflow regenerates and commits it on changes to
-`dot/`.
+the result. The `tui-build` workflow regenerates it and fails when the committed
+copy differs.
 
 ```text
 dot                           # Main menu (TUI)
 dot init                      # One-time first-use setup; logs to ~/.local/state/dot/init.log
-dot init --noninteractive --confirm # Non-interactive first setup for VMs
-dot init --host laptop --noninteractive --confirm # First setup with laptop host overrides
+dot init --noninteractive          # First setup without the host questionnaire
+dot init --host laptop --noninteractive # First setup with laptop host overrides
 dot init --log ~/Public/init.log # First setup with an explicit log path
 dot install                   # Ensure prerequisites, then backup/adopt install flow
 dot update                    # Full update (install deps, rebuild, restart, pull, trust mise configs, stow, init-state backfill)
 dot update --pull             # Pull repos only
-dot update --stow             # Stow only
+dot update --stow             # Generate completions, sync MCP configs, and stow only
 dot update --tui              # Install deps and rebuild binary only
 dot update --check            # Report core/system repos behind upstream (no update); exit 10 if any
 dot update --check-all        # Report all tracked repos behind upstream (no update); exit 10 if any
@@ -237,7 +237,7 @@ dot git-notifications --ignore <id> # Ignore new notifications for a thread
 dot git-notifications --unignore <id> # Stop ignoring a thread
 dot agents-sync               # Mirror AGENTS.md to agent harness instruction files
 dot mcp-sync                  # Regenerate MCP configs for all harnesses from the private spec
-dot setup-private-repo        # Register private pacman repo include
+dot setup-private-repo        # Sync and register private pacman repo
 dot private-pkg-publish <pkg> --install # Build, publish, and install a mapped private package
 dot skill-updates             # Check/apply skill updates
 dot skill-updates --check     # Check only (no apply)
@@ -262,6 +262,8 @@ mise run dot:build   # outputs to scripts/.local/bin/dot (wraps bun run build)
 ```
 
 The single root `mise.toml` defines the dev tasks, namespaced `dot:*` (`dot:install`, `dot:build`, `dot:dev`, `dot:typecheck`, `dot:test`, `dot:format`, `dot:format:check`, `dot:check`) with `dir = "dot"`; each wraps the matching `bun run` script, so `bun run build` still works for the fresh-machine bootstrap. `dot:build` depends on `dot:install`, and `dot:check` runs type checking, tests, and the format check. CI runs these via `mise run`. Run `mise tasks` to list them.
+
+Tests live under `tests/` alongside `src/` and mirror the source tree, for example `tests/git/services/workflowStatus.test.ts` covers `src/git/services/workflowStatus.ts`.
 
 The build is also triggered by `dot update`, which runs `bun install` before compiling the binary. `dot update`'s rebuild (`src/lib/selfUpdate.ts`) intentionally does **not** use the `build` task: it compiles to a temp path and atomically renames over the running binary to avoid `ETXTBSY`, which a direct `--outfile` over the live binary would hit.
 
@@ -311,24 +313,23 @@ For dead-code analysis, use the MCP `analyze` tool with `root: dot`, or `/fallow
 
 Dependency note: the tracked lockfile is `bun.lock` (committed, matching the `docs/` package). CI runs `bun install --frozen-lockfile` against it. After changing dependencies with `bun add`/`bun update`, commit the regenerated `bun.lock`, otherwise the CI frozen install fails.
 
-Smoke tests:
+Manual post-build checks:
 
 ```bash
-dot                          # smoke test: main menu renders, Ctrl+c quits
-dot git-diff                 # smoke test: diff view renders
-dot git-diff --raw           # smoke test: CLI diff output
-dot git-diff --bar-json      # smoke test: JSON output
-dot git-log                  # smoke test: git log view renders
-dot git-log --raw            # smoke test: CLI git log output
-dot git-commit --help        # smoke test: gateway help prints without side effects
-dot git-commit --dry-run -m "Test subject" # smoke test: dry-run plan, no commit
-dot git-commit --amend --dry-run # smoke test: amend plan (keep message), no commit
-dot git-notifications --raw  # smoke test: CLI notification output
-dot git-notifications --bar-json # smoke test: notification JSON output
-dot doctor                   # smoke test: health checks run
-dot firewall                 # smoke test: reconciles managed ufw rules
-dot init --help              # smoke test: init help prints without side effects
-dot help                     # smoke test: help prints
+dot                          # main menu renders, Ctrl+c quits
+dot git-diff                 # diff view renders
+dot git-diff --raw           # CLI diff output
+dot git-diff --bar-json      # JSON output
+dot git-log                  # git log view renders
+dot git-log --raw            # CLI git log output
+dot git-commit --help        # gateway help prints without side effects
+dot git-commit --dry-run -m "Test subject" # dry-run plan, no commit
+dot git-commit --amend --dry-run # amend plan (keep message), no commit
+dot git-notifications --raw  # CLI notification output
+dot git-notifications --bar-json # notification JSON output
+dot doctor                   # health checks run
+dot init --help              # init help prints without side effects
+dot help                     # help prints
 ```
 
 `dot init` clones the managed Omarchy repos into `~/.config/{bootstrap,waybar,uwsm}`. If a stock Omarchy config directory already exists there and is not a git repo, init moves it aside with a `.dot-init-backup-*` suffix before cloning; do not delete those backups automatically. Hyprland config is a stowed dotfiles package (`hypr/.config/hypr/`, conf-only) laid down with `--no-folding`, with the runtime `~/.config/hypr/host` symlink selecting the host overrides. Ghostty config is also stowed from `ghostty/.config/ghostty/`; `dot stow` backs up the retired `timmo001/omarchy-ghostty` clone before linking the stowed config.

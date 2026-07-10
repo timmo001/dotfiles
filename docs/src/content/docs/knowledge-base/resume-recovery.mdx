@@ -81,7 +81,7 @@ Use this when the machine wakes but the bar or desktop helpers look stale:
 
 ## Avoid duplicate prompts after updates
 
-`dot update` can trigger a post-update refresh. That path should call:
+Every `dot update` mode that reaches the end triggers a post-update refresh. That path calls:
 
 ```bash
 on-resume --post-update

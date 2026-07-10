@@ -3,7 +3,7 @@ import { cliCommands, getCliCommand, type CliCommandSpec } from "./spec.js";
 const rootExamples = [
   "dot                      Main menu",
   "dot dashboard            Full-screen dashboard",
-  "dot init --noninteractive --confirm",
+  "dot init --noninteractive",
   "dot update",
   "dot stow",
   "dot doctor",
@@ -18,7 +18,7 @@ const rootExamples = [
   "dot git-notifications --bar-json Status bar JSON output",
   "notes list               Repository notes CLI",
   "notes handoffs           Handoff notes CLI",
-  "dot setup-private-repo Repair private pacman repo include",
+  "dot setup-private-repo Sync and register private pacman repo",
   "dot private-pkg-publish twitch-notifications --install",
   "dot completions zsh",
   "dot omarchy theme        Omarchy theme submenu",

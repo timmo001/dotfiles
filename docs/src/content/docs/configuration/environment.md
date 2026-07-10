@@ -13,7 +13,7 @@ These variables tune paths and behaviour for `dot`. Most have sensible defaults;
 | ---------------------- | ------------------------------------------------------------- |
 | `DOTFILES_PUBLIC_DIR`  | Public dotfiles path (default `~/.config/dotfiles`).          |
 | `DOTFILES_PRIVATE_DIR` | Private dotfiles path (default `~/.config/dotfiles-private`). |
-| `DOT_ALLOW_PRIVATE`    | `auto\|always\|never` (default `auto`).                       |
+| `DOT_ALLOW_PRIVATE`    | Private overlay policy: optional `auto`, required `always`, or skipped `never` (default `auto`). A failed attempted clone is fatal in `auto` mode. |
 
 ## Git and GitHub
 
@@ -26,14 +26,14 @@ These variables tune paths and behaviour for `dot`. Most have sensible defaults;
 | `DOT_GITHUB_RATE_LIMIT_MAX_WAIT_SECONDS` | Upper bound on rate-limit backoff waits (default `60`).                                                                                                                   |
 | `DOT_INCLUDE_OMARCHY_DIFF_REPOS`         | Include Omarchy repos in `dot git-diff` (`1\|0`, default `1`).                                                                                                            |
 | `DOT_FETCH_TTL_SECONDS`                  | Seconds to reuse the last upstream fetch (default `300`).                                                                                                                 |
-| `DOT_GH_EXTENSIONS_FILE`                 | Public `gh` extension list installed by `dot init`/`update` (default `$DOTFILES_PUBLIC_DIR/.dot-gh-extensions`).                                                          |
+| `DOT_GH_EXTENSIONS_FILE`                 | Public `gh` extension list installed by `dot init` (default `$DOTFILES_PUBLIC_DIR/.dot-gh-extensions`).                                                                   |
 | `DOT_GH_MCP_BEARER`                      | Bearer token for the read-only GitHub MCP server. The shell wrappers and `opencode-server` set it only for agent harness processes; it is not exported globally.        |
 
 ## Private packages
 
 | Variable                          | Description                                                                                                                  |
 | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `DOT_PUBLIC_PACKAGES_FILE`        | Public Arch/AUR package list for `dot init` and package checks (default `$DOTFILES_PUBLIC_DIR/.dot-public-packages`).         |
+| `DOT_PUBLIC_PACKAGES_FILE`        | Public Arch/AUR package list for `dot init`, full `dot update`, and package checks (default `$DOTFILES_PUBLIC_DIR/.dot-public-packages`). |
 | `DOT_PRIVATE_PACKAGE_REPO_FILE`   | Private pacman repo config (default `$DOTFILES_PRIVATE_DIR/.dot-private-package-repo`).                                      |
 | `DOT_PRIVATE_PACKAGES_FILE`       | Private package list (default `$DOTFILES_PRIVATE_DIR/.dot-private-packages`).                                                |
 | `DOT_PRIVATE_PACKAGE_MAP_FILE`    | Private package name-to-source map for `dot private-pkg-publish` (default `$DOTFILES_PRIVATE_DIR/.dot-private-package-map`). |
@@ -63,7 +63,7 @@ These variables tune paths and behaviour for `dot`. Most have sensible defaults;
 
 ## Agents sync
 
-`dot agents-sync` mirrors `~/.config/opencode/AGENTS.md` to agent harness instruction files. It runs automatically at the end of `dot update` and `dot init`; there is no environment toggle to disable it.
+`dot agents-sync` mirrors `~/.config/opencode/AGENTS.md` to agent harness instruction files. It runs automatically at the end of full `dot update` and `dot init`; phase-scoped updates skip it. There is no environment toggle to disable it.
 
 Each target receives a transformed copy with harness-appropriate formatting where needed. All targets include a `dot agents-sync` HTML comment with source path and timestamp. OpenCode remains the single source of truth; other agent harnesses get plain file copies, not symlinks.
 
@@ -80,10 +80,16 @@ Each target receives a transformed copy with harness-appropriate formatting wher
 
 ## Debugging and output
 
-| Variable    | Description                                                                          |
-| ----------- | ------------------------------------------------------------------------------------ |
-| `DOT_DEBUG` | Enable stderr debug logging from `dot` subsystems (`1` or any non-empty value).      |
-| `NO_COLOR`  | Disable ANSI colour in TTY-aware output such as `context git` (any non-empty value). |
+| Variable                  | Description                                                                                   |
+| ------------------------- | --------------------------------------------------------------------------------------------- |
+| `DOT_DEBUG`               | Enable stderr debug logging from `dot` subsystems (`1` or any non-empty value).               |
+| `DOT_USAGE_DIR`           | Usage event root (default `$XDG_STATE_HOME/tool-usage`).                                       |
+| `DOT_USAGE_DISABLE`       | Disable automatic live `dot` usage recording when set to `1`; explicit backfill still writes. |
+| `DOT_CONTEXT_CAPTURE`     | Capture assembled OpenCode starter context when set to `1`.                                   |
+| `DOT_CONTEXT_CAPTURE_DIR` | Parent for private `context-baseline-*` capture directories (default `/tmp/opencode`).         |
+| `NO_COLOR`                | Disable ANSI colour in TTY-aware output such as `context git` (any non-empty value).           |
+
+Context capture writes numbered system-prompt segments, `system-index.json`, per-tool schemas, and `tools.jsonl` into a unique private child directory. It measures assembled context without changing prompts or tool definitions.
 
 ## Agent detection
 

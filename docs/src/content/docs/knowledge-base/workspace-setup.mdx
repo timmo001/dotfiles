@@ -56,6 +56,8 @@ Outside work time, setup prepares:
 
 After setup, it switches to workspace `2`.
 
+Terminal slots launch through `ghostty-host-config`, so they keep the active `config.$OMARCHY_HOST` override. Work-time terminal slots also pass the Home Assistant frontend checkout as `--working-directory`.
+
 ## How slots are matched
 
 Each slot has a Hyprland tag such as `wssetup-ws1-slack` or `wssetup-ws1-term`. Setup prefers an existing tagged window, then an existing matching candidate, then launches the command for that slot.

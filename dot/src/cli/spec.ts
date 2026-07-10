@@ -88,7 +88,7 @@ const barJsonOption = {
 
 const openOpencodeOption = {
   name: "--open-opencode",
-  description: "Run checks then open OpenCode analysis",
+  description: "Run checks and attempt OpenCode analysis",
 } satisfies CliOptionSpec;
 
 const omarchySubmenuChoices: readonly CliValueChoice[] = [
@@ -134,20 +134,24 @@ export const cliCommands: readonly CliCommandSpec[] = [
       "Run the one-time first-use setup workflow for a fresh machine. Init prepares",
       "repos, stow links, mise tools, packages, and machine hooks. After init",
       "completes, reboot so the Omarchy session picks up host env, then run",
-      "dot doctor. Use dot update for ongoing maintenance.",
+      "dot doctor. Before the bounded workflow starts, init updates or clones the",
+      "optional private overlay according to DOT_ALLOW_PRIVATE. Use dot update for",
+      "ongoing maintenance.",
     ],
     options: [
       {
         name: "--confirm",
-        description: "Acknowledge non-interactive package helpers",
+        description:
+          "Compatibility flag; accepted but does not suppress prompts",
       },
       {
         name: "--noninteractive",
-        description: "Skip interactive prompts for this run",
+        description: "Skip the Hypr host questionnaire for this run",
       },
       {
         name: "--interactive",
-        description: "Allow interactive prompts for this run",
+        description:
+          "Enable the Hypr host questionnaire when no host is selected",
       },
       {
         name: "--force",
@@ -158,10 +162,6 @@ export const cliCommands: readonly CliCommandSpec[] = [
         valueName: "name",
         description:
           "Hypr host to link before stow (default: OMARCHY_HOST or desktop)",
-        choices: [
-          { value: "desktop", description: "Desktop Hypr host" },
-          { value: "laptop", description: "Laptop Hypr host" },
-        ],
       },
       {
         name: "--log",
@@ -182,9 +182,9 @@ export const cliCommands: readonly CliCommandSpec[] = [
       helpOption,
     ],
     examples: [
-      "dot init --noninteractive --confirm",
-      "dot init --host laptop --noninteractive --confirm",
-      "dot init --force --noninteractive --confirm",
+      "dot init --noninteractive",
+      "dot init --host laptop --noninteractive",
+      "dot init --force --noninteractive",
       "dot init --branch main --bootstrap-branch distro/omarchy",
     ],
   },
@@ -196,13 +196,28 @@ export const cliCommands: readonly CliCommandSpec[] = [
   {
     name: "update",
     aliases: ["up"],
-    summary: "Pull repos, stow dotfiles, install deps, rebuild",
+    summary: "Self-update, pull repos, stow dotfiles, rebuild",
+    description: [
+      "A full update pulls the public dotfiles, installs Bun dependencies, rebuilds",
+      "and relaunches dot, then scans and pulls tracked repositories. It trusts",
+      "tracked mise configs, regenerates completions, installs missing public",
+      "Arch/AUR packages, runs the required MCP sync, stows, rebuilds again, runs",
+      "agents sync, backfills the init marker, and starts the resume refresh.",
+      "",
+      "Phase flags are inclusive: passing any of --pull, --stow, or --tui runs only",
+      "the selected phases. Scoped runs skip full-update package reconciliation,",
+      "agents sync, and init-marker backfill. Every mode that reaches the end starts",
+      "the bounded resume refresh.",
+    ],
     options: [
-      { name: "--pull", description: "Pull repos only" },
-      { name: "--stow", description: "Stow only" },
+      { name: "--pull", description: "Run the repository pull phase only" },
+      {
+        name: "--stow",
+        description: "Generate completions, sync MCP configs, and stow only",
+      },
       {
         name: "--tui",
-        description: "Install deps and rebuild dot binary only",
+        description: "Install Bun dependencies and rebuild the dot binary only",
       },
       {
         name: "--check",
@@ -215,6 +230,18 @@ export const cliCommands: readonly CliCommandSpec[] = [
           "Report all tracked repos behind upstream (no update); exit 10 if any",
       },
       helpOption,
+    ],
+    sections: [
+      {
+        title: "Exit codes",
+        lines: [
+          "0   Update completed, or an update check found nothing behind",
+          "1   Fatal workflow failure",
+          "2   Update check could not scan repositories",
+          "10  Update check found repositories behind upstream",
+          "11  Legacy Hypr migration is required before update can continue",
+        ],
+      },
     ],
   },
   {
@@ -230,9 +257,10 @@ export const cliCommands: readonly CliCommandSpec[] = [
     name: "firewall",
     summary: "Reconcile managed ufw firewall rules",
     description: [
-      "Ensure the managed ufw allow rules are present and carry their purpose",
-      "comments. Missing rules are added, stale-comment rules are deleted and",
-      "re-added, then ufw is reloaded once.",
+      "Ensure the managed ufw allow rules are present with their exact source,",
+      "destination, interface/direction, and purpose comment. Missing rules are",
+      "added, stale-comment rules are deleted and re-added, then ufw is reloaded",
+      "once. A source-restricted rule does not satisfy a managed any-source rule.",
     ],
     options: [helpOption],
     examples: ["dot firewall"],
@@ -253,7 +281,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
     options: [
       {
         ...openOpencodeOption,
-        description: "Save report and open it in OpenCode",
+        description: "Save the report and attempt to open it in OpenCode",
       },
       helpOption,
     ],
@@ -610,7 +638,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
   },
   {
     name: "setup-private-repo",
-    summary: "Register private pacman repo include",
+    summary: "Sync and register the private pacman repository",
     description: [
       "Sync the private Arch package repo mirror, write the private pacman repo",
       "snippet, and add the Include line to /etc/pacman.conf when it is missing.",
@@ -732,14 +760,17 @@ export const cliCommands: readonly CliCommandSpec[] = [
     summary: "Local-first analytics for dot usage",
     usage: "[summary|stale|path|backfill] [options]",
     description: [
-      "Report local-first usage analytics for dot. Each dot invocation appends",
-      "a privacy-conscious NDJSON event under $XDG_STATE_HOME/tool-usage (flag",
-      "names and exit status only, never positional values). Shell-history",
-      "backfill can also observe selected standalone tool invocations without",
-      "requiring those tools to integrate with dot.",
+      "Report local-first usage analytics for dot. Dispatched dot commands append",
+      "NDJSON events under $XDG_STATE_HOME/tool-usage with timestamps, machine,",
+      "canonical command, recognised flag names, exit status, duration, source,",
+      "and invoker. Live dot events never store positional values.",
       "",
-      "Set DOT_USAGE_DISABLE=1 to stop recording, or DOT_USAGE_DIR to relocate",
-      "the event root.",
+      "Optional shell-history backfill observes selected standalone tools without",
+      "requiring integration. It uses whitespace tokenisation, so review the source",
+      "history before applying when arguments may contain sensitive text.",
+      "",
+      "Set DOT_USAGE_DISABLE=1 to stop automatic live recording, or DOT_USAGE_DIR",
+      "to relocate the event root. Explicit backfill --apply still writes events.",
     ],
     modes: [
       "summary    Per-feature usage table (default)",

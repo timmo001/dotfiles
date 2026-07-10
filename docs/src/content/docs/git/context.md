@@ -56,7 +56,7 @@ Use [`notes mcp`](https://notes.timmo.dev/mcp/) for the notes vault. Agent harne
 
 The dotfiles repo keeps the OpenCode plugins that consume `context` JSON and render prompt blocks:
 
-- `branch-context` runs `context git --json` and injects `<branch-context>` XML for scoped slash commands (full branch context, or work-scope-only variants without the pull request).
+- `branch-context` runs `context git --json` and injects `<branch-context>` XML for scoped slash commands (PR-inclusive branch context, or work-scope-only variants without the pull request). PR descriptions are capped at 4,000 characters; up to 20 comments and 20 reviews are included, with each body capped at 2,000 characters.
 - `stack-context` runs `context stack --json` and injects `<stack-context>` XML automatically on the first message of a session inside a git repository, and on demand for `/inject-stack` or `/inject-context`.
 
 Plugin-specific command allowlists and injection rules stay in `agents/.config/opencode/plugins/`. For CLI flags, JSON payload fields, and MCP tool parameters, see <https://context.timmo.dev>.

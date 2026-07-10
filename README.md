@@ -36,7 +36,7 @@ mise install
 mise run dot:build
 
 # One-time first-use setup.
-~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive --confirm
+~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive
 
 # Ongoing workflow after restarting the shell
 dot doctor

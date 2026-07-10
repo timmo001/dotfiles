@@ -9,7 +9,7 @@ sidebar:
 
 ## Public packages
 
-`dot init` installs the Arch and AUR packages listed in `.dot-public-packages` at the repo root. The file is one package name per line; blank lines and `#` comments are ignored.
+`dot init` and a full unscoped `dot update` install the Arch and AUR packages listed in `.dot-public-packages` at the repo root. The file is one package name per line; blank lines and `#` comments are ignored.
 
 The list covers shared tooling rather than desktop apps you might install separately: build helpers (`cmake`, `gcc`, `pkgconf`), diagnostics (`bmon`, `iperf3`, `sysstat`, `topgrade-bin`), shell and terminal helpers (`zsh` and its plugins, `mise-bin`), desktop integrations (`context-git`, `repo-notes-git`, `kdeconnect`, `system-bridge-git`), and other utilities referenced across the dotfiles setup. Override the path with `DOT_PUBLIC_PACKAGES_FILE`.
 
@@ -17,7 +17,7 @@ Missing public packages are installed with `omarchy-pkg-aur-add`; already-instal
 
 Some AUR packages conflict with an official-repo package that must be removed first. `dot` handles the known case (`mise-bin` replacing `mise`) before installing.
 
-Private packages from `.dot-private-packages` in the private overlay are installed after the public list when the overlay is available.
+Private packages from `.dot-private-packages` in the private overlay are installed after the public list during init when the overlay is available.
 
 ## Register the private repo
 
@@ -25,7 +25,7 @@ Private packages from `.dot-private-packages` in the private overlay are install
 dot setup-private-repo
 ```
 
-Syncs the private Arch package repo mirror, writes the private pacman repo snippet, and adds the `Include` line to `/etc/pacman.conf` when it is missing. If the local source clone is missing but the mirror and pacman config are already correct, setup skips the clone and leaves publishing workflows to create it later. This repairs Omarchy `pacman.conf` refreshes that remove local repository includes. Privileged writes prefer `pkexec` and fall back to `sudo`.
+Syncs the private Arch package repo mirror, writes the private pacman repo snippet, and adds the `Include` line to `/etc/pacman.conf` when it is missing. If the local source clone is missing, setup skips cloning only when the configured mirror already contains `<repo>.db`, `<repo>.db.tar.gz`, or `<repo>.db.tar.zst` and pacman registration is current. This supports an already usable local mirror, but publishing still requires the configured source clone to exist. The command repairs Omarchy `pacman.conf` refreshes that remove local repository includes. Privileged writes prefer `pkexec` and fall back to `sudo`.
 
 ## Publish a package
 

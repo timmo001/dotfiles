@@ -308,9 +308,9 @@ repos, stow links, mise tools, packages, and machine hooks. After init
 completes, run dot doctor, then use dot update for ongoing maintenance.
 
 Options:
-  --confirm                 Acknowledge non-interactive package helpers
-  --noninteractive          Skip interactive prompts for this run
-  --interactive             Allow interactive prompts for this run
+  --confirm                 Compatibility flag; accepted but does not suppress prompts
+  --noninteractive          Skip the Hypr host questionnaire for this run
+  --interactive             Enable the Hypr host questionnaire when no host is selected
   --force                   Re-run init even if the machine looks initialised
   --host <name>             Hypr host to link before stow (default: OMARCHY_HOST or desktop)
   --log <path>              Init log path (default: ~/.local/state/dot/init.log)
@@ -319,8 +319,8 @@ Options:
   --help, -h                Show this help message
 
 Examples:
-  dot init --noninteractive --confirm
-  dot init --host laptop --noninteractive --confirm
+  dot init --noninteractive
+  dot init --host laptop --noninteractive
   dot init --branch main --bootstrap-branch distro/omarchy`);
 }
 

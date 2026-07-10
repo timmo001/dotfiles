@@ -100,7 +100,7 @@ async function generateAgents(): Promise<void> {
   const files = (await readdir(dir)).filter((f) => f.endsWith('.md')).sort();
   const lines = pageHeader(
     'Agents',
-    'OpenCode agents defined in this repo, with their permission posture.',
+    'OpenCode agents defined in this repo.',
     2,
   );
   lines.push(
