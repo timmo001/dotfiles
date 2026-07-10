@@ -9,7 +9,11 @@ permission:
   list: allow
   skill: allow
   question: allow
-  task: allow
+  task:
+    "*": deny
+    explore: allow
+    general-readonly: allow
+    researcher-readonly: allow
   plan_enter: deny
   plan_exit: deny
   edit: deny

@@ -7,6 +7,11 @@ permission:
   glob: allow
   grep: allow
   list: allow
+  task:
+    "*": deny
+    explore: allow
+    general-readonly: allow
+    researcher-readonly: allow
   edit: deny
   write: deny
   notes_note_write: deny

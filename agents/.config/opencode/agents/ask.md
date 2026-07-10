@@ -9,6 +9,11 @@ permission:
   list: allow
   question: allow
   plan_enter: allow
+  task:
+    "*": deny
+    explore: allow
+    general-readonly: allow
+    researcher-readonly: allow
   edit: deny
   write: deny
   bash:

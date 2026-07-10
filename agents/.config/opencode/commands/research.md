@@ -9,7 +9,7 @@ Use `/investigate` instead for local triage and diagnosis, and `/explore-codebas
 
 Load and follow the `research` skill as the authoritative workflow.
 
-For broad upstream dependency, source, or documentation reading, the researcher may delegate read-only legwork to an available subagent whose description matches that work. The researcher still owns source ranking, claim verification, and the final cited synthesis.
+For broad upstream dependency, source, or documentation reading, the interactive researcher may delegate one layer of read-only legwork to `explore`, `general-readonly`, or `researcher-readonly`. Those subagents cannot delegate further. The researcher still owns source ranking, claim verification, and the final cited synthesis.
 
 Treat `${ARGUMENTS}` as the topic or question to research. If it is empty, use the current conversation context; if the target is still unclear, ask one question with the `question` tool to identify it.
 
