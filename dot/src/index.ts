@@ -239,10 +239,17 @@ function resolveMode(): Mode {
  * argument values.
  */
 function recordUsage(current: Mode): void {
-  const command =
+  const invokedCommand =
     current.type === "native"
-      ? [current.command]
-      : [flags.subcommand ?? current.initialView];
+      ? current.command
+      : (flags.subcommand ?? current.initialView);
+  const commandSpec = getCliCommand(invokedCommand);
+  const command = [commandSpec?.name ?? invokedCommand];
+  const allowedFlags = new Set(
+    commandSpec?.options?.flatMap((option) =>
+      option.short ? [option.name, option.short] : [option.name],
+    ) ?? [],
+  );
   const args = process.argv.slice(2);
   const invoker = args.includes("--bar-json")
     ? "automation"
@@ -254,6 +261,7 @@ function recordUsage(current: Mode): void {
     invokedAs: "dot",
     command,
     args,
+    allowedFlags,
     invoker,
   });
 }

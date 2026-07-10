@@ -38,11 +38,6 @@ interface NoteEntry {
   readonly mtime: number
 }
 
-interface NoteContent {
-  readonly filename: string
-  readonly content: string
-}
-
 interface RepoNotePayload {
   readonly generatedAt: string
   readonly command: string
@@ -57,7 +52,6 @@ interface RepoNotePayload {
   readonly notesPath?: string
   readonly notesExist?: boolean
   readonly entries: readonly NoteEntry[]
-  readonly contents?: readonly NoteContent[]
   readonly warnings: readonly string[]
   readonly error?: { readonly message: string; readonly detail?: string }
 }
@@ -106,6 +100,14 @@ const parseJSON = (text: string): JsonRecord | null => {
   }
 }
 
+const escapeXml = (value: string): string =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;")
+
 function entryFrom(value: unknown): NoteEntry | null {
   if (!isRecord(value)) return null
   if (typeof value.filename !== "string") return null
@@ -120,13 +122,6 @@ function entryFrom(value: unknown): NoteEntry | null {
     tags,
     mtime: typeof value.mtime === "number" ? value.mtime : 0,
   }
-}
-
-function contentFrom(value: unknown): NoteContent | null {
-  if (!isRecord(value)) return null
-  if (typeof value.filename !== "string") return null
-  if (typeof value.content !== "string") return null
-  return { filename: value.filename, content: value.content }
 }
 
 function payloadFrom(value: JsonRecord): RepoNotePayload | null {
@@ -173,11 +168,6 @@ function payloadFrom(value: JsonRecord): RepoNotePayload | null {
     entries: Array.isArray(value.entries)
       ? value.entries.map(entryFrom).filter((entry): entry is NoteEntry => !!entry)
       : [],
-    contents: Array.isArray(value.contents)
-      ? value.contents
-          .map(contentFrom)
-          .filter((content): content is NoteContent => !!content)
-      : undefined,
     warnings: stringArray(value.warnings),
     error,
   }
@@ -188,7 +178,10 @@ const formatTag = (
   description: string,
   lines: readonly string[],
 ): string => {
-  const body = [`Description: ${description}`, ...lines.filter(Boolean)]
+  const body = [
+    `Description: ${description}`,
+    ...lines.filter(Boolean).map((line) => escapeXml(line)),
+  ]
     .join("\n")
     .trim()
   return [`<${name}>`, body || "(empty)", `</${name}>`].join("\n")
@@ -260,18 +253,6 @@ function renderRepoNoteContext(payload: RepoNotePayload): string {
     )
   }
 
-  if (payload.contents?.length) {
-    const contentParts = [
-      "<note-contents>",
-      "Description: Full content of all note files for this repository.",
-    ]
-    for (const note of payload.contents) {
-      contentParts.push(`<note file="${note.filename}">`, note.content.trim(), "</note>")
-    }
-    contentParts.push("</note-contents>")
-    parts.push(contentParts.join("\n"))
-  }
-
   if (payload.warnings.length) {
     parts.push(
       formatTag(
@@ -286,10 +267,12 @@ function renderRepoNoteContext(payload: RepoNotePayload): string {
   return parts.join("\n\n")
 }
 
-export const RepoNotesPlugin = (async ({ $ }) => {
+export const RepoNotesPlugin = (async ({ $, directory }) => {
   const collectContext = async (command: string): Promise<string> => {
     const result = await run(() =>
-      $`notes ${["context", "--command", command, "--json"]}`.text(),
+      $`notes ${["context", "--command", command, "--json"]}`
+        .cwd(directory)
+        .text(),
     )
     if (!result.ok) {
       return formatErrorContext(

@@ -43,7 +43,14 @@ async function isSubagentSession(
     path: { id: sessionID },
     ...(query ? { query } : {}),
   })
+  const response = recordFromUnknown(result)
+  if ("error" in response) {
+    throw new Error("OpenCode returned an error while resolving the session")
+  }
   const session = recordFromUnknown(dataOrValue(result))
+  if (session.id !== sessionID) {
+    throw new Error("OpenCode returned an invalid session response")
+  }
   return typeof session.parentID === "string" && session.parentID.length > 0
 }
 

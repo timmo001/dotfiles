@@ -10,6 +10,7 @@ import {
   configureFirewallRules,
   firewallRuleSpecs,
   firewallSetupScript,
+  parseUfwAllowTuples,
 } from "./firewallSetup.js";
 
 const previousUfwRulesFile = process.env[ENV.DOT_UFW_RULES_FILE];
@@ -98,5 +99,21 @@ describe("firewallSetupScript", () => {
     ).rejects.toMatchObject({
       message: expect.stringContaining("1714:1764/udp (KDE Connect)"),
     });
+  });
+});
+
+describe("parseUfwAllowTuples", () => {
+  test("keeps differently scoped rules distinct", () => {
+    const tuples = parseUfwAllowTuples(
+      [
+        "### tuple ### allow tcp 8123 0.0.0.0/0 any 192.168.1.0/24 in",
+        "### tuple ### allow tcp 8123 0.0.0.0/0 any 0.0.0.0/0 in comment=486f6d6520417373697374616e74",
+      ].join("\n"),
+    );
+
+    expect(tuples.size).toBe(2);
+    expect(
+      tuples.get("allow tcp 8123 0.0.0.0/0 any 0.0.0.0/0 in")?.comment,
+    ).toBe("Home Assistant");
   });
 });

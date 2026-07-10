@@ -39,7 +39,7 @@ afterEach(() => {
 });
 
 describe("setupPrivatePackageRepo", () => {
-  test("skips source clone when the mirror and pacman config are current", async () => {
+  test("skips source clone when the mirror database and pacman config are current", async () => {
     const root = tempRoot();
     const sourcePath = join(root, "source");
     const mirrorPath = join(root, "mirror");
@@ -47,6 +47,7 @@ describe("setupPrivatePackageRepo", () => {
     const pacmanMainConfig = join(root, "pacman.conf");
 
     mkdirSync(mirrorPath, { recursive: true });
+    writeFileSync(join(mirrorPath, "timmo-private.db"), "database");
     writeFileSync(
       pacmanRepoConfig,
       `[timmo-private]\nSigLevel = Optional TrustAll\nServer = file://${mirrorPath}\n`,
@@ -86,5 +87,55 @@ describe("setupPrivatePackageRepo", () => {
     expect(messages).toContain(
       "Private pacman repo already configured; skipping source clone",
     );
+  });
+
+  test("does not treat an empty mirror as installed", async () => {
+    const root = tempRoot();
+    const sourcePath = join(root, "source");
+    const mirrorPath = join(root, "mirror");
+    const pacmanRepoConfig = join(root, "timmo-private.conf");
+    const pacmanMainConfig = join(root, "pacman.conf");
+
+    mkdirSync(mirrorPath, { recursive: true });
+    writeFileSync(
+      pacmanRepoConfig,
+      `[timmo-private]\nSigLevel = Optional TrustAll\nServer = file://${mirrorPath}\n`,
+    );
+    writeFileSync(pacmanMainConfig, `Include = ${pacmanRepoConfig}\n`);
+    process.env[ENV.DOT_PRIVATE_PACMAN_REPO_CONFIG] = pacmanRepoConfig;
+    process.env[ENV.DOT_PRIVATE_PACMAN_MAIN_CONFIG] = pacmanMainConfig;
+
+    const commandExecutor = Layer.succeed(CommandExecutor, {
+      run: () => Effect.die("run should not be called"),
+      stream: () => Stream.die("stream should not be called"),
+      exitCode: () => Effect.die("exitCode should not be called"),
+      inherit: () => Effect.die("inherit should not be called"),
+    });
+    const outputLog = Layer.succeed(OutputLog, {
+      info: () => Effect.void,
+      warn: () => Effect.void,
+      error: () => Effect.void,
+      section: () => Effect.void,
+      stream: Stream.empty,
+      flush: Effect.succeed(""),
+      withSpinner: (_label, effect) => effect,
+      updateSpinner: () => Effect.void,
+    });
+
+    await expect(
+      Effect.runPromise(
+        setupPrivatePackageRepo({
+          name: "timmo-private",
+          remote: null,
+          path: sourcePath,
+          mirrorPath,
+          sigLevel: "Optional TrustAll",
+        }).pipe(Effect.provide(Layer.merge(commandExecutor, outputLog))),
+      ),
+    ).rejects.toMatchObject({
+      message: expect.stringContaining(
+        "Missing private package repo source clone",
+      ),
+    });
   });
 });

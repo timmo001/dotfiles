@@ -5,7 +5,10 @@ import { OutputLog } from "../services/OutputLog.js";
 import { Launcher, LauncherError } from "../services/Launcher.js";
 import { listStowFolders, requiresNoFolding } from "../lib/stowFolders.js";
 import { HOME_DIR, displayPath } from "../lib/paths.js";
-import { ensureHyprHostLink } from "../lib/omarchyHost.js";
+import {
+  ensureHyprConfigLink,
+  ensureHyprHostLink,
+} from "../lib/omarchyHost.js";
 import { ensureStowInstalled } from "../lib/packageSetup.js";
 import {
   backupConflictingPublicTargets,
@@ -221,6 +224,7 @@ const stowRepo = (
   },
   log: {
     readonly info: (msg: string) => Effect.Effect<void>;
+    readonly warn: (msg: string) => Effect.Effect<void>;
     readonly error: (msg: string) => Effect.Effect<void>;
   },
   config: ConfigService,
@@ -232,18 +236,22 @@ const stowRepo = (
     for (const folder of folders) {
       yield* log.info(`[${scope}] stow ${folder} (repo: ${repoDisplayPath})`);
 
-      // Unstow first (clean slate)
-      const unstowExit = yield* launcher.stream(`stow -D ${folder}`, {
-        cwd: repoDir,
-      });
-      if (unstowExit !== 0) {
-        yield* log.error(
-          `[${scope}] unstow ${folder} failed (exit ${unstowExit})`,
-        );
-        return yield* new LauncherError({
-          message: `${scope} install unstow failed on ${folder}`,
-          exitCode: unstowExit,
+      const isHypr = scope === "public" && folder === "hypr";
+      if (isHypr) {
+        yield* ensureHyprConfigLink(repoDir, log);
+      } else {
+        const unstowExit = yield* launcher.stream(`stow -D ${folder}`, {
+          cwd: repoDir,
         });
+        if (unstowExit !== 0) {
+          yield* log.error(
+            `[${scope}] unstow ${folder} failed (exit ${unstowExit})`,
+          );
+          return yield* new LauncherError({
+            message: `${scope} install unstow failed on ${folder}`,
+            exitCode: unstowExit,
+          });
+        }
       }
 
       // Build stow command with folder-specific flags

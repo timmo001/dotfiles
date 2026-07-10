@@ -261,7 +261,7 @@ cd ~/.config/dotfiles
 mise run dot:build   # outputs to scripts/.local/bin/dot (wraps bun run build)
 ```
 
-The single root `mise.toml` defines the dev tasks, namespaced `dot:*` (`dot:install`, `dot:build`, `dot:dev`, `dot:typecheck`, `dot:format`, `dot:format:check`, `dot:check`) with `dir = "dot"`; each wraps the matching `bun run` script, so `bun run build` still works for the fresh-machine bootstrap. `dot:build` depends on `dot:install`, so `mise run dot:build` installs dependencies before compiling. CI runs these via `mise run`. Run `mise tasks` to list them.
+The single root `mise.toml` defines the dev tasks, namespaced `dot:*` (`dot:install`, `dot:build`, `dot:dev`, `dot:typecheck`, `dot:test`, `dot:format`, `dot:format:check`, `dot:check`) with `dir = "dot"`; each wraps the matching `bun run` script, so `bun run build` still works for the fresh-machine bootstrap. `dot:build` depends on `dot:install`, and `dot:check` runs type checking, tests, and the format check. CI runs these via `mise run`. Run `mise tasks` to list them.
 
 The build is also triggered by `dot update`, which runs `bun install` before compiling the binary. `dot update`'s rebuild (`src/lib/selfUpdate.ts`) intentionally does **not** use the `build` task: it compiles to a temp path and atomically renames over the running binary to avoid `ETXTBSY`, which a direct `--outfile` over the live binary would hit.
 
@@ -296,7 +296,7 @@ Always run type check, format, and build after every final code change:
 
 ```bash
 cd ~/.config/dotfiles
-mise run dot:check           # type check + prettier format check
+mise run dot:check           # type check + tests + prettier format check
 mise run dot:format          # format with prettier (required before every commit)
 mise run dot:build           # compile binary
 ```

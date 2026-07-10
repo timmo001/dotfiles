@@ -192,4 +192,32 @@ describe("backupUnmanagedStowTargets", () => {
     expect(backedUp).toEqual([]);
     expect(readFileSync(target, "utf8")).toBe("managed\n");
   });
+
+  test("does not follow an unmanaged parent symlink", () => {
+    const root = tempRoot();
+    const externalRoot = tempRoot();
+    const liveRoot = join(
+      HOME_DIR,
+      ".cache",
+      `dot-stow-link-${basename(root)}`,
+    );
+    liveRoots.push(liveRoot);
+    process.env[ENV.OMARCHY_HOST] = "laptop";
+
+    const source = join(
+      root,
+      "chromium--laptop",
+      ".cache",
+      basename(liveRoot),
+      "chrome-flags.conf",
+    );
+    const externalTarget = join(externalRoot, "chrome-flags.conf");
+    mkdirSync(dirname(source), { recursive: true });
+    writeFileSync(source, "managed\n");
+    writeFileSync(externalTarget, "external\n");
+    symlinkSync(externalRoot, liveRoot);
+
+    expect(backupUnmanagedStowTargets(root, fakeConfig(root))).toEqual([]);
+    expect(readFileSync(externalTarget, "utf8")).toBe("external\n");
+  });
 });

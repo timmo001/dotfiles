@@ -10,29 +10,31 @@
  *   2. `tool.definition` -> every tool's description and JSON-schema parameters
  *      (built-in tools plus each MCP server's advertised surface).
  *
- * Output lands under `DOT_CONTEXT_CAPTURE_DIR` (default
- * `/tmp/opencode/context-baseline`): one file per system segment, a JSONL of
- * per-tool sizes, and the raw tool schemas. A companion script tokenizes these
- * to attribute the starter-context cost by source. This is a measurement
- * harness, not a behaviour change: it never mutates `system` or tool defs.
+ * Output lands in a private, unique child of `DOT_CONTEXT_CAPTURE_DIR` (default
+ * `/tmp/opencode`): one file per system segment, a JSONL of per-tool sizes, and
+ * the raw tool schemas. A companion script tokenizes these to attribute the
+ * starter-context cost by source. This is a measurement harness, not a
+ * behaviour change: it never mutates `system` or tool defs.
  */
 
 import type { Plugin } from "@opencode-ai/plugin"
-import { existsSync, mkdirSync, writeFileSync, appendFileSync, rmSync } from "node:fs"
+import { appendFileSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-const CAPTURE_ENABLED = Boolean(process.env["DOT_CONTEXT_CAPTURE"])
-const CAPTURE_DIR =
-  process.env["DOT_CONTEXT_CAPTURE_DIR"] || "/tmp/opencode/context-baseline"
+const CAPTURE_ENABLED = process.env["DOT_CONTEXT_CAPTURE"] === "1"
+const CAPTURE_PARENT =
+  process.env["DOT_CONTEXT_CAPTURE_DIR"] || join(tmpdir(), "opencode")
 
-/** Reset the capture directory once per process so reruns start clean. */
-let prepared = false
-function prepareDir(): void {
-  if (prepared) return
-  prepared = true
-  if (existsSync(CAPTURE_DIR)) rmSync(CAPTURE_DIR, { recursive: true, force: true })
-  mkdirSync(join(CAPTURE_DIR, "system"), { recursive: true })
-  mkdirSync(join(CAPTURE_DIR, "tools"), { recursive: true })
+/** Create one private capture directory without deleting caller-controlled paths. */
+let captureDir: string | undefined
+function prepareDir(): string {
+  if (captureDir) return captureDir
+  mkdirSync(CAPTURE_PARENT, { recursive: true, mode: 0o700 })
+  captureDir = mkdtempSync(join(CAPTURE_PARENT, "context-baseline-"))
+  mkdirSync(join(captureDir, "system"), { mode: 0o700 })
+  mkdirSync(join(captureDir, "tools"), { mode: 0o700 })
+  return captureDir
 }
 
 /** Filesystem-safe slug for a tool id or segment label. */
@@ -44,21 +46,22 @@ export const ContextCapture = (async () => {
   if (!CAPTURE_ENABLED) return {}
   return {
     "experimental.chat.system.transform": async (_input, output) => {
-      prepareDir()
+      const dir = prepareDir()
       const segments = output.system
       const index: Array<{ segment: number; chars: number; file: string }> = []
       segments.forEach((segment, i) => {
         const file = join("system", `${String(i).padStart(3, "0")}.txt`)
-        writeFileSync(join(CAPTURE_DIR, file), segment)
+        writeFileSync(join(dir, file), segment, { mode: 0o600 })
         index.push({ segment: i, chars: segment.length, file })
       })
       writeFileSync(
-        join(CAPTURE_DIR, "system-index.json"),
+        join(dir, "system-index.json"),
         JSON.stringify(index, null, 2),
+        { mode: 0o600 },
       )
     },
     "tool.definition": async (input, output) => {
-      prepareDir()
+      const dir = prepareDir()
       const params = JSON.stringify(output.parameters ?? {})
       const record = {
         toolID: input.toolID,
@@ -67,16 +70,18 @@ export const ContextCapture = (async () => {
         totalChars: (output.description ?? "").length + params.length,
       }
       appendFileSync(
-        join(CAPTURE_DIR, "tools.jsonl"),
+        join(dir, "tools.jsonl"),
         JSON.stringify(record) + "\n",
+        { mode: 0o600 },
       )
       writeFileSync(
-        join(CAPTURE_DIR, "tools", `${slug(input.toolID)}.json`),
+        join(dir, "tools", `${slug(input.toolID)}.json`),
         JSON.stringify(
           { description: output.description, parameters: output.parameters },
           null,
           2,
         ),
+        { mode: 0o600 },
       )
     },
   }

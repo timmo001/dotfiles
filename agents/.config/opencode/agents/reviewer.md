@@ -9,6 +9,8 @@ permission:
   list: allow
   edit: deny
   write: deny
+  notes_note_write: deny
+  notes_note_delete: deny
   bash:
     "*": deny
     "gh issue list*": allow

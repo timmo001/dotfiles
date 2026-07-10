@@ -114,8 +114,8 @@ WORK_CHROME_BASE='uwsm app -- google-chrome-stable --new-window --ozone-platform
 WORK_SLACK_CMD="$WORK_CHROME_BASE --app=https://app.slack.com/client"
 WORK_DISCORD_CMD="$WORK_CHROME_BASE --app=https://discord.com/app"
 WORK_BROWSER_CMD="$WORK_CHROME_BASE --class=work-browser"
-TERM_WORK_CMD="uwsm app -- ghostty --working-directory=$WORK_DIR"
-TERM_DEFAULT_CMD='uwsm app -- ghostty'
+TERM_WORK_CMD="uwsm app -- ghostty-host-config --working-directory=$WORK_DIR"
+TERM_DEFAULT_CMD='uwsm app -- ghostty-host-config'
 
 WS1_SLACK_SIZE="671 660"
 WS1_DISCORD_SIZE="671 660"

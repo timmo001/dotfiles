@@ -110,12 +110,28 @@ const parseJSON = (text: string): JsonRecord | null => {
   }
 };
 
+const escapeXml = (value: string): string =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
+
+const limited = (value: string, max = 4_000): string =>
+  value.length <= max
+    ? value
+    : `${value.slice(0, max)}\n[TRUNCATED ${value.length - max} CHARS]`;
+
 const formatTag = (
   name: string,
   description: string,
   lines: readonly string[],
 ): string => {
-  const body = [`Description: ${description}`, ...lines.filter(Boolean)]
+  const body = [
+    `Description: ${description}`,
+    ...lines.filter(Boolean).map((line) => escapeXml(line)),
+  ]
     .join("\n")
     .trim();
   return [`<${name}>`, body || "(empty)", `</${name}>`].join("\n");
@@ -217,7 +233,7 @@ const renderComments = (comments: JsonRecord[]): string => {
   return comments
     .map(
       (comment) =>
-        `@${stringField(comment, "author")} (${stringField(comment, "createdAt")}): ${stringField(comment, "body")}`,
+        `@${stringField(comment, "author")} (${stringField(comment, "createdAt")}): ${limited(stringField(comment, "body"), 2_000)}`,
     )
     .join("\n");
 };
@@ -227,7 +243,7 @@ const renderReviews = (reviews: JsonRecord[]): string => {
   return reviews
     .map((review) => {
       const header = `@${stringField(review, "author")} ${stringField(review, "state")}`;
-      const body = stringField(review, "body").trim();
+      const body = limited(stringField(review, "body").trim(), 2_000);
       return body ? `${header}: ${body}` : header;
     })
     .join("\n");
@@ -255,18 +271,24 @@ const renderPullRequest = (pr: JsonRecord): string[] => {
     lines.push(`Labels: ${labels.length ? labels.join(", ") : "(none)"}`);
   }
   if (typeof pr.description === "string") {
-    lines.push("", formatList("Description", pr.description));
+    lines.push("", formatList("Description", limited(pr.description)));
   }
   if (Array.isArray(pr.comments)) {
     lines.push(
       "",
-      formatList("Comments", renderComments(recordArray(pr.comments))),
+      formatList(
+        "Comments",
+        renderComments(recordArray(pr.comments).slice(0, 20)),
+      ),
     );
   }
   if (Array.isArray(pr.reviews)) {
     lines.push(
       "",
-      formatList("Reviews", renderReviews(recordArray(pr.reviews))),
+      formatList(
+        "Reviews",
+        renderReviews(recordArray(pr.reviews).slice(0, 20)),
+      ),
     );
   }
   if (typeof pr.checks === "string") {
@@ -339,7 +361,7 @@ const renderBranchContext = (
   return lines.join("\n\n");
 };
 
-export const BranchContextPlugin = (async ({ $ }) => {
+export const BranchContextPlugin = (async ({ $, directory }) => {
   const buildBranchContext = async ({
     includePullRequest,
   }: {
@@ -349,7 +371,7 @@ export const BranchContextPlugin = (async ({ $ }) => {
       ? ["git", "--json", "--labels", "--comments", "--reviews", "--checks"]
       : ["git", "--json", "--no-pr"];
 
-    const result = await run(() => $`context ${args}`.text());
+    const result = await run(() => $`context ${args}`.cwd(directory).text());
     if (!result.ok) {
       return formatErrorContext(
         "BranchContextPlugin could not collect git context because `context git` failed.",

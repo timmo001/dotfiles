@@ -1,5 +1,5 @@
 import { Effect, Option, Schema } from "effect";
-import { existsSync, rmSync, unlinkSync, writeFileSync } from "fs";
+import { existsSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "fs";
 import { join } from "path";
 import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -44,11 +44,26 @@ function privatePackageRepoReady(repo: PrivatePackageRepoConfig): boolean {
 
 function privatePackageRepoInstalled(repo: PrivatePackageRepoConfig): boolean {
   return (
-    existsSync(repo.mirrorPath) &&
+    privatePackageMirrorHasDatabase(repo) &&
     privatePackageRepoRegistered(repo) &&
     privatePackageRepoIncludeRegistered() &&
     privatePackageRepoConfigMatches(repo)
   );
+}
+
+function privatePackageMirrorHasDatabase(
+  repo: PrivatePackageRepoConfig,
+): boolean {
+  try {
+    return readdirSync(repo.mirrorPath).some(
+      (entry) =>
+        entry === `${repo.name}.db` ||
+        entry === `${repo.name}.db.tar.gz` ||
+        entry === `${repo.name}.db.tar.zst`,
+    );
+  } catch {
+    return false;
+  }
 }
 
 function privatePacmanRepoConfigCurrent(

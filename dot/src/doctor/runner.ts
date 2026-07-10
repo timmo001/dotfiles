@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect";
+import { Cause, Effect, Option } from "effect";
 import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { GitHub } from "../git/services/GitHub.js";
@@ -157,13 +157,13 @@ export const runDoctor = (
                   ],
                 },
           ),
-          Effect.catch((err: unknown): Effect.Effect<CheckSection> =>
+          Effect.catchCause((cause): Effect.Effect<CheckSection> =>
             Effect.succeed({
               name: s.name,
               results: [
                 {
                   severity: "error" as const,
-                  message: `Check crashed: ${err}`,
+                  message: `Check crashed: ${Cause.pretty(cause)}`,
                 },
               ],
             }),

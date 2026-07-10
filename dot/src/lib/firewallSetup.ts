@@ -117,9 +117,8 @@ export interface FirewallRuleSpec {
    */
   readonly deleteArgs: readonly string[];
   /**
-   * Tuple key used to match `### tuple ###` lines, formatted as
-   * `<action> <proto> <port> <direction>`, e.g. `allow tcp 8123 in` or
-   * `route:allow any any in_virbr0`.
+   * Exact tuple key used to match `### tuple ###` lines, including source,
+   * destination, and direction/interface fields.
    */
   readonly tupleKey: string;
   /** Expected ufw rule comment (the owning rule's label). */
@@ -170,7 +169,7 @@ function portRuleSpecs(rule: ManagedPortRule): readonly FirewallRuleSpec[] {
     return {
       addArgs,
       deleteArgs: ["delete", ...addArgs],
-      tupleKey: `allow ${protocol} ${rule.port} ${direction}`,
+      tupleKey: `allow ${protocol} ${rule.port} 0.0.0.0/0 any 0.0.0.0/0 ${direction}`,
       comment: rule.label,
       describe: rule.interface
         ? `${rule.port}/${protocol} on ${rule.interface}`
@@ -184,7 +183,7 @@ function routeRuleSpec(rule: ManagedRouteRule): FirewallRuleSpec {
   return {
     addArgs: ["route", "allow", "in", "on", rule.interface],
     deleteArgs: ["route", "delete", "allow", "in", "on", rule.interface],
-    tupleKey: `route:allow any any in_${rule.interface}`,
+    tupleKey: `route:allow any any 0.0.0.0/0 any 0.0.0.0/0 in_${rule.interface}`,
     comment: rule.label,
     describe: `route in on ${rule.interface}`,
   };
@@ -208,9 +207,8 @@ function decodeUfwComment(hex: string): string | null {
 
 /**
  * Parse `### tuple ### <action> <proto> <port> ...` entries from a ufw
- * user.rules file. Returns a map of `<action> <proto> <port> <direction>` keys
- * (e.g. `allow tcp 8123 in`, `route:allow any any in_virbr0`) to the rule's
- * decoded comment (null when the rule carries no comment).
+ * user.rules file. Keys preserve the complete tuple identity so a restricted
+ * source rule cannot satisfy a managed any-source rule.
  */
 export function parseUfwAllowTuples(
   content: string,
@@ -218,14 +216,26 @@ export function parseUfwAllowTuples(
   const tuples = new Map<string, UfwTuple>();
   for (const line of content.split("\n")) {
     const head = line.match(
-      /### tuple ### (\S+) (\S+) (\S+) \S+ \S+ \S+ (\S+)/,
+      /### tuple ### (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+)/,
     );
     if (!head) continue;
-    const [, action, proto, port, direction] = head;
+    const [
+      ,
+      action,
+      proto,
+      port,
+      destination,
+      destinationPort,
+      source,
+      direction,
+    ] = head;
     const commentMatch = line.match(/ comment=([0-9a-fA-F]+)/);
-    tuples.set(`${action} ${proto} ${port} ${direction}`, {
-      comment: commentMatch ? decodeUfwComment(commentMatch[1]) : null,
-    });
+    tuples.set(
+      `${action} ${proto} ${port} ${destination} ${destinationPort} ${source} ${direction}`,
+      {
+        comment: commentMatch ? decodeUfwComment(commentMatch[1]) : null,
+      },
+    );
   }
   return tuples;
 }

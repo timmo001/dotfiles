@@ -2,6 +2,8 @@
   "$schema": "https://opencode.ai/config.json",
   "formatter": true,
   "permission": {
+    "notes_note_write": "ask",
+    "notes_note_delete": "ask",
     "external_directory": {
       "~/.config/opencode/**": "allow",
       "~/.config/hypr/**": "allow",
@@ -56,6 +58,11 @@
     }
   },
   "mcp": {
+    "context": {
+      "type": "local",
+      "command": ["context", "mcp"],
+      "enabled": true
+    },
     "notes": {
       "type": "local",
       "command": ["notes", "mcp"],

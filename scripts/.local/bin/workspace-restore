@@ -14,7 +14,7 @@ WORK_CHROME_BASE='uwsm app -- google-chrome-stable --new-window --ozone-platform
 WORK_SLACK_CMD="$WORK_CHROME_BASE --app=https://app.slack.com/client"
 WORK_DISCORD_CMD="$WORK_CHROME_BASE --app=https://discord.com/app"
 WORK_BROWSER_CMD="$WORK_CHROME_BASE --class=work-browser"
-TERM_DEFAULT_CMD='uwsm app -- ghostty'
+TERM_DEFAULT_CMD='uwsm app -- ghostty-host-config'
 EXCLUDED_CLASS_RE='^workspace-menu-terminal$'
 EXCLUDED_TITLE_RE='^Workspace Menu$'
 
@@ -254,7 +254,7 @@ command_for_client() {
       RESTORE_CLASS_RE='^com\.mitchellh\.ghostty$'
       if [ -n "$cwd" ] && [ -d "$cwd" ]; then
         quoted_cwd="$(quote_arg "$cwd")"
-        RESTORE_COMMAND="uwsm app -- ghostty --working-directory=$quoted_cwd"
+        RESTORE_COMMAND="uwsm app -- ghostty-host-config --working-directory=$quoted_cwd"
       else
         RESTORE_COMMAND="$TERM_DEFAULT_CMD"
       fi

@@ -156,6 +156,14 @@ const parseJSON = (text: string): JsonRecord | null => {
   }
 };
 
+const escapeXml = (value: string): string =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
+
 /** Whether the payload detected nothing worth injecting. */
 const isEmpty = (data: JsonRecord): boolean =>
   recordArray(data.languages).length === 0 &&
@@ -168,7 +176,10 @@ const formatTag = (
   description: string,
   lines: readonly string[],
 ): string => {
-  const body = [`Description: ${description}`, ...lines.filter(Boolean)]
+  const body = [
+    `Description: ${description}`,
+    ...lines.filter(Boolean).map((line) => escapeXml(line)),
+  ]
     .join("\n")
     .trim();
   return [`<${name}>`, body || "(none)", `</${name}>`].join("\n");
@@ -278,17 +289,19 @@ const renderStackContext = (data: JsonRecord): string => {
   return lines.join("\n\n");
 };
 
-export const StackContextPlugin = (async ({ $ }) => {
+export const StackContextPlugin = (async ({ $, directory }) => {
   /** Resolve the current git repository root, or null when not in a worktree. */
   const resolveRepoRoot = async (): Promise<string | null> => {
-    const result = await run(() => $`git rev-parse --show-toplevel`.text());
+    const result = await run(() =>
+      $`git rev-parse --show-toplevel`.cwd(directory).text(),
+    );
     return result.ok && result.text ? result.text : null;
   };
 
   /** Run the producer for `root` and parse its payload. */
   const collectStack = async (root: string): Promise<StackResult> => {
     const args = ["stack", root, "--json"];
-    const result = await run(() => $`context ${args}`.text());
+    const result = await run(() => $`context ${args}`.cwd(directory).text());
     if (!result.ok) {
       return {
         kind: "error",
@@ -324,10 +337,10 @@ export const StackContextPlugin = (async ({ $ }) => {
             ? renderStackContext(result.data)
             : result.block,
       });
+      injectedSessions.add(input.sessionID);
     },
     "chat.message": async (input, output) => {
       if (injectedSessions.has(input.sessionID)) return;
-      injectedSessions.add(input.sessionID);
 
       // Automatic injection is scoped to git repositories: it avoids scanning
       // unrelated directories (home, /tmp) and keeps out of non-project sessions.
@@ -347,6 +360,7 @@ export const StackContextPlugin = (async ({ $ }) => {
           renderStackContext(result.data),
         ),
       );
+      injectedSessions.add(input.sessionID);
     },
   };
 }) satisfies Plugin;

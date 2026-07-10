@@ -39,7 +39,7 @@ The `context` server runs `context mcp` from the `context-git` AUR package (also
 The `notes` server runs `notes mcp` from the `repo-notes-git` package (also in `.dot-public-packages`). Repository note commands use it for vault reads, writes, and deletes; the `repo-notes` OpenCode plugin supplies the current repository's note context.
 
 :::note[Credentials]
-`context7` and `github` need credentials, supplied through the environment and referenced from `opencode.json` with `{env:...}` so no secret ever lands in the config file. The GitHub server reads `DOT_GH_MCP_BEARER`, which shell startup typically exports as `$(gh auth token)`. `dot doctor` warns when `gh` is missing or has no token.
+`context7` and `github` need credentials, supplied through the environment and referenced from `opencode.json` with `{env:...}` so no secret ever lands in the config file. The GitHub server reads `DOT_GH_MCP_BEARER`; the `opencode`/`cursor` shell wrappers and `opencode-server` obtain it from `gh auth token` only for the launched harness process, rather than exporting it to every shell child. `dot doctor` warns when `gh` is missing or has no token.
 :::
 
 ## Generated from one spec

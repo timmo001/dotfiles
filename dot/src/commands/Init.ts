@@ -700,7 +700,10 @@ function ensureLoginShellZsh(): Effect.Effect<
     if (!shellRegisteredInEtcShells(zshPath)) {
       const exitCode = yield* runElevated("sh", [
         "-c",
-        `echo ${JSON.stringify(zshPath)} >> ${ETC_SHELLS}`,
+        'printf "%s\\n" "$1" >> "$2"',
+        "sh",
+        zshPath,
+        ETC_SHELLS,
       ]);
       if (exitCode !== 0) {
         return yield* fail(

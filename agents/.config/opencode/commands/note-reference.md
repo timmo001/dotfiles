@@ -5,7 +5,6 @@ description: Load one or more notes, relevant skills, and next steps for the cur
 A `<repo-note-context>` block has been injected above by RepoNotesPlugin. It contains:
 
 - `<existing-notes>` — all note files with frontmatter (filename, name, description, tags, last modified)
-- `<note-contents>` — full content of every note file, each wrapped in `<note file="…">…</note>`
 
 The user's intent is in the message that invoked this command (e.g. "load the jwt auth note", "the ci pipeline one", "the last two notes").
 
@@ -43,7 +42,7 @@ If the user's text suggests a topic rather than a specific filename, rank the ca
 
 ## Step 4: Load the note(s)
 
-For each selected note, find the matching `<note file="…">` block inside `<note-contents>` and hold its full content in context for this session.
+For each selected note, call `notes_note_read` with `path: {notes_path}/{filename}`. Do not use the built-in `read` tool for the notes vault. Hold the returned full content in context for this session.
 
 ## Step 5: Load relevant skills
 

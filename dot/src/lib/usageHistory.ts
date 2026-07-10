@@ -80,7 +80,16 @@ function eventFromTokens(
     tool: tool.tool,
     invokedAs,
     command,
-    flags: extractFlagNames(rest),
+    flags: extractFlagNames(
+      rest,
+      tool.canonicaliseDot && positional
+        ? new Set(
+            getCliCommand(positional)?.options?.flatMap((option) =>
+              option.short ? [option.name, option.short] : [option.name],
+            ) ?? [],
+          )
+        : undefined,
+    ),
     exitCode: null,
     durationMs: null,
     source: "history",

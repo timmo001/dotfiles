@@ -27,7 +27,7 @@ These variables tune paths and behaviour for `dot`. Most have sensible defaults;
 | `DOT_INCLUDE_OMARCHY_DIFF_REPOS`         | Include Omarchy repos in `dot git-diff` (`1\|0`, default `1`).                                                                                                            |
 | `DOT_FETCH_TTL_SECONDS`                  | Seconds to reuse the last upstream fetch (default `300`).                                                                                                                 |
 | `DOT_GH_EXTENSIONS_FILE`                 | Public `gh` extension list installed by `dot init`/`update` (default `$DOTFILES_PUBLIC_DIR/.dot-gh-extensions`).                                                          |
-| `DOT_GH_MCP_BEARER`                      | Bearer token for the read-only GitHub MCP server. Typically exported from shell startup as `$(gh auth token)`; not read by `dot` itself.                                  |
+| `DOT_GH_MCP_BEARER`                      | Bearer token for the read-only GitHub MCP server. The shell wrappers and `opencode-server` set it only for agent harness processes; it is not exported globally.        |
 
 ## Private packages
 

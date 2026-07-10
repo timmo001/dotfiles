@@ -82,8 +82,8 @@ apply_night_saver() {
   if [[ $(profile) != "power-saver" ]]; then
     set_profile power-saver
     notify "Power profile" "On battery after 1am, switched to Power Saver"
+    night_applied=1
   fi
-  night_applied=1
 }
 
 # Apply the low-battery power-saver; a later manual change is respected.

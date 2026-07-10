@@ -6,6 +6,7 @@ import {
   appendUsageEvent,
   readAllEvents,
   usageEventKey,
+  usageCommandKey,
   usageRoot,
   type UsageEvent,
 } from "../lib/usage.js";
@@ -267,10 +268,23 @@ function runStale(options: UsageOptions): string {
 /** Run `dot usage backfill`: import whitelisted invocations from history. */
 function runBackfill(options: UsageOptions): string {
   const scan = scanShellHistory();
-  const existing = new Set(readAllEvents([usageRoot()]).map(usageEventKey));
-  const fresh = scan.events.filter(
-    (event) => !existing.has(usageEventKey(event)),
-  );
+  const recorded = readAllEvents([usageRoot()]);
+  const existing = new Set(recorded.map(usageEventKey));
+  const firstLiveByCommand = new Map<string, string>();
+  for (const event of recorded) {
+    if (event.source !== "live") continue;
+    const key = usageCommandKey(event);
+    const current = firstLiveByCommand.get(key);
+    if (!current || event.ts < current) firstLiveByCommand.set(key, event.ts);
+  }
+  const fresh = scan.events.filter((event) => {
+    const key = usageEventKey(event);
+    if (existing.has(key)) return false;
+    const liveSince = firstLiveByCommand.get(usageCommandKey(event));
+    if (liveSince && event.ts >= liveSince) return false;
+    existing.add(key);
+    return true;
+  });
 
   const lines = ["Shell history backfill:"];
   for (const source of scan.sources) {

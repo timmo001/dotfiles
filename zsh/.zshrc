@@ -757,15 +757,27 @@ fi
 # ------------------------------
 # GitHub MCP bearer (OpenCode + Cursor)
 # ------------------------------
-# Sources the token from gh's keyring at shell start, so no secret lives here.
-# Custom name to avoid generic credential-env sniffing; read via {env:DOT_GH_MCP_BEARER}.
-command -v gh >/dev/null 2>&1 && export DOT_GH_MCP_BEARER="$(gh auth token 2>/dev/null)"
+# Scope the token to agent harnesses instead of exposing it to every shell child.
+_dot_with_github_mcp_bearer() {
+  local token
+  token="$(gh auth token 2>/dev/null)" || return $?
+  env DOT_GH_MCP_BEARER="$token" "$@"
+}
+
+opencode() {
+  _dot_with_github_mcp_bearer command opencode "$@"
+}
+
+cursor() {
+  _dot_with_github_mcp_bearer command cursor "$@"
+}
 
 # ------------------------------
 # Herdr managed session cleanup
 # ------------------------------
 _dot_herdr_stop_if_last_pane() {
   [[ -n "${HERDR_ENV:-}" ]] || return 0
+  [[ "$$" == "${DOT_HERDR_ROOT_SHELL_PID:-$$}" ]] || return 0
   command -v herdr >/dev/null 2>&1 || return 0
   command -v jq >/dev/null 2>&1 || return 0
 
@@ -779,6 +791,7 @@ _dot_herdr_stop_if_last_pane() {
   fi
 }
 
+export DOT_HERDR_ROOT_SHELL_PID="${DOT_HERDR_ROOT_SHELL_PID:-$$}"
 add-zsh-hook -d zshexit _dot_herdr_stop_if_last_pane 2>/dev/null
 add-zsh-hook zshexit _dot_herdr_stop_if_last_pane
 

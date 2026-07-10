@@ -36,9 +36,14 @@ description = "Check dot source formatting without writing"
 dir = "dot"
 run = "bun run format:check"
 
+[tasks."dot:test"]
+description = "Run the dot test suite"
+dir = "dot"
+run = "bun test"
+
 [tasks."dot:check"]
-description = "Type-check and verify dot formatting"
-depends = ["dot:typecheck", "dot:format:check"]
+description = "Type-check, test, and verify dot formatting"
+depends = ["dot:typecheck", "dot:test", "dot:format:check"]
 
 # docs (runs in ./docs)
 [tasks."docs:dev"]

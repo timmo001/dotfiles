@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect";
+import { Effect, Option, Schema } from "effect";
 import { existsSync, unlinkSync } from "fs";
 import { basename, join } from "path";
 import { Config } from "../services/Config.js";
@@ -26,6 +26,7 @@ import {
 } from "../lib/git.js";
 import { HOME_DIR, displayPath } from "../lib/paths.js";
 import { detectLegacyHyprRepo } from "../lib/omarchyHost.js";
+import { installMissingArchPackages } from "../lib/packageSetup.js";
 import type { ConfigService } from "../services/Config.js";
 import type { InitCompleteMarkerStatus } from "../lib/initState.js";
 import type { DiffRepo, RepoCategory } from "../types.js";
@@ -79,6 +80,27 @@ export interface UpdateOptions {
   readonly selfUpdate?: boolean;
   /** Repository names already pulled before restart, for post-hook handling. */
   readonly postHookRepos?: readonly string[];
+}
+
+class UpdateError extends Schema.TaggedErrorClass<UpdateError>()(
+  "UpdateError",
+  {
+    message: Schema.String,
+  },
+) {}
+
+function requiredUpdateStep<E, R>(
+  label: string,
+  seconds: number,
+  step: Effect.Effect<void, E, R>,
+): Effect.Effect<void, E | UpdateError, R | OutputLog> {
+  return Effect.gen(function* () {
+    if (!(yield* withStepTimeout(label, seconds, step))) {
+      return yield* new UpdateError({
+        message: `Update step timed out: ${label}`,
+      });
+    }
+  });
 }
 
 const repoStatus = (repo: DiffRepo): string => {
@@ -253,8 +275,9 @@ function selfUpdateAndRestart(
       rebuild,
     );
     if (!rebuilt) {
-      yield* log.warn("Self update rebuild timed out; skipping restart");
-      return;
+      return yield* new UpdateError({
+        message: "Update step timed out: Self Update Rebuild",
+      });
     }
     yield* log.info("Self update successful");
     yield* log.info("Restarting update with rebuilt dot binary");
@@ -479,7 +502,7 @@ export const update = (opts?: UpdateOptions) =>
     const updatedNames = [...(opts?.postHookRepos ?? [])];
 
     if (doPull) {
-      yield* withStepTimeout(
+      yield* requiredUpdateStep(
         "Pull Repositories",
         STEP_TIMEOUT_SECONDS.pull,
         Effect.gen(function* () {
@@ -490,15 +513,12 @@ export const update = (opts?: UpdateOptions) =>
           const scanned = yield* withSpinnerTimeout(
             "Scanning repositories",
             REPO_SCAN_TIMEOUT_SECONDS,
-            dotDiff.getAll().pipe(Effect.catch(() => Effect.succeed([]))),
+            dotDiff.getAll(),
           );
           const repos = yield* Option.match(scanned, {
             onNone: () =>
-              Effect.gen(function* () {
-                yield* log.warn(
-                  `Repository scan timed out after ${REPO_SCAN_TIMEOUT_SECONDS}s; continuing with no pull targets`,
-                );
-                return [];
+              new UpdateError({
+                message: `Repository scan timed out after ${REPO_SCAN_TIMEOUT_SECONDS}s`,
               }),
             onSome: (value) => Effect.succeed(value),
           });
@@ -579,7 +599,7 @@ export const update = (opts?: UpdateOptions) =>
     }
 
     if (doStow) {
-      yield* withStepTimeout(
+      yield* requiredUpdateStep(
         "Stow",
         STEP_TIMEOUT_SECONDS.stow,
         Effect.gen(function* () {
@@ -591,9 +611,10 @@ export const update = (opts?: UpdateOptions) =>
             );
           }
 
-          yield* mcpSync.pipe(
-            Effect.catch(() => log.warn("MCP sync failed (non-fatal)")),
-          );
+          if (isFullUpdate) {
+            yield* installMissingArchPackages({ scope: "public" });
+          }
+          yield* mcpSync;
 
           yield* runStow();
         }),
@@ -601,7 +622,7 @@ export const update = (opts?: UpdateOptions) =>
     }
 
     if (doTui) {
-      yield* withStepTimeout(
+      yield* requiredUpdateStep(
         "Rebuild",
         STEP_TIMEOUT_SECONDS.rebuild,
         Effect.gen(function* () {

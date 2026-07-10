@@ -82,12 +82,17 @@ export function machineId(): string {
  * Extract sorted, deduped flag names from raw args. Values are never captured:
  * `--flag=value` becomes `--flag`, and a following value token is ignored.
  */
-export function extractFlagNames(args: readonly string[]): readonly string[] {
+export function extractFlagNames(
+  args: readonly string[],
+  allowedFlags?: ReadonlySet<string>,
+): readonly string[] {
   const names = new Set<string>();
   for (const arg of args) {
     if (!arg.startsWith("-") || arg === "-" || arg === "--") continue;
     const name = arg.split("=", 1)[0];
-    if (name.length > 1) names.add(name);
+    if (name.length > 1 && (!allowedFlags || allowedFlags.has(name))) {
+      names.add(name);
+    }
   }
   return [...names].sort();
 }
@@ -215,6 +220,16 @@ export function usageEventKey(event: UsageEvent): string {
   ].join("|");
 }
 
+/** Comparable command identity used to suppress history/live overlap. */
+export function usageCommandKey(event: UsageEvent): string {
+  return [
+    event.machine,
+    event.tool,
+    event.command.join(" "),
+    event.flags.join(","),
+  ].join("|");
+}
+
 /**
  * Install a best-effort usage recorder that writes one `live` event when the
  * process exits, capturing the real exit code and wall-clock duration. A no-op
@@ -225,12 +240,13 @@ export function installUsageHook(opts: {
   readonly invokedAs: string;
   readonly command: readonly string[];
   readonly args: readonly string[];
+  readonly allowedFlags?: ReadonlySet<string>;
   readonly invoker: UsageInvoker;
 }): void {
   if (usageDisabled()) return;
   const start = Date.now();
   const machine = machineId();
-  const flags = extractFlagNames(opts.args);
+  const flags = extractFlagNames(opts.args, opts.allowedFlags);
   let recorded = false;
   process.on("exit", (code) => {
     if (recorded) return;

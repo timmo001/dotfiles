@@ -9,15 +9,19 @@ const log = (msg: string) => {
 };
 
 /** Minimal view of a spawned process needed to terminate it. */
-type KillableProcess = Pick<Bun.Subprocess, "exitCode" | "kill">;
+type KillableProcess = Pick<Bun.Subprocess, "exitCode" | "kill" | "pid">;
 
 /** Terminate a spawned process if it is still running; a no-op once it has exited. */
 function killProcess(proc: KillableProcess): void {
   if (proc.exitCode !== null) return;
   try {
-    proc.kill();
+    process.kill(-proc.pid, "SIGTERM");
   } catch {
-    // Raced with the process exiting between the check and the kill.
+    try {
+      proc.kill();
+    } catch {
+      // Raced with the process exiting between the check and the kill.
+    }
   }
 }
 
@@ -177,6 +181,7 @@ function processLineStream(
           stdout: "pipe",
           stderr: "pipe",
           cwd: opts?.cwd,
+          detached: true,
         });
         const stderrLines: string[] = [];
 
@@ -246,6 +251,7 @@ export class CommandExecutor extends Context.Service<
             stdout: "pipe",
             stderr: "pipe",
             cwd: opts?.cwd,
+            detached: true,
           });
           killOnAbort(proc, signal);
 
@@ -292,6 +298,7 @@ export class CommandExecutor extends Context.Service<
           stdout: "ignore",
           stderr: "ignore",
           cwd: opts?.cwd,
+          detached: true,
         });
         killOnAbort(proc, signal);
         return proc.exited;
@@ -311,6 +318,7 @@ export class CommandExecutor extends Context.Service<
             stdout: "pipe",
             stderr: "pipe",
             cwd: opts?.cwd,
+            detached: true,
           });
           killOnAbort(proc, signal);
           const stdout = pipeProcessOutput(
@@ -333,6 +341,7 @@ export class CommandExecutor extends Context.Service<
           stdout: "inherit",
           stderr: "inherit",
           cwd: opts?.cwd,
+          detached: true,
         });
         killOnAbort(proc, signal);
         return proc.exited;

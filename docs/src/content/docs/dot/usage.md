@@ -7,7 +7,7 @@ sidebar:
 
 `dot usage` records local-first analytics for the `dot`, `context`, and `notes` CLIs so you can see which features are actually used, split human from agent from automated calls, and decide whether a feature earns its keep.
 
-Recording is local, privacy-conscious, and off nobody's server: each invocation appends one NDJSON event under `$XDG_STATE_HOME/tool-usage`. Only the subcommand path and flag names are stored, never positional values such as paths, ids, or note text.
+Recording is local, privacy-conscious, and off nobody's server: each invocation appends one NDJSON event under `$XDG_STATE_HOME/tool-usage`. Only the canonical subcommand path and flag names declared by that command are stored, never positional values such as paths, ids, or note text.
 
 ## How it works
 

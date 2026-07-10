@@ -141,7 +141,7 @@ export function backupConflictingPublicTargets(
 
 /** True when the live target is a real file whose bytes differ from source. */
 function liveTargetConflicts(source: string, target: string): boolean {
-  let stat;
+  let stat: ReturnType<typeof lstatSync>;
   try {
     stat = lstatSync(target);
   } catch {
@@ -164,11 +164,24 @@ function backupTargetIfUnmanaged(
   moves: BackupMove[],
 ): void {
   if (targetAlreadyOwnedBySource(source, target)) return;
+  if (hasUnmanagedSymlinkParent(target)) return;
   const move = backupFileIfUnmanaged(
     target,
     join(backupRoot, dirname(relative(HOME_DIR, target))),
   );
   if (move) moves.push(move);
+}
+
+function hasUnmanagedSymlinkParent(target: string): boolean {
+  for (let parent = dirname(target); parent.startsWith(`${HOME_DIR}/`);) {
+    try {
+      if (lstatSync(parent).isSymbolicLink()) return true;
+    } catch {
+      // Missing ancestors cannot redirect the target outside HOME.
+    }
+    parent = dirname(parent);
+  }
+  return false;
 }
 
 function backupBlockingParentTargets(
@@ -183,7 +196,7 @@ function backupBlockingParentTargets(
   }
 
   for (const parent of parents.reverse()) {
-    let stat;
+    let stat: ReturnType<typeof lstatSync>;
     try {
       stat = lstatSync(parent);
     } catch {

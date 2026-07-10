@@ -54,6 +54,10 @@ jobs:
         if: steps.changes.outputs.dot == 'true'
         run: mise run dot:typecheck
 
+      - name: Test
+        if: steps.changes.outputs.dot == 'true'
+        run: mise run dot:test
+
       - name: Build
         if: steps.changes.outputs.dot == 'true'
         run: mise run dot:build

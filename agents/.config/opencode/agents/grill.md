@@ -14,6 +14,8 @@ permission:
   plan_exit: deny
   edit: deny
   write: deny
+  notes_note_write: deny
+  notes_note_delete: deny
   todowrite: deny
   bash:
     "*": deny
