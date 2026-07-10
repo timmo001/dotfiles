@@ -24,9 +24,11 @@ When `<branch-context>` is present:
 3. Avoid re-running `git`/`gh` commands unless the user asks for a fresh snapshot.
 4. For commands that require `BranchContextPlugin` scope, stop and report a plugin issue if context is missing instead of rebuilding scope.
 
-## Fallback commands (only when needed)
+## MCP refresh and fallback commands
 
-If plugin context is unavailable during ad-hoc work that is not plugin-backed and you need a scoped work snapshot, use this order:
+If plugin context is unavailable or stale during ad-hoc work that is not plugin-backed, use the Context MCP server's `git_context` tool. In OpenCode this is exposed as `context_git_context`. Request `diff: true`, `branchDiff: true`, `since`, or PR details only when the task needs them.
+
+If the MCP tool is unavailable and you need a scoped work snapshot, use this fallback order:
 
 1. `git diff`
 2. `git diff --cached`

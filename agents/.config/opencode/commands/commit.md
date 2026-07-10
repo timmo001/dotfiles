@@ -13,5 +13,6 @@ if `dot git-commit` is denied by permissions, stop and report rather than
 falling back.
 
 Use `${ARGUMENTS}` as the commit subject when provided (still subject to the
-gateway guards); otherwise derive a concise subject from `context git --diff`.
+gateway guards); otherwise derive a concise subject from the Context MCP
+`git_context` tool with `diff: true`.
 Confirm the staging scope before committing, and do not push.
