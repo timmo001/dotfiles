@@ -4,7 +4,7 @@ description: Scan a codebase for deepening opportunities, present them as a visu
 # origin: https://github.com/mattpocock/skills/tree/main/skills/engineering/improve-codebase-architecture
 # upstream-sha: d574778f94cf620fcc8ce741584093bc650a61d3
 # local-edits:
-#   - SKILL.md: rewired /grilling to the local grill-questions skill; generalised CONTEXT.md/docs-adr references to the project's domain docs (repo uses no fixed CONTEXT.md/ADR layout)
+#   - SKILL.md: rewired /grilling to the local grill-questions skill at Full intensity; generalised CONTEXT.md/docs-adr references to the project's domain docs (repo uses no fixed CONTEXT.md/ADR layout)
 #   - HTML-REPORT.md: generalised the ADR callout to a recorded-decision callout
 disable-model-invocation: true
 ---
@@ -61,7 +61,7 @@ Do NOT propose interfaces yet. After the file is written, ask the user: "Which o
 
 ### 3. Grilling loop
 
-Once the user picks a candidate, run the `grill-questions` skill (`/grill`) to walk the design tree with them — constraints, dependencies, the shape of the deepened module, what sits behind the seam, what tests survive.
+Once the user picks a candidate, run the `grill-questions` skill (`/grill`) at Full intensity to walk the design tree with them — constraints, dependencies, the shape of the deepened module, what sits behind the seam, what tests survive.
 
 Side effects happen inline as decisions crystallize — run the `/domain-modeling` skill to keep the domain model current as you go:
 

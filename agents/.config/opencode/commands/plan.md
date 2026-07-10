@@ -5,7 +5,7 @@ agent: plan
 
 Use this command when the current task would benefit from an explicit plan before implementation and the user wants to start in planning mode explicitly.
 
-Use `/grill` instead when the user wants an extended one-question-at-a-time design interview before a plan.
+Use `/grill` instead when the user wants light or full one-question-at-a-time stress-testing before a plan.
 
 Some execution-oriented agents may also enter native plan mode automatically via `plan_enter`; this command is the manual entrypoint.
 

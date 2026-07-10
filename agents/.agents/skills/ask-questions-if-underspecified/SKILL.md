@@ -1,12 +1,12 @@
 ---
 name: ask-questions-if-underspecified
-description: Ask minimal clarifying questions only when ambiguity materially changes implementation. Use for routine underspecification; do not use for extended grilling, plan stress-testing, or broad design interviews.
+description: Ask minimal clarifying questions only when ambiguity materially changes implementation. Use for routine underspecification; do not use for user-requested light or full grilling, plan stress-testing, or broad design interviews.
 # origin: https://github.com/trailofbits/skills/tree/main/plugins/ask-questions-if-underspecified/skills/ask-questions-if-underspecified
 # upstream-sha: d5fe2e6a7896236c3102fd5477e833623ad70298
 # local-edits:
-#   - description rewritten for brevity and narrowed away from grill-style questioning
+#   - description rewritten for brevity and narrowed away from light/full grill-style questioning
 #   - body condensed from detailed template-based process to concise OpenCode workflow
-#   - added OpenCode-specific rules (question tool, recommended tags)
+#   - added OpenCode-specific rules (question tool, recommended tags, light/full grill routing)
 #   - removed verbose question templates and reply format examples
 ---
 
@@ -25,7 +25,7 @@ Use this skill when a request has multiple plausible implementations and picking
 - The request is clear enough to proceed safely
 - A quick repo read (files/config/docs) can answer the unknowns
 - Repo conventions provide a safe default and ambiguity is low impact
-- The user wants to be grilled, stress-test a plan, or extend the question window; use `grill-questions` or `/grill` instead
+- The user wants light or full grilling or plan stress-testing; use `grill-questions` or `/grill` instead
 
 ## OpenCode-Specific Rules
 
@@ -59,7 +59,7 @@ Use this skill when a request has multiple plausible implementations and picking
 
 - Asking questions answerable via quick discovery
 - Asking broad/open questions when options would be clearer
-- Running an extended grilling session under this skill instead of `/grill`
+- Running a light or full grilling session under this skill instead of `/grill`
 - Asking permission for routine safe steps
 - Blocking on nice-to-know details that can use project defaults
 - Asking users to reply with numbered text when the `question` tool can capture choices

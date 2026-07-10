@@ -5,7 +5,7 @@ agent: ask
 
 Use this command for general investigation, triage, and context-gathering tasks.
 
-Use `/grill` instead when the user wants to stress-test a plan through extended one-question-at-a-time questioning.
+Use `/grill` instead when the user wants to stress-test a plan through light or full one-question-at-a-time questioning.
 
 Follow these steps:
 
