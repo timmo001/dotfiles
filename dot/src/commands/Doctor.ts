@@ -183,7 +183,7 @@ export const doctor = (opts?: { readonly openOpencode?: boolean }) =>
       const opencodePrompt = `Review the dot doctor report at ${reportPath}. Read it with the Read tool first. Give a concise diagnosis of any issues or warnings, probable causes, and a prioritized action plan to resolve them.`;
 
       yield* launcher
-        .suspend(`opencode --prompt ${JSON.stringify(opencodePrompt)}`)
+        .suspendArgv(["opencode", "--prompt", opencodePrompt])
         .pipe(Effect.catch(() => Effect.void));
     }
 

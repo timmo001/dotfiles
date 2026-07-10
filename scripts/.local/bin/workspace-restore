@@ -180,8 +180,8 @@ find_existing_address() {
     '
 }
 
-quote_arg() {
-  printf '%q' "$1"
+quote_shell_arg() {
+  printf "'%s'" "${1//\'/\'\"\'\"\'}"
 }
 
 command_for_client() {
@@ -246,14 +246,14 @@ command_for_client() {
         fi
         launch_url="https://${twitch_host}/${twitch_path}"
       fi
-      RESTORE_COMMAND="omarchy-launch-webapp $launch_url"
+      RESTORE_COMMAND="omarchy-launch-webapp $(quote_shell_arg "$launch_url")"
       return 0
       ;;
     com.mitchellh.ghostty:*|*:com.mitchellh.ghostty)
       RESTORE_LABEL="Ghostty"
       RESTORE_CLASS_RE='^com\.mitchellh\.ghostty$'
       if [ -n "$cwd" ] && [ -d "$cwd" ]; then
-        quoted_cwd="$(quote_arg "$cwd")"
+        quoted_cwd="$(quote_shell_arg "$cwd")"
         RESTORE_COMMAND="uwsm app -- ghostty-host-config --working-directory=$quoted_cwd"
       else
         RESTORE_COMMAND="$TERM_DEFAULT_CMD"
@@ -265,7 +265,7 @@ command_for_client() {
       if [[ "$class" == chrome-* ]] && [ -n "$browser_url" ]; then
         RESTORE_LABEL="${class:-${initial_class:-unknown}}"
         RESTORE_CLASS_RE="^$(printf '%s' "$class" | sed 's/[.[\*^$()+?{|]/\\&/g')$"
-        RESTORE_COMMAND="omarchy-launch-webapp $browser_url"
+        RESTORE_COMMAND="omarchy-launch-webapp $(quote_shell_arg "$browser_url")"
         [ -n "$title" ] && RESTORE_LABEL="$RESTORE_LABEL ($title)"
         return 0
       fi

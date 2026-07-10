@@ -3,7 +3,11 @@ import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog, type OutputLogService } from "../services/OutputLog.js";
-import { Launcher, LauncherError } from "../services/Launcher.js";
+import {
+  Launcher,
+  LauncherError,
+  type LauncherService,
+} from "../services/Launcher.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { GitHub } from "../git/services/GitHub.js";
 import { commitIn, stageIn } from "../git/committer.js";
@@ -310,12 +314,7 @@ export const skillUpdates = (opts?: {
 const opencodeReview = (
   items: readonly ReviewItem[],
   publicDotfiles: string,
-  launcher: {
-    readonly suspend: (
-      cmd: string,
-      opts?: { readonly waitForKey?: boolean },
-    ) => Effect.Effect<void, LauncherError>;
-  },
+  launcher: Pick<LauncherService, "suspend" | "suspendArgv">,
   log: OutputLogService,
 ) =>
   Effect.gen(function* () {
@@ -369,10 +368,8 @@ const opencodeReview = (
         "Launching interactive OpenCode session with plan agent...",
       );
 
-      // Launch opencode with the prompt
-      const escapedPrompt = prompt.replace(/'/g, "'\\''");
       yield* launcher
-        .suspend(`opencode --prompt '${escapedPrompt}' --agent plan`)
+        .suspendArgv(["opencode", "--prompt", prompt, "--agent", "plan"])
         .pipe(
           Effect.catch((err) => {
             return log.error("OpenCode session exited with an error.");
@@ -443,12 +440,7 @@ ${diffContent}
 /** Prompt user for review action (commit/skip/quit) using gum */
 const promptReviewAction = (
   skillName: string,
-  launcher: {
-    readonly suspend: (
-      cmd: string,
-      opts?: { readonly waitForKey?: boolean },
-    ) => Effect.Effect<void, LauncherError>;
-  },
+  launcher: Pick<LauncherService, "suspend">,
   log: {
     readonly info: (msg: string) => Effect.Effect<void>;
   },

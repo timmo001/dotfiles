@@ -128,11 +128,12 @@ cd opencode-config
 cp -r skills/diagnose ~/.agents/skills/
 cp commands/inject-context.md ~/.config/opencode/commands/
 cp plugins/env-protection.ts ~/.config/opencode/plugins/
+cp -r lib ~/.config/opencode/
 cp agents/reviewer.md ~/.config/opencode/agents/
 
 # Or copy everything
 cp -r skills ~/.agents/
-cp -r agents commands plugins ~/.config/opencode/
+cp -r agents commands plugins lib ~/.config/opencode/
 \`\`\`
 
 > **Stow users:** If your OpenCode config is managed by [GNU Stow](https://www.gnu.org/software/stow/) or a similar symlink manager, the \`cp\` commands above will not work — they copy into the live path rather than your stow source directory. Either follow the [dotfiles setup](${DOTFILES_URL}) this repo is published from, or ask an agent to adapt the files into your own stow structure.
@@ -296,6 +297,7 @@ skills/      OpenCode skills (SKILL.md per directory, optional references/)
 agents/      Agent definitions (YAML frontmatter + Markdown body)
 commands/    Slash commands (YAML frontmatter + Markdown workflow)
 plugins/     Lifecycle plugins (ESM TypeScript)
+lib/         Shared modules imported by plugins
 \`\`\`
 
 ## Skills
@@ -319,11 +321,32 @@ EOF
 # ---------------------------------------------------------------------------
 # Sync to publish repo
 # ---------------------------------------------------------------------------
+validate_plugin_imports() {
+  local config_dir="$1"
+  local plugin_file import_path resolved
+
+  while IFS= read -r plugin_file; do
+    while IFS= read -r import_path; do
+      [[ -n "$import_path" ]] || continue
+      resolved="$(dirname "$plugin_file")/$import_path"
+      if [[ -f "$resolved" || -f "${resolved}.ts" || -f "${resolved}.js" || -f "${resolved%.js}.ts" || -f "${resolved}/index.ts" || -f "${resolved}/index.js" ]]; then
+        continue
+      fi
+
+      echo "::error::Plugin import is missing: ${plugin_file#"${config_dir}/"} -> ${import_path}"
+      return 1
+    done < <(
+      sed -nE \
+        -e "s/.*from[[:space:]]+['\"](\.\.?\/[^'\"]+)['\"].*/\1/p" \
+        -e "s/^[[:space:]]*import[[:space:]]+['\"](\.\.?\/[^'\"]+)['\"].*/\1/p" \
+        -e "s/.*import[[:space:]]*\([[:space:]]*['\"](\.\.?\/[^'\"]+)['\"].*/\1/p" \
+        "$plugin_file"
+    )
+  done < <(find "${config_dir}/plugins" -type f \( -name '*.ts' -o -name '*.js' \) -print)
+}
+
 sync_to_publish() {
   echo "::group::Sync files to publish repo"
-
-  # Clean target (preserve .git)
-  find "${PUBLISH_DIR}" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
 
   [[ -d "${CONFIG_DIR}" ]] || {
     echo "::error::OpenCode config source not found: ${CONFIG_DIR}"
@@ -333,9 +356,22 @@ sync_to_publish() {
     echo "::error::Shared skills source not found: ${SKILLS_DIR}"
     return 1
   }
+  [[ -d "${CONFIG_DIR}/lib" ]] || {
+    echo "::error::OpenCode shared modules not found: ${CONFIG_DIR}/lib"
+    return 1
+  }
+  [[ -d "${PUBLISH_DIR}/.git" ]] || {
+    echo "::error::Publish directory is not a Git checkout: ${PUBLISH_DIR}"
+    return 1
+  }
+
+  validate_plugin_imports "${CONFIG_DIR}"
+
+  # Clean target (preserve .git)
+  find "${PUBLISH_DIR}" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
 
   # Copy OpenCode config directories from their stow source.
-  for dir in agents commands plugins; do
+  for dir in agents commands plugins lib; do
     [[ -d "${CONFIG_DIR}/${dir}" ]] || continue
     cp -a "${CONFIG_DIR}/${dir}" "${PUBLISH_DIR}/"
   done

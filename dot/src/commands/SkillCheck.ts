@@ -80,7 +80,7 @@ export const skillCheck = (opts?: {
       const opencodePrompt = `Skill check results: ${summary}\n\nAnalyse the branch-context command registrations and any skill origin diffs included below. Do not analyse whether skills are referenced by AGENTS.md, commands, or agent definitions; skills self-define through their descriptions.${diffInstruction}`;
 
       yield* launcher
-        .suspend(`opencode --prompt ${JSON.stringify(opencodePrompt)}`)
+        .suspendArgv(["opencode", "--prompt", opencodePrompt])
         .pipe(Effect.catch(() => Effect.void));
     }
   });

@@ -85,6 +85,8 @@ The restore script reads `hyprctl -j clients` and tries these paths in order:
 
 Supported relaunch paths are encoded in `workspace-restore` and currently cover Chromium, work Chrome app windows, Slack, Discord, Twitch webapps, generic Chrome webapps with captured URLs, and Ghostty terminals with the saved working directory.
 
+Captured browser URLs are passed to the Hyprland launcher as one shell-quoted argument, so query strings and shell metacharacters are preserved as URL data rather than interpreted as commands.
+
 Unsupported classes are skipped with a reason in the restore output.
 
 ## Browser URLs

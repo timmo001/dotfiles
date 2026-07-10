@@ -12,6 +12,17 @@ permissions:
   contents: read
 
 jobs:
+  regression-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Run regression tests
+        run: |
+          .tests/opencode-publish-test.sh
+          .tests/workspace-restore-test.sh
+
   actionlint:
     uses: timmo001/workflows/.github/workflows/lint-actionlint.yml@90243d15ea24d2e156f26341706f587c2559bedc # master
 
