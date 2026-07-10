@@ -79,9 +79,9 @@ describe("listStowFolders", () => {
     }
     writeFileSync(join(root, "README.md"), "not a directory");
 
-    expect(listStowFolders(root, fakeConfig(root))).toEqual([
-      "scripts--desktop",
+    expect(listStowFolders(root, fakeConfig(root)).sort()).toEqual([
       "scripts",
+      "scripts--desktop",
     ]);
   });
 });
