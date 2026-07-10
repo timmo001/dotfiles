@@ -245,7 +245,7 @@ dot skill-updates --update    # Auto-apply clean updates
 dot skill-updates --skip-review # Skip local-edit review
 dot skill-check               # Validate skill maintenance wiring
 dot completions zsh           # Generate stowed shell completions
-dot usage                     # Per-feature usage summary (dot, context, notes)
+dot usage                     # Per-feature dot usage summary
 dot usage summary --format agent-context # Compact usage summary for agents
 dot usage stale --days 90     # Features not used in the window
 dot usage backfill --history  # Dry-run import from shell history (--apply to write)
@@ -281,7 +281,7 @@ After that bootstrap build, run the checked-out binary directly. If private dotf
 
 - `~/.cache/waybar/git-diff-waybar.json` — Waybar cache for fast startup
 - `NOTES` / `DOT_NOTES_DIR` — notes vault used by the standalone `notes` CLI/MCP server and OpenCode note commands
-- `TOOL_USAGE_DIR` / `DOT_USAGE_DIR` — usage event root for `dot usage` (default `$XDG_STATE_HOME/tool-usage`; `DOT_USAGE_DIR` wins for `dot`). `TOOL_USAGE_DISABLE` / `DOT_USAGE_DISABLE` disable recording
+- `DOT_USAGE_DIR` — usage event root for `dot usage` (default `$XDG_STATE_HOME/tool-usage`). `DOT_USAGE_DISABLE` disables live dot recording
 - `~/.config/dotfiles-private/dot-git.yml` — private git repo config for clone/bootstrap, doctor checks, `dot git-diff`, `dot git-log`, `dot git-workflows`, and `dot git-notifications --bar-json`; `activity`, `workflows`, and `notifications` each require explicit `enabled` plus 5-field cron `schedule` keys, and `notifications.bar.ignore_bot_activity` controls status-bar bot noise
 - `gh` authenticated with a classic token carrying `notifications` or `repo` scope — required for `dot git-notifications` and its Waybar module
 - `lazygit` — launched via suspend/resume on Enter in diff view

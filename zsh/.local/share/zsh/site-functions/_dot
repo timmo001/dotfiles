@@ -27,7 +27,7 @@ dot_commands=(
   'skill-check:Validate skill maintenance wiring'
   'completions:Generate shell completions'
   'omarchy:Open an Omarchy submenu by path'
-  'usage:Local-first analytics for dot, context, and notes usage'
+  'usage:Local-first analytics for dot usage'
   'help:Show this help menu'
 )
 

@@ -663,16 +663,17 @@ power       Power profiles
 
 ## `dot usage`
 
-Local-first analytics for dot, context, and notes usage
+Local-first analytics for dot usage
 
 ```text
 dot usage [summary|stale|path|backfill] [options]
 ```
 
-Report local-first usage analytics for dot, context, and notes. Each
-invocation of these tools appends a privacy-conscious NDJSON event under
-$XDG_STATE_HOME/tool-usage (flag names and exit status only, never
-positional values). Sync that directory between machines to combine them.
+Report local-first usage analytics for dot. Each dot invocation appends
+a privacy-conscious NDJSON event under $XDG_STATE_HOME/tool-usage (flag
+names and exit status only, never positional values). Shell-history
+backfill can also observe selected standalone tool invocations without
+requiring those tools to integrate with dot.
 
 Set DOT_USAGE_DISABLE=1 to stop recording, or DOT_USAGE_DIR to relocate
 the event root.

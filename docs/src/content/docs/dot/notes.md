@@ -64,7 +64,7 @@ See the [commands reference](/reference/commands/) for the full list.
 
 Two OpenCode [plugins](/reference/plugins/) wire the commands to the vault:
 
-- **`repo-notes`** injects a `<repo-note-context>` block at the top of each note command. It runs `notes context --command <name> --json`, which resolves the owner and repo from git and reports the target notes path. For listing and search commands it includes existing note metadata; `/note-reference` additionally gets the full note bodies.
+- **`repo-notes`** injects a `<repo-note-context>` block at the top of each note command. It runs `notes context --command <name> --json`, which resolves the owner and repo from git and reports the target notes path. For listing and search commands it includes existing note metadata; `/note-reference` reads only the selected note bodies through `notes_note_read`.
 - **`notes-guard`** blocks built-in file and shell tools from touching the vault, so the note MCP tools are the only way in.
 
 Agent harnesses prefix MCP server names onto tool calls, so note commands and plugins refer to `notes_note_read`, `notes_note_write`, `notes_note_delete`, and `notes_note_list`. The underlying standalone MCP server registers them as `note_read`, `note_write`, `note_delete`, and `note_list`; see the [Notes MCP docs](https://notes.timmo.dev/mcp/).

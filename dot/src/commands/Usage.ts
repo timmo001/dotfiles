@@ -318,7 +318,7 @@ function renderHelp(): string {
   return [
     "Usage: dot usage <summary|stale|path|backfill> [options]",
     "",
-    "Local-first analytics for dot, context, and notes usage.",
+    "Local-first analytics for dot usage, with optional shell-history observations.",
     "",
     "Subcommands:",
     "  summary    Per-feature usage table (default)",

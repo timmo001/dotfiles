@@ -47,19 +47,18 @@ export interface UsageEvent {
   readonly invoker: UsageInvoker;
 }
 
-/** Whether usage recording is disabled via `DOT_USAGE_DISABLE`/`TOOL_USAGE_DISABLE`. */
+/** Whether dot usage recording is disabled via `DOT_USAGE_DISABLE`. */
 export function usageDisabled(): boolean {
-  return envFlag(ENV.DOT_USAGE_DISABLE) || envFlag(ENV.TOOL_USAGE_DISABLE);
+  return envFlag(ENV.DOT_USAGE_DISABLE);
 }
 
 /**
  * Root directory for usage data. Defaults to `$XDG_STATE_HOME/tool-usage`
  * (falling back to `~/.local/state/tool-usage`), overridable with
- * `DOT_USAGE_DIR` or the cross-tool `TOOL_USAGE_DIR`.
+ * `DOT_USAGE_DIR`.
  */
 export function usageRoot(): string {
-  const override =
-    envString(ENV.DOT_USAGE_DIR) ?? envString(ENV.TOOL_USAGE_DIR);
+  const override = envString(ENV.DOT_USAGE_DIR);
   return override ? expandHomePath(override) : join(STATE_DIR, "tool-usage");
 }
 
