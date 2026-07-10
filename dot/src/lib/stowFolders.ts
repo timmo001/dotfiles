@@ -4,7 +4,12 @@ import { ConfigService } from "../services/Config.js";
 import { resolvedOmarchyHost } from "./omarchyHost.js";
 
 /** Top-level repo directories that are not active stow packages. */
-export const INTERNAL_STOW_FOLDERS = ["dot", "dot-migration", "docs"] as const;
+export const INTERNAL_STOW_FOLDERS = [
+  "dot",
+  "dot-migration",
+  "docs",
+  "tests",
+] as const;
 
 const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);
 

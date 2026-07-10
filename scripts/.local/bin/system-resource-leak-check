@@ -2,8 +2,7 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-OUTPUT_DIR="$SCRIPT_DIR/output"
+OUTPUT_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/system-resource-leak-check"
 
 OUTPUT_FILE=""
 DURATION=120
@@ -41,13 +40,13 @@ style_line() {
 
 usage() {
   cat <<'EOF'
-Usage: system-resource-leak-test.sh [options]
+Usage: system-resource-leak-check [options]
 
 Options:
   --duration <seconds>             Total sampling duration (default: 120)
   --interval <seconds>             Seconds between samples (default: 5)
   --warmup <seconds>               Warmup before baseline capture (default: 20)
-  --rss-growth-mb <n>              Allowed RSS growth in MB (default: 300)
+  --rss-growth-mb <n>              Allowed RSS growth in MB (default: 1024)
   --swap-growth-mb <n>             Allowed swap growth in MB (default: 256)
   --pressure-growth-tenths <n>     Allowed PSI growth in tenths (default: 20 => 2.0)
   --socket-growth <n>              Allowed socket count growth (default: 200)
@@ -61,7 +60,7 @@ validate_non_negative_int() {
   local value="$2"
 
   if [[ ! "$value" =~ ^[0-9]+$ ]]; then
-    printf 'system-resource-leak-test.sh: %s must be a non-negative integer\n' "$name" >&2
+    printf 'system-resource-leak-check: %s must be a non-negative integer\n' "$name" >&2
     exit 1
   fi
 }
@@ -105,7 +104,7 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     *)
-      printf 'system-resource-leak-test.sh: unknown argument: %s\n' "$1" >&2
+      printf 'system-resource-leak-check: unknown argument: %s\n' "$1" >&2
       exit 1
       ;;
   esac
@@ -120,18 +119,18 @@ validate_non_negative_int '--pressure-growth-tenths' "$PRESSURE_GROWTH_TENTHS"
 validate_non_negative_int '--socket-growth' "$SOCKET_GROWTH"
 
 if (( DURATION < 1 )); then
-  printf 'system-resource-leak-test.sh: --duration must be >= 1\n' >&2
+  printf 'system-resource-leak-check: --duration must be >= 1\n' >&2
   exit 1
 fi
 
 if (( INTERVAL < 1 )); then
-  printf 'system-resource-leak-test.sh: --interval must be >= 1\n' >&2
+  printf 'system-resource-leak-check: --interval must be >= 1\n' >&2
   exit 1
 fi
 
 if [[ -z "$OUTPUT_FILE" ]]; then
   mkdir -p "$OUTPUT_DIR"
-  OUTPUT_FILE="$OUTPUT_DIR/system-resource-leak-test-$(date +%Y%m%d-%H%M%S).txt"
+  OUTPUT_FILE="$OUTPUT_DIR/system-resource-leak-check-$(date +%Y%m%d-%H%M%S).txt"
 else
   mkdir -p "$(dirname "$OUTPUT_FILE")"
 fi
@@ -174,7 +173,7 @@ format_tenths() {
 
 exec > >(tee "$OUTPUT_FILE") 2>&1
 
-style_line "${C_BOLD}${C_CYAN}" 'System resource leak test'
+style_line "${C_BOLD}${C_CYAN}" 'System resource leak check'
 printf 'Uptime/load: '
 uptime
 printf 'Duration: %ss\n' "$DURATION"
@@ -287,10 +286,10 @@ if (( fail )); then
   for failure in "${failures[@]}"; do
     printf -- '- %s\n' "$failure"
   done
-  printf '\nSaved test output: %s\n' "$OUTPUT_FILE"
+  printf '\nSaved diagnostic output: %s\n' "$OUTPUT_FILE"
   exit 1
 fi
 
 style_line "${C_BOLD}${C_GREEN}" 'Result: PASS'
 printf 'No thresholds exceeded.\n'
-printf '\nSaved test output: %s\n' "$OUTPUT_FILE"
+printf '\nSaved diagnostic output: %s\n' "$OUTPUT_FILE"

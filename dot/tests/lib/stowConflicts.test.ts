@@ -9,15 +9,15 @@ import {
   writeFileSync,
 } from "fs";
 import { basename, dirname, join } from "path";
-import { emptyDotGitConfig } from "../services/GitConfig.js";
-import type { ConfigService } from "../services/Config.js";
-import { emptyMcpConfig } from "../mcp/sync/loadSpec.js";
-import { ENV } from "./env.js";
-import { HOME_DIR } from "./paths.js";
+import { emptyDotGitConfig } from "../../src/services/GitConfig.js";
+import type { ConfigService } from "../../src/services/Config.js";
+import { emptyMcpConfig } from "../../src/mcp/sync/loadSpec.js";
+import { ENV } from "../../src/lib/env.js";
+import { HOME_DIR } from "../../src/lib/paths.js";
 import {
   backupConflictingPublicTargets,
   backupUnmanagedStowTargets,
-} from "./stowConflicts.js";
+} from "../../src/lib/stowConflicts.js";
 
 const previousOmarchyHost = process.env[ENV.OMARCHY_HOST];
 const tempRoots: string[] = [];

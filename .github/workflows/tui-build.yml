@@ -7,6 +7,7 @@ on:
       - distro/arch-omarchy
     paths:
       - 'dot/**'
+      - 'tests/dot/**'
       - 'docs/**'
       - '.github/workflows/tui-build.yml'
   pull_request: {}
@@ -28,6 +29,7 @@ jobs:
           filters: |
             dot:
               - 'dot/**'
+              - 'tests/dot/**'
               - '.github/workflows/tui-build.yml'
             docs:
               - 'docs/**'

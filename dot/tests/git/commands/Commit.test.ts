@@ -6,7 +6,7 @@ import {
   foreignRemoteSlug,
   parseRemotes,
   validateCommitMessage,
-} from "./Commit.js";
+} from "../../../src/git/commands/Commit.js";
 
 describe("validateCommitMessage", () => {
   test("accepts a normal single-line subject", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { chooseElevationBinary } from "./elevatedCommand.js";
+import { chooseElevationBinary } from "../../src/lib/elevatedCommand.js";
 
 describe("chooseElevationBinary", () => {
   test("prefers pkexec in a graphical session", () => {

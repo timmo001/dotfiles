@@ -3,10 +3,10 @@ import { Effect, Layer, Stream } from "effect";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
-import { setupPrivatePackageRepo } from "./SetupPrivateRepo.js";
-import { CommandExecutor } from "../services/CommandExecutor.js";
-import { OutputLog } from "../services/OutputLog.js";
-import { ENV } from "../lib/env.js";
+import { setupPrivatePackageRepo } from "../../src/commands/SetupPrivateRepo.js";
+import { CommandExecutor } from "../../src/services/CommandExecutor.js";
+import { OutputLog } from "../../src/services/OutputLog.js";
+import { ENV } from "../../src/lib/env.js";
 
 const previousPacmanRepoConfig =
   process.env[ENV.DOT_PRIVATE_PACMAN_REPO_CONFIG];

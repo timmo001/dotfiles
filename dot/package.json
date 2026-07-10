@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "build": "bun build src/index.ts --compile --outfile ../scripts/.local/bin/dot",
-    "test": "bun test",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\"",
+    "test": "bun test tests",
+    "format": "prettier --write \"{src,tests}/**/*.ts\"",
+    "format:check": "prettier --check \"{src,tests}/**/*.ts\"",
     "prepare": "effect-tsgo patch"
   },
   "dependencies": {

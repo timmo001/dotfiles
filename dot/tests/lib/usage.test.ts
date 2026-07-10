@@ -4,7 +4,7 @@ import {
   usageCommandKey,
   usageEventKey,
   type UsageEvent,
-} from "./usage.js";
+} from "../../src/lib/usage.js";
 
 describe("extractFlagNames", () => {
   test("records only recognised flags", () => {

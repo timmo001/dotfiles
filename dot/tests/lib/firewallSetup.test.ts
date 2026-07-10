@@ -3,15 +3,15 @@ import { Effect, Layer, Stream } from "effect";
 import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { CommandExecutor } from "../services/CommandExecutor.js";
-import { OutputLog } from "../services/OutputLog.js";
-import { ENV } from "./env.js";
+import { CommandExecutor } from "../../src/services/CommandExecutor.js";
+import { OutputLog } from "../../src/services/OutputLog.js";
+import { ENV } from "../../src/lib/env.js";
 import {
   configureFirewallRules,
   firewallRuleSpecs,
   firewallSetupScript,
   parseUfwAllowTuples,
-} from "./firewallSetup.js";
+} from "../../src/lib/firewallSetup.js";
 
 const previousUfwRulesFile = process.env[ENV.DOT_UFW_RULES_FILE];
 const tempRoots: string[] = [];

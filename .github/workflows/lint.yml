@@ -20,8 +20,8 @@ jobs:
 
       - name: Run regression tests
         run: |
-          .tests/opencode-publish-test.sh
-          .tests/workspace-restore-test.sh
+          bash tests/github/opencode-publish.test.sh
+          bash tests/scripts/workspace-restore.test.sh
 
   actionlint:
     uses: timmo001/workflows/.github/workflows/lint-actionlint.yml@90243d15ea24d2e156f26341706f587c2559bedc # master

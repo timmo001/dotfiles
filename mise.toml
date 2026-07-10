@@ -45,6 +45,18 @@ run = "bun test"
 description = "Type-check, test, and verify dot formatting"
 depends = ["dot:typecheck", "dot:test", "dot:format:check"]
 
+[tasks."tests:integration"]
+description = "Run deterministic repository integration tests"
+run = """
+bash tests/github/opencode-publish.test.sh
+bash tests/scripts/workspace-restore.test.sh
+"""
+
+[tasks."tests:smoke"]
+description = "Build dot and smoke-test side-effect-free CLI entry points"
+depends = ["dot:build"]
+run = "bash tests/dot/cli-smoke.test.sh"
+
 # docs (runs in ./docs)
 [tasks."docs:dev"]
 description = "Run the docs dev server (regenerates references first)"

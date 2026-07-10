@@ -39,34 +39,44 @@ topgrade mise cargo # run only named steps
 - Firmware is check-only, `mise` bumps tool versions, and `yay` runs with `--noconfirm --cleanafter`.
 - Steps managed elsewhere or unused are disabled (for example `bun`, `deno`, `go`, and `pnpm` come from `mise`; `hyprpm` is skipped because it drops the shared sudo credential and would force `omarchy update` to re-authenticate). A desktop notification fires only on failure.
 
-## Benchmarks and tests
+## Benchmarks and diagnostics
 
-The repo includes minimal system-wide benchmark and resource-leak test scripts under `.benchmarks/` and `.tests/` (excluded from stow):
+The stowed utility scripts include a quick system benchmark and an ambient resource-growth diagnostic:
 
-- `.benchmarks/system-quick-bench.sh` — short CPU/memory/network benchmark snapshot.
-- `.tests/system-resource-leak-test.sh` — short leak and growth check over time.
+- `system-quick-benchmark` - short CPU/memory/network benchmark snapshot.
+- `system-resource-leak-check` - samples whole-system memory, swap, pressure, and sockets over time. It is a diagnostic, not a deterministic test.
 
 ```bash
 # Quick benchmark (minimal defaults)
-.benchmarks/system-quick-bench.sh
+system-quick-benchmark
 
 # Include LAN throughput (requires an iperf3 target)
-.benchmarks/system-quick-bench.sh --iperf-host 192.168.1.50
+system-quick-benchmark --iperf-host 192.168.1.50
 
-# Resource leak test (short run)
-.tests/system-resource-leak-test.sh
+# Resource growth diagnostic
+system-resource-leak-check
 ```
 
-- Benchmarks write outputs to `.benchmarks/output/`; tests write to `.tests/output/` (both gitignored).
+- Reports are written beneath `$XDG_STATE_HOME` (default `~/.local/state`) in directories matching each command name. Use `--output` to select another path.
 - LAN network throughput is opt-in and requires `--iperf-host`.
 - Scripts use ANSI colour output by default; set `NO_COLOR=1` to disable.
 - All scripts include an uptime/load snapshot near the top of output.
+
+Repository regression tests live under `tests/`, use temporary directories, and run through mise tasks and the `lint.yml` workflow:
+
+- `tests/github/opencode-publish.test.sh` checks publication of shared `lib/` modules and rejects missing relative plugin imports before cleaning the publish checkout.
+- `tests/scripts/workspace-restore.test.sh` checks that captured browser URLs remain one shell argument and cannot execute command substitutions during restore.
+- `tests/dot/cli-smoke.test.sh` builds `dot` and checks side-effect-free CLI entry points.
+
+Run `mise run tests:integration` for deterministic repository tests and `mise run tests:smoke` for the build plus CLI smoke checks. TypeScript unit tests mirror `dot/src/` under `dot/tests/` and run through `mise run dot:test`.
 
 ## Firewall rules
 
 `dot firewall` configures a managed set of [ufw](https://wiki.archlinux.org/title/Uncomplicated_Firewall) rules, `dot init` runs it during first-use setup, and `dot doctor` verifies the rules are still present. The setup reads the world-readable ufw rules file first, so a fully configured machine adds nothing and never prompts for a password. When changes are needed, missing or stale-comment rules are applied in one elevated batch, followed by a single `ufw reload`, so the firewall step should only ask for authentication once. Each rule is tagged with its purpose as a ufw comment, so it appears in `ufw status`.
 
 Most rules are inbound port allows on any interface. The libvirt rules are scoped to the `virbr0` bridge: two inbound allows for guest DHCP and DNS, plus a forwarding (route) allow so the default NAT network can route guest traffic off the bridge. Without them, ufw's default `deny (incoming)` and `deny (routed)` policy leaves guests without an address or internet access.
+
+Rule identity includes the complete ufw tuple: source, destination, protocol/port, and interface/direction. A source-restricted existing rule does not satisfy a managed any-source rule, so `dot firewall` adds the broader managed rule rather than treating the restricted rule as equivalent.
 
 | Port(s) | Protocol | Scope | Purpose |
 | --- | --- | --- | --- |

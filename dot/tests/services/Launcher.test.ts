@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { Effect, Layer, Stream } from "effect";
-import { CommandExecutor } from "./CommandExecutor.js";
-import { Launcher } from "./Launcher.js";
-import { OutputLog } from "./OutputLog.js";
+import { CommandExecutor } from "../../src/services/CommandExecutor.js";
+import { Launcher } from "../../src/services/Launcher.js";
+import { OutputLog } from "../../src/services/OutputLog.js";
 
 describe("Launcher", () => {
   test("passes prompt content directly to argv without a shell", async () => {
