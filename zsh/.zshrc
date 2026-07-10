@@ -758,18 +758,22 @@ fi
 # GitHub MCP bearer (OpenCode + Cursor)
 # ------------------------------
 # Scope the token to agent harnesses instead of exposing it to every shell child.
+# Resolve the real binary with whence -p; do not pass shell builtin `command` to
+# env (env looks for an external executable named "command").
 _dot_with_github_mcp_bearer() {
-  local token
+  local token bin
+  bin="$(whence -p "$1")" || return $?
+  shift
   token="$(gh auth token 2>/dev/null)" || return $?
-  env DOT_GH_MCP_BEARER="$token" "$@"
+  env DOT_GH_MCP_BEARER="$token" "$bin" "$@"
 }
 
 opencode() {
-  _dot_with_github_mcp_bearer command opencode "$@"
+  _dot_with_github_mcp_bearer opencode "$@"
 }
 
 cursor() {
-  _dot_with_github_mcp_bearer command cursor "$@"
+  _dot_with_github_mcp_bearer cursor "$@"
 }
 
 # ------------------------------
