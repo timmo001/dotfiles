@@ -134,11 +134,6 @@ const numberField = (record: JsonRecord, field: string): number => {
   return typeof value === "number" ? value : 0;
 };
 
-const booleanField = (record: JsonRecord, field: string): boolean => {
-  const value = record[field];
-  return typeof value === "boolean" ? value : false;
-};
-
 const stringArray = (value: unknown): string[] =>
   Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
@@ -224,6 +219,25 @@ const renderFrameworks = (frameworks: JsonRecord[]): string[] => {
   );
 };
 
+const renderTruncations = (truncations: JsonRecord[]): string[] => {
+  if (!truncations.length) return [];
+  return truncations.map((truncation) => {
+    const details = [
+      `limit=${numberField(truncation, "limit")}`,
+      typeof truncation.observed === "number"
+        ? `observed=${truncation.observed}`
+        : "",
+      typeof truncation.omitted === "number"
+        ? `omitted=${truncation.omitted}`
+        : "",
+      stringField(truncation, "subject")
+        ? `subject=${stringField(truncation, "subject")}`
+        : "",
+    ].filter(Boolean);
+    return `${stringField(truncation, "reason") || "unknown"}: ${details.join(" ")}`;
+  });
+};
+
 const formatErrorContext = (message: string, error: string | null): string => {
   return [
     "<stack-context>",
@@ -238,7 +252,10 @@ const formatErrorContext = (message: string, error: string | null): string => {
 
 const renderStackContext = (data: JsonRecord): string => {
   const scanned = numberField(data, "scannedFiles");
-  const truncated = booleanField(data, "truncated") ? "; truncated at cap" : "";
+  const truncations = recordArray(data.truncations);
+  if (data.truncated === true && truncations.length === 0) {
+    truncations.push({ reason: "maxFiles", limit: 0 });
+  }
   const warnings = stringArray(data.warnings);
 
   const lines = [
@@ -250,7 +267,7 @@ const renderStackContext = (data: JsonRecord): string => {
         "Produced by `context stack --json`. Git-aware and deterministic (no LLM); prefer it over re-scanning the tree.",
         `Generated at: ${new Date().toISOString()}`,
         `Root: ${stringField(data, "name") || "(unknown)"} (${stringField(data, "root") || "(unknown)"})`,
-        `Files scanned: ${scanned}${truncated}`,
+        `Files scanned: ${scanned}`,
       ],
     ),
     formatTag(
@@ -274,6 +291,16 @@ const renderStackContext = (data: JsonRecord): string => {
       renderFrameworks(recordArray(data.frameworks)),
     ),
   ];
+
+  if (truncations.length) {
+    lines.push(
+      formatTag(
+        "truncations",
+        "Applied scan, collection, and output limits. Treat affected sections as partial.",
+        renderTruncations(truncations),
+      ),
+    );
+  }
 
   if (warnings.length) {
     lines.push(

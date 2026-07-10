@@ -88,9 +88,25 @@ const numberField = (record: JsonRecord, field: string): number => {
   return typeof value === "number" ? value : 0;
 };
 
+const optionalNumberField = (
+  record: JsonRecord,
+  field: string,
+): number | null => {
+  const value = record[field];
+  return typeof value === "number" ? value : null;
+};
+
 const booleanField = (record: JsonRecord, field: string): boolean => {
   const value = record[field];
   return typeof value === "boolean" ? value : false;
+};
+
+const optionalBooleanField = (
+  record: JsonRecord,
+  field: string,
+): boolean | null => {
+  const value = record[field];
+  return typeof value === "boolean" ? value : null;
 };
 
 const stringArray = (value: unknown): string[] =>
@@ -164,17 +180,20 @@ const formatErrorContext = (message: string, error: string | null): string => {
 const renderBranchMetadata = (meta: JsonRecord | null): string[] => {
   if (!meta) return ["(unavailable)"];
   const remotes = stringArray(meta.remotes);
+  const ahead = optionalNumberField(meta, "ahead");
+  const behind = optionalNumberField(meta, "behind");
+  const onDefaultBranch = optionalBooleanField(meta, "onDefaultBranch");
   return [
     `Repository: ${stringField(meta, "repositoryName") || "(unknown)"}`,
     `Repository root: ${stringField(meta, "repositoryRoot") || "(unknown)"}`,
     `Current branch: ${stringField(meta, "currentBranch") || "(unknown)"}`,
     `HEAD: ${stringField(meta, "headSha") || "(unknown)"}`,
-    `Default remote: ${stringField(meta, "defaultRemote") || "(unknown)"}`,
-    `Default branch: ${stringField(meta, "defaultBranch") || "(unknown)"}`,
-    `Base ref: ${stringField(meta, "baseRef") || "(unknown)"}`,
+    `Default remote: ${stringField(meta, "defaultRemote") || "(unresolved)"}`,
+    `Default branch: ${stringField(meta, "defaultBranch") || "(unresolved)"}`,
+    `Base ref: ${stringField(meta, "baseRef") || "(unresolved)"}`,
     `Upstream ref: ${stringField(meta, "upstreamRef") || "(none)"}`,
-    `Ahead/behind base: ${numberField(meta, "ahead")} ahead, ${numberField(meta, "behind")} behind`,
-    `On default branch: ${booleanField(meta, "onDefaultBranch") ? "yes" : "no"}`,
+    `Ahead/behind base: ${ahead === null || behind === null ? "(unavailable)" : `${ahead} ahead, ${behind} behind`}`,
+    `On default branch: ${onDefaultBranch === null ? "(unresolved)" : onDefaultBranch ? "yes" : "no"}`,
     `Known remotes: ${remotes.length ? remotes.join(", ") : "(none)"}`,
   ];
 };
@@ -201,12 +220,25 @@ const renderWorkScope = (
     ),
     "",
   ];
-  if (workScope && booleanField(workScope, "skipped")) {
+  const state = workScope ? stringField(workScope, "state") : "";
+  if (state === "not-applicable" || booleanField(workScope ?? {}, "skipped")) {
     lines.push(
       "Branch scope: skipped (HEAD is on the default branch)",
       "",
       formatList("Recent commits", recentCommits),
     );
+    return lines;
+  }
+  if (state === "unresolved") {
+    lines.push(
+      `Branch scope: unavailable (${stringField(workScope!, "reason") || "default branch is unresolved"})`,
+      "",
+      formatList("Recent commits", recentCommits),
+    );
+    return lines;
+  }
+  if (state !== "collected") {
+    lines.push("Branch scope: unavailable");
     return lines;
   }
   lines.push(
@@ -297,6 +329,16 @@ const renderPullRequest = (pr: JsonRecord): string[] => {
   return lines;
 };
 
+const renderTruncations = (truncations: JsonRecord[]): string[] =>
+  truncations.map((truncation) => {
+    const details = [
+      `retained=${numberField(truncation, "retained")}`,
+      `original=${numberField(truncation, "original")}`,
+      stringField(truncation, "unit"),
+    ].filter(Boolean);
+    return `${stringField(truncation, "path") || "unknown"}: ${details.join(" ")}`;
+  });
+
 const renderBranchContext = (
   data: JsonRecord,
   includePullRequest: boolean,
@@ -307,6 +349,7 @@ const renderBranchContext = (
   const recentCommits = stringField(data, "commits");
   const pr = isRecord(data.pullRequest) ? data.pullRequest : null;
   const warnings = stringArray(data.warnings);
+  const truncations = recordArray(data.truncations);
 
   const lines = [
     "<branch-context>",
@@ -343,6 +386,16 @@ const renderBranchContext = (
         pr
           ? renderPullRequest(pr)
           : ["No pull request found for the current branch."],
+      ),
+    );
+  }
+
+  if (truncations.length) {
+    lines.push(
+      formatTag(
+        "truncations",
+        "Applied output limits. Treat affected branch-context sections as partial.",
+        renderTruncations(truncations),
       ),
     );
   }
