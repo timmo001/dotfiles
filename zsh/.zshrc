@@ -548,6 +548,7 @@ command-breakdown() {
 # alias cat="bat"
 alias la="tree"
 alias cbd="command-breakdown"
+alias e="yazi"
 
 alias ff="fastfetch"
 
