@@ -1,0 +1,42 @@
+[[plugin.deps]]
+use = "Lil-Dank/lazygit"
+rev = "e73fd74"
+hash = "6ea5f37c7f219671ec504cb8311f889d"
+
+[[plugin.deps]]
+use = "yazi-rs/plugins:git"
+rev = "1cf48ea"
+hash = "88e56a64b7ce7c4314427452343fef17"
+
+[[plugin.deps]]
+use = "yazi-rs/plugins:mount"
+rev = "1cf48ea"
+hash = "e3260d0b1feded8c8e3ae3afa1169e30"
+
+[[plugin.deps]]
+use = "yazi-rs/plugins:zoom"
+rev = "1cf48ea"
+hash = "e8e279463ee99c940e6945a14cf4aa9e"
+
+[[plugin.deps]]
+use = "yazi-rs/plugins:chmod"
+rev = "1cf48ea"
+hash = "5b1c276b75cae91cbbdbe7863f39a540"
+
+[[plugin.deps]]
+use = "yazi-rs/plugins:smart-paste"
+rev = "1cf48ea"
+hash = "3f8d49413bc8691b4c652eb417a20178"
+
+[[plugin.deps]]
+use = "yazi-rs/plugins:diff"
+rev = "1cf48ea"
+hash = "39ce0924dfe3989dc89d7caa1473c77c"
+
+[[plugin.deps]]
+use = "GianniBYoung/rsync"
+rev = "b5c657a"
+hash = "72828957273094ed0ef52792e3290900"
+
+[flavor]
+deps = []
