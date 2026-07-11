@@ -38,5 +38,20 @@ use = "GianniBYoung/rsync"
 rev = "b5c657a"
 hash = "72828957273094ed0ef52792e3290900"
 
+[[plugin.deps]]
+use = "grappas/wl-clipboard"
+rev = "8cc5524"
+hash = "5c587834c274dca9059092714ece1f18"
+
+[[plugin.deps]]
+use = "Rolv-Apneseth/starship"
+rev = "159eaba"
+hash = "7de446280b1ba8c49ffd86dbc24bbbe6"
+
+[[plugin.deps]]
+use = "Sonico98/allmytoes"
+rev = "acdc53b"
+hash = "7bf0ed68a45144b28041affd2a334ff"
+
 [flavor]
 deps = []
