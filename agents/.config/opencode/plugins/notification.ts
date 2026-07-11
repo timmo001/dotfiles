@@ -1,7 +1,7 @@
 /**
  * @file Sends contextual desktop notifications and terminal attention for agent events.
  *
- * Uses `notify-send` for desktop notifications that focus the originating
+ * Uses Omarchy-formatted desktop notifications that focus the originating
  * Hyprland window only when clicked, BEL to request attention, and `paplay`
  * for the freedesktop message sound. Main session completions and permission
  * prompts include the session title, while background task completions stay
@@ -84,7 +84,7 @@ export const NotificationPlugin = (async ({ $, client }) => {
   const sendDesktopNotification = async (title: string, body: string) => {
     if (canNotify === undefined) {
       try {
-        await $`sh -lc "command -v notify-send >/dev/null 2>&1"`;
+        await $`sh -lc "command -v omarchy >/dev/null 2>&1"`;
         canNotify = true;
       } catch {
         canNotify = false;
@@ -94,7 +94,7 @@ export const NotificationPlugin = (async ({ $, client }) => {
     if (!canNotify) return;
 
     try {
-      void $`notify-send --app-name=OpenCode --action=default=Open ${title} ${body}`
+      void $`omarchy notification send 󰚩 ${title} ${body} --app-name=OpenCode --action=default=Open`
         .text()
         .then(async (action) => {
           if (action.trim() === "default" && originWindowAddress) {

@@ -40,7 +40,7 @@ const TOOLS: readonly ToolDef[] = [
   },
   { name: "gum", purpose: "interactive init questionnaire", required: false },
   {
-    name: "notify-send",
+    name: "omarchy",
     purpose: "desktop workflow notifications",
     required: false,
   },

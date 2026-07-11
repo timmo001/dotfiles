@@ -43,4 +43,4 @@ mkdir -p "$STATE_DIR"
 hyprctl hyprsunset identity
 hyprctl hyprsunset gamma "$NEW_GAMMA"
 echo "$NEW_GAMMA" > "$LEVEL_FILE"
-notify-send "Dim level: ${NEW_GAMMA}%"
+omarchy notification send "󰖲" "Dim level" "${NEW_GAMMA}%"

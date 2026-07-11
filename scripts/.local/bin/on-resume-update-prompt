@@ -52,7 +52,7 @@ run_launcher() {
     repos="${repos//omarchy:/}"
     body="Everything is current."
     [[ -n "$repos" ]] && body="Up to date: ${repos}"
-    notify-send -a dotfiles -u low 'Dotfiles up to date' "$body" >/dev/null 2>&1 || true
+    omarchy notification send "" 'Dotfiles up to date' "$body" -a dotfiles -u low >/dev/null 2>&1 || true
   fi
   # Any other code (e.g. 2 = scan error) stays silent.
 

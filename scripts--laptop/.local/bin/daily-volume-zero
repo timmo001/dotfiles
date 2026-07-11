@@ -39,12 +39,13 @@ if ! [[ "$DELAY_SECONDS" =~ ^[0-9]+$ ]]; then
   die '--delay-seconds must be a non-negative integer'
 fi
 
-if command -v notify-send >/dev/null 2>&1; then
-  notify-send \
-    -u normal \
-    -t "$((DELAY_SECONDS * 1000))" \
+if command -v omarchy >/dev/null 2>&1; then
+  omarchy notification send \
+    "󰕾" \
     'Daily volume reset' \
     "System volume will be set to 0% in ${DELAY_SECONDS} seconds." \
+    -u normal \
+    -t "$((DELAY_SECONDS * 1000))" \
     >/dev/null 2>&1 || true
 fi
 

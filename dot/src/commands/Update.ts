@@ -239,7 +239,13 @@ const notifyUpdated = (names: readonly string[]) =>
             .map((n) => `- ${n}`)
             .join("\n")}`;
 
-    yield* executor.exitCode("notify-send", [title, message]);
+    yield* executor.exitCode("omarchy", [
+      "notification",
+      "send",
+      "󰊢",
+      title,
+      message,
+    ]);
   });
 
 function selectedUpdateFlags(opts?: UpdateOptions): readonly string[] {

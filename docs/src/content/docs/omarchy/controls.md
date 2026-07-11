@@ -62,7 +62,7 @@ On laptops, the daemon keeps the profile conservative by default:
 - While on battery, the daemon switches to `power-saver` once when the night window starts or when battery drops below 20%.
 - Manual changes after an automatic night switch are respected. At the end of the night window, the daemon only returns to `balanced` if it is still on the auto-applied `power-saver` profile and the battery is not below the low threshold.
 
-The daemon keeps a single-instance pidfile under `${XDG_RUNTIME_DIR:-/tmp}/power-profile-daemon.pid` and polls AC/time/battery state every two seconds. It sends best-effort desktop notifications through `notify-send`.
+The daemon keeps a single-instance pidfile under `${XDG_RUNTIME_DIR:-/tmp}/power-profile-daemon.pid` and polls AC/time/battery state every two seconds. It sends best-effort desktop notifications through `omarchy notification send`.
 
 ### Troubleshooting
 

@@ -20,10 +20,10 @@ if [[ "$CURRENT_GAMMA" == "$OFF_GAMMA" ]]; then
   hyprctl hyprsunset gamma $ON_GAMMA
   touch "$STATE_FILE"
   echo "$ON_GAMMA" > "$LEVEL_FILE"
-  notify-send "Dim mode enabled"
+  omarchy notification send "󰖲" "Dim mode enabled"
 else
   hyprctl hyprsunset identity
   hyprctl hyprsunset gamma $OFF_GAMMA
   rm -f "$STATE_FILE"
-  notify-send "Dim mode disabled"
+  omarchy notification send "󰖲" "Dim mode disabled"
 fi
