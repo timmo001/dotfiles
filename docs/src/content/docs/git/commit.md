@@ -20,6 +20,12 @@ dot git-commit -m "Preview only" --dry-run                     # show the plan, 
 
 Agents use this command through the `git-commit` skill. Raw `git commit` is blocked in the OpenCode permission config, so `/commit` and `/commit-push` both route through the gateway. A commit or push request authorises only that specific action; a later change still needs a fresh explicit request.
 
+## Agent workflow
+
+Before staging or writing a subject, read working tree state through the Context MCP server's `git_context` tool rather than raw `git status` or `git diff`. Set `diff: true` when the message depends on the change content. The tool exposes the same structured branch context the `branch-context` plugin renders for slash commands; see [Context Integration](/git/context/) for the XML sections and when to refresh.
+
+Staging and commit still go through `dot git-commit` only after the user explicitly requests a commit or push.
+
 ## Scope
 
 Without `--path`, the command commits the current staged set. It never runs `git add -A`.
