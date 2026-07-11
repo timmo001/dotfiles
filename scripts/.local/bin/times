@@ -23,9 +23,17 @@ case "${1:-}" in
     printf '%-8s %s   %-8s %s\n' "Central" "$central" "Eastern" "$eastern"
     ;;
   --notify)
-    printf '<tt>%-8s %s\n' "Local" "$local_time"
-    printf '%-8s %s   %-8s %s\n' "Pacific" "$pacific" "Mountain" "$mountain"
-    printf '%-8s %s   %-8s %s</tt>\n' "Central" "$central" "Eastern" "$eastern"
+    local_time="$(date '+%H:%M %Z')"
+    pacific="$(TZ=America/Los_Angeles date '+%H:%M %Z')"
+    mountain="$(TZ=America/Denver date '+%H:%M %Z')"
+    central="$(TZ=America/Chicago date '+%H:%M %Z')"
+    eastern="$(TZ=America/New_York date '+%H:%M %Z')"
+    printf '<tt>%-15s%s\n' \
+      "${local_time##* } ${local_time% *}" "${pacific##* } ${pacific% *}"
+    printf '%-15s%-15s%s</tt>\n' \
+      "${mountain##* } ${mountain% *}" \
+      "${central##* } ${central% *}" \
+      "${eastern##* } ${eastern% *}"
     ;;
   -h|--help)
     printf 'Usage: times [--compact|--notify]\n'
