@@ -9,10 +9,10 @@ The Twitch scripts wrap `twitch-notifications` with a Walker menu, channel picke
 
 ## Autostart
 
-Both desktop and laptop host autostart files start:
+The shared Hyprland autostart starts Twitch notifications for both desktop and laptop in UWSM's background graphical slice:
 
-```text
-twitch-notifications
+```bash
+uwsm-app -s b -- twitch-notifications
 ```
 
 The shared resume hook also restarts Twitch notifications after suspend. See [Resume Recovery](/knowledge-base/resume-recovery/).
@@ -92,7 +92,7 @@ twitch-notifications-restart
 The helper detaches, stops matching `twitch-notifications` processes, waits one second, then relaunches through:
 
 ```bash
-uwsm-app -- twitch-notifications
+uwsm-app -s b -- twitch-notifications
 ```
 
 ## Troubleshooting
