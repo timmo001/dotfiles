@@ -9,14 +9,14 @@ sudo_loop = true
 no_self_update = true
 
 # Disable specific steps
-# - cursor/node/pnpm: not used
+# - cursor/cursor_agent/node/pnpm: not used
 # - pi/git_repos: not applicable
 # - go/deno/bun/bun_packages/pip3: managed by mise
 # - lensfun: broken (missing python module)
 # - system: skip OS package manager updates
 # - hyprpm: no plugins installed; it caches then drops sudo (sudo -k), which
 #   wipes the shared credential and forces omarchy update to re-auth
-disable = ["cursor", "node", "pnpm", "pi", "git_repos", "go", "deno", "bun", "bun_packages", "pip3", "lensfun", "system", "hyprpm"]
+disable = ["cursor", "cursor_agent", "node", "pnpm", "pi", "git_repos", "go", "deno", "bun", "bun_packages", "pip3", "lensfun", "system", "hyprpm"]
 
 # Cleanup temporary or old files after a run
 cleanup = false
