@@ -2,7 +2,7 @@
 name: improve-codebase-architecture
 description: Scan a codebase for deepening opportunities, present them as a visual HTML report, then grill through whichever one you pick.
 # origin: https://github.com/mattpocock/skills/tree/main/skills/engineering/improve-codebase-architecture
-# upstream-sha: d574778f94cf620fcc8ce741584093bc650a61d3
+# upstream-sha: 221ffca96736afefdc08ca7cf0b3965e9ea83f41
 # local-edits:
 #   - SKILL.md: rewired /grilling to the local grill-questions skill at Full intensity; generalised CONTEXT.md/docs-adr references to the project's domain docs (repo uses no fixed CONTEXT.md/ADR layout)
 #   - HTML-REPORT.md: generalised the ADR callout to a recorded-decision callout
