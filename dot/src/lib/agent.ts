@@ -48,12 +48,6 @@ const PROVIDERS: readonly AgentProvider[] = [
     env: [ENV.CLAUDECODE],
     processNames: ["claude"],
   },
-  {
-    id: "codex",
-    name: "OpenAI Codex",
-    env: [ENV.CODEX_THREAD_ID],
-    processNames: ["codex"],
-  },
 ];
 
 const NO_AGENT: AgentDetection = { isAgent: false, id: null, name: null };

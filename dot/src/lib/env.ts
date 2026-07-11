@@ -1,7 +1,6 @@
 /** Environment variable names used by dot. */
 export const ENV = {
   CLAUDECODE: "CLAUDECODE",
-  CODEX_THREAD_ID: "CODEX_THREAD_ID",
   DISPLAY: "DISPLAY",
   DOT_AGENT: "DOT_AGENT",
   DOT_AGENTS_SYNC_RULE_FILE: "DOT_AGENTS_SYNC_RULE_FILE",

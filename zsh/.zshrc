@@ -772,6 +772,8 @@ opencode() {
   _dot_with_github_mcp_bearer opencode "$@"
 }
 
+alias c="opencode"
+
 cursor() {
   _dot_with_github_mcp_bearer cursor "$@"
 }

@@ -3,8 +3,8 @@
  *
  * Reads the private canonical MCP spec (via {@link Config}) and regenerates each
  * active harness's native config in the stowed private source tree, so a single
- * spec edit keeps OpenCode, Cursor, VS Code, and Copilot aligned. Gemini, Codex,
- * and Claude Code are documented stubs and are not generated. Pure shaping lives
+ * spec edit keeps OpenCode, Cursor, VS Code, and Copilot aligned. Gemini and
+ * Claude Code are documented stubs and are not generated. Pure shaping lives
  * in the sync adapters; this orchestrator owns IO and logging, mirroring
  * {@link file://./../../commands/AgentsSync.ts}.
  */

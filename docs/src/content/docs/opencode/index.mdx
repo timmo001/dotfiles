@@ -8,7 +8,7 @@ sidebar:
 
 import { CardGrid, LinkCard } from "@astrojs/starlight/components";
 
-The repo ships a shared [OpenCode](https://opencode.ai) configuration: agents, slash commands, skills, and lifecycle plugins. The source lives in `agents/.config/opencode/` (agents, commands, plugins, and shared `lib/` modules) and `agents/.agents/skills/` (skills shared by OpenCode and Codex via `~/.agents/skills/`).
+The repo ships a shared [OpenCode](https://opencode.ai) configuration: agents, slash commands, skills, and lifecycle plugins. The source lives in `agents/.config/opencode/` (agents, commands, plugins, and shared `lib/` modules) and `agents/.agents/skills/` (skills exposed through the shared `~/.agents/skills/` path).
 
 These are generated from this dotfiles repo and published automatically to [`timmo001/opencode-config`](https://github.com/timmo001/opencode-config) so they can be browsed, imported, and installed independently of the full dotfiles repo.
 
@@ -65,6 +65,7 @@ Unlike the rest of these (personal) dotfiles, the OpenCode config is built to be
 
 ## Tooling
 
+- `opencode` is installed through mise's Aqua backend. The explicit `c` alias resolves to the same binary and keeps the GitHub MCP bearer scoped to the launched harness process.
 - `dot agents-sync` — mirror `~/.config/opencode/AGENTS.md` into agent harness instruction files. Runs automatically at the end of full `dot update` and `dot init`.
 - `opencode debug <paths|config|skill|info|agent>` — inspect resolved OpenCode config, paths, skills, and agents directly.
 - `DOT_CONTEXT_CAPTURE=1` - capture assembled system-prompt segments and tool definitions for starter-context profiling. See [Environment Variables](/configuration/environment/#debugging-and-output).

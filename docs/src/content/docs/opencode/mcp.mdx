@@ -57,10 +57,9 @@ The spec defines each server once and enables it for every active harness, so al
 
 The OpenCode config is written as a full catalogue: every server appears with an explicit `enabled: true` or `enabled: false`, so a server can be turned off in place while staying documented. The other harnesses list only their enabled servers.
 
-Three more harnesses are kept as documented stubs, not generated:
+Two more harnesses are kept as documented stubs, not generated:
 
 - **Gemini CLI** would need an `mcpServers` block in `~/.gemini/settings.json` using `$VAR` env syntax.
-- **Codex CLI** would need `[mcp_servers.NAME]` TOML tables in `~/.codex/config.toml`.
 - **Claude Code** is special: `~/.claude.json` is a live runtime state file Claude rewrites, so it is wired with `claude mcp add`, not file generation.
 
 Run `dot mcp-sync` after editing the spec, then `dot stow`. `dot update` runs it automatically before re-stowing.

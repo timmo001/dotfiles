@@ -81,22 +81,7 @@ const claudeTarget: HarnessTarget = {
     ].join("\n"),
 };
 
-const codexTarget: HarnessTarget = {
-  name: "codex",
-  outputPath: () => join(HOME_DIR, ".codex", "AGENTS.md"),
-  transform: (content, meta) =>
-    [
-      `<!-- dot agents-sync: source=${meta.source} synced=${meta.timestamp} -->`,
-      "",
-      content,
-    ].join("\n"),
-};
-
-const targets: readonly HarnessTarget[] = [
-  cursorTarget,
-  claudeTarget,
-  codexTarget,
-];
+const targets: readonly HarnessTarget[] = [cursorTarget, claudeTarget];
 
 // ---------------------------------------------------------------------------
 // Orchestrator

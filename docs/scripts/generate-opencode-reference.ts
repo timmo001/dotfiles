@@ -184,7 +184,7 @@ async function generateSkills(): Promise<void> {
     4,
   );
   lines.push(
-    'Skills own reusable workflows and behavioural contracts. They are shared by OpenCode and Codex via `~/.agents/skills/` and published to [`opencode-config`](https://github.com/timmo001/opencode-config).',
+    'Skills own reusable workflows and behavioural contracts. They are exposed via `~/.agents/skills/` and published to [`opencode-config`](https://github.com/timmo001/opencode-config).',
     '',
     '## Skills',
     '',

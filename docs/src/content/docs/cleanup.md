@@ -50,8 +50,8 @@ systemctl --user daemon-reload
 `dot init` runs `dot agents-sync`, which mirrors the global OpenCode agent instructions into other harnesses. Remove these only if you want those harnesses unmanaged too. Check for the `dot agents-sync` header before deleting anything you may have edited by hand.
 
 ```bash
-grep -H "dot agents-sync" ~/.cursor/rules/global-agents.mdc ~/.claude/CLAUDE.md ~/.codex/AGENTS.md
-rm -f ~/.cursor/rules/global-agents.mdc ~/.claude/CLAUDE.md ~/.codex/AGENTS.md
+grep -H "dot agents-sync" ~/.cursor/rules/global-agents.mdc ~/.claude/CLAUDE.md
+rm -f ~/.cursor/rules/global-agents.mdc ~/.claude/CLAUDE.md
 ```
 
 ## Remove managed firewall rules

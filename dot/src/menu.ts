@@ -185,23 +185,14 @@ const dotItems: readonly MenuItem[] = [
     "agents-sync",
     "󰯂",
     "Agents Sync",
-    "Mirror AGENTS.md to Cursor, Claude, Codex",
+    "Mirror AGENTS.md to Cursor and Claude",
     notify("dot agents-sync", {
       id: "agents-sync",
       progress: "Syncing agent rules...",
       success: "Agent rules synced",
     }),
     undefined,
-    [
-      "agents",
-      "sync",
-      "cursor",
-      "claude",
-      "codex",
-      "rules",
-      "mirror",
-      "tooling",
-    ],
+    ["agents", "sync", "cursor", "claude", "rules", "mirror", "tooling"],
     "AI Tooling",
   ),
   item(
@@ -398,16 +389,6 @@ const dotItems: readonly MenuItem[] = [
         action: cmd("opencode debug skill"),
       },
       {
-        label: "Codex Doctor",
-        description: "Diagnose Codex install and health",
-        action: cmd("codex doctor"),
-      },
-      {
-        label: "Codex Models",
-        description: "Show available Codex models",
-        action: cmd("codex debug models"),
-      },
-      {
         label: "Claude Doctor",
         description:
           "Check Claude Code health (interactive, not in AI analysis)",
@@ -419,7 +400,7 @@ const dotItems: readonly MenuItem[] = [
           "Run all diagnostics then open OpenCode (excludes interactive Claude)",
         action: cmd(
           'log="${XDG_STATE_HOME:-$HOME/.local/state}/dot/logs/harness-debug.log"; ' +
-            "{ opencode debug paths 2>&1; printf '\\n---\\n'; opencode debug config 2>&1; printf '\\n---\\n'; opencode debug skill 2>&1; printf '\\n---\\n'; opencode debug info 2>&1; printf '\\n---\\n'; codex doctor 2>&1; printf '\\n---\\n'; codex debug models 2>&1; } | " +
+            "{ opencode debug paths 2>&1; printf '\\n---\\n'; opencode debug config 2>&1; printf '\\n---\\n'; opencode debug skill 2>&1; printf '\\n---\\n'; opencode debug info 2>&1; } | " +
             "sed -E 's/(ctx7sk-|sk-|ghp_|gho_|glpat-|Bearer )[A-Za-z0-9_-]+/\\1<REDACTED>/g' | tee \"$log\"; " +
             'opencode --prompt "Review the harness debug report at $log. Read it with the Read tool first. Give a concise diagnosis of issues, probable causes, and a prioritized action plan."',
           false,
@@ -429,7 +410,6 @@ const dotItems: readonly MenuItem[] = [
     [
       "harness",
       "opencode",
-      "codex",
       "claude",
       "cursor",
       "ai",

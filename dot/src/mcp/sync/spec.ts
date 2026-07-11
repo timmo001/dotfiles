@@ -12,7 +12,7 @@
 export type McpHarness = "opencode" | "cursor" | "vscode" | "copilot";
 
 /** Known harnesses that exist but are not generated: documented stubs only. */
-export type McpStubHarness = "gemini" | "codex" | "claude";
+export type McpStubHarness = "gemini" | "claude";
 
 /** All active harness ids in canonical order. */
 export const MCP_HARNESSES: readonly McpHarness[] = [
@@ -41,11 +41,6 @@ export const MCP_STUB_HARNESSES: readonly McpStubHarnessNote[] = [
     harness: "gemini",
     label: "Gemini CLI",
     note: "Would need an `mcpServers` block in ~/.gemini/settings.json using `$VAR` env syntax and `{httpUrl}` for remote servers. The settings file currently exists but carries no MCP block; add a merge adapter and per-server `enabled.gemini` flags to activate.",
-  },
-  {
-    harness: "codex",
-    label: "Codex CLI",
-    note: "Would need `[mcp_servers.NAME]` TOML tables in ~/.codex/config.toml (`command`/`args` for stdio, an http variant for remote). Add a TOML adapter and per-server `enabled.codex` flags to activate.",
   },
   {
     harness: "claude",

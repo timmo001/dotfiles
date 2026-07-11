@@ -27,7 +27,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - Stow config: `.stowrc`
 - Readme: `README.md` (slim pointer; links to the docs site, which is the canonical human documentation)
 - OpenCode config source: `agents/.config/opencode/`
-- Skills source: `agents/.agents/skills/` (stows to `~/.agents/skills/`; shared by OpenCode + Codex)
+- Skills source: `agents/.agents/skills/` (stows to `~/.agents/skills/`)
 - Published OpenCode config: [`timmo001/opencode-config`](https://github.com/timmo001/opencode-config)
 
 ## Tooling
@@ -42,7 +42,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - For human-written command names and command/docs prose in this repo, prefer UK spelling. Keep upstream tool, API, or MCP names unchanged when they use US spelling.
 - `agents/.config/opencode/` contains the shared OpenCode config source published from this repo.
 - `agents/.config/opencode/lib/` contains shared plugin support modules. Relative plugin imports must resolve before publication.
-- `agents/.agents/skills/` contains globally stowed skills shared by OpenCode and Codex via `~/.agents/skills/`.
+- `agents/.agents/skills/` contains globally stowed skills exposed via `~/.agents/skills/`.
 - `herdr/.config/herdr/` contains the shared Herdr config.
 - `.opencode/skills/` contains repo-local skills for this repo only.
 - `dot agents-sync` mirrors the global private AGENTS source into agent harness instruction files; full `dot update` and `dot init` run that sync automatically.
