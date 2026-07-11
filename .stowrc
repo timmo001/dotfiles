@@ -15,7 +15,7 @@
 --ignore=^/opencode.json
 --ignore=^/mise\.toml
 --ignore=^/mise\.lock
---ignore=^/\.markdownlint-cli2\.jsonc
+--ignore=^/\.markdownlint-cli2\.cjs
 --ignore=^/\.yamllint\.yml
 --ignore=^/mlc_config\.json
 --ignore=^/dot
