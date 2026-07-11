@@ -19,6 +19,7 @@ Produce a concise implementation plan with:
 - One active stage with its observable acceptance, contract owner where relevant, main steps, and validation order.
 - A `Files` section containing the anticipated changed files as a directory tree, split by repository or workspace root.
 - Deferred stages only when they are separate reviewable changes, including whether execution stops at their checkpoints or continues because the user requested one combined delivery.
+- Phase artefacts: recommend a separate numbered handoff for each deferred reviewable phase using `handoff-{feature}-{phase-number}-{phase-slug}.md`. In a new repository, try handoffs first; if repository notes cannot be resolved yet, propose one repository-local all-in-one working Markdown plan using the repository convention or `PLAN.md`, include it in `Files`, and define numbered phases with explicit statuses that the same document updates at every checkpoint. Migrate its remaining phases to numbered handoffs once available.
 - Key risks, assumptions, or open questions.
 
 Ask only the minimum necessary follow-up questions to unblock a useful plan; do not run a grilling session from `/plan`.

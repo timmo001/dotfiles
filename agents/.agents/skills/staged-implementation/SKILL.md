@@ -34,6 +34,12 @@ Use this workflow when finishing the whole request in one uninterrupted change w
    - Commit-ready checkpoint conditions.
    - Whether execution stops at that checkpoint or continues through later named stages because the user requested one combined delivery.
 4. List later stages briefly. Do not design their implementation in detail until they become active unless their interface constrains the active stage.
+5. Choose a durable phase artefact when later stages will outlive the current session.
+   - Recommend one separate, numbered handoff for each deferred, independently reviewable phase rather than burying every phase in the current response or one combined handoff. Use the `handoff` skill to write each document, and name staged phase documents `handoff-{feature}-{phase-number}-{phase-slug}.md` using the plan's stable phase order.
+   - Try repository handoffs first, including in a newly created repository. If repository identity, the notes path, or the handoff tools are not available yet, propose one repository-local, all-in-one working Markdown plan using the repository's convention or `PLAN.md`, and include it in the `Files` tree.
+   - Structure the fallback working plan as numbered phases with an explicit status for each phase, such as `pending`, `in progress`, `complete`, or `blocked`. Update the same document at every checkpoint so it remains the current source of progress and next work.
+   - Keep a fallback working plan temporary. Move its remaining phases into separate numbered handoffs once handoffs become available, then remove the working document when it no longer carries active coordination state.
+   - During read-only planning, state the proposed handoffs or working-plan path without writing them. Create or update them during execution, or when the user explicitly requests the handoff workflow.
 
 ## Delegate Safely
 
@@ -61,5 +67,6 @@ At the commit-ready boundary, report:
 - Targeted and full validation evidence.
 - Blocking review findings resolved and follow-ups deferred.
 - The next independent stage, if any.
+- The numbered handoff proposed for the next stage, or the updated phase statuses in the all-in-one working plan when handoffs are still unavailable.
 
 Stop at this checkpoint when remaining work is a separate reviewable change. Continue automatically only when it belongs to the same coherent review unit or the user explicitly requested the listed stages as one delivery. If requested stages remain, report the wider request as partial rather than complete. A request for one final commit does not by itself make several stages one implementation scope.
