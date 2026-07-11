@@ -641,37 +641,6 @@ times() {
   "$HOME/.local/bin/times" "$@"
 }
 
-update() {
-  local -a selected
-  local step
-  local yes=0
-
-  if [[ "$1" == '-y' || "$1" == '--yes' ]]; then
-    yes=1
-    shift
-  fi
-
-  if (( $# > 0 )); then
-    echo "Usage: update [-y|--yes]" >&2
-    return 1
-  fi
-
-  if (( ! yes )) && [[ -t 0 && -t 1 ]]; then
-    selected=("${(@f)$(gum choose --no-limit --ordered --selected='*' --header='Choose updates:' \
-      'Dotfiles' 'Topgrade' 'Omarchy')}")
-  else
-    selected=('Dotfiles' 'Topgrade' 'Omarchy')
-  fi
-
-  for step in "${selected[@]}"; do
-    case "$step" in
-    Dotfiles) dot update || return ;;
-    Topgrade) topgrade || return ;;
-    Omarchy) omarchy update -y || return ;;
-    esac
-  done
-}
-
 # Dirs
 alias ..="cd .."
 alias ...="cd ../.."

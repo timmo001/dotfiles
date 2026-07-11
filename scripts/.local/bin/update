@@ -1,0 +1,60 @@
+#!/bin/bash
+
+set -o pipefail
+
+section() {
+  printf '\n\033[1;36m%s\033[0m\n' "$1"
+}
+
+agent_sudo_dir=''
+cleanup() {
+  [[ -z $agent_sudo_dir ]] || rm -rf "$agent_sudo_dir"
+}
+trap cleanup EXIT
+
+yes=0
+case "${1:-}" in
+  -y|--yes)
+    yes=1
+    shift
+    ;;
+esac
+
+if (( $# > 0 )); then
+  echo "Usage: update [-y|--yes]" >&2
+  exit 1
+fi
+
+if (( ! yes )) && [[ -t 0 && -t 1 ]]; then
+  mapfile -t selected < <(gum choose --no-limit --ordered --selected='*' --header='Choose updates:' \
+    'Dotfiles' 'Topgrade' 'Omarchy')
+else
+  yes=1
+  selected=('Dotfiles' 'Topgrade' 'Omarchy')
+fi
+
+if dot is-agent --quiet >/dev/null 2>&1; then
+  if ! command -v pkexec >/dev/null 2>&1; then
+    echo 'update: pkexec is required when running under an agent' >&2
+    exit 1
+  fi
+
+  agent_sudo_dir=$(mktemp -d)
+  ln -s "$HOME/.local/libexec/update-sudo" "$agent_sudo_dir/sudo"
+  export PATH="$agent_sudo_dir:$PATH"
+fi
+
+for step in "${selected[@]}"; do
+  section "$step"
+  case "$step" in
+    Dotfiles) dot update || exit ;;
+    Topgrade)
+      if (( yes )); then
+        topgrade -y || exit
+      else
+        topgrade || exit
+      fi
+      ;;
+    Omarchy) omarchy update -y || exit ;;
+  esac
+done

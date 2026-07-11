@@ -1,0 +1,32 @@
+#!/bin/bash
+
+set -e
+
+validate=0
+while (( $# > 0 )); do
+  case "$1" in
+    -v)
+      validate=1
+      shift
+      ;;
+    -n|-A|-E|-H|-S)
+      shift
+      ;;
+    -k|-K)
+      exit 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+if (( validate )) && (( $# == 0 )); then
+  exec pkexec /usr/bin/true
+fi
+
+exec pkexec "$@"

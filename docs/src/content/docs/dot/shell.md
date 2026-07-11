@@ -31,4 +31,4 @@ The zsh config restores the standard editing bindings used by this setup after p
 
 The shell keeps a few typo and navigation helpers close to the aliases. For example, `cwd` prints a short reminder that the real command is `pwd`, then runs `pwd` so the mistake still returns useful output.
 
-Run `update` to select maintenance steps with Gum. All steps start selected and run in order: `dot update`, `topgrade`, then `omarchy update -y`. Use `update -y` or `update --yes`, or run it in a non-interactive shell, to run all three without the Gum prompt. The sequence stops if a selected step fails.
+Run `update` to select maintenance steps with Gum. All steps start selected, get their own section heading, and run in order: `dot update`, `topgrade`, then `omarchy update -y`. Use `update -y` or `update --yes`, or run it in a non-interactive shell, to run all three without command prompts. Agent-driven runs route internal `sudo` calls through a temporary `pkexec` helper so authentication can use the desktop PolicyKit prompt without a controlling terminal. The sequence stops if a selected step fails.
