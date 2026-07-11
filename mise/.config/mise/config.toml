@@ -1,6 +1,7 @@
 [tools]
 bat = "0.26.1"
 "aqua:coder/boo" = "0.6.4"
+"aqua:ctxrs/ctx" = "0.24.0"
 bun = "1.3.14"
 claude = "latest"
 deno = "2.9.2"
@@ -36,6 +37,7 @@ version = "latest"
 minimum_release_age = "2h"
 
 [settings]
+aqua.registries = ["https://github.com/aquaproj/aqua-registry"]
 idiomatic_version_file_enable_tools = ["bun", "deno", "go", "node", "python"]
 lockfile = true
 minimum_release_age = "2d"
