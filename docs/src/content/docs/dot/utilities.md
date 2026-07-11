@@ -35,9 +35,8 @@ topgrade mise cargo # run only named steps
 
 - The wrapper logs the full session to `$XDG_STATE_HOME/topgrade.log` (default `~/.local/state/topgrade.log`) with `script`, mirroring the `omarchy-update` pattern, so you can review a run afterwards.
 - It adds `--sudoloop` automatically when a run includes steps that need root (a full run, or the `system`, `firmware`, or `containers` steps) so credentials stay cached during long runs, and skips it for user-only steps.
-- `omarchy update -y` runs as a post-command in place of topgrade's built-in `system` step (which is disabled), so Omarchy and OS packages update through Omarchy's own flow.
 - Firmware is check-only, `mise` bumps tool versions, and `yay` runs with `--noconfirm --cleanafter`.
-- Steps managed elsewhere or unused are disabled (for example `bun`, `deno`, `go`, and `pnpm` come from `mise`; `hyprpm` is skipped because it drops the shared sudo credential and would force `omarchy update` to re-authenticate). A desktop notification fires only on failure.
+- Steps managed elsewhere or unused are disabled (for example `bun`, `deno`, `go`, and `pnpm` come from `mise`; `hyprpm` is skipped because it drops the shared sudo credential). A desktop notification fires only on failure.
 
 ## Benchmarks and diagnostics
 

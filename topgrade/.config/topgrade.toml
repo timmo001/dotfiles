@@ -32,13 +32,6 @@ notify_end = "on_failure"
 [pre_commands]
 
 
-# Commands to run after anything
-[post_commands]
-# omarchy update replaces the built-in system step (updates Omarchy + system packages)
-# -y skips the interactive "Ready to update?" confirmation (topgrade already gates the run)
-"Omarchy Update" = "omarchy update -y"
-
-
 # Custom commands (run as named steps, respect --only/--disable)
 [commands]
 
