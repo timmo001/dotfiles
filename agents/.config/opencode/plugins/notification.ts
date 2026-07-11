@@ -1,5 +1,5 @@
 /**
- * @file Sends contextual desktop and terminal notifications for agent events.
+ * @file Sends contextual desktop notifications and terminal attention for agent events.
  *
  * Uses `notify-send` for desktop notifications that focus the originating
  * Hyprland window only when clicked, BEL to request attention, and `paplay`

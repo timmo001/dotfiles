@@ -36,17 +36,19 @@ They are grouped by tiled window count under `layouts.<count>`. Each preset has 
   "name": "1 top / 2 bottom",
   "tree": {
     "dir": "tb",
-    "ratio": 75.29,
+    "ratio": 75.4,
     "a": "w",
     "b": {
       "dir": "lr",
-      "ratio": 26.67,
+      "ratio": 40.67,
       "a": "w",
       "b": "w"
     }
   }
 }
 ```
+
+The checked-in presets cover workspaces with two to five tiled windows. Preset names do not need to be unique: Walker appends a rounded ratio signature, such as `1 top / 4 bottom [76/24, 16/16/16/52]`, to distinguish variants.
 
 The script writes back through the stowed symlink when you edit presets, keeping the symlink in place.
 
@@ -78,7 +80,7 @@ Or press:
 SUPER+ALT+TAB
 ```
 
-Edit mode reconstructs the current layout into a split tree. You can overwrite an existing preset for the same window count, or add a new one with the generated name.
+Edit mode reconstructs the current layout into a split tree. You can overwrite an existing preset for the same window count, or add a new one using the generated description or a custom name.
 
 ## Temporary workspace
 
