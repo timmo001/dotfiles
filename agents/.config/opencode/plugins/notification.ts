@@ -22,6 +22,7 @@ function dataOrValue(value: unknown): unknown {
 }
 
 export const NotificationPlugin = (async ({ $, client }) => {
+  const notificationGlyph = "󰚩";
   const soundPath = "/usr/share/sounds/freedesktop/stereo/message.oga";
   let canPlaySound: boolean | undefined;
   let canNotify: boolean | undefined;
@@ -94,7 +95,7 @@ export const NotificationPlugin = (async ({ $, client }) => {
     if (!canNotify) return;
 
     try {
-      void $`omarchy notification send 󰚩 ${title} ${body} --app-name=OpenCode --action=default=Open`
+      void $`omarchy notification send ${notificationGlyph} ${title} ${body} --app-name=OpenCode --action=default=Open`
         .text()
         .then(async (action) => {
           if (action.trim() === "default" && originWindowAddress) {
