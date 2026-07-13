@@ -52,6 +52,10 @@ bash tests/github/opencode-publish.test.sh
 bash tests/scripts/workspace-restore.test.sh
 """
 
+[tasks."skills:validate"]
+description = "Validate public SKILL.md files with skills-ref"
+run = "bash .github/scripts/validate-skills.sh"
+
 [tasks."tests:smoke"]
 description = "Build dot and smoke-test side-effect-free CLI entry points"
 depends = ["dot:build"]

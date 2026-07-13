@@ -23,6 +23,15 @@ jobs:
           bash tests/github/opencode-publish.test.sh
           bash tests/scripts/workspace-restore.test.sh
 
+  validate-skills:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Validate skills
+        run: bash .github/scripts/validate-skills.sh
+
   actionlint:
     uses: timmo001/workflows/.github/workflows/lint-actionlint.yml@a89dc2dc0bd3e776ac4b92757a384257f265e61c # master
 
