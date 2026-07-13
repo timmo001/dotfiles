@@ -3,7 +3,7 @@
  *
  * Agent task permissions now provide delegation boundaries directly. This
  * guard only closes shell syntax escape hatches around the inspection command
- * allowlists used by terminal read-only subagents.
+ * allowlists used by read-only research agents.
  */
 
 import type { Plugin } from "@opencode-ai/plugin";
@@ -14,7 +14,11 @@ interface DirectoryQuery {
   readonly directory: string;
 }
 
-const GUARDED_AGENTS = new Set(["general-readonly", "researcher-readonly"]);
+const GUARDED_AGENTS = new Set([
+  "general-readonly",
+  "researcher",
+  "researcher-readonly",
+]);
 
 function recordFromUnknown(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null
@@ -49,7 +53,7 @@ function unsafeReason(command: string): string | undefined {
     return "redirection, pipes, and command chaining are not permitted";
   if (/(^|[^&])&($|[^&])/.test(command))
     return "background shell jobs are not permitted";
-  if (/(?:^|\s)--output(?:=|\s|$)/.test(command))
+  if (/(?:^|\s)--(?:out|output)(?:=|\s|$)/.test(command))
     return "output flags are not permitted";
   return undefined;
 }

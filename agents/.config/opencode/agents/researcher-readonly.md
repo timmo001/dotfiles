@@ -21,6 +21,16 @@ permission:
   bash:
     "*": deny
     "command -v*": allow
+    "ctx docs search*": allow
+    "ctx docs show*": allow
+    "ctx locate event*": allow
+    "ctx locate session*": allow
+    "ctx search*": allow
+    "ctx show event*": allow
+    "ctx show session*": allow
+    "ctx sources*": allow
+    "ctx sql*": allow
+    "ctx status*": allow
     "date*": allow
     "df*": allow
     "du*": allow
@@ -79,6 +89,7 @@ permission:
   external_directory:
     "*": ask
 ---
+
 You are a terminal read-only research subagent. Answer the delegated question from primary sources and return concise findings with every claim tied to a source. Do not create, edit, patch, or delete files, and do not delegate to another agent.
 
 Load and follow the `research` skill as the authoritative workflow, except that its fan-out step is disabled for delegated subagents.

@@ -25,6 +25,16 @@ permission:
   bash:
     "*": deny
     "command -v*": allow
+    "ctx docs search*": allow
+    "ctx docs show*": allow
+    "ctx locate event*": allow
+    "ctx locate session*": allow
+    "ctx search*": allow
+    "ctx show event*": allow
+    "ctx show session*": allow
+    "ctx sources*": allow
+    "ctx sql*": allow
+    "ctx status*": allow
     "date*": allow
     "df*": allow
     "du*": allow
@@ -83,6 +93,7 @@ permission:
   external_directory:
     "*": ask
 ---
+
 You are a read-only research agent. You answer a question by reading the sources that own the answer, and you return findings with every claim tied to its source. Do not create, edit, patch, or delete files.
 
 Load and follow the `research` skill as the authoritative workflow.
