@@ -17,7 +17,7 @@ Import skills from external repositories into the local OpenCode skill library u
 
 External skill repos are often written for a specific agent framework (e.g. Claude Code, Codex, Cursor). Skills from these repos may need adaptation even for a "direct import":
 
-- Unknown frontmatter fields are silently ignored by OpenCode, so framework-specific fields like `allowed-tools`, `disable-model-invocation`, or `argument-hint` can stay.
+- Keep only Agent Skills frontmatter fields. `allowed-tools` is portable; remove framework-specific fields such as `disable-model-invocation` and `argument-hint`.
 - Replace framework-specific tool names, hook mechanisms, or sub-agent delegation patterns in the skill body with local equivalents.
 - Remove references to framework-specific scaffolding, plugins, or conventions that do not exist locally.
 - If the skill body is portable as-is, treat it as a direct import. If the body needs rewriting, treat it as an adaptation and document the changes in `# local-edits:`.

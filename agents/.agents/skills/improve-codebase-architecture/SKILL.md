@@ -6,7 +6,6 @@ description: Scan a codebase for deepening opportunities, present them as a visu
 # local-edits:
 #   - SKILL.md: rewired /grilling to the local grill-questions skill at Full intensity; generalised CONTEXT.md/docs-adr references to the project's domain docs (repo uses no fixed CONTEXT.md/ADR layout)
 #   - HTML-REPORT.md: generalised the ADR callout to a recorded-decision callout
-disable-model-invocation: true
 ---
 
 # Improve Codebase Architecture
