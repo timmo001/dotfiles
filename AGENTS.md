@@ -45,7 +45,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - `agents/.agents/skills/` contains globally stowed skills exposed via `~/.agents/skills/`.
 - `herdr/.config/herdr/` contains the shared Herdr config.
 - `.opencode/skills/` contains repo-local skills for this repo only.
-- Public `SKILL.md` files under `agents/.agents/skills/` and `.opencode/skills/` must satisfy the [Agent Skills](https://agentskills.io/specification) frontmatter rules. Validate with `mise run skills:validate` (`.github/scripts/validate-skills.sh`); CI runs the same check as the `validate-skills` job in `lint.yml`. OpenCode's `disable-model-invocation` field is allowed.
+- Public `SKILL.md` files under `agents/.agents/skills/` and `.opencode/skills/` must satisfy the [Agent Skills](https://agentskills.io/specification) frontmatter rules. Validate with `mise run skills:validate` (`.github/scripts/validate-skills.sh`); CI runs the same check as the dedicated `validate-skills` job in `lint.yml`.
 - `dot agents-sync` mirrors the global private AGENTS source into agent harness instruction files; full `dot update` and `dot init` run that sync automatically.
 - Pinned private OpenCode packages, including plugins in `dotfiles-private/agents/.config/opencode/{opencode,tui}.json`, should be managed by an npm regex custom manager in `dotfiles-private/renovate.json`.
 
@@ -112,7 +112,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 - Basic health check: `dot doctor`
 - Dev tasks: `mise run <task>` from the repo root, namespaced by project - `dot:*` (`dot:build`, `dot:typecheck`, `dot:test`, `dot:format`, `dot:check`), `docs:*` (`docs:build`, `docs:dev`, `docs:gen`, `docs:check`), `tests:*` (`tests:integration`, `tests:smoke`), and `skills:*` (`skills:validate`); `mise tasks` lists them.
-- Skill frontmatter: `mise run skills:validate` runs `.github/scripts/validate-skills.sh` against public skills with `skills-ref` (allows `disable-model-invocation`).
+- Skill frontmatter: `mise run skills:validate` runs `.github/scripts/validate-skills.sh` against public skills with `skills-ref`.
 - OpenCode debug: use `opencode debug` subcommands directly, for example `opencode debug config`, `opencode debug skill`, or `opencode debug agent <name>`.
 - MCP config sync: `dot mcp-sync` regenerates each active agent harness's MCP config from the single private spec `dotfiles-private/mcp.yml`; some agent harnesses are documented stubs. Runs automatically in `dot update` before re-stow; run `dot stow` after a manual sync.
 - Herdr: the shared Herdr config is stowed from `herdr/.config/herdr/`; `dot doctor` warns when Herdr or the OpenCode integration is missing and prints the manual repair command.
