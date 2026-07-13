@@ -46,6 +46,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - `herdr/.config/herdr/` contains the shared Herdr config.
 - `.opencode/skills/` contains repo-local skills for this repo only.
 - `dot agents-sync` mirrors the global private AGENTS source into agent harness instruction files; full `dot update` and `dot init` run that sync automatically.
+- Pinned private OpenCode packages, including plugins in `dotfiles-private/agents/.config/opencode/{opencode,tui}.json`, should be managed by an npm regex custom manager in `dotfiles-private/renovate.json`.
 
 ### OpenCode Layer Boundaries
 
