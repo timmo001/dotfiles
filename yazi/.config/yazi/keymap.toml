@@ -1,0 +1,6 @@
+#:schema https://yazi-rs.github.io/schemas/keymap.json
+
+[[mgr.prepend_keymap]]
+on = "<Enter>"
+run = "enter"
+desc = "Enter the child directory"
