@@ -9,6 +9,8 @@ __pycache__/
 /bun.lock
 /mise.lock
 /mise/.config/mise/mise.lock
+/plannotator/.plannotator/*
+!/plannotator/.plannotator/config.json
 dot/node_modules/
 dot/dist/
 dot/.fallow/
