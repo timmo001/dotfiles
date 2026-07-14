@@ -69,7 +69,7 @@ Two OpenCode [plugins](/reference/plugins/) wire the commands to the vault:
 
 Agent harnesses prefix MCP server names onto tool calls, so note commands and plugins refer to `notes_note_read`, `notes_note_write`, `notes_note_delete`, and `notes_note_list`. The underlying standalone MCP server registers them as `note_read`, `note_write`, `note_delete`, and `note_list`; see the [Notes MCP docs](https://notes.timmo.dev/mcp/).
 
-So a typical create flow is: run `/note-create` -> `repo-notes` injects the repo context -> the command summarises the conversation and calls `notes_note_write` -> `notes mcp` writes the file, commits it, best-effort pushes the vault, then emits a desktop notification with the push result.
+So a typical create flow is: run `/note-create` -> `repo-notes` injects the repo context -> the command summarises the conversation and calls the pre-approved `notes_note_write` tool -> `notes mcp` writes the file, commits it, best-effort pushes the vault, then emits a desktop notification with the push result. Read-only agents still deny note writes.
 
 ### Handoffs
 
