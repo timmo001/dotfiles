@@ -6,5 +6,10 @@
     "hideWhitespace": true,
     "defaultDiffType": "uncommitted"
   },
-  "conventionalComments": true
+  "conventionalComments": true,
+  "prompts": {
+    "review": {
+      "denied": "Treat the review feedback above as explicit authorisation to make the requested changes. If work from the user's earlier request is still pending, complete that first unless this feedback invalidates it, then address the feedback. Verify the result and report what changed. Do not stop after triage or ask for separate confirmation."
+    }
+  }
 }
