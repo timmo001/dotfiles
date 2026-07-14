@@ -8,11 +8,17 @@
   ],
   "dependencyDashboard": true,
   "labels": ["dependencies"],
+  "minimumReleaseAge": "2 days",
   "packageRules": [
     {
       "description": "Group GitHub Actions.",
       "groupName": "github actions",
       "matchManagers": ["github-actions"]
+    },
+    {
+      "description": "Match mise's shorter OpenCode release delay.",
+      "matchDepNames": ["aqua:anomalyco/opencode"],
+      "minimumReleaseAge": "2 hours"
     }
   ]
 }
