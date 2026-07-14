@@ -4,3 +4,13 @@
 on = "<Enter>"
 run = "enter"
 desc = "Enter the child directory"
+
+[[mgr.prepend_keymap]]
+on = [ ":", "q", "<Enter>" ]
+run = "quit"
+desc = "Quit the process"
+
+[[mgr.prepend_keymap]]
+on = [ ":", "q", "<Esc>" ]
+run = "escape"
+desc = "Cancel quit"

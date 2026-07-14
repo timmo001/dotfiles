@@ -7,7 +7,7 @@ sidebar:
 
 Yazi is installed from the public package list. Its configuration and `package.toml` lockfile are stowed from `yazi/.config/yazi/`, while downloaded plugin code remains local to each device.
 
-In the file manager, `Enter` only enters directories. Press `o` to explicitly open the selected file, or `O` to choose how to open it.
+In the file manager, `Enter` only enters directories. Press `o` to explicitly open the selected file, or `O` to choose how to open it. Both `q` and the Vim-style `:q` followed by `Enter` quit Yazi.
 
 After `dot init` or `dot update` has stowed the configuration, restore the locked plugins:
 
