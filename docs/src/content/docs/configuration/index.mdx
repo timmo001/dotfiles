@@ -13,10 +13,11 @@ export const cards = [
   { title: 'Private Git Config', href: '/configuration/private-git/', description: 'The dot-git.yml schema for repo activity, workflows, and notifications.' },
   { title: 'Private Dashboard Config', href: '/configuration/private-dashboard/', description: 'The dot-dashboard.yml schema for optional dashboard source cards.' },
   { title: 'Yazi', href: '/configuration/yazi/', description: 'Restore the shared Yazi plugin set across devices.' },
+  { title: 'Plannotator', href: '/configuration/plannotator/', description: 'Restore shared Plannotator review settings across devices.' },
   { title: 'Private Packages', href: '/configuration/private-packages/', description: 'Build and publish Arch packages to the private pacman repo.' },
 ];
 
-Most behaviour is controlled by explicit CLI flags. Runtime configuration is done with environment variables for process context, and private YAML files for git/GitHub repo tracking and optional dashboard source cards.
+Most behaviour is controlled by explicit CLI flags. Runtime configuration uses environment variables for process context, tracked application config files, and private YAML files for git/GitHub repo tracking and optional dashboard source cards.
 
 <LinkCardGrid cards={cards} />
 
