@@ -21,6 +21,7 @@ Commands are thin routing prompts: they name an agent, declare required skills o
 | [`/explore-codebase`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/explore-codebase.md) | Explore a codebase topic with the task explore subagent | `ask` |
 | [`/fallow-audit`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/fallow-audit.md) | Audit changed JavaScript or TypeScript code with Fallow | `fallow` |
 | [`/fallow-project-analyse`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/fallow-project-analyse.md) | Analyse a JavaScript or TypeScript project with Fallow | `fallow` |
+| [`/fix-workflows`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/fix-workflows.md) | Diagnose and fix recent GitHub Actions failures, optionally scoped to a workflow or run | `default` |
 | [`/grill`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/grill.md) | Stress-test a proposed change with light or full one-question-at-a-time grilling | `grill` |
 | [`/handoff`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/handoff.md) | Write a handoff document for the next agent session | `default` |
 | [`/handoffs-list`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/handoffs-list.md) | List handoff notes for the current repository | `default` |
