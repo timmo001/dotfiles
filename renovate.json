@@ -8,7 +8,7 @@
   ],
   "dependencyDashboard": true,
   "labels": ["dependencies"],
-  "minimumReleaseAge": "2 days",
+  "minimumReleaseAge": "1 day",
   "packageRules": [
     {
       "description": "Group GitHub Actions.",

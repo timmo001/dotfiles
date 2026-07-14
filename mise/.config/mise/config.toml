@@ -40,7 +40,7 @@ minimum_release_age = "2h"
 aqua.registries = ["https://github.com/aquaproj/aqua-registry"]
 idiomatic_version_file_enable_tools = ["bun", "deno", "go", "node", "python"]
 lockfile = true
-minimum_release_age = "2d"
+minimum_release_age = "1d"
 # Don't treat build/cache dirs as mise projects. Stops AUR builds (yay cd's into
 # ~/.cache/yay/<pkg>/src, which contains package.json/.tool-versions/mise.toml)
 # from auto-installing and reshimming all shims on every update.
