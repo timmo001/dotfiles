@@ -1,0 +1,10 @@
+{
+  "diffOptions": {
+    "diffStyle": "unified",
+    "fontFamily": "Fira Code",
+    "fontSize": "14px",
+    "hideWhitespace": true,
+    "defaultDiffType": "uncommitted"
+  },
+  "conventionalComments": true
+}
