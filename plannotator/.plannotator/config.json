@@ -4,7 +4,12 @@
     "fontFamily": "Fira Code",
     "fontSize": "14px",
     "hideWhitespace": true,
-    "defaultDiffType": "uncommitted"
+    "defaultDiffType": "uncommitted",
+    "overflow": "wrap",
+    "diffIndicators": "bars",
+    "lineDiffType": "word-alt",
+    "lineBgIntensity": "subtle",
+    "expandUnchanged": false
   },
   "conventionalComments": true,
   "prompts": {
