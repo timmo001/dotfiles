@@ -26,6 +26,8 @@ const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);
  *   completions (and fish writes `fish_variables`, `functions/`, `conf.d/`).
  * - `.config/ghostty`: host overrides and any Ghostty-generated files live
  *   alongside the stowed config.
+ * - `.config/herdr`: Herdr writes logs, sockets, and session state alongside
+ *   its stowed config.
  * - `.config/hypr`: the runtime `~/.config/hypr/host` symlink, omarchy shaders,
  *   and `~/.local/state` toggles live alongside the stowed config.
  * - `.config/nvim`: `omarchy-nvim-setup` owns `~/.config/nvim` and writes into
@@ -44,6 +46,7 @@ const NO_FOLDING_TARGET_PREFIXES = [
   ".agents/skills",
   ".config/fish/completions",
   ".config/ghostty",
+  ".config/herdr",
   ".config/hypr",
   ".config/nvim",
   ".config/systemd/user",
