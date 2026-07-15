@@ -37,8 +37,6 @@ const HELP: readonly HelpEntry[] = [
   { key: "E", action: "visual edit" },
   { key: "o", action: "OpenCode" },
   { key: "O", action: "OpenCode plan" },
-  { key: "p", action: "pull" },
-  { key: "P", action: "push" },
   { key: "x", action: "unlock" },
   { key: "t", action: "terminal" },
   { key: "w", action: "web" },
@@ -65,10 +63,6 @@ export interface DiffViewOptions {
   readonly onOpenTerminal: (repo: Repo) => void;
   /** Called to open the selected repo on GitHub in the browser */
   readonly onOpenWeb: (repo: Repo) => void;
-  /** Called when the user presses 'p' to pull the selected repo */
-  readonly onPull: (repo: Repo) => void;
-  /** Called when the user presses 'P' to push the selected repo */
-  readonly onPush: (repo: Repo) => void;
   /** Called when the user requests a manual refresh */
   readonly onRefresh: () => void;
   /** Called when the user navigates back (Escape/Backspace) */
@@ -116,9 +110,6 @@ export class DiffView {
       o: () => void this.openSelectedInOpenCode("default"),
       "shift+o": () => void this.openSelectedInOpenCode("plan"),
       w: () => this.runRepoAction((repo) => this.callbacks.onOpenWeb(repo)),
-      p: () => this.runRepoAction((repo) => this.callbacks.onPull(repo)),
-      "shift+p": () =>
-        this.runRepoAction((repo) => this.callbacks.onPush(repo)),
       r: () => {
         this.statusBar.content = t`${fg(this.theme.yellow)("Refreshing...")}`;
         this.callbacks.onRefresh();
