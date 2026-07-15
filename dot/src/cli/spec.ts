@@ -204,7 +204,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
       "Arch/AUR packages, runs the required MCP sync, stows, rebuilds again, runs",
       "agents sync, backfills the init marker, and starts the resume refresh.",
       "",
-      "Phase flags are inclusive: passing any of --pull, --stow, or --tui runs only",
+      "Phase flags are inclusive: passing any of --pull, --stow, or --app runs only",
       "the selected phases. Scoped runs skip full-update package reconciliation,",
       "agents sync, and init-marker backfill. Every mode that reaches the end starts",
       "the bounded resume refresh.",
@@ -216,7 +216,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
         description: "Generate completions, sync MCP configs, and stow only",
       },
       {
-        name: "--tui",
+        name: "--app",
         description: "Install Bun dependencies and rebuild the dot binary only",
       },
       {

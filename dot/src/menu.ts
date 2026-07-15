@@ -80,9 +80,9 @@ const dotItems: readonly MenuItem[] = [
         action: exitCmd("dot update --stow"),
       },
       {
-        label: "TUI",
+        label: "App",
         description: "Install deps and rebuild dot binary only",
-        action: exitCmd("dot update --tui"),
+        action: exitCmd("dot update --app"),
       },
     ],
     ["upd", "pull", "fetch", "sync", "refresh", "rebuild", "dotfiles"],

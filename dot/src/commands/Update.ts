@@ -36,7 +36,7 @@ const POST_HOOK_REPO_ARG = "--post-hook-repo";
 const SELECTABLE_UPDATE_FLAGS = [
   ["--pull", "pull"],
   ["--stow", "stow"],
-  ["--tui", "tui"],
+  ["--app", "app"],
 ] as const;
 
 /**
@@ -74,8 +74,8 @@ export interface UpdateOptions {
   readonly pull?: boolean;
   /** Run the stow refresh phase. */
   readonly stow?: boolean;
-  /** Run the dot binary rebuild phase. */
-  readonly tui?: boolean;
+  /** Run the dot app rebuild phase. */
+  readonly app?: boolean;
   /** Run the initial self-update/restart phase before the selected phases. */
   readonly selfUpdate?: boolean;
   /** Repository names already pulled before restart, for post-hook handling. */
@@ -465,7 +465,7 @@ const haltOnLegacyHyprRepo = (config: ConfigService) =>
 /**
  * Run `dot update`: self-update, pull behind repos, restow dotfiles, rebuild.
  *
- * Flags are inclusive — passing any of pull/stow/tui selects only those
+ * Flags are inclusive — passing any of pull/stow/app selects only those
  * steps; if none are set, all three run (legacy semantics).
  *
  * The pull phase fetch-scans every tracked repo (public, private, notes,
@@ -476,15 +476,15 @@ const haltOnLegacyHyprRepo = (config: ConfigService) =>
  * rebuild, and restart without self-update before continuing the workflow.
  * Pull notifications fire only when a repo actually moved, while post-hooks
  * (agents-sync) run on every full update regardless of pulls
- * and are skipped for flag-scoped runs (e.g. `--stow`/`--tui`/`--pull` only).
+ * and are skipped for flag-scoped runs (e.g. `--stow`/`--app`/`--pull` only).
  */
 export const update = (opts?: UpdateOptions) =>
   Effect.gen(function* () {
-    const anyFlag = !!(opts?.pull || opts?.stow || opts?.tui);
+    const anyFlag = !!(opts?.pull || opts?.stow || opts?.app);
     const doPull = anyFlag ? !!opts?.pull : true;
     const doStow = anyFlag ? !!opts?.stow : true;
-    const doTui = anyFlag ? !!opts?.tui : opts?.selfUpdate !== false;
-    const isFullUpdate = anyFlag ? doPull && doStow && doTui : true;
+    const doApp = anyFlag ? !!opts?.app : opts?.selfUpdate !== false;
+    const isFullUpdate = anyFlag ? doPull && doStow && doApp : true;
 
     const config = yield* Config;
     const log = yield* OutputLog;
@@ -627,7 +627,7 @@ export const update = (opts?: UpdateOptions) =>
       );
     }
 
-    if (doTui) {
+    if (doApp) {
       yield* requiredUpdateStep(
         "Rebuild",
         STEP_TIMEOUT_SECONDS.rebuild,

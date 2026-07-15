@@ -21,7 +21,7 @@ complete -c dot -n '__fish_use_subcommand' -a 'update' -d 'Self-update, pull rep
 complete -c dot -n '__fish_use_subcommand' -a 'up' -d 'Alias for update'
 complete -c dot -l pull -d 'Run the repository pull phase only' -n '__fish_seen_subcommand_from update up'
 complete -c dot -l stow -d 'Generate completions, sync MCP configs, and stow only' -n '__fish_seen_subcommand_from update up'
-complete -c dot -l tui -d 'Install Bun dependencies and rebuild the dot binary only' -n '__fish_seen_subcommand_from update up'
+complete -c dot -l app -d 'Install Bun dependencies and rebuild the dot binary only' -n '__fish_seen_subcommand_from update up'
 complete -c dot -l check -d 'Report core/system repos behind upstream (no update); exit 10 if any' -n '__fish_seen_subcommand_from update up'
 complete -c dot -l check-all -d 'Report all tracked repos behind upstream (no update); exit 10 if any' -n '__fish_seen_subcommand_from update up'
 complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from update up'

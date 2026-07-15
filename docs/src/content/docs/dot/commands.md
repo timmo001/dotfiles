@@ -94,7 +94,7 @@ tracked mise configs, regenerates completions, installs missing public
 Arch/AUR packages, runs the required MCP sync, stows, rebuilds again, runs
 agents sync, backfills the init marker, and starts the resume refresh.
 
-Phase flags are inclusive: passing any of --pull, --stow, or --tui runs only
+Phase flags are inclusive: passing any of --pull, --stow, or --app runs only
 the selected phases. Scoped runs skip full-update package reconciliation,
 agents sync, and init-marker backfill. Every mode that reaches the end starts
 the bounded resume refresh.
@@ -105,7 +105,7 @@ the bounded resume refresh.
 | --- | --- |
 | `--pull` | Run the repository pull phase only |
 | `--stow` | Generate completions, sync MCP configs, and stow only |
-| `--tui` | Install Bun dependencies and rebuild the dot binary only |
+| `--app` | Install Bun dependencies and rebuild the dot binary only |
 | `--check` | Report core/system repos behind upstream (no update); exit 10 if any |
 | `--check-all` | Report all tracked repos behind upstream (no update); exit 10 if any |
 

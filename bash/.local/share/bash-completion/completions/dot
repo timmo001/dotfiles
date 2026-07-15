@@ -44,7 +44,7 @@ _dot_cmd_update() {
   prev=${COMP_WORDS[COMP_CWORD-1]}
   cword=$COMP_CWORD
   if [[ $cur == -* ]]; then
-    COMPREPLY=( $(compgen -W '--pull --stow --tui --check --check-all --help -h' -- "$cur") )
+    COMPREPLY=( $(compgen -W '--pull --stow --app --check --check-all --help -h' -- "$cur") )
     return
   fi
 }

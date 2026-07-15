@@ -193,7 +193,7 @@ dot install                   # Ensure prerequisites, then backup/adopt install 
 dot update                    # Full update (install deps, rebuild, restart, pull, trust mise configs, stow, init-state backfill)
 dot update --pull             # Pull repos only
 dot update --stow             # Generate completions, sync MCP configs, and stow only
-dot update --tui              # Install deps and rebuild binary only
+dot update --app              # Install deps and rebuild binary only
 dot update --check            # Report core/system repos behind upstream (no update); exit 10 if any
 dot update --check-all        # Report all tracked repos behind upstream (no update); exit 10 if any
 dot stow                      # Stow public + private

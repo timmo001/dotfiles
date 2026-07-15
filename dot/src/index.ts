@@ -571,7 +571,7 @@ if (mode.type === "native") {
         return update({
           pull: args.includes("--pull"),
           stow: args.includes("--stow"),
-          tui: args.includes("--tui"),
+          app: args.includes("--app"),
           selfUpdate: !hasOption(args, UPDATE_DISABLE_SELF_UPDATE_ARG),
           postHookRepos: postHookRepo ? [postHookRepo] : [],
         });

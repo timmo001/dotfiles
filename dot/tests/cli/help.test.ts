@@ -38,6 +38,12 @@ describe("renderHelp", () => {
     expect(help).toContain("Examples:");
   });
 
+  test("renders the app update phase", () => {
+    const help = renderHelp("update");
+    expect(help).toContain("--app");
+    expect(help).not.toContain("--tui");
+  });
+
   test("falls back to help for unknown commands", () => {
     expect(renderHelp("missing-command")).toBe(renderHelp("help"));
   });

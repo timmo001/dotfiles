@@ -61,7 +61,7 @@ _dot_cmd_update() {
   _arguments -S \
     '--pull[Run the repository pull phase only]' \
     '--stow[Generate completions, sync MCP configs, and stow only]' \
-    '--tui[Install Bun dependencies and rebuild the dot binary only]' \
+    '--app[Install Bun dependencies and rebuild the dot binary only]' \
     '--check[Report core/system repos behind upstream (no update); exit 10 if any]' \
     '--check-all[Report all tracked repos behind upstream (no update); exit 10 if any]' \
     '(-h --help)-h[Show this help message]' \
