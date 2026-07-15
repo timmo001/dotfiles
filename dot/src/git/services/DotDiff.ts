@@ -258,9 +258,11 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
           return null;
         }
 
-        // Get porcelain status (dirty/modified count)
+        // Background scans must not refresh the index and contend with writers.
         const statusResult = yield* executor
-          .run("git", ["status", "--porcelain"], { cwd: repoPath })
+          .run("git", ["--no-optional-locks", "status", "--porcelain"], {
+            cwd: repoPath,
+          })
           .pipe(Effect.catch(() => Effect.succeed("")));
 
         const statusLines = statusResult

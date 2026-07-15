@@ -13,6 +13,8 @@ export const commandCards = [
 
 `--bar-json` is a shared status-bar contract rather than a single command. Tools emit one-line `--bar-json` output (with `text`, `tooltip`, and `class` fields) meant to be polled by a status bar module through its own short-lived cache. Left click opens the relevant TUI; right click refreshes the cache.
 
+`dot git-diff` status scans disable Git's optional index locks. Background bar and TUI polling can read working-tree state during a rebase, merge, or another index-writing operation without refreshing the index or competing for `.git/index.lock`.
+
 The JSON format is bar-agnostic: it works with [Waybar](https://github.com/Alexays/Waybar), [Quickshell](https://quickshell.outfoxxed.me), or any bar that can run a command and parse JSON. My own setup uses Waybar, so the bundled modules and `dot doctor` checks target Waybar, but the commands themselves do not depend on it.
 
 ## dot commands with bar output

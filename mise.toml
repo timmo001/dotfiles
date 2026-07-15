@@ -59,7 +59,10 @@ run = "bash .github/scripts/validate-skills.sh"
 [tasks."tests:smoke"]
 description = "Build dot and smoke-test side-effect-free CLI entry points"
 depends = ["dot:build"]
-run = "bash tests/dot/cli-smoke.test.sh"
+run = """
+bash tests/dot/cli-smoke.test.sh
+bash tests/dot/git-diff-index-lock.test.sh
+"""
 
 # docs (runs in ./docs)
 [tasks."docs:dev"]
