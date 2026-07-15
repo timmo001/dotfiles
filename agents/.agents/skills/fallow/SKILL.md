@@ -2,7 +2,7 @@
 name: fallow
 description: Codebase intelligence for JavaScript and TypeScript. Free static layer finds unused code (files, exports, types, dependencies), code duplication, circular dependencies, complexity hotspots, architecture boundary violations, and feature flag patterns. Runtime coverage merges production execution data into the same health report for hot-path review, cold-path deletion confidence, and stale-flag evidence - a single local capture is free, while continuous/cloud runtime monitoring is paid. 94 framework plugins, zero configuration, sub-second static analysis. Use when asked to analyze code health, find unused code, detect duplicates, check circular dependencies, audit complexity, check architecture boundaries, detect feature flags, clean up the codebase, auto-fix issues, merge runtime coverage, or run fallow.
 # origin: https://github.com/fallow-rs/fallow-skills/tree/main/fallow/skills/fallow
-# upstream-sha: cf073190ab3f22fcf4905f3368f7e1cd66ca3fff
+# upstream-sha: fe47491dafa97729f350d5a04b8dcfd764b762cf
 ---
 
 # Fallow: codebase intelligence for TypeScript and JavaScript
@@ -42,7 +42,7 @@ cargo install fallow-cli   # build from source
 
 ## Agent Rules
 
-1. **Always use `--format json --quiet 2>/dev/null`** for machine-readable output. The `2>/dev/null` discards stderr so progress messages and threshold warnings don't corrupt the JSON on stdout. Never use `2>&1`
+1. **Always use `--format json --quiet 2>/dev/null`** for machine-readable output and parse it as JSON. Compact JSON is the default; never depend on whitespace or add `--pretty` in agent pipelines. The `2>/dev/null` discards stderr so progress messages and threshold warnings don't corrupt the JSON on stdout. Never use `2>&1`
 2. **Always append `|| true`** to every fallow command. Exit code 1 means "issues found" (normal), not a runtime error. Without `|| true`, the Bash tool treats exit 1 as failure and cancels parallel commands. Only exit code 2 is a real error (invalid config, parse failure)
 3. **Use `--explain`** to include a `_meta` object in JSON output with metric definitions, ranges, and interpretation hints. In human format, `--explain` prints a `Description:` line under each section header.
 4. **Use the root `kind` field** to identify typed JSON envelopes (`dead-code`, `dead-code-grouped`, `health`, `dupes`, `combined`, `audit`, etc.).
@@ -106,6 +106,7 @@ Route by intent before reaching for the big analysis commands. Same matrix as `f
 | `suppressions` | List active fallow-ignore suppression markers (read-only inventory) | `--file` |
 | `explain` | Explain one issue type without running analysis | `<issue-type>`, `--format json` |
 | `audit` | Combined dead-code + complexity + duplication + styling for changed files, returns a verdict; `fallow review` is an alias for `fallow audit --brief` (advisory orientation brief, always exits 0) | `--base`, `--gate`, `--brief`, `--max-decisions`, `--walkthrough-guide`, `--walkthrough-file`, `--show-deprioritized`, `--production`, `--production-dead-code`, `--production-health`, `--production-dupes`, `--workspace`, `--changed-workspaces`, `--ci`, `--fail-on-issues`, `--explain`, `--explain-skipped`, `--dead-code-baseline`, `--health-baseline`, `--dupes-baseline`, `--max-crap`, `--coverage`, `--coverage-root`, `--no-css`, `--css-deep`, `--no-css-deep`, `--include-entry-exports` |
+| `audit-cache` | Maintain reusable audit base-snapshot caches |  |
 | `decision-surface` | Surface the consequential structural DECISIONS a change embeds (the apex of the review brief), each framed as a judgment question with the routed expert to ask | `--max-decisions` |
 | `impact` | Show what fallow has done for you: how many issues it is surfacing, the trend since the last recorded run, and how many commits it contained at the pre-commit gate | `--all`, `--sort`, `--limit` |
 | `security` | Surface opt-in local security candidates for agent verification (not confirmed vulnerabilities). Rule families include the graph rule `client-server-leak`, a data-driven `tainted-sink` catalogue, and the include-required `hardcoded-secret` category for provider-prefix credentials and high-entropy literals assigned to secret-shaped identifiers. Most catalogue rows require non-literal input; narrowly literal-aware rows flag deterministic unsafe literals. Rules default off; suppress a file with `// fallow-ignore-file security-sink`; scope categories with `security.categories`. Add project-local request object names with `security.requestReceivers`; it extends the built-in `req` / `request` / `ctx` / `context` / `event` allowlist for HTTP `query`, `params`, and `body` reads. `hardcoded-secret` runs only when listed in `security.categories.include`. | `--format human\|json\|sarif`, `--changed-since`, `--file`, `--diff-file`, `--workspace`, `--changed-workspaces`, `--surface`, `--ci`, `--fail-on-issues`, `--sarif-file`, `--summary` |
@@ -347,15 +348,17 @@ Adds a per-decision-point `contributions[]` array to every complexity finding (e
 ### Gate CI on regressions (baselines)
 ```bash
 # 1. Save the current issue counts as a regression baseline
-fallow dead-code --format json --quiet --save-regression-baseline .fallow/baseline.json
+fallow dead-code --format json --quiet --save-regression-baseline
 # 2. In CI: fail only if issues increase beyond tolerance
-fallow dead-code --format json --quiet --regression-baseline .fallow/baseline.json --fail-on-regression --tolerance 0
+fallow dead-code --format json --quiet --fail-on-regression --tolerance 0
 # Identity-based baseline (fail only on NEW findings, not raw counts)
 fallow dead-code --format json --quiet --save-baseline .fallow/snapshot.json
 fallow dead-code --format json --quiet --baseline .fallow/snapshot.json
 ```
 
-`--save-regression-baseline` / `--regression-baseline` / `--fail-on-regression` / `--tolerance` are count-based gates; `--save-baseline` / `--baseline` are identity-based (track finding identity, fail on new). All six are global flags, so they also work on `health` and `dupes`. `audit` rejects the global baseline flags and uses `--dead-code-baseline` / `--health-baseline` / `--dupes-baseline` instead.
+`--save-regression-baseline` / `--regression-baseline` / `--fail-on-regression` / `--tolerance` are count-based gates for `dead-code` and bare combined mode. `--save-baseline` / `--baseline` are identity-based (track finding identity, fail on new). `audit` rejects the global baseline flags and uses `--dead-code-baseline` / `--health-baseline` / `--dupes-baseline` instead.
+
+With no path, `--save-regression-baseline` updates `regression.baseline` in the discovered fallow config, or creates `.fallowrc.json` when none exists. Pass a path only when a standalone baseline file is preferred.
 
 ### Explain an issue type without running analysis
 ```bash

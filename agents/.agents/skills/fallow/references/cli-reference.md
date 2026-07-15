@@ -130,8 +130,9 @@ fallow dead-code --format json --quiet --trace src/utils.ts:myFunction
 fallow dead-code --format json --quiet --save-baseline fallow-baselines/dead-code.json
 fallow dead-code --format json --quiet --baseline fallow-baselines/dead-code.json --fail-on-issues
 
-# Regression detection: save baseline on main, compare on PRs
+# Regression detection: update regression.baseline in the discovered config
 fallow dead-code --format json --quiet --save-regression-baseline
+# Then compare on PRs
 fallow dead-code --format json --quiet --fail-on-regression --tolerance 2%
 
 # Scope to specific files (e.g., lint-staged)
@@ -509,7 +510,7 @@ fallow health --format json --quiet --trend
 {
   "kind": "health",
   "schema_version": 7,
-  "version": "3.5.0",
+  "version": "3.5.1",
   "elapsed_ms": 32,
   "summary": {
     "files_analyzed": 482,
@@ -907,7 +908,7 @@ fallow audit \
 {
   "kind": "audit",
   "schema_version": 7,
-  "version": "3.5.0",
+  "version": "3.5.1",
   "command": "audit",
   "verdict": "fail",
   "changed_files_count": 12,
@@ -982,7 +983,7 @@ fallow flags --format json --quiet --workspace my-package
 ```json
 {
   "schema_version": 7,
-  "version": "3.5.0",
+  "version": "3.5.1",
   "elapsed_ms": 116,
   "feature_flags": [],
   "total_flags": 0
@@ -1083,7 +1084,7 @@ fallow security --gate newly-reachable --changed-since origin/main
 {
   "kind": "security",
   "schema_version": "4",
-  "version": "3.5.0",
+  "version": "3.5.1",
   "elapsed_ms": 42,
   "config": {
     "rules": {
@@ -1112,7 +1113,7 @@ fallow security --gate newly-reachable --changed-since origin/main
 {
   "kind": "security",
   "schema_version": "4",
-  "version": "3.5.0",
+  "version": "3.5.1",
   "elapsed_ms": 42,
   "config": {
     "rules": {
@@ -1637,6 +1638,7 @@ Available on all commands:
 | `-c, --config` | `string` | - | Config file path |
 | `--allow-remote-extends` | `bool` | `false` | Allow trusted config files to extend HTTPS URLs |
 | `-f, --format` | `human\|json\|sarif\|compact\|markdown\|codeclimate\|pr-comment-github\|pr-comment-gitlab\|review-github\|review-gitlab\|badge\|github-annotations\|github-summary` | `human` | Output format (alias: --output) |
+| `--pretty` | `bool` | `false` | Indent JSON output for manual inspection. Requires the final output format to be JSON |
 | `-q, --quiet` | `bool` | `false` | Suppress progress output |
 | `--no-cache` | `bool` | `false` | Disable incremental caching |
 | `--threads` | `string` | - | Number of parser threads |
@@ -1667,8 +1669,8 @@ Available on all commands:
 | `--report-path-prefix` | `string` | - | Prefix prepended to every path in the CI-facing formats (`github-annotations`, `github-summary`, `codeclimate`, `review-github`, `review-gitlab`). CI platforms address files by repository-root-relative path, so when the analyzed project lives in a subdirectory (e.g. `packages/app/`), paths need that offset. fallow detects the offset via the git toplevel automatically; this flag overrides the detection. Pass an empty string to disable rebasing and emit paths relative to `--root` |
 | `--fail-on-regression` | `bool` | `false` | Fail if issue count increased beyond tolerance vs a regression baseline |
 | `--tolerance` | `string` | `0` | Allowed increase: `"2%"` (percentage) or `"5"` (absolute). Default: `"0"` |
-| `--regression-baseline` | `string` | - | Path to regression baseline file (default: `.fallow/regression-baseline.json`) |
-| `--save-regression-baseline` | `string` | - | Save current issue counts as a regression baseline |
+| `--regression-baseline` | `string` | - | Path to a standalone regression baseline file. Without it, fallow uses `regression.baseline` from the config |
+| `--save-regression-baseline` | `string` | - | Save current issue counts. With no path, update `regression.baseline` in the discovered fallow config or create `.fallowrc.json`; with a path, write a standalone baseline file |
 | `--only` | `dead-code\|dupes\|health` | - | Run only specific analyses (e.g., `--only dead-code,dupes`). Values: `dead-code` (alias: `check`), `dupes`, `health` |
 | `--skip` | `dead-code\|dupes\|health` | - | Skip specific analyses (e.g., `--skip health`). Values: `dead-code` (alias: `check`), `dupes`, `health` |
 | `--dupes-mode` | `strict\|mild\|weak\|semantic` | - | Override duplication detection mode in combined mode |
@@ -1766,7 +1768,7 @@ Set `FALLOW_FORMAT=json` and `FALLOW_QUIET=1` in your agent environment to avoid
 | Format | Description | Use Case |
 |--------|-------------|----------|
 | `human` | Colored terminal output | Interactive use |
-| `json` | Machine-readable JSON | Agent integration, CI pipelines |
+| `json` | Compact machine-readable JSON by default; add `--pretty` for indented manual inspection | Agent integration, CI pipelines |
 | `sarif` | Static Analysis Results Interchange Format | GitHub Code Scanning, SARIF-compatible tools |
 | `compact` | Grep-friendly: one issue per line. Dupes lines include `code-duplication:path:start-end:fingerprint=dup:<id>,...` | Quick filtering |
 | `markdown` | Markdown tables | Documentation, PR comments |
@@ -1836,7 +1838,7 @@ The HTTP layer mirrors the bash `gh_api_retry` / `curl_retry` helpers: `FALLOW_A
 {
   "kind": "dead-code",
   "schema_version": 7,
-  "version": "3.5.0",
+  "version": "3.5.1",
   "elapsed_ms": 45,
   "total_issues": 12,
   "entry_points": {
@@ -1996,7 +1998,7 @@ When `--baseline` is used in combined output, the JSON includes a `baseline_delt
 {
   "kind": "dupes",
   "schema_version": 7,
-  "version": "3.5.0",
+  "version": "3.5.1",
   "elapsed_ms": 82,
   "total_clones": 15,
   "total_lines_duplicated": 230,
@@ -2040,11 +2042,11 @@ When running `fallow` with no subcommand (all analyses), the JSON output combine
 {
   "kind": "combined",
   "schema_version": 7,
-  "version": "3.5.0",
+  "version": "3.5.1",
   "elapsed_ms": 159,
   "check": {
     "schema_version": 7,
-    "version": "3.5.0",
+    "version": "3.5.1",
     "elapsed_ms": 45,
     "total_issues": 12,
     "unused_files": [],
