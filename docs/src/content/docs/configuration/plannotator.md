@@ -26,7 +26,7 @@ The command files contain frontmatter only because the plugin handles their name
 
 For usage, see the upstream [OpenCode integration guide](https://plannotator.ai/docs/guides/opencode/) and its linked command guides.
 
-Code review feedback authorises the agent to apply the requested changes immediately. If work from the earlier request remains incomplete, the agent finishes that first unless the feedback invalidates it, then applies the review feedback without asking for another confirmation.
+Code review feedback authorises the agent to apply the requested corrections immediately. The correction run stays within the human feedback, performs relevant validation, and asks before proceeding when a request is unclear, conflicts with the codebase, or cannot be applied safely.
 
 ## Local data
 
