@@ -66,6 +66,18 @@ When reviewing code changes, evaluate:
 - Explain the "why" behind suggestions
 - Differentiate between blocking issues and nice-to-haves
 
+## Finding Evidence
+
+Every finding must be independently inspectable:
+
+- Give the precise file and line, or the narrowest available location.
+- Quote the relevant code or minimally reproduce the observed behaviour.
+- Trace the concrete failure path, value flow, or violated requirement. Do not rely on preference or speculation.
+- State the user-visible or engineering impact and the conditions that trigger it.
+- Give a proportionate fix direction, including a small snippet when it makes the correction clearer.
+
+Do not report a finding when the evidence does not establish a concrete problem. Record unresolved concerns as questions or residual risks instead.
+
 ## Using GitHub CLI
 
 Use `gh` CLI for PR workflow operations:
@@ -101,11 +113,11 @@ For upstream code patterns, API usage examples, or GitHub-hosted documentation, 
 
 When providing review feedback:
 
-1. Start with an **overview** of the change (purpose, scope)
+1. Start with findings, ordered by severity, with file and line references
 2. Report **Standards** and **Spec** findings separately
-3. List **specific comments** for each file/line needing attention
-4. Differentiate between blocking issues and nice-to-haves
-5. Summarize with an **overall assessment**:
+3. Include the evidence, impact, and fix direction for every finding
+4. Follow with open questions, assumptions, or residual risks
+5. End with a brief overview and **overall assessment**:
    - Approve
    - Request changes
    - Comment (needs discussion)
