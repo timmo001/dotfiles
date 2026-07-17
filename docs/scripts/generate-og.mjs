@@ -25,8 +25,8 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" 
   ${logo}
   <g font-family="${fontStack}" fill="#ffffff">
     <text x="470" y="300" font-size="104" font-weight="700">Dotfiles</text>
-    <text x="474" y="372" font-size="38" fill-opacity="0.88">Omarchy dotfiles, managed with</text>
-    <text x="474" y="420" font-size="38" fill-opacity="0.88">GNU Stow and the dot command.</text>
+    <text x="474" y="372" font-size="38" fill-opacity="0.88">An agent-driven Omarchy setup for</text>
+    <text x="474" y="420" font-size="38" fill-opacity="0.88">development, desktop, and automation.</text>
     <text x="474" y="500" font-size="30" fill="#f59e0b">dotfiles.timmo.dev</text>
   </g>
 </svg>`;

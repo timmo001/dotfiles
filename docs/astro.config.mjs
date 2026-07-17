@@ -61,7 +61,7 @@ export default defineConfig({
         starlightLlmsTxt({
           projectName: 'Dotfiles',
           description:
-            'Public Omarchy dotfiles managed with GNU Stow and the dot command.',
+            'An agent-driven Omarchy setup for development, desktop, and automation.',
           promote: ['index*'],
         }),
         starlightContextualMenu({
