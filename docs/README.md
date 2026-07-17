@@ -20,10 +20,20 @@ All commands run from this `docs/` directory:
 - `bun install`
 - `bun run dev` (runs the generators first via `predev`)
 - `bun run build`
+- `bun run deploy` (deploy the built site to Cloudflare Workers)
+- `bun run deploy:preview` (upload a preview version without promoting it)
 - `bun run preview`
 - `bun run gen` (regenerate the generated reference pages)
 - `bun run og` (regenerate the Open Graph image)
 
 ## Deployment
 
-The site deploys to Vercel with the project **Root Directory** set to `docs/`. Astro is auto-detected (install `bun install`, build `bun run build`, output `dist`). Production branch: `distro/arch-omarchy`. No adapter or `vercel.json` is needed.
+The site deploys to Cloudflare Workers as static assets. Workers Builds uses:
+
+- Root directory: `docs`
+- Production branch: `distro/arch-omarchy`
+- Build command: `bun run build`
+- Deploy command: `bun run deploy`
+- Non-production deploy command: `bun run deploy:preview`
+
+`wrangler.jsonc` owns the Worker name, compatibility date, asset directory, and 404 behaviour. The site is fully static, so it does not use an Astro adapter or invoke Worker code for page requests.
