@@ -2,7 +2,7 @@
 title: Commit Gateway
 description: Guarded commits through dot git-commit instead of raw git commit.
 sidebar:
-  order: 3
+  order: 4
 ---
 
 ## `dot git-commit`

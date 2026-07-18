@@ -2,7 +2,7 @@
 title: Notifications
 description: The GitHub notification inbox with read, done, ignore, and bot-read actions.
 sidebar:
-  order: 5
+  order: 6
 ---
 
 ## `dot git-notifications`

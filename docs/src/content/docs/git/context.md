@@ -2,7 +2,7 @@
 title: Context Integration
 description: How dotfiles OpenCode plugins consume the standalone context tool.
 sidebar:
-  order: 2
+  order: 3
 ---
 
 Generic branch and stack context lives in the standalone [`context`](https://context.timmo.dev) CLI and MCP server. The dotfiles repo no longer embeds that logic in `dot`; it installs the tool, stows shell completions, and keeps the OpenCode plugins that turn the JSON payloads into prompt XML.
