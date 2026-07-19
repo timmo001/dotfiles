@@ -2,7 +2,7 @@
 title: Workflow Runs
 description: Watched GitHub Actions runs for each repo's locally checked-out HEAD commit.
 sidebar:
-  order: 4
+  order: 5
 ---
 
 ## `dot git-workflows`
