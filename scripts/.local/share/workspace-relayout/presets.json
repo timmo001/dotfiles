@@ -242,15 +242,15 @@
         "name": "1 top / 3 bottom",
         "tree": {
           "dir": "tb",
-          "ratio": 75.52,
+          "ratio": 75.4,
           "a": "w",
           "b": {
             "dir": "lr",
-            "ratio": 25,
+            "ratio": 21.03,
             "a": "w",
             "b": {
               "dir": "lr",
-              "ratio": 31.44,
+              "ratio": 26.77,
               "a": "w",
               "b": "w"
             }
