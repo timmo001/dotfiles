@@ -428,7 +428,6 @@ Examples:
 }
 
 /** Build, publish, optionally install, commit, and push a mapped private package. */
-// fallow-ignore-next-line complexity
 export const privatePkgPublish = (rawArgs: readonly string[]) =>
   Effect.gen(function* () {
     const config = yield* Config;

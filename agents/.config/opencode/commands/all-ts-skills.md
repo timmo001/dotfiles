@@ -7,8 +7,6 @@ Follow local project guidance while editing.
 
 Load and apply all local skills with names ending in `-ts` before editing.
 Also apply cleanup skills when TypeScript changes include local aliases, temporary variables, or local helper wrappers.
-Use the `fallow` skill when TypeScript scope analysis needs dead-code, duplication, circular dependency, or complexity evidence.
-
 At minimum, apply:
 
 - `types-enforce-ts`

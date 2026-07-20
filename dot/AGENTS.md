@@ -305,8 +305,6 @@ mise run dot:build           # compile binary
 
 The underlying `bunx tsc --noEmit` / `bun run format` / `bun run build` commands remain valid equivalents.
 
-For dead-code analysis, use the MCP `analyze` tool with `root: dot`, or `/fallow-audit`.
-
 ### Effect language service
 
 `@effect/tsgo` patches the TypeScript 7 native binary (`effect-tsgo patch` in `prepare`) so `mise run dot:typecheck` surfaces the official Effect v4 diagnostics inline. The plugin entry in `tsconfig.json` remains named `@effect/language-service` (Effect's stable plugin id). Effect errors fail the typecheck; warnings and messages stay advisory (`ignoreEffectWarningsInTscExitCode` is set), so keep them visible but non-blocking. Editors pick up the diagnostics through the TypeScript Native Preview language server when `typescript.native-preview.tsdk` points at the workspace `typescript` install.
