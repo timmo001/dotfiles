@@ -6,6 +6,7 @@ repo_root="${GITHUB_WORKSPACE:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.."
 report_file="${SKILL_UPDATES_REPORT:-$repo_root/skill-updates-report.json}"
 prs_file="${SKILL_UPDATES_PRS:-$repo_root/skill-updates-prs.json}"
 base_branch="${SKILL_UPDATES_BASE_BRANCH:-distro/arch-omarchy}"
+dot_command="${SKILL_UPDATES_DOT_COMMAND:-$repo_root/scripts/.local/bin/dot}"
 dashboard_marker='<!-- skill-updates-dashboard -->'
 pr_marker='<!-- automated-skill-update -->'
 
@@ -51,7 +52,7 @@ cd "$repo_root"
 git config user.name 'skill-updates[bot]'
 git config user.email 'skill-updates[bot]@users.noreply.github.com'
 
-dot skill-updates --json >"$report_file"
+"$dot_command" skill-updates --json >"$report_file"
 
 gh label create skill-update --color 0e8a16 --description 'Automated imported skill update' --force
 gh label create skill-updates-dashboard --color 1d76db --description 'Imported skill update status' --force
@@ -71,7 +72,7 @@ for skill in "${clean_updates[@]}"; do
   files="$(jq -r '.files[] | "- `\(.path)` (\(.status))"' <<<"$item")"
 
   git checkout -B "$branch" "origin/$base_branch"
-  dot skill-updates --update --skill "$skill" --no-commit
+  "$dot_command" skill-updates --update --skill "$skill" --no-commit
 
   if [[ -z "$(git status --porcelain -- "$skill_path")" ]]; then
     printf 'No generated changes for %s; skipping PR.\n' "$skill"
