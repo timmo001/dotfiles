@@ -44,6 +44,7 @@ const READ_ONLY_SHELL_COMMANDS = new Set([
   "cat",
   "diff",
   "file",
+  "git add",
   "git diff",
   "git show",
   "less",

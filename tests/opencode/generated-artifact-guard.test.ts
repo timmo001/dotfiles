@@ -94,6 +94,9 @@ describe("shell mutations", () => {
       generatedArtifactFromShell(root, "mise run docs:gen:opencode"),
     ).toBeUndefined();
     expect(
+      generatedArtifactFromShell(root, `git add -- ${generatedDocs}`),
+    ).toBeUndefined();
+    expect(
       generatedArtifactFromShell(root, "rm docs/src/content/docs/ordinary.md"),
     ).toBeUndefined();
     expect(
