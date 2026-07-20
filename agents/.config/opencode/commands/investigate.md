@@ -18,7 +18,6 @@ Follow these steps:
    - use the `task` tool with an available read-only research subagent for broad upstream dependency, source, or documentation inspection
    - use the `task` tool with an available cited-research subagent for external primary-source research that needs synthesis (docs, specs, APIs, library or GitHub behaviour)
    - use Chrome DevTools tools for browser-specific investigation
-   - use Fallow MCP tools for JavaScript or TypeScript structural analysis
    - use `context7` tools for library/framework documentation lookups
    - use `grep` for GitHub-hosted docs or real-world code-pattern investigation
    - use Answer Overflow tools when community troubleshooting context is likely to help

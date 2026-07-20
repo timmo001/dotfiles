@@ -4,7 +4,6 @@ __pycache__/
 *.py[cod]
 .benchmarks/output/
 .tests/output/
-.fallow/
 /node_modules/
 /bun.lock
 /mise.lock
@@ -15,7 +14,6 @@ __pycache__/
 !/herdr/.config/herdr/config.toml
 dot/node_modules/
 dot/dist/
-dot/.fallow/
 scripts/.local/bin/dot
 scripts/.local/bin/dot*
 zsh/.local/share/zsh/chpwd-recent-dirs

@@ -32,5 +32,4 @@ Use this skill when reviewing or editing TypeScript code:
 - Do not introduce local aliases only to satisfy TypeScript narrowing (`const params = this._params`, `const data = this._data`) if direct guards and property access typecheck cleanly.
 - Keep control flow simple without changing established logic unless explicitly requested.
 - Do not use the non-null assertion operator (`!`) unless it is strictly required and justified by existing project guidance.
-- Use the `fallow` skill when TypeScript cleanup or review needs dead-code, duplication, circular dependency, or complexity evidence.
 - Do not add unnecessary comments or abstractions.
