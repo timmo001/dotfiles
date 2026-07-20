@@ -1,6 +1,6 @@
 ---
 name: git-commit
-description: Commit workflow using the dot git-commit gateway in the maintainer's concise one-line style. Use only after the user explicitly requests a commit or push, including /commit or /commit-push. Never infer repeat authorisation from an earlier commit or push; never run raw git commit.
+description: Commit workflow using the dot git-commit gateway, splitting a reviewed changeset into coherent commits by default. Use only after the user explicitly requests a commit or push, including /commit or /commit-push. Never infer authorisation for later changes; never run raw git commit.
 ---
 
 # Git Commit
@@ -11,13 +11,12 @@ staging, and message authoring around it.
 
 ## 1. Authorisation and posture
 
-- Only commit when the user asked for this specific commit (a `/commit` or
-  `/commit-push` invocation, or an explicit "commit this" instruction).
-  Drafting a message is not permission.
-- A prior commit or push request authorises only that one action. Never treat a
-  second change, a later clean working tree, or an earlier successful push as
-  permission to commit or push again. Ask or stop unless the user explicitly
-  requests another commit or push.
+- Only commit when the user asked to commit the current reviewed changeset (a
+  `/commit` or `/commit-push` invocation, or an explicit "commit this"
+  instruction). Drafting a message is not permission.
+- One request authorises the coherent commit series needed for that changeset.
+  It does not authorise a later change, a second changeset, or another push.
+  Ask or stop unless the user explicitly requests that follow-up work.
 - Run in a build agent. Raw `git commit` is denied in the OpenCode permission
   config; `dot git-commit` is the allowed path. If `dot git-commit` is denied,
   stop and report that this needs a build agent, do not fall back to `git commit`.
@@ -38,6 +37,8 @@ staging, and message authoring around it.
   step, or phase so each commit is concise and self-contained; do not lump an
   entire task into a single commit. This trades some rebase friction for a
   cleaner, non-conflicting history, which is the preferred tradeoff.
+- Make a single commit only when the user explicitly requests one or the
+  reviewed changeset contains only one coherent change.
 - If the user already staged files, commit that set. If you also made unrelated
   edits this session, ask before adding them rather than bundling silently.
 - If nothing is staged, show the changed files and confirm which to include
@@ -99,6 +100,8 @@ dot git-commit -m "<subject>" --push
   force-pushes. On a rebase conflict it aborts and keeps your commit for manual
   integration. Only push when the user asked for this specific push (a
   `/commit-push` invocation or explicit "push").
+- For a split changeset, omit `--push` from every preceding commit and pass it
+  only to the final commit so the complete series is pushed once.
 - Combining `--amend --push` force-pushes with `--force-with-lease` (never a
   plain force): it overwrites the remote branch only when it still matches the
   ref last seen, so a teammate's or bot's newer commit blocks the push instead
