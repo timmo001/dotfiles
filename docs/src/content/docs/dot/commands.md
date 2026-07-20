@@ -593,7 +593,17 @@ dot skill-updates
 | --- | --- |
 | `--check` | Check only without applying |
 | `--update` | Auto-apply clean updates |
+| `--json` | Report update states as JSON without applying |
+| `--skill` `<name>` | Limit checking or updating to one imported skill |
+| `--no-commit` | Apply updates without creating a commit |
 | `--skip-review` | Skip local-edit review |
+
+**Examples**
+
+```bash
+dot skill-updates --json
+dot skill-updates --update --skill browser-control --no-commit
+```
 
 ## `dot skill-check`
 

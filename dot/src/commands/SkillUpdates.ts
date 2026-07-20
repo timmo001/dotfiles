@@ -12,7 +12,7 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 import { GitHub } from "../git/services/GitHub.js";
 import { commitIn, stageIn } from "../git/committer.js";
 import {
-  scanSkills,
+  scanSkillEntries,
   checkSkill,
   applySkillUpdate,
   writeSha,
@@ -20,11 +20,40 @@ import {
   cleanupSkillDiffCache,
   type SkillMeta,
   type CheckResult,
+  type SkillScanEntry,
 } from "../lib/skillUpdates.js";
 import { withSpinnerTimeout } from "../lib/workflowStep.js";
 
 /** Mode of operation for the skill-updates command */
 type Mode = "check" | "update" | "interactive";
+
+/** Machine-readable state for one imported skill. */
+export interface SkillUpdateReportItem {
+  readonly name: string;
+  readonly state:
+    | "up-to-date"
+    | "update-available"
+    | "manual-review"
+    | "invalid-origin"
+    | "origin-gone"
+    | "error";
+  readonly origin: string;
+  readonly storedSha: string | null;
+  readonly upstreamSha: string | null;
+  readonly files: readonly {
+    readonly path: string;
+    readonly status: "modified" | "removed-upstream" | "added-upstream";
+  }[];
+  readonly localEdits: readonly string[];
+  readonly reason?: string;
+}
+
+/** Machine-readable imported-skill update report. */
+export interface SkillUpdateReport {
+  readonly version: 1;
+  readonly skills: readonly SkillUpdateReportItem[];
+  readonly error?: string;
+}
 
 const SKILL_CHECK_TIMEOUT_SECONDS = 45;
 const SKILL_APPLY_TIMEOUT_SECONDS = 60;
@@ -51,6 +80,9 @@ export const skillUpdates = (opts?: {
   readonly check?: boolean;
   readonly update?: boolean;
   readonly skipReview?: boolean;
+  readonly json?: boolean;
+  readonly skill?: string;
+  readonly noCommit?: boolean;
 }) =>
   Effect.gen(function* () {
     const config = yield* Config;
@@ -58,13 +90,12 @@ export const skillUpdates = (opts?: {
     const launcher = yield* Launcher;
     const github = yield* GitHub;
 
-    const mode: Mode = opts?.check
-      ? "check"
-      : opts?.update
-        ? "update"
-        : "interactive";
-
-    yield* log.section("Skill Origin Updates");
+    const mode: Mode =
+      opts?.json || opts?.check
+        ? "check"
+        : opts?.update
+          ? "update"
+          : "interactive";
 
     // Sweep any leftover diff temp files from prior or interrupted runs.
     yield* Effect.sync(cleanupSkillDiffCache);
@@ -73,12 +104,55 @@ export const skillUpdates = (opts?: {
     const ghAvailable = yield* github.isAvailable();
 
     if (!ghAvailable) {
+      if (opts?.json) {
+        yield* Effect.sync(() =>
+          process.stdout.write(
+            `${JSON.stringify({ version: 1, skills: [], error: "gh CLI not available" })}\n`,
+          ),
+        );
+        return false;
+      }
       yield* log.warn("gh CLI not available; skipping skill origin checks");
       return false;
     }
 
     const skillsDir = join(config.publicDotfiles, "agents/.agents/skills");
-    const skills = scanSkills(skillsDir);
+    const entries = scanSkillEntries(skillsDir);
+    const selectedEntries = opts?.skill
+      ? entries.filter((entry) => entry.meta.name === opts.skill)
+      : entries;
+    const skills = selectedEntries.flatMap((entry) =>
+      entry.type === "skill" ? [entry.meta] : [],
+    );
+
+    if (opts?.skill && selectedEntries.length === 0) {
+      return yield* new LauncherError({
+        message: `Imported skill not found: ${opts.skill}`,
+        exitCode: 1,
+      });
+    }
+
+    if (opts?.json) {
+      const report = yield* buildSkillUpdateReport(selectedEntries);
+      yield* Effect.sync(() =>
+        process.stdout.write(`${JSON.stringify(report, null, 2)}\n`),
+      );
+      return false;
+    }
+
+    yield* log.section("Skill Origin Updates");
+
+    for (const entry of selectedEntries) {
+      if (entry.type === "invalid-origin") {
+        yield* log.warn(
+          `  ${entry.meta.name}: invalid origin ${entry.meta.originUrl} (${entry.meta.reason})`,
+        );
+      }
+    }
+
+    const invalidOrigins = selectedEntries.filter(
+      (entry) => entry.type === "invalid-origin",
+    ).length;
 
     if (skills.length === 0) {
       yield* log.info("No imported skills with origin tracking");
@@ -90,9 +164,8 @@ export const skillUpdates = (opts?: {
     );
 
     // Process each skill
-    let errors = 0;
+    let errors = invalidOrigins;
     let available = 0;
-    let shaQueryFailed = false;
     let committed = false;
     const updatedDirs: string[] = [];
     const reviewItems: ReviewItem[] = [];
@@ -201,6 +274,13 @@ export const skillUpdates = (opts?: {
             break;
           }
 
+          if (opts?.skill) {
+            return yield* new LauncherError({
+              message: `Skill ${meta.name} has local edits and requires manual review`,
+              exitCode: 1,
+            });
+          }
+
           // Queue for review
           reviewItems.push({ meta, writeSha: result.writeSha });
           yield* log.info(
@@ -212,7 +292,7 @@ export const skillUpdates = (opts?: {
     }
 
     // Auto-commit cleanly updated skills
-    if (updatedDirs.length > 0) {
+    if (updatedDirs.length > 0 && !opts?.noCommit) {
       const updatedNames = updatedDirs.map((d) => d.split("/").pop() ?? d);
 
       const staged = yield* stageIn(
@@ -251,12 +331,6 @@ export const skillUpdates = (opts?: {
 
     if (errors > 0) {
       yield* log.warn(`${errors} skill(s) had errors during update check`);
-    }
-
-    if (shaQueryFailed) {
-      yield* log.warn(
-        "Could not query upstream commit SHAs (rate limit or network); cache skipped",
-      );
     }
 
     // Check mode: exit with failure if updates available
@@ -305,6 +379,88 @@ export const skillUpdates = (opts?: {
 
     return committed;
   });
+
+/** Check discovered skills and return their stable machine-readable states. */
+export const buildSkillUpdateReport = (entries: readonly SkillScanEntry[]) =>
+  Effect.gen(function* () {
+    const skills: SkillUpdateReportItem[] = [];
+
+    for (const entry of entries) {
+      if (entry.type === "invalid-origin") {
+        skills.push({
+          name: entry.meta.name,
+          state: "invalid-origin",
+          origin: entry.meta.originUrl,
+          storedSha: null,
+          upstreamSha: null,
+          files: [],
+          localEdits: [],
+          reason: entry.meta.reason,
+        });
+        continue;
+      }
+
+      const result = yield* checkSkill(entry.meta);
+      skills.push(reportItem(entry.meta, result));
+    }
+
+    return { version: 1, skills } satisfies SkillUpdateReport;
+  });
+
+/** Convert one internal check result to the public JSON report contract. */
+export function reportItem(
+  meta: SkillMeta,
+  result: CheckResult,
+): SkillUpdateReportItem {
+  const base = {
+    name: meta.name,
+    origin: meta.originUrl,
+    storedSha: meta.storedSha,
+    localEdits: meta.localEdits,
+  };
+
+  switch (result.type) {
+    case "up-to-date":
+      return {
+        ...base,
+        state: "up-to-date",
+        upstreamSha: result.upstreamSha,
+        files: [],
+      };
+    case "changes":
+    case "local-edits":
+      return {
+        ...base,
+        state: result.type === "changes" ? "update-available" : "manual-review",
+        upstreamSha: result.upstreamSha,
+        files: result.files.map(({ path, status }) => ({ path, status })),
+      };
+    case "origin-gone":
+      return {
+        ...base,
+        state: "origin-gone",
+        upstreamSha: null,
+        files: [],
+        reason: result.reason,
+      };
+    case "error":
+      return {
+        ...base,
+        state: "error",
+        upstreamSha: null,
+        files: [],
+        reason: result.reason,
+      };
+    case "skipped":
+      return {
+        ...base,
+        state: "error",
+        upstreamSha: null,
+        files: [],
+        reason: "check skipped",
+      };
+  }
+}
 
 // ---------------------------------------------------------------------------
 // OpenCode Interactive Review

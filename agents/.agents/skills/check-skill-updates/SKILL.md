@@ -9,24 +9,24 @@ Review and apply upstream changes to imported OpenCode skills that have `# origi
 
 ## When to Use
 
-- After `dot update` reports skill changes were auto-applied and you want to review what changed
+- After an automated skill update reports changes and you want to review what changed
 - When manually checking for upstream skill updates
 - When `dot skill-updates` output needs agent-assisted review or selective application
 
 ## Workflow
 
-1. Run `dot skill-updates --check` to check all imported skills against their upstream origins.
+1. Run `dot skill-updates --json` to check all imported skills against their upstream origins and get structured results.
 2. Review the output: each skill reports up-to-date, changed, or failed.
 3. For skills with upstream changes:
    - Review the normalised diff (local frontmatter adjustments are excluded).
    - Decide per skill: apply the update, skip, or investigate further.
-4. When applying, use `dot skill-updates --update` to apply all changes at once.
+4. When applying selectively, use `dot skill-updates --update --skill <name> --no-commit`.
 5. If `--update` fails or selective application is needed, fall back to manually fetching and writing files using the `import-external-skill` skill workflow.
 6. After applying updates, run `dot stow` to relink and `opencode debug skill` to verify skills load.
 
 ## Agent Usage
 
-When running from an agent, only use `--check` (report) and `--update` (apply all). Do not run bare `dot skill-updates` — interactive mode prompts `[y/N]` per skill and will hang without a terminal.
+When running from an agent, use `--json` for reports and `--update --skill <name> --no-commit` for an approved clean update. Do not run bare `dot skill-updates`: interactive mode launches review prompts and can hang without a terminal.
 
 ## Upstream SHA Tracking
 
@@ -36,7 +36,6 @@ The SHA is written to frontmatter when:
 
 - A full comparison confirms no diff (skill is genuinely up to date).
 - An update is successfully applied (clean import).
-- A local-edits skill is reported in interactive or update mode (diffs already shown; suppressed until upstream changes again).
 
 The SHA is **not** written when:
 
@@ -51,13 +50,15 @@ Since the SHA lives in the committed frontmatter, it persists across machines an
 
 Run `dot skill-updates --check`. Reports diffs without prompting or applying. Exits 1 if any updates are available, 0 if all skills are up to date. Use this to verify status without side effects.
 
+Run `dot skill-updates --json` for the workflow-safe report. It returns a versioned document with each skill's state, origin, stored and upstream SHAs, changed file statuses, local-edit notes, and any error reason. It does not apply updates or change exit status when updates are available.
+
 ### Interactive (standalone)
 
 Run `dot skill-updates` with no flags. Shows diffs and prompts `[y/N]` per skill.
 
-### Auto-apply (during dot update)
+### Auto-apply
 
-`dot update` calls `dot skill-updates --update` automatically after stow. Changes are applied without prompting.
+`dot skill-updates --update` applies every clean update and commits the changed skill directories. Add `--skill <name>` to select one import and `--no-commit` when another process owns the commit, such as a pull request workflow.
 
 ## What Gets Compared
 
@@ -66,7 +67,9 @@ Run `dot skill-updates` with no flags. Shows diffs and prompts `[y/N]` per skill
   - Local side: `# origin:` and `# local-edits:` block removed.
   - Upstream side: `metadata`, `category`, `tags` fields removed.
 - New upstream files are detected and added.
+- Files removed upstream are removed from clean imported skills during apply.
 - Only skills with `# origin:` in their YAML frontmatter are checked.
+- Malformed tracked origins are reported instead of silently skipped.
 
 ## Local Edits
 
@@ -100,6 +103,7 @@ This follows the `import-external-skill` skill (Path 2: Adaptation).
 ## Safety
 
 - Updates only touch skills that have `# origin:` tracking; locally authored skills are never modified.
+- Clean imports mirror the complete upstream directory. Declare intentional local-only files through `# local-edits:` so automation will not remove them.
 - Local `description` is preserved across updates (not overwritten by upstream description).
 - Edit stow source paths, not live paths.
 - Do not commit without explicit user request.

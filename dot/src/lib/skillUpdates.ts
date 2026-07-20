@@ -1,6 +1,6 @@
 import { Effect, Schema } from "effect";
 import { readdirSync, existsSync, readFileSync, mkdirSync } from "fs";
-import { writeFileSync, unlinkSync } from "fs";
+import { rmSync, writeFileSync, unlinkSync } from "fs";
 import { join, basename, dirname, relative } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { GitHub } from "../git/services/GitHub.js";
@@ -35,6 +35,19 @@ export interface SkillMeta {
   readonly dir: string;
 }
 
+/** An origin-tracked skill whose origin URL cannot be parsed. */
+export interface InvalidSkillMeta {
+  readonly name: string;
+  readonly originUrl: string;
+  readonly reason: string;
+  readonly dir: string;
+}
+
+/** A discovered origin-tracked skill, valid or malformed. */
+export type SkillScanEntry =
+  | { readonly type: "skill"; readonly meta: SkillMeta }
+  | { readonly type: "invalid-origin"; readonly meta: InvalidSkillMeta };
+
 /** A file-level change detected between local and upstream */
 export interface FileChange {
   readonly path: string;
@@ -47,18 +60,21 @@ export type CheckResult =
   | {
       readonly type: "up-to-date";
       readonly cached: boolean;
+      readonly upstreamSha: string | null;
       readonly writeSha?: string;
     }
   | {
       readonly type: "changes";
       readonly files: readonly FileChange[];
       readonly summary: string;
+      readonly upstreamSha: string | null;
       readonly writeSha: string;
     }
   | {
       readonly type: "local-edits";
       readonly files: readonly FileChange[];
       readonly summary: string;
+      readonly upstreamSha: string | null;
       readonly writeSha: string;
     }
   | { readonly type: "error"; readonly reason: string }
@@ -161,6 +177,29 @@ export function parseSkillMeta(
     storedSha,
     localEdits,
     dir: skillDir,
+  };
+}
+
+/** Parse an origin-tracked SKILL.md, retaining malformed origins as errors. */
+export function parseSkillScanEntry(
+  content: string,
+  skillDir: string,
+): SkillScanEntry | null {
+  const originUrl = extractFrontmatterField(content, "# origin:");
+  if (!originUrl) return null;
+
+  const meta = parseSkillMeta(content, skillDir);
+  if (meta) return { type: "skill", meta };
+
+  return {
+    type: "invalid-origin",
+    meta: {
+      name: extractFrontmatterField(content, "name:") ?? basename(skillDir),
+      originUrl,
+      reason:
+        "origin must be a GitHub tree URL with a branch and directory path",
+      dir: skillDir,
+    },
   };
 }
 
@@ -563,14 +602,16 @@ export const checkSkill = (meta: SkillMeta) =>
 
     // Query upstream SHA
     const upstreamSha = yield* getUpstreamSha(origin);
-    const shaQueryFailed = !upstreamSha;
-
     // SHA to write back: prefer fresh upstream, fall back to stored
     const writeSha = upstreamSha || storedSha || "";
 
     // Compare against stored SHA (fast path: cached match)
     if (upstreamSha && upstreamSha === storedSha) {
-      return { type: "up-to-date", cached: true } as CheckResult;
+      return {
+        type: "up-to-date",
+        cached: true,
+        upstreamSha,
+      } as CheckResult;
     }
 
     // Compare all local and upstream files, including references/**.
@@ -629,7 +670,12 @@ export const checkSkill = (meta: SkillMeta) =>
 
     if (changes.length === 0) {
       // No content changes despite SHA mismatch — write SHA and report up-to-date
-      return { type: "up-to-date", cached: false, writeSha } as CheckResult;
+      return {
+        type: "up-to-date",
+        cached: false,
+        upstreamSha: upstreamSha || null,
+        writeSha,
+      } as CheckResult;
     }
 
     // Build summary
@@ -652,6 +698,7 @@ export const checkSkill = (meta: SkillMeta) =>
         type: "local-edits",
         files: changes,
         summary,
+        upstreamSha: upstreamSha || null,
         writeSha,
       } as CheckResult;
     }
@@ -660,6 +707,7 @@ export const checkSkill = (meta: SkillMeta) =>
       type: "changes",
       files: changes,
       summary,
+      upstreamSha: upstreamSha || null,
       writeSha,
     } as CheckResult;
   });
@@ -675,31 +723,47 @@ export const applySkillUpdate = (meta: SkillMeta, writeSha: string) =>
 
     // List upstream files for full import
     const upstreamFiles = yield* listUpstreamFiles(origin);
-    if (upstreamFiles.length === 0) {
+    if (!upstreamFiles.includes("SKILL.md")) {
       return false;
     }
 
+    const contents = new Map<string, string>();
     for (const file of upstreamFiles) {
       const upstreamContent = yield* fetchFile(origin, file).pipe(
         Effect.catch(() => Effect.succeed("")),
       );
       if (!upstreamContent) continue;
-
-      const localPath = join(dir, file);
-      mkdirSync(dirname(localPath), { recursive: true });
-
-      if (file === "SKILL.md") {
-        const rebuilt = applyLocalFrontmatter(upstreamContent, meta, writeSha);
-        writeFileSync(localPath, rebuilt);
-      } else {
-        writeFileSync(localPath, upstreamContent);
-      }
+      contents.set(file, upstreamContent);
     }
 
-    // Also write SHA directly in case the apply rebuilt it differently
-    writeSha && writeShaToFile(join(dir, "SKILL.md"), writeSha);
+    if (contents.size !== upstreamFiles.length) return false;
+    synchroniseSkillFiles(meta, writeSha, contents);
     return true;
   });
+
+/** Replace a clean imported skill directory with fetched upstream files. */
+export function synchroniseSkillFiles(
+  meta: SkillMeta,
+  sha: string,
+  upstreamFiles: ReadonlyMap<string, string>,
+): void {
+  for (const file of listLocalFiles(meta.dir)) {
+    if (!upstreamFiles.has(file)) rmSync(join(meta.dir, file));
+  }
+
+  for (const [file, upstreamContent] of upstreamFiles) {
+    const localPath = join(meta.dir, file);
+    mkdirSync(dirname(localPath), { recursive: true });
+    writeFileSync(
+      localPath,
+      file === "SKILL.md"
+        ? applyLocalFrontmatter(upstreamContent, meta, sha)
+        : upstreamContent,
+    );
+  }
+
+  sha && writeShaToFile(join(meta.dir, "SKILL.md"), sha);
+}
 
 /** Write SHA (wrapper that catches if file doesn't exist) */
 function writeShaToFile(path: string, sha: string): void {
@@ -803,10 +867,17 @@ export const buildSingleDiff = (meta: SkillMeta) =>
 
 /** Scan the skills directory and return metadata for all skills with origins */
 export function scanSkills(skillsDir: string): readonly SkillMeta[] {
+  return scanSkillEntries(skillsDir).flatMap((entry) =>
+    entry.type === "skill" ? [entry.meta] : [],
+  );
+}
+
+/** Scan origin-tracked skills, including entries with malformed origins. */
+export function scanSkillEntries(skillsDir: string): readonly SkillScanEntry[] {
   if (!existsSync(skillsDir)) return [];
 
   const entries = readdirSync(skillsDir, { withFileTypes: true });
-  const skills: SkillMeta[] = [];
+  const skills: SkillScanEntry[] = [];
 
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
@@ -816,9 +887,9 @@ export function scanSkills(skillsDir: string): readonly SkillMeta[] {
     if (!existsSync(skillMdPath)) continue;
 
     const content = readFileSync(skillMdPath, "utf-8");
-    const meta = parseSkillMeta(content, skillDir);
-    if (meta) {
-      skills.push(meta);
+    const scanned = parseSkillScanEntry(content, skillDir);
+    if (scanned) {
+      skills.push(scanned);
     }
   }
 

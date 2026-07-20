@@ -4,7 +4,7 @@ description: Check imported skills for upstream updates
 
 Load and follow the `check-skill-updates` skill.
 
-1. Run `dot skill-updates --check` to see which imported skills have upstream changes.
+1. Run `dot skill-updates --json` to see which imported skills have upstream changes.
 
 2. If all skills are up to date, report that and stop.
 
@@ -16,7 +16,7 @@ Load and follow the `check-skill-updates` skill.
 
    **Clean updates** (no `# local-edits:` in frontmatter):
    - Ask the user whether to apply (all, selected, or none).
-   - For accepted updates, run `dot skill-updates --update` to apply.
+   - For each accepted update, run `dot skill-updates --update --skill <name> --no-commit` to apply it.
    - If `--update` fails or the user wants selective application, fall back to manually
      fetching and writing files using the `import-external-skill` skill workflow.
 

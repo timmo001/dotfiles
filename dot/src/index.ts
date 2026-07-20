@@ -608,6 +608,9 @@ if (mode.type === "native") {
           check: args.includes("--check"),
           update: args.includes("--update"),
           skipReview: args.includes("--skip-review"),
+          json: args.includes("--json"),
+          skill: optionValue(args, "--skill"),
+          noCommit: args.includes("--no-commit"),
         }).pipe(Effect.asVoid),
       "skill-check": (args) =>
         skillCheck({

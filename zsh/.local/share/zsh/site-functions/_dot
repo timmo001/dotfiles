@@ -197,6 +197,9 @@ _dot_cmd_skill_updates() {
   _arguments -S \
     '--check[Check only without applying]' \
     '--update[Auto-apply clean updates]' \
+    '--json[Report update states as JSON without applying]' \
+    '--skill[Limit checking or updating to one imported skill]:name:' \
+    '--no-commit[Apply updates without creating a commit]' \
     '--skip-review[Skip local-edit review]' \
     '(-h --help)-h[Show this help message]' \
     '(-h --help)--help[Show this help message]' \

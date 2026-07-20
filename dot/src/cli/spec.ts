@@ -680,8 +680,25 @@ export const cliCommands: readonly CliCommandSpec[] = [
     options: [
       { name: "--check", description: "Check only without applying" },
       { name: "--update", description: "Auto-apply clean updates" },
+      {
+        name: "--json",
+        description: "Report update states as JSON without applying",
+      },
+      {
+        name: "--skill",
+        valueName: "name",
+        description: "Limit checking or updating to one imported skill",
+      },
+      {
+        name: "--no-commit",
+        description: "Apply updates without creating a commit",
+      },
       { name: "--skip-review", description: "Skip local-edit review" },
       helpOption,
+    ],
+    examples: [
+      "dot skill-updates --json",
+      "dot skill-updates --update --skill browser-control --no-commit",
     ],
   },
   {
