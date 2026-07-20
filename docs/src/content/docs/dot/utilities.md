@@ -67,7 +67,7 @@ Repository regression tests live under `tests/`, use temporary directories, and 
 - `tests/scripts/workspace-restore.test.sh` checks that captured browser URLs remain one shell argument and cannot execute command substitutions during restore.
 - `tests/dot/cli-smoke.test.sh` builds `dot` and checks side-effect-free CLI entry points.
 
-`.github/scripts/validate-skills.sh` validates public `SKILL.md` files with [`skills-ref`](https://github.com/agentskills/agentskills/tree/main/skills-ref). Run locally with `mise run skills:validate`; CI runs it as the dedicated `validate-skills` job in `lint.yml`.
+The `lint.yml` `validate-skills` job uses the shared `lint-agent-skills` workflow to validate public `SKILL.md` files with [`skills-ref`](https://github.com/agentskills/agentskills/tree/main/skills-ref).
 
 Run `mise run tests:integration` for deterministic repository tests and `mise run tests:smoke` for the build plus CLI smoke checks. TypeScript unit tests mirror `dot/src/` under `dot/tests/` and run through `mise run dot:test`.
 

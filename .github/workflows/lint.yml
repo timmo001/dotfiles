@@ -25,13 +25,9 @@ jobs:
         run: mise run tests:integration
 
   validate-skills:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-
-      - name: Validate skills
-        run: bash .github/scripts/validate-skills.sh
+    uses: timmo001/workflows/.github/workflows/lint-agent-skills.yml@21980ff606074e0bbf5e042f8e1e6483f3447a89 # master
+    with:
+      skill-roots: agents/.agents/skills .opencode/skills
 
   actionlint:
     uses: timmo001/workflows/.github/workflows/lint-actionlint.yml@ea21189dd7dc0a122ed85d343d8b529d766e414f # master

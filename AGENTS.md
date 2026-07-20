@@ -32,7 +32,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 ## Tooling
 
-- The whole project is driven by **mise**. The single root `mise.toml` pins the toolchain (`node`, `bun`) and defines every dev task, namespaced by project (`dot:*`, `docs:*`, `tests:*`, and `skills:*`). Prefer `mise run <task>` (for example `mise run dot:build`, `mise run docs:check`, `mise run tests:integration`, `mise run skills:validate`) as the canonical interface; `mise tasks` lists them.
+- The whole project is driven by **mise**. The single root `mise.toml` pins the toolchain (`node`, `bun`) and defines every dev task, namespaced by project (`dot:*`, `docs:*`, and `tests:*`). Prefer `mise run <task>` (for example `mise run dot:build`, `mise run docs:check`, or `mise run tests:integration`) as the canonical interface; `mise tasks` lists them.
 - `mise.toml` is the source of truth for tool versions even without mise: anyone not using mise must still use the pinned versions and the same underlying commands each task wraps (do not substitute other versions or a different toolchain).
 - The package manager and runtime is **bun** for every JS/TS package (`dot/` and `docs/`). Do not use npm, pnpm, or yarn for install, lockfile, or script commands. Use `bun install`, `bun add`, `bun update`, `bun run`, and `bunx` (or the `mise run` task wrappers).
 - The tracked lockfile is `bun.lock` in each package (`dot/bun.lock`, `docs/bun.lock`); commit it after any dependency change. CI runs `bun install --frozen-lockfile` against it.
@@ -45,7 +45,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - `agents/.agents/skills/` contains globally stowed skills exposed via `~/.agents/skills/`.
 - `herdr/.config/herdr/config.toml` is the only stowed Herdr file; runtime logs, sockets, and session state stay untracked in `~/.config/herdr/`.
 - `.opencode/skills/` contains repo-local skills for this repo only.
-- Public `SKILL.md` files under `agents/.agents/skills/` and `.opencode/skills/` must satisfy the [Agent Skills](https://agentskills.io/specification) frontmatter rules. Validate with `mise run skills:validate` (`.github/scripts/validate-skills.sh`); CI runs the same check as the dedicated `validate-skills` job in `lint.yml`.
+- Public `SKILL.md` files under `agents/.agents/skills/` and `.opencode/skills/` must satisfy the [Agent Skills](https://agentskills.io/specification) frontmatter rules. CI validates both roots with the shared `lint-agent-skills` workflow.
 - `dot agents-sync` mirrors the global private AGENTS source into agent harness instruction files; full `dot update` and `dot init` run that sync automatically.
 - Pinned private OpenCode packages, including plugins in `dotfiles-private/agents/.config/opencode/{opencode,tui}.json`, should be managed by an npm regex custom manager in `dotfiles-private/renovate.json`.
 
@@ -100,7 +100,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
   - Hypr host-override layout: `omarchy/host-overrides.md`.
 - Two sections are generated, not hand-written: `docs/src/content/docs/dot/commands.md` (from `dot/src/cli/spec.ts` via `mise run docs:gen:cli`) and `docs/src/content/docs/reference/{agents,commands,skills,plugins}.md` (from the OpenCode assets via `mise run docs:gen:opencode`). Edit the sources, then run `mise run docs:gen` and commit the result; never hand-edit the generated pages.
 - CI enforces generated pages on pull requests and direct pushes: `docs-drift`, `tui-build`, and `opencode-publish` regenerate the relevant reference pages and fail when the committed output is stale. Regenerate with `mise run docs:gen` and commit the result before pushing. Hand-written pages are not auto-checked, so the mapping above is on you.
-- Dev tasks for `dot/`, `docs/`, repository integration tests, and skill validation are defined in the single root `mise.toml`, namespaced by project (`dot:*`, `docs:*`, `tests:*`, and `skills:*`; run `mise tasks` to list them). Package tasks set their own `dir` and wrap the matching `bun run` script, so `bun run build` etc. still work; CI (`tui-build`, `opencode-publish`, `docs-drift`, `lint.yml` `validate-skills`) and the fresh-machine bootstrap rely on that. Use **bun** in `docs/` for dependencies (`bun install`); `mise run docs:build` (wrapping `bun run build`) runs `starlight-links-validator`, so broken internal links fail the build.
+- Dev tasks for `dot/`, `docs/`, and repository integration tests are defined in the single root `mise.toml`, namespaced by project (`dot:*`, `docs:*`, and `tests:*`; run `mise tasks` to list them). Package tasks set their own `dir` and wrap the matching `bun run` script, so `bun run build` etc. still work; CI (`tui-build`, `opencode-publish`, `docs-drift`, and `lint.yml`) and the fresh-machine bootstrap rely on that. Use **bun** in `docs/` for dependencies (`bun install`); `mise run docs:build` (wrapping `bun run build`) runs `starlight-links-validator`, so broken internal links fail the build.
 
 ## Script Configuration Policy
 
@@ -111,8 +111,8 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 ## Validation
 
 - Basic health check: `dot doctor`
-- Dev tasks: `mise run <task>` from the repo root, namespaced by project - `dot:*` (`dot:build`, `dot:typecheck`, `dot:test`, `dot:format`, `dot:check`), `docs:*` (`docs:build`, `docs:dev`, `docs:gen`, `docs:check`), `tests:*` (`tests:integration`, `tests:smoke`), and `skills:*` (`skills:validate`); `mise tasks` lists them.
-- Skill frontmatter: `mise run skills:validate` runs `.github/scripts/validate-skills.sh` against public skills with `skills-ref`.
+- Dev tasks: `mise run <task>` from the repo root, namespaced by project - `dot:*` (`dot:build`, `dot:typecheck`, `dot:test`, `dot:format`, `dot:check`), `docs:*` (`docs:build`, `docs:dev`, `docs:gen`, `docs:check`), and `tests:*` (`tests:integration`, `tests:smoke`); `mise tasks` lists them.
+- Skill frontmatter: the `lint.yml` `validate-skills` job validates public skills with the shared `lint-agent-skills` workflow.
 - OpenCode debug: use `opencode debug` subcommands directly, for example `opencode debug config`, `opencode debug skill`, or `opencode debug agent <name>`.
 - MCP config sync: `dot mcp-sync` regenerates each active agent harness's MCP config from the single private spec `dotfiles-private/mcp.yml`; some agent harnesses are documented stubs. Runs automatically in `dot update` before re-stow; run `dot stow` after a manual sync.
 - Herdr: only `herdr/.config/herdr/config.toml` is stowed into the runtime-owned `~/.config/herdr/` directory; `dot doctor` warns when Herdr or the OpenCode integration is missing and prints the manual repair command.
