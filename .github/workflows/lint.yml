@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup mise
         uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
@@ -25,27 +25,27 @@ jobs:
         run: mise run tests:integration
 
   validate-skills:
-    uses: timmo001/workflows/.github/workflows/lint-agent-skills.yml@21980ff606074e0bbf5e042f8e1e6483f3447a89 # master
+    uses: timmo001/workflows/.github/workflows/lint-agent-skills.yml@a884a1a831cd482dfeff570bda660aee5baa328c # master
     with:
       skill-roots: agents/.agents/skills .opencode/skills
 
   actionlint:
-    uses: timmo001/workflows/.github/workflows/lint-actionlint.yml@ea21189dd7dc0a122ed85d343d8b529d766e414f # master
+    uses: timmo001/workflows/.github/workflows/lint-actionlint.yml@a884a1a831cd482dfeff570bda660aee5baa328c # master
 
   markdownlint:
-    uses: timmo001/workflows/.github/workflows/lint-markdownlint.yml@ea21189dd7dc0a122ed85d343d8b529d766e414f # master
+    uses: timmo001/workflows/.github/workflows/lint-markdownlint.yml@a884a1a831cd482dfeff570bda660aee5baa328c # master
 
   yamllint:
-    uses: timmo001/workflows/.github/workflows/lint-yamllint.yml@ea21189dd7dc0a122ed85d343d8b529d766e414f # master
+    uses: timmo001/workflows/.github/workflows/lint-yamllint.yml@a884a1a831cd482dfeff570bda660aee5baa328c # master
 
   jsonlint:
-    uses: timmo001/workflows/.github/workflows/lint-jsonlint.yml@ea21189dd7dc0a122ed85d343d8b529d766e414f # master
+    uses: timmo001/workflows/.github/workflows/lint-jsonlint.yml@a884a1a831cd482dfeff570bda660aee5baa328c # master
 
   markdown-links:
-    uses: timmo001/workflows/.github/workflows/lint-markdown-links.yml@ea21189dd7dc0a122ed85d343d8b529d766e414f # master
+    uses: timmo001/workflows/.github/workflows/lint-markdown-links.yml@a884a1a831cd482dfeff570bda660aee5baa328c # master
 
   shellcheck:
-    uses: timmo001/workflows/.github/workflows/lint-shellcheck.yml@ea21189dd7dc0a122ed85d343d8b529d766e414f # master
+    uses: timmo001/workflows/.github/workflows/lint-shellcheck.yml@a884a1a831cd482dfeff570bda660aee5baa328c # master
     with:
       scandir: ./scripts/.local/bin
       severity: warning
