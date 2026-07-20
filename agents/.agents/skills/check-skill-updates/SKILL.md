@@ -50,7 +50,7 @@ Since the SHA lives in the committed frontmatter, it persists across machines an
 
 Run `dot skill-updates --check`. Reports diffs without prompting or applying. Exits 1 if any updates are available, 0 if all skills are up to date. Use this to verify status without side effects.
 
-Run `dot skill-updates --json` for the workflow-safe report. It returns a versioned document with each skill's state, origin, stored and upstream SHAs, changed file statuses, local-edit notes, and any error reason. It does not apply updates or change exit status when updates are available.
+Run `dot skill-updates --json` for the workflow-safe report. It returns a versioned document with each skill's name, directory, state, origin, stored and upstream SHAs, changed file statuses, local-edit notes, and any error reason. It does not apply updates or change exit status when updates are available.
 
 ### Interactive (standalone)
 

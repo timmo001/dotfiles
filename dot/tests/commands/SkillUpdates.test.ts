@@ -35,6 +35,7 @@ describe("reportItem", () => {
       }),
     ).toEqual({
       name: "example",
+      directory: "example",
       state: "update-available",
       origin: meta.originUrl,
       storedSha: "a".repeat(40),

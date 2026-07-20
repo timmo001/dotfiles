@@ -30,6 +30,7 @@ type Mode = "check" | "update" | "interactive";
 /** Machine-readable state for one imported skill. */
 export interface SkillUpdateReportItem {
   readonly name: string;
+  readonly directory: string;
   readonly state:
     | "up-to-date"
     | "update-available"
@@ -389,6 +390,7 @@ export const buildSkillUpdateReport = (entries: readonly SkillScanEntry[]) =>
       if (entry.type === "invalid-origin") {
         skills.push({
           name: entry.meta.name,
+          directory: entry.meta.dir.split("/").pop() ?? entry.meta.name,
           state: "invalid-origin",
           origin: entry.meta.originUrl,
           storedSha: null,
@@ -414,6 +416,7 @@ export function reportItem(
 ): SkillUpdateReportItem {
   const base = {
     name: meta.name,
+    directory: meta.dir.split("/").pop() ?? meta.name,
     origin: meta.originUrl,
     storedSha: meta.storedSha,
     localEdits: meta.localEdits,

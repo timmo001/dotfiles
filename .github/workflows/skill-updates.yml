@@ -1,0 +1,43 @@
+---
+name: Skill updates
+
+on:
+  schedule:
+    - cron: "17 7 * * 1"
+  workflow_dispatch: {}
+
+concurrency:
+  group: skill-updates
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup mise
+        uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
+        with:
+          install: false
+
+      - name: Install mise tools
+        run: |
+          mise trust
+          mise install
+
+      - name: Build dot
+        run: mise run dot:build
+
+      - name: Update skills
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SKILL_UPDATES_BASE_BRANCH: distro/arch-omarchy
+        run: .github/scripts/skill-updates.sh
