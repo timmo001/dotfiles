@@ -17,6 +17,7 @@ This setup adds:
 - The `@plannotator/opencode` plugin in the private OpenCode configuration.
 - `/plannotator-review`, `/plannotator-annotate`, and `/plannotator-last` command registrations.
 - A public stow package for portable settings.
+- A dedicated Chromium window for every browser review surface.
 
 The plugin uses the `plan-agent` workflow and explicitly targets OpenCode's built-in `plan` agent. The `/plan` command starts that agent directly, while execution agents such as `ask`, `build-ask`, and `refactorer` can hand broad work to it through `plan_enter`. They do not need to be listed as Plannotator planning agents because `submit_plan` runs after the handoff, inside the built-in `plan` agent.
 
@@ -27,6 +28,18 @@ The command files contain frontmatter only because the plugin handles their name
 For usage, see the upstream [OpenCode integration guide](https://plannotator.ai/docs/guides/opencode/) and its linked command guides.
 
 Code review feedback authorises the agent to apply the requested corrections immediately. The correction run stays within the human feedback, performs relevant validation, and asks before proceeding when a request is unclear, conflicts with the codebase, or cannot be applied safely.
+
+## Browser workspace
+
+Plans, reviews, annotations, archives, and reopened sessions open in a dedicated Chromium window on Hyprland workspace `2`. The desktop session supplies Plannotator with:
+
+```text
+PLANNOTATOR_BROWSER=plannotator-browser
+```
+
+The launcher gives Chromium the `plannotator` class and an isolated data directory under `${XDG_DATA_HOME:-~/.local/share}/plannotator-browser`. The separate browser state prevents Chromium from handing the URL to a normal running browser process and discarding the dedicated class. A shared Hyprland rule moves that class to workspace `2` without switching the active workspace. Later Plannotator surfaces reuse that browser process and open in new windows.
+
+After changing `PLANNOTATOR_BROWSER`, relaunch Hyprland so newly started agents inherit it. A config reload is sufficient for changes to the matching window rule itself.
 
 ## Local data
 

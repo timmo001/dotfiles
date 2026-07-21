@@ -1,0 +1,16 @@
+#!/bin/bash
+set -euo pipefail
+
+if [ "$#" -ne 1 ]; then
+  printf 'Usage: %s <url>\n' "$0" >&2
+  exit 2
+fi
+
+uwsm app -- chromium \
+  --new-window \
+  --ozone-platform=wayland \
+  --force-device-scale-factor=0.8 \
+  --user-data-dir="${XDG_DATA_HOME:-$HOME/.local/share}/plannotator-browser" \
+  --class=plannotator \
+  "$1" \
+  >/dev/null 2>&1 &
