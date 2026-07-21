@@ -2,9 +2,12 @@
 Description=Process queued notes captures with local OpenCode
 After=network-online.target notes-capture-opencode.service
 Wants=network-online.target notes-capture-opencode.service
+BindsTo=notes-capture-opencode.service
+PartOf=notes-capture-opencode.service
 
 [Service]
 Type=simple
+ExecStartPre=%h/.local/bin/notes-capture-opencode-ready
 ExecStart=%h/.local/bin/notes-capture-daemon
 Restart=on-failure
 RestartSec=15
