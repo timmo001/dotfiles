@@ -39,6 +39,9 @@ keybind = super+control+shift+alt+arrow_right=resize_split:right,100
 # Tmux window navigation (sends Ctrl+b then n/p)
 keybind = ctrl+alt+tab=text:\x02n
 keybind = ctrl+alt+shift+tab=text:\x02p
+# TUI commands
+keybind = ctrl+alt+g=text:lazygit\r
+keybind = ctrl+alt+shift+g=text:dot git-diff\r
 # Quick terminal (quake style)
 keybind = global:super+backquote=toggle_quick_terminal
 
