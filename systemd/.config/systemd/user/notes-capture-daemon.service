@@ -1,0 +1,13 @@
+[Unit]
+Description=Process queued notes captures with local OpenCode
+After=network-online.target graphical-session.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/notes-capture-daemon
+Restart=on-failure
+RestartSec=15
+
+[Install]
+WantedBy=default.target
