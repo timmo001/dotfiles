@@ -1,7 +1,7 @@
 [Unit]
 Description=Process queued notes captures with local OpenCode
-After=network-online.target graphical-session.target
-Wants=network-online.target
+After=network-online.target notes-capture-opencode.service
+Wants=network-online.target notes-capture-opencode.service
 
 [Service]
 Type=simple

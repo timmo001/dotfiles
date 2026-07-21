@@ -1,0 +1,13 @@
+[Unit]
+Description=Run isolated OpenCode server for notes capture processing
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/notes-capture-opencode
+Restart=on-failure
+RestartSec=15
+
+[Install]
+WantedBy=default.target
