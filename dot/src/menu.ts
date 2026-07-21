@@ -220,6 +220,20 @@ const dotItems: readonly MenuItem[] = [
     "AI Tooling",
   ),
   item(
+    "notes-capture-sync",
+    "󰛢",
+    "Notes Capture Sync",
+    "Sync watched repositories to the capture picker",
+    notify("dot notes-capture-sync", {
+      id: "notes-capture-sync",
+      progress: "Syncing capture repositories...",
+      success: "Capture repositories synced",
+    }),
+    undefined,
+    ["notes", "capture", "repositories", "picker", "sync", "github"],
+    "AI Tooling",
+  ),
+  item(
     "skill-checks",
     "󰝒",
     "Skill Checks",

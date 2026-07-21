@@ -20,6 +20,7 @@ dot_commands=(
   'git-notifications:Open GitHub notification inbox'
   'agents-sync:Mirror AGENTS.md to agent harness instruction files'
   'mcp-sync:Regenerate MCP configs for all harnesses from the spec'
+  'notes-capture-sync:Sync watched repositories to the notes capture picker'
   'is-agent:Detect whether an AI coding agent is running dot'
   'setup-private-repo:Sync and register the private pacman repository'
   'private-pkg-publish:Build and publish a private package'
@@ -168,6 +169,12 @@ _dot_cmd_mcp_sync() {
     '(-h --help)--help[Show this help message]' \
     '*::arg:->args'
 }
+_dot_cmd_notes_capture_sync() {
+  _arguments -S \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
 _dot_cmd_is_agent() {
   _arguments -S \
     '(-q --quiet)-q[Print only the provider id]' \
@@ -293,6 +300,9 @@ _dot_complete_command() {
       ;;
     mcp-sync)
       _dot_cmd_mcp_sync
+      ;;
+    notes-capture-sync)
+      _dot_cmd_notes_capture_sync
       ;;
     is-agent)
       _dot_cmd_is_agent

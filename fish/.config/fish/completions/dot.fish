@@ -81,6 +81,8 @@ complete -c dot -n '__fish_use_subcommand' -a 'agents-sync' -d 'Mirror AGENTS.md
 complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from agents-sync'
 complete -c dot -n '__fish_use_subcommand' -a 'mcp-sync' -d 'Regenerate MCP configs for all harnesses from the spec'
 complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from mcp-sync'
+complete -c dot -n '__fish_use_subcommand' -a 'notes-capture-sync' -d 'Sync watched repositories to the notes capture picker'
+complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from notes-capture-sync'
 complete -c dot -n '__fish_use_subcommand' -a 'is-agent' -d 'Detect whether an AI coding agent is running dot'
 complete -c dot -s q -l quiet -d 'Print only the provider id' -n '__fish_seen_subcommand_from is-agent'
 complete -c dot -l json -d 'Print the detection result as JSON' -n '__fish_seen_subcommand_from is-agent'

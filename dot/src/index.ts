@@ -36,6 +36,7 @@ import { stow } from "./commands/Stow.js";
 import { doctor } from "./commands/Doctor.js";
 import { clean } from "./commands/Clean.js";
 import { agentsSync } from "./commands/AgentsSync.js";
+import { notesCaptureSync } from "./commands/NotesCaptureSync.js";
 import { mcpSync } from "./mcp/commands/McpSync.js";
 import { isAgentCommand } from "./commands/IsAgent.js";
 import { setupPrivateRepo } from "./commands/SetupPrivateRepo.js";
@@ -477,6 +478,7 @@ const NATIVE_COMMAND_TIMEOUT_SECONDS: Partial<Record<string, number>> = {
   "skill-check": 5 * 60,
   "agents-sync": 2 * 60,
   "mcp-sync": 2 * 60,
+  "notes-capture-sync": 2 * 60,
   completions: 2 * 60,
 };
 
@@ -600,6 +602,7 @@ if (mode.type === "native") {
       "git-notifications": resolveNotifications,
       "agents-sync": () => agentsSync,
       "mcp-sync": () => mcpSync,
+      "notes-capture-sync": () => notesCaptureSync,
       "is-agent": isAgentCommand,
       "setup-private-repo": () => setupPrivateRepo,
       "private-pkg-publish": privatePkgPublish,

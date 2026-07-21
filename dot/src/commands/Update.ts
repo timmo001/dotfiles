@@ -644,7 +644,7 @@ export const update = (opts?: UpdateOptions) =>
       yield* notifyUpdated(updatedNames);
     }
 
-    // Post-hooks (agents-sync) run on every full update,
+    // Post-hooks run on every full update,
     // independent of whether a repo was pulled; flag-scoped runs skip them.
     if (isFullUpdate) {
       yield* withStepTimeout(

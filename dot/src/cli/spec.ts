@@ -604,6 +604,20 @@ export const cliCommands: readonly CliCommandSpec[] = [
     examples: ["dot mcp-sync"],
   },
   {
+    name: "notes-capture-sync",
+    summary: "Sync watched repositories to the notes capture picker",
+    description: [
+      "Regenerate the notes capture repository picker from repositories with",
+      "GitHub notifications enabled in the private dot-git.yml configuration.",
+      "Updates only CAPTURE_REPOSITORIES in the ignored",
+      "capture/wrangler.local.jsonc file, creating it from the deploy template",
+      "when needed. Mirrors non-secret settings from the active Worker, then",
+      "deploys when the live picker differs.",
+    ],
+    options: [helpOption],
+    examples: ["dot notes-capture-sync"],
+  },
+  {
     name: "is-agent",
     summary: "Detect whether an AI coding agent is running dot",
     usage: "[options]",

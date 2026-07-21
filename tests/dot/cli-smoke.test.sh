@@ -12,7 +12,7 @@ fi
 
 commands=(
   dashboard init install update stow firewall doctor clean git-diff git-commit
-  git-log git-workflows git-notifications agents-sync mcp-sync is-agent
+  git-log git-workflows git-notifications agents-sync mcp-sync notes-capture-sync is-agent
   setup-private-repo private-pkg-publish skill-updates skill-check completions
   omarchy usage help
 )

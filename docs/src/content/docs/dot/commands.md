@@ -489,6 +489,27 @@ them.
 dot mcp-sync
 ```
 
+## `dot notes-capture-sync`
+
+Sync watched repositories to the notes capture picker
+
+```text
+dot notes-capture-sync
+```
+
+Regenerate the notes capture repository picker from repositories with
+GitHub notifications enabled in the private dot-git.yml configuration.
+Updates only CAPTURE_REPOSITORIES in the ignored
+capture/wrangler.local.jsonc file, creating it from the deploy template
+when needed. Mirrors non-secret settings from the active Worker, then
+deploys when the live picker differs.
+
+**Examples**
+
+```bash
+dot notes-capture-sync
+```
+
 ## `dot is-agent`
 
 Detect whether an AI coding agent is running dot
