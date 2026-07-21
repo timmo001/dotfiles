@@ -29,7 +29,7 @@ Hyprland config is a stowed dotfiles package (`hypr/.config/hypr/`, conf-only), 
 - `dot doctor` checks the host link and flags any leftover legacy `omarchy-hypr` clone at `~/.config/hypr`.
 - Shared Hyprland-loaded config files wrap host override `source = ~/.config/hypr/host/*.conf` lines in Hyprland's `hyprlang noerror` guard, so a missing host override during stow, update, or migration does not leave Hyprland in an error loop.
 
-Shared Hypr autostart lives in `~/.config/hypr/autostart.conf` and runs on every host before the selected host override is sourced. Host-only services stay in `~/.config/hypr/host/autostart.conf`. KDE Connect is shared, so `kdeconnect-indicator` starts on both desktop and laptop sessions.
+Shared Hypr autostart lives in `~/.config/hypr/autostart.conf` and runs on every host before the selected host override is sourced. Host-only services stay in `~/.config/hypr/host/autostart.conf`. KDE Connect and the OpenCode server are shared, so both start on desktop and laptop sessions.
 
 :::caution[Retired omarchy-hypr clone]
 A machine with the retired `~/.config/hypr` `omarchy-hypr` clone halts `dot update` until the clone is backed up and re-stowed. Hyprland config is a stowed package, not a cloned repo.
