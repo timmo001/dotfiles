@@ -7,6 +7,82 @@ import { ENV, envString } from "../../lib/env.js";
 import { isPackageInstalled } from "../../lib/archPackages.js";
 import type { CheckResult } from "../types.js";
 
+const obsoleteVideoFeatures = ["VaapiVideoDecodeLinuxGL", "VaapiVideoEncoder"];
+
+const acceleratedVideoFeatures = [
+  "AcceleratedVideoDecoder",
+  "AcceleratedVideoDecodeLinuxGL",
+  "AcceleratedVideoDecodeLinuxZeroCopyGL",
+];
+
+/** Assess browser flags that override Chromium's hardware video defaults. */
+export function browserVideoFlagResults(
+  name: string,
+  content: string,
+): CheckResult[] {
+  const results: CheckResult[] = [];
+  const flags = content
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("--"));
+  const obsolete = obsoleteVideoFeatures.filter((feature) =>
+    flags.some((flag) => flag.includes(feature)),
+  );
+  const disabledFeatures = flags
+    .filter((flag) => flag.startsWith("--disable-features="))
+    .flatMap((flag) => flag.slice("--disable-features=".length).split(","))
+    .map((feature) => feature.trim())
+    .filter((feature) => acceleratedVideoFeatures.includes(feature));
+
+  if (obsolete.length > 0) {
+    results.push({
+      severity: "warn",
+      message: `${name}-flags.conf has obsolete video feature overrides`,
+      detail: obsolete.join(", "),
+    });
+  }
+
+  if (
+    flags.includes("--disable-accelerated-video-decode") ||
+    flags.includes("--disable-gpu") ||
+    flags.includes("--disable-gpu-compositing") ||
+    disabledFeatures.length > 0
+  ) {
+    const disabledFlag = flags.find((flag) =>
+      [
+        "--disable-accelerated-video-decode",
+        "--disable-gpu",
+        "--disable-gpu-compositing",
+      ].includes(flag),
+    );
+    results.push({
+      severity: "warn",
+      message: `${name}-flags.conf disables hardware video acceleration`,
+      detail:
+        disabledFeatures.length > 0
+          ? disabledFeatures.join(", ")
+          : (disabledFlag ?? "hardware video acceleration"),
+    });
+  }
+
+  if (flags.includes("--ignore-gpu-blocklist")) {
+    results.push({
+      severity: "warn",
+      message: `${name}-flags.conf bypasses Chromium's GPU blocklist`,
+      detail: "Remove --ignore-gpu-blocklist unless it is needed for diagnosis",
+    });
+  }
+
+  if (results.length === 0) {
+    results.push({
+      severity: "ok",
+      message: `${name}-flags.conf has no harmful hardware video overrides`,
+    });
+  }
+
+  return results;
+}
+
 /** Check VAAPI hardware video decode support */
 export const checkHardwareVideo = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
@@ -175,7 +251,7 @@ export const checkHardwareVideo = Effect.gen(function* () {
     }
   }
 
-  // Check flags.conf for video decode features
+  // Check flags.conf for overrides to Chromium's video defaults
   const flagsFiles: Array<{ name: string; path: string }> = [
     { name: "chromium", path: join(CONFIG_DIR, "chromium-flags.conf") },
     { name: "chrome", path: join(CONFIG_DIR, "chrome-flags.conf") },
@@ -185,20 +261,7 @@ export const checkHardwareVideo = Effect.gen(function* () {
     if (existsSync(path)) {
       const content = readTextFile(path);
       if (content !== null) {
-        if (
-          /AcceleratedVideoDecodeLinuxGL|VaapiVideoDecodeLinuxGL/.test(content)
-        ) {
-          results.push({
-            severity: "ok",
-            message: `${name}-flags.conf has hardware video decode feature flag enabled`,
-          });
-        } else {
-          results.push({
-            severity: "warn",
-            message: `${name}-flags.conf missing hardware video decode feature flag`,
-            detail: "AcceleratedVideoDecodeLinuxGL or VaapiVideoDecodeLinuxGL",
-          });
-        }
+        results.push(...browserVideoFlagResults(name, content));
       }
     }
   }

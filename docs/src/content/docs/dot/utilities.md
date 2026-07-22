@@ -61,6 +61,10 @@ system-resource-leak-check
 - Scripts use ANSI colour output by default; set `NO_COLOR=1` to disable.
 - All scripts include an uptime/load snapshot near the top of output.
 
+`dot doctor` also checks the system VA-API drivers and Chromium flag files. Chromium enables its Linux GL decode and zero-copy capability checks by default, so the doctor accepts flag files without explicit acceleration features. It warns about obsolete VA-API feature names, explicit acceleration disablement, and `--ignore-gpu-blocklist`.
+
+Driver capability does not prove smooth playback. For a live stream, use `chrome://media-internals` to confirm `kVideoDecoderName` is `VaapiVideoDecoder` and `kIsPlatformVideoDecoder` is `true`, then inspect dropped frames and buffering separately.
+
 Repository regression tests live under `tests/`, use temporary directories, and run through mise tasks and the `lint.yml` workflow:
 
 - `tests/github/opencode-publish.test.sh` checks publication of shared `lib/` modules and rejects missing relative plugin imports before cleaning the publish checkout.
