@@ -15,6 +15,7 @@ export interface SkillOrigin {
   readonly repo: string;
   readonly branch: string;
   readonly path: string;
+  readonly type: "directory" | "file";
 }
 
 class SkillUpdateError extends Schema.TaggedErrorClass<SkillUpdateError>()(
@@ -87,16 +88,30 @@ export type CheckResult =
 
 const GITHUB_TREE_RE =
   /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/tree\/([^/]+)\/(.+)$/;
+const GITHUB_SKILL_BLOB_RE =
+  /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+\/)?SKILL\.md$/;
 
-/** Parse a GitHub tree URL into its components */
+/** Parse a GitHub skill directory or SKILL.md URL into its components. */
 export function parseOrigin(url: string): SkillOrigin | null {
-  const match = url.match(GITHUB_TREE_RE);
-  if (!match) return null;
+  const treeMatch = url.match(GITHUB_TREE_RE);
+  if (treeMatch) {
+    return {
+      owner: treeMatch[1]!,
+      repo: treeMatch[2]!,
+      branch: treeMatch[3]!,
+      path: treeMatch[4]!,
+      type: "directory",
+    };
+  }
+
+  const blobMatch = url.match(GITHUB_SKILL_BLOB_RE);
+  if (!blobMatch) return null;
   return {
-    owner: match[1]!,
-    repo: match[2]!,
-    branch: match[3]!,
-    path: match[4]!,
+    owner: blobMatch[1]!,
+    repo: blobMatch[2]!,
+    branch: blobMatch[3]!,
+    path: `${blobMatch[4] ?? ""}SKILL.md`,
+    type: "file",
   };
 }
 
@@ -197,7 +212,7 @@ export function parseSkillScanEntry(
       name: extractFrontmatterField(content, "name:") ?? basename(skillDir),
       originUrl,
       reason:
-        "origin must be a GitHub tree URL with a branch and directory path",
+        "origin must be a GitHub tree URL for a directory or blob URL for SKILL.md",
       dir: skillDir,
     },
   };
@@ -365,7 +380,9 @@ export const getUpstreamSha = (origin: SkillOrigin) =>
 /** Fetch a file's content from GitHub (base64 decoded) */
 export const fetchFile = (origin: SkillOrigin, filePath: string) =>
   Effect.gen(function* () {
-    const endpoint = `repos/${origin.owner}/${origin.repo}/contents/${origin.path}/${filePath}?ref=${origin.branch}`;
+    const upstreamPath =
+      origin.type === "file" ? origin.path : `${origin.path}/${filePath}`;
+    const endpoint = `repos/${origin.owner}/${origin.repo}/contents/${upstreamPath}?ref=${origin.branch}`;
     const base64Content = yield* ghApi(endpoint, ".content");
 
     if (!base64Content) {
@@ -403,6 +420,8 @@ const listUpstreamDir = (origin: SkillOrigin, dirPath: string) =>
 /** Recursively list all files in an upstream skill directory */
 export const listUpstreamFiles = (origin: SkillOrigin) =>
   Effect.gen(function* () {
+    if (origin.type === "file") return ["SKILL.md"];
+
     const files: string[] = [];
 
     const walk = (

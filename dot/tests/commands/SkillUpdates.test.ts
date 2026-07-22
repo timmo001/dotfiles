@@ -10,6 +10,7 @@ const meta: SkillMeta = {
     repo: "skills",
     branch: "main",
     path: "example",
+    type: "directory",
   },
   originUrl: "https://github.com/example/skills/tree/main/example",
   storedSha: "a".repeat(40),

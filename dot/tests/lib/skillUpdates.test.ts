@@ -13,6 +13,7 @@ import { GitHub } from "../../src/git/services/GitHub.js";
 import { CommandExecutor } from "../../src/services/CommandExecutor.js";
 import {
   checkSkill,
+  parseOrigin,
   parseSkillMeta,
   parseSkillScanEntry,
   synchroniseSkillFiles,
@@ -55,9 +56,21 @@ afterEach(() => {
 });
 
 describe("parseSkillScanEntry", () => {
+  test("accepts a repository-root SKILL.md blob origin", () => {
+    expect(
+      parseOrigin("https://github.com/example/skills/blob/main/SKILL.md"),
+    ).toEqual({
+      owner: "example",
+      repo: "skills",
+      branch: "main",
+      path: "SKILL.md",
+      type: "file",
+    });
+  });
+
   test("retains malformed origin-tracked skills as errors", () => {
     const entry = parseSkillScanEntry(
-      skillContent("https://github.com/example/skills/blob/main/SKILL.md"),
+      skillContent("https://github.com/example/skills/blob/main/README.md"),
       "/skills/example",
     );
 
@@ -65,12 +78,60 @@ describe("parseSkillScanEntry", () => {
       type: "invalid-origin",
       meta: {
         name: "example",
-        originUrl: "https://github.com/example/skills/blob/main/SKILL.md",
+        originUrl: "https://github.com/example/skills/blob/main/README.md",
         reason:
-          "origin must be a GitHub tree URL with a branch and directory path",
+          "origin must be a GitHub tree URL for a directory or blob URL for SKILL.md",
         dir: "/skills/example",
       },
     });
+  });
+
+  test("checks a single-file skill origin without listing its repository", async () => {
+    const dir = tempRoot();
+    writeFileSync(
+      join(dir, "SKILL.md"),
+      skillContent(
+        "https://github.com/example/skills/blob/main/SKILL.md",
+        "b".repeat(40),
+      ),
+    );
+    const meta = parseSkillMeta(
+      readFileSync(join(dir, "SKILL.md"), "utf-8"),
+      dir,
+    );
+    if (!meta) throw new Error("expected valid skill metadata");
+
+    const upstream = `---
+name: example
+description: Example skill
+---
+
+# Example
+`;
+    const github = Layer.succeed(GitHub, {
+      isAvailable: () => Effect.succeed(true),
+      run: () => Effect.die("run should not be called"),
+      json: () => Effect.die("json should not be called"),
+      api: (endpoint) => {
+        if (endpoint.includes("commits?path=SKILL.md")) {
+          return Effect.succeed("a".repeat(40));
+        }
+        expect(endpoint).toContain("contents/SKILL.md?ref=main");
+        return Effect.succeed(Buffer.from(upstream).toString("base64"));
+      },
+    });
+    const executor = Layer.succeed(CommandExecutor, {
+      run: () => Effect.succeed(""),
+      stream: () => Stream.die("stream should not be called"),
+      exitCode: () => Effect.succeed(0),
+      inherit: () => Effect.die("inherit should not be called"),
+    });
+
+    const result = await Effect.runPromise(
+      checkSkill(meta).pipe(Effect.provide(Layer.merge(github, executor))),
+    );
+
+    expect(result.type).toBe("up-to-date");
   });
 });
 
