@@ -40,11 +40,6 @@ just = "1.57.0"
 version = "latest"
 minimum_release_age = "2h"
 
-[tools."npm:@opencode-ai/cli"]
-version = "next"
-minimum_release_age = "2h"
-allow_builds = ["@opencode-ai/cli"]
-
 [settings]
 aqua.registries = ["https://github.com/aquaproj/aqua-registry"]
 idiomatic_version_file_enable_tools = ["bun", "deno", "go", "node", "python"]
