@@ -1,4 +1,5 @@
 [tools]
+android-sdk = "22.0"
 bat = "0.26.1"
 "aqua:coder/boo" = "0.6.4"
 "aqua:ctxrs/ctx" = "0.25.0"

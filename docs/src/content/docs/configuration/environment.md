@@ -7,6 +7,10 @@ sidebar:
 
 These variables tune paths and behaviour for `dot`. Most have sensible defaults; set them only when you need to override the default.
 
+## Managed toolchain
+
+The global mise configuration provides the Android SDK command-line tools and sets the SDK environment for Gradle and `sdkmanager`. Individual Android repositories still declare their required platform and build-tools versions; install those SDK packages with `sdkmanager` when a checkout requires them.
+
 ## Paths and overlay
 
 | Variable               | Description                                                   |
