@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -u
+
+env_file="$HOME/.config/opencode/.env"
+
+if [[ ! -r "$env_file" ]]; then
+  printf 'Cannot read %s\n' "$env_file" >&2
+  exit 1
+fi
+
+password="$({
+  # shellcheck disable=SC1090
+  source "$env_file"
+  if [[ ! -v OPENCODE_SERVER_PASSWORD ]]; then
+    printf 'OPENCODE_SERVER_PASSWORD is not set in %s\n' "$env_file" >&2
+    exit 1
+  fi
+  printf '%s' "$OPENCODE_SERVER_PASSWORD"
+})" || exit $?
+
+OPENCODE_SERVER_PASSWORD="$password" \
+  exec notes daemon --config "$HOME/.config/notes/daemon.yml" --once

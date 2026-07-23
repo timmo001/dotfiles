@@ -657,7 +657,6 @@ alias gearlever="flatpak run it.mijorus.gearlever"
 
 # Notes
 alias handoffs="notes handoffs"
-alias notes-process="notes daemon --config ~/.config/notes/daemon.yml --once"
 
 # Copilot CLI
 alias copilot="gh copilot"

@@ -15,7 +15,7 @@ Generated completions are stowed for the two local CLIs:
 - `context completions bash|fish|zsh` writes the stowed `context` completions in this repo.
 - `_omarchy` is a stowed zsh completion wrapper for dynamic Omarchy subcommands.
 
-Installed package completions are also wired into common aliases where needed. `handoffs` completes through `_notes` and runs `notes handoffs`. `notes-process` processes the current Notes issue queue once using `~/.config/notes/daemon.yml`, then exits.
+Installed package completions are also wired into common aliases where needed. `handoffs` completes through `_notes` and runs `notes handoffs`.
 
 Zsh also has a live generated completion:
 
