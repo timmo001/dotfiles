@@ -25,6 +25,8 @@ The live `_mise` file is intentionally not version-controlled; it tracks the ins
 
 ## Editing keys
 
+fzf's native zsh integration provides fuzzy history search with `Ctrl+R`, file and directory insertion with `Ctrl+T`, directory changes with `Alt+C`, and fuzzy tab completion.
+
 The zsh config restores the standard editing bindings used by this setup after plugins load, including Delete as forward-delete. `dot doctor` checks the Delete binding and reports drift when a plugin or local override changes it.
 
 ## Small helpers

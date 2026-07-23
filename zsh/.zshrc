@@ -745,6 +745,10 @@ if command -v zoxide &> /dev/null; then
   eval "$(zoxide init zsh --cmd zd)"
 fi
 
+if command -v fzf &> /dev/null; then
+  source <(fzf --zsh)
+fi
+
 # ------------------------------
 # Omarchy Part 4
 # ------------------------------
