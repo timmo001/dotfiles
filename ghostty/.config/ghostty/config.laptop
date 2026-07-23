@@ -1,4 +1,4 @@
 # OMARCHY_HOST=laptop overrides
 font-size = 9
-window-padding-x = 10
-window-padding-y = 10
+window-padding-x = 8
+window-padding-y = 8
