@@ -559,7 +559,7 @@ y() {
 
 alias e="y"
 
-alias ff="fastfetch"
+alias fast="fastfetch"
 
 ## Git
 alias lg="lazygit"

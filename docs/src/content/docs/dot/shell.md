@@ -33,6 +33,8 @@ The zsh config restores the standard editing bindings used by this setup after p
 
 The shell initialises zoxide as `zd`, which also backs Omarchy's `cd` alias. Directory changes teach zoxide which paths are used most often, while `zd <query>` jumps directly to a ranked match.
 
+Omarchy's `ff` alias opens an fzf file picker with previews. `fast` runs Fastfetch without replacing that picker.
+
 The shell keeps a few typo and navigation helpers close to the aliases. For example, `cwd` prints a short reminder that the real command is `pwd`, then runs `pwd` so the mistake still returns useful output.
 
 Run `update` to select maintenance steps with Gum. All steps start selected, get their own section heading, and run in order: `dot update`, `topgrade`, then `omarchy update -y`. Use `update -y` or `update --yes`, or run it in a non-interactive shell, to run all three without command prompts. Agent-driven runs without a controlling terminal route internal `sudo` calls through a temporary `pkexec` helper so authentication can use the desktop PolicyKit prompt. Interactive terminals keep normal `sudo` credential caching. The sequence stops if a selected step fails.
