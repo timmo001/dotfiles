@@ -1,6 +1,6 @@
 ---
 name: git-commit
-description: Commit workflow using the dot git-commit gateway, splitting a reviewed changeset into coherent commits by default. Use only after the user explicitly requests a commit or push, including /commit or /commit-push. Never infer authorisation for later changes; never run raw git commit.
+description: Commit workflow using the dot git-commit gateway, splitting a reviewed changeset into coherent commits by default. Use only after the user explicitly requests a commit or push, including @commit or @commit-push. Never infer authorisation for later changes; never run raw git commit.
 ---
 
 # Git Commit
@@ -11,8 +11,8 @@ staging, and message authoring around it.
 
 ## 1. Authorisation and posture
 
-- Only commit when the user asked to commit the current reviewed changeset (a
-  `/commit` or `/commit-push` invocation, or an explicit "commit this"
+- Only commit when the user asked to commit the current reviewed changeset (an
+  `@commit` or `@commit-push` invocation, or an explicit "commit this"
   instruction). Drafting a message is not permission.
 - One request authorises the coherent commit series needed for that changeset.
   It does not authorise a later change, a second changeset, or another push.
@@ -100,7 +100,7 @@ dot git-commit -m "<subject>" --push
   moved-ahead remote fast-forwards, sets the upstream when missing, and never
   force-pushes. On a rebase conflict it aborts and keeps your commit for manual
   integration. Only push when the user asked for this specific push (a
-  `/commit-push` invocation or explicit "push").
+  `@commit-push` invocation or explicit "push").
 - For a split changeset, omit `--push` from every preceding commit and pass it
   only to the final commit so the complete series is pushed once.
 - Combining `--amend --push` force-pushes with `--force-with-lease` (never a

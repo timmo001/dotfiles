@@ -103,4 +103,4 @@ Automatic session injection runs at most once per session and only inside a git 
 
 ## MCP refresh outside plugin-backed commands
 
-Plugin injection covers registered slash commands. For ad-hoc work (for example `/commit` scope checks or manual branch inspection), use the Context MCP server's `git_context` tool with only the fields the task needs (`diff`, `branchDiff`, PR details, and so on). See [Commit Gateway](/git/commit/#agent-workflow) for the commit path.
+Plugin injection covers registered slash commands. For agent workflows such as `@commit` scope checks, or for manual branch inspection, use the Context MCP server's `git_context` tool with only the fields the task needs (`diff`, `branchDiff`, PR details, and so on). See [Commit Gateway](/git/commit/#agent-workflow) for the commit path.
