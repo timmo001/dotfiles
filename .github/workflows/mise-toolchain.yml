@@ -1,0 +1,42 @@
+---
+name: Validate mise toolchain
+
+on:
+  push:
+    branches:
+      - distro/arch-omarchy
+    paths:
+      - 'mise/.config/mise/config.toml'
+      - '.github/workflows/mise-toolchain.yml'
+  pull_request:
+    paths:
+      - 'mise/.config/mise/config.toml'
+      - '.github/workflows/mise-toolchain.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+env:
+  MISE_GLOBAL_CONFIG_FILE: ${{ github.workspace }}/mise/.config/mise/config.toml
+
+jobs:
+  terminal-control:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup mise
+        uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
+        with:
+          install: false
+
+      - name: Install build toolchain
+        run: mise install zig zls rust
+
+      - name: Build Terminal Control
+        run: mise install --force cargo:terminal-control
+
+      - name: Verify Terminal Control
+        run: mise exec -- termctrl --version

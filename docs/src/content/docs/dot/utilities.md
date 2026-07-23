@@ -73,6 +73,8 @@ Repository regression tests live under `tests/`, use temporary directories, and 
 
 The `lint.yml` `validate-skills` job uses the shared `lint-agent-skills` workflow to validate public `SKILL.md` files with [`skills-ref`](https://github.com/agentskills/agentskills/tree/main/skills-ref).
 
+The `mise-toolchain.yml` workflow runs when the stowed global mise config changes. It force-builds Terminal Control with the pinned Rust and Zig toolchain, catching incompatible automated version updates before they merge.
+
 Run `mise run tests:integration` for deterministic repository tests and `mise run tests:smoke` for the build plus CLI smoke checks. TypeScript unit tests mirror `dot/src/` under `dot/tests/` and run through `mise run dot:test`.
 
 ## Firewall rules
