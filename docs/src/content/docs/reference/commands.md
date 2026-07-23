@@ -13,6 +13,7 @@ Commands are thin routing prompts: they name an agent, declare required skills o
 | --- | --- | --- |
 | [`/all-lit-skills`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/all-lit-skills.md) | Apply all Lit rendering skills in current git scope | `default` |
 | [`/all-ts-skills`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/all-ts-skills.md) | Apply all TypeScript-specific skills in current git scope | `default` |
+| [`/bro`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/bro.md) | Restate the previous response plainly and concisely | `ask` |
 | [`/check-skill-updates`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/check-skill-updates.md) | Check imported skills for upstream updates | `default` |
 | [`/code-review`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/code-review.md) | Review current branch work with the code-review skill and BranchContextPlugin context | `reviewer` |
 | [`/commit-push`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/commit-push.md) | Split current changes into coherent commits, then push the completed series once | `default` |
