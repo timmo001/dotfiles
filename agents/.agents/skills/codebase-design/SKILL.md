@@ -23,9 +23,9 @@ Use these terms consistently when describing architectural roles. Do not rename 
 
 **Depth** — leverage at the interface: the amount of behaviour a caller (or test) can exercise per unit of interface they have to learn. A module is **deep** when a large amount of behaviour sits behind a small interface, **shallow** when the interface is nearly as complex as the implementation.
 
-**Seam** _(Michael Feathers)_ — a place where you can alter behaviour without editing in that place; the *location* at which a module's interface lives. Where to put the seam is its own design decision, distinct from what goes behind it. Keep **boundary** when it is an established domain term, such as a DDD bounded context; use **seam** for this architectural role.
+**Seam** _(Michael Feathers)_ — a place where you can alter behaviour without editing in that place; the _location_ at which a module's interface lives. Where to put the seam is its own design decision, distinct from what goes behind it. Keep **boundary** when it is an established domain term, such as a DDD bounded context; use **seam** for this architectural role.
 
-**Adapter** — a concrete thing that satisfies an interface at a seam. Describes *role* (what slot it fills), not substance (what's inside).
+**Adapter** — a concrete thing that satisfies an interface at a seam. Describes _role_ (what slot it fills), not substance (what's inside).
 
 **Leverage** — what callers get from depth: more capability per unit of interface they learn. One implementation pays back across N call sites and M tests.
 
@@ -35,7 +35,7 @@ Use these terms consistently when describing architectural roles. Do not rename 
 
 **Deep module** = small interface + lots of implementation:
 
-```
+```text
 ┌─────────────────────┐
 │   Small Interface   │  ← Few methods, simple params
 ├─────────────────────┤
@@ -47,7 +47,7 @@ Use these terms consistently when describing architectural roles. Do not rename 
 
 **Shallow module** = large interface + little implementation (avoid):
 
-```
+```text
 ┌─────────────────────────────────┐
 │       Large Interface           │  ← Many methods, complex params
 ├─────────────────────────────────┤
@@ -65,7 +65,7 @@ When designing an interface, ask:
 
 - **Depth is a property of the interface, not the implementation.** A deep module can be internally composed of small, mockable, swappable parts — they just aren't part of the interface. A module can have **internal seams** (private to its implementation, used by its own tests) as well as the **external seam** at its interface.
 - **The deletion test.** Imagine deleting the module. If complexity vanishes, it was a pass-through. If complexity reappears across N callers, it was earning its keep.
-- **The interface is the test surface.** Callers and tests cross the same seam. If you want to test *past* the interface, the module is probably the wrong shape.
+- **The interface is the test surface.** Callers and tests cross the same seam. If you want to test _past_ the interface, the module is probably the wrong shape.
 - **One adapter means a hypothetical seam. Two adapters means a real one.** Don't introduce a seam unless something actually varies across it.
 
 ## Designing for testability
