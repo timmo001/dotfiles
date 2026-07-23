@@ -18,5 +18,8 @@ password="$({
   printf '%s' "$OPENCODE_SERVER_PASSWORD"
 })" || exit $?
 
+systemctl --user start notes-capture-opencode.service || exit $?
+notes-capture-opencode-ready || exit $?
+
 OPENCODE_SERVER_PASSWORD="$password" \
   exec notes daemon --config "$HOME/.config/notes/daemon.yml" --once

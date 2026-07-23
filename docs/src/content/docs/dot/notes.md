@@ -34,7 +34,7 @@ Handoffs carry a `priority` of `low`, `medium`, `high`, or `critical`. Any hando
 
 ## Process the issue queue
 
-Run `notes-process` to process the current Notes issue queue once using `~/.config/notes/daemon.yml`, then exit. The command reads `OPENCODE_SERVER_PASSWORD` from `~/.config/opencode/.env` and exposes it only to the daemon process.
+Run `notes-process` to start the isolated OpenCode service if needed, wait for it to become ready, process the current Notes issue queue once using `~/.config/notes/daemon.yml`, then exit. The command reads `OPENCODE_SERVER_PASSWORD` from `~/.config/opencode/.env` and exposes it only to the daemon process.
 
 ## Read / write note files
 
