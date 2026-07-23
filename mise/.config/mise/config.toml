@@ -21,6 +21,7 @@ node = "26.5.0"
 pitchfork = "2.17.0"
 "github:backnotprop/plannotator" = "0.24.2"
 "npm:pnpm" = "11.16.0"
+"npm:@opencode-ai/browser-control" = "latest"
 "npm:rift-snapshot" = "latest"
 python = "3.14.6"
 ripgrep = "15.2.0"
@@ -45,6 +46,7 @@ aqua.registries = ["https://github.com/aquaproj/aqua-registry"]
 idiomatic_version_file_enable_tools = ["bun", "deno", "go", "node", "python"]
 lockfile = true
 minimum_release_age = "1d"
+npm.package_manager = "bun"
 # Don't treat build/cache dirs as mise projects. Stops AUR builds (yay cd's into
 # ~/.cache/yay/<pkg>/src, which contains package.json/.tool-versions/mise.toml)
 # from auto-installing and reshimming all shims on every update.
