@@ -7,7 +7,7 @@ update_script="$repo_root/scripts/.local/bin/update"
 mock_bin=$(mktemp -d)
 trap 'rm -rf "$mock_bin"' EXIT
 
-for command in dot topgrade; do
+for command in dot pkexec topgrade; do
   printf '#!/bin/bash\nexit 0\n' >"$mock_bin/$command"
   chmod +x "$mock_bin/$command"
 done
