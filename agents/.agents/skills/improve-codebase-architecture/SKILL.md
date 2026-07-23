@@ -5,6 +5,7 @@ description: Scan a codebase for deepening opportunities, present them as a visu
 # upstream-sha: 221ffca96736afefdc08ca7cf0b3965e9ea83f41
 # local-edits:
 #   - SKILL.md: rewired /grilling to the local grill-questions skill at Full intensity; generalised CONTEXT.md/docs-adr references to the project's domain docs (repo uses no fixed CONTEXT.md/ADR layout)
+#   - SKILL.md: architecture vocabulary preserves established domain and framework terms while describing their architectural roles
 #   - HTML-REPORT.md: generalised the ADR callout to a recorded-decision callout
 ---
 
