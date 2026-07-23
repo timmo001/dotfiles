@@ -202,7 +202,9 @@ export function readAllEvents(
   for (const root of roots) {
     if (seen.has(root)) continue;
     seen.add(root);
-    events.push(...readEventsFromRoot(root));
+    for (const event of readEventsFromRoot(root)) {
+      events.push(event);
+    }
   }
   return events;
 }
