@@ -4,6 +4,8 @@ description: Append new notes to an existing note file for the current repositor
 
 A `<repo-note-context>` block has been injected above by RepoNotesPlugin. It contains the resolved `owner`, `repo`, `notes_path`, and the list of existing note files in `<existing-notes>`, sorted newest-first by modification time.
 
+Load and follow the `notes-mcp` skill.
+
 Follow these steps exactly:
 
 ## Step 1: Check for existing notes
@@ -45,7 +47,7 @@ Omit any section that has no new content for this session.
 
 ## Step 4: Rewrite the note with integrated content
 
-1. Call the `notes_note_read` tool with `path: {notes_path}/{filename}` to get the full existing content.
+1. Call the `notes_note_read` tool with `path: {notes_path}/{filename}` to get the full existing content and revision hash.
    Do **not** use the built-in `read` tool — it is blocked for the notes vault.
 2. Integrate the new content into the appropriate sections:
     - Append new bullet items to existing sections (Key Ideas, Decisions, Actions Taken, Open Threads)
@@ -53,8 +55,9 @@ Omit any section that has no new content for this session.
     - Do not duplicate existing items
     - Leave the frontmatter `name`, `description`, and `tags` unchanged (they reflect the original session). The `notes_note_write` tool refreshes the frontmatter `date:` to now automatically; do not read the date yourself.
 3. Call the `notes_note_write` tool with:
-   - `path`: `{notes_path}/{filename}`
-   - `content`: the complete updated file content
+    - `path`: `{notes_path}/{filename}`
+    - `content`: the complete updated file content
+    - `expectedHash`: the hash returned by `notes_note_read`
 
 Do **not** use the `write`, `bash`, or any other tool to write the file - only `notes_note_write`.
 

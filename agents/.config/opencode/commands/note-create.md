@@ -4,6 +4,8 @@ description: Create a new note for the current repository in your Obsidian notes
 
 A `<repo-note-context>` block has been injected above by RepoNotesPlugin. It contains the resolved `owner`, `repo`, and `notes_path` for the current repository.
 
+Load and follow the `notes-mcp` skill.
+
 Follow these steps exactly:
 
 ## Step 1: Summarise the conversation
@@ -38,7 +40,7 @@ Read `Notes path` from the `<repository>` section of the injected context.
    - `path`: `{notes_path}/{slug}.md`
    - `content`: the full note content
 
-The `notes_note_write` tool sets the frontmatter `date:` for you; leave the placeholder in the template below and do not read the date yourself.
+The `notes_note_write` tool adds the frontmatter `date:` for you.
 
 Do **not** use the `write`, `bash`, or any other tool to write the file - only `notes_note_write`.
 
@@ -47,7 +49,6 @@ Use this exact format for `content`:
 ```markdown
 ---
 repo: {owner}/{repo}
-date: {leave as-is; the notes_note_write tool fills this in}
 name: {Short human-readable title, 3–6 words, Title Case}
 description: {One sentence describing what this note covers}
 tags: [{2–5 kebab-case tags derived from the conversation content, e.g. authentication, jwt, api-design}]

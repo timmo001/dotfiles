@@ -16,7 +16,7 @@ Read `Notes path` from the `<repository>` section of the injected `<repo-note-co
    - `path`: `{notes_path}/handoff-{slug}.md`
    - `content`: the full note content (see format below)
 
-The note-writing tool sets the frontmatter `date:` for you; leave the placeholder in the template below and do not read the date yourself.
+The note-writing tool adds the frontmatter `date:` for you.
 
 Do **not** use the `write`, `bash`, or any other tool to write the file — only the note-writing tool.
 
@@ -67,7 +67,6 @@ This ensures:
 ```markdown
 ---
 repo: {owner}/{repo}
-date: {leave as-is; the note-writing tool fills this in}
 type: handoff
 name: {Short human-readable title, 3–6 words, Title Case}
 description: {One sentence describing the handoff purpose}
