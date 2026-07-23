@@ -17,4 +17,5 @@ diff evidence. When it is complete and unambiguous, proceed without another
 context read or staging announcement. Refresh with Context MCP `git_context`
 only when the block is absent, stale, partial, or does not cover an explicitly
 requested repository. Never broaden scope to the excluded dirty paths. Use
-repeated `--path` arguments to keep each commit scoped, and do not push.
+repeated `--path` arguments to keep each commit scoped. When several repository
+scopes are injected, run each gateway command from its listed root. Do not push.

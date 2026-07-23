@@ -21,6 +21,7 @@ interface CommitScope {
 export interface CommitContextInput {
   readonly context: unknown;
   readonly sessions: readonly SessionMessages[];
+  readonly touchedFiles?: readonly string[];
   readonly diffEvidence?: string;
   readonly collectionWarnings?: readonly string[];
 }
@@ -49,6 +50,67 @@ export function dataOrValue(value: unknown): unknown {
 
 const records = (value: unknown): readonly JsonRecord[] =>
   Array.isArray(value) ? value.filter(isRecord) : [];
+
+const patchPathPattern = /^\*\*\* (?:Add|Delete|Update) File: (.+)$/gm;
+const patchMovePattern = /^\*\*\* Move to: (.+)$/gm;
+
+const absolutePath = (directory: string, path: string): string =>
+  isAbsolute(path) ? resolve(path) : resolve(directory, path);
+
+const toolInputPaths = (
+  tool: string,
+  input: JsonRecord,
+  directory: string,
+): readonly string[] => {
+  if (tool === "edit" || tool === "write") {
+    const filePath = stringField(input, "filePath");
+    return filePath ? [absolutePath(directory, filePath)] : [];
+  }
+  if (tool !== "apply_patch") return [];
+
+  const patchText = stringField(input, "patchText");
+  const paths: string[] = [];
+  for (const pattern of [patchPathPattern, patchMovePattern]) {
+    pattern.lastIndex = 0;
+    for (const match of patchText.matchAll(pattern)) {
+      const path = match[1]?.trim();
+      if (path) paths.push(absolutePath(directory, path));
+    }
+  }
+  return paths;
+};
+
+export function sessionTouchedFiles(
+  sessions: readonly SessionMessages[],
+): readonly string[] {
+  const files: string[] = [];
+  for (const session of sessions) {
+    if (!session.directory) continue;
+    for (const message of records(dataOrValue(session.messages))) {
+      for (const part of records(message.parts)) {
+        if (part.type === "patch") {
+          files.push(
+            ...strings(part.files).map((path) =>
+              absolutePath(session.directory, path),
+            ),
+          );
+          continue;
+        }
+        if (part.type !== "tool" || !isRecord(part.state)) continue;
+        if (part.state.status !== "completed" || !isRecord(part.state.input))
+          continue;
+        files.push(
+          ...toolInputPaths(
+            stringField(part, "tool"),
+            part.state.input,
+            session.directory,
+          ),
+        );
+      }
+    }
+  }
+  return uniqueSorted(files);
+}
 
 export async function collectSessionMessages(
   reader: SessionReader,
@@ -248,6 +310,7 @@ const deriveScope = (
   context: JsonRecord,
   status: ParsedStatus & { readonly schemaWarnings: readonly string[] },
   sessions: readonly SessionMessages[],
+  touchedFiles: readonly string[] | undefined,
   collectionWarnings: readonly string[],
 ): CommitScope => {
   const metadata = isRecord(context.branchMetadata)
@@ -288,7 +351,9 @@ const deriveScope = (
     warnings.push("The context producer truncated one or more sections.");
   }
 
-  const patches = patchFiles(sessions);
+  const patches = touchedFiles
+    ? { files: touchedFiles, warnings: [] }
+    : patchFiles(sessions);
   warnings.push(...patches.warnings);
   const touched = repositoryRoot
     ? normaliseTouchedPaths(repositoryRoot, patches.files)
@@ -349,6 +414,7 @@ const limited = (value: string, max = 20_000): string =>
 export function renderCommitContext({
   context: contextResponse,
   sessions,
+  touchedFiles,
   diffEvidence,
   collectionWarnings = [],
 }: CommitContextInput): string {
@@ -356,7 +422,7 @@ export function renderCommitContext({
   const context = isRecord(contextValue) ? contextValue : {};
   const status = parseStatus(context);
   const diffWasTruncated = (diffEvidence?.length ?? 0) > DIFF_EVIDENCE_LIMIT;
-  const scope = deriveScope(context, status, sessions, [
+  const scope = deriveScope(context, status, sessions, touchedFiles, [
     ...collectionWarnings,
     ...(diffWasTruncated
       ? ["Diff evidence exceeded the prompt limit and was truncated."]
@@ -456,6 +522,48 @@ export function renderCommitContext({
           ),
         ]
       : []),
+    "</commit-context>",
+  ].join("\n\n");
+}
+
+export function renderCommitContexts(
+  contexts: readonly CommitContextInput[],
+  warnings: readonly string[] = [],
+): string {
+  if (contexts.length === 1) return renderCommitContext(contexts[0]);
+
+  if (!contexts.length) {
+    return [
+      "<commit-context>",
+      block(
+        "scope-status",
+        "Whether this block is sufficient for committing without another discovery round.",
+        "Status: partial\nNo repository scope could be resolved. Stop rather than inferring scope from dirty files.",
+      ),
+      block(
+        "warnings",
+        "Collection failures that prevented deterministic repository scope.",
+        list(warnings.length ? warnings : ["Repository scope is unavailable."]),
+      ),
+      "</commit-context>",
+    ].join("\n\n");
+  }
+
+  const scopes = contexts.map((context) => {
+    const rendered = renderCommitContext(context);
+    const inner = rendered
+      .slice("<commit-context>".length, -"</commit-context>".length)
+      .trim();
+    return `<repository-scope>\n${inner}\n</repository-scope>`;
+  });
+  return [
+    "<commit-context>",
+    block(
+      "repository-count",
+      "Number of independently scoped repositories touched by this session.",
+      String(contexts.length),
+    ),
+    ...scopes,
     "</commit-context>",
   ].join("\n\n");
 }

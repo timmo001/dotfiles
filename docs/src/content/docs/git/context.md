@@ -93,6 +93,8 @@ Work-scope-only commands (for example scoped refactor helpers) call `context git
 
 An existing staged set takes precedence. Without one, only current dirty paths touched by the active session tree become candidates. This is path-level evidence rather than hunk ownership, so mixed files still require clarification. Missing, stale, malformed, truncated, cross-repository, or unattributed evidence marks the block partial and requires a Context MCP refresh or a stop.
 
+When successful mutation tool calls identify files under several Git roots, the outer block contains one `<repository-scope>` per repository. Each scope is collected independently and names the root where its gateway commands must run.
+
 ### Stack context (`<stack-context>`)
 
 | Section | Purpose |

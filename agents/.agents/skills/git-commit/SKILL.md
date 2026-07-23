@@ -31,6 +31,9 @@ staging, and message authoring around it.
   subject evidence with paths touched by the current OpenCode session tree.
 - A complete, unambiguous block is sufficient. Do not repeat the context read
   or announce a staging plan before executing the scoped gateway commands.
+- When the block contains several `<repository-scope>` sections, treat each as
+  an independent changeset. Run its `dot git-commit` commands from the listed
+  repository root, and push that repository only once on its final commit.
 - Refresh with the Context MCP server's `git_context` tool when the block is
   absent, stale, partial, or does not cover an explicitly requested repository.
   In OpenCode this is exposed as `context_git_context`; set `diff: true` when

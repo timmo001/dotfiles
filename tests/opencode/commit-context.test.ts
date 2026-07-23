@@ -6,6 +6,8 @@ import {
   dataOrValue,
   MAX_COMMIT_CONTEXT_SESSIONS,
   renderCommitContext,
+  renderCommitContexts,
+  sessionTouchedFiles,
 } from "../../agents/.config/opencode/lib/commit-context";
 
 const repositoryRoot = "/tmp/repository";
@@ -54,6 +56,58 @@ const section = (text: string, name: string): string =>
   text.match(new RegExp(`<${name}>[\\s\\S]*?</${name}>`))?.[0] ?? "";
 
 describe("commit scope", () => {
+  test("extracts absolute paths from successful mutation tools", () => {
+    const sessions = [
+      {
+        projectID: "project-a",
+        directory: repositoryRoot,
+        messages: {
+          data: [
+            {
+              parts: [
+                {
+                  type: "tool",
+                  tool: "edit",
+                  state: {
+                    status: "completed",
+                    input: { filePath: "src/edited.ts" },
+                  },
+                },
+                {
+                  type: "tool",
+                  tool: "apply_patch",
+                  state: {
+                    status: "completed",
+                    input: {
+                      patchText: `*** Begin Patch
+*** Update File: /tmp/private/AGENTS.md
+*** Move to: /tmp/private/INSTRUCTIONS.md
+*** End Patch`,
+                    },
+                  },
+                },
+                {
+                  type: "tool",
+                  tool: "write",
+                  state: {
+                    status: "error",
+                    input: { filePath: "/tmp/ignored.ts" },
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    ];
+
+    expect(sessionTouchedFiles(sessions)).toEqual([
+      "/tmp/private/AGENTS.md",
+      "/tmp/private/INSTRUCTIONS.md",
+      `${repositoryRoot}/src/edited.ts`,
+    ]);
+  });
+
   test("uses the existing staged set and excludes other dirty paths", () => {
     const rendered = renderCommitContext({
       context: context({
@@ -133,6 +187,50 @@ describe("commit scope", () => {
     expect(section(rendered, "scope-status")).toContain("Status: partial");
     expect(section(rendered, "warnings")).toContain(
       "No current dirty paths could be attributed",
+    );
+  });
+});
+
+describe("multiple repository scopes", () => {
+  test("renders independently labelled repository scopes", () => {
+    const rendered = renderCommitContexts([
+      {
+        context: context({ unstaged: "M\tpublic.ts" }),
+        sessions: [],
+        touchedFiles: [`${repositoryRoot}/public.ts`],
+        diffEvidence: "Unstaged:\nM public.ts",
+      },
+      {
+        context: {
+          ...context({ unstaged: "M\tprivate.ts" }),
+          branchMetadata: {
+            repositoryRoot: "/tmp/private",
+            currentBranch: "master",
+          },
+        },
+        sessions: [],
+        touchedFiles: ["/tmp/private/private.ts"],
+        diffEvidence: "Unstaged:\nM private.ts",
+      },
+    ]);
+
+    expect(section(rendered, "repository-count")).toContain("2");
+    expect(rendered.match(/<repository-scope>/g)).toHaveLength(2);
+    expect(rendered).toContain(`Repository root: ${repositoryRoot}`);
+    expect(rendered).toContain("Repository root: /tmp/private");
+    expect(rendered).toContain("- public.ts");
+    expect(rendered).toContain("- private.ts");
+  });
+
+  test("renders a fail-closed block when no repository resolves", () => {
+    const rendered = renderCommitContexts([], ["Could not resolve repository"]);
+
+    expect(section(rendered, "scope-status")).toContain("Status: partial");
+    expect(section(rendered, "scope-status")).toContain(
+      "Stop rather than inferring scope",
+    );
+    expect(section(rendered, "warnings")).toContain(
+      "Could not resolve repository",
     );
   });
 });
