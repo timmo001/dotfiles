@@ -22,7 +22,11 @@ Agents use this command through the `git-commit` skill. Raw `git commit` is bloc
 
 ## Agent workflow
 
-Before staging or writing a subject, read working tree state through the Context MCP server's `git_context` tool rather than raw `git status` or `git diff`. Set `diff: true` when the message depends on the change content. The tool exposes the same structured branch context the `branch-context` plugin renders for slash commands; see [Context Integration](/git/context/) for the XML sections and when to refresh.
+The `commit-context` plugin injects a `<commit-context>` block before `/commit` and `/commit-push` run. It combines structured state from `context git --json --no-pr`, full working-tree evidence from `context git --diff --no-pr`, and persisted OpenCode patch parts from the current session and its child sessions. The commands stay in the parent session, so they retain the reviewed conversation and avoid a subagent hand-off or follow-up summary call.
+
+When files are already staged, that staged set is the candidate scope. Otherwise, candidates are current dirty paths that OpenCode recorded as touched by the session tree. Other dirty paths are listed separately and must not be staged or committed without clarification. Session attribution is path-level, not hunk-level: a file can still contain pre-existing or concurrent edits that require a question.
+
+The block is marked partial when collection fails, output is truncated or malformed, no dirty path can be attributed, or session changes cross repository roots. In those cases the agent refreshes through the Context MCP server's `git_context` tool or stops. It never broadens the scope to every dirty file. See [Context Integration](/git/context/) for the injected sections and refresh rules.
 
 Staging and commit still go through `dot git-commit` only after the user explicitly requests a commit or push.
 

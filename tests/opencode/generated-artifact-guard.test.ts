@@ -97,6 +97,18 @@ describe("shell mutations", () => {
       generatedArtifactFromShell(root, `git add -- ${generatedDocs}`),
     ).toBeUndefined();
     expect(
+      generatedArtifactFromShell(
+        root,
+        `dot git-commit -m "Regenerate OpenCode docs" --path ${generatedDocs}`,
+      ),
+    ).toBeUndefined();
+    expect(
+      generatedArtifactFromShell(
+        root,
+        `dot git-commit -m "Regenerate OpenCode docs" --path ${generatedDocs} > ${generatedDocs}`,
+      )?.path,
+    ).toBe(generatedDocs);
+    expect(
       generatedArtifactFromShell(root, "rm docs/src/content/docs/ordinary.md"),
     ).toBeUndefined();
     expect(

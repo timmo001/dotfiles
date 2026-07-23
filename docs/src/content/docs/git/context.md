@@ -87,6 +87,12 @@ The plugins render the structured JSON into tagged XML sections. Treat injected 
 
 Work-scope-only commands (for example scoped refactor helpers) call `context git --json --no-pr` and omit the `pull-request` section.
 
+### Commit context (`<commit-context>`)
+
+`/commit` and `/commit-push` receive a narrower block from the `commit-context` plugin. It combines the current Context CLI snapshot with OpenCode's persisted session patch parts, lists candidate and excluded paths separately, and includes the staged and unstaged diff evidence used for grouping and subject selection.
+
+An existing staged set takes precedence. Without one, only current dirty paths touched by the active session tree become candidates. This is path-level evidence rather than hunk ownership, so mixed files still require clarification. Missing, stale, malformed, truncated, cross-repository, or unattributed evidence marks the block partial and requires a Context MCP refresh or a stop.
+
 ### Stack context (`<stack-context>`)
 
 | Section | Purpose |
@@ -103,4 +109,4 @@ Automatic session injection runs at most once per session and only inside a git 
 
 ## MCP refresh outside plugin-backed commands
 
-Plugin injection covers registered slash commands. For ad-hoc work (for example `/commit` scope checks or manual branch inspection), use the Context MCP server's `git_context` tool with only the fields the task needs (`diff`, `branchDiff`, PR details, and so on). See [Commit Gateway](/git/commit/#agent-workflow) for the commit path.
+Plugin injection covers registered slash commands. For ad-hoc work or a missing, stale, or partial injected block, use the Context MCP server's `git_context` tool with only the fields the task needs (`diff`, `branchDiff`, PR details, and so on). See [Commit Gateway](/git/commit/#agent-workflow) for the commit path.

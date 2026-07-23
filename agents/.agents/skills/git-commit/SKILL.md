@@ -26,11 +26,16 @@ staging, and message authoring around it.
 
 ## 2. Read the working tree
 
-- Use the Context MCP server's `git_context` tool for the state: branch,
-  staged, unstaged, and untracked. In OpenCode this is exposed as
-  `context_git_context`.
-- Set `diff: true` when you need the content to write an accurate subject. Do
-  not reconstruct this with raw `git status`/`git diff`.
+- For `/commit` and `/commit-push`, use the injected `<commit-context>` first.
+  It combines current branch, staged, unstaged, untracked, diff, and recent
+  subject evidence with paths touched by the current OpenCode session tree.
+- A complete, unambiguous block is sufficient. Do not repeat the context read
+  or announce a staging plan before executing the scoped gateway commands.
+- Refresh with the Context MCP server's `git_context` tool when the block is
+  absent, stale, partial, or does not cover an explicitly requested repository.
+  In OpenCode this is exposed as `context_git_context`; set `diff: true` when
+  subject selection needs content. Do not reconstruct this with raw `git
+  status`/`git diff`.
 
 ## 3. Decide the scope (confirm before staging)
 
@@ -43,8 +48,13 @@ staging, and message authoring around it.
 - If the user already staged files, commit that set. If you also made unrelated
   edits this session, ask before adding them rather than bundling silently.
 - If nothing is staged, show the changed files and confirm which to include
-  before staging. Only stage files you changed this session; never sweep
-  pre-existing or unrelated changes. Never use `git add -A`.
+  before staging unless a complete injected `<commit-context>` already supplies
+  an unambiguous candidate scope. Only stage files attributed to this session;
+  never sweep pre-existing, excluded, or unrelated changes. Never use `git add
+  -A`.
+- Session attribution is path-level, not hunk-level. If a candidate file may
+  contain pre-existing or concurrent hunks, ask rather than treating the whole
+  file as owned by this session.
 - Include untracked files you created for this work; ask before adding anything
   unexpected.
 - Keep formatter-only churn (files reformatted but not part of the change) out
@@ -56,9 +66,9 @@ staging, and message authoring around it.
 
 ## 4. Write the subject
 
-- Author in the maintainer's voice per the `writing-style` skill: imperative,
-  verb-first, sentence case, no trailing full stop, no Conventional Commit
-  prefix, single line. Mirror recent subjects from `git_context` or `git log`.
+- Author in the maintainer's voice: imperative, verb-first, sentence case, no
+  trailing full stop, no Conventional Commit prefix, single line. Mirror recent
+  subjects from the injected context, `git_context`, or `git log`.
 - The gateway enforces: single line, no em/en-dash (use a hyphen), no trailing
   full stop, no tabs/control characters. It warns over 60 characters and rejects
   over 120. Aim for roughly 60 or fewer.

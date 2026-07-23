@@ -113,6 +113,13 @@ export function generatedArtifactFromShell(
       /^(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S+)\s+)*/,
       "",
     );
+    if (
+      normalized.startsWith("dot git-commit ") &&
+      /(?:^|\s)--path(?:=|\s)/.test(normalized) &&
+      !/[<>|;]/.test(normalized)
+    ) {
+      continue;
+    }
     const readOnly = [...READ_ONLY_SHELL_COMMANDS].some(
       (prefix) => normalized === prefix || normalized.startsWith(`${prefix} `),
     );
