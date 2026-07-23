@@ -9,10 +9,6 @@ Use `/investigate` instead for local triage and diagnosis, and `/explore-codebas
 
 Load and follow the `research` skill as the authoritative workflow.
 
-For a direct factual lookup, use the source that owns the answer without forcing comparison. For recommendations, disputed claims, design questions, or sentiment, compare a proportionate source portfolio and distinguish source facts, authority and scope, agreements, tensions, caveats, and the researcher's synthesis.
-
-For broad upstream dependency, source, or documentation reading, the interactive researcher may delegate one layer of independent read-only legwork to `explore`, `general-readonly`, or `researcher-readonly`. Those subagents cannot delegate further. The researcher still owns claim verification, comparison, and the final cited synthesis.
-
 Treat `${ARGUMENTS}` as the topic or question to research. If it is empty, use the current conversation context; if the target is still unclear, ask one question with the `question` tool to identify it.
 
 Stay in research mode. End with cited findings, then offer `/note-create` or `/note-append` to keep them, and suggest `/plan` if the user wants to act on them.
