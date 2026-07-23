@@ -545,7 +545,8 @@ command-breakdown() {
 # Aliases
 # ------------------------------
 
-# alias cat="bat"
+alias b="bat"
+alias bp="bat --plain"
 alias la="tree"
 alias cbd="command-breakdown"
 

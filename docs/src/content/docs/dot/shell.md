@@ -33,7 +33,7 @@ The zsh config restores the standard editing bindings used by this setup after p
 
 The shell initialises zoxide as `zd`, which also backs Omarchy's `cd` alias. Directory changes teach zoxide which paths are used most often, while `zd <query>` jumps directly to a ranked match.
 
-Omarchy's `ff` alias opens an fzf file picker with previews. `fast` runs Fastfetch without replacing that picker.
+Omarchy's `ff` alias opens an fzf file picker with previews. `fast` runs Fastfetch without replacing that picker. Use `b` for bat's normal highlighted output and `bp` for plain output; `cat` keeps its standard behaviour.
 
 The shell keeps a few typo and navigation helpers close to the aliases. For example, `cwd` prints a short reminder that the real command is `pwd`, then runs `pwd` so the mistake still returns useful output.
 
