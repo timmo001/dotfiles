@@ -20,8 +20,9 @@ staging, and message authoring around it.
 - Run in a build agent. Raw `git commit` is denied in the OpenCode permission
   config; `dot git-commit` is the allowed path. If `dot git-commit` is denied,
   stop and report that this needs a build agent, do not fall back to `git commit`.
-- Never amend, rebase, or rewrite existing commits here. Never disturb a set the
-  user staged without asking.
+- Amend only when the user explicitly requests it and follow the guarded amend
+  flow below. Never rebase or otherwise rewrite existing commits here. Never
+  disturb a set the user staged without asking.
 
 ## 2. Read the working tree
 
