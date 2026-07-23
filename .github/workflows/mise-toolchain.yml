@@ -39,4 +39,4 @@ jobs:
         run: mise install --force cargo:terminal-control
 
       - name: Verify Terminal Control
-        run: mise exec -- termctrl --version
+        run: '"$(mise where cargo:terminal-control)/bin/termctrl" --version'
