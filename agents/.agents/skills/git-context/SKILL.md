@@ -75,16 +75,11 @@ Git opens an interactive editor for many operations. Since the agent runs in a n
 
 ```bash
 GIT_EDITOR=true git rebase --continue   # After resolving conflicts
-GIT_EDITOR=true git commit --amend      # When amending without changing message
 GIT_EDITOR=true git merge --continue    # After resolving merge conflicts
 GIT_EDITOR=true git revert --continue   # After resolving revert conflicts
 ```
 
-For amending with a new message, use `-m` instead:
-
-```bash
-git commit --amend -m "new message"
-```
+For any requested commit amendment, load `git-commit` and use its `dot git-commit --amend` gateway flow instead of raw `git commit --amend`.
 
 ### Resolving rebase conflicts
 
@@ -97,8 +92,9 @@ git commit --amend -m "new message"
 ### Operations that do NOT need the editor bypass
 
 - `git rebase --abort` / `git merge --abort` (no editor involved)
-- `git commit -m "message"` (message provided inline)
 - `git rebase --skip` (no editor involved)
+
+Ordinary commits are outside this skill. Load `git-commit` after an explicit commit request and use its gateway.
 
 ## Splitting a branch by changed files
 
