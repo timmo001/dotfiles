@@ -5,26 +5,18 @@ description: Apply all Home Assistant frontend skills in current git scope
 
 # Apply Home Assistant Frontend Skills
 
-Load and apply all Home Assistant frontend skills before editing.
+Load and apply all Home Assistant frontend skills before editing. Repository-local skills own Home Assistant implementation conventions; global skills add cross-project engineering overlays.
 
 Apply skill groups by pattern so new skills are picked up automatically:
 
 - Apply `home-assistant-frontend` as the base skill.
+- Apply all repo-local `ha-frontend-*` skills.
 - Apply all `home-assistant-*` skills.
 - Apply all `lit-*` skills.
 - Apply all `*-ts` skills.
-- Apply cleanup skills for unnecessary variables and single-use helpers.
+- Apply all `cleanup-*` and `remove-single-use-*` skills.
 
-Current baseline examples:
-
-- `home-assistant-frontend`
-- `home-assistant-lazy-context`
-- `home-assistant-list-components`
-- `lit-rendering`
-- `home-assistant-lit-rendering`
-- `types-enforce-ts`
-- `cleanup-unnecessary-variables`
-- `remove-single-use-functions`
+Treat the repo-local `ha-frontend-*` skills as authoritative when guidance overlaps. For rendering or picker work, apply both `lit-rendering` and `home-assistant-lit-rendering`.
 
 ## Build Scope
 
@@ -34,14 +26,11 @@ Work only from files in the injected `<work-scope>`. Use `${ARGUMENTS}` only to 
 
 ## References
 
-Use the loaded skills' repository references and review rules before introducing new local patterns.
+Use the repository-local skills' references and review rules before introducing new patterns. Use global companion skills only as overlays where they do not conflict.
 
 ## Verification
 
-- Run `yarn lint:types` when typing or context usage changes.
-- Run targeted ESLint for touched files.
-- Run targeted tests when behavior changes.
-- Never run `yarn lint:types` with file arguments.
+Use `ha-frontend-testing` to choose and run validation for the scoped changes.
 
 ## Final Report
 
