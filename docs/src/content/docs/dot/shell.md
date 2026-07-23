@@ -23,6 +23,8 @@ Zsh also has a live generated completion:
 
 The live `_mise` file is intentionally not version-controlled; it tracks the installed `mise` binary on each machine.
 
+`watchexec` is managed through mise, so `mise watch <task>` can rerun short feedback tasks such as tests and type checks when files change. Keep persistent development servers under the project's documented server workflow or Pitchfork instead.
+
 ## Editing keys
 
 fzf's native zsh integration provides fuzzy history search with `Ctrl+R`, file and directory insertion with `Ctrl+T`, directory changes with `Alt+C`, and fuzzy tab completion.
