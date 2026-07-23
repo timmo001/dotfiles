@@ -89,7 +89,7 @@ Work-scope-only commands (for example scoped refactor helpers) call `context git
 
 ### Commit context (`<commit-context>`)
 
-`/commit` and `/commit-push` receive a narrower block from the `commit-context` plugin. It combines the current Context CLI snapshot with OpenCode's persisted session patch parts, lists candidate and excluded paths separately, and includes the staged and unstaged diff evidence used for grouping and subject selection.
+`/commit` and `/commit-push` receive a narrower block from the `commit-context` plugin. It combines the current Context CLI snapshot with OpenCode's persisted session patch parts, lists candidate and excluded paths separately, and includes a compact diff stat plus five recent subjects. It omits full patches, duplicate touched-path lists, and repeated worktree-state lists.
 
 An existing staged set takes precedence. Without one, only current dirty paths touched by the active session tree become candidates. This is path-level evidence rather than hunk ownership, so mixed files still require clarification. Missing, stale, malformed, truncated, cross-repository, or unattributed evidence marks the block partial and requires a Context MCP refresh or a stop.
 

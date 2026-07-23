@@ -96,7 +96,7 @@ export const CommitContextPlugin = (async ({ $, client, directory }) => {
           .map(async ([root, files]) => {
             const [contextResult, diffResult] = await Promise.allSettled([
               $`context git --json --no-pr`.cwd(root).text(),
-              $`context git --diff --no-pr`.cwd(root).text(),
+              $`git diff HEAD --stat --no-ext-diff`.cwd(root).text(),
             ]);
             const collectionWarnings = [...rootWarnings];
             let context: unknown = null;
@@ -115,12 +115,12 @@ export const CommitContextPlugin = (async ({ $, client, directory }) => {
                 `Could not collect git context: ${errorMessage(contextResult.reason)}`,
               );
             }
-            const diffEvidence =
+            const diffStat =
               diffResult.status === "fulfilled"
                 ? String(diffResult.value).trim()
                 : (() => {
                     collectionWarnings.push(
-                      `Could not collect diff evidence: ${errorMessage(diffResult.reason)}`,
+                      `Could not collect diff stat: ${errorMessage(diffResult.reason)}`,
                     );
                     return "";
                   })();
@@ -128,7 +128,7 @@ export const CommitContextPlugin = (async ({ $, client, directory }) => {
               context,
               sessions: session.sessions,
               touchedFiles: files,
-              diffEvidence,
+              diffStat,
               collectionWarnings,
             };
           }),

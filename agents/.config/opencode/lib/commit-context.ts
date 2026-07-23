@@ -12,7 +12,6 @@ interface ParsedStatus {
 interface CommitScope {
   readonly candidates: readonly string[];
   readonly excluded: readonly string[];
-  readonly touched: readonly string[];
   readonly outsideRepository: readonly string[];
   readonly status: "complete" | "partial";
   readonly warnings: readonly string[];
@@ -22,7 +21,7 @@ export interface CommitContextInput {
   readonly context: unknown;
   readonly sessions: readonly SessionMessages[];
   readonly touchedFiles?: readonly string[];
-  readonly diffEvidence?: string;
+  readonly diffStat?: string;
   readonly collectionWarnings?: readonly string[];
 }
 
@@ -175,7 +174,7 @@ const stringField = (record: JsonRecord, field: string): string => {
 const uniqueSorted = (values: Iterable<string>): readonly string[] =>
   [...new Set(values)].sort((left, right) => left.localeCompare(right));
 
-const DIFF_EVIDENCE_LIMIT = 20_000;
+const DIFF_STAT_LIMIT = 2_000;
 
 const parseNameStatus = (
   value: unknown,
@@ -385,7 +384,6 @@ const deriveScope = (
   return {
     candidates,
     excluded,
-    touched: touched.inside,
     outsideRepository: touched.outside,
     status: warnings.length ? "partial" : "complete",
     warnings: uniqueSorted(warnings),
@@ -411,21 +409,28 @@ const limited = (value: string, max = 20_000): string =>
     ? value
     : `${value.slice(0, max)}\n[TRUNCATED ${value.length - max} CHARS]`;
 
+const recentSubjects = (value: string): string =>
+  value
+    .split("\n")
+    .filter(Boolean)
+    .slice(0, 5)
+    .join("\n") || "(none)";
+
 export function renderCommitContext({
   context: contextResponse,
   sessions,
   touchedFiles,
-  diffEvidence,
+  diffStat,
   collectionWarnings = [],
 }: CommitContextInput): string {
   const contextValue = dataOrValue(contextResponse);
   const context = isRecord(contextValue) ? contextValue : {};
   const status = parseStatus(context);
-  const diffWasTruncated = (diffEvidence?.length ?? 0) > DIFF_EVIDENCE_LIMIT;
+  const diffWasTruncated = (diffStat?.length ?? 0) > DIFF_STAT_LIMIT;
   const scope = deriveScope(context, status, sessions, touchedFiles, [
     ...collectionWarnings,
     ...(diffWasTruncated
-      ? ["Diff evidence exceeded the prompt limit and was truncated."]
+      ? ["Diff stat exceeded the prompt limit and was truncated."]
       : []),
     ...(isRecord(contextValue) ? [] : ["Git context payload is unavailable."]),
   ]);
@@ -443,7 +448,7 @@ export function renderCommitContext({
       "context-metadata",
       "How this commit scope was assembled.",
       [
-        "Produced from `context git --json --no-pr`, `context git --diff --no-pr`, and persisted OpenCode patch parts.",
+        "Produced from `context git --json --no-pr`, a compact Git diff stat, and persisted OpenCode patch parts.",
         `Repository root: ${escapeXml(stringField(metadata, "repositoryRoot") || "(unavailable)")}`,
         `Current branch: ${escapeXml(stringField(metadata, "currentBranch") || "(unavailable)")}`,
       ].join("\n"),
@@ -470,37 +475,19 @@ export function renderCommitContext({
       list(scope.excluded),
     ),
     block(
-      "session-touched-paths",
-      "Path-level session evidence only; it does not prove ownership of every hunk in a mixed file.",
-      list(scope.touched),
-    ),
-    block(
-      "worktree-state",
-      "Current staged, unstaged, and untracked paths from the context producer.",
-      [
-        "Staged:",
-        list(status.staged),
-        "",
-        "Unstaged:",
-        list(status.unstaged),
-        "",
-        "Untracked:",
-        list(status.untracked),
-      ].join("\n"),
-    ),
-    block(
-      "diff-evidence",
-      "Current content evidence for grouping and subject selection.",
-      escapeXml(limited(diffEvidence || "(unavailable)", DIFF_EVIDENCE_LIMIT)),
+      "diff-stat",
+      "Compact change summary for grouping and subject selection.",
+      escapeXml(limited(diffStat || "(unavailable)", DIFF_STAT_LIMIT)),
     ),
     block(
       "recent-commits",
       "Recent subjects for repository-local style context.",
       escapeXml(
         limited(
-          stringField(workScope, "branchCommits") ||
-            stringField(context, "commits") ||
-            "(none)",
+          recentSubjects(
+            stringField(workScope, "branchCommits") ||
+              stringField(context, "commits"),
+          ),
         ),
       ),
     ),

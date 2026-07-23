@@ -17,7 +17,8 @@ missing and never force-pushes.
 
 Use `${ARGUMENTS}` as grouping or subject guidance when provided (still subject
 to the gateway guards). Use the injected `<commit-context>` as the scope and
-diff evidence. When it is complete and unambiguous, proceed without another
+compact change summary. When it is complete and unambiguous, proceed without
+another
 context read or staging announcement. Refresh with Context MCP `git_context`
 only when the block is absent, stale, partial, or does not cover an explicitly
 requested repository. Never broaden scope to the excluded dirty paths. Use

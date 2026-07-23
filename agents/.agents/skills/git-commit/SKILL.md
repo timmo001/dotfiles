@@ -27,8 +27,8 @@ staging, and message authoring around it.
 ## 2. Read the working tree
 
 - For `/commit` and `/commit-push`, use the injected `<commit-context>` first.
-  It combines current branch, staged, unstaged, untracked, diff, and recent
-  subject evidence with paths touched by the current OpenCode session tree.
+  It combines branch metadata, candidate and excluded paths, a compact diff
+  stat, and recent subject evidence with paths touched by the session tree.
 - A complete, unambiguous block is sufficient. Do not repeat the context read
   or announce a staging plan before executing the scoped gateway commands.
 - When the block contains several `<repository-scope>` sections, treat each as

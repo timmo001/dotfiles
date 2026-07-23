@@ -116,7 +116,7 @@ describe("commit scope", () => {
         untracked: "?\tnew.txt",
       }),
       sessions: messages("src/other.ts"),
-      diffEvidence: "Unstaged:\n(none)",
+      diffStat: "src/staged.ts | 2 +-",
     });
 
     expect(section(rendered, "candidate-paths")).toContain("src/staged.ts");
@@ -124,6 +124,22 @@ describe("commit scope", () => {
     expect(section(rendered, "excluded-paths")).toContain("src/other.ts");
     expect(section(rendered, "excluded-paths")).toContain("new.txt");
     expect(section(rendered, "scope-status")).toContain("Status: complete");
+    expect(section(rendered, "diff-stat")).toContain("src/staged.ts");
+    expect(rendered).not.toContain("<diff-evidence>");
+  });
+
+  test("limits recent commit style evidence to five lines", () => {
+    const rendered = renderCommitContext({
+      context: {
+        ...context(),
+        commits: "one\ntwo\nthree\nfour\nfive\nsix",
+      },
+      sessions: [],
+      diffStat: "(none)",
+    });
+
+    expect(section(rendered, "recent-commits")).toContain("five");
+    expect(section(rendered, "recent-commits")).not.toContain("six");
   });
 
   test("selects only current dirty paths touched by the session tree", () => {
@@ -136,7 +152,7 @@ describe("commit scope", () => {
         ...messages("src/owned.ts", "src/reverted.ts"),
         ...messages(`${repositoryRoot}/src/new.ts`, "src/owned.ts"),
       ],
-      diffEvidence: "Unstaged:\nM src/owned.ts",
+      diffStat: "src/owned.ts | 2 +-",
     });
 
     expect(section(rendered, "candidate-paths")).toContain("src/owned.ts");
@@ -145,16 +161,15 @@ describe("commit scope", () => {
       "src/reverted.ts",
     );
     expect(section(rendered, "excluded-paths")).toContain("src/unrelated.ts");
-    expect(section(rendered, "session-touched-paths")).toContain(
-      "src/reverted.ts",
-    );
+    expect(rendered).not.toContain("<session-touched-paths>");
+    expect(rendered).not.toContain("<worktree-state>");
   });
 
   test("uses the destination path for renamed status rows", () => {
     const rendered = renderCommitContext({
       context: context({ staged: "R100\told.ts\tnew.ts\nD\tdeleted.ts" }),
       sessions: [],
-      diffEvidence: "Staged:\nR old.ts -> new.ts",
+      diffStat: "new.ts | 2 +-",
     });
 
     expect(section(rendered, "candidate-paths")).toContain("new.ts");
@@ -166,7 +181,7 @@ describe("commit scope", () => {
     const rendered = renderCommitContext({
       context: context({ staged: "M\tline\\nbreak.ts" }),
       sessions: [],
-      diffEvidence: "Staged:\nM line\\nbreak.ts",
+      diffStat: "line\\nbreak.ts | 2 +-",
     });
 
     expect(section(rendered, "scope-status")).toContain("Status: partial");
@@ -179,7 +194,7 @@ describe("commit scope", () => {
     const rendered = renderCommitContext({
       context: context({ unstaged: "M\tunrelated.ts" }),
       sessions: [],
-      diffEvidence: "Unstaged:\nM unrelated.ts",
+      diffStat: "unrelated.ts | 2 +-",
     });
 
     expect(section(rendered, "candidate-paths")).toContain("(none)");
@@ -198,7 +213,7 @@ describe("multiple repository scopes", () => {
         context: context({ unstaged: "M\tpublic.ts" }),
         sessions: [],
         touchedFiles: [`${repositoryRoot}/public.ts`],
-        diffEvidence: "Unstaged:\nM public.ts",
+        diffStat: "public.ts | 2 +-",
       },
       {
         context: {
@@ -210,7 +225,7 @@ describe("multiple repository scopes", () => {
         },
         sessions: [],
         touchedFiles: ["/tmp/private/private.ts"],
-        diffEvidence: "Unstaged:\nM private.ts",
+        diffStat: "private.ts | 2 +-",
       },
     ]);
 
@@ -243,7 +258,7 @@ describe("commit context failures", () => {
         truncations: [{ path: "status.unstaged", retained: 1, original: 2 }],
       }),
       sessions: [],
-      diffEvidence: "Unstaged:\nmalformed",
+      diffStat: "malformed | 1 +",
     });
 
     expect(section(rendered, "scope-status")).toContain("Status: partial");
@@ -257,7 +272,7 @@ describe("commit context failures", () => {
     const rendered = renderCommitContext({
       context: context({ unstaged: "M\tinside.ts" }),
       sessions: messages("/tmp/another/outside.ts"),
-      diffEvidence: "Unstaged:\nM inside.ts",
+      diffStat: "inside.ts | 2 +-",
     });
 
     expect(section(rendered, "outside-repository-paths")).toContain(
@@ -280,13 +295,13 @@ describe("commit context failures", () => {
     );
   });
 
-  test("escapes XML and bounds diff evidence", () => {
+  test("escapes XML and bounds diff stat", () => {
     const rendered = renderCommitContext({
       context: context({
         staged: "M\ta&b.ts",
       }),
       sessions: [],
-      diffEvidence: `<script>${"x".repeat(20_100)}</script>`,
+      diffStat: `<script>${"x".repeat(2_100)}</script>`,
     });
 
     expect(rendered).toContain("a&amp;b.ts");
@@ -309,7 +324,7 @@ describe("commit context failures", () => {
         status: { staged: 1 },
       },
       sessions: [],
-      diffEvidence: "",
+      diffStat: "",
     });
 
     expect(section(rendered, "scope-status")).toContain("Status: partial");
@@ -342,7 +357,7 @@ describe("commit context failures", () => {
           messages: messages("src/shared.ts")[0].messages,
         },
       ],
-      diffEvidence: "Unstaged:\nM src/shared.ts",
+      diffStat: "src/shared.ts | 2 +-",
     });
 
     expect(section(rendered, "candidate-paths")).toContain("(none)");
