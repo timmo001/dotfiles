@@ -60,6 +60,7 @@ This ensures:
 - Redact any sensitive information, such as API keys, passwords, or personally identifiable information.
 - If the user passed arguments, treat them as a description of what the next session will focus on and tailor the doc accordingly.
 - If the conversation was trivial or too short to be worth a handoff, say so and ask the user if they still want to save it.
+- Always include the completion cleanup section. The agent completing the tracked work must make deletion of this handoff its final step, after validation and explicit user confirmation.
 
 ## Note format
 
@@ -95,6 +96,10 @@ tags: [handoff, {2–4 additional kebab-case tags from the conversation}]
 ## Open Threads
 
 {Bullet list of unresolved items, or "(none)" if empty}
+
+## Completion Cleanup
+
+After all work and validation described by this handoff are complete, ask the user to confirm deletion, then remove this handoff with `notes_note_delete`. Do not leave the completed handoff as stale coordination state.
 ```
 
 ## Confirm

@@ -64,6 +64,8 @@ After loading the note and skills, present the immediate next step only:
 - If the note is a handoff, suggest the single next action needed to resume from the handoff.
 - If multiple notes imply different follow-ups, list the next step for each note briefly.
 
+When a loaded note is a handoff or plan and the user proceeds with implementation, treat that note as active coordination state. The final implementation step after all tracked work and validation are complete is to ask the user to confirm deletion and then remove it with `notes_note_delete`. If tracked work remains deferred, blocked, or unresolved, update or preserve the note instead of deleting it.
+
 Confirm to the user:
 
 ```text
