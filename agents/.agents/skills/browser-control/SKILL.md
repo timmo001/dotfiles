@@ -2,7 +2,7 @@
 name: browser-control
 description: Control the user's existing Chromium-family browser through the Browser Control extension and local relay. Use when asked to automate, test, inspect, or drive the visible browser with Browser Control, especially in this repo or once the extension is installed.
 # origin: https://github.com/anomalyco/browser-control/tree/main/skills/browser-control
-# upstream-sha: abfcabb4bfa0b1d427998d8903f778fb1c05d2c8
+# upstream-sha: 05b068dec4cacdf91980d5123de366019ff92f8a
 ---
 
 # Browser Control
@@ -360,7 +360,8 @@ Common diagnoses:
   can health-check the page. It may recreate a relay-owned page, but it never
   replaces an unhealthy adopted user tab; reset or re-adopt that tab.
 - Fill timeout on login fields: inspect first, then try `fillInput` after
-  confirming the selector or locator resolves.
+  confirming the selector or locator resolves. String selectors search open
+  shadow roots recursively; closed shadow roots remain unavailable.
 - Download wait fails: use fetch plus `fs`; extension-backed Playwright cannot
   retain a native download artifact.
 
