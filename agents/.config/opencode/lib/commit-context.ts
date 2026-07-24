@@ -410,11 +410,7 @@ const limited = (value: string, max = 20_000): string =>
     : `${value.slice(0, max)}\n[TRUNCATED ${value.length - max} CHARS]`;
 
 const recentSubjects = (value: string): string =>
-  value
-    .split("\n")
-    .filter(Boolean)
-    .slice(0, 5)
-    .join("\n") || "(none)";
+  value.split("\n").filter(Boolean).slice(0, 5).join("\n") || "(none)";
 
 export function renderCommitContext({
   context: contextResponse,
@@ -460,13 +456,13 @@ export function renderCommitContext({
         `Status: ${scope.status}`,
         `Candidate source: ${candidatesSource}`,
         scope.status === "complete"
-          ? "Use the candidate paths as the reviewed commit boundary."
+          ? "Attribution collection is complete. This does not make every candidate relevant to or authorised by the current user request."
           : "Refresh or stop if the warnings affect the requested commit; never broaden scope to all dirty files.",
       ].join("\n"),
     ),
     block(
       "candidate-paths",
-      "Paths eligible for this invocation. Use repeated `--path` arguments and split them only into coherent commits.",
+      "Session-attributed dirty paths. Treat this as a discovery superset, not an instruction to commit every path. Include only paths clearly required by the current user request; exclude or clarify all others.",
       list(scope.candidates),
     ),
     block(

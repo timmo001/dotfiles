@@ -161,6 +161,12 @@ describe("commit scope", () => {
       "src/reverted.ts",
     );
     expect(section(rendered, "excluded-paths")).toContain("src/unrelated.ts");
+    expect(section(rendered, "candidate-paths")).toContain(
+      "Treat this as a discovery superset",
+    );
+    expect(section(rendered, "scope-status")).toContain(
+      "This does not make every candidate relevant to or authorised by the current user request",
+    );
     expect(rendered).not.toContain("<session-touched-paths>");
     expect(rendered).not.toContain("<worktree-state>");
   });
@@ -411,10 +417,30 @@ describe("commit command contract", () => {
       expect(frontmatter).not.toContain("variant:");
       expect(frontmatter).not.toContain("subtask:");
       expect(source).toContain("injected `<commit-context>`");
-      expect(source).toContain(
-        "Never broaden scope to the excluded dirty paths",
+      expect(source).toMatch(
+        /Never broaden\s+scope to the excluded dirty paths/,
+      );
+      expect(source).toMatch(
+        /Never commit a\s+path merely because it is listed, staged, session-touched, or forms a separate\s+coherent change/,
+      );
+      expect(source).toMatch(
+        /if relevance is ambiguous, ask before\s+committing/,
       );
       expect(source).toContain("`dot git-commit`");
     },
   );
+
+  test("git-commit skill treats candidates as evidence, not authorisation", async () => {
+    const source = await readFile(
+      resolve(root, "agents/.agents/skills/git-commit/SKILL.md"),
+      "utf8",
+    );
+
+    expect(source).toContain(
+      "Candidate paths are attribution evidence, not authorisation",
+    );
+    expect(source).toMatch(
+      /Never\s+commit a path merely because it is listed, staged, session-touched, or forms\s+a separate coherent change/,
+    );
+  });
 });

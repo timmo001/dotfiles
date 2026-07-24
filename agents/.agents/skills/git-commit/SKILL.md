@@ -29,8 +29,9 @@ staging, and message authoring around it.
 - For `/commit` and `/commit-push`, use the injected `<commit-context>` first.
   It combines branch metadata, candidate and excluded paths, a compact diff
   stat, and recent subject evidence with paths touched by the session tree.
-- A complete, unambiguous block is sufficient. Do not repeat the context read
-  or announce a staging plan before executing the scoped gateway commands.
+- Candidate paths are attribution evidence, not authorisation. The active user
+  request and conversation determine which candidates belong to the changeset.
+  A complete block means only that attribution collection succeeded.
 - When the block contains several `<repository-scope>` sections, treat each as
   an independent changeset. Run its `dot git-commit` commands from the listed
   repository root, and push that repository only once on its final commit.
@@ -48,13 +49,13 @@ staging, and message authoring around it.
   cleaner, non-conflicting history, which is the preferred tradeoff.
 - Make a single commit only when the user explicitly requests one or the
   reviewed changeset contains only one coherent change.
-- If the user already staged files, commit that set. If you also made unrelated
-  edits this session, ask before adding them rather than bundling silently.
-- If nothing is staged, show the changed files and confirm which to include
-  before staging unless a complete injected `<commit-context>` already supplies
-  an unambiguous candidate scope. Only stage files attributed to this session;
-  never sweep pre-existing, excluded, or unrelated changes. Never use `git add
-  -A`.
+- A staged set still requires relevance to the current request. Do not commit
+  unrelated staged paths; ask before disturbing or partially committing a set
+  the user staged.
+- Filter candidate paths against the current request before staging. Never
+  commit a path merely because it is listed, staged, session-touched, or forms
+  a separate coherent change. Exclude unrelated paths; ask when relevance is
+  ambiguous. Never use `git add -A`.
 - Session attribution is path-level, not hunk-level. If a candidate file may
   contain pre-existing or concurrent hunks, ask rather than treating the whole
   file as owned by this session.

@@ -24,7 +24,7 @@ Agents use this command through the `git-commit` skill. Raw `git commit` is bloc
 
 The `commit-context` plugin injects a `<commit-context>` block before `/commit` and `/commit-push` run. The commands stay in the parent session, so they retain the reviewed conversation without injecting full patches.
 
-When files are already staged, that staged set is the candidate scope. Otherwise, candidates are current dirty paths that OpenCode recorded as touched by the session tree. Other dirty paths are listed separately and must not be staged or committed without clarification. Session attribution is path-level, not hunk-level: a file can still contain pre-existing or concurrent edits that require a question.
+When files are already staged, that staged set supplies the attribution candidates. Otherwise, candidates are current dirty paths that OpenCode recorded as touched by the session tree. Candidate paths are a discovery superset, not authorisation to commit them all. The agent filters every path against the active user request and excludes or clarifies unrelated work, even when it is staged or belongs to a separate coherent change. Session attribution is path-level, not hunk-level: a file can still contain pre-existing or concurrent edits that require a question.
 
 The agent refreshes through the Context MCP server's `git_context` tool or stops when attribution is incomplete. It never broadens the scope to every dirty file. See [Context Integration](/git/context/#commit-context-commit-context) for the evidence sources, multi-repository scopes, and fallback rules.
 
