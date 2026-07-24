@@ -22,13 +22,11 @@ Agents use this command through the `git-commit` skill. Raw `git commit` is bloc
 
 ## Agent workflow
 
-The `commit-context` plugin injects a `<commit-context>` block before `/commit` and `/commit-push` run. It combines structured state from `context git --json --no-pr`, a compact Git diff stat, and persisted OpenCode patch parts from the current session and its child sessions. The commands stay in the parent session, so they retain the reviewed conversation without injecting full patches.
+The `commit-context` plugin injects a `<commit-context>` block before `/commit` and `/commit-push` run. The commands stay in the parent session, so they retain the reviewed conversation without injecting full patches.
 
 When files are already staged, that staged set is the candidate scope. Otherwise, candidates are current dirty paths that OpenCode recorded as touched by the session tree. Other dirty paths are listed separately and must not be staged or committed without clarification. Session attribution is path-level, not hunk-level: a file can still contain pre-existing or concurrent edits that require a question.
 
-The block is marked partial when collection fails, output is truncated or malformed, no dirty path can be attributed, or session changes cross repository roots. In those cases the agent refreshes through the Context MCP server's `git_context` tool or stops. It never broadens the scope to every dirty file. See [Context Integration](/git/context/) for the injected sections and refresh rules.
-
-Successful file mutation tool calls retain absolute targets. The plugin resolves those targets to Git roots and emits one `<repository-scope>` per touched repository, each with its own status, diff, candidate paths, and exclusions. Multi-repository work therefore stays deterministic without asking the model to infer another checkout from conversation text.
+The agent refreshes through the Context MCP server's `git_context` tool or stops when attribution is incomplete. It never broadens the scope to every dirty file. See [Context Integration](/git/context/#commit-context-commit-context) for the evidence sources, multi-repository scopes, and fallback rules.
 
 Staging and commit still go through `dot git-commit` only after the user explicitly requests a commit or push.
 

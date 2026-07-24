@@ -89,11 +89,11 @@ Work-scope-only commands (for example scoped refactor helpers) call `context git
 
 ### Commit context (`<commit-context>`)
 
-`/commit` and `/commit-push` receive a narrower block from the `commit-context` plugin. It combines the current Context CLI snapshot with OpenCode's persisted session patch parts, lists candidate and excluded paths separately, and includes a compact diff stat plus five recent subjects. It omits full patches, duplicate touched-path lists, and repeated worktree-state lists.
+`/commit` and `/commit-push` receive a narrower block from the `commit-context` plugin. It combines the current Context CLI snapshot with successful `edit`, `write`, and `apply_patch` tool inputs plus OpenCode's persisted session patch parts. Failed mutation calls are ignored. The block lists candidate and excluded paths separately, includes a compact diff stat plus five recent subjects, and omits full patches and repeated path or worktree lists.
 
-An existing staged set takes precedence. Without one, only current dirty paths touched by the active session tree become candidates. This is path-level evidence rather than hunk ownership, so mixed files still require clarification. Missing, stale, malformed, truncated, cross-repository, or unattributed evidence marks the block partial and requires a Context MCP refresh or a stop.
+An existing staged set takes precedence. Without one, only current dirty paths touched by the active session tree become candidates. This is path-level evidence rather than hunk ownership, so mixed files still require clarification. Missing, stale, malformed, truncated, or unattributed evidence marks the block partial and requires a Context MCP refresh or a stop.
 
-When successful mutation tool calls identify files under several Git roots, the outer block contains one `<repository-scope>` per repository. Each scope is collected independently and names the root where its gateway commands must run.
+When successful mutation tool calls identify files under several Git roots, the outer block contains one independently collected `<repository-scope>` per repository. Each scope names the root where its gateway commands must run. Unresolved roots and legacy patch evidence outside the current repository remain partial and require a refresh or stop.
 
 ### Stack context (`<stack-context>`)
 
