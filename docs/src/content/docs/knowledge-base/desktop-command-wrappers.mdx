@@ -95,6 +95,16 @@ It compares matching client addresses before and after launch. Only a newly dete
 
 This helper is used by the work browser launchers documented in [Work Browser Launchers](/knowledge-base/work-browser-launchers/).
 
+## Toggle HDR on the right monitor
+
+`toggle-right-monitor-hdr` temporarily enables 10-bit HDR with the full BT.2020 colour gamut on `HDMI-A-2`:
+
+```bash
+toggle-right-monitor-hdr
+```
+
+Run it again while HDR is active to reload Hyprland's original monitor configuration. The HDR rule is applied at runtime and is not written to `monitors.conf`.
+
 ## Troubleshooting
 
 If `run-in-terminal --exit` closes too quickly, use `--wait` while debugging.
