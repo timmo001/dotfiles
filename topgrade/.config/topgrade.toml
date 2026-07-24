@@ -42,7 +42,7 @@ show_arch_news = true
 
 
 [mise]
-bump = true
+bump = false
 
 
 [firmware]
