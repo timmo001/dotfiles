@@ -35,7 +35,7 @@ The `system-bridge` server runs the `system-bridge-mcp` binary from the `system-
 
 The `context` server runs `context mcp` from the `context-git` AUR package (also in `.dot-public-packages`). Repository context tools and schemas live entirely in the standalone [`context`](https://context.timmo.dev) project. See [Context Integration](/git/context/) for how OpenCode plugins consume its JSON output.
 
-The `notes` server runs `notes mcp` from the `repo-notes-git` package (also in `.dot-public-packages`). Repository note commands use it for vault reads, writes, and deletes; the `repo-notes` OpenCode plugin supplies the current repository's note context.
+The `notes` server runs `notes mcp` from the `repo-notes-git` package (also in `.dot-public-packages`). Repository note commands use it for vault reads, writes, and deletes; the `repo-notes` OpenCode plugin supplies the current repository's note context. New note content omits `date`, which `note_write` inserts or refreshes. Updates read the note first and pass its SHA-256 revision as `expectedHash`; a mismatch means the note changed concurrently and must be reread before reconciling the update. Deletion requires explicit confirmation and remains permission-gated.
 
 :::note[Credentials]
 `context7` and `github` need credentials, supplied through the environment and referenced from `opencode.json` with `{env:...}` so no secret ever lands in the config file. The GitHub server reads `DOT_GH_MCP_BEARER`; the `opencode`/`cursor` shell wrappers and `opencode-server` obtain it from `gh auth token` only for the launched harness process, rather than exporting it to every shell child. `dot doctor` warns when `gh` is missing or has no token.
