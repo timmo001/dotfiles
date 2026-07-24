@@ -18,6 +18,15 @@ sidebar:
 
 Ghostty config is a stowed dotfiles package (`ghostty/.config/ghostty/`), not a tracked Omarchy repo. The stowed `ghostty-host-config` launcher checks `OMARCHY_HOST` and loads `~/.config/ghostty/config.$OMARCHY_HOST` when present, falling back to the default `~/.config/ghostty/config` otherwise.
 
+The shared config uses 8px window padding. The laptop override keeps that padding and reduces the font size from 10 to 9.
+
+| Binding | Action |
+| --- | --- |
+| `CTRL+ALT+G` | Type and run `lazygit` |
+| `CTRL+ALT+SHIFT+G` | Type and run `dot git-diff` |
+| `CTRL+ALT+TAB` | Send tmux's next-window sequence |
+| `CTRL+ALT+SHIFT+TAB` | Send tmux's previous-window sequence |
+
 `dot install`, `dot init`, and `dot stow` back up the retired `timmo001/omarchy-ghostty` clone at `~/.config/ghostty` before linking the stowed config.
 
 ## Hyprland host overrides
