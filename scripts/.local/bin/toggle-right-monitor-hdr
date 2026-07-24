@@ -18,6 +18,6 @@ if jq -e --arg monitor "$monitor" '.[] | select(.name == $monitor and .colorMana
   hyprctl reload
   notify-send "HDR disabled" "Restored the configured monitor settings for $monitor."
 else
-  hyprctl keyword monitor "$monitor,3840x2160@240.00Hz,0x504,1.6,bitdepth,10,cm,hdr,supports_wide_color,1,supports_hdr,1"
+  hyprctl keyword monitor "$monitor,3840x2160@240.00Hz,0x504,1.6,bitdepth,10,cm,hdr"
   notify-send "HDR enabled" "$monitor is using 10-bit HDR with the full BT.2020 colour gamut."
 fi
