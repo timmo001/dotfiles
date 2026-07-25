@@ -5,13 +5,7 @@ on:
   push:
     branches:
       - distro/arch-omarchy
-    paths:
-      - 'mise/.config/mise/config.toml'
-      - '.github/workflows/mise-toolchain.yml'
   pull_request:
-    paths:
-      - 'mise/.config/mise/config.toml'
-      - '.github/workflows/mise-toolchain.yml'
   workflow_dispatch: {}
 
 permissions:
