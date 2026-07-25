@@ -19,33 +19,33 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup mise
-        uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
+        uses: jdx/mise-action@f10502fc09dadecfefb962fff68ce77213930204 # v4.2.2
 
       - name: Run regression tests
         run: mise run tests:integration
 
   validate-skills:
-    uses: timmo001/workflows/.github/workflows/lint-agent-skills.yml@635f5727c8686b952f53d2fbe1d2e80d2480c831 # master
+    uses: timmo001/workflows/.github/workflows/lint-agent-skills.yml@721f4b1e2ed4957afb95ac49968d361e18554497 # master
     with:
       skill-roots: agents/.agents/skills .opencode/skills
 
   actionlint:
-    uses: timmo001/workflows/.github/workflows/lint-actionlint.yml@635f5727c8686b952f53d2fbe1d2e80d2480c831 # master
+    uses: timmo001/workflows/.github/workflows/lint-actionlint.yml@721f4b1e2ed4957afb95ac49968d361e18554497 # master
 
   markdownlint:
-    uses: timmo001/workflows/.github/workflows/lint-markdownlint.yml@635f5727c8686b952f53d2fbe1d2e80d2480c831 # master
+    uses: timmo001/workflows/.github/workflows/lint-markdownlint.yml@721f4b1e2ed4957afb95ac49968d361e18554497 # master
 
   yamllint:
-    uses: timmo001/workflows/.github/workflows/lint-yamllint.yml@635f5727c8686b952f53d2fbe1d2e80d2480c831 # master
+    uses: timmo001/workflows/.github/workflows/lint-yamllint.yml@721f4b1e2ed4957afb95ac49968d361e18554497 # master
 
   jsonlint:
-    uses: timmo001/workflows/.github/workflows/lint-jsonlint.yml@635f5727c8686b952f53d2fbe1d2e80d2480c831 # master
+    uses: timmo001/workflows/.github/workflows/lint-jsonlint.yml@721f4b1e2ed4957afb95ac49968d361e18554497 # master
 
   markdown-links:
-    uses: timmo001/workflows/.github/workflows/lint-markdown-links.yml@635f5727c8686b952f53d2fbe1d2e80d2480c831 # master
+    uses: timmo001/workflows/.github/workflows/lint-markdown-links.yml@721f4b1e2ed4957afb95ac49968d361e18554497 # master
 
   shellcheck:
-    uses: timmo001/workflows/.github/workflows/lint-shellcheck.yml@635f5727c8686b952f53d2fbe1d2e80d2480c831 # master
+    uses: timmo001/workflows/.github/workflows/lint-shellcheck.yml@721f4b1e2ed4957afb95ac49968d361e18554497 # master
     with:
       scandir: ./scripts/.local/bin
       severity: warning
