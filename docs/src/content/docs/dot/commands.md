@@ -180,22 +180,30 @@ always written to ~/.local/state/dot/logs/.
 ```text
 Dependencies         Required/optional CLI tools (git, stow, gh, gum, ...)
 gh extensions        Configured gh CLI extensions are installed
+Locale               Required locales from shell config are generated
+Zsh key bindings     Delete/forward-delete bindings and other expected defaults
 Repositories         Public/private dotfiles + private git repos exist and have upstreams
 Origin HEAD          Local origin/HEAD tracks the remote default branch (not stale)
 Stow integrity       Dry-run restow to detect drift
 OpenCode location    Canonical paths, legacy remnants
+OpenCode server      Shared Hypr autostart and ~/.config/opencode/.env password
+Herdr integration    Herdr binary and OpenCode integration installed
+GitHub MCP auth      gh token available for DOT_GH_MCP_BEARER
 Git config           Managed include is active
 Workflow runs        Repo list, status bar config, legacy watcher cleanup
 Git notifications    API scope and status bar notification module wiring
 Doctor startup       Startup notification timer
+uwsm session PATH    ~/.local/bin on the uwsm/systemd user-environment PATH
 Daily volume reset   Laptop-only optional timer
 Omarchy repos        Diff repos + worktree branch correctness
 Legacy Hypr repo     Flags a retired omarchy-hypr clone at ~/.config/hypr
 Neovim theme link    Repairs a mislocated omarchy-nvim theme.lua symlink
+Private access       Private dotfiles overlay enabled or explains why it is disabled
 Browser flags        Symlinks from private stow package
 Hardware video       VAAPI render nodes, drivers, packages
 Browser extensions   Private extension check list
 Public packages      AUR packages installed + version check
+Private package repo Private pacman repo registered
 Private packages     Private repo + packages installed
 Pacman hooks         Hook files installed and up to date
 Firewall rules       Managed ufw rules (KDE Connect, Home Assistant, OpenCode, LocalSend, libvirt); repair with dot firewall
