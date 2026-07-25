@@ -2,9 +2,7 @@
 name: opentui
 description: Build terminal UIs with OpenTUI. Covers the core API, native audio, keymaps, React and Solid bindings, components, layout, keyboard input, plugins, and testing.
 # origin: https://github.com/anomalyco/opentui/tree/main/packages/web/src/content
-# upstream-sha: a0b90640761aa89a303c6b5b0d74ef3e6b945652
-# local-edits:
-#   - SKILL.md: added resources section, context7 pointer, core API quick reference for external use
+# upstream-sha: 34e78b2fbf18fd969efdf5f3e2589d17d1f536f1
 ---
 
 # OpenTUI Skill
@@ -12,16 +10,6 @@ description: Build terminal UIs with OpenTUI. Covers the core API, native audio,
 Canonical reference docs are authored once in sibling `docs/**/*.mdx` files.
 
 Inside the OpenTUI repo, this skill root lives at `packages/web/src/content/`, so the same files are also visible at `packages/web/src/content/docs/**/*.mdx`.
-
-## Resources
-
-- **Repository**: <https://github.com/anomalyco/opentui>
-- **Docs**: <https://opentui.com/docs/getting-started>
-- **Examples**: <https://github.com/anomalyco/opentui/tree/main/packages/examples>
-- **Core examples**: <https://github.com/anomalyco/opentui/tree/main/packages/core/src/examples>
-- **Scaffold**: `bun create tui` or `bunx create-tui -t core my-app`
-
-Use context7 to query OpenTUI docs when this skill content is insufficient. Resolve library name "opentui".
 
 ## Path invariant
 
@@ -32,6 +20,7 @@ Use context7 to query OpenTUI docs when this skill content is insufficient. Reso
 
 - Getting started: `/docs/getting-started`
 - Core: `/docs/core-concepts/renderer`
+- Testing: `/docs/core-concepts/testing`
 - Audio: `/docs/core-concepts/audio`
 - Keymap: `/docs/keymap/overview`
 - React: `/docs/bindings/react`
@@ -52,6 +41,7 @@ Use context7 to query OpenTUI docs when this skill content is insufficient. Reso
 | `keymap`, `keybindings`, `shortcuts`, `commands`, `leader` | `docs/keymap/overview.mdx`        |
 | `layout`, `flexbox`, `yoga`, `positioning`                 | `docs/core-concepts/layout.mdx`   |
 | `keyboard`, `input`, `keybindings`, `paste`, `focus`       | `docs/core-concepts/keyboard.mdx` |
+| `testing`, `test-renderer`, `snapshots`, `frames`          | `docs/core-concepts/testing.mdx`  |
 | `react`, `jsx`, `hooks`, `animation`, `testing`            | `docs/bindings/react.mdx`         |
 | `solid`, `signals`, `jsx`, `hooks`, `animation`, `testing` | `docs/bindings/solid.mdx`         |
 | `plugins`, `plugin`, `slots`, `registry`, `extensions`     | `docs/plugins/slots.mdx`          |
@@ -81,61 +71,3 @@ For concrete component requests, jump straight to `docs/components/<name>.mdx` a
 - Prefer the current entry pages first, then read narrower docs in the same section.
 - Read the sibling `docs/**/*.mdx` files directly instead of copying prose into this file.
 - Use stable `/docs/...` URLs when cross-referencing docs.
-
-## Critical rules
-
-1. **Never call `process.exit()` directly.** Use `renderer.destroy()` first for clean terminal restore.
-2. **`create-tui` options must come before arguments.** `bunx create-tui -t core my-app` works; `bunx create-tui my-app -t core` does not.
-3. **Requires Zig** installed for native compilation.
-4. **Requires Bun** as the runtime and bundler.
-
-## Core API quick reference
-
-Packages: `@opentui/core` (imperative), `@opentui/react`, `@opentui/solid`, `@opentui/three`.
-
-### Renderer
-
-```typescript
-import { createCliRenderer } from "@opentui/core"
-
-const renderer = await createCliRenderer({
-  exitOnCtrlC: true,
-  screenMode: "alternate-screen",
-  useMouse: false,
-})
-
-renderer.start()
-renderer.destroy()
-```
-
-### Renderables
-
-`BoxRenderable` (flexbox container), `TextRenderable` (styled text), `SelectRenderable` (scrollable list), `InputRenderable` (text input).
-
-### Text styling
-
-```typescript
-import { t, bold, fg, bg, italic, dim } from "@opentui/core"
-const styled = t`${bold(fg("#58a6ff")("Title"))} ${fg("#8b949e")("subtitle")}`
-```
-
-### Suspend/resume (external process)
-
-```typescript
-renderer.suspend()
-renderer.currentRenderBuffer.clear()
-try {
-  const proc = Bun.spawn(["lazygit"], { cwd: dir, stdin: "inherit", stdout: "inherit", stderr: "inherit" })
-  await proc.exited
-} finally {
-  renderer.currentRenderBuffer.clear()
-  renderer.resume()
-  renderer.requestRender()
-}
-```
-
-### Compiled binary
-
-```bash
-bun build src/index.ts --compile --outfile dist/my-app
-```
