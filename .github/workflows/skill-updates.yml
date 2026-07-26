@@ -38,6 +38,7 @@ jobs:
 
       - name: Update skills
         env:
+          DOTFILES_PUBLIC_DIR: ${{ github.workspace }}
           GH_TOKEN: ${{ github.token }}
           SKILL_UPDATES_BASE_BRANCH: distro/arch-omarchy
         run: .github/scripts/skill-updates.sh

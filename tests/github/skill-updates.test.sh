@@ -7,6 +7,7 @@ temp_dir="$(mktemp -d)"
 trap 'rm -rf "$temp_dir"' EXIT
 
 grep -Fq 'scripts/.local/bin/dot' "$repo_root/.github/scripts/skill-updates.sh"
+grep -Fq 'DOTFILES_PUBLIC_DIR: ${{ github.workspace }}' "$repo_root/.github/workflows/skill-updates.yml"
 
 cat >"$temp_dir/report.json" <<'EOF'
 {

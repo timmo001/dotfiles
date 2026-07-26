@@ -175,7 +175,7 @@ export const skillUpdates = (opts?: {
       const checked = yield* withSpinnerTimeout(
         `Checking ${meta.name}`,
         SKILL_CHECK_TIMEOUT_SECONDS,
-        checkSkill(meta, { forceContentComparison: mode === "update" }),
+        checkSkill(meta),
       );
       const result: CheckResult = yield* Option.match(checked, {
         onNone: () =>
@@ -402,9 +402,7 @@ export const buildSkillUpdateReport = (entries: readonly SkillScanEntry[]) =>
         continue;
       }
 
-      const result = yield* checkSkill(entry.meta, {
-        forceContentComparison: true,
-      });
+      const result = yield* checkSkill(entry.meta);
       skills.push(reportItem(entry.meta, result));
     }
 
