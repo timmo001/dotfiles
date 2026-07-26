@@ -15,6 +15,16 @@ Produce an implementation-ready plan that another engineer can execute without r
 4. Load the `staged-implementation` skill and use it to decide whether the target is one coherent stage or several independently reviewable stages. Do not invent phases for a small change.
 5. Ask only the minimum necessary follow-up questions through the `question` tool when a requirement or trade-off cannot be inferred and would materially alter the implementation. Resolve those decisions before submitting the plan. Leave an open question in the submitted plan only when execution can safely proceed without resolving it. Do not run a grilling session while planning.
 
+## Establish The Planning Basis
+
+Before specifying steps:
+
+1. Reconcile the plan against every explicit user decision and any grill, research, issue, handoff, or specification decisions already in context. Treat later user feedback as authoritative. Preserve the difference between work deferred from the current turn and work excluded from the implementation.
+2. Check scope completeness against every subsystem, workflow, tool, and outcome named by the user. Classify each as included, intentionally unchanged, or deferred with a reason. Do not silently narrow the request to the first implementation area found.
+3. Distinguish observed repository facts, settled decisions, assumptions, and unresolved unknowns. Do not present an assumption as a fact or re-open a settled decision without contradictory evidence.
+4. Resolve unknowns that affect the core implementation path before submission. If repository inspection cannot resolve one, make a bounded feasibility check the first plan step and state its success criterion, failure criterion, and fallback path. Do not defer core design choices with phrases such as "decide during implementation", "likely", or "possibly".
+5. Verify proposed changes to shared interfaces, schemas, paths, persisted data, generated contracts, and public APIs against their producers and known consumers. Include compatibility work only when a concrete shipped, persisted, or external consumer requires it.
+
 ## Specify The Implementation
 
 For each implementation step, include the applicable details below. Combine related details when that reads more clearly, and omit fields that genuinely do not apply rather than adding boilerplate:
@@ -30,7 +40,7 @@ Do not use verbs such as "update", "wire", "handle", "support", "integrate", or 
 
 ## Structure The Plan
 
-The plan must include:
+Choose detail in proportion to the work: a small change may be one compact step, a standard change may use several dependency-ordered steps, and only independently reviewable work should use stages and handoffs. The plan must include:
 
 - Goal and scope.
 - One active stage with observable acceptance stated as user-visible behaviour, an API contract, generated output, or tests. Identify the owner of each shared interface, schema, model, migration, or generated artefact, order steps by dependency, and list the canonical final validation order.
@@ -40,6 +50,18 @@ The plan must include:
 - Phase artefacts: recommend a separate numbered handoff for each deferred reviewable phase using `handoff-{feature}-{phase-number}-{phase-slug}.md`. In a new repository, try handoffs first; if repository notes cannot be resolved yet, propose one repository-local all-in-one working Markdown plan using the repository convention or `PLAN.md`, include it in `Files`, and define numbered phases with explicit statuses that the same document updates at every checkpoint. Migrate its remaining phases to numbered handoffs once available.
 - Artefact cleanup: make deletion of each handoff or temporary plan the final step of the work it tracks. For a note, require explicit user confirmation immediately before `notes_note_delete`. For a repository-local working plan, include its deletion in `Files`. Never retire an artefact that still records deferred, blocked, or unresolved work.
 - Only risks and assumptions that affect implementation or validation. Name the affected code path and mitigation rather than using broad risk labels.
+
+## Review And Revise
+
+Before submission, verify that:
+
+- Every acceptance criterion maps to an implementation step and a targeted or final check.
+- Every entry in `Files` appears in a step, and every generated file names its source of truth.
+- No requested area disappeared from scope and no settled decision is contradicted.
+- No core mechanic remains an unbounded assumption or execution-time decision.
+- Safeguards, compatibility layers, abstractions, migrations, and new tests address an observed contract or regression risk rather than speculative hardening.
+
+When the user changes a decision after a plan is drafted, perform a contradiction and impact scan. Revise only the affected scope, steps, files, acceptance criteria, risks, and validation unless the change invalidates the plan's foundation.
 
 ## Finish Planning
 
