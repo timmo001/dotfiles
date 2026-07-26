@@ -39,7 +39,7 @@ The global mise configuration provides the Android SDK command-line tools and se
 | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `DOT_PUBLIC_PACKAGES_FILE`        | Public Arch/AUR package list for `dot init`, full `dot update`, and package checks (default `$DOTFILES_PUBLIC_DIR/.dot-public-packages`). |
 | `DOT_PRIVATE_PACKAGE_REPO_FILE`   | Private pacman repo config (default `$DOTFILES_PRIVATE_DIR/.dot-private-package-repo`).                                      |
-| `DOT_PRIVATE_PACKAGES_FILE`       | Private package list (default `$DOTFILES_PRIVATE_DIR/.dot-private-packages`).                                                |
+| `DOT_PRIVATE_PACKAGES_FILE`       | Private package list override (default base list plus `.dot-private-packages--<host>`).                                      |
 | `DOT_PRIVATE_PACKAGE_MAP_FILE`    | Private package name-to-source map for `dot private-pkg-publish` (default `$DOTFILES_PRIVATE_DIR/.dot-private-package-map`). |
 | `DOT_PRIVATE_PACMAN_REPO_CONFIG`  | Pacman repo snippet path written by `dot` (default `/etc/pacman.d/timmo-private.conf`).                                      |
 | `DOT_PRIVATE_PACMAN_MAIN_CONFIG`  | Main pacman config file scanned for the private repo `Include` (default `/etc/pacman.conf`).                                 |

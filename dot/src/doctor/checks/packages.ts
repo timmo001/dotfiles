@@ -5,7 +5,12 @@ import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { displayPath, expandHomePath } from "../../lib/paths.js";
 import { ENV, envString } from "../../lib/env.js";
-import { isPackageInstalled, loadPackageList } from "../../lib/archPackages.js";
+import {
+  isPackageInstalled,
+  loadPackageList,
+  loadPackageLists,
+} from "../../lib/archPackages.js";
+import { resolvedOmarchyHost } from "../../lib/omarchyHost.js";
 import type { ConfigService } from "../../services/Config.js";
 import type { CheckResult } from "../types.js";
 
@@ -375,8 +380,9 @@ export const checkPrivatePackages = Effect.gen(function* () {
     return results;
   }
 
+  const packagesOverride = envString(ENV.DOT_PRIVATE_PACKAGES_FILE);
   const packagesFile =
-    envString(ENV.DOT_PRIVATE_PACKAGES_FILE) ??
+    packagesOverride ??
     (config.privateDotfiles
       ? join(config.privateDotfiles, ".dot-private-packages")
       : null);
@@ -389,7 +395,11 @@ export const checkPrivatePackages = Effect.gen(function* () {
     return results;
   }
 
-  const packages = loadPackageList(packagesFile);
+  const host = resolvedOmarchyHost(config);
+  const packages = loadPackageLists([
+    packagesFile,
+    ...(packagesOverride || !host ? [] : [`${packagesFile}--${host}`]),
+  ]);
   if (packages.length === 0) {
     results.push({ severity: "ok", message: "No private packages configured" });
     return results;

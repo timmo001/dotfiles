@@ -62,3 +62,12 @@ export function loadPackageList(filePath: string): readonly string[] {
     return [];
   }
 }
+
+/** Load and de-duplicate packages from multiple package list files. */
+export function loadPackageLists(
+  filePaths: readonly string[],
+): readonly string[] {
+  return [
+    ...new Set(filePaths.flatMap((filePath) => loadPackageList(filePath))),
+  ];
+}

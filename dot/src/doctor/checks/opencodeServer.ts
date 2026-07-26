@@ -63,7 +63,7 @@ function passwordResult(envPath: string): CheckResult {
   }
 }
 
-/** Check shared Hypr autostart and local OpenCode server password configuration. */
+/** Check desktop Hypr autostart and local OpenCode server password configuration. */
 export function opencodeServerResults(
   autostartPath: string,
   envPath: string,
@@ -78,7 +78,7 @@ export function opencodeServerResults(
     return [
       {
         severity: "ok",
-        message: "OpenCode server autostarts on all Hypr hosts",
+        message: "OpenCode server autostarts on the desktop host",
       },
       passwordResult(envPath),
     ];
@@ -87,17 +87,17 @@ export function opencodeServerResults(
   return [
     {
       severity: "warn",
-      message: "OpenCode server does not autostart on all Hypr hosts",
+      message: "OpenCode server does not autostart on the desktop host",
       detail: `Expected ${displayPath(autostartPath)} to start ${OPENCODE_SERVER_COMMAND}`,
     },
   ];
 }
 
-/** Check shared OpenCode server autostart and password configuration. */
+/** Check desktop OpenCode server autostart and password configuration. */
 export const checkOpencodeServer = Effect.gen(function* () {
   const config = yield* Config;
   return opencodeServerResults(
-    join(hyprRepoPath(config), "autostart.conf"),
+    join(hyprRepoPath(config), "hosts", "desktop", "autostart.conf"),
     OPENCODE_ENV_PATH,
   );
 });

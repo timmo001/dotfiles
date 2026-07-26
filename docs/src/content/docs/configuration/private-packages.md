@@ -17,7 +17,7 @@ Missing public packages are installed with `omarchy-pkg-aur-add`; already-instal
 
 Some AUR packages conflict with an official-repo package that must be removed first. `dot` handles the known case (`mise-bin` replacing `mise`) before installing.
 
-Private packages from `.dot-private-packages` in the private overlay are installed after the public list during init when the overlay is available.
+Private packages from `.dot-private-packages` in the private overlay are installed after the public list during init when the overlay is available. A host-specific `.dot-private-packages--<host>` list is additive, so hardware-specific packages can be limited to hosts such as `desktop`.
 
 ## Register the private repo
 
@@ -49,7 +49,7 @@ Package lists, the repo map, and pacman paths are overridable with environment v
 
 - `DOT_PUBLIC_PACKAGES_FILE` — public Arch/AUR package list (default `$DOTFILES_PUBLIC_DIR/.dot-public-packages`).
 - `DOT_PRIVATE_PACKAGE_REPO_FILE` — private pacman repo config (default `$DOTFILES_PRIVATE_DIR/.dot-private-package-repo`).
-- `DOT_PRIVATE_PACKAGES_FILE` — private package list (default `$DOTFILES_PRIVATE_DIR/.dot-private-packages`).
+- `DOT_PRIVATE_PACKAGES_FILE` — private package list override (default `$DOTFILES_PRIVATE_DIR/.dot-private-packages` plus `.dot-private-packages--<host>` when present).
 - `DOT_PRIVATE_PACKAGE_MAP_FILE` — package name-to-source map for `dot private-pkg-publish` (default `$DOTFILES_PRIVATE_DIR/.dot-private-package-map`).
 - `DOT_PRIVATE_PACMAN_REPO_CONFIG` — pacman repo snippet path written by `dot` (default `/etc/pacman.d/timmo-private.conf`).
 - `DOT_PRIVATE_PACMAN_MAIN_CONFIG` — main pacman config scanned for the private repo `Include` (default `/etc/pacman.conf`).

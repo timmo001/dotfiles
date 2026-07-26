@@ -7,7 +7,12 @@ import { OutputLog } from "../services/OutputLog.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "./paths.js";
 import { runElevated } from "./elevatedCommand.js";
 import { ENV, envString } from "./env.js";
-import { isPackageInstalled, loadPackageList } from "./archPackages.js";
+import {
+  isPackageInstalled,
+  loadPackageList,
+  loadPackageLists,
+} from "./archPackages.js";
+import { resolvedOmarchyHost } from "./omarchyHost.js";
 import type { ConfigService } from "../services/Config.js";
 
 /** Domain error for package setup failures. */
@@ -44,12 +49,17 @@ function publicPackageListPath(config: ConfigService): string {
 }
 
 function privatePackageListPath(config: ConfigService): string | null {
-  return (
-    envString(ENV.DOT_PRIVATE_PACKAGES_FILE) ??
-    (config.privateDotfiles
-      ? join(config.privateDotfiles, ".dot-private-packages")
-      : null)
-  );
+  return privatePackageListPaths(config)[0] ?? null;
+}
+
+function privatePackageListPaths(config: ConfigService): readonly string[] {
+  const override = envString(ENV.DOT_PRIVATE_PACKAGES_FILE);
+  if (override) return [override];
+  if (!config.privateDotfiles) return [];
+
+  const base = join(config.privateDotfiles, ".dot-private-packages");
+  const host = resolvedOmarchyHost(config);
+  return host ? [base, `${base}--${host}`] : [base];
 }
 
 /**
@@ -118,7 +128,11 @@ function missingPackages(
   return Effect.gen(function* () {
     const filePath = yield* requirePackageListPath(config, scope);
     yield* assertPackageListExists(scope, filePath);
-    return yield* missingFromPackageList(loadPackageList(filePath));
+    const packages =
+      scope === "private"
+        ? loadPackageLists(privatePackageListPaths(config))
+        : loadPackageList(filePath);
+    return yield* missingFromPackageList(packages);
   });
 }
 

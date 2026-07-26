@@ -25,7 +25,7 @@ function tempPaths() {
 }
 
 describe("opencodeServerResults", () => {
-  test("accepts shared autostart and a configured password", () => {
+  test("accepts desktop autostart and a configured password", () => {
     const { autostartPath, envPath } = tempPaths();
     writeFileSync(autostartPath, "exec-once = opencode-server\n");
     writeFileSync(envPath, "OPENCODE_SERVER_PASSWORD='configured'\n");
@@ -33,7 +33,7 @@ describe("opencodeServerResults", () => {
     expect(opencodeServerResults(autostartPath, envPath)).toEqual([
       {
         severity: "ok",
-        message: "OpenCode server autostarts on all Hypr hosts",
+        message: "OpenCode server autostarts on the desktop host",
       },
       {
         severity: "ok",
@@ -42,20 +42,20 @@ describe("opencodeServerResults", () => {
     ]);
   });
 
-  test("warns when shared autostart does not start the server", () => {
+  test("warns when desktop autostart does not start the server", () => {
     const { autostartPath, envPath } = tempPaths();
     writeFileSync(autostartPath, "exec-once = another-service\n");
 
     expect(opencodeServerResults(autostartPath, envPath)).toEqual([
       {
         severity: "warn",
-        message: "OpenCode server does not autostart on all Hypr hosts",
+        message: "OpenCode server does not autostart on the desktop host",
         detail: `Expected ${autostartPath} to start opencode-server`,
       },
     ]);
   });
 
-  test("checks the local password whenever shared autostart is enabled", () => {
+  test("checks the local password whenever desktop autostart is enabled", () => {
     const { autostartPath, envPath } = tempPaths();
     writeFileSync(autostartPath, "exec-once = opencode-server\n");
 

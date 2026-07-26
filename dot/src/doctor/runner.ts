@@ -10,6 +10,7 @@ import { checkRepos, checkPrivateAccess } from "./checks/repos.js";
 import { checkStow } from "./checks/stow.js";
 import { checkOpencode } from "./checks/opencode.js";
 import { checkOpencodeServer } from "./checks/opencodeServer.js";
+import { resolvedOmarchyHost } from "../lib/omarchyHost.js";
 import { checkHerdr } from "./checks/herdr.js";
 import { checkGithubMcpAuth } from "./checks/githubMcpAuth.js";
 import { checkGitConfig } from "../git/doctor/gitConfig.js";
@@ -55,6 +56,7 @@ interface SectionDef {
     Config | CommandExecutor | GitHub
   >;
   readonly requiresPrivate?: boolean;
+  readonly host?: string;
 }
 
 /** All doctor check sections in display order */
@@ -67,7 +69,11 @@ const sections: readonly SectionDef[] = [
   { name: "Origin HEAD freshness", check: checkOriginHead },
   { name: "Stow integrity", check: checkStow },
   { name: "OpenCode location checks", check: checkOpencode },
-  { name: "OpenCode server checks", check: checkOpencodeServer },
+  {
+    name: "OpenCode server checks",
+    check: checkOpencodeServer,
+    host: "desktop",
+  },
   { name: "Herdr integration", check: checkHerdr },
   { name: "GitHub MCP auth", check: checkGithubMcpAuth },
   { name: "Git config include", check: checkGitConfig },
@@ -128,8 +134,11 @@ export const runDoctor = (
 
     // Filter out private-only checks when private is unavailable
     // (individual checks also handle this gracefully, but this avoids unnecessary work)
+    const host = resolvedOmarchyHost(config);
     const applicable = sections.filter(
-      (s) => !s.requiresPrivate || config.canUsePrivate,
+      (s) =>
+        (!s.requiresPrivate || config.canUsePrivate) &&
+        (!s.host || s.host === host),
     );
 
     // Seed the running view before any check starts; under unbounded
