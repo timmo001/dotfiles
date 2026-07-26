@@ -5,7 +5,7 @@ description: Produce implementation-ready plans from the current conversation an
 
 # Plan
 
-Produce an implementation-ready plan that another engineer can execute without repeating the repository investigation. Keep a small change concise, but do not trade away technical detail or code locations.
+Produce a plain, implementation-ready plan that shows what code will change and how it will work. Keep small changes short. Prefer concrete pseudocode and real symbols over architecture language.
 
 ## Investigate
 
@@ -15,41 +15,52 @@ Produce an implementation-ready plan that another engineer can execute without r
 4. Load the `staged-implementation` skill and use it to decide whether the target is one coherent stage or several independently reviewable stages. Do not invent phases for a small change.
 5. Ask only the minimum necessary follow-up questions through the `question` tool when a requirement or trade-off cannot be inferred and would materially alter the implementation. Resolve those decisions before submitting the plan. Leave an open question in the submitted plan only when execution can safely proceed without resolving it. Do not run a grilling session while planning.
 
-## Establish The Planning Basis
+## Prepare Privately
 
-Before specifying steps:
+Before writing the visible plan:
 
 1. Reconcile the plan against every explicit user decision and any grill, research, issue, handoff, or specification decisions already in context. Treat later user feedback as authoritative. Preserve the difference between work deferred from the current turn and work excluded from the implementation.
 2. Check scope completeness against every subsystem, workflow, tool, and outcome named by the user. Classify each as included, intentionally unchanged, or deferred with a reason. Do not silently narrow the request to the first implementation area found.
 3. Distinguish observed repository facts, settled decisions, assumptions, and unresolved unknowns. Do not present an assumption as a fact or re-open a settled decision without contradictory evidence.
 4. Resolve unknowns that affect the core implementation path before submission. If repository inspection cannot resolve one, make a bounded feasibility check the first plan step and state its success criterion, failure criterion, and fallback path. Do not defer core design choices with phrases such as "decide during implementation", "likely", or "possibly".
 5. Verify proposed changes to shared interfaces, schemas, paths, persisted data, generated contracts, and public APIs against their producers and known consumers. Include compatibility work only when a concrete shipped, persisted, or external consumer requires it.
+6. Keep this reasoning out of the submitted plan. Do not output a decision recap, research summary, architecture overview, or assumptions list. If a blocking choice remains, ask the user before submitting the plan.
 
-## Specify The Implementation
+## Write The Plan
 
-For each implementation step, include the applicable details below. Combine related details when that reads more clearly, and omit fields that genuinely do not apply rather than adding boilerplate:
+Use this order:
 
-- **Location:** Give the repository-relative file path and the class, function, type, schema, route, style block, translation subtree, or other insertion point. Add `path:line` only when the inspected line is stable and useful.
-- **Current behaviour:** Explain what the named code does now and why it owns the change. This may be omitted for a genuinely new, isolated file.
-- **Change mechanics:** Describe the concrete type or interface changes, control or data flow, state transitions, rendering conditions, events, API or service payloads, defaults, error behaviour, persistence, and generated output relevant to the step.
-- **Reuse:** Name existing symbols or patterns to call, extend, mirror, move, or extract, with their locations. Identify shared helpers or a contract owner when the change would otherwise duplicate behaviour.
-- **Integration:** Include the required union entries, factories, registries, imports, consumers, editor fields, translations, documentation, migrations, and generated artefacts beside the step that introduces the behaviour.
-- **Verification:** Name the exact test file and cases to add or update, the targeted command, and the observable manual result when automated coverage is unsuitable.
+1. **What will happen:** Explain the implementation in two to four plain sentences. Describe the behaviour the user will get and the main code path that will produce it. Do not recap how decisions were reached.
+2. **Implementation:** Give numbered, dependency-ordered code changes. For each step:
+   - Name the repository-relative file and existing function, class, type, route, schema, or other insertion point.
+   - Explain the actual edit in ordinary language, including the important calls, branches, data shapes, state changes, or rendering conditions.
+   - Show compact pseudocode for new or materially changed control flow, state transitions, data transformation, API handling, persistence, or rendering. Use real project symbol names where known. Omit pseudocode for prose-only documentation, generated files, simple configuration changes, and trivial renames.
+   - Mention required consumers, registrations, imports, translations, migrations, and generated outputs beside the code that creates the need.
+3. **Validation:** Give only the smallest targeted commands or manual observations needed to prove the implementation works. Keep test-file details brief unless tests are the main work.
+4. **Files:** Include every anticipated changed, added, deleted, generated, or migration file as a directory tree, split by repository or workspace root. Mark generated files with their source of truth. Every file in the tree must appear in an implementation step.
 
-Do not use verbs such as "update", "wire", "handle", "support", "integrate", or "refactor" as substitutes for explaining where and how the implementation changes. Replace project-specific jargon with concrete symbol names, or explain it on first use.
+Pseudocode should expose the intended implementation without syntax noise. For example:
 
-## Structure The Plan
+```text
+function saveSettings(input):
+  settings = SettingsSchema.decode(input)
+  existing = SettingsStore.get(settings.id)
 
-Choose detail in proportion to the work: a small change may be one compact step, a standard change may use several dependency-ordered steps, and only independently reviewable work should use stages and handoffs. The plan must include:
+  if existing is missing:
+    return SettingsStore.insert(settings)
 
-- Goal and scope.
-- One active stage with observable acceptance stated as user-visible behaviour, an API contract, generated output, or tests. Identify the owner of each shared interface, schema, model, migration, or generated artefact, order steps by dependency, and list the canonical final validation order.
-- Targeted checks beside the steps they verify, followed by the canonical final validation for the active stage.
-- A `Files` section containing every anticipated changed, added, deleted, generated, or migration file as a directory tree, split by repository or workspace root. Label generated files with their source of truth. Each file must also appear in the implementation step that explains its change; the tree is an index, not a substitute for locations and mechanics.
-- Deferred stages only when they are separate reviewable changes, including whether execution stops at their checkpoints or continues because the user requested one combined delivery.
-- Phase artefacts: recommend a separate numbered handoff for each deferred reviewable phase using `handoff-{feature}-{phase-number}-{phase-slug}.md`. In a new repository, try handoffs first; if repository notes cannot be resolved yet, propose one repository-local all-in-one working Markdown plan using the repository convention or `PLAN.md`, include it in `Files`, and define numbered phases with explicit statuses that the same document updates at every checkpoint. Migrate its remaining phases to numbered handoffs once available.
-- Artefact cleanup: make deletion of each handoff or temporary plan the final step of the work it tracks. For a note, require explicit user confirmation immediately before `notes_note_delete`. For a repository-local working plan, include its deletion in `Files`. Never retire an artefact that still records deferred, blocked, or unresolved work.
-- Only risks and assumptions that affect implementation or validation. Name the affected code path and mitigation rather than using broad risk labels.
+  return SettingsStore.replace(existing.id, settings)
+```
+
+## Keep It Direct
+
+- Prefer a small direct implementation over speculative abstractions, compatibility layers, helpers, migrations, or phases.
+- Do not use jargon when ordinary language or a code symbol is clearer. Explain an unavoidable technical term once in plain English.
+- Do not use verbs such as "update", "wire", "handle", "support", "integrate", or "refactor" instead of saying what the code will do.
+- Discuss architecture only where it causes a specific code change. Follow architecture statements immediately with the files, symbols, and pseudocode that implement them.
+- Spend most of the plan on implementation. Do not let validation, testing, risks, or coordination artefacts outweigh the code changes.
+- Keep detail proportional: one compact step for a small change, several steps for a standard change, and stages only for independently reviewable work.
+- For staged work, follow `staged-implementation` for checkpoints and handoffs, but keep those coordination details after the active implementation rather than ahead of it.
 
 ## Review And Revise
 
@@ -60,6 +71,7 @@ Before submission, verify that:
 - No requested area disappeared from scope and no settled decision is contradicted.
 - No core mechanic remains an unbounded assumption or execution-time decision.
 - Safeguards, compatibility layers, abstractions, migrations, and new tests address an observed contract or regression risk rather than speculative hardening.
+- The visible plan begins with the plain explainer, contains pseudocode where logic changes, and gives implementation more space than validation.
 
 When the user changes a decision after a plan is drafted, perform a contradiction and impact scan. Revise only the affected scope, steps, files, acceptance criteria, risks, and validation unless the change invalidates the plan's foundation.
 
