@@ -10,6 +10,8 @@
 
 import type { Plugin } from "@opencode-ai/plugin";
 
+import { createDesktopNotifier } from "../lib/desktop-notification";
+
 function recordFromUnknown(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null
     ? (value as Record<string, unknown>)
@@ -22,23 +24,9 @@ function dataOrValue(value: unknown): unknown {
 }
 
 export const NotificationPlugin = (async ({ $, client }) => {
-  const notificationGlyph = "󰚩";
   const soundPath = "/usr/share/sounds/freedesktop/stereo/message.oga";
   let canPlaySound: boolean | undefined;
-  let canNotify: boolean | undefined;
-  let originWindowAddress = "";
-
-  try {
-    const activeWindow = recordFromUnknown(
-      JSON.parse(await $`hyprctl activewindow -j`.text()),
-    );
-    if (
-      typeof activeWindow.address === "string" &&
-      /^0x[0-9a-f]+$/i.test(activeWindow.address)
-    ) {
-      originWindowAddress = activeWindow.address;
-    }
-  } catch {}
+  const sendDesktopNotification = await createDesktopNotifier($);
 
   const sanitizeNotificationText = (value: string, fallback: string) => {
     const sanitized = [...value]
@@ -79,30 +67,6 @@ export const NotificationPlugin = (async ({ $, client }) => {
 
     try {
       await $`paplay ${soundPath}`;
-    } catch {}
-  };
-
-  const sendDesktopNotification = async (title: string, body: string) => {
-    if (canNotify === undefined) {
-      try {
-        await $`sh -lc "command -v omarchy >/dev/null 2>&1"`;
-        canNotify = true;
-      } catch {
-        canNotify = false;
-      }
-    }
-
-    if (!canNotify) return;
-
-    try {
-      void $`omarchy notification send ${notificationGlyph} ${title} ${body} --app-name=OpenCode --action=default=Open`
-        .text()
-        .then(async (action) => {
-          if (action.trim() === "default" && originWindowAddress) {
-            await $`hyprctl dispatch focuswindow address:${originWindowAddress}`;
-          }
-        })
-        .catch(() => {});
     } catch {}
   };
 

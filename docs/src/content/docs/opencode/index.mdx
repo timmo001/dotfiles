@@ -82,6 +82,18 @@ Unlike the rest of these (personal) dotfiles, the OpenCode config is built to be
 
 - **Background dev servers** - starting a long-running dev server follows a precedence: the project's own `AGENTS.md` workflow first, then framework-native background mode (Astro 7+ self-detaches `astro dev` under an agent), then pitchfork as the fallback. The `pitchfork-dev-server-guard` plugin covers only the pitchfork tier, redirecting foreground dev commands to `serve:*` or `pitchfork start` when a project declares `pitchfork.toml`, and it leaves `astro dev` to Astro's native mode.
 - **Contextual notifications** - main-session idle completions and all permission prompts ring BEL, send an Omarchy-formatted desktop notification when `omarchy` is available, and play the freedesktop message sound when `paplay` is available. When the plugin starts under Hyprland, it captures the active window address so clicking a notification can return focus to that window. Background completion events stay silent.
+### Context reliability warnings
+
+| Model | Warning | Critical |
+| --- | ---: | ---: |
+| GPT-5.6 Sol | 256,000 | 512,000 |
+| Claude Opus 4.8 | 100,000 | 150,000 |
+| Claude Opus 5 | 100,000 | 150,000 |
+| Other models | 64,000 | 128,000 |
+
+These are context-health policies, not hard model limits. GPT-5.6 Sol's bands follow OpenAI's published [256K-512K and 512K-1M long-context results](https://openai.com/index/gpt-5-6/#long-context), where MRCR falls from 91.5% to 73.8%. The Opus critical band follows Anthropic's documented [150,000-token default compaction trigger](https://docs.anthropic.com/en/docs/build-with-claude/compaction#parameters), with 50,000 tokens of warning headroom. The conservative fallback reflects cross-model reports that advertised context and effective context differ, including [RULER](https://arxiv.org/abs/2404.06654), [NoLiMa](https://arxiv.org/abs/2502.05167), and [Context Rot](https://research.trychroma.com/context-rot).
+
+Each band appears once per session and resets after successful compaction. The count matches OpenCode's displayed metric (input, output, reasoning, and cache tokens), not an authoritative next-request size or the input-only metrics used by provider benchmarks. Alerts appear as both built-in TUI toasts and clickable system notifications, so background sessions remain visible; headless runs silently skip unavailable notification paths.
 
 ## Tooling
 

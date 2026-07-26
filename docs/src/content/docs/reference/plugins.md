@@ -14,6 +14,7 @@ Plugins provide context, evidence, or enforcement hooks for OpenCode. They are l
 | [`branch-context`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/branch-context.ts) | Injects branch-context blocks into command prompts before execution |
 | [`commit-context`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/commit-context.ts) | Injects session-attributed commit scope into commit command prompts |
 | [`context-capture`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/context-capture.ts) | Opt-in capture of the assembled starter context for token profiling |
+| [`context-zone-warning`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/context-zone-warning.ts) | Warns when long-context models enter less reliable context ranges |
 | [`env-protection`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/env-protection.ts) | Blocks direct access to .env files to prevent leaking secrets |
 | [`generated-artifact-guard`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/generated-artifact-guard.ts) | Blocks direct mutation of generated dotfiles artefacts |
 | [`mcp-repo-gate`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/mcp-repo-gate.ts) | Per-repo MCP server gating for OpenCode |
