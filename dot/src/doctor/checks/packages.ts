@@ -292,6 +292,11 @@ function packageDisplayName(name: string): string {
   return name === "go-automate-git" ? "go-automate (go-automate-git)" : name;
 }
 
+/** Whether `vercmp` reports the installed version as older than the candidate. */
+export function isInstalledVersionOlder(vercmpOutput: string): boolean {
+  return Number.parseInt(vercmpOutput.trim(), 10) < 0;
+}
+
 /** Check public AUR packages are installed and up-to-date */
 export const checkPublicPackages = Effect.gen(function* () {
   const config = yield* Config;
@@ -340,10 +345,16 @@ export const checkPublicPackages = Effect.gen(function* () {
 
       const iv = installedVersion.trim();
       const lv = latestVersion.trim();
-      if (iv && lv && iv !== lv) {
+      const comparison =
+        iv && lv
+          ? yield* executor
+              .run("vercmp", [iv, lv])
+              .pipe(Effect.catch(() => Effect.succeed("0")))
+          : "0";
+      if (isInstalledVersionOlder(comparison)) {
         results.push({
           severity: "warn",
-          message: `${pkg} version differs from latest AUR (${iv} installed, ${lv} latest)`,
+          message: `${pkg} is older than latest AUR (${iv} installed, ${lv} latest)`,
         });
         updatePackages.push(pkg);
       }
