@@ -13,7 +13,8 @@ Produce a plain, implementation-ready plan that shows what code will change and 
 2. Inspect the relevant implementation and tests before writing the plan. Trace callers, consumers, registrations, schemas, generated artefacts, and adjacent implementations only as far as the requested change needs.
 3. Resolve facts available in the repository before asking the user. Do not submit a plan while paths, symbols, or behaviour remain generic placeholders.
 4. Load the `staged-implementation` skill and use it to decide whether the target is one coherent stage or several independently reviewable stages. Do not invent phases for a small change.
-5. Ask only the minimum necessary follow-up questions through the `question` tool when a requirement or trade-off cannot be inferred and would materially alter the implementation. Resolve those decisions before submitting the plan. Leave an open question in the submitted plan only when execution can safely proceed without resolving it. Do not run a grilling session while planning.
+5. Load `writing-style` as the prose reference for the visible plan. Apply its plain, concise, concrete, human voice, UK English, and no-em-dash rules. Do not apply its commit-message, pull-request, issue, or action-authorisation instructions to plan structure.
+6. Ask only the minimum necessary follow-up questions through the `question` tool when a requirement or trade-off cannot be inferred and would materially alter the implementation. Resolve those decisions before submitting the plan. Leave an open question in the submitted plan only when execution can safely proceed without resolving it. Do not run a grilling session while planning.
 
 ## Prepare Privately
 
@@ -55,6 +56,7 @@ function saveSettings(input):
 ## Keep It Direct
 
 - Prefer a small direct implementation over speculative abstractions, compatibility layers, helpers, migrations, or phases.
+- Follow the loaded `writing-style` skill for the plan's prose. Write in the maintainer's direct, practical voice. Avoid generic AI prose: no formal padding, flattering agreement, marketing language, repeated summaries, or long transitions that delay the implementation. Use short sentences and say exactly what the code will do and why.
 - Do not use jargon when ordinary language or a code symbol is clearer. Explain an unavoidable technical term once in plain English.
 - Do not use verbs such as "update", "wire", "handle", "support", "integrate", or "refactor" instead of saying what the code will do.
 - Discuss architecture only where it causes a specific code change. Follow architecture statements immediately with the files, symbols, and pseudocode that implement them.
