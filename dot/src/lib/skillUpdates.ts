@@ -613,8 +613,11 @@ export const generateFullDiff = (
 // Core Skill Check Logic
 // ---------------------------------------------------------------------------
 
-/** Check a single skill for upstream changes */
-export const checkSkill = (meta: SkillMeta) =>
+/** Check a single skill for upstream changes. */
+export const checkSkill = (
+  meta: SkillMeta,
+  opts?: { readonly forceContentComparison?: boolean },
+) =>
   Effect.gen(function* () {
     const { origin, storedSha, dir } = meta;
     const skillMdPath = join(dir, "SKILL.md");
@@ -625,7 +628,11 @@ export const checkSkill = (meta: SkillMeta) =>
     const writeSha = upstreamSha || storedSha || "";
 
     // Compare against stored SHA (fast path: cached match)
-    if (upstreamSha && upstreamSha === storedSha) {
+    if (
+      !opts?.forceContentComparison &&
+      upstreamSha &&
+      upstreamSha === storedSha
+    ) {
       return {
         type: "up-to-date",
         cached: true,

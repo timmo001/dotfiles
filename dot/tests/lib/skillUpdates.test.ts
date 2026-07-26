@@ -164,6 +164,51 @@ describe("checkSkill", () => {
       upstreamSha: "a".repeat(40),
     });
   });
+
+  test("can bypass a stale SHA cache for unattended checks", async () => {
+    const dir = tempRoot();
+    writeFileSync(
+      join(dir, "SKILL.md"),
+      skillContent("https://github.com/example/skills/tree/main/example"),
+    );
+    const meta = metaAt(dir);
+    const upstream = `---
+name: example
+description: Example skill
+---
+
+# Updated upstream
+`;
+    const github = Layer.succeed(GitHub, {
+      isAvailable: () => Effect.succeed(true),
+      run: () => Effect.die("run should not be called"),
+      json: () => Effect.die("json should not be called"),
+      api: (endpoint) => {
+        if (endpoint.includes("commits?path=example")) {
+          return Effect.succeed("a".repeat(40));
+        }
+        if (endpoint.includes("contents/example?ref=main")) {
+          return Effect.succeed("file SKILL.md");
+        }
+        expect(endpoint).toContain("contents/example/SKILL.md?ref=main");
+        return Effect.succeed(Buffer.from(upstream).toString("base64"));
+      },
+    });
+    const executor = Layer.succeed(CommandExecutor, {
+      run: () => Effect.succeed("diff"),
+      stream: () => Stream.die("stream should not be called"),
+      exitCode: () => Effect.succeed(1),
+      inherit: () => Effect.die("inherit should not be called"),
+    });
+
+    const result = await Effect.runPromise(
+      checkSkill(meta, { forceContentComparison: true }).pipe(
+        Effect.provide(Layer.merge(github, executor)),
+      ),
+    );
+
+    expect(result.type).toBe("changes");
+  });
 });
 
 describe("synchroniseSkillFiles", () => {
