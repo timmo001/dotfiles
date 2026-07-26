@@ -178,13 +178,13 @@ def tree:
     | if $vk != null then
         (sort_by(.at[0])) as $s | ($s[0:$vk]) as $A | ($s[$vk:]) as $B
         | (($A | map(.at[0] + .size[0]) | max) - (_l)) as $ea | ((_r) - ($B | map(.at[0]) | min)) as $eb
-        | { dir: "lr", ratio: (($ea / ($ea + $eb)) * 10000 | round) / 100, a: ($A | tree), b: ($B | tree) }
+        | { dir: "lr", ratio: ((($ea / ($ea + $eb)) * 10000 | round) / 100), a: ($A | tree), b: ($B | tree) }
       else
         (_hk) as $hk | (sort_by(.at[1])) as $s
         | (if $hk != null then $hk else 1 end) as $k
         | ($s[0:$k]) as $A | ($s[$k:]) as $B
         | (($A | map(.at[1] + .size[1]) | max) - (_t)) as $ea | ((_b) - ($B | map(.at[1]) | min)) as $eb
-        | { dir: "tb", ratio: (($ea / ($ea + $eb)) * 10000 | round) / 100, a: ($A | tree), b: ($B | tree) }
+        | { dir: "tb", ratio: ((($ea / ($ea + $eb)) * 10000 | round) / 100), a: ($A | tree), b: ($B | tree) }
       end
   end;
 def leaves: if type == "string" then 1 else (.a | leaves) + (.b | leaves) end;
