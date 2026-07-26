@@ -24,7 +24,7 @@ Before writing the visible plan:
 3. Distinguish observed repository facts, settled decisions, assumptions, and unresolved unknowns. Do not present an assumption as a fact or re-open a settled decision without contradictory evidence.
 4. Resolve unknowns that affect the core implementation path before submission. If repository inspection cannot resolve one, make a bounded feasibility check the first plan step and state its success criterion, failure criterion, and fallback path. Do not defer core design choices with phrases such as "decide during implementation", "likely", or "possibly".
 5. Verify proposed changes to shared interfaces, schemas, paths, persisted data, generated contracts, and public APIs against their producers and known consumers. Include compatibility work only when a concrete shipped, persisted, or external consumer requires it.
-6. Keep this reasoning out of the submitted plan. Do not output a decision recap, research summary, architecture overview, or assumptions list. If a blocking choice remains, ask the user before submitting the plan.
+6. Do not output a decision recap, research summary, architecture overview, or assumptions list before the implementation. Put relevant reasoning beside the implementation step it explains. If a blocking choice remains, ask the user before submitting the plan.
 
 ## Write The Plan
 
@@ -33,7 +33,7 @@ Use this order:
 1. **What will happen:** Explain the implementation in two to four plain sentences. Describe the behaviour the user will get and the main code path that will produce it. Do not recap how decisions were reached.
 2. **Implementation:** Give numbered, dependency-ordered code changes. For each step:
    - Name the repository-relative file and existing function, class, type, route, schema, or other insertion point.
-   - Explain the actual edit in ordinary language, including the important calls, branches, data shapes, state changes, or rendering conditions.
+   - Explain the actual edit and why this action is needed in ordinary language, including the important calls, branches, data shapes, state changes, or rendering conditions.
    - Show compact pseudocode for new or materially changed control flow, state transitions, data transformation, API handling, persistence, or rendering. Use real project symbol names where known. Omit pseudocode for prose-only documentation, generated files, simple configuration changes, and trivial renames.
    - Mention required consumers, registrations, imports, translations, migrations, and generated outputs beside the code that creates the need.
 3. **Validation:** Give only the smallest targeted commands or manual observations needed to prove the implementation works. Keep test-file details brief unless tests are the main work.
