@@ -20,7 +20,7 @@ export async function createDesktopNotifier($: Shell) {
     }
   } catch {}
 
-  return async (title: string, body: string) => {
+  return async (glyph: string, title: string, body: string) => {
     if (canNotify === undefined) {
       try {
         await $`sh -lc "command -v omarchy >/dev/null 2>&1"`;
@@ -32,7 +32,7 @@ export async function createDesktopNotifier($: Shell) {
     if (!canNotify) return;
 
     try {
-      void $`omarchy notification send 󰚩 ${title} ${body} --app-name=OpenCode --action=default=Open`
+      void $`omarchy notification send ${glyph} ${title} ${body} --app-name=OpenCode --action=default=Open`
         .text()
         .then(async (action) => {
           if (action.trim() === "default" && originWindowAddress) {

@@ -124,7 +124,7 @@ export const ContextZoneWarningPlugin = (async ({ $, client }) => {
           variant: band === "critical" ? "error" : "warning",
           duration: 8000,
         }),
-        sendDesktopNotification(title, alertMessage),
+        sendDesktopNotification("⚠", title, alertMessage),
       ]);
     },
   };

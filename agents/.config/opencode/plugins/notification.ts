@@ -79,7 +79,7 @@ export const NotificationPlugin = (async ({ $, client }) => {
     }
   };
 
-  const notify = async (title: string, body: string) => {
+  const notify = async (glyph: string, title: string, body: string) => {
     const safeTitle = sanitizeNotificationText(title, "OpenCode");
     const safeBody = sanitizeNotificationText(body, "Attention required");
 
@@ -87,7 +87,7 @@ export const NotificationPlugin = (async ({ $, client }) => {
       process.stdout.write("\u0007");
     } catch {}
 
-    await sendDesktopNotification(safeTitle, safeBody);
+    await sendDesktopNotification(glyph, safeTitle, safeBody);
     await playSound();
   };
 
@@ -110,7 +110,7 @@ export const NotificationPlugin = (async ({ $, client }) => {
           typeof session.title === "string"
             ? session.title
             : "OpenCode session";
-        await notify("OpenCode: Task complete", sessionTitle);
+        await notify("✓", "OpenCode: Task complete", sessionTitle);
       }
 
       // Permission prompt created
@@ -126,7 +126,7 @@ export const NotificationPlugin = (async ({ $, client }) => {
           typeof permission === "string"
             ? `${sessionTitle} needs permission: ${permission}`
             : `${sessionTitle} needs permission`;
-        await notify("OpenCode: Permission required", detail);
+        await notify("🔒", "OpenCode: Permission required", detail);
       }
     },
   };
