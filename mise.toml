@@ -52,6 +52,7 @@ bun test tests/opencode
 bash tests/github/opencode-publish.test.sh
 bash tests/github/skill-updates.test.sh
 bash tests/scripts/update.test.sh
+bash tests/scripts/workspace-relayout.test.sh
 bash tests/scripts/workspace-restore.test.sh
 """
 

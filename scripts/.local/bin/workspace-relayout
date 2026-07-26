@@ -26,7 +26,7 @@ PRESETS_FILE="${XDG_DATA_HOME:-$HOME/.local/share}/workspace-relayout/presets.js
 # per-layout code.
 #
 # Presets live in $PRESETS_FILE grouped by window count under .layouts.<count>,
-# each a list of { name, tree } records. Edit mode (--edit) captures the
+# each a list of { group, name, tree } records. Edit mode (--edit) captures the
 # current window arrangement back into a preset, overwriting an existing one or
 # adding a new one (no layout "type" to pick).
 
@@ -342,22 +342,54 @@ index_of() {
 # sel_label is the menu line ("<name> [<ratios>]"); sel_name/sel_tree are the
 # raw values used after a pick.
 sel_name=()
+sel_group=()
 sel_tree=()
 sel_label=()
+sel_index=()
+group_name=()
 load_presets_for_count() {
   local count="$1"
-  local name tree lbl
+  local index group name tree lbl
 
   sel_name=()
+  sel_group=()
   sel_tree=()
   sel_label=()
+  sel_index=()
+  group_name=()
 
-  while IFS=$'\t' read -r name tree lbl; do
+  while IFS=$'\t' read -r index group name tree lbl; do
     [ -n "$name" ] || continue
+    sel_index+=("$index")
+    sel_group+=("$group")
     sel_name+=("$name")
     sel_tree+=("$tree")
     sel_label+=("$lbl")
-  done < <(jq -r --arg c "$count" "$TREE_JQ"' (.layouts[$c] // [])[] | [.name, (.tree | tojson), preset_label] | @tsv' "$PRESETS_FILE")
+    if [ "$(index_of "$group" "${group_name[@]}")" -lt 0 ]; then
+      group_name+=("$group")
+    fi
+  done < <(jq -r --arg c "$count" "$TREE_JQ"' (.layouts[$c] // []) | to_entries[] | [.key, .value.group, .value.name, (.value.tree | tojson), (.value | preset_label)] | @tsv' "$PRESETS_FILE")
+}
+
+filter_presets_for_group() {
+  local selected_group="$1"
+  local i
+  local -a filtered_index=() filtered_name=() filtered_group=() filtered_tree=() filtered_label=()
+
+  for i in "${!sel_name[@]}"; do
+    [ "${sel_group[$i]}" = "$selected_group" ] || continue
+    filtered_index+=("${sel_index[$i]}")
+    filtered_name+=("${sel_name[$i]}")
+    filtered_group+=("${sel_group[$i]}")
+    filtered_tree+=("${sel_tree[$i]}")
+    filtered_label+=("${sel_label[$i]}")
+  done
+
+  sel_index=("${filtered_index[@]}")
+  sel_name=("${filtered_name[@]}")
+  sel_group=("${filtered_group[@]}")
+  sel_tree=("${filtered_tree[@]}")
+  sel_label=("${filtered_label[@]}")
 }
 
 # Write JSON ($1) back to the presets file through the stow symlink, leaving
@@ -374,7 +406,7 @@ save_presets() {
 
 apply_menu() {
   local count="$1"
-  local choice idx
+  local group choice idx
 
   load_presets_for_count "$count"
   if [ "${#sel_name[@]}" -eq 0 ]; then
@@ -382,7 +414,11 @@ apply_menu() {
     exit 0
   fi
 
-  choice="$(walker_pick "$count window layout..." "${sel_label[@]}")"
+  group="$(walker_pick "$count window layout family..." "${group_name[@]}")"
+  [ -n "$group" ] || exit 0
+
+  filter_presets_for_group "$group"
+  choice="$(walker_pick "$group layout..." "${sel_label[@]}")"
   [ -n "$choice" ] || exit 0
 
   idx="$(index_of "$choice" "${sel_label[@]}")"
@@ -406,14 +442,15 @@ edit_overwrite() {
 
 edit_add_new() {
   local count="$1"
+  local group="$2"
   local tree default name new
 
   tree="$(capture_tree)"
   default="$(describe_tree "$tree")"
   name="$(prompt_name "$default")"
 
-  new="$(jq --arg c "$count" --arg n "$name" --argjson t "$tree" \
-    '.layouts[$c] = ((.layouts[$c] // []) + [{ name: $n, tree: $t }])' "$PRESETS_FILE")"
+  new="$(jq --arg c "$count" --arg g "$group" --arg n "$name" --argjson t "$tree" \
+    '.layouts[$c] = ((.layouts[$c] // []) + [{ group: $g, name: $n, tree: $t }])' "$PRESETS_FILE")"
   save_presets "$new"
 
   notify "Added $name"
@@ -421,23 +458,34 @@ edit_add_new() {
 
 edit_menu() {
   local count="$1"
+  local add_group_label="Add new family"
   local add_label="➕  Add new layout"
-  local choice idx
+  local group choice idx
 
   load_presets_for_count "$count"
 
+  group="$(walker_pick "Edit $count window layout family..." "${group_name[@]}" "$add_group_label")"
+  [ -n "$group" ] || exit 0
+
+  if [ "$group" = "$add_group_label" ]; then
+    group="$(prompt_name "New layout family")"
+    edit_add_new "$count" "$group"
+    return
+  fi
+
+  filter_presets_for_group "$group"
   choice="$(walker_pick "Edit $count window layouts..." "${sel_label[@]}" "$add_label")"
   [ -n "$choice" ] || exit 0
 
   if [ "$choice" = "$add_label" ]; then
-    edit_add_new "$count"
+    edit_add_new "$count" "$group"
     return
   fi
 
   idx="$(index_of "$choice" "${sel_label[@]}")"
   [ "$idx" -ge 0 ] || exit 0
 
-  edit_overwrite "$count" "$idx"
+  edit_overwrite "$count" "${sel_index[$idx]}"
 }
 
 main() {

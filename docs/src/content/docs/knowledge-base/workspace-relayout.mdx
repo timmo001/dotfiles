@@ -29,11 +29,12 @@ Presets are stowed from the dotfiles repo to:
 ~/.local/share/workspace-relayout/presets.json
 ```
 
-They are grouped by tiled window count under `layouts.<count>`. Each preset has a name and a generic split tree:
+They are grouped by tiled window count under `layouts.<count>`. Preset version 3 gives each layout a family, a concise scale label, and a generic split tree:
 
 ```json
 {
-  "name": "1 top / 2 bottom",
+  "group": "Top / bottom",
+  "name": "75% top",
   "tree": {
     "dir": "tb",
     "ratio": 75.4,
@@ -48,7 +49,9 @@ They are grouped by tiled window count under `layouts.<count>`. Each preset has 
 }
 ```
 
-The checked-in presets cover workspaces with two to five tiled windows. Preset names do not need to be unique: Walker appends a rounded ratio signature, such as `1 top / 4 bottom [76/24, 16/16/16/52]`, to distinguish variants.
+The checked-in presets cover workspaces with two to five tiled windows. Their JSON order controls both the family menu and the presets within each family. Common top/bottom layouts come first, ordered from the largest top region down. Other families distinguish columns, left or right stacks, and purpose-specific arrangements.
+
+Preset names do not need to be unique. Walker appends a rounded ratio signature, such as `75% top [75/25, 16/16/16/52]`, to distinguish variants.
 
 The script writes back through the stowed symlink when you edit presets, keeping the symlink in place.
 
@@ -59,8 +62,9 @@ The script writes back through the stowed symlink when you edit presets, keeping
 1. Focus the workspace to relayout.
 2. Keep at least two tiled, mapped, non-hidden windows on that workspace.
 3. Press `SUPER+TAB`.
-4. Choose a preset from Walker.
-5. Let the script move windows through the temporary workspace and rebuild the split tree.
+4. Choose a layout family from Walker, such as **Top / bottom** or **Left / right**.
+5. Choose an ordered scale preset from that family.
+6. Let the script move windows through the temporary workspace and rebuild the split tree.
 
 </Steps>
 
@@ -80,7 +84,7 @@ Or press:
 SUPER+ALT+TAB
 ```
 
-Edit mode reconstructs the current layout into a split tree. You can overwrite an existing preset for the same window count, or add a new one using the generated description or a custom name.
+Edit mode reconstructs the current layout into a split tree. Choose a family first, then overwrite one of its presets or add a new layout to it using the generated description or a custom name. Choose **Add new family** to name a new family and save the current layout as its first preset.
 
 ## Temporary workspace
 
