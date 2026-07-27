@@ -17,8 +17,8 @@ gtk-titlebar = false
 gtk-custom-css = "~/.config/ghostty/tabs.css"
 # gtk-adwaita = true
 adw-toolbar-style = flat
-window-padding-x = 8
-window-padding-y = 8
+window-padding-x = 12
+window-padding-y = 12
 confirm-close-surface=false
 resize-overlay = never
 
