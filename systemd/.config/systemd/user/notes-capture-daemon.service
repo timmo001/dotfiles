@@ -2,7 +2,6 @@
 Description=Process queued notes captures with local OpenCode
 After=network-online.target notes-capture-opencode.service
 Wants=network-online.target notes-capture-opencode.service
-BindsTo=notes-capture-opencode.service
 PartOf=notes-capture-opencode.service
 
 [Service]

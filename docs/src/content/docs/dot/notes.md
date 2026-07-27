@@ -36,6 +36,8 @@ Handoffs carry a `priority` of `low`, `medium`, `high`, or `critical`. Any hando
 
 Run `notes-process` to start the isolated OpenCode service if needed, wait for it to become ready, process the current Notes issue queue once using `~/.config/notes/daemon.yml`, then exit. The command reads `OPENCODE_SERVER_PASSWORD` from `~/.config/opencode/.env` and exposes it only to the daemon process.
 
+The supervised capture daemon stays available during transient OpenCode service failures and restarts with the isolated server when systemd recovers it. Explicitly restarting the OpenCode service also restarts the daemon with it.
+
 ## Read / write note files
 
 ```bash
