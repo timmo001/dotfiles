@@ -18,20 +18,22 @@ if [[ -z $monitor ]] || ! jq -e --arg monitor "$monitor" '.[] | select(.name == 
   exit 1
 fi
 
-if jq -e --arg monitor "$monitor" '.[] | select(.name == $monitor and .colorManagementPreset == "hdr")' <<<"$state" >/dev/null; then
-  hyprctl reload
-  notify-send "HDR disabled" "Restored the configured monitor settings for $monitor."
+read -r width height refresh x y scale transform < <(
+  jq -r --arg monitor "$monitor" '.[] | select(.name == $monitor) | [.width, .height, .refreshRate, .x, .y, .scale, .transform] | @tsv' <<<"$state"
+)
+printf -v refresh '%.2f' "$refresh"
+
+monitor_rule="$monitor,${width}x${height}@${refresh}Hz,${x}x${y},$scale"
+if ((transform != 0)); then
+  monitor_rule+=",transform,$transform"
+fi
+
+if jq -e --arg monitor "$monitor" \
+  '.[] | select(.name == $monitor and (.colorManagementPreset == "hdr" or (.currentFormat == "XRGB2101010" and .sdrBrightness == 2)))' \
+  <<<"$state" >/dev/null; then
+  hyprctl keyword monitor "$monitor_rule"
+  notify-send "HDR disabled" "Restored SDR colour and brightness for $monitor."
 else
-  read -r width height refresh x y scale transform < <(
-    jq -r --arg monitor "$monitor" '.[] | select(.name == $monitor) | [.width, .height, .refreshRate, .x, .y, .scale, .transform] | @tsv' <<<"$state"
-  )
-  printf -v refresh '%.2f' "$refresh"
-
-  monitor_rule="$monitor,${width}x${height}@${refresh}Hz,${x}x${y},$scale"
-  if ((transform != 0)); then
-    monitor_rule+=",transform,$transform"
-  fi
-
   hyprctl keyword monitor "$monitor_rule,bitdepth,10,cm,hdr,sdrbrightness,2.0"
   notify-send "HDR enabled" "$monitor is using 10-bit HDR with the full BT.2020 colour gamut."
 fi
