@@ -37,7 +37,7 @@ Use this order:
    - Explain the actual edit in ordinary language, including the important calls, branches, data shapes, state changes, or rendering conditions. Put the reason for a non-obvious choice immediately beside the edit it explains.
    - Show compact pseudocode immediately beneath that explanation for new or materially changed control flow, state transitions, data transformation, API handling, persistence, or rendering. Use symbols confirmed during repository inspection. If those symbols are not known, inspect further before submitting. Omit pseudocode for skills, prose-only documentation, generated files, simple configuration changes, and trivial renames.
    - Mention required consumers, registrations, imports, translations, migrations, and generated outputs beside the code that creates the need.
-   - Keep focused test-file edits and the behaviour they prove in the same step.
+   - Include a unit-test edit when an existing relevant test file already owns the changed behaviour, or when the user or repository explicitly requires it. Create a new test file only when a concrete regression risk affects a shared contract best proved through a consumer-facing boundary spanning multiple parts of the codebase. Do not plan a new isolated unit-test file around the changed implementation merely because code changed. Keep qualifying test edits and the behaviour they prove in the same step.
 3. **Validation:** Give only the smallest targeted commands or end-to-end observations needed to prove the implementation works. Do not repeat test-file edits already described in the implementation.
 4. **Files:** Include every anticipated changed, added, deleted, generated, or migration file as a directory tree, split by repository or workspace root. Mark generated files with their source of truth. Every file in the tree must appear in an implementation step.
 
@@ -65,7 +65,7 @@ Before submission, verify that:
 - No core mechanic remains an unbounded assumption or execution-time decision.
 - Every numbered step describes an edit rather than analysis, and every non-obvious reason follows the edit it justifies.
 - Pseudocode uses symbols confirmed during repository inspection, and no unresolved choice has been made for the user.
-- Safeguards, compatibility layers, abstractions, migrations, and new tests address an observed contract or regression risk rather than speculative hardening.
+- Safeguards, compatibility layers, abstractions, migrations, and new tests address an observed contract or regression risk rather than speculative hardening. Test edits also satisfy the existing-test, explicit-guidance, or shared-boundary rule above.
 - The visible plan begins with the plain explainer, contains pseudocode where logic changes, and gives implementation more space than validation.
 
 When the user changes a decision after a plan is drafted, perform a contradiction and impact scan. Revise only the affected scope, steps, files, acceptance criteria, risks, and validation unless the change invalidates the plan's foundation.
