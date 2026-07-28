@@ -2,7 +2,7 @@
 name: ctx-agent-history-search
 description: Use ctx to search local coding-agent history before acting. Use when prior agent sessions may contain relevant insights, decisions, attempts, or transcript context.
 # origin: https://github.com/ctxrs/ctx/tree/main/skills/ctx-agent-history-search
-# upstream-sha: 38241f0c1d167b2f98b358d8d8fa1c37807f66ac
+# upstream-sha: 9c9a2fcee9ed9080d6d7b97a2d531757ebe23911
 ---
 
 # ctx Agent History Search
@@ -41,7 +41,7 @@ Use this skill in two modes:
    ctx sources
    ```
 
-   Use `ctx status --json` or `ctx sources --json` only when a script needs
+   Use `ctx status --format json` or `ctx sources --format json` only when a script needs
    exact fields.
 
 2. Search with normal language first. Add terms or filters when useful:
@@ -58,7 +58,7 @@ Use this skill in two modes:
    ctx search "<query>" --verbose
    ```
 
-   Use default text output for agent reading. Do not add `--json` for
+   Use default text output for agent reading. Do not add `--format json` for
    search, show, or locate unless you are piping it into `jq` or a script, or
    you need exact machine-readable fields. JSON output is much larger and can
    quickly consume the context window.
