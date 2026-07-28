@@ -95,13 +95,15 @@ It compares matching client addresses before and after launch. Only a newly dete
 
 This helper is used by the work browser launchers documented in [Work Browser Launchers](/knowledge-base/work-browser-launchers/).
 
-## Toggle HDR on the right monitor
+## Toggle HDR on the primary monitor
 
-`toggle-right-monitor-hdr` temporarily enables 10-bit HDR with the full BT.2020 colour gamut on `HDMI-A-2` and raises SDR content brightness through Hyprland's `sdrbrightness` setting (currently `2.0`):
+`toggle-primary-monitor-hdr` temporarily enables 10-bit HDR with the full BT.2020 colour gamut and raises SDR content brightness through Hyprland's `sdrbrightness` setting (currently `2.0`):
 
 ```bash
-toggle-right-monitor-hdr
+toggle-primary-monitor-hdr
 ```
+
+On the `desktop` host it targets the main `HDMI-A-2` display, preserving the original right-monitor behaviour. On other hosts it targets the focused display, using its live resolution, refresh rate, position, scale, and transform.
 
 Run it again while HDR is active to reload Hyprland's original monitor configuration. The HDR rule is applied at runtime and is not written to `monitors.conf`.
 
