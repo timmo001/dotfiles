@@ -7,6 +7,8 @@ description: Review code changes along two axes - Standards (does it follow the 
 
 Use this skill when reviewing code changes, pull requests, branch work, or diffs.
 
+Load and follow `changeset-scope` before reviewing. It governs the finding boundary for this skill and every companion skill loaded during the review. Read outside that boundary for context, but report only problems introduced or worsened by the changeset.
+
 Lineage: locally authored. The Standards-axis Fowler smell baseline is adapted from mattpocock's `code-review` skill (<https://github.com/mattpocock/skills/tree/main/skills/engineering/code-review>), itself drawn from Martin Fowler, _Refactoring_, ch.3 "Bad Smells in Code".
 
 ## Two Review Axes
