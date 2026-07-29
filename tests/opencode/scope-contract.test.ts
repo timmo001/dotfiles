@@ -87,3 +87,41 @@ describe("reviewer contract", () => {
     expect(reviewCommand).toContain("independently matching specialist skills");
   });
 });
+
+describe("staged implementation contract", () => {
+  const staged = read(
+    "agents/.agents/skills/staged-implementation/SKILL.md",
+  );
+
+  test("uses the plan-backed worker loop only for broad risky stages", () => {
+    expect(staged).toContain(
+      "Use a dedicated implementation worker only when an approved plan or handoff defines the active stage",
+    );
+    expect(staged).toContain(
+      "Keep small, localised, single-purpose stages in the host.",
+    );
+    expect(staged).toContain(
+      "after the required targeted checks pass and the diff stabilises",
+    );
+  });
+
+  test("bounds independent review and remediation", () => {
+    expect(staged).toContain("use one fresh read-only reviewer");
+    expect(staged).toContain(
+      "resume the same implementation worker at most once",
+    );
+    expect(staged).toContain(
+      "Do not start a second whole-diff review or continue reviewer-worker exchanges.",
+    );
+  });
+
+  test("moves context-heavy retries into a fresh compact handoff", () => {
+    expect(staged).toContain("are context-pressure signals");
+    expect(staged).toContain(
+      "start a fresh worker from a compact handoff containing the active contract",
+    );
+    expect(staged).toContain(
+      "Do not keep resuming the context-heavy worker.",
+    );
+  });
+});

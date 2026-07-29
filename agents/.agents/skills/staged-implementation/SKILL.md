@@ -52,16 +52,24 @@ Use this workflow when finishing the whole request in one uninterrupted change w
 - Give each worker a bounded brief: objective, authoritative inputs, exact file scope, prohibited shared files, expected output, verification, and required concise summary.
 - Do not duplicate delegated work. Reconcile worker results through the contract owner before integration.
 
+### Plan-Backed Worker Loop
+
+- Use a dedicated implementation worker only when an approved plan or handoff defines the active stage and the stage is broad enough to dominate the host context. Rewrites, shared-contract changes, producer-consumer migrations, generated artefacts, and release packaging are strong signals. Keep small, localised, single-purpose stages in the host.
+- Give an implementation worker the active-stage contract, acceptance criteria, authoritative inputs, exact scope, and targeted checks. Do not repeatedly inject the full multi-stage history.
+- When that delegated stage crosses the risk areas above, use one fresh read-only reviewer after the required targeted checks pass and the diff stabilises. Give the reviewer the active-stage contract, scoped diff, risk areas, and verification evidence, not the implementation transcript.
+- The host owns review triage. Discard unsupported or out-of-scope findings, then resume the same implementation worker at most once with the concrete blocking findings. Do not start a second whole-diff review or continue reviewer-worker exchanges.
+
 ## Implement And Verify
 
 1. Edit only the active stage and keep the diff focused on its stated purpose.
 2. Use the fastest reliable feedback while iterating: the exact reproduction, affected test, touched-package type check, lint, format, or build command.
-3. Once targeted checks pass and the diff stabilises, perform one focused review by risk area and file. Classify concrete findings as blocking or deferred follow-up; avoid repeated whole-diff review loops.
+3. Once targeted checks pass and the diff stabilises, perform one focused review by risk area and file. Use the fresh read-only reviewer defined above for a qualifying delegated stage; otherwise keep the review with the host. Classify concrete findings as blocking or deferred follow-up.
 4. Fix blocking findings, then run the repository's canonical full validation once.
 5. After full validation starts, freeze scope. Make only fixes for failures attributable to the active stage or unresolved blocking findings. Report pre-existing or unrelated failures separately. Record new hardening or cleanup ideas for a later stage.
 6. If final-gate fixes were needed, confirm those fixes and their affected risk area rather than reopening the entire diff.
-7. Do not repeat an unchanged fix-and-check cycle. If the same failure persists and another attempt has no new hypothesis or evidence, stop as blocked.
-8. When the active stage completes all work tracked by a loaded handoff or plan, perform its planned retirement step last. Obtain explicit confirmation immediately before deleting a note, as required by the `notes-mcp` skill.
+7. Do not repeat an unchanged fix-and-check cycle. Repeated rereads, duplicate edits, unchanged validation retries, stale review findings, scope drift, or loss of the stage acceptance criteria are context-pressure signals. If the same failure persists and another attempt has no new hypothesis or evidence, stop as blocked.
+8. When blocked work needs another attempt, start a fresh worker from a compact handoff containing the active contract, current diff state, validation evidence, and unresolved findings. Do not keep resuming the context-heavy worker.
+9. When the active stage completes all work tracked by a loaded handoff or plan, perform its planned retirement step last. Obtain explicit confirmation immediately before deleting a note, as required by the `notes-mcp` skill.
 
 ## Checkpoint
 
