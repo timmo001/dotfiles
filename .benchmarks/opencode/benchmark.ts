@@ -1242,6 +1242,14 @@ async function makeReadOnly(path: string) {
 }
 
 async function main() {
+  console.log(
+    [
+      "bun",
+      "run",
+      ".benchmarks/opencode/benchmark.ts",
+      ...process.argv.slice(2),
+    ].join(" "),
+  );
   const options = parseOptions(process.argv.slice(2));
   await mkdir(outputRoot, { recursive: true });
   const staging = await mkdtemp(join(outputRoot, ".staging-"));
