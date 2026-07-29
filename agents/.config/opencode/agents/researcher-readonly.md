@@ -10,6 +10,9 @@ permission:
   skill: allow
   question: deny
   task: deny
+  "chrome-devtools_*": deny
+  "chrome_devtools_*": deny
+  "playwright_*": deny
   webfetch: allow
   websearch: allow
   plan_enter: deny
