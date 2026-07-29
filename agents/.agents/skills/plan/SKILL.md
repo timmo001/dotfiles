@@ -35,7 +35,7 @@ Use this order:
 2. **Implementation:** Give numbered, dependency-ordered code changes. For each step:
    - Name the repository-relative file and existing function, class, type, route, schema, or other insertion point.
    - Explain the actual edit in ordinary language, including the important calls, branches, data shapes, state changes, or rendering conditions. Put the reason for a non-obvious choice immediately beside the edit it explains.
-   - Show compact pseudocode immediately beneath that explanation for new or materially changed control flow, state transitions, data transformation, API handling, persistence, or rendering. Use symbols confirmed during repository inspection. If those symbols are not known, inspect further before submitting. Omit pseudocode for skills, prose-only documentation, generated files, simple configuration changes, and trivial renames.
+   - Show compact pseudocode immediately beneath that explanation for new or materially changed control flow, state transitions, data transformation, API handling, persistence, or rendering. Use symbols confirmed during repository inspection. When contrasting existing and proposed code, use a fenced `diff` block with `-` and `+` lines so Plannotator renders removals red and additions green. Use the relevant language fence for wholly new pseudocode. If those symbols are not known, inspect further before submitting. Omit pseudocode for skills, prose-only documentation, generated files, simple configuration changes, and trivial renames.
    - Mention required consumers, registrations, imports, translations, migrations, and generated outputs beside the code that creates the need.
    - Include a unit-test edit when an existing relevant test file already owns the changed behaviour, or when the user or repository explicitly requires it. Create a new test file only when a concrete regression risk affects a shared contract best proved through a consumer-facing boundary spanning multiple parts of the codebase. Do not plan a new isolated unit-test file around the changed implementation merely because code changed. Keep qualifying test edits and the behaviour they prove in the same step.
 3. **Validation:** Give only the smallest targeted commands or end-to-end observations needed to prove the implementation works. Do not repeat test-file edits already described in the implementation.
@@ -65,6 +65,7 @@ Before submission, verify that:
 - No core mechanic remains an unbounded assumption or execution-time decision.
 - Every numbered step describes an edit rather than analysis, and every non-obvious reason follows the edit it justifies.
 - Pseudocode uses symbols confirmed during repository inspection, and no unresolved choice has been made for the user.
+- Before-and-after code examples use fenced `diff` blocks; wholly new pseudocode uses its language fence.
 - Safeguards, compatibility layers, abstractions, migrations, and new tests address an observed contract or regression risk rather than speculative hardening. Test edits also satisfy the existing-test, explicit-guidance, or shared-boundary rule above.
 - The visible plan begins with the plain explainer, contains pseudocode where logic changes, and gives implementation more space than validation.
 
