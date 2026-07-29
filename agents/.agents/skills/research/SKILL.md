@@ -48,4 +48,8 @@ The findings live in the conversation, so persistence reuses the notes vault rat
 
 ## Act on the findings
 
-Research feeds the thinking, it does not replace it. When the user wants to turn findings into work, suggest `/plan` so the plan starts from the research context.
+Research feeds the thinking, it does not replace it. A visible plan is not always required before implementation:
+
+- When the findings leave a clear, bounded implementation, offer to continue directly. Tell the user to switch to the build agent and give the go-ahead. In build mode, perform the same repository inspection and private preparation that `/plan` would require, but start implementing instead of presenting the plan.
+- Do not treat completed research as permission to edit. Wait for the user to switch agents and explicitly continue.
+- If a material unknown remains, stop before implementation. For a small, bounded unknown, use the `question` tool to ask the minimum needed. For broader scope, sequencing, or several unresolved choices, recommend `/plan`; recommend `/grill` when the proposal needs question-led stress-testing first.
