@@ -9,7 +9,7 @@ import {
 } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { homedir, tmpdir } from "node:os";
-import { basename, dirname, join, relative, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import {
   PINNED_COMMIT,
   scenarios,
@@ -50,6 +50,11 @@ export interface RunEvidence {
   readonly events: readonly RunEvent[];
   readonly stderr: string;
   readonly finalText: string;
+  readonly agent: string;
+  readonly agentSourceHash: string;
+  readonly expectedAgentSourceHash: string;
+  readonly skillSourceHashes: Readonly<Record<string, string>>;
+  readonly expectedSkillSourceHashes: Readonly<Record<string, string>>;
   readonly workspacePath: string;
   readonly baselineChangedPaths: readonly string[];
   readonly changedPaths: readonly string[];
@@ -89,10 +94,28 @@ interface Options {
   readonly skipEvaluator: boolean;
 }
 
+export interface HostRunSummary {
+  readonly scenario: string;
+  readonly repeat: number;
+  readonly agent: string;
+  readonly requiredSkills: readonly string[];
+  readonly loadedSkills: readonly string[];
+  readonly agentSourceHash: string;
+  readonly skillSourceHashes: Readonly<Record<string, string>>;
+  readonly passed: boolean;
+  readonly failedChecks: readonly DeterministicCheck[];
+  readonly boundaryAudit: {
+    readonly prohibitedToolCalls: readonly string[];
+    readonly answerLookupAttempts: number;
+    readonly externalPathAttempts: number;
+    readonly changedPaths: readonly string[];
+    readonly workspaceRemoved: boolean;
+  };
+}
+
 const repositoryRoot = resolve(import.meta.dir, "../..");
 const outputRoot = resolve(repositoryRoot, ".benchmarks/output/opencode");
 const prohibitedTools = new Set([
-  "bash",
   "task",
   "webfetch",
   "websearch",
@@ -101,6 +124,7 @@ const prohibitedTools = new Set([
   "cursor_delegate",
   "cursor_cloud_agent",
 ]);
+const allowedReadOnlyShell = /^(?:git (?:diff|status|show)(?:\s|$))/;
 const lookupTerms = [
   ".benchmarks",
   "benchmark.ts",
@@ -162,8 +186,27 @@ function toolEvents(events: readonly RunEvent[]): ToolPart[] {
   return tools;
 }
 
+export function loadedSkills(events: readonly RunEvent[]): string[] {
+  return toolEvents(events).flatMap((tool) => {
+    if (tool.tool !== "skill") return [];
+    const input = asRecord(tool.state.input);
+    return typeof input?.name === "string" ? [input.name] : [];
+  });
+}
+
 function serialisedInput(tool: ToolPart): string {
   return JSON.stringify(tool.state.input ?? {}).toLowerCase();
+}
+
+function isProhibitedTool(tool: ToolPart): boolean {
+  if (prohibitedTools.has(tool.tool)) return true;
+  if (tool.tool !== "bash") return false;
+  const input = asRecord(tool.state.input);
+  const command = typeof input?.command === "string" ? input.command : "";
+  return command
+    .split(/&&|\|\||;/)
+    .map((segment) => segment.trim())
+    .some((segment) => !allowedReadOnlyShell.test(segment));
 }
 
 function inputStrings(value: unknown): string[] {
@@ -215,6 +258,7 @@ export function scoreRun(
   evidence: RunEvidence,
 ): DeterministicResult {
   const tools = toolEvents(evidence.events);
+  const skills = loadedSkills(evidence.events);
   const changed = new Set(evidence.changedPaths);
   const checks: DeterministicCheck[] = [
     {
@@ -234,10 +278,10 @@ export function scoreRun(
     },
     {
       name: "no prohibited tools or fetches",
-      passed: tools.every((tool) => !prohibitedTools.has(tool.tool)),
+      passed: tools.every((tool) => !isProhibitedTool(tool)),
       detail:
         tools
-          .filter((tool) => prohibitedTools.has(tool.tool))
+          .filter(isProhibitedTool)
           .map((tool) => tool.tool)
           .join(", ") || "none",
     },
@@ -272,6 +316,41 @@ export function scoreRun(
         evidence.stderr
           .match(/agent .* not found|falling back/gi)
           ?.join(", ") ?? "none",
+    },
+    {
+      name: "shipped agent source loaded",
+      passed:
+        evidence.agent === scenario.agent &&
+        evidence.agentSourceHash === evidence.expectedAgentSourceHash,
+      detail: `agent=${evidence.agent}, source=${evidence.agentSourceHash}, expected=${evidence.expectedAgentSourceHash}`,
+    },
+    {
+      name: "shipped skill sources loaded",
+      passed: scenario.requiredSkills.every(
+        (skill) =>
+          evidence.skillSourceHashes[skill] ===
+          evidence.expectedSkillSourceHashes[skill],
+      ),
+      detail: scenario.requiredSkills
+        .map(
+          (skill) =>
+            `${skill}=${evidence.skillSourceHashes[skill] ?? "missing"}/${evidence.expectedSkillSourceHashes[skill] ?? "missing"}`,
+        )
+        .join(", "),
+    },
+    {
+      name: "required skills loaded",
+      passed: scenario.requiredSkills.every((skill) => skills.includes(skill)),
+      detail: `required=${scenario.requiredSkills.join(", ")}, loaded=${skills.join(", ")}`,
+    },
+    {
+      name: "scope skill loaded first",
+      passed:
+        skills.length > 0 &&
+        skills[0] === "changeset-scope" &&
+        (!skills.includes("code-review") ||
+          skills.indexOf("changeset-scope") < skills.indexOf("code-review")),
+      detail: skills.join(" -> ") || "none",
     },
   ];
 
@@ -435,6 +514,10 @@ async function pinnedFile(path: string): Promise<string> {
   return git(repositoryRoot, "show", `${PINNED_COMMIT}:${path}`);
 }
 
+async function currentAsset(path: string): Promise<string> {
+  return readFile(resolve(repositoryRoot, path), "utf8");
+}
+
 async function writeFixtureFiles(
   workspace: string,
   files: ReadonlyMap<string, string>,
@@ -476,50 +559,53 @@ async function materialiseFixture(
   return { workspace, beforeTree: await treeHash(workspace) };
 }
 
-function agentMarkdown(mode: ScenarioMode): string {
-  const mutationPermissions =
-    mode === "implementation"
-      ? "  edit: allow\n  write: allow\n  apply_patch: allow"
-      : "  edit: deny\n  write: deny\n  apply_patch: deny";
-  return `---
-description: Isolated ${mode} benchmark agent
-mode: primary
-permission:
-  "*": deny
-  read: allow
-  glob: allow
-  grep: allow
-  list: allow
-  skill: allow
-  external_directory: deny
-${mutationPermissions}
----
-
-Load changeset-scope before acting.${mode === "review" ? " Load code-review and remain read-only." : " Implement the requested change directly."}
-Never inspect outside the current repository or use network, fetch, shell, delegation, history, notes, or benchmark-related sources.
-`;
-}
-
 async function isolatedConfig(
   root: string,
-  mode: ScenarioMode,
-): Promise<string> {
+  agent: BenchmarkScenario["agent"],
+  skills: readonly string[],
+): Promise<{
+  config: string;
+  agentSourceHash: string;
+  expectedAgentSourceHash: string;
+  skillSourceHashes: Readonly<Record<string, string>>;
+  expectedSkillSourceHashes: Readonly<Record<string, string>>;
+}> {
   const config = join(root, "config");
   await mkdir(join(config, "agents"), { recursive: true });
-  await mkdir(join(config, "skills", "changeset-scope"), { recursive: true });
-  await writeFile(join(config, "agents", "benchmark.md"), agentMarkdown(mode));
-  await writeFile(
-    join(config, "skills", "changeset-scope", "SKILL.md"),
-    await pinnedFile("agents/.agents/skills/changeset-scope/SKILL.md"),
+  const agentSource = await currentAsset(
+    `agents/.config/opencode/agents/${agent}.md`,
   );
-  if (mode === "review") {
-    await mkdir(join(config, "skills", "code-review"), { recursive: true });
-    await writeFile(
-      join(config, "skills", "code-review", "SKILL.md"),
-      await pinnedFile("agents/.agents/skills/code-review/SKILL.md"),
+  await writeFile(join(config, "agents", `${agent}.md`), agentSource);
+  const skillSourceHashes: Record<string, string> = {};
+  const expectedSkillSourceHashes: Record<string, string> = {};
+  for (const skill of skills) {
+    await mkdir(join(config, "skills", skill), { recursive: true });
+    const skillSource = await currentAsset(
+      `agents/.agents/skills/${skill}/SKILL.md`,
     );
+    await writeFile(join(config, "skills", skill, "SKILL.md"), skillSource);
+    expectedSkillSourceHashes[skill] = createHash("sha256")
+      .update(skillSource)
+      .digest("hex");
+    skillSourceHashes[skill] = createHash("sha256")
+      .update(await readFile(join(config, "skills", skill, "SKILL.md"), "utf8"))
+      .digest("hex");
   }
-  return config;
+  const copiedAgentSource = await readFile(
+    join(config, "agents", `${agent}.md`),
+    "utf8",
+  );
+  return {
+    config,
+    agentSourceHash: createHash("sha256")
+      .update(copiedAgentSource)
+      .digest("hex"),
+    expectedAgentSourceHash: createHash("sha256")
+      .update(agentSource)
+      .digest("hex"),
+    skillSourceHashes,
+    expectedSkillSourceHashes,
+  };
 }
 
 async function authContent(): Promise<string> {
@@ -533,7 +619,11 @@ async function authContent(): Promise<string> {
   }
 }
 
-async function openCodeEnvironment(root: string, config: string) {
+async function openCodeEnvironment(
+  root: string,
+  config: string,
+  agent: BenchmarkScenario["agent"],
+) {
   const home = join(root, "home");
   const xdg = {
     config: join(root, "xdg-config"),
@@ -563,7 +653,19 @@ async function openCodeEnvironment(root: string, config: string) {
       lsp: false,
       snapshot: false,
       mcp: {},
-      default_agent: "benchmark",
+      default_agent: agent,
+      permission: {
+        "*": "deny",
+        read: "allow",
+        glob: "allow",
+        grep: "allow",
+        list: "allow",
+        skill: "allow",
+        external_directory: "deny",
+        edit: agent === "refactorer" ? "allow" : "deny",
+        write: agent === "refactorer" ? "allow" : "deny",
+        apply_patch: agent === "refactorer" ? "allow" : "deny",
+      },
     }),
     OPENCODE_AUTH_CONTENT: await authContent(),
     OPENCODE_DISABLE_PROJECT_CONFIG: "1",
@@ -635,6 +737,10 @@ async function executeScenario(
   let evaluatedPrompt = scenario.prompt;
   let afterTree = "unavailable";
   let runtimeLogs = "";
+  let agentSourceHash = "unavailable";
+  let expectedAgentSourceHash = "unavailable";
+  let skillSourceHashes: Readonly<Record<string, string>> = {};
+  let expectedSkillSourceHashes: Readonly<Record<string, string>> = {};
 
   try {
     ({ workspace, beforeTree } = await materialiseFixture(root, scenario));
@@ -643,7 +749,15 @@ async function executeScenario(
       diff = await git(workspace, "diff", "--no-ext-diff", "--binary");
       evaluatedPrompt = `${scenario.prompt}\n\nThe complete diff to review is:\n\n\`\`\`diff\n${diff}\n\`\`\``;
     }
-    const config = await isolatedConfig(root, scenario.mode);
+    const isolated = await isolatedConfig(
+      root,
+      scenario.agent,
+      scenario.requiredSkills,
+    );
+    agentSourceHash = isolated.agentSourceHash;
+    expectedAgentSourceHash = isolated.expectedAgentSourceHash;
+    skillSourceHashes = isolated.skillSourceHashes;
+    expectedSkillSourceHashes = isolated.expectedSkillSourceHashes;
     processResult = await run(
       [
         "opencode",
@@ -651,7 +765,7 @@ async function executeScenario(
         "--dir",
         workspace,
         "--agent",
-        "benchmark",
+        scenario.agent,
         "--model",
         options.model,
         "--format",
@@ -660,7 +774,7 @@ async function executeScenario(
       ],
       {
         cwd: workspace,
-        env: await openCodeEnvironment(root, config),
+        env: await openCodeEnvironment(root, isolated.config, scenario.agent),
         timeoutMs: options.timeoutMs,
       },
     );
@@ -687,6 +801,11 @@ async function executeScenario(
     events,
     stderr: processResult.stderr,
     finalText: extractFinalText(events),
+    agent: scenario.agent,
+    agentSourceHash,
+    expectedAgentSourceHash,
+    skillSourceHashes,
+    expectedSkillSourceHashes,
     workspacePath: workspace,
     baselineChangedPaths,
     changedPaths,
@@ -709,6 +828,8 @@ async function executeScenario(
       id: scenario.id,
       title: scenario.title,
       mode: scenario.mode,
+      agent: scenario.agent,
+      requiredSkills: scenario.requiredSkills,
       pinnedCommit: PINNED_COMMIT,
       sourcePaths: scenario.sourcePaths,
       prompt: evaluatedPrompt,
@@ -727,6 +848,37 @@ async function executeScenario(
     elapsedMs: processResult.elapsedMs,
     evidence,
     result,
+  };
+}
+
+export function hostRunSummary(
+  run: RunRecord,
+  scenario: BenchmarkScenario,
+): HostRunSummary {
+  const tools = toolEvents(run.evidence.events);
+  return {
+    scenario: run.scenario,
+    repeat: run.repeat,
+    agent: run.evidence.agent,
+    requiredSkills: scenario.requiredSkills,
+    loadedSkills: loadedSkills(run.evidence.events),
+    agentSourceHash: run.evidence.agentSourceHash,
+    skillSourceHashes: run.evidence.skillSourceHashes,
+    passed: run.result.passed,
+    failedChecks: run.result.checks.filter((check) => !check.passed),
+    boundaryAudit: {
+      prohibitedToolCalls: tools
+        .filter(isProhibitedTool)
+        .map((tool) => tool.tool),
+      answerLookupAttempts: tools.filter((tool) =>
+        lookupTerms.some((term) => serialisedInput(tool).includes(term)),
+      ).length,
+      externalPathAttempts: tools.filter((tool) =>
+        accessesExternalPath(tool, run.evidence.workspacePath),
+      ).length,
+      changedPaths: run.evidence.changedPaths,
+      workspaceRemoved: run.evidence.workspaceRemoved,
+    },
   };
 }
 
@@ -749,6 +901,12 @@ export function aggregateReport(runs: readonly RunRecord[]) {
     passedRuns: runs.filter((run) => run.result.passed).length,
     totalRuns: runs.length,
     byScenario,
+    runs: runs.map((run) => {
+      const scenario = scenarios.find((item) => item.id === run.scenario);
+      if (!scenario)
+        throw new Error(`Unknown scenario result: ${run.scenario}`);
+      return hostRunSummary(run, scenario);
+    }),
   };
 }
 
@@ -759,7 +917,12 @@ async function advisoryEvaluation(
 ): Promise<ProcessResult> {
   const root = await mkdtemp(join(tmpdir(), "opencode-benchmark-evaluator-"));
   try {
-    const config = await isolatedConfig(root, "review");
+    const isolated = await isolatedConfig(root, "reviewer", [
+      "changeset-scope",
+      "code-review",
+      "types-enforce-ts",
+      "effect-principles",
+    ]);
     const prompt = `Read aggregate.json and the files under runs/. Evaluate scope containment, correctness, unnecessary changes, review precision, instruction conflicts, prohibited tool or fetch attempts, answer lookup attempts, and slop. This is advisory only. Cite run IDs and evidence files. Do not modify anything.`;
     return await run(
       [
@@ -768,7 +931,7 @@ async function advisoryEvaluation(
         "--dir",
         artifacts,
         "--agent",
-        "benchmark",
+        "reviewer",
         "--model",
         model,
         "--format",
@@ -777,7 +940,7 @@ async function advisoryEvaluation(
       ],
       {
         cwd: artifacts,
-        env: await openCodeEnvironment(root, config),
+        env: await openCodeEnvironment(root, isolated.config, "reviewer"),
         timeoutMs,
       },
     );
@@ -857,6 +1020,8 @@ async function main() {
     );
     const aggregate = aggregateReport(runs);
     await writeJson(join(staging, "aggregate.json"), aggregate);
+    let advisoryReport = "Skipped by --skip-evaluator.";
+    let advisoryExitCode: number | null = null;
     if (!options.skipEvaluator) {
       const evaluator = await advisoryEvaluation(
         staging,
@@ -867,15 +1032,24 @@ async function main() {
       try {
         evaluatorEvents = parseRunEvents(evaluator.stdout);
       } catch {}
+      advisoryReport = extractFinalText(evaluatorEvents);
+      advisoryExitCode = evaluator.exitCode;
       await Promise.all([
         writeFile(join(staging, "evaluator-events.ndjson"), evaluator.stdout),
         writeFile(join(staging, "evaluator-stderr.log"), evaluator.stderr),
-        writeFile(
-          join(staging, "evaluator-report.md"),
-          `${extractFinalText(evaluatorEvents)}\n`,
-        ),
+        writeFile(join(staging, "evaluator-report.md"), `${advisoryReport}\n`),
       ]);
     }
+    await writeJson(join(staging, "host-report.json"), {
+      schemaVersion: 1,
+      verdict: aggregate.passed ? "pass" : "fail",
+      deterministic: aggregate,
+      advisory: {
+        gating: false,
+        exitCode: advisoryExitCode,
+        report: advisoryReport,
+      },
+    });
     await writeArtifactManifest(staging);
     const destination = join(outputRoot, timestamp);
     await rename(staging, destination);
@@ -884,6 +1058,9 @@ async function main() {
       `OpenCode benchmark: ${aggregate.passedRuns}/${aggregate.totalRuns} deterministic runs passed`,
     );
     console.log(`Artifacts: ${relative(repositoryRoot, destination)}`);
+    console.log(
+      `Host report: ${relative(repositoryRoot, join(destination, "host-report.json"))}`,
+    );
     process.exitCode = aggregate.passed ? 0 : 1;
   } catch (error) {
     const destination = join(outputRoot, `${timestamp}-failed`);

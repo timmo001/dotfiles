@@ -17,6 +17,8 @@ const scenario = {
   id: "test",
   title: "Test scenario",
   mode: "implementation",
+  agent: "refactorer",
+  requiredSkills: ["changeset-scope"],
   prompt: "Make the change",
   sourcePaths: ["src/target.ts", "src/consumer.ts"],
   requiredChangedPaths: ["src/target.ts"],
@@ -30,9 +32,23 @@ const scenario = {
 const evidence = (overrides: Partial<RunEvidence> = {}): RunEvidence => ({
   exitCode: 0,
   timedOut: false,
-  events: [],
+  events: [
+    {
+      type: "tool_use",
+      part: {
+        type: "tool",
+        tool: "skill",
+        state: { status: "completed", input: { name: "changeset-scope" } },
+      },
+    },
+  ],
   stderr: "",
   finalText: "Implemented the requested change.",
+  agent: "refactorer",
+  agentSourceHash: "agent-hash",
+  expectedAgentSourceHash: "agent-hash",
+  skillSourceHashes: { "changeset-scope": "skill-hash" },
+  expectedSkillSourceHashes: { "changeset-scope": "skill-hash" },
   workspacePath: "/tmp/fixture/workspace",
   baselineChangedPaths: [],
   changedPaths: ["src/target.ts"],
@@ -77,6 +93,61 @@ describe("OpenCode benchmark event capture", () => {
 describe("OpenCode benchmark deterministic scoring", () => {
   test("accepts a contained implementation run", () => {
     expect(scoreRun(scenario, evidence()).passed).toBe(true);
+  });
+
+  test("rejects the wrong agent source and missing scope skill", () => {
+    const result = scoreRun(
+      scenario,
+      evidence({
+        agent: "reviewer",
+        agentSourceHash: "different",
+        events: [],
+      }),
+    );
+
+    expect(
+      result.checks.filter((check) => !check.passed).map((check) => check.name),
+    ).toEqual([
+      "shipped agent source loaded",
+      "required skills loaded",
+      "scope skill loaded first",
+    ]);
+  });
+
+  test("rejects code-review loaded before changeset-scope", () => {
+    const review = {
+      ...scenario,
+      mode: "review",
+      agent: "reviewer",
+      requiredSkills: ["changeset-scope", "code-review"],
+      requiredChangedPaths: [],
+      allowedChangedPaths: [],
+      forbiddenChangedPaths: ["src/target.ts"],
+      requiredDiffText: [],
+      forbiddenDiffText: [],
+      expectedFindings: "none",
+    } satisfies BenchmarkScenario;
+
+    const result = scoreRun(
+      review,
+      evidence({
+        agent: "reviewer",
+        events: [
+          tool("skill", { name: "code-review" }),
+          tool("skill", { name: "changeset-scope" }),
+        ],
+        changedPaths: ["src/target.ts"],
+        baselineChangedPaths: ["src/target.ts"],
+        beforeTree: "same",
+        afterTree: "same",
+        finalText: "No scoped findings were found.",
+      }),
+    );
+
+    expect(
+      result.checks.find((check) => check.name === "scope skill loaded first")
+        ?.passed,
+    ).toBe(false);
   });
 
   test("rejects missing required and unexpected changed paths", () => {
@@ -187,7 +258,7 @@ describe("OpenCode benchmark aggregation", () => {
     const records = [true, false].map(
       (passed, index) =>
         ({
-          scenario: "test",
+          scenario: "implementation-required-consumer",
           repeat: index + 1,
           mode: "implementation",
           elapsedMs: 10,
