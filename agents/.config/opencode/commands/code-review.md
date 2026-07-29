@@ -3,10 +3,9 @@ description: Review current branch work with the code-review skill and BranchCon
 agent: reviewer
 ---
 
-Load the `code-review` skill before proceeding.
 Load the `branch-context-consumer` skill. Use full-context mode.
 Load the `changeset-scope` skill and apply its review boundary to every companion skill.
-For changes in a codebase that does not use Effect, load `effect-principles` as review criteria regardless of programming language.
+Load `effect` for Effect code or `effect-principles` for non-Effect code, never both. Then load `code-review` and independently matching specialist skills from their descriptions.
 
 Have `branch-context-consumer` parse the injected `<work-scope>` in this order: unstaged changes, staged changes, then branch diff against the default branch. Resolve the final review boundary with `changeset-scope`, so narrower explicit user instructions still win.
 

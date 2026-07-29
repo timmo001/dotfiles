@@ -1,6 +1,6 @@
 ---
 name: effect-principles
-description: Apply Effect-inspired engineering principles in codebases that do not use Effect, in any programming language. Use when editing or reviewing code to make boundaries, dependencies, failures, state, resources, time, and workflows more explicit without adding Effect-shaped architecture or broader scope.
+description: Apply the Effect way of reasoning in codebases that do not use Effect, in any programming language. Use when editing or reviewing non-Effect code so dependencies, failures, state, boundaries, resources, time, and workflows stay explicit without adding Effect-shaped architecture or broader scope.
 ---
 
 # Effect Principles Without Effect
@@ -72,7 +72,7 @@ The user's guidance on how much to change is authoritative. Do not treat this sk
 
 ## Translation Guide
 
-Use this only to recognise intent, not to reproduce Effect's API surface:
+Use this to recognise Effect's intent without reproducing its API surface:
 
 | Effect discipline | Non-Effect expression |
 | --- | --- |

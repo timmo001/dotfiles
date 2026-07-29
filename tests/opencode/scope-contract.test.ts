@@ -74,5 +74,16 @@ describe("reviewer contract", () => {
     expect(reviewer).toContain(
       "Before investigating a review, load `changeset-scope`",
     );
+    expect(reviewer).toContain(
+      "load `changeset-scope`, then `effect` for Effect code or `effect-principles` for non-Effect code, then `code-review`",
+    );
+    expect(reviewCommand.indexOf("`changeset-scope`")).toBeLessThan(
+      reviewCommand.indexOf("`effect-principles`"),
+    );
+    expect(reviewSkill).toContain(
+      "Scope governs this skill and every companion.",
+    );
+    expect(reviewer).toContain("independently matching specialist skills");
+    expect(reviewCommand).toContain("independently matching specialist skills");
   });
 });
