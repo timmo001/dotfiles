@@ -44,8 +44,8 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - `agents/.config/opencode/lib/` contains shared plugin support modules. Relative plugin imports must resolve before publication.
 - `agents/.agents/skills/` contains globally stowed skills exposed via `~/.agents/skills/`.
 - `herdr/.config/herdr/config.toml` is the only stowed Herdr file; runtime logs, sockets, and session state stay untracked in `~/.config/herdr/`.
-- `.opencode/skills/` contains repo-local skills for this repo only.
-- Public `SKILL.md` files under `agents/.agents/skills/` and `.opencode/skills/` must satisfy the [Agent Skills](https://agentskills.io/specification) frontmatter rules. CI validates both roots with the shared `lint-agent-skills` workflow.
+- `.agents/skills/` contains repo-local skills for this repo only and is registered through `skills.paths` in `opencode.json`.
+- Public `SKILL.md` files under `agents/.agents/skills/` and `.agents/skills/` must satisfy the [Agent Skills](https://agentskills.io/specification) frontmatter rules. CI validates both roots with the shared `lint-agent-skills` workflow.
 - `dot agents-sync` mirrors the global private AGENTS source into agent harness instruction files; full `dot update` and `dot init` run that sync automatically.
 - Pinned private OpenCode packages, including plugins in `dotfiles-private/agents/.config/opencode/{opencode,tui}.json`, should be managed by an npm regex custom manager in `dotfiles-private/renovate.json`.
 

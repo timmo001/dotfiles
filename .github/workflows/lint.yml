@@ -27,7 +27,7 @@ jobs:
   validate-skills:
     uses: timmo001/workflows/.github/workflows/lint-agent-skills.yml@e288922717ddd852f355f8ed558370eaf074392b # master
     with:
-      skill-roots: agents/.agents/skills .opencode/skills
+      skill-roots: agents/.agents/skills .agents/skills
 
   actionlint:
     uses: timmo001/workflows/.github/workflows/lint-actionlint.yml@e288922717ddd852f355f8ed558370eaf074392b # master
