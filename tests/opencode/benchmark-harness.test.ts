@@ -18,7 +18,7 @@ const scenario = {
   title: "Test scenario",
   mode: "implementation",
   agent: "refactorer",
-  requiredSkills: ["changeset-scope"],
+  requiredSkills: ["changeset-scope", "effect-principles"],
   prompt: "Make the change",
   sourcePaths: ["src/target.ts", "src/consumer.ts"],
   requiredChangedPaths: ["src/target.ts"],
@@ -41,14 +41,28 @@ const evidence = (overrides: Partial<RunEvidence> = {}): RunEvidence => ({
         state: { status: "completed", input: { name: "changeset-scope" } },
       },
     },
+    {
+      type: "tool_use",
+      part: {
+        type: "tool",
+        tool: "skill",
+        state: { status: "completed", input: { name: "effect-principles" } },
+      },
+    },
   ],
   stderr: "",
   finalText: "Implemented the requested change.",
   agent: "refactorer",
   agentSourceHash: "agent-hash",
   expectedAgentSourceHash: "agent-hash",
-  skillSourceHashes: { "changeset-scope": "skill-hash" },
-  expectedSkillSourceHashes: { "changeset-scope": "skill-hash" },
+  skillSourceHashes: {
+    "changeset-scope": "scope-hash",
+    "effect-principles": "principles-hash",
+  },
+  expectedSkillSourceHashes: {
+    "changeset-scope": "scope-hash",
+    "effect-principles": "principles-hash",
+  },
   workspacePath: "/tmp/fixture/workspace",
   baselineChangedPaths: [],
   changedPaths: ["src/target.ts"],
@@ -57,6 +71,26 @@ const evidence = (overrides: Partial<RunEvidence> = {}): RunEvidence => ({
   afterTree: "after",
   workspaceRemoved: true,
   canonicalCommit: PINNED_COMMIT,
+  contextAudit: {
+    captured: true,
+    systemChars: 1200,
+    toolChars: 800,
+    toolDefinitionCalls: 3,
+    uniqueTools: 2,
+    repeatedToolDefinitions: [{ name: "skill", chars: 2 }],
+    totalStarterChars: 2000,
+    estimatedStarterTokens: 500,
+    systemSegments: [{ name: "skill-catalogue", chars: 1200 }],
+    largestTools: [{ name: "skill", chars: 800 }],
+    loadedSkillChars: 600,
+    estimatedLoadedSkillTokens: 150,
+    loadedSkills: [
+      { name: "changeset-scope", chars: 400 },
+      { name: "effect-principles", chars: 200 },
+    ],
+    unmeasuredLoadedSkills: [],
+    duplicateGuidance: [],
+  },
   ...overrides,
 });
 
@@ -111,15 +145,33 @@ describe("OpenCode benchmark deterministic scoring", () => {
       "shipped agent source loaded",
       "required skills loaded",
       "scope skill loaded first",
+      "engineering baseline loaded after scope",
     ]);
   });
 
-  test("rejects code-review loaded before changeset-scope", () => {
+  test("rejects a run without starter-context evidence", () => {
+    const result = scoreRun(
+      scenario,
+      evidence({
+        contextAudit: {
+          ...evidence().contextAudit,
+          captured: false,
+        },
+      }),
+    );
+
+    expect(
+      result.checks.find((check) => check.name === "starter context captured")
+        ?.passed,
+    ).toBe(false);
+  });
+
+  test("rejects a coding skill loaded before changeset-scope", () => {
     const review = {
       ...scenario,
       mode: "review",
       agent: "reviewer",
-      requiredSkills: ["changeset-scope", "code-review"],
+      requiredSkills: ["changeset-scope", "effect-principles", "code-review"],
       requiredChangedPaths: [],
       allowedChangedPaths: [],
       forbiddenChangedPaths: ["src/target.ts"],
@@ -135,6 +187,7 @@ describe("OpenCode benchmark deterministic scoring", () => {
         events: [
           tool("skill", { name: "code-review" }),
           tool("skill", { name: "changeset-scope" }),
+          tool("skill", { name: "effect-principles" }),
         ],
         changedPaths: ["src/target.ts"],
         baselineChangedPaths: ["src/target.ts"],
@@ -147,6 +200,42 @@ describe("OpenCode benchmark deterministic scoring", () => {
     expect(
       result.checks.find((check) => check.name === "scope skill loaded first")
         ?.passed,
+    ).toBe(false);
+  });
+
+  test("rejects a specialist loaded before the engineering baseline", () => {
+    const result = scoreRun(
+      {
+        ...scenario,
+        requiredSkills: [
+          "changeset-scope",
+          "effect-principles",
+          "types-enforce-ts",
+        ],
+      },
+      evidence({
+        events: [
+          tool("skill", { name: "changeset-scope" }),
+          tool("skill", { name: "types-enforce-ts" }),
+          tool("skill", { name: "effect-principles" }),
+        ],
+        skillSourceHashes: {
+          "changeset-scope": "scope-hash",
+          "effect-principles": "principles-hash",
+          "types-enforce-ts": "types-hash",
+        },
+        expectedSkillSourceHashes: {
+          "changeset-scope": "scope-hash",
+          "effect-principles": "principles-hash",
+          "types-enforce-ts": "types-hash",
+        },
+      }),
+    );
+
+    expect(
+      result.checks.find(
+        (check) => check.name === "engineering baseline loaded after scope",
+      )?.passed,
     ).toBe(false);
   });
 
@@ -271,6 +360,40 @@ describe("OpenCode benchmark aggregation", () => {
       passed: false,
       passedRuns: 1,
       totalRuns: 2,
+      contextAudit: {
+        capturedRuns: 2,
+        maxStarterChars: 2000,
+        maxEstimatedStarterTokens: 500,
+        maxLoadedSkillChars: 600,
+        maxEstimatedLoadedSkillTokens: 150,
+      },
     });
+  });
+
+  test("deduplicates repeated guidance findings across runs", () => {
+    const duplicate = {
+      text: "preserve the same behaviour across the requested changeset",
+      skills: ["effect-principles", "types-enforce-ts"],
+    };
+    const records = [1, 2].map(
+      (repeat) =>
+        ({
+          scenario: "implementation-required-consumer",
+          repeat,
+          mode: "implementation",
+          elapsedMs: 10,
+          evidence: evidence({
+            contextAudit: {
+              ...evidence().contextAudit,
+              duplicateGuidance: [duplicate],
+            },
+          }),
+          result: { passed: true, checks: [] },
+        }) satisfies RunRecord,
+    );
+
+    expect(aggregateReport(records).contextAudit.duplicateGuidance).toEqual([
+      duplicate,
+    ]);
   });
 });

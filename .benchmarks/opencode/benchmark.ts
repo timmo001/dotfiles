@@ -3,6 +3,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
   rename,
   rm,
   writeFile,
@@ -63,6 +64,35 @@ export interface RunEvidence {
   readonly afterTree: string;
   readonly workspaceRemoved: boolean;
   readonly canonicalCommit: string;
+  readonly contextAudit: ContextAudit;
+}
+
+export interface ContextContributor {
+  readonly name: string;
+  readonly chars: number;
+}
+
+export interface DuplicateGuidance {
+  readonly text: string;
+  readonly skills: readonly string[];
+}
+
+export interface ContextAudit {
+  readonly captured: boolean;
+  readonly systemChars: number;
+  readonly toolChars: number;
+  readonly toolDefinitionCalls: number;
+  readonly uniqueTools: number;
+  readonly repeatedToolDefinitions: readonly ContextContributor[];
+  readonly totalStarterChars: number;
+  readonly estimatedStarterTokens: number;
+  readonly systemSegments: readonly ContextContributor[];
+  readonly largestTools: readonly ContextContributor[];
+  readonly loadedSkillChars: number;
+  readonly estimatedLoadedSkillTokens: number;
+  readonly loadedSkills: readonly ContextContributor[];
+  readonly unmeasuredLoadedSkills: readonly string[];
+  readonly duplicateGuidance: readonly DuplicateGuidance[];
 }
 
 export interface DeterministicCheck {
@@ -111,6 +141,7 @@ export interface HostRunSummary {
     readonly changedPaths: readonly string[];
     readonly workspaceRemoved: boolean;
   };
+  readonly contextAudit: ContextAudit;
 }
 
 const repositoryRoot = resolve(import.meta.dir, "../..");
@@ -137,6 +168,24 @@ const lookupTerms = [
   '".git"',
   ".git/",
 ];
+
+const emptyContextAudit = (): ContextAudit => ({
+  captured: false,
+  systemChars: 0,
+  toolChars: 0,
+  toolDefinitionCalls: 0,
+  uniqueTools: 0,
+  repeatedToolDefinitions: [],
+  totalStarterChars: 0,
+  estimatedStarterTokens: 0,
+  systemSegments: [],
+  largestTools: [],
+  loadedSkillChars: 0,
+  estimatedLoadedSkillTokens: 0,
+  loadedSkills: [],
+  unmeasuredLoadedSkills: [],
+  duplicateGuidance: [],
+});
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   return typeof value === "object" && value !== null
@@ -192,6 +241,142 @@ export function loadedSkills(events: readonly RunEvent[]): string[] {
     const input = asRecord(tool.state.input);
     return typeof input?.name === "string" ? [input.name] : [];
   });
+}
+
+function guidanceLines(content: string): string[] {
+  return content
+    .split("\n")
+    .map((line) => line.trim().replace(/^[-*]\s+/, ""))
+    .filter((line) => line.length >= 48 && !line.startsWith("#"));
+}
+
+function skillBody(content: string): string {
+  if (!content.startsWith("---\n")) return content;
+  const end = content.indexOf("\n---\n", 4);
+  return end === -1 ? content : content.slice(end + 5).trim();
+}
+
+function systemSegmentName(content: string, segment: number): string {
+  if (content.includes("<available_skills>")) return "skill-catalogue";
+  if (content.includes("<stack-context>")) return "stack-context";
+  if (content.includes("<branch-context>")) return "branch-context";
+  if (content.includes("<repo-note-context>")) return "repo-note-context";
+  if (content.includes("# Global agent instructions")) return "global-agents";
+  if (content.includes("# DOTFILES AGENTS")) return "repository-agents";
+  if (content.includes("You are OpenCode")) return "core-agent-prompt";
+  return `system/${segment}`;
+}
+
+function duplicateGuidance(
+  skills: Readonly<Record<string, string>>,
+): DuplicateGuidance[] {
+  const occurrences = new Map<string, Set<string>>();
+  for (const [skill, content] of Object.entries(skills)) {
+    for (const line of new Set(guidanceLines(content))) {
+      const normalized = line.toLowerCase().replaceAll(/\s+/g, " ");
+      const names = occurrences.get(normalized) ?? new Set<string>();
+      names.add(skill);
+      occurrences.set(normalized, names);
+    }
+  }
+  return [...occurrences.entries()]
+    .filter(([, names]) => names.size > 1)
+    .map(([text, names]) => ({ text, skills: [...names].sort() }))
+    .sort((left, right) => right.text.length - left.text.length);
+}
+
+async function contextAudit(
+  captureParent: string,
+  loaded: readonly string[],
+  skillSources: Readonly<Record<string, string>>,
+): Promise<ContextAudit> {
+  const entries = await readdir(captureParent, { withFileTypes: true }).catch(
+    () => [],
+  );
+  const captures = entries
+    .filter(
+      (entry) =>
+        entry.isDirectory() && entry.name.startsWith("context-baseline-"),
+    )
+    .map((entry) => join(captureParent, entry.name))
+    .sort();
+  const capture = captures.at(-1);
+  if (!capture) return emptyContextAudit();
+
+  const systemIndex = JSON.parse(
+    await readFile(join(capture, "system-index.json"), "utf8"),
+  ) as Array<{ segment: number; chars: number; file: string }>;
+  const tools = (await readFile(join(capture, "tools.jsonl"), "utf8"))
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as { toolID: string; totalChars: number });
+  const toolCallsByID = Map.groupBy(tools, (tool) => tool.toolID);
+  const uniqueTools = [...toolCallsByID.entries()].map(([toolID, records]) => ({
+    toolID,
+    totalChars: Math.max(...records.map((record) => record.totalChars)),
+  }));
+  const loadedSkillSources = Object.fromEntries(
+    loaded.flatMap((name) =>
+      skillSources[name] === undefined
+        ? []
+        : [[name, skillBody(skillSources[name])]],
+    ),
+  );
+  const loadedSkillContributors = Object.entries(loadedSkillSources)
+    .map(([name, content]) => ({ name, chars: content.length }))
+    .sort((left, right) => right.chars - left.chars);
+  const systemSegments = (
+    await Promise.all(
+      systemIndex.map(async (item) => ({
+        name: systemSegmentName(
+          await readFile(join(capture, item.file), "utf8"),
+          item.segment,
+        ),
+        chars: item.chars,
+      })),
+    )
+  ).sort((left, right) => right.chars - left.chars);
+  const largestTools = uniqueTools
+    .map((tool) => ({ name: tool.toolID, chars: tool.totalChars }))
+    .sort((left, right) => right.chars - left.chars)
+    .slice(0, 10);
+  const systemChars = systemIndex.reduce(
+    (total, item) => total + item.chars,
+    0,
+  );
+  const toolChars = uniqueTools.reduce(
+    (total, tool) => total + tool.totalChars,
+    0,
+  );
+
+  return {
+    captured: true,
+    systemChars,
+    toolChars,
+    toolDefinitionCalls: tools.length,
+    uniqueTools: uniqueTools.length,
+    repeatedToolDefinitions: [...toolCallsByID.entries()]
+      .filter(([, records]) => records.length > 1)
+      .map(([name, records]) => ({ name, chars: records.length }))
+      .sort((left, right) => right.chars - left.chars),
+    totalStarterChars: systemChars + toolChars,
+    estimatedStarterTokens: Math.ceil((systemChars + toolChars) / 4),
+    systemSegments,
+    largestTools,
+    loadedSkillChars: loadedSkillContributors.reduce(
+      (total, item) => total + item.chars,
+      0,
+    ),
+    estimatedLoadedSkillTokens: Math.ceil(
+      loadedSkillContributors.reduce((total, item) => total + item.chars, 0) /
+        4,
+    ),
+    loadedSkills: loadedSkillContributors,
+    unmeasuredLoadedSkills: loaded.filter(
+      (name) => skillSources[name] === undefined,
+    ),
+    duplicateGuidance: duplicateGuidance(loadedSkillSources),
+  };
 }
 
 function serialisedInput(tool: ToolPart): string {
@@ -351,6 +536,22 @@ export function scoreRun(
         (!skills.includes("code-review") ||
           skills.indexOf("changeset-scope") < skills.indexOf("code-review")),
       detail: skills.join(" -> ") || "none",
+    },
+    {
+      name: "engineering baseline loaded after scope",
+      passed:
+        skills.length > 1 &&
+        skills[0] === "changeset-scope" &&
+        ["effect", "effect-principles"].includes(skills[1]) &&
+        !(skills.includes("effect") && skills.includes("effect-principles")),
+      detail: skills.join(" -> ") || "none",
+    },
+    {
+      name: "starter context captured",
+      passed: evidence.contextAudit.captured,
+      detail: evidence.contextAudit.captured
+        ? `starter=${evidence.contextAudit.totalStarterChars} chars, loaded-skills=${evidence.contextAudit.loadedSkillChars} chars`
+        : "missing context capture",
     },
   ];
 
@@ -569,6 +770,7 @@ async function isolatedConfig(
   expectedAgentSourceHash: string;
   skillSourceHashes: Readonly<Record<string, string>>;
   expectedSkillSourceHashes: Readonly<Record<string, string>>;
+  skillSources: Readonly<Record<string, string>>;
 }> {
   const config = join(root, "config");
   await mkdir(join(config, "agents"), { recursive: true });
@@ -578,12 +780,14 @@ async function isolatedConfig(
   await writeFile(join(config, "agents", `${agent}.md`), agentSource);
   const skillSourceHashes: Record<string, string> = {};
   const expectedSkillSourceHashes: Record<string, string> = {};
+  const skillSources: Record<string, string> = {};
   for (const skill of skills) {
     await mkdir(join(config, "skills", skill), { recursive: true });
     const skillSource = await currentAsset(
       `agents/.agents/skills/${skill}/SKILL.md`,
     );
     await writeFile(join(config, "skills", skill, "SKILL.md"), skillSource);
+    skillSources[skill] = skillSource;
     expectedSkillSourceHashes[skill] = createHash("sha256")
       .update(skillSource)
       .digest("hex");
@@ -605,6 +809,7 @@ async function isolatedConfig(
       .digest("hex"),
     skillSourceHashes,
     expectedSkillSourceHashes,
+    skillSources,
   };
 }
 
@@ -653,6 +858,9 @@ async function openCodeEnvironment(
       lsp: false,
       snapshot: false,
       mcp: {},
+      plugin: [
+        `file://${resolve(repositoryRoot, "agents/.config/opencode/plugins/context-capture.ts")}`,
+      ],
       default_agent: agent,
       permission: {
         "*": "deny",
@@ -669,12 +877,13 @@ async function openCodeEnvironment(
     }),
     OPENCODE_AUTH_CONTENT: await authContent(),
     OPENCODE_DISABLE_PROJECT_CONFIG: "1",
-    OPENCODE_PURE: "1",
     OPENCODE_DISABLE_EXTERNAL_SKILLS: "1",
     OPENCODE_DISABLE_LSP_DOWNLOAD: "1",
     OPENCODE_DISABLE_AUTOUPDATE: "1",
     OPENCODE_DISABLE_AUTOCOMPACT: "1",
     OPENCODE_DISABLE_SHARE: "1",
+    DOT_CONTEXT_CAPTURE: "1",
+    DOT_CONTEXT_CAPTURE_DIR: join(root, "context-capture"),
   } satisfies Record<string, string | undefined>;
 }
 
@@ -741,6 +950,7 @@ async function executeScenario(
   let expectedAgentSourceHash = "unavailable";
   let skillSourceHashes: Readonly<Record<string, string>> = {};
   let expectedSkillSourceHashes: Readonly<Record<string, string>> = {};
+  let audit = emptyContextAudit();
 
   try {
     ({ workspace, beforeTree } = await materialiseFixture(root, scenario));
@@ -787,6 +997,11 @@ async function executeScenario(
         stderr: `${processResult.stderr}\n${String(error)}`.trim(),
       };
     }
+    audit = await contextAudit(
+      join(root, "context-capture"),
+      loadedSkills(events),
+      isolated.skillSources,
+    );
     changedPaths = await captureChangedPaths(workspace);
     diff = await git(workspace, "diff", "--no-ext-diff", "--binary");
     afterTree = await treeHash(workspace);
@@ -819,6 +1034,7 @@ async function executeScenario(
       "--short=8",
       PINNED_COMMIT,
     ),
+    contextAudit: audit,
   };
   const result = scoreRun(scenario, evidence);
   const runDirectory = join(artifacts, "runs", `${scenario.id}-${repeat}`);
@@ -879,6 +1095,7 @@ export function hostRunSummary(
       changedPaths: run.evidence.changedPaths,
       workspaceRemoved: run.evidence.workspaceRemoved,
     },
+    contextAudit: run.evidence.contextAudit,
   };
 }
 
@@ -901,6 +1118,38 @@ export function aggregateReport(runs: readonly RunRecord[]) {
     passedRuns: runs.filter((run) => run.result.passed).length,
     totalRuns: runs.length,
     byScenario,
+    contextAudit: {
+      capturedRuns: runs.filter((run) => run.evidence.contextAudit.captured)
+        .length,
+      maxStarterChars: Math.max(
+        0,
+        ...runs.map((run) => run.evidence.contextAudit.totalStarterChars),
+      ),
+      maxEstimatedStarterTokens: Math.max(
+        0,
+        ...runs.map((run) => run.evidence.contextAudit.estimatedStarterTokens),
+      ),
+      maxLoadedSkillChars: Math.max(
+        0,
+        ...runs.map((run) => run.evidence.contextAudit.loadedSkillChars),
+      ),
+      maxEstimatedLoadedSkillTokens: Math.max(
+        0,
+        ...runs.map(
+          (run) => run.evidence.contextAudit.estimatedLoadedSkillTokens,
+        ),
+      ),
+      duplicateGuidance: [
+        ...new Map(
+          runs
+            .flatMap((run) => run.evidence.contextAudit.duplicateGuidance)
+            .map((duplicate) => [
+              `${duplicate.text}\0${duplicate.skills.join("\0")}`,
+              duplicate,
+            ]),
+        ).values(),
+      ],
+    },
     runs: runs.map((run) => {
       const scenario = scenarios.find((item) => item.id === run.scenario);
       if (!scenario)
@@ -919,11 +1168,11 @@ async function advisoryEvaluation(
   try {
     const isolated = await isolatedConfig(root, "reviewer", [
       "changeset-scope",
+      "effect-principles",
       "code-review",
       "types-enforce-ts",
-      "effect-principles",
     ]);
-    const prompt = `Read aggregate.json and the files under runs/. Evaluate scope containment, correctness, unnecessary changes, review precision, instruction conflicts, prohibited tool or fetch attempts, answer lookup attempts, and slop. This is advisory only. Cite run IDs and evidence files. Do not modify anything.`;
+    const prompt = `Read aggregate.json and the files under runs/. Evaluate scope containment, correctness, unnecessary changes, review precision, instruction conflicts, prohibited tool or fetch attempts, answer lookup attempts, and slop. Also report context bloat from contextAudit: starter and loaded-skill size, largest system/tool/skill contributors, duplicated guidance, and any loaded skill that was unnecessary for the scenario. This is advisory only. Cite run IDs and evidence files. Do not modify anything.`;
     return await run(
       [
         "opencode",
@@ -1056,6 +1305,9 @@ async function main() {
     await makeReadOnly(destination);
     console.log(
       `OpenCode benchmark: ${aggregate.passedRuns}/${aggregate.totalRuns} deterministic runs passed`,
+    );
+    console.log(
+      `Context audit: max starter ~${aggregate.contextAudit.maxEstimatedStarterTokens} tokens, max loaded skills ~${aggregate.contextAudit.maxEstimatedLoadedSkillTokens} tokens, ${aggregate.contextAudit.duplicateGuidance.length} duplicate guidance lines`,
     );
     console.log(`Artifacts: ${relative(repositoryRoot, destination)}`);
     console.log(
