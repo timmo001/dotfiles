@@ -13,6 +13,25 @@ permission:
   "chrome-devtools_*": deny
   "chrome_devtools_*": deny
   "playwright_*": deny
+  cloudflare-api_execute: deny
+  cloudflare-bindings_d1_database_create: deny
+  cloudflare-bindings_d1_database_delete: deny
+  cloudflare-bindings_d1_database_query: deny
+  cloudflare-bindings_hyperdrive_config_delete: deny
+  cloudflare-bindings_hyperdrive_config_edit: deny
+  cloudflare-bindings_kv_namespace_create: deny
+  cloudflare-bindings_kv_namespace_delete: deny
+  cloudflare-bindings_kv_namespace_update: deny
+  cloudflare-bindings_r2_bucket_create: deny
+  cloudflare-bindings_r2_bucket_delete: deny
+  convex_run: deny
+  convex_envSet: deny
+  convex_envRemove: deny
+  notes_note_write: deny
+  notes_note_delete: deny
+  "pitchfork_*": deny
+  system-bridge_system_bridge_media_control: deny
+  system-bridge_system_bridge_send_notification: deny
   webfetch: allow
   websearch: allow
   plan_enter: deny
