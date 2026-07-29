@@ -84,12 +84,7 @@ export const ContextZoneWarningPlugin = (async ({ $, client }) => {
         POLICIES[message.modelID] ??
         DEFAULT_POLICY;
 
-      const tokens =
-        message.tokens.input +
-        message.tokens.output +
-        message.tokens.reasoning +
-        message.tokens.cache.read +
-        message.tokens.cache.write;
+      const tokens = message.tokens.input + message.tokens.cache.read;
       if (tokens <= 0) return;
 
       const band: Band | undefined =

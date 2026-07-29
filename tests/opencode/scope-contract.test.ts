@@ -108,7 +108,13 @@ describe("staged implementation contract", () => {
   test("bounds independent review and remediation", () => {
     expect(staged).toContain("use one fresh read-only reviewer");
     expect(staged).toContain(
-      "resume the same implementation worker at most once",
+      "Resume the same implementation worker at most once",
+    );
+    expect(staged).toContain(
+      "only when the concrete blocking findings are bounded, local fixes",
+    );
+    expect(staged).toContain(
+      "For broader remediation, start a fresh worker from a compact handoff",
     );
     expect(staged).toContain(
       "Do not start a second whole-diff review or continue reviewer-worker exchanges.",

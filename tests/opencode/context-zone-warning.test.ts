@@ -84,12 +84,12 @@ const setup = async ({ providerFailure = false } = {}) => {
 };
 
 describe("context zone warning", () => {
-  test("uses the displayed-context token sum and includes resolved usage", async () => {
+  test("uses prompt occupancy and includes resolved usage", async () => {
     const { list, send, shellCalls, showToast } = await setup();
 
     await send(
       assistantEvent({
-        input: 136_000,
+        input: 206_000,
         output: 20_000,
         reasoning: 30_000,
         cacheRead: 50_000,
@@ -112,6 +112,21 @@ describe("context zone warning", () => {
         command.startsWith("omarchy notification send ⚠"),
       ),
     ).toBe(true);
+  });
+
+  test("does not count output, reasoning, or cache writes as prompt occupancy", async () => {
+    const { send, showToast } = await setup();
+
+    await send(
+      assistantEvent({
+        input: 100_000,
+        output: 100_000,
+        reasoning: 100_000,
+        cacheWrite: 100_000,
+      }),
+    );
+
+    expect(showToast).not.toHaveBeenCalled();
   });
 
   test("emits each crossed band once and caches provider metadata", async () => {

@@ -57,7 +57,7 @@ Use this workflow when finishing the whole request in one uninterrupted change w
 - Use a dedicated implementation worker only when an approved plan or handoff defines the active stage and the stage is broad enough to dominate the host context. Rewrites, shared-contract changes, producer-consumer migrations, generated artefacts, and release packaging are strong signals. Keep small, localised, single-purpose stages in the host.
 - Give an implementation worker the active-stage contract, acceptance criteria, authoritative inputs, exact scope, and targeted checks. Do not repeatedly inject the full multi-stage history.
 - When that delegated stage crosses the risk areas above, use one fresh read-only reviewer after the required targeted checks pass and the diff stabilises. Give the reviewer the active-stage contract, scoped diff, risk areas, and verification evidence, not the implementation transcript.
-- The host owns review triage. Discard unsupported or out-of-scope findings, then resume the same implementation worker at most once with the concrete blocking findings. Do not start a second whole-diff review or continue reviewer-worker exchanges.
+- The host owns review triage. Discard unsupported or out-of-scope findings. Resume the same implementation worker at most once only when the concrete blocking findings are bounded, local fixes that do not reopen the stage design, external API research, packaging, or broad integration testing. For broader remediation, start a fresh worker from a compact handoff containing the active contract, current diff state, validation evidence, and accepted findings. Do not start a second whole-diff review or continue reviewer-worker exchanges.
 
 ## Implement And Verify
 
