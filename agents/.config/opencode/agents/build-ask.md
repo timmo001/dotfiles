@@ -11,6 +11,7 @@ permission:
   plan_enter: allow
   edit: ask
   write: ask
+  apply_patch: ask
   bash:
     "*": ask
     "command -v*": allow

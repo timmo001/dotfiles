@@ -16,6 +16,7 @@ permission:
     researcher-readonly: allow
   edit: deny
   write: deny
+  apply_patch: deny
   bash:
     "*": deny
     "command -v*": allow

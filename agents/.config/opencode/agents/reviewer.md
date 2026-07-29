@@ -14,6 +14,7 @@ permission:
     researcher-readonly: allow
   edit: deny
   write: deny
+  apply_patch: deny
   notes_note_write: deny
   notes_note_delete: deny
   bash:
