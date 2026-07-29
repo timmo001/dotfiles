@@ -92,6 +92,7 @@ Before flagging:
 
 Output:
 
+- Separate the result into `Standards` and `Spec` sections, even when either section has no findings.
 - Prioritize findings by severity.
 - Include file paths and line numbers when possible.
 - Give the smallest fix direction for each finding. Do not add optional improvements, praise, or nice-to-haves.

@@ -65,6 +65,25 @@ export interface RunEvidence {
   readonly workspaceRemoved: boolean;
   readonly canonicalCommit: string;
   readonly contextAudit: ContextAudit;
+  readonly verification?: VerificationResult;
+  readonly efficiency: EfficiencyAudit;
+}
+
+export type VerificationResult = ProcessResult;
+
+export interface EfficiencyAudit {
+  readonly toolCalls: number;
+  readonly callsByTool: Readonly<Record<string, number>>;
+  readonly repeatedIdenticalCalls: number;
+  readonly investigationCallsAfterMutation: number;
+}
+
+export interface VerificationSelfCheck {
+  readonly scenario: string;
+  readonly baselineRejected: boolean;
+  readonly referenceAccepted: boolean;
+  readonly baseline: VerificationResult;
+  readonly reference: VerificationResult;
 }
 
 export interface ContextContributor {
@@ -156,6 +175,7 @@ const prohibitedTools = new Set([
   "cursor_cloud_agent",
 ]);
 const allowedReadOnlyShell = /^(?:git (?:diff|status|show)(?:\s|$))/;
+const scenarioVerificationCommand = "bun run .benchmark/verify.ts";
 const lookupTerms = [
   ".benchmarks",
   "benchmark.ts",
@@ -233,6 +253,35 @@ function toolEvents(events: readonly RunEvent[]): ToolPart[] {
     }
   }
   return tools;
+}
+
+function efficiencyAudit(events: readonly RunEvent[]): EfficiencyAudit {
+  const tools = toolEvents(events);
+  const callsByTool = Object.fromEntries(
+    [...Map.groupBy(tools, (tool) => tool.tool)].map(([name, calls]) => [
+      name,
+      calls.length,
+    ]),
+  );
+  const signatures = tools.map(
+    (tool) => `${tool.tool}\0${JSON.stringify(tool.state.input ?? {})}`,
+  );
+  const firstMutation = tools.findIndex((tool) =>
+    ["edit", "write", "apply_patch"].includes(tool.tool),
+  );
+  return {
+    toolCalls: tools.length,
+    callsByTool,
+    repeatedIdenticalCalls: signatures.length - new Set(signatures).size,
+    investigationCallsAfterMutation:
+      firstMutation === -1
+        ? 0
+        : tools
+            .slice(firstMutation + 1)
+            .filter((tool) =>
+              ["read", "glob", "grep", "list"].includes(tool.tool),
+            ).length,
+  };
 }
 
 export function loadedSkills(events: readonly RunEvent[]): string[] {
@@ -383,11 +432,20 @@ function serialisedInput(tool: ToolPart): string {
   return JSON.stringify(tool.state.input ?? {}).toLowerCase();
 }
 
-function isProhibitedTool(tool: ToolPart): boolean {
+function isProhibitedTool(
+  tool: ToolPart,
+  scenario?: BenchmarkScenario,
+): boolean {
   if (prohibitedTools.has(tool.tool)) return true;
   if (tool.tool !== "bash") return false;
   const input = asRecord(tool.state.input);
   const command = typeof input?.command === "string" ? input.command : "";
+  if (
+    scenario?.verification &&
+    command.trim() === scenarioVerificationCommand
+  ) {
+    return false;
+  }
   return command
     .split(/&&|\|\||;/)
     .map((segment) => segment.trim())
@@ -434,7 +492,7 @@ function findingCheck(
   return (
     new RegExp(`${escapedPath}:\\d+`, "i").test(finalText) &&
     lower.includes(expectation.changedText.toLowerCase()) &&
-    !/no (?:scoped |concrete )?findings/i.test(finalText)
+    !/no (?:scoped |concrete )findings/i.test(finalText)
   );
 }
 
@@ -463,10 +521,10 @@ export function scoreRun(
     },
     {
       name: "no prohibited tools or fetches",
-      passed: tools.every((tool) => !isProhibitedTool(tool)),
+      passed: tools.every((tool) => !isProhibitedTool(tool, scenario)),
       detail:
         tools
-          .filter(isProhibitedTool)
+          .filter((tool) => isProhibitedTool(tool, scenario))
           .map((tool) => tool.tool)
           .join(", ") || "none",
     },
@@ -592,6 +650,33 @@ export function scoreRun(
         ),
         detail: scenario.forbiddenDiffText.join(", ") || "none",
       },
+      {
+        name: "agent ran executable verification",
+        passed: tools.some((tool) => {
+          if (tool.tool !== "bash") return false;
+          const input = asRecord(tool.state.input);
+          return (
+            input?.command === scenarioVerificationCommand &&
+            tool.state.status === "completed" &&
+            tool.state.error === undefined
+          );
+        }),
+        detail:
+          tools
+            .filter((tool) => tool.tool === "bash")
+            .map(serialisedInput)
+            .join("\n") || "none",
+      },
+      {
+        name: "executable verification passed",
+        passed:
+          scenario.verification !== undefined &&
+          evidence.verification?.exitCode === 0 &&
+          !evidence.verification.timedOut,
+        detail: evidence.verification
+          ? `exit=${evidence.verification.exitCode}, timedOut=${evidence.verification.timedOut}, stderr=${evidence.verification.stderr.trim() || "none"}`
+          : "missing verification result",
+      },
     );
   } else {
     checks.push({
@@ -617,6 +702,15 @@ export function scoreRun(
         passed: scenario.expectedFindings.every((expectation) =>
           findingCheck(evidence.finalText, expectation),
         ),
+        detail: evidence.finalText,
+      });
+    }
+    if (scenario.requireReviewSections) {
+      checks.push({
+        name: "review separates standards and spec",
+        passed:
+          /^#{1,6}\s+Standards\b/im.test(evidence.finalText) &&
+          /^#{1,6}\s+Spec\b/im.test(evidence.finalText),
         detail: evidence.finalText,
       });
     }
@@ -730,6 +824,16 @@ async function writeFixtureFiles(
   }
 }
 
+async function writeScenarioVerifier(
+  workspace: string,
+  scenario: BenchmarkScenario,
+) {
+  if (!scenario.verification) return;
+  const target = join(workspace, ".benchmark/verify.ts");
+  await mkdir(dirname(target), { recursive: true });
+  await writeFile(target, scenario.verification.script);
+}
+
 async function materialiseFixture(
   root: string,
   scenario: BenchmarkScenario,
@@ -743,6 +847,7 @@ async function materialiseFixture(
     ),
   );
   await writeFixtureFiles(workspace, files);
+  await writeScenarioVerifier(workspace, scenario);
   await writeFile(
     join(workspace, "AGENTS.md"),
     "# Fixture instructions\n\nWork only on the requested change. Surrounding code is context, not extra scope. Do not use network tools, inspect paths outside this repository, or search for benchmark answers.\n",
@@ -758,6 +863,54 @@ async function materialiseFixture(
     await writeFixtureFiles(workspace, files);
   }
   return { workspace, beforeTree: await treeHash(workspace) };
+}
+
+async function runScenarioVerification(
+  workspace: string,
+  scenario: BenchmarkScenario,
+): Promise<VerificationResult | undefined> {
+  if (!scenario.verification) return undefined;
+  return run(scenarioVerificationCommand.split(" "), {
+    cwd: workspace,
+    timeoutMs: 30_000,
+  });
+}
+
+export async function verificationSelfCheck(
+  scenario: BenchmarkScenario,
+  execute: (
+    workspace: string,
+    scenario: BenchmarkScenario,
+  ) => Promise<VerificationResult | undefined> = runScenarioVerification,
+): Promise<VerificationSelfCheck | undefined> {
+  if (!scenario.verification) return undefined;
+  const root = await mkdtemp(
+    join(tmpdir(), `opencode-verifier-${scenario.id}-`),
+  );
+  try {
+    const { workspace } = await materialiseFixture(root, scenario);
+    const baseline = await execute(workspace, scenario);
+    if (!baseline) throw new Error(`Missing verifier for ${scenario.id}`);
+    const files = new Map<string, string>();
+    await Promise.all(
+      scenario.sourcePaths.map(async (path) =>
+        files.set(path, await readFile(resolve(workspace, path), "utf8")),
+      ),
+    );
+    scenario.verification.applyReference(files);
+    await writeFixtureFiles(workspace, files);
+    const reference = await execute(workspace, scenario);
+    if (!reference) throw new Error(`Missing verifier for ${scenario.id}`);
+    return {
+      scenario: scenario.id,
+      baselineRejected: baseline.exitCode !== 0 && !baseline.timedOut,
+      referenceAccepted: reference.exitCode === 0 && !reference.timedOut,
+      baseline,
+      reference,
+    };
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 }
 
 async function isolatedConfig(
@@ -873,6 +1026,10 @@ async function openCodeEnvironment(
         edit: agent === "refactorer" ? "allow" : "deny",
         write: agent === "refactorer" ? "allow" : "deny",
         apply_patch: agent === "refactorer" ? "allow" : "deny",
+        bash:
+          agent === "refactorer"
+            ? { "*": "deny", [scenarioVerificationCommand]: "allow" }
+            : "deny",
       },
     }),
     OPENCODE_AUTH_CONTENT: await authContent(),
@@ -951,6 +1108,7 @@ async function executeScenario(
   let skillSourceHashes: Readonly<Record<string, string>> = {};
   let expectedSkillSourceHashes: Readonly<Record<string, string>> = {};
   let audit = emptyContextAudit();
+  let verification: VerificationResult | undefined;
 
   try {
     ({ workspace, beforeTree } = await materialiseFixture(root, scenario));
@@ -1005,6 +1163,7 @@ async function executeScenario(
     changedPaths = await captureChangedPaths(workspace);
     diff = await git(workspace, "diff", "--no-ext-diff", "--binary");
     afterTree = await treeHash(workspace);
+    verification = await runScenarioVerification(workspace, scenario);
   } finally {
     runtimeLogs = await collectRuntimeLogs(root);
     await rm(root, { recursive: true, force: true });
@@ -1035,6 +1194,8 @@ async function executeScenario(
       PINNED_COMMIT,
     ),
     contextAudit: audit,
+    verification,
+    efficiency: efficiencyAudit(events),
   };
   const result = scoreRun(scenario, evidence);
   const runDirectory = join(artifacts, "runs", `${scenario.id}-${repeat}`);
@@ -1049,6 +1210,7 @@ async function executeScenario(
       pinnedCommit: PINNED_COMMIT,
       sourcePaths: scenario.sourcePaths,
       prompt: evaluatedPrompt,
+      verification: scenario.verification !== undefined,
     }),
     writeFile(join(runDirectory, "events.ndjson"), processResult.stdout),
     writeFile(join(runDirectory, "stderr.log"), processResult.stderr),
@@ -1084,7 +1246,7 @@ export function hostRunSummary(
     failedChecks: run.result.checks.filter((check) => !check.passed),
     boundaryAudit: {
       prohibitedToolCalls: tools
-        .filter(isProhibitedTool)
+        .filter((tool) => isProhibitedTool(tool, scenario))
         .map((tool) => tool.tool),
       answerLookupAttempts: tools.filter((tool) =>
         lookupTerms.some((term) => serialisedInput(tool).includes(term)),
@@ -1101,13 +1263,18 @@ export function hostRunSummary(
 
 export function aggregateReport(runs: readonly RunRecord[]) {
   const byScenario = Object.fromEntries(
-    scenarios.map((scenario) => {
-      const matching = runs.filter((run) => run.scenario === scenario.id);
+    [...new Set(runs.map((run) => run.scenario))].map((scenarioID) => {
+      if (!scenarios.some((scenario) => scenario.id === scenarioID)) {
+        throw new Error(`Unknown scenario result: ${scenarioID}`);
+      }
+      const matching = runs.filter((run) => run.scenario === scenarioID);
       return [
-        scenario.id,
+        scenarioID,
         {
           passed: matching.filter((run) => run.result.passed).length,
           total: matching.length,
+          passedAll:
+            matching.length > 0 && matching.every((run) => run.result.passed),
         },
       ];
     }),
@@ -1149,6 +1316,22 @@ export function aggregateReport(runs: readonly RunRecord[]) {
             ]),
         ).values(),
       ],
+    },
+    efficiency: {
+      totalToolCalls: runs.reduce(
+        (total, run) => total + run.evidence.efficiency.toolCalls,
+        0,
+      ),
+      repeatedIdenticalCalls: runs.reduce(
+        (total, run) => total + run.evidence.efficiency.repeatedIdenticalCalls,
+        0,
+      ),
+      investigationCallsAfterMutation: runs.reduce(
+        (total, run) =>
+          total + run.evidence.efficiency.investigationCallsAfterMutation,
+        0,
+      ),
+      elapsedMs: runs.reduce((total, run) => total + run.elapsedMs, 0),
     },
     runs: runs.map((run) => {
       const scenario = scenarios.find((item) => item.id === run.scenario);
@@ -1270,6 +1453,23 @@ async function main() {
     .replaceAll(":", "-")
     .replaceAll(".", "-");
   try {
+    const verificationSelfChecks = (
+      await Promise.all(
+        selectedScenarios.map((scenario) => verificationSelfCheck(scenario)),
+      )
+    ).filter((check) => check !== undefined);
+    await writeJson(
+      join(staging, "verification-self-checks.json"),
+      verificationSelfChecks,
+    );
+    const invalidVerifier = verificationSelfChecks.find(
+      (check) => !check.baselineRejected || !check.referenceAccepted,
+    );
+    if (invalidVerifier) {
+      throw new Error(
+        `Scenario verifier self-check failed for ${invalidVerifier.scenario}: baselineRejected=${invalidVerifier.baselineRejected}, referenceAccepted=${invalidVerifier.referenceAccepted}`,
+      );
+    }
     const runs = await Promise.all(
       runInputs.map(([scenario, repeat]) =>
         executeScenario(scenario, repeat, options, staging),

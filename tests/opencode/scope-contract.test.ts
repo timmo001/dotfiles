@@ -66,6 +66,15 @@ describe("reviewer contract", () => {
     expect(reviewSkill).not.toContain("Acknowledge good practices");
   });
 
+  test("reports standards and spec separately", () => {
+    expect(reviewer).toContain(
+      "Separate the result into `Standards` and `Spec` sections",
+    );
+    expect(reviewSkill).toContain(
+      "Report **Standards** and **Spec** findings separately",
+    );
+  });
+
   test("applies the scope contract before companion review criteria", () => {
     expect(reviewCommand).toContain("Load the `changeset-scope` skill");
     expect(reviewCommand).toContain(

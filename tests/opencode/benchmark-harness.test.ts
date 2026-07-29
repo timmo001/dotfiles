@@ -4,12 +4,14 @@ import {
   extractFinalText,
   parseRunEvents,
   scoreRun,
+  verificationSelfCheck,
   type RunEvidence,
   type RunEvent,
   type RunRecord,
 } from "../../.benchmarks/opencode/benchmark";
 import {
   PINNED_COMMIT,
+  scenarios,
   type BenchmarkScenario,
 } from "../../.benchmarks/opencode/scenarios";
 
@@ -27,6 +29,10 @@ const scenario = {
   requiredDiffText: ["expectedChange()"],
   forbiddenDiffText: ["wrongChange()"],
   expectedFindings: "none",
+  verification: {
+    script: "",
+    applyReference() {},
+  },
 } satisfies BenchmarkScenario;
 
 const evidence = (overrides: Partial<RunEvidence> = {}): RunEvidence => ({
@@ -91,6 +97,19 @@ const evidence = (overrides: Partial<RunEvidence> = {}): RunEvidence => ({
     unmeasuredLoadedSkills: [],
     duplicateGuidance: [],
   },
+  verification: {
+    exitCode: 0,
+    stdout: "verified",
+    stderr: "",
+    elapsedMs: 5,
+    timedOut: false,
+  },
+  efficiency: {
+    toolCalls: 2,
+    callsByTool: { skill: 2 },
+    repeatedIdenticalCalls: 0,
+    investigationCallsAfterMutation: 0,
+  },
   ...overrides,
 });
 
@@ -126,7 +145,17 @@ describe("OpenCode benchmark event capture", () => {
 
 describe("OpenCode benchmark deterministic scoring", () => {
   test("accepts a contained implementation run", () => {
-    expect(scoreRun(scenario, evidence()).passed).toBe(true);
+    expect(
+      scoreRun(
+        scenario,
+        evidence({
+          events: [
+            ...evidence().events,
+            tool("bash", { command: "bun run .benchmark/verify.ts" }),
+          ],
+        }),
+      ).passed,
+    ).toBe(true);
   });
 
   test("rejects the wrong agent source and missing scope skill", () => {
@@ -146,6 +175,7 @@ describe("OpenCode benchmark deterministic scoring", () => {
       "required skills loaded",
       "scope skill loaded first",
       "engineering baseline loaded after scope",
+      "agent ran executable verification",
     ]);
   });
 
@@ -252,12 +282,70 @@ describe("OpenCode benchmark deterministic scoring", () => {
       "required paths changed",
       "changed paths allowed",
       "forbidden paths unchanged",
+      "agent ran executable verification",
     ]);
   });
 
   test("rejects path-only edits that do not implement the expected change", () => {
     expect(
       scoreRun(scenario, evidence({ diff: "+unrelatedChange()" })).passed,
+    ).toBe(false);
+  });
+
+  test("rejects an implementation that fails executable verification", () => {
+    const result = scoreRun(
+      scenario,
+      evidence({
+        verification: {
+          exitCode: 1,
+          stdout: "",
+          stderr: "contract failed",
+          elapsedMs: 5,
+          timedOut: false,
+        },
+        events: [
+          ...evidence().events,
+          tool("bash", { command: "bun run .benchmark/verify.ts" }),
+        ],
+      }),
+    );
+
+    expect(
+      result.checks.find(
+        (check) => check.name === "executable verification passed",
+      )?.passed,
+    ).toBe(false);
+  });
+
+  test("requires the implementation agent to run the scenario verifier", () => {
+    expect(
+      scoreRun(scenario, evidence()).checks.find(
+        (check) => check.name === "agent ran executable verification",
+      )?.passed,
+    ).toBe(false);
+  });
+
+  test("does not count a failed scenario verifier tool call", () => {
+    const failedVerifier: RunEvent = {
+      type: "tool_use",
+      part: {
+        type: "tool",
+        tool: "bash",
+        state: {
+          status: "error",
+          input: { command: "bun run .benchmark/verify.ts" },
+          error: "verification failed",
+        },
+      },
+    };
+
+    expect(
+      scoreRun(
+        scenario,
+        evidence({ events: [...evidence().events, failedVerifier] }),
+      ).checks.find(
+        (check) => check.name === "agent ran executable verification",
+      )?.passed,
     ).toBe(false);
   });
 
@@ -324,6 +412,7 @@ describe("OpenCode benchmark deterministic scoring", () => {
       expectedFindings: [
         { path: "src/target.ts", changedText: "unsafeCall(value)" },
       ],
+      requireReviewSections: true,
     } satisfies BenchmarkScenario;
 
     expect(
@@ -335,10 +424,56 @@ describe("OpenCode benchmark deterministic scoring", () => {
           beforeTree: "same",
           afterTree: "same",
           finalText:
-            "src/target.ts:12 calls unsafeCall(value), which breaks the changed contract.",
+            "## Standards\n\nNo findings.\n\n## Spec\n\nsrc/target.ts:12 calls unsafeCall(value), which breaks the changed contract.",
         }),
       ).passed,
     ).toBe(true);
+  });
+});
+
+describe("OpenCode benchmark scenario verifiers", () => {
+  test("reject baselines and accept reference implementations", async () => {
+    const checks = (
+      await Promise.all(
+        scenarios.map((scenario) => verificationSelfCheck(scenario)),
+      )
+    ).filter((check) => check !== undefined);
+
+    expect(checks).toHaveLength(2);
+    expect(
+      checks.map(({ scenario, baselineRejected, referenceAccepted }) => ({
+        scenario,
+        baselineRejected,
+        referenceAccepted,
+      })),
+    ).toEqual([
+      {
+        scenario: "implementation-required-consumer",
+        baselineRejected: true,
+        referenceAccepted: true,
+      },
+      {
+        scenario: "implementation-reuse-context",
+        baselineRejected: true,
+        referenceAccepted: true,
+      },
+    ]);
+  });
+
+  test("does not treat a verifier timeout as a valid outcome", async () => {
+    let call = 0;
+    const check = await verificationSelfCheck(scenarios[0], async () => ({
+      exitCode: call++ === 0 ? 1 : 0,
+      stdout: "",
+      stderr: "",
+      elapsedMs: 30_000,
+      timedOut: true,
+    }));
+
+    expect(check).toMatchObject({
+      baselineRejected: false,
+      referenceAccepted: false,
+    });
   });
 });
 
@@ -360,12 +495,46 @@ describe("OpenCode benchmark aggregation", () => {
       passed: false,
       passedRuns: 1,
       totalRuns: 2,
+      byScenario: {
+        "implementation-required-consumer": {
+          passed: 1,
+          total: 2,
+          passedAll: false,
+        },
+      },
       contextAudit: {
         capturedRuns: 2,
         maxStarterChars: 2000,
         maxEstimatedStarterTokens: 500,
         maxLoadedSkillChars: 600,
         maxEstimatedLoadedSkillTokens: 150,
+      },
+      efficiency: {
+        totalToolCalls: 4,
+        repeatedIdenticalCalls: 0,
+        investigationCallsAfterMutation: 0,
+        elapsedMs: 20,
+      },
+    });
+  });
+
+  test("omits unselected scenarios from filtered reports", () => {
+    const report = aggregateReport([
+      {
+        scenario: "implementation-required-consumer",
+        repeat: 1,
+        mode: "implementation",
+        elapsedMs: 10,
+        evidence: evidence(),
+        result: { passed: true, checks: [] },
+      },
+    ]);
+
+    expect(report.byScenario).toEqual({
+      "implementation-required-consumer": {
+        passed: 1,
+        total: 1,
+        passedAll: true,
       },
     });
   });

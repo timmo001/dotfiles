@@ -7,6 +7,11 @@ export interface FindingExpectation {
   readonly changedText: string;
 }
 
+export interface ScenarioVerification {
+  readonly script: string;
+  readonly applyReference: (files: Map<string, string>) => void;
+}
+
 export interface BenchmarkScenario {
   readonly id: string;
   readonly title: string;
@@ -21,12 +26,79 @@ export interface BenchmarkScenario {
   readonly requiredDiffText: readonly string[];
   readonly forbiddenDiffText: readonly string[];
   readonly expectedFindings: "none" | readonly FindingExpectation[];
+  readonly verification?: ScenarioVerification;
+  readonly requireReviewSections?: boolean;
   readonly prepare?: (files: Map<string, string>) => void;
 }
 
 const generatedArtifacts = "agents/.config/opencode/lib/generated-artifacts.ts";
 const generatedArtifactGuard =
   "agents/.config/opencode/plugins/generated-artifact-guard.ts";
+
+const requiredConsumerVerification = String.raw`
+const root = process.cwd();
+const module = await import(root + "/agents/.config/opencode/lib/generated-artifacts.ts?verify=" + Date.now());
+if (typeof module.findGeneratedArtifact !== "function") throw new Error("findGeneratedArtifact is not exported");
+if ("generatedArtifactForPath" in module) throw new Error("legacy export remains");
+const artifact = module.findGeneratedArtifact(root, "docs/public/og.png");
+if (artifact?.command !== "mise run docs:og") throw new Error("renamed classifier does not preserve behaviour");
+const markers = [root + "/dot/src/cli/spec.ts", root + "/docs/scripts/generate-opencode-reference.ts"];
+for (const marker of markers) await Bun.write(marker, "export {};\n");
+try {
+  const { GeneratedArtifactGuard } = await import(root + "/agents/.config/opencode/plugins/generated-artifact-guard.ts?verify=" + Date.now());
+  const hooks = await GeneratedArtifactGuard({ directory: root });
+  const before = hooks["tool.execute.before"];
+  if (!before) throw new Error("guard hook is unavailable");
+  let blocked = false;
+  try {
+    await before({ tool: "write" }, { args: { filePath: "docs/public/og.png" } });
+  } catch (error) {
+    blocked = String(error).includes("mise run docs:og");
+  }
+  if (!blocked) throw new Error("production consumer does not use the renamed classifier");
+} finally {
+  const { rm } = await import("node:fs/promises");
+  await Promise.all([
+    rm(root + "/dot", { recursive: true, force: true }),
+    rm(root + "/docs", { recursive: true, force: true }),
+  ]);
+}
+`;
+
+const moveFileVerification = String.raw`
+const root = process.cwd();
+const markers = [root + "/dot/src/cli/spec.ts", root + "/docs/scripts/generate-opencode-reference.ts"];
+for (const marker of markers) {
+  await Bun.write(marker, "export {};\n");
+}
+try {
+  const { GeneratedArtifactGuard } = await import(root + "/agents/.config/opencode/plugins/generated-artifact-guard.ts?verify=" + Date.now());
+  const hooks = await GeneratedArtifactGuard({ directory: root });
+  const before = hooks["tool.execute.before"];
+  if (!before) throw new Error("guard hook is unavailable");
+  let blocked = false;
+  try {
+    await before({ tool: "move_file" }, { args: { destination: "docs/public/og.png" } });
+  } catch (error) {
+    blocked = String(error).includes("mise run docs:og");
+  }
+  if (!blocked) throw new Error("move_file destination was not guarded");
+  blocked = false;
+  try {
+    await before({ tool: "move_file" }, { args: { destination: "scripts/.local/bin/dot" } });
+  } catch (error) {
+    blocked = String(error).includes("mise run dot:build");
+  }
+  if (!blocked) throw new Error("move_file only guards one generated destination");
+  await before({ tool: "move_file" }, { args: { destination: "src/ordinary.ts" } });
+} finally {
+  const { rm } = await import("node:fs/promises");
+  await Promise.all([
+    rm(root + "/dot", { recursive: true, force: true }),
+    rm(root + "/docs", { recursive: true, force: true }),
+  ]);
+}
+`;
 
 export const scenarios = [
   {
@@ -39,8 +111,12 @@ export const scenarios = [
       "effect-principles",
       "types-enforce-ts",
     ],
-    prompt: `Change only the generated-artefact path contract. In ${generatedArtifacts}, rename the exported generatedArtifactForPath function to findGeneratedArtifact. Update its internal callers and the direct production consumer only where required by that rename. Do not keep a compatibility alias, clean up adjacent code, or alter tests and documentation. Make the edits now.`,
-    sourcePaths: [generatedArtifacts, generatedArtifactGuard],
+    prompt: `Change only the generated-artefact path contract. In ${generatedArtifacts}, rename the exported generatedArtifactForPath function to findGeneratedArtifact. Update its internal callers and the direct production consumer only where required by that rename. Do not keep a compatibility alias, clean up adjacent code, or alter tests and documentation. Make the edits now, then run bun run .benchmark/verify.ts.`,
+    sourcePaths: [
+      generatedArtifacts,
+      generatedArtifactGuard,
+      "agents/.config/opencode/lib/guard-paths.ts",
+    ],
     requiredChangedPaths: [generatedArtifacts, generatedArtifactGuard],
     allowedChangedPaths: [generatedArtifacts, generatedArtifactGuard],
     forbiddenChangedPaths: [],
@@ -50,6 +126,22 @@ export const scenarios = [
     ],
     forbiddenDiffText: ["export function generatedArtifactForPath("],
     expectedFindings: "none",
+    verification: {
+      script: requiredConsumerVerification,
+      applyReference(files) {
+        for (const path of [generatedArtifacts, generatedArtifactGuard]) {
+          const source = files.get(path);
+          if (!source) throw new Error(`Missing fixture source: ${path}`);
+          files.set(
+            path,
+            source.replaceAll(
+              "generatedArtifactForPath",
+              "findGeneratedArtifact",
+            ),
+          );
+        }
+      },
+    },
   },
   {
     id: "implementation-reuse-context",
@@ -61,8 +153,12 @@ export const scenarios = [
       "effect-principles",
       "types-enforce-ts",
     ],
-    prompt: `In ${generatedArtifactGuard}, protect a tool named move_file. Its destination is output.args.destination and should be checked against the same generated-artefact paths as write and edit. Reuse the existing path classifier from unchanged context; do not duplicate its path list or change unrelated branches. Make the edit now.`,
-    sourcePaths: [generatedArtifacts, generatedArtifactGuard],
+    prompt: `In ${generatedArtifactGuard}, protect a tool named move_file. Its destination is output.args.destination and should be checked against the same generated-artefact paths as write and edit. Reuse the existing path classifier from unchanged context; do not duplicate its path list or change unrelated branches. Make the edit now, then run bun run .benchmark/verify.ts.`,
+    sourcePaths: [
+      generatedArtifacts,
+      generatedArtifactGuard,
+      "agents/.config/opencode/lib/guard-paths.ts",
+    ],
     requiredChangedPaths: [generatedArtifactGuard],
     allowedChangedPaths: [generatedArtifactGuard],
     forbiddenChangedPaths: [generatedArtifacts],
@@ -73,6 +169,22 @@ export const scenarios = [
     ],
     forbiddenDiffText: ["GENERATED_ARTIFACTS.find"],
     expectedFindings: "none",
+    verification: {
+      script: moveFileVerification,
+      applyReference(files) {
+        const source = files.get(generatedArtifactGuard);
+        if (!source) {
+          throw new Error(`Missing fixture source: ${generatedArtifactGuard}`);
+        }
+        files.set(
+          generatedArtifactGuard,
+          source.replace(
+            'input.tool === "write" || input.tool === "edit"\n          ? generatedArtifactForPath(root, stringArg(args.filePath), workdir)',
+            'input.tool === "write" || input.tool === "edit"\n          ? generatedArtifactForPath(root, stringArg(args.filePath), workdir)\n          : input.tool === "move_file"\n            ? generatedArtifactForPath(\n                root,\n                stringArg(args.destination),\n                workdir,\n              )',
+          ),
+        );
+      },
+    },
   },
   {
     id: "review-harmless-diff",
@@ -88,6 +200,7 @@ export const scenarios = [
     requiredDiffText: [],
     forbiddenDiffText: [],
     expectedFindings: "none",
+    requireReviewSections: true,
     prepare(files) {
       const source = files.get(generatedArtifacts);
       if (!source)
@@ -125,6 +238,7 @@ export const scenarios = [
         changedText: "generatedArtifactForPath",
       },
     ],
+    requireReviewSections: true,
     prepare(files) {
       const source = files.get(generatedArtifactGuard);
       if (!source) {
