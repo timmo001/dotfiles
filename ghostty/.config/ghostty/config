@@ -19,7 +19,7 @@ gtk-custom-css = "~/.config/ghostty/tabs.css"
 adw-toolbar-style = flat
 window-padding-x = 12
 window-padding-y = 12
-confirm-close-surface=false
+confirm-close-surface = always
 resize-overlay = never
 
 # Cursor styling
@@ -30,6 +30,7 @@ cursor-style-blink = false
 keybind = f11=toggle_fullscreen
 keybind = shift+insert=paste_from_clipboard
 keybind = control+insert=copy_to_clipboard
+keybind = super+w=close_window
 keybind = super+control+shift+alt+arrow_down=resize_split:down,100
 keybind = super+control+shift+alt+arrow_up=resize_split:up,100
 keybind = super+control+shift+alt+arrow_left=resize_split:left,100
