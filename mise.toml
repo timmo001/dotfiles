@@ -64,6 +64,10 @@ bash tests/dot/cli-smoke.test.sh
 bash tests/dot/git-diff-index-lock.test.sh
 """
 
+[tasks."benchmarks:opencode"]
+description = "Run the isolated OpenCode benchmark slice"
+run = "bun run .benchmarks/opencode/benchmark.ts"
+
 # docs (runs in ./docs)
 [tasks."docs:dev"]
 description = "Run the docs dev server (regenerates references first)"
