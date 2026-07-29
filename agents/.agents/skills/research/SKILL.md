@@ -1,6 +1,6 @@
 ---
 name: research
-description: Investigate a topic against primary sources and return cited findings, comparing credible maintainer and contributor perspectives when judgement is involved. Use when the user wants a topic researched, docs, API, or spec facts gathered, an external library or GitHub behaviour verified, competing views compared, or reading legwork delegated to a background agent.
+description: Investigate a topic against primary sources and return cited findings, comparing credible maintainer and contributor perspectives when judgement is involved. Use when the user asks why, says show evidence, validate this, or use trusted sources; wants research, docs, API, or spec facts; needs external library or GitHub behaviour verified; compares competing views; or delegates reading legwork to a background agent.
 ---
 
 # Research
