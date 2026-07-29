@@ -27,6 +27,7 @@ The boundary is a hard limit, not a starting point for discovery. Similarity, pr
 - Read unchanged files, callers, tests, history, and documentation when needed to understand changed behaviour.
 - Do not turn issues found in that surrounding context into independent findings or edits.
 - Follow outside the initial files only when the changeset alters their behaviour or they provide evidence that a changed path is incorrect.
+- Use surrounding code to detect a conflict with an existing contract or an existing implementation the changed code should reuse. Report it only when the changed code creates the conflict or concrete duplication; anchor the finding to the changed line, not the unchanged context.
 - Treat unrelated pre-existing problems as out of scope. Mention one only as a residual risk when it directly limits confidence in the scoped work.
 
 ## Reviews
@@ -37,6 +38,7 @@ The boundary is a hard limit, not a starting point for discovery. Similarity, pr
 - Do not recommend unrelated cleanup, migration, redesign, or consistency work as review findings.
 - Do not inventory all violations of a loaded skill. Evaluate only changed code and changed behaviour against it.
 - Do not expand review scope to make a suggested fix more complete. Give the smallest fix direction that resolves the scoped problem.
+- Do not add praise, optional improvements, or nice-to-haves to fill out an otherwise empty review.
 - Reviews remain read-only unless the user separately asks for implementation.
 
 ## Implementation And Refactoring

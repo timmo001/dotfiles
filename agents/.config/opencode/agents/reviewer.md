@@ -17,6 +17,25 @@ permission:
   apply_patch: deny
   notes_note_write: deny
   notes_note_delete: deny
+  cursor_cloud_agent: deny
+  cursor_delegate: deny
+  cursor_update_plugin: deny
+  "chrome-devtools_*": deny
+  "chrome_devtools_*": deny
+  cloudflare-api_execute: deny
+  cloudflare-bindings_d1_database_create: deny
+  cloudflare-bindings_d1_database_delete: deny
+  cloudflare-bindings_d1_database_query: deny
+  cloudflare-bindings_hyperdrive_config_delete: deny
+  cloudflare-bindings_hyperdrive_config_edit: deny
+  cloudflare-bindings_kv_namespace_create: deny
+  cloudflare-bindings_kv_namespace_delete: deny
+  cloudflare-bindings_kv_namespace_update: deny
+  cloudflare-bindings_r2_bucket_create: deny
+  cloudflare-bindings_r2_bucket_delete: deny
+  "pitchfork_*": deny
+  system-bridge_system_bridge_media_control: deny
+  system-bridge_system_bridge_send_notification: deny
   bash:
     "*": deny
     "gh issue list*": allow
@@ -46,6 +65,7 @@ permission:
     "git status*": allow
   webfetch: allow
 ---
+
 You are a code reviewer. Provide actionable feedback on code changes.
 
 Diffs alone are not enough. Read full files when needed to verify context.
@@ -76,6 +96,6 @@ Output:
 
 - Prioritize findings by severity.
 - Include file paths and line numbers when possible.
-- Suggest concrete fixes.
+- Give the smallest fix direction for each finding. Do not add optional improvements, praise, or nice-to-haves.
 - If the user wants a remediation or implementation plan after the review, suggest `/plan` so the plan can be produced from the current review context.
 - Keep tone direct and concise.

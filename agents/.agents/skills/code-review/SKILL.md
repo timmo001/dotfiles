@@ -62,11 +62,9 @@ When reviewing code changes, evaluate:
 
 ## Review Etiquette
 
-- Be constructive and specific in comments
-- Suggest improvements rather than just pointing out problems
-- Acknowledge good practices when you see them
-- Explain the "why" behind suggestions
-- Differentiate between blocking issues and nice-to-haves
+- Be direct, specific, and proportionate.
+- Explain why each finding matters.
+- Do not add praise, optional improvements, or nice-to-haves. If the changeset has no concrete finding, say so.
 
 ## Finding Evidence
 
@@ -76,7 +74,7 @@ Every finding must be independently inspectable:
 - Quote the relevant code or minimally reproduce the observed behaviour.
 - Trace the concrete failure path, value flow, or violated requirement. Do not rely on preference or speculation.
 - State the user-visible or engineering impact and the conditions that trigger it.
-- Give a proportionate fix direction, including a small snippet when it makes the correction clearer.
+- Give the smallest fix direction needed to resolve the finding. Include a snippet only when it makes the correction materially clearer.
 
 Do not report a finding when the evidence does not establish a concrete problem. Record unresolved concerns as questions or residual risks instead.
 
