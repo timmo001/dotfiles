@@ -10,6 +10,8 @@ import { CardGrid, LinkCard } from "@astrojs/starlight/components";
 
 The repo ships a shared [OpenCode](https://opencode.ai) configuration: agents, slash commands, skills, and lifecycle plugins. The source lives in `agents/.config/opencode/` (agents, commands, plugins, and shared `lib/` modules) and `agents/.agents/skills/` (skills exposed through the shared `~/.agents/skills/` path).
 
+The repo-local `opencode.json` allows agents to inspect the live directories managed by stow and list their parent config directories. Direct edits to unmanaged files in those directories are denied; change the matching source under `~/.config/dotfiles` and run `dot stow` instead. Existing stowed symlinks resolve to their repository source, so edits still land in the tracked package.
+
 The notes capture daemon is intentionally separate from this shared interactive configuration. Dotfiles only installs its systemd units and private launch wrappers; the dedicated fail-closed agent and OpenCode config are owned by the `notes` repository.
 
 These are generated from this dotfiles repo and published automatically to [`timmo001/opencode-config`](https://github.com/timmo001/opencode-config) so they can be browsed, imported, and installed independently of the full dotfiles repo.
