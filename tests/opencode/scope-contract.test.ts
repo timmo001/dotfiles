@@ -75,6 +75,18 @@ describe("reviewer contract", () => {
     );
   });
 
+  test("does not rediscover an authoritative supplied diff", () => {
+    expect(reviewer).toContain(
+      "When the review already includes a complete diff or injected work scope, treat it as authoritative.",
+    );
+    expect(reviewer).toContain(
+      "Do not run `git diff`, `git status`, or equivalent GitHub commands to rediscover it",
+    );
+    expect(reviewCommand).toContain(
+      "Do not run additional `git` or `gh` commands unless the user explicitly asks for a fresh snapshot.",
+    );
+  });
+
   test("applies the scope contract before companion review criteria", () => {
     expect(reviewCommand).toContain("Load the `changeset-scope` skill");
     expect(reviewCommand).toContain(
