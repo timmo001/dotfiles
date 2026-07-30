@@ -70,15 +70,13 @@ describe("browserVideoFlagResults", () => {
     ]);
   });
 
-  test("warns when the GPU blocklist is bypassed", () => {
+  test("accepts an explicit GPU blocklist bypass", () => {
     expect(
       browserVideoFlagResults("chromium", "--ignore-gpu-blocklist\n"),
     ).toEqual([
       {
-        severity: "warn",
-        message: "chromium-flags.conf bypasses Chromium's GPU blocklist",
-        detail:
-          "Remove --ignore-gpu-blocklist unless it is needed for diagnosis",
+        severity: "ok",
+        message: "chromium-flags.conf has no harmful hardware video overrides",
       },
     ]);
   });

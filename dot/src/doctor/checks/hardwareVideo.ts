@@ -65,14 +65,6 @@ export function browserVideoFlagResults(
     });
   }
 
-  if (flags.includes("--ignore-gpu-blocklist")) {
-    results.push({
-      severity: "warn",
-      message: `${name}-flags.conf bypasses Chromium's GPU blocklist`,
-      detail: "Remove --ignore-gpu-blocklist unless it is needed for diagnosis",
-    });
-  }
-
   if (results.length === 0) {
     results.push({
       severity: "ok",
