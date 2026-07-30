@@ -37,7 +37,7 @@ Plans, reviews, annotations, archives, and reopened sessions open in a dedicated
 PLANNOTATOR_BROWSER=plannotator-browser
 ```
 
-The launcher gives Chromium the `plannotator` class and an isolated data directory under `${XDG_DATA_HOME:-~/.local/share}/plannotator-browser`. The separate browser state prevents Chromium from handing the URL to a normal running browser process and discarding the dedicated class. A shared Hyprland rule moves that class to workspace `2` without switching the active workspace. Later Plannotator surfaces reuse that browser process and open in new windows.
+The launcher gives Chromium the `plannotator` class and an isolated data directory under `${XDG_DATA_HOME:-~/.local/share}/plannotator-browser`. The separate browser state prevents Chromium from handing the URL to a normal running browser process and discarding the dedicated class. A shared Hyprland rule moves that class to workspace `2` without switching the active workspace. Later Plannotator surfaces reuse that browser process and open in new tabs.
 
 After changing `PLANNOTATOR_BROWSER`, relaunch Hyprland so newly started agents inherit it. A config reload is sufficient for changes to the matching window rule itself.
 

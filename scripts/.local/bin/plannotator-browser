@@ -7,7 +7,6 @@ if [ "$#" -ne 1 ]; then
 fi
 
 uwsm app -- chromium \
-  --new-window \
   --ozone-platform=wayland \
   --force-device-scale-factor=0.8 \
   --user-data-dir="${XDG_DATA_HOME:-$HOME/.local/share}/plannotator-browser" \
