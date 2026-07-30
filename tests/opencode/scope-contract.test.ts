@@ -107,6 +107,30 @@ describe("reviewer contract", () => {
     expect(reviewer).toContain("independently matching specialist skills");
     expect(reviewCommand).toContain("independently matching specialist skills");
   });
+
+  test("keeps delegated evidence separate from final review judgement", () => {
+    expect(reviewer).toContain(
+      "Skills loaded by this host reviewer are not inherited by fresh task subagents.",
+    );
+    expect(reviewer).toContain(
+      "Use `explore` only for bounded evidence gathering",
+    );
+    expect(reviewer).toContain(
+      "Do not delegate the complete review, Standards or Spec classification, severity, fix direction, or overall assessment to `explore`.",
+    );
+    expect(reviewer).toContain(
+      "independently establish each final finding under the host's loaded skills",
+    );
+    expect(reviewSkill).toContain(
+      "Give every delegated agent the resolved changeset boundary from `changeset-scope`",
+    );
+    expect(reviewSkill).toContain(
+      "Skills loaded by the parent are not inherited by a fresh subagent.",
+    );
+    expect(reviewSkill).toContain(
+      "The parent reviewer owns Standards and Spec classification, severity, fix direction, and overall assessment.",
+    );
+  });
 });
 
 describe("staged implementation contract", () => {

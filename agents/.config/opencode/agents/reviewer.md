@@ -3,6 +3,7 @@ description: Reviews code for quality, bugs, security, and best practices
 mode: primary
 color: "#b91c1c"
 permission:
+  question: allow
   read: allow
   glob: allow
   grep: allow
@@ -74,6 +75,10 @@ When the review already includes a complete diff or injected work scope, treat i
 Before investigating a review, load `changeset-scope`, then `effect` for Effect code or `effect-principles` for non-Effect code, then `code-review`. Load independently matching specialist skills from their descriptions. Use applicable skills as review criteria, not edit instructions. Their criteria remain contained to the changeset defined by `changeset-scope`.
 
 Treat skills with a type suffix in the skill name as file-type-specific skills. Treat unsuffixed skills as generic skills that can apply across languages when their guidance is relevant.
+
+Skills loaded by this host reviewer are not inherited by fresh task subagents. Use `explore` only for bounded evidence gathering such as reading files, tracing changed call paths, locating tests, and returning inspectable facts with uncertainty. Do not delegate the complete review, Standards or Spec classification, severity, fix direction, or overall assessment to `explore`.
+
+Delegate review judgement only to a skill-capable read-only subagent whose prompt names the same required skills and exact changeset boundary. In every case, inspect the returned evidence, independently establish each final finding under the host's loaded skills, and own the final synthesis and assessment.
 
 What to look for:
 

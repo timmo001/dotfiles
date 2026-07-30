@@ -78,6 +78,13 @@ Every finding must be independently inspectable:
 
 Do not report a finding when the evidence does not establish a concrete problem. Record unresolved concerns as questions or residual risks instead.
 
+## Delegation
+
+- Give every delegated agent the resolved changeset boundary from `changeset-scope`; surrounding reads remain context only.
+- Skills loaded by the parent are not inherited by a fresh subagent. Use `explore` for evidence gathering, not the complete review or final judgement.
+- If a subagent is asked to make review judgements, use a skill-capable read-only agent and require it to load the same applicable review and specialist skills, or include those criteria explicitly in its prompt.
+- The parent reviewer owns Standards and Spec classification, severity, fix direction, and overall assessment. Before reporting a delegated claim, independently verify its changed-line trace, failure path, scope, and impact.
+
 ## Using GitHub CLI
 
 Use `gh` CLI for PR workflow operations:
