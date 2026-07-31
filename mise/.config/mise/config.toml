@@ -53,3 +53,6 @@ npm.package_manager = "bun"
 # ~/.cache/yay/<pkg>/src, which contains package.json/.tool-versions/mise.toml)
 # from auto-installing and reshimming all shims on every update.
 ignored_config_paths = ["~/.cache"]
+
+[hooks]
+postinstall = "if command -v browser-control-extension-sync >/dev/null; then browser-control-extension-sync; fi"

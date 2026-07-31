@@ -11,6 +11,7 @@ import type { CheckResult } from "../types.js";
  *
  * The private config file uses pipe-delimited lines:
  * `kind|profile_dir|target|label|hint`
+ * Append `-absent` to a kind when the extension must not be installed.
  */
 export const checkBrowserExtensions = Effect.gen(function* () {
   const config = yield* Config;
@@ -46,6 +47,15 @@ export const checkBrowserExtensions = Effect.gen(function* () {
     });
     return results;
   }
+
+  results.push(...browserExtensionResults(content));
+
+  return results;
+});
+
+/** Evaluate browser extension checks from pipe-delimited private config. */
+export function browserExtensionResults(content: string): CheckResult[] {
+  const results: CheckResult[] = [];
 
   for (const rawLine of content.split("\n")) {
     const line = rawLine.trim();
@@ -84,11 +94,13 @@ export const checkBrowserExtensions = Effect.gen(function* () {
       continue;
     }
 
+    const mustBeAbsent = kind.endsWith("-absent");
+    const lookupKind = mustBeAbsent ? kind.slice(0, -"-absent".length) : kind;
     let found = false;
-    if (kind === "chromium-id") {
+    if (lookupKind === "chromium-id") {
       // Check by extension ID in extensions.settings
       found = prefs.includes(`"${target}"`);
-    } else if (kind === "chromium-name") {
+    } else if (lookupKind === "chromium-name") {
       // Check by extension name — first try the Preferences JSON directly
       found =
         prefs.includes(`"name": "${target}"`) || prefs.includes(`"${target}"`);
@@ -100,12 +112,18 @@ export const checkBrowserExtensions = Effect.gen(function* () {
       }
     }
 
-    if (found) {
+    if (found && mustBeAbsent) {
+      results.push({
+        severity: "error",
+        message: `${label} must be removed from ${displayPath(profileDir)}`,
+        detail: hint || undefined,
+      });
+    } else if (found) {
       results.push({
         severity: "ok",
         message: `${label} is installed in ${displayPath(profileDir)}`,
       });
-    } else {
+    } else if (!mustBeAbsent) {
       results.push({
         severity: "warn",
         message: `${label} is missing from ${displayPath(profileDir)}`,
@@ -115,7 +133,7 @@ export const checkBrowserExtensions = Effect.gen(function* () {
   }
 
   return results;
-});
+}
 
 function readTextFile(path: string): string | null {
   try {

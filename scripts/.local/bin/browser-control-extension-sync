@@ -1,0 +1,29 @@
+#!/bin/bash
+
+set -euo pipefail
+
+tool_name="npm:@opencode-ai/browser-control"
+install_dir=$(mise where "$tool_name")
+package_dir="$install_dir/node_modules/@opencode-ai/browser-control/extension"
+source_dir="$package_dir/dist"
+target_dir="${XDG_DATA_HOME:-$HOME/.local/share}/browser-control/extension"
+
+if [[ -L $source_dir && $(readlink -f "$source_dir") == "$target_dir" ]]; then
+  exit 0
+fi
+
+if [[ ! -f $source_dir/manifest.json ]]; then
+  printf 'Browser Control extension not found: %s\n' "$source_dir" >&2
+  exit 1
+fi
+
+mkdir -p "$(dirname "$target_dir")"
+rm -rf "$target_dir.new"
+mkdir "$target_dir.new"
+cp -a "$source_dir/." "$target_dir.new/"
+rm -rf "$target_dir"
+mv "$target_dir.new" "$target_dir"
+rm -rf "$source_dir"
+ln -s "$target_dir" "$source_dir"
+
+printf 'Synced Browser Control extension to %s\n' "$target_dir"
