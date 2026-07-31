@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+remote=origin
+if git remote get-url upstream >/dev/null 2>&1; then
+  remote=upstream
+fi
+
+default_branch=$(git ls-remote --symref "$remote" HEAD | sed -n 's#^ref: refs/heads/\([^[:space:]]*\)[[:space:]]*HEAD$#\1#p')
+if [[ -z "$default_branch" ]]; then
+  echo "Could not detect $remote's advertised default branch" >&2
+  exit 1
+fi
+
+expected_ref="refs/remotes/$remote/$default_branch"
+git fetch "$remote" "+refs/heads/$default_branch:$expected_ref" >&2
+
+local_ref=$(git symbolic-ref -q "refs/remotes/$remote/HEAD" 2>/dev/null || true)
+if [[ "$local_ref" != "$expected_ref" ]]; then
+  if dot is-agent --quiet >/dev/null 2>&1 || [[ ! -t 0 ]]; then
+    echo "Refusing to use $remote/$default_branch: local $remote/HEAD is ${local_ref:-missing}" >&2
+    exit 1
+  fi
+
+  printf 'Local %s/HEAD is %s; use advertised default %s/%s? [y/N] ' \
+    "$remote" "${local_ref:-missing}" "$remote" "$default_branch" >&2
+  read -r answer
+  if [[ "${answer,,}" != "y" ]]; then
+    echo "Cancelled." >&2
+    exit 1
+  fi
+
+  git remote set-head "$remote" "$default_branch"
+fi
+
+printf '%s/%s\n' "$remote" "$default_branch"

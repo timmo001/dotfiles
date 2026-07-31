@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+default_ref=$(git-default-ref)
+git diff "$default_ref"...HEAD "$@"

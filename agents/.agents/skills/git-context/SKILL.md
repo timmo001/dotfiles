@@ -50,8 +50,11 @@ git diff <remote>/<default-branch>...HEAD
 
 Prefer the installed helpers over rebuilding default-branch operations with ad-hoc shell commands:
 
-- `git-switch-default` (`gsd`) prefers `upstream`, falls back to `origin`, fetches the remote's advertised default branch, then switches to its existing local branch or creates the tracking branch.
-- `git-rebase-default` (`grd`) prefers `upstream`, falls back to `origin`, fetches the remote's advertised default branch, then rebases the checked-out branch onto it with `--autostash`.
+- `git-default-ref` is the guarded resolver used by all helpers. It prefers `upstream`, falls back to `origin`, verifies local `<remote>/HEAD` against the advertised default, and fetches it. A missing or mismatched ref requires human confirmation; under `dot is-agent` or without a TTY it fails instead of prompting.
+- `git-switch-default` (`gsd`) switches to the resolved default branch and fast-forwards it.
+- `git-rebase-default` (`grd`) rebases the checked-out branch onto the resolved default with `--autostash`.
+- `git-diff-default` (`gdd`) diffs the resolved default branch's merge base against `HEAD`.
+- `git-log-default` (`gld`) lists commits in `HEAD` that are not in the resolved default branch.
 - `gra` prints a status message and runs `git rebase --abort`.
 
 These commands are stowed from `scripts/.local/bin/`; the aliases are defined in `zsh/.zshrc`.

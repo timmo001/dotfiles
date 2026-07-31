@@ -26,9 +26,12 @@ times
 
 ## Git branch sync
 
-`git-switch-default` switches to the default branch from `upstream`, falling back to `origin`. It fetches the remote's advertised default branch first, then switches to the existing local branch or creates its tracking branch. Run it with the `gsd` shell alias.
+`git-default-ref` is the shared guarded resolver for default-branch operations. It prefers `upstream`, falls back to `origin`, compares the remote's advertised default branch with local `<remote>/HEAD`, and fetches the branch. A missing or mismatched local ref requires confirmation before repair. Under `dot is-agent`, or without an interactive terminal, it fails instead of prompting.
 
-`git-rebase-default` fetches the default branch from `upstream`, falling back to `origin`, then rebases the checked-out branch onto the fetched commit with `--autostash`. Run it with the `grd` shell alias or press `Ctrl+F` in Lazygit's Local Branches panel. Use `gra` to abort a rebase in progress.
+- `git-switch-default` (`gsd`) switches to the default branch and fast-forwards it to the fetched remote branch.
+- `git-rebase-default` (`grd`) rebases the checked-out branch onto the default branch with `--autostash`. Press `Ctrl+F` in Lazygit's Local Branches panel to run it. Use `gra` to abort a rebase in progress.
+- `git-diff-default` (`gdd`) shows the current branch diff from its merge base with the default branch.
+- `git-log-default` (`gld`) shows commits on the current branch since it diverged from the default branch.
 
 ## System updates
 

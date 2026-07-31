@@ -2,13 +2,8 @@
 
 set -euo pipefail
 
-remote=origin
-if git remote get-url upstream >/dev/null 2>&1; then
-  remote=upstream
-fi
-
+default_ref=$(git-default-ref)
 branch=$(git branch --show-current)
-echo "Rebasing ${branch:-HEAD} onto $remote's default branch..."
+echo "Rebasing ${branch:-HEAD} onto $default_ref..."
 
-git fetch "$remote" HEAD
-git rebase --autostash FETCH_HEAD
+git rebase --autostash "$default_ref"

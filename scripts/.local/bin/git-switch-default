@@ -2,22 +2,13 @@
 
 set -euo pipefail
 
-remote=origin
-if git remote get-url upstream >/dev/null 2>&1; then
-  remote=upstream
-fi
+default_ref=$(git-default-ref)
+default_branch=${default_ref#*/}
+echo "Switching to $default_ref..."
 
-default_ref=$(git ls-remote --symref "$remote" HEAD | sed -n 's#^ref: refs/heads/\([^[:space:]]*\)[[:space:]]*HEAD$#\1#p')
-if [[ -z "$default_ref" ]]; then
-  echo "Could not detect $remote's default branch" >&2
-  exit 1
-fi
-
-echo "Switching to $remote's default branch ($default_ref)..."
-git fetch "$remote" "$default_ref"
-
-if git show-ref --verify --quiet "refs/heads/$default_ref"; then
-  git switch "$default_ref"
+if git show-ref --verify --quiet "refs/heads/$default_branch"; then
+  git switch "$default_branch"
+  git merge --ff-only "$default_ref"
 else
-  git switch --track "$remote/$default_ref"
+  git switch --track "$default_ref"
 fi
