@@ -90,6 +90,7 @@ describe("loadDotGitConfig", () => {
         name: "dotfiles",
         path: "/tmp/dotfiles",
         github: "timmo001/dotfiles",
+        postUpdate: null,
         activity: { enabled: true, schedule: "*/15 9-17 * * 1-5" },
         workflows: { enabled: false, schedule: "* * * * *" },
         notifications: {
@@ -130,6 +131,15 @@ describe("loadDotGitConfig", () => {
         "root.repositories[0].notifications.bar.extra is not supported",
       ]),
     );
+  });
+
+  test("loads an optional post-update command", () => {
+    const config = loadDotGitConfig(
+      writeConfig(validConfig(repository("    post_update: mise run build\n"))),
+    );
+
+    expect(config.valid).toBe(true);
+    expect(config.repositories[0]?.postUpdate).toBe("mise run build");
   });
 
   test("rejects duplicate repository identifiers", () => {

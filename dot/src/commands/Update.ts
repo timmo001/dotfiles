@@ -27,7 +27,9 @@ import {
 import { HOME_DIR, displayPath } from "../lib/paths.js";
 import { detectLegacyHyprRepo } from "../lib/omarchyHost.js";
 import { installMissingArchPackages } from "../lib/packageSetup.js";
+import { managedGitRepos } from "../services/GitConfig.js";
 import type { ConfigService } from "../services/Config.js";
+import type { GitManagedRepo } from "../services/GitConfig.js";
 import type { InitCompleteMarkerStatus } from "../lib/initState.js";
 import type { DiffRepo, RepoCategory } from "../types.js";
 
@@ -67,6 +69,9 @@ const STEP_TIMEOUT_SECONDS = {
   postHooks: 2 * 60,
   resume: 60,
 } as const;
+
+/** Upper bound for one repository post-update command. */
+const REPO_POST_UPDATE_TIMEOUT_SECONDS = 5 * 60;
 
 /** Options controlling which phases `dot update` runs. */
 export interface UpdateOptions {
@@ -246,6 +251,38 @@ const notifyUpdated = (names: readonly string[]) =>
       title,
       message,
     ]);
+  });
+
+/** Run a repository's configured command after its pull moves HEAD. */
+const runRepoPostUpdate = (repo: GitManagedRepo) =>
+  Effect.gen(function* () {
+    if (!repo.postUpdate) return;
+    const command = repo.postUpdate;
+
+    const log = yield* OutputLog;
+    const executor = yield* CommandExecutor;
+    yield* log.info(`Running ${repo.name} post-update command...`);
+
+    const result = yield* withStepTimeout(
+      `${repo.name} post-update`,
+      REPO_POST_UPDATE_TIMEOUT_SECONDS,
+      Effect.gen(function* () {
+        const exitCode = yield* executor.inherit("sh", ["-c", command], {
+          cwd: repo.path,
+        });
+        if (exitCode !== 0) {
+          return yield* new UpdateError({
+            message: `${repo.name} post-update command exited ${exitCode}`,
+          });
+        }
+      }),
+    );
+    if (!result) {
+      return yield* new UpdateError({
+        message: `${repo.name} post-update command timed out`,
+      });
+    }
+    yield* log.info(`${repo.name} post-update command complete`);
   });
 
 function selectedUpdateFlags(opts?: UpdateOptions): readonly string[] {
@@ -600,6 +637,11 @@ export const update = (opts?: UpdateOptions) =>
           // Trust mise configs in freshly pulled/cloned repos so mise never
           // prompts for them on this machine.
           yield* trustTrackedMiseConfigs;
+
+          const updated = new Set(updatedNames);
+          for (const repo of managedGitRepos(config.gitConfig)) {
+            if (updated.has(repo.name)) yield* runRepoPostUpdate(repo);
+          }
         }),
       );
     }

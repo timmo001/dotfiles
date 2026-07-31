@@ -7,6 +7,7 @@ const REPO_KEYS = new Set([
   "name",
   "path",
   "github",
+  "post_update",
   "activity",
   "workflows",
   "notifications",
@@ -46,6 +47,8 @@ export interface GitManagedRepo {
   readonly path: string;
   /** Normalised GitHub owner/repo slug. */
   readonly github: string;
+  /** Command run from the repository root after `dot update` pulls a new HEAD. */
+  readonly postUpdate: string | null;
   /** Local activity check used by git diff and git log. */
   readonly activity: GitRepoCheckConfig;
   /** GitHub Actions workflow run check. */
@@ -238,6 +241,11 @@ function parseRepo(
     `${location}.github`,
     diagnostics,
   );
+  const postUpdate = optionalString(
+    value.post_update,
+    `${location}.post_update`,
+    diagnostics,
+  );
   const activity = parseCheck(
     value.activity,
     `${location}.activity`,
@@ -265,11 +273,21 @@ function parseRepo(
       name,
       path: expandHomePath(rawPath),
       github,
+      postUpdate,
       activity,
       workflows,
       notifications,
     },
   ];
+}
+
+function optionalString(
+  value: unknown,
+  location: string,
+  diagnostics: string[],
+): string | null {
+  if (value === undefined) return null;
+  return requiredString(value, location, diagnostics);
 }
 
 function parseNotifications(
