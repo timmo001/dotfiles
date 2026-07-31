@@ -16,7 +16,22 @@ no_self_update = true
 # - system: skip OS package manager updates
 # - hyprpm: no plugins installed; it caches then drops sudo (sudo -k), which
 #   wipes the shared credential and forces omarchy update to re-auth
-disable = ["cursor", "cursor_agent", "node", "pnpm", "pi", "git_repos", "go", "deno", "bun", "bun_packages", "pip3", "lensfun", "system", "hyprpm"]
+disable = [
+  "cursor",
+  "cursor_agent",
+  "node",
+  "pnpm",
+  "pi",
+  "git_repos",
+  "go",
+  "deno",
+  "bun",
+  "bun_packages",
+  "pip3",
+  "lensfun",
+  "system",
+  "hyprpm",
+]
 
 # Run Yazi package upgrades after the other built-in steps
 last = ["yazi"]
