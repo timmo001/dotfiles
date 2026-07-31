@@ -1,6 +1,5 @@
 ---
 description: Explore a codebase topic with the task explore subagent
-agent: ask
 ---
 
 Use the `task` tool for this command instead of doing long serial searches yourself.

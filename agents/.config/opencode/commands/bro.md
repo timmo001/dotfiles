@@ -1,6 +1,5 @@
 ---
 description: Restate the previous response plainly and concisely
-agent: ask
 ---
 
 Load and follow the `bro` skill. Apply it to the immediately preceding assistant response.

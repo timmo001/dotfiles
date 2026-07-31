@@ -1,6 +1,5 @@
 ---
 description: Investigate a topic, issue, or area without editing by default
-agent: ask
 ---
 
 Use this command for general investigation, triage, and context-gathering tasks.

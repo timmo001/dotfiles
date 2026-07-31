@@ -13,13 +13,13 @@ Commands are thin routing prompts: they name an agent, declare required skills o
 | --- | --- | --- |
 | [`/all-lit-skills`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/all-lit-skills.md) | Apply all Lit rendering skills in current git scope | `default` |
 | [`/all-ts-skills`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/all-ts-skills.md) | Apply all TypeScript-specific skills in current git scope | `default` |
-| [`/bro`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/bro.md) | Restate the previous response plainly and concisely | `ask` |
+| [`/bro`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/bro.md) | Restate the previous response plainly and concisely | `default` |
 | [`/check-skill-updates`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/check-skill-updates.md) | Check imported skills for upstream updates | `default` |
 | [`/code-review`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/code-review.md) | Review current branch work with the code-review skill and BranchContextPlugin context | `reviewer` |
 | [`/commit-push`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/commit-push.md) | Split current changes into coherent commits, then push each repository series once | `default` |
 | [`/commit`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/commit.md) | Split current changes into coherent commits via the dot git-commit gateway | `default` |
-| [`/debug-frontend`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/debug-frontend.md) | Debug browser-specific UI issues with Chrome DevTools tools first | `ask` |
-| [`/explore-codebase`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/explore-codebase.md) | Explore a codebase topic with the task explore subagent | `ask` |
+| [`/debug-frontend`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/debug-frontend.md) | Debug browser-specific UI issues with Chrome DevTools tools first | `default` |
+| [`/explore-codebase`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/explore-codebase.md) | Explore a codebase topic with the task explore subagent | `default` |
 | [`/fix-workflows`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/fix-workflows.md) | Diagnose and fix recent GitHub Actions failures, optionally scoped to a workflow or run | `default` |
 | [`/grill`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/grill.md) | Stress-test a proposed change with light or full one-question-at-a-time grilling | `grill` |
 | [`/handoff`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/handoff.md) | Write a handoff document for the next agent session | `default` |
@@ -33,7 +33,7 @@ Commands are thin routing prompts: they name an agent, declare required skills o
 | [`/improve-codebase-architecture`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/improve-codebase-architecture.md) | Review a codebase area for architectural friction and focused structural improvements | `plan` |
 | [`/inject-context`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/inject-context.md) | Inject branch and codebase stack context and optionally execute an instruction | `default` |
 | [`/inject-stack`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/inject-stack.md) | Inject codebase stack context and optionally execute an instruction | `default` |
-| [`/investigate`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/investigate.md) | Investigate a topic, issue, or area without editing by default | `ask` |
+| [`/investigate`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/investigate.md) | Investigate a topic, issue, or area without editing by default | `default` |
 | [`/note-append`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/note-append.md) | Append new notes to an existing note file for the current repository | `default` |
 | [`/note-create`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/note-create.md) | Create a new note for the current repository in your Obsidian notes vault | `default` |
 | [`/note-reference`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/note-reference.md) | Load one or more notes, relevant skills, and next steps for the current repository | `default` |

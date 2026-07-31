@@ -11,7 +11,6 @@ Agents set the execution posture (permissions, tool access, delegation) for Open
 
 | Agent | Description |
 | --- | --- |
-| [`ask`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/ask.md) | Ask clarifying questions before taking action |
 | [`build-ask`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/build-ask.md) | Build agent that executes clear tasks and relies on permissions for write actions |
 | [`general-readonly`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/general-readonly.md) | General-style parallel subagent that researches with read-only tools and a narrow shell inspection allowlist (for delegation from read-only primaries). |
 | [`grill`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/grill.md) | Read-only planning stress-test agent for light or full one-question-at-a-time grilling |

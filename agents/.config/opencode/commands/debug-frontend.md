@@ -1,6 +1,5 @@
 ---
 description: Debug browser-specific UI issues with Chrome DevTools tools first
-agent: ask
 ---
 
 Use Chrome DevTools tools as the primary workflow for this command.
