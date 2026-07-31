@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=Cursor Agents
+Comment=Open Cursor in the Agents window
+TryExec=/usr/share/cursor/cursor
+Exec=/usr/share/cursor/cursor --open-url cursor://anysphere.cursor-deeplink/glass
+Icon=co.anysphere.cursor
+Type=Application
+Terminal=false
+StartupNotify=false
+StartupWMClass=Cursor
+Categories=Development;IDE;
+Keywords=cursor;agent;agents;glass;

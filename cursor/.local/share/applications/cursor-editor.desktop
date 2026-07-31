@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=Cursor Editor
+Comment=Open Cursor in the Editor window
+TryExec=/usr/share/cursor/cursor
+Exec=/usr/share/cursor/cursor --classic %F
+Icon=co.anysphere.cursor
+Type=Application
+Terminal=false
+StartupNotify=false
+StartupWMClass=Cursor
+Categories=TextEditor;Development;IDE;
+Keywords=cursor;editor;classic;
