@@ -1,0 +1,6 @@
+customCommands:
+  - key: <c-b>
+    context: localBranches
+    command: gh poi
+    description: Clean up merged branches
+    output: terminal
