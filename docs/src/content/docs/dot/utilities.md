@@ -24,6 +24,10 @@ Add `--open-opencode` to run `opencode run` against the saved report and then op
 times
 ```
 
+## Git branch sync
+
+`git-rebase-default` fetches the default branch from `upstream`, falling back to `origin`, then rebases the checked-out branch onto the fetched commit. Run it with the `grd` shell alias or press `Ctrl+F` in Lazygit's Local Branches panel. Use `gra` to abort a rebase in progress.
+
 ## System updates
 
 [topgrade](https://github.com/topgrade-rs/topgrade) runs the machine's update steps (AUR via `yay`, Flatpak, firmware checks, `mise` tools, `rustup`, `cargo`, and more) in one pass. The repo stows a tuned config to `~/.config/topgrade.toml` and a logging wrapper at `scripts/.local/bin/topgrade` that shadows the system binary via `~/.local/bin` on `PATH`.

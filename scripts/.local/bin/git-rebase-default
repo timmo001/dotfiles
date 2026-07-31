@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+remote=origin
+if git remote get-url upstream >/dev/null 2>&1; then
+  remote=upstream
+fi
+
+git fetch "$remote" HEAD
+git rebase FETCH_HEAD

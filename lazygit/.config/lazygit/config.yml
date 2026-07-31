@@ -4,3 +4,8 @@ customCommands:
     command: gh poi
     description: Clean up merged branches
     output: terminal
+  - key: <c-f>
+    context: localBranches
+    command: git-rebase-default
+    description: Fetch and rebase onto remote default branch
+    output: terminal
