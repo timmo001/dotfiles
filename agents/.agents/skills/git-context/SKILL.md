@@ -46,6 +46,16 @@ gh repo view --json defaultBranchRef -q .defaultBranchRef.name
 git diff <remote>/<default-branch>...HEAD
 ```
 
+## Default branch helpers
+
+Prefer the installed helpers over rebuilding default-branch operations with ad-hoc shell commands:
+
+- `git-switch-default` (`gsd`) prefers `upstream`, falls back to `origin`, fetches the remote's advertised default branch, then switches to its existing local branch or creates the tracking branch.
+- `git-rebase-default` (`grd`) prefers `upstream`, falls back to `origin`, fetches the remote's advertised default branch, then rebases the checked-out branch onto it with `--autostash`.
+- `gra` prints a status message and runs `git rebase --abort`.
+
+These commands are stowed from `scripts/.local/bin/`; the aliases are defined in `zsh/.zshrc`.
+
 ## Resetting and Reapplying Changes
 
 When you need to rebase or reset but preserve your changes:
