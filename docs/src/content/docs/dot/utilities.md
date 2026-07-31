@@ -26,7 +26,7 @@ times
 
 ## Git branch sync
 
-`git-rebase-default` fetches the default branch from `upstream`, falling back to `origin`, then rebases the checked-out branch onto the fetched commit. Run it with the `grd` shell alias or press `Ctrl+F` in Lazygit's Local Branches panel. Use `gra` to abort a rebase in progress.
+`git-rebase-default` fetches the default branch from `upstream`, falling back to `origin`, then rebases the checked-out branch onto the fetched commit with `--autostash`. Run it with the `grd` shell alias or press `Ctrl+F` in Lazygit's Local Branches panel. Use `gra` to abort a rebase in progress.
 
 ## System updates
 

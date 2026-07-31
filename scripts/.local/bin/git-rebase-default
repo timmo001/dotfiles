@@ -11,4 +11,4 @@ branch=$(git branch --show-current)
 echo "Rebasing ${branch:-HEAD} onto $remote's default branch..."
 
 git fetch "$remote" HEAD
-git rebase FETCH_HEAD
+git rebase --autostash FETCH_HEAD
