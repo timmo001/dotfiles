@@ -583,7 +583,7 @@ alias gcoall='git checkout -- .'
 alias gr='git remote'
 alias gre='git reset'
 alias grd='git-rebase-default'
-alias gra='git rebase --abort'
+alias gra='echo "Aborting rebase..."; git rebase --abort'
 
 git-merged-branches() {
   local default_branch current_branch branch
