@@ -26,6 +26,8 @@ times
 
 ## Git branch sync
 
+`git-switch-default` switches to the default branch from `upstream`, falling back to `origin`. It fetches the remote's advertised default branch first, then switches to the existing local branch or creates its tracking branch. Run it with the `gsd` shell alias.
+
 `git-rebase-default` fetches the default branch from `upstream`, falling back to `origin`, then rebases the checked-out branch onto the fetched commit with `--autostash`. Run it with the `grd` shell alias or press `Ctrl+F` in Lazygit's Local Branches panel. Use `gra` to abort a rebase in progress.
 
 ## System updates

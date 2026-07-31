@@ -582,6 +582,7 @@ alias gap='git add -p'
 alias gcoall='git checkout -- .'
 alias gr='git remote'
 alias gre='git reset'
+alias gsd='git-switch-default'
 alias grd='git-rebase-default'
 alias gra='echo "Aborting rebase..."; git rebase --abort'
 
