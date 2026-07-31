@@ -35,6 +35,7 @@
       "~/.local/share/bash-completion/completions/**": "allow",
       "~/.local/share/omarchy": "allow",
       "~/.local/share/omarchy/bin/**": "allow",
+      "~/.local/share/opencode/repos/**": "allow",
       "~/.local/share/workspace-relayout/**": "allow",
       "~/.local/share/zsh": "allow",
       "~/.local/share/zsh/site-functions/**": "allow",
