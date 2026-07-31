@@ -1,3 +1,4 @@
+---
 customCommands:
   - key: <c-b>
     context: localBranches
