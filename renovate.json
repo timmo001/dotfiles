@@ -9,6 +9,19 @@
   "dependencyDashboard": true,
   "labels": ["dependencies"],
   "minimumReleaseAge": "1 day",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update the OpenCode reference tag.",
+      "managerFilePatterns": ["/^opencode\\.json$/"],
+      "matchStrings": [
+        "\"opencode\"\\s*:\\s*\\{\\s*\"repository\"\\s*:\\s*\"anomalyco/opencode\",\\s*\"branch\"\\s*:\\s*\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\""
+      ],
+      "depNameTemplate": "anomalyco/opencode",
+      "datasourceTemplate": "github-tags",
+      "versioningTemplate": "semver"
+    }
+  ],
   "packageRules": [
     {
       "description": "Group GitHub Actions.",
@@ -16,8 +29,9 @@
       "matchManagers": ["github-actions"]
     },
     {
-      "description": "Match mise's shorter OpenCode release delay.",
-      "matchDepNames": ["aqua:anomalyco/opencode"],
+      "description": "Group OpenCode updates with mise's shorter release delay.",
+      "groupName": "OpenCode",
+      "matchDepNames": ["aqua:anomalyco/opencode", "anomalyco/opencode"],
       "minimumReleaseAge": "2 hours"
     }
   ]
