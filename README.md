@@ -14,7 +14,7 @@ My public [Omarchy](https://omarchy.org) dotfiles, managed with GNU Stow and the
 - Stow-based dotfiles rooted at `~/.config/dotfiles`, applied with the `dot` command
 - A single compiled binary at `scripts/.local/bin/dot` (Bun + Effect v4 + OpenTUI) with a TUI dashboard and a full CLI
 - Git/GitHub tooling: diff, log, status, workflow runs, and a notification inbox across managed repos, with Waybar modules
-- Managed Omarchy repos (`bootstrap`, `waybar`, `uwsm`) and stowed Hyprland/Ghostty config
+- Managed Omarchy repos (`waybar`, `uwsm`) and stowed Hyprland/Ghostty config
 - Optional private overlay from `~/.config/dotfiles-private`
 - Shared OpenCode agents, commands, skills, and plugins, published to [`timmo001/opencode-config`](https://github.com/timmo001/opencode-config)
 

@@ -77,7 +77,6 @@ interface InitOptions {
   readonly noninteractive: boolean;
   readonly force: boolean;
   readonly branch?: string;
-  readonly bootstrapBranch?: string;
   readonly host?: string;
   readonly log?: string;
 }
@@ -87,7 +86,6 @@ interface InitOptionsDraft {
   noninteractive: boolean;
   force: boolean;
   branch?: string;
-  bootstrapBranch?: string;
   host?: string;
   log?: string;
 }
@@ -117,10 +115,6 @@ const booleanInitOptions = new Map<string, BooleanInitOptionHandler>([
 
 const valueInitOptions = new Map<string, ValueInitOptionHandler>([
   ["--branch", (options, value) => void (options.branch = value)],
-  [
-    "--bootstrap-branch",
-    (options, value) => void (options.bootstrapBranch = value),
-  ],
   ["--host", (options, value) => void (options.host = value)],
   ["--log", (options, value) => void (options.log = value)],
 ]);
@@ -314,14 +308,13 @@ Options:
   --force                   Re-run init even if the machine looks initialised
   --host <name>             Hypr host to link before stow (default: OMARCHY_HOST or desktop)
   --log <path>              Init log path (default: ~/.local/state/dot/init.log)
-  --branch <name>           Branch override for non-bootstrap Omarchy repos
-  --bootstrap-branch <name> Branch override for bootstrap
+  --branch <name>           Branch override for Omarchy repos
   --help, -h                Show this help message
 
 Examples:
   dot init --noninteractive
   dot init --host laptop --noninteractive
-  dot init --branch main --bootstrap-branch distro/omarchy`);
+  dot init --branch main`);
 }
 
 function initOmarchyHost(options: InitOptions): string {
@@ -763,7 +756,6 @@ export function init(rawArgs: readonly string[]) {
       INIT_STEP_TIMEOUT_SECONDS.omarchyRepos,
       syncOmarchyRepos({
         branch: options.branch,
-        bootstrapBranch: options.bootstrapBranch,
       }),
     );
     yield* requiredInitStep(

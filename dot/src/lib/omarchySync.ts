@@ -26,10 +26,8 @@ class OmarchySyncError extends Schema.TaggedErrorClass<OmarchySyncError>()(
 
 /** Branch overrides accepted by first-use Omarchy sync. */
 export interface OmarchySyncOptions {
-  /** Branch override for non-bootstrap Omarchy repositories. */
+  /** Branch override for Omarchy repositories. */
   readonly branch?: string;
-  /** Branch override for the bootstrap repository. */
-  readonly bootstrapBranch?: string;
 }
 
 function fail(message: string): Effect.Effect<never, OmarchySyncError> {
@@ -37,7 +35,6 @@ function fail(message: string): Effect.Effect<never, OmarchySyncError> {
 }
 
 const REPO_SLUGS: Readonly<Record<string, string>> = {
-  bootstrap: "timmo001/bootstrap",
   waybar: "timmo001/omarchy-waybar",
   uwsm: "timmo001/omarchy-uwsm",
 };
@@ -83,19 +80,6 @@ function backupExistingTarget(
   });
 }
 
-function branchOption(
-  opts: OmarchySyncOptions | undefined,
-  repoName: string,
-): string | undefined {
-  return repoName === "bootstrap" ? opts?.bootstrapBranch : opts?.branch;
-}
-
-function branchEnvironment(repoName: string): string | undefined {
-  return repoName === "bootstrap"
-    ? envString(ENV.DOT_BOOTSTRAP_BRANCH)
-    : envString(ENV.DOT_OMARCHY_BRANCH);
-}
-
 function fallbackBranch(config: ConfigService, repoName: string): string {
   return config.omarchy.expectedBranches[repoName] ?? "main";
 }
@@ -106,8 +90,8 @@ function desiredBranch(
   repoName: string,
 ): string {
   return (
-    branchOption(opts, repoName) ??
-    branchEnvironment(repoName) ??
+    opts?.branch ??
+    envString(ENV.DOT_OMARCHY_BRANCH) ??
     fallbackBranch(config, repoName)
   );
 }
@@ -272,13 +256,7 @@ export function syncOmarchyRepos(
     if (!config.omarchy.enabled) return;
 
     yield* ensureRepoBase(config);
-    const repoNames = [
-      "bootstrap",
-      ...config.omarchy.diffRepos.filter(
-        (repoName) => repoName !== "bootstrap",
-      ),
-    ];
-    for (const repoName of repoNames) {
+    for (const repoName of config.omarchy.diffRepos) {
       yield* syncRepo(config, opts, repoName);
     }
   });

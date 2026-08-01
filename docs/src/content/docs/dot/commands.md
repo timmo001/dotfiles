@@ -58,8 +58,7 @@ ongoing maintenance.
 | `--force` | Re-run init even if the machine looks initialised |
 | `--host` `<name>` | Hypr host to link before stow (default: OMARCHY_HOST or desktop) |
 | `--log` `<path>` | Init log path (default: ~/.local/state/dot/init.log) |
-| `--branch` `<name>` | Branch override for non-bootstrap Omarchy repos |
-| `--bootstrap-branch` `<name>` | Branch override for bootstrap |
+| `--branch` `<name>` | Branch override for Omarchy repos |
 
 **Examples**
 
@@ -67,7 +66,7 @@ ongoing maintenance.
 dot init --noninteractive
 dot init --host laptop --noninteractive
 dot init --force --noninteractive
-dot init --branch main --bootstrap-branch distro/omarchy
+dot init --branch main
 ```
 
 ## `dot install`

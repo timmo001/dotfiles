@@ -330,7 +330,7 @@ dot init --help              # init help prints without side effects
 dot help                     # help prints
 ```
 
-`dot init` clones the managed Omarchy repos into `~/.config/{bootstrap,waybar,uwsm}`. If a stock Omarchy config directory already exists there and is not a git repo, init moves it aside with a `.dot-init-backup-*` suffix before cloning; do not delete those backups automatically. Hyprland config is a stowed dotfiles package (`hypr/.config/hypr/`, conf-only) laid down with `--no-folding`, with the runtime `~/.config/hypr/host` symlink selecting the host overrides. Ghostty config is also stowed from `ghostty/.config/ghostty/`; `dot stow` backs up the retired `timmo001/omarchy-ghostty` clone before linking the stowed config.
+`dot init` clones the managed Omarchy repos into `~/.config/{waybar,uwsm}`. If a stock Omarchy config directory already exists there and is not a git repo, init moves it aside with a `.dot-init-backup-*` suffix before cloning; do not delete those backups automatically. Hyprland config is a stowed dotfiles package (`hypr/.config/hypr/`, conf-only) laid down with `--no-folding`, with the runtime `~/.config/hypr/host` symlink selecting the host overrides. Ghostty config is also stowed from `ghostty/.config/ghostty/`; `dot stow` backs up the retired `timmo001/omarchy-ghostty` clone before linking the stowed config.
 
 ## Logging Style
 

@@ -51,7 +51,7 @@ Or run `dot init` in an interactive shell to be prompted.
 `--noninteractive` skips only the Hypr host questionnaire; elevation and package tools may still prompt. `--confirm` remains accepted for compatibility but does not suppress prompts. Private overlay preflight is controlled by `DOT_ALLOW_PRIVATE`: `auto` skips without GitHub authentication and tolerates an existing-overlay pull failure, but a failed attempted clone is fatal; `always` requires the overlay to update or clone successfully; `never` skips it.
 
 :::note
-If stock Omarchy directories already exist at `~/.config/bootstrap`, `~/.config/waybar`, or `~/.config/uwsm`, `dot init` backs them up with a `.dot-init-backup-*` suffix before cloning the managed repos. Hyprland and Ghostty config are stowed from the `hypr/` and `ghostty/` packages instead.
+If stock Omarchy directories already exist at `~/.config/waybar` or `~/.config/uwsm`, `dot init` backs them up with a `.dot-init-backup-*` suffix before cloning the managed repos. Hyprland and Ghostty config are stowed from the `hypr/` and `ghostty/` packages instead.
 :::
 
 ## Ongoing workflow

@@ -66,7 +66,6 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - Hyprland config is a stowed dotfiles package (`hypr/.config/hypr/`, conf-only), not a tracked Omarchy repo.
 - `waybar` and `uwsm` are single-branch Omarchy repos expected on `main`.
 - `ghostty` is a stowed package (`ghostty/.config/ghostty/`) with `config.$OMARCHY_HOST` overrides loaded by `ghostty-host-config`.
-- `bootstrap` is expected on `distro/omarchy`.
 - Hypr host-specific overrides live under `~/.config/hypr/hosts/$OMARCHY_HOST`, selected by the runtime `~/.config/hypr/host` symlink.
 - `dot stow` lays down the Hypr package with `--no-folding` and creates/repairs `~/.config/hypr/host`; `dot doctor` checks the host link and flags any leftover legacy `omarchy-hypr` clone.
 - A machine still on the retired `~/.config/hypr` `omarchy-hypr` clone halts `dot update` until the clone is backed up and re-stowed.

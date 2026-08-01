@@ -51,8 +51,7 @@ The global mise configuration provides the Android SDK command-line tools and se
 | ----------------------- | ------------------------------------------------------------------------------------------------------ |
 | `OMARCHY_REPO_BASE_DIR` | Omarchy repo base path (default `~/.config`).                                                          |
 | `OMARCHY_HOST`          | Hypr host override name; `dot init` defaults to `desktop` when unset unless `--host <name>` is passed. |
-| `DOT_OMARCHY_BRANCH`    | Branch override for non-bootstrap Omarchy repos during sync.                                           |
-| `DOT_BOOTSTRAP_BRANCH`  | Branch for `bootstrap` sync (default `distro/omarchy`).                                                |
+| `DOT_OMARCHY_BRANCH`    | Branch override for Omarchy repos during sync.                                                         |
 
 ## Init and logging
 

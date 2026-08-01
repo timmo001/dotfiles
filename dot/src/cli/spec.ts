@@ -172,12 +172,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
       {
         name: "--branch",
         valueName: "name",
-        description: "Branch override for non-bootstrap Omarchy repos",
-      },
-      {
-        name: "--bootstrap-branch",
-        valueName: "name",
-        description: "Branch override for bootstrap",
+        description: "Branch override for Omarchy repos",
       },
       helpOption,
     ],
@@ -185,7 +180,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
       "dot init --noninteractive",
       "dot init --host laptop --noninteractive",
       "dot init --force --noninteractive",
-      "dot init --branch main --bootstrap-branch distro/omarchy",
+      "dot init --branch main",
     ],
   },
   {

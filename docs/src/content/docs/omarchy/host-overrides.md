@@ -10,9 +10,8 @@ sidebar:
 `dot` tracks a small set of Omarchy components as git repos and keeps them on the expected branch:
 
 - `waybar` and `uwsm` — single-branch Omarchy repos expected on `main`.
-- `bootstrap` — expected on `distro/omarchy`.
 
-`dot init` clones these into `~/.config/{bootstrap,waybar,uwsm}`. If a stock Omarchy config directory already exists there and is not a git repo, init moves it aside with a `.dot-init-backup-*` suffix before cloning. `dot update` syncs them, and `dot doctor` verifies their worktree branches.
+`dot init` clones these into `~/.config/{waybar,uwsm}`. If a stock Omarchy config directory already exists there and is not a git repo, init moves it aside with a `.dot-init-backup-*` suffix before cloning. `dot update` syncs them, and `dot doctor` verifies their worktree branches.
 
 ## Ghostty host overrides
 
@@ -48,6 +47,6 @@ A machine with the retired `~/.config/hypr` `omarchy-hypr` clone halts `dot upda
 
 - `OMARCHY_HOST` — the Hypr host override name (e.g. `desktop`, `laptop`).
 - `OMARCHY_REPO_BASE_DIR` — Omarchy repo base path (default `~/.config`).
-- `DOT_OMARCHY_BRANCH` / `DOT_BOOTSTRAP_BRANCH` — branch overrides during sync.
+- `DOT_OMARCHY_BRANCH` — branch override during sync.
 
 See [Environment Variables](/configuration/environment/) for the full list.
