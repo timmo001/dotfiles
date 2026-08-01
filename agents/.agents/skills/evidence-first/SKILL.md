@@ -16,13 +16,15 @@ Check uncertain claims. Follow clear choices.
 5. Use the source that owns the answer:
    - for repository behaviour, read its code, tests, or docs, or observe it directly;
    - otherwise use current official docs, source, specifications, first-party APIs, or maintainer records.
-6. Briefly name the source in the answer. Link external sources; name the local file, test, or symbol for local evidence.
-7. If the evidence leaves one sensible path, continue. If it creates a real choice that changes the work, use the question tool and leave that choice with the user.
-8. Load `research` when the answer needs deeper external evidence, competing views, or several trusted sources.
+6. When the owning evidence is outside the active repository, retrieve the primary source before answering or acting. Prefer an advertised local reference when it contains the owning docs or source; otherwise use the available documentation, source, API, or web-search tool. Loading this skill, planning to search, inspecting consumer configuration, or relying on supplied context does not satisfy that retrieval. If no owning source is accessible, say the claim could not be verified instead of filling the gap from memory.
+7. Briefly name the source in the answer. Link external sources; name the local file, test, or symbol for local evidence.
+8. If the evidence leaves one sensible path, continue. If it creates a real choice that changes the work, use the question tool and leave that choice with the user.
+9. Load `research` when the answer needs deeper external evidence, competing views, or several trusted sources.
 
 ## Evidence Rules
 
 - Do not treat the user's memory, the agent's memory, supplied context, common practice, or repeated prior use as proof.
 - Do not browse when local evidence owns and answers the question.
+- Do not substitute local configuration or observed usage for external product contracts, defaults, or supported behaviour.
 - Do not use secondary commentary when a trusted primary source is available.
 - Do not argue with a clear preference merely because another option is more common or the agent prefers it.
