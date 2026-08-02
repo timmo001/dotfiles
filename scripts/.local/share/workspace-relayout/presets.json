@@ -281,15 +281,15 @@
         "name": "57% top",
         "tree": {
           "dir": "tb",
-          "ratio": 57.01,
+          "ratio": 57.44,
           "a": "w",
           "b": {
             "dir": "lr",
-            "ratio": 21.1,
+            "ratio": 21.11,
             "a": "w",
             "b": {
               "dir": "lr",
-              "ratio": 26.88,
+              "ratio": 26.85,
               "a": "w",
               "b": "w"
             }
