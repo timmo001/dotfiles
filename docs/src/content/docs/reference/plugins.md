@@ -27,3 +27,4 @@ Plugins provide context, evidence, or enforcement hooks for OpenCode. They are l
 | [`subagent-chrome-devtools-guard`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/subagent-chrome-devtools-guard.ts) | Blocks Chrome DevTools tools from delegated subagent sessions |
 | [`tui-dot-git-diff`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/tui-dot-git-diff.ts) | Registers a TUI keybinding (ctrl+shift+g) to open `dot git-diff` |
 | [`tui-lazygit`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/tui-lazygit.ts) | Registers a TUI keybinding to open lazygit |
+| [`workflow-manifest`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/plugins/workflow-manifest.ts) | Resolves pushed GitHub Actions runs into a compact watcher manifest |

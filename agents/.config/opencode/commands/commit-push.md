@@ -2,42 +2,8 @@
 description: Split current changes into coherent commits, then push each repository series once
 ---
 
-Invoking this command authorises commits and pushes only for changes clearly
-required by the current user request and conversation. Push each completed
-repository series once, then stop. Split related changes into coherent commits
-by default; make one commit only when `${ARGUMENTS}` explicitly requests it.
-This does not authorise unrelated session changes or later changes.
-
-Load and follow the `git-commit` and `workflows-watch` skills. Commit through
-`dot git-commit` and pass `--push` only for the final commit (never raw
-`git commit`/`git push`); it is intended for a build agent, so if
-`dot git-commit` is denied by permissions, stop and report rather than falling
-back. `--push` sets the upstream when missing and never force-pushes.
-
-Use `${ARGUMENTS}` as grouping or subject guidance when provided (still subject
-to the gateway guards). The injected `<commit-context>` is attribution evidence,
-not authorisation: candidate paths can include unrelated work from this session
-tree. Filter every candidate against the current user request. Never commit a
-path merely because it is listed, staged, session-touched, or forms a separate
-coherent change. Exclude unrelated paths; if relevance is ambiguous, ask before
-committing. A complete block means only that attribution collection succeeded.
-Refresh with Context MCP `git_context` only when the block is absent, stale,
-partial, or does not cover an explicitly requested repository. Never broaden
-scope to the excluded dirty paths. Use repeated `--path` arguments to keep each
-commit scoped. When several repository scopes are injected, operate only in
-repositories relevant to the current request, run each gateway series from its
-listed root, and pass `--push` only on that repository's final commit. After all
-final pushes return, launch two experimental background workflows tasks per
-pushed repository. Before delegation, resolve one immutable manifest with the
-repository, exact pushed SHA, pull request, triggered run IDs and URLs, exact
-check or job names, pushed-file fix boundary, and worktree state. Partition it
-into quick checks and full validation, excluding slow build and E2E paths from
-the quick partition, then pass each partition verbatim. Run the fail-fast task
-in fix mode and the full task in watch-only mode. The tasks must not repeat
-discovery or redefine their targets. Only the fail-fast task may edit, and it
-must check for newer overlapping changes immediately before doing so. Do not poll either task.
-The watches do not block subsequent edits or other requested work. Report the
-started watches, continue any remaining work, and return each result when
-OpenCode reports completion. Any fix remains
-uncommitted and unpushed until the user gives a fresh explicit commit and push
-request.
+This authorises commits and one final push per repository for the current
+requested changeset. Load and follow `git-commit` and `workflows-watch`, using
+the injected `<commit-context>` and `${ARGUMENTS}` as optional grouping or
+subject guidance. Stop if the gateway is unavailable; never fall back to raw
+Git commit or push commands.

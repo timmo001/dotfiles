@@ -417,16 +417,9 @@ describe("commit command contract", () => {
       expect(frontmatter).not.toContain("variant:");
       expect(frontmatter).not.toContain("subtask:");
       expect(source).toContain("injected `<commit-context>`");
-      expect(source).toMatch(
-        /Never broaden\s+scope to the excluded dirty paths/,
-      );
-      expect(source).toMatch(
-        /Never commit a\s+path merely because it is listed, staged, session-touched, or forms a separate\s+coherent change/,
-      );
-      expect(source).toMatch(
-        /if relevance is ambiguous, ask before\s+committing/,
-      );
-      expect(source).toContain("`dot git-commit`");
+      expect(source).toContain("`git-commit`");
+      expect(source).toMatch(/current\s+requested changeset/);
+      expect(source).toMatch(/never fall back to raw\s+Git/);
     },
   );
 
@@ -451,13 +444,8 @@ describe("commit command contract", () => {
     );
 
     expect(source).toContain("`workflows-watch`");
-    expect(source).toContain("experimental background");
-    expect(source).toMatch(/fix\s+mode/);
-    expect(source).toContain("exact pushed SHA");
-    expect(source).toMatch(/Do\s+not poll either task/);
-    expect(source).toContain("immutable manifest");
-    expect(source).toMatch(/must not repeat\s+discovery/);
-    expect(source).toMatch(/remains\s+uncommitted and unpushed/);
+    expect(source).toContain("one final push per repository");
+    expect(source).toContain("<commit-context>");
   });
 
   test("workflows watch defaults to reporting and gates fix mode", async () => {
@@ -500,5 +488,21 @@ describe("commit command contract", () => {
     expect(source).toContain('"gh api*": deny');
     expect(source).toContain('"gh run watch*": allow');
     expect(source).toContain("Do not discover");
+  });
+
+  test("workflow manifest centralises host discovery", async () => {
+    const source = await readFile(
+      resolve(
+        root,
+        "agents/.config/opencode/plugins/workflow-manifest.ts",
+      ),
+      "utf8",
+    );
+
+    expect(source).toContain("workflow_manifest: tool(");
+    expect(source).toContain("gh run list --commit");
+    expect(source).toContain("gh run view");
+    expect(source).toContain("quick:");
+    expect(source).toContain("full:");
   });
 });

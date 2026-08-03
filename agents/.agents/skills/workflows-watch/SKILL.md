@@ -24,8 +24,8 @@ agent does not block on foreground `gh` watches.
 
 ## Workflow
 
-1. The host resolves discovery once before delegation and builds an immutable
-   watch manifest containing:
+1. The host calls `workflow_manifest` once after push. The tool returns an
+   immutable watch manifest containing:
    - repository path and `owner/name`;
    - branch, pull request number when present, and full pushed SHA;
    - pushed files and the permitted fix boundary;
@@ -33,9 +33,9 @@ agent does not block on foreground `gh` watches.
    - the quick partition's workflow run IDs and selected check or job names;
    - the full partition's workflow run IDs;
    - mode, timeout, and worktree state at delegation.
-   Wait for triggered runs to register before launching the tasks. If a run
-   cannot be resolved, report it as unresolved in the manifest rather than
-   delegating discovery.
+   If expected runs have not registered, report them as unresolved rather than
+   delegating discovery. Do not replace the tool with manual Actions listing or
+   an Explore task.
 2. Check live CLI help before selecting the watch command. Prefer:
    - `gh run watch <run-id> --compact --exit-status --interval 10`
    - `gh pr checks <pr> --watch`
