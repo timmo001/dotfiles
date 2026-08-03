@@ -19,7 +19,7 @@ after_sleep_cmd = sleep 1 && omarchy-system-wake && on-resume
 
 The laptop host also re-arms keyboard backlight handling before `on-resume`.
 
-You can run the recovery manually with the shared binding:
+You can run the recovery manually without auto-opening Twitch streams with the shared binding:
 
 ```text
 SUPER+SHIFT+W
@@ -40,6 +40,8 @@ on-resume
 - Clears the dot upstream fetch cache under `${XDG_CACHE_HOME:-~/.cache}/dot/fetch-upstream`.
 - Restarts Waybar through `uwsm-app`.
 - Gracefully restarts `twitch-notifications` in auto-open mode.
+
+The `SUPER+SHIFT+W` binding passes `--no-auto-open`, so manual recovery restarts Twitch without opening live channels.
 
 The log is written to:
 

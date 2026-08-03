@@ -28,11 +28,18 @@ fi
 : > "$LOG_FILE"
 log "Resume started"
 
-# Restart twitch-notifications and auto-open configured live channels.
-if ! twitch-notifications --restart --open >/dev/null 2>&1; then
+# Restart twitch-notifications, auto-opening configured live channels after a real resume.
+twitch_args=(--restart)
+launch_args=()
+if [[ "${1:-}" != "--no-auto-open" ]]; then
+  twitch_args+=(--open)
+  launch_args+=(--open)
+fi
+
+if ! twitch-notifications "${twitch_args[@]}" >/dev/null 2>&1; then
   pkill -f '/usr/bin/[t]witch-notifications( |$)' >/dev/null 2>&1 || pkill -f '(^| )[t]witch-notifications( |$)' >/dev/null 2>&1 || true
   sleep 1
-  setsid uwsm-app -s b -- twitch-notifications --open >/dev/null 2>&1 &
+  setsid uwsm-app -s b -- twitch-notifications "${launch_args[@]}" >/dev/null 2>&1 &
 fi
 log "twitch-notifications restart requested"
 
