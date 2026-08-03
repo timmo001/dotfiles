@@ -2,7 +2,7 @@
 name: ctx-agent-history-search
 description: Use ctx to search local coding-agent history before acting. Use when prior agent sessions may contain relevant insights, decisions, attempts, or transcript context.
 # origin: https://github.com/ctxrs/ctx/tree/main/skills/ctx-agent-history-search
-# upstream-sha: 10a65c6255a7c23e4aa8a69afb1a104683a8d0a5
+# upstream-sha: b8a95930e33f0d300ebf33eca0e5ff17af00cc67
 ---
 
 # ctx Agent History Search
@@ -132,6 +132,14 @@ Search result windows are bounded. Do not claim exact corpus-wide counts or a
 complete audit from the number of returned hits. If the requested conclusion
 cannot be supported with search, show, and locate evidence, state that limit
 and report the strongest retrieved evidence instead.
+
+For advanced querying or complete deterministic event enumeration, use
+`ctx list events`. Read the full filter, range, cursor, and output documentation
+before use:
+
+```bash
+ctx docs show event-queries
+```
 
 ## History Research Reports
 
