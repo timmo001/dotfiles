@@ -18,7 +18,11 @@ interface DirectoryQuery {
   readonly directory: string;
 }
 
-const TARGET_COMMANDS = new Set(["commit", "commit-push"]);
+const TARGET_COMMANDS = new Set([
+  "commit",
+  "commit-push",
+  "commit-push-no-watch",
+]);
 
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);

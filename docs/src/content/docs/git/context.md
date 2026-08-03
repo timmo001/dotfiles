@@ -89,7 +89,7 @@ Work-scope-only commands (for example scoped refactor helpers) call `context git
 
 ### Commit context (`<commit-context>`)
 
-`/commit` and `/commit-push` receive a narrower block from the `commit-context` plugin. It combines the current Context CLI snapshot with successful `edit`, `write`, and `apply_patch` tool inputs plus OpenCode's persisted session patch parts. Failed mutation calls are ignored. The block lists candidate and excluded paths separately, includes a compact diff stat plus five recent subjects, and omits full patches and repeated path or worktree lists.
+`/commit`, `/commit-push`, and `/commit-push-no-watch` receive a narrower block from the `commit-context` plugin. It combines the current Context CLI snapshot with successful `edit`, `write`, and `apply_patch` tool inputs plus OpenCode's persisted session patch parts. Failed mutation calls are ignored. The block lists candidate and excluded paths separately, includes a compact diff stat plus five recent subjects, and omits full patches and repeated path or worktree lists.
 
 An existing staged set takes precedence for attribution. Without one, only current dirty paths touched by the active session tree become candidates. Candidates are a discovery superset, not an authorised commit scope: the active user request determines which paths belong, and unrelated or ambiguous paths must be excluded or clarified. This is path-level evidence rather than hunk ownership, so mixed files still require clarification. A complete block means only that attribution collection succeeded. Missing, stale, malformed, truncated, or unattributed evidence marks the block partial and requires a Context MCP refresh or a stop.
 

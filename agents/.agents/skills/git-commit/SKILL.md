@@ -1,6 +1,6 @@
 ---
 name: git-commit
-description: Commit workflow using the dot git-commit gateway, splitting a reviewed changeset into coherent commits by default. Use only after the user explicitly requests a commit or push, including /commit or /commit-push. Never infer authorisation for later changes; never run raw git commit.
+description: Commit workflow using the dot git-commit gateway, splitting a reviewed changeset into coherent commits by default. Use only after the user explicitly requests a commit or push, including /commit, /commit-push, or /commit-push-no-watch. Never infer authorisation for later changes; never run raw git commit.
 ---
 
 # Git Commit
@@ -12,7 +12,7 @@ staging, and message authoring around it.
 ## 1. Authorisation and posture
 
 - Only commit when the user asked to commit the current reviewed changeset (a
-  `/commit` or `/commit-push` invocation, or an explicit "commit this"
+  `/commit`, `/commit-push`, or `/commit-push-no-watch` invocation, or an explicit "commit this"
   instruction). Drafting a message is not permission.
 - One request authorises the coherent commit series needed for that changeset.
   It does not authorise a later change, a second changeset, or another push.
@@ -26,7 +26,8 @@ staging, and message authoring around it.
 
 ## 2. Read the working tree
 
-- For `/commit` and `/commit-push`, use the injected `<commit-context>` first.
+- For `/commit`, `/commit-push`, and `/commit-push-no-watch`, use the injected
+  `<commit-context>` first.
   It combines branch metadata, candidate and excluded paths, a compact diff
   stat, and recent subject evidence with paths touched by the session tree.
 - Candidate paths are attribution evidence, not authorisation. The active user
@@ -114,14 +115,15 @@ dot git-commit -m "<subject>" --push
   moved-ahead remote fast-forwards, sets the upstream when missing, and never
   force-pushes. On a rebase conflict it aborts and keeps your commit for manual
   integration. Only push when the user asked for this specific push (a
-  `/commit-push` invocation or explicit "push").
+  `/commit-push` or `/commit-push-no-watch` invocation, or explicit "push").
 - For a split changeset, omit `--push` from every preceding commit and pass it
   only to the final commit so the complete series is pushed once.
 - Combining `--amend --push` force-pushes with `--force-with-lease` (never a
   plain force): it overwrites the remote branch only when it still matches the
   ref last seen, so a teammate's or bot's newer commit blocks the push instead
   of being clobbered. Only do this on a branch that is safe to rewrite.
-- After a successful push, load `workflows-watch` and launch two experimental
+- After a successful push, unless invoked through `/commit-push-no-watch`, load
+  `workflows-watch` and launch two experimental
   background tasks per pushed repository. Before delegation, resolve the
   repository, full pushed SHA, pull request, triggered workflow run IDs and
   URLs, exact check or job names, pushed-file fix boundary, and worktree state
