@@ -47,12 +47,4 @@ sleep 1
 uwsm-app -s b -- twitch-notifications >/dev/null 2>&1 &
 log "twitch-notifications restarted"
 
-# Prompt to apply core dotfiles/system updates, unless this run is a
-# post-update refresh triggered by `dot update` (which would re-prompt
-# immediately after a successful update).
-if [[ "${1:-}" != "--post-update" ]]; then
-  on-resume-update-prompt --launch >/dev/null 2>&1 || true
-  log "Checked for dotfiles updates"
-fi
-
 log "Resume complete"

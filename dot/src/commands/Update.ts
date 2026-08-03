@@ -339,13 +339,6 @@ const postHooks = Effect.gen(function* () {
   yield* agentsSync;
 });
 
-/**
- * Argument passed to the on-resume helper after an update so it refreshes
- * status-bar services without re-running the dotfiles update-available prompt
- * (which would otherwise pop up immediately after a successful update).
- */
-const ON_RESUME_POST_UPDATE_ARG = "--post-update";
-
 /** Run the resume refresh helper so status-bar services pick up update changes. */
 const runResumeRefresh = Effect.gen(function* () {
   const log = yield* OutputLog;
@@ -359,9 +352,7 @@ const runResumeRefresh = Effect.gen(function* () {
     return;
   }
 
-  const exitCode = yield* executor.exitCode(helper, [
-    ON_RESUME_POST_UPDATE_ARG,
-  ]);
+  const exitCode = yield* executor.exitCode(helper, []);
 
   if (exitCode !== 0) {
     yield* log.warn(`On-resume helper failed (exit ${exitCode})`);
@@ -397,8 +388,7 @@ export interface UpdateCheckOptions {
  * scope to every tracked repo. Sets the process exit code to
  * {@link UPDATE_CHECK_AVAILABLE_EXIT} when at least one in-scope repo is behind
  * upstream and {@link UPDATE_CHECK_ERROR_EXIT} when the scan fails; the code is
- * left at 0 when everything in scope is up to date. Used by the on-resume
- * dotfiles update prompt.
+ * left at 0 when everything in scope is up to date.
  */
 export const updateCheck = (opts?: UpdateCheckOptions) =>
   Effect.gen(function* () {
