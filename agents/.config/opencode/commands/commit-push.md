@@ -27,9 +27,15 @@ scope to the excluded dirty paths. Use repeated `--path` arguments to keep each
 commit scoped. When several repository scopes are injected, operate only in
 repositories relevant to the current request, run each gateway series from its
 listed root, and pass `--push` only on that repository's final commit. After all
-final pushes return, launch one experimental background workflows task in fix
-mode per pushed repository, pinned to that repository's exact pushed SHA. Do not
-poll it. If no independent work remains, report the started watch and end the
-turn. Return its result when OpenCode reports completion. Any fix it makes
-remains uncommitted and unpushed until the user gives a fresh explicit commit
-and push request.
+final pushes return, launch two experimental background workflows tasks per
+pushed repository, both pinned to that repository's exact pushed SHA: a
+fail-fast task in fix mode for an explicitly resolved set of quick checks, and
+a bounded full watch-only task for slower build, E2E, and remaining checks.
+Resolve the quick checks from the repository's actual workflow jobs before
+delegation and exclude jobs on slow validation paths. Only the fail-fast task
+may edit, and it must check for newer overlapping changes immediately before
+doing so. Do not poll either task. The watches do not block subsequent edits or
+other requested work. Report the started watches, continue any remaining work,
+and return each result when OpenCode reports completion. Any fix remains
+uncommitted and unpushed until the user gives a fresh explicit commit and push
+request.
