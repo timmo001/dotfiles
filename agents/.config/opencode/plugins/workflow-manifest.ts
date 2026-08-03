@@ -2,7 +2,7 @@
  * @file Resolves pushed GitHub Actions runs into a compact watcher manifest.
  */
 
-import { tool, type Plugin } from "@opencode-ai/plugin";
+import type { Plugin, ToolDefinition } from "@opencode-ai/plugin";
 
 interface Run {
   readonly databaseId: number;
@@ -35,20 +35,28 @@ const SLOW_JOB = /(?:build|e2e|end.to.end|deploy|release|codeql|mise toolchain)/
 
 const parse = <T>(value: string): T => JSON.parse(value) as T;
 
+// Keep the plugin import type-only. This file is stowed through a symlink, so a
+// runtime `tool()` import resolves from the public repo instead of OpenCode's
+// config directory and prevents the plugin module from loading.
+const args = {
+  repositoryPath: {
+    type: "string",
+    description: "Absolute local repository path",
+  },
+  sha: { type: "string", description: "Full pushed commit SHA" },
+  pushedFiles: {
+    type: "array",
+    items: { type: "string" },
+    description: "Files included in the pushed changeset",
+  },
+} as unknown as ToolDefinition["args"];
+
 export const WorkflowManifestPlugin = (async ({ $ }) => ({
   tool: {
-    workflow_manifest: tool({
+    workflow_manifest: {
       description:
         "Resolve one pushed SHA into compact, immutable quick and full GitHub Actions watcher manifests. Use once on the host after push instead of listing runs/jobs manually or delegating discovery.",
-      args: {
-        repositoryPath: tool.schema
-          .string()
-          .describe("Absolute local repository path"),
-        sha: tool.schema.string().describe("Full pushed commit SHA"),
-        pushedFiles: tool.schema
-          .array(tool.schema.string())
-          .describe("Files included in the pushed changeset"),
-      },
+      args,
       async execute({ repositoryPath, sha, pushedFiles }, context) {
         context.metadata({ title: `Resolve workflows for ${sha.slice(0, 8)}` });
 
@@ -74,6 +82,8 @@ export const WorkflowManifestPlugin = (async ({ $ }) => ({
             .text(),
         ).filter((run) => run.headSha === sha);
 
+        // Resolve every run to immutable run and job IDs before handing work to
+        // background watchers. Watchers consume this manifest and do no discovery.
         const resolvedRuns = await Promise.all(
           runs.map(async (run) => {
             const detail = parse<{ readonly jobs: Job[] }>(
@@ -100,6 +110,8 @@ export const WorkflowManifestPlugin = (async ({ $ }) => ({
             };
           }),
         );
+        // Slow-job markers win when a job name also contains a quick marker,
+        // keeping builds, E2E, deploys, and releases in the watch-only partition.
         const quickRuns = resolvedRuns
           .map((run) => ({
             ...run,
@@ -117,6 +129,8 @@ export const WorkflowManifestPlugin = (async ({ $ }) => ({
           }))
           .filter((run) => run.jobs.length > 0);
 
+        // The pushed file set is also the maximum repair boundary for the
+        // fail-fast watcher; the full watcher remains read-only.
         return JSON.stringify({
           repositoryPath,
           repository,
@@ -141,11 +155,15 @@ export const WorkflowManifestPlugin = (async ({ $ }) => ({
           },
         });
       },
-    }),
+    },
   },
   "permission.ask": async (input, output) => {
     if (input.permission === "workflow_manifest") output.status = "allow";
   },
 })) satisfies Plugin;
 
-export default WorkflowManifestPlugin;
+// OpenCode's current path-plugin loader requires the module wrapper and ID.
+export default {
+  id: "workflow-manifest",
+  server: WorkflowManifestPlugin,
+};

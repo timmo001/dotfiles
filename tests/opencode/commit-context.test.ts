@@ -513,7 +513,10 @@ describe("commit command contract", () => {
       "utf8",
     );
 
-    expect(source).toContain("workflow_manifest: tool(");
+    expect(source).toContain("workflow_manifest: {");
+    expect(source).toContain('import type { Plugin, ToolDefinition }');
+    expect(source).toContain('id: "workflow-manifest"');
+    expect(source).toContain("server: WorkflowManifestPlugin");
     expect(source).toContain("gh run list --commit");
     expect(source).toContain("gh run view");
     expect(source).toContain("quick:");
