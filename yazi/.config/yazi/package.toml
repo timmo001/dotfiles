@@ -5,32 +5,32 @@ hash = "6ea5f37c7f219671ec504cb8311f889d"
 
 [[plugin.deps]]
 use = "yazi-rs/plugins:git"
-rev = "56d6277"
-hash = "88e56a64b7ce7c4314427452343fef17"
+rev = "b9598e6"
+hash = "ce259b12c503a33a18a861052fa582b7"
 
 [[plugin.deps]]
 use = "yazi-rs/plugins:mount"
-rev = "56d6277"
+rev = "b9598e6"
 hash = "46cbdc05596a3ecd730b288e28c7079d"
 
 [[plugin.deps]]
 use = "yazi-rs/plugins:zoom"
-rev = "56d6277"
+rev = "b9598e6"
 hash = "e8e279463ee99c940e6945a14cf4aa9e"
 
 [[plugin.deps]]
 use = "yazi-rs/plugins:chmod"
-rev = "56d6277"
+rev = "b9598e6"
 hash = "5b1c276b75cae91cbbdbe7863f39a540"
 
 [[plugin.deps]]
 use = "yazi-rs/plugins:smart-paste"
-rev = "56d6277"
+rev = "b9598e6"
 hash = "3f8d49413bc8691b4c652eb417a20178"
 
 [[plugin.deps]]
 use = "yazi-rs/plugins:diff"
-rev = "56d6277"
+rev = "b9598e6"
 hash = "a2b67c52fc36d4c7d3ccb8940d9a140"
 
 [[plugin.deps]]
