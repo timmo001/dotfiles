@@ -30,7 +30,7 @@ times
 
 The wrappers print section headings and the resolved remote, branch, comparison range, or operation before running Git. Operational detail goes to stderr for `git-diff-default` and `git-log-default`, leaving their Git output clean for piping.
 
-- `git-switch-default` (`gsd`) switches to the default branch and fast-forwards it to the fetched remote branch.
+- `git-switch-default` (`gsd`) switches to the default branch and fast-forwards it to the fetched remote branch. `gsdp` then runs `gh poi` under a separate cleanup section.
 - `git-rebase-default` (`grd`) rebases the checked-out branch onto the default branch with `--autostash`. Press `Ctrl+F` in Lazygit's Local Branches panel to run it. Use `gra` to abort a rebase in progress.
 - `git-diff-default` (`gdd`) shows the current branch diff from its merge base with the default branch.
 - `git-log-default` (`gld`) shows commits on the current branch since it diverged from the default branch.

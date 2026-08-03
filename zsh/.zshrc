@@ -585,7 +585,7 @@ alias gcoall='git checkout -- .'
 alias gr='git remote'
 alias gre='git reset'
 alias gsd='git-switch-default'
-alias gsdp='gsd && gh poi'
+alias gsdp='gsd && printf "\n\033[1;36mClean up merged branches\033[0m\n" && gh poi'
 alias grd='git-rebase-default'
 alias gra='echo "Aborting rebase..."; git rebase --abort'
 
