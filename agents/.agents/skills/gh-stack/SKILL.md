@@ -73,7 +73,7 @@ public preview.
 | Push tracked branches | `gh stack push --remote <remote>` | Pushes active branches with leases |
 | Create/update PR stack | `gh stack submit --auto --remote <remote>` | Pushes, creates/updates PRs and remote stack |
 | Routine reconciliation | `gh stack sync --remote <remote>` | Fetches, may rebase, pushes, and updates remote stack |
-| Cascade history | `gh stack rebase [--upstack|--downstack]` | Rewrites stack branch history |
+| Cascade history | `gh stack rebase [--upstack\|--downstack]` | Rewrites stack branch history |
 | Link externally managed branches/PRs | `gh stack link ...` | Remote-only tracking; may push/create/retarget PRs |
 | Restructure | `gh stack modify` | Interactive; do not drive as an agent |
 | Remove tracking/grouping | `gh stack unstack [--local]` | Removes local and optionally remote stack state |
