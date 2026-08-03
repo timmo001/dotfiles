@@ -39,7 +39,7 @@ on-resume
 - Clears Waybar git module cache files under `${XDG_CACHE_HOME:-~/.cache}/waybar`.
 - Clears the dot upstream fetch cache under `${XDG_CACHE_HOME:-~/.cache}/dot/fetch-upstream`.
 - Restarts Waybar through `uwsm-app`.
-- Restarts `twitch-notifications` after a short delay.
+- Gracefully restarts `twitch-notifications` in auto-open mode.
 
 The log is written to:
 

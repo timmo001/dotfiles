@@ -28,9 +28,13 @@ fi
 : > "$LOG_FILE"
 log "Resume started"
 
-# Restart twitch-notifications
-pkill -f '/usr/bin/[t]witch-notifications( |$)' >/dev/null 2>&1 || pkill -f '(^| )[t]witch-notifications( |$)' >/dev/null 2>&1 || true
-log "Killed twitch-notifications"
+# Restart twitch-notifications and auto-open configured live channels.
+if ! twitch-notifications --restart --open >/dev/null 2>&1; then
+  pkill -f '/usr/bin/[t]witch-notifications( |$)' >/dev/null 2>&1 || pkill -f '(^| )[t]witch-notifications( |$)' >/dev/null 2>&1 || true
+  sleep 1
+  setsid uwsm-app -s b -- twitch-notifications --open >/dev/null 2>&1 &
+fi
+log "twitch-notifications restart requested"
 
 # Clear git caches and restart waybar so modules refresh after network resume
 clear_git_caches
@@ -41,10 +45,5 @@ log "Killed waybar, cleared git caches"
 
 setsid uwsm-app -- waybar >/dev/null 2>&1 &
 log "Waybar restarted"
-
-# Restart twitch-notifications after brief delay
-sleep 1
-uwsm-app -s b -- twitch-notifications >/dev/null 2>&1 &
-log "twitch-notifications restarted"
 
 log "Resume complete"

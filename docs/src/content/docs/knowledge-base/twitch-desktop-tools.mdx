@@ -95,6 +95,12 @@ The helper detaches, stops matching `twitch-notifications` processes, waits one 
 uwsm-app -s b -- twitch-notifications
 ```
 
+To gracefully restart the running daemon and open configured live channels during its initial check, run:
+
+```bash
+twitch-notifications --restart --open
+```
+
 ## Troubleshooting
 
 If the channel menu is empty, check that the channels file exists and contains `- name: ...` entries:
