@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+section() {
+  printf '\n\033[1;36m%s\033[0m\n' "$1"
+}
+
 usage() {
   cat <<'EOF'
 Usage: git-split-branch-by-files [options]
@@ -175,7 +179,9 @@ for ((i = 1; i <= BRANCH_COUNT; i++)); do
   fi
 done
 
-printf 'Plan: %d files from %s vs %s\n' "$TOTAL_FILES" "$SOURCE_BRANCH" "$BASE_BRANCH"
+section 'Split plan'
+printf 'Source branch: %s\nBase branch: %s\nChanged files: %d\nOutput branches: %d\n' \
+  "$SOURCE_BRANCH" "$BASE_BRANCH" "$TOTAL_FILES" "$BRANCH_COUNT"
 planned_total=0
 for ((i = 1; i <= BRANCH_COUNT; i++)); do
   size="${GROUP_SIZES[$((i - 1))]}"
@@ -207,6 +213,9 @@ done
 
 ORIGINAL_BRANCH="$(git branch --show-current)"
 
+section 'Create split branches'
+printf 'Original branch: %s\n' "$ORIGINAL_BRANCH"
+
 restore_original_branch() {
   git switch "$ORIGINAL_BRANCH" >/dev/null 2>&1 || true
 }
@@ -218,6 +227,7 @@ for ((i = 1; i <= BRANCH_COUNT; i++)); do
   size="${GROUP_SIZES[$((i - 1))]}"
   branch_name="${SOURCE_BRANCH}-b${i}"
 
+  printf '\nCreating %s from %s (%d files)\n' "$branch_name" "$BASE_BRANCH" "$size"
   git switch -c "$branch_name" "$BASE_BRANCH" >/dev/null
 
   if (( size > 0 )); then
@@ -251,7 +261,8 @@ done
 trap - EXIT
 restore_original_branch
 
-printf 'Created branches:\n'
+section 'Created branches'
+printf 'Restored branch: %s\n' "$ORIGINAL_BRANCH"
 for ((i = 1; i <= BRANCH_COUNT; i++)); do
   branch_name="${SOURCE_BRANCH}-b${i}"
   inc_count="$(git diff --name-only "$BASE_BRANCH...$branch_name" | wc -l | tr -d ' ')"

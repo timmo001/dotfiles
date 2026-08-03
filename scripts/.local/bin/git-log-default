@@ -2,5 +2,14 @@
 
 set -euo pipefail
 
+section() {
+  printf '\n\033[1;36m%s\033[0m\n' "$1" >&2
+}
+
 default_ref=$(git-default-ref)
+branch=$(git branch --show-current)
+
+section 'List branch commits'
+printf 'Current branch: %s\nDefault ref: %s\nLog range: %s..HEAD\n' \
+  "${branch:-detached HEAD}" "$default_ref" "$default_ref" >&2
 git log "$default_ref"..HEAD "$@"

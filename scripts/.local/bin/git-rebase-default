@@ -2,8 +2,15 @@
 
 set -euo pipefail
 
+section() {
+  printf '\n\033[1;36m%s\033[0m\n' "$1"
+}
+
 default_ref=$(git-default-ref)
 branch=$(git branch --show-current)
-echo "Rebasing ${branch:-HEAD} onto $default_ref..."
+
+section 'Rebase onto default branch'
+printf 'Current branch: %s\nTarget ref: %s\nAutostash: enabled\n' \
+  "${branch:-detached HEAD}" "$default_ref"
 
 git rebase --autostash "$default_ref"

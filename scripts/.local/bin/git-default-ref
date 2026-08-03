@@ -2,20 +2,31 @@
 
 set -euo pipefail
 
+section() {
+  printf '\n\033[1;36m%s\033[0m\n' "$1" >&2
+}
+
+section 'Resolve default branch'
+
 remote=origin
 if git remote get-url upstream >/dev/null 2>&1; then
   remote=upstream
 fi
+printf 'Remote: %s\n' "$remote" >&2
 
 default_branch=$(git ls-remote --symref "$remote" HEAD | sed -n 's#^ref: refs/heads/\([^[:space:]]*\)[[:space:]]*HEAD$#\1#p')
 if [[ -z "$default_branch" ]]; then
   echo "Could not detect $remote's advertised default branch" >&2
   exit 1
 fi
+printf 'Advertised default branch: %s\n' "$default_branch" >&2
 
 expected_ref="refs/remotes/$remote/$default_branch"
+section 'Fetch default branch'
+printf 'Updating %s/%s\n' "$remote" "$default_branch" >&2
 git fetch "$remote" "+refs/heads/$default_branch:$expected_ref" >&2
 
+section 'Verify local default ref'
 local_ref=$(git symbolic-ref -q "refs/remotes/$remote/HEAD" 2>/dev/null || true)
 if [[ "$local_ref" != "$expected_ref" ]]; then
   if dot is-agent --quiet >/dev/null 2>&1 || [[ ! -t 0 ]]; then
@@ -34,4 +45,5 @@ if [[ "$local_ref" != "$expected_ref" ]]; then
   git remote set-head "$remote" "$default_branch"
 fi
 
+printf 'Using %s/%s\n' "$remote" "$default_branch" >&2
 printf '%s/%s\n' "$remote" "$default_branch"

@@ -2,13 +2,23 @@
 
 set -euo pipefail
 
+section() {
+  printf '\n\033[1;36m%s\033[0m\n' "$1"
+}
+
 default_ref=$(git-default-ref)
 default_branch=${default_ref#*/}
-echo "Switching to $default_ref..."
 
 if git show-ref --verify --quiet "refs/heads/$default_branch"; then
+  section 'Switch to local default branch'
+  printf 'Local branch: %s\nRemote ref: %s\n' "$default_branch" "$default_ref"
   git switch "$default_branch"
+
+  section 'Fast-forward default branch'
+  printf 'Merging %s into %s with --ff-only\n' "$default_ref" "$default_branch"
   git merge --ff-only "$default_ref"
 else
+  section 'Create local default branch'
+  printf 'Tracking %s as %s\n' "$default_ref" "$default_branch"
   git switch --track "$default_ref"
 fi
