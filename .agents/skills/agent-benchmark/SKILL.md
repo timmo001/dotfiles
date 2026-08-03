@@ -1,11 +1,13 @@
 ---
 name: agent-benchmark
-description: Run this repository's OpenCode agent benchmark as a detached background process. Use when asked to run, repeat, or inspect the agent benchmark or `/agent-benchmark`.
+description: Run this repository's OpenCode agent benchmark in an experimental background task and return its completed report. Use when asked to run, repeat, or inspect the agent benchmark or `/agent-benchmark`.
 ---
 
 # Agent Benchmark
 
-Run the benchmark from the repository root through Pitchfork without searching for its implementation. Follow the repository-owned background-task pattern used by System Bridge.
+Run the benchmark from the repository root in one OpenCode experimental
+background task. The task owns the complete benchmark run and returns its final
+report to the parent session automatically.
 
 ## Resolve the model first
 
@@ -19,9 +21,23 @@ The benchmark runs OpenCode in an isolated config, so the calling harness's mode
 ## Run it
 
 1. Build the benchmark arguments from `--model <resolved provider/model>` followed by any requested flags. If the requested flags already include `--model`, do not add one.
-2. Run `mise run benchmarks:opencode:background -- <arguments>`. This starts the benchmark as the managed Pitchfork daemon `agent-benchmark` and returns without waiting for completion.
-3. Run `mise run benchmarks:opencode:status` once to confirm that Pitchfork accepted the daemon. Do not wait for completion or poll it.
-4. Report the daemon name, the resolved model, and the status result immediately. Point to `mise run benchmarks:opencode:logs` for current output and `mise run benchmarks:opencode:stop` for cancellation. Mention `mise run benchmarks:opencode:logs:follow` (or `mise run benchmarks:opencode:logs -- --follow`) only as an interactive live stream that keeps running after the benchmark completes and must be cancelled manually. Never use follow mode to wait for completion; use status and ordinary logs instead.
-5. Explain that the completed logs contain the deterministic pass count, artifact path, and host report path.
+2. Launch one `general` task with `background: true`. Give it the repository
+   root and require it to run:
 
-Do not start a duplicate run while `agent-benchmark` is active. Pitchfork owns process lifetime, logs, status, and stopping; do not replace it with `nohup`, shell backgrounding, or direct process signals.
+   ```bash
+   mise run benchmarks:opencode -- <arguments>
+   ```
+
+   The background agent must not delegate or edit files. It must wait for the
+   command to finish and return the exit status, deterministic pass count,
+   artifact path, host report path, and any model/provider error.
+3. Report that the benchmark started in the background and name the resolved
+   model. Do not poll, sleep, request status, or duplicate the run. OpenCode
+   injects the task's final result into the parent session automatically.
+4. When the result arrives, summarise it for the user. Distinguish benchmark
+   failures from model/provider failures using the signature above.
+
+Use this only in a persistent interactive OpenCode session. Experimental
+background tasks are process-local, so one-shot `opencode run` exits before the
+benchmark can return its result. Do not replace the task with Pitchfork,
+`nohup`, shell backgrounding, tmux, or direct process signals.

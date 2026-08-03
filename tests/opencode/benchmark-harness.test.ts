@@ -14,6 +14,10 @@ import {
   scenarios,
   type BenchmarkScenario,
 } from "../../.benchmarks/opencode/scenarios";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+
+const root = resolve(import.meta.dir, "../..");
 
 const scenario = {
   id: "test",
@@ -140,6 +144,26 @@ describe("OpenCode benchmark event capture", () => {
 
   test("rejects malformed event lines", () => {
     expect(() => parseRunEvents('{"type":"text"}\nnot-json')).toThrow("line 2");
+  });
+});
+
+describe("agent benchmark command contract", () => {
+  test("runs the benchmark through an experimental background task", async () => {
+    const skill = await readFile(
+      resolve(root, ".agents/skills/agent-benchmark/SKILL.md"),
+      "utf8",
+    );
+    const command = await readFile(
+      resolve(root, ".opencode/commands/agent-benchmark.md"),
+      "utf8",
+    );
+
+    expect(skill).toContain("background: true");
+    expect(skill).toContain("mise run benchmarks:opencode -- <arguments>");
+    expect(skill).toContain("Do not poll");
+    expect(skill).toContain("persistent interactive OpenCode session");
+    expect(skill).not.toContain("benchmarks:opencode:background");
+    expect(command).toContain("Launch its experimental background task");
   });
 });
 
