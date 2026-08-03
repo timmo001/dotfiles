@@ -10,6 +10,7 @@ background-opacity = 0.85
 
 # Window
 mouse-hide-while-typing = true
+bell-features = no-attention,title
 window-theme= ghostty
 window-decoration = auto
 window-title-font-family = "JetBrainsMono Nerd Font"
