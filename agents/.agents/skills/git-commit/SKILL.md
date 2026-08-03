@@ -122,13 +122,15 @@ dot git-commit -m "<subject>" --push
   ref last seen, so a teammate's or bot's newer commit blocks the push instead
   of being clobbered. Only do this on a branch that is safe to rewrite.
 - After a successful push, load `workflows-watch` and launch two experimental
-  background tasks per pushed repository, both pinned to the exact pushed SHA:
-  a fail-fast fix task for an explicitly resolved set of quick checks, and a
-  bounded full watch-only task for builds, E2E tests, and all remaining
-  validation. Resolve quick checks from the repository's workflow jobs before
-  delegation; do not include jobs on the slow build or E2E path. The fail-fast
-  task owns failure diagnosis, the smallest scoped fix, and local verification.
-  The full task must not edit.
+  background tasks per pushed repository. Before delegation, resolve the
+  repository, full pushed SHA, pull request, triggered workflow run IDs and
+  URLs, exact check or job names, pushed-file fix boundary, and worktree state
+  into one immutable watch manifest. Partition it into explicitly listed quick
+  checks and full validation; do not include jobs on the slow build or E2E path
+  in the quick partition. Pass each partition verbatim so neither task repeats
+  discovery or changes its target set. The fail-fast task owns failure
+  diagnosis, the smallest scoped fix, and local verification. The full task
+  must not edit.
 - Do not poll or duplicate either background task. OpenCode reports completion
   automatically. The watches do not block subsequent edits or other requested
   work; the fail-fast fixer must check for newer overlapping changes before it

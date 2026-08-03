@@ -28,14 +28,16 @@ commit scoped. When several repository scopes are injected, operate only in
 repositories relevant to the current request, run each gateway series from its
 listed root, and pass `--push` only on that repository's final commit. After all
 final pushes return, launch two experimental background workflows tasks per
-pushed repository, both pinned to that repository's exact pushed SHA: a
-fail-fast task in fix mode for an explicitly resolved set of quick checks, and
-a bounded full watch-only task for slower build, E2E, and remaining checks.
-Resolve the quick checks from the repository's actual workflow jobs before
-delegation and exclude jobs on slow validation paths. Only the fail-fast task
-may edit, and it must check for newer overlapping changes immediately before
-doing so. Do not poll either task. The watches do not block subsequent edits or
-other requested work. Report the started watches, continue any remaining work,
-and return each result when OpenCode reports completion. Any fix remains
+pushed repository. Before delegation, resolve one immutable manifest with the
+repository, exact pushed SHA, pull request, triggered run IDs and URLs, exact
+check or job names, pushed-file fix boundary, and worktree state. Partition it
+into quick checks and full validation, excluding slow build and E2E paths from
+the quick partition, then pass each partition verbatim. Run the fail-fast task
+in fix mode and the full task in watch-only mode. The tasks must not repeat
+discovery or redefine their targets. Only the fail-fast task may edit, and it
+must check for newer overlapping changes immediately before doing so. Do not poll either task.
+The watches do not block subsequent edits or other requested work. Report the
+started watches, continue any remaining work, and return each result when
+OpenCode reports completion. Any fix remains
 uncommitted and unpushed until the user gives a fresh explicit commit and push
 request.

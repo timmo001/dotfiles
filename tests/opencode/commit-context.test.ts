@@ -454,8 +454,10 @@ describe("commit command contract", () => {
     expect(source).toContain("experimental background");
     expect(source).toMatch(/fix\s+mode/);
     expect(source).toContain("exact pushed SHA");
-    expect(source).toMatch(/Do not\s+poll it/);
-    expect(source).toMatch(/remains uncommitted and unpushed/);
+    expect(source).toMatch(/Do\s+not poll either task/);
+    expect(source).toContain("immutable manifest");
+    expect(source).toMatch(/must not repeat\s+discovery/);
+    expect(source).toMatch(/remains\s+uncommitted and unpushed/);
   });
 
   test("workflows watch defaults to reporting and gates fix mode", async () => {
@@ -475,6 +477,28 @@ describe("commit command contract", () => {
     expect(source).toContain("make no edits");
     expect(source).toContain("Do not launch a workflow watch from one-shot");
     expect(source).toContain("smallest scoped fix");
+    expect(source).toContain("Discovery belongs to the host");
+    expect(source).toContain("must not repeat target discovery");
+    expect(source).toContain("dedicated `workflow-watcher` subagent");
     expect(source).toMatch(/Never commit, push, rerun, cancel, or dispatch/);
+  });
+
+  test("workflow watcher denies generic GitHub API calls", async () => {
+    const source = await readFile(
+      resolve(
+        root,
+        "agents/.config/opencode/agents/workflow-watcher.md",
+      ),
+      "utf8",
+    );
+
+    expect(source).toContain("mode: subagent");
+    expect(source).toContain('"github_*": deny');
+    expect(source).toContain("github_actions_list: allow");
+    expect(source).toContain("github_actions_get: allow");
+    expect(source).toContain("github_get_job_logs: allow");
+    expect(source).toContain('"gh api*": deny');
+    expect(source).toContain('"gh run watch*": allow');
+    expect(source).toContain("Do not discover");
   });
 });

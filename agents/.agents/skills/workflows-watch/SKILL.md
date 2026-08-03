@@ -24,27 +24,38 @@ agent does not block on foreground `gh` watches.
 
 ## Workflow
 
-1. Resolve the repository, branch, pull request, workflow run, and current
-   working-tree scope before delegation. Record the exact pushed commit SHA so
-   the task cannot attach to an older run. Use an explicit matching run ID when
-   available; otherwise have the task discover or watch the pull request checks
-   for that SHA.
+1. The host resolves discovery once before delegation and builds an immutable
+   watch manifest containing:
+   - repository path and `owner/name`;
+   - branch, pull request number when present, and full pushed SHA;
+   - pushed files and the permitted fix boundary;
+   - each triggered workflow's name, workflow file, run ID, URL, and exact SHA;
+   - the quick partition's workflow run IDs and selected check or job names;
+   - the full partition's workflow run IDs;
+   - mode, timeout, and worktree state at delegation.
+   Wait for triggered runs to register before launching the tasks. If a run
+   cannot be resolved, report it as unresolved in the manifest rather than
+   delegating discovery.
 2. Check live CLI help before selecting the watch command. Prefer:
    - `gh run watch <run-id> --compact --exit-status --interval 10`
    - `gh pr checks <pr> --watch`
-3. Launch a `general` task with `background: true`. Give it the repository
-   path, exact workflow target, selected mode, resolved changeset boundary, and
-   applicable repository instructions. For post-push fix cycles, launch two
-   tasks concurrently:
+3. Launch a `workflow-watcher` task with `background: true`. Pass the applicable
+   manifest partition verbatim with the repository instructions. For post-push
+   fix cycles, launch two tasks concurrently:
    - a fail-fast fix task for an explicit quick-check set, pinned to the exact
      pushed SHA;
    - a bounded full watch-only task for all checks on that SHA.
-   Resolve the quick-check set from the repository's actual workflows and jobs
-   before delegation. Include lint, formatting, static analysis, type checks,
-   and similarly fast unit checks. Exclude builds, E2E tests, deployments, and
-   jobs that depend on the slow validation path. Give the task the selected
-   check names; do not make it infer them while watching.
+   The host resolves the quick-check set from the repository's actual workflows
+   and jobs. Include lint, formatting, static analysis, type checks, and
+   similarly fast unit checks. Exclude builds, E2E tests, deployments, and jobs
+   that depend on the slow validation path.
 4. In watch mode, require the task to:
+   - trust the manifest as its complete target set;
+   - watch only the listed run IDs and check or job names;
+   - not list repository workflows, rescan workflow files, inspect unrelated
+     checks, or redefine the quick/full partition;
+   - return an invalid or stale manifest to the host instead of repairing it by
+     discovery;
    - watch until the target reaches a terminal state;
    - return the run URL or ID, conclusion, and failed job and step details;
    - make no edits.
@@ -78,10 +89,16 @@ agent does not block on foreground `gh` watches.
 
 - Use a background `task`, not shell backgrounding, `nohup`, tmux, or repeated
   GitHub API polling.
+- Discovery belongs to the host. Background watchers may retrieve status and
+  logs only for manifest-listed targets; they must not repeat target discovery.
+- Use the dedicated `workflow-watcher` subagent. Its permissions deny generic
+  `gh api` and broad GitHub MCP tools while allowing Actions list/get calls,
+  `github_get_job_logs`, targeted run/check watches, and explicit scoped fixes.
+  List calls may confirm manifest targets but must not redefine them.
 - Background tasks are process-local. Do not tell the user to restart OpenCode
   while a watch is active because the task and its completion result would be
   lost.
-- Do not launch workflow watches from one-shot `opencode run`. The parent
+- Do not launch a workflow watch from one-shot `opencode run`. The parent
   process exits after the task starts, so the task cannot return its result.
   Use this skill only in a persistent interactive OpenCode session.
 - Never infer fix mode from a failing result. A watch-only task reports the
