@@ -69,6 +69,7 @@
     },
     "external_directory": {
       "~/.agents/*": "allow",
+      "~/.cache/opencode/*": "allow",
       "~/.config/*": "allow",
       "~/.config/fastfetch/**": "allow",
       "~/.config/fish/**": "allow",
