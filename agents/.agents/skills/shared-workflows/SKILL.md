@@ -21,6 +21,7 @@ Prefer an existing production shared workflow over duplicating CI logic. Keep re
    - Treat shell-valued inputs as trusted configuration. Never populate them from pull request content or other untrusted data.
 3. Configure the caller minimally.
    - Use reusable workflows only at the job level with `jobs.<job_id>.uses`.
+   - Keep every `uses:` declaration and its complete `owner/repository/path@ref` value on one physical line. Never wrap it with YAML block or folded scalar syntax (`|` or `>`), because Renovate's GitHub Actions manager will not detect the dependency.
    - Pin new or updated cross-repository calls to a full commit SHA and retain a short comment naming the tracked branch or release when the repository convention permits it.
    - Pass only non-default inputs that the consumer needs. Map required secrets explicitly and grant the narrowest caller permissions that satisfy the contract.
    - Preserve working historical SHA-pinned callers. If their workflow no longer exists on the shared repository's default branch, inspect the historical contract at that SHA, but do not copy it into new integrations without a separate decision to restore or replace it.
@@ -42,7 +43,8 @@ Validate in dependency order:
 1. Run the shared repository's formatting and workflow lint checks.
 2. Validate the reusable workflow syntax and its declared contract.
 3. Validate each changed caller against the pinned revision, including permissions and secret mappings.
-4. Run the smallest representative caller workflow or repository check available.
-5. For contract changes, confirm every discovered consumer is compatible, migrated, or explicitly deferred.
+4. Confirm every changed `uses:` declaration remains a single physical line that Renovate can parse.
+5. Run the smallest representative caller workflow or repository check available.
+6. For contract changes, confirm every discovered consumer is compatible, migrated, or explicitly deferred.
 
 Report the selected shared contract and pinned SHA, caller changes, permissions and secrets required (names only), validation evidence, and any consumers or migrations left outstanding.
