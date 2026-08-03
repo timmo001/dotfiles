@@ -34,6 +34,33 @@ Layer these global skills over the repository guidance when their scopes apply:
 
 For Home Assistant rendering or picker work, load both `lit-rendering` and `home-assistant-lit-rendering`. Preserve the stricter TypeScript and cleanup guidance unless it conflicts with an explicit repository rule.
 
+Apply these cross-project engineering preferences without overriding explicit repository rules:
+
+### Scope And Surface
+
+- Make one independently reviewable change at a time unless batching is explicitly requested. Stay within the requested area and preserve existing semantics during migrations unless changing them is in scope.
+- Prefer a narrow canonical helper or shared module over callback-heavy abstractions, pass-through wrappers, widened signatures, duplicate types, or ceremonial aliases.
+- Challenge optional feature surface that adds network, lifecycle, consistency, or documentation cost without supporting the core task.
+
+### Async State And Readiness
+
+- Model asynchronous UI as transitions: establish immutable baselines before awaits, guard stale responses, preserve unsaved mounted state, and classify an action's current meaning before dirty-gating it.
+- Treat readiness as the first displayable terminal result, including stable empty and error states. Do not resolve between a failed request and its fallback.
+- Every value affecting memoized output must participate in invalidation, either as an explicit key or through deliberate cache invalidation.
+- Model logical open and close lifecycle independently from DOM connection when managers can retain closed elements. Global-listener registration must be idempotent or return a cleanup handle.
+
+### Processes And Input
+
+- Make check-then-act filesystem and PID operations atomic. Locks must cover every mutated shared resource, including watcher regeneration.
+- Terminate processes with SIGTERM, wait and verify exit, then escalate to SIGKILL. Remove process state only after confirmed exit and guard against stale PID reuse.
+- Handle child `spawn` and `error` events, and treat null or unknown exit codes as failures.
+- Reject contradictory or malformed CLI and configuration values with a positive grammar rather than permissive suffix checks.
+
+### Test Boundaries
+
+- Keep test infrastructure changes in dedicated work. Install error tracking before navigation, assert rendered content rather than wrappers, and never let report-merging failures suppress the original failed-suite result.
+- Prefer watched background development servers while iterating, but treat CI as final verification when local and CI environments may differ.
+
 ## Sibling Repositories
 
 The Home Assistant core, documentation, custom cards, custom dashboards, and core packages commonly live alongside the frontend. When working across repositories, reference the available sibling checkout directly rather than guessing APIs or conventions. Follow each target repository's own instructions and skills.
