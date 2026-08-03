@@ -3,17 +3,11 @@
  */
 
 import type { Plugin, ToolDefinition } from "@opencode-ai/plugin";
-
-interface Run {
-  readonly databaseId: number;
-  readonly conclusion: string;
-  readonly createdAt: string;
-  readonly headSha: string;
-  readonly name: string;
-  readonly status: string;
-  readonly url: string;
-  readonly workflowDatabaseId: number;
-}
+import {
+  REGISTRATION_RETRY_INTERVAL_MS,
+  resolveRunsWithRetry,
+  type WorkflowRun,
+} from "../lib/workflow-manifest";
 
 interface Workflow {
   readonly id: number;
@@ -31,7 +25,8 @@ interface Job {
 
 const QUICK_JOB =
   /(?:lint|format|static|type|unit|regression|shellcheck|actionlint|jsonlint|yamllint|markdown)/i;
-const SLOW_JOB = /(?:build|e2e|end.to.end|deploy|release|codeql|mise toolchain)/i;
+const SLOW_JOB =
+  /(?:build|e2e|end.to.end|deploy|release|codeql|mise toolchain)/i;
 
 const parse = <T>(value: string): T => JSON.parse(value) as T;
 
@@ -76,11 +71,16 @@ export const WorkflowManifestPlugin = (async ({ $ }) => ({
         const workflowPaths = new Map(
           workflows.map((workflow) => [workflow.id, workflow.path]),
         );
-        const runs = parse<Run[]>(
-          await $`gh run list --commit ${sha} --limit 100 --json databaseId,conclusion,createdAt,headSha,name,status,url,workflowDatabaseId`
-            .cwd(repositoryPath)
-            .text(),
-        ).filter((run) => run.headSha === sha);
+        const registration = await resolveRunsWithRetry({
+          sha,
+          listRuns: async () =>
+            parse<WorkflowRun[]>(
+              await $`gh run list --commit ${sha} --limit 100 --json databaseId,conclusion,createdAt,headSha,name,status,url,workflowDatabaseId`
+                .cwd(repositoryPath)
+                .text(),
+            ),
+        });
+        const runs = registration.runs;
 
         // Resolve every run to immutable run and job IDs before handing work to
         // background watchers. Watchers consume this manifest and do no discovery.
@@ -136,6 +136,12 @@ export const WorkflowManifestPlugin = (async ({ $ }) => ({
           repository,
           branch,
           sha,
+          registration: {
+            status: registration.status,
+            attempts: registration.attempts,
+            waitedMs:
+              (registration.attempts - 1) * REGISTRATION_RETRY_INTERVAL_MS,
+          },
           pushedFiles,
           fixBoundary: pushedFiles,
           worktreeStateAtDelegation: String(

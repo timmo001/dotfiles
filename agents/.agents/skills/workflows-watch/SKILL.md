@@ -33,9 +33,10 @@ agent does not block on foreground `gh` watches.
    - the quick partition's workflow run IDs and selected check or job names;
    - the full partition's workflow run IDs;
    - mode, timeout, and worktree state at delegation.
-   If expected runs have not registered, report them as unresolved rather than
-   delegating discovery. Do not replace the tool with manual Actions listing or
-   an Explore task.
+   The tool waits up to 30 seconds for exact-SHA runs to register. A resolved
+   manifest includes runs that completed during that window; an unresolved
+   manifest means no matching run appeared before the bounded wait expired.
+   Do not replace the tool with manual Actions polling or an Explore task.
 2. Check live CLI help before selecting the watch command. Prefer:
    - `gh run watch <run-id> --compact --exit-status --interval 10`
    - `gh pr checks <pr> --watch`

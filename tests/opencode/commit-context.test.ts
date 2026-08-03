@@ -9,6 +9,10 @@ import {
   renderCommitContexts,
   sessionTouchedFiles,
 } from "../../agents/.config/opencode/lib/commit-context";
+import {
+  resolveRunsWithRetry,
+  type WorkflowRun,
+} from "../../agents/.config/opencode/lib/workflow-manifest";
 
 const repositoryRoot = "/tmp/repository";
 const root = resolve(import.meta.dir, "../..");
@@ -450,10 +454,7 @@ describe("commit command contract", () => {
 
   test("commit-push-no-watch omits pushed workflow watchers", async () => {
     const source = await readFile(
-      resolve(
-        root,
-        "agents/.config/opencode/commands/commit-push-no-watch.md",
-      ),
+      resolve(root, "agents/.config/opencode/commands/commit-push-no-watch.md"),
       "utf8",
     );
 
@@ -464,10 +465,7 @@ describe("commit command contract", () => {
 
   test("workflows watch defaults to reporting and gates fix mode", async () => {
     const source = await readFile(
-      resolve(
-        root,
-        "agents/.agents/skills/workflows-watch/SKILL.md",
-      ),
+      resolve(root, "agents/.agents/skills/workflows-watch/SKILL.md"),
       "utf8",
     );
 
@@ -482,15 +480,14 @@ describe("commit command contract", () => {
     expect(source).toContain("Discovery belongs to the host");
     expect(source).toContain("must not repeat target discovery");
     expect(source).toContain("dedicated `workflow-watcher` subagent");
+    expect(source).toContain("waits up to 30 seconds");
+    expect(source).toContain("no matching run appeared");
     expect(source).toMatch(/Never commit, push, rerun, cancel, or dispatch/);
   });
 
   test("workflow watcher denies generic GitHub API calls", async () => {
     const source = await readFile(
-      resolve(
-        root,
-        "agents/.config/opencode/agents/workflow-watcher.md",
-      ),
+      resolve(root, "agents/.config/opencode/agents/workflow-watcher.md"),
       "utf8",
     );
 
@@ -506,15 +503,12 @@ describe("commit command contract", () => {
 
   test("workflow manifest centralises host discovery", async () => {
     const source = await readFile(
-      resolve(
-        root,
-        "agents/.config/opencode/plugins/workflow-manifest.ts",
-      ),
+      resolve(root, "agents/.config/opencode/plugins/workflow-manifest.ts"),
       "utf8",
     );
 
     expect(source).toContain("workflow_manifest: {");
-    expect(source).toContain('import type { Plugin, ToolDefinition }');
+    expect(source).toContain("import type { Plugin, ToolDefinition }");
     expect(source).toContain('id: "workflow-manifest"');
     expect(source).toContain("server: WorkflowManifestPlugin");
     expect(source).toContain("gh run list --commit");
@@ -522,4 +516,76 @@ describe("commit command contract", () => {
     expect(source).toContain("quick:");
     expect(source).toContain("full:");
   });
+
+  test("workflow manifest waits for delayed run registration", async () => {
+    const run = workflowRun("pushed-sha");
+    const responses: readonly WorkflowRun[][] = [[], [], [run]];
+    const sleeps: number[] = [];
+    let attempt = 0;
+
+    const result = await resolveRunsWithRetry({
+      sha: "pushed-sha",
+      listRuns: async () => responses[attempt++] ?? [],
+      sleep: async (milliseconds) => {
+        sleeps.push(milliseconds);
+      },
+      maxAttempts: 4,
+      retryIntervalMs: 25,
+    });
+
+    expect(result).toEqual({
+      status: "resolved",
+      attempts: 3,
+      runs: [run],
+    });
+    expect(sleeps).toEqual([25, 25]);
+  });
+
+  test("workflow manifest reports permanently unregistered runs", async () => {
+    let attempts = 0;
+
+    const result = await resolveRunsWithRetry({
+      sha: "pushed-sha",
+      listRuns: async () => {
+        attempts += 1;
+        return [];
+      },
+      sleep: async () => {},
+      maxAttempts: 3,
+    });
+
+    expect(result).toEqual({
+      status: "unresolved",
+      attempts: 3,
+      runs: [],
+    });
+    expect(attempts).toBe(3);
+  });
+
+  test("workflow manifest remains pinned to the exact pushed SHA", async () => {
+    const pushedRun = workflowRun("pushed-sha");
+    const responses = [[workflowRun("other-sha")], [pushedRun]];
+    let attempt = 0;
+
+    const result = await resolveRunsWithRetry({
+      sha: "pushed-sha",
+      listRuns: async () => responses[attempt++] ?? [],
+      sleep: async () => {},
+      maxAttempts: 2,
+    });
+
+    expect(result.status).toBe("resolved");
+    expect(result.runs).toEqual([pushedRun]);
+  });
+});
+
+const workflowRun = (headSha: string): WorkflowRun => ({
+  databaseId: 123,
+  conclusion: "success",
+  createdAt: "2026-08-03T18:00:00Z",
+  headSha,
+  name: "Lint",
+  status: "completed",
+  url: "https://github.com/example/repository/actions/runs/123",
+  workflowDatabaseId: 456,
 });
