@@ -121,8 +121,21 @@ dot git-commit -m "<subject>" --push
   plain force): it overwrites the remote branch only when it still matches the
   ref last seen, so a teammate's or bot's newer commit blocks the push instead
   of being clobbered. Only do this on a branch that is safe to rewrite.
+- After a successful push, load `workflows-watch` and launch one experimental
+  background task per pushed repository. Target the pushed commit's workflow
+  run when available, otherwise its pull request checks, and pass the exact
+  pushed SHA so it cannot select stale workflow runs. Explicitly select fix
+  mode: the task owns watching, failure diagnosis, the smallest scoped fix, and
+  local verification.
+- Do not poll or duplicate the background task. OpenCode reports completion
+  automatically. If no independent work remains, report the started watch and
+  end the turn. Inspect and return its result when it arrives.
+- The original commit/push request does not authorise committing or pushing a
+  workflow fix produced after the push. Leave that fix uncommitted and unpushed, then
+  ask for fresh authorisation if another commit and push is needed.
 
 ## 7. Report
 
 - Report the commit subject, the files committed, any separate formatting
-  commit, and the push result.
+  commit, the push result, and the background workflow task target. When the
+  task completes, return its workflow result and any verified uncommitted fix.

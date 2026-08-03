@@ -443,4 +443,38 @@ describe("commit command contract", () => {
       /Never\s+commit a path merely because it is listed, staged, session-touched, or forms\s+a separate coherent change/,
     );
   });
+
+  test("commit-push delegates pushed workflow checks in the background", async () => {
+    const source = await readFile(
+      resolve(root, "agents/.config/opencode/commands/commit-push.md"),
+      "utf8",
+    );
+
+    expect(source).toContain("`workflows-watch`");
+    expect(source).toContain("experimental background");
+    expect(source).toMatch(/fix\s+mode/);
+    expect(source).toContain("exact pushed SHA");
+    expect(source).toMatch(/Do not\s+poll it/);
+    expect(source).toMatch(/remains uncommitted and unpushed/);
+  });
+
+  test("workflows watch defaults to reporting and gates fix mode", async () => {
+    const source = await readFile(
+      resolve(
+        root,
+        "agents/.agents/skills/workflows-watch/SKILL.md",
+      ),
+      "utf8",
+    );
+
+    expect(source).toContain("name: workflows-watch");
+    expect(source).toContain("background: true");
+    expect(source).toContain("Do not poll");
+    expect(source).toContain("Watch mode is the default");
+    expect(source).toContain("Fix mode is explicit");
+    expect(source).toContain("make no edits");
+    expect(source).toContain("Do not launch a workflow watch from one-shot");
+    expect(source).toContain("smallest scoped fix");
+    expect(source).toMatch(/Never commit, push, rerun, cancel, or dispatch/);
+  });
 });

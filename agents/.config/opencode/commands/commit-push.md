@@ -8,11 +8,11 @@ repository series once, then stop. Split related changes into coherent commits
 by default; make one commit only when `${ARGUMENTS}` explicitly requests it.
 This does not authorise unrelated session changes or later changes.
 
-Load and follow the `git-commit` skill. Commit through `dot git-commit` and pass
-`--push` only for the final commit (never raw `git commit`/`git push`); it is
-intended for a build agent, so if `dot git-commit` is denied by permissions,
-stop and report rather than falling back. `--push` sets the upstream when
-missing and never force-pushes.
+Load and follow the `git-commit` and `workflows-watch` skills. Commit through
+`dot git-commit` and pass `--push` only for the final commit (never raw
+`git commit`/`git push`); it is intended for a build agent, so if
+`dot git-commit` is denied by permissions, stop and report rather than falling
+back. `--push` sets the upstream when missing and never force-pushes.
 
 Use `${ARGUMENTS}` as grouping or subject guidance when provided (still subject
 to the gateway guards). The injected `<commit-context>` is attribution evidence,
@@ -27,5 +27,9 @@ scope to the excluded dirty paths. Use repeated `--path` arguments to keep each
 commit scoped. When several repository scopes are injected, operate only in
 repositories relevant to the current request, run each gateway series from its
 listed root, and pass `--push` only on that repository's final commit. After all
-final pushes return, report the series and do not perform any further commit or
-push work without a fresh explicit request.
+final pushes return, launch one experimental background workflows task in fix
+mode per pushed repository, pinned to that repository's exact pushed SHA. Do not
+poll it. If no independent work remains, report the started watch and end the
+turn. Return its result when OpenCode reports completion. Any fix it makes
+remains uncommitted and unpushed until the user gives a fresh explicit commit
+and push request.
