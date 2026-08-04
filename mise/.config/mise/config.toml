@@ -40,7 +40,7 @@ zoxide = "0.10.0"
 just = "1.57.0"
 
 [tools."aqua:anomalyco/opencode"]
-version = "1.18.12"
+version = "1.18.13"
 minimum_release_age = "2h"
 
 [settings]
