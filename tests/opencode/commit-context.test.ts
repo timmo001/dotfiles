@@ -407,7 +407,7 @@ describe("commit command contract", () => {
     ).toBe(true);
   });
 
-  test.each(["commit", "commit-push", "commit-push-no-watch"])(
+  test.each(["commit", "commit-push", "commit-push-watch"])(
     "%s stays in the parent session and consumes injected context",
     async (command) => {
       const source = await readFile(
@@ -439,11 +439,17 @@ describe("commit command contract", () => {
     expect(source).toMatch(
       /Never\s+commit a path merely because it is listed, staged, session-touched, or forms\s+a separate coherent change/,
     );
+    expect(source).toContain(
+      "After a successful push, load `workflows-watch` and launch the background",
+    );
+    expect(source).toContain(
+      "Skip them only when `/commit-push` explicitly routes the",
+    );
   });
 
-  test("commit-push delegates pushed workflow checks in the background", async () => {
+  test("commit-push-watch delegates pushed workflow checks in the background", async () => {
     const source = await readFile(
-      resolve(root, "agents/.config/opencode/commands/commit-push.md"),
+      resolve(root, "agents/.config/opencode/commands/commit-push-watch.md"),
       "utf8",
     );
 
@@ -452,9 +458,9 @@ describe("commit command contract", () => {
     expect(source).toContain("<commit-context>");
   });
 
-  test("commit-push-no-watch omits pushed workflow watchers", async () => {
+  test("commit-push omits pushed workflow watchers", async () => {
     const source = await readFile(
-      resolve(root, "agents/.config/opencode/commands/commit-push-no-watch.md"),
+      resolve(root, "agents/.config/opencode/commands/commit-push.md"),
       "utf8",
     );
 

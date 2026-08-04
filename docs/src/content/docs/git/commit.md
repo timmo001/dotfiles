@@ -18,11 +18,11 @@ dot git-commit --amend -m "Reword last commit"                 # rewrite HEAD's 
 dot git-commit -m "Preview only" --dry-run                     # show the plan, change nothing
 ```
 
-Agents use this command through the `git-commit` skill. Raw `git commit` is blocked in the OpenCode permission config, so `/commit`, `/commit-push`, and `/commit-push-no-watch` all route through the gateway. A commit or push request authorises only that specific action; a later change still needs a fresh explicit request. Use `/commit-push-no-watch` to omit the post-push background workflow watchers without bypassing commit hooks or gateway guards.
+Agents use this command through the `git-commit` skill. Raw `git commit` is blocked in the OpenCode permission config, so `/commit`, `/commit-push`, and `/commit-push-watch` all route through the gateway. A commit or push request authorises only that specific action; a later change still needs a fresh explicit request. `/commit-push` omits post-push background workflow watchers, while `/commit-push-watch` opts into them. Direct use of the skill continues to watch after a successful push by default.
 
 ## Agent workflow
 
-The `commit-context` plugin injects a `<commit-context>` block before `/commit`, `/commit-push`, and `/commit-push-no-watch` run. The commands stay in the parent session, so they retain the reviewed conversation without injecting full patches.
+The `commit-context` plugin injects a `<commit-context>` block before `/commit`, `/commit-push`, and `/commit-push-watch` run. The commands stay in the parent session, so they retain the reviewed conversation without injecting full patches.
 
 When files are already staged, that staged set supplies the attribution candidates. Otherwise, candidates are current dirty paths that OpenCode recorded as touched by the session tree. Candidate paths are a discovery superset, not authorisation to commit them all. The agent filters every path against the active user request and excludes or clarifies unrelated work, even when it is staged or belongs to a separate coherent change. Session attribution is path-level, not hunk-level: a file can still contain pre-existing or concurrent edits that require a question.
 

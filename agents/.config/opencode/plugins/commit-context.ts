@@ -21,7 +21,7 @@ interface DirectoryQuery {
 const TARGET_COMMANDS = new Set([
   "commit",
   "commit-push",
-  "commit-push-no-watch",
+  "commit-push-watch",
 ]);
 
 const errorMessage = (error: unknown): string =>
