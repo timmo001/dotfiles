@@ -86,6 +86,8 @@ complete -c dot -n '__fish_use_subcommand' -a 'is-agent' -d 'Detect whether an A
 complete -c dot -s q -l quiet -d 'Print only the provider id' -n '__fish_seen_subcommand_from is-agent'
 complete -c dot -l json -d 'Print the detection result as JSON' -n '__fish_seen_subcommand_from is-agent'
 complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from is-agent'
+complete -c dot -n '__fish_use_subcommand' -a 'setup-public-repo' -d 'Trust and register the public timmo pacman repository'
+complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from setup-public-repo'
 complete -c dot -n '__fish_use_subcommand' -a 'setup-private-repo' -d 'Sync and register the private pacman repository'
 complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from setup-private-repo'
 complete -c dot -n '__fish_use_subcommand' -a 'private-pkg-publish' -d 'Build and publish a private package'

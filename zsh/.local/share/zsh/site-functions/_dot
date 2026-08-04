@@ -22,6 +22,7 @@ dot_commands=(
   'mcp-sync:Regenerate MCP configs for all harnesses from the spec'
   'notes-capture-sync:Sync watched repositories to the notes capture picker'
   'is-agent:Detect whether an AI coding agent is running dot'
+  'setup-public-repo:Trust and register the public timmo pacman repository'
   'setup-private-repo:Sync and register the private pacman repository'
   'private-pkg-publish:Build and publish a private package'
   'skill-updates:Check/apply imported skill updates'
@@ -183,6 +184,12 @@ _dot_cmd_is_agent() {
     '(-h --help)--help[Show this help message]' \
     '*::arg:->args'
 }
+_dot_cmd_setup_public_repo() {
+  _arguments -S \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
 _dot_cmd_setup_private_repo() {
   _arguments -S \
     '(-h --help)-h[Show this help message]' \
@@ -305,6 +312,9 @@ _dot_complete_command() {
       ;;
     is-agent)
       _dot_cmd_is_agent
+      ;;
+    setup-public-repo)
+      _dot_cmd_setup_public_repo
       ;;
     setup-private-repo)
       _dot_cmd_setup_private_repo

@@ -40,6 +40,7 @@ import { notesCaptureSync } from "./commands/NotesCaptureSync.js";
 import { mcpSync } from "./mcp/commands/McpSync.js";
 import { isAgentCommand } from "./commands/IsAgent.js";
 import { setupPrivateRepo } from "./commands/SetupPrivateRepo.js";
+import { setupPublicRepo } from "./commands/SetupPublicRepo.js";
 import { privatePkgPublish } from "./commands/PrivatePkgPublish.js";
 import { skillUpdates } from "./commands/SkillUpdates.js";
 import { skillCheck } from "./commands/SkillCheck.js";
@@ -473,6 +474,7 @@ const NATIVE_COMMAND_TIMEOUT_SECONDS: Partial<Record<string, number>> = {
   stow: 3 * 60,
   clean: 3 * 60,
   "setup-private-repo": 10 * 60,
+  "setup-public-repo": 3 * 60,
   "private-pkg-publish": 30 * 60,
   firewall: 3 * 60,
   "skill-check": 5 * 60,
@@ -605,6 +607,7 @@ if (mode.type === "native") {
       "notes-capture-sync": () => notesCaptureSync,
       "is-agent": isAgentCommand,
       "setup-private-repo": () => setupPrivateRepo,
+      "setup-public-repo": () => setupPublicRepo,
       "private-pkg-publish": privatePkgPublish,
       "skill-updates": (args) =>
         skillUpdates({

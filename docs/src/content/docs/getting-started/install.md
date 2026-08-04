@@ -34,7 +34,7 @@ mise run dot:build
 
 ## First-use setup
 
-`dot init` runs the one-time first-use setup: it bootstraps private dotfiles when allowed, syncs Omarchy repos, selects the Hypr host, installs and adopts config, installs stowed mise tools, sets up packages and machine hooks, and syncs agents. It logs to `~/.local/state/dot/init.log` by default. The private-overlay pull or clone runs first as an unbounded preflight; the setup phases that follow use the same spinner and timeout handling as `dot update`.
+`dot init` runs the one-time first-use setup: it bootstraps private dotfiles when allowed, syncs Omarchy repos, selects the Hypr host, installs and adopts config, installs stowed mise tools, verifies and registers the signed `timmo` package repository, sets up packages and machine hooks, and syncs agents. It logs to `~/.local/state/dot/init.log` by default. The private-overlay pull or clone runs first as an unbounded preflight; the setup phases that follow use the same spinner and timeout handling as `dot update`.
 
 ```bash
 ~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive
@@ -67,4 +67,4 @@ context git   # branch context for the current repo (from the context-git packag
 
 `context git` and `context stack` come from the `context-git` AUR package installed during init. They are used by OpenCode plugins and agent harnesses for repository context; see [Context Integration](/git/context/).
 
-`dot update` is the everyday command. It pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches on the new binary, then scans and pulls tracked repositories. The remaining full-update phases trust mise configs, regenerate completions, install missing public packages, sync MCP configs, stow, rebuild, sync agents, backfill the init marker, and refresh resume-managed services. See the [Command Reference](/dot/commands/) for scoped phase flags and exit codes.
+`dot update` is the everyday command. It pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches on the new binary, then scans and pulls tracked repositories. The remaining full-update phases trust mise configs, regenerate completions, reconcile the signed public package repository, install missing public packages, sync MCP configs, stow, rebuild, sync agents, backfill the init marker, and refresh resume-managed services. See the [Command Reference](/dot/commands/) for scoped phase flags and exit codes.

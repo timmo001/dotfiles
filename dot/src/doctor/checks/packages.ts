@@ -13,6 +13,11 @@ import {
 import { resolvedOmarchyHost } from "../../lib/omarchyHost.js";
 import type { ConfigService } from "../../services/Config.js";
 import type { CheckResult } from "../types.js";
+import {
+  publicPackageRepoConfigMatches,
+  publicPackageRepoIncludeRegistered,
+  publicPacmanRepoConfigPath,
+} from "../../commands/SetupPublicRepo.js";
 
 const DEFAULT_PRIVATE_PACMAN_REPO_CONFIG = "/etc/pacman.d/timmo-private.conf";
 const DEFAULT_PRIVATE_PACMAN_MAIN_CONFIG = "/etc/pacman.conf";
@@ -297,6 +302,25 @@ export function isInstalledVersionOlder(vercmpOutput: string): boolean {
   return Number.parseInt(vercmpOutput.trim(), 10) < 0;
 }
 
+/** Whether GnuPG reports the expected key as valid and locally signed. */
+export function publicPackageKeyTrusted(
+  gpgOutput: string,
+  fingerprint: string,
+): boolean {
+  const records = gpgOutput.split("\n").map((line) => line.split(":"));
+  const publicKey = records.find(([type]) => type === "pub");
+  const primaryFingerprint = records.find(([type]) => type === "fpr")?.[9];
+  const hasLocalSignature = records.some(
+    ([type, , , , , , , , , , signatureClass]) =>
+      type === "sig" && signatureClass?.includes("l"),
+  );
+  return (
+    (publicKey?.[1] === "f" || publicKey?.[1] === "u") &&
+    primaryFingerprint === fingerprint &&
+    hasLocalSignature
+  );
+}
+
 /** Check public AUR packages are installed and up-to-date */
 export const checkPublicPackages = Effect.gen(function* () {
   const config = yield* Config;
@@ -369,6 +393,55 @@ export const checkPublicPackages = Effect.gen(function* () {
     });
   }
 
+  return results;
+});
+
+/** Check the signed public package repository configuration and trusted key. */
+export const checkPublicPackageRepo = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const fingerprint = "F94469C08E3B717014E2815FA026A3671E9151DA";
+  const results: CheckResult[] = [];
+
+  if (!publicPackageRepoConfigMatches()) {
+    results.push({
+      severity: "warn",
+      message: `Public pacman repo config is missing or differs from the signed configuration: ${displayPath(publicPacmanRepoConfigPath())}`,
+      detail: "Run dot setup-public-repo to repair it",
+    });
+  } else if (!publicPackageRepoIncludeRegistered()) {
+    results.push({
+      severity: "warn",
+      message:
+        "Public pacman repo include is missing or ordered after another repository",
+      detail: "Run dot setup-public-repo to repair it",
+    });
+  } else {
+    results.push({
+      severity: "ok",
+      message: `Public pacman repo is configured (${displayPath(publicPacmanRepoConfigPath())})`,
+    });
+  }
+
+  const keyDetails = yield* executor
+    .run("gpg", [
+      "--homedir",
+      "/etc/pacman.d/gnupg",
+      "--batch",
+      "--with-colons",
+      "--list-sigs",
+      fingerprint,
+    ])
+    .pipe(Effect.catch(() => Effect.succeed("")));
+  const keyTrusted = publicPackageKeyTrusted(keyDetails, fingerprint);
+  results.push(
+    keyTrusted
+      ? { severity: "ok", message: "Public package signing key is trusted" }
+      : {
+          severity: "warn",
+          message: "Public package signing key is not trusted",
+          detail: "Run dot setup-public-repo to verify and trust it",
+        },
+  );
   return results;
 });
 

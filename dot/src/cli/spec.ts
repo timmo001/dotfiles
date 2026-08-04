@@ -654,6 +654,20 @@ export const cliCommands: readonly CliCommandSpec[] = [
     ],
   },
   {
+    name: "setup-public-repo",
+    summary: "Trust and register the public timmo pacman repository",
+    description: [
+      "Download the public signing key, require its pinned full fingerprint,",
+      "locally sign it in pacman's keyring, and register the signed [timmo]",
+      "repository before the other package repositories.",
+      "",
+      "The command fails before changing trust or pacman configuration when the",
+      "repository is unavailable or the downloaded fingerprint does not match.",
+    ],
+    options: [helpOption],
+    examples: ["dot setup-public-repo"],
+  },
+  {
     name: "setup-private-repo",
     summary: "Sync and register the private pacman repository",
     description: [

@@ -30,6 +30,7 @@ import { checkHardwareVideo } from "./checks/hardwareVideo.js";
 import { checkBrowserExtensions } from "./checks/browserExtensions.js";
 import {
   checkPublicPackages,
+  checkPublicPackageRepo,
   checkPrivatePackageRepo,
   checkPrivatePackages,
 } from "./checks/packages.js";
@@ -94,6 +95,7 @@ const sections: readonly SectionDef[] = [
     requiresPrivate: true,
   },
   { name: "Public package checks", check: checkPublicPackages },
+  { name: "Public package repo checks", check: checkPublicPackageRepo },
   {
     name: "Private package repo checks",
     check: checkPrivatePackageRepo,

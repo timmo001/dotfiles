@@ -172,6 +172,16 @@ const dotItems: readonly MenuItem[] = [
     "Dotfiles",
   ),
   item(
+    "setup-public-repo",
+    "󰏖",
+    "Public Package Repo",
+    "Trust and register the signed timmo repository",
+    exitCmd("dot setup-public-repo"),
+    undefined,
+    ["pacman", "packages", "repository", "signing", "key"],
+    "Dotfiles",
+  ),
+  item(
     "firewall",
     "󰌾",
     "Firewall",

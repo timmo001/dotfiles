@@ -556,6 +556,27 @@ dot is-agent --json
 dot is-agent && echo running under an agent
 ```
 
+## `dot setup-public-repo`
+
+Trust and register the public timmo pacman repository
+
+```text
+dot setup-public-repo
+```
+
+Download the public signing key, require its pinned full fingerprint,
+locally sign it in pacman's keyring, and register the signed [timmo]
+repository before the other package repositories.
+
+The command fails before changing trust or pacman configuration when the
+repository is unavailable or the downloaded fingerprint does not match.
+
+**Examples**
+
+```bash
+dot setup-public-repo
+```
+
 ## `dot setup-private-repo`
 
 Sync and register the private pacman repository

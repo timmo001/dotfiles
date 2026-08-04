@@ -1,11 +1,23 @@
 ---
-title: Private Packages
-description: Build and publish Arch packages to the private pacman repo.
+title: Packages
+description: Install packages from the signed public repository, AUR, and private repository.
 sidebar:
   order: 5
 ---
 
-`dot` can build and publish mapped private packages into a private pacman repository, and register the repo include in `pacman.conf`.
+`dot` configures the signed public `timmo` repository, keeps AUR available as a source-build fallback, and can build and publish mapped private packages into a separate local repository.
+
+## Public repository
+
+`dot init` and full `dot update` run `dot setup-public-repo` before resolving public packages. The setup downloads the public key from `packages.timmo.dev`, requires the pinned full fingerprint `F94469C08E3B717014E2815FA026A3671E9151DA`, locally signs it in pacman's keyring, and registers this snippet before the other package repositories:
+
+```ini
+[timmo]
+SigLevel = PackageRequired DatabaseOptional TrustedOnly
+Server = https://packages.timmo.dev/$arch
+```
+
+The repository overlays maintained package names. `omarchy-pkg-aur-add` uses the configured binary repository when a matching package is available and retains AUR resolution for packages or source-build variants not published there. A missing repository database or fingerprint mismatch stops setup before trust or pacman configuration is changed.
 
 ## Public packages
 
@@ -13,7 +25,7 @@ sidebar:
 
 The list covers shared tooling rather than desktop apps you might install separately, including build helpers, diagnostics, shell and terminal tools, and desktop integrations. Override the path with `DOT_PUBLIC_PACKAGES_FILE`.
 
-Missing public packages are installed with `omarchy-pkg-aur-add`; already-installed packages are left in place. `dot doctor` checks the public and private package lists after setup.
+Missing public packages are installed with `omarchy-pkg-aur-add`; already-installed packages are left in place. `dot doctor` checks the public repository trust and configuration plus the public and private package lists after setup.
 
 Some AUR packages conflict with an official-repo package that must be removed first. `dot` handles the known case (`mise-bin` replacing `mise`) before installing.
 
@@ -48,6 +60,8 @@ Builds and publishes a mapped private package into the private pacman repo, sync
 Package lists, the repo map, and pacman paths are overridable with environment variables:
 
 - `DOT_PUBLIC_PACKAGES_FILE` — public Arch/AUR package list (default `$DOTFILES_PUBLIC_DIR/.dot-public-packages`).
+- `DOT_PUBLIC_PACMAN_REPO_CONFIG` — public pacman repo snippet path written by `dot` (default `/etc/pacman.d/timmo.conf`).
+- `DOT_PUBLIC_PACMAN_MAIN_CONFIG` — main pacman config scanned for the public repo include (default `/etc/pacman.conf`).
 - `DOT_PRIVATE_PACKAGE_REPO_FILE` — private pacman repo config (default `$DOTFILES_PRIVATE_DIR/.dot-private-package-repo`).
 - `DOT_PRIVATE_PACKAGES_FILE` — private package list override (default `$DOTFILES_PRIVATE_DIR/.dot-private-packages` plus `.dot-private-packages--<host>` when present).
 - `DOT_PRIVATE_PACKAGE_MAP_FILE` — package name-to-source map for `dot private-pkg-publish` (default `$DOTFILES_PRIVATE_DIR/.dot-private-package-map`).

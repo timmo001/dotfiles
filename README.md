@@ -55,7 +55,7 @@ Everything is documented at <https://dotfiles.timmo.dev>:
 - [Git & GitHub](https://dotfiles.timmo.dev/git/) — diff, log, status, workflows, notifications
 - [Omarchy & Hyprland](https://dotfiles.timmo.dev/omarchy/) — managed repos and host overrides
 - [OpenCode & Agents](https://dotfiles.timmo.dev/opencode/) — agents, commands, skills, plugins, and the generated reference
-- [Configuration & Reference](https://dotfiles.timmo.dev/configuration/) — environment options, private git config, and [private packages](https://dotfiles.timmo.dev/configuration/private-packages/)
+- [Configuration & Reference](https://dotfiles.timmo.dev/configuration/) — environment options, private git config, and [packages](https://dotfiles.timmo.dev/configuration/packages/)
 - [Bar Integrations](https://dotfiles.timmo.dev/bar-integrations/) — the `--bar-json` status-bar contract shared by `dot` and external tools
 - [Agents / LLMs](https://dotfiles.timmo.dev/agents-llms/) — context bundles for AI-assisted work
 

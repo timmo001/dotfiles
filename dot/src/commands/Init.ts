@@ -13,6 +13,7 @@ import { OutputLog } from "../services/OutputLog.js";
 import { agentsSync } from "./AgentsSync.js";
 import { install } from "./Install.js";
 import { setupPrivateRepo } from "./SetupPrivateRepo.js";
+import { setupPublicRepo } from "./SetupPublicRepo.js";
 import { runElevated, withSudoKeepAlive } from "../lib/elevatedCommand.js";
 import { gitRequired } from "../lib/git.js";
 import {
@@ -56,6 +57,7 @@ const INIT_STEP_TIMEOUT_SECONDS = {
   install: 5 * 60,
   mise: 10 * 60,
   publicPackages: 30 * 60,
+  publicRepo: 3 * 60,
   firewall: 3 * 60,
   ghExtensions: 5 * 60,
   loginShell: 2 * 60,
@@ -772,6 +774,11 @@ export function init(rawArgs: readonly string[]) {
       "Install Mise Tools",
       INIT_STEP_TIMEOUT_SECONDS.mise,
       installMiseTools,
+    );
+    yield* requiredInitStep(
+      "Setup Public Package Repository",
+      INIT_STEP_TIMEOUT_SECONDS.publicRepo,
+      setupPublicRepo,
     );
     yield* requiredInitStep(
       "Install Public Packages",

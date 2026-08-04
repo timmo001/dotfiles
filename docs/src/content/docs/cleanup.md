@@ -66,6 +66,25 @@ sudo ufw reload
 
 The managed rules are labelled in `ufw status` with their purpose, for example KDE Connect, Home Assistant, OpenCode server, LocalSend, and libvirt.
 
+## Remove public pacman repo config
+
+Remove the managed include and snippet, then refresh package databases. Do not replace the signed configuration with `TrustAll` or another relaxed signature policy.
+
+```bash
+sudoedit /etc/pacman.conf
+sudo rm -f /etc/pacman.d/timmo.conf
+sudo pacman-key --delete F94469C08E3B717014E2815FA026A3671E9151DA
+sudo pacman -Syu
+```
+
+Remove this line from `/etc/pacman.conf` if present:
+
+```ini
+Include = /etc/pacman.d/timmo.conf
+```
+
+Existing installed packages remain installed. AUR helpers remain available and can build subsequent versions from AUR. To recover a damaged or removed setup, run `dot setup-public-repo`; it downloads the key again and refuses to trust it unless the full fingerprint matches.
+
 ## Remove private pacman repo config
 
 If `dot setup-private-repo` or `dot init` registered the private package repo, remove the include line and snippet manually.

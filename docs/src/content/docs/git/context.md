@@ -9,7 +9,7 @@ Generic branch and stack context lives in the standalone [`context`](https://con
 
 ## Install
 
-`dot init` installs the `context-git` AUR package from [`.dot-public-packages`](/configuration/private-packages/#public-packages). That package provides the `context` binary on `PATH`. After init, verify in any git checkout:
+`dot init` installs the `context-git` package from [`.dot-public-packages`](/configuration/packages/#public-packages). That package provides the `context` binary on `PATH`. After init, verify in any git checkout:
 
 ```bash
 context git --json | head

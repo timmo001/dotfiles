@@ -18,6 +18,7 @@ const rootExamples = [
   "dot git-notifications --bar-json Status bar JSON output",
   "notes list               Repository notes CLI",
   "notes handoffs           Handoff notes CLI",
+  "dot setup-public-repo  Trust and register public timmo pacman repo",
   "dot setup-private-repo Sync and register private pacman repo",
   "dot private-pkg-publish twitch-notifications --install",
   "dot completions zsh",
