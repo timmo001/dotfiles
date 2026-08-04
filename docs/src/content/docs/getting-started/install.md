@@ -60,11 +60,11 @@ After init completes, restart your shell so `dot` is on `PATH`, then reboot so t
 
 ```bash
 dot doctor    # health checks
-dot update    # self-update and relaunch, then pull, reconcile, stow, and rebuild
+dot update    # self-update and relaunch, then pull, stow, and rebuild
 dot git-diff  # review changes across managed repos
 context git   # branch context for the current repo (from the context-git package)
 ```
 
 `context git` and `context stack` come from the `context-git` AUR package installed during init. They are used by OpenCode plugins and agent harnesses for repository context; see [Context Integration](/git/context/).
 
-`dot update` is the everyday command. It pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches on the new binary, then scans and pulls tracked repositories. The remaining full-update phases trust mise configs, regenerate completions, reconcile the signed public package repository, install missing public packages, sync MCP configs, stow, rebuild, sync agents, backfill the init marker, and refresh resume-managed services. See the [Command Reference](/dot/commands/) for scoped phase flags and exit codes.
+`dot update` is the everyday command. It pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches on the new binary, then scans and pulls tracked repositories. The remaining full-update phases trust mise configs, regenerate completions, sync MCP configs, stow, rebuild, sync agents, backfill the init marker, and refresh resume-managed services. Package setup stays in `dot init`, while `dot doctor` reports package health. See the [Command Reference](/dot/commands/) for scoped phase flags and exit codes.

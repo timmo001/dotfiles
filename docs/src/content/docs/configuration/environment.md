@@ -37,7 +37,7 @@ The global mise configuration provides the Android SDK command-line tools and se
 
 | Variable                          | Description                                                                                                                  |
 | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `DOT_PUBLIC_PACKAGES_FILE`        | Public Arch/AUR package list for `dot init`, full `dot update`, and package checks (default `$DOTFILES_PUBLIC_DIR/.dot-public-packages`). |
+| `DOT_PUBLIC_PACKAGES_FILE`        | Public Arch/AUR package list for `dot init` and package checks (default `$DOTFILES_PUBLIC_DIR/.dot-public-packages`).                     |
 | `DOT_PUBLIC_PACMAN_REPO_CONFIG`   | Signed public pacman repo snippet written by `dot` (default `/etc/pacman.d/timmo.conf`).                                                 |
 | `DOT_PUBLIC_PACMAN_MAIN_CONFIG`   | Main pacman config scanned for the public repo include (default `/etc/pacman.conf`).                                                     |
 | `DOT_PRIVATE_PACKAGE_REPO_FILE`   | Private pacman repo config (default `$DOTFILES_PRIVATE_DIR/.dot-private-package-repo`).                                      |

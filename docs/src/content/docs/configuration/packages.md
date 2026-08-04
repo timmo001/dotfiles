@@ -9,7 +9,7 @@ sidebar:
 
 ## Public repository
 
-`dot init` and full `dot update` run `dot setup-public-repo` before resolving public packages. The setup downloads the public key from `packages.timmo.dev`, requires the pinned full fingerprint `F94469C08E3B717014E2815FA026A3671E9151DA`, locally signs it in pacman's keyring, and registers this snippet before the other package repositories:
+`dot init` runs `dot setup-public-repo` before resolving public packages. The setup downloads the public key from `packages.timmo.dev`, requires the pinned full fingerprint `F94469C08E3B717014E2815FA026A3671E9151DA`, locally signs it in pacman's keyring, and registers this snippet before the other package repositories:
 
 ```ini
 [timmo]
@@ -21,7 +21,7 @@ The repository overlays maintained package names. `omarchy-pkg-aur-add` uses the
 
 ## Public packages
 
-`dot init` and a full unscoped `dot update` install the Arch and AUR packages listed in `.dot-public-packages` at the repo root. The file is one package name per line; blank lines and `#` comments are ignored.
+`dot init` installs the Arch and AUR packages listed in `.dot-public-packages` at the repo root. The file is one package name per line; blank lines and `#` comments are ignored. Ongoing package health is reported by `dot doctor`; `dot update` does not check or install packages.
 
 The list covers shared tooling rather than desktop apps you might install separately, including build helpers, diagnostics, shell and terminal tools, and desktop integrations. Override the path with `DOT_PUBLIC_PACKAGES_FILE`.
 

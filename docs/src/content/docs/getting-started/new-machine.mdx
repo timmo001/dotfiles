@@ -65,7 +65,7 @@ dot init
 `--noninteractive` skips the Hypr host questionnaire; elevation and package tools may still prompt. The accepted `--confirm` compatibility flag does not suppress those prompts.
 
 :::tip[Hypr host and mise tools]
-`dot init` selects the Hypr host early and creates `~/.config/hypr/host`. Reboot after init so Hyprland, Waybar, launchers, services, and new shells inherit `OMARCHY_HOST` from the stowed host config. Init runs `mise install` immediately after stowing dotfiles and before installing managed Arch/AUR package lists, so Bun, Node, pnpm, and similar tools come from the stowed mise config rather than global pacman packages. Later full `dot update` runs reconcile newly added public packages before MCP sync and stow, alongside repo pulls, rebuilds, and mise trust refreshes.
+`dot init` selects the Hypr host early and creates `~/.config/hypr/host`. Reboot after init so Hyprland, Waybar, launchers, services, and new shells inherit `OMARCHY_HOST` from the stowed host config. Init runs `mise install` immediately after stowing dotfiles and before installing managed Arch/AUR package lists, so Bun, Node, pnpm, and similar tools come from the stowed mise config rather than global pacman packages. Later full `dot update` runs repo pulls, rebuilds, mise trust refreshes, MCP sync, and stow without checking or installing packages.
 :::
 
 :::note[GNOME Boxes shared folders]

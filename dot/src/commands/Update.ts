@@ -26,9 +26,7 @@ import {
 } from "../lib/git.js";
 import { HOME_DIR, displayPath } from "../lib/paths.js";
 import { detectLegacyHyprRepo } from "../lib/omarchyHost.js";
-import { installMissingArchPackages } from "../lib/packageSetup.js";
 import { managedGitRepos } from "../services/GitConfig.js";
-import { setupPublicRepo } from "./SetupPublicRepo.js";
 import type { ConfigService } from "../services/Config.js";
 import type { GitManagedRepo } from "../services/GitConfig.js";
 import type { InitCompleteMarkerStatus } from "../lib/initState.js";
@@ -66,7 +64,6 @@ const PULL_MAX_ATTEMPTS = 2;
 const STEP_TIMEOUT_SECONDS = {
   pull: 8 * 60,
   stow: 3 * 60,
-  publicRepo: 3 * 60,
   rebuild: 5 * 60,
   postHooks: 2 * 60,
   resume: 60,
@@ -651,14 +648,6 @@ export const update = (opts?: UpdateOptions) =>
             );
           }
 
-          if (isFullUpdate) {
-            yield* requiredUpdateStep(
-              "Public Package Repository",
-              STEP_TIMEOUT_SECONDS.publicRepo,
-              setupPublicRepo,
-            );
-            yield* installMissingArchPackages({ scope: "public" });
-          }
           yield* mcpSync;
 
           yield* runStow();

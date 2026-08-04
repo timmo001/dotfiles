@@ -31,10 +31,9 @@ that needs system integration.
    - Private or machine-specific required packages may belong in the optional
      `~/.config/dotfiles-private/.dot-private-packages` overlay. Do not copy its
      contents into public files or output.
-   - `dot init` installs the stowed mise tools, then the public and available
-     private package lists. A full unscoped `dot update` installs missing public
-     packages. Prefer these managed flows over a one-off package command when
-     the tool should remain managed.
+    - `dot init` installs the stowed mise tools, then the public and available
+      private package lists. Prefer this managed flow over a one-off package
+      command when the tool should remain managed.
 5. When multiple viable sources exist, use the question tool to show the
    concrete choices and recommend one. Recommend mise by default. Recommend an
    Arch package for desktop applications, system services, drivers, and tools
@@ -45,9 +44,8 @@ that needs system integration.
      when the global config resolves to that stowed source.
    - Unmanaged mise: `mise use --global <tool>@latest`, or use the requested
      version constraint. Omitting a version also defaults to `latest`.
-   - Managed Arch package: add it to the correct public or private required
-     package list. Use `dot init` for either list; a full `dot update` also
-     installs the public list.
+    - Managed Arch package: add it to the correct public or private required
+      package list, then use `dot init` to install it.
    - Official Arch repository: load `pkexec-root`, then run
      `pkexec pacman -S --needed <package>`.
    - AUR: load `pkexec-root`, then run
