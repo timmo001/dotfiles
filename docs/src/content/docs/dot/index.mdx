@@ -78,7 +78,7 @@ Long-running Effect-managed CLI workflows use the same progress wrapper: an inte
 
 `dot init` uses the spinner and timeout wrapper for each required setup phase. Its private-overlay pull or clone is a synchronous preflight before that bounded workflow and before the already-initialised check. If a required init phase times out, init stops instead of writing the complete marker. `dot doctor` keeps its live "running checks" spinner and also times out individual checks, reporting timed-out checks as warnings.
 
-Post-hooks and the final resume refresh are bounded but non-fatal. If either helper does not return, the step is stopped and the completed update is not turned into a failure.
+Post-hooks and the final resume refresh are bounded but non-fatal. The refresh restarts status-bar services without auto-opening Twitch streams. If either helper does not return, the step is stopped and the completed update is not turned into a failure.
 
 ## Dashboard
 

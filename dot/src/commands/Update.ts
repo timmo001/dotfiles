@@ -351,7 +351,7 @@ const runResumeRefresh = Effect.gen(function* () {
     return;
   }
 
-  const exitCode = yield* executor.exitCode(helper, []);
+  const exitCode = yield* executor.exitCode(helper, ["--no-auto-open"]);
 
   if (exitCode !== 0) {
     yield* log.warn(`On-resume helper failed (exit ${exitCode})`);
