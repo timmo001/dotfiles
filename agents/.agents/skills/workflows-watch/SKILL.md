@@ -33,7 +33,7 @@ agent does not block on foreground `gh` watches.
    - the quick partition's workflow run IDs and selected check or job names;
    - the full partition's workflow run IDs;
    - mode, timeout, and worktree state at delegation.
-   The tool waits up to 30 seconds for exact-SHA runs to register. A resolved
+   The tool waits up to two minutes for exact-SHA runs to register. A resolved
    manifest includes runs that completed during that window; an unresolved
    manifest means no matching run appeared before the bounded wait expired.
    Do not replace the tool with manual Actions polling or an Explore task.

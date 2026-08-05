@@ -10,6 +10,8 @@ import {
   sessionTouchedFiles,
 } from "../../agents/.config/opencode/lib/commit-context";
 import {
+  REGISTRATION_MAX_ATTEMPTS,
+  REGISTRATION_RETRY_INTERVAL_MS,
   resolveRunsWithRetry,
   type WorkflowRun,
 } from "../../agents/.config/opencode/lib/workflow-manifest";
@@ -486,7 +488,7 @@ describe("commit command contract", () => {
     expect(source).toContain("Discovery belongs to the host");
     expect(source).toContain("must not repeat target discovery");
     expect(source).toContain("dedicated `workflow-watcher` subagent");
-    expect(source).toContain("waits up to 30 seconds");
+    expect(source).toContain("waits up to two minutes");
     expect(source).toContain("no matching run appeared");
     expect(source).toMatch(/Never commit, push, rerun, cancel, or dispatch/);
   });
@@ -545,6 +547,21 @@ describe("commit command contract", () => {
       runs: [run],
     });
     expect(sleeps).toEqual([25, 25]);
+  });
+
+  test("workflow manifest allows two minutes for run registration", () => {
+    expect(
+      (REGISTRATION_MAX_ATTEMPTS - 1) * REGISTRATION_RETRY_INTERVAL_MS,
+    ).toBe(120_000);
+  });
+
+  test("commit-push-watch allows the full workflow registration window", async () => {
+    const source = await readFile(
+      resolve(root, "agents/.config/opencode/commands/commit-push-watch.md"),
+      "utf8",
+    );
+
+    expect(source).toContain("full two-minute");
   });
 
   test("workflow manifest reports permanently unregistered runs", async () => {

@@ -9,8 +9,8 @@ export interface WorkflowRun {
   readonly workflowDatabaseId: number;
 }
 
-export const REGISTRATION_RETRY_INTERVAL_MS = 2_000;
-export const REGISTRATION_MAX_ATTEMPTS = 16;
+export const REGISTRATION_RETRY_INTERVAL_MS = 5_000;
+export const REGISTRATION_MAX_ATTEMPTS = 25;
 
 export const resolveRunsWithRetry = async ({
   sha,
