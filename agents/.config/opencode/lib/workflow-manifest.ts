@@ -9,8 +9,8 @@ export interface WorkflowRun {
   readonly workflowDatabaseId: number;
 }
 
-export const REGISTRATION_RETRY_INTERVAL_MS = 5_000;
-export const REGISTRATION_MAX_ATTEMPTS = 25;
+export const REGISTRATION_RETRY_INTERVAL_MS = 2_500;
+export const REGISTRATION_MAX_ATTEMPTS = 3;
 
 export const resolveRunsWithRetry = async ({
   sha,
@@ -26,11 +26,18 @@ export const resolveRunsWithRetry = async ({
   readonly maxAttempts?: number;
   readonly retryIntervalMs?: number;
 }) => {
+  let previousRunIds = "";
+
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const runs = (await listRuns()).filter((run) => run.headSha === sha);
-    if (runs.length > 0) {
+    const runIds = runs
+      .map((run) => run.databaseId)
+      .sort((left, right) => left - right)
+      .join(",");
+    if (runIds && runIds === previousRunIds) {
       return { status: "resolved" as const, attempts: attempt, runs };
     }
+    previousRunIds = runIds;
     if (attempt < maxAttempts) await sleep(retryIntervalMs);
   }
 

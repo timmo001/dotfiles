@@ -50,13 +50,13 @@ export const WorkflowManifestPlugin = (async ({ $ }) => ({
   tool: {
     workflow_manifest: {
       description:
-        "Resolve one pushed SHA into compact, immutable quick and full GitHub Actions watcher manifests. Use once on the host after push instead of listing runs/jobs manually or delegating discovery.",
+        "Resolve one pushed SHA into compact, immutable quick and full GitHub Actions watcher manifests. Use on the host after push instead of listing runs/jobs manually or delegating discovery.",
       args,
       async execute({ repositoryPath, sha, pushedFiles }, context) {
         context.metadata({ title: `Resolve workflows for ${sha.slice(0, 8)}` });
 
         const repository = String(
-          await $`gh repo view --json nameWithOwner --jq .nameWithOwner`
+          await $`timeout 5s gh repo view --json nameWithOwner --jq .nameWithOwner`
             .cwd(repositoryPath)
             .text(),
         ).trim();
@@ -64,18 +64,23 @@ export const WorkflowManifestPlugin = (async ({ $ }) => ({
           await $`git branch --show-current`.cwd(repositoryPath).text(),
         ).trim();
         const workflows = parse<Workflow[]>(
-          await $`gh workflow list --all --limit 100 --json id,name,path`
+          await $`timeout 5s gh workflow list --all --limit 100 --json id,name,path`
             .cwd(repositoryPath)
             .text(),
         );
         const workflowPaths = new Map(
           workflows.map((workflow) => [workflow.id, workflow.path]),
         );
+        const fullSha = String(
+          await $`git rev-parse ${`${sha}^{commit}`}`
+            .cwd(repositoryPath)
+            .text(),
+        ).trim();
         const registration = await resolveRunsWithRetry({
-          sha,
+          sha: fullSha,
           listRuns: async () =>
             parse<WorkflowRun[]>(
-              await $`gh run list --commit ${sha} --limit 100 --json databaseId,conclusion,createdAt,headSha,name,status,url,workflowDatabaseId`
+              await $`timeout 5s gh run list --commit ${fullSha} --limit 100 --json databaseId,conclusion,createdAt,headSha,name,status,url,workflowDatabaseId`
                 .cwd(repositoryPath)
                 .text(),
             ),
@@ -87,7 +92,7 @@ export const WorkflowManifestPlugin = (async ({ $ }) => ({
         const resolvedRuns = await Promise.all(
           runs.map(async (run) => {
             const detail = parse<{ readonly jobs: Job[] }>(
-              await $`gh run view ${run.databaseId} --json jobs`
+              await $`timeout 5s gh run view ${run.databaseId} --json jobs`
                 .cwd(repositoryPath)
                 .text(),
             );
@@ -135,12 +140,13 @@ export const WorkflowManifestPlugin = (async ({ $ }) => ({
           repositoryPath,
           repository,
           branch,
-          sha,
+          sha: fullSha,
           registration: {
             status: registration.status,
             attempts: registration.attempts,
             waitedMs:
               (registration.attempts - 1) * REGISTRATION_RETRY_INTERVAL_MS,
+            retry: registration.status === "unresolved",
           },
           pushedFiles,
           fixBoundary: pushedFiles,

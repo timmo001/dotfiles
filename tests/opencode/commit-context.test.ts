@@ -488,8 +488,9 @@ describe("commit command contract", () => {
     expect(source).toContain("Discovery belongs to the host");
     expect(source).toContain("must not repeat target discovery");
     expect(source).toContain("dedicated `workflow-watcher` subagent");
-    expect(source).toContain("waits up to two minutes");
-    expect(source).toContain("no matching run appeared");
+    expect(source).toContain("waits up to 20 seconds");
+    expect(source).toContain("retry the same tool call up to two times");
+    expect(source).toMatch(/no matching run\s+appeared/);
     expect(source).toMatch(/Never commit, push, rerun, cancel, or dispatch/);
   });
 
@@ -521,13 +522,16 @@ describe("commit command contract", () => {
     expect(source).toContain("server: WorkflowManifestPlugin");
     expect(source).toContain("gh run list --commit");
     expect(source).toContain("gh run view");
+    expect(source).toContain("git rev-parse");
+    expect(source).toContain("timeout 5s gh run list");
+    expect(source).toContain('retry: registration.status === "unresolved"');
     expect(source).toContain("quick:");
     expect(source).toContain("full:");
   });
 
   test("workflow manifest waits for delayed run registration", async () => {
     const run = workflowRun("pushed-sha");
-    const responses: readonly WorkflowRun[][] = [[], [], [run]];
+    const responses: readonly WorkflowRun[][] = [[], [], [run], [run]];
     const sleeps: number[] = [];
     let attempt = 0;
 
@@ -543,25 +547,26 @@ describe("commit command contract", () => {
 
     expect(result).toEqual({
       status: "resolved",
-      attempts: 3,
+      attempts: 4,
       runs: [run],
     });
-    expect(sleeps).toEqual([25, 25]);
+    expect(sleeps).toEqual([25, 25, 25]);
   });
 
-  test("workflow manifest allows two minutes for run registration", () => {
+  test("workflow manifest allows 20 seconds for run registration", () => {
     expect(
-      (REGISTRATION_MAX_ATTEMPTS - 1) * REGISTRATION_RETRY_INTERVAL_MS,
-    ).toBe(120_000);
+      REGISTRATION_MAX_ATTEMPTS * 5_000 +
+        (REGISTRATION_MAX_ATTEMPTS - 1) * REGISTRATION_RETRY_INTERVAL_MS,
+    ).toBe(20_000);
   });
 
-  test("commit-push-watch allows the full workflow registration window", async () => {
+  test("commit-push-watch retries unresolved workflow registration", async () => {
     const source = await readFile(
       resolve(root, "agents/.config/opencode/commands/commit-push-watch.md"),
       "utf8",
     );
 
-    expect(source).toContain("full two-minute");
+    expect(source).toContain("Retry an unresolved workflow manifest up to twice");
   });
 
   test("workflow manifest reports permanently unregistered runs", async () => {
@@ -587,18 +592,44 @@ describe("commit command contract", () => {
 
   test("workflow manifest remains pinned to the exact pushed SHA", async () => {
     const pushedRun = workflowRun("pushed-sha");
-    const responses = [[workflowRun("other-sha")], [pushedRun]];
+    const responses = [
+      [workflowRun("other-sha")],
+      [pushedRun],
+      [pushedRun],
+    ];
     let attempt = 0;
 
     const result = await resolveRunsWithRetry({
       sha: "pushed-sha",
       listRuns: async () => responses[attempt++] ?? [],
       sleep: async () => {},
-      maxAttempts: 2,
+      maxAttempts: 3,
     });
 
     expect(result.status).toBe("resolved");
     expect(result.runs).toEqual([pushedRun]);
+  });
+
+  test("workflow manifest waits for the run set to stabilise", async () => {
+    const firstRun = workflowRun("pushed-sha");
+    const secondRun = { ...firstRun, databaseId: 124, name: "Build" };
+    const responses = [
+      [firstRun],
+      [firstRun, secondRun],
+      [firstRun, secondRun],
+    ];
+    let attempt = 0;
+
+    const result = await resolveRunsWithRetry({
+      sha: "pushed-sha",
+      listRuns: async () => responses[attempt++] ?? [],
+      sleep: async () => {},
+      maxAttempts: 3,
+    });
+
+    expect(result.status).toBe("resolved");
+    expect(result.attempts).toBe(3);
+    expect(result.runs).toEqual([firstRun, secondRun]);
   });
 });
 

@@ -24,7 +24,7 @@ agent does not block on foreground `gh` watches.
 
 ## Workflow
 
-1. The host calls `workflow_manifest` once after push. The tool returns an
+1. The host calls `workflow_manifest` after push. The tool returns an
    immutable watch manifest containing:
    - repository path and `owner/name`;
    - branch, pull request number when present, and full pushed SHA;
@@ -33,9 +33,13 @@ agent does not block on foreground `gh` watches.
    - the quick partition's workflow run IDs and selected check or job names;
    - the full partition's workflow run IDs;
    - mode, timeout, and worktree state at delegation.
-   The tool waits up to two minutes for exact-SHA runs to register. A resolved
-   manifest includes runs that completed during that window; an unresolved
-   manifest means no matching run appeared before the bounded wait expired.
+   Each call waits up to 20 seconds for exact-SHA runs to register. A resolved
+   manifest includes runs that completed during that window. When registration
+   is unresolved and `registration.retry` is true, or the tool call times out,
+   retry the same tool call up to two times. Stop immediately when it resolves;
+   after the third unresolved or timed-out call, report that no matching run
+   appeared. Do not manually sleep between calls because each call already
+   performs bounded polling.
    Do not replace the tool with manual Actions polling or an Explore task.
 2. Check live CLI help before selecting the watch command. Prefer:
    - `gh run watch <run-id> --compact --exit-status --interval 10`
