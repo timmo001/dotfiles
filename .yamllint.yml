@@ -14,6 +14,8 @@ rules:
   document-start:
     present: true
     level: error
+    ignore: |
+      **/agents/openai.yaml
   # Off: workflow run: blocks and SHA-pinned uses lines are unavoidably long.
   line-length: disable
   # GitHub Actions uses the "on:" key, which YAML 1.1 reads as a boolean.
