@@ -159,22 +159,22 @@ function activeWaybarConfigPath(config: ConfigService): string {
     : join(waybarConfigDir, "config.jsonc");
 }
 
-function addWaybarScriptCheck(
+function addLocalScriptCheck(
   results: CheckResult[],
   scriptName: string,
   label: string,
   missingDetail: string,
 ): void {
-  const waybarScript = join(CONFIG_DIR, "waybar", "scripts", scriptName);
+  const script = join(HOME_DIR, ".local", "bin", scriptName);
   results.push(
-    executableExists(waybarScript)
+    executableExists(script)
       ? {
           severity: "ok",
-          message: `${label} Waybar script is executable: ${displayPath(waybarScript)}`,
+          message: `${label} script is executable: ${displayPath(script)}`,
         }
       : {
           severity: "warn",
-          message: `${label} Waybar script is missing or not executable: ${displayPath(waybarScript)}`,
+          message: `${label} script is missing or not executable: ${displayPath(script)}`,
           detail: missingDetail,
         },
   );
@@ -348,11 +348,11 @@ export const checkWorkflowRuns = Effect.gen(function* () {
     });
   }
 
-  addWaybarScriptCheck(
+  addLocalScriptCheck(
     results,
-    "git-workflows-waybar.sh",
+    "git-workflows-bar",
     "Workflow runs",
-    "Stow or update the Waybar repo to install the workflow runs module script",
+    "Run dot stow to install the workflow runs module script",
   );
   addWaybarHiddenCssCheck(
     results,
@@ -430,11 +430,11 @@ export const checkGitNotifications = Effect.gen(function* () {
     }
   }
 
-  addWaybarScriptCheck(
+  addLocalScriptCheck(
     results,
-    "git-notifications-waybar.sh",
+    "git-notifications-bar",
     "Git notifications",
-    "Stow or update the Waybar repo to install the Git notifications module script",
+    "Run dot stow to install the Git notifications module script",
   );
   addWaybarHiddenCssCheck(
     results,
@@ -462,14 +462,14 @@ export const checkGitNotifications = Effect.gen(function* () {
     addWaybarConfigContainsCheck(
       results,
       waybarConfig,
-      '"on-click": "~/.config/waybar/scripts/git-notifications-waybar.sh open"',
+      '"on-click": "git-notifications-bar open"',
       "Git notifications Waybar left click opens the filtered TUI",
       `Git notifications Waybar left-click action is missing in ${displayPath(waybarConfig)}`,
     );
     addWaybarConfigContainsCheck(
       results,
       waybarConfig,
-      '"on-click-right": "~/.config/waybar/scripts/git-notifications-waybar.sh refresh"',
+      '"on-click-right": "git-notifications-bar refresh"',
       "Git notifications Waybar right click refreshes the cache",
       `Git notifications Waybar right-click refresh action is missing in ${displayPath(waybarConfig)}`,
     );
