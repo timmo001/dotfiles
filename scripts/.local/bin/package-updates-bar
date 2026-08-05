@@ -65,7 +65,7 @@ refresh_cache() {
         if [[ -r "$BACKOFF_FILE" ]]; then
           read -r backoff_failures backoff_until <"$BACKOFF_FILE" || true
         fi
-        if ((now < backoff_until)); then
+        if ((now < backoff_until)) && [[ "${WAYBAR_PACKAGE_UPDATES_LOCKED:-0}" == "1" ]]; then
           aur_status=75
           printf 'AUR request backed off until %s\n' "$backoff_until" >"$aur_error_file"
         else

@@ -54,6 +54,7 @@ bash tests/github/skill-updates.test.sh
 bash tests/scripts/update.test.sh
 bash tests/scripts/browser-control-extension-sync.test.sh
 bash tests/scripts/git-default-ref.test.sh
+bash tests/scripts/package-updates-bar.test.sh
 bash tests/scripts/workspace-relayout.test.sh
 bash tests/scripts/workspace-restore.test.sh
 """
