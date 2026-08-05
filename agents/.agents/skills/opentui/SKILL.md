@@ -2,7 +2,7 @@
 name: opentui
 description: Build terminal UIs with OpenTUI. Covers the core API, native audio, keymaps, React and Solid bindings, components, layout, keyboard input, plugins, and testing.
 # origin: https://github.com/anomalyco/opentui/tree/main/packages/web/src/content
-# upstream-sha: 078bb448628a9c7f492da058f3ba476d23bb3612
+# upstream-sha: 6ae5d05c8e296af757dd6eea3d3b8f5bb2b6a36a
 ---
 
 # OpenTUI Skill
