@@ -1,5 +1,5 @@
 ---
-description: Restate the previous response plainly and concisely
+description: Re-pitch the previous response plainly, concisely, and with enough context
 ---
 
 Load and follow the `bro` skill. Apply it to the immediately preceding assistant response.

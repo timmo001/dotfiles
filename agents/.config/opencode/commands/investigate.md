@@ -4,7 +4,7 @@ description: Investigate a topic, issue, or area without editing by default
 
 Use this command for general investigation, triage, and context-gathering tasks.
 
-Use `/grill` instead when the user wants to stress-test a plan through light or full one-question-at-a-time questioning.
+Use `/grill` instead when the user wants to stress-test a plan, decision, or idea through light or full question rounds.
 
 Follow these steps:
 

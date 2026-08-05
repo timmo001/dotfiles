@@ -2,9 +2,9 @@
 name: improve-codebase-architecture
 description: Scan a codebase for deepening opportunities, present them as a visual HTML report, then grill through whichever one you pick.
 # origin: https://github.com/mattpocock/skills/tree/main/skills/engineering/improve-codebase-architecture
-# upstream-sha: 221ffca96736afefdc08ca7cf0b3965e9ea83f41
+# upstream-sha: 697d4ce9742da558fd1ba6697c8e9775e2e302dd
 # local-edits:
-#   - SKILL.md: rewired /grilling to the local grill-questions skill at Full intensity; generalised CONTEXT.md/docs-adr references to the project's domain docs (repo uses no fixed CONTEXT.md/ADR layout)
+#   - SKILL.md: generalised CONTEXT.md/docs-adr references to the project's domain docs (repo uses no fixed CONTEXT.md/ADR layout)
 #   - SKILL.md: architecture vocabulary preserves established domain and framework terms while describing their architectural roles
 #   - HTML-REPORT.md: generalised the ADR callout to a recorded-decision callout
 ---
@@ -21,6 +21,11 @@ This command is _informed_ by the project's domain model and built on a shared d
 ## Process
 
 ### 1. Explore
+
+**Scope before you scan — YAGNI.** Deepening a module pays off by making future changes to it easier, so put extra weight on the parts of the codebase that have recently changed. Decide where to look before you look:
+
+- If the user named a module, subsystem, or pain point, take that direction and skip the inference below.
+- Otherwise, inspect a good stretch of recent commit history to find paths that keep changing and start there. If the changes are scattered with no clear hot spot, widen the net.
 
 If the project keeps a domain glossary, domain docs, or recorded design decisions, read the ones covering the area you're touching first.
 
@@ -61,7 +66,7 @@ Do NOT propose interfaces yet. After the file is written, ask the user: "Which o
 
 ### 3. Grilling loop
 
-Once the user picks a candidate, run the `grill-questions` skill (`/grill`) at Full intensity to walk the design tree with them — constraints, dependencies, the shape of the deepened module, what sits behind the seam, what tests survive.
+Once the user picks a candidate, run the `grilling` skill (`/grill`) at Full intensity to walk the design tree with them — constraints, dependencies, the shape of the deepened module, what sits behind the seam, what tests survive.
 
 Side effects happen inline as decisions crystallize — run the `/domain-modeling` skill to keep the domain model current as you go:
 

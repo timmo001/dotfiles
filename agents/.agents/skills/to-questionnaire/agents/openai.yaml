@@ -1,0 +1,5 @@
+interface:
+  display_name: "To Questionnaire"
+  short_description: "Front-load questions for someone else to answer"
+policy:
+  allow_implicit_invocation: false

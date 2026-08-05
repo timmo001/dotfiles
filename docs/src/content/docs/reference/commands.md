@@ -13,7 +13,7 @@ Commands are thin routing prompts: they name an agent, declare required skills o
 | --- | --- | --- |
 | [`/all-lit-skills`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/all-lit-skills.md) | Apply all Lit rendering skills in current git scope | `default` |
 | [`/all-ts-skills`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/all-ts-skills.md) | Apply all TypeScript-specific skills in current git scope | `default` |
-| [`/bro`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/bro.md) | Restate the previous response plainly and concisely | `default` |
+| [`/bro`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/bro.md) | Re-pitch the previous response plainly, concisely, and with enough context | `default` |
 | [`/check-skill-updates`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/check-skill-updates.md) | Check imported skills for upstream updates | `default` |
 | [`/code-review`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/code-review.md) | Review current branch work with the code-review skill and BranchContextPlugin context | `reviewer` |
 | [`/commit-push-watch`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/commit-push-watch.md) | Split current changes into coherent commits, push, then watch workflows | `default` |
@@ -22,7 +22,7 @@ Commands are thin routing prompts: they name an agent, declare required skills o
 | [`/debug-frontend`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/debug-frontend.md) | Debug browser-specific UI issues with Chrome DevTools tools first | `default` |
 | [`/explore-codebase`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/explore-codebase.md) | Explore a codebase topic with the task explore subagent | `default` |
 | [`/fix-workflows`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/fix-workflows.md) | Diagnose and fix recent GitHub Actions failures, optionally scoped to a workflow or run | `default` |
-| [`/grill`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/grill.md) | Stress-test a proposed change with light or full one-question-at-a-time grilling | `grill` |
+| [`/grill`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/grill.md) | Stress-test a plan, decision, or idea with light or full question rounds | `grill` |
 | [`/handoff`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/handoff.md) | Write a handoff document for the next agent session | `default` |
 | [`/handoffs-list`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/handoffs-list.md) | List handoff notes for the current repository | `default` |
 | [`/home-assistant/all-frontend-skills`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/commands/home-assistant/all-frontend-skills.md) | Apply all Home Assistant frontend skills in current git scope | `default` |

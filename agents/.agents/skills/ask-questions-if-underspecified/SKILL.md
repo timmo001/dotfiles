@@ -6,7 +6,7 @@ description: Ask minimal clarifying questions only when ambiguity materially cha
 # local-edits:
 #   - description rewritten for brevity and narrowed away from light/full grill-style questioning
 #   - body condensed from detailed template-based process to concise OpenCode workflow
-#   - added OpenCode-specific rules (question tool, recommended tags, light/full grill routing)
+#   - added OpenCode-specific rules (question tool, recommended tags, light/full grilling routing)
 #   - removed verbose question templates and reply format examples
 ---
 
@@ -25,7 +25,7 @@ Use this skill when a request has multiple plausible implementations and picking
 - The request is clear enough to proceed safely
 - A quick repo read (files/config/docs) can answer the unknowns
 - Repo conventions provide a safe default and ambiguity is low impact
-- The user wants light or full grilling or plan stress-testing; use `grill-questions` or `/grill` instead
+- The user wants light or full grilling or plan stress-testing; use `grilling` or `/grill` instead
 
 ## OpenCode-Specific Rules
 
@@ -35,7 +35,7 @@ Use this skill when a request has multiple plausible implementations and picking
 4. Do all non-blocked, low-risk discovery first.
 5. Until must-have answers arrive, do not edit files or run state-changing commands.
 6. If the user asks to proceed without answers, state assumptions briefly and continue with safest defaults.
-7. Never turn this into a multi-turn design interview unless the user explicitly invokes `/grill` or asks to be grilled.
+7. Never turn this into a multi-round design interview unless the user explicitly invokes `/grill` or asks to be grilled.
 
 ## Workflow
 

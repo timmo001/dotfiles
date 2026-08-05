@@ -2,7 +2,7 @@
 name: domain-modeling
 description: Build and sharpen a project's domain model. Use when the user wants to pin down domain terminology or a ubiquitous language, challenge or record a design decision, or when another skill needs to maintain the domain model.
 # origin: https://github.com/mattpocock/skills/tree/main/skills/engineering/domain-modeling
-# upstream-sha: ee8bae40062cd6b435073368ed0c540f48c35862
+# upstream-sha: 697d4ce9742da558fd1ba6697c8e9775e2e302dd
 # local-edits:
 #   - SKILL.md: dropped the prescribed CONTEXT.md / docs/adr file-structure section and generalised term/decision capture to wherever the repo keeps them; this repo does not use a fixed CONTEXT.md/ADR layout
 #   - ADR-FORMAT.md, CONTEXT-FORMAT.md: not imported (tied to the dropped convention)

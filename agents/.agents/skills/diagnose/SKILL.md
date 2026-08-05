@@ -2,7 +2,7 @@
 name: diagnose
 description: Disciplined workflow for diagnosing bugs - hard bugs, regressions, flaky behavior, and performance issues. Use when behavior is broken, failing, intermittent, or slower than expected and the agent needs a reproducible feedback loop before fixing.
 # origin: https://github.com/mattpocock/skills/tree/main/skills/engineering/diagnosing-bugs
-# upstream-sha: ee8bae40062cd6b435073368ed0c540f48c35862
+# upstream-sha: 697d4ce9742da558fd1ba6697c8e9775e2e302dd
 # local-edits:
 #   - SKILL.md: local name retained after upstream rename, condensed body, rewritten description, OpenCode tool guidance, no test-first workflow
 #   - hitl-loop.template.sh: verbatim from upstream

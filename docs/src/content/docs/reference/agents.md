@@ -13,7 +13,7 @@ Agents set the execution posture (permissions, tool access, delegation) for Open
 | --- | --- |
 | [`build-ask`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/build-ask.md) | Build agent that executes clear tasks and relies on permissions for write actions |
 | [`general-readonly`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/general-readonly.md) | General-style parallel subagent that researches with read-only tools and a narrow shell inspection allowlist (for delegation from read-only primaries). |
-| [`grill`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/grill.md) | Read-only planning stress-test agent for light or full one-question-at-a-time grilling |
+| [`grill`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/grill.md) | Read-only planning stress-test agent for light or full round-based grilling |
 | [`refactorer`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/refactorer.md) | Refactor code while preserving behavior and following local command and skill workflows |
 | [`researcher-readonly`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/researcher-readonly.md) | Primary-source research subagent that compares claim-specific evidence and cannot delegate further |
 | [`researcher`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/researcher.md) | Interactive primary-source research agent that compares claim-specific evidence and may delegate one layer of read-only legwork |

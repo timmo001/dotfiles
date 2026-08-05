@@ -34,10 +34,12 @@ Lineage: adapted from mattpocock's `writing-great-skills` and trailofbits' desig
      - Medium freedom (templates with parameters) for preferred patterns where variation is fine.
      - High freedom (heuristics) for exploratory work like review or analysis.
    - Number multi-step phases so execution order is reliable.
+   - End each step with a checkable completion condition. Prefer exhaustive bounds such as "every changed consumer accounted for" over vague bounds such as "understanding reached".
 4. Decide whether to split.
    - Keep `SKILL.md` self-contained by default.
    - Move detail into `references/` only when it is large, rarely needed, or a separate domain.
    - Keep every supporting file one hop from `SKILL.md`. No reference chains.
+   - Put material every branch needs in the main file. Move branch-specific detail behind a context pointer that says both what it exposes and when that branch should load it.
 5. Decide whether to add scripts.
    - Add a script only for a deterministic operation the agent should not re-derive each run: validation, a fixed multi-step command, helper logic.
    - Document when to run the script instead of generating code freehand.
@@ -62,6 +64,7 @@ General checks:
 - Supporting files exist only where they cut noise in `SKILL.md`.
 - The skill matches current local tooling, paths, and names.
 - No stale upstream or tool-specific instructions remain after adapting.
+- Scripts, config, directory layout, and `--help` output remain authoritative. Repeat them only when the lookup is expensive; document the convention, reason, or gotcha the environment cannot reveal instead.
 
 ## Anti-patterns
 
