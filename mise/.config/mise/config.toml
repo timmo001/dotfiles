@@ -20,7 +20,6 @@ jq = "1.8.2"
 lazygit = "0.64.0"
 node = "26.7.0"
 pitchfork = "2.20.0"
-"github:backnotprop/plannotator" = "0.25.1"
 "npm:pnpm" = "11.20.0"
 "npm:@opencode-ai/browser-control" = "0.4.0"
 "npm:rift-snapshot" = "latest"
@@ -41,6 +40,10 @@ just = "1.58.0"
 
 [tools."aqua:anomalyco/opencode"]
 version = "1.18.14"
+minimum_release_age = "2h"
+
+[tools."github:backnotprop/plannotator"]
+version = "0.25.1"
 minimum_release_age = "2h"
 
 [settings]
