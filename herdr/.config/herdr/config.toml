@@ -31,7 +31,7 @@ command = "herdr-lazy.manage"
 description = "manage Herdr plugins"
 
 [theme]
-name = "tokyo-night"
+name = "catppuccin"
 auto_switch = false
 
 [ui]
