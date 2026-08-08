@@ -20,7 +20,7 @@ gtk-custom-css = "~/.config/ghostty/tabs.css"
 adw-toolbar-style = flat
 window-padding-x = 12
 window-padding-y = 12
-confirm-close-surface = always
+confirm-close-surface = false
 resize-overlay = never
 
 # Cursor styling
