@@ -7,10 +7,11 @@ import {
   readlinkSync,
   realpathSync,
   renameSync,
+  rmSync,
   symlinkSync,
   unlinkSync,
 } from "fs";
-import { basename, dirname, join, relative } from "path";
+import { basename, dirname, join, relative, resolve, sep } from "path";
 import { displayPath, HOME_DIR } from "./paths.js";
 import { listStowFolders } from "./stowFolders.js";
 import type { ConfigService } from "../services/Config.js";
@@ -284,6 +285,64 @@ export function restoreExternalSymlinks(
     } catch {
       // Best effort; stow result is the authoritative failure signal.
     }
+  }
+}
+
+/** Remove broken skill links left behind after a stowed source is deleted. */
+export function removeStaleSkillSymlinks(
+  repoDir: string,
+  skillsDirs: readonly string[] = EXTERNAL_SKILL_DIRS,
+): string[] {
+  const removed: string[] = [];
+
+  for (const skillsDir of skillsDirs) {
+    if (!existsSync(skillsDir)) continue;
+    for (const entry of readdirSync(skillsDir)) {
+      removeStaleSkillSymlinksFrom(
+        join(skillsDir, entry),
+        repoDir,
+        removed,
+        true,
+      );
+    }
+  }
+
+  return removed;
+}
+
+function removeStaleSkillSymlinksFrom(
+  path: string,
+  repoDir: string,
+  removed: string[],
+  removeEmptyDirectory: boolean,
+): void {
+  let stat: ReturnType<typeof lstatSync>;
+  try {
+    stat = lstatSync(path);
+  } catch {
+    return;
+  }
+
+  if (stat.isSymbolicLink()) {
+    const target = resolve(dirname(path), readlinkSync(path));
+    const targetRelative = relative(repoDir, target);
+    const ownedByRepo =
+      targetRelative !== "" &&
+      targetRelative !== ".." &&
+      !targetRelative.startsWith(`..${sep}`);
+    if (ownedByRepo && !existsSync(path)) {
+      unlinkSync(path);
+      removed.push(path);
+    }
+    return;
+  }
+
+  if (!stat.isDirectory()) return;
+  for (const entry of readdirSync(path)) {
+    removeStaleSkillSymlinksFrom(join(path, entry), repoDir, removed, false);
+  }
+  if (removeEmptyDirectory && readdirSync(path).length === 0) {
+    rmSync(path, { recursive: true });
   }
 }
 

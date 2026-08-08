@@ -21,6 +21,7 @@ import {
   formatBackupMove,
   findExternalSkillSymlinks,
   removeExternalSymlinks,
+  removeStaleSkillSymlinks,
   restoreExternalSymlinks,
   type ExternalSymlink,
 } from "../lib/stowConflicts.js";
@@ -165,6 +166,12 @@ const stowRepo = (
         flags.push("--no-folding");
       }
       if (folder === "agents") {
+        const staleSkillLinks = removeStaleSkillSymlinks(repoDir);
+        for (const path of staleSkillLinks) {
+          yield* log.info(
+            `[${scope}] removed stale skill link: ${displayPath(path)}`,
+          );
+        }
         if (scope === "private") {
           flags.push(...AGENTS_PRIVATE_IGNORES);
         }

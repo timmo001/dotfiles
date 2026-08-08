@@ -17,6 +17,7 @@ import { HOME_DIR } from "../../src/lib/paths.js";
 import {
   backupConflictingPublicTargets,
   backupUnmanagedStowTargets,
+  removeStaleSkillSymlinks,
 } from "../../src/lib/stowConflicts.js";
 
 const previousOmarchyHost = process.env[ENV.OMARCHY_HOST];
@@ -219,5 +220,41 @@ describe("backupUnmanagedStowTargets", () => {
 
     expect(backupUnmanagedStowTargets(root, fakeConfig(root))).toEqual([]);
     expect(readFileSync(externalTarget, "utf8")).toBe("external\n");
+  });
+});
+
+describe("removeStaleSkillSymlinks", () => {
+  test("removes broken links owned by the stow repo and their empty skill directory", () => {
+    const root = tempRoot();
+    const skillsDir = join(root, "live-skills");
+    const skillDir = join(skillsDir, "removed-skill");
+    const staleTarget = join(
+      root,
+      "dotfiles",
+      "agents",
+      "removed-skill",
+      "SKILL.md",
+    );
+    mkdirSync(skillDir, { recursive: true });
+    symlinkSync(staleTarget, join(skillDir, "SKILL.md"));
+
+    expect(
+      removeStaleSkillSymlinks(join(root, "dotfiles"), [skillsDir]),
+    ).toEqual([join(skillDir, "SKILL.md")]);
+    expect(existsSync(skillDir)).toBe(false);
+  });
+
+  test("preserves broken external skill links", () => {
+    const root = tempRoot();
+    const skillsDir = join(root, "live-skills");
+    const skillDir = join(skillsDir, "external-skill");
+    const link = join(skillDir, "SKILL.md");
+    mkdirSync(skillDir, { recursive: true });
+    symlinkSync(join(root, "external", "SKILL.md"), link);
+
+    expect(
+      removeStaleSkillSymlinks(join(root, "dotfiles"), [skillsDir]),
+    ).toEqual([]);
+    expect(existsSync(skillDir)).toBe(true);
   });
 });
