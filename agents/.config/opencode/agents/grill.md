@@ -24,6 +24,7 @@ permission:
   todowrite: deny
   bash:
     "*": deny
+    "timeout *": allow
     "gh issue list*": allow
     "gh issue view*": allow
     "gh pr checks*": allow

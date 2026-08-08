@@ -24,6 +24,7 @@ permission:
   todowrite: deny
   bash:
     "*": deny
+    "timeout *": allow
     "command -v*": allow
     "ctx docs search*": allow
     "ctx docs show*": allow

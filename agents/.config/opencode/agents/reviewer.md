@@ -39,6 +39,7 @@ permission:
   system-bridge_system_bridge_send_notification: deny
   bash:
     "*": deny
+    "timeout *": allow
     "gh issue list*": allow
     "gh issue view*": allow
     "gh pr checks*": allow

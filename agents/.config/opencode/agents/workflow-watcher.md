@@ -22,6 +22,7 @@ permission:
   github_get_job_logs: allow
   bash:
     "*": ask
+    "timeout *": allow
     "gh api*": deny
     "gh pr checks*": allow
     "gh run view*": allow
