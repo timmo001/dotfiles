@@ -24,6 +24,17 @@ Add `--open-opencode` to run `opencode run` against the saved report and then op
 times
 ```
 
+## Herdr workspaces
+
+`herdr-work` opens a Home Assistant Frontend workspace and reuses it if it is already open. Add any combination of `core`, `docs`, and `dev-docs` to open the corresponding repositories, then return focus to Frontend.
+
+```bash
+herdr-work
+herdr-work core docs dev-docs
+```
+
+Repositories default to `~/repos/home-assistant`. Set `HERDR_WORK_ROOT` to use another checkout root.
+
 ## Git branch sync
 
 `git-default-ref` is the shared guarded resolver for default-branch operations. It prefers `upstream`, falls back to `origin`, compares the remote's advertised default branch with local `<remote>/HEAD`, and fetches the branch. A missing or mismatched local ref requires confirmation before repair. Under `dot is-agent`, or without an interactive terminal, it fails instead of prompting.
