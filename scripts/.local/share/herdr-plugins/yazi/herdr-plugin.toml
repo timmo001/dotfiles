@@ -1,0 +1,24 @@
+id = "dotfiles.yazi"
+name = "Yazi"
+version = "0.1.0"
+min_herdr_version = "0.7.0"
+description = "Open Yazi in a Herdr pane"
+platforms = ["linux"]
+
+[[panes]]
+id = "explorer"
+title = "Yazi"
+placement = "split"
+command = ["sh", "-c", "exec yazi"]
+
+[[actions]]
+id = "open"
+title = "Open Yazi"
+contexts = ["workspace"]
+command = ["sh", "open.sh", "split"]
+
+[[actions]]
+id = "open-tab"
+title = "Open Yazi in a new tab"
+contexts = ["workspace"]
+command = ["sh", "open.sh", "tab"]

@@ -53,6 +53,18 @@ command = "persiyanov.reviewr.toggle"
 description = "toggle reviewr"
 
 [[keys.command]]
+key = "prefix+y"
+type = "plugin_action"
+command = "dotfiles.yazi.open"
+description = "open Yazi in a split pane"
+
+[[keys.command]]
+key = "prefix+shift+y"
+type = "plugin_action"
+command = "dotfiles.yazi.open-tab"
+description = "open Yazi in a new tab"
+
+[[keys.command]]
 key = "prefix+alt+n"
 type = "plugin_action"
 command = "mirror.remote-new-workspace"
