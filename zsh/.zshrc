@@ -237,6 +237,11 @@ export GOPATH="$HOME/go"
 export PATH="$PATH:/usr/local/go/bin:$HOME/go/bin"
 
 # ------------------------------
+# Bun
+# ------------------------------
+export PATH="/home/aidan/.cache/.bun/bin:$PATH"
+
+# ------------------------------
 # Hyprland
 # ------------------------------
 export XDG_CURRENT_DESKTOP=Hyprland
