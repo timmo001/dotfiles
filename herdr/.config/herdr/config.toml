@@ -17,6 +17,8 @@ split_vertical = "prefix+backslash"
 split_horizontal = "prefix+enter"
 zoom = "prefix+m"
 resize_mode = "prefix+shift+r"
+goto = ""
+new_worktree = ""
 
 [[keys.command]]
 key = "prefix+d"
