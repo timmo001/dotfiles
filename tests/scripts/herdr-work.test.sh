@@ -7,6 +7,7 @@ script="$repo_root/scripts/.local/bin/herdr-work"
 test_dir=$(mktemp -d)
 mock_bin="$test_dir/herdr"
 calls="$test_dir/calls"
+server_state="$test_dir/server-state"
 work_root="$test_dir/home-assistant"
 
 trap 'rm -rf "$test_dir"' EXIT
@@ -18,7 +19,11 @@ set -euo pipefail
 
 printf '%s\n' "$*" >>"$CALLS"
 
-if [[ "$1 $2" == "workspace list" ]]; then
+if [[ "$1" == "server" ]]; then
+  touch "$SERVER_STATE"
+elif [[ "$1 $2" == "status server" ]]; then
+  [[ -z "${SERVER_STATE:-}" || -e "$SERVER_STATE" ]]
+elif [[ "$1 $2" == "workspace list" ]]; then
   if [[ -n "${WORKSPACES:-}" ]]; then
     printf '%s\n' "$WORKSPACES"
   else
@@ -63,5 +68,11 @@ if grep -Fq 'workspace create' "$calls"; then
   exit 1
 fi
 grep -Fx 'workspace focus w1' "$calls"
+
+: >"$calls"
+rm -f "$server_state"
+SERVER_STATE="$server_state" "$script"
+grep -Fx 'server' "$calls"
+grep -Fx 'workspace create --cwd '"$work_root"'/frontend --label Frontend --no-focus' "$calls"
 
 printf 'herdr-work tests passed\n'

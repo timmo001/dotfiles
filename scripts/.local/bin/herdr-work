@@ -43,6 +43,22 @@ for project in "$@"; do
   esac
 done
 
+if ! "$herdr_bin" status server >/dev/null 2>&1; then
+  nohup "$herdr_bin" server >/dev/null 2>&1 &
+
+  for _ in {1..50}; do
+    if "$herdr_bin" status server >/dev/null 2>&1; then
+      break
+    fi
+    sleep 0.1
+  done
+
+  if ! "$herdr_bin" status server >/dev/null 2>&1; then
+    printf 'Herdr server did not start\n' >&2
+    exit 1
+  fi
+fi
+
 workspaces="$($herdr_bin workspace list)"
 frontend_id="$(jq -r '
   (.result.workspaces // .workspaces // [])

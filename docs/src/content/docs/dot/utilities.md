@@ -26,7 +26,7 @@ times
 
 ## Herdr workspaces
 
-`herdr-work` opens a Home Assistant Frontend workspace and reuses it if it is already open. Add any combination of `core`, `docs`, and `dev-docs` to open the corresponding repositories, then return focus to Frontend.
+`herdr-work` starts the Herdr server when needed, opens a Home Assistant Frontend workspace, and reuses it if it is already open. Add any combination of `core`, `docs`, and `dev-docs` to open the corresponding repositories, then return focus to Frontend.
 
 ```bash
 herdr-work
