@@ -23,7 +23,19 @@ EOF
 cat >"$mock_bin/herdr" <<'EOF'
 #!/usr/bin/env bash
 if [[ "$1 $2" == "tab list" ]]; then
-  printf '%s\n' '{"result":{"tabs":[{"tab_id":"w36:t1","number":1,"focused":false},{"tab_id":"w36:t2","number":2,"focused":true},{"tab_id":"w36:t3","number":3,"focused":false}]}}'
+  if [[ -n "${HERDR_TABS:-}" ]]; then
+    printf '%s\n' "$HERDR_TABS"
+  else
+    printf '%s\n' '{"result":{"tabs":[{"tab_id":"w36:t1","number":1,"focused":false},{"tab_id":"w36:t2","number":2,"focused":true},{"tab_id":"w36:t3","number":3,"focused":false}]}}'
+  fi
+  exit 0
+fi
+if [[ "$1 $2" == "workspace list" ]]; then
+  if [[ -n "${HERDR_WORKSPACES:-}" ]]; then
+    printf '%s\n' "$HERDR_WORKSPACES"
+  else
+    printf '%s\n' '{"result":{"workspaces":[{"workspace_id":"w36"},{"workspace_id":"w37"}]}}'
+  fi
   exit 0
 fi
 printf 'herdr %s\n' "$*" >>"$CALLS"
@@ -41,6 +53,17 @@ grep -Fx 'herdr tab create --focus' "$calls"
 : >"$calls"
 ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"herdr | project"}' "$script" close
 grep -Fx 'herdr tab close w36:t2' "$calls"
+if grep -Fq 'herdr session stop default' "$calls"; then
+  printf 'session stopped while other tabs or workspaces remained\n' >&2
+  exit 1
+fi
+
+: >"$calls"
+HERDR_TABS='{"result":{"tabs":[{"tab_id":"w36:t1","number":1,"focused":true}]}}' \
+  HERDR_WORKSPACES='{"result":{"workspaces":[{"workspace_id":"w36"}]}}' \
+  ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"herdr | project"}' "$script" close
+grep -Fx 'herdr tab close w36:t1' "$calls"
+grep -Fx 'herdr session stop default' "$calls"
 
 : >"$calls"
 ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"herdr | project"}' "$script" next

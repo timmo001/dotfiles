@@ -30,6 +30,7 @@ if [[ "$active_class" == "com.mitchellh.ghostty" && "$active_title" == "herdr |"
     | ($tabs | map(.tab_id) | index($current)) as $index
     | [
         ($current // ""),
+        ($tabs | length),
         if ($tabs | length) < 2 or $index == null then ""
         elif $action == "next" then $tabs[($index + 1) % ($tabs | length)].tab_id
         elif $action == "previous" then $tabs[($index - 1 + ($tabs | length)) % ($tabs | length)].tab_id
@@ -38,10 +39,16 @@ if [[ "$active_class" == "com.mitchellh.ghostty" && "$active_title" == "herdr |"
       ]
     | @tsv
   ' 2>/dev/null || true)"
-  IFS=$'\t' read -r tab_id target_tab <<<"$tab_row"
+  IFS=$'\t' read -r tab_id tab_count target_tab <<<"$tab_row"
 
-  if [[ "$action" == "close" && -n "$tab_id" ]] && $herdr_bin tab close "$tab_id" >/dev/null 2>&1; then
-    exit 0
+  if [[ "$action" == "close" && -n "$tab_id" ]]; then
+    workspace_count="$($herdr_bin workspace list 2>/dev/null | jq -r '(.result.workspaces // .workspaces // []) | length' 2>/dev/null || true)"
+    if $herdr_bin tab close "$tab_id" >/dev/null 2>&1; then
+      if [[ "$workspace_count" == "1" && "$tab_count" == "1" ]]; then
+        $herdr_bin session stop default >/dev/null 2>&1 || true
+      fi
+      exit 0
+    fi
   fi
   if [[ ("$action" == "next" || "$action" == "previous") && -n "$target_tab" ]] && $herdr_bin tab focus "$target_tab" >/dev/null 2>&1; then
     exit 0
