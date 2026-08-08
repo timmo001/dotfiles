@@ -814,21 +814,22 @@ cursor() {
 # ------------------------------
 _dot_herdr_stop_if_last_pane() {
   [[ -n "${HERDR_ENV:-}" ]] || return 0
-  [[ "$$" == "${DOT_HERDR_ROOT_SHELL_PID:-$$}" ]] || return 0
   command -v herdr >/dev/null 2>&1 || return 0
   command -v jq >/dev/null 2>&1 || return 0
 
-  local workspaces tabs panes
+  local shell_pid workspaces tabs panes
+  shell_pid="$(herdr pane process-info --current 2>/dev/null | jq -r '.result.process_info.shell_pid // empty' 2>/dev/null)"
+  [[ "$shell_pid" == "$$" ]] || return 0
+
   workspaces="$(herdr workspace list 2>/dev/null | jq -r '(.result.workspaces // .workspaces // []) | length' 2>/dev/null)"
   tabs="$(herdr tab list 2>/dev/null | jq -r '(.result.tabs // .tabs // []) | length' 2>/dev/null)"
   panes="$(herdr pane list 2>/dev/null | jq -r '(.result.panes // .panes // []) | length' 2>/dev/null)"
 
   if [[ "$workspaces" == "1" && "$tabs" == "1" && "$panes" == "1" ]]; then
-    herdr server stop >/dev/null 2>&1 || true
+    herdr session stop default >/dev/null 2>&1 || true
   fi
 }
 
-export DOT_HERDR_ROOT_SHELL_PID="${DOT_HERDR_ROOT_SHELL_PID:-$$}"
 add-zsh-hook -d zshexit _dot_herdr_stop_if_last_pane 2>/dev/null
 add-zsh-hook zshexit _dot_herdr_stop_if_last_pane
 
