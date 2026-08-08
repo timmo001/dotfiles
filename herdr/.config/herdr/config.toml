@@ -30,6 +30,12 @@ type = "plugin_action"
 command = "herdr-lazy.manage"
 description = "manage Herdr plugins"
 
+[[keys.command]]
+key = "prefix+shift+v"
+type = "plugin_action"
+command = "persiyanov.reviewr.toggle"
+description = "toggle reviewr"
+
 [theme]
 name = "catppuccin"
 auto_switch = false

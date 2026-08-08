@@ -19,6 +19,8 @@ __pycache__/
 !/herdr/.config/herdr/plugins/config/herdr-lazy/
 !/herdr/.config/herdr/plugins/config/herdr-lazy/plugins.list
 !/herdr/.config/herdr/plugins/config/herdr-lazy/plugins.lock
+!/herdr/.config/herdr/plugins/config/persiyanov.reviewr/
+!/herdr/.config/herdr/plugins/config/persiyanov.reviewr/config.toml
 dot/node_modules/
 dot/dist/
 scripts/.local/bin/dot
