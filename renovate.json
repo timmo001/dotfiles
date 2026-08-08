@@ -20,6 +20,19 @@
       "depNameTemplate": "anomalyco/opencode",
       "datasourceTemplate": "github-tags",
       "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Update Herdr plugin lock commits.",
+      "managerFilePatterns": [
+        "/^herdr\\/\\.config\\/herdr\\/plugins\\/config\\/herdr-lazy\\/plugins\\.lock$/"
+      ],
+      "matchStrings": [
+        "(?<depName>[\\w.-]+/[\\w.-]+)@(?<currentDigest>[a-f0-9]{40})"
+      ],
+      "packageNameTemplate": "https://github.com/{{{depName}}}.git",
+      "currentValueTemplate": "HEAD",
+      "datasourceTemplate": "git-refs"
     }
   ],
   "packageRules": [
