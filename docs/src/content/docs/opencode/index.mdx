@@ -86,7 +86,7 @@ Unlike the rest of these (personal) dotfiles, the OpenCode config is built to be
 | `docs/public/og.png` | `mise run docs:og` |
 
 - **Background dev servers** - starting a long-running dev server follows a precedence: the project's own `AGENTS.md` workflow first, then framework-native background mode (Astro 7+ self-detaches `astro dev` under an agent), then pitchfork as the fallback. The `pitchfork-dev-server-guard` plugin covers only the pitchfork tier, redirecting foreground dev commands to `serve:*` or `pitchfork start` when a project declares `pitchfork.toml`, and it leaves `astro dev` to Astro's native mode.
-- **Contextual notifications** - main-session idle completions and all permission prompts ring BEL, send an Omarchy-formatted desktop notification when `omarchy` is available, and play the freedesktop message sound when `paplay` is available. When the plugin starts under Hyprland, it captures the active window address so clicking a notification can return focus to that window. Background completion events stay silent.
+- **Contextual notifications** - main-session idle completions and all permission prompts send an Omarchy-formatted desktop notification when `omarchy` is available. Outside Herdr they also ring BEL and play the freedesktop message sound when `paplay` is available; Herdr sessions leave those sounds to Herdr. When the plugin starts under Hyprland, it captures the active window address so clicking a notification can return focus to that window. In Herdr it also focuses the originating workspace and tab. Background completion events stay silent.
 ### Context reliability warnings
 
 | Model | Warning | Critical |

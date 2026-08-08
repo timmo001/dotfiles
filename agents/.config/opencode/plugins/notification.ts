@@ -5,7 +5,8 @@
  * Hyprland window only when clicked, BEL to request attention, and `paplay`
  * for the freedesktop message sound. Main session completions and permission
  * prompts include the session title, while background task completions stay
- * silent.
+ * silent. Herdr sessions keep desktop notifications but skip this plugin's
+ * sound because Herdr owns agent-state sounds.
  */
 
 import type { Plugin } from "@opencode-ai/plugin";
@@ -24,6 +25,7 @@ function dataOrValue(value: unknown): unknown {
 }
 
 export const NotificationPlugin = (async ({ $, client }) => {
+  const isHerdrSession = process.env.HERDR_ENV === "1";
   const soundPath = "/usr/share/sounds/freedesktop/stereo/message.oga";
   let canPlaySound: boolean | undefined;
   const sendDesktopNotification = await createDesktopNotifier($);
@@ -83,12 +85,16 @@ export const NotificationPlugin = (async ({ $, client }) => {
     const safeTitle = sanitizeNotificationText(title, "OpenCode");
     const safeBody = sanitizeNotificationText(body, "Attention required");
 
-    try {
-      process.stdout.write("\u0007");
-    } catch {}
+    if (!isHerdrSession) {
+      try {
+        process.stdout.write("\u0007");
+      } catch {}
+    }
 
     await sendDesktopNotification(glyph, safeTitle, safeBody);
-    await playSound();
+    if (!isHerdrSession) {
+      await playSound();
+    }
   };
 
   const sessionIDFromEvent = (event: {

@@ -5,6 +5,7 @@ type Shell = PluginInput["$"];
 export async function createDesktopNotifier($: Shell) {
   let canNotify: boolean | undefined;
   let originWindowAddress = "";
+  const originHerdrTabID = process.env.HERDR_TAB_ID ?? "";
 
   try {
     const activeWindow = JSON.parse(
@@ -37,6 +38,9 @@ export async function createDesktopNotifier($: Shell) {
         .then(async (action) => {
           if (action.trim() === "default" && originWindowAddress) {
             await $`hyprctl dispatch focuswindow address:${originWindowAddress}`;
+            if (originHerdrTabID) {
+              await $`herdr tab focus ${originHerdrTabID}`;
+            }
           }
         })
         .catch(() => {});
