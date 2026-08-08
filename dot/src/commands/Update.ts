@@ -65,6 +65,7 @@ const STEP_TIMEOUT_SECONDS = {
   pull: 8 * 60,
   stow: 3 * 60,
   rebuild: 5 * 60,
+  herdrPlugins: 5 * 60,
   postHooks: 2 * 60,
   resume: 60,
 } as const;
@@ -336,6 +337,72 @@ const postHooks = Effect.gen(function* () {
   yield* log.section("Post-Hooks");
 
   yield* agentsSync;
+});
+
+/** Read the Herdr Lazy plugin root from `herdr plugin list --json`. */
+export function herdrLazyPluginRoot(source: string): string | null {
+  try {
+    const parsed: unknown = JSON.parse(source);
+    if (!parsed || typeof parsed !== "object") return null;
+
+    const result = (parsed as Record<string, unknown>).result;
+    if (!result || typeof result !== "object") return null;
+
+    const plugins = (result as Record<string, unknown>).plugins;
+    if (!Array.isArray(plugins)) return null;
+
+    for (const plugin of plugins) {
+      if (!plugin || typeof plugin !== "object") continue;
+      const record = plugin as Record<string, unknown>;
+      if (
+        record.plugin_id === "herdr-lazy" &&
+        typeof record.plugin_root === "string"
+      ) {
+        return record.plugin_root;
+      }
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+/** Restore Herdr plugins to the commits in the stowed Herdr Lazy lockfile. */
+const restoreHerdrPlugins = Effect.gen(function* () {
+  const log = yield* OutputLog;
+  const executor = yield* CommandExecutor;
+
+  yield* log.section("Herdr Plugins");
+
+  const pluginList = yield* executor
+    .run("herdr", ["plugin", "list", "--json"])
+    .pipe(Effect.orElseSucceed(() => null));
+  if (pluginList === null) {
+    yield* log.warn("Skipping Herdr plugins (Herdr is unavailable)");
+    return;
+  }
+
+  const pluginRoot = herdrLazyPluginRoot(pluginList);
+  if (!pluginRoot) {
+    yield* log.warn("Skipping Herdr plugins (Herdr Lazy is not installed)");
+    return;
+  }
+
+  const binary = join(pluginRoot, "target", "release", "herdr-lazy");
+  if (!existsSync(binary)) {
+    yield* log.warn("Skipping Herdr plugins (Herdr Lazy binary is missing)");
+    return;
+  }
+
+  const exitCode = yield* executor.inherit(binary, ["restore"]);
+  if (exitCode !== 0) {
+    return yield* new UpdateError({
+      message: `Herdr plugin restore exited ${exitCode}`,
+    });
+  }
+
+  yield* log.info("Herdr plugins restored from lockfile");
 });
 
 /** Run the resume refresh helper so status-bar services pick up update changes. */
@@ -664,6 +731,14 @@ export const update = (opts?: UpdateOptions) =>
           yield* rebuild;
           yield* log.info("Build successful");
         }),
+      );
+    }
+
+    if (isFullUpdate) {
+      yield* requiredUpdateStep(
+        "Herdr Plugins",
+        STEP_TIMEOUT_SECONDS.herdrPlugins,
+        restoreHerdrPlugins,
       );
     }
 
