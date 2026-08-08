@@ -35,6 +35,7 @@ sidebar_width = 26
 sidebar_max_width = 26
 right_click_passthrough_modifier = "ctrl"
 confirm_close = false
+prompt_new_tab_name = false
 prompt_new_workspace_name = true
 
 agent_panel_sort = "spaces"

@@ -1,0 +1,45 @@
+id = "dotfiles.terminal-title"
+name = "Terminal Title"
+version = "0.1.0"
+min_herdr_version = "0.7.3"
+description = "Mirror terminal titles into Herdr tab labels"
+platforms = ["linux"]
+
+[[startup]]
+command = ["sh", "terminal-title.sh", "start"]
+
+[[actions]]
+id = "start"
+title = "Start terminal title watcher"
+contexts = ["global", "workspace"]
+command = ["sh", "terminal-title.sh", "start"]
+
+[[actions]]
+id = "stop"
+title = "Stop terminal title watcher"
+contexts = ["global", "workspace"]
+command = ["sh", "terminal-title.sh", "stop"]
+
+[[actions]]
+id = "status"
+title = "Show terminal title watcher status"
+contexts = ["global", "workspace"]
+command = ["sh", "terminal-title.sh", "status"]
+
+[[actions]]
+id = "sync"
+title = "Sync terminal titles"
+contexts = ["global", "workspace", "tab", "pane"]
+command = ["sh", "terminal-title.sh", "sync"]
+
+[[events]]
+on = "pane.created"
+command = ["sh", "terminal-title.sh", "autostart"]
+
+[[events]]
+on = "tab.created"
+command = ["sh", "terminal-title.sh", "autostart"]
+
+[[events]]
+on = "workspace.created"
+command = ["sh", "terminal-title.sh", "autostart"]
