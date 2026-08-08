@@ -24,6 +24,12 @@ type = "shell"
 command = "dot-launch-tui"
 description = "dot TUI"
 
+[[keys.command]]
+key = "prefix+shift+l"
+type = "plugin_action"
+command = "herdr-lazy.manage"
+description = "manage Herdr plugins"
+
 [theme]
 name = "tokyo-night"
 auto_switch = false

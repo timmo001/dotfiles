@@ -12,6 +12,13 @@ __pycache__/
 !/plannotator/.plannotator/config.json
 /herdr/.config/herdr/*
 !/herdr/.config/herdr/config.toml
+!/herdr/.config/herdr/plugins/
+/herdr/.config/herdr/plugins/*
+!/herdr/.config/herdr/plugins/config/
+/herdr/.config/herdr/plugins/config/*
+!/herdr/.config/herdr/plugins/config/herdr-lazy/
+!/herdr/.config/herdr/plugins/config/herdr-lazy/plugins.list
+!/herdr/.config/herdr/plugins/config/herdr-lazy/plugins.lock
 dot/node_modules/
 dot/dist/
 scripts/.local/bin/dot
