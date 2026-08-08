@@ -52,6 +52,12 @@ type = "plugin_action"
 command = "persiyanov.reviewr.toggle"
 description = "toggle reviewr"
 
+[[keys.command]]
+key = "prefix+alt+n"
+type = "plugin_action"
+command = "mirror.remote-new-workspace"
+description = "create a remote Herdr workspace"
+
 [theme]
 name = "catppuccin"
 auto_switch = false
