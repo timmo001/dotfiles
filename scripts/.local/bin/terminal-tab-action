@@ -7,17 +7,23 @@ herdr_bin="${NEW_TERMINAL_TAB_HERDR_BIN:-herdr}"
 action="${1:-}"
 
 case "$action" in
-  new | close | next | previous) ;;
+  new | close | next | previous | ghostty-new) ;;
   *)
-    printf 'usage: %s <new|close|next|previous>\n' "$0" >&2
+    printf 'usage: %s <new|close|next|previous|ghostty-new>\n' "$0" >&2
     exit 64
     ;;
 esac
 
 active_window="$($hyprctl_bin activewindow -j 2>/dev/null || true)"
-IFS=$'\t' read -r active_class active_title < <(
-  jq -r '[(.class // .initialClass // ""), (.title // "")] | @tsv' <<<"$active_window" 2>/dev/null || true
-)
+active_address="$(jq -r '.address // ""' <<<"$active_window" 2>/dev/null || true)"
+active_class="$(jq -r '.class // .initialClass // ""' <<<"$active_window" 2>/dev/null || true)"
+active_title="$(jq -r '.title // ""' <<<"$active_window" 2>/dev/null || true)"
+
+if [[ "$action" == "ghostty-new" ]]; then
+  [[ "$active_class" == "com.mitchellh.ghostty" && -n "$active_address" ]] || exit 0
+  "$hyprctl_bin" dispatch sendkeystate CTRL ALT SHIFT, T, down, "address:$active_address" >/dev/null
+  exec "$hyprctl_bin" dispatch sendkeystate CTRL ALT SHIFT, T, up, "address:$active_address"
+fi
 
 if [[ "$active_class" == "com.mitchellh.ghostty" && "$active_title" == "herdr |"* ]] && command -v "$herdr_bin" >/dev/null 2>&1; then
   if [[ "$action" == "new" ]] && $herdr_bin tab create --focus >/dev/null 2>&1; then
