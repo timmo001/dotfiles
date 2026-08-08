@@ -31,7 +31,8 @@ auto_switch = false
 [ui]
 mobile_width_threshold = 90
 show_agent_labels_on_pane_borders = true
-sidebar_width = 32
+sidebar_width = 26
+sidebar_max_width = 26
 right_click_passthrough_modifier = "ctrl"
 confirm_close = false
 prompt_new_workspace_name = true
@@ -44,7 +45,7 @@ delivery = "herdr"
 position = "top-right"
 
 [ui.sound]
-enabled = false
+enabled = true
 
 [advanced]
 scrollback_limit_bytes = 52428800
