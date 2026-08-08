@@ -43,7 +43,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - `agents/.config/opencode/` contains the shared OpenCode config source published from this repo.
 - `agents/.config/opencode/lib/` contains shared plugin support modules. Relative plugin imports must resolve before publication.
 - `agents/.agents/skills/` contains globally stowed skills exposed via `~/.agents/skills/`.
-- `herdr/.config/herdr/config.toml` is the only stowed Herdr file; runtime logs, sockets, and session state stay untracked in `~/.config/herdr/`.
+- `herdr/.config/herdr/` stows the main config and selected plugin configuration; runtime logs, sockets, generated files, and session state stay untracked in `~/.config/herdr/`.
 - `.agents/skills/` contains repo-local skills for this repo only and is registered through `skills.paths` in `opencode.json`.
 - Public `SKILL.md` files under `agents/.agents/skills/` and `.agents/skills/` must satisfy the [Agent Skills](https://agentskills.io/specification) frontmatter rules. CI validates both roots with the shared `lint-agent-skills` workflow.
 - `dot agents-sync` mirrors the global private AGENTS source into agent harness instruction files; full `dot update` and `dot init` run that sync automatically.
@@ -114,5 +114,5 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - Skill frontmatter: the `lint.yml` `validate-skills` job validates public skills with the shared `lint-agent-skills` workflow.
 - OpenCode debug: use `opencode debug` subcommands directly, for example `opencode debug config`, `opencode debug skill`, or `opencode debug agent <name>`.
 - MCP config sync: `dot mcp-sync` regenerates each active agent harness's MCP config from the single private spec `dotfiles-private/mcp.yml`; some agent harnesses are documented stubs. Runs automatically in `dot update` before re-stow; run `dot stow` after a manual sync.
-- Herdr: only `herdr/.config/herdr/config.toml` is stowed into the runtime-owned `~/.config/herdr/` directory; `dot doctor` warns when Herdr or the OpenCode integration is missing and prints the manual repair command.
+- Herdr: `herdr/.config/herdr/` stows the main config and selected plugin configuration into the runtime-owned `~/.config/herdr/` directory; `dot doctor` warns when Herdr or the OpenCode integration is missing and prints the manual repair command.
 - OpenCode slash commands and `dot` git subcommands self-document (command frontmatter, `dot --help`) and are catalogued in the generated docs reference (`reference/commands.md`, `dot/commands.md`); don't re-document them here. The global AGENTS.md routes the behavioural ones (`/plan`, `/grill`, `/commit`, `/inject-context`, `/code-review`).

@@ -19,6 +19,10 @@ __pycache__/
 !/herdr/.config/herdr/plugins/config/herdr-lazy/
 !/herdr/.config/herdr/plugins/config/herdr-lazy/plugins.list
 !/herdr/.config/herdr/plugins/config/herdr-lazy/plugins.lock
+!/herdr/.config/herdr/plugins/config/herdr-lazygit/
+!/herdr/.config/herdr/plugins/config/herdr-lazygit/ai-backend.conf
+!/herdr/.config/herdr/plugins/config/herdr-lazygit/panel.conf
+!/herdr/.config/herdr/plugins/config/herdr-lazygit/prompt.txt
 !/herdr/.config/herdr/plugins/config/persiyanov.reviewr/
 !/herdr/.config/herdr/plugins/config/persiyanov.reviewr/config.toml
 dot/node_modules/
