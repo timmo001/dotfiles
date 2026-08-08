@@ -3,7 +3,20 @@ onboarding = false
 # here makes the session layer reproducible.
 
 [keys]
-prefix = "ctrl+space"
+prefix = "alt+x"
+settings = "prefix+shift+s"
+workspace_picker = ["prefix+s", "prefix+w"]
+detach = "prefix+q"
+reload_config = "prefix+r"
+previous_workspace = "prefix+("
+next_workspace = "prefix+)"
+focus_agent = "prefix+alt+1..9"
+rename_tab = "prefix+comma"
+copy_mode = "prefix+v"
+split_vertical = "prefix+backslash"
+split_horizontal = "prefix+enter"
+zoom = "prefix+m"
+resize_mode = "prefix+shift+r"
 
 [[keys.command]]
 key = "prefix+d"
@@ -18,10 +31,20 @@ auto_switch = false
 [ui]
 mobile_width_threshold = 90
 show_agent_labels_on_pane_borders = true
+sidebar_width = 32
+right_click_passthrough_modifier = "ctrl"
+confirm_close = false
+prompt_new_workspace_name = true
 
 agent_panel_sort = "spaces"
 [ui.toast]
 delivery = "herdr"
 
+[ui.toast.herdr]
+position = "top-right"
+
 [ui.sound]
 enabled = false
+
+[advanced]
+scrollback_limit_bytes = 52428800
