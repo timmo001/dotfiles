@@ -9,7 +9,11 @@ These variables tune paths and behaviour for `dot`. Most have sensible defaults;
 
 ## Managed toolchain
 
-The global mise configuration provides the Android SDK command-line tools and sets the SDK environment for Gradle and `sdkmanager`. Individual Android repositories still declare their required platform and build-tools versions; install those SDK packages with `sdkmanager` when a checkout requires them.
+The global mise configuration (`mise/.config/mise/config.toml`) pins the shared developer toolchain. Node.js and Bun versions are also declared in the repository root `mise.toml` for `dot` and `docs` tasks.
+
+Python 3.14 and [uv](https://docs.astral.sh/uv/) are installed through mise for Python package and virtual-environment management. Use `uv` directly for project work; `topgrade` leaves mise pins unchanged unless you run `mise install` or `dot update`.
+
+The configuration also provides the Android SDK command-line tools and sets the SDK environment for Gradle and `sdkmanager`. Individual Android repositories still declare their required platform and build-tools versions; install those SDK packages with `sdkmanager` when a checkout requires them.
 
 ## Paths and overlay
 
