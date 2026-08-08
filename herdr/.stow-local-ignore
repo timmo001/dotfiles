@@ -1,1 +1,1 @@
-^/\.config/herdr/(?!(config\.toml$|plugins($|/config($|/(herdr-lazy($|/(plugins\.list|plugins\.lock)$)|herdr-lazygit($|/(ai-backend\.conf|panel\.conf|prompt\.txt)$)|persiyanov\.reviewr($|/config\.toml$)))))).+
+^/\.config/herdr/(?!(config\.toml$|plugins($|/config($|/(herdr-lazy($|/(plugins\.list|plugins\.lock)$)|herdr-lazygit($|/(ai-backend\.conf|panel\.conf|prompt\.txt)$)|persiyanov\.reviewr($|/config\.toml$)|sessionizer($|/config\.toml$)))))).+

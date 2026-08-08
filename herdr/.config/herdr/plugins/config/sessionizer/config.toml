@@ -1,0 +1,7 @@
+[projects]
+roots = ["~/repos/home-assistant"]
+git_only = true
+depth = 1
+
+[ui]
+placement = "overlay"

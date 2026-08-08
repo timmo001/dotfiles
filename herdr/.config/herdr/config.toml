@@ -5,7 +5,7 @@ onboarding = false
 [keys]
 prefix = "alt+x"
 settings = "prefix+shift+s"
-workspace_picker = ["prefix+s", "prefix+w"]
+workspace_picker = "prefix+w"
 detach = "prefix+q"
 reload_config = "prefix+r"
 previous_workspace = "prefix+("
@@ -19,6 +19,18 @@ zoom = "prefix+m"
 resize_mode = "prefix+shift+r"
 goto = ""
 new_worktree = ""
+
+[[keys.command]]
+key = "prefix+s"
+type = "plugin_action"
+command = "sessionizer.open"
+description = "open project workspace"
+
+[[keys.command]]
+key = "prefix+up"
+type = "plugin_action"
+command = "sessionizer.worktree-open"
+description = "open worktree workspace"
 
 [[keys.command]]
 key = "prefix+d"
