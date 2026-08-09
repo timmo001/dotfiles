@@ -110,5 +110,5 @@ enabled = true
 scrollback_limit_bytes = 52428800
 
 [experimental]
-pane_history = true
+pane_history = false
 kitty_graphics = true
