@@ -52,8 +52,7 @@ grep -Fx 'herdr tab create --focus' "$calls"
 
 : >"$calls"
 ACTIVE_WINDOW='{"address":"abc123","class":"com.mitchellh.ghostty","title":"herdr | project"}' "$script" ghostty-new
-grep -Fx 'hyprctl dispatch sendkeystate CTRL ALT SHIFT, T, down, address:abc123' "$calls"
-grep -Fx 'hyprctl dispatch sendkeystate CTRL ALT SHIFT, T, up, address:abc123' "$calls"
+grep -Fx 'hyprctl dispatch sendshortcut CTRL ALT SHIFT, T, address:abc123' "$calls"
 
 : >"$calls"
 ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"herdr | project"}' "$script" close
@@ -79,8 +78,8 @@ ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"herdr | project"}' "$sc
 grep -Fx 'herdr tab focus w36:t1' "$calls"
 
 : >"$calls"
-ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"shell"}' "$script" new
-grep -Fx 'hyprctl dispatch sendshortcut CTRL SHIFT, T, activewindow' "$calls"
+ACTIVE_WINDOW='{"address":"abc123","class":"com.mitchellh.ghostty","title":"shell"}' "$script" new
+grep -Fx 'hyprctl dispatch sendshortcut CTRL ALT SHIFT, T, address:abc123' "$calls"
 
 : >"$calls"
 ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"shell"}' "$script" close
