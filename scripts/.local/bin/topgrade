@@ -12,12 +12,15 @@ if [[ -z $TOPGRADE_LOGGED ]]; then
   exec env TOPGRADE_LOGGED=1 script -qefc "$script_command" "$log_file"
 fi
 
-# Determine if the run includes steps that need sudo.
-needs_sudo=0
-if [[ $# -eq 0 ]]; then
-  # Full run — includes system packages.
-  needs_sudo=1
-else
+# A run is full unless --only restricts it to named steps.
+needs_sudo=1
+for arg in "$@"; do
+  if [[ $arg == --only ]]; then
+    needs_sudo=0
+    break
+  fi
+done
+if [[ $needs_sudo -eq 0 ]]; then
   for arg in "$@"; do
     case "$arg" in
       system|firmware|containers) needs_sudo=1 ;;

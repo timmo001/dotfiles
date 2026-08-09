@@ -25,12 +25,42 @@ if (( $# > 0 )); then
   exit 1
 fi
 
+topgrade_labels=(
+  'Topgrade: Mise'
+  'Topgrade: GitHub CLI extensions'
+  'Topgrade: Yazi'
+  'Topgrade: ProtonPlus'
+  'Topgrade: Firmware'
+  'Topgrade: Rustup'
+  'Topgrade: TLDR'
+  'Topgrade: Neovim'
+  'Topgrade: Containers'
+  'Topgrade: Claude Code'
+  'Topgrade: Claude Code plugins'
+  'Topgrade: uv'
+)
+topgrade_steps=(
+  mise
+  github_cli_extensions
+  yazi
+  protonplus
+  firmware
+  rustup
+  tldr
+  vim
+  containers
+  claude_code
+  claude_code_plugins
+  uv
+)
+default_selected='Dotfiles,Topgrade: Mise,Topgrade: GitHub CLI extensions,Topgrade: Yazi,Omarchy'
+
 if (( ! yes )) && [[ -t 0 && -t 1 ]]; then
-  mapfile -t selected < <(gum choose --no-limit --ordered --selected='*' --header='Choose updates:' \
-    'Dotfiles' 'Topgrade' 'Omarchy')
+  mapfile -t selected < <(gum choose --no-limit --selected="$default_selected" --header='Choose updates:' \
+    'Dotfiles' 'Omarchy' "${topgrade_labels[@]}")
 else
   yes=1
-  selected=('Dotfiles' 'Topgrade' 'Omarchy')
+  selected=('Dotfiles' 'Omarchy' "${topgrade_labels[@]}")
 fi
 
 if dot is-agent --quiet >/dev/null 2>&1 && [[ ! -t 0 || ! -t 1 ]]; then
@@ -44,17 +74,48 @@ if dot is-agent --quiet >/dev/null 2>&1 && [[ ! -t 0 || ! -t 1 ]]; then
   export PATH="$agent_sudo_dir:$PATH"
 fi
 
-for step in "${selected[@]}"; do
-  section "$step"
-  case "$step" in
-    Dotfiles) dot update || exit ;;
-    Topgrade)
-      if (( yes )); then
-        topgrade -y || exit
-      else
-        topgrade || exit
-      fi
-      ;;
-    Omarchy) omarchy update -y || exit ;;
+topgrade_selected=()
+dotfiles_selected=0
+omarchy_selected=0
+for i in "${!topgrade_labels[@]}"; do
+  for selected_step in "${selected[@]}"; do
+    if [[ $selected_step == "${topgrade_labels[$i]}" ]]; then
+      topgrade_selected+=("${topgrade_steps[$i]}")
+      break
+    fi
+  done
+done
+for selected_step in "${selected[@]}"; do
+  case "$selected_step" in
+    Dotfiles) dotfiles_selected=1 ;;
+    Omarchy) omarchy_selected=1 ;;
   esac
 done
+
+run_topgrade() {
+  (( ${#topgrade_selected[@]} > 0 )) || return 0
+
+  section 'Topgrade'
+  if (( ${#topgrade_selected[@]} == ${#topgrade_steps[@]} )); then
+    if (( yes )); then
+      topgrade -y || exit
+    else
+      topgrade || exit
+    fi
+  else
+    topgrade --only "${topgrade_selected[@]}" || exit
+  fi
+  topgrade_selected=()
+}
+
+if (( dotfiles_selected )); then
+  section 'Dotfiles'
+  dot update || exit
+fi
+
+if (( omarchy_selected )); then
+  section 'Omarchy'
+  omarchy update -y || exit
+fi
+
+run_topgrade
