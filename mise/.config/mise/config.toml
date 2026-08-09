@@ -44,7 +44,7 @@ version = "1.18.15"
 minimum_release_age = "2h"
 
 [tools."github:backnotprop/plannotator"]
-version = "0.26.2"
+version = "0.26.4"
 minimum_release_age = "2h"
 
 [settings]
