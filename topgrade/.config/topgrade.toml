@@ -2,8 +2,8 @@
 # Let steps request sudo inline when needed (avoids prompting for user-only steps)
 pre_sudo = false
 
-# Keep sudo credentials alive during long runs (e.g. yay)
-sudo_loop = true
+# The wrapper enables this only for runs containing privileged steps
+sudo_loop = false
 
 # topgrade-bin is AUR-managed; don't self-update over pacman
 no_self_update = true
