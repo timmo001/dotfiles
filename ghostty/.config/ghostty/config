@@ -50,7 +50,6 @@ keybind = global:super+backquote=toggle_quick_terminal
 # shell-integration = zsh
 shell-integration-features = no-cursor,ssh-env,no-title,no-sudo,no-ssh-terminfo,path
 
-# working-directory = /home/aidan
 keybind = shift+enter=text:\x1b\r
 
 # Slowdown mouse scrolling
