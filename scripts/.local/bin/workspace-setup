@@ -120,7 +120,7 @@ HERDR_DEFAULT_CMD="uwsm app -- ghostty-host-config --working-directory=$HOME -e 
 
 WS1_SLACK_SIZE="671 660"
 WS1_DISCORD_SIZE="671 660"
-WS1_BROWSER_TOP_SIZE="1294 600"
+WS1_TERMINAL_TOP_SIZE="1294 600"
 WS1_BROWSER_SIZE="1348 850"
 WS1_TERMINAL_SIZE="1348 850"
 
@@ -128,7 +128,7 @@ TAG_PREFIX="wssetup-"
 TAG_WS1_SLACK="${TAG_PREFIX}ws1-slack"
 TAG_WS1_DISCORD="${TAG_PREFIX}ws1-discord"
 TAG_WS1_BROWSER_MAIN="${TAG_PREFIX}ws1-browser-main"
-TAG_WS1_BROWSER_TOP="${TAG_PREFIX}ws1-browser-top"
+TAG_WS1_TERM_TOP="${TAG_PREFIX}ws1-term-top"
 TAG_WS1_TERM="${TAG_PREFIX}ws1-term"
 TAG_WS2_TERM="${TAG_PREFIX}ws2-term"
 TAG_WS2_CURSOR="${TAG_PREFIX}ws2-cursor"
@@ -138,7 +138,7 @@ MANAGED_TAGS=(
   "$TAG_WS1_SLACK"
   "$TAG_WS1_DISCORD"
   "$TAG_WS1_BROWSER_MAIN"
-  "$TAG_WS1_BROWSER_TOP"
+  "$TAG_WS1_TERM_TOP"
   "$TAG_WS1_TERM"
   "$TAG_WS2_TERM"
   "$TAG_WS2_CURSOR"
@@ -446,63 +446,12 @@ apply_workspace1_nonwork_sizes() {
 
   log_step "Applying workspace 1 non-work layout sizes"
 
-  resize_tagged_window_exact "$TAG_WS1_BROWSER_TOP" ${WS1_BROWSER_TOP_SIZE} || true
+  resize_tagged_window_exact "$TAG_WS1_TERM_TOP" ${WS1_TERMINAL_TOP_SIZE} || true
   resize_tagged_window_exact "$TAG_WS1_BROWSER_MAIN" ${WS1_BROWSER_SIZE} || true
   resize_tagged_window_exact "$TAG_WS1_TERM" ${WS1_TERMINAL_SIZE} || true
 
   if [ -n "$restore_addr" ]; then
     focus_addr "$restore_addr" || true
-  fi
-}
-
-is_blank_chromium_addr() {
-  local addr="$1"
-  [ -n "$addr" ] || return 1
-
-  hyprctl clients -j | jq -e --arg a "$addr" '
-    .[]
-    | select(.address == $a and .class == "chromium")
-    | (((.title // "") | test("^(New tab|about:blank)"; "i"))
-       or ((.initialTitle // "") | test("^(New tab|about:blank)"; "i")))
-  ' >/dev/null
-}
-
-swap_slot_tags() {
-  local tag_a="$1"
-  local tag_b="$2"
-  local addr_a
-  local addr_b
-
-  addr_a="$(address_by_tag "$tag_a")"
-  addr_b="$(address_by_tag "$tag_b")"
-
-  [ -n "$addr_a" ] || return 1
-  [ -n "$addr_b" ] || return 1
-
-  clear_tag_from_all "$tag_a"
-  clear_tag_from_all "$tag_b"
-  hyprctl dispatch tagwindow "+$tag_a" "address:$addr_b" >/dev/null 2>&1 || true
-  hyprctl dispatch tagwindow "+$tag_b" "address:$addr_a" >/dev/null 2>&1 || true
-}
-
-normalize_nonwork_browser_slot_order() {
-  local top_addr
-  local main_addr
-
-  top_addr="$(address_by_tag "$TAG_WS1_BROWSER_TOP")"
-  main_addr="$(address_by_tag "$TAG_WS1_BROWSER_MAIN")"
-
-  [ -n "$top_addr" ] || return 0
-  [ -n "$main_addr" ] || return 0
-
-  if is_blank_chromium_addr "$top_addr"; then
-    log_step "Non-work browser slot order already normalized"
-    return 0
-  fi
-
-  if is_blank_chromium_addr "$main_addr"; then
-    log_step "Swapping non-work browser slots to keep blank tab on top"
-    swap_slot_tags "$TAG_WS1_BROWSER_TOP" "$TAG_WS1_BROWSER_MAIN" || true
   fi
 }
 
@@ -556,7 +505,7 @@ rebuild_workspace1_nonwork_tree() {
   local main_addr
   local term_addr
 
-  top_addr="$(address_by_tag "$TAG_WS1_BROWSER_TOP")"
+  top_addr="$(address_by_tag "$TAG_WS1_TERM_TOP")"
   main_addr="$(address_by_tag "$TAG_WS1_BROWSER_MAIN")"
   term_addr="$(address_by_tag "$TAG_WS1_TERM")"
 
@@ -600,7 +549,7 @@ fi
 
 if $WORK_TIME; then
   log_step "Preparing workspace 1 work apps"
-  clear_tag_from_all "$TAG_WS1_BROWSER_TOP"
+  clear_tag_from_all "$TAG_WS1_TERM_TOP"
 
   ensure_slot "$TAG_WS1_SLACK" '^chrome-app\.slack\.com__client' "$WORK_SLACK_CMD" 1 false || true
   WS1_SLACK_ADDR="$ENSURED_ADDR"
@@ -637,8 +586,7 @@ else
   clear_tag_from_all "$TAG_WS1_DISCORD"
 
   ensure_slot "$TAG_WS1_BROWSER_MAIN" '^chromium$' "$BROWSER_PERSONAL_CMD" 1 false "$STARTUP_BROWSER_ADDR" || true
-  ensure_slot "$TAG_WS1_BROWSER_TOP" '^chromium$' "$BROWSER_PERSONAL_CMD" 1 false || true
-  normalize_nonwork_browser_slot_order
+  ensure_slot "$TAG_WS1_TERM_TOP" '^com\.mitchellh\.ghostty$' "$TERM_LEFT_CMD" 1 true || true
   ensure_slot "$TAG_WS1_TERM" '^com\.mitchellh\.ghostty$' "$TERM_LEFT_CMD" 1 true || true
 
   rebuild_workspace1_nonwork_tree
