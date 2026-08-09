@@ -114,8 +114,9 @@ WORK_CHROME_BASE='uwsm app -- google-chrome-stable --new-window --ozone-platform
 WORK_SLACK_CMD="$WORK_CHROME_BASE --app=https://app.slack.com/client"
 WORK_DISCORD_CMD="$WORK_CHROME_BASE --app=https://discord.com/app"
 WORK_BROWSER_CMD="$WORK_CHROME_BASE --class=work-browser"
-TERM_WORK_CMD="uwsm app -- ghostty-host-config --working-directory=$WORK_DIR"
-TERM_DEFAULT_CMD='uwsm app -- ghostty-host-config'
+TERM_LEFT_CMD="uwsm app -- ghostty-host-config --working-directory=$HOME"
+HERDR_WORK_CMD="uwsm app -- ghostty-host-config --working-directory=$WORK_DIR -e herdr-work"
+HERDR_DEFAULT_CMD="uwsm app -- ghostty-host-config --working-directory=$HOME -e herdr"
 
 WS1_SLACK_SIZE="671 660"
 WS1_DISCORD_SIZE="671 660"
@@ -229,7 +230,10 @@ matching_addresses() {
     --arg keep "$START_FOCUS_ADDR" \
     --argjson skip_oc "$skip_oc" \
     '.[]
-     | select((((.class // "") | test($re)) or ((.initialClass // "") | test($re))))
+     | select((((.class // "") | test($re))
+        or ((.initialClass // "") | test($re))
+        or ((.title // "") | test($re))
+        or ((.initialTitle // "") | test($re))))
      | select(.address != $keep)
      | select(if $skip_oc then ((.title // "") | startswith("OC |") | not) else true end)
      | .address'
@@ -247,7 +251,10 @@ find_candidate_addresses() {
     --argjson skip_oc "$skip_oc" \
     --arg prefix "$TAG_PREFIX" \
     '[.[]
-      | select((((.class // "") | test($re)) or ((.initialClass // "") | test($re))))
+      | select((((.class // "") | test($re))
+        or ((.initialClass // "") | test($re))
+        or ((.title // "") | test($re))
+        or ((.initialTitle // "") | test($re))))
       | select(.address != $keep)
       | select(if $skip_oc then ((.title // "") | startswith("OC |") | not) else true end)
     ]
@@ -262,6 +269,25 @@ find_candidate_addresses() {
 address_by_tag() {
   local tag="$1"
   hyprctl clients -j | jq -r --arg tag "$tag" 'first(.[] | select((.tags // []) | index($tag))) | .address // empty'
+}
+
+address_matches() {
+  local addr="$1"
+  local re="$2"
+  local skip_oc="$3"
+
+  hyprctl clients -j | jq -e \
+    --arg addr "$addr" \
+    --arg re "$re" \
+    --argjson skip_oc "$skip_oc" '
+      .[]
+      | select(.address == $addr)
+      | select((((.class // "") | test($re))
+        or ((.initialClass // "") | test($re))
+        or ((.title // "") | test($re))
+        or ((.initialTitle // "") | test($re))))
+      | select(if $skip_oc then ((.title // "") | startswith("OC |") | not) else true end)
+    ' >/dev/null
 }
 
 clear_tag_from_all() {
@@ -316,7 +342,7 @@ ensure_slot() {
   log_step "Ensuring slot '$tag' on workspace $workspace"
 
   addr="$(address_by_tag "$tag")"
-  if [ -n "$addr" ] && is_used "$addr"; then
+  if [ -n "$addr" ] && { is_used "$addr" || ! address_matches "$addr" "$re" "$skip_oc"; }; then
     addr=""
   fi
 
@@ -327,7 +353,10 @@ ensure_slot() {
       --argjson skip_oc "$skip_oc" '
         .[]
         | select(.address == $a)
-        | select((((.class // "") | test($re)) or ((.initialClass // "") | test($re))))
+        | select((((.class // "") | test($re))
+          or ((.initialClass // "") | test($re))
+          or ((.title // "") | test($re))
+          or ((.initialTitle // "") | test($re))))
         | select(if $skip_oc then ((.title // "") | startswith("OC |") | not) else true end)
       ' >/dev/null; then
       log_step "Using preferred window $preferred_addr for slot '$tag'"
@@ -585,7 +614,7 @@ if $WORK_TIME; then
     sleep 0.2
   fi
 
-  ensure_slot "$TAG_WS1_TERM" '^com\.mitchellh\.ghostty$' "$TERM_WORK_CMD" 1 true || true
+  ensure_slot "$TAG_WS1_TERM" '^com\.mitchellh\.ghostty$' "$TERM_LEFT_CMD" 1 true || true
 
   if [ -n "$WS1_SLACK_ADDR" ]; then
     focus_addr "$WS1_SLACK_ADDR" || true
@@ -600,7 +629,7 @@ if $WORK_TIME; then
 
   log_step "Preparing workspace 2 and 3 work apps"
   clear_tag_from_all "$TAG_WS2_CURSOR"
-  ensure_slot "$TAG_WS2_TERM" '^com\.mitchellh\.ghostty$' "$TERM_WORK_CMD" 2 true || true
+  ensure_slot "$TAG_WS2_TERM" '^herdr$' "$HERDR_WORK_CMD" 2 true || true
   ensure_slot "$TAG_WS3_BROWSER" '^(work-browser|google-chrome)$' "$WORK_BROWSER_CMD" 3 false || true
 else
   log_step "Preparing workspace 1 non-work apps"
@@ -610,14 +639,14 @@ else
   ensure_slot "$TAG_WS1_BROWSER_MAIN" '^chromium$' "$BROWSER_PERSONAL_CMD" 1 false "$STARTUP_BROWSER_ADDR" || true
   ensure_slot "$TAG_WS1_BROWSER_TOP" '^chromium$' "$BROWSER_PERSONAL_CMD" 1 false || true
   normalize_nonwork_browser_slot_order
-  ensure_slot "$TAG_WS1_TERM" '^com\.mitchellh\.ghostty$' "$TERM_DEFAULT_CMD" 1 true || true
+  ensure_slot "$TAG_WS1_TERM" '^com\.mitchellh\.ghostty$' "$TERM_LEFT_CMD" 1 true || true
 
   rebuild_workspace1_nonwork_tree
   apply_workspace1_nonwork_sizes "$START_FOCUS_ADDR"
 
   log_step "Preparing workspace 2 non-work app"
   clear_tag_from_all "$TAG_WS2_CURSOR"
-  ensure_slot "$TAG_WS2_TERM" '^com\.mitchellh\.ghostty$' "$TERM_DEFAULT_CMD" 2 true || true
+  ensure_slot "$TAG_WS2_TERM" '^herdr$' "$HERDR_DEFAULT_CMD" 2 true || true
 fi
 
 if $WORK_TIME; then

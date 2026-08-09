@@ -43,20 +43,20 @@ During work time, setup prepares:
 
 | Workspace | Slots |
 | --- | --- |
-| `1` | Slack, personal Chromium, Ghostty in the Home Assistant frontend repo, Discord. |
-| `2` | Ghostty in the Home Assistant frontend repo. |
+| `1` | Slack, personal Chromium, Ghostty in the home directory, Discord. |
+| `2` | Herdr focused on its Home Assistant Frontend workspace. |
 | `3` | Work browser. |
 
 Outside work time, setup prepares:
 
 | Workspace | Slots |
 | --- | --- |
-| `1` | Two personal Chromium windows and Ghostty. |
-| `2` | Ghostty. |
+| `1` | Two personal Chromium windows and Ghostty in the home directory. |
+| `2` | Standard Herdr. |
 
 After setup, it switches to workspace `2`.
 
-Terminal slots launch through `ghostty-host-config`, so they keep the active `config.$OMARCHY_HOST` override. Work-time terminal slots also pass the Home Assistant frontend checkout as `--working-directory`.
+Terminal slots launch through `ghostty-host-config`, so they keep the active `config.$OMARCHY_HOST` override. The left monitor's terminal always starts in the home directory. The central monitor runs `herdr-work` during work time and standard `herdr` outside work time.
 
 ## How slots are matched
 
