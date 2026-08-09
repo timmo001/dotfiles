@@ -383,10 +383,31 @@ const restoreHerdrPlugins = Effect.gen(function* () {
     return;
   }
 
-  const pluginRoot = herdrLazyPluginRoot(pluginList);
+  let pluginRoot = herdrLazyPluginRoot(pluginList);
   if (!pluginRoot) {
-    yield* log.warn("Skipping Herdr plugins (Herdr Lazy is not installed)");
-    return;
+    yield* log.info("Installing Herdr Lazy");
+    const installExitCode = yield* executor.inherit("herdr", [
+      "plugin",
+      "install",
+      "natori-hrj/herdr-lazy",
+    ]);
+    if (installExitCode !== 0) {
+      return yield* new UpdateError({
+        message: `Herdr Lazy install exited ${installExitCode}`,
+      });
+    }
+
+    const installedPluginList = yield* executor.run("herdr", [
+      "plugin",
+      "list",
+      "--json",
+    ]);
+    pluginRoot = herdrLazyPluginRoot(installedPluginList);
+    if (!pluginRoot) {
+      return yield* new UpdateError({
+        message: "Herdr Lazy is missing after installation",
+      });
+    }
   }
 
   const binary = join(pluginRoot, "target", "release", "herdr-lazy");
