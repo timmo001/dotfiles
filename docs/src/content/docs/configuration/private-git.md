@@ -13,7 +13,7 @@ It is consumed by `dot git-diff`, `dot git-log`, `dot git-workflows`, `dot git-n
 
 Each repo entry has three required sections, each with an explicit `enabled` flag and a 5-field cron `schedule`:
 
-The optional `aliases` list generates Zsh repository shortcuts during `dot stow` and `dot update`. Inside Herdr, a shortcut creates or focuses a workspace using the repository's `name`; elsewhere it changes directory normally:
+The optional `aliases` list generates Zsh repository shortcuts during `dot stow` and `dot update`. The same entries feed Herdr's repository picker alongside `~/` and `~/repos`. Inside Herdr, either route creates or focuses a workspace using the repository's `name`; elsewhere a shortcut changes directory normally:
 
 ```yaml
 - name: "[HA] Frontend"
@@ -22,6 +22,8 @@ The optional `aliases` list generates Zsh repository shortcuts during `dot stow`
 ```
 
 Top-level `shortcuts` use the same `name`, `path`, and `aliases` keys for directories that are not managed repositories, such as the private dotfiles checkout or a repository group directory.
+
+Open the Herdr picker with `prefix+s`. Its cache is regenerated from validated `dot-git.yml` data by `dot stow` and `dot update`. The Home and Repos entries leave the workspace title unset.
 
 An optional `post_update` command runs from the repository root when `dot update` successfully pulls that repo to a new HEAD. Use it for local generated artefacts that must match the checkout, such as rebuilding an unpacked browser extension:
 

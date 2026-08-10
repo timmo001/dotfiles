@@ -747,7 +747,7 @@ _repo_open() {
     return
   fi
 
-  _repo_workspace "$1" "$2" Shell
+  herdr-repo-open "$1" "$2"
 }
 
 [[ -r "$HOME/.cache/dot/repo-shortcuts.zsh" ]] && source "$HOME/.cache/dot/repo-shortcuts.zsh"

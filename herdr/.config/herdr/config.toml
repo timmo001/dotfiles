@@ -23,7 +23,7 @@ new_worktree = ""
 [[keys.command]]
 key = "prefix+s"
 type = "plugin_action"
-command = "sessionizer.open"
+command = "dotfiles.repository-picker.open"
 description = "open project workspace"
 
 [[keys.command]]

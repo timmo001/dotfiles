@@ -46,7 +46,11 @@ const SELECTABLE_UPDATE_FLAGS = [
  * spiking load while the pull stage runs alongside it.
  */
 const REFRESH_REMOTE_HEAD_CONCURRENCY = 6;
-const LOCAL_HERDR_PLUGINS = ["terminal-title", "yazi"] as const;
+const LOCAL_HERDR_PLUGINS = [
+  "terminal-title",
+  "yazi",
+  "repository-picker",
+] as const;
 
 /**
  * Per-attempt bound for a single repo pull. A slow response is assumed to be

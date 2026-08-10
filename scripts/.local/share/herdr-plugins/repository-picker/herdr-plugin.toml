@@ -1,0 +1,18 @@
+id = "dotfiles.repository-picker"
+name = "Repository Picker"
+version = "0.1.0"
+min_herdr_version = "0.7.4"
+description = "Open or focus configured repository workspaces"
+platforms = ["linux"]
+
+[[panes]]
+id = "picker"
+title = "Repositories"
+placement = "overlay"
+command = ["sh", "picker.sh"]
+
+[[actions]]
+id = "open"
+title = "Open repository picker"
+contexts = ["global", "workspace"]
+command = ["sh", "open.sh"]

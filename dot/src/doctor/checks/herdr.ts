@@ -8,6 +8,7 @@ const INSTALL_OPENCODE_INTEGRATION_COMMAND =
 const REQUIRED_LOCAL_PLUGINS = [
   "dotfiles.terminal-title",
   "dotfiles.yazi",
+  "dotfiles.repository-picker",
 ] as const;
 
 /** Read enabled Herdr plugin IDs from `herdr plugin list --json`. */

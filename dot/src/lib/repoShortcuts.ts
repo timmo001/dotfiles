@@ -36,3 +36,23 @@ export function writeRepoShortcuts(
   renameSync(temporary, target);
   return target;
 }
+
+/** Write managed repositories for the Herdr repository picker. */
+export function writeRepoPicker(
+  cacheDir: string,
+  repositories: readonly GitRepoShortcut[],
+): string {
+  const target = join(cacheDir, "repo-picker.json");
+  const temporary = `${target}.tmp`;
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(
+    temporary,
+    `${JSON.stringify(
+      repositories.map(({ name, path }) => ({ name, path })),
+      null,
+      2,
+    )}\n`,
+  );
+  renameSync(temporary, target);
+  return target;
+}

@@ -15,7 +15,7 @@ import {
   ensureHyprHostLink,
 } from "../lib/omarchyHost.js";
 import { ensureNvimThemeLink } from "../lib/omarchyNvim.js";
-import { writeRepoShortcuts } from "../lib/repoShortcuts.js";
+import { writeRepoPicker, writeRepoShortcuts } from "../lib/repoShortcuts.js";
 import {
   backupUnmanagedStowTargets,
   backupLegacyGhosttyRepo,
@@ -61,8 +61,17 @@ export const stow = (opts?: {
           ...config.gitConfig.shortcuts,
         ]),
       );
+      const pickerPath = yield* Effect.sync(() =>
+        writeRepoPicker(config.cacheDir, [
+          ...config.gitConfig.repositories,
+          ...config.gitConfig.shortcuts,
+        ]),
+      );
       yield* log.info(
         `Generated repository shortcuts: ${displayPath(shortcutsPath)}`,
+      );
+      yield* log.info(
+        `Generated Herdr repository picker: ${displayPath(pickerPath)}`,
       );
     } else if (runPrivate && config.canUsePrivate) {
       yield* log.warn(

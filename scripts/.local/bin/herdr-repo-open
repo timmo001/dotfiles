@@ -1,0 +1,38 @@
+#!/bin/sh
+set -eu
+
+if [ "$#" -ne 2 ]; then
+  echo "Usage: herdr-repo-open <label> <directory>" >&2
+  exit 2
+fi
+
+label="$1"
+directory="$2"
+
+if ! herdr status server >/dev/null 2>&1; then
+  echo "Shared Herdr server is not running" >&2
+  exit 1
+fi
+
+workspace_id="$(herdr workspace list | jq -r --arg label "$label" --arg directory "$directory" '
+  (.result.workspaces // .workspaces // [])
+  | map(select(if $label == "" then .cwd == $directory else .label == $label end))
+  | first
+  | .workspace_id // empty
+')"
+
+if [ -z "$workspace_id" ]; then
+  if [ -n "$label" ]; then
+    created="$(herdr workspace create --cwd "$directory" --label "$label" --no-focus)"
+  else
+    created="$(herdr workspace create --cwd "$directory" --no-focus)"
+  fi
+  workspace_id="$(printf '%s' "$created" | jq -r '.result.workspace.workspace_id // .workspace.workspace_id // empty')"
+fi
+
+if [ -z "$workspace_id" ]; then
+  echo "Herdr did not return a workspace ID for ${label:-$directory}" >&2
+  exit 1
+fi
+
+herdr workspace focus "$workspace_id" >/dev/null
