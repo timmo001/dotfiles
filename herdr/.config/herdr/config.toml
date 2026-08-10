@@ -53,6 +53,12 @@ height = "90%"
 description = "dot git-diff"
 
 [[keys.command]]
+key = "prefix+shift+m"
+type = "plugin_action"
+command = "dotfiles.mise-task-runner.open"
+description = "run a mise task"
+
+[[keys.command]]
 key = "prefix+shift+l"
 type = "plugin_action"
 command = "herdr-lazy.manage"

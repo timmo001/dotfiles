@@ -50,6 +50,7 @@ const LOCAL_HERDR_PLUGINS = [
   "terminal-title",
   "yazi",
   "repository-picker",
+  "mise-task-runner",
 ] as const;
 
 /**

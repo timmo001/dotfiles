@@ -9,6 +9,7 @@ const REQUIRED_LOCAL_PLUGINS = [
   "dotfiles.terminal-title",
   "dotfiles.yazi",
   "dotfiles.repository-picker",
+  "dotfiles.mise-task-runner",
 ] as const;
 
 /** Read enabled Herdr plugin IDs from `herdr plugin list --json`. */
