@@ -6,6 +6,7 @@
   },
   "permission": {
     "notes_note_delete": "ask",
+    "skill": "allow",
     "read": {
       "~/.agents": "allow",
       "~/.agents/skills/**": "allow",
