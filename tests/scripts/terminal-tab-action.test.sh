@@ -87,4 +87,8 @@ grep -Fx 'hyprctl dispatch sendshortcut CTRL, TAB, activewindow' "$calls"
 ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"shell"}' "$script" previous
 grep -Fx 'hyprctl dispatch sendshortcut CTRL SHIFT, TAB, activewindow' "$calls"
 
+: >"$calls"
+ACTIVE_WINDOW='{"class":"chromium","title":"Browser"}' "$script" new
+grep -Fx 'hyprctl dispatch pass activewindow' "$calls"
+
 printf 'terminal tab action tests passed\n'
