@@ -30,14 +30,6 @@ if [[ "$1 $2" == "tab list" ]]; then
   fi
   exit 0
 fi
-if [[ "$1 $2" == "workspace list" ]]; then
-  if [[ -n "${HERDR_WORKSPACES:-}" ]]; then
-    printf '%s\n' "$HERDR_WORKSPACES"
-  else
-    printf '%s\n' '{"result":{"workspaces":[{"workspace_id":"w36"},{"workspace_id":"w37"}]}}'
-  fi
-  exit 0
-fi
 printf 'herdr %s\n' "$*" >>"$CALLS"
 EOF
 
@@ -57,17 +49,19 @@ grep -Fx 'hyprctl dispatch sendshortcut CTRL ALT SHIFT, T, address:abc123' "$cal
 : >"$calls"
 ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"herdr | project"}' "$script" close
 grep -Fx 'herdr tab close w36:t2' "$calls"
-if grep -Fq 'herdr session stop default' "$calls"; then
-  printf 'session stopped while other tabs or workspaces remained\n' >&2
+if grep -Fq 'herdr session stop' "$calls"; then
+  printf 'session stopped while closing a tab\n' >&2
   exit 1
 fi
 
 : >"$calls"
 HERDR_TABS='{"result":{"tabs":[{"tab_id":"w36:t1","number":1,"focused":true}]}}' \
-  HERDR_WORKSPACES='{"result":{"workspaces":[{"workspace_id":"w36"}]}}' \
   ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"herdr | project"}' "$script" close
 grep -Fx 'herdr tab close w36:t1' "$calls"
-grep -Fx 'herdr session stop default' "$calls"
+if grep -Fq 'herdr session stop' "$calls"; then
+  printf 'session stopped while closing the final tab\n' >&2
+  exit 1
+fi
 
 : >"$calls"
 ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"herdr | project"}' "$script" next

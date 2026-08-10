@@ -7,7 +7,6 @@ script="$repo_root/scripts/.local/bin/herdr-work"
 test_dir=$(mktemp -d)
 mock_bin="$test_dir/herdr"
 calls="$test_dir/calls"
-server_state="$test_dir/server-state"
 work_root="$test_dir/home-assistant"
 
 trap 'rm -rf "$test_dir"' EXIT
@@ -19,10 +18,8 @@ set -euo pipefail
 
 printf '%s\n' "$*" >>"$CALLS"
 
-if [[ "$1" == "server" ]]; then
-  touch "$SERVER_STATE"
-elif [[ "$1 $2" == "status server" ]]; then
-  [[ -z "${SERVER_STATE:-}" || -e "$SERVER_STATE" ]]
+if [[ "$1 $2" == "status server" ]]; then
+  [[ -z "${SERVER_STOPPED:-}" ]]
 elif [[ "$1 $2" == "workspace list" ]]; then
   if [[ -n "${WORKSPACES:-}" ]]; then
     printf '%s\n' "$WORKSPACES"
@@ -55,8 +52,21 @@ fi
 grep -Fx 'workspace focus w1' "$calls"
 
 : >"$calls"
-rm -f "$server_state"
-SERVER_STATE="$server_state" "$script"
-grep -Fx 'server' "$calls"
+HERDR_ENV=0 WORKSPACES='{"result":{"workspaces":[{"label":"Frontend","workspace_id":"w1"}]}}' "$script"
+grep -Fx 'session attach default' "$calls"
+if grep -Fxq 'server' "$calls"; then
+  printf '%s\n' 'herdr-work started a headless server directly' >&2
+  exit 1
+fi
+
+: >"$calls"
+if SERVER_STOPPED=1 "$script" 2>/dev/null; then
+  printf '%s\n' 'herdr-work continued without the shared server' >&2
+  exit 1
+fi
+if grep -Fxq 'server' "$calls"; then
+  printf '%s\n' 'herdr-work started a headless server directly' >&2
+  exit 1
+fi
 
 printf 'herdr-work tests passed\n'

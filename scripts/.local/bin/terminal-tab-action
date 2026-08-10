@@ -47,11 +47,7 @@ if [[ "$active_class" == "com.mitchellh.ghostty" && "$active_title" == "herdr |"
   IFS=$'\t' read -r tab_id tab_count target_tab <<<"$tab_row"
 
   if [[ "$action" == "close" && -n "$tab_id" ]]; then
-    workspace_count="$($herdr_bin workspace list 2>/dev/null | jq -r '(.result.workspaces // .workspaces // []) | length' 2>/dev/null || true)"
     if $herdr_bin tab close "$tab_id" >/dev/null 2>&1; then
-      if [[ "$workspace_count" == "1" && "$tab_count" == "1" ]]; then
-        $herdr_bin session stop default >/dev/null 2>&1 || true
-      fi
       exit 0
     fi
   fi

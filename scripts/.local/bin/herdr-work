@@ -5,20 +5,16 @@ set -euo pipefail
 herdr_bin="${HERDR_WORK_HERDR_BIN:-herdr}"
 work_root="${HERDR_WORK_ROOT:-$HOME/repos/home-assistant}"
 
-if ! "$herdr_bin" status server >/dev/null 2>&1; then
-  nohup "$herdr_bin" server >/dev/null 2>&1 &
-
-  for _ in {1..50}; do
-    if "$herdr_bin" status server >/dev/null 2>&1; then
-      break
-    fi
-    sleep 0.1
-  done
-
-  if ! "$herdr_bin" status server >/dev/null 2>&1; then
-    printf 'Herdr server did not start\n' >&2
-    exit 1
+for _ in {1..50}; do
+  if "$herdr_bin" status server >/dev/null 2>&1; then
+    break
   fi
+  sleep 0.1
+done
+
+if ! "$herdr_bin" status server >/dev/null 2>&1; then
+  printf 'Shared Herdr server is not running\n' >&2
+  exit 1
 fi
 
 frontend_dir="$work_root/frontend"
@@ -47,5 +43,5 @@ fi
 "$herdr_bin" workspace focus "$frontend_id" >/dev/null
 
 if [[ "${HERDR_ENV:-}" != 1 ]]; then
-  exec "$herdr_bin"
+  exec "$herdr_bin" session attach default
 fi
