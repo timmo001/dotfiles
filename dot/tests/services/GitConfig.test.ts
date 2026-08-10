@@ -84,12 +84,14 @@ describe("loadDotGitConfig", () => {
       present: true,
       valid: true,
       diagnostics: [],
+      shortcuts: [],
     });
     expect(config.repositories).toEqual([
       {
         name: "dotfiles",
         path: "/tmp/dotfiles",
         github: "timmo001/dotfiles",
+        aliases: [],
         postUpdate: null,
         activity: { enabled: true, schedule: "*/15 9-17 * * 1-5" },
         workflows: { enabled: false, schedule: "* * * * *" },
@@ -140,6 +142,62 @@ describe("loadDotGitConfig", () => {
 
     expect(config.valid).toBe(true);
     expect(config.repositories[0]?.postUpdate).toBe("mise run build");
+  });
+
+  test("loads and validates repository aliases", () => {
+    const config = loadDotGitConfig(
+      writeConfig(
+        validConfig(repository("    aliases: [dotfiles, dotfiles-private]\n")),
+      ),
+    );
+
+    expect(config.valid).toBe(true);
+    expect(config.repositories[0]?.aliases).toEqual([
+      "dotfiles",
+      "dotfiles-private",
+    ]);
+  });
+
+  test("loads additional shortcut targets", () => {
+    const config = loadDotGitConfig(
+      writeConfig(`${validConfig(repository())}
+shortcuts:
+  - name: Dotfiles Private
+    path: ~/.config/dotfiles-private
+    aliases: [dotfiles-private]
+`),
+    );
+
+    expect(config.valid).toBe(true);
+    expect(config.shortcuts).toEqual([
+      {
+        name: "Dotfiles Private",
+        path: `${process.env.HOME}/.config/dotfiles-private`,
+        aliases: ["dotfiles-private"],
+      },
+    ]);
+  });
+
+  test("rejects invalid and duplicate repository aliases", () => {
+    const duplicate = repository("    aliases: [dotfiles]\n")
+      .replace("name: dotfiles", "name: other")
+      .replace("path: /tmp/dotfiles", "path: /tmp/other")
+      .replace("timmo001/dotfiles", "timmo001/other");
+    const config = loadDotGitConfig(
+      writeConfig(
+        validConfig(
+          `${repository("    aliases: [dotfiles, invalid.alias]\n")}${duplicate}`,
+        ),
+      ),
+    );
+
+    expect(config.valid).toBe(false);
+    expect(config.diagnostics).toEqual(
+      expect.arrayContaining([
+        "root.repositories[0].aliases[1] must be a valid shell alias",
+        "Duplicate repository alias: dotfiles",
+      ]),
+    );
   });
 
   test("rejects duplicate repository identifiers", () => {

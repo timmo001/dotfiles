@@ -115,7 +115,6 @@ WORK_SLACK_CMD="$WORK_CHROME_BASE --app=https://app.slack.com/client"
 WORK_DISCORD_CMD="$WORK_CHROME_BASE --app=https://discord.com/app"
 WORK_BROWSER_CMD="$WORK_CHROME_BASE --class=work-browser"
 TERM_LEFT_CMD="uwsm app -- ghostty-host-config --working-directory=$HOME"
-HERDR_WORK_CMD="uwsm app -- ghostty-host-config --working-directory=$WORK_DIR -e herdr-work"
 HERDR_DEFAULT_CMD="uwsm app -- ghostty-host-config --working-directory=$HOME -e herdr"
 
 WS1_SLACK_SIZE="671 660"
@@ -578,7 +577,7 @@ if $WORK_TIME; then
 
   log_step "Preparing workspace 2 and 3 work apps"
   clear_tag_from_all "$TAG_WS2_CURSOR"
-  ensure_slot "$TAG_WS2_TERM" '^herdr$' "$HERDR_WORK_CMD" 2 true || true
+  ensure_slot "$TAG_WS2_TERM" '^herdr$' "$HERDR_DEFAULT_CMD" 2 true || true
   ensure_slot "$TAG_WS3_BROWSER" '^(work-browser|google-chrome)$' "$WORK_BROWSER_CMD" 3 false || true
 else
   log_step "Preparing workspace 1 non-work apps"

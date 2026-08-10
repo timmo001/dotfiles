@@ -15,6 +15,7 @@ import {
   ensureHyprHostLink,
 } from "../lib/omarchyHost.js";
 import { ensureNvimThemeLink } from "../lib/omarchyNvim.js";
+import { writeRepoShortcuts } from "../lib/repoShortcuts.js";
 import {
   backupUnmanagedStowTargets,
   backupLegacyGhosttyRepo,
@@ -52,6 +53,22 @@ export const stow = (opts?: {
 
     const runPublic = !opts?.privateOnly;
     const runPrivate = !opts?.publicOnly;
+
+    if (runPrivate && config.canUsePrivate && config.gitConfig.valid) {
+      const shortcutsPath = yield* Effect.sync(() =>
+        writeRepoShortcuts(config.cacheDir, [
+          ...config.gitConfig.repositories,
+          ...config.gitConfig.shortcuts,
+        ]),
+      );
+      yield* log.info(
+        `Generated repository shortcuts: ${displayPath(shortcutsPath)}`,
+      );
+    } else if (runPrivate && config.canUsePrivate) {
+      yield* log.warn(
+        "Keeping repository shortcuts because dot-git.yml is invalid",
+      );
+    }
 
     if (runPublic) {
       yield* log.section("Stow Public Dotfiles");

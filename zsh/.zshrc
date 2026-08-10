@@ -690,10 +690,67 @@ alias goi="go install ."
 
 # Quick paths
 alias home="cd ~"
-alias dotfiles="cd ~/.config/dotfiles"
-alias dotfiles-private="cd ~/.config/dotfiles-private"
 alias config="cd ~/.config"
 alias repos="cd ~/repos"
+
+_repo_workspace() {
+  local label="$1"
+  local directory="$2"
+  local tab_label="${3:-Shell}"
+  shift 3
+
+  local workspace_id created tab_id pane_id command
+
+  if ! herdr status server >/dev/null 2>&1; then
+    echo "Shared Herdr server is not running" >&2
+    return 1
+  fi
+
+  workspace_id="$(herdr workspace list | jq -r --arg label "$label" '
+    (.result.workspaces // .workspaces // [])
+    | map(select(.label == $label))
+    | first
+    | .workspace_id // empty
+  ')"
+
+  if [ -z "$workspace_id" ]; then
+    created="$(herdr workspace create --cwd "$directory" --label "$label" --no-focus)" || return
+    workspace_id="$(jq -r '.result.workspace.workspace_id // .workspace.workspace_id // empty' <<<"$created")"
+    tab_id="$(jq -r '.result.tab.tab_id // .tab.tab_id // empty' <<<"$created")"
+    pane_id="$(jq -r '.result.root_pane.pane_id // .root_pane.pane_id // empty' <<<"$created")"
+  elif [ "$#" -gt 0 ]; then
+    created="$(herdr tab create --workspace "$workspace_id" --cwd "$directory" --label "$tab_label" --no-focus)" || return
+    tab_id="$(jq -r '.result.tab.tab_id // .tab.tab_id // empty' <<<"$created")"
+    pane_id="$(jq -r '.result.root_pane.pane_id // .root_pane.pane_id // empty' <<<"$created")"
+  fi
+
+  if [ "$#" -gt 0 ]; then
+    if [ -z "$tab_id" ] || [ -z "$pane_id" ]; then
+      echo "Herdr did not return tab and pane IDs for $label" >&2
+      return 1
+    fi
+
+    herdr tab rename "$tab_id" "$tab_label" >/dev/null || return
+    command="${(j: :)${(q+)@}}"
+    herdr pane run "$pane_id" "$command" >/dev/null || return
+  elif [ -z "$workspace_id" ]; then
+    echo "Herdr did not return a workspace ID for $label" >&2
+    return 1
+  fi
+
+  herdr workspace focus "$workspace_id" >/dev/null
+}
+
+_repo_open() {
+  if [ "${HERDR_ENV:-}" != 1 ]; then
+    cd "$2"
+    return
+  fi
+
+  _repo_workspace "$1" "$2" Shell
+}
+
+[[ -r "$HOME/.cache/dot/repo-shortcuts.zsh" ]] && source "$HOME/.cache/dot/repo-shortcuts.zsh"
 
 # Reboot to Windows
 alias reboot-windows="reboot-to windows"

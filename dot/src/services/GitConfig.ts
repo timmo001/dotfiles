@@ -2,11 +2,12 @@ import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { displayPath, expandHomePath } from "../lib/paths.js";
 
-const TOP_LEVEL_KEYS = new Set(["schema_version", "repositories"]);
+const TOP_LEVEL_KEYS = new Set(["schema_version", "repositories", "shortcuts"]);
 const REPO_KEYS = new Set([
   "name",
   "path",
   "github",
+  "aliases",
   "post_update",
   "activity",
   "workflows",
@@ -15,6 +16,17 @@ const REPO_KEYS = new Set([
 const CHECK_KEYS = new Set(["enabled", "schedule"]);
 const NOTIFICATION_KEYS = new Set(["enabled", "schedule", "bar"]);
 const NOTIFICATION_BAR_KEYS = new Set(["ignore_bot_activity"]);
+const SHORTCUT_KEYS = new Set(["name", "path", "aliases"]);
+
+/** A shell shortcut target generated from private git configuration. */
+export interface GitRepoShortcut {
+  /** Friendly Herdr workspace label. */
+  readonly name: string;
+  /** Absolute filesystem path. */
+  readonly path: string;
+  /** Generated shell function names. */
+  readonly aliases: readonly string[];
+}
 
 /** Git checks that can be independently toggled and scheduled. */
 export type GitRepoCheckName = "activity" | "workflows";
@@ -47,6 +59,8 @@ export interface GitManagedRepo {
   readonly path: string;
   /** Normalised GitHub owner/repo slug. */
   readonly github: string;
+  /** Shell shortcuts generated for this repository. */
+  readonly aliases: readonly string[];
   /** Command run from the repository root after `dot update` pulls a new HEAD. */
   readonly postUpdate: string | null;
   /** Local activity check used by git diff and git log. */
@@ -67,12 +81,15 @@ export interface DotGitConfig {
   readonly valid: boolean;
   /** Normalised managed repositories. Empty when invalid. */
   readonly repositories: readonly GitManagedRepo[];
+  /** Additional shell shortcut targets that are not managed repositories. */
+  readonly shortcuts: readonly GitRepoShortcut[];
   /** Validation diagnostics for missing or malformed config. */
   readonly diagnostics: readonly string[];
 }
 
 interface ParsedGitConfig {
   readonly repositories: readonly GitManagedRepo[];
+  readonly shortcuts: readonly GitRepoShortcut[];
   readonly diagnostics: readonly string[];
 }
 
@@ -91,6 +108,7 @@ export function emptyDotGitConfig(
     present: false,
     valid: diagnostics.length === 0,
     repositories: [],
+    shortcuts: [],
     diagnostics,
   };
 }
@@ -111,6 +129,7 @@ export function loadDotGitConfig(filePath: string): DotGitConfig {
       present: true,
       valid: result.diagnostics.length === 0,
       repositories: result.diagnostics.length === 0 ? result.repositories : [],
+      shortcuts: result.diagnostics.length === 0 ? result.shortcuts : [],
       diagnostics: result.diagnostics,
     };
   } catch (error) {
@@ -119,6 +138,7 @@ export function loadDotGitConfig(filePath: string): DotGitConfig {
       present: true,
       valid: false,
       repositories: [],
+      shortcuts: [],
       diagnostics: [
         `Could not read private git config ${displayPath(filePath)}: ${formatError(error)}`,
       ],
@@ -199,6 +219,7 @@ function parseDotGitConfig(value: unknown): ParsedGitConfig {
   if (!isRecord(value)) {
     return {
       repositories: [],
+      shortcuts: [],
       diagnostics: ["dot-git.yml must contain a YAML object"],
     };
   }
@@ -209,17 +230,47 @@ function parseDotGitConfig(value: unknown): ParsedGitConfig {
   }
   if (!Array.isArray(value.repositories)) {
     diagnostics.push("root.repositories must be an array");
-    return { repositories: [], diagnostics };
+    return { repositories: [], shortcuts: [], diagnostics };
   }
 
   const repositories = value.repositories.flatMap((repo, index) =>
     parseRepo(repo, index, diagnostics),
   );
+  const shortcuts = parseShortcuts(value.shortcuts, diagnostics);
   pushDuplicateDiagnostics(diagnostics, repositories, "name");
   pushDuplicateDiagnostics(diagnostics, repositories, "path");
   pushDuplicateDiagnostics(diagnostics, repositories, "github");
+  pushDuplicateAliasDiagnostics(diagnostics, [...repositories, ...shortcuts]);
 
-  return { repositories, diagnostics };
+  return { repositories, shortcuts, diagnostics };
+}
+
+function parseShortcuts(
+  value: unknown,
+  diagnostics: string[],
+): readonly GitRepoShortcut[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) {
+    diagnostics.push("root.shortcuts must be an array");
+    return [];
+  }
+
+  return value.flatMap((shortcut, index) => {
+    const location = `root.shortcuts[${index}]`;
+    if (!isRecord(shortcut)) {
+      diagnostics.push(`${location} must be an object`);
+      return [];
+    }
+    pushUnknownKeyDiagnostics(diagnostics, shortcut, SHORTCUT_KEYS, location);
+    const name = requiredString(shortcut.name, `${location}.name`, diagnostics);
+    const path = requiredString(shortcut.path, `${location}.path`, diagnostics);
+    const aliases = optionalAliases(
+      shortcut.aliases,
+      `${location}.aliases`,
+      diagnostics,
+    );
+    return name && path ? [{ name, path: expandHomePath(path), aliases }] : [];
+  });
 }
 
 function parseRepo(
@@ -244,6 +295,11 @@ function parseRepo(
   const postUpdate = optionalString(
     value.post_update,
     `${location}.post_update`,
+    diagnostics,
+  );
+  const aliases = optionalAliases(
+    value.aliases,
+    `${location}.aliases`,
     diagnostics,
   );
   const activity = parseCheck(
@@ -273,12 +329,33 @@ function parseRepo(
       name,
       path: expandHomePath(rawPath),
       github,
+      aliases,
       postUpdate,
       activity,
       workflows,
       notifications,
     },
   ];
+}
+
+function optionalAliases(
+  value: unknown,
+  location: string,
+  diagnostics: string[],
+): readonly string[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) {
+    diagnostics.push(`${location} must be an array`);
+    return [];
+  }
+
+  return value.flatMap((alias, index) => {
+    if (typeof alias !== "string" || !/^[A-Za-z_][A-Za-z0-9_-]*$/.test(alias)) {
+      diagnostics.push(`${location}[${index}] must be a valid shell alias`);
+      return [];
+    }
+    return [alias];
+  });
 }
 
 function optionalString(
@@ -425,6 +502,20 @@ function pushDuplicateDiagnostics(
     if (seen.has(value))
       diagnostics.push(`Duplicate repository ${key}: ${value}`);
     seen.add(value);
+  }
+}
+
+function pushDuplicateAliasDiagnostics(
+  diagnostics: string[],
+  repositories: readonly GitRepoShortcut[],
+): void {
+  const seen = new Set<string>();
+  for (const repo of repositories) {
+    for (const alias of repo.aliases) {
+      if (seen.has(alias))
+        diagnostics.push(`Duplicate repository alias: ${alias}`);
+      seen.add(alias);
+    }
   }
 }
 

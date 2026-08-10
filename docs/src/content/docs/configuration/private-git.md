@@ -1,17 +1,27 @@
 ---
 title: Private Git Config
-description: The dot-git.yml schema for repo updates, activity, workflows, and notifications.
+description: The dot-git.yml schema for repository shortcuts, updates, activity, workflows, and notifications.
 sidebar:
   order: 3
 ---
 
 The git and GitHub tooling reads a private YAML config that lists the repositories to track and how. It lives in the private overlay at `$DOTFILES_PRIVATE_DIR/dot-git.yml` by default (override with `DOT_GIT_CONFIG_FILE`).
 
-It is consumed by `dot git-diff`, `dot git-log`, `dot git-workflows`, `dot git-notifications --bar-json`, `dot notes-capture-sync`, `dot update`, and `dot doctor`.
+It is consumed by `dot git-diff`, `dot git-log`, `dot git-workflows`, `dot git-notifications --bar-json`, `dot notes-capture-sync`, `dot stow`, `dot update`, and `dot doctor`.
 
 ## Per-repo keys
 
 Each repo entry has three required sections, each with an explicit `enabled` flag and a 5-field cron `schedule`:
+
+The optional `aliases` list generates Zsh repository shortcuts during `dot stow` and `dot update`. Inside Herdr, a shortcut creates or focuses a workspace using the repository's `name`; elsewhere it changes directory normally:
+
+```yaml
+- name: "[HA] Frontend"
+  path: ~/repos/home-assistant/frontend
+  aliases: [haf]
+```
+
+Top-level `shortcuts` use the same `name`, `path`, and `aliases` keys for directories that are not managed repositories, such as the private dotfiles checkout or a repository group directory.
 
 An optional `post_update` command runs from the repository root when `dot update` successfully pulls that repo to a new HEAD. Use it for local generated artefacts that must match the checkout, such as rebuilding an unpacked browser extension:
 

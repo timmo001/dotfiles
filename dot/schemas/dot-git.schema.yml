@@ -21,8 +21,35 @@ properties:
     minItems: 1
     items:
       $ref: "#/$defs/repository"
+  shortcuts:
+    description: Shell shortcut targets that are not managed repositories.
+    type: array
+    items:
+      $ref: "#/$defs/shortcut"
 
 $defs:
+  shortcut:
+    type: object
+    additionalProperties: false
+    required:
+      - name
+      - path
+      - aliases
+    properties:
+      name:
+        type: string
+        minLength: 1
+      path:
+        type: string
+        minLength: 1
+      aliases:
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items:
+          type: string
+          pattern: "^[A-Za-z_][A-Za-z0-9_-]*$"
+
   repository:
     type: object
     additionalProperties: false
@@ -46,6 +73,13 @@ $defs:
         type: string
         pattern: "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
         description: GitHub owner/repo slug.
+      aliases:
+        type: array
+        uniqueItems: true
+        items:
+          type: string
+          pattern: "^[A-Za-z_][A-Za-z0-9_-]*$"
+        description: Shell shortcuts generated for this repository.
       post_update:
         type: string
         minLength: 1

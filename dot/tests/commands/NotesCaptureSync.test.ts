@@ -28,6 +28,7 @@ function repository(
     name,
     path: `/tmp/${name}`,
     github,
+    aliases: [],
     postUpdate: null,
     activity: { enabled: true, schedule: "* * * * *" },
     workflows: { enabled: false, schedule: "* * * * *" },

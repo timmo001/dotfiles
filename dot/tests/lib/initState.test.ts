@@ -41,6 +41,7 @@ function config(stateDir = tempRoot()): ConfigService {
       present: false,
       valid: true,
       repositories: [],
+      shortcuts: [],
       diagnostics: [],
     },
     mcpConfig: {

@@ -44,7 +44,7 @@ During work time, setup prepares:
 | Workspace | Slots |
 | --- | --- |
 | `1` | Slack, personal Chromium, Ghostty in the home directory, Discord. |
-| `2` | Herdr focused on its Home Assistant Frontend workspace. |
+| `2` | Standard Herdr. |
 | `3` | Work browser. |
 
 Outside work time, setup prepares:
@@ -56,7 +56,7 @@ Outside work time, setup prepares:
 
 After setup, it switches to workspace `2`.
 
-Terminal slots launch through `ghostty-host-config`, so they keep the active `config.$OMARCHY_HOST` override. The left monitor's terminal always starts in the home directory. The central monitor runs `herdr-work` during work time and attaches to the shared default Herdr session outside work time. `herdr-work` also uses the default session, then creates or focuses the Frontend workspace before attaching its client.
+Terminal slots launch through `ghostty-host-config`, so they keep the active `config.$OMARCHY_HOST` override. The left monitor's terminal always starts in the home directory. The central monitor attaches directly to the shared default Herdr session. Repository shortcuts only create or focus named workspaces when they are run inside Herdr; in a normal shell they keep their usual `cd` behaviour.
 
 Hyprland starts the shared Herdr server once in UWSM's background graphical slice. Every terminal is only a client of that server.
 
