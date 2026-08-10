@@ -34,7 +34,7 @@
         "(?<depName>[\\w.-]+/[\\w.-]+)@(?<currentDigest>[a-f0-9]{40})"
       ],
       "packageNameTemplate": "https://github.com/{{{depName}}}.git",
-      "currentValueTemplate": "HEAD",
+      "currentValueTemplate": "main",
       "datasourceTemplate": "git-refs"
     }
   ],
