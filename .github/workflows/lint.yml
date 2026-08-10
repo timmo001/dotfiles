@@ -24,6 +24,9 @@ jobs:
       - name: Setup mise
         uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4.2.4
 
+      - name: Install zsh
+        run: sudo apt-get update && sudo apt-get install --yes zsh
+
       - name: Run regression tests
         run: mise run tests:integration
 
