@@ -32,7 +32,7 @@ keybind = f11=toggle_fullscreen
 keybind = shift+insert=paste_from_clipboard
 keybind = control+insert=copy_to_clipboard
 keybind = super+w=close_window
-keybind = ctrl+alt+shift+t=new_tab
+keybind = ctrl+alt+shift+n=new_tab
 keybind = super+control+shift+alt+arrow_down=resize_split:down,100
 keybind = super+control+shift+alt+arrow_up=resize_split:up,100
 keybind = super+control+shift+alt+arrow_left=resize_split:left,100
