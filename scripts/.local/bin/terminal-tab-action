@@ -44,7 +44,7 @@ if [[ "$active_class" == "com.mitchellh.ghostty" && "$active_title" == "herdr |"
       ]
     | @tsv
   ' 2>/dev/null || true)"
-  IFS=$'\t' read -r tab_id tab_count target_tab <<<"$tab_row"
+  IFS=$'\t' read -r tab_id _ target_tab <<<"$tab_row"
 
   if [[ "$action" == "close" && -n "$tab_id" ]]; then
     if $herdr_bin tab close "$tab_id" >/dev/null 2>&1; then
