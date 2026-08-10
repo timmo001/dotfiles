@@ -6,7 +6,6 @@
   },
   "permission": {
     "notes_note_delete": "ask",
-    "skill": "allow",
     "read": {
       "~/.agents": "allow",
       "~/.agents/skills/**": "allow",
@@ -40,7 +39,9 @@
       "~/.local/share/workspace-relayout/**": "allow",
       "~/.local/share/zsh": "allow",
       "~/.local/share/zsh/site-functions/**": "allow",
-      "~/.plannotator/**": "allow"
+      "~/.plannotator/**": "allow",
+      "~/repos/skills": "allow",
+      "~/repos/skills/**": "allow"
     },
     "edit": {
       "~/.agents/skills/**": "deny",
@@ -66,7 +67,8 @@
       "~/.local/share/omarchy/bin/**": "deny",
       "~/.local/share/workspace-relayout/**": "deny",
       "~/.local/share/zsh/site-functions/**": "deny",
-      "~/.plannotator/**": "deny"
+      "~/.plannotator/**": "deny",
+      "~/repos/skills/**": "allow"
     },
     "external_directory": {
       "~/.agents/*": "allow",
@@ -144,7 +146,7 @@
       "description": "Use for the published OpenCode config mirrored from this repo"
     },
     "skills": {
-      "repository": "timmo001/skills",
+      "path": "~/repos/skills",
       "description": "Use for portable agent skills pinned into this repo and opencode-config"
     },
     "opentui": {
