@@ -35,19 +35,19 @@ ha-entity-bar-json-once --icon '' input_text.current_next_event_in_an_hour
 
 ### `ha-module-bar`
 
-`ha-module-bar` wraps go-automate with opinionated Waybar modules for common Home Assistant entities. Each mode ships default entity IDs and display rules; override them with `--entity`, `--name`, and mode-specific flags when your setup differs.
+`ha-module-bar` wraps go-automate with opinionated Waybar modules for common Home Assistant entities. Each mode ships default entity IDs and display rules; override them with `--entity`, `--name`, `--icon`, and mode-specific flags when your setup differs. Run `ha-module-bar --help` for the full flag list.
 
 | Mode | Behaviour |
 | --- | --- |
 | `temperature` | Show a numeric temperature reading when the entity state is numeric. |
 | `co2-alert` | Show a warning or critical CO₂ reading above 1400 ppm and 2000 ppm respectively; hide otherwise. |
-| `voc-alert` | Show a warning or critical VOC reading when the quality entity is `very abnormal` or `extremely abnormal`. |
-| `nas-activity` | Show NAS activity while the gate switch is on; highlight when the inactivity script is armed. |
-| `dining-temperature` | Show dining-room temperature only while the air-conditioner target is below `--gate-below` (default `25`). |
+| `voc-alert` | Show a warning or critical VOC reading when the quality entity is `very abnormal` or `extremely abnormal`. Uses `--quality-entity` and `--value-entity`. |
+| `nas-activity` | Show NAS activity while the gate switch is on; highlight when the inactivity script is armed. Uses `--switch-entity` and `--inactive-script-entity`. |
+| `dining-temperature` | Show dining-room temperature only while the air-conditioner target is below `--gate-below` (default `25`). Uses `--gate-entity` for the AC target. |
 | `current-next-event` | Pass through the entity's bar JSON when the text is non-empty. |
 | `doorbell` | Stream doorbell state through `singleton-stream` so Waybar can keep one long-lived watcher per module instance. |
 
-Most modes poll once per refresh. `doorbell` is the exception: it keeps a singleton stream alive for the Waybar parent process and emits JSON only when the output changes.
+Most modes poll once per refresh. `doorbell` is the exception: it keeps a singleton stream alive for the Waybar ancestor process and emits JSON only when the output changes. Override the stream identity with `--stream-key` when multiple doorbell modules share an entity.
 
 ```bash
 ha-module-bar temperature
@@ -56,7 +56,7 @@ ha-module-bar dining-temperature --gate-below 24
 ha-module-bar doorbell --entity input_boolean.doorbell
 ```
 
-CO₂ and VOC modes accept `--fake-state warning` or `--fake-state critical` for layout testing. `doorbell` accepts `--simulate on|off` or `--force-true` for the same purpose.
+CO₂ and VOC modes accept `--fake-state warning` or `--fake-state critical` for layout testing (`WAYBAR_FAKE_CO2_ALERT` and `WAYBAR_FAKE_VOC_ALERT` set the same values per mode). `doorbell` accepts `--simulate on|off` or `--force-true` for the same purpose.
 
 All modes except `doorbell` support optional trigger hooks that run a shell command when entity state changes:
 
@@ -68,22 +68,22 @@ ha-module-bar co2-alert \
   --trigger-cooldown 300
 ```
 
-`--trigger-on` accepts `transition` (default; fire when state enters `--trigger-state`) or `match` (fire while state equals `--trigger-state`). Trigger state persists under `$XDG_RUNTIME_DIR`.
+`--trigger-on` accepts `transition` (default; fire when state enters `--trigger-state`) or `match` (fire while state equals `--trigger-state`). `--trigger-initial true` allows the first observed state to fire; the default skips the initial read so restarts do not replay alerts. `--trigger-cooldown` enforces a minimum interval between fires. Trigger state persists under `$XDG_RUNTIME_DIR` (override the key with `--trigger-key` when multiple modules share a mode).
 
 `dot dashboard` rejects commands that embed `singleton-stream` or `doorbell`, so use `ha-entity-bar-json-once` for dashboard cards and reserve `ha-module-bar doorbell` for Waybar. See [Private Dashboard Config](/configuration/private-dashboard/).
 
 ### `package-updates-bar`
 
-`package-updates-bar` reports how many watched public packages have updates available. It reads `.dot-public-packages` (override with `WAYBAR_PACKAGE_UPDATES_FILE`), checks repo packages with `pacman -Qu` and AUR packages with `yay -Qua`, and caches the rendered JSON under `$XDG_CACHE_HOME/waybar/`.
+`package-updates-bar` reports how many watched public packages have updates available. It reads `$DOTFILES_PUBLIC_DIR/.dot-public-packages` (override with `WAYBAR_PACKAGE_UPDATES_FILE`), classifies each entry as a repo or AUR package with `pacman -Qnq` / `pacman -Qmq`, checks repo packages with `pacman -Qu` and AUR packages with `yay -Qua`, and caches the rendered JSON under `$XDG_CACHE_HOME/waybar/` (override with `WAYBAR_PACKAGE_UPDATES_CACHE_DIR`).
 
 ```bash
 package-updates-bar status    # print cached JSON; refresh in the background when stale
 package-updates-bar refresh   # rebuild the cache synchronously
 ```
 
-The `status` subcommand returns a loading placeholder when no cache exists yet, hides the module when every watched package is current, and shows a warning glyph when the update check itself fails. A background refresh starts when the cache is older than 15 minutes (override with `WAYBAR_PACKAGE_UPDATES_CACHE_MAX_AGE`).
+The `status` subcommand returns a loading placeholder when no cache exists yet, hides the module when every watched package is current, and shows a warning glyph when the update check itself fails. When repo updates are available but the AUR check fails, the module still shows the repo count and appends `AUR updates unavailable` to the tooltip. A background refresh starts when the cache is older than 15 minutes (override with `WAYBAR_PACKAGE_UPDATES_CACHE_MAX_AGE`).
 
-AUR lookups back off exponentially after HTTP 4xx/5xx responses so a broken AUR connection does not hammer the network on every poll. An explicit `refresh` retries immediately and clears the backoff when the request succeeds. Right-click refresh in Waybar should call `package-updates-bar refresh` directly so a recovered connection is picked up without waiting for the backoff timer.
+Background AUR lookups back off exponentially after HTTP 4xx/5xx responses (30-minute base, capped at six hours) so a broken AUR connection does not hammer the network on every poll. Backoff applies only to background refreshes; an explicit `refresh` retries immediately and clears the backoff when the request succeeds. Right-click refresh in Waybar should call `package-updates-bar refresh` directly so a recovered connection is picked up without waiting for the backoff timer.
 
 ## Configuration
 
