@@ -1,7 +1,5 @@
 #!/bin/bash
 
-WORK_DIR="$HOME/repos/home-assistant/frontend"
-
 STEP_MODE=false
 SLOW_MULTIPLIER="1.8"
 STARTUP_DELAY="0"
