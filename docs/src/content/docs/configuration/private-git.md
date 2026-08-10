@@ -13,7 +13,7 @@ It is consumed by `dot git-diff`, `dot git-log`, `dot git-workflows`, `dot git-n
 
 Each repo entry has three required sections, each with an explicit `enabled` flag and a 5-field cron `schedule`:
 
-The optional `aliases` list generates Zsh repository shortcuts during `dot stow` and `dot update`. The same entries feed Herdr's repository picker alongside `~/` and `~/repos`. Inside Herdr, either route creates or focuses a workspace using the repository's `name`; elsewhere a shortcut changes directory normally:
+The optional `aliases` list generates Zsh repository shortcuts during `dot stow` and `dot update`. The same entries feed Herdr's repository picker alongside `~/` and `~/repos`. Inside Herdr, a shortcut changes directory in the current tab when it already belongs to the repository workspace; otherwise it creates or focuses that workspace using the repository's `name`. Outside Herdr, it changes directory normally:
 
 ```yaml
 - name: "[HA] Frontend"

@@ -713,6 +713,11 @@ _repo_workspace() {
     | .workspace_id // empty
   ')"
 
+  if [ "$#" -gt 0 ] && [ -n "$workspace_id" ] && [ "$workspace_id" = "${HERDR_WORKSPACE_ID:-}" ]; then
+    cd "$directory" && "$@"
+    return
+  fi
+
   if [ -z "$workspace_id" ]; then
     created="$(herdr workspace create --cwd "$directory" --label "$label" --no-focus)" || return
     workspace_id="$(jq -r '.result.workspace.workspace_id // .workspace.workspace_id // empty' <<<"$created")"
@@ -743,6 +748,19 @@ _repo_workspace() {
 
 _repo_open() {
   if [ "${HERDR_ENV:-}" != 1 ]; then
+    cd "$2"
+    return
+  fi
+
+  local workspace_id
+  workspace_id="$(herdr workspace list | jq -r --arg label "$1" '
+    (.result.workspaces // .workspaces // [])
+    | map(select(.label == $label))
+    | first
+    | .workspace_id // empty
+  ')" || return
+
+  if [ -n "$workspace_id" ] && [ "$workspace_id" = "${HERDR_WORKSPACE_ID:-}" ]; then
     cd "$2"
     return
   fi
