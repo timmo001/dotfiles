@@ -14,10 +14,29 @@ selected="$({
 } | awk -F '\t' '!seen[$2]++' | fzf \
   --delimiter='\t' \
   --with-nth=1 \
-  --prompt='Repository: ' \
-  --header='Enter open or focus, Esc close' \
+  --style='full:rounded' \
+  --layout=reverse \
+  --padding=1 \
+  --border-label=' Workspace ' \
+  --border-label-pos=2 \
+  --input-label=' Search ' \
+  --input-label-pos=2 \
+  --list-label=' Repositories ' \
+  --list-label-pos=2 \
+  --preview-label=' Git status ' \
+  --preview-label-pos=2 \
+  --prompt='> ' \
+  --ghost='Type to filter repositories' \
+  --info=inline-right \
+  --pointer='>' \
+  --highlight-line \
+  --cycle \
+  --scroll-off=3 \
+  --no-scrollbar \
+  --footer=' Enter open or focus  |  Esc close ' \
+  --color='fg:#cdd6f4,bg:#1e1e2e,hl:#f38ba8,fg+:#cdd6f4,bg+:#313244,hl+:#f38ba8,info:#a6adc8,prompt:#cba6f7,pointer:#f5c2e7,spinner:#89b4fa,header:#9399b2,border:#45475a,label:#89b4fa,preview-border:#45475a,preview-label:#a6e3a1,list-border:#45475a,list-label:#89b4fa,input-border:#45475a,input-label:#cba6f7' \
   --preview='printf "%s\n" {2}; printf "\n"; git -C {2} status --short --branch 2>/dev/null || true' \
-  --preview-window='right:50%')" || exit 0
+  --preview-window='right:45%,border-rounded')" || exit 0
 
 tab="$(printf '\t')"
 details="${selected#*"$tab"}"
