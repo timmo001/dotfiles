@@ -80,6 +80,7 @@ export function formatBackupMove(move: BackupMove): string {
 export function backupUnmanagedStowTargets(
   repoDir: string,
   config: ConfigService,
+  ignoredTargets: ReadonlySet<string> = new Set(),
 ): BackupMove[] {
   const backupRoot = join(repoDir, "backup");
   const moves: BackupMove[] = [];
@@ -87,12 +88,38 @@ export function backupUnmanagedStowTargets(
   for (const folder of listStowFolders(repoDir, config).sort()) {
     const packageRoot = join(repoDir, folder);
     for (const { source, target } of listStowTargetPairs(packageRoot, folder)) {
+      const relativeTarget = relative(HOME_DIR, target);
+      if (
+        [...ignoredTargets].some(
+          (ignored) =>
+            relativeTarget === ignored ||
+            relativeTarget.startsWith(`${ignored}/`),
+        )
+      ) {
+        continue;
+      }
       backupBlockingParentTargets(target, backupRoot, moves);
       backupTargetIfUnmanaged(source, target, backupRoot, moves);
     }
   }
 
   return moves;
+}
+
+/** Remove an old stowed skill link before another package takes ownership. */
+export function removeStowedSkillOwner(
+  skillName: string,
+  oldSource: string,
+): boolean {
+  const target = join(HOME_DIR, ".agents", "skills", skillName);
+  try {
+    if (!lstatSync(target).isSymbolicLink()) return false;
+    if (realpathSync(target) !== realpathSync(oldSource)) return false;
+    unlinkSync(target);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Back up the retired cloned Ghostty Omarchy repo before stow owns it. */

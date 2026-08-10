@@ -20,6 +20,7 @@ const SKILLS_BLOB = 'https://github.com/timmo001/skills/blob/main';
 
 const OPENCODE_PREFIX = 'agents/.config/opencode';
 const SKILLS_PREFIX = 'agents/.agents/skills';
+const DOTFILES_SKILLS_PREFIX = 'dotfiles-skills/.agents/skills';
 
 /** Read the YAML frontmatter block of a markdown file as a key/value map. */
 async function frontmatter(file: string): Promise<Record<string, string>> {
@@ -148,34 +149,52 @@ async function generateCommands(): Promise<void> {
 }
 
 async function generateSkills(): Promise<void> {
-  const dir = path.join(repoRoot, SKILLS_PREFIX);
-  const names = (
-    await readdir(dir, { withFileTypes: true })
-  )
-    .filter((e) => e.isDirectory())
-    .map((e) => e.name)
-    .sort();
-
-  const own: string[] = [];
+  const shared: string[] = [];
+  const dotfilesOwned: string[] = [];
   const imported: string[] = [];
-  for (const name of names) {
-    const file = path.join(dir, name, 'SKILL.md');
-    try {
-      await stat(file);
-    } catch {
-      continue;
-    }
-    const fm = await frontmatter(file);
-    const origin = await originUrl(file);
-    const link = `${SKILLS_BLOB}/${name}/SKILL.md`;
-    if (origin) {
-      const originRepo =
-        origin.match(/github\.com\/([^/]+\/[^/]+)/)?.[1] ?? origin;
-      imported.push(
-        `| [\`${name}\`](${link}) | ${escapeCell(fm.description ?? '')} | [${originRepo}](${origin}) |`,
-      );
-    } else {
-      own.push(`| [\`${name}\`](${link}) | ${escapeCell(fm.description ?? '')} |`);
+  const seen = new Set<string>();
+  for (const source of [
+    {
+      prefix: DOTFILES_SKILLS_PREFIX,
+      linkPrefix: DOTFILES_SKILLS_PREFIX,
+      blob: BLOB,
+      destination: dotfilesOwned,
+    },
+    {
+      prefix: SKILLS_PREFIX,
+      linkPrefix: "",
+      blob: SKILLS_BLOB,
+      destination: shared,
+    },
+  ]) {
+    const dir = path.join(repoRoot, source.prefix);
+    const names = (await readdir(dir, { withFileTypes: true }))
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort();
+    for (const name of names) {
+      if (seen.has(name)) continue;
+      const file = path.join(dir, name, 'SKILL.md');
+      try {
+        await stat(file);
+      } catch {
+        continue;
+      }
+      const fm = await frontmatter(file);
+      seen.add(name);
+      const origin = await originUrl(file);
+      const link = `${source.blob}/${source.linkPrefix ? `${source.linkPrefix}/` : ""}${name}/SKILL.md`;
+      if (origin) {
+        const originRepo =
+          origin.match(/github\.com\/([^/]+\/[^/]+)/)?.[1] ?? origin;
+        imported.push(
+          `| [\`${name}\`](${link}) | ${escapeCell(fm.description ?? '')} | [${originRepo}](${origin}) |`,
+        );
+      } else {
+        source.destination.push(
+          `| [\`${name}\`](${link}) | ${escapeCell(fm.description ?? '')} |`,
+        );
+      }
     }
   }
 
@@ -185,15 +204,27 @@ async function generateSkills(): Promise<void> {
     4,
   );
   lines.push(
-    'Skills own reusable workflows and behavioural contracts. They are exposed via `~/.agents/skills/` and published to [`opencode-config`](https://github.com/timmo001/opencode-config).',
+    'Skills own reusable workflows and behavioural contracts. Shared skills are exposed via `~/.agents/skills/` and published to [`opencode-config`](https://github.com/timmo001/opencode-config). Dotfiles-owned skills are stowed directly from this repository.',
     '',
     '## Skills',
     '',
     '| Skill | Description |',
     '| --- | --- |',
-    ...own,
+    ...shared,
     '',
   );
+  if (dotfilesOwned.length) {
+    lines.push(
+      '## Dotfiles-Owned Skills',
+      '',
+      'These skills are maintained and stowed by the dotfiles repository rather than published through `opencode-config`.',
+      '',
+      '| Skill | Description |',
+      '| --- | --- |',
+      ...dotfilesOwned,
+      '',
+    );
+  }
   if (imported.length) {
     lines.push(
       '## Imported Skills',

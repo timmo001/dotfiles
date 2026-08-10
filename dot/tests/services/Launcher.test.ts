@@ -6,14 +6,20 @@ import { OutputLog } from "../../src/services/OutputLog.js";
 
 describe("Launcher", () => {
   test("passes prompt content directly to argv without a shell", async () => {
-    const calls: Array<readonly [string, readonly string[]]> = [];
+    const calls: Array<
+      readonly [
+        string,
+        readonly string[],
+        { readonly cwd?: string } | undefined,
+      ]
+    > = [];
     const commandExecutor = Layer.succeed(CommandExecutor, {
       run: () => Effect.die("run should not be called"),
       stream: () => Stream.die("stream should not be called"),
       exitCode: () => Effect.die("exitCode should not be called"),
-      inherit: (command, args) =>
+      inherit: (command, args, opts) =>
         Effect.sync(() => {
-          calls.push([command, args]);
+          calls.push([command, args, opts]);
           return 0;
         }),
     });
@@ -36,11 +42,15 @@ describe("Launcher", () => {
     await Effect.runPromise(
       Effect.gen(function* () {
         const launcher = yield* Launcher;
-        yield* launcher.suspendArgv(["opencode", "--prompt", prompt]);
+        yield* launcher.suspendArgv(["opencode", "--prompt", prompt], {
+          cwd: "/tmp/skills",
+        });
       }).pipe(Effect.provide(launcherLayer)),
     );
 
-    expect(calls).toEqual([["opencode", ["--prompt", prompt]]]);
+    expect(calls).toEqual([
+      ["opencode", ["--prompt", prompt], { cwd: "/tmp/skills" }],
+    ]);
   });
 
   test("turns spawn defects into LauncherError", async () => {

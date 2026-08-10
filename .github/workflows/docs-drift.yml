@@ -13,6 +13,7 @@ on:
       - 'agents/.config/opencode/**'
       - 'agents/.agents/skills/**'
       - 'agents/.agents/skills'
+      - 'dotfiles-skills/.agents/skills/**'
       - 'docs/scripts/generate-cli-reference.ts'
       - 'docs/scripts/generate-opencode-reference.ts'
       - 'docs/src/content/docs/dot/commands.md'

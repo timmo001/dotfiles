@@ -17,6 +17,7 @@ import { HOME_DIR } from "../../src/lib/paths.js";
 import {
   backupConflictingPublicTargets,
   backupUnmanagedStowTargets,
+  removeStowedSkillOwner,
   removeStaleSkillSymlinks,
 } from "../../src/lib/stowConflicts.js";
 
@@ -70,6 +71,29 @@ afterEach(() => {
 });
 
 describe("backupUnmanagedStowTargets", () => {
+  test("leaves explicitly ignored targets in place", () => {
+    const root = tempRoot();
+    const liveRoot = mkdtempSync(
+      join(HOME_DIR, ".cache", "dot-stow-conflicts-"),
+    );
+    liveRoots.push(liveRoot);
+    const relativeTarget = join(".cache", basename(liveRoot), "installed.md");
+    const source = join(root, "agents", relativeTarget);
+    const target = join(HOME_DIR, relativeTarget);
+    mkdirSync(dirname(source), { recursive: true });
+    writeFileSync(source, "stowed\n");
+    writeFileSync(target, "external\n");
+
+    expect(
+      backupUnmanagedStowTargets(
+        root,
+        fakeConfig(root),
+        new Set([dirname(relativeTarget)]),
+      ),
+    ).toEqual([]);
+    expect(readFileSync(target, "utf8")).toBe("external\n");
+  });
+
   test("backs up live files from the active host-specific package", () => {
     const root = tempRoot();
     mkdirSync(join(HOME_DIR, ".cache"), { recursive: true });

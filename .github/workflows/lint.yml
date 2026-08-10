@@ -30,7 +30,7 @@ jobs:
   validate-skills:
     uses: timmo001/workflows/.github/workflows/lint-agent-skills.yml@72d13b406a4306266f3fc938c722ac53fa7b44d2 # master
     with:
-      skill-roots: .agents/skills
+      skill-roots: .agents/skills dotfiles-skills/.agents/skills
 
   actionlint:
     uses: timmo001/workflows/.github/workflows/lint-actionlint.yml@72d13b406a4306266f3fc938c722ac53fa7b44d2 # master

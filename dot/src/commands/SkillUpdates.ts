@@ -14,8 +14,6 @@ import { commitIn, stageIn } from "../git/committer.js";
 import {
   scanSkillEntries,
   checkSkill,
-  applySkillUpdate,
-  writeSha,
   buildSingleDiff,
   cleanupSkillDiffCache,
   type SkillMeta,
@@ -23,6 +21,7 @@ import {
   type SkillScanEntry,
 } from "../lib/skillUpdates.js";
 import { withSpinnerTimeout } from "../lib/workflowStep.js";
+import { HOME_DIR } from "../lib/paths.js";
 
 /** Mode of operation for the skill-updates command */
 type Mode = "check" | "update" | "interactive";
@@ -90,6 +89,7 @@ export const skillUpdates = (opts?: {
     const log = yield* OutputLog;
     const launcher = yield* Launcher;
     const github = yield* GitHub;
+    const executor = yield* CommandExecutor;
 
     const mode: Mode =
       opts?.json || opts?.check
@@ -117,7 +117,11 @@ export const skillUpdates = (opts?: {
       return false;
     }
 
-    const skillsDir = join(config.publicDotfiles, "agents/.agents/skills");
+    const skillsRepo = join(HOME_DIR, "repos", "skills");
+    const writableSkillsRepo = existsSync(join(skillsRepo, ".git"));
+    const skillsDir = writableSkillsRepo
+      ? skillsRepo
+      : join(config.publicDotfiles, "agents/.agents/skills");
     const entries = scanSkillEntries(skillsDir);
     const selectedEntries = opts?.skill
       ? entries.filter((entry) => entry.meta.name === opts.skill)
@@ -198,8 +202,26 @@ export const skillUpdates = (opts?: {
             yield* log.info(`  ${meta.name}: up to date (cached)`);
           } else {
             // Write the SHA since content matched despite SHA mismatch
-            if (mode !== "check" && result.writeSha) {
-              writeSha(join(meta.dir, "SKILL.md"), result.writeSha);
+            if (mode !== "check" && result.writeSha && writableSkillsRepo) {
+              const exitCode = yield* executor.exitCode(
+                "python",
+                [
+                  "scripts/import_skill.py",
+                  meta.name,
+                  "--reviewed-sha",
+                  result.writeSha,
+                  "--metadata-only",
+                ],
+                { cwd: skillsRepo },
+              );
+              if (exitCode !== 0) {
+                errors++;
+                yield* log.warn(
+                  `  ${meta.name}: could not advance reviewed metadata`,
+                );
+              } else {
+                updatedDirs.push(meta.dir);
+              }
             }
             yield* log.info(`  ${meta.name}: up to date`);
           }
@@ -234,10 +256,22 @@ export const skillUpdates = (opts?: {
           }
 
           // In update and interactive modes: auto-apply
+          if (!writableSkillsRepo) {
+            return yield* new LauncherError({
+              message: `Writable skills checkout not found: ${skillsRepo}`,
+              exitCode: 1,
+            });
+          }
           const appliedResult = yield* withSpinnerTimeout(
             `Applying ${meta.name}`,
             SKILL_APPLY_TIMEOUT_SECONDS,
-            applySkillUpdate(meta, result.writeSha),
+            executor
+              .exitCode(
+                "python",
+                ["scripts/import_skill.py", meta.name, "--apply"],
+                { cwd: skillsRepo },
+              )
+              .pipe(Effect.map((code) => code === 0)),
           );
           const applied = Option.getOrElse(appliedResult, () => false);
 
@@ -297,8 +331,11 @@ export const skillUpdates = (opts?: {
       const updatedNames = updatedDirs.map((d) => d.split("/").pop() ?? d);
 
       const staged = yield* stageIn(
-        { mode: "paths", paths: updatedDirs },
-        { cwd: config.publicDotfiles },
+        {
+          mode: "paths",
+          paths: [...updatedDirs, join(skillsRepo, "imports.json")],
+        },
+        { cwd: skillsRepo },
       );
       if (!staged.ok) {
         return yield* new LauncherError({
@@ -309,8 +346,9 @@ export const skillUpdates = (opts?: {
 
       const commitMsg = `Update skills: ${updatedNames.join(", ")}`;
       const outcome = yield* commitIn({
-        cwd: config.publicDotfiles,
+        cwd: skillsRepo,
         message: commitMsg,
+        paths: [...updatedDirs, join(skillsRepo, "imports.json")],
         noVerify: true,
         tolerateEmpty: true,
       });
@@ -362,12 +400,7 @@ export const skillUpdates = (opts?: {
         }
       } else {
         // Launch interactive OpenCode review
-        yield* opencodeReview(
-          reviewItems,
-          config.publicDotfiles,
-          launcher,
-          log,
-        );
+        yield* opencodeReview(reviewItems, skillsRepo, launcher, log);
       }
     } else if (
       mode === "interactive" &&
@@ -515,20 +548,17 @@ const opencodeReview = (
         return;
       }
 
-      // Write SHA before the OpenCode session
-      if (sha) {
-        writeSha(join(meta.dir, "SKILL.md"), sha);
-      }
-
       // Compose the prompt
-      const prompt = buildOpenCodePrompt(meta.name, diffContent);
+      const prompt = buildOpenCodePrompt(meta.name, sha, diffContent);
 
       yield* log.info(
         "Launching interactive OpenCode session with plan agent...",
       );
 
       yield* launcher
-        .suspendArgv(["opencode", "--prompt", prompt, "--agent", "plan"])
+        .suspendArgv(["opencode", "--prompt", prompt, "--agent", "plan"], {
+          cwd: publicDotfiles,
+        })
         .pipe(
           Effect.catch((err) => {
             return log.error("OpenCode session exited with an error.");
@@ -537,7 +567,14 @@ const opencodeReview = (
 
       // Check for changes after session
       const diffOutput = yield* executor
-        .run("git", ["-C", publicDotfiles, "diff", "--", meta.dir])
+        .run("git", [
+          "-C",
+          publicDotfiles,
+          "diff",
+          "--",
+          meta.dir,
+          join(publicDotfiles, "imports.json"),
+        ])
         .pipe(Effect.catch(() => Effect.succeed("")));
 
       if (diffOutput.trim()) {
@@ -552,12 +589,28 @@ const opencodeReview = (
               `  ${meta.name}: SKILL.md was removed during review; not auto-committing a skill deletion. If intended, remove and commit it manually; otherwise restore with: git -C "${publicDotfiles}" checkout -- "${meta.dir}"`,
             );
           } else {
-            yield* launcher
-              .suspend(
-                `git -C "${publicDotfiles}" add "${meta.dir}" && git -C "${publicDotfiles}" commit -m "Update skill: ${meta.name}" --no-verify`,
-              )
-              .pipe(Effect.catch(() => Effect.void));
-            yield* log.info(`Committed: Update skill: ${meta.name}`);
+            const paths = [meta.dir, join(publicDotfiles, "imports.json")];
+            const staged = yield* stageIn(
+              { mode: "paths", paths },
+              { cwd: publicDotfiles },
+            );
+            if (!staged.ok) {
+              yield* log.error(staged.error ?? "git add failed");
+              continue;
+            }
+            const message = `Update skill: ${meta.name}`;
+            const outcome = yield* commitIn({
+              cwd: publicDotfiles,
+              message,
+              paths,
+              noVerify: true,
+              tolerateEmpty: true,
+            });
+            if (!outcome.ok) {
+              yield* log.error(outcome.error ?? "git commit failed");
+              continue;
+            }
+            if (outcome.committed) yield* log.info(`Committed: ${message}`);
           }
         } else if (choice === "quit") {
           yield* log.info("Quitting skill review.");
@@ -572,14 +625,20 @@ const opencodeReview = (
   });
 
 /** Build the OpenCode prompt for a skill review session */
-function buildOpenCodePrompt(skillName: string, diffContent: string): string {
+function buildOpenCodePrompt(
+  skillName: string,
+  upstreamSha: string,
+  diffContent: string,
+): string {
   return `The following diff report shows upstream changes to the imported skill "${skillName}" which has local edits.
 All diff content is provided below — do NOT fetch from GitHub or run git commands to obtain this information.
 Use the Read tool to read the current local skill files when applying changes.
 
-IMPORTANT: The \`# upstream-sha:\` value in frontmatter has already been updated by
-the script. Do NOT modify it. Use the diff below to compare what changed upstream
-and integrate those changes into the local files.
+IMPORTANT: \`imports.json\` is the maintenance metadata source. Preserve its
+origin, licence, and local-edits fields. After accepting or deliberately rejecting
+the reviewed upstream changes, set this skill's \`upstreamSha\` to
+\`${upstreamSha}\`, then run \`python scripts/import_skill.py ${skillName} --metadata-only\`
+to materialise the metadata into SKILL.md.
 
 Steps:
 1. Summarise what changed upstream (new sections, removed content, reworded guidance, new patterns).
@@ -589,7 +648,7 @@ Steps:
    Do NOT ask questions or propose edits in this case.
 4. Propose a plan for integrating worthwhile upstream changes while preserving local edits.
 5. Ask clarifying questions before applying any changes.
-6. After applying changes, run \`dot stow\` to re-link.
+6. Run \`python scripts/validate.py\` after applying changes.
 
 <skill-updates-diff>
 ${diffContent}

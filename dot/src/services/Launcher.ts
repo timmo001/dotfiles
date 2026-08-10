@@ -54,7 +54,7 @@ export interface LauncherService {
    */
   readonly suspendArgv: (
     command: CommandArgv,
-    opts?: { readonly waitForKey?: boolean },
+    opts?: { readonly waitForKey?: boolean; readonly cwd?: string },
   ) => Effect.Effect<void, LauncherError>;
 
   /**
@@ -91,7 +91,7 @@ export class Launcher extends Context.Service<Launcher, LauncherService>()(
           command: string,
           args: readonly string[],
           displayCommand: string,
-          opts?: { readonly waitForKey?: boolean },
+          opts?: { readonly waitForKey?: boolean; readonly cwd?: string },
         ) =>
           Effect.gen(function* () {
             log(`Suspending for: ${displayCommand}`);
@@ -100,7 +100,7 @@ export class Launcher extends Context.Service<Launcher, LauncherService>()(
 
             try {
               const exitCode = yield* catchLauncherDefect(
-                executor.inherit(command, args),
+                executor.inherit(command, args, { cwd: opts?.cwd }),
                 displayCommand,
               );
 
@@ -203,7 +203,7 @@ export class Launcher extends Context.Service<Launcher, LauncherService>()(
             log(`Running (CLI): ${[command, ...args].join(" ")}`);
             const displayCommand = [command, ...args].join(" ");
             const exitCode = yield* catchLauncherDefect(
-              executor.inherit(command, args),
+              executor.inherit(command, args, { cwd: _opts?.cwd }),
               displayCommand,
             );
             if (exitCode !== 0) {

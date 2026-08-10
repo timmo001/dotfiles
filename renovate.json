@@ -9,6 +9,9 @@
   "dependencyDashboard": true,
   "labels": ["dependencies"],
   "minimumReleaseAge": "1 day",
+  "git-submodules": {
+    "enabled": true
+  },
   "customManagers": [
     {
       "customType": "regex",

@@ -22,6 +22,7 @@ import {
   formatBackupMove,
   findExternalSkillSymlinks,
   removeExternalSymlinks,
+  removeStowedSkillOwner,
   removeStaleSkillSymlinks,
   restoreExternalSymlinks,
   type ExternalSymlink,
@@ -89,13 +90,28 @@ export const stow = (opts?: {
           `[public] backed up retired Ghostty repo: ${formatBackupMove(legacyGhosttyMove)}`,
         );
       }
+      const ignoredTargets = new Set([
+        join(".agents", "skills", "dotfiles-stow", "SKILL.md"),
+      ]);
       const backedUp = yield* Effect.sync(() =>
-        backupUnmanagedStowTargets(config.publicDotfiles, config),
+        backupUnmanagedStowTargets(
+          config.publicDotfiles,
+          config,
+          ignoredTargets,
+        ),
       );
       for (const move of backedUp) {
         yield* log.info(
           `[public] backed up unmanaged target: ${formatBackupMove(move)}`,
         );
+      }
+      if (
+        removeStowedSkillOwner(
+          "dotfiles-stow",
+          join(config.publicDotfiles, "agents/.agents/skills/dotfiles-stow"),
+        )
+      ) {
+        yield* log.info("[public] migrated skill owner: dotfiles-stow");
       }
       yield* stowRepo(config.publicDotfiles, "public", launcher, log, config);
 
@@ -192,6 +208,9 @@ const stowRepo = (
         flags.push("--no-folding");
       }
       if (folder === "agents") {
+        if (scope === "public") {
+          flags.push("--ignore='\\.agents/skills/dotfiles-stow($|/)'");
+        }
         const staleSkillLinks = removeStaleSkillSymlinks(repoDir);
         for (const path of staleSkillLinks) {
           yield* log.info(
