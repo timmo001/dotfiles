@@ -24,7 +24,7 @@ if [[ "$action" == "ghostty-new" ]]; then
   exec "$hyprctl_bin" dispatch sendshortcut CTRL ALT SHIFT, T, "address:$active_address"
 fi
 
-if [[ "$active_class" == "com.mitchellh.ghostty" && "$active_title" == "herdr |"* ]] && command -v "$herdr_bin" >/dev/null 2>&1; then
+if [[ "$active_class" == "com.mitchellh.ghostty" && "$active_title" == "herdr" ]] && command -v "$herdr_bin" >/dev/null 2>&1; then
   if [[ "$action" == "new" ]] && $herdr_bin tab create --focus >/dev/null 2>&1; then
     exit 0
   fi

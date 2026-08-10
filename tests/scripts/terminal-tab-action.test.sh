@@ -39,15 +39,15 @@ export CALLS="$calls"
 export NEW_TERMINAL_TAB_HYPRCTL_BIN="$mock_bin/hyprctl"
 export NEW_TERMINAL_TAB_HERDR_BIN="$mock_bin/herdr"
 
-ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"herdr | project"}' "$script" new
+ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"herdr"}' "$script" new
 grep -Fx 'herdr tab create --focus' "$calls"
 
 : >"$calls"
-ACTIVE_WINDOW='{"address":"abc123","class":"com.mitchellh.ghostty","title":"herdr | project"}' "$script" ghostty-new
+ACTIVE_WINDOW='{"address":"abc123","class":"com.mitchellh.ghostty","title":"herdr"}' "$script" ghostty-new
 grep -Fx 'hyprctl dispatch sendshortcut CTRL ALT SHIFT, T, address:abc123' "$calls"
 
 : >"$calls"
-ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"herdr | project"}' "$script" close
+ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"herdr"}' "$script" close
 grep -Fx 'herdr tab close w36:t2' "$calls"
 if grep -Fq 'herdr session stop' "$calls"; then
   printf 'session stopped while closing a tab\n' >&2
@@ -55,21 +55,21 @@ if grep -Fq 'herdr session stop' "$calls"; then
 fi
 
 : >"$calls"
+ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"herdr"}' "$script" next
+grep -Fx 'herdr tab focus w36:t3' "$calls"
+
+: >"$calls"
+ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"herdr"}' "$script" previous
+grep -Fx 'herdr tab focus w36:t1' "$calls"
+
+: >"$calls"
 HERDR_TABS='{"result":{"tabs":[{"tab_id":"w36:t1","number":1,"focused":true}]}}' \
-  ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"herdr | project"}' "$script" close
+  ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"herdr"}' "$script" close
 grep -Fx 'herdr tab close w36:t1' "$calls"
 if grep -Fq 'herdr session stop' "$calls"; then
   printf 'session stopped while closing the final tab\n' >&2
   exit 1
 fi
-
-: >"$calls"
-ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"herdr | project"}' "$script" next
-grep -Fx 'herdr tab focus w36:t3' "$calls"
-
-: >"$calls"
-ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"herdr | project"}' "$script" previous
-grep -Fx 'herdr tab focus w36:t1' "$calls"
 
 : >"$calls"
 ACTIVE_WINDOW='{"address":"abc123","class":"com.mitchellh.ghostty","title":"shell"}' "$script" new
