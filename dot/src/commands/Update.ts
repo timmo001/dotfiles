@@ -46,6 +46,7 @@ const SELECTABLE_UPDATE_FLAGS = [
  * spiking load while the pull stage runs alongside it.
  */
 const REFRESH_REMOTE_HEAD_CONCURRENCY = 6;
+const LOCAL_HERDR_PLUGINS = ["terminal-title", "yazi"] as const;
 
 /**
  * Per-attempt bound for a single repo pull. A slow response is assumed to be
@@ -372,6 +373,7 @@ export function herdrLazyPluginRoot(source: string): string | null {
 const restoreHerdrPlugins = Effect.gen(function* () {
   const log = yield* OutputLog;
   const executor = yield* CommandExecutor;
+  const config = yield* Config;
 
   yield* log.section("Herdr Plugins");
 
@@ -424,6 +426,44 @@ const restoreHerdrPlugins = Effect.gen(function* () {
   }
 
   yield* log.info("Herdr plugins restored from lockfile");
+
+  for (const plugin of LOCAL_HERDR_PLUGINS) {
+    const pluginRoot = join(
+      config.publicDotfiles,
+      "scripts",
+      ".local",
+      "share",
+      "herdr-plugins",
+      plugin,
+    );
+    const linkExitCode = yield* executor.inherit("herdr", [
+      "plugin",
+      "link",
+      pluginRoot,
+      "--enabled",
+    ]);
+    if (linkExitCode !== 0) {
+      return yield* new UpdateError({
+        message: `Herdr local plugin ${plugin} link exited ${linkExitCode}`,
+      });
+    }
+  }
+
+  const titleWatcherExitCode = yield* executor.inherit("herdr", [
+    "plugin",
+    "action",
+    "invoke",
+    "start",
+    "--plugin",
+    "dotfiles.terminal-title",
+  ]);
+  if (titleWatcherExitCode !== 0) {
+    return yield* new UpdateError({
+      message: `Herdr terminal title watcher exited ${titleWatcherExitCode}`,
+    });
+  }
+
+  yield* log.info("Herdr local plugins linked");
 });
 
 /** Run the resume refresh helper so status-bar services pick up update changes. */
