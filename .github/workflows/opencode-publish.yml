@@ -7,6 +7,7 @@ on:
       - distro/arch-omarchy
     paths:
       - 'agents/.config/opencode/**'
+      - 'agents/.agents/skills'
       - 'agents/.agents/skills/**'
       - '.github/workflows/opencode-publish.yml'
       - '.github/scripts/opencode-publish.sh'
@@ -21,12 +22,15 @@ jobs:
     steps:
       - name: Checkout dotfiles
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          submodules: true
 
       - name: Checkout publish repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: ${{ github.repository_owner }}/opencode-config
           path: _publish
+          submodules: true
           token: ${{ secrets.OPENCODE_PUBLISH_TOKEN }}
 
       - name: Configure git
@@ -38,6 +42,7 @@ jobs:
         env:
           DOTFILES_REPO: ${{ github.repository }}
           PUBLISH_REPO: ${{ github.repository_owner }}/opencode-config
+          SKILLS_REPO: ${{ github.repository_owner }}/skills
           OPENCODE_SOURCE_PREFIX: agents/.config/opencode
           SKILLS_SOURCE_PREFIX: agents/.agents/skills
           SOURCE_BRANCH: ${{ github.ref_name }}

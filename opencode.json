@@ -142,6 +142,10 @@
       "repository": "timmo001/opencode-config",
       "description": "Use for the published OpenCode config mirrored from this repo"
     },
+    "skills": {
+      "repository": "timmo001/skills",
+      "description": "Use for portable agent skills pinned into this repo and opencode-config"
+    },
     "opentui": {
       "repository": "anomalyco/opentui",
       "description": "Use for OpenTUI core, renderables, and keyboard handling when working in dot/"

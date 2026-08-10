@@ -5,6 +5,7 @@
 # Expected environment:
 #   DOTFILES_REPO          - owner/repo of the dotfiles source (e.g. timmo001/dotfiles)
 #   PUBLISH_REPO           - owner/repo of the target publish repo (e.g. timmo001/opencode-config)
+#   SKILLS_REPO            - owner/repo of the shared skills source (e.g. timmo001/skills)
 #   OPENCODE_SOURCE_PREFIX - OpenCode config path within dotfiles (e.g. agents/.config/opencode)
 #   SKILLS_SOURCE_PREFIX   - shared skills path within dotfiles (e.g. agents/.agents/skills)
 #   SOURCE_BRANCH          - branch name in dotfiles repo (e.g. distro/arch-omarchy)
@@ -13,11 +14,13 @@ set -euo pipefail
 
 OPENCODE_SOURCE_PREFIX="${OPENCODE_SOURCE_PREFIX:-${SOURCE_PREFIX:-agents/.config/opencode}}"
 SKILLS_SOURCE_PREFIX="${SKILLS_SOURCE_PREFIX:-agents/.agents/skills}"
+SKILLS_REPO="${SKILLS_REPO:-${DOTFILES_REPO%/*}/skills}"
 CONFIG_DIR="${OPENCODE_SOURCE_PREFIX}"
 SKILLS_DIR="${SKILLS_SOURCE_PREFIX}"
 DOTFILES_URL="https://github.com/${DOTFILES_REPO}"
+SKILLS_URL="https://github.com/${SKILLS_REPO}"
 OPENCODE_SOURCE_URL="${DOTFILES_URL}/tree/${SOURCE_BRANCH}/${OPENCODE_SOURCE_PREFIX}"
-SKILLS_SOURCE_URL="${DOTFILES_URL}/tree/${SOURCE_BRANCH}/${SKILLS_SOURCE_PREFIX}"
+SKILLS_SOURCE_URL="${SKILLS_URL}/tree/main"
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -112,7 +115,7 @@ generate_readme() {
 
 Shared [OpenCode](https://opencode.ai) skills, agents, plugins, and commands.
 
-Generated and published from [\`${DOTFILES_REPO}\`](${DOTFILES_URL}) — OpenCode config at [\`${OPENCODE_SOURCE_PREFIX}/\`](${OPENCODE_SOURCE_URL}) and shared skills at [\`${SKILLS_SOURCE_PREFIX}/\`](${SKILLS_SOURCE_URL}).
+Generated and published from [\`${DOTFILES_REPO}\`](${DOTFILES_URL}), with shared skills sourced from [\`${SKILLS_REPO}\`](${SKILLS_URL}).
 
 See the [OpenCode & Agents docs](https://dotfiles.timmo.dev/opencode/) for the overview, MCP notes, and generated reference pages.
 
@@ -145,7 +148,7 @@ Some skills and commands depend on plugins to function. Check the tables below f
 Once you have the \`import-external-skill\` skill installed, you can use it to import skills from this or any public GitHub skills repo. Point it at a skill directory URL and it handles fetching, frontmatter conversion, and origin tracking:
 
 \`\`\`
-# origin: https://github.com/${PUBLISH_REPO}/tree/main/skills/<skill-name>
+# origin: https://github.com/${SKILLS_REPO}/tree/main/<skill-name>
 \`\`\`
 
 It also supports a review mode: give it a repo URL and it will list all available skills, compare them against your local library, and recommend which to import, adapt, or skip.
@@ -265,8 +268,8 @@ EOF
 ## Publishing
 
 This repo is published automatically via GitHub Actions when the OpenCode config
-[\`${OPENCODE_SOURCE_PREFIX}/\`](${OPENCODE_SOURCE_URL}) or shared skills
-[\`${SKILLS_SOURCE_PREFIX}/\`](${SKILLS_SOURCE_URL}) change.
+[\`${OPENCODE_SOURCE_PREFIX}/\`](${OPENCODE_SOURCE_URL}) or the pinned
+[\`${SKILLS_REPO}\`](${SKILLS_URL}) revision changes.
 EOF
   } >"${OUTPUT_DIR}/README.md"
 }
@@ -286,9 +289,9 @@ This repo is generated from the OpenCode configuration in [\`${DOTFILES_REPO}\`]
 
 OpenCode config source: [\`${OPENCODE_SOURCE_PREFIX}/\`](${OPENCODE_SOURCE_URL})
 
-Shared skills source: [\`${SKILLS_SOURCE_PREFIX}/\`](${SKILLS_SOURCE_URL})
+Shared skills source: [\`${SKILLS_REPO}\`](${SKILLS_URL})
 
-Do not edit files here directly. Make changes in the [source dotfiles repo](${DOTFILES_URL}) and push — a GitHub Actions workflow publishes automatically.
+Do not edit generated files here directly. Make OpenCode config changes in [\`${DOTFILES_REPO}\`](${DOTFILES_URL}) and skill changes in [\`${SKILLS_REPO}\`](${SKILLS_URL}).
 
 ## Structure
 
@@ -311,7 +314,7 @@ Imported skills include \`# origin:\` and \`# upstream-sha:\` comments in their 
 To import a skill into your own OpenCode setup, use the \`import-external-skill\` workflow with a GitHub tree URL pointing at the skill directory:
 
 \`\`\`
-https://github.com/${PUBLISH_REPO}/tree/main/skills/<skill-name>
+https://github.com/${SKILLS_REPO}/tree/main/<skill-name>
 \`\`\`
 
 Agents, commands, and plugins can be copied directly into your OpenCode config directory.
@@ -367,6 +370,10 @@ sync_to_publish() {
 
   validate_plugin_imports "${CONFIG_DIR}"
 
+  git -C "${PUBLISH_DIR}" submodule deinit --force skills 2>/dev/null || true
+  git -C "${PUBLISH_DIR}" rm -r --force --cached --ignore-unmatch skills .gitmodules >/dev/null
+  rm -rf "${PUBLISH_DIR}/.git/modules/skills"
+
   # Clean target (preserve .git)
   find "${PUBLISH_DIR}" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
 
@@ -376,8 +383,9 @@ sync_to_publish() {
     cp -a "${CONFIG_DIR}/${dir}" "${PUBLISH_DIR}/"
   done
 
-  # Shared skills are stowed separately but published at the repo root.
-  cp -a "${SKILLS_DIR}" "${PUBLISH_DIR}/skills"
+  # Keep skills as a pinned reference to their independent source repository.
+  git -C "${PUBLISH_DIR}" submodule add --force "${SKILLS_URL}.git" skills
+  git -C "${PUBLISH_DIR}/skills" checkout "$(git -C "${SKILLS_DIR}" rev-parse HEAD)"
 
   echo "::endgroup::"
 }

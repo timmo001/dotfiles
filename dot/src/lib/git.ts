@@ -313,9 +313,10 @@ export function gitPullRebase(
   return Effect.gen(function* () {
     const launcher = yield* Launcher;
     const exitCode = yield* launcher
-      .stream("GIT_TERMINAL_PROMPT=0 git pull --rebase --no-edit", {
-        cwd: repoPath,
-      })
+      .stream(
+        "GIT_TERMINAL_PROMPT=0 git pull --rebase --no-edit --recurse-submodules && GIT_TERMINAL_PROMPT=0 git submodule update --init --recursive",
+        { cwd: repoPath },
+      )
       .pipe(Effect.catch(() => Effect.succeed(1)));
 
     return exitCode === 0;

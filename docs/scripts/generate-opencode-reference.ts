@@ -16,6 +16,7 @@ const outDir = path.join(root, 'src/content/docs/reference');
 
 const BRANCH = 'distro/arch-omarchy';
 const BLOB = `https://github.com/timmo001/dotfiles/blob/${BRANCH}`;
+const SKILLS_BLOB = 'https://github.com/timmo001/skills/blob/main';
 
 const OPENCODE_PREFIX = 'agents/.config/opencode';
 const SKILLS_PREFIX = 'agents/.agents/skills';
@@ -166,7 +167,7 @@ async function generateSkills(): Promise<void> {
     }
     const fm = await frontmatter(file);
     const origin = await originUrl(file);
-    const link = `${BLOB}/${SKILLS_PREFIX}/${name}/SKILL.md`;
+    const link = `${SKILLS_BLOB}/${name}/SKILL.md`;
     if (origin) {
       const originRepo =
         origin.match(/github\.com\/([^/]+\/[^/]+)/)?.[1] ?? origin;

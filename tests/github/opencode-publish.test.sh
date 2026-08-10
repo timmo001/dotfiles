@@ -9,11 +9,14 @@ trap 'rm -rf "$temp_dir"' EXIT
 publish_dir="$temp_dir/publish"
 mkdir -p "$publish_dir"
 git -C "$publish_dir" init --quiet
+git -C "$publish_dir" config user.email test@example.com
+git -C "$publish_dir" config user.name Test
 
 (
   cd "$repo_root"
   DOTFILES_REPO=timmo001/dotfiles \
     PUBLISH_REPO=timmo001/opencode-config \
+    SKILLS_REPO=timmo001/skills \
     OPENCODE_SOURCE_PREFIX=agents/.config/opencode \
     SKILLS_SOURCE_PREFIX=agents/.agents/skills \
     SOURCE_BRANCH=distro/arch-omarchy \
@@ -26,6 +29,8 @@ git -C "$publish_dir" init --quiet
 test -f "$publish_dir/lib/guard-paths.ts"
 test -f "$publish_dir/lib/toast.ts"
 test -f "$publish_dir/plugins/env-protection.ts"
+test -f "$publish_dir/.gitmodules"
+test "$(git -C "$publish_dir" ls-files --stage skills | cut -d' ' -f1)" = 160000
 
 js_import_config="$temp_dir/js-import-config"
 mkdir -p "$js_import_config/agents" "$js_import_config/commands" "$js_import_config/plugins" "$js_import_config/lib"
@@ -36,6 +41,7 @@ printf '%s\n' 'export const helper = true' >"$js_import_config/lib/helper.ts"
   cd "$repo_root"
   DOTFILES_REPO=timmo001/dotfiles \
     PUBLISH_REPO=timmo001/opencode-config \
+    SKILLS_REPO=timmo001/skills \
     OPENCODE_SOURCE_PREFIX="$js_import_config" \
     SKILLS_SOURCE_PREFIX=agents/.agents/skills \
     SOURCE_BRANCH=distro/arch-omarchy \
@@ -59,6 +65,7 @@ if (
   cd "$repo_root"
   DOTFILES_REPO=timmo001/dotfiles \
     PUBLISH_REPO=timmo001/opencode-config \
+    SKILLS_REPO=timmo001/skills \
     OPENCODE_SOURCE_PREFIX="$invalid_config" \
     SKILLS_SOURCE_PREFIX="$invalid_skills" \
     SOURCE_BRANCH=distro/arch-omarchy \

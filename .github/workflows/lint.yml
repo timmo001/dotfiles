@@ -19,6 +19,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          submodules: true
 
       - name: Setup mise
         uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4.2.4
@@ -29,7 +30,7 @@ jobs:
   validate-skills:
     uses: timmo001/workflows/.github/workflows/lint-agent-skills.yml@72d13b406a4306266f3fc938c722ac53fa7b44d2 # master
     with:
-      skill-roots: agents/.agents/skills .agents/skills
+      skill-roots: .agents/skills
 
   actionlint:
     uses: timmo001/workflows/.github/workflows/lint-actionlint.yml@72d13b406a4306266f3fc938c722ac53fa7b44d2 # master

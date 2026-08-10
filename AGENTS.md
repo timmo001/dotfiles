@@ -27,7 +27,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - Stow config: `.stowrc`
 - Readme: `README.md` (slim pointer; links to the docs site, which is the canonical human documentation)
 - OpenCode config source: `agents/.config/opencode/`
-- Skills source: `agents/.agents/skills/` (stows to `~/.agents/skills/`)
+- Skills source: [`timmo001/skills`](https://github.com/timmo001/skills), pinned at `agents/.agents/skills/` and stowed to `~/.agents/skills/`
 - Published OpenCode config: [`timmo001/opencode-config`](https://github.com/timmo001/opencode-config)
 
 ## Tooling
@@ -42,10 +42,10 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - For human-written command names and command/docs prose in this repo, prefer UK spelling. Keep upstream tool, API, or MCP names unchanged when they use US spelling.
 - `agents/.config/opencode/` contains the shared OpenCode config source published from this repo.
 - `agents/.config/opencode/lib/` contains shared plugin support modules. Relative plugin imports must resolve before publication.
-- `agents/.agents/skills/` contains globally stowed skills exposed via `~/.agents/skills/`.
+- `agents/.agents/skills/` is the `timmo001/skills` submodule and exposes its skills via `~/.agents/skills/`. Make skill changes in the standalone checkout under `~/repos/skills`, then update the pinned revision here.
 - `herdr/.config/herdr/` stows the main config and selected plugin configuration; runtime logs, sockets, generated files, and session state stay untracked in `~/.config/herdr/`.
 - `.agents/skills/` contains repo-local skills for this repo only and is registered through `skills.paths` in `opencode.json`.
-- Public `SKILL.md` files under `agents/.agents/skills/` and `.agents/skills/` must satisfy the [Agent Skills](https://agentskills.io/specification) frontmatter rules. CI validates both roots with the shared `lint-agent-skills` workflow.
+- Public `SKILL.md` files must satisfy the [Agent Skills](https://agentskills.io/specification) frontmatter rules. The standalone skills repo validates `agents/.agents/skills/`; this repo validates its local `.agents/skills/` root.
 - `dot agents-sync` mirrors the global private AGENTS source into agent harness instruction files; full `dot update` and `dot init` run that sync automatically.
 - Pinned private OpenCode packages, including plugins in `dotfiles-private/agents/.config/opencode/{opencode,tui}.json`, should be managed by an npm regex custom manager in `dotfiles-private/renovate.json`.
 

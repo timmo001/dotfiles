@@ -16,7 +16,7 @@ My public [Omarchy](https://omarchy.org) dotfiles, managed with GNU Stow and the
 - Git/GitHub tooling: diff, log, status, workflow runs, and a notification inbox across managed repos, with Waybar modules
 - Managed Omarchy repos (`waybar`, `uwsm`) and stowed Hyprland/Ghostty config
 - Optional private overlay from `~/.config/dotfiles-private`
-- Shared OpenCode agents, commands, skills, and plugins, published to [`timmo001/opencode-config`](https://github.com/timmo001/opencode-config)
+- Shared OpenCode agents, commands, and plugins published to [`timmo001/opencode-config`](https://github.com/timmo001/opencode-config), with portable skills in [`timmo001/skills`](https://github.com/timmo001/skills)
 
 ## Quick start
 
@@ -66,7 +66,7 @@ Everything is documented at <https://dotfiles.timmo.dev>:
 - `scripts/.local/bin/dot` — compiled binary (stowed to `~/.local/bin/dot`)
 - `.stowrc` — stow target and ignore rules
 - `zsh/`, `neovim/`, `starship/`, `editorconfig/` — shell, editor, and prompt config
-- `agents/` — OpenCode config (`.config/opencode/`) and shared skills (`.agents/skills/`), published to [`opencode-config`](https://github.com/timmo001/opencode-config)
+- `agents/` — OpenCode config (`.config/opencode/`) and the pinned [`skills`](https://github.com/timmo001/skills) checkout (`.agents/skills/`), published through [`opencode-config`](https://github.com/timmo001/opencode-config)
 - `hypr/` — Hyprland config (stowed with `--no-folding`, per-host overrides)
 - `ghostty/` — Ghostty config, host overrides, launcher, and desktop entry
 

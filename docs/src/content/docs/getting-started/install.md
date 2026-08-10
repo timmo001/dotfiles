@@ -24,7 +24,7 @@ gh auth status || gh auth login
 Clone the public dotfiles first, then build the `dot` binary before it is on your `PATH`. Trust and install the pinned toolchain with mise, then run the build task (it installs dependencies first, and `mise run` provides Bun without needing shell activation yet):
 
 ```bash
-git clone git@github.com:timmo001/dotfiles.git ~/.config/dotfiles
+git clone --recurse-submodules git@github.com:timmo001/dotfiles.git ~/.config/dotfiles
 
 cd ~/.config/dotfiles
 mise trust
