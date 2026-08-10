@@ -45,6 +45,12 @@
       "matchManagers": ["github-actions"]
     },
     {
+      "description": "Update first-party skills without a release delay.",
+      "matchManagers": ["git-submodules"],
+      "matchDepNames": ["https://github.com/timmo001/skills.git"],
+      "minimumReleaseAge": null
+    },
+    {
       "description": "Group OpenCode updates with mise's shorter release delay.",
       "groupName": "OpenCode",
       "matchDepNames": ["aqua:anomalyco/opencode", "anomalyco/opencode"],
