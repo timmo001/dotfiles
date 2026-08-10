@@ -82,6 +82,18 @@ type = "plugin_action"
 command = "mirror.remote-new-workspace"
 description = "create a remote Herdr workspace"
 
+[[keys.command]]
+key = "prefix+u"
+type = "plugin_action"
+command = "usagebar.open-limits"
+description = "open agent usage limits"
+
+[[keys.command]]
+key = "prefix+shift+u"
+type = "plugin_action"
+command = "usagebar.refresh"
+description = "refresh agent usage"
+
 [theme]
 name = "catppuccin"
 auto_switch = false
@@ -97,6 +109,15 @@ prompt_new_tab_name = false
 prompt_new_workspace_name = true
 
 agent_panel_sort = "spaces"
+
+[ui.sidebar.agents]
+row_gap = 0
+rows = [
+  ["state_icon", "$title"],
+  ["$provider", "$limit"],
+  ["$context"],
+]
+
 [ui.toast]
 delivery = "herdr"
 
