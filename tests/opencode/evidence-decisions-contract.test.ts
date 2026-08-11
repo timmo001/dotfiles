@@ -25,7 +25,7 @@ describe("evidence and decisions contract", () => {
       "does not satisfy that retrieval",
       "external product contracts, defaults, or supported behaviour",
       "Briefly name the source in the answer.",
-      "use the question tool",
+      "structured question capability",
       "Load `research`",
     ]) {
       expect(evidenceFirstSkill).toContain(contract);

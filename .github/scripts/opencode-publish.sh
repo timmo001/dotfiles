@@ -370,12 +370,9 @@ sync_to_publish() {
 
   validate_plugin_imports "${CONFIG_DIR}"
 
-  git -C "${PUBLISH_DIR}" submodule deinit --force skills 2>/dev/null || true
-  git -C "${PUBLISH_DIR}" rm -r --force --cached --ignore-unmatch skills .gitmodules >/dev/null
-  rm -rf "${PUBLISH_DIR}/.git/modules/skills"
-
-  # Clean target (preserve .git)
-  find "${PUBLISH_DIR}" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+  # Clean generated targets while preserving the existing skills submodule.
+  find "${PUBLISH_DIR}" -mindepth 1 -maxdepth 1 \
+    ! -name '.git' ! -name '.gitmodules' ! -name 'skills' -exec rm -rf {} +
 
   # Copy OpenCode config directories from their stow source.
   for dir in agents commands plugins lib; do
@@ -384,7 +381,10 @@ sync_to_publish() {
   done
 
   # Keep skills as a pinned reference to their independent source repository.
-  git -C "${PUBLISH_DIR}" submodule add --force "${SKILLS_URL}.git" skills
+  if [[ ! -d "${PUBLISH_DIR}/skills/.git" && ! -f "${PUBLISH_DIR}/skills/.git" ]]; then
+    git -C "${PUBLISH_DIR}" submodule add --force "${SKILLS_URL}.git" skills
+  fi
+  git -C "${PUBLISH_DIR}/skills" fetch origin
   git -C "${PUBLISH_DIR}/skills" checkout "$(git -C "${SKILLS_DIR}" rev-parse HEAD)"
 
   echo "::endgroup::"

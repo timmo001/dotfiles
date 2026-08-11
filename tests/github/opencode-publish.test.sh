@@ -32,6 +32,9 @@ test -f "$publish_dir/plugins/env-protection.ts"
 test -f "$publish_dir/.gitmodules"
 test "$(git -C "$publish_dir" ls-files --stage skills | cut -d' ' -f1)" = 160000
 
+git -C "$publish_dir" add -A
+git -C "$publish_dir" commit --quiet -m baseline
+
 js_import_config="$temp_dir/js-import-config"
 mkdir -p "$js_import_config/agents" "$js_import_config/commands" "$js_import_config/plugins" "$js_import_config/lib"
 printf '%s\n' 'import "../lib/helper.js"' >"$js_import_config/plugins/valid.ts"
