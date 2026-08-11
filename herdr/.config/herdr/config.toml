@@ -119,7 +119,7 @@ agent_panel_sort = "spaces"
 [ui.sidebar.agents]
 row_gap = 0
 rows = [
-  ["state_icon", "$title"],
+  ["state_icon", "$title", "$pr"],
   ["$provider", "$limit"],
   ["$context"],
 ]
