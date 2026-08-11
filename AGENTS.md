@@ -42,9 +42,9 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - For human-written command names and command/docs prose in this repo, prefer UK spelling. Keep upstream tool, API, or MCP names unchanged when they use US spelling.
 - `agents/.config/opencode/` contains the shared OpenCode config source published from this repo.
 - `agents/.config/opencode/lib/` contains shared plugin support modules. Relative plugin imports must resolve before publication.
-- `agents/.agents/skills/` is the `timmo001/skills` submodule and exposes its skills via `~/.agents/skills/`. Make skill changes in the standalone checkout under `~/repos/skills`, then update the pinned revision here.
+- `agents/.agents/skills/` is the `timmo001/skills` submodule and exposes its skills via `~/.agents/skills/`. Create or change every reusable skill in the standalone checkout under `~/repos/skills`, even when first requested from this repo, then update the pinned revision here after that repository revision is committed and pushed.
 - `herdr/.config/herdr/` stows the main config and selected plugin configuration; runtime logs, sockets, generated files, and session state stay untracked in `~/.config/herdr/`.
-- `.agents/skills/` contains repo-local skills for this repo only and is registered through `skills.paths` in `opencode.json`. Dotfiles-owned global skills live in the `dotfiles-skills/.agents/skills/` stow package.
+- `.agents/skills/` contains repo-local skills for this repo only and is registered through `skills.paths` in `opencode.json`. Use `dotfiles-skills/.agents/skills/` only for global skills whose workflow is specifically coupled to dotfiles paths, commands, or private overlays; tool-specific or cross-repository workflows belong in `~/repos/skills`.
 - Public `SKILL.md` files must satisfy the [Agent Skills](https://agentskills.io/specification) frontmatter rules. The standalone skills repo validates `agents/.agents/skills/`; this repo validates its local `.agents/skills/` root.
 - `dot agents-sync` mirrors the global private AGENTS source into agent harness instruction files; full `dot update` and `dot init` run that sync automatically.
 - Pinned private OpenCode packages, including plugins in `dotfiles-private/agents/.config/opencode/{opencode,tui}.json`, should be managed by an npm regex custom manager in `dotfiles-private/renovate.json`.
