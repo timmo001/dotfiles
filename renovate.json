@@ -26,8 +26,9 @@
     },
     {
       "customType": "regex",
-      "description": "Update Herdr plugin lock commits.",
+      "description": "Update Herdr plugin commits.",
       "managerFilePatterns": [
+        "/^herdr\\/\\.config\\/herdr\\/plugins\\/config\\/herdr-lazy\\/plugins\\.list$/",
         "/^herdr\\/\\.config\\/herdr\\/plugins\\/config\\/herdr-lazy\\/plugins\\.lock$/"
       ],
       "matchStrings": [
@@ -43,6 +44,15 @@
       "description": "Group GitHub Actions.",
       "groupName": "github actions",
       "matchManagers": ["github-actions"]
+    },
+    {
+      "description": "Group Herdr plugin updates.",
+      "groupName": "Herdr plugins",
+      "matchManagers": ["custom.regex"],
+      "matchFileNames": [
+        "herdr/.config/herdr/plugins/config/herdr-lazy/plugins.list",
+        "herdr/.config/herdr/plugins/config/herdr-lazy/plugins.lock"
+      ]
     },
     {
       "description": "Update first-party skills without a release delay.",
