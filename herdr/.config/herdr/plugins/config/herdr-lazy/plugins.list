@@ -4,4 +4,7 @@ crokily/herdr-lazygit
 persiyanov/herdr-reviewr
 nikok6/herdr-mirror
 andrewchng/herdr-sessionizer
-timmo001/herdr-agent-usage
+senna-lang/herdr-agent-usage
+
+# extra: pluck — Grab URLs, commit SHAs, and file paths out of a pane by keyboard — no mouse, no reaching.
+rmarganti/herdr-pluck
