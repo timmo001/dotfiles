@@ -65,6 +65,12 @@ command = "herdr-lazy.manage"
 description = "manage Herdr plugins"
 
 [[keys.command]]
+key = "prefix+f"
+type = "plugin_action"
+command = "nicosuave.memex.palette"
+description = "open memex session palette"
+
+[[keys.command]]
 key = "prefix+shift+v"
 type = "plugin_action"
 command = "persiyanov.reviewr.toggle"

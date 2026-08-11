@@ -48,6 +48,9 @@ minimum_release_age = "2h"
 version = "0.26.7"
 minimum_release_age = "2h"
 
+[tools."github:nicosuave/memex"]
+version = "0.9.1"
+
 [settings]
 aqua.registries = ["https://github.com/aquaproj/aqua-registry"]
 idiomatic_version_file_enable_tools = ["bun", "deno", "go", "node", "python"]

@@ -9,7 +9,7 @@ These variables tune paths and behaviour for `dot`. Most have sensible defaults;
 
 ## Managed toolchain
 
-The global mise configuration (`mise/.config/mise/config.toml`) pins the shared developer toolchain, including the Skills CLI used by `dot skill-updates`. Node.js and Bun versions are also declared in the repository root `mise.toml` for `dot` and `docs` tasks.
+The global mise configuration (`mise/.config/mise/config.toml`) pins the shared developer toolchain, including the Skills CLI used by `dot skill-updates` and [memex](https://github.com/nicosuave/memex) for browsing and searching local coding-agent history. The matching Herdr plugin provides session palettes, browsing, resume, indexing, and web UI actions. Node.js and Bun versions are also declared in the repository root `mise.toml` for `dot` and `docs` tasks.
 
 Python 3.14 and [uv](https://docs.astral.sh/uv/) are installed through mise for Python package and virtual-environment management. Use `uv` directly for project work; `topgrade` leaves mise pins unchanged unless you run `mise install` or `dot update`.
 
