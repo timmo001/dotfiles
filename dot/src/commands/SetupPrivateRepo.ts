@@ -25,6 +25,7 @@ const PRIVATE_PACKAGE_REPO_CLONE_TIMEOUT_SECONDS = 3 * 60;
 const PRIVATE_PACKAGE_REPO_MKDIR_TIMEOUT_SECONDS = 60;
 const PRIVATE_PACKAGE_REPO_RSYNC_TIMEOUT_SECONDS = 5 * 60;
 const PRIVATE_PACKAGE_REPO_CONFIG_TIMEOUT_SECONDS = 60;
+const PRIVATE_PACKAGE_REPO_REFRESH_TIMEOUT_SECONDS = 5 * 60;
 
 /** Domain error for private pacman repository setup failures. */
 class SetupPrivateRepoError extends Schema.TaggedErrorClass<SetupPrivateRepoError>()(
@@ -248,6 +249,22 @@ function configurePrivatePacmanRepo(
   });
 }
 
+/** Refresh pacman's cached repository metadata after syncing the local mirror. */
+function refreshPrivatePacmanMetadata(): Effect.Effect<
+  void,
+  SetupPrivateRepoError,
+  CommandExecutor | OutputLog
+> {
+  return runElevatedPrivateRepoCommand(
+    "Refresh pacman package databases",
+    PRIVATE_PACKAGE_REPO_REFRESH_TIMEOUT_SECONDS,
+    "pacman",
+    ["-Sy", "--noconfirm"],
+    (exitCode) =>
+      `Could not refresh package databases (pacman exited ${exitCode})`,
+  );
+}
+
 /** Register the private pacman repository snippet from the main pacman config. */
 function registerPrivatePacmanRepoInclude(): Effect.Effect<
   void,
@@ -286,6 +303,7 @@ export const setupPrivatePackageRepo = (
       yield* log.info(
         "Private pacman repo already configured; skipping source clone",
       );
+      yield* refreshPrivatePacmanMetadata();
       return;
     }
 
@@ -293,6 +311,7 @@ export const setupPrivatePackageRepo = (
     yield* syncPrivatePackageRepoMirror(repo);
     yield* configurePrivatePacmanRepo(repo);
     yield* registerPrivatePacmanRepoInclude();
+    yield* refreshPrivatePacmanMetadata();
 
     if (!privatePackageRepoReady(repo)) {
       return yield* fail("Private pacman repo setup did not reach ready state");

@@ -12,6 +12,7 @@ import { writeAllCompletions } from "./Completions.js";
 import { rebuild, restartDot } from "../lib/selfUpdate.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
 import { trustTrackedMiseConfigs } from "../lib/miseTrust.js";
+import { loadPrivatePackageRepoConfig } from "../doctor/checks/packages.js";
 import { withSpinnerTimeout, withStepTimeout } from "../lib/workflowStep.js";
 import {
   ensureInitCompleteMarker,
@@ -27,6 +28,7 @@ import {
 import { HOME_DIR, displayPath } from "../lib/paths.js";
 import { detectLegacyHyprRepo } from "../lib/omarchyHost.js";
 import { managedGitRepos } from "../services/GitConfig.js";
+import { setupPrivateRepo } from "./SetupPrivateRepo.js";
 import type { ConfigService } from "../services/Config.js";
 import type { GitManagedRepo } from "../services/GitConfig.js";
 import type { InitCompleteMarkerStatus } from "../lib/initState.js";
@@ -689,6 +691,9 @@ export const update = (opts?: UpdateOptions) =>
 
     const config = yield* Config;
     const log = yield* OutputLog;
+    const privatePackageRepo = config.canUsePrivate
+      ? loadPrivatePackageRepoConfig(config)
+      : null;
 
     yield* log.section("Update Workflow");
 
@@ -707,6 +712,7 @@ export const update = (opts?: UpdateOptions) =>
     }
 
     const updatedNames = [...(opts?.postHookRepos ?? [])];
+    let privatePackageRepoUpdated = false;
 
     if (doPull) {
       yield* requiredUpdateStep(
@@ -792,7 +798,12 @@ export const update = (opts?: UpdateOptions) =>
                 yield* log.info(`${changed.length} repo(s) need attention`);
                 for (const repo of behind) {
                   const moved = yield* safePull(repo.name, repo.path);
-                  if (moved) updatedNames.push(repo.name);
+                  if (moved) {
+                    updatedNames.push(repo.name);
+                    if (repo.path === privatePackageRepo?.path) {
+                      privatePackageRepoUpdated = true;
+                    }
+                  }
                 }
               }
             }),
@@ -805,6 +816,10 @@ export const update = (opts?: UpdateOptions) =>
           const updated = new Set(updatedNames);
           for (const repo of managedGitRepos(config.gitConfig)) {
             if (updated.has(repo.name)) yield* runRepoPostUpdate(repo);
+          }
+
+          if (privatePackageRepoUpdated) {
+            yield* setupPrivateRepo;
           }
         }),
       );

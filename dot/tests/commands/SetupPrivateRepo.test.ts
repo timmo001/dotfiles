@@ -57,11 +57,17 @@ describe("setupPrivatePackageRepo", () => {
     process.env[ENV.DOT_PRIVATE_PACMAN_MAIN_CONFIG] = pacmanMainConfig;
 
     const messages: string[] = [];
+    const inherited: Array<readonly [string, readonly string[]]> = [];
     const commandExecutor = Layer.succeed(CommandExecutor, {
       run: () => Effect.die("run should not be called"),
       stream: () => Stream.die("stream should not be called"),
-      exitCode: () => Effect.die("exitCode should not be called"),
-      inherit: () => Effect.die("inherit should not be called"),
+      exitCode: (command, args) =>
+        Effect.succeed(command === "which" && args[0] === "sudo" ? 0 : 1),
+      inherit: (command, args) =>
+        Effect.sync(() => {
+          inherited.push([command, args]);
+          return 0;
+        }),
     });
     const outputLog = Layer.succeed(OutputLog, {
       info: (message) => Effect.sync(() => void messages.push(message)),
@@ -87,6 +93,7 @@ describe("setupPrivatePackageRepo", () => {
     expect(messages).toContain(
       "Private pacman repo already configured; skipping source clone",
     );
+    expect(inherited).toEqual([["sudo", ["pacman", "-Sy", "--noconfirm"]]]);
   });
 
   test("does not treat an empty mirror as installed", async () => {

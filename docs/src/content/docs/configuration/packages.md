@@ -21,7 +21,7 @@ The repository overlays maintained package names. `omarchy-pkg-aur-add` uses the
 
 ## Public packages
 
-`dot init` installs the Arch and AUR packages listed in `.dot-public-packages` at the repo root. The file is one package name per line; blank lines and `#` comments are ignored. Ongoing package health is reported by `dot doctor`; `dot update` does not check or install packages.
+`dot init` installs the Arch and AUR packages listed in `.dot-public-packages` at the repo root. The file is one package name per line; blank lines and `#` comments are ignored. Ongoing package health is reported by `dot doctor`; `dot update` does not check or install packages. Its pull phase does resync the configured private repository mirror and refresh pacman metadata when that repository is updated.
 
 The list covers shared tooling rather than desktop apps you might install separately, including build helpers, diagnostics, shell and terminal tools, and desktop integrations. Override the path with `DOT_PUBLIC_PACKAGES_FILE`.
 
@@ -37,7 +37,7 @@ Private packages from `.dot-private-packages` in the private overlay are install
 dot setup-private-repo
 ```
 
-Syncs the private Arch package repo mirror, writes the private pacman repo snippet, and adds the `Include` line to `/etc/pacman.conf` when it is missing. If the local source clone is missing, setup skips cloning only when the configured mirror already contains `<repo>.db`, `<repo>.db.tar.gz`, or `<repo>.db.tar.zst` and pacman registration is current. This supports an already usable local mirror, but publishing still requires the configured source clone to exist. The command repairs Omarchy `pacman.conf` refreshes that remove local repository includes. Privileged writes prefer `pkexec` and fall back to `sudo`.
+Syncs the private Arch package repo mirror, writes the private pacman repo snippet, adds the `Include` line to `/etc/pacman.conf` when it is missing, and refreshes pacman metadata. If the local source clone is missing, setup skips cloning only when the configured mirror already contains `<repo>.db`, `<repo>.db.tar.gz`, or `<repo>.db.tar.zst` and pacman registration is current. This supports an already usable local mirror, but publishing still requires the configured source clone to exist. The command repairs Omarchy `pacman.conf` refreshes that remove local repository includes. Privileged writes prefer `pkexec` and fall back to `sudo`.
 
 ## Publish a package
 
