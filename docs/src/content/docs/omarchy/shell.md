@@ -29,7 +29,7 @@ Per-host differences:
 
 - **Bar position**: `bottom` on `laptop`, `top` on every other host.
 - **Clock position**: at the far right on `laptop`, centred on every other host.
-- **Clock format**: compact `HH:mm ddd d MMM`, matching the final pre-Quattro Waybar clock apart from its ordinal day suffix.
+- **Clock format**: compact `HH:mm d MMM`, based on the final pre-Quattro Waybar clock without its weekday or ordinal day suffix. The `timmo.clock` clone reduces the stock clock's 8.75px cell padding to 6px.
 - **Idle timers**: screensaver at 2.5 minutes and lock at 5 minutes on `laptop`; screensaver at 30 minutes and lock at 60 minutes on every other host.
 - **Home Assistant sensors**: temperature, CO2, doorbell, and VOC entities differ per host (desktop vs laptop).
 
@@ -75,10 +75,10 @@ All custom additions use `revealOnHover`: status cells hidden in their normal in
 These stock widgets retain their implementations and stay in their original sections:
 
 - **Left:** `omarchy.menu`.
-- **Centre:** `omarchy.indicators`, `omarchy.clock` (desktop), `omarchy.keyboard-layout`, and `omarchy.system-update`.
-- **Right:** `omarchy.tray`, `omarchy.agents`, `omarchy.bluetooth`, `omarchy.network`, `omarchy.audio`, `omarchy.monitor`, `omarchy.power`, and `omarchy.clock` (laptop).
+- **Centre:** `omarchy.indicators`, `timmo.clock` (desktop), `omarchy.keyboard-layout`, and `omarchy.system-update`.
+- **Right:** `omarchy.tray`, `omarchy.agents`, `omarchy.bluetooth`, `omarchy.network`, `omarchy.audio`, `omarchy.monitor`, `omarchy.power`, and `timmo.clock` (laptop).
 
-The stock alternate clock format, opaque bar, config version, and plugin list are also preserved. The normal clock format uses the compact pre-Quattro layout, while the `omarchy.clock` centre anchor is preserved on desktop and cleared when the laptop moves the clock right.
+The stock alternate clock format, opaque bar, config version, and plugin list are also preserved. The normal clock format uses the compact pre-Quattro layout, while the `timmo.clock` centre anchor is used on desktop and cleared when the laptop moves the clock right.
 
 ### Host overrides
 
@@ -99,6 +99,7 @@ A plugin is a folder with `manifest.json` (schema version 1, an `id` like `timmo
 
 | Plugin | Kind | What it does |
 | --- | --- | --- |
+| `timmo.clock` | bar-widget | Keeps the stock clock and calendar behaviour with compact 6px cell padding. |
 | `timmo.command` | bar-widget | Runs a shell command on an interval and renders its status-bar JSON (`text` / `tooltip` / `class`) with compact 6px horizontal cell margins. The Waybar `custom/*` equivalent. |
 | `timmo.stream-command` | bar-widget | Runs a long-running command that streams status-bar JSON lines and renders the latest line with compact 6px horizontal cell margins (for watchers like `ha-watch-singleton`). |
 | `timmo.workspaces` | bar-widget | Workspace numbers without persistent workspaces: only existing workspaces show, the focused one at full opacity and the rest dimmed. |

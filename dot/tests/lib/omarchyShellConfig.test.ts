@@ -57,11 +57,11 @@ describe("mergeOmarchyShellConfig", () => {
     expect(merged.idle).toEqual({ screensaver: 1800, lock: 3600 });
     expect(merged.bar.customBarField).toBe("preserved");
     expect(merged.bar.id).toBe("omarchy.bar");
-    expect(merged.bar.centerAnchor).toBe("omarchy.clock");
+    expect(merged.bar.centerAnchor).toBe("timmo.clock");
     expect(merged.bar.position).toBe("top");
     expect(merged.bar.layout.center).toContainEqual({
-      id: "omarchy.clock",
-      format: "HH:mm ddd d MMM",
+      id: "timmo.clock",
+      format: "HH:mm d MMM",
     });
 
     expect(merged.bar.layout.left[1]).toEqual({
@@ -83,7 +83,9 @@ describe("mergeOmarchyShellConfig", () => {
     expect(
       merged.bar.layout.center
         .filter(({ id }) => id.startsWith("timmo."))
-        .every((entry) => entry.revealOnHover === true),
+        .every(
+          (entry) => entry.id === "timmo.clock" || entry.revealOnHover === true,
+        ),
     ).toBe(true);
 
     const rightIds = merged.bar.layout.right.map(({ id }) => id);
@@ -105,7 +107,9 @@ describe("mergeOmarchyShellConfig", () => {
     expect(
       customEntries(merged).every(
         (entry) =>
-          entry.id === "timmo.workspaces" || entry.revealOnHover === true,
+          entry.id === "timmo.workspaces" ||
+          entry.id === "timmo.clock" ||
+          entry.revealOnHover === true,
       ),
     ).toBe(true);
     expect(
@@ -148,11 +152,11 @@ describe("mergeOmarchyShellConfig", () => {
     expect(merged.bar.centerAnchor).toBe("");
     expect(merged.idle).toEqual({ screensaver: 150, lock: 300 });
     expect(merged.bar.layout.center.map(({ id }) => id)).not.toContain(
-      "omarchy.clock",
+      "timmo.clock",
     );
     expect(merged.bar.layout.right.at(-1)).toEqual({
-      id: "omarchy.clock",
-      format: "HH:mm ddd d MMM",
+      id: "timmo.clock",
+      format: "HH:mm d MMM",
     });
     expect(runs).toContain("sensor.meter_plus_378b_temperature");
     expect(runs).toContain(

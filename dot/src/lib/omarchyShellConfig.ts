@@ -75,11 +75,14 @@ function floatingWebapp(url: string): string {
 /** Widget id of Omarchy's default workspaces bar entry (left column). */
 const WORKSPACES_ID = "omarchy.workspaces";
 
-/** Widget id of Omarchy's default clock bar entry (default centre anchor). */
-const CLOCK_ID = "omarchy.clock";
+/** Widget id of Omarchy's default clock bar entry. */
+const DEFAULT_CLOCK_ID = "omarchy.clock";
+
+/** Personal clone of Omarchy's clock with compact padding. */
+const CLOCK_ID = "timmo.clock";
 
 /** Compact clock format matching the final pre-Quattro Waybar layout. */
-const CLOCK_FORMAT = "HH:mm ddd d MMM";
+const CLOCK_FORMAT = "HH:mm d MMM";
 
 /** Widget id of Omarchy's default weather bar entry (center column). */
 const WEATHER_ID = "omarchy.weather";
@@ -462,9 +465,15 @@ export function mergeOmarchyShellConfig(
   // the doorbell trigger at the very end. All custom widgets fade in dimmed
   // when class-hidden and the bar is hovered. They share a standard 8px margin
   // (the widget default), so no per-instance margin is needed here.
-  const clockIndex = center.findIndex((entry) => entry.id === CLOCK_ID);
+  const clockIndex = center.findIndex(
+    (entry) => entry.id === DEFAULT_CLOCK_ID || entry.id === CLOCK_ID,
+  );
   if (clockIndex !== -1) {
-    center[clockIndex] = { ...center[clockIndex], format: CLOCK_FORMAT };
+    center[clockIndex] = {
+      ...center[clockIndex],
+      id: CLOCK_ID,
+      format: CLOCK_FORMAT,
+    };
   }
   if (host === "laptop") {
     if (clockIndex !== -1) right.push(...center.splice(clockIndex, 1));
