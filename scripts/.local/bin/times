@@ -28,12 +28,11 @@ case "${1:-}" in
     mountain="$(TZ=America/Denver date '+%H:%M %Z')"
     central="$(TZ=America/Chicago date '+%H:%M %Z')"
     eastern="$(TZ=America/New_York date '+%H:%M %Z')"
-    printf '<tt>%-15s%s</tt>\n' \
-      "${local_time##* } ${local_time% *}" "${pacific##* } ${pacific% *}"
-    printf '<tt>%-15s%-15s%s</tt>\n' \
-      "${mountain##* } ${mountain% *}" \
-      "${central##* } ${central% *}" \
-      "${eastern##* } ${eastern% *}"
+    printf '<tt>%s&nbsp;&nbsp;%s&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;%s&nbsp;&nbsp;%s</tt>\n' \
+      "${local_time##* }" "${local_time% *}" "${pacific##* }" "${pacific% *}"
+    printf '<tt>%s&nbsp;&nbsp;%s&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;%s&nbsp;&nbsp;%s</tt>\n' \
+      "${mountain##* }" "${mountain% *}" "${central##* }" "${central% *}"
+    printf '<tt>%s&nbsp;&nbsp;%s</tt>\n' "${eastern##* }" "${eastern% *}"
     ;;
   -h|--help)
     printf 'Usage: times [--compact|--notify]\n'
