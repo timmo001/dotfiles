@@ -46,7 +46,7 @@ When restarting Omarchy-managed apps, prefer `omarchy restart <app>` (via the `r
 Power-profile control has two entrypoints:
 
 - `dot omarchy power` opens the Omarchy power-profile submenu from the `dot` TUI.
-- `SUPER+CTRL+P` runs `power-profile-menu`, a Walker picker that shows the current profile and selects one of the profiles reported by `omarchy-powerprofiles-list`.
+- `SUPER+CTRL+ALT+P` runs `power-profile-menu`, an Omarchy menu that shows the current profile and selects one of the profiles reported by `omarchy-powerprofiles-list`.
 
 The menu writes the selected profile with `powerprofilesctl set`, so the available choices and final state come from `power-profiles-daemon` rather than a dot-specific state file.
 
@@ -74,4 +74,4 @@ omarchy-powerprofiles-list
 pgrep -af power-profile-daemon
 ```
 
-If `SUPER+CTRL+P` opens no choices, check that `omarchy-powerprofiles-list` prints profile IDs. If the laptop policy is not running, confirm the active host symlink points at the laptop overrides and that Hyprland loaded `~/.config/hypr/host/autostart.lua`; see [Host Overrides](/omarchy/host-overrides/).
+If `SUPER+CTRL+ALT+P` opens no choices, check that `omarchy-powerprofiles-list` prints profile IDs. If the laptop policy is not running, confirm the active host symlink points at the laptop overrides and that Hyprland loaded `~/.config/hypr/host/autostart.lua`; see [Host Overrides](/omarchy/host-overrides/).
