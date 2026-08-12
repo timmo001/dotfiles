@@ -35,7 +35,7 @@ ha-entity-bar-json-once --icon '' input_text.current_next_event_in_an_hour
 
 ### `ha-module-bar`
 
-`ha-module-bar` wraps go-automate with opinionated Waybar modules for common Home Assistant entities. Each mode ships default entity IDs and display rules; override them with `--entity`, `--name`, `--icon`, and mode-specific flags when your setup differs. Run `ha-module-bar --help` for the full flag list.
+`ha-module-bar` wraps go-automate with opinionated status-bar modules for common Home Assistant entities. Each mode ships default entity IDs and display rules; override them with `--entity`, `--name`, `--icon`, and mode-specific flags when your setup differs. Run `ha-module-bar --help` for the full flag list.
 
 | Mode | Behaviour |
 | --- | --- |
@@ -45,9 +45,9 @@ ha-entity-bar-json-once --icon '' input_text.current_next_event_in_an_hour
 | `nas-activity` | Show NAS activity while the gate switch is on; highlight when the inactivity script is armed. Uses `--switch-entity` and `--inactive-script-entity`. |
 | `dining-temperature` | Show dining-room temperature only while the air-conditioner target is below `--gate-below` (default `25`). Uses `--gate-entity` for the AC target. |
 | `current-next-event` | Pass through the entity's bar JSON when the text is non-empty. |
-| `doorbell` | Stream doorbell state through `singleton-stream` so Waybar can keep one long-lived watcher per module instance. |
+| `doorbell` | Stream doorbell state through `singleton-stream` so the bar can keep one long-lived watcher per module instance. |
 
-Most modes poll once per refresh. `doorbell` is the exception: it keeps a singleton stream alive for the Waybar ancestor process and emits JSON only when the output changes. Override the stream identity with `--stream-key` when multiple doorbell modules share an entity.
+Most modes poll once per refresh. `doorbell` is the exception: it keeps a singleton stream alive for the bar ancestor process and emits JSON only when the output changes. Override the stream identity with `--stream-key` when multiple doorbell modules share an entity.
 
 ```bash
 ha-module-bar temperature
@@ -70,7 +70,11 @@ ha-module-bar co2-alert \
 
 `--trigger-on` accepts `transition` (default; fire when state enters `--trigger-state`) or `match` (fire while state equals `--trigger-state`). `--trigger-initial true` allows the first observed state to fire; the default skips the initial read so restarts do not replay alerts. `--trigger-cooldown` enforces a minimum interval between fires. Trigger state persists under `$XDG_RUNTIME_DIR` (override the key with `--trigger-key` when multiple modules share a mode).
 
-`dot dashboard` rejects commands that embed `singleton-stream` or `doorbell`, so use `ha-entity-bar-json-once` for dashboard cards and reserve `ha-module-bar doorbell` for Waybar. See [Private Dashboard Config](/configuration/private-dashboard/).
+`dot dashboard` rejects commands that embed `singleton-stream` or `doorbell`, so use `ha-entity-bar-json-once` for dashboard cards and reserve `ha-module-bar doorbell` for a streaming bar widget. See [Private Dashboard Config](/configuration/private-dashboard/).
+
+### `package-updates-bar`
+
+`package-updates-bar` reports updates for packages listed in `.dot-public-packages`. It caches status-bar JSON under `$XDG_CACHE_HOME/status-bar`, refreshes stale data in the background, and keeps the previous AUR backoff behaviour. Run `package-updates-bar refresh` for an immediate retry.
 
 ## Configuration
 

@@ -48,45 +48,13 @@ Keep the existing password lines below it. With `sufficient`, a successful secur
 
 ## Add Hyprlock
 
-Hyprlock uses its own PAM service. Omarchy's FIDO2 setup does not add this line automatically, so prepend it to `/etc/pam.d/hyprlock`:
+The Omarchy shell lock screen uses its own PAM service. Omarchy's FIDO2 setup does not add this line automatically, so prepend it to `/etc/pam.d/omarchy-lock-password`:
 
 ```text
 auth sufficient pam_u2f.so cue [cue_prompt=Touch your security key] authfile=/etc/fido2/fido2
 ```
 
-Leave the default `auth include login` line below it so the normal password unlock still works.
-
-## Update the lock-screen prompt
-
-Hyprlock config is stowed from the dotfiles repo. Edit the active host source, not Omarchy's upstream config directory:
-
-```text
-~/.config/dotfiles/hypr/.config/hypr/hosts/<host>/hyprlock.conf
-```
-
-Use generic security-key wording so the config works with non-Yubico keys too:
-
-```ini
-input-field {
-    placeholder_text = <span> Touch Security Key or Type Password </span>
-    check_text = <i>Touch your security key</i>
-}
-```
-
-If the fingerprint setup script was run on a machine without a fingerprint reader, disable Hyprlock fingerprint auth in the same file:
-
-```ini
-auth {
-    fingerprint:enabled = false
-}
-```
-
-Apply the stowed config:
-
-```bash
-dot stow
-hyprctl configerrors
-```
+Leave the default password stack below it so normal password unlock still works. The packaged lock-screen prompt is owned by Omarchy 4 and is not configured through a stowed `hyprlock.conf`.
 
 ## Remove fingerprint leftovers
 
@@ -97,7 +65,7 @@ pkexec sed -i '/pam_fprintd\.so/d' /etc/pam.d/sudo /etc/pam.d/polkit-1
 pkexec pacman -Rns fprintd libfprint-git
 ```
 
-Keep `fingerprint:enabled = false` in the stowed Hyprlock config.
+The Omarchy shell detects fingerprint support through its separate `omarchy-lock-fingerprint` PAM service.
 
 ## PIN mode
 
@@ -118,13 +86,13 @@ Test each layer before relying on it:
 1. Run `sudo -k`, then `sudo true`.
 2. Touch the security key when prompted.
 3. Trigger a polkit prompt if convenient.
-4. Lock the screen with Hyprlock while another session or terminal remains available.
+4. Lock the screen with the Omarchy shell while another session or terminal remains available.
 5. Test password fallback by trying without the security key.
 
 </Steps>
 
 ## Rollback
 
-Restore the backed-up PAM files, or remove only the added `pam_u2f.so` line from `/etc/pam.d/hyprlock` if the lock screen is the only broken part.
+Restore the backed-up PAM files, or remove only the added `pam_u2f.so` line from `/etc/pam.d/omarchy-lock-password` if the lock screen is the only broken part.
 
 Do not delete `/etc/fido2/fido2` unless you are fully removing FIDO2 auth.

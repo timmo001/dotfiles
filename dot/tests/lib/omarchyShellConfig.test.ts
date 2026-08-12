@@ -92,8 +92,10 @@ describe("mergeOmarchyShellConfig", () => {
     expect(runs).toContain("sensor.meter_d828_temperature");
     expect(runs).toContain("sensor.meter_d828_carbon_dioxide");
     expect(runs).toContain("ha-module-bar");
-    expect(runs).toContain("git-diff-bar");
-    expect(runs).toContain("git-notifications-bar");
+    expect(runs).toContain("dot git-diff --bar-json");
+    expect(runs).toContain("dot git-notifications --bar-json");
+    expect(runs).toContain("dot git-workflows --bar-json");
+    expect(runs).toContain("package-updates-bar status");
     expect(runs).not.toContain("ha-bar-module");
     expect(runs).not.toContain("voc-alert");
     expect(runs).not.toContain("sensor.meter_plus_433c_temperature");

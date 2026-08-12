@@ -93,6 +93,20 @@ BarWidget {
     if (!proc.running) proc.running = true
   }
 
+  function refreshMatchingTarget(target) {
+    if (root.refreshTarget === target) root.refresh()
+  }
+
+  function broadcastRefresh() {
+    var items = root.bar && typeof root.bar.moduleWidgets === "function"
+      ? root.bar.moduleWidgets(root.moduleName) : [root]
+    for (var i = 0; i < items.length; i++) {
+      if (items[i] && typeof items[i].refreshMatchingTarget === "function") {
+        items[i].refreshMatchingTarget(root.refreshTarget)
+      }
+    }
+  }
+
   function applyOutput(raw) {
     var trimmed = (raw || "").trim()
     if (trimmed === "") {
@@ -155,7 +169,7 @@ BarWidget {
       IpcHandler {
         target: root.refreshTarget
         function refresh(): void {
-          root.broadcast("refresh")
+          root.broadcastRefresh()
         }
       }
     }

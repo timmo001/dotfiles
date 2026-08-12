@@ -30,6 +30,34 @@ const AGENTS_PRIVATE_IGNORED_ENTRIES = new Set([
 
 const LEGACY_GHOSTTY_REPO_SLUG = "timmo001/omarchy-ghostty";
 
+const RETIRED_PUBLIC_STOW_PATHS = [
+  "scripts/.local/bin/waybar",
+  "scripts/.local/bin/git-workflows-bar",
+  "scripts/.local/share/omarchy/bin/waybar",
+  "hypr/.config/hypr/hyprland.conf",
+  "hypr/.config/hypr/hypridle.conf",
+  "hypr/.config/hypr/hyprlock.conf",
+  "hypr/.config/hypr/autostart.conf",
+  "hypr/.config/hypr/bindings.conf",
+  "hypr/.config/hypr/envs.conf",
+  "hypr/.config/hypr/float-app.conf",
+  "hypr/.config/hypr/input.conf",
+  "hypr/.config/hypr/looknfeel.conf",
+  "hypr/.config/hypr/monitors.conf",
+  ...["desktop", "laptop"].flatMap((host) =>
+    [
+      "autostart.conf",
+      "bindings.conf",
+      "envs.conf",
+      "hypridle.conf",
+      "hyprlock.conf",
+      "input.conf",
+      "looknfeel.conf",
+      "monitors.conf",
+    ].map((file) => `hypr/.config/hypr/hosts/${host}/${file}`),
+  ),
+] as const;
+
 /** Stored external symlink for save/restore around stow. */
 export interface ExternalSymlink {
   readonly path: string;
@@ -74,6 +102,32 @@ export function backupFileIfUnmanaged(
 /** Format a backup move for user-facing logs. */
 export function formatBackupMove(move: BackupMove): string {
   return `${displayPath(move.source)} -> ${displayPath(move.destination)}`;
+}
+
+/** Remove dangling live links for files retired by the Omarchy 4 migration. */
+export function removeRetiredPublicStowLinks(
+  publicDotfiles: string,
+  homeDir = HOME_DIR,
+): string[] {
+  const removed: string[] = [];
+
+  for (const sourceRelative of RETIRED_PUBLIC_STOW_PATHS) {
+    const packageSeparator = sourceRelative.indexOf("/");
+    const targetRelative = sourceRelative.slice(packageSeparator + 1);
+    const source = join(publicDotfiles, sourceRelative);
+    const target = join(homeDir, targetRelative);
+
+    try {
+      if (!lstatSync(target).isSymbolicLink()) continue;
+      if (resolve(dirname(target), readlinkSync(target)) !== source) continue;
+      unlinkSync(target);
+      removed.push(target);
+    } catch {
+      // Missing, unreadable, or no longer owned by this stow source.
+    }
+  }
+
+  return removed;
 }
 
 /** Backup unmanaged targets that would block stow from owning active packages. */

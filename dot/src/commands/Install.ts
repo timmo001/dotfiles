@@ -1,4 +1,5 @@
 import { Effect } from "effect";
+import { existsSync } from "fs";
 import { join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
@@ -19,6 +20,7 @@ import {
   formatBackupMove,
   findExternalSkillSymlinks,
   removeExternalSymlinks,
+  removeRetiredPublicStowLinks,
   restoreExternalSymlinks,
   type BackupMove,
   type ExternalSymlink,
@@ -47,6 +49,9 @@ export const install = Effect.gen(function* () {
   yield* ensureStowInstalled;
 
   yield* log.section("Backup");
+  for (const path of removeRetiredPublicStowLinks(config.publicDotfiles)) {
+    yield* log.info(`Removed retired stow link: ${displayPath(path)}`);
+  }
   const legacyGhosttyMove = yield* Effect.sync(() =>
     backupLegacyGhosttyRepo(config.publicDotfiles),
   );
@@ -94,8 +99,32 @@ export const install = Effect.gen(function* () {
     log,
   );
 
-  yield* log.section("Omarchy Host Links");
-  yield* ensureHyprHostLink(config, log);
+  const resumeMonitorUnit = "dot-on-resume-monitor.service";
+  const resumeMonitorPath = join(
+    config.omarchy.repoBase,
+    "systemd",
+    "user",
+    resumeMonitorUnit,
+  );
+  if (config.omarchy.enabled && existsSync(resumeMonitorPath)) {
+    yield* log.section("Resume Monitor");
+    const daemonReloadExit = yield* launcher.stream(
+      "systemctl --user daemon-reload",
+    );
+    const enableExit =
+      daemonReloadExit === 0
+        ? yield* launcher.stream(
+            `systemctl --user enable --now ${resumeMonitorUnit}`,
+          )
+        : daemonReloadExit;
+    if (enableExit === 0) {
+      yield* log.info(`Enabled ${resumeMonitorUnit}`);
+    } else {
+      yield* log.warn(
+        `Could not enable ${resumeMonitorUnit} (systemctl exit ${enableExit})`,
+      );
+    }
+  }
 
   yield* log.section("Omarchy Shell Config");
   yield* applyOmarchyShellConfig;
@@ -304,6 +333,7 @@ const stowRepo = (
       // Apply any added or changed config and clear any prior emergency state.
       // Ignore failure: Hyprland may not be running (fresh install, headless).
       if (isHypr) {
+        yield* ensureHyprHostLink(config, log);
         yield* launcher
           .stream("hyprctl reload", { cwd: repoDir })
           .pipe(Effect.catch(() => Effect.void));

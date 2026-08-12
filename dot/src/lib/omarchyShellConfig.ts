@@ -1,5 +1,12 @@
 import { Effect } from "effect";
-import { existsSync, readFileSync, writeFileSync } from "fs";
+import {
+  chmodSync,
+  existsSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "fs";
 import { join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
@@ -94,7 +101,7 @@ function temperatureEntry(host: string): BarEntry {
   const name = desktop ? "Meter D828 Temperature" : "Meter Plus Temperature";
   const page = desktop ? "office" : "living-room";
   return command({
-    run: `ha-module-bar temperature --entity ${entity} --name '${name}' --icon 󰔏 --unit °C`,
+    run: `ha-module-bar temperature --entity ${entity} --name '${name}' --icon 󰔏`,
     interval: 15000,
     onClick: `omarchy-launch-webapp '${HA}/lovelace/${page}?more-info-entity-id=${entity}'`,
     classColors: { temperature: COLOR.cream },
@@ -110,7 +117,7 @@ function temperatureEntry(host: string): BarEntry {
 function diningTemperatureEntry(): BarEntry {
   const entity = "sensor.meter_plus_433c_temperature";
   return command({
-    run: `ha-module-bar temperature --entity ${entity} --name 'Dining Room Temperature' --icon 󰩰 --unit °C`,
+    run: `ha-module-bar temperature --entity ${entity} --name 'Dining Room Temperature' --icon 󰩰`,
     interval: 15000,
     onClick: `omarchy-launch-webapp '${HA}/lovelace/home?more-info-entity-id=${entity}'`,
     classColors: { temperature: COLOR.cream },
@@ -126,7 +133,7 @@ function co2Entry(host: string): BarEntry {
     : "sensor.apollo_air_1_806d64_co2";
   const name = desktop ? "Meter D828 CO2" : "Apollo Air 1 CO2";
   return command({
-    run: `ha-module-bar co2-alert --entity ${entity} --name '${name}' --icon 󰟤 --unit ppm`,
+    run: `ha-module-bar co2-alert --entity ${entity} --name '${name}' --icon 󰟤`,
     interval: 15000,
     onClick: `omarchy-launch-webapp '${HA}/lovelace/environment?more-info-entity-id=${entity}'`,
     classColors: { warning: COLOR.orange, critical: COLOR.co2Critical },
@@ -204,7 +211,7 @@ function customCenterEntries(): BarEntry[] {
       hideClasses: ["hidden"],
     }),
     command({
-      run: "git-notifications-bar",
+      run: "dot git-notifications --bar-json",
       interval: 60000,
       refreshTarget: "timmo.git-notifications",
       loadingText: "\uf0f3 ..",
@@ -220,7 +227,7 @@ function customCenterEntries(): BarEntry[] {
       hideClasses: ["hidden"],
     }),
     command({
-      run: "git-diff-bar",
+      run: "dot git-diff --bar-json",
       interval: 60000,
       refreshTarget: "timmo.git-diff",
       loadingText: "\uf418 ..",
@@ -240,6 +247,32 @@ function customCenterEntries(): BarEntry[] {
       // and is revealed dimmed on center-cluster hover; non-zero counts always
       // show. The bar-json still emits " 0" so there is an icon to reveal.
       hideClasses: ["dots-ok"],
+    }),
+    command({
+      run: "dot git-workflows --bar-json --since \"$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)\"",
+      interval: 60000,
+      loadingText: "\uf111 ..",
+      loadingClass: "workflows-unknown",
+      onClick:
+        "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e dot git-workflows --since \"$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)\"",
+      classColors: {
+        "workflows-unknown": COLOR.grey,
+        "workflows-attention": COLOR.red,
+      },
+      hideClasses: ["hidden"],
+    }),
+    command({
+      run: "package-updates-bar status",
+      interval: 60000,
+      refreshTarget: "timmo.package-updates",
+      loadingText: "󰏗 ..",
+      loadingClass: "package-updates-unknown",
+      onClickRight: "package-updates-bar refresh",
+      classColors: {
+        "package-updates-unknown": COLOR.grey,
+        "package-updates": COLOR.amber,
+      },
+      hideClasses: ["hidden"],
     }),
     command({
       run: "twitch-notifications --status-bar-json --max-chars 60",
@@ -484,7 +517,16 @@ export const applyOmarchyShellConfig: Effect.Effect<
     return false;
   }
 
-  yield* Effect.sync(() => writeFileSync(target, rendered, { mode: 0o600 }));
+  yield* Effect.sync(() => {
+    const temporary = `${target}.dot-${process.pid}`;
+    try {
+      writeFileSync(temporary, rendered, { mode: 0o600 });
+      chmodSync(temporary, 0o600);
+      renameSync(temporary, target);
+    } finally {
+      rmSync(temporary, { force: true });
+    }
+  });
   yield* log.info(
     `Wrote Omarchy shell config: ${displayPath(target)} (host: ${host})`,
   );

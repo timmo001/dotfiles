@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -19,6 +20,7 @@ import {
   backupUnmanagedStowTargets,
   removeStowedSkillOwner,
   removeStaleSkillSymlinks,
+  removeRetiredPublicStowLinks,
 } from "../../src/lib/stowConflicts.js";
 
 const previousOmarchyHost = process.env[ENV.OMARCHY_HOST];
@@ -68,6 +70,28 @@ afterEach(() => {
   for (const root of tempRoots.splice(0)) {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+describe("removeRetiredPublicStowLinks", () => {
+  test("removes only retired links owned by the public stow source", () => {
+    const root = tempRoot();
+    const publicDotfiles = join(root, "dotfiles");
+    const homeDir = join(root, "home");
+    const retiredSource = join(publicDotfiles, "scripts/.local/bin/waybar");
+    const retiredTarget = join(homeDir, ".local/bin/waybar");
+    const unrelatedTarget = join(homeDir, ".local/bin/git-workflows-bar");
+    mkdirSync(dirname(retiredSource), { recursive: true });
+    mkdirSync(dirname(retiredTarget), { recursive: true });
+    symlinkSync(retiredSource, retiredTarget);
+    symlinkSync("/tmp/external-git-workflows-bar", unrelatedTarget);
+
+    expect(removeRetiredPublicStowLinks(publicDotfiles, homeDir)).toEqual([
+      retiredTarget,
+    ]);
+    expect(existsSync(retiredTarget)).toBe(false);
+    expect(existsSync(unrelatedTarget)).toBe(false);
+    expect(() => lstatSync(unrelatedTarget)).not.toThrow();
+  });
 });
 
 describe("backupUnmanagedStowTargets", () => {

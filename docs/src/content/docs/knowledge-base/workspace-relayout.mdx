@@ -51,7 +51,7 @@ They are grouped by tiled window count under `layouts.<count>`. Preset version 3
 
 The checked-in presets cover workspaces with two to five tiled windows. Their JSON order controls both the family menu and the presets within each family. Common top/bottom layouts come first, ordered from the largest top region down. Other families distinguish columns, left or right stacks, and purpose-specific arrangements.
 
-Preset names do not need to be unique. Walker appends a rounded ratio signature, such as `75% top [75/25, 16/16/16/52]`, to distinguish variants.
+Preset names do not need to be unique. The menu appends a rounded ratio signature, such as `75% top [75/25, 16/16/16/52]`, to distinguish variants.
 
 The script writes back through the stowed symlink when you edit presets, keeping the symlink in place.
 
@@ -62,7 +62,7 @@ The script writes back through the stowed symlink when you edit presets, keeping
 1. Focus the workspace to relayout.
 2. Keep at least two tiled, mapped, non-hidden windows on that workspace.
 3. Press `SUPER+TAB`.
-4. Choose a layout family from Walker, such as **Top / bottom** or **Left / right**.
+4. Choose a layout family from the Omarchy menu, such as **Top / bottom** or **Left / right**.
 5. Choose an ordered scale preset from that family.
 6. Let the script move windows through the temporary workspace and rebuild the split tree.
 
@@ -105,7 +105,8 @@ The temp workspace must be a positive numeric workspace id and must not match th
 - `hyprctl`
 - `jq`
 - `awk`
-- `omarchy-launch-walker`
+- `omarchy-menu-select`
+- `omarchy-menu-input`
 - The presets file at `~/.local/share/workspace-relayout/presets.json`
 
 If a requirement is missing, the script sends a desktop notification and exits.
