@@ -58,7 +58,7 @@ After every final QML edit, lint the files you touched with the **Qt6** `qmllint
 /usr/lib/qt6/bin/qmllint -I /usr/lib/qt6/qml --import disable --unqualified disable <file>.qml
 ```
 
-The shell's own `qs.*` modules ship in the (unpackaged) shell source, so the `import`/`unqualified` categories stay disabled as noise. This is a syntax-focused gate: unresolved Omarchy types can still produce warnings, while parse errors fail with a non-zero exit. This mirrors `.github/workflows/quickshell-lint.yml`, which lints inside an Arch container against the `quickshell` package pinned by `QUICKSHELL_VERSION` (kept in sync with the Arch package by Renovate via repology, and asserted to match). Lint must exit successfully before a QML change is considered done.
+The shell's own `qs.*` modules ship in the (unpackaged) shell source, so the `import`/`unqualified` categories stay disabled as noise. This is a syntax-focused gate: unresolved Omarchy types can still produce warnings, while parse errors fail with a non-zero exit. This mirrors `.github/workflows/quickshell-lint.yml`, which uses Arch's stable `quickshell` package as a syntax proxy because Omarchy's runtime `quickshell-git` package is not available in the plain Arch container. Renovate keeps the proxy version current. Lint must exit successfully before a QML change is considered done.
 
 ## Verify
 

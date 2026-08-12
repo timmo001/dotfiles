@@ -25,7 +25,7 @@
       "versioningTemplate": "semver"
     },
     {
-      "description": "Keep QUICKSHELL_VERSION in sync with the Arch quickshell package (what the Omarchy shell runs on)",
+      "description": "Keep the QML syntax proxy in sync with Arch's stable quickshell package",
       "customType": "regex",
       "managerFilePatterns": ["/^\\.github/workflows/quickshell-lint\\.ya?ml$/"],
       "matchStrings": ["QUICKSHELL_VERSION: \"(?<currentValue>[^\"]+)\""],

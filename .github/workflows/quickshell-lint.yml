@@ -17,9 +17,10 @@ permissions:
   contents: read
 
 env:
-  # Version of the Arch `quickshell` package this lint runs against. The
-  # Omarchy shell runs on Arch's quickshell (which pulls qt6-declarative, i.e.
-  # qmllint), so this tracks the Arch package - not Qt and not upstream tags.
+  # Version of Arch's stable `quickshell` package used as a syntax proxy. The
+  # Omarchy runtime uses quickshell-git from its own repository, which is not
+  # available in this plain Arch container. Both pull qt6-declarative, which
+  # provides qmllint.
   # Renovate keeps it in sync via the repology datasource (see the
   # customManagers entry in renovate.json); the version check below fails if
   # the container's quickshell has drifted from this pin, which is the signal
