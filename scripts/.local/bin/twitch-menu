@@ -18,10 +18,6 @@ open_url() {
     exec xdg-open "$url"
   fi
 
-  if [[ ${SHELL_FLOAT_WEBAPPS:-} == 1 ]]; then
-    exec launch-floating-webapp "$url"
-  fi
-
   exec omarchy-launch-webapp "$url"
 }
 

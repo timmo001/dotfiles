@@ -316,7 +316,7 @@ function customCenterEntries(): BarEntry[] {
     command({
       run: "twitch-notifications --status-bar-json --max-chars 60",
       interval: 5000,
-      onClick: "SHELL_FLOAT_WEBAPPS=1 twitch-menu",
+      onClick: "twitch-menu",
       onClickRight: "twitch-notifications-restart",
       classColors: {
         live: COLOR.purple,
