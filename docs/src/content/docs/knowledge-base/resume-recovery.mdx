@@ -7,17 +7,17 @@ sidebar:
 
 import { Steps } from '@astrojs/starlight/components';
 
-`on-resume-monitor` watches logind for resume events and runs `on-resume`, which refreshes desktop services and shell widgets that can go stale after sleep.
+`on-resume-monitor` watches logind for resume events and runs `reload-ui`, which refreshes desktop services and shell widgets that can go stale after sleep.
 
 ## Where it runs
 
-The `dot-on-resume-monitor.service` user unit runs `on-resume-monitor` throughout the session. It calls `on-resume` after logind reports that sleep has ended.
+The `dot-on-resume-monitor.service` user unit runs `on-resume-monitor` throughout the session. It calls `reload-ui` after logind reports that sleep has ended.
 
 ```text
 systemctl --user status dot-on-resume-monitor.service
 ```
 
-On the laptop, `on-resume` also re-arms keyboard backlight handling.
+On the laptop, `reload-ui` also re-arms keyboard backlight handling.
 
 You can run the recovery manually without auto-opening Twitch streams with the shared binding:
 
@@ -28,16 +28,16 @@ SUPER+SHIFT+R
 Or from a terminal:
 
 ```bash
-on-resume
+reload-ui
 ```
 
 ## What it refreshes
 
-`on-resume` detaches itself, writes a fresh log, then:
+`reload-ui` detaches itself, writes a fresh log, then:
 
 - Re-arms keyboard backlight handling when available.
 - Gracefully restarts `twitch-notifications`, auto-opening configured live channels after an automatic resume.
-- Refreshes the Omarchy shell indicators.
+- Restarts the Omarchy shell and refreshes its indicators.
 - Refreshes the Quickshell git diff and notification widgets.
 
 The `SUPER+SHIFT+R` binding passes `--no-auto-open`, so manual recovery restarts Twitch without opening live channels.
@@ -45,7 +45,7 @@ The `SUPER+SHIFT+R` binding passes `--no-auto-open`, so manual recovery restarts
 The log is written to:
 
 ```text
-${XDG_STATE_HOME:-~/.local/state}/on-resume.log
+${XDG_STATE_HOME:-~/.local/state}/reload-ui.log
 ```
 
 ## Manual recovery flow
@@ -54,9 +54,9 @@ Use this when the machine wakes but the shell or desktop helpers look stale:
 
 <Steps>
 
-1. Press `SUPER+SHIFT+R`, or run `on-resume`.
-2. Wait for the shell indicators to refresh.
-3. If something still looks wrong, read `~/.local/state/on-resume.log`.
+1. Press `SUPER+SHIFT+R`, or run `reload-ui`.
+2. Wait for the Omarchy shell to restart and its indicators to refresh.
+3. If something still looks wrong, read `~/.local/state/reload-ui.log`.
 
 </Steps>
 
@@ -72,5 +72,5 @@ If git status in the bar stays stale, clear the generic status-bar caches and ru
 
 ```bash
 rm -rf ~/.cache/status-bar/git-diff* ~/.cache/status-bar/git-notifications*
-on-resume
+reload-ui
 ```

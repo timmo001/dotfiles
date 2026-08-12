@@ -73,7 +73,7 @@ const STEP_TIMEOUT_SECONDS = {
   rebuild: 5 * 60,
   herdrPlugins: 5 * 60,
   postHooks: 2 * 60,
-  resume: 60,
+  uiReload: 60,
 } as const;
 
 /** Upper bound for one repository post-update command. */
@@ -122,8 +122,8 @@ const repoStatus = (repo: DiffRepo): string => {
   return parts.length > 0 ? parts.join(", ") : "up to date";
 };
 
-const onResumeHelperPath = (): string | null => {
-  return join(HOME_DIR, ".local", "bin", "on-resume");
+const reloadUiHelperPath = (): string => {
+  return join(HOME_DIR, ".local", "bin", "reload-ui");
 };
 
 function logInitMarkerStatus(
@@ -472,23 +472,23 @@ const restoreHerdrPlugins = Effect.gen(function* () {
   yield* log.info("Herdr local plugins linked");
 });
 
-/** Run the resume refresh helper so status-bar services pick up update changes. */
-const runResumeRefresh = Effect.gen(function* () {
+/** Reload the UI so status-bar services pick up update changes. */
+const runUiReload = Effect.gen(function* () {
   const log = yield* OutputLog;
   const executor = yield* CommandExecutor;
-  const helper = onResumeHelperPath();
+  const helper = reloadUiHelperPath();
 
-  yield* log.section("Resume Refresh");
+  yield* log.section("Reload UI");
 
-  if (!helper || !existsSync(helper)) {
-    yield* log.warn("Skipping on-resume helper (not installed)");
+  if (!existsSync(helper)) {
+    yield* log.warn("Skipping reload-ui helper (not installed)");
     return;
   }
 
   const exitCode = yield* executor.exitCode(helper, ["--no-auto-open"]);
 
   if (exitCode !== 0) {
-    yield* log.warn(`On-resume helper failed (exit ${exitCode})`);
+    yield* log.warn(`Reload UI helper failed (exit ${exitCode})`);
     return;
   }
 
@@ -874,8 +874,8 @@ export const update = (opts?: UpdateOptions) =>
     }
 
     yield* withStepTimeout(
-      "Resume Refresh",
-      STEP_TIMEOUT_SECONDS.resume,
-      runResumeRefresh,
+      "Reload UI",
+      STEP_TIMEOUT_SECONDS.uiReload,
+      runUiReload,
     );
   });

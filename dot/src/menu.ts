@@ -448,7 +448,7 @@ const dotItems: readonly MenuItem[] = [
     "󰜉",
     "Restart Services",
     "Restart services that don't recover well after suspend",
-    notify("on-resume", {
+    notify("reload-ui", {
       id: "restart-services",
       progress: "Restarting services...",
       success: "Services restarted",

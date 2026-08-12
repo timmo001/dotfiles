@@ -39,7 +39,7 @@ local discord = "launch-work-discord"
 local slack = "launch-work-slack"
 
 -- Resume recovery
-o.bind("SUPER + SHIFT + R", "Resume recovery", "on-resume --no-auto-open")
+o.bind("SUPER + SHIFT + R", "Reload UI", "reload-ui --no-auto-open")
 
 -- Hyprland runs all binds for the same chord in order; unbind clears default bindings first.
 hl.unbind("SUPER + TAB")

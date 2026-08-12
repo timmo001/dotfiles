@@ -1,9 +1,8 @@
 #!/bin/bash
 
-# Called after system resume from sleep.
-# Restarts services that don't recover well after suspend.
+# Reloads desktop services and shell state that can go stale after suspend.
 
-LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/on-resume.log"
+LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/reload-ui.log"
 
 log() {
   mkdir -p "$(dirname "$LOG_FILE")"
@@ -19,14 +18,14 @@ refresh_git_modules() {
   omarchy-shell -q timmo.git-notifications refresh || true
 }
 
-if [[ "${ON_RESUME_DETACHED:-0}" != "1" ]]; then
-  export ON_RESUME_DETACHED=1
+if [[ "${RELOAD_UI_DETACHED:-0}" != "1" ]]; then
+  export RELOAD_UI_DETACHED=1
   setsid "$0" "$@" >/dev/null 2>&1 &
   exit 0
 fi
 
 : > "$LOG_FILE"
-log "Resume started"
+log "UI reload started"
 
 # Re-arm the laptop keyboard backlight, which the EC can leave at 0 after
 # suspend. This is a no-op on machines without a keyboard backlight.
@@ -50,7 +49,13 @@ if ! twitch-notifications "${twitch_args[@]}" >/dev/null 2>&1; then
 fi
 log "twitch-notifications restart requested"
 
-# Ask the shell to repaint state that may have changed while suspended.
+# Restart the shell before asking its modules to repaint current state.
+if omarchy restart shell; then
+  log "Restarted Omarchy shell"
+else
+  log "Omarchy shell restart failed"
+fi
+
 refresh_shell_indicators
 log "Requested Omarchy shell indicator refresh"
 
@@ -58,4 +63,4 @@ log "Requested Omarchy shell indicator refresh"
 refresh_git_modules
 log "Requested git status module refresh"
 
-log "Resume complete"
+log "UI reload complete"
