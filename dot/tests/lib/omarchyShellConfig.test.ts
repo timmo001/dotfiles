@@ -122,7 +122,7 @@ describe("mergeOmarchyShellConfig", () => {
         ({ run }) =>
           typeof run === "string" && run.startsWith("package-updates-bar"),
       ),
-    ).toMatchObject({ hiddenText: "󰏗 0" });
+    ).toMatchObject({ hiddenText: "󰏗 0", revealColor: "#e5c07b" });
   });
 
   test("selects desktop-specific sensors", () => {

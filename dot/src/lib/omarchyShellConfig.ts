@@ -126,6 +126,7 @@ function temperatureEntry(host: string): BarEntry {
     classColors: { temperature: COLOR.cream },
     hideClasses: ["hidden"],
     hiddenText: "󰔏",
+    revealColor: COLOR.cream,
   });
 }
 
@@ -145,6 +146,7 @@ function diningTemperatureEntry(): BarEntry {
     classColors: { temperature: COLOR.cream },
     hideClasses: ["hidden"],
     hiddenText: "󰩰",
+    revealColor: COLOR.cream,
   });
 }
 
@@ -160,6 +162,7 @@ function outdoorTemperatureEntry(): BarEntry {
     classColors: { temperature: COLOR.orange },
     hideClasses: ["temperature", "hidden"],
     hiddenText: "󰖙",
+    revealColor: COLOR.orange,
   });
 }
 
@@ -179,6 +182,7 @@ function co2Entry(host: string): BarEntry {
     classColors: { warning: COLOR.orange, critical: COLOR.co2Critical },
     hideClasses: ["hidden"],
     hiddenText: "󰟤",
+    revealColor: COLOR.orange,
   });
 }
 
@@ -200,6 +204,7 @@ function doorbellEntry(): BarEntry {
     classColors: { active: COLOR.rust },
     hideClasses: ["hidden"],
     hiddenText: "󰂚",
+    revealColor: COLOR.rust,
   });
 }
 
@@ -235,6 +240,7 @@ function customCenterEntries(): BarEntry[] {
       classColors: { active: COLOR.purple },
       hideClasses: ["hidden"],
       hiddenText: "󱑎",
+      revealColor: COLOR.purple,
     }),
     stream({
       run: "ha-watch-singleton --module in-a-call --entity input_boolean.in_a_call --icon  --tooltip-on 'In a Call (input_boolean.in_a_call): On' --tooltip-off 'In a Call (input_boolean.in_a_call): Off' --class-on active --class-off inactive --hide-off",
@@ -243,6 +249,7 @@ function customCenterEntries(): BarEntry[] {
       classColors: { active: COLOR.teal },
       hideClasses: ["hidden"],
       hiddenText: "󰍸",
+      revealColor: COLOR.teal,
     }),
     command({
       run: "ha-module-bar nas-activity --icon 󰒋",
@@ -253,6 +260,7 @@ function customCenterEntries(): BarEntry[] {
       classColors: { active: COLOR.teal },
       hideClasses: ["hidden"],
       hiddenText: "󰒋 0",
+      revealColor: COLOR.teal,
     }),
     command({
       run: "dot git-notifications --bar-json",
@@ -269,6 +277,7 @@ function customCenterEntries(): BarEntry[] {
         "notifications-unread": COLOR.amber,
       },
       hideClasses: ["hidden"],
+      revealColor: COLOR.amber,
     }),
     command({
       run: "dot git-diff --bar-json",
@@ -291,6 +300,7 @@ function customCenterEntries(): BarEntry[] {
       // and is revealed dimmed on bar hover; non-zero counts always
       // show. The bar-json still emits " 0" so there is an icon to reveal.
       hideClasses: ["dots-ok"],
+      revealColor: COLOR.amber,
     }),
     command({
       run: "dot git-workflows --bar-json --since \"$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)\"",
@@ -305,6 +315,7 @@ function customCenterEntries(): BarEntry[] {
       },
       hideClasses: ["hidden"],
       hiddenText: "\uf111 0",
+      revealColor: COLOR.red,
     }),
     command({
       run: "package-updates-bar status",
@@ -319,6 +330,7 @@ function customCenterEntries(): BarEntry[] {
       },
       hideClasses: ["hidden"],
       hiddenText: "󰏗 0",
+      revealColor: COLOR.amber,
     }),
     command({
       run: "twitch-notifications --status-bar-json --max-chars 60",
@@ -335,6 +347,7 @@ function customCenterEntries(): BarEntry[] {
       // "inactive" (the daemon is stopped) stays visible too so its absence is
       // noticeable. The module emits its bell icon either way.
       hideClasses: ["active"],
+      revealColor: COLOR.purple,
     }),
   ];
 }
@@ -350,6 +363,7 @@ function customRightEntries(host: string): BarEntry[] {
       classColors: { heating: COLOR.orange },
       hideClasses: ["hidden"],
       hiddenText: "󰈸",
+      revealColor: COLOR.orange,
     }),
     // voc-alert is permanently hidden on desktop, so it is omitted there.
     ...(host === "desktop"
@@ -364,6 +378,7 @@ function customRightEntries(host: string): BarEntry[] {
             classColors: { warning: COLOR.tan, critical: COLOR.vocCritical },
             hideClasses: ["hidden"],
             hiddenText: "󰵃",
+            revealColor: COLOR.tan,
           }),
         ]),
     co2Entry(host),
@@ -375,6 +390,7 @@ function customRightEntries(host: string): BarEntry[] {
       classColors: { raining: COLOR.blue },
       hideClasses: ["hidden"],
       hiddenText: "󰖖",
+      revealColor: COLOR.blue,
     }),
     temperatureEntry(host),
     // Laptop shows a second (dining room) temperature alongside the main one.

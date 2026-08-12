@@ -16,6 +16,7 @@
 //   hideClasses      Array of class names that hide the widget
 //   restartInterval  Delay before restarting after exit, ms (default 5000)
 //   hiddenText       Text shown dimmed while a class-hidden widget is revealed
+//   revealColor      Active colour used while a class-hidden widget is revealed
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -34,6 +35,7 @@ BarWidget {
   readonly property var hideClasses: setting("hideClasses", [])
   readonly property int restartDelayMs: setting("restartInterval", 5000)
   readonly property string hiddenText: setting("hiddenText", "")
+  readonly property string revealColor: setting("revealColor", "")
   readonly property bool revealOnHover: setting("revealOnHover", false)
   // Horizontal cell margin, standard 6px across all custom widgets (center,
   // right HA, left). The built-in right-side stock widgets keep their own
@@ -52,7 +54,8 @@ BarWidget {
     return false
   }
 
-  readonly property string revealText: root.outText !== "" ? root.outText : root.hiddenText
+  readonly property string displayText: root.withoutZeroValue(root.outText)
+  readonly property string revealText: root.withoutZeroValue(root.outText !== "" ? root.outText : root.hiddenText)
 
   // Reveal class-hidden modules dimmed while the bar is hovered, mirroring the
   // stock idle indicators. hiddenText covers producers that emit empty text.
@@ -70,6 +73,10 @@ BarWidget {
   // empty gap.
   readonly property bool shown: (!root.hiddenByClass && root.outText !== "")
     || root.hoverRevealed
+
+  function withoutZeroValue(text) {
+    return text.replace(/(?:^|\s+)0$/, "").trim()
+  }
 
   function applyOutput(raw) {
     var trimmed = (raw || "").trim()
@@ -130,10 +137,10 @@ BarWidget {
     // Awesome icons these modules use, so caption keeps the icons in step.
     fontSize: Style.font.caption
     horizontalMargin: root.cellMargin
-    text: root.hoverRevealed ? root.revealText : (root.hiddenByClass ? "" : root.outText)
+    text: root.hoverRevealed ? root.revealText : (root.hiddenByClass ? "" : root.displayText)
     dimmed: root.hoverRevealed
     tooltipText: root.tooltipEnabled ? root.outTooltip : ""
-    foreground: root.colorForClass(root.outClass)
+    foreground: root.hoverRevealed && root.revealColor !== "" ? root.revealColor : root.colorForClass(root.outClass)
     onPressed: function (b) {
       if (!root.bar) return
       if (b === Qt.RightButton) {

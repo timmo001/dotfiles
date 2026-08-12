@@ -39,7 +39,7 @@ Layout changes applied on top of the default bar:
 - **Centre**: the clock stays as the centre anchor on desktop (the stock config gear only renders next to a centred clock) but moves to the right on laptop. The weather is pulled out, personal status widgets are inserted before the system-update group, and the doorbell trigger goes last.
 - **Right**: the Home Assistant sensors are inserted before the default tray cluster. The outdoor temperature replaces the stock weather widget immediately before the network widget, appears with its current value while the bar is hovered, and opens `weather.met_office` in Home Assistant when clicked.
 
-The personal status widgets read from bar-agnostic scripts, `dot` JSON output, and Home Assistant. See [Bar Integrations](/bar-integrations/) for the `--bar-json` commands behind the git and notification cells.
+The personal status widgets read from bar-agnostic scripts, `dot` JSON output, and Home Assistant. A trailing zero value is omitted while its icon remains; class-based visibility and hover reveals still follow each widget's existing rules, with zero-state icons faded from their active colour. See [Bar Integrations](/bar-integrations/) for the `--bar-json` commands behind the git and notification cells.
 
 ## Stock Quattro comparison
 

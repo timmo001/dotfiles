@@ -19,6 +19,7 @@
 //   loadingText    Placeholder shown while (re)loading (e.g. "\uf418 ..")
 //   loadingClass   Class used to colour loadingText (e.g. "dots-unknown")
 //   hiddenText     Text shown dimmed while a class-hidden widget is revealed
+//   revealColor    Active colour used while a class-hidden widget is revealed
 //   stockIconSize  Match a stock icon widget's glyph and slot size
 //   iconScale      Scale the glyph for stock-sized icon widgets
 import QtQuick
@@ -43,6 +44,7 @@ BarWidget {
   readonly property string loadingText: setting("loadingText", "")
   readonly property string loadingClass: setting("loadingClass", "")
   readonly property string hiddenText: setting("hiddenText", "")
+  readonly property string revealColor: setting("revealColor", "")
   readonly property bool revealOnHover: setting("revealOnHover", false)
   readonly property bool stockIconSize: setting("stockIconSize", false)
   readonly property real iconScale: setting("iconScale", 1)
@@ -64,7 +66,8 @@ BarWidget {
     return false
   }
 
-  readonly property string revealText: root.outText !== "" ? root.outText : root.hiddenText
+  readonly property string displayText: root.withoutZeroValue(root.outText)
+  readonly property string revealText: root.withoutZeroValue(root.outText !== "" ? root.outText : root.hiddenText)
 
   // Reveal class-hidden modules dimmed while the bar is hovered, mirroring the
   // stock idle indicators. hiddenText covers producers that emit empty text.
@@ -83,6 +86,10 @@ BarWidget {
   readonly property bool shown: (root.loading && root.loadingText !== "")
     || (!root.hiddenByClass && root.outText !== "")
     || root.hoverRevealed
+
+  function withoutZeroValue(text) {
+    return text.replace(/(?:^|\s+)0$/, "").trim()
+  }
 
   // Background poll (timer): only show the loading placeholder on a cold
   // start when there is no value yet, so warm polls update smoothly.
@@ -194,10 +201,10 @@ BarWidget {
     fixedWidth: root.stockIconSize && !root.vertical ? Style.bar.statusSlot : -1
     fixedHeight: root.stockIconSize && root.vertical ? Style.bar.statusSlot : -1
     horizontalMargin: root.cellMargin
-    text: root.loading && root.loadingText !== "" ? root.loadingText : (root.hoverRevealed ? root.revealText : (root.hiddenByClass ? "" : root.outText))
+    text: root.loading && root.loadingText !== "" ? root.loadingText : (root.hoverRevealed ? root.revealText : (root.hiddenByClass ? "" : root.displayText))
     dimmed: root.hoverRevealed
     tooltipText: root.tooltipEnabled ? root.outTooltip : ""
-    foreground: root.loading && root.loadingText !== "" ? root.colorForClass(root.loadingClass) : root.colorForClass(root.outClass)
+    foreground: root.loading && root.loadingText !== "" ? root.colorForClass(root.loadingClass) : (root.hoverRevealed && root.revealColor !== "" ? root.revealColor : root.colorForClass(root.outClass))
     onPressed: function (b) {
       if (!root.bar) return
       if (b === Qt.RightButton) {
