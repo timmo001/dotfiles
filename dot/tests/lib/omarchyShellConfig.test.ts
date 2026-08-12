@@ -38,6 +38,14 @@ function commandRuns(
   );
 }
 
+function customEntries(config: ReturnType<typeof mergeOmarchyShellConfig>) {
+  return [
+    ...config.bar.layout.left,
+    ...config.bar.layout.center,
+    ...config.bar.layout.right,
+  ].filter(({ id }) => id.startsWith("timmo."));
+}
+
 describe("mergeOmarchyShellConfig", () => {
   test("preserves defaults while placing personal widgets around their anchors", () => {
     const base = baseConfig();
@@ -88,6 +96,18 @@ describe("mergeOmarchyShellConfig", () => {
       id: "omarchy.agents",
       customAgentField: "preserved",
     });
+    expect(
+      customEntries(merged).every(
+        (entry) =>
+          entry.id === "timmo.workspaces" || entry.revealOnHover === true,
+      ),
+    ).toBe(true);
+    expect(
+      customEntries(merged).find(
+        ({ run }) =>
+          typeof run === "string" && run.startsWith("package-updates-bar"),
+      ),
+    ).toMatchObject({ hiddenText: "󰏗 0" });
   });
 
   test("selects desktop-specific sensors and doorbell placement", () => {

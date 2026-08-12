@@ -15,6 +15,7 @@
 //   classColors      Map of class name -> colour string
 //   hideClasses      Array of class names that hide the widget
 //   restartInterval  Delay before restarting after exit, ms (default 5000)
+//   hiddenText       Text shown dimmed while a class-hidden widget is revealed
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -32,6 +33,7 @@ BarWidget {
   readonly property var classColors: setting("classColors", ({}))
   readonly property var hideClasses: setting("hideClasses", [])
   readonly property int restartDelayMs: setting("restartInterval", 5000)
+  readonly property string hiddenText: setting("hiddenText", "")
   readonly property bool revealOnHover: setting("revealOnHover", false)
   // Horizontal cell margin, standard 8px across all custom widgets (center,
   // right HA, left). The built-in right-side stock widgets keep their own
@@ -43,21 +45,22 @@ BarWidget {
   property string outClass: ""
 
   readonly property bool hiddenByClass: {
-    var cls = root.outClass
+    var classes = root.outClass.split(/\s+/)
     for (var i = 0; i < root.hideClasses.length; i++) {
-      if (root.hideClasses[i] === cls) return true
+      if (classes.indexOf(root.hideClasses[i]) !== -1) return true
     }
     return false
   }
 
-  // When this is a center widget (revealOnHover, set by the generator) and the
-  // center cluster is hovered, reveal an otherwise class-hidden module dimmed,
-  // mirroring the idle indicators. Needs real text (the icon) to show.
+  readonly property string revealText: root.outText !== "" ? root.outText : root.hiddenText
+
+  // Reveal class-hidden modules dimmed while the bar is hovered, mirroring the
+  // stock idle indicators. hiddenText covers producers that emit empty text.
   readonly property bool hoverRevealed: root.revealOnHover
     && root.hiddenByClass
-    && root.outText !== ""
+    && root.revealText !== ""
     && !!root.bar
-    && root.bar.centerSectionRevealHeld === true
+    && root.bar.barHovered === true
 
   // Whether this widget has anything to draw: a non-empty value that is not
   // hidden by class, or a class-hidden value revealed by hovering the center
@@ -127,7 +130,7 @@ BarWidget {
     // Awesome icons these modules use, so caption keeps the icons in step.
     fontSize: Style.font.caption
     horizontalMargin: root.cellMargin
-    text: (root.hiddenByClass && !root.hoverRevealed) ? "" : root.outText
+    text: root.hoverRevealed ? root.revealText : (root.hiddenByClass ? "" : root.outText)
     dimmed: root.hoverRevealed
     tooltipText: root.tooltipEnabled ? root.outTooltip : ""
     foreground: root.colorForClass(root.outClass)

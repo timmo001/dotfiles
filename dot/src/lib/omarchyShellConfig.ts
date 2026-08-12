@@ -87,12 +87,12 @@ const NETWORK_ID = "omarchy.network";
 
 /** Build a polling `timmo.command` bar entry. */
 function command(settings: Omit<BarEntry, "id">): BarEntry {
-  return { id: "timmo.command", ...settings };
+  return { id: "timmo.command", revealOnHover: true, ...settings };
 }
 
 /** Build a streaming `timmo.stream-command` bar entry. */
 function stream(settings: Omit<BarEntry, "id">): BarEntry {
-  return { id: "timmo.stream-command", ...settings };
+  return { id: "timmo.stream-command", revealOnHover: true, ...settings };
 }
 
 /** Resolve the host-specific temperature module settings. */
@@ -109,6 +109,7 @@ function temperatureEntry(host: string): BarEntry {
     onClick: `omarchy-launch-webapp '${HA}/lovelace/${page}?more-info-entity-id=${entity}'`,
     classColors: { temperature: COLOR.cream },
     hideClasses: ["hidden"],
+    hiddenText: "󰔏",
   });
 }
 
@@ -125,6 +126,7 @@ function diningTemperatureEntry(): BarEntry {
     onClick: `omarchy-launch-webapp '${HA}/lovelace/home?more-info-entity-id=${entity}'`,
     classColors: { temperature: COLOR.cream },
     hideClasses: ["hidden"],
+    hiddenText: "󰩰",
   });
 }
 
@@ -141,6 +143,7 @@ function co2Entry(host: string): BarEntry {
     onClick: `omarchy-launch-webapp '${HA}/lovelace/environment?more-info-entity-id=${entity}'`,
     classColors: { warning: COLOR.orange, critical: COLOR.co2Critical },
     hideClasses: ["hidden"],
+    hiddenText: "󰟤",
   });
 }
 
@@ -164,6 +167,7 @@ function doorbellEntry(host: string): BarEntry {
     onClick: `omarchy-launch-webapp '${HA}/lovelace/home?more-info-entity-id=camera.front_door_snapshot'`,
     classColors: { active: COLOR.rust },
     hideClasses: ["hidden"],
+    hiddenText: "󰂚",
   });
 }
 
@@ -186,6 +190,7 @@ function calendarEntry(): BarEntry {
     onClick:
       "launch-work-browser --tab 'https://calendar.google.com/calendar/u/0/r?pli=1'",
     hideClasses: ["hidden"],
+    hiddenText: "󰃭",
   });
 }
 
@@ -198,6 +203,7 @@ function customCenterEntries(): BarEntry[] {
       onClickRight: "timmo-run-command go-automate ha ib t time_check",
       classColors: { active: COLOR.purple },
       hideClasses: ["hidden"],
+      hiddenText: "󱑎",
     }),
     stream({
       run: "ha-watch-singleton --module in-a-call --entity input_boolean.in_a_call --icon  --tooltip-on 'In a Call (input_boolean.in_a_call): On' --tooltip-off 'In a Call (input_boolean.in_a_call): Off' --class-on active --class-off inactive --hide-off",
@@ -205,6 +211,7 @@ function customCenterEntries(): BarEntry[] {
       onClickRight: "timmo-run-command go-automate ha ib t in_a_call",
       classColors: { active: COLOR.teal },
       hideClasses: ["hidden"],
+      hiddenText: "󰍸",
     }),
     command({
       run: "ha-module-bar nas-activity --icon 󰒋",
@@ -212,6 +219,7 @@ function customCenterEntries(): BarEntry[] {
       onClick: `omarchy-launch-webapp '${HA}/lovelace/network?more-info-entity-id=sensor.nas_activity'`,
       classColors: { active: COLOR.teal },
       hideClasses: ["hidden"],
+      hiddenText: "󰒋 0",
     }),
     command({
       run: "dot git-notifications --bar-json",
@@ -247,7 +255,7 @@ function customCenterEntries(): BarEntry[] {
         "dots-extra-only": COLOR.blue,
       },
       // The "0" (all repos clean) state hides like the other status widgets
-      // and is revealed dimmed on center-cluster hover; non-zero counts always
+      // and is revealed dimmed on bar hover; non-zero counts always
       // show. The bar-json still emits " 0" so there is an icon to reveal.
       hideClasses: ["dots-ok"],
     }),
@@ -263,6 +271,7 @@ function customCenterEntries(): BarEntry[] {
         "workflows-attention": COLOR.red,
       },
       hideClasses: ["hidden"],
+      hiddenText: "\uf111 0",
     }),
     command({
       run: "package-updates-bar status",
@@ -276,6 +285,7 @@ function customCenterEntries(): BarEntry[] {
         "package-updates": COLOR.amber,
       },
       hideClasses: ["hidden"],
+      hiddenText: "󰏗 0",
     }),
     command({
       run: "twitch-notifications --status-bar-json --max-chars 60",
@@ -288,7 +298,7 @@ function customCenterEntries(): BarEntry[] {
         inactive: COLOR.rust,
       },
       // Running with no live channels ("active") hides like the other status
-      // widgets and reveals dimmed on center hover. "live" stays visible, and
+      // widgets and reveals dimmed on bar hover. "live" stays visible, and
       // "inactive" (the daemon is stopped) stays visible too so its absence is
       // noticeable. The module emits its bell icon either way.
       hideClasses: ["active"],
@@ -304,6 +314,7 @@ function customRightEntries(host: string): BarEntry[] {
       onClick: `omarchy-launch-webapp '${HA}/lovelace/home?more-info-entity-id=sensor.thermostat_status'`,
       classColors: { heating: COLOR.orange },
       hideClasses: ["hidden"],
+      hiddenText: "󰈸",
     }),
     // voc-alert is permanently hidden on desktop, so it is omitted there.
     ...(host === "desktop"
@@ -315,6 +326,7 @@ function customRightEntries(host: string): BarEntry[] {
             onClick: `omarchy-launch-webapp '${HA}/lovelace/environment?more-info-entity-id=sensor.apollo_air_1_806d64_sen55_voc'`,
             classColors: { warning: COLOR.tan, critical: COLOR.vocCritical },
             hideClasses: ["hidden"],
+            hiddenText: "󰵃",
           }),
         ]),
     co2Entry(host),
@@ -323,6 +335,7 @@ function customRightEntries(host: string): BarEntry[] {
       onClick: `omarchy-launch-webapp '${HA}/home/areas-048a0fd33b134e3689eda6212a41b99d?more-info-entity-id=binary_sensor.weather_station_rain_state_piezo'`,
       classColors: { raining: COLOR.blue },
       hideClasses: ["hidden"],
+      hiddenText: "󰖖",
     }),
     temperatureEntry(host),
     // Laptop shows a second (dining room) temperature alongside the main one.
@@ -412,20 +425,15 @@ export function mergeOmarchyShellConfig(
   // renders the config gear next to a centered clock, so the clock has to stay
   // centered for that button to exist. Pull only the weather out (relocated to
   // the right column below), insert personal status widgets before the default
-  // system-update group, and put the doorbell trigger at the very end. Center
-  // widgets get `revealOnHover` so a class-hidden module fades in dimmed when
-  // the center cluster is hovered, mirroring the idle indicators (the only bar
-  // section that exposes a hover-reveal signal). All custom widgets share a
-  // standard 8px margin (the widget default), so no per-instance margin here.
-  const reveal = (entry: BarEntry): BarEntry => ({
-    ...entry,
-    revealOnHover: true,
-  });
+  // system-update group, and put the doorbell trigger at the very end. All
+  // custom widgets fade in dimmed when class-hidden and the bar is hovered.
+  // They share a standard 8px margin (the widget default), so no per-instance
+  // margin is needed here.
   const weatherIndex = center.findIndex((entry) => entry.id === WEATHER_ID);
   const weatherEntry =
     weatherIndex === -1 ? undefined : center.splice(weatherIndex, 1)[0];
-  insertBefore(center, SYSTEM_UPDATE_ID, customCenterEntries().map(reveal));
-  center.push(reveal(doorbellEntry(host)));
+  insertBefore(center, SYSTEM_UPDATE_ID, customCenterEntries());
+  center.push(doorbellEntry(host));
 
   // Right: the Home Assistant sensors go before the default tray cluster, and
   // weather follows the personal widgets immediately before the stock network

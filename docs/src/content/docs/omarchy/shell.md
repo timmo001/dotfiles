@@ -33,7 +33,7 @@ Per-host differences:
 Layout changes applied on top of the default bar:
 
 - **Left**: Omarchy's persistent workspaces widget is swapped for `timmo.workspaces`, then a calendar module is appended.
-- **Centre**: the clock stays as the centre anchor (the stock config gear only renders next to a centred clock), the weather is pulled out, personal status widgets are inserted before the system-update group, and the doorbell trigger goes last. Centre widgets get `revealOnHover`, so a class-hidden module fades in dimmed when the centre cluster is hovered.
+- **Centre**: the clock stays as the centre anchor (the stock config gear only renders next to a centred clock), the weather is pulled out, personal status widgets are inserted before the system-update group, and the doorbell trigger goes last.
 - **Right**: the Home Assistant sensors are inserted before the default tray cluster, and weather moves after the personal widgets immediately before the stock network widget.
 
 The personal status widgets read from bar-agnostic scripts, `dot` JSON output, and Home Assistant. See [Bar Integrations](/bar-integrations/) for the `--bar-json` commands behind the git and notification cells.
@@ -64,7 +64,7 @@ No other stock widget changes section. `omarchy.system-update` remains in the ce
 | Right, before `omarchy.tray` | Heating, CO₂ alert, rain, temperature |
 | Right, laptop only | VOC alert, dining-room temperature |
 
-The centre additions use `revealOnHover`: status cells hidden in their normal inactive state appear dimmed while the centre cluster is hovered. Attention and active states remain visible according to each widget's class rules.
+All custom additions use `revealOnHover`: status cells hidden in their normal inactive state appear dimmed while the bar is hovered. Entries whose inactive producer output is empty use `hiddenText` to retain an icon or zero count. Attention and active states remain visible according to each widget's class rules.
 
 ### Retained stock layout
 
@@ -96,7 +96,7 @@ A plugin is a folder with `manifest.json` (schema version 1, an `id` like `timmo
 | `timmo.stream-command` | bar-widget | Runs a long-running command that streams status-bar JSON lines and renders the latest line (for watchers like `ha-watch-singleton`). |
 | `timmo.workspaces` | bar-widget | Workspace numbers without persistent workspaces: only existing workspaces show, the focused one at full opacity and the rest dimmed. |
 
-`timmo.command` and `timmo.stream-command` both support `classColors` (class-name to colour), `hideClasses`, `onClick` / `onClickRight`, and `revealOnHover`, so the generator can style and wire every cell without bespoke QML per module.
+`timmo.command` and `timmo.stream-command` both support `classColors` (class-name to colour), `hideClasses`, `hiddenText`, `onClick` / `onClickRight`, and `revealOnHover`, so the generator can style and wire every cell without bespoke QML per module.
 
 :::note[New plugins need a stow]
 `~/.config/omarchy/plugins/` is a real directory with per-plugin symlinks. A brand-new plugin needs `dot stow` to create its symlink before the shell sees it; editing an existing plugin's files is already live.
