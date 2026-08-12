@@ -115,7 +115,10 @@ fi
 
 if (( omarchy_selected )); then
   section 'Omarchy'
-  omarchy update -y || exit
+  mise_state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/mise"
+  mkdir -p "$mise_state_dir"
+  MISE_GLOBAL_CONFIG_FILE="$mise_state_dir/omarchy-config.toml" omarchy update -y || exit
+  dot stow --public || exit
 fi
 
 run_topgrade

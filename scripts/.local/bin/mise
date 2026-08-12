@@ -1,0 +1,51 @@
+#!/bin/bash
+
+set -euo pipefail
+
+self=$(readlink -f "$0")
+real_mise=""
+while IFS= read -r candidate; do
+  if [[ $(readlink -f "$candidate") != "$self" ]]; then
+    real_mise=$candidate
+    break
+  fi
+done < <(type -aP mise)
+
+if [[ -z $real_mise ]]; then
+  echo "mise: could not find the system mise binary" >&2
+  exit 127
+fi
+
+if [[ ${1:-} == --write-global-config ]]; then
+  shift
+  exec "$real_mise" "$@"
+fi
+
+redirect_global_write=false
+case ${1:-} in
+  use | unuse | rm)
+    for arg in "${@:2}"; do
+      if [[ $arg == -g || $arg == --global ]]; then
+        redirect_global_write=true
+        break
+      fi
+    done
+    ;;
+  settings)
+    case ${2:-} in
+      add | set | unset | rm | remove | delete | del)
+        redirect_global_write=true
+        ;;
+    esac
+    if (( $# >= 3 )) || [[ ${2:-} == *=* ]]; then
+      redirect_global_write=true
+    fi
+    ;;
+esac
+
+if [[ $redirect_global_write == true ]]; then
+  export MISE_GLOBAL_CONFIG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/mise/omarchy-config.toml"
+  mkdir -p "$(dirname "$MISE_GLOBAL_CONFIG_FILE")"
+fi
+
+exec "$real_mise" "$@"

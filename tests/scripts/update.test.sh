@@ -66,27 +66,35 @@ chmod +x "$mock_bin/gum"
 cat >"$mock_bin/omarchy" <<'EOF'
 #!/bin/bash
 printf 'omarchy args: %s\n' "$*"
+printf 'omarchy mise config: %s\n' "${MISE_GLOBAL_CONFIG_FILE:-}"
 command -v sudo
+[[ ${UPDATE_TEST_OMARCHY_FAIL:-0} != 1 ]]
 EOF
 chmod +x "$mock_bin/omarchy"
 
-headless_output=$(HOME="$mock_home" PATH="$mock_bin:$PATH" "$update_script" -y)
+headless_output=$(HOME="$mock_home" XDG_STATE_HOME='' PATH="$mock_bin:$PATH" "$update_script" -y)
 [[ $headless_output == *"/sudo"* || $headless_output == *"/sudo" ]]
 [[ $headless_output != *"/usr/bin/sudo"* ]]
 [[ $headless_output == *"topgrade args: -y"* ]]
 
 interactive_output=$(script --quiet --return --command \
-  "HOME='$mock_home' PATH='$mock_bin:$PATH' UPDATE_TEST_SELECTION=omarchy '$update_script'" /dev/null)
+  "HOME='$mock_home' XDG_STATE_HOME='' PATH='$mock_bin:$PATH' UPDATE_TEST_SELECTION=omarchy '$update_script'" /dev/null)
 [[ $interactive_output == *"/usr/bin/sudo"* ]]
 
 default_output=$(script --quiet --return --command \
-  "HOME='$mock_home' PATH='$mock_bin:$PATH' UPDATE_TEST_SELECTION=default '$update_script'" /dev/null)
+  "HOME='$mock_home' XDG_STATE_HOME='' PATH='$mock_bin:$PATH' UPDATE_TEST_SELECTION=default '$update_script'" /dev/null)
 [[ $default_output == *"topgrade args: --only mise github_cli_extensions yazi"* ]]
-[[ $default_output == *"dot args: update"*"omarchy args: update -y"*"topgrade args:"* ]]
+[[ $default_output == *"dot args: update"*"omarchy args: update -y"*"dot args: stow --public"*"topgrade args:"* ]]
+[[ $default_output == *"omarchy mise config: $mock_home/.local/state/mise/omarchy-config.toml"* ]]
 
 all_output=$(script --quiet --return --command \
-  "HOME='$mock_home' PATH='$mock_bin:$PATH' UPDATE_TEST_SELECTION=all '$update_script'" /dev/null)
+  "HOME='$mock_home' XDG_STATE_HOME='' PATH='$mock_bin:$PATH' UPDATE_TEST_SELECTION=all '$update_script'" /dev/null)
 [[ $all_output == *"topgrade args: "* ]]
 [[ $all_output != *"topgrade args: --only"* ]]
+
+if failed_output=$(HOME="$mock_home" XDG_STATE_HOME='' PATH="$mock_bin:$PATH" UPDATE_TEST_OMARCHY_FAIL=1 "$update_script" -y 2>&1); then
+  exit 1
+fi
+[[ $failed_output != *"dot args: stow --public"* ]]
 
 printf 'update privilege routing tests passed\n'
