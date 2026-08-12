@@ -6,7 +6,7 @@ font-family = "JetBrainsMono Nerd Font"
 font-style = Regular
 font-size = 10
 background-opacity = 0.85
-# background-blur-radius = 20
+background-blur-radius = 20
 
 # Window
 mouse-hide-while-typing = true
