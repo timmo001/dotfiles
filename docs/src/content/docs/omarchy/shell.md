@@ -22,7 +22,7 @@ The shell itself lives in `~/.local/share/omarchy/shell/`. Reading it is useful 
 
 ## Generated `shell.json`
 
-`dot stow` regenerates `shell.json` for the active [host](/omarchy/host-overrides/), starting from Omarchy's default and adding personal modules around the stock ones ("add, not remove"). It then preserves the live bar order, so rearranging widgets through Quattro survives the next stow while widget settings still come from dotfiles. New stock or personal widgets are added to their configured section. The merge is idempotent: it only rewrites the file when the rendered content changes.
+`dot stow` regenerates `shell.json` for the active [host](/omarchy/host-overrides/), starting from Omarchy's default and adding personal modules around the stock ones ("add, not remove"). The generator owns widget sections and ordering so desktop and laptop stay aligned; rearranging widgets through Quattro is reset on the next stow. The merge is idempotent: it only rewrites the file when the rendered content changes.
 
 Per-host differences:
 

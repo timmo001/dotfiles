@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  mergeOmarchyShellConfig,
-  preserveLiveBarLayout,
-} from "../../src/lib/omarchyShellConfig.js";
+import { mergeOmarchyShellConfig } from "../../src/lib/omarchyShellConfig.js";
 
 function baseConfig() {
   return {
@@ -127,39 +124,5 @@ describe("mergeOmarchyShellConfig", () => {
     expect(runs).toContain("voc-alert");
     expect(runs).toContain("sensor.meter_plus_433c_temperature");
     expect(runs).toContain("--monitor eDP-1 --width 380 --height 450");
-  });
-});
-
-describe("preserveLiveBarLayout", () => {
-  test("keeps live order while adding new generated widgets", () => {
-    const generated = baseConfig();
-    generated.bar.layout.left.push({ id: "generated.new" });
-    const live = baseConfig();
-    live.bar.layout.left = [
-      { id: "custom.user" },
-      { id: "omarchy.workspaces", persistent: false },
-      { id: "custom.left" },
-    ];
-
-    const merged = preserveLiveBarLayout(generated, live);
-
-    expect(merged.bar.layout.left).toEqual([
-      { id: "custom.user" },
-      { id: "omarchy.workspaces", persistent: true },
-      { id: "custom.left" },
-      { id: "generated.new" },
-    ]);
-  });
-
-  test("drops stock widgets removed from current defaults", () => {
-    const generated = baseConfig();
-    const live = baseConfig();
-    live.bar.layout.right.unshift({ id: "omarchy.removed" });
-
-    preserveLiveBarLayout(generated, live);
-
-    expect(generated.bar.layout.right.map(({ id }) => id)).not.toContain(
-      "omarchy.removed",
-    );
   });
 });
