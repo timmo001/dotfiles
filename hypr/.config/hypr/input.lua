@@ -1,3 +1,5 @@
+-- Personal input overrides replace Omarchy defaults.
+-- See https://wiki.hypr.land/Configuring/Basics/Variables/#input
 hl.config({
   input = {
     kb_layout = "gb",

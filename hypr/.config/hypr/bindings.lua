@@ -1,3 +1,6 @@
+-- Keep only personal keybinding overrides here. Unbind defaults before replacing them.
+-- See current bindings and descriptions with: omarchy menu keybindings --print
+
 -- Screen recording
 o.bind("SHIFT + ALT + PRINT", "Screenrecording", "omarchy screenrecord")
 

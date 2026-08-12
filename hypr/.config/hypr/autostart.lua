@@ -1,3 +1,4 @@
+-- Extra autostart processes.
 o.exec_on_start("timmo-run-command system-bridge backend")
 o.exec_on_start([[uwsm app -- chromium --new-window --ozone-platform=wayland --profile-directory="Default" --force-device-scale-factor=0.8]])
 o.exec_on_start("uwsm app -- kdeconnect-indicator")

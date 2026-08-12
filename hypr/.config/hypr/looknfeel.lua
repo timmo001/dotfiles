@@ -1,3 +1,5 @@
+-- Change the default Omarchy look and feel.
+-- See https://wiki.hypr.land/Configuring/Basics/Variables/#general
 hl.config({
   general = {
     gaps_out = 0,
