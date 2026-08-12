@@ -19,13 +19,21 @@ active_address="$(jq -r '.address // ""' <<<"$active_window" 2>/dev/null || true
 active_class="$(jq -r '.class // .initialClass // ""' <<<"$active_window" 2>/dev/null || true)"
 active_title="$(jq -r '.title // ""' <<<"$active_window" 2>/dev/null || true)"
 
+send_shortcut_once() {
+  local mods="$1"
+  local key="$2"
+
+  exec "$hyprctl_bin" eval "
+    hl.dispatch(hl.dsp.send_key_state({ mods = '$mods', key = '$key', state = 'down' }))
+    hl.timer(function()
+      hl.dispatch(hl.dsp.send_key_state({ mods = '$mods', key = '$key', state = 'up' }))
+    end, { timeout = 50, type = 'oneshot' })
+  "
+}
+
 if [[ "$action" == "ghostty-new" ]]; then
   [[ "$active_class" == "com.mitchellh.ghostty" && -n "$active_address" ]] || exit 0
-  exec "$hyprctl_bin" dispatch sendshortcut CTRL ALT SHIFT, T, "address:$active_address"
-fi
-
-if [[ "$active_class" != "com.mitchellh.ghostty" ]]; then
-  exec "$hyprctl_bin" dispatch pass activewindow
+  send_shortcut_once "CTRL ALT SHIFT" "T"
 fi
 
 if [[ "$active_class" == "com.mitchellh.ghostty" && "$active_title" == "herdr" ]] && command -v "$herdr_bin" >/dev/null 2>&1; then
@@ -61,12 +69,12 @@ if [[ "$active_class" == "com.mitchellh.ghostty" && "$active_title" == "herdr" ]
 fi
 
 if [[ "$action" == "new" && "$active_class" == "com.mitchellh.ghostty" && -n "$active_address" ]]; then
-  exec "$hyprctl_bin" dispatch sendshortcut CTRL ALT SHIFT, T, "address:$active_address"
+  send_shortcut_once "CTRL ALT SHIFT" "T"
 fi
 
 case "$action" in
-  new) exec "$hyprctl_bin" dispatch sendshortcut CTRL SHIFT, T, activewindow ;;
-  close) exec "$hyprctl_bin" dispatch sendshortcut CTRL SHIFT, W, activewindow ;;
-  next) exec "$hyprctl_bin" dispatch sendshortcut CTRL, TAB, activewindow ;;
-  previous) exec "$hyprctl_bin" dispatch sendshortcut CTRL SHIFT, TAB, activewindow ;;
+  new) send_shortcut_once "CTRL SHIFT" "T" ;;
+  close) send_shortcut_once "CTRL SHIFT" "W" ;;
+  next) send_shortcut_once "CTRL" "TAB" ;;
+  previous) send_shortcut_once "CTRL SHIFT" "TAB" ;;
 esac

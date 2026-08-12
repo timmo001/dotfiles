@@ -44,7 +44,8 @@ grep -Fx 'herdr tab create --focus' "$calls"
 
 : >"$calls"
 ACTIVE_WINDOW='{"address":"abc123","class":"com.mitchellh.ghostty","title":"herdr"}' "$script" ghostty-new
-grep -Fx 'hyprctl dispatch sendshortcut CTRL ALT SHIFT, T, address:abc123' "$calls"
+grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL ALT SHIFT', key = 'T', state = 'down' })" "$calls"
+grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL ALT SHIFT', key = 'T', state = 'up' })" "$calls"
 
 : >"$calls"
 ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"herdr"}' "$script" close
@@ -73,22 +74,37 @@ fi
 
 : >"$calls"
 ACTIVE_WINDOW='{"address":"abc123","class":"com.mitchellh.ghostty","title":"shell"}' "$script" new
-grep -Fx 'hyprctl dispatch sendshortcut CTRL ALT SHIFT, T, address:abc123' "$calls"
+grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL ALT SHIFT', key = 'T', state = 'down' })" "$calls"
+grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL ALT SHIFT', key = 'T', state = 'up' })" "$calls"
 
 : >"$calls"
 ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"shell"}' "$script" close
-grep -Fx 'hyprctl dispatch sendshortcut CTRL SHIFT, W, activewindow' "$calls"
+grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL SHIFT', key = 'W', state = 'down' })" "$calls"
+grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL SHIFT', key = 'W', state = 'up' })" "$calls"
 
 : >"$calls"
 ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"shell"}' "$script" next
-grep -Fx 'hyprctl dispatch sendshortcut CTRL, TAB, activewindow' "$calls"
+grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL', key = 'TAB', state = 'down' })" "$calls"
+grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL', key = 'TAB', state = 'up' })" "$calls"
 
 : >"$calls"
 ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"shell"}' "$script" previous
-grep -Fx 'hyprctl dispatch sendshortcut CTRL SHIFT, TAB, activewindow' "$calls"
+grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL SHIFT', key = 'TAB', state = 'down' })" "$calls"
+grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL SHIFT', key = 'TAB', state = 'up' })" "$calls"
 
 : >"$calls"
 ACTIVE_WINDOW='{"class":"chromium","title":"Browser"}' "$script" new
-grep -Fx 'hyprctl dispatch pass activewindow' "$calls"
+grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL SHIFT', key = 'T', state = 'down' })" "$calls"
+grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL SHIFT', key = 'T', state = 'up' })" "$calls"
+
+: >"$calls"
+ACTIVE_WINDOW='{"class":"chromium","title":"Browser"}' "$script" next
+grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL', key = 'TAB', state = 'down' })" "$calls"
+grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL', key = 'TAB', state = 'up' })" "$calls"
+
+: >"$calls"
+ACTIVE_WINDOW='{"class":"chromium","title":"Browser"}' "$script" previous
+grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL SHIFT', key = 'TAB', state = 'down' })" "$calls"
+grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL SHIFT', key = 'TAB', state = 'up' })" "$calls"
 
 printf 'terminal tab action tests passed\n'
