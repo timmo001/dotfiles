@@ -9,7 +9,7 @@ local discord = "launch-work-discord"
 local slack = "launch-work-slack"
 
 -- Resume recovery
-o.bind("SUPER + SHIFT + W", "Resume recovery", "on-resume --no-auto-open")
+o.bind("SUPER + SHIFT + R", "Resume recovery", "on-resume --no-auto-open")
 -- Let Ghostty confirm the close itself; keep Omarchy's normal close behaviour elsewhere.
 hl.unbind("SUPER + W")
 o.bind("SUPER + W", "Close window", "close-active-window")

@@ -22,7 +22,7 @@ On the laptop, `on-resume` also re-arms keyboard backlight handling.
 You can run the recovery manually without auto-opening Twitch streams with the shared binding:
 
 ```text
-SUPER+SHIFT+W
+SUPER+SHIFT+R
 ```
 
 Or from a terminal:
@@ -40,7 +40,7 @@ on-resume
 - Refreshes the Omarchy shell indicators.
 - Refreshes the Quickshell git diff and notification widgets.
 
-The `SUPER+SHIFT+W` binding passes `--no-auto-open`, so manual recovery restarts Twitch without opening live channels.
+The `SUPER+SHIFT+R` binding passes `--no-auto-open`, so manual recovery restarts Twitch without opening live channels.
 
 The log is written to:
 
@@ -54,7 +54,7 @@ Use this when the machine wakes but the shell or desktop helpers look stale:
 
 <Steps>
 
-1. Press `SUPER+SHIFT+W`, or run `on-resume`.
+1. Press `SUPER+SHIFT+R`, or run `on-resume`.
 2. Wait for the shell indicators to refresh.
 3. If something still looks wrong, read `~/.local/state/on-resume.log`.
 
