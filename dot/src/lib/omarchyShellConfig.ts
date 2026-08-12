@@ -378,6 +378,53 @@ function insertBefore(
   else entries.splice(index, 0, ...additions);
 }
 
+/** Identify one widget instance across regenerated and live bar layouts. */
+function barEntryKey(entry: BarEntry): string {
+  return typeof entry.run === "string" ? `${entry.id}\0${entry.run}` : entry.id;
+}
+
+/**
+ * Preserve live widget order over a freshly generated layout. New generated
+ * widgets are appended to their configured section.
+ */
+export function preserveLiveBarLayout(
+  generated: ShellConfig,
+  live: ShellConfig,
+): ShellConfig {
+  const sections = ["left", "center", "right"] as const;
+  const remaining = new Map<
+    string,
+    Array<{ section: (typeof sections)[number]; entry: BarEntry }>
+  >();
+
+  for (const section of sections) {
+    for (const entry of generated.bar.layout[section]) {
+      const key = barEntryKey(entry);
+      const matches = remaining.get(key) ?? [];
+      matches.push({ section, entry });
+      remaining.set(key, matches);
+    }
+  }
+
+  const layout: ShellLayout = { left: [], center: [], right: [] };
+  for (const section of sections) {
+    for (const liveEntry of live.bar.layout[section]) {
+      const matches = remaining.get(barEntryKey(liveEntry));
+      const match = matches?.shift();
+      if (match) layout[section].push(match.entry);
+      else if (!liveEntry.id.startsWith("omarchy."))
+        layout[section].push(liveEntry);
+    }
+  }
+
+  for (const matches of remaining.values()) {
+    for (const { section, entry } of matches) layout[section].push(entry);
+  }
+
+  generated.bar.layout = layout;
+  return generated;
+}
+
 /**
  * Merge personal widgets and host overrides into Omarchy's default shell
  * config, mutating `base` in place. Default widgets are kept; personal modules
@@ -506,8 +553,18 @@ export const applyOmarchyShellConfig: Effect.Effect<
     return false;
   }
 
-  const merged = mergeOmarchyShellConfig(parsed, host);
   const target = join(omarchyDir, "shell.json");
+  const merged = mergeOmarchyShellConfig(parsed, host);
+  if (existsSync(target)) {
+    const live = yield* Effect.sync((): unknown => {
+      try {
+        return JSON.parse(readFileSync(target, "utf-8"));
+      } catch {
+        return undefined;
+      }
+    });
+    if (isShellConfig(live)) preserveLiveBarLayout(merged, live);
+  }
   const rendered = `${JSON.stringify(merged, null, 2)}\n`;
 
   const existing = existsSync(target)

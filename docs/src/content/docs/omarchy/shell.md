@@ -22,7 +22,7 @@ The shell itself lives in `~/.local/share/omarchy/shell/`. Reading it is useful 
 
 ## Generated `shell.json`
 
-`dot stow` regenerates `shell.json` for the active [host](/omarchy/host-overrides/), starting from Omarchy's default and adding personal modules around the stock ones ("add, not remove"). The merge is idempotent: it only rewrites the file when the rendered content changes.
+`dot stow` regenerates `shell.json` for the active [host](/omarchy/host-overrides/), starting from Omarchy's default and adding personal modules around the stock ones ("add, not remove"). It then preserves the live bar order, so rearranging widgets through Quattro survives the next stow while widget settings still come from dotfiles. New stock or personal widgets are added to their configured section. The merge is idempotent: it only rewrites the file when the rendered content changes.
 
 Per-host differences:
 
@@ -108,7 +108,8 @@ A plugin is a folder with `manifest.json` (schema version 1, an `id` like `timmo
 | --- | --- |
 | `shell.json` layout or settings, existing modules only | Hot-reloads on save, nothing to run |
 | New plugin added | `omarchy shell shell rescanPlugins`, then the hot-reload picks it up |
-| Plugin or shell QML edited | `omarchy restart shell` (full restart) |
+| User plugin QML edited | Hot-reloads on save, nothing to run |
+| Omarchy's first-party shell QML edited, or hot-reload fails | `omarchy restart shell` (full restart) |
 
 `dot update` bakes this in: it regenerates `shell.json` and reloads the running shell **only when the rendered config changed**. A standalone `dot stow` regenerates the file but does not reload.
 
