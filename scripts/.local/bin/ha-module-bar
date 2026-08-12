@@ -12,6 +12,8 @@ SWITCH_ENTITY=""
 INACTIVE_SCRIPT_ENTITY=""
 GATE_ENTITY=""
 GATE_BELOW=""
+SHOW_ABOVE=""
+ICON_ONLY=0
 SIMULATE_STATE=""
 FORCE_TRUE=0
 FAKE_STATE=""
@@ -55,6 +57,9 @@ Mode options:
   --gate-entity <id>             Gate number entity (dining-temperature)
   --gate-below <number>          Show only when gate entity is below this
                                  value (dining-temperature, default: 25)
+  --show-above <number>          Show only when the reading is strictly above
+                                 this value (temperature)
+  --icon-only                    Show only the icon (temperature)
   --simulate <on|off>            Emit simulated state and exit (doorbell)
   --force-true                   Force simulated on and exit (doorbell)
   --fake-state <warning|critical> Emit fake warning/critical output
@@ -176,6 +181,14 @@ parse_args() {
       GATE_BELOW="$2"
       shift 2
       ;;
+    --show-above)
+      SHOW_ABOVE="$2"
+      shift 2
+      ;;
+    --icon-only)
+      ICON_ONLY=1
+      shift
+      ;;
     --simulate)
       SIMULATE_STATE="$2"
       shift 2
@@ -269,6 +282,17 @@ validate_args() {
     fi
     if [[ ! "$GATE_BELOW" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
       printf 'ha-module-bar: --gate-below must be a number\n' >&2
+      exit 1
+    fi
+  fi
+
+  if [[ -n "$SHOW_ABOVE" ]]; then
+    if [[ "$MODE" != "temperature" ]]; then
+      printf 'ha-module-bar: --show-above is only supported by temperature\n' >&2
+      exit 1
+    fi
+    if [[ ! "$SHOW_ABOVE" =~ ^-?[0-9]+([.][0-9]+)?$ ]]; then
+      printf 'ha-module-bar: --show-above must be a number\n' >&2
       exit 1
     fi
   fi
@@ -465,15 +489,22 @@ run_temperature() {
   fi
 
   state="$(extract_class_field "$line")"
-  if [[ ! "$state" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+  if [[ ! "$state" =~ ^-?[0-9]+([.][0-9]+)?$ ]]; then
     emit_hidden
     return
   fi
 
-  if [[ -n "$ICON" ]]; then
-    text="$(printf '%s %.1f' "$ICON" "$state")"
+  if [[ -n "$SHOW_ABOVE" ]] && ! awk -v state="$state" -v threshold="$SHOW_ABOVE" 'BEGIN { exit !(state > threshold) }'; then
+    emit_hidden
+    return
+  fi
+
+  if ((ICON_ONLY)); then
+    text="$ICON"
+  elif [[ -n "$ICON" ]]; then
+    text="$(printf '%s %.1f °C' "$ICON" "$state")"
   else
-    text="$(printf '%.1f' "$state")"
+    text="$(printf '%.1f °C' "$state")"
   fi
 
   printf '{"text":"%s","class":"temperature","tooltip":"%s (%s): %.1f °C"}\n' "$text" "$ENTITY_NAME" "$ENTITY_ID" "$state"

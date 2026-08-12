@@ -82,16 +82,16 @@ describe("mergeOmarchyShellConfig", () => {
     ).toBe(true);
 
     const rightIds = merged.bar.layout.right.map(({ id }) => id);
-    expect(rightIds.indexOf("timmo.command")).toBeLessThan(
-      rightIds.indexOf("omarchy.weather"),
-    );
-    expect(rightIds.indexOf("omarchy.weather")).toBeLessThan(
-      rightIds.indexOf("omarchy.network"),
-    );
-    expect(merged.bar.layout.right).toContainEqual({
-      id: "omarchy.weather",
-      location: "home",
+    const networkIndex = rightIds.indexOf("omarchy.network");
+    expect(merged.bar.layout.right[networkIndex - 1]).toMatchObject({
+      run: expect.stringContaining(
+        "sensor.weather_station_outdoor_temperature",
+      ),
+      onClick: expect.stringContaining("weather.met_office"),
+      stockIconSize: true,
+      iconScale: 1.15,
     });
+    expect(rightIds).not.toContain("omarchy.weather");
     expect(merged.bar.layout.right).toContainEqual({ id: "omarchy.tray" });
     expect(merged.bar.layout.right).toContainEqual({
       id: "omarchy.agents",
@@ -141,6 +141,9 @@ describe("mergeOmarchyShellConfig", () => {
     expect(merged.bar.position).toBe("bottom");
     expect(merged.idle).toEqual({ screensaver: 150, lock: 300 });
     expect(runs).toContain("sensor.meter_plus_378b_temperature");
+    expect(runs).toContain(
+      "sensor.weather_station_outdoor_temperature --name 'Weather Station Outdoor Temperature' --icon 󰖙 --icon-only --show-above 25",
+    );
     expect(runs).toContain("sensor.apollo_air_1_806d64_co2");
     expect(runs).toContain("voc-alert");
     expect(runs).toContain("sensor.meter_plus_433c_temperature");

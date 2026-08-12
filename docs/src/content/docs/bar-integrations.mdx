@@ -39,7 +39,7 @@ ha-entity-bar-json-once --icon '' input_text.current_next_event_in_an_hour
 
 | Mode | Behaviour |
 | --- | --- |
-| `temperature` | Show a numeric temperature reading when the entity state is numeric. |
+| `temperature` | Show a signed numeric temperature reading with its Celsius unit. Add `--show-above <number>` to hide it unless the reading is strictly above that threshold, or `--icon-only` to keep the reading in the tooltip. |
 | `co2-alert` | Show a warning or critical CO₂ reading above 1400 ppm and 2000 ppm respectively; hide otherwise. |
 | `voc-alert` | Show a warning or critical VOC reading when the quality entity is `very abnormal` or `extremely abnormal`. Uses `--quality-entity` and `--value-entity`. |
 | `nas-activity` | Show NAS activity while the gate switch is on; highlight when the inactivity script is armed. Uses `--switch-entity` and `--inactive-script-entity`. |
@@ -51,6 +51,7 @@ Most modes poll once per refresh. `doorbell` is the exception: it keeps a single
 
 ```bash
 ha-module-bar temperature
+ha-module-bar temperature --entity sensor.outdoor_temperature --show-above 25
 ha-module-bar co2-alert --entity sensor.office_co2
 ha-module-bar dining-temperature --gate-below 24
 ha-module-bar doorbell --entity input_boolean.doorbell

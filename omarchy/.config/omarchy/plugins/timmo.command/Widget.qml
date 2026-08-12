@@ -19,6 +19,8 @@
 //   loadingText    Placeholder shown while (re)loading (e.g. "\uf418 ..")
 //   loadingClass   Class used to colour loadingText (e.g. "dots-unknown")
 //   hiddenText     Text shown dimmed while a class-hidden widget is revealed
+//   stockIconSize  Match a stock icon widget's glyph and slot size
+//   iconScale      Scale the glyph for stock-sized icon widgets
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -42,6 +44,8 @@ BarWidget {
   readonly property string loadingClass: setting("loadingClass", "")
   readonly property string hiddenText: setting("hiddenText", "")
   readonly property bool revealOnHover: setting("revealOnHover", false)
+  readonly property bool stockIconSize: setting("stockIconSize", false)
+  readonly property real iconScale: setting("iconScale", 1)
   // Horizontal cell margin, standard 6px across all custom widgets (center,
   // right HA, left). The built-in right-side stock widgets keep their own
   // margins. Per-instance overridable via the `horizontalMargin` setting.
@@ -186,7 +190,9 @@ BarWidget {
     // at caption size. The clock/weather sit at body, but their Weather-Icons
     // and digit glyphs are visually lighter than the Material Design / Font
     // Awesome icons these modules use, so caption keeps the icons in step.
-    fontSize: Style.font.caption
+    fontSize: root.stockIconSize ? Style.bar.iconFont * root.iconScale : Style.font.caption
+    fixedWidth: root.stockIconSize && !root.vertical ? Style.bar.statusSlot : -1
+    fixedHeight: root.stockIconSize && root.vertical ? Style.bar.statusSlot : -1
     horizontalMargin: root.cellMargin
     text: root.loading && root.loadingText !== "" ? root.loadingText : (root.hoverRevealed ? root.revealText : (root.hiddenByClass ? "" : root.outText))
     dimmed: root.hoverRevealed

@@ -130,6 +130,21 @@ function diningTemperatureEntry(): BarEntry {
   });
 }
 
+/** Outdoor weather-station temperature shown only above the hot-weather threshold. */
+function outdoorTemperatureEntry(): BarEntry {
+  const entity = "sensor.weather_station_outdoor_temperature";
+  return command({
+    run: `ha-module-bar temperature --entity ${entity} --name 'Weather Station Outdoor Temperature' --icon 󰖙 --icon-only --show-above 25`,
+    interval: 15000,
+    onClick: `omarchy-launch-webapp '${HA}/home?more-info-entity-id=weather.met_office'`,
+    stockIconSize: true,
+    iconScale: 1.15,
+    classColors: { temperature: COLOR.orange },
+    hideClasses: ["hidden"],
+    hiddenText: "󰖙",
+  });
+}
+
 /** Resolve the host-specific CO2 module settings. */
 function co2Entry(host: string): BarEntry {
   const desktop = host === "desktop";
@@ -396,8 +411,8 @@ function insertBefore(
  * config, mutating `base` in place. Default widgets are kept; personal modules
  * are inserted around them ("add, not remove"). The clock stays as the center
  * anchor (so the stock bar's config gear, which only renders next to a centered
- * clock, still appears); the weather is relocated after the personal widgets
- * and before the stock network widget in the right column.
+ * clock, still appears); the stock weather widget is replaced by the outdoor
+ * temperature immediately before the network widget.
  *
  * @param base - Parsed Omarchy default `shell.json`.
  * @param host - The `OMARCHY_HOST` value (e.g. `desktop`, `laptop`).
@@ -424,23 +439,22 @@ export function mergeOmarchyShellConfig(
 
   // Center: keep the clock in place as the center anchor. The stock bar only
   // renders the config gear next to a centered clock, so the clock has to stay
-  // centered for that button to exist. Pull only the weather out (relocated to
-  // the right column below), insert personal status widgets before the default
+  // centered for that button to exist. Remove weather (replaced in the right
+  // column below), insert personal status widgets before the default
   // system-update group, and put the doorbell trigger at the very end. All
   // custom widgets fade in dimmed when class-hidden and the bar is hovered.
   // They share a standard 8px margin (the widget default), so no per-instance
   // margin is needed here.
   const weatherIndex = center.findIndex((entry) => entry.id === WEATHER_ID);
-  const weatherEntry =
-    weatherIndex === -1 ? undefined : center.splice(weatherIndex, 1)[0];
+  if (weatherIndex !== -1) center.splice(weatherIndex, 1);
   insertBefore(center, SYSTEM_UPDATE_ID, customCenterEntries());
   center.push(doorbellEntry(host));
 
-  // Right: the Home Assistant sensors go before the default tray cluster, and
-  // weather follows the personal widgets immediately before the stock network
+  // Right: the Home Assistant sensors go before the default tray cluster. The
+  // outdoor temperature replaces weather immediately before the stock network
   // widget. The clock stays centered.
   insertBefore(right, TRAY_ID, customRightEntries(host));
-  if (weatherEntry) insertBefore(right, NETWORK_ID, [weatherEntry]);
+  insertBefore(right, NETWORK_ID, [outdoorTemperatureEntry()]);
 
   // The clock anchors the center so the bar config gear renders next to it.
   base.bar.centerAnchor = CLOCK_ID;

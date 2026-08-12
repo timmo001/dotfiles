@@ -35,7 +35,7 @@ Layout changes applied on top of the default bar:
 
 - **Left**: Omarchy's persistent workspaces widget is swapped for `timmo.workspaces`, then a calendar module is appended.
 - **Centre**: the clock stays as the centre anchor (the stock config gear only renders next to a centred clock), the weather is pulled out, personal status widgets are inserted before the system-update group, and the doorbell trigger goes last.
-- **Right**: the Home Assistant sensors are inserted before the default tray cluster, and weather moves after the personal widgets immediately before the stock network widget.
+- **Right**: the Home Assistant sensors are inserted before the default tray cluster. A thresholded outdoor-temperature icon replaces the stock weather widget immediately before the network widget; clicking it opens `weather.met_office` in Home Assistant.
 
 The personal status widgets read from bar-agnostic scripts, `dot` JSON output, and Home Assistant. See [Bar Integrations](/bar-integrations/) for the `--bar-json` commands behind the git and notification cells.
 
@@ -49,9 +49,9 @@ No stock widget is removed without a replacement.
 
 `omarchy.workspaces` is replaced in place by `timmo.workspaces`. The stock widget keeps persistent workspace slots visible; the replacement shows only workspaces that currently exist, displays the focused workspace number at full opacity, and dims the others.
 
-### Moved
+### Replaced
 
-`omarchy.weather` moves from the centre section to the right section after the personal widgets and immediately before `omarchy.network`. The original stock entry and implementation are preserved.
+`omarchy.weather` is removed. A `timmo.command` outdoor-temperature icon takes its place immediately before `omarchy.network`, using the stock weather icon slot with a larger glyph. It appears only above 25 °C and opens the Met Office weather entity in Home Assistant.
 
 No other stock widget changes section. `omarchy.system-update` remains in the centre after the added status widgets, while the complete stock tray cluster remains on the right in its original order.
 
@@ -63,6 +63,7 @@ No other stock widget changes section. `omarchy.system-update` remains in the ce
 | Centre, before `omarchy.system-update` | Time check, in-call state, NAS activity, GitHub notifications, repository diff status, GitHub workflow status, package updates, Twitch notifications |
 | Centre, after `omarchy.system-update` | Doorbell |
 | Right, before `omarchy.tray` | Heating, CO₂ alert, rain, temperature |
+| Right, before `omarchy.network` | Outdoor temperature (replaces stock weather) |
 | Right, laptop only | VOC alert, dining-room temperature |
 
 All custom additions use `revealOnHover`: status cells hidden in their normal inactive state appear dimmed while the bar is hovered. Entries whose inactive producer output is empty use `hiddenText` to retain an icon or zero count. Attention and active states remain visible according to each widget's class rules.
