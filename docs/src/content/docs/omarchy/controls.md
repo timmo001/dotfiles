@@ -1,6 +1,6 @@
 ---
 title: Controls
-description: The dot omarchy desktop controls menu.
+description: The dot omarchy desktop controls menu and local keybindings.
 sidebar:
   order: 3
 ---
@@ -40,6 +40,39 @@ dot omarchy theme set    # execute theme set directly
 :::tip
 When restarting Omarchy-managed apps, prefer `omarchy restart <app>` (via the `restart` submenu) over manual process kills.
 :::
+
+## Keybinding overrides
+
+The shared Hyprland config loads after Omarchy's defaults. It replaces these default bindings:
+
+| Binding | Omarchy default | Local action |
+| --- | --- | --- |
+| `SUPER+TAB` | Next workspace | Apply a saved [workspace layout](/knowledge-base/workspace-relayout/) |
+| `SUPER+ALT+TAB` | Next grouped window | Edit workspace layout presets |
+| `CTRL+ALT+TAB` | Focus next monitor | Unbound in Hyprland; available to applications such as Ghostty |
+| `CTRL+ALT+SHIFT+TAB` | Focus previous monitor | Unbound in Hyprland; available to applications such as Ghostty |
+| `SUPER+SHIFT+F` | File manager | Add the active application to the floating rules |
+| `SUPER+RETURN` | Omarchy terminal launcher | Open host-configured Ghostty in the active terminal directory |
+| `SUPER+SHIFT+B` | Browser | Open a private personal Chromium window |
+| `SUPER+CTRL+ALT+T` | Local time notification | Show local and US time zones |
+| `SUPER+ALT+-` / `SUPER+ALT+=` | Resize width by 25 | Resize width by 2 |
+| `SUPER+ALT+SHIFT+-` / `SUPER+ALT+SHIFT+=` | Resize height by 25 | Resize height by 2 |
+
+The config also redirects `CTRL+SHIFT+T`, `CTRL+SHIFT+W`, `CTRL+TAB`, and `CTRL+SHIFT+TAB` to Herdr tab actions while Ghostty is active. Other applications receive the original key event.
+
+Custom bindings that conflicted with Quattro defaults use these chords instead:
+
+| Binding | Local action | Avoided default |
+| --- | --- | --- |
+| `SUPER+CTRL+ALT+P` | Power profile menu | Power panel on `SUPER+CTRL+P` |
+| `SUPER+CTRL+SHIFT+S` | Slack | Google Maps on `SUPER+SHIFT+S` |
+| `SUPER+ALT+X` | X notifications | Universal cut on `SUPER+X` and X on `SUPER+SHIFT+X` |
+| `SUPER+CTRL+ALT+G` | GitHub notifications | Move window out of group on `SUPER+ALT+G` |
+| `SUPER+CTRL+SHIFT+C` | Toggle in-call automation | Calendar on `SUPER+SHIFT+C` |
+| `SUPER+CTRL+SHIFT+M` | Toggle microphone mute | Music on `SUPER+SHIFT+M` |
+| `SUPER+CTRL+SHIFT+B` | Reconnect laptop Bluetooth headphones | Battery status on `SUPER+CTRL+ALT+B` |
+
+The config leaves Quattro's native `SUPER+W` close-window, `SUPER+SHIFT+RETURN` browser, `SUPER+ALT+RETURN` Tmux, and `SUPER+SHIFT+/` 1Password bindings in place. Application defaults such as Tmux and 1Password require Omarchy's preinstalled bindings to be enabled.
 
 ## Power profiles
 
