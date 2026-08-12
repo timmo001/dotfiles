@@ -34,7 +34,7 @@ export async function createDesktopNotifier($: Shell) {
 
     try {
       const focusCommand = originWindowAddress
-        ? `hyprctl dispatch focuswindow address:${originWindowAddress}${
+        ? `hyprctl dispatch 'hl.dsp.focus({ window = "address:${originWindowAddress}" })'${
             /^[a-z0-9_:-]+$/i.test(originHerdrTabID)
               ? ` && herdr tab focus ${originHerdrTabID}`
               : ""

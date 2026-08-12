@@ -291,13 +291,15 @@ clear_tag_from_all() {
   local tag="$1"
   local addrs
   local addr
+  local tag_json
 
   log_step "Clearing tag '$tag' from all windows"
   addrs="$(hyprctl clients -j | jq -r --arg tag "$tag" '.[] | select((.tags // []) | index($tag)) | .address')"
+  tag_json="$(jq -Rn --arg value "-$tag" '$value')"
 
   while IFS= read -r addr; do
     [ -n "$addr" ] || continue
-    hyprctl dispatch tagwindow -- "-$tag" "address:$addr" >/dev/null 2>&1 || true
+    hyprctl dispatch "hl.dsp.window.tag({ tag = $tag_json, window = \"address:$addr\" })" >/dev/null 2>&1 || true
   done <<< "$addrs"
 }
 
@@ -305,21 +307,26 @@ tag_address_for_slot() {
   local addr="$1"
   local tag="$2"
   local managed
+  local tag_json
 
   log_step "Tagging window $addr as '$tag'"
   for managed in "${MANAGED_TAGS[@]}"; do
-    hyprctl dispatch tagwindow -- "-$managed" "address:$addr" >/dev/null 2>&1 || true
+    tag_json="$(jq -Rn --arg value "-$managed" '$value')"
+    hyprctl dispatch "hl.dsp.window.tag({ tag = $tag_json, window = \"address:$addr\" })" >/dev/null 2>&1 || true
   done
 
   clear_tag_from_all "$tag"
-  hyprctl dispatch tagwindow "+$tag" "address:$addr" >/dev/null 2>&1 || true
+  tag_json="$(jq -Rn --arg value "+$tag" '$value')"
+  hyprctl dispatch "hl.dsp.window.tag({ tag = $tag_json, window = \"address:$addr\" })" >/dev/null 2>&1 || true
 }
 
 move_to_workspace_silent() {
   local workspace="$1"
   local addr="$2"
+  local follow=true
+  [ "$MOVE_DISPATCHER" = "movetoworkspacesilent" ] && follow=false
   log_step "Moving window $addr to workspace $workspace via $MOVE_DISPATCHER"
-  hyprctl dispatch "$MOVE_DISPATCHER" "$workspace,address:$addr" >/dev/null 2>&1 || true
+  hyprctl dispatch "hl.dsp.window.move({ workspace = \"$workspace\", window = \"address:$addr\", follow = $follow })" >/dev/null 2>&1 || true
 }
 
 ensure_slot() {
@@ -370,7 +377,7 @@ ensure_slot() {
   if [ -z "$addr" ]; then
     log_step "No reusable candidate for '$tag', launching command"
     before="$(matching_addresses "$re" "$skip_oc")"
-    hyprctl dispatch exec "$command" >/dev/null 2>&1 || true
+    hyprctl dispatch "hl.dsp.exec_cmd($(jq -Rn --arg value "$command" '$value'))" >/dev/null 2>&1 || true
 
     for _ in {1..80}; do
       after="$(matching_addresses "$re" "$skip_oc")"
@@ -405,7 +412,7 @@ focus_addr() {
   local addr="$1"
   [ -n "$addr" ] || return 1
   log_step "Focusing window $addr"
-  hyprctl dispatch focuswindow "address:$addr" >/dev/null 2>&1
+  hyprctl dispatch "hl.dsp.focus({ window = \"address:$addr\" })" >/dev/null 2>&1
 }
 
 resize_tagged_window_exact() {
@@ -418,8 +425,7 @@ resize_tagged_window_exact() {
   [ -n "$addr" ] || return 1
 
   log_step "Resizing tag '$tag' ($addr) to ${width}x${height}"
-  focus_addr "$addr" || return 1
-  hyprctl dispatch resizeactive exact "$width" "$height" >/dev/null 2>&1 || return 1
+  hyprctl dispatch "hl.dsp.window.resize({ x = $width, y = $height, window = \"address:$addr\" })" >/dev/null 2>&1 || return 1
   return 0
 }
 
@@ -479,17 +485,17 @@ rebuild_workspace1_tree() {
 
   move_to_workspace_silent 1 "$slack_addr"
   focus_addr "$slack_addr" || true
-  hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
+  hyprctl dispatch 'hl.dsp.layout("preselect d")' >/dev/null 2>&1 || true
   sleep 0.1
 
   move_to_workspace_silent 1 "$browser_addr"
   focus_addr "$browser_addr" || true
-  hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
+  hyprctl dispatch 'hl.dsp.layout("preselect d")' >/dev/null 2>&1 || true
   sleep 0.1
 
   move_to_workspace_silent 1 "$term_addr"
   focus_addr "$slack_addr" || true
-  hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
+  hyprctl dispatch 'hl.dsp.layout("preselect r")' >/dev/null 2>&1 || true
   sleep 0.1
 
   move_to_workspace_silent 1 "$discord_addr"
@@ -520,12 +526,12 @@ rebuild_workspace1_nonwork_tree() {
 
   move_to_workspace_silent 1 "$top_addr"
   focus_addr "$top_addr" || true
-  hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
+  hyprctl dispatch 'hl.dsp.layout("preselect d")' >/dev/null 2>&1 || true
   sleep 0.1
 
   move_to_workspace_silent 1 "$main_addr"
   focus_addr "$main_addr" || true
-  hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
+  hyprctl dispatch 'hl.dsp.layout("preselect d")' >/dev/null 2>&1 || true
   sleep 0.1
 
   move_to_workspace_silent 1 "$term_addr"
@@ -556,7 +562,7 @@ if $WORK_TIME; then
 
   if [ -n "$WS1_BROWSER_ADDR" ]; then
     focus_addr "$WS1_BROWSER_ADDR" || true
-    hyprctl dispatch layoutmsg preselect d >/dev/null 2>&1 || true
+    hyprctl dispatch 'hl.dsp.layout("preselect d")' >/dev/null 2>&1 || true
     sleep 0.2
   fi
 
@@ -564,7 +570,7 @@ if $WORK_TIME; then
 
   if [ -n "$WS1_SLACK_ADDR" ]; then
     focus_addr "$WS1_SLACK_ADDR" || true
-    hyprctl dispatch layoutmsg preselect r >/dev/null 2>&1 || true
+    hyprctl dispatch 'hl.dsp.layout("preselect r")' >/dev/null 2>&1 || true
     sleep 0.2
   fi
 
@@ -596,10 +602,10 @@ fi
 
 if $WORK_TIME; then
   log_step "Switching to workspace 2"
-  hyprctl dispatch workspace 2 >/dev/null 2>&1 || true
+  hyprctl dispatch 'hl.dsp.focus({ workspace = "2" })' >/dev/null 2>&1 || true
 else
   log_step "Switching to workspace 2"
-  hyprctl dispatch workspace 2 >/dev/null 2>&1 || true
+  hyprctl dispatch 'hl.dsp.focus({ workspace = "2" })' >/dev/null 2>&1 || true
 fi
 
 log_step "Workspace setup complete"

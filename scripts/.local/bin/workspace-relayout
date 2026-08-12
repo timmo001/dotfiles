@@ -10,7 +10,7 @@ PRESETS_FILE="${XDG_DATA_HOME:-$HOME/.local/share}/workspace-relayout/presets.js
 # monitor regardless of resolution, scale, reserved bars, or gaps.
 #
 # Each split in the dwindle tree is set with:
-#   hyprctl dispatch layoutmsg splitratio <value> exact
+#   hyprctl dispatch 'hl.dsp.layout("splitratio <value> exact")'
 # which sets the focused window's parent split. From the dwindle algorithm,
 # the first child of a split gets `box_size / 2 * splitRatio`, so the first
 # child's fraction f maps to splitRatio = 2 * f. set_split takes that fraction
@@ -43,13 +43,13 @@ notify() {
 focus_addr() {
   local addr="$1"
   [ -n "$addr" ] || return 1
-  hyprctl dispatch focuswindow "address:$addr" >/dev/null 2>&1
+  hyprctl dispatch "hl.dsp.focus({ window = \"address:$addr\" })" >/dev/null 2>&1
 }
 
 move_to_workspace() {
   local workspace="$1"
   local addr="$2"
-  hyprctl dispatch movetoworkspace "$workspace,address:$addr" >/dev/null 2>&1
+  hyprctl dispatch "hl.dsp.window.move({ workspace = \"$workspace\", window = \"address:$addr\" })" >/dev/null 2>&1
 }
 
 # Set the dwindle split ratio for the split whose first child is the cell of
@@ -65,7 +65,7 @@ set_split() {
   value="$(awk -v p="$first_pct" 'BEGIN { printf "%.4f", 2 * p / 100 }')"
 
   focus_addr "$addr" || return 1
-  hyprctl dispatch layoutmsg splitratio "$value" exact >/dev/null 2>&1
+  hyprctl dispatch "hl.dsp.layout(\"splitratio $value exact\")" >/dev/null 2>&1
   sleep 0.03
 }
 
@@ -280,7 +280,7 @@ apply_tree() {
     if [ "$dir" = "lr" ]; then pdir="r"; else pdir="d"; fi
 
     focus_addr "${win[$ai]}"
-    hyprctl dispatch layoutmsg preselect "$pdir" >/dev/null 2>&1 || true
+    hyprctl dispatch "hl.dsp.layout(\"preselect $pdir\")" >/dev/null 2>&1 || true
     sleep 0.05
 
     move_to_workspace "$WS_ID_STR" "${win[$ni]}"

@@ -289,7 +289,7 @@ launch_and_wait() {
   fi
 
   before="$(matching_addresses "$class_regex" || true)"
-  hyprctl dispatch exec "$command" >/dev/null 2>&1 || true
+  hyprctl dispatch "hl.dsp.exec_cmd($(jq -Rn --arg value "$command" '$value'))" >/dev/null 2>&1 || true
 
   for _ in {1..80}; do
     after="$(matching_addresses "$class_regex" || true)"
@@ -322,15 +322,14 @@ restore_window_shape() {
 
     log_action "Restoring floating geometry for $addr to ${width}x${height}+${x}+${y}"
     if ! $DRY_RUN; then
-      hyprctl dispatch focuswindow "address:$addr" >/dev/null 2>&1 || true
-      hyprctl dispatch setfloating "address:$addr" >/dev/null 2>&1 || true
-      hyprctl dispatch resizeactive exact "$width" "$height" >/dev/null 2>&1 || true
-      hyprctl dispatch moveactive exact "$x" "$y" >/dev/null 2>&1 || true
+      hyprctl dispatch "hl.dsp.window.float({ action = \"enable\", window = \"address:$addr\" })" >/dev/null 2>&1 || true
+      hyprctl dispatch "hl.dsp.window.resize({ x = $width, y = $height, window = \"address:$addr\" })" >/dev/null 2>&1 || true
+      hyprctl dispatch "hl.dsp.window.move({ x = $x, y = $y, window = \"address:$addr\" })" >/dev/null 2>&1 || true
     fi
   else
     log_action "Restoring tiled size for $addr to ${width}x${height}"
     if ! $DRY_RUN; then
-      hyprctl dispatch resizewindowpixel exact "$width" "$height,address:$addr" >/dev/null 2>&1 || true
+      hyprctl dispatch "hl.dsp.window.resize({ x = $width, y = $height, window = \"address:$addr\" })" >/dev/null 2>&1 || true
     fi
   fi
 }
@@ -400,7 +399,7 @@ while IFS= read -r client_b64; do
   if $MOVE_EXISTING; then
     log_action "Moving ${RESTORE_LABEL:-$window_label} to workspace $workspace"
     if ! $DRY_RUN && [ "$addr" != "dry-run" ]; then
-      hyprctl dispatch movetoworkspace "$workspace,address:$addr" >/dev/null 2>&1 || true
+      hyprctl dispatch "hl.dsp.window.move({ workspace = \"$workspace\", window = \"address:$addr\" })" >/dev/null 2>&1 || true
       restore_window_shape "$client_json" "$addr"
     fi
   fi
@@ -410,7 +409,7 @@ active_workspace="$(jq -r '.active_workspace.id // empty' "$SESSION_FILE")"
 if [ -n "$active_workspace" ]; then
   log_action "Switching to saved active workspace $active_workspace"
   if ! $DRY_RUN; then
-    hyprctl dispatch workspace "$active_workspace" >/dev/null 2>&1 || true
+    hyprctl dispatch "hl.dsp.focus({ workspace = \"$active_workspace\" })" >/dev/null 2>&1 || true
   fi
 fi
 

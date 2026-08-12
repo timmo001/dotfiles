@@ -96,7 +96,7 @@ reserved_bottom=$(jq -r '.reserved[3] // 0' <<<"$monitor_json")
 pos_x=$((monitor_x + monitor_width - reserved_right - WIDTH - RIGHT_MARGIN))
 pos_y=$((monitor_y + monitor_height - reserved_bottom - HEIGHT - BOTTOM_MARGIN))
 
-[[ -z $WORKSPACE ]] || hyprctl dispatch movetoworkspacesilent "$WORKSPACE,address:$ADDRESS" >/dev/null
+[[ -z $WORKSPACE ]] || hyprctl dispatch "hl.dsp.window.move({ workspace = '$WORKSPACE', window = 'address:$ADDRESS', follow = false })" >/dev/null
 hyprctl dispatch "hl.dsp.window.float({ action = 'enable', window = 'address:$ADDRESS' })" >/dev/null
 hyprctl dispatch "hl.dsp.window.resize({ x = $WIDTH, y = $HEIGHT, window = 'address:$ADDRESS' })" >/dev/null
 hyprctl dispatch "hl.dsp.window.move({ x = $pos_x, y = $pos_y, window = 'address:$ADDRESS' })" >/dev/null

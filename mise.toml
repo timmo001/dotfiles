@@ -57,6 +57,7 @@ bash tests/scripts/git-default-ref.test.sh
 bash tests/scripts/repo-shortcuts.test.sh
 bash tests/scripts/ha-module-bar.test.sh
 bash tests/scripts/launch-floating-webapp.test.sh
+bash tests/scripts/hypr-lua-dispatchers.test.sh
 bash tests/scripts/terminal-tab-action.test.sh
 bash tests/scripts/omarchy-notifications.test.sh
 bash tests/scripts/workspace-relayout.test.sh

@@ -16,7 +16,7 @@ window_cmd='uwsm app -- google-chrome-stable --new-window --ozone-platform=wayla
 
 if [ "$tab" -eq 1 ]; then
   cmd="$tab_cmd$suffix"
-  hyprctl dispatch exec "$cmd"
+  hyprctl dispatch "hl.dsp.exec_cmd($(jq -Rn --arg value "$cmd" '$value'))"
   exit 0
 fi
 

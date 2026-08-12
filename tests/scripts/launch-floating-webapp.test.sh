@@ -20,6 +20,9 @@ case "$1" in
   monitors)
     printf '[{"name":"DP-1","focused":true,"x":0,"y":0,"width":1920,"height":1080,"scale":1,"reserved":[0,30,10,40]}]\n'
     ;;
+  workspaces)
+    printf '[{"id":3,"monitor":"DP-1"}]\n'
+    ;;
   dispatch)
     printf '%s\n' "$2" >>"$HYPRCTL_ARGS"
     ;;
@@ -32,11 +35,12 @@ EOF
 chmod +x "$tmp/hyprctl" "$tmp/omarchy-launch-webapp"
 
 export LAUNCHED="$tmp/launched" HYPRCTL_ARGS="$tmp/hyprctl-args"
-address=$(PATH="$tmp:$PATH" "$script" 'https://example.com:8123/page?x=1')
+address=$(PATH="$tmp:$PATH" "$script" --workspace 3 'https://example.com:8123/page?x=1')
 
 [ "$address" = '0xnew' ]
 [ "$(<"$LAUNCHED")" = 'https://example.com:8123/page?x=1' ]
 mapfile -t args <"$HYPRCTL_ARGS"
-[[ ${args[0]} == *"action = 'enable', window = 'address:0xnew'"* ]]
-[[ ${args[1]} == *"x = 380, y = 500, window = 'address:0xnew'"* ]]
-[[ ${args[2]} == *"x = 1520, y = 534, window = 'address:0xnew'"* ]]
+[[ ${args[0]} == *"workspace = '3', window = 'address:0xnew', follow = false"* ]]
+[[ ${args[1]} == *"action = 'enable', window = 'address:0xnew'"* ]]
+[[ ${args[2]} == *"x = 380, y = 500, window = 'address:0xnew'"* ]]
+[[ ${args[3]} == *"x = 1520, y = 534, window = 'address:0xnew'"* ]]

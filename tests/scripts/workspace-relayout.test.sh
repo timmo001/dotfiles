@@ -87,7 +87,7 @@ if [[ "${top_bottom_presets[*]}" != '75% top [75/25] 63% top [63/37] Equal heigh
   exit 1
 fi
 
-if ! grep -Fq 'dispatch layoutmsg splitratio 1.5058 exact' "$apply_dir/hyprctl.log"; then
+if ! grep -Fq 'dispatch hl.dsp.layout("splitratio 1.5058 exact")' "$apply_dir/hyprctl.log"; then
   printf 'Selected 75%% top layout was not applied.\n' >&2
   exit 1
 fi

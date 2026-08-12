@@ -210,7 +210,7 @@ schedule_close() {
   (
     sleep "$POPUP_DURATION_SECONDS"
     if hyprctl -j clients | jq -e --arg close_addr "$addr" '.[] | select(.address == $close_addr)' >/dev/null; then
-      hyprctl dispatch closewindow "address:${addr}" >/dev/null 2>&1 || true
+      hyprctl dispatch "hl.dsp.window.close({ window = 'address:${addr}' })" >/dev/null 2>&1 || true
     fi
   ) &
   close_timer_pid="$!"
@@ -221,7 +221,7 @@ restore_focus() {
 
   [[ -n "$addr" ]] || return 0
   window_exists "$addr" || return 0
-  hyprctl dispatch focuswindow "address:${addr}" >/dev/null 2>&1 || true
+  hyprctl dispatch "hl.dsp.focus({ window = 'address:${addr}' })" >/dev/null 2>&1 || true
 }
 
 handle_motion_event() {
@@ -236,7 +236,7 @@ handle_motion_event() {
   if window_exists "$popup_addr"; then
     position_popup "$popup_addr" || true
     if (( FOCUS_POPUP )); then
-      hyprctl dispatch focuswindow "address:${popup_addr}" >/dev/null 2>&1 || true
+      hyprctl dispatch "hl.dsp.focus({ window = 'address:${popup_addr}' })" >/dev/null 2>&1 || true
     else
       restore_focus "$active_addr"
     fi
@@ -249,7 +249,7 @@ handle_motion_event() {
   popup_addr=""
   if open_popup; then
     if (( FOCUS_POPUP )); then
-      hyprctl dispatch focuswindow "address:${popup_addr}" >/dev/null 2>&1 || true
+      hyprctl dispatch "hl.dsp.focus({ window = 'address:${popup_addr}' })" >/dev/null 2>&1 || true
     else
       restore_focus "$active_addr"
     fi
