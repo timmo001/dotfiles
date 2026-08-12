@@ -42,10 +42,10 @@ BarWidget {
   readonly property string loadingClass: setting("loadingClass", "")
   readonly property string hiddenText: setting("hiddenText", "")
   readonly property bool revealOnHover: setting("revealOnHover", false)
-  // Horizontal cell margin, standard 8px across all custom widgets (center,
+  // Horizontal cell margin, standard 6px across all custom widgets (center,
   // right HA, left). The built-in right-side stock widgets keep their own
   // margins. Per-instance overridable via the `horizontalMargin` setting.
-  readonly property real cellMargin: setting("horizontalMargin", 8)
+  readonly property real cellMargin: setting("horizontalMargin", 6)
 
   property string outText: ""
   property string outTooltip: ""

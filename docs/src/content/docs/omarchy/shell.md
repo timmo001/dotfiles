@@ -94,8 +94,8 @@ A plugin is a folder with `manifest.json` (schema version 1, an `id` like `timmo
 | Plugin | Kind | What it does |
 | --- | --- | --- |
 | `timmo.bar` | bar | A clone of the stock bar that scales widget content and slots to 55%, retaining proportional padding without scaling popup panels or other shell UI. |
-| `timmo.command` | bar-widget | Runs a shell command on an interval and renders its status-bar JSON (`text` / `tooltip` / `class`). The Waybar `custom/*` equivalent. |
-| `timmo.stream-command` | bar-widget | Runs a long-running command that streams status-bar JSON lines and renders the latest line (for watchers like `ha-watch-singleton`). |
+| `timmo.command` | bar-widget | Runs a shell command on an interval and renders its status-bar JSON (`text` / `tooltip` / `class`) with compact 6px horizontal cell margins. The Waybar `custom/*` equivalent. |
+| `timmo.stream-command` | bar-widget | Runs a long-running command that streams status-bar JSON lines and renders the latest line with compact 6px horizontal cell margins (for watchers like `ha-watch-singleton`). |
 | `timmo.workspaces` | bar-widget | Workspace numbers without persistent workspaces: only existing workspaces show, the focused one at full opacity and the rest dimmed. |
 
 `timmo.command` and `timmo.stream-command` both support `classColors` (class-name to colour), `hideClasses`, `hiddenText`, `onClick` / `onClickRight`, and `revealOnHover`, so the generator can style and wire every cell without bespoke QML per module.
