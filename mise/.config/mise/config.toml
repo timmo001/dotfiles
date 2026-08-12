@@ -44,6 +44,10 @@ uv = "0.12.3"
 version = "1.18.16"
 minimum_release_age = "2h"
 
+[tools."aqua:earendil-works/pi"]
+version = "0.84.1"
+minimum_release_age = "2h"
+
 [tools."github:backnotprop/plannotator"]
 version = "0.26.8"
 minimum_release_age = "2h"

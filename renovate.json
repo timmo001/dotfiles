@@ -70,9 +70,13 @@
       "minimumReleaseAge": null
     },
     {
-      "description": "Group OpenCode updates with mise's shorter release delay.",
-      "groupName": "OpenCode",
-      "matchDepNames": ["aqua:anomalyco/opencode", "anomalyco/opencode"],
+      "description": "Group OpenCode and Pi updates with mise's shorter release delay.",
+      "groupName": "OpenCode and Pi",
+      "matchDepNames": [
+        "aqua:anomalyco/opencode",
+        "anomalyco/opencode",
+        "aqua:earendil-works/pi"
+      ],
       "minimumReleaseAge": "2 hours"
     },
     {
