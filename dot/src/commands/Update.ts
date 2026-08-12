@@ -397,6 +397,7 @@ const restoreHerdrPlugins = Effect.gen(function* () {
       "plugin",
       "install",
       "natori-hrj/herdr-lazy",
+      "--yes",
     ]);
     if (installExitCode !== 0) {
       return yield* new UpdateError({
