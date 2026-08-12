@@ -282,6 +282,13 @@ export const setupPublicRepo = Effect.gen(function* () {
       "Public package repository setup did not reach ready state",
     );
   }
+
+  const refreshExitCode = yield* runElevated("pacman", ["-Sy", "--noconfirm"]);
+  if (refreshExitCode !== 0) {
+    return yield* fail(
+      `Could not refresh package databases (pacman exited ${refreshExitCode})`,
+    );
+  }
   yield* log.info(
     `Public pacman repo is configured (${displayPath(publicPacmanRepoConfigPath())})`,
   );

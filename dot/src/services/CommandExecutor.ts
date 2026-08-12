@@ -318,7 +318,6 @@ export class CommandExecutor extends Context.Service<
             stdout: "pipe",
             stderr: "pipe",
             cwd: opts?.cwd,
-            detached: true,
           });
           killOnAbort(proc, signal);
           const stdout = pipeProcessOutput(
@@ -341,7 +340,6 @@ export class CommandExecutor extends Context.Service<
           stdout: "inherit",
           stderr: "inherit",
           cwd: opts?.cwd,
-          detached: true,
         });
         killOnAbort(proc, signal);
         return proc.exited;

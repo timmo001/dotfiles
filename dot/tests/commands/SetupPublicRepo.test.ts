@@ -132,4 +132,51 @@ describe("public repository setup", () => {
     });
     expect(inheritedCommands).toBe(0);
   });
+
+  test("refreshes package databases after registering the repository", async () => {
+    const root = mkdtempSync(join(tmpdir(), "dot-public-repo-"));
+    roots.push(root);
+    const repoConfig = join(root, "timmo.conf");
+    const mainConfig = join(root, "pacman.conf");
+    process.env[ENV.DOT_PUBLIC_PACMAN_REPO_CONFIG] = repoConfig;
+    process.env[ENV.DOT_PUBLIC_PACMAN_MAIN_CONFIG] = mainConfig;
+    writeFileSync(repoConfig, publicPackageRepoConfigContents());
+    writeFileSync(
+      mainConfig,
+      withPublicPackageRepoInclude("[options]\n\n[core]\nServer = test\n"),
+    );
+
+    const inheritedCommands: Array<readonly [string, readonly string[]]> = [];
+    const commandExecutor = Layer.succeed(CommandExecutor, {
+      run: () =>
+        Effect.succeed(
+          `pub:-:255:22:A026A3671E9151DA:0:0::::::\nfpr:::::::::${fingerprint}:`,
+        ),
+      stream: () => Stream.die("stream should not be called"),
+      exitCode: (command, args) =>
+        Effect.sync(() => {
+          if (command === "curl" && args.includes("-o")) {
+            writeFileSync(args[args.indexOf("-o") + 1], "repository key");
+          }
+          return 0;
+        }),
+      inherit: (command, args) =>
+        Effect.sync(() => {
+          inheritedCommands.push([command, args]);
+          return 0;
+        }),
+    });
+
+    await Effect.runPromise(
+      setupPublicRepo.pipe(
+        Effect.provide(Layer.merge(commandExecutor, outputLog)),
+      ),
+    );
+
+    expect(inheritedCommands.at(-1)?.[1]).toEqual([
+      "pacman",
+      "-Sy",
+      "--noconfirm",
+    ]);
+  });
 });
