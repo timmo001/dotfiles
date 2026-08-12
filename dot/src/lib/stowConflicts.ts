@@ -44,6 +44,9 @@ const RETIRED_PUBLIC_STOW_PATHS = [
   "hypr/.config/hypr/input.conf",
   "hypr/.config/hypr/looknfeel.conf",
   "hypr/.config/hypr/monitors.conf",
+  "hypr/.config/hypr/bin/hyprsunset-clear-dim",
+  "hypr/.config/hypr/bin/hyprsunset-dim-step",
+  "hypr/.config/hypr/bin/hyprsunset-toggle-dim",
   ...["desktop", "laptop"].flatMap((host) =>
     [
       "autostart.conf",
