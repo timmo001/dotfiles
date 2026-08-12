@@ -106,29 +106,29 @@ export const install = Effect.gen(function* () {
     log,
   );
 
-  const resumeMonitorUnit = "dot-on-resume-monitor.service";
-  const resumeMonitorPath = join(
+  const reloadUiMonitorUnit = "dot-reload-ui-monitor.service";
+  const reloadUiMonitorPath = join(
     config.omarchy.repoBase,
     "systemd",
     "user",
-    resumeMonitorUnit,
+    reloadUiMonitorUnit,
   );
-  if (config.omarchy.enabled && existsSync(resumeMonitorPath)) {
-    yield* log.section("Resume Monitor");
+  if (config.omarchy.enabled && existsSync(reloadUiMonitorPath)) {
+    yield* log.section("Reload UI Monitor");
     const daemonReloadExit = yield* launcher.stream(
       "systemctl --user daemon-reload",
     );
     const enableExit =
       daemonReloadExit === 0
         ? yield* launcher.stream(
-            `systemctl --user enable --now ${resumeMonitorUnit}`,
+            `systemctl --user enable --now ${reloadUiMonitorUnit}`,
           )
         : daemonReloadExit;
     if (enableExit === 0) {
-      yield* log.info(`Enabled ${resumeMonitorUnit}`);
+      yield* log.info(`Enabled ${reloadUiMonitorUnit}`);
     } else {
       yield* log.warn(
-        `Could not enable ${resumeMonitorUnit} (systemctl exit ${enableExit})`,
+        `Could not enable ${reloadUiMonitorUnit} (systemctl exit ${enableExit})`,
       );
     }
   }

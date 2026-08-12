@@ -45,7 +45,7 @@ import type { ConfigService } from "../services/Config.js";
 
 const GIT_INCLUDE_PATH = "~/.config/git/config.dotfiles";
 const DOCTOR_STARTUP_TIMER_UNIT = "dot-doctor-startup.timer";
-const RESUME_MONITOR_SERVICE_UNIT = "dot-on-resume-monitor.service";
+const RELOAD_UI_MONITOR_SERVICE_UNIT = "dot-reload-ui-monitor.service";
 const DEFAULT_INIT_OMARCHY_HOST = "desktop";
 const INIT_OMARCHY_HOSTS = ["desktop", "laptop"] as const;
 const ETC_SHELLS = "/etc/shells";
@@ -881,9 +881,12 @@ export function init(
       enableUserUnit(DOCTOR_STARTUP_TIMER_UNIT, "Enable Doctor Startup Timer"),
     );
     yield* requiredInitStep(
-      "Enable Resume Monitor",
+      "Enable Reload UI Monitor",
       INIT_STEP_TIMEOUT_SECONDS.doctorTimer,
-      enableUserUnit(RESUME_MONITOR_SERVICE_UNIT, "Enable Resume Monitor"),
+      enableUserUnit(
+        RELOAD_UI_MONITOR_SERVICE_UNIT,
+        "Enable Reload UI Monitor",
+      ),
     );
     yield* requiredInitStep(
       "Sync Agents",

@@ -7,14 +7,14 @@ sidebar:
 
 import { Steps } from '@astrojs/starlight/components';
 
-`on-resume-monitor` watches logind for resume events and runs `reload-ui`, which refreshes desktop services and shell widgets that can go stale after sleep.
+`reload-ui-monitor` watches logind for resume events and runs `reload-ui`, which refreshes desktop services and shell widgets that can go stale after sleep.
 
 ## Where it runs
 
-The `dot-on-resume-monitor.service` user unit runs `on-resume-monitor` throughout the session. It calls `reload-ui` after logind reports that sleep has ended.
+The `dot-reload-ui-monitor.service` user unit runs `reload-ui-monitor` throughout the session. It calls `reload-ui` after logind reports that sleep has ended.
 
 ```text
-systemctl --user status dot-on-resume-monitor.service
+systemctl --user status dot-reload-ui-monitor.service
 ```
 
 On the laptop, `reload-ui` also re-arms keyboard backlight handling.

@@ -18,18 +18,18 @@ const LEGACY_WORKFLOW_WATCH_TIMER_UNIT = "git-workflow-watch.timer";
 const DOCTOR_STARTUP_TIMER_UNIT = "dot-doctor-startup.timer";
 const DAILY_VOLUME_ZERO_TIMER_UNIT = "daily-volume-zero.timer";
 const LOCAL_BIN_DIR = join(HOME_DIR, ".local", "bin");
-const RESUME_MONITOR_SERVICE_UNIT = "dot-on-resume-monitor.service";
+const RELOAD_UI_MONITOR_SERVICE_UNIT = "dot-reload-ui-monitor.service";
 const DOCTOR_STARTUP_NOTIFY_SCRIPT = join(
   HOME_DIR,
   ".local",
   "bin",
   "dot-doctor-notify",
 );
-const RESUME_MONITOR_SCRIPT = join(
+const RELOAD_UI_MONITOR_SCRIPT = join(
   HOME_DIR,
   ".local",
   "bin",
-  "on-resume-monitor",
+  "reload-ui-monitor",
 );
 
 function userSystemdUnitPath(unit: string): string {
@@ -418,19 +418,19 @@ export const checkDoctorStartup = checkRequiredUserUnitSetup({
   unitLabel: "Doctor startup timer",
 });
 
-/** Check resume recovery monitor service used after hypridle is removed. */
-export const checkResumeMonitor = checkRequiredUserUnitSetup({
-  scriptPath: RESUME_MONITOR_SCRIPT,
-  scriptOkMessage: `Resume monitor script is executable: ${displayPath(RESUME_MONITOR_SCRIPT)}`,
-  scriptWarnMessage: `Resume monitor script is missing or not executable: ${displayPath(RESUME_MONITOR_SCRIPT)}`,
+/** Check the UI reload monitor service used after hypridle is removed. */
+export const checkReloadUiMonitor = checkRequiredUserUnitSetup({
+  scriptPath: RELOAD_UI_MONITOR_SCRIPT,
+  scriptOkMessage: `Reload UI monitor script is executable: ${displayPath(RELOAD_UI_MONITOR_SCRIPT)}`,
+  scriptWarnMessage: `Reload UI monitor script is missing or not executable: ${displayPath(RELOAD_UI_MONITOR_SCRIPT)}`,
   scriptDetail:
-    "Run dot stow (or dot install) to link the resume monitor script",
-  unitPath: userSystemdUnitPath(RESUME_MONITOR_SERVICE_UNIT),
-  unitOkMessage: `Resume monitor service unit file found: ${displayPath(userSystemdUnitPath(RESUME_MONITOR_SERVICE_UNIT))}`,
-  unitWarnMessage: `Resume monitor service unit file missing: ${displayPath(userSystemdUnitPath(RESUME_MONITOR_SERVICE_UNIT))}`,
+    "Run dot stow (or dot install) to link the reload UI monitor script",
+  unitPath: userSystemdUnitPath(RELOAD_UI_MONITOR_SERVICE_UNIT),
+  unitOkMessage: `Reload UI monitor service unit file found: ${displayPath(userSystemdUnitPath(RELOAD_UI_MONITOR_SERVICE_UNIT))}`,
+  unitWarnMessage: `Reload UI monitor service unit file missing: ${displayPath(userSystemdUnitPath(RELOAD_UI_MONITOR_SERVICE_UNIT))}`,
   unitDetail: "Run dot stow (or dot install) to link systemd user units",
-  unit: RESUME_MONITOR_SERVICE_UNIT,
-  unitLabel: "Resume monitor service",
+  unit: RELOAD_UI_MONITOR_SERVICE_UNIT,
+  unitLabel: "Reload UI monitor service",
 });
 
 /** Check daily volume reset timer (laptop-only, informational) */

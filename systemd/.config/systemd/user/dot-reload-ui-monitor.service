@@ -1,11 +1,11 @@
 [Unit]
-Description=Run dot resume recovery after system resume
+Description=Reload the UI after system resume
 After=dbus.socket
 Requires=dbus.socket
 
 [Service]
 Type=simple
-ExecStart=%h/.local/bin/on-resume-monitor
+ExecStart=%h/.local/bin/reload-ui-monitor
 Restart=always
 RestartSec=2
 
