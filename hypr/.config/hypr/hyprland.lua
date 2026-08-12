@@ -19,9 +19,9 @@ require("default.hypr.omarchy")
 -- envs first so env vars (Nvidia, cursor theme) are set before monitors/autostart apps launch
 require("hypr.envs")
 require("hypr.monitors")
-require("hypr.looknfeel")
 require("hypr.input")
 require("hypr.bindings")
+require("hypr.looknfeel")
 require("hypr.autostart")
 
 -- Toggle config flags dynamically.
