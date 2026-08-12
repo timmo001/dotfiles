@@ -456,6 +456,7 @@ capture_bar_parent_starttime() {
 run_temperature() {
   local line=""
   local state=""
+  local text=""
 
   line="$(read_entity_line "$ENTITY_ID")"
   if [[ -z "$line" ]]; then
@@ -469,7 +470,13 @@ run_temperature() {
     return
   fi
 
-  printf '{"text":"%.1f","class":"temperature","tooltip":"%s (%s): %.1f °C"}\n' "$state" "$ENTITY_NAME" "$ENTITY_ID" "$state"
+  if [[ -n "$ICON" ]]; then
+    text="$(printf '%s %.1f' "$ICON" "$state")"
+  else
+    text="$(printf '%.1f' "$state")"
+  fi
+
+  printf '{"text":"%s","class":"temperature","tooltip":"%s (%s): %.1f °C"}\n' "$text" "$ENTITY_NAME" "$ENTITY_ID" "$state"
   maybe_run_trigger "$state"
 }
 
