@@ -13,7 +13,7 @@ The global mise configuration (`mise/.config/mise/config.toml`) pins the shared 
 
 Python 3.14 and [uv](https://docs.astral.sh/uv/) are installed through mise for Python package and virtual-environment management. Use `uv` directly for project work; `topgrade` leaves mise pins unchanged unless you run `mise install` or `dot update`.
 
-The stowed `mise` wrapper keeps the global config under dotfiles control. Commands such as Omarchy's `mise use -g <tool>` are redirected to `~/.local/state/mise/omarchy-config.toml`, while reads, installs, upgrades, and project-local writes continue normally. To intentionally change the stowed global config, opt in explicitly:
+The stowed `mise` wrapper keeps the global config under dotfiles control. Commands such as Omarchy's `mise use -g <tool>` are redirected to `~/.local/state/mise/omarchy-config.toml`, while reads, installs, upgrades, project-local writes, and mise-generated tool shims continue normally. To intentionally change the stowed global config, opt in explicitly:
 
 ```bash
 mise --write-global-config use -g --pin node@26

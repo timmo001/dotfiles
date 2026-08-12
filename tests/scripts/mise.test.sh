@@ -6,8 +6,9 @@ repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 mise_wrapper="$repo_root/scripts/.local/bin/mise"
 test_root=$(mktemp -d)
 mock_bin="$test_root/bin"
+binary_bin="$test_root/binary-bin"
 mock_home="$test_root/home"
-mkdir -p "$mock_bin" "$mock_home"
+mkdir -p "$mock_bin" "$binary_bin" "$mock_home"
 trap 'rm -rf "$test_root"' EXIT
 
 cat >"$mock_bin/mise" <<'EOF'
@@ -47,5 +48,11 @@ read_command=$(run_mise current)
 explicit_write=$(run_mise --write-global-config use -g gh@2.97.0)
 [[ $explicit_write == *"args=use -g gh@2.97.0"* ]]
 [[ $explicit_write == $'args=use -g gh@2.97.0\nglobal=' ]]
+
+ln -s /usr/bin/perl "$binary_bin/mise"
+shim="$binary_bin/starship"
+ln -s "$mise_wrapper" "$shim"
+shim_output=$(PATH="$binary_bin:/usr/bin" "$shim" -e 'print $0')
+[[ $shim_output == "$shim" ]]
 
 printf 'mise global config guard tests passed\n'

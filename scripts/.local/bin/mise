@@ -3,6 +3,7 @@
 set -euo pipefail
 
 self=$(readlink -f "$0")
+invoked_as=$0
 real_mise=""
 while IFS= read -r candidate; do
   if [[ $(readlink -f "$candidate") != "$self" ]]; then
@@ -19,6 +20,10 @@ fi
 if [[ ${1:-} == --write-global-config ]]; then
   shift
   exec "$real_mise" "$@"
+fi
+
+if [[ ${invoked_as##*/} != mise ]]; then
+  exec -a "$invoked_as" "$real_mise" "$@"
 fi
 
 redirect_global_write=false
