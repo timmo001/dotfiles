@@ -37,7 +37,7 @@ Layout changes applied on top of the default bar:
 
 - **Left**: Omarchy's persistent workspaces widget is swapped for `timmo.workspaces`, then a calendar module is appended.
 - **Centre**: the clock stays as the centre anchor on desktop (the stock config gear only renders next to a centred clock) but moves to the right on laptop. The weather is pulled out, personal status widgets are inserted before the system-update group, and the doorbell trigger goes last.
-- **Right**: the Home Assistant sensors are inserted before the default tray cluster. A thresholded outdoor-temperature icon replaces the stock weather widget immediately before the network widget; clicking it opens `weather.met_office` in Home Assistant.
+- **Right**: the Home Assistant sensors are inserted before the default tray cluster. The outdoor temperature replaces the stock weather widget immediately before the network widget, appears with its current value while the bar is hovered, and opens `weather.met_office` in Home Assistant when clicked.
 
 The personal status widgets read from bar-agnostic scripts, `dot` JSON output, and Home Assistant. See [Bar Integrations](/bar-integrations/) for the `--bar-json` commands behind the git and notification cells.
 
@@ -53,7 +53,7 @@ No stock widget is removed without a replacement.
 
 ### Replaced
 
-`omarchy.weather` is removed. A `timmo.command` outdoor-temperature icon takes its place immediately before `omarchy.network`, using the stock weather icon slot with a larger glyph. It appears only above 25 °C and opens the Met Office weather entity in Home Assistant.
+`omarchy.weather` is removed. A `timmo.command` outdoor-temperature item takes its place immediately before `omarchy.network`. It stays hidden until the bar is hovered, then shows its icon and current value. Clicking it opens the Met Office weather entity in Home Assistant.
 
 No other stock widget changes section. `omarchy.system-update` remains in the centre after the added status widgets, while the complete stock tray cluster remains on the right in its original order.
 

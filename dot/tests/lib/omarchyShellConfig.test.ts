@@ -94,13 +94,15 @@ describe("mergeOmarchyShellConfig", () => {
     const networkIndex = rightIds.indexOf("omarchy.network");
     expect(networkIndex).toBe(bluetoothIndex + 1);
     expect(merged.bar.layout.right[bluetoothIndex - 1]).toMatchObject({
-      run: expect.stringContaining(
-        "sensor.weather_station_outdoor_temperature",
-      ),
       onClick: expect.stringContaining("weather.met_office"),
-      stockIconSize: true,
-      iconScale: 1.15,
+      hideClasses: ["temperature", "hidden"],
     });
+    expect(merged.bar.layout.right[bluetoothIndex - 1]?.run).toEqual(
+      expect.stringContaining("sensor.weather_station_outdoor_temperature"),
+    );
+    expect(merged.bar.layout.right[bluetoothIndex - 1]?.run).not.toEqual(
+      expect.stringContaining("--icon-only"),
+    );
     expect(rightIds).not.toContain("omarchy.weather");
     expect(merged.bar.layout.right).toContainEqual({ id: "omarchy.tray" });
     expect(merged.bar.layout.right).toContainEqual({
@@ -163,7 +165,7 @@ describe("mergeOmarchyShellConfig", () => {
     });
     expect(runs).toContain("sensor.meter_plus_378b_temperature");
     expect(runs).toContain(
-      "sensor.weather_station_outdoor_temperature --name 'Weather Station Outdoor Temperature' --icon 󰖙 --icon-only --show-above 25",
+      "sensor.weather_station_outdoor_temperature --name 'Weather Station Outdoor Temperature' --icon 󰖙",
     );
     expect(runs).toContain("sensor.apollo_air_1_806d64_co2");
     expect(runs).toContain("voc-alert");

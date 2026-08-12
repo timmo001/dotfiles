@@ -148,19 +148,17 @@ function diningTemperatureEntry(): BarEntry {
   });
 }
 
-/** Outdoor weather-station temperature shown only above the hot-weather threshold. */
+/** Outdoor weather-station temperature revealed while the bar is hovered. */
 function outdoorTemperatureEntry(): BarEntry {
   const entity = "sensor.weather_station_outdoor_temperature";
   return command({
-    run: `ha-module-bar temperature --entity ${entity} --name 'Weather Station Outdoor Temperature' --icon 󰖙 --icon-only --show-above 25`,
+    run: `ha-module-bar temperature --entity ${entity} --name 'Weather Station Outdoor Temperature' --icon 󰖙`,
     interval: 15000,
     onClick: floatingWebapp(
       `${HA}/home?more-info-entity-id=weather.met_office`,
     ),
-    stockIconSize: true,
-    iconScale: 1.15,
     classColors: { temperature: COLOR.orange },
-    hideClasses: ["hidden"],
+    hideClasses: ["temperature", "hidden"],
     hiddenText: "󰖙",
   });
 }
