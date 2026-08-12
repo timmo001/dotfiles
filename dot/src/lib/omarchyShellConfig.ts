@@ -78,6 +78,9 @@ const WORKSPACES_ID = "omarchy.workspaces";
 /** Widget id of Omarchy's default clock bar entry (default centre anchor). */
 const CLOCK_ID = "omarchy.clock";
 
+/** Compact clock format matching the final pre-Quattro Waybar layout. */
+const CLOCK_FORMAT = "HH:mm ddd d MMM";
+
 /** Widget id of Omarchy's default weather bar entry (center column). */
 const WEATHER_ID = "omarchy.weather";
 
@@ -426,10 +429,10 @@ function insertBefore(
 /**
  * Merge personal widgets and host overrides into Omarchy's default shell
  * config, mutating `base` in place. Default widgets are kept; personal modules
- * are inserted around them ("add, not remove"). The clock stays as the center
- * anchor (so the stock bar's config gear, which only renders next to a centered
- * clock, still appears); the stock weather widget is replaced by the outdoor
- * temperature immediately before the network widget.
+ * are inserted around them ("add, not remove"). The clock stays as the centre
+ * anchor on desktop but moves to the end of the right section on laptop; the
+ * stock weather widget is replaced by the outdoor temperature immediately
+ * before the network widget.
  *
  * @param base - Parsed Omarchy default `shell.json`.
  * @param host - The `OMARCHY_HOST` value (e.g. `desktop`, `laptop`).
@@ -453,14 +456,19 @@ export function mergeOmarchyShellConfig(
   if (workspacesIndex !== -1) left[workspacesIndex] = workspacesEntry();
   left.push(calendarEntry());
 
-  // Center: keep the clock in place as the center anchor. The stock bar only
-  // renders the config gear next to a centered clock, so the clock has to stay
-  // centered for that button to exist. Remove weather (replaced in the right
-  // column below), insert personal status widgets before the default
-  // system-update group, and put the doorbell trigger at the very end. All
-  // custom widgets fade in dimmed when class-hidden and the bar is hovered.
-  // They share a standard 8px margin (the widget default), so no per-instance
-  // margin is needed here.
+  // Center: keep the clock as the desktop anchor, but move it to the far right
+  // on laptop. Remove weather (replaced in the right column below), insert
+  // personal status widgets before the default system-update group, and put
+  // the doorbell trigger at the very end. All custom widgets fade in dimmed
+  // when class-hidden and the bar is hovered. They share a standard 8px margin
+  // (the widget default), so no per-instance margin is needed here.
+  const clockIndex = center.findIndex((entry) => entry.id === CLOCK_ID);
+  if (clockIndex !== -1) {
+    center[clockIndex] = { ...center[clockIndex], format: CLOCK_FORMAT };
+  }
+  if (host === "laptop") {
+    if (clockIndex !== -1) right.push(...center.splice(clockIndex, 1));
+  }
   const weatherIndex = center.findIndex((entry) => entry.id === WEATHER_ID);
   if (weatherIndex !== -1) center.splice(weatherIndex, 1);
   insertBefore(center, SYSTEM_UPDATE_ID, customCenterEntries());
@@ -468,12 +476,12 @@ export function mergeOmarchyShellConfig(
 
   // Right: the Home Assistant sensors go before the default tray cluster. The
   // outdoor temperature replaces weather immediately before the stock network
-  // widget. The clock stays centered.
+  // widget.
   insertBefore(right, TRAY_ID, customRightEntries(host));
   insertBefore(right, NETWORK_ID, [outdoorTemperatureEntry()]);
 
-  // The clock anchors the center so the bar config gear renders next to it.
-  base.bar.centerAnchor = CLOCK_ID;
+  // The stock config gear renders next to the centred clock on desktop.
+  base.bar.centerAnchor = host === "laptop" ? "" : CLOCK_ID;
 
   return base;
 }

@@ -28,13 +28,15 @@ The shell itself lives in `~/.local/share/omarchy/shell/`. Reading it is useful 
 Per-host differences:
 
 - **Bar position**: `bottom` on `laptop`, `top` on every other host.
+- **Clock position**: at the far right on `laptop`, centred on every other host.
+- **Clock format**: compact `HH:mm ddd d MMM`, matching the final pre-Quattro Waybar clock apart from its ordinal day suffix.
 - **Idle timers**: screensaver at 2.5 minutes and lock at 5 minutes on `laptop`; screensaver at 30 minutes and lock at 60 minutes on every other host.
 - **Home Assistant sensors**: temperature, CO2, doorbell, and VOC entities differ per host (desktop vs laptop).
 
 Layout changes applied on top of the default bar:
 
 - **Left**: Omarchy's persistent workspaces widget is swapped for `timmo.workspaces`, then a calendar module is appended.
-- **Centre**: the clock stays as the centre anchor (the stock config gear only renders next to a centred clock), the weather is pulled out, personal status widgets are inserted before the system-update group, and the doorbell trigger goes last.
+- **Centre**: the clock stays as the centre anchor on desktop (the stock config gear only renders next to a centred clock) but moves to the right on laptop. The weather is pulled out, personal status widgets are inserted before the system-update group, and the doorbell trigger goes last.
 - **Right**: the Home Assistant sensors are inserted before the default tray cluster. A thresholded outdoor-temperature icon replaces the stock weather widget immediately before the network widget; clicking it opens `weather.met_office` in Home Assistant.
 
 The personal status widgets read from bar-agnostic scripts, `dot` JSON output, and Home Assistant. See [Bar Integrations](/bar-integrations/) for the `--bar-json` commands behind the git and notification cells.
@@ -73,16 +75,17 @@ All custom additions use `revealOnHover`: status cells hidden in their normal in
 These stock widgets retain their implementations and stay in their original sections:
 
 - **Left:** `omarchy.menu`.
-- **Centre:** `omarchy.indicators`, `omarchy.clock`, `omarchy.keyboard-layout`, and `omarchy.system-update`.
-- **Right:** `omarchy.tray`, `omarchy.agents`, `omarchy.bluetooth`, `omarchy.network`, `omarchy.audio`, `omarchy.monitor`, and `omarchy.power`.
+- **Centre:** `omarchy.indicators`, `omarchy.clock` (desktop), `omarchy.keyboard-layout`, and `omarchy.system-update`.
+- **Right:** `omarchy.tray`, `omarchy.agents`, `omarchy.bluetooth`, `omarchy.network`, `omarchy.audio`, `omarchy.monitor`, `omarchy.power`, and `omarchy.clock` (laptop).
 
-The stock clock formats, opaque bar, config version, plugin list, and `omarchy.clock` centre anchor are also preserved.
+The stock alternate clock format, opaque bar, config version, and plugin list are also preserved. The normal clock format uses the compact pre-Quattro layout, while the `omarchy.clock` centre anchor is preserved on desktop and cleared when the laptop moves the clock right.
 
 ### Host overrides
 
 | Setting | Stock Quattro | Desktop | Laptop |
 | --- | --- | --- | --- |
 | Bar position | Top | Top | Bottom |
+| Clock position | Centre | Centre | Right |
 | Screensaver | 2.5 minutes | 30 minutes | 2.5 minutes |
 | Lock | 5 minutes | 60 minutes | 5 minutes |
 

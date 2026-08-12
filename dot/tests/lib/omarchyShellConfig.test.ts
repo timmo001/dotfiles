@@ -59,6 +59,10 @@ describe("mergeOmarchyShellConfig", () => {
     expect(merged.bar.id).toBe("omarchy.bar");
     expect(merged.bar.centerAnchor).toBe("omarchy.clock");
     expect(merged.bar.position).toBe("top");
+    expect(merged.bar.layout.center).toContainEqual({
+      id: "omarchy.clock",
+      format: "HH:mm ddd d MMM",
+    });
 
     expect(merged.bar.layout.left[1]).toEqual({
       id: "timmo.workspaces",
@@ -141,7 +145,15 @@ describe("mergeOmarchyShellConfig", () => {
     ]).join("\n");
 
     expect(merged.bar.position).toBe("bottom");
+    expect(merged.bar.centerAnchor).toBe("");
     expect(merged.idle).toEqual({ screensaver: 150, lock: 300 });
+    expect(merged.bar.layout.center.map(({ id }) => id)).not.toContain(
+      "omarchy.clock",
+    );
+    expect(merged.bar.layout.right.at(-1)).toEqual({
+      id: "omarchy.clock",
+      format: "HH:mm ddd d MMM",
+    });
     expect(runs).toContain("sensor.meter_plus_378b_temperature");
     expect(runs).toContain(
       "sensor.weather_station_outdoor_temperature --name 'Weather Station Outdoor Temperature' --icon 󰖙 --icon-only --show-above 25",
