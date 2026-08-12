@@ -24,6 +24,7 @@ function baseConfig() {
           { id: "custom.right" },
           { id: "omarchy.tray" },
           { id: "omarchy.agents", customAgentField: "preserved" },
+          { id: "omarchy.bluetooth" },
           { id: "omarchy.network" },
         ],
       },
@@ -89,8 +90,10 @@ describe("mergeOmarchyShellConfig", () => {
     ).toBe(true);
 
     const rightIds = merged.bar.layout.right.map(({ id }) => id);
+    const bluetoothIndex = rightIds.indexOf("omarchy.bluetooth");
     const networkIndex = rightIds.indexOf("omarchy.network");
-    expect(merged.bar.layout.right[networkIndex - 1]).toMatchObject({
+    expect(networkIndex).toBe(bluetoothIndex + 1);
+    expect(merged.bar.layout.right[bluetoothIndex - 1]).toMatchObject({
       run: expect.stringContaining(
         "sensor.weather_station_outdoor_temperature",
       ),
