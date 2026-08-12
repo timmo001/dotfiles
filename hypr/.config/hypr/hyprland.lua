@@ -1,14 +1,21 @@
 -- Learn how to configure Hyprland: https://wiki.hypr.land/Configuring/Start/
 
--- Omarchy's bootstrap configures module paths and clears
--- cached user/default modules so `hyprctl reload` reads current files.
+-- Omarchy's bootstrap keeps path setup out of this user config.
 dofile((os.getenv("OMARCHY_PATH") or "/usr/share/omarchy") .. "/default/hypr/bootstrap.lua")
 
--- Omarchy defaults and current theme overrides.
+-- Disable all Omarchy default bindings. Add your own in hypr/bindings.lua.
+-- omarchy_default_bindings = false
+--
+-- Or disable only bindings for Omarchy's preinstalled apps/web apps while
+-- keeping core window-manager bindings:
+-- omarchy_preinstalled_bindings = false
+
+-- Load Omarchy defaults.
 require("default.hypr.omarchy")
 
--- Local overrides load after Omarchy defaults, allowing package updates to
--- improve defaults without rewriting files under ~/.config/hypr.
+-- Put your personal overrides in these files. They're loaded after Omarchy's
+-- defaults so package updates can improve the defaults without rewriting your
+-- ~/.config/hypr files.
 -- envs first so env vars (Nvidia, cursor theme) are set before monitors/autostart apps launch
 require("hypr.envs")
 require("hypr.monitors")
@@ -17,5 +24,8 @@ require("hypr.input")
 require("hypr.bindings")
 require("hypr.autostart")
 
--- Dynamic Omarchy toggles.
+-- Toggle config flags dynamically.
 require("default.hypr.toggles")
+
+-- Add any other personal Hyprland configuration below.
+-- o.window("qemu", { workspace = "5" })
