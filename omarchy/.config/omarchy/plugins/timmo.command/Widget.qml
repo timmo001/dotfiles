@@ -77,14 +77,12 @@ BarWidget {
     && !!root.bar
     && root.bar.barHovered === true
 
-  // Whether this widget has anything to draw: the loading placeholder, a
-  // non-empty value that is not hidden by class, or a class-hidden value
-  // revealed by hovering the center cluster. Mirrors the WidgetButton `text`
-  // binding below. Drives `visible`/`implicitWidth` so a hidden module
-  // collapses to zero width and the bar reflows, instead of reserving the
-  // button's minimum width as an empty gap.
-  readonly property bool shown: (root.loading && root.loadingText !== "")
-    || (!root.hiddenByClass && root.outText !== "")
+  // Whether this widget has anything to draw: a loading or output value that
+  // is not hidden by class, or a class-hidden value revealed by hovering the
+  // center cluster. Drives `visible`/`implicitWidth` so hidden modules remain
+  // collapsed while refreshing instead of briefly showing their placeholder.
+  readonly property bool shown: (!root.hiddenByClass
+    && ((root.loading && root.loadingText !== "") || root.outText !== ""))
     || root.hoverRevealed
 
   function withoutZeroValue(text) {
