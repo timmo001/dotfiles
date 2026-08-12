@@ -67,6 +67,11 @@ const COLOR = {
 
 const HA = "http://homeassistant.local:8123";
 
+/** Launch a webapp and float only the window created by this shell click. */
+function floatingWebapp(url: string): string {
+  return `shell-launch-floating-webapp '${url}'`;
+}
+
 /** Widget id of Omarchy's default workspaces bar entry (left column). */
 const WORKSPACES_ID = "omarchy.workspaces";
 
@@ -106,7 +111,9 @@ function temperatureEntry(host: string): BarEntry {
   return command({
     run: `ha-module-bar temperature --entity ${entity} --name '${name}' --icon 󰔏`,
     interval: 15000,
-    onClick: `omarchy-launch-webapp '${HA}/lovelace/${page}?more-info-entity-id=${entity}'`,
+    onClick: floatingWebapp(
+      `${HA}/lovelace/${page}?more-info-entity-id=${entity}`,
+    ),
     classColors: { temperature: COLOR.cream },
     hideClasses: ["hidden"],
     hiddenText: "󰔏",
@@ -123,7 +130,9 @@ function diningTemperatureEntry(): BarEntry {
   return command({
     run: `ha-module-bar temperature --entity ${entity} --name 'Dining Room Temperature' --icon 󰩰`,
     interval: 15000,
-    onClick: `omarchy-launch-webapp '${HA}/lovelace/home?more-info-entity-id=${entity}'`,
+    onClick: floatingWebapp(
+      `${HA}/lovelace/home?more-info-entity-id=${entity}`,
+    ),
     classColors: { temperature: COLOR.cream },
     hideClasses: ["hidden"],
     hiddenText: "󰩰",
@@ -136,7 +145,9 @@ function outdoorTemperatureEntry(): BarEntry {
   return command({
     run: `ha-module-bar temperature --entity ${entity} --name 'Weather Station Outdoor Temperature' --icon 󰖙 --icon-only --show-above 25`,
     interval: 15000,
-    onClick: `omarchy-launch-webapp '${HA}/home?more-info-entity-id=weather.met_office'`,
+    onClick: floatingWebapp(
+      `${HA}/home?more-info-entity-id=weather.met_office`,
+    ),
     stockIconSize: true,
     iconScale: 1.15,
     classColors: { temperature: COLOR.orange },
@@ -155,7 +166,9 @@ function co2Entry(host: string): BarEntry {
   return command({
     run: `ha-module-bar co2-alert --entity ${entity} --name '${name}' --icon 󰟤`,
     interval: 15000,
-    onClick: `omarchy-launch-webapp '${HA}/lovelace/environment?more-info-entity-id=${entity}'`,
+    onClick: floatingWebapp(
+      `${HA}/lovelace/environment?more-info-entity-id=${entity}`,
+    ),
     classColors: { warning: COLOR.orange, critical: COLOR.co2Critical },
     hideClasses: ["hidden"],
     hiddenText: "󰟤",
@@ -179,7 +192,9 @@ function doorbellEntry(host: string): BarEntry {
       `--trigger-command '${triggerCommand}' --trigger-on transition ` +
       "--trigger-initial false --trigger-cooldown 2 " +
       "--trigger-key doorbell.popup.input_boolean.doorbell",
-    onClick: `omarchy-launch-webapp '${HA}/lovelace/home?more-info-entity-id=camera.front_door_snapshot'`,
+    onClick: floatingWebapp(
+      `${HA}/lovelace/home?more-info-entity-id=camera.front_door_snapshot`,
+    ),
     classColors: { active: COLOR.rust },
     hideClasses: ["hidden"],
     hiddenText: "󰂚",
@@ -202,8 +217,7 @@ function calendarEntry(): BarEntry {
   return command({
     run: "ha-module-bar current-next-event --entity input_text.current_next_event_in_an_hour --icon 󰃭",
     interval: 30000,
-    onClick:
-      "launch-work-browser --tab 'https://calendar.google.com/calendar/u/0/r?pli=1'",
+    onClick: floatingWebapp("https://calendar.google.com/calendar/u/0/r?pli=1"),
     hideClasses: ["hidden"],
     hiddenText: "󰃭",
   });
@@ -231,7 +245,9 @@ function customCenterEntries(): BarEntry[] {
     command({
       run: "ha-module-bar nas-activity --icon 󰒋",
       interval: 5000,
-      onClick: `omarchy-launch-webapp '${HA}/lovelace/network?more-info-entity-id=sensor.nas_activity'`,
+      onClick: floatingWebapp(
+        `${HA}/lovelace/network?more-info-entity-id=sensor.nas_activity`,
+      ),
       classColors: { active: COLOR.teal },
       hideClasses: ["hidden"],
       hiddenText: "󰒋 0",
@@ -305,7 +321,7 @@ function customCenterEntries(): BarEntry[] {
     command({
       run: "twitch-notifications --status-bar-json --max-chars 60",
       interval: 5000,
-      onClick: "twitch-menu",
+      onClick: "SHELL_FLOAT_WEBAPPS=1 twitch-menu",
       onClickRight: "twitch-notifications-restart",
       classColors: {
         live: COLOR.purple,
@@ -326,7 +342,9 @@ function customRightEntries(host: string): BarEntry[] {
   return [
     stream({
       run: "ha-watch-singleton --module heating --entity sensor.thermostat_status --icon 󰈸 --tooltip-on 'Thermostat Status (sensor.thermostat_status)' --class-on heating --class-off hidden --hide-off",
-      onClick: `omarchy-launch-webapp '${HA}/lovelace/home?more-info-entity-id=sensor.thermostat_status'`,
+      onClick: floatingWebapp(
+        `${HA}/lovelace/home?more-info-entity-id=sensor.thermostat_status`,
+      ),
       classColors: { heating: COLOR.orange },
       hideClasses: ["hidden"],
       hiddenText: "󰈸",
@@ -338,7 +356,9 @@ function customRightEntries(host: string): BarEntry[] {
           command({
             run: "ha-module-bar voc-alert --quality-entity sensor.apollo_air_1_806d64_voc_quality --value-entity sensor.apollo_air_1_806d64_sen55_voc --name 'Apollo Air 1 VOC' --icon 󰵃",
             interval: 15000,
-            onClick: `omarchy-launch-webapp '${HA}/lovelace/environment?more-info-entity-id=sensor.apollo_air_1_806d64_sen55_voc'`,
+            onClick: floatingWebapp(
+              `${HA}/lovelace/environment?more-info-entity-id=sensor.apollo_air_1_806d64_sen55_voc`,
+            ),
             classColors: { warning: COLOR.tan, critical: COLOR.vocCritical },
             hideClasses: ["hidden"],
             hiddenText: "󰵃",
@@ -347,7 +367,9 @@ function customRightEntries(host: string): BarEntry[] {
     co2Entry(host),
     stream({
       run: "ha-watch-singleton --module rain --entity binary_sensor.weather_station_rain_state_piezo --icon 󰖖 --tooltip-on 'Weather Station Rain State Piezo (binary_sensor.weather_station_rain_state_piezo): Raining' --tooltip-off 'Weather Station Rain State Piezo (binary_sensor.weather_station_rain_state_piezo): Not raining' --class-on raining --class-off hidden --hide-off",
-      onClick: `omarchy-launch-webapp '${HA}/home/areas-048a0fd33b134e3689eda6212a41b99d?more-info-entity-id=binary_sensor.weather_station_rain_state_piezo'`,
+      onClick: floatingWebapp(
+        `${HA}/home/areas-048a0fd33b134e3689eda6212a41b99d?more-info-entity-id=binary_sensor.weather_station_rain_state_piezo`,
+      ),
       classColors: { raining: COLOR.blue },
       hideClasses: ["hidden"],
       hiddenText: "󰖖",

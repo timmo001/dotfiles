@@ -1,0 +1,28 @@
+#!/bin/bash
+
+set -euo pipefail
+
+url="${1:?Usage: shell-launch-floating-webapp <url>}"
+host="${url#*://}"
+host="${host%%/*}"
+host="${host%%:*}"
+class_prefix="chrome-${host}__"
+before=$(mktemp)
+trap 'rm -f "$before"' EXIT
+
+hyprctl clients -j | jq -r --arg prefix "$class_prefix" \
+  '.[] | select(.class | startswith($prefix)) | .address' >"$before"
+omarchy-launch-webapp "$url" >/dev/null 2>&1 &
+
+for _ in {1..50}; do
+  address=$(hyprctl clients -j | jq -r --arg prefix "$class_prefix" --rawfile before "$before" \
+    '[.[] | select(.class | startswith($prefix)) | .address as $address | select(($before | split("\n") | index($address)) == null) | $address][0] // empty')
+  if [[ -n $address ]]; then
+    hyprctl --batch \
+      "dispatch hl.dsp.window.float({ action = 'enable', window = 'address:$address' }); dispatch hl.dsp.window.resize({ x = 875, y = 600, window = 'address:$address' }); dispatch hl.dsp.window.center({ window = 'address:$address' })"
+    exit 0
+  fi
+  sleep 0.1
+done
+
+exit 1
