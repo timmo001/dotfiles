@@ -38,6 +38,54 @@ Layout changes applied on top of the default bar:
 
 The personal status widgets read from bar-agnostic scripts, `dot` JSON output, and Home Assistant. See [Bar Integrations](/bar-integrations/) for the `--bar-json` commands behind the git and notification cells.
 
+## Stock Quattro comparison
+
+The generated config starts from Omarchy Quattro's shipped `shell.json` and modifies that layout rather than replacing it wholesale.
+
+### Removed or replaced
+
+No stock widget is removed without a replacement.
+
+`omarchy.workspaces` is replaced in place by `timmo.workspaces`. The stock widget keeps persistent workspace slots visible; the replacement shows only workspaces that currently exist, displays the focused workspace number at full opacity, and dims the others.
+
+### Moved
+
+`omarchy.weather` moves from the centre section to the start of the right section. The original stock entry and implementation are preserved.
+
+No other stock widget changes section. `omarchy.system-update` remains in the centre after the added status widgets, while the complete stock tray cluster remains on the right in its original order.
+
+### Added widgets
+
+| Section | Added widgets |
+| --- | --- |
+| Left | Calendar |
+| Centre, before `omarchy.system-update` | Time check, in-call state, NAS activity, GitHub notifications, repository diff status, GitHub workflow status, package updates, Twitch notifications |
+| Centre, after `omarchy.system-update` | Doorbell |
+| Right, before `omarchy.tray` | Heating, CO₂ alert, rain, temperature |
+| Right, laptop only | VOC alert, dining-room temperature |
+
+The centre additions use `revealOnHover`: status cells hidden in their normal inactive state appear dimmed while the centre cluster is hovered. Attention and active states remain visible according to each widget's class rules.
+
+### Retained stock layout
+
+These stock widgets retain their implementations and stay in their original sections:
+
+- **Left:** `omarchy.menu`.
+- **Centre:** `omarchy.indicators`, `omarchy.clock`, `omarchy.keyboard-layout`, and `omarchy.system-update`.
+- **Right:** `omarchy.tray`, `omarchy.agents`, `omarchy.bluetooth`, `omarchy.network`, `omarchy.audio`, `omarchy.monitor`, and `omarchy.power`.
+
+The stock clock formats, opaque bar, config version, plugin list, and `omarchy.clock` centre anchor are also preserved.
+
+### Host overrides
+
+| Setting | Stock Quattro | Desktop | Laptop |
+| --- | --- | --- | --- |
+| Bar position | Top | Top | Bottom |
+| Screensaver | 2.5 minutes | 30 minutes | 2.5 minutes |
+| Lock | 5 minutes | 60 minutes | 5 minutes |
+
+Home Assistant entity IDs and the doorbell popup monitor and size also vary by host. The laptop adds the VOC and dining-room temperature widgets listed above; the desktop omits them.
+
 ## Custom plugins
 
 A plugin is a folder with `manifest.json` (schema version 1, an `id` like `timmo.<name>`, its `kinds`, and entry-point QML) plus the QML itself. A bar widget extends `BarWidget`, reads per-instance settings from `shell.json` via `setting(name, fallback)`, and uses `WidgetButton` for clickable cells.
