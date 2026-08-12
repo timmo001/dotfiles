@@ -100,7 +100,7 @@ A plugin is a folder with `manifest.json` (schema version 1, an `id` like `timmo
 | `timmo.stream-command` | bar-widget | Runs a long-running command that streams status-bar JSON lines and renders the latest line with compact 6px horizontal cell margins (for watchers like `ha-watch-singleton`). |
 | `timmo.workspaces` | bar-widget | Workspace numbers without persistent workspaces: only existing workspaces show, the focused one at full opacity and the rest dimmed. |
 
-`timmo.command` and `timmo.stream-command` both support `classColors` (class-name to colour), `hideClasses`, `hiddenText`, `onClick` / `onClickRight`, and `revealOnHover`, so the generator can style and wire every cell without bespoke QML per module. Shell-launched web apps run through `shell-launch-floating-webapp`, which applies the standard floating size and position only to the new window created by that click. Normal launches of the same sites remain tiled. TUI click targets use the existing `TUI.float` app id.
+`timmo.command` and `timmo.stream-command` both support `classColors` (class-name to colour), `hideClasses`, `hiddenText`, `onClick` / `onClickRight`, and `revealOnHover`, so the generator can style and wire every cell without bespoke QML per module. Shell-launched web apps run through the reusable `launch-floating-webapp` command, which places only the new window at mobile size in the monitor's bottom-right corner. Normal launches of the same sites remain tiled. TUI click targets use the existing `TUI.float` app id.
 
 :::note[New plugins need a stow]
 `~/.config/omarchy/plugins/` is a real directory with per-plugin symlinks. A brand-new plugin needs `dot stow` to create its symlink before the shell sees it; editing an existing plugin's files is already live.

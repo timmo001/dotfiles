@@ -19,7 +19,7 @@ open_url() {
   fi
 
   if [[ ${SHELL_FLOAT_WEBAPPS:-} == 1 ]]; then
-    exec shell-launch-floating-webapp "$url"
+    exec launch-floating-webapp "$url"
   fi
 
   exec omarchy-launch-webapp "$url"

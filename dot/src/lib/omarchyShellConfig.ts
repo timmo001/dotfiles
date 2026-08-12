@@ -69,7 +69,7 @@ const HA = "http://homeassistant.local:8123";
 
 /** Launch a webapp and float only the window created by this shell click. */
 function floatingWebapp(url: string): string {
-  return `shell-launch-floating-webapp '${url}'`;
+  return `launch-floating-webapp '${url}'`;
 }
 
 /** Widget id of Omarchy's default workspaces bar entry (left column). */
@@ -175,16 +175,11 @@ function co2Entry(host: string): BarEntry {
   });
 }
 
-/** Resolve the host-specific doorbell module settings. */
-function doorbellEntry(host: string): BarEntry {
+/** Build the doorbell module for the active workspace. */
+function doorbellEntry(): BarEntry {
   const base =
     "doorbell-popup --open-only --camera-entity camera.front_door_snapshot";
-  const triggerCommand =
-    host === "desktop"
-      ? `${base} --no-auto-close --monitor DP-1`
-      : host === "laptop"
-        ? `${base} --no-auto-close --monitor eDP-1 --width 380 --height 450`
-        : base;
+  const triggerCommand = `${base} --no-auto-close`;
   return stream({
     run:
       "ha-module-bar doorbell --entity input_boolean.doorbell --icon 󰂚 " +
@@ -469,7 +464,7 @@ export function mergeOmarchyShellConfig(
   const weatherIndex = center.findIndex((entry) => entry.id === WEATHER_ID);
   if (weatherIndex !== -1) center.splice(weatherIndex, 1);
   insertBefore(center, SYSTEM_UPDATE_ID, customCenterEntries());
-  center.push(doorbellEntry(host));
+  center.push(doorbellEntry());
 
   // Right: the Home Assistant sensors go before the default tray cluster. The
   // outdoor temperature replaces weather immediately before the stock network

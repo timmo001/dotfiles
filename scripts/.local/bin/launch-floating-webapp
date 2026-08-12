@@ -1,0 +1,103 @@
+#!/bin/bash
+
+set -euo pipefail
+
+WIDTH=380
+HEIGHT=500
+RIGHT_MARGIN=16
+BOTTOM_MARGIN=6
+MONITOR=""
+WORKSPACE=""
+ADDRESS=""
+URL=""
+
+usage() {
+  cat <<'EOF'
+Usage: launch-floating-webapp [options] <url>
+       launch-floating-webapp [options] --address <window-address>
+
+Options:
+  --monitor <name>       Target monitor (defaults to the focused monitor)
+  --workspace <id>       Move to this workspace and use its monitor
+  --width <px>           Window width (default: 380)
+  --height <px>          Window height (default: 500)
+  --right-margin <px>    Right margin (default: 16)
+  --bottom-margin <px>   Bottom margin (default: 6)
+  --address <address>    Reposition an existing window instead of launching
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --monitor) MONITOR="$2"; shift 2 ;;
+    --workspace) WORKSPACE="$2"; shift 2 ;;
+    --width) WIDTH="$2"; shift 2 ;;
+    --height) HEIGHT="$2"; shift 2 ;;
+    --right-margin) RIGHT_MARGIN="$2"; shift 2 ;;
+    --bottom-margin) BOTTOM_MARGIN="$2"; shift 2 ;;
+    --address) ADDRESS="$2"; shift 2 ;;
+    --help|-h) usage; exit 0 ;;
+    --*) printf 'launch-floating-webapp: unknown option: %s\n' "$1" >&2; exit 2 ;;
+    *)
+      [[ -z $URL ]] || { printf 'launch-floating-webapp: unexpected argument: %s\n' "$1" >&2; exit 2; }
+      URL="$1"
+      shift
+      ;;
+  esac
+done
+
+for value in WIDTH HEIGHT RIGHT_MARGIN BOTTOM_MARGIN; do
+  [[ ${!value} =~ ^[0-9]+$ ]] || { printf 'launch-floating-webapp: %s must be a non-negative integer\n' "$value" >&2; exit 2; }
+done
+(( WIDTH > 0 && HEIGHT > 0 )) || { printf 'launch-floating-webapp: width and height must be positive\n' >&2; exit 2; }
+[[ -n $ADDRESS || -n $URL ]] || { usage >&2; exit 2; }
+[[ -z $ADDRESS || -z $URL ]] || { printf 'launch-floating-webapp: URL and --address are mutually exclusive\n' >&2; exit 2; }
+
+if [[ -z $ADDRESS ]]; then
+  host="${URL#*://}"
+  host="${host%%/*}"
+  host="${host%%:*}"
+  class_prefix="chrome-${host}__"
+  before=$(mktemp)
+  trap 'rm -f "$before"' EXIT
+
+  hyprctl clients -j | jq -r --arg prefix "$class_prefix" \
+    '.[] | select(.class | startswith($prefix)) | .address' >"$before"
+  omarchy-launch-webapp "$URL" >/dev/null 2>&1 &
+
+  for _ in {1..80}; do
+    ADDRESS=$(hyprctl clients -j | jq -r --arg prefix "$class_prefix" --rawfile before "$before" \
+      '[.[] | select(.mapped == true and (.class | startswith($prefix))) | .address as $address | select(($before | split("\n") | index($address)) == null) | $address][0] // empty')
+    [[ -n $ADDRESS ]] && break
+    sleep 0.1
+  done
+
+  [[ -n $ADDRESS ]] || exit 1
+fi
+
+if [[ -n $MONITOR ]]; then
+  monitor_json=$(hyprctl monitors -j | jq -c --arg name "$MONITOR" '.[] | select(.name == $name)')
+elif [[ -n $WORKSPACE ]]; then
+  monitor_name=$(hyprctl workspaces -j | jq -r --argjson workspace "$WORKSPACE" '.[] | select(.id == $workspace) | .monitor // empty')
+  monitor_json=$(hyprctl monitors -j | jq -c --arg name "$monitor_name" '.[] | select(.name == $name)')
+else
+  monitor_json=$(hyprctl monitors -j | jq -c '.[] | select(.focused == true)')
+fi
+
+[[ -n $monitor_json ]] || { printf 'launch-floating-webapp: target monitor not found\n' >&2; exit 1; }
+
+scale=$(jq -r '.scale // 1' <<<"$monitor_json")
+monitor_x=$(jq -r --argjson scale "$scale" '((.x // 0) / $scale) | floor' <<<"$monitor_json")
+monitor_y=$(jq -r --argjson scale "$scale" '((.y // 0) / $scale) | floor' <<<"$monitor_json")
+monitor_width=$(jq -r --argjson scale "$scale" '((.width // 0) / $scale) | floor' <<<"$monitor_json")
+monitor_height=$(jq -r --argjson scale "$scale" '((.height // 0) / $scale) | floor' <<<"$monitor_json")
+reserved_right=$(jq -r '.reserved[2] // 0' <<<"$monitor_json")
+reserved_bottom=$(jq -r '.reserved[3] // 0' <<<"$monitor_json")
+pos_x=$((monitor_x + monitor_width - reserved_right - WIDTH - RIGHT_MARGIN))
+pos_y=$((monitor_y + monitor_height - reserved_bottom - HEIGHT - BOTTOM_MARGIN))
+
+[[ -z $WORKSPACE ]] || hyprctl dispatch movetoworkspacesilent "$WORKSPACE,address:$ADDRESS" >/dev/null
+hyprctl dispatch "hl.dsp.window.float({ action = 'enable', window = 'address:$ADDRESS' })" >/dev/null
+hyprctl dispatch "hl.dsp.window.resize({ x = $WIDTH, y = $HEIGHT, window = 'address:$ADDRESS' })" >/dev/null
+hyprctl dispatch "hl.dsp.window.move({ x = $pos_x, y = $pos_y, window = 'address:$ADDRESS' })" >/dev/null
+printf '%s\n' "$ADDRESS"

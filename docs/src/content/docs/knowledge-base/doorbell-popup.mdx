@@ -17,7 +17,7 @@ Both public host overrides expose a permanent open-only popup on:
 SUPER+ALT+C
 ```
 
-The desktop host opens on monitor `DP-1` with the default camera and a larger popup. The laptop host opens on monitor `eDP-1`, sets `camera.front_door_snapshot`, and uses a smaller popup size.
+Both hosts use the same mobile-sized bottom-right geometry on the active workspace's monitor. Nothing is forced to a host-specific monitor or workspace.
 
 ## Defaults
 
@@ -28,8 +28,8 @@ The script defaults to:
 | Motion entity | `input_boolean.doorbell` |
 | Camera entity | `camera.front_door_snapshot` |
 | Home Assistant URL | `http://homeassistant.local:8123` |
-| Target workspace | `1` |
-| Size | `640x640` |
+| Target workspace | Active workspace |
+| Size | `380x500` |
 | Duration | `20` seconds |
 
 The popup URL is built as:
@@ -76,18 +76,17 @@ When the emitted JSON has class `on`, the popup opens or repositions.
 
 ## Positioning
 
-`doorbell-popup` chooses a monitor in this order:
+`doorbell-popup` uses the focused monitor by default, keeping the popup on the active workspace. Explicit flags override that:
 
-- The explicit `--monitor <name>` if present and found.
-- The monitor that owns the target workspace.
-- The currently focused monitor.
+- `--monitor <name>` targets that monitor.
+- `--workspace <id>` moves the popup to that workspace and uses its monitor.
 
-Hyprland reports monitor geometry in raw pixels while `movewindowpixel` and `resizewindowpixel` use logical coordinates, so the script divides by monitor scale before positioning. It also accounts for reserved monitor areas.
+`doorbell-popup` delegates geometry to `launch-floating-webapp`, the same global command used by shell webapp clicks. It places the exact launched window in the target monitor's bottom-right corner and accounts for output scale and reserved areas.
 
 ## Useful overrides
 
 ```bash
-doorbell-popup --open-only --monitor DP-1 --width 640 --height 640
+doorbell-popup --open-only --monitor DP-1 --width 380 --height 500
 doorbell-popup --entity input_boolean.doorbell --camera-entity camera.front_door_snapshot
 doorbell-popup --base-url http://homeassistant.local:8123 --workspace 1
 doorbell-popup --duration 30 --margin 20 --bottom-margin 12
@@ -135,7 +134,7 @@ If that address still exists, the script repositions the existing popup instead 
 If the script exits immediately, check required commands:
 
 ```bash
-command -v go-automate hyprctl jq omarchy-launch-webapp
+command -v go-automate hyprctl jq launch-floating-webapp
 ```
 
 If placement is on the wrong monitor, pass `--monitor <name>` and verify monitor names with:

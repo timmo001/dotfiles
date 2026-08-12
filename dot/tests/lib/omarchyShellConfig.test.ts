@@ -112,7 +112,7 @@ describe("mergeOmarchyShellConfig", () => {
     ).toMatchObject({ hiddenText: "󰏗 0" });
   });
 
-  test("selects desktop-specific sensors and doorbell placement", () => {
+  test("selects desktop-specific sensors", () => {
     const merged = mergeOmarchyShellConfig(baseConfig(), "desktop");
     const runs = commandRuns([
       ...merged.bar.layout.center,
@@ -129,10 +129,11 @@ describe("mergeOmarchyShellConfig", () => {
     expect(runs).not.toContain("ha-bar-module");
     expect(runs).not.toContain("voc-alert");
     expect(runs).not.toContain("sensor.meter_plus_433c_temperature");
-    expect(runs).toContain("--monitor DP-1");
+    expect(runs).not.toContain("--monitor");
+    expect(runs).not.toContain("--workspace");
   });
 
-  test("selects laptop-specific layout, sensors, and doorbell placement", () => {
+  test("selects laptop-specific layout and sensors", () => {
     const merged = mergeOmarchyShellConfig(baseConfig(), "laptop");
     const runs = commandRuns([
       ...merged.bar.layout.center,
@@ -148,6 +149,7 @@ describe("mergeOmarchyShellConfig", () => {
     expect(runs).toContain("sensor.apollo_air_1_806d64_co2");
     expect(runs).toContain("voc-alert");
     expect(runs).toContain("sensor.meter_plus_433c_temperature");
-    expect(runs).toContain("--monitor eDP-1 --width 380 --height 450");
+    expect(runs).not.toContain("--monitor");
+    expect(runs).not.toContain("--workspace");
   });
 });

@@ -6,9 +6,9 @@ MOTION_ENTITY="input_boolean.doorbell"
 CAMERA_ENTITY="camera.front_door_snapshot"
 HOME_ASSISTANT_BASE_URL="http://homeassistant.local:8123"
 
-POPUP_WORKSPACE="1"
-POPUP_WIDTH="640"
-POPUP_HEIGHT="640"
+POPUP_WORKSPACE=""
+POPUP_WIDTH="380"
+POPUP_HEIGHT="500"
 POPUP_MARGIN="16"
 POPUP_BOTTOM_MARGIN="6"
 POPUP_DURATION_SECONDS="20"
@@ -139,7 +139,7 @@ parse_args() {
 validate_numeric_settings() {
   local key value
 
-  for key in POPUP_WORKSPACE POPUP_WIDTH POPUP_HEIGHT POPUP_MARGIN POPUP_BOTTOM_MARGIN POPUP_DURATION_SECONDS; do
+  for key in POPUP_WIDTH POPUP_HEIGHT POPUP_MARGIN POPUP_BOTTOM_MARGIN POPUP_DURATION_SECONDS; do
     value="${!key}"
     if [[ ! "$value" =~ ^[0-9]+$ ]] || (( value <= 0 )); then
       printf 'doorbell-popup: %s must be a positive integer\n' "$key" >&2
@@ -150,7 +150,7 @@ validate_numeric_settings() {
 
 require_commands() {
   local cmd
-  for cmd in go-automate hyprctl jq omarchy-launch-webapp; do
+  for cmd in go-automate hyprctl jq launch-floating-webapp; do
     command -v "$cmd" >/dev/null 2>&1 || {
       printf 'doorbell-popup: missing command: %s\n' "$cmd" >&2
       exit 1
@@ -179,111 +179,20 @@ load_known_popup_addr() {
   return 1
 }
 
-resolve_workspace_monitor_name() {
-  local monitor_name=""
-
-  if [[ -n "$POPUP_MONITOR" ]]; then
-    monitor_name="$(hyprctl -j monitors | jq -r --arg name "$POPUP_MONITOR" '.[] | select(.name == $name) | .name' | head -n 1)"
-  fi
-
-  if [[ -z "$monitor_name" || "$monitor_name" == "null" ]]; then
-    monitor_name="$(hyprctl -j workspaces | jq -r --argjson workspace "$POPUP_WORKSPACE" '.[] | select(.id == $workspace) | .monitor' | head -n 1)"
-  fi
-
-  if [[ -z "$monitor_name" || "$monitor_name" == "null" ]]; then
-    monitor_name="$(hyprctl -j monitors | jq -r '.[] | select(.focused == true) | .name' | head -n 1)"
-  fi
-
-  printf '%s' "$monitor_name"
-}
-
-resolve_target_workspace() {
-  local monitor_name="$1"
-  local target_workspace=""
-
-  target_workspace="$POPUP_WORKSPACE"
-
-  if [[ -n "$POPUP_MONITOR" && -n "$monitor_name" ]]; then
-    target_workspace="$(hyprctl -j monitors | jq -r --arg name "$monitor_name" '.[] | select(.name == $name) | .activeWorkspace.id' | head -n 1)"
-  fi
-
-  if [[ -z "$target_workspace" || "$target_workspace" == "null" ]]; then
-    target_workspace="$POPUP_WORKSPACE"
-  fi
-
-  printf '%s' "$target_workspace"
-}
-
 position_popup() {
   local addr="$1"
-  local monitor_name monitor_json
-  local target_workspace
-  local monitor_x monitor_y monitor_height
-  local monitor_scale
-  local reserved_left reserved_bottom
-  local pos_x pos_y
-
-  monitor_name="$(resolve_workspace_monitor_name)"
-  [[ -n "$monitor_name" ]] || return 1
-  target_workspace="$(resolve_target_workspace "$monitor_name")"
-  [[ -n "$target_workspace" ]] || return 1
-
-  monitor_json="$(hyprctl -j monitors | jq -c --arg name "$monitor_name" '.[] | select(.name == $name)')"
-  [[ -n "$monitor_json" ]] || return 1
-
-  # Hyprland reports monitor width/height/x/y in raw pixels but `movewindowpixel`
-  # and `resizewindowpixel` operate in logical (scale-divided) coordinates.
-  # Divide by scale to compute correct on-screen positions.
-  monitor_scale="$(jq -r '.scale // 1' <<< "$monitor_json")"
-  monitor_x="$(jq -r --argjson s "$monitor_scale" '((.x // 0) / $s) | floor' <<< "$monitor_json")"
-  monitor_y="$(jq -r --argjson s "$monitor_scale" '((.y // 0) / $s) | floor' <<< "$monitor_json")"
-  monitor_height="$(jq -r --argjson s "$monitor_scale" '((.height // 0) / $s) | floor' <<< "$monitor_json")"
-  reserved_left="$(jq -r '.reserved[0] // 0' <<< "$monitor_json")"
-  reserved_bottom="$(jq -r '.reserved[3] // 0' <<< "$monitor_json")"
-
-  pos_x=$((monitor_x + reserved_left + POPUP_MARGIN))
-  pos_y=$((monitor_y + monitor_height - reserved_bottom - POPUP_HEIGHT - POPUP_BOTTOM_MARGIN))
-
-  hyprctl dispatch movetoworkspacesilent "${target_workspace},address:${addr}" >/dev/null 2>&1 || true
-  hyprctl dispatch setfloating "address:${addr}" >/dev/null 2>&1 || true
-  hyprctl dispatch resizewindowpixel "exact ${POPUP_WIDTH} ${POPUP_HEIGHT},address:${addr}" >/dev/null 2>&1 || true
-  hyprctl dispatch movewindowpixel "exact ${pos_x} ${pos_y},address:${addr}" >/dev/null 2>&1 || true
-}
-
-find_new_popup_window() {
-  local before_addresses_json="$1"
-  hyprctl -j clients | jq -r --argjson before "$before_addresses_json" '
-    [
-      .[]
-      | select(.mapped == true)
-      | select((.address as $addr | $before | index($addr)) == null)
-    ]
-    | sort_by(.focusHistoryID)
-    | reverse
-    | .[0].address // empty
-  '
+  local -a args=(--address "$addr" --width "$POPUP_WIDTH" --height "$POPUP_HEIGHT" --right-margin "$POPUP_MARGIN" --bottom-margin "$POPUP_BOTTOM_MARGIN")
+  [[ -z $POPUP_WORKSPACE ]] || args+=(--workspace "$POPUP_WORKSPACE")
+  [[ -z $POPUP_MONITOR ]] || args+=(--monitor "$POPUP_MONITOR")
+  launch-floating-webapp "${args[@]}" >/dev/null
 }
 
 open_popup() {
-  local before_addresses_json
-  local new_addr=""
-  local attempt
-
-  before_addresses_json="$(hyprctl -j clients | jq -c '[.[].address]')"
-  omarchy-launch-webapp "$POPUP_URL" >/dev/null 2>&1 &
-
-  for ((attempt = 0; attempt < 80; attempt += 1)); do
-    new_addr="$(find_new_popup_window "$before_addresses_json")"
-    if [[ -n "$new_addr" ]]; then
-      popup_addr="$new_addr"
-      printf '%s\n' "$popup_addr" > "$POPUP_ADDR_FILE"
-      position_popup "$popup_addr" || true
-      return 0
-    fi
-    sleep 0.1
-  done
-
-  return 1
+  local -a args=(--width "$POPUP_WIDTH" --height "$POPUP_HEIGHT" --right-margin "$POPUP_MARGIN" --bottom-margin "$POPUP_BOTTOM_MARGIN")
+  [[ -z $POPUP_WORKSPACE ]] || args+=(--workspace "$POPUP_WORKSPACE")
+  [[ -z $POPUP_MONITOR ]] || args+=(--monitor "$POPUP_MONITOR")
+  popup_addr="$(launch-floating-webapp "${args[@]}" "$POPUP_URL")" || return 1
+  printf '%s\n' "$popup_addr" >"$POPUP_ADDR_FILE"
 }
 
 stop_close_timer() {

@@ -24,6 +24,10 @@ Add `--open-opencode` to run `opencode run` against the saved report and then op
 times
 ```
 
+## Floating webapps
+
+`launch-floating-webapp <url>` opens one webapp as a `380x500` floating window in the focused monitor's bottom-right corner without changing normal launches of the same site. Use `--monitor`, `--workspace`, `--width`, `--height`, `--right-margin`, or `--bottom-margin` to override the geometry. `--address` applies the same placement to an existing window.
+
 ## Git branch sync
 
 `git-default-ref` is the shared guarded resolver for default-branch operations. It prefers `upstream`, falls back to `origin`, compares the remote's advertised default branch with local `<remote>/HEAD`, and fetches the branch. A missing or mismatched local ref requires confirmation before repair. Under `dot is-agent`, or without an interactive terminal, it fails instead of prompting.
