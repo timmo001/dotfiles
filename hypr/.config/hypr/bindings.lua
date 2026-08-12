@@ -10,9 +10,6 @@ local slack = "launch-work-slack"
 
 -- Resume recovery
 o.bind("SUPER + SHIFT + R", "Resume recovery", "on-resume --no-auto-open")
--- Let Ghostty confirm the close itself; keep Omarchy's normal close behaviour elsewhere.
-hl.unbind("SUPER + W")
-o.bind("SUPER + W", "Close window", "close-active-window")
 
 -- Hyprland runs all binds for the same chord in order; unbind clears default bindings first.
 hl.unbind("SUPER + TAB")
