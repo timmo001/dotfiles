@@ -135,7 +135,7 @@ BarWidget {
     // at caption size. The clock/weather sit at body, but their Weather-Icons
     // and digit glyphs are visually lighter than the Material Design / Font
     // Awesome icons these modules use, so caption keeps the icons in step.
-    fontSize: Style.font.caption
+    fontSize: 10
     horizontalMargin: root.cellMargin
     text: root.hoverRevealed ? root.revealText : (root.hiddenByClass ? "" : root.displayText)
     dimmed: root.hoverRevealed
