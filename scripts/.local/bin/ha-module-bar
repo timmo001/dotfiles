@@ -359,7 +359,19 @@ extract_class_field() {
 }
 
 emit_hidden() {
-  printf '{"text":"","class":"hidden"}\n'
+  emit_bar_json "" "hidden"
+}
+
+emit_bar_json() {
+  local text="$1"
+  local class_name="$2"
+  local tooltip="${3:-}"
+
+  jq -cn \
+    --arg text "$text" \
+    --arg class "$class_name" \
+    --arg tooltip "$tooltip" \
+    '{text: $text, class: $class} + if $tooltip == "" then {} else {tooltip: $tooltip} end'
 }
 
 emit_if_changed() {
@@ -507,7 +519,7 @@ run_temperature() {
     text="$(printf '%.1f °C' "$state")"
   fi
 
-  printf '{"text":"%s","class":"temperature","tooltip":"%s (%s): %.1f °C"}\n' "$text" "$ENTITY_NAME" "$ENTITY_ID" "$state"
+  emit_bar_json "$text" "temperature" "$(printf '%s (%s): %.1f °C' "$ENTITY_NAME" "$ENTITY_ID" "$state")"
   maybe_run_trigger "$state"
 }
 
@@ -518,12 +530,12 @@ run_co2_alert() {
 
   case "$FAKE_STATE" in
   critical)
-    printf '{"text":"󰟤 2200 ppm","class":"critical","tooltip":"%s (%s): 2200 ppm"}\n' "$ENTITY_NAME" "$ENTITY_ID"
+    emit_bar_json "󰟤 2200 ppm" "critical" "$ENTITY_NAME ($ENTITY_ID): 2200 ppm"
     maybe_run_trigger "critical"
     return
     ;;
   warning)
-    printf '{"text":"󰟤 1600 ppm","class":"warning","tooltip":"%s (%s): 1600 ppm"}\n' "$ENTITY_NAME" "$ENTITY_ID"
+    emit_bar_json "󰟤 1600 ppm" "warning" "$ENTITY_NAME ($ENTITY_ID): 1600 ppm"
     maybe_run_trigger "warning"
     return
     ;;
@@ -545,9 +557,9 @@ run_co2_alert() {
   maybe_run_trigger "$state"
 
   if ((co2_ppm > 2000)); then
-    printf '{"text":"󰟤 %.0f ppm","class":"critical","tooltip":"%s (%s): %.0f ppm"}\n' "$state" "$ENTITY_NAME" "$ENTITY_ID" "$state"
+    emit_bar_json "$(printf '󰟤 %.0f ppm' "$state")" "critical" "$(printf '%s (%s): %.0f ppm' "$ENTITY_NAME" "$ENTITY_ID" "$state")"
   elif ((co2_ppm > 1400)); then
-    printf '{"text":"󰟤 %.0f ppm","class":"warning","tooltip":"%s (%s): %.0f ppm"}\n' "$state" "$ENTITY_NAME" "$ENTITY_ID" "$state"
+    emit_bar_json "$(printf '󰟤 %.0f ppm' "$state")" "warning" "$(printf '%s (%s): %.0f ppm' "$ENTITY_NAME" "$ENTITY_ID" "$state")"
   else
     emit_hidden
   fi
@@ -562,12 +574,12 @@ run_voc_alert() {
 
   case "$FAKE_STATE" in
   critical)
-    printf '{"text":"󰵃 410","class":"critical","tooltip":"%s (%s): 410\nVOC Quality (%s): Extremely abnormal"}\n' "$ENTITY_NAME" "$VALUE_ENTITY" "$QUALITY_ENTITY"
+    emit_bar_json "󰵃 410" "critical" "$(printf '%s (%s): 410\nVOC Quality (%s): Extremely abnormal' "$ENTITY_NAME" "$VALUE_ENTITY" "$QUALITY_ENTITY")"
     maybe_run_trigger "extremely abnormal"
     return
     ;;
   warning)
-    printf '{"text":"󰵃 240","class":"warning","tooltip":"%s (%s): 240\nVOC Quality (%s): Very abnormal"}\n' "$ENTITY_NAME" "$VALUE_ENTITY" "$QUALITY_ENTITY"
+    emit_bar_json "󰵃 240" "warning" "$(printf '%s (%s): 240\nVOC Quality (%s): Very abnormal' "$ENTITY_NAME" "$VALUE_ENTITY" "$QUALITY_ENTITY")"
     maybe_run_trigger "very abnormal"
     return
     ;;
@@ -593,9 +605,9 @@ run_voc_alert() {
   maybe_run_trigger "$quality_state"
 
   if [[ "$quality_normalized" == "extremely abnormal" ]]; then
-    printf '{"text":"󰵃 %.0f","class":"critical","tooltip":"%s (%s): %.0f\nVOC Quality (%s): %s"}\n' "$value_state" "$ENTITY_NAME" "$VALUE_ENTITY" "$value_state" "$QUALITY_ENTITY" "$quality_state"
+    emit_bar_json "$(printf '󰵃 %.0f' "$value_state")" "critical" "$(printf '%s (%s): %.0f\nVOC Quality (%s): %s' "$ENTITY_NAME" "$VALUE_ENTITY" "$value_state" "$QUALITY_ENTITY" "$quality_state")"
   elif [[ "$quality_normalized" == "very abnormal" ]]; then
-    printf '{"text":"󰵃 %.0f","class":"warning","tooltip":"%s (%s): %.0f\nVOC Quality (%s): %s"}\n' "$value_state" "$ENTITY_NAME" "$VALUE_ENTITY" "$value_state" "$QUALITY_ENTITY" "$quality_state"
+    emit_bar_json "$(printf '󰵃 %.0f' "$value_state")" "warning" "$(printf '%s (%s): %.0f\nVOC Quality (%s): %s' "$ENTITY_NAME" "$VALUE_ENTITY" "$value_state" "$QUALITY_ENTITY" "$quality_state")"
   else
     emit_hidden
   fi
@@ -637,7 +649,7 @@ run_nas_activity() {
     class_name="active"
   fi
 
-  printf '{"text":"󰒋 %s","class":"%s","tooltip":"%s (%s): %s\nTurn Off NAS When Inactive (%s): %s"}\n' "$activity_state" "$class_name" "$ENTITY_NAME" "$ENTITY_ID" "$activity_state" "$INACTIVE_SCRIPT_ENTITY" "$inactive_state"
+  emit_bar_json "󰒋 $activity_state" "$class_name" "$(printf '%s (%s): %s\nTurn Off NAS When Inactive (%s): %s' "$ENTITY_NAME" "$ENTITY_ID" "$activity_state" "$INACTIVE_SCRIPT_ENTITY" "$inactive_state")"
   maybe_run_trigger "$activity_state"
 }
 
@@ -686,7 +698,7 @@ run_dining_temperature() {
     text="$(printf '%.1f °C' "$value_state")"
   fi
 
-  printf '{"text":"%s","class":"temperature","tooltip":"%s (%s): %.1f °C\\nAC Target (%s): %s °C"}\n' "$text" "$ENTITY_NAME" "$ENTITY_ID" "$value_state" "$GATE_ENTITY" "$gate_state"
+  emit_bar_json "$text" "temperature" "$(printf '%s (%s): %.1f °C\nAC Target (%s): %s °C' "$ENTITY_NAME" "$ENTITY_ID" "$value_state" "$GATE_ENTITY" "$gate_state")"
   maybe_run_trigger "$gate_state"
 }
 
@@ -706,11 +718,11 @@ run_current_next_event() {
 }
 
 doorbell_emit_on() {
-  printf '{"class":"active","text":"%s","tooltip":"Doorbell (%s): Active"}\n' "$ICON" "$ENTITY_ID"
+  emit_bar_json "$ICON" "active" "Doorbell ($ENTITY_ID): Active"
 }
 
 doorbell_emit_off() {
-  printf '{"class":"hidden","text":"","tooltip":"Doorbell (%s): Inactive"}\n' "$ENTITY_ID"
+  emit_bar_json "" "hidden" "Doorbell ($ENTITY_ID): Inactive"
 }
 
 doorbell_state_from_line() {

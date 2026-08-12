@@ -33,6 +33,14 @@ icon_only=$(HA_TEST_STATE=30.7 PATH="$mock_bin:$PATH" "$module" temperature --ic
 [[ $(jq -r .text <<<"$icon_only") == '󰖙' ]]
 [[ $(jq -r .tooltip <<<"$icon_only") == *'30.7 °C' ]]
 
+voc_warning=$(PATH="$mock_bin:$PATH" "$module" voc-alert --fake-state warning)
+[[ $(jq -r .text <<<"$voc_warning") == '󰵃 240' ]]
+[[ $(jq -r .class <<<"$voc_warning") == 'warning' ]]
+[[ $(jq -r .tooltip <<<"$voc_warning") == $'Apollo Air 1 VOC (sensor.apollo_air_1_806d64_sen55_voc): 240\nVOC Quality (sensor.apollo_air_1_806d64_voc_quality): Very abnormal' ]]
+
+voc_critical=$(PATH="$mock_bin:$PATH" "$module" voc-alert --fake-state critical)
+[[ $(jq -r .class <<<"$voc_critical") == 'critical' ]]
+
 if PATH="$mock_bin:$PATH" "$module" temperature --show-above nope >"$test_root/output" 2>&1; then
   exit 1
 fi
