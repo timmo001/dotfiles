@@ -5,13 +5,14 @@ description: The Omarchy 4 Quickshell shell, its generated shell.json, and the c
 
 Omarchy 4 replaces Waybar with a single long-running [Quickshell](https://quickshell.outfoxxed.me) process, `omarchy-shell`. That one process hosts the top bar, the notification daemon, the on-screen display, the launcher, and the settings panel. Restarting "the shell" restarts all of them together.
 
-These dotfiles do not fork the shell. They extend it in two supported ways: a generated `shell.json` that lays out the bar, and a small set of user plugins that the bar loads as extra widgets.
+These dotfiles do not fork the shell. They extend it through supported user configuration: a generated `shell.json` that lays out the bar, a stowed `shell.toml` style override, and a small set of user plugins that the bar loads as extra widgets.
 
 ## Source of truth
 
-Two things drive the bar, and neither is hand-edited live:
+Three things drive the bar, and none is hand-edited live:
 
 - **`~/.config/omarchy/shell.json`** is generated, not stowed. `dot` renders it from Omarchy's shipped default and inserts the personal modules. The generator is `dot/src/lib/omarchyShellConfig.ts` (`mergeOmarchyShellConfig`). The live file is mode `0600` and tracked by neither dotfiles repo.
+- **`~/.config/omarchy/shell.toml`** is stowed from `omarchy/.config/omarchy/shell.toml`. It keeps the shell-wide 12px type scale while setting the compact bar surface to 12px.
 - **Bar plugins** live under `omarchy/.config/omarchy/plugins/<id>/` in this repo and stow to `~/.config/omarchy/plugins/<id>/`. Each plugin is a `manifest.json` plus an entry-point QML file.
 
 To change the bar, edit the generator (then rebuild `dot`) or edit a plugin's QML, never the live `shell.json`.
@@ -92,6 +93,7 @@ A plugin is a folder with `manifest.json` (schema version 1, an `id` like `timmo
 
 | Plugin | Kind | What it does |
 | --- | --- | --- |
+| `timmo.bar` | bar | A clone of the stock bar that scales widget content and slots to 55%, retaining proportional padding without scaling popup panels or other shell UI. |
 | `timmo.command` | bar-widget | Runs a shell command on an interval and renders its status-bar JSON (`text` / `tooltip` / `class`). The Waybar `custom/*` equivalent. |
 | `timmo.stream-command` | bar-widget | Runs a long-running command that streams status-bar JSON lines and renders the latest line (for watchers like `ha-watch-singleton`). |
 | `timmo.workspaces` | bar-widget | Workspace numbers without persistent workspaces: only existing workspaces show, the focused one at full opacity and the rest dimmed. |

@@ -55,6 +55,7 @@ describe("mergeOmarchyShellConfig", () => {
     expect(merged.custom).toEqual({ preserved: true });
     expect(merged.idle).toEqual({ screensaver: 1800, lock: 3600 });
     expect(merged.bar.customBarField).toBe("preserved");
+    expect(merged.bar.id).toBe("timmo.bar");
     expect(merged.bar.centerAnchor).toBe("omarchy.clock");
     expect(merged.bar.position).toBe("top");
 

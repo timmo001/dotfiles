@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "timmo.bar",
+  "name": "Compact Bar",
+  "version": "1.0.0",
+  "author": "Omarchy",
+  "description": "Stock Omarchy bar with compact widget sizing",
+  "kinds": [
+    "bar"
+  ],
+  "entryPoints": {
+    "bar": "Bar.qml"
+  },
+  "omarchy": {
+    "clonedFrom": "omarchy.bar"
+  }
+}
