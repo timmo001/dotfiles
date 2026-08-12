@@ -22,7 +22,6 @@ import {
   installMissingArchPackages,
   installMiseTools,
 } from "../lib/packageSetup.js";
-import { syncOmarchyRepos } from "../lib/omarchySync.js";
 import { ensureLocalesGenerated } from "../lib/localeSetup.js";
 import { configureFirewallRules } from "../lib/firewallSetup.js";
 import { installGhExtensions } from "../lib/ghExtensions.js";
@@ -55,7 +54,6 @@ const OMARCHY_HOST_PERSIST_TIMEOUT_SECONDS = 10;
 /** Upper bound (seconds) for each init phase. */
 const INIT_STEP_TIMEOUT_SECONDS = {
   locale: 3 * 60,
-  omarchyRepos: 6 * 60,
   hostLinks: 60,
   install: 5 * 60,
   mise: 10 * 60,
@@ -81,7 +79,6 @@ interface InitOptions {
   readonly confirm: boolean;
   readonly noninteractive: boolean;
   readonly force: boolean;
-  readonly branch?: string;
   readonly host?: string;
   readonly log?: string;
 }
@@ -90,7 +87,6 @@ interface InitOptionsDraft {
   confirm: boolean;
   noninteractive: boolean;
   force: boolean;
-  branch?: string;
   host?: string;
   log?: string;
 }
@@ -119,7 +115,6 @@ const booleanInitOptions = new Map<string, BooleanInitOptionHandler>([
 ]);
 
 const valueInitOptions = new Map<string, ValueInitOptionHandler>([
-  ["--branch", (options, value) => void (options.branch = value)],
   ["--host", (options, value) => void (options.host = value)],
   ["--log", (options, value) => void (options.log = value)],
 ]);
@@ -303,7 +298,7 @@ function printInitHelp(): void {
   console.log(`Usage: dot init [options]
 
 Run the one-time first-use setup workflow for a fresh machine. Init prepares
-repos, stow links, mise tools, packages, and machine hooks. After init
+stow links, mise tools, packages, and machine hooks. After init
 completes, run dot doctor, then use dot update for ongoing maintenance.
 
 Options:
@@ -313,13 +308,11 @@ Options:
   --force                   Re-run init even if the machine looks initialised
   --host <name>             Hypr host to link before stow (default: OMARCHY_HOST or desktop)
   --log <path>              Init log path (default: ~/.local/state/dot/init.log)
-  --branch <name>           Branch override for Omarchy repos
   --help, -h                Show this help message
 
 Examples:
   dot init --noninteractive
-  dot init --host laptop --noninteractive
-  dot init --branch main`);
+  dot init --host laptop --noninteractive`);
 }
 
 function initOmarchyHost(options: InitOptions): string {
@@ -818,13 +811,6 @@ export function init(
       "Locale",
       INIT_STEP_TIMEOUT_SECONDS.locale,
       ensureLocalesGenerated,
-    );
-    yield* requiredInitStep(
-      "Omarchy Repositories",
-      INIT_STEP_TIMEOUT_SECONDS.omarchyRepos,
-      syncOmarchyRepos({
-        branch: options.branch,
-      }),
     );
     yield* requiredInitStep(
       "Omarchy Host Links",

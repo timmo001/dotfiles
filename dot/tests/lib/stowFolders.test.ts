@@ -130,10 +130,12 @@ describe("requiresNoFolding", () => {
     const root = tempRoot();
     mkdirSync(join(root, "scripts", ".local", "bin"), { recursive: true });
     mkdirSync(join(root, "herdr", ".config", "herdr"), { recursive: true });
+    mkdirSync(join(root, "uwsm", ".config", "uwsm"), { recursive: true });
     mkdirSync(join(root, "plain", ".config", "example"), { recursive: true });
 
     expect(requiresNoFolding(root, "scripts")).toBe(true);
     expect(requiresNoFolding(root, "herdr")).toBe(true);
+    expect(requiresNoFolding(root, "uwsm")).toBe(true);
     expect(requiresNoFolding(root, "plain")).toBe(false);
   });
 });

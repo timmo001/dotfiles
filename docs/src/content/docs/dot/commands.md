@@ -58,7 +58,6 @@ ongoing maintenance.
 | `--force` | Re-run init even if the machine looks initialised |
 | `--host` `<name>` | Hypr host to link before stow (default: OMARCHY_HOST or desktop) |
 | `--log` `<path>` | Init log path (default: ~/.local/state/dot/init.log) |
-| `--branch` `<name>` | Branch override for Omarchy repos |
 
 **Examples**
 
@@ -66,7 +65,6 @@ ongoing maintenance.
 dot init --noninteractive
 dot init --host laptop --noninteractive
 dot init --force --noninteractive
-dot init --branch main
 ```
 
 ## `dot install`
@@ -194,7 +192,7 @@ Git notifications    API scope and notification access
 Doctor startup       Startup notification timer
 uwsm session PATH    ~/.local/bin on the uwsm/systemd user-environment PATH
 Daily volume reset   Laptop-only optional timer
-Omarchy repos        Diff repos + worktree branch correctness
+Omarchy config       Managed repos and Hypr host-link correctness
 Legacy Hypr repo     Flags a retired omarchy-hypr clone at ~/.config/hypr
 Neovim theme link    Repairs a mislocated omarchy-nvim theme.lua symlink
 Private access       Private dotfiles overlay enabled or explains why it is disabled

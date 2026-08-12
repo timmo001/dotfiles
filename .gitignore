@@ -37,3 +37,5 @@ zsh/.local/share/zsh/chpwd-recent-dirs
 zsh/.local/share/zsh/site-functions/_mise
 zsh/.local/share/zsh/site-functions/_op
 /session-*.md
+/uwsm/.config/uwsm/env.d/99-omarchy-upgrade-env
+/uwsm/.config/uwsm/*.omarchy-upgrade-to-quattro.*.bak

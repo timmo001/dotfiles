@@ -169,18 +169,12 @@ export const cliCommands: readonly CliCommandSpec[] = [
         completion: "file",
         description: "Init log path (default: ~/.local/state/dot/init.log)",
       },
-      {
-        name: "--branch",
-        valueName: "name",
-        description: "Branch override for Omarchy repos",
-      },
       helpOption,
     ],
     examples: [
       "dot init --noninteractive",
       "dot init --host laptop --noninteractive",
       "dot init --force --noninteractive",
-      "dot init --branch main",
     ],
   },
   {
@@ -301,7 +295,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
           "Doctor startup       Startup notification timer",
           "uwsm session PATH    ~/.local/bin on the uwsm/systemd user-environment PATH",
           "Daily volume reset   Laptop-only optional timer",
-          "Omarchy repos        Diff repos + worktree branch correctness",
+          "Omarchy config       Managed repos and Hypr host-link correctness",
           "Legacy Hypr repo     Flags a retired omarchy-hypr clone at ~/.config/hypr",
           "Neovim theme link    Repairs a mislocated omarchy-nvim theme.lua symlink",
           "Private access       Private dotfiles overlay enabled or explains why it is disabled",

@@ -1,6 +1,6 @@
 ---
 title: Omarchy & Hyprland
-description: Managed Omarchy repos and stowed host overrides.
+description: Stowed Omarchy Quattro customisations and host overrides.
 sidebar:
   label: Overview
   order: 1
@@ -8,7 +8,7 @@ sidebar:
 
 import { CardGrid, LinkCard } from '@astrojs/starlight/components';
 
-These dotfiles run on [Omarchy](https://omarchy.org). Some Omarchy components are tracked as managed git repos that `dot` keeps in sync, while [Hyprland](https://hyprland.org) and Ghostty config are stowed dotfiles packages with per-host overrides.
+These dotfiles run on [Omarchy](https://omarchy.org). UWSM, [Hyprland](https://hyprland.org), and Ghostty customisations are stowed dotfiles packages, with per-host overrides where needed.
 
 <CardGrid>
   <LinkCard title="Host Overrides" href="/omarchy/host-overrides/" description="Managed Omarchy repos and stowed host config." />
@@ -16,11 +16,9 @@ These dotfiles run on [Omarchy](https://omarchy.org). Some Omarchy components ar
   <LinkCard title="Controls" href="/omarchy/controls/" description="The dot omarchy desktop controls menu." />
 </CardGrid>
 
-## Managed Omarchy repos
+## UWSM
 
-- `uwsm` is a single-branch Omarchy repo expected on `main`.
-- `dot update` syncs it by default; `dot doctor` verifies its branch.
-- Status-bar module commands are stowed from `scripts/.local/bin/` and consumed by the generated Quickshell configuration.
+Omarchy Quattro owns its UWSM bootstrap and session defaults under `/usr/share`. The `uwsm/.config/uwsm/env.d/90-dotfiles` package adds only the user environment values needed by these dotfiles. `dot stow` removes the retired `timmo001/omarchy-uwsm` checkout before linking that override; upgrade-generated preservation files and backups are not imported.
 
 ## Hyprland
 

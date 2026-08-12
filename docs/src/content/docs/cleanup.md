@@ -148,19 +148,17 @@ After the stowed links and system config are removed, delete cloned repos and ge
 
 ```bash
 rm -rf ~/.config/dotfiles-private
-rm -rf ~/.config/uwsm
 rm -rf ~/.local/state/dot ~/.cache/dot
 ```
 
 Private package repos and other private Git clones are configured by the private overlay. Review `~/.config/dotfiles-private/.dot-private-package-repo` and `~/.config/dotfiles-private/dot-git.yml`, then remove only clones and mirrors you no longer need.
 
-If you removed Omarchy config directories that `dot init` replaces with managed repos, or stowed config directories that Omarchy should own again, refresh the stock Omarchy defaults afterwards.
+If you removed stowed config directories that Omarchy should own again, refresh the stock Omarchy defaults afterwards. Quattro's UWSM defaults are package-owned under `/usr/share`, so there is no `uwsm/env` user config to refresh.
 
 ```bash
 omarchy refresh shell
 omarchy refresh hyprland
 omarchy refresh config ghostty/config
-omarchy refresh config uwsm/env
 ```
 
 Run `omarchy refresh --help` on the target machine for the exact refresh commands supported by that Omarchy version.

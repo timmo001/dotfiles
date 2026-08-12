@@ -34,7 +34,7 @@ mise run dot:build
 
 ## First-use setup
 
-`dot init` runs the one-time first-use setup: it bootstraps private dotfiles when allowed, syncs Omarchy repos, selects the Hypr host, installs and adopts config, installs stowed mise tools, verifies and registers the signed `timmo` package repository, sets up packages and machine hooks, and syncs agents. It logs to `~/.local/state/dot/init.log` by default. The private-overlay pull or clone runs first as an unbounded preflight; the setup phases that follow use the same spinner and timeout handling as `dot update`.
+`dot init` runs the one-time first-use setup: it bootstraps private dotfiles when allowed, selects the Hypr host, installs and adopts config, installs stowed mise tools, verifies and registers the signed `timmo` package repository, sets up packages and machine hooks, and syncs agents. It logs to `~/.local/state/dot/init.log` by default. The private-overlay pull or clone runs first as an unbounded preflight; the setup phases that follow use the same spinner and timeout handling as `dot update`.
 
 ```bash
 ~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive
@@ -51,7 +51,7 @@ Or run `dot init` in an interactive shell to be prompted.
 `--noninteractive` skips only the Hypr host questionnaire; elevation and package tools may still prompt. `--confirm` remains accepted for compatibility but does not suppress prompts. Private overlay preflight is controlled by `DOT_ALLOW_PRIVATE`: `auto` skips without GitHub authentication and tolerates an existing-overlay pull failure, but a failed attempted clone is fatal; `always` requires the overlay to update or clone successfully; `never` skips it.
 
 :::note
-If a stock Omarchy directory already exists at `~/.config/uwsm`, `dot init` backs it up with a `.dot-init-backup-*` suffix before cloning the managed repo. Hyprland and Ghostty config are stowed from the `hypr/` and `ghostty/` packages instead.
+UWSM, Hyprland, and Ghostty customisations are stowed from the `uwsm/`, `hypr/`, and `ghostty/` packages. If the retired `timmo001/omarchy-uwsm` checkout is present, init removes it before linking the Quattro-compatible environment override.
 :::
 
 ## Ongoing workflow

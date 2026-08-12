@@ -1,17 +1,13 @@
 ---
 title: Host Overrides
-description: Managed Omarchy repos and stowed host configuration.
+description: Stowed Omarchy configuration and host overrides.
 sidebar:
   order: 2
 ---
 
-## Managed Omarchy repos
+## UWSM environment
 
-`dot` tracks a small set of Omarchy components as git repos and keeps them on the expected branch:
-
-- `uwsm` — single-branch Omarchy repo expected on `main`.
-
-`dot init` clones this into `~/.config/uwsm`. If a stock Omarchy config directory already exists there and is not a git repo, init moves it aside with a `.dot-init-backup-*` suffix before cloning. `dot update` syncs it, and `dot doctor` verifies its branch.
+Quattro provides `/usr/share/uwsm/env.d/10-omarchy` and `/usr/share/omarchy/default/uwsm/default`, including the user-local binary path and mise activation. The stowed `~/.config/uwsm/env.d/90-dotfiles` adds only the custom Hypr helper path and OpenCode feature flags, without copying the generated `99-omarchy-upgrade-env` or timestamped upgrade backups. Omarchy keeps `BROWSER` shell-scoped so browser default selection continues to work.
 
 ## Ghostty host overrides
 
@@ -47,6 +43,5 @@ A machine with the retired `~/.config/hypr` `omarchy-hypr` clone halts `dot upda
 
 - `OMARCHY_HOST` — the Hypr host override name (e.g. `desktop`, `laptop`).
 - `OMARCHY_REPO_BASE_DIR` — Omarchy repo base path (default `~/.config`).
-- `DOT_OMARCHY_BRANCH` — branch override during sync.
 
 See [Environment Variables](/configuration/environment/) for the full list.

@@ -32,6 +32,8 @@ const INTERNAL_FOLDERS = new Set<string>(INTERNAL_STOW_FOLDERS);
  *   and `~/.local/state` toggles live alongside the stowed config.
  * - `.config/nvim`: `omarchy-nvim-setup` owns `~/.config/nvim` and writes into
  *   it (the `lua/plugins/theme.lua` symlink and its default plugin files).
+ * - `.config/uwsm`: UWSM and Omarchy may add package or migration-owned files
+ *   alongside the stowed user environment override.
  * - `.config/systemd/user`: omarchy ships units here and `systemctl --user
  *   enable` writes `*.target.wants/` symlinks and drop-in directories.
  * - `.local/bin`: mise, npm, pip, cargo, and other tools install binaries here
@@ -49,6 +51,7 @@ const NO_FOLDING_TARGET_PREFIXES = [
   ".config/herdr",
   ".config/hypr",
   ".config/nvim",
+  ".config/uwsm",
   ".config/systemd/user",
   ".local/bin",
   ".local/share/applications",

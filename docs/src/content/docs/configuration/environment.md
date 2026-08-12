@@ -38,7 +38,6 @@ The configuration also provides the Android SDK command-line tools and sets the 
 | `DOT_GITHUB_RATE_LIMIT_TTL_SECONDS`      | Seconds to cache `gh api rate_limit` results (default `60`).                                                                                                              |
 | `DOT_GITHUB_RATE_LIMIT_MIN_REMAINING`    | Minimum REST quota remaining before `gh` calls wait (default `0`).                                                                                                        |
 | `DOT_GITHUB_RATE_LIMIT_MAX_WAIT_SECONDS` | Upper bound on rate-limit backoff waits (default `60`).                                                                                                                   |
-| `DOT_INCLUDE_OMARCHY_DIFF_REPOS`         | Include Omarchy repos in `dot git-diff` (`1\|0`, default `1`).                                                                                                            |
 | `DOT_FETCH_TTL_SECONDS`                  | Seconds to reuse the last upstream fetch (default `300`).                                                                                                                 |
 | `DOT_GH_EXTENSIONS_FILE`                 | Public `gh` extension list installed by `dot init` (default `$DOTFILES_PUBLIC_DIR/.dot-gh-extensions`).                                                                   |
 | `DOT_GH_MCP_BEARER`                      | Bearer token for the read-only GitHub MCP server. The shell wrappers and `opencode-server` set it only for agent harness processes; it is not exported globally.        |
@@ -63,7 +62,6 @@ The configuration also provides the Android SDK command-line tools and sets the 
 | ----------------------- | ------------------------------------------------------------------------------------------------------ |
 | `OMARCHY_REPO_BASE_DIR` | Omarchy repo base path (default `~/.config`).                                                          |
 | `OMARCHY_HOST`          | Hypr host override name; `dot init` defaults to `desktop` when unset unless `--host <name>` is passed. |
-| `DOT_OMARCHY_BRANCH`    | Branch override for Omarchy repos during sync.                                                         |
 
 ## Init and logging
 

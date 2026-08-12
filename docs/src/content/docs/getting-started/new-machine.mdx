@@ -29,7 +29,7 @@ A clean, end-to-end walkthrough for setting up a new machine.
    ```
 
 5. Run first-use setup using the mode that matches this machine.
-6. If a stock Omarchy config directory already exists at `~/.config/uwsm`, `dot init` backs it up with a `.dot-init-backup-*` suffix before cloning the managed repo. Hyprland and Ghostty config are stowed from the `hypr/` and `ghostty/` packages instead.
+6. UWSM, Hyprland, and Ghostty customisations are stowed from their public packages. Init removes only the retired `timmo001/omarchy-uwsm` checkout before linking the Quattro-compatible override.
 7. `dot init` verifies the pinned public package signing fingerprint, registers the signed `timmo` repository before the standard repositories, and retains AUR as the fallback for packages not published there.
 8. `dot init` opens the managed [firewall rules](/dot/utilities/#firewall-rules) (KDE Connect, Home Assistant, the OpenCode server, LocalSend, and the libvirt NAT network) when `ufw` is installed.
 9. Restart your shell and confirm `dot help` is on `PATH`.

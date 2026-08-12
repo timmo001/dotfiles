@@ -114,14 +114,11 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
       // Omarchy config
       const omarchyRepoBase =
         envString(ENV.OMARCHY_REPO_BASE_DIR) ?? CONFIG_DIR;
-      const omarchyDiffRepos = ["uwsm"];
+      const omarchyDiffRepos: readonly string[] = [];
       const omarchyWorktreeRepos: readonly string[] = [];
       const omarchyWorktreeBranches = ["desktop", "laptop"];
-      const omarchyExpectedBranches = {
-        uwsm: "main",
-      } satisfies Readonly<Record<string, string>>;
-      const omarchyEnabled =
-        (envString(ENV.DOT_INCLUDE_OMARCHY_DIFF_REPOS) ?? "1") !== "0";
+      const omarchyExpectedBranches: Readonly<Record<string, string>> = {};
+      const omarchyEnabled = true;
 
       const omarchy: OmarchyRepoConfig = {
         repoBase: omarchyRepoBase,

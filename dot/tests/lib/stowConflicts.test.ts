@@ -21,6 +21,7 @@ import {
   removeStowedSkillOwner,
   removeStaleSkillSymlinks,
   removeRetiredPublicStowLinks,
+  removeLegacyUwsmRepo,
 } from "../../src/lib/stowConflicts.js";
 
 const previousOmarchyHost = process.env[ENV.OMARCHY_HOST];
@@ -70,6 +71,43 @@ afterEach(() => {
   for (const root of tempRoots.splice(0)) {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+describe("removeLegacyUwsmRepo", () => {
+  test("removes the retired fork including generated migration files", () => {
+    const root = tempRoot();
+    const source = join(root, "uwsm");
+    mkdirSync(join(source, ".git"), { recursive: true });
+    mkdirSync(join(source, "env.d"), { recursive: true });
+    writeFileSync(
+      join(source, ".git", "config"),
+      "url = git@github.com:timmo001/omarchy-uwsm.git\n",
+    );
+    writeFileSync(
+      join(source, "env.d", "99-omarchy-upgrade-env"),
+      "generated\n",
+    );
+    writeFileSync(
+      join(source, "env.omarchy-upgrade-to-quattro.20260812115936.bak"),
+      "generated\n",
+    );
+
+    expect(removeLegacyUwsmRepo(source)).toBe(source);
+    expect(existsSync(source)).toBe(false);
+  });
+
+  test("leaves unrelated repositories untouched", () => {
+    const root = tempRoot();
+    const source = join(root, "uwsm");
+    mkdirSync(join(source, ".git"), { recursive: true });
+    writeFileSync(
+      join(source, ".git", "config"),
+      "url = git@github.com:someone/uwsm.git\n",
+    );
+
+    expect(removeLegacyUwsmRepo(source)).toBeNull();
+    expect(existsSync(source)).toBe(true);
+  });
 });
 
 describe("removeRetiredPublicStowLinks", () => {

@@ -85,7 +85,7 @@ const sections: readonly SectionDef[] = [
   { name: "uwsm session PATH", check: checkLocalBinPath },
   { name: "Resume recovery monitor", check: checkResumeMonitor },
   { name: "Daily volume reset", check: checkDailyVolumeReset },
-  { name: "Omarchy repository checks", check: checkOmarchy },
+  { name: "Omarchy config checks", check: checkOmarchy },
   { name: "Legacy Hypr repo check", check: checkLegacyHyprRepo },
   { name: "Neovim theme link", check: checkNvimThemeLink },
   { name: "Private access", check: checkPrivateAccess },

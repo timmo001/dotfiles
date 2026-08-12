@@ -26,6 +26,7 @@ import {
   removeStowedSkillOwner,
   removeStaleSkillSymlinks,
   removeRetiredPublicStowLinks,
+  removeLegacyUwsmRepo,
   restoreExternalSymlinks,
   type ExternalSymlink,
 } from "../lib/stowConflicts.js";
@@ -99,6 +100,14 @@ export const stow = (opts?: {
       if (legacyGhosttyMove) {
         yield* log.info(
           `[public] backed up retired Ghostty repo: ${formatBackupMove(legacyGhosttyMove)}`,
+        );
+      }
+      const removedLegacyUwsm = yield* Effect.sync(() =>
+        removeLegacyUwsmRepo(),
+      );
+      if (removedLegacyUwsm) {
+        yield* log.info(
+          `[public] removed retired UWSM repo: ${displayPath(removedLegacyUwsm)}`,
         );
       }
       const ignoredTargets = new Set([

@@ -113,7 +113,6 @@ src/
   lib/
     extractNativeLib.ts   — Native .so extraction from bunfs
     initState.ts          — First-use setup state marker helpers
-    omarchySync.ts        — First-use Omarchy repo clone/sync helpers
     packageSetup.ts       — Strict package and mise setup helpers for init/install
     selfUpdate.ts         — Binary rebuild logic
     skillCheck.ts         — Skill reference validation logic
@@ -328,7 +327,7 @@ dot init --help              # init help prints without side effects
 dot help                     # help prints
 ```
 
-`dot init` clones the managed Omarchy `uwsm` repo into `~/.config/uwsm`. If a stock Omarchy config directory already exists there and is not a git repo, init moves it aside with a `.dot-init-backup-*` suffix before cloning; do not delete those backups automatically. Hyprland config is a stowed dotfiles package (`hypr/.config/hypr/`) laid down with `--no-folding`, with the runtime `~/.config/hypr/host` symlink selecting the host overrides. Ghostty config is also stowed from `ghostty/.config/ghostty/`; `dot stow` backs up the retired `timmo001/omarchy-ghostty` clone before linking the stowed config.
+UWSM environment overrides are stowed from `uwsm/.config/uwsm/env.d/90-dotfiles`, while Quattro owns its defaults under `/usr/share`. `dot stow` removes the retired `timmo001/omarchy-uwsm` checkout without importing its generated migration files. Hyprland config is a stowed dotfiles package (`hypr/.config/hypr/`) laid down with `--no-folding`, with the runtime `~/.config/hypr/host` symlink selecting the host overrides. Ghostty config is also stowed from `ghostty/.config/ghostty/`; `dot stow` backs up the retired `timmo001/omarchy-ghostty` clone before linking the stowed config.
 
 ## Logging Style
 

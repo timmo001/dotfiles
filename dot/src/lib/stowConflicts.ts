@@ -29,6 +29,7 @@ const AGENTS_PRIVATE_IGNORED_ENTRIES = new Set([
 ]);
 
 const LEGACY_GHOSTTY_REPO_SLUG = "timmo001/omarchy-ghostty";
+const LEGACY_UWSM_REPO_SLUG = "timmo001/omarchy-uwsm";
 
 const RETIRED_PUBLIC_STOW_PATHS = [
   "scripts/.local/bin/waybar",
@@ -192,6 +193,16 @@ export function backupLegacyGhosttyRepo(
   );
 }
 
+/** Remove the retired UWSM fork before the stowed Quattro override takes over. */
+export function removeLegacyUwsmRepo(
+  source = join(HOME_DIR, ".config", "uwsm"),
+): string | null {
+  if (!isGitRepoWithSlug(source, LEGACY_UWSM_REPO_SLUG)) return null;
+
+  rmSync(source, { recursive: true });
+  return source;
+}
+
 /**
  * Back up live public stow targets whose content differs from their committed
  * repo source before an `--adopt` stow, returning their home-relative display
@@ -305,6 +316,10 @@ function targetAlreadyOwnedBySource(source: string, target: string): boolean {
 }
 
 function isLegacyGhosttyRepo(source: string): boolean {
+  return isGitRepoWithSlug(source, LEGACY_GHOSTTY_REPO_SLUG);
+}
+
+function isGitRepoWithSlug(source: string, slug: string): boolean {
   try {
     const stat = lstatSync(source);
     if (!stat.isDirectory()) return false;
@@ -316,7 +331,7 @@ function isLegacyGhosttyRepo(source: string): boolean {
   if (!existsSync(gitConfig)) return false;
 
   try {
-    return readFileSync(gitConfig, "utf8").includes(LEGACY_GHOSTTY_REPO_SLUG);
+    return readFileSync(gitConfig, "utf8").includes(slug);
   } catch {
     return false;
   }

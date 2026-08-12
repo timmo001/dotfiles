@@ -21,6 +21,7 @@ import {
   findExternalSkillSymlinks,
   removeExternalSymlinks,
   removeRetiredPublicStowLinks,
+  removeLegacyUwsmRepo,
   restoreExternalSymlinks,
   type BackupMove,
   type ExternalSymlink,
@@ -58,6 +59,12 @@ export const install = Effect.gen(function* () {
   if (legacyGhosttyMove) {
     yield* log.info(
       `Backed up retired Ghostty repo: ${formatBackupMove(legacyGhosttyMove)}`,
+    );
+  }
+  const removedLegacyUwsm = yield* Effect.sync(() => removeLegacyUwsmRepo());
+  if (removedLegacyUwsm) {
+    yield* log.info(
+      `Removed retired UWSM repo: ${displayPath(removedLegacyUwsm)}`,
     );
   }
   const knownMoves = yield* Effect.sync(() =>

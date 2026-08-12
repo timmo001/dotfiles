@@ -65,4 +65,4 @@ The Quickshell module polls `dot git-diff --bar-json` through the stowed `git-di
 
 ## Configuration
 
-Which repos appear and whether Omarchy repos are included is controlled by the private `dot-git.yml` config and `DOT_INCLUDE_OMARCHY_DIFF_REPOS`. See [Private Git Config](/configuration/private-git/) and [Environment Variables](/configuration/environment/#git-and-github).
+Which repositories appear is controlled by the private `dot-git.yml` config. See [Private Git Config](/configuration/private-git/).

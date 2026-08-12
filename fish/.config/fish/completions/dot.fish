@@ -12,7 +12,6 @@ complete -c dot -l interactive -d 'Enable the Hypr host questionnaire when no ho
 complete -c dot -l force -d 'Re-run init even if the machine looks initialised' -n '__fish_seen_subcommand_from init'
 complete -c dot -l host -d 'Hypr host to link before stow (default: OMARCHY_HOST or desktop)' -r -n '__fish_seen_subcommand_from init'
 complete -c dot -l log -d 'Init log path (default: ~/.local/state/dot/init.log)' -r -F -n '__fish_seen_subcommand_from init'
-complete -c dot -l branch -d 'Branch override for Omarchy repos' -r -n '__fish_seen_subcommand_from init'
 complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from init'
 complete -c dot -n '__fish_use_subcommand' -a 'install' -d 'Ensure prerequisites, then backup/adopt dotfiles'
 complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from install'
