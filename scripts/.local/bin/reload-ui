@@ -11,6 +11,7 @@ log() {
 
 refresh_shell_indicators() {
   omarchy-shell -q omarchy.indicators refresh || true
+  omarchy-shell -q omarchy.clock refresh || true
 }
 
 refresh_git_modules() {
