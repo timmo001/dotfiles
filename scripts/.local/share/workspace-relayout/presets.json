@@ -283,6 +283,21 @@
             "b": "w"
           }
         }
+      },
+      {
+        "group": "Left / right",
+        "name": "2 left / 1 right",
+        "tree": {
+          "dir": "lr",
+          "ratio": 27.58,
+          "a": {
+            "dir": "tb",
+            "ratio": 73.7,
+            "a": "w",
+            "b": "w"
+          },
+          "b": "w"
+        }
       }
     ],
     "4": [
