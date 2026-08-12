@@ -109,7 +109,7 @@ describe("context zone warning", () => {
     });
     expect(
       shellCalls.some((command) =>
-        command.startsWith("omarchy notification send ⚠"),
+        command.startsWith("omarchy notification send -g ⚠"),
       ),
     ).toBe(true);
   });

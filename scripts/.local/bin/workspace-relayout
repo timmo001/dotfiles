@@ -37,7 +37,7 @@ clients_json="[]"
 restore_addr=""
 
 notify() {
-  omarchy notification send "󱂬" "$NOTIFY_TITLE" "$1"
+  omarchy notification send -g "󱂬" "$NOTIFY_TITLE" "$1"
 }
 
 focus_addr() {

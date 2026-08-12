@@ -33,17 +33,16 @@ export async function createDesktopNotifier($: Shell) {
     if (!canNotify) return;
 
     try {
-      void $`omarchy notification send ${glyph} ${title} ${body} --app-name=OpenCode --action=default=Open`
-        .text()
-        .then(async (action) => {
-          if (action.trim() === "default" && originWindowAddress) {
-            await $`hyprctl dispatch focuswindow address:${originWindowAddress}`;
-            if (originHerdrTabID) {
-              await $`herdr tab focus ${originHerdrTabID}`;
-            }
-          }
-        })
-        .catch(() => {});
+      const focusCommand = originWindowAddress
+        ? `hyprctl dispatch focuswindow address:${originWindowAddress}${
+            /^[a-z0-9_:-]+$/i.test(originHerdrTabID)
+              ? ` && herdr tab focus ${originHerdrTabID}`
+              : ""
+          }`
+        : "";
+      void $`omarchy notification send -g ${glyph} --app-name OpenCode ${focusCommand ? "--exec" : []} ${focusCommand ? focusCommand : []} ${title} ${body}`.catch(
+        () => {},
+      );
     } catch {}
   };
 }

@@ -27,9 +27,9 @@ if ! command -v "$COMMAND" &>/dev/null; then
     fi
 
     if [[ -n "$PACKAGE" ]]; then
-        omarchy notification send "󰅖" "$COMMAND not found" "Install with: yay -S $PACKAGE" -u normal -i dialog-warning
+        omarchy notification send -g "󰅖" -u normal "$COMMAND not found" "Install with: yay -S $PACKAGE" -i dialog-warning
     else
-        omarchy notification send "󰅖" "$COMMAND not found" "Please install $COMMAND to use this feature" -u normal -i dialog-warning
+        omarchy notification send -g "󰅖" -u normal "$COMMAND not found" "Please install $COMMAND to use this feature" -i dialog-warning
     fi
     exit 1
 fi

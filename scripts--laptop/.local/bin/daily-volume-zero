@@ -41,10 +41,10 @@ fi
 
 if command -v omarchy >/dev/null 2>&1; then
   omarchy notification send \
-    "󰕾" \
+    -g "󰕾" \
+    -u normal \
     'Daily volume reset' \
     "System volume will be set to 0% in ${DELAY_SECONDS} seconds." \
-    -u normal \
     -t "$((DELAY_SECONDS * 1000))" \
     >/dev/null 2>&1 || true
 fi

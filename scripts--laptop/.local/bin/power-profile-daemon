@@ -36,7 +36,7 @@ echo $$ >"$pidfile"
 trap 'rm -f "$pidfile"' EXIT
 
 notify() {
-  command -v omarchy >/dev/null 2>&1 && omarchy notification send "󰁹" "$@" -a "Power" 2>/dev/null || true
+  command -v omarchy >/dev/null 2>&1 && omarchy notification send -g "󰁹" --app-name "Power" "$@" 2>/dev/null || true
 }
 
 profile() { powerprofilesctl get 2>/dev/null; }

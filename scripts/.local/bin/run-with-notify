@@ -23,7 +23,7 @@ app="${app:-$label}"
 
 local_output=""
 if local_output="$("$@" 2>&1)"; then
-  omarchy notification send "󰄬" "$label" "${local_output:-Done}" -a "$app"
+  omarchy notification send -g "󰄬" --app-name "$app" "$label" "${local_output:-Done}"
 else
-  omarchy notification send "󰅖" "$label failed" "${local_output:-Unknown error}" -u critical -a "$app"
+  omarchy notification send -g "󰅖" -u critical --app-name "$app" "$label failed" "${local_output:-Unknown error}"
 fi
