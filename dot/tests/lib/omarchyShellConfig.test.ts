@@ -79,13 +79,18 @@ describe("mergeOmarchyShellConfig", () => {
     );
     expect(merged.bar.layout.center.at(-1)).toMatchObject({
       id: "timmo.stream-command",
-      revealOnHover: true,
+      hideClasses: ["active", "hidden"],
+      revealOnHover: false,
     });
     expect(
       merged.bar.layout.center
         .filter(({ id }) => id.startsWith("timmo."))
         .every(
-          (entry) => entry.id === "timmo.clock" || entry.revealOnHover === true,
+          (entry) =>
+            entry.id === "timmo.clock" ||
+            entry.revealOnHover === true ||
+            (typeof entry.run === "string" &&
+              entry.run.startsWith("ha-module-bar doorbell")),
         ),
     ).toBe(true);
 
@@ -114,7 +119,9 @@ describe("mergeOmarchyShellConfig", () => {
         (entry) =>
           entry.id === "timmo.workspaces" ||
           entry.id === "timmo.clock" ||
-          entry.revealOnHover === true,
+          entry.revealOnHover === true ||
+          (typeof entry.run === "string" &&
+            entry.run.startsWith("ha-module-bar doorbell")),
       ),
     ).toBe(true);
     expect(
@@ -144,6 +151,16 @@ describe("mergeOmarchyShellConfig", () => {
     expect(runs).not.toContain("sensor.meter_plus_433c_temperature");
     expect(runs).not.toContain("--monitor");
     expect(runs).not.toContain("--workspace");
+
+    const doorbell = merged.bar.layout.center.find(
+      ({ run }) =>
+        typeof run === "string" && run.startsWith("ha-module-bar doorbell"),
+    );
+    expect(doorbell).toMatchObject({
+      hideClasses: ["active", "hidden"],
+      revealOnHover: false,
+    });
+    expect(doorbell?.run).not.toEqual(expect.stringContaining("--icon"));
   });
 
   test("selects laptop-specific layout and sensors", () => {

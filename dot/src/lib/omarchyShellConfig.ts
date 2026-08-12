@@ -192,19 +192,16 @@ function doorbellEntry(): BarEntry {
     "doorbell-popup --open-only --camera-entity camera.front_door_snapshot";
   const triggerCommand = `${base} --no-auto-close`;
   return stream({
+    // This stream exists only to launch the popup; it has no visual use and is
+    // explicitly hidden in every state, including while the bar is hovered.
     run:
-      "ha-module-bar doorbell --entity input_boolean.doorbell --icon 󰂚 " +
+      "ha-module-bar doorbell --entity input_boolean.doorbell " +
       "--stream-key doorbell.input_boolean.doorbell --trigger-state on " +
       `--trigger-command '${triggerCommand}' --trigger-on transition ` +
       "--trigger-initial false --trigger-cooldown 2 " +
       "--trigger-key doorbell.popup.input_boolean.doorbell",
-    onClick: floatingWebapp(
-      `${HA}/lovelace/home?more-info-entity-id=camera.front_door_snapshot`,
-    ),
-    classColors: { active: COLOR.rust },
-    hideClasses: ["hidden"],
-    hiddenText: "󰂚",
-    revealColor: COLOR.rust,
+    hideClasses: ["active", "hidden"],
+    revealOnHover: false,
   });
 }
 
