@@ -88,13 +88,14 @@ The stock clock formats, opaque bar, config version, plugin list, and `omarchy.c
 
 Home Assistant entity IDs and the doorbell popup monitor and size also vary by host. The laptop adds the VOC and dining-room temperature widgets listed above; the desktop omits them.
 
+The session keeps its normal Qt scale for applications, while the `~/.config/hypr/bin/quickshell` wrapper resets `QT_SCALE_FACTOR` to `1` only for Omarchy shell launches. Wayland output scaling still handles the shell's HiDPI rendering, avoiding an additional Qt multiplier across the bar, notifications, and popup plugins.
+
 ## Custom plugins
 
 A plugin is a folder with `manifest.json` (schema version 1, an `id` like `timmo.<name>`, its `kinds`, and entry-point QML) plus the QML itself. A bar widget extends `BarWidget`, reads per-instance settings from `shell.json` via `setting(name, fallback)`, and uses `WidgetButton` for clickable cells.
 
 | Plugin | Kind | What it does |
 | --- | --- | --- |
-| `timmo.bar` | bar | A clone of the stock bar that scales widget content and slots to 55%, retaining proportional padding without scaling popup panels or other shell UI. |
 | `timmo.command` | bar-widget | Runs a shell command on an interval and renders its status-bar JSON (`text` / `tooltip` / `class`) with compact 6px horizontal cell margins. The Waybar `custom/*` equivalent. |
 | `timmo.stream-command` | bar-widget | Runs a long-running command that streams status-bar JSON lines and renders the latest line with compact 6px horizontal cell margins (for watchers like `ha-watch-singleton`). |
 | `timmo.workspaces` | bar-widget | Workspace numbers without persistent workspaces: only existing workspaces show, the focused one at full opacity and the rest dimmed. |

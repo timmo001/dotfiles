@@ -426,7 +426,6 @@ export function mergeOmarchyShellConfig(
       ? { screensaver: 150, lock: 300 }
       : { screensaver: 1800, lock: 3600 };
   base.bar.position = host === "laptop" ? "bottom" : "top";
-  base.bar.id = "timmo.bar";
 
   const { left, center, right } = base.bar.layout;
 
