@@ -82,6 +82,9 @@ const SYSTEM_UPDATE_ID = "omarchy.system-update";
 /** Widget id of Omarchy's default tray bar entry (right-column anchor). */
 const TRAY_ID = "omarchy.tray";
 
+/** Widget id of Omarchy's default network bar entry (right-column anchor). */
+const NETWORK_ID = "omarchy.network";
+
 /** Build a polling `timmo.command` bar entry. */
 function command(settings: Omit<BarEntry, "id">): BarEntry {
   return { id: "timmo.command", ...settings };
@@ -380,8 +383,8 @@ function insertBefore(
  * config, mutating `base` in place. Default widgets are kept; personal modules
  * are inserted around them ("add, not remove"). The clock stays as the center
  * anchor (so the stock bar's config gear, which only renders next to a centered
- * clock, still appears); the weather is relocated to the dead start of the
- * right column.
+ * clock, still appears); the weather is relocated after the personal widgets
+ * and before the stock network widget in the right column.
  *
  * @param base - Parsed Omarchy default `shell.json`.
  * @param host - The `OMARCHY_HOST` value (e.g. `desktop`, `laptop`).
@@ -424,11 +427,11 @@ export function mergeOmarchyShellConfig(
   insertBefore(center, SYSTEM_UPDATE_ID, customCenterEntries().map(reveal));
   center.push(reveal(doorbellEntry(host)));
 
-  // Right: the weather pinned to the dead start of the right column (just
-  // right of center, before the Home Assistant sensors), then the HA sensors
-  // before the default tray cluster. The clock stays centered.
+  // Right: the Home Assistant sensors go before the default tray cluster, and
+  // weather follows the personal widgets immediately before the stock network
+  // widget. The clock stays centered.
   insertBefore(right, TRAY_ID, customRightEntries(host));
-  if (weatherEntry) right.unshift(weatherEntry);
+  if (weatherEntry) insertBefore(right, NETWORK_ID, [weatherEntry]);
 
   // The clock anchors the center so the bar config gear renders next to it.
   base.bar.centerAnchor = CLOCK_ID;

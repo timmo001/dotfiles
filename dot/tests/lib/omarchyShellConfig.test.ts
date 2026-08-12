@@ -23,6 +23,7 @@ function baseConfig() {
           { id: "custom.right" },
           { id: "omarchy.tray" },
           { id: "omarchy.agents", customAgentField: "preserved" },
+          { id: "omarchy.network" },
         ],
       },
     },
@@ -71,7 +72,14 @@ describe("mergeOmarchyShellConfig", () => {
         .every((entry) => entry.revealOnHover === true),
     ).toBe(true);
 
-    expect(merged.bar.layout.right[0]).toEqual({
+    const rightIds = merged.bar.layout.right.map(({ id }) => id);
+    expect(rightIds.indexOf("timmo.command")).toBeLessThan(
+      rightIds.indexOf("omarchy.weather"),
+    );
+    expect(rightIds.indexOf("omarchy.weather")).toBeLessThan(
+      rightIds.indexOf("omarchy.network"),
+    );
+    expect(merged.bar.layout.right).toContainEqual({
       id: "omarchy.weather",
       location: "home",
     });
