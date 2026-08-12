@@ -514,9 +514,9 @@ run_temperature() {
   if ((ICON_ONLY)); then
     text="$ICON"
   elif [[ -n "$ICON" ]]; then
-    text="$(printf '%s %.1f °C' "$ICON" "$state")"
+    text="$(printf '%s %.1f' "$ICON" "$state")"
   else
-    text="$(printf '%.1f °C' "$state")"
+    text="$(printf '%.1f' "$state")"
   fi
 
   emit_bar_json "$text" "temperature" "$(printf '%s (%s): %.1f °C' "$ENTITY_NAME" "$ENTITY_ID" "$state")"
@@ -530,12 +530,12 @@ run_co2_alert() {
 
   case "$FAKE_STATE" in
   critical)
-    emit_bar_json "󰟤 2200 ppm" "critical" "$ENTITY_NAME ($ENTITY_ID): 2200 ppm"
+    emit_bar_json "󰟤 2200" "critical" "$ENTITY_NAME ($ENTITY_ID): 2200 ppm"
     maybe_run_trigger "critical"
     return
     ;;
   warning)
-    emit_bar_json "󰟤 1600 ppm" "warning" "$ENTITY_NAME ($ENTITY_ID): 1600 ppm"
+    emit_bar_json "󰟤 1600" "warning" "$ENTITY_NAME ($ENTITY_ID): 1600 ppm"
     maybe_run_trigger "warning"
     return
     ;;
@@ -557,9 +557,9 @@ run_co2_alert() {
   maybe_run_trigger "$state"
 
   if ((co2_ppm > 2000)); then
-    emit_bar_json "$(printf '󰟤 %.0f ppm' "$state")" "critical" "$(printf '%s (%s): %.0f ppm' "$ENTITY_NAME" "$ENTITY_ID" "$state")"
+    emit_bar_json "$(printf '󰟤 %.0f' "$state")" "critical" "$(printf '%s (%s): %.0f ppm' "$ENTITY_NAME" "$ENTITY_ID" "$state")"
   elif ((co2_ppm > 1400)); then
-    emit_bar_json "$(printf '󰟤 %.0f ppm' "$state")" "warning" "$(printf '%s (%s): %.0f ppm' "$ENTITY_NAME" "$ENTITY_ID" "$state")"
+    emit_bar_json "$(printf '󰟤 %.0f' "$state")" "warning" "$(printf '%s (%s): %.0f ppm' "$ENTITY_NAME" "$ENTITY_ID" "$state")"
   else
     emit_hidden
   fi
@@ -693,9 +693,9 @@ run_dining_temperature() {
 
   local text=""
   if [[ -n "$ICON" ]]; then
-    text="$(printf '%s %.1f °C' "$ICON" "$value_state")"
+    text="$(printf '%s %.1f' "$ICON" "$value_state")"
   else
-    text="$(printf '%.1f °C' "$value_state")"
+    text="$(printf '%.1f' "$value_state")"
   fi
 
   emit_bar_json "$text" "temperature" "$(printf '%s (%s): %.1f °C\nAC Target (%s): %s °C' "$ENTITY_NAME" "$ENTITY_ID" "$value_state" "$GATE_ENTITY" "$gate_state")"

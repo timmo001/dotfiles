@@ -37,6 +37,8 @@ ha-entity-bar-json-once --icon '' input_text.current_next_event_in_an_hour
 
 `ha-module-bar` wraps go-automate with opinionated status-bar modules for common Home Assistant entities. Each mode ships default entity IDs and display rules; override them with `--entity`, `--name`, `--icon`, and mode-specific flags when your setup differs. Run `ha-module-bar --help` for the full flag list.
 
+Numeric shell items omit units to keep the bar compact. Their tooltips retain the unit of measurement.
+
 | Mode | Behaviour |
 | --- | --- |
 | `temperature` | Show a signed numeric temperature reading with its Celsius unit. Add `--show-above <number>` to hide it unless the reading is strictly above that threshold, or `--icon-only` to keep the reading in the tooltip. |

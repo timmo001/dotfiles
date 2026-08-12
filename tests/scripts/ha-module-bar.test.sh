@@ -21,17 +21,21 @@ run_temperature() {
 
 [[ $(run_temperature 24.9) == '{"text":"","class":"hidden"}' ]]
 [[ $(run_temperature 25) == '{"text":"","class":"hidden"}' ]]
-[[ $(run_temperature 25.1 | jq -r .text) == '25.1 °C' ]]
+[[ $(run_temperature 25.1 | jq -r .text) == '25.1' ]]
 [[ $(run_temperature -2.5) == '{"text":"","class":"hidden"}' ]]
 [[ $(run_temperature unavailable) == '{"text":"","class":"hidden"}' ]]
 [[ $(run_temperature malformed) == '{"text":"","class":"hidden"}' ]]
 
 without_threshold=$(HA_TEST_STATE=-2.5 PATH="$mock_bin:$PATH" "$module" temperature)
-[[ $(jq -r .text <<<"$without_threshold") == '-2.5 °C' ]]
+[[ $(jq -r .text <<<"$without_threshold") == '-2.5' ]]
 
 icon_only=$(HA_TEST_STATE=30.7 PATH="$mock_bin:$PATH" "$module" temperature --icon 󰖙 --icon-only)
 [[ $(jq -r .text <<<"$icon_only") == '󰖙' ]]
 [[ $(jq -r .tooltip <<<"$icon_only") == *'30.7 °C' ]]
+
+co2_warning=$(PATH="$mock_bin:$PATH" "$module" co2-alert --fake-state warning)
+[[ $(jq -r .text <<<"$co2_warning") == '󰟤 1600' ]]
+[[ $(jq -r .tooltip <<<"$co2_warning") == *'1600 ppm' ]]
 
 voc_warning=$(PATH="$mock_bin:$PATH" "$module" voc-alert --fake-state warning)
 [[ $(jq -r .text <<<"$voc_warning") == '󰵃 240' ]]
