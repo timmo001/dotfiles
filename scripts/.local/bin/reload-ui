@@ -56,6 +56,12 @@ else
   log "Omarchy shell restart failed"
 fi
 
+if omarchy shell shell rescanPlugins; then
+  log "Reloaded Omarchy shell plugins"
+else
+  log "Omarchy shell plugin reload failed"
+fi
+
 refresh_shell_indicators
 log "Requested Omarchy shell indicator refresh"
 
