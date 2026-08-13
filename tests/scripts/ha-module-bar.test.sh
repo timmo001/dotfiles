@@ -11,7 +11,11 @@ trap 'rm -rf "$test_root"' EXIT
 
 cat >"$mock_bin/go-automate" <<'EOF'
 #!/bin/bash
-printf '{"text":"%s °C","tooltip":"%s °C","class":"%s"}\n' "$HA_TEST_STATE" "$HA_TEST_STATE" "$HA_TEST_STATE"
+entity="${*: -1}"
+state="$HA_TEST_STATE"
+if [[ "$entity" == climate.* ]]; then state="${HA_TEST_CLIMATE_STATE:-$state}"; fi
+if [[ "$entity" == input_boolean.* ]]; then state="${HA_TEST_BOOLEAN_STATE:-$state}"; fi
+printf '{"text":"%s °C","tooltip":"%s °C","class":"%s"}\n' "$state" "$state" "$state"
 EOF
 chmod +x "$mock_bin/go-automate"
 
@@ -32,6 +36,20 @@ without_threshold=$(HA_TEST_STATE=-2.5 PATH="$mock_bin:$PATH" "$module" temperat
 icon_only=$(HA_TEST_STATE=30.7 PATH="$mock_bin:$PATH" "$module" temperature --icon 󰖙 --icon-only)
 [[ $(jq -r .text <<<"$icon_only") == '󰖙' ]]
 [[ $(jq -r .tooltip <<<"$icon_only") == *'30.7 °C' ]]
+
+ac_target_unavailable=$(HA_TEST_STATE=24 HA_TEST_CLIMATE_STATE=unavailable PATH="$mock_bin:$PATH" "$module" dining-temperature --entity input_number.living_room_air_conditioner_target_temperature --gate-entity input_number.living_room_air_conditioner_target_temperature --gate-below 26 --status-entity climate.air_conditioner --active-state cool)
+[[ $ac_target_unavailable == '{"text":"","class":"hidden"}' ]]
+
+ac_target_available=$(HA_TEST_STATE=24 HA_TEST_CLIMATE_STATE=cool PATH="$mock_bin:$PATH" "$module" dining-temperature --entity input_number.living_room_air_conditioner_target_temperature --gate-entity input_number.living_room_air_conditioner_target_temperature --gate-below 26 --status-entity climate.air_conditioner --active-state cool)
+[[ $(jq -r .text <<<"$ac_target_available") == '24.0' ]]
+[[ $(jq -r .class <<<"$ac_target_available") == 'active' ]]
+
+office_target=$(HA_TEST_STATE=23 HA_TEST_BOOLEAN_STATE=on HA_TEST_CLIMATE_STATE=off PATH="$mock_bin:$PATH" "$module" dining-temperature --entity input_number.office_air_conditioner_target_temperature --gate-entity input_boolean.office_air_conditioner_enabled --gate-state on --status-entity climate.office_air_conditioner --active-state cool)
+[[ $(jq -r .text <<<"$office_target") == '23.0' ]]
+[[ $(jq -r .class <<<"$office_target") == 'temperature' ]]
+
+office_target_disabled=$(HA_TEST_STATE=23 HA_TEST_BOOLEAN_STATE=off HA_TEST_CLIMATE_STATE=cool PATH="$mock_bin:$PATH" "$module" dining-temperature --entity input_number.office_air_conditioner_target_temperature --gate-entity input_boolean.office_air_conditioner_enabled --gate-state on --status-entity climate.office_air_conditioner --active-state cool)
+[[ $office_target_disabled == '{"text":"","class":"hidden"}' ]]
 
 co2_healthy=$(HA_TEST_STATE=800 PATH="$mock_bin:$PATH" "$module" co2-alert)
 [[ $(jq -r .text <<<"$co2_healthy") == '󰟤 800' ]]

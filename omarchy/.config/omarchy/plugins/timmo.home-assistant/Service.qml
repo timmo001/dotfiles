@@ -88,6 +88,7 @@ Item {
     var severityClasses = module.severityClasses || {}
     if (hasConfiguredClass(severityClasses.critical, stateClasses)) return "critical"
     if (hasConfiguredClass(severityClasses.warning, stateClasses)) return "warning"
+    if (hasConfiguredClass(severityClasses.active, stateClasses)) return "active"
     return matchesCondition(module.showWhen, stateClasses) ? "active" : "quiet"
   }
 
@@ -113,6 +114,7 @@ Item {
       var module = modules[i]
       if (module.background === true) continue
       var state = moduleStates[i] || { text: "", tooltip: "", className: "", available: false }
+      if (module.hideUnavailable === true && !state.available) continue
       var rowSeverity = severity(module, state)
       result.push({
         id: module.id,

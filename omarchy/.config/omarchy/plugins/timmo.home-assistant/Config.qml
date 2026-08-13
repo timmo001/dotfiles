@@ -9,6 +9,7 @@ QtObject {
     teal: "#2bb3b1",
     red: "#e06c75",
     blue: "#61afef",
+    fadedBlue: "#718496",
     rust: "#a55555",
     orange: "#e7ad63",
     tan: "#c6a47a",
@@ -62,6 +63,13 @@ QtObject {
         entity: "sensor.meter_d828_carbon_dioxide",
         label: "Meter D828 CO2"
       },
+      airConditionerTarget: {
+        entity: "input_number.office_air_conditioner_target_temperature",
+        label: "Office Air Conditioner Target Temperature",
+        gateEntity: "input_boolean.office_air_conditioner_enabled",
+        gateOption: "--gate-state on",
+        statusEntity: "climate.office_air_conditioner"
+      },
       diningTemperature: false,
       voc: false
     },
@@ -74,6 +82,13 @@ QtObject {
       co2: {
         entity: "sensor.apollo_air_1_806d64_co2",
         label: "Apollo Air 1 CO2"
+      },
+      airConditionerTarget: {
+        entity: "input_number.living_room_air_conditioner_target_temperature",
+        label: "Living Room Air Conditioner Target Temperature",
+        gateEntity: "input_number.living_room_air_conditioner_target_temperature",
+        gateOption: "--gate-below 26",
+        statusEntity: "climate.air_conditioner"
       },
       diningTemperature: true,
       voc: true
@@ -207,6 +222,23 @@ QtObject {
   function definitions(host) {
     var hostConfig = hosts[host] || hosts.laptop
     var modules = commonModules.slice()
+    var target = hostConfig.airConditionerTarget
+    var airConditionerTargetTemperature = {
+      id: "air-conditioner-target-temperature",
+      group: "Environment",
+      label: target.label,
+      icon: "󰾅",
+      command: "ha-module-bar dining-temperature --entity " + target.entity
+        + " --name '" + target.label + "' --icon 󰾅 --gate-entity " + target.gateEntity
+        + " " + target.gateOption + " --status-entity " + target.statusEntity
+        + " --active-state cool",
+      interval: 15000,
+      action: "launch-floating-webapp 'http://homeassistant.local:8123/lovelace/home?more-info-entity-id="
+        + target.entity + "'",
+      hideUnavailable: true,
+      severityClasses: { active: ["active"] },
+      colors: { quiet: colors.fadedBlue, active: colors.blue }
+    }
     var temperature = {
       id: "temperature",
       group: "Environment",
@@ -235,6 +267,7 @@ QtObject {
       colors: { warning: colors.orange, critical: colors.co2Critical }
     }
     modules.push(outdoorTemperature)
+    modules.push(airConditionerTargetTemperature)
     modules.push(heating)
     if (hostConfig.voc) modules.push(voc)
     modules.push(co2)

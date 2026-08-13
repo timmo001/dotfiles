@@ -12,6 +12,9 @@ SWITCH_ENTITY=""
 INACTIVE_SCRIPT_ENTITY=""
 GATE_ENTITY=""
 GATE_BELOW=""
+GATE_STATE=""
+STATUS_ENTITY=""
+ACTIVE_STATE=""
 SHOW_ABOVE=""
 ICON_ONLY=0
 SIMULATE_STATE=""
@@ -57,6 +60,11 @@ Mode options:
   --gate-entity <id>             Gate number entity (dining-temperature)
   --gate-below <number>          Show only when gate entity is below this
                                  value (dining-temperature, default: 25)
+  --gate-state <state>           Show only when gate entity has this state
+                                 (dining-temperature)
+  --status-entity <id>           Hide when unavailable and use its state for
+                                 active styling (dining-temperature)
+  --active-state <state>         Status entity state considered active
   --show-above <number>          Show only when the reading is strictly above
                                  this value (temperature)
   --icon-only                    Show only the icon (temperature)
@@ -111,7 +119,6 @@ set_mode_defaults() {
     ENTITY_ID="sensor.meter_plus_433c_temperature"
     ENTITY_NAME="Dining Room Temperature"
     GATE_ENTITY="input_number.living_room_air_conditioner_target_temperature"
-    GATE_BELOW="25"
     ;;
   current-next-event)
     ENTITY_ID="input_text.current_next_event_in_an_hour"
@@ -179,6 +186,18 @@ parse_args() {
       ;;
     --gate-below)
       GATE_BELOW="$2"
+      shift 2
+      ;;
+    --gate-state)
+      GATE_STATE="$2"
+      shift 2
+      ;;
+    --status-entity)
+      STATUS_ENTITY="$2"
+      shift 2
+      ;;
+    --active-state)
+      ACTIVE_STATE="$2"
       shift 2
       ;;
     --show-above)
@@ -277,11 +296,15 @@ validate_args() {
   fi
 
   if [[ "$MODE" == "dining-temperature" ]]; then
-    if [[ -z "$GATE_BELOW" ]]; then
+    if [[ -z "$GATE_BELOW" && -z "$GATE_STATE" ]]; then
       GATE_BELOW="25"
     fi
-    if [[ ! "$GATE_BELOW" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    if [[ -n "$GATE_BELOW" && ! "$GATE_BELOW" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
       printf 'ha-module-bar: --gate-below must be a number\n' >&2
+      exit 1
+    fi
+    if [[ -n "$GATE_BELOW" && -n "$GATE_STATE" ]]; then
+      printf 'ha-module-bar: --gate-below and --gate-state cannot be combined\n' >&2
       exit 1
     fi
   fi
@@ -654,10 +677,21 @@ run_nas_activity() {
 }
 
 run_dining_temperature() {
+  local status_line=""
+  local status_state=""
   local gate_line=""
   local value_line=""
   local gate_state=""
   local value_state=""
+
+  if [[ -n "$STATUS_ENTITY" ]]; then
+    status_line="$(read_entity_line "$STATUS_ENTITY")"
+    status_state="$(extract_class_field "$status_line")"
+    if [[ -z "$status_line" || "$status_state" == "unavailable" || "$status_state" == "unknown" ]]; then
+      emit_hidden
+      return
+    fi
+  fi
 
   gate_line="$(read_entity_line "$GATE_ENTITY")"
   if [[ -z "$gate_line" ]]; then
@@ -666,7 +700,11 @@ run_dining_temperature() {
   fi
 
   gate_state="$(extract_class_field "$gate_line")"
-  if [[ ! "$gate_state" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+  if [[ -n "$GATE_STATE" && "$gate_state" != "$GATE_STATE" ]]; then
+    emit_hidden
+    return
+  fi
+  if [[ -n "$GATE_BELOW" && ! "$gate_state" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
     emit_hidden
     return
   fi
@@ -690,15 +728,18 @@ run_dining_temperature() {
     text="$(printf '%.1f' "$value_state")"
   fi
 
-  # Only show the dining room temperature while the air conditioner target
-  # temperature is below the threshold (i.e. the AC is set to cool the home).
-  if ! awk -v gate="$gate_state" -v limit="$GATE_BELOW" 'BEGIN { exit !(gate < limit) }'; then
+  # Numeric gates hide values at or above the configured threshold.
+  if [[ -n "$GATE_BELOW" ]] && ! awk -v gate="$gate_state" -v limit="$GATE_BELOW" 'BEGIN { exit !(gate < limit) }'; then
     maybe_run_trigger "$gate_state"
     emit_bar_json "$text" "hidden" "$(printf '%s (%s): %.1f °C\nAC Target (%s): %s °C' "$ENTITY_NAME" "$ENTITY_ID" "$value_state" "$GATE_ENTITY" "$gate_state")"
     return
   fi
 
-  emit_bar_json "$text" "temperature" "$(printf '%s (%s): %.1f °C\nAC Target (%s): %s °C' "$ENTITY_NAME" "$ENTITY_ID" "$value_state" "$GATE_ENTITY" "$gate_state")"
+  local class_name="temperature"
+  if [[ -n "$ACTIVE_STATE" && "$status_state" == "$ACTIVE_STATE" ]]; then
+    class_name="active"
+  fi
+  emit_bar_json "$text" "$class_name" "$(printf '%s (%s): %.1f °C\nGate (%s): %s\nStatus (%s): %s' "$ENTITY_NAME" "$ENTITY_ID" "$value_state" "$GATE_ENTITY" "$gate_state" "$STATUS_ENTITY" "$status_state")"
   maybe_run_trigger "$gate_state"
 }
 
