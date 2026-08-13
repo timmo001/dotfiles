@@ -102,7 +102,9 @@ describe("mergeOmarchyShellConfig", () => {
     expect(networkIndex).toBe(bluetoothIndex + 1);
     expect(agentsIndex).toBe(bluetoothIndex - 1);
     expect(merged.bar.layout.right[0]).toMatchObject({
-      onClick: expect.stringContaining("weather.met_office"),
+      onClick: expect.stringContaining(
+        "?more-info-entity-id=weather.met_office&more-info-view=info#forecast=hourly",
+      ),
       hideClasses: ["temperature", "hidden"],
     });
     expect(merged.bar.layout.right[0]?.run).toEqual(

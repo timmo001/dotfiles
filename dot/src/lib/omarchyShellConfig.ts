@@ -157,7 +157,7 @@ function outdoorTemperatureEntry(): BarEntry {
     run: `ha-module-bar temperature --entity ${entity} --name 'Weather Station Outdoor Temperature' --icon 󰖙`,
     interval: 15000,
     onClick: floatingWebapp(
-      `${HA}/home?more-info-entity-id=weather.met_office`,
+      `${HA}/home?more-info-entity-id=weather.met_office&more-info-view=info#forecast=hourly`,
     ),
     classColors: { temperature: COLOR.orange },
     hideClasses: ["temperature", "hidden"],
