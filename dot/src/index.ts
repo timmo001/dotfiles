@@ -6,7 +6,6 @@ import { CommandExecutor } from "./services/CommandExecutor.js";
 import { OutputLog } from "./services/OutputLog.js";
 import { Launcher } from "./services/Launcher.js";
 import { DotDiff } from "./git/services/DotDiff.js";
-import { GitLog } from "./git/services/GitLog.js";
 import { GitHub } from "./git/services/GitHub.js";
 import { GitNotifications } from "./git/services/GitNotifications.js";
 import { GitStaging } from "./git/services/GitStaging.js";
@@ -53,7 +52,6 @@ import {
   diffListAll,
   diffRaw,
 } from "./git/commands/Diff.js";
-import { gitLogRaw } from "./git/commands/Log.js";
 import { gitCommitRaw } from "./git/commands/Commit.js";
 import {
   notificationsAction,
@@ -113,7 +111,6 @@ const TUI_ALTERNATIVES: Partial<Record<ViewId, string>> = {
   main: "dot help",
   dashboard: "context git",
   "git-diff": "dot git-diff --raw",
-  "git-log": "dot git-log --raw",
   "git-notifications": "dot git-notifications --raw",
 };
 
@@ -163,12 +160,6 @@ function resolveMode(): Mode {
         flags.rest.includes("--raw");
       if (!hasMachineFlag) {
         return { type: "tui", initialView: "git-diff" };
-      }
-    }
-    // Git log without raw output opens the TUI git log view.
-    if (flags.subcommand === "git-log") {
-      if (!flags.rest.includes("--raw")) {
-        return { type: "tui", initialView: "git-log" };
       }
     }
     // Git notifications without machine/action flags opens the TUI inbox view.
@@ -438,7 +429,6 @@ type NativeEnv =
   | Config
   | CommandExecutor
   | DotDiff
-  | GitLog
   | GitHub
   | GitNotifications
   | GitStaging
@@ -491,10 +481,8 @@ function withNativeCommandTimeout(
 // --- Layer Composition ---
 
 /** Minimal layers for native CLI commands (no renderer, no TUI services) */
-const GitLogLayer = GitLog.layer.pipe(Layer.provideMerge(DotDiff.layer));
-
 const CliLayers = Launcher.cliLayer.pipe(
-  Layer.provideMerge(GitLogLayer),
+  Layer.provideMerge(DotDiff.layer),
   Layer.provideMerge(GitNotifications.layer),
   Layer.provideMerge(GitStaging.layer),
   Layer.provideMerge(GitHub.layer),
@@ -561,7 +549,6 @@ if (mode.type === "native") {
         }),
       clean: () => clean,
       firewall: () => configureFirewallRules,
-      "git-log": () => gitLogRaw,
       "git-commit": (args) =>
         gitCommitRaw({
           message: optionValue(args, "--message") ?? optionValue(args, "-m"),
@@ -653,7 +640,6 @@ if (mode.type === "native") {
   const tuiProgram = Effect.gen(function* () {
     log("Starting...");
     const watcher = yield* RepoWatcher;
-    const gitLog = yield* GitLog;
     const notifications = yield* GitNotifications;
     const dashboard = yield* Dashboard;
     const renderer = yield* Renderer;
@@ -673,9 +659,6 @@ if (mode.type === "native") {
         commandRunner,
         onRefreshDiff: () => {
           runFork(watcher.refresh());
-        },
-        onRefreshGitLog: () => {
-          runFork(gitLog.refresh());
         },
         onRefreshNotifications: () => {
           runFork(notifications.refresh(notificationOpts));
@@ -703,7 +686,6 @@ if (mode.type === "native") {
     );
     log("App created");
 
-    const gitLogView = app.getGitLogView();
     const notificationsView = app.getNotificationsView();
 
     let currentRepoState = yield* watcher.getState();
@@ -735,18 +717,6 @@ if (mode.type === "native") {
       Effect.forkScoped,
     );
     log("Subscribed to state stream");
-
-    // Subscribe to git log state changes and update the git log view
-    yield* gitLog.subscribe().pipe(
-      Stream.runForEach((state) =>
-        Effect.sync(() => {
-          log(`Git log update: ${state.repos.length} repositories`);
-          gitLogView.update(state);
-        }),
-      ),
-      Effect.forkScoped,
-    );
-    log("Subscribed to git log stream");
 
     // Subscribe to notification state changes and update the notifications view
     yield* notifications.subscribe().pipe(
@@ -782,9 +752,6 @@ if (mode.type === "native") {
     );
     app.updateDiffState(initialState);
 
-    const initialGitLogState = yield* gitLog.getState();
-    gitLogView.update(initialGitLogState);
-
     const initialNotificationState = currentNotificationState;
     notificationsView.update(initialNotificationState);
 
@@ -805,7 +772,6 @@ if (mode.type === "native") {
   );
 
   const TuiLayers = RepoWatcher.layer.pipe(
-    Layer.provideMerge(GitLogLayer),
     Layer.provideMerge(DashboardLayer),
     Layer.provideMerge(GitNotifications.layer),
     Layer.provideMerge(GitHub.layer),

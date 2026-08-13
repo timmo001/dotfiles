@@ -33,7 +33,7 @@ The configuration also provides the Android SDK command-line tools and sets the 
 
 | Variable                                 | Description                                                                                                                                                               |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DOT_GIT_CONFIG_FILE`                    | Private git repo config for `git-diff`, `git-log`, `git-notifications --bar-json`, `update`, and `doctor` (default `$DOTFILES_PRIVATE_DIR/dot-git.yml`). |
+| `DOT_GIT_CONFIG_FILE`                    | Private git repo config for `git-diff`, `git-notifications --bar-json`, `update`, and `doctor` (default `$DOTFILES_PRIVATE_DIR/dot-git.yml`). |
 | `DOT_GITHUB_RETRIES`                     | Extra `gh` retry attempts after the first try (default `2`).                                                                                                              |
 | `DOT_GITHUB_RATE_LIMIT_TTL_SECONDS`      | Seconds to cache `gh api rate_limit` results (default `60`).                                                                                                              |
 | `DOT_GITHUB_RATE_LIMIT_MIN_REMAINING`    | Minimum REST quota remaining before `gh` calls wait (default `0`).                                                                                                        |

@@ -2,7 +2,7 @@
 $schema: "https://json-schema.org/draft/2020-12/schema"
 $id: "https://timmo.dev/schemas/dot-git.schema.yml"
 title: dot-git config
-description: Private git repository config for dot git-diff, git-log, and git-notifications.
+description: Private git repository config for dot git-diff and git-notifications.
 type: object
 additionalProperties: false
 

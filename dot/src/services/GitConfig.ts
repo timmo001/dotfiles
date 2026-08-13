@@ -62,7 +62,7 @@ export interface GitManagedRepo {
   readonly aliases: readonly string[];
   /** Command run from the repository root after `dot update` pulls a new HEAD. */
   readonly postUpdate: string | null;
-  /** Local activity check used by git diff and git log. */
+  /** Local activity check used by git diff and repository updates. */
   readonly activity: GitRepoCheckConfig;
   /** GitHub notification check and status-bar filters. */
   readonly notifications: GitRepoNotificationConfig;

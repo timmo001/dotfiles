@@ -10,8 +10,6 @@ const rootExamples = [
   "dot git-diff             Interactive diff TUI",
   "dot git-diff --raw       Text diff summary",
   "dot git-diff --bar-json  Status bar JSON output",
-  "dot git-log              Recent commits TUI",
-  "dot git-log --raw        Text commit history summary",
   "dot git-notifications    GitHub notifications TUI",
   "dot git-notifications --bar-json Status bar JSON output",
   "notes list               Repository notes CLI",

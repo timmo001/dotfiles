@@ -461,25 +461,6 @@ export const cliCommands: readonly CliCommandSpec[] = [
     ],
   },
   {
-    name: "git-log",
-    summary: "Open recent commits across tracked repos",
-    usage: "[options]",
-    description: [
-      "Open the recent commit history view. The left pane lists tracked repositories",
-      "from dot git-diff, sorted by latest commit activity. The right pane lists recent",
-      "commits for the selected repository.",
-    ],
-    modes: [
-      "(default)      Interactive git log TUI",
-      "--raw          Text summary of recent commits",
-    ],
-    options: [
-      { ...rawOption, description: "Text summary of recent commits" },
-      helpOption,
-    ],
-    examples: ["dot git-log", "dot git-log --raw"],
-  },
-  {
     name: "git-notifications",
     summary: "Open GitHub notification inbox",
     usage: "[options]",

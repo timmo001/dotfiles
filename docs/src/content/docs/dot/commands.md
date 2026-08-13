@@ -356,38 +356,6 @@ dot git-commit --amend -m "Reword the previous commit"
 dot git-commit -m "Preview only" --dry-run
 ```
 
-## `dot git-log`
-
-Open recent commits across tracked repos
-
-```text
-dot git-log [options]
-```
-
-Open the recent commit history view. The left pane lists tracked repositories
-from dot git-diff, sorted by latest commit activity. The right pane lists recent
-commits for the selected repository.
-
-**Modes**
-
-```text
-(default)      Interactive git log TUI
---raw          Text summary of recent commits
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--raw` | Text summary of recent commits |
-
-**Examples**
-
-```bash
-dot git-log
-dot git-log --raw
-```
-
 ## `dot git-notifications`
 
 Open GitHub notification inbox

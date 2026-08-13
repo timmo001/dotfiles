@@ -49,50 +49,6 @@ export interface RepoState {
   readonly lastChecked: Date;
 }
 
-// --- Git log types ---
-
-/** A recent commit from a tracked git repository. */
-export interface GitLogCommit {
-  /** Full commit SHA. */
-  readonly sha: string;
-  /** Short commit SHA for display. */
-  readonly shortSha: string;
-  /** ISO commit timestamp, or null when unavailable. */
-  readonly committedAt: string | null;
-  /** Commit author display name. */
-  readonly authorName: string;
-  /** Commit subject line. */
-  readonly subject: string;
-}
-
-/** Recent commit history for one tracked git repository. */
-export interface GitLogRepo {
-  /** Short display name, matching the git-diff repository list. */
-  readonly name: string;
-  /** Absolute filesystem path to the repository root. */
-  readonly path: string;
-  /** Most recent commit timestamp, or null when the repo has no commits. */
-  readonly latestAt: string | null;
-  /** Recent commits for this repository, newest first. */
-  readonly commits: readonly GitLogCommit[];
-  /** Fetch or parse error for this repository, if history could not be loaded. */
-  readonly error?: string;
-}
-
-/** Snapshot of recent commit history across tracked repositories. */
-export interface GitLogState {
-  /** Tracked repositories sorted by latest commit activity. */
-  readonly repos: readonly GitLogRepo[];
-  /** Timestamp of the last refresh attempt. */
-  readonly lastChecked: Date;
-  /** Whether a refresh is currently running. */
-  readonly loading: boolean;
-  /** Whether at least one refresh has completed. */
-  readonly loaded: boolean;
-  /** Optional global status message. */
-  readonly message?: string;
-}
-
 // --- Menu types ---
 
 /** Identifies a top-level TUI view for navigation */
@@ -100,7 +56,6 @@ export type ViewId =
   | "main"
   | "dashboard"
   | "git-diff"
-  | "git-log"
   | "git-notifications"
   | "omarchy"
   | "output";

@@ -298,9 +298,6 @@ export function resolveSubcommand(
   if (sub === "git-diff" || sub === "diff") {
     return { type: "view", viewId: "git-diff" };
   }
-  if (sub === "git-log") {
-    return { type: "view", viewId: "git-log" };
-  }
   if (sub === "git-notifications") {
     return { type: "view", viewId: "git-notifications" };
   }
@@ -317,7 +314,6 @@ export function resolveSubcommand(
  * Print help text, optionally scoped to a specific subcommand.
  *
  * - `git-diff` — shows diff-specific flags
- * - `git-log` — shows recent commit history flags
  * - `git-notifications` — shows GitHub inbox flags and actions
  * - `omarchy` — shows available omarchy submenus and space-separated navigation
  * - No subcommand — shows the full generic help

@@ -12,7 +12,7 @@ fi
 
 commands=(
   dashboard init install update stow firewall doctor clean git-diff git-commit
-  git-log git-notifications agents-sync mcp-sync notes-capture-sync is-agent
+  git-notifications agents-sync mcp-sync notes-capture-sync is-agent
   setup-private-repo private-pkg-publish skill-updates skill-check completions
   omarchy usage help
 )
@@ -37,7 +37,6 @@ DOT_USAGE_DISABLE=1 "$dot_binary" git-notifications --bar-json | jq -e 'type == 
 DOT_USAGE_DISABLE=1 "$dot_binary" git-diff --raw >/dev/null
 DOT_USAGE_DISABLE=1 "$dot_binary" git-diff --list-changed >/dev/null
 DOT_USAGE_DISABLE=1 "$dot_binary" git-diff --list-all >/dev/null
-DOT_USAGE_DISABLE=1 "$dot_binary" git-log --raw >/dev/null
 DOT_USAGE_DISABLE=1 "$dot_binary" git-notifications --raw >/dev/null
 DOT_USAGE_DISABLE=1 "$dot_binary" git-notifications --list-threads >/dev/null
 DOT_USAGE_DISABLE=1 "$dot_binary" usage path >/dev/null

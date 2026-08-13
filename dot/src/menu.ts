@@ -108,16 +108,6 @@ const dotItems: readonly MenuItem[] = [
     "Git",
   ),
   item(
-    "git-log",
-    "󰜘",
-    "Git Log",
-    "Recent commits across tracked repos",
-    view("git-log"),
-    undefined,
-    ["log", "commits", "history", "git", "repos", "recent", "changes"],
-    "Git",
-  ),
-  item(
     "git-notifications",
     "",
     "Git Notifications",

@@ -19,7 +19,7 @@ dot git-diff --no-fetch     # skip upstream fetches; use local refs only
 dot git-diff --tab other    # open with the Other pane focused
 ```
 
-The TUI polls every ten seconds and performs an initial poll for a fast first paint. `dot git-log` reuses the same tracked repo list.
+The TUI polls every ten seconds and performs an initial poll for a fast first paint.
 
 ## TUI layout
 

@@ -32,7 +32,7 @@ Always apply these skills when editing code in this directory:
 ```text
 src/
   index.ts                — Entry point, CLI mode resolution, Effect bootstrap
-  types.ts                — Repo, RepoState, GitLogState, MenuItem, MenuAction, ViewId, StagedFile
+  types.ts                — Repo, RepoState, MenuItem, MenuAction, ViewId, StagedFile
   flags.ts                — CLI parser: subcommands, --tab, --since, --raw, --help
   menu.ts                 — Menu registry: Map<string, MenuItem> for dot + omarchy items
   theme.ts                — Theme loading (Omarchy theme → TUI colours)
@@ -65,7 +65,6 @@ src/
     commands/
       Commit.ts           — dot git-commit (guarded gateway: message validation, --path, --push, --dry-run)
       Diff.ts             — dot git-diff (--bar-json, --list-changed, --list-all, --raw)
-      Log.ts              — dot git-log (--raw)
       Notifications.ts    — dot git-notifications (--bar-json, --list-threads, actions, --raw)
     remotes.ts            — Shared default-remote/branch resolver for git helpers
     doctor/
@@ -73,7 +72,6 @@ src/
       originHead.ts       — stale local origin/HEAD doctor check (default-branch ref freshness)
     services/
       DotDiff.ts          — Effect service wrapping git diff state
-      GitLog.ts           — Recent commit history state for tracked repositories
       GitHub.ts           — Shared GitHub CLI/API wrapper with rate-limit checks and retries
       GitNotifications.ts — GitHub notification inbox state and thread actions
       GitStaging.ts       — Git status/add/commit operations
@@ -81,8 +79,6 @@ src/
       relativeTime.ts     — Shared compact relative timestamp formatter
     tui/
       DiffView.ts         — Two-pane layout (Changed/Other) with repo watcher
-      GitLogView.ts       — Two-pane recent commit history view
-      GitShow.ts          — Suspend/resume git show pager launcher
       GitNotificationsView.ts — GitHub notification inbox with read/done/ignore actions
       Lazygit.ts          — Suspend/resume lazygit spawn
       SuspendedCommand.ts — Shared suspend/resume inherited-stdio command helper
@@ -122,8 +118,8 @@ src/
 
 1. `index.ts` parses CLI flags → resolves mode (TUI / native / fallback)
 2. Native commands run with `CliLayers` (no renderer, no TUI)
-3. TUI mode composes full layer stack including RepoWatcher, GitLog, GitNotifications, Renderer, Toast
-4. `App` manages a view stack (main menu ↔ diff view ↔ git log view ↔ notifications view ↔ omarchy menu)
+3. TUI mode composes full layer stack including RepoWatcher, GitNotifications, Renderer, Toast
+4. `App` manages a view stack (main menu ↔ diff view ↔ notifications view ↔ omarchy menu)
 5. Menu items have typed actions: `command` (suspend/resume), `silent` (background), `notify` (background + toast), `view` (navigate), `submenu` (nested)
 6. `CommandRunner` handles suspend/resume for terminal commands, silent background execution, and notify-style commands with toast feedback
 7. `RepoWatcher` runs an initial poll for first paint, then polls every 10s
@@ -204,8 +200,6 @@ dot git-diff --raw            # CLI diff output (no TUI)
 dot git-diff --bar-json       # JSON output for status bars and shell modules
 dot git-diff --list-changed   # Changed repo rows
 dot git-diff --list-all       # All repo rows
-dot git-log                   # Recent commits view (TUI)
-dot git-log --raw             # CLI recent commit output (20 commits per repo)
 context git                   # Branch context: repo/branch/PR summary, ahead/behind, unstaged, staged, untracked, branch files, recent commits, and optional JSON output; MCP is via `context mcp`
 dot git-commit -m "msg"       # Guarded commit gateway: validates a single-line subject, commits the staged set
 dot git-commit -m "msg" --path src/x.ts # Commit only the named file(s) (repeatable), never git add -A
@@ -271,7 +265,7 @@ After that bootstrap build, run the checked-out binary directly. If private dotf
 
 - `NOTES` / `DOT_NOTES_DIR` — notes vault used by the standalone `notes` CLI/MCP server and OpenCode note commands
 - `DOT_USAGE_DIR` — usage event root for `dot usage` (default `$XDG_STATE_HOME/tool-usage`). `DOT_USAGE_DISABLE` disables live dot recording
-- `~/.config/dotfiles-private/dot-git.yml` — private git repo config for clone/bootstrap, doctor checks, `dot git-diff`, `dot git-log`, and `dot git-notifications --bar-json`; `activity` and `notifications` each require explicit `enabled` plus 5-field cron `schedule` keys, and `notifications.bar.ignore_bot_activity` controls status-bar bot noise
+- `~/.config/dotfiles-private/dot-git.yml` — private git repo config for clone/bootstrap, doctor checks, `dot git-diff`, and `dot git-notifications --bar-json`; `activity` and `notifications` each require explicit `enabled` plus 5-field cron `schedule` keys, and `notifications.bar.ignore_bot_activity` controls status-bar bot noise
 - `gh` authenticated with a classic token carrying `notifications` or `repo` scope — required for `dot git-notifications` and its status-bar module
 - `lazygit` — launched via suspend/resume on Enter in diff view
 - `opencode` — CLI launched via suspend/resume for interactive sessions from the diff view
@@ -305,8 +299,6 @@ dot                          # main menu renders, Ctrl+c quits
 dot git-diff                 # diff view renders
 dot git-diff --raw           # CLI diff output
 dot git-diff --bar-json      # JSON output
-dot git-log                  # git log view renders
-dot git-log --raw            # CLI git log output
 dot git-commit --help        # gateway help prints without side effects
 dot git-commit --dry-run -m "Test subject" # dry-run plan, no commit
 dot git-commit --amend --dry-run # amend plan (keep message), no commit

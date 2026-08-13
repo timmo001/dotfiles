@@ -16,7 +16,6 @@ dot_commands=(
   'git-diff:Open the git diff/repo watcher view'
   'diff:Alias for git-diff'
   'git-commit:Commit staged changes through the guarded gateway'
-  'git-log:Open recent commits across tracked repos'
   'git-notifications:Open GitHub notification inbox'
   'agents-sync:Mirror AGENTS.md to agent harness instruction files'
   'mcp-sync:Regenerate MCP configs for all harnesses from the spec'
@@ -121,13 +120,6 @@ _dot_cmd_git_commit() {
     '--amend[Amend the previous commit; keeps its message unless --message is given]' \
     '--push[Push the current branch after committing (pulls --rebase first, or force-with-lease when amending, never a plain force)]' \
     '--dry-run[Preview the commit and push plan without changing anything]' \
-    '(-h --help)-h[Show this help message]' \
-    '(-h --help)--help[Show this help message]' \
-    '*::arg:->args'
-}
-_dot_cmd_git_log() {
-  _arguments -S \
-    '--raw[Text summary of recent commits]' \
     '(-h --help)-h[Show this help message]' \
     '(-h --help)--help[Show this help message]' \
     '*::arg:->args'
@@ -288,9 +280,6 @@ _dot_complete_command() {
       ;;
     git-commit)
       _dot_cmd_git_commit
-      ;;
-    git-log)
-      _dot_cmd_git_log
       ;;
     git-notifications)
       _dot_cmd_git_notifications
