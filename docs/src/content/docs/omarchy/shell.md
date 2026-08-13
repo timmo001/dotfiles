@@ -63,7 +63,7 @@ The tables below show the rendered left-to-right order within each section. Omar
 
 The bar order matches desktop. Inside the Home Assistant panel, laptop uses its living-room temperature and CO₂ entities and adds VOC and dining-room temperature rows.
 
-The full item order above appears only on the primary output. Secondary outputs keep the core menu, `timmo.workspaces`, `timmo.clock`, and built-in system widgets; Twitch, command cells, and the Home Assistant widget collapse without starting per-output pollers or loading their panels.
+The full item order above appears only on the primary output. Secondary outputs keep the core menu, `timmo.workspaces`, `timmo.clock`, and built-in system widgets; Twitch, Git, command cells, and the Home Assistant widget collapse without starting per-output pollers or loading their panels.
 
 The personal status widgets read from bar-agnostic scripts, `dot` JSON output, and Home Assistant. Command cells and the Home Assistant aggregate render at 10px; stock-sized custom icons, the clock, and workspaces render at 11px. See [Bar Integrations](/bar-integrations/) for the JSON commands behind the bar and dashboard.
 
@@ -71,7 +71,7 @@ The personal status widgets read from bar-agnostic scripts, `dot` JSON output, a
 
 The generated config starts from Omarchy Quattro's shipped `shell.json` and modifies that layout rather than replacing it wholesale.
 
-No stock widget is removed without a replacement. `omarchy.workspaces` is replaced in place by `timmo.workspaces`, which shows only workspaces that currently exist, displays the focused workspace number at full opacity, and dims the others. `omarchy.weather` is replaced by the Home Assistant dashboard immediately after the tray; its outdoor row opens the same Met Office weather entity and hourly forecast.
+`omarchy.workspaces` is replaced in place by `timmo.workspaces`, which shows only workspaces that currently exist, displays the focused workspace number at full opacity, and dims the others. `omarchy.weather` is replaced by the Home Assistant dashboard immediately after the tray; its outdoor row opens the same Met Office weather entity and hourly forecast. The stock `omarchy.agents` widget is intentionally removed without replacement.
 
 The Home Assistant plugin uses one bar widget whose width follows its visible content. It shows each currently visible row's original compact icon and value, with its configured colour, in left-to-right order, or the Home Assistant icon when every row is quiet. Conditional rows appear only while active, warning, or critical; regular readings remain visible whenever their source output is available, except outdoor temperature, which appears only above 25 °C. Hovering does not reveal extra states. Clicking the widget opens the complete dashboard panel, including quiet and unavailable rows. Activating a row that opens a link closes the panel first. The Clock, Home Assistant, and Twitch panels align with their corresponding bar widgets rather than the centre of the screen.
 

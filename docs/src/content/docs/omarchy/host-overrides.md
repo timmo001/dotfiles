@@ -13,7 +13,7 @@ Quattro provides `/usr/share/uwsm/env.d/10-omarchy` and `/usr/share/omarchy/defa
 
 Ghostty config is a stowed dotfiles package (`ghostty/.config/ghostty/`), not a tracked Omarchy repo. The stowed `ghostty-host-config` launcher checks `OMARCHY_HOST` and loads `~/.config/ghostty/config.$OMARCHY_HOST` when present, falling back to the default `~/.config/ghostty/config` otherwise.
 
-The shared config uses 8px window padding. The laptop override keeps that padding and reduces the font size from 10 to 9.
+The shared config uses 12px window padding. The laptop override reduces the padding to 8px and the font size from 10 to 9.
 
 | Binding | Action |
 | --- | --- |
