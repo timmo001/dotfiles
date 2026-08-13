@@ -26,8 +26,10 @@ Panel {
       var row = rows[i]
       entries.push({
         key: "row:" + String(row.id || i),
+        section: row.group,
         value: row,
-        searchText: [row.group, row.label, rowValue(row)].join(" ")
+        primaryText: row.label,
+        secondaryText: [row.group, rowValue(row)].join(" ")
       })
     }
     return entries

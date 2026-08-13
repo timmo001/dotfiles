@@ -30,8 +30,10 @@ Panel {
       rows.push({
         key: "action:" + i,
         kind: "action",
+        section: "action",
         actionIndex: i,
-        searchText: actionLabels[i]
+        primaryText: actionLabels[i],
+        secondaryText: ""
       })
     }
     var repos = service ? service.repos : []
@@ -40,8 +42,10 @@ Panel {
       rows.push({
         key: "repo:" + String(repo.name || j),
         kind: "repo",
+        section: "repo",
         value: repo,
-        searchText: [repo.name, repoDetail(repo)].join(" ")
+        primaryText: repo.name,
+        secondaryText: repoDetail(repo)
       })
     }
     var threads = service ? service.threads : []
@@ -50,8 +54,10 @@ Panel {
       rows.push({
         key: "thread:" + String(thread.webUrl || k),
         kind: "thread",
+        section: "thread",
         value: thread,
-        searchText: [thread.repo, thread.title, thread.reason, thread.type].join(" ")
+        primaryText: thread.repo,
+        secondaryText: [thread.title, thread.reason, thread.type].join(" ")
       })
     }
     return rows

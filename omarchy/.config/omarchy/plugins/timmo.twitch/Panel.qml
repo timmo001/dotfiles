@@ -37,8 +37,10 @@ Panel {
       rows.push({
         key: "action:" + i,
         kind: "action",
+        section: "action",
         actionIndex: i,
-        searchText: actionLabels[i]
+        primaryText: actionLabels[i],
+        secondaryText: ""
       })
     }
     var channels = service ? service.channels : []
@@ -47,8 +49,10 @@ Panel {
       rows.push({
         key: "channel:" + String(channel.login || j),
         kind: "channel",
+        section: "channel",
         value: channel,
-        searchText: [channel.login, channel.title].join(" ")
+        primaryText: channel.login,
+        secondaryText: channel.title
       })
     }
     return rows

@@ -28,8 +28,22 @@ Item {
   function filterModel(entries, query) {
     var term = String(query || "").trim().toLowerCase()
     if (!term) return entries || []
-    return (entries || []).filter(function(entry) {
-      return String(entry.searchText || "").toLowerCase().indexOf(term) >= 0
+    var source = entries || []
+    var matches = source.filter(function(entry) {
+      return [entry.primaryText, entry.secondaryText].join(" ").toLowerCase().indexOf(term) >= 0
+    })
+    return matches.sort(function(a, b) {
+      var aSection = String(a.section || "")
+      var bSection = String(b.section || "")
+      if (aSection !== bSection) {
+        var aSectionIndex = source.findIndex(function(entry) { return String(entry.section || "") === aSection })
+        var bSectionIndex = source.findIndex(function(entry) { return String(entry.section || "") === bSection })
+        return aSectionIndex - bSectionIndex
+      }
+      var aPrimary = String(a.primaryText || "").toLowerCase().indexOf(term) >= 0
+      var bPrimary = String(b.primaryText || "").toLowerCase().indexOf(term) >= 0
+      if (aPrimary !== bPrimary) return aPrimary ? -1 : 1
+      return source.indexOf(a) - source.indexOf(b)
     })
   }
 
