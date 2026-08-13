@@ -1,0 +1,12 @@
+{
+  "update.dotfiles": {
+    "icon": "",
+    "label": "Dotfiles",
+    "action": "omarchy-launch-floating-terminal-with-presentation 'dot update'"
+  },
+  "update.topgrade": {
+    "icon": "",
+    "label": "Topgrade",
+    "action": "omarchy-launch-floating-terminal-with-presentation topgrade"
+  }
+}

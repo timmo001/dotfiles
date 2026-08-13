@@ -9,10 +9,11 @@ These dotfiles do not fork the shell. They extend it through supported user conf
 
 ## Source of truth
 
-Three things drive the bar, and none is hand-edited live:
+Four files drive the shell customisation, and none is hand-edited live:
 
 - **`~/.config/omarchy/shell.json`** is generated, not stowed. `dot` renders it from Omarchy's shipped default and inserts the personal modules. The generator is `dot/src/lib/omarchyShellConfig.ts` (`mergeOmarchyShellConfig`). The live file is mode `0600` and tracked by neither dotfiles repo.
 - **`~/.config/omarchy/shell.toml`** is stowed from `omarchy/.config/omarchy/shell.toml`. It keeps the shell-wide 12px type scale while setting the compact bar surface to 12px.
+- **`~/.config/omarchy/extensions/omarchy-menu.jsonc`** is stowed from `omarchy/.config/omarchy/extensions/omarchy-menu.jsonc`. It adds **Dotfiles** (`dot update`) and **Topgrade** (`topgrade`) to the stock **Update** submenu without replacing the upstream menu.
 - **Bar plugins** live under `omarchy/.config/omarchy/plugins/<id>/` in this repo and stow to `~/.config/omarchy/plugins/<id>/`. Each plugin is a `manifest.json` plus an entry-point QML file.
 
 To change the bar, edit the generator (then rebuild `dot`) or edit a plugin's QML, never the live `shell.json`.
