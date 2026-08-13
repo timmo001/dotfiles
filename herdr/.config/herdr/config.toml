@@ -107,7 +107,7 @@ command = "usagebar.refresh"
 description = "refresh agent usage"
 
 [theme]
-name = "catppuccin"
+name = "tokyo-night"
 auto_switch = false
 
 [ui]
