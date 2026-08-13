@@ -532,17 +532,17 @@ run_temperature() {
   if ((ICON_ONLY)); then
     text="$ICON"
   elif [[ -n "$ICON" ]]; then
-    text="$(printf '%s %.1f' "$ICON" "$state")"
+    text="$ICON $state"
   else
-    text="$(printf '%.1f' "$state")"
+    text="$state"
   fi
 
   if [[ -n "$SHOW_ABOVE" ]] && ! awk -v state="$state" -v threshold="$SHOW_ABOVE" 'BEGIN { exit !(state > threshold) }'; then
-    emit_bar_json "$text" "hidden" "$(printf '%s (%s): %.1f °C' "$ENTITY_NAME" "$ENTITY_ID" "$state")"
+    emit_bar_json "$text" "hidden" "$ENTITY_NAME ($ENTITY_ID): $state °C"
     return
   fi
 
-  emit_bar_json "$text" "temperature" "$(printf '%s (%s): %.1f °C' "$ENTITY_NAME" "$ENTITY_ID" "$state")"
+  emit_bar_json "$text" "temperature" "$ENTITY_NAME ($ENTITY_ID): $state °C"
   maybe_run_trigger "$state"
 }
 
@@ -580,11 +580,11 @@ run_co2_alert() {
   maybe_run_trigger "$state"
 
   if ((co2_ppm > 2000)); then
-    emit_bar_json "$(printf '󰟤 %.0f' "$state")" "critical" "$(printf '%s (%s): %.0f ppm' "$ENTITY_NAME" "$ENTITY_ID" "$state")"
+    emit_bar_json "󰟤 $state" "critical" "$ENTITY_NAME ($ENTITY_ID): $state ppm"
   elif ((co2_ppm > 1400)); then
-    emit_bar_json "$(printf '󰟤 %.0f' "$state")" "warning" "$(printf '%s (%s): %.0f ppm' "$ENTITY_NAME" "$ENTITY_ID" "$state")"
+    emit_bar_json "󰟤 $state" "warning" "$ENTITY_NAME ($ENTITY_ID): $state ppm"
   else
-    emit_bar_json "$(printf '󰟤 %.0f' "$state")" "hidden" "$(printf '%s (%s): %.0f ppm' "$ENTITY_NAME" "$ENTITY_ID" "$state")"
+    emit_bar_json "󰟤 $state" "hidden" "$ENTITY_NAME ($ENTITY_ID): $state ppm"
   fi
 }
 
@@ -628,11 +628,11 @@ run_voc_alert() {
   maybe_run_trigger "$quality_state"
 
   if [[ "$quality_normalized" == "extremely abnormal" ]]; then
-    emit_bar_json "$(printf '󰵃 %.0f' "$value_state")" "critical" "$(printf '%s (%s): %.0f\nVOC Quality (%s): %s' "$ENTITY_NAME" "$VALUE_ENTITY" "$value_state" "$QUALITY_ENTITY" "$quality_state")"
+    emit_bar_json "󰵃 $value_state" "critical" "$(printf '%s (%s): %s\nVOC Quality (%s): %s' "$ENTITY_NAME" "$VALUE_ENTITY" "$value_state" "$QUALITY_ENTITY" "$quality_state")"
   elif [[ "$quality_normalized" == "very abnormal" ]]; then
-    emit_bar_json "$(printf '󰵃 %.0f' "$value_state")" "warning" "$(printf '%s (%s): %.0f\nVOC Quality (%s): %s' "$ENTITY_NAME" "$VALUE_ENTITY" "$value_state" "$QUALITY_ENTITY" "$quality_state")"
+    emit_bar_json "󰵃 $value_state" "warning" "$(printf '%s (%s): %s\nVOC Quality (%s): %s' "$ENTITY_NAME" "$VALUE_ENTITY" "$value_state" "$QUALITY_ENTITY" "$quality_state")"
   else
-    emit_bar_json "$(printf '󰵃 %.0f' "$value_state")" "hidden" "$(printf '%s (%s): %.0f\nVOC Quality (%s): %s' "$ENTITY_NAME" "$VALUE_ENTITY" "$value_state" "$QUALITY_ENTITY" "$quality_state")"
+    emit_bar_json "󰵃 $value_state" "hidden" "$(printf '%s (%s): %s\nVOC Quality (%s): %s' "$ENTITY_NAME" "$VALUE_ENTITY" "$value_state" "$QUALITY_ENTITY" "$quality_state")"
   fi
 }
 
@@ -723,15 +723,15 @@ run_dining_temperature() {
 
   local text=""
   if [[ -n "$ICON" ]]; then
-    text="$(printf '%s %.1f' "$ICON" "$value_state")"
+    text="$ICON $value_state"
   else
-    text="$(printf '%.1f' "$value_state")"
+    text="$value_state"
   fi
 
   # Numeric gates hide values at or above the configured threshold.
   if [[ -n "$GATE_BELOW" ]] && ! awk -v gate="$gate_state" -v limit="$GATE_BELOW" 'BEGIN { exit !(gate < limit) }'; then
     maybe_run_trigger "$gate_state"
-    emit_bar_json "$text" "hidden" "$(printf '%s (%s): %.1f °C\nAC Target (%s): %s °C' "$ENTITY_NAME" "$ENTITY_ID" "$value_state" "$GATE_ENTITY" "$gate_state")"
+    emit_bar_json "$text" "hidden" "$(printf '%s (%s): %s °C\nAC Target (%s): %s °C' "$ENTITY_NAME" "$ENTITY_ID" "$value_state" "$GATE_ENTITY" "$gate_state")"
     return
   fi
 
@@ -739,7 +739,7 @@ run_dining_temperature() {
   if [[ -n "$ACTIVE_STATE" && "$status_state" == "$ACTIVE_STATE" ]]; then
     class_name="active"
   fi
-  emit_bar_json "$text" "$class_name" "$(printf '%s (%s): %.1f °C\nGate (%s): %s\nStatus (%s): %s' "$ENTITY_NAME" "$ENTITY_ID" "$value_state" "$GATE_ENTITY" "$gate_state" "$STATUS_ENTITY" "$status_state")"
+  emit_bar_json "$text" "$class_name" "$(printf '%s (%s): %s °C\nGate (%s): %s\nStatus (%s): %s' "$ENTITY_NAME" "$ENTITY_ID" "$value_state" "$GATE_ENTITY" "$gate_state" "$STATUS_ENTITY" "$status_state")"
   maybe_run_trigger "$gate_state"
 }
 
