@@ -21,7 +21,7 @@ reset_target() {
 
 reset_target
 
-OMARCHY_PATCH_ROOT="$test_root/omarchy" OMARCHY_PATCH_DIR="$patch_dir" "$script"
+XDG_DATA_HOME="$test_root/opencode-v2" OMARCHY_PATCH_ROOT="$test_root/omarchy" "$script"
 printf -v marker 'dispatch_hook="$%s/.config/omarchy/hooks/agent-crash"' HOME
 grep -Fq "$marker" "$target"
 
