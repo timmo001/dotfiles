@@ -43,18 +43,20 @@ Item {
     if (!statusProcess.running) statusProcess.running = true
   }
 
-  function runAction(args) {
+  function runAction(command) {
     if (actionProcess.running) return
-    actionCommand = ["twitch-notifications"].concat(args)
+    actionCommand = command
     actionProcess.running = true
   }
 
   function recheck(openStreams) {
-    runAction(openStreams ? ["--recheck", "--open"] : ["--recheck"])
+    runAction(openStreams
+      ? ["twitch-notifications", "--recheck", "--open"]
+      : ["twitch-notifications-recheck"])
   }
 
   function restart() {
-    runAction(["--restart"])
+    runAction(["twitch-notifications-restart"])
   }
 
   function openUrl(url) {

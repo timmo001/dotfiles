@@ -14,7 +14,7 @@ BarWidget {
     && setting("revealOnHover", true)
     && !!bar
     && bar.barHovered === true
-  readonly property bool shown: !twitch || !hiddenByState || hoverRevealed
+  readonly property bool shown: !twitch || !hiddenByState || hoverRevealed || opened
   readonly property string displayText: twitch && twitch.statusState === "live"
     ? "󰂚 " + twitch.liveCount : "󰂚"
   readonly property color displayColor: !twitch || twitch.statusState === "inactive"
@@ -90,6 +90,7 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
+    fontSize: 10
     text: root.hoverRevealed ? "󰂜 0" : root.displayText
     dimmed: root.hoverRevealed
     foreground: root.displayColor

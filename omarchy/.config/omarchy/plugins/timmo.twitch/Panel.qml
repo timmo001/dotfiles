@@ -29,6 +29,10 @@ Panel {
   ]
   readonly property var actionIcons: ["", "󰕃", "", "", "󰜉"]
 
+  onCursorCountChanged: {
+    if (cursorIndex >= cursorCount) cursorIndex = Math.max(0, cursorCount - 1)
+  }
+
   function open() {
     cursorIndex = 0
     if (service) service.refresh()
