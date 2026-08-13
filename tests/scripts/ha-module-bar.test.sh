@@ -19,10 +19,10 @@ run_temperature() {
   HA_TEST_STATE="$1" PATH="$mock_bin:$PATH" "$module" temperature --show-above 25
 }
 
-[[ $(run_temperature 24.9) == '{"text":"","class":"hidden"}' ]]
-[[ $(run_temperature 25) == '{"text":"","class":"hidden"}' ]]
+[[ $(run_temperature 24.9) == '{"text":"24.9","class":"hidden","tooltip":"Meter Plus Temperature (sensor.meter_plus_378b_temperature): 24.9 °C"}' ]]
+[[ $(run_temperature 25) == '{"text":"25.0","class":"hidden","tooltip":"Meter Plus Temperature (sensor.meter_plus_378b_temperature): 25.0 °C"}' ]]
 [[ $(run_temperature 25.1 | jq -r .text) == '25.1' ]]
-[[ $(run_temperature -2.5) == '{"text":"","class":"hidden"}' ]]
+[[ $(run_temperature -2.5 | jq -r .text) == '-2.5' ]]
 [[ $(run_temperature unavailable) == '{"text":"","class":"hidden"}' ]]
 [[ $(run_temperature malformed) == '{"text":"","class":"hidden"}' ]]
 
@@ -32,6 +32,11 @@ without_threshold=$(HA_TEST_STATE=-2.5 PATH="$mock_bin:$PATH" "$module" temperat
 icon_only=$(HA_TEST_STATE=30.7 PATH="$mock_bin:$PATH" "$module" temperature --icon 󰖙 --icon-only)
 [[ $(jq -r .text <<<"$icon_only") == '󰖙' ]]
 [[ $(jq -r .tooltip <<<"$icon_only") == *'30.7 °C' ]]
+
+co2_healthy=$(HA_TEST_STATE=800 PATH="$mock_bin:$PATH" "$module" co2-alert)
+[[ $(jq -r .text <<<"$co2_healthy") == '󰟤 800' ]]
+[[ $(jq -r .class <<<"$co2_healthy") == 'hidden' ]]
+[[ $(jq -r .tooltip <<<"$co2_healthy") == *'800 ppm' ]]
 
 co2_warning=$(PATH="$mock_bin:$PATH" "$module" co2-alert --fake-state warning)
 [[ $(jq -r .text <<<"$co2_warning") == '󰟤 1600' ]]

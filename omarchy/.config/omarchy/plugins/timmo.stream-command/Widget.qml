@@ -55,7 +55,10 @@ BarWidget {
   }
 
   readonly property string displayText: root.withoutZeroValue(root.outText)
-  readonly property string revealText: root.withoutZeroValue(root.outText !== "" ? root.outText : root.hiddenText)
+  readonly property string revealText: {
+    var value = root.withoutZeroValue(root.outText)
+    return value !== "" ? value : root.withoutZeroValue(root.hiddenText)
+  }
 
   // Reveal class-hidden modules dimmed while the bar is hovered, mirroring the
   // stock idle indicators. hiddenText covers producers that emit empty text.
@@ -71,11 +74,11 @@ BarWidget {
   // `visible`/`implicitWidth` so a hidden module collapses to zero width and
   // the bar reflows, instead of reserving the button's minimum width as an
   // empty gap.
-  readonly property bool shown: (!root.hiddenByClass && root.outText !== "")
+  readonly property bool shown: (!root.hiddenByClass && root.displayText !== "")
     || root.hoverRevealed
 
   function withoutZeroValue(text) {
-    return text.replace(/(?:^|\s+)0$/, "").trim()
+    return text.replace(/(?:^|\s+)[+-]?0+(?:\.0+)?$/, "").trim()
   }
 
   function applyOutput(raw) {

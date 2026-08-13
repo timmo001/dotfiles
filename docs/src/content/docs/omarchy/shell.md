@@ -37,9 +37,9 @@ Layout changes applied on top of the default bar:
 
 - **Left**: Omarchy's persistent workspaces widget is swapped for `timmo.workspaces`, then a calendar module is appended.
 - **Centre**: the clock stays as the centre anchor on desktop (the stock config gear only renders next to a centred clock) but moves to the right on laptop. The weather is pulled out, personal status widgets are inserted before the system-update group, and the permanently hidden doorbell popup trigger goes last.
-- **Right**: the Home Assistant sensors are inserted before the default tray cluster. The outdoor temperature replaces the stock weather widget, followed by the AI agents control and the connectivity widgets. It appears with its current value while the bar is hovered and opens `weather.met_office` in Home Assistant when clicked.
+- **Right**: the Home Assistant sensors are inserted before the default tray cluster. The outdoor temperature replaces the stock weather widget immediately before the tray expansion. It appears with its current value while the bar is hovered and opens `weather.met_office` in Home Assistant when clicked.
 
-The personal status widgets read from bar-agnostic scripts, `dot` JSON output, and Home Assistant. Command and streaming-command cells render at 10px; stock-sized custom icons, the clock, and workspaces render at 11px. A trailing zero value is omitted while its icon remains; class-based visibility and hover reveals still follow each widget's existing rules, with zero-state icons faded from their active colour. See [Bar Integrations](/bar-integrations/) for the `--bar-json` commands behind the git and notification cells.
+The personal status widgets read from bar-agnostic scripts, `dot` JSON output, and Home Assistant. Command and streaming-command cells render at 10px; stock-sized custom icons, the clock, and workspaces render at 11px. Hidden numeric sensors show their current non-zero reading while the bar is hovered. Integer and decimal zero values are omitted while any accompanying icon remains; class-based visibility and hover reveals still follow each widget's existing rules, with zero-state icons faded from their active colour. See [Bar Integrations](/bar-integrations/) for the `--bar-json` commands behind the git and notification cells.
 
 ## Stock Quattro comparison
 
@@ -53,7 +53,7 @@ No stock widget is removed without a replacement.
 
 ### Replaced
 
-`omarchy.weather` is removed. A `timmo.command` outdoor-temperature item takes its place immediately before `omarchy.agents`, so the AI icon follows all custom widgets. It stays hidden until the bar is hovered, then shows its icon and current value. Clicking it opens the Met Office weather entity in Home Assistant.
+`omarchy.weather` is removed. A `timmo.command` outdoor-temperature item takes its place immediately before `omarchy.tray`, so it sits next to the tray expansion. It stays hidden until the bar is hovered, then shows its icon and current value. Clicking it opens the Met Office weather entity in Home Assistant.
 
 No other stock widget changes section. `omarchy.system-update` remains in the centre after the added status widgets, while the complete stock tray cluster remains on the right in its original order.
 

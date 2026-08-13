@@ -506,17 +506,17 @@ run_temperature() {
     return
   fi
 
-  if [[ -n "$SHOW_ABOVE" ]] && ! awk -v state="$state" -v threshold="$SHOW_ABOVE" 'BEGIN { exit !(state > threshold) }'; then
-    emit_hidden
-    return
-  fi
-
   if ((ICON_ONLY)); then
     text="$ICON"
   elif [[ -n "$ICON" ]]; then
     text="$(printf '%s %.1f' "$ICON" "$state")"
   else
     text="$(printf '%.1f' "$state")"
+  fi
+
+  if [[ -n "$SHOW_ABOVE" ]] && ! awk -v state="$state" -v threshold="$SHOW_ABOVE" 'BEGIN { exit !(state > threshold) }'; then
+    emit_bar_json "$text" "hidden" "$(printf '%s (%s): %.1f °C' "$ENTITY_NAME" "$ENTITY_ID" "$state")"
+    return
   fi
 
   emit_bar_json "$text" "temperature" "$(printf '%s (%s): %.1f °C' "$ENTITY_NAME" "$ENTITY_ID" "$state")"
@@ -561,7 +561,7 @@ run_co2_alert() {
   elif ((co2_ppm > 1400)); then
     emit_bar_json "$(printf '󰟤 %.0f' "$state")" "warning" "$(printf '%s (%s): %.0f ppm' "$ENTITY_NAME" "$ENTITY_ID" "$state")"
   else
-    emit_hidden
+    emit_bar_json "$(printf '󰟤 %.0f' "$state")" "hidden" "$(printf '%s (%s): %.0f ppm' "$ENTITY_NAME" "$ENTITY_ID" "$state")"
   fi
 }
 
@@ -609,7 +609,7 @@ run_voc_alert() {
   elif [[ "$quality_normalized" == "very abnormal" ]]; then
     emit_bar_json "$(printf '󰵃 %.0f' "$value_state")" "warning" "$(printf '%s (%s): %.0f\nVOC Quality (%s): %s' "$ENTITY_NAME" "$VALUE_ENTITY" "$value_state" "$QUALITY_ENTITY" "$quality_state")"
   else
-    emit_hidden
+    emit_bar_json "$(printf '󰵃 %.0f' "$value_state")" "hidden" "$(printf '%s (%s): %.0f\nVOC Quality (%s): %s' "$ENTITY_NAME" "$VALUE_ENTITY" "$value_state" "$QUALITY_ENTITY" "$quality_state")"
   fi
 }
 
@@ -631,16 +631,16 @@ run_nas_activity() {
     return
   fi
 
-  switch_state="$(extract_class_field "$switch_line")"
-  if [[ "$switch_state" != "on" ]]; then
-    maybe_run_trigger "$switch_state"
+  activity_state="$(extract_class_field "$activity_line")"
+  if [[ ! "$activity_state" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
     emit_hidden
     return
   fi
 
-  activity_state="$(extract_class_field "$activity_line")"
-  if [[ ! "$activity_state" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
-    emit_hidden
+  switch_state="$(extract_class_field "$switch_line")"
+  if [[ "$switch_state" != "on" ]]; then
+    maybe_run_trigger "$switch_state"
+    emit_bar_json "󰒋 $activity_state" "hidden" "$(printf '%s (%s): %s' "$ENTITY_NAME" "$ENTITY_ID" "$activity_state")"
     return
   fi
 
@@ -671,14 +671,6 @@ run_dining_temperature() {
     return
   fi
 
-  # Only show the dining room temperature while the air conditioner target
-  # temperature is below the threshold (i.e. the AC is set to cool the home).
-  if ! awk -v gate="$gate_state" -v limit="$GATE_BELOW" 'BEGIN { exit !(gate < limit) }'; then
-    maybe_run_trigger "$gate_state"
-    emit_hidden
-    return
-  fi
-
   value_line="$(read_entity_line "$ENTITY_ID")"
   if [[ -z "$value_line" ]]; then
     emit_hidden
@@ -696,6 +688,14 @@ run_dining_temperature() {
     text="$(printf '%s %.1f' "$ICON" "$value_state")"
   else
     text="$(printf '%.1f' "$value_state")"
+  fi
+
+  # Only show the dining room temperature while the air conditioner target
+  # temperature is below the threshold (i.e. the AC is set to cool the home).
+  if ! awk -v gate="$gate_state" -v limit="$GATE_BELOW" 'BEGIN { exit !(gate < limit) }'; then
+    maybe_run_trigger "$gate_state"
+    emit_bar_json "$text" "hidden" "$(printf '%s (%s): %.1f °C\nAC Target (%s): %s °C' "$ENTITY_NAME" "$ENTITY_ID" "$value_state" "$GATE_ENTITY" "$gate_state")"
+    return
   fi
 
   emit_bar_json "$text" "temperature" "$(printf '%s (%s): %.1f °C\nAC Target (%s): %s °C' "$ENTITY_NAME" "$ENTITY_ID" "$value_state" "$GATE_ENTITY" "$gate_state")"

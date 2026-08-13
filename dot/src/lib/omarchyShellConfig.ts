@@ -96,9 +96,6 @@ const TRAY_ID = "omarchy.tray";
 /** Widget id of Omarchy's default AI agents bar entry. */
 const AGENTS_ID = "omarchy.agents";
 
-/** Widget id of Omarchy's default network bar entry (right-column anchor). */
-const NETWORK_ID = "omarchy.network";
-
 /** Widget id immediately before network in Omarchy's default right column. */
 const BLUETOOTH_ID = "omarchy.bluetooth";
 
@@ -452,7 +449,7 @@ function insertBefore(
  * are inserted around them ("add, not remove"). The clock stays as the centre
  * anchor on desktop but moves to the end of the right section on laptop; the
  * stock weather widget is replaced by the outdoor temperature immediately
- * before the Bluetooth and network widgets.
+ * before the tray expansion.
  *
  * @param base - Parsed Omarchy default `shell.json`.
  * @param host - The `OMARCHY_HOST` value (e.g. `desktop`, `laptop`).
@@ -501,19 +498,12 @@ export function mergeOmarchyShellConfig(
   center.push(doorbellEntry());
 
   // Right: the Home Assistant sensors go before the default tray cluster. The
-  // outdoor temperature replaces weather before the stock Bluetooth and
-  // network widgets, followed by the stock AI agents control.
+  // outdoor temperature replaces weather immediately before the tray expansion.
   const agentsIndex = right.findIndex((entry) => entry.id === AGENTS_ID);
   const agentsEntry =
     agentsIndex === -1 ? undefined : right.splice(agentsIndex, 1)[0];
   insertBefore(right, TRAY_ID, customRightEntries(host));
-  insertBefore(
-    right,
-    right.some((entry) => entry.id === BLUETOOTH_ID)
-      ? BLUETOOTH_ID
-      : NETWORK_ID,
-    [outdoorTemperatureEntry()],
-  );
+  insertBefore(right, TRAY_ID, [outdoorTemperatureEntry()]);
   if (agentsEntry) {
     insertBefore(right, BLUETOOTH_ID, [agentsEntry]);
   }

@@ -67,7 +67,10 @@ BarWidget {
   }
 
   readonly property string displayText: root.withoutZeroValue(root.outText)
-  readonly property string revealText: root.withoutZeroValue(root.outText !== "" ? root.outText : root.hiddenText)
+  readonly property string revealText: {
+    var value = root.withoutZeroValue(root.outText)
+    return value !== "" ? value : root.withoutZeroValue(root.hiddenText)
+  }
 
   // Reveal class-hidden modules dimmed while the bar is hovered, mirroring the
   // stock idle indicators. hiddenText covers producers that emit empty text.
@@ -82,11 +85,11 @@ BarWidget {
   // center cluster. Drives `visible`/`implicitWidth` so hidden modules remain
   // collapsed while refreshing instead of briefly showing their placeholder.
   readonly property bool shown: (!root.hiddenByClass
-    && ((root.loading && root.loadingText !== "") || root.outText !== ""))
+    && ((root.loading && root.loadingText !== "") || root.displayText !== ""))
     || root.hoverRevealed
 
   function withoutZeroValue(text) {
-    return text.replace(/(?:^|\s+)0$/, "").trim()
+    return text.replace(/(?:^|\s+)[+-]?0+(?:\.0+)?$/, "").trim()
   }
 
   // Background poll (timer): only show the loading placeholder on a cold
