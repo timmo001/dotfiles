@@ -95,17 +95,19 @@ describe("mergeOmarchyShellConfig", () => {
     ).toBe(true);
 
     const rightIds = merged.bar.layout.right.map(({ id }) => id);
+    const agentsIndex = rightIds.indexOf("omarchy.agents");
     const bluetoothIndex = rightIds.indexOf("omarchy.bluetooth");
     const networkIndex = rightIds.indexOf("omarchy.network");
     expect(networkIndex).toBe(bluetoothIndex + 1);
-    expect(merged.bar.layout.right[bluetoothIndex - 1]).toMatchObject({
+    expect(agentsIndex).toBe(bluetoothIndex - 1);
+    expect(merged.bar.layout.right[agentsIndex - 1]).toMatchObject({
       onClick: expect.stringContaining("weather.met_office"),
       hideClasses: ["temperature", "hidden"],
     });
-    expect(merged.bar.layout.right[bluetoothIndex - 1]?.run).toEqual(
+    expect(merged.bar.layout.right[agentsIndex - 1]?.run).toEqual(
       expect.stringContaining("sensor.weather_station_outdoor_temperature"),
     );
-    expect(merged.bar.layout.right[bluetoothIndex - 1]?.run).not.toEqual(
+    expect(merged.bar.layout.right[agentsIndex - 1]?.run).not.toEqual(
       expect.stringContaining("--icon-only"),
     );
     expect(rightIds).not.toContain("omarchy.weather");

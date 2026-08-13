@@ -93,6 +93,9 @@ const SYSTEM_UPDATE_ID = "omarchy.system-update";
 /** Widget id of Omarchy's default tray bar entry (right-column anchor). */
 const TRAY_ID = "omarchy.tray";
 
+/** Widget id of Omarchy's default AI agents bar entry. */
+const AGENTS_ID = "omarchy.agents";
+
 /** Widget id of Omarchy's default network bar entry (right-column anchor). */
 const NETWORK_ID = "omarchy.network";
 
@@ -499,7 +502,10 @@ export function mergeOmarchyShellConfig(
 
   // Right: the Home Assistant sensors go before the default tray cluster. The
   // outdoor temperature replaces weather before the stock Bluetooth and
-  // network widgets, keeping those connectivity controls adjacent.
+  // network widgets, followed by the stock AI agents control.
+  const agentsIndex = right.findIndex((entry) => entry.id === AGENTS_ID);
+  const agentsEntry =
+    agentsIndex === -1 ? undefined : right.splice(agentsIndex, 1)[0];
   insertBefore(right, TRAY_ID, customRightEntries(host));
   insertBefore(
     right,
@@ -508,6 +514,9 @@ export function mergeOmarchyShellConfig(
       : NETWORK_ID,
     [outdoorTemperatureEntry()],
   );
+  if (agentsEntry) {
+    insertBefore(right, BLUETOOTH_ID, [agentsEntry]);
+  }
 
   // The stock config gear renders next to the centred clock on desktop.
   base.bar.centerAnchor = host === "laptop" ? "" : CLOCK_ID;
