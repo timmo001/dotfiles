@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadPackageLists } from "../../src/lib/archPackages.js";
+import { replacedPublicPackage } from "../../src/lib/packageSetup.js";
 
 const paths: string[] = [];
 
@@ -23,5 +24,12 @@ describe("loadPackageLists", () => {
       "duplicate",
       "desktop-only",
     ]);
+  });
+});
+
+describe("replacedPublicPackage", () => {
+  test("migrates mise-bin before installing official mise", () => {
+    expect(replacedPublicPackage("mise")).toBe("mise-bin");
+    expect(replacedPublicPackage("git")).toBeUndefined();
   });
 });

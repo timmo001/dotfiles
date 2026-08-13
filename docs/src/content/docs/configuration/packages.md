@@ -25,7 +25,7 @@ The repository overlays maintained package names. `omarchy-pkg-aur-add` uses the
 
 The list covers shared tooling rather than desktop apps you might install separately, including build helpers, diagnostics, shell and terminal tools, and desktop integrations. Override the path with `DOT_PUBLIC_PACKAGES_FILE`.
 
-Missing public packages are installed with `omarchy-pkg-aur-add`; already-installed packages are left in place. `dot doctor` checks the public repository trust and configuration plus the public and private package lists after setup.
+Missing public packages are installed with `omarchy-pkg-aur-add`; already-installed packages are left in place. When the package list requests the official `mise` package, init removes the conflicting AUR `mise-bin` package before installation. `dot doctor` checks the public repository trust and configuration plus the public and private package lists after setup.
 
 Private packages from `.dot-private-packages` in the private overlay are installed after the public list during init when the overlay is available. A host-specific `.dot-private-packages--<host>` list is additive, so hardware-specific packages can be limited to hosts such as `desktop`.
 

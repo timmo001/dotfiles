@@ -65,6 +65,15 @@ function privatePackageListPaths(config: ConfigService): readonly string[] {
 const scopeLabel = (scope: ArchPackageScope): string =>
   scope === "public" ? "Public" : "Private";
 
+const replacedPublicPackages: Readonly<Record<string, string>> = {
+  mise: "mise-bin",
+};
+
+/** Installed package that must be removed before installing the requested public package. */
+export function replacedPublicPackage(packageName: string): string | undefined {
+  return replacedPublicPackages[packageName];
+}
+
 function fail(message: string): Effect.Effect<never, PackageSetupError> {
   return Effect.fail(new PackageSetupError({ message }));
 }
@@ -289,6 +298,34 @@ function installWithAurHelper(
   });
 }
 
+function removeReplacedPublicPackages(
+  missing: readonly string[],
+): Effect.Effect<void, PackageSetupError, CommandExecutor | OutputLog> {
+  return Effect.gen(function* () {
+    const executor = yield* CommandExecutor;
+    const log = yield* OutputLog;
+
+    for (const packageName of missing) {
+      const replaced = replacedPublicPackage(packageName);
+      if (!replaced) continue;
+      if ((yield* executor.exitCode("pacman", ["-Q", replaced])) !== 0)
+        continue;
+
+      yield* log.info(`Removing ${replaced} before installing ${packageName}`);
+      const exitCode = yield* runElevated("pacman", [
+        "-Rdd",
+        "--noconfirm",
+        replaced,
+      ]);
+      if (exitCode !== 0) {
+        return yield* fail(
+          `pacman -Rdd ${replaced} exited ${exitCode}; cannot install ${packageName}`,
+        );
+      }
+    }
+  });
+}
+
 function installWithPacman(
   opts: {
     readonly scope: ArchPackageScope;
@@ -338,6 +375,7 @@ export function installMissingArchPackages(opts: {
     if (opts.scope === "private") {
       yield* installWithPacman(opts, missing);
     } else {
+      yield* removeReplacedPublicPackages(missing);
       yield* installWithAurHelper(opts, missing);
     }
   });
