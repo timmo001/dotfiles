@@ -34,7 +34,7 @@ BarWidget {
   readonly property bool shown: !git || !hiddenByState || hoverRevealed || opened
   readonly property string displayText: {
     if (!git) return " ?   ?"
-    if (root.hoverRevealed) return "  "
+    if (root.hiddenByState && (root.hoverRevealed || root.opened)) return "  "
     var values = []
     if (git.diffError !== "") values.push(" ?")
     else if (!git.diffLoaded) values.push(" ..")
