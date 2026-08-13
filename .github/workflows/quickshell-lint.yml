@@ -4,7 +4,7 @@ name: Lint Quickshell
 on:
   push:
     branches:
-      - distro/arch-omarchy
+      - distro/arch-omarchy-quattro
     paths:
       - '**/*.qml'
       - '.github/workflows/quickshell-lint.yml'

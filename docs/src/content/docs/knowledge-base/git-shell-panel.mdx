@@ -1,0 +1,65 @@
+---
+title: Git Shell Panel
+description: Use and recover the unified repository and GitHub notification panel.
+sidebar:
+  order: 12
+---
+
+The `timmo.git` Omarchy Shell plugin combines managed repository state and GitHub notifications in one primary-output bar widget and native panel.
+
+## Open and refresh
+
+| Control | Action |
+| --- | --- |
+| `CTRL+ALT+G` | Toggle the panel |
+| Left click | Toggle the panel |
+| Right click | Refresh repository and notification state |
+| `r` while open | Refresh repository and notification state |
+
+Open or refresh it from a terminal with:
+
+```bash
+omarchy-shell timmo.git toggle
+omarchy-shell timmo.git refresh
+```
+
+The widget stays hidden when tracked repositories are clean and the GitHub inbox has no unread threads. Hovering the bar reveals its clean-state icons. A question mark indicates that one of the data sources could not be refreshed.
+
+## Panel actions
+
+The panel lists changed repositories followed by filtered GitHub notification threads. Its actions open the Changed or Other repository view, open the filtered notifications TUI, or refresh both sources. Selecting a repository opens it in the diff TUI; selecting a notification opens its GitHub URL.
+
+Use Up/Down or `j`/`k` to move, Enter to activate, Escape to close, and Tab to move to the next bar panel.
+
+## Data sources
+
+The service polls these structured commands every minute:
+
+```bash
+dot git-diff --bar-json
+dot git-notifications --bar-json
+```
+
+Repository and notification visibility follows the private `dot-git.yml` configuration. GitHub notifications require an authenticated `gh` token with the `notifications` or `repo` scope.
+
+## Troubleshooting
+
+Run each source directly when the panel shows an unavailable state:
+
+```bash
+dot git-diff --bar-json
+dot git-notifications --bar-json
+```
+
+Then request a fresh panel poll:
+
+```bash
+omarchy-shell timmo.git refresh
+```
+
+If the panel does not open, confirm that the plugin is discovered and summon it directly:
+
+```bash
+omarchy-shell shell listPlugins
+omarchy-shell timmo.git open
+```

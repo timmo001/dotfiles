@@ -44,9 +44,12 @@ Item {
       notificationText = String(payload.text || "")
       notificationTooltip = String(payload.tooltip || "")
       notificationClass = String(payload["class"] || "notifications-unknown")
-      threads = Array.isArray(payload.threads) ? payload.threads : []
+      var payloadThreads = Array.isArray(payload.threads) ? payload.threads : []
+      threads = notificationClass === "notifications-unknown" ? [] : payloadThreads
       notificationsLoaded = true
-      notificationsError = ""
+      notificationsError = notificationClass === "notifications-unknown"
+        ? (notificationTooltip || "GitHub notifications unavailable")
+        : ""
     } catch (error) {
       failNotifications("Invalid notification response")
     }

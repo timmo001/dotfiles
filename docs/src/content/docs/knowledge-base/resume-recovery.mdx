@@ -1,6 +1,6 @@
 ---
 title: Resume Recovery
-description: Refresh the Omarchy shell and Twitch notifications after suspend.
+description: Refresh the Omarchy shell, Git panel, and Twitch notifications after suspend.
 sidebar:
   order: 11
 ---
@@ -39,7 +39,7 @@ reload-ui
 - Gracefully restarts `twitch-notifications`, auto-opening configured live channels after an automatic resume.
 - Regenerates the host-specific Omarchy shell layout, restoring the configured bar order.
 - Restarts the Omarchy shell, reloads its plugins, and refreshes its indicators and default clock.
-- Refreshes the Quickshell git diff and notification widgets.
+- Refreshes the unified Git panel's repository and notification state.
 
 The `SUPER+SHIFT+R` binding passes `--no-auto-open`, so manual recovery restarts Twitch without opening live channels.
 
@@ -63,10 +63,10 @@ Use this when the machine wakes but the shell or desktop helpers look stale:
 
 ## Troubleshooting
 
-If shell widgets stay stale, restart the Omarchy shell under Wayland:
+If shell widgets stay stale, restart the Omarchy shell:
 
 ```bash
-QT_QPA_PLATFORM=wayland omarchy restart shell
+omarchy restart shell
 ```
 
 If Git status in the bar stays stale after recovery, refresh the unified shell service directly:
