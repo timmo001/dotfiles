@@ -42,7 +42,7 @@ uv = "0.12.3"
 codex = "latest"
 
 [tools."aqua:anomalyco/opencode"]
-version = "1.18.16"
+version = "1.18.17"
 minimum_release_age = "2h"
 
 [tools."aqua:earendil-works/pi"]
