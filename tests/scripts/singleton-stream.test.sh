@@ -26,6 +26,9 @@ for fd in /proc/$$/fd/*; do
 done >"$1"
 printf 'ready\n'
 sleep 2
+printf 'split-'
+sleep 2
+printf 'line\n'
 printf 'done\n'
 EOF
 chmod +x "$source_command"
@@ -39,7 +42,7 @@ chmod +x "$source_command"
 wrapper_pid=$!
 
 for _ in {1..40}; do
-  if [[ -f "$output" ]] && (($(wc -l <"$output") >= 2)); then
+  if [[ -f "$output" ]] && (($(wc -l <"$output") >= 3)); then
     break
   fi
   sleep 0.1
@@ -47,7 +50,8 @@ done
 
 mapfile -t lines <"$output"
 [[ ${lines[0]:-} == "ready" ]]
-[[ ${lines[1]:-} == "done" ]]
+[[ ${lines[1]:-} == "split-line" ]]
+[[ ${lines[2]:-} == "done" ]]
 ! grep -Fxq "$test_root/lock" "$source_fds"
 
 printf 'singleton-stream timeout tests passed\n'

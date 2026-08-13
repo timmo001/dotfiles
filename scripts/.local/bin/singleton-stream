@@ -191,6 +191,7 @@ publish_line() {
 
 owner_iteration() {
   local line=""
+  local pending=""
   local read_status=0
   local source_pipe
   source_pipe="${STATE_FILE}.pipe"
@@ -214,13 +215,16 @@ owner_iteration() {
 
   while parent_alive; do
     if IFS= read -r -t 1 -u "$source_fd" line; then
-      publish_line "$line"
+      publish_line "$pending$line"
+      pending=""
       continue
     else
       read_status=$?
     fi
 
     if (( read_status == 142 )); then
+      pending+="$line"
+      line=""
       if [[ -n "$source_pid" ]] && ! kill -0 "$source_pid" 2>/dev/null; then
         break
       fi
