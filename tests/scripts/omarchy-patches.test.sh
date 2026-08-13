@@ -12,7 +12,22 @@ trap 'rm -rf "$test_root"' EXIT
 mkdir -p "$(dirname "$target")"
 
 reset_target() {
-  cp /usr/share/omarchy/bin/omarchy-agent-crash "$target"
+  cat >"$target" <<'EOF'
+#!/bin/bash
+set -euo pipefail
+pid=${1:?usage: omarchy-agent-crash <pid> [comm] [exe] [signal]}
+comm=${2:-unknown}
+exe=${3:-unknown}
+signal=${4:-unknown}
+when=unknown
+prompt=$(
+  cat <<PROMPT
+Use the diagnose-crash skill for $comm ($pid, $exe, $signal, $when).
+PROMPT
+)
+
+exec omarchy-agent --prompt "$prompt"
+EOF
   if grep -Fq 'dispatch_hook=' "$target"; then
     patch --batch --fuzz=0 --reverse -d "$(dirname "$target")" -p2 \
       -i "$patch_dir/agent-crash-hook.patch" >/dev/null
