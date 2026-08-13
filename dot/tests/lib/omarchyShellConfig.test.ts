@@ -58,9 +58,13 @@ describe("mergeOmarchyShellConfig", () => {
     expect(merged.idle).toEqual({ screensaver: 1800, lock: 3600 });
     expect(merged.bar.customBarField).toBe("preserved");
     expect(merged.bar.id).toBe("omarchy.bar");
-    expect(merged.bar.centerAnchor).toBe("timmo.clock");
+    expect(merged.bar.centerAnchor).toBe("");
     expect(merged.bar.position).toBe("top");
-    expect(merged.bar.layout.center).toContainEqual({
+    expect(merged.bar.layout.center).not.toContainEqual({
+      id: "timmo.clock",
+      format: "HH:mm d MMM",
+    });
+    expect(merged.bar.layout.right.at(-1)).toEqual({
       id: "timmo.clock",
       format: "HH:mm d MMM",
     });
@@ -74,6 +78,17 @@ describe("mergeOmarchyShellConfig", () => {
 
     const centerIds = merged.bar.layout.center.map(({ id }) => id);
     expect(centerIds).not.toContain("omarchy.weather");
+    expect(centerIds.indexOf("timmo.twitch")).toBe(
+      centerIds.indexOf("omarchy.keyboard-layout") + 1,
+    );
+    const twitchIndex = centerIds.indexOf("timmo.twitch");
+    expect(merged.bar.layout.center[twitchIndex + 1]?.run).toBe(
+      "dot git-diff --bar-json",
+    );
+    const systemUpdateIndex = centerIds.indexOf("omarchy.system-update");
+    expect(merged.bar.layout.center[systemUpdateIndex - 1]?.run).toBe(
+      "ha-module-bar nas-activity --icon 󰒋",
+    );
     expect(centerIds.indexOf("timmo.command")).toBeLessThan(
       centerIds.indexOf("omarchy.system-update"),
     );

@@ -230,52 +230,7 @@ function calendarEntry(): BarEntry {
 /** Personal status widgets inserted into the center column (host-independent). */
 function customCenterEntries(): BarEntry[] {
   return [
-    stream({
-      run: "ha-watch-singleton --module time-check --entity input_boolean.time_check --icon 󱑎 --text-on 'Check the time' --tooltip-on 'Time Check (input_boolean.time_check): On' --tooltip-off 'Time Check (input_boolean.time_check): Off' --class-on active --class-off inactive --hide-off",
-      onClick: "timmo-run-command go-automate ha ib t time_check",
-      onClickRight: "timmo-run-command go-automate ha ib t time_check",
-      classColors: { active: COLOR.purple },
-      hideClasses: ["hidden"],
-      hiddenText: "󱑎",
-      revealColor: COLOR.purple,
-    }),
-    stream({
-      run: "ha-watch-singleton --module in-a-call --entity input_boolean.in_a_call --icon  --tooltip-on 'In a Call (input_boolean.in_a_call): On' --tooltip-off 'In a Call (input_boolean.in_a_call): Off' --class-on active --class-off inactive --hide-off",
-      onClick: "timmo-run-command go-automate ha ib t in_a_call",
-      onClickRight: "timmo-run-command go-automate ha ib t in_a_call",
-      classColors: { active: COLOR.teal },
-      hideClasses: ["hidden"],
-      hiddenText: "󰍸",
-      revealColor: COLOR.teal,
-    }),
-    command({
-      run: "ha-module-bar nas-activity --icon 󰒋",
-      interval: 5000,
-      onClick: floatingWebapp(
-        `${HA}/lovelace/network?more-info-entity-id=sensor.nas_activity`,
-      ),
-      classColors: { active: COLOR.teal },
-      hideClasses: ["hidden"],
-      hiddenText: "󰒋 0",
-      revealColor: COLOR.teal,
-    }),
-    command({
-      run: "dot git-notifications --bar-json",
-      interval: 60000,
-      refreshTarget: "timmo.git-notifications",
-      loadingText: "\uf0f3 ..",
-      loadingClass: "notifications-unknown",
-      onClick:
-        "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e dot git-notifications --bar-filter",
-      onClickRight: "omarchy-shell -q timmo.git-notifications refresh",
-      classColors: {
-        "notifications-unknown": COLOR.grey,
-        "notifications-attention": COLOR.red,
-        "notifications-unread": COLOR.amber,
-      },
-      hideClasses: ["hidden"],
-      revealColor: COLOR.amber,
-    }),
+    { id: "timmo.twitch", revealOnHover: true },
     command({
       run: "dot git-diff --bar-json",
       interval: 60000,
@@ -299,6 +254,41 @@ function customCenterEntries(): BarEntry[] {
       hideClasses: ["dots-ok"],
       revealColor: COLOR.amber,
     }),
+    stream({
+      run: "ha-watch-singleton --module time-check --entity input_boolean.time_check --icon 󱑎 --text-on 'Check the time' --tooltip-on 'Time Check (input_boolean.time_check): On' --tooltip-off 'Time Check (input_boolean.time_check): Off' --class-on active --class-off inactive --hide-off",
+      onClick: "timmo-run-command go-automate ha ib t time_check",
+      onClickRight: "timmo-run-command go-automate ha ib t time_check",
+      classColors: { active: COLOR.purple },
+      hideClasses: ["hidden"],
+      hiddenText: "󱑎",
+      revealColor: COLOR.purple,
+    }),
+    stream({
+      run: "ha-watch-singleton --module in-a-call --entity input_boolean.in_a_call --icon  --tooltip-on 'In a Call (input_boolean.in_a_call): On' --tooltip-off 'In a Call (input_boolean.in_a_call): Off' --class-on active --class-off inactive --hide-off",
+      onClick: "timmo-run-command go-automate ha ib t in_a_call",
+      onClickRight: "timmo-run-command go-automate ha ib t in_a_call",
+      classColors: { active: COLOR.teal },
+      hideClasses: ["hidden"],
+      hiddenText: "󰍸",
+      revealColor: COLOR.teal,
+    }),
+    command({
+      run: "dot git-notifications --bar-json",
+      interval: 60000,
+      refreshTarget: "timmo.git-notifications",
+      loadingText: "\uf0f3 ..",
+      loadingClass: "notifications-unknown",
+      onClick:
+        "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e dot git-notifications --bar-filter",
+      onClickRight: "omarchy-shell -q timmo.git-notifications refresh",
+      classColors: {
+        "notifications-unknown": COLOR.grey,
+        "notifications-attention": COLOR.red,
+        "notifications-unread": COLOR.amber,
+      },
+      hideClasses: ["hidden"],
+      revealColor: COLOR.amber,
+    }),
     command({
       run: "package-updates-bar status",
       interval: 60000,
@@ -314,7 +304,17 @@ function customCenterEntries(): BarEntry[] {
       hiddenText: "󰏗 0",
       revealColor: COLOR.amber,
     }),
-    { id: "timmo.twitch", revealOnHover: true },
+    command({
+      run: "ha-module-bar nas-activity --icon 󰒋",
+      interval: 5000,
+      onClick: floatingWebapp(
+        `${HA}/lovelace/network?more-info-entity-id=sensor.nas_activity`,
+      ),
+      classColors: { active: COLOR.teal },
+      hideClasses: ["hidden"],
+      hiddenText: "󰒋 0",
+      revealColor: COLOR.teal,
+    }),
   ];
 }
 
@@ -415,10 +415,9 @@ function insertBefore(
 /**
  * Merge personal widgets and host overrides into Omarchy's default shell
  * config, mutating `base` in place. Default widgets are kept; personal modules
- * are inserted around them ("add, not remove"). The clock stays as the centre
- * anchor on desktop but moves to the end of the right section on laptop; the
- * stock weather widget is replaced by the outdoor temperature immediately
- * after the tray expansion.
+ * are inserted around them ("add, not remove"). The clock moves to the end of
+ * the right section; the stock weather widget is replaced by the outdoor
+ * temperature immediately after the tray expansion.
  *
  * @param base - Parsed Omarchy default `shell.json`.
  * @param host - The `OMARCHY_HOST` value (e.g. `desktop`, `laptop`).
@@ -442,12 +441,12 @@ export function mergeOmarchyShellConfig(
   if (workspacesIndex !== -1) left[workspacesIndex] = workspacesEntry();
   left.push(calendarEntry());
 
-  // Center: keep the clock as the desktop anchor, but move it to the far right
-  // on laptop. Remove weather (replaced in the right column below), insert
-  // personal status widgets before the default system-update group, and put
-  // the doorbell trigger at the very end. All custom widgets fade in dimmed
-  // when class-hidden and the bar is hovered. They share a standard 8px margin
-  // (the widget default), so no per-instance margin is needed here.
+  // Center: move the clock to the far right. Remove weather (replaced in the
+  // right column below), insert personal status widgets before the default
+  // system-update group, and put the doorbell trigger at the very end. All
+  // custom widgets fade in dimmed when class-hidden and the bar is hovered.
+  // They share a standard 8px margin (the widget default), so no per-instance
+  // margin is needed here.
   const clockIndex = center.findIndex(
     (entry) => entry.id === DEFAULT_CLOCK_ID || entry.id === CLOCK_ID,
   );
@@ -458,9 +457,7 @@ export function mergeOmarchyShellConfig(
       format: CLOCK_FORMAT,
     };
   }
-  if (host === "laptop") {
-    if (clockIndex !== -1) right.push(...center.splice(clockIndex, 1));
-  }
+  if (clockIndex !== -1) right.push(...center.splice(clockIndex, 1));
   const weatherIndex = center.findIndex((entry) => entry.id === WEATHER_ID);
   if (weatherIndex !== -1) center.splice(weatherIndex, 1);
   insertBefore(center, SYSTEM_UPDATE_ID, customCenterEntries());
@@ -479,8 +476,7 @@ export function mergeOmarchyShellConfig(
     insertBefore(right, BLUETOOTH_ID, [agentsEntry]);
   }
 
-  // The stock config gear renders next to the centred clock on desktop.
-  base.bar.centerAnchor = host === "laptop" ? "" : CLOCK_ID;
+  base.bar.centerAnchor = "";
 
   return base;
 }

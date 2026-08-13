@@ -28,7 +28,7 @@ The shell itself lives in `~/.local/share/omarchy/shell/`. Reading it is useful 
 Per-host differences:
 
 - **Bar position**: `bottom` on `laptop`, `top` on every other host.
-- **Clock position**: at the far right on `laptop`, centred on every other host.
+- **Clock position**: at the far right on every host.
 - **Clock format**: compact `HH:mm d MMM`, based on the final pre-Quattro Waybar clock without its weekday or ordinal day suffix. The `timmo.clock` clone reduces the stock clock's 8.75px cell padding to 6px. Left-click opens the calendar, middle-click opens timezone settings, and right-click has no action.
 - **Idle timers**: screensaver at 2.5 minutes and lock at 5 minutes on `laptop`; screensaver at 30 minutes and lock at 60 minutes on every other host.
 - **Home Assistant sensors**: temperature, CO2, doorbell, and VOC entities differ per host (desktop vs laptop).
@@ -44,18 +44,17 @@ The tables below show the rendered left-to-right order within each section. Omar
 | Left | 1 | Menu (`omarchy.menu`) | Retained in its stock position. |
 | Left | 2 | Workspaces (`timmo.workspaces`) | Replaces `omarchy.workspaces` in place. |
 | Left | 3 | Calendar | Added after workspaces, at the end of the section. |
-| Centre | 1 | Indicators (`omarchy.indicators`) | Retained before the clock. |
-| Centre | 2 | Clock (`timmo.clock`) | Replaces `omarchy.clock` in place and remains the centre anchor. |
-| Centre | 3 | Keyboard layout (`omarchy.keyboard-layout`) | Retained after the clock. |
-| Centre | 4 | Time check | Added after keyboard layout. |
-| Centre | 5 | In-call state | Added after time check. |
-| Centre | 6 | NAS activity | Added after in-call state. |
-| Centre | 7 | GitHub notifications | Added after NAS activity. |
-| Centre | 8 | Repository diff status | Added after GitHub notifications. |
-| Centre | 9 | Package updates | Added after repository diff status. |
-| Centre | 10 | Twitch notifications | Added after package updates. |
-| Centre | 11 | System update (`omarchy.system-update`) | Retained after the added status items. |
-| Centre | 12 | Doorbell trigger | Added at the end of the section and always visually hidden. |
+| Centre | 1 | Indicators (`omarchy.indicators`) | Retained at the start of the section. |
+| Centre | 2 | Keyboard layout (`omarchy.keyboard-layout`) | Retained after indicators because the clock moves right. |
+| Centre | 3 | Twitch notifications | Added after the built-in centre widgets. |
+| Centre | 4 | Repository diff status | Added next to Twitch notifications. |
+| Centre | 5 | Time check | Added after repository diff status. |
+| Centre | 6 | In-call state | Added after time check. |
+| Centre | 7 | GitHub notifications | Added after in-call state. |
+| Centre | 8 | Package updates | Added after GitHub notifications. |
+| Centre | 9 | NAS activity | Added at the end of the custom centre items. |
+| Centre | 10 | System update (`omarchy.system-update`) | Retained after the added status items. |
+| Centre | 11 | Doorbell trigger | Added at the end of the section and always visually hidden. |
 | Right | 1 | Tray (`omarchy.tray`) | Retained and pinned to the inner edge by Omarchy. |
 | Right | 2 | Outdoor temperature | Replaces `omarchy.weather` and sits immediately after the tray. |
 | Right | 3 | Heating state | Added after outdoor temperature. |
@@ -68,24 +67,14 @@ The tables below show the rendered left-to-right order within each section. Omar
 | Right | 10 | Audio (`omarchy.audio`) | Retained after network. |
 | Right | 11 | Monitor (`omarchy.monitor`) | Retained after audio. |
 | Right | 12 | Power (`omarchy.power`) | Retained at the end of the section. |
+| Right | 13 | Clock (`timmo.clock`) | Moves from the centre to the end of the right section. |
 
 ### Laptop
 
-The left section matches desktop. The centre and right sections differ as follows:
+The left and centre sections match desktop. The right section differs as follows:
 
 | Section | Order | Item | Change |
 | --- | ---: | --- | --- |
-| Centre | 1 | Indicators (`omarchy.indicators`) | Retained at the start of the section. |
-| Centre | 2 | Keyboard layout (`omarchy.keyboard-layout`) | Retained after indicators because the clock moves right. |
-| Centre | 3 | Time check | Added after keyboard layout. |
-| Centre | 4 | In-call state | Added after time check. |
-| Centre | 5 | NAS activity | Added after in-call state. |
-| Centre | 6 | GitHub notifications | Added after NAS activity. |
-| Centre | 7 | Repository diff status | Added after GitHub notifications. |
-| Centre | 8 | Package updates | Added after repository diff status. |
-| Centre | 9 | Twitch notifications | Added after package updates. |
-| Centre | 10 | System update (`omarchy.system-update`) | Retained after the added status items. |
-| Centre | 11 | Doorbell trigger | Added at the end of the section and always visually hidden. |
 | Right | 1 | Tray (`omarchy.tray`) | Retained and pinned to the inner edge by Omarchy. |
 | Right | 2 | Outdoor temperature | Replaces `omarchy.weather` and sits immediately after the tray. |
 | Right | 3 | Heating state | Added after outdoor temperature. |
@@ -112,14 +101,14 @@ No stock widget is removed without a replacement. `omarchy.workspaces` is replac
 
 All custom additions use `revealOnHover`: status cells hidden in their normal inactive state appear dimmed while the bar is hovered. Entries whose inactive producer output is empty use `hiddenText` to retain an icon or zero count. Attention and active states remain visible according to each widget's class rules.
 
-The stock alternate clock format, opaque bar, config version, and plugin list are also preserved. The normal clock format uses the compact pre-Quattro layout, while the `timmo.clock` centre anchor is used on desktop and cleared when the laptop moves the clock right.
+The stock alternate clock format, opaque bar, config version, and plugin list are also preserved. The normal clock format uses the compact pre-Quattro layout, while the centre anchor is cleared when `timmo.clock` moves right.
 
 ### Host overrides
 
 | Setting | Stock Quattro | Desktop | Laptop |
 | --- | --- | --- | --- |
 | Bar position | Top | Top | Bottom |
-| Clock position | Centre | Centre | Right |
+| Clock position | Centre | Right | Right |
 | Screensaver | 2.5 minutes | 30 minutes | 2.5 minutes |
 | Lock | 5 minutes | 60 minutes | 5 minutes |
 
