@@ -300,21 +300,6 @@ function customCenterEntries(): BarEntry[] {
       revealColor: COLOR.amber,
     }),
     command({
-      run: "dot git-workflows --bar-json --since \"$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)\"",
-      interval: 60000,
-      loadingText: "\uf111 ..",
-      loadingClass: "workflows-unknown",
-      onClick:
-        "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e dot git-workflows --since \"$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)\"",
-      classColors: {
-        "workflows-unknown": COLOR.grey,
-        "workflows-attention": COLOR.red,
-      },
-      hideClasses: ["hidden"],
-      hiddenText: "\uf111 0",
-      revealColor: COLOR.red,
-    }),
-    command({
       run: "package-updates-bar status",
       interval: 60000,
       refreshTarget: "timmo.package-updates",

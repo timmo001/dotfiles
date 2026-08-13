@@ -35,7 +35,7 @@ const TOOLS: readonly ToolDef[] = [
   },
   {
     name: "gh",
-    purpose: "GitHub workflows and notifications",
+    purpose: "GitHub notifications",
     required: false,
   },
   { name: "gum", purpose: "interactive init questionnaire", required: false },

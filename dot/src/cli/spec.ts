@@ -119,7 +119,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
     usage: "[options]",
     description: [
       "Open the full-screen dot dashboard. It combines tracked repo",
-      "state, GitHub notifications, workflow runs, and optional bounded source",
+      "state, GitHub notifications, and optional bounded source",
       "commands for Twitch, environment, and calendar cards.",
     ],
     modes: ["(default)      Interactive dashboard"],
@@ -300,7 +300,6 @@ export const cliCommands: readonly CliCommandSpec[] = [
           "Herdr integration    Herdr binary and OpenCode integration installed",
           "GitHub MCP auth      gh token available for DOT_GH_MCP_BEARER",
           "Git config           Managed include is active",
-          "Workflow runs        Repo list and legacy watcher cleanup",
           "Git notifications    API scope and notification access",
           "Doctor startup       Startup notification timer",
           "uwsm session PATH    ~/.local/bin on the uwsm/systemd user-environment PATH",
@@ -479,43 +478,6 @@ export const cliCommands: readonly CliCommandSpec[] = [
       helpOption,
     ],
     examples: ["dot git-log", "dot git-log --raw"],
-  },
-  {
-    name: "git-workflows",
-    summary: "Open watched GitHub workflow runs",
-    usage: "[options]",
-    description: [
-      "Open the watched GitHub workflow runs view. The left pane lists watched",
-      "repositories from the private repo list. The right pane lists runs for the",
-      "selected repo's locally checked-out HEAD commit.",
-    ],
-    modes: [
-      "(default)      Interactive workflow runs TUI",
-      "--raw          Text summary of watched workflow runs",
-      "--bar-json    JSON output for status bars and shell modules",
-      "--list-repos   Watched repo summaries as rows",
-      "--list-runs    Workflow runs as rows",
-    ],
-    options: [
-      {
-        name: "--since",
-        valueName: "date",
-        description:
-          "Only include runs active at or after this date (ISO/RFC/epoch/relative duration)",
-      },
-      { ...rawOption, description: "Text summary of watched workflow runs" },
-      barJsonOption,
-      { name: "--list-repos", description: "Watched repo summaries as rows" },
-      { name: "--list-runs", description: "Workflow runs as rows" },
-      helpOption,
-    ],
-    examples: [
-      "dot git-workflows",
-      "dot git-workflows --raw",
-      "dot git-workflows --bar-json",
-      "dot git-workflows --since \"$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)\"",
-      "dot git-workflows --list-runs",
-    ],
   },
   {
     name: "git-notifications",

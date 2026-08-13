@@ -101,92 +101,9 @@ export type ViewId =
   | "dashboard"
   | "git-diff"
   | "git-log"
-  | "git-workflows"
   | "git-notifications"
   | "omarchy"
   | "output";
-
-// --- GitHub workflow run types ---
-
-/** GitHub Actions run status returned by `gh run list` */
-export type WorkflowRunStatus =
-  | "completed"
-  | "in_progress"
-  | "queued"
-  | "requested"
-  | "waiting"
-  | "pending"
-  | "unknown";
-
-/** A GitHub Actions workflow run associated with a watched repo head commit */
-export interface WorkflowRun {
-  /** Stable GitHub run database ID */
-  readonly id: string;
-  /** GitHub workflow database ID for filtering disabled workflow runs */
-  readonly workflowId: string | null;
-  /** Workflow display name */
-  readonly workflowName: string;
-  /** Run title, usually the commit subject or workflow-provided title */
-  readonly displayTitle: string;
-  /** GitHub Actions status */
-  readonly status: WorkflowRunStatus;
-  /** Completed run conclusion, if available */
-  readonly conclusion: string | null;
-  /** Browser URL for the workflow run */
-  readonly url: string;
-  /** Event that triggered the run */
-  readonly event: string;
-  /** Run creation timestamp from GitHub */
-  readonly createdAt: string | null;
-  /** Run start timestamp from GitHub, updated on reruns */
-  readonly startedAt: string | null;
-  /** Last update timestamp from GitHub */
-  readonly updatedAt: string | null;
-  /** Branch the run executed for, when available from GitHub. */
-  readonly headBranch?: string | null;
-  /** Commit SHA the run executed for, when available from GitHub. */
-  readonly headSha?: string | null;
-}
-
-/** Workflow run data for one watched GitHub repository */
-export interface WorkflowRepoRuns {
-  /** GitHub owner/repo slug */
-  readonly slug: string;
-  /** Current locally checked-out branch name used as the head branch */
-  readonly branch: string | null;
-  /** Current locally checked-out HEAD commit SHA */
-  readonly headSha: string | null;
-  /** Current locally checked-out HEAD commit subject */
-  readonly commitSubject: string | null;
-  /** Browser URL for the current locally checked-out HEAD commit */
-  readonly commitUrl: string | null;
-  /** Latest workflow runs for the current locally checked-out HEAD commit */
-  readonly runs: readonly WorkflowRun[];
-  /** Fetch error, if this repo could not be queried */
-  readonly error?: string;
-}
-
-/** Query options for fetching watched GitHub workflow runs. */
-export interface WorkflowRunQueryOptions {
-  /** Only include workflow runs created, started, or updated at or after this ISO timestamp. */
-  readonly since?: string;
-}
-
-/** Snapshot of all watched workflow repos and their latest run state */
-export interface WorkflowState {
-  /** Workflow repositories from dot-git.yml */
-  readonly repos: readonly WorkflowRepoRuns[];
-  /** Timestamp of the last refresh attempt */
-  readonly lastChecked: Date;
-  /** Whether a refresh is currently running */
-  readonly loading: boolean;
-  /** Whether at least one refresh has completed */
-  readonly loaded: boolean;
-  /** Active ISO timestamp filter for workflow run activity time */
-  readonly since: string | null;
-  /** Optional global status message, such as an invalid git config */
-  readonly message?: string;
-}
 
 // --- GitHub notification types ---
 

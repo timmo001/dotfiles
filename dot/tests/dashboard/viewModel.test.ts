@@ -4,9 +4,6 @@ import type {
   GitNotificationState,
   GitNotificationThread,
   RepoState,
-  WorkflowRepoRuns,
-  WorkflowRun,
-  WorkflowState,
 } from "../../src/types.js";
 import type {
   DashboardBarModuleId,
@@ -90,42 +87,6 @@ const notifications = (
   ...overrides,
 });
 
-const workflowRun = (overrides: Partial<WorkflowRun> = {}): WorkflowRun => ({
-  id: "1",
-  workflowId: "10",
-  workflowName: "CI",
-  displayTitle: "Build",
-  status: "completed",
-  conclusion: "success",
-  url: "https://github.com/owner/repo/actions/runs/1",
-  event: "push",
-  createdAt: "2026-07-10T12:00:00Z",
-  startedAt: null,
-  updatedAt: null,
-  ...overrides,
-});
-
-const workflowRepo = (
-  overrides: Partial<WorkflowRepoRuns> = {},
-): WorkflowRepoRuns => ({
-  slug: "owner/repo",
-  branch: "main",
-  headSha: "0123456789abcdef",
-  commitSubject: "Test dashboard",
-  commitUrl: "https://github.com/owner/repo/commit/0123456789abcdef",
-  runs: [],
-  ...overrides,
-});
-
-const workflows = (overrides: Partial<WorkflowState> = {}): WorkflowState => ({
-  repos: [],
-  lastChecked: new Date("2026-07-10T13:00:00Z"),
-  loading: false,
-  loaded: true,
-  since: null,
-  ...overrides,
-});
-
 const diffRepo = (overrides: Partial<DiffRepo> = {}): DiffRepo => ({
   name: "dotfiles",
   path: "/tmp/dotfiles",
@@ -148,7 +109,6 @@ describe("buildDashboardState", () => {
         },
       }),
       notifications: notifications(),
-      workflows: workflows(),
     });
 
     expect(state.summaryHeadline).toBe("All tracked sources look calm");
@@ -163,7 +123,7 @@ describe("buildDashboardState", () => {
       "updates",
       "live",
     ]);
-    expect(state.lastChecked).toEqual(new Date("2026-07-10T13:00:00Z"));
+    expect(state.lastChecked).toEqual(new Date("2026-07-10T12:00:00Z"));
     expect(state.loading).toBe(false);
   });
 
@@ -192,11 +152,6 @@ describe("buildDashboardState", () => {
       sourceState: source,
       notifications: notifications({
         threads: [notificationThread({ reason: "review_requested" })],
-      }),
-      workflows: workflows({
-        repos: [
-          workflowRepo({ runs: [workflowRun({ conclusion: "failure" })] }),
-        ],
       }),
     });
 
@@ -242,7 +197,6 @@ describe("buildDashboardState", () => {
         },
       }),
       notifications: notifications(),
-      workflows: workflows(),
     });
     const cards = state.sections.flatMap(({ cards }) => cards);
 
@@ -273,7 +227,6 @@ describe("buildDashboardState", () => {
         },
       }),
       notifications: notifications({ message: "GitHub unavailable" }),
-      workflows: workflows({ loading: true }),
     });
     const cards = state.sections.flatMap(({ cards }) => cards);
 

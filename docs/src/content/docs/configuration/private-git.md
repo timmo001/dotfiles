@@ -1,17 +1,17 @@
 ---
 title: Private Git Config
-description: The dot-git.yml schema for repository shortcuts, updates, activity, workflows, and notifications.
+description: The dot-git.yml schema for repository shortcuts, updates, activity, and notifications.
 sidebar:
   order: 3
 ---
 
 The git and GitHub tooling reads a private YAML config that lists the repositories to track and how. It lives in the private overlay at `$DOTFILES_PRIVATE_DIR/dot-git.yml` by default (override with `DOT_GIT_CONFIG_FILE`).
 
-It is consumed by `dot git-diff`, `dot git-log`, `dot git-workflows`, `dot git-notifications --bar-json`, `dot notes-capture-sync`, `dot stow`, `dot update`, and `dot doctor`.
+It is consumed by `dot git-diff`, `dot git-log`, `dot git-notifications --bar-json`, `dot notes-capture-sync`, `dot stow`, `dot update`, and `dot doctor`.
 
 ## Per-repo keys
 
-Each repo entry has three required sections, each with an explicit `enabled` flag and a 5-field cron `schedule`:
+Each repo entry has two required sections, each with an explicit `enabled` flag and a 5-field cron `schedule`:
 
 The optional `aliases` list generates Zsh repository shortcuts during `dot stow` and `dot update`. The same entries feed Herdr's repository picker alongside `~/` and `~/repos`. Inside Herdr, a shortcut changes directory in the current tab when it already belongs to the repository workspace; otherwise it creates or focuses that workspace using the repository's `name`. Outside Herdr, it changes directory normally:
 
@@ -38,7 +38,6 @@ The command does not run when the repo is already current or its pull is skipped
 
 `dot notes-capture-sync` finds the managed `timmo001/notes` checkout, mirrors the active Worker's non-secret variables and KV bindings into its ignored `capture/wrangler.local.jsonc`, and updates `vars.CAPTURE_REPOSITORIES`. Secret values are never written locally. When the live picker differs, the command deploys the capture Worker; `keep_vars` preserves dashboard-managed runtime variables and secrets on later Git-connected builds. Run it explicitly or from the Dot TUI when watched repositories change.
 
-- `workflows` — show the repo's GitHub Actions runs in `dot git-workflows`.
 - `notifications` — include the repo in the notification inbox surfaces.
 
 The `notifications.bar.ignore_bot_activity` key controls status-bar bot noise. A repo's `remote.upstream.url` lets upstream notifications match a managed fork.
@@ -50,4 +49,4 @@ The `notifications.bar.ignore_bot_activity` key controls status-bar bot noise. A
 ## Requirements
 
 - `dot git-notifications` requires `gh` authenticated with a classic token carrying the `notifications` or `repo` scope.
-- `dot doctor` verifies `dot-git.yml` and the absence of legacy `git-workflow-watch` leftovers.
+- `dot doctor` verifies `dot-git.yml` and GitHub notification access.

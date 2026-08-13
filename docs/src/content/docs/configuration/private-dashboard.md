@@ -7,7 +7,7 @@ sidebar:
 
 `dot dashboard` reads an optional private YAML file that wires bounded external commands into dashboard cards. It lives in the private overlay at `$DOTFILES_PRIVATE_DIR/dot-dashboard.yml` by default.
 
-Without this file, the dashboard still shows git diff, notifications, workflow, and update cards from in-process services. The optional `sources` block adds Twitch, environment, calendar, and todo cards when commands are configured.
+Without this file, the dashboard still shows git diff, notifications, and update cards from in-process services. The optional `sources` block adds Twitch, environment, calendar, and todo cards when commands are configured.
 
 ## Schema
 
@@ -61,7 +61,7 @@ On refresh failure the card shows a diagnostic message; a `{"error":"..."}` JSON
 
 ## Refresh behaviour
 
-After the initial load, dashboard sources refresh automatically every 60 seconds and on manual refresh (`r` in the TUI). Git, notification, and workflow cards use the same live services as their dedicated TUI views.
+After the initial load, dashboard sources refresh automatically every 60 seconds and on manual refresh (`r` in the TUI). Git and notification cards use the same live services as their dedicated TUI views.
 
 :::note[Private by default]
 `dot-dashboard.yml` lives in the private dotfiles overlay because it contains machine-specific commands and entity names. The public dotfiles only contain the logic that reads it.

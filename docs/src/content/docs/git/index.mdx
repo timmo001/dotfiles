@@ -1,6 +1,6 @@
 ---
 title: Git & GitHub
-description: Diff, log, status, workflow runs, and a notification inbox across managed repos.
+description: Diff, log, status, and a notification inbox across managed repos.
 sidebar:
   label: Overview
   order: 1
@@ -14,7 +14,6 @@ import { CardGrid, LinkCard } from '@astrojs/starlight/components';
   <LinkCard title="Diff & Repo Watcher" href="/git/diff/" description="The git-diff TUI and CLI for dirty worktrees and ahead/behind state." />
   <LinkCard title="Context Integration" href="/git/context/" description="How OpenCode plugins consume the standalone context CLI." />
   <LinkCard title="Commit Gateway" href="/git/commit/" description="Guarded commits with scoped paths, message checks, and safe push mode." />
-  <LinkCard title="Workflow Runs" href="/git/workflows/" description="Watched GitHub Actions runs for each repo's checked-out HEAD." />
   <LinkCard title="Notifications" href="/git/notifications/" description="The GitHub notification inbox with read/done/ignore actions." />
 </CardGrid>
 
@@ -24,4 +23,4 @@ Several of these commands emit `--bar-json` output for a status bar module. See 
 
 ## Private repo configuration
 
-Repo activity, workflow, and notification settings live in the private `dot-git.yml` config. See [Private Git Config](/configuration/private-git/) for the schema.
+Repo activity and notification settings live in the private `dot-git.yml` config. See [Private Git Config](/configuration/private-git/) for the schema.

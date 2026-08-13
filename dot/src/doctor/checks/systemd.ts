@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { accessSync, constants, existsSync, lstatSync, readFileSync } from "fs";
+import { accessSync, constants, existsSync, readFileSync } from "fs";
 import { join, resolve } from "path";
 import {
   CommandExecutor,
@@ -12,9 +12,6 @@ import { CONFIG_DIR, HOME_DIR, displayPath } from "../../lib/paths.js";
 import { resolvedOmarchyHost } from "../../lib/omarchyHost.js";
 import type { CheckResult } from "../types.js";
 
-// Obsolete workflow notification units that should no longer be installed.
-const LEGACY_WORKFLOW_WATCH_SERVICE_UNIT = "git-workflow-watch.service";
-const LEGACY_WORKFLOW_WATCH_TIMER_UNIT = "git-workflow-watch.timer";
 const DOCTOR_STARTUP_TIMER_UNIT = "dot-doctor-startup.timer";
 const DAILY_VOLUME_ZERO_TIMER_UNIT = "daily-volume-zero.timer";
 const LOCAL_BIN_DIR = join(HOME_DIR, ".local", "bin");
@@ -36,48 +33,12 @@ function userSystemdUnitPath(unit: string): string {
   return join(CONFIG_DIR, "systemd", "user", unit);
 }
 
-function pathExistsOrSymlink(path: string): boolean {
-  try {
-    lstatSync(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function executableExists(path: string): boolean {
   try {
     accessSync(path, constants.X_OK);
     return true;
   } catch {
     return false;
-  }
-}
-
-function obsoletePathCleanupDetail(
-  path: string,
-  removalFlag: "-f" | "-rf",
-): string {
-  return `Remove on this machine after updating dotfiles: rm ${removalFlag} ${displayPath(path)}`;
-}
-
-function addObsoletePathCheck(
-  results: CheckResult[],
-  path: string,
-  label: string,
-  removalFlag: "-f" | "-rf" = "-f",
-): void {
-  if (pathExistsOrSymlink(path)) {
-    results.push({
-      severity: "error",
-      message: `Obsolete ${label} still exists: ${displayPath(path)}`,
-      detail: obsoletePathCleanupDetail(path, removalFlag),
-    });
-  } else {
-    results.push({
-      severity: "ok",
-      message: `Obsolete ${label} is absent: ${displayPath(path)}`,
-    });
   }
 }
 
@@ -205,168 +166,6 @@ const checkRequiredUserUnitSetup = (setup: RequiredUserUnitSetup) =>
 
     return results;
   });
-
-const checkObsoleteUserUnit = (
-  results: CheckResult[],
-  executor: CommandExecutorService,
-  unit: string,
-) =>
-  Effect.gen(function* () {
-    const cleanupDetail = `Run on this machine: systemctl --user disable --now ${LEGACY_WORKFLOW_WATCH_TIMER_UNIT} ${LEGACY_WORKFLOW_WATCH_SERVICE_UNIT}; systemctl --user reset-failed ${LEGACY_WORKFLOW_WATCH_TIMER_UNIT} ${LEGACY_WORKFLOW_WATCH_SERVICE_UNIT}; systemctl --user daemon-reload`;
-    const enabled = yield* executor.exitCode("systemctl", [
-      "--user",
-      "is-enabled",
-      unit,
-    ]);
-    if (enabled === 0) {
-      results.push({
-        severity: "error",
-        message: `Obsolete workflow watch unit is still enabled: ${unit}`,
-        detail: cleanupDetail,
-      });
-    } else {
-      results.push({
-        severity: "ok",
-        message: `Obsolete workflow watch unit is not enabled: ${unit}`,
-      });
-    }
-
-    const active = yield* executor.exitCode("systemctl", [
-      "--user",
-      "is-active",
-      unit,
-    ]);
-    if (active === 0) {
-      results.push({
-        severity: "error",
-        message: `Obsolete workflow watch unit is still active: ${unit}`,
-        detail: cleanupDetail,
-      });
-    } else {
-      results.push({
-        severity: "ok",
-        message: `Obsolete workflow watch unit is not active: ${unit}`,
-      });
-    }
-  });
-
-/** Check workflow runs integration and absence of the legacy notification watcher. */
-export const checkWorkflowRuns = Effect.gen(function* () {
-  const executor = yield* CommandExecutor;
-  const config = yield* Config;
-  const results: CheckResult[] = [];
-
-  const legacyHooksPath = join(CONFIG_DIR, "git", "workflow-watch-hooks");
-  const legacyWatchScript = join(
-    HOME_DIR,
-    ".local",
-    "bin",
-    "git-workflow-watch",
-  );
-  const legacyServiceUnitPath = join(
-    CONFIG_DIR,
-    "systemd",
-    "user",
-    LEGACY_WORKFLOW_WATCH_SERVICE_UNIT,
-  );
-  const legacyTimerUnitPath = join(
-    CONFIG_DIR,
-    "systemd",
-    "user",
-    LEGACY_WORKFLOW_WATCH_TIMER_UNIT,
-  );
-
-  addObsoletePathCheck(
-    results,
-    legacyHooksPath,
-    "workflow watch hooks path",
-    "-rf",
-  );
-  addObsoletePathCheck(results, legacyWatchScript, "workflow watch script");
-  addObsoletePathCheck(
-    results,
-    legacyServiceUnitPath,
-    "workflow watch service unit",
-  );
-  addObsoletePathCheck(
-    results,
-    legacyTimerUnitPath,
-    "workflow watch timer unit",
-  );
-
-  const configuredHooksPath = yield* executor
-    .run("git", ["config", "--global", "core.hooksPath"])
-    .pipe(Effect.catch(() => Effect.succeed("")));
-  const trimmedHooksPath = configuredHooksPath.trim();
-
-  if (
-    trimmedHooksPath === legacyHooksPath ||
-    trimmedHooksPath === displayPath(legacyHooksPath)
-  ) {
-    results.push({
-      severity: "error",
-      message: `Global git hooksPath still points to obsolete workflow watch hooks: ${displayPath(legacyHooksPath)}`,
-      detail: "Run on this machine: git config --global --unset core.hooksPath",
-    });
-  } else if (trimmedHooksPath) {
-    results.push({
-      severity: "ok",
-      message: `Global git hooksPath does not use workflow watch hooks (${displayPath(trimmedHooksPath)})`,
-    });
-  } else {
-    results.push({
-      severity: "ok",
-      message: "Global git hooksPath is not configured",
-    });
-  }
-
-  if (!config.canUsePrivate) {
-    results.push({
-      severity: "warn",
-      message: `Skipping workflow config checks (${config.privateReason})`,
-    });
-  } else if (!config.gitConfig.present) {
-    results.push({
-      severity: "warn",
-      message: config.gitConfig.diagnostics.join("; "),
-      detail: "Add dot-git.yml in private dotfiles to enable dot git-workflows",
-    });
-  } else if (!config.gitConfig.valid) {
-    for (const diagnostic of config.gitConfig.diagnostics) {
-      results.push({ severity: "error", message: diagnostic });
-    }
-  } else {
-    const workflowCount = config.gitConfig.repositories.filter(
-      (repo) => repo.workflows.enabled,
-    ).length;
-    results.push({
-      severity: "ok",
-      message: `Workflow git config found: ${displayPath(config.gitConfig.filePath)} (${workflowCount} workflow repos enabled)`,
-    });
-  }
-
-  const hasSystemctl = (yield* executor.exitCode("which", ["systemctl"])) === 0;
-  if (hasSystemctl) {
-    yield* checkObsoleteUserUnit(
-      results,
-      executor,
-      LEGACY_WORKFLOW_WATCH_SERVICE_UNIT,
-    );
-    yield* checkObsoleteUserUnit(
-      results,
-      executor,
-      LEGACY_WORKFLOW_WATCH_TIMER_UNIT,
-    );
-  } else {
-    results.push({
-      severity: "warn",
-      message:
-        "Skipping legacy workflow watch systemd state checks (systemctl not found)",
-    });
-  }
-
-  return results;
-});
 
 /** Check GitHub notifications API access. */
 export const checkGitNotifications = Effect.gen(function* () {

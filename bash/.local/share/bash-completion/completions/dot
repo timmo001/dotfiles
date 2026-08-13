@@ -142,16 +142,6 @@ _dot_cmd_git_log() {
     return
   fi
 }
-_dot_cmd_git_workflows() {
-  local cur prev cword
-  cur=${COMP_WORDS[COMP_CWORD]}
-  prev=${COMP_WORDS[COMP_CWORD-1]}
-  cword=$COMP_CWORD
-  if [[ $cur == -* ]]; then
-    COMPREPLY=( $(compgen -W '--since --raw --bar-json --list-repos --list-runs --help -h' -- "$cur") )
-    return
-  fi
-}
 _dot_cmd_git_notifications() {
   local cur prev cword
   cur=${COMP_WORDS[COMP_CWORD]}
@@ -319,7 +309,7 @@ _dot() {
   command=${COMP_WORDS[1]-}
 
   if (( cword == 1 )); then
-    COMPREPLY=( $(compgen -W 'dashboard init install update up stow omarchy-shell-config firewall doctor clean git-diff diff git-commit git-log git-workflows git-notifications agents-sync mcp-sync notes-capture-sync is-agent setup-public-repo setup-private-repo private-pkg-publish skill-updates skill-check completions omarchy usage help -h --help' -- "$cur") )
+    COMPREPLY=( $(compgen -W 'dashboard init install update up stow omarchy-shell-config firewall doctor clean git-diff diff git-commit git-log git-notifications agents-sync mcp-sync notes-capture-sync is-agent setup-public-repo setup-private-repo private-pkg-publish skill-updates skill-check completions omarchy usage help -h --help' -- "$cur") )
     return
   fi
 
@@ -359,9 +349,6 @@ _dot() {
       ;;
     git-log)
       _dot_cmd_git_log
-      ;;
-    git-workflows)
-      _dot_cmd_git_workflows
       ;;
     git-notifications)
       _dot_cmd_git_notifications

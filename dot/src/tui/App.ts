@@ -10,7 +10,6 @@ import type {
   GitNotificationThread,
   GitLogCommit,
   GitLogRepo,
-  WorkflowRun,
 } from "../types.js";
 import type { DashboardState } from "../dashboard/types.js";
 import type { Theme } from "../theme.js";
@@ -21,7 +20,6 @@ import { DashboardView } from "../dashboard/tui/DashboardView.js";
 import { DiffView } from "../git/tui/DiffView.js";
 import { GitLogView } from "../git/tui/GitLogView.js";
 import { GitNotificationsView } from "../git/tui/GitNotificationsView.js";
-import { WorkflowRunsView } from "../git/tui/WorkflowRunsView.js";
 import { OmarchyMenu } from "./OmarchyMenu.js";
 import { OutputPane } from "./OutputPane.js";
 import { Toast } from "./Toast.js";
@@ -78,8 +76,6 @@ export interface AppDeps {
   readonly onRefreshDiff: () => void;
   /** Callback to trigger an immediate git log refresh */
   readonly onRefreshGitLog: () => void;
-  /** Callback to trigger an immediate workflow refresh */
-  readonly onRefreshWorkflows: () => void;
   /** Callback to trigger an immediate GitHub notification refresh */
   readonly onRefreshNotifications: () => void;
   /** Callback to trigger an immediate dashboard source refresh. */
@@ -99,7 +95,6 @@ export class App {
   private dashboardView: DashboardView;
   private diffView: DiffView;
   private gitLogView: GitLogView;
-  private workflowsView: WorkflowRunsView;
   private notificationsView: GitNotificationsView;
   private omarchyMenu: OmarchyMenu;
   private outputPane: OutputPane;
@@ -202,19 +197,6 @@ export class App {
         await openGitShow(deps.renderer, repo.path, commit.sha, () => {
           setTerminalTitle(gitLogTitle);
         });
-      },
-      onBack: () => this.popView(),
-    });
-
-    this.workflowsView = new WorkflowRunsView(deps.renderer, deps.theme, {
-      onRefresh: () => deps.onRefreshWorkflows(),
-      onOpenRun: (run: WorkflowRun) => {
-        if (!run.url) return;
-        deps.commandRunner
-          .runSilent(`xdg-open ${shellQuote(run.url)}`)
-          .catch((err) => {
-            log(`Open workflow run error: ${err}`);
-          });
       },
       onBack: () => this.popView(),
     });
@@ -345,11 +327,6 @@ export class App {
     // If stack is empty we're at main — stay there
   }
 
-  /** Get the workflow runs view for direct state updates from the watcher */
-  getWorkflowsView(): WorkflowRunsView {
-    return this.workflowsView;
-  }
-
   /** Get the git log view for direct state updates from the watcher. */
   getGitLogView(): GitLogView {
     return this.gitLogView;
@@ -415,11 +392,6 @@ export class App {
         this.gitLogView.setVisible(true);
         this.gitLogView.focus();
         break;
-      case "git-workflows":
-        setTerminalTitle("Dot TUI \u203A Workflows");
-        this.workflowsView.setVisible(true);
-        this.workflowsView.focus();
-        break;
       case "git-notifications":
         setTerminalTitle("Dot TUI \u203A Notifications");
         this.notificationsView.setVisible(true);
@@ -455,7 +427,6 @@ export class App {
     this.dashboardView.setVisible(false);
     this.diffView.setVisible(false);
     this.gitLogView.setVisible(false);
-    this.workflowsView.setVisible(false);
     this.notificationsView.setVisible(false);
     this.omarchyMenu.setVisible(false);
     this.outputPane.setVisible(false);
@@ -536,9 +507,6 @@ export class App {
         break;
       case "git-log":
         this.gitLogView.focus();
-        break;
-      case "git-workflows":
-        this.workflowsView.focus();
         break;
       case "git-notifications":
         this.notificationsView.focus();

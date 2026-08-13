@@ -38,12 +38,10 @@ Disable user timers/services that were enabled from these dotfiles.
 ```bash
 systemctl --user disable --now dot-doctor-startup.timer
 systemctl --user disable --now daily-volume-zero.timer
-systemctl --user disable --now git-workflow-watch.timer git-workflow-watch.service
-systemctl --user reset-failed git-workflow-watch.timer git-workflow-watch.service
 systemctl --user daemon-reload
 ```
 
-`daily-volume-zero.timer` only exists on laptop stow packages, and `git-workflow-watch.*` are obsolete legacy units, so these commands may report that some units are missing.
+`daily-volume-zero.timer` only exists on laptop stow packages, so that command may report that the unit is missing.
 
 ## Remove synced agent instruction copies
 

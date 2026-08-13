@@ -12,8 +12,6 @@ const rootExamples = [
   "dot git-diff --bar-json  Status bar JSON output",
   "dot git-log              Recent commits TUI",
   "dot git-log --raw        Text commit history summary",
-  "dot git-workflows        Watched workflow runs TUI",
-  "dot git-workflows --bar-json Status bar JSON output",
   "dot git-notifications    GitHub notifications TUI",
   "dot git-notifications --bar-json Status bar JSON output",
   "notes list               Repository notes CLI",

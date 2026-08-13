@@ -31,8 +31,8 @@ describe("renderHelp", () => {
   });
 
   test("renders command options and examples", () => {
-    const help = renderHelp("git-workflows");
-    expect(help).toContain("Usage: dot git-workflows");
+    const help = renderHelp("git-notifications");
+    expect(help).toContain("Usage: dot git-notifications");
     expect(help).toContain("--bar-json");
     expect(help).toContain("--since <date>");
     expect(help).toContain("Examples:");

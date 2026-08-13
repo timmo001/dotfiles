@@ -118,16 +118,6 @@ const dotItems: readonly MenuItem[] = [
     "Git",
   ),
   item(
-    "git-workflows",
-    "󰜎",
-    "Git Workflows",
-    "Watched GitHub workflow runs",
-    view("git-workflows"),
-    undefined,
-    ["github", "actions", "runs", "ci", "watch", "watched", "workflow"],
-    "Git",
-  ),
-  item(
     "git-notifications",
     "",
     "Git Notifications",

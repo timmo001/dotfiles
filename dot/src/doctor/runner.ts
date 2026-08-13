@@ -17,7 +17,6 @@ import { checkGitConfig } from "../git/doctor/gitConfig.js";
 import { checkOriginHead } from "../git/doctor/originHead.js";
 import {
   checkGitNotifications,
-  checkWorkflowRuns,
   checkDoctorStartup,
   checkReloadUiMonitor,
   checkDailyVolumeReset,
@@ -79,7 +78,6 @@ const sections: readonly SectionDef[] = [
   { name: "Herdr integration", check: checkHerdr },
   { name: "GitHub MCP auth", check: checkGithubMcpAuth },
   { name: "Git config include", check: checkGitConfig },
-  { name: "Workflow runs checks", check: checkWorkflowRuns },
   { name: "Git notification checks", check: checkGitNotifications },
   { name: "Doctor startup notification", check: checkDoctorStartup },
   { name: "uwsm session PATH", check: checkLocalBinPath },

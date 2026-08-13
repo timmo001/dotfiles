@@ -36,17 +36,18 @@ describe("parseFlags", () => {
   });
 
   test("normalizes epoch seconds and milliseconds", () => {
-    expect(parseFlags(["git-workflows", "--since=1710000000"]).since).toBe(
+    expect(parseFlags(["git-notifications", "--since=1710000000"]).since).toBe(
       "2024-03-09T16:00:00.000Z",
     );
     expect(
-      parseFlags(["git-workflows", "--since", "1710000000000"]).since,
+      parseFlags(["git-notifications", "--since", "1710000000000"]).since,
     ).toBe("2024-03-09T16:00:00.000Z");
   });
 
   test("accepts multi-token date values", () => {
     expect(
-      parseFlags(["git-workflows", "--since", "2024-03-09", "16:00:00Z"]).since,
+      parseFlags(["git-notifications", "--since", "2024-03-09", "16:00:00Z"])
+        .since,
     ).toBe("2024-03-09T16:00:00.000Z");
   });
 

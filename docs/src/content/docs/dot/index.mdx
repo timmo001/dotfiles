@@ -47,7 +47,7 @@ export const cards = [
 
 It has two faces:
 
-- **A TUI dashboard**: run `dot` with no arguments to open the interactive menu, with git diff/log views, GitHub workflow runs, the notification inbox, and Omarchy menus.
+- **A TUI dashboard**: run `dot` with no arguments to open the interactive menu, with git diff/log views, the notification inbox, and Omarchy menus.
 - **A native CLI**: core maintenance actions are also subcommands (`dot update`, `dot git-diff --raw`, `dot doctor`, ...), suitable for scripts and status bars.
 
 <LinkCardGrid cards={cards} />
@@ -82,7 +82,7 @@ Post-hooks and the final resume refresh are bounded but non-fatal. The refresh r
 
 ## Dashboard
 
-`dot dashboard` opens a full-screen dashboard. It combines tracked repo state, GitHub notifications, workflow runs, and optional bounded source commands for Twitch, environment, todo, and calendar cards. Cards are intentionally readable and always present; Enter opens an existing deeper TUI view, or suspends `dot` while another TUI runs, when a card has one.
+`dot dashboard` opens a full-screen dashboard. It combines tracked repo state, GitHub notifications, and optional bounded source commands for Twitch, environment, todo, and calendar cards. Cards are intentionally readable and always present; Enter opens an existing deeper TUI view, or suspends `dot` while another TUI runs, when a card has one.
 
 ### Layout
 
@@ -91,11 +91,11 @@ Cards are grouped into four sections:
 | Section     | Cards                                                             | Source                                                              |
 | ----------- | ----------------------------------------------------------------- | ------------------------------------------------------------------- |
 | Overview    | Events in the next hour (when configured), Updates, Live Channels | Private `calendar`/`twitch` sources; in-process repo diff state     |
-| Git         | Git Diff, Git Notifications                                       | In-process `DotDiff`, notification inbox, and workflow-run services |
+| Git         | Git Diff, Git Notifications                                       | In-process `DotDiff` and notification inbox services                |
 | Todos       | My Tasks, Work Tasks                                              | Private `todo_*` sources                                            |
 | Environment | Temperature, CO2, VOC                                             | Private `temperature`/`co2`/`voc` sources                           |
 
-The summary header at the top highlights attention signals (dirty worktrees, behind core repos, important notifications, workflow failures, environment warnings).
+The summary header at the top highlights attention signals (dirty worktrees, behind core repos, important notifications, environment warnings).
 
 ### Keyboard
 
@@ -108,14 +108,14 @@ The summary header at the top highlights attention signals (dirty worktrees, beh
 
 ### Enter actions
 
-| Card              | Enter behaviour                                                          |
-| ----------------- | ------------------------------------------------------------------------ |
-| Updates           | Runs `dot update` when core repos are behind (exits the dashboard)       |
-| Git Diff          | Opens the `dot git-diff` TUI                                             |
-| Git Notifications | Opens the `dot git-notifications` TUI (includes workflow failure counts) |
-| Live Channels     | Runs `twitch-menu channels` (suspends the dashboard)                     |
-| Todo cards        | Runs the configured Home Assistant todo TUI (suspends)                   |
-| Environment cards | Runs `open_command` from `dot-dashboard.yml` when set (silent)           |
+| Card              | Enter behaviour                                                        |
+| ----------------- | ---------------------------------------------------------------------- |
+| Updates           | Runs `dot update` when core repos are behind (exits the dashboard)     |
+| Git Diff          | Opens the `dot git-diff` TUI                                           |
+| Git Notifications | Opens the `dot git-notifications` TUI                                  |
+| Live Channels     | Runs `twitch-menu channels` (suspends the dashboard)                   |
+| Todo cards        | Runs the configured Home Assistant todo TUI (suspends)                 |
+| Environment cards | Runs `open_command` from `dot-dashboard.yml` when set (silent)         |
 
 Optional source cards read from `dot-dashboard.yml` in the private overlay. Each source runs a one-shot `--bar-json` command on refresh (eight-second timeout, 60-second auto-refresh). Without that file, git and update cards still work from in-process services. See [Private Dashboard Config](/configuration/private-dashboard/) for the schema and supported source IDs.
 

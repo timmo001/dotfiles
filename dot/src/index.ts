@@ -10,7 +10,6 @@ import { GitLog } from "./git/services/GitLog.js";
 import { GitHub } from "./git/services/GitHub.js";
 import { GitNotifications } from "./git/services/GitNotifications.js";
 import { GitStaging } from "./git/services/GitStaging.js";
-import { WorkflowRuns } from "./git/services/WorkflowRuns.js";
 import { Dashboard } from "./dashboard/services/Dashboard.js";
 import { buildDashboardState } from "./dashboard/viewModel.js";
 import { parseFlags, resolveSubcommand, printHelp } from "./flags.js";
@@ -57,12 +56,6 @@ import {
 import { gitLogRaw } from "./git/commands/Log.js";
 import { gitCommitRaw } from "./git/commands/Commit.js";
 import {
-  workflowsListRepos,
-  workflowsListRuns,
-  workflowsRaw,
-  workflowsBarJson,
-} from "./git/commands/Workflows.js";
-import {
   notificationsAction,
   notificationsListThreads,
   notificationsRaw,
@@ -73,7 +66,6 @@ import type {
   GitNotificationAction,
   GitNotificationQueryOptions,
   ViewId,
-  WorkflowRunQueryOptions,
 } from "./types.js";
 import { getCliCommand, nativeCommandNames } from "./cli/spec.js";
 
@@ -122,7 +114,6 @@ const TUI_ALTERNATIVES: Partial<Record<ViewId, string>> = {
   dashboard: "context git",
   "git-diff": "dot git-diff --raw",
   "git-log": "dot git-log --raw",
-  "git-workflows": "dot git-workflows --raw",
   "git-notifications": "dot git-notifications --raw",
 };
 
@@ -178,17 +169,6 @@ function resolveMode(): Mode {
     if (flags.subcommand === "git-log") {
       if (!flags.rest.includes("--raw")) {
         return { type: "tui", initialView: "git-log" };
-      }
-    }
-    // Git workflows without machine/listing flags opens the TUI workflows view.
-    if (flags.subcommand === "git-workflows") {
-      const hasMachineFlag =
-        hasBarJsonFlag(flags.rest) ||
-        flags.rest.includes("--list-repos") ||
-        flags.rest.includes("--list-runs") ||
-        flags.rest.includes("--raw");
-      if (!hasMachineFlag) {
-        return { type: "tui", initialView: "git-workflows" };
       }
     }
     // Git notifications without machine/action flags opens the TUI inbox view.
@@ -364,9 +344,6 @@ function bootstrapPrivateDotfilesForInit(mode: Mode): void {
 configureInitLogging(mode);
 bootstrapPrivateDotfilesForInit(mode);
 
-const workflowOpts: WorkflowRunQueryOptions | undefined = flags.since
-  ? { since: flags.since }
-  : undefined;
 const notificationOpts = parseNotificationOpts(
   flags.rest,
   flags.since,
@@ -466,8 +443,7 @@ type NativeEnv =
   | GitNotifications
   | GitStaging
   | Launcher
-  | OutputLog
-  | WorkflowRuns;
+  | OutputLog;
 type NativeEffect = Effect.Effect<void, unknown, NativeEnv>;
 
 const NATIVE_COMMAND_TIMEOUT_SECONDS: Partial<Record<string, number>> = {
@@ -519,7 +495,6 @@ const GitLogLayer = GitLog.layer.pipe(Layer.provideMerge(DotDiff.layer));
 
 const CliLayers = Launcher.cliLayer.pipe(
   Layer.provideMerge(GitLogLayer),
-  Layer.provideMerge(WorkflowRuns.layer),
   Layer.provideMerge(GitNotifications.layer),
   Layer.provideMerge(GitStaging.layer),
   Layer.provideMerge(GitHub.layer),
@@ -539,13 +514,6 @@ if (mode.type === "native") {
     if (args.includes("--list-changed")) return diffListChanged(opts);
     if (args.includes("--list-all")) return diffListAll;
     return diffRaw(opts);
-  };
-
-  const resolveWorkflows = (args: readonly string[]): NativeEffect => {
-    if (hasBarJsonFlag(args)) return workflowsBarJson(workflowOpts);
-    if (args.includes("--list-repos")) return workflowsListRepos(workflowOpts);
-    if (args.includes("--list-runs")) return workflowsListRuns(workflowOpts);
-    return workflowsRaw(workflowOpts);
   };
 
   const resolveNotifications = (args: readonly string[]): NativeEffect => {
@@ -602,7 +570,6 @@ if (mode.type === "native") {
           dryRun: args.includes("--dry-run"),
           amend: args.includes("--amend"),
         }),
-      "git-workflows": resolveWorkflows,
       "git-notifications": resolveNotifications,
       "agents-sync": () => agentsSync,
       "mcp-sync": () => mcpSync,
@@ -687,7 +654,6 @@ if (mode.type === "native") {
     log("Starting...");
     const watcher = yield* RepoWatcher;
     const gitLog = yield* GitLog;
-    const workflows = yield* WorkflowRuns;
     const notifications = yield* GitNotifications;
     const dashboard = yield* Dashboard;
     const renderer = yield* Renderer;
@@ -711,16 +677,12 @@ if (mode.type === "native") {
         onRefreshGitLog: () => {
           runFork(gitLog.refresh());
         },
-        onRefreshWorkflows: () => {
-          runFork(workflows.refresh(workflowOpts));
-        },
         onRefreshNotifications: () => {
           runFork(notifications.refresh(notificationOpts));
         },
         onRefreshDashboard: () => {
           runFork(dashboard.refresh());
           runFork(notifications.refresh(notificationOpts));
-          runFork(workflows.refresh(workflowOpts));
         },
         onNotificationAction: (action, threadId) => {
           runFork(
@@ -742,12 +704,10 @@ if (mode.type === "native") {
     log("App created");
 
     const gitLogView = app.getGitLogView();
-    const workflowsView = app.getWorkflowsView();
     const notificationsView = app.getNotificationsView();
 
     let currentRepoState = yield* watcher.getState();
     let currentDashboardState = yield* dashboard.getState();
-    let currentWorkflowState = yield* workflows.getState();
     let currentNotificationState = yield* notifications.getState();
 
     const updateDashboardView = () => {
@@ -756,7 +716,6 @@ if (mode.type === "native") {
           repoState: currentRepoState,
           sourceState: currentDashboardState,
           notifications: currentNotificationState,
-          workflows: currentWorkflowState,
         }),
       );
     };
@@ -788,20 +747,6 @@ if (mode.type === "native") {
       Effect.forkScoped,
     );
     log("Subscribed to git log stream");
-
-    // Subscribe to workflow state changes and update the workflows view
-    yield* workflows.subscribe().pipe(
-      Stream.runForEach((state) =>
-        Effect.sync(() => {
-          log(`Workflow update: ${state.repos.length} watched repos`);
-          currentWorkflowState = state;
-          workflowsView.update(state);
-          updateDashboardView();
-        }),
-      ),
-      Effect.forkScoped,
-    );
-    log("Subscribed to workflow stream");
 
     // Subscribe to notification state changes and update the notifications view
     yield* notifications.subscribe().pipe(
@@ -840,9 +785,6 @@ if (mode.type === "native") {
     const initialGitLogState = yield* gitLog.getState();
     gitLogView.update(initialGitLogState);
 
-    const initialWorkflowState = currentWorkflowState;
-    workflowsView.update(initialWorkflowState);
-
     const initialNotificationState = currentNotificationState;
     notificationsView.update(initialNotificationState);
 
@@ -864,7 +806,6 @@ if (mode.type === "native") {
 
   const TuiLayers = RepoWatcher.layer.pipe(
     Layer.provideMerge(GitLogLayer),
-    Layer.provideMerge(WorkflowRuns.layer),
     Layer.provideMerge(DashboardLayer),
     Layer.provideMerge(GitNotifications.layer),
     Layer.provideMerge(GitHub.layer),

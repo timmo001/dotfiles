@@ -301,9 +301,6 @@ export function resolveSubcommand(
   if (sub === "git-log") {
     return { type: "view", viewId: "git-log" };
   }
-  if (sub === "git-workflows") {
-    return { type: "view", viewId: "git-workflows" };
-  }
   if (sub === "git-notifications") {
     return { type: "view", viewId: "git-notifications" };
   }

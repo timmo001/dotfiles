@@ -10,7 +10,6 @@ const REPO_KEYS = new Set([
   "aliases",
   "post_update",
   "activity",
-  "workflows",
   "notifications",
 ]);
 const CHECK_KEYS = new Set(["enabled", "schedule"]);
@@ -29,7 +28,7 @@ export interface GitRepoShortcut {
 }
 
 /** Git checks that can be independently toggled and scheduled. */
-export type GitRepoCheckName = "activity" | "workflows";
+export type GitRepoCheckName = "activity";
 
 /** Explicit per-check config for a managed git repository. */
 export interface GitRepoCheckConfig {
@@ -65,8 +64,6 @@ export interface GitManagedRepo {
   readonly postUpdate: string | null;
   /** Local activity check used by git diff and git log. */
   readonly activity: GitRepoCheckConfig;
-  /** GitHub Actions workflow run check. */
-  readonly workflows: GitRepoCheckConfig;
   /** GitHub notification check and status-bar filters. */
   readonly notifications: GitRepoNotificationConfig;
 }
@@ -307,11 +304,6 @@ function parseRepo(
     `${location}.activity`,
     diagnostics,
   );
-  const workflows = parseCheck(
-    value.workflows,
-    `${location}.workflows`,
-    diagnostics,
-  );
   const notifications = parseNotifications(
     value.notifications,
     `${location}.notifications`,
@@ -322,8 +314,7 @@ function parseRepo(
     diagnostics.push(`${location}.github must be a GitHub owner/repo slug`);
   }
 
-  if (!name || !rawPath || !github || !activity || !workflows || !notifications)
-    return [];
+  if (!name || !rawPath || !github || !activity || !notifications) return [];
   return [
     {
       name,
@@ -332,7 +323,6 @@ function parseRepo(
       aliases,
       postUpdate,
       activity,
-      workflows,
       notifications,
     },
   ];

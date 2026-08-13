@@ -7,7 +7,6 @@ import LinkCardGrid from '../../components/LinkCardGrid.astro';
 
 export const commandCards = [
   { title: 'Diff & Repo Watcher', href: '/git/diff/', description: 'dot git-diff --bar-json flags managed repos that have uncommitted or unpushed changes.' },
-  { title: 'Workflow Runs', href: '/git/workflows/', description: "dot git-workflows --bar-json --since surfaces recent GitHub Actions activity for each repo's checked-out commit." },
   { title: 'Notifications', href: '/git/notifications/', description: 'dot git-notifications --bar-json shows the GitHub notification inbox; left click opens the filtered TUI.' },
 ];
 
@@ -85,4 +84,4 @@ Which repos and which activity reach the bar is controlled by the private `dot-g
 
 ## Health checks
 
-`dot doctor` verifies `dot-git.yml`, GitHub notification API access, and the absence of legacy `git-workflow-watch` leftovers.
+`dot doctor` verifies `dot-git.yml` and GitHub notification API access.

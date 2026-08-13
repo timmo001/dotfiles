@@ -52,11 +52,10 @@ The tables below show the rendered left-to-right order within each section. Omar
 | Centre | 6 | NAS activity | Added after in-call state. |
 | Centre | 7 | GitHub notifications | Added after NAS activity. |
 | Centre | 8 | Repository diff status | Added after GitHub notifications. |
-| Centre | 9 | GitHub workflow status | Added after repository diff status. |
-| Centre | 10 | Package updates | Added after GitHub workflow status. |
-| Centre | 11 | Twitch notifications | Added after package updates. |
-| Centre | 12 | System update (`omarchy.system-update`) | Retained after the added status items. |
-| Centre | 13 | Doorbell trigger | Added at the end of the section and always visually hidden. |
+| Centre | 9 | Package updates | Added after repository diff status. |
+| Centre | 10 | Twitch notifications | Added after package updates. |
+| Centre | 11 | System update (`omarchy.system-update`) | Retained after the added status items. |
+| Centre | 12 | Doorbell trigger | Added at the end of the section and always visually hidden. |
 | Right | 1 | Tray (`omarchy.tray`) | Retained and pinned to the inner edge by Omarchy. |
 | Right | 2 | Outdoor temperature | Replaces `omarchy.weather` and sits immediately after the tray. |
 | Right | 3 | Heating state | Added after outdoor temperature. |
@@ -83,11 +82,10 @@ The left section matches desktop. The centre and right sections differ as follow
 | Centre | 5 | NAS activity | Added after in-call state. |
 | Centre | 6 | GitHub notifications | Added after NAS activity. |
 | Centre | 7 | Repository diff status | Added after GitHub notifications. |
-| Centre | 8 | GitHub workflow status | Added after repository diff status. |
-| Centre | 9 | Package updates | Added after GitHub workflow status. |
-| Centre | 10 | Twitch notifications | Added after package updates. |
-| Centre | 11 | System update (`omarchy.system-update`) | Retained after the added status items. |
-| Centre | 12 | Doorbell trigger | Added at the end of the section and always visually hidden. |
+| Centre | 8 | Package updates | Added after repository diff status. |
+| Centre | 9 | Twitch notifications | Added after package updates. |
+| Centre | 10 | System update (`omarchy.system-update`) | Retained after the added status items. |
+| Centre | 11 | Doorbell trigger | Added at the end of the section and always visually hidden. |
 | Right | 1 | Tray (`omarchy.tray`) | Retained and pinned to the inner edge by Omarchy. |
 | Right | 2 | Outdoor temperature | Replaces `omarchy.weather` and sits immediately after the tray. |
 | Right | 3 | Heating state | Added after outdoor temperature. |

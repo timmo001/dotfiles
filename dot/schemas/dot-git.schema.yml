@@ -2,7 +2,7 @@
 $schema: "https://json-schema.org/draft/2020-12/schema"
 $id: "https://timmo.dev/schemas/dot-git.schema.yml"
 title: dot-git config
-description: Private git repository config for dot git-diff, git-log, git-workflows, and git-notifications.
+description: Private git repository config for dot git-diff, git-log, and git-notifications.
 type: object
 additionalProperties: false
 
@@ -58,7 +58,6 @@ $defs:
       - path
       - github
       - activity
-      - workflows
       - notifications
     properties:
       name:
@@ -85,8 +84,6 @@ $defs:
         minLength: 1
         description: Command run from the repository root after dot update pulls a new HEAD.
       activity:
-        $ref: "#/$defs/scheduled_check"
-      workflows:
         $ref: "#/$defs/scheduled_check"
       notifications:
         $ref: "#/$defs/notifications"

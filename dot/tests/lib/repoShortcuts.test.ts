@@ -16,7 +16,6 @@ function repository(overrides: Partial<GitManagedRepo> = {}): GitManagedRepo {
     aliases: ["dotfiles", "dots"],
     postUpdate: null,
     activity: { enabled: true, schedule: "* * * * *" },
-    workflows: { enabled: false, schedule: "* * * * *" },
     notifications: {
       enabled: true,
       schedule: "* * * * *",

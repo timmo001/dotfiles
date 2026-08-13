@@ -118,11 +118,11 @@ describe("removeRetiredPublicStowLinks", () => {
     const homeDir = join(root, "home");
     const retiredSource = join(publicDotfiles, "scripts/.local/bin/waybar");
     const retiredTarget = join(homeDir, ".local/bin/waybar");
-    const unrelatedTarget = join(homeDir, ".local/bin/git-workflows-bar");
+    const unrelatedTarget = join(homeDir, ".local/bin/external-helper");
     mkdirSync(dirname(retiredSource), { recursive: true });
     mkdirSync(dirname(retiredTarget), { recursive: true });
     symlinkSync(retiredSource, retiredTarget);
-    symlinkSync("/tmp/external-git-workflows-bar", unrelatedTarget);
+    symlinkSync("/tmp/external-helper", unrelatedTarget);
 
     expect(removeRetiredPublicStowLinks(publicDotfiles, homeDir)).toEqual([
       retiredTarget,

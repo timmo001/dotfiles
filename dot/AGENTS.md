@@ -67,7 +67,6 @@ src/
       Diff.ts             — dot git-diff (--bar-json, --list-changed, --list-all, --raw)
       Log.ts              — dot git-log (--raw)
       Notifications.ts    — dot git-notifications (--bar-json, --list-threads, actions, --raw)
-      Workflows.ts        — dot git-workflows (--since, --bar-json, --list-repos, --list-runs, --raw)
     remotes.ts            — Shared default-remote/branch resolver for git helpers
     doctor/
       gitConfig.ts        — managed Git config doctor check
@@ -80,14 +79,11 @@ src/
       GitStaging.ts       — Git status/add/commit operations
       RepoWatcher.ts      — Hybrid poll loop (initial poll → 10s poll), PubSub state
       relativeTime.ts     — Shared compact relative timestamp formatter
-      WorkflowRuns.ts     — Watched GitHub Actions run state for locally checked-out HEAD commits
-      workflowStatus.ts   — Shared GitHub Actions status classification helpers
     tui/
       DiffView.ts         — Two-pane layout (Changed/Other) with repo watcher
       GitLogView.ts       — Two-pane recent commit history view
       GitShow.ts          — Suspend/resume git show pager launcher
       GitNotificationsView.ts — GitHub notification inbox with read/done/ignore actions
-      WorkflowRunsView.ts — Two-pane watched GitHub workflow runs view
       Lazygit.ts          — Suspend/resume lazygit spawn
       SuspendedCommand.ts — Shared suspend/resume inherited-stdio command helper
   services/
@@ -126,8 +122,8 @@ src/
 
 1. `index.ts` parses CLI flags → resolves mode (TUI / native / fallback)
 2. Native commands run with `CliLayers` (no renderer, no TUI)
-3. TUI mode composes full layer stack including RepoWatcher, GitLog, WorkflowRuns, GitNotifications, Renderer, Toast
-4. `App` manages a view stack (main menu ↔ diff view ↔ git log view ↔ workflows view ↔ notifications view ↔ omarchy menu)
+3. TUI mode composes full layer stack including RepoWatcher, GitLog, GitNotifications, Renderer, Toast
+4. `App` manages a view stack (main menu ↔ diff view ↔ git log view ↔ notifications view ↔ omarchy menu)
 5. Menu items have typed actions: `command` (suspend/resume), `silent` (background), `notify` (background + toast), `view` (navigate), `submenu` (nested)
 6. `CommandRunner` handles suspend/resume for terminal commands, silent background execution, and notify-style commands with toast feedback
 7. `RepoWatcher` runs an initial poll for first paint, then polls every 10s
@@ -217,12 +213,6 @@ dot git-commit --amend                # Amend the previous commit, keeping its m
 dot git-commit --amend -m "msg"       # Amend the previous commit and reword its subject
 dot git-commit -m "msg" --push # Commit then push the current branch (pulls --rebase first, sets upstream when missing, never forces)
 dot git-commit -m "msg" --dry-run # Preview the commit/push plan without changing anything
-dot git-workflows             # Watched GitHub workflow runs view (TUI)
-dot git-workflows --raw       # CLI workflow run summary
-dot git-workflows --since <date> # Filter workflow runs by creation time (TUI or CLI)
-dot git-workflows --bar-json  # JSON output for status bars and shell modules
-dot git-workflows --list-repos # Watched repo rows
-dot git-workflows --list-runs # Workflow run rows
 dot git-notifications         # GitHub notification inbox view (TUI)
 dot git-notifications --raw   # CLI notification summary
 dot git-notifications --bar-json # JSON output for status bars and shell modules
@@ -261,7 +251,7 @@ mise run dot:build   # outputs to scripts/.local/bin/dot (wraps bun run build)
 
 The single root `mise.toml` defines the dev tasks, namespaced `dot:*` (`dot:install`, `dot:build`, `dot:dev`, `dot:typecheck`, `dot:test`, `dot:format`, `dot:format:check`, `dot:check`) with `dir = "dot"`; each wraps the matching `bun run` script, so `bun run build` still works for the fresh-machine bootstrap. `dot:build` depends on `dot:install`, and `dot:check` runs type checking, tests, and the format check. CI runs these via `mise run`. Run `mise tasks` to list them.
 
-Tests live under `tests/` alongside `src/` and mirror the source tree, for example `tests/git/services/workflowStatus.test.ts` covers `src/git/services/workflowStatus.ts`.
+Tests live under `tests/` alongside `src/` and mirror the source tree.
 
 The build is also triggered by `dot update`, which runs `bun install` before compiling the binary. `dot update`'s rebuild (`src/lib/selfUpdate.ts`) intentionally does **not** use the `build` task: it compiles to a temp path and atomically renames over the running binary to avoid `ETXTBSY`, which a direct `--outfile` over the live binary would hit.
 
@@ -281,7 +271,7 @@ After that bootstrap build, run the checked-out binary directly. If private dotf
 
 - `NOTES` / `DOT_NOTES_DIR` — notes vault used by the standalone `notes` CLI/MCP server and OpenCode note commands
 - `DOT_USAGE_DIR` — usage event root for `dot usage` (default `$XDG_STATE_HOME/tool-usage`). `DOT_USAGE_DISABLE` disables live dot recording
-- `~/.config/dotfiles-private/dot-git.yml` — private git repo config for clone/bootstrap, doctor checks, `dot git-diff`, `dot git-log`, `dot git-workflows`, and `dot git-notifications --bar-json`; `activity`, `workflows`, and `notifications` each require explicit `enabled` plus 5-field cron `schedule` keys, and `notifications.bar.ignore_bot_activity` controls status-bar bot noise
+- `~/.config/dotfiles-private/dot-git.yml` — private git repo config for clone/bootstrap, doctor checks, `dot git-diff`, `dot git-log`, and `dot git-notifications --bar-json`; `activity` and `notifications` each require explicit `enabled` plus 5-field cron `schedule` keys, and `notifications.bar.ignore_bot_activity` controls status-bar bot noise
 - `gh` authenticated with a classic token carrying `notifications` or `repo` scope — required for `dot git-notifications` and its status-bar module
 - `lazygit` — launched via suspend/resume on Enter in diff view
 - `opencode` — CLI launched via suspend/resume for interactive sessions from the diff view

@@ -150,7 +150,7 @@ describe("mergeOmarchyShellConfig", () => {
     expect(runs).toContain("ha-module-bar");
     expect(runs).toContain("dot git-diff --bar-json");
     expect(runs).toContain("dot git-notifications --bar-json");
-    expect(runs).toContain("dot git-workflows --bar-json");
+    expect(runs).not.toContain("dot git-workflows");
     expect(runs).toContain("package-updates-bar status");
     expect(runs).not.toContain("ha-bar-module");
     expect(runs).not.toContain("voc-alert");

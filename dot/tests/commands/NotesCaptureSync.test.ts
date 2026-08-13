@@ -31,7 +31,6 @@ function repository(
     aliases: [],
     postUpdate: null,
     activity: { enabled: true, schedule: "* * * * *" },
-    workflows: { enabled: false, schedule: "* * * * *" },
     notifications: {
       enabled: notificationsEnabled,
       schedule: "* * * * *",

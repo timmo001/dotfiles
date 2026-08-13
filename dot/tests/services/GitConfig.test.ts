@@ -34,9 +34,6 @@ function repository(overrides = ""): string {
     activity:
       enabled: true
       schedule: "*/15 9-17 * * 1-5"
-    workflows:
-      enabled: false
-      schedule: "* * * * *"
     notifications:
       enabled: true
       schedule: "30 14 * * 5"
@@ -94,7 +91,6 @@ describe("loadDotGitConfig", () => {
         aliases: [],
         postUpdate: null,
         activity: { enabled: true, schedule: "*/15 9-17 * * 1-5" },
-        workflows: { enabled: false, schedule: "* * * * *" },
         notifications: {
           enabled: true,
           schedule: "30 14 * * 5",
@@ -108,7 +104,7 @@ describe("loadDotGitConfig", () => {
     const filePath = writeConfig(
       validConfig(
         repository(`    unexpected: true
-    workflows:
+    activity:
       enabled: yes
       schedule: "* * * *"
     notifications:
@@ -128,8 +124,8 @@ describe("loadDotGitConfig", () => {
     expect(config.diagnostics).toEqual(
       expect.arrayContaining([
         "root.repositories[0].unexpected is not supported",
-        "root.repositories[0].workflows.enabled must be true or false",
-        "root.repositories[0].workflows.schedule must be a five-field cron expression",
+        "root.repositories[0].activity.enabled must be true or false",
+        "root.repositories[0].activity.schedule must be a five-field cron expression",
         "root.repositories[0].notifications.bar.extra is not supported",
       ]),
     );
@@ -239,9 +235,6 @@ describe("managed repository selection", () => {
       activeGitReposForCheck(config, "activity", scheduledTime),
     ).toHaveLength(1);
     expect(activeGitReposForCheck(config, "activity", outsideSchedule)).toEqual(
-      [],
-    );
-    expect(activeGitReposForCheck(config, "workflows", scheduledTime)).toEqual(
       [],
     );
     expect(activeGitReposForNotifications(config, scheduledTime)).toHaveLength(

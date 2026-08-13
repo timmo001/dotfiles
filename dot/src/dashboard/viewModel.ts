@@ -1,8 +1,4 @@
-import type {
-  GitNotificationState,
-  RepoState,
-  WorkflowState,
-} from "../types.js";
+import type { GitNotificationState, RepoState } from "../types.js";
 import type {
   DashboardBarValue,
   DashboardCard,
@@ -12,7 +8,6 @@ import type {
   DashboardTone,
 } from "./types.js";
 import { notificationReasonIsImportant } from "../git/services/notificationStatus.js";
-import { workflowRunCounts } from "../git/services/workflowStatus.js";
 
 /** Inputs used to compose the dashboard view model. */
 export interface DashboardStateInput {
@@ -22,8 +17,6 @@ export interface DashboardStateInput {
   readonly sourceState: DashboardSourceState;
   /** Current GitHub notification state. */
   readonly notifications: GitNotificationState;
-  /** Current watched workflow run state. */
-  readonly workflows: WorkflowState;
 }
 
 /** Compose dashboard cards from live source snapshots. */
@@ -33,10 +26,7 @@ export function buildDashboardState(
   const cards = {
     updates: updatesCard(input.sourceState),
     gitDiff: gitDiffCard(input.repoState, input.sourceState),
-    gitNotifications: gitNotificationsCard(
-      input.notifications,
-      input.workflows,
-    ),
+    gitNotifications: gitNotificationsCard(input.notifications),
     live: liveCard(input.sourceState.bar.twitch),
     temperature: environmentCard(
       "environment-temperature",
@@ -111,12 +101,8 @@ export function buildDashboardState(
       input.repoState.lastChecked,
       input.sourceState.lastChecked,
       input.notifications.lastChecked,
-      input.workflows.lastChecked,
     ]),
-    loading:
-      input.sourceState.loading ||
-      input.notifications.loading ||
-      input.workflows.loading,
+    loading: input.sourceState.loading || input.notifications.loading,
   };
 }
 
@@ -193,53 +179,32 @@ function gitDiffCard(
 
 function gitNotificationsCard(
   notifications: GitNotificationState,
-  workflows: WorkflowState,
 ): DashboardCard {
   const unread = notifications.threads.filter((thread) => thread.unread).length;
   const important = notifications.threads.filter(
     (thread) => thread.unread && notificationReasonIsImportant(thread.reason),
   ).length;
-  const workflowCounts = workflows.repos.map(workflowRunCounts);
-  const failed = workflowCounts.reduce((sum, counts) => sum + counts.failed, 0);
-  const running = workflowCounts.reduce(
-    (sum, counts) => sum + counts.running,
-    0,
-  );
-  const workflowErrors = workflows.repos.filter((repo) => repo.error).length;
   const errorMessage = notifications.message;
-  const workflowMessage = workflows.message;
   return {
     id: "github",
     section: "Git",
     title: "Git Notifications",
     headline: errorMessage
       ? "Notifications unavailable"
-      : workflowErrors > 0
-        ? `${workflowErrors} workflow repo${plural(workflowErrors)} unavailable`
-        : important > 0
-          ? `${important} important notification${plural(important)}`
-          : unread > 0
-            ? `${unread} unread notification${plural(unread)}`
-            : failed > 0
-              ? `${failed} workflow failure${plural(failed)}`
-              : "Inbox and workflows calm",
+      : important > 0
+        ? `${important} important notification${plural(important)}`
+        : unread > 0
+          ? `${unread} unread notification${plural(unread)}`
+          : "Inbox calm",
     tone:
-      errorMessage || workflowErrors > 0 || important > 0 || failed > 0
+      errorMessage || important > 0
         ? "attention"
-        : unread > 0 || running > 0
+        : unread > 0
           ? "active"
           : "ok",
-    lines: [
-      errorMessage ?? `${unread} unread, ${important} important`,
-      failed > 0
-        ? `${failed} workflow failure${plural(failed)}`
-        : workflowErrors > 0
-          ? `${workflowErrors} workflow repo${plural(workflowErrors)} unavailable`
-          : "No workflow failures",
-      running > 0
-        ? `${running} workflow${plural(running)} running`
-        : workflowMessage || "No active workflow runs",
-    ].filter((line): line is string => Boolean(line)),
+    lines: [errorMessage ?? `${unread} unread, ${important} important`].filter(
+      (line): line is string => Boolean(line),
+    ),
     viewId: "git-notifications",
     actionLabel: "Open Notifications",
   };

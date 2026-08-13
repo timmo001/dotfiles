@@ -33,7 +33,6 @@ const LEGACY_UWSM_REPO_SLUG = "timmo001/omarchy-uwsm";
 
 const RETIRED_PUBLIC_STOW_PATHS = [
   "scripts/.local/bin/waybar",
-  "scripts/.local/bin/git-workflows-bar",
   "scripts/.local/share/omarchy/bin/waybar",
   "hypr/.config/hypr/hyprland.conf",
   "hypr/.config/hypr/hypridle.conf",
