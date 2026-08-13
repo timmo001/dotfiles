@@ -55,7 +55,7 @@ QtObject {
     desktop: {
       temperature: {
         entity: "sensor.meter_d828_temperature",
-        label: "Meter D828 Temperature",
+        label: "Meter D828 temperature",
         page: "office"
       },
       co2: {
@@ -64,7 +64,7 @@ QtObject {
       },
       airConditionerTarget: {
         entity: "input_number.office_air_conditioner_target_temperature",
-        label: "Office Air Conditioner Target Temperature",
+        label: "Air conditioner target temperature",
         gateEntity: "input_boolean.office_air_conditioner_enabled",
         gateOption: "--gate-state on",
         statusEntity: "climate.office_air_conditioner"
@@ -75,7 +75,7 @@ QtObject {
     laptop: {
       temperature: {
         entity: "sensor.meter_plus_378b_temperature",
-        label: "Meter Plus Temperature",
+        label: "Living room temperature",
         page: "living-room"
       },
       co2: {
@@ -84,7 +84,7 @@ QtObject {
       },
       airConditionerTarget: {
         entity: "input_number.living_room_air_conditioner_target_temperature",
-        label: "Living Room Air Conditioner Target Temperature",
+        label: "Air conditioner target temperature",
         gateEntity: "input_number.living_room_air_conditioner_target_temperature",
         gateOption: "--gate-below 26",
         statusEntity: "climate.air_conditioner"
@@ -110,10 +110,10 @@ QtObject {
     {
       id: "time-check",
       group: "Status",
-      label: "Time Check",
+      label: "Time check",
       icon: "󱑎",
       stream: true,
-      command: "ha-watch-singleton --module time-check --entity input_boolean.time_check --icon 󱑎 --text-on 'Check the time' --tooltip-on 'Time Check (input_boolean.time_check): On' --tooltip-off 'Time Check (input_boolean.time_check): Off' --class-on active --class-off inactive --hide-off",
+      command: "ha-watch-singleton --module time-check --entity input_boolean.time_check --icon 󱑎 --text-on 'Check the time' --tooltip-on 'Time check (input_boolean.time_check): On' --tooltip-off 'Time check (input_boolean.time_check): Off' --class-on active --class-off inactive --hide-off",
       action: "timmo-run-command go-automate ha ib t time_check",
       showWhen: { classes: ["active"] },
       inactiveText: "Off",
@@ -123,10 +123,10 @@ QtObject {
     {
       id: "in-a-call",
       group: "Status",
-      label: "In a Call",
+      label: "In a call",
       icon: "󰍸",
       stream: true,
-      command: "ha-watch-singleton --module in-a-call --entity input_boolean.in_a_call --icon '' --tooltip-on 'In a Call (input_boolean.in_a_call): On' --tooltip-off 'In a Call (input_boolean.in_a_call): Off' --class-on active --class-off inactive --hide-off",
+      command: "ha-watch-singleton --module in-a-call --entity input_boolean.in_a_call --icon '' --tooltip-on 'In a call (input_boolean.in_a_call): On' --tooltip-off 'In a call (input_boolean.in_a_call): Off' --class-on active --class-off inactive --hide-off",
       action: "timmo-run-command go-automate ha ib t in_a_call",
       showWhen: { classes: ["active"] },
       inactiveText: "Off",
@@ -137,7 +137,7 @@ QtObject {
     {
       id: "nas",
       group: "Status",
-      label: "NAS Activity",
+      label: "NAS activity",
       icon: "󰒋",
       command: "ha-module-bar nas-activity --icon 󰒋",
       interval: 5000,
@@ -151,9 +151,9 @@ QtObject {
   readonly property var outdoorTemperature: ({
     id: "outdoor-temperature",
     group: "Environment",
-    label: "Outdoor Temperature",
+    label: "Outdoor temperature",
     icon: "󰖙",
-    command: "ha-module-bar temperature --entity sensor.weather_station_outdoor_temperature --name 'Weather Station Outdoor Temperature' --icon 󰖙 --show-above 25",
+    command: "ha-module-bar temperature --entity sensor.weather_station_outdoor_temperature --name 'Weather station outdoor temperature' --icon 󰖙 --show-above 25",
     interval: 15000,
     action: "launch-floating-webapp 'http://homeassistant.local:8123/home?more-info-entity-id=weather.met_office&more-info-view=info#forecast=hourly'",
     colors: { quiet: root.colors.orange }
@@ -165,7 +165,7 @@ QtObject {
     label: "Heating",
     icon: "󰈸",
     stream: true,
-    command: "ha-watch-singleton --module heating --entity sensor.thermostat_status --icon 󰈸 --tooltip-on 'Thermostat Status (sensor.thermostat_status)' --class-on heating --class-off hidden --hide-off",
+    command: "ha-watch-singleton --module heating --entity sensor.thermostat_status --icon 󰈸 --tooltip-on 'Thermostat status (sensor.thermostat_status)' --class-on heating --class-off hidden --hide-off",
     action: "launch-floating-webapp 'http://homeassistant.local:8123/lovelace/home?more-info-entity-id=sensor.thermostat_status'",
     showWhen: { classes: ["heating"] },
     inactiveText: "Off",
@@ -179,7 +179,7 @@ QtObject {
     label: "Rain",
     icon: "󰖖",
     stream: true,
-    command: "ha-watch-singleton --module rain --entity binary_sensor.weather_station_rain_state_piezo --icon 󰖖 --tooltip-on 'Weather Station Rain State Piezo (binary_sensor.weather_station_rain_state_piezo): Raining' --tooltip-off 'Weather Station Rain State Piezo (binary_sensor.weather_station_rain_state_piezo): Not raining' --class-on raining --class-off hidden --hide-off",
+    command: "ha-watch-singleton --module rain --entity binary_sensor.weather_station_rain_state_piezo --icon 󰖖 --tooltip-on 'Weather station rain state piezo (binary_sensor.weather_station_rain_state_piezo): Raining' --tooltip-off 'Weather station rain state piezo (binary_sensor.weather_station_rain_state_piezo): Not raining' --class-on raining --class-off hidden --hide-off",
     action: "launch-floating-webapp 'http://homeassistant.local:8123/home/areas-048a0fd33b134e3689eda6212a41b99d?more-info-entity-id=binary_sensor.weather_station_rain_state_piezo'",
     showWhen: { classes: ["raining"] },
     inactiveText: "Clear",
@@ -190,9 +190,9 @@ QtObject {
   readonly property var diningTemperature: ({
     id: "dining-temperature",
     group: "Environment",
-    label: "Dining Room Temperature",
+    label: "Dining room temperature",
     icon: "󰩰",
-    command: "ha-module-bar temperature --entity sensor.meter_plus_433c_temperature --name 'Dining Room Temperature' --icon 󰩰",
+    command: "ha-module-bar temperature --entity sensor.meter_plus_433c_temperature --name 'Dining room temperature' --icon 󰩰",
     interval: 15000,
     action: "launch-floating-webapp 'http://homeassistant.local:8123/lovelace/home?more-info-entity-id=sensor.meter_plus_433c_temperature'",
     colors: { quiet: root.colors.cream }
@@ -267,11 +267,11 @@ QtObject {
       colors: { warning: colors.orange, critical: colors.co2Critical }
     }
     modules.push(outdoorTemperature)
+    modules.push(rain)
     modules.push(airConditionerTargetTemperature)
     modules.push(heating)
-    if (hostConfig.voc) modules.push(voc)
     modules.push(co2)
-    modules.push(rain)
+    if (hostConfig.voc) modules.push(voc)
     modules.push(temperature)
     if (hostConfig.diningTemperature) modules.push(diningTemperature)
     modules.push(doorbell)
