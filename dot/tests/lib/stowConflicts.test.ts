@@ -20,6 +20,7 @@ import {
   backupUnmanagedStowTargets,
   removeStowedSkillOwner,
   removeStaleSkillSymlinks,
+  removeRetiredPrivateCrashHook,
   removeRetiredPublicStowLinks,
   removeLegacyUwsmRepo,
 } from "../../src/lib/stowConflicts.js";
@@ -129,6 +130,32 @@ describe("removeRetiredPublicStowLinks", () => {
     expect(existsSync(retiredTarget)).toBe(false);
     expect(existsSync(unrelatedTarget)).toBe(false);
     expect(() => lstatSync(unrelatedTarget)).not.toThrow();
+  });
+});
+
+describe("removeRetiredPrivateCrashHook", () => {
+  test("removes only the private-owned crash hook link", () => {
+    const root = tempRoot();
+    const privateDotfiles = join(root, "dotfiles-private");
+    const homeDir = join(root, "home");
+    const source = join(
+      privateDotfiles,
+      "omarchy-hooks/.config/omarchy/hooks/agent-crash",
+    );
+    const target = join(homeDir, ".config/omarchy/hooks/agent-crash");
+    mkdirSync(dirname(source), { recursive: true });
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(source, "hook\n");
+    symlinkSync(source, target);
+
+    expect(removeRetiredPrivateCrashHook(privateDotfiles, homeDir)).toBe(
+      target,
+    );
+    expect(existsSync(target)).toBe(false);
+
+    symlinkSync("/tmp/unrelated-agent-crash", target);
+    expect(removeRetiredPrivateCrashHook(privateDotfiles, homeDir)).toBeNull();
+    expect(() => lstatSync(target)).not.toThrow();
   });
 });
 

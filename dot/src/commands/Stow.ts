@@ -26,6 +26,7 @@ import {
   removeStowedSkillOwner,
   removeStaleSkillSymlinks,
   removeRetiredPublicStowLinks,
+  removeRetiredPrivateCrashHook,
   removeLegacyUwsmRepo,
   restoreExternalSymlinks,
   type ExternalSymlink,
@@ -91,6 +92,17 @@ export const stow = (opts?: {
 
     if (runPublic) {
       yield* log.section("Stow Public Dotfiles");
+      if (config.privateDotfiles) {
+        const privateDotfiles = config.privateDotfiles;
+        const removedPrivateCrashHook = yield* Effect.sync(() =>
+          removeRetiredPrivateCrashHook(privateDotfiles),
+        );
+        if (removedPrivateCrashHook) {
+          yield* log.info(
+            `Migrated crash hook to public stow: ${displayPath(removedPrivateCrashHook)}`,
+          );
+        }
+      }
       for (const path of removeRetiredPublicStowLinks(config.publicDotfiles)) {
         yield* log.info(`Removed retired stow link: ${displayPath(path)}`);
       }

@@ -1,0 +1,63 @@
+#!/bin/bash
+
+set -euo pipefail
+
+readonly herdr_session=default
+tab_id=""
+
+cleanup() {
+  local status=$?
+
+  if (( status != 0 )) && [[ -n $tab_id ]]; then
+    herdr --session "$herdr_session" tab close "$tab_id" >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT
+
+pid=${1:?missing crash PID}
+comm=${2:-unknown}
+prompt=$(cat)
+agent=$(omarchy-default-agent)
+
+case "$agent" in
+  opencode) agent_args=(--auto) ;;
+  gemini) agent_args=(--yolo) ;;
+  copilot) agent_args=(--allow-all) ;;
+  claude | grok) agent_args=(--permission-mode bypassPermissions) ;;
+  codex) agent_args=(--dangerously-bypass-approvals-and-sandbox) ;;
+  omp) agent_args=(--auto-approve) ;;
+  pi) agent_args=() ;;
+  *) exit 1 ;;
+esac
+
+snapshot=$(herdr --session "$herdr_session" api snapshot)
+workspace_id=$(jq -r --arg home "$HOME" '
+  .result.snapshot.panes
+  | map(select(.cwd == $home))
+  | first
+  | .workspace_id // empty
+' <<<"$snapshot")
+
+if [[ -n $workspace_id ]]; then
+  created=$(herdr --session "$herdr_session" tab create \
+    --workspace "$workspace_id" \
+    --cwd "$HOME" \
+    --label "Crash: $comm" \
+    --focus)
+else
+  created=$(herdr --session "$herdr_session" workspace create \
+    --cwd "$HOME" \
+    --label "Home" \
+    --focus)
+fi
+tab_id=$(jq -r '.result.tab.tab_id // empty' <<<"$created")
+pane_id=$(jq -r '.result.root_pane.pane_id // empty' <<<"$created")
+[[ -n $tab_id && -n $pane_id ]]
+herdr --session "$herdr_session" tab rename "$tab_id" "Crash: $comm" >/dev/null
+
+agent_name="crash_${pid}_${RANDOM}"
+start_command=(herdr --session "$herdr_session" agent start "$agent_name" --kind "$agent" --pane "$pane_id")
+((${#agent_args[@]} == 0)) || start_command+=(-- "${agent_args[@]}")
+"${start_command[@]}" >/dev/null
+
+herdr --session "$herdr_session" agent prompt "$agent_name" "$prompt" >/dev/null

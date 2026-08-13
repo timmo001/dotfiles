@@ -134,6 +134,32 @@ export function removeRetiredPublicStowLinks(
   return removed;
 }
 
+/** Remove the retired private owner before the public crash hook takes over. */
+export function removeRetiredPrivateCrashHook(
+  privateDotfiles: string,
+  homeDir = HOME_DIR,
+): string | null {
+  const target = join(homeDir, ".config", "omarchy", "hooks", "agent-crash");
+  const retiredSource = join(
+    privateDotfiles,
+    "omarchy-hooks",
+    ".config",
+    "omarchy",
+    "hooks",
+    "agent-crash",
+  );
+
+  try {
+    if (!lstatSync(target).isSymbolicLink()) return null;
+    if (resolve(dirname(target), readlinkSync(target)) !== retiredSource)
+      return null;
+    unlinkSync(target);
+    return target;
+  } catch {
+    return null;
+  }
+}
+
 /** Backup unmanaged targets that would block stow from owning active packages. */
 export function backupUnmanagedStowTargets(
   repoDir: string,

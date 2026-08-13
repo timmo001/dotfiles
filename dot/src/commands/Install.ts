@@ -20,6 +20,7 @@ import {
   formatBackupMove,
   findExternalSkillSymlinks,
   removeExternalSymlinks,
+  removeRetiredPrivateCrashHook,
   removeRetiredPublicStowLinks,
   removeLegacyUwsmRepo,
   restoreExternalSymlinks,
@@ -50,6 +51,17 @@ export const install = Effect.gen(function* () {
   yield* ensureStowInstalled;
 
   yield* log.section("Backup");
+  if (config.privateDotfiles) {
+    const privateDotfiles = config.privateDotfiles;
+    const removedPrivateCrashHook = yield* Effect.sync(() =>
+      removeRetiredPrivateCrashHook(privateDotfiles),
+    );
+    if (removedPrivateCrashHook) {
+      yield* log.info(
+        `Migrated crash hook to public stow: ${displayPath(removedPrivateCrashHook)}`,
+      );
+    }
+  }
   for (const path of removeRetiredPublicStowLinks(config.publicDotfiles)) {
     yield* log.info(`Removed retired stow link: ${displayPath(path)}`);
   }
