@@ -86,7 +86,9 @@ o.bind("SUPER + ALT + N", "Notes", "uwsm app -- xdg-terminal-exec --app-id=TUI.f
 o.bind("SUPER + Y", "YouTube", [[omarchy-launch-webapp "https://www.youtube.com/feed/subscriptions"]])
 o.bind("SUPER + ALT + X", "X Notifications", [[omarchy-launch-webapp "https://twitter.com/notifications"]])
 o.bind("SUPER + ALT + T", "Twitch", [[omarchy-launch-webapp "https://twitch.tv/directory/following/live"]])
-o.bind("SUPER + CTRL + ALT + G", "GitHub Notifications", [[omarchy-launch-webapp "https://github.com/notifications"]])
+hl.unbind("SUPER + ALT + G")
+o.bind("SUPER + CTRL + G", "Move active window out of group", hl.dsp.window.move({ out_of_group = true }))
+o.bind("SUPER + ALT + G", "GitHub Notifications", [[omarchy-launch-webapp "https://github.com/notifications"]])
 o.bind("SUPER + D", "Discord", discord)
 
 -- Home Assistant

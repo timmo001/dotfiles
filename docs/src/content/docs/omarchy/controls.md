@@ -67,7 +67,7 @@ Custom bindings that conflicted with Quattro defaults use these chords instead:
 | `SUPER+CTRL+ALT+P` | Power profile menu | Power panel on `SUPER+CTRL+P` |
 | `SUPER+CTRL+SHIFT+S` | Slack | Google Maps on `SUPER+SHIFT+S` |
 | `SUPER+ALT+X` | X notifications | Universal cut on `SUPER+X` and X on `SUPER+SHIFT+X` |
-| `SUPER+CTRL+ALT+G` | GitHub notifications | Move window out of group on `SUPER+ALT+G` |
+| `SUPER+ALT+G` | GitHub notifications | Move window out of group on `SUPER+CTRL+G` |
 | `SUPER+CTRL+SHIFT+C` | Toggle in-call automation | Calendar on `SUPER+SHIFT+C` |
 | `SUPER+CTRL+SHIFT+M` | Toggle microphone mute | Music on `SUPER+SHIFT+M` |
 | `SUPER+CTRL+SHIFT+B` | Reconnect laptop Bluetooth headphones | Battery status on `SUPER+CTRL+ALT+B` |
