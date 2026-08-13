@@ -10,7 +10,7 @@ sidebar:
 On a fresh [Omarchy](https://omarchy.org) machine, install the bootstrap build prerequisites ([git](https://git-scm.com) and [mise](https://mise.jdx.dev)):
 
 ```bash
-yay -S --needed git mise-bin
+yay -S --needed git mise
 ```
 
 If you want the private dotfiles overlay, authenticate [`gh`](https://cli.github.com) (the GitHub CLI) before `dot init` so it can clone `dotfiles-private` automatically:

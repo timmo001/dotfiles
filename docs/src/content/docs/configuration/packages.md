@@ -27,8 +27,6 @@ The list covers shared tooling rather than desktop apps you might install separa
 
 Missing public packages are installed with `omarchy-pkg-aur-add`; already-installed packages are left in place. `dot doctor` checks the public repository trust and configuration plus the public and private package lists after setup.
 
-Some AUR packages conflict with an official-repo package that must be removed first. `dot` handles the known case (`mise-bin` replacing `mise`) before installing.
-
 Private packages from `.dot-private-packages` in the private overlay are installed after the public list during init when the overlay is available. A host-specific `.dot-private-packages--<host>` list is additive, so hardware-specific packages can be limited to hosts such as `desktop`.
 
 ## Register the private repo
