@@ -65,6 +65,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 - Hyprland config is a stowed dotfiles package (`hypr/.config/hypr/`), not a tracked Omarchy repo.
 - All custom Omarchy shell plugin IDs, directory names, QML `moduleName` values, and IPC targets use the `timmo.` prefix. Do not introduce personal or alternative namespaces such as `aidan.`.
+- After any Omarchy shell configuration or plugin change, reload the running shell with `omarchy restart shell`; do not rely solely on automatic reloads.
 - UWSM custom environment values are stowed from `uwsm/.config/uwsm/env.d/90-dotfiles`; Quattro owns the defaults under `/usr/share`.
 - `ghostty` is a stowed package (`ghostty/.config/ghostty/`) with `config.$OMARCHY_HOST` overrides loaded by `ghostty-host-config`.
 - Hypr host-specific overrides live under `~/.config/hypr/hosts/$OMARCHY_HOST`, selected by the runtime `~/.config/hypr/host` symlink.
