@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
@@ -146,7 +147,7 @@ BarWidget {
     sourceComponent: Component {
       IpcHandler {
         target: "timmo.home-assistant"
-        function show(): void { root.open() }
+        function toggle(): void { root.togglePanel() }
       }
     }
   }

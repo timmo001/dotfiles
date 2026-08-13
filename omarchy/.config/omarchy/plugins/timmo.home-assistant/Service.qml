@@ -120,6 +120,7 @@ Item {
         label: module.label,
         icon: module.icon,
         action: module.action,
+        opensLink: String(module.action || "").indexOf("launch-floating-webapp ") === 0,
         text: state.text,
         tooltip: state.tooltip,
         className: state.className,

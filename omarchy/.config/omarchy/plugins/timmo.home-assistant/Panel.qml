@@ -60,9 +60,15 @@ Panel {
       panelFlick.contentY = point.y + item.height - panelFlick.height
   }
 
+  function activateRow(row) {
+    if (!service || !row || !row.action) return
+    if (row.opensLink) close()
+    service.activate(row.id)
+  }
+
   function activateCursor() {
-    if (service && cursorIndex >= 0 && cursorIndex < rows.length)
-      service.activate(rows[cursorIndex].id)
+    if (cursorIndex >= 0 && cursorIndex < rows.length)
+      activateRow(rows[cursorIndex])
   }
 
   function rowValue(row) {
@@ -215,7 +221,7 @@ Panel {
                   hoverEnabled: true
                   cursorShape: modelData.action ? Qt.PointingHandCursor : Qt.ArrowCursor
                   onEntered: root.cursorIndex = index
-                  onClicked: if (root.service) root.service.activate(modelData.id)
+                  onClicked: root.activateRow(modelData)
                 }
               }
             }
