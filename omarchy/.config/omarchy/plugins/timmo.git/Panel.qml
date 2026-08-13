@@ -19,8 +19,8 @@ Panel {
   readonly property int repoCount: service ? service.repos.length : 0
   readonly property int threadCount: service ? service.threads.length : 0
   readonly property int cursorCount: actionCount + repoCount + threadCount
-  readonly property var actionLabels: ["Open repository changes", "Open Other repositories", "Open GitHub notifications", "Refresh Git"]
-  readonly property var actionIcons: ["", "󰙅", "", ""]
+  readonly property var actionLabels: ["Refresh Git", "Open repository changes", "Open Other repositories", "Open GitHub notifications"]
+  readonly property var actionIcons: ["", "", "󰙅", ""]
 
   onCursorCountChanged: clampCursor()
 
@@ -68,10 +68,10 @@ Panel {
 
   function activateAction(index) {
     if (!service) return
-    if (index === 0) { close(); service.openDiff(false, "") }
-    else if (index === 1) { close(); service.openDiff(true, "") }
-    else if (index === 2) { close(); service.openNotifications() }
-    else if (index === 3) service.refresh()
+    if (index === 0) service.refresh()
+    else if (index === 1) { close(); service.openDiff(false, "") }
+    else if (index === 2) { close(); service.openDiff(true, "") }
+    else if (index === 3) { close(); service.openNotifications() }
   }
 
   function activateThread(thread) {
