@@ -7,10 +7,23 @@ BarWidget {
   id: root
   moduleName: "timmo.home-assistant"
 
-  Config { id: config }
-
+  readonly property bool primaryOnly: setting("primaryOnly", false)
+  readonly property string preferredOutput: setting("primaryOutput", "")
+  readonly property string currentOutput: {
+    var window = root.QsWindow ? root.QsWindow.window : null
+    return window && window.screen ? String(window.screen.name || "") : ""
+  }
+  readonly property string activeOutput: {
+    var screens = Quickshell.screens
+    for (var i = 0; i < screens.length; i++)
+      if (root.preferredOutput !== "" && screens[i].name === root.preferredOutput)
+        return root.preferredOutput
+    return screens.length > 0 ? String(screens[0].name || "") : ""
+  }
+  readonly property bool activeInstance: !primaryOnly
+    || (currentOutput !== "" && currentOutput === activeOutput)
   readonly property var homeAssistant: bar?.shell?.serviceFor("timmo.home-assistant")
-  readonly property var barConfig: config.bar
+  readonly property var barConfig: homeAssistant ? homeAssistant.barConfig : ({})
   readonly property var rows: homeAssistant ? homeAssistant.rows : []
   readonly property var visibleRows: activeRows(rows)
   readonly property string activeText: activeRowsText(visibleRows)
@@ -54,10 +67,48 @@ BarWidget {
       homeAssistant.configure(setting("host", Quickshell.env("OMARCHY_HOST") || "laptop"))
   }
 
-  function open() { if (panelLoader.item) panelLoader.item.open() }
-  function close() { if (panelLoader.item) panelLoader.item.close() }
-  function togglePanel() { if (panelLoader.item) panelLoader.item.toggle() }
+  function activeWidget() {
+    if (root.activeInstance) return root
+    var items = root.bar && typeof root.bar.moduleWidgets === "function"
+      ? root.bar.moduleWidgets(root.moduleName) : []
+    for (var i = 0; i < items.length; i++)
+      if (items[i] && items[i].activeInstance === true) return items[i]
+    return null
+  }
+
+  function open() {
+    var widget = activeWidget()
+    if (widget && widget !== root) {
+      widget.open()
+      return
+    }
+    if (panelLoader.item) panelLoader.item.open()
+  }
+
+  function close() {
+    var widget = activeWidget()
+    if (widget && widget !== root) {
+      widget.close()
+      return
+    }
+    if (panelLoader.item) panelLoader.item.close()
+  }
+
+  function togglePanel() {
+    var widget = activeWidget()
+    if (widget && widget !== root) {
+      widget.togglePanel()
+      return
+    }
+    if (panelLoader.item) panelLoader.item.toggle()
+  }
+
   function closeForPopoutSwitch() {
+    var widget = activeWidget()
+    if (widget && widget !== root) {
+      widget.closeForPopoutSwitch()
+      return
+    }
     if (panelLoader.item) panelLoader.item.closeForPopoutSwitch()
   }
 
@@ -71,7 +122,8 @@ BarWidget {
     panel.service = root.homeAssistant
   }
 
-  implicitWidth: button.implicitWidth
+  visible: activeInstance
+  implicitWidth: activeInstance ? button.implicitWidth : 0
   implicitHeight: button.implicitHeight
 
   onBarChanged: { configureService(); injectPanel() }
@@ -80,7 +132,7 @@ BarWidget {
 
   Loader {
     id: panelLoader
-    active: true
+    active: root.activeInstance
     source: Qt.resolvedUrl("Panel.qml")
     visible: false
     onLoaded: {

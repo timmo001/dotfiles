@@ -22,6 +22,8 @@
 //   revealColor    Active colour used while a class-hidden widget is revealed
 //   stockIconSize  Match a stock icon widget's glyph and slot size
 //   iconScale      Scale the glyph for stock-sized icon widgets
+//   primaryOnly    Only run and render on the preferred output
+//   primaryOutput  Preferred output name, falling back to the first screen
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -48,6 +50,21 @@ BarWidget {
   readonly property bool revealOnHover: setting("revealOnHover", false)
   readonly property bool stockIconSize: setting("stockIconSize", false)
   readonly property real iconScale: setting("iconScale", 1)
+  readonly property bool primaryOnly: setting("primaryOnly", false)
+  readonly property string preferredOutput: setting("primaryOutput", "")
+  readonly property string currentOutput: {
+    var window = root.QsWindow ? root.QsWindow.window : null
+    return window && window.screen ? String(window.screen.name || "") : ""
+  }
+  readonly property string activeOutput: {
+    var screens = Quickshell.screens
+    for (var i = 0; i < screens.length; i++)
+      if (root.preferredOutput !== "" && screens[i].name === root.preferredOutput)
+        return root.preferredOutput
+    return screens.length > 0 ? String(screens[0].name || "") : ""
+  }
+  readonly property bool activeInstance: !primaryOnly
+    || (currentOutput !== "" && currentOutput === activeOutput)
   // Horizontal cell margin, standard 6px across all custom widgets (center,
   // right HA, left). The built-in right-side stock widgets keep their own
   // margins. Per-instance overridable via the `horizontalMargin` setting.
@@ -95,7 +112,7 @@ BarWidget {
   // Background poll (timer): only show the loading placeholder on a cold
   // start when there is no value yet, so warm polls update smoothly.
   function poll() {
-    if (root.exec === "") return
+    if (!root.activeInstance || root.exec === "") return
     if (root.outText === "" && root.loadingText !== "") root.loading = true
     if (!proc.running) proc.running = true
   }
@@ -103,7 +120,7 @@ BarWidget {
   // Explicit refresh (IPC / resume): always show the loading placeholder so
   // the reload is visible, like the legacy grey "loading" state.
   function refresh() {
-    if (root.exec === "") return
+    if (!root.activeInstance || root.exec === "") return
     if (root.loadingText !== "") root.loading = true
     if (!proc.running) proc.running = true
   }
@@ -153,8 +170,8 @@ BarWidget {
     return root.bar ? root.bar.barForeground : Color.foreground
   }
 
-  visible: root.shown
-  implicitWidth: root.shown ? button.implicitWidth : 0
+  visible: root.activeInstance && root.shown
+  implicitWidth: root.activeInstance && root.shown ? button.implicitWidth : 0
   implicitHeight: button.implicitHeight
 
   Process {
@@ -172,14 +189,14 @@ BarWidget {
 
   Timer {
     interval: Math.max(1000, root.intervalMs)
-    running: root.exec !== ""
+    running: root.activeInstance && root.exec !== ""
     repeat: true
     triggeredOnStart: true
     onTriggered: root.poll()
   }
 
   Loader {
-    active: root.refreshTarget !== ""
+    active: root.activeInstance && root.refreshTarget !== ""
     sourceComponent: Component {
       IpcHandler {
         target: root.refreshTarget

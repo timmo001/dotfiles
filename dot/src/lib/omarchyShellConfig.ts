@@ -75,9 +75,22 @@ const WEATHER_ID = "omarchy.weather";
 /** Widget id of Omarchy's default system-update bar entry (center anchor). */
 const SYSTEM_UPDATE_ID = "omarchy.system-update";
 
+/** Resolve the host's preferred output for personal status widgets. */
+function primaryOutput(host: string): string {
+  if (host === "desktop") return "HDMI-A-2";
+  if (host === "laptop") return "eDP-1";
+  return "";
+}
+
 /** Build a polling `timmo.command` bar entry. */
-function command(settings: Omit<BarEntry, "id">): BarEntry {
-  return { id: "timmo.command", revealOnHover: true, ...settings };
+function command(host: string, settings: Omit<BarEntry, "id">): BarEntry {
+  return {
+    id: "timmo.command",
+    revealOnHover: true,
+    primaryOnly: true,
+    primaryOutput: primaryOutput(host),
+    ...settings,
+  };
 }
 
 /**
@@ -93,14 +106,24 @@ function workspacesEntry(): BarEntry {
 
 /** Unified Home Assistant status widget placed beside the tray. */
 function homeAssistantEntry(host: string): BarEntry {
-  return { id: "timmo.home-assistant", host };
+  return {
+    id: "timmo.home-assistant",
+    host,
+    primaryOnly: true,
+    primaryOutput: primaryOutput(host),
+  };
 }
 
-/** Personal status widgets inserted into the center column (host-independent). */
-function customCenterEntries(): BarEntry[] {
+/** Personal status widgets inserted into the center column. */
+function customCenterEntries(host: string): BarEntry[] {
   return [
-    { id: "timmo.twitch", revealOnHover: true },
-    command({
+    {
+      id: "timmo.twitch",
+      revealOnHover: true,
+      primaryOnly: true,
+      primaryOutput: primaryOutput(host),
+    },
+    command(host, {
       run: "dot git-diff --bar-json",
       interval: 60000,
       refreshTarget: "timmo.git-diff",
@@ -123,7 +146,7 @@ function customCenterEntries(): BarEntry[] {
       hideClasses: ["dots-ok"],
       revealColor: COLOR.amber,
     }),
-    command({
+    command(host, {
       run: "dot git-notifications --bar-json",
       interval: 60000,
       refreshTarget: "timmo.git-notifications",
@@ -140,7 +163,7 @@ function customCenterEntries(): BarEntry[] {
       hideClasses: ["hidden"],
       revealColor: COLOR.amber,
     }),
-    command({
+    command(host, {
       run: "package-updates-bar status",
       interval: 60000,
       refreshTarget: "timmo.package-updates",
@@ -250,7 +273,7 @@ export function mergeOmarchyShellConfig(
   if (clockIndex !== -1) right.push(...center.splice(clockIndex, 1));
   const weatherIndex = center.findIndex((entry) => entry.id === WEATHER_ID);
   if (weatherIndex !== -1) center.splice(weatherIndex, 1);
-  insertBefore(center, SYSTEM_UPDATE_ID, customCenterEntries());
+  insertBefore(center, SYSTEM_UPDATE_ID, customCenterEntries(host));
 
   // Right: Omarchy pins the tray to the section's inner edge at runtime, so
   // the unified Home Assistant widget is first in the array to render

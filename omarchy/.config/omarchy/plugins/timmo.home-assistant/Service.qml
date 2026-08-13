@@ -14,6 +14,7 @@ Item {
   property int revision: 0
 
   readonly property var rows: buildRows(revision)
+  readonly property var barConfig: config.bar
   readonly property int attentionCount: countAttention(revision)
   readonly property string aggregateState: calculateAggregateState(revision)
   readonly property bool quiet: aggregateState === "quiet"

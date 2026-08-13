@@ -32,6 +32,7 @@ Per-host differences:
 - **Clock format**: compact `HH:mm d MMM`, based on the final pre-Quattro Waybar clock without its weekday or ordinal day suffix. The `timmo.clock` clone reduces the stock clock's 8.75px cell padding to 6px. Left-click opens the calendar, middle-click opens timezone settings, and right-click has no action.
 - **Idle timers**: screensaver at 2.5 minutes and lock at 5 minutes on `laptop`; screensaver at 30 minutes and lock at 60 minutes on every other host.
 - **Home Assistant dashboard**: desktop uses the office temperature and CO₂ sensors; laptop uses the living-room sensors and adds VOC and dining-room temperature rows.
+- **Primary output**: personal status widgets render only on `HDMI-A-2` on desktop and `eDP-1` on laptop. If that output is unavailable, Quickshell's first screen is used.
 
 ## Bar item order
 
@@ -63,6 +64,8 @@ The tables below show the rendered left-to-right order within each section. Omar
 
 The bar order matches desktop. Inside the Home Assistant panel, laptop uses its living-room temperature and CO₂ entities and adds VOC and dining-room temperature rows.
 
+The full item order above appears only on the primary output. Secondary outputs keep the core menu, `timmo.workspaces`, `timmo.clock`, and built-in system widgets; Twitch, command cells, and the Home Assistant widget collapse without starting per-output pollers or loading their panels.
+
 The personal status widgets read from bar-agnostic scripts, `dot` JSON output, and Home Assistant. Command cells and the Home Assistant aggregate render at 10px; stock-sized custom icons, the clock, and workspaces render at 11px. See [Bar Integrations](/bar-integrations/) for the JSON commands behind the bar and dashboard.
 
 ## Stock Quattro comparison
@@ -81,6 +84,7 @@ The stock alternate clock format, opaque bar, config version, and plugin list ar
 | --- | --- | --- | --- |
 | Bar position | Top | Top | Bottom |
 | Clock position | Centre | Right | Right |
+| Primary output | First screen | `HDMI-A-2` | `eDP-1` |
 | Screensaver | 2.5 minutes | 30 minutes | 2.5 minutes |
 | Lock | 5 minutes | 60 minutes | 5 minutes |
 

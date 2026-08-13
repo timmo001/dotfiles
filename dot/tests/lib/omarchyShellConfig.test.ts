@@ -109,6 +109,8 @@ describe("mergeOmarchyShellConfig", () => {
     expect(merged.bar.layout.right[0]).toEqual({
       id: "timmo.home-assistant",
       host: "desktop",
+      primaryOnly: true,
+      primaryOutput: "HDMI-A-2",
     });
     expect(trayIndex).toBeGreaterThan(0);
     expect(rightIds).not.toContain("omarchy.weather");
@@ -131,7 +133,17 @@ describe("mergeOmarchyShellConfig", () => {
     expect(merged.bar.layout.center).toContainEqual({
       id: "timmo.twitch",
       revealOnHover: true,
+      primaryOnly: true,
+      primaryOutput: "HDMI-A-2",
     });
+    expect(
+      customEntries(merged)
+        .filter(({ id }) => id !== "timmo.workspaces" && id !== "timmo.clock")
+        .every(
+          (entry) =>
+            entry.primaryOnly === true && entry.primaryOutput === "HDMI-A-2",
+        ),
+    ).toBe(true);
     expect(commandRuns(merged.bar.layout.center)).not.toContain(
       "twitch-notifications --status-bar-json --max-chars 60",
     );
@@ -147,7 +159,12 @@ describe("mergeOmarchyShellConfig", () => {
     const runs = commandRuns(entries).join("\n");
 
     expect(entries.filter(({ id }) => id === "timmo.home-assistant")).toEqual([
-      { id: "timmo.home-assistant", host: "desktop" },
+      {
+        id: "timmo.home-assistant",
+        host: "desktop",
+        primaryOnly: true,
+        primaryOutput: "HDMI-A-2",
+      },
     ]);
     expect(runs).not.toContain("ha-module-bar");
     expect(runs).not.toContain("ha-watch-singleton");
@@ -180,8 +197,21 @@ describe("mergeOmarchyShellConfig", () => {
       format: "HH:mm d MMM",
     });
     expect(entries.filter(({ id }) => id === "timmo.home-assistant")).toEqual([
-      { id: "timmo.home-assistant", host: "laptop" },
+      {
+        id: "timmo.home-assistant",
+        host: "laptop",
+        primaryOnly: true,
+        primaryOutput: "eDP-1",
+      },
     ]);
+    expect(
+      customEntries(merged)
+        .filter(({ id }) => id !== "timmo.workspaces" && id !== "timmo.clock")
+        .every(
+          (entry) =>
+            entry.primaryOnly === true && entry.primaryOutput === "eDP-1",
+        ),
+    ).toBe(true);
     expect(runs).not.toContain("ha-module-bar");
     expect(runs).not.toContain("ha-watch-singleton");
     expect(runs).not.toContain("--monitor");

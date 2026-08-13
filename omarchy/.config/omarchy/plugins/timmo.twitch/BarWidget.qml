@@ -8,6 +8,21 @@ BarWidget {
   id: root
   moduleName: "timmo.twitch"
 
+  readonly property bool primaryOnly: setting("primaryOnly", false)
+  readonly property string preferredOutput: setting("primaryOutput", "")
+  readonly property string currentOutput: {
+    var window = root.QsWindow ? root.QsWindow.window : null
+    return window && window.screen ? String(window.screen.name || "") : ""
+  }
+  readonly property string activeOutput: {
+    var screens = Quickshell.screens
+    for (var i = 0; i < screens.length; i++)
+      if (root.preferredOutput !== "" && screens[i].name === root.preferredOutput)
+        return root.preferredOutput
+    return screens.length > 0 ? String(screens[0].name || "") : ""
+  }
+  readonly property bool activeInstance: !primaryOnly
+    || (currentOutput !== "" && currentOutput === activeOutput)
   readonly property var twitch: bar?.shell?.serviceFor("timmo.twitch")
   readonly property bool hiddenByState: twitch && twitch.statusState === "active"
   readonly property bool hoverRevealed: hiddenByState
@@ -29,19 +44,48 @@ BarWidget {
   readonly property bool popoutSwitchClosing: panelLoader.item ? panelLoader.item.popoutSwitchClosing === true : false
   readonly property real openPanelIndicatorWidth: button.labelWidth
 
+  function activeWidget() {
+    if (root.activeInstance) return root
+    var items = root.bar && typeof root.bar.moduleWidgets === "function"
+      ? root.bar.moduleWidgets(root.moduleName) : []
+    for (var i = 0; i < items.length; i++)
+      if (items[i] && items[i].activeInstance === true) return items[i]
+    return null
+  }
+
   function open() {
+    var widget = activeWidget()
+    if (widget && widget !== root) {
+      widget.open()
+      return
+    }
     if (panelLoader.item) panelLoader.item.open()
   }
 
   function close() {
+    var widget = activeWidget()
+    if (widget && widget !== root) {
+      widget.close()
+      return
+    }
     if (panelLoader.item) panelLoader.item.close()
   }
 
   function togglePanel() {
+    var widget = activeWidget()
+    if (widget && widget !== root) {
+      widget.togglePanel()
+      return
+    }
     if (panelLoader.item) panelLoader.item.toggle()
   }
 
   function closeForPopoutSwitch() {
+    var widget = activeWidget()
+    if (widget && widget !== root) {
+      widget.closeForPopoutSwitch()
+      return
+    }
     if (panelLoader.item) panelLoader.item.closeForPopoutSwitch()
   }
 
@@ -55,8 +99,8 @@ BarWidget {
     panel.service = root.twitch
   }
 
-  visible: shown
-  implicitWidth: shown ? button.implicitWidth : 0
+  visible: activeInstance && shown
+  implicitWidth: activeInstance && shown ? button.implicitWidth : 0
   implicitHeight: button.implicitHeight
 
   onBarChanged: injectPanel()
@@ -65,7 +109,7 @@ BarWidget {
 
   Loader {
     id: panelLoader
-    active: true
+    active: root.activeInstance
     source: Qt.resolvedUrl("Panel.qml")
     visible: false
     onLoaded: {
@@ -74,16 +118,21 @@ BarWidget {
     }
   }
 
-  IpcHandler {
-    target: "timmo.twitch"
-    function refresh(): void { if (root.twitch) root.twitch.refresh() }
-    function recheck(): void { if (root.twitch) root.twitch.recheck(false) }
-    function restart(): void { if (root.twitch) root.twitch.restart() }
-    function open(): void { root.open() }
-    function close(): void { root.close() }
-    function show(): void { root.open() }
-    function hide(): void { root.close() }
-    function toggle(): void { root.togglePanel() }
+  Loader {
+    active: root.activeInstance
+    sourceComponent: Component {
+      IpcHandler {
+        target: "timmo.twitch"
+        function refresh(): void { if (root.twitch) root.twitch.refresh() }
+        function recheck(): void { if (root.twitch) root.twitch.recheck(false) }
+        function restart(): void { if (root.twitch) root.twitch.restart() }
+        function open(): void { root.open() }
+        function close(): void { root.close() }
+        function show(): void { root.open() }
+        function hide(): void { root.close() }
+        function toggle(): void { root.togglePanel() }
+      }
+    }
   }
 
   WidgetButton {
