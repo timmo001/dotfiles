@@ -93,12 +93,6 @@ const SYSTEM_UPDATE_ID = "omarchy.system-update";
 /** Widget id of Omarchy's default tray bar entry (right-column anchor). */
 const TRAY_ID = "omarchy.tray";
 
-/** Widget id of Omarchy's default AI agents bar entry. */
-const AGENTS_ID = "omarchy.agents";
-
-/** Widget id immediately before network in Omarchy's default right column. */
-const BLUETOOTH_ID = "omarchy.bluetooth";
-
 /** Build a polling `timmo.command` bar entry. */
 function command(settings: Omit<BarEntry, "id">): BarEntry {
   return { id: "timmo.command", revealOnHover: true, ...settings };
@@ -467,14 +461,10 @@ export function mergeOmarchyShellConfig(
   // weather must be the first non-tray entry to render immediately after it.
   // The remaining Home Assistant sensors follow weather and precede the stock
   // system widgets.
-  const agentsIndex = right.findIndex((entry) => entry.id === AGENTS_ID);
-  const agentsEntry =
-    agentsIndex === -1 ? undefined : right.splice(agentsIndex, 1)[0];
+  const agentsIndex = right.findIndex((entry) => entry.id === "omarchy.agents");
+  if (agentsIndex !== -1) right.splice(agentsIndex, 1);
   insertBefore(right, TRAY_ID, customRightEntries(host));
   right.unshift(outdoorTemperatureEntry());
-  if (agentsEntry) {
-    insertBefore(right, BLUETOOTH_ID, [agentsEntry]);
-  }
 
   base.bar.centerAnchor = "";
 

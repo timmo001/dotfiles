@@ -61,13 +61,12 @@ The tables below show the rendered left-to-right order within each section. Omar
 | Right | 4 | CO₂ alert | Added after heating state. |
 | Right | 5 | Rain state | Added after the CO₂ alert. |
 | Right | 6 | Office temperature | Added after rain state. |
-| Right | 7 | AI agents (`omarchy.agents`) | Retained after all Home Assistant items. |
-| Right | 8 | Bluetooth (`omarchy.bluetooth`) | Retained immediately before network. |
-| Right | 9 | Network (`omarchy.network`) | Retained immediately after Bluetooth. |
-| Right | 10 | Audio (`omarchy.audio`) | Retained after network. |
-| Right | 11 | Monitor (`omarchy.monitor`) | Retained after audio. |
-| Right | 12 | Power (`omarchy.power`) | Retained at the end of the section. |
-| Right | 13 | Clock (`timmo.clock`) | Moves from the centre to the end of the right section. |
+| Right | 7 | Bluetooth (`omarchy.bluetooth`) | Retained immediately before network. |
+| Right | 8 | Network (`omarchy.network`) | Retained immediately after Bluetooth. |
+| Right | 9 | Audio (`omarchy.audio`) | Retained after network. |
+| Right | 10 | Monitor (`omarchy.monitor`) | Retained after audio. |
+| Right | 11 | Power (`omarchy.power`) | Retained at the end of the section. |
+| Right | 12 | Clock (`timmo.clock`) | Moves from the centre to the end of the right section. |
 
 ### Laptop
 
@@ -83,13 +82,12 @@ The left and centre sections match desktop. The right section differs as follows
 | Right | 6 | Rain state | Added after the CO₂ alert. |
 | Right | 7 | Main temperature | Added after rain state. |
 | Right | 8 | Dining-room temperature | Added on laptop only, after the main temperature. |
-| Right | 9 | AI agents (`omarchy.agents`) | Retained after all Home Assistant items. |
-| Right | 10 | Bluetooth (`omarchy.bluetooth`) | Retained immediately before network. |
-| Right | 11 | Network (`omarchy.network`) | Retained immediately after Bluetooth. |
-| Right | 12 | Audio (`omarchy.audio`) | Retained after network. |
-| Right | 13 | Monitor (`omarchy.monitor`) | Retained after audio. |
-| Right | 14 | Power (`omarchy.power`) | Retained after monitor. |
-| Right | 15 | Clock (`timmo.clock`) | Moves from the centre to the end of the right section. |
+| Right | 9 | Bluetooth (`omarchy.bluetooth`) | Retained immediately before network. |
+| Right | 10 | Network (`omarchy.network`) | Retained immediately after Bluetooth. |
+| Right | 11 | Audio (`omarchy.audio`) | Retained after network. |
+| Right | 12 | Monitor (`omarchy.monitor`) | Retained after audio. |
+| Right | 13 | Power (`omarchy.power`) | Retained after monitor. |
+| Right | 14 | Clock (`timmo.clock`) | Moves from the centre to the end of the right section. |
 
 The personal status widgets read from bar-agnostic scripts, `dot` JSON output, and Home Assistant. Command and streaming-command cells render at 10px; stock-sized custom icons, the clock, and workspaces render at 11px. Hidden numeric sensors show their current non-zero reading while the bar is hovered. Integer and decimal zero values are omitted while any accompanying icon remains; class-based visibility and hover reveals still follow each widget's existing rules, with zero-state icons faded from their active colour. See [Bar Integrations](/bar-integrations/) for the `--bar-json` commands behind the git and notification cells.
 

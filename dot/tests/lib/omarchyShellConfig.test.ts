@@ -110,12 +110,11 @@ describe("mergeOmarchyShellConfig", () => {
     ).toBe(true);
 
     const rightIds = merged.bar.layout.right.map(({ id }) => id);
-    const agentsIndex = rightIds.indexOf("omarchy.agents");
     const bluetoothIndex = rightIds.indexOf("omarchy.bluetooth");
     const networkIndex = rightIds.indexOf("omarchy.network");
     const trayIndex = rightIds.indexOf("omarchy.tray");
     expect(networkIndex).toBe(bluetoothIndex + 1);
-    expect(agentsIndex).toBe(bluetoothIndex - 1);
+    expect(rightIds).not.toContain("omarchy.agents");
     expect(merged.bar.layout.right[0]).toMatchObject({
       onClick: expect.stringContaining(
         "?more-info-entity-id=weather.met_office&more-info-view=info#forecast=hourly",
@@ -131,10 +130,6 @@ describe("mergeOmarchyShellConfig", () => {
     expect(trayIndex).toBeGreaterThan(0);
     expect(rightIds).not.toContain("omarchy.weather");
     expect(merged.bar.layout.right).toContainEqual({ id: "omarchy.tray" });
-    expect(merged.bar.layout.right).toContainEqual({
-      id: "omarchy.agents",
-      customAgentField: "preserved",
-    });
     expect(
       customEntries(merged).every(
         (entry) =>
