@@ -93,11 +93,12 @@ o.bind("SUPER + D", "Discord", discord)
 o.bind("SUPER + H", "Home Assistant", [[omarchy-launch-webapp "http://homeassistant.local:8123"]])
 o.bind("SUPER + ALT + H", "Handoffs", "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e notes handoffs --all")
 o.bind("SUPER + A", "Home Assistant Assist", [[omarchy-launch-webapp "http://homeassistant.local:8123/?conversation=1"]])
+o.bind("CTRL + ALT + H", "Home Assistant panel", "omarchy-shell timmo.home-assistant show")
 
 -- Local automations
 o.bind("SUPER + CTRL + SHIFT + C", nil, "timmo-run-command go-automate ha ib t in_a_call")
 o.bind("SUPER + CTRL + SHIFT + M", nil, "pactl set-source-mute @DEFAULT_SOURCE@ toggle")
-o.bind("CTRL + ALT + T", nil, "omarchy-shell shell summon timmo.twitch '{}'")
+o.bind("CTRL + ALT + T", nil, "omarchy-shell timmo.twitch toggle")
 o.bind("CTRL + ALT + R", nil, "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e dot tui git-diff")
 o.bind("CTRL + ALT + SHIFT + R", nil, "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e dot tui git-diff --tab other")
 

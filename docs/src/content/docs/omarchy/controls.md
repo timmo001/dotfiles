@@ -72,6 +72,8 @@ Custom bindings that conflicted with Quattro defaults use these chords instead:
 | `SUPER+CTRL+SHIFT+M` | Toggle microphone mute | Music on `SUPER+SHIFT+M` |
 | `SUPER+CTRL+SHIFT+B` | Reconnect laptop Bluetooth headphones | Battery status on `SUPER+CTRL+ALT+B` |
 
+`CTRL+ALT+H` opens the Home Assistant dashboard panel from the Omarchy bar.
+
 The config leaves Quattro's native `SUPER+W` close-window, `SUPER+SHIFT+RETURN` browser, `SUPER+ALT+RETURN` Tmux, and `SUPER+SHIFT+/` 1Password bindings in place. Application defaults such as Tmux and 1Password require Omarchy's preinstalled bindings to be enabled.
 
 ## Power profiles

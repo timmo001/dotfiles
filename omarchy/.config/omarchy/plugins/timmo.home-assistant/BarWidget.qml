@@ -141,6 +141,16 @@ BarWidget {
     }
   }
 
+  Loader {
+    active: root.activeInstance
+    sourceComponent: Component {
+      IpcHandler {
+        target: "timmo.home-assistant"
+        function show(): void { root.open() }
+      }
+    }
+  }
+
   WidgetButton {
     id: button
     anchors.fill: parent

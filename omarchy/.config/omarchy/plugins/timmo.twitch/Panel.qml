@@ -78,10 +78,23 @@ Panel {
   function activateAction(index) {
     if (!service) return
     if (index === 0) service.recheck(false)
-    else if (index === 1) service.recheck(true)
-    else if (index === 2) service.openFollowing()
-    else if (index === 3) service.openFollowingLive()
+    else if (index === 1) {
+      service.recheck(true)
+      close()
+    } else if (index === 2) {
+      service.openFollowing()
+      close()
+    } else if (index === 3) {
+      service.openFollowingLive()
+      close()
+    }
     else if (index === 4) service.restart()
+  }
+
+  function activateChannel(channel) {
+    if (!service) return
+    service.openChannel(channel)
+    close()
   }
 
   function activateCursor() {
@@ -91,7 +104,7 @@ Panel {
     }
     var channelIndex = cursorIndex - actionCount
     if (service && channelIndex >= 0 && channelIndex < service.channels.length)
-      service.openChannel(service.channels[channelIndex])
+      activateChannel(service.channels[channelIndex])
   }
 
   KeyboardPanel {
@@ -308,7 +321,7 @@ Panel {
                   hoverEnabled: true
                   cursorShape: Qt.PointingHandCursor
                   onEntered: root.cursorIndex = root.actionCount + index
-                  onClicked: if (root.service) root.service.openChannel(modelData)
+                  onClicked: root.activateChannel(modelData)
                 }
               }
             }
