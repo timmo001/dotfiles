@@ -199,7 +199,7 @@ owner_iteration() {
   rm -f "$source_pipe"
   mkfifo "$source_pipe"
 
-  ("${COMMAND[@]}") > "$source_pipe" &
+  (exec {lock_fd}>&-; exec "${COMMAND[@]}") > "$source_pipe" &
   source_pid="$!"
   exec {source_fd}<"$source_pipe"
   rm -f "$source_pipe"
@@ -216,9 +216,10 @@ owner_iteration() {
     if IFS= read -r -t 1 -u "$source_fd" line; then
       publish_line "$line"
       continue
+    else
+      read_status=$?
     fi
 
-    read_status=$?
     if (( read_status == 142 )); then
       if [[ -n "$source_pid" ]] && ! kill -0 "$source_pid" 2>/dev/null; then
         break
@@ -252,7 +253,9 @@ main() {
 
   parse_args "$@"
   resolve_parent_starttime
-  trap cleanup EXIT INT TERM
+  trap cleanup EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
 
   exec {lock_fd}>"$LOCK_FILE"
 

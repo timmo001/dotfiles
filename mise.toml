@@ -56,6 +56,7 @@ bash tests/scripts/mise.test.sh
 bash tests/scripts/git-default-ref.test.sh
 bash tests/scripts/repo-shortcuts.test.sh
 bash tests/scripts/ha-module-bar.test.sh
+bash tests/scripts/singleton-stream.test.sh
 bash tests/scripts/reload-ui.test.sh
 bash tests/scripts/launch-floating-webapp.test.sh
 bash tests/scripts/hypr-lua-dispatchers.test.sh
