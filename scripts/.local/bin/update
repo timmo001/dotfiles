@@ -119,6 +119,7 @@ if (( omarchy_selected )); then
   mkdir -p "$mise_state_dir"
   MISE_GLOBAL_CONFIG_FILE="$mise_state_dir/omarchy-config.toml" omarchy update -y || exit
   dot stow --public || exit
+  apply-omarchy-patches || exit
 fi
 
 run_topgrade

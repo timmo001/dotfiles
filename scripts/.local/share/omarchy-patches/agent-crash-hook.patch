@@ -1,0 +1,13 @@
+diff --git a/bin/omarchy-agent-crash b/bin/omarchy-agent-crash
+--- a/bin/omarchy-agent-crash
++++ b/bin/omarchy-agent-crash
+@@ -49,4 +49,9 @@ mechanism, read the skill files directly and follow them instead:
+ PROMPT
+ )
+ 
++dispatch_hook="$HOME/.config/omarchy/hooks/agent-crash"
++if [[ -f $dispatch_hook ]] && printf '%s' "$prompt" | bash "$dispatch_hook" "$pid" "$comm" "$exe" "$signal" "$when"; then
++  exit 0
++fi
++
+ exec omarchy-agent --prompt "$prompt"

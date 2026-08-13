@@ -72,6 +72,12 @@ command -v sudo
 EOF
 chmod +x "$mock_bin/omarchy"
 
+cat >"$mock_bin/apply-omarchy-patches" <<'EOF'
+#!/bin/bash
+printf 'applied omarchy patches\n'
+EOF
+chmod +x "$mock_bin/apply-omarchy-patches"
+
 headless_output=$(HOME="$mock_home" XDG_STATE_HOME='' PATH="$mock_bin:$PATH" "$update_script" -y)
 [[ $headless_output == *"/sudo"* || $headless_output == *"/sudo" ]]
 [[ $headless_output != *"/usr/bin/sudo"* ]]
@@ -85,6 +91,7 @@ default_output=$(script --quiet --return --command \
   "HOME='$mock_home' XDG_STATE_HOME='' PATH='$mock_bin:$PATH' UPDATE_TEST_SELECTION=default '$update_script'" /dev/null)
 [[ $default_output == *"topgrade args: --only mise github_cli_extensions yazi"* ]]
 [[ $default_output == *"dot args: update"*"omarchy args: update -y"*"dot args: stow --public"*"topgrade args:"* ]]
+[[ $default_output == *"omarchy args: update -y"*"dot args: stow --public"*"applied omarchy patches"* ]]
 [[ $default_output == *"omarchy mise config: $mock_home/.local/state/mise/omarchy-config.toml"* ]]
 
 all_output=$(script --quiet --return --command \
@@ -96,5 +103,6 @@ if failed_output=$(HOME="$mock_home" XDG_STATE_HOME='' PATH="$mock_bin:$PATH" UP
   exit 1
 fi
 [[ $failed_output != *"dot args: stow --public"* ]]
+[[ $failed_output != *"applied omarchy patches"* ]]
 
 printf 'update privilege routing tests passed\n'

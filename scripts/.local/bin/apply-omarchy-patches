@@ -1,0 +1,41 @@
+#!/bin/bash
+
+set -euo pipefail
+
+omarchy_path=${OMARCHY_PATCH_ROOT:-${OMARCHY_PATH:-/usr/share/omarchy}}
+patch_dir=${OMARCHY_PATCH_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/omarchy-patches}
+target=$(readlink -f "$omarchy_path/bin/omarchy-agent-crash")
+patch_file="$patch_dir/agent-crash-hook.patch"
+printf -v marker 'dispatch_hook="$%s/.config/omarchy/hooks/agent-crash"' HOME
+target_dir=$(dirname "$target")
+
+[[ -f $target ]] || {
+  printf 'Omarchy crash command not found: %s\n' "$target" >&2
+  exit 1
+}
+[[ -f $patch_file ]] || {
+  printf 'Omarchy patch not found: %s\n' "$patch_file" >&2
+  exit 1
+}
+
+if grep -Fq "$marker" "$target"; then
+  printf 'Omarchy crash dispatch patch already applied\n'
+  exit 0
+fi
+
+if ! patch --batch --forward --fuzz=0 --dry-run -d "$target_dir" -p2 <"$patch_file" >/dev/null; then
+  printf 'Omarchy crash dispatch patch no longer matches upstream\n' >&2
+  exit 1
+fi
+
+if [[ -w $target ]]; then
+  patch_command=(patch)
+elif command -v pkexec >/dev/null 2>&1; then
+  patch_command=(pkexec patch)
+else
+  printf 'pkexec is required to patch %s\n' "$target" >&2
+  exit 1
+fi
+
+"${patch_command[@]}" --batch --forward --fuzz=0 -d "$target_dir" -p2 -i "$patch_file" >/dev/null
+printf 'Applied Omarchy crash dispatch patch\n'

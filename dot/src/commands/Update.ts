@@ -341,10 +341,18 @@ function selfUpdateAndRestart(
  */
 const postHooks = Effect.gen(function* () {
   const log = yield* OutputLog;
+  const executor = yield* CommandExecutor;
 
   yield* log.section("Post-Hooks");
 
   yield* agentsSync;
+
+  const patchExit = yield* executor.inherit("apply-omarchy-patches", []);
+  if (patchExit !== 0) {
+    return yield* new UpdateError({
+      message: `Omarchy patch application exited ${patchExit}`,
+    });
+  }
 });
 
 /** Read the Herdr Lazy plugin root from `herdr plugin list --json`. */
@@ -876,7 +884,7 @@ export const update = (opts?: UpdateOptions) =>
     // Post-hooks run on every full update,
     // independent of whether a repo was pulled; flag-scoped runs skip them.
     if (isFullUpdate) {
-      yield* withStepTimeout(
+      yield* requiredUpdateStep(
         "Post-Hooks",
         STEP_TIMEOUT_SECONDS.postHooks,
         postHooks,

@@ -61,6 +61,7 @@ bash tests/scripts/launch-floating-webapp.test.sh
 bash tests/scripts/hypr-lua-dispatchers.test.sh
 bash tests/scripts/terminal-tab-action.test.sh
 bash tests/scripts/omarchy-notifications.test.sh
+bash tests/scripts/omarchy-patches.test.sh
 bash tests/scripts/workspace-relayout.test.sh
 bash tests/scripts/workspace-restore.test.sh
 """
