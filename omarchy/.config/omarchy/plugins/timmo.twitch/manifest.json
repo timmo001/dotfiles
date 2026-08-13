@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "timmo.twitch",
+  "name": "Twitch Notifications",
+  "version": "1.0.0",
+  "author": "Timmo",
+  "description": "Twitch live status, channels, and notification controls",
+  "kinds": [
+    "service",
+    "bar-widget"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Twitch Notifications",
+    "description": "Shows live Twitch channels and notification controls",
+    "category": "Info",
+    "allowMultiple": false,
+    "defaultSection": "center"
+  }
+}

@@ -97,8 +97,8 @@ o.bind("SUPER + A", "Home Assistant Assist", [[omarchy-launch-webapp "http://hom
 -- Local automations
 o.bind("SUPER + CTRL + SHIFT + C", nil, "timmo-run-command go-automate ha ib t in_a_call")
 o.bind("SUPER + CTRL + SHIFT + M", nil, "pactl set-source-mute @DEFAULT_SOURCE@ toggle")
-o.bind("CTRL + ALT + T", nil, "~/.local/bin/twitch-menu")
-o.bind("CTRL + ALT + SHIFT + T", nil, "~/.local/bin/twitch-menu channels")
+o.bind("CTRL + ALT + T", nil, "omarchy-shell shell summon timmo.twitch '{}'")
+o.bind("CTRL + ALT + SHIFT + T", nil, "omarchy-shell shell summon timmo.twitch '{}'")
 o.bind("CTRL + ALT + R", nil, "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e dot tui git-diff")
 o.bind("CTRL + ALT + SHIFT + R", nil, "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e dot tui git-diff --tab other")
 

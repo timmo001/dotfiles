@@ -204,6 +204,9 @@ describe("buildDashboardState", () => {
       headline: "Channel One",
       lines: ["Channel One playing", "Channel Two playing", "fine"],
       tone: "active",
+      command: "omarchy-shell shell summon timmo.twitch '{}'",
+      commandMode: "exit",
+      actionLabel: "Open Twitch Panel",
     });
     expect(cards.find(({ id }) => id === "my-tasks")?.headline).toBe(
       "1 active item",

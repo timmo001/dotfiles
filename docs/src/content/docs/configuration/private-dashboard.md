@@ -36,7 +36,7 @@ Example:
 ```yaml
 sources:
   twitch:
-    command: twitch-menu channels --bar-json
+    command: twitch-notifications --status-bar-json --max-chars 60
   calendar:
     command: ha-entity-bar-json-once input_text.current_next_event_in_an_hour
   temperature:

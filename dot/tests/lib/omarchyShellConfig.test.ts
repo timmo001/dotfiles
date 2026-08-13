@@ -136,6 +136,13 @@ describe("mergeOmarchyShellConfig", () => {
           typeof run === "string" && run.startsWith("package-updates-bar"),
       ),
     ).toMatchObject({ hiddenText: "󰏗 0", revealColor: "#e5c07b" });
+    expect(merged.bar.layout.center).toContainEqual({
+      id: "timmo.twitch",
+      revealOnHover: true,
+    });
+    expect(commandRuns(merged.bar.layout.center)).not.toContain(
+      "twitch-notifications --status-bar-json --max-chars 60",
+    );
   });
 
   test("selects desktop-specific sensors", () => {

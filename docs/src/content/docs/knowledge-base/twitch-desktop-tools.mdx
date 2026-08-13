@@ -1,11 +1,11 @@
 ---
 title: Twitch Desktop Tools
-description: Use the Twitch menu, channel picker, and notification recovery scripts.
+description: Use the Omarchy Twitch panel and notification recovery commands.
 sidebar:
   order: 10
 ---
 
-The Twitch scripts wrap `twitch-notifications` with an Omarchy menu, channel picker, and detached restart/recheck helpers.
+The `timmo.twitch` Omarchy Shell plugin shows notification state in the bar and opens an attached channel panel. `twitch-notifications` remains the state owner and notification daemon.
 
 ## Autostart
 
@@ -21,58 +21,56 @@ The shared resume hook also restarts Twitch notifications after suspend. See [Re
 
 | Binding | Action |
 | --- | --- |
-| `CTRL+ALT+T` | Open the main Twitch menu. |
-| `CTRL+ALT+SHIFT+T` | Open the channel picker directly. |
+| `CTRL+ALT+T` | Open the Twitch panel. |
+| `CTRL+ALT+SHIFT+T` | Open the Twitch panel. |
 | `SUPER+ALT+T` | Open the Twitch following live page as a webapp. |
 
-## Main menu
+## Twitch panel
 
-Run the menu directly:
+Open the panel from a terminal:
 
 ```bash
-twitch-menu
+omarchy-shell shell summon timmo.twitch '{}'
 ```
 
-The menu offers:
+The panel shows live channels first, followed by configured offline channels. Select a live channel to open its stream or an offline channel to open its recent broadcasts.
+
+Panel actions include:
 
 - Recheck notifications.
-- Restart notifications.
+- Open all live autolaunch channels.
 - Open following.
 - Open following live.
-- Open channel picker.
+- Restart notifications.
 
-On the `desktop` host, URL opening prefers `xdg-open` when available. Other hosts use `omarchy-launch-webapp`.
+Mouse controls on the bar item:
 
-## Channel picker
+- Left click opens or closes the panel.
+- Middle click rechecks notifications.
+- Right click restarts the daemon.
 
-Open the channel picker directly:
+Use Up/Down or `j`/`k` to move, Enter to activate, `r` to recheck, Escape to close, and Tab to move to the next bar panel.
+
+On the `desktop` host, channel links use `xdg-open`. Other hosts use `omarchy-launch-webapp`.
+
+## Channel state
+
+The panel reads structured status from:
 
 ```bash
-twitch-menu channels
+twitch-notifications --status-json
 ```
 
-The picker reads configured channels from:
+Configured channels still come from:
 
 ```text
 ${XDG_CONFIG_HOME:-~/.config}/twitch-notifications/channels.yml
 ```
 
-It checks live state with:
+The existing status-bar format remains available for the dot dashboard source:
 
 ```bash
-twitch-notifications --status-bar-json
-```
-
-Live channels are shown before offline channels. Picking an offline channel opens its archives page:
-
-```text
-https://twitch.tv/<channel>/videos?filter=archives&sort=time
-```
-
-The **Open all live autolaunch** action runs:
-
-```bash
-twitch-notifications --recheck --open
+twitch-notifications --status-bar-json --max-chars 60
 ```
 
 ## Recheck notifications
@@ -103,7 +101,7 @@ twitch-notifications --restart --open
 
 ## Troubleshooting
 
-If the channel menu is empty, check that the channels file exists and contains `- name: ...` entries:
+If the panel has no channels, check that the channels file exists and contains `- name: ...` entries:
 
 ```bash
 ls ~/.config/twitch-notifications/channels.yml
@@ -121,9 +119,9 @@ If the process is wedged, run:
 twitch-notifications-restart
 ```
 
-If the menu opens but choosing a channel does nothing, test the launcher path directly:
+If the panel does not open, confirm that the plugin is discovered and summon it directly:
 
 ```bash
-twitch-menu channels
-omarchy-launch-webapp https://twitch.tv/directory/following/live
+omarchy-shell shell listPlugins
+omarchy-shell shell summon timmo.twitch '{}'
 ```

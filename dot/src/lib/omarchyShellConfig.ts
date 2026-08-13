@@ -314,23 +314,7 @@ function customCenterEntries(): BarEntry[] {
       hiddenText: "󰏗 0",
       revealColor: COLOR.amber,
     }),
-    command({
-      run: "twitch-notifications --status-bar-json --max-chars 60",
-      interval: 5000,
-      onClick: "twitch-menu",
-      onClickRight: "twitch-notifications-restart",
-      classColors: {
-        live: COLOR.purple,
-        active: COLOR.grey,
-        inactive: COLOR.rust,
-      },
-      // Running with no live channels ("active") hides like the other status
-      // widgets and reveals dimmed on bar hover. "live" stays visible, and
-      // "inactive" (the daemon is stopped) stays visible too so its absence is
-      // noticeable. The module emits its bell icon either way.
-      hideClasses: ["active"],
-      revealColor: COLOR.purple,
-    }),
+    { id: "timmo.twitch", revealOnHover: true },
   ];
 }
 
