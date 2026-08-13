@@ -243,6 +243,16 @@ export const cliCommands: readonly CliCommandSpec[] = [
     ],
   },
   {
+    name: "omarchy-shell-config",
+    summary: "Regenerate the Omarchy shell layout",
+    description: [
+      "Regenerate ~/.config/omarchy/shell.json from Omarchy's shipped default",
+      "and the host-specific dotfiles layout without running the full stow flow.",
+    ],
+    options: [helpOption],
+    examples: ["dot omarchy-shell-config"],
+  },
+  {
     name: "firewall",
     summary: "Reconcile managed ufw firewall rules",
     description: [

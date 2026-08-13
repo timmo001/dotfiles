@@ -27,6 +27,8 @@ complete -c dot -n '__fish_use_subcommand' -a 'stow' -d 'Re-stow public/private 
 complete -c dot -l public -d 'Stow public dotfiles only' -n '__fish_seen_subcommand_from stow'
 complete -c dot -l private -d 'Stow private dotfiles only' -n '__fish_seen_subcommand_from stow'
 complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from stow'
+complete -c dot -n '__fish_use_subcommand' -a 'omarchy-shell-config' -d 'Regenerate the Omarchy shell layout'
+complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from omarchy-shell-config'
 complete -c dot -n '__fish_use_subcommand' -a 'firewall' -d 'Reconcile managed ufw firewall rules'
 complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from firewall'
 complete -c dot -n '__fish_use_subcommand' -a 'doctor' -d 'Run dotfiles system health checks'

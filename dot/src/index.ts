@@ -28,6 +28,7 @@ import { detectAgent } from "./lib/agent.js";
 import { installUsageHook } from "./lib/usage.js";
 import { withStepTimeout } from "./lib/workflowStep.js";
 import { configureFirewallRules } from "./lib/firewallSetup.js";
+import { applyOmarchyShellConfig } from "./lib/omarchyShellConfig.js";
 import { menuItemsById } from "./menu.js";
 import { init } from "./commands/Init.js";
 import { install } from "./commands/Install.js";
@@ -585,6 +586,7 @@ if (mode.type === "native") {
           publicOnly: args.includes("--public"),
           privateOnly: args.includes("--private"),
         }).pipe(Effect.asVoid),
+      "omarchy-shell-config": () => applyOmarchyShellConfig.pipe(Effect.asVoid),
       doctor: (args) =>
         doctor({
           openOpencode: args.includes("--open-opencode"),

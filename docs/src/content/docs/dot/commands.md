@@ -131,6 +131,23 @@ dot stow
 | `--public` | Stow public dotfiles only |
 | `--private` | Stow private dotfiles only |
 
+## `dot omarchy-shell-config`
+
+Regenerate the Omarchy shell layout
+
+```text
+dot omarchy-shell-config
+```
+
+Regenerate ~/.config/omarchy/shell.json from Omarchy's shipped default
+and the host-specific dotfiles layout without running the full stow flow.
+
+**Examples**
+
+```bash
+dot omarchy-shell-config
+```
+
 ## `dot firewall`
 
 Reconcile managed ufw firewall rules

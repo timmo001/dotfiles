@@ -25,6 +25,7 @@ if [[ "${RELOAD_UI_DETACHED:-0}" != "1" ]]; then
   exit 0
 fi
 
+mkdir -p "$(dirname "$LOG_FILE")"
 : > "$LOG_FILE"
 log "UI reload started"
 
@@ -49,6 +50,14 @@ if ! twitch-notifications "${twitch_args[@]}" >/dev/null 2>&1; then
   setsid uwsm-app -s b -- twitch-notifications "${launch_args[@]}" >/dev/null 2>&1 &
 fi
 log "twitch-notifications restart requested"
+
+# Restore the generated host layout before restarting the shell. This also
+# reverses ad-hoc `omarchy bar move` changes made since the last stow.
+if dot omarchy-shell-config; then
+  log "Regenerated Omarchy shell layout"
+else
+  log "Omarchy shell layout regeneration failed"
+fi
 
 # Restart the shell before asking its modules to repaint current state.
 if omarchy restart shell; then
