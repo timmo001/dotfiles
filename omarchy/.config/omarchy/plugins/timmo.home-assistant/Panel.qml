@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import qs.Commons
 import qs.Ui
+import "../../components"
 
 Panel {
   id: root
@@ -12,26 +13,31 @@ Panel {
   property var anchorItem: null
   property var hostWidget: null
   property var service: null
-  property int cursorIndex: 0
-
   readonly property var barIdentity: hostWidget || root
   readonly property var panelConfig: config.panel
   readonly property color contentForeground: bar ? bar.foreground : Color.foreground
   readonly property string contentFontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property var rows: service ? service.rows : []
-  readonly property int cursorCount: rows.length
+  readonly property var panelRows: buildPanelRows()
 
-  onCursorCountChanged: clampCursor()
-
-  function clampCursor() {
-    cursorIndex = Math.max(0, Math.min(cursorIndex, Math.max(0, cursorCount - 1)))
+  function buildPanelRows() {
+    var entries = []
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i]
+      entries.push({
+        key: "row:" + String(row.id || i),
+        value: row,
+        searchText: [row.group, row.label, rowValue(row)].join(" ")
+      })
+    }
+    return entries
   }
 
   function open() {
-    clampCursor()
+    filterController.reset()
     if (service) service.refresh()
     controller.show()
-    Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+    Qt.callLater(function() { filterController.forceActiveFocus() })
   }
 
   function close() { controller.hide() }
@@ -43,13 +49,7 @@ Panel {
     return false
   }
 
-  function moveCursor(delta) {
-    if (cursorCount <= 0) return
-    cursorIndex = Math.max(0, Math.min(cursorIndex + delta, cursorCount - 1))
-    Qt.callLater(scrollCursorIntoView)
-  }
-
-  function cursorItem() { return rowRepeater.itemAt(cursorIndex) }
+  function cursorItem() { return rowRepeater.itemAt(filterController.cursorIndex) }
 
   function scrollCursorIntoView() {
     var item = cursorItem()
@@ -64,11 +64,6 @@ Panel {
     if (!service || !row || !row.action) return
     if (row.opensLink) close()
     service.activate(row.id)
-  }
-
-  function activateCursor() {
-    if (cursorIndex >= 0 && cursorIndex < rows.length)
-      activateRow(rows[cursorIndex])
   }
 
   function rowValue(row) {
@@ -97,22 +92,19 @@ Panel {
     owner: root.barIdentity
     bar: root.bar
     open: root.opened
-    focusTarget: keyCatcher
+    focusTarget: filterController
     contentWidth: panel.fittedContentWidth(Style.space(root.panelConfig.width))
     contentHeight: panel.fittedContentHeight(contentColumn.implicitHeight, Style.space(root.panelConfig.maxHeight))
 
-    PanelKeyCatcher {
-      id: keyCatcher
+    FilterablePanel {
+      id: filterController
       anchors.fill: parent
-      onMoveRequested: function(dx, dy) { if (dy !== 0) root.moveCursor(dy) }
-      onActivateRequested: root.activateCursor()
+      model: root.panelRows
+      onRevealRequested: Qt.callLater(root.scrollCursorIntoView)
+      onActivateRequested: function(entry) { root.activateRow(entry.value) }
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
-      onTextKey: function(text) {
-        if (text === "r" || text === "R") {
-          if (root.service) root.service.refresh()
-        }
-      }
+      onRefreshRequested: if (root.service) root.service.refresh()
 
       Flickable {
         id: panelFlick
@@ -132,7 +124,7 @@ Panel {
 
           Text {
             width: parent.width
-            text: root.panelConfig.title
+            text: filterController.filterText || root.panelConfig.title
             color: root.contentForeground
             font.family: root.contentFontFamily
             font.pixelSize: Style.font.title
@@ -142,7 +134,7 @@ Panel {
 
           Repeater {
             id: rowRepeater
-            model: root.rows
+            model: filterController.filteredModel
 
             Column {
               required property int index
@@ -151,14 +143,14 @@ Panel {
               spacing: Style.space(root.panelConfig.contentSpacing)
 
               readonly property bool startsGroup: index === 0
-                || root.rows[index - 1].group !== modelData.group
+                || filterController.filteredModel[index - 1].value.group !== modelData.value.group
 
               Text {
                 visible: parent.startsGroup
                 width: parent.width
                 topPadding: parent.index === 0 ? 0 : Style.space(root.panelConfig.groupTopPadding)
                 bottomPadding: Style.space(root.panelConfig.groupBottomPadding)
-                text: parent.modelData.group.toUpperCase()
+                text: parent.modelData.value.group.toUpperCase()
                 color: Qt.darker(root.contentForeground, root.panelConfig.groupColorFactor)
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.caption
@@ -169,9 +161,9 @@ Panel {
               CursorSurface {
                 width: parent.width
                 implicitHeight: rowContent.implicitHeight + Style.space(root.panelConfig.rowPadding)
-                hasCursor: root.cursorIndex === parent.index
+                hasCursor: filterController.cursorIndex === parent.index
                 foreground: root.contentForeground
-                accent: root.rowColor(parent.modelData)
+                accent: root.rowColor(parent.modelData.value)
 
                 Row {
                   id: rowContent
@@ -184,8 +176,8 @@ Panel {
 
                   Text {
                     width: Style.space(root.panelConfig.iconWidth)
-                    text: modelData.icon
-                    color: root.rowColor(modelData)
+                    text: modelData.value.icon
+                    color: root.rowColor(modelData.value)
                     font.family: root.contentFontFamily
                     font.pixelSize: Style.font.icon
                     horizontalAlignment: Text.AlignHCenter
@@ -197,7 +189,7 @@ Panel {
 
                     Text {
                       width: parent.width
-                      text: modelData.label
+                      text: modelData.value.label
                       color: root.contentForeground
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.body
@@ -206,7 +198,7 @@ Panel {
 
                     Text {
                       width: parent.width
-                      text: root.rowValue(modelData)
+                      text: root.rowValue(modelData.value)
                       color: Qt.darker(root.contentForeground, root.panelConfig.valueColorFactor)
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption
@@ -218,12 +210,22 @@ Panel {
                 MouseArea {
                   anchors.fill: parent
                   hoverEnabled: true
-                  cursorShape: modelData.action ? Qt.PointingHandCursor : Qt.ArrowCursor
-                  onEntered: root.cursorIndex = index
-                  onClicked: root.activateRow(modelData)
+                  cursorShape: modelData.value.action ? Qt.PointingHandCursor : Qt.ArrowCursor
+                  onEntered: filterController.cursorIndex = index
+                  onClicked: root.activateRow(modelData.value)
                 }
               }
             }
+          }
+
+          Text {
+            visible: filterController.filterText && filterController.count === 0
+            width: parent.width
+            text: "No matches for “" + filterController.filterText + "”"
+            color: Qt.darker(root.contentForeground, root.panelConfig.valueColorFactor)
+            font.family: root.contentFontFamily
+            font.pixelSize: Style.font.body
+            horizontalAlignment: Text.AlignHCenter
           }
         }
       }

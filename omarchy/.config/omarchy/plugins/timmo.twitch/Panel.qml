@@ -3,6 +3,7 @@ import QtQuick.Controls
 import Quickshell
 import qs.Commons
 import qs.Ui
+import "../../components"
 
 Panel {
   id: root
@@ -13,13 +14,11 @@ Panel {
   property var anchorItem: null
   property var hostWidget: null
   property var service: null
-  property int cursorIndex: 0
 
   readonly property var barIdentity: hostWidget || root
   readonly property color contentForeground: bar ? bar.foreground : Color.foreground
   readonly property string contentFontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property int actionCount: 5
-  readonly property int cursorCount: actionCount + (service ? service.channels.length : 0)
   readonly property var actionLabels: [
     "Recheck notifications",
     "Open all live autolaunch",
@@ -28,16 +27,42 @@ Panel {
     "Restart notifications"
   ]
   readonly property var actionIcons: ["", "󰕃", "", "", "󰜉"]
+  readonly property var panelRows: buildPanelRows()
+  readonly property var filteredActions: filterRows("action")
+  readonly property var filteredChannels: filterRows("channel")
 
-  onCursorCountChanged: {
-    if (cursorIndex >= cursorCount) cursorIndex = Math.max(0, cursorCount - 1)
+  function buildPanelRows() {
+    var rows = []
+    for (var i = 0; i < actionCount; i++) {
+      rows.push({
+        key: "action:" + i,
+        kind: "action",
+        actionIndex: i,
+        searchText: actionLabels[i]
+      })
+    }
+    var channels = service ? service.channels : []
+    for (var j = 0; j < channels.length; j++) {
+      var channel = channels[j]
+      rows.push({
+        key: "channel:" + String(channel.login || j),
+        kind: "channel",
+        value: channel,
+        searchText: [channel.login, channel.title].join(" ")
+      })
+    }
+    return rows
+  }
+
+  function filterRows(kind) {
+    return filterController.filteredModel.filter(function(entry) { return entry.kind === kind })
   }
 
   function open() {
-    cursorIndex = 0
+    filterController.reset()
     if (service) service.refresh()
     controller.show()
-    Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+    Qt.callLater(function() { filterController.forceActiveFocus() })
   }
 
   function close() {
@@ -55,15 +80,12 @@ Panel {
     return false
   }
 
-  function moveCursor(delta) {
-    if (cursorCount <= 0) return
-    cursorIndex = (cursorIndex + delta + cursorCount) % cursorCount
-    Qt.callLater(scrollCursorIntoView)
-  }
-
   function cursorItem() {
-    if (cursorIndex < actionCount) return actionRepeater.itemAt(cursorIndex)
-    return channelRepeater.itemAt(cursorIndex - actionCount)
+    var entry = filterController.selectedEntry()
+    if (!entry) return null
+    var rows = entry.kind === "action" ? filteredActions : filteredChannels
+    var repeater = entry.kind === "action" ? actionRepeater : channelRepeater
+    return repeater.itemAt(rows.indexOf(entry))
   }
 
   function scrollCursorIntoView() {
@@ -97,14 +119,9 @@ Panel {
     close()
   }
 
-  function activateCursor() {
-    if (cursorIndex < actionCount) {
-      activateAction(cursorIndex)
-      return
-    }
-    var channelIndex = cursorIndex - actionCount
-    if (service && channelIndex >= 0 && channelIndex < service.channels.length)
-      activateChannel(service.channels[channelIndex])
+  function activateEntry(entry) {
+    if (entry.kind === "action") activateAction(entry.actionIndex)
+    else if (entry.kind === "channel") activateChannel(entry.value)
   }
 
   KeyboardPanel {
@@ -113,25 +130,19 @@ Panel {
     owner: root.barIdentity
     bar: root.bar
     open: root.opened
-    focusTarget: keyCatcher
+    focusTarget: filterController
     contentWidth: panel.fittedContentWidth(Style.space(430))
     contentHeight: panel.fittedContentHeight(contentColumn.implicitHeight, Style.space(620))
 
-    PanelKeyCatcher {
-      id: keyCatcher
+    FilterablePanel {
+      id: filterController
       anchors.fill: parent
-      onMoveRequested: function(dx, dy) {
-        if (dy !== 0) root.moveCursor(dy)
-      }
-      onActivateRequested: root.activateCursor()
+      model: root.panelRows
+      onRevealRequested: Qt.callLater(root.scrollCursorIntoView)
+      onActivateRequested: function(entry) { root.activateEntry(entry) }
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
-      onTextKey: function(text) {
-        if (text === "r" || text === "R") {
-          root.cursorIndex = 0
-          root.activateAction(0)
-        }
-      }
+      onRefreshRequested: root.activateAction(0)
 
       Flickable {
         id: panelFlick
@@ -172,7 +183,7 @@ Panel {
           }
 
           Text {
-            text: "ACTIONS"
+            text: filterController.filterText || "ACTIONS"
             color: Qt.darker(root.contentForeground, 1.4)
             font.family: root.contentFontFamily
             font.pixelSize: Style.font.caption
@@ -186,15 +197,16 @@ Panel {
 
             Repeater {
               id: actionRepeater
-              model: root.actionCount
+              model: root.filteredActions
 
               CursorSurface {
                 required property int index
+                required property var modelData
                 width: contentColumn.width
                 implicitHeight: actionRow.implicitHeight + Style.space(12)
-                hasCursor: root.cursorIndex === index
+                hasCursor: filterController.cursorIndex === filterController.indexForKey(modelData.key)
                 foreground: root.contentForeground
-                accent: index === 4 && root.bar ? root.bar.urgent : root.contentForeground
+                accent: modelData.actionIndex === 4 && root.bar ? root.bar.urgent : root.contentForeground
 
                 Row {
                   id: actionRow
@@ -207,8 +219,8 @@ Panel {
 
                   Text {
                     width: Style.space(22)
-                    text: root.actionIcons[index]
-                    color: index === 4 && root.bar ? root.bar.urgent : root.contentForeground
+                    text: root.actionIcons[modelData.actionIndex]
+                    color: modelData.actionIndex === 4 && root.bar ? root.bar.urgent : root.contentForeground
                     font.family: root.contentFontFamily
                     font.pixelSize: Style.font.icon
                     horizontalAlignment: Text.AlignHCenter
@@ -216,7 +228,7 @@ Panel {
 
                   Text {
                     width: Math.max(0, actionRow.width - Style.space(32))
-                    text: root.actionLabels[index]
+                    text: root.actionLabels[modelData.actionIndex]
                     color: root.contentForeground
                     font.family: root.contentFontFamily
                     font.pixelSize: Style.font.body
@@ -228,15 +240,18 @@ Panel {
                   anchors.fill: parent
                   hoverEnabled: true
                   cursorShape: Qt.PointingHandCursor
-                  onEntered: root.cursorIndex = index
-                  onClicked: root.activateAction(index)
+                  onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key)
+                  onClicked: root.activateAction(modelData.actionIndex)
                 }
               }
             }
           }
 
           Text {
-            text: root.service && root.service.liveCount > 0 ? "CHANNELS · " + root.service.liveCount + " LIVE" : "CHANNELS"
+            visible: root.filteredChannels.length > 0
+            text: filterController.filterText
+              ? "CHANNELS · " + root.filteredChannels.length + " MATCHING"
+              : (root.service && root.service.liveCount > 0 ? "CHANNELS · " + root.service.liveCount + " LIVE" : "CHANNELS")
             color: Qt.darker(root.contentForeground, 1.4)
             font.family: root.contentFontFamily
             font.pixelSize: Style.font.caption
@@ -250,16 +265,16 @@ Panel {
 
             Repeater {
               id: channelRepeater
-              model: root.service ? root.service.channels : []
+              model: root.filteredChannels
 
               CursorSurface {
                 required property int index
                 required property var modelData
                 width: contentColumn.width
                 implicitHeight: channelColumn.implicitHeight + Style.space(12)
-                hasCursor: root.cursorIndex === root.actionCount + index
+                hasCursor: filterController.cursorIndex === filterController.indexForKey(modelData.key)
                 foreground: root.contentForeground
-                accent: modelData.live === true ? "#ac77e5" : root.contentForeground
+                accent: modelData.value.live === true ? "#ac77e5" : root.contentForeground
 
                 Row {
                   anchors.left: parent.left
@@ -271,8 +286,8 @@ Panel {
 
                   Text {
                     width: Style.space(22)
-                    text: modelData.live === true ? "" : "󰖪"
-                    color: modelData.live === true ? "#ac77e5" : Qt.darker(root.contentForeground, 1.5)
+                    text: modelData.value.live === true ? "" : "󰖪"
+                    color: modelData.value.live === true ? "#ac77e5" : Qt.darker(root.contentForeground, 1.5)
                     font.family: root.contentFontFamily
                     font.pixelSize: Style.font.icon
                     horizontalAlignment: Text.AlignHCenter
@@ -285,18 +300,18 @@ Panel {
 
                     Text {
                       width: parent.width
-                      text: String(modelData.login || "")
+                      text: String(modelData.value.login || "")
                       color: root.contentForeground
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.body
-                      font.bold: modelData.live === true
+                      font.bold: modelData.value.live === true
                       elide: Text.ElideRight
                     }
 
                     Text {
                       width: parent.width
                       visible: text !== ""
-                      text: modelData.live === true ? String(modelData.title || "") : "Offline · open recent broadcasts"
+                      text: modelData.value.live === true ? String(modelData.value.title || "") : "Offline · open recent broadcasts"
                       color: Qt.darker(root.contentForeground, 1.4)
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption
@@ -306,7 +321,7 @@ Panel {
 
                   Text {
                     width: Style.space(20)
-                    visible: modelData.autoOpen === true
+                    visible: modelData.value.autoOpen === true
                     text: "󰋺"
                     color: Qt.darker(root.contentForeground, 1.3)
                     font.family: root.contentFontFamily
@@ -319,18 +334,19 @@ Panel {
                   anchors.fill: parent
                   hoverEnabled: true
                   cursorShape: Qt.PointingHandCursor
-                  onEntered: root.cursorIndex = root.actionCount + index
-                  onClicked: root.activateChannel(modelData)
+                  onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key)
+                  onClicked: root.activateChannel(modelData.value)
                 }
               }
             }
           }
 
           Text {
-            visible: root.service && root.service.channels.length === 0
+            visible: filterController.count === 0
             width: parent.width
-            text: root.service && root.service.errorText !== ""
-              ? root.service.errorText : "No configured channels"
+            text: filterController.filterText
+              ? "No matches for “" + filterController.filterText + "”"
+              : (root.service && root.service.errorText !== "" ? root.service.errorText : "No configured channels")
             color: Qt.darker(root.contentForeground, 1.4)
             font.family: root.contentFontFamily
             font.pixelSize: Style.font.body

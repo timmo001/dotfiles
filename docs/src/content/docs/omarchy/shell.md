@@ -113,6 +113,8 @@ A plugin is a folder with `manifest.json` (schema version 1, an `id` like `timmo
 
 `timmo.home-assistant` keeps the HA pollers and singleton streams in one shell service. `Config.qml` owns the desktop and laptop entity mappings, commands, actions, aggregate show conditions, labels, icons, colours, and panel sizing; the other QML files only run and render that configuration. Its panel preserves the previous left-to-right HA order: Calendar under Schedule, Time Check, In a Call, and NAS under Status, then the former right-side weather, heating, air-quality, rain, and temperature rows under Environment. Every row remains visible in the panel. Clicking Calendar or a sensor opens its existing floating full view; Time Check and In a Call retain their direct toggle actions. The doorbell stream stays loaded without a visible row and continues opening the camera popup on an active transition.
 
+The Twitch, Git, and Home Assistant panels share the same quick-filter controls. Typing filters their visible actions and rows, Up and Down move through matches, Enter activates one, Backspace edits the filter, Ctrl+Backspace removes a word, Ctrl+U clears it, Ctrl+R refreshes, and Escape clears an active filter before closing the panel.
+
 :::note[New plugins need a stow]
 `~/.config/omarchy/plugins/` is a real directory with per-plugin symlinks. A brand-new plugin needs `dot stow` to create its symlink before the shell sees it; editing an existing plugin's files is already live.
 :::
