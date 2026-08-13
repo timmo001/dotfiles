@@ -57,11 +57,11 @@ Mode options:
   --value-entity <id>            VOC numeric entity (voc-alert)
   --switch-entity <id>           Gate switch entity (nas-activity)
   --inactive-script-entity <id>  Inactive script entity (nas-activity)
-  --gate-entity <id>             Gate number entity (dining-temperature)
+  --gate-entity <id>             Gate entity (temperature, dining-temperature)
   --gate-below <number>          Show only when gate entity is below this
-                                 value (dining-temperature, default: 25)
+                                 value (dining-temperature defaults to 25)
   --gate-state <state>           Show only when gate entity has this state
-                                 (dining-temperature)
+                                 (temperature, dining-temperature)
   --status-entity <id>           Hide when unavailable and use its state for
                                  active styling (dining-temperature)
   --active-state <state>         Status entity state considered active
@@ -320,6 +320,21 @@ validate_args() {
     fi
   fi
 
+  if [[ "$MODE" == "temperature" && -n "$GATE_ENTITY" ]]; then
+    if [[ -z "$GATE_BELOW" && -z "$GATE_STATE" ]]; then
+      printf 'ha-module-bar: temperature gates require --gate-below or --gate-state\n' >&2
+      exit 1
+    fi
+    if [[ -n "$GATE_BELOW" && ! "$GATE_BELOW" =~ ^-?[0-9]+([.][0-9]+)?$ ]]; then
+      printf 'ha-module-bar: --gate-below must be a number\n' >&2
+      exit 1
+    fi
+    if [[ -n "$GATE_BELOW" && -n "$GATE_STATE" ]]; then
+      printf 'ha-module-bar: --gate-below and --gate-state cannot be combined\n' >&2
+      exit 1
+    fi
+  fi
+
   if [[ -z "$TRIGGER_KEY" ]]; then
     TRIGGER_KEY="$MODE"
     if [[ -n "$ENTITY_ID" ]]; then
@@ -516,6 +531,9 @@ run_temperature() {
   local line=""
   local state=""
   local text=""
+  local gate_line=""
+  local gate_state=""
+  local gate_matches=0
 
   line="$(read_entity_line "$ENTITY_ID")"
   if [[ -z "$line" ]]; then
@@ -537,7 +555,19 @@ run_temperature() {
     text="$state"
   fi
 
-  if [[ -n "$SHOW_ABOVE" ]] && ! awk -v state="$state" -v threshold="$SHOW_ABOVE" 'BEGIN { exit !(state > threshold) }'; then
+  if [[ -n "$GATE_ENTITY" ]]; then
+    gate_line="$(read_entity_line "$GATE_ENTITY")"
+    gate_state="$(extract_class_field "$gate_line")"
+    if [[ -n "$GATE_STATE" && "$gate_state" == "$GATE_STATE" ]]; then
+      gate_matches=1
+    elif [[ -n "$GATE_BELOW" && "$gate_state" =~ ^-?[0-9]+([.][0-9]+)?$ ]] \
+      && awk -v gate="$gate_state" -v limit="$GATE_BELOW" 'BEGIN { exit !(gate < limit) }'; then
+      gate_matches=1
+    fi
+  fi
+
+  if [[ -n "$SHOW_ABOVE" ]] && ((gate_matches == 0)) \
+    && ! awk -v state="$state" -v threshold="$SHOW_ABOVE" 'BEGIN { exit !(state > threshold) }'; then
     emit_bar_json "$text" "hidden" "$ENTITY_NAME ($ENTITY_ID): $state °C"
     return
   fi

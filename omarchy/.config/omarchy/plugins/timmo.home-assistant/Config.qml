@@ -148,17 +148,6 @@ QtObject {
     }
   ]
 
-  readonly property var outdoorTemperature: ({
-    id: "outdoor-temperature",
-    group: "Environment",
-    label: "Outdoor temperature",
-    icon: "󰖙",
-    command: "ha-module-bar temperature --entity sensor.weather_station_outdoor_temperature --name 'Weather station outdoor temperature' --icon 󰖙 --show-above 25",
-    interval: 15000,
-    action: "launch-floating-webapp 'http://homeassistant.local:8123/home?more-info-entity-id=weather.met_office&more-info-view=info#forecast=hourly'",
-    colors: { quiet: root.colors.orange }
-  })
-
   readonly property var heating: ({
     id: "heating",
     group: "Environment",
@@ -223,6 +212,18 @@ QtObject {
     var hostConfig = hosts[host] || hosts.laptop
     var modules = commonModules.slice()
     var target = hostConfig.airConditionerTarget
+    var outdoorTemperature = {
+      id: "outdoor-temperature",
+      group: "Environment",
+      label: "Outdoor temperature",
+      icon: "󰖙",
+      command: "ha-module-bar temperature --entity sensor.weather_station_outdoor_temperature"
+        + " --name 'Weather station outdoor temperature' --icon 󰖙 --show-above 25"
+        + " --gate-entity " + target.gateEntity + " " + target.gateOption,
+      interval: 15000,
+      action: "launch-floating-webapp 'http://homeassistant.local:8123/home?more-info-entity-id=weather.met_office&more-info-view=info#forecast=hourly'",
+      colors: { quiet: colors.orange }
+    }
     var airConditionerTargetTemperature = {
       id: "air-conditioner-target-temperature",
       group: "Environment",

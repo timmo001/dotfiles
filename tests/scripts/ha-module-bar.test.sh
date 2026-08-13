@@ -34,6 +34,18 @@ run_temperature() {
 without_threshold=$(HA_TEST_STATE=-2.5 PATH="$mock_bin:$PATH" "$module" temperature)
 [[ $(jq -r .text <<<"$without_threshold") == '-2.5' ]]
 
+ac_on_below_threshold=$(HA_TEST_STATE=20 HA_TEST_BOOLEAN_STATE=on PATH="$mock_bin:$PATH" "$module" temperature --show-above 25 --gate-entity input_boolean.office_air_conditioner_enabled --gate-state on)
+[[ $(jq -r .class <<<"$ac_on_below_threshold") == 'temperature' ]]
+
+ac_off_below_threshold=$(HA_TEST_STATE=20 HA_TEST_BOOLEAN_STATE=off PATH="$mock_bin:$PATH" "$module" temperature --show-above 25 --gate-entity input_boolean.office_air_conditioner_enabled --gate-state on)
+[[ $(jq -r .class <<<"$ac_off_below_threshold") == 'hidden' ]]
+
+ac_target_enabled_below_threshold=$(HA_TEST_STATE=20 PATH="$mock_bin:$PATH" "$module" temperature --show-above 25 --gate-entity input_number.living_room_air_conditioner_target_temperature --gate-below 26)
+[[ $(jq -r .class <<<"$ac_target_enabled_below_threshold") == 'temperature' ]]
+
+above_threshold_with_ac_off=$(HA_TEST_STATE=30 HA_TEST_BOOLEAN_STATE=off PATH="$mock_bin:$PATH" "$module" temperature --show-above 25 --gate-entity input_boolean.office_air_conditioner_enabled --gate-state on)
+[[ $(jq -r .class <<<"$above_threshold_with_ac_off") == 'temperature' ]]
+
 icon_only=$(HA_TEST_STATE=30.7 PATH="$mock_bin:$PATH" "$module" temperature --icon 󰖙 --icon-only)
 [[ $(jq -r .text <<<"$icon_only") == '󰖙' ]]
 [[ $(jq -r .tooltip <<<"$icon_only") == *'30.7 °C' ]]
