@@ -33,11 +33,76 @@ Per-host differences:
 - **Idle timers**: screensaver at 2.5 minutes and lock at 5 minutes on `laptop`; screensaver at 30 minutes and lock at 60 minutes on every other host.
 - **Home Assistant sensors**: temperature, CO2, doorbell, and VOC entities differ per host (desktop vs laptop).
 
-Layout changes applied on top of the default bar:
+## Bar item order
 
-- **Left**: Omarchy's persistent workspaces widget is swapped for `timmo.workspaces`, then a calendar module is appended.
-- **Centre**: the clock stays as the centre anchor on desktop (the stock config gear only renders next to a centred clock) but moves to the right on laptop. The weather is pulled out, personal status widgets are inserted before the system-update group, and the permanently hidden doorbell popup trigger goes last.
-- **Right**: the Home Assistant sensors are inserted before the default tray cluster. The outdoor temperature replaces the stock weather widget immediately before the tray expansion. It appears with its current value while the bar is hovered and opens `weather.met_office` in Home Assistant when clicked.
+The tables below show the rendered left-to-right order within each section. Omarchy pins `omarchy.tray` to the inner edge of the right section at runtime, regardless of where it appears in `shell.json`.
+
+### Desktop
+
+| Section | Order | Item | Change |
+| --- | ---: | --- | --- |
+| Left | 1 | Menu (`omarchy.menu`) | Retained in its stock position. |
+| Left | 2 | Workspaces (`timmo.workspaces`) | Replaces `omarchy.workspaces` in place. |
+| Left | 3 | Calendar | Added after workspaces, at the end of the section. |
+| Centre | 1 | Indicators (`omarchy.indicators`) | Retained before the clock. |
+| Centre | 2 | Clock (`timmo.clock`) | Replaces `omarchy.clock` in place and remains the centre anchor. |
+| Centre | 3 | Keyboard layout (`omarchy.keyboard-layout`) | Retained after the clock. |
+| Centre | 4 | Time check | Added after keyboard layout. |
+| Centre | 5 | In-call state | Added after time check. |
+| Centre | 6 | NAS activity | Added after in-call state. |
+| Centre | 7 | GitHub notifications | Added after NAS activity. |
+| Centre | 8 | Repository diff status | Added after GitHub notifications. |
+| Centre | 9 | GitHub workflow status | Added after repository diff status. |
+| Centre | 10 | Package updates | Added after GitHub workflow status. |
+| Centre | 11 | Twitch notifications | Added after package updates. |
+| Centre | 12 | System update (`omarchy.system-update`) | Retained after the added status items. |
+| Centre | 13 | Doorbell trigger | Added at the end of the section and always visually hidden. |
+| Right | 1 | Tray (`omarchy.tray`) | Retained and pinned to the inner edge by Omarchy. |
+| Right | 2 | Outdoor temperature | Replaces `omarchy.weather` and sits immediately after the tray. |
+| Right | 3 | Heating state | Added after outdoor temperature. |
+| Right | 4 | CO₂ alert | Added after heating state. |
+| Right | 5 | Rain state | Added after the CO₂ alert. |
+| Right | 6 | Office temperature | Added after rain state. |
+| Right | 7 | AI agents (`omarchy.agents`) | Retained after all Home Assistant items. |
+| Right | 8 | Bluetooth (`omarchy.bluetooth`) | Retained immediately before network. |
+| Right | 9 | Network (`omarchy.network`) | Retained immediately after Bluetooth. |
+| Right | 10 | Audio (`omarchy.audio`) | Retained after network. |
+| Right | 11 | Monitor (`omarchy.monitor`) | Retained after audio. |
+| Right | 12 | Power (`omarchy.power`) | Retained at the end of the section. |
+
+### Laptop
+
+The left section matches desktop. The centre and right sections differ as follows:
+
+| Section | Order | Item | Change |
+| --- | ---: | --- | --- |
+| Centre | 1 | Indicators (`omarchy.indicators`) | Retained at the start of the section. |
+| Centre | 2 | Keyboard layout (`omarchy.keyboard-layout`) | Retained after indicators because the clock moves right. |
+| Centre | 3 | Time check | Added after keyboard layout. |
+| Centre | 4 | In-call state | Added after time check. |
+| Centre | 5 | NAS activity | Added after in-call state. |
+| Centre | 6 | GitHub notifications | Added after NAS activity. |
+| Centre | 7 | Repository diff status | Added after GitHub notifications. |
+| Centre | 8 | GitHub workflow status | Added after repository diff status. |
+| Centre | 9 | Package updates | Added after GitHub workflow status. |
+| Centre | 10 | Twitch notifications | Added after package updates. |
+| Centre | 11 | System update (`omarchy.system-update`) | Retained after the added status items. |
+| Centre | 12 | Doorbell trigger | Added at the end of the section and always visually hidden. |
+| Right | 1 | Tray (`omarchy.tray`) | Retained and pinned to the inner edge by Omarchy. |
+| Right | 2 | Outdoor temperature | Replaces `omarchy.weather` and sits immediately after the tray. |
+| Right | 3 | Heating state | Added after outdoor temperature. |
+| Right | 4 | VOC alert | Added on laptop only, after heating state. |
+| Right | 5 | CO₂ alert | Added after the VOC alert. |
+| Right | 6 | Rain state | Added after the CO₂ alert. |
+| Right | 7 | Main temperature | Added after rain state. |
+| Right | 8 | Dining-room temperature | Added on laptop only, after the main temperature. |
+| Right | 9 | AI agents (`omarchy.agents`) | Retained after all Home Assistant items. |
+| Right | 10 | Bluetooth (`omarchy.bluetooth`) | Retained immediately before network. |
+| Right | 11 | Network (`omarchy.network`) | Retained immediately after Bluetooth. |
+| Right | 12 | Audio (`omarchy.audio`) | Retained after network. |
+| Right | 13 | Monitor (`omarchy.monitor`) | Retained after audio. |
+| Right | 14 | Power (`omarchy.power`) | Retained after monitor. |
+| Right | 15 | Clock (`timmo.clock`) | Moves from the centre to the end of the right section. |
 
 The personal status widgets read from bar-agnostic scripts, `dot` JSON output, and Home Assistant. Command and streaming-command cells render at 10px; stock-sized custom icons, the clock, and workspaces render at 11px. Hidden numeric sensors show their current non-zero reading while the bar is hovered. Integer and decimal zero values are omitted while any accompanying icon remains; class-based visibility and hover reveals still follow each widget's existing rules, with zero-state icons faded from their active colour. See [Bar Integrations](/bar-integrations/) for the `--bar-json` commands behind the git and notification cells.
 
@@ -45,38 +110,9 @@ The personal status widgets read from bar-agnostic scripts, `dot` JSON output, a
 
 The generated config starts from Omarchy Quattro's shipped `shell.json` and modifies that layout rather than replacing it wholesale.
 
-### Removed or replaced
-
-No stock widget is removed without a replacement.
-
-`omarchy.workspaces` is replaced in place by `timmo.workspaces`. The stock widget keeps persistent workspace slots visible; the replacement shows only workspaces that currently exist, displays the focused workspace number at full opacity, and dims the others.
-
-### Replaced
-
-`omarchy.weather` is removed. A `timmo.command` outdoor-temperature item takes its place immediately before `omarchy.tray`, so it sits next to the tray expansion. It stays hidden until the bar is hovered, then shows its icon and current value. Clicking it opens the Met Office weather entity in Home Assistant.
-
-No other stock widget changes section. `omarchy.system-update` remains in the centre after the added status widgets, while the complete stock tray cluster remains on the right in its original order.
-
-### Added widgets
-
-| Section | Added widgets |
-| --- | --- |
-| Left | Calendar |
-| Centre, before `omarchy.system-update` | Time check, in-call state, NAS activity, GitHub notifications, repository diff status, GitHub workflow status, package updates, Twitch notifications |
-| Centre, after `omarchy.system-update` | Doorbell |
-| Right, before `omarchy.tray` | Heating, CO₂ alert, rain, temperature |
-| Right, before `omarchy.agents` | Outdoor temperature (replaces stock weather) |
-| Right, laptop only | VOC alert, dining-room temperature |
+No stock widget is removed without a replacement. `omarchy.workspaces` is replaced in place by `timmo.workspaces`, which shows only workspaces that currently exist, displays the focused workspace number at full opacity, and dims the others. `omarchy.weather` is replaced by the outdoor-temperature item immediately after the tray; it stays hidden until the bar is hovered, then shows its icon and current value. Clicking it opens the Met Office weather entity in Home Assistant.
 
 All custom additions use `revealOnHover`: status cells hidden in their normal inactive state appear dimmed while the bar is hovered. Entries whose inactive producer output is empty use `hiddenText` to retain an icon or zero count. Attention and active states remain visible according to each widget's class rules.
-
-### Retained stock layout
-
-These stock widgets retain their implementations and stay in their original sections:
-
-- **Left:** `omarchy.menu`.
-- **Centre:** `omarchy.indicators`, `timmo.clock` (desktop), `omarchy.keyboard-layout`, and `omarchy.system-update`.
-- **Right:** `omarchy.tray`, `omarchy.agents`, `omarchy.bluetooth`, `omarchy.network`, `omarchy.audio`, `omarchy.monitor`, `omarchy.power`, and `timmo.clock` (laptop).
 
 The stock alternate clock format, opaque bar, config version, and plugin list are also preserved. The normal clock format uses the compact pre-Quattro layout, while the `timmo.clock` centre anchor is used on desktop and cleared when the laptop moves the clock right.
 

@@ -449,7 +449,7 @@ function insertBefore(
  * are inserted around them ("add, not remove"). The clock stays as the centre
  * anchor on desktop but moves to the end of the right section on laptop; the
  * stock weather widget is replaced by the outdoor temperature immediately
- * before the tray expansion.
+ * after the tray expansion.
  *
  * @param base - Parsed Omarchy default `shell.json`.
  * @param host - The `OMARCHY_HOST` value (e.g. `desktop`, `laptop`).
@@ -497,13 +497,15 @@ export function mergeOmarchyShellConfig(
   insertBefore(center, SYSTEM_UPDATE_ID, customCenterEntries());
   center.push(doorbellEntry());
 
-  // Right: the Home Assistant sensors go before the default tray cluster. The
-  // outdoor temperature replaces weather immediately before the tray expansion.
+  // Right: Omarchy pins the tray to the section's inner edge at runtime, so
+  // weather must be the first non-tray entry to render immediately after it.
+  // The remaining Home Assistant sensors follow weather and precede the stock
+  // system widgets.
   const agentsIndex = right.findIndex((entry) => entry.id === AGENTS_ID);
   const agentsEntry =
     agentsIndex === -1 ? undefined : right.splice(agentsIndex, 1)[0];
   insertBefore(right, TRAY_ID, customRightEntries(host));
-  insertBefore(right, TRAY_ID, [outdoorTemperatureEntry()]);
+  right.unshift(outdoorTemperatureEntry());
   if (agentsEntry) {
     insertBefore(right, BLUETOOTH_ID, [agentsEntry]);
   }
