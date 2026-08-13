@@ -89,6 +89,7 @@ Panel {
     // a handoff to a panel that does not manage the flag still leaves it
     // cleared rather than stuck on.
     Qt.callLater(function() {
+      panelFlick.contentY = 0
       if (root.opened) setCenterHoverRevealSuppressed(true)
     })
   }

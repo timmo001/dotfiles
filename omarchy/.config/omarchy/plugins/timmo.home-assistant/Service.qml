@@ -129,6 +129,7 @@ Item {
         available: state.available,
         inactiveText: module.inactiveText || "Quiet",
         activeText: module.activeText || "Active",
+        barIconOnly: module.barIconOnly === true,
         severity: rowSeverity,
         barActive: barActive(module, state, rowSeverity),
         color: color(module, rowSeverity)

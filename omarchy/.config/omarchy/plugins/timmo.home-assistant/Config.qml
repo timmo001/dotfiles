@@ -38,7 +38,6 @@ QtObject {
     width: 430,
     maxHeight: 620,
     contentSpacing: 2,
-    titleBottomPadding: 8,
     groupTopPadding: 10,
     groupBottomPadding: 4,
     groupLetterSpacing: 1.2,
@@ -132,6 +131,7 @@ QtObject {
       showWhen: { classes: ["active"] },
       inactiveText: "Off",
       activeText: "On",
+      barIconOnly: true,
       colors: { active: root.colors.teal }
     },
     {

@@ -39,7 +39,10 @@ Panel {
     filterController.reset()
     if (service) service.refresh()
     controller.show()
-    Qt.callLater(function() { filterController.forceActiveFocus() })
+    Qt.callLater(function() {
+      panelFlick.contentY = 0
+      filterController.forceActiveFocus()
+    })
   }
 
   function close() { controller.hide() }
@@ -124,14 +127,19 @@ Panel {
           width: panelFlick.width
           spacing: Style.space(root.panelConfig.contentSpacing)
 
-          Text {
+          PanelHero {
             width: parent.width
-            text: filterController.filterText || root.panelConfig.title
-            color: root.contentForeground
-            font.family: root.contentFontFamily
-            font.pixelSize: Style.font.title
-            font.bold: true
-            bottomPadding: Style.space(root.panelConfig.titleBottomPadding)
+            title: filterController.filterText || root.panelConfig.title
+            foreground: root.contentForeground
+            fontFamily: root.contentFontFamily
+            iconComponent: Component {
+              Text {
+                text: config.bar.icon
+                color: config.colors.blue
+                font.family: root.contentFontFamily
+                font.pixelSize: Style.font.display
+              }
+            }
           }
 
           Repeater {

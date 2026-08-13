@@ -66,7 +66,10 @@ Panel {
     filterController.reset()
     if (service) service.refresh()
     controller.show()
-    Qt.callLater(function() { filterController.forceActiveFocus() })
+    Qt.callLater(function() {
+      panelFlick.contentY = 0
+      filterController.forceActiveFocus()
+    })
   }
 
   function close() {

@@ -33,6 +33,7 @@ BarWidget {
   readonly property real openPanelIndicatorWidth: content.implicitWidth
 
   function rowText(row) {
+    if (row.barIconOnly === true) return row.icon
     var text = String(row.text || "").trim()
     var activeValue = ["active", "warning", "critical"].indexOf(row.severity) !== -1
       ? String(row.activeText || "").trim() : ""
