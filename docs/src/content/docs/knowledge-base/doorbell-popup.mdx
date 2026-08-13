@@ -73,6 +73,7 @@ go-automate ha bridge watch entity --bar-json --icon '' input_boolean.doorbell
 ```
 
 When the emitted JSON has class `on`, the popup opens or repositions.
+The Omarchy Shell Home Assistant service keeps this watcher loaded in the background through `ha-module-bar doorbell`; it does not add a visible dashboard row.
 
 ## Positioning
 

@@ -14,7 +14,7 @@ export const commandCards = [
 
 `dot git-diff` status scans disable Git's optional index locks. Background bar and TUI polling can read working-tree state during a rebase, merge, or another index-writing operation without refreshing the index or competing for `.git/index.lock`.
 
-The JSON format is bar-agnostic: it works with [Quickshell](https://quickshell.outfoxxed.me), [Waybar](https://github.com/Alexays/Waybar), or any bar that can run a command and parse JSON. My own setup uses the Omarchy 4 Quickshell bar, which runs these commands through `timmo.command` widgets, but the commands themselves do not depend on any particular bar. See [Shell (Quickshell)](/omarchy/shell/) for how that bar is configured.
+The JSON format is bar-agnostic: it works with [Quickshell](https://quickshell.outfoxxed.me), [Waybar](https://github.com/Alexays/Waybar), or any bar that can run a command and parse JSON. My own setup uses the Omarchy 4 Quickshell bar, which runs Git commands through `timmo.command` widgets and summarises active Home Assistant rows through one `timmo.home-assistant` service, but the commands themselves do not depend on any particular bar. See [Shell (Quickshell)](/omarchy/shell/) for how that bar is configured.
 
 ## dot commands with bar output
 
@@ -48,7 +48,7 @@ Numeric shell items omit units to keep the bar compact. Their tooltips retain th
 | `current-next-event` | Pass through the entity's bar JSON when the text is non-empty. |
 | `doorbell` | Stream doorbell state through `singleton-stream` so the bar can keep one long-lived watcher per module instance. |
 
-Most modes poll once per refresh. `doorbell` is the exception: it keeps a singleton stream alive for the bar ancestor process and emits JSON only when the output changes. Override the stream identity with `--stream-key` when multiple doorbell modules share an entity.
+Most modes poll once per refresh. The unified Home Assistant shell service owns those pollers alongside continuous `ha-watch-singleton` status streams. `doorbell` is the exception: it keeps a singleton stream alive for the shell ancestor process and emits JSON only when the output changes. Override the stream identity with `--stream-key` when multiple doorbell modules share an entity.
 
 ```bash
 ha-module-bar temperature
@@ -72,7 +72,7 @@ ha-module-bar co2-alert \
 
 `--trigger-on` accepts `transition` (default; fire when state enters `--trigger-state`) or `match` (fire while state equals `--trigger-state`). `--trigger-initial true` allows the first observed state to fire; the default skips the initial read so restarts do not replay alerts. `--trigger-cooldown` enforces a minimum interval between fires. Trigger state persists under `$XDG_RUNTIME_DIR` (override the key with `--trigger-key` when multiple modules share a mode).
 
-`dot dashboard` rejects commands that embed `singleton-stream` or `doorbell`, so use `ha-entity-bar-json-once` for dashboard cards and reserve `ha-module-bar doorbell` for a streaming bar widget. See [Private Dashboard Config](/configuration/private-dashboard/).
+`dot dashboard` rejects commands that embed `singleton-stream` or `doorbell`, so use `ha-entity-bar-json-once` for dashboard cards and reserve `ha-module-bar doorbell` for the streaming Home Assistant shell service. See [Private Dashboard Config](/configuration/private-dashboard/).
 
 ### `package-updates-bar`
 

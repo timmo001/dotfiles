@@ -74,7 +74,7 @@ describe("mergeOmarchyShellConfig", () => {
       activeOpacity: 1,
       inactiveOpacity: 0.5,
     });
-    expect(merged.bar.layout.left.at(-1)?.id).toBe("timmo.command");
+    expect(merged.bar.layout.left.at(-1)?.id).toBe("timmo.workspaces");
 
     const centerIds = merged.bar.layout.center.map(({ id }) => id);
     expect(centerIds).not.toContain("omarchy.weather");
@@ -87,25 +87,16 @@ describe("mergeOmarchyShellConfig", () => {
     );
     const systemUpdateIndex = centerIds.indexOf("omarchy.system-update");
     expect(merged.bar.layout.center[systemUpdateIndex - 1]?.run).toBe(
-      "ha-module-bar nas-activity --icon 󰒋",
+      "package-updates-bar status",
     );
     expect(centerIds.indexOf("timmo.command")).toBeLessThan(
       centerIds.indexOf("omarchy.system-update"),
     );
-    expect(merged.bar.layout.center.at(-1)).toMatchObject({
-      id: "timmo.stream-command",
-      hideClasses: ["active", "hidden"],
-      revealOnHover: false,
-    });
     expect(
       merged.bar.layout.center
         .filter(({ id }) => id.startsWith("timmo."))
         .every(
-          (entry) =>
-            entry.id === "timmo.clock" ||
-            entry.revealOnHover === true ||
-            (typeof entry.run === "string" &&
-              entry.run.startsWith("ha-module-bar doorbell")),
+          (entry) => entry.id === "timmo.clock" || entry.revealOnHover === true,
         ),
     ).toBe(true);
 
@@ -115,18 +106,10 @@ describe("mergeOmarchyShellConfig", () => {
     const trayIndex = rightIds.indexOf("omarchy.tray");
     expect(networkIndex).toBe(bluetoothIndex + 1);
     expect(rightIds).not.toContain("omarchy.agents");
-    expect(merged.bar.layout.right[0]).toMatchObject({
-      onClick: expect.stringContaining(
-        "?more-info-entity-id=weather.met_office&more-info-view=info#forecast=hourly",
-      ),
-      hideClasses: ["temperature", "hidden"],
+    expect(merged.bar.layout.right[0]).toEqual({
+      id: "timmo.home-assistant",
+      host: "desktop",
     });
-    expect(merged.bar.layout.right[0]?.run).toEqual(
-      expect.stringContaining("sensor.weather_station_outdoor_temperature"),
-    );
-    expect(merged.bar.layout.right[0]?.run).not.toEqual(
-      expect.stringContaining("--icon-only"),
-    );
     expect(trayIndex).toBeGreaterThan(0);
     expect(rightIds).not.toContain("omarchy.weather");
     expect(merged.bar.layout.right).toContainEqual({ id: "omarchy.tray" });
@@ -135,9 +118,8 @@ describe("mergeOmarchyShellConfig", () => {
         (entry) =>
           entry.id === "timmo.workspaces" ||
           entry.id === "timmo.clock" ||
-          entry.revealOnHover === true ||
-          (typeof entry.run === "string" &&
-            entry.run.startsWith("ha-module-bar doorbell")),
+          entry.id === "timmo.home-assistant" ||
+          entry.revealOnHover === true,
       ),
     ).toBe(true);
     expect(
@@ -155,43 +137,37 @@ describe("mergeOmarchyShellConfig", () => {
     );
   });
 
-  test("selects desktop-specific sensors", () => {
+  test("selects the desktop Home Assistant dashboard", () => {
     const merged = mergeOmarchyShellConfig(baseConfig(), "desktop");
-    const runs = commandRuns([
+    const entries = [
+      ...merged.bar.layout.left,
       ...merged.bar.layout.center,
       ...merged.bar.layout.right,
-    ]).join("\n");
+    ];
+    const runs = commandRuns(entries).join("\n");
 
-    expect(runs).toContain("sensor.meter_d828_temperature");
-    expect(runs).toContain("sensor.meter_d828_carbon_dioxide");
-    expect(runs).toContain("ha-module-bar");
+    expect(entries.filter(({ id }) => id === "timmo.home-assistant")).toEqual([
+      { id: "timmo.home-assistant", host: "desktop" },
+    ]);
+    expect(runs).not.toContain("ha-module-bar");
+    expect(runs).not.toContain("ha-watch-singleton");
     expect(runs).toContain("dot git-diff --bar-json");
     expect(runs).toContain("dot git-notifications --bar-json");
     expect(runs).not.toContain("dot git-workflows");
     expect(runs).toContain("package-updates-bar status");
     expect(runs).not.toContain("ha-bar-module");
-    expect(runs).not.toContain("voc-alert");
-    expect(runs).not.toContain("sensor.meter_plus_433c_temperature");
     expect(runs).not.toContain("--monitor");
     expect(runs).not.toContain("--workspace");
-
-    const doorbell = merged.bar.layout.center.find(
-      ({ run }) =>
-        typeof run === "string" && run.startsWith("ha-module-bar doorbell"),
-    );
-    expect(doorbell).toMatchObject({
-      hideClasses: ["active", "hidden"],
-      revealOnHover: false,
-    });
-    expect(doorbell?.run).not.toEqual(expect.stringContaining("--icon"));
   });
 
-  test("selects laptop-specific layout and sensors", () => {
+  test("selects the laptop Home Assistant dashboard", () => {
     const merged = mergeOmarchyShellConfig(baseConfig(), "laptop");
-    const runs = commandRuns([
+    const entries = [
+      ...merged.bar.layout.left,
       ...merged.bar.layout.center,
       ...merged.bar.layout.right,
-    ]).join("\n");
+    ];
+    const runs = commandRuns(entries).join("\n");
 
     expect(merged.bar.position).toBe("bottom");
     expect(merged.bar.centerAnchor).toBe("");
@@ -203,13 +179,11 @@ describe("mergeOmarchyShellConfig", () => {
       id: "timmo.clock",
       format: "HH:mm d MMM",
     });
-    expect(runs).toContain("sensor.meter_plus_378b_temperature");
-    expect(runs).toContain(
-      "sensor.weather_station_outdoor_temperature --name 'Weather Station Outdoor Temperature' --icon 󰖙",
-    );
-    expect(runs).toContain("sensor.apollo_air_1_806d64_co2");
-    expect(runs).toContain("voc-alert");
-    expect(runs).toContain("sensor.meter_plus_433c_temperature");
+    expect(entries.filter(({ id }) => id === "timmo.home-assistant")).toEqual([
+      { id: "timmo.home-assistant", host: "laptop" },
+    ]);
+    expect(runs).not.toContain("ha-module-bar");
+    expect(runs).not.toContain("ha-watch-singleton");
     expect(runs).not.toContain("--monitor");
     expect(runs).not.toContain("--workspace");
   });
