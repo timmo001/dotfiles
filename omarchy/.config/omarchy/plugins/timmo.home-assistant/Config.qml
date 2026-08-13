@@ -218,7 +218,7 @@ QtObject {
       label: "Outdoor temperature",
       icon: "󰖙",
       command: "ha-module-bar temperature --entity sensor.weather_station_outdoor_temperature"
-        + " --name 'Weather station outdoor temperature' --icon 󰖙 --show-above 25"
+        + " --name 'Weather station outdoor temperature' --icon 󰖙 --show-above 23"
         + " --gate-entity " + target.gateEntity + " " + target.gateOption,
       interval: 15000,
       action: "launch-floating-webapp 'http://homeassistant.local:8123/home?more-info-entity-id=weather.met_office&more-info-view=info#forecast=hourly'",
