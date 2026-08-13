@@ -47,10 +47,9 @@ The tables below show the rendered left-to-right order within each section. Omar
 | Centre | 1 | Indicators (`omarchy.indicators`) | Retained at the start of the section. |
 | Centre | 2 | Keyboard layout (`omarchy.keyboard-layout`) | Retained after indicators because the clock moves right. |
 | Centre | 3 | Twitch notifications | Added after the built-in centre widgets. |
-| Centre | 4 | Repository diff status | Added next to Twitch notifications. |
-| Centre | 5 | GitHub notifications | Added after repository diff status. |
-| Centre | 6 | Package updates | Added after GitHub notifications. |
-| Centre | 7 | System update (`omarchy.system-update`) | Retained after the added status items. |
+| Centre | 4 | Git (`timmo.git`) | Combines repository state and GitHub notifications in one native panel. |
+| Centre | 5 | Package updates | Added after Git. |
+| Centre | 6 | System update (`omarchy.system-update`) | Retained after the added status items. |
 | Right | 1 | Tray (`omarchy.tray`) | Retained and pinned to the inner edge by Omarchy. |
 | Right | 2 | Home Assistant (`timmo.home-assistant`) | Shows active HA status icons and values in one widget and opens the native dashboard panel. |
 | Right | 3 | Bluetooth (`omarchy.bluetooth`) | Retained immediately before network. |
@@ -101,6 +100,7 @@ A plugin is a folder with `manifest.json` (schema version 1, an `id` like `timmo
 | `timmo.clock` | bar-widget | Keeps the stock clock and calendar behaviour with compact 6px cell padding. |
 | `timmo.command` | bar-widget | Runs a shell command on an interval and renders its status-bar JSON (`text` / `tooltip` / `class`) with compact 6px horizontal cell margins. The Waybar `custom/*` equivalent. |
 | `timmo.home-assistant` | service, bar-widget | Summarises active HA schedule, status, NAS, and environment rows in one widget and adds a native dashboard panel while keeping the doorbell watcher alive in the background. |
+| `timmo.git` | service, bar-widget | Combines repository state and filtered GitHub notifications in one widget and native panel. |
 | `timmo.stream-command` | bar-widget | Runs a long-running command that streams status-bar JSON lines and renders the latest line with compact 6px horizontal cell margins (for watchers like `ha-watch-singleton`). |
 | `timmo.twitch` | service, bar-widget | Shows live Twitch state and opens an attached panel for channels and notification controls. |
 | `timmo.workspaces` | bar-widget | Workspace numbers without persistent workspaces: only existing workspaces show, the focused one at full opacity and the rest dimmed. |
@@ -108,6 +108,8 @@ A plugin is a folder with `manifest.json` (schema version 1, an `id` like `timmo
 `timmo.command` and `timmo.stream-command` both support `classColors` (class-name to colour), `hideClasses`, `hiddenText`, `onClick` / `onClickRight`, and `revealOnHover`, so the generator can style and wire every cell without bespoke QML per module. Shell-launched web apps run through the reusable `launch-floating-webapp` command, which places only the new window at mobile size in the monitor's bottom-right corner. Normal launches of the same sites remain tiled. TUI click targets use the existing `TUI.float` app id.
 
 `timmo.twitch` keeps one polling service for the whole shell and shares it across bar instances. Left click opens its channel panel, middle click rechecks notifications, and right click restarts the notifier. The active state stays hidden until the bar is hovered; live and unavailable states remain visible.
+
+`timmo.git` polls `dot git-diff --bar-json` and `dot git-notifications --bar-json` once per minute through one shell service. Each source appears only while its count is above zero, so a clean source contributes neither an icon nor a count. Important notifications are red, ordinary changes or unread notifications amber, pull-only repositories green, private-only dirt blue, and unavailable state grey. When both sources are clear, the widget collapses and reveals both bare icons dimmed only while hovering the bar. Left click opens an anchored panel with actions, changed repository rows, and notification rows; right click refreshes both sources. Activating a changed repository opens `dot git-diff` directly in lazygit for that repository; quitting lazygit resumes the selected diff TUI. Other actions open the full Changed TUI, Other TUI, filtered notifications TUI, or a notification URL.
 
 `timmo.home-assistant` keeps the HA pollers and singleton streams in one shell service. `Config.qml` owns the desktop and laptop entity mappings, commands, actions, aggregate show conditions, labels, icons, colours, and panel sizing; the other QML files only run and render that configuration. Its panel preserves the previous left-to-right HA order: Calendar under Schedule, Time Check, In a Call, and NAS under Status, then the former right-side weather, heating, air-quality, rain, and temperature rows under Environment. Every row remains visible in the panel. Clicking Calendar or a sensor opens its existing floating full view; Time Check and In a Call retain their direct toggle actions. The doorbell stream stays loaded without a visible row and continues opening the camera popup on an active transition.
 

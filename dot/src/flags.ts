@@ -11,6 +11,8 @@ export interface Flags {
   readonly subcommand: string | undefined;
   /** Initial tab for the diff view */
   readonly tab: DiffTab;
+  /** Changed repository name to select and open in lazygit. */
+  readonly repo: string | undefined;
   /** Normalized ISO timestamp for workflow run filters */
   readonly since: string | undefined;
   /** Show help and exit */
@@ -142,6 +144,7 @@ function resolvePositionals(positionals: readonly string[]): {
 
 type ParsedOptions = {
   tab: DiffTab;
+  repo: string | undefined;
   since: string | undefined;
   help: boolean;
   rest: string[];
@@ -154,7 +157,13 @@ type FlagHandler = (
 ) => number;
 
 function createParsedOptions(): ParsedOptions {
-  return { tab: "changed", since: undefined, help: false, rest: [] };
+  return {
+    tab: "changed",
+    repo: undefined,
+    since: undefined,
+    help: false,
+    rest: [],
+  };
 }
 
 function setHelp(
@@ -207,6 +216,20 @@ function consumeTabOption(
   return 1;
 }
 
+function consumeRepoOption(
+  args: readonly string[],
+  index: number,
+  parsed: ParsedOptions,
+): number {
+  const next = args[index + 1];
+  if (!next || next.startsWith("-")) {
+    console.error("--repo requires a repository name");
+    process.exit(1);
+  }
+  parsed.repo = next;
+  return 1;
+}
+
 function collectFlagValues(
   args: readonly string[],
   startIndex: number,
@@ -226,6 +249,7 @@ const flagHandlers = new Map<string, FlagHandler>([
   ["-h", setHelp],
   ["--since", consumeSinceOption],
   ["--tab", consumeTabOption],
+  ["--repo", consumeRepoOption],
 ]);
 
 function parseOptions(
@@ -278,6 +302,7 @@ export function parseFlags(args: readonly string[]): Flags {
   return {
     subcommand: resolved.subcommand,
     tab: parsed.tab,
+    repo: parsed.repo,
     since: parsed.since,
     help: parsed.help,
     rest: [...resolved.rest, ...parsed.rest],

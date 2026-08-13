@@ -69,9 +69,8 @@ If shell widgets stay stale, restart the Omarchy shell under Wayland:
 QT_QPA_PLATFORM=wayland omarchy restart shell
 ```
 
-If git status in the bar stays stale, clear the generic status-bar caches and run recovery again:
+If Git status in the bar stays stale after recovery, refresh the unified shell service directly:
 
 ```bash
-rm -rf ~/.cache/status-bar/git-diff* ~/.cache/status-bar/git-notifications*
-reload-ui
+omarchy-shell timmo.git refresh
 ```

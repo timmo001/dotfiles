@@ -6,6 +6,7 @@ describe("parseFlags", () => {
     expect(parseFlags([])).toEqual({
       subcommand: undefined,
       tab: "changed",
+      repo: undefined,
       since: undefined,
       help: false,
       rest: [],
@@ -16,8 +17,19 @@ describe("parseFlags", () => {
     expect(parseFlags(["tui", "git-diff", "--tab", "other"])).toEqual({
       subcommand: "git-diff",
       tab: "unchanged",
+      repo: undefined,
       since: undefined,
       help: false,
+      rest: [],
+    });
+  });
+
+  test("parses a git diff repository deep link", () => {
+    expect(
+      parseFlags(["git-diff", "--repo", "omarchy:quickshell"]),
+    ).toMatchObject({
+      subcommand: "git-diff",
+      repo: "omarchy:quickshell",
       rest: [],
     });
   });

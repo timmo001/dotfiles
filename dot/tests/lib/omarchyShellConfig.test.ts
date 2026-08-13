@@ -82,9 +82,8 @@ describe("mergeOmarchyShellConfig", () => {
       centerIds.indexOf("omarchy.keyboard-layout") + 1,
     );
     const twitchIndex = centerIds.indexOf("timmo.twitch");
-    expect(merged.bar.layout.center[twitchIndex + 1]?.run).toBe(
-      "dot git-diff --bar-json",
-    );
+    expect(merged.bar.layout.center[twitchIndex + 1]?.id).toBe("timmo.git");
+    expect(centerIds.filter((id) => id === "timmo.git")).toHaveLength(1);
     const systemUpdateIndex = centerIds.indexOf("omarchy.system-update");
     expect(merged.bar.layout.center[systemUpdateIndex - 1]?.run).toBe(
       "package-updates-bar status",
@@ -136,6 +135,12 @@ describe("mergeOmarchyShellConfig", () => {
       primaryOnly: true,
       primaryOutput: "HDMI-A-2",
     });
+    expect(merged.bar.layout.center).toContainEqual({
+      id: "timmo.git",
+      revealOnHover: true,
+      primaryOnly: true,
+      primaryOutput: "HDMI-A-2",
+    });
     expect(
       customEntries(merged)
         .filter(({ id }) => id !== "timmo.workspaces" && id !== "timmo.clock")
@@ -168,8 +173,8 @@ describe("mergeOmarchyShellConfig", () => {
     ]);
     expect(runs).not.toContain("ha-module-bar");
     expect(runs).not.toContain("ha-watch-singleton");
-    expect(runs).toContain("dot git-diff --bar-json");
-    expect(runs).toContain("dot git-notifications --bar-json");
+    expect(runs).not.toContain("dot git-diff --bar-json");
+    expect(runs).not.toContain("dot git-notifications --bar-json");
     expect(runs).not.toContain("dot git-workflows");
     expect(runs).toContain("package-updates-bar status");
     expect(runs).not.toContain("ha-bar-module");
@@ -200,6 +205,14 @@ describe("mergeOmarchyShellConfig", () => {
       {
         id: "timmo.home-assistant",
         host: "laptop",
+        primaryOnly: true,
+        primaryOutput: "eDP-1",
+      },
+    ]);
+    expect(entries.filter(({ id }) => id === "timmo.git")).toEqual([
+      {
+        id: "timmo.git",
+        revealOnHover: true,
         primaryOnly: true,
         primaryOutput: "eDP-1",
       },

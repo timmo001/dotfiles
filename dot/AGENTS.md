@@ -195,6 +195,7 @@ dot doctor --open-opencode    # Health checks + OpenCode analysis
 dot clean                     # Unstow private then public
 dot git-diff                  # Diff view (TUI)
 dot git-diff --tab other      # Diff view, Other tab focused (TUI)
+dot git-diff --repo dotfiles  # Open a changed repo directly in lazygit, then resume the TUI
 dot diff                      # Short alias for git-diff
 dot git-diff --raw            # CLI diff output (no TUI)
 dot git-diff --bar-json       # JSON output for status bars and shell modules

@@ -272,6 +272,7 @@ Open the diff/repo watcher view. Without flags, opens the interactive TUI.
 | --- | --- |
 | `--no-fetch` | Skip fetching from remotes (use local refs only) |
 | `--tab` `<tab>` | Initial pane to focus in TUI (default: changed) (one of: `changed`, `other`, `unchanged`) |
+| `--repo` `<name>` | Open a changed repository directly in lazygit |
 | `--raw` | Text summary output |
 | `--bar-json` | JSON output for status bars and shell modules |
 | `--list-changed` | Changed repos as rows |
@@ -284,6 +285,7 @@ dot git-diff
 dot git-diff --raw
 dot git-diff --bar-json
 dot git-diff --tab other
+dot git-diff --repo dotfiles
 ```
 
 ## `dot git-commit`

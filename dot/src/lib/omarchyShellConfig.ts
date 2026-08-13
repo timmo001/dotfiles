@@ -114,6 +114,16 @@ function homeAssistantEntry(host: string): BarEntry {
   };
 }
 
+/** Unified repository and GitHub notification widget. */
+function gitEntry(host: string): BarEntry {
+  return {
+    id: "timmo.git",
+    revealOnHover: true,
+    primaryOnly: true,
+    primaryOutput: primaryOutput(host),
+  };
+}
+
 /** Personal status widgets inserted into the center column. */
 function customCenterEntries(host: string): BarEntry[] {
   return [
@@ -123,46 +133,7 @@ function customCenterEntries(host: string): BarEntry[] {
       primaryOnly: true,
       primaryOutput: primaryOutput(host),
     },
-    command(host, {
-      run: "dot git-diff --bar-json",
-      interval: 60000,
-      refreshTarget: "timmo.git-diff",
-      loadingText: "\uf418 ..",
-      loadingClass: "dots-unknown",
-      onClick:
-        "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e dot tui git-diff",
-      onClickRight:
-        "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e dot tui git-diff --tab other",
-      classColors: {
-        "dots-ok": COLOR.grey,
-        "dots-unknown": COLOR.grey,
-        "dots-attention": COLOR.amber,
-        "dots-pull-only": COLOR.green,
-        "dots-extra-only": COLOR.blue,
-      },
-      // The "0" (all repos clean) state hides like the other status widgets
-      // and is revealed dimmed on bar hover; non-zero counts always
-      // show. The bar-json still emits " 0" so there is an icon to reveal.
-      hideClasses: ["dots-ok"],
-      revealColor: COLOR.amber,
-    }),
-    command(host, {
-      run: "dot git-notifications --bar-json",
-      interval: 60000,
-      refreshTarget: "timmo.git-notifications",
-      loadingText: "\uf0f3 ..",
-      loadingClass: "notifications-unknown",
-      onClick:
-        "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e dot git-notifications --bar-filter",
-      onClickRight: "omarchy-shell -q timmo.git-notifications refresh",
-      classColors: {
-        "notifications-unknown": COLOR.grey,
-        "notifications-attention": COLOR.red,
-        "notifications-unread": COLOR.amber,
-      },
-      hideClasses: ["hidden"],
-      revealColor: COLOR.amber,
-    }),
+    gitEntry(host),
     command(host, {
       run: "package-updates-bar status",
       interval: 60000,

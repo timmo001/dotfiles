@@ -268,6 +268,15 @@ export class DiffView {
     this.focusPane(this.activePane);
   }
 
+  /** Focus a changed repository by name and activate its lazygit action. */
+  openChangedRepo(name: string): boolean {
+    const repo = this.changedRepos.find((candidate) => candidate.name === name);
+    if (!repo || !this.changedList.selectById(repo.path)) return false;
+    this.focusPane("changed");
+    this.callbacks.onSelect(repo);
+    return true;
+  }
+
   private togglePane(): void {
     this.focusPane(this.activePane === "changed" ? "unchanged" : "changed");
   }

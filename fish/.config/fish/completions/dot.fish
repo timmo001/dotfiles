@@ -40,6 +40,7 @@ complete -c dot -n '__fish_use_subcommand' -a 'git-diff' -d 'Open the git diff/r
 complete -c dot -n '__fish_use_subcommand' -a 'diff' -d 'Alias for git-diff'
 complete -c dot -l no-fetch -d 'Skip fetching from remotes (use local refs only)' -n '__fish_seen_subcommand_from git-diff diff'
 complete -c dot -l tab -d 'Initial pane to focus in TUI (default: changed)' -r -a 'changed other unchanged' -n '__fish_seen_subcommand_from git-diff diff'
+complete -c dot -l repo -d 'Open a changed repository directly in lazygit' -r -n '__fish_seen_subcommand_from git-diff diff'
 complete -c dot -l raw -d 'Text summary output' -n '__fish_seen_subcommand_from git-diff diff'
 complete -c dot -l bar-json -d 'JSON output for status bars and shell modules' -n '__fish_seen_subcommand_from git-diff diff'
 complete -c dot -l list-changed -d 'Changed repos as rows' -n '__fish_seen_subcommand_from git-diff diff'

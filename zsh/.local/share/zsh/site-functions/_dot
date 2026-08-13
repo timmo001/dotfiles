@@ -104,6 +104,7 @@ _dot_cmd_git_diff() {
   _arguments -S \
     '--no-fetch[Skip fetching from remotes (use local refs only)]' \
     '--tab[Initial pane to focus in TUI (default: changed)]:tab:(changed other unchanged)' \
+    '--repo[Open a changed repository directly in lazygit]:name:' \
     '--raw[Text summary output]' \
     '--bar-json[JSON output for status bars and shell modules]' \
     '--list-changed[Changed repos as rows]' \

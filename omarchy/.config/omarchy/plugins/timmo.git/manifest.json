@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "timmo.git",
+  "name": "Git",
+  "version": "1.0.0",
+  "author": "Timmo",
+  "description": "Repository state and GitHub notifications",
+  "kinds": [
+    "service",
+    "bar-widget"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Git",
+    "description": "Shows repository state and GitHub notifications",
+    "category": "Info",
+    "allowMultiple": false,
+    "defaultSection": "center"
+  }
+}

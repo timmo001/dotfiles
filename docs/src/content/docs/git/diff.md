@@ -17,9 +17,11 @@ dot git-diff --list-changed # changed repos as name|path rows
 dot git-diff --list-all     # all tracked repos as name|path rows
 dot git-diff --no-fetch     # skip upstream fetches; use local refs only
 dot git-diff --tab other    # open with the Other pane focused
+dot git-diff --repo dotfiles # open a changed repo directly in lazygit
 ```
 
 The TUI polls every ten seconds and performs an initial poll for a fast first paint.
+`--repo <name>` selects a changed repository and immediately suspends the TUI into lazygit. Quitting lazygit resumes the diff TUI with that repository still selected.
 
 ## TUI layout
 
@@ -61,7 +63,7 @@ When a repo has an upstream configured, `dot git-diff` fetches the tracking bran
 
 ## Status bar module
 
-The Quickshell module polls `dot git-diff --bar-json` through the stowed `git-diff-bar` cache command; left click opens the TUI and right click refreshes the widget. See [Bar Integrations](/bar-integrations/) for the shared JSON contract.
+The `timmo.git` Quickshell plugin polls `dot git-diff --bar-json` and combines its repository rows with GitHub notifications in one bar widget and native panel. The panel opens the Changed or Other TUI separately and refreshes both sources together. The stowed `git-diff-bar` cache command remains available to generic status bars. See [Bar Integrations](/bar-integrations/) for the shared JSON contract.
 
 ## Configuration
 

@@ -42,5 +42,7 @@ mapfile -t recorded <"$calls"
 [[ ${recorded[0]} == 'dot omarchy-shell-config' ]]
 [[ ${recorded[1]} == 'omarchy restart shell' ]]
 [[ ${recorded[2]} == 'omarchy shell shell rescanPlugins' ]]
+printf '%s\n' "${recorded[@]}" | grep -qx 'omarchy-shell -q timmo.git refresh'
+! printf '%s\n' "${recorded[@]}" | grep -q 'timmo.git-diff\|timmo.git-notifications'
 
 printf 'reload-ui shell layout tests passed\n'

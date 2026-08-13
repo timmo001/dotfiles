@@ -55,6 +55,8 @@ export interface AppOptions {
   readonly initialView?: ViewId;
   /** Initial tab for the diff view */
   readonly initialDiffTab?: "changed" | "unchanged";
+  /** Changed repository name to open in lazygit after startup. */
+  readonly initialDiffRepo?: string;
   /** If set, execute this menu item immediately on startup and pre-select it */
   readonly executeItemId?: string;
 }
@@ -94,10 +96,12 @@ export class App {
   private activeView: ViewId = "main";
   private viewStack: ViewId[] = [];
   private diffChangedCount = 0;
+  private initialDiffRepo: string | undefined;
 
   constructor(deps: AppDeps, options: AppOptions = {}) {
     this.renderer = deps.renderer;
     this.commandRunner = deps.commandRunner;
+    this.initialDiffRepo = options.initialDiffRepo;
 
     // --- Create views ---
 
@@ -290,6 +294,14 @@ export class App {
     }
 
     this.showView(startView);
+  }
+
+  /** Open the requested startup repository through the diff view, once. */
+  openInitialDiffRepo(): boolean {
+    if (!this.initialDiffRepo) return false;
+    const name = this.initialDiffRepo;
+    this.initialDiffRepo = undefined;
+    return this.diffView.openChangedRepo(name);
   }
 
   /** Navigate to a view, pushing the current one onto the stack */

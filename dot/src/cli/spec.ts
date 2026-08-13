@@ -363,6 +363,11 @@ export const cliCommands: readonly CliCommandSpec[] = [
           { value: "unchanged" },
         ],
       },
+      {
+        name: "--repo",
+        valueName: "name",
+        description: "Open a changed repository directly in lazygit",
+      },
       rawOption,
       barJsonOption,
       { name: "--list-changed", description: "Changed repos as rows" },
@@ -374,6 +379,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
       "dot git-diff --raw",
       "dot git-diff --bar-json",
       "dot git-diff --tab other",
+      "dot git-diff --repo dotfiles",
     ],
   },
   {

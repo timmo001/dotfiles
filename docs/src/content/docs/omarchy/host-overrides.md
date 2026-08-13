@@ -17,8 +17,8 @@ The shared config uses 8px window padding. The laptop override keeps that paddin
 
 | Binding | Action |
 | --- | --- |
-| `CTRL+ALT+G` | Type and run `lazygit` |
-| `CTRL+ALT+SHIFT+G` | Type and run `dot git-diff` |
+| `CTRL+ALT+G` | Toggle the unified Omarchy Shell Git panel |
+| `CTRL+ALT+SHIFT+G` | Type and run `lazygit` in Ghostty |
 | `CTRL+ALT+TAB` | Send tmux's next-window sequence |
 | `CTRL+ALT+SHIFT+TAB` | Send tmux's previous-window sequence |
 

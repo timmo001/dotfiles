@@ -104,6 +104,18 @@ export class StatusList<T> extends ScrollBoxRenderable {
     return this.items[this.selectedIndex];
   }
 
+  /** Select an item by its stable ID without activating it. */
+  selectById(id: string): boolean {
+    const index = this.items.findIndex((item) => item.id === id);
+    if (index === -1) return false;
+    this.selectedIndex = index;
+    this.refreshRowStyles();
+    const row = this.rows[index];
+    if (row) this.scrollChildIntoView(row.container.id);
+    this.emitSelectionChanged();
+    return true;
+  }
+
   /** Mark this list as the active pane and optionally focus it */
   setActive(active: boolean, options?: { readonly focus?: boolean }): void {
     this.active = active;

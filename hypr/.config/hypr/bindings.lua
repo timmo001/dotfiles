@@ -94,6 +94,7 @@ o.bind("SUPER + H", "Home Assistant", [[omarchy-launch-webapp "http://homeassist
 o.bind("SUPER + ALT + H", "Handoffs", "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e notes handoffs --all")
 o.bind("SUPER + A", "Home Assistant Assist", [[omarchy-launch-webapp "http://homeassistant.local:8123/?conversation=1"]])
 o.bind("CTRL + ALT + H", "Home Assistant panel", "omarchy-shell timmo.home-assistant toggle")
+o.bind("CTRL + ALT + G", "Git panel", "omarchy-shell timmo.git toggle")
 
 -- Local automations
 o.bind("SUPER + CTRL + SHIFT + C", nil, "timmo-run-command go-automate ha ib t in_a_call")

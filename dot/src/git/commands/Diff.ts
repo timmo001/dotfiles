@@ -58,42 +58,52 @@ export const diffBarJson = (opts?: DiffScanOptions) =>
       },
     )).filter((repo): repo is DiffRepo => repo !== null);
 
-    // Always emit the icon and count so the widget shows "0" when everything
-    // is up to date, rather than collapsing to an empty (hidden) cell.
-    const text = `\uF418 ${changed.length}`;
-    const tooltip =
-      changed.length > 0
-        ? `Repositories with changes pending: ${changed.map((r) => r.name).join("; ")}`
-        : "All tracked repositories look up to date.";
-
-    // Determine class based on change types (match legacy behaviour)
-    let cls: string;
-    if (changed.length === 0) {
-      cls = "dots-ok";
-    } else {
-      const hasDirty = changed.some((r) => r.isDirty);
-      const hasAhead = changed.some((r) => r.ahead > 0);
-      const hasBehind = changed.some((r) => r.behind > 0);
-      const onlyPulls = hasBehind && !hasDirty && !hasAhead;
-      const onlyExtra =
-        changed.every(
-          (r) => r.name.startsWith("private:") || r.name.startsWith("extra:"),
-        ) &&
-        hasDirty &&
-        !hasAhead &&
-        !hasBehind;
-
-      if (onlyPulls) {
-        cls = "dots-pull-only";
-      } else if (onlyExtra) {
-        cls = "dots-extra-only";
-      } else {
-        cls = "dots-attention";
-      }
-    }
-
-    yield* writeJsonLine({ text, tooltip, class: cls });
+    yield* writeJsonLine(formatDiffBarJson(changed));
   }).pipe(Effect.withSpan("diff.barJson"), handleDiffError);
+
+/** Format repository state for status bars and the native shell panel. */
+export function formatDiffBarJson(changed: readonly DiffRepo[]) {
+  const text = `\uF418 ${changed.length}`;
+  const tooltip =
+    changed.length > 0
+      ? `Repositories with changes pending: ${changed.map((repo) => repo.name).join("; ")}`
+      : "All tracked repositories look up to date.";
+
+  let cls: string;
+  if (changed.length === 0) {
+    cls = "dots-ok";
+  } else {
+    const hasDirty = changed.some((repo) => repo.isDirty);
+    const hasAhead = changed.some((repo) => repo.ahead > 0);
+    const hasBehind = changed.some((repo) => repo.behind > 0);
+    const onlyPulls = hasBehind && !hasDirty && !hasAhead;
+    const onlyExtra =
+      changed.every(
+        (repo) =>
+          repo.name.startsWith("private:") || repo.name.startsWith("extra:"),
+      ) &&
+      hasDirty &&
+      !hasAhead &&
+      !hasBehind;
+
+    if (onlyPulls) cls = "dots-pull-only";
+    else if (onlyExtra) cls = "dots-extra-only";
+    else cls = "dots-attention";
+  }
+
+  return {
+    text,
+    tooltip,
+    class: cls,
+    repos: changed.map(({ name, category, modified, ahead, behind }) => ({
+      name,
+      category,
+      modified,
+      ahead,
+      behind,
+    })),
+  };
+}
 
 /** Machine output: --list-changed */
 export const diffListChanged = (opts?: DiffScanOptions) =>

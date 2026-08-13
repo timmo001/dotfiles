@@ -15,8 +15,7 @@ refresh_shell_indicators() {
 }
 
 refresh_git_modules() {
-  omarchy-shell -q timmo.git-diff refresh || true
-  omarchy-shell -q timmo.git-notifications refresh || true
+  omarchy-shell -q timmo.git refresh || true
 }
 
 if [[ "${RELOAD_UI_DETACHED:-0}" != "1" ]]; then

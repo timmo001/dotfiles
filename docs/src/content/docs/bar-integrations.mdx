@@ -10,11 +10,11 @@ export const commandCards = [
   { title: 'Notifications', href: '/git/notifications/', description: 'dot git-notifications --bar-json shows the GitHub notification inbox; left click opens the filtered TUI.' },
 ];
 
-`--bar-json` is a shared status-bar contract rather than a single command. Tools emit one-line `--bar-json` output (with `text`, `tooltip`, and `class` fields) meant to be polled by a status bar module through its own short-lived cache. Left click opens the relevant TUI; right click refreshes the cache.
+`--bar-json` is a shared status-bar contract rather than a single command. Tools emit one-line output with `text`, `tooltip`, and `class` fields. Git commands also include safe repository or notification rows for the native shell panel; generic status bars can ignore those extra fields and continue polling through their short-lived caches.
 
 `dot git-diff` status scans disable Git's optional index locks. Background bar and TUI polling can read working-tree state during a rebase, merge, or another index-writing operation without refreshing the index or competing for `.git/index.lock`.
 
-The JSON format is bar-agnostic: it works with [Quickshell](https://quickshell.outfoxxed.me), [Waybar](https://github.com/Alexays/Waybar), or any bar that can run a command and parse JSON. My own setup uses the Omarchy 4 Quickshell bar, which runs Git commands through `timmo.command` widgets and summarises active Home Assistant rows through one `timmo.home-assistant` service, but the commands themselves do not depend on any particular bar. See [Shell (Quickshell)](/omarchy/shell/) for how that bar is configured.
+The JSON format is bar-agnostic: it works with [Quickshell](https://quickshell.outfoxxed.me), [Waybar](https://github.com/Alexays/Waybar), or any bar that can run a command and parse JSON. My setup uses one `timmo.git` Quickshell service to poll repository and notification output directly, plus one `timmo.home-assistant` service for Home Assistant rows. The commands themselves do not depend on either plugin. See [Shell (Quickshell)](/omarchy/shell/) for the bar configuration.
 
 ## dot commands with bar output
 

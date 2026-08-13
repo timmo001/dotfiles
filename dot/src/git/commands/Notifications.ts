@@ -41,7 +41,7 @@ export const notificationsBarJson = (opts?: GitNotificationQueryOptions) =>
       ...opts,
       barFilter: true,
     });
-    yield* writeJsonLine(formatBarJson(filteredState));
+    yield* writeJsonLine(formatNotificationsBarJson(filteredState));
   }).pipe(Effect.withSpan("notifications.barJson"), handleNotificationError);
 
 /** Machine output: --list-threads pipe-delimited notification rows. */
@@ -118,17 +118,27 @@ function formatRaw(state: GitNotificationState): string {
   return lines.join("\n") + "\n";
 }
 
-function formatBarJson(state: GitNotificationState): {
-  readonly text: string;
-  readonly tooltip: string;
-  readonly class: string;
-} {
+/** Format notification state for status bars and the native shell panel. */
+export function formatNotificationsBarJson(state: GitNotificationState) {
   const summary = notificationStateSummary(state);
 
   return {
     text: notificationBarText(state, summary),
     tooltip: formatBarJsonTooltip(state, summary),
     class: notificationBarClass(state, summary),
+    threads: state.threads.map(
+      ({ id, repo, title, reason, type, unread, updatedAt, webUrl }) => ({
+        id,
+        repo,
+        title,
+        reason,
+        type,
+        unread,
+        updatedAt,
+        webUrl,
+        important: notificationReasonIsImportant(reason),
+      }),
+    ),
   };
 }
 

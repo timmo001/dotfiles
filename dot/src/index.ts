@@ -681,6 +681,7 @@ if (mode.type === "native") {
       {
         initialView,
         initialDiffTab: flags.tab,
+        initialDiffRepo: flags.repo,
         executeItemId,
       },
     );
@@ -760,6 +761,13 @@ if (mode.type === "native") {
     log("Starting renderer...");
     renderer.start();
     log("Renderer started — TUI is live");
+    if (
+      initialView === "git-diff" &&
+      flags.repo &&
+      !app.openInitialDiffRepo()
+    ) {
+      log(`Changed repository not found: ${flags.repo}`);
+    }
 
     // Keep alive until the process exits
     return yield* Effect.never;

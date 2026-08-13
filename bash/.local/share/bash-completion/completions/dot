@@ -111,7 +111,7 @@ _dot_cmd_git_diff() {
   esac
 
   if [[ $cur == -* ]]; then
-    COMPREPLY=( $(compgen -W '--no-fetch --tab --raw --bar-json --list-changed --list-all --help -h' -- "$cur") )
+    COMPREPLY=( $(compgen -W '--no-fetch --tab --repo --raw --bar-json --list-changed --list-all --help -h' -- "$cur") )
     return
   fi
 }
