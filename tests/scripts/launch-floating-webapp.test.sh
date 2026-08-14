@@ -43,4 +43,4 @@ mapfile -t args <"$HYPRCTL_ARGS"
 [[ ${args[0]} == *"workspace = '3', window = 'address:0xnew', follow = false"* ]]
 [[ ${args[1]} == *"action = 'enable', window = 'address:0xnew'"* ]]
 [[ ${args[2]} == *"x = 380, y = 500, window = 'address:0xnew'"* ]]
-[[ ${args[3]} == *"x = 1520, y = 534, window = 'address:0xnew'"* ]]
+[[ ${args[3]} == *"x = 1514, y = 534, window = 'address:0xnew'"* ]]
