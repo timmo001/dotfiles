@@ -36,7 +36,7 @@ QtObject {
   readonly property var panel: ({
     title: "Home Assistant",
     width: 430,
-    maxHeight: 620,
+    maxHeight: 670,
     contentSpacing: 2,
     groupTopPadding: 10,
     groupBottomPadding: 4,

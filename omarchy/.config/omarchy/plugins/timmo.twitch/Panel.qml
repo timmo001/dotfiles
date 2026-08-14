@@ -139,7 +139,7 @@ Panel {
     open: root.opened
     focusTarget: filterController
     contentWidth: panel.fittedContentWidth(Style.space(430))
-    contentHeight: panel.fittedContentHeight(contentColumn.implicitHeight, Style.space(620))
+    contentHeight: panel.fittedContentHeight(contentColumn.implicitHeight, Style.space(670))
 
     FilterablePanel {
       id: filterController
