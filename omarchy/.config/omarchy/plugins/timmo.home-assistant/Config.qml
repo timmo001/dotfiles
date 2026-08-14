@@ -95,7 +95,14 @@ QtObject {
         entity: "input_number.living_room_air_conditioner_target_temperature",
         label: "Target temperature",
         presets: [
+          { label: "22.6", value: 22.6 },
+          { label: "22.8", value: 22.8 },
+          { label: "23.2", value: 23.2 },
+          { label: "23.4", value: 23.4 },
+          { label: "23.6", value: 23.6 },
           { label: "23.8", value: 23.8 },
+          { label: "24.2", value: 24.2 },
+          { label: "24.4", value: 24.4 },
           { label: "Off", value: 36 }
         ],
         gateEntity: "input_number.living_room_air_conditioner_target_temperature",

@@ -104,6 +104,44 @@ Panel {
     return 1
   }
 
+  component ControlButton: BorderSurface {
+    required property var modelData
+    required property var row
+    readonly property bool actionable: modelData.command !== undefined
+      || modelData.value !== undefined
+    readonly property bool hovered: buttonMouse.containsMouse
+    width: Math.max(Style.space(28), buttonLabel.implicitWidth + Style.space(12))
+    height: Style.space(24)
+    radius: Style.cornerRadius
+    color: hovered && actionable
+      ? Style.hoverFillFor(root.rowColor(row), root.rowColor(row))
+      : "transparent"
+    borderSpec: Border.none()
+
+    Text {
+      id: buttonLabel
+      anchors.centerIn: parent
+      text: parent.modelData.label
+      color: root.contentForeground
+      font.family: root.contentFontFamily
+      font.pixelSize: Style.font.body
+    }
+
+    MouseArea {
+      id: buttonMouse
+      anchors.fill: parent
+      hoverEnabled: true
+      enabled: parent.actionable
+      cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+      onClicked: {
+        if (parent.modelData.value !== undefined)
+          root.service.activatePreset(parent.row, parent.modelData)
+        else
+          root.service.runControl(parent.modelData.command)
+      }
+    }
+  }
+
   KeyboardPanel {
     id: panel
     anchorItem: root.anchorItem
@@ -175,7 +213,9 @@ Panel {
               readonly property bool startsSubgroup: modelData.value.subgroup !== ""
                 && (startsGroup
                   || filterController.filteredModel[index - 1].value.subgroup !== modelData.value.subgroup)
-              readonly property bool startsGroupRow: startsGroup || (columns === 2 && groupOffset < 2)
+              readonly property bool startsGroupRow: startsGroup
+                || (columns === 2 && groupOffset === 1
+                  && root.gridColumns(filterController.filteredModel[index - 1].value) === 2)
               readonly property bool endsGroup: index === filterController.filteredModel.length - 1
                 || filterController.filteredModel[index + 1].value.group !== modelData.value.group
               readonly property bool endsOddGrid: columns === 2 && endsGroup && groupOffset % 2 === 0
@@ -301,7 +341,7 @@ Panel {
                   }
                 }
 
-                Row {
+                Column {
                   id: controlContent
                   readonly property var row: modelData.value
                   visible: modelData.value.control !== ""
@@ -310,22 +350,61 @@ Panel {
                   anchors.verticalCenter: parent.verticalCenter
                   anchors.leftMargin: Style.space(root.panelConfig.rowHorizontalPadding)
                   anchors.rightMargin: Style.space(root.panelConfig.rowHorizontalPadding)
-                  spacing: Style.space(root.panelConfig.rowSpacing)
+                  spacing: Style.space(root.panelConfig.rowTextSpacing)
 
-                  Text {
-                    width: Math.max(0, parent.width - controlButtons.width - parent.spacing)
-                    text: controlContent.row.label
-                    color: root.contentForeground
-                    font.family: root.contentFontFamily
-                    font.pixelSize: Style.font.body
-                    elide: Text.ElideRight
-                    anchors.verticalCenter: parent.verticalCenter
+                  Row {
+                    width: parent.width
+                    spacing: Style.space(root.panelConfig.rowSpacing)
+
+                    Text {
+                      width: Math.max(0, parent.width - controlButtons.width - parent.spacing)
+                      text: controlContent.row.label
+                      color: root.contentForeground
+                      font.family: root.contentFontFamily
+                      font.pixelSize: Style.font.body
+                      elide: Text.ElideRight
+                      anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    BorderSurface {
+                      id: controlButtons
+                      implicitWidth: buttonRow.implicitWidth + Style.space(4)
+                      implicitHeight: buttonRow.implicitHeight + Style.space(4)
+                      radius: Style.cornerRadius
+                      color: Qt.rgba(root.contentForeground.r, root.contentForeground.g,
+                        root.contentForeground.b, 0.04)
+                      borderSpec: Border.flat(Qt.rgba(root.contentForeground.r, root.contentForeground.g,
+                        root.contentForeground.b, 0.10), 1)
+
+                      Row {
+                        id: buttonRow
+                        anchors.centerIn: parent
+                        spacing: Style.space(2)
+
+                        Repeater {
+                          model: controlContent.row.control === "number"
+                            ? [
+                                { label: "-", command: controlContent.row.decrementCommand },
+                                { label: root.rowValue(controlContent.row) },
+                                { label: "+", command: controlContent.row.incrementCommand }
+                              ]
+                            : [{
+                                label: controlContent.row.severity === "active" ? "On" : "Off",
+                                command: controlContent.row.toggleCommand
+                              }]
+
+                          ControlButton { row: controlContent.row }
+                        }
+                      }
+                    }
                   }
 
                   BorderSurface {
-                    id: controlButtons
-                    implicitWidth: buttonRow.implicitWidth + Style.space(4)
-                    implicitHeight: buttonRow.implicitHeight + Style.space(4)
+                    visible: controlContent.row.control === "number"
+                      && controlContent.row.presets.length > 0
+                    anchors.right: parent.right
+                    implicitWidth: presetRow.implicitWidth + Style.space(4)
+                    implicitHeight: presetRow.implicitHeight + Style.space(4)
                     radius: Style.cornerRadius
                     color: Qt.rgba(root.contentForeground.r, root.contentForeground.g,
                       root.contentForeground.b, 0.04)
@@ -333,57 +412,14 @@ Panel {
                       root.contentForeground.b, 0.10), 1)
 
                     Row {
-                      id: buttonRow
+                      id: presetRow
                       anchors.centerIn: parent
                       spacing: Style.space(2)
 
                       Repeater {
-                        model: controlContent.row.control === "number"
-                          ? [{ label: "-", command: controlContent.row.decrementCommand }]
-                            .concat([{ label: root.rowValue(controlContent.row) }])
-                            .concat(controlContent.row.presets)
-                            .concat([{ label: "+", command: controlContent.row.incrementCommand }])
-                          : [{
-                              label: controlContent.row.severity === "active" ? "On" : "Off",
-                              command: controlContent.row.toggleCommand
-                            }]
+                        model: controlContent.row.presets
 
-                        BorderSurface {
-                          required property var modelData
-                          readonly property bool actionable: modelData.command !== undefined
-                            || modelData.value !== undefined
-                          readonly property bool hovered: buttonMouse.containsMouse
-                          width: Math.max(Style.space(28), buttonLabel.implicitWidth + Style.space(12))
-                          height: Style.space(24)
-                          radius: Style.cornerRadius
-                          color: hovered && actionable
-                            ? Style.hoverFillFor(root.rowColor(controlContent.row), root.rowColor(controlContent.row))
-                            : "transparent"
-                          borderSpec: Border.none()
-
-                          Text {
-                            id: buttonLabel
-                            anchors.centerIn: parent
-                            text: parent.modelData.label
-                            color: root.contentForeground
-                            font.family: root.contentFontFamily
-                            font.pixelSize: Style.font.body
-                          }
-
-                          MouseArea {
-                            id: buttonMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            enabled: parent.actionable
-                            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                            onClicked: {
-                              if (parent.modelData.value !== undefined)
-                                root.service.activatePreset(controlContent.row, parent.modelData)
-                              else
-                                root.service.runControl(parent.modelData.command)
-                            }
-                          }
-                        }
+                        ControlButton { row: controlContent.row }
                       }
                     }
                   }
