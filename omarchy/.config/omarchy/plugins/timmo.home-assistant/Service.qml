@@ -143,12 +143,14 @@ Item {
         setValueCommand: module.setValueCommand || "",
         toggleCommand: module.toggleCommand || "",
         presets: module.presets || [],
+        inlineActions: module.actionLayout === "inline" ? module.actions || [] : [],
         severity: rowSeverity,
         barActive: module.panelOnly !== true && barActive(module, state, rowSeverity),
         color: color(module, rowSeverity)
       })
       if (!state.available) continue
       var actions = module.actions || []
+      if (module.actionLayout === "inline") continue
       for (var actionIndex = 0; actionIndex < actions.length; actionIndex++) {
         var action = actions[actionIndex]
         result.push({
@@ -173,6 +175,7 @@ Item {
           gridAction: module.actionLayout === "grid",
           actionColumns: Number(module.actionColumns || 5),
           compactAction: module.compactActions === true,
+          inlineActions: [],
           severity: "quiet",
           barActive: false,
           color: color(module, "quiet")
@@ -242,8 +245,8 @@ Item {
   }
 
   function activatePreset(row, preset) {
-    if (!row || !preset) return
-    runControl(row.setValueCommand + preset.value)
+    if (!row || preset === undefined || preset === null) return
+    runControl(row.setValueCommand + (preset.value === undefined ? preset : preset.value))
   }
 
   Instantiator {

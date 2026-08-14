@@ -5,10 +5,14 @@ Item {
   id: root
 
   property var model: []
+  property var navigationModel: null
   property string filterText: ""
   property int cursorIndex: 0
+  property bool cursorStartsActive: true
+  property bool cursorActive: cursorStartsActive
 
   readonly property var filteredModel: filterModel(model, filterText)
+  readonly property var navigationEntries: navigationModel === null ? filteredModel : navigationModel
   readonly property int count: filteredModel.length
 
   signal activateRequested(var entry)
@@ -21,6 +25,10 @@ Item {
   Keys.priority: Keys.BeforeItem
 
   onFilteredModelChanged: {
+    clampCursor()
+    revealRequested()
+  }
+  onNavigationEntriesChanged: {
     clampCursor()
     revealRequested()
   }
@@ -50,30 +58,41 @@ Item {
   function reset() {
     filterText = ""
     cursorIndex = 0
+    cursorActive = cursorStartsActive
   }
 
   function setFilter(nextFilter) {
     filterText = nextFilter
     cursorIndex = 0
+    cursorActive = cursorStartsActive
   }
 
   function clampCursor() {
-    cursorIndex = Math.max(0, Math.min(cursorIndex, Math.max(0, count - 1)))
+    cursorIndex = Math.max(0, Math.min(cursorIndex, Math.max(0, navigationEntries.length - 1)))
   }
 
   function moveCursor(delta) {
-    if (count <= 0) return
-    cursorIndex = Math.max(0, Math.min(cursorIndex + delta, count - 1))
+    if (navigationEntries.length <= 0) return
+    if (!cursorActive) cursorIndex = delta < 0 ? navigationEntries.length - 1 : 0
+    else cursorIndex = Math.max(0, Math.min(cursorIndex + delta, navigationEntries.length - 1))
+    cursorActive = true
     revealRequested()
   }
 
+  function selectIndex(index) {
+    if (index < 0 || index >= navigationEntries.length) return
+    cursorIndex = index
+    cursorActive = true
+  }
+
   function selectedEntry() {
-    return cursorIndex >= 0 && cursorIndex < count ? filteredModel[cursorIndex] : null
+    return cursorActive && cursorIndex >= 0 && cursorIndex < navigationEntries.length
+      ? navigationEntries[cursorIndex] : null
   }
 
   function indexForKey(key) {
-    for (var i = 0; i < filteredModel.length; i++) {
-      if (filteredModel[i].key === key) return i
+    for (var i = 0; i < navigationEntries.length; i++) {
+      if (navigationEntries[i].key === key) return i
     }
     return -1
   }

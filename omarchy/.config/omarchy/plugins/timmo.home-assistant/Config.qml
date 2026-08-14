@@ -255,8 +255,7 @@ QtObject {
         + target.statusEntity.slice("climate.".length),
       action: "launch-floating-webapp 'http://homeassistant.local:8123/lovelace/"
         + hostConfig.temperature.page + "?more-info-entity-id=" + target.statusEntity + "'",
-      actionLayout: "grid",
-      actionColumns: 2,
+      actionLayout: "inline",
       actions: [
         {
           id: "fan-low",
@@ -322,6 +321,8 @@ QtObject {
       setValueCommand: "timmo-run-command go-automate ha input_number set-value "
         + target.entity.slice("input_number.".length) + " ",
       presets: target.presets,
+      action: "launch-floating-webapp 'http://homeassistant.local:8123/lovelace/"
+        + hostConfig.temperature.page + "?more-info-entity-id=" + target.entity + "'",
       hideUnavailable: true,
       colors: { quiet: colors.fadedBlue }
     }
@@ -339,6 +340,9 @@ QtObject {
         + " --icon '' --class-on active --class-off inactive",
       toggleCommand: "timmo-run-command go-automate ha input_boolean toggle "
         + hostConfig.airConditionerEnabled.entity.slice("input_boolean.".length),
+      action: "launch-floating-webapp 'http://homeassistant.local:8123/lovelace/"
+        + hostConfig.temperature.page + "?more-info-entity-id="
+        + hostConfig.airConditionerEnabled.entity + "'",
       inactiveText: "Off",
       activeText: "On",
       severityClasses: { active: ["active"] },
