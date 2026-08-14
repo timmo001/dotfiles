@@ -69,6 +69,10 @@ QtObject {
         gateOption: "--gate-state on",
         statusEntity: "climate.office_air_conditioner"
       },
+      curtains: {
+        entity: "cover.curtain",
+        label: "Office curtains"
+      },
       diningTemperature: false,
       voc: false
     },
@@ -89,6 +93,7 @@ QtObject {
         gateOption: "--gate-below 26",
         statusEntity: "climate.air_conditioner"
       },
+      curtains: false,
       diningTemperature: true,
       voc: true
     }
@@ -267,6 +272,52 @@ QtObject {
       inactiveText: "Normal",
       colors: { warning: colors.orange, critical: colors.co2Critical }
     }
+    var curtains = hostConfig.curtains ? {
+      id: "office-curtains",
+      group: "Controls",
+      label: hostConfig.curtains.label,
+      icon: "󰡆",
+      stream: true,
+      panelOnly: true,
+      command: "ha-watch-singleton --module office-curtains --entity "
+        + hostConfig.curtains.entity,
+      action: "launch-floating-webapp 'http://homeassistant.local:8123/lovelace/office?more-info-entity-id="
+        + hostConfig.curtains.entity + "'",
+      actionLayout: "grid",
+      actions: [
+        {
+          id: "close",
+          label: "Close",
+          position: 0,
+          command: "timmo-run-command go-automate ha cover close curtain"
+        },
+        {
+          id: "position-10",
+          label: "10%",
+          position: 10,
+          command: "timmo-run-command go-automate ha cover position curtain 10"
+        },
+        {
+          id: "position-20",
+          label: "20%",
+          position: 20,
+          command: "timmo-run-command go-automate ha cover position curtain 20"
+        },
+        {
+          id: "position-30",
+          label: "30%",
+          position: 30,
+          command: "timmo-run-command go-automate ha cover position curtain 30"
+        },
+        {
+          id: "position-60",
+          label: "60%",
+          position: 60,
+          command: "timmo-run-command go-automate ha cover position curtain 60"
+        }
+      ],
+      colors: { quiet: colors.teal }
+    } : null
     modules.push(outdoorTemperature)
     modules.push(rain)
     modules.push(airConditionerTargetTemperature)
@@ -275,6 +326,7 @@ QtObject {
     if (hostConfig.voc) modules.push(voc)
     modules.push(temperature)
     if (hostConfig.diningTemperature) modules.push(diningTemperature)
+    if (curtains) modules.push(curtains)
     modules.push(doorbell)
     return modules
   }

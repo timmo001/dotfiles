@@ -130,10 +130,37 @@ Item {
         inactiveText: module.inactiveText || "Quiet",
         activeText: module.activeText || "Active",
         barIconOnly: module.barIconOnly === true,
+        panelOnly: module.panelOnly === true,
         severity: rowSeverity,
-        barActive: barActive(module, state, rowSeverity),
+        barActive: module.panelOnly !== true && barActive(module, state, rowSeverity),
         color: color(module, rowSeverity)
       })
+      if (!state.available) continue
+      var actions = module.actions || []
+      for (var actionIndex = 0; actionIndex < actions.length; actionIndex++) {
+        var action = actions[actionIndex]
+        result.push({
+          id: module.id + ":" + action.id,
+          group: module.group,
+          label: action.label,
+          icon: action.icon,
+          curtainPosition: Number(action.position || 0),
+          action: action.command,
+          opensLink: false,
+          text: "Run",
+          tooltip: action.label,
+          className: "",
+          available: true,
+          inactiveText: "Run",
+          activeText: "Run",
+          barIconOnly: false,
+          panelOnly: true,
+          gridAction: module.actionLayout === "grid",
+          severity: "quiet",
+          barActive: false,
+          color: color(module, "quiet")
+        })
+      }
     }
     return result
   }
@@ -142,7 +169,8 @@ Item {
     var count = 0
     var currentRows = buildRows(dependency)
     for (var i = 0; i < currentRows.length; i++)
-      if (["active", "warning", "critical"].indexOf(currentRows[i].severity) !== -1) count++
+      if (!currentRows[i].panelOnly
+        && ["active", "warning", "critical"].indexOf(currentRows[i].severity) !== -1) count++
     return count
   }
 
@@ -153,6 +181,7 @@ Item {
     var hasWarning = false
     var hasCritical = false
     for (var i = 0; i < currentRows.length; i++) {
+      if (currentRows[i].panelOnly) continue
       if (currentRows[i].available) available++
       if (currentRows[i].severity === "critical") hasCritical = true
       else if (currentRows[i].severity === "warning") hasWarning = true
@@ -174,9 +203,18 @@ Item {
 
   function activate(rowId) {
     for (var i = 0; i < modules.length; i++) {
-      if (modules[i].id !== rowId || !modules[i].action) continue
-      Quickshell.execDetached(["bash", "-lc", modules[i].action])
-      return
+      var module = modules[i]
+      if (module.id === rowId && module.action) {
+        Quickshell.execDetached(["bash", "-lc", module.action])
+        return
+      }
+      var actions = module.actions || []
+      for (var actionIndex = 0; actionIndex < actions.length; actionIndex++) {
+        var action = actions[actionIndex]
+        if (module.id + ":" + action.id !== rowId) continue
+        Quickshell.execDetached(["bash", "-lc", action.command])
+        return
+      }
     }
   }
 

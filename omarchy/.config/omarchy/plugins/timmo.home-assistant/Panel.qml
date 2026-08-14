@@ -122,7 +122,7 @@ Panel {
         interactive: contentHeight > height
         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-        Column {
+        Flow {
           id: contentColumn
           width: panelFlick.width
           spacing: Style.space(root.panelConfig.contentSpacing)
@@ -149,7 +149,9 @@ Panel {
             Column {
               required property int index
               required property var modelData
-              width: contentColumn.width
+              width: modelData.value.gridAction
+                ? (contentColumn.width - contentColumn.spacing * 4) / 5
+                : contentColumn.width
               spacing: Style.space(root.panelConfig.contentSpacing)
 
               readonly property bool startsGroup: index === 0
@@ -170,13 +172,16 @@ Panel {
 
               CursorSurface {
                 width: parent.width
-                implicitHeight: rowContent.implicitHeight + Style.space(root.panelConfig.rowPadding)
+                implicitHeight: (parent.modelData.value.gridAction
+                  ? gridContent.implicitHeight : rowContent.implicitHeight)
+                  + Style.space(root.panelConfig.rowPadding)
                 hasCursor: filterController.cursorIndex === parent.index
                 foreground: root.contentForeground
                 accent: root.rowColor(parent.modelData.value)
 
                 Row {
                   id: rowContent
+                  visible: !modelData.value.gridAction
                   anchors.left: parent.left
                   anchors.right: parent.right
                   anchors.verticalCenter: parent.verticalCenter
@@ -214,6 +219,42 @@ Panel {
                       font.pixelSize: Style.font.caption
                       elide: Text.ElideRight
                     }
+                  }
+                }
+
+                Column {
+                  id: gridContent
+                  visible: modelData.value.gridAction === true
+                  width: parent.width
+                  anchors.centerIn: parent
+                  spacing: Style.space(root.panelConfig.rowTextSpacing)
+
+                  Rectangle {
+                    x: (parent.width - width) / 2
+                    width: Style.space(28)
+                    height: Style.space(14)
+                    color: "transparent"
+                    border.width: 1
+                    border.color: root.rowColor(modelData.value)
+
+                    Rectangle {
+                      anchors.top: parent.top
+                      anchors.right: parent.right
+                      anchors.bottom: parent.bottom
+                      anchors.margins: 2
+                      width: Math.max(0, parent.width - 4)
+                        * (100 - modelData.value.curtainPosition) / 100
+                      color: root.rowColor(modelData.value)
+                    }
+                  }
+
+                  Text {
+                    width: parent.width
+                    text: modelData.value.label
+                    color: root.contentForeground
+                    font.family: root.contentFontFamily
+                    font.pixelSize: Style.font.caption
+                    horizontalAlignment: Text.AlignHCenter
                   }
                 }
 
