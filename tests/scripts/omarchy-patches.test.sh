@@ -7,11 +7,22 @@ script="$repo_root/scripts/.local/bin/apply-omarchy-patches"
 patch_dir="$repo_root/scripts/.local/share/omarchy-patches"
 test_root=$(mktemp -d)
 target="$test_root/omarchy/bin/omarchy-agent-crash"
+mock_bin="$test_root/bin"
+elevation_log="$test_root/elevation.log"
 
 trap 'rm -rf "$test_root"' EXIT
-mkdir -p "$(dirname "$target")"
+mkdir -p "$(dirname "$target")" "$mock_bin"
+
+cat >"$mock_bin/pkexec" <<'EOF'
+#!/bin/bash
+printf '%s\n' "$(basename "$0")" >>"$ELEVATION_LOG"
+chmod u+w "$ELEVATION_TARGET"
+exec "$@"
+EOF
+chmod +x "$mock_bin/pkexec"
 
 reset_target() {
+  chmod u+w "$target" 2>/dev/null || true
   cat >"$target" <<'EOF'
 #!/bin/bash
 set -euo pipefail
@@ -42,6 +53,20 @@ grep -Fq "$marker" "$target"
 
 second_output=$(OMARCHY_PATCH_ROOT="$test_root/omarchy" OMARCHY_PATCH_DIR="$patch_dir" "$script")
 [[ $second_output == 'Omarchy crash dispatch patch already applied' ]]
+
+reset_target
+chmod 444 "$target"
+ELEVATION_LOG="$elevation_log" ELEVATION_TARGET="$target" PATH="$mock_bin:$PATH" \
+  OMARCHY_PATCH_ROOT="$test_root/omarchy" OMARCHY_PATCH_DIR="$patch_dir" "$script"
+[[ $(<"$elevation_log") == pkexec ]]
+
+reset_target
+chmod 444 "$target"
+: >"$elevation_log"
+script --quiet --return --command \
+  "ELEVATION_LOG='$elevation_log' ELEVATION_TARGET='$target' PATH='$mock_bin:$PATH' OMARCHY_PATCH_ROOT='$test_root/omarchy' OMARCHY_PATCH_DIR='$patch_dir' '$script'" \
+  /dev/null >/dev/null
+[[ $(<"$elevation_log") == pkexec ]]
 
 reset_target
 source=$(<"$target")
