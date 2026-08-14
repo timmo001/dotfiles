@@ -119,6 +119,7 @@ Item {
       result.push({
         id: module.id,
         group: module.group,
+        subgroup: module.subgroup || "",
         label: module.label,
         icon: module.icon,
         action: module.action,
@@ -148,6 +149,7 @@ Item {
         result.push({
           id: module.id + ":" + action.id,
           group: module.group,
+          subgroup: module.subgroup || "",
           label: action.label,
           icon: action.icon,
           curtainPosition: Number(action.position || 0),

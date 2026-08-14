@@ -29,7 +29,7 @@ Panel {
         section: row.group,
         value: row,
         primaryText: row.label,
-        secondaryText: [row.group, rowValue(row)].join(" ")
+        secondaryText: [row.group, row.subgroup, rowValue(row)].join(" ")
       })
     }
     return entries
@@ -166,6 +166,9 @@ Panel {
                 return offset
               }
               readonly property bool startsGroup: groupOffset === 0
+              readonly property bool startsSubgroup: modelData.value.subgroup !== ""
+                && (startsGroup
+                  || filterController.filteredModel[index - 1].value.subgroup !== modelData.value.subgroup)
               readonly property bool startsGroupRow: startsGroup || (columns === 2 && groupOffset < 2)
               readonly property bool endsGroup: index === filterController.filteredModel.length - 1
                 || filterController.filteredModel[index + 1].value.group !== modelData.value.group
@@ -186,6 +189,18 @@ Panel {
                 font.pixelSize: Style.font.caption
                 font.bold: true
                 font.letterSpacing: root.panelConfig.groupLetterSpacing
+              }
+
+              Text {
+                visible: parent.startsSubgroup
+                width: parent.width
+                topPadding: Style.space(root.panelConfig.groupTopPadding)
+                bottomPadding: Style.space(root.panelConfig.groupBottomPadding)
+                text: parent.modelData.value.subgroup
+                color: Qt.darker(root.contentForeground, root.panelConfig.valueColorFactor)
+                font.family: root.contentFontFamily
+                font.pixelSize: Style.font.caption
+                font.bold: true
               }
 
               CursorSurface {

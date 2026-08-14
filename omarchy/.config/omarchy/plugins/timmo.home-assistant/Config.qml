@@ -64,7 +64,7 @@ QtObject {
       },
       airConditionerTarget: {
         entity: "input_number.office_air_conditioner_target_temperature",
-        label: "Air conditioner target temperature",
+        label: "Target temperature",
         presets: [],
         gateEntity: "input_boolean.office_air_conditioner_enabled",
         gateOption: "--gate-state on",
@@ -72,7 +72,7 @@ QtObject {
       },
       airConditionerEnabled: {
         entity: "input_boolean.office_air_conditioner_enabled",
-        label: "Air conditioner enabled"
+        label: "Enabled"
       },
       curtains: {
         entity: "cover.curtain",
@@ -93,7 +93,7 @@ QtObject {
       },
       airConditionerTarget: {
         entity: "input_number.living_room_air_conditioner_target_temperature",
-        label: "Air conditioner target temperature",
+        label: "Target temperature",
         presets: [
           { label: "23.8", value: 23.8 },
           { label: "Off", value: 36 }
@@ -242,6 +242,7 @@ QtObject {
     var airConditionerTargetTemperature = {
       id: "air-conditioner-target-temperature",
       group: "Controls",
+      subgroup: "Air conditioner",
       label: target.label,
       icon: "󰾅",
       command: "ha-module-bar dining-temperature --entity " + target.entity
@@ -262,6 +263,7 @@ QtObject {
     var airConditionerEnabled = hostConfig.airConditionerEnabled ? {
       id: "air-conditioner-enabled",
       group: "Controls",
+      subgroup: "Air conditioner",
       label: hostConfig.airConditionerEnabled.label,
       icon: "󰾅",
       stream: true,
