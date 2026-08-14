@@ -158,6 +158,7 @@ QtObject {
       interval: 5000,
       action: "launch-floating-webapp 'http://homeassistant.local:8123/lovelace/network?more-info-entity-id=sensor.nas_activity'",
       showWhen: { excludesClasses: ["hidden", "inactive"] },
+      hideWhen: { classes: ["hidden"] },
       inactiveText: "Idle",
       colors: { active: root.colors.teal }
     }

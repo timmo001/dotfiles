@@ -698,7 +698,9 @@ run_nas_activity() {
   fi
 
   inactive_state="$(extract_class_field "$inactive_line")"
-  if [[ "$inactive_state" == "on" ]]; then
+  if ! awk -v activity="$activity_state" 'BEGIN { exit !(activity > 0) }'; then
+    class_name="hidden"
+  elif [[ "$inactive_state" == "on" ]]; then
     class_name="active"
   fi
 

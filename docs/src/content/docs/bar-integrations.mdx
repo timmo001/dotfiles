@@ -43,7 +43,7 @@ Numeric shell items omit units to keep the bar compact. Their tooltips retain th
 | `temperature` | Show a signed numeric temperature reading with its Celsius unit. Add `--show-above <number>` to hide it unless the reading is strictly above that threshold. A matching `--gate-entity` with `--gate-state` or `--gate-below` also shows it. Use `--icon-only` to keep the reading in the tooltip. |
 | `co2-alert` | Show a warning or critical CO₂ reading above 1400 ppm and 2000 ppm respectively; hide otherwise. |
 | `voc-alert` | Show a warning or critical VOC reading when the quality entity is `very abnormal` or `extremely abnormal`. Uses `--quality-entity` and `--value-entity`. |
-| `nas-activity` | Show NAS activity while the gate switch is on; highlight when the inactivity script is armed. Uses `--switch-entity` and `--inactive-script-entity`. |
+| `nas-activity` | Show positive NAS activity while the gate switch is on; hide zero activity and highlight when the inactivity script is armed. Uses `--switch-entity` and `--inactive-script-entity`. |
 | `dining-temperature` | Show dining-room temperature only while the air-conditioner target is below `--gate-below` (default `25`). Uses `--gate-entity` for the AC target. |
 | `current-next-event` | Pass through the entity's bar JSON when the text is non-empty. |
 | `doorbell` | Stream doorbell state through `singleton-stream` so the bar can keep one long-lived watcher per module instance. |
