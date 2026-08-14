@@ -24,6 +24,7 @@ Panel {
     var entries = []
     for (var i = 0; i < rows.length; i++) {
       var row = rows[i]
+      if (row.barOnly) continue
       entries.push({
         key: "row:" + String(row.id || i),
         section: row.group,

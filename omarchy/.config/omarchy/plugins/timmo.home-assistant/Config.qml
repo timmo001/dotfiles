@@ -281,6 +281,7 @@ QtObject {
         + " " + target.gateOption + " --status-entity " + target.statusEntity
         + " --active-state cool",
       interval: 15000,
+      barOnly: true,
       action: "launch-floating-webapp 'http://homeassistant.local:8123/lovelace/"
         + hostConfig.temperature.page + "?more-info-entity-id=" + target.entity + "'",
       hideUnavailable: true,
