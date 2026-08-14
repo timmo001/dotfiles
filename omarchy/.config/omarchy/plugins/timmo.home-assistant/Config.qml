@@ -326,7 +326,7 @@ QtObject {
     if (hostConfig.voc) modules.push(voc)
     modules.push(temperature)
     if (hostConfig.diningTemperature) modules.push(diningTemperature)
-    if (curtains) modules.push(curtains)
+    if (curtains) modules.unshift(curtains)
     modules.push(doorbell)
     return modules
   }
