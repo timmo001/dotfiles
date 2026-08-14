@@ -440,8 +440,7 @@ QtObject {
           icon: "",
           stream: true,
           panelOnly: true,
-          command: "ha-watch-singleton --module living-room-blind-" + blindIndex
-            + " --entity " + blind.entity,
+          command: "go-automate ha cover watch " + blind.entity.slice("cover.".length),
           action: "launch-floating-webapp 'http://homeassistant.local:8123/lovelace/living-room?more-info-entity-id="
             + blind.entity + "'",
           actionLayout: "grid",
