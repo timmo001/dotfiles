@@ -50,9 +50,18 @@ explicit_write=$(run_mise --write-global-config use -g gh@2.97.0)
 [[ $explicit_write == $'args=use -g gh@2.97.0\nglobal=' ]]
 
 ln -s /usr/bin/perl "$binary_bin/mise"
+perl_script="$test_root/argv0.pl"
+cat >"$perl_script" <<'PERL'
+open(my $fh, '<', "/proc/$$/cmdline") or die $!;
+local $/;
+my $data = <$fh>;
+close $fh;
+my @args = split /\0/, $data;
+print $args[0], "\n";
+PERL
 shim="$binary_bin/starship"
 ln -s "$mise_wrapper" "$shim"
-shim_output=$(PATH="$binary_bin:/usr/bin" "$shim" -e 'print $0')
+shim_output=$(PATH="$binary_bin:/usr/bin" "$shim" "$perl_script")
 [[ $shim_output == "$shim" ]]
 
 printf 'mise global config guard tests passed\n'
