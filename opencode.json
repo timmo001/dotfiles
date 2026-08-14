@@ -109,25 +109,9 @@
     }
   },
   "references": {
-    "chromium-relaunch-as-app": {
-      "repository": "timmo001/chromium-relaunch-as-app",
-      "description": "Use for the Chromium relaunch-as-app extension behind the omarchy-launch-webapp binds"
-    },
-    "context": {
-      "repository": "timmo001/context",
-      "description": "Use for the standalone context CLI and MCP server for branch and stack context"
-    },
     "effect": {
       "repository": "Effect-TS/effect",
       "description": "Use for Effect v4 APIs when working in dot/"
-    },
-    "go-automate": {
-      "repository": "timmo001/go-automate",
-      "description": "Use for the go-automate CLI and HA bridge invoked by the Omarchy shell, Hypr binds, and dotfiles scripts"
-    },
-    "notes": {
-      "repository": "timmo001/notes",
-      "description": "Use for the standalone notes CLI and MCP server for repo notes and handoffs"
     },
     "omarchy": {
       "repository": "basecamp/omarchy",
@@ -138,10 +122,6 @@
       "repository": "anomalyco/opencode",
       "branch": "v1.18.18",
       "description": "Use for OpenCode config, agents, commands, skills, and plugin behaviour"
-    },
-    "opencode-config": {
-      "repository": "timmo001/opencode-config",
-      "description": "Use for the published OpenCode config mirrored from this repo"
     },
     "skills": {
       "path": "~/repos/skills",
@@ -154,10 +134,6 @@
     "quickshell": {
       "repository": "quickshell-mirror/quickshell",
       "description": "Use for upstream Quickshell QML types, WlrLayershell/layer-shell, IpcHandler, reloadable config, and the qs CLI when customising the Omarchy shell bar widgets"
-    },
-    "system-bridge": {
-      "repository": "timmo001/system-bridge",
-      "description": "Use for the system-bridge backend autostarted via Hypr and its API/WebSocket behaviour"
     }
   },
   "mcp": {

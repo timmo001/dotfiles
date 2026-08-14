@@ -9,12 +9,12 @@
   },
   "references": {
     "dotfiles": {
-      "repository": "timmo001/dotfiles",
+      "path": "..",
       "description": "Use for the dotfiles source this site documents: the dot command, stow layout, scripts, Omarchy host overrides, and OpenCode config"
     },
     "opencode-config": {
-      "repository": "timmo001/opencode-config",
-      "description": "Use for the published OpenCode skills, agents, commands, and plugins mirrored from this repo"
+      "path": "..",
+      "description": "Use this dotfiles source for OpenCode config changes; timmo001/opencode-config is a generated mirror"
     }
   }
 }
