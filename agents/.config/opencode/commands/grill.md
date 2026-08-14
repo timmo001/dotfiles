@@ -11,4 +11,4 @@ Treat `${ARGUMENTS}` as the target to grill. If it is empty, use the current con
 
 Treat wording such as "lightly grill me" or "ask me a couple" as an intensity answer. When neither `${ARGUMENTS}` nor the conversation implies Light or Full, ask once which intensity to use.
 
-Stay planning-only. Ask dependency-ready material questions in rounds, then end with the skill's decision summary and wait for the user to hand off to `/plan` or implementation.
+Stay planning-only. Ask no more than five dependency-ready material questions per question-tool call. When the frontier is larger, prioritise five and continue the remainder in later rounds. Then end with the skill's decision summary and wait for the user to hand off to `/plan` or implementation.
