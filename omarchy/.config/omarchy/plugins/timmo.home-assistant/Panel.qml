@@ -41,6 +41,42 @@ Panel {
     return entries.concat(environmentEntries, statusEntries)
   }
 
+  function buildNavigationEntries(entries) {
+    var targets = []
+    for (var i = 0; i < entries.length; i++) {
+      var entry = entries[i]
+      var row = entry.value
+      var inlineActions = row.inlineActions || []
+      var presets = row.presets || []
+      if (row.action) targets.push({ key: entry.key, rowKey: entry.key, row: row, kind: "row" })
+      for (var actionIndex = 0; actionIndex < inlineActions.length; actionIndex++)
+        targets.push({
+          key: entry.key + ":inline:" + inlineActions[actionIndex].id,
+          rowKey: entry.key,
+          row: row,
+          target: inlineActions[actionIndex],
+          kind: "command"
+        })
+      if (row.control === "number") {
+        targets.push({ key: entry.key + ":decrement", rowKey: entry.key,
+          row: row, command: row.decrementCommand, kind: "command" })
+        targets.push({ key: entry.key + ":increment", rowKey: entry.key,
+          row: row, command: row.incrementCommand, kind: "command" })
+      } else if (row.control === "toggle") {
+        targets.push({ key: entry.key + ":toggle", rowKey: entry.key,
+          row: row, command: row.toggleCommand, kind: "command" })
+      }
+      for (var presetIndex = 0; presetIndex < presets.length; presetIndex++) {
+        var preset = presets[presetIndex]
+        if (preset === undefined || preset === null) continue
+        var presetValue = preset.value === undefined ? preset : preset.value
+        targets.push({ key: entry.key + ":preset:" + presetValue, rowKey: entry.key,
+          row: row, target: preset, kind: "preset" })
+      }
+    }
+    return targets
+  }
+
   function open() {
     filterController.reset()
     if (service) service.refresh()
@@ -60,7 +96,14 @@ Panel {
     return false
   }
 
-  function cursorItem() { return rowRepeater.itemAt(filterController.cursorIndex) }
+  function cursorItem() {
+    var selected = filterController.selectedEntry()
+    if (!selected) return null
+    for (var i = 0; i < filterController.filteredModel.length; i++)
+      if (filterController.filteredModel[i].key === selected.rowKey)
+        return rowRepeater.itemAt(i)
+    return null
+  }
 
   function scrollCursorIntoView() {
     var item = cursorItem()
@@ -75,6 +118,18 @@ Panel {
     if (!service || !row || !row.action) return
     if (row.opensLink) close()
     service.activate(row.id)
+  }
+
+  function activateEntry(entry) {
+    if (!entry || !service) return
+    if (entry.kind === "row") activateRow(entry.row)
+    else if (entry.kind === "preset") service.activatePreset(entry.row, entry.target)
+    else service.runControl(entry.command || entry.target.command)
+  }
+
+  function targetSelected(key) {
+    return filterController.cursorActive
+      && filterController.indexForKey(key) === filterController.cursorIndex
   }
 
   function rowValue(row) {
@@ -107,9 +162,11 @@ Panel {
   component ControlButton: BorderSurface {
     required property var modelData
     required property var row
+    property string targetKey: ""
     readonly property bool actionable: modelData.command !== undefined
       || modelData.value !== undefined
     readonly property bool hovered: buttonMouse.containsMouse
+      || (targetKey !== "" && root.targetSelected(targetKey))
     width: Math.max(Style.space(28), buttonLabel.implicitWidth + Style.space(12))
     height: Style.space(24)
     radius: Style.cornerRadius
@@ -133,6 +190,10 @@ Panel {
       hoverEnabled: true
       enabled: parent.actionable
       cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+      onEntered: {
+        var targetIndex = filterController.indexForKey(parent.targetKey)
+        filterController.selectIndex(targetIndex)
+      }
       onClicked: {
         if (parent.modelData.value !== undefined)
           root.service.activatePreset(parent.row, parent.modelData)
@@ -156,8 +217,10 @@ Panel {
       id: filterController
       anchors.fill: parent
       model: root.panelRows
+      navigationModel: root.buildNavigationEntries(filteredModel)
+      cursorStartsActive: false
       onRevealRequested: Qt.callLater(root.scrollCursorIntoView)
-      onActivateRequested: function(entry) { root.activateRow(entry.value) }
+      onActivateRequested: function(entry) { root.activateEntry(entry) }
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
       onRefreshRequested: if (root.service) root.service.refresh()
@@ -198,6 +261,7 @@ Panel {
             model: filterController.filteredModel
 
             Column {
+              id: rowItem
               required property int index
               required property var modelData
               readonly property int columns: root.gridColumns(modelData.value)
@@ -258,9 +322,32 @@ Panel {
                   ? controlContent.implicitHeight
                   : parent.modelData.value.gridAction ? gridContent.implicitHeight : rowContent.implicitHeight)
                   + Style.space(root.panelConfig.rowPadding)
-                hasCursor: filterController.cursorIndex === parent.index
+                hasCursor: root.targetSelected(parent.modelData.key)
+                  && parent.modelData.value.inlineActions.length === 0
+                  && parent.modelData.value.control === ""
+                  && !controlLinkMouse.containsMouse
                 foreground: root.contentForeground
                 accent: root.rowColor(parent.modelData.value)
+
+                BorderSurface {
+                  anchors.left: parent.left
+                  anchors.top: parent.top
+                  anchors.bottom: parent.bottom
+                  width: Math.max(0, parent.width - inlineButtons.width
+                    - Style.space(root.panelConfig.rowHorizontalPadding)
+                    - Style.space(root.panelConfig.rowSpacing))
+                  visible: inlineLinkMouse.enabled
+                  radius: Style.cornerRadius
+                  readonly property bool highlighted: inlineLinkMouse.containsMouse
+                    || root.targetSelected(rowItem.modelData.key)
+                  color: highlighted
+                    ? Style.hoverFillFor(root.rowColor(modelData.value), root.rowColor(modelData.value))
+                    : "transparent"
+                  borderSpec: highlighted
+                    ? Border.controlSpec("hover-cursor", root.contentForeground,
+                      root.rowColor(modelData.value))
+                    : Border.none()
+                }
 
                 Row {
                   id: rowContent
@@ -283,8 +370,9 @@ Panel {
                   }
 
                   Column {
-                    width: Math.max(0, parent.width - (modelData.value.icon
-                      ? Style.space(root.panelConfig.textReservedWidth) : 0))
+                    width: Math.max(0, parent.width
+                      - (modelData.value.icon ? Style.space(root.panelConfig.textReservedWidth) : 0)
+                      - (inlineButtons.visible ? inlineButtons.width + parent.spacing : 0))
                     spacing: Style.space(root.panelConfig.rowTextSpacing)
 
                     Text {
@@ -303,6 +391,34 @@ Panel {
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption
                       elide: Text.ElideRight
+                    }
+                  }
+
+                  BorderSurface {
+                    id: inlineButtons
+                    visible: modelData.value.inlineActions.length > 0
+                    implicitWidth: inlineButtonRow.implicitWidth + Style.space(4)
+                    implicitHeight: inlineButtonRow.implicitHeight + Style.space(4)
+                    radius: Style.cornerRadius
+                    color: Qt.rgba(root.contentForeground.r, root.contentForeground.g,
+                      root.contentForeground.b, 0.04)
+                    borderSpec: Border.flat(Qt.rgba(root.contentForeground.r, root.contentForeground.g,
+                      root.contentForeground.b, 0.10), 1)
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    Row {
+                      id: inlineButtonRow
+                      anchors.centerIn: parent
+                      spacing: Style.space(2)
+
+                      Repeater {
+                        model: modelData.value.inlineActions
+
+                        ControlButton {
+                          row: rowItem.modelData.value
+                          targetKey: rowItem.modelData.key + ":inline:" + modelData.id
+                        }
+                      }
                     }
                   }
                 }
@@ -359,14 +475,39 @@ Panel {
                     width: parent.width
                     spacing: Style.space(root.panelConfig.rowSpacing)
 
-                    Text {
+                    Rectangle {
                       width: Math.max(0, parent.width - controlButtons.width - parent.spacing)
-                      text: controlContent.row.label
-                      color: root.contentForeground
-                      font.family: root.contentFontFamily
-                      font.pixelSize: Style.font.body
-                      elide: Text.ElideRight
+                      height: controlButtons.height
                       anchors.verticalCenter: parent.verticalCenter
+                      radius: Style.cornerRadius
+                      color: controlLinkMouse.containsMouse
+                          || root.targetSelected(rowItem.modelData.key)
+                        ? Style.hoverFillFor(root.rowColor(controlContent.row),
+                          root.rowColor(controlContent.row))
+                        : "transparent"
+
+                      Text {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: controlContent.row.label
+                        color: root.contentForeground
+                        font.family: root.contentFontFamily
+                        font.pixelSize: Style.font.body
+                        elide: Text.ElideRight
+                      }
+
+                      MouseArea {
+                        id: controlLinkMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        enabled: controlContent.row.action !== undefined
+                          && controlContent.row.action !== ""
+                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                        onEntered: filterController.selectIndex(
+                          filterController.indexForKey(rowItem.modelData.key))
+                        onClicked: root.activateRow(controlContent.row)
+                      }
                     }
 
                     BorderSurface {
@@ -387,16 +528,22 @@ Panel {
                         Repeater {
                           model: controlContent.row.control === "number"
                             ? [
-                                { label: "-", command: controlContent.row.decrementCommand },
+                                { label: "-", command: controlContent.row.decrementCommand,
+                                  targetKey: rowItem.modelData.key + ":decrement" },
                                 { label: root.rowValue(controlContent.row) },
-                                { label: "+", command: controlContent.row.incrementCommand }
+                                { label: "+", command: controlContent.row.incrementCommand,
+                                  targetKey: rowItem.modelData.key + ":increment" }
                               ]
                             : [{
                                 label: controlContent.row.severity === "active" ? "On" : "Off",
-                                command: controlContent.row.toggleCommand
+                                command: controlContent.row.toggleCommand,
+                                targetKey: rowItem.modelData.key + ":toggle"
                               }]
 
-                          ControlButton { row: controlContent.row }
+                          ControlButton {
+                            row: controlContent.row
+                            targetKey: modelData.targetKey || ""
+                          }
                         }
                       }
                     }
@@ -422,7 +569,11 @@ Panel {
                       Repeater {
                         model: controlContent.row.presets
 
-                        ControlButton { row: controlContent.row }
+                        ControlButton {
+                          row: controlContent.row
+                          targetKey: rowItem.modelData.key + ":preset:"
+                            + (modelData.value === undefined ? modelData : modelData.value)
+                        }
                       }
                     }
                   }
@@ -432,8 +583,27 @@ Panel {
                   anchors.fill: parent
                   hoverEnabled: true
                   enabled: modelData.value.control === ""
+                    && modelData.value.inlineActions.length === 0
                   cursorShape: modelData.value.action ? Qt.PointingHandCursor : Qt.ArrowCursor
-                  onEntered: filterController.cursorIndex = index
+                  onEntered: filterController.selectIndex(
+                    filterController.indexForKey(rowItem.modelData.key))
+                  onClicked: root.activateRow(modelData.value)
+                }
+
+                MouseArea {
+                  id: inlineLinkMouse
+                  anchors.left: parent.left
+                  anchors.top: parent.top
+                  anchors.bottom: parent.bottom
+                  width: Math.max(0, parent.width - inlineButtons.width
+                    - Style.space(root.panelConfig.rowHorizontalPadding)
+                    - Style.space(root.panelConfig.rowSpacing))
+                  hoverEnabled: true
+                  enabled: modelData.value.control === ""
+                    && modelData.value.inlineActions.length > 0
+                  cursorShape: modelData.value.action ? Qt.PointingHandCursor : Qt.ArrowCursor
+                  onEntered: filterController.selectIndex(
+                    filterController.indexForKey(rowItem.modelData.key))
                   onClicked: root.activateRow(modelData.value)
                 }
               }
