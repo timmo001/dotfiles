@@ -419,7 +419,7 @@ QtObject {
     } : null
     var blinds = []
     if (hostConfig.blinds) {
-      var blindPositions = [0, 20, 40, 60, 80, 100]
+      var blindPositions = [100, 80, 60, 40, 20, 0]
       for (var blindIndex = 0; blindIndex < hostConfig.blinds.length; blindIndex++) {
         var blind = hostConfig.blinds[blindIndex]
         var blindActions = []
@@ -435,6 +435,7 @@ QtObject {
         blinds.push({
           id: "living-room-blind-" + blindIndex,
           group: "Controls",
+          subgroup: "󰒹 Blinds",
           label: blind.label,
           icon: "",
           stream: true,
@@ -460,11 +461,11 @@ QtObject {
     modules.push(temperature)
     if (hostConfig.diningTemperature) modules.push(diningTemperature)
     var controls = []
-    if (curtains) controls.push(curtains)
-    controls = controls.concat(blinds)
     controls.push(airConditioner)
     controls.push(airConditionerTargetTemperature)
     if (airConditionerEnabled) controls.push(airConditionerEnabled)
+    if (curtains) controls.push(curtains)
+    controls = controls.concat(blinds)
     modules = controls.concat(modules)
     modules.push(doorbell)
     return modules
