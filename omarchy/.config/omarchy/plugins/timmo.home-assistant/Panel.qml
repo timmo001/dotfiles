@@ -222,6 +222,7 @@ Panel {
 
               width: endsOddGrid ? contentColumn.width
                 : (contentColumn.width - contentColumn.spacing * (columns - 1)) / columns
+                  - (modelData.value.compactAction ? Style.space(1) : 0)
               spacing: Style.space(root.panelConfig.contentSpacing)
 
               Text {
@@ -272,7 +273,8 @@ Panel {
                   spacing: Style.space(root.panelConfig.rowSpacing)
 
                   Text {
-                    width: Style.space(root.panelConfig.iconWidth)
+                    visible: text !== ""
+                    width: visible ? Style.space(root.panelConfig.iconWidth) : 0
                     text: modelData.value.icon || ""
                     color: root.rowColor(modelData.value)
                     font.family: root.contentFontFamily
@@ -281,7 +283,8 @@ Panel {
                   }
 
                   Column {
-                    width: Math.max(0, parent.width - Style.space(root.panelConfig.textReservedWidth))
+                    width: Math.max(0, parent.width - (modelData.value.icon
+                      ? Style.space(root.panelConfig.textReservedWidth) : 0))
                     spacing: Style.space(root.panelConfig.rowTextSpacing)
 
                     Text {

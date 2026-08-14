@@ -78,6 +78,7 @@ QtObject {
         entity: "cover.curtain",
         label: "Office curtains"
       },
+      blinds: false,
       diningTemperature: false,
       voc: false
     },
@@ -111,6 +112,11 @@ QtObject {
       },
       airConditionerEnabled: false,
       curtains: false,
+      blinds: [
+        { entity: "cover.living_room_left_blind", label: "Left blind" },
+        { entity: "cover.living_room_middle_blind", label: "Middle blind" },
+        { entity: "cover.living_room_right_blind", label: "Right blind" }
+      ],
       diningTemperature: true,
       voc: true
     }
@@ -411,6 +417,40 @@ QtObject {
       ],
       colors: { quiet: colors.teal }
     } : null
+    var blinds = []
+    if (hostConfig.blinds) {
+      var blindPositions = [0, 20, 40, 60, 80, 100]
+      for (var blindIndex = 0; blindIndex < hostConfig.blinds.length; blindIndex++) {
+        var blind = hostConfig.blinds[blindIndex]
+        var blindActions = []
+        for (var positionIndex = 0; positionIndex < blindPositions.length; positionIndex++) {
+          var position = blindPositions[positionIndex]
+          blindActions.push({
+            id: "tilt-" + position,
+            label: position + "%",
+            command: "timmo-run-command go-automate ha cover tilt-position "
+              + blind.entity.slice("cover.".length) + " " + position
+          })
+        }
+        blinds.push({
+          id: "living-room-blind-" + blindIndex,
+          group: "Controls",
+          label: blind.label,
+          icon: "",
+          stream: true,
+          panelOnly: true,
+          command: "ha-watch-singleton --module living-room-blind-" + blindIndex
+            + " --entity " + blind.entity,
+          action: "launch-floating-webapp 'http://homeassistant.local:8123/lovelace/living-room?more-info-entity-id="
+            + blind.entity + "'",
+          actionLayout: "grid",
+          actionColumns: 6,
+          compactActions: true,
+          actions: blindActions,
+          colors: { quiet: colors.teal }
+        })
+      }
+    }
     modules.push(outdoorTemperature)
     modules.push(rain)
     modules.push(airConditionerTargetStatus)
@@ -421,6 +461,7 @@ QtObject {
     if (hostConfig.diningTemperature) modules.push(diningTemperature)
     var controls = []
     if (curtains) controls.push(curtains)
+    controls = controls.concat(blinds)
     controls.push(airConditioner)
     controls.push(airConditionerTargetTemperature)
     if (airConditionerEnabled) controls.push(airConditionerEnabled)

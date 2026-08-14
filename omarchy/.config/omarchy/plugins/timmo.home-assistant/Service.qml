@@ -172,6 +172,7 @@ Item {
           control: "",
           gridAction: module.actionLayout === "grid",
           actionColumns: Number(module.actionColumns || 5),
+          compactAction: module.compactActions === true,
           severity: "quiet",
           barActive: false,
           color: color(module, "quiet")
