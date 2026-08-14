@@ -172,6 +172,8 @@ QtObject {
     command: "ha-watch-singleton --module heating --entity sensor.thermostat_status --icon 󰈸 --tooltip-on 'Thermostat status (sensor.thermostat_status)' --class-on heating --class-off hidden --hide-off",
     action: "launch-floating-webapp 'http://homeassistant.local:8123/lovelace/home?more-info-entity-id=sensor.thermostat_status'",
     showWhen: { classes: ["heating"] },
+    hideWhen: { classes: ["hidden"] },
+    hideUnavailable: true,
     inactiveText: "Off",
     activeText: "On",
     colors: { active: root.colors.orange }

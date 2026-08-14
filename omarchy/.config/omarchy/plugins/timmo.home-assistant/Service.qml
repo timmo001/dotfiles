@@ -117,6 +117,8 @@ Item {
       if (module.background === true) continue
       var state = moduleStates[i] || { text: "", tooltip: "", className: "", available: false }
       if (module.hideUnavailable === true && !state.available) continue
+      var stateClasses = state.className.split(/\s+/).filter(function(value) { return value !== "" })
+      if (matchesCondition(module.hideWhen, stateClasses)) continue
       var rowSeverity = severity(module, state)
       result.push({
         id: module.id,
