@@ -235,7 +235,7 @@ QtObject {
       icon: "󰾅",
       stream: true,
       panelOnly: true,
-      command: "mise exec -- go-automate ha climate watch "
+      command: "go-automate ha climate watch "
         + target.statusEntity.slice("climate.".length),
       action: "launch-floating-webapp 'http://homeassistant.local:8123/lovelace/"
         + hostConfig.temperature.page + "?more-info-entity-id=" + target.statusEntity + "'",
@@ -245,13 +245,13 @@ QtObject {
         {
           id: "fan-low",
           label: "Low",
-          command: "timmo-run-command mise exec -- go-automate ha climate fan-mode "
+          command: "timmo-run-command go-automate ha climate fan-mode "
             + target.statusEntity.slice("climate.".length) + " 1"
         },
         {
           id: "fan-high",
           label: "High",
-          command: "timmo-run-command mise exec -- go-automate ha climate fan-mode "
+          command: "timmo-run-command go-automate ha climate fan-mode "
             + target.statusEntity.slice("climate.".length) + " 2"
         }
       ],
@@ -270,6 +270,22 @@ QtObject {
       interval: 15000,
       action: "launch-floating-webapp 'http://homeassistant.local:8123/home?more-info-entity-id=weather.met_office&more-info-view=info#forecast=hourly'",
       colors: { quiet: colors.orange }
+    }
+    var airConditionerTargetStatus = {
+      id: "air-conditioner-target-status",
+      group: "Environment",
+      label: target.label,
+      icon: "󰾅",
+      command: "ha-module-bar dining-temperature --entity " + target.entity
+        + " --name '" + target.label + "' --icon 󰾅 --gate-entity " + target.gateEntity
+        + " " + target.gateOption + " --status-entity " + target.statusEntity
+        + " --active-state cool",
+      interval: 15000,
+      action: "launch-floating-webapp 'http://homeassistant.local:8123/lovelace/"
+        + hostConfig.temperature.page + "?more-info-entity-id=" + target.entity + "'",
+      hideUnavailable: true,
+      severityClasses: { active: ["active"] },
+      colors: { quiet: colors.fadedBlue, active: colors.blue }
     }
     var airConditionerTargetTemperature = {
       id: "air-conditioner-target-temperature",
@@ -386,6 +402,7 @@ QtObject {
     } : null
     modules.push(outdoorTemperature)
     modules.push(rain)
+    modules.push(airConditionerTargetStatus)
     modules.push(heating)
     modules.push(co2)
     if (hostConfig.voc) modules.push(voc)
