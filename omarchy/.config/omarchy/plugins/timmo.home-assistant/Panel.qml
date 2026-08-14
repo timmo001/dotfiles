@@ -91,6 +91,12 @@ Panel {
     return row.color || contentForeground
   }
 
+  function gridColumns(row) {
+    if (row.gridAction) return 5
+    if (["Status", "Environment"].indexOf(row.group) !== -1) return 2
+    return 1
+  }
+
   KeyboardPanel {
     id: panel
     anchorItem: root.anchorItem
@@ -149,20 +155,31 @@ Panel {
             Column {
               required property int index
               required property var modelData
-              width: modelData.value.gridAction
-                ? (contentColumn.width - contentColumn.spacing * 4) / 5
-                : contentColumn.width
+              readonly property int columns: root.gridColumns(modelData.value)
+              readonly property int groupOffset: {
+                var offset = 0
+                for (var previous = index - 1; previous >= 0; previous--) {
+                  if (filterController.filteredModel[previous].value.group !== modelData.value.group) break
+                  offset++
+                }
+                return offset
+              }
+              readonly property bool startsGroup: groupOffset === 0
+              readonly property bool startsGroupRow: startsGroup || (columns === 2 && groupOffset < 2)
+              readonly property bool endsGroup: index === filterController.filteredModel.length - 1
+                || filterController.filteredModel[index + 1].value.group !== modelData.value.group
+              readonly property bool endsOddGrid: columns === 2 && endsGroup && groupOffset % 2 === 0
+
+              width: endsOddGrid ? contentColumn.width
+                : (contentColumn.width - contentColumn.spacing * (columns - 1)) / columns
               spacing: Style.space(root.panelConfig.contentSpacing)
 
-              readonly property bool startsGroup: index === 0
-                || filterController.filteredModel[index - 1].value.group !== modelData.value.group
-
               Text {
-                visible: parent.startsGroup
+                visible: parent.startsGroupRow
                 width: parent.width
                 topPadding: parent.index === 0 ? 0 : Style.space(root.panelConfig.groupTopPadding)
                 bottomPadding: Style.space(root.panelConfig.groupBottomPadding)
-                text: parent.modelData.value.group.toUpperCase()
+                text: parent.startsGroup ? parent.modelData.value.group.toUpperCase() : " "
                 color: Qt.darker(root.contentForeground, root.panelConfig.groupColorFactor)
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.caption
@@ -171,7 +188,9 @@ Panel {
               }
 
               CursorSurface {
-                width: parent.width
+                width: parent.endsOddGrid
+                  ? (contentColumn.width - contentColumn.spacing) / 2
+                  : parent.width
                 implicitHeight: (parent.modelData.value.gridAction
                   ? gridContent.implicitHeight : rowContent.implicitHeight)
                   + Style.space(root.panelConfig.rowPadding)
