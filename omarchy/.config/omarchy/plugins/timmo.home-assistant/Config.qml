@@ -227,6 +227,38 @@ QtObject {
     var hostConfig = hosts[host] || hosts.laptop
     var modules = commonModules.slice()
     var target = hostConfig.airConditionerTarget
+    var airConditioner = {
+      id: "air-conditioner",
+      group: "Controls",
+      subgroup: "Air conditioner",
+      label: "Status",
+      icon: "󰾅",
+      stream: true,
+      panelOnly: true,
+      command: "mise exec -- go-automate ha climate watch "
+        + target.statusEntity.slice("climate.".length),
+      action: "launch-floating-webapp 'http://homeassistant.local:8123/lovelace/"
+        + hostConfig.temperature.page + "?more-info-entity-id=" + target.statusEntity + "'",
+      actionLayout: "grid",
+      actionColumns: 2,
+      actions: [
+        {
+          id: "fan-low",
+          label: "Low",
+          command: "timmo-run-command mise exec -- go-automate ha climate fan-mode "
+            + target.statusEntity.slice("climate.".length) + " 1"
+        },
+        {
+          id: "fan-high",
+          label: "High",
+          command: "timmo-run-command mise exec -- go-automate ha climate fan-mode "
+            + target.statusEntity.slice("climate.".length) + " 2"
+        }
+      ],
+      unavailableClasses: ["unavailable"],
+      hideUnavailable: true,
+      colors: { quiet: colors.teal }
+    }
     var outdoorTemperature = {
       id: "outdoor-temperature",
       group: "Environment",
@@ -361,6 +393,7 @@ QtObject {
     if (hostConfig.diningTemperature) modules.push(diningTemperature)
     var controls = []
     if (curtains) controls.push(curtains)
+    controls.push(airConditioner)
     controls.push(airConditionerTargetTemperature)
     if (airConditionerEnabled) controls.push(airConditionerEnabled)
     modules = controls.concat(modules)

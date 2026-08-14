@@ -46,6 +46,8 @@ Item {
       var module = modules[index]
       var available = text !== "" || tooltip !== "" || className !== "hidden"
         || (module && module.emptyHiddenAvailable === true)
+      var stateClasses = className.split(/\s+/).filter(function(value) { return value !== "" })
+      if (module && hasConfiguredClass(module.unavailableClasses, stateClasses)) available = false
       setState(index, { text: text, tooltip: tooltip, className: className, available: available })
     } catch (error) {
       markUnavailable(index)
@@ -152,7 +154,7 @@ Item {
           subgroup: module.subgroup || "",
           label: action.label,
           icon: action.icon,
-          curtainPosition: Number(action.position || 0),
+          curtainPosition: action.position === undefined ? -1 : Number(action.position),
           action: action.command,
           opensLink: false,
           text: "Run",
@@ -165,6 +167,7 @@ Item {
           panelOnly: true,
           control: "",
           gridAction: module.actionLayout === "grid",
+          actionColumns: Number(module.actionColumns || 5),
           severity: "quiet",
           barActive: false,
           color: color(module, "quiet")

@@ -93,7 +93,7 @@ Panel {
 
   function gridColumns(row) {
     if (row.control) return 1
-    if (row.gridAction) return 5
+    if (row.gridAction) return row.actionColumns || 5
     if (["Status", "Environment"].indexOf(row.group) !== -1) return 2
     return 1
   }
@@ -266,6 +266,7 @@ Panel {
                   spacing: Style.space(root.panelConfig.rowTextSpacing)
 
                   Rectangle {
+                    visible: modelData.value.curtainPosition >= 0
                     x: (parent.width - width) / 2
                     width: Style.space(28)
                     height: Style.space(14)
