@@ -65,9 +65,14 @@ QtObject {
       airConditionerTarget: {
         entity: "input_number.office_air_conditioner_target_temperature",
         label: "Air conditioner target temperature",
+        presets: [],
         gateEntity: "input_boolean.office_air_conditioner_enabled",
         gateOption: "--gate-state on",
         statusEntity: "climate.office_air_conditioner"
+      },
+      airConditionerEnabled: {
+        entity: "input_boolean.office_air_conditioner_enabled",
+        label: "Air conditioner enabled"
       },
       curtains: {
         entity: "cover.curtain",
@@ -89,10 +94,15 @@ QtObject {
       airConditionerTarget: {
         entity: "input_number.living_room_air_conditioner_target_temperature",
         label: "Air conditioner target temperature",
+        presets: [
+          { label: "23.8", value: 23.8 },
+          { label: "Off", value: 36 }
+        ],
         gateEntity: "input_number.living_room_air_conditioner_target_temperature",
         gateOption: "--gate-below 26",
         statusEntity: "climate.air_conditioner"
       },
+      airConditionerEnabled: false,
       curtains: false,
       diningTemperature: true,
       voc: true
@@ -231,20 +241,42 @@ QtObject {
     }
     var airConditionerTargetTemperature = {
       id: "air-conditioner-target-temperature",
-      group: "Environment",
+      group: "Controls",
       label: target.label,
       icon: "󰾅",
       command: "ha-module-bar dining-temperature --entity " + target.entity
-        + " --name '" + target.label + "' --icon 󰾅 --gate-entity " + target.gateEntity
-        + " " + target.gateOption + " --status-entity " + target.statusEntity
-        + " --active-state cool",
+        + " --name '" + target.label + "' --icon 󰾅",
       interval: 15000,
-      action: "launch-floating-webapp 'http://homeassistant.local:8123/lovelace/home?more-info-entity-id="
-        + target.entity + "'",
+      panelOnly: true,
+      control: "number",
+      decrementCommand: "timmo-run-command go-automate ha input_number decrement "
+        + target.entity.slice("input_number.".length),
+      incrementCommand: "timmo-run-command go-automate ha input_number increment "
+        + target.entity.slice("input_number.".length),
+      setValueCommand: "timmo-run-command go-automate ha input_number set-value "
+        + target.entity.slice("input_number.".length) + " ",
+      presets: target.presets,
       hideUnavailable: true,
-      severityClasses: { active: ["active"] },
-      colors: { quiet: colors.fadedBlue, active: colors.blue }
+      colors: { quiet: colors.fadedBlue }
     }
+    var airConditionerEnabled = hostConfig.airConditionerEnabled ? {
+      id: "air-conditioner-enabled",
+      group: "Controls",
+      label: hostConfig.airConditionerEnabled.label,
+      icon: "󰾅",
+      stream: true,
+      panelOnly: true,
+      control: "toggle",
+      command: "ha-watch-singleton --module air-conditioner-enabled --entity "
+        + hostConfig.airConditionerEnabled.entity
+        + " --icon '' --class-on active --class-off inactive",
+      toggleCommand: "timmo-run-command go-automate ha input_boolean toggle "
+        + hostConfig.airConditionerEnabled.entity.slice("input_boolean.".length),
+      inactiveText: "Off",
+      activeText: "On",
+      severityClasses: { active: ["active"] },
+      colors: { quiet: colors.fadedBlue, active: colors.orange }
+    } : null
     var temperature = {
       id: "temperature",
       group: "Environment",
@@ -320,13 +352,16 @@ QtObject {
     } : null
     modules.push(outdoorTemperature)
     modules.push(rain)
-    modules.push(airConditionerTargetTemperature)
     modules.push(heating)
     modules.push(co2)
     if (hostConfig.voc) modules.push(voc)
     modules.push(temperature)
     if (hostConfig.diningTemperature) modules.push(diningTemperature)
-    if (curtains) modules.unshift(curtains)
+    var controls = []
+    if (curtains) controls.push(curtains)
+    controls.push(airConditionerTargetTemperature)
+    if (airConditionerEnabled) controls.push(airConditionerEnabled)
+    modules = controls.concat(modules)
     modules.push(doorbell)
     return modules
   }

@@ -131,6 +131,12 @@ Item {
         activeText: module.activeText || "Active",
         barIconOnly: module.barIconOnly === true,
         panelOnly: module.panelOnly === true,
+        control: module.control || "",
+        decrementCommand: module.decrementCommand || "",
+        incrementCommand: module.incrementCommand || "",
+        setValueCommand: module.setValueCommand || "",
+        toggleCommand: module.toggleCommand || "",
+        presets: module.presets || [],
         severity: rowSeverity,
         barActive: module.panelOnly !== true && barActive(module, state, rowSeverity),
         color: color(module, rowSeverity)
@@ -155,6 +161,7 @@ Item {
           activeText: "Run",
           barIconOnly: false,
           panelOnly: true,
+          control: "",
           gridAction: module.actionLayout === "grid",
           severity: "quiet",
           barActive: false,
@@ -218,6 +225,17 @@ Item {
     }
   }
 
+  function runControl(command) {
+    if (!command) return
+    Quickshell.execDetached(["bash", "-lc", command])
+    refreshTimer.restart()
+  }
+
+  function activatePreset(row, preset) {
+    if (!row || !preset) return
+    runControl(row.setValueCommand + preset.value)
+  }
+
   Instantiator {
     id: processInstantiator
     model: root.modules
@@ -268,6 +286,12 @@ Item {
           runner.process.running = true
       }
     }
+  }
+
+  Timer {
+    id: refreshTimer
+    interval: 500
+    onTriggered: root.refresh()
   }
 
   Component.onCompleted: configure(Quickshell.env("OMARCHY_HOST"))

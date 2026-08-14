@@ -92,6 +92,7 @@ Panel {
   }
 
   function gridColumns(row) {
+    if (row.control) return 1
     if (row.gridAction) return 5
     if (["Status", "Environment"].indexOf(row.group) !== -1) return 2
     return 1
@@ -191,8 +192,9 @@ Panel {
                 width: parent.endsOddGrid
                   ? (contentColumn.width - contentColumn.spacing) / 2
                   : parent.width
-                implicitHeight: (parent.modelData.value.gridAction
-                  ? gridContent.implicitHeight : rowContent.implicitHeight)
+                implicitHeight: (parent.modelData.value.control !== ""
+                  ? controlContent.implicitHeight
+                  : parent.modelData.value.gridAction ? gridContent.implicitHeight : rowContent.implicitHeight)
                   + Style.space(root.panelConfig.rowPadding)
                 hasCursor: filterController.cursorIndex === parent.index
                 foreground: root.contentForeground
@@ -200,7 +202,7 @@ Panel {
 
                 Row {
                   id: rowContent
-                  visible: !modelData.value.gridAction
+                  visible: !modelData.value.gridAction && modelData.value.control === ""
                   anchors.left: parent.left
                   anchors.right: parent.right
                   anchors.verticalCenter: parent.verticalCenter
@@ -210,7 +212,7 @@ Panel {
 
                   Text {
                     width: Style.space(root.panelConfig.iconWidth)
-                    text: modelData.value.icon
+                    text: modelData.value.icon || ""
                     color: root.rowColor(modelData.value)
                     font.family: root.contentFontFamily
                     font.pixelSize: Style.font.icon
@@ -262,7 +264,7 @@ Panel {
                       anchors.bottom: parent.bottom
                       anchors.margins: 2
                       width: Math.max(0, parent.width - 4)
-                        * (100 - modelData.value.curtainPosition) / 100
+                        * (100 - Number(modelData.value.curtainPosition || 0)) / 100
                       color: root.rowColor(modelData.value)
                     }
                   }
@@ -277,9 +279,98 @@ Panel {
                   }
                 }
 
+                Row {
+                  id: controlContent
+                  readonly property var row: modelData.value
+                  visible: modelData.value.control !== ""
+                  anchors.left: parent.left
+                  anchors.right: parent.right
+                  anchors.verticalCenter: parent.verticalCenter
+                  anchors.leftMargin: Style.space(root.panelConfig.rowHorizontalPadding)
+                  anchors.rightMargin: Style.space(root.panelConfig.rowHorizontalPadding)
+                  spacing: Style.space(root.panelConfig.rowSpacing)
+
+                  Text {
+                    width: Math.max(0, parent.width - controlButtons.width - parent.spacing)
+                    text: controlContent.row.label
+                    color: root.contentForeground
+                    font.family: root.contentFontFamily
+                    font.pixelSize: Style.font.body
+                    elide: Text.ElideRight
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
+
+                  BorderSurface {
+                    id: controlButtons
+                    implicitWidth: buttonRow.implicitWidth + Style.space(4)
+                    implicitHeight: buttonRow.implicitHeight + Style.space(4)
+                    radius: Style.cornerRadius
+                    color: Qt.rgba(root.contentForeground.r, root.contentForeground.g,
+                      root.contentForeground.b, 0.04)
+                    borderSpec: Border.flat(Qt.rgba(root.contentForeground.r, root.contentForeground.g,
+                      root.contentForeground.b, 0.10), 1)
+
+                    Row {
+                      id: buttonRow
+                      anchors.centerIn: parent
+                      spacing: Style.space(2)
+
+                      Repeater {
+                        model: controlContent.row.control === "number"
+                          ? [{ label: "-", command: controlContent.row.decrementCommand }]
+                            .concat([{ label: root.rowValue(controlContent.row) }])
+                            .concat(controlContent.row.presets)
+                            .concat([{ label: "+", command: controlContent.row.incrementCommand }])
+                          : [{
+                              label: controlContent.row.severity === "active" ? "On" : "Off",
+                              command: controlContent.row.toggleCommand
+                            }]
+
+                        BorderSurface {
+                          required property var modelData
+                          readonly property bool actionable: modelData.command !== undefined
+                            || modelData.value !== undefined
+                          readonly property bool hovered: buttonMouse.containsMouse
+                          width: Math.max(Style.space(28), buttonLabel.implicitWidth + Style.space(12))
+                          height: Style.space(24)
+                          radius: Style.cornerRadius
+                          color: hovered && actionable
+                            ? Style.hoverFillFor(root.rowColor(controlContent.row), root.rowColor(controlContent.row))
+                            : "transparent"
+                          borderSpec: Border.none()
+
+                          Text {
+                            id: buttonLabel
+                            anchors.centerIn: parent
+                            text: parent.modelData.label
+                            color: root.contentForeground
+                            font.family: root.contentFontFamily
+                            font.pixelSize: Style.font.body
+                          }
+
+                          MouseArea {
+                            id: buttonMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            enabled: parent.actionable
+                            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: {
+                              if (parent.modelData.value !== undefined)
+                                root.service.activatePreset(controlContent.row, parent.modelData)
+                              else
+                                root.service.runControl(parent.modelData.command)
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+
                 MouseArea {
                   anchors.fill: parent
                   hoverEnabled: true
+                  enabled: modelData.value.control === ""
                   cursorShape: modelData.value.action ? Qt.PointingHandCursor : Qt.ArrowCursor
                   onEntered: filterController.cursorIndex = index
                   onClicked: root.activateRow(modelData.value)
