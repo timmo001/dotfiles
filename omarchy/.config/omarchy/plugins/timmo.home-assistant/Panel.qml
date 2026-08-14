@@ -22,18 +22,23 @@ Panel {
 
   function buildPanelRows() {
     var entries = []
+    var statusEntries = []
+    var environmentEntries = []
     for (var i = 0; i < rows.length; i++) {
       var row = rows[i]
       if (row.barOnly) continue
-      entries.push({
+      var entry = {
         key: "row:" + String(row.id || i),
         section: row.group,
         value: row,
         primaryText: row.label,
         secondaryText: [row.group, row.subgroup, rowValue(row)].join(" ")
-      })
+      }
+      if (row.group === "Status") statusEntries.push(entry)
+      else if (row.group === "Environment") environmentEntries.push(entry)
+      else entries.push(entry)
     }
-    return entries
+    return entries.concat(environmentEntries, statusEntries)
   }
 
   function open() {

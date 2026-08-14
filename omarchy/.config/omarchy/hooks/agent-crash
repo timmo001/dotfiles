@@ -60,4 +60,5 @@ start_command=(herdr --session "$herdr_session" agent start "$agent_name" --kind
 ((${#agent_args[@]} == 0)) || start_command+=(-- "${agent_args[@]}")
 "${start_command[@]}" >/dev/null
 
-herdr --session "$herdr_session" agent prompt "$agent_name" "$prompt" >/dev/null
+herdr --session "$herdr_session" agent prompt "$agent_name" "$prompt" \
+  --wait --until working --timeout 10000 >/dev/null
