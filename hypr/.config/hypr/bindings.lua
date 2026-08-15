@@ -33,7 +33,8 @@ o.bind("SHIFT + ALT + PRINT", "Screenrecording", "omarchy screenrecord")
 
 local terminal = "uwsm app -- ghostty-host-config"
 local file_manager = "uwsm app -- thunar"
-local browser_personal = [[uwsm app -- chromium --new-window --ozone-platform=wayland --profile-directory="Default" --force-device-scale-factor=0.8]]
+local browser_personal =
+  [[uwsm app -- chromium --new-window --ozone-platform=wayland --profile-directory="Default" --force-device-scale-factor=0.8]]
 local browser_work = "launch-work-browser"
 local discord = "launch-work-discord"
 local slack = "launch-work-slack"
@@ -59,7 +60,11 @@ o.bind("SUPER + SHIFT + F", "Add floating application", "/usr/bin/float-app add"
 hl.unbind("SUPER + RETURN")
 o.bind("SUPER + RETURN", "Terminal", terminal .. " --working-directory=$(omarchy-cmd-terminal-cwd)")
 o.bind("SUPER + Q", "Herdr", terminal .. " -e herdr session attach default")
-o.bind("SUPER + SHIFT + Q", "Floating Herdr", "uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal -e herdr session attach default")
+o.bind(
+  "SUPER + SHIFT + Q",
+  "Floating Herdr",
+  "uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal -e herdr session attach default"
+)
 hl.unbind("CTRL + SHIFT + T")
 o.bind("CTRL + SHIFT + T", "New terminal tab", "terminal-tab-action new")
 hl.unbind("CTRL + SHIFT + W")
@@ -103,17 +108,25 @@ o.bind("SUPER + D", "Discord", discord)
 -- Home Assistant
 o.bind("SUPER + H", "Home Assistant", [[omarchy-launch-webapp "http://homeassistant.local:8123"]])
 o.bind("SUPER + ALT + H", "Handoffs", "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e notes handoffs --all")
-o.bind("SUPER + A", "Home Assistant Assist", [[omarchy-launch-webapp "http://homeassistant.local:8123/?conversation=1"]])
+o.bind(
+  "SUPER + A",
+  "Home Assistant Assist",
+  [[omarchy-launch-webapp "http://homeassistant.local:8123/?conversation=1"]]
+)
 o.bind("CTRL + ALT + H", "Home Assistant panel", "omarchy-shell timmo.home-assistant toggle")
 o.bind("CTRL + ALT + G", "Git panel", "omarchy-shell timmo.git toggle")
-o.bind("SUPER + CTRL + ALT + C", "Capture note", "omarchy-shell timmo.notes-capture toggle")
+o.bind("CTRL + ALT + C", "Capture note", "omarchy-shell timmo.notes-capture toggle")
 
 -- Local automations
 o.bind("SUPER + CTRL + SHIFT + C", nil, "timmo-run-command go-automate ha ib t in_a_call")
 o.bind("SUPER + CTRL + SHIFT + M", nil, "pactl set-source-mute @DEFAULT_SOURCE@ toggle")
 o.bind("CTRL + ALT + T", nil, "omarchy-shell timmo.twitch toggle")
 o.bind("CTRL + ALT + R", nil, "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e dot tui git-diff")
-o.bind("CTRL + ALT + SHIFT + R", nil, "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e dot tui git-diff --tab other")
+o.bind(
+  "CTRL + ALT + SHIFT + R",
+  nil,
+  "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e dot tui git-diff --tab other"
+)
 
 -- Opens the clock panel with local and US time zones.
 hl.unbind("SUPER + CTRL + T")
@@ -124,9 +137,25 @@ hl.unbind("SUPER + ALT + code:20")
 hl.unbind("SUPER + ALT + code:21")
 hl.unbind("SUPER + SHIFT + ALT + code:20")
 hl.unbind("SUPER + SHIFT + ALT + code:21")
-o.bind("SUPER + ALT + code:20", "Shrink window width (precise)", hl.dsp.window.resize({ x = -2, y = 0, relative = true }))
-o.bind("SUPER + ALT + code:21", "Expand window width (precise)", hl.dsp.window.resize({ x = 2, y = 0, relative = true }))
-o.bind("SUPER + ALT + SHIFT + code:20", "Shrink window height (precise)", hl.dsp.window.resize({ x = 0, y = -2, relative = true }))
-o.bind("SUPER + ALT + SHIFT + code:21", "Expand window height (precise)", hl.dsp.window.resize({ x = 0, y = 2, relative = true }))
+o.bind(
+  "SUPER + ALT + code:20",
+  "Shrink window width (precise)",
+  hl.dsp.window.resize({ x = -2, y = 0, relative = true })
+)
+o.bind(
+  "SUPER + ALT + code:21",
+  "Expand window width (precise)",
+  hl.dsp.window.resize({ x = 2, y = 0, relative = true })
+)
+o.bind(
+  "SUPER + ALT + SHIFT + code:20",
+  "Shrink window height (precise)",
+  hl.dsp.window.resize({ x = 0, y = -2, relative = true })
+)
+o.bind(
+  "SUPER + ALT + SHIFT + code:21",
+  "Expand window height (precise)",
+  hl.dsp.window.resize({ x = 0, y = 2, relative = true })
+)
 
 require("hypr.host.bindings")
