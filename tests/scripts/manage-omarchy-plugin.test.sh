@@ -76,6 +76,19 @@ jq -e '.plugins == [{
 [[ -n $(git -C "$dotfiles" status --short) ]]
 [[ -z $(git -C "$dotfiles" diff --cached --name-only) ]]
 
+env HOME="$home" DOTFILES_REPO="$dotfiles" GIT_ALLOW_PROTOCOL=file PATH="$mock_bin:$PATH" \
+  "$manager" remove example.plugin 1
+! jq -e 'any(.plugins[]?; .id == "example.plugin")' "$dotfiles/omarchy-plugins.json" >/dev/null
+[[ ! -e $source_path ]]
+[[ ! -e $home/.config/omarchy/plugins/example.plugin ]]
+[[ -z $(git -C "$dotfiles" diff --cached --name-only) ]]
+
+git clone -q "$upstream" "$home/.config/omarchy/plugins/example.plugin"
+env HOME="$home" DOTFILES_REPO="$dotfiles" GIT_ALLOW_PROTOCOL=file PATH="$mock_bin:$PATH" \
+  "$manager" add example.plugin "$upstream" \
+  "$home/.config/omarchy/plugins/example.plugin" \
+  --section right --after omarchy.tray
+
 git -C "$dotfiles" add .gitmodules omarchy-plugins.json \
   omarchy/.config/omarchy/plugins/example.plugin
 git -C "$dotfiles" commit -qm managed

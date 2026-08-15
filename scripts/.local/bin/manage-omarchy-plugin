@@ -8,6 +8,7 @@ repo=${DOTFILES_REPO:-$(cd "$(dirname "$script_path")/../../.." && pwd)}
 registry="$repo/omarchy-plugins.json"
 plugins_source="$repo/omarchy/.config/omarchy/plugins"
 plugins_live="$HOME/.config/omarchy/plugins"
+operation_id=""
 
 fail() {
   printf 'manage-omarchy-plugin: %s\n' "$*" >&2
@@ -30,6 +31,10 @@ valid_plugin_id() {
 unstage() {
   git -C "$repo" reset -q HEAD -- .gitmodules omarchy-plugins.json \
     "omarchy/.config/omarchy/plugins/$1" 2>/dev/null || true
+}
+
+cleanup_operation() {
+  [[ -z ${operation_id:-} ]] || unstage "$operation_id"
 }
 
 write_registry() {
@@ -63,7 +68,8 @@ add_plugin() {
   [[ -n $ref ]] || ref=$(git -C "$checkout" symbolic-ref --short HEAD 2>/dev/null || true)
   [[ -n $ref ]] || ref=main
 
-  trap 'unstage "$id"' EXIT
+  operation_id=$id
+  trap cleanup_operation EXIT
   git -C "$repo" submodule add -b "$ref" -- "$url" \
     "omarchy/.config/omarchy/plugins/$id"
   git -C "$plugins_source/$id" checkout -q "$sha"
@@ -80,6 +86,7 @@ add_plugin() {
 
   rm -rf "$plugins_live/$id"
   unstage "$id"
+  operation_id=""
   trap - EXIT
   dot stow --public
   omarchy-shell shell rescanPlugins >/dev/null
@@ -139,12 +146,20 @@ remove_plugin() {
 
   omarchy-shell shell setPluginEnabled "$id" false >/dev/null 2>&1 || true
   rm -f "$plugins_live/$id"
-  trap 'unstage "$id"' EXIT
-  git -C "$repo" submodule deinit -q -f -- "omarchy/.config/omarchy/plugins/$id" || true
-  git -C "$repo" rm -q -f -- "omarchy/.config/omarchy/plugins/$id"
-  rm -rf "$repo/.git/modules/omarchy/.config/omarchy/plugins/$id"
+  local submodule_path="omarchy/.config/omarchy/plugins/$id"
+  operation_id=$id
+  trap cleanup_operation EXIT
+  if git -C "$repo" ls-files --error-unmatch "$submodule_path" >/dev/null 2>&1; then
+    git -C "$repo" submodule deinit -q -f -- "$submodule_path" || true
+    git -C "$repo" rm -q -f -- "$submodule_path"
+  else
+    rm -rf "$plugins_source/$id"
+    git -C "$repo" config -f .gitmodules --remove-section "submodule.$submodule_path"
+  fi
+  rm -rf "$repo/.git/modules/$submodule_path"
   write_registry '.plugins = ((.plugins // []) | map(select(.id != $id)))' "$id"
   unstage "$id"
+  operation_id=""
   trap - EXIT
   dot stow --public
   omarchy-shell shell rescanPlugins >/dev/null
