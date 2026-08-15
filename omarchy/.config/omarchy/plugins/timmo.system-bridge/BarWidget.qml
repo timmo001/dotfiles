@@ -36,10 +36,10 @@ BarWidget {
     || systemBridge.pendingReboot === true
     || systemBridge.newerVersionAvailable === true)
   readonly property string displayText: {
-    if (!systemBridge || !systemBridge.connected) return "CPU --%  RAM --%"
+    if (!systemBridge || !systemBridge.connected) return " --%   --%"
     var cpu = systemBridge.cpuUsage === null ? "--" : Math.round(systemBridge.cpuUsage)
     var memory = systemBridge.memoryPercent === null ? "--" : Math.round(systemBridge.memoryPercent)
-    return "CPU " + cpu + "%  RAM " + memory + "%"
+    return " " + cpu + "%   " + memory + "%"
   }
   readonly property color displayColor: {
     if (!systemBridge || !systemBridge.connected) return "#9b9b9b"
