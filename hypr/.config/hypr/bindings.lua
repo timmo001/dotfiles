@@ -106,8 +106,9 @@ o.bind("CTRL + ALT + R", nil, "uwsm app -- xdg-terminal-exec --app-id=TUI.float 
 o.bind("CTRL + ALT + SHIFT + R", nil, "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e dot tui git-diff --tab other")
 
 -- Opens the clock panel with local and US time zones.
+hl.unbind("SUPER + CTRL + T")
+o.bind("SUPER + CTRL + T", "Clock", "omarchy-shell timmo.clock toggle")
 hl.unbind("SUPER + CTRL + ALT + T")
-o.bind("SUPER + CTRL + ALT + T", "Show times", "omarchy-shell timmo.clock toggle")
 
 -- Precise window resizing (fractional, like 1% volume with ALT)
 hl.unbind("SUPER + ALT + code:20")

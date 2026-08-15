@@ -24,14 +24,14 @@ The shell itself lives in `~/.local/share/omarchy/shell/`. Reading it is useful 
 
 ## Generated `shell.json`
 
-`dot stow` regenerates `shell.json` for the active [host](/omarchy/host-overrides/), starting from Omarchy's default and adding personal modules around the stock ones ("add, not remove"). The merge is idempotent: it only rewrites the file when the rendered content changes.
+`dot stow` regenerates `shell.json` for the active [host](/omarchy/host-overrides/), starting from Omarchy's default and applying the declarative plugin layout in `omarchy-plugins.json`. The merge is idempotent: it only rewrites the file when the rendered content changes.
 
 Per-host differences:
 
-- **Clock format**: compact `HH:mm d MMM`, based on the final pre-Quattro Waybar clock without its weekday or ordinal day suffix. The `timmo.clock` clone reduces the stock clock's 8.75px cell padding to 6px. Left-click opens the calendar and world clocks, middle-click opens timezone settings, and right-click has no action. The popup shows Pacific, Mountain, Central, Eastern, and Local time with a `-24` to `+24` hour slider that shifts every clock together while dragging. Right-click the slider to return to now; closing the popup also resets it. `SUPER+CTRL+ALT+T` toggles the same popup.
+- **Clock format**: compact `HH:mm d MMM`, based on the final pre-Quattro Waybar clock without its weekday or ordinal day suffix. The `timmo.clock` clone reduces the stock clock's 8.75px cell padding to 6px. Left-click opens the calendar and world clocks, middle-click opens timezone settings, and right-click has no action. The popup shows Pacific, Mountain, Central, Eastern, and Local time with a `-24` to `+24` hour slider that shifts every clock together while dragging. Right-click the slider to return to now; closing the popup also resets it. `SUPER+CTRL+T` toggles the same popup.
 - **Idle timers**: screensaver at 2.5 minutes and lock at 5 minutes on `laptop`; screensaver at 30 minutes and lock at 60 minutes on every other host.
 - **Home Assistant dashboard**: desktop uses the office temperature and CO₂ sensors and adds office curtain controls; laptop uses the living-room sensors, adds VOC and dining-room temperature rows, and provides left, middle, and right living-room blind tilt controls. Each host puts its Low/High fan controls inline with the climate status at the top of the Air conditioner subsection.
-- **OmaConnect**: the separately installed `omaconnect` plugin stays directly after Home Assistant and before the stock right-side widgets when `dot stow` regenerates the layout.
+- **OmaConnect**: `omaconnect` is a managed Git submodule pinned to an exact SHA while following upstream `main` for Renovate updates. It stays directly after Home Assistant and before the stock right-side widgets when `dot stow` regenerates the layout.
 
 Secondary outputs keep the core menu, `timmo.workspaces`, `timmo.clock`, and built-in system widgets; Twitch, Git, command cells, and the Home Assistant widget collapse without starting per-output pollers or loading their panels.
 
@@ -39,7 +39,7 @@ The personal status widgets read from bar-agnostic scripts, `dot` JSON output, a
 
 ## Stock Quattro comparison
 
-The generated config starts from Omarchy Quattro's shipped `shell.json` and modifies that layout rather than replacing it wholesale.
+The generated config starts from Omarchy Quattro's shipped `shell.json` and modifies that layout rather than replacing it wholesale. `omarchy-plugins.json` owns custom widget placement, replacements, shared settings, host-specific settings, and stock widget removals. TypeScript validates and applies those declarations without embedding personal widget settings.
 
 `timmo.workspaces` replaces the stock workspace widget, shows only workspaces that currently exist, displays the focused workspace number at full opacity, and dims the others. The Home Assistant dashboard replaces the stock weather widget; its outdoor row opens the same Met Office weather entity and hourly forecast. The stock `omarchy.agents` widget is intentionally removed without replacement.
 
@@ -85,6 +85,14 @@ Twitch, Git, and Home Assistant share the same quick-filter controls. Typing fil
 :::note[New plugins need a stow]
 `~/.config/omarchy/plugins/` is a real directory with per-plugin symlinks. A brand-new plugin needs `dot stow` to create its symlink before the shell sees it; editing an existing plugin's files is already live.
 :::
+
+### Managed third-party plugins
+
+`omarchy plugin add` keeps Omarchy's normal review and enable prompts, then asks where a bar widget belongs. After choosing left, centre, or right, choose an existing neighbour and whether the new widget goes before or after it. The lifecycle hook imports the validated checkout as a submodule under `omarchy/.config/omarchy/plugins/`, records its placement in `omarchy-plugins.json`, and runs `dot stow`.
+
+The parent repository pins the exact plugin SHA. `.gitmodules` records the upstream URL and branch or tag, and Renovate proposes newer pins. `omarchy plugin update` moves managed pins after validation; `omarchy plugin remove` removes the submodule and placement declaration. These commands leave ordinary unstaged dotfiles changes for review and never commit or push them. Unmanaged plugins retain Omarchy's stock add, update, and remove behaviour.
+
+Other devices receive managed plugins through the repository's recursive submodule checkout. `dot update` and `dot stow` then restore the live plugin symlink and generated layout.
 
 ## Reloading the shell
 
