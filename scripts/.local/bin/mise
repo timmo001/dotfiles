@@ -26,6 +26,10 @@ if [[ ${invoked_as##*/} != mise ]]; then
   exec -a "$invoked_as" "$real_mise" "$@"
 fi
 
+# Aqua's Claude Code package only supports the legacy npm archive. Use
+# Anthropic's native binary backend from mise's registry instead.
+export MISE_BACKENDS_CLAUDE="${MISE_BACKENDS_CLAUDE:-http:claude}"
+
 redirect_global_write=false
 case ${1:-} in
   use | unuse | rm)

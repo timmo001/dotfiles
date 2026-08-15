@@ -15,6 +15,7 @@ cat >"$mock_bin/mise" <<'EOF'
 #!/bin/bash
 printf 'args=%s\n' "$*"
 printf 'global=%s\n' "${MISE_GLOBAL_CONFIG_FILE:-}"
+printf 'claude_backend=%s\n' "${MISE_BACKENDS_CLAUDE:-}"
 EOF
 chmod +x "$mock_bin/mise"
 
@@ -25,6 +26,7 @@ run_mise() {
 global_write=$(run_mise use -g gh)
 [[ $global_write == *"args=use -g gh"* ]]
 [[ $global_write == *"global=$mock_home/.local/state/mise/omarchy-config.toml"* ]]
+[[ $global_write == *"claude_backend=http:claude"* ]]
 
 long_global_write=$(run_mise use --global node@latest)
 [[ $long_global_write == *"global=$mock_home/.local/state/mise/omarchy-config.toml"* ]]
@@ -40,14 +42,14 @@ global_unuse=$(run_mise unuse --global node)
 
 local_write=$(run_mise use node@22)
 [[ $local_write == *"args=use node@22"* ]]
-[[ $local_write == $'args=use node@22\nglobal=' ]]
+[[ $local_write == $'args=use node@22\nglobal=\nclaude_backend=http:claude' ]]
 
 read_command=$(run_mise current)
-[[ $read_command == $'args=current\nglobal=' ]]
+[[ $read_command == $'args=current\nglobal=\nclaude_backend=http:claude' ]]
 
 explicit_write=$(run_mise --write-global-config use -g gh@2.97.0)
 [[ $explicit_write == *"args=use -g gh@2.97.0"* ]]
-[[ $explicit_write == $'args=use -g gh@2.97.0\nglobal=' ]]
+[[ $explicit_write == $'args=use -g gh@2.97.0\nglobal=\nclaude_backend=' ]]
 
 ln -s /usr/bin/perl "$binary_bin/mise"
 perl_script="$test_root/argv0.pl"
