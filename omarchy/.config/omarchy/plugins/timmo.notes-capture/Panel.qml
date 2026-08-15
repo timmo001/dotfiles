@@ -21,8 +21,13 @@ Panel {
   property bool available: false
   property bool submitting: false
   property string statusText: ""
+  property var activeSubmission: null
+  property var pendingSubmissions: []
+  property int resetGeneration: 0
   readonly property string cacheRoot: Quickshell.env("XDG_CACHE_HOME")
     || (Quickshell.env("HOME") + "/.cache")
+  readonly property string draftPath: cacheRoot + "/dot/notes-capture-draft.txt"
+  readonly property string failedDraftPath: cacheRoot + "/dot/notes-capture-failed-draft.txt"
   readonly property var filteredRepositories: {
     var query = repositorySearch.trim().toLowerCase()
     if (query === "") return repositories
@@ -31,7 +36,7 @@ Panel {
         .toLowerCase().indexOf(query) !== -1
     })
   }
-  readonly property bool canSubmit: available && !submitting
+  readonly property bool canSubmit: available
     && noteInput.text.trim().length > 0 && noteInput.text.trim().length <= 12000
 
   function open() {
@@ -56,13 +61,52 @@ Panel {
     var item = index < 0 ? automaticButton : repositoryRepeater.itemAt(index)
     if (item) item.forceActiveFocus()
   }
+  function resetForm() {
+    resetGeneration++
+    draftSaveTimer.stop()
+    noteInput.text = ""
+    draftFile.setText("")
+    failedDraftFile.setText("")
+    pendingSubmissions = []
+    repositorySearch = ""
+    selectedRepository = ""
+    statusText = ""
+    panelFlick.contentY = 0
+    noteInput.forceActiveFocus()
+  }
+  function updateQueueStatus() {
+    if (submitting) {
+      statusText = pendingSubmissions.length > 0
+        ? "Capturing 1 note · " + pendingSubmissions.length + " queued"
+        : "Capturing 1 note in background"
+    } else if (pendingSubmissions.length > 0) {
+      statusText = pendingSubmissions.length + " queued"
+    }
+  }
   function submit() {
     if (!canSubmit) return
+    draftSaveTimer.stop()
+    var submission = {
+      text: noteInput.text,
+      repository: selectedRepository,
+      generation: resetGeneration
+    }
+    noteInput.text = ""
+    draftFile.setText("")
+    pendingSubmissions = pendingSubmissions.concat([submission])
+    startNextSubmission()
+    updateQueueStatus()
+    noteInput.forceActiveFocus()
+  }
+  function startNextSubmission() {
+    if (submitting || pendingSubmissions.length === 0) return
+    activeSubmission = pendingSubmissions[0]
+    pendingSubmissions = pendingSubmissions.slice(1)
     var command = ["notes-capture-local", "--stdin", "--json"]
-    if (selectedRepository !== "")
-      command.push("--repository", selectedRepository)
+    if (activeSubmission.repository !== "")
+      command.push("--repository", activeSubmission.repository)
     submitting = true
-    statusText = "Capturing note..."
+    updateQueueStatus()
     submitProcess.stdinEnabled = true
     submitProcess.command = command
     submitProcess.running = true
@@ -77,19 +121,29 @@ Panel {
   }
   function applySubmission(exitCode, raw) {
     submitting = false
+    var showResult = activeSubmission && activeSubmission.generation === resetGeneration
     if (exitCode !== 0) {
-      statusText = "Capture failed. Draft kept."
+      if (showResult) {
+        failedDraftFile.setText(activeSubmission.text)
+        statusText = "Capture failed · draft saved"
+        failureNotification.running = true
+      }
       refreshStatus()
-      return
+    } else {
+      try {
+        var result = JSON.parse(String(raw || "").trim())
+        if (result.status !== "success") throw new Error("Invalid result")
+        if (showResult) statusText = String(result.summary || "Note captured")
+      } catch (error) {
+        if (showResult) {
+          failedDraftFile.setText(activeSubmission.text)
+          statusText = "Capture failed · draft saved"
+          failureNotification.running = true
+        }
+      }
     }
-    try {
-      var result = JSON.parse(String(raw || "").trim())
-      if (result.status !== "success") throw new Error("Invalid result")
-      noteInput.text = ""
-      statusText = String(result.summary || "Note captured")
-    } catch (error) {
-      statusText = "Capture failed. Draft kept."
-    }
+    activeSubmission = null
+    startNextSubmission()
   }
 
   FileView {
@@ -98,6 +152,27 @@ Panel {
     printErrors: false
     onLoaded: root.parseRepositories(text())
     onFileChanged: reload()
+  }
+
+  FileView {
+    id: draftFile
+    path: root.draftPath
+    printErrors: false
+    onLoaded: {
+      if (noteInput.text === "") noteInput.text = text()
+    }
+  }
+
+  FileView {
+    id: failedDraftFile
+    path: root.failedDraftPath
+    printErrors: false
+  }
+
+  Timer {
+    id: draftSaveTimer
+    interval: 250
+    onTriggered: draftFile.setText(noteInput.text)
   }
 
   Process {
@@ -120,7 +195,7 @@ Panel {
     stdout: StdioCollector { id: submitOutput; waitForEnd: true }
     onStarted: {
       startedSuccessfully = true
-      write(noteInput.text)
+      write(root.activeSubmission.text)
       stdinEnabled = false
     }
     onExited: function(exitCode) {
@@ -130,10 +205,25 @@ Panel {
     onRunningChanged: {
       if (root.submitting && !running && !startedSuccessfully) {
         root.submitting = false
-        root.statusText = "Capture command unavailable. Draft kept."
+        if (root.activeSubmission && root.activeSubmission.generation === root.resetGeneration) {
+          failedDraftFile.setText(root.activeSubmission.text)
+          root.statusText = "Capture failed · draft saved"
+          failureNotification.running = true
+        }
         root.refreshStatus()
+        root.activeSubmission = null
+        root.startNextSubmission()
       }
     }
+  }
+
+  Process {
+    id: failureNotification
+    command: [
+      "omarchy", "notification", "send",
+      "-g", "󰠮", "-u", "critical", "--app-name", "Notes Capture",
+      "Note capture failed", "Draft saved to ~/.cache/dot/notes-capture-failed-draft.txt"
+    ]
   }
 
   Timer {
@@ -181,6 +271,15 @@ Panel {
               font.pixelSize: Style.font.display
             }
           }
+          trailingControl: Component {
+            Button {
+              text: "Clear"
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+              focusable: true
+              onClicked: root.resetForm()
+            }
+          }
         }
 
         ScrollView {
@@ -197,6 +296,7 @@ Panel {
             font.pixelSize: Style.font.body
             wrapMode: TextEdit.Wrap
             selectByMouse: true
+            onTextChanged: draftSaveTimer.restart()
             background: Rectangle {
               color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.04)
               border.color: noteInput.activeFocus ? Color.accent : Qt.darker(root.foreground, 1.6)
@@ -226,7 +326,7 @@ Panel {
           Button {
             id: sendButton
             width: parent.width
-            text: root.submitting ? "Sending..." : "Send"
+            text: "Send"
             enabled: root.canSubmit
             foreground: root.foreground
             fontFamily: root.fontFamily
