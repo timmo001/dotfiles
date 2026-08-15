@@ -90,7 +90,7 @@ Twitch, Git, and Home Assistant share the same quick-filter controls. Typing fil
 
 `omarchy plugin add` keeps Omarchy's normal review and enable prompts, then asks where a bar widget belongs. After choosing left, centre, or right, choose an existing neighbour and whether the new widget goes before or after it. The lifecycle hook imports the validated checkout as a submodule under `omarchy/.config/omarchy/plugins/`, records its placement in `omarchy-plugins.json`, and runs `dot stow`.
 
-The parent repository pins the exact plugin SHA. `.gitmodules` records the upstream URL and branch or tag, and Renovate proposes newer pins. `omarchy plugin update` moves managed pins after validation; `omarchy plugin remove` removes the submodule and placement declaration. These commands leave ordinary unstaged dotfiles changes for review and never commit or push them. Unmanaged plugins retain Omarchy's stock add, update, and remove behaviour.
+The parent repository pins the exact plugin SHA. `.gitmodules` records the upstream URL and branch or tag, and Renovate proposes newer pins. `omarchy plugin update` moves managed pins after validation; `omarchy plugin remove` removes the submodule and placement declaration. After an interactive add or remove, choose **No** (the default), **Commit**, or **Commit and push**. Non-interactive runs leave ordinary unstaged dotfiles changes. Unmanaged plugins retain Omarchy's stock add, update, and remove behaviour.
 
 Other devices receive managed plugins through the repository's recursive submodule checkout. `dot update` and `dot stow` then restore the live plugin symlink and generated layout.
 

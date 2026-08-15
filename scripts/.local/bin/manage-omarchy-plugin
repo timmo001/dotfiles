@@ -29,6 +29,36 @@ valid_plugin_id() {
   [[ $1 =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ && $1 != *..* ]]
 }
 
+interactive() {
+  [[ ${OMARCHY_PLUGIN_INTERACTIVE:-0} == 1 || ( -t 0 && -t 1 ) ]]
+}
+
+offer_commit() {
+  local action=$1 id=$2 choice subject
+  interactive || return 0
+  choice=$(printf '%s\n' No Commit 'Commit and push' |
+    gum choose --header="Save managed plugin changes?" --selected No) || return 0
+  case "$choice" in
+  Commit) ;;
+  'Commit and push') ;;
+  *) return 0 ;;
+  esac
+
+  if [[ $action == add ]]; then
+    subject="Add $id Omarchy plugin"
+  else
+    subject="Remove $id Omarchy plugin"
+  fi
+  args=(
+    -m "$subject"
+    --path .gitmodules
+    --path omarchy-plugins.json
+    --path "omarchy/.config/omarchy/plugins/$id"
+  )
+  [[ $choice == 'Commit and push' ]] && args+=(--push)
+  dot git-commit "${args[@]}"
+}
+
 unstage() {
   git -C "$repo" reset -q HEAD -- .gitmodules omarchy-plugins.json \
     "omarchy/.config/omarchy/plugins/$1" 2>/dev/null || true
@@ -94,6 +124,7 @@ add_plugin() {
   dot stow --public
   omarchy-shell shell rescanPlugins >/dev/null
   printf 'Managed %s at %s (%s).\n' "$id" "$ref" "$sha"
+  offer_commit add "$id"
 }
 
 update_plugin() {
@@ -167,6 +198,7 @@ remove_plugin() {
   dot stow --public
   omarchy-shell shell rescanPlugins >/dev/null
   printf 'Removed managed plugin %s.\n' "$id"
+  offer_commit remove "$id"
 }
 
 [[ -f $registry ]] || fail "managed plugin registry not found: $registry"
