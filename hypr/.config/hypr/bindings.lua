@@ -80,6 +80,15 @@ o.bind("SUPER + SHIFT + B", "Browser (private)", browser_personal .. " --private
 o.bind("SUPER + ALT + B", "Browser Work", browser_work)
 
 -- Chat and apps
+hl.unbind("SUPER + SHIFT + G") -- Signal
+hl.unbind("SUPER + SHIFT + A") -- ChatGPT
+hl.unbind("SUPER + SHIFT + ALT + A") -- Grok
+hl.unbind("SUPER + SHIFT + C") -- HEY Calendar
+hl.unbind("SUPER + SHIFT + E") -- HEY Email
+hl.unbind("SUPER + SHIFT + ALT + E") -- HEY New email
+hl.unbind("SUPER + SHIFT + CTRL + G") -- Google Messages
+hl.unbind("SUPER + SHIFT + P") -- Google Photos
+hl.unbind("SUPER + SHIFT + S") -- Google Maps
 o.bind("SUPER + CTRL + SHIFT + S", "Slack", slack)
 o.bind("SUPER + M", "Music Assistant", [[omarchy-launch-webapp "http://homeassistant.local:8095"]])
 o.bind("SUPER + ALT + N", "Notes", "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e notes --all")
@@ -97,6 +106,7 @@ o.bind("SUPER + ALT + H", "Handoffs", "uwsm app -- xdg-terminal-exec --app-id=TU
 o.bind("SUPER + A", "Home Assistant Assist", [[omarchy-launch-webapp "http://homeassistant.local:8123/?conversation=1"]])
 o.bind("CTRL + ALT + H", "Home Assistant panel", "omarchy-shell timmo.home-assistant toggle")
 o.bind("CTRL + ALT + G", "Git panel", "omarchy-shell timmo.git toggle")
+o.bind("SUPER + CTRL + ALT + C", "Capture note", "omarchy-shell timmo.notes-capture toggle")
 
 -- Local automations
 o.bind("SUPER + CTRL + SHIFT + C", nil, "timmo-run-command go-automate ha ib t in_a_call")
