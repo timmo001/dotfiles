@@ -16,7 +16,12 @@ import {
 } from "../lib/omarchyHost.js";
 import { ensureNvimThemeLink } from "../lib/omarchyNvim.js";
 import { applyOmarchyShellConfig } from "../lib/omarchyShellConfig.js";
-import { writeRepoPicker, writeRepoShortcuts } from "../lib/repoShortcuts.js";
+import {
+  writeCaptureRepositoryOptions,
+  writeRepoPicker,
+  writeRepoShortcuts,
+} from "../lib/repoShortcuts.js";
+import { captureRepositoryOptions } from "./NotesCaptureSync.js";
 import {
   backupUnmanagedStowTargets,
   backupLegacyGhosttyRepo,
@@ -79,11 +84,20 @@ export const stow = (opts?: {
           ...config.gitConfig.shortcuts,
         ]),
       );
+      const captureRepositoriesPath = yield* Effect.sync(() =>
+        writeCaptureRepositoryOptions(
+          config.cacheDir,
+          captureRepositoryOptions(config.gitConfig.repositories),
+        ),
+      );
       yield* log.info(
         `Generated repository shortcuts: ${displayPath(shortcutsPath)}`,
       );
       yield* log.info(
         `Generated Herdr repository picker: ${displayPath(pickerPath)}`,
+      );
+      yield* log.info(
+        `Generated Notes capture repositories: ${displayPath(captureRepositoriesPath)}`,
       );
     } else if (runPrivate && config.canUsePrivate) {
       yield* log.warn(

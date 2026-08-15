@@ -113,6 +113,24 @@
       }
     },
     {
+      "id": "timmo.notes-capture",
+      "placement": {
+        "section": "right",
+        "after": "omaconnect"
+      },
+      "settings": {
+        "primaryOnly": true
+      },
+      "hosts": {
+        "desktop": {
+          "primaryOutput": "HDMI-A-2"
+        },
+        "laptop": {
+          "primaryOutput": "eDP-1"
+        }
+      }
+    },
+    {
       "id": "timmo.clock",
       "replace": "omarchy.clock",
       "placement": {

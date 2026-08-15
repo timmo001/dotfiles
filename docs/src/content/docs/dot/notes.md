@@ -38,6 +38,12 @@ Run `notes-process` to start the isolated OpenCode service if needed, wait for i
 
 The supervised capture daemon stays available during transient OpenCode service failures and restarts with the isolated server when systemd recovers it. Explicitly restarting the OpenCode service also restarts the daemon with it.
 
+## Capture locally
+
+The Omarchy Shell Notes Capture widget sends text directly to the isolated local OpenCode processor through `notes capture`; it does not use the web app or GitHub issue queue. Its repository picker uses notification-enabled repositories from the private `dot-git.yml`, generated into dot's cache by `dot stow`. Automatic leaves the repository unset for the Notes agent to infer.
+
+The widget keeps its draft and disables Send while the local processor is unavailable. `notes-capture-local` is the private credential adapter: it loads the existing OpenCode service environment and passes the capture text to `/usr/bin/notes` over stdin, so credentials and note text are not placed in Shell settings or process arguments.
+
 ## Read / write note files
 
 ```bash

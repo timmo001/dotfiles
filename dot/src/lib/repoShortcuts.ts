@@ -1,6 +1,7 @@
 import { mkdirSync, renameSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import type { GitRepoShortcut } from "../services/GitConfig.js";
+import type { CaptureRepositoryOption } from "../commands/NotesCaptureSync.js";
 
 function quoteZsh(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`;
@@ -53,6 +54,19 @@ export function writeRepoPicker(
       2,
     )}\n`,
   );
+  renameSync(temporary, target);
+  return target;
+}
+
+/** Write repository options consumed by the local Notes capture panel. */
+export function writeCaptureRepositoryOptions(
+  cacheDir: string,
+  repositories: readonly CaptureRepositoryOption[],
+): string {
+  const target = join(cacheDir, "notes-capture-repositories.json");
+  const temporary = `${target}.tmp`;
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(temporary, `${JSON.stringify(repositories, null, 2)}\n`);
   renameSync(temporary, target);
   return target;
 }

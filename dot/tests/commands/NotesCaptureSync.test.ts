@@ -9,6 +9,7 @@ import {
   mergeCaptureRepositories,
   writePrivateConfig,
 } from "../../src/commands/NotesCaptureSync.js";
+import { writeCaptureRepositoryOptions } from "../../src/lib/repoShortcuts.js";
 import type { GitManagedRepo } from "../../src/services/GitConfig.js";
 
 const tempRoots: string[] = [];
@@ -51,6 +52,16 @@ describe("captureRepositoryOptions", () => {
       { label: "alpha", repository: "owner/alpha" },
       { label: "Zulu", repository: "owner/zulu" },
     ]);
+  });
+
+  test("writes the local Shell picker cache", () => {
+    const root = mkdtempSync(join(tmpdir(), "notes-capture-repositories-"));
+    tempRoots.push(root);
+    const options = [{ label: "Notes", repository: "owner/notes" }];
+
+    const path = writeCaptureRepositoryOptions(root, options);
+
+    expect(JSON.parse(readFileSync(path, "utf-8"))).toEqual(options);
   });
 });
 
