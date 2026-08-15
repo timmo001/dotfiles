@@ -123,14 +123,6 @@
       }
     },
     {
-      "id": "omaconnect",
-      "managed": true,
-      "placement": {
-        "section": "right",
-        "after": "timmo.notes-capture"
-      }
-    },
-    {
       "id": "timmo.clock",
       "replace": "omarchy.clock",
       "placement": {

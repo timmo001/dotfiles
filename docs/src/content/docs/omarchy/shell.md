@@ -31,7 +31,7 @@ Per-host differences:
 - **Clock format**: compact `HH:mm d MMM`, based on the final pre-Quattro Waybar clock without its weekday or ordinal day suffix. The `timmo.clock` clone reduces the stock clock's 8.75px cell padding to 6px. Left-click opens the calendar and world clocks, middle-click opens timezone settings, and right-click has no action. The popup shows Pacific, Mountain, Central, Eastern, and Local time with a `-24` to `+24` hour slider that shifts every clock together while dragging. Right-click the slider to return to now; closing the popup also resets it. `SUPER+CTRL+T` toggles the same popup.
 - **Idle timers**: screensaver at 2.5 minutes and lock at 5 minutes on `laptop`; screensaver at 30 minutes and lock at 60 minutes on every other host.
 - **Home Assistant dashboard**: desktop uses the office temperature and CO₂ sensors and adds office curtain controls; laptop uses the living-room sensors, adds VOC and dining-room temperature rows, and provides left, middle, and right living-room blind tilt controls. Each host puts its Low/High fan controls inline with the climate status at the top of the Air conditioner subsection.
-- **Notes Capture and OmaConnect**: `timmo.notes-capture` stays directly after Home Assistant. `omaconnect` follows it as a managed Git submodule pinned to an exact SHA while tracking upstream `main` for Renovate updates.
+- **Notes Capture**: `timmo.notes-capture` stays directly after Home Assistant.
 
 Secondary outputs keep the core menu, `timmo.workspaces`, `timmo.clock`, and built-in system widgets; Twitch, Git, command cells, and the Home Assistant widget collapse without starting per-output pollers or loading their panels.
 

@@ -70,12 +70,6 @@
       "minimumReleaseAge": null
     },
     {
-      "description": "Update the managed OmaConnect plugin.",
-      "groupName": "OmaConnect",
-      "matchManagers": ["git-submodules"],
-      "matchDepNames": ["https://github.com/jitendradara12/omaconnect.git"]
-    },
-    {
       "description": "Group OpenCode updates with mise's shorter release delay.",
       "groupName": "OpenCode",
       "matchDepNames": ["aqua:anomalyco/opencode", "anomalyco/opencode"],

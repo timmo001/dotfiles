@@ -25,7 +25,6 @@ import { captureRepositoryOptions } from "./NotesCaptureSync.js";
 import {
   backupUnmanagedStowTargets,
   backupLegacyGhosttyRepo,
-  backupLegacyOmaconnectRepo,
   formatBackupMove,
   findExternalSkillSymlinks,
   removeExternalSymlinks,
@@ -127,14 +126,6 @@ export const stow = (opts?: {
       if (legacyGhosttyMove) {
         yield* log.info(
           `[public] backed up retired Ghostty repo: ${formatBackupMove(legacyGhosttyMove)}`,
-        );
-      }
-      const legacyOmaconnectMove = yield* Effect.sync(() =>
-        backupLegacyOmaconnectRepo(config.publicDotfiles),
-      );
-      if (legacyOmaconnectMove) {
-        yield* log.info(
-          `[public] backed up direct OmaConnect checkout: ${formatBackupMove(legacyOmaconnectMove)}`,
         );
       }
       const removedLegacyUwsm = yield* Effect.sync(() =>

@@ -1,7 +1,3 @@
 [submodule "agents/.agents/skills"]
 	path = agents/.agents/skills
 	url = https://github.com/timmo001/skills.git
-[submodule "omarchy/.config/omarchy/plugins/omaconnect"]
-	path = omarchy/.config/omarchy/plugins/omaconnect
-	url = https://github.com/jitendradara12/omaconnect.git
-	branch = main

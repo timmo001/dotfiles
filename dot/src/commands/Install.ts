@@ -16,7 +16,6 @@ import {
   backupConflictingPublicTargets,
   backupFileIfUnmanaged,
   backupLegacyGhosttyRepo,
-  backupLegacyOmaconnectRepo,
   backupUnmanagedStowTargets,
   formatBackupMove,
   findExternalSkillSymlinks,
@@ -72,14 +71,6 @@ export const install = Effect.gen(function* () {
   if (legacyGhosttyMove) {
     yield* log.info(
       `Backed up retired Ghostty repo: ${formatBackupMove(legacyGhosttyMove)}`,
-    );
-  }
-  const legacyOmaconnectMove = yield* Effect.sync(() =>
-    backupLegacyOmaconnectRepo(config.publicDotfiles),
-  );
-  if (legacyOmaconnectMove) {
-    yield* log.info(
-      `Backed up direct OmaConnect checkout: ${formatBackupMove(legacyOmaconnectMove)}`,
     );
   }
   const removedLegacyUwsm = yield* Effect.sync(() => removeLegacyUwsmRepo());

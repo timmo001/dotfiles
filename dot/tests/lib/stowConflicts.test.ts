@@ -17,7 +17,6 @@ import { ENV } from "../../src/lib/env.js";
 import { HOME_DIR } from "../../src/lib/paths.js";
 import {
   backupConflictingPublicTargets,
-  backupLegacyOmaconnectRepo,
   backupUnmanagedStowTargets,
   removeStowedSkillOwner,
   removeStaleSkillSymlinks,
@@ -112,26 +111,6 @@ describe("removeLegacyUwsmRepo", () => {
   });
 });
 
-describe("backupLegacyOmaconnectRepo", () => {
-  test("backs up only the direct OmaConnect checkout", () => {
-    const root = tempRoot();
-    const publicDotfiles = join(root, "dotfiles");
-    const homeDir = join(root, "home");
-    const source = join(homeDir, ".config", "omarchy", "plugins", "omaconnect");
-    mkdirSync(join(source, ".git"), { recursive: true });
-    writeFileSync(
-      join(source, ".git", "config"),
-      "url = https://github.com/jitendradara12/omaconnect.git\n",
-    );
-
-    const move = backupLegacyOmaconnectRepo(publicDotfiles, homeDir);
-
-    expect(move?.source).toBe(source);
-    expect(move?.destination).toContain("backup/.config/omarchy/plugins");
-    expect(existsSync(source)).toBe(false);
-  });
-});
-
 describe("removeRetiredPublicStowLinks", () => {
   test("removes only retired links owned by the public stow source", () => {
     const root = tempRoot();
@@ -139,16 +118,28 @@ describe("removeRetiredPublicStowLinks", () => {
     const homeDir = join(root, "home");
     const retiredSource = join(publicDotfiles, "scripts/.local/bin/waybar");
     const retiredTarget = join(homeDir, ".local/bin/waybar");
+    const retiredPluginSource = join(
+      publicDotfiles,
+      "omarchy/.config/omarchy/plugins/omaconnect",
+    );
+    const retiredPluginTarget = join(
+      homeDir,
+      ".config/omarchy/plugins/omaconnect",
+    );
     const unrelatedTarget = join(homeDir, ".local/bin/external-helper");
     mkdirSync(dirname(retiredSource), { recursive: true });
     mkdirSync(dirname(retiredTarget), { recursive: true });
+    mkdirSync(dirname(retiredPluginTarget), { recursive: true });
     symlinkSync(retiredSource, retiredTarget);
+    symlinkSync(retiredPluginSource, retiredPluginTarget);
     symlinkSync("/tmp/external-helper", unrelatedTarget);
 
     expect(removeRetiredPublicStowLinks(publicDotfiles, homeDir)).toEqual([
       retiredTarget,
+      retiredPluginTarget,
     ]);
     expect(existsSync(retiredTarget)).toBe(false);
+    expect(existsSync(retiredPluginTarget)).toBe(false);
     expect(existsSync(unrelatedTarget)).toBe(false);
     expect(() => lstatSync(unrelatedTarget)).not.toThrow();
   });

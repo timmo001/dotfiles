@@ -60,14 +60,6 @@ const managedPlugins = {
       },
     },
     {
-      id: "omaconnect",
-      managed: true,
-      placement: {
-        section: "right" as const,
-        after: "timmo.home-assistant",
-      },
-    },
-    {
       id: "timmo.clock",
       replace: "omarchy.clock",
       placement: { section: "right" as const },
@@ -187,10 +179,8 @@ describe("mergeOmarchyShellConfig", () => {
       primaryOnly: true,
       primaryOutput: "HDMI-A-2",
     });
-    expect(merged.bar.layout.right[1]).toEqual({ id: "omaconnect" });
     expect(trayIndex).toBeGreaterThan(0);
     expect(rightIds).not.toContain("omarchy.weather");
-    expect(rightIds.filter((id) => id === "omaconnect")).toHaveLength(1);
     expect(merged.bar.layout.right).toContainEqual({ id: "omarchy.tray" });
     expect(
       customEntries(merged).every(
@@ -287,7 +277,6 @@ describe("mergeOmarchyShellConfig", () => {
       id: "timmo.clock",
       format: "HH:mm d MMM",
     });
-    expect(merged.bar.layout.right[1]).toEqual({ id: "omaconnect" });
     expect(entries.filter(({ id }) => id === "timmo.home-assistant")).toEqual([
       {
         id: "timmo.home-assistant",
@@ -320,16 +309,29 @@ describe("mergeOmarchyShellConfig", () => {
 
   test("places managed plugins by neighbour and replaces existing instances", () => {
     const base = baseConfig();
-    base.bar.layout.left.push({ id: "omaconnect", persistent: true });
-    const merged = mergeOmarchyShellConfig(base, "desktop", managedPlugins);
+    base.bar.layout.left.push({ id: "example.remote", persistent: true });
+    const merged = mergeOmarchyShellConfig(base, "desktop", {
+      ...managedPlugins,
+      plugins: [
+        ...managedPlugins.plugins,
+        {
+          id: "example.remote",
+          managed: true,
+          placement: {
+            section: "right" as const,
+            after: "timmo.home-assistant",
+          },
+        },
+      ],
+    });
     const allIds = [
       ...merged.bar.layout.left,
       ...merged.bar.layout.center,
       ...merged.bar.layout.right,
     ].map(({ id }) => id);
 
-    expect(allIds.filter((id) => id === "omaconnect")).toHaveLength(1);
-    expect(merged.bar.layout.right[1]?.id).toBe("omaconnect");
+    expect(allIds.filter((id) => id === "example.remote")).toHaveLength(1);
+    expect(merged.bar.layout.right[1]?.id).toBe("example.remote");
     expect(merged.bar.layout.right[1]?.persistent).toBe(true);
     expect(merged.bar.layout.right[2]?.id).toBe("custom.right");
   });
