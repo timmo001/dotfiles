@@ -7,10 +7,16 @@ on:
       - distro/arch-omarchy-quattro
     paths:
       - '**/*.qml'
+      - '.gitmodules'
+      - 'omarchy-plugins.json'
+      - 'omarchy/.config/omarchy/plugins/**'
       - '.github/workflows/quickshell-lint.yml'
   pull_request:
     paths:
       - '**/*.qml'
+      - '.gitmodules'
+      - 'omarchy-plugins.json'
+      - 'omarchy/.config/omarchy/plugins/**'
       - '.github/workflows/quickshell-lint.yml'
 
 permissions:
@@ -42,6 +48,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          submodules: recursive
 
       - name: Trust the checkout (container git ownership)
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -59,6 +67,12 @@ jobs:
         run: |
           export PATH="/usr/lib/qt6/bin:$PATH"
           mapfile -t qml_files < <(git ls-files '*.qml')
+          while IFS= read -r plugin_path; do
+            while IFS= read -r qml_file; do
+              qml_files+=("$plugin_path/$qml_file")
+            done < <(git -C "$plugin_path" ls-files '*.qml')
+          done < <(git config -f .gitmodules --get-regexp '^submodule\..*\.path$' |
+            awk '$2 ~ /^omarchy\/\.config\/omarchy\/plugins\// { print $2 }')
           if [ "${#qml_files[@]}" -eq 0 ]; then
             echo 'No QML files found.'
             exit 0

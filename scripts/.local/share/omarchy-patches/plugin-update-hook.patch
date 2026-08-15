@@ -1,0 +1,24 @@
+diff --git a/bin/omarchy-plugin-update b/bin/omarchy-plugin-update
+index 90a9732e..5558e04b 100755
+--- a/bin/omarchy-plugin-update
++++ b/bin/omarchy-plugin-update
+@@ -102,6 +102,19 @@ while (( $# > 0 )); do
+   esac
+ done
+ 
++lifecycle_hook="$HOME/.config/omarchy/hooks/plugin-lifecycle"
++if [[ -x $lifecycle_hook ]]; then
++  set +e
++  "$lifecycle_hook" update "$id" "$ASSUME_YES"
++  lifecycle_status=$?
++  set -e
++  if (( lifecycle_status == 0 )) && [[ -n $id ]]; then
++    exit 0
++  elif (( lifecycle_status != 0 && lifecycle_status != 20 )); then
++    exit "$lifecycle_status"
++  fi
++fi
++
+ [[ -d $PLUGINS_DIR ]] || fail "no plugins installed"
+ 
+ targets=()

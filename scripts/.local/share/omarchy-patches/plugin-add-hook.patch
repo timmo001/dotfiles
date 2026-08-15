@@ -1,0 +1,44 @@
+diff --git a/bin/omarchy-plugin-add b/bin/omarchy-plugin-add
+index f0bdfca5..279edbd6 100755
+--- a/bin/omarchy-plugin-add
++++ b/bin/omarchy-plugin-add
+@@ -38,6 +38,8 @@ ENABLE_PLACEMENT=()
+ select_bar_widget_placement() {
+   local id="$1"
+   local section
++  local neighbour
++  local relation
+   local default_section
+   interactive || return 0
+   (( ASSUME_YES )) && return 0
+@@ -50,6 +52,21 @@ select_bar_widget_placement() {
+     gum choose --header="Place $id in which bar section?" --selected "$default_section") || return 0
+   [[ -n $section ]] || return 0
+   ENABLE_PLACEMENT=(--section "$section")
++
++  mapfile -t neighbours < <(jq -r --arg section "$section" '
++    .bar.layout[$section][]? | if type == "object" then .id else . end
++  ' "$HOME/.config/omarchy/shell.json" 2>/dev/null)
++  (( ${#neighbours[@]} > 0 )) || return 0
++
++  neighbour=$(printf '%s\n' "${neighbours[@]}" |
++    gum choose --header="Place $id beside which widget?") || return 0
++  [[ -n $neighbour ]] || return 0
++  relation=$(printf '%s\n' Before After |
++    gum choose --header="Place $id before or after $neighbour?") || return 0
++  case "$relation" in
++  Before) ENABLE_PLACEMENT+=(--before "$neighbour") ;;
++  After) ENABLE_PLACEMENT+=(--after "$neighbour") ;;
++  esac
+ }
+ 
+ plugin_id_manifest() {
+@@ -166,3 +183,8 @@ if [[ $enable_after == true ]]; then
+ else
+   echo "Enable it later with: omarchy plugin enable $id"
+ fi
++
++lifecycle_hook="$HOME/.config/omarchy/hooks/plugin-lifecycle"
++if [[ -x $lifecycle_hook ]]; then
++  "$lifecycle_hook" add "$id" "$url" "$target" "${ENABLE_PLACEMENT[@]}"
++fi

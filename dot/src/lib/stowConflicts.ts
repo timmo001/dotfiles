@@ -30,6 +30,7 @@ const AGENTS_PRIVATE_IGNORED_ENTRIES = new Set([
 
 const LEGACY_GHOSTTY_REPO_SLUG = "timmo001/omarchy-ghostty";
 const LEGACY_UWSM_REPO_SLUG = "timmo001/omarchy-uwsm";
+const LEGACY_OMACONNECT_REPO_SLUG = "jitendradara12/omaconnect";
 
 const RETIRED_PUBLIC_STOW_PATHS = [
   "scripts/.local/bin/waybar",
@@ -215,6 +216,20 @@ export function backupLegacyGhosttyRepo(
   return backupFileIfUnmanaged(
     source,
     join(publicDotfiles, "backup", ".config"),
+  );
+}
+
+/** Back up the direct OmaConnect checkout before the managed submodule takes over. */
+export function backupLegacyOmaconnectRepo(
+  publicDotfiles: string,
+  homeDir = HOME_DIR,
+): BackupMove | null {
+  const source = join(homeDir, ".config", "omarchy", "plugins", "omaconnect");
+  if (!isGitRepoWithSlug(source, LEGACY_OMACONNECT_REPO_SLUG)) return null;
+
+  return backupFileIfUnmanaged(
+    source,
+    join(publicDotfiles, "backup", ".config", "omarchy", "plugins"),
   );
 }
 

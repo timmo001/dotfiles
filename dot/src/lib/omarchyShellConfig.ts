@@ -27,6 +27,47 @@ interface ShellLayout {
   right: BarEntry[];
 }
 
+/** A bar section accepted by Omarchy's placement commands. */
+type BarSection = keyof ShellLayout;
+
+/** Persisted placement for a managed third-party bar widget. */
+export interface ManagedPluginPlacement {
+  /** Target bar section. */
+  readonly section: BarSection;
+  /** Insert before this widget when present. */
+  readonly before?: string;
+  /** Insert after this widget when present. */
+  readonly after?: string;
+  /** Insert at this zero-based index when supplied. */
+  readonly index?: number;
+}
+
+/** A third-party plugin whose source and layout are managed by dotfiles. */
+export interface ManagedPlugin {
+  /** Plugin manifest id. */
+  readonly id: string;
+  /** Whether source lifecycle is managed as a Git submodule. */
+  readonly managed?: boolean;
+  /** Stock widget id replaced by this plugin. */
+  readonly replace?: string;
+  /** Whether settings from a replaced stock entry are preserved. */
+  readonly inheritSettings?: boolean;
+  /** Persistent bar placement. */
+  readonly placement: ManagedPluginPlacement;
+  /** Settings applied to every host. */
+  readonly settings?: Readonly<Record<string, unknown>>;
+  /** Settings applied only to a named host. */
+  readonly hosts?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+}
+
+/** Declarative customisation applied to Omarchy's stock shell layout. */
+export interface ManagedPluginConfig {
+  /** Stock widgets removed from the generated layout. */
+  readonly remove: readonly string[];
+  /** Custom widgets placed into the generated layout. */
+  readonly plugins: readonly ManagedPlugin[];
+}
+
 /** The `bar` block of an Omarchy `shell.json` (unknown fields preserved). */
 interface ShellBar {
   position?: string;
@@ -43,113 +84,6 @@ interface ShellConfig {
   idle?: { screensaver: number; lock: number };
   bar: ShellBar;
   [key: string]: unknown;
-}
-
-/**
- * Class-name to colour map ported from the legacy Waybar `style.css`. Used by
- * the `timmo.command` / `timmo.stream-command` widgets to colour their output.
- */
-const COLOR = {
-  red: "#e06c75",
-  amber: "#e5c07b",
-  green: "#98c379",
-  blue: "#61afef",
-  grey: "#9b9b9b",
-} as const;
-
-/** Widget id of Omarchy's default workspaces bar entry (left column). */
-const WORKSPACES_ID = "omarchy.workspaces";
-
-/** Widget id of Omarchy's default clock bar entry. */
-const DEFAULT_CLOCK_ID = "omarchy.clock";
-
-/** Personal clone of Omarchy's clock with compact padding. */
-const CLOCK_ID = "timmo.clock";
-
-/** Compact clock format matching the final pre-Quattro Waybar layout. */
-const CLOCK_FORMAT = "HH:mm d MMM";
-
-/** Widget id of Omarchy's default weather bar entry (center column). */
-const WEATHER_ID = "omarchy.weather";
-
-/** Widget id of Omarchy's default system-update bar entry (center anchor). */
-const SYSTEM_UPDATE_ID = "omarchy.system-update";
-
-/** Resolve the host's preferred output for personal status widgets. */
-function primaryOutput(host: string): string {
-  if (host === "desktop") return "HDMI-A-2";
-  if (host === "laptop") return "eDP-1";
-  return "";
-}
-
-/** Build a polling `timmo.command` bar entry. */
-function command(host: string, settings: Omit<BarEntry, "id">): BarEntry {
-  return {
-    id: "timmo.command",
-    revealOnHover: true,
-    primaryOnly: true,
-    primaryOutput: primaryOutput(host),
-    ...settings,
-  };
-}
-
-/**
- * Personal workspaces module that replaces Omarchy's default `omarchy.workspaces`
- * widget. The `timmo.workspaces` plugin drops persistent workspaces (only the
- * workspaces that currently exist are shown) and renders the focused workspace
- * as its number at full opacity, with the rest dimmed — the old Waybar
- * behaviour. Opacity is set explicitly here so it is tunable in one place.
- */
-function workspacesEntry(): BarEntry {
-  return { id: "timmo.workspaces", activeOpacity: 1, inactiveOpacity: 0.5 };
-}
-
-/** Unified Home Assistant status widget placed beside the tray. */
-function homeAssistantEntry(host: string): BarEntry {
-  return {
-    id: "timmo.home-assistant",
-    host,
-    primaryOnly: true,
-    primaryOutput: primaryOutput(host),
-  };
-}
-
-/** Unified repository and GitHub notification widget. */
-function gitEntry(host: string): BarEntry {
-  return {
-    id: "timmo.git",
-    revealOnHover: true,
-    primaryOnly: true,
-    primaryOutput: primaryOutput(host),
-  };
-}
-
-/** Personal status widgets inserted into the center column. */
-function customCenterEntries(host: string): BarEntry[] {
-  return [
-    {
-      id: "timmo.twitch",
-      revealOnHover: true,
-      primaryOnly: true,
-      primaryOutput: primaryOutput(host),
-    },
-    gitEntry(host),
-    command(host, {
-      run: "package-updates-bar status",
-      interval: 60000,
-      refreshTarget: "timmo.package-updates",
-      loadingText: "󰏗 ..",
-      loadingClass: "package-updates-unknown",
-      onClickRight: "package-updates-bar refresh",
-      classColors: {
-        "package-updates-unknown": COLOR.grey,
-        "package-updates": COLOR.amber,
-      },
-      hideClasses: ["hidden"],
-      hiddenText: "󰏗 0",
-      revealColor: COLOR.amber,
-    }),
-  ];
 }
 
 /** Path to Omarchy's shipped default `shell.json` under `$OMARCHY_PATH`. */
@@ -189,15 +123,154 @@ function isShellConfig(value: unknown): value is ShellConfig {
   );
 }
 
-/** Insert `additions` before the first entry matching `anchorId`, else append. */
-function insertBefore(
-  entries: BarEntry[],
-  anchorId: string,
-  additions: readonly BarEntry[],
+/** Place a managed widget after removing any previous instance. */
+function placeManagedPlugin(
+  layout: ShellLayout,
+  plugin: ManagedPlugin,
+  host: string,
 ): void {
-  const index = entries.findIndex((entry) => entry.id === anchorId);
-  if (index === -1) entries.push(...additions);
-  else entries.splice(index, 0, ...additions);
+  let existing: BarEntry | undefined;
+  for (const entries of [layout.left, layout.center, layout.right]) {
+    let index = entries.findIndex(
+      (entry) => entry.id === plugin.id || entry.id === plugin.replace,
+    );
+    while (index !== -1) {
+      existing ??= entries[index];
+      entries.splice(index, 1);
+      index = entries.findIndex(
+        (entry) => entry.id === plugin.id || entry.id === plugin.replace,
+      );
+    }
+  }
+
+  const entries = layout[plugin.placement.section];
+  const beforeIndex = plugin.placement.before
+    ? entries.findIndex((entry) => entry.id === plugin.placement.before)
+    : -1;
+  const afterIndex = plugin.placement.after
+    ? entries.findIndex((entry) => entry.id === plugin.placement.after)
+    : -1;
+  const index =
+    beforeIndex !== -1
+      ? beforeIndex
+      : afterIndex !== -1
+        ? afterIndex + 1
+        : plugin.placement.index === undefined
+          ? entries.length
+          : Math.min(plugin.placement.index, entries.length);
+  entries.splice(index, 0, {
+    ...(plugin.inheritSettings === false ? {} : existing),
+    id: plugin.id,
+    ...plugin.settings,
+    ...plugin.hosts?.[host],
+  });
+}
+
+/** Parse the managed-plugin registry consumed by the shell generator. */
+export function parseManagedPlugins(
+  value: unknown,
+): ManagedPluginConfig | null {
+  if (typeof value !== "object" || value === null) return null;
+  const { remove, plugins } = value as {
+    remove?: unknown;
+    plugins?: unknown;
+  };
+  if (
+    !Array.isArray(remove) ||
+    !remove.every((id) => typeof id === "string" && isPluginId(id))
+  )
+    return null;
+  if (!Array.isArray(plugins)) return null;
+
+  const parsed: ManagedPlugin[] = [];
+  const ids = new Set<string>();
+  for (const plugin of plugins) {
+    if (typeof plugin !== "object" || plugin === null) return null;
+    const {
+      id,
+      managed,
+      replace,
+      inheritSettings,
+      placement,
+      settings,
+      hosts,
+    } = plugin as {
+      id?: unknown;
+      managed?: unknown;
+      replace?: unknown;
+      inheritSettings?: unknown;
+      placement?: unknown;
+      settings?: unknown;
+      hosts?: unknown;
+    };
+    if (typeof id !== "string" || !isPluginId(id) || ids.has(id)) return null;
+    ids.add(id);
+    if (managed !== undefined && typeof managed !== "boolean") return null;
+    if (replace !== undefined && !isPluginId(replace)) return null;
+    if (inheritSettings !== undefined && typeof inheritSettings !== "boolean")
+      return null;
+    if (settings !== undefined && !isSettings(settings)) return null;
+    if (
+      hosts !== undefined &&
+      (typeof hosts !== "object" ||
+        hosts === null ||
+        Array.isArray(hosts) ||
+        !Object.values(hosts).every(isSettings))
+    )
+      return null;
+    if (typeof placement !== "object" || placement === null) return null;
+    const { section, before, after, index } = placement as {
+      section?: unknown;
+      before?: unknown;
+      after?: unknown;
+      index?: unknown;
+    };
+    if (section !== "left" && section !== "center" && section !== "right")
+      return null;
+    if (before !== undefined && typeof before !== "string") return null;
+    if (after !== undefined && typeof after !== "string") return null;
+    if (before !== undefined && after !== undefined) return null;
+    if (
+      index !== undefined &&
+      (!Number.isInteger(index) || (index as number) < 0)
+    )
+      return null;
+    if (index !== undefined && (before !== undefined || after !== undefined))
+      return null;
+    parsed.push({
+      id,
+      ...(managed === undefined ? {} : { managed }),
+      ...(replace === undefined ? {} : { replace }),
+      ...(inheritSettings === undefined ? {} : { inheritSettings }),
+      placement: {
+        section,
+        ...(before === undefined ? {} : { before }),
+        ...(after === undefined ? {} : { after }),
+        ...(index === undefined ? {} : { index: index as number }),
+      },
+      ...(settings === undefined ? {} : { settings }),
+      ...(hosts === undefined
+        ? {}
+        : {
+            hosts: hosts as Record<string, Readonly<Record<string, unknown>>>,
+          }),
+    });
+  }
+  return { remove, plugins: parsed };
+}
+
+function isPluginId(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value) &&
+    !value.includes("..")
+  );
+}
+
+function isSettings(
+  value: unknown,
+): value is Readonly<Record<string, unknown>> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /**
@@ -213,6 +286,7 @@ function insertBefore(
 export function mergeOmarchyShellConfig(
   base: ShellConfig,
   host: string,
+  managedPlugins: ManagedPluginConfig = { remove: [], plugins: [] },
 ): ShellConfig {
   base.idle =
     host === "laptop"
@@ -220,38 +294,23 @@ export function mergeOmarchyShellConfig(
       : { screensaver: 1800, lock: 3600 };
   base.bar.position = host === "laptop" ? "bottom" : "top";
 
-  const { left, center, right } = base.bar.layout;
-
-  // Left: swap Omarchy's persistent workspaces widget for the personal
-  // timmo.workspaces widget (no persistent workspaces, focused at full
-  // opacity).
-  const workspacesIndex = left.findIndex((entry) => entry.id === WORKSPACES_ID);
-  if (workspacesIndex !== -1) left[workspacesIndex] = workspacesEntry();
-
-  // Center: move the clock to the far right. Remove weather (replaced by the
-  // Home Assistant dashboard below), then insert personal status widgets
-  // before the default system-update group.
-  const clockIndex = center.findIndex(
-    (entry) => entry.id === DEFAULT_CLOCK_ID || entry.id === CLOCK_ID,
-  );
-  if (clockIndex !== -1) {
-    center[clockIndex] = {
-      ...center[clockIndex],
-      id: CLOCK_ID,
-      format: CLOCK_FORMAT,
-    };
+  for (const entries of [
+    base.bar.layout.left,
+    base.bar.layout.center,
+    base.bar.layout.right,
+  ]) {
+    for (const id of managedPlugins.remove) {
+      let index = entries.findIndex((entry) => entry.id === id);
+      while (index !== -1) {
+        entries.splice(index, 1);
+        index = entries.findIndex((entry) => entry.id === id);
+      }
+    }
   }
-  if (clockIndex !== -1) right.push(...center.splice(clockIndex, 1));
-  const weatherIndex = center.findIndex((entry) => entry.id === WEATHER_ID);
-  if (weatherIndex !== -1) center.splice(weatherIndex, 1);
-  insertBefore(center, SYSTEM_UPDATE_ID, customCenterEntries(host));
 
-  // Right: Omarchy pins the tray to the section's inner edge at runtime, so
-  // the unified Home Assistant widget is first in the array to render
-  // immediately after it. The service owns all sensor and doorbell processes.
-  const agentsIndex = right.findIndex((entry) => entry.id === "omarchy.agents");
-  if (agentsIndex !== -1) right.splice(agentsIndex, 1);
-  right.unshift(homeAssistantEntry(host));
+  for (const plugin of managedPlugins.plugins) {
+    placeManagedPlugin(base.bar.layout, plugin, host);
+  }
 
   base.bar.centerAnchor = "";
 
@@ -325,8 +384,28 @@ export const applyOmarchyShellConfig: Effect.Effect<
     return false;
   }
 
+  const managedPluginsPath = join(
+    config.publicDotfiles,
+    "omarchy-plugins.json",
+  );
+  const managedPlugins = yield* Effect.sync((): ManagedPluginConfig | null => {
+    try {
+      return parseManagedPlugins(
+        JSON.parse(readFileSync(managedPluginsPath, "utf-8")),
+      );
+    } catch {
+      return null;
+    }
+  });
+  if (managedPlugins === null) {
+    yield* log.warn(
+      `Skipping Omarchy shell config (invalid managed plugin registry at ${displayPath(managedPluginsPath)})`,
+    );
+    return false;
+  }
+
   const target = join(omarchyDir, "shell.json");
-  const merged = mergeOmarchyShellConfig(parsed, host);
+  const merged = mergeOmarchyShellConfig(parsed, host, managedPlugins);
   const rendered = `${JSON.stringify(merged, null, 2)}\n`;
 
   const existing = existsSync(target)

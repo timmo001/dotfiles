@@ -5,39 +5,68 @@ set -euo pipefail
 omarchy_path=${OMARCHY_PATCH_ROOT:-${OMARCHY_PATH:-/usr/share/omarchy}}
 script_dir=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 patch_dir=${OMARCHY_PATCH_DIR:-$script_dir/../share/omarchy-patches}
-target=$(readlink -f "$omarchy_path/bin/omarchy-agent-crash")
-patch_file="$patch_dir/agent-crash-hook.patch"
-printf -v marker 'dispatch_hook="$%s/.config/omarchy/hooks/agent-crash"' HOME
-target_dir=$(dirname "$target")
 
-[[ -f $target ]] || {
-  printf 'Omarchy crash command not found: %s\n' "$target" >&2
-  exit 1
+patch_spec() {
+  local command=$1 patch_name=$2 marker=$3 label=$4
+  local target patch_file target_dir
+  target=$(readlink -f "$omarchy_path/bin/$command")
+  patch_file="$patch_dir/$patch_name"
+  target_dir=$(dirname "$target")
+
+  [[ -f $target ]] || {
+    printf 'Omarchy command not found: %s\n' "$target" >&2
+    return 1
+  }
+  [[ -f $patch_file ]] || {
+    printf 'Omarchy patch not found: %s\n' "$patch_file" >&2
+    return 1
+  }
+  if grep -Fq "$marker" "$target"; then
+    printf 'applied\t%s\t%s\t%s\n' "$target" "$patch_file" "$label"
+    return 0
+  fi
+  if ! patch --batch --forward --fuzz=0 --dry-run -d "$target_dir" -p2 <"$patch_file" >/dev/null; then
+    printf 'Omarchy %s patch no longer matches upstream\n' "$label" >&2
+    return 1
+  fi
+
+  printf 'pending\t%s\t%s\t%s\n' "$target" "$patch_file" "$label"
 }
-[[ -f $patch_file ]] || {
-  printf 'Omarchy patch not found: %s\n' "$patch_file" >&2
-  exit 1
+
+apply_preflighted_patch() {
+  local target=$1 patch_file=$2 label=$3 target_dir
+  target_dir=$(dirname "$target")
+  local args=(--batch --forward --fuzz=0 -d "$target_dir" -p2 -i "$patch_file")
+  if [[ -w $target ]]; then
+    patch "${args[@]}" >/dev/null
+  elif command -v pkexec >/dev/null 2>&1 && pkexec patch "${args[@]}" >/dev/null; then
+    :
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo patch "${args[@]}" >/dev/null
+  else
+    printf 'pkexec or sudo is required to patch %s\n' "$target" >&2
+    return 1
+  fi
+  printf 'Applied Omarchy %s patch\n' "$label"
 }
 
-if grep -Fq "$marker" "$target"; then
-  printf 'Omarchy crash dispatch patch already applied\n'
-  exit 0
-fi
+printf -v crash_marker 'dispatch_hook="$%s/.config/omarchy/hooks/agent-crash"' HOME
+specs=()
+collect_spec() {
+  local spec
+  spec=$(patch_spec "$@")
+  specs+=("$spec")
+}
+collect_spec omarchy-agent-crash agent-crash-hook.patch "$crash_marker" "crash dispatch"
+collect_spec omarchy-plugin-add plugin-add-hook.patch 'lifecycle_hook="$HOME/.config/omarchy/hooks/plugin-lifecycle"' "plugin add"
+collect_spec omarchy-plugin-update plugin-update-hook.patch 'lifecycle_hook="$HOME/.config/omarchy/hooks/plugin-lifecycle"' "plugin update"
+collect_spec omarchy-plugin-remove plugin-remove-hook.patch 'lifecycle_hook="$HOME/.config/omarchy/hooks/plugin-lifecycle"' "plugin remove"
 
-if ! patch --batch --forward --fuzz=0 --dry-run -d "$target_dir" -p2 <"$patch_file" >/dev/null; then
-  printf 'Omarchy crash dispatch patch no longer matches upstream\n' >&2
-  exit 1
-fi
-
-patch_args=(--batch --forward --fuzz=0 -d "$target_dir" -p2 -i "$patch_file")
-if [[ -w $target ]]; then
-  patch "${patch_args[@]}" >/dev/null
-elif command -v pkexec >/dev/null 2>&1 && pkexec patch "${patch_args[@]}" >/dev/null; then
-  :
-elif command -v sudo >/dev/null 2>&1; then
-  sudo patch "${patch_args[@]}" >/dev/null
-else
-  printf 'pkexec or sudo is required to patch %s\n' "$target" >&2
-  exit 1
-fi
-printf 'Applied Omarchy crash dispatch patch\n'
+for spec in "${specs[@]}"; do
+  IFS=$'\t' read -r state target patch_file label <<<"$spec"
+  if [[ $state == applied ]]; then
+    printf 'Omarchy %s patch already applied\n' "$label"
+  else
+    apply_preflighted_patch "$target" "$patch_file" "$label"
+  fi
+done

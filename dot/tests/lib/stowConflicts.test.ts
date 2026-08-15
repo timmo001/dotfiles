@@ -17,6 +17,7 @@ import { ENV } from "../../src/lib/env.js";
 import { HOME_DIR } from "../../src/lib/paths.js";
 import {
   backupConflictingPublicTargets,
+  backupLegacyOmaconnectRepo,
   backupUnmanagedStowTargets,
   removeStowedSkillOwner,
   removeStaleSkillSymlinks,
@@ -108,6 +109,26 @@ describe("removeLegacyUwsmRepo", () => {
 
     expect(removeLegacyUwsmRepo(source)).toBeNull();
     expect(existsSync(source)).toBe(true);
+  });
+});
+
+describe("backupLegacyOmaconnectRepo", () => {
+  test("backs up only the direct OmaConnect checkout", () => {
+    const root = tempRoot();
+    const publicDotfiles = join(root, "dotfiles");
+    const homeDir = join(root, "home");
+    const source = join(homeDir, ".config", "omarchy", "plugins", "omaconnect");
+    mkdirSync(join(source, ".git"), { recursive: true });
+    writeFileSync(
+      join(source, ".git", "config"),
+      "url = https://github.com/jitendradara12/omaconnect.git\n",
+    );
+
+    const move = backupLegacyOmaconnectRepo(publicDotfiles, homeDir);
+
+    expect(move?.source).toBe(source);
+    expect(move?.destination).toContain("backup/.config/omarchy/plugins");
+    expect(existsSync(source)).toBe(false);
   });
 });
 

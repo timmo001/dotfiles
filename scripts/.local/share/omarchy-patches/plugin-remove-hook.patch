@@ -1,0 +1,24 @@
+diff --git a/bin/omarchy-plugin-remove b/bin/omarchy-plugin-remove
+index 2e8591f7..77f5d44c 100755
+--- a/bin/omarchy-plugin-remove
++++ b/bin/omarchy-plugin-remove
+@@ -68,6 +68,19 @@ if [[ -z $id ]]; then
+ fi
+ valid_plugin_id "$id" || fail "invalid plugin id '$id'"
+ 
++lifecycle_hook="$HOME/.config/omarchy/hooks/plugin-lifecycle"
++if [[ -x $lifecycle_hook ]]; then
++  set +e
++  "$lifecycle_hook" remove "$id" "$ASSUME_YES"
++  lifecycle_status=$?
++  set -e
++  if (( lifecycle_status == 0 )); then
++    exit 0
++  elif (( lifecycle_status != 20 )); then
++    exit "$lifecycle_status"
++  fi
++fi
++
+ target="$PLUGINS_DIR/$id"
+ [[ -e $target || -L $target ]] || fail "plugin '$id' is not installed"
+ 

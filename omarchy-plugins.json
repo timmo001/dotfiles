@@ -1,0 +1,75 @@
+{
+  "remove": ["omarchy.weather", "omarchy.agents"],
+  "plugins": [
+    {
+      "id": "timmo.workspaces",
+      "replace": "omarchy.workspaces",
+      "inheritSettings": false,
+      "placement": { "section": "left", "index": 1 },
+      "settings": { "activeOpacity": 1, "inactiveOpacity": 0.5 }
+    },
+    {
+      "id": "timmo.twitch",
+      "placement": { "section": "center", "after": "omarchy.keyboard-layout" },
+      "settings": { "revealOnHover": true, "primaryOnly": true },
+      "hosts": {
+        "desktop": { "primaryOutput": "HDMI-A-2" },
+        "laptop": { "primaryOutput": "eDP-1" }
+      }
+    },
+    {
+      "id": "timmo.git",
+      "placement": { "section": "center", "after": "timmo.twitch" },
+      "settings": { "revealOnHover": true, "primaryOnly": true },
+      "hosts": {
+        "desktop": { "primaryOutput": "HDMI-A-2" },
+        "laptop": { "primaryOutput": "eDP-1" }
+      }
+    },
+    {
+      "id": "timmo.command",
+      "placement": { "section": "center", "after": "timmo.git" },
+      "settings": {
+        "revealOnHover": true,
+        "primaryOnly": true,
+        "run": "package-updates-bar status",
+        "interval": 60000,
+        "refreshTarget": "timmo.package-updates",
+        "loadingText": "󰏗 ..",
+        "loadingClass": "package-updates-unknown",
+        "onClickRight": "package-updates-bar refresh",
+        "classColors": {
+          "package-updates-unknown": "#9b9b9b",
+          "package-updates": "#e5c07b"
+        },
+        "hideClasses": ["hidden"],
+        "hiddenText": "󰏗 0",
+        "revealColor": "#e5c07b"
+      },
+      "hosts": {
+        "desktop": { "primaryOutput": "HDMI-A-2" },
+        "laptop": { "primaryOutput": "eDP-1" }
+      }
+    },
+    {
+      "id": "timmo.home-assistant",
+      "placement": { "section": "right", "index": 0 },
+      "settings": { "primaryOnly": true },
+      "hosts": {
+        "desktop": { "host": "desktop", "primaryOutput": "HDMI-A-2" },
+        "laptop": { "host": "laptop", "primaryOutput": "eDP-1" }
+      }
+    },
+    {
+      "id": "omaconnect",
+      "managed": true,
+      "placement": { "section": "right", "after": "timmo.home-assistant" }
+    },
+    {
+      "id": "timmo.clock",
+      "replace": "omarchy.clock",
+      "placement": { "section": "right" },
+      "settings": { "format": "HH:mm d MMM" }
+    }
+  ]
+}

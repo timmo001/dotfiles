@@ -1,0 +1,162 @@
+#!/bin/bash
+
+set -euo pipefail
+
+readonly UNMANAGED=20
+script_path=$(readlink -f "${BASH_SOURCE[0]}")
+repo=${DOTFILES_REPO:-$(cd "$(dirname "$script_path")/../../.." && pwd)}
+registry="$repo/omarchy-plugins.json"
+plugins_source="$repo/omarchy/.config/omarchy/plugins"
+plugins_live="$HOME/.config/omarchy/plugins"
+
+fail() {
+  printf 'manage-omarchy-plugin: %s\n' "$*" >&2
+  exit 1
+}
+
+managed() {
+  local result
+  result=$(jq -r --arg id "$1" '
+    if (.plugins | type) != "array" then error("plugins must be an array")
+    else any(.plugins[]; .id == $id and .managed == true) end
+  ' "$registry") || fail "invalid managed plugin registry: $registry"
+  [[ $result == true ]]
+}
+
+valid_plugin_id() {
+  [[ $1 =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ && $1 != *..* ]]
+}
+
+unstage() {
+  git -C "$repo" reset -q HEAD -- .gitmodules omarchy-plugins.json \
+    "omarchy/.config/omarchy/plugins/$1" 2>/dev/null || true
+}
+
+write_registry() {
+  local filter=$1 id=$2 section=${3:-} relation=${4:-} neighbour=${5:-}
+  local temporary="$registry.tmp.$$"
+  jq --arg id "$id" --arg section "$section" --arg relation "$relation" \
+    --arg neighbour "$neighbour" "$filter" "$registry" >"$temporary"
+  mv "$temporary" "$registry"
+}
+
+add_plugin() {
+  local id=${1:?} url=${2:?} checkout=${3:?}
+  valid_plugin_id "$id" || fail "invalid plugin id '$id'"
+  shift 3
+  local section="" relation="" neighbour=""
+  while (( $# > 0 )); do
+    case "$1" in
+    --section) section=${2:?}; shift 2 ;;
+    --before) relation=before; neighbour=${2:?}; shift 2 ;;
+    --after) relation=after; neighbour=${2:?}; shift 2 ;;
+    *) fail "unknown placement option: $1" ;;
+    esac
+  done
+  [[ -n $section ]] || section=$(jq -r '.barWidget.defaultSection // "center"' "$checkout/manifest.json")
+  [[ $section =~ ^(left|center|right)$ ]] || fail "invalid section: $section"
+  [[ ! -e $plugins_source/$id ]] || fail "managed plugin '$id' already exists"
+
+  local sha ref
+  sha=$(git -C "$checkout" rev-parse HEAD)
+  ref=$(git -C "$checkout" describe --tags --exact-match HEAD 2>/dev/null || true)
+  [[ -n $ref ]] || ref=$(git -C "$checkout" symbolic-ref --short HEAD 2>/dev/null || true)
+  [[ -n $ref ]] || ref=main
+
+  trap 'unstage "$id"' EXIT
+  git -C "$repo" submodule add -b "$ref" -- "$url" \
+    "omarchy/.config/omarchy/plugins/$id"
+  git -C "$plugins_source/$id" checkout -q "$sha"
+  write_registry '
+    .plugins = ((.plugins // []) | map(select(.id != $id)) + [{
+      id: $id,
+      managed: true,
+      placement: ({section: $section}
+        + if $relation == "before" then {before: $neighbour}
+          elif $relation == "after" then {after: $neighbour}
+          else {} end)
+    }])
+  ' "$id" "$section" "$relation" "$neighbour"
+
+  rm -rf "$plugins_live/$id"
+  unstage "$id"
+  trap - EXIT
+  dot stow --public
+  omarchy-shell shell rescanPlugins >/dev/null
+  printf 'Managed %s at %s (%s).\n' "$id" "$ref" "$sha"
+}
+
+update_plugin() {
+  local id=$1 assume_yes=$2
+  valid_plugin_id "$id" || fail "invalid plugin id '$id'"
+  managed "$id" || return "$UNMANAGED"
+  local path="$plugins_source/$id" ref old_sha new_sha
+  ref=$(git -C "$repo" config -f .gitmodules --get \
+    "submodule.omarchy/.config/omarchy/plugins/$id.branch")
+  old_sha=$(git -C "$path" rev-parse HEAD)
+  git -C "$path" fetch -q origin "$ref"
+  new_sha=$(git -C "$path" rev-parse FETCH_HEAD)
+  if [[ $old_sha == "$new_sha" ]]; then
+    printf '%s is up to date.\n' "$id"
+    return 0
+  fi
+  if (( ! assume_yes )); then
+    git -C "$path" diff "$old_sha" "$new_sha"
+    gum confirm "Update $id?" || {
+      printf 'Skipped %s.\n' "$id"
+      return 0
+    }
+  fi
+  git -C "$path" checkout -q "$new_sha"
+  if ! omarchy-plugin-validate "$path"; then
+    git -C "$path" checkout -q "$old_sha"
+    fail "update of '$id' failed validation; rolled back"
+  fi
+  unstage "$id"
+  omarchy-shell shell rescanPlugins >/dev/null
+  printf 'Updated managed plugin %s to %s.\n' "$id" "$new_sha"
+}
+
+update_plugins() {
+  local id=${1:-} assume_yes=${2:-0}
+  if [[ -n $id ]]; then
+    update_plugin "$id" "$assume_yes"
+    return
+  fi
+  while IFS= read -r id; do
+    update_plugin "$id" "$assume_yes"
+  done < <(jq -r '.plugins[]? | select(.managed == true) | .id' "$registry")
+  return "$UNMANAGED"
+}
+
+remove_plugin() {
+  local id=${1:?} assume_yes=${2:-0}
+  valid_plugin_id "$id" || fail "invalid plugin id '$id'"
+  managed "$id" || return "$UNMANAGED"
+  if (( ! assume_yes )); then
+    gum confirm "Remove managed plugin '$id' from dotfiles?" || fail "aborted"
+  fi
+
+  omarchy-shell shell setPluginEnabled "$id" false >/dev/null 2>&1 || true
+  rm -f "$plugins_live/$id"
+  trap 'unstage "$id"' EXIT
+  git -C "$repo" submodule deinit -q -f -- "omarchy/.config/omarchy/plugins/$id" || true
+  git -C "$repo" rm -q -f -- "omarchy/.config/omarchy/plugins/$id"
+  rm -rf "$repo/.git/modules/omarchy/.config/omarchy/plugins/$id"
+  write_registry '.plugins = ((.plugins // []) | map(select(.id != $id)))' "$id"
+  unstage "$id"
+  trap - EXIT
+  dot stow --public
+  omarchy-shell shell rescanPlugins >/dev/null
+  printf 'Removed managed plugin %s.\n' "$id"
+}
+
+[[ -f $registry ]] || fail "managed plugin registry not found: $registry"
+command=${1:-}
+(( $# > 0 )) && shift || true
+case "$command" in
+add) add_plugin "$@" ;;
+update) update_plugins "$@" ;;
+remove) remove_plugin "$@" ;;
+*) fail "usage: manage-omarchy-plugin <add|update|remove> ..." ;;
+esac

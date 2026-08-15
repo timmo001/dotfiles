@@ -1,5 +1,80 @@
 import { describe, expect, test } from "bun:test";
-import { mergeOmarchyShellConfig } from "../../src/lib/omarchyShellConfig.js";
+import {
+  mergeOmarchyShellConfig,
+  parseManagedPlugins,
+} from "../../src/lib/omarchyShellConfig.js";
+
+const managedPlugins = {
+  remove: ["omarchy.weather", "omarchy.agents"],
+  plugins: [
+    {
+      id: "timmo.workspaces",
+      replace: "omarchy.workspaces",
+      inheritSettings: false,
+      placement: { section: "left" as const, index: 1 },
+      settings: { activeOpacity: 1, inactiveOpacity: 0.5 },
+    },
+    {
+      id: "timmo.twitch",
+      placement: {
+        section: "center" as const,
+        after: "omarchy.keyboard-layout",
+      },
+      settings: { revealOnHover: true, primaryOnly: true },
+      hosts: {
+        desktop: { primaryOutput: "HDMI-A-2" },
+        laptop: { primaryOutput: "eDP-1" },
+      },
+    },
+    {
+      id: "timmo.git",
+      placement: { section: "center" as const, after: "timmo.twitch" },
+      settings: { revealOnHover: true, primaryOnly: true },
+      hosts: {
+        desktop: { primaryOutput: "HDMI-A-2" },
+        laptop: { primaryOutput: "eDP-1" },
+      },
+    },
+    {
+      id: "timmo.command",
+      placement: { section: "center" as const, after: "timmo.git" },
+      settings: {
+        revealOnHover: true,
+        primaryOnly: true,
+        run: "package-updates-bar status",
+        hiddenText: "󰏗 0",
+        revealColor: "#e5c07b",
+      },
+      hosts: {
+        desktop: { primaryOutput: "HDMI-A-2" },
+        laptop: { primaryOutput: "eDP-1" },
+      },
+    },
+    {
+      id: "timmo.home-assistant",
+      placement: { section: "right" as const, index: 0 },
+      settings: { primaryOnly: true },
+      hosts: {
+        desktop: { host: "desktop", primaryOutput: "HDMI-A-2" },
+        laptop: { host: "laptop", primaryOutput: "eDP-1" },
+      },
+    },
+    {
+      id: "omaconnect",
+      managed: true,
+      placement: {
+        section: "right" as const,
+        after: "timmo.home-assistant",
+      },
+    },
+    {
+      id: "timmo.clock",
+      replace: "omarchy.clock",
+      placement: { section: "right" as const },
+      settings: { format: "HH:mm d MMM" },
+    },
+  ],
+};
 
 function baseConfig() {
   return {
@@ -15,6 +90,7 @@ function baseConfig() {
           { id: "omarchy.workspaces", persistent: true },
         ],
         center: [
+          { id: "omarchy.keyboard-layout" },
           { id: "omarchy.clock", format: "HH:mm" },
           { id: "omarchy.weather", location: "home" },
           { id: "omarchy.system-update" },
@@ -51,7 +127,7 @@ function customEntries(config: ReturnType<typeof mergeOmarchyShellConfig>) {
 describe("mergeOmarchyShellConfig", () => {
   test("preserves defaults while placing personal widgets around their anchors", () => {
     const base = baseConfig();
-    const merged = mergeOmarchyShellConfig(base, "desktop");
+    const merged = mergeOmarchyShellConfig(base, "desktop", managedPlugins);
 
     expect(merged).toBe(base);
     expect(merged.custom).toEqual({ preserved: true });
@@ -111,8 +187,10 @@ describe("mergeOmarchyShellConfig", () => {
       primaryOnly: true,
       primaryOutput: "HDMI-A-2",
     });
+    expect(merged.bar.layout.right[1]).toEqual({ id: "omaconnect" });
     expect(trayIndex).toBeGreaterThan(0);
     expect(rightIds).not.toContain("omarchy.weather");
+    expect(rightIds.filter((id) => id === "omaconnect")).toHaveLength(1);
     expect(merged.bar.layout.right).toContainEqual({ id: "omarchy.tray" });
     expect(
       customEntries(merged).every(
@@ -155,7 +233,11 @@ describe("mergeOmarchyShellConfig", () => {
   });
 
   test("selects the desktop Home Assistant dashboard", () => {
-    const merged = mergeOmarchyShellConfig(baseConfig(), "desktop");
+    const merged = mergeOmarchyShellConfig(
+      baseConfig(),
+      "desktop",
+      managedPlugins,
+    );
     const entries = [
       ...merged.bar.layout.left,
       ...merged.bar.layout.center,
@@ -183,7 +265,11 @@ describe("mergeOmarchyShellConfig", () => {
   });
 
   test("selects the laptop Home Assistant dashboard", () => {
-    const merged = mergeOmarchyShellConfig(baseConfig(), "laptop");
+    const merged = mergeOmarchyShellConfig(
+      baseConfig(),
+      "laptop",
+      managedPlugins,
+    );
     const entries = [
       ...merged.bar.layout.left,
       ...merged.bar.layout.center,
@@ -201,6 +287,7 @@ describe("mergeOmarchyShellConfig", () => {
       id: "timmo.clock",
       format: "HH:mm d MMM",
     });
+    expect(merged.bar.layout.right[1]).toEqual({ id: "omaconnect" });
     expect(entries.filter(({ id }) => id === "timmo.home-assistant")).toEqual([
       {
         id: "timmo.home-assistant",
@@ -229,5 +316,89 @@ describe("mergeOmarchyShellConfig", () => {
     expect(runs).not.toContain("ha-watch-singleton");
     expect(runs).not.toContain("--monitor");
     expect(runs).not.toContain("--workspace");
+  });
+
+  test("places managed plugins by neighbour and replaces existing instances", () => {
+    const base = baseConfig();
+    base.bar.layout.left.push({ id: "omaconnect", persistent: true });
+    const merged = mergeOmarchyShellConfig(base, "desktop", managedPlugins);
+    const allIds = [
+      ...merged.bar.layout.left,
+      ...merged.bar.layout.center,
+      ...merged.bar.layout.right,
+    ].map(({ id }) => id);
+
+    expect(allIds.filter((id) => id === "omaconnect")).toHaveLength(1);
+    expect(merged.bar.layout.right[1]?.id).toBe("omaconnect");
+    expect(merged.bar.layout.right[1]?.persistent).toBe(true);
+    expect(merged.bar.layout.right[2]?.id).toBe("custom.right");
+  });
+});
+
+describe("parseManagedPlugins", () => {
+  test("accepts neighbour and index placements", () => {
+    expect(
+      parseManagedPlugins({
+        remove: [],
+        plugins: [
+          {
+            id: "example.after",
+            placement: { section: "right", after: "omarchy.tray" },
+          },
+          {
+            id: "example.index",
+            placement: { section: "left", index: 0 },
+          },
+        ],
+      }),
+    ).toEqual({
+      remove: [],
+      plugins: [
+        {
+          id: "example.after",
+          placement: { section: "right", after: "omarchy.tray" },
+        },
+        {
+          id: "example.index",
+          placement: { section: "left", index: 0 },
+        },
+      ],
+    });
+  });
+
+  test("rejects ambiguous placements", () => {
+    expect(
+      parseManagedPlugins({
+        remove: [],
+        plugins: [
+          {
+            id: "example.invalid",
+            placement: {
+              section: "right",
+              before: "omarchy.tray",
+              after: "omarchy.network",
+            },
+          },
+        ],
+      }),
+    ).toBeNull();
+  });
+
+  test("rejects unsafe and duplicate plugin ids", () => {
+    expect(
+      parseManagedPlugins({
+        remove: [],
+        plugins: [{ id: "../unsafe", placement: { section: "right" } }],
+      }),
+    ).toBeNull();
+    expect(
+      parseManagedPlugins({
+        remove: [],
+        plugins: [
+          { id: "duplicate", placement: { section: "left" } },
+          { id: "duplicate", placement: { section: "right" } },
+        ],
+      }),
+    ).toBeNull();
   });
 });
