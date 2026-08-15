@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import qs.Commons
 import qs.Ui
+import "../../components"
 
 Panel {
   id: root
@@ -13,7 +14,7 @@ Panel {
   readonly property var barIdentity: hostWidget || root
   readonly property color contentForeground: bar ? bar.foreground : Color.foreground
   readonly property string contentFontFamily: bar ? bar.fontFamily : Style.font.family
-  readonly property var rows: buildRows()
+  readonly property var panelRows: buildPanelRows()
 
   function formatPercent(value) { return value === null ? "" : Math.round(value) + "%" }
   function formatTemperature(value) { return value === null ? "" : Math.round(value) + " °C" }
@@ -33,48 +34,37 @@ Panel {
     if (minutes > 0 || values.length === 0) values.push(minutes + "m")
     return values.join(" ")
   }
-  function buildRows() {
+  function buildPanelRows() {
     if (!service) return []
     var values = []
     if (service.cpuUsage !== null)
-      values.push({ icon: "", label: "CPU", value: formatPercent(service.cpuUsage) })
-    if (service.cpuLoad !== null)
-      values.push({ icon: "󰓅", label: "Load", value: service.cpuLoad.toFixed(2) })
-    if (service.cpuTemperature !== null)
-      values.push({ icon: "", label: "CPU temperature", value: formatTemperature(service.cpuTemperature) })
+      values.push({ key: "cpu", icon: "", primaryText: "CPU", secondaryText: formatPercent(service.cpuUsage) })
     if (service.memoryPercent !== null || service.memoryUsed !== null || service.memoryTotal !== null) {
       var memory = []
       if (service.memoryPercent !== null) memory.push(formatPercent(service.memoryPercent))
       if (service.memoryUsed !== null && service.memoryTotal !== null)
         memory.push(formatBytes(service.memoryUsed) + " / " + formatBytes(service.memoryTotal))
-      values.push({ icon: "", label: "Memory", value: memory.join(" · ") })
+      values.push({ key: "memory", icon: "", primaryText: "Memory", secondaryText: memory.join(" · ") })
     }
+    if (service.cpuLoad !== null)
+      values.push({ key: "load", icon: "󰓅", primaryText: "Load", secondaryText: service.cpuLoad.toFixed(2) })
+    if (service.cpuTemperature !== null)
+      values.push({ key: "cpu-temperature", icon: "", primaryText: "CPU temperature", secondaryText: formatTemperature(service.cpuTemperature) })
     if (service.hottestTemperature !== null)
-      values.push({ icon: "󰔏", label: "Hottest sensor", value: (service.hottestSensor ? service.hottestSensor + " · " : "") + formatTemperature(service.hottestTemperature) })
+      values.push({ key: "hottest-sensor", icon: "󰔏", primaryText: "Hottest sensor", secondaryText: (service.hottestSensor ? service.hottestSensor + " · " : "") + formatTemperature(service.hottestTemperature) })
     if (service.uptime !== null)
-      values.push({ icon: "󰅐", label: "Uptime", value: formatDuration(service.uptime) })
-    if (service.installedVersion !== "" || service.latestVersion !== "") {
-      var version = service.installedVersion || "Unknown"
-      if (service.latestVersion !== "") version += " · latest " + service.latestVersion
-      if (service.newerVersionAvailable === true) version += " · update available"
-      values.push({ icon: "󰏗", label: "System Bridge", value: version })
-    }
+      values.push({ key: "uptime", icon: "󰅐", primaryText: "Uptime", secondaryText: formatDuration(service.uptime) })
     if (service.pendingReboot !== null)
-      values.push({ icon: "󰜉", label: "Pending reboot", value: service.pendingReboot ? "Required" : "No" })
-    if (service.batteryPercentage !== null) {
-      var battery = formatPercent(service.batteryPercentage)
-      if (service.batteryCharging === true) battery += " · charging"
-      if (service.batteryTimeRemaining !== null) battery += " · " + formatDuration(service.batteryTimeRemaining) + " remaining"
-      values.push({ icon: "", label: "Battery", value: battery })
-    }
+      values.push({ key: "pending-reboot", icon: "󰜉", primaryText: "Pending reboot", secondaryText: service.pendingReboot ? "Required" : "No" })
     return values
   }
 
   function open() {
+    filterController.reset()
     controller.show()
     Qt.callLater(function() {
       panelFlick.contentY = 0
-      keyCatcher.forceActiveFocus()
+      filterController.forceActiveFocus()
     })
   }
   function close() { controller.hide() }
@@ -85,19 +75,36 @@ Panel {
     return false
   }
 
+  function cursorItem() {
+    var entry = filterController.selectedEntry()
+    if (!entry) return null
+    return rowRepeater.itemAt(filterController.filteredModel.indexOf(entry))
+  }
+
+  function scrollCursorIntoView() {
+    var item = cursorItem()
+    if (!item) return
+    var point = item.mapToItem(contentColumn, 0, 0)
+    if (point.y < panelFlick.contentY) panelFlick.contentY = point.y
+    else if (point.y + item.height > panelFlick.contentY + panelFlick.height)
+      panelFlick.contentY = point.y + item.height - panelFlick.height
+  }
+
   KeyboardPanel {
     id: panel
     anchorItem: root.anchorItem
     owner: root.barIdentity
     bar: root.bar
     open: root.opened
-    focusTarget: keyCatcher
+    focusTarget: filterController
     contentWidth: panel.fittedContentWidth(Style.space(430))
     contentHeight: panel.fittedContentHeight(contentColumn.implicitHeight, Style.space(670))
 
-    PanelKeyCatcher {
-      id: keyCatcher
+    FilterablePanel {
+      id: filterController
       anchors.fill: parent
+      model: root.panelRows
+      onRevealRequested: Qt.callLater(root.scrollCursorIntoView)
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
 
@@ -121,7 +128,7 @@ Panel {
             width: parent.width
             title: root.service && root.service.hostname !== "" ? root.service.hostname : "System Bridge"
             meta: root.service && root.service.connected
-              ? (root.service.stale ? "Data is stale" : "Local system health")
+              ? (root.service.stale ? "Data is stale" : "")
               : "Waiting for System Bridge"
             detail: root.service && root.service.connected ? "ONLINE" : "OFFLINE"
             foreground: root.contentForeground
@@ -138,8 +145,8 @@ Panel {
           }
 
           Text {
-            visible: root.rows.length > 0
-            text: "SYSTEM"
+            visible: filterController.count > 0
+            text: filterController.filterText || "SYSTEM"
             color: Qt.darker(root.contentForeground, 1.4)
             font.family: root.contentFontFamily
             font.pixelSize: Style.font.caption
@@ -149,24 +156,79 @@ Panel {
 
           Column {
             width: parent.width
-            spacing: Style.space(10)
+            spacing: Style.space(2)
+
             Repeater {
-              model: root.rows
-              Row {
+              id: rowRepeater
+              model: filterController.filteredModel
+
+              CursorSurface {
+                required property int index
                 required property var modelData
                 width: contentColumn.width
-                spacing: Style.space(10)
-                Text { width: Style.space(22); text: modelData.icon; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.icon; horizontalAlignment: Text.AlignHCenter }
-                Text { width: Style.space(112); text: modelData.label; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; font.bold: true; elide: Text.ElideRight }
-                Text { width: Math.max(0, parent.width - Style.space(154)); text: modelData.value; color: Qt.darker(root.contentForeground, 1.3); font.family: root.contentFontFamily; font.pixelSize: Style.font.body; horizontalAlignment: Text.AlignRight; wrapMode: Text.Wrap }
+                implicitHeight: rowColumn.implicitHeight + Style.space(12)
+                hasCursor: filterController.cursorIndex === filterController.indexForKey(modelData.key)
+                foreground: root.contentForeground
+                accent: root.contentForeground
+
+                Row {
+                  anchors.left: parent.left
+                  anchors.right: parent.right
+                  anchors.verticalCenter: parent.verticalCenter
+                  anchors.leftMargin: Style.space(8)
+                  anchors.rightMargin: Style.space(8)
+                  spacing: Style.space(10)
+
+                  Text {
+                    width: Style.space(22)
+                    text: modelData.icon
+                    color: root.contentForeground
+                    font.family: root.contentFontFamily
+                    font.pixelSize: Style.font.icon
+                    horizontalAlignment: Text.AlignHCenter
+                  }
+
+                  Column {
+                    id: rowColumn
+                    width: Math.max(0, parent.width - Style.space(32))
+                    spacing: Style.space(2)
+
+                    Text {
+                      width: parent.width
+                      text: modelData.primaryText
+                      color: root.contentForeground
+                      font.family: root.contentFontFamily
+                      font.pixelSize: Style.font.body
+                      font.bold: true
+                      elide: Text.ElideRight
+                    }
+
+                    Text {
+                      width: parent.width
+                      text: modelData.secondaryText
+                      color: Qt.darker(root.contentForeground, 1.4)
+                      font.family: root.contentFontFamily
+                      font.pixelSize: Style.font.caption
+                      elide: Text.ElideRight
+                    }
+                  }
+                }
+
+                MouseArea {
+                  anchors.fill: parent
+                  hoverEnabled: true
+                  onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key)
+                }
               }
             }
           }
 
           Text {
-            visible: root.rows.length === 0
+            visible: filterController.count === 0
             width: parent.width
-            text: root.service && root.service.connected ? "No system data available" : "System Bridge is offline"
+            text: filterController.filterText
+              ? "No matches for “" + filterController.filterText + "”"
+              : (root.service && root.service.connected ? "No system data available" : "System Bridge is offline")
             color: Qt.darker(root.contentForeground, 1.4)
             font.family: root.contentFontFamily
             font.pixelSize: Style.font.body

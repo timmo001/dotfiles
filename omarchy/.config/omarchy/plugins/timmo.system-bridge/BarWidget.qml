@@ -49,32 +49,24 @@ BarWidget {
   }
   readonly property string tooltipText: buildTooltip()
 
-  function formatDuration(seconds) {
-    if (seconds === null) return ""
-    var totalMinutes = Math.floor(seconds / 60)
-    var days = Math.floor(totalMinutes / 1440)
-    var hours = Math.floor((totalMinutes % 1440) / 60)
-    var minutes = totalMinutes % 60
-    var values = []
-    if (days > 0) values.push(days + "d")
-    if (hours > 0) values.push(hours + "h")
-    if (minutes > 0 || values.length === 0) values.push(minutes + "m")
-    return values.join(" ")
-  }
-
   function buildTooltip() {
-    if (!systemBridge) return "System Bridge unavailable"
-    var values = [systemBridge.connected ? (systemBridge.hostname || "System Bridge") : "System Bridge offline"]
-    if (systemBridge.cpuLoad !== null) values.push("Load: " + systemBridge.cpuLoad.toFixed(2))
-    if (systemBridge.cpuTemperature !== null) values.push("CPU: " + Math.round(systemBridge.cpuTemperature) + " °C")
-    if (systemBridge.hottestTemperature !== null) values.push("Hottest: " + systemBridge.hottestSensor + " " + Math.round(systemBridge.hottestTemperature) + " °C")
-    if (systemBridge.uptime !== null) values.push("Uptime: " + formatDuration(systemBridge.uptime))
-    if (systemBridge.installedVersion !== "") values.push("Version: " + systemBridge.installedVersion + (systemBridge.latestVersion !== "" ? " (latest " + systemBridge.latestVersion + ")" : ""))
-    if (systemBridge.pendingReboot === true) values.push("Reboot pending")
-    if (systemBridge.newerVersionAvailable === true) values.push("Update available")
-    if (systemBridge.batteryPercentage !== null) values.push("Battery: " + Math.round(systemBridge.batteryPercentage) + "%" + (systemBridge.batteryCharging === true ? " charging" : ""))
-    if (systemBridge.stale) values.push("Data is stale")
-    return values.join("\n")
+    var status = !systemBridge ? "Unavailable"
+      : (!systemBridge.connected ? "Offline" : (systemBridge.stale ? "Stale" : "Online"))
+    var cpu = systemBridge && systemBridge.cpuUsage !== null
+      ? Math.round(systemBridge.cpuUsage) + "%" : "--"
+    var memory = systemBridge && systemBridge.memoryPercent !== null
+      ? Math.round(systemBridge.memoryPercent) + "%" : "--"
+    var load = systemBridge && systemBridge.cpuLoad !== null
+      ? systemBridge.cpuLoad.toFixed(2) : "--"
+    var temperature = systemBridge && systemBridge.cpuTemperature !== null
+      ? Math.round(systemBridge.cpuTemperature) + " °C" : "--"
+    return [
+      "Status: " + status,
+      "CPU: " + cpu,
+      "Memory: " + memory,
+      "Load: " + load,
+      "CPU temperature: " + temperature
+    ].join("\n")
   }
 
   function activeWidget() {

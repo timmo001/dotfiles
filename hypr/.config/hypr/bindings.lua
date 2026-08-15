@@ -115,6 +115,7 @@ o.bind(
 )
 o.bind("CTRL + ALT + H", "Home Assistant panel", "omarchy-shell timmo.home-assistant toggle")
 o.bind("CTRL + ALT + G", "Git panel", "omarchy-shell timmo.git toggle")
+o.bind("CTRL + ALT + S", "System Bridge panel", "omarchy-shell timmo.system-bridge toggle")
 o.bind("CTRL + ALT + C", "Capture note", "omarchy-shell timmo.notes-capture toggle")
 
 -- Local automations
