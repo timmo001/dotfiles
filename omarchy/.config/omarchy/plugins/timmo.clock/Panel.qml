@@ -81,6 +81,7 @@ Panel {
   readonly property int gutterWidth: Style.space(14)
 
   function open() {
+    worldClocks.reset()
     refresh()
     root.controller.show()
     // Set after showing, not before: showing hands the popout coordinator
@@ -89,12 +90,13 @@ Panel {
     // a handoff to a panel that does not manage the flag still leaves it
     // cleared rather than stuck on.
     Qt.callLater(function() {
-      panelFlick.contentY = 0
+      calendarScroll.contentY = 0
       if (root.opened) setCenterHoverRevealSuppressed(true)
     })
   }
 
   function close() {
+    worldClocks.reset()
     setCenterHoverRevealSuppressed(false)
     // Dismissing the panel mid-edit would otherwise leave the inputs up,
     // waiting behind a closed popup for the next time it opens.
@@ -123,6 +125,7 @@ Panel {
   function refresh() {
     root.today = new Date()
     root.goToToday()
+    worldClocks.refresh(root.today)
   }
 
   function goToToday() {
@@ -224,6 +227,7 @@ Panel {
     id: clock
     precision: SystemClock.Minutes
     onDateChanged: {
+      worldClocks.refresh(clock.date)
       if (Model.keyForDate(clock.date) === String(root.todayKey)) return
       var followToday = root.viewingCurrentMonth
       root.today = clock.date
@@ -281,6 +285,15 @@ Panel {
           // ---- Hero: today, centered. Once the view has stepped back
           //      it is also the way home — clicking the date you are
           //      looking for beats hunting for a reset button.
+          WorldClocks {
+            id: worldClocks
+            width: gridColumn.width
+            anchors.horizontalCenter: parent.horizontalCenter
+            bar: root.bar
+            foreground: root.contentForeground
+            fontFamily: root.contentFontFamily
+          }
+
           Item {
             width: parent.width
             height: heroRow.height

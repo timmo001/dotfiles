@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "id": "timmo.clock",
   "name": "My Clock",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "Omarchy",
-  "description": "Date/time label with a calendar popup",
+  "description": "Date/time label with calendar and world-clock popup",
   "kinds": [
     "bar-widget"
   ],
@@ -13,7 +13,7 @@
   },
   "barWidget": {
     "displayName": "My Clock",
-    "description": "Date/time label with a calendar popup",
+    "description": "Date/time label with calendar and world clocks",
     "category": "Time",
     "allowMultiple": false
   },

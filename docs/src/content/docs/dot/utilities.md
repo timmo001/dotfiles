@@ -16,14 +16,6 @@ system-health-check --open-opencode # run opencode run against the report, then 
 
 Add `--open-opencode` to run `opencode run` against the saved report and then open a full interactive OpenCode session with `opencode --continue`.
 
-## Times
-
-`times` prints current local, Pacific, Mountain, Central, and Eastern times. `SUPER+CTRL+ALT+T` shows an aligned compact version in a desktop notification.
-
-```bash
-times
-```
-
 ## Floating webapps
 
 `launch-floating-webapp <url>` opens one webapp as a `380x500` floating window in the focused monitor's bottom-right corner without changing normal launches of the same site. Use `--monitor`, `--workspace`, `--width`, `--height`, `--right-margin`, or `--bottom-margin` to override the geometry. `--address` applies the same placement to an existing window.

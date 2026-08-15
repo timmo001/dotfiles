@@ -54,7 +54,7 @@ The shared Hyprland config loads after Omarchy's defaults. It replaces these def
 | `SUPER+SHIFT+F` | File manager | Add the active application to the floating rules |
 | `SUPER+RETURN` | Omarchy terminal launcher | Open host-configured Ghostty in the active terminal directory |
 | `SUPER+SHIFT+B` | Browser | Open a private personal Chromium window |
-| `SUPER+CTRL+ALT+T` | Local time notification | Show local and US time zones |
+| `SUPER+CTRL+ALT+T` | Local time notification | Open the clock panel with local and US time zones |
 | `SUPER+ALT+-` / `SUPER+ALT+=` | Resize width by 25 | Resize width by 2 |
 | `SUPER+ALT+SHIFT+-` / `SUPER+ALT+SHIFT+=` | Resize height by 25 | Resize height by 2 |
 

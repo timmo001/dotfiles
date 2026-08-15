@@ -105,9 +105,9 @@ o.bind("CTRL + ALT + T", nil, "omarchy-shell timmo.twitch toggle")
 o.bind("CTRL + ALT + R", nil, "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e dot tui git-diff")
 o.bind("CTRL + ALT + SHIFT + R", nil, "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e dot tui git-diff --tab other")
 
--- Overrides Omarchy's default SUPER+CTRL+ALT+T single local time notification.
+-- Opens the clock panel with local and US time zones.
 hl.unbind("SUPER + CTRL + ALT + T")
-o.bind("SUPER + CTRL + ALT + T", "Show times", [[omarchy notification send -g "" -u low "Times" "$(~/.local/bin/times --notify)"]])
+o.bind("SUPER + CTRL + ALT + T", "Show times", "omarchy-shell timmo.clock toggle")
 
 -- Precise window resizing (fractional, like 1% volume with ALT)
 hl.unbind("SUPER + ALT + code:20")
