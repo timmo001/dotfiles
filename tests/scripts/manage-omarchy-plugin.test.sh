@@ -4,6 +4,7 @@ set -euo pipefail
 
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 manager="$repo_root/scripts/.local/bin/manage-omarchy-plugin"
+prettier="$repo_root/dot/node_modules/.bin/prettier"
 test_root=$(mktemp -d)
 dotfiles="$test_root/dotfiles"
 upstream="$test_root/upstream"
@@ -61,6 +62,7 @@ git -C "$dotfiles" add .
 git -C "$dotfiles" commit -qm initial
 
 env HOME="$home" DOTFILES_REPO="$dotfiles" GIT_ALLOW_PROTOCOL=file PATH="$mock_bin:$PATH" \
+  OMARCHY_PLUGIN_PRETTIER="$prettier" \
   "$manager" add example.plugin "$upstream" \
   "$home/.config/omarchy/plugins/example.plugin" \
   --section right --after omarchy.tray
@@ -75,8 +77,10 @@ jq -e '.plugins == [{
 [[ -L $home/.config/omarchy/plugins/example.plugin ]]
 [[ -n $(git -C "$dotfiles" status --short) ]]
 [[ -z $(git -C "$dotfiles" diff --cached --name-only) ]]
+"$prettier" --check --parser json "$dotfiles/omarchy-plugins.json" >/dev/null
 
 env HOME="$home" DOTFILES_REPO="$dotfiles" GIT_ALLOW_PROTOCOL=file PATH="$mock_bin:$PATH" \
+  OMARCHY_PLUGIN_PRETTIER="$prettier" \
   "$manager" remove example.plugin 1
 ! jq -e 'any(.plugins[]?; .id == "example.plugin")' "$dotfiles/omarchy-plugins.json" >/dev/null
 [[ ! -e $source_path ]]
@@ -85,6 +89,7 @@ env HOME="$home" DOTFILES_REPO="$dotfiles" GIT_ALLOW_PROTOCOL=file PATH="$mock_b
 
 git clone -q "$upstream" "$home/.config/omarchy/plugins/example.plugin"
 env HOME="$home" DOTFILES_REPO="$dotfiles" GIT_ALLOW_PROTOCOL=file PATH="$mock_bin:$PATH" \
+  OMARCHY_PLUGIN_PRETTIER="$prettier" \
   "$manager" add example.plugin "$upstream" \
   "$home/.config/omarchy/plugins/example.plugin" \
   --section right --after omarchy.tray
@@ -99,6 +104,7 @@ git -C "$upstream" commit -qm second
 second_sha=$(git -C "$upstream" rev-parse HEAD)
 
 env HOME="$home" DOTFILES_REPO="$dotfiles" GIT_ALLOW_PROTOCOL=file PATH="$mock_bin:$PATH" \
+  OMARCHY_PLUGIN_PRETTIER="$prettier" \
   "$manager" update example.plugin 1
 [[ $(git -C "$source_path" rev-parse HEAD) == "$second_sha" ]]
 [[ -z $(git -C "$dotfiles" diff --cached --name-only) ]]
@@ -107,6 +113,7 @@ printf 'third\n' >"$upstream/Widget.qml"
 git -C "$upstream" add Widget.qml
 git -C "$upstream" commit -qm third
 if env HOME="$home" DOTFILES_REPO="$dotfiles" GIT_ALLOW_PROTOCOL=file PATH="$mock_bin:$PATH" \
+  OMARCHY_PLUGIN_PRETTIER="$prettier" \
   VALIDATE_FAIL=1 "$manager" update example.plugin 1; then
   printf 'invalid managed update succeeded\n' >&2
   exit 1
@@ -116,6 +123,7 @@ fi
 git -C "$dotfiles" add omarchy/.config/omarchy/plugins/example.plugin
 git -C "$dotfiles" commit -qm updated
 env HOME="$home" DOTFILES_REPO="$dotfiles" GIT_ALLOW_PROTOCOL=file PATH="$mock_bin:$PATH" \
+  OMARCHY_PLUGIN_PRETTIER="$prettier" \
   "$manager" remove example.plugin 1
 ! jq -e 'any(.plugins[]?; .id == "example.plugin")' "$dotfiles/omarchy-plugins.json" >/dev/null
 [[ ! -e $home/.config/omarchy/plugins/example.plugin ]]
@@ -123,6 +131,7 @@ env HOME="$home" DOTFILES_REPO="$dotfiles" GIT_ALLOW_PROTOCOL=file PATH="$mock_b
 
 set +e
 env HOME="$home" DOTFILES_REPO="$dotfiles" PATH="$mock_bin:$PATH" \
+  OMARCHY_PLUGIN_PRETTIER="$prettier" \
   "$manager" remove unmanaged.plugin 1
 status=$?
 set -e

@@ -1,8 +1,5 @@
 {
-  "remove": [
-    "omarchy.weather",
-    "omarchy.agents"
-  ],
+  "remove": ["omarchy.weather", "omarchy.agents"],
   "plugins": [
     {
       "id": "timmo.workspaces",
@@ -74,9 +71,7 @@
           "package-updates-unknown": "#9b9b9b",
           "package-updates": "#e5c07b"
         },
-        "hideClasses": [
-          "hidden"
-        ],
+        "hideClasses": ["hidden"],
         "hiddenText": "󰏗 0",
         "revealColor": "#e5c07b"
       },

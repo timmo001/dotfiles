@@ -8,6 +8,7 @@ repo=${DOTFILES_REPO:-$(cd "$(dirname "$script_path")/../../.." && pwd)}
 registry="$repo/omarchy-plugins.json"
 plugins_source="$repo/omarchy/.config/omarchy/plugins"
 plugins_live="$HOME/.config/omarchy/plugins"
+prettier=${OMARCHY_PLUGIN_PRETTIER:-$repo/dot/node_modules/.bin/prettier}
 operation_id=""
 
 fail() {
@@ -42,6 +43,8 @@ write_registry() {
   local temporary="$registry.tmp.$$"
   jq --arg id "$id" --arg section "$section" --arg relation "$relation" \
     --arg neighbour "$neighbour" "$filter" "$registry" >"$temporary"
+  [[ -x $prettier ]] || fail "Prettier not found: $prettier"
+  "$prettier" --write --parser json "$temporary" >/dev/null
   mv "$temporary" "$registry"
 }
 
