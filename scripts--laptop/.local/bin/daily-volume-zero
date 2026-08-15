@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Notify shortly before setting the default audio sink to 0% volume.
+# Notify shortly before setting the effective audio output to 0% volume.
 set -euo pipefail
 
 DELAY_SECONDS=10
@@ -52,11 +52,15 @@ fi
 sleep "$DELAY_SECONDS"
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
-  printf 'Would set @DEFAULT_AUDIO_SINK@ volume to 0%% and clear mute.\n'
+  printf 'Would set the effective audio output volume to 0%% and clear mute.\n'
   exit 0
 fi
 
-command -v wpctl >/dev/null 2>&1 || die 'wpctl is required to control PipeWire/WirePlumber volume'
+command -v omarchy-audio-output-sink >/dev/null 2>&1 || die 'omarchy-audio-output-sink is required to resolve the effective audio output'
+command -v pactl >/dev/null 2>&1 || die 'pactl is required to control PipeWire volume'
 
-wpctl set-mute @DEFAULT_AUDIO_SINK@ 0
-wpctl set-volume @DEFAULT_AUDIO_SINK@ 0%
+sink="$(omarchy-audio-output-sink)"
+[[ -n "$sink" ]] || die 'could not resolve the effective audio output'
+
+pactl set-sink-mute "$sink" 0
+pactl set-sink-volume "$sink" 0%

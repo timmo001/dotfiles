@@ -119,7 +119,7 @@ After elevation, `dot firewall` re-reads the rules file and fails when any manag
 
 Public dotfiles provide `daily-volume-zero.timer` in laptop-only stow packages (`scripts--laptop` and `systemd--laptop`), a user systemd timer that runs at 5am local time.
 
-- The timer runs `daily-volume-zero`, which sends a 10-second desktop notification, clears default sink mute, then sets the default PipeWire/WirePlumber sink volume to `0%`.
+- The timer runs `daily-volume-zero`, which sends a 10-second desktop notification, clears mute, then sets the effective output volume to `0%`. DSP outputs such as Omarchy speaker tuning are resolved to their physical sink so the filter remains usable.
 - It is optional and not enabled by `dot`. Enable it on machines that should use it:
 
 ```bash
