@@ -16,7 +16,7 @@
   },
   "barWidget": {
     "displayName": "System Bridge",
-    "description": "Shows CPU, memory, temperature, and system health",
+    "description": "Shows CPU, memory, disk, fan, GPU, temperature, and system health",
     "category": "Info",
     "allowMultiple": false,
     "defaultSection": "right"

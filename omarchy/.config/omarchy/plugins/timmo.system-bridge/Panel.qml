@@ -22,6 +22,10 @@ Panel {
     if (value === null) return ""
     return (value / 1073741824).toFixed(1) + " GiB"
   }
+  function formatMebibytes(value) {
+    if (value === null) return ""
+    return value >= 1024 ? (value / 1024).toFixed(1) + " GiB" : Math.round(value) + " MiB"
+  }
   function formatDuration(seconds) {
     if (seconds === null) return ""
     var totalMinutes = Math.floor(seconds / 60)
@@ -52,6 +56,35 @@ Panel {
       values.push({ key: "cpu-temperature", icon: "", primaryText: "CPU temperature", secondaryText: formatTemperature(service.cpuTemperature) })
     if (service.hottestTemperature !== null)
       values.push({ key: "hottest-sensor", icon: "󰔏", primaryText: "Hottest sensor", secondaryText: (service.hottestSensor ? service.hottestSensor + " · " : "") + formatTemperature(service.hottestTemperature) })
+    if (service.rootDisk !== null) {
+      var disk = service.rootDisk
+      var diskUsage = disk.usage
+      var diskValues = []
+      if (diskUsage.percent !== undefined && diskUsage.percent !== null)
+        diskValues.push(formatPercent(Number(diskUsage.percent)))
+      if (diskUsage.used !== undefined && diskUsage.total !== undefined)
+        diskValues.push(formatBytes(Number(diskUsage.used)) + " / " + formatBytes(Number(diskUsage.total)))
+      values.push({ key: "disk-root", icon: "󰋊", primaryText: "/", secondaryText: diskValues.join(" · ") })
+    }
+    for (var fanIndex = 0; fanIndex < service.fans.length; fanIndex++) {
+      var fan = service.fans[fanIndex]
+      if (fan.speed_rpm === undefined || fan.speed_rpm === null) continue
+      values.push({ key: "fan-" + fan.key, icon: "󰈐", primaryText: fan.label || fan.name || "Fan", secondaryText: Math.round(Number(fan.speed_rpm)) + " RPM" })
+    }
+    for (var gpuIndex = 0; gpuIndex < service.gpus.length; gpuIndex++) {
+      var gpu = service.gpus[gpuIndex]
+      var gpuValues = []
+      if (gpu.core_load !== undefined && gpu.core_load !== null)
+        gpuValues.push("Load " + formatPercent(Number(gpu.core_load)))
+      if (gpu.memory_used !== undefined && gpu.memory_used !== null && gpu.memory_total !== undefined && gpu.memory_total !== null)
+        gpuValues.push("Memory " + formatMebibytes(Number(gpu.memory_used)) + " / " + formatMebibytes(Number(gpu.memory_total)))
+      if (gpu.power_usage !== undefined && gpu.power_usage !== null)
+        gpuValues.push("Power " + Number(gpu.power_usage).toFixed(1) + " W")
+      if (gpu.temperature !== undefined && gpu.temperature !== null)
+        gpuValues.push("Temperature " + formatTemperature(Number(gpu.temperature)))
+      if (gpuValues.length > 0)
+        values.push({ key: "gpu-" + (gpu.id || gpuIndex), icon: "󰢮", primaryText: gpu.name || "GPU", secondaryText: gpuValues.join(" · ") })
+    }
     if (service.uptime !== null)
       values.push({ key: "uptime", icon: "󰅐", primaryText: "Uptime", secondaryText: formatDuration(service.uptime) })
     if (service.pendingReboot !== null)

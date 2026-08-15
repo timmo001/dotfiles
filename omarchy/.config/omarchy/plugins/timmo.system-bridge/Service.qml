@@ -14,7 +14,10 @@ Item {
   property var memoryPercent: null
   property var memoryUsed: null
   property var memoryTotal: null
+  property var rootDisk: null
   property var sensorTemperatures: []
+  property var fans: []
+  property var gpus: []
   property var hottestTemperature: null
   property string hottestSensor: ""
   property var hottestHigh: null
@@ -81,8 +84,9 @@ Item {
   function applyLine(line) {
     try {
       var payload = JSON.parse(String(line || "").trim())
-      if (!payload || payload.type !== "DATA_UPDATE" || !objectData(payload.data)) return
+      if (!payload || payload.type !== "DATA_UPDATE") return
       var data = payload.data
+      if (payload.module === "gpus" ? !Array.isArray(data) : !objectData(data)) return
       if (payload.module === "cpu") {
         if (data.usage === undefined && data.load_average === undefined
             && data.temperature === undefined) return
@@ -107,15 +111,41 @@ Item {
         memoryPercent = nextMemoryPercent
         memoryUsed = nextMemoryUsed
         memoryTotal = nextMemoryTotal
+      } else if (payload.module === "disks") {
+        if (!Array.isArray(data.devices)) return
+        var nextRootDisk = null
+        for (var deviceIndex = 0; deviceIndex < data.devices.length; deviceIndex++) {
+          var device = data.devices[deviceIndex]
+          if (!objectData(device) || !Array.isArray(device.partitions)) return
+          for (var partitionIndex = 0; partitionIndex < device.partitions.length; partitionIndex++) {
+            var partition = device.partitions[partitionIndex]
+            if (!objectData(partition)) return
+            if (partition.mount_point === "/" && objectData(partition.usage))
+              nextRootDisk = partition
+          }
+        }
+        rootDisk = nextRootDisk
       } else if (payload.module === "sensors") {
-        if (!Array.isArray(data.temperatures)) return
+        if (!Array.isArray(data.temperatures) || !Array.isArray(data.fans)) return
         for (var i = 0; i < data.temperatures.length; i++) {
           var temperature = data.temperatures[i]
           if (!objectData(temperature)
               || numberOrNull(temperature.temperature) === null) return
         }
+        var labelledFans = data.fans.filter(function(fan) {
+          return objectData(fan) && String(fan.label || "") !== ""
+        })
+        labelledFans.sort(function(left, right) {
+          if (left.label === "CPU Fan") return -1
+          if (right.label === "CPU Fan") return 1
+          return String(left.label).localeCompare(String(right.label))
+        })
         sensorTemperatures = data.temperatures
+        fans = labelledFans.length > 0 ? labelledFans : data.fans
         updateHottest()
+      } else if (payload.module === "gpus") {
+        if (!Array.isArray(data)) return
+        gpus = data
       } else if (payload.module === "system") {
         if (data.uptime === undefined && data.hostname === undefined
             && data.version === undefined) return
@@ -156,7 +186,9 @@ Item {
       "system-bridge", "client", "data", "watch",
       "--module", "cpu",
       "--module", "memory",
+      "--module", "disks",
       "--module", "sensors",
+      "--module", "gpus",
       "--module", "system",
       "--module", "battery"
     ]
