@@ -31,4 +31,5 @@ hl.window_rule({ name = "tile-steam-main", match = { class = "^(steam)$", title 
 hl.window_rule({ name = "workspace-chromium", match = { class = "^(chromium)$" }, workspace = "1" })
 hl.window_rule({ name = "workspace-discord", match = { class = "^(chrome-discord\\.com__app)" }, workspace = "1 silent" })
 hl.window_rule({ name = "workspace-slack", match = { class = "^(chrome-app\\.slack\\.com__client)" }, workspace = "1 silent" })
+hl.window_rule({ name = "tag-work-browser", match = { class = "^(work-browser)$" }, tag = "+chromium-based-browser" })
 hl.window_rule({ name = "workspace-work-browser", match = { class = "^(work-browser)$" }, workspace = "3" })
