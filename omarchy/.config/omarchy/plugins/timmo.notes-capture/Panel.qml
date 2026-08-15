@@ -20,7 +20,7 @@ Panel {
   property string selectedRepository: ""
   property bool available: false
   property bool submitting: false
-  property string statusText: "Checking local processor..."
+  property string statusText: ""
   readonly property string cacheRoot: Quickshell.env("XDG_CACHE_HOME")
     || (Quickshell.env("HOME") + "/.cache")
   readonly property var filteredRepositories: {
@@ -37,7 +37,10 @@ Panel {
   function open() {
     controller.show()
     refreshStatus()
-    Qt.callLater(function() { noteInput.forceActiveFocus() })
+    Qt.callLater(function() {
+      panelFlick.contentY = 0
+      noteInput.forceActiveFocus()
+    })
   }
   function close() { controller.hide() }
   function toggle() { if (opened) close(); else open() }
@@ -48,6 +51,10 @@ Panel {
   }
   function refreshStatus() {
     if (!statusProcess.running) statusProcess.running = true
+  }
+  function focusRepository(index) {
+    var item = index < 0 ? automaticButton : repositoryRepeater.itemAt(index)
+    if (item) item.forceActiveFocus()
   }
   function submit() {
     if (!canSubmit) return
@@ -99,9 +106,10 @@ Panel {
     stdout: StdioCollector { id: statusOutput; waitForEnd: true }
     onExited: function(exitCode) {
       root.available = exitCode === 0
-      root.statusText = root.available
-        ? "Local processor ready"
-        : "Local processor unavailable. Start notes-capture-opencode.service to send."
+      if (!root.available)
+        root.statusText = "Local processor unavailable. Start notes-capture-opencode.service to send."
+      else if (root.statusText.indexOf("unavailable") !== -1)
+        root.statusText = ""
     }
   }
 
@@ -147,6 +155,7 @@ Panel {
     contentHeight: panel.fittedContentHeight(contentColumn.implicitHeight, Style.space(640))
 
     Flickable {
+      id: panelFlick
       anchors.fill: parent
       contentWidth: width
       contentHeight: contentColumn.implicitHeight
@@ -164,6 +173,14 @@ Panel {
           title: "Capture note"
           foreground: root.foreground
           fontFamily: root.fontFamily
+          iconComponent: Component {
+            Text {
+              text: "󰠮"
+              color: root.foreground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.display
+            }
+          }
         }
 
         ScrollView {
@@ -187,25 +204,50 @@ Panel {
               radius: Style.cornerRadius
             }
             Keys.onPressed: function(event) {
-              if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_Return) {
+              if ((event.modifiers & Qt.ControlModifier)
+                  && (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)) {
                 root.submit()
                 event.accepted = true
               } else if (event.key === Qt.Key_Escape) {
                 root.close()
+                event.accepted = true
+              } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
+                sendButton.forceActiveFocus()
                 event.accepted = true
               }
             }
           }
         }
 
-        Text {
+        Column {
           width: parent.width
-          text: noteInput.text.trim().length + " / 12000"
-          color: noteInput.text.trim().length > 12000 ? Color.urgent : Qt.darker(root.foreground, 1.5)
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.caption
-          horizontalAlignment: Text.AlignRight
+          spacing: Style.space(8)
+
+          Button {
+            id: sendButton
+            width: parent.width
+            text: root.submitting ? "Sending..." : "Send"
+            enabled: root.canSubmit
+            foreground: root.foreground
+            fontFamily: root.fontFamily
+            bordered: true
+            focusable: true
+            onClicked: root.submit()
+            Keys.onDownPressed: repositoryFilter.forceActiveFocus()
+          }
+
+          Text {
+            visible: root.statusText !== ""
+            width: parent.width
+            text: root.statusText
+            color: root.available ? root.foreground : Color.urgent
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            wrapMode: Text.Wrap
+          }
         }
+
+        PanelSeparator { foreground: root.foreground }
 
         TextField {
           id: repositoryFilter
@@ -216,6 +258,16 @@ Panel {
           font.family: root.fontFamily
           text: root.repositorySearch
           onTextChanged: root.repositorySearch = text
+          Keys.onPressed: function(event) {
+            if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab
+                || event.key === Qt.Key_Down) {
+              root.focusRepository(-1)
+              event.accepted = true
+            } else if (event.key === Qt.Key_Up) {
+              sendButton.forceActiveFocus()
+              event.accepted = true
+            }
+          }
           background: Rectangle {
             color: "transparent"
             border.color: repositoryFilter.activeFocus ? Color.accent : Qt.darker(root.foreground, 1.6)
@@ -225,49 +277,36 @@ Panel {
         }
 
         Button {
+          id: automaticButton
           width: parent.width
           text: root.selectedRepository === "" ? "Automatic" : "Automatic (clear selection)"
           foreground: root.foreground
           fontFamily: root.fontFamily
+          focusable: true
           onClicked: root.selectedRepository = ""
+          Keys.onUpPressed: repositoryFilter.forceActiveFocus()
+          Keys.onDownPressed: root.focusRepository(0)
         }
 
         Repeater {
+          id: repositoryRepeater
           model: root.filteredRepositories
 
           Button {
+            required property int index
             required property var modelData
             width: contentColumn.width
             text: (root.selectedRepository === modelData.repository ? "✓ " : "")
               + modelData.label + "  ·  " + modelData.repository
             foreground: root.foreground
             fontFamily: root.fontFamily
+            focusable: true
             onClicked: root.selectedRepository = String(modelData.repository)
+            Keys.onUpPressed: root.focusRepository(index - 1)
+            Keys.onDownPressed: root.focusRepository(index + 1)
           }
         }
 
-        Row {
-          width: parent.width
-          spacing: Style.space(8)
-
-          Button {
-            text: root.submitting ? "Sending..." : "Send"
-            enabled: root.canSubmit
-            foreground: root.foreground
-            fontFamily: root.fontFamily
-            onClicked: root.submit()
-          }
-
-          Text {
-            width: Math.max(0, parent.width - parent.children[0].width - parent.spacing)
-            anchors.verticalCenter: parent.verticalCenter
-            text: root.statusText
-            color: root.available ? root.foreground : Color.urgent
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-            wrapMode: Text.Wrap
-          }
-        }
       }
     }
   }

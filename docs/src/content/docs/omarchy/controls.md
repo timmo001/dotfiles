@@ -65,6 +65,7 @@ Custom bindings that conflicted with Quattro defaults use these chords instead:
 | Binding | Local action | Avoided default |
 | --- | --- | --- |
 | `SUPER+CTRL+ALT+P` | Power profile menu | Power panel on `SUPER+CTRL+P` |
+| `SUPER+CTRL+ALT+C` | Open Notes Capture | Calendar on `SUPER+SHIFT+C` |
 | `SUPER+CTRL+SHIFT+S` | Slack | Google Maps on `SUPER+SHIFT+S` |
 | `SUPER+ALT+X` | X notifications | Universal cut on `SUPER+X` and X on `SUPER+SHIFT+X` |
 | `SUPER+ALT+G` | GitHub notifications | Move window out of group on `SUPER+CTRL+G` |

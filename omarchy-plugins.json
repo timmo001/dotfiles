@@ -105,18 +105,10 @@
       }
     },
     {
-      "id": "omaconnect",
-      "managed": true,
-      "placement": {
-        "section": "right",
-        "after": "timmo.home-assistant"
-      }
-    },
-    {
       "id": "timmo.notes-capture",
       "placement": {
         "section": "right",
-        "after": "omaconnect"
+        "after": "timmo.home-assistant"
       },
       "settings": {
         "primaryOnly": true
@@ -128,6 +120,14 @@
         "laptop": {
           "primaryOutput": "eDP-1"
         }
+      }
+    },
+    {
+      "id": "omaconnect",
+      "managed": true,
+      "placement": {
+        "section": "right",
+        "after": "timmo.notes-capture"
       }
     },
     {

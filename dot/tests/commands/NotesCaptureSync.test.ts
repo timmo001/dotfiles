@@ -41,16 +41,22 @@ function repository(
 }
 
 describe("captureRepositoryOptions", () => {
-  test("returns watched repositories in stable label order", () => {
+  test("puts core tooling first and preserves config order for the rest", () => {
     expect(
       captureRepositoryOptions([
         repository("Zulu", "owner/zulu", true),
+        repository("Context", "owner/context", true),
         repository("Ignored", "owner/ignored", false),
-        repository("alpha", "owner/alpha", true),
+        repository("Skills", "owner/skills", true),
+        repository("Dotfiles", "owner/dotfiles", true),
+        repository("Alpha", "owner/alpha", true),
       ]),
     ).toEqual([
-      { label: "alpha", repository: "owner/alpha" },
+      { label: "Dotfiles", repository: "owner/dotfiles" },
+      { label: "Skills", repository: "owner/skills" },
+      { label: "Context", repository: "owner/context" },
       { label: "Zulu", repository: "owner/zulu" },
+      { label: "Alpha", repository: "owner/alpha" },
     ]);
   });
 

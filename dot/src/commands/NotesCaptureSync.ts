@@ -18,6 +18,13 @@ import { OutputLog } from "../services/OutputLog.js";
 const NOTES_REPOSITORY = "timmo001/notes";
 const CAPTURE_CONFIG_PATH = join("capture", "wrangler.local.jsonc");
 const CAPTURE_CONFIG_TEMPLATE_PATH = join("capture", "wrangler.deploy.jsonc");
+const CAPTURE_REPOSITORY_PRIORITY = [
+  "Dotfiles",
+  "Skills",
+  "Notes",
+  "Context",
+  "Workflows",
+];
 
 /** Repository picker record consumed by the notes capture application. */
 export interface CaptureRepositoryOption {
@@ -42,16 +49,21 @@ class NotesCaptureSyncError extends Schema.TaggedErrorClass<NotesCaptureSyncErro
   { message: Schema.String },
 ) {}
 
-/** Build stable picker options from notification-watched repositories. */
+/** Build picker options with core tooling first, then private config order. */
 export function captureRepositoryOptions(
   repositories: readonly GitManagedRepo[],
 ): readonly CaptureRepositoryOption[] {
-  return repositories
-    .filter(({ notifications }) => notifications.enabled)
-    .map(({ name, github }) => ({ label: name, repository: github }))
-    .sort((left, right) =>
-      left.label.localeCompare(right.label, undefined, { sensitivity: "base" }),
-    );
+  const enabled = repositories.filter(
+    ({ notifications }) => notifications.enabled,
+  );
+  return [
+    ...CAPTURE_REPOSITORY_PRIORITY.flatMap((name) =>
+      enabled.filter((repository) => repository.name === name),
+    ),
+    ...enabled.filter(
+      ({ name }) => !CAPTURE_REPOSITORY_PRIORITY.includes(name),
+    ),
+  ].map(({ name, github }) => ({ label: name, repository: github }));
 }
 
 /** Merge generated picker options into an existing Wrangler configuration. */
