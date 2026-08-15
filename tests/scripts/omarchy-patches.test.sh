@@ -16,10 +16,19 @@ mkdir -p "$(dirname "$target")" "$mock_bin"
 cat >"$mock_bin/pkexec" <<'EOF'
 #!/bin/bash
 printf '%s\n' "$(basename "$0")" >>"$ELEVATION_LOG"
+[[ ${PKEXEC_FAIL:-0} == 1 ]] && exit 127
 chmod u+w "$ELEVATION_TARGET"
 exec "$@"
 EOF
 chmod +x "$mock_bin/pkexec"
+
+cat >"$mock_bin/sudo" <<'EOF'
+#!/bin/bash
+printf '%s\n' "$(basename "$0")" >>"$ELEVATION_LOG"
+chmod u+w "$ELEVATION_TARGET"
+exec "$@"
+EOF
+chmod +x "$mock_bin/sudo"
 
 reset_target() {
   chmod u+w "$target" 2>/dev/null || true
@@ -67,6 +76,14 @@ script --quiet --return --command \
   "ELEVATION_LOG='$elevation_log' ELEVATION_TARGET='$target' PATH='$mock_bin:$PATH' OMARCHY_PATCH_ROOT='$test_root/omarchy' OMARCHY_PATCH_DIR='$patch_dir' '$script'" \
   /dev/null >/dev/null
 [[ $(<"$elevation_log") == pkexec ]]
+
+reset_target
+chmod 444 "$target"
+: >"$elevation_log"
+PKEXEC_FAIL=1 ELEVATION_LOG="$elevation_log" ELEVATION_TARGET="$target" PATH="$mock_bin:$PATH" \
+  OMARCHY_PATCH_ROOT="$test_root/omarchy" OMARCHY_PATCH_DIR="$patch_dir" "$script"
+mapfile -t elevation_attempts <"$elevation_log"
+[[ ${elevation_attempts[*]} == 'pkexec sudo' ]]
 
 reset_target
 source=$(<"$target")

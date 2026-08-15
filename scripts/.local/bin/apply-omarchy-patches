@@ -29,14 +29,15 @@ if ! patch --batch --forward --fuzz=0 --dry-run -d "$target_dir" -p2 <"$patch_fi
   exit 1
 fi
 
+patch_args=(--batch --forward --fuzz=0 -d "$target_dir" -p2 -i "$patch_file")
 if [[ -w $target ]]; then
-  patch_command=(patch)
-elif command -v pkexec >/dev/null 2>&1; then
-  patch_command=(pkexec patch)
+  patch "${patch_args[@]}" >/dev/null
+elif command -v pkexec >/dev/null 2>&1 && pkexec patch "${patch_args[@]}" >/dev/null; then
+  :
+elif command -v sudo >/dev/null 2>&1; then
+  sudo patch "${patch_args[@]}" >/dev/null
 else
-  printf 'pkexec is required to patch %s\n' "$target" >&2
+  printf 'pkexec or sudo is required to patch %s\n' "$target" >&2
   exit 1
 fi
-
-"${patch_command[@]}" --batch --forward --fuzz=0 -d "$target_dir" -p2 -i "$patch_file" >/dev/null
 printf 'Applied Omarchy crash dispatch patch\n'
