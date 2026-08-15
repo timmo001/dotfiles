@@ -42,11 +42,13 @@ for arg in "$@"; do
 done
 [[ ${menu_items[0]} == Dotfiles ]]
 [[ ${menu_items[1]} == Omarchy ]]
-[[ ${menu_items[2]} == 'Topgrade: Mise' ]]
+[[ ${menu_items[2]} == 'Topgrade: GitHub CLI extensions' ]]
+[[ ${menu_items[3]} == 'Topgrade: Yazi' ]]
+[[ ${menu_items[4]} == 'Topgrade: Mise' ]]
 
 case "${UPDATE_TEST_SELECTION:-default}" in
   default)
-    printf '%s\n' 'Dotfiles' 'Omarchy' 'Topgrade: Mise' 'Topgrade: GitHub CLI extensions' 'Topgrade: Yazi'
+    printf '%s\n' 'Dotfiles' 'Omarchy' 'Topgrade: GitHub CLI extensions' 'Topgrade: Yazi'
     ;;
   all)
     printf '%s\n' \
@@ -72,12 +74,6 @@ command -v sudo
 EOF
 chmod +x "$mock_bin/omarchy"
 
-cat >"$mock_bin/apply-omarchy-patches" <<'EOF'
-#!/bin/bash
-printf 'applied omarchy patches\n'
-EOF
-chmod +x "$mock_bin/apply-omarchy-patches"
-
 headless_output=$(HOME="$mock_home" XDG_STATE_HOME='' PATH="$mock_bin:$PATH" "$update_script" -y)
 [[ $headless_output == *"/sudo"* || $headless_output == *"/sudo" ]]
 [[ $headless_output != *"/usr/bin/sudo"* ]]
@@ -89,9 +85,8 @@ interactive_output=$(script --quiet --return --command \
 
 default_output=$(script --quiet --return --command \
   "HOME='$mock_home' XDG_STATE_HOME='' PATH='$mock_bin:$PATH' UPDATE_TEST_SELECTION=default '$update_script'" /dev/null)
-[[ $default_output == *"topgrade args: --only mise github_cli_extensions yazi"* ]]
-[[ $default_output == *"dot args: update"*"omarchy args: update -y"*"dot args: stow --public"*"topgrade args:"* ]]
-[[ $default_output == *"omarchy args: update -y"*"dot args: stow --public"*"applied omarchy patches"* ]]
+[[ $default_output == *"topgrade args: --only github_cli_extensions yazi"* ]]
+[[ $default_output == *"dot args: update"*"dot args: stow --public"*"omarchy args: update -y"*"topgrade args:"* ]]
 [[ $default_output == *"omarchy mise config: $mock_home/.local/state/mise/omarchy-config.toml"* ]]
 
 all_output=$(script --quiet --return --command \
@@ -102,7 +97,6 @@ all_output=$(script --quiet --return --command \
 if failed_output=$(HOME="$mock_home" XDG_STATE_HOME='' PATH="$mock_bin:$PATH" UPDATE_TEST_OMARCHY_FAIL=1 "$update_script" -y 2>&1); then
   exit 1
 fi
-[[ $failed_output != *"dot args: stow --public"* ]]
-[[ $failed_output != *"applied omarchy patches"* ]]
+[[ $failed_output == *"dot args: stow --public"* ]]
 
 printf 'update privilege routing tests passed\n'

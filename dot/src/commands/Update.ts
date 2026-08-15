@@ -336,23 +336,13 @@ function selfUpdateAndRestart(
   });
 }
 
-/**
- * Run post-update hooks.
- */
+/** Run post-update hooks. */
 const postHooks = Effect.gen(function* () {
   const log = yield* OutputLog;
-  const executor = yield* CommandExecutor;
 
   yield* log.section("Post-Hooks");
 
   yield* agentsSync;
-
-  const patchExit = yield* executor.inherit("apply-omarchy-patches", []);
-  if (patchExit !== 0) {
-    return yield* new UpdateError({
-      message: `Omarchy patch application exited ${patchExit}`,
-    });
-  }
 });
 
 /** Read the Herdr Lazy plugin root from `herdr plugin list --json`. */

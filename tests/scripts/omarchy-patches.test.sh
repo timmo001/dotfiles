@@ -19,7 +19,6 @@ mkdir -p "$(dirname "$target")" "$mock_bin"
 cat >"$mock_bin/pkexec" <<'EOF'
 #!/bin/bash
 printf '%s\n' "$(basename "$0")" >>"$ELEVATION_LOG"
-[[ ${PKEXEC_FAIL:-0} == 1 ]] && exit 127
 chmod u+w "$ELEVATION_TARGET"
 exec "$@"
 EOF
@@ -97,7 +96,7 @@ reset_plugin_targets
 chmod 444 "$target"
 ELEVATION_LOG="$elevation_log" ELEVATION_TARGET="$target" PATH="$mock_bin:$PATH" \
   OMARCHY_PATCH_ROOT="$test_root/omarchy" OMARCHY_PATCH_DIR="$patch_dir" "$script"
-[[ $(<"$elevation_log") == pkexec ]]
+[[ $(<"$elevation_log") == sudo ]]
 
 reset_target
 reset_plugin_targets
@@ -106,16 +105,7 @@ chmod 444 "$target"
 script --quiet --return --command \
   "ELEVATION_LOG='$elevation_log' ELEVATION_TARGET='$target' PATH='$mock_bin:$PATH' OMARCHY_PATCH_ROOT='$test_root/omarchy' OMARCHY_PATCH_DIR='$patch_dir' '$script'" \
   /dev/null >/dev/null
-[[ $(<"$elevation_log") == pkexec ]]
-
-reset_target
-reset_plugin_targets
-chmod 444 "$target"
-: >"$elevation_log"
-PKEXEC_FAIL=1 ELEVATION_LOG="$elevation_log" ELEVATION_TARGET="$target" PATH="$mock_bin:$PATH" \
-  OMARCHY_PATCH_ROOT="$test_root/omarchy" OMARCHY_PATCH_DIR="$patch_dir" "$script"
-mapfile -t elevation_attempts <"$elevation_log"
-[[ ${elevation_attempts[*]} == 'pkexec sudo' ]]
+[[ $(<"$elevation_log") == sudo ]]
 
 reset_target
 source=$(<"$target")

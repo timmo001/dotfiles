@@ -26,9 +26,9 @@ if (( $# > 0 )); then
 fi
 
 topgrade_labels=(
-  'Topgrade: Mise'
   'Topgrade: GitHub CLI extensions'
   'Topgrade: Yazi'
+  'Topgrade: Mise'
   'Topgrade: ProtonPlus'
   'Topgrade: Firmware'
   'Topgrade: Rustup'
@@ -40,9 +40,9 @@ topgrade_labels=(
   'Topgrade: uv'
 )
 topgrade_steps=(
-  mise
   github_cli_extensions
   yazi
+  mise
   protonplus
   firmware
   rustup
@@ -53,7 +53,7 @@ topgrade_steps=(
   claude_code_plugins
   uv
 )
-default_selected='Dotfiles,Topgrade: Mise,Topgrade: GitHub CLI extensions,Topgrade: Yazi,Omarchy'
+default_selected='Dotfiles,Topgrade: GitHub CLI extensions,Topgrade: Yazi,Omarchy'
 
 if (( ! yes )) && [[ -t 0 && -t 1 ]]; then
   mapfile -t selected < <(gum choose --no-limit --selected="$default_selected" --header='Choose updates:' \
@@ -117,9 +117,8 @@ if (( omarchy_selected )); then
   section 'Omarchy'
   mise_state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/mise"
   mkdir -p "$mise_state_dir"
-  MISE_GLOBAL_CONFIG_FILE="$mise_state_dir/omarchy-config.toml" omarchy update -y || exit
   dot stow --public || exit
-  apply-omarchy-patches || exit
+  MISE_GLOBAL_CONFIG_FILE="$mise_state_dir/omarchy-config.toml" omarchy update -y || exit
 fi
 
 run_topgrade

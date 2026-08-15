@@ -2,6 +2,11 @@
 
 set -euo pipefail
 
+if (( $# > 0 )); then
+  echo "Usage: apply-omarchy-patches" >&2
+  exit 1
+fi
+
 omarchy_path=${OMARCHY_PATCH_ROOT:-${OMARCHY_PATH:-/usr/share/omarchy}}
 script_dir=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 patch_dir=${OMARCHY_PATCH_DIR:-$script_dir/../share/omarchy-patches}
@@ -39,12 +44,10 @@ apply_preflighted_patch() {
   local args=(--batch --forward --fuzz=0 -d "$target_dir" -p2 -i "$patch_file")
   if [[ -w $target ]]; then
     patch "${args[@]}" >/dev/null
-  elif command -v pkexec >/dev/null 2>&1 && pkexec patch "${args[@]}" >/dev/null; then
-    :
   elif command -v sudo >/dev/null 2>&1; then
     sudo patch "${args[@]}" >/dev/null
   else
-    printf 'pkexec or sudo is required to patch %s\n' "$target" >&2
+    printf 'sudo is required to patch %s\n' "$target" >&2
     return 1
   fi
   printf 'Applied Omarchy %s patch\n' "$label"
