@@ -105,10 +105,28 @@
       }
     },
     {
-      "id": "timmo.notes-capture",
+      "id": "timmo.system-bridge",
       "placement": {
         "section": "right",
         "after": "timmo.home-assistant"
+      },
+      "settings": {
+        "primaryOnly": true
+      },
+      "hosts": {
+        "desktop": {
+          "primaryOutput": "HDMI-A-2"
+        },
+        "laptop": {
+          "primaryOutput": "eDP-1"
+        }
+      }
+    },
+    {
+      "id": "timmo.notes-capture",
+      "placement": {
+        "section": "right",
+        "after": "timmo.system-bridge"
       },
       "settings": {
         "primaryOnly": true

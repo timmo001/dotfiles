@@ -60,6 +60,30 @@ const managedPlugins = {
       },
     },
     {
+      id: "timmo.system-bridge",
+      placement: {
+        section: "right" as const,
+        after: "timmo.home-assistant",
+      },
+      settings: { primaryOnly: true },
+      hosts: {
+        desktop: { primaryOutput: "HDMI-A-2" },
+        laptop: { primaryOutput: "eDP-1" },
+      },
+    },
+    {
+      id: "timmo.notes-capture",
+      placement: {
+        section: "right" as const,
+        after: "timmo.system-bridge",
+      },
+      settings: { primaryOnly: true },
+      hosts: {
+        desktop: { primaryOutput: "HDMI-A-2" },
+        laptop: { primaryOutput: "eDP-1" },
+      },
+    },
+    {
       id: "timmo.clock",
       replace: "omarchy.clock",
       placement: { section: "right" as const },
@@ -179,6 +203,23 @@ describe("mergeOmarchyShellConfig", () => {
       primaryOnly: true,
       primaryOutput: "HDMI-A-2",
     });
+    expect(rightIds.slice(0, 3)).toEqual([
+      "timmo.home-assistant",
+      "timmo.system-bridge",
+      "timmo.notes-capture",
+    ]);
+    expect(merged.bar.layout.right.slice(1, 3)).toEqual([
+      {
+        id: "timmo.system-bridge",
+        primaryOnly: true,
+        primaryOutput: "HDMI-A-2",
+      },
+      {
+        id: "timmo.notes-capture",
+        primaryOnly: true,
+        primaryOutput: "HDMI-A-2",
+      },
+    ]);
     expect(trayIndex).toBeGreaterThan(0);
     expect(rightIds).not.toContain("omarchy.weather");
     expect(merged.bar.layout.right).toContainEqual({ id: "omarchy.tray" });
@@ -188,6 +229,8 @@ describe("mergeOmarchyShellConfig", () => {
           entry.id === "timmo.workspaces" ||
           entry.id === "timmo.clock" ||
           entry.id === "timmo.home-assistant" ||
+          entry.id === "timmo.system-bridge" ||
+          entry.id === "timmo.notes-capture" ||
           entry.revealOnHover === true,
       ),
     ).toBe(true);
@@ -293,6 +336,20 @@ describe("mergeOmarchyShellConfig", () => {
         primaryOutput: "eDP-1",
       },
     ]);
+    expect(entries.filter(({ id }) => id === "timmo.system-bridge")).toEqual([
+      {
+        id: "timmo.system-bridge",
+        primaryOnly: true,
+        primaryOutput: "eDP-1",
+      },
+    ]);
+    expect(entries.filter(({ id }) => id === "timmo.notes-capture")).toEqual([
+      {
+        id: "timmo.notes-capture",
+        primaryOnly: true,
+        primaryOutput: "eDP-1",
+      },
+    ]);
     expect(
       customEntries(merged)
         .filter(({ id }) => id !== "timmo.workspaces" && id !== "timmo.clock")
@@ -333,7 +390,13 @@ describe("mergeOmarchyShellConfig", () => {
     expect(allIds.filter((id) => id === "example.remote")).toHaveLength(1);
     expect(merged.bar.layout.right[1]?.id).toBe("example.remote");
     expect(merged.bar.layout.right[1]?.persistent).toBe(true);
-    expect(merged.bar.layout.right[2]?.id).toBe("custom.right");
+    expect(merged.bar.layout.right.slice(0, 5).map(({ id }) => id)).toEqual([
+      "timmo.home-assistant",
+      "example.remote",
+      "timmo.system-bridge",
+      "timmo.notes-capture",
+      "custom.right",
+    ]);
   });
 });
 
