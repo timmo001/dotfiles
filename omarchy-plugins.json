@@ -106,6 +106,7 @@
     },
     {
       "id": "timmo.system-bridge",
+      "managed": true,
       "placement": {
         "section": "right",
         "after": "timmo.home-assistant"

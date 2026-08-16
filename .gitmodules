@@ -1,3 +1,7 @@
 [submodule "agents/.agents/skills"]
 	path = agents/.agents/skills
 	url = https://github.com/timmo001/skills.git
+[submodule "omarchy/.config/omarchy/plugins/timmo.system-bridge"]
+	path = omarchy/.config/omarchy/plugins/timmo.system-bridge
+	url = https://github.com/timmo001/omarchy-system-bridge.git
+	branch = dev
