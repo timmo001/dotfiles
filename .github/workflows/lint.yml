@@ -27,6 +27,10 @@ jobs:
       - name: Install test dependencies
         run: sudo apt-get update && sudo apt-get install --yes ripgrep zsh
 
+      - name: Install dot dependencies
+        working-directory: dot
+        run: bun install --frozen-lockfile
+
       - name: Run regression tests
         run: mise run tests:integration
 
