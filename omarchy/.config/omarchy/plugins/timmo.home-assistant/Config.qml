@@ -23,7 +23,7 @@ QtObject {
     icon: "󰟐",
     fontSize: 10,
     horizontalMargin: 6,
-    rowSpacing: 12,
+    rowSpacing: 10,
     colors: {
       quiet: root.colors.foreground,
       active: root.colors.teal,

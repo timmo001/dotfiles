@@ -28,7 +28,7 @@ BarWidget {
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
   readonly property bool popoutSwitchClosing: panelLoader.item
     ? panelLoader.item.popoutSwitchClosing === true : false
-  readonly property real openPanelIndicatorWidth: button.labelWidth
+  readonly property real openPanelIndicatorWidth: content.implicitWidth
   readonly property bool warning: systemBridge && (
     systemBridge.cpuUsage !== null && systemBridge.cpuUsage >= 90
     || systemBridge.memoryPercent !== null && systemBridge.memoryPercent >= 90
@@ -159,9 +159,40 @@ BarWidget {
     bar: root.bar
     fontSize: 10
     text: root.displayText
+    labelVisible: false
+    fixedWidth: vertical ? -1 : Math.max(12,
+      content.implicitWidth + scaledHorizontalMargin * 2)
     foreground: root.displayColor
     tooltipText: root.tooltipText
     horizontalMargin: 6
     onPressed: root.togglePanel()
+
+    Row {
+      id: content
+      anchors.centerIn: parent
+      spacing: Style.space(10)
+
+      Text {
+        text: !root.systemBridge || !root.systemBridge.connected
+          ? " --%"
+          : " " + (root.systemBridge.cpuUsage === null
+            ? "--" : Math.round(root.systemBridge.cpuUsage)) + "%"
+        color: root.displayColor
+        font.family: button.fontFamily
+        font.pixelSize: button.fontSize
+        renderType: Text.NativeRendering
+      }
+
+      Text {
+        text: !root.systemBridge || !root.systemBridge.connected
+          ? " --%"
+          : " " + (root.systemBridge.memoryPercent === null
+            ? "--" : Math.round(root.systemBridge.memoryPercent)) + "%"
+        color: root.displayColor
+        font.family: button.fontFamily
+        font.pixelSize: button.fontSize
+        renderType: Text.NativeRendering
+      }
+    }
   }
 }
