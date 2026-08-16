@@ -5,6 +5,7 @@ set -euo pipefail
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 script="$repo_root/scripts/.local/bin/apply-omarchy-patches"
 patch_dir="$repo_root/scripts/.local/share/omarchy-patches"
+omarchy_bin_dir=${OMARCHY_BIN_DIR:-/usr/bin}
 test_root=$(mktemp -d)
 target="$test_root/omarchy/bin/omarchy-agent-crash"
 plugin_add="$test_root/omarchy/bin/omarchy-plugin-add"
@@ -57,9 +58,9 @@ EOF
 }
 
 reset_plugin_targets() {
-  cp /usr/bin/omarchy-plugin-add "$plugin_add"
-  cp /usr/bin/omarchy-plugin-update "$plugin_update"
-  cp /usr/bin/omarchy-plugin-remove "$plugin_remove"
+  cp "$omarchy_bin_dir/omarchy-plugin-add" "$plugin_add"
+  cp "$omarchy_bin_dir/omarchy-plugin-update" "$plugin_update"
+  cp "$omarchy_bin_dir/omarchy-plugin-remove" "$plugin_remove"
   chmod u+w "$plugin_add" "$plugin_update" "$plugin_remove"
   if grep -Fq 'lifecycle_hook=' "$plugin_add"; then
     patch --batch --fuzz=0 --reverse -d "$(dirname "$plugin_add")" -p2 \
@@ -76,11 +77,14 @@ reset_plugin_targets() {
 }
 
 reset_target
-if [[ -x /usr/bin/omarchy-plugin-add && -x /usr/bin/omarchy-plugin-update && -x /usr/bin/omarchy-plugin-remove ]]; then
+if [[ -x $omarchy_bin_dir/omarchy-plugin-add && -x $omarchy_bin_dir/omarchy-plugin-update && -x $omarchy_bin_dir/omarchy-plugin-remove ]]; then
   reset_plugin_targets
   test_plugin_patches=1
 else
   test_plugin_patches=0
+  for plugin_target in "$plugin_add" "$plugin_update" "$plugin_remove"; do
+    printf '%s\n' 'lifecycle_hook="$HOME/.config/omarchy/hooks/plugin-lifecycle"' >"$plugin_target"
+  done
 fi
 
 XDG_DATA_HOME="$test_root/opencode-v2" OMARCHY_PATCH_ROOT="$test_root/omarchy" "$script"
