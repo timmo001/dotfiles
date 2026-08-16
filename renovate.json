@@ -64,12 +64,8 @@
       ]
     },
     {
-      "description": "Update first-party skills without a release delay.",
+      "description": "Update Git submodules without a release delay.",
       "matchManagers": ["git-submodules"],
-      "matchDepNames": [
-        "https://github.com/timmo001/skills.git",
-        "https://github.com/timmo001/omarchy-system-bridge.git"
-      ],
       "minimumReleaseAge": null
     },
     {
