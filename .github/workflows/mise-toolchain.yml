@@ -4,7 +4,7 @@ name: Validate mise toolchain
 on:
   push:
     branches:
-      - distro/arch-omarchy
+      - distro/arch-omarchy-quattro
     paths:
       - 'mise/.config/mise/config.toml'
       - '.github/workflows/mise-toolchain.yml'

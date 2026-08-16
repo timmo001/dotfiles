@@ -4,7 +4,7 @@ name: Build dot
 on:
   push:
     branches:
-      - distro/arch-omarchy
+      - distro/arch-omarchy-quattro
     paths:
       - 'dot/**'
       - 'tests/dot/**'

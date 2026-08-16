@@ -4,7 +4,7 @@ name: Publish OpenCode Config
 on:
   push:
     branches:
-      - distro/arch-omarchy
+      - distro/arch-omarchy-quattro
     paths:
       - 'agents/.config/opencode/**'
       - 'agents/.agents/skills'
