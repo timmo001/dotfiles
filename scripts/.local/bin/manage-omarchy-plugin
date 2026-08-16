@@ -117,7 +117,7 @@ add_plugin() {
     }])
   ' "$id" "$section" "$relation" "$neighbour"
 
-  rm -rf "$plugins_live/$id"
+  rm -rf "${plugins_live:?}/$id"
   unstage "$id"
   operation_id=""
   trap - EXIT
@@ -187,7 +187,7 @@ remove_plugin() {
     git -C "$repo" submodule deinit -q -f -- "$submodule_path" || true
     git -C "$repo" rm -q -f -- "$submodule_path"
   else
-    rm -rf "$plugins_source/$id"
+    rm -rf "${plugins_source:?}/$id"
     git -C "$repo" config -f .gitmodules --remove-section "submodule.$submodule_path"
   fi
   rm -rf "$repo/.git/modules/$submodule_path"

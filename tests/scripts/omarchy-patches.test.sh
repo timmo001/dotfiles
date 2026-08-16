@@ -76,30 +76,39 @@ reset_plugin_targets() {
 }
 
 reset_target
-reset_plugin_targets
+if [[ -x /usr/bin/omarchy-plugin-add && -x /usr/bin/omarchy-plugin-update && -x /usr/bin/omarchy-plugin-remove ]]; then
+  reset_plugin_targets
+  test_plugin_patches=1
+else
+  test_plugin_patches=0
+fi
 
 XDG_DATA_HOME="$test_root/opencode-v2" OMARCHY_PATCH_ROOT="$test_root/omarchy" "$script"
 printf -v marker 'dispatch_hook="$%s/.config/omarchy/hooks/agent-crash"' HOME
 grep -Fq "$marker" "$target"
-for plugin_target in "$plugin_add" "$plugin_update" "$plugin_remove"; do
-  grep -Fq 'lifecycle_hook="$HOME/.config/omarchy/hooks/plugin-lifecycle"' "$plugin_target"
-done
+if ((test_plugin_patches)); then
+  for plugin_target in "$plugin_add" "$plugin_update" "$plugin_remove"; do
+    grep -Fq 'lifecycle_hook="$HOME/.config/omarchy/hooks/plugin-lifecycle"' "$plugin_target"
+  done
+fi
 
 second_output=$(OMARCHY_PATCH_ROOT="$test_root/omarchy" OMARCHY_PATCH_DIR="$patch_dir" "$script")
 grep -Fq 'Omarchy crash dispatch patch already applied' <<<"$second_output"
-grep -Fq 'Omarchy plugin add patch already applied' <<<"$second_output"
-grep -Fq 'Omarchy plugin update patch already applied' <<<"$second_output"
-grep -Fq 'Omarchy plugin remove patch already applied' <<<"$second_output"
+if ((test_plugin_patches)); then
+  grep -Fq 'Omarchy plugin add patch already applied' <<<"$second_output"
+  grep -Fq 'Omarchy plugin update patch already applied' <<<"$second_output"
+  grep -Fq 'Omarchy plugin remove patch already applied' <<<"$second_output"
+fi
 
 reset_target
-reset_plugin_targets
+((!test_plugin_patches)) || reset_plugin_targets
 chmod 444 "$target"
 ELEVATION_LOG="$elevation_log" ELEVATION_TARGET="$target" PATH="$mock_bin:$PATH" \
   OMARCHY_PATCH_ROOT="$test_root/omarchy" OMARCHY_PATCH_DIR="$patch_dir" "$script"
 [[ $(<"$elevation_log") == sudo ]]
 
 reset_target
-reset_plugin_targets
+((!test_plugin_patches)) || reset_plugin_targets
 chmod 444 "$target"
 : >"$elevation_log"
 script --quiet --return --command \
