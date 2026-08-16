@@ -16,6 +16,7 @@
     },
     {
       "id": "timmo.twitch",
+      "managed": true,
       "placement": {
         "section": "center",
         "after": "omarchy.keyboard-layout"
@@ -125,6 +126,7 @@
     },
     {
       "id": "timmo.notes-capture",
+      "managed": true,
       "placement": {
         "section": "right",
         "after": "timmo.system-bridge"

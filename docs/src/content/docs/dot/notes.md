@@ -40,7 +40,7 @@ The supervised capture daemon stays available during transient OpenCode service 
 
 ## Capture locally
 
-The Omarchy Shell Notes Capture widget sends text directly to the isolated local OpenCode processor through `notes capture`; it does not use the web app or GitHub issue queue. Its repository picker uses notification-enabled repositories from the private `dot-git.yml`, generated into dot's cache by `dot stow`. Automatic leaves the repository unset for the Notes agent to infer.
+The Omarchy Shell Notes Capture widget is published from the [`timmo001/notes`](https://github.com/timmo001/notes/tree/dev/omarchy-plugin) source into the generated [`timmo001/omarchy-notes-capture`](https://github.com/timmo001/omarchy-notes-capture) repository and pinned here as a managed submodule. It sends text directly to the isolated local OpenCode processor through `notes capture`; it does not use the web app or GitHub issue queue. Its repository picker uses notification-enabled repositories from the private `dot-git.yml`, generated into dot's cache by `dot stow`. Automatic leaves the repository unset for the Notes agent to infer.
 
 The widget keeps its draft and disables Send while the local processor is unavailable. `notes-capture-local` is the private credential adapter: it loads the existing OpenCode service environment and passes the capture text to `/usr/bin/notes` over stdin, so credentials and note text are not placed in Shell settings or process arguments.
 
