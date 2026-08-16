@@ -384,8 +384,10 @@ sync_to_publish() {
   if [[ ! -d "${PUBLISH_DIR}/skills/.git" && ! -f "${PUBLISH_DIR}/skills/.git" ]]; then
     git -C "${PUBLISH_DIR}" submodule add --force "${SKILLS_URL}.git" skills
   fi
-  git -C "${PUBLISH_DIR}/skills" fetch origin
-  git -C "${PUBLISH_DIR}/skills" checkout "$(git -C "${SKILLS_DIR}" rev-parse HEAD)"
+  local skills_sha
+  skills_sha="$(git -C "${SKILLS_DIR}" rev-parse HEAD)"
+  git -C "${PUBLISH_DIR}/skills" fetch --depth=1 origin "${skills_sha}"
+  git -C "${PUBLISH_DIR}/skills" checkout "${skills_sha}"
 
   echo "::endgroup::"
 }
