@@ -11,6 +11,8 @@ reload_config = "prefix+r"
 previous_workspace = "prefix+("
 next_workspace = "prefix+)"
 focus_agent = "prefix+alt+1..9"
+previous_agent = "prefix+shift+up"
+next_agent = "prefix+shift+down"
 rename_tab = "prefix+comma"
 copy_mode = "prefix+v"
 split_vertical = "prefix+backslash"
@@ -119,8 +121,10 @@ right_click_passthrough_modifier = "ctrl"
 confirm_close = false
 prompt_new_tab_name = false
 prompt_new_workspace_name = true
+hide_tab_bar_when_single_tab = true
+pane_scrollbars = false
 
-agent_panel_sort = "spaces"
+agent_panel_sort = "priority"
 
 [ui.sidebar.agents]
 row_gap = 0
