@@ -12,6 +12,14 @@
   "git-submodules": {
     "enabled": true
   },
+  "customDatasources": {
+    "arch-quickshell": {
+      "defaultRegistryUrlTemplate": "https://archlinux.org/packages/extra/x86_64/quickshell/json/",
+      "transformTemplates": [
+        "{\"releases\":[{\"version\":pkgver}],\"homepage\":url}"
+      ]
+    }
+  },
   "customManagers": [
     {
       "customType": "regex",
@@ -30,7 +38,7 @@
       "managerFilePatterns": ["/^\\.github/workflows/quickshell-lint\\.ya?ml$/"],
       "matchStrings": ["QUICKSHELL_VERSION: \"(?<currentValue>[^\"]+)\""],
       "depNameTemplate": "arch/quickshell",
-      "datasourceTemplate": "repology",
+      "datasourceTemplate": "custom.arch-quickshell",
       "versioningTemplate": "loose"
     },
     {
