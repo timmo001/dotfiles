@@ -3,6 +3,7 @@ import { Effect, Layer, Stream } from "effect";
 import {
   herdrLazyPluginRoot,
   reloadOmarchyShellIfChanged,
+  updatePinnedSubmodules,
 } from "../../src/commands/Update.js";
 import { CommandExecutor } from "../../src/services/CommandExecutor.js";
 import { Config, type ConfigService } from "../../src/services/Config.js";
@@ -108,6 +109,38 @@ describe("reloadOmarchyShellIfChanged", () => {
         reloadOmarchyShellIfChanged(changed).pipe(Effect.provide(layers)),
       );
     }
+  });
+});
+
+describe("updatePinnedSubmodules", () => {
+  test("restores recursive submodules to committed revisions", async () => {
+    const calls: Array<{
+      command: string;
+      args: readonly string[];
+      cwd?: string;
+    }> = [];
+    const layer = Layer.succeed(CommandExecutor, {
+      run: () => Effect.die("run should not be called"),
+      stream: () => Stream.die("stream should not be called"),
+      exitCode: () => Effect.die("exitCode should not be called"),
+      inherit: (command, args, options) =>
+        Effect.sync(() => {
+          calls.push({ command, args, cwd: options?.cwd });
+          return 0;
+        }),
+    });
+
+    await Effect.runPromise(
+      updatePinnedSubmodules("/tmp/dotfiles").pipe(Effect.provide(layer)),
+    );
+
+    expect(calls).toEqual([
+      {
+        command: "git",
+        args: ["submodule", "update", "--init", "--recursive"],
+        cwd: "/tmp/dotfiles",
+      },
+    ]);
   });
 });
 

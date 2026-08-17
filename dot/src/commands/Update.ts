@@ -23,6 +23,7 @@ import {
   gitHead,
   gitPullRebase,
   gitRefreshRemoteHead,
+  gitRequired,
   gitWorkingTreeClean,
 } from "../lib/git.js";
 import { HOME_DIR, displayPath } from "../lib/paths.js";
@@ -80,6 +81,12 @@ const STEP_TIMEOUT_SECONDS = {
 
 /** Upper bound for one repository post-update command. */
 const REPO_POST_UPDATE_TIMEOUT_SECONDS = 5 * 60;
+
+/** Restore every nested submodule to the exact revision committed by its parent. */
+export const updatePinnedSubmodules = (repoPath: string) =>
+  gitRequired(["submodule", "update", "--init", "--recursive"], {
+    cwd: repoPath,
+  });
 
 /** Options controlling which phases `dot update` runs. */
 export interface UpdateOptions {
@@ -804,6 +811,9 @@ export const update = (opts?: UpdateOptions) =>
                   }
                 }
               }
+
+              yield* log.info("Updating pinned submodules");
+              yield* updatePinnedSubmodules(config.publicDotfiles);
             }),
           );
 
