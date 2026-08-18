@@ -14,7 +14,7 @@ Four files drive the shell customisation, and none is hand-edited live:
 - **`~/.config/omarchy/shell.json`** is generated, not stowed. `dot` renders it from Omarchy's shipped default and inserts the personal modules. The generator is `dot/src/lib/omarchyShellConfig.ts` (`mergeOmarchyShellConfig`). The live file is mode `0600` and tracked by neither dotfiles repo.
 - **`~/.config/omarchy/shell.toml`** is stowed from `omarchy/.config/omarchy/shell.toml`. It keeps the shell-wide 12px type scale while setting the compact bar surface to 12px.
 - **`~/.config/omarchy/extensions/omarchy-menu.jsonc`** is stowed from `omarchy/.config/omarchy/extensions/omarchy-menu.jsonc`. It adds **Dotfiles** (`dot update`) and **Topgrade** (`topgrade`) to the stock **Update** submenu without replacing the upstream menu.
-- **Bar plugins** live under `omarchy/.config/omarchy/plugins/<id>/` in this repo and stow to `~/.config/omarchy/plugins/<id>/`. Each plugin is a `manifest.json` plus an entry-point QML file.
+- **Bar plugins** live under `omarchy/.config/omarchy/plugins/<id>/` in this repo, with machine-specific plugins in the matching private-overlay path. Both stow to `~/.config/omarchy/plugins/<id>/`. Each plugin is a `manifest.json` plus an entry-point QML file.
 
 To change the bar, edit the generator (then rebuild `dot`) or edit a plugin's QML, never the live `shell.json`.
 
@@ -66,7 +66,7 @@ A plugin is a folder with `manifest.json` (schema version 1, an `id` like `timmo
 | --- | --- | --- |
 | `timmo.clock` | bar-widget | Keeps the stock clock and calendar behaviour, adds five world clocks with a `-24` to `+24` hour slider, and uses compact 6px cell padding. |
 | `timmo.command` | bar-widget | Runs a shell command on an interval and renders its status-bar JSON (`text` / `tooltip` / `class`) with compact 6px horizontal cell margins. The Waybar `custom/*` equivalent. |
-| `timmo.home-assistant` | service, bar-widget | Summarises active HA schedule, status, NAS, and environment rows in one widget and adds a native dashboard panel while keeping the doorbell watcher alive in the background. |
+| `timmo.home-assistant` (private overlay) | service, bar-widget | Summarises active HA schedule, status, NAS, and environment rows in one widget and adds a native dashboard panel while keeping the doorbell watcher alive in the background. |
 | `timmo.git` | service, bar-widget | Combines repository state and filtered GitHub notifications in one widget and native panel. |
 | `timmo.notes-capture` | bar-widget | Captures multiline text directly through the local Notes processor with Automatic or searchable repository targeting. |
 | `timmo.system-bridge` | service, bar-widget | Streams local CPU, memory, root disk, fan, GPU, temperature, system, and optional battery health into a compact widget and read-only panel. |
