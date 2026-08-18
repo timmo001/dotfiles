@@ -15,6 +15,7 @@ export default defineConfig({
     ".roo/**",
     ".windsurf/**",
     "agents/**",
+    "docs/**",
     "node_modules/**",
     "tools/oxlint/anti-slop/**",
   ],
