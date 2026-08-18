@@ -11,5 +11,5 @@
 	branch = dev
 [submodule "omarchy/.config/omarchy/plugins/timmo.twitch"]
 	path = omarchy/.config/omarchy/plugins/timmo.twitch
-	url = git@github.com:timmo001/omarchy-twitch-notifications.git
+	url = https://github.com/timmo001/omarchy-twitch-notifications.git
 	branch = dev

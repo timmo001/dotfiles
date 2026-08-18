@@ -106,12 +106,16 @@ env HOME="$home" DOTFILES_REPO="$dotfiles" GIT_ALLOW_PROTOCOL=file PATH="$mock_b
 [[ -z $(git -C "$dotfiles" diff --cached --name-only) ]]
 
 git clone -q "$upstream" "$home/.config/omarchy/plugins/example.plugin"
-env HOME="$home" DOTFILES_REPO="$dotfiles" GIT_ALLOW_PROTOCOL=file PATH="$mock_bin:$PATH" \
+HOME="$home" git config --global "url.$upstream.insteadOf" \
+  https://github.com/example/plugin.git
+env HOME="$home" DOTFILES_REPO="$dotfiles" GIT_ALLOW_PROTOCOL=file:https PATH="$mock_bin:$PATH" \
   DOT_LOG="$dot_log" GUM_ARGS="$gum_args" GUM_CHOICES="$gum_choices" \
   OMARCHY_PLUGIN_PRETTIER="$prettier" \
-  "$manager" add example.plugin "$upstream" \
+  "$manager" add example.plugin git@github.com:example/plugin.git \
   "$home/.config/omarchy/plugins/example.plugin" \
   --section right --after omarchy.tray
+[[ $(git -C "$dotfiles" config -f .gitmodules --get \
+  submodule.omarchy/.config/omarchy/plugins/example.plugin.url) == https://github.com/example/plugin.git ]]
 
 git -C "$dotfiles" add .gitmodules omarchy-plugins.json \
   omarchy/.config/omarchy/plugins/example.plugin

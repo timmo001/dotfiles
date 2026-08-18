@@ -29,6 +29,15 @@ valid_plugin_id() {
   [[ $1 =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ && $1 != *..* ]]
 }
 
+https_git_url() {
+  local url=$1
+  case "$url" in
+  git@github.com:*) printf 'https://github.com/%s\n' "${url#git@github.com:}" ;;
+  ssh://git@github.com/*) printf 'https://github.com/%s\n' "${url#ssh://git@github.com/}" ;;
+  *) printf '%s\n' "$url" ;;
+  esac
+}
+
 interactive() {
   [[ ${OMARCHY_PLUGIN_INTERACTIVE:-0} == 1 || ( -t 0 && -t 1 ) ]]
 }
@@ -81,6 +90,7 @@ write_registry() {
 add_plugin() {
   local id=${1:?} url=${2:?} checkout=${3:?}
   valid_plugin_id "$id" || fail "invalid plugin id '$id'"
+  url=$(https_git_url "$url")
   shift 3
   local section="" relation="" neighbour=""
   while (( $# > 0 )); do
