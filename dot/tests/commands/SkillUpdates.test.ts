@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { reportItem } from "../../src/commands/SkillUpdates.js";
+import { skillReimportCommand } from "../../src/commands/SkillCheck.js";
 import type { SkillMeta } from "../../src/lib/skillUpdates.js";
 
 const meta: SkillMeta = {
@@ -59,5 +60,13 @@ describe("reportItem", () => {
         },
       ).state,
     ).toBe("manual-review");
+  });
+});
+
+describe("skillReimportCommand", () => {
+  test("targets the exact upstream source globally", () => {
+    expect(skillReimportCommand(meta.originUrl)).toBe(
+      `mise exec npm:skills -- skills add '${meta.originUrl}' --global`,
+    );
   });
 });

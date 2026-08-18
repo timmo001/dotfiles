@@ -25,7 +25,7 @@ dot_commands=(
   'setup-private-repo:Sync and register the private pacman repository'
   'private-pkg-publish:Build and publish a private package'
   'skill-updates:Check/apply imported skill updates'
-  'skill-check:Validate skill maintenance wiring'
+  'skill-check:Validate skill maintenance and adapted imports'
   'completions:Generate shell completions'
   'omarchy:Open an Omarchy submenu by path'
   'usage:Local-first analytics for dot usage'

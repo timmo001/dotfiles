@@ -95,7 +95,7 @@ complete -c dot -l skill -d 'Limit checking or updating to one imported skill' -
 complete -c dot -l no-commit -d 'Apply updates without creating a commit' -n '__fish_seen_subcommand_from skill-updates'
 complete -c dot -l skip-review -d 'Skip local-edit review' -n '__fish_seen_subcommand_from skill-updates'
 complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from skill-updates'
-complete -c dot -n '__fish_use_subcommand' -a 'skill-check' -d 'Validate skill maintenance wiring'
+complete -c dot -n '__fish_use_subcommand' -a 'skill-check' -d 'Validate skill maintenance and adapted imports'
 complete -c dot -l open-opencode -d 'Run checks and attempt OpenCode analysis' -n '__fish_seen_subcommand_from skill-check'
 complete -c dot -l diff-origin -d 'Diff imported skills against their upstream origins; with --open-opencode, include the diff in the prompt' -n '__fish_seen_subcommand_from skill-check'
 complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from skill-check'

@@ -164,6 +164,122 @@ describe("checkSkill", () => {
       upstreamSha: "a".repeat(40),
     });
   });
+
+  test("can bypass the SHA cache and compare every directory file", async () => {
+    const dir = tempRoot();
+    mkdirSync(join(dir, "references"));
+    writeFileSync(
+      join(dir, "SKILL.md"),
+      skillContent("https://github.com/example/skills/tree/main/example"),
+    );
+    writeFileSync(join(dir, "references", "guide.md"), "same");
+    const meta = metaAt(dir);
+    const upstreamSkill = `---
+name: example
+description: Example skill
+---
+
+# Example
+`;
+    const github = Layer.succeed(GitHub, {
+      isAvailable: () => Effect.succeed(true),
+      run: () => Effect.die("run should not be called"),
+      json: () => Effect.die("json should not be called"),
+      api: (endpoint) => {
+        if (endpoint.includes("commits?path=example")) {
+          return Effect.succeed("a".repeat(40));
+        }
+        if (endpoint.includes("contents/example?ref=main")) {
+          return Effect.succeed("file SKILL.md\ndir references");
+        }
+        if (endpoint.includes("contents/example/references?ref=main")) {
+          return Effect.succeed("file guide.md");
+        }
+        const content = endpoint.includes("guide.md") ? "same" : upstreamSkill;
+        return Effect.succeed(Buffer.from(content).toString("base64"));
+      },
+    });
+    const executor = Layer.succeed(CommandExecutor, {
+      run: () => Effect.succeed(""),
+      stream: () => Stream.die("stream should not be called"),
+      exitCode: () => Effect.succeed(0),
+      inherit: () => Effect.die("inherit should not be called"),
+    });
+
+    const result = await Effect.runPromise(
+      checkSkill(meta, { forceContentComparison: true }).pipe(
+        Effect.provide(Layer.merge(github, executor)),
+      ),
+    );
+
+    expect(result).toEqual({
+      type: "up-to-date",
+      cached: false,
+      upstreamSha: "a".repeat(40),
+      writeSha: "a".repeat(40),
+    });
+  });
+
+  test("does not report an exact match when a supporting file differs", async () => {
+    const dir = tempRoot();
+    mkdirSync(join(dir, "references"));
+    writeFileSync(
+      join(dir, "SKILL.md"),
+      skillContent("https://github.com/example/skills/tree/main/example"),
+    );
+    writeFileSync(join(dir, "references", "guide.md"), "local");
+    const meta = { ...metaAt(dir), localEdits: ["references/guide.md"] };
+    const upstreamSkill = `---
+name: example
+description: Example skill
+---
+
+# Example
+`;
+    const github = Layer.succeed(GitHub, {
+      isAvailable: () => Effect.succeed(true),
+      run: () => Effect.die("run should not be called"),
+      json: () => Effect.die("json should not be called"),
+      api: (endpoint) => {
+        if (endpoint.includes("commits?path=example")) {
+          return Effect.succeed("a".repeat(40));
+        }
+        if (endpoint.includes("contents/example?ref=main")) {
+          return Effect.succeed("file SKILL.md\ndir references");
+        }
+        if (endpoint.includes("contents/example/references?ref=main")) {
+          return Effect.succeed("file guide.md");
+        }
+        const content = endpoint.includes("guide.md")
+          ? "upstream"
+          : upstreamSkill;
+        return Effect.succeed(Buffer.from(content).toString("base64"));
+      },
+    });
+    const executor = Layer.succeed(CommandExecutor, {
+      run: () => Effect.succeed("diff"),
+      stream: () => Stream.die("stream should not be called"),
+      exitCode: () => Effect.succeed(1),
+      inherit: () => Effect.die("inherit should not be called"),
+    });
+
+    const result = await Effect.runPromise(
+      checkSkill(meta, { forceContentComparison: true }).pipe(
+        Effect.provide(Layer.merge(github, executor)),
+      ),
+    );
+
+    expect(result.type).toBe("local-edits");
+    if (result.type === "local-edits") {
+      expect(result.files).toEqual([
+        {
+          path: "references/guide.md",
+          status: "modified",
+          diffPreview: "",
+        },
+      ]);
+    }
+  });
 });
 
 describe("synchroniseSkillFiles", () => {

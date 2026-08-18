@@ -687,7 +687,15 @@ export const cliCommands: readonly CliCommandSpec[] = [
   },
   {
     name: "skill-check",
-    summary: "Validate skill maintenance wiring",
+    summary: "Validate skill maintenance and adapted imports",
+    description: [
+      "Validate branch-context wiring and ensure adapted imported skills still",
+      "differ from every file in their current upstream source.",
+      "",
+      "When an adapted skill exactly matches its source, human sessions can",
+      "reimport it through the standard Skills CLI. Agent sessions print the",
+      "equivalent command instead.",
+    ],
     options: [
       openOpencodeOption,
       {

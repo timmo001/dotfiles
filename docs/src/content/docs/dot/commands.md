@@ -598,11 +598,18 @@ dot skill-updates --update --skill browser-control --no-commit
 
 ## `dot skill-check`
 
-Validate skill maintenance wiring
+Validate skill maintenance and adapted imports
 
 ```text
 dot skill-check
 ```
+
+Validate branch-context wiring and ensure adapted imported skills still
+differ from every file in their current upstream source.
+
+When an adapted skill exactly matches its source, human sessions can
+reimport it through the standard Skills CLI. Agent sessions print the
+equivalent command instead.
 
 **Options**
 

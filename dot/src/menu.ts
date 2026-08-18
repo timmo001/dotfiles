@@ -227,7 +227,7 @@ const dotItems: readonly MenuItem[] = [
     "skill-checks",
     "󰝒",
     "Skill Checks",
-    "Validate skill maintenance wiring",
+    "Validate skill maintenance and adapted imports",
     cmd("dot skill-check"),
     [
       {

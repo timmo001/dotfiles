@@ -1,19 +1,29 @@
 import { Effect } from "effect";
+import { existsSync } from "fs";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { Launcher } from "../services/Launcher.js";
 import { checkSkills } from "../lib/skillCheck.js";
-import { buildSingleDiff, scanSkills } from "../lib/skillUpdates.js";
+import {
+  buildSingleDiff,
+  checkSkill,
+  scanSkills,
+  type SkillMeta,
+} from "../lib/skillUpdates.js";
 import { GitHub } from "../git/services/GitHub.js";
 import { join } from "path";
+import { HOME_DIR } from "../lib/paths.js";
+import { detectAgent } from "../lib/agent.js";
+import { CommandExecutor } from "../services/CommandExecutor.js";
 
 /**
  * Validate skill-related maintenance wiring.
  *
  * Reports:
  * - Branch-context commands missing from or mismatched with BranchContextPlugin
+ * - Adapted imported skills that no longer differ from their complete source
  *
- * Exit code 1 if registration issues are found; 0 otherwise.
+ * Exit code 1 if maintenance issues are found; 0 otherwise.
  * With `--open-opencode`, launches an OpenCode session to analyse the results.
  */
 export const skillCheck = (opts?: {
@@ -24,6 +34,8 @@ export const skillCheck = (opts?: {
     const config = yield* Config;
     const log = yield* OutputLog;
     const launcher = yield* Launcher;
+    const github = yield* GitHub;
+    const executor = yield* CommandExecutor;
 
     if (opts?.diffOrigin && !opts.openOpencode) {
       yield* printSkillOriginDiff(config.publicDotfiles);
@@ -33,10 +45,34 @@ export const skillCheck = (opts?: {
     yield* log.section("Skill Maintenance Check");
 
     const result = checkSkills(config.publicDotfiles, config.privateDotfiles);
+    const skillsRepo = join(HOME_DIR, "repos", "skills");
+    const skillsDir = existsSync(join(skillsRepo, ".git"))
+      ? skillsRepo
+      : join(config.publicDotfiles, "agents/.agents/skills");
+    const localEditSkills = scanSkills(skillsDir).filter(
+      (skill) => skill.localEdits.length > 0,
+    );
+    const exactSourceMatches: SkillMeta[] = [];
 
     yield* log.info(
       `Branch-context consumers found: ${result.branchContextConsumers.length}`,
     );
+
+    if (yield* github.isAvailable()) {
+      yield* log.info(
+        `Adapted imported skills found: ${localEditSkills.length}`,
+      );
+      for (const skill of localEditSkills) {
+        const comparison = yield* checkSkill(skill, {
+          forceContentComparison: true,
+        });
+        if (comparison.type === "up-to-date") exactSourceMatches.push(skill);
+      }
+    } else {
+      yield* log.warn(
+        "gh CLI not available; skipping adapted skill source comparisons",
+      );
+    }
 
     if (result.branchContextIssues.length > 0) {
       yield* log.section("Branch Context Registration Issues");
@@ -47,18 +83,71 @@ export const skillCheck = (opts?: {
       }
     }
 
+    if (exactSourceMatches.length > 0) {
+      yield* log.section("Adapted Skills Matching Their Source");
+      for (const skill of exactSourceMatches) {
+        yield* log.error(
+          `${skill.name} matches every file from ${skill.originUrl}`,
+        );
+      }
+    }
+
     // Verdict
-    if (result.branchContextIssues.length > 0) {
-      yield* log.error(
-        `${result.branchContextIssues.length} branch context registration issue(s) found.`,
-      );
+    const issueCount =
+      result.branchContextIssues.length + exactSourceMatches.length;
+    if (issueCount > 0) {
+      yield* log.error(`${issueCount} skill maintenance issue(s) found.`);
       yield* Effect.sync(() => {
         process.exitCode = 1;
       });
     } else {
       yield* log.info(
-        "All branch-context commands are registered with the expected mode.",
+        "All branch-context registrations and adapted skill sources are valid.",
       );
+    }
+
+    if (exactSourceMatches.length > 0) {
+      const isAgent = detectAgent().isAgent;
+      for (const skill of exactSourceMatches) {
+        const command = skillReimportCommand(skill.originUrl);
+        if (isAgent) {
+          yield* log.info(`Reimport ${skill.name} with: ${command}`);
+          continue;
+        }
+
+        const choice = yield* executor
+          .run("gum", [
+            "choose",
+            `Reimport ${skill.name} from its source`,
+            "Skip",
+          ])
+          .pipe(Effect.option);
+        if (choice._tag === "None") {
+          yield* log.info(`Reimport ${skill.name} with: ${command}`);
+          continue;
+        }
+        if (!choice.value.trim().startsWith("Reimport")) {
+          yield* log.info(`Skipped reimport for ${skill.name}`);
+          continue;
+        }
+
+        yield* launcher
+          .suspendArgv([
+            "mise",
+            "exec",
+            "npm:skills",
+            "--",
+            "skills",
+            "add",
+            skill.originUrl,
+            "--global",
+          ])
+          .pipe(
+            Effect.catch(() =>
+              log.error(`Could not reimport ${skill.name}. Run: ${command}`),
+            ),
+          );
+      }
     }
 
     // --open-opencode: hand off to opencode for analysis
@@ -67,6 +156,9 @@ export const skillCheck = (opts?: {
         result.branchContextIssues.length > 0
           ? `${result.branchContextIssues.length} branch-context registration issue(s): ${result.branchContextIssues.map((issue) => issue.command).join(", ")}`
           : "All branch-context commands are registered.",
+        exactSourceMatches.length > 0
+          ? `${exactSourceMatches.length} adapted skill(s) exactly match their source: ${exactSourceMatches.map((skill) => skill.name).join(", ")}`
+          : "All adapted skills differ from their source.",
       ].join(" ");
 
       const originDiff = opts?.diffOrigin
@@ -81,9 +173,14 @@ export const skillCheck = (opts?: {
 
       yield* launcher
         .suspendArgv(["opencode", "--prompt", opencodePrompt])
-        .pipe(Effect.catch(() => Effect.void));
+        .pipe(Effect.ignore);
     }
   });
+
+/** Build the standard global Skills CLI command for an upstream skill source. */
+export function skillReimportCommand(originUrl: string): string {
+  return `mise exec npm:skills -- skills add '${originUrl.replaceAll("'", "'\\''")}' --global`;
+}
 
 /** Collect upstream diffs for every imported public skill with origin tracking. */
 const collectSkillOriginDiff = (publicDotfiles: string) =>

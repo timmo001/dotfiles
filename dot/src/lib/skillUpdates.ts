@@ -411,7 +411,7 @@ const listUpstreamDir = (origin: SkillOrigin, dirPath: string) =>
       .map((line) => {
         const spaceIdx = line.indexOf(" ");
         return {
-          type: line.slice(0, spaceIdx) as "file" | "dir",
+          type: line.startsWith("file ") ? "file" : "dir",
           name: line.slice(spaceIdx + 1),
         };
       });
@@ -613,11 +613,13 @@ export const generateFullDiff = (
 // Core Skill Check Logic
 // ---------------------------------------------------------------------------
 
-/** Check a single skill for upstream changes */
-export const checkSkill = (meta: SkillMeta) =>
+/** Check a single skill for upstream changes. */
+export const checkSkill = (
+  meta: SkillMeta,
+  opts?: { readonly forceContentComparison?: boolean },
+) =>
   Effect.gen(function* () {
     const { origin, storedSha, dir } = meta;
-    const skillMdPath = join(dir, "SKILL.md");
 
     // Query upstream SHA
     const upstreamSha = yield* getUpstreamSha(origin);
@@ -625,7 +627,12 @@ export const checkSkill = (meta: SkillMeta) =>
     const writeSha = upstreamSha || storedSha || "";
 
     // Compare against stored SHA (fast path: cached match)
-    if (upstreamSha && upstreamSha === storedSha) {
+    if (
+      !opts?.forceContentComparison &&
+      upstreamSha &&
+      upstreamSha === storedSha
+    ) {
+      // SAFETY: The discriminant and fields satisfy CheckResult.
       return {
         type: "up-to-date",
         cached: true,
@@ -643,6 +650,7 @@ export const checkSkill = (meta: SkillMeta) =>
     // route the skill into the review flow and let a session delete it. Report a
     // distinct state that needs a manual origin update instead.
     if (upstreamFiles.length === 0 && localFiles.length > 0) {
+      // SAFETY: The discriminant and fields satisfy CheckResult.
       return {
         type: "origin-gone",
         reason:
@@ -689,6 +697,7 @@ export const checkSkill = (meta: SkillMeta) =>
 
     if (changes.length === 0) {
       // No content changes despite SHA mismatch — write SHA and report up-to-date
+      // SAFETY: The discriminant and fields satisfy CheckResult.
       return {
         type: "up-to-date",
         cached: false,
@@ -699,20 +708,20 @@ export const checkSkill = (meta: SkillMeta) =>
 
     // Build summary
     const summary = changes
-      .map((c) => {
-        switch (c.status) {
-          case "removed-upstream":
-            return `    - ${c.path} (removed upstream)`;
-          case "added-upstream":
-            return `    + ${c.path} (new upstream)`;
-          case "modified":
-            return `    ~ ${c.path}`;
+      .map((change) => {
+        if (change.status === "removed-upstream") {
+          return `    - ${change.path} (removed upstream)`;
         }
+        if (change.status === "added-upstream") {
+          return `    + ${change.path} (new upstream)`;
+        }
+        return `    ~ ${change.path}`;
       })
       .join("\n");
 
     // Determine result type based on local edits
     if (meta.localEdits.length > 0) {
+      // SAFETY: The discriminant and fields satisfy CheckResult.
       return {
         type: "local-edits",
         files: changes,
@@ -722,6 +731,7 @@ export const checkSkill = (meta: SkillMeta) =>
       } as CheckResult;
     }
 
+    // SAFETY: The discriminant and fields satisfy CheckResult.
     return {
       type: "changes",
       files: changes,
