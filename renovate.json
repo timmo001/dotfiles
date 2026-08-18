@@ -58,6 +58,11 @@
   ],
   "packageRules": [
     {
+      "description": "Update first-party workflows without a release delay.",
+      "matchPackageNames": ["timmo001/workflows"],
+      "minimumReleaseAge": null
+    },
+    {
       "description": "Update Git submodules without a release delay.",
       "matchManagers": ["git-submodules"],
       "minimumReleaseAge": null
