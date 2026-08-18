@@ -4,6 +4,26 @@ import { join } from "path";
 import { displayPath } from "./paths.js";
 import type { ConfigService } from "../services/Config.js";
 
+interface InitMarkerOptions {
+  readonly confirm?: boolean;
+  readonly noninteractive?: boolean;
+  readonly force?: boolean;
+  readonly host?: string;
+  readonly log?: string;
+}
+
+type InitMarker =
+  | {
+      readonly status: "in-progress";
+      readonly startedAt: string;
+      readonly options: InitMarkerOptions;
+    }
+  | {
+      readonly status: "complete";
+      readonly completedAt: string;
+      readonly source: InitCompleteSource;
+    };
+
 /** Domain error for init state marker failures. */
 class InitStateError extends Schema.TaggedErrorClass<InitStateError>()(
   "InitStateError",
@@ -29,7 +49,7 @@ export function initInProgressMarker(config: ConfigService): string {
 
 function writeJsonFile(
   path: string,
-  value: unknown,
+  value: InitMarker,
 ): Effect.Effect<void, InitStateError> {
   return Effect.try({
     try: () => writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`),
@@ -43,7 +63,7 @@ function writeJsonFile(
 /** Write the in-progress marker for a first-use setup attempt. */
 export function writeInitInProgressMarker(
   config: ConfigService,
-  options: unknown,
+  options: InitMarkerOptions,
 ): Effect.Effect<void, InitStateError> {
   return writeJsonFile(initInProgressMarker(config), {
     status: "in-progress",

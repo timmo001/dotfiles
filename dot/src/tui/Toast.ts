@@ -10,18 +10,18 @@ import type { ToastVariant } from "../types.js";
 import type { Theme } from "../theme.js";
 
 /** Auto-dismiss delay per variant (milliseconds) */
-const DISMISS_MS: Record<ToastVariant, number> = {
+const DISMISS_MS = {
   info: 5000,
   success: 3000,
   error: 8000,
-};
+} satisfies Record<ToastVariant, number>;
 
 /** Icon per variant */
-const ICON: Record<ToastVariant, string> = {
+const ICON = {
   info: "󰋼",
   success: "󰄬",
   error: "󰅚",
-};
+} satisfies Record<ToastVariant, string>;
 
 /**
  * Single-slot toast notification overlay.

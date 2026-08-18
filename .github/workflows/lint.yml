@@ -31,8 +31,14 @@ jobs:
         working-directory: dot
         run: bun install --frozen-lockfile
 
+      - name: Install root dependencies
+        run: bun install --frozen-lockfile
+
       - name: Run regression tests
         run: mise run tests:integration
+
+      - name: Run TypeScript lint
+        run: mise run lint
 
   validate-skills:
     uses: timmo001/workflows/.github/workflows/lint-agent-skills.yml@1a824d7aed4312ee47eb5a6eb08d4e3a0e3b1d10 # master

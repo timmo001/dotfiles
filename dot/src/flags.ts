@@ -106,10 +106,14 @@ function stripTuiPrefix(args: readonly string[]): readonly string[] {
   return args.length > 0 && args[0] === "tui" ? args.slice(1) : args;
 }
 
-function collectLeadingPositionals(args: readonly string[]): {
+interface LeadingPositionals {
   readonly positionals: readonly string[];
   readonly startIndex: number;
-} {
+}
+
+function collectLeadingPositionals(
+  args: readonly string[],
+): LeadingPositionals {
   const positionals: string[] = [];
   let index = 0;
 
@@ -129,10 +133,14 @@ function findKnownTargetLength(positionals: readonly string[]): number {
   return 0;
 }
 
-function resolvePositionals(positionals: readonly string[]): {
+interface ResolvedPositionals {
   readonly subcommand: string | undefined;
   readonly rest: readonly string[];
-} {
+}
+
+function resolvePositionals(
+  positionals: readonly string[],
+): ResolvedPositionals {
   if (positionals.length === 0) return { subcommand: undefined, rest: [] };
 
   const consumed = findKnownTargetLength(positionals);

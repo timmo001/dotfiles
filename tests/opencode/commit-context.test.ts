@@ -30,7 +30,7 @@ const context = ({
   readonly unstaged?: string;
   readonly untracked?: string;
   readonly warnings?: readonly string[];
-  readonly truncations?: readonly Record<string, unknown>[];
+  readonly truncations?: readonly { readonly reason?: string }[];
 } = {}) => ({
   inRepo: true,
   branchMetadata: {
@@ -405,7 +405,7 @@ describe("commit command contract", () => {
       await import("../../agents/.config/opencode/plugins/commit-context");
 
     expect(
-      Object.values(plugin).every((value) => typeof value === "function"),
+      Object.values(plugin).every((value) => value instanceof Function),
     ).toBe(true);
   });
 

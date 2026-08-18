@@ -26,6 +26,23 @@ const CAPTURE_REPOSITORY_PRIORITY = [
   "Workflows",
 ];
 
+const JsonObject = Schema.Record(Schema.String, Schema.Json);
+const WranglerConfig = Schema.Struct({ vars: Schema.optional(JsonObject) });
+const DeploymentStatus = Schema.Struct({
+  versions: Schema.Array(
+    Schema.Struct({ percentage: Schema.Number, version_id: Schema.String }),
+  ),
+});
+const WorkerVersion = Schema.Struct({
+  resources: Schema.Struct({
+    script_runtime: Schema.Struct({
+      compatibility_date: Schema.String,
+      compatibility_flags: Schema.Array(Schema.String),
+    }),
+    bindings: Schema.Array(JsonObject),
+  }),
+});
+
 /** Repository picker record consumed by the notes capture application. */
 export interface CaptureRepositoryOption {
   /** Friendly repository label. */
@@ -72,57 +89,35 @@ export function mergeCaptureRepositories(
   repositories: readonly CaptureRepositoryOption[],
   live?: LiveCaptureConfig,
 ): string {
-  const parsed: unknown = Bun.JSONC.parse(source);
-  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error("Wrangler configuration is not an object");
-  }
-  const config = parsed as Record<string, unknown>;
-  const existingVars = config.vars;
-  if (
-    existingVars !== undefined &&
-    (existingVars === null ||
-      typeof existingVars !== "object" ||
-      Array.isArray(existingVars))
-  ) {
+  const config = Schema.decodeUnknownSync(JsonObject)(Bun.JSONC.parse(source));
+  let existing: typeof WranglerConfig.Type;
+  try {
+    existing = Schema.decodeUnknownSync(WranglerConfig)(config);
+  } catch {
     throw new Error("Wrangler vars configuration is not an object");
   }
-  return `${JSON.stringify(
-    {
-      ...config,
-      ...(live
-        ? {
-            compatibility_date: live.compatibilityDate,
-            compatibility_flags: live.compatibilityFlags,
-            kv_namespaces: live.kvNamespaces,
-          }
-        : {}),
-      vars: {
-        ...(live?.vars ??
-          (existingVars as Record<string, unknown> | undefined)),
-        CAPTURE_REPOSITORIES: JSON.stringify(repositories),
-      },
-    },
-    null,
-    2,
-  )}\n`;
+  const merged = { ...config };
+  if (live) {
+    merged.compatibility_date = live.compatibilityDate;
+    merged.compatibility_flags = [...live.compatibilityFlags];
+    merged.kv_namespaces = [...live.kvNamespaces];
+  }
+  merged.vars = {
+    ...(live?.vars ?? existing.vars),
+    CAPTURE_REPOSITORIES: JSON.stringify(repositories),
+  };
+  return `${JSON.stringify(merged, null, 2)}\n`;
 }
 
 /** Decode the active deployment and return its version identifier. */
 export function activeVersionId(source: string): string {
-  const parsed: unknown = JSON.parse(source);
-  if (!parsed || typeof parsed !== "object") {
-    throw new Error("Deployment status is not an object");
-  }
-  const versions = (parsed as Record<string, unknown>).versions;
-  if (!Array.isArray(versions)) throw new Error("Deployment has no versions");
-  const active = versions.find(
-    (version) =>
-      version !== null &&
-      typeof version === "object" &&
-      (version as Record<string, unknown>).percentage === 100,
+  const deployment = Schema.decodeUnknownSync(DeploymentStatus)(
+    JSON.parse(source),
   );
-  const versionId = active && (active as Record<string, unknown>).version_id;
-  if (typeof versionId !== "string") {
+  const versionId = deployment.versions.find(
+    ({ percentage }) => percentage === 100,
+  )?.version_id;
+  if (!versionId) {
     throw new Error("Deployment has no active version");
   }
   return versionId;
@@ -130,49 +125,38 @@ export function activeVersionId(source: string): string {
 
 /** Convert Wrangler's active version details into a non-secret local config. */
 export function liveCaptureConfig(source: string): LiveCaptureConfig {
-  const parsed: unknown = JSON.parse(source);
-  if (!parsed || typeof parsed !== "object") {
-    throw new Error("Worker version is not an object");
-  }
-  const resources = (parsed as Record<string, unknown>).resources;
-  if (!resources || typeof resources !== "object") {
-    throw new Error("Worker version has no resources");
-  }
-  const record = resources as Record<string, unknown>;
-  const runtime = record.script_runtime;
-  if (!runtime || typeof runtime !== "object") {
-    throw new Error("Worker version has no runtime settings");
-  }
-  const runtimeRecord = runtime as Record<string, unknown>;
-  const compatibilityDate = runtimeRecord.compatibility_date;
-  const compatibilityFlags = runtimeRecord.compatibility_flags;
-  if (
-    typeof compatibilityDate !== "string" ||
-    !Array.isArray(compatibilityFlags) ||
-    !compatibilityFlags.every((flag) => typeof flag === "string")
-  ) {
-    throw new Error("Worker compatibility settings are invalid");
-  }
+  const { resources } = Schema.decodeUnknownSync(WorkerVersion)(
+    JSON.parse(source),
+  );
+  const compatibilityDate = resources.script_runtime.compatibility_date;
+  const compatibilityFlags = resources.script_runtime.compatibility_flags;
 
   const vars: Record<string, string> = {};
   const kvNamespaces: { binding: string; id: string }[] = [];
-  const bindings = record.bindings;
-  if (!Array.isArray(bindings)) throw new Error("Worker bindings are invalid");
-  for (const binding of bindings) {
-    if (!binding || typeof binding !== "object") continue;
-    const value = binding as Record<string, unknown>;
-    if (
-      value.type === "plain_text" &&
-      typeof value.name === "string" &&
-      typeof value.text === "string"
-    ) {
-      vars[value.name] = value.text;
-    } else if (
-      value.type === "kv_namespace" &&
-      typeof value.name === "string" &&
-      typeof value.namespace_id === "string"
-    ) {
-      kvNamespaces.push({ binding: value.name, id: value.namespace_id });
+  for (const binding of resources.bindings) {
+    const plainText = Schema.decodeUnknownOption(
+      Schema.Struct({
+        type: Schema.Literal("plain_text"),
+        name: Schema.String,
+        text: Schema.String,
+      }),
+    )(binding);
+    if (plainText._tag === "Some") {
+      vars[plainText.value.name] = plainText.value.text;
+      continue;
+    }
+    const kvNamespace = Schema.decodeUnknownOption(
+      Schema.Struct({
+        type: Schema.Literal("kv_namespace"),
+        name: Schema.String,
+        namespace_id: Schema.String,
+      }),
+    )(binding);
+    if (kvNamespace._tag === "Some") {
+      kvNamespaces.push({
+        binding: kvNamespace.value.name,
+        id: kvNamespace.value.namespace_id,
+      });
     }
   }
   return {

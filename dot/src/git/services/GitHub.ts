@@ -223,7 +223,7 @@ export class GitHub extends Context.Service<GitHub, GitHubService>()("GitHub") {
         run(args, opts).pipe(
           Effect.flatMap((output) =>
             Effect.try({
-              try: () => JSON.parse(output) as unknown,
+              try: () => JSON.parse(output),
               catch: (error) =>
                 new GitHubError({
                   command: formatGhCommand(args),

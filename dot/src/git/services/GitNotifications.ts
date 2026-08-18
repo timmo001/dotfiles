@@ -21,6 +21,7 @@ import { GitHub, type GitHubService } from "./GitHub.js";
 import { managedRepoGitHubSlugs } from "./repoRelations.js";
 import { formatGhError, nullableStringValue, stringValue } from "./record.js";
 import { ENV, envString } from "../../lib/env.js";
+import type { JsonObject, JsonValue } from "../../lib/schema.js";
 
 const NOTIFICATION_LIMIT = 50;
 const SUBJECT_TYPE_SET: ReadonlySet<string> = new Set([
@@ -80,16 +81,8 @@ interface GitNotificationsService {
   ) => Effect.Effect<GitNotificationActionResult, GitNotificationError>;
 }
 
-interface GhNotificationRecord {
-  readonly id?: unknown;
-  readonly repository?: unknown;
-  readonly subject?: unknown;
-  readonly reason?: unknown;
-  readonly unread?: unknown;
-  readonly updated_at?: unknown;
-  readonly last_read_at?: unknown;
-  readonly url?: unknown;
-}
+type GhNotificationRecord = JsonObject;
+type JsonField = JsonValue | undefined;
 
 /** Effect service for {@link GitNotificationsService}. */
 export class GitNotifications extends Context.Service<
@@ -463,9 +456,12 @@ function pullRequestThreadLooksBot(
   if (!endpoint) return Effect.succeed(false);
   return github.json(["api", endpoint]).pipe(
     Effect.map((value) => {
-      if (!isRecord(value)) return false;
-      const user = recordValue(value.user);
-      const head = recordValue(value.head);
+      const decoded = Schema.decodeUnknownOption(
+        Schema.Record(Schema.String, Schema.Json),
+      )(value);
+      if (decoded._tag === "None") return false;
+      const user = recordValue(decoded.value.user);
+      const head = recordValue(decoded.value.head);
       return valuesLookLikeBotActivity([
         stringValue(user.login),
         stringValue(head.ref),
@@ -483,13 +479,16 @@ function workflowNotificationThreadLooksBot(
   if (!endpoint) return Effect.succeed(false);
   return github.json(["api", endpoint]).pipe(
     Effect.map((value) => {
-      if (!isRecord(value)) return false;
-      const actor = recordValue(value.actor);
-      const headCommit = recordValue(value.head_commit);
+      const decoded = Schema.decodeUnknownOption(
+        Schema.Record(Schema.String, Schema.Json),
+      )(value);
+      if (decoded._tag === "None") return false;
+      const actor = recordValue(decoded.value.actor);
+      const headCommit = recordValue(decoded.value.head_commit);
       const author = recordValue(headCommit.author);
       return valuesLookLikeBotActivity([
         stringValue(actor.login),
-        nullableStringValue(value.head_branch),
+        nullableStringValue(decoded.value.head_branch),
         stringValue(author.name),
         stringValue(author.email),
       ]);
@@ -579,9 +578,15 @@ function subjectWebUrl(subjectApiUrl: string | null, repoUrl: string): string {
 }
 
 function normalizeSubjectType(value: string): GitNotificationSubjectType {
-  return SUBJECT_TYPE_SET.has(value)
-    ? (value as GitNotificationSubjectType)
-    : "unknown";
+  if (
+    value === "Issue" ||
+    value === "PullRequest" ||
+    value === "Release" ||
+    value === "Discussion" ||
+    value === "Commit"
+  )
+    return value;
+  return "unknown";
 }
 
 function parseSubjectApiPath(
@@ -624,16 +629,16 @@ function subjectPathWebUrl(path: {
   }
 }
 
-function recordValue(value: unknown): Record<string, unknown> {
+function recordValue(value: JsonValue): JsonObject {
   return isRecord(value) ? value : {};
 }
 
-function isNotificationRecord(value: unknown): value is GhNotificationRecord {
+function isNotificationRecord(value: JsonValue): value is GhNotificationRecord {
   return isRecord(value);
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
+function isRecord(value: JsonValue): value is GhNotificationRecord {
+  return Schema.is(Schema.Record(Schema.String, Schema.Json))(value);
 }
 
 function actionMessage(

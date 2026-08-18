@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { Schema } from "effect";
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -122,10 +123,12 @@ describe("mergeCaptureRepositories", () => {
       }`,
       repositories,
     );
-    const parsed = JSON.parse(output) as {
-      name: string;
-      vars: Record<string, string>;
-    };
+    const parsed = Schema.decodeUnknownSync(
+      Schema.Struct({
+        name: Schema.String,
+        vars: Schema.Record(Schema.String, Schema.String),
+      }),
+    )(JSON.parse(output));
 
     expect(parsed.name).toBe("notes-capture");
     expect(parsed.vars.GITHUB_OWNER).toBe("owner");

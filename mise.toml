@@ -4,6 +4,10 @@ min_version = "2025.1.0"
 node = "26.7.0"
 bun = "1.3.14"
 
+[tasks.lint]
+description = "Lint owned TypeScript and JavaScript with Oxlint"
+run = "bunx oxlint --type-aware"
+
 # dot (runs in ./dot)
 [tasks."dot:install"]
 description = "Install dot dependencies"
@@ -42,8 +46,8 @@ dir = "dot"
 run = "bun test"
 
 [tasks."dot:check"]
-description = "Type-check, test, and verify dot formatting"
-depends = ["dot:typecheck", "dot:test", "dot:format:check"]
+description = "Lint, type-check, test, and verify dot formatting"
+depends = ["lint", "dot:typecheck", "dot:test", "dot:format:check"]
 
 [tasks."tests:integration"]
 description = "Run deterministic repository integration tests"

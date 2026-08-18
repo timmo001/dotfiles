@@ -25,3 +25,5 @@
 --ignore=^/package\.json
 --ignore=^/node_modules
 --ignore=^/bun\.lock
+--ignore=^/oxlint\.config\.ts
+--ignore=^/tools

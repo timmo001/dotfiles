@@ -558,9 +558,11 @@ export class DashboardView {
 }
 
 /** Centre point of a laid-out card box, used for spatial grid navigation. */
-function cardCentre(box: BoxRenderable): {
+interface Point {
   readonly x: number;
   readonly y: number;
-} {
+}
+
+function cardCentre(box: BoxRenderable): Point {
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }

@@ -447,7 +447,7 @@ export class DiffView {
   }
 }
 
-function errorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  return String(error);
+function errorMessage(cause: unknown): string {
+  if (cause instanceof Error) return cause.message;
+  return String(cause);
 }

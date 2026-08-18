@@ -117,7 +117,7 @@ const evidence = (overrides: Partial<RunEvidence> = {}): RunEvidence => ({
   ...overrides,
 });
 
-const tool = (name: string, input: unknown): RunEvent => ({
+const tool = (name: string, input: RunEvent["part"]["state"]["input"]): RunEvent => ({
   type: "tool_use",
   part: {
     type: "tool",

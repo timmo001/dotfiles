@@ -39,12 +39,12 @@ const HELP: readonly HelpEntry[] = [
   ...GLOBAL_HELP,
 ];
 
-const ACTION_PROGRESS_LABEL: Record<GitNotificationAction, string> = {
+const ACTION_PROGRESS_LABEL = {
   read: "Marking read",
   done: "Marking done",
   ignore: "Ignoring",
   unignore: "Unignoring",
-};
+} satisfies Record<GitNotificationAction, string>;
 
 /** Configuration callbacks for the GitHub notifications view. */
 export interface GitNotificationsViewOptions {

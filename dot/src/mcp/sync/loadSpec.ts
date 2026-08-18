@@ -7,7 +7,17 @@
  */
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
+import { Schema } from "effect";
 import { displayPath } from "../../lib/paths.js";
+import {
+  decodeJson,
+  formatCause,
+  isBoolean,
+  isJsonObject,
+  isString,
+  type JsonObject,
+  type JsonValue,
+} from "../../lib/schema.js";
 import {
   MCP_HARNESSES,
   type McpHarness,
@@ -31,6 +41,27 @@ const SERVER_KEYS = new Set([
 ]);
 const OVERRIDE_KEYS = new Set(["command", "url"]);
 const HARNESS_IDS = new Set<string>(MCP_HARNESSES);
+const isMcpHarness = Schema.is(
+  Schema.Union(MCP_HARNESSES.map((harness) => Schema.Literal(harness))),
+);
+
+interface MutableMcpServerSpec {
+  name: string;
+  type: "local" | "remote";
+  command?: readonly string[];
+  url?: string;
+  headers?: Readonly<Record<string, string>>;
+  env?: Readonly<Record<string, string>>;
+  oauth?: boolean;
+  gated: boolean;
+  enabled: Readonly<Partial<Record<McpHarness, boolean>>>;
+  overrides?: Readonly<Partial<Record<McpHarness, McpServerOverride>>>;
+}
+
+interface MutableMcpServerOverride {
+  command?: readonly string[];
+  url?: string;
+}
 
 /** Loaded private MCP sync config and validation diagnostics. */
 export interface DotMcpConfig {
@@ -76,7 +107,7 @@ export function loadMcpConfig(filePath: string): DotMcpConfig {
   }
 
   try {
-    const parsed = Bun.YAML.parse(readFileSync(filePath, "utf-8")) as unknown;
+    const parsed = decodeJson(Bun.YAML.parse(readFileSync(filePath, "utf-8")));
     const diagnostics: string[] = [];
     const servers = parseSpec(parsed, diagnostics);
     return {
@@ -100,7 +131,7 @@ export function loadMcpConfig(filePath: string): DotMcpConfig {
 }
 
 function parseSpec(
-  value: unknown,
+  value: JsonValue,
   diagnostics: string[],
 ): readonly McpServerSpec[] {
   if (!isRecord(value)) {
@@ -125,7 +156,7 @@ function parseSpec(
 }
 
 function parseServer(
-  value: unknown,
+  value: JsonValue,
   index: number,
   diagnostics: string[],
 ): readonly McpServerSpec[] {
@@ -171,24 +202,18 @@ function parseServer(
   }
 
   if (!name || !type || gated === null || !enabled) return [];
-  return [
-    {
-      name,
-      type,
-      ...(command ? { command } : {}),
-      ...(url ? { url } : {}),
-      ...(headers ? { headers } : {}),
-      ...(env ? { env } : {}),
-      ...(oauth === null ? {} : { oauth }),
-      gated,
-      enabled,
-      ...(overrides ? { overrides } : {}),
-    },
-  ];
+  const server: MutableMcpServerSpec = { name, type, gated, enabled };
+  if (command) server.command = command;
+  if (url) server.url = url;
+  if (headers) server.headers = headers;
+  if (env) server.env = env;
+  if (oauth !== null) server.oauth = oauth;
+  if (overrides) server.overrides = overrides;
+  return [server];
 }
 
 function parseType(
-  value: unknown,
+  value: JsonValue,
   location: string,
   diagnostics: string[],
 ): "local" | "remote" | null {
@@ -198,20 +223,20 @@ function parseType(
 }
 
 function parseCommand(
-  value: unknown,
+  value: JsonValue,
   location: string,
   diagnostics: string[],
 ): readonly string[] | null {
   if (value === undefined) return null;
-  if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
+  if (!Array.isArray(value) || value.some((item) => !isString(item))) {
     diagnostics.push(`${location} must be an array of strings`);
     return null;
   }
-  return value as readonly string[];
+  return value;
 }
 
 function parseStringMap(
-  value: unknown,
+  value: JsonValue,
   location: string,
   diagnostics: string[],
 ): Readonly<Record<string, string>> | null {
@@ -222,7 +247,7 @@ function parseStringMap(
   }
   const result: Record<string, string> = {};
   for (const [key, entry] of Object.entries(value)) {
-    if (typeof entry !== "string") {
+    if (!isString(entry)) {
       diagnostics.push(`${location}.${key} must be a string`);
       continue;
     }
@@ -232,7 +257,7 @@ function parseStringMap(
 }
 
 function parseEnabled(
-  value: unknown,
+  value: JsonValue,
   location: string,
   diagnostics: string[],
 ): Readonly<Partial<Record<McpHarness, boolean>>> | null {
@@ -242,21 +267,21 @@ function parseEnabled(
   }
   const result: Partial<Record<McpHarness, boolean>> = {};
   for (const [key, entry] of Object.entries(value)) {
-    if (!HARNESS_IDS.has(key)) {
+    if (!HARNESS_IDS.has(key) || !isMcpHarness(key)) {
       diagnostics.push(`${location}.${key} is not an active harness`);
       continue;
     }
-    if (typeof entry !== "boolean") {
+    if (!isBoolean(entry)) {
       diagnostics.push(`${location}.${key} must be true or false`);
       continue;
     }
-    result[key as McpHarness] = entry;
+    result[key] = entry;
   }
   return result;
 }
 
 function parseOverrides(
-  value: unknown,
+  value: JsonValue,
   location: string,
   diagnostics: string[],
 ): Readonly<Partial<Record<McpHarness, McpServerOverride>>> | null {
@@ -267,7 +292,7 @@ function parseOverrides(
   }
   const result: Partial<Record<McpHarness, McpServerOverride>> = {};
   for (const [key, entry] of Object.entries(value)) {
-    if (!HARNESS_IDS.has(key)) {
+    if (!HARNESS_IDS.has(key) || !isMcpHarness(key)) {
       diagnostics.push(`${location}.${key} is not an active harness`);
       continue;
     }
@@ -291,20 +316,20 @@ function parseOverrides(
       `${location}.${key}.url`,
       diagnostics,
     );
-    result[key as McpHarness] = {
-      ...(command ? { command } : {}),
-      ...(url ? { url } : {}),
-    };
+    const override: MutableMcpServerOverride = {};
+    if (command) override.command = command;
+    if (url) override.url = url;
+    result[key] = override;
   }
   return Object.keys(result).length === 0 ? null : result;
 }
 
 function requiredString(
-  value: unknown,
+  value: JsonValue,
   location: string,
   diagnostics: string[],
 ): string | null {
-  if (typeof value !== "string" || value.trim().length === 0) {
+  if (!isString(value) || value.trim().length === 0) {
     diagnostics.push(`${location} must be a non-empty string`);
     return null;
   }
@@ -312,12 +337,12 @@ function requiredString(
 }
 
 function optionalString(
-  value: unknown,
+  value: JsonValue,
   location: string,
   diagnostics: string[],
 ): string | null {
   if (value === undefined) return null;
-  if (typeof value !== "string" || value.trim().length === 0) {
+  if (!isString(value) || value.trim().length === 0) {
     diagnostics.push(`${location} must be a non-empty string`);
     return null;
   }
@@ -325,11 +350,11 @@ function optionalString(
 }
 
 function requiredBoolean(
-  value: unknown,
+  value: JsonValue,
   location: string,
   diagnostics: string[],
 ): boolean | null {
-  if (typeof value !== "boolean") {
+  if (!isBoolean(value)) {
     diagnostics.push(`${location} must be true or false`);
     return null;
   }
@@ -337,12 +362,12 @@ function requiredBoolean(
 }
 
 function optionalBoolean(
-  value: unknown,
+  value: JsonValue,
   location: string,
   diagnostics: string[],
 ): boolean | null {
   if (value === undefined) return null;
-  if (typeof value !== "boolean") {
+  if (!isBoolean(value)) {
     diagnostics.push(`${location} must be true or false`);
     return null;
   }
@@ -351,7 +376,7 @@ function optionalBoolean(
 
 function pushUnknownKeyDiagnostics(
   diagnostics: string[],
-  record: Record<string, unknown>,
+  record: JsonObject,
   allowed: ReadonlySet<string>,
   location: string,
 ): void {
@@ -373,10 +398,5 @@ function pushDuplicateNameDiagnostics(
   }
 }
 
-function formatError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
+const formatError = formatCause;
+const isRecord = isJsonObject;

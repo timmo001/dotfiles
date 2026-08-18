@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 
 /** A floating Hyprland window size in pixels. */
 export interface FloatingSize {
@@ -29,7 +29,10 @@ export const resizeIfFloating = (
     });
     const text = yield* Effect.promise(() => new Response(proc.stdout).text());
     const win = yield* Effect.try({
-      try: () => JSON.parse(text) as { floating?: boolean },
+      try: () =>
+        Schema.decodeUnknownSync(
+          Schema.Struct({ floating: Schema.optional(Schema.Boolean) }),
+        )(JSON.parse(text)),
       catch: () => undefined,
     });
     if (win.floating) {

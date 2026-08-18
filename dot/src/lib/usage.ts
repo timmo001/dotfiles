@@ -9,6 +9,7 @@ import { hostname } from "node:os";
 import { dirname, join } from "node:path";
 import { ENV, envFlag, envString } from "./env.js";
 import { STATE_DIR, expandHomePath } from "./paths.js";
+import { Schema } from "effect";
 
 /**
  * How a usage event was captured: `live` from a real invocation, or `history`
@@ -46,6 +47,27 @@ export interface UsageEvent {
   /** Coarse caller classification. */
   readonly invoker: UsageInvoker;
 }
+
+const UsageEventSchema = Schema.Struct({
+  ts: Schema.String,
+  machine: Schema.optional(Schema.String),
+  tool: Schema.String,
+  invokedAs: Schema.optional(Schema.String),
+  command: Schema.optional(Schema.Array(Schema.String)),
+  flags: Schema.optional(Schema.Array(Schema.String)),
+  exitCode: Schema.optional(Schema.Number),
+  durationMs: Schema.optional(Schema.Number),
+  source: Schema.optional(
+    Schema.Union([Schema.Literal("live"), Schema.Literal("history")]),
+  ),
+  invoker: Schema.optional(
+    Schema.Union([
+      Schema.Literal("human"),
+      Schema.Literal("agent"),
+      Schema.Literal("automation"),
+    ]),
+  ),
+});
 
 /** Whether dot usage recording is disabled via `DOT_USAGE_DISABLE`. */
 export function usageDisabled(): boolean {
@@ -121,34 +143,20 @@ export function parseUsageEvent(line: string): UsageEvent | null {
   const trimmed = line.trim();
   if (trimmed.length === 0) return null;
   try {
-    const value = JSON.parse(trimmed) as Record<string, unknown>;
-    if (typeof value.ts !== "string" || typeof value.tool !== "string") {
-      return null;
-    }
+    const value = Schema.decodeUnknownSync(UsageEventSchema)(
+      JSON.parse(trimmed),
+    );
     return {
       ts: value.ts,
-      machine: typeof value.machine === "string" ? value.machine : "unknown",
+      machine: value.machine ?? "unknown",
       tool: value.tool,
-      invokedAs:
-        typeof value.invokedAs === "string" ? value.invokedAs : value.tool,
-      command: Array.isArray(value.command)
-        ? value.command.filter(
-            (part): part is string => typeof part === "string",
-          )
-        : [],
-      flags: Array.isArray(value.flags)
-        ? value.flags.filter((part): part is string => typeof part === "string")
-        : [],
-      exitCode: typeof value.exitCode === "number" ? value.exitCode : null,
-      durationMs:
-        typeof value.durationMs === "number" ? value.durationMs : null,
+      invokedAs: value.invokedAs ?? value.tool,
+      command: value.command ?? [],
+      flags: value.flags ?? [],
+      exitCode: value.exitCode ?? null,
+      durationMs: value.durationMs ?? null,
       source: value.source === "history" ? "history" : "live",
-      invoker:
-        value.invoker === "agent"
-          ? "agent"
-          : value.invoker === "automation"
-            ? "automation"
-            : "human",
+      invoker: value.invoker ?? "human",
     };
   } catch {
     return null;
@@ -259,7 +267,7 @@ export function installUsageHook(opts: {
       invokedAs: opts.invokedAs,
       command: opts.command,
       flags,
-      exitCode: typeof code === "number" ? code : 0,
+      exitCode: code ?? 0,
       durationMs: Date.now() - start,
       source: "live",
       invoker: opts.invoker,

@@ -15,6 +15,11 @@ import {
   type McpServerSpec,
   type McpSyncSpec,
 } from "./spec.js";
+import type { JsonObject, JsonValue } from "../../lib/schema.js";
+
+interface MutableJsonObject {
+  [key: string]: JsonValue;
+}
 
 /** Env interpolation style per active harness. */
 const ENV_STYLE = {
@@ -68,101 +73,98 @@ function renderEnv(
 function renderOpencodeEntry(
   server: McpServerSpec,
   enabled: boolean,
-): Record<string, unknown> {
+): JsonObject {
   if (server.type === "local") {
-    return {
+    const entry: MutableJsonObject = {
       type: "local",
       command: resolveCommand(server, "opencode") ?? [],
-      ...(server.env ? { env: renderEnv(server.env, "opencode") } : {}),
       enabled,
     };
+    if (server.env) entry.env = renderEnv(server.env, "opencode");
+    return entry;
   }
-  return {
+  const entry: MutableJsonObject = {
     type: "remote",
     url: resolveUrl(server, "opencode") ?? "",
-    ...(server.oauth === false ? { oauth: false } : {}),
-    ...(server.headers
-      ? { headers: renderHeaders(server.headers, "opencode") }
-      : {}),
     enabled,
   };
+  if (server.oauth === false) entry.oauth = false;
+  if (server.headers) entry.headers = renderHeaders(server.headers, "opencode");
+  return entry;
 }
 
-function splitCommand(command: readonly string[]): {
-  readonly command: string;
-  readonly args: readonly string[];
-} {
+function splitCommand(command: readonly string[]) {
   return { command: command[0] ?? "", args: command.slice(1) };
 }
 
-function renderCursorEntry(server: McpServerSpec): Record<string, unknown> {
+function renderCursorEntry(server: McpServerSpec): JsonObject {
   if (server.type === "local") {
     const { command, args } = splitCommand(
       resolveCommand(server, "cursor") ?? [],
     );
-    return {
+    const entry: MutableJsonObject = {
       command,
       args,
-      ...(server.env ? { env: renderEnv(server.env, "cursor") } : {}),
     };
+    if (server.env) entry.env = renderEnv(server.env, "cursor");
+    return entry;
   }
-  return {
+  const entry: MutableJsonObject = {
     type: "http",
     url: resolveUrl(server, "cursor") ?? "",
-    ...(server.headers
-      ? { headers: renderHeaders(server.headers, "cursor") }
-      : {}),
   };
+  if (server.headers) entry.headers = renderHeaders(server.headers, "cursor");
+  return entry;
 }
 
-function renderVscodeEntry(server: McpServerSpec): Record<string, unknown> {
+function renderVscodeEntry(server: McpServerSpec): JsonObject {
   if (server.type === "local") {
     const { command, args } = splitCommand(
       resolveCommand(server, "vscode") ?? [],
     );
-    return {
+    const entry: MutableJsonObject = {
       type: "stdio",
       command,
       args,
-      ...(server.env ? { env: renderEnv(server.env, "vscode") } : {}),
     };
+    if (server.env) entry.env = renderEnv(server.env, "vscode");
+    return entry;
   }
-  return {
+  const entry: MutableJsonObject = {
     type: "http",
     url: resolveUrl(server, "vscode") ?? "",
-    ...(server.headers
-      ? { headers: renderHeaders(server.headers, "vscode") }
-      : {}),
   };
+  if (server.headers) entry.headers = renderHeaders(server.headers, "vscode");
+  return entry;
 }
 
-function renderCopilotEntry(server: McpServerSpec): Record<string, unknown> {
+function renderCopilotEntry(server: McpServerSpec): JsonObject {
   if (server.type === "local") {
     const { command, args } = splitCommand(
       resolveCommand(server, "copilot") ?? [],
     );
-    return {
+    const entry: MutableJsonObject = {
       type: "local",
       command,
       args,
-      ...(server.env ? { env: renderEnv(server.env, "copilot") } : {}),
       tools: ["*"],
     };
+    if (server.env) entry.env = renderEnv(server.env, "copilot");
+    return entry;
   }
-  return {
+  const entry: MutableJsonObject = {
     type: "http",
     url: resolveUrl(server, "copilot") ?? "",
-    ...(server.headers
-      ? { headers: renderHeaders(server.headers, "copilot") }
-      : {}),
     tools: ["*"],
   };
+  if (server.headers) entry.headers = renderHeaders(server.headers, "copilot");
+  return entry;
 }
 
 function renderEntry(
   server: McpServerSpec,
   harness: Exclude<McpHarness, "opencode">,
-): Record<string, unknown> {
+): JsonObject {
   switch (harness) {
     case "cursor":
       return renderCursorEntry(server);
@@ -181,8 +183,8 @@ function renderEntry(
 export function buildMcpEntries(
   spec: McpSyncSpec,
   harness: McpHarness,
-): Record<string, unknown> {
-  const entries: Record<string, unknown> = {};
+): JsonObject {
+  const entries: Record<string, JsonValue> = {};
   if (harness === "opencode") {
     for (const server of spec.servers) {
       entries[server.name] = renderOpencodeEntry(

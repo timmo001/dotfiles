@@ -73,7 +73,8 @@ export default function workflow(pi: ExtensionAPI) {
 					`Research: ${topic.slice(0, 48)}`,
 					"--no-focus",
 				);
-				const createdTab = JSON.parse(created.stdout) as CreatedTab;
+// SAFETY: Herdr's create-tab JSON contract is represented by CreatedTab.
+const createdTab = JSON.parse(created.stdout) as CreatedTab;
 				createdTabId = createdTab.result?.tab?.tab_id;
 				const paneId = createdTab.result?.root_pane?.pane_id;
 

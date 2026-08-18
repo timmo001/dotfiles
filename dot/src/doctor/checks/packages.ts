@@ -49,9 +49,7 @@ type PrivatePackageRepoConfigSetter = (
   value: string,
 ) => void;
 
-const privatePackageRepoConfigSetters: Readonly<
-  Record<string, PrivatePackageRepoConfigSetter>
-> = {
+const privatePackageRepoConfigSetters = {
   name: (draft, value) => {
     draft.name = value;
   },
@@ -67,7 +65,7 @@ const privatePackageRepoConfigSetters: Readonly<
   siglevel: (draft, value) => {
     draft.sigLevel = value;
   },
-};
+} satisfies Readonly<Record<string, PrivatePackageRepoConfigSetter>>;
 
 function privatePackageRepoConfigFile(config: ConfigService): string | null {
   return (
@@ -87,7 +85,9 @@ function applyPrivatePackageRepoConfigLine(
 
   const key = line.slice(0, eqIdx).trim();
   const value = line.slice(eqIdx + 1).trim();
-  privatePackageRepoConfigSetters[key]?.(draft, value);
+  Object.entries(privatePackageRepoConfigSetters).find(
+    ([name]) => name === key,
+  )?.[1](draft, value);
 }
 
 function completePrivatePackageRepoConfig(

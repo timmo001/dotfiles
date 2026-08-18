@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import type { CheckResult } from "../types.js";
 
@@ -11,27 +11,27 @@ const REQUIRED_LOCAL_PLUGINS = [
   "dotfiles.repository-picker",
   "dotfiles.mise-task-runner",
 ] as const;
+const HerdrPluginList = Schema.Struct({
+  result: Schema.Struct({
+    plugins: Schema.Array(
+      Schema.Struct({
+        plugin_id: Schema.optional(Schema.String),
+        enabled: Schema.Boolean,
+      }),
+    ),
+  }),
+});
 
 /** Read enabled Herdr plugin IDs from `herdr plugin list --json`. */
 export function enabledHerdrPluginIds(source: string): ReadonlySet<string> {
   try {
-    const parsed: unknown = JSON.parse(source);
-    if (!parsed || typeof parsed !== "object") return new Set();
-
-    const result = (parsed as Record<string, unknown>).result;
-    if (!result || typeof result !== "object") return new Set();
-
-    const plugins = (result as Record<string, unknown>).plugins;
-    if (!Array.isArray(plugins)) return new Set();
-
+    const { plugins } = Schema.decodeUnknownSync(HerdrPluginList)(
+      JSON.parse(source),
+    ).result;
     return new Set(
-      plugins.flatMap((plugin) => {
-        if (!plugin || typeof plugin !== "object") return [];
-        const record = plugin as Record<string, unknown>;
-        return record.enabled === true && typeof record.plugin_id === "string"
-          ? [record.plugin_id]
-          : [];
-      }),
+      plugins.flatMap((plugin) =>
+        plugin.enabled && plugin.plugin_id ? [plugin.plugin_id] : [],
+      ),
     );
   } catch {
     return new Set();

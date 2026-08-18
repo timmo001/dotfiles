@@ -94,7 +94,7 @@ function luminance(hex: string): number {
   const [r, g, b] = hexToRgb(hex).map((c) => {
     const s = c / 255;
     return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-  }) as [number, number, number];
+  });
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
@@ -117,7 +117,11 @@ function pickAccentFg(
 // --- TOML parsing ---
 
 /** Parse a flat `key = "value"` TOML file into a string map */
-function parseColorsToml(content: string): Record<string, string> {
+interface ColourMap {
+  [key: string]: string;
+}
+
+function parseColorsToml(content: string): ColourMap {
   const result: Record<string, string> = {};
   for (const line of content.split("\n")) {
     const trimmed = line.trim();

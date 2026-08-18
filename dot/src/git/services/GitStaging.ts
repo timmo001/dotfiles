@@ -148,11 +148,13 @@ function parseStatusLine(line: string): readonly StagedFile[] {
 
   // X column: staged changes (anything except ' ', '?' and '!')
   if (x !== " " && x !== "?" && x !== "!") {
+    // SAFETY: porcelain v1 status columns contain GitStatusCode values here.
     results.push({ path, status: x as GitStatusCode, staged: true });
   }
 
   // Y column: unstaged changes
   if (y !== " " && y !== "?" && y !== "!") {
+    // SAFETY: porcelain v1 status columns contain GitStatusCode values here.
     results.push({ path, status: y as GitStatusCode, staged: false });
   }
 

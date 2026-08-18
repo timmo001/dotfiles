@@ -2,6 +2,7 @@ import { Cause, Context, Effect, Layer, Queue, Schema, Stream } from "effect";
 import { writeMirroredLog } from "../lib/logMirror.js";
 import { expandHomePath } from "../lib/paths.js";
 import { ENV, envString } from "../lib/env.js";
+import { formatCause } from "../lib/schema.js";
 
 const DEBUG = !!envString(ENV.DOT_DEBUG);
 const log = (msg: string) => {
@@ -49,36 +50,27 @@ export class CommandError extends Schema.TaggedErrorClass<CommandError>()(
   },
 ) {}
 
-interface CommandFailure {
-  readonly command: string;
-  readonly exitCode: number;
-  readonly stderr: string;
-}
+const CommandFailure = Schema.Struct({
+  command: Schema.String,
+  exitCode: Schema.Number,
+  stderr: Schema.String,
+});
+const decodeCommandFailure = Schema.decodeUnknownOption(CommandFailure);
 
-function isCommandFailure(error: unknown): error is CommandFailure {
-  if (!error || typeof error !== "object") return false;
-
-  const candidate = error as Record<string, unknown>;
-  return (
-    typeof candidate.command === "string" &&
-    typeof candidate.exitCode === "number" &&
-    typeof candidate.stderr === "string"
-  );
-}
-
-function toCommandError(error: unknown, command: string): CommandError {
-  if (isCommandFailure(error)) {
+function toCommandError(cause: unknown, command: string): CommandError {
+  const failure = decodeCommandFailure(cause);
+  if (failure._tag === "Some") {
     return new CommandError({
-      command: error.command,
-      exitCode: error.exitCode,
-      stderr: error.stderr,
+      command: failure.value.command,
+      exitCode: failure.value.exitCode,
+      stderr: failure.value.stderr,
     });
   }
 
   return new CommandError({
     command,
     exitCode: 1,
-    stderr: error instanceof Error ? error.message : String(error),
+    stderr: formatCause(cause),
   });
 }
 
@@ -98,7 +90,7 @@ function appendRawLog(
 
 async function pipeProcessOutput(
   stream: ReadableStream<Uint8Array>,
-  output: { readonly write: (chunk: Uint8Array) => unknown },
+  output: Pick<typeof process.stdout, "write">,
   logFile: string | null,
 ): Promise<void> {
   const reader = stream.getReader();
@@ -189,12 +181,14 @@ function processLineStream(
         const stderrLines: string[] = [];
 
         const stdout = pipeLines(
+          // SAFETY: Bun types pipe output as a readable stream when stdout is "pipe".
           proc.stdout as ReadableStream<Uint8Array>,
           (line) => {
             Queue.offerUnsafe(queue, line);
           },
         );
         const stderr = pipeLines(
+          // SAFETY: Bun types pipe output as a readable stream when stderr is "pipe".
           proc.stderr as ReadableStream<Uint8Array>,
           (line) => {
             stderrLines.push(line);
@@ -219,10 +213,10 @@ function processLineStream(
               ),
             );
           })
-          .catch((error: unknown) => {
+          .catch((cause) => {
             Queue.failCauseUnsafe(
               queue,
-              Cause.fail(toCommandError(error, fullCmd.join(" "))),
+              Cause.fail(toCommandError(cause, fullCmd.join(" "))),
             );
           });
 
@@ -297,13 +291,18 @@ export class CommandExecutor extends Context.Service<
         log(
           `exitCode: ${fullCmd.join(" ")}${opts?.cwd ? ` (cwd: ${opts.cwd})` : ""}`,
         );
-        const proc = Bun.spawn(fullCmd, {
+        const spawnOptions: Bun.SpawnOptions.OptionsObject<
+          "ignore",
+          "ignore",
+          "ignore"
+        > = {
           stdout: "ignore",
           stderr: "ignore",
           cwd: opts?.cwd,
           detached: true,
-          ...(opts?.env ? { env: { ...process.env, ...opts.env } } : {}),
-        });
+        };
+        if (opts?.env) spawnOptions.env = { ...process.env, ...opts.env };
+        const proc = Bun.spawn(fullCmd, spawnOptions);
         killOnAbort(proc, signal);
         return proc.exited;
       }),
@@ -325,11 +324,13 @@ export class CommandExecutor extends Context.Service<
           });
           killOnAbort(proc, signal);
           const stdout = pipeProcessOutput(
+            // SAFETY: Bun types pipe output as a readable stream when stdout is "pipe".
             proc.stdout as ReadableStream<Uint8Array>,
             process.stdout,
             commandLogFile,
           );
           const stderr = pipeProcessOutput(
+            // SAFETY: Bun types pipe output as a readable stream when stderr is "pipe".
             proc.stderr as ReadableStream<Uint8Array>,
             process.stderr,
             commandLogFile,

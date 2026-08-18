@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { Schema } from "effect";
 import {
   mergeOmarchyShellConfig,
   parseManagedPlugins,
@@ -125,11 +126,9 @@ function baseConfig() {
 }
 
 function commandRuns(
-  entries: ReadonlyArray<{ readonly id: string; readonly run?: unknown }>,
+  entries: ReadonlyArray<{ readonly id: string; readonly run?: string }>,
 ): string[] {
-  return entries.flatMap((entry) =>
-    typeof entry.run === "string" ? [entry.run] : [],
-  );
+  return entries.flatMap((entry) => (entry.run ? [entry.run] : []));
 }
 
 function customEntries(config: ReturnType<typeof mergeOmarchyShellConfig>) {
@@ -237,7 +236,8 @@ describe("mergeOmarchyShellConfig", () => {
     expect(
       customEntries(merged).find(
         ({ run }) =>
-          typeof run === "string" && run.startsWith("package-updates-bar"),
+          Schema.is(Schema.String)(run) &&
+          run.startsWith("package-updates-bar"),
       ),
     ).toMatchObject({ hiddenText: "󰏗 0", revealColor: "#e5c07b" });
     expect(merged.bar.layout.center).toContainEqual({

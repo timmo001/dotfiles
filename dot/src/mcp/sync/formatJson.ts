@@ -7,6 +7,9 @@
  * keeps `dot mcp-sync` output diff-clean against the existing files without
  * bundling Prettier into the binary.
  */
+import { Schema } from "effect";
+import { isJsonObject, type JsonValue } from "../../lib/schema.js";
+
 const PRINT_WIDTH = 80;
 const INDENT = "  ";
 
@@ -14,16 +17,16 @@ function pad(depth: number): string {
   return INDENT.repeat(depth);
 }
 
-function isPrimitive(value: unknown): boolean {
-  return value === null || typeof value !== "object";
-}
+const isJsonPrimitive = Schema.is(
+  Schema.Union([Schema.Null, Schema.String, Schema.Number, Schema.Boolean]),
+);
 
-function formatInline(value: unknown): string {
+function formatInline(value: JsonValue): string {
   if (Array.isArray(value)) {
     return `[${value.map(formatInline).join(", ")}]`;
   }
-  if (value !== null && typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>);
+  if (isJsonObject(value)) {
+    const entries = Object.entries(value);
     if (entries.length === 0) return "{}";
     return `{ ${entries
       .map(([key, item]) => `${JSON.stringify(key)}: ${formatInline(item)}`)
@@ -32,22 +35,22 @@ function formatInline(value: unknown): string {
   return JSON.stringify(value);
 }
 
-function formatValue(value: unknown, depth: number, column: number): string {
+function formatValue(value: JsonValue, depth: number, column: number): string {
   if (Array.isArray(value)) return formatArray(value, depth, column);
-  if (value !== null && typeof value === "object") {
-    return formatObject(value as Record<string, unknown>, depth);
+  if (isJsonObject(value)) {
+    return formatObject(value, depth);
   }
   return JSON.stringify(value);
 }
 
 function formatArray(
-  value: readonly unknown[],
+  value: readonly JsonValue[],
   depth: number,
   column: number,
 ): string {
   if (value.length === 0) return "[]";
   const inline = formatInline(value);
-  if (value.every(isPrimitive) && column + inline.length <= PRINT_WIDTH) {
+  if (value.every(isJsonPrimitive) && column + inline.length <= PRINT_WIDTH) {
     return inline;
   }
   const items = value
@@ -59,7 +62,10 @@ function formatArray(
   return `[\n${items}\n${pad(depth)}]`;
 }
 
-function formatObject(value: Record<string, unknown>, depth: number): string {
+function formatObject(
+  value: { readonly [key: string]: JsonValue },
+  depth: number,
+): string {
   const entries = Object.entries(value);
   if (entries.length === 0) return "{}";
   const lines = entries.map(([key, item]) => {
@@ -71,6 +77,6 @@ function formatObject(value: Record<string, unknown>, depth: number): string {
 }
 
 /** Serialise a value as prettier-style JSON with a trailing newline. */
-export function formatJson(value: unknown): string {
+export function formatJson(value: JsonValue): string {
   return `${formatValue(value, 0, 0)}\n`;
 }

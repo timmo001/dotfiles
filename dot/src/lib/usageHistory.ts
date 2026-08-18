@@ -14,14 +14,14 @@ interface HistoryTool {
 }
 
 /** Binaries whose invocations are safe to import from shell history. */
-const HISTORY_TOOLS: Readonly<Record<string, HistoryTool>> = {
+const HISTORY_TOOLS = {
   dot: { tool: "dot", canonicaliseDot: true },
   context: { tool: "context", canonicaliseDot: false },
   notes: { tool: "notes", canonicaliseDot: false },
   note: { tool: "notes", canonicaliseDot: false },
   handoff: { tool: "notes", canonicaliseDot: false },
   handoffs: { tool: "notes", canonicaliseDot: false },
-};
+} satisfies Readonly<Record<string, HistoryTool>>;
 
 /** Per-shell backfill report line. */
 export interface HistorySourceReport {
@@ -62,7 +62,9 @@ function eventFromTokens(
   const [binary, ...rest] = tokens;
   if (!binary) return null;
   const invokedAs = binary.split("/").pop() ?? binary;
-  const tool = HISTORY_TOOLS[invokedAs];
+  const tool = Object.entries(HISTORY_TOOLS).find(
+    ([binary]) => binary === invokedAs,
+  )?.[1];
   if (!tool) return null;
   if (!Number.isFinite(epochSeconds) || epochSeconds <= 0) return null;
 

@@ -24,6 +24,7 @@ import { CONFIG_DIR, STATE_DIR, expandHomePath } from "./lib/paths.js";
 import { ENV, envString, setEnv, unsetEnv } from "./lib/env.js";
 import { detectAgent } from "./lib/agent.js";
 import { installUsageHook } from "./lib/usage.js";
+import { formatCause } from "./lib/schema.js";
 import { withStepTimeout } from "./lib/workflowStep.js";
 import { configureFirewallRules } from "./lib/firewallSetup.js";
 import { applyOmarchyShellConfig } from "./lib/omarchyShellConfig.js";
@@ -107,12 +108,16 @@ const NOTIFICATION_ACTION_FLAGS: readonly {
  * Machine-readable command to suggest when an interactive view is blocked under
  * an agent or a non-interactive stdout. Views without an entry are TUI-only.
  */
-const TUI_ALTERNATIVES: Partial<Record<ViewId, string>> = {
+const TUI_ALTERNATIVES = {
   main: "dot help",
   dashboard: "context git",
   "git-diff": "dot git-diff --raw",
   "git-notifications": "dot git-notifications --raw",
-};
+} satisfies Partial<Record<ViewId, string>>;
+
+function tuiAlternative(view: ViewId): string | undefined {
+  return Object.entries(TUI_ALTERNATIVES).find(([name]) => name === view)?.[1];
+}
 
 /**
  * Refuse to open the interactive TUI when dot is driven by an AI agent or when
@@ -129,7 +134,7 @@ function guardInteractiveMode(current: Mode): void {
   const reason = nonTty
     ? "stdout is not an interactive terminal"
     : `an AI agent (${detection.name}) is driving dot`;
-  const alternative = TUI_ALTERNATIVES[current.initialView];
+  const alternative = tuiAlternative(current.initialView);
   const guidance = alternative
     ? `Run \`${alternative}\` for machine-readable output.`
     : `The ${current.initialView} view is interactive-only with no machine-readable equivalent.`;
@@ -258,10 +263,7 @@ function appendBootstrapLog(message: string | Uint8Array): void {
   writeMirroredLog(logFile, message);
 }
 
-function formatUnknownError(error: unknown): string {
-  if (error instanceof Error) return error.stack ?? error.message;
-  return typeof error === "string" ? error : JSON.stringify(error, null, 2);
-}
+const formatUnknownError = formatCause;
 
 function configureInitLogging(mode: Mode): void {
   if (mode.type !== "native" || mode.command !== "init") return;
@@ -436,7 +438,7 @@ type NativeEnv =
   | OutputLog;
 type NativeEffect = Effect.Effect<void, unknown, NativeEnv>;
 
-const NATIVE_COMMAND_TIMEOUT_SECONDS: Partial<Record<string, number>> = {
+const NATIVE_COMMAND_TIMEOUT_SECONDS = {
   install: 10 * 60,
   stow: 3 * 60,
   clean: 3 * 60,
@@ -449,7 +451,13 @@ const NATIVE_COMMAND_TIMEOUT_SECONDS: Partial<Record<string, number>> = {
   "mcp-sync": 2 * 60,
   "notes-capture-sync": 2 * 60,
   completions: 2 * 60,
-};
+} satisfies Partial<Record<string, number>>;
+
+function nativeCommandTimeout(command: string): number | undefined {
+  return Object.entries(NATIVE_COMMAND_TIMEOUT_SECONDS).find(
+    ([name]) => name === command,
+  )?.[1];
+}
 
 function commandLabel(command: string): string {
   return command
@@ -462,7 +470,7 @@ function withNativeCommandTimeout(
   command: string,
   effect: NativeEffect,
 ): NativeEffect {
-  const seconds = NATIVE_COMMAND_TIMEOUT_SECONDS[command];
+  const seconds = nativeCommandTimeout(command);
   if (!seconds) return effect;
   return Effect.gen(function* () {
     const completed = yield* withStepTimeout(
@@ -520,76 +528,77 @@ if (mode.type === "native") {
   };
 
   type NativeCommandHandler = (args: readonly string[]) => NativeEffect;
-  const nativeCommandHandlers: Readonly<Record<string, NativeCommandHandler>> =
-    {
-      init,
-      install: () => install,
-      update: (args) => {
-        if (args.includes("--check") || args.includes("--check-all")) {
-          return updateCheck({ all: args.includes("--check-all") });
-        }
-        const postHookRepo = optionValue(args, UPDATE_POST_HOOK_REPO_ARG);
-        return update({
-          pull: args.includes("--pull"),
-          stow: args.includes("--stow"),
-          app: args.includes("--app"),
-          selfUpdate: !hasOption(args, UPDATE_DISABLE_SELF_UPDATE_ARG),
-          postHookRepos: postHookRepo ? [postHookRepo] : [],
-        });
-      },
-      stow: (args) =>
-        stow({
-          publicOnly: args.includes("--public"),
-          privateOnly: args.includes("--private"),
-        }).pipe(Effect.asVoid),
-      "omarchy-shell-config": () => applyOmarchyShellConfig.pipe(Effect.asVoid),
-      doctor: (args) =>
-        doctor({
-          openOpencode: args.includes("--open-opencode"),
-        }),
-      clean: () => clean,
-      firewall: () => configureFirewallRules,
-      "git-commit": (args) =>
-        gitCommitRaw({
-          message: optionValue(args, "--message") ?? optionValue(args, "-m"),
-          paths: optionValues(args, "--path"),
-          push: args.includes("--push"),
-          dryRun: args.includes("--dry-run"),
-          amend: args.includes("--amend"),
-        }),
-      "git-notifications": resolveNotifications,
-      "agents-sync": () => agentsSync,
-      "mcp-sync": () => mcpSync,
-      "notes-capture-sync": () => notesCaptureSync,
-      "is-agent": isAgentCommand,
-      "setup-private-repo": () => setupPrivateRepo,
-      "setup-public-repo": () => setupPublicRepo,
-      "private-pkg-publish": privatePkgPublish,
-      "skill-updates": (args) =>
-        skillUpdates({
-          check: args.includes("--check"),
-          update: args.includes("--update"),
-          skipReview: args.includes("--skip-review"),
-          json: args.includes("--json"),
-          skill: optionValue(args, "--skill"),
-          noCommit: args.includes("--no-commit"),
-        }).pipe(Effect.asVoid),
-      "skill-check": (args) =>
-        skillCheck({
-          openOpencode: args.includes("--open-opencode"),
-          diffOrigin: args.includes("--diff-origin"),
-        }),
-      completions,
-      usage,
-      help,
-    };
+  const nativeCommandHandlers = {
+    init,
+    install: () => install,
+    update: (args) => {
+      if (args.includes("--check") || args.includes("--check-all")) {
+        return updateCheck({ all: args.includes("--check-all") });
+      }
+      const postHookRepo = optionValue(args, UPDATE_POST_HOOK_REPO_ARG);
+      return update({
+        pull: args.includes("--pull"),
+        stow: args.includes("--stow"),
+        app: args.includes("--app"),
+        selfUpdate: !hasOption(args, UPDATE_DISABLE_SELF_UPDATE_ARG),
+        postHookRepos: postHookRepo ? [postHookRepo] : [],
+      });
+    },
+    stow: (args) =>
+      stow({
+        publicOnly: args.includes("--public"),
+        privateOnly: args.includes("--private"),
+      }).pipe(Effect.asVoid),
+    "omarchy-shell-config": () => applyOmarchyShellConfig.pipe(Effect.asVoid),
+    doctor: (args) =>
+      doctor({
+        openOpencode: args.includes("--open-opencode"),
+      }),
+    clean: () => clean,
+    firewall: () => configureFirewallRules,
+    "git-commit": (args) =>
+      gitCommitRaw({
+        message: optionValue(args, "--message") ?? optionValue(args, "-m"),
+        paths: optionValues(args, "--path"),
+        push: args.includes("--push"),
+        dryRun: args.includes("--dry-run"),
+        amend: args.includes("--amend"),
+      }),
+    "git-notifications": resolveNotifications,
+    "agents-sync": () => agentsSync,
+    "mcp-sync": () => mcpSync,
+    "notes-capture-sync": () => notesCaptureSync,
+    "is-agent": isAgentCommand,
+    "setup-private-repo": () => setupPrivateRepo,
+    "setup-public-repo": () => setupPublicRepo,
+    "private-pkg-publish": privatePkgPublish,
+    "skill-updates": (args) =>
+      skillUpdates({
+        check: args.includes("--check"),
+        update: args.includes("--update"),
+        skipReview: args.includes("--skip-review"),
+        json: args.includes("--json"),
+        skill: optionValue(args, "--skill"),
+        noCommit: args.includes("--no-commit"),
+      }).pipe(Effect.asVoid),
+    "skill-check": (args) =>
+      skillCheck({
+        openOpencode: args.includes("--open-opencode"),
+        diffOrigin: args.includes("--diff-origin"),
+      }),
+    completions,
+    usage,
+    help,
+  } satisfies Readonly<Record<string, NativeCommandHandler>>;
 
   const resolveNative = (
     command: string,
     args: readonly string[],
   ): NativeEffect => {
     const canonical = getCliCommand(command)?.name ?? command;
-    const handler = nativeCommandHandlers[canonical];
+    const handler = Object.entries(nativeCommandHandlers).find(
+      ([name]) => name === canonical,
+    )?.[1];
     if (handler) return withNativeCommandTimeout(canonical, handler(args));
     return Effect.promise(async () => {
       console.error(`dot: unknown command '${command}'`);
@@ -602,10 +611,10 @@ if (mode.type === "native") {
       ? resolveDiff(mode.args).pipe(Effect.provide(CliLayers))
       : resolveNative(mode.command, mode.args).pipe(
           Effect.provide(CliLayers),
-          Effect.catch((err: unknown) =>
+          Effect.catch((cause) =>
             Effect.promise(async () => {
-              appendBootstrapLog(`\n[ERROR] ${formatUnknownError(err)}\n`);
-              console.error(err);
+              appendBootstrapLog(`\n[ERROR] ${formatUnknownError(cause)}\n`);
+              console.error(cause);
               process.exit(1);
             }),
           ),

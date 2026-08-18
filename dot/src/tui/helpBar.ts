@@ -28,6 +28,13 @@ export interface ResponsiveHelpBarOptions {
   readonly marginTop?: number;
 }
 
+interface HelpBarRenderableOptions {
+  id: string;
+  content: ReturnType<typeof formatHelpBar>;
+  width: "100%";
+  marginTop?: number;
+}
+
 /** Global help entries appended to every view's help bar */
 export const GLOBAL_HELP: readonly HelpEntry[] = [
   { key: "Ctrl+c", action: "quit" },
@@ -110,7 +117,7 @@ export function addResponsiveHelpBar(
   root: BoxRenderable,
   options: ResponsiveHelpBarOptions,
 ): TextRenderable {
-  const helpBarOptions = {
+  const helpBarOptions: HelpBarRenderableOptions = {
     id: options.id,
     content: formatHelpBar(
       options.theme,
@@ -119,10 +126,9 @@ export function addResponsiveHelpBar(
       renderer.terminalWidth,
     ),
     width: "100%" as const,
-    ...(options.marginTop === undefined
-      ? {}
-      : { marginTop: options.marginTop }),
   };
+  if (options.marginTop !== undefined)
+    helpBarOptions.marginTop = options.marginTop;
   const helpBar = new TextRenderable(renderer, helpBarOptions);
   root.add(helpBar);
   renderer.on("resize", () => {

@@ -106,12 +106,7 @@ type HostLinkTarget =
   | { readonly status: "target"; readonly target: string }
   | { readonly status: "missing" | "not-symlink" | "inspect-failed" };
 
-const hostLinkActions: Record<
-  HostLinkStatus,
-  (
-    request: Extract<HostLinkRequest, { readonly status: "ensure" }>,
-  ) => HostLinkAction
-> = {
+const hostLinkActions = {
   missing: () => ({ kind: "create" }),
   repair: () => ({ kind: "repair" }),
   ok: (request) => ({
@@ -126,14 +121,19 @@ const hostLinkActions: Record<
     kind: "skip",
     message: `Skipping Hypr host link (could not inspect ${displayPath(request.hostLink)})`,
   }),
-};
+} satisfies Record<
+  HostLinkStatus,
+  (
+    request: Extract<HostLinkRequest, { readonly status: "ensure" }>,
+  ) => HostLinkAction
+>;
 
-function isMissingLinkError(error: unknown): boolean {
-  return error instanceof Error && error.message.includes("ENOENT");
+function isMissingLinkError(cause: unknown): boolean {
+  return cause instanceof Error && cause.message.includes("ENOENT");
 }
 
-function inspectErrorStatus(error: unknown): HostLinkTarget {
-  if (isMissingLinkError(error)) return { status: "missing" };
+function inspectErrorStatus(cause: unknown): HostLinkTarget {
+  if (isMissingLinkError(cause)) return { status: "missing" };
   return { status: "inspect-failed" };
 }
 
@@ -287,10 +287,14 @@ export const ensureHyprConfigLink = (
     );
   });
 
+interface LinkInspection {
+  readonly type: "matching" | "different" | "missing" | "unreadable";
+}
+
 function inspectLink(
   linkPath: string,
   expectedContent: string,
-): { readonly type: "matching" | "different" | "missing" | "unreadable" } {
+): LinkInspection {
   try {
     const stat = lstatSync(linkPath);
     if (stat.isSymbolicLink() && readlinkSync(linkPath) === expectedContent) {

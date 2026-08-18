@@ -17,6 +17,7 @@ import {
   writeInitCompleteMarker,
   writeInitInProgressMarker,
 } from "../../src/lib/initState.js";
+import { decodeJsonObject } from "../../src/lib/schema.js";
 import type { ConfigService } from "../../src/services/Config.js";
 
 const tempRoots: string[] = [];
@@ -63,8 +64,8 @@ function tempRoot(): string {
   return root;
 }
 
-function readJson(path: string): Record<string, unknown> {
-  return JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+function readJson(path: string) {
+  return decodeJsonObject(JSON.parse(readFileSync(path, "utf8")));
 }
 
 afterEach(() => {

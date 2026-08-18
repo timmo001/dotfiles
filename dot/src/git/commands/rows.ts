@@ -1,4 +1,9 @@
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
+import { formatCause, type JsonValue } from "../../lib/schema.js";
+
+const ErrorMessage = Schema.decodeUnknownOption(
+  Schema.Struct({ message: Schema.String }),
+);
 
 /** Format fields as a pipe-delimited machine-readable row. */
 export function pipeRow(
@@ -13,7 +18,7 @@ export function writeText(text: string): Effect.Effect<void> {
 }
 
 /** Write one JSON-encoded value followed by a newline. */
-export function writeJsonLine(value: unknown): Effect.Effect<void> {
+export function writeJsonLine(value: JsonValue): Effect.Effect<void> {
   return writeText(`${JSON.stringify(value)}\n`);
 }
 
@@ -25,20 +30,18 @@ export function writeRows(rows: Iterable<string>): Effect.Effect<void> {
 }
 
 /** Format an unknown command error for CLI output. */
-export function formatCommandError(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (error && typeof error === "object" && "message" in error) {
-    const message = (error as { readonly message?: unknown }).message;
-    if (typeof message === "string" && message.length > 0) return message;
-  }
-  return String(error);
+export function formatCommandError(cause: unknown): string {
+  const decoded = ErrorMessage(cause);
+  return decoded._tag === "Some" && decoded.value.message.length > 0
+    ? decoded.value.message
+    : formatCause(cause);
 }
 
 /** Print a labelled command error and exit non-zero. */
 export function handleCommandError(label: string) {
-  return Effect.catch((error: unknown) =>
+  return Effect.catch((cause) =>
     Effect.promise(async () => {
-      console.error(`[${label}] ${formatCommandError(error)}`);
+      console.error(`[${label}] ${formatCommandError(cause)}`);
       process.exit(1);
     }),
   );

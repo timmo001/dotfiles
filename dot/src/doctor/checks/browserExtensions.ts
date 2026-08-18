@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { Config } from "../../services/Config.js";
@@ -145,11 +145,20 @@ function readTextFile(path: string): string | null {
 
 function extensionManifestIncludesName(prefs: string, target: string): boolean {
   try {
-    const parsed = JSON.parse(prefs) as {
-      readonly extensions?: {
-        readonly settings?: Record<string, { readonly path?: string }>;
-      };
-    };
+    const parsed = Schema.decodeUnknownSync(
+      Schema.Struct({
+        extensions: Schema.optional(
+          Schema.Struct({
+            settings: Schema.optional(
+              Schema.Record(
+                Schema.String,
+                Schema.Struct({ path: Schema.optional(Schema.String) }),
+              ),
+            ),
+          }),
+        ),
+      }),
+    )(JSON.parse(prefs));
     const settings = parsed.extensions?.settings;
     if (!settings) return false;
     for (const ext of Object.values(settings)) {

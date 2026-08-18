@@ -30,7 +30,7 @@ interface CompletionOptions {
 }
 
 function isCompletionShell(shell: string): shell is CompletionShell {
-  return (SUPPORTED_SHELLS as readonly string[]).includes(shell);
+  return SUPPORTED_SHELLS.some((supported) => supported === shell);
 }
 
 function shellList(): string {

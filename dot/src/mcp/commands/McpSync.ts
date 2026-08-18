@@ -21,6 +21,15 @@ import { Config } from "../../services/Config.js";
 import { OutputLog } from "../../services/OutputLog.js";
 import { displayPath } from "../../lib/paths.js";
 import {
+  decodeJson,
+  decodeJsonObject,
+  type JsonValue,
+} from "../../lib/schema.js";
+
+interface MutableJsonConfig {
+  [key: string]: JsonValue;
+}
+import {
   MCP_HARNESSES,
   serversForHarness,
   type McpHarness,
@@ -34,12 +43,12 @@ import {
 import { formatJson } from "../sync/formatJson.js";
 
 /** Relative path (under the private dotfiles repo) for each harness config. */
-const HARNESS_RELATIVE_PATH: Record<McpHarness, string> = {
+const HARNESS_RELATIVE_PATH = {
   opencode: join("agents", ".config", "opencode", "opencode.json"),
   cursor: join("agents", ".cursor", "mcp.json"),
   vscode: join("agents", ".config", "Code", "User", "mcp.json"),
   copilot: join("agents", ".copilot", "mcp-config.json"),
-};
+} satisfies Record<McpHarness, string>;
 
 class McpSyncError extends Schema.TaggedErrorClass<McpSyncError>()(
   "McpSyncError",
@@ -49,7 +58,7 @@ class McpSyncError extends Schema.TaggedErrorClass<McpSyncError>()(
 ) {}
 
 /** Atomic JSON write: mkdir -p, write to temp, rename over destination. */
-function atomicWriteJson(dest: string, value: unknown): void {
+function atomicWriteJson(dest: string, value: JsonValue): void {
   mkdirSync(dirname(dest), { recursive: true });
   const tmp = `${dest}.tmp.${process.pid}`;
   writeFileSync(tmp, formatJson(value), "utf-8");
@@ -57,13 +66,13 @@ function atomicWriteJson(dest: string, value: unknown): void {
 }
 
 /** Read an existing JSON object, or an empty object when absent. */
-function readJsonObject(path: string): Record<string, unknown> {
+function readJsonObject(path: string) {
   if (!existsSync(path)) return {};
-  const parsed: unknown = JSON.parse(readFileSync(path, "utf-8"));
-  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+  try {
+    return decodeJsonObject(JSON.parse(readFileSync(path, "utf-8")));
+  } catch {
     throw new Error(`${displayPath(path)} is not a JSON object`);
   }
-  return parsed as Record<string, unknown>;
 }
 
 /**
@@ -71,11 +80,11 @@ function readJsonObject(path: string): Record<string, unknown> {
  * set gated servers to `false`. Non-managed tool entries are preserved.
  */
 function mergeToolsGate(
-  existing: Record<string, unknown> | undefined,
+  existing: { readonly [key: string]: JsonValue } | undefined,
   spec: McpSyncSpec,
-): Record<string, unknown> {
+) {
   const managed = new Set(spec.servers.map((server) => `${server.name}*`));
-  const tools: Record<string, unknown> = {};
+  const tools: Record<string, JsonValue> = {};
   for (const [key, value] of Object.entries(existing ?? {})) {
     if (!managed.has(key)) tools[key] = value;
   }
@@ -88,17 +97,18 @@ function buildHarnessConfig(
   harness: McpHarness,
   path: string,
   spec: McpSyncSpec,
-): Record<string, unknown> {
+) {
   const existing = readJsonObject(path);
-  const config: Record<string, unknown> = { ...existing };
+  const config: MutableJsonConfig = { ...existing };
   config[topKeyFor(harness)] = buildMcpEntries(spec, harness);
   if (harness === "opencode") {
+    const tools = existing.tools;
     config.tools = mergeToolsGate(
-      existing.tools as Record<string, unknown> | undefined,
+      tools === undefined ? undefined : decodeJsonObject(tools),
       spec,
     );
   }
-  return config;
+  return decodeJson(config);
 }
 
 /**

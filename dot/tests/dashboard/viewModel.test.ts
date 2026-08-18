@@ -39,6 +39,7 @@ const sourceState = (
   overrides: Partial<DashboardSourceState> = {},
 ): DashboardSourceState => ({
   diffRepos: [],
+  // SAFETY: barIds contains every DashboardBarModuleId exactly once.
   bar: Object.fromEntries(barIds.map((id) => [id, barValue(id)])) as Record<
     DashboardBarModuleId,
     DashboardBarValue

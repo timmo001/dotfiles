@@ -32,7 +32,7 @@ function keyForDate(date) {
 
 function coerceWeekStart(value) {
   if (value === undefined || value === null) return null
-  if (typeof value === "number")
+  if (Number.isFinite(value))
     return isFinite(value) ? ((Math.round(value) % 7) + 7) % 7 : null
 
   var text = String(value).replace(/^\s+|\s+$/g, "").toLowerCase()
@@ -209,7 +209,7 @@ function stepMonth(year, month, delta) {
   return { year: target.getFullYear(), month: target.getMonth() }
 }
 
-if (typeof module !== "undefined") {
+if (globalThis.module) {
   module.exports = {
     dateKey: dateKey,
     keyForDate: keyForDate,

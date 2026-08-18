@@ -13,11 +13,27 @@ import { OutputLog } from "../services/OutputLog.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "./paths.js";
 import { ENV, envString } from "./env.js";
 import { resolvedOmarchyHost } from "./omarchyHost.js";
+import {
+  decodeJson,
+  isBoolean,
+  isJsonObject,
+  isNumber,
+  isString,
+  type JsonObject,
+  type JsonValue,
+} from "./schema.js";
 
 /** A single bar layout entry: a plugin id plus inline per-instance settings. */
 interface BarEntry {
-  readonly id: string;
-  readonly [key: string]: unknown;
+  id: string;
+  readonly format?: string;
+  readonly run?: string;
+  readonly revealOnHover?: boolean;
+  readonly primaryOnly?: boolean;
+  readonly primaryOutput?: string;
+  readonly persistent?: boolean;
+  readonly customAgentField?: string;
+  readonly [key: string]: string | number | boolean | undefined;
 }
 
 /** The bar layout columns of an Omarchy `shell.json`. */
@@ -25,6 +41,7 @@ interface ShellLayout {
   left: BarEntry[];
   center: BarEntry[];
   right: BarEntry[];
+  [key: string]: BarEntry[];
 }
 
 /** A bar section accepted by Omarchy's placement commands. */
@@ -42,6 +59,10 @@ export interface ManagedPluginPlacement {
   readonly index?: number;
 }
 
+interface PluginSettings {
+  readonly [key: string]: JsonValue | undefined;
+}
+
 /** A third-party plugin whose source and layout are managed by dotfiles. */
 export interface ManagedPlugin {
   /** Plugin manifest id. */
@@ -55,9 +76,13 @@ export interface ManagedPlugin {
   /** Persistent bar placement. */
   readonly placement: ManagedPluginPlacement;
   /** Settings applied to every host. */
-  readonly settings?: Readonly<Record<string, unknown>>;
+  readonly settings?: PluginSettings;
   /** Settings applied only to a named host. */
-  readonly hosts?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+  readonly hosts?: ManagedPluginHosts;
+}
+
+interface ManagedPluginHosts {
+  readonly [host: string]: PluginSettings;
 }
 
 /** Declarative customisation applied to Omarchy's stock shell layout. */
@@ -71,8 +96,9 @@ export interface ManagedPluginConfig {
 /** The `bar` block of an Omarchy `shell.json` (unknown fields preserved). */
 interface ShellBar {
   position?: string;
+  centerAnchor?: string;
   layout: ShellLayout;
-  [key: string]: unknown;
+  [key: string]: JsonValue | ShellLayout | undefined;
 }
 
 /**
@@ -83,7 +109,25 @@ interface ShellBar {
 interface ShellConfig {
   idle?: { screensaver: number; lock: number };
   bar: ShellBar;
-  [key: string]: unknown;
+  [key: string]:
+    JsonValue | ShellBar | { screensaver: number; lock: number } | undefined;
+}
+
+interface MutablePluginPlacement {
+  section: BarSection;
+  before?: string;
+  after?: string;
+  index?: number;
+}
+
+interface MutableManagedPlugin {
+  id: string;
+  managed?: boolean;
+  replace?: string;
+  inheritSettings?: boolean;
+  placement: ManagedPluginPlacement;
+  settings?: PluginSettings;
+  hosts?: ManagedPluginHosts;
 }
 
 /** Path to Omarchy's shipped default `shell.json` under `$OMARCHY_PATH`. */
@@ -94,30 +138,21 @@ function omarchyDefaultShellConfigPath(): string {
 }
 
 /** Narrow an unknown value to a `BarEntry[]` (array of `{ id: string, ... }`). */
-function isBarEntryArray(value: unknown): value is BarEntry[] {
+function isBarEntryArray(value: JsonValue): boolean {
   return (
     Array.isArray(value) &&
-    value.every(
-      (entry) =>
-        typeof entry === "object" &&
-        entry !== null &&
-        typeof (entry as { id?: unknown }).id === "string",
-    )
+    value.every((entry) => isJsonObject(entry) && isString(entry.id))
   );
 }
 
 /** Narrow parsed JSON to the {@link ShellConfig} shape this generator mutates. */
-function isShellConfig(value: unknown): value is ShellConfig {
-  if (typeof value !== "object" || value === null) return false;
-  const bar = (value as { bar?: unknown }).bar;
-  if (typeof bar !== "object" || bar === null) return false;
-  const layout = (bar as { layout?: unknown }).layout;
-  if (typeof layout !== "object" || layout === null) return false;
-  const { left, center, right } = layout as {
-    left?: unknown;
-    center?: unknown;
-    right?: unknown;
-  };
+function isShellConfig(value: JsonValue): value is JsonObject {
+  if (!isJsonObject(value)) return false;
+  const bar = value.bar;
+  if (bar === undefined || !isJsonObject(bar)) return false;
+  const layout = bar.layout;
+  if (layout === undefined || !isJsonObject(layout)) return false;
+  const { left, center, right } = layout;
   return (
     isBarEntryArray(left) && isBarEntryArray(center) && isBarEntryArray(right)
   );
@@ -158,26 +193,24 @@ function placeManagedPlugin(
         : plugin.placement.index === undefined
           ? entries.length
           : Math.min(plugin.placement.index, entries.length);
-  entries.splice(index, 0, {
-    ...(plugin.inheritSettings === false ? {} : existing),
-    id: plugin.id,
-    ...plugin.settings,
-    ...plugin.hosts?.[host],
-  });
+  const entry: BarEntry = { id: plugin.id };
+  if (plugin.inheritSettings !== false && existing)
+    Object.assign(entry, existing);
+  entry.id = plugin.id;
+  if (plugin.settings) Object.assign(entry, plugin.settings);
+  if (plugin.hosts?.[host]) Object.assign(entry, plugin.hosts[host]);
+  entries.splice(index, 0, entry);
 }
 
 /** Parse the managed-plugin registry consumed by the shell generator. */
 export function parseManagedPlugins(
-  value: unknown,
+  value: JsonValue,
 ): ManagedPluginConfig | null {
-  if (typeof value !== "object" || value === null) return null;
-  const { remove, plugins } = value as {
-    remove?: unknown;
-    plugins?: unknown;
-  };
+  if (!isJsonObject(value)) return null;
+  const { remove, plugins } = value;
   if (
     !Array.isArray(remove) ||
-    !remove.every((id) => typeof id === "string" && isPluginId(id))
+    !remove.every((id) => isString(id) && isPluginId(id))
   )
     return null;
   if (!Array.isArray(plugins)) return null;
@@ -185,7 +218,7 @@ export function parseManagedPlugins(
   const parsed: ManagedPlugin[] = [];
   const ids = new Set<string>();
   for (const plugin of plugins) {
-    if (typeof plugin !== "object" || plugin === null) return null;
+    if (!isJsonObject(plugin)) return null;
     const {
       id,
       managed,
@@ -194,83 +227,71 @@ export function parseManagedPlugins(
       placement,
       settings,
       hosts,
-    } = plugin as {
-      id?: unknown;
-      managed?: unknown;
-      replace?: unknown;
-      inheritSettings?: unknown;
-      placement?: unknown;
-      settings?: unknown;
-      hosts?: unknown;
-    };
-    if (typeof id !== "string" || !isPluginId(id) || ids.has(id)) return null;
+    } = plugin;
+    if (!isString(id) || !isPluginId(id) || ids.has(id)) return null;
     ids.add(id);
-    if (managed !== undefined && typeof managed !== "boolean") return null;
+    if (managed !== undefined && !isBoolean(managed)) return null;
     if (replace !== undefined && !isPluginId(replace)) return null;
-    if (inheritSettings !== undefined && typeof inheritSettings !== "boolean")
+    if (inheritSettings !== undefined && !isBoolean(inheritSettings))
       return null;
     if (settings !== undefined && !isSettings(settings)) return null;
     if (
       hosts !== undefined &&
-      (typeof hosts !== "object" ||
-        hosts === null ||
-        Array.isArray(hosts) ||
-        !Object.values(hosts).every(isSettings))
+      (!isJsonObject(hosts) || !Object.values(hosts).every(isSettings))
     )
       return null;
-    if (typeof placement !== "object" || placement === null) return null;
-    const { section, before, after, index } = placement as {
-      section?: unknown;
-      before?: unknown;
-      after?: unknown;
-      index?: unknown;
-    };
+    if (!isJsonObject(placement)) return null;
+    const { section, before, after, index } = placement;
     if (section !== "left" && section !== "center" && section !== "right")
       return null;
-    if (before !== undefined && typeof before !== "string") return null;
-    if (after !== undefined && typeof after !== "string") return null;
+    if (before !== undefined && !isString(before)) return null;
+    if (after !== undefined && !isString(after)) return null;
     if (before !== undefined && after !== undefined) return null;
     if (
       index !== undefined &&
-      (!Number.isInteger(index) || (index as number) < 0)
+      (!isNumber(index) || !Number.isInteger(index) || index < 0)
     )
       return null;
     if (index !== undefined && (before !== undefined || after !== undefined))
       return null;
-    parsed.push({
+    const parsedPlacement: MutablePluginPlacement = { section };
+    if (before !== undefined) parsedPlacement.before = before;
+    if (after !== undefined) parsedPlacement.after = after;
+    if (index !== undefined && isNumber(index)) parsedPlacement.index = index;
+    const parsedPlugin: MutableManagedPlugin = {
       id,
-      ...(managed === undefined ? {} : { managed }),
-      ...(replace === undefined ? {} : { replace }),
-      ...(inheritSettings === undefined ? {} : { inheritSettings }),
-      placement: {
-        section,
-        ...(before === undefined ? {} : { before }),
-        ...(after === undefined ? {} : { after }),
-        ...(index === undefined ? {} : { index: index as number }),
-      },
-      ...(settings === undefined ? {} : { settings }),
-      ...(hosts === undefined
-        ? {}
-        : {
-            hosts: hosts as Record<string, Readonly<Record<string, unknown>>>,
-          }),
-    });
+      placement: parsedPlacement,
+    };
+    if (managed !== undefined && isBoolean(managed))
+      parsedPlugin.managed = managed;
+    if (replace !== undefined && isString(replace))
+      parsedPlugin.replace = replace;
+    if (inheritSettings !== undefined && isBoolean(inheritSettings))
+      parsedPlugin.inheritSettings = inheritSettings;
+    if (settings !== undefined && isSettings(settings))
+      parsedPlugin.settings = settings;
+    if (hosts !== undefined && isJsonObject(hosts)) {
+      parsedPlugin.hosts = Object.fromEntries(
+        Object.entries(hosts).filter((entry): entry is [string, JsonObject] =>
+          isSettings(entry[1]),
+        ),
+      );
+    }
+    parsed.push(parsedPlugin);
   }
   return { remove, plugins: parsed };
 }
 
-function isPluginId(value: unknown): value is string {
+function isPluginId(value: JsonValue): value is string {
   return (
-    typeof value === "string" &&
+    isString(value) &&
     /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value) &&
     !value.includes("..")
   );
 }
 
-function isSettings(
-  value: unknown,
-): value is Readonly<Record<string, unknown>> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+function isSettings(value: JsonValue): value is JsonObject {
+  return isJsonObject(value);
 }
 
 /**
@@ -363,9 +384,9 @@ export const applyOmarchyShellConfig: Effect.Effect<
     return false;
   }
 
-  const parsed = yield* Effect.sync((): unknown => {
+  const parsed = yield* Effect.sync((): JsonValue | undefined => {
     try {
-      return JSON.parse(readFileSync(defaultPath, "utf-8"));
+      return decodeJson(JSON.parse(readFileSync(defaultPath, "utf-8")));
     } catch {
       return undefined;
     }
@@ -391,7 +412,7 @@ export const applyOmarchyShellConfig: Effect.Effect<
   const managedPlugins = yield* Effect.sync((): ManagedPluginConfig | null => {
     try {
       return parseManagedPlugins(
-        JSON.parse(readFileSync(managedPluginsPath, "utf-8")),
+        decodeJson(JSON.parse(readFileSync(managedPluginsPath, "utf-8"))),
       );
     } catch {
       return null;
@@ -405,7 +426,12 @@ export const applyOmarchyShellConfig: Effect.Effect<
   }
 
   const target = join(omarchyDir, "shell.json");
-  const merged = mergeOmarchyShellConfig(parsed, host, managedPlugins);
+  // SAFETY: isShellConfig validates the ShellConfig fields consumed here.
+  const merged = mergeOmarchyShellConfig(
+    parsed as ShellConfig,
+    host,
+    managedPlugins,
+  );
   const rendered = `${JSON.stringify(merged, null, 2)}\n`;
 
   const existing = existsSync(target)

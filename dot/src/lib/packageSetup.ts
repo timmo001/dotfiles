@@ -65,13 +65,15 @@ function privatePackageListPaths(config: ConfigService): readonly string[] {
 const scopeLabel = (scope: ArchPackageScope): string =>
   scope === "public" ? "Public" : "Private";
 
-const replacedPublicPackages: Readonly<Record<string, string>> = {
+const replacedPublicPackages = {
   mise: "mise-bin",
-};
+} satisfies Readonly<Record<string, string>>;
 
 /** Installed package that must be removed before installing the requested public package. */
 export function replacedPublicPackage(packageName: string): string | undefined {
-  return replacedPublicPackages[packageName];
+  return Object.entries(replacedPublicPackages).find(
+    ([name]) => name === packageName,
+  )?.[1];
 }
 
 function fail(message: string): Effect.Effect<never, PackageSetupError> {

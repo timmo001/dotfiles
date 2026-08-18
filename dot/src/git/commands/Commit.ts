@@ -250,7 +250,7 @@ function readGitConfigAll(
         .map((line) => line.trim())
         .filter(Boolean),
     ),
-    Effect.catch(() => Effect.succeed([] as readonly string[])),
+    Effect.catch(() => Effect.succeed<readonly string[]>([])),
   );
 }
 

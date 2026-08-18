@@ -187,10 +187,14 @@ function appendNotificationThreadLines(
   if (threads.length > 10) lines.push(`+${threads.length - 10} more`);
 }
 
-function notificationStateSummary(state: GitNotificationState): {
+interface NotificationStateSummary {
   readonly unreadCount: number;
   readonly importantUnreadCount: number;
-} {
+}
+
+function notificationStateSummary(
+  state: GitNotificationState,
+): NotificationStateSummary {
   let unreadCount = 0;
   let importantUnreadCount = 0;
 
@@ -266,7 +270,7 @@ function appendNotificationQueryLines(
   if (query.barFilter) lines.push("Status-bar filters active");
 }
 
-function formatError(error: unknown): string {
-  if (error instanceof GitNotificationError) return error.message;
-  return formatCommandError(error);
+function formatError(cause: unknown): string {
+  if (cause instanceof GitNotificationError) return cause.message;
+  return formatCommandError(cause);
 }

@@ -355,25 +355,22 @@ const postHooks = Effect.gen(function* () {
 /** Read the Herdr Lazy plugin root from `herdr plugin list --json`. */
 export function herdrLazyPluginRoot(source: string): string | null {
   try {
-    const parsed: unknown = JSON.parse(source);
-    if (!parsed || typeof parsed !== "object") return null;
-
-    const result = (parsed as Record<string, unknown>).result;
-    if (!result || typeof result !== "object") return null;
-
-    const plugins = (result as Record<string, unknown>).plugins;
-    if (!Array.isArray(plugins)) return null;
-
-    for (const plugin of plugins) {
-      if (!plugin || typeof plugin !== "object") continue;
-      const record = plugin as Record<string, unknown>;
-      if (
-        record.plugin_id === "herdr-lazy" &&
-        typeof record.plugin_root === "string"
-      ) {
-        return record.plugin_root;
-      }
-    }
+    const parsed = Schema.decodeUnknownSync(
+      Schema.Struct({
+        result: Schema.Struct({
+          plugins: Schema.Array(
+            Schema.Struct({
+              plugin_id: Schema.String,
+              plugin_root: Schema.optional(Schema.String),
+            }),
+          ),
+        }),
+      }),
+    )(JSON.parse(source));
+    return (
+      parsed.result.plugins.find(({ plugin_id }) => plugin_id === "herdr-lazy")
+        ?.plugin_root ?? null
+    );
   } catch {
     return null;
   }

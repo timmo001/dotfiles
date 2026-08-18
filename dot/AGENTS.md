@@ -226,7 +226,7 @@ dot skill-updates             # Check/apply skill updates
 dot skill-updates --check     # Check only (no apply)
 dot skill-updates --update    # Auto-apply clean updates
 dot skill-updates --skip-review # Skip local-edit review
-dot skill-check               # Validate skill maintenance wiring
+dot skill-check               # Validate skill maintenance and adapted imports
 dot completions zsh           # Generate stowed shell completions
 dot usage                     # Per-feature dot usage summary
 dot usage summary --format agent-context # Compact usage summary for agents
@@ -244,7 +244,7 @@ cd ~/.config/dotfiles
 mise run dot:build   # outputs to scripts/.local/bin/dot (wraps bun run build)
 ```
 
-The single root `mise.toml` defines the dev tasks, namespaced `dot:*` (`dot:install`, `dot:build`, `dot:dev`, `dot:typecheck`, `dot:test`, `dot:format`, `dot:format:check`, `dot:check`) with `dir = "dot"`; each wraps the matching `bun run` script, so `bun run build` still works for the fresh-machine bootstrap. `dot:build` depends on `dot:install`, and `dot:check` runs type checking, tests, and the format check. CI runs these via `mise run`. Run `mise tasks` to list them.
+The single root `mise.toml` defines the dev tasks, including the root `lint` task and namespaced `dot:*` tasks (`dot:install`, `dot:build`, `dot:dev`, `dot:typecheck`, `dot:test`, `dot:format`, `dot:format:check`, `dot:check`) with `dir = "dot"`; each wraps the matching `bun run` script, so `bun run build` still works for the fresh-machine bootstrap. `dot:build` depends on `dot:install`, and `dot:check` runs anti-slop lint, type checking, tests, and the format check. CI runs these via `mise run`. Run `mise tasks` to list them.
 
 Tests live under `tests/` alongside `src/` and mirror the source tree.
 
@@ -280,7 +280,7 @@ Always run type check, format, and build after every final code change:
 
 ```bash
 cd ~/.config/dotfiles
-mise run dot:check           # type check + tests + prettier format check
+mise run dot:check           # anti-slop lint + type check + tests + prettier format check
 mise run dot:format          # format with prettier (required before every commit)
 mise run dot:build           # compile binary
 ```

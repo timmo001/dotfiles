@@ -1,6 +1,15 @@
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { displayPath, expandHomePath } from "../lib/paths.js";
+import {
+  decodeJson,
+  formatCause,
+  isBoolean,
+  isJsonObject,
+  isString,
+  type JsonObject,
+  type JsonValue,
+} from "../lib/schema.js";
 
 const TOP_LEVEL_KEYS = new Set(["schema_version", "repositories", "shortcuts"]);
 const REPO_KEYS = new Set([
@@ -119,7 +128,7 @@ export function loadDotGitConfig(filePath: string): DotGitConfig {
   }
 
   try {
-    const parsed = Bun.YAML.parse(readFileSync(filePath, "utf-8")) as unknown;
+    const parsed = decodeJson(Bun.YAML.parse(readFileSync(filePath, "utf-8")));
     const result = parseDotGitConfig(parsed);
     return {
       filePath,
@@ -211,7 +220,7 @@ export function gitRepoNotificationsActive(
   );
 }
 
-function parseDotGitConfig(value: unknown): ParsedGitConfig {
+function parseDotGitConfig(value: JsonValue): ParsedGitConfig {
   const diagnostics: string[] = [];
   if (!isRecord(value)) {
     return {
@@ -243,7 +252,7 @@ function parseDotGitConfig(value: unknown): ParsedGitConfig {
 }
 
 function parseShortcuts(
-  value: unknown,
+  value: JsonValue,
   diagnostics: string[],
 ): readonly GitRepoShortcut[] {
   if (value === undefined) return [];
@@ -271,7 +280,7 @@ function parseShortcuts(
 }
 
 function parseRepo(
-  value: unknown,
+  value: JsonValue,
   index: number,
   diagnostics: string[],
 ): readonly GitManagedRepo[] {
@@ -329,7 +338,7 @@ function parseRepo(
 }
 
 function optionalAliases(
-  value: unknown,
+  value: JsonValue,
   location: string,
   diagnostics: string[],
 ): readonly string[] {
@@ -340,7 +349,7 @@ function optionalAliases(
   }
 
   return value.flatMap((alias, index) => {
-    if (typeof alias !== "string" || !/^[A-Za-z_][A-Za-z0-9_-]*$/.test(alias)) {
+    if (!isString(alias) || !/^[A-Za-z_][A-Za-z0-9_-]*$/.test(alias)) {
       diagnostics.push(`${location}[${index}] must be a valid shell alias`);
       return [];
     }
@@ -349,7 +358,7 @@ function optionalAliases(
 }
 
 function optionalString(
-  value: unknown,
+  value: JsonValue,
   location: string,
   diagnostics: string[],
 ): string | null {
@@ -358,7 +367,7 @@ function optionalString(
 }
 
 function parseNotifications(
-  value: unknown,
+  value: JsonValue,
   location: string,
   diagnostics: string[],
 ): GitRepoNotificationConfig | null {
@@ -391,7 +400,7 @@ function parseNotifications(
 }
 
 function parseNotificationBar(
-  value: unknown,
+  value: JsonValue,
   location: string,
   diagnostics: string[],
 ): GitRepoNotificationBarConfig | null {
@@ -416,7 +425,7 @@ function parseNotificationBar(
 }
 
 function parseCheck(
-  value: unknown,
+  value: JsonValue,
   location: string,
   diagnostics: string[],
 ): GitRepoCheckConfig | null {
@@ -446,11 +455,11 @@ function parseCheck(
 }
 
 function requiredString(
-  value: unknown,
+  value: JsonValue,
   location: string,
   diagnostics: string[],
 ): string | null {
-  if (typeof value !== "string" || value.trim().length === 0) {
+  if (!isString(value) || value.trim().length === 0) {
     diagnostics.push(`${location} must be a non-empty string`);
     return null;
   }
@@ -458,11 +467,11 @@ function requiredString(
 }
 
 function requiredBoolean(
-  value: unknown,
+  value: JsonValue,
   location: string,
   diagnostics: string[],
 ): boolean | null {
-  if (typeof value !== "boolean") {
+  if (!isBoolean(value)) {
     diagnostics.push(`${location} must be true or false`);
     return null;
   }
@@ -471,7 +480,7 @@ function requiredBoolean(
 
 function pushUnknownKeyDiagnostics(
   diagnostics: string[],
-  record: Record<string, unknown>,
+  record: JsonObject,
   allowed: ReadonlySet<string>,
   location: string,
 ): void {
@@ -560,12 +569,17 @@ function cronFieldPartMatches(
   return rangeMatches(value, range.start, range.end, step);
 }
 
+interface CronRange {
+  readonly start: number;
+  readonly end: number;
+}
+
 function parseCronRange(
   rangePart: string,
   min: number,
   max: number,
   hasStep: boolean,
-): { readonly start: number; readonly end: number } {
+): CronRange {
   if (rangePart === "*") return { start: min, end: max };
   if (!rangePart.includes("-")) {
     const value = parseInt(rangePart, 10);
@@ -613,10 +627,5 @@ export function normalizeGitHubSlug(value: string): string | null {
   return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(slug) ? slug : null;
 }
 
-function formatError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
+const formatError = formatCause;
+const isRecord = isJsonObject;

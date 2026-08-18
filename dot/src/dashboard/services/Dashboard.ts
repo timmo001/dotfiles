@@ -37,6 +37,26 @@ const BAR_MODULES: readonly DashboardBarModuleId[] = [
   "todo_my_tasks",
   "todo_work",
 ];
+const isDashboardBarModuleId = Schema.is(
+  Schema.Union(BAR_MODULES.map((id) => Schema.Literal(id))),
+);
+const BarOutput = Schema.Struct({
+  error: Schema.optional(Schema.String),
+  text: Schema.optional(Schema.String),
+  tooltip: Schema.optional(Schema.String),
+  class: Schema.optional(Schema.String),
+  name: Schema.optional(Schema.String),
+});
+const DashboardConfig = Schema.Struct({
+  sources: Schema.Record(
+    Schema.String,
+    Schema.Struct({
+      command: Schema.String,
+      unit: Schema.optional(Schema.String),
+      open_command: Schema.optional(Schema.String),
+    }),
+  ),
+});
 
 /** Domain error for dashboard source command failures. */
 class DashboardError extends Schema.TaggedErrorClass<DashboardError>()(
@@ -98,7 +118,7 @@ export class Dashboard extends Context.Service<Dashboard, DashboardService>()(
             dotDiff
               .getAll()
               .pipe(
-                Effect.catch(() => Effect.succeed([] as readonly DiffRepo[])),
+                Effect.catch(() => Effect.succeed<readonly DiffRepo[]>([])),
               ),
             loadBarValues(config.privateDotfiles),
           ],
@@ -152,6 +172,7 @@ function buildState(
 function emptyBarState(
   updatedAt: Date,
 ): Readonly<Record<DashboardBarModuleId, DashboardBarValue>> {
+  // SAFETY: BAR_MODULES supplies every DashboardBarModuleId exactly once.
   return Object.fromEntries(
     BAR_MODULES.map((id) => [id, missingBarValue(id, updatedAt, "not loaded")]),
   ) as Readonly<Record<DashboardBarModuleId, DashboardBarValue>>;
@@ -165,6 +186,7 @@ function loadBarValues(privateDotfiles: string | null) {
       BAR_MODULES.map((id) => loadBarValue(id, commandMap[id], now)),
       { concurrency: 3 },
     );
+    // SAFETY: loadBarValue returns exactly one entry for every BAR_MODULES id.
     return Object.fromEntries(
       entries.map((entry) => [entry.id, entry]),
     ) as Readonly<Record<DashboardBarModuleId, DashboardBarValue>>;
@@ -261,8 +283,8 @@ function parseBarValue(
   }
 
   try {
-    const parsed = JSON.parse(trimmed) as Record<string, unknown>;
-    if (typeof parsed.error === "string") {
+    const parsed = Schema.decodeUnknownSync(BarOutput)(JSON.parse(trimmed));
+    if (parsed.error !== undefined) {
       return {
         id,
         status: "error",
@@ -273,10 +295,10 @@ function parseBarValue(
         message: parsed.error,
       };
     }
-    const text = stringField(parsed, "text");
-    const tooltip = stringField(parsed, "tooltip");
-    const className = stringField(parsed, "class");
-    const name = stringField(parsed, "name");
+    const text = parsed.text ?? "";
+    const tooltip = parsed.tooltip ?? "";
+    const className = parsed.class ?? "";
+    const name = parsed.name ?? "";
     return {
       id,
       status:
@@ -310,14 +332,9 @@ function barStatus(
   return "ok";
 }
 
-function stringField(record: Record<string, unknown>, key: string): string {
-  const value = record[key];
-  return typeof value === "string" ? value : "";
-}
-
-function formatError(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  return String(error);
+function formatError(cause: unknown): string {
+  if (cause instanceof Error) return cause.message;
+  return String(cause);
 }
 
 function safeDashboardCommand(command: string): boolean {
@@ -334,35 +351,31 @@ function dashboardCommands(
   const path = join(privateDotfiles, DASHBOARD_CONFIG_FILE);
   if (!existsSync(path)) return {};
   try {
-    const parsed = Bun.YAML.parse(readFileSync(path, "utf-8")) as unknown;
+    const parsed = Schema.decodeUnknownSync(DashboardConfig)(
+      Bun.YAML.parse(readFileSync(path, "utf-8")),
+    );
     return parseDashboardCommands(parsed);
   } catch {
     return {};
   }
 }
 
+interface DashboardCommands {
+  [key: string]: DashboardSourceCommand;
+}
+
 function parseDashboardCommands(
-  value: unknown,
-): Partial<Record<DashboardBarModuleId, DashboardSourceCommand>> {
-  if (!value || typeof value !== "object") return {};
-  const sources = (value as Record<string, unknown>).sources;
-  if (!sources || typeof sources !== "object") return {};
-  const commands: Partial<
-    Record<DashboardBarModuleId, DashboardSourceCommand>
-  > = {};
-  for (const [key, source] of Object.entries(
-    sources as Record<string, unknown>,
-  )) {
+  value: Schema.Schema.Type<typeof DashboardConfig>,
+): DashboardCommands {
+  const commands: DashboardCommands = {};
+  for (const [key, source] of Object.entries(value.sources)) {
     if (!isDashboardBarModuleId(key)) continue;
-    if (!source || typeof source !== "object") continue;
-    const command = (source as Record<string, unknown>).command;
-    if (typeof command === "string" && command.trim()) {
-      const rawUnit = (source as Record<string, unknown>).unit;
-      const unit =
-        typeof rawUnit === "string" && rawUnit.trim() ? rawUnit : undefined;
-      const rawOpen = (source as Record<string, unknown>).open_command;
-      const openCommand =
-        typeof rawOpen === "string" && rawOpen.trim() ? rawOpen : undefined;
+    const command = source.command;
+    if (command.trim()) {
+      const unit = source.unit?.trim() ? source.unit : undefined;
+      const openCommand = source.open_command?.trim()
+        ? source.open_command
+        : undefined;
       commands[key] = {
         command,
         ...(unit && { unit }),
@@ -371,8 +384,4 @@ function parseDashboardCommands(
     }
   }
   return commands;
-}
-
-function isDashboardBarModuleId(value: string): value is DashboardBarModuleId {
-  return BAR_MODULES.includes(value as DashboardBarModuleId);
 }

@@ -72,6 +72,7 @@ const setup = async ({ providerFailure = false } = {}) => {
       },
     };
   });
+  // SAFETY: The test double implements the plugin context members used by this plugin.
   const hooks = await ContextZoneWarningPlugin({
     $: shell,
     client: { provider: { list }, tui: { showToast } },
