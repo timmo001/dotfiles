@@ -1,6 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { Effect, Layer, Stream } from "effect";
 import {
+  canRunHerdrSessionActions,
   herdrLazyPluginRoot,
   reloadOmarchyShellIfChanged,
   updatePinnedSubmodules,
@@ -10,6 +11,17 @@ import { Config, type ConfigService } from "../../src/services/Config.js";
 import { emptyDotGitConfig } from "../../src/services/GitConfig.js";
 import { OutputLog } from "../../src/services/OutputLog.js";
 import { emptyMcpConfig } from "../../src/mcp/sync/loadSpec.js";
+import { ENV } from "../../src/lib/env.js";
+
+const previousHerdrEnv = process.env[ENV.HERDR_ENV];
+
+afterEach(() => {
+  if (previousHerdrEnv === undefined) {
+    delete process.env[ENV.HERDR_ENV];
+  } else {
+    process.env[ENV.HERDR_ENV] = previousHerdrEnv;
+  }
+});
 
 function config(enabled: boolean): ConfigService {
   return {
@@ -171,5 +183,15 @@ describe("herdrLazyPluginRoot", () => {
         '{"result":{"plugins":[{"plugin_id":"herdr-lazy"}]}}',
       ),
     ).toBeNull();
+  });
+});
+
+describe("canRunHerdrSessionActions", () => {
+  test("allows session actions only inside Herdr", () => {
+    delete process.env[ENV.HERDR_ENV];
+    expect(canRunHerdrSessionActions()).toBeFalse();
+
+    process.env[ENV.HERDR_ENV] = "1";
+    expect(canRunHerdrSessionActions()).toBeTrue();
   });
 });

@@ -28,6 +28,7 @@ import {
 } from "../lib/git.js";
 import { HOME_DIR, displayPath } from "../lib/paths.js";
 import { detectLegacyHyprRepo } from "../lib/omarchyHost.js";
+import { ENV, envFlag } from "../lib/env.js";
 import { managedGitRepos } from "../services/GitConfig.js";
 import { setupPrivateRepo } from "./SetupPrivateRepo.js";
 import type { ConfigService } from "../services/Config.js";
@@ -378,6 +379,11 @@ export function herdrLazyPluginRoot(source: string): string | null {
   return null;
 }
 
+/** Whether session-bound Herdr actions can target the calling pane. */
+export function canRunHerdrSessionActions(): boolean {
+  return envFlag(ENV.HERDR_ENV);
+}
+
 /** Restore Herdr plugins to the commits in the stowed Herdr Lazy lockfile. */
 const restoreHerdrPlugins = Effect.gen(function* () {
   const log = yield* OutputLog;
@@ -385,6 +391,11 @@ const restoreHerdrPlugins = Effect.gen(function* () {
   const config = yield* Config;
 
   yield* log.section("Herdr Plugins");
+
+  if (!canRunHerdrSessionActions()) {
+    yield* log.info("Skipping Herdr plugins (outside Herdr)");
+    return;
+  }
 
   const pluginList = yield* executor
     .run("herdr", ["plugin", "list", "--json"])
