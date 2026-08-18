@@ -21,6 +21,7 @@ SIMULATE_STATE=""
 FORCE_TRUE=0
 FAKE_STATE=""
 STREAM_KEY=""
+MAX_LENGTH=""
 
 TRIGGER_STATE=""
 TRIGGER_COMMAND=""
@@ -72,6 +73,7 @@ Mode options:
   --force-true                   Force simulated on and exit (doorbell)
   --fake-state <warning|critical> Emit fake warning/critical output
   --stream-key <key>             Override singleton stream key (doorbell)
+  --max-length <characters>      Limit bar text length (current-next-event)
 
 Generic trigger options:
   --trigger-state <value>        Trigger when observed state matches value
@@ -224,6 +226,10 @@ parse_args() {
       STREAM_KEY="$2"
       shift 2
       ;;
+    --max-length)
+      MAX_LENGTH="$2"
+      shift 2
+      ;;
     --trigger-state)
       TRIGGER_STATE="$2"
       shift 2
@@ -293,6 +299,17 @@ validate_args() {
   if [[ ! "$TRIGGER_COOLDOWN" =~ ^[0-9]+$ ]]; then
     printf 'ha-module-bar: --trigger-cooldown must be a non-negative integer\n' >&2
     exit 1
+  fi
+
+  if [[ -n "$MAX_LENGTH" ]]; then
+    if [[ "$MODE" != "current-next-event" ]]; then
+      printf 'ha-module-bar: --max-length is only supported by current-next-event\n' >&2
+      exit 1
+    fi
+    if [[ ! "$MAX_LENGTH" =~ ^[1-9][0-9]*$ ]]; then
+      printf 'ha-module-bar: --max-length must be a positive integer\n' >&2
+      exit 1
+    fi
   fi
 
   if [[ "$MODE" == "dining-temperature" ]]; then
@@ -783,6 +800,10 @@ run_current_next_event() {
   if [[ -z "$line" ]] || [[ "$line" == *'"text":""'* ]]; then
     emit_hidden
     return
+  fi
+
+  if [[ -n "$MAX_LENGTH" ]]; then
+    line="$(jq -c --argjson maxLength "$MAX_LENGTH" '.text |= .[:$maxLength]' <<<"$line")"
   fi
 
   printf '%s\n' "$line"

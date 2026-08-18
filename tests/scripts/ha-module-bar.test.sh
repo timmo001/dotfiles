@@ -96,9 +96,18 @@ voc_decimal=$(HA_TEST_STATE=240.625 PATH="$mock_bin:$PATH" "$module" voc-alert)
 [[ $(jq -r .text <<<"$voc_decimal") == '󰵃 240.625' ]]
 [[ $(jq -r .tooltip <<<"$voc_decimal") == *': 240.625'* ]]
 
+calendar_event=$(HA_TEST_STATE='Culture-Hour: American Documentary' PATH="$mock_bin:$PATH" "$module" current-next-event --max-length 30)
+[[ $(jq -r .text <<<"$calendar_event") == 'Culture-Hour: American Documen' ]]
+[[ $(jq -r .tooltip <<<"$calendar_event") == 'Culture-Hour: American Documentary °C' ]]
+
 if PATH="$mock_bin:$PATH" "$module" temperature --show-above nope >"$test_root/output" 2>&1; then
   exit 1
 fi
 grep -q -- '--show-above must be a number' "$test_root/output"
+
+if PATH="$mock_bin:$PATH" "$module" current-next-event --max-length 0 >"$test_root/output" 2>&1; then
+  exit 1
+fi
+grep -q -- '--max-length must be a positive integer' "$test_root/output"
 
 printf 'ha-module-bar temperature threshold tests passed\n'

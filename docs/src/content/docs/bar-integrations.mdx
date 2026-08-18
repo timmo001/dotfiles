@@ -41,7 +41,7 @@ Numeric shell items omit units to keep the bar compact. Their tooltips retain th
 | `voc-alert` | Show a warning or critical VOC reading when the quality entity is `very abnormal` or `extremely abnormal`. Uses `--quality-entity` and `--value-entity`. |
 | `nas-activity` | Show positive NAS activity while the gate switch is on; hide zero activity and highlight when the inactivity script is armed. Uses `--switch-entity` and `--inactive-script-entity`. |
 | `dining-temperature` | Show dining-room temperature only while the air-conditioner target is below `--gate-below` (default `25`). Uses `--gate-entity` for the AC target. |
-| `current-next-event` | Pass through the entity's bar JSON when the text is non-empty. |
+| `current-next-event` | Pass through the entity's bar JSON when the text is non-empty. Use `--max-length <characters>` to limit the bar text while preserving the full tooltip. |
 | `doorbell` | Stream doorbell state through `singleton-stream` so the bar can keep one long-lived watcher per module instance. |
 
 Most modes poll once per refresh. The unified Home Assistant shell service owns those pollers alongside continuous `ha-watch-singleton` status streams. `doorbell` is the exception: it keeps a singleton stream alive for the shell ancestor process and emits JSON only when the output changes. Override the stream identity with `--stream-key` when multiple doorbell modules share an entity.
