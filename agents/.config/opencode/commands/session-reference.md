@@ -2,7 +2,7 @@
 description: Load another OpenCode session into this conversation by its sidebar title
 ---
 
-Load the `ctx-agent-history-search` skill, then use `${ARGUMENTS}` as the exact
+Load the `ctx` skill, then use `${ARGUMENTS}` as the exact
 OpenCode sidebar title of another session.
 
 If `${ARGUMENTS}` is empty, ask one concise question with the `question` tool
