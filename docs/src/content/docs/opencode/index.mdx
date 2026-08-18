@@ -6,8 +6,6 @@ sidebar:
   order: 1
 ---
 
-import { CardGrid, LinkCard } from "@astrojs/starlight/components";
-
 The repo ships a shared [OpenCode](https://opencode.ai) configuration: agents, slash commands, skills, and lifecycle plugins. Agents, commands, plugins, and shared `lib/` modules live in `agents/.config/opencode/`. Portable skills and reviewed third-party snapshots are maintained independently in [`timmo001/skills`](https://github.com/timmo001/skills), pinned at `agents/.agents/skills/`, and exposed through the shared `~/.agents/skills/` path.
 
 The repo-local `opencode.json` allows agents to inspect the live directories managed by stow and list their parent config directories. Direct edits to unmanaged files in those directories are denied; change the matching source under `~/.config/dotfiles` and run `dot stow` instead. Existing stowed symlinks resolve to their repository source, so edits still land in the tracked package. Personal repository references are supplied by the private machine overlay as writable local paths rather than repository-backed cache clones. References declared inside `docs/` resolve back to this checkout, including the `opencode-config` alias because that repository is a generated mirror of this source.
@@ -20,43 +18,15 @@ The OpenCode-specific assets are generated from this dotfiles repo and published
 Unlike the rest of these (personal) dotfiles, the OpenCode config is built to be reused. `opencode-config` is a standalone, portable export with its own install instructions, so you can adopt individual agents, commands, skills, or plugins without taking on anything else here. Plugins that share support modules are published with the `lib/` directory they import and should be copied with that directory.
 :::
 
-<CardGrid>
-  <LinkCard
-    title="Agents"
-    href="/reference/agents/"
-    description="Agent catalogue with links to each execution posture."
-  />
-  <LinkCard
-    title="Commands"
-    href="/reference/commands/"
-    description="Slash commands that route to agents and skills."
-  />
-  <LinkCard
-    title="Skills"
-    href="/reference/skills/"
-    description="Reusable workflows and behavioural contracts."
-  />
-  <LinkCard
-    title="Plugins"
-    href="/reference/plugins/"
-    description="Context, evidence, and enforcement hooks."
-  />
-  <LinkCard
-    title="MCP Servers"
-    href="/opencode/mcp/"
-    description="Model Context Protocol servers wired into the config."
-  />
-  <LinkCard
-    title="Pi"
-    href="/opencode/pi/"
-    description="Lightweight companion workflows sharing skills and project instructions."
-  />
-  <LinkCard
-    title="Agents / LLMs"
-    href="/agents-llms/"
-    description="llms.txt bundles for loading these docs into AI-assisted sessions."
-  />
-</CardGrid>
+<CardGroup cols={2}>
+  <Card title="Agents" href="/reference/agents/">Agent catalogue with links to each execution posture.</Card>
+  <Card title="Commands" href="/reference/commands/">Slash commands that route to agents and skills.</Card>
+  <Card title="Skills" href="/reference/skills/">Reusable workflows and behavioural contracts.</Card>
+  <Card title="Plugins" href="/reference/plugins/">Context, evidence, and enforcement hooks.</Card>
+  <Card title="MCP Servers" href="/opencode/mcp/">Model Context Protocol servers wired into the config.</Card>
+  <Card title="Pi" href="/opencode/pi/">Lightweight companion workflows sharing skills and project instructions.</Card>
+  <Card title="Agents / LLMs" href="/agents-llms/">Machine-readable docs and the hosted MCP endpoint.</Card>
+</CardGroup>
 
 ## How it fits together
 

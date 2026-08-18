@@ -2,7 +2,7 @@
 title: Packages
 description: Install packages from the signed public repository, AUR, and private repository.
 sidebar:
-  order: 5
+  order: 9
 ---
 
 `dot` configures the signed public `timmo` repository, keeps AUR available as a source-build fallback, and can build and publish mapped private packages into a separate local repository.

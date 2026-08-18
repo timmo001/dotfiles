@@ -5,8 +5,6 @@ sidebar:
   order: 9
 ---
 
-import { Steps } from '@astrojs/starlight/components';
-
 `doorbell-popup` opens a Home Assistant more-info camera popup as an Omarchy webapp and positions it as a floating Hyprland window. It can run once, or watch a Home Assistant entity and open the popup when that entity turns on.
 
 ## Host bindings
@@ -121,14 +119,11 @@ If that address still exists, the script repositions the existing popup instead 
 
 ## Recovery flow
 
-<Steps>
-
 1. Test with `doorbell-popup --open-only` first.
 2. Add `--monitor`, `--width`, and `--height` until placement is right.
 3. Test the event path with `--simulate-event on --simulate-exit`.
 4. Run watch mode only after the open-once path works.
 
-</Steps>
 
 ## Troubleshooting
 

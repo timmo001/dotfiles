@@ -6,15 +6,13 @@ sidebar:
   order: 1
 ---
 
-import { CardGrid, LinkCard } from '@astrojs/starlight/components';
-
 These dotfiles run on [Omarchy](https://omarchy.org). UWSM, [Hyprland](https://hyprland.org), and Ghostty customisations are stowed dotfiles packages, with per-host overrides where needed.
 
-<CardGrid>
-  <LinkCard title="Host Overrides" href="/omarchy/host-overrides/" description="Managed Omarchy repos and stowed host config." />
-  <LinkCard title="Shell (Quickshell)" href="/omarchy/shell/" description="The Omarchy 4 Quickshell bar, generated shell.json, and custom plugins." />
-  <LinkCard title="Controls" href="/omarchy/controls/" description="The dot omarchy desktop controls menu." />
-</CardGrid>
+<CardGroup cols={2}>
+  <Card title="Host Overrides" href="/omarchy/host-overrides/">Managed Omarchy repos and stowed host config.</Card>
+  <Card title="Shell (Quickshell)" href="/omarchy/shell/">The Omarchy 4 Quickshell bar, generated shell.json, and custom plugins.</Card>
+  <Card title="Controls" href="/omarchy/controls/">The dot omarchy desktop controls menu.</Card>
+</CardGroup>
 
 ## UWSM
 

@@ -6,24 +6,20 @@ sidebar:
   order: 1
 ---
 
-import LinkCardGrid from '../../../components/LinkCardGrid.astro';
-
-export const cards = [
-  { title: 'FIDO2 Security Key Auth', href: '/knowledge-base/fido2-security-key-auth/', description: 'Set up Omarchy FIDO2 auth for sudo, polkit, and Hyprlock with touch-first daily prompts.' },
-  { title: 'Workspace Setup', href: '/knowledge-base/workspace-setup/', description: "Rebuild the desktop host's work and non-work workspace layout." },
-  { title: 'Workspace Relayout', href: '/knowledge-base/workspace-relayout/', description: 'Apply and capture ratio-based Hyprland layouts for the active workspace.' },
-  { title: 'Workspace Session Recovery', href: '/knowledge-base/workspace-session-recovery/', description: 'Capture and restore Hyprland window sessions after restarts, crashes, or layout experiments.' },
-  { title: 'Work Browser Launchers', href: '/knowledge-base/work-browser-launchers/', description: 'Launch work Chrome, Slack, and Discord into predictable Hyprland workspaces.' },
-  { title: 'URL Routing and Webapps', href: '/knowledge-base/url-routing-webapps/', description: 'Route matching URLs to Omarchy webapps while keeping the normal browser fallback.' },
-  { title: 'Doorbell Popup', href: '/knowledge-base/doorbell-popup/', description: 'Open a Home Assistant camera popup from a doorbell or motion entity.' },
-  { title: 'Twitch Desktop Tools', href: '/knowledge-base/twitch-desktop-tools/', description: 'Use the Twitch panel and notification recovery scripts.' },
-  { title: 'Resume Recovery', href: '/knowledge-base/resume-recovery/', description: 'Refresh the Omarchy shell, Git panel, and Twitch notifications after suspend.' },
-  { title: 'Git Shell Panel', href: '/knowledge-base/git-shell-panel/', description: 'Use and recover the unified repository and GitHub notification panel.' },
-  { title: 'System Health Triage', href: '/knowledge-base/system-health-triage/', description: 'Collect a short health report for freezes, slowdowns, thermal issues, and noisy logs.' },
-  { title: 'Desktop Command Wrappers', href: '/knowledge-base/desktop-command-wrappers/', description: 'Small helper scripts for terminal launches, notifications, loading overlays, and workspace placement.' },
-  { title: 'GitHub Dotenv Secrets', href: '/knowledge-base/github-dotenv-secrets/', description: 'Import simple .env keys into GitHub Actions repository secrets with gh.' },
-];
-
 This section collects practical runbooks that sit below the main dotfiles reference. They are for system state that is useful to repeat, but too specific for the core command docs.
 
-<LinkCardGrid cards={cards} />
+<CardGroup cols={2}>
+  <Card title="FIDO2 Security Key Auth" href="/knowledge-base/fido2-security-key-auth/">Set up Omarchy FIDO2 auth for sudo, polkit, and Hyprlock with touch-first daily prompts.</Card>
+  <Card title="Workspace Setup" href="/knowledge-base/workspace-setup/">Rebuild the desktop host's work and non-work workspace layout.</Card>
+  <Card title="Workspace Relayout" href="/knowledge-base/workspace-relayout/">Apply and capture ratio-based Hyprland layouts for the active workspace.</Card>
+  <Card title="Workspace Session Recovery" href="/knowledge-base/workspace-session-recovery/">Capture and restore Hyprland window sessions after restarts, crashes, or layout experiments.</Card>
+  <Card title="Work Browser Launchers" href="/knowledge-base/work-browser-launchers/">Launch work Chrome, Slack, and Discord into predictable Hyprland workspaces.</Card>
+  <Card title="URL Routing and Webapps" href="/knowledge-base/url-routing-webapps/">Route matching URLs to Omarchy webapps while keeping the normal browser fallback.</Card>
+  <Card title="Doorbell Popup" href="/knowledge-base/doorbell-popup/">Open a Home Assistant camera popup from a doorbell or motion entity.</Card>
+  <Card title="Twitch Desktop Tools" href="/knowledge-base/twitch-desktop-tools/">Use the Twitch panel and notification recovery scripts.</Card>
+  <Card title="Resume Recovery" href="/knowledge-base/resume-recovery/">Refresh the Omarchy shell, Git panel, and Twitch notifications after suspend.</Card>
+  <Card title="Git Shell Panel" href="/knowledge-base/git-shell-panel/">Use and recover the unified repository and GitHub notification panel.</Card>
+  <Card title="System Health Triage" href="/knowledge-base/system-health-triage/">Collect a short health report for freezes, slowdowns, thermal issues, and noisy logs.</Card>
+  <Card title="Desktop Command Wrappers" href="/knowledge-base/desktop-command-wrappers/">Small helper scripts for terminal launches, notifications, loading overlays, and workspace placement.</Card>
+  <Card title="GitHub Dotenv Secrets" href="/knowledge-base/github-dotenv-secrets/">Import simple `.env` keys into GitHub Actions repository secrets with `gh`.</Card>
+</CardGroup>

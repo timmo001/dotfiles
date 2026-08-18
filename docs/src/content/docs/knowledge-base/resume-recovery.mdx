@@ -5,8 +5,6 @@ sidebar:
   order: 11
 ---
 
-import { Steps } from '@astrojs/starlight/components';
-
 `reload-ui-monitor` watches logind for resume events and runs `reload-ui`, which refreshes desktop services and shell widgets that can go stale after sleep.
 
 ## Where it runs
@@ -53,13 +51,10 @@ ${XDG_STATE_HOME:-~/.local/state}/reload-ui.log
 
 Use this when the machine wakes but the shell or desktop helpers look stale:
 
-<Steps>
-
 1. Press `SUPER+SHIFT+R`, or run `reload-ui`.
 2. Wait for the Omarchy shell to restart and its indicators to refresh.
 3. If something still looks wrong, read `~/.local/state/reload-ui.log`.
 
-</Steps>
 
 ## Troubleshooting
 

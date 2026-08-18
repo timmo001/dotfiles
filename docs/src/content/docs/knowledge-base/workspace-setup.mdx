@@ -5,8 +5,6 @@ sidebar:
   order: 3
 ---
 
-import { Steps } from '@astrojs/starlight/components';
-
 `workspace-setup` is the desktop host's opinionated workspace arranger. It launches or reuses the expected apps, tags them by slot, moves them to fixed workspaces, and rebuilds the main workspace split tree.
 
 Use it when the desktop workspace set has drifted, after login, or after a restart where capture/restore is not the right tool.
@@ -134,15 +132,12 @@ Valid values are `movetoworkspace` and `movetoworkspacesilent`.
 
 ## Recovery flow
 
-<Steps>
-
 1. Run `workspace-setup --step-through`.
 2. Watch the log output for the slot that fails to resolve.
 3. Check whether the app window class matches the slot regex.
 4. If timing is the issue, rerun with a higher `--speed-multiplier` or `--sleep`.
 5. If placement goes wrong, move windows manually or restore a capture from [Workspace Session Recovery](/knowledge-base/workspace-session-recovery/).
 
-</Steps>
 
 ## Troubleshooting
 

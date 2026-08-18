@@ -1,6 +1,6 @@
 # 🧰 Dotfiles Docs
 
-The [dotfiles](https://github.com/timmo001/dotfiles) documentation site, built with Astro and Starlight.
+The [dotfiles](https://github.com/timmo001/dotfiles) documentation site, built with Blume and Astro.
 
 ## Site
 
@@ -20,15 +20,17 @@ All commands run from this `docs/` directory:
 - `bun install`
 - `bun run dev` (runs the generators first via `predev`)
 - `bun run build`
+- `bun run check`
+- `bun run validate`
 - `bun run deploy` (deploy the built site to Cloudflare Workers)
 - `bun run deploy:preview` (upload a preview version without promoting it)
 - `bun run preview`
 - `bun run gen` (regenerate the generated reference pages)
-- `bun run og` (regenerate the Open Graph image)
+- `bun run og` (regenerate the legacy shared Open Graph image)
 
 ## Deployment
 
-The site deploys to Cloudflare Workers as static assets. Workers Builds uses:
+The site deploys to Cloudflare Workers with Blume's Astro server bundle. Server output provides the hosted read-only MCP endpoint and Markdown content negotiation; Ask AI is disabled and no model binding or API key is required. Workers Builds uses:
 
 - Root directory: `docs`
 - Production branch: `distro/arch-omarchy`
@@ -36,4 +38,4 @@ The site deploys to Cloudflare Workers as static assets. Workers Builds uses:
 - Deploy command: `bun run deploy`
 - Non-production deploy command: `bun run deploy:preview`
 
-`wrangler.jsonc` owns the Worker name, compatibility date, asset directory, and 404 behaviour. The site is fully static, so it does not use an Astro adapter or invoke Worker code for page requests.
+`wrangler.jsonc` owns the Worker name, compatibility settings, custom domain, and observability. Blume passes it to the Astro Cloudflare adapter, which writes the deployable configuration to `dist/server/wrangler.json`; the deploy scripts use that generated configuration.

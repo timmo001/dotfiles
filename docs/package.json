@@ -3,13 +3,14 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "dev": "astro dev",
-    "start": "astro dev",
-    "build": "astro build",
-    "deploy": "wrangler deploy",
-    "deploy:preview": "wrangler versions upload",
-    "preview": "astro preview",
-    "astro": "astro",
+    "dev": "blume dev",
+    "start": "blume dev",
+    "build": "blume build --strict",
+    "check": "blume check --strict",
+    "validate": "blume validate --strict",
+    "deploy": "wrangler deploy --config dist/server/wrangler.json",
+    "deploy:preview": "wrangler versions upload --config dist/server/wrangler.json",
+    "preview": "blume preview",
     "og": "bun scripts/generate-og.mjs",
     "gen:cli": "bun scripts/generate-cli-reference.ts",
     "gen:opencode": "bun scripts/generate-opencode-reference.ts",
@@ -17,17 +18,9 @@
     "predev": "bun run gen"
   },
   "dependencies": {
-    "@astrojs/markdown-remark": "^7.2.0",
-    "@astrojs/sitemap": "^3.7.3",
-    "@astrojs/starlight": "^0.41.0",
-    "@iconify-json/mdi": "^1.2.3",
-    "astro": "^7.0.0",
-    "astro-icon": "^1.1.5",
-    "rehype-external-links": "^3.0.0",
-    "sharp": "^0.35.1",
-    "starlight-contextual-menu": "^0.1.5",
-    "starlight-links-validator": "^0.25.0",
-    "starlight-llms-txt": "^0.11.0"
+    "@astrojs/cloudflare": "14.2.2",
+    "blume": "1.5.1",
+    "sharp": "^0.35.1"
   },
   "devDependencies": {
     "wrangler": "^4.0.0"

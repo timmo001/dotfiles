@@ -3,13 +3,6 @@ title: Bar Integrations
 description: The --bar-json status-bar contract shared by dot commands and external tools.
 ---
 
-import LinkCardGrid from '../../components/LinkCardGrid.astro';
-
-export const commandCards = [
-  { title: 'Diff & Repo Watcher', href: '/git/diff/', description: 'dot git-diff --bar-json flags managed repos that have uncommitted or unpushed changes.' },
-  { title: 'Notifications', href: '/git/notifications/', description: 'dot git-notifications --bar-json shows the GitHub notification inbox; left click opens the filtered TUI.' },
-];
-
 `--bar-json` is a shared status-bar contract rather than a single command. Tools emit one-line output with `text`, `tooltip`, and `class` fields. Git commands also include safe repository or notification rows for the native shell panel; generic status bars can ignore those extra fields and continue polling through their short-lived caches.
 
 `dot git-diff` status scans disable Git's optional index locks. Background bar and TUI polling can read working-tree state during a rebase, merge, or another index-writing operation without refreshing the index or competing for `.git/index.lock`.
@@ -18,7 +11,10 @@ The JSON format is bar-agnostic: it works with [Quickshell](https://quickshell.o
 
 ## dot commands with bar output
 
-<LinkCardGrid cards={commandCards} />
+<CardGroup cols={2}>
+  <Card title="Diff & Repo Watcher" href="/git/diff/">`dot git-diff --bar-json` flags managed repos that have uncommitted or unpushed changes.</Card>
+  <Card title="Notifications" href="/git/notifications/">`dot git-notifications --bar-json` shows the GitHub notification inbox; left click opens the filtered TUI.</Card>
+</CardGroup>
 
 The [command reference](/dot/commands/) lists the full `--bar-json` flag set on each command.
 

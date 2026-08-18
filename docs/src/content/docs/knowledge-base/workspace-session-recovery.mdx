@@ -5,8 +5,6 @@ sidebar:
   order: 5
 ---
 
-import { Steps } from '@astrojs/starlight/components';
-
 The workspace session scripts save the current Hyprland clients to JSON, then restore the latest capture by moving existing windows back to their saved workspaces and relaunching the supported missing apps.
 
 Use this before risky layout work, before restarting Hyprland, or when you want a quick recovery point for open workspaces.
@@ -123,15 +121,12 @@ It offers capture, dry-run restore, restore, and relayout actions. On the `deskt
 
 ## Recovery flow
 
-<Steps>
-
 1. Run `workspace-capture` before the risky change.
 2. Make the change, restart Hyprland, or recover from the crash.
 3. Run `workspace-restore --dry-run` and read the plan.
 4. Run `workspace-restore` when the plan looks safe.
 5. Check `restore.log` for skipped windows.
 
-</Steps>
 
 ## Troubleshooting
 

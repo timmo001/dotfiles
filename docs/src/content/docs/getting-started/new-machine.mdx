@@ -5,11 +5,7 @@ sidebar:
   order: 3
 ---
 
-import { Steps, TabItem, Tabs } from '@astrojs/starlight/components';
-
 A clean, end-to-end walkthrough for setting up a new machine.
-
-<Steps>
 
 1. Clone `dotfiles` to `~/.config/dotfiles`.
 2. If you want private dotfiles, confirm `gh auth status` works before `dot init`; init clones `dotfiles-private` to `~/.config/dotfiles-private` automatically when auth is available.
@@ -36,30 +32,28 @@ A clean, end-to-end walkthrough for setting up a new machine.
 10. Run `dot git-diff` and verify the expected repo state.
 11. Reboot so the Omarchy session picks up `OMARCHY_HOST`, then run `dot doctor` to verify the setup. Use `dot update` for ongoing sync, stow refreshes, and rebuilds.
 
-</Steps>
-
-<Tabs syncKey="dot-init-mode">
-  <TabItem label="Desktop / VM">
+<Tabs>
+  <Tab title="Desktop / VM">
 
 ```bash title="First-use setup"
 ~/.config/dotfiles/scripts/.local/bin/dot init --noninteractive
 ```
 
-  </TabItem>
-  <TabItem label="Laptop">
+  </Tab>
+  <Tab title="Laptop">
 
 ```bash title="First-use setup"
 dot init --host laptop --noninteractive
 ```
 
-  </TabItem>
-  <TabItem label="Interactive">
+  </Tab>
+  <Tab title="Interactive">
 
 ```bash title="First-use setup"
 dot init
 ```
 
-  </TabItem>
+  </Tab>
 </Tabs>
 
 `--noninteractive` skips the Hypr host questionnaire; elevation and package tools may still prompt. The accepted `--confirm` compatibility flag does not suppress those prompts.

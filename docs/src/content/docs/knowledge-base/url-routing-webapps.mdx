@@ -5,8 +5,6 @@ sidebar:
   order: 7
 ---
 
-import { Steps } from '@astrojs/starlight/components';
-
 The custom URL handler makes `http` and `https` links choose between two launch paths:
 
 - Matching URLs open as standalone Omarchy webapps.
@@ -69,14 +67,11 @@ If nothing matches, the default action is `browser`.
 
 ## Add a webapp route
 
-<Steps>
-
 1. Edit `~/.config/dotfiles/hypr/.config/hypr/url-handler/patterns.conf`.
 2. Add a `webapp:<pattern>` line above any broader browser rule.
 3. Run `dot stow`.
 4. Test with `timmo-url-handler <url>`.
 
-</Steps>
 
 Example:
 

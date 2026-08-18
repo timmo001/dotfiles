@@ -2,6 +2,8 @@
 dist/
 # generated types
 .astro/
+.blume/
+.blume-verify/
 
 # dependencies
 node_modules/

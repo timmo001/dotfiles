@@ -1,6 +1,8 @@
 ---
 title: Cursor
 description: Cursor launchers and shell command defaults.
+sidebar:
+  order: 8
 ---
 
 Cursor's system desktop entry and the `cursor` shell function use plain launch behaviour, which routes to the last active window type.

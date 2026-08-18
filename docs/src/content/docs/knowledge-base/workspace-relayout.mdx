@@ -5,8 +5,6 @@ sidebar:
   order: 4
 ---
 
-import { Steps } from '@astrojs/starlight/components';
-
 `workspace-relayout` applies saved layout presets to the active Hyprland workspace. It works on tiled windows only, using ratio-based split trees instead of fixed pixels, so the same preset can fit different monitors, scales, gaps, and bars.
 
 Use it when a workspace has the right windows but the split tree is wrong.
@@ -57,8 +55,6 @@ The script writes back through the stowed symlink when you edit presets, keeping
 
 ## Apply a layout
 
-<Steps>
-
 1. Focus the workspace to relayout.
 2. Keep at least two tiled, mapped, non-hidden windows on that workspace.
 3. Press `SUPER+TAB`.
@@ -66,7 +62,6 @@ The script writes back through the stowed symlink when you edit presets, keeping
 5. Choose an ordered scale preset from that family.
 6. Let the script move windows through the temporary workspace and rebuild the split tree.
 
-</Steps>
 
 The script restores focus to the previously active window when it can.
 

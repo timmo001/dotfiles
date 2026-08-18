@@ -6,43 +6,6 @@ sidebar:
   order: 1
 ---
 
-import LinkCardGrid from "../../../components/LinkCardGrid.astro";
-
-export const cards = [
-  {
-    title: "Command Reference",
-    href: "/dot/commands/",
-    description:
-      "Every command, alias, flag, and example, generated from the CLI registry.",
-  },
-  {
-    title: "Stow Workflow",
-    href: "/dot/stow/",
-    description: "How packages are stowed into your home directory.",
-  },
-  {
-    title: "Shell Setup",
-    href: "/dot/shell/",
-    description:
-      "Zsh completions, editing keys, aliases, and small shell helpers.",
-  },
-  {
-    title: "System Utilities",
-    href: "/dot/utilities/",
-    description: "Health checks, benchmarks, and optional timers.",
-  },
-  {
-    title: "Notes & Handoffs",
-    href: "/dot/notes/",
-    description: "Standalone notes CLI, MCP server, and handoff workflow.",
-  },
-  {
-    title: "Cleanup",
-    href: "/cleanup/",
-    description: "Remove stowed links and reverse setup side effects.",
-  },
-];
-
 `dot` is the single binary that manages these dotfiles. It is compiled from `dot/` in the repo ([Bun](https://bun.sh) + [Effect](https://effect.website) v4 + [OpenTUI](https://github.com/anomalyco/opentui)) to a single executable, stowed to `~/.local/bin/dot`.
 
 It has two faces:
@@ -50,7 +13,14 @@ It has two faces:
 - **A TUI dashboard**: run `dot` with no arguments to open the interactive menu, with git diff/log views, the notification inbox, and Omarchy menus.
 - **A native CLI**: core maintenance actions are also subcommands (`dot update`, `dot git-diff --raw`, `dot doctor`, ...), suitable for scripts and status bars.
 
-<LinkCardGrid cards={cards} />
+<CardGroup cols={2}>
+  <Card title="Command Reference" href="/dot/commands/">Every command, alias, flag, and example, generated from the CLI registry.</Card>
+  <Card title="Stow Workflow" href="/dot/stow/">How packages are stowed into your home directory.</Card>
+  <Card title="Shell Setup" href="/dot/shell/">Zsh completions, editing keys, aliases, and small shell helpers.</Card>
+  <Card title="System Utilities" href="/dot/utilities/">Health checks, benchmarks, and optional timers.</Card>
+  <Card title="Notes & Handoffs" href="/dot/notes/">Standalone notes CLI, MCP server, and handoff workflow.</Card>
+  <Card title="Cleanup" href="/cleanup/">Remove stowed links and reverse setup side effects.</Card>
+</CardGroup>
 
 ## Common commands
 

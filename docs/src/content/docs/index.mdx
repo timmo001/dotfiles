@@ -1,47 +1,20 @@
 ---
 title: Overview
 description: An agent-driven Omarchy setup for development, desktop, and automation.
-template: splash
-hero:
-  title: Dotfiles
-  tagline: An agent-driven Omarchy setup for development, desktop, and automation.
-  image:
-    file: ../../assets/logo.svg
-    alt: A toolbox
-  actions:
-    - text: Get started
-      link: /getting-started/
-      icon: right-arrow
-    - text: View on GitHub
-      link: https://github.com/timmo001/dotfiles
-      icon: external
-      variant: minimal
 ---
 
-import { CardGrid } from '@astrojs/starlight/components';
-import { Icon } from 'astro-icon/components';
-import LandingCard from '../../components/LandingCard.astro';
-import LinkCardGrid from '../../components/LinkCardGrid.astro';
+# Dotfiles
 
-export const getStartedCards = [
-  { title: 'Install', href: '/getting-started/install/', description: 'Prerequisites, bootstrap build, and the ongoing workflow.' },
-  { title: 'New Machine Checklist', href: '/getting-started/new-machine/', description: 'Step-by-step setup for a new Omarchy machine.' },
-];
+An agent-driven Omarchy setup for development, desktop, and automation.
 
-export const exploreCards = [
-  { title: 'The dot Command', href: '/dot/', description: 'The TUI dashboard and CLI, with the stow, notes, and utilities workflows.' },
-  { title: 'Configuration', href: '/configuration/', description: 'Environment options, private git config, and private packages.' },
-  { title: 'Git & GitHub', href: '/git/', description: 'Diff, log, status, and notifications.' },
-  { title: 'Omarchy & Hyprland', href: '/omarchy/', description: 'Managed Omarchy repos and per-host Hyprland overrides.' },
-  { title: 'Knowledge Base', href: '/knowledge-base/', description: 'Practical runbooks for system customisations and one-off fixes.' },
-  { title: 'OpenCode & Agents', href: '/opencode/', description: 'Agents, commands, skills, and plugins, with the generated reference.' },
-];
-
-export const referenceCards = [
-  { title: 'Bar Integrations', href: '/bar-integrations/', description: 'The shared --bar-json status-bar contract.' },
-  { title: 'Cleanup', href: '/cleanup/', description: 'Remove stowed links and reverse setup side effects.' },
-  { title: 'Agents / LLMs', href: '/agents-llms/', description: 'llms.txt bundles for loading the docs into AI-assisted sessions.' },
-];
+<CardGroup cols={2}>
+  <Card title="Get started" href="/getting-started/" icon="arrow-right">
+    Bootstrap a fresh Omarchy machine and run the ongoing dotfiles workflow.
+  </Card>
+  <Card title="View on GitHub" href="https://github.com/timmo001/dotfiles" icon="github">
+    Browse the public source and generated references.
+  </Card>
+</CardGroup>
 
 These are my public [Omarchy](https://omarchy.org) dotfiles (Omarchy is an Arch Linux based distro), managed with [GNU Stow](https://www.gnu.org/software/stow/) and a single compiled `dot` binary. They cover shell, editor, and desktop config, plus the tooling that keeps multiple machines in sync.
 
@@ -57,41 +30,49 @@ Large parts of this project - including this documentation and much of the codeb
 
 ## At a glance
 
-<CardGrid>
-  <LandingCard title="Stow-based dotfiles">
-    <Icon slot="icon" name="mdi:file-tree" />
+<CardGroup cols={2}>
+  <Card title="Stow-based dotfiles" icon="folder-tree">
     Public config for shell, editor, and tooling, rooted at <code>~/.config/dotfiles</code> and laid down with GNU Stow.
-  </LandingCard>
-  <LandingCard title="The dot binary">
-    <Icon slot="icon" name="mdi:toolbox-outline" />
+  </Card>
+  <Card title="The dot binary" icon="wrench">
     A single compiled binary ([Bun](https://bun.sh) + [Effect](https://effect.website) v4 + [OpenTUI](https://github.com/anomalyco/opentui)) with a TUI dashboard and a full CLI for setup, updates, and git tooling.
-  </LandingCard>
-  <LandingCard title="Git & GitHub tooling">
-    <Icon slot="icon" name="mdi:source-branch" />
+  </Card>
+  <Card title="Git & GitHub tooling" icon="git-branch">
     Diff, log, status, and a notification inbox across every managed repo, with status-bar modules.
-  </LandingCard>
-  <LandingCard title="Omarchy & Hyprland">
-    <Icon slot="icon" name="mdi:monitor-dashboard" />
+  </Card>
+  <Card title="Omarchy & Hyprland" icon="monitor">
     Managed Omarchy repos and per-host Hyprland overrides, with a desktop controls menu.
-  </LandingCard>
-  <LandingCard title="OpenCode & agents">
-    <Icon slot="icon" name="mdi:robot-outline" />
+  </Card>
+  <Card title="OpenCode & agents" icon="bot">
     Shared agents, commands, skills, and plugins, published to <a href="https://github.com/timmo001/opencode-config" target="_blank" rel="noopener noreferrer">opencode-config</a>.
-  </LandingCard>
-  <LandingCard title="Private overlay">
-    <Icon slot="icon" name="mdi:lock-outline" />
+  </Card>
+  <Card title="Private overlay" icon="lock">
     A deeply integrated private overlay (<code>~/.config/dotfiles-private</code>) layers machine-specific config on top of the public repo.
-  </LandingCard>
-</CardGrid>
+  </Card>
+</CardGroup>
 
 ## Get started
 
-<LinkCardGrid cards={getStartedCards} />
+<CardGroup cols={2}>
+  <Card title="Install" href="/getting-started/install/">Prerequisites, bootstrap build, and the ongoing workflow.</Card>
+  <Card title="New Machine Checklist" href="/getting-started/new-machine/">Step-by-step setup for a new Omarchy machine.</Card>
+</CardGroup>
 
 ## Explore
 
-<LinkCardGrid cards={exploreCards} />
+<CardGroup cols={2}>
+  <Card title="The dot Command" href="/dot/">The TUI dashboard and CLI, with the stow, notes, and utilities workflows.</Card>
+  <Card title="Configuration" href="/configuration/">Environment options, private git config, and private packages.</Card>
+  <Card title="Git & GitHub" href="/git/">Diff, log, status, and notifications.</Card>
+  <Card title="Omarchy & Hyprland" href="/omarchy/">Managed Omarchy repos and per-host Hyprland overrides.</Card>
+  <Card title="Knowledge Base" href="/knowledge-base/">Practical runbooks for system customisations and one-off fixes.</Card>
+  <Card title="OpenCode & Agents" href="/opencode/">Agents, commands, skills, and plugins, with the generated reference.</Card>
+</CardGroup>
 
 ## Reference
 
-<LinkCardGrid cards={referenceCards} />
+<CardGroup cols={2}>
+  <Card title="Bar Integrations" href="/bar-integrations/">The shared <code>--bar-json</code> status-bar contract.</Card>
+  <Card title="Cleanup" href="/cleanup/">Remove stowed links and reverse setup side effects.</Card>
+  <Card title="Agents / LLMs" href="/agents-llms/">Machine-readable docs, hosted MCP, and model-less AI surfaces.</Card>
+</CardGroup>

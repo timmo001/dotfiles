@@ -5,8 +5,6 @@ sidebar:
   order: 2
 ---
 
-import { Steps } from '@astrojs/starlight/components';
-
 This setup uses a FIDO2 security key through `pam-u2f`. The key becomes the preferred local authentication path for `sudo`, polkit prompts, and Hyprlock, while the account password stays available as fallback.
 
 The daily path is touch-only. Do not add `pinverification=1` unless you want the security-key PIN on every `sudo`, `pkexec`, and Hyprlock authentication.
@@ -21,8 +19,6 @@ Keep an unlocked terminal open while editing PAM files. Do not remove the passwo
 
 Use Omarchy's built-in FIDO2 setup first:
 
-<Steps>
-
 1. Open the Omarchy menu.
 2. Go to **Setup**.
 3. Go to **Security**.
@@ -30,7 +26,6 @@ Use Omarchy's built-in FIDO2 setup first:
 5. Touch the security key when prompted.
 6. Let the script test `sudo` before closing the terminal.
 
-</Steps>
 
 The setup installs `libfido2` and `pam-u2f`, registers the key with `pamu2fcfg`, stores the mapping at `/etc/fido2/fido2`, and adds `pam_u2f.so` to `sudo` and `polkit-1`.
 
@@ -81,15 +76,12 @@ auth sufficient pam_u2f.so cue [cue_prompt=Touch your security key] pinverificat
 
 Test each layer before relying on it:
 
-<Steps>
-
 1. Run `sudo -k`, then `sudo true`.
 2. Touch the security key when prompted.
 3. Trigger a polkit prompt if convenient.
 4. Lock the screen with the Omarchy shell while another session or terminal remains available.
 5. Test password fallback by trying without the security key.
 
-</Steps>
 
 ## Rollback
 

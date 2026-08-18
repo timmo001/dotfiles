@@ -2,10 +2,8 @@
 title: System Health Triage
 description: Collect a short health report for freezes, slowdowns, thermal issues, and noisy logs.
 sidebar:
-  order: 12
+  order: 13
 ---
-
-import { Steps } from '@astrojs/starlight/components';
 
 Use `system-health-check` when the machine feels slow, hot, network-stuck, or unstable and you want one report to inspect before guessing.
 
@@ -63,15 +61,12 @@ Use this when you want diagnosis and next steps in the same flow. Without an int
 
 ## Triage flow
 
-<Steps>
-
 1. Run `system-health-check` while the problem is happening or soon after it happens.
 2. Read the `Friendly Summary` section first.
 3. Treat `Watch` as a signal to monitor and `Stressed` as a signal to investigate immediately.
 4. Use the report path from the final line for follow-up analysis.
 5. If the problem is narrow, rerun with `--only` for that subsystem.
 
-</Steps>
 
 ## Interpreting the verdict
 
