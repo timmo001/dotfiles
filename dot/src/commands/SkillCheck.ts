@@ -15,6 +15,7 @@ import { join } from "path";
 import { HOME_DIR } from "../lib/paths.js";
 import { detectAgent } from "../lib/agent.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
+import { LauncherError } from "../services/Launcher.js";
 
 /**
  * Validate skill-related maintenance wiring.
@@ -29,6 +30,7 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 export const skillCheck = (opts?: {
   readonly openOpencode?: boolean;
   readonly diffOrigin?: boolean;
+  readonly skill?: string;
 }) =>
   Effect.gen(function* () {
     const config = yield* Config;
@@ -38,7 +40,7 @@ export const skillCheck = (opts?: {
     const executor = yield* CommandExecutor;
 
     if (opts?.diffOrigin && !opts.openOpencode) {
-      yield* printSkillOriginDiff(config.publicDotfiles);
+      yield* printSkillOriginDiff(config.publicDotfiles, opts.skill);
       return;
     }
 
@@ -52,17 +54,28 @@ export const skillCheck = (opts?: {
     const localEditSkills = scanSkills(skillsDir).filter(
       (skill) => skill.localEdits.length > 0,
     );
+    const selectedSkills = opts?.skill
+      ? localEditSkills.filter((skill) => skill.name === opts.skill)
+      : localEditSkills;
+    if (opts?.skill && selectedSkills.length === 0) {
+      return yield* new LauncherError({
+        message: `Adapted imported skill not found: ${opts.skill}`,
+        exitCode: 1,
+      });
+    }
     const exactSourceMatches: SkillMeta[] = [];
 
-    yield* log.info(
-      `Branch-context consumers found: ${result.branchContextConsumers.length}`,
-    );
+    if (!opts?.skill) {
+      yield* log.info(
+        `Branch-context consumers found: ${result.branchContextConsumers.length}`,
+      );
+    }
 
     if (yield* github.isAvailable()) {
       yield* log.info(
-        `Adapted imported skills found: ${localEditSkills.length}`,
+        `Adapted imported skills checked: ${selectedSkills.length}`,
       );
-      for (const skill of localEditSkills) {
+      for (const skill of selectedSkills) {
         const comparison = yield* checkSkill(skill, {
           forceContentComparison: true,
         });
@@ -74,9 +87,10 @@ export const skillCheck = (opts?: {
       );
     }
 
-    if (result.branchContextIssues.length > 0) {
+    const branchContextIssues = opts?.skill ? [] : result.branchContextIssues;
+    if (branchContextIssues.length > 0) {
       yield* log.section("Branch Context Registration Issues");
-      for (const issue of result.branchContextIssues) {
+      for (const issue of branchContextIssues) {
         yield* log.error(
           `${issue.command} in ${issue.file}:${issue.line} — ${issue.reason}`,
         );
@@ -93,8 +107,7 @@ export const skillCheck = (opts?: {
     }
 
     // Verdict
-    const issueCount =
-      result.branchContextIssues.length + exactSourceMatches.length;
+    const issueCount = branchContextIssues.length + exactSourceMatches.length;
     if (issueCount > 0) {
       yield* log.error(`${issueCount} skill maintenance issue(s) found.`);
       yield* Effect.sync(() => {
@@ -102,7 +115,9 @@ export const skillCheck = (opts?: {
       });
     } else {
       yield* log.info(
-        "All branch-context registrations and adapted skill sources are valid.",
+        opts?.skill
+          ? `${opts.skill} differs from its complete source.`
+          : "All branch-context registrations and adapted skill sources are valid.",
       );
     }
 
@@ -153,8 +168,8 @@ export const skillCheck = (opts?: {
     // --open-opencode: hand off to opencode for analysis
     if (opts?.openOpencode) {
       const summary = [
-        result.branchContextIssues.length > 0
-          ? `${result.branchContextIssues.length} branch-context registration issue(s): ${result.branchContextIssues.map((issue) => issue.command).join(", ")}`
+        branchContextIssues.length > 0
+          ? `${branchContextIssues.length} branch-context registration issue(s): ${branchContextIssues.map((issue) => issue.command).join(", ")}`
           : "All branch-context commands are registered.",
         exactSourceMatches.length > 0
           ? `${exactSourceMatches.length} adapted skill(s) exactly match their source: ${exactSourceMatches.map((skill) => skill.name).join(", ")}`
@@ -162,7 +177,7 @@ export const skillCheck = (opts?: {
       ].join(" ");
 
       const originDiff = opts?.diffOrigin
-        ? yield* collectSkillOriginDiff(config.publicDotfiles)
+        ? yield* collectSkillOriginDiff(config.publicDotfiles, opts.skill)
         : "";
 
       const diffInstruction = originDiff
@@ -183,7 +198,7 @@ export function skillReimportCommand(originUrl: string): string {
 }
 
 /** Collect upstream diffs for every imported public skill with origin tracking. */
-const collectSkillOriginDiff = (publicDotfiles: string) =>
+const collectSkillOriginDiff = (publicDotfiles: string, skillName?: string) =>
   Effect.gen(function* () {
     const github = yield* GitHub;
 
@@ -193,7 +208,9 @@ const collectSkillOriginDiff = (publicDotfiles: string) =>
     }
 
     const skillsDir = join(publicDotfiles, "agents/.agents/skills");
-    const skills = scanSkills(skillsDir);
+    const skills = scanSkills(skillsDir).filter(
+      (skill) => !skillName || skill.name === skillName,
+    );
 
     if (skills.length === 0) {
       return "No imported skills with origin tracking";
@@ -214,12 +231,12 @@ const collectSkillOriginDiff = (publicDotfiles: string) =>
   });
 
 /** Print upstream diffs for every imported public skill with origin tracking. */
-const printSkillOriginDiff = (publicDotfiles: string) =>
+const printSkillOriginDiff = (publicDotfiles: string, skillName?: string) =>
   Effect.gen(function* () {
     const log = yield* OutputLog;
     yield* log.section("Skill Origin Diff");
 
-    const diff = yield* collectSkillOriginDiff(publicDotfiles);
+    const diff = yield* collectSkillOriginDiff(publicDotfiles, skillName);
     if (diff.includes("gh CLI not available")) {
       yield* log.warn(diff);
     } else {

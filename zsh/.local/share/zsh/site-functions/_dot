@@ -209,6 +209,7 @@ _dot_cmd_skill_check() {
   _arguments -S \
     '--open-opencode[Run checks and attempt OpenCode analysis]' \
     '--diff-origin[Diff imported skills against their upstream origins; with --open-opencode, include the diff in the prompt]' \
+    '--skill[Check one adapted imported skill only]:name:' \
     '(-h --help)-h[Show this help message]' \
     '(-h --help)--help[Show this help message]' \
     '*::arg:->args'

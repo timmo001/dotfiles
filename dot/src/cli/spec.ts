@@ -703,8 +703,14 @@ export const cliCommands: readonly CliCommandSpec[] = [
         description:
           "Diff imported skills against their upstream origins; with --open-opencode, include the diff in the prompt",
       },
+      {
+        name: "--skill",
+        valueName: "name",
+        description: "Check one adapted imported skill only",
+      },
       helpOption,
     ],
+    examples: ["dot skill-check --skill browser-control"],
   },
   {
     name: "completions",

@@ -617,6 +617,13 @@ equivalent command instead.
 | --- | --- |
 | `--open-opencode` | Run checks and attempt OpenCode analysis |
 | `--diff-origin` | Diff imported skills against their upstream origins; with --open-opencode, include the diff in the prompt |
+| `--skill` `<name>` | Check one adapted imported skill only |
+
+**Examples**
+
+```bash
+dot skill-check --skill browser-control
+```
 
 ## `dot completions`
 

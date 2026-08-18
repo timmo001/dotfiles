@@ -98,6 +98,7 @@ complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcomm
 complete -c dot -n '__fish_use_subcommand' -a 'skill-check' -d 'Validate skill maintenance and adapted imports'
 complete -c dot -l open-opencode -d 'Run checks and attempt OpenCode analysis' -n '__fish_seen_subcommand_from skill-check'
 complete -c dot -l diff-origin -d 'Diff imported skills against their upstream origins; with --open-opencode, include the diff in the prompt' -n '__fish_seen_subcommand_from skill-check'
+complete -c dot -l skill -d 'Check one adapted imported skill only' -r -n '__fish_seen_subcommand_from skill-check'
 complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from skill-check'
 complete -c dot -n '__fish_use_subcommand' -a 'completions' -d 'Generate shell completions'
 complete -c dot -l stdout -d 'Print the completion script instead of writing it' -n '__fish_seen_subcommand_from completions'

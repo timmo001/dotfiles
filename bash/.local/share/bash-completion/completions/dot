@@ -228,7 +228,7 @@ _dot_cmd_skill_check() {
   prev=${COMP_WORDS[COMP_CWORD-1]}
   cword=$COMP_CWORD
   if [[ $cur == -* ]]; then
-    COMPREPLY=( $(compgen -W '--open-opencode --diff-origin --help -h' -- "$cur") )
+    COMPREPLY=( $(compgen -W '--open-opencode --diff-origin --skill --help -h' -- "$cur") )
     return
   fi
 }
