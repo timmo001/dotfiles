@@ -41,6 +41,7 @@ export default defineConfig({
     output: 'server',
     adapter: 'cloudflare',
   },
+  feedback: false,
   lastModified: true,
   seo: {
     agentReadability: true,
