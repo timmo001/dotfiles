@@ -32,10 +32,11 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 ## Tooling
 
-- The whole project is driven by **mise**. The single root `mise.toml` pins the toolchain (`node`, `bun`) and defines every dev task, namespaced by project (`dot:*`, `docs:*`, and `tests:*`). Prefer `mise run <task>` (for example `mise run dot:build`, `mise run docs:check`, or `mise run tests:integration`) as the canonical interface; `mise tasks` lists them.
+- The whole project is driven by **mise**. The single root `mise.toml` pins the toolchain (`node`, `bun`) and defines every dev task, including the root `lint` task and project namespaces (`dot:*`, `docs:*`, and `tests:*`). Prefer `mise run <task>` (for example `mise run lint`, `mise run dot:build`, `mise run docs:check`, or `mise run tests:integration`) as the canonical interface; `mise tasks` lists them.
 - `mise.toml` is the source of truth for tool versions even without mise: anyone not using mise must still use the pinned versions and the same underlying commands each task wraps (do not substitute other versions or a different toolchain).
 - The package manager and runtime is **bun** for every JS/TS package (`dot/` and `docs/`). Do not use npm, pnpm, or yarn for install, lockfile, or script commands. Use `bun install`, `bun add`, `bun update`, `bun run`, and `bunx` (or the `mise run` task wrappers).
 - The tracked lockfile is `bun.lock` in each package (`dot/bun.lock`, `docs/bun.lock`); commit it after any dependency change. CI runs `bun install --frozen-lockfile` against it.
+- Keep Renovate update grouping limited to standard presets. Do not add repository-defined `groupName` rules.
 
 ## OpenCode Assets
 
@@ -116,7 +117,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 ## Validation
 
 - Basic health check: `dot doctor`
-- Dev tasks: `mise run <task>` from the repo root, namespaced by project - `dot:*` (`dot:build`, `dot:typecheck`, `dot:test`, `dot:format`, `dot:check`), `docs:*` (`docs:build`, `docs:dev`, `docs:gen`, `docs:check`), and `tests:*` (`tests:integration`, `tests:smoke`); `mise tasks` lists them.
+- Dev tasks: `mise run <task>` from the repo root. `mise run lint` checks owned TypeScript and JavaScript with the vendored anti-slop Oxlint plugin. Project tasks are namespaced: `dot:*` (`dot:build`, `dot:typecheck`, `dot:test`, `dot:format`, `dot:check`), `docs:*` (`docs:build`, `docs:dev`, `docs:gen`, `docs:check`), and `tests:*` (`tests:integration`, `tests:smoke`); `mise tasks` lists them.
 - Skill frontmatter: the `lint.yml` `validate-skills` job validates public skills with the shared `lint-agent-skills` workflow.
 - OpenCode debug: use `opencode debug` subcommands directly, for example `opencode debug config`, `opencode debug skill`, or `opencode debug agent <name>`.
 - MCP config sync: `dot mcp-sync` regenerates each active agent harness's MCP config from the single private spec `dotfiles-private/mcp.yml`; some agent harnesses are documented stubs. Runs automatically in `dot update` before re-stow; run `dot stow` after a manual sync.

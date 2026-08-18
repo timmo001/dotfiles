@@ -58,40 +58,19 @@
   ],
   "packageRules": [
     {
-      "description": "Group GitHub Actions.",
-      "groupName": "github actions",
-      "matchManagers": ["github-actions"]
-    },
-    {
-      "description": "Group Herdr plugin updates.",
-      "groupName": "Herdr plugins",
-      "matchManagers": ["custom.regex"],
-      "matchFileNames": [
-        "herdr/.config/herdr/plugins/config/herdr-lazy/plugins.list",
-        "herdr/.config/herdr/plugins/config/herdr-lazy/plugins.lock"
-      ]
-    },
-    {
       "description": "Update Git submodules without a release delay.",
       "matchManagers": ["git-submodules"],
       "minimumReleaseAge": null
     },
     {
-      "description": "Group OpenCode updates with mise's shorter release delay.",
-      "groupName": "OpenCode",
+      "description": "Use mise's shorter release delay for OpenCode updates.",
       "matchDepNames": ["aqua:anomalyco/opencode", "anomalyco/opencode"],
       "minimumReleaseAge": "2 hours"
     },
     {
-      "description": "Group Pi updates with mise's shorter release delay.",
-      "groupName": "Pi",
+      "description": "Use mise's shorter release delay for Pi updates.",
       "matchDepNames": ["aqua:earendil-works/pi"],
       "minimumReleaseAge": "2 hours"
-    },
-    {
-      "description": "Group the Quickshell lint version updates.",
-      "groupName": "quickshell lint version",
-      "matchDepNames": ["arch/quickshell"]
     }
   ]
 }
