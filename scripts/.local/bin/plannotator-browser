@@ -6,10 +6,10 @@ if [ "$#" -ne 1 ]; then
   exit 2
 fi
 
-uwsm app -- chromium \
-  --ozone-platform=wayland \
-  --force-device-scale-factor=0.8 \
-  --user-data-dir="${XDG_DATA_HOME:-$HOME/.local/share}/plannotator-browser" \
-  --class=plannotator \
-  "$1" \
-  >/dev/null 2>&1 &
+exec herdr plugin pane open \
+  --plugin official.browser \
+  --entrypoint browser \
+  --placement zoomed \
+  --env "HERDR_BROWSER_INITIAL_URL=$1" \
+  --env HERDR_BROWSER_TRANSPORT=direct-kitty \
+  --focus

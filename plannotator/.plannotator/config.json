@@ -21,5 +21,9 @@
   "reviewAnalysis": {
     "semanticDiff": true,
     "callFlow": true
+  },
+  "presenter": {
+    "command": "herdr-plannotator-present",
+    "when": "herdr"
   }
 }
