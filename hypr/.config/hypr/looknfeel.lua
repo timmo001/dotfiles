@@ -83,6 +83,7 @@ hl.window_rule({ name = "opaque-virt-manager", match = { class = "^virt-manager$
 
 -- Shared workspace rules.
 hl.window_rule({ name = "workspace-slicers", match = { class = "^(BambuStudio|OrcaSlicer)$" }, workspace = "4" })
+hl.window_rule({ name = "workspace-plannotator", match = { class = "^plannotator$" }, workspace = "2 silent" })
 
 require("hypr.host.looknfeel")
 

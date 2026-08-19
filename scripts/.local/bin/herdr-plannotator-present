@@ -1,5 +1,0 @@
-#!/bin/bash
-set -euo pipefail
-
-plugin_root="$(herdr plugin list --plugin official.plannotator --json 2>/dev/null | jq -er '.result.plugins[0].plugin_root')"
-exec "$plugin_root/bin/herdr-plannotator-present"

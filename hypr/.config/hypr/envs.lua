@@ -9,7 +9,7 @@ hl.env("HYPRCURSOR_THEME", "catppuccin-mocha-dark-cursors")
 hl.env("XCURSOR_SIZE", "20")
 hl.env("HYPRCURSOR_SIZE", "20")
 
--- Released Plannotator versions use the browser hook until external presenter support lands.
+-- Open every Plannotator surface in its dedicated Chromium window.
 hl.env("PLANNOTATOR_BROWSER", "plannotator-browser")
 
 require("hypr.host.envs")
