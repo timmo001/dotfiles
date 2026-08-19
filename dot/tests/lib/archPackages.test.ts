@@ -10,6 +10,13 @@ afterEach(() => {
   for (const path of paths.splice(0)) rmSync(path, { force: true });
 });
 
+describe("replacedPublicPackage", () => {
+  test("migrates official mise to mise-bin", () => {
+    expect(replacedPublicPackage("mise-bin")).toBe("mise");
+    expect(replacedPublicPackage("git")).toBeUndefined();
+  });
+});
+
 describe("loadPackageLists", () => {
   test("combines base and host package lists without duplicates", () => {
     const root = process.env.TMPDIR ?? "/tmp";
@@ -24,12 +31,5 @@ describe("loadPackageLists", () => {
       "duplicate",
       "desktop-only",
     ]);
-  });
-});
-
-describe("replacedPublicPackage", () => {
-  test("migrates mise-bin before installing official mise", () => {
-    expect(replacedPublicPackage("mise")).toBe("mise-bin");
-    expect(replacedPublicPackage("git")).toBeUndefined();
   });
 });
