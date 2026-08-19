@@ -44,8 +44,8 @@ grep -Fx 'herdr tab create --focus' "$calls"
 
 : >"$calls"
 ACTIVE_WINDOW='{"address":"abc123","class":"com.mitchellh.ghostty","title":"herdr"}' "$script" ghostty-new
-grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL ALT SHIFT', key = 'T', state = 'down' })" "$calls"
-grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL ALT SHIFT', key = 'T', state = 'up' })" "$calls"
+grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL ALT SHIFT', key = 'N', state = 'down' })" "$calls"
+grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL ALT SHIFT', key = 'N', state = 'up' })" "$calls"
 
 : >"$calls"
 ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"herdr"}' "$script" close
@@ -74,8 +74,8 @@ fi
 
 : >"$calls"
 ACTIVE_WINDOW='{"address":"abc123","class":"com.mitchellh.ghostty","title":"shell"}' "$script" new
-grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL ALT SHIFT', key = 'T', state = 'down' })" "$calls"
-grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL ALT SHIFT', key = 'T', state = 'up' })" "$calls"
+grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL ALT SHIFT', key = 'N', state = 'down' })" "$calls"
+grep -Fq "hl.dsp.send_key_state({ mods = 'CTRL ALT SHIFT', key = 'N', state = 'up' })" "$calls"
 
 : >"$calls"
 ACTIVE_WINDOW='{"class":"com.mitchellh.ghostty","title":"shell"}' "$script" close

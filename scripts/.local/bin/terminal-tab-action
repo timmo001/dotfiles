@@ -33,7 +33,7 @@ send_shortcut_once() {
 
 if [[ "$action" == "ghostty-new" ]]; then
   [[ "$active_class" == "com.mitchellh.ghostty" && -n "$active_address" ]] || exit 0
-  send_shortcut_once "CTRL ALT SHIFT" "T"
+  send_shortcut_once "CTRL ALT SHIFT" "N"
 fi
 
 if [[ "$active_class" == "com.mitchellh.ghostty" && "$active_title" == "herdr" ]] && command -v "$herdr_bin" >/dev/null 2>&1; then
@@ -69,7 +69,7 @@ if [[ "$active_class" == "com.mitchellh.ghostty" && "$active_title" == "herdr" ]
 fi
 
 if [[ "$action" == "new" && "$active_class" == "com.mitchellh.ghostty" && -n "$active_address" ]]; then
-  send_shortcut_once "CTRL ALT SHIFT" "T"
+  send_shortcut_once "CTRL ALT SHIFT" "N"
 fi
 
 case "$action" in
