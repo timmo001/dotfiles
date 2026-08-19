@@ -58,6 +58,12 @@
   ],
   "packageRules": [
     {
+      "description": "Keep OpenCode 2 plugins on the beta release channel.",
+      "matchFileNames": ["agents/.config/opencode/plugins-v2/package.json"],
+      "matchPackageNames": ["@opencode-ai/plugin"],
+      "allowedVersions": "/^0\\.0\\.0-beta-/"
+    },
+    {
       "description": "Update first-party workflows without a release delay.",
       "matchPackageNames": ["timmo001/workflows"],
       "minimumReleaseAge": null
