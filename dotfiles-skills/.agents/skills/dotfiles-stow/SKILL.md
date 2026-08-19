@@ -16,8 +16,8 @@ Use this skill for changes to user config managed by GNU Stow through the public
 2. Keep shared non-sensitive config public and machine-specific or private data in the private overlay.
 3. Edit the source repository, never an unmanaged live file.
 4. Run `dot stow` after stowed source changes.
-5. Review third-party updates in `~/repos/skills` through `dot skill-updates`; normal `dot update` only stows committed snapshots.
-6. Make shared skill changes in `~/repos/skills`, then update the pinned submodule only after that repository revision is committed and pushed.
+5. Create, import, review, and update reusable skills in `~/repos/skills`; never edit `~/.agents/skills` or `agents/.agents/skills` directly. Review third-party updates through `dot skill-updates`; normal `dot update` only stows committed snapshots.
+6. After every committed or upstream-updated `~/repos/skills` revision, update and commit the `agents/.agents/skills` submodule pointer in `~/.config/dotfiles`. Do not leave the repositories out of sync.
 7. Update the canonical docs site when user-facing behaviour, paths, commands, or configuration change.
 
 ## Common Paths
