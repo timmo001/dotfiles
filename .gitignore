@@ -5,6 +5,7 @@ __pycache__/
 .benchmarks/output/
 .tests/output/
 /node_modules/
+/agents/.config/opencode/plugins-v2/node_modules/
 /mise.lock
 /mise/.config/mise/mise.lock
 /plannotator/.plannotator/*
