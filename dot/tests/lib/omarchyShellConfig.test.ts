@@ -85,6 +85,10 @@ const managedPlugins = {
       },
     },
     {
+      id: "timmo.momentumctl",
+      managed: true,
+    },
+    {
       id: "timmo.clock",
       replace: "omarchy.clock",
       placement: { section: "right" as const },
@@ -222,6 +226,7 @@ describe("mergeOmarchyShellConfig", () => {
     expect(trayIndex).toBeGreaterThan(0);
     expect(rightIds).not.toContain("omarchy.weather");
     expect(merged.bar.layout.right).toContainEqual({ id: "omarchy.tray" });
+    expect(merged.plugins).toEqual([{ id: "timmo.momentumctl" }]);
     expect(
       customEntries(merged).every(
         (entry) =>
@@ -429,6 +434,27 @@ describe("parseManagedPlugins", () => {
         },
       ],
     });
+  });
+
+  test("accepts a managed non-widget plugin without placement", () => {
+    expect(
+      parseManagedPlugins({
+        remove: [],
+        plugins: [{ id: "example.panel", managed: true }],
+      }),
+    ).toEqual({
+      remove: [],
+      plugins: [{ id: "example.panel", managed: true }],
+    });
+  });
+
+  test("rejects bar settings without placement", () => {
+    expect(
+      parseManagedPlugins({
+        remove: [],
+        plugins: [{ id: "example.panel", settings: { primaryOnly: true } }],
+      }),
+    ).toBeNull();
   });
 
   test("rejects ambiguous placements", () => {

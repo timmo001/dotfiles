@@ -73,8 +73,8 @@ export interface ManagedPlugin {
   readonly replace?: string;
   /** Whether settings from a replaced stock entry are preserved. */
   readonly inheritSettings?: boolean;
-  /** Persistent bar placement. */
-  readonly placement: ManagedPluginPlacement;
+  /** Persistent bar placement. Omit for a non-widget shell plugin. */
+  readonly placement?: ManagedPluginPlacement;
   /** Settings applied to every host. */
   readonly settings?: PluginSettings;
   /** Settings applied only to a named host. */
@@ -109,8 +109,13 @@ interface ShellBar {
 interface ShellConfig {
   idle?: { screensaver: number; lock: number };
   bar: ShellBar;
+  plugins?: BarEntry[];
   [key: string]:
-    JsonValue | ShellBar | { screensaver: number; lock: number } | undefined;
+    | JsonValue
+    | ShellBar
+    | BarEntry[]
+    | { screensaver: number; lock: number }
+    | undefined;
 }
 
 interface MutablePluginPlacement {
@@ -125,7 +130,7 @@ interface MutableManagedPlugin {
   managed?: boolean;
   replace?: string;
   inheritSettings?: boolean;
-  placement: ManagedPluginPlacement;
+  placement?: ManagedPluginPlacement;
   settings?: PluginSettings;
   hosts?: ManagedPluginHosts;
 }
@@ -164,6 +169,8 @@ function placeManagedPlugin(
   plugin: ManagedPlugin,
   host: string,
 ): void {
+  const placement = plugin.placement;
+  if (!placement) return;
   let existing: BarEntry | undefined;
   for (const entries of [layout.left, layout.center, layout.right]) {
     let index = entries.findIndex(
@@ -178,21 +185,21 @@ function placeManagedPlugin(
     }
   }
 
-  const entries = layout[plugin.placement.section];
-  const beforeIndex = plugin.placement.before
-    ? entries.findIndex((entry) => entry.id === plugin.placement.before)
+  const entries = layout[placement.section];
+  const beforeIndex = placement.before
+    ? entries.findIndex((entry) => entry.id === placement.before)
     : -1;
-  const afterIndex = plugin.placement.after
-    ? entries.findIndex((entry) => entry.id === plugin.placement.after)
+  const afterIndex = placement.after
+    ? entries.findIndex((entry) => entry.id === placement.after)
     : -1;
   const index =
     beforeIndex !== -1
       ? beforeIndex
       : afterIndex !== -1
         ? afterIndex + 1
-        : plugin.placement.index === undefined
+        : placement.index === undefined
           ? entries.length
-          : Math.min(plugin.placement.index, entries.length);
+          : Math.min(placement.index, entries.length);
   const entry: BarEntry = { id: plugin.id };
   if (plugin.inheritSettings !== false && existing)
     Object.assign(entry, existing);
@@ -240,28 +247,35 @@ export function parseManagedPlugins(
       (!isJsonObject(hosts) || !Object.values(hosts).every(isSettings))
     )
       return null;
-    if (!isJsonObject(placement)) return null;
-    const { section, before, after, index } = placement;
-    if (section !== "left" && section !== "center" && section !== "right")
+    const parsedPlugin: MutableManagedPlugin = { id };
+    if (placement !== undefined) {
+      if (!isJsonObject(placement)) return null;
+      const { section, before, after, index } = placement;
+      if (section !== "left" && section !== "center" && section !== "right")
+        return null;
+      if (before !== undefined && !isString(before)) return null;
+      if (after !== undefined && !isString(after)) return null;
+      if (before !== undefined && after !== undefined) return null;
+      if (
+        index !== undefined &&
+        (!isNumber(index) || !Number.isInteger(index) || index < 0)
+      )
+        return null;
+      if (index !== undefined && (before !== undefined || after !== undefined))
+        return null;
+      const parsedPlacement: MutablePluginPlacement = { section };
+      if (before !== undefined) parsedPlacement.before = before;
+      if (after !== undefined) parsedPlacement.after = after;
+      if (index !== undefined && isNumber(index)) parsedPlacement.index = index;
+      parsedPlugin.placement = parsedPlacement;
+    } else if (
+      replace !== undefined ||
+      inheritSettings !== undefined ||
+      settings !== undefined ||
+      hosts !== undefined
+    ) {
       return null;
-    if (before !== undefined && !isString(before)) return null;
-    if (after !== undefined && !isString(after)) return null;
-    if (before !== undefined && after !== undefined) return null;
-    if (
-      index !== undefined &&
-      (!isNumber(index) || !Number.isInteger(index) || index < 0)
-    )
-      return null;
-    if (index !== undefined && (before !== undefined || after !== undefined))
-      return null;
-    const parsedPlacement: MutablePluginPlacement = { section };
-    if (before !== undefined) parsedPlacement.before = before;
-    if (after !== undefined) parsedPlacement.after = after;
-    if (index !== undefined && isNumber(index)) parsedPlacement.index = index;
-    const parsedPlugin: MutableManagedPlugin = {
-      id,
-      placement: parsedPlacement,
-    };
+    }
     if (managed !== undefined && isBoolean(managed))
       parsedPlugin.managed = managed;
     if (replace !== undefined && isString(replace))
@@ -330,7 +344,13 @@ export function mergeOmarchyShellConfig(
   }
 
   for (const plugin of managedPlugins.plugins) {
-    placeManagedPlugin(base.bar.layout, plugin, host);
+    if (plugin.placement) {
+      placeManagedPlugin(base.bar.layout, plugin, host);
+    } else {
+      base.plugins ??= [];
+      if (!base.plugins.some(({ id }) => id === plugin.id))
+        base.plugins.push({ id: plugin.id });
+    }
   }
 
   base.bar.centerAnchor = "";
