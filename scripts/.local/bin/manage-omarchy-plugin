@@ -189,7 +189,7 @@ remove_plugin() {
   fi
 
   omarchy-shell shell setPluginEnabled "$id" false >/dev/null 2>&1 || true
-  rm -f "$plugins_live/$id"
+  rm -rf "${plugins_live:?}/$id"
   local submodule_path="omarchy/.config/omarchy/plugins/$id"
   operation_id=$id
   trap cleanup_operation EXIT

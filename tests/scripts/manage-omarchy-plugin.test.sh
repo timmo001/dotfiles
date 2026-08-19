@@ -16,6 +16,7 @@ gum_choices="$test_root/gum.choices"
 
 trap 'rm -rf "$test_root"' EXIT
 mkdir -p "$dotfiles/omarchy/.config/omarchy/plugins" "$home/.config/omarchy/plugins" "$mock_bin"
+export XDG_CONFIG_HOME="$home/.config"
 
 cat >"$mock_bin/dot" <<'EOF'
 #!/bin/bash
@@ -96,6 +97,9 @@ mapfile -t choices <"$gum_choices"
 [[ ${choices[*]} == 'No Commit Commit and push' ]]
 [[ ! -e $dot_log ]]
 
+rm "$home/.config/omarchy/plugins/example.plugin"
+mkdir "$home/.config/omarchy/plugins/example.plugin"
+cp "$source_path/manifest.json" "$home/.config/omarchy/plugins/example.plugin/"
 env HOME="$home" DOTFILES_REPO="$dotfiles" GIT_ALLOW_PROTOCOL=file PATH="$mock_bin:$PATH" \
   DOT_LOG="$dot_log" GUM_ARGS="$gum_args" GUM_CHOICES="$gum_choices" \
   OMARCHY_PLUGIN_PRETTIER="$prettier" \
