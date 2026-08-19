@@ -6,7 +6,7 @@ sidebar:
   order: 1
 ---
 
-The repo ships a shared [OpenCode](https://opencode.ai) configuration: agents, slash commands, skills, and lifecycle plugins. Agents, commands, plugins, and shared `lib/` modules live in `agents/.config/opencode/`. Portable skills and reviewed third-party snapshots are maintained independently in [`timmo001/skills`](https://github.com/timmo001/skills), pinned at `agents/.agents/skills/`, and exposed through the shared `~/.agents/skills/` path.
+The repo ships a shared [OpenCode](https://opencode.ai) configuration: agents, slash commands, skills, and lifecycle plugins. Agents, commands, plugins, and shared `lib/` modules live in `agents/.config/opencode/`; isolated OpenCode v2 TUI plugin ports live under `plugins-v2/tui/` while the v1 plugin API remains active. Portable skills and reviewed third-party snapshots are maintained independently in [`timmo001/skills`](https://github.com/timmo001/skills), pinned at `agents/.agents/skills/`, and exposed through the shared `~/.agents/skills/` path.
 
 The repo-local `opencode.json` allows agents to inspect the live directories managed by stow and list their parent config directories. Direct edits to unmanaged files in those directories are denied; change the matching source under `~/.config/dotfiles` and run `dot stow` instead. Existing stowed symlinks resolve to their repository source, so edits still land in the tracked package. Personal repository references are supplied by the private machine overlay as writable local paths rather than repository-backed cache clones. References declared inside `docs/` resolve back to this checkout, including the `opencode-config` alias because that repository is a generated mirror of this source.
 
@@ -16,6 +16,10 @@ The OpenCode-specific assets are generated from this dotfiles repo and published
 
 :::tip[The portable basis]
 Unlike the rest of these (personal) dotfiles, the OpenCode config is built to be reused. `opencode-config` is a standalone, portable export with its own install instructions, so you can adopt individual agents, commands, skills, or plugins without taking on anything else here. Plugins that share support modules are published with the `lib/` directory they import and should be copied with that directory.
+:::
+
+:::caution[OpenCode v2 hybrid]
+The published lifecycle plugins use the v1 plugin API. The private `opencode2` route shares agents, commands, skills, instructions, and compatible server configuration, but it loads only the isolated v2 TUI plugins. Lifecycle-backed context injection and guards described below remain v1-only until their server plugins are ported.
 :::
 
 <CardGroup cols={2}>
