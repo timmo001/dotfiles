@@ -156,6 +156,13 @@
       "settings": {
         "format": "HH:mm d MMM"
       }
+    },
+    {
+      "id": "ubeyidah.omaclock",
+      "managed": true,
+      "placement": {
+        "section": "center"
+      }
     }
   ]
 }
