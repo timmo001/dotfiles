@@ -17,3 +17,7 @@
 	path = omarchy/.config/omarchy/plugins/timmo.momentumctl
 	url = https://github.com/timmo001/omarchy-momentumctl.git
 	branch = main
+[submodule "omarchy/.config/omarchy/plugins/timmo.clock"]
+	path = omarchy/.config/omarchy/plugins/timmo.clock
+	url = https://github.com/timmo001/omarchy-clock.git
+	branch = main

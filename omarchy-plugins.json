@@ -149,6 +149,7 @@
     },
     {
       "id": "timmo.clock",
+      "managed": true,
       "replace": "omarchy.clock",
       "placement": {
         "section": "right"
