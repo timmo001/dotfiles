@@ -7,7 +7,7 @@ hl.config({
     },
   },
   decoration = {
-    rounding = 1,
+    rounding = 0,
   },
 })
 
