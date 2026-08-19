@@ -144,6 +144,10 @@
       }
     },
     {
+      "id": "timmo.momentumctl",
+      "managed": true
+    },
+    {
       "id": "timmo.clock",
       "replace": "omarchy.clock",
       "placement": {
