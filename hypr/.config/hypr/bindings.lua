@@ -113,16 +113,16 @@ o.bind(
   "Home Assistant Assist",
   [[omarchy-launch-webapp "http://homeassistant.local:8123/?conversation=1"]]
 )
-o.bind("CTRL + ALT + H", "Home Assistant panel", "omarchy-shell timmo.home-assistant toggle")
-o.bind("CTRL + ALT + G", "Git panel", "omarchy-shell timmo.git toggle")
-o.bind("CTRL + ALT + S", "System Bridge panel", "omarchy-shell timmo.system-bridge toggle")
-o.bind("CTRL + ALT + C", "Capture note", "omarchy-shell timmo.notes-capture toggle")
+o.bind("CTRL + ALT + H", "Home Assistant panel", "omarchy-shell shell toggle timmo.home-assistant")
+o.bind("CTRL + ALT + G", "Git panel", "omarchy-shell shell toggle timmo.git")
+o.bind("CTRL + ALT + S", "System Bridge panel", "omarchy-shell shell toggle timmo.system-bridge")
+o.bind("CTRL + ALT + C", "Capture note", "omarchy-shell shell toggle timmo.notes-capture")
 o.bind("CTRL + ALT + M", "MOMENTUM 4 controls", "omarchy-shell shell toggle timmo.momentumctl")
 
 -- Local automations
 o.bind("SUPER + CTRL + SHIFT + C", nil, "timmo-run-command go-automate ha ib t in_a_call")
 o.bind("SUPER + CTRL + SHIFT + M", nil, "pactl set-source-mute @DEFAULT_SOURCE@ toggle")
-o.bind("CTRL + ALT + T", nil, "omarchy-shell timmo.twitch toggle")
+o.bind("CTRL + ALT + T", nil, "omarchy-shell shell toggle timmo.twitch")
 o.bind("CTRL + ALT + R", nil, "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e dot tui git-diff")
 o.bind(
   "CTRL + ALT + SHIFT + R",
@@ -132,7 +132,7 @@ o.bind(
 
 -- Opens the clock panel with local and US time zones.
 hl.unbind("SUPER + CTRL + T")
-o.bind("SUPER + CTRL + T", "Clock", "omarchy-shell timmo.clock toggle")
+o.bind("SUPER + CTRL + T", "Clock", "omarchy-shell shell toggle timmo.clock")
 
 -- Precise window resizing (fractional, like 1% volume with ALT)
 hl.unbind("SUPER + ALT + code:20")
