@@ -1,6 +1,8 @@
 import {
   type CliRenderer,
   BoxRenderable,
+  InputRenderable,
+  InputRenderableEvents,
   TextRenderable,
   type KeyEvent,
   t,
@@ -32,6 +34,7 @@ import { displayPath } from "../../lib/paths.js";
 const HELP: readonly HelpEntry[] = [
   { key: "↑↓", action: "navigate" },
   { key: "Tab", action: "pane" },
+  { key: "/", action: "filter" },
   { key: "Enter", action: "lazygit" },
   { key: "e", action: "edit" },
   { key: "E", action: "visual edit" },
@@ -86,12 +89,18 @@ export class DiffView {
   private unchangedList: StatusList<Repo>;
   private changedTitle: TextRenderable;
   private unchangedTitle: TextRenderable;
+  private filterBox: BoxRenderable;
+  private filterLabel: TextRenderable;
+  private filterInput: InputRenderable;
   private statusBar: TextRenderable;
 
   private activePane: Pane = "changed";
   private keyHandlers: Readonly<Record<string, () => void>>;
   private changedRepos: readonly Repo[] = [];
   private unchangedRepos: readonly Repo[] = [];
+  private filterPane: Pane | null = null;
+  private filterQuery = "";
+  private filterEditing = false;
   private lastChecked: Date = new Date();
   private isVisible = false;
   private openingEditor = false;
@@ -135,6 +144,44 @@ export class DiffView {
       marginBottom: 1,
     });
     this.root.add(titleBar);
+
+    this.filterBox = new BoxRenderable(renderer, {
+      id: "diff-filter-box",
+      flexDirection: "row",
+      width: "100%",
+      flexShrink: 0,
+      backgroundColor: theme.bgInput,
+      paddingLeft: 1,
+      paddingRight: 1,
+      marginBottom: 1,
+      visible: false,
+    });
+    this.filterLabel = new TextRenderable(renderer, {
+      id: "diff-filter-label",
+      content: t`${fg(theme.accent)("Filter Changed: ")}`,
+    });
+    this.filterInput = new InputRenderable(renderer, {
+      id: "diff-filter-input",
+      flexGrow: 1,
+      placeholder: "repo name or path",
+      placeholderColor: theme.fgSubtle,
+      backgroundColor: theme.bgInput,
+      focusedBackgroundColor: theme.bgInput,
+      textColor: theme.fg,
+      focusedTextColor: theme.fg,
+      cursorColor: theme.accent,
+    });
+    this.filterInput.on(InputRenderableEvents.INPUT, (value: string) => {
+      this.filterQuery = value;
+      this.updateRepoLists();
+    });
+    this.filterInput.on(InputRenderableEvents.ENTER, () => {
+      this.filterEditing = false;
+      this.focusPane(this.activePane);
+    });
+    this.filterBox.add(this.filterLabel);
+    this.filterBox.add(this.filterInput);
+    this.root.add(this.filterBox);
 
     // Two-pane container
     const paneContainer = new BoxRenderable(renderer, {
@@ -224,33 +271,7 @@ export class DiffView {
     this.unchangedRepos = state.unchanged;
     this.lastChecked = state.lastChecked;
 
-    // Update changed list
-    this.changedList.setItems(
-      state.changed.map((repo) => ({
-        id: repo.path,
-        title: this.formatRepoName(repo),
-        description: this.shortenPath(repo.path),
-        color: repo.locked ? this.theme.yellow : this.theme.fg,
-        value: repo,
-      })),
-    );
-
-    // Update unchanged list
-    this.unchangedList.setItems(
-      state.unchanged.map((repo) => ({
-        id: repo.path,
-        title: this.formatRepoName(repo),
-        description: this.shortenPath(repo.path),
-        color: repo.locked ? this.theme.yellow : this.theme.fgMuted,
-        value: repo,
-      })),
-    );
-
-    // Update titles
-    this.updatePaneTitles();
-
-    // Update status bar
-    this.updateStatusBar();
+    this.updateRepoLists();
   }
 
   /** Show or hide the diff view */
@@ -258,6 +279,8 @@ export class DiffView {
     this.root.visible = visible;
     this.isVisible = visible;
     if (!visible) {
+      this.filterEditing = false;
+      this.filterInput.blur();
       this.changedList.setActive(false);
       this.unchangedList.setActive(false);
     }
@@ -283,7 +306,85 @@ export class DiffView {
 
   private handleKeyPress(key: KeyEvent): void {
     if (!this.isVisible) return;
+    if (this.filterEditing) {
+      if (key.name === "escape") {
+        key.stopPropagation();
+        this.clearFilter();
+      }
+      return;
+    }
+    if (key.name === "/") {
+      key.stopPropagation();
+      this.openFilter();
+      return;
+    }
+    if (
+      (key.name === "escape" || key.name === "backspace") &&
+      this.filterPane !== null
+    ) {
+      key.stopPropagation();
+      this.clearFilter();
+      return;
+    }
     this.keyHandlers[`${key.shift ? "shift+" : ""}${key.name}`]?.();
+  }
+
+  private openFilter(): void {
+    if (this.filterPane !== this.activePane) this.filterQuery = "";
+    this.filterPane = this.activePane;
+    this.filterEditing = true;
+    this.filterLabel.content = t`${fg(this.theme.accent)(`Filter ${this.activePane === "changed" ? "Changed" : "Other"}: `)}`;
+    this.filterBox.visible = true;
+    this.filterInput.value = this.filterQuery;
+    this.changedList.setActive(false);
+    this.unchangedList.setActive(false);
+    this.filterInput.focus();
+    this.updateRepoLists();
+  }
+
+  private clearFilter(): void {
+    this.filterEditing = false;
+    this.filterPane = null;
+    this.filterQuery = "";
+    this.filterInput.value = "";
+    this.filterBox.visible = false;
+    this.focusPane(this.activePane);
+    this.updateRepoLists();
+  }
+
+  private updateRepoLists(): void {
+    const changed = this.filteredRepos("changed", this.changedRepos);
+    const unchanged = this.filteredRepos("unchanged", this.unchangedRepos);
+    this.changedList.setItems(
+      changed.map((repo) => ({
+        id: repo.path,
+        title: this.formatRepoName(repo),
+        description: this.shortenPath(repo.path),
+        color: repo.locked ? this.theme.yellow : this.theme.fg,
+        value: repo,
+      })),
+    );
+    this.unchangedList.setItems(
+      unchanged.map((repo) => ({
+        id: repo.path,
+        title: this.formatRepoName(repo),
+        description: this.shortenPath(repo.path),
+        color: repo.locked ? this.theme.yellow : this.theme.fgMuted,
+        value: repo,
+      })),
+    );
+    this.updatePaneTitles();
+    this.updateStatusBar();
+  }
+
+  private filteredRepos(pane: Pane, repos: readonly Repo[]): readonly Repo[] {
+    if (this.filterPane !== pane || this.filterQuery.length === 0) return repos;
+    const query = this.filterQuery.toLocaleLowerCase();
+    return repos.filter(
+      (repo) =>
+        repo.name.toLocaleLowerCase().includes(query) ||
+        this.shortenPath(repo.path).toLocaleLowerCase().includes(query),
+    );
   }
 
   private runRepoAction(action: (repo: Repo) => void): void {
@@ -365,17 +466,25 @@ export class DiffView {
   }
 
   private updatePaneTitles(): void {
+    const changedCount = this.filteredRepos(
+      "changed",
+      this.changedRepos,
+    ).length;
+    const unchangedCount = this.filteredRepos(
+      "unchanged",
+      this.unchangedRepos,
+    ).length;
     this.changedTitle.content = formatPaneTitle(
       this.theme,
       "Changed",
-      this.changedRepos.length,
+      changedCount,
       this.activePane === "changed",
       this.changedRepos.length > 0 ? this.theme.red : this.theme.fgMuted,
     );
     this.unchangedTitle.content = formatPaneTitle(
       this.theme,
       "Other",
-      this.unchangedRepos.length,
+      unchangedCount,
       this.activePane === "unchanged",
       this.theme.fgMuted,
     );
@@ -421,11 +530,15 @@ export class DiffView {
 
     const allRepos = [...this.changedRepos, ...this.unchangedRepos];
     const lockedCount = allRepos.filter((r) => r.locked).length;
+    const filterText =
+      this.filterPane === null
+        ? ""
+        : `    ${this.filterPane === "changed" ? "Changed" : "Other"} filter: ${this.filterQuery || "all"}`;
 
     if (lockedCount > 0) {
-      this.statusBar.content = t`${fg(th.fgMuted)(`Last checked: ${ago}`)}    ${dot}  ${countText}    ${fg(th.yellow)("󰌾")}  ${fg(th.yellow)(`${lockedCount} locked`)}`;
+      this.statusBar.content = t`${fg(th.fgMuted)(`Last checked: ${ago}`)}    ${dot}  ${countText}    ${fg(th.yellow)("󰌾")}  ${fg(th.yellow)(`${lockedCount} locked`)}${fg(th.fgMuted)(filterText)}`;
     } else {
-      this.statusBar.content = t`${fg(th.fgMuted)(`Last checked: ${ago}`)}    ${dot}  ${countText}`;
+      this.statusBar.content = t`${fg(th.fgMuted)(`Last checked: ${ago}`)}    ${dot}  ${countText}${fg(th.fgMuted)(filterText)}`;
     }
   }
 

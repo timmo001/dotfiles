@@ -38,6 +38,7 @@ The status bar shows when the last poll ran, how many repos changed, and how man
 | --- | --- |
 | ↑ / ↓ | Navigate the active pane |
 | Tab | Switch between Changed and Other |
+| `/` | Filter the active pane by repo name or path |
 | Enter | Open lazygit in the selected repo (suspends the TUI) |
 | `e` | Open the repo in your default editor |
 | `E` | Open the repo in your visual editor |
@@ -47,7 +48,9 @@ The status bar shows when the last poll ran, how many repos changed, and how man
 | `w` | Open the repo on GitHub in the browser |
 | `x` | Remove a stale `.git/index.lock` from the selected repo |
 | `r` | Refresh immediately |
-| Esc / Backspace | Return to the main menu |
+| Esc / Backspace | Clear an active filter, or return to the main menu |
+
+Filtering updates the active pane as you type. Press Enter to keep the filter and return focus to the repository list, or Escape to clear it.
 
 Repo pulls and fetches are not available from this view; use `dot update` or work inside the repo directly.
 
