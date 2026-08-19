@@ -1,8 +1,8 @@
-import type { Context } from "@opencode-ai/plugin/tui"
+import type { Plugin } from "@opencode-ai/plugin/tui"
 
 const plugin = {
   id: "timmo.tui.lazygit",
-  setup(context: Context) {
+  setup(context) {
     return context.ui.slot({
       append: "app",
       render() {
@@ -43,6 +43,6 @@ const plugin = {
       },
     })
   },
-}
+} satisfies Plugin.Definition
 
 export default plugin
