@@ -1,13 +1,15 @@
-import { Cause, Effect, Schema } from "effect";
+import { Cause, Effect, Schema, Stream } from "effect";
 import {
   existsSync,
   mkdirSync,
   readFileSync,
   renameSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "fs";
 import { dirname, join } from "path";
+import { ENV, envString } from "../lib/env.js";
 import { expandHomePath } from "../lib/paths.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
@@ -189,46 +191,42 @@ function recordCompletedRun(stateFile: string, runId: number): void {
   renameSync(temporary, stateFile);
 }
 
-function processExists(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
+function migrateLegacyLock(lockFile: string): void {
+  if (existsSync(lockFile) && statSync(lockFile).isDirectory()) {
+    rmSync(lockFile, { recursive: true, force: true });
   }
 }
 
-function acquireRunLock(stateFile: string) {
-  return Effect.try({
-    try: () => {
-      const lockDirectory = `${stateFile}.lock`;
+const runWithProcessLock = Effect.fn("SkillUpdatesAgent.runWithProcessLock")(
+  function* (configPath: string, stateFile: string) {
+    const executor = yield* CommandExecutor;
+    const lockFile = `${stateFile}.lock`;
+    yield* Effect.sync(() => {
       mkdirSync(dirname(stateFile), { recursive: true });
-      try {
-        mkdirSync(lockDirectory, { recursive: false, mode: 0o700 });
-      } catch (error) {
-        const ownerPath = join(lockDirectory, "pid");
-        const owner = existsSync(ownerPath)
-          ? Number.parseInt(readFileSync(ownerPath, "utf8").trim(), 10)
-          : Number.NaN;
-        if (!Number.isInteger(owner) || !processExists(owner)) {
-          rmSync(lockDirectory, { recursive: true, force: true });
-          mkdirSync(lockDirectory, { recursive: false, mode: 0o700 });
-        } else {
-          throw error;
-        }
-      }
-      writeFileSync(join(lockDirectory, "pid"), `${process.pid}\n`, {
-        mode: 0o600,
-      });
-      return lockDirectory;
-    },
-    catch: () =>
-      new SkillUpdatesAgentError({
-        operation: "run.lock",
-        message: "Another skill updates agent run is active",
-      }),
-  });
-}
+      migrateLegacyLock(lockFile);
+    });
+    const exitCode = yield* executor.inherit("flock", [
+      "--nonblock",
+      "--conflict-exit-code",
+      "75",
+      lockFile,
+      "env",
+      `${ENV.DOT_SKILL_UPDATES_AGENT_LOCKED}=1`,
+      process.execPath,
+      "skill-updates-agent",
+      "--config",
+      configPath,
+    ]);
+    if (exitCode === 0) return;
+    return yield* new SkillUpdatesAgentError({
+      operation: exitCode === 75 ? "run.lock" : "run.child",
+      message:
+        exitCode === 75
+          ? "Another skill updates agent run is active"
+          : `Locked skill updates agent exited with code ${exitCode}`,
+    });
+  },
+);
 
 /** Read the final explicit agent status from OpenCode's streamed text output. */
 export function skillUpdatesAgentResultStatus(
@@ -312,29 +310,37 @@ const processWithFallback = Effect.fn("SkillUpdatesAgent.processWithFallback")(
     let lastMessage = "No model was attempted";
     for (const [index, model] of config.opencodeModels.entries()) {
       const name = skillUpdatesAgentModelArgument(model);
+      const output: string[] = [];
+      console.log(`[skill-updates-agent] running ${name}`);
       const result = yield* Effect.exit(
-        executor.run(
-          config.opencodeCommand,
-          [
-            "run",
-            "--auto",
-            "--agent",
-            config.opencodeAgent,
-            "--model",
-            name,
-            "--title",
-            "Scheduled skill updates",
-            prompt,
-          ],
-          { cwd: config.repositories[0] },
-        ),
+        executor
+          .stream(
+            config.opencodeCommand,
+            [
+              "run",
+              "--auto",
+              "--agent",
+              config.opencodeAgent,
+              "--model",
+              name,
+              "--title",
+              "Scheduled skill updates",
+              prompt,
+            ],
+            { cwd: config.repositories[0] },
+          )
+          .pipe(
+            Stream.runForEach((line) =>
+              Effect.sync(() => {
+                console.log(line);
+                output.push(line);
+              }),
+            ),
+          ),
       );
       if (result._tag === "Success") {
-        const status = skillUpdatesAgentResultStatus(result.value);
-        if (status === "success") {
-          console.log(result.value.trim());
-          return;
-        }
+        const status = skillUpdatesAgentResultStatus(output.join("\n"));
+        if (status === "success") return;
         lastMessage =
           status === "failure"
             ? `Model ${name} reported failure`
@@ -370,30 +376,21 @@ export const skillUpdatesAgent = Effect.fn("SkillUpdatesAgent.run")(function* (
     });
   }
   const config = yield* loadConfig(resolvedPath);
-  yield* Effect.acquireUseRelease(
-    acquireRunLock(config.stateFile),
-    () =>
-      Effect.gen(function* () {
-        const run = yield* fetchLatestRun(config.workflowApi);
-        if (completedRun(config.stateFile) === String(run.id)) {
-          console.log(`Workflow run ${run.id} has already been processed`);
-          return;
-        }
-        const repositoryState = yield* requireCleanRepositories(
-          config.repositories,
-        );
-        yield* processWithFallback(
-          config,
-          skillUpdatesAgentPrompt(config, run),
-          repositoryState,
-        );
-        yield* requireRepositoryState(repositoryState);
-        yield* Effect.sync(() => recordCompletedRun(config.stateFile, run.id));
-        console.log(`Processed workflow run ${run.id}`);
-      }),
-    (lockDirectory) =>
-      Effect.sync(() =>
-        rmSync(lockDirectory, { recursive: true, force: true }),
-      ),
+  if (envString(ENV.DOT_SKILL_UPDATES_AGENT_LOCKED) !== "1") {
+    return yield* runWithProcessLock(resolvedPath, config.stateFile);
+  }
+  const run = yield* fetchLatestRun(config.workflowApi);
+  if (completedRun(config.stateFile) === String(run.id)) {
+    console.log(`Workflow run ${run.id} has already been processed`);
+    return;
+  }
+  const repositoryState = yield* requireCleanRepositories(config.repositories);
+  yield* processWithFallback(
+    config,
+    skillUpdatesAgentPrompt(config, run),
+    repositoryState,
   );
+  yield* requireRepositoryState(repositoryState);
+  yield* Effect.sync(() => recordCompletedRun(config.stateFile, run.id));
+  console.log(`Processed workflow run ${run.id}`);
 });
