@@ -744,9 +744,9 @@ const validatePullRequestPolicy = Effect.fn(
           }),
       ),
     );
-    const title = details.title.match(/^SHA-only update: ([a-z0-9-]+)$/);
+    const title = details.title.match(/^\[SHA-only\] Update ([a-z0-9-]+)$/);
     const skill = title?.[1];
-    const expectedCommit = skill ? `Record SHA-only update for ${skill}` : "";
+    const expectedCommit = skill ? `[SHA-only] Update ${skill}` : "";
     const assigned = details.assignees.some(
       ({ login }) => login === "timmo001",
     );
@@ -758,7 +758,6 @@ const validatePullRequestPolicy = Effect.fn(
       "pr",
       "diff",
       String(number),
-      "--patch",
       "--repo",
       "timmo001/skills",
     ]);
