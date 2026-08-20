@@ -108,7 +108,10 @@ export interface CommandExecutorService {
   readonly run: (
     cmd: string,
     args: readonly string[],
-    opts?: { readonly cwd?: string },
+    opts?: {
+      readonly cwd?: string;
+      readonly env?: Readonly<Record<string, string>>;
+    },
   ) => Effect.Effect<string, CommandError>;
 
   /** Run a command and stream its combined stdout lines */
@@ -244,12 +247,18 @@ export class CommandExecutor extends Context.Service<
           log(
             `run: ${fullCmd.join(" ")}${opts?.cwd ? ` (cwd: ${opts.cwd})` : ""}`,
           );
-          const proc = Bun.spawn(fullCmd, {
+          const spawnOptions: Bun.SpawnOptions.OptionsObject<
+            "ignore",
+            "pipe",
+            "pipe"
+          > = {
             stdout: "pipe",
             stderr: "pipe",
             cwd: opts?.cwd,
             detached: true,
-          });
+          };
+          if (opts?.env) spawnOptions.env = { ...process.env, ...opts.env };
+          const proc = Bun.spawn(fullCmd, spawnOptions);
           killOnAbort(proc, signal);
 
           const stdout = await new Response(proc.stdout).text();

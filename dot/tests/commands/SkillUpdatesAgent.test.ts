@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   cleanSkillUpdateNames,
+  isShaOnlySkillPatch,
   latestSuccessfulWorkflowRun,
   skillUpdatesAgentModelArgument,
   skillUpdatesAgentPrompt,
@@ -74,16 +75,103 @@ test("skillUpdatesAgentPrompt appends trusted run context and status contract", 
 });
 
 describe("skillUpdatesAgentResultStatus", () => {
-  test("uses the final status line", () => {
+  test("rejects multiple status lines", () => {
     expect(
       skillUpdatesAgentResultStatus(
         "STATUS: failure\nfirst attempt\nSTATUS: success\ncomplete",
       ),
-    ).toBe("success");
+    ).toBeNull();
   });
 
   test("rejects output without the explicit status contract", () => {
     expect(skillUpdatesAgentResultStatus("Work complete")).toBeNull();
+    expect(skillUpdatesAgentResultStatus("STATUS: success maybe")).toBeNull();
+  });
+
+  test("accepts one exact status line", () => {
+    expect(skillUpdatesAgentResultStatus("STATUS: success\nComplete")).toBe(
+      "success",
+    );
+  });
+});
+
+describe("isShaOnlySkillPatch", () => {
+  const sha = "a".repeat(40);
+  const previous = "b".repeat(40);
+
+  test("accepts imports and frontmatter SHA changes", () => {
+    expect(
+      isShaOnlySkillPatch(
+        [
+          "diff --git a/example/SKILL.md b/example/SKILL.md",
+          "index 1111111..2222222 100644",
+          "--- a/example/SKILL.md",
+          "+++ b/example/SKILL.md",
+          "@@ -1 +1 @@",
+          `-# upstream-sha: ${previous}`,
+          `+# upstream-sha: ${sha}`,
+          "diff --git a/imports.json b/imports.json",
+          "index 3333333..4444444 100644",
+          "--- a/imports.json",
+          "+++ b/imports.json",
+          "@@ -1 +1 @@",
+          `-    "example": { "upstreamSha": "${previous}" },`,
+          `+    "example": { "upstreamSha": "${sha}" },`,
+        ].join("\n"),
+        "example",
+      ),
+    ).toBe(true);
+  });
+
+  test("rejects skill content changes", () => {
+    expect(
+      isShaOnlySkillPatch(
+        [
+          "diff --git a/example/SKILL.md b/example/SKILL.md",
+          "--- a/example/SKILL.md",
+          "+++ b/example/SKILL.md",
+          "@@ -1 +1 @@",
+          "-Old guidance",
+          "+New guidance",
+        ].join("\n"),
+        "example",
+      ),
+    ).toBe(false);
+  });
+
+  test("rejects metadata changes alongside the SHA", () => {
+    const oldSha = "a".repeat(40);
+    const newSha = "b".repeat(40);
+    expect(
+      isShaOnlySkillPatch(
+        [
+          "diff --git a/example/SKILL.md b/example/SKILL.md",
+          "index 1111111..2222222 100644",
+          "--- a/example/SKILL.md",
+          "+++ b/example/SKILL.md",
+          "@@ -1 +1 @@",
+          `-# upstream-sha: ${oldSha}`,
+          `+# upstream-sha: ${newSha}`,
+          "diff --git a/imports.json b/imports.json",
+          "index 3333333..4444444 100644",
+          "--- a/imports.json",
+          "+++ b/imports.json",
+          "@@ -1 +1 @@",
+          `-    "example": { "origin": "old", "upstreamSha": "${oldSha}" },`,
+          `+    "example": { "origin": "new", "upstreamSha": "${newSha}" },`,
+        ].join("\n"),
+        "example",
+      ),
+    ).toBe(false);
+  });
+
+  test("rejects renamed skill files", () => {
+    expect(
+      isShaOnlySkillPatch(
+        "diff --git a/example/SKILL.md b/renamed/SKILL.md",
+        "example",
+      ),
+    ).toBe(false);
   });
 });
 
