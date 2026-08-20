@@ -80,8 +80,14 @@
       "minimumReleaseAge": null
     },
     {
-      "description": "Use mise's shorter release delay for OpenCode updates.",
-      "matchDepNames": ["aqua:anomalyco/opencode", "anomalyco/opencode"],
+      "description": "Use the shorter release delay for OpenCode updates.",
+      "matchDepNames": [
+        "@opencode-ai/plugin",
+        "anomalyco/opencode",
+        "aqua:anomalyco/opencode",
+        "npm:@opencode-ai/browser-control",
+        "npm:@opencode-ai/cli"
+      ],
       "minimumReleaseAge": "2 hours"
     },
     {
