@@ -43,7 +43,10 @@ import { setupPrivateRepo } from "./commands/SetupPrivateRepo.js";
 import { setupPublicRepo } from "./commands/SetupPublicRepo.js";
 import { privatePkgPublish } from "./commands/PrivatePkgPublish.js";
 import { skillUpdates } from "./commands/SkillUpdates.js";
-import { skillUpdatesAgent } from "./commands/SkillUpdatesAgent.js";
+import {
+  skillUpdatesAgent,
+  SkillUpdatesAgentError,
+} from "./commands/SkillUpdatesAgent.js";
 import { skillCheck } from "./commands/SkillCheck.js";
 import { completions } from "./commands/Completions.js";
 import { usage } from "./commands/Usage.js";
@@ -583,8 +586,23 @@ if (mode.type === "native") {
         skill: optionValue(args, "--skill"),
         noCommit: args.includes("--no-commit"),
       }).pipe(Effect.asVoid),
-    "skill-updates-agent": (args) =>
-      skillUpdatesAgent(optionValue(args, "--config")),
+    "skill-updates-agent": (args) => {
+      const mode = args[0];
+      if (mode !== "github" && mode !== "device") {
+        return Effect.fail(
+          new SkillUpdatesAgentError({
+            operation: "mode",
+            message: "skill-updates-agent requires github or device mode",
+          }),
+        );
+      }
+      return skillUpdatesAgent({
+        mode,
+        configPath: optionValue(args, "--config"),
+        runId: optionValue(args, "--run-id"),
+        skillsDir: optionValue(args, "--skills-dir"),
+      });
+    },
     "skill-check": (args) =>
       skillCheck({
         openOpencode: args.includes("--open-opencode"),

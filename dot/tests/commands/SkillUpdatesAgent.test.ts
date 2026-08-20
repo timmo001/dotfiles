@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  cleanSkillUpdateNames,
   latestSuccessfulWorkflowRun,
   skillUpdatesAgentModelArgument,
   skillUpdatesAgentPrompt,
@@ -7,6 +8,16 @@ import {
   skillUpdatesWorkflowEndpoint,
   type SkillUpdatesAgentConfig,
 } from "../../src/commands/SkillUpdatesAgent.js";
+
+test("cleanSkillUpdateNames selects only automatic updates", () => {
+  expect(
+    cleanSkillUpdateNames([
+      { name: "clean", state: "update-available" },
+      { name: "adapted", state: "manual-review" },
+      { name: "current", state: "up-to-date" },
+    ]),
+  ).toEqual(["clean"]);
+});
 
 const config: SkillUpdatesAgentConfig = {
   workflowApi: "https://api.github.com/example",

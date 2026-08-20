@@ -242,10 +242,18 @@ _dot_cmd_skill_updates_agent() {
       COMPREPLY=( $(compgen -f -- "$cur") )
       return
       ;;
+    --skills-dir)
+      COMPREPLY=( $(compgen -f -- "$cur") )
+      return
+      ;;
   esac
 
   if [[ $cur == -* ]]; then
-    COMPREPLY=( $(compgen -W '--config --help -h' -- "$cur") )
+    COMPREPLY=( $(compgen -W '--config --run-id --skills-dir --help -h' -- "$cur") )
+    return
+  fi
+  if (( cword == 2 )); then
+    COMPREPLY=( $(compgen -W 'github device' -- "$cur") )
     return
   fi
 }

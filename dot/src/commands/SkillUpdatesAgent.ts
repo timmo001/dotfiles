@@ -8,7 +8,7 @@ import {
   statSync,
   writeFileSync,
 } from "fs";
-import { dirname, join } from "path";
+import { dirname, join, resolve } from "path";
 import { ENV, envString } from "../lib/env.js";
 import { expandHomePath } from "../lib/paths.js";
 import { GitHub } from "../git/services/GitHub.js";
@@ -62,6 +62,19 @@ const WorkflowRuns = Schema.Struct({
     }),
   ),
 });
+
+const GitHubImportStatuses = Schema.Array(
+  Schema.Struct({ name: Schema.String, state: Schema.String }),
+);
+
+/** Select imports that the GitHub phase can update without manual review. */
+export function cleanSkillUpdateNames(
+  statuses: Schema.Schema.Type<typeof GitHubImportStatuses>,
+): readonly string[] {
+  return statuses
+    .filter(({ state }) => state === "update-available")
+    .map(({ name }) => name);
+}
 
 /** A successfully completed workflow run accepted for processing. */
 export interface SuccessfulWorkflowRun {
@@ -235,6 +248,7 @@ const runWithProcessLock = Effect.fn("SkillUpdatesAgent.runWithProcessLock")(
       `${ENV.DOT_SKILL_UPDATES_AGENT_LOCKED}=1`,
       process.execPath,
       "skill-updates-agent",
+      "device",
       "--config",
       configPath,
     ]);
@@ -321,6 +335,220 @@ const requireRepositoryState = Effect.fn(
   }
 });
 
+const inheritOrFail = Effect.fn("SkillUpdatesAgent.inheritOrFail")(function* (
+  command: string,
+  args: readonly string[],
+  cwd: string,
+) {
+  const executor = yield* CommandExecutor;
+  const exitCode = yield* executor.inherit(command, args, { cwd });
+  if (exitCode === 0) return;
+  return yield* new SkillUpdatesAgentError({
+    operation: `${command} ${args.join(" ")}`,
+    message: `Command exited with code ${exitCode}`,
+  });
+});
+
+const validateSkillsRepository = Effect.fn(
+  "SkillUpdatesAgent.validateSkillsRepository",
+)(function* (skillsDir: string) {
+  yield* inheritOrFail("python", ["scripts/validate.py"], skillsDir);
+  yield* inheritOrFail(
+    "python",
+    ["-m", "unittest", "discover", "-s", "scripts", "-p", "test_*.py"],
+    skillsDir,
+  );
+  yield* inheritOrFail(
+    "mise",
+    ["exec", "npm:skills", "--", "skills", "add", ".", "--list"],
+    skillsDir,
+  );
+});
+
+const publishCleanUpdate = Effect.fn("SkillUpdatesAgent.publishCleanUpdate")(
+  function* (skillsDir: string, name: string) {
+    const github = yield* GitHub;
+    const branch = `skill-update/${name}`;
+    yield* inheritOrFail(
+      "git",
+      ["checkout", "-B", branch, "origin/main"],
+      skillsDir,
+    );
+    yield* inheritOrFail(
+      "python",
+      ["scripts/import_skill.py", name, "--apply"],
+      skillsDir,
+    );
+    yield* validateSkillsRepository(skillsDir);
+    yield* inheritOrFail("git", ["add", "--", "imports.json"], skillsDir);
+    for (const path of [name, join("upstream", name)]) {
+      if (existsSync(join(skillsDir, path))) {
+        yield* inheritOrFail("git", ["add", "-A", "--", path], skillsDir);
+      }
+    }
+    yield* inheritOrFail(
+      "git",
+      ["commit", "-m", `Update skill: ${name}`],
+      skillsDir,
+    );
+    yield* inheritOrFail(
+      "git",
+      ["push", "--force-with-lease", "origin", branch],
+      skillsDir,
+    );
+
+    const url = (yield* github.run([
+      "pr",
+      "list",
+      "--head",
+      branch,
+      "--state",
+      "open",
+      "--json",
+      "url",
+      "--jq",
+      ".[0].url // empty",
+      "--repo",
+      "timmo001/skills",
+    ])).trim();
+    const title = `Update skill: ${name}`;
+    if (url) {
+      yield* github.run([
+        "pr",
+        "edit",
+        url,
+        "--title",
+        title,
+        "--add-assignee",
+        "timmo001",
+        "--repo",
+        "timmo001/skills",
+      ]);
+    } else {
+      yield* github.run([
+        "pr",
+        "create",
+        "--base",
+        "main",
+        "--head",
+        branch,
+        "--title",
+        title,
+        "--body",
+        `Update the reviewed upstream snapshot for \`${name}\`.`,
+        "--assignee",
+        "timmo001",
+        "--repo",
+        "timmo001/skills",
+      ]);
+    }
+    yield* github.run([
+      "workflow",
+      "run",
+      "validate.yml",
+      "--ref",
+      branch,
+      "--repo",
+      "timmo001/skills",
+    ]);
+  },
+);
+
+const refreshDashboard = Effect.fn("SkillUpdatesAgent.refreshDashboard")(
+  function* (skillsDir: string) {
+    const executor = yield* CommandExecutor;
+    const github = yield* GitHub;
+    const markdown = yield* executor.run(
+      "python",
+      ["scripts/check_upstream.py", "--format", "markdown"],
+      { cwd: skillsDir },
+    );
+    const marker = "<!-- adapted-skill-updates -->";
+    const number = (yield* github.run([
+      "issue",
+      "list",
+      "--state",
+      "open",
+      "--limit",
+      "100",
+      "--json",
+      "number,body",
+      "--jq",
+      `map(select(.body | contains("${marker}")))[0].number // empty`,
+      "--repo",
+      "timmo001/skills",
+    ])).trim();
+    yield* github.run([
+      "issue",
+      number ? "edit" : "create",
+      ...(number ? [number] : []),
+      "--title",
+      "Skill updates",
+      "--body",
+      markdown,
+      "--repo",
+      "timmo001/skills",
+    ]);
+  },
+);
+
+/** Run the repository update phase used by GitHub Actions. */
+export const runGitHubSkillUpdates = Effect.fn("SkillUpdatesAgent.runGitHub")(
+  function* (skillsDir: string) {
+    const executor = yield* CommandExecutor;
+    const directory = resolve(skillsDir);
+    yield* inheritOrFail(
+      "git",
+      ["config", "user.name", "skill-updates[bot]"],
+      directory,
+    );
+    yield* inheritOrFail(
+      "git",
+      ["config", "user.email", "skill-updates[bot]@users.noreply.github.com"],
+      directory,
+    );
+    const updates = Effect.gen(function* () {
+      const raw = yield* executor.run(
+        "python",
+        ["scripts/check_upstream.py", "--format", "json"],
+        { cwd: directory },
+      );
+      const value = yield* Effect.try({
+        try: () => JSON.parse(raw),
+        catch: (error) =>
+          new SkillUpdatesAgentError({
+            operation: "updates.json",
+            message: String(error),
+          }),
+      });
+      const statuses = yield* Schema.decodeUnknownEffect(GitHubImportStatuses)(
+        value,
+      ).pipe(
+        Effect.mapError(
+          (error) =>
+            new SkillUpdatesAgentError({
+              operation: "updates.decode",
+              message: String(error),
+            }),
+        ),
+      );
+      for (const name of cleanSkillUpdateNames(statuses)) {
+        yield* publishCleanUpdate(directory, name);
+      }
+    });
+    const result = yield* Effect.exit(updates);
+    yield* inheritOrFail(
+      "git",
+      ["checkout", "--detach", "origin/main"],
+      directory,
+    );
+    if (result._tag === "Failure") {
+      return yield* Effect.failCause(result.cause);
+    }
+    yield* refreshDashboard(directory);
+  },
+);
+
 const processWithFallback = Effect.fn("SkillUpdatesAgent.processWithFallback")(
   function* (
     config: SkillUpdatesAgentConfig,
@@ -382,36 +610,66 @@ const processWithFallback = Effect.fn("SkillUpdatesAgent.processWithFallback")(
 );
 
 /** Process the latest successful scheduled skill update workflow once. */
-export const skillUpdatesAgent = Effect.fn("SkillUpdatesAgent.run")(function* (
-  configPath?: string,
-) {
-  const dotConfig = yield* Config;
-  const resolvedPath = expandHomePath(
-    configPath ??
-      join(dotConfig.privateDotfiles ?? "", "skill-updates-agent.yml"),
-  );
-  if (!dotConfig.privateDotfiles && !configPath) {
-    return yield* new SkillUpdatesAgentError({
-      operation: "config.resolve",
-      message: "Private dotfiles are unavailable",
-    });
-  }
-  const config = yield* loadConfig(resolvedPath);
-  if (envString(ENV.DOT_SKILL_UPDATES_AGENT_LOCKED) !== "1") {
-    return yield* runWithProcessLock(resolvedPath, config.stateFile);
-  }
-  const run = yield* fetchLatestRun(config.workflowApi);
-  if (completedRun(config.stateFile) === String(run.id)) {
-    console.log(`Workflow run ${run.id} has already been processed`);
-    return;
-  }
-  const repositoryState = yield* requireCleanRepositories(config.repositories);
-  yield* processWithFallback(
-    config,
-    skillUpdatesAgentPrompt(config, run),
-    repositoryState,
-  );
-  yield* requireRepositoryState(repositoryState);
-  yield* Effect.sync(() => recordCompletedRun(config.stateFile, run.id));
-  console.log(`Processed workflow run ${run.id}`);
-});
+const runDeviceSkillUpdates = Effect.fn("SkillUpdatesAgent.runDevice")(
+  function* (configPath?: string, runId?: string) {
+    if (runId) {
+      yield* inheritOrFail(
+        "gh",
+        [
+          "run",
+          "watch",
+          runId,
+          "--repo",
+          "timmo001/skills",
+          "--compact",
+          "--exit-status",
+          "--interval",
+          "10",
+        ],
+        process.cwd(),
+      );
+    }
+    const dotConfig = yield* Config;
+    const resolvedPath = expandHomePath(
+      configPath ??
+        join(dotConfig.privateDotfiles ?? "", "skill-updates-agent.yml"),
+    );
+    if (!dotConfig.privateDotfiles && !configPath) {
+      return yield* new SkillUpdatesAgentError({
+        operation: "config.resolve",
+        message: "Private dotfiles are unavailable",
+      });
+    }
+    const config = yield* loadConfig(resolvedPath);
+    if (envString(ENV.DOT_SKILL_UPDATES_AGENT_LOCKED) !== "1") {
+      return yield* runWithProcessLock(resolvedPath, config.stateFile);
+    }
+    const run = yield* fetchLatestRun(config.workflowApi);
+    if (completedRun(config.stateFile) === String(run.id)) {
+      console.log(`Workflow run ${run.id} has already been processed`);
+      return;
+    }
+    const repositoryState = yield* requireCleanRepositories(
+      config.repositories,
+    );
+    yield* processWithFallback(
+      config,
+      skillUpdatesAgentPrompt(config, run),
+      repositoryState,
+    );
+    yield* requireRepositoryState(repositoryState);
+    yield* Effect.sync(() => recordCompletedRun(config.stateFile, run.id));
+    console.log(`Processed workflow run ${run.id}`);
+  },
+);
+
+/** Run skill update automation in GitHub Actions or on a local device. */
+export const skillUpdatesAgent = (options: {
+  readonly mode: "github" | "device";
+  readonly configPath?: string;
+  readonly runId?: string;
+  readonly skillsDir?: string;
+}) =>
+  options.mode === "github"
+    ? runGitHubSkillUpdates(options.skillsDir ?? process.cwd())
+    : runDeviceSkillUpdates(options.configPath, options.runId);

@@ -628,27 +628,36 @@ dot skill-check --skill browser-control
 
 ## `dot skill-updates-agent`
 
-Process scheduled skill updates with OpenCode
+Run GitHub or device skill update automation
 
 ```text
-dot skill-updates-agent
+dot skill-updates-agent <github|device> [options]
 ```
 
-Process the newest successful workflow run described by a private YAML
-configuration, using a clean-worktree guard and ordered model fallback.
-Successful workflow runs are recorded only after the agent reports
-completion.
+Run the shared skill update workflow. GitHub mode checks imports, opens
+clean update pull requests, dispatches validation, and refreshes the
+dashboard. Device mode optionally waits for that workflow, then runs the
+configured local OpenCode processor with completed-run deduplication.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
 | `--config` `<path>` | Use a YAML config other than private dotfiles/skill-updates-agent.yml |
+| `--run-id` `<id>` | Wait for this workflow run before device processing |
+| `--skills-dir` `<path>` | Use this Skills checkout in GitHub mode |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<mode>` | One of: `github`, `device`. |
 
 **Examples**
 
 ```bash
-dot skill-updates-agent
+dot skill-updates-agent github --skills-dir .
+dot skill-updates-agent device --config ~/.config/dotfiles-private/skill-updates-agent.yml --run-id 123456
 ```
 
 ## `dot completions`

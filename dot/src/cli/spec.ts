@@ -715,12 +715,13 @@ export const cliCommands: readonly CliCommandSpec[] = [
   },
   {
     name: "skill-updates-agent",
-    summary: "Process scheduled skill updates with OpenCode",
+    summary: "Run GitHub or device skill update automation",
+    usage: "<github|device> [options]",
     description: [
-      "Process the newest successful workflow run described by a private YAML",
-      "configuration, using a clean-worktree guard and ordered model fallback.",
-      "Successful workflow runs are recorded only after the agent reports",
-      "completion.",
+      "Run the shared skill update workflow. GitHub mode checks imports, opens",
+      "clean update pull requests, dispatches validation, and refreshes the",
+      "dashboard. Device mode optionally waits for that workflow, then runs the",
+      "configured local OpenCode processor with completed-run deduplication.",
     ],
     options: [
       {
@@ -730,9 +731,32 @@ export const cliCommands: readonly CliCommandSpec[] = [
         description:
           "Use a YAML config other than private dotfiles/skill-updates-agent.yml",
       },
+      {
+        name: "--run-id",
+        valueName: "id",
+        description: "Wait for this workflow run before device processing",
+      },
+      {
+        name: "--skills-dir",
+        valueName: "path",
+        completion: "file",
+        description: "Use this Skills checkout in GitHub mode",
+      },
       helpOption,
     ],
-    examples: ["dot skill-updates-agent"],
+    arguments: [
+      {
+        name: "mode",
+        choices: [
+          { value: "github", description: "Run the GitHub Actions phase" },
+          { value: "device", description: "Run the local OpenCode phase" },
+        ],
+      },
+    ],
+    examples: [
+      "dot skill-updates-agent github --skills-dir .",
+      "dot skill-updates-agent device --config ~/.config/dotfiles-private/skill-updates-agent.yml --run-id 123456",
+    ],
   },
   {
     name: "completions",

@@ -26,7 +26,7 @@ dot_commands=(
   'private-pkg-publish:Build and publish a private package'
   'skill-updates:Check/apply imported skill updates'
   'skill-check:Validate skill maintenance and adapted imports'
-  'skill-updates-agent:Process scheduled skill updates with OpenCode'
+  'skill-updates-agent:Run GitHub or device skill update automation'
   'completions:Generate shell completions'
   'omarchy:Open an Omarchy submenu by path'
   'usage:Local-first analytics for dot usage'
@@ -218,8 +218,11 @@ _dot_cmd_skill_check() {
 _dot_cmd_skill_updates_agent() {
   _arguments -S \
     '--config[Use a YAML config other than private dotfiles/skill-updates-agent.yml]:path:_files' \
+    '--run-id[Wait for this workflow run before device processing]:id:' \
+    '--skills-dir[Use this Skills checkout in GitHub mode]:path:_files' \
     '(-h --help)-h[Show this help message]' \
     '(-h --help)--help[Show this help message]' \
+    '1:mode:((github:Run\ the\ GitHub\ Actions\ phase device:Run\ the\ local\ OpenCode\ phase))' \
     '*::arg:->args'
 }
 _dot_cmd_completions() {
