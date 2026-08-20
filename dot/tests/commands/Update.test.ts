@@ -3,6 +3,7 @@ import { Effect, Layer, Stream } from "effect";
 import {
   canRunHerdrSessionActions,
   herdrLazyPluginRoot,
+  logUpdateSummary,
   reloadOmarchyShellIfChanged,
   updatePinnedSubmodules,
 } from "../../src/commands/Update.js";
@@ -121,6 +122,60 @@ describe("reloadOmarchyShellIfChanged", () => {
         reloadOmarchyShellIfChanged(changed).pipe(Effect.provide(layers)),
       );
     }
+  });
+});
+
+describe("logUpdateSummary", () => {
+  test("lists unique updated repositories and completed actions", async () => {
+    const messages: string[] = [];
+    const sections: string[] = [];
+    const layer = Layer.succeed(OutputLog, {
+      info: (message) => Effect.sync(() => void messages.push(message)),
+      warn: () => Effect.void,
+      error: () => Effect.void,
+      section: (title) => Effect.sync(() => void sections.push(title)),
+      stream: Stream.empty,
+      flush: Effect.succeed(""),
+      withSpinner: (_label, effect) => effect,
+      updateSpinner: () => Effect.void,
+    });
+
+    await Effect.runPromise(
+      logUpdateSummary(
+        ["dotfiles", "skills", "dotfiles"],
+        ["Pulled repositories", "Rebuilt the dot binary"],
+      ).pipe(Effect.provide(layer)),
+    );
+
+    expect(sections).toEqual(["Update Summary"]);
+    expect(messages).toEqual([
+      "Updated repositories (2): dotfiles, skills",
+      "Actions taken:",
+      "  - Pulled repositories",
+      "  - Rebuilt the dot binary",
+    ]);
+  });
+
+  test("reports when no repositories changed", async () => {
+    const messages: string[] = [];
+    const layer = Layer.succeed(OutputLog, {
+      info: (message) => Effect.sync(() => void messages.push(message)),
+      warn: () => Effect.void,
+      error: () => Effect.void,
+      section: () => Effect.void,
+      stream: Stream.empty,
+      flush: Effect.succeed(""),
+      withSpinner: (_label, effect) => effect,
+      updateSpinner: () => Effect.void,
+    });
+
+    await Effect.runPromise(
+      logUpdateSummary([], ["Rebuilt the dot binary"]).pipe(
+        Effect.provide(layer),
+      ),
+    );
+
+    expect(messages[0]).toBe("Updated repositories: none");
   });
 });
 

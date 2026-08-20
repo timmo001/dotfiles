@@ -192,6 +192,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
       "tracked mise configs, regenerates completions, installs missing public",
       "Arch/AUR packages, runs the required MCP sync, stows, rebuilds again, runs",
       "agents sync, backfills the init marker, and starts the resume refresh.",
+      "It finishes with a summary of updated repositories and completed actions.",
       "",
       "Phase flags are inclusive: passing any of --pull, --stow, or --app runs only",
       "the selected phases. Scoped runs skip full-update package reconciliation,",

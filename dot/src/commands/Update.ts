@@ -307,6 +307,28 @@ function selectedUpdateFlags(opts?: UpdateOptions): readonly string[] {
   );
 }
 
+/** Log the repositories updated and workflow actions completed by `dot update`. */
+export function logUpdateSummary(
+  updatedNames: readonly string[],
+  actions: readonly string[],
+): Effect.Effect<void, never, OutputLog> {
+  return Effect.gen(function* () {
+    const log = yield* OutputLog;
+    const repositories = [...new Set(updatedNames)];
+
+    yield* log.section("Update Summary");
+    yield* log.info(
+      repositories.length === 0
+        ? "Updated repositories: none"
+        : `Updated repositories (${repositories.length}): ${repositories.join(", ")}`,
+    );
+    yield* log.info("Actions taken:");
+    for (const action of actions) {
+      yield* log.info(`  - ${action}`);
+    }
+  });
+}
+
 function restartUpdateArgs(
   opts: UpdateOptions | undefined,
   pulledRepoName?: string,
@@ -725,6 +747,7 @@ export const update = (opts?: UpdateOptions) =>
     }
 
     const updatedNames = [...(opts?.postHookRepos ?? [])];
+    const completedActions: string[] = [];
     let privatePackageRepoUpdated = false;
 
     if (doPull) {
@@ -839,6 +862,7 @@ export const update = (opts?: UpdateOptions) =>
           }
         }),
       );
+      completedActions.push("Pulled repositories and refreshed mise trust");
     }
 
     let shellConfigChanged = false;
@@ -860,9 +884,15 @@ export const update = (opts?: UpdateOptions) =>
           shellConfigChanged = yield* runStow();
         }),
       );
+      completedActions.push(
+        "Generated completions, synced MCP, and stowed dotfiles",
+      );
     }
 
     yield* reloadOmarchyShellIfChanged(shellConfigChanged);
+    if (shellConfigChanged) {
+      completedActions.push("Attempted an Omarchy shell reload");
+    }
 
     if (doApp) {
       yield* requiredUpdateStep(
@@ -874,6 +904,7 @@ export const update = (opts?: UpdateOptions) =>
           yield* log.info("Build successful");
         }),
       );
+      completedActions.push("Rebuilt the dot binary");
     }
 
     if (isFullUpdate) {
@@ -882,6 +913,7 @@ export const update = (opts?: UpdateOptions) =>
         STEP_TIMEOUT_SECONDS.herdrPlugins,
         restoreHerdrPlugins,
       );
+      completedActions.push("Ran the Herdr plugin refresh phase");
     }
 
     // Notify only when a repo actually moved.
@@ -897,16 +929,23 @@ export const update = (opts?: UpdateOptions) =>
         STEP_TIMEOUT_SECONDS.postHooks,
         postHooks,
       );
+      completedActions.push("Synced agent instructions");
     }
 
     if (isFullUpdate) {
       const markerStatus = yield* ensureInitCompleteMarker(config, "update");
       yield* logInitMarkerStatus(markerStatus, config);
+      completedActions.push("Checked the init state marker");
     }
 
-    yield* withStepTimeout(
+    const uiRefreshCompleted = yield* withStepTimeout(
       "Reload UI",
       STEP_TIMEOUT_SECONDS.uiReload,
       runUiReload,
     );
+    if (uiRefreshCompleted) {
+      completedActions.push("Completed the UI resume refresh step");
+    }
+
+    yield* logUpdateSummary(updatedNames, completedActions);
   });
