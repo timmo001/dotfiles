@@ -232,6 +232,23 @@ _dot_cmd_skill_check() {
     return
   fi
 }
+_dot_cmd_skill_updates_agent() {
+  local cur prev cword
+  cur=${COMP_WORDS[COMP_CWORD]}
+  prev=${COMP_WORDS[COMP_CWORD-1]}
+  cword=$COMP_CWORD
+  case $prev in
+    --config)
+      COMPREPLY=( $(compgen -f -- "$cur") )
+      return
+      ;;
+  esac
+
+  if [[ $cur == -* ]]; then
+    COMPREPLY=( $(compgen -W '--config --help -h' -- "$cur") )
+    return
+  fi
+}
 _dot_cmd_completions() {
   local cur prev cword
   cur=${COMP_WORDS[COMP_CWORD]}
@@ -299,7 +316,7 @@ _dot() {
   command=${COMP_WORDS[1]-}
 
   if (( cword == 1 )); then
-    COMPREPLY=( $(compgen -W 'dashboard init install update up stow omarchy-shell-config firewall doctor clean git-diff diff git-commit git-notifications agents-sync mcp-sync notes-capture-sync is-agent setup-public-repo setup-private-repo private-pkg-publish skill-updates skill-check completions omarchy usage help -h --help' -- "$cur") )
+    COMPREPLY=( $(compgen -W 'dashboard init install update up stow omarchy-shell-config firewall doctor clean git-diff diff git-commit git-notifications agents-sync mcp-sync notes-capture-sync is-agent setup-public-repo setup-private-repo private-pkg-publish skill-updates skill-check skill-updates-agent completions omarchy usage help -h --help' -- "$cur") )
     return
   fi
 
@@ -366,6 +383,9 @@ _dot() {
       ;;
     skill-check)
       _dot_cmd_skill_check
+      ;;
+    skill-updates-agent)
+      _dot_cmd_skill_updates_agent
       ;;
     completions)
       _dot_cmd_completions

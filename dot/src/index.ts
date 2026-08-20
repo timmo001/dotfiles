@@ -43,6 +43,7 @@ import { setupPrivateRepo } from "./commands/SetupPrivateRepo.js";
 import { setupPublicRepo } from "./commands/SetupPublicRepo.js";
 import { privatePkgPublish } from "./commands/PrivatePkgPublish.js";
 import { skillUpdates } from "./commands/SkillUpdates.js";
+import { skillUpdatesAgent } from "./commands/SkillUpdatesAgent.js";
 import { skillCheck } from "./commands/SkillCheck.js";
 import { completions } from "./commands/Completions.js";
 import { usage } from "./commands/Usage.js";
@@ -447,6 +448,7 @@ const NATIVE_COMMAND_TIMEOUT_SECONDS = {
   "private-pkg-publish": 30 * 60,
   firewall: 3 * 60,
   "skill-check": 5 * 60,
+  "skill-updates-agent": 2 * 60 * 60,
   "agents-sync": 2 * 60,
   "mcp-sync": 2 * 60,
   "notes-capture-sync": 2 * 60,
@@ -581,6 +583,8 @@ if (mode.type === "native") {
         skill: optionValue(args, "--skill"),
         noCommit: args.includes("--no-commit"),
       }).pipe(Effect.asVoid),
+    "skill-updates-agent": (args) =>
+      skillUpdatesAgent(optionValue(args, "--config")),
     "skill-check": (args) =>
       skillCheck({
         openOpencode: args.includes("--open-opencode"),

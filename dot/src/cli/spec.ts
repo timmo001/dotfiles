@@ -714,6 +714,27 @@ export const cliCommands: readonly CliCommandSpec[] = [
     examples: ["dot skill-check --skill browser-control"],
   },
   {
+    name: "skill-updates-agent",
+    summary: "Process scheduled skill updates with OpenCode",
+    description: [
+      "Process the newest successful workflow run described by a private YAML",
+      "configuration, using a clean-worktree guard and ordered model fallback.",
+      "Successful workflow runs are recorded only after the agent reports",
+      "completion.",
+    ],
+    options: [
+      {
+        name: "--config",
+        valueName: "path",
+        completion: "file",
+        description:
+          "Use a YAML config other than private dotfiles/skill-updates-agent.yml",
+      },
+      helpOption,
+    ],
+    examples: ["dot skill-updates-agent"],
+  },
+  {
     name: "completions",
     summary: "Generate shell completions",
     usage: "[bash|fish|zsh] [--stdout]",

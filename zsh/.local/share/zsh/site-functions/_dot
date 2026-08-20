@@ -26,6 +26,7 @@ dot_commands=(
   'private-pkg-publish:Build and publish a private package'
   'skill-updates:Check/apply imported skill updates'
   'skill-check:Validate skill maintenance and adapted imports'
+  'skill-updates-agent:Process scheduled skill updates with OpenCode'
   'completions:Generate shell completions'
   'omarchy:Open an Omarchy submenu by path'
   'usage:Local-first analytics for dot usage'
@@ -214,6 +215,13 @@ _dot_cmd_skill_check() {
     '(-h --help)--help[Show this help message]' \
     '*::arg:->args'
 }
+_dot_cmd_skill_updates_agent() {
+  _arguments -S \
+    '--config[Use a YAML config other than private dotfiles/skill-updates-agent.yml]:path:_files' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
 _dot_cmd_completions() {
   _arguments -S \
     '--stdout[Print the completion script instead of writing it]' \
@@ -312,6 +320,9 @@ _dot_complete_command() {
       ;;
     skill-check)
       _dot_cmd_skill_check
+      ;;
+    skill-updates-agent)
+      _dot_cmd_skill_updates_agent
       ;;
     completions)
       _dot_cmd_completions

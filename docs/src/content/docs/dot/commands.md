@@ -626,6 +626,31 @@ equivalent command instead.
 dot skill-check --skill browser-control
 ```
 
+## `dot skill-updates-agent`
+
+Process scheduled skill updates with OpenCode
+
+```text
+dot skill-updates-agent
+```
+
+Process the newest successful workflow run described by a private YAML
+configuration, using a clean-worktree guard and ordered model fallback.
+Successful workflow runs are recorded only after the agent reports
+completion.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--config` `<path>` | Use a YAML config other than private dotfiles/skill-updates-agent.yml |
+
+**Examples**
+
+```bash
+dot skill-updates-agent
+```
+
 ## `dot completions`
 
 Generate shell completions
