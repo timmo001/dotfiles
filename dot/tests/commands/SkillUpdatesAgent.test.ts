@@ -6,6 +6,7 @@ import {
   skillUpdatesAgentModelArgument,
   skillUpdatesAgentPrompt,
   skillUpdatesAgentResultStatus,
+  skillUpdateSubject,
   skillUpdatesWorkflowEndpoint,
   type SkillUpdatesAgentConfig,
 } from "../../src/commands/SkillUpdatesAgent.js";
@@ -123,6 +124,28 @@ describe("isShaOnlySkillPatch", () => {
     ).toBe(true);
   });
 
+  test("accepts clean upstream snapshot SHA changes", () => {
+    expect(
+      isShaOnlySkillPatch(
+        [
+          "diff --git a/upstream/example/UPSTREAM_SKILL.md b/upstream/example/UPSTREAM_SKILL.md",
+          "--- a/upstream/example/UPSTREAM_SKILL.md",
+          "+++ b/upstream/example/UPSTREAM_SKILL.md",
+          "@@ -1 +1 @@",
+          `-# upstream-sha: ${previous}`,
+          `+# upstream-sha: ${sha}`,
+          "diff --git a/imports.json b/imports.json",
+          "--- a/imports.json",
+          "+++ b/imports.json",
+          "@@ -1 +1 @@",
+          `-    "example": { "upstreamSha": "${previous}" },`,
+          `+    "example": { "upstreamSha": "${sha}" },`,
+        ].join("\n"),
+        "example",
+      ),
+    ).toBe(true);
+  });
+
   test("rejects skill content changes", () => {
     expect(
       isShaOnlySkillPatch(
@@ -172,6 +195,33 @@ describe("isShaOnlySkillPatch", () => {
         "example",
       ),
     ).toBe(false);
+  });
+});
+
+describe("skillUpdateSubject", () => {
+  test("labels SHA-only updates and keeps content update subjects", () => {
+    const oldSha = "a".repeat(40);
+    const newSha = "b".repeat(40);
+    const shaPatch = [
+      "diff --git a/example/SKILL.md b/example/SKILL.md",
+      "--- a/example/SKILL.md",
+      "+++ b/example/SKILL.md",
+      "@@ -1 +1 @@",
+      `-# upstream-sha: ${oldSha}`,
+      `+# upstream-sha: ${newSha}`,
+      "diff --git a/imports.json b/imports.json",
+      "--- a/imports.json",
+      "+++ b/imports.json",
+      "@@ -1 +1 @@",
+      `-    "example": { "upstreamSha": "${oldSha}" },`,
+      `+    "example": { "upstreamSha": "${newSha}" },`,
+    ].join("\n");
+    expect(skillUpdateSubject(shaPatch, "example")).toBe(
+      "[SHA-only] Update example",
+    );
+    expect(skillUpdateSubject("content changed", "example")).toBe(
+      "Update skill: example",
+    );
   });
 });
 

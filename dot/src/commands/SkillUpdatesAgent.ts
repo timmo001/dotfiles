@@ -379,7 +379,9 @@ export function isShaOnlySkillPatch(patch: string, skill: string): boolean {
   }
 
   const metadata = changes.get("imports.json");
-  const frontmatter = changes.get(`${skill}/SKILL.md`);
+  const frontmatter =
+    changes.get(`${skill}/SKILL.md`) ??
+    changes.get(`upstream/${skill}/UPSTREAM_SKILL.md`);
   if (changes.size !== 2 || !metadata || !frontmatter) return false;
   if (
     metadata.removed.length !== 1 ||
@@ -411,6 +413,13 @@ export function isShaOnlySkillPatch(patch: string, skill: string): boolean {
     oldFrontmatter === oldSha &&
     newFrontmatter === newSha
   );
+}
+
+/** Select the commit and pull request subject for a generated skill update. */
+export function skillUpdateSubject(patch: string, skill: string): string {
+  return isShaOnlySkillPatch(patch, skill)
+    ? `[SHA-only] Update ${skill}`
+    : `Update skill: ${skill}`;
 }
 
 const requireCleanRepositories = Effect.fn(
@@ -514,6 +523,7 @@ const validateSkillsRepository = Effect.fn(
 const publishCleanUpdate = Effect.fn("SkillUpdatesAgent.publishCleanUpdate")(
   function* (skillsDir: string, name: string) {
     const github = yield* GitHub;
+    const executor = yield* CommandExecutor;
     const branch = `skill-update/${name}`;
     yield* inheritOrFail(
       "git",
@@ -532,11 +542,13 @@ const publishCleanUpdate = Effect.fn("SkillUpdatesAgent.publishCleanUpdate")(
         yield* inheritOrFail("git", ["add", "-A", "--", path], skillsDir);
       }
     }
-    yield* inheritOrFail(
+    const patch = yield* executor.run(
       "git",
-      ["commit", "-m", `Update skill: ${name}`],
-      skillsDir,
+      ["diff", "--cached", "--no-ext-diff"],
+      { cwd: skillsDir },
     );
+    const title = skillUpdateSubject(patch, name);
+    yield* inheritOrFail("git", ["commit", "-m", title], skillsDir);
     yield* inheritOrFail(
       "git",
       ["push", "--force-with-lease", "origin", branch],
@@ -557,7 +569,6 @@ const publishCleanUpdate = Effect.fn("SkillUpdatesAgent.publishCleanUpdate")(
       "--repo",
       "timmo001/skills",
     ])).trim();
-    const title = `Update skill: ${name}`;
     if (url) {
       yield* github.run([
         "pr",
