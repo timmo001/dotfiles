@@ -45,6 +45,10 @@ codex = "latest"
 version = "1.18.18"
 minimum_release_age = "2h"
 
+[tools."npm:@opencode-ai/cli"]
+version = "0.0.0-beta-17639"
+bun_args = "--trust"
+
 [tools."aqua:herdrdev/herdr"]
 version = "0.8.2"
 minimum_release_age = "2h"
