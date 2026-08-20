@@ -11,6 +11,7 @@ import {
 import { dirname, join } from "path";
 import { ENV, envString } from "../lib/env.js";
 import { expandHomePath } from "../lib/paths.js";
+import { GitHub } from "../git/services/GitHub.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 
@@ -112,6 +113,19 @@ export function skillUpdatesAgentModelArgument(
   return `${model.providerID}/${model.modelID}${model.variant ? `#${model.variant}` : ""}`;
 }
 
+/** Convert an api.github.com workflow URL to the endpoint accepted by `gh api`. */
+export function skillUpdatesWorkflowEndpoint(value: string): string | null {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || url.hostname !== "api.github.com") {
+      return null;
+    }
+    return `${url.pathname.replace(/^\//, "")}${url.search}`;
+  } catch {
+    return null;
+  }
+}
+
 function loadConfig(filePath: string) {
   return Effect.gen(function* () {
     const parsed = yield* Effect.try({
@@ -145,21 +159,28 @@ function loadConfig(filePath: string) {
 const fetchLatestRun = Effect.fn("SkillUpdatesAgent.fetchLatestRun")(function* (
   workflowApi: string,
 ) {
-  const value = yield* Effect.tryPromise({
-    try: async (signal) => {
-      const response = await fetch(workflowApi, {
-        signal,
-        headers: {
-          Accept: "application/vnd.github+json",
-          "X-GitHub-Api-Version": "2022-11-28",
-        },
-      });
-      if (!response.ok) throw new Error(`GitHub returned ${response.status}`);
-      return response.json();
-    },
+  const github = yield* GitHub;
+  const endpoint = skillUpdatesWorkflowEndpoint(workflowApi);
+  if (!endpoint) {
+    return yield* new SkillUpdatesAgentError({
+      operation: "workflow.url",
+      message: "workflowApi must be an https://api.github.com URL",
+    });
+  }
+  const raw = yield* github.api(endpoint).pipe(
+    Effect.mapError(
+      (error) =>
+        new SkillUpdatesAgentError({
+          operation: "workflow.fetch",
+          message: error.stderr,
+        }),
+    ),
+  );
+  const value = yield* Effect.try({
+    try: () => JSON.parse(raw),
     catch: (error) =>
       new SkillUpdatesAgentError({
-        operation: "workflow.fetch",
+        operation: "workflow.json",
         message: String(error),
       }),
   });

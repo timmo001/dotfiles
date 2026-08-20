@@ -4,6 +4,7 @@ import {
   skillUpdatesAgentModelArgument,
   skillUpdatesAgentPrompt,
   skillUpdatesAgentResultStatus,
+  skillUpdatesWorkflowEndpoint,
   type SkillUpdatesAgentConfig,
 } from "../../src/commands/SkillUpdatesAgent.js";
 
@@ -72,5 +73,19 @@ describe("skillUpdatesAgentResultStatus", () => {
 
   test("rejects output without the explicit status contract", () => {
     expect(skillUpdatesAgentResultStatus("Work complete")).toBeNull();
+  });
+});
+
+describe("skillUpdatesWorkflowEndpoint", () => {
+  test("converts a GitHub API URL to a gh endpoint", () => {
+    expect(
+      skillUpdatesWorkflowEndpoint(
+        "https://api.github.com/repos/example/skills/actions/runs?status=completed",
+      ),
+    ).toBe("repos/example/skills/actions/runs?status=completed");
+  });
+
+  test("rejects non-GitHub API URLs", () => {
+    expect(skillUpdatesWorkflowEndpoint("https://example.com/runs")).toBeNull();
   });
 });
