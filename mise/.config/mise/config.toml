@@ -46,7 +46,7 @@ version = "1.18.19"
 minimum_release_age = "2h"
 
 [tools."npm:@opencode-ai/cli"]
-version = "0.0.0-beta-17728"
+version = "0.0.0-beta-17759"
 bun_args = "--trust"
 
 [tools."aqua:herdrdev/herdr"]
