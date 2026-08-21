@@ -120,7 +120,7 @@
     },
     "opencode": {
       "repository": "anomalyco/opencode",
-      "branch": "v1.18.19",
+      "branch": "v1.18.20",
       "description": "Use for OpenCode config, agents, commands, skills, and plugin behaviour"
     },
     "skills": {
