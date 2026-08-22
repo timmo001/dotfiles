@@ -1,5 +1,4 @@
 import { Effect } from "effect";
-import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { missingLocales } from "../../lib/localeSetup.js";
 import type { CheckResult } from "../types.js";
 

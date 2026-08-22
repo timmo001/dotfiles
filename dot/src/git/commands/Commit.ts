@@ -50,12 +50,6 @@ const FORBIDDEN_CHARACTERS: readonly {
   { char: "\u2012", label: "figure dash (\u2012)" },
 ];
 
-/**
- * C0 control characters (excluding the `\r`/`\n` caught by the single-line
- * guard) that must never appear in a subject, tab included.
- */
-const CONTROL_CHARACTERS = /[\u0000-\u0009\u000B\u000C\u000E-\u001F]/;
-
 /** Curly/smart quotes that should be plain straight quotes in a subject. */
 const SMART_QUOTES = /[\u2018\u2019\u201C\u201D]/;
 
@@ -159,7 +153,12 @@ export function validateCommitMessage(raw: string): CommitMessageCheck {
       "Commit message must be a single line: one concise subject, no body.",
     );
   }
-  if (CONTROL_CHARACTERS.test(subject)) {
+  if (
+    Array.from(subject).some((character) => {
+      const code = character.charCodeAt(0);
+      return code <= 0x1f && code !== 0x0a && code !== 0x0d;
+    })
+  ) {
     errors.push("Commit subject must not contain tabs or control characters.");
   }
   for (const { char, label } of FORBIDDEN_CHARACTERS) {
@@ -172,7 +171,7 @@ export function validateCommitMessage(raw: string): CommitMessageCheck {
   }
 
   // Count Unicode code points so the limit reflects visible characters.
-  const length = [...subject].length;
+  const length = Array.from(subject).length;
   if (length > COMMIT_SUBJECT_MAX) {
     errors.push(
       `Commit subject is ${length} characters; keep it under ${COMMIT_SUBJECT_MAX}.`,

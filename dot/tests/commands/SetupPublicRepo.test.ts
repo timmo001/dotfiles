@@ -91,13 +91,13 @@ describe("public repository setup", () => {
       inherit: () => Effect.sync(() => ++inheritedCommands),
     });
 
-    await expect(
-      Effect.runPromise(
-        setupPublicRepo.pipe(
-          Effect.provide(Layer.merge(commandExecutor, outputLog)),
-        ),
+    const error = await Effect.runPromise(
+      setupPublicRepo.pipe(
+        Effect.provide(Layer.merge(commandExecutor, outputLog)),
+        Effect.flip,
       ),
-    ).rejects.toMatchObject({
+    );
+    expect(error).toMatchObject({
       message: expect.stringContaining("database is unavailable"),
     });
     expect(inheritedCommands).toBe(0);
@@ -121,13 +121,13 @@ describe("public repository setup", () => {
       inherit: () => Effect.sync(() => ++inheritedCommands),
     });
 
-    await expect(
-      Effect.runPromise(
-        setupPublicRepo.pipe(
-          Effect.provide(Layer.merge(commandExecutor, outputLog)),
-        ),
+    const error = await Effect.runPromise(
+      setupPublicRepo.pipe(
+        Effect.provide(Layer.merge(commandExecutor, outputLog)),
+        Effect.flip,
       ),
-    ).rejects.toMatchObject({
+    );
+    expect(error).toMatchObject({
       message: expect.stringContaining("fingerprint mismatch"),
     });
     expect(inheritedCommands).toBe(0);

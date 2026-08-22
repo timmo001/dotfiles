@@ -11,12 +11,7 @@ import {
 import type { StyledText } from "@opentui/core";
 import type { Theme } from "../../theme.js";
 import type { ViewId } from "../../types.js";
-import type {
-  DashboardCard,
-  DashboardSection,
-  DashboardState,
-  DashboardTone,
-} from "../types.js";
+import type { DashboardCard, DashboardState, DashboardTone } from "../types.js";
 import { formatBreadcrumb } from "../../tui/breadcrumb.js";
 import {
   addResponsiveHelpBar,

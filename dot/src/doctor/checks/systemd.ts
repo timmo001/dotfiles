@@ -1,12 +1,11 @@
 import { Effect } from "effect";
-import { accessSync, constants, existsSync, readFileSync } from "fs";
+import { accessSync, constants, existsSync } from "fs";
 import { join, resolve } from "path";
 import {
   CommandExecutor,
   type CommandExecutorService,
 } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
-import type { ConfigService } from "../../services/Config.js";
 import { GitHub } from "../../git/services/GitHub.js";
 import { CONFIG_DIR, HOME_DIR, displayPath } from "../../lib/paths.js";
 import { resolvedOmarchyHost } from "../../lib/omarchyHost.js";
@@ -170,7 +169,6 @@ const checkRequiredUserUnitSetup = (setup: RequiredUserUnitSetup) =>
 /** Check GitHub notifications API access. */
 export const checkGitNotifications = Effect.gen(function* () {
   const github = yield* GitHub;
-  const config = yield* Config;
   const results: CheckResult[] = [];
 
   const hasGh = yield* github.isAvailable();

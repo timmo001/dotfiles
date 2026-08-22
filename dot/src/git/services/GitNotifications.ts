@@ -24,17 +24,6 @@ import { ENV, envString } from "../../lib/env.js";
 import type { JsonObject, JsonValue } from "../../lib/schema.js";
 
 const NOTIFICATION_LIMIT = 50;
-const SUBJECT_TYPE_SET: ReadonlySet<string> = new Set([
-  "CheckSuite",
-  "Commit",
-  "Discussion",
-  "Issue",
-  "PullRequest",
-  "Release",
-  "RepositoryAdvisory",
-  "SecurityAdvisory",
-  "WorkflowRun",
-]);
 const DEBUG = !!envString(ENV.DOT_DEBUG);
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot:GitNotifications] ${msg}`);
@@ -82,7 +71,6 @@ interface GitNotificationsService {
 }
 
 type GhNotificationRecord = JsonObject;
-type JsonField = JsonValue | undefined;
 
 /** Effect service for {@link GitNotificationsService}. */
 export class GitNotifications extends Context.Service<

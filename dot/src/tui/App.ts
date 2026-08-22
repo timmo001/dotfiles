@@ -4,14 +4,13 @@ import type {
   ViewId,
   MenuItem,
   MenuAction,
-  Repo,
   RepoState,
   GitNotificationAction,
   GitNotificationThread,
 } from "../types.js";
 import type { DashboardState } from "../dashboard/types.js";
 import type { Theme } from "../theme.js";
-import { menuItemsById, submenus } from "../menu.js";
+import { menuItemsById } from "../menu.js";
 import type { CommandRunnerService } from "../services/CommandRunner.js";
 import { MainMenu } from "./MainMenu.js";
 import { DashboardView } from "../dashboard/tui/DashboardView.js";
@@ -19,7 +18,6 @@ import { DiffView } from "../git/tui/DiffView.js";
 import { GitNotificationsView } from "../git/tui/GitNotificationsView.js";
 import { OmarchyMenu } from "./OmarchyMenu.js";
 import { OutputPane } from "./OutputPane.js";
-import { Toast } from "./Toast.js";
 import { VariantPopup } from "./VariantPopup.js";
 import { openLazygit } from "../git/tui/Lazygit.js";
 import {

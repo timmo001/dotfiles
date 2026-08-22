@@ -1,5 +1,5 @@
 import { Effect, Option } from "effect";
-import { readFileSync, existsSync } from "fs";
+import { existsSync } from "fs";
 import { join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog, type OutputLogService } from "../services/OutputLog.js";
@@ -560,9 +560,9 @@ const opencodeReview = (
           cwd: publicDotfiles,
         })
         .pipe(
-          Effect.catch((err) => {
-            return log.error("OpenCode session exited with an error.");
-          }),
+          Effect.catch(() =>
+            log.error("OpenCode session exited with an error."),
+          ),
         );
 
       // Check for changes after session
@@ -582,7 +582,7 @@ const opencodeReview = (
         yield* log.info(diffOutput);
 
         // Prompt: commit / skip / quit
-        const choice = yield* promptReviewAction(meta.name, launcher, log);
+        const choice = yield* promptReviewAction(meta.name);
         if (choice === "commit") {
           if (!existsSync(join(meta.dir, "SKILL.md"))) {
             yield* log.warn(
@@ -658,10 +658,6 @@ ${diffContent}
 /** Prompt user for review action (commit/skip/quit) using gum */
 const promptReviewAction = (
   skillName: string,
-  launcher: Pick<LauncherService, "suspend">,
-  log: {
-    readonly info: (msg: string) => Effect.Effect<void>;
-  },
 ): Effect.Effect<"commit" | "skip" | "quit", never, CommandExecutor> =>
   Effect.gen(function* () {
     const executor = yield* CommandExecutor;

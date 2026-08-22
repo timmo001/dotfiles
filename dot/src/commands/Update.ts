@@ -397,8 +397,6 @@ export function herdrLazyPluginRoot(source: string): string | null {
   } catch {
     return null;
   }
-
-  return null;
 }
 
 /** Whether session-bound Herdr actions can target the calling pane. */

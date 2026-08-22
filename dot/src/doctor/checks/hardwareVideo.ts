@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { existsSync, readFileSync } from "fs";
 import { join, basename } from "path";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
-import { CONFIG_DIR, HOME_DIR, displayPath } from "../../lib/paths.js";
+import { CONFIG_DIR, HOME_DIR } from "../../lib/paths.js";
 import { ENV, envString } from "../../lib/env.js";
 import { isPackageInstalled } from "../../lib/archPackages.js";
 import type { CheckResult } from "../types.js";
@@ -94,7 +94,6 @@ export const checkHardwareVideo = Effect.gen(function* () {
     .run("bash", ["-c", "ls -d /sys/class/drm/renderD* 2>/dev/null || true"])
     .pipe(Effect.catch(() => Effect.succeed("")));
 
-  let vaapiDriverExpected = "";
   let hasNvidiaNode = false;
   for (const nodePath of renderNodesOutput.trim().split("\n").filter(Boolean)) {
     const driverLink = join(nodePath, "device", "driver");
@@ -108,18 +107,7 @@ export const checkHardwareVideo = Effect.gen(function* () {
 
     results.push({ severity: "ok", message: `${nodeName} -> ${driverName}` });
 
-    switch (driverName) {
-      case "i915":
-      case "xe":
-        vaapiDriverExpected = "iHD";
-        break;
-      case "amdgpu":
-        vaapiDriverExpected = "radeonsi";
-        break;
-      case "nvidia":
-        hasNvidiaNode = true;
-        break;
-    }
+    if (driverName === "nvidia") hasNvidiaNode = true;
   }
 
   // VAAPI driver env

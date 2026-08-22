@@ -299,7 +299,9 @@ function runBackfill(options: UsageOptions): string {
     byTool.set(event.tool, (byTool.get(event.tool) ?? 0) + 1);
   }
   lines.push("", `New events to import: ${fresh.length}`);
-  for (const [tool, count] of [...byTool.entries()].sort()) {
+  for (const [tool, count] of [...byTool.entries()].sort(([left], [right]) =>
+    left.localeCompare(right),
+  )) {
     lines.push(`  ${tool.padEnd(8)} ${count}`);
   }
 

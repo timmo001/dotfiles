@@ -748,7 +748,7 @@ export const checkSkill = (
 /** Apply upstream changes to a skill (fetches and writes all upstream files) */
 export const applySkillUpdate = (meta: SkillMeta, writeSha: string) =>
   Effect.gen(function* () {
-    const { origin, dir } = meta;
+    const { origin } = meta;
 
     // List upstream files for full import
     const upstreamFiles = yield* listUpstreamFiles(origin);
@@ -791,7 +791,7 @@ export function synchroniseSkillFiles(
     );
   }
 
-  sha && writeShaToFile(join(meta.dir, "SKILL.md"), sha);
+  if (sha) writeShaToFile(join(meta.dir, "SKILL.md"), sha);
 }
 
 /** Write SHA (wrapper that catches if file doesn't exist) */

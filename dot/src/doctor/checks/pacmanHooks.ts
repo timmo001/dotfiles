@@ -1,13 +1,11 @@
 import { Effect } from "effect";
 import { existsSync, readdirSync, readFileSync } from "fs";
-import { join, basename } from "path";
-import { CommandExecutor } from "../../services/CommandExecutor.js";
+import { join } from "path";
 import { CONFIG_DIR } from "../../lib/paths.js";
 import type { CheckResult } from "../types.js";
 
 /** Check pacman hooks are installed and up to date */
-export const checkPacmanHooks = Effect.gen(function* () {
-  const executor = yield* CommandExecutor;
+export const checkPacmanHooks = Effect.sync(() => {
   const results: CheckResult[] = [];
 
   const hooksSource = join(CONFIG_DIR, "pacman-hooks");

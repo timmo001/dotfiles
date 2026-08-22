@@ -18,7 +18,6 @@ import { HOME_DIR } from "../../src/lib/paths.js";
 import {
   backupConflictingPublicTargets,
   backupUnmanagedStowTargets,
-  removeStowedSkillOwner,
   removeStaleSkillSymlinks,
   removeRetiredPrivateCrashHook,
   removeRetiredPublicStowLinks,

@@ -2,7 +2,6 @@ import type { GitNotificationState, RepoState } from "../types.js";
 import type {
   DashboardBarValue,
   DashboardCard,
-  DashboardSection,
   DashboardSourceState,
   DashboardState,
   DashboardTone,

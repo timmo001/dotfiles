@@ -10,6 +10,7 @@ import {
 import { basename, join } from "path";
 import { CACHE_DIR } from "./paths.js";
 import { ENV, envString } from "./env.js";
+import { formatCause } from "./schema.js";
 
 const DEBUG = !!envString(ENV.DOT_DEBUG);
 const log = (msg: string) => {
@@ -70,7 +71,7 @@ export async function extractNativeLibIfNeeded(): Promise<string | undefined> {
     );
     embeddedLibPath = nativeModule.default;
   } catch (e) {
-    log(`Failed to resolve native package: ${e}`);
+    log(`Failed to resolve native package: ${formatCause(e)}`);
     return undefined;
   }
 

@@ -11,7 +11,6 @@ import {
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { DiffRepo } from "../../types.js";
-import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
 import { DotDiff } from "../../git/services/DotDiff.js";
 import { ENV, envString } from "../../lib/env.js";

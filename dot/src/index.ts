@@ -678,7 +678,6 @@ if (mode.type === "native") {
     const toast = yield* Toast;
     const services = yield* Effect.context<never>();
     const runFork = Effect.runForkWith(services);
-    const runPromise = Effect.runPromiseWith(services);
     log("Services ready");
 
     const commandRunner = createCommandRunner(renderer, toast);

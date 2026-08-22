@@ -1,6 +1,5 @@
 import { Effect, Option } from "effect";
 import { CommandError, CommandExecutor } from "../services/CommandExecutor.js";
-import { OutputLog } from "../services/OutputLog.js";
 import { renameSync, chmodSync, realpathSync } from "fs";
 import { join, dirname } from "path";
 import { ENV, envString } from "./env.js";

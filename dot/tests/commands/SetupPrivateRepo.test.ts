@@ -129,17 +129,19 @@ describe("setupPrivatePackageRepo", () => {
       updateSpinner: () => Effect.void,
     });
 
-    await expect(
-      Effect.runPromise(
-        setupPrivatePackageRepo({
-          name: "timmo-private",
-          remote: null,
-          path: sourcePath,
-          mirrorPath,
-          sigLevel: "Optional TrustAll",
-        }).pipe(Effect.provide(Layer.merge(commandExecutor, outputLog))),
+    const error = await Effect.runPromise(
+      setupPrivatePackageRepo({
+        name: "timmo-private",
+        remote: null,
+        path: sourcePath,
+        mirrorPath,
+        sigLevel: "Optional TrustAll",
+      }).pipe(
+        Effect.provide(Layer.merge(commandExecutor, outputLog)),
+        Effect.flip,
       ),
-    ).rejects.toMatchObject({
+    );
+    expect(error).toMatchObject({
       message: expect.stringContaining(
         "Missing private package repo source clone",
       ),

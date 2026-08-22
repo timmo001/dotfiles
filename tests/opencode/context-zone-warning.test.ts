@@ -1,6 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 
 import ContextZoneWarningPlugin from "../../agents/.config/opencode/plugins/context-zone-warning";
+import { isString } from "../../dot/src/lib/schema";
 
 const assistantEvent = ({
   sessionID = "session-a",
@@ -43,10 +44,15 @@ const setup = async ({ providerFailure = false } = {}) => {
   const shell = Object.assign(
     (parts: TemplateStringsArray, ...values: unknown[]) => {
       shellCalls.push(
-        parts.reduce(
-          (command, part, index) =>
-            command + String(values[index - 1] ?? "") + part,
-        ),
+        parts.reduce((command, part, index) => {
+          const value = values[index - 1];
+          const rendered = isString(value)
+            ? value
+            : value == null
+              ? ""
+              : (JSON.stringify(value) ?? "");
+          return command + rendered + part;
+        }),
       );
       return { text: async () => "" };
     },

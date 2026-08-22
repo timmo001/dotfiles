@@ -401,7 +401,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
       return {
         getAll: (opts) => getAll(opts),
         listAll: () =>
-          Effect.gen(function* () {
+          Effect.sync(() => {
             const repoList = buildRepoList();
             return repoList
               .filter((r) => isGitRepo(r.path))

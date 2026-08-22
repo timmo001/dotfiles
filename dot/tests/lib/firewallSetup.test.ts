@@ -90,13 +90,13 @@ describe("firewallSetupScript", () => {
       updateSpinner: () => Effect.void,
     });
 
-    await expect(
-      Effect.runPromise(
-        configureFirewallRules.pipe(
-          Effect.provide(Layer.merge(commandExecutor, outputLog)),
-        ),
+    const error = await Effect.runPromise(
+      configureFirewallRules.pipe(
+        Effect.provide(Layer.merge(commandExecutor, outputLog)),
+        Effect.flip,
       ),
-    ).rejects.toMatchObject({
+    );
+    expect(error).toMatchObject({
       message: expect.stringContaining("1714:1764/udp (KDE Connect)"),
     });
   });

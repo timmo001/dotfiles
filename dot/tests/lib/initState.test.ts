@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import {
   existsSync,
   mkdirSync,
@@ -17,7 +17,7 @@ import {
   writeInitCompleteMarker,
   writeInitInProgressMarker,
 } from "../../src/lib/initState.js";
-import { decodeJsonObject } from "../../src/lib/schema.js";
+import { decodeJsonObject, type JsonValue } from "../../src/lib/schema.js";
 import type { ConfigService } from "../../src/services/Config.js";
 
 const tempRoots: string[] = [];
@@ -68,6 +68,11 @@ function readJson(path: string) {
   return decodeJsonObject(JSON.parse(readFileSync(path, "utf8")));
 }
 
+function expectTimestamp(value: JsonValue | undefined): void {
+  const timestamp = Schema.decodeUnknownSync(Schema.String)(value);
+  expect(Number.isNaN(Date.parse(timestamp))).toBe(false);
+}
+
 afterEach(() => {
   for (const root of tempRoots.splice(0)) {
     rmSync(root, { recursive: true, force: true });
@@ -87,14 +92,13 @@ describe("init state markers", () => {
 
     const path = initInProgressMarker(service);
     expect(readFileSync(path, "utf8")).toEndWith("\n");
-    expect(readJson(path)).toMatchObject({
+    const marker = readJson(path);
+    expectTimestamp(marker.startedAt);
+    expect(marker).toMatchObject({
       status: "in-progress",
       options: { host: "laptop", noninteractive: true },
       startedAt: expect.any(String),
     });
-    expect(Number.isNaN(Date.parse(String(readJson(path).startedAt)))).toBe(
-      false,
-    );
   });
 
   test("writes completion state and removes the in-progress marker", async () => {
@@ -106,7 +110,7 @@ describe("init state markers", () => {
     expect(existsSync(initInProgressMarker(service))).toBe(false);
     expect(readFileSync(initCompleteMarker(service), "utf8")).toEndWith("\n");
     const marker = readJson(initCompleteMarker(service));
-    expect(Number.isNaN(Date.parse(String(marker.completedAt)))).toBe(false);
+    expectTimestamp(marker.completedAt);
     expect(marker).toMatchObject({
       status: "complete",
       source: "init",
@@ -146,9 +150,10 @@ describe("init state markers", () => {
     const root = tempRoot();
     const service = config(join(root, "missing", "state"));
 
-    await expect(
-      Effect.runPromise(writeInitInProgressMarker(service, {})),
-    ).rejects.toMatchObject({
+    const error = await Effect.runPromise(
+      writeInitInProgressMarker(service, {}).pipe(Effect.flip),
+    );
+    expect(error).toMatchObject({
       _tag: "InitStateError",
       message: expect.stringContaining("Could not write"),
     });
@@ -158,9 +163,10 @@ describe("init state markers", () => {
     const service = config();
     mkdirSync(initInProgressMarker(service));
 
-    await expect(
-      Effect.runPromise(writeInitCompleteMarker(service, "init")),
-    ).rejects.toMatchObject({
+    const error = await Effect.runPromise(
+      writeInitCompleteMarker(service, "init").pipe(Effect.flip),
+    );
+    expect(error).toMatchObject({
       _tag: "InitStateError",
       message: expect.stringContaining("Could not remove"),
     });

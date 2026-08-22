@@ -5,7 +5,7 @@ import { CONFIG_DIR, displayPath } from "../../lib/paths.js";
 import type { CheckResult } from "../../doctor/types.js";
 
 /** Check git config includes the managed dotfiles settings */
-export const checkGitConfig = Effect.gen(function* () {
+export const checkGitConfig = Effect.sync(() => {
   const results: CheckResult[] = [];
 
   const gitConfigFile = join(CONFIG_DIR, "git", "config");

@@ -6,10 +6,7 @@ import type {
   GitNotificationState,
   GitNotificationThread,
 } from "../../types.js";
-import {
-  GitNotificationError,
-  GitNotifications,
-} from "../services/GitNotifications.js";
+import { GitNotifications } from "../services/GitNotifications.js";
 import {
   formatNotificationIcon,
   formatNotificationThreadDetail,
@@ -17,7 +14,6 @@ import {
   notificationReasonIsImportant,
 } from "../services/notificationStatus.js";
 import {
-  formatCommandError,
   handleCommandError,
   pipeRow,
   writeJsonLine,
@@ -268,9 +264,4 @@ function appendNotificationQueryLines(
   if (query.participating) lines.push("Participating only");
   if (query.since) lines.push(`Since: ${query.since}`);
   if (query.barFilter) lines.push("Status-bar filters active");
-}
-
-function formatError(cause: unknown): string {
-  if (cause instanceof GitNotificationError) return cause.message;
-  return formatCommandError(cause);
 }

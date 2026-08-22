@@ -1,11 +1,7 @@
 import { Effect } from "effect";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { Config } from "../../services/Config.js";
-import {
-  DotDiff,
-  DotDiffError,
-  type DiffScanOptions,
-} from "../services/DotDiff.js";
+import { DotDiff, type DiffScanOptions } from "../services/DotDiff.js";
 import { OutputLog } from "../../services/OutputLog.js";
 import { managedGitRepoForPath } from "../../services/GitConfig.js";
 import { displayPath } from "../../lib/paths.js";
