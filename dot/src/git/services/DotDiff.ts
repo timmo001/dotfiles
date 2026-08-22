@@ -17,7 +17,10 @@ import { OutputLog } from "../../services/OutputLog.js";
 import { gitCurrentBranchSync, isGitRepo } from "../../lib/git.js";
 import { CACHE_DIR, displayPath } from "../../lib/paths.js";
 import { ENV, envInt, envString } from "../../lib/env.js";
-import { activeGitReposForCheck } from "../../services/GitConfig.js";
+import {
+  activeGitReposForCheck,
+  enabledGitReposForCheck,
+} from "../../services/GitConfig.js";
 
 const DEBUG = !!envString(ENV.DOT_DEBUG);
 const log = (msg: string) => {
@@ -96,6 +99,8 @@ export class DotDiffError extends Schema.TaggedErrorClass<DotDiffError>()(
 export interface DiffScanOptions {
   /** Skip fetching from remotes (use local tracking refs only) */
   readonly noFetch?: boolean;
+  /** Only scan repositories whose activity schedule is currently active. */
+  readonly scheduledOnly?: boolean;
 }
 
 /** Service interface for computing diff state across tracked repositories */
@@ -169,7 +174,9 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
       };
 
       /** Build the full list of tracked repos */
-      const buildRepoList = (): Array<{
+      const buildRepoList = (
+        scheduledOnly = false,
+      ): Array<{
         name: string;
         path: string;
         category: RepoCategory;
@@ -227,11 +234,14 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
           }
         }
 
-        // Private git config activity repos (schedule-gated, sorted alphabetically)
+        // Private git config activity repos, sorted alphabetically
         if (config.canUsePrivate) {
-          const visible = [
-            ...activeGitReposForCheck(config.gitConfig, "activity"),
-          ].sort((a, b) => a.name.localeCompare(b.name));
+          const configured = scheduledOnly
+            ? activeGitReposForCheck(config.gitConfig, "activity")
+            : enabledGitReposForCheck(config.gitConfig, "activity");
+          const visible = [...configured].sort((a, b) =>
+            a.name.localeCompare(b.name),
+          );
           for (const extra of visible) {
             if (existsSync(extra.path)) {
               addRepo({
@@ -375,7 +385,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
       const getAll = Effect.fn("DotDiff.getAll")(function* (
         opts?: DiffScanOptions,
       ): Effect.fn.Return<readonly DiffRepo[], DotDiffError> {
-        const repoList = buildRepoList();
+        const repoList = buildRepoList(opts?.scheduledOnly);
         log(`Scanning ${repoList.length} repositories...`);
 
         const results = yield* Effect.all(

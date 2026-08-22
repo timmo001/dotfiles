@@ -7,7 +7,7 @@ sidebar:
 
 ## `dot git-diff`
 
-A two-pane repo watcher across every managed repository: public and private dotfiles, the notes vault, Omarchy repos (when enabled), and schedule-gated activity repos from `dot-git.yml`. The **Changed** pane lists repos with uncommitted changes or non-zero ahead/behind counts against their upstream; **Other** lists the rest.
+A two-pane repo watcher across every managed repository: public and private dotfiles, the notes vault, Omarchy repos (when enabled), and activity-enabled repos from `dot-git.yml`. The interactive TUI and explicit list commands include enabled repositories regardless of their activity schedules. The **Changed** pane lists repos with uncommitted changes or non-zero ahead/behind counts against their upstream; **Other** lists the rest.
 
 ```bash
 dot git-diff                # interactive TUI (alias: dot diff)
@@ -67,6 +67,8 @@ When a repo has an upstream configured, `dot git-diff` fetches the tracking bran
 ## Status bar module
 
 The `timmo.git` Quickshell plugin polls `dot git-diff --bar-json` and combines its repository rows with GitHub notifications in one bar widget and native panel. The panel opens the Changed or Other TUI separately and refreshes both sources together. The stowed `git-diff-bar` cache command remains available to generic status bars. See [Bar Integrations](/bar-integrations/) for the shared JSON contract.
+
+Status-bar polling respects each repository's activity schedule so unattended checks stay within the configured hours.
 
 ## Configuration
 

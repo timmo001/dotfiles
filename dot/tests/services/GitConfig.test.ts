@@ -5,6 +5,7 @@ import { join } from "path";
 import {
   activeGitReposForCheck,
   activeGitReposForNotifications,
+  enabledGitReposForCheck,
   loadDotGitConfig,
   managedGitRepoForGitHub,
   managedGitRepoForPath,
@@ -241,5 +242,6 @@ describe("managed repository selection", () => {
       1,
     );
     expect(activeGitReposForNotifications(config, outsideSchedule)).toEqual([]);
+    expect(enabledGitReposForCheck(config, "activity")).toHaveLength(1);
   });
 });

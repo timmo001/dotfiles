@@ -28,7 +28,7 @@ export const diffBarJson = (opts?: DiffScanOptions) =>
     const config = yield* Config;
     const dotDiff = yield* DotDiff;
     const executor = yield* CommandExecutor;
-    const repos = yield* dotDiff.getAll(opts);
+    const repos = yield* dotDiff.getAll({ ...opts, scheduledOnly: true });
     const includeBarRepo = Effect.fn("diff.includeBarRepo")(function* (
       repo: DiffRepo,
     ) {

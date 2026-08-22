@@ -5,7 +5,10 @@ import { join } from "node:path";
 import { DotDiff } from "../../../src/git/services/DotDiff.js";
 import { CommandExecutor } from "../../../src/services/CommandExecutor.js";
 import { Config, type ConfigService } from "../../../src/services/Config.js";
-import { emptyDotGitConfig } from "../../../src/services/GitConfig.js";
+import {
+  emptyDotGitConfig,
+  type DotGitConfig,
+} from "../../../src/services/GitConfig.js";
 import { emptyMcpConfig } from "../../../src/mcp/sync/loadSpec.js";
 import { OutputLog } from "../../../src/services/OutputLog.js";
 
@@ -68,6 +71,84 @@ describe("DotDiff", () => {
       "git",
       ["--no-optional-locks", "status", "--porcelain"],
     ]);
+  });
+
+  test("only applies activity schedules to scheduled scans", async () => {
+    const root = join(
+      process.env.TMPDIR ?? "/tmp",
+      `dot-diff-schedule-test-${process.pid}-${Date.now()}`,
+    );
+    const publicDotfiles = join(root, "dotfiles");
+    const scheduledRepo = join(root, "scheduled");
+    tempRoots.push(root);
+    mkdirSync(join(publicDotfiles, ".git"), { recursive: true });
+    mkdirSync(join(scheduledRepo, ".git"), { recursive: true });
+
+    const gitConfig: DotGitConfig = {
+      filePath: join(root, "dot-git.yml"),
+      present: true,
+      valid: true,
+      repositories: [
+        {
+          name: "scheduled",
+          path: scheduledRepo,
+          github: "example/scheduled",
+          aliases: [],
+          postUpdate: null,
+          activity: { enabled: true, schedule: "0 0 31 2 *" },
+          notifications: {
+            enabled: false,
+            schedule: "* * * * *",
+            bar: { ignoreBotActivity: false },
+          },
+        },
+      ],
+      shortcuts: [],
+      diagnostics: [],
+    };
+    const commandExecutor = Layer.succeed(CommandExecutor, {
+      run: () => Effect.succeed(""),
+      stream: () => Stream.die("stream should not be called"),
+      exitCode: () => Effect.succeed(1),
+      inherit: () => Effect.die("inherit should not be called"),
+    });
+    const config = Layer.succeed(Config, {
+      ...testConfig(publicDotfiles),
+      canUsePrivate: true,
+      privateReason: "enabled for test",
+      gitConfig,
+    });
+    const outputLog = Layer.succeed(OutputLog, {
+      info: () => Effect.void,
+      warn: () => Effect.void,
+      error: () => Effect.void,
+      section: () => Effect.void,
+      stream: Stream.empty,
+      flush: Effect.succeed(""),
+      withSpinner: (_label, effect) => effect,
+      updateSpinner: () => Effect.void,
+    });
+    const dotDiffLayer = DotDiff.layer.pipe(
+      Layer.provideMerge(commandExecutor),
+      Layer.provideMerge(config),
+      Layer.provideMerge(outputLog),
+    );
+
+    const [allRepos, scheduledRepos] = await Effect.runPromise(
+      Effect.gen(function* () {
+        const dotDiff = yield* DotDiff;
+        return yield* Effect.all([
+          dotDiff.getAll({ noFetch: true }),
+          dotDiff.getAll({ noFetch: true, scheduledOnly: true }),
+        ]);
+      }).pipe(Effect.provide(dotDiffLayer)),
+    );
+
+    expect(allRepos.map((repo) => repo.path)).toEqual([
+      publicDotfiles,
+      scheduledRepo,
+    ]);
+    expect(scheduledRepos.map((repo) => repo.path)).toEqual([publicDotfiles]);
   });
 });
 

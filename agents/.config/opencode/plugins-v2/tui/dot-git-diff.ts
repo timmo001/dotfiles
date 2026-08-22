@@ -27,6 +27,7 @@ const plugin = {
                     env: {
                       ...process.env,
                       DOT_AGENT: "0",
+                      XDG_CONFIG_HOME: process.env.OPENCODE2_HOST_XDG_CONFIG_HOME,
                       XDG_CACHE_HOME: process.env.OPENCODE2_HOST_XDG_CACHE_HOME,
                       XDG_DATA_HOME: process.env.OPENCODE2_HOST_XDG_DATA_HOME,
                       XDG_STATE_HOME: process.env.OPENCODE2_HOST_XDG_STATE_HOME,

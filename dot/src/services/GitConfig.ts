@@ -165,9 +165,17 @@ export function activeGitReposForCheck(
   check: GitRepoCheckName,
   now: Date = new Date(),
 ): readonly GitManagedRepo[] {
-  return managedGitRepos(gitConfig).filter((repo) =>
+  return enabledGitReposForCheck(gitConfig, check).filter((repo) =>
     gitRepoCheckActive(repo, check, now),
   );
+}
+
+/** Return repositories with the selected check enabled, regardless of schedule. */
+export function enabledGitReposForCheck(
+  gitConfig: DotGitConfig,
+  check: GitRepoCheckName,
+): readonly GitManagedRepo[] {
+  return managedGitRepos(gitConfig).filter((repo) => repo[check].enabled);
 }
 
 /** Return repositories with enabled GitHub notifications whose schedule is active. */
