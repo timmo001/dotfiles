@@ -569,11 +569,12 @@ const publishCleanUpdate = Effect.fn("SkillUpdatesAgent.publishCleanUpdate")(
       "--repo",
       "timmo001/skills",
     ])).trim();
-    if (url) {
+    let pullRequestUrl = url;
+    if (pullRequestUrl) {
       yield* github.run([
         "pr",
         "edit",
-        url,
+        pullRequestUrl,
         "--title",
         title,
         "--add-assignee",
@@ -582,7 +583,7 @@ const publishCleanUpdate = Effect.fn("SkillUpdatesAgent.publishCleanUpdate")(
         "timmo001/skills",
       ]);
     } else {
-      yield* github.run([
+      pullRequestUrl = (yield* github.run([
         "pr",
         "create",
         "--base",
@@ -597,8 +598,17 @@ const publishCleanUpdate = Effect.fn("SkillUpdatesAgent.publishCleanUpdate")(
         "timmo001",
         "--repo",
         "timmo001/skills",
-      ]);
+      ])).trim();
     }
+    yield* github.run([
+      "pr",
+      "merge",
+      "--auto",
+      "--squash",
+      pullRequestUrl,
+      "--repo",
+      "timmo001/skills",
+    ]);
     yield* github.run([
       "workflow",
       "run",
