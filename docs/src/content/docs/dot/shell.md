@@ -39,6 +39,23 @@ Omarchy's `ff` alias opens an fzf file picker with previews. `fast` runs Fastfet
 
 The shell keeps a few typo and navigation helpers close to the aliases. For example, `cwd` prints a short reminder that the real command is `pwd`, then runs `pwd` so the mistake still returns useful output.
 
-Run `update` to select maintenance steps with Gum. Dotfiles and Omarchy remain separate choices, while each enabled Topgrade step can be selected independently. Selected work runs in the displayed order: Dotfiles, Omarchy, then Topgrade. Mise, GitHub CLI extensions, and Yazi appear first within Topgrade and start selected; the remaining steps are opt-in. Selected Topgrade steps run together through `topgrade --only`; selecting every Topgrade step uses the normal full `topgrade` command instead.
+Run `update` to select maintenance steps with Gum. Dotfiles and Omarchy remain separate choices, while each enabled Topgrade step can be selected independently. Selected work runs in the displayed order: Dotfiles, Omarchy, then Topgrade. Mise, GitHub CLI extensions, and Yazi appear first within Topgrade and start selected; the remaining steps are opt-in:
+
+| Step | Topgrade name |
+| --- | --- |
+| Mise | `mise` |
+| GitHub CLI extensions | `github_cli_extensions` |
+| Yazi | `yazi` |
+| ProtonPlus | `protonplus` |
+| Firmware | `firmware` |
+| Rustup | `rustup` |
+| TLDR | `tldr` |
+| Neovim | `vim` |
+| Containers | `containers` |
+| Claude Code | `claude_code` |
+| Claude Code plugins | `claude_code_plugins` |
+| uv | `uv` |
+
+Selected Topgrade steps run together through `topgrade --only`; selecting every Topgrade step uses the normal full `topgrade` command instead.
 
 Use `update -y` or `update --yes`, or run it in a non-interactive shell, to select every step without prompting. Agent-driven runs without a controlling terminal route internal `sudo` calls through a temporary `pkexec` helper so authentication can use the desktop PolicyKit prompt. Interactive terminals keep normal `sudo` credential caching. The sequence stops if a selected step fails.
