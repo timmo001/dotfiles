@@ -6,7 +6,7 @@ sidebar:
   order: 1
 ---
 
-The repo ships a shared [OpenCode](https://opencode.ai) configuration: agents, slash commands, skills, and lifecycle plugins. Agents, commands, plugins, and shared `lib/` modules live in `agents/.config/opencode/`; isolated OpenCode v2 server and TUI plugin ports live under `plugins-v2/` while the v1 plugin API remains active. The OpenCode v2 runtime loads the migrated `workflow-manifest` server plugin from that isolated directory. Portable skills and reviewed third-party snapshots are maintained independently in [`timmo001/skills`](https://github.com/timmo001/skills), pinned at `agents/.agents/skills/`, and exposed through the shared `~/.agents/skills/` path.
+The repo ships a shared [OpenCode](https://opencode.ai) configuration: agents, slash commands, skills, and lifecycle plugins. Agents, commands, plugins, and shared `lib/` modules live in `agents/.config/opencode/`; isolated OpenCode v2 server and TUI plugin ports live under `plugins-v2/` while the v1 plugin API remains active. The OpenCode v2 runtime loads the migrated `workflow-manifest` and repository-notes server plugins from that isolated directory. Portable skills and reviewed third-party snapshots are maintained independently in [`timmo001/skills`](https://github.com/timmo001/skills), pinned at `agents/.agents/skills/`, and exposed through the shared `~/.agents/skills/` path.
 
 The repo-local `opencode.json` allows agents to inspect the live directories managed by stow and list their parent config directories. Direct edits to unmanaged files in those directories are denied; change the matching source under `~/.config/dotfiles` and run `dot stow` instead. Existing stowed symlinks resolve to their repository source, so edits still land in the tracked package. Personal repository references are supplied by the private machine overlay as writable local paths rather than repository-backed cache clones. References declared inside `docs/` resolve back to this checkout, including the `opencode-config` alias because that repository is a generated mirror of this source.
 
@@ -19,7 +19,7 @@ Unlike the rest of these (personal) dotfiles, the OpenCode config is built to be
 :::
 
 :::caution[OpenCode v2 hybrid]
-The published lifecycle plugins use the v1 plugin API. The private `opencode2` route shares agents, commands, skills, instructions, and compatible server configuration, but loads isolated v2 plugin ports instead of the v1 implementations. The workflow manifest tool is available in both versions; other lifecycle-backed context injection and guards described below remain v1-only until their server plugins are ported.
+The published lifecycle plugins use the v1 plugin API. The private `opencode2` route shares agents, commands, skills, instructions, and compatible server configuration, but loads isolated v2 plugin ports instead of the v1 implementations. The workflow manifest tool and repository-note context injection are available in both versions; other lifecycle-backed context injection and guards described below remain v1-only until their server plugins are ported.
 :::
 
 <CardGroup cols={2}>
