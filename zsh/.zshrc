@@ -940,3 +940,8 @@ bindkey "^[[4~" end-of-line        # End (vt variant)
 # ------------------------------
 # Fastfetch
 # ff
+
+# Added by LM Studio CLI (lms)
+export PATH="$PATH:/home/aidan/.lmstudio/bin"
+# End of LM Studio CLI section
+
