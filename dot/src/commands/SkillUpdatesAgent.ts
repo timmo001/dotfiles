@@ -415,6 +415,28 @@ export function isShaOnlySkillPatch(patch: string, skill: string): boolean {
   );
 }
 
+/** Return whether a patch is confined to one imported skill and its metadata. */
+export function isScopedSkillPatch(patch: string, skill: string): boolean {
+  const files = patch
+    .split("\n")
+    .flatMap((line) => {
+      const match = line.match(/^diff --git a\/(.+) b\/(.+)$/);
+      return match ? [[match[1], match[2]] as const] : [];
+    });
+  const allowed = (file: string) =>
+    file === "imports.json" ||
+    file.startsWith(`${skill}/`) ||
+    file.startsWith(`upstream/${skill}/`);
+  return (
+    files.length >= 2 &&
+    files.some(([from, to]) => from === "imports.json" && to === from) &&
+    files.some(
+      ([from, to]) => from === `${skill}/SKILL.md` && to === from,
+    ) &&
+    files.every(([from, to]) => from === to && allowed(from))
+  );
+}
+
 /** Select the commit and pull request subject for a generated skill update. */
 export function skillUpdateSubject(patch: string, skill: string): string {
   return isShaOnlySkillPatch(patch, skill)
@@ -765,16 +787,6 @@ const validatePullRequestPolicy = Effect.fn(
           }),
       ),
     );
-    const title = details.title.match(/^\[SHA-only\] Update ([a-z0-9-]+)$/);
-    const skill = title?.[1];
-    const expectedCommit = skill ? `[SHA-only] Update ${skill}` : "";
-    const assigned = details.assignees.some(
-      ({ login }) => login === "timmo001",
-    );
-    const mergeReady = details.autoMergeRequest?.mergeMethod === "SQUASH";
-    const commitsValid =
-      details.commits.length === 1 &&
-      details.commits[0]?.messageHeadline === expectedCommit;
     const patch = yield* github.run([
       "pr",
       "diff",
@@ -782,16 +794,33 @@ const validatePullRequestPolicy = Effect.fn(
       "--repo",
       "timmo001/skills",
     ]);
-    if (
-      !skill ||
-      !assigned ||
-      !mergeReady ||
-      !commitsValid ||
-      !isShaOnlySkillPatch(patch, skill)
-    ) {
+    const shaOnlyTitle = details.title.match(
+      /^\[SHA-only\] Update ([a-z0-9-]+)$/,
+    );
+    const contentTitle = details.title.match(/^Update skill: ([a-z0-9-]+)$/);
+    const skill = shaOnlyTitle?.[1] ?? contentTitle?.[1];
+    const commitsValid =
+      skill !== undefined &&
+      details.commits.length === 1 &&
+      details.commits[0]?.messageHeadline === details.title;
+    const shaOnlyValid =
+      shaOnlyTitle !== null &&
+      details.assignees.some(({ login }) => login === "timmo001") &&
+      details.autoMergeRequest?.mergeMethod === "SQUASH" &&
+      skill !== undefined &&
+      isShaOnlySkillPatch(patch, skill);
+    const contentValid =
+      contentTitle !== null &&
+      details.state === "OPEN" &&
+      details.mergedAt === null &&
+      details.autoMergeRequest === null &&
+      skill !== undefined &&
+      !isShaOnlySkillPatch(patch, skill) &&
+      isScopedSkillPatch(patch, skill);
+    if (!commitsValid || (!shaOnlyValid && !contentValid)) {
       return yield* new SkillUpdatesAgentError({
         operation: "pull-request.policy",
-        message: `Pull request #${number} does not satisfy the SHA-only policy`,
+        message: `Pull request #${number} does not satisfy the skill update policy`,
       });
     }
   }

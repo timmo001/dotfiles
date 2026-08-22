@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   cleanSkillUpdateNames,
+  isScopedSkillPatch,
   isShaOnlySkillPatch,
   latestSuccessfulWorkflowRun,
   skillUpdatesAgentModelArgument,
@@ -192,6 +193,49 @@ describe("isShaOnlySkillPatch", () => {
     expect(
       isShaOnlySkillPatch(
         "diff --git a/example/SKILL.md b/renamed/SKILL.md",
+        "example",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("isScopedSkillPatch", () => {
+  test("accepts content changes confined to one skill and its metadata", () => {
+    expect(
+      isScopedSkillPatch(
+        [
+          "diff --git a/example/SKILL.md b/example/SKILL.md",
+          "-Old guidance",
+          "+New guidance",
+          "diff --git a/imports.json b/imports.json",
+          '-    "upstreamSha": "old"',
+          '+    "upstreamSha": "new"',
+        ].join("\n"),
+        "example",
+      ),
+    ).toBe(true);
+  });
+
+  test("rejects changes outside the named skill", () => {
+    expect(
+      isScopedSkillPatch(
+        [
+          "diff --git a/example/SKILL.md b/example/SKILL.md",
+          "diff --git a/imports.json b/imports.json",
+          "diff --git a/other/SKILL.md b/other/SKILL.md",
+        ].join("\n"),
+        "example",
+      ),
+    ).toBe(false);
+  });
+
+  test("rejects renamed files", () => {
+    expect(
+      isScopedSkillPatch(
+        [
+          "diff --git a/example/SKILL.md b/example/RENAMED.md",
+          "diff --git a/imports.json b/imports.json",
+        ].join("\n"),
         "example",
       ),
     ).toBe(false);
