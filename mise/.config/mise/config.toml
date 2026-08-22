@@ -42,7 +42,7 @@ uv = "0.12.5"
 codex = "latest"
 
 [tools."aqua:anomalyco/opencode"]
-version = "1.18.19"
+version = "1.18.21"
 minimum_release_age = "2h"
 
 [tools."npm:@opencode-ai/cli"]
