@@ -417,12 +417,10 @@ export function isShaOnlySkillPatch(patch: string, skill: string): boolean {
 
 /** Return whether a patch is confined to one imported skill and its metadata. */
 export function isScopedSkillPatch(patch: string, skill: string): boolean {
-  const files = patch
-    .split("\n")
-    .flatMap((line) => {
-      const match = line.match(/^diff --git a\/(.+) b\/(.+)$/);
-      return match ? [[match[1], match[2]] as const] : [];
-    });
+  const files = patch.split("\n").flatMap((line) => {
+    const match = line.match(/^diff --git a\/(.+) b\/(.+)$/);
+    return match ? [[match[1], match[2]] as const] : [];
+  });
   const allowed = (file: string) =>
     file === "imports.json" ||
     file.startsWith(`${skill}/`) ||
@@ -430,9 +428,7 @@ export function isScopedSkillPatch(patch: string, skill: string): boolean {
   return (
     files.length >= 2 &&
     files.some(([from, to]) => from === "imports.json" && to === from) &&
-    files.some(
-      ([from, to]) => from === `${skill}/SKILL.md` && to === from,
-    ) &&
+    files.some(([from, to]) => from === `${skill}/SKILL.md` && to === from) &&
     files.every(([from, to]) => from === to && allowed(from))
   );
 }
