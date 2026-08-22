@@ -130,6 +130,7 @@ pane_scrollbars = false
 
 agent_panel_sort = "priority"
 
+status_indicators = "symbols"
 [ui.sidebar.agents]
 row_gap = 0
 rows = [
