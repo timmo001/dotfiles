@@ -568,6 +568,9 @@ Download the public signing key, require its pinned full fingerprint,
 locally sign it in pacman's keyring, and register the signed [timmo]
 repository before the other package repositories.
 
+After registration succeeds, refresh package databases with pacman -Sy so
+the new repository metadata is available before package installation.
+
 The command fails before changing trust or pacman configuration when the
 repository is unavailable or the downloaded fingerprint does not match.
 

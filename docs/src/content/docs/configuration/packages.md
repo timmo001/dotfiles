@@ -19,6 +19,8 @@ Server = https://packages.timmo.dev/$arch
 
 The repository overlays maintained package names. `omarchy-pkg-aur-add` uses the configured binary repository when a matching package is available and retains AUR resolution for packages or source-build variants not published there. A missing repository database or fingerprint mismatch stops setup before trust or pacman configuration is changed.
 
+After the snippet and `Include` line are in place, `dot setup-public-repo` runs `pacman -Sy` so the new repository database is available before `dot init` installs packages from `.dot-public-packages`. A refresh failure stops setup instead of continuing with stale metadata.
+
 ## Public packages
 
 `dot init` installs the Arch and AUR packages listed in `.dot-public-packages` at the repo root. The file is one package name per line; blank lines and `#` comments are ignored. Ongoing package health is reported by `dot doctor`; `dot update` does not check or install packages.
