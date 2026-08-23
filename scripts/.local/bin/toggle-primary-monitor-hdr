@@ -23,17 +23,17 @@ read -r width height refresh x y scale transform < <(
 )
 printf -v refresh '%.2f' "$refresh"
 
-monitor_rule="$monitor,${width}x${height}@${refresh}Hz,${x}x${y},$scale"
+monitor_spec="output = \"$monitor\", mode = \"${width}x${height}@${refresh}Hz\", position = \"${x}x${y}\", scale = $scale"
 if ((transform != 0)); then
-  monitor_rule+=",transform,$transform"
+  monitor_spec+=", transform = $transform"
 fi
 
 if jq -e --arg monitor "$monitor" \
   '.[] | select(.name == $monitor and (.colorManagementPreset == "hdr" or (.currentFormat == "XRGB2101010" and .sdrBrightness == 2)))' \
   <<<"$state" >/dev/null; then
-  hyprctl keyword monitor "$monitor_rule"
+  hyprctl eval "hl.monitor({ $monitor_spec, bitdepth = 8, cm = \"srgb\", sdrbrightness = 1.0 })"
   omarchy notification send -g "󰍹" --app-name "Display" "HDR disabled" "Restored SDR colour and brightness for $monitor."
 else
-  hyprctl keyword monitor "$monitor_rule,bitdepth,10,cm,hdr,sdrbrightness,2.0"
+  hyprctl eval "hl.monitor({ $monitor_spec, bitdepth = 10, cm = \"hdr\", sdrbrightness = 2.0 })"
   omarchy notification send -g "󰍹" --app-name "Display" "HDR enabled" "$monitor is using 10-bit HDR with the full BT.2020 colour gamut."
 fi
