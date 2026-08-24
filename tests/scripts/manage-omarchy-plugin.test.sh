@@ -18,6 +18,20 @@ trap 'rm -rf "$test_root"' EXIT
 mkdir -p "$dotfiles/omarchy/.config/omarchy/plugins" "$home/.config/omarchy/plugins" "$mock_bin"
 export XDG_CONFIG_HOME="$home/.config"
 
+assert_plugin_removed() {
+  local id=$1 submodule_path="omarchy/.config/omarchy/plugins/$1"
+  [[ ! -e $dotfiles/$submodule_path && ! -L $dotfiles/$submodule_path ]]
+  [[ ! -e $home/.config/omarchy/plugins/$id && ! -L $home/.config/omarchy/plugins/$id ]]
+  [[ ! -e $dotfiles/.git/modules/$submodule_path ]]
+  [[ -z $(git -C "$dotfiles" config --name-only --get-regexp '^submodule\.' 2>/dev/null |
+    grep -F "submodule.$submodule_path." || true) ]]
+  [[ -z $(git -C "$dotfiles" config -f .gitmodules --name-only \
+    --get-regexp '^submodule\.' 2>/dev/null |
+    grep -F "submodule.$submodule_path." || true) ]]
+  [[ $(jq -r --arg id "$id" 'any(.plugins[]?; .id == $id)' \
+    "$dotfiles/omarchy-plugins.json") == false ]]
+}
+
 cat >"$mock_bin/dot" <<'EOF'
 #!/bin/bash
 if [[ $1 == stow ]]; then
@@ -94,8 +108,33 @@ jq -e '.plugins == [{
 "$prettier" --check --parser json "$dotfiles/omarchy-plugins.json" >/dev/null
 [[ $(<"$gum_args") == 'choose --header=Save managed plugin changes? --selected No' ]]
 mapfile -t choices <"$gum_choices"
-[[ ${choices[*]} == 'No Commit Commit and push' ]]
+[[ ${choices[*]} == 'Discard plugin No Commit Commit and push' ]]
 [[ ! -e $dot_log ]]
+
+env HOME="$home" DOTFILES_REPO="$dotfiles" GIT_ALLOW_PROTOCOL=file PATH="$mock_bin:$PATH" \
+  DOT_LOG="$dot_log" GUM_ARGS="$gum_args" GUM_CHOICES="$gum_choices" \
+  OMARCHY_PLUGIN_PRETTIER="$prettier" \
+  "$manager" remove example.plugin 1
+assert_plugin_removed example.plugin
+
+git clone -q "$upstream" "$home/.config/omarchy/plugins/example.plugin"
+env HOME="$home" DOTFILES_REPO="$dotfiles" GIT_ALLOW_PROTOCOL=file PATH="$mock_bin:$PATH" \
+  DOT_LOG="$dot_log" GUM_ARGS="$gum_args" GUM_CHOICES="$gum_choices" \
+  OMARCHY_PLUGIN_INTERACTIVE=1 GUM_CHOICE='Discard plugin' \
+  OMARCHY_PLUGIN_PRETTIER="$prettier" \
+  "$manager" add example.plugin "$upstream" \
+  "$home/.config/omarchy/plugins/example.plugin" \
+  --section right --after omarchy.tray
+assert_plugin_removed example.plugin
+[[ ! -e $dot_log ]]
+
+git clone -q "$upstream" "$home/.config/omarchy/plugins/example.plugin"
+env HOME="$home" DOTFILES_REPO="$dotfiles" GIT_ALLOW_PROTOCOL=file PATH="$mock_bin:$PATH" \
+  DOT_LOG="$dot_log" GUM_ARGS="$gum_args" GUM_CHOICES="$gum_choices" \
+  OMARCHY_PLUGIN_PRETTIER="$prettier" \
+  "$manager" add example.plugin "$upstream" \
+  "$home/.config/omarchy/plugins/example.plugin" \
+  --section right --after omarchy.tray
 
 rm "$home/.config/omarchy/plugins/example.plugin"
 mkdir "$home/.config/omarchy/plugins/example.plugin"
@@ -104,9 +143,7 @@ env HOME="$home" DOTFILES_REPO="$dotfiles" GIT_ALLOW_PROTOCOL=file PATH="$mock_b
   DOT_LOG="$dot_log" GUM_ARGS="$gum_args" GUM_CHOICES="$gum_choices" \
   OMARCHY_PLUGIN_PRETTIER="$prettier" \
   "$manager" remove example.plugin 1
-! jq -e 'any(.plugins[]?; .id == "example.plugin")' "$dotfiles/omarchy-plugins.json" >/dev/null
-[[ ! -e $source_path ]]
-[[ ! -e $home/.config/omarchy/plugins/example.plugin ]]
+assert_plugin_removed example.plugin
 [[ -z $(git -C "$dotfiles" diff --cached --name-only) ]]
 
 git clone -q "$upstream" "$home/.config/omarchy/plugins/example.plugin"
@@ -156,8 +193,7 @@ env HOME="$home" DOTFILES_REPO="$dotfiles" GIT_ALLOW_PROTOCOL=file PATH="$mock_b
   OMARCHY_PLUGIN_INTERACTIVE=1 GUM_CHOICE='Commit and push' \
   OMARCHY_PLUGIN_PRETTIER="$prettier" \
   "$manager" remove example.plugin 1
-! jq -e 'any(.plugins[]?; .id == "example.plugin")' "$dotfiles/omarchy-plugins.json" >/dev/null
-[[ ! -e $home/.config/omarchy/plugins/example.plugin ]]
+assert_plugin_removed example.plugin
 [[ -z $(git -C "$dotfiles" diff --cached --name-only) ]]
 grep -Fqx 'git-commit -m Remove example.plugin Omarchy plugin --path .gitmodules --path omarchy-plugins.json --path omarchy/.config/omarchy/plugins/example.plugin --push' "$dot_log"
 

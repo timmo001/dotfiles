@@ -45,11 +45,17 @@ interactive() {
 offer_commit() {
   local action=$1 id=$2 choice subject
   interactive || return 0
-  choice=$(printf '%s\n' No Commit 'Commit and push' |
+  local choices=(No Commit 'Commit and push')
+  [[ $action == add ]] && choices=('Discard plugin' "${choices[@]}")
+  choice=$(printf '%s\n' "${choices[@]}" |
     gum choose --header="Save managed plugin changes?" --selected No) || return 0
   case "$choice" in
   Commit) ;;
   'Commit and push') ;;
+  'Discard plugin')
+    remove_plugin "$id" 1 0
+    return 0
+    ;;
   *) return 0 ;;
   esac
 
@@ -181,7 +187,7 @@ update_plugins() {
 }
 
 remove_plugin() {
-  local id=${1:?} assume_yes=${2:-0}
+  local id=${1:?} assume_yes=${2:-0} offer_save=${3:-1}
   valid_plugin_id "$id" || fail "invalid plugin id '$id'"
   managed "$id" || return "$UNMANAGED"
   if (( ! assume_yes )); then
@@ -196,10 +202,11 @@ remove_plugin() {
   if git -C "$repo" ls-files --error-unmatch "$submodule_path" >/dev/null 2>&1; then
     git -C "$repo" submodule deinit -q -f -- "$submodule_path" || true
     git -C "$repo" rm -q -f -- "$submodule_path"
-  else
-    rm -rf "${plugins_source:?}/$id"
-    git -C "$repo" config -f .gitmodules --remove-section "submodule.$submodule_path"
   fi
+  rm -rf "${plugins_source:?}/$id"
+  git -C "$repo" config --remove-section "submodule.$submodule_path" 2>/dev/null || true
+  git -C "$repo" config -f .gitmodules --remove-section \
+    "submodule.$submodule_path" 2>/dev/null || true
   rm -rf "$repo/.git/modules/$submodule_path"
   write_registry '.plugins = ((.plugins // []) | map(select(.id != $id)))' "$id"
   unstage "$id"
@@ -207,8 +214,23 @@ remove_plugin() {
   trap - EXIT
   dot stow --public
   omarchy-shell shell rescanPlugins >/dev/null
+
+  local leftovers=() config_keys gitmodules_keys
+  [[ ! -e $plugins_source/$id && ! -L $plugins_source/$id ]] || leftovers+=(source)
+  [[ ! -e $plugins_live/$id && ! -L $plugins_live/$id ]] || leftovers+=(live)
+  [[ ! -e $repo/.git/modules/$submodule_path ]] || leftovers+=(module-cache)
+  config_keys=$(git -C "$repo" config --name-only --get-regexp '^submodule\.' 2>/dev/null || true)
+  grep -Fq "submodule.$submodule_path." <<<"$config_keys" && leftovers+=(git-config)
+  gitmodules_keys=$(git -C "$repo" config -f .gitmodules --name-only \
+    --get-regexp '^submodule\.' 2>/dev/null || true)
+  grep -Fq "submodule.$submodule_path." <<<"$gitmodules_keys" && leftovers+=(gitmodules)
+  jq -e --arg id "$id" 'any(.plugins[]?; .id == $id)' "$registry" >/dev/null && leftovers+=(registry)
+  (( ${#leftovers[@]} == 0 )) || fail "removal of '$id' left behind: ${leftovers[*]}"
+
   printf 'Removed managed plugin %s.\n' "$id"
-  offer_commit remove "$id"
+  if (( offer_save )); then
+    offer_commit remove "$id"
+  fi
 }
 
 [[ -f $registry ]] || fail "managed plugin registry not found: $registry"
