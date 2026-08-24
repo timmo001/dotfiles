@@ -881,6 +881,7 @@ opencode() {
 }
 
 alias c="opencode"
+alias c2-cancel="opencode2-cancel"
 
 cursor() {
   _dot_with_github_mcp_bearer cursor "$@"
@@ -944,4 +945,3 @@ bindkey "^[[4~" end-of-line        # End (vt variant)
 # Added by LM Studio CLI (lms)
 export PATH="$PATH:/home/aidan/.lmstudio/bin"
 # End of LM Studio CLI section
-

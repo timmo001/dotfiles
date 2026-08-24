@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if ! command -v opencode2 >/dev/null 2>&1; then
+  printf 'opencode2 is not available on PATH\n' >&2
+  exit 127
+fi
+
+printf 'Cancelling active OpenCode 2 sessions...\n'
+opencode2 service restart
+printf 'OpenCode 2 sessions cancelled. Session history was preserved.\n'
