@@ -28,10 +28,14 @@ permission:
   bash:
     "*": deny
     "test *HERDR_ENV*": allow
+    "command -v": allow
+    "command -v *": allow
     "herdr *": allow
     "mkdir -p ~/.cache/agent-coordinator/sessions": allow
     "date -u": allow
     "date -u *": allow
+    "pwd": allow
+    "type -a *": allow
     "git *": ask
     "git blame*": allow
     "git branch": allow
@@ -95,10 +99,14 @@ permission:
   shell:
     "*": deny
     "test *HERDR_ENV*": allow
+    "command -v": allow
+    "command -v *": allow
     "herdr *": allow
     "mkdir -p ~/.cache/agent-coordinator/sessions": allow
     "date -u": allow
     "date -u *": allow
+    "pwd": allow
+    "type -a *": allow
     "git *": ask
     "git blame*": allow
     "git branch": allow
