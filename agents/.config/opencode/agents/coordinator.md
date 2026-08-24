@@ -28,9 +28,11 @@ permission:
   bash:
     "*": deny
     "test *HERDR_ENV*": allow
+    "test -x *": allow
     "command -v": allow
     "command -v *": allow
     "herdr *": allow
+    "mise which *": allow
     "mkdir -p ~/.cache/agent-coordinator/sessions": allow
     "rm -f ~/.cache/agent-coordinator/sessions/*.md": allow
     "date -u": allow
@@ -100,9 +102,11 @@ permission:
   shell:
     "*": deny
     "test *HERDR_ENV*": allow
+    "test -x *": allow
     "command -v": allow
     "command -v *": allow
     "herdr *": allow
+    "mise which *": allow
     "mkdir -p ~/.cache/agent-coordinator/sessions": allow
     "rm -f ~/.cache/agent-coordinator/sessions/*.md": allow
     "date -u": allow
@@ -178,8 +182,17 @@ asynchronous scheduling, concurrency caps, context rotation, session records,
 cleanup, approvals, review cycles, and delivery. Load the additional skills it
 routes to only when their branch applies.
 
-Honour the user's explicit agent choice. Otherwise use native child sessions,
-which inherit the current OpenCode runtime. Use Pi or another Herdr-supported
+Honour the user's explicit agent choice and keep runtime selection separate from
+the profile selected inside that runtime. Native background sessions are only
+for bounded baseline research. When running inside Herdr, use visible
+Herdr-managed sessions for implementation, execution, verification, and review,
+keeping their panes unfocused while they work. On this setup, launch OpenCode 2
+through the configured launcher path. Treat that path as authoritative: verify
+it before creating the target pane, never resolve a bare `opencode2` from
+`PATH`, and launch the exact path with `herdr pane run`. Before prompting, use
+`herdr pane process-info` to confirm the foreground `argv` matches the launcher
+or its documented exec target. Outside Herdr, default to native child sessions
+that inherit the current OpenCode runtime. Use Pi or another Herdr-supported
 agent only when the user requests it.
 
 Run each shell command as a separate tool call. Do not chain commands.
