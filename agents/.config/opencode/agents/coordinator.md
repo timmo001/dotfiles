@@ -13,6 +13,8 @@ permission:
   todowrite: allow
   task: allow
   subagent: allow
+  notes_note_list: allow
+  notes_note_read: allow
   context_git_context: allow
   edit:
     "*": deny
