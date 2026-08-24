@@ -43,18 +43,20 @@ const setup = async ({ providerFailure = false } = {}) => {
   const shellCalls: string[] = [];
   const shell = Object.assign(
     (parts: TemplateStringsArray, ...values: unknown[]) => {
-      shellCalls.push(
-        parts.reduce((command, part, index) => {
-          const value = values[index - 1];
-          const rendered = isString(value)
-            ? value
-            : value == null
-              ? ""
-              : (JSON.stringify(value) ?? "");
-          return command + rendered + part;
-        }),
-      );
-      return { text: async () => "" };
+      const command = parts.reduce((renderedCommand, part, index) => {
+        const value = values[index - 1];
+        const rendered = isString(value)
+          ? value
+          : value == null
+            ? ""
+            : (JSON.stringify(value) ?? "");
+        return renderedCommand + rendered + part;
+      });
+      shellCalls.push(command);
+      return {
+        text: async () =>
+          command === "hyprctl activewindow -j" ? '{"address":"0xabc"}' : "",
+      };
     },
     {
       raw: () => ({ text: async () => "" }),
@@ -114,11 +116,13 @@ describe("context zone warning", () => {
         duration: 8000,
       },
     });
-    expect(
-      shellCalls.some((command) =>
-        command.startsWith("omarchy notification send -g ⚠"),
-      ),
-    ).toBe(true);
+    const notification = shellCalls.find((command) =>
+      command.startsWith("omarchy notification send -g ⚠"),
+    );
+    expect(notification).toBeDefined();
+    expect(notification?.indexOf("Context reliability warning")).toBeLessThan(
+      notification?.indexOf("--exec") ?? -1,
+    );
   });
 
   test("does not count output, reasoning, or cache writes as prompt occupancy", async () => {

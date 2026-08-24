@@ -40,7 +40,7 @@ export async function createDesktopNotifier($: Shell) {
               : ""
           }`
         : "";
-      void $`omarchy notification send -g ${glyph} --app-name OpenCode ${focusCommand ? "--exec" : []} ${focusCommand ? focusCommand : []} ${title} ${body}`.catch(
+      void $`omarchy notification send -g ${glyph} --app-name OpenCode ${title} ${body} ${focusCommand ? "--exec" : []} ${focusCommand ? focusCommand : []}`.catch(
         () => {},
       );
     } catch {}
