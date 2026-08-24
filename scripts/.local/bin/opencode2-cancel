@@ -2,11 +2,41 @@
 
 set -euo pipefail
 
-if ! command -v opencode2 >/dev/null 2>&1; then
-  printf 'opencode2 is not available on PATH\n' >&2
+opencode2_bin="$HOME/.local/bin/opencode2"
+
+if [[ ! -x "$opencode2_bin" ]]; then
+  printf 'OpenCode 2 launcher is not available at %s\n' "$opencode2_bin" >&2
   exit 127
 fi
 
-printf 'Cancelling active OpenCode 2 sessions...\n'
-opencode2 service restart
-printf 'OpenCode 2 sessions cancelled. Session history was preserved.\n'
+if [[ "${1:-}" == "--worker" ]]; then
+  shift
+  failed=0
+  for session in "$@"; do
+    timeout --kill-after=2s 10s "$opencode2_bin" api post "/api/session/$session/interrupt" >/dev/null 2>&1 || failed=1
+  done
+  exit "$failed"
+fi
+
+for dependency in jq setsid timeout; do
+  if ! command -v "$dependency" >/dev/null 2>&1; then
+    printf '%s is required to cancel OpenCode 2 sessions\n' "$dependency" >&2
+    exit 127
+  fi
+done
+
+active_json=$("$opencode2_bin" api get /api/session/active)
+jq -e '.data | type == "object"' >/dev/null <<<"$active_json"
+session_lines=$(jq -r '.data | keys[]' <<<"$active_json")
+sessions=()
+if [[ -n "$session_lines" ]]; then
+  mapfile -t sessions <<<"$session_lines"
+fi
+if (( ${#sessions[@]} == 0 )); then
+  printf 'No active OpenCode 2 sessions.\n'
+  exit 0
+fi
+
+# The worker must outlive the session whose shell launched this command.
+nohup setsid "$0" --worker "${sessions[@]}" >/dev/null 2>&1 </dev/null &
+printf 'Cancellation requested for %d active OpenCode 2 session(s).\n' "${#sessions[@]}"

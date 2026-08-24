@@ -84,7 +84,7 @@ Each band appears once per session and resets after successful compaction. The c
 ## Tooling
 
 - `opencode` is installed through mise's Aqua backend. The explicit `c` alias resolves to the same binary and keeps the GitHub MCP bearer scoped to the launched harness process.
-- `opencode2-cancel` restarts the shared OpenCode 2 service to cancel every active execution without deleting session history. `c2-cancel` is its shell alias.
+- `opencode2-cancel` snapshots active OpenCode 2 executions, then interrupts them from a detached worker so cancelling the calling session cannot stop the remaining requests. Session history is preserved. `c2-cancel` is its shell alias.
 - `dot agents-sync` — mirror `~/.config/opencode/AGENTS.md` into agent harness instruction files. Runs automatically at the end of full `dot update` and `dot init`.
 - `opencode debug <paths|config|skill|info|agent>` — inspect resolved OpenCode config, paths, skills, and agents directly.
 - `DOT_CONTEXT_CAPTURE=1` - capture assembled system-prompt segments and tool definitions for starter-context profiling. See [Environment Variables](/configuration/environment/#debugging-and-output).
