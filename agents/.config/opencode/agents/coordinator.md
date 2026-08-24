@@ -26,8 +26,9 @@ permission:
   external_directory:
     "~/.cache/agent-coordinator/sessions/**": allow
   bash:
-    "*": deny
+    "*": ask
     "test *HERDR_ENV*": allow
+    "printf *HERDR_ENV*": allow
     "test -x *": allow
     "command -v": allow
     "command -v *": allow
@@ -100,8 +101,9 @@ permission:
     "git commit": deny
     "git commit *": deny
   shell:
-    "*": deny
+    "*": ask
     "test *HERDR_ENV*": allow
+    "printf *HERDR_ENV*": allow
     "test -x *": allow
     "command -v": allow
     "command -v *": allow
