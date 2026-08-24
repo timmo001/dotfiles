@@ -32,6 +32,7 @@ permission:
     "command -v *": allow
     "herdr *": allow
     "mkdir -p ~/.cache/agent-coordinator/sessions": allow
+    "rm -f ~/.cache/agent-coordinator/sessions/*.md": allow
     "date -u": allow
     "date -u *": allow
     "pwd": allow
@@ -103,6 +104,7 @@ permission:
     "command -v *": allow
     "herdr *": allow
     "mkdir -p ~/.cache/agent-coordinator/sessions": allow
+    "rm -f ~/.cache/agent-coordinator/sessions/*.md": allow
     "date -u": allow
     "date -u *": allow
     "pwd": allow
