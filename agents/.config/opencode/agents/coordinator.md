@@ -1,7 +1,7 @@
 ---
 description: Manages low-context delegated sessions through delivery
 mode: primary
-color: "#0f766e"
+color: "#16a34a"
 permission:
   "*": deny
   read: allow
