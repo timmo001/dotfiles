@@ -23,15 +23,13 @@ permissions:
   contents: read
 
 env:
-  # Version of Arch's stable `quickshell` package used as a syntax proxy. The
-  # Omarchy runtime uses quickshell-git from its own repository, which is not
-  # available in this plain Arch container. Both pull qt6-declarative, which
-  # provides qmllint.
+  # Version of Arch's stable `quickshell` package used by Omarchy. It pulls
+  # qt6-declarative, which provides qmllint.
   # Renovate keeps it in sync via Arch's package API (see the
   # customManagers entry in renovate.json); the version check below fails if
   # the container's quickshell has drifted from this pin, which is the signal
   # to merge the Renovate bump.
-  QUICKSHELL_VERSION: "0.3.0"
+  QUICKSHELL_VERSION: "0.3.1"
 
 jobs:
   qmllint:
