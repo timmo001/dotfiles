@@ -95,6 +95,26 @@
       "minimumReleaseAge": null
     },
     {
+      "description": "Use the shorter release delay for fast-moving development dependencies.",
+      "matchDepNames": [
+        "@effect/platform-node",
+        "@effect/tsgo",
+        "@opentui/core",
+        "aqua:herdrdev/herdr",
+        "effect"
+      ],
+      "minimumReleaseAge": "2 hours"
+    },
+    {
+      "description": "Use the shorter update delay for Herdr plugins.",
+      "matchDatasources": ["git-refs"],
+      "matchFileNames": [
+        "herdr/.config/herdr/plugins/config/herdr-lazy/plugins.list",
+        "herdr/.config/herdr/plugins/config/herdr-lazy/plugins.lock"
+      ],
+      "minimumReleaseAge": "2 hours"
+    },
+    {
       "description": "Use the shorter release delay for OpenCode updates.",
       "matchDepNames": [
         "@opencode-ai/client",
