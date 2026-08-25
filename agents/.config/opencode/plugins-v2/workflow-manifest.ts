@@ -94,7 +94,7 @@ export default Plugin.define({
           description:
             "Resolve one pushed SHA into compact, immutable quick and full GitHub Actions watcher manifests. Use on the host after push instead of listing runs/jobs manually or delegating discovery.",
           input,
-          options: { codemode: false },
+          options: { codemode: false, permission: "workflow_manifest" },
           execute: ({ repositoryPath, sha, pushedFiles }, toolContext) =>
             Effect.gen(function* () {
               yield* toolContext.progress({

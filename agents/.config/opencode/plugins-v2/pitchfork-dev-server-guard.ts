@@ -5,6 +5,7 @@ import { access, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { argRecord, stringArg } from "../lib/guard-paths";
+import { createToast } from "./lib/toast";
 
 interface PitchforkProject {
   readonly root: string;
@@ -231,6 +232,7 @@ export default Plugin.define({
   effect: (context) =>
     Effect.gen(function* () {
       const redirects = new Map<Tool.CallID, RedirectNotice>();
+      const showToast = yield* createToast;
 
       yield* context.tool.hook("execute.before", (event) =>
         Effect.gen(function* () {
@@ -256,6 +258,12 @@ export default Plugin.define({
 
           redirects.set(event.id, { command: normalized.command, replacement });
           event.input = { ...args, command: replacement, workdir: project.root };
+          yield* showToast(baseDirectory, {
+            title: "Dev server redirected",
+            message: `${normalized.command} -> ${replacement}`,
+            variant: "info",
+            duration: 5000,
+          });
         }),
       );
 

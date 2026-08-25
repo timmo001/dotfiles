@@ -1,14 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { resolve } from "node:path";
 import {
   Deferred,
   Effect,
+  FileSystem,
   Fiber,
   Stream,
 } from "../../agents/.config/opencode/plugins-v2/node_modules/effect/dist/index.js";
+import {
+  HttpClient,
+} from "../../agents/.config/opencode/plugins-v2/node_modules/effect/dist/unstable/http/index.js";
 import type {
   Context,
   Plugin as EffectPlugin,
@@ -20,10 +24,12 @@ const v2 = resolve(root, "agents/.config/opencode/plugins-v2");
 
 const migrated = [
   "branch-context",
+  "commit-context",
   "context-capture",
   "context-zone-warning",
   "env-protection",
   "generated-artifact-guard",
+  "mcp-repo-gate",
   "notes-guard",
   "notification",
   "pitchfork-dev-server-guard",
@@ -52,6 +58,10 @@ interface SessionContextEvent {}
 
 interface RegisteredTool {
   readonly name: string;
+  readonly options?: {
+    readonly codemode?: boolean;
+    readonly permission?: string;
+  };
   readonly execute: (...args: never[]) => object;
 }
 
@@ -96,7 +106,10 @@ const runPlugin = (plugin: EffectPlugin, context: Partial<Context>) => {
     Effect.scoped(
       Effect.gen(function* () {
         // SAFETY: Each test supplies every context domain that the plugin exercises during registration.
-        yield* plugin.effect(context as Context);
+        yield* plugin.effect(context as Context).pipe(
+          Effect.provideService(FileSystem.FileSystem, {} as FileSystem.FileSystem),
+          Effect.provideService(HttpClient.HttpClient, {} as HttpClient.HttpClient),
+        );
         yield* Effect.yieldNow;
       }),
     ),
@@ -109,6 +122,9 @@ const createRegistrationHarness = (): RegistrationHarness => {
   const commands = new Map(
     [
       "inject-context",
+      "commit",
+      "commit-push",
+      "commit-push-watch",
       "inject-stack",
       "note-create",
       "note-append",
@@ -400,6 +416,10 @@ describe("OpenCode V1/V2 plugin migration", () => {
     await runPlugin(plugin, context);
     expect(tool?.name).toBe("workflow_manifest");
     expect(tool?.execute).toBeFunction();
+    expect(tool?.options).toEqual({
+      codemode: false,
+      permission: "workflow_manifest",
+    });
   });
 
   test("workflow registration retry is Effect-native and waits for stable runs", async () => {
@@ -469,25 +489,273 @@ describe("OpenCode V1/V2 plugin migration", () => {
     expect(completedAttempts).toBe(1);
   });
 
-  test("v2 MCP transforms lack the location contract required by mcp-repo-gate", async () => {
-    const mcpTypes = await readFile(
-      resolve(v2, "node_modules/@opencode-ai/plugin/dist/effect/mcp.d.ts"),
-      "utf8",
+  test("commit-context adapts V2 snapshots and tools across paginated descendants", async () => {
+    const { collectSessionTree } = await import(
+      resolve(v2, "commit-context.ts")
     );
-    expect(mcpTypes).toContain("readonly transform: Transform<MCPDraft>");
-    expect(mcpTypes).not.toMatch(/session|project|directory|location/i);
-    expect(await Bun.file(resolve(v2, "mcp-repo-gate.ts")).exists()).toBeFalse();
+    const pages = new Map([
+      ["root:", { data: [{ id: "child-a" }], cursor: { next: "next" } }],
+      ["root:next", { data: [{ id: "child-b" }], cursor: {} }],
+      ["child-a:", { data: [], cursor: {} }],
+      ["child-b:", { data: [], cursor: {} }],
+    ]);
+    const collection = await Effect.runPromise(
+      collectSessionTree(
+        {
+          export: (sessionID: string) =>
+            Effect.succeed({
+              info: {
+                projectID: "project-a",
+                location: { directory: "/repo" },
+              },
+              messages:
+                sessionID === "child-b"
+                  ? [
+                      {
+                        type: "assistant",
+                        content: [
+                          {
+                            type: "tool",
+                            name: "edit",
+                            state: {
+                              status: "completed",
+                              input: { filePath: "src/edited.ts" },
+                            },
+                          },
+                        ],
+                        snapshot: { files: ["src/snapshot.ts"] },
+                      },
+                    ]
+                  : [],
+            }),
+          children: (parentID: string, cursor?: string) =>
+            Effect.succeed(
+              pages.get(`${parentID}:${cursor ?? ""}`) ?? {
+                data: [],
+                cursor: {},
+              },
+            ),
+        },
+        "root",
+      ),
+    );
+    expect(collection.sessions).toHaveLength(3);
+    expect(collection.warnings).toEqual([]);
+    const { renderCommitContexts, sessionTouchedFiles } = await import(
+      resolve(root, "agents/.config/opencode/lib/commit-context.ts")
+    );
+    const touchedFiles = sessionTouchedFiles(collection.sessions);
+    expect(touchedFiles).toEqual([
+      "/repo/src/edited.ts",
+      "/repo/src/snapshot.ts",
+    ]);
+    const rendered = renderCommitContexts([
+      {
+        context: {
+          inRepo: true,
+          branchMetadata: { repositoryRoot: "/repo", currentBranch: "feature" },
+          status: {
+            staged: "",
+            unstaged: "M\tsrc/edited.ts\nM\tsrc/snapshot.ts",
+            untracked: "",
+          },
+          commits: "abc123 Previous change",
+          warnings: [],
+          truncations: [],
+        },
+        sessions: collection.sessions,
+        touchedFiles,
+        diffStat: "src/edited.ts | 1 +",
+      },
+    ]);
+    expect(rendered).toContain("<commit-context>");
+    expect(rendered).toContain("- src/edited.ts");
+    expect(rendered).toContain("- src/snapshot.ts");
   });
 
-  test("v2 sessions lack the traversal contract required by commit-context", async () => {
-    const sessionTypes = await readFile(
-      resolve(v2, "node_modules/@opencode-ai/plugin/dist/effect/session.d.ts"),
-      "utf8",
+  test("commit-context marks all three commands for native session injection", async () => {
+    const plugin = (await import(resolve(v2, "commit-context.ts"))).default;
+    const harness = createRegistrationHarness();
+    await runPlugin(plugin, harness.context);
+    for (const command of ["commit", "commit-push", "commit-push-watch"]) {
+      expect(harness.commands.get(command)?.template).toStartWith(
+        `<commit-context-command>${command}</commit-context-command>`,
+      );
+    }
+    expect(harness.callbacks.has("session:context")).toBeTrue();
+  });
+
+  test.each([
+    {
+      name: "service discovery",
+      warning: "Could not discover the local OpenCode service: discovery unavailable",
+      discover: () => Effect.fail(new Error("discovery unavailable")),
+      connect: () => Effect.fail(new Error("unused")),
+    },
+    {
+      name: "authenticated client construction",
+      warning:
+        "Could not create the authenticated OpenCode client: client unavailable",
+      discover: () =>
+        Effect.succeed({
+          url: "http://127.0.0.1:4096",
+          auth: undefined,
+        }),
+      connect: () => Effect.fail(new Error("client unavailable")),
+    },
+  ])("commit-context injects partial rendering after $name failure", async (scenario) => {
+    const { makeCommitContextPlugin } = await import(
+      resolve(v2, "commit-context.ts")
     );
-    expect(sessionTypes).toContain("type SessionDomain = Pick<");
-    expect(sessionTypes).not.toContain('"messages"');
-    expect(sessionTypes).not.toContain('"children"');
-    expect(await Bun.file(resolve(v2, "commit-context.ts")).exists()).toBeFalse();
+    const harness = createRegistrationHarness();
+    await runPlugin(
+      makeCommitContextPlugin({
+        discover: scenario.discover,
+        connect: scenario.connect,
+      }),
+      harness.context,
+    );
+    const hook = harness.callbacks.get("session:context");
+    if (!hook) throw new Error("commit-context did not register its session hook");
+    const system: { text: string }[] = [];
+    await Effect.runPromise(
+      hook({
+        tool: "read",
+        sessionID: "session-test",
+        agent: "build",
+        id: "call-test",
+        input: {},
+        system,
+        tools: {},
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "<commit-context-command>commit</commit-context-command>",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(system[0]?.text).toContain("<commit-context>");
+    expect(system[0]?.text).toContain("Status: partial");
+    expect(system[0]?.text).toContain(scenario.warning);
+  });
+
+  test("mcp-repo-gate filters only gated tools for each session directory", async () => {
+    const { filterRepoTools, serverForTool } = await import(
+      resolve(v2, "mcp-repo-gate.ts")
+    );
+    const directory = await mkdtemp(join(tmpdir(), "plugin-v2-mcp-"));
+    const plainDirectory = await mkdtemp(join(tmpdir(), "plugin-v2-mcp-plain-"));
+    try {
+      await mkdir(join(directory, "app"));
+      await writeFile(join(directory, "app", "astro.config.mjs"), "");
+      const gatedTools = {
+        pitchfork_status: {},
+        convex_envList: {},
+        "astro-docs.search_astro_docs": {},
+        chrome_devtools_navigate_page: {},
+        github_get_me: {},
+      };
+      const plainTools = { ...gatedTools };
+      filterRepoTools(gatedTools, directory);
+      filterRepoTools(plainTools, plainDirectory);
+      expect(Object.keys(gatedTools).sort()).toEqual([
+        "astro-docs.search_astro_docs",
+        "chrome_devtools_navigate_page",
+        "github_get_me",
+      ]);
+      expect(Object.keys(plainTools)).toEqual(["github_get_me"]);
+      expect(serverForTool("chrome_devtools_navigate_page")).toBe(
+        "chrome-devtools",
+      );
+      expect(serverForTool("github_get_me")).toBeUndefined();
+    } finally {
+      await Promise.all([
+        rm(directory, { recursive: true, force: true }),
+        rm(plainDirectory, { recursive: true, force: true }),
+      ]);
+    }
+  });
+
+  test("mcp-repo-gate removes gated tools when session lookup fails", async () => {
+    const plugin = (await import(resolve(v2, "mcp-repo-gate.ts"))).default;
+    let hook: RegisteredCallback | undefined;
+    await runPlugin(plugin, {
+      session: {
+        hook: (name: string, callback: RegisteredCallback) =>
+          Effect.sync(() => {
+            expect(name).toBe("context");
+            hook = callback;
+            return registration;
+          }),
+        get: () => Effect.fail(new Error("session unavailable")),
+      },
+    });
+    if (!hook) throw new Error("mcp-repo-gate did not register its session hook");
+    const tools = {
+      pitchfork_status: { description: "Pitchfork", input: {} },
+      convex_envList: { description: "Convex", input: {} },
+      "astro-docs.search_astro_docs": { description: "Astro", input: {} },
+      chrome_devtools_navigate_page: { description: "Chrome", input: {} },
+      github_get_me: { description: "GitHub", input: {} },
+    };
+    await Effect.runPromise(
+      hook({
+        tool: "read",
+        sessionID: "session-test",
+        agent: "build",
+        id: "call-test",
+        input: {},
+        system: [],
+        tools,
+        messages: [],
+      }),
+    );
+    expect(Object.keys(tools)).toEqual(["github_get_me"]);
+  });
+
+  test("V2 toast helper routes by directory, authenticates, and swallows failures", async () => {
+    const { showToast } = await import(resolve(v2, "lib/toast.ts"));
+    let request:
+      | import("../../agents/.config/opencode/plugins-v2/node_modules/effect/dist/unstable/http/HttpClientRequest.js").HttpClientRequest
+      | undefined;
+    await Effect.runPromise(
+      showToast(
+        "/repo path",
+        {
+          title: "Warning",
+          message: "Context is full",
+          variant: "warning",
+          duration: 8000,
+        },
+        {
+          discover: () =>
+            Effect.succeed({
+              url: "http://127.0.0.1:4096",
+              auth: { type: "basic", username: "opencode", password: "secret" },
+            } as const),
+          execute: (value) => {
+            request = value;
+            return Effect.fail(new Error("TUI unavailable"));
+          },
+        },
+      ),
+    );
+    expect(request?.method).toBe("POST");
+    expect(request?.url).toBe("http://127.0.0.1:4096/tui/show-toast");
+    expect(request?.urlParams).toMatchObject({
+      params: [["directory", "/repo path"]],
+    });
+    expect(request?.headers).toMatchObject({
+      authorization: `Basic ${btoa("opencode:secret")}`,
+      "content-type": "application/json",
+    });
+    expect(JSON.stringify(request?.body)).toContain("Context is full");
   });
 
   test("TUI plugins retain separate V1 and V2 implementations", async () => {

@@ -5,6 +5,7 @@
 import { $ } from "bun";
 import { Plugin } from "@opencode-ai/plugin/effect";
 import { Effect, Result, Stream } from "effect";
+import { createToast } from "./lib/toast";
 
 type Band = "warning" | "critical";
 
@@ -91,6 +92,7 @@ export default Plugin.define({
       const warnedBand = new Map<string, Band>();
       let contextLimits: Map<string, number> | undefined;
       const sendDesktopNotification = yield* createDesktopNotifier;
+      const showToast = yield* createToast;
 
       yield* context.event
         .subscribe()
@@ -161,7 +163,15 @@ export default Plugin.define({
                   ? `${modelID} is using ${formatTokens(tokens)} tokens${usage}. Compact now or start a new session.`
                   : `${modelID} is using ${formatTokens(tokens)} tokens${usage}. Compact soon to keep responses reliable.`;
 
-              yield* sendDesktopNotification("⚠", title, alertMessage);
+              yield* Effect.all([
+                showToast(sessionResult.success.location.directory, {
+                  title,
+                  message: alertMessage,
+                  variant: band === "critical" ? "error" : "warning",
+                  duration: 8000,
+                }),
+                sendDesktopNotification("⚠", title, alertMessage),
+              ]);
             }),
           ),
           Effect.orDie,
