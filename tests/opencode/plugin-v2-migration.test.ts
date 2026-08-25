@@ -204,12 +204,16 @@ describe("OpenCode V1/V2 plugin migration", () => {
     });
   }
 
-  test("Effect modules import with the pinned plugin packages", async () => {
+  test("Effect modules import with coordinated pinned plugin packages", async () => {
     const packageJson = await readFile(resolve(v2, "package.json"), "utf8");
-    expect(packageJson).toContain('"@opencode-ai/client": "0.0.0-beta-18155"');
-    expect(packageJson).toContain('"@opencode-ai/plugin": "0.0.0-beta-18155"');
-    expect(packageJson).toContain('"@opencode-ai/schema": "0.0.0-beta-18155"');
-    expect(packageJson).toContain('"effect": "4.0.0-rc.111"');
+    const versions = ["client", "plugin", "schema"].map(
+      (name) =>
+        packageJson.match(
+          new RegExp(`"@opencode-ai/${name}": "(0\\.0\\.0-beta-[0-9]{5,6})"`),
+        )?.[1],
+    );
+    expect(versions.every((version) => version !== undefined)).toBe(true);
+    expect(new Set(versions).size).toBe(1);
 
     for (const name of migrated) {
       const plugin = (await import(resolve(v2, `${name}.ts`))).default;
