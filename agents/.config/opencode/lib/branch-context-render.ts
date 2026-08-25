@@ -1,79 +1,4 @@
-/**
- * @file Injects branch-context blocks into command prompts before execution.
- *
- * Hooks into `command.execute.before` to collect branch context and inject a
- * `<branch-context>` XML block into the command prompt. The context itself is
- * produced by `context git --json` (the standalone shared producer); this
- * plugin only renders the structured payload into XML blocks. Two tiers are
- * supported: full branch-context commands (including the pull request) and
- * work-scope-only commands (no pull request).
- */
-
-import type { Plugin } from "@opencode-ai/plugin";
-
-type CommandResult =
-  | { readonly ok: true; readonly text: string }
-  | { readonly ok: false; readonly error: string };
-
 type JsonRecord = Record<string, unknown>;
-
-/**
- * Commands that receive branch context are matched by exact name against these
- * sets. Any new context-consuming command must be registered here (full context
- * includes the pull request; work scope omits it) or the plugin will not inject
- * for it. Keep private command names in sync with the private overlay.
- */
-const BRANCH_CONTEXT_COMMANDS = new Set([
-  // General
-  "inject-context",
-  "refactor-current-work",
-  "reset-branch-reapply",
-  "code-review",
-]);
-const WORK_SCOPE_COMMANDS = new Set([
-  // General
-  "refactor-cleanup-variables",
-  "refactor-remove-single-use",
-  "refactor-enforce-types",
-
-  // Private
-  "all-lit-skills",
-  "all-ts-skills",
-  "timmo001-private/deslopify",
-
-  // Home Assistant
-  "home-assistant/all-frontend-skills",
-  "home-assistant/lazy-context",
-  "home-assistant/list-components",
-  "home-assistant/lit-rendering",
-]);
-const TARGET_COMMANDS = new Set([
-  ...BRANCH_CONTEXT_COMMANDS,
-  ...WORK_SCOPE_COMMANDS,
-]);
-
-const errorMessage = (error: unknown): string => {
-  if (!error) return "Unknown error";
-  if (typeof error === "string") return error;
-  if (typeof error === "object") {
-    const record = error as Record<string, unknown>;
-    const stderrValue = record.stderr;
-    const stderr = typeof stderrValue === "string" ? stderrValue.trim() : "";
-    if (stderr) return stderr;
-    const message = record.message;
-    if (typeof message === "string" && message) return message;
-  }
-  return String(error);
-};
-
-const run = async (execute: () => Promise<unknown>): Promise<CommandResult> => {
-  try {
-    const output = await execute();
-    return { ok: true, text: String(output).trim() };
-  } catch (error) {
-    return { ok: false, error: errorMessage(error) };
-  }
-};
 
 const isRecord = (value: unknown): value is JsonRecord =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -158,25 +83,6 @@ const formatList = (title: string, value: string): string => {
   return `${title}:\n${text}`;
 };
 
-const formatErrorContext = (message: string, error: string | null): string => {
-  return [
-    "<branch-context>",
-    formatTag(
-      "context-metadata",
-      "Information about how this branch context snapshot was generated.",
-      [`Generated at: ${new Date().toISOString()}`],
-    ),
-    formatTag(
-      "warnings",
-      "Non-fatal collection issues, fallbacks, missing data, or truncation notices that may affect interpretation.",
-      [message, error ? `Error: ${error}` : ""],
-    ),
-    "</branch-context>",
-  ]
-    .filter(Boolean)
-    .join("\n\n");
-};
-
 const renderBranchMetadata = (meta: JsonRecord | null): string[] => {
   if (!meta) return ["(unavailable)"];
   const remotes = stringArray(meta.remotes);
@@ -230,8 +136,11 @@ const renderWorkScope = (
     return lines;
   }
   if (state === "unresolved") {
+    const reason = workScope
+      ? stringField(workScope, "reason")
+      : "default branch is unresolved";
     lines.push(
-      `Branch scope: unavailable (${stringField(workScope!, "reason") || "default branch is unresolved"})`,
+      `Branch scope: unavailable (${reason || "default branch is unresolved"})`,
       "",
       formatList("Recent commits", recentCommits),
     );
@@ -413,55 +322,3 @@ export const renderBranchContext = (
   lines.push("</branch-context>");
   return lines.join("\n\n");
 };
-
-export const BranchContextPlugin = (async ({ $, directory }) => {
-  const buildBranchContext = async ({
-    includePullRequest,
-  }: {
-    readonly includePullRequest: boolean;
-  }): Promise<string> => {
-    const args = includePullRequest
-      ? ["git", "--json", "--labels", "--comments", "--reviews", "--checks"]
-      : ["git", "--json", "--no-pr"];
-
-    const result = await run(() => $`context ${args}`.cwd(directory).text());
-    if (!result.ok) {
-      return formatErrorContext(
-        "BranchContextPlugin could not collect git context because `context git` failed.",
-        result.error,
-      );
-    }
-
-    const data = parseBranchContextJSON(result.text);
-    if (!data) {
-      return formatErrorContext(
-        "BranchContextPlugin could not parse the `context git --json` output.",
-        null,
-      );
-    }
-    if (!booleanField(data, "inRepo")) {
-      const warnings = stringArray(data.warnings);
-      return formatErrorContext(
-        "BranchContextPlugin could not collect git context because this directory is not a git worktree.",
-        warnings.length ? warnings.join("; ") : null,
-      );
-    }
-
-    return renderBranchContext(data, includePullRequest);
-  };
-
-  return {
-    "command.execute.before": async (input, output) => {
-      if (!TARGET_COMMANDS.has(input.command)) return;
-      const text = await buildBranchContext({
-        includePullRequest: BRANCH_CONTEXT_COMMANDS.has(input.command),
-      });
-      output.parts.unshift({
-        type: "text",
-        text,
-      });
-    },
-  };
-}) satisfies Plugin;
-
-export default BranchContextPlugin;

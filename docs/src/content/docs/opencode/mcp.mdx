@@ -67,6 +67,8 @@ Run `dot mcp-sync` after editing the spec, then `dot stow`. `dot update` runs it
 
 Some servers are only useful in repos with a matching marker. The `mcp-repo-gate` plugin prunes them from the merged config at startup when none of their markers are present, so their tools do not load where they are irrelevant. Each server maps to one or more markers (files or directories); any one, found in the project directory, an ancestor, or a nearby descendant (up to two levels down, so a monorepo whose project sits in a subdirectory still counts), keeps the server. For example, `pitchfork` is dropped in any repo without a `pitchfork.toml`, `convex` outside Convex projects, `astro-docs` outside Astro projects, and `chrome-devtools` (~27 tools, ~4.3k tokens of schema) outside frontend projects:
 
+This gate currently runs only in OpenCode V1. The pinned v2 Effect API exposes `context.mcp.transform`, but its callback receives only an `MCPDraft`. It provides no project, session, or directory location, so the plugin cannot preserve marker lookup from the active project without falling back to process-global location.
+
 ```ts
 const REPO_REQUIRED_MARKERS: Record<string, readonly string[]> = {
   pitchfork: ["pitchfork.toml"],
