@@ -58,10 +58,14 @@
   ],
   "packageRules": [
     {
-      "description": "Keep OpenCode 2 plugins on the beta release channel.",
+      "description": "Keep OpenCode 2 packages on numeric beta builds.",
       "matchFileNames": ["agents/.config/opencode/plugins-v2/package.json"],
-      "matchPackageNames": ["@opencode-ai/plugin"],
-      "allowedVersions": "/^0\\.0\\.0-beta-/"
+      "matchPackageNames": [
+        "@opencode-ai/client",
+        "@opencode-ai/plugin",
+        "@opencode-ai/schema"
+      ],
+      "allowedVersions": "/^0\\.0\\.0-beta-[0-9]{5,6}$/"
     },
     {
       "description": "Keep the mise-managed OpenCode 2 CLI on numeric beta builds.",
@@ -82,7 +86,9 @@
     {
       "description": "Use the shorter release delay for OpenCode updates.",
       "matchDepNames": [
+        "@opencode-ai/client",
         "@opencode-ai/plugin",
+        "@opencode-ai/schema",
         "anomalyco/opencode",
         "aqua:anomalyco/opencode",
         "npm:@opencode-ai/browser-control",
