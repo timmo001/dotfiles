@@ -58,6 +58,12 @@
   ],
   "packageRules": [
     {
+      "description": "Keep the OpenCode plugin Effect version aligned with its pinned packages.",
+      "matchFileNames": ["agents/.config/opencode/plugins-v2/package.json"],
+      "matchPackageNames": ["effect"],
+      "enabled": false
+    },
+    {
       "description": "Keep OpenCode 2 packages on numeric beta builds.",
       "matchFileNames": ["agents/.config/opencode/plugins-v2/package.json"],
       "matchPackageNames": [
