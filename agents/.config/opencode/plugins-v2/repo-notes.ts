@@ -3,7 +3,11 @@
  */
 
 import { $ } from "bun";
-import { Plugin } from "@opencode-ai/plugin";
+import { Plugin } from "@opencode-ai/plugin/effect";
+import { Effect, Result } from "effect";
+import { errorMessage } from "../lib/error-message";
+
+type RunNotes = (command: string, directory: string) => Promise<string>;
 
 const NOTE_COMMANDS = [
   "note-create",
@@ -23,50 +27,61 @@ const escapeXml = (value: string): string =>
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
 
-const errorMessage = (error: unknown): string => {
-  if (typeof error === "object" && error !== null) {
-    const record = error as Record<string, unknown>;
-    const stderr = typeof record.stderr === "string" ? record.stderr.trim() : "";
-    if (stderr) return stderr;
-    if (typeof record.message === "string" && record.message) return record.message;
-  }
-  return String(error);
-};
+const runNotes: RunNotes = (command, directory) =>
+  $`notes context --command ${command}`.cwd(directory).text();
+
+export const collectRepoNoteContext = Effect.fn("RepoNotes.collectContext")(
+  function* (
+    command: string,
+    directory: Effect.Effect<string, unknown>,
+    execute: RunNotes = runNotes,
+  ) {
+    const result = yield* Effect.gen(function* () {
+      const cwd = yield* directory;
+      return String(
+        yield* Effect.tryPromise({
+          try: () => execute(command, cwd),
+          catch: (error) => error,
+        }),
+      ).trim();
+    }).pipe(Effect.result);
+
+    return Result.isSuccess(result)
+      ? result.success
+      : `<repo-note-context>\n\n<warnings>\nDescription: Issues encountered while collecting repository note context.\nRepoNotesPlugin could not collect note context because \`notes context\` failed.\nError: ${escapeXml(errorMessage(result.failure))}\n</warnings>\n\n</repo-note-context>`;
+  },
+);
 
 export default Plugin.define({
   id: "repo-notes",
-  setup: async (context) => {
-    await context.command.transform((commands) => {
-      for (const name of NOTE_COMMANDS) {
-        commands.update(name, (command) => {
-          command.template = `<repo-note-command>${name}</repo-note-command>\n\n${command.template}`;
-        });
-      }
-    });
+  effect: (context) =>
+    Effect.gen(function* () {
+      yield* context.command.transform((commands) => {
+        for (const name of NOTE_COMMANDS) {
+          commands.update(name, (command) => {
+            command.template = `<repo-note-command>${name}</repo-note-command>\n\n${command.template}`;
+          });
+        }
+      });
 
-    await context.session.hook("context", async (event) => {
-      const userMessage = event.messages.findLast((message) => message.role === "user");
-      const command = userMessage?.content
-        .filter((part) => part.type === "text")
-        .map((part) => part.text)
-        .join("\n")
-        .match(COMMAND_MARKER)?.[1];
-      if (!command || !NOTE_COMMAND_SET.has(command)) return;
+      yield* context.session.hook("context", (event) =>
+        Effect.gen(function* () {
+          const userMessage = event.messages.findLast((message) => message.role === "user");
+          const command = userMessage?.content
+            .filter((part) => part.type === "text")
+            .map((part) => part.text)
+            .join("\n")
+            .match(COMMAND_MARKER)?.[1];
+          if (!command || !NOTE_COMMAND_SET.has(command)) return;
 
-      try {
-        const session = await context.session.get({ sessionID: event.sessionID });
-        const noteContext = String(
-          await $`notes context --command ${command}`
-            .cwd(session.location.directory)
-            .text(),
-        ).trim();
-        event.system.unshift({ type: "text", text: noteContext });
-      } catch (error) {
-        event.system.unshift({
-          type: "text",
-          text: `<repo-note-context>\n\n<warnings>\nDescription: Issues encountered while collecting repository note context.\nRepoNotesPlugin could not collect note context because \`notes context\` failed.\nError: ${escapeXml(errorMessage(error))}\n</warnings>\n\n</repo-note-context>`,
-        });
-      }
-    });
-  },
+          const text = yield* collectRepoNoteContext(
+            command,
+            context.session
+              .get({ sessionID: event.sessionID })
+              .pipe(Effect.map((session) => session.location.directory)),
+          );
+          event.system.unshift({ type: "text", text });
+        }),
+      );
+    }),
 });
