@@ -74,6 +74,17 @@
       "allowedVersions": "/^0\\.0\\.0-beta-[0-9]{5,6}$/"
     },
     {
+      "description": "Keep coordinated OpenCode 2 beta packages together.",
+      "matchDepNames": [
+        "@opencode-ai/client",
+        "@opencode-ai/plugin",
+        "@opencode-ai/schema",
+        "npm:@opencode-ai/cli"
+      ],
+      "groupName": "OpenCode 2 beta",
+      "groupSlug": "opencode-2-beta"
+    },
+    {
       "description": "Update first-party workflows without a release delay.",
       "matchPackageNames": ["timmo001/workflows"],
       "minimumReleaseAge": null

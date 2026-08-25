@@ -36,7 +36,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - `mise.toml` is the source of truth for tool versions even without mise: anyone not using mise must still use the pinned versions and the same underlying commands each task wraps (do not substitute other versions or a different toolchain).
 - The package manager and runtime is **bun** for every JS/TS package (`dot/` and `docs/`). Do not use npm, pnpm, or yarn for install, lockfile, or script commands. Use `bun install`, `bun add`, `bun update`, `bun run`, and `bunx` (or the `mise run` task wrappers).
 - The tracked lockfile is `bun.lock` in each package (`dot/bun.lock`, `docs/bun.lock`); commit it after any dependency change. CI runs `bun install --frozen-lockfile` against it.
-- Keep Renovate update grouping limited to standard presets. Do not add repository-defined `groupName` rules.
+- Keep Renovate update grouping limited to standard presets except for the coordinated OpenCode 2 beta packages in `renovate.json`. Do not add other repository-defined `groupName` rules.
 
 ## OpenCode Assets
 
