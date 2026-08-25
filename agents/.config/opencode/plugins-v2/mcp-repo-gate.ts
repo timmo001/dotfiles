@@ -1,4 +1,5 @@
 import { Plugin } from "@opencode-ai/plugin/effect";
+import { Tool } from "@opencode-ai/schema/tool";
 import { Effect, Result } from "effect";
 import { existsSync, readdirSync, type Dirent } from "node:fs";
 import { dirname, join } from "node:path";
@@ -159,6 +160,13 @@ export const removeGatedTools = (tools: Record<string, RepoTool>) => {
   }
 };
 
+const blockedToolError = (tool: string, directory?: string) =>
+  new Tool.Error({
+    message: directory
+      ? `${tool} is unavailable because ${directory} does not contain the required repository marker.`
+      : `${tool} is unavailable because the current repository could not be resolved.`,
+  });
+
 export default Plugin.define({
   id: "mcp-repo-gate",
   effect: (context) =>
@@ -173,6 +181,23 @@ export default Plugin.define({
             return;
           }
           filterRepoTools(event.tools, session.success.location.directory);
+        }),
+      );
+
+      yield* context.tool.hook("execute.before", (event) =>
+        Effect.gen(function* () {
+          const server = serverForTool(event.tool);
+          if (!server) return;
+          const session = yield* context.session
+            .get({ sessionID: event.sessionID })
+            .pipe(Effect.result);
+          if (Result.isFailure(session)) {
+            return yield* Effect.fail(blockedToolError(event.tool));
+          }
+          const directory = session.success.location.directory;
+          if (!hasMarkerNearby(directory, REPO_REQUIRED_MARKERS[server])) {
+            return yield* Effect.fail(blockedToolError(event.tool, directory));
+          }
         }),
       );
     }),

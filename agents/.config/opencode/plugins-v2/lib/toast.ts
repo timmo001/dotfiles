@@ -1,12 +1,12 @@
 import { Service } from "@opencode-ai/client/effect/service";
 import type { Endpoint } from "@opencode-ai/client/service";
 import { TuiEvent } from "@opencode-ai/schema/tui-event";
-import { Effect, FileSystem } from "effect";
+import { Effect } from "effect";
 import {
-  HttpClient,
   HttpClientRequest,
   HttpClientResponse,
 } from "effect/unstable/http";
+import { discoverService, executeHttp } from "./service";
 
 export interface ToastInput {
   readonly title?: string;
@@ -42,15 +42,10 @@ export const showToast = (
     );
   }).pipe(Effect.ignore);
 
-export const createToast = Effect.gen(function* () {
-  const fileSystem = yield* FileSystem.FileSystem;
-  const httpClient = yield* HttpClient.HttpClient;
-  return (directory: string, input: ToastInput) =>
+export const createToast = Effect.succeed(
+  (directory: string, input: ToastInput) =>
     showToast(directory, input, {
-      discover: () =>
-        Service.discover().pipe(
-          Effect.provideService(FileSystem.FileSystem, fileSystem),
-        ),
-      execute: (request) => httpClient.execute(request),
-    });
-});
+      discover: discoverService,
+      execute: executeHttp,
+    }),
+);

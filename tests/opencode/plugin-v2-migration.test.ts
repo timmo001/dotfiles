@@ -6,13 +6,9 @@ import { resolve } from "node:path";
 import {
   Deferred,
   Effect,
-  FileSystem,
   Fiber,
   Stream,
 } from "../../agents/.config/opencode/plugins-v2/node_modules/effect/dist/index.js";
-import {
-  HttpClient,
-} from "../../agents/.config/opencode/plugins-v2/node_modules/effect/dist/unstable/http/index.js";
 import type {
   Context,
   Plugin as EffectPlugin,
@@ -106,10 +102,7 @@ const runPlugin = (plugin: EffectPlugin, context: Partial<Context>) => {
     Effect.scoped(
       Effect.gen(function* () {
         // SAFETY: Each test supplies every context domain that the plugin exercises during registration.
-        yield* plugin.effect(context as Context).pipe(
-          Effect.provideService(FileSystem.FileSystem, {} as FileSystem.FileSystem),
-          Effect.provideService(HttpClient.HttpClient, {} as HttpClient.HttpClient),
-        );
+        yield* plugin.effect(context as Context);
         yield* Effect.yieldNow;
       }),
     ),
@@ -686,6 +679,9 @@ describe("OpenCode V1/V2 plugin migration", () => {
     const plugin = (await import(resolve(v2, "mcp-repo-gate.ts"))).default;
     let hook: RegisteredCallback | undefined;
     await runPlugin(plugin, {
+      tool: {
+        hook: () => Effect.succeed(registration),
+      },
       session: {
         hook: (name: string, callback: RegisteredCallback) =>
           Effect.sync(() => {
@@ -717,6 +713,44 @@ describe("OpenCode V1/V2 plugin migration", () => {
       }),
     );
     expect(Object.keys(tools)).toEqual(["github_get_me"]);
+  });
+
+  test("mcp-repo-gate blocks code-mode child calls outside matching repositories", async () => {
+    const plugin = (await import(resolve(v2, "mcp-repo-gate.ts"))).default;
+    const harness = createRegistrationHarness();
+    await runPlugin(plugin, harness.context);
+    const hook = harness.callbacks.get("tool:execute.before");
+    if (!hook) throw new Error("mcp-repo-gate did not register its tool hook");
+
+    const failure = await Effect.runPromise(
+      Effect.flip(
+        hook({
+          tool: "pitchfork_status",
+          sessionID: "session-test",
+          agent: "build",
+          id: "call-test",
+          input: {},
+          system: [],
+          tools: {},
+          messages: [],
+        }),
+      ),
+    );
+    expect(failure).toHaveProperty("message");
+    expect(String(failure.message)).toContain("does not contain the required repository marker");
+
+    await Effect.runPromise(
+      hook({
+        tool: "github_get_me",
+        sessionID: "session-test",
+        agent: "build",
+        id: "call-test-2",
+        input: {},
+        system: [],
+        tools: {},
+        messages: [],
+      }),
+    );
   });
 
   test("V2 toast helper routes by directory, authenticates, and swallows failures", async () => {

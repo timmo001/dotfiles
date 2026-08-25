@@ -5,8 +5,8 @@ import { Service } from "@opencode-ai/client/effect/service";
 import type { Endpoint } from "@opencode-ai/client/service";
 import { Plugin } from "@opencode-ai/plugin/effect";
 import type { SessionMessage } from "@opencode-ai/schema/session-message";
-import { Effect, FileSystem, Result, Schema } from "effect";
-import { HttpClient, HttpClientRequest } from "effect/unstable/http";
+import { Effect, Result, Schema } from "effect";
+import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
 import { dirname } from "node:path";
 import {
   MAX_COMMIT_CONTEXT_SESSIONS,
@@ -14,6 +14,7 @@ import {
   sessionTouchedFiles,
   type SessionMessages,
 } from "../lib/commit-context";
+import { discoverService } from "./lib/service";
 
 const TARGET_COMMANDS = new Set([
   "commit",
@@ -167,22 +168,22 @@ export const makeCommitContextPlugin = (
           }
         });
   
-        const fileSystem = yield* FileSystem.FileSystem;
-        const httpClient = yield* HttpClient.HttpClient;
         const dependencies: ClientDependencies = injectedDependencies ?? {
-          discover: () =>
-            Service.discover().pipe(
-              Effect.provideService(FileSystem.FileSystem, fileSystem),
-            ),
+          discover: discoverService,
           connect: (endpoint) => {
-            const authenticated = Service.headers(endpoint)
-              ? HttpClient.mapRequest(
-                  httpClient,
-                  HttpClientRequest.setHeaders(Service.headers(endpoint) ?? {}),
-                )
-              : httpClient;
-            return OpenCode.make({ baseUrl: endpoint.url }).pipe(
-              Effect.provideService(HttpClient.HttpClient, authenticated),
+            return Effect.gen(function* () {
+              const httpClient = yield* HttpClient.HttpClient;
+              const authenticated = Service.headers(endpoint)
+                ? HttpClient.mapRequest(
+                    httpClient,
+                    HttpClientRequest.setHeaders(Service.headers(endpoint) ?? {}),
+                  )
+                : httpClient;
+              return yield* OpenCode.make({ baseUrl: endpoint.url }).pipe(
+                Effect.provideService(HttpClient.HttpClient, authenticated),
+              );
+            }).pipe(
+              Effect.provide(FetchHttpClient.layer),
               Effect.mapError((error) => new Error(String(error))),
             );
           },
