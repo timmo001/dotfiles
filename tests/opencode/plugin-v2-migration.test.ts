@@ -43,14 +43,18 @@ interface GuardEvent {
   readonly input: Record<string, string>;
 }
 
-interface CommandTransformDraft {
-  update(
-    name: string,
-    update: (command: { template: string }) => void,
-  ): void;
+interface RegisteredCommand {
+  readonly name: string;
+  readonly execute: (input: {
+    readonly sessionID: string;
+    readonly prompt: { readonly text: string };
+    readonly delivery: "immediate";
+  }) => Effect.Effect<void, unknown>;
 }
 
-interface SessionContextEvent {}
+interface CommandTransformDraft {
+  add(definition: RegisteredCommand): void;
+}
 
 interface RegisteredTool {
   readonly name: string;
@@ -78,10 +82,6 @@ interface RegistrationEvent {
 
 interface RegistrationDraft {
   add(definition: RegisteredTool): void;
-  update(
-    name: string,
-    update: (command: { template: string }) => void,
-  ): void;
 }
 
 type RegisteredCallback = (
@@ -92,7 +92,8 @@ interface RegistrationHarness {
   readonly context: Partial<Context>;
   readonly callbacks: Map<string, RegisteredCallback>;
   readonly tools: RegisteredTool[];
-  readonly commands: Map<string, { template: string }>;
+  readonly commands: Map<string, RegisteredCommand>;
+  readonly prompts: { readonly text: string }[];
   readonly eventCount: () => number;
 }
 
@@ -112,22 +113,8 @@ const runPlugin = (plugin: EffectPlugin, context: Partial<Context>) => {
 const createRegistrationHarness = (): RegistrationHarness => {
   const callbacks = new Map<string, RegisteredCallback>();
   const tools: RegisteredTool[] = [];
-  const commands = new Map(
-    [
-      "inject-context",
-      "commit",
-      "commit-push",
-      "commit-push-watch",
-      "inject-stack",
-      "note-create",
-      "note-append",
-      "notes-list",
-      "notes-search",
-      "note-reference",
-      "handoff",
-      "handoffs-list",
-    ].map((name) => [name, { template: name }]),
-  );
+  const commands = new Map<string, RegisteredCommand>();
+  const prompts: { readonly text: string }[] = [];
   let events = 0;
   const register = (domain: string) =>
     (name: string, callback: RegisteredCallback) =>
@@ -138,24 +125,25 @@ const createRegistrationHarness = (): RegistrationHarness => {
   const transform = (domain: string) =>
     (apply: (draft: RegistrationDraft) => void) =>
       Effect.sync(() => {
-        apply({
-          add: (definition) => tools.push(definition),
-          update: (name, update) => {
-            const command = commands.get(name);
-            if (command) update(command);
-          },
-        });
+        apply({ add: (definition) => tools.push(definition) });
         callbacks.set(`${domain}:transform`, () => Effect.void);
         return registration;
       });
+  const commandTransform = (apply: (draft: CommandTransformDraft) => void) =>
+    Effect.sync(() => {
+      apply({ add: (definition) => commands.set(definition.name, definition) });
+      callbacks.set("command:transform", () => Effect.void);
+      return registration;
+    });
 
   return {
     callbacks,
     tools,
     commands,
+    prompts,
     eventCount: () => events,
     context: {
-      command: { transform: transform("command") },
+      command: { transform: commandTransform },
       tool: {
         hook: register("tool"),
         transform: transform("tool"),
@@ -166,6 +154,10 @@ const createRegistrationHarness = (): RegistrationHarness => {
           Effect.succeed({
             location: { directory: root },
             title: "Migration test",
+          }),
+        prompt: (input: { readonly text: string }) =>
+          Effect.sync(() => {
+            prompts.push(input);
           }),
       },
       shell: { hook: register("shell") },
@@ -214,8 +206,10 @@ describe("OpenCode V1/V2 plugin migration", () => {
 
   test("Effect modules import with the pinned plugin packages", async () => {
     const packageJson = await readFile(resolve(v2, "package.json"), "utf8");
-    expect(packageJson).toContain('"@opencode-ai/plugin": "0.0.0-beta-17823"');
-    expect(packageJson).toContain('"effect": "4.0.0-rc.110"');
+    expect(packageJson).toContain('"@opencode-ai/client": "0.0.0-beta-18155"');
+    expect(packageJson).toContain('"@opencode-ai/plugin": "0.0.0-beta-18155"');
+    expect(packageJson).toContain('"@opencode-ai/schema": "0.0.0-beta-18155"');
+    expect(packageJson).toContain('"effect": "4.0.0-rc.111"');
 
     for (const name of migrated) {
       const plugin = (await import(resolve(v2, `${name}.ts`))).default;
@@ -357,40 +351,22 @@ describe("OpenCode V1/V2 plugin migration", () => {
 
   test("branch-context registers native command and session hooks", async () => {
     const plugin = (await import(resolve(v2, "branch-context.ts"))).default;
-    const commands = new Map([
-      ["inject-context", { template: "Review this branch" }],
-    ]);
-    let sessionHook:
-      | ((event: SessionContextEvent) => Effect.Effect<void, object>)
-      | undefined;
-    const context = {
-      command: {
-        transform: (transform: (draft: CommandTransformDraft) => void) =>
-          Effect.sync(() => {
-            transform({
-              update: (name: string, update: (command: { template: string }) => void) => {
-                const command = commands.get(name);
-                if (command) update(command);
-              },
-            });
-            return registration;
-          }),
-      },
-      session: {
-        hook: (name: string, callback: typeof sessionHook) =>
-          Effect.sync(() => {
-            expect(name).toBe("context");
-            sessionHook = callback;
-            return registration;
-          }),
-      },
-    };
-
-    await runPlugin(plugin, context);
-    expect(commands.get("inject-context")?.template).toStartWith(
+    const harness = createRegistrationHarness();
+    await runPlugin(plugin, harness.context);
+    const command = harness.commands.get("inject-context");
+    expect(command).toBeDefined();
+    if (!command) throw new Error("inject-context command was not registered");
+    await Effect.runPromise(
+      command.execute({
+        sessionID: "session-1",
+        prompt: { text: "Review this branch" },
+        delivery: "immediate",
+      }),
+    );
+    expect(harness.prompts[0]?.text).toStartWith(
       "<branch-context-command>inject-context</branch-context-command>",
     );
-    expect(sessionHook).toBeDefined();
+    expect(harness.callbacks.has("session:context")).toBeTrue();
   });
 
   test("workflow-manifest registers a native Effect tool", async () => {
@@ -571,7 +547,17 @@ describe("OpenCode V1/V2 plugin migration", () => {
     const harness = createRegistrationHarness();
     await runPlugin(plugin, harness.context);
     for (const command of ["commit", "commit-push", "commit-push-watch"]) {
-      expect(harness.commands.get(command)?.template).toStartWith(
+      const definition = harness.commands.get(command);
+      expect(definition).toBeDefined();
+      if (!definition) throw new Error(`${command} command was not registered`);
+      await Effect.runPromise(
+        definition.execute({
+          sessionID: "session-1",
+          prompt: { text: command },
+          delivery: "immediate",
+        }),
+      );
+      expect(harness.prompts.at(-1)?.text).toStartWith(
         `<commit-context-command>${command}</commit-context-command>`,
       );
     }

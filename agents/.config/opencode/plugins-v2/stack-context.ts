@@ -43,8 +43,17 @@ export default Plugin.define({
       const injectedSessions = new Set<string>();
       yield* context.command.transform((commands) => {
         for (const name of TARGET_COMMANDS) {
-          commands.update(name, (command) => {
-            command.template = `<stack-context-command>${name}</stack-context-command>\n\n${command.template}`;
+          commands.add({
+            name,
+            execute: (input) =>
+              context.session.prompt({
+                sessionID: input.sessionID,
+                text: `<stack-context-command>${name}</stack-context-command>\n\n${input.prompt.text}`,
+                files: input.prompt.files,
+                agents: input.prompt.agents,
+                skills: input.prompt.skills,
+                delivery: input.delivery,
+              }).pipe(Effect.asVoid),
           });
         }
       });

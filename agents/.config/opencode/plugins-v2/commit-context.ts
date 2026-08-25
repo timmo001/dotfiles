@@ -1,6 +1,6 @@
 import { $ } from "bun";
 import { OpenCode, type OpenCodeClient } from "@opencode-ai/client/effect";
-import type { Endpoint5_0Input } from "@opencode-ai/client/effect/api";
+import type { SessionListInput } from "@opencode-ai/client/effect/api";
 import { Service } from "@opencode-ai/client/effect/service";
 import type { Endpoint } from "@opencode-ai/client/service";
 import { Plugin } from "@opencode-ai/plugin/effect";
@@ -162,8 +162,17 @@ export const makeCommitContextPlugin = (
       Effect.gen(function* () {
         yield* context.command.transform((commands) => {
           for (const name of TARGET_COMMANDS) {
-            commands.update(name, (command) => {
-              command.template = `<commit-context-command>${name}</commit-context-command>\n\n${command.template}`;
+            commands.add({
+              name,
+              execute: (input) =>
+                context.session.prompt({
+                  sessionID: input.sessionID,
+                  text: `<commit-context-command>${name}</commit-context-command>\n\n${input.prompt.text}`,
+                  files: input.prompt.files,
+                  agents: input.prompt.agents,
+                  skills: input.prompt.skills,
+                  delivery: input.delivery,
+                }).pipe(Effect.asVoid),
             });
           }
         });
@@ -238,9 +247,9 @@ export const makeCommitContextPlugin = (
                     children: (parentID, cursor) =>
                       client.session.list({
                         // SAFETY: Parent IDs originate from the current session hook or schema-decoded session list.
-                        parentID: parentID as Endpoint5_0Input["parentID"],
+                        parentID: parentID as SessionListInput["parentID"],
                         // SAFETY: Cursors originate from the schema-decoded preceding list page.
-                        cursor: cursor as Endpoint5_0Input["cursor"],
+                        cursor: cursor as SessionListInput["cursor"],
                         limit: MAX_COMMIT_CONTEXT_SESSIONS,
                       }).pipe(Effect.mapError((error) => new Error(String(error)))),
                   },

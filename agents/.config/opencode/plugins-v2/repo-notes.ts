@@ -58,8 +58,17 @@ export default Plugin.define({
     Effect.gen(function* () {
       yield* context.command.transform((commands) => {
         for (const name of NOTE_COMMANDS) {
-          commands.update(name, (command) => {
-            command.template = `<repo-note-command>${name}</repo-note-command>\n\n${command.template}`;
+          commands.add({
+            name,
+            execute: (input) =>
+              context.session.prompt({
+                sessionID: input.sessionID,
+                text: `<repo-note-command>${name}</repo-note-command>\n\n${input.prompt.text}`,
+                files: input.prompt.files,
+                agents: input.prompt.agents,
+                skills: input.prompt.skills,
+                delivery: input.delivery,
+              }).pipe(Effect.asVoid),
           });
         }
       });
