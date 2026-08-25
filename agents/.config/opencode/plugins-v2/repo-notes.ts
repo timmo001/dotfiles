@@ -5,8 +5,9 @@
 import { $ } from "bun";
 import { Plugin } from "@opencode-ai/plugin/effect";
 import { Effect, Result } from "effect";
+import { errorMessage } from "../lib/error-message";
 
-type RunNotes = (command: string, directory: string) => Promise<unknown>;
+type RunNotes = (command: string, directory: string) => Promise<string>;
 
 const NOTE_COMMANDS = [
   "note-create",
@@ -25,16 +26,6 @@ const escapeXml = (value: string): string =>
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
-
-const errorMessage = (error: unknown): string => {
-  if (typeof error === "object" && error !== null) {
-    const record = error as Record<string, unknown>;
-    const stderr = typeof record.stderr === "string" ? record.stderr.trim() : "";
-    if (stderr) return stderr;
-    if (typeof record.message === "string" && record.message) return record.message;
-  }
-  return String(error);
-};
 
 const runNotes: RunNotes = (command, directory) =>
   $`notes context --command ${command}`.cwd(directory).text();

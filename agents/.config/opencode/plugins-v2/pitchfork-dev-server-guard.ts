@@ -1,9 +1,10 @@
 import { Plugin } from "@opencode-ai/plugin/effect";
 import { Tool } from "@opencode-ai/schema/tool";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import { access, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
+import { argRecord, stringArg } from "../lib/guard-paths";
 
 interface PitchforkProject {
   readonly root: string;
@@ -14,6 +15,11 @@ interface PitchforkProject {
 interface RedirectNotice {
   readonly command: string;
   readonly replacement: string;
+}
+
+interface NormalizedCommand {
+  readonly command: string;
+  readonly cwd: string;
 }
 
 type CommandCandidate =
@@ -35,20 +41,12 @@ const PITCHFORK_CONFIG_FILES = [
   ".config/pitchfork.local.toml",
 ];
 
-function recordFromUnknown(value: unknown): Record<string, unknown> {
-  return typeof value === "object" && value !== null ? { ...value } : {};
-}
-
-function stringArg(value: unknown): string {
-  return typeof value === "string" ? value : "";
-}
-
 function expandHome(path: string): string {
   return path === "~" || path.startsWith("~/") ? join(homedir(), path.slice(2)) : path;
 }
 
-function resolveToolWorkdir(value: unknown, fallback: string): string {
-  const raw = expandHome(stringArg(value));
+function resolveToolWorkdir(value: string, fallback: string): string {
+  const raw = expandHome(value);
   if (!raw) return fallback;
   return isAbsolute(raw) ? raw : resolve(fallback, raw);
 }
@@ -67,7 +65,7 @@ function stripLeadingEnv(command: string): string {
   return command.replace(/^(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S+)\s+)*/, "");
 }
 
-function withoutLeadingCd(command: string, cwd: string): { command: string; cwd: string } {
+function withoutLeadingCd(command: string, cwd: string): NormalizedCommand {
   const match = command.match(/^cd\s+((?:"[^"]+"|'[^']+'|[^\s;&|]+))\s*&&\s*(.+)$/);
   if (!match) return { command, cwd };
 
@@ -238,13 +236,13 @@ export default Plugin.define({
         Effect.gen(function* () {
           if (event.tool !== "shell" && event.tool !== "bash") return;
 
-          const args = recordFromUnknown(event.input);
+          const args = argRecord(event.input);
           const command = stringArg(args.command);
           if (!command) return;
 
           const session = yield* context.session.get({ sessionID: event.sessionID }).pipe(Effect.orDie);
           const baseDirectory = session.location.directory;
-          const initialCwd = resolveToolWorkdir(args.workdir, baseDirectory);
+          const initialCwd = resolveToolWorkdir(stringArg(args.workdir), baseDirectory);
           const normalized = withoutLeadingCd(command.trim(), initialCwd);
           const project = yield* findPitchforkProject(normalized.cwd);
           if (!project) return;
@@ -273,14 +271,17 @@ export default Plugin.define({
           const message =
             `pitchfork-dev-server-guard: ${notice.command} was replaced with ${notice.replacement} ` +
             "because this project declares pitchfork dev servers.";
-          const content = Array.isArray(event.result.content)
-            ? [{ type: "text" as const, text: message }, ...event.result.content]
-            : [message, event.result.content].filter(Boolean).join("\n\n");
+          const existingContent = event.result.content;
+          const content = Array.isArray(existingContent)
+            ? [{ type: "text" as const, text: message }, ...existingContent]
+            : Schema.is(Schema.String)(existingContent)
+              ? `${message}\n\n${existingContent}`
+              : message;
           event.result = {
             ...event.result,
             content,
             metadata: {
-              ...recordFromUnknown(event.result.metadata),
+              ...argRecord(event.result.metadata),
               pitchfork_dev_server_guard: notice,
             },
           };

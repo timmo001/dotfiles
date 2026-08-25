@@ -1,7 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { resolve } from "node:path";
-import { Effect } from "../../agents/.config/opencode/plugins-v2/node_modules/effect/dist/index.js";
+import {
+  Deferred,
+  Effect,
+  Fiber,
+  Stream,
+} from "../../agents/.config/opencode/plugins-v2/node_modules/effect/dist/index.js";
+import type {
+  Context,
+  Plugin as EffectPlugin,
+} from "../../agents/.config/opencode/plugins-v2/node_modules/@opencode-ai/plugin/dist/effect/plugin.js";
 
 const root = resolve(import.meta.dir, "../..");
 const v1 = resolve(root, "agents/.config/opencode/plugins");
@@ -23,9 +34,157 @@ const migrated = [
   "workflow-manifest",
 ] as const;
 
+const registration = { dispose: Effect.void };
+
+interface GuardEvent {
+  readonly tool: string;
+  readonly input: Record<string, string>;
+}
+
+interface CommandTransformDraft {
+  update(
+    name: string,
+    update: (command: { template: string }) => void,
+  ): void;
+}
+
+interface SessionContextEvent {}
+
+interface RegisteredTool {
+  readonly name: string;
+  readonly execute: (...args: never[]) => object;
+}
+
+interface ToolTransformDraft {
+  add(definition: RegisteredTool): void;
+}
+
+interface RegistrationEvent {
+  readonly tool: string;
+  readonly sessionID: string;
+  readonly agent: string;
+  readonly id: string;
+  readonly input: Record<string, string>;
+  readonly system: readonly { readonly text: string }[];
+  readonly tools: Readonly<Record<string, { readonly description: string; readonly input: object }>>;
+  readonly messages: readonly object[];
+}
+
+interface RegistrationDraft {
+  add(definition: RegisteredTool): void;
+  update(
+    name: string,
+    update: (command: { template: string }) => void,
+  ): void;
+}
+
+type RegisteredCallback = (
+  event: RegistrationEvent,
+) => Effect.Effect<void, object>;
+
+interface RegistrationHarness {
+  readonly context: Partial<Context>;
+  readonly callbacks: Map<string, RegisteredCallback>;
+  readonly tools: RegisteredTool[];
+  readonly commands: Map<string, { template: string }>;
+  readonly eventCount: () => number;
+}
+
+const runPlugin = (plugin: EffectPlugin, context: Partial<Context>) => {
+  // SAFETY: Each test supplies every context domain that the plugin exercises during registration.
+  return Effect.runPromise(
+    Effect.scoped(
+      Effect.gen(function* () {
+        // SAFETY: Each test supplies every context domain that the plugin exercises during registration.
+        yield* plugin.effect(context as Context);
+        yield* Effect.yieldNow;
+      }),
+    ),
+  );
+};
+
+const createRegistrationHarness = (): RegistrationHarness => {
+  const callbacks = new Map<string, RegisteredCallback>();
+  const tools: RegisteredTool[] = [];
+  const commands = new Map(
+    [
+      "inject-context",
+      "inject-stack",
+      "note-create",
+      "note-append",
+      "notes-list",
+      "notes-search",
+      "note-reference",
+      "handoff",
+      "handoffs-list",
+    ].map((name) => [name, { template: name }]),
+  );
+  let events = 0;
+  const register = (domain: string) =>
+    (name: string, callback: RegisteredCallback) =>
+      Effect.sync(() => {
+        callbacks.set(`${domain}:${name}`, callback);
+        return registration;
+      });
+  const transform = (domain: string) =>
+    (apply: (draft: RegistrationDraft) => void) =>
+      Effect.sync(() => {
+        apply({
+          add: (definition) => tools.push(definition),
+          update: (name, update) => {
+            const command = commands.get(name);
+            if (command) update(command);
+          },
+        });
+        callbacks.set(`${domain}:transform`, () => Effect.void);
+        return registration;
+      });
+
+  return {
+    callbacks,
+    tools,
+    commands,
+    eventCount: () => events,
+    context: {
+      command: { transform: transform("command") },
+      tool: {
+        hook: register("tool"),
+        transform: transform("tool"),
+      },
+      session: {
+        hook: register("session"),
+        get: () =>
+          Effect.succeed({
+            location: { directory: root },
+            title: "Migration test",
+          }),
+      },
+      shell: { hook: register("shell") },
+      event: {
+        subscribe: () =>
+          Stream.fromIterable([{ type: "config.updated", data: {} }]).pipe(
+            Stream.tap(() => Effect.sync(() => (events += 1))),
+          ),
+      },
+      catalog: { model: { list: () => Effect.fail(new Error("unused")) } },
+    },
+  };
+};
+
+const workflowRun = {
+  databaseId: 42,
+  conclusion: "",
+  createdAt: "2026-08-25T00:00:00Z",
+  headSha: "abc123",
+  name: "Lint",
+  status: "queued",
+  url: "https://example.test/run/42",
+  workflowDatabaseId: 7,
+};
+
 describe("OpenCode V1/V2 plugin migration", () => {
   for (const name of migrated) {
-    test(`${name} keeps V1 and Effect implementations`, async () => {
+    test(`${name} keeps independent V1 and Effect implementations`, async () => {
       const [legacy, effect] = await Promise.all([
         readFile(resolve(v1, `${name}.ts`), "utf8"),
         readFile(resolve(v2, `${name}.ts`), "utf8"),
@@ -36,6 +195,11 @@ describe("OpenCode V1/V2 plugin migration", () => {
       expect(effect).toContain('from "@opencode-ai/plugin/effect"');
       expect(effect).toContain(`id: "${name}"`);
       expect(effect).toContain("effect:");
+      expect(effect).not.toMatch(/from\s+["'][^"']*\/plugins\//);
+      expect(effect).not.toMatch(/import\s*\([^)]*\/plugins\//);
+      expect(effect).not.toContain("PluginInput");
+      expect(effect).not.toContain("setup:");
+      expect(effect).not.toContain("server:");
     });
   }
 
@@ -96,7 +260,213 @@ describe("OpenCode V1/V2 plugin migration", () => {
     for (const name of pluginFiles) {
       const source = await readFile(resolve(v2, name), "utf8");
       expect(source).not.toContain("../plugins/");
+      expect(source).not.toContain("../lib/desktop-notification");
+      expect(source).not.toContain("../lib/toast");
     }
+  });
+
+  test("every migrated server plugin completes native registration and a representative path", async () => {
+    const captureEnabled = process.env.DOT_CONTEXT_CAPTURE;
+    process.env.DOT_CONTEXT_CAPTURE = "1";
+    const captureParent = await mkdtemp(join(tmpdir(), "plugin-v2-capture-"));
+    process.env.DOT_CONTEXT_CAPTURE_DIR = captureParent;
+
+    try {
+      for (const name of migrated) {
+        const plugin = (await import(resolve(v2, `${name}.ts`))).default;
+        const harness = createRegistrationHarness();
+        await runPlugin(plugin, harness.context);
+
+        expect(
+          harness.callbacks.size + harness.tools.length + harness.eventCount(),
+          `${name} did not register a native path`,
+        ).toBeGreaterThan(0);
+
+        const representative =
+          harness.callbacks.get("tool:execute.before") ??
+          harness.callbacks.get("shell:create.before") ??
+          harness.callbacks.get("session:context");
+        if (
+          representative &&
+          name !== "branch-context" &&
+          name !== "repo-notes" &&
+          name !== "stack-context"
+        ) {
+          await Effect.runPromise(
+            representative({
+              tool: "read",
+              sessionID: "session-test",
+              agent: "build",
+              id: "call-test",
+              input: { filePath: resolve(root, "README.md") },
+              system: [{ text: "system" }],
+              tools: {},
+              messages: [],
+            }),
+          );
+        }
+
+        if (name === "context-zone-warning" || name === "notification") {
+          expect(harness.eventCount(), `${name} event stream did not execute`).toBe(1);
+        }
+      }
+    } finally {
+      if (captureEnabled === undefined) delete process.env.DOT_CONTEXT_CAPTURE;
+      else process.env.DOT_CONTEXT_CAPTURE = captureEnabled;
+      delete process.env.DOT_CONTEXT_CAPTURE_DIR;
+      await rm(captureParent, { recursive: true, force: true });
+    }
+  });
+
+  test("env-protection registers and executes a native tool hook", async () => {
+    const plugin = (await import(resolve(v2, "env-protection.ts"))).default;
+    let before: ((event: GuardEvent) => Effect.Effect<void, object>) | undefined;
+    const context = {
+      tool: {
+        hook: (name: string, callback: typeof before) =>
+          Effect.sync(() => {
+            expect(name).toBe("execute.before");
+            before = callback;
+            return registration;
+          }),
+      },
+    };
+
+    await runPlugin(plugin, context);
+    const hook = before;
+    if (!hook) throw new Error("env-protection did not register its tool hook");
+    const error = await Effect.runPromise(
+      Effect.flip(
+        hook({
+          tool: "read",
+          input: { filePath: "/repo/.env" },
+        }),
+      ),
+    );
+    expect(error).toHaveProperty("message", "Do not read .env files");
+  });
+
+  test("branch-context registers native command and session hooks", async () => {
+    const plugin = (await import(resolve(v2, "branch-context.ts"))).default;
+    const commands = new Map([
+      ["inject-context", { template: "Review this branch" }],
+    ]);
+    let sessionHook:
+      | ((event: SessionContextEvent) => Effect.Effect<void, object>)
+      | undefined;
+    const context = {
+      command: {
+        transform: (transform: (draft: CommandTransformDraft) => void) =>
+          Effect.sync(() => {
+            transform({
+              update: (name: string, update: (command: { template: string }) => void) => {
+                const command = commands.get(name);
+                if (command) update(command);
+              },
+            });
+            return registration;
+          }),
+      },
+      session: {
+        hook: (name: string, callback: typeof sessionHook) =>
+          Effect.sync(() => {
+            expect(name).toBe("context");
+            sessionHook = callback;
+            return registration;
+          }),
+      },
+    };
+
+    await runPlugin(plugin, context);
+    expect(commands.get("inject-context")?.template).toStartWith(
+      "<branch-context-command>inject-context</branch-context-command>",
+    );
+    expect(sessionHook).toBeDefined();
+  });
+
+  test("workflow-manifest registers a native Effect tool", async () => {
+    const plugin = (await import(resolve(v2, "workflow-manifest.ts"))).default;
+    let tool: RegisteredTool | undefined;
+    const context = {
+      tool: {
+        transform: (transform: (draft: ToolTransformDraft) => void) =>
+          Effect.sync(() => {
+            transform({ add: (definition: typeof tool) => (tool = definition) });
+            return registration;
+          }),
+      },
+    };
+
+    await runPlugin(plugin, context);
+    expect(tool?.name).toBe("workflow_manifest");
+    expect(tool?.execute).toBeFunction();
+  });
+
+  test("workflow registration retry is Effect-native and waits for stable runs", async () => {
+    const { resolveRunsWithRetryEffect } = await import(
+      resolve(v2, "workflow-manifest.ts")
+    );
+    const responses = [[], [workflowRun], [workflowRun]];
+    let attempts = 0;
+    const result = await Effect.runPromise(
+      resolveRunsWithRetryEffect({
+        sha: workflowRun.headSha,
+        maxAttempts: responses.length,
+        retryIntervalMs: 0,
+        listRuns: () => Effect.succeed(responses[attempts++] ?? []),
+      }),
+    );
+
+    expect(result.status).toBe("resolved");
+    expect(result.attempts).toBe(3);
+    expect(result.runs).toEqual([workflowRun]);
+    expect(attempts).toBe(3);
+  });
+
+  test("workflow registration retry preserves Effect failures", async () => {
+    const { resolveRunsWithRetryEffect } = await import(
+      resolve(v2, "workflow-manifest.ts")
+    );
+    const error = new Error("gh unavailable");
+    const failure = await Effect.runPromise(
+      Effect.flip(
+        resolveRunsWithRetryEffect({
+          sha: workflowRun.headSha,
+          retryIntervalMs: 0,
+          listRuns: () => Effect.fail(error),
+        }),
+      ),
+    );
+    expect(failure).toBe(error);
+  });
+
+  test("interrupting workflow registration retry prevents later attempts", async () => {
+    const { resolveRunsWithRetryEffect } = await import(
+      resolve(v2, "workflow-manifest.ts")
+    );
+    let attempts = 0;
+    const completedAttempts = await Effect.runPromise(
+      Effect.gen(function* () {
+        const firstAttempt = yield* Deferred.make<void>();
+        const fiber = yield* resolveRunsWithRetryEffect({
+          sha: workflowRun.headSha,
+          retryIntervalMs: 60_000,
+          listRuns: () =>
+            Effect.gen(function* () {
+              attempts += 1;
+              yield* Deferred.succeed(firstAttempt, undefined);
+              return [];
+            }),
+        }).pipe(Effect.forkChild);
+
+        yield* Deferred.await(firstAttempt);
+        yield* Fiber.interrupt(fiber);
+        yield* Effect.sleep(10);
+        return attempts;
+      }),
+    );
+
+    expect(completedAttempts).toBe(1);
   });
 
   test("v2 MCP transforms lack the location contract required by mcp-repo-gate", async () => {

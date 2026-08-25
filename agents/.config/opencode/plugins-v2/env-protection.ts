@@ -6,7 +6,10 @@ import { argRecord, stringArg, targetsProtectedEnv } from "../lib/guard-paths";
 const ENV_COMMAND_PATTERN =
   /(?:^|[\s;&|()])(?:cat|cd|cp|env|grep|head|less|ls|more|mv|open|rg|rm|source|tail|test|vim|vi|nvim|\.|<|>|\[)\b|[<>]/;
 
-const toolTargetsProtectedEnv = (tool: string, args: Record<string, unknown>) => {
+const toolTargetsProtectedEnv = (
+  tool: string,
+  args: ReturnType<typeof argRecord>,
+) => {
   if (tool === "read") return targetsProtectedEnv(stringArg(args.filePath) || stringArg(args.path));
   if (tool === "grep") return [args.path, args.include].some((value) => targetsProtectedEnv(stringArg(value)));
   if (tool === "glob") return [args.pattern, args.path].some((value) => targetsProtectedEnv(stringArg(value)));

@@ -15,7 +15,7 @@ interface Policy {
 
 const DEFAULT_POLICY: Policy = { warning: 64_000, critical: 128_000 };
 
-const POLICIES: Readonly<Record<string, Policy>> = {
+const POLICIES = {
   "github-copilot/gpt-5.6-sol": { warning: 256_000, critical: 512_000 },
   "github-copilot/claude-opus-4.8": { warning: 100_000, critical: 150_000 },
   "github-copilot/claude-opus-4.8-fast": {
@@ -32,58 +32,57 @@ const POLICIES: Readonly<Record<string, Policy>> = {
   "claude-opus-4.8-fast": { warning: 100_000, critical: 150_000 },
   "claude-opus-5": { warning: 100_000, critical: 150_000 },
   "claude-opus-5-fast": { warning: 100_000, critical: 150_000 },
-};
+} satisfies Readonly<Record<string, Policy>>;
 
-const BAND_RANK: Readonly<Record<Band, number>> = {
+const BAND_RANK = {
   warning: 1,
   critical: 2,
-};
+} satisfies Readonly<Record<Band, number>>;
+
+const policyFor = (providerID: string, modelID: string) =>
+  Object.entries(POLICIES).find(
+    ([key]) => key === `${providerID}/${modelID}`,
+  )?.[1] ??
+  Object.entries(POLICIES).find(([key]) => key === modelID)?.[1] ??
+  DEFAULT_POLICY;
 
 const formatTokens = (tokens: number) =>
   new Intl.NumberFormat("en-GB", { maximumFractionDigits: 0 }).format(tokens);
 
-const createDesktopNotifier = async () => {
-  let canNotify: boolean | undefined;
-  let originWindowAddress = "";
+const createDesktopNotifier = Effect.gen(function* () {
+  const originWindowAddress = yield* Effect.tryPromise(() =>
+    $`hyprctl activewindow -j | jq -r .address`.text(),
+  ).pipe(
+    Effect.map((address) => address.trim()),
+    Effect.catch(() => Effect.succeed("")),
+  );
   const originHerdrTabID = process.env.HERDR_TAB_ID ?? "";
+  let canNotify: boolean | undefined;
 
-  try {
-    const activeWindow = JSON.parse(
-      await $`hyprctl activewindow -j`.text(),
-    ) as { readonly address?: unknown };
-    if (
-      typeof activeWindow.address === "string" &&
-      /^0x[0-9a-f]+$/i.test(activeWindow.address)
-    ) {
-      originWindowAddress = activeWindow.address;
-    }
-  } catch {}
-
-  return async (glyph: string, title: string, body: string) => {
-    if (canNotify === undefined) {
-      try {
-        await $`sh -lc "command -v omarchy >/dev/null 2>&1"`;
-        canNotify = true;
-      } catch {
-        canNotify = false;
+  return (glyph: string, title: string, body: string) =>
+    Effect.gen(function* () {
+      if (canNotify === undefined) {
+        canNotify = yield* Effect.tryPromise(() =>
+          $`sh -lc "command -v omarchy >/dev/null 2>&1"`,
+        ).pipe(
+          Effect.as(true),
+          Effect.catch(() => Effect.succeed(false)),
+        );
       }
-    }
-    if (!canNotify) return;
+      if (!canNotify) return;
 
-    try {
-      const focusCommand = originWindowAddress
+      const focusCommand = /^0x[0-9a-f]+$/i.test(originWindowAddress)
         ? `hyprctl dispatch 'hl.dsp.focus({ window = "address:${originWindowAddress}" })'${
             /^[a-z0-9_:-]+$/i.test(originHerdrTabID)
               ? ` && herdr tab focus ${originHerdrTabID}`
               : ""
           }`
         : "";
-      void $`omarchy notification send -g ${glyph} --app-name OpenCode ${title} ${body} ${focusCommand ? "--exec" : []} ${focusCommand ? focusCommand : []}`.catch(
-        () => {},
-      );
-    } catch {}
-  };
-};
+      yield* Effect.tryPromise(() =>
+        $`omarchy notification send -g ${glyph} --app-name OpenCode ${title} ${body} ${focusCommand ? "--exec" : []} ${focusCommand ? focusCommand : []}`,
+      ).pipe(Effect.ignore, Effect.forkScoped);
+    });
+});
 
 export default Plugin.define({
   id: "context-zone-warning",
@@ -91,9 +90,7 @@ export default Plugin.define({
     Effect.gen(function* () {
       const warnedBand = new Map<string, Band>();
       let contextLimits: Map<string, number> | undefined;
-      const sendDesktopNotification = yield* Effect.promise(() =>
-        createDesktopNotifier(),
-      );
+      const sendDesktopNotification = yield* createDesktopNotifier;
 
       yield* context.event
         .subscribe()
@@ -116,10 +113,7 @@ export default Plugin.define({
                 return;
 
               const { id: modelID, providerID } = sessionResult.success.model;
-              const policy =
-                POLICIES[`${providerID}/${modelID}`] ??
-                POLICIES[modelID] ??
-                DEFAULT_POLICY;
+              const policy = policyFor(providerID, modelID);
               const tokens =
                 event.data.tokens.input + event.data.tokens.cache.read;
               if (tokens <= 0) return;
@@ -167,9 +161,7 @@ export default Plugin.define({
                   ? `${modelID} is using ${formatTokens(tokens)} tokens${usage}. Compact now or start a new session.`
                   : `${modelID} is using ${formatTokens(tokens)} tokens${usage}. Compact soon to keep responses reliable.`;
 
-              yield* Effect.promise(() =>
-                sendDesktopNotification("⚠", title, alertMessage),
-              );
+              yield* sendDesktopNotification("⚠", title, alertMessage);
             }),
           ),
           Effect.orDie,

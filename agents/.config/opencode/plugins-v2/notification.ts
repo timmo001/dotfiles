@@ -4,51 +4,8 @@ import { $ } from "bun";
 
 const SOUND_PATH = "/usr/share/sounds/freedesktop/stereo/message.oga";
 
-const createDesktopNotifier = async () => {
-  let canNotify: boolean | undefined;
-  let originWindowAddress = "";
-  const originHerdrTabID = process.env.HERDR_TAB_ID ?? "";
-
-  try {
-    const activeWindow = JSON.parse(
-      await $`hyprctl activewindow -j`.text(),
-    ) as { readonly address?: unknown };
-    if (
-      typeof activeWindow.address === "string" &&
-      /^0x[0-9a-f]+$/i.test(activeWindow.address)
-    ) {
-      originWindowAddress = activeWindow.address;
-    }
-  } catch {}
-
-  return async (glyph: string, title: string, body: string) => {
-    if (canNotify === undefined) {
-      try {
-        await $`sh -lc "command -v omarchy >/dev/null 2>&1"`;
-        canNotify = true;
-      } catch {
-        canNotify = false;
-      }
-    }
-    if (!canNotify) return;
-
-    try {
-      const focusCommand = originWindowAddress
-        ? `hyprctl dispatch 'hl.dsp.focus({ window = "address:${originWindowAddress}" })'${
-            /^[a-z0-9_:-]+$/i.test(originHerdrTabID)
-              ? ` && herdr tab focus ${originHerdrTabID}`
-              : ""
-          }`
-        : "";
-      void $`omarchy notification send -g ${glyph} --app-name OpenCode ${title} ${body} ${focusCommand ? "--exec" : []} ${focusCommand ? focusCommand : []}`.catch(
-        () => {},
-      );
-    } catch {}
-  };
-};
-
 const sanitizeNotificationText = (value: string, fallback: string) => {
-  const sanitized = [...value]
+  const sanitized = Array.from(value)
     .map((character) => {
       const codePoint = character.codePointAt(0) ?? 0;
       return codePoint < 32 ||
@@ -64,31 +21,64 @@ const sanitizeNotificationText = (value: string, fallback: string) => {
   return sanitized || fallback;
 };
 
+const createDesktopNotifier = Effect.gen(function* () {
+  const originWindowAddress = yield* Effect.tryPromise(() =>
+    $`hyprctl activewindow -j | jq -r .address`.text(),
+  ).pipe(
+    Effect.map((address) => address.trim()),
+    Effect.catch(() => Effect.succeed("")),
+  );
+  const originHerdrTabID = process.env.HERDR_TAB_ID ?? "";
+  let canNotify: boolean | undefined;
+
+  return (glyph: string, title: string, body: string) =>
+    Effect.gen(function* () {
+      if (canNotify === undefined) {
+        canNotify = yield* Effect.tryPromise(() =>
+          $`sh -lc "command -v omarchy >/dev/null 2>&1"`,
+        ).pipe(
+          Effect.as(true),
+          Effect.catch(() => Effect.succeed(false)),
+        );
+      }
+      if (!canNotify) return;
+
+      const focusCommand = /^0x[0-9a-f]+$/i.test(originWindowAddress)
+        ? `hyprctl dispatch 'hl.dsp.focus({ window = "address:${originWindowAddress}" })'${
+            /^[a-z0-9_:-]+$/i.test(originHerdrTabID)
+              ? ` && herdr tab focus ${originHerdrTabID}`
+              : ""
+          }`
+        : "";
+      yield* Effect.tryPromise(() =>
+        $`omarchy notification send -g ${glyph} --app-name OpenCode ${title} ${body} ${focusCommand ? "--exec" : []} ${focusCommand ? focusCommand : []}`,
+      ).pipe(Effect.ignore, Effect.forkScoped);
+    });
+});
+
 export default Plugin.define({
   id: "notification",
   effect: (context) =>
     Effect.gen(function* () {
       const isHerdrSession = process.env.HERDR_ENV === "1";
-      const sendDesktopNotification = yield* Effect.promise(() =>
-        createDesktopNotifier(),
-      );
+      const sendDesktopNotification = yield* createDesktopNotifier;
       let canPlaySound: boolean | undefined;
 
       const playSound = () =>
-        Effect.promise(async () => {
+        Effect.gen(function* () {
           if (canPlaySound === undefined) {
-            try {
-              await $`sh -lc "command -v paplay >/dev/null 2>&1"`;
-              canPlaySound = true;
-            } catch {
-              canPlaySound = false;
-            }
+            canPlaySound = yield* Effect.tryPromise(() =>
+              $`sh -lc "command -v paplay >/dev/null 2>&1"`,
+            ).pipe(
+              Effect.as(true),
+              Effect.catch(() => Effect.succeed(false)),
+            );
           }
           if (!canPlaySound) return;
 
-          try {
-            await $`paplay ${SOUND_PATH}`;
-          } catch {}
+          yield* Effect.tryPromise(() => $`paplay ${SOUND_PATH}`).pipe(
+            Effect.ignore,
+          );
         });
 
       const notify = (glyph: string, title: string, body: string) =>
@@ -104,9 +94,7 @@ export default Plugin.define({
             });
           }
 
-          yield* Effect.promise(() =>
-            sendDesktopNotification(glyph, safeTitle, safeBody),
-          );
+          yield* sendDesktopNotification(glyph, safeTitle, safeBody);
           if (!isHerdrSession) yield* playSound();
         });
 

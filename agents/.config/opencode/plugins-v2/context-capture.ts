@@ -4,11 +4,10 @@ import { appendFileSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const enabled = process.env.DOT_CONTEXT_CAPTURE === "1";
-const parent = process.env.DOT_CONTEXT_CAPTURE_DIR || join(tmpdir(), "opencode");
 let captureDirectory: string | undefined;
 const prepareDirectory = () => {
   if (captureDirectory) return captureDirectory;
+  const parent = process.env.DOT_CONTEXT_CAPTURE_DIR || join(tmpdir(), "opencode");
   mkdirSync(parent, { recursive: true, mode: 0o700 });
   captureDirectory = mkdtempSync(join(parent, "context-baseline-"));
   mkdirSync(join(captureDirectory, "system"), { mode: 0o700 });
@@ -21,7 +20,7 @@ export default Plugin.define({
   id: "context-capture",
   effect: (context) =>
     Effect.gen(function* () {
-      if (!enabled) return;
+      if (process.env.DOT_CONTEXT_CAPTURE !== "1") return;
       yield* context.session.hook("context", (event) =>
         Effect.sync(() => {
           const directory = prepareDirectory();

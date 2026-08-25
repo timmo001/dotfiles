@@ -5,9 +5,9 @@ import {
   isEmptyStackContext,
   parseStackContextJSON,
   renderStackContext,
+  type JsonRecord,
 } from "../lib/stack-context-render.ts";
 
-type JsonRecord = Record<string, unknown>;
 interface StackRenderer {
   isEmptyStackContext(data: JsonRecord): boolean;
   parseStackContextJSON(text: string): JsonRecord | null;
