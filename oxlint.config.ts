@@ -21,6 +21,7 @@ export default defineConfig({
     "!agents/.config/opencode/plugins-v2/**/*.ts",
     "docs/**",
     "node_modules/**",
+    "omarchy/.config/omarchy/plugins/**",
     "tools/oxlint/anti-slop/**",
   ],
   jsPlugins: [
