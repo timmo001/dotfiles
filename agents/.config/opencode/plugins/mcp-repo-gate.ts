@@ -164,3 +164,5 @@ export const McpRepoGate = (async ({ directory }) => {
     },
   }
 }) satisfies Plugin
+
+export default McpRepoGate

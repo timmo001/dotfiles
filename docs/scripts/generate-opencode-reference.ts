@@ -241,23 +241,32 @@ async function generateSkills(): Promise<void> {
 }
 
 async function generatePlugins(): Promise<void> {
-  const dir = path.join(repoRoot, OPENCODE_PREFIX, 'plugins');
-  const files = (await readdir(dir)).filter((f) => f.endsWith('.ts')).sort();
+  const directories = ['plugins', 'tui-plugins'];
+  const files = (
+    await Promise.all(
+      directories.map(async (directory) =>
+        (await readdir(path.join(repoRoot, OPENCODE_PREFIX, directory)))
+          .filter((file) => file.endsWith('.ts'))
+          .map((file) => ({ directory, file })),
+      ),
+    )
+  ).flat();
+  files.sort((a, b) => a.file.localeCompare(b.file));
   const lines = pageHeader(
     'Plugins',
     'OpenCode lifecycle plugins defined in this repo.',
     5,
   );
   lines.push(
-    'Plugins provide context, evidence, or enforcement hooks for OpenCode. They are loaded from `~/.config/opencode/plugins/`.',
+    'Plugins provide context, evidence, or enforcement hooks for OpenCode. Server plugins are loaded from `~/.config/opencode/plugins/`; TUI-only plugins live in `~/.config/opencode/tui-plugins/` so server discovery does not load them.',
     '',
     '| Plugin | Description |',
     '| --- | --- |',
   );
-  for (const file of files) {
+  for (const { directory, file } of files) {
     const name = file.replace(/\.ts$/, '');
-    const desc = await pluginDescription(path.join(dir, file));
-    const link = `${BLOB}/${OPENCODE_PREFIX}/plugins/${file}`;
+    const desc = await pluginDescription(path.join(repoRoot, OPENCODE_PREFIX, directory, file));
+    const link = `${BLOB}/${OPENCODE_PREFIX}/${directory}/${file}`;
     lines.push(`| [\`${name}\`](${link}) | ${escapeCell(desc)} |`);
   }
   lines.push('');

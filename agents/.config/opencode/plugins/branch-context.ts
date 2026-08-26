@@ -117,7 +117,7 @@ const stringArray = (value: unknown): string[] =>
 const recordArray = (value: unknown): JsonRecord[] =>
   Array.isArray(value) ? value.filter(isRecord) : [];
 
-export const parseBranchContextJSON = (text: string): JsonRecord | null => {
+const parseBranchContextJSON = (text: string): JsonRecord | null => {
   try {
     const parsed: unknown = JSON.parse(text);
     return isRecord(parsed) ? parsed : null;
@@ -339,7 +339,7 @@ const renderTruncations = (truncations: JsonRecord[]): string[] =>
     return `${stringField(truncation, "path") || "unknown"}: ${details.join(" ")}`;
   });
 
-export const renderBranchContext = (
+const renderBranchContext = (
   data: JsonRecord,
   includePullRequest: boolean,
 ): string => {

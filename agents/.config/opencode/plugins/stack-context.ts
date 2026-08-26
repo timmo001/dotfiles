@@ -142,7 +142,7 @@ const stringArray = (value: unknown): string[] =>
 const recordArray = (value: unknown): JsonRecord[] =>
   Array.isArray(value) ? value.filter(isRecord) : [];
 
-export const parseStackContextJSON = (text: string): JsonRecord | null => {
+const parseStackContextJSON = (text: string): JsonRecord | null => {
   try {
     const parsed: unknown = JSON.parse(text);
     return isRecord(parsed) ? parsed : null;
@@ -160,7 +160,7 @@ const escapeXml = (value: string): string =>
     .replaceAll("'", "&apos;");
 
 /** Whether the payload detected nothing worth injecting. */
-export const isEmptyStackContext = (data: JsonRecord): boolean =>
+const isEmptyStackContext = (data: JsonRecord): boolean =>
   recordArray(data.languages).length === 0 &&
   recordArray(data.ecosystems).length === 0 &&
   recordArray(data.tooling).length === 0 &&
@@ -250,7 +250,7 @@ const formatErrorContext = (message: string, error: string | null): string => {
   ].join("\n\n");
 };
 
-export const renderStackContext = (data: JsonRecord): string => {
+const renderStackContext = (data: JsonRecord): string => {
   const scanned = numberField(data, "scannedFiles");
   const truncations = recordArray(data.truncations);
   if (data.truncated === true && truncations.length === 0) {

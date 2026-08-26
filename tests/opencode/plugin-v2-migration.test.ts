@@ -16,6 +16,7 @@ import type {
 
 const root = resolve(import.meta.dir, "../..");
 const v1 = resolve(root, "agents/.config/opencode/plugins");
+const v1Tui = resolve(root, "agents/.config/opencode/tui-plugins");
 const v2 = resolve(root, "agents/.config/opencode/plugins-v2");
 
 const migrated = [
@@ -833,11 +834,34 @@ describe("OpenCode V1/V2 plugin migration", () => {
   test("TUI plugins retain separate V1 and V2 implementations", async () => {
     for (const name of ["dot-git-diff", "lazygit"]) {
       const [legacy, current] = await Promise.all([
-        readFile(resolve(v1, `tui-${name}.ts`), "utf8"),
+        readFile(resolve(v1Tui, `${name}.ts`), "utf8"),
         readFile(resolve(v2, "tui", `${name}.ts`), "utf8"),
       ]);
       expect(legacy).toContain("TuiPlugin");
       expect(current).toContain("Plugin.Definition");
     }
+  });
+
+  test("every migrated V1 server plugin has a default export", async () => {
+    for (const name of migrated) {
+      const plugin = await import(resolve(v1, `${name}.ts`));
+      expect(plugin.default).toBeDefined();
+    }
+  });
+
+  test("V1 context plugin render helpers remain private", async () => {
+    const [branchContext, stackContext] = await Promise.all([
+      import(resolve(v1, "branch-context.ts")),
+      import(resolve(v1, "stack-context.ts")),
+    ]);
+
+    expect(Object.keys(branchContext).sort()).toEqual([
+      "BranchContextPlugin",
+      "default",
+    ]);
+    expect(Object.keys(stackContext).sort()).toEqual([
+      "StackContextPlugin",
+      "default",
+    ]);
   });
 });

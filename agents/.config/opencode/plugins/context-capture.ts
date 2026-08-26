@@ -86,3 +86,5 @@ export const ContextCapture = (async () => {
     },
   }
 }) satisfies Plugin
+
+export default ContextCapture
