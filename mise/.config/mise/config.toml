@@ -58,7 +58,7 @@ version = "0.84.3"
 minimum_release_age = "2h"
 
 [tools."github:backnotprop/plannotator"]
-version = "0.27.7"
+version = "0.27.8"
 minimum_release_age = "2h"
 
 [tools."github:nicosuave/memex"]
