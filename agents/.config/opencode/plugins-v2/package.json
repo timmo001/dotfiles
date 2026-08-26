@@ -6,9 +6,9 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@opencode-ai/client": "0.0.0-beta-18230",
-    "@opencode-ai/plugin": "0.0.0-beta-18230",
-    "@opencode-ai/schema": "0.0.0-beta-18230",
+    "@opencode-ai/client": "0.0.0-beta-18269",
+    "@opencode-ai/plugin": "0.0.0-beta-18269",
+    "@opencode-ai/schema": "0.0.0-beta-18269",
     "@types/bun": "^1.3.14",
     "effect": "4.0.0-rc.111",
     "typescript": "^7.0.2"
