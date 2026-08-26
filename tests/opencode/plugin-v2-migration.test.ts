@@ -373,6 +373,54 @@ describe("OpenCode V1/V2 plugin migration", () => {
     expect(harness.callbacks.has("session:context")).toBeTrue();
   });
 
+  test("inject-context command uses the visible hook trigger without leaking markers", async () => {
+    const command = await readFile(
+      resolve(root, "agents/.config/opencode/commands/inject-context.md"),
+      "utf8",
+    );
+    expect(command).toContain(
+      "Branch context and codebase stack context have been injected above.",
+    );
+    expect(command).not.toContain("<branch-context-command>");
+    expect(command).not.toContain("<stack-context-command>");
+  });
+
+  test("inject-context prose triggers both context hooks", async () => {
+    const message = {
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text: "Branch context and codebase stack context have been injected above.",
+        },
+      ],
+    };
+    for (const [name, tag] of [
+      ["branch-context", "<branch-context>"],
+      ["stack-context", "<stack-context>"],
+    ] as const) {
+      const plugin = (await import(resolve(v2, `${name}.ts`))).default;
+      const harness = createRegistrationHarness();
+      await runPlugin(plugin, harness.context);
+      const hook = harness.callbacks.get("session:context");
+      if (!hook) throw new Error(`${name} did not register a session hook`);
+      const system: { text: string }[] = [];
+      await Effect.runPromise(
+        hook({
+          tool: "",
+          sessionID: "session-1",
+          agent: "build",
+          id: "message-1",
+          input: {},
+          system,
+          tools: {},
+          messages: [message],
+        }),
+      );
+      expect(system.some((part) => part.text.includes(tag))).toBeTrue();
+    }
+  });
+
   test("workflow-manifest registers a native Effect tool", async () => {
     const plugin = (await import(resolve(v2, "workflow-manifest.ts"))).default;
     let tool: RegisteredTool | undefined;

@@ -22,6 +22,8 @@ const defaultRenderer: StackRenderer = {
 
 const TARGET_COMMANDS = new Set(["inject-stack", "inject-context"]);
 const MARKER = /<stack-context-command>([^<]+)<\/stack-context-command>/;
+const INJECT_CONTEXT_PROMPT =
+  "Branch context and codebase stack context have been injected above.";
 const parseWarning =
   "<stack-context><warnings>StackContextPlugin could not parse the `context stack --json` output.</warnings></stack-context>";
 
@@ -59,12 +61,16 @@ export default Plugin.define({
       });
       yield* context.session.hook("context", (event) =>
         Effect.gen(function* () {
-          const command = event.messages
+          const messageText = event.messages
             .findLast((message) => message.role === "user")
             ?.content.filter((part) => part.type === "text")
             .map((part) => part.text)
-            .join("\n")
-            .match(MARKER)?.[1];
+            .join("\n");
+          const command =
+            messageText?.match(MARKER)?.[1] ??
+            (messageText?.includes(INJECT_CONTEXT_PROMPT)
+              ? "inject-context"
+              : undefined);
           if (injectedSessions.has(event.sessionID) && !command) return;
           const session = yield* context.session
             .get({ sessionID: event.sessionID })
