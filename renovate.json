@@ -107,7 +107,8 @@
         "@effect/tsgo",
         "@opentui/core",
         "aqua:herdrdev/herdr",
-        "effect"
+        "effect",
+        "github:backnotprop/plannotator"
       ],
       "minimumReleaseAge": "2 hours"
     },
