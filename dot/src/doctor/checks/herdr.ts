@@ -10,6 +10,7 @@ const REQUIRED_LOCAL_PLUGINS = [
   "dotfiles.yazi",
   "dotfiles.repository-picker",
   "dotfiles.mise-task-runner",
+  "dotfiles.plannotator",
 ] as const;
 const HerdrPluginList = Schema.Struct({
   result: Schema.Struct({

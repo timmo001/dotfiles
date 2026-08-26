@@ -1,0 +1,18 @@
+id = "dotfiles.plannotator"
+name = "Plannotator"
+version = "0.1.0"
+min_herdr_version = "0.7.5"
+description = "Open Plannotator reviews from the focused agent"
+platforms = ["linux"]
+
+[[actions]]
+id = "review"
+title = "Review changes with Plannotator"
+contexts = ["pane"]
+command = ["bun", "run", "runner.ts", "review"]
+
+[[actions]]
+id = "last"
+title = "Annotate the last response with Plannotator"
+contexts = ["pane"]
+command = ["bun", "run", "runner.ts", "last"]

@@ -78,8 +78,14 @@ description = "open memex session palette"
 [[keys.command]]
 key = "prefix+shift+v"
 type = "plugin_action"
-command = "persiyanov.reviewr.toggle"
-description = "toggle reviewr"
+command = "dotfiles.plannotator.review"
+description = "review changes with Plannotator"
+
+[[keys.command]]
+key = "prefix+shift+a"
+type = "plugin_action"
+command = "dotfiles.plannotator.last"
+description = "annotate the last response with Plannotator"
 
 [[keys.command]]
 key = "prefix+y"

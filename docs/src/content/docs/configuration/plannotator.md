@@ -16,6 +16,7 @@ This setup adds:
 - The `plannotator` CLI through mise's GitHub backend.
 - The `@plannotator/opencode` plugin in the private OpenCode configuration.
 - `/plannotator-review`, `/plannotator-annotate`, and `/plannotator-last` command registrations.
+- Herdr shortcuts for reviewing changes and annotating the last agent response.
 - A public stow package for portable settings.
 - A dedicated Chromium window for every browser review surface.
 
@@ -28,6 +29,12 @@ The command files contain frontmatter only because the plugin handles their name
 For usage, see the upstream [OpenCode integration guide](https://plannotator.ai/docs/guides/opencode/) and its linked command guides.
 
 Code review feedback authorises the agent to apply the requested corrections immediately. The correction run stays within the human feedback, performs relevant validation, and asks before proceeding when a request is unclear, conflicts with the codebase, or cannot be applied safely.
+
+## Herdr shortcuts
+
+From an agent pane, press `ALT+X`, then `SHIFT+V` to review the current changes or `ALT+X`, then `SHIFT+A` to annotate the agent's last response. The Herdr plugin runs Plannotator directly in the pane's working directory, waits for the decision, then sends any feedback to the pane's agent. Last-response annotation resolves the matching OpenCode session by directory and pane title, and stops rather than guessing when more than one session matches.
+
+These shortcuts keep Plannotator's normal browser presenter. The review opens in the dedicated Chromium window described below, not in a Herdr Browser pane.
 
 ## Browser workspace
 
