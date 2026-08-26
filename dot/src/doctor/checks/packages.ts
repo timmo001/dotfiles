@@ -6,6 +6,7 @@ import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { displayPath, expandHomePath } from "../../lib/paths.js";
 import { ENV, envString } from "../../lib/env.js";
 import {
+  installedPackageCandidates,
   isPackageInstalled,
   loadPackageList,
   loadPackageLists,
@@ -21,6 +22,7 @@ import {
 
 const DEFAULT_PRIVATE_PACMAN_REPO_CONFIG = "/etc/pacman.d/timmo-private.conf";
 const DEFAULT_PRIVATE_PACMAN_MAIN_CONFIG = "/etc/pacman.conf";
+const PUBLIC_PACKAGE_REPOSITORY = "timmo";
 
 /** Private Arch package repository settings loaded from private dotfiles. */
 export interface PrivatePackageRepoConfig {
@@ -302,6 +304,75 @@ export function isInstalledVersionOlder(vercmpOutput: string): boolean {
   return Number.parseInt(vercmpOutput.trim(), 10) < 0;
 }
 
+function packageVersionFromInfo(info: string): string | null {
+  return info.match(/^Version\s*:\s*(\S+)/m)?.[1] ?? null;
+}
+
+function installedPackageVersion(packageName: string) {
+  return Effect.gen(function* () {
+    const executor = yield* CommandExecutor;
+    for (const candidate of installedPackageCandidates(packageName)) {
+      const info = yield* executor
+        .run("pacman", ["-Q", candidate])
+        .pipe(Effect.orElseSucceed(() => ""));
+      const version = info.trim().split(/\s+/)[1];
+      if (version) return version;
+    }
+    return null;
+  });
+}
+
+function repositoryPackageVersion(packageName: string, repository: string) {
+  return Effect.gen(function* () {
+    const executor = yield* CommandExecutor;
+    const info = yield* executor
+      .run("pacman", ["-Si", `${repository}/${packageName}`])
+      .pipe(Effect.orElseSucceed(() => ""));
+    return packageVersionFromInfo(info);
+  });
+}
+
+function aurPackageVersion(packageName: string) {
+  return Effect.gen(function* () {
+    const executor = yield* CommandExecutor;
+    const info = yield* executor
+      .run("yay", ["-Si", "--aur", packageName])
+      .pipe(Effect.orElseSucceed(() => ""));
+    return packageVersionFromInfo(info);
+  });
+}
+
+/** Return an outdated-package warning using a preferred repository before optional AUR fallback. */
+export function packageUpdateResult(
+  packageName: string,
+  repository: string,
+  aurFallback: boolean,
+) {
+  return Effect.gen(function* () {
+    const executor = yield* CommandExecutor;
+    const installedVersion = yield* installedPackageVersion(packageName);
+    const repositoryVersion = yield* repositoryPackageVersion(
+      packageName,
+      repository,
+    );
+    const source = repositoryVersion ? repository : aurFallback ? "AUR" : null;
+    const latestVersion =
+      repositoryVersion ??
+      (aurFallback ? yield* aurPackageVersion(packageName) : null);
+    if (!installedVersion || !latestVersion || !source) return null;
+
+    const comparison = yield* executor
+      .run("vercmp", [installedVersion, latestVersion])
+      .pipe(Effect.orElseSucceed(() => "0"));
+    return isInstalledVersionOlder(comparison)
+      ? {
+          severity: "warn" as const,
+          message: `${packageName} is older than ${source} (${installedVersion} installed, ${latestVersion} available)`,
+        }
+      : null;
+  });
+}
+
 /** Whether GnuPG reports the expected key as valid and locally signed. */
 export function publicPackageKeyTrusted(
   gpgOutput: string,
@@ -342,6 +413,7 @@ export const checkPublicPackages = Effect.gen(function* () {
     return results;
   }
 
+  const hasYay = (yield* executor.exitCode("which", ["yay"])) === 0;
   for (const pkg of packages) {
     const display = packageDisplayName(pkg);
 
@@ -353,35 +425,14 @@ export const checkPublicPackages = Effect.gen(function* () {
 
     results.push({ severity: "ok", message: `${display} is installed` });
 
-    // Version comparison (best effort)
-    const installedVersion = yield* executor
-      .run("bash", ["-c", `pacman -Q ${pkg} 2>/dev/null | awk '{ print $2 }'`])
-      .pipe(Effect.catch(() => Effect.succeed("")));
-
-    const hasYay = (yield* executor.exitCode("which", ["yay"])) === 0;
-    if (hasYay) {
-      const latestVersion = yield* executor
-        .run("bash", [
-          "-c",
-          `yay -Si ${pkg} 2>/dev/null | grep '^Version' | awk '{ print $3 }'`,
-        ])
-        .pipe(Effect.catch(() => Effect.succeed("")));
-
-      const iv = installedVersion.trim();
-      const lv = latestVersion.trim();
-      const comparison =
-        iv && lv
-          ? yield* executor
-              .run("vercmp", [iv, lv])
-              .pipe(Effect.catch(() => Effect.succeed("0")))
-          : "0";
-      if (isInstalledVersionOlder(comparison)) {
-        results.push({
-          severity: "warn",
-          message: `${pkg} is older than latest AUR (${iv} installed, ${lv} latest)`,
-        });
-        updatePackages.push(pkg);
-      }
+    const updateResult = yield* packageUpdateResult(
+      pkg,
+      PUBLIC_PACKAGE_REPOSITORY,
+      hasYay,
+    );
+    if (updateResult) {
+      results.push(updateResult);
+      updatePackages.push(pkg);
     }
   }
 
@@ -490,19 +541,29 @@ export const checkPrivatePackages = Effect.gen(function* () {
   }
 
   const missingPackages: string[] = [];
+  const updatePackages: string[] = [];
+  const repository = loadPrivatePackageRepoConfig(config)?.name;
   for (const pkg of packages) {
     if (yield* isPackageInstalled(pkg)) {
       results.push({ severity: "ok", message: `${pkg} is installed` });
+      if (repository) {
+        const updateResult = yield* packageUpdateResult(pkg, repository, false);
+        if (updateResult) {
+          results.push(updateResult);
+          updatePackages.push(pkg);
+        }
+      }
     } else {
       results.push({ severity: "warn", message: `${pkg} is missing` });
       missingPackages.push(pkg);
     }
   }
 
-  if (missingPackages.length > 0) {
+  if (missingPackages.length > 0 || updatePackages.length > 0) {
+    const combined = [...missingPackages, ...updatePackages];
     results.push({
       severity: "warn",
-      message: `Install with: omarchy-pkg-aur-add ${missingPackages.join(" ")}`,
+      message: `Install/update with: omarchy-pkg-aur-add ${combined.join(" ")}`,
     });
   }
 

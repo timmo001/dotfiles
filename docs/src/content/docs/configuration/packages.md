@@ -21,13 +21,13 @@ The repository overlays maintained package names. `omarchy-pkg-aur-add` uses the
 
 ## Public packages
 
-`dot init` installs the Arch and AUR packages listed in `.dot-public-packages` at the repo root. The file is one package name per line; blank lines and `#` comments are ignored. Ongoing package health is reported by `dot doctor`; `dot update` does not check or install packages. Its pull phase does resync the configured private repository mirror and refresh pacman metadata when that repository is updated.
+`dot init` installs the Arch and AUR packages listed in `.dot-public-packages` at the repo root. The file is one package name per line; blank lines and `#` comments are ignored. Ongoing package health is reported by `dot doctor`; maintained packages are compared with the explicitly qualified `timmo` repository before AUR is considered. `dot update` does not check or install packages. Its pull phase does resync the configured private repository mirror and refresh pacman metadata when that repository is updated.
 
 The list covers shared tooling rather than desktop apps you might install separately, including build helpers, diagnostics, shell and terminal tools, and desktop integrations. Override the path with `DOT_PUBLIC_PACKAGES_FILE`.
 
 Missing public packages are installed with `omarchy-pkg-aur-add`; already-installed packages are left in place. The package list follows Omarchy by requesting `mise-bin`, which provides the `mise` command. If Arch's `mise` package is still installed, init swaps it for `mise-bin` in one pacman transaction so dependent Omarchy packages remain satisfied. `dot doctor` checks the public repository trust and configuration plus the public and private package lists after setup.
 
-Private packages from `.dot-private-packages` in the private overlay are installed after the public list during init when the overlay is available. A host-specific `.dot-private-packages--<host>` list is additive, so hardware-specific packages can be limited to hosts such as `desktop`.
+Private packages from `.dot-private-packages` in the private overlay are installed after the public list during init when the overlay is available. `dot doctor` compares packages published by the configured private repository with that repository's version rather than AUR. A host-specific `.dot-private-packages--<host>` list is additive, so hardware-specific packages can be limited to hosts such as `desktop`.
 
 ## Register the private repo
 

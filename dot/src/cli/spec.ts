@@ -312,7 +312,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
           "Browser flags        Symlinks from private stow package",
           "Hardware video       VAAPI render nodes, drivers, packages",
           "Browser extensions   Private extension check list",
-          "Public packages      AUR packages installed + version check",
+          "Public packages      timmo/AUR packages installed + version check",
           "Private package repo Private pacman repo registered",
           "Private packages     Private repo + packages installed",
           "Pacman hooks         Hook files installed and up to date",
