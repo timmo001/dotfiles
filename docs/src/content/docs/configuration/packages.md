@@ -21,7 +21,7 @@ The repository overlays maintained package names. `omarchy-pkg-aur-add` uses the
 
 ## Public packages
 
-`dot init` installs the Arch and AUR packages listed in `.dot-public-packages` at the repo root. The file is one package name per line; blank lines and `#` comments are ignored. Ongoing package health is reported by `dot doctor`; maintained packages are compared with the explicitly qualified `timmo` repository before AUR is considered. `dot update` does not check or install packages. Its pull phase does resync the configured private repository mirror and refresh pacman metadata when that repository is updated.
+`dot init` installs the Arch and AUR packages listed in `.dot-public-packages` at the repo root. The file is one package name per line; blank lines and `#` comments are ignored. Ongoing package health is reported by `dot doctor`; maintained packages are compared with the explicitly qualified `timmo` repository first, then another configured pacman repository such as `omarchy`, before AUR is considered. `dot update` does not check or install packages. Its pull phase does resync the configured private repository mirror and refresh pacman metadata when that repository is updated.
 
 The list covers shared tooling rather than desktop apps you might install separately, including build helpers, diagnostics, shell and terminal tools, and desktop integrations. Override the path with `DOT_PUBLIC_PACKAGES_FILE`.
 

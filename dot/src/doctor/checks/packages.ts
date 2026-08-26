@@ -308,6 +308,10 @@ function packageVersionFromInfo(info: string): string | null {
   return info.match(/^Version\s*:\s*(\S+)/m)?.[1] ?? null;
 }
 
+function packageRepositoryFromInfo(info: string): string | null {
+  return info.match(/^Repository\s*:\s*(\S+)/m)?.[1] ?? null;
+}
+
 function installedPackageVersion(packageName: string) {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
@@ -332,6 +336,18 @@ function repositoryPackageVersion(packageName: string, repository: string) {
   });
 }
 
+function syncPackageVersion(packageName: string) {
+  return Effect.gen(function* () {
+    const executor = yield* CommandExecutor;
+    const info = yield* executor
+      .run("pacman", ["-Si", packageName])
+      .pipe(Effect.orElseSucceed(() => ""));
+    const repository = packageRepositoryFromInfo(info);
+    const version = packageVersionFromInfo(info);
+    return repository && version ? { repository, version } : null;
+  });
+}
+
 function aurPackageVersion(packageName: string) {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
@@ -342,11 +358,11 @@ function aurPackageVersion(packageName: string) {
   });
 }
 
-/** Return an outdated-package warning using a preferred repository before optional AUR fallback. */
+/** Return an outdated-package warning using pacman repositories before optional AUR fallback. */
 export function packageUpdateResult(
   packageName: string,
   repository: string,
-  aurFallback: boolean,
+  sourceFallback: boolean,
 ) {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
@@ -355,10 +371,17 @@ export function packageUpdateResult(
       packageName,
       repository,
     );
-    const source = repositoryVersion ? repository : aurFallback ? "AUR" : null;
+    const syncPackage =
+      !repositoryVersion && sourceFallback
+        ? yield* syncPackageVersion(packageName)
+        : null;
+    const source = repositoryVersion
+      ? repository
+      : (syncPackage?.repository ?? (sourceFallback ? "AUR" : null));
     const latestVersion =
       repositoryVersion ??
-      (aurFallback ? yield* aurPackageVersion(packageName) : null);
+      syncPackage?.version ??
+      (sourceFallback ? yield* aurPackageVersion(packageName) : null);
     if (!installedVersion || !latestVersion || !source) return null;
 
     const comparison = yield* executor

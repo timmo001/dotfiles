@@ -72,7 +72,39 @@ describe("packageUpdateResult", () => {
       "topgrade-bin is older than AUR (1.0.0-1 installed, 1.1.0-1 available)",
     );
     expect(commands).toContain("pacman -Si timmo/topgrade-bin");
+    expect(commands).toContain("pacman -Si topgrade-bin");
     expect(commands).toContain("yay -Si --aur topgrade-bin");
+  });
+
+  test("uses another configured pacman repository before AUR", async () => {
+    const commands: string[] = [];
+    const executor = Layer.succeed(CommandExecutor, {
+      run: (command, args) =>
+        Effect.sync(() => {
+          commands.push([command, ...args].join(" "));
+          if (args[0] === "-Q") return "mise-bin 1.0.0-1\n";
+          if (args[1] === "timmo/mise-bin") return "";
+          if (args[1] === "mise-bin") {
+            return "Repository : omarchy\nVersion : 1.1.0-1\n";
+          }
+          if (command === "vercmp") return "-1\n";
+          return "";
+        }),
+      stream: () => Stream.die("stream should not be called"),
+      exitCode: () => Effect.die("exitCode should not be called"),
+      inherit: () => Effect.die("inherit should not be called"),
+    });
+
+    const result = await Effect.runPromise(
+      packageUpdateResult("mise-bin", "timmo", true).pipe(
+        Effect.provide(executor),
+      ),
+    );
+
+    expect(result?.message).toBe(
+      "mise-bin is older than omarchy (1.0.0-1 installed, 1.1.0-1 available)",
+    );
+    expect(commands).not.toContain("yay -Si --aur mise-bin");
   });
 });
 
