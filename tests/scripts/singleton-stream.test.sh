@@ -41,7 +41,7 @@ chmod +x "$source_command"
   -- "$source_command" "$source_fds" >"$output" &
 wrapper_pid=$!
 
-for _ in {1..40}; do
+for _ in {1..100}; do
   if [[ -f "$output" ]] && (($(wc -l <"$output") >= 3)); then
     break
   fi
