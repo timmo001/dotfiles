@@ -863,28 +863,41 @@ if [ -f ~/.zshrc-private ]; then
 fi
 
 # ------------------------------
-# GitHub MCP bearer (OpenCode + Cursor)
+# MCP bearer credentials (agent harnesses)
 # ------------------------------
-# Scope the token to agent harnesses instead of exposing it to every shell child.
+# Scope tokens to agent harnesses instead of exposing them to every shell child.
 # Resolve the real binary with whence -p; do not pass shell builtin `command` to
 # env (env looks for an external executable named "command").
-_dot_with_github_mcp_bearer() {
-  local token bin
+_dot_with_mcp_bearers() {
+  local github_token system_bridge_token bin
   bin="$(whence -p "$1")" || return $?
   shift
-  token="$(gh auth token 2>/dev/null)" || return $?
-  env DOT_GH_MCP_BEARER="$token" "$bin" "$@"
+  github_token="$(gh auth token 2>/dev/null)" || return $?
+  system_bridge_token="$(system-bridge client token 2>/dev/null)" || return $?
+  env \
+    DOT_GH_MCP_BEARER="$github_token" \
+    SYSTEM_BRIDGE_MCP_BEARER="$system_bridge_token" \
+    "$bin" "$@"
 }
 
 opencode() {
-  _dot_with_github_mcp_bearer opencode "$@"
+  _dot_with_mcp_bearers opencode "$@"
 }
 
 alias c="opencode"
 alias c2-cancel="opencode2-cancel"
 
 cursor() {
-  _dot_with_github_mcp_bearer cursor "$@"
+  _dot_with_mcp_bearers cursor "$@"
+}
+
+code() {
+  _dot_with_mcp_bearers code "$@"
+}
+
+unalias copilot 2>/dev/null
+copilot() {
+  _dot_with_mcp_bearers copilot "$@"
 }
 
 # ------------------------------

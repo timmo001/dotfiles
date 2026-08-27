@@ -41,6 +41,7 @@ The configuration also provides the Android SDK command-line tools and sets the 
 | `DOT_FETCH_TTL_SECONDS`                  | Seconds to reuse the last upstream fetch (default `300`).                                                                                                                 |
 | `DOT_GH_EXTENSIONS_FILE`                 | Public `gh` extension list installed by `dot init` (default `$DOTFILES_PUBLIC_DIR/.dot-gh-extensions`).                                                                   |
 | `DOT_GH_MCP_BEARER`                      | Bearer token for the read-only GitHub MCP server. The shell wrappers and `opencode-server` set it only for agent harness processes; it is not exported globally.        |
+| `SYSTEM_BRIDGE_MCP_BEARER`               | System Bridge API token for its Streamable HTTP MCP endpoint. Agent harness wrappers load it with `system-bridge client token`; it is not exported globally.             |
 
 ## Packages
 
