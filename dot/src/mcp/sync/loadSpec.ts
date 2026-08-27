@@ -14,6 +14,7 @@ import {
   formatCause,
   isBoolean,
   isJsonObject,
+  isNumber,
   isString,
   type JsonObject,
   type JsonValue,
@@ -21,6 +22,7 @@ import {
 import {
   MCP_HARNESSES,
   type McpHarness,
+  type McpOAuthSpec,
   type McpServerOverride,
   type McpServerSpec,
   type McpSyncSpec,
@@ -40,6 +42,13 @@ const SERVER_KEYS = new Set([
   "overrides",
 ]);
 const OVERRIDE_KEYS = new Set(["command", "url"]);
+const OAUTH_KEYS = new Set([
+  "client_id",
+  "client_secret",
+  "scope",
+  "callback_port",
+  "redirect_uri",
+]);
 const HARNESS_IDS = new Set<string>(MCP_HARNESSES);
 const isMcpHarness = Schema.is(
   Schema.Union(MCP_HARNESSES.map((harness) => Schema.Literal(harness))),
@@ -52,10 +61,18 @@ interface MutableMcpServerSpec {
   url?: string;
   headers?: Readonly<Record<string, string>>;
   env?: Readonly<Record<string, string>>;
-  oauth?: boolean;
+  oauth?: boolean | McpOAuthSpec;
   gated: boolean;
   enabled: Readonly<Partial<Record<McpHarness, boolean>>>;
   overrides?: Readonly<Partial<Record<McpHarness, McpServerOverride>>>;
+}
+
+interface MutableMcpOAuthSpec {
+  client_id?: string;
+  client_secret?: string;
+  scope?: string;
+  callback_port?: number;
+  redirect_uri?: string;
 }
 
 interface MutableMcpServerOverride {
@@ -181,7 +198,7 @@ function parseServer(
     diagnostics,
   );
   const env = parseStringMap(value.env, `${location}.env`, diagnostics);
-  const oauth = optionalBoolean(value.oauth, `${location}.oauth`, diagnostics);
+  const oauth = parseOAuth(value.oauth, `${location}.oauth`, diagnostics);
   const gated = requiredBoolean(value.gated, `${location}.gated`, diagnostics);
   const enabled = parseEnabled(
     value.enabled,
@@ -254,6 +271,67 @@ function parseStringMap(
     result[key] = entry;
   }
   return Object.keys(result).length === 0 ? null : result;
+}
+
+function parseOAuth(
+  value: JsonValue,
+  location: string,
+  diagnostics: string[],
+): boolean | McpOAuthSpec | null {
+  if (value === undefined) return null;
+  if (isBoolean(value)) return value;
+  if (!isRecord(value)) {
+    diagnostics.push(`${location} must be true, false, or an object`);
+    return null;
+  }
+
+  pushUnknownKeyDiagnostics(diagnostics, value, OAUTH_KEYS, location);
+  const clientId = optionalString(
+    value.client_id,
+    `${location}.client_id`,
+    diagnostics,
+  );
+  const clientSecret = optionalString(
+    value.client_secret,
+    `${location}.client_secret`,
+    diagnostics,
+  );
+  const scope = optionalString(value.scope, `${location}.scope`, diagnostics);
+  const redirectUri = optionalString(
+    value.redirect_uri,
+    `${location}.redirect_uri`,
+    diagnostics,
+  );
+  const callbackPort = parseCallbackPort(
+    value.callback_port,
+    `${location}.callback_port`,
+    diagnostics,
+  );
+  const oauth: MutableMcpOAuthSpec = {};
+  if (clientId) oauth.client_id = clientId;
+  if (clientSecret) oauth.client_secret = clientSecret;
+  if (scope) oauth.scope = scope;
+  if (callbackPort !== null) oauth.callback_port = callbackPort;
+  if (redirectUri) oauth.redirect_uri = redirectUri;
+  return oauth;
+}
+
+function parseCallbackPort(
+  value: JsonValue,
+  location: string,
+  diagnostics: string[],
+): number | null {
+  if (value === undefined) return null;
+  if (
+    !isNumber(value) ||
+    !Number.isInteger(value) ||
+    value < 1 ||
+    value > 65_535
+  ) {
+    diagnostics.push(`${location} must be an integer from 1 to 65535`);
+    return null;
+  }
+  return value;
 }
 
 function parseEnabled(
@@ -354,19 +432,6 @@ function requiredBoolean(
   location: string,
   diagnostics: string[],
 ): boolean | null {
-  if (!isBoolean(value)) {
-    diagnostics.push(`${location} must be true or false`);
-    return null;
-  }
-  return value;
-}
-
-function optionalBoolean(
-  value: JsonValue,
-  location: string,
-  diagnostics: string[],
-): boolean | null {
-  if (value === undefined) return null;
   if (!isBoolean(value)) {
     diagnostics.push(`${location} must be true or false`);
     return null;

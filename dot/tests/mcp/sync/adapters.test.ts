@@ -85,6 +85,38 @@ describe("MCP adapters", () => {
     });
   });
 
+  test("renders fixed OpenCode OAuth client settings", () => {
+    expect(
+      buildMcpEntries(
+        {
+          servers: [
+            {
+              ...remote,
+              oauth: {
+                client_id: "http://127.0.0.1:19876",
+                client_secret: "{env:MCP_CLIENT_SECRET}",
+                callback_port: 19876,
+              },
+            },
+          ],
+        },
+        "opencode",
+      ),
+    ).toEqual({
+      remote: {
+        type: "remote",
+        url: "https://example.com/mcp",
+        oauth: {
+          clientId: "http://127.0.0.1:19876",
+          clientSecret: "{env:MCP_CLIENT_SECRET}",
+          callbackPort: 19876,
+        },
+        headers: { Authorization: "Bearer {env:API_TOKEN}" },
+        enabled: false,
+      },
+    });
+  });
+
   test("renders Cursor local entries and omits disabled servers", () => {
     expect(buildMcpEntries(spec, "cursor")).toEqual({
       local: {

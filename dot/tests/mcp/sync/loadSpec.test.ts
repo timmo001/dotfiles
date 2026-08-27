@@ -61,6 +61,15 @@ servers:
     overrides:
       copilot:
         url: https://copilot.example.com/mcp
+  - name: oauth-server
+    type: remote
+    url: https://oauth.example.com/mcp
+    oauth:
+      client_id: http://127.0.0.1:19876
+      callback_port: 19876
+    gated: false
+    enabled:
+      opencode: true
 `);
 
     const config = loadMcpConfig(filePath);
@@ -88,6 +97,17 @@ servers:
         overrides: {
           copilot: { url: "https://copilot.example.com/mcp" },
         },
+      },
+      {
+        name: "oauth-server",
+        type: "remote",
+        url: "https://oauth.example.com/mcp",
+        oauth: {
+          client_id: "http://127.0.0.1:19876",
+          callback_port: 19876,
+        },
+        gated: false,
+        enabled: { opencode: true },
       },
     ]);
   });
@@ -125,7 +145,7 @@ servers:
         "root.servers[0].url must be a non-empty string",
         "root.servers[0].headers must be an object of strings",
         "root.servers[0].env.TOKEN must be a string",
-        "root.servers[0].oauth must be true or false",
+        "root.servers[0].oauth must be true, false, or an object",
         "root.servers[0].gated must be true or false",
         "root.servers[0].enabled.gemini is not an active harness",
         "root.servers[0].enabled.cursor must be true or false",

@@ -52,7 +52,7 @@ Active harnesses (generated):
 - **VS Code** (`agents/.config/Code/User/mcp.json`, `servers`)
 - **Copilot CLI** (`agents/.copilot/mcp-config.json`, `mcpServers`)
 
-The spec defines each server once and enables it for every active harness, so all four expose the same set. Enablement is written out as an explicit per-harness matrix, so any single cell can be flipped later. A canonical `{env:VAR}` reference is rewritten to each harness's native syntax (`{env:VAR}`, `${env:VAR}`, or `${VAR}`), and commands that differ by harness (such as the OpenCode `opencode x` runner for `chrome-devtools`) are carried as per-harness overrides.
+The spec defines each server once and enables it for every active harness, so all four expose the same set. Enablement is written out as an explicit per-harness matrix, so any single cell can be flipped later. A canonical `{env:VAR}` reference is rewritten to each harness's native syntax (`{env:VAR}`, `${env:VAR}`, or `${VAR}`), and commands that differ by harness (such as the OpenCode `opencode x` runner for `chrome-devtools`) are carried as per-harness overrides. Remote servers can also provide fixed OpenCode OAuth client settings when the authorization server does not support dynamic client registration.
 
 The OpenCode config is written as a full catalogue: every server appears with an explicit `enabled: true` or `enabled: false`, so a server can be turned off in place while staying documented. The other harnesses list only their enabled servers.
 

@@ -57,6 +57,20 @@ export interface McpServerOverride {
   readonly url?: string;
 }
 
+/** OpenCode-specific OAuth client settings for a remote MCP server. */
+export interface McpOAuthSpec {
+  /** Fixed OAuth client ID. */
+  readonly client_id?: string;
+  /** OAuth client secret, normally an environment reference. */
+  readonly client_secret?: string;
+  /** Space-delimited OAuth scopes. */
+  readonly scope?: string;
+  /** Local OAuth callback port. */
+  readonly callback_port?: number;
+  /** Full local OAuth callback URL. */
+  readonly redirect_uri?: string;
+}
+
 /** One MCP server defined once for every harness. */
 export interface McpServerSpec {
   /** Canonical server name (also the harness config key). */
@@ -71,8 +85,8 @@ export interface McpServerSpec {
   readonly headers?: Readonly<Record<string, string>>;
   /** Local process env with canonical `{env:VAR}` refs. */
   readonly env?: Readonly<Record<string, string>>;
-  /** Whether the remote server explicitly disables OAuth (OpenCode only). */
-  readonly oauth?: boolean;
+  /** OpenCode OAuth behaviour or fixed client settings for a remote server. */
+  readonly oauth?: boolean | McpOAuthSpec;
   /**
    * Held out of OpenCode's default tools via a `"<name>*": false` gate, so the
    * server is opt-in (invoked by name or command) rather than loaded into every

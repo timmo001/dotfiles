@@ -89,6 +89,27 @@ function renderOpencodeEntry(
     enabled,
   };
   if (server.oauth === false) entry.oauth = false;
+  if (
+    server.oauth !== undefined &&
+    server.oauth !== true &&
+    server.oauth !== false
+  ) {
+    const oauth: MutableJsonObject = {};
+    if (server.oauth.client_id !== undefined)
+      oauth.clientId = server.oauth.client_id;
+    if (server.oauth.client_secret !== undefined) {
+      oauth.clientSecret = renderEnvRefs(
+        server.oauth.client_secret,
+        ENV_STYLE.opencode,
+      );
+    }
+    if (server.oauth.scope !== undefined) oauth.scope = server.oauth.scope;
+    if (server.oauth.callback_port !== undefined)
+      oauth.callbackPort = server.oauth.callback_port;
+    if (server.oauth.redirect_uri !== undefined)
+      oauth.redirectUri = server.oauth.redirect_uri;
+    entry.oauth = oauth;
+  }
   if (server.headers) entry.headers = renderHeaders(server.headers, "opencode");
   return entry;
 }
