@@ -62,7 +62,7 @@ version = "0.27.8"
 minimum_release_age = "2h"
 
 [tools."github:nicosuave/memex"]
-version = "0.11.6"
+version = "0.12.1"
 
 [settings]
 aqua.registries = ["https://github.com/aquaproj/aqua-registry"]
