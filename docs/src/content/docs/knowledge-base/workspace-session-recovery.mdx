@@ -5,7 +5,7 @@ sidebar:
   order: 5
 ---
 
-The workspace session scripts save the current Hyprland clients to JSON, then restore the latest capture by moving existing windows back to their saved workspaces and relaunching the supported missing apps.
+The `dot` workspace session commands save the current Hyprland clients to JSON, then restore the latest capture by moving existing windows back to their saved workspaces and relaunching supported missing apps. The old `workspace-capture` and `workspace-restore` names remain as compatibility wrappers.
 
 Use this before risky layout work, before restarting Hyprland, or when you want a quick recovery point for open workspaces.
 
@@ -18,13 +18,13 @@ This is best-effort recovery. Hyprland can move and resize windows, but some app
 Capture every visible workspace:
 
 ```bash
-workspace-capture
+dot workspace-capture
 ```
 
 Capture only the active workspace:
 
 ```bash
-workspace-capture --current-workspace
+dot workspace-capture --current-workspace
 ```
 
 By default captures are written to:
@@ -33,7 +33,7 @@ By default captures are written to:
 ~/.local/state/workspace-sessions/workspace-<timestamp>.json
 ```
 
-The script also writes a capture log to:
+The command also writes a capture log to:
 
 ```text
 ~/.local/state/workspace-sessions/capture.log
@@ -42,7 +42,7 @@ The script also writes a capture log to:
 To write a named capture:
 
 ```bash
-workspace-capture --output=~/workspace-before-restart.json
+dot workspace-capture --output=~/workspace-before-restart.json
 ```
 
 ## Restore safely
@@ -50,25 +50,25 @@ workspace-capture --output=~/workspace-before-restart.json
 Start with a dry run. It prints the restore plan without launching or moving windows:
 
 ```bash
-workspace-restore --dry-run
+dot workspace-restore --dry-run
 ```
 
 Restore the newest capture from the state directory:
 
 ```bash
-workspace-restore
+dot workspace-restore
 ```
 
 Restore a specific file:
 
 ```bash
-workspace-restore --file=~/workspace-before-restart.json
+dot workspace-restore --file=~/workspace-before-restart.json
 ```
 
 Search a different state directory for the newest capture and write `restore.log` there:
 
 ```bash
-workspace-restore --state-dir=~/somewhere
+dot workspace-restore --state-dir=~/somewhere
 ```
 
 The restore log is written to:
@@ -79,7 +79,7 @@ The restore log is written to:
 
 ## What gets restored
 
-The restore script reads `hyprctl -j clients` and tries these paths in order:
+The restore command reads `hyprctl -j clients` and tries these paths in order:
 
 - Reuse a still-running window by saved address.
 - Match an existing window by class and workspace.
@@ -87,7 +87,9 @@ The restore script reads `hyprctl -j clients` and tries these paths in order:
 - Restore floating geometry or tiled size when the saved client has enough geometry data.
 - Switch back to the saved active workspace at the end.
 
-Supported relaunch paths are encoded in `workspace-restore` and cover Chromium, work Chrome app windows, Slack, Discord, Twitch webapps, generic Chrome webapps with captured URLs, and Ghostty terminals. Ghostty launches through `ghostty-host-config` to keep the active `config.$OMARCHY_HOST` override, and passes `--working-directory` when the saved directory still exists.
+Reusable relaunch support covers Twitch webapps, generic Chrome webapps with captured URLs, and Ghostty terminals. Ghostty launches through `ghostty-host-config` to keep the active `config.$OMARCHY_HOST` override, and passes `--working-directory` when the saved directory still exists.
+
+Personal Chromium and work Chrome launch policy is optional private data in `~/.config/dotfiles-private/workspace-session.json`. Each rule matches captured window classes and supplies an executable plus argument list. Without that file, existing windows can still be reused by saved address and the reusable public relaunch paths still work.
 
 Captured browser URLs are passed to the Hyprland launcher as one shell-quoted argument, so query strings and shell metacharacters are preserved as URL data rather than interpreted as commands.
 
@@ -95,7 +97,7 @@ Unsupported classes are skipped with a reason in the restore output.
 
 ## Browser URLs
 
-`workspace-capture` can attach a real browser URL when the browser URL state file exists:
+`dot workspace-capture` can attach a real browser URL when the browser URL state file exists:
 
 ```text
 ${XDG_STATE_HOME:-~/.local/state}/browser-urls.json
@@ -121,12 +123,11 @@ It offers capture, dry-run restore, restore, and relayout actions. On the `deskt
 
 ## Recovery flow
 
-1. Run `workspace-capture` before the risky change.
+1. Run `dot workspace-capture` before the risky change.
 2. Make the change, restart Hyprland, or recover from the crash.
-3. Run `workspace-restore --dry-run` and read the plan.
-4. Run `workspace-restore` when the plan looks safe.
+3. Run `dot workspace-restore --dry-run` and read the plan.
+4. Run `dot workspace-restore` when the plan looks safe.
 5. Check `restore.log` for skipped windows.
-
 
 ## Troubleshooting
 
@@ -139,13 +140,13 @@ ls ~/.local/state/workspace-sessions
 If restore launches too much, try moving only existing windows:
 
 ```bash
-workspace-restore --no-launch
+dot workspace-restore --no-launch
 ```
 
 If restore launches apps but leaves current placement alone:
 
 ```bash
-workspace-restore --no-move
+dot workspace-restore --no-move
 ```
 
 If you want to inspect one capture directly:
@@ -156,4 +157,4 @@ jq '.clients[] | {workspace: .workspace.id, class, title, browser_url}' ~/.local
 
 ## Rollback
 
-The restore script only moves, resizes, and launches windows. There is no persistent layout state to undo. Move windows manually or rerun a better capture file with `--file=...`.
+The restore command only moves, resizes, and launches windows. There is no persistent layout state to undo. Move windows manually or rerun a better capture file with `--file=...`.

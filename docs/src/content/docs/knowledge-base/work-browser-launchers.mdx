@@ -9,11 +9,11 @@ The work launchers isolate a Google Chrome work profile and place work apps on k
 
 ## Bindings
 
-| Binding | Action |
-| --- | --- |
-| `SUPER+ALT+B` | Launch work browser. |
-| `SUPER+CTRL+SHIFT+S` | Launch Slack. |
-| `SUPER+D` | Launch Discord. |
+| Binding              | Action               |
+| -------------------- | -------------------- |
+| `SUPER+ALT+B`        | Launch work browser. |
+| `SUPER+CTRL+SHIFT+S` | Launch Slack.        |
+| `SUPER+D`            | Launch Discord.      |
 
 ## Work Chrome profile
 
@@ -79,14 +79,14 @@ launch-work-discord
 
 They match these Hyprland classes after launch:
 
-| App | Class regex |
-| --- | --- |
-| Slack | `^chrome-app\.slack\.com__client` |
-| Discord | `^chrome-discord\.com__app` |
+| App     | Class regex                       |
+| ------- | --------------------------------- |
+| Slack   | `^chrome-app\.slack\.com__client` |
+| Discord | `^chrome-discord\.com__app`       |
 
 ## Relationship to workspace recovery
 
-`workspace-setup` uses equivalent commands for the work slots. `workspace-restore` also knows how to relaunch Slack, Discord, and the work browser from captured client classes.
+`workspace-setup` uses equivalent commands for the work slots. `dot workspace-restore` reads the private `workspace-session.json` policy to relaunch Slack, Discord, and the work browser from captured client classes.
 
 If a work app does not restore correctly, test the launcher directly before debugging restore logic.
 

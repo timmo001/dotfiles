@@ -12,6 +12,7 @@ import { GitStaging } from "./git/services/GitStaging.js";
 import { Dashboard } from "./dashboard/services/Dashboard.js";
 import { buildDashboardState } from "./dashboard/viewModel.js";
 import { parseFlags, resolveSubcommand, printHelp } from "./flags.js";
+import { renderHelp } from "./cli/help.js";
 import { hasOption, optionValue, optionValues } from "./lib/args.js";
 import {
   bootstrapGhRepoClone,
@@ -55,6 +56,10 @@ import {
   workspaceRelayout,
   WorkspaceRelayoutError,
 } from "./commands/WorkspaceRelayout.js";
+import {
+  workspaceCapture,
+  workspaceRestore,
+} from "./commands/WorkspaceSession.js";
 import { launchFloatingWebapp } from "./commands/LaunchFloatingWebapp.js";
 import { help } from "./commands/Help.js";
 import {
@@ -628,6 +633,52 @@ if (mode.type === "native") {
             }),
           )
         : workspaceRelayout({ edit: args.includes("--edit") });
+    },
+    "workspace-capture": (args) => {
+      const unknown = args.find(
+        (arg) =>
+          arg !== "--current-workspace" &&
+          arg !== "--current" &&
+          !arg.startsWith("--output=") &&
+          !arg.startsWith("--state-dir="),
+      );
+      return unknown
+        ? Effect.sync(() => {
+            console.error(`workspace-capture: unknown option: ${unknown}`);
+            console.error(renderHelp("workspace-capture"));
+            process.exitCode = 1;
+          })
+        : workspaceCapture({
+            currentWorkspace:
+              args.includes("--current-workspace") ||
+              args.includes("--current"),
+            output: optionValue(args, "--output"),
+            stateDir: optionValue(args, "--state-dir"),
+          });
+    },
+    "workspace-restore": (args) => {
+      const unknown = args.find(
+        (arg) =>
+          arg !== "--dry-run" &&
+          arg !== "--dryrun" &&
+          arg !== "--no-launch" &&
+          arg !== "--no-move" &&
+          !arg.startsWith("--file=") &&
+          !arg.startsWith("--state-dir="),
+      );
+      return unknown
+        ? Effect.sync(() => {
+            console.error(`workspace-restore: unknown option: ${unknown}`);
+            console.error(renderHelp("workspace-restore"));
+            process.exitCode = 1;
+          })
+        : workspaceRestore({
+            dryRun: args.includes("--dry-run") || args.includes("--dryrun"),
+            file: optionValue(args, "--file"),
+            stateDir: optionValue(args, "--state-dir"),
+            launchMissing: !args.includes("--no-launch"),
+            moveExisting: !args.includes("--no-move"),
+          });
     },
     help,
   } satisfies Readonly<Record<string, NativeCommandHandler>>;

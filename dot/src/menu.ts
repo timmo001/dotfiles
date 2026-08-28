@@ -147,6 +147,37 @@ const dotItems: readonly MenuItem[] = [
     "Desktop",
   ),
   item(
+    "workspace-session",
+    "󰆓",
+    "Workspace Session",
+    "Capture or restore Hyprland windows",
+    cmd("dot workspace-restore --dry-run"),
+    [
+      {
+        label: "Capture all",
+        description: "Capture all visible workspaces",
+        action: exitCmd("dot workspace-capture"),
+      },
+      {
+        label: "Capture current",
+        description: "Capture the active workspace",
+        action: exitCmd("dot workspace-capture --current-workspace"),
+      },
+      {
+        label: "Restore dry run",
+        description: "Print the latest restore plan",
+        action: cmd("dot workspace-restore --dry-run"),
+      },
+      {
+        label: "Restore latest",
+        description: "Restore the latest capture",
+        action: exitCmd("dot workspace-restore"),
+      },
+    ],
+    ["hyprland", "workspace", "session", "capture", "restore", "windows"],
+    "Desktop",
+  ),
+  item(
     "stow",
     "󰏗",
     "Stow",

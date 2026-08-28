@@ -9,7 +9,23 @@ trap 'rm -rf "$temp_dir"' EXIT
 mkdir -p "$temp_dir/bin" "$temp_dir/state"
 cat >"$temp_dir/bin/hyprctl" <<'EOF'
 #!/usr/bin/env bash
-printf '[]\n'
+case "$*" in
+  '-j activeworkspace')
+    printf '%s\n' '{"id":1,"name":"Test"}'
+    ;;
+  '-j activewindow')
+    printf '%s\n' '{"address":"0x1","workspace":{"id":1}}'
+    ;;
+  '-j monitors')
+    printf '%s\n' '[{"id":0,"name":"Test monitor"}]'
+    ;;
+  '-j clients')
+    printf '%s\n' '[]'
+    ;;
+  *)
+    printf '%s\n' '[]'
+    ;;
+esac
 EOF
 cat >"$temp_dir/bin/omarchy-launch-webapp" <<'EOF'
 #!/usr/bin/env bash
@@ -34,7 +50,7 @@ jq -n --arg url "$hostile_url" '{
 }' >"$session_file"
 
 output="$(
-  PATH="$temp_dir/bin:$PATH" \
+  PATH="$temp_dir/bin:$repo_root/scripts/.local/bin:$PATH" \
     "$repo_root/scripts/.local/bin/workspace-restore" \
     --dry-run \
     --file="$session_file" \
@@ -58,5 +74,30 @@ fi
 
 if [[ -e "$injection_marker" ]]; then
   printf 'Hostile URL executed command substitution.\n' >&2
+  exit 1
+fi
+
+capture_file="$temp_dir/state/workspace-captured.json"
+PATH="$temp_dir/bin:$repo_root/scripts/.local/bin:$PATH" \
+  XDG_STATE_HOME="$temp_dir/state" \
+  "$repo_root/scripts/.local/bin/workspace-capture" \
+  --current \
+  --output="$capture_file" \
+  --state-dir="$temp_dir/state"
+
+if ! jq -e '
+  .version == 2 and
+  .scope == "current-workspace" and
+  .active_workspace.id == 1 and
+  .active_window.address == "0x1" and
+  .monitors[0].name == "Test monitor" and
+  .clients == []
+' "$capture_file" >/dev/null; then
+  printf 'Compatibility wrapper did not write a version 2 capture.\n' >&2
+  exit 1
+fi
+
+if ! grep -Fxq "Captured workspace session: $capture_file" "$temp_dir/state/capture.log"; then
+  printf 'Capture log contract was not preserved.\n' >&2
   exit 1
 fi

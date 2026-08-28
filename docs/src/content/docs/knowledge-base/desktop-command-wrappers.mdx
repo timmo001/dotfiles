@@ -17,16 +17,16 @@ run-in-terminal 'dot doctor'
 
 Modes:
 
-| Mode | Behaviour |
-| --- | --- |
-| `--shell` | Default. Run the command, then stay in an interactive shell. |
-| `--wait` | Run the command, then print a prompt saying Ctrl-D closes or the shell can continue. |
-| `--exit` | Run the command and close the terminal when it exits. |
+| Mode      | Behaviour                                                                            |
+| --------- | ------------------------------------------------------------------------------------ |
+| `--shell` | Default. Run the command, then stay in an interactive shell.                         |
+| `--wait`  | Run the command, then print a prompt saying Ctrl-D closes or the shell can continue. |
+| `--exit`  | Run the command and close the terminal when it exits.                                |
 
 Examples:
 
 ```bash
-run-in-terminal --wait 'workspace-restore --dry-run'
+run-in-terminal --wait 'dot workspace-restore --dry-run'
 run-in-terminal --exit 'dot doctor'
 ```
 
@@ -37,8 +37,8 @@ For `--shell` and `--wait`, the wrapper creates a temporary `ZDOTDIR` so the com
 `run-with-notify` runs a command and sends a desktop notification with the result:
 
 ```bash
-run-with-notify 'Capture' workspace-capture
-run-with-notify -a 'Workspace' 'Restore' workspace-restore
+run-with-notify 'Capture' dot workspace-capture
+run-with-notify -a 'Workspace' 'Restore' dot workspace-restore
 ```
 
 On success, the notification body is command output or `Done`. On failure, it sends a critical notification with the captured stderr/stdout or `Unknown error`. Both use Omarchy's glyph and spacing format.
