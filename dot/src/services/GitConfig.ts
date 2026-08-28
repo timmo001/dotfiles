@@ -178,16 +178,6 @@ export function enabledGitReposForCheck(
   return managedGitRepos(gitConfig).filter((repo) => repo[check].enabled);
 }
 
-/** Return repositories with enabled GitHub notifications whose schedule is active. */
-export function activeGitReposForNotifications(
-  gitConfig: DotGitConfig,
-  now: Date = new Date(),
-): readonly GitManagedRepo[] {
-  return managedGitRepos(gitConfig).filter((repo) =>
-    gitRepoNotificationsActive(repo, now),
-  );
-}
-
 /** Return the managed repository for an absolute path, when present. */
 export function managedGitRepoForPath(
   gitConfig: DotGitConfig,

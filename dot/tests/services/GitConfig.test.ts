@@ -4,7 +4,6 @@ import { tmpdir } from "os";
 import { join } from "path";
 import {
   activeGitReposForCheck,
-  activeGitReposForNotifications,
   enabledGitReposForCheck,
   loadDotGitConfig,
   managedGitRepoForGitHub,
@@ -238,10 +237,6 @@ describe("managed repository selection", () => {
     expect(activeGitReposForCheck(config, "activity", outsideSchedule)).toEqual(
       [],
     );
-    expect(activeGitReposForNotifications(config, scheduledTime)).toHaveLength(
-      1,
-    );
-    expect(activeGitReposForNotifications(config, outsideSchedule)).toEqual([]);
     expect(enabledGitReposForCheck(config, "activity")).toHaveLength(1);
   });
 });

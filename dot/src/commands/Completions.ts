@@ -601,9 +601,6 @@ export const writeAllCompletions = Effect.all(
   SUPPORTED_SHELLS.map((shell) => writeCompletions(shell)),
 );
 
-/** Backwards-compatible Zsh completion writer for existing callers. */
-export const writeZshCompletions = writeCompletions("zsh");
-
 /** Generate shell completions for `dot`. */
 export function completions(args: readonly string[] = []) {
   return Effect.gen(function* () {

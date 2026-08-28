@@ -29,27 +29,6 @@ export function isPackageInstalled(
   });
 }
 
-/** Installed and missing package sets, preserving the input order. */
-export interface PackagePartition {
-  readonly present: readonly string[];
-  readonly missing: readonly string[];
-}
-
-/** Split a package list into installed (present) and missing sets. */
-export function partitionInstalled(
-  packages: readonly string[],
-): Effect.Effect<PackagePartition, never, CommandExecutor> {
-  return Effect.gen(function* () {
-    const present: string[] = [];
-    const missing: string[] = [];
-    for (const packageName of packages) {
-      if (yield* isPackageInstalled(packageName)) present.push(packageName);
-      else missing.push(packageName);
-    }
-    return { present, missing };
-  });
-}
-
 /** Load a package list file: one package per line, skipping comments and blanks. */
 export function loadPackageList(filePath: string): readonly string[] {
   try {

@@ -122,15 +122,6 @@ export function serversForHarness(
   return spec.servers.filter((server) => serverEnabledFor(server, harness));
 }
 
-/** Servers marked opt-in for OpenCode, emitted as `"<name>*": false` tool gates. */
-export function gatedOpencodeServers(
-  spec: McpSyncSpec,
-): readonly McpServerSpec[] {
-  return spec.servers.filter(
-    (server) => server.gated && serverEnabledFor(server, "opencode"),
-  );
-}
-
 /** Resolve the effective command for a server on a harness, applying overrides. */
 export function resolveCommand(
   server: McpServerSpec,

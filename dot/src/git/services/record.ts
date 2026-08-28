@@ -1,9 +1,6 @@
 import { Schema } from "effect";
 
 const stringOption = Schema.decodeUnknownOption(Schema.String);
-const idOption = Schema.decodeUnknownOption(
-  Schema.Union([Schema.Number, Schema.String]),
-);
 const stderrOption = Schema.decodeUnknownOption(
   Schema.Struct({ stderr: Schema.String }),
 );
@@ -25,14 +22,6 @@ export function nullableStringValue(
   return option._tag === "Some" && option.value.length > 0
     ? option.value
     : null;
-}
-
-/** Return a GitHub numeric/string ID as a string, or null. */
-export function nullableIdValue(
-  value: typeof Schema.Json.Type | undefined,
-): string | null {
-  const option = idOption(value);
-  return option._tag === "Some" ? String(option.value) : null;
 }
 
 /** Extract a readable message from `gh` command errors. */

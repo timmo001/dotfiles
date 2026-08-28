@@ -71,11 +71,6 @@ export function envString(name: EnvName): string | undefined {
   return process.env[name];
 }
 
-/** Read an environment variable as a string with a fallback. */
-export function envStringOr(name: EnvName, fallback: string): string {
-  return envString(name) ?? fallback;
-}
-
 /** Read a `1`-enabled environment flag. */
 export function envFlag(name: EnvName): boolean {
   return envString(name) === "1";
