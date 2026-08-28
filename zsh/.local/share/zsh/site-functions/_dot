@@ -29,6 +29,7 @@ dot_commands=(
   'skill-updates-agent:Run GitHub or device skill update automation'
   'completions:Generate shell completions'
   'workspace-relayout:Apply or capture a Hyprland workspace layout'
+  'launch-floating-webapp:Launch or reposition a floating webapp'
   'omarchy:Open an Omarchy submenu by path'
   'usage:Local-first analytics for dot usage'
   'help:Show this help menu'
@@ -302,6 +303,20 @@ _dot_complete_command() {
     git-commit)
       _dot_cmd_git_commit
       ;;
+_dot_cmd_launch_floating_webapp() {
+  _arguments -S \
+    '--monitor[Target monitor (default: focused monitor)]:name:' \
+    '--workspace[Move to this workspace and use its monitor]:id:' \
+    '--width[Window width (default: 380)]:px:' \
+    '--height[Window height (default: 500)]:px:' \
+    '--right-margin[Right margin (default: 16)]:px:' \
+    '--bottom-margin[Bottom margin (default: 6)]:px:' \
+    '--address[Reposition an existing window instead of launching]:window-address:' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '1:Webapp URL to launch:' \
+    '*::arg:->args'
+}
     git-notifications)
       _dot_cmd_git_notifications
       ;;
@@ -372,3 +387,6 @@ case $state in
     _describe -t commands 'dot command' dot_commands
     ;;
 esac
+    launch-floating-webapp)
+      _dot_cmd_launch_floating_webapp
+      ;;

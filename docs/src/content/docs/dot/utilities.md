@@ -18,7 +18,9 @@ Add `--open-opencode` to run `opencode run` against the saved report and then op
 
 ## Floating webapps
 
-`launch-floating-webapp <url>` opens one webapp as a `380x500` floating window in the focused monitor's bottom-right corner without changing normal launches of the same site. Use `--monitor`, `--workspace`, `--width`, `--height`, `--right-margin`, or `--bottom-margin` to override the geometry. `--address` applies the same placement to an existing window.
+`dot launch-floating-webapp <url>` opens one webapp as a `380x500` floating window in the focused monitor's bottom-right corner without changing normal launches of the same site. Use `--monitor`, `--workspace`, `--width`, `--height`, `--right-margin`, or `--bottom-margin` to override the geometry. `--address` applies the same placement to an existing window. The command prints only the resolved Hyprland address to stdout, so callers can capture it directly.
+
+The `launch-floating-webapp` executable remains as a compatibility wrapper for shell widgets and scripts. It forwards every argument to the native `dot` command and preserves the same stdout contract.
 
 ## Git branch sync
 

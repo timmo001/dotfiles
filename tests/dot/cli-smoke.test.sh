@@ -14,7 +14,7 @@ commands=(
   dashboard init install update stow firewall doctor clean git-diff git-commit
   git-notifications agents-sync mcp-sync notes-capture-sync is-agent
   setup-private-repo private-pkg-publish skill-updates skill-check completions
-  omarchy usage help
+  launch-floating-webapp omarchy usage help
 )
 
 root_help="$(DOT_USAGE_DISABLE=1 "$dot_binary" --help)"

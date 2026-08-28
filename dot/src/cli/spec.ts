@@ -876,6 +876,76 @@ export const cliCommands: readonly CliCommandSpec[] = [
         valueName: "path",
         completion: "file",
         description: "Extra event root to combine (repeatable)",
+  {
+    name: "launch-floating-webapp",
+    summary: "Launch or reposition a floating webapp",
+    usage: "[options] <url> | [options] --address <window-address>",
+    description: [
+      "Launch one Omarchy webapp and place only its new window in the target",
+      "monitor's bottom-right corner. Pass --address to reposition an existing",
+      "window instead. The resolved Hyprland address is the only stdout output.",
+    ],
+    options: [
+      {
+        name: "--monitor",
+        valueName: "name",
+        description: "Target monitor (default: focused monitor)",
+      },
+      {
+        name: "--workspace",
+        valueName: "id",
+        description: "Move to this workspace and use its monitor",
+      },
+      {
+        name: "--width",
+        valueName: "px",
+        description: "Window width (default: 380)",
+      },
+      {
+        name: "--height",
+        valueName: "px",
+        description: "Window height (default: 500)",
+      },
+      {
+        name: "--right-margin",
+        valueName: "px",
+        description: "Right margin (default: 16)",
+      },
+      {
+        name: "--bottom-margin",
+        valueName: "px",
+        description: "Bottom margin (default: 6)",
+      },
+      {
+        name: "--address",
+        valueName: "window-address",
+        description: "Reposition an existing window instead of launching",
+      },
+      helpOption,
+    ],
+    arguments: [
+      {
+        name: "url",
+        description: "Webapp URL to launch",
+        completion: "none",
+      },
+    ],
+    sections: [
+      {
+        title: "Exit codes",
+        lines: [
+          "0  Window placed and its address printed",
+          "1  Launch detection, Hyprland query, or placement failed",
+          "2  Invalid arguments",
+        ],
+      },
+    ],
+    examples: [
+      "dot launch-floating-webapp https://example.com",
+      "dot launch-floating-webapp --workspace 3 https://example.com",
+      "dot launch-floating-webapp --address 0x123abc",
+    ],
+  },
       },
       {
         name: "--history",

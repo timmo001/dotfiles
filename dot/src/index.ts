@@ -54,6 +54,7 @@ import {
   workspaceRelayout,
   WorkspaceRelayoutError,
 } from "./commands/WorkspaceRelayout.js";
+import { launchFloatingWebapp } from "./commands/LaunchFloatingWebapp.js";
 import { help } from "./commands/Help.js";
 import {
   diffBarJson,
@@ -615,6 +616,7 @@ if (mode.type === "native") {
       }),
     completions,
     usage,
+    "launch-floating-webapp": launchFloatingWebapp,
     "workspace-relayout": (args) => {
       const unknown = args.find((arg) => arg !== "--edit");
       return unknown
