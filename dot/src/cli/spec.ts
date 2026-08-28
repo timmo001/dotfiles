@@ -254,6 +254,94 @@ export const cliCommands: readonly CliCommandSpec[] = [
     examples: ["dot omarchy-shell-config"],
   },
   {
+    name: "omarchy-plugin",
+    summary: "Manage Omarchy plugin submodules",
+    usage: "<add|update|remove> ...",
+    description: [
+      "Import, update, or remove Omarchy plugins managed as dotfiles submodules.",
+      "The Omarchy plugin lifecycle hook calls this command through the",
+      "manage-omarchy-plugin compatibility wrapper.",
+    ],
+    commands: [
+      {
+        name: "add",
+        summary: "Import a validated plugin checkout",
+        usage: "<id> <url> <checkout> [options]",
+        arguments: [
+          { name: "id", description: "Plugin ID" },
+          { name: "url", description: "Plugin Git remote" },
+          {
+            name: "checkout",
+            description: "Validated live plugin checkout",
+            completion: "file",
+          },
+        ],
+        options: [
+          {
+            name: "--section",
+            valueName: "section",
+            description: "Bar section (default: plugin manifest)",
+            choices: [
+              { value: "left" },
+              { value: "center" },
+              { value: "right" },
+            ],
+          },
+          {
+            name: "--before",
+            valueName: "plugin-id",
+            description: "Place before this plugin",
+          },
+          {
+            name: "--after",
+            valueName: "plugin-id",
+            description: "Place after this plugin",
+          },
+          helpOption,
+        ],
+      },
+      {
+        name: "update",
+        summary: "Update one or all managed plugins",
+        usage: "[id] [options]",
+        arguments: [{ name: "id", description: "Managed plugin ID" }],
+        options: [
+          { name: "--yes", description: "Update without confirmation" },
+          helpOption,
+        ],
+      },
+      {
+        name: "remove",
+        summary: "Remove a managed plugin",
+        usage: "<id> [options]",
+        arguments: [{ name: "id", description: "Managed plugin ID" }],
+        options: [
+          { name: "--yes", description: "Remove without confirmation" },
+          {
+            name: "--no-commit-offer",
+            description: "Do not offer the optional git-commit handoff",
+          },
+          helpOption,
+        ],
+      },
+    ],
+    options: [helpOption],
+    sections: [
+      {
+        title: "Exit codes",
+        lines: [
+          "0   Managed operation completed or was skipped",
+          "1   Managed operation failed",
+          "20  Plugin is unmanaged; continue with Omarchy's normal operation",
+        ],
+      },
+    ],
+    examples: [
+      "dot omarchy-plugin update timmo.clock --yes",
+      "dot omarchy-plugin remove timmo.clock",
+    ],
+  },
+  {
     name: "firewall",
     summary: "Reconcile managed ufw firewall rules",
     description: [

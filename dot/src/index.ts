@@ -29,6 +29,7 @@ import { withStepTimeout } from "./lib/workflowStep.js";
 import { configureFirewallRules } from "./lib/firewallSetup.js";
 import { applyOmarchyShellConfig } from "./lib/omarchyShellConfig.js";
 import { menuItemsById } from "./menu.js";
+import { omarchyPlugin } from "./commands/OmarchyPlugin.js";
 import { init } from "./commands/Init.js";
 import { install } from "./commands/Install.js";
 import { update, updateCheck } from "./commands/Update.js";
@@ -559,6 +560,7 @@ if (mode.type === "native") {
         publicOnly: args.includes("--public"),
         privateOnly: args.includes("--private"),
       }).pipe(Effect.asVoid),
+    "omarchy-plugin": omarchyPlugin,
     "omarchy-shell-config": () => applyOmarchyShellConfig.pipe(Effect.asVoid),
     doctor: (args) =>
       doctor({

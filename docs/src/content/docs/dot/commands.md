@@ -149,6 +149,98 @@ and the host-specific dotfiles layout without running the full stow flow.
 dot omarchy-shell-config
 ```
 
+## `dot omarchy-plugin`
+
+Manage Omarchy plugin submodules
+
+```text
+dot omarchy-plugin <add|update|remove> ...
+```
+
+Import, update, or remove Omarchy plugins managed as dotfiles submodules.
+The Omarchy plugin lifecycle hook calls this command through the
+manage-omarchy-plugin compatibility wrapper.
+
+**Exit codes**
+
+```text
+0   Managed operation completed or was skipped
+1   Managed operation failed
+20  Plugin is unmanaged; continue with Omarchy's normal operation
+```
+
+**Examples**
+
+```bash
+dot omarchy-plugin update timmo.clock --yes
+dot omarchy-plugin remove timmo.clock
+```
+
+### `dot omarchy-plugin add`
+
+Import a validated plugin checkout
+
+```text
+dot omarchy-plugin add <id> <url> <checkout> [options]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--section` `<section>` | Bar section (default: plugin manifest) (one of: `left`, `center`, `right`) |
+| `--before` `<plugin-id>` | Place before this plugin |
+| `--after` `<plugin-id>` | Place after this plugin |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<id>` | Plugin ID |
+| `<url>` | Plugin Git remote |
+| `<checkout>` | Validated live plugin checkout |
+
+### `dot omarchy-plugin update`
+
+Update one or all managed plugins
+
+```text
+dot omarchy-plugin update [id] [options]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--yes` | Update without confirmation |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<id>` | Managed plugin ID |
+
+### `dot omarchy-plugin remove`
+
+Remove a managed plugin
+
+```text
+dot omarchy-plugin remove <id> [options]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--yes` | Remove without confirmation |
+| `--no-commit-offer` | Do not offer the optional git-commit handoff |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<id>` | Managed plugin ID |
+
 ## `dot firewall`
 
 Reconcile managed ufw firewall rules

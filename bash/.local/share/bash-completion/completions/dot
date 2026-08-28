@@ -68,6 +68,79 @@ _dot_cmd_omarchy_shell_config() {
     return
   fi
 }
+_dot_cmd_omarchy_plugin() {
+  local cur prev cword subcommand
+  cur=${COMP_WORDS[COMP_CWORD]}
+  prev=${COMP_WORDS[COMP_CWORD-1]}
+  cword=$COMP_CWORD
+  subcommand=${COMP_WORDS[2]-}
+  if (( cword > 2 )); then
+    case $subcommand in
+      add)
+        _dot_cmd_omarchy_plugin_add
+        return
+        ;;
+      update)
+        _dot_cmd_omarchy_plugin_update
+        return
+        ;;
+      remove)
+        _dot_cmd_omarchy_plugin_remove
+        return
+        ;;
+    esac
+  fi
+  if [[ $cur == -* ]]; then
+    COMPREPLY=( $(compgen -W '--help -h' -- "$cur") )
+    return
+  fi
+  if (( cword == 2 )); then
+    COMPREPLY=( $(compgen -W '--help -h add update remove' -- "$cur") )
+    return
+  fi
+  COMPREPLY=( $(compgen -W 'add update remove' -- "$cur") )
+}
+_dot_cmd_omarchy_plugin_add() {
+  local cur prev cword
+  cur=${COMP_WORDS[COMP_CWORD]}
+  prev=${COMP_WORDS[COMP_CWORD-1]}
+  cword=$COMP_CWORD
+  case $prev in
+    --section)
+      COMPREPLY=( $(compgen -W 'left center right' -- "$cur") )
+      return
+      ;;
+  esac
+
+  if [[ $cur == -* ]]; then
+    COMPREPLY=( $(compgen -W '--section --before --after --help -h' -- "$cur") )
+    return
+  fi
+  if (( cword == 5 )); then
+    COMPREPLY=( $(compgen -f -- "$cur") )
+    return
+  fi
+}
+_dot_cmd_omarchy_plugin_update() {
+  local cur prev cword
+  cur=${COMP_WORDS[COMP_CWORD]}
+  prev=${COMP_WORDS[COMP_CWORD-1]}
+  cword=$COMP_CWORD
+  if [[ $cur == -* ]]; then
+    COMPREPLY=( $(compgen -W '--yes --help -h' -- "$cur") )
+    return
+  fi
+}
+_dot_cmd_omarchy_plugin_remove() {
+  local cur prev cword
+  cur=${COMP_WORDS[COMP_CWORD]}
+  prev=${COMP_WORDS[COMP_CWORD-1]}
+  cword=$COMP_CWORD
+  if [[ $cur == -* ]]; then
+    COMPREPLY=( $(compgen -W '--yes --no-commit-offer --help -h' -- "$cur") )
+    return
+  fi
+}
 _dot_cmd_firewall() {
   local cur prev cword
   cur=${COMP_WORDS[COMP_CWORD]}
@@ -334,7 +407,7 @@ _dot() {
   command=${COMP_WORDS[1]-}
 
   if (( cword == 1 )); then
-    COMPREPLY=( $(compgen -W 'dashboard init install update up stow omarchy-shell-config firewall doctor clean git-diff diff git-commit git-notifications agents-sync mcp-sync notes-capture-sync is-agent setup-public-repo setup-private-repo private-pkg-publish skill-updates skill-check skill-updates-agent completions launch-floating-webapp workspace-relayout omarchy usage help -h --help' -- "$cur") )
+    COMPREPLY=( $(compgen -W 'dashboard init install update up stow omarchy-shell-config omarchy-plugin firewall doctor clean git-diff diff git-commit git-notifications agents-sync mcp-sync notes-capture-sync is-agent setup-public-repo setup-private-repo private-pkg-publish skill-updates skill-check skill-updates-agent completions launch-floating-webapp workspace-relayout omarchy usage help -h --help' -- "$cur") )
     return
   fi
 
@@ -366,6 +439,9 @@ _dot_cmd_launch_floating_webapp() {
       ;;
     omarchy-shell-config)
       _dot_cmd_omarchy_shell_config
+      ;;
+    omarchy-plugin)
+      _dot_cmd_omarchy_plugin
       ;;
     firewall)
       _dot_cmd_firewall

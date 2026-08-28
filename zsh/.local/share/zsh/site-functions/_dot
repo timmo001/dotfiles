@@ -10,6 +10,7 @@ dot_commands=(
   'up:Alias for update'
   'stow:Re-stow public/private dotfiles'
   'omarchy-shell-config:Regenerate the Omarchy shell layout'
+  'omarchy-plugin:Manage Omarchy plugin submodules'
   'firewall:Reconcile managed ufw firewall rules'
   'doctor:Run dotfiles system health checks'
   'clean:Unstow managed dotfiles'
@@ -82,6 +83,71 @@ _dot_cmd_omarchy_shell_config() {
   _arguments -S \
     '(-h --help)-h[Show this help message]' \
     '(-h --help)--help[Show this help message]' \
+    '*::arg:->args'
+}
+_dot_cmd_omarchy_plugin() {
+  local -a _dot_cmd_omarchy_plugin_commands
+  _dot_cmd_omarchy_plugin_commands=(
+    'add:Import a validated plugin checkout'
+    'update:Update one or all managed plugins'
+    'remove:Remove a managed plugin'
+  )
+  local state
+  _arguments -C -S \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '1:omarchy-plugin command:->command' \
+    '*::arg:->args'
+
+  case $state in
+    command)
+      _describe -t commands 'omarchy-plugin command' _dot_cmd_omarchy_plugin_commands
+      ;;
+    args)
+      local subcommand=${words[2]}
+      shift words
+      (( CURRENT-- ))
+      case $subcommand in
+        add)
+          _dot_cmd_omarchy_plugin_add
+          ;;
+        update)
+          _dot_cmd_omarchy_plugin_update
+          ;;
+        remove)
+          _dot_cmd_omarchy_plugin_remove
+          ;;
+      esac
+      ;;
+  esac
+}
+_dot_cmd_omarchy_plugin_add() {
+  _arguments -S \
+    '--section[Bar section (default: plugin manifest)]:section:(left center right)' \
+    '--before[Place before this plugin]:plugin-id:' \
+    '--after[Place after this plugin]:plugin-id:' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '1:Plugin ID:' \
+    '2:Plugin Git remote:' \
+    '3:Validated live plugin checkout:_files' \
+    '*::arg:->args'
+}
+_dot_cmd_omarchy_plugin_update() {
+  _arguments -S \
+    '--yes[Update without confirmation]' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '1:Managed plugin ID:' \
+    '*::arg:->args'
+}
+_dot_cmd_omarchy_plugin_remove() {
+  _arguments -S \
+    '--yes[Remove without confirmation]' \
+    '--no-commit-offer[Do not offer the optional git-commit handoff]' \
+    '(-h --help)-h[Show this help message]' \
+    '(-h --help)--help[Show this help message]' \
+    '1:Managed plugin ID:' \
     '*::arg:->args'
 }
 _dot_cmd_firewall() {
@@ -287,6 +353,9 @@ _dot_complete_command() {
       ;;
     omarchy-shell-config)
       _dot_cmd_omarchy_shell_config
+      ;;
+    omarchy-plugin)
+      _dot_cmd_omarchy_plugin
       ;;
     firewall)
       _dot_cmd_firewall

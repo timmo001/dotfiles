@@ -48,6 +48,7 @@ src/
     PrivatePkgPublish.ts  — dot private-pkg-publish
     SkillUpdates.ts       — dot skill-updates
     SkillCheck.ts         — dot skill-check
+    OmarchyPlugin.ts      — managed Omarchy plugin add/update/remove lifecycle
     Completions.ts        — dot completions generator for stowed shell completions
     Usage.ts              — dot usage: local-first analytics (summary/stale/path/backfill)
     WorkspaceRelayout.ts  — apply/capture validated Hyprland Dwindle split trees
@@ -233,6 +234,7 @@ dot usage                     # Per-feature dot usage summary
 dot usage summary --format agent-context # Compact usage summary for agents
 dot usage stale --days 90     # Features not used in the window
 dot usage backfill --history  # Dry-run import from shell history (--apply to write)
+dot omarchy-plugin update <id> # Update and validate a managed Omarchy plugin
 dot workspace-relayout        # Apply a saved layout to the active workspace
 dot workspace-relayout --edit # Capture the current layout into a preset
 dot omarchy                   # Omarchy submenu (TUI)
