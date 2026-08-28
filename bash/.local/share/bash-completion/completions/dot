@@ -271,6 +271,16 @@ _dot_cmd_completions() {
     return
   fi
 }
+_dot_cmd_workspace_relayout() {
+  local cur prev cword
+  cur=${COMP_WORDS[COMP_CWORD]}
+  prev=${COMP_WORDS[COMP_CWORD-1]}
+  cword=$COMP_CWORD
+  if [[ $cur == -* ]]; then
+    COMPREPLY=( $(compgen -W '--edit --help -h' -- "$cur") )
+    return
+  fi
+}
 _dot_cmd_omarchy() {
   local cur prev cword
   cur=${COMP_WORDS[COMP_CWORD]}
@@ -324,7 +334,7 @@ _dot() {
   command=${COMP_WORDS[1]-}
 
   if (( cword == 1 )); then
-    COMPREPLY=( $(compgen -W 'dashboard init install update up stow omarchy-shell-config firewall doctor clean git-diff diff git-commit git-notifications agents-sync mcp-sync notes-capture-sync is-agent setup-public-repo setup-private-repo private-pkg-publish skill-updates skill-check skill-updates-agent completions omarchy usage help -h --help' -- "$cur") )
+    COMPREPLY=( $(compgen -W 'dashboard init install update up stow omarchy-shell-config firewall doctor clean git-diff diff git-commit git-notifications agents-sync mcp-sync notes-capture-sync is-agent setup-public-repo setup-private-repo private-pkg-publish skill-updates skill-check skill-updates-agent completions workspace-relayout omarchy usage help -h --help' -- "$cur") )
     return
   fi
 
@@ -397,6 +407,9 @@ _dot() {
       ;;
     completions)
       _dot_cmd_completions
+      ;;
+    workspace-relayout)
+      _dot_cmd_workspace_relayout
       ;;
     omarchy)
       _dot_cmd_omarchy

@@ -126,6 +126,27 @@ const dotItems: readonly MenuItem[] = [
     "Git",
   ),
   item(
+    "workspace-relayout",
+    "󱂬",
+    "Workspace Relayout",
+    "Apply or capture the active workspace layout",
+    exitCmd("dot workspace-relayout"),
+    [
+      {
+        label: "Apply",
+        description: "Apply a saved layout preset",
+        action: exitCmd("dot workspace-relayout"),
+      },
+      {
+        label: "Edit",
+        description: "Capture the current layout into a preset",
+        action: exitCmd("dot workspace-relayout --edit"),
+      },
+    ],
+    ["hyprland", "layout", "dwindle", "windows", "workspace"],
+    "Desktop",
+  ),
+  item(
     "stow",
     "󰏗",
     "Stow",

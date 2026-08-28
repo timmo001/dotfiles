@@ -50,6 +50,10 @@ import {
 import { skillCheck } from "./commands/SkillCheck.js";
 import { completions } from "./commands/Completions.js";
 import { usage } from "./commands/Usage.js";
+import {
+  workspaceRelayout,
+  WorkspaceRelayoutError,
+} from "./commands/WorkspaceRelayout.js";
 import { help } from "./commands/Help.js";
 import {
   diffBarJson,
@@ -611,6 +615,16 @@ if (mode.type === "native") {
       }),
     completions,
     usage,
+    "workspace-relayout": (args) => {
+      const unknown = args.find((arg) => arg !== "--edit");
+      return unknown
+        ? Effect.fail(
+            new WorkspaceRelayoutError({
+              message: `Unknown workspace-relayout argument: ${unknown}`,
+            }),
+          )
+        : workspaceRelayout({ edit: args.includes("--edit") });
+    },
     help,
   } satisfies Readonly<Record<string, NativeCommandHandler>>;
 

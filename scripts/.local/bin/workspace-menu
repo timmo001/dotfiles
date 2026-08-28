@@ -32,7 +32,7 @@ while true; do
       exec workspace-setup
       ;;
     'Relayout current workspace')
-      exec workspace-relayout
+      exec dot workspace-relayout
       ;;
     'Capture all workspaces')
       run-with-notify -a 'Workspace' 'Capture' workspace-capture; exit 0

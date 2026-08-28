@@ -5,7 +5,7 @@ sidebar:
   order: 4
 ---
 
-`workspace-relayout` applies saved layout presets to the active Hyprland workspace. It works on tiled windows only, using ratio-based split trees instead of fixed pixels, so the same preset can fit different monitors, scales, gaps, and bars.
+`dot workspace-relayout` applies saved layout presets to the active Hyprland workspace. It works on tiled windows only, using ratio-based split trees instead of fixed pixels, so the same preset can fit different monitors, scales, gaps, and bars.
 
 Use it when a workspace has the right windows but the split tree is wrong.
 
@@ -51,7 +51,7 @@ The checked-in presets cover workspaces with two to five tiled windows. Their JS
 
 Preset names do not need to be unique. The menu appends a rounded ratio signature, such as `75% top [75/25, 16/16/16/52]`, to distinguish variants.
 
-The script writes back through the stowed symlink when you edit presets, keeping the symlink in place.
+The command validates the complete presets file before moving windows. It writes updates atomically through the stowed symlink, keeping the symlink in place.
 
 ## Apply a layout
 
@@ -60,17 +60,17 @@ The script writes back through the stowed symlink when you edit presets, keeping
 3. Press `SUPER+TAB`.
 4. Choose a layout family from the Omarchy menu, such as **Top / bottom** or **Left / right**.
 5. Choose an ordered scale preset from that family.
-6. Let the script move windows through the temporary workspace and rebuild the split tree.
+6. Let the command move windows through the temporary workspace and rebuild the split tree.
 
 
-The script restores focus to the previously active window when it can.
+The command restores focus to the previously active window when it can. It applies each relayout as a checked Hyprland batch, verifies that every window returned to the active workspace, and attempts to restore the previous layout if applying or verification fails.
 
 ## Capture a new preset
 
 Use edit mode when the current workspace already has the layout you want to save:
 
 ```bash
-workspace-relayout --edit
+dot workspace-relayout --edit
 ```
 
 Or press:
@@ -83,28 +83,26 @@ Edit mode reconstructs the current layout into a split tree. Choose a family fir
 
 ## Temporary workspace
 
-Relayout rebuilds the split tree by moving windows through a temporary workspace. The default temporary workspace is `99`.
+Relayout rebuilds the split tree by moving windows through a temporary workspace. The default temporary workspace is `99`. The command stops before moving anything if that workspace is already occupied.
 
 Override it only when workspace `99` is already used for something important:
 
 ```bash
-WORKSPACE_RELAYOUT_TEMP_WS=98 workspace-relayout
+WORKSPACE_RELAYOUT_TEMP_WS=98 dot workspace-relayout
 ```
 
 The temp workspace must be a positive numeric workspace id and must not match the active workspace.
 
 ## Requirements
 
-`workspace-relayout` requires:
+`dot workspace-relayout` requires:
 
 - `hyprctl`
-- `jq`
-- `awk`
 - `omarchy-menu-select`
 - `omarchy-menu-input`
 - The presets file at `~/.local/share/workspace-relayout/presets.json`
 
-If a requirement is missing, the script sends a desktop notification and exits.
+If a requirement is missing, the command sends a desktop notification and exits. A per-user lock prevents concurrent relayouts from moving the same windows.
 
 ## Troubleshooting
 

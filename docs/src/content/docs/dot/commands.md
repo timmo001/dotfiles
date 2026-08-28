@@ -693,6 +693,32 @@ dot completions bash --stdout
 dot completions fish --stdout
 ```
 
+## `dot workspace-relayout`
+
+Apply or capture a Hyprland workspace layout
+
+```text
+dot workspace-relayout [--edit]
+```
+
+Apply a saved ratio-based Dwindle layout to the active workspace, or
+capture the current tiled window geometry into a preset with --edit.
+The command validates presets and temporary workspace availability before
+moving windows, then verifies the result and attempts rollback on failure.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--edit` | Capture or overwrite a layout preset |
+
+**Examples**
+
+```bash
+dot workspace-relayout
+dot workspace-relayout --edit
+```
+
 ## `dot omarchy`
 
 Open an Omarchy submenu by path

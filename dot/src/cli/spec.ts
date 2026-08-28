@@ -789,6 +789,22 @@ export const cliCommands: readonly CliCommandSpec[] = [
     ],
   },
   {
+    name: "workspace-relayout",
+    summary: "Apply or capture a Hyprland workspace layout",
+    usage: "[--edit]",
+    description: [
+      "Apply a saved ratio-based Dwindle layout to the active workspace, or",
+      "capture the current tiled window geometry into a preset with --edit.",
+      "The command validates presets and temporary workspace availability before",
+      "moving windows, then verifies the result and attempts rollback on failure.",
+    ],
+    options: [
+      { name: "--edit", description: "Capture or overwrite a layout preset" },
+      helpOption,
+    ],
+    examples: ["dot workspace-relayout", "dot workspace-relayout --edit"],
+  },
+  {
     name: "omarchy",
     summary: "Open an Omarchy submenu by path",
     usage: "[submenu...]",

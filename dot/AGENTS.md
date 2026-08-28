@@ -50,6 +50,7 @@ src/
     SkillCheck.ts         — dot skill-check
     Completions.ts        — dot completions generator for stowed shell completions
     Usage.ts              — dot usage: local-first analytics (summary/stale/path/backfill)
+    WorkspaceRelayout.ts  — apply/capture validated Hyprland Dwindle split trees
     Help.ts               — dot help
   mcp/
     commands/McpSync.ts   — dot mcp-sync: regenerate harness MCP configs from the spec
@@ -232,6 +233,8 @@ dot usage                     # Per-feature dot usage summary
 dot usage summary --format agent-context # Compact usage summary for agents
 dot usage stale --days 90     # Features not used in the window
 dot usage backfill --history  # Dry-run import from shell history (--apply to write)
+dot workspace-relayout        # Apply a saved layout to the active workspace
+dot workspace-relayout --edit # Capture the current layout into a preset
 dot omarchy                   # Omarchy submenu (TUI)
 dot help                      # Show help
 dot --help                    # Show help
