@@ -95,8 +95,8 @@ Panel {
     return filterController.filteredModel.filter(function(entry) { return entry.kind === kind })
   }
 
-  function open() {
-    view = "overview"
+  function open(initialView) {
+    view = initialView || "overview"
     selectedRepo = null
     filterController.reset()
     if (service) {

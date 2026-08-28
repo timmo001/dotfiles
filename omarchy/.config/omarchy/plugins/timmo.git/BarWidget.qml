@@ -71,6 +71,12 @@ BarWidget {
     if (panelLoader.item) panelLoader.item.open()
   }
 
+  function openOther() {
+    var widget = activeWidget()
+    if (widget && widget !== root) { widget.openOther(); return }
+    if (panelLoader.item) panelLoader.item.open("other")
+  }
+
   function close() {
     var widget = activeWidget()
     if (widget && widget !== root) { widget.close(); return }
@@ -122,6 +128,7 @@ BarWidget {
         target: "timmo.git"
         function refresh(): void { if (root.git) root.git.refresh() }
         function open(): void { root.open() }
+        function other(): void { root.openOther() }
         function close(): void { root.close() }
         function show(): void { root.open() }
         function hide(): void { root.close() }
