@@ -16,7 +16,6 @@ import type {
 
 const root = resolve(import.meta.dir, "../..");
 const v1 = resolve(root, "agents/.config/opencode/plugins");
-const v1Tui = resolve(root, "agents/.config/opencode/tui-plugins");
 const v2 = resolve(root, "agents/.config/opencode/plugins-v2");
 
 const migrated = [
@@ -829,17 +828,6 @@ describe("OpenCode V1/V2 plugin migration", () => {
       "content-type": "application/json",
     });
     expect(JSON.stringify(request?.body)).toContain("Context is full");
-  });
-
-  test("TUI plugins retain separate V1 and V2 implementations", async () => {
-    for (const name of ["lazygit"]) {
-      const [legacy, current] = await Promise.all([
-        readFile(resolve(v1Tui, `${name}.ts`), "utf8"),
-        readFile(resolve(v2, "tui", `${name}.ts`), "utf8"),
-      ]);
-      expect(legacy).toContain("TuiPlugin");
-      expect(current).toContain("Plugin.Definition");
-    }
   });
 
   test("every migrated V1 server plugin has a default export", async () => {

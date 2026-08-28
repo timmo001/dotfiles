@@ -258,7 +258,7 @@ async function generatePlugins(): Promise<void> {
     5,
   );
   lines.push(
-    'Plugins provide context, evidence, or enforcement hooks for OpenCode. Server plugins are loaded from `~/.config/opencode/plugins/`; TUI-only plugins live in `~/.config/opencode/tui-plugins/` so server discovery does not load them.',
+    'Plugins provide context, evidence, or enforcement hooks for OpenCode. Server plugins are loaded from `~/.config/opencode/plugins/`.',
     '',
     '| Plugin | Description |',
     '| --- | --- |',
