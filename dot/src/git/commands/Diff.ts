@@ -14,6 +14,8 @@ import {
   writeRows,
   writeText,
 } from "./rows.js";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 
 /** Handle DotDiffError by printing to stderr and exiting */
 const handleDiffError = handleCommandError("dot git-diff");
@@ -98,6 +100,32 @@ export function formatDiffBarJson(changed: readonly DiffRepo[]) {
       ahead,
       behind,
     })),
+  };
+}
+
+/** Machine output: full repository state for the native shell panel. */
+export const diffPanelJson = (opts?: DiffScanOptions) =>
+  Effect.gen(function* () {
+    const dotDiff = yield* DotDiff;
+    const repos = yield* dotDiff.getAll(opts);
+    yield* writeJsonLine(formatDiffPanelJson(repos));
+  }).pipe(Effect.withSpan("diff.panelJson"), handleDiffError);
+
+/** Format all repository state for the native shell panel. */
+export function formatDiffPanelJson(repos: readonly DiffRepo[]) {
+  const toRow = (repo: DiffRepo) => ({
+    name: repo.name,
+    path: repo.path,
+    category: repo.category,
+    modified: repo.modified,
+    ahead: repo.ahead,
+    behind: repo.behind,
+    locked: existsSync(join(repo.path, ".git", "index.lock")),
+  });
+
+  return {
+    changed: changedRepos(repos).map(toRow),
+    other: repos.filter(isUnchangedRepo).map(toRow),
   };
 }
 
@@ -218,4 +246,8 @@ export const diffRaw = (opts?: DiffScanOptions) =>
 
 function changedRepos(repos: readonly DiffRepo[]): DiffRepo[] {
   return repos.filter((r) => r.isDirty || r.ahead > 0 || r.behind > 0);
+}
+
+function isUnchangedRepo(repo: DiffRepo): boolean {
+  return !repo.isDirty && repo.ahead === 0 && repo.behind === 0;
 }

@@ -10,6 +10,7 @@ Item {
   property int cursorIndex: 0
   property bool cursorStartsActive: true
   property bool cursorActive: cursorStartsActive
+  property bool backOnEmptyFilter: false
 
   readonly property var filteredModel: filterModel(model, filterText)
   readonly property var navigationEntries: navigationModel === null ? filteredModel : navigationModel
@@ -17,6 +18,7 @@ Item {
 
   signal activateRequested(var entry)
   signal closeRequested()
+  signal backRequested()
   signal refreshRequested()
   signal tabRequested(int direction)
   signal revealRequested()
@@ -104,6 +106,9 @@ Item {
       event.accepted = true
     } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
       root.tabRequested((event.modifiers & Qt.ShiftModifier) || event.key === Qt.Key_Backtab ? -1 : 1)
+      event.accepted = true
+    } else if (event.key === Qt.Key_Backspace && !root.filterText && root.backOnEmptyFilter) {
+      root.backRequested()
       event.accepted = true
     } else if (Util.editsFilter(event, root.filterText)) {
       root.setFilter(Util.editedFilter(event, root.filterText))

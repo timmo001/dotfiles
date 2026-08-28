@@ -1,64 +1,31 @@
 ---
 title: Diff & Repo Watcher
-description: The dot git-diff TUI and CLI for tracking dirty worktrees and ahead/behind state across managed repos.
+description: Track dirty worktrees and ahead/behind state across managed repositories from the CLI and Omarchy Shell panel.
 sidebar:
   order: 2
 ---
 
 ## `dot git-diff`
 
-A two-pane repo watcher across every managed repository: public and private dotfiles, the notes vault, Omarchy repos (when enabled), and activity-enabled repos from `dot-git.yml`. The interactive TUI and explicit list commands include enabled repositories regardless of their activity schedules. The **Changed** pane lists repos with uncommitted changes or non-zero ahead/behind counts against their upstream; **Other** lists the rest.
+`dot git-diff` scans every managed repository: public and private dotfiles, the notes vault, Omarchy repos (when enabled), and activity-enabled repos from `dot-git.yml`. The default output is a detailed text summary. Explicit list and panel outputs include enabled repositories regardless of their activity schedules.
 
 ```bash
-dot git-diff                # interactive TUI (alias: dot diff)
+dot git-diff                # text summary (alias: dot diff)
 dot git-diff --raw          # text summary of repos with changes
 dot git-diff --bar-json     # JSON for status bars and shell modules
+dot git-diff --panel-json   # full repository snapshot for the shell panel
 dot git-diff --list-changed # changed repos as name|path rows
 dot git-diff --list-all     # all tracked repos as name|path rows
 dot git-diff --no-fetch     # skip upstream fetches; use local refs only
-dot git-diff --tab other    # open with the Other pane focused
-dot git-diff --repo dotfiles # open a changed repo directly in lazygit
 ```
 
-The TUI polls every ten seconds and performs an initial poll for a fast first paint.
-`--repo <name>` selects a changed repository and immediately suspends the TUI into lazygit. Quitting lazygit resumes the diff TUI with that repository still selected.
-
-## TUI layout
-
-| Pane | Contents |
-| --- | --- |
-| Changed | Repos with dirty worktrees or ahead/behind upstream |
-| Other | Tracked repos with a clean worktree and no ahead/behind drift |
-
-The status bar shows when the last poll ran, how many repos changed, and how many have a stale `.git/index.lock` file. Repos with a lock file show a lock icon in the list.
-
-## Keyboard
-
-| Key | Action |
-| --- | --- |
-| ↑ / ↓ | Navigate the active pane |
-| Tab | Switch between Changed and Other |
-| `/` | Filter the active pane by repo name or path |
-| Enter | Open lazygit in the selected repo (suspends the TUI) |
-| `e` | Open the repo in your default editor |
-| `E` | Open the repo in your visual editor |
-| `o` | Open an interactive OpenCode session |
-| `O` | Open an OpenCode plan session |
-| `t` | Open a terminal in the repo directory |
-| `w` | Open the repo on GitHub in the browser |
-| `x` | Remove a stale `.git/index.lock` from the selected repo |
-| `r` | Refresh immediately |
-| Esc / Backspace | Clear an active filter, or return to the main menu |
-
-Filtering updates the active pane as you type. Press Enter to keep the filter and return focus to the repository list, or Escape to clear it.
-
-Repo pulls and fetches are not available from this view; use `dot update` or work inside the repo directly.
+The raw summary includes working-tree status, staged and unstaged diff statistics, and ahead/behind commits. `--list-changed` and `--list-all` emit `name|path` rows for scripts. `--bar-json` is schedule-aware status-bar output, while `--panel-json` provides the complete Changed and Other repository lists for the native shell panel.
 
 ## Index locks
 
 Status scans run `git --no-optional-locks status` so background polling does not refresh the index or compete with an in-flight rebase, merge, or other index-writing operation. That keeps bar modules and the TUI from creating or waiting on `.git/index.lock` during normal reads.
 
-When a crashed git process leaves a stale lock behind, the repo appears with a lock indicator. Press `x` on the selected repo to remove the lock file and trigger a refresh. Only remove a lock when no git command is actively running in that repository.
+When a crashed git process leaves a stale lock behind, the repo appears with a lock indicator in the shell panel. Only remove a lock when no git command is actively running in that repository.
 
 ## Upstream fetches
 
@@ -66,7 +33,7 @@ When a repo has an upstream configured, `dot git-diff` fetches the tracking bran
 
 ## Status bar module
 
-The `timmo.git` Quickshell plugin polls `dot git-diff --bar-json` and combines its repository rows with GitHub notifications in one bar widget and native panel. The panel opens the Changed or Other TUI separately and refreshes both sources together. The stowed `git-diff-bar` cache command remains available to generic status bars. See [Bar Integrations](/bar-integrations/) for the shared JSON contract.
+The `timmo.git` Quickshell plugin polls `dot git-diff --bar-json` for its bar state and `dot git-diff --panel-json` for its experimental native repository browser. The same panel combines Changed and Other repositories with GitHub notifications. Repository actions can open lazygit, an editor, OpenCode, a terminal, or GitHub. Editor, OpenCode, and terminal actions focus an existing matching Herdr workspace or create one when a shared Herdr session is running. A new editor or OpenCode workspace starts the requested command. Without Herdr, these actions use an ordinary tiled terminal; only short-lived TUI actions use a floating terminal. The stowed `git-diff-bar` cache command remains available to generic status bars. See [Bar Integrations](/bar-integrations/) for the shared JSON contract.
 
 Status-bar polling respects each repository's activity schedule so unattended checks stay within the configured hours.
 

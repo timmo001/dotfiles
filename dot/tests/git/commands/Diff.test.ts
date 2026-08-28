@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { formatDiffBarJson } from "../../../src/git/commands/Diff.js";
+import {
+  formatDiffBarJson,
+  formatDiffPanelJson,
+} from "../../../src/git/commands/Diff.js";
 import type { DiffRepo } from "../../../src/types.js";
 
 const repo = (overrides: Partial<DiffRepo> = {}): DiffRepo => ({
@@ -11,6 +14,26 @@ const repo = (overrides: Partial<DiffRepo> = {}): DiffRepo => ({
   ahead: 0,
   behind: 0,
   ...overrides,
+});
+
+describe("formatDiffPanelJson", () => {
+  test("partitions full repository rows for the native panel", () => {
+    expect(
+      formatDiffPanelJson([
+        repo(),
+        repo({
+          name: "notes",
+          path: "/private/home/notes",
+          category: "notes",
+          isDirty: false,
+          modified: 0,
+        }),
+      ]),
+    ).toMatchObject({
+      changed: [{ name: "dotfiles", path: "/private/home/dotfiles" }],
+      other: [{ name: "notes", path: "/private/home/notes" }],
+    });
+  });
 });
 
 describe("formatDiffBarJson", () => {

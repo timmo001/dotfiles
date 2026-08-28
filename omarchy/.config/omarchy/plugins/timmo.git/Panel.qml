@@ -14,11 +14,13 @@ Panel {
   readonly property var barIdentity: hostWidget || root
   readonly property color contentForeground: bar ? bar.foreground : Color.foreground
   readonly property string contentFontFamily: bar ? bar.fontFamily : Style.font.family
-  readonly property int actionCount: 4
+  property string view: "overview"
+  property var selectedRepo: null
+  property string selectedRepoView: "changed"
   readonly property int repoCount: service ? service.repos.length : 0
+  readonly property int changedRepoCount: service ? service.changedRepos.length : 0
+  readonly property int otherRepoCount: service ? service.otherRepos.length : 0
   readonly property int threadCount: service ? service.threads.length : 0
-  readonly property var actionLabels: ["Refresh Git", "Open repository changes", "Open Other repositories", "Open GitHub notifications"]
-  readonly property var actionIcons: ["", "", "󰙅", ""]
   readonly property var panelRows: buildPanelRows()
   readonly property var filteredActions: filterRows("action")
   readonly property var filteredRepos: filterRows("repo")
@@ -26,17 +28,19 @@ Panel {
 
   function buildPanelRows() {
     var rows = []
-    for (var i = 0; i < actionCount; i++) {
-      rows.push({
-        key: "action:" + i,
-        kind: "action",
-        section: "action",
-        actionIndex: i,
-        primaryText: actionLabels[i],
-        secondaryText: ""
-      })
+    if (view === "overview") {
+    } else if (view === "repo") {
+      rows.push(actionRow("lazygit", "Open in lazygit", ""))
+      rows.push(actionRow("editor", "Open in editor", ""))
+      rows.push(actionRow("opencode", "Open in OpenCode", "󱚣"))
+      rows.push(actionRow("terminal", "Open terminal", ""))
+      rows.push(actionRow("web", "Open on GitHub", ""))
+      rows.push(actionRow("back", "Back to repositories", ""))
+      return rows
+    } else {
+      rows.push(actionRow("back", "Back to Git overview", ""))
     }
-    var repos = service ? service.repos : []
+    var repos = service ? ((view === "overview" || view === "changed") ? service.changedRepos : (view === "other" ? service.otherRepos : [])) : []
     for (var j = 0; j < repos.length; j++) {
       var repo = repos[j]
       rows.push({
@@ -48,7 +52,11 @@ Panel {
         secondaryText: repoDetail(repo)
       })
     }
-    var threads = service ? service.threads : []
+    if (view === "overview") {
+      rows.push(actionRow("other", "Other repositories", "󰙅"))
+      rows.push(actionRow("notifications", "Notifications", ""))
+    }
+    var threads = service && view === "overview" ? service.threads : []
     for (var k = 0; k < threads.length; k++) {
       var thread = threads[k]
       rows.push({
@@ -63,13 +71,30 @@ Panel {
     return rows
   }
 
+  function actionRow(action, label, icon) {
+    return {
+      key: "action:" + action,
+      kind: "action",
+      section: "action",
+      action: action,
+      primaryText: label,
+      secondaryText: "",
+      icon: icon
+    }
+  }
+
   function filterRows(kind) {
     return filterController.filteredModel.filter(function(entry) { return entry.kind === kind })
   }
 
   function open() {
+    view = "overview"
+    selectedRepo = null
     filterController.reset()
-    if (service) service.refresh()
+    if (service) {
+      service.refresh()
+      service.refreshPanel()
+    }
     controller.show()
     Qt.callLater(function() {
       panelFlick.contentY = 0
@@ -91,7 +116,7 @@ Panel {
     if (!entry) return null
     var rows = entry.kind === "action" ? filteredActions
       : (entry.kind === "repo" ? filteredRepos : filteredThreads)
-    var repeater = entry.kind === "action" ? actionRepeater
+    var repeater = entry.kind === "action" ? (view === "overview" ? overviewActionRepeater : actionRepeater)
       : (entry.kind === "repo" ? repoRepeater : threadRepeater)
     return repeater.itemAt(rows.indexOf(entry))
   }
@@ -111,12 +136,25 @@ Panel {
     onTriggered: root.scrollCursorIntoView()
   }
 
-  function activateAction(index) {
+  function showView(nextView) {
+    view = nextView
+    filterController.reset()
+    panelFlick.contentY = 0
+  }
+
+  function showRepoActions(repo) {
+    selectedRepoView = view
+    selectedRepo = repo
+    showView("repo")
+  }
+
+  function activateAction(action) {
     if (!service) return
-    if (index === 0) service.refresh()
-    else if (index === 1) { close(); service.openDiff(false, "") }
-    else if (index === 2) { close(); service.openDiff(true, "") }
-    else if (index === 3) { close(); service.openNotifications() }
+    if (action === "refresh") { service.refresh(); service.refreshPanel() }
+    else if (action === "changed" || action === "other") showView(action)
+    else if (action === "back") showView(view === "repo" ? selectedRepoView : "overview")
+    else if (action === "notifications") { close(); service.openNotifications() }
+    else if (selectedRepo) { close(); service.openRepo(selectedRepo, action) }
   }
 
   function activateThread(thread) {
@@ -126,11 +164,9 @@ Panel {
   }
 
   function activateEntry(entry) {
-    if (entry.kind === "action") activateAction(entry.actionIndex)
-    else if (entry.kind === "repo") {
-      close()
-      if (service) service.openDiff(false, entry.value.name)
-    } else if (entry.kind === "thread") activateThread(entry.value)
+    if (entry.kind === "action") activateAction(entry.action)
+    else if (entry.kind === "repo") showRepoActions(entry.value)
+    else if (entry.kind === "thread") activateThread(entry.value)
   }
 
   function repoDetail(repo) {
@@ -155,11 +191,12 @@ Panel {
       id: filterController
       anchors.fill: parent
       model: root.panelRows
+      backOnEmptyFilter: true
       onRevealRequested: revealTimer.restart()
       onActivateRequested: function(entry) { root.activateEntry(entry) }
+      onBackRequested: if (root.view === "overview") root.close(); else root.activateAction("back")
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
-      onRefreshRequested: if (root.service) root.service.refresh()
 
       Flickable {
         id: panelFlick
@@ -179,8 +216,8 @@ Panel {
 
           PanelHero {
             width: parent.width
-            title: "Git"
-            meta: root.repoCount + " repositories · " + root.threadCount + " notifications"
+            title: root.view === "repo" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "overview" ? "Git" : (root.view === "changed" ? "Changed" : "Other"))
+            meta: root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.threadCount + " notifications" : (root.view === "changed" ? root.changedRepoCount + " repositories" : root.otherRepoCount + " repositories"))
             detail: root.service && root.service.refreshing ? "REFRESHING" : "STATUS"
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
@@ -195,6 +232,7 @@ Panel {
           }
 
           Text {
+            visible: root.view !== "overview"
             text: filterController.filterText || "ACTIONS"
             color: Qt.darker(root.contentForeground, 1.4)
             font.family: root.contentFontFamily
@@ -204,6 +242,7 @@ Panel {
           }
 
           Column {
+            visible: root.view !== "overview"
             width: parent.width
             spacing: Style.space(2)
             Repeater {
@@ -225,17 +264,17 @@ Panel {
                   anchors.leftMargin: Style.space(8)
                   anchors.rightMargin: Style.space(8)
                   spacing: Style.space(10)
-                  Text { width: Style.space(22); text: root.actionIcons[modelData.actionIndex]; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.icon; horizontalAlignment: Text.AlignHCenter }
-                  Text { width: Math.max(0, actionRow.width - Style.space(32)); text: root.actionLabels[modelData.actionIndex]; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
+                  Text { width: Style.space(22); text: modelData.icon; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.icon; horizontalAlignment: Text.AlignHCenter }
+                  Text { width: Math.max(0, actionRow.width - Style.space(32)); text: modelData.primaryText; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
                 }
-                MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: root.activateAction(modelData.actionIndex) }
+                MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: root.activateAction(modelData.action) }
               }
             }
           }
 
           Text {
             visible: root.filteredRepos.length > 0
-            text: "REPOSITORIES · " + (filterController.filterText ? root.filteredRepos.length + " MATCHING" : root.repoCount)
+            text: (root.view === "overview" ? "CHANGED REPOSITORIES" : "REPOSITORIES") + " · " + (filterController.filterText ? root.filteredRepos.length + " MATCHING" : (root.view === "other" ? root.otherRepoCount : root.changedRepoCount))
             color: Qt.darker(root.contentForeground, 1.4)
             font.family: root.contentFontFamily
             font.pixelSize: Style.font.caption
@@ -265,32 +304,71 @@ Panel {
                   anchors.leftMargin: Style.space(8)
                   anchors.rightMargin: Style.space(8)
                   spacing: Style.space(2)
-                  Text { width: parent.width; text: String(modelData.value.name || ""); color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
+                  Text { width: parent.width; text: (modelData.value.locked === true ? "󰌾 " : "") + String(modelData.value.name || ""); color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
                   Text { width: parent.width; text: root.repoDetail(modelData.value); color: Qt.darker(root.contentForeground, 1.4); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; elide: Text.ElideRight }
                 }
-                MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: { root.close(); if (root.service) root.service.openDiff(false, modelData.value.name) } }
+                 MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: root.showRepoActions(modelData.value) }
               }
             }
           }
 
           Text {
-            visible: !filterController.filterText && root.repoCount === 0
+            visible: !filterController.filterText && (root.view === "overview" || root.view === "changed" || root.view === "other") && root.filteredRepos.length === 0
             width: parent.width
-            text: root.service && root.service.diffError !== "" ? root.service.diffError : (root.service && !root.service.diffLoaded ? "Loading repositories" : "All tracked repositories are clean")
+            text: root.service && root.service.panelError !== "" ? root.service.panelError : (root.service && !root.service.panelLoaded ? "Loading repositories" : (root.view === "other" ? "No Other repositories" : "All tracked repositories are clean"))
             color: Qt.darker(root.contentForeground, 1.4)
             font.family: root.contentFontFamily
             font.pixelSize: Style.font.body
             horizontalAlignment: Text.AlignHCenter
           }
 
-          Text {
-            visible: root.filteredThreads.length > 0
-            text: "GITHUB NOTIFICATIONS · " + (filterController.filterText ? root.filteredThreads.length + " MATCHING" : root.threadCount)
-            color: Qt.darker(root.contentForeground, 1.4)
-            font.family: root.contentFontFamily
-            font.pixelSize: Style.font.caption
-            font.bold: true
-            font.letterSpacing: 1.2
+          Column {
+            visible: root.view === "overview"
+            width: parent.width
+            spacing: Style.space(2)
+            Repeater {
+              id: overviewActionRepeater
+              model: root.filteredActions
+              Column {
+                required property int index
+                required property var modelData
+                width: contentColumn.width
+                spacing: Style.space(8)
+
+                Rectangle {
+                  width: parent.width
+                  height: 1
+                  color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.18)
+                }
+
+                CursorSurface {
+                  width: parent.width
+                  implicitHeight: overviewActionRow.implicitHeight + Style.space(12)
+                  hasCursor: filterController.cursorIndex === filterController.indexForKey(modelData.key)
+                  foreground: root.contentForeground
+                  accent: root.contentForeground
+                  Row {
+                    id: overviewActionRow
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: Style.space(8)
+                    anchors.rightMargin: Style.space(8)
+                    spacing: Style.space(10)
+                    Text { width: Style.space(22); text: modelData.icon; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.icon; horizontalAlignment: Text.AlignHCenter }
+                    Text { width: Math.max(0, overviewActionRow.width - Style.space(32)); text: modelData.primaryText; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
+                  }
+                  MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: root.activateAction(modelData.action) }
+                }
+              }
+            }
+          }
+
+          Rectangle {
+            visible: root.view === "overview"
+            width: parent.width
+            height: 1
+            color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.18)
           }
 
           Column {
@@ -325,7 +403,7 @@ Panel {
           }
 
           Text {
-            visible: !filterController.filterText && root.threadCount === 0
+            visible: root.view === "overview" && !filterController.filterText && root.threadCount === 0
             width: parent.width
             text: root.service && root.service.notificationsError !== "" ? root.service.notificationsError : (root.service && !root.service.notificationsLoaded ? "Loading notifications" : "GitHub inbox clear")
             color: Qt.darker(root.contentForeground, 1.4)

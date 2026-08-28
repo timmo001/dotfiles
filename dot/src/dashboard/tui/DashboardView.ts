@@ -81,8 +81,6 @@ const INITIAL_STATE = {
           headline: "Loading git state",
           tone: "muted",
           lines: [],
-          viewId: "git-diff",
-          actionLabel: "Open Git Diff",
         },
         {
           id: "github",

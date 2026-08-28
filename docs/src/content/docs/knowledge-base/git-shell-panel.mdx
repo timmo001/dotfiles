@@ -14,7 +14,6 @@ The `timmo.git` Omarchy Shell plugin combines managed repository state and GitHu
 | `CTRL+ALT+G` | Toggle the panel |
 | Left click | Toggle the panel |
 | Right click | Refresh repository and notification state |
-| `r` while open | Refresh repository and notification state |
 
 Open or refresh it from a terminal with:
 
@@ -27,9 +26,9 @@ The widget stays hidden when tracked repositories are clean and the GitHub inbox
 
 ## Panel actions
 
-The panel lists changed repositories followed by filtered GitHub notification threads. Its actions open the Changed or Other repository view, open the filtered notifications TUI, or refresh both sources. Selecting a repository opens it in the diff TUI; selecting a notification opens its GitHub URL.
+The top page lists changed repositories, the Other repository link, the notifications link, and filtered GitHub notification threads. Selecting a repository opens actions for lazygit, an editor, OpenCode, a terminal, or GitHub. Editor, OpenCode, and terminal actions reuse a matching Herdr workspace when available; selecting a notification opens its GitHub URL.
 
-Use Up/Down or `j`/`k` to move, Enter to activate, Escape to close, and Tab to move to the next bar panel.
+Type to filter every visible action and row. Use Up/Down to move, Enter to activate, Backspace to edit the filter or return to the previous page, Escape to clear or close, and Tab to move to the next bar panel.
 
 ## Data sources
 
@@ -37,6 +36,7 @@ The service polls these structured commands every minute:
 
 ```bash
 dot git-diff --bar-json
+dot git-diff --panel-json
 dot git-notifications --bar-json
 ```
 

@@ -832,7 +832,7 @@ describe("OpenCode V1/V2 plugin migration", () => {
   });
 
   test("TUI plugins retain separate V1 and V2 implementations", async () => {
-    for (const name of ["dot-git-diff", "lazygit"]) {
+    for (const name of ["lazygit"]) {
       const [legacy, current] = await Promise.all([
         readFile(resolve(v1Tui, `${name}.ts`), "utf8"),
         readFile(resolve(v2, "tui", `${name}.ts`), "utf8"),

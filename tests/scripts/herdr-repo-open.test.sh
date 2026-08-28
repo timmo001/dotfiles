@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+temp_dir="$(mktemp -d)"
+trap 'rm -rf "$temp_dir"' EXIT
+
+mkdir -p "$temp_dir/bin"
+cat >"$temp_dir/bin/herdr" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "$1 $2" in
+  "status server") exit 0 ;;
+  "workspace list")
+    if [[ "$MODE" == "existing" ]]; then
+      printf '{"result":{"workspaces":[{"workspace_id":"w1","label":"Dotfiles"}]}}\n'
+    else
+      printf '{"result":{"workspaces":[]}}\n'
+    fi
+    ;;
+  "workspace create")
+    printf 'create %s\n' "$*" >>"$CALLS"
+    printf '{"result":{"workspace":{"workspace_id":"w2"},"tab":{"tab_id":"w2:t1"},"root_pane":{"pane_id":"w2:p1"}}}\n'
+    ;;
+  "tab create")
+    printf 'create-tab %s\n' "$*" >>"$CALLS"
+    printf '{"result":{"tab":{"tab_id":"w1:t2"},"root_pane":{"pane_id":"w1:p2"}}}\n'
+    ;;
+  "tab rename") printf 'rename %s %s\n' "$3" "$4" >>"$CALLS" ;;
+  "workspace focus") printf 'focus %s\n' "$3" >>"$CALLS" ;;
+  "pane run") printf 'run %s %s\n' "$3" "$4" >>"$CALLS" ;;
+  *) exit 2 ;;
+esac
+EOF
+chmod +x "$temp_dir/bin/herdr"
+
+calls="$temp_dir/calls"
+mkdir -p "$temp_dir/cache/dot"
+printf '[{"name":"Dotfiles","path":"/repo"}]\n' >"$temp_dir/cache/dot/repo-picker.json"
+
+PATH="$temp_dir/bin:$PATH" XDG_CACHE_HOME="$temp_dir/cache" MODE=existing CALLS="$calls" \
+  "$repo_root/scripts/.local/bin/herdr-repo-open" dotfiles /repo OpenCode opencode
+grep -Fx "create-tab tab create --workspace w1 --cwd /repo --label OpenCode --no-focus" "$calls"
+grep -Fx "rename w1:t2 OpenCode" "$calls"
+grep -Fx "run w1:p2 opencode" "$calls"
+grep -Fx "focus w1" "$calls"
+
+: >"$calls"
+PATH="$temp_dir/bin:$PATH" XDG_CACHE_HOME="$temp_dir/cache" MODE=new CALLS="$calls" \
+  "$repo_root/scripts/.local/bin/herdr-repo-open" dotfiles /repo OpenCode opencode
+grep -Fx "create workspace create --cwd /repo --label Dotfiles --no-focus" "$calls"
+grep -Fx "rename w2:t1 OpenCode" "$calls"
+grep -Fx "run w2:p1 opencode" "$calls"
+grep -Fx "focus w2" "$calls"

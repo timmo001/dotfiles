@@ -50,14 +50,6 @@ command = "herdr-lazygit.open"
 description = "toggle lazygit side pane"
 
 [[keys.command]]
-key = "prefix+shift+g"
-type = "popup"
-command = "env DOT_AGENT=0 dot git-diff"
-width = "90%"
-height = "90%"
-description = "dot git-diff"
-
-[[keys.command]]
 key = "prefix+shift+m"
 type = "plugin_action"
 command = "dotfiles.mise-task-runner.open"

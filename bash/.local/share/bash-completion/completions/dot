@@ -176,15 +176,8 @@ _dot_cmd_git_diff() {
   cur=${COMP_WORDS[COMP_CWORD]}
   prev=${COMP_WORDS[COMP_CWORD-1]}
   cword=$COMP_CWORD
-  case $prev in
-    --tab)
-      COMPREPLY=( $(compgen -W 'changed other unchanged' -- "$cur") )
-      return
-      ;;
-  esac
-
   if [[ $cur == -* ]]; then
-    COMPREPLY=( $(compgen -W '--no-fetch --tab --repo --raw --bar-json --list-changed --list-all --help -h' -- "$cur") )
+    COMPREPLY=( $(compgen -W '--no-fetch --raw --bar-json --panel-json --list-changed --list-all --help -h' -- "$cur") )
     return
   fi
 }

@@ -32,8 +32,10 @@ done
 [[ "$(DOT_USAGE_DISABLE=1 "$dot_binary" up --help)" == *'Usage: dot update'* ]]
 
 DOT_USAGE_DISABLE=1 "$dot_binary" git-diff --bar-json | jq -e 'type == "object"' >/dev/null
+DOT_USAGE_DISABLE=1 "$dot_binary" git-diff --panel-json | jq -e '.changed | type == "array"' >/dev/null
 DOT_USAGE_DISABLE=1 "$dot_binary" git-notifications --bar-json | jq -e 'type == "object"' >/dev/null
 
+DOT_USAGE_DISABLE=1 "$dot_binary" git-diff >/dev/null
 DOT_USAGE_DISABLE=1 "$dot_binary" git-diff --raw >/dev/null
 DOT_USAGE_DISABLE=1 "$dot_binary" git-diff --list-changed >/dev/null
 DOT_USAGE_DISABLE=1 "$dot_binary" git-diff --list-all >/dev/null

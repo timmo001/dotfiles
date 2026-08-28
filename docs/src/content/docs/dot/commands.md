@@ -341,20 +341,21 @@ dot clean
 
 Aliases: `dot diff`
 
-Open the git diff/repo watcher view
+Show repository change state
 
 ```text
 dot git-diff [options]
 ```
 
-Open the diff/repo watcher view. Without flags, opens the interactive TUI.
+Show change state across all tracked repositories.
 
 **Modes**
 
 ```text
-(default)        Interactive TUI diff view
+(default)        Text summary of repos with changes
 --raw            Text summary of repos with changes
 --bar-json      JSON output for status bars and shell modules
+--panel-json    Full JSON snapshot for the native shell panel
 --list-changed   Changed repos as name|path rows
 --list-all       All tracked repos as name|path rows
 ```
@@ -364,10 +365,9 @@ Open the diff/repo watcher view. Without flags, opens the interactive TUI.
 | Option | Description |
 | --- | --- |
 | `--no-fetch` | Skip fetching from remotes (use local refs only) |
-| `--tab` `<tab>` | Initial pane to focus in TUI (default: changed) (one of: `changed`, `other`, `unchanged`) |
-| `--repo` `<name>` | Open a changed repository directly in lazygit |
 | `--raw` | Text summary output |
 | `--bar-json` | JSON output for status bars and shell modules |
+| `--panel-json` | Full JSON snapshot for the native shell panel |
 | `--list-changed` | Changed repos as rows |
 | `--list-all` | All tracked repos as rows |
 
@@ -377,8 +377,7 @@ Open the diff/repo watcher view. Without flags, opens the interactive TUI.
 dot git-diff
 dot git-diff --raw
 dot git-diff --bar-json
-dot git-diff --tab other
-dot git-diff --repo dotfiles
+dot git-diff --panel-json
 ```
 
 ## `dot git-commit`

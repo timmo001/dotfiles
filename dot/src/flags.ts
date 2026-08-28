@@ -3,31 +3,16 @@ import { menuItemsById, submenus } from "./menu.js";
 import { nativeCommandNames } from "./cli/spec.js";
 import { renderHelp } from "./cli/help.js";
 
-type DiffTab = "changed" | "unchanged";
-
 /** Parsed CLI flags for `dot` */
 export interface Flags {
   /** Resolved subcommand (dot-separated path) matching a menu item ID or view ID */
   readonly subcommand: string | undefined;
-  /** Initial tab for the diff view */
-  readonly tab: DiffTab;
-  /** Changed repository name to select and open in lazygit. */
-  readonly repo: string | undefined;
   /** Normalized ISO timestamp for workflow run filters */
   readonly since: string | undefined;
   /** Show help and exit */
   readonly help: boolean;
   /** Remaining args not consumed by subcommand or flag parsing */
   readonly rest: readonly string[];
-}
-
-function parseDiffTab(value: string): DiffTab {
-  if (value === "other" || value === "unchanged") return "unchanged";
-  if (value === "changed") return "changed";
-  console.error(
-    `Unknown --tab value: ${value} (expected: changed, other, unchanged)`,
-  );
-  process.exit(1);
 }
 
 function parseSince(value: string): string {
@@ -151,8 +136,6 @@ function resolvePositionals(
 }
 
 type ParsedOptions = {
-  tab: DiffTab;
-  repo: string | undefined;
   since: string | undefined;
   help: boolean;
   rest: string[];
@@ -166,8 +149,6 @@ type FlagHandler = (
 
 function createParsedOptions(): ParsedOptions {
   return {
-    tab: "changed",
-    repo: undefined,
     since: undefined,
     help: false,
     rest: [],
@@ -208,36 +189,6 @@ function consumeSinceOption(
   return values.length;
 }
 
-function consumeTabOption(
-  args: readonly string[],
-  index: number,
-  parsed: ParsedOptions,
-): number {
-  const next = args[index + 1];
-
-  if (!next || next.startsWith("-")) {
-    console.error("--tab requires a value (e.g. --tab changed or --tab other)");
-    process.exit(1);
-  }
-
-  parsed.tab = parseDiffTab(next);
-  return 1;
-}
-
-function consumeRepoOption(
-  args: readonly string[],
-  index: number,
-  parsed: ParsedOptions,
-): number {
-  const next = args[index + 1];
-  if (!next || next.startsWith("-")) {
-    console.error("--repo requires a repository name");
-    process.exit(1);
-  }
-  parsed.repo = next;
-  return 1;
-}
-
 function collectFlagValues(
   args: readonly string[],
   startIndex: number,
@@ -256,8 +207,6 @@ const flagHandlers = new Map<string, FlagHandler>([
   ["--help", setHelp],
   ["-h", setHelp],
   ["--since", consumeSinceOption],
-  ["--tab", consumeTabOption],
-  ["--repo", consumeRepoOption],
 ]);
 
 function parseOptions(
@@ -297,9 +246,8 @@ function isKnownTarget(candidate: string): boolean {
  * the menu registry. For example, `["omarchy", "theme", "set"]` resolves
  * to subcommand `"omarchy.theme.set"` if that ID exists in the registry.
  *
- * The `tui` prefix is a transparent alias — `dot tui git-diff` is equivalent to
- * `dot git-diff`. It is stripped before subcommand resolution so remaining
- * positionals and flags are processed normally.
+ * The `tui` prefix is a transparent alias. It is stripped before subcommand
+ * resolution so remaining positionals and flags are processed normally.
  */
 export function parseFlags(args: readonly string[]): Flags {
   const effectiveArgs = stripTuiPrefix(args);
@@ -309,8 +257,6 @@ export function parseFlags(args: readonly string[]): Flags {
 
   return {
     subcommand: resolved.subcommand,
-    tab: parsed.tab,
-    repo: parsed.repo,
     since: parsed.since,
     help: parsed.help,
     rest: [...resolved.rest, ...parsed.rest],
@@ -324,12 +270,9 @@ export function resolveSubcommand(
   | { type: "view"; viewId: ViewId }
   | { type: "item"; itemId: string }
   | undefined {
-  // Direct view names. `diff` is a short alias for `git-diff`.
+  // Direct view names.
   if (sub === "dashboard") {
     return { type: "view", viewId: "dashboard" };
-  }
-  if (sub === "git-diff" || sub === "diff") {
-    return { type: "view", viewId: "git-diff" };
   }
   if (sub === "git-notifications") {
     return { type: "view", viewId: "git-notifications" };

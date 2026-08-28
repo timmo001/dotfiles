@@ -425,15 +425,14 @@ export const cliCommands: readonly CliCommandSpec[] = [
   {
     name: "git-diff",
     aliases: ["diff"],
-    summary: "Open the git diff/repo watcher view",
+    summary: "Show repository change state",
     usage: "[options]",
-    description: [
-      "Open the diff/repo watcher view. Without flags, opens the interactive TUI.",
-    ],
+    description: ["Show change state across all tracked repositories."],
     modes: [
-      "(default)        Interactive TUI diff view",
+      "(default)        Text summary of repos with changes",
       "--raw            Text summary of repos with changes",
       "--bar-json      JSON output for status bars and shell modules",
+      "--panel-json    Full JSON snapshot for the native shell panel",
       "--list-changed   Changed repos as name|path rows",
       "--list-all       All tracked repos as name|path rows",
     ],
@@ -442,23 +441,12 @@ export const cliCommands: readonly CliCommandSpec[] = [
         name: "--no-fetch",
         description: "Skip fetching from remotes (use local refs only)",
       },
-      {
-        name: "--tab",
-        valueName: "tab",
-        description: "Initial pane to focus in TUI (default: changed)",
-        choices: [
-          { value: "changed" },
-          { value: "other" },
-          { value: "unchanged" },
-        ],
-      },
-      {
-        name: "--repo",
-        valueName: "name",
-        description: "Open a changed repository directly in lazygit",
-      },
       rawOption,
       barJsonOption,
+      {
+        name: "--panel-json",
+        description: "Full JSON snapshot for the native shell panel",
+      },
       { name: "--list-changed", description: "Changed repos as rows" },
       { name: "--list-all", description: "All tracked repos as rows" },
       helpOption,
@@ -467,8 +455,7 @@ export const cliCommands: readonly CliCommandSpec[] = [
       "dot git-diff",
       "dot git-diff --raw",
       "dot git-diff --bar-json",
-      "dot git-diff --tab other",
-      "dot git-diff --repo dotfiles",
+      "dot git-diff --panel-json",
     ],
   },
   {

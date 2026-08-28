@@ -12,6 +12,10 @@ Item {
   property var repos: []
   property bool diffLoaded: false
   property string diffError: ""
+  property var changedRepos: []
+  property var otherRepos: []
+  property bool panelLoaded: false
+  property string panelError: ""
   property string notificationText: ""
   property string notificationTooltip: ""
   property string notificationClass: "notifications-unknown"
@@ -19,7 +23,7 @@ Item {
   property bool notificationsLoaded: false
   property string notificationsError: ""
 
-  readonly property bool refreshing: diffProcess.running || notificationsProcess.running
+  readonly property bool refreshing: diffProcess.running || panelProcess.running || notificationsProcess.running
   readonly property bool clear: diffLoaded && notificationsLoaded
     && diffError === "" && notificationsError === ""
     && diffClass === "dots-ok" && notificationClass === "hidden"
@@ -55,6 +59,18 @@ Item {
     }
   }
 
+  function applyPanel(raw) {
+    try {
+      var payload = JSON.parse(String(raw || "").trim())
+      changedRepos = Array.isArray(payload.changed) ? payload.changed : []
+      otherRepos = Array.isArray(payload.other) ? payload.other : []
+      panelLoaded = true
+      panelError = ""
+    } catch (error) {
+      failPanel("Invalid repository panel response")
+    }
+  }
+
   function failDiff(message) {
     diffText = ""
     diffTooltip = ""
@@ -73,16 +89,47 @@ Item {
     notificationClass = "notifications-unknown"
   }
 
+  function failPanel(message) {
+    changedRepos = []
+    otherRepos = []
+    panelLoaded = true
+    panelError = message
+  }
+
   function refresh() {
     if (!diffProcess.running) diffProcess.running = true
     if (!notificationsProcess.running) notificationsProcess.running = true
   }
 
-  function openDiff(other, repoName) {
-    var args = ["uwsm", "app", "--", "xdg-terminal-exec", "--app-id=TUI.float", "-e", "dot", "tui", "git-diff"]
-    if (other === true) args.push("--tab", "other")
-    else if (repoName) args.push("--repo", String(repoName))
-    Quickshell.execDetached(args)
+  function refreshPanel() {
+    if (!panelProcess.running) panelProcess.running = true
+  }
+
+  function openRepo(repo, action) {
+    if (!repo || !repo.path) return
+    var path = String(repo.path)
+    if (action === "lazygit")
+      Quickshell.execDetached(["uwsm", "app", "--", "xdg-terminal-exec", "--app-id=TUI.float", "--dir=" + path, "lazygit"])
+    else if (action === "editor")
+      Quickshell.execDetached([
+        "bash", "-lc",
+        "if herdr status server >/dev/null 2>&1; then exec herdr-repo-open \"$1\" \"$2\" Editor \"nvim .\"; else exec uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal --dir=\"$2\" nvim .; fi",
+        "bash", String(repo.name || ""), path
+      ])
+    else if (action === "opencode")
+      Quickshell.execDetached([
+        "bash", "-lc",
+        "if herdr status server >/dev/null 2>&1; then exec herdr-repo-open \"$1\" \"$2\" OpenCode opencode; else exec uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal --dir=\"$2\" opencode; fi",
+        "bash", String(repo.name || ""), path
+      ])
+    else if (action === "terminal")
+      Quickshell.execDetached([
+        "bash", "-lc",
+        "if herdr status server >/dev/null 2>&1; then exec herdr-repo-open \"$1\" \"$2\"; else exec uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal --dir=\"$2\"; fi",
+        "bash", String(repo.name || ""), path
+      ])
+    else if (action === "web")
+      Quickshell.execDetached(["bash", "-lc", "cd \"$1\" && exec gh repo view --web", "bash", path])
   }
 
   function openNotifications() {
@@ -100,6 +147,16 @@ Item {
     onExited: function(exitCode) {
       if (exitCode === 0) root.applyDiff(diffOutput.text)
       else root.failDiff("Repository status unavailable")
+    }
+  }
+
+  Process {
+    id: panelProcess
+    command: ["dot", "git-diff", "--panel-json"]
+    stdout: StdioCollector { id: panelOutput; waitForEnd: true }
+    onExited: function(exitCode) {
+      if (exitCode === 0) root.applyPanel(panelOutput.text)
+      else root.failPanel("Repository panel unavailable")
     }
   }
 

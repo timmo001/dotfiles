@@ -4,7 +4,6 @@ import type {
   ViewId,
   MenuItem,
   MenuAction,
-  RepoState,
   GitNotificationAction,
   GitNotificationThread,
 } from "../types.js";
@@ -14,18 +13,10 @@ import { menuItemsById } from "../menu.js";
 import type { CommandRunnerService } from "../services/CommandRunner.js";
 import { MainMenu } from "./MainMenu.js";
 import { DashboardView } from "../dashboard/tui/DashboardView.js";
-import { DiffView } from "../git/tui/DiffView.js";
 import { GitNotificationsView } from "../git/tui/GitNotificationsView.js";
 import { OmarchyMenu } from "./OmarchyMenu.js";
 import { OutputPane } from "./OutputPane.js";
 import { VariantPopup } from "./VariantPopup.js";
-import { openLazygit } from "../git/tui/Lazygit.js";
-import {
-  editorLaunchesDetached,
-  openEditorInDirectory,
-  openPathInEditor,
-} from "./externalEditor.js";
-import { openOpenCodeSession } from "./openCodeSession.js";
 import {
   resizeIfFloating,
   DEFAULT_FLOATING_SIZE,
@@ -39,11 +30,6 @@ const setTerminalTitle = (title: string): void => {
   process.stdout.write(`\x1b]0;${title}\x07`);
 };
 
-const diffTitle = "Dot TUI \u203A Diff";
-
-const formatDiffTitle = (changedCount: number): string =>
-  `${diffTitle} (${changedCount})`;
-
 /** Wrap a string in single quotes, escaping embedded single quotes for safe shell interpolation */
 const shellQuote = (s: string): string => `'${s.replace(/'/g, "'\\''")}'`;
 
@@ -51,10 +37,6 @@ const shellQuote = (s: string): string => `'${s.replace(/'/g, "'\\''")}'`;
 export interface AppOptions {
   /** Which view to start on (default: "main") */
   readonly initialView?: ViewId;
-  /** Initial tab for the diff view */
-  readonly initialDiffTab?: "changed" | "unchanged";
-  /** Changed repository name to open in lazygit after startup. */
-  readonly initialDiffRepo?: string;
   /** If set, execute this menu item immediately on startup and pre-select it */
   readonly executeItemId?: string;
 }
@@ -67,8 +49,6 @@ export interface AppDeps {
   readonly theme: Theme;
   /** Service for running shell commands with suspend/resume */
   readonly commandRunner: CommandRunnerService;
-  /** Callback to trigger an immediate diff refresh (wired to RepoWatcher) */
-  readonly onRefreshDiff: () => void;
   /** Callback to trigger an immediate GitHub notification refresh */
   readonly onRefreshNotifications: () => void;
   /** Callback to trigger an immediate dashboard source refresh. */
@@ -86,20 +66,16 @@ export class App {
   private commandRunner: CommandRunnerService;
   private mainMenu: MainMenu;
   private dashboardView: DashboardView;
-  private diffView: DiffView;
   private notificationsView: GitNotificationsView;
   private omarchyMenu: OmarchyMenu;
   private outputPane: OutputPane;
   private variantPopup: VariantPopup;
   private activeView: ViewId = "main";
   private viewStack: ViewId[] = [];
-  private diffChangedCount = 0;
-  private initialDiffRepo: string | undefined;
 
   constructor(deps: AppDeps, options: AppOptions = {}) {
     this.renderer = deps.renderer;
     this.commandRunner = deps.commandRunner;
-    this.initialDiffRepo = options.initialDiffRepo;
 
     // --- Create views ---
 
@@ -126,62 +102,6 @@ export class App {
         });
       },
       onRefresh: () => deps.onRefreshDashboard(),
-      onBack: () => this.popView(),
-    });
-
-    this.diffView = new DiffView(deps.renderer, deps.theme, {
-      initialTab: options.initialDiffTab ?? "changed",
-      onSelect: async (repo) => {
-        await openLazygit(deps.renderer, repo.path, () => {
-          setTerminalTitle(formatDiffTitle(this.diffChangedCount));
-        });
-        deps.onRefreshDiff();
-      },
-      onOpenEditor: async (repo, kind) => {
-        try {
-          if (editorLaunchesDetached(kind)) {
-            await openPathInEditor(deps.renderer, repo.path, kind);
-          } else {
-            await openEditorInDirectory(deps.renderer, repo.path, () => {
-              setTerminalTitle(formatDiffTitle(this.diffChangedCount));
-            });
-          }
-        } finally {
-          deps.onRefreshDiff();
-        }
-      },
-      onOpenOpencode: async (repo, mode) => {
-        try {
-          await openOpenCodeSession(deps.renderer, {
-            mode,
-            cwd: repo.path,
-            afterResume: () => {
-              setTerminalTitle(formatDiffTitle(this.diffChangedCount));
-            },
-          });
-        } finally {
-          deps.onRefreshDiff();
-        }
-      },
-      onOpenTerminal: (repo) => {
-        const p = shellQuote(repo.path);
-        deps.commandRunner
-          .runSilent(
-            `uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal /usr/bin/env bash -lc 'cd "$0" && exec bash -l' ${p}`,
-          )
-          .catch((err) => {
-            log(`Open terminal error: ${err}`);
-          });
-      },
-      onOpenWeb: (repo) => {
-        const p = shellQuote(repo.path);
-        deps.commandRunner
-          .runSilent(`cd ${p} && gh repo view --web`)
-          .catch((err) => {
-            log(`Open web error: ${err}`);
-          });
-      },
-      onRefresh: () => deps.onRefreshDiff(),
       onBack: () => this.popView(),
     });
 
@@ -294,14 +214,6 @@ export class App {
     this.showView(startView);
   }
 
-  /** Open the requested startup repository through the diff view, once. */
-  openInitialDiffRepo(): boolean {
-    if (!this.initialDiffRepo) return false;
-    const name = this.initialDiffRepo;
-    this.initialDiffRepo = undefined;
-    return this.diffView.openChangedRepo(name);
-  }
-
   /** Navigate to a view, pushing the current one onto the stack */
   pushView(viewId: ViewId): void {
     if (this.activeView !== viewId) {
@@ -322,15 +234,6 @@ export class App {
   /** Get the GitHub notifications view for direct state updates from the watcher */
   getNotificationsView(): GitNotificationsView {
     return this.notificationsView;
-  }
-
-  /** Update the diff view and terminal title with the latest watcher state. */
-  updateDiffState(state: RepoState): void {
-    this.diffChangedCount = state.changed.length;
-    this.diffView.update(state);
-    if (this.activeView === "git-diff") {
-      setTerminalTitle(formatDiffTitle(this.diffChangedCount));
-    }
   }
 
   /** Update the dashboard view with the latest composed live state. */
@@ -369,11 +272,6 @@ export class App {
         this.dashboardView.setVisible(true);
         this.dashboardView.focus();
         break;
-      case "git-diff":
-        setTerminalTitle(formatDiffTitle(this.diffChangedCount));
-        this.diffView.setVisible(true);
-        this.diffView.focus();
-        break;
       case "git-notifications":
         setTerminalTitle("Dot TUI \u203A Notifications");
         this.notificationsView.setVisible(true);
@@ -407,7 +305,6 @@ export class App {
   private hideAllViews(): void {
     this.mainMenu.setVisible(false);
     this.dashboardView.setVisible(false);
-    this.diffView.setVisible(false);
     this.notificationsView.setVisible(false);
     this.omarchyMenu.setVisible(false);
     this.outputPane.setVisible(false);
@@ -482,9 +379,6 @@ export class App {
         break;
       case "dashboard":
         this.dashboardView.focus();
-        break;
-      case "git-diff":
-        this.diffView.focus();
         break;
       case "git-notifications":
         this.notificationsView.focus();

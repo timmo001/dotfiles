@@ -14,7 +14,7 @@ dot_commands=(
   'firewall:Reconcile managed ufw firewall rules'
   'doctor:Run dotfiles system health checks'
   'clean:Unstow managed dotfiles'
-  'git-diff:Open the git diff/repo watcher view'
+  'git-diff:Show repository change state'
   'diff:Alias for git-diff'
   'git-commit:Commit staged changes through the guarded gateway'
   'git-notifications:Open GitHub notification inbox'
@@ -174,10 +174,9 @@ _dot_cmd_clean() {
 _dot_cmd_git_diff() {
   _arguments -S \
     '--no-fetch[Skip fetching from remotes (use local refs only)]' \
-    '--tab[Initial pane to focus in TUI (default: changed)]:tab:(changed other unchanged)' \
-    '--repo[Open a changed repository directly in lazygit]:name:' \
     '--raw[Text summary output]' \
     '--bar-json[JSON output for status bars and shell modules]' \
+    '--panel-json[Full JSON snapshot for the native shell panel]' \
     '--list-changed[Changed repos as rows]' \
     '--list-all[All tracked repos as rows]' \
     '(-h --help)-h[Show this help message]' \

@@ -53,12 +53,7 @@ export interface RepoState {
 
 /** Identifies a top-level TUI view for navigation */
 export type ViewId =
-  | "main"
-  | "dashboard"
-  | "git-diff"
-  | "git-notifications"
-  | "omarchy"
-  | "output";
+  "main" | "dashboard" | "git-notifications" | "omarchy" | "output";
 
 // --- GitHub notification types ---
 

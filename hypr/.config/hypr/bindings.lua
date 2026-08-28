@@ -123,13 +123,6 @@ o.bind("CTRL + ALT + M", "MOMENTUM 4 controls", "omarchy-shell shell toggle timm
 o.bind("SUPER + CTRL + SHIFT + C", nil, "timmo-run-command go-automate ha ib t in_a_call")
 o.bind("SUPER + CTRL + SHIFT + M", nil, "pactl set-source-mute @DEFAULT_SOURCE@ toggle")
 o.bind("CTRL + ALT + T", nil, "omarchy-shell shell toggle timmo.twitch")
-o.bind("CTRL + ALT + R", nil, "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e dot tui git-diff")
-o.bind(
-  "CTRL + ALT + SHIFT + R",
-  nil,
-  "uwsm app -- xdg-terminal-exec --app-id=TUI.float -e dot tui git-diff --tab other"
-)
-
 -- Opens the clock panel with local and US time zones.
 hl.unbind("SUPER + CTRL + T")
 o.bind("SUPER + CTRL + T", "Clock", "omarchy-shell shell toggle timmo.clock")

@@ -171,8 +171,6 @@ function gitDiffCard(
         ? `${behind} repo${plural(behind)} behind`
         : "Nothing behind upstream",
     ],
-    viewId: "git-diff",
-    actionLabel: "Open Git Diff",
   };
 }
 

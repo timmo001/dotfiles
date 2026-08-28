@@ -64,6 +64,7 @@ import { launchFloatingWebapp } from "./commands/LaunchFloatingWebapp.js";
 import { help } from "./commands/Help.js";
 import {
   diffBarJson,
+  diffPanelJson,
   diffListChanged,
   diffListAll,
   diffRaw,
@@ -126,7 +127,6 @@ const NOTIFICATION_ACTION_FLAGS: readonly {
 const TUI_ALTERNATIVES = {
   main: "dot help",
   dashboard: "context git",
-  "git-diff": "dot git-diff --raw",
   "git-notifications": "dot git-notifications --raw",
 } satisfies Partial<Record<ViewId, string>>;
 
@@ -170,17 +170,6 @@ function resolveMode(): Mode {
   if (nativeCommandNames.has(flags.subcommand)) {
     if (flags.subcommand === "dashboard") {
       return { type: "tui", initialView: "dashboard" };
-    }
-    // Git diff without machine flags opens the TUI diff view.
-    if (flags.subcommand === "git-diff" || flags.subcommand === "diff") {
-      const hasMachineFlag =
-        hasBarJsonFlag(flags.rest) ||
-        flags.rest.includes("--list-changed") ||
-        flags.rest.includes("--list-all") ||
-        flags.rest.includes("--raw");
-      if (!hasMachineFlag) {
-        return { type: "tui", initialView: "git-diff" };
-      }
     }
     // Git notifications without machine/action flags opens the TUI inbox view.
     if (flags.subcommand === "git-notifications") {
@@ -523,6 +512,7 @@ if (mode.type === "native") {
     const noFetch = args.includes("--no-fetch");
     const opts = noFetch ? { noFetch: true } : undefined;
     if (hasBarJsonFlag(args)) return diffBarJson(opts);
+    if (args.includes("--panel-json")) return diffPanelJson(opts);
     if (args.includes("--list-changed")) return diffListChanged(opts);
     if (args.includes("--list-all")) return diffListAll;
     return diffRaw(opts);
@@ -757,9 +747,6 @@ if (mode.type === "native") {
         renderer,
         theme,
         commandRunner,
-        onRefreshDiff: () => {
-          runFork(watcher.refresh());
-        },
         onRefreshNotifications: () => {
           runFork(notifications.refresh(notificationOpts));
         },
@@ -780,8 +767,6 @@ if (mode.type === "native") {
       },
       {
         initialView,
-        initialDiffTab: flags.tab,
-        initialDiffRepo: flags.repo,
         executeItemId,
       },
     );
@@ -811,7 +796,6 @@ if (mode.type === "native") {
             `State update: ${state.changed.length} changed, ${state.unchanged.length} unchanged`,
           );
           currentRepoState = state;
-          app.updateDiffState(state);
           updateDashboardView();
         }),
       ),
@@ -851,8 +835,6 @@ if (mode.type === "native") {
     log(
       `Initial state: ${initialState.changed.length} changed, ${initialState.unchanged.length} unchanged`,
     );
-    app.updateDiffState(initialState);
-
     const initialNotificationState = currentNotificationState;
     notificationsView.update(initialNotificationState);
 
@@ -861,14 +843,6 @@ if (mode.type === "native") {
     log("Starting renderer...");
     renderer.start();
     log("Renderer started — TUI is live");
-    if (
-      initialView === "git-diff" &&
-      flags.repo &&
-      !app.openInitialDiffRepo()
-    ) {
-      log(`Changed repository not found: ${flags.repo}`);
-    }
-
     // Keep alive until the process exits
     return yield* Effect.never;
   });

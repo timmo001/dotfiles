@@ -68,7 +68,7 @@ src/
   git/
     commands/
       Commit.ts           — dot git-commit (guarded gateway: message validation, --path, --push, --dry-run)
-      Diff.ts             — dot git-diff (--bar-json, --list-changed, --list-all, --raw)
+      Diff.ts             — dot git-diff (--bar-json, --panel-json, --list-changed, --list-all, --raw)
       Notifications.ts    — dot git-notifications (--bar-json, --list-threads, actions, --raw)
     remotes.ts            — Shared default-remote/branch resolver for git helpers
     doctor/
@@ -82,10 +82,7 @@ src/
       RepoWatcher.ts      — Hybrid poll loop (initial poll → 10s poll), PubSub state
       relativeTime.ts     — Shared compact relative timestamp formatter
     tui/
-      DiffView.ts         — Two-pane layout (Changed/Other) with repo watcher
       GitNotificationsView.ts — GitHub notification inbox with read/done/ignore actions
-      Lazygit.ts          — Suspend/resume lazygit spawn
-      SuspendedCommand.ts — Shared suspend/resume inherited-stdio command helper
   services/
     Config.ts             — Dotfiles paths, env config
     CommandExecutor.ts    — Shell command execution Effect service
@@ -123,7 +120,7 @@ src/
 1. `index.ts` parses CLI flags → resolves mode (TUI / native / fallback)
 2. Native commands run with `CliLayers` (no renderer, no TUI)
 3. TUI mode composes full layer stack including RepoWatcher, GitNotifications, Renderer, Toast
-4. `App` manages a view stack (main menu ↔ diff view ↔ notifications view ↔ omarchy menu)
+4. `App` manages a view stack (main menu ↔ dashboard ↔ notifications view ↔ omarchy menu)
 5. Menu items have typed actions: `command` (suspend/resume), `silent` (background), `notify` (background + toast), `view` (navigate), `submenu` (nested)
 6. `CommandRunner` handles suspend/resume for terminal commands, silent background execution, and notify-style commands with toast feedback
 7. `RepoWatcher` runs an initial poll for first paint, then polls every 10s
@@ -197,12 +194,11 @@ dot firewall                  # Reconcile managed ufw rules and comments
 dot doctor                    # Health checks
 dot doctor --open-opencode    # Health checks + OpenCode analysis
 dot clean                     # Unstow private then public
-dot git-diff                  # Diff view (TUI)
-dot git-diff --tab other      # Diff view, Other tab focused (TUI)
-dot git-diff --repo dotfiles  # Open a changed repo directly in lazygit, then resume the TUI
+dot git-diff                  # CLI diff output
 dot diff                      # Short alias for git-diff
-dot git-diff --raw            # CLI diff output (no TUI)
+dot git-diff --raw            # Explicit CLI diff output
 dot git-diff --bar-json       # JSON output for status bars and shell modules
+dot git-diff --panel-json     # Full JSON snapshot for the native shell panel
 dot git-diff --list-changed   # Changed repo rows
 dot git-diff --list-all       # All repo rows
 context git                   # Branch context: repo/branch/PR summary, ahead/behind, unstaged, staged, untracked, branch files, recent commits, and optional JSON output; MCP is via `context mcp`
@@ -279,8 +275,6 @@ After that bootstrap build, run the checked-out binary directly. If private dotf
 - `~/.config/dotfiles-private/dot-git.yml` — private git repo config for clone/bootstrap, doctor checks, `dot git-diff`, and `dot git-notifications --bar-json`; `activity` and `notifications` each require explicit `enabled` plus 5-field cron `schedule` keys, and `notifications.bar.ignore_bot_activity` controls status-bar bot noise
 - `~/.config/dotfiles-private/workspace-session.json` — optional class-to-argv launch policy for personal and work applications restored by `dot workspace-restore`
 - `gh` authenticated with a classic token carrying `notifications` or `repo` scope — required for `dot git-notifications` and its status-bar module
-- `lazygit` — launched via suspend/resume on Enter in diff view
-- `opencode` — CLI launched via suspend/resume for interactive sessions from the diff view
 - `omarchy` — various subcommands for desktop management
 - `system-health-check` — system diagnostics
 - `topgrade` — system-wide package upgrades
@@ -308,8 +302,7 @@ Manual post-build checks:
 
 ```bash
 dot                          # main menu renders, Ctrl+c quits
-dot git-diff                 # diff view renders
-dot git-diff --raw           # CLI diff output
+dot git-diff                 # CLI diff output
 dot git-diff --bar-json      # JSON output
 dot git-commit --help        # gateway help prints without side effects
 dot git-commit --dry-run -m "Test subject" # dry-run plan, no commit
