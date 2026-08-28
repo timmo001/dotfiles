@@ -32,10 +32,18 @@ Panel {
     } else if (view === "repo") {
       rows.push(actionRow("lazygit", "Open in lazygit", ""))
       rows.push(actionRow("editor", "Open in editor", ""))
-      rows.push(actionRow("opencode", "Open in OpenCode", "󱚣"))
+      rows.push(actionRow("agent", "Open in agent", "󱚣"))
       rows.push(actionRow("terminal", "Open terminal", ""))
       rows.push(actionRow("web", "Open on GitHub", ""))
       rows.push(actionRow("back", "Back to repositories", ""))
+      return rows
+    } else if (view === "agent") {
+      var agents = service ? service.installedAgents : []
+      for (var i = 0; i < agents.length; i++) {
+        var agent = agents[i]
+        rows.push(actionRow("agent:" + agent.command, agent.label, "󱚣"))
+      }
+      rows.push(actionRow("back", "Back to repository", ""))
       return rows
     } else {
       rows.push(actionRow("back", "Back to Git overview", ""))
@@ -152,8 +160,10 @@ Panel {
     if (!service) return
     if (action === "refresh") { service.refresh(); service.refreshPanel() }
     else if (action === "changed" || action === "other") showView(action)
-    else if (action === "back") showView(view === "repo" ? selectedRepoView : "overview")
+    else if (action === "agent") showView("agent")
+    else if (action === "back") showView(view === "agent" ? "repo" : (view === "repo" ? selectedRepoView : "overview"))
     else if (action === "notifications") { close(); service.openNotifications() }
+    else if (action.indexOf("agent:") === 0 && selectedRepo) { close(); service.openAgent(selectedRepo, action.slice(6)) }
     else if (selectedRepo) { close(); service.openRepo(selectedRepo, action) }
   }
 
@@ -216,8 +226,8 @@ Panel {
 
           PanelHero {
             width: parent.width
-            title: root.view === "repo" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "overview" ? "Git" : (root.view === "changed" ? "Changed" : "Other"))
-            meta: root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.threadCount + " notifications" : (root.view === "changed" ? root.changedRepoCount + " repositories" : root.otherRepoCount + " repositories"))
+            title: root.view === "agent" ? "Open in agent" : (root.view === "repo" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "overview" ? "Git" : (root.view === "changed" ? "Changed" : "Other")))
+            meta: root.view === "agent" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.threadCount + " notifications" : (root.view === "changed" ? root.changedRepoCount + " repositories" : root.otherRepoCount + " repositories")))
             detail: root.service && root.service.refreshing ? "REFRESHING" : "STATUS"
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
