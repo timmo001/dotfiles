@@ -132,7 +132,9 @@ Item {
     installedAgents = commands.map(function(command) {
       return {
         command: command,
-        executable: command === "opencode2" ? Quickshell.env("HOME") + "/.local/bin/opencode2" : command,
+        executable: command === "opencode2"
+          ? Quickshell.env("HOME") + "/.local/bin/opencode2"
+          : (command === "cursor" ? "cursor-agent" : command),
         label: labels[command] || command
       }
     })

@@ -11,3 +11,5 @@ Two additional application entries provide explicit choices in the desktop launc
 
 - **Cursor Editor** opens the Editor window with `--classic`.
 - **Cursor Agents** uses Cursor's `cursor://anysphere.cursor-deeplink/glass` route to open or focus the Agents window. Cursor calls this interface Glass internally; there is no `--modern` flag.
+
+The Git panel's **Open in agent** action runs `cursor-agent` for repositories selected with **Cursor Agent**.
