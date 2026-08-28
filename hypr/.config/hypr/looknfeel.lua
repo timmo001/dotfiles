@@ -81,6 +81,9 @@ hl.window_rule({ name = "opaque-vivaplus", match = { initial_title = ".*vivaplus
 hl.window_rule({ name = "opaque-home-assistant", match = { title = ".*Home Assistant.*" }, opacity = "1 1" })
 hl.window_rule({ name = "opaque-virt-manager", match = { class = "^virt-manager$" }, opacity = "1 1" })
 
+-- Keep Twitch OAuth separate from the tiled browser.
+hl.window_rule({ name = "float-twitch-auth", match = { class = "^chrome-id\\.twitch\\.tv__oauth2_authorize-[A-Za-z0-9_]+$" }, tag = "+floating-window" })
+
 -- Shared workspace rules.
 hl.window_rule({ name = "workspace-slicers", match = { class = "^(BambuStudio|OrcaSlicer)$" }, workspace = "4" })
 hl.window_rule({ name = "workspace-plannotator", match = { class = "^plannotator$" }, workspace = "2 silent" })
