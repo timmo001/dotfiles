@@ -1,8 +1,14 @@
 #!/bin/sh
 set -eu
 
+mode="tab"
+if [ "${1:-}" = "--pane" ]; then
+  mode="pane"
+  shift
+fi
+
 if [ "$#" -lt 2 ] || [ "$#" -gt 4 ]; then
-  echo "Usage: herdr-repo-open <label> <directory> [tab-label command]" >&2
+  echo "Usage: herdr-repo-open [--pane] <label> <directory> [tab-label command]" >&2
   exit 2
 fi
 
@@ -26,7 +32,8 @@ if ! herdr status server >/dev/null 2>&1; then
   exit 1
 fi
 
-workspace_id="$(herdr workspace list | jq -r --arg label "$label" '
+workspaces="$(herdr workspace list)"
+workspace_id="$(printf '%s' "$workspaces" | jq -r --arg label "$label" '
   (.result.workspaces // .workspaces // [])
   | map(select(.label == $label))
   | first
@@ -42,6 +49,26 @@ if [ -z "$workspace_id" ]; then
   workspace_id="$(printf '%s' "$created" | jq -r '.result.workspace.workspace_id // .workspace.workspace_id // empty')"
   tab_id="$(printf '%s' "$created" | jq -r '.result.tab.tab_id // .tab.tab_id // empty')"
   root_pane_id="$(printf '%s' "$created" | jq -r '.result.root_pane.pane_id // .root_pane.pane_id // empty')"
+elif [ -n "$command" ] && [ "$mode" = "pane" ]; then
+  active_tab_id="$(printf '%s' "$workspaces" | jq -r --arg workspace_id "$workspace_id" '
+    (.result.workspaces // .workspaces // [])
+    | map(select(.workspace_id == $workspace_id))
+    | first
+    | .active_tab_id // empty
+  ')"
+  target_pane_id="$(herdr pane list --workspace "$workspace_id" | jq -r --arg active_tab_id "$active_tab_id" '
+    (.result.panes // .panes // []) as $panes
+    | ($panes | map(select(.tab_id == $active_tab_id and .focused == true)) | first
+      // ($panes | map(select(.tab_id == $active_tab_id)) | first)
+      // $panes[0])
+    | .pane_id // empty
+  ')"
+  if [ -z "$target_pane_id" ]; then
+    echo "Herdr did not return a pane ID for ${label:-$directory}" >&2
+    exit 1
+  fi
+  created="$(herdr pane split --pane "$target_pane_id" --direction right --cwd "$directory" --focus)"
+  root_pane_id="$(printf '%s' "$created" | jq -r '.result.pane.pane_id // .pane.pane_id // empty')"
 elif [ -n "$command" ]; then
   created="$(herdr tab create --workspace "$workspace_id" --cwd "$directory" --label "$tab_label" --no-focus)"
   tab_id="$(printf '%s' "$created" | jq -r '.result.tab.tab_id // .tab.tab_id // empty')"
@@ -54,15 +81,19 @@ if [ -z "$workspace_id" ]; then
 fi
 
 if [ -n "$command" ]; then
-  if [ -z "${tab_id:-}" ] || [ -z "${root_pane_id:-}" ]; then
-    echo "Herdr did not return tab and pane IDs for ${label:-$directory}" >&2
+  if [ -z "${root_pane_id:-}" ] || { [ "$mode" = "tab" ] && [ -z "${tab_id:-}" ]; }; then
+    echo "Herdr did not return the required pane or tab ID for ${label:-$directory}" >&2
     exit 1
   fi
-  herdr tab rename "$tab_id" "$tab_label" >/dev/null
+  if [ -n "${tab_id:-}" ]; then
+    herdr tab rename "$tab_id" "$tab_label" >/dev/null
+  fi
   herdr pane run "$root_pane_id" "$command" >/dev/null
 fi
 
 herdr workspace focus "$workspace_id" >/dev/null
 if [ -n "${tab_id:-}" ]; then
   herdr tab focus "$tab_id" >/dev/null
+elif [ -n "${root_pane_id:-}" ]; then
+  herdr pane focus "$root_pane_id" >/dev/null
 fi

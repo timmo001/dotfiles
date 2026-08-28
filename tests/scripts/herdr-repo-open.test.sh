@@ -15,7 +15,7 @@ case "$1 $2" in
   "status server") exit 0 ;;
   "workspace list")
     if [[ "$MODE" == "existing" ]]; then
-      printf '{"result":{"workspaces":[{"workspace_id":"w1","label":"Dotfiles"}]}}\n'
+      printf '{"result":{"workspaces":[{"workspace_id":"w1","active_tab_id":"w1:t1","label":"Dotfiles"}]}}\n'
     else
       printf '{"result":{"workspaces":[]}}\n'
     fi
@@ -28,6 +28,14 @@ case "$1 $2" in
     printf 'create-tab %s\n' "$*" >>"$CALLS"
     printf '{"result":{"tab":{"tab_id":"w1:t2"},"root_pane":{"pane_id":"w1:p2"}}}\n'
     ;;
+  "pane list")
+    printf '{"result":{"panes":[{"pane_id":"w1:p1","tab_id":"w1:t1","focused":true}]}}\n'
+    ;;
+  "pane split")
+    printf 'split %s\n' "$*" >>"$CALLS"
+    printf '{"result":{"pane":{"pane_id":"w1:p2"}}}\n'
+    ;;
+  "pane focus") printf 'focus-pane %s\n' "$3" >>"$CALLS" ;;
   "tab rename") printf 'rename %s %s\n' "$3" "$4" >>"$CALLS" ;;
   "tab focus") printf 'focus-tab %s\n' "$3" >>"$CALLS" ;;
   "workspace focus") printf 'focus %s\n' "$3" >>"$CALLS" ;;
@@ -57,3 +65,15 @@ grep -Fx "rename w2:t1 OpenCode" "$calls"
 grep -Fx "run w2:p1 opencode" "$calls"
 grep -Fx "focus w2" "$calls"
 grep -Fx "focus-tab w2:t1" "$calls"
+
+: >"$calls"
+PATH="$temp_dir/bin:$PATH" XDG_CACHE_HOME="$temp_dir/cache" MODE=existing CALLS="$calls" \
+  "$repo_root/scripts/.local/bin/herdr-repo-open" --pane dotfiles /repo Lazygit lazygit
+grep -Fx "split pane split --pane w1:p1 --direction right --cwd /repo --focus" "$calls"
+grep -Fx "run w1:p2 lazygit" "$calls"
+grep -Fx "focus w1" "$calls"
+grep -Fx "focus-pane w1:p2" "$calls"
+if grep -Fq 'create-tab' "$calls"; then
+  printf 'pane mode opened a tab\n' >&2
+  exit 1
+fi

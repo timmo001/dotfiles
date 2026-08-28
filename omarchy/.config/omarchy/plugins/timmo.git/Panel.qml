@@ -189,7 +189,11 @@ Panel {
     else if (action.indexOf("agent:") === 0 && selectedRepo) { close(); service.openAgent(selectedRepo, action.slice(6)) }
     else if (selectedRepo) {
       close()
-      service.openRepo(selectedRepo, action === "lazygit" && (modifiers & Qt.ShiftModifier) ? "lazygit-floating" : action)
+      if (action === "lazygit") {
+        if (modifiers & Qt.ShiftModifier) service.openRepo(selectedRepo, "lazygit-floating")
+        else if (modifiers & Qt.ControlModifier) service.openRepo(selectedRepo, "lazygit-tab")
+        else service.openRepo(selectedRepo, "lazygit-pane")
+      } else service.openRepo(selectedRepo, action)
     }
   }
 

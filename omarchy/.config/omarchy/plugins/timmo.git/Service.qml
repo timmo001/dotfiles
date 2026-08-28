@@ -145,11 +145,11 @@ Item {
     var path = String(repo.path)
     if (action === "lazygit-floating")
       Quickshell.execDetached(["uwsm", "app", "--", "xdg-terminal-exec", "--app-id=TUI.float", "--dir=" + path, "lazygit"])
-    else if (action === "lazygit")
+    else if (action === "lazygit-pane" || action === "lazygit-tab")
       Quickshell.execDetached([
         "bash", "-lc",
-        "if herdr status server >/dev/null 2>&1; then exec herdr-repo-open \"$1\" \"$2\" Lazygit lazygit; else exec uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal --dir=\"$2\" lazygit; fi",
-        "bash", String(repo.name || ""), path
+        "if herdr status server >/dev/null 2>&1; then exec herdr-repo-open $1 \"$2\" \"$3\" Lazygit lazygit; else exec uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal --dir=\"$3\" lazygit; fi",
+        "bash", action === "lazygit-pane" ? "--pane" : "", String(repo.name || ""), path
       ])
     else if (action === "editor")
       Quickshell.execDetached([
