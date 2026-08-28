@@ -261,6 +261,14 @@ function webappClassPrefix(url: string): string {
   return `chrome-${hostAndPort.split(":", 1)[0]}__`;
 }
 
+function webappClassPattern(url: string): string {
+  const escapedPrefix = webappClassPrefix(url).replace(
+    /[.*+?^${}()|[\]\\]/g,
+    "\\$&",
+  );
+  return `^${escapedPrefix}.*$`;
+}
+
 function newWebappAddress(
   clients: readonly HyprlandClient[],
   prefix: string,
@@ -313,33 +321,47 @@ const runLaunchFloatingWebapp = Effect.fn("launchFloatingWebapp")(function* (
         .map((client) => client.address),
     );
 
-    yield* Effect.sync(() => {
-      try {
-        const proc = Bun.spawn(["omarchy-launch-webapp", url], {
-          stdin: "ignore",
-          stdout: "ignore",
-          stderr: "ignore",
-          detached: true,
-        });
-        proc.unref();
-      } catch {
-        // Match the compatibility script: discovery timeout owns launch failure.
-      }
-    });
+    yield* executor.run("hyprctl", [
+      "eval",
+      `launch_floating_webapp_rule = hl.window_rule({ name = "launch-floating-webapp", match = { class = ${JSON.stringify(webappClassPattern(url))} }, float = true })`,
+    ]);
 
-    for (let attempt = 0; attempt < DETECT_ATTEMPTS; attempt += 1) {
-      const clients = decodeResponse(
-        ClientsSchema,
-        yield* executor.run("hyprctl", ["clients", "-j"]),
-        "hyprctl clients",
-      );
-      address = newWebappAddress(clients, prefix, previousAddresses);
-      if (address) break;
-      yield* Effect.sleep(DETECT_INTERVAL);
-    }
-    if (!address) {
+    address = yield* Effect.gen(function* () {
+      yield* Effect.sync(() => {
+        try {
+          const proc = Bun.spawn(["omarchy-launch-webapp", url], {
+            stdin: "ignore",
+            stdout: "ignore",
+            stderr: "ignore",
+            detached: true,
+          });
+          proc.unref();
+        } catch {
+          // Discovery timeout owns launch failure.
+        }
+      });
+
+      for (let attempt = 0; attempt < DETECT_ATTEMPTS; attempt += 1) {
+        const clients = decodeResponse(
+          ClientsSchema,
+          yield* executor.run("hyprctl", ["clients", "-j"]),
+          "hyprctl clients",
+        );
+        const detected = newWebappAddress(clients, prefix, previousAddresses);
+        if (detected) return detected;
+        yield* Effect.sleep(DETECT_INTERVAL);
+      }
       return fail("launch-floating-webapp: window detection timed out", 1);
-    }
+    }).pipe(
+      Effect.ensuring(
+        executor
+          .run("hyprctl", [
+            "eval",
+            "launch_floating_webapp_rule:set_enabled(false)",
+          ])
+          .pipe(Effect.ignore),
+      ),
+    );
   }
 
   const monitors = decodeResponse(

@@ -26,6 +26,9 @@ case "$1" in
   workspaces)
     printf '[{"id":3,"monitor":"DP-1"}]\n'
     ;;
+  eval)
+    printf '%s\n' "$2" >>"$HYPR_EVALS"
+    ;;
   --batch)
     printf '%s\n' "$2" >>"$HYPRCTL_ARGS"
     ;;
@@ -37,11 +40,15 @@ printf '%s\n' "$1" >"$LAUNCHED"
 EOF
 chmod +x "$tmp/hyprctl" "$tmp/omarchy-launch-webapp"
 
-export LAUNCHED="$tmp/launched" HYPRCTL_ARGS="$tmp/hyprctl-args"
+export LAUNCHED="$tmp/launched" HYPR_EVALS="$tmp/hypr-evals" HYPRCTL_ARGS="$tmp/hyprctl-args"
 address=$(PATH="$tmp:$PATH" "$script" --workspace 3 'https://example.com:8123/page?x=1')
 
 [ "$address" = '0xnew' ]
 [ "$(<"$LAUNCHED")" = 'https://example.com:8123/page?x=1' ]
+mapfile -t evals <"$HYPR_EVALS"
+[[ ${#evals[@]} -eq 2 ]]
+[[ ${evals[0]} == 'launch_floating_webapp_rule = hl.window_rule({ name = "launch-floating-webapp", match = { class = "^chrome-example\\.com__.*$" }, float = true })' ]]
+[[ ${evals[1]} == 'launch_floating_webapp_rule:set_enabled(false)' ]]
 mapfile -t args <"$HYPRCTL_ARGS"
 [[ ${#args[@]} -eq 1 ]]
 [[ ${args[0]} == "dispatch hl.dsp.window.move({ workspace = '3', window = 'address:0xnew', follow = false }) ; dispatch hl.dsp.window.float({ action = 'enable', window = 'address:0xnew' }) ; dispatch hl.dsp.window.resize({ x = 380, y = 500, window = 'address:0xnew' }) ; dispatch hl.dsp.window.move({ x = 1514, y = 534, window = 'address:0xnew' })" ]]
