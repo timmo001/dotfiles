@@ -77,7 +77,7 @@ Driver capability does not prove smooth playback. For a live stream, use `chrome
 Repository regression tests live under `tests/`, use temporary directories, and run through mise tasks and the `lint.yml` workflow:
 
 - `tests/github/opencode-publish.test.sh` checks publication of shared `lib/` modules and rejects missing relative plugin imports before cleaning the publish checkout.
-- `tests/scripts/workspace-restore.test.sh` checks that captured browser URLs remain one shell argument and cannot execute command substitutions during restore.
+- `dot/tests/commands/WorkspaceSession.test.ts` and `tests/scripts/workspace-restore.test.sh` check that captured browser URLs remain one shell argument and cannot execute command substitutions during restore.
 - `tests/dot/cli-smoke.test.sh` builds `dot` and checks side-effect-free CLI entry points.
 
 The `lint.yml` `validate-skills` job uses the shared `lint-agent-skills` workflow to validate public `SKILL.md` files with [`skills-ref`](https://github.com/agentskills/agentskills/tree/main/skills-ref).
@@ -94,16 +94,16 @@ Most rules are inbound port allows on any interface. The libvirt rules are scope
 
 Rule identity includes the complete ufw tuple: source, destination, protocol/port, and interface/direction. A source-restricted existing rule does not satisfy a managed any-source rule, so `dot firewall` adds the broader managed rule rather than treating the restricted rule as equivalent.
 
-| Port(s) | Protocol | Scope | Purpose |
-| --- | --- | --- | --- |
-| `1714:1764` | UDP + TCP | any | KDE Connect device discovery and transfer. |
-| `8123` | TCP | any | Home Assistant frontend. |
-| `8124` | TCP | any | Home Assistant companion port. |
-| `4096` | TCP | any | OpenCode local server. |
-| `53317` | UDP + TCP | any | LocalSend device discovery and transfer. |
-| `67` | UDP | `virbr0` | libvirt guest DHCP. |
-| `53` | TCP + UDP | `virbr0` | libvirt guest DNS. |
-| forward | any | `virbr0` | libvirt NAT: forward guest traffic off the bridge. |
+| Port(s)     | Protocol  | Scope    | Purpose                                            |
+| ----------- | --------- | -------- | -------------------------------------------------- |
+| `1714:1764` | UDP + TCP | any      | KDE Connect device discovery and transfer.         |
+| `8123`      | TCP       | any      | Home Assistant frontend.                           |
+| `8124`      | TCP       | any      | Home Assistant companion port.                     |
+| `4096`      | TCP       | any      | OpenCode local server.                             |
+| `53317`     | UDP + TCP | any      | LocalSend device discovery and transfer.           |
+| `67`        | UDP       | `virbr0` | libvirt guest DHCP.                                |
+| `53`        | TCP + UDP | `virbr0` | libvirt guest DNS.                                 |
+| forward     | any       | `virbr0` | libvirt NAT: forward guest traffic off the bridge. |
 
 If `ufw` is not installed, firewall setup and doctor skip the firewall step with a warning. The doctor check reports any missing rule with the `sudo ufw allow ...` command to add it, or a rule present without its managed comment, and you can run `dot firewall` to reconcile. Override the scanned rules file with `DOT_UFW_RULES_FILE`.
 

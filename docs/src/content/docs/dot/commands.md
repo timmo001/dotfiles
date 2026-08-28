@@ -785,6 +785,52 @@ dot completions bash --stdout
 dot completions fish --stdout
 ```
 
+## `dot launch-floating-webapp`
+
+Launch or reposition a floating webapp
+
+```text
+dot launch-floating-webapp [options] <url> | [options] --address <window-address>
+```
+
+Launch one Omarchy webapp and place only its new window in the target
+monitor's bottom-right corner. Pass --address to reposition an existing
+window instead. The resolved Hyprland address is the only stdout output.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--monitor` `<name>` | Target monitor (default: focused monitor) |
+| `--workspace` `<id>` | Move to this workspace and use its monitor |
+| `--width` `<px>` | Window width (default: 380) |
+| `--height` `<px>` | Window height (default: 500) |
+| `--right-margin` `<px>` | Right margin (default: 16) |
+| `--bottom-margin` `<px>` | Bottom margin (default: 6) |
+| `--address` `<window-address>` | Reposition an existing window instead of launching |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<url>` | Webapp URL to launch |
+
+**Exit codes**
+
+```text
+0  Window placed and its address printed
+1  Launch detection, Hyprland query, or placement failed
+2  Invalid arguments
+```
+
+**Examples**
+
+```bash
+dot launch-floating-webapp https://example.com
+dot launch-floating-webapp --workspace 3 https://example.com
+dot launch-floating-webapp --address 0x123abc
+```
+
 ## `dot workspace-relayout`
 
 Apply or capture a Hyprland workspace layout
@@ -809,6 +855,60 @@ moving windows, then verifies the result and attempts rollback on failure.
 ```bash
 dot workspace-relayout
 dot workspace-relayout --edit
+```
+
+## `dot workspace-capture`
+
+Capture Hyprland workspace and window state
+
+```text
+dot workspace-capture [options]
+```
+
+Write a version 2 workspace session containing Hyprland clients, process
+metadata, active workspace state, monitor state, and available browser URLs.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--current-workspace` | Capture only visible clients on the active workspace |
+| `--output` `<file>` | Write to this file instead of the default state directory |
+| `--state-dir` `<dir>` | Directory for default captures and capture.log |
+
+**Examples**
+
+```bash
+dot workspace-capture
+dot workspace-capture --current-workspace
+```
+
+## `dot workspace-restore`
+
+Restore a captured Hyprland workspace session
+
+```text
+dot workspace-restore [options]
+```
+
+Reuse, launch, move, and resize windows from a version 2 workspace capture.
+Application-specific launch policy can be supplied by the optional private overlay.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--dry-run` | Print the restore plan without changing windows |
+| `--file` `<file>` | Restore this capture file |
+| `--state-dir` `<dir>` | Directory containing captures and restore.log |
+| `--no-launch` | Do not launch missing supported apps |
+| `--no-move` | Do not move or resize matched windows |
+
+**Examples**
+
+```bash
+dot workspace-restore --dry-run
+dot workspace-restore
 ```
 
 ## `dot omarchy`
@@ -877,52 +977,6 @@ to relocate the event root. Explicit backfill --apply still writes events.
 
 ```text
 summary    Per-feature usage table (default)
-## `dot launch-floating-webapp`
-
-Launch or reposition a floating webapp
-
-```text
-dot launch-floating-webapp [options] <url> | [options] --address <window-address>
-```
-
-Launch one Omarchy webapp and place only its new window in the target
-monitor's bottom-right corner. Pass --address to reposition an existing
-window instead. The resolved Hyprland address is the only stdout output.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--monitor` `<name>` | Target monitor (default: focused monitor) |
-| `--workspace` `<id>` | Move to this workspace and use its monitor |
-| `--width` `<px>` | Window width (default: 380) |
-| `--height` `<px>` | Window height (default: 500) |
-| `--right-margin` `<px>` | Right margin (default: 16) |
-| `--bottom-margin` `<px>` | Bottom margin (default: 6) |
-| `--address` `<window-address>` | Reposition an existing window instead of launching |
-
-**Arguments**
-
-| Argument | Description |
-| --- | --- |
-| `<url>` | Webapp URL to launch |
-
-**Exit codes**
-
-```text
-0  Window placed and its address printed
-1  Launch detection, Hyprland query, or placement failed
-2  Invalid arguments
-```
-
-**Examples**
-
-```bash
-dot launch-floating-webapp https://example.com
-dot launch-floating-webapp --workspace 3 https://example.com
-dot launch-floating-webapp --address 0x123abc
-```
-
 stale      Features not used within the window
 path       Print the event storage root
 backfill   Import whitelisted invocations from shell history

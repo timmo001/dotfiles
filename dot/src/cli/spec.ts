@@ -877,6 +877,76 @@ export const cliCommands: readonly CliCommandSpec[] = [
     ],
   },
   {
+    name: "launch-floating-webapp",
+    summary: "Launch or reposition a floating webapp",
+    usage: "[options] <url> | [options] --address <window-address>",
+    description: [
+      "Launch one Omarchy webapp and place only its new window in the target",
+      "monitor's bottom-right corner. Pass --address to reposition an existing",
+      "window instead. The resolved Hyprland address is the only stdout output.",
+    ],
+    options: [
+      {
+        name: "--monitor",
+        valueName: "name",
+        description: "Target monitor (default: focused monitor)",
+      },
+      {
+        name: "--workspace",
+        valueName: "id",
+        description: "Move to this workspace and use its monitor",
+      },
+      {
+        name: "--width",
+        valueName: "px",
+        description: "Window width (default: 380)",
+      },
+      {
+        name: "--height",
+        valueName: "px",
+        description: "Window height (default: 500)",
+      },
+      {
+        name: "--right-margin",
+        valueName: "px",
+        description: "Right margin (default: 16)",
+      },
+      {
+        name: "--bottom-margin",
+        valueName: "px",
+        description: "Bottom margin (default: 6)",
+      },
+      {
+        name: "--address",
+        valueName: "window-address",
+        description: "Reposition an existing window instead of launching",
+      },
+      helpOption,
+    ],
+    arguments: [
+      {
+        name: "url",
+        description: "Webapp URL to launch",
+        completion: "none",
+      },
+    ],
+    sections: [
+      {
+        title: "Exit codes",
+        lines: [
+          "0  Window placed and its address printed",
+          "1  Launch detection, Hyprland query, or placement failed",
+          "2  Invalid arguments",
+        ],
+      },
+    ],
+    examples: [
+      "dot launch-floating-webapp https://example.com",
+      "dot launch-floating-webapp --workspace 3 https://example.com",
+      "dot launch-floating-webapp --address 0x123abc",
+    ],
+  },
+  {
     name: "workspace-relayout",
     summary: "Apply or capture a Hyprland workspace layout",
     usage: "[--edit]",
@@ -891,6 +961,76 @@ export const cliCommands: readonly CliCommandSpec[] = [
       helpOption,
     ],
     examples: ["dot workspace-relayout", "dot workspace-relayout --edit"],
+  },
+  {
+    name: "workspace-capture",
+    summary: "Capture Hyprland workspace and window state",
+    usage: "[options]",
+    description: [
+      "Write a version 2 workspace session containing Hyprland clients, process",
+      "metadata, active workspace state, monitor state, and available browser URLs.",
+    ],
+    options: [
+      {
+        name: "--current-workspace",
+        description: "Capture only visible clients on the active workspace",
+      },
+      {
+        name: "--output",
+        valueName: "file",
+        completion: "file",
+        description:
+          "Write to this file instead of the default state directory",
+      },
+      {
+        name: "--state-dir",
+        valueName: "dir",
+        completion: "file",
+        description: "Directory for default captures and capture.log",
+      },
+      helpOption,
+    ],
+    examples: [
+      "dot workspace-capture",
+      "dot workspace-capture --current-workspace",
+    ],
+  },
+  {
+    name: "workspace-restore",
+    summary: "Restore a captured Hyprland workspace session",
+    usage: "[options]",
+    description: [
+      "Reuse, launch, move, and resize windows from a version 2 workspace capture.",
+      "Application-specific launch policy can be supplied by the optional private overlay.",
+    ],
+    options: [
+      {
+        name: "--dry-run",
+        description: "Print the restore plan without changing windows",
+      },
+      {
+        name: "--file",
+        valueName: "file",
+        completion: "file",
+        description: "Restore this capture file",
+      },
+      {
+        name: "--state-dir",
+        valueName: "dir",
+        completion: "file",
+        description: "Directory containing captures and restore.log",
+      },
+      {
+        name: "--no-launch",
+        description: "Do not launch missing supported apps",
+      },
+      {
+        name: "--no-move",
+        description: "Do not move or resize matched windows",
+      },
+      helpOption,
+    ],
+    examples: ["dot workspace-restore --dry-run", "dot workspace-restore"],
   },
   {
     name: "omarchy",
@@ -964,76 +1104,6 @@ export const cliCommands: readonly CliCommandSpec[] = [
         valueName: "path",
         completion: "file",
         description: "Extra event root to combine (repeatable)",
-  {
-    name: "launch-floating-webapp",
-    summary: "Launch or reposition a floating webapp",
-    usage: "[options] <url> | [options] --address <window-address>",
-    description: [
-      "Launch one Omarchy webapp and place only its new window in the target",
-      "monitor's bottom-right corner. Pass --address to reposition an existing",
-      "window instead. The resolved Hyprland address is the only stdout output.",
-    ],
-    options: [
-      {
-        name: "--monitor",
-        valueName: "name",
-        description: "Target monitor (default: focused monitor)",
-      },
-      {
-        name: "--workspace",
-        valueName: "id",
-        description: "Move to this workspace and use its monitor",
-      },
-      {
-        name: "--width",
-        valueName: "px",
-        description: "Window width (default: 380)",
-      },
-      {
-        name: "--height",
-        valueName: "px",
-        description: "Window height (default: 500)",
-      },
-      {
-        name: "--right-margin",
-        valueName: "px",
-        description: "Right margin (default: 16)",
-      },
-      {
-        name: "--bottom-margin",
-        valueName: "px",
-        description: "Bottom margin (default: 6)",
-      },
-      {
-        name: "--address",
-        valueName: "window-address",
-        description: "Reposition an existing window instead of launching",
-      },
-      helpOption,
-    ],
-    arguments: [
-      {
-        name: "url",
-        description: "Webapp URL to launch",
-        completion: "none",
-      },
-    ],
-    sections: [
-      {
-        title: "Exit codes",
-        lines: [
-          "0  Window placed and its address printed",
-          "1  Launch detection, Hyprland query, or placement failed",
-          "2  Invalid arguments",
-        ],
-      },
-    ],
-    examples: [
-      "dot launch-floating-webapp https://example.com",
-      "dot launch-floating-webapp --workspace 3 https://example.com",
-      "dot launch-floating-webapp --address 0x123abc",
-    ],
-  },
       },
       {
         name: "--history",

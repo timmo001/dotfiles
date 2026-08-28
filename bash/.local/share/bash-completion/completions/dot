@@ -344,6 +344,16 @@ _dot_cmd_completions() {
     return
   fi
 }
+_dot_cmd_launch_floating_webapp() {
+  local cur prev cword
+  cur=${COMP_WORDS[COMP_CWORD]}
+  prev=${COMP_WORDS[COMP_CWORD-1]}
+  cword=$COMP_CWORD
+  if [[ $cur == -* ]]; then
+    COMPREPLY=( $(compgen -W '--monitor --workspace --width --height --right-margin --bottom-margin --address --help -h' -- "$cur") )
+    return
+  fi
+}
 _dot_cmd_workspace_relayout() {
   local cur prev cword
   cur=${COMP_WORDS[COMP_CWORD]}
@@ -351,6 +361,48 @@ _dot_cmd_workspace_relayout() {
   cword=$COMP_CWORD
   if [[ $cur == -* ]]; then
     COMPREPLY=( $(compgen -W '--edit --help -h' -- "$cur") )
+    return
+  fi
+}
+_dot_cmd_workspace_capture() {
+  local cur prev cword
+  cur=${COMP_WORDS[COMP_CWORD]}
+  prev=${COMP_WORDS[COMP_CWORD-1]}
+  cword=$COMP_CWORD
+  case $prev in
+    --output)
+      COMPREPLY=( $(compgen -f -- "$cur") )
+      return
+      ;;
+    --state-dir)
+      COMPREPLY=( $(compgen -f -- "$cur") )
+      return
+      ;;
+  esac
+
+  if [[ $cur == -* ]]; then
+    COMPREPLY=( $(compgen -W '--current-workspace --output --state-dir --help -h' -- "$cur") )
+    return
+  fi
+}
+_dot_cmd_workspace_restore() {
+  local cur prev cword
+  cur=${COMP_WORDS[COMP_CWORD]}
+  prev=${COMP_WORDS[COMP_CWORD-1]}
+  cword=$COMP_CWORD
+  case $prev in
+    --file)
+      COMPREPLY=( $(compgen -f -- "$cur") )
+      return
+      ;;
+    --state-dir)
+      COMPREPLY=( $(compgen -f -- "$cur") )
+      return
+      ;;
+  esac
+
+  if [[ $cur == -* ]]; then
+    COMPREPLY=( $(compgen -W '--dry-run --file --state-dir --no-launch --no-move --help -h' -- "$cur") )
     return
   fi
 }
@@ -407,7 +459,7 @@ _dot() {
   command=${COMP_WORDS[1]-}
 
   if (( cword == 1 )); then
-    COMPREPLY=( $(compgen -W 'dashboard init install update up stow omarchy-shell-config omarchy-plugin firewall doctor clean git-diff diff git-commit git-notifications agents-sync mcp-sync notes-capture-sync is-agent setup-public-repo setup-private-repo private-pkg-publish skill-updates skill-check skill-updates-agent completions launch-floating-webapp workspace-relayout omarchy usage help -h --help' -- "$cur") )
+    COMPREPLY=( $(compgen -W 'dashboard init install update up stow omarchy-shell-config omarchy-plugin firewall doctor clean git-diff diff git-commit git-notifications agents-sync mcp-sync notes-capture-sync is-agent setup-public-repo setup-private-repo private-pkg-publish skill-updates skill-check skill-updates-agent completions launch-floating-webapp workspace-relayout workspace-capture workspace-restore omarchy usage help -h --help' -- "$cur") )
     return
   fi
 
@@ -417,16 +469,6 @@ _dot() {
       ;;
     init)
       _dot_cmd_init
-_dot_cmd_launch_floating_webapp() {
-  local cur prev cword
-  cur=${COMP_WORDS[COMP_CWORD]}
-  prev=${COMP_WORDS[COMP_CWORD-1]}
-  cword=$COMP_CWORD
-  if [[ $cur == -* ]]; then
-    COMPREPLY=( $(compgen -W '--monitor --workspace --width --height --right-margin --bottom-margin --address --help -h' -- "$cur") )
-    return
-  fi
-}
       ;;
     install)
       _dot_cmd_install
@@ -494,8 +536,17 @@ _dot_cmd_launch_floating_webapp() {
     completions)
       _dot_cmd_completions
       ;;
+    launch-floating-webapp)
+      _dot_cmd_launch_floating_webapp
+      ;;
     workspace-relayout)
       _dot_cmd_workspace_relayout
+      ;;
+    workspace-capture)
+      _dot_cmd_workspace_capture
+      ;;
+    workspace-restore)
+      _dot_cmd_workspace_restore
       ;;
     omarchy)
       _dot_cmd_omarchy
@@ -510,6 +561,3 @@ _dot_cmd_launch_floating_webapp() {
 }
 
 complete -F _dot dot
-    launch-floating-webapp)
-      _dot_cmd_launch_floating_webapp
-      ;;

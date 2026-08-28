@@ -51,7 +51,9 @@ src/
     OmarchyPlugin.ts      — managed Omarchy plugin add/update/remove lifecycle
     Completions.ts        — dot completions generator for stowed shell completions
     Usage.ts              — dot usage: local-first analytics (summary/stale/path/backfill)
+    LaunchFloatingWebapp.ts — launch or reposition a bottom-right Hyprland webapp
     WorkspaceRelayout.ts  — apply/capture validated Hyprland Dwindle split trees
+    WorkspaceSession.ts   — capture/restore validated Hyprland window sessions
     Help.ts               — dot help
   mcp/
     commands/McpSync.ts   — dot mcp-sync: regenerate harness MCP configs from the spec
@@ -235,8 +237,11 @@ dot usage summary --format agent-context # Compact usage summary for agents
 dot usage stale --days 90     # Features not used in the window
 dot usage backfill --history  # Dry-run import from shell history (--apply to write)
 dot omarchy-plugin update <id> # Update and validate a managed Omarchy plugin
+dot launch-floating-webapp <url> # Launch, detect, and position one floating webapp
 dot workspace-relayout        # Apply a saved layout to the active workspace
 dot workspace-relayout --edit # Capture the current layout into a preset
+dot workspace-capture         # Capture all visible Hyprland workspace clients
+dot workspace-restore --dry-run # Preview restoring the latest workspace capture
 dot omarchy                   # Omarchy submenu (TUI)
 dot help                      # Show help
 dot --help                    # Show help
@@ -272,6 +277,7 @@ After that bootstrap build, run the checked-out binary directly. If private dotf
 - `NOTES` / `DOT_NOTES_DIR` — notes vault used by the standalone `notes` CLI/MCP server and OpenCode note commands
 - `DOT_USAGE_DIR` — usage event root for `dot usage` (default `$XDG_STATE_HOME/tool-usage`). `DOT_USAGE_DISABLE` disables live dot recording
 - `~/.config/dotfiles-private/dot-git.yml` — private git repo config for clone/bootstrap, doctor checks, `dot git-diff`, and `dot git-notifications --bar-json`; `activity` and `notifications` each require explicit `enabled` plus 5-field cron `schedule` keys, and `notifications.bar.ignore_bot_activity` controls status-bar bot noise
+- `~/.config/dotfiles-private/workspace-session.json` — optional class-to-argv launch policy for personal and work applications restored by `dot workspace-restore`
 - `gh` authenticated with a classic token carrying `notifications` or `repo` scope — required for `dot git-notifications` and its status-bar module
 - `lazygit` — launched via suspend/resume on Enter in diff view
 - `opencode` — CLI launched via suspend/resume for interactive sessions from the diff view
