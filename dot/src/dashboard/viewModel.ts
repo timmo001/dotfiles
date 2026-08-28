@@ -202,7 +202,8 @@ function gitNotificationsCard(
     lines: [errorMessage ?? `${unread} unread, ${important} important`].filter(
       (line): line is string => Boolean(line),
     ),
-    viewId: "git-notifications",
+    command: `omarchy-shell shell summon timmo.git '{"view":"notifications"}'`,
+    commandMode: "exit",
     actionLabel: "Open Notifications",
   };
 }

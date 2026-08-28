@@ -93,7 +93,7 @@ const dotItems: readonly MenuItem[] = [
     "",
     "Git Notifications",
     "GitHub notification inbox",
-    view("git-notifications"),
+    exitCmd(`omarchy-shell shell summon timmo.git '{"view":"notifications"}'`),
     undefined,
     [
       "github",

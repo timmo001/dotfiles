@@ -25,6 +25,7 @@ Panel {
   readonly property var filteredActions: filterRows("action")
   readonly property var filteredRepos: filterRows("repo")
   readonly property var filteredThreads: filterRows("thread")
+  readonly property var filteredFooterActions: filterRows("footer-action")
 
   function buildPanelRows() {
     var rows = []
@@ -62,9 +63,8 @@ Panel {
     }
     if (view === "overview") {
       rows.push(actionRow("other", "Other repositories", "󰙅"))
-      rows.push(actionRow("notifications", "Notifications", ""))
     }
-    var threads = service && view === "overview" ? service.threads : []
+    var threads = service && (view === "overview" || view === "notifications") ? service.threads : []
     for (var k = 0; k < threads.length; k++) {
       var thread = threads[k]
       rows.push({
@@ -76,6 +76,13 @@ Panel {
         secondaryText: [thread.title, thread.reason, thread.type].join(" ")
       })
     }
+    if (view === "overview" || view === "notifications")
+      rows.push(footerActionRow(
+        "notifications",
+        "GitHub notifications",
+        threadCount + (threadCount === 1 ? " notification" : " notifications"),
+        ""
+      ))
     return rows
   }
 
@@ -91,12 +98,26 @@ Panel {
     }
   }
 
+  function footerActionRow(action, label, secondaryText, icon) {
+    var row = actionRow(action, label, icon)
+    row.kind = "footer-action"
+    row.section = "footer"
+    row.secondaryText = secondaryText
+    return row
+  }
+
   function filterRows(kind) {
     return filterController.filteredModel.filter(function(entry) { return entry.kind === kind })
   }
 
-  function open(initialView) {
-    view = initialView || "overview"
+  function open(payloadJson) {
+    var initialView = "overview"
+    try {
+      var payload = JSON.parse(String(payloadJson || "{}"))
+      if (payload.view === "notifications") initialView = payload.view
+    } catch (error) {
+    }
+    view = initialView
     selectedRepo = null
     filterController.reset()
     if (service) {
@@ -123,9 +144,11 @@ Panel {
     var entry = filterController.selectedEntry()
     if (!entry) return null
     var rows = entry.kind === "action" ? filteredActions
-      : (entry.kind === "repo" ? filteredRepos : filteredThreads)
+      : (entry.kind === "repo" ? filteredRepos
+        : (entry.kind === "thread" ? filteredThreads : filteredFooterActions))
     var repeater = entry.kind === "action" ? (view === "overview" ? overviewActionRepeater : actionRepeater)
-      : (entry.kind === "repo" ? repoRepeater : threadRepeater)
+      : (entry.kind === "repo" ? repoRepeater
+        : (entry.kind === "thread" ? threadRepeater : footerActionRepeater))
     return repeater.itemAt(rows.indexOf(entry))
   }
 
@@ -177,7 +200,7 @@ Panel {
   }
 
   function activateEntry(entry, modifiers) {
-    if (entry.kind === "action") activateAction(entry.action, modifiers)
+    if (entry.kind === "action" || entry.kind === "footer-action") activateAction(entry.action, modifiers)
     else if (entry.kind === "repo") showRepoActions(entry.value)
     else if (entry.kind === "thread") activateThread(entry.value)
   }
@@ -229,8 +252,8 @@ Panel {
 
           PanelHero {
             width: parent.width
-            title: root.view === "agent" ? "Open in agent" : (root.view === "repo" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "overview" ? "Git" : (root.view === "changed" ? "Changed" : "Other")))
-            meta: root.view === "agent" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.threadCount + " notifications" : (root.view === "changed" ? root.changedRepoCount + " repositories" : root.otherRepoCount + " repositories")))
+            title: root.view === "agent" ? "Open in agent" : (root.view === "repo" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "overview" ? "Git" : (root.view === "changed" ? "Changed" : (root.view === "notifications" ? "Notifications" : "Other"))))
+            meta: root.view === "agent" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.threadCount + " notifications" : (root.view === "changed" ? root.changedRepoCount + " repositories" : (root.view === "notifications" ? root.threadCount + " notifications" : root.otherRepoCount + " repositories"))))
             detail: root.service && root.service.refreshing ? "REFRESHING" : "STATUS"
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
@@ -264,7 +287,8 @@ Panel {
               CursorSurface {
                 required property int index
                 required property var modelData
-                width: contentColumn.width
+                x: Style.space(8)
+                width: Math.max(0, contentColumn.width - Style.space(16))
                 implicitHeight: actionRow.implicitHeight + Style.space(12)
                 hasCursor: filterController.cursorIndex === filterController.indexForKey(modelData.key)
                 foreground: root.contentForeground
@@ -304,7 +328,8 @@ Panel {
               CursorSurface {
                 required property int index
                 required property var modelData
-                width: contentColumn.width
+                x: Style.space(8)
+                width: Math.max(0, contentColumn.width - Style.space(16))
                 implicitHeight: repoColumn.implicitHeight + Style.space(12)
                 hasCursor: filterController.cursorIndex === filterController.indexForKey(modelData.key)
                 foreground: root.contentForeground
@@ -336,7 +361,7 @@ Panel {
           }
 
           Column {
-            visible: root.view === "overview"
+            visible: root.view === "overview" || root.view === "notifications"
             width: parent.width
             spacing: Style.space(2)
             Repeater {
@@ -349,13 +374,17 @@ Panel {
                 spacing: Style.space(8)
 
                 Rectangle {
-                  width: parent.width
+                  anchors.left: parent.left
+                  anchors.right: parent.right
+                  anchors.leftMargin: Style.space(8)
+                  anchors.rightMargin: Style.space(8)
                   height: 1
                   color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.18)
                 }
 
                 CursorSurface {
-                  width: parent.width
+                  x: Style.space(8)
+                  width: Math.max(0, contentColumn.width - Style.space(16))
                   implicitHeight: overviewActionRow.implicitHeight + Style.space(12)
                   hasCursor: filterController.cursorIndex === filterController.indexForKey(modelData.key)
                   foreground: root.contentForeground
@@ -393,7 +422,8 @@ Panel {
               CursorSurface {
                 required property int index
                 required property var modelData
-                width: contentColumn.width
+                x: Style.space(8)
+                width: Math.max(0, contentColumn.width - Style.space(16))
                 implicitHeight: threadColumn.implicitHeight + Style.space(12)
                 hasCursor: filterController.cursorIndex === filterController.indexForKey(modelData.key)
                 foreground: root.contentForeground
@@ -416,13 +446,60 @@ Panel {
           }
 
           Text {
-            visible: root.view === "overview" && !filterController.filterText && root.threadCount === 0
+            visible: (root.view === "overview" || root.view === "notifications") && !filterController.filterText && root.threadCount === 0
             width: parent.width
             text: root.service && root.service.notificationsError !== "" ? root.service.notificationsError : (root.service && !root.service.notificationsLoaded ? "Loading notifications" : "GitHub inbox clear")
             color: Qt.darker(root.contentForeground, 1.4)
             font.family: root.contentFontFamily
             font.pixelSize: Style.font.body
             horizontalAlignment: Text.AlignHCenter
+          }
+
+          Column {
+            visible: (root.view === "overview" || root.view === "notifications") && root.filteredFooterActions.length > 0
+            width: parent.width
+            spacing: Style.space(8)
+
+            Rectangle {
+              anchors.left: parent.left
+              anchors.right: parent.right
+              anchors.leftMargin: Style.space(8)
+              anchors.rightMargin: Style.space(8)
+              height: 1
+              color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.18)
+            }
+
+            Repeater {
+              id: footerActionRepeater
+              model: root.filteredFooterActions
+              CursorSurface {
+                required property int index
+                required property var modelData
+                x: Style.space(8)
+                width: Math.max(0, contentColumn.width - Style.space(16))
+                implicitHeight: footerActionRow.implicitHeight + Style.space(12)
+                hasCursor: filterController.cursorIndex === filterController.indexForKey(modelData.key)
+                foreground: root.contentForeground
+                accent: root.contentForeground
+                Row {
+                  id: footerActionRow
+                  anchors.left: parent.left
+                  anchors.right: parent.right
+                  anchors.verticalCenter: parent.verticalCenter
+                  anchors.leftMargin: Style.space(8)
+                  anchors.rightMargin: Style.space(8)
+                  spacing: Style.space(10)
+                  Text { width: Style.space(22); text: modelData.icon; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.icon; horizontalAlignment: Text.AlignHCenter }
+                  Column {
+                    width: Math.max(0, footerActionRow.width - Style.space(32))
+                    spacing: Style.space(2)
+                    Text { width: parent.width; text: modelData.primaryText; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
+                    Text { width: parent.width; text: modelData.secondaryText; color: Qt.darker(root.contentForeground, 1.4); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; elide: Text.ElideRight }
+                  }
+                }
+                MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: root.activateAction(modelData.action) }
+              }
+            }
           }
 
           Text {

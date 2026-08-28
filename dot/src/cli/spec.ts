@@ -548,10 +548,10 @@ export const cliCommands: readonly CliCommandSpec[] = [
     usage: "[options]",
     description: [
       "Open the authenticated user's GitHub notification inbox. Without machine or",
-      "action flags, opens the interactive TUI.",
+      "action flags, opens the Omarchy shell panel.",
     ],
     modes: [
-      "(default)       Interactive notifications TUI",
+      "(default)       Omarchy shell notifications panel",
       "--raw           Text summary of notification threads",
       "--bar-json     JSON output for status bars and shell modules",
       "--list-threads  Notification threads as rows",

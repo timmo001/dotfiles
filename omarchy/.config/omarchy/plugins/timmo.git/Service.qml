@@ -178,7 +178,7 @@ Item {
   }
 
   function openNotifications() {
-    Quickshell.execDetached(["uwsm", "app", "--", "xdg-terminal-exec", "--app-id=TUI.float", "-e", "dot", "git-notifications", "--bar-filter"])
+    Quickshell.execDetached(["xdg-open", "https://github.com/notifications"])
   }
 
   function openThread(thread) {

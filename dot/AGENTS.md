@@ -81,8 +81,6 @@ src/
       GitStaging.ts       — Git status/add/commit operations
       RepoWatcher.ts      — Hybrid poll loop (initial poll → 10s poll), PubSub state
       relativeTime.ts     — Shared compact relative timestamp formatter
-    tui/
-      GitNotificationsView.ts — GitHub notification inbox with read/done/ignore actions
   services/
     Config.ts             — Dotfiles paths, env config
     CommandExecutor.ts    — Shell command execution Effect service
@@ -120,7 +118,7 @@ src/
 1. `index.ts` parses CLI flags → resolves mode (TUI / native / fallback)
 2. Native commands run with `CliLayers` (no renderer, no TUI)
 3. TUI mode composes full layer stack including RepoWatcher, GitNotifications, Renderer, Toast
-4. `App` manages a view stack (main menu ↔ dashboard ↔ notifications view ↔ omarchy menu)
+4. `App` manages a view stack (main menu ↔ dashboard ↔ omarchy menu)
 5. Menu items have typed actions: `command` (suspend/resume), `silent` (background), `notify` (background + toast), `view` (navigate), `submenu` (nested)
 6. `CommandRunner` handles suspend/resume for terminal commands, silent background execution, and notify-style commands with toast feedback
 7. `RepoWatcher` runs an initial poll for first paint, then polls every 10s
@@ -208,7 +206,7 @@ dot git-commit --amend                # Amend the previous commit, keeping its m
 dot git-commit --amend -m "msg"       # Amend the previous commit and reword its subject
 dot git-commit -m "msg" --push # Commit then push the current branch (pulls --rebase first, sets upstream when missing, never forces)
 dot git-commit -m "msg" --dry-run # Preview the commit/push plan without changing anything
-dot git-notifications         # GitHub notification inbox view (TUI)
+dot git-notifications         # GitHub notification inbox (Omarchy shell panel)
 dot git-notifications --raw   # CLI notification summary
 dot git-notifications --bar-json # JSON output for status bars and shell modules
 dot git-notifications --list-threads # Notification thread rows

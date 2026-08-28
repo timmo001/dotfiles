@@ -76,6 +76,7 @@ import {
   notificationsRaw,
   notificationsBarJson,
   notificationsMarkBotRead,
+  notificationsOpenShell,
 } from "./git/commands/Notifications.js";
 import type {
   GitNotificationAction,
@@ -127,7 +128,6 @@ const NOTIFICATION_ACTION_FLAGS: readonly {
 const TUI_ALTERNATIVES = {
   main: "dot help",
   dashboard: "context git",
-  "git-notifications": "dot git-notifications --raw",
 } satisfies Partial<Record<ViewId, string>>;
 
 function tuiAlternative(view: ViewId): string | undefined {
@@ -170,12 +170,6 @@ function resolveMode(): Mode {
   if (nativeCommandNames.has(flags.subcommand)) {
     if (flags.subcommand === "dashboard") {
       return { type: "tui", initialView: "dashboard" };
-    }
-    // Git notifications without machine/action flags opens the TUI inbox view.
-    if (flags.subcommand === "git-notifications") {
-      if (!hasNotificationNativeFlag(flags.rest)) {
-        return { type: "tui", initialView: "git-notifications" };
-      }
     }
     return { type: "native", command: flags.subcommand, args: flags.rest };
   }
@@ -347,14 +341,6 @@ const notificationOpts = parseNotificationOpts(
   mode.type === "tui",
 );
 
-type NotificationActionService = {
-  readonly refresh: (opts?: GitNotificationQueryOptions) => Effect.Effect<void>;
-  readonly markRead: (threadId: string) => Effect.Effect<unknown, unknown>;
-  readonly markDone: (threadId: string) => Effect.Effect<unknown, unknown>;
-  readonly ignore: (threadId: string) => Effect.Effect<unknown, unknown>;
-  readonly unignore: (threadId: string) => Effect.Effect<unknown, unknown>;
-};
-
 function parseNotificationOpts(
   args: readonly string[],
   since: string | undefined,
@@ -370,16 +356,6 @@ function parseNotificationOpts(
     ...(since && { since }),
     ...(barFilter && { barFilter: true }),
   };
-}
-
-function hasNotificationNativeFlag(args: readonly string[]): boolean {
-  return (
-    hasBarJsonFlag(args) ||
-    args.includes("--mark-bot-read") ||
-    args.includes("--list-threads") ||
-    args.includes("--raw") ||
-    NOTIFICATION_ACTION_FLAGS.some(({ flag }) => hasOption(args, flag))
-  );
 }
 
 function hasBarJsonFlag(args: readonly string[]): boolean {
@@ -400,35 +376,6 @@ function notificationActionArg(args: readonly string[]): {
     return { action, threadId };
   }
   return null;
-}
-
-function runNotificationAction(
-  notifications: NotificationActionService,
-  action: GitNotificationAction,
-  threadId: string,
-  opts?: GitNotificationQueryOptions,
-): Effect.Effect<void> {
-  const actionEffect = (() => {
-    switch (action) {
-      case "read":
-        return notifications.markRead(threadId);
-      case "done":
-        return notifications.markDone(threadId);
-      case "ignore":
-        return notifications.ignore(threadId);
-      case "unignore":
-        return notifications.unignore(threadId);
-    }
-  })();
-
-  return actionEffect.pipe(
-    Effect.flatMap(() => notifications.refresh(opts)),
-    Effect.catch((error) =>
-      Effect.sync(() => {
-        log(`Notification action failed: ${String(error)}`);
-      }).pipe(Effect.flatMap(() => notifications.refresh(opts))),
-    ),
-  );
 }
 
 type NativeEnv =
@@ -530,7 +477,10 @@ if (mode.type === "native") {
     if (args.includes("--list-threads")) {
       return notificationsListThreads(notificationOpts);
     }
-    return notificationsRaw(notificationOpts);
+    if (args.includes("--raw") || notificationOpts) {
+      return notificationsRaw(notificationOpts);
+    }
+    return notificationsOpenShell;
   };
 
   type NativeCommandHandler = (args: readonly string[]) => NativeEffect;
@@ -747,22 +697,9 @@ if (mode.type === "native") {
         renderer,
         theme,
         commandRunner,
-        onRefreshNotifications: () => {
-          runFork(notifications.refresh(notificationOpts));
-        },
         onRefreshDashboard: () => {
           runFork(dashboard.refresh());
           runFork(notifications.refresh(notificationOpts));
-        },
-        onNotificationAction: (action, threadId) => {
-          runFork(
-            runNotificationAction(
-              notifications,
-              action,
-              threadId,
-              notificationOpts,
-            ),
-          );
         },
       },
       {
@@ -771,8 +708,6 @@ if (mode.type === "native") {
       },
     );
     log("App created");
-
-    const notificationsView = app.getNotificationsView();
 
     let currentRepoState = yield* watcher.getState();
     let currentDashboardState = yield* dashboard.getState();
@@ -809,7 +744,6 @@ if (mode.type === "native") {
         Effect.sync(() => {
           log(`Notification update: ${state.threads.length} threads`);
           currentNotificationState = state;
-          notificationsView.update(state);
           updateDashboardView();
         }),
       ),
@@ -835,9 +769,6 @@ if (mode.type === "native") {
     log(
       `Initial state: ${initialState.changed.length} changed, ${initialState.unchanged.length} unchanged`,
     );
-    const initialNotificationState = currentNotificationState;
-    notificationsView.update(initialNotificationState);
-
     updateDashboardView();
 
     log("Starting renderer...");

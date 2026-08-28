@@ -274,9 +274,6 @@ export function resolveSubcommand(
   if (sub === "dashboard") {
     return { type: "view", viewId: "dashboard" };
   }
-  if (sub === "git-notifications") {
-    return { type: "view", viewId: "git-notifications" };
-  }
   if (sub === "omarchy") return { type: "view", viewId: "omarchy" };
 
   // Match against menu item IDs or submenu keys

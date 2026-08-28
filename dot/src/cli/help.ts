@@ -9,7 +9,7 @@ const rootExamples = [
   "dot doctor",
   "dot git-diff             Text diff summary",
   "dot git-diff --bar-json  Status bar JSON output",
-  "dot git-notifications    GitHub notifications TUI",
+  "dot git-notifications    GitHub notifications shell panel",
   "dot git-notifications --bar-json Status bar JSON output",
   "notes list               Repository notes CLI",
   "notes handoffs           Handoff notes CLI",

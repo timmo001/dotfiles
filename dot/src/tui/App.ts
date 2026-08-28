@@ -1,19 +1,12 @@
 import type { CliRenderer } from "@opentui/core";
 import { Effect } from "effect";
-import type {
-  ViewId,
-  MenuItem,
-  MenuAction,
-  GitNotificationAction,
-  GitNotificationThread,
-} from "../types.js";
+import type { ViewId, MenuItem, MenuAction } from "../types.js";
 import type { DashboardState } from "../dashboard/types.js";
 import type { Theme } from "../theme.js";
 import { menuItemsById } from "../menu.js";
 import type { CommandRunnerService } from "../services/CommandRunner.js";
 import { MainMenu } from "./MainMenu.js";
 import { DashboardView } from "../dashboard/tui/DashboardView.js";
-import { GitNotificationsView } from "../git/tui/GitNotificationsView.js";
 import { OmarchyMenu } from "./OmarchyMenu.js";
 import { OutputPane } from "./OutputPane.js";
 import { VariantPopup } from "./VariantPopup.js";
@@ -29,9 +22,6 @@ const log = (msg: string) => console.error(`[dot:App] ${msg}`);
 const setTerminalTitle = (title: string): void => {
   process.stdout.write(`\x1b]0;${title}\x07`);
 };
-
-/** Wrap a string in single quotes, escaping embedded single quotes for safe shell interpolation */
-const shellQuote = (s: string): string => `'${s.replace(/'/g, "'\\''")}'`;
 
 /** Startup options controlling the App's initial view and pre-selected action */
 export interface AppOptions {
@@ -49,15 +39,8 @@ export interface AppDeps {
   readonly theme: Theme;
   /** Service for running shell commands with suspend/resume */
   readonly commandRunner: CommandRunnerService;
-  /** Callback to trigger an immediate GitHub notification refresh */
-  readonly onRefreshNotifications: () => void;
   /** Callback to trigger an immediate dashboard source refresh. */
   readonly onRefreshDashboard: () => void;
-  /** Callback to apply a mutating notification thread action */
-  readonly onNotificationAction: (
-    action: GitNotificationAction,
-    threadId: string,
-  ) => void;
 }
 
 /** Top-level TUI application shell managing a view stack and global keyboard */
@@ -66,7 +49,6 @@ export class App {
   private commandRunner: CommandRunnerService;
   private mainMenu: MainMenu;
   private dashboardView: DashboardView;
-  private notificationsView: GitNotificationsView;
   private omarchyMenu: OmarchyMenu;
   private outputPane: OutputPane;
   private variantPopup: VariantPopup;
@@ -104,32 +86,6 @@ export class App {
       onRefresh: () => deps.onRefreshDashboard(),
       onBack: () => this.popView(),
     });
-
-    this.notificationsView = new GitNotificationsView(
-      deps.renderer,
-      deps.theme,
-      {
-        onRefresh: () => deps.onRefreshNotifications(),
-        onOpenThread: (thread: GitNotificationThread) => {
-          deps.commandRunner
-            .runSilent(`xdg-open ${shellQuote(thread.webUrl)}`)
-            .catch((err) => {
-              log(`Open notification thread error: ${err}`);
-            });
-        },
-        onOpenInbox: () => {
-          deps.commandRunner
-            .runSilent("xdg-open https://github.com/notifications")
-            .catch((err) => {
-              log(`Open notifications inbox error: ${err}`);
-            });
-        },
-        onAction: (action, thread) => {
-          deps.onNotificationAction(action, thread.id);
-        },
-        onBack: () => this.popView(),
-      },
-    );
 
     this.omarchyMenu = new OmarchyMenu(deps.renderer, deps.theme, {
       onAction: (item) => this.handleMenuAction(item),
@@ -231,11 +187,6 @@ export class App {
     // If stack is empty we're at main — stay there
   }
 
-  /** Get the GitHub notifications view for direct state updates from the watcher */
-  getNotificationsView(): GitNotificationsView {
-    return this.notificationsView;
-  }
-
   /** Update the dashboard view with the latest composed live state. */
   updateDashboardState(state: DashboardState): void {
     this.dashboardView.update(state);
@@ -272,11 +223,6 @@ export class App {
         this.dashboardView.setVisible(true);
         this.dashboardView.focus();
         break;
-      case "git-notifications":
-        setTerminalTitle("Dot TUI \u203A Notifications");
-        this.notificationsView.setVisible(true);
-        this.notificationsView.focus();
-        break;
       case "omarchy":
         this.omarchyMenu.setVisible(true);
         this.omarchyMenu.resetAndFocus();
@@ -305,7 +251,6 @@ export class App {
   private hideAllViews(): void {
     this.mainMenu.setVisible(false);
     this.dashboardView.setVisible(false);
-    this.notificationsView.setVisible(false);
     this.omarchyMenu.setVisible(false);
     this.outputPane.setVisible(false);
   }
@@ -379,9 +324,6 @@ export class App {
         break;
       case "dashboard":
         this.dashboardView.focus();
-        break;
-      case "git-notifications":
-        this.notificationsView.focus();
         break;
       case "omarchy":
         this.omarchyMenu.focus();

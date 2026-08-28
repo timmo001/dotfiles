@@ -6,6 +6,7 @@ import type {
   GitNotificationState,
   GitNotificationThread,
 } from "../../types.js";
+import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { GitNotifications } from "../services/GitNotifications.js";
 import {
   formatNotificationIcon,
@@ -22,6 +23,17 @@ import {
 } from "./rows.js";
 
 const handleNotificationError = handleCommandError("dot git-notifications");
+
+/** Open the GitHub notifications view in the Omarchy shell. */
+export const notificationsOpenShell = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  yield* executor.run("omarchy-shell", [
+    "shell",
+    "summon",
+    "timmo.git",
+    '{"view":"notifications"}',
+  ]);
+}).pipe(Effect.withSpan("notifications.openShell"), handleNotificationError);
 
 /** CLI text output: --raw notification summary. */
 export const notificationsRaw = (opts?: GitNotificationQueryOptions) =>
