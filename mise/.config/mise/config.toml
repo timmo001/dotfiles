@@ -39,8 +39,6 @@ zls = "0.16.0"
 zoxide = "0.10.0"
 just = "1.58.0"
 uv = "0.12.6"
-codex = "latest"
-
 [tools."aqua:anomalyco/opencode"]
 version = "1.18.25"
 minimum_release_age = "2h"
