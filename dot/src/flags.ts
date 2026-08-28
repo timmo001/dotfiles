@@ -1,11 +1,9 @@
-import type { ViewId } from "./types.js";
-import { menuItemsById, submenus } from "./menu.js";
 import { nativeCommandNames } from "./cli/spec.js";
 import { renderHelp } from "./cli/help.js";
 
 /** Parsed CLI flags for `dot` */
 export interface Flags {
-  /** Resolved subcommand (dot-separated path) matching a menu item ID or view ID */
+  /** Resolved CLI subcommand. */
   readonly subcommand: string | undefined;
   /** Normalized ISO timestamp for workflow run filters */
   readonly since: string | undefined;
@@ -85,10 +83,6 @@ function relativeUnitMillis(unit: string | undefined): number | undefined {
 
 function normalizeEpoch(epoch: number): number {
   return epoch < 10_000_000_000 ? epoch * 1000 : epoch;
-}
-
-function stripTuiPrefix(args: readonly string[]): readonly string[] {
-  return args.length > 0 && args[0] === "tui" ? args.slice(1) : args;
 }
 
 interface LeadingPositionals {
@@ -232,28 +226,21 @@ function parseOptions(
   return parsed;
 }
 
-/** Check whether a candidate string matches any known view, menu item, or submenu */
+/** Check whether a candidate string matches a known command. */
 function isKnownTarget(candidate: string): boolean {
-  if (nativeCommandNames.has(candidate)) return true;
-  if (menuItemsById.has(candidate) || submenus.has(candidate)) return true;
-  return false;
+  return nativeCommandNames.has(candidate);
 }
 
 /**
  * Parse CLI args into structured flags with greedy subcommand resolution.
  *
- * Positional args are joined with `.` using greedy longest-match against
- * the menu registry. For example, `["omarchy", "theme", "set"]` resolves
- * to subcommand `"omarchy.theme.set"` if that ID exists in the registry.
- *
- * The `tui` prefix is a transparent alias. It is stripped before subcommand
- * resolution so remaining positionals and flags are processed normally.
+ * The first known top-level command is consumed and remaining positional
+ * arguments are passed to that command.
  */
 export function parseFlags(args: readonly string[]): Flags {
-  const effectiveArgs = stripTuiPrefix(args);
-  const { positionals, startIndex } = collectLeadingPositionals(effectiveArgs);
+  const { positionals, startIndex } = collectLeadingPositionals(args);
   const resolved = resolvePositionals(positionals);
-  const parsed = parseOptions(effectiveArgs, startIndex);
+  const parsed = parseOptions(args, startIndex);
 
   return {
     subcommand: resolved.subcommand,
@@ -263,32 +250,11 @@ export function parseFlags(args: readonly string[]): Flags {
   };
 }
 
-/** Resolve a subcommand string to a navigation target */
-export function resolveSubcommand(
-  sub: string,
-):
-  | { type: "view"; viewId: ViewId }
-  | { type: "item"; itemId: string }
-  | undefined {
-  // Direct view names.
-  if (sub === "dashboard") {
-    return { type: "view", viewId: "dashboard" };
-  }
-  if (sub === "omarchy") return { type: "view", viewId: "omarchy" };
-
-  // Match against menu item IDs or submenu keys
-  if (menuItemsById.has(sub)) return { type: "item", itemId: sub };
-  if (submenus.has(sub)) return { type: "item", itemId: sub };
-
-  return undefined;
-}
-
 /**
  * Print help text, optionally scoped to a specific subcommand.
  *
  * - `git-diff` — shows diff-specific flags
  * - `git-notifications` — shows GitHub inbox flags and actions
- * - `omarchy` — shows available omarchy submenus and space-separated navigation
  * - No subcommand — shows the full generic help
  */
 export function printHelp(subcommand?: string): void {

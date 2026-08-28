@@ -1,4 +1,4 @@
-import { Effect, Layer, Stream } from "effect";
+import { Effect, Layer } from "effect";
 import { mkdirSync } from "fs";
 import { dirname, join } from "path";
 import { Config } from "./services/Config.js";
@@ -9,9 +9,7 @@ import { DotDiff } from "./git/services/DotDiff.js";
 import { GitHub } from "./git/services/GitHub.js";
 import { GitNotifications } from "./git/services/GitNotifications.js";
 import { GitStaging } from "./git/services/GitStaging.js";
-import { Dashboard } from "./dashboard/services/Dashboard.js";
-import { buildDashboardState } from "./dashboard/viewModel.js";
-import { parseFlags, resolveSubcommand, printHelp } from "./flags.js";
+import { parseFlags, printHelp } from "./flags.js";
 import { renderHelp } from "./cli/help.js";
 import { hasOption, optionValue, optionValues } from "./lib/args.js";
 import {
@@ -29,7 +27,6 @@ import { formatCause } from "./lib/schema.js";
 import { withStepTimeout } from "./lib/workflowStep.js";
 import { configureFirewallRules } from "./lib/firewallSetup.js";
 import { applyOmarchyShellConfig } from "./lib/omarchyShellConfig.js";
-import { menuItemsById } from "./menu.js";
 import { omarchyPlugin } from "./commands/OmarchyPlugin.js";
 import { init } from "./commands/Init.js";
 import { install } from "./commands/Install.js";
@@ -81,7 +78,6 @@ import {
 import type {
   GitNotificationAction,
   GitNotificationQueryOptions,
-  ViewId,
 } from "./types.js";
 import { getCliCommand, nativeCommandNames } from "./cli/spec.js";
 
@@ -97,19 +93,7 @@ const log = (msg: string) => {
 // --- Parse CLI ---
 const flags = parseFlags(process.argv.slice(2));
 
-if (flags.help) {
-  printHelp(flags.subcommand);
-  process.exit(0);
-}
-
-// --- Determine execution mode ---
-type Mode =
-  | {
-      type: "tui";
-      initialView: ViewId;
-      executeItemId?: string;
-    }
-  | { type: "native"; command: string; args: readonly string[] };
+type Mode = { readonly command: string; readonly args: readonly string[] };
 
 const NOTIFICATION_ACTION_FLAGS: readonly {
   readonly flag: string;
@@ -121,105 +105,25 @@ const NOTIFICATION_ACTION_FLAGS: readonly {
   { flag: "--unignore", action: "unignore" },
 ];
 
-/**
- * Machine-readable command to suggest when an interactive view is blocked under
- * an agent or a non-interactive stdout. Views without an entry are TUI-only.
- */
-const TUI_ALTERNATIVES = {
-  main: "dot help",
-  dashboard: "context git",
-} satisfies Partial<Record<ViewId, string>>;
-
-function tuiAlternative(view: ViewId): string | undefined {
-  return Object.entries(TUI_ALTERNATIVES).find(([name]) => name === view)?.[1];
-}
-
-/**
- * Refuse to open the interactive TUI when dot is driven by an AI agent or when
- * stdout is not a terminal, pointing at a machine-readable command instead.
- * `DOT_AGENT=0` forces the TUI back on when a real terminal is attached.
- */
-function guardInteractiveMode(current: Mode): void {
-  if (current.type !== "tui") return;
-
-  const nonTty = !process.stdout.isTTY;
-  const detection = detectAgent();
-  if (!nonTty && !detection.isAgent) return;
-
-  const reason = nonTty
-    ? "stdout is not an interactive terminal"
-    : `an AI agent (${detection.name}) is driving dot`;
-  const alternative = tuiAlternative(current.initialView);
-  const guidance = alternative
-    ? `Run \`${alternative}\` for machine-readable output.`
-    : `The ${current.initialView} view is interactive-only with no machine-readable equivalent.`;
-  const forceHint = nonTty ? "" : " Set DOT_AGENT=0 to open the TUI anyway.";
-
-  console.error(`dot: not opening the interactive TUI (${reason}).`);
-  console.error(`${guidance}${forceHint}`);
+function resolveMode(command: string | undefined): Mode {
+  if (!command) {
+    printHelp();
+    process.exit(0);
+  }
+  if (nativeCommandNames.has(command)) {
+    return { command, args: flags.rest };
+  }
+  console.error(`dot: unknown command '${command}'`);
+  console.error("Run 'dot --help' to see available commands.");
   process.exit(1);
-}
-
-function resolveMode(): Mode {
-  if (!flags.subcommand) {
-    // No subcommand: open TUI main menu
-    return { type: "tui", initialView: "main" };
-  }
-
-  // Native commands bypass the menu/fallback system entirely
-  if (nativeCommandNames.has(flags.subcommand)) {
-    if (flags.subcommand === "dashboard") {
-      return { type: "tui", initialView: "dashboard" };
-    }
-    return { type: "native", command: flags.subcommand, args: flags.rest };
-  }
-
-  const resolved = resolveSubcommand(flags.subcommand);
-
-  if (!resolved) {
-    console.error(`dot: unknown command '${flags.subcommand}'`);
-    console.error("Run 'dot --help' to see available commands.");
-    process.exit(1);
-  }
-
-  if (resolved.type === "view") {
-    return { type: "tui", initialView: resolved.viewId };
-  }
-
-  // Item resolved — check action type
-  const item = menuItemsById.get(resolved.itemId);
-  if (item) {
-    const { action } = item;
-    if (action.type === "view") {
-      return { type: "tui", initialView: action.viewId };
-    }
-    if (action.type === "submenu") {
-      return {
-        type: "tui",
-        initialView: "main",
-        executeItemId: resolved.itemId,
-      };
-    }
-    // command, silent, notify items are only runnable from the TUI
-    console.error(`dot: unknown command '${flags.subcommand}'`);
-    console.error("Run 'dot --help' to see available commands.");
-    process.exit(1);
-  }
-
-  // Submenu key without a direct item — open in TUI
-  return { type: "tui", initialView: "omarchy" };
 }
 
 /**
  * Record a best-effort usage event for this invocation. The command path is the
- * resolved subcommand (native) or the target view (TUI), never positional
- * argument values.
+ * resolved subcommand, never positional argument values.
  */
 function recordUsage(current: Mode): void {
-  const invokedCommand =
-    current.type === "native"
-      ? current.command
-      : (flags.subcommand ?? current.initialView);
+  const invokedCommand = current.command;
   const commandSpec = getCliCommand(invokedCommand);
   const command = [commandSpec?.name ?? invokedCommand];
   const allowedFlags = new Set(
@@ -243,9 +147,12 @@ function recordUsage(current: Mode): void {
   });
 }
 
-const mode = resolveMode();
+const mode = resolveMode(flags.subcommand);
+if (flags.help) {
+  printHelp(mode.command);
+  process.exit(0);
+}
 recordUsage(mode);
-guardInteractiveMode(mode);
 
 function initLogPath(args: readonly string[]): string {
   return expandHomePath(
@@ -264,7 +171,7 @@ function appendBootstrapLog(message: string | Uint8Array): void {
 const formatUnknownError = formatCause;
 
 function configureInitLogging(mode: Mode): void {
-  if (mode.type !== "native" || mode.command !== "init") return;
+  if (mode.command !== "init") return;
   if (mode.args.includes("--help") || mode.args.includes("-h")) return;
 
   const requestedLogFile = initLogPath(mode.args);
@@ -290,7 +197,7 @@ function privateDotfilesPath(): string {
 }
 
 function bootstrapPrivateDotfilesForInit(mode: Mode): void {
-  if (mode.type !== "native" || mode.command !== "init") return;
+  if (mode.command !== "init") return;
   if (mode.args.includes("--help") || mode.args.includes("-h")) return;
   if (envString(ENV.DOT_ALLOW_PRIVATE) === "never") return;
 
@@ -335,20 +242,15 @@ function bootstrapPrivateDotfilesForInit(mode: Mode): void {
 configureInitLogging(mode);
 bootstrapPrivateDotfilesForInit(mode);
 
-const notificationOpts = parseNotificationOpts(
-  flags.rest,
-  flags.since,
-  mode.type === "tui",
-);
+const notificationOpts = parseNotificationOpts(flags.rest, flags.since);
 
 function parseNotificationOpts(
   args: readonly string[],
   since: string | undefined,
-  defaultBarFilter = false,
 ): GitNotificationQueryOptions | undefined {
   const all = args.includes("--all");
   const participating = args.includes("--participating");
-  const barFilter = defaultBarFilter || args.includes("--bar-filter");
+  const barFilter = args.includes("--bar-filter");
   if (!all && !participating && !since && !barFilter) return undefined;
   return {
     ...(all && { all: true }),
@@ -440,21 +342,20 @@ function withNativeCommandTimeout(
 
 // --- Layer Composition ---
 
-/** Minimal layers for native CLI commands (no renderer, no TUI services) */
-const CliLayers = Launcher.cliLayer.pipe(
+/** Application layers shared by native CLI commands. */
+const CliLayers = Launcher.layer.pipe(
   Layer.provideMerge(DotDiff.layer),
   Layer.provideMerge(GitNotifications.layer),
   Layer.provideMerge(GitStaging.layer),
   Layer.provideMerge(GitHub.layer),
-  Layer.provideMerge(OutputLog.cliLayer),
+  Layer.provideMerge(OutputLog.layer),
   Layer.provideMerge(CommandExecutor.layer),
   Layer.provideMerge(Config.layer),
 );
 
 // --- Execution ---
 
-if (mode.type === "native") {
-  // Run a natively-ported command with CLI layers
+{
   const resolveDiff = (args: readonly string[]): NativeEffect => {
     const noFetch = args.includes("--no-fetch");
     const opts = noFetch ? { noFetch: true } : undefined;
@@ -662,146 +563,4 @@ if (mode.type === "native") {
       console.error(err);
       process.exit(1);
     });
-} else {
-  // TUI mode — dynamically import TUI dependencies to avoid loading the
-  // OpenTUI native library on CLI-only paths (each dlopen copies ~8MB to /tmp).
-  const { extractNativeLibIfNeeded } =
-    await import("./lib/extractNativeLib.js");
-  const nativeLibPath = await extractNativeLibIfNeeded();
-
-  const { Renderer } = await import("./services/Renderer.js");
-  const { Toast } = await import("./services/Toast.js");
-  const { RepoWatcher } = await import("./git/services/RepoWatcher.js");
-  const { createCommandRunner } = await import("./services/CommandRunner.js");
-  const { loadTheme } = await import("./theme.js");
-  const { App } = await import("./tui/App.js");
-
-  const { initialView, executeItemId } = mode;
-
-  const tuiProgram = Effect.gen(function* () {
-    log("Starting...");
-    const watcher = yield* RepoWatcher;
-    const notifications = yield* GitNotifications;
-    const dashboard = yield* Dashboard;
-    const renderer = yield* Renderer;
-    const toast = yield* Toast;
-    const services = yield* Effect.context<never>();
-    const runFork = Effect.runForkWith(services);
-    log("Services ready");
-
-    const commandRunner = createCommandRunner(renderer, toast);
-
-    // Create the app with concrete dependencies
-    const app = new App(
-      {
-        renderer,
-        theme,
-        commandRunner,
-        onRefreshDashboard: () => {
-          runFork(dashboard.refresh());
-          runFork(notifications.refresh(notificationOpts));
-        },
-      },
-      {
-        initialView,
-        executeItemId,
-      },
-    );
-    log("App created");
-
-    let currentRepoState = yield* watcher.getState();
-    let currentDashboardState = yield* dashboard.getState();
-    let currentNotificationState = yield* notifications.getState();
-
-    const updateDashboardView = () => {
-      app.updateDashboardState(
-        buildDashboardState({
-          repoState: currentRepoState,
-          sourceState: currentDashboardState,
-          notifications: currentNotificationState,
-        }),
-      );
-    };
-
-    // Subscribe to watcher state changes and update the diff view
-    yield* watcher.subscribe().pipe(
-      Stream.runForEach((state) =>
-        Effect.sync(() => {
-          log(
-            `State update: ${state.changed.length} changed, ${state.unchanged.length} unchanged`,
-          );
-          currentRepoState = state;
-          updateDashboardView();
-        }),
-      ),
-      Effect.forkScoped,
-    );
-    log("Subscribed to state stream");
-
-    // Subscribe to notification state changes and update the notifications view
-    yield* notifications.subscribe().pipe(
-      Stream.runForEach((state) =>
-        Effect.sync(() => {
-          log(`Notification update: ${state.threads.length} threads`);
-          currentNotificationState = state;
-          updateDashboardView();
-        }),
-      ),
-      Effect.forkScoped,
-    );
-    log("Subscribed to notification stream");
-
-    // Subscribe to dashboard source state and update dashboard cards
-    yield* dashboard.subscribe().pipe(
-      Stream.runForEach((state) =>
-        Effect.sync(() => {
-          log("Dashboard source update");
-          currentDashboardState = state;
-          updateDashboardView();
-        }),
-      ),
-      Effect.forkScoped,
-    );
-    log("Subscribed to dashboard stream");
-
-    // Push current state immediately for first paint
-    const initialState = currentRepoState;
-    log(
-      `Initial state: ${initialState.changed.length} changed, ${initialState.unchanged.length} unchanged`,
-    );
-    updateDashboardView();
-
-    log("Starting renderer...");
-    renderer.start();
-    log("Renderer started — TUI is live");
-    // Keep alive until the process exits
-    return yield* Effect.never;
-  });
-
-  // Resolve theme synchronously (uses readFileSync, no async deps)
-  const theme = Effect.runSync(loadTheme);
-  const DashboardLayer = Dashboard.layer.pipe(
-    Layer.provideMerge(DotDiff.layer),
-  );
-
-  const TuiLayers = RepoWatcher.layer.pipe(
-    Layer.provideMerge(DashboardLayer),
-    Layer.provideMerge(GitNotifications.layer),
-    Layer.provideMerge(GitHub.layer),
-    Layer.provideMerge(Toast.layer(theme)),
-    Layer.provideMerge(Renderer.layer(theme, nativeLibPath)),
-    Layer.provideMerge(OutputLog.tuiLayer),
-    Layer.provideMerge(CommandExecutor.layer),
-    Layer.provideMerge(Config.layer),
-  );
-
-  const runnable = tuiProgram.pipe(Effect.scoped, Effect.provide(TuiLayers));
-
-  log("Launching...");
-
-  Effect.runPromise(runnable).catch((err) => {
-    log(`Fatal error: ${err}`);
-    console.error(err);
-    process.exit(1);
-  });
 }

@@ -1,8 +1,7 @@
 import { cliCommands, getCliCommand, type CliCommandSpec } from "./spec.js";
 
 const rootExamples = [
-  "dot                      Main menu",
-  "dot dashboard            Full-screen dashboard",
+  "dot                      Show this help menu",
   "dot init --noninteractive",
   "dot update",
   "dot stow",
@@ -17,8 +16,6 @@ const rootExamples = [
   "dot setup-private-repo Sync and register private pacman repo",
   "dot private-pkg-publish twitch-notifications --install",
   "dot completions zsh",
-  "dot omarchy theme        Omarchy theme submenu",
-  "dot omarchy theme set    Execute omarchy theme set",
 ];
 
 function usageFor(command: CliCommandSpec): string {
@@ -119,14 +116,11 @@ function renderRootHelp(): string {
   return [
     "Usage: dot [subcommand] [options]",
     "",
-    "Launch the dot TUI. Without a subcommand, opens the main menu.",
+    "Manage and inspect the dotfiles system.",
     "",
     ...renderAligned(
       "Subcommands",
-      cliCommands.map((command) => [
-        command.name === "omarchy" ? "omarchy [submenu..]" : command.name,
-        command.summary,
-      ]),
+      cliCommands.map((command) => [command.name, command.summary]),
     ),
     "",
     "Options:",

@@ -3,8 +3,6 @@
 
 complete -c dot -f
 complete -c dot -s h -l help -d 'Show help message'
-complete -c dot -n '__fish_use_subcommand' -a 'dashboard' -d 'Open the dot dashboard'
-complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from dashboard'
 complete -c dot -n '__fish_use_subcommand' -a 'init' -d 'Run one-time first-use machine setup'
 complete -c dot -l confirm -d 'Compatibility flag; accepted but does not suppress prompts' -n '__fish_seen_subcommand_from init'
 complete -c dot -l noninteractive -d 'Skip the Hypr host questionnaire for this run' -n '__fish_seen_subcommand_from init'
@@ -147,9 +145,6 @@ complete -c dot -l state-dir -d 'Directory containing captures and restore.log' 
 complete -c dot -l no-launch -d 'Do not launch missing supported apps' -n '__fish_seen_subcommand_from workspace-restore'
 complete -c dot -l no-move -d 'Do not move or resize matched windows' -n '__fish_seen_subcommand_from workspace-restore'
 complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from workspace-restore'
-complete -c dot -n '__fish_use_subcommand' -a 'omarchy' -d 'Open an Omarchy submenu by path'
-complete -c dot -s h -l help -d 'Show this help message' -n '__fish_seen_subcommand_from omarchy'
-complete -c dot -n '__fish_seen_subcommand_from omarchy' -a 'theme font toggle capture system launch refresh restart install remove packages share reminder setup snapshot brightness power'
 complete -c dot -n '__fish_use_subcommand' -a 'usage' -d 'Local-first analytics for dot usage'
 complete -c dot -l days -d 'Window for summary/stale (default: 90)' -r -n '__fish_seen_subcommand_from usage'
 complete -c dot -l format -d 'summary format' -r -a 'text json agent-context' -n '__fish_seen_subcommand_from usage'

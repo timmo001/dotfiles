@@ -38,12 +38,6 @@ command = "sessionizer.worktree-open"
 description = "open worktree workspace"
 
 [[keys.command]]
-key = "prefix+d"
-type = "shell"
-command = "dot-launch-tui"
-description = "dot TUI"
-
-[[keys.command]]
 key = "prefix+g"
 type = "plugin_action"
 command = "herdr-lazygit.open"

@@ -127,10 +127,6 @@
       "path": "~/repos/skills",
       "description": "Use for portable agent skills pinned into this repo and opencode-config"
     },
-    "opentui": {
-      "repository": "anomalyco/opentui",
-      "description": "Use for OpenTUI core, renderables, and keyboard handling when working in dot/"
-    },
     "quickshell": {
       "repository": "quickshell-mirror/quickshell",
       "description": "Use for upstream Quickshell QML types, WlrLayershell/layer-shell, IpcHandler, reloadable config, and the qs CLI when customising the Omarchy shell bar widgets"

@@ -28,10 +28,7 @@ const state = (
   threads: readonly GitNotificationThread[],
 ): GitNotificationState => ({
   threads,
-  hiddenThreadIds: [],
   lastChecked: new Date("2026-08-13T12:00:00Z"),
-  loading: false,
-  loaded: true,
   query: { barFilter: true },
 });
 

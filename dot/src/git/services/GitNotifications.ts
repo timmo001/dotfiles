@@ -1,4 +1,4 @@
-import { Clock, Context, Effect, Layer, PubSub, Schema, Stream } from "effect";
+import { Clock, Context, Effect, Layer, Schema } from "effect";
 import type {
   GitNotificationAction,
   GitNotificationActionResult,
@@ -41,12 +41,10 @@ export class GitNotificationError extends Schema.TaggedErrorClass<GitNotificatio
 
 /** Service interface for the authenticated user's GitHub notification inbox. */
 interface GitNotificationsService {
-  /** Subscribe to notification inbox state snapshots. */
-  readonly subscribe: () => Stream.Stream<GitNotificationState>;
-  /** Refresh notification threads from GitHub. */
-  readonly refresh: (opts?: GitNotificationQueryOptions) => Effect.Effect<void>;
-  /** Return the most recent notification state. */
-  readonly getState: () => Effect.Effect<GitNotificationState>;
+  /** Fetch the current notification inbox state from GitHub. */
+  readonly query: (
+    opts?: GitNotificationQueryOptions,
+  ) => Effect.Effect<GitNotificationState>;
   /** Mark a notification thread as read. */
   readonly markRead: (
     threadId: string,
@@ -84,18 +82,6 @@ export class GitNotifications extends Context.Service<
       const github = yield* GitHub;
       const config = yield* Config;
       const executor = yield* CommandExecutor;
-      const pubsub = yield* PubSub.unbounded<GitNotificationState>();
-      const hiddenThreadIds = new Set<string>();
-
-      let currentState = buildState(
-        [],
-        new Date(yield* Clock.currentTimeMillis),
-        false,
-        false,
-        {},
-        hiddenThreadIds,
-      );
-
       const fetchNotificationPage = Effect.fn(
         "GitNotifications.fetchNotificationPage",
       )(function* (opts?: GitNotificationQueryOptions) {
@@ -111,67 +97,40 @@ export class GitNotifications extends Context.Service<
         },
       );
 
-      const refresh = (opts?: GitNotificationQueryOptions) =>
+      const query = (opts?: GitNotificationQueryOptions) =>
         Effect.gen(function* () {
-          const query = normalizeQuery(opts);
-          currentState = buildState(
-            currentState.threads,
-            new Date(yield* Clock.currentTimeMillis),
-            true,
-            currentState.loaded,
-            query,
-            hiddenThreadIds,
-          );
-          yield* PubSub.publish(pubsub, currentState);
+          const normalizedQuery = normalizeQuery(opts);
 
           const hasGh = yield* github.isAvailable();
           if (!hasGh) {
-            currentState = buildState(
+            return buildState(
               [],
               new Date(yield* Clock.currentTimeMillis),
-              false,
-              true,
-              query,
-              hiddenThreadIds,
+              normalizedQuery,
               "gh CLI not found",
             );
-            yield* PubSub.publish(pubsub, currentState);
-            return;
           }
 
-          const visibleThreads = filterHiddenThreads(
-            yield* fetchThreads(query),
-            hiddenThreadIds,
-          );
           const threads = yield* filterBarThreadsIfNeeded(
-            visibleThreads,
-            query,
+            yield* fetchThreads(normalizedQuery),
+            normalizedQuery,
           );
-          currentState = buildState(
+          log(`Query complete: ${threads.length} notification threads`);
+          return buildState(
             threads,
             new Date(yield* Clock.currentTimeMillis),
-            false,
-            true,
-            query,
-            hiddenThreadIds,
+            normalizedQuery,
           );
-          yield* PubSub.publish(pubsub, currentState);
-          log(`Refresh complete: ${threads.length} notification threads`);
         }).pipe(
-          Effect.withSpan("GitNotifications.refresh"),
+          Effect.withSpan("GitNotifications.query"),
           Effect.catch((error) =>
             Effect.gen(function* () {
-              const query = normalizeQuery(opts);
-              currentState = buildState(
-                currentState.threads,
+              return buildState(
+                [],
                 new Date(yield* Clock.currentTimeMillis),
-                false,
-                currentState.loaded,
-                query,
-                hiddenThreadIds,
+                normalizeQuery(opts),
                 formatGhError(error),
               );
-              yield* PubSub.publish(pubsub, currentState);
             }),
           ),
         );
@@ -332,26 +291,12 @@ export class GitNotifications extends Context.Service<
         );
 
       const markDone = (threadId: string) =>
-        Effect.gen(function* () {
-          const result = yield* runAction("done", threadId, [
-            "api",
-            "-X",
-            "DELETE",
-            threadEndpoint(threadId),
-          ]);
-          hiddenThreadIds.add(threadId);
-          currentState = buildState(
-            filterHiddenThreads(currentState.threads, hiddenThreadIds),
-            new Date(yield* Clock.currentTimeMillis),
-            false,
-            currentState.loaded,
-            currentState.query,
-            hiddenThreadIds,
-            result.message,
-          );
-          yield* PubSub.publish(pubsub, currentState);
-          return result;
-        });
+        runAction("done", threadId, [
+          "api",
+          "-X",
+          "DELETE",
+          threadEndpoint(threadId),
+        ]);
 
       const ignore = (threadId: string) =>
         runAction("ignore", threadId, subscriptionArgs(threadId, true));
@@ -360,9 +305,7 @@ export class GitNotifications extends Context.Service<
         runAction("unignore", threadId, subscriptionArgs(threadId, false));
 
       return {
-        subscribe: () => Stream.fromPubSub(pubsub),
-        refresh,
-        getState: () => Effect.succeed(currentState),
+        query,
         markRead,
         markBotRead,
         markDone,
@@ -496,35 +439,15 @@ function apiEndpointFromUrl(url: string | null): string | null {
   }
 }
 
-function notificationThreadKey(thread: GitNotificationThread): string {
-  return thread.id || thread.webUrl;
-}
-
-function filterHiddenThreads(
-  threads: readonly GitNotificationThread[],
-  hiddenThreadIds: ReadonlySet<string>,
-): readonly GitNotificationThread[] {
-  if (hiddenThreadIds.size === 0) return threads;
-  return threads.filter(
-    (thread) => !hiddenThreadIds.has(notificationThreadKey(thread)),
-  );
-}
-
 function buildState(
   threads: readonly GitNotificationThread[],
   lastChecked: Date,
-  loading: boolean,
-  loaded: boolean,
   query: GitNotificationQueryOptions,
-  hiddenThreadIds: ReadonlySet<string>,
   message?: string,
 ): GitNotificationState {
   return {
     threads,
-    hiddenThreadIds: [...hiddenThreadIds],
     lastChecked,
-    loading,
-    loaded,
     query,
     ...(message && { message }),
   };

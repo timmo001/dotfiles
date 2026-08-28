@@ -9,30 +9,6 @@ sidebar:
 
 This page lists every `dot` command, generated from the same registry that powers `dot help` and shell completions. Run any command with `--help` to see the same details at the terminal.
 
-## `dot dashboard`
-
-Open the dot dashboard
-
-```text
-dot dashboard [options]
-```
-
-Open the full-screen dot dashboard. It combines tracked repo
-state, GitHub notifications, and optional bounded source
-commands for Twitch, environment, and calendar cards.
-
-**Modes**
-
-```text
-(default)      Interactive dashboard
-```
-
-**Examples**
-
-```bash
-dot dashboard
-```
-
 ## `dot init`
 
 Run one-time first-use machine setup
@@ -908,48 +884,6 @@ Application-specific launch policy can be supplied by the optional private overl
 ```bash
 dot workspace-restore --dry-run
 dot workspace-restore
-```
-
-## `dot omarchy`
-
-Open an Omarchy submenu by path
-
-```text
-dot omarchy [submenu...]
-```
-
-Open the Omarchy desktop controls menu. Pass a submenu path to jump straight
-to it:
-
-  dot omarchy theme        Theme submenu
-  dot omarchy theme set    Execute theme set directly
-
-**Arguments**
-
-| Argument | Description |
-| --- | --- |
-| `<submenu>` | Repeatable. One of: `theme`, `font`, `toggle`, `capture`, `system`, `launch`, `refresh`, `restart`, `install`, `remove`, `packages`, `share`, `reminder`, `setup`, `snapshot`, `brightness`, `power`. |
-
-**Available submenus**
-
-```text
-theme       Theme management
-font        Font management
-toggle      Toggle system features
-capture     Screenshots and recordings
-system      Lock, logout, reboot, shutdown
-launch      Launch applications
-refresh     Refresh system components
-restart     Restart system services
-install     Install software and tools
-remove      Remove software and features
-packages    Package management
-share       Share clipboard, files, folders
-reminder    Reminders
-setup       DNS, security setup
-snapshot    System snapshots
-brightness  Display and keyboard brightness
-power       Power profiles
 ```
 
 ## `dot usage`

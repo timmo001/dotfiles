@@ -105,7 +105,6 @@
       "matchDepNames": [
         "@effect/platform-node",
         "@effect/tsgo",
-        "@opentui/core",
         "aqua:herdrdev/herdr",
         "effect",
         "github:backnotprop/plannotator"

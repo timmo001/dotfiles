@@ -96,8 +96,7 @@ export const notificationsMarkBotRead = (
 function refreshNotificationState(opts?: GitNotificationQueryOptions) {
   return Effect.gen(function* () {
     const notifications = yield* GitNotifications;
-    yield* notifications.refresh(opts);
-    return yield* notifications.getState();
+    return yield* notifications.query(opts);
   });
 }
 

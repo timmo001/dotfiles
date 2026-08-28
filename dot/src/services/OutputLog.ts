@@ -1,12 +1,4 @@
-import {
-  Clock,
-  Context,
-  Effect,
-  Layer,
-  PubSub,
-  Schedule,
-  Stream,
-} from "effect";
+import { Clock, Context, Effect, Layer, Schedule } from "effect";
 import {
   appendFileSync,
   mkdirSync,
@@ -41,10 +33,6 @@ export interface OutputLogService {
   readonly error: (msg: string) => Effect.Effect<void>;
   /** Log a section heading */
   readonly section: (title: string) => Effect.Effect<void>;
-  /** Stream of log entries (for TUI subscription) */
-  readonly stream: Stream.Stream<LogEntry>;
-  /** Flush all buffered entries as a single formatted string */
-  readonly flush: Effect.Effect<string>;
   /**
    * Run `effect` while showing an animated single-line spinner labelled
    * `label`.
@@ -62,9 +50,8 @@ export interface OutputLogService {
    * Update the label of the currently active spinner, if one is running.
    *
    * Lets a long-running {@link withSpinner} effect reflect live progress (for
-   * example which checks are still in flight). No-op when no spinner is active,
-   * on a non-TTY where the spinner does not animate, or in the TUI which
-   * renders its own progress UI.
+   * example which checks are still in flight). No-op when no spinner is active
+   * or on a non-TTY where the spinner does not animate.
    */
   readonly updateSpinner: (label: string) => Effect.Effect<void>;
 }
@@ -192,75 +179,11 @@ function pruneRunLogs(logDir: string, keep: number): void {
 export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
   "OutputLog",
 ) {
-  /** TUI layer: PubSub-backed, entries flow to subscribers via stream */
-  static readonly tuiLayer = Layer.effect(
+  /** Writes directly to stdout with ANSI colours. */
+  static readonly layer = Layer.effect(
     OutputLog,
     Effect.gen(function* () {
       const config = yield* Config;
-      const pubsub = yield* PubSub.unbounded<LogEntry>();
-      const entries: LogEntry[] = [];
-      const defaultLogFile = join(
-        config.logDir,
-        `${new Date(yield* Clock.currentTimeMillis).toISOString().replace(/[:.]/g, "-")}.log`,
-      );
-      const paths = logFiles(defaultLogFile);
-
-      // Create/prune log files lazily on first emit so query/machine commands
-      // that never log (e.g. status-bar JSON polls) leave no files behind.
-      let initialised = false;
-      const ensureInitialised = (): void => {
-        if (initialised) return;
-        initialised = true;
-        pruneRunLogs(config.logDir, LOG_RETENTION_COUNT);
-        initialiseLogFiles(paths);
-      };
-
-      const emit = (level: LogLevel, message: string): Effect.Effect<void> =>
-        Effect.gen(function* () {
-          ensureInitialised();
-          const entry: LogEntry = {
-            level,
-            message,
-            timestamp: yield* Clock.currentTimeMillis,
-          };
-          entries.push(entry);
-          appendLogFiles(paths, entry);
-          yield* PubSub.publish(pubsub, entry);
-        });
-
-      return {
-        info: (msg) => emit("info", msg),
-        warn: (msg) => emit("warn", msg),
-        error: (msg) => emit("error", msg),
-        section: (title) => emit("section", title),
-        stream: Stream.fromPubSub(pubsub),
-        flush: Effect.sync(() => entries.map(formatPlain).join("\n")),
-        // The TUI renders its own progress UI, so there is no animation here;
-        // still log the duration on completion to match the CLI contract.
-        withSpinner: (label, effect) =>
-          Effect.gen(function* () {
-            const startedAt = yield* Clock.currentTimeMillis;
-            const result = yield* effect;
-            const finishedAt = yield* Clock.currentTimeMillis;
-            yield* emit(
-              "info",
-              `${label} (${formatDuration(finishedAt - startedAt)})`,
-            );
-            return result;
-          }),
-        // Spinner label updates are a CLI concern; the TUI renders its own
-        // progress UI.
-        updateSpinner: () => Effect.void,
-      };
-    }),
-  );
-
-  /** CLI layer: writes directly to stdout with ANSI colours */
-  static readonly cliLayer = Layer.effect(
-    OutputLog,
-    Effect.gen(function* () {
-      const config = yield* Config;
-      const entries: LogEntry[] = [];
       const defaultLogFile = join(
         config.logDir,
         `${new Date(yield* Clock.currentTimeMillis).toISOString().replace(/[:.]/g, "-")}.log`,
@@ -314,7 +237,6 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
           const now = yield* Clock.currentTimeMillis;
           ensureInitialised();
           const entry: LogEntry = { level, message, timestamp: now };
-          entries.push(entry);
           appendLogFiles(paths, entry);
           // Clear the spinner line before a real log line, then redraw it
           // beneath so the spinner stays pinned to the bottom.
@@ -381,8 +303,6 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
         warn: (msg) => emit("warn", msg),
         error: (msg) => emit("error", msg),
         section: (title) => emit("section", title),
-        stream: Stream.empty,
-        flush: Effect.sync(() => entries.map(formatPlain).join("\n")),
         withSpinner,
         updateSpinner: (label) =>
           Effect.gen(function* () {

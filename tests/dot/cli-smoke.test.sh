@@ -11,14 +11,24 @@ if [[ ! -x "$dot_binary" ]]; then
 fi
 
 commands=(
-  dashboard init install update stow firewall doctor clean git-diff git-commit
+  init install update stow firewall doctor clean git-diff git-commit
   git-notifications agents-sync mcp-sync notes-capture-sync is-agent
   setup-private-repo private-pkg-publish skill-updates skill-check completions
-  launch-floating-webapp omarchy usage help
+  omarchy-plugin omarchy-shell-config launch-floating-webapp usage help
 )
+
+bare_help="$(DOT_USAGE_DISABLE=1 "$dot_binary")"
+[[ "$bare_help" == *'Usage: dot [subcommand] [options]'* ]]
 
 root_help="$(DOT_USAGE_DISABLE=1 "$dot_binary" --help)"
 [[ "$root_help" == *'Usage: dot [subcommand] [options]'* ]]
+
+for removed_command in dashboard tui omarchy; do
+  if DOT_USAGE_DISABLE=1 "$dot_binary" "$removed_command" --help >/dev/null 2>&1; then
+    printf 'Removed command still succeeds: dot %s\n' "$removed_command" >&2
+    exit 1
+  fi
+done
 
 for command in "${commands[@]}"; do
   help="$(DOT_USAGE_DISABLE=1 "$dot_binary" "$command" --help)"

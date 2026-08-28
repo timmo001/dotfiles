@@ -9,7 +9,7 @@ on:
       - 'dot/**'
       - 'tests/dot/**'
       - 'docs/**'
-      - '.github/workflows/tui-build.yml'
+      - '.github/workflows/dot-build.yml'
   pull_request: {}
 
 permissions:
@@ -32,10 +32,10 @@ jobs:
             dot:
               - 'dot/**'
               - 'tests/dot/**'
-              - '.github/workflows/tui-build.yml'
+              - '.github/workflows/dot-build.yml'
             docs:
               - 'docs/**'
-              - '.github/workflows/tui-build.yml'
+              - '.github/workflows/dot-build.yml'
 
       - name: Setup mise
         if: steps.changes.outputs.dot == 'true' || steps.changes.outputs.docs == 'true'

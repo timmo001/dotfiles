@@ -109,7 +109,7 @@ Context capture writes numbered system-prompt segments, `system-index.json`, per
 
 | Variable    | Description                                                                                                                                     |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DOT_AGENT` | Override AI agent detection used by `dot is-agent` and the interactive-TUI guard: `1` forces agent mode, `0` forces it off, unset auto-detects. |
+| `DOT_AGENT` | Override AI agent detection used by `dot is-agent` and usage attribution: `1` forces agent mode, `0` forces it off, unset auto-detects. |
 
 ## Notes
 

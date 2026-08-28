@@ -91,41 +91,8 @@ const openOpencodeOption = {
   description: "Run checks and attempt OpenCode analysis",
 } satisfies CliOptionSpec;
 
-const omarchySubmenuChoices: readonly CliValueChoice[] = [
-  { value: "theme", description: "Theme management" },
-  { value: "font", description: "Font management" },
-  { value: "toggle", description: "Toggle system features" },
-  { value: "capture", description: "Screenshots and recordings" },
-  { value: "system", description: "Lock, logout, reboot, shutdown" },
-  { value: "launch", description: "Launch applications" },
-  { value: "refresh", description: "Refresh system components" },
-  { value: "restart", description: "Restart system services" },
-  { value: "install", description: "Install software and tools" },
-  { value: "remove", description: "Remove software and features" },
-  { value: "packages", description: "Package management" },
-  { value: "share", description: "Share clipboard, files, folders" },
-  { value: "reminder", description: "Reminders" },
-  { value: "setup", description: "DNS, security setup" },
-  { value: "snapshot", description: "System snapshots" },
-  { value: "brightness", description: "Display and keyboard brightness" },
-  { value: "power", description: "Power profiles" },
-];
-
 /** Top-level native `dot` command descriptors. */
 export const cliCommands: readonly CliCommandSpec[] = [
-  {
-    name: "dashboard",
-    summary: "Open the dot dashboard",
-    usage: "[options]",
-    description: [
-      "Open the full-screen dot dashboard. It combines tracked repo",
-      "state, GitHub notifications, and optional bounded source",
-      "commands for Twitch, environment, and calendar cards.",
-    ],
-    modes: ["(default)      Interactive dashboard"],
-    options: [helpOption],
-    examples: ["dot dashboard"],
-  },
   {
     name: "init",
     summary: "Run one-time first-use machine setup",
@@ -1018,34 +985,6 @@ export const cliCommands: readonly CliCommandSpec[] = [
       helpOption,
     ],
     examples: ["dot workspace-restore --dry-run", "dot workspace-restore"],
-  },
-  {
-    name: "omarchy",
-    summary: "Open an Omarchy submenu by path",
-    usage: "[submenu...]",
-    description: [
-      "Open the Omarchy desktop controls menu. Pass a submenu path to jump straight",
-      "to it:",
-      "",
-      "  dot omarchy theme        Theme submenu",
-      "  dot omarchy theme set    Execute theme set directly",
-    ],
-    sections: [
-      {
-        title: "Available submenus",
-        lines: omarchySubmenuChoices.map((choice) =>
-          `${choice.value.padEnd(11)} ${choice.description ?? ""}`.trimEnd(),
-        ),
-      },
-    ],
-    arguments: [
-      {
-        name: "submenu",
-        choices: omarchySubmenuChoices,
-        repeatable: true,
-      },
-    ],
-    options: [helpOption],
   },
   {
     name: "usage",

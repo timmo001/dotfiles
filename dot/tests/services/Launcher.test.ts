@@ -28,13 +28,11 @@ describe("Launcher", () => {
       warn: () => Effect.void,
       error: () => Effect.void,
       section: () => Effect.void,
-      stream: Stream.empty,
-      flush: Effect.succeed(""),
       withSpinner: (_label, effect) => effect,
       updateSpinner: () => Effect.void,
     });
     const prompt = "Review $(touch /tmp/should-not-run) and `uname`.";
-    const launcherLayer = Launcher.cliLayer.pipe(
+    const launcherLayer = Launcher.layer.pipe(
       Layer.provideMerge(commandExecutor),
       Layer.provideMerge(outputLog),
     );
@@ -65,12 +63,10 @@ describe("Launcher", () => {
       warn: () => Effect.void,
       error: () => Effect.void,
       section: () => Effect.void,
-      stream: Stream.empty,
-      flush: Effect.succeed(""),
       withSpinner: (_label, effect) => effect,
       updateSpinner: () => Effect.void,
     });
-    const launcherLayer = Launcher.cliLayer.pipe(
+    const launcherLayer = Launcher.layer.pipe(
       Layer.provideMerge(commandExecutor),
       Layer.provideMerge(outputLog),
     );

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseFlags, resolveSubcommand } from "../src/flags.js";
+import { parseFlags } from "../src/flags.js";
 
 describe("parseFlags", () => {
   test("uses defaults without arguments", () => {
@@ -11,12 +11,12 @@ describe("parseFlags", () => {
     });
   });
 
-  test("strips the transparent tui prefix", () => {
+  test("treats the removed tui command as unknown", () => {
     expect(parseFlags(["tui", "git-notifications"])).toEqual({
-      subcommand: "git-notifications",
+      subcommand: "tui",
       since: undefined,
       help: false,
-      rest: [],
+      rest: ["git-notifications"],
     });
   });
 
@@ -51,22 +51,5 @@ describe("parseFlags", () => {
 
   test("recognises help after a command", () => {
     expect(parseFlags(["doctor", "--help"]).help).toBe(true);
-  });
-});
-
-describe("resolveSubcommand", () => {
-  test("resolves native views and aliases", () => {
-    expect(resolveSubcommand("dashboard")).toEqual({
-      type: "view",
-      viewId: "dashboard",
-    });
-  });
-
-  test("resolves menu items and rejects unknown targets", () => {
-    expect(resolveSubcommand("update")).toEqual({
-      type: "item",
-      itemId: "update",
-    });
-    expect(resolveSubcommand("missing-command")).toBeUndefined();
   });
 });

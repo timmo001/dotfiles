@@ -12,7 +12,7 @@ My public [Omarchy](https://omarchy.org) dotfiles, managed with GNU Stow and the
 ## At a glance
 
 - Stow-based dotfiles rooted at `~/.config/dotfiles`, applied with the `dot` command
-- A single compiled binary at `scripts/.local/bin/dot` (Bun + Effect v4 + OpenTUI) with a TUI dashboard and a full CLI
+- A single compiled `dot` CLI at `scripts/.local/bin/dot` (Bun + Effect v4) for setup, updates, and git tooling
 - Git/GitHub tooling: diff, log, status, and a notification inbox across managed repos, surfaced in the Omarchy Quickshell status bar
 - Stowed UWSM, Hyprland, and Ghostty customisations for Omarchy Quattro
 - Optional private overlay from `~/.config/dotfiles-private`
@@ -51,7 +51,7 @@ See the [install guide](https://dotfiles.timmo.dev/getting-started/install/) and
 Everything is documented at <https://dotfiles.timmo.dev>:
 
 - [Getting Started](https://dotfiles.timmo.dev/getting-started/) — install and new-machine checklist
-- [The `dot` Command](https://dotfiles.timmo.dev/dot/) — TUI + CLI, with the full [command reference](https://dotfiles.timmo.dev/dot/commands/), [stow workflow](https://dotfiles.timmo.dev/dot/stow/), [notes & handoffs](https://dotfiles.timmo.dev/dot/notes/), and [system utilities](https://dotfiles.timmo.dev/dot/utilities/)
+- [The `dot` Command](https://dotfiles.timmo.dev/dot/) — CLI overview, with the full [command reference](https://dotfiles.timmo.dev/dot/commands/), [stow workflow](https://dotfiles.timmo.dev/dot/stow/), [notes & handoffs](https://dotfiles.timmo.dev/dot/notes/), and [system utilities](https://dotfiles.timmo.dev/dot/utilities/)
 - [Git & GitHub](https://dotfiles.timmo.dev/git/) — diff, log, status, workflows, notifications
 - [Omarchy & Hyprland](https://dotfiles.timmo.dev/omarchy/) — managed repos and host overrides
 - [OpenCode & Agents](https://dotfiles.timmo.dev/opencode/) — agents, commands, skills, plugins, and the generated reference

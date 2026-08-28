@@ -47,8 +47,6 @@ describe("DotDiff", () => {
       warn: () => Effect.void,
       error: () => Effect.void,
       section: () => Effect.void,
-      stream: Stream.empty,
-      flush: Effect.succeed(""),
       withSpinner: (_label, effect) => effect,
       updateSpinner: () => Effect.void,
     });
@@ -123,8 +121,6 @@ describe("DotDiff", () => {
       warn: () => Effect.void,
       error: () => Effect.void,
       section: () => Effect.void,
-      stream: Stream.empty,
-      flush: Effect.succeed(""),
       withSpinner: (_label, effect) => effect,
       updateSpinner: () => Effect.void,
     });

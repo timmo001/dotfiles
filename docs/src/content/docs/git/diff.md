@@ -23,7 +23,7 @@ The raw summary includes working-tree status, staged and unstaged diff statistic
 
 ## Index locks
 
-Status scans run `git --no-optional-locks status` so background polling does not refresh the index or compete with an in-flight rebase, merge, or other index-writing operation. That keeps bar modules and the TUI from creating or waiting on `.git/index.lock` during normal reads.
+Status scans run `git --no-optional-locks status` so background polling does not refresh the index or compete with an in-flight rebase, merge, or other index-writing operation. That keeps bar modules and the native shell panel from creating or waiting on `.git/index.lock` during normal reads.
 
 When a crashed git process leaves a stale lock behind, the repo appears with a lock indicator in the shell panel. Only remove a lock when no git command is actively running in that repository.
 

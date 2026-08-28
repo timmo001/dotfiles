@@ -20,7 +20,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 ## Key Paths
 
 - Main entrypoint: `scripts/.local/bin/dot` (compiled binary from `dot/src/`)
-- Source: `dot/` (Bun + Effect v4 + OpenTUI; excluded from stow)
+- Source: `dot/` (Bun + Effect v4 CLI; excluded from stow)
 - TypeScript tests: `dot/tests/` (mirrors `dot/src/`)
 - Repository integration tests: `tests/` (grouped by area; excluded from stow)
 - Docs site: `docs/` (Astro + Starlight, bun; excluded from stow; deploys to `dotfiles.timmo.dev`)
@@ -60,7 +60,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 ## Repo-Specific Skills
 
-- The repo-relevant skills are `effect` (Effect v4 code in `dot/`), `opentui` (OpenTUI code in `dot/`), and `omarchy-shell-quickshell` (Omarchy shell / Quickshell work in this repo); all self-document their triggers.
+- The repo-relevant skills are `effect` (Effect v4 code in `dot/`) and `omarchy-shell-quickshell` (Omarchy shell / Quickshell work in this repo); both self-document their triggers.
 
 ## Omarchy Host Overrides
 
@@ -105,8 +105,8 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
   - Environment variables, XDG paths, or install/bootstrap steps: `configuration/environment.md`, `getting-started/install.md`, `getting-started/new-machine.mdx`.
   - Hypr host-override layout: `omarchy/host-overrides.md`.
 - Two sections are generated, not hand-written: `docs/src/content/docs/dot/commands.md` (from `dot/src/cli/spec.ts` via `mise run docs:gen:cli`) and `docs/src/content/docs/reference/{agents,commands,skills,plugins}.md` (from the OpenCode assets via `mise run docs:gen:opencode`). Edit the sources, then run `mise run docs:gen` and commit the result; never hand-edit the generated pages.
-- CI enforces generated pages on pull requests and direct pushes: `docs-drift`, `tui-build`, and `opencode-publish` regenerate the relevant reference pages and fail when the committed output is stale. Regenerate with `mise run docs:gen` and commit the result before pushing. Hand-written pages are not auto-checked, so the mapping above is on you.
-- Dev tasks for `dot/`, `docs/`, and repository integration tests are defined in the single root `mise.toml`, namespaced by project (`dot:*`, `docs:*`, and `tests:*`; run `mise tasks` to list them). Package tasks set their own `dir` and wrap the matching `bun run` script, so `bun run build` etc. still work; CI (`tui-build`, `opencode-publish`, `docs-drift`, and `lint.yml`) and the fresh-machine bootstrap rely on that. Use **bun** in `docs/` for dependencies (`bun install`); `mise run docs:build` (wrapping `bun run build`) runs `starlight-links-validator`, so broken internal links fail the build.
+- CI enforces generated pages on pull requests and direct pushes: `docs-drift`, `dot-build`, and `opencode-publish` regenerate the relevant reference pages and fail when the committed output is stale. Regenerate with `mise run docs:gen` and commit the result before pushing. Hand-written pages are not auto-checked, so the mapping above is on you.
+- Dev tasks for `dot/`, `docs/`, and repository integration tests are defined in the single root `mise.toml`, namespaced by project (`dot:*`, `docs:*`, and `tests:*`; run `mise tasks` to list them). Package tasks set their own `dir` and wrap the matching `bun run` script, so `bun run build` etc. still work; CI (`dot-build`, `opencode-publish`, `docs-drift`, and `lint.yml`) and the fresh-machine bootstrap rely on that. Use **bun** in `docs/` for dependencies (`bun install`); `mise run docs:build` (wrapping `bun run build`) runs `starlight-links-validator`, so broken internal links fail the build.
 
 ## Script Configuration Policy
 

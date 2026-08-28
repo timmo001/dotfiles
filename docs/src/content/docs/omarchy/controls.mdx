@@ -1,18 +1,16 @@
 ---
 title: Controls
-description: The dot omarchy desktop controls menu and local keybindings.
+description: The Omarchy controls menu and local keybindings.
 sidebar:
   order: 3
 ---
 
-## `dot omarchy`
+## Omarchy menu
 
-Opens the Omarchy desktop controls menu. Pass a submenu path to jump straight to it, or chain a path to execute an action directly.
+Open the upstream Omarchy controls menu with the standard keybinding or command:
 
 ```bash
-dot omarchy              # open the controls menu (TUI)
-dot omarchy theme        # jump to the Theme submenu
-dot omarchy theme set    # execute theme set directly
+omarchy-menu             # same as Super+Alt+Space
 ```
 
 ## Available submenus
@@ -81,10 +79,7 @@ The config leaves Quattro's native `SUPER+W` close-window, `SUPER+SHIFT+RETURN` 
 
 ## Power profiles
 
-Power-profile control has two entrypoints:
-
-- `dot omarchy power` opens the Omarchy power-profile submenu from the `dot` TUI.
-- `SUPER+CTRL+ALT+P` runs `power-profile-menu`, an Omarchy menu that shows the current profile and selects one of the profiles reported by `omarchy-powerprofiles-list`.
+`SUPER+CTRL+ALT+P` runs `power-profile-menu`, an Omarchy menu that shows the current profile and selects one of the profiles reported by `omarchy-powerprofiles-list`.
 
 The menu writes the selected profile with `powerprofilesctl set`, so the available choices and final state come from `power-profiles-daemon` rather than a dot-specific state file.
 

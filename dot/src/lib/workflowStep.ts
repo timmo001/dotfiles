@@ -8,7 +8,7 @@ export const withTimeoutOption = <A, E, R>(
 ): Effect.Effect<Option.Option<A>, E, R> =>
   effect.pipe(Effect.timeoutOption(Duration.seconds(seconds)));
 
-/** Run an effect behind the shared CLI/TUI spinner and timeout handling. */
+/** Run an effect behind the shared CLI spinner and timeout handling. */
 export const withSpinnerTimeout = <A, E, R>(
   label: string,
   seconds: number,

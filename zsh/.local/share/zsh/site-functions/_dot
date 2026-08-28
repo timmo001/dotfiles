@@ -3,7 +3,6 @@
 
 local -a dot_commands
 dot_commands=(
-  'dashboard:Open the dot dashboard'
   'init:Run one-time first-use machine setup'
   'install:Ensure prerequisites, then backup/adopt dotfiles'
   'update:Self-update, pull repos, stow dotfiles, rebuild'
@@ -33,17 +32,10 @@ dot_commands=(
   'workspace-relayout:Apply or capture a Hyprland workspace layout'
   'workspace-capture:Capture Hyprland workspace and window state'
   'workspace-restore:Restore a captured Hyprland workspace session'
-  'omarchy:Open an Omarchy submenu by path'
   'usage:Local-first analytics for dot usage'
   'help:Show this help menu'
 )
 
-_dot_cmd_dashboard() {
-  _arguments -S \
-    '(-h --help)-h[Show this help message]' \
-    '(-h --help)--help[Show this help message]' \
-    '*::arg:->args'
-}
 _dot_cmd_init() {
   _arguments -S \
     '--confirm[Compatibility flag; accepted but does not suppress prompts]' \
@@ -343,13 +335,6 @@ _dot_cmd_workspace_restore() {
     '(-h --help)--help[Show this help message]' \
     '*::arg:->args'
 }
-_dot_cmd_omarchy() {
-  _arguments -S \
-    '(-h --help)-h[Show this help message]' \
-    '(-h --help)--help[Show this help message]' \
-    '*:submenu:((theme:Theme\ management font:Font\ management toggle:Toggle\ system\ features capture:Screenshots\ and\ recordings system:Lock,\ logout,\ reboot,\ shutdown launch:Launch\ applications refresh:Refresh\ system\ components restart:Restart\ system\ services install:Install\ software\ and\ tools remove:Remove\ software\ and\ features packages:Package\ management share:Share\ clipboard,\ files,\ folders reminder:Reminders setup:DNS,\ security\ setup snapshot:System\ snapshots brightness:Display\ and\ keyboard\ brightness power:Power\ profiles))' \
-    '*::arg:->args'
-}
 _dot_cmd_usage() {
   _arguments -S \
     '--days[Window for summary/stale (default: 90)]:n:' \
@@ -371,9 +356,6 @@ _dot_complete_command() {
   local command=$1
 
   case $command in
-    dashboard)
-      _dot_cmd_dashboard
-      ;;
     init)
       _dot_cmd_init
       ;;
@@ -454,9 +436,6 @@ _dot_complete_command() {
       ;;
     workspace-restore)
       _dot_cmd_workspace_restore
-      ;;
-    omarchy)
-      _dot_cmd_omarchy
       ;;
     usage)
       _dot_cmd_usage
