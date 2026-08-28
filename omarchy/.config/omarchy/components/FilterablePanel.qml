@@ -16,7 +16,7 @@ Item {
   readonly property var navigationEntries: navigationModel === null ? filteredModel : navigationModel
   readonly property int count: filteredModel.length
 
-  signal activateRequested(var entry)
+  signal activateRequested(var entry, int modifiers)
   signal closeRequested()
   signal backRequested()
   signal refreshRequested()
@@ -121,7 +121,7 @@ Item {
       event.accepted = true
     } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
       var entry = root.selectedEntry()
-      if (entry) root.activateRequested(entry)
+      if (entry) root.activateRequested(entry, event.modifiers)
       event.accepted = true
     } else if (event.key === Qt.Key_R && event.modifiers === Qt.ControlModifier) {
       root.refreshRequested()

@@ -156,7 +156,7 @@ Panel {
     showView("repo")
   }
 
-  function activateAction(action) {
+  function activateAction(action, modifiers) {
     if (!service) return
     if (action === "refresh") { service.refresh(); service.refreshPanel() }
     else if (action === "changed" || action === "other") showView(action)
@@ -164,7 +164,10 @@ Panel {
     else if (action === "back") showView(view === "agent" ? "repo" : (view === "repo" ? selectedRepoView : "overview"))
     else if (action === "notifications") { close(); service.openNotifications() }
     else if (action.indexOf("agent:") === 0 && selectedRepo) { close(); service.openAgent(selectedRepo, action.slice(6)) }
-    else if (selectedRepo) { close(); service.openRepo(selectedRepo, action) }
+    else if (selectedRepo) {
+      close()
+      service.openRepo(selectedRepo, action === "lazygit" && (modifiers & Qt.ShiftModifier) ? "lazygit-floating" : action)
+    }
   }
 
   function activateThread(thread) {
@@ -173,8 +176,8 @@ Panel {
     service.openThread(thread)
   }
 
-  function activateEntry(entry) {
-    if (entry.kind === "action") activateAction(entry.action)
+  function activateEntry(entry, modifiers) {
+    if (entry.kind === "action") activateAction(entry.action, modifiers)
     else if (entry.kind === "repo") showRepoActions(entry.value)
     else if (entry.kind === "thread") activateThread(entry.value)
   }
@@ -203,7 +206,7 @@ Panel {
       model: root.panelRows
       backOnEmptyFilter: true
       onRevealRequested: revealTimer.restart()
-      onActivateRequested: function(entry) { root.activateEntry(entry) }
+      onActivateRequested: function(entry, modifiers) { root.activateEntry(entry, modifiers) }
       onBackRequested: if (root.view === "overview") root.close(); else root.activateAction("back")
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }

@@ -141,8 +141,14 @@ Item {
   function openRepo(repo, action) {
     if (!repo || !repo.path) return
     var path = String(repo.path)
-    if (action === "lazygit")
+    if (action === "lazygit-floating")
       Quickshell.execDetached(["uwsm", "app", "--", "xdg-terminal-exec", "--app-id=TUI.float", "--dir=" + path, "lazygit"])
+    else if (action === "lazygit")
+      Quickshell.execDetached([
+        "bash", "-lc",
+        "if herdr status server >/dev/null 2>&1; then exec herdr-repo-open \"$1\" \"$2\" Lazygit lazygit; else exec uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal --dir=\"$2\" lazygit; fi",
+        "bash", String(repo.name || ""), path
+      ])
     else if (action === "editor")
       Quickshell.execDetached([
         "bash", "-lc",
