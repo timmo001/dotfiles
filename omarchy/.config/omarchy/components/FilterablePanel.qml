@@ -99,6 +99,17 @@ Item {
     return -1
   }
 
+  function deletesLastCharacter(text) {
+    var end = text.length - 1
+    if (end > 0) {
+      var trailingCode = text.charCodeAt(end)
+      var precedingCode = text.charCodeAt(end - 1)
+      if (trailingCode >= 0xDC00 && trailingCode <= 0xDFFF
+          && precedingCode >= 0xD800 && precedingCode <= 0xDBFF) end--
+    }
+    return text.slice(0, Math.max(0, end))
+  }
+
   Keys.onPressed: function(event) {
     if (event.key === Qt.Key_Escape) {
       if (root.filterText) root.setFilter("")
@@ -111,7 +122,9 @@ Item {
       root.backRequested()
       event.accepted = true
     } else if (Util.editsFilter(event, root.filterText)) {
-      root.setFilter(Util.editedFilter(event, root.filterText))
+      root.setFilter(event.key === Qt.Key_Backspace && !(event.modifiers & Qt.ControlModifier)
+        ? root.deletesLastCharacter(root.filterText)
+        : Util.editedFilter(event, root.filterText))
       event.accepted = true
     } else if (event.key === Qt.Key_Up) {
       root.moveCursor(-1)
@@ -126,8 +139,7 @@ Item {
     } else if (event.key === Qt.Key_R && event.modifiers === Qt.ControlModifier) {
       root.refreshRequested()
       event.accepted = true
-    } else if (event.text && event.text.length === 1
-        && event.text.charCodeAt(0) >= 32 && event.text.charCodeAt(0) !== 127
+    } else if (event.text && !/[\u0000-\u001f\u007f]/.test(event.text)
         && (event.modifiers === Qt.NoModifier || event.modifiers === Qt.ShiftModifier)) {
       root.setFilter(root.filterText + event.text)
       event.accepted = true

@@ -49,7 +49,13 @@ Panel {
     } else {
       rows.push(actionRow("back", "Back to Git overview", ""))
     }
-    var repos = service ? ((view === "overview" || view === "changed") ? service.changedRepos : (view === "other" ? service.otherRepos : [])) : []
+    var repos = []
+    if (service) {
+      if (view === "overview")
+        repos = filterController.filterText ? service.changedRepos.concat(service.otherRepos) : service.changedRepos
+      else if (view === "changed") repos = service.changedRepos
+      else if (view === "other") repos = service.otherRepos
+    }
     for (var j = 0; j < repos.length; j++) {
       var repo = repos[j]
       rows.push({
@@ -315,7 +321,7 @@ Panel {
 
           Text {
             visible: root.filteredRepos.length > 0
-            text: (root.view === "overview" ? "CHANGED REPOSITORIES" : "REPOSITORIES") + " · " + (filterController.filterText ? root.filteredRepos.length + " MATCHING" : (root.view === "other" ? root.otherRepoCount : root.changedRepoCount))
+            text: (root.view === "overview" && !filterController.filterText ? "CHANGED REPOSITORIES" : "REPOSITORIES") + " · " + (filterController.filterText ? root.filteredRepos.length + " MATCHING" : (root.view === "other" ? root.otherRepoCount : root.changedRepoCount))
             color: Qt.darker(root.contentForeground, 1.4)
             font.family: root.contentFontFamily
             font.pixelSize: Style.font.caption
