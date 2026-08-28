@@ -29,6 +29,7 @@ case "$1 $2" in
     printf '{"result":{"tab":{"tab_id":"w1:t2"},"root_pane":{"pane_id":"w1:p2"}}}\n'
     ;;
   "tab rename") printf 'rename %s %s\n' "$3" "$4" >>"$CALLS" ;;
+  "tab focus") printf 'focus-tab %s\n' "$3" >>"$CALLS" ;;
   "workspace focus") printf 'focus %s\n' "$3" >>"$CALLS" ;;
   "pane run") printf 'run %s %s\n' "$3" "$4" >>"$CALLS" ;;
   *) exit 2 ;;
@@ -46,6 +47,7 @@ grep -Fx "create-tab tab create --workspace w1 --cwd /repo --label OpenCode --no
 grep -Fx "rename w1:t2 OpenCode" "$calls"
 grep -Fx "run w1:p2 opencode" "$calls"
 grep -Fx "focus w1" "$calls"
+grep -Fx "focus-tab w1:t2" "$calls"
 
 : >"$calls"
 PATH="$temp_dir/bin:$PATH" XDG_CACHE_HOME="$temp_dir/cache" MODE=new CALLS="$calls" \
@@ -54,3 +56,4 @@ grep -Fx "create workspace create --cwd /repo --label Dotfiles --no-focus" "$cal
 grep -Fx "rename w2:t1 OpenCode" "$calls"
 grep -Fx "run w2:p1 opencode" "$calls"
 grep -Fx "focus w2" "$calls"
+grep -Fx "focus-tab w2:t1" "$calls"

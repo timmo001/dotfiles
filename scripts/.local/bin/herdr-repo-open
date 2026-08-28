@@ -63,3 +63,6 @@ if [ -n "$command" ]; then
 fi
 
 herdr workspace focus "$workspace_id" >/dev/null
+if [ -n "${tab_id:-}" ]; then
+  herdr tab focus "$tab_id" >/dev/null
+fi
