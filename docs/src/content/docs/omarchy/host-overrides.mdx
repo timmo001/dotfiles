@@ -15,12 +15,15 @@ Ghostty config is a stowed dotfiles package (`ghostty/.config/ghostty/`), not a 
 
 The shared config uses 12px window padding. The laptop override reduces the padding to 8px and the font size from 10 to 9.
 
+Ghostty-only bindings (active while Ghostty has keyboard focus):
+
 | Binding | Action |
 | --- | --- |
-| `CTRL+ALT+G` | Toggle the unified Omarchy Shell Git panel |
-| `CTRL+ALT+SHIFT+G` | Type and run `lazygit` in Ghostty |
 | `CTRL+ALT+TAB` | Send tmux's next-window sequence |
 | `CTRL+ALT+SHIFT+TAB` | Send tmux's previous-window sequence |
+| `CTRL+ALT+SHIFT+G` | Type and run `lazygit` |
+
+Hyprland captures `CTRL+ALT+SHIFT+G` globally for the Git panel's Other repositories view before Ghostty can type `lazygit`. Use `CTRL+ALT+G` for the unified Git panel, or run `lazygit` from a shell when you want it inside Ghostty.
 
 `dot install`, `dot init`, and `dot stow` back up the retired `timmo001/omarchy-ghostty` clone at `~/.config/ghostty` before linking the stowed config.
 

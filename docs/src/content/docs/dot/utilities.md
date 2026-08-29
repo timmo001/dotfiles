@@ -77,6 +77,7 @@ Driver capability does not prove smooth playback. For a live stream, use `chrome
 Repository regression tests live under `tests/`, use temporary directories, and run through mise tasks and the `lint.yml` workflow:
 
 - `tests/github/opencode-publish.test.sh` checks publication of shared `lib/` modules and rejects missing relative plugin imports before cleaning the publish checkout.
+- `scripts/.local/share/herdr-plugins/plannotator/runner.test.ts` checks the Herdr Plannotator plugin runner.
 - `dot/tests/commands/WorkspaceSession.test.ts` and `tests/scripts/workspace-restore.test.sh` check that captured browser URLs remain one shell argument and cannot execute command substitutions during restore.
 - `tests/dot/cli-smoke.test.sh` builds `dot` and checks side-effect-free CLI entry points.
 

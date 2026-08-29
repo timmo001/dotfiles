@@ -28,6 +28,8 @@ The command files contain frontmatter only because the plugin handles their name
 
 For usage, see the upstream [OpenCode integration guide](https://plannotator.ai/docs/guides/opencode/) and its linked command guides.
 
+The Herdr plugin runner is covered by `mise run tests:integration` (`scripts/.local/share/herdr-plugins/plannotator/runner.test.ts`).
+
 Code review feedback authorises the agent to apply the requested corrections immediately. The correction run stays within the human feedback, performs relevant validation, and asks before proceeding when a request is unclear, conflicts with the codebase, or cannot be applied safely.
 
 ## Herdr shortcuts
