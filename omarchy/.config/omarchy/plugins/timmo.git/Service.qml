@@ -187,7 +187,15 @@ Item {
   }
 
   function openThread(thread) {
-    if (thread && thread.webUrl) Quickshell.execDetached(["xdg-open", String(thread.webUrl)])
+    if (!thread) return
+    var threadId = String(thread.id || "")
+    if (threadId !== "" && !markReadProcess.running) {
+      threads = threads.filter(function(value) { return String(value.id || "") !== threadId })
+      notificationAllCount = Math.max(0, notificationAllCount - 1)
+      markReadProcess.command = ["dot", "git-notifications", "--mark-read", threadId]
+      markReadProcess.running = true
+    }
+    if (thread.webUrl) Quickshell.execDetached(["xdg-open", String(thread.webUrl)])
   }
 
   Process {
@@ -232,6 +240,11 @@ Item {
       if (exitCode === 0) root.applyNotifications(notificationsOutput.text)
       else root.failNotifications("GitHub notifications unavailable")
     }
+  }
+
+  Process {
+    id: markReadProcess
+    onExited: root.refresh()
   }
 
   Timer {
