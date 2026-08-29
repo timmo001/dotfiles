@@ -18,6 +18,7 @@ import {
 } from "../../services/GitConfig.js";
 import { valuesLookLikeBotActivity } from "./botActivity.js";
 import { GitHub, type GitHubService } from "./GitHub.js";
+import { notificationReasonIsImportant } from "./notificationStatus.js";
 import { managedRepoGitHubSlugs } from "./repoRelations.js";
 import { formatGhError, nullableStringValue, stringValue } from "./record.js";
 import { ENV, envString } from "../../lib/env.js";
@@ -368,8 +369,8 @@ function notificationThreadLooksBot(
   thread: GitNotificationThread,
   github: GitHubService,
 ) {
-  if (valuesLookLikeBotActivity([thread.title, thread.webUrl])) {
-    return Effect.succeed(true);
+  if (notificationReasonIsImportant(thread.reason)) {
+    return Effect.succeed(false);
   }
 
   switch (thread.type) {
@@ -377,9 +378,14 @@ function notificationThreadLooksBot(
       return pullRequestThreadLooksBot(thread, github);
     case "WorkflowRun":
     case "CheckSuite":
+      if (valuesLookLikeBotActivity([thread.title, thread.webUrl])) {
+        return Effect.succeed(true);
+      }
       return workflowNotificationThreadLooksBot(thread, github);
     default:
-      return Effect.succeed(false);
+      return Effect.succeed(
+        valuesLookLikeBotActivity([thread.title, thread.webUrl]),
+      );
   }
 }
 
@@ -387,22 +393,30 @@ function pullRequestThreadLooksBot(
   thread: GitNotificationThread,
   github: GitHubService,
 ) {
+  const threadLooksBot = valuesLookLikeBotActivity([
+    thread.title,
+    thread.webUrl,
+  ]);
   const endpoint = apiEndpointFromUrl(thread.subjectApiUrl);
-  if (!endpoint) return Effect.succeed(false);
+  if (!endpoint) return Effect.succeed(threadLooksBot);
   return github.json(["api", endpoint]).pipe(
     Effect.map((value) => {
       const decoded = Schema.decodeUnknownOption(
         Schema.Record(Schema.String, Schema.Json),
       )(value);
-      if (decoded._tag === "None") return false;
+      if (decoded._tag === "None") return threadLooksBot;
       const user = recordValue(decoded.value.user);
       const head = recordValue(decoded.value.head);
-      return valuesLookLikeBotActivity([
-        stringValue(user.login),
-        stringValue(head.ref),
-      ]);
+      if (decoded.value.draft === true) return false;
+      return (
+        threadLooksBot ||
+        valuesLookLikeBotActivity([
+          stringValue(user.login),
+          stringValue(head.ref),
+        ])
+      );
     }),
-    Effect.catch(() => Effect.succeed(false)),
+    Effect.catch(() => Effect.succeed(threadLooksBot)),
   );
 }
 
