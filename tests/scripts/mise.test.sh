@@ -20,7 +20,7 @@ EOF
 chmod +x "$mock_bin/mise"
 
 run_mise() {
-  HOME="$mock_home" XDG_STATE_HOME='' PATH="$mock_bin:/usr/bin" "$mise_wrapper" "$@"
+  HOME="$mock_home" XDG_STATE_HOME='' MISE_GLOBAL_CONFIG_FILE='' MISE_BACKENDS_CLAUDE='' PATH="$mock_bin:/usr/bin" "$mise_wrapper" "$@"
 }
 
 global_write=$(run_mise use -g gh)
