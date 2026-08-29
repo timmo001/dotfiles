@@ -204,7 +204,7 @@ describe("OpenCode V1/V2 plugin migration", () => {
     });
   }
 
-  test("Effect modules import with coordinated pinned plugin packages", async () => {
+  test("Effect modules import with coordinated pinned dependencies", async () => {
     const packageJson = await readFile(resolve(v2, "package.json"), "utf8");
     const versions = ["client", "plugin", "schema"].map(
       (name) =>
@@ -214,6 +214,19 @@ describe("OpenCode V1/V2 plugin migration", () => {
     );
     expect(versions.every((version) => version !== undefined)).toBe(true);
     expect(new Set(versions).size).toBe(1);
+
+    const pluginPackageJson = await readFile(
+      resolve(v2, "node_modules/@opencode-ai/plugin/package.json"),
+      "utf8",
+    );
+    const effectVersion = packageJson.match(
+      /"effect": "(4\.0\.0-rc\.[0-9]+)"/,
+    )?.[1];
+    const pluginEffectVersion = pluginPackageJson.match(
+      /"effect": "(4\.0\.0-rc\.[0-9]+)"/,
+    )?.[1];
+    expect(effectVersion).toBeDefined();
+    expect(effectVersion).toBe(pluginEffectVersion);
 
     for (const name of migrated) {
       const plugin = (await import(resolve(v2, `${name}.ts`))).default;
