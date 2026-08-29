@@ -21,6 +21,9 @@ Panel {
   readonly property int changedRepoCount: service ? service.changedRepos.length : 0
   readonly property int otherRepoCount: service ? service.otherRepos.length : 0
   readonly property int threadCount: service ? service.threads.length : 0
+  readonly property int allThreadCount: service ? service.notificationAllCount : 0
+  readonly property int otherThreadCount: Math.max(0, allThreadCount - threadCount)
+  readonly property string notificationCountText: threadCount + (threadCount === 1 ? " notification" : " notifications") + " (" + otherThreadCount + (otherThreadCount === 1 ? " other)" : " others)")
   readonly property var panelRows: buildPanelRows()
   readonly property var filteredActions: filterRows("action")
   readonly property var filteredRepos: filterRows("repo")
@@ -86,7 +89,7 @@ Panel {
       rows.push(footerActionRow(
         "notifications",
         "GitHub notifications",
-        threadCount + (threadCount === 1 ? " notification" : " notifications"),
+        notificationCountText,
         ""
       ))
     return rows
@@ -263,7 +266,7 @@ Panel {
           PanelHero {
             width: parent.width
             title: root.view === "agent" ? "Open in agent" : (root.view === "repo" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "overview" ? "Git" : (root.view === "changed" ? "Changed" : (root.view === "notifications" ? "Notifications" : "Other"))))
-            meta: root.view === "agent" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.threadCount + " notifications" : (root.view === "changed" ? root.changedRepoCount + " repositories" : (root.view === "notifications" ? root.threadCount + " notifications" : root.otherRepoCount + " repositories"))))
+            meta: root.view === "agent" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.notificationCountText : (root.view === "changed" ? root.changedRepoCount + " repositories" : (root.view === "notifications" ? root.notificationCountText : root.otherRepoCount + " repositories"))))
             detail: root.service && root.service.refreshing ? "REFRESHING" : "STATUS"
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily

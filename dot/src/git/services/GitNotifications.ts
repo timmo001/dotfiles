@@ -105,19 +105,22 @@ export class GitNotifications extends Context.Service<
           if (!hasGh) {
             return buildState(
               [],
+              0,
               new Date(yield* Clock.currentTimeMillis),
               normalizedQuery,
               "gh CLI not found",
             );
           }
 
+          const allThreads = yield* fetchThreads(normalizedQuery);
           const threads = yield* filterBarThreadsIfNeeded(
-            yield* fetchThreads(normalizedQuery),
+            allThreads,
             normalizedQuery,
           );
           log(`Query complete: ${threads.length} notification threads`);
           return buildState(
             threads,
+            allThreads.length,
             new Date(yield* Clock.currentTimeMillis),
             normalizedQuery,
           );
@@ -127,6 +130,7 @@ export class GitNotifications extends Context.Service<
             Effect.gen(function* () {
               return buildState(
                 [],
+                0,
                 new Date(yield* Clock.currentTimeMillis),
                 normalizeQuery(opts),
                 formatGhError(error),
@@ -441,12 +445,14 @@ function apiEndpointFromUrl(url: string | null): string | null {
 
 function buildState(
   threads: readonly GitNotificationThread[],
+  totalCount: number,
   lastChecked: Date,
   query: GitNotificationQueryOptions,
   message?: string,
 ): GitNotificationState {
   return {
     threads,
+    totalCount,
     lastChecked,
     query,
     ...(message && { message }),

@@ -20,6 +20,7 @@ Item {
   property string notificationText: ""
   property string notificationTooltip: ""
   property string notificationClass: "notifications-unknown"
+  property int notificationAllCount: 0
   property var threads: []
   property bool notificationsLoaded: false
   property string notificationsError: ""
@@ -49,6 +50,7 @@ Item {
       notificationText = String(payload.text || "")
       notificationTooltip = String(payload.tooltip || "")
       notificationClass = String(payload["class"] || "notifications-unknown")
+      notificationAllCount = Number(payload.allCount || 0)
       var payloadThreads = Array.isArray(payload.threads) ? payload.threads : []
       threads = notificationClass === "notifications-unknown" ? [] : payloadThreads
       notificationsLoaded = true
@@ -84,6 +86,7 @@ Item {
   function failNotifications(message) {
     notificationText = ""
     notificationTooltip = ""
+    notificationAllCount = 0
     threads = []
     notificationsLoaded = true
     notificationsError = message

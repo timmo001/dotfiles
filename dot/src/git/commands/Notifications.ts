@@ -133,6 +133,7 @@ export function formatNotificationsBarJson(state: GitNotificationState) {
     text: notificationBarText(state, summary),
     tooltip: formatBarJsonTooltip(state, summary),
     class: notificationBarClass(state, summary),
+    allCount: state.totalCount,
     threads: state.threads.map(
       ({ id, repo, title, reason, type, unread, updatedAt, webUrl }) => ({
         id,

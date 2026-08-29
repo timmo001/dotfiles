@@ -98,6 +98,8 @@ export interface GitNotificationQueryOptions {
 export interface GitNotificationState {
   /** Notification threads returned by GitHub. */
   readonly threads: readonly GitNotificationThread[];
+  /** Number of threads returned before local status-bar filters. */
+  readonly totalCount: number;
   /** Timestamp of the last refresh attempt. */
   readonly lastChecked: Date;
   /** Active query options used to fetch this state. */

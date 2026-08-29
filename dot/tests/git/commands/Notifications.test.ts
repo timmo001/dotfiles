@@ -26,8 +26,10 @@ const thread = (
 
 const state = (
   threads: readonly GitNotificationThread[],
+  totalCount = threads.length,
 ): GitNotificationState => ({
   threads,
+  totalCount,
   lastChecked: new Date("2026-08-13T12:00:00Z"),
   query: { barFilter: true },
 });
@@ -38,6 +40,7 @@ describe("formatNotificationsBarJson", () => {
     expect(output).toMatchObject({
       text: " 1",
       class: "notifications-attention",
+      allCount: 1,
       threads: [
         {
           id: "123",
@@ -49,6 +52,10 @@ describe("formatNotificationsBarJson", () => {
     });
     expect(output.threads[0]).not.toHaveProperty("apiUrl");
     expect(output.threads[0]).not.toHaveProperty("subjectApiUrl");
+  });
+
+  test("includes the count before local bar filters", () => {
+    expect(formatNotificationsBarJson(state([thread()], 4)).allCount).toBe(4);
   });
 
   test("keeps clear and ordinary unread states", () => {
