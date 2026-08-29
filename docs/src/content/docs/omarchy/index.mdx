@@ -44,7 +44,23 @@ Agent Usage and GitHub PR status are tracked through the same Herdr Lazy list an
 
 The local Mise Task Runner opens with `ALT+X`, then `SHIFT+M`. It lists local tasks from the focused pane's directory, previews the selected task, and runs it in a focused new tab so its output remains available. The memex session palette opens with `ALT+X`, then `F`.
 
-Ghostty's normal tab shortcuts are redirected to Herdr while its client window is active: `CTRL+SHIFT+T` creates a tab in the current workspace, `CTRL+SHIFT+W` closes the current tab, and `CTRL+TAB` / `CTRL+SHIFT+TAB` select the next or previous tab. Other applications receive the original key event unchanged. New tabs skip the naming prompt, the tab bar stays hidden until another tab exists, and pane scrollbars stay hidden. The local Terminal Title plugin mirrors each pane's existing Zsh or application title into its Herdr tab label. `SUPER+Q` and `SUPER+SHIFT+Q` attach another client to the shared default session. `ALT+X`, then `R` opens the repository picker generated from private `dot-git.yml` repositories and shortcuts. For direct shell access, `SUPER+RETURN` opens Ghostty and `SUPER+SHIFT+T` opens a new Ghostty tab.
+Ghostty's normal tab shortcuts are redirected to Herdr while its client window is active: `CTRL+SHIFT+T` creates a tab in the current workspace, `CTRL+SHIFT+W` closes the current tab, and `CTRL+TAB` / `CTRL+SHIFT+TAB` select the next or previous tab. Other applications receive the original key event unchanged. New tabs skip the naming prompt, the tab bar stays hidden until another tab exists, and pane scrollbars stay hidden. The local Terminal Title plugin mirrors each pane's existing Zsh or application title into its Herdr tab label. `SUPER+Q` and `SUPER+SHIFT+Q` attach another client to the shared default session. For direct shell access, `SUPER+RETURN` opens Ghostty and `SUPER+SHIFT+T` opens a new Ghostty tab.
+
+Repository and Git state now open through the Omarchy Shell Git panel (`CTRL+ALT+G` or left click on `timmo.git`) rather than a Herdr overlay. Inside Herdr, `ALT+X`, then `G` still toggles the lazygit side pane for the focused pane's directory.
+
+Common `ALT+X` plugin shortcuts:
+
+| Keys | Action |
+| --- | --- |
+| `ALT+X`, then `S` | Repository picker from private `dot-git.yml` repositories and shortcuts |
+| `ALT+X`, then `Up` | Sessionizer worktree picker |
+| `ALT+X`, then `G` | Toggle lazygit side pane |
+| `ALT+X`, then `Y` / `SHIFT+Y` | Open Yazi beside the focused pane or in a new tab |
+| `ALT+X`, then `SHIFT+M` | Mise Task Runner |
+| `ALT+X`, then `F` | Memex session palette |
+| `ALT+X`, then `SHIFT+L` | Herdr Lazy plugin manager |
+
+Plannotator review and last-response annotation use `ALT+X`, then `SHIFT+V` and `SHIFT+A`. See [Plannotator](/configuration/plannotator/) for browser and Herdr details.
 
 The stowed Omarchy `post-update.d` hook checks and applies the maintained crash-dispatch and plugin lifecycle patches after Omarchy replaces its packages and runs migrations. Quattro blocks direct system upgrades by default because they bypass this native update path. Interactive updates reuse normal `sudo` authentication; headless agent runs of the top-level `update` command route the same calls through its temporary `pkexec` helper.
 
