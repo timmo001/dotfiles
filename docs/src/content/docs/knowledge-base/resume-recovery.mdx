@@ -17,7 +17,7 @@ systemctl --user status dot-reload-ui-monitor.service
 
 On the laptop, `reload-ui` also re-arms keyboard backlight handling.
 
-You can run the recovery manually without auto-opening Twitch streams with the shared binding:
+You can run the recovery manually with the shared binding:
 
 ```text
 SUPER+SHIFT+R
@@ -34,12 +34,12 @@ reload-ui
 `reload-ui` detaches itself, writes a fresh log, then:
 
 - Re-arms keyboard backlight handling when available.
-- Gracefully restarts `twitch-notifications`, auto-opening configured live channels after an automatic resume.
+- Gracefully restarts `twitch-notifications` without opening live channels after an automatic resume.
 - Regenerates the host-specific Omarchy shell configuration.
 - Restarts the Omarchy shell, reloads its plugins, and refreshes its indicators and default clock.
 - Refreshes the unified Git panel's repository and notification state.
 
-The `SUPER+SHIFT+R` binding passes `--no-auto-open`, so manual recovery restarts Twitch without opening live channels.
+The resume monitor and `SUPER+SHIFT+R` binding pass `--no-auto-open`, so recovery restarts Twitch without opening live channels.
 
 The log is written to:
 
