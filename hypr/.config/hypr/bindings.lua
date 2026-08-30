@@ -41,6 +41,7 @@ local slack = "launch-work-slack"
 
 -- Resume recovery
 o.bind("SUPER + SHIFT + R", "Reload UI", "reload-ui --no-auto-open")
+o.bind("SUPER + CTRL + SHIFT + R", "Reload UI (Auto Open)", "reload-ui")
 
 -- Hyprland runs all binds for the same chord in order; unbind clears default bindings first.
 hl.unbind("SUPER + TAB")
