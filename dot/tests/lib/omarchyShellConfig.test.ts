@@ -73,7 +73,7 @@ const managedPlugins = {
       },
     },
     {
-      id: "timmo.notes-capture",
+      id: "timmo.notes",
       placement: {
         section: "right" as const,
         after: "timmo.system-bridge",
@@ -209,7 +209,7 @@ describe("mergeOmarchyShellConfig", () => {
     expect(rightIds.slice(0, 3)).toEqual([
       "timmo.home-assistant",
       "timmo.system-bridge",
-      "timmo.notes-capture",
+      "timmo.notes",
     ]);
     expect(merged.bar.layout.right.slice(1, 3)).toEqual([
       {
@@ -218,7 +218,7 @@ describe("mergeOmarchyShellConfig", () => {
         primaryOutput: "HDMI-A-2",
       },
       {
-        id: "timmo.notes-capture",
+        id: "timmo.notes",
         primaryOnly: true,
         primaryOutput: "HDMI-A-2",
       },
@@ -234,7 +234,7 @@ describe("mergeOmarchyShellConfig", () => {
           entry.id === "timmo.clock" ||
           entry.id === "timmo.home-assistant" ||
           entry.id === "timmo.system-bridge" ||
-          entry.id === "timmo.notes-capture" ||
+          entry.id === "timmo.notes" ||
           entry.revealOnHover === true,
       ),
     ).toBe(true);
@@ -348,9 +348,9 @@ describe("mergeOmarchyShellConfig", () => {
         primaryOutput: "eDP-1",
       },
     ]);
-    expect(entries.filter(({ id }) => id === "timmo.notes-capture")).toEqual([
+    expect(entries.filter(({ id }) => id === "timmo.notes")).toEqual([
       {
-        id: "timmo.notes-capture",
+        id: "timmo.notes",
         primaryOnly: true,
         primaryOutput: "eDP-1",
       },
@@ -399,7 +399,7 @@ describe("mergeOmarchyShellConfig", () => {
       "timmo.home-assistant",
       "example.remote",
       "timmo.system-bridge",
-      "timmo.notes-capture",
+      "timmo.notes",
       "custom.right",
     ]);
   });

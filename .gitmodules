@@ -5,10 +5,6 @@
 	path = omarchy/.config/omarchy/plugins/timmo.system-bridge
 	url = https://github.com/timmo001/omarchy-system-bridge.git
 	branch = dev
-[submodule "omarchy/.config/omarchy/plugins/timmo.notes-capture"]
-	path = omarchy/.config/omarchy/plugins/timmo.notes-capture
-	url = https://github.com/timmo001/omarchy-notes-capture.git
-	branch = dev
 [submodule "omarchy/.config/omarchy/plugins/timmo.twitch"]
 	path = omarchy/.config/omarchy/plugins/timmo.twitch
 	url = https://github.com/timmo001/omarchy-twitch-notifications.git
@@ -21,3 +17,7 @@
 	path = omarchy/.config/omarchy/plugins/timmo.clock
 	url = https://github.com/timmo001/omarchy-clock.git
 	branch = main
+[submodule "omarchy/.config/omarchy/plugins/timmo.notes"]
+	path = omarchy/.config/omarchy/plugins/timmo.notes
+	url = https://github.com/timmo001/omarchy-notes.git
+	branch = dev

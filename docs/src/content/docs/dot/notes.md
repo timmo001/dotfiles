@@ -38,11 +38,19 @@ Run `notes-process` to start the isolated OpenCode service if needed, wait for i
 
 The supervised capture daemon stays available during transient OpenCode service failures and restarts with the isolated server when systemd recovers it. Explicitly restarting the OpenCode service also restarts the daemon with it.
 
-## Capture locally
+## Omarchy Shell
 
-The Omarchy Shell Notes Capture widget is published from the [`timmo001/notes`](https://github.com/timmo001/notes/tree/dev/omarchy-plugin) source into the generated [`timmo001/omarchy-notes-capture`](https://github.com/timmo001/omarchy-notes-capture) repository and pinned here as a managed submodule. It sends text directly to the isolated local OpenCode processor through `notes capture`; it does not use the web app or GitHub issue queue. Its repository picker uses notification-enabled repositories from the private `dot-git.yml`, generated into dot's cache by `dot stow`. Automatic leaves the repository unset for the Notes agent to infer.
+The `timmo.notes` Omarchy plugin is published from the [`timmo001/notes`](https://github.com/timmo001/notes/tree/dev/omarchy-plugin) source into [`timmo001/omarchy-notes`](https://github.com/timmo001/omarchy-notes) and pinned here as a managed submodule. It is a keep-loaded service and primary-output bar widget with one keyboard-first panel for the complete Notes workflow.
 
-The widget keeps its draft and disables Send while the local processor is unavailable. `notes-capture-local` is the private credential adapter: it loads the existing OpenCode service environment and passes the capture text to `/usr/bin/notes` over stdin, so credentials and note text are not placed in Shell settings or process arguments.
+The overview provides ranked global search across every repository and opens separate Notes and Handoffs lists. Both lists support repository, tag, and priority filters, modified-time or name sorting in either direction, and repository, priority, or ungrouped display. Selecting a result loads its metadata and rendered Markdown. From there the panel can edit with hash protection, open an external editor, move the note to another repository, set its priority, or delete it after confirmation. Notes and handoffs can also be created in the panel.
+
+Open in agent uses the same Herdr integration detection and ordering as the Git panel: OpenCode 2, OpenCode 1, Pi, Cursor Agent, Claude Code, Codex, GitHub Copilot, OMP, Devin, Droid, Kimi, Kilo, Hermes, Qoder CLI, Qwen, Mastra Code, Antigravity CLI, and Grok. It shows only installed integrations, starts the selected agent in the note's recorded repository checkout, and sends the complete note body and metadata as loaded context.
+
+### Capture locally
+
+Capture is a subview of the Notes panel. Select **Capture note** from the overview, or press `CTRL+ALT+C` to run `omarchy-shell timmo.notes capture` and open it directly. It sends text to the isolated local OpenCode processor through `notes capture`; it does not use the web app or GitHub issue queue. Its repository picker uses notification-enabled repositories from the private `dot-git.yml`, generated into `${XDG_CACHE_HOME:-$HOME/.cache}/dot/notes-capture-repositories.json` by `dot stow`. Automatic leaves the repository unset for the Notes agent to infer.
+
+The subview keeps its draft in `notes-capture-draft.txt`, saves the latest failed submission to `notes-capture-failed-draft.txt`, and disables Send while the local processor is unavailable. `notes-capture-local` remains the private credential adapter: it loads the existing OpenCode service environment and passes the capture text to `/usr/bin/notes` over stdin, so credentials and note text are not placed in Shell settings or process arguments.
 
 ## Read / write note files
 
