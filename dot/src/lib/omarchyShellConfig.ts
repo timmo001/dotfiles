@@ -67,6 +67,8 @@ interface PluginSettings {
 export interface ManagedPlugin {
   /** Plugin manifest id. */
   readonly id: string;
+  /** Whether the plugin is included in generated shell configuration. */
+  readonly enabled?: boolean;
   /** Whether source lifecycle is managed as a Git submodule. */
   readonly managed?: boolean;
   /** Stock widget id replaced by this plugin. */
@@ -142,6 +144,7 @@ interface MutablePluginPlacement {
 
 interface MutableManagedPlugin {
   id: string;
+  enabled?: boolean;
   managed?: boolean;
   replace?: string;
   inheritSettings?: boolean;
@@ -243,6 +246,7 @@ export function parseManagedPlugins(
     if (!isJsonObject(plugin)) return null;
     const {
       id,
+      enabled,
       managed,
       replace,
       inheritSettings,
@@ -252,6 +256,7 @@ export function parseManagedPlugins(
     } = plugin;
     if (!isString(id) || !isPluginId(id) || ids.has(id)) return null;
     ids.add(id);
+    if (enabled !== undefined && !isBoolean(enabled)) return null;
     if (managed !== undefined && !isBoolean(managed)) return null;
     if (replace !== undefined && !isPluginId(replace)) return null;
     if (inheritSettings !== undefined && !isBoolean(inheritSettings))
@@ -263,6 +268,8 @@ export function parseManagedPlugins(
     )
       return null;
     const parsedPlugin: MutableManagedPlugin = { id };
+    if (enabled !== undefined && isBoolean(enabled))
+      parsedPlugin.enabled = enabled;
     if (placement !== undefined) {
       if (!isJsonObject(placement)) return null;
       const { section, before, after, index } = placement;
@@ -354,6 +361,7 @@ export function mergeOmarchyShellConfig(
   }
 
   for (const plugin of managedPlugins.plugins) {
+    if (plugin.enabled === false) continue;
     if (plugin.placement) {
       placeManagedPlugin(base.bar.layout, plugin, host);
     } else {

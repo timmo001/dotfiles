@@ -108,6 +108,7 @@ The parent repository pins the exact plugin SHA. `.gitmodules` records the upstr
 Other devices receive managed plugins through the repository's recursive submodule checkout. `dot update` and `dot stow` then restore the live plugin symlink and generated layout.
 
 An optional `omarchy-plugins.json` in the private dotfiles overlay extends this registry. Private entries override public entries with the same plugin ID, and `dot update` restores pinned submodules in both repositories.
+Set `enabled` to `false` on a managed entry to retain its source, placement, and settings without adding it to generated `shell.json`.
 
 ## Reloading the shell
 

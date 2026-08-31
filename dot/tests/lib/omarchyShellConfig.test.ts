@@ -465,6 +465,30 @@ describe("mergeOmarchyShellConfig", () => {
       }).plugins,
     ).toEqual([{ id: "example.service", scale: 1 }]);
   });
+
+  test("omits disabled managed plugins while retaining their configuration", () => {
+    const merged = mergeOmarchyShellConfig(baseConfig(), "desktop", {
+      remove: [],
+      plugins: [
+        {
+          id: "example.disabled",
+          enabled: false,
+          managed: true,
+          placement: { section: "right", index: 0 },
+          hosts: { desktop: { output: "HDMI-A-2" } },
+        },
+      ],
+    });
+
+    expect(merged.plugins).toBeUndefined();
+    expect(
+      [
+        ...merged.bar.layout.left,
+        ...merged.bar.layout.center,
+        ...merged.bar.layout.right,
+      ].map(({ id }) => id),
+    ).not.toContain("example.disabled");
+  });
 });
 
 describe("parseManagedPlugins", () => {
@@ -507,6 +531,18 @@ describe("parseManagedPlugins", () => {
     ).toEqual({
       remove: [],
       plugins: [{ id: "example.panel", managed: true }],
+    });
+  });
+
+  test("accepts a disabled managed plugin", () => {
+    expect(
+      parseManagedPlugins({
+        remove: [],
+        plugins: [{ id: "example.disabled", enabled: false, managed: true }],
+      }),
+    ).toEqual({
+      remove: [],
+      plugins: [{ id: "example.disabled", enabled: false, managed: true }],
     });
   });
 
