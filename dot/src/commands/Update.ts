@@ -844,6 +844,8 @@ export const update = (opts?: UpdateOptions) =>
 
               yield* log.info("Updating pinned submodules");
               yield* updatePinnedSubmodules(config.publicDotfiles);
+              if (config.privateDotfiles)
+                yield* updatePinnedSubmodules(config.privateDotfiles);
             }),
           );
 

@@ -1,9 +1,34 @@
 import { describe, expect, test } from "bun:test";
 import { Schema } from "effect";
 import {
+  mergeManagedPluginConfigs,
   mergeOmarchyShellConfig,
   parseManagedPlugins,
 } from "../../src/lib/omarchyShellConfig.js";
+
+test("private managed plugins extend and override the public registry", () => {
+  expect(
+    mergeManagedPluginConfigs(
+      {
+        remove: ["omarchy.weather"],
+        plugins: [{ id: "example.shared", settings: { value: "public" } }],
+      },
+      {
+        remove: ["omarchy.agents"],
+        plugins: [
+          { id: "example.shared", settings: { value: "private" } },
+          { id: "example.private", managed: true },
+        ],
+      },
+    ),
+  ).toEqual({
+    remove: ["omarchy.weather", "omarchy.agents"],
+    plugins: [
+      { id: "example.shared", settings: { value: "private" } },
+      { id: "example.private", managed: true },
+    ],
+  });
+});
 
 const managedPlugins = {
   remove: ["omarchy.weather", "omarchy.agents"],
@@ -403,6 +428,43 @@ describe("mergeOmarchyShellConfig", () => {
       "custom.right",
     ]);
   });
+
+  test("applies host settings to service plugins without bar placement", () => {
+    const base = {
+      ...baseConfig(),
+      plugins: [{ id: "example.service", preserved: true }],
+    };
+    const plugin = {
+      id: "example.service",
+      settings: { scale: 1 },
+      hosts: {
+        desktop: { output: "HDMI-A-2" },
+        laptop: { output: "eDP-1" },
+      },
+    };
+
+    expect(
+      mergeOmarchyShellConfig(base, "desktop", {
+        remove: [],
+        plugins: [plugin],
+      }).plugins,
+    ).toEqual([
+      {
+        id: "example.service",
+        preserved: true,
+        scale: 1,
+        output: "HDMI-A-2",
+      },
+    ]);
+
+    const portable = baseConfig();
+    expect(
+      mergeOmarchyShellConfig(portable, "other", {
+        remove: [],
+        plugins: [plugin],
+      }).plugins,
+    ).toEqual([{ id: "example.service", scale: 1 }]);
+  });
 });
 
 describe("parseManagedPlugins", () => {
@@ -448,13 +510,32 @@ describe("parseManagedPlugins", () => {
     });
   });
 
-  test("rejects bar settings without placement", () => {
+  test("accepts service settings without placement", () => {
     expect(
       parseManagedPlugins({
         remove: [],
-        plugins: [{ id: "example.panel", settings: { primaryOnly: true } }],
+        plugins: [
+          {
+            id: "example.service",
+            hosts: {
+              desktop: { output: "HDMI-A-2" },
+              laptop: { output: "eDP-1" },
+            },
+          },
+        ],
       }),
-    ).toBeNull();
+    ).toEqual({
+      remove: [],
+      plugins: [
+        {
+          id: "example.service",
+          hosts: {
+            desktop: { output: "HDMI-A-2" },
+            laptop: { output: "eDP-1" },
+          },
+        },
+      ],
+    });
   });
 
   test("rejects ambiguous placements", () => {

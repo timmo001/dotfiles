@@ -93,6 +93,21 @@ export interface ManagedPluginConfig {
   readonly plugins: readonly ManagedPlugin[];
 }
 
+/** Merge an optional private plugin registry over the public registry. */
+export function mergeManagedPluginConfigs(
+  publicConfig: ManagedPluginConfig,
+  privateConfig: ManagedPluginConfig,
+): ManagedPluginConfig {
+  const privateIds = new Set(privateConfig.plugins.map(({ id }) => id));
+  return {
+    remove: [...new Set([...publicConfig.remove, ...privateConfig.remove])],
+    plugins: [
+      ...publicConfig.plugins.filter(({ id }) => !privateIds.has(id)),
+      ...privateConfig.plugins,
+    ],
+  };
+}
+
 /** The `bar` block of an Omarchy `shell.json` (unknown fields preserved). */
 interface ShellBar {
   position?: string;
@@ -268,12 +283,7 @@ export function parseManagedPlugins(
       if (after !== undefined) parsedPlacement.after = after;
       if (index !== undefined && isNumber(index)) parsedPlacement.index = index;
       parsedPlugin.placement = parsedPlacement;
-    } else if (
-      replace !== undefined ||
-      inheritSettings !== undefined ||
-      settings !== undefined ||
-      hosts !== undefined
-    ) {
+    } else if (replace !== undefined || inheritSettings !== undefined) {
       return null;
     }
     if (managed !== undefined && isBoolean(managed))
@@ -348,8 +358,14 @@ export function mergeOmarchyShellConfig(
       placeManagedPlugin(base.bar.layout, plugin, host);
     } else {
       base.plugins ??= [];
-      if (!base.plugins.some(({ id }) => id === plugin.id))
-        base.plugins.push({ id: plugin.id });
+      let entry = base.plugins.find(({ id }) => id === plugin.id);
+      if (!entry) {
+        entry = { id: plugin.id };
+        base.plugins.push(entry);
+      }
+      if (plugin.settings) Object.assign(entry, plugin.settings);
+      if (plugin.hosts?.[host]) Object.assign(entry, plugin.hosts[host]);
+      entry.id = plugin.id;
     }
   }
 
@@ -429,7 +445,7 @@ export const applyOmarchyShellConfig: Effect.Effect<
     config.publicDotfiles,
     "omarchy-plugins.json",
   );
-  const managedPlugins = yield* Effect.sync((): ManagedPluginConfig | null => {
+  let managedPlugins = yield* Effect.sync((): ManagedPluginConfig | null => {
     try {
       return parseManagedPlugins(
         decodeJson(JSON.parse(readFileSync(managedPluginsPath, "utf-8"))),
@@ -443,6 +459,38 @@ export const applyOmarchyShellConfig: Effect.Effect<
       `Skipping Omarchy shell config (invalid managed plugin registry at ${displayPath(managedPluginsPath)})`,
     );
     return false;
+  }
+
+  if (config.privateDotfiles) {
+    const privateManagedPluginsPath = join(
+      config.privateDotfiles,
+      "omarchy-plugins.json",
+    );
+    if (existsSync(privateManagedPluginsPath)) {
+      const privateManagedPlugins = yield* Effect.sync(
+        (): ManagedPluginConfig | null => {
+          try {
+            return parseManagedPlugins(
+              decodeJson(
+                JSON.parse(readFileSync(privateManagedPluginsPath, "utf-8")),
+              ),
+            );
+          } catch {
+            return null;
+          }
+        },
+      );
+      if (privateManagedPlugins === null) {
+        yield* log.warn(
+          `Skipping Omarchy shell config (invalid private managed plugin registry at ${displayPath(privateManagedPluginsPath)})`,
+        );
+        return false;
+      }
+      managedPlugins = mergeManagedPluginConfigs(
+        managedPlugins,
+        privateManagedPlugins,
+      );
+    }
   }
 
   const target = join(omarchyDir, "shell.json");
