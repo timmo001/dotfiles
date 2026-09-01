@@ -58,6 +58,14 @@ function optionValue(name: string): string | undefined {
   return index >= 0 ? args[index + 1] : undefined;
 }
 
+function validateFloatingWebappWidth(): void {
+  if (args[0] !== "launch-floating-webapp") return;
+  const width = optionValue("--width");
+  if (width === undefined || /^\d+$/.test(width)) return;
+  console.error("launch-floating-webapp: WIDTH must be a non-negative integer");
+  process.exit(2);
+}
+
 function appendBootstrapLog(message: string | Uint8Array): void {
   const logFile = envString(ENV.DOT_LOG_FILE);
   if (logFile) writeMirroredLog(logFile, message);
@@ -134,6 +142,7 @@ function recordUsage(): void {
   });
 }
 
+validateFloatingWebappWidth();
 prepareInit();
 recordUsage();
 
