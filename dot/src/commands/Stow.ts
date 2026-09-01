@@ -176,14 +176,20 @@ export const stow = (opts?: {
         const enableExit =
           daemonReloadExit === 0
             ? yield* launcher.stream(
-                `systemctl --user enable --now ${reloadUiMonitorUnit}`,
+                `systemctl --user enable ${reloadUiMonitorUnit}`,
               )
             : daemonReloadExit;
-        if (enableExit === 0) {
-          yield* log.info(`Enabled ${reloadUiMonitorUnit}`);
+        const restartExit =
+          enableExit === 0
+            ? yield* launcher.stream(
+                `systemctl --user restart ${reloadUiMonitorUnit}`,
+              )
+            : enableExit;
+        if (restartExit === 0) {
+          yield* log.info(`Enabled and restarted ${reloadUiMonitorUnit}`);
         } else {
           yield* log.warn(
-            `Could not enable ${reloadUiMonitorUnit} (systemctl exit ${enableExit})`,
+            `Could not enable and restart ${reloadUiMonitorUnit} (systemctl exit ${restartExit})`,
           );
         }
       }
