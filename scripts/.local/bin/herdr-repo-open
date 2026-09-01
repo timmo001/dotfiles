@@ -32,6 +32,10 @@ if ! herdr status server >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! pgrep -f '[/]herdr session attach default$' >/dev/null 2>&1; then
+  uwsm app -- ghostty-host-config -e herdr session attach default >/dev/null 2>&1
+fi
+
 workspaces="$(herdr workspace list)"
 workspace_id="$(printf '%s' "$workspaces" | jq -r --arg label "$label" '
   (.result.workspaces // .workspaces // [])

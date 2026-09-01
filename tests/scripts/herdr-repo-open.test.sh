@@ -45,11 +45,22 @@ esac
 EOF
 chmod +x "$temp_dir/bin/herdr"
 
+cat >"$temp_dir/bin/pgrep" <<'EOF'
+#!/usr/bin/env bash
+[[ "$CLIENT_RUNNING" == "yes" ]]
+EOF
+
+cat >"$temp_dir/bin/uwsm" <<'EOF'
+#!/usr/bin/env bash
+printf 'launch %s\n' "$*" >>"$CALLS"
+EOF
+chmod +x "$temp_dir/bin/pgrep" "$temp_dir/bin/uwsm"
+
 calls="$temp_dir/calls"
 mkdir -p "$temp_dir/cache/dot"
 printf '[{"name":"Dotfiles","path":"/repo"}]\n' >"$temp_dir/cache/dot/repo-picker.json"
 
-PATH="$temp_dir/bin:$PATH" XDG_CACHE_HOME="$temp_dir/cache" MODE=existing CALLS="$calls" \
+PATH="$temp_dir/bin:$PATH" XDG_CACHE_HOME="$temp_dir/cache" MODE=existing CLIENT_RUNNING=yes CALLS="$calls" \
   "$repo_root/scripts/.local/bin/herdr-repo-open" dotfiles /repo OpenCode opencode
 grep -Fx "create-tab tab create --workspace w1 --cwd /repo --label OpenCode --no-focus" "$calls"
 grep -Fx "rename w1:t2 OpenCode" "$calls"
@@ -58,7 +69,7 @@ grep -Fx "focus w1" "$calls"
 grep -Fx "focus-tab w1:t2" "$calls"
 
 : >"$calls"
-PATH="$temp_dir/bin:$PATH" XDG_CACHE_HOME="$temp_dir/cache" MODE=new CALLS="$calls" \
+PATH="$temp_dir/bin:$PATH" XDG_CACHE_HOME="$temp_dir/cache" MODE=new CLIENT_RUNNING=yes CALLS="$calls" \
   "$repo_root/scripts/.local/bin/herdr-repo-open" dotfiles /repo OpenCode opencode
 grep -Fx "create workspace create --cwd /repo --label Dotfiles --no-focus" "$calls"
 grep -Fx "rename w2:t1 OpenCode" "$calls"
@@ -67,7 +78,7 @@ grep -Fx "focus w2" "$calls"
 grep -Fx "focus-tab w2:t1" "$calls"
 
 : >"$calls"
-PATH="$temp_dir/bin:$PATH" XDG_CACHE_HOME="$temp_dir/cache" MODE=existing CALLS="$calls" \
+PATH="$temp_dir/bin:$PATH" XDG_CACHE_HOME="$temp_dir/cache" MODE=existing CLIENT_RUNNING=yes CALLS="$calls" \
   "$repo_root/scripts/.local/bin/herdr-repo-open" --pane dotfiles /repo Lazygit lazygit
 grep -Fx "split pane split --pane w1:p1 --direction right --cwd /repo --focus" "$calls"
 grep -Fx "run w1:p2 lazygit" "$calls"
@@ -77,3 +88,9 @@ if grep -Fq 'create-tab' "$calls"; then
   printf 'pane mode opened a tab\n' >&2
   exit 1
 fi
+
+: >"$calls"
+PATH="$temp_dir/bin:$PATH" XDG_CACHE_HOME="$temp_dir/cache" MODE=existing CLIENT_RUNNING=no CALLS="$calls" \
+  "$repo_root/scripts/.local/bin/herdr-repo-open" dotfiles /repo
+grep -Fx "launch app -- ghostty-host-config -e herdr session attach default" "$calls"
+grep -Fx "focus w1" "$calls"

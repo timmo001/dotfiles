@@ -60,6 +60,7 @@ bash tests/scripts/update.test.sh
 bash tests/scripts/browser-control-extension-sync.test.sh
 bash tests/scripts/mise.test.sh
 bash tests/scripts/git-default-ref.test.sh
+bash tests/scripts/herdr-repo-open.test.sh
 bash tests/scripts/repo-shortcuts.test.sh
 bash tests/scripts/ha-module-bar.test.sh
 bash tests/scripts/singleton-stream.test.sh
