@@ -71,6 +71,16 @@
           "a": "w",
           "b": "w"
         }
+      },
+      {
+        "group": "Left / right",
+        "name": "81% left",
+        "tree": {
+          "dir": "lr",
+          "ratio": 81.2,
+          "a": "w",
+          "b": "w"
+        }
       }
     ],
     "3": [
