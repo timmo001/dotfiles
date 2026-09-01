@@ -159,19 +159,19 @@ Item {
     else if (action === "lazygit-pane" || action === "lazygit-tab")
       Quickshell.execDetached([
         "bash", "-lc",
-        "if herdr status server >/dev/null 2>&1; then exec herdr-repo-open $1 \"$2\" \"$3\" Lazygit lazygit; else exec uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal --dir=\"$3\" lazygit; fi",
+        "if herdr status server >/dev/null 2>&1; then exec dot herdr-repo-open $1 \"$2\" \"$3\" Lazygit lazygit; else exec uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal --dir=\"$3\" lazygit; fi",
         "bash", action === "lazygit-pane" ? "--pane" : "", String(repo.name || ""), path
       ])
     else if (action === "editor")
       Quickshell.execDetached([
         "bash", "-lc",
-        "if herdr status server >/dev/null 2>&1; then exec herdr-repo-open \"$1\" \"$2\" Editor \"nvim .\"; else exec uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal --dir=\"$2\" nvim .; fi",
+        "if herdr status server >/dev/null 2>&1; then exec dot herdr-repo-open \"$1\" \"$2\" Editor \"nvim .\"; else exec uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal --dir=\"$2\" nvim .; fi",
         "bash", String(repo.name || ""), path
       ])
     else if (action === "terminal")
       Quickshell.execDetached([
         "bash", "-lc",
-        "if herdr status server >/dev/null 2>&1; then exec herdr-repo-open \"$1\" \"$2\"; else exec uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal --dir=\"$2\"; fi",
+        "if herdr status server >/dev/null 2>&1; then exec dot herdr-repo-open \"$1\" \"$2\"; else exec uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal --dir=\"$2\"; fi",
         "bash", String(repo.name || ""), path
       ])
     else if (action === "web")
@@ -185,7 +185,7 @@ Item {
     var path = String(repo.path)
     Quickshell.execDetached([
       "bash", "-lc",
-      "if herdr status server >/dev/null 2>&1; then exec herdr-repo-open \"$1\" \"$2\" \"$3\" \"$4\"; else exec uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal --dir=\"$2\" \"$4\"; fi",
+      "if herdr status server >/dev/null 2>&1; then exec dot herdr-repo-open \"$1\" \"$2\" \"$3\" \"$4\"; else exec uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal --dir=\"$2\" \"$4\"; fi",
       "bash", String(repo.name || ""), path, String(agent.label), String(agent.executable)
     ])
   }

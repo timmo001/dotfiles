@@ -27,7 +27,7 @@ The widget stays hidden when tracked repositories are clean and the GitHub inbox
 
 ## Panel actions
 
-The overview lists changed repositories, an Other repositories link, filtered GitHub notification threads, and a footer link to the GitHub inbox. Selecting a repository lets you pull it or open lazygit, an editor, an agent launcher, a terminal, or GitHub. Press `Ctrl+P` from the repository action list to pull with rebase and update its submodules. **Open in agent** lists agents whose Herdr integrations are installed (OpenCode 2 first when present, then OpenCode 1 and other integrations such as Cursor or Pi). Editor, agent, and terminal actions reuse a matching Herdr workspace through `herdr-repo-open` when the shared Herdr server is running; without Herdr they open an ordinary tiled terminal.
+The overview lists changed repositories, an Other repositories link, filtered GitHub notification threads, and a footer link to the GitHub inbox. Selecting a repository lets you pull it or open lazygit, an editor, an agent launcher, a terminal, or GitHub. Press `Ctrl+P` from the repository action list to pull with rebase and update its submodules. **Open in agent** lists agents whose Herdr integrations are installed (OpenCode 2 first when present, then OpenCode 1 and other integrations such as Cursor or Pi). Editor, agent, and terminal actions reuse a matching Herdr workspace through `dot herdr-repo-open` when the shared Herdr server is running; without Herdr they open an ordinary tiled terminal.
 
 Lazygit modifiers from the repository action list:
 

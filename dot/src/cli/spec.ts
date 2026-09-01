@@ -831,6 +831,38 @@ export const cliCommands: readonly CliCommandSpec[] = [
     ],
   },
   {
+    name: "herdr-repo-open",
+    summary: "Open or focus a repository in Herdr",
+    usage: "[--pane] <label> <directory> [tab-label command]",
+    description: [
+      "Open or focus a repository workspace in the shared Herdr session. If the",
+      "Herdr server is headless, open a tiled terminal and wait for it before",
+      "focusing the workspace.",
+    ],
+    options: [
+      {
+        name: "--pane",
+        description: "Run the command in a new pane instead of a new tab",
+      },
+      helpOption,
+    ],
+    arguments: [
+      { name: "label", description: "Herdr workspace label" },
+      {
+        name: "directory",
+        description: "Repository working directory",
+        completion: "file",
+      },
+      { name: "tab-label", description: "Optional command tab label" },
+      { name: "command", description: "Optional command to run" },
+    ],
+    examples: [
+      "dot herdr-repo-open Dotfiles ~/.config/dotfiles",
+      "dot herdr-repo-open Dotfiles ~/.config/dotfiles OpenCode opencode",
+      "dot herdr-repo-open --pane Dotfiles ~/.config/dotfiles Lazygit lazygit",
+    ],
+  },
+  {
     name: "launch-floating-webapp",
     summary: "Launch or reposition a floating webapp",
     usage: "[options] <url> | [options] --address <window-address>",

@@ -760,6 +760,41 @@ dot completions bash --stdout
 dot completions fish --stdout
 ```
 
+## `dot herdr-repo-open`
+
+Open or focus a repository in Herdr
+
+```text
+dot herdr-repo-open [--pane] <label> <directory> [tab-label command]
+```
+
+Open or focus a repository workspace in the shared Herdr session. If the
+Herdr server is headless, open a tiled terminal and wait for it before
+focusing the workspace.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--pane` | Run the command in a new pane instead of a new tab |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<label>` | Herdr workspace label |
+| `<directory>` | Repository working directory |
+| `<tab-label>` | Optional command tab label |
+| `<command>` | Optional command to run |
+
+**Examples**
+
+```bash
+dot herdr-repo-open Dotfiles ~/.config/dotfiles
+dot herdr-repo-open Dotfiles ~/.config/dotfiles OpenCode opencode
+dot herdr-repo-open --pane Dotfiles ~/.config/dotfiles Lazygit lazygit
+```
+
 ## `dot launch-floating-webapp`
 
 Launch or reposition a floating webapp

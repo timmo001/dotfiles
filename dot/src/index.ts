@@ -58,6 +58,10 @@ import {
   workspaceRestore,
 } from "./commands/WorkspaceSession.js";
 import { launchFloatingWebapp } from "./commands/LaunchFloatingWebapp.js";
+import {
+  herdrRepoOpen,
+  parseHerdrRepoOpenArgs,
+} from "./commands/HerdrRepoOpen.js";
 import { help } from "./commands/Help.js";
 import {
   diffBarJson,
@@ -465,6 +469,7 @@ const CliLayers = Launcher.layer.pipe(
     completions,
     usage,
     "launch-floating-webapp": launchFloatingWebapp,
+    "herdr-repo-open": (args) => herdrRepoOpen(parseHerdrRepoOpenArgs(args)),
     "workspace-relayout": (args) => {
       const unknown = args.find((arg) => arg !== "--edit");
       return unknown

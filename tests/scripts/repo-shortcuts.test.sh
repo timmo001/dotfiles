@@ -19,12 +19,12 @@ fi
 printf 'herdr %s\n' "$*" >>"$CALLS"
 EOF
 
-cat >"$mock_bin/herdr-repo-open" <<'EOF'
+cat >"$mock_bin/dot" <<'EOF'
 #!/usr/bin/env bash
-printf 'herdr-repo-open %s\n' "$*" >>"$CALLS"
+printf 'dot %s\n' "$*" >>"$CALLS"
 EOF
 
-chmod +x "$mock_bin/herdr" "$mock_bin/herdr-repo-open"
+chmod +x "$mock_bin/herdr" "$mock_bin/dot"
 
 export CALLS="$calls"
 export PATH="$mock_bin:$PATH"
@@ -46,7 +46,7 @@ fi
 
 HERDR_WORKSPACE_ID=w2 zsh -dfc \
   "$helper; _repo_open Target '$repo_root'"
-grep -Fx "herdr-repo-open Target $repo_root" "$calls"
+grep -Fx "dot herdr-repo-open Target $repo_root" "$calls"
 
 : >"$calls"
 HERDR_WORKSPACE_ID=w1 zsh -dfc \
