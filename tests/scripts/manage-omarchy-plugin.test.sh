@@ -26,4 +26,17 @@ status=$?
 set -e
 [[ $status == 20 ]]
 
+mkdir -p "$test_root/repo"
+printf '{"plugins":[]}\n' >"$test_root/repo/omarchy-plugins.json"
+for args in 'update example.plugin 1' 'remove example.plugin 1 0'; do
+  set +e
+  output=$(DOT_USAGE_DISABLE=1 DOTFILES_REPO="$test_root/repo" \
+    PATH="$repo_root/scripts/.local/bin:$PATH" \
+    "$repo_root/scripts/.local/bin/manage-omarchy-plugin" $args 2>&1)
+  status=$?
+  set -e
+  [[ $status == 1 || $status == 20 ]]
+  [[ "$output" != *'Unexpected argument'* ]]
+done
+
 printf 'Managed Omarchy plugin wrapper tests passed\n'

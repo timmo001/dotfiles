@@ -7,8 +7,8 @@ import { CACHE_DIR, CONFIG_DIR } from "../lib/paths.js";
 import { formatCause } from "../lib/schema.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 
-const READINESS_SCHEDULE = Schedule.spaced("100 millis").pipe(
-  Schedule.take(49),
+const READINESS_SCHEDULE = Schedule.recurs(49).pipe(
+  Schedule.addDelay(() => Effect.succeed("100 millis")),
 );
 const DEFAULT_SOCKET_PATH = join(CONFIG_DIR, "herdr", "herdr.sock");
 
@@ -72,7 +72,7 @@ export interface HerdrRepoOpenRuntime {
 }
 
 /** Domain error raised by the Herdr repository opener. */
-export class HerdrRepoOpenError extends Schema.TaggedErrorClass<HerdrRepoOpenError>()(
+export class HerdrRepoOpenError extends Schema.TaggedError<HerdrRepoOpenError>()(
   "HerdrRepoOpenError",
   {
     message: Schema.String,
@@ -80,38 +80,13 @@ export class HerdrRepoOpenError extends Schema.TaggedErrorClass<HerdrRepoOpenErr
   },
 ) {}
 
-class TerminalNotReady extends Schema.TaggedErrorClass<TerminalNotReady>()(
+class TerminalNotReady extends Schema.TaggedError<TerminalNotReady>()(
   "TerminalNotReady",
   {},
 ) {}
 
 function fail(message: string, exitCode: 1 | 2 = 1): never {
   throw new HerdrRepoOpenError({ message, exitCode });
-}
-
-/** Parse `dot herdr-repo-open` positional arguments. */
-export function parseHerdrRepoOpenArgs(
-  args: readonly string[],
-): HerdrRepoOpenOptions {
-  const pane = args[0] === "--pane";
-  const values = pane ? args.slice(1) : args;
-  if (
-    values.length < 2 ||
-    values.length > 4 ||
-    values.some((value) => value.startsWith("--"))
-  ) {
-    return fail(
-      "Usage: dot herdr-repo-open [--pane] <label> <directory> [tab-label command]",
-      2,
-    );
-  }
-  return {
-    pane,
-    label: values[0],
-    directory: values[1],
-    tabLabel: values[2] ?? "Shell",
-    ...(values[3] !== undefined && { command: values[3] }),
-  };
 }
 
 function decodeResponse(source: string, label: string): ResponsePayload {

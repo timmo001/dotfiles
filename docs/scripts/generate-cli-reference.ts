@@ -1,77 +1,71 @@
-// Generates docs/src/content/docs/dot/commands.md from the dot CLI command
-// registry at dot/src/cli/spec.ts - the same source that drives `dot help`
-// and shell completions. Run with: mise run docs:gen:cli
-//
-// Do not edit the generated page by hand. Change dot/src/cli/spec.ts instead
-// and re-run this script (alongside `dot completions zsh`).
-import { writeFile, mkdir } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
+// Generates the command reference from the executable Effect command tree.
+import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import {
-  cliCommands,
-  type CliCommandSpec,
-  type CliOptionSpec,
-  type CliArgumentSpec,
-} from '../../dot/src/cli/spec.ts';
+import { fileURLToPath } from 'node:url';
+import { commandDocs, commandHelp, dotCommand } from '../../dot/src/cli/spec.ts';
+
+type AnyCommand = (typeof dotCommand.subcommands)[number]['commands'][number];
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outFile = path.join(root, 'src/content/docs/dot/commands.md');
-
 const lines: string[] = [];
 const push = (line = '') => lines.push(line);
-
 const code = (text: string) => `\`${text}\``;
 
-function optionLabel(option: CliOptionSpec): string {
-  const parts = [code(option.name)];
-  if (option.short) parts.push(code(option.short));
-  if (option.valueName) parts.push(code(`<${option.valueName}>`));
-  return parts.join(' ');
+function optionValue(option: { readonly _tag: string; readonly value?: string }): string {
+  return option._tag === 'Some' ? (option.value ?? '') : '';
 }
 
-function optionDescription(option: CliOptionSpec): string {
-  let desc = option.description;
-  if (option.choices?.length) {
-    const values = option.choices.map((c) => code(c.value)).join(', ');
-    desc += ` (one of: ${values})`;
+function renderCommand(command: AnyCommand, parent: readonly string[], depth: number): void {
+  const commandPath = [...parent, command.name];
+  const help = commandHelp(command, ['dot', ...commandPath]);
+  const docs = commandDocs(command);
+  push(`${'#'.repeat(depth)} ${code(`dot ${commandPath.join(' ')}`)}`);
+  push();
+  if (command.alias) {
+    push(`Aliases: ${code(`dot ${[...parent, command.alias].join(' ')}`)}`);
+    push();
   }
-  return desc;
-}
-
-function renderOptions(options: readonly CliOptionSpec[]): void {
-  const visible = options.filter((o) => o.name !== '--help');
-  if (!visible.length) return;
-  push('**Options**');
+  push(command.shortDescription ?? command.description ?? '');
   push();
-  push('| Option | Description |');
-  push('| --- | --- |');
-  for (const option of visible) {
-    push(`| ${optionLabel(option)} | ${optionDescription(option)} |`);
+  push('```text');
+  push(help.usage);
+  push('```');
+  push();
+  const description = docs?.description ?? command.description;
+  if (description && description !== command.shortDescription) {
+    push(description);
+    push();
   }
-  push();
-}
-
-function renderArguments(args: readonly CliArgumentSpec[]): void {
-  if (!args.length) return;
-  push('**Arguments**');
-  push();
-  push('| Argument | Description |');
-  push('| --- | --- |');
-  for (const arg of args) {
-    let desc = arg.description ?? '';
-    if (arg.repeatable) desc += desc ? ' (repeatable)' : 'Repeatable.';
-    if (arg.choices?.length) {
-      const values = arg.choices.map((c) => code(c.value)).join(', ');
-      desc += `${desc ? ' ' : ''}One of: ${values}.`;
+  if (docs?.modes?.length) {
+    push('**Modes**');
+    push();
+    push('```text');
+    for (const mode of docs.modes) push(mode);
+    push('```');
+    push();
+  }
+  const flags = [...help.flags, ...(help.globalFlags ?? [])];
+  if (flags.length > 0) {
+    push('**Options**');
+    push();
+    push('| Option | Description |');
+    push('| --- | --- |');
+    for (const flag of flags) {
+      const names = [flag.name, ...flag.aliases].map((name) => code(name.startsWith('-') ? name : `--${name}`)).join(' ');
+      push(`| ${names}${flag.type === 'boolean' ? '' : ` ${code(`<${flag.type}>`)}`} | ${optionValue(flag.description)} |`);
     }
-    push(`| ${code(`<${arg.name}>`)} | ${desc.trim()} |`);
+    push();
   }
-  push();
-}
-
-function renderSections(sections: CliCommandSpec['sections']): void {
-  if (!sections?.length) return;
-  for (const section of sections) {
+  if (help.args?.length) {
+    push('**Arguments**');
+    push();
+    push('| Argument | Description |');
+    push('| --- | --- |');
+    for (const argument of help.args) push(`| ${code(`<${argument.name}>`)} | ${optionValue(argument.description) || argument.name} |`);
+    push();
+  }
+  for (const section of docs?.sections ?? []) {
     push(`**${section.title}**`);
     push();
     push('```text');
@@ -79,85 +73,31 @@ function renderSections(sections: CliCommandSpec['sections']): void {
     push('```');
     push();
   }
-}
-
-function renderCommand(command: CliCommandSpec, prefix: string, depth: number): void {
-  const heading = '#'.repeat(depth);
-  const fullName = `${prefix}${command.name}`.trim();
-  push(`${heading} ${code(`dot ${fullName}`)}`);
-  push();
-
-  if (command.aliases?.length) {
-    const aliasList = command.aliases.map((a) => code(`dot ${a}`)).join(', ');
-    push(`Aliases: ${aliasList}`);
-    push();
-  }
-
-  push(command.summary);
-  push();
-
-  push('```text');
-  push(`dot ${fullName}${command.usage ? ` ${command.usage}` : ''}`);
-  push('```');
-  push();
-
-  if (command.description?.length) {
-    for (const paragraph of command.description) {
-      push(paragraph);
-    }
-    push();
-  }
-
-  if (command.modes?.length) {
-    push('**Modes**');
-    push();
-    push('```text');
-    for (const mode of command.modes) push(mode);
-    push('```');
-    push();
-  }
-
-  if (command.options?.length) renderOptions(command.options);
-  if (command.arguments?.length) renderArguments(command.arguments);
-  renderSections(command.sections);
-
-  if (command.examples?.length) {
+  if (command.examples.length > 0) {
     push('**Examples**');
     push();
     push('```bash');
-    for (const example of command.examples) push(example);
+    for (const example of command.examples) push(example.command);
     push('```');
     push();
   }
-
-  if (command.commands?.length) {
-    for (const sub of command.commands) {
-      renderCommand(sub, `${fullName} `, Math.min(depth + 1, 4));
-    }
+  for (const group of command.subcommands) {
+    for (const child of group.commands) renderCommand(child as AnyCommand, commandPath, Math.min(depth + 1, 4));
   }
 }
 
 push('---');
 push('title: Command Reference');
-push(
-  'description: Every dot command, alias, flag and example, generated from the CLI registry.',
-);
+push('description: Every dot command, alias, flag and example, generated from the CLI command tree.');
 push('sidebar:');
 push('  order: 2');
 push('---');
 push();
-push(
-  '<!-- Generated from dot/src/cli/spec.ts by `mise run docs:gen:cli`. Do not edit by hand. -->',
-);
+push('<!-- Generated from dot/src/cli/spec.ts by `mise run docs:gen:cli`. Do not edit by hand. -->');
 push();
-push(
-  'This page lists every `dot` command, generated from the same registry that powers `dot help` and shell completions. Run any command with `--help` to see the same details at the terminal.',
-);
+push('This page lists every `dot` command from the same Effect command tree that powers parsing, help, dispatch, and shell completions.');
 push();
-
-for (const command of cliCommands) {
-  renderCommand(command, '', 2);
-}
+for (const group of dotCommand.subcommands) for (const command of group.commands) renderCommand(command, [], 2);
 
 await mkdir(path.dirname(outFile), { recursive: true });
 await writeFile(outFile, `${lines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()}\n`);

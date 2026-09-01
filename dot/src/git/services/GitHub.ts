@@ -23,16 +23,13 @@ const RATE_LIMIT_MAX_WAIT_SECONDS = envNonNegativeInt(
 );
 
 /** Domain error for GitHub CLI/API operations. */
-class GitHubError extends Schema.TaggedErrorClass<GitHubError>()(
-  "GitHubError",
-  {
-    command: Schema.String,
-    exitCode: Schema.Number,
-    stderr: Schema.String,
-    retryable: Schema.Boolean,
-    rateLimited: Schema.Boolean,
-  },
-) {}
+class GitHubError extends Schema.TaggedError<GitHubError>()("GitHubError", {
+  command: Schema.String,
+  exitCode: Schema.Number,
+  stderr: Schema.String,
+  retryable: Schema.Boolean,
+  rateLimited: Schema.Boolean,
+}) {}
 
 /** Options for GitHub CLI commands. */
 interface GitHubCommandOptions {

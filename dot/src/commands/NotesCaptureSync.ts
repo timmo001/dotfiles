@@ -61,7 +61,7 @@ interface LiveCaptureConfig {
   }[];
 }
 
-class NotesCaptureSyncError extends Schema.TaggedErrorClass<NotesCaptureSyncError>()(
+class NotesCaptureSyncError extends Schema.TaggedError<NotesCaptureSyncError>()(
   "NotesCaptureSyncError",
   { message: Schema.String },
 ) {}

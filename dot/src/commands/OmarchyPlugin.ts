@@ -39,7 +39,7 @@ export interface OmarchyPluginPaths {
 }
 
 /** Domain error raised by managed Omarchy plugin operations. */
-export class OmarchyPluginError extends Schema.TaggedErrorClass<OmarchyPluginError>()(
+export class OmarchyPluginError extends Schema.TaggedError<OmarchyPluginError>()(
   "OmarchyPluginError",
   { message: Schema.String },
 ) {}
@@ -56,6 +56,25 @@ interface AddOptions {
   readonly checkout: string;
   readonly placement: Placement;
 }
+
+/** Typed input for managed Omarchy plugin operations. */
+export type OmarchyPluginInput =
+  | {
+      readonly _tag: "add";
+      readonly id: string;
+      readonly url: string;
+      readonly checkout: string;
+      readonly section?: "left" | "center" | "right";
+      readonly before?: string;
+      readonly after?: string;
+    }
+  | { readonly _tag: "update"; readonly id?: string; readonly yes: boolean }
+  | {
+      readonly _tag: "remove";
+      readonly id: string;
+      readonly yes: boolean;
+      readonly offerCommit: boolean;
+    };
 
 type PluginEffect = Effect.Effect<
   void,
@@ -659,13 +678,9 @@ function defaultPaths(repo: string): OmarchyPluginPaths {
   };
 }
 
-function parseBooleanCompatibility(value: string | undefined): boolean {
-  return value === "1";
-}
-
 /** Run the managed Omarchy plugin add, update, or remove command family. */
 export const omarchyPlugin = Effect.fn("omarchyPlugin")(function* (
-  args: readonly string[],
+  input: OmarchyPluginInput,
   pathOverrides?: OmarchyPluginPaths,
 ) {
   const config = yield* Config;
@@ -675,49 +690,33 @@ export const omarchyPlugin = Effect.fn("omarchyPlugin")(function* (
   if (!existsSync(paths.registry)) {
     return yield* fail(`managed plugin registry not found: ${paths.registry}`);
   }
-  const [command, ...rest] = args;
-  if (command === "add") {
-    const [id, url, checkout, ...placementArgs] = rest;
-    if (!id || !url || !checkout) {
-      return yield* fail(
-        "usage: dot omarchy-plugin add <id> <url> <checkout> [placement]",
-      );
-    }
-    const defaultSection = yield* manifestDefaultSection(checkout);
-    const placement = yield* parsePlacement(placementArgs, defaultSection);
-    return yield* addPlugin(paths, { id, url, checkout, placement });
+  if (input._tag === "add") {
+    const defaultSection = yield* manifestDefaultSection(input.checkout);
+    const placement = yield* parsePlacement(
+      [
+        ...(input.section ? ["--section", input.section] : []),
+        ...(input.before ? ["--before", input.before] : []),
+        ...(input.after ? ["--after", input.after] : []),
+      ],
+      defaultSection,
+    );
+    return yield* addPlugin(paths, {
+      id: input.id,
+      url: input.url,
+      checkout: input.checkout,
+      placement,
+    });
   }
-  if (command === "update") {
-    const id = rest.find(
-      (arg) => !arg.startsWith("-") && arg !== "1" && arg !== "0",
-    );
-    const assumeYes =
-      rest.includes("--yes") || parseBooleanCompatibility(rest[1]);
-    const unknown = rest.find((arg, index) =>
-      arg.startsWith("-")
-        ? arg !== "--yes"
-        : index > 1 || (index === 1 && arg !== "0" && arg !== "1"),
-    );
-    if (unknown) return yield* fail(`unknown update argument: ${unknown}`);
-    if (id) return yield* updatePlugin(paths, id, assumeYes);
+  if (input._tag === "update") {
+    if (input.id) return yield* updatePlugin(paths, input.id, input.yes);
     for (const managedId of yield* managedPluginIds(paths)) {
-      yield* updatePlugin(paths, managedId, assumeYes);
+      yield* updatePlugin(paths, managedId, input.yes);
     }
     process.exitCode = UNMANAGED_PLUGIN_EXIT_CODE;
     return;
   }
-  if (command === "remove") {
-    const id = yield* requirePluginId(rest[0]);
-    const assumeYes =
-      rest.includes("--yes") || parseBooleanCompatibility(rest[1]);
-    const offerSave = !rest.includes("--no-commit-offer") && rest[2] !== "0";
-    const unknown = rest.find((arg, index) =>
-      arg.startsWith("-")
-        ? arg !== "--yes" && arg !== "--no-commit-offer"
-        : index > 2 || (index > 0 && arg !== "0" && arg !== "1"),
-    );
-    if (unknown) return yield* fail(`unknown remove argument: ${unknown}`);
-    return yield* removePlugin(paths, id, assumeYes, offerSave);
+  if (input._tag === "remove") {
+    const id = yield* requirePluginId(input.id);
+    return yield* removePlugin(paths, id, input.yes, input.offerCommit);
   }
-  return yield* fail("usage: dot omarchy-plugin <add|update|remove> ...");
 });

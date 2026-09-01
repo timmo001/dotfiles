@@ -18,7 +18,7 @@ export interface SkillOrigin {
   readonly type: "directory" | "file";
 }
 
-class SkillUpdateError extends Schema.TaggedErrorClass<SkillUpdateError>()(
+class SkillUpdateError extends Schema.TaggedError<SkillUpdateError>()(
   "SkillUpdateError",
   {
     message: Schema.String,

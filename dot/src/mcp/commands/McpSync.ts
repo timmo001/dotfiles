@@ -50,12 +50,9 @@ const HARNESS_RELATIVE_PATH = {
   copilot: join("agents", ".copilot", "mcp-config.json"),
 } satisfies Record<McpHarness, string>;
 
-class McpSyncError extends Schema.TaggedErrorClass<McpSyncError>()(
-  "McpSyncError",
-  {
-    message: Schema.String,
-  },
-) {}
+class McpSyncError extends Schema.TaggedError<McpSyncError>()("McpSyncError", {
+  message: Schema.String,
+}) {}
 
 /** Atomic JSON write: mkdir -p, write to temp, rename over destination. */
 function atomicWriteJson(dest: string, value: JsonValue): void {

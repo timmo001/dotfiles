@@ -29,12 +29,10 @@ Always apply these skills when editing code in this directory:
 
 ```text
 src/
-  index.ts                - CLI parsing, command dispatch, and Effect bootstrap
+  index.ts                - Effect CLI bootstrap and application layers
   types.ts                - Shared domain types
-  flags.ts                - CLI parser
   cli/
-    spec.ts               - Command and flag metadata
-    help.ts               - Help rendering
+    spec.ts               - Executable Effect command tree
   commands/               - Native dot command implementations
   doctor/                 - Health-check runner and checks
   git/                    - Git and GitHub commands and services
@@ -49,9 +47,9 @@ src/
 
 ### Data Flow
 
-1. `index.ts` parses flags and validates the command against `src/cli/spec.ts`.
-2. Bare `dot` and `dot --help` print root help.
-3. Native commands run through the shared Effect layer stack.
+1. `src/cli/spec.ts` defines typed arguments, flags, handlers, aliases, and subcommands.
+2. `index.ts` runs that tree with the shared Effect and Node service layers.
+3. Bare `dot` and `dot --help` print root help.
 4. Command implementations use `Launcher`, `CommandExecutor`, and `OutputLog` for process and output handling.
 
 ### Key Patterns
@@ -65,7 +63,7 @@ src/
 
 ## CLI
 
-Command and flag metadata lives in `src/cli/spec.ts`. Help rendering, completion generation, known-command detection, and native command recognition consume that registry.
+The executable Effect command tree lives in `src/cli/spec.ts`. Parsing, help, aliases, dispatch, completion generation, analytics, and command-reference generation consume that tree directly.
 
 When changing a command, alias, or flag:
 

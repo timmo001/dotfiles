@@ -88,7 +88,7 @@ function recordFetch(
 }
 
 /** Domain error for `dot git-diff` command failures */
-export class DotDiffError extends Schema.TaggedErrorClass<DotDiffError>()(
+export class DotDiffError extends Schema.TaggedError<DotDiffError>()(
   "DotDiffError",
   {
     message: Schema.String,

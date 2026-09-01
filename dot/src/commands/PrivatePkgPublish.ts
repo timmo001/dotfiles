@@ -21,39 +21,13 @@ import { loadPrivatePackageRepoConfig } from "../doctor/checks/packages.js";
 import type { ConfigService } from "../services/Config.js";
 import type { PrivatePackageRepoConfig } from "../doctor/checks/packages.js";
 
-interface PrivatePkgPublishArgs {
+/** Typed private-package publication input. */
+export interface PrivatePkgPublishArgs {
   readonly packageName: string;
   readonly publishGit: boolean;
   readonly buildPackage: boolean;
   readonly installPackage: boolean;
 }
-
-interface PrivatePkgPublishArgDraft {
-  packageName: string;
-  publishGit: boolean;
-  buildPackage: boolean;
-  installPackage: boolean;
-}
-
-type ParsedPrivatePkgPublishArgs =
-  | { readonly type: "args"; readonly args: PrivatePkgPublishArgs }
-  | { readonly type: "help" }
-  | { readonly type: "error"; readonly message: string };
-
-type ParseArgResult =
-  { readonly type: "continue" } | ParsedPrivatePkgPublishArgs;
-
-const PRIVATE_PKG_PUBLISH_USAGE =
-  "Usage: dot private-pkg-publish [--no-git] [--skip-build] [--install] <package-name>";
-
-const privatePkgOptionHandlers = new Map<
-  string,
-  (draft: PrivatePkgPublishArgDraft) => void
->([
-  ["--no-git", (draft) => void (draft.publishGit = false)],
-  ["--skip-build", (draft) => void (draft.buildPackage = false)],
-  ["--install", (draft) => void (draft.installPackage = true)],
-]);
 
 function packageMapFile(config: ConfigService): string | null {
   return (
@@ -62,63 +36,6 @@ function packageMapFile(config: ConfigService): string | null {
       ? join(config.privateDotfiles, ".dot-private-package-map")
       : null)
   );
-}
-
-function parsePrivatePkgPublishArgs(
-  args: readonly string[],
-): ParsedPrivatePkgPublishArgs {
-  const draft: PrivatePkgPublishArgDraft = {
-    packageName: "",
-    publishGit: true,
-    buildPackage: true,
-    installPackage: false,
-  };
-
-  for (const arg of args) {
-    const parsed = parsePrivatePkgPublishArg(draft, arg);
-    if (parsed.type !== "continue") return parsed;
-  }
-
-  if (!draft.packageName) return usageError();
-
-  return {
-    type: "args",
-    args: draft,
-  };
-}
-
-function parsePrivatePkgPublishArg(
-  draft: PrivatePkgPublishArgDraft,
-  arg: string,
-): ParseArgResult {
-  if (arg === "--help" || arg === "-h") return { type: "help" };
-
-  const optionHandler = privatePkgOptionHandlers.get(arg);
-  if (optionHandler) {
-    optionHandler(draft);
-    return { type: "continue" };
-  }
-
-  return parsePrivatePkgPublishPackageArg(draft, arg);
-}
-
-function parsePrivatePkgPublishPackageArg(
-  draft: PrivatePkgPublishArgDraft,
-  arg: string,
-): ParseArgResult {
-  if (arg.startsWith("-")) {
-    return {
-      type: "error",
-      message: `Unknown private-pkg-publish option: ${arg}`,
-    };
-  }
-  if (draft.packageName) return usageError();
-  draft.packageName = arg;
-  return { type: "continue" };
-}
-
-function usageError(): ParsedPrivatePkgPublishArgs {
-  return { type: "error", message: PRIVATE_PKG_PUBLISH_USAGE };
 }
 
 function readPrivatePackageMap(
@@ -411,39 +328,11 @@ function runGitPublishStep(
   });
 }
 
-function printPrivatePkgPublishHelp(): void {
-  console.log(`Usage: dot private-pkg-publish [options] <package-name>
-
-Build and publish a mapped private package into the private pacman repo.
-
-Options:
-  --no-git       Skip package repo commit and push
-  --skip-build   Publish an existing dist package artifact
-  --install      Install the published package after syncing the mirror
-  --help, -h     Show this help message
-
-Examples:
-  dot private-pkg-publish twitch-notifications --install
-  dot private-pkg-publish --skip-build --no-git twitch-notifications`);
-}
-
 /** Build, publish, optionally install, commit, and push a mapped private package. */
-export const privatePkgPublish = (rawArgs: readonly string[]) =>
+export const privatePkgPublish = (args: PrivatePkgPublishArgs) =>
   Effect.gen(function* () {
     const config = yield* Config;
     const log = yield* OutputLog;
-    const parsed = parsePrivatePkgPublishArgs(rawArgs);
-
-    if (parsed.type === "help") {
-      printPrivatePkgPublishHelp();
-      return;
-    }
-
-    if (parsed.type === "error") {
-      yield* markFailure(log, parsed.message);
-      return;
-    }
-
     if (!config.canUsePrivate) {
       yield* markFailure(
         log,
@@ -460,16 +349,16 @@ export const privatePkgPublish = (rawArgs: readonly string[]) =>
     yield* setupPrivateRepo;
 
     const packageMap = readPrivatePackageMap(config);
-    const sourceRepo = packageMap.get(parsed.args.packageName);
+    const sourceRepo = packageMap.get(args.packageName);
     if (!sourceRepo) {
       yield* markFailure(
         log,
-        `No private package publish mapping configured for: ${parsed.args.packageName}`,
+        `No private package publish mapping configured for: ${args.packageName}`,
       );
       const filePath = packageMapFile(config);
       if (filePath) {
         yield* log.error(
-          `Add '${parsed.args.packageName} = ~/repos/${parsed.args.packageName}' to ${displayPath(filePath)}`,
+          `Add '${args.packageName} = ~/repos/${args.packageName}' to ${displayPath(filePath)}`,
         );
       }
       return;
@@ -483,40 +372,35 @@ export const privatePkgPublish = (rawArgs: readonly string[]) =>
       return;
     }
 
-    if (parsed.args.buildPackage) {
-      if (!(yield* buildPackage(parsed.args.packageName, sourceRepo))) return;
+    if (args.buildPackage) {
+      if (!(yield* buildPackage(args.packageName, sourceRepo))) return;
     } else {
       yield* log.section(
-        `Use existing private package artifact: ${parsed.args.packageName}`,
+        `Use existing private package artifact: ${args.packageName}`,
       );
     }
 
     const distDir = join(sourceRepo, "dist");
-    const runtimePackage = latestRuntimeArtifact(
-      distDir,
-      parsed.args.packageName,
-    );
+    const runtimePackage = latestRuntimeArtifact(distDir, args.packageName);
     if (!runtimePackage) {
       yield* markFailure(
         log,
-        `No runtime package artifact found for ${parsed.args.packageName} in ${displayPath(distDir)}`,
+        `No runtime package artifact found for ${args.packageName} in ${displayPath(distDir)}`,
       );
       return;
     }
 
-    if (
-      !(yield* publishArtifact(repo, parsed.args.packageName, runtimePackage))
-    ) {
+    if (!(yield* publishArtifact(repo, args.packageName, runtimePackage))) {
       return;
     }
 
     yield* setupPrivateRepo;
 
-    if (parsed.args.installPackage) {
-      if (!(yield* installPublishedPackage(parsed.args.packageName))) return;
+    if (args.installPackage) {
+      if (!(yield* installPublishedPackage(args.packageName))) return;
     }
 
-    if (parsed.args.publishGit) {
-      yield* commitAndPushPackageRepo(repo.path, parsed.args.packageName);
+    if (args.publishGit) {
+      yield* commitAndPushPackageRepo(repo.path, args.packageName);
     }
   });

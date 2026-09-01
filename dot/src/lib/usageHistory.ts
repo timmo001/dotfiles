@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { getCliCommand } from "../cli/spec.js";
+import { commandHelp, getCliCommand } from "../cli/spec.js";
 import { ENV, envString } from "./env.js";
 import { HOME_DIR } from "./paths.js";
 import { extractFlagNames, machineId, type UsageEvent } from "./usage.js";
@@ -86,9 +86,21 @@ function eventFromTokens(
       rest,
       tool.canonicaliseDot && positional
         ? new Set(
-            getCliCommand(positional)?.options?.flatMap((option) =>
-              option.short ? [option.name, option.short] : [option.name],
-            ) ?? [],
+            (() => {
+              const command = getCliCommand(positional);
+              return command
+                ? commandHelp(command, ["dot", command.name]).flags.flatMap(
+                    (flag) =>
+                      [flag.name, ...flag.aliases].map((name) =>
+                        name.startsWith("-")
+                          ? name
+                          : name.length === 1
+                            ? `-${name}`
+                            : `--${name}`,
+                      ),
+                  )
+                : [];
+            })(),
           )
         : undefined,
     ),

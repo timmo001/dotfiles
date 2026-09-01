@@ -31,7 +31,7 @@ const log = (msg: string) => {
 };
 
 /** Domain error for GitHub notification operations. */
-export class GitNotificationError extends Schema.TaggedErrorClass<GitNotificationError>()(
+export class GitNotificationError extends Schema.TaggedError<GitNotificationError>()(
   "GitNotificationError",
   {
     message: Schema.String,

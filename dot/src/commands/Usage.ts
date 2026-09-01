@@ -1,6 +1,4 @@
 import { Effect } from "effect";
-import { cliCommands } from "../cli/spec.js";
-import { hasOption, optionValue, optionValues } from "../lib/args.js";
 import { expandHomePath } from "../lib/paths.js";
 import {
   appendUsageEvent,
@@ -35,9 +33,10 @@ interface FeatureAgg {
 }
 
 /** Options parsed from `dot usage` arguments. */
-interface UsageOptions {
+/** Typed usage-report input supplied by the Effect CLI command. */
+export interface UsageOptions {
   /** Subcommand: summary, stale, path, backfill, or help. */
-  readonly sub: string;
+  readonly subcommand: "summary" | "stale" | "path" | "backfill";
   /** Day window for summary/stale. */
   readonly days: number;
   /** Output format for summary. */
@@ -51,21 +50,6 @@ interface UsageOptions {
 /** Human-readable label used in help and headers. */
 const FEATURE_KEY = (event: UsageEvent): string =>
   `${event.tool} ${event.command.join(" ")}`.trim();
-
-/** Parse `dot usage` arguments into structured options. */
-function parseOptions(args: readonly string[]): UsageOptions {
-  const sub = args.find((arg) => !arg.startsWith("-")) ?? "summary";
-  const daysRaw = optionValue(args, "--days");
-  const parsedDays = daysRaw ? Number.parseInt(daysRaw, 10) : NaN;
-  const format = optionValue(args, "--format");
-  return {
-    sub,
-    days: Number.isFinite(parsedDays) && parsedDays > 0 ? parsedDays : 90,
-    format: format === "json" || format === "agent-context" ? format : "text",
-    roots: optionValues(args, "--root").map(expandHomePath),
-    apply: hasOption(args, "--apply"),
-  };
-}
 
 /** Resolve the roots to read: default root plus any explicit `--root`. */
 function resolveRoots(options: UsageOptions): readonly string[] {
@@ -238,7 +222,10 @@ function runSummary(options: UsageOptions): string {
 }
 
 /** Run `dot usage stale`: features not seen within the window. */
-function runStale(options: UsageOptions): string {
+function runStale(
+  options: UsageOptions,
+  commandNames: readonly string[],
+): string {
   const cutoff = cutoffIso(options.days);
   const events = readAllEvents(resolveRoots(options));
   const lastSeen = new Map<string, string>();
@@ -253,8 +240,8 @@ function runStale(options: UsageOptions): string {
     .sort((a, b) => a[1].localeCompare(b[1]))
     .map(([key, ts]) => `  ${key.padEnd(28)} last ${ts.slice(0, 10)}`);
 
-  const neverSeen = cliCommands
-    .map((command) => `dot ${command.name}`)
+  const neverSeen = commandNames
+    .map((command) => `dot ${command}`)
     .filter((key) => !lastSeen.has(key))
     .map((key) => `  ${key}`);
 
@@ -315,42 +302,21 @@ function runBackfill(options: UsageOptions): string {
   return lines.join("\n");
 }
 
-/** Render `dot usage` help. */
-function renderHelp(): string {
-  return [
-    "Usage: dot usage <summary|stale|path|backfill> [options]",
-    "",
-    "Local-first analytics for dot usage, with optional shell-history observations.",
-    "",
-    "Subcommands:",
-    "  summary    Per-feature usage table (default)",
-    "  stale      Features not used within the window",
-    "  path       Print the event storage root",
-    "  backfill   Import whitelisted invocations from shell history",
-    "",
-    "Options:",
-    "  --days <n>       Window for summary/stale (default: 90)",
-    "  --format <fmt>   summary format: text | json | agent-context",
-    "  --root <path>    Extra event root to combine (repeatable)",
-    "  --apply          Write events during backfill (default: dry run)",
-    "  --history        Accepted by backfill for clarity (no-op)",
-  ].join("\n");
-}
-
 /** Run the `dot usage` command. */
-export function usage(args: readonly string[]): Effect.Effect<void> {
+export function usage(
+  input: UsageOptions & { readonly history: boolean },
+  commandNames: readonly string[],
+): Effect.Effect<void> {
   return Effect.sync(() => {
-    const options = parseOptions(args);
+    const options = { ...input, roots: input.roots.map(expandHomePath) };
     const output = (() => {
-      switch (options.sub) {
+      switch (options.subcommand) {
         case "path":
           return usageRoot();
         case "stale":
-          return runStale(options);
+          return runStale(options, commandNames);
         case "backfill":
           return runBackfill(options);
-        case "help":
-          return renderHelp();
         case "summary":
           return runSummary(options);
         default:

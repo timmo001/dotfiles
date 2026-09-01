@@ -151,7 +151,7 @@ export interface WorkspaceLaunchRule {
 }
 
 /** Domain error raised by workspace capture or restore. */
-export class WorkspaceSessionError extends Schema.TaggedErrorClass<WorkspaceSessionError>()(
+export class WorkspaceSessionError extends Schema.TaggedError<WorkspaceSessionError>()(
   "WorkspaceSessionError",
   { message: Schema.String },
 ) {}

@@ -16,7 +16,7 @@ import { resolvedOmarchyHost } from "./omarchyHost.js";
 import type { ConfigService } from "../services/Config.js";
 
 /** Domain error for package setup failures. */
-class PackageSetupError extends Schema.TaggedErrorClass<PackageSetupError>()(
+class PackageSetupError extends Schema.TaggedError<PackageSetupError>()(
   "PackageSetupError",
   {
     message: Schema.String,

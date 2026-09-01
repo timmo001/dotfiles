@@ -94,7 +94,7 @@ export const MANAGED_FIREWALL_RULES: readonly ManagedFirewallRule[] = [
 ];
 
 /** Domain error for firewall setup failures. */
-export class FirewallSetupError extends Schema.TaggedErrorClass<FirewallSetupError>()(
+export class FirewallSetupError extends Schema.TaggedError<FirewallSetupError>()(
   "FirewallSetupError",
   {
     message: Schema.String,

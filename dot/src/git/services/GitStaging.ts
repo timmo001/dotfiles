@@ -11,7 +11,7 @@ const log = (msg: string) => {
 };
 
 /** Domain error for git staging operations */
-export class GitStagingError extends Schema.TaggedErrorClass<GitStagingError>()(
+export class GitStagingError extends Schema.TaggedError<GitStagingError>()(
   "GitStagingError",
   {
     message: Schema.String,

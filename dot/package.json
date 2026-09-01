@@ -12,8 +12,8 @@
     "prepare": "effect-tsgo patch"
   },
   "dependencies": {
-    "@effect/platform-node": "^4.0.0-beta.93",
-    "effect": "^4.0.0-beta.93"
+    "@effect/platform-node": "^4.0.0-rc.112",
+    "effect": "^4.0.0-rc.112"
   },
   "devDependencies": {
     "@effect/tsgo": "^0.39.0",

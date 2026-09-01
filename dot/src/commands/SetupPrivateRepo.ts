@@ -28,7 +28,7 @@ const PRIVATE_PACKAGE_REPO_CONFIG_TIMEOUT_SECONDS = 60;
 const PRIVATE_PACKAGE_REPO_REFRESH_TIMEOUT_SECONDS = 5 * 60;
 
 /** Domain error for private pacman repository setup failures. */
-class SetupPrivateRepoError extends Schema.TaggedErrorClass<SetupPrivateRepoError>()(
+class SetupPrivateRepoError extends Schema.TaggedError<SetupPrivateRepoError>()(
   "SetupPrivateRepoError",
   {
     message: Schema.String,

@@ -103,7 +103,7 @@ interface RepositoryState {
 }
 
 /** Failure raised by scheduled skill update processing. */
-export class SkillUpdatesAgentError extends Schema.TaggedErrorClass<SkillUpdatesAgentError>()(
+export class SkillUpdatesAgentError extends Schema.TaggedError<SkillUpdatesAgentError>()(
   "SkillUpdatesAgentError",
   { operation: Schema.String, message: Schema.String },
 ) {}

@@ -25,7 +25,7 @@ type InitMarker =
     };
 
 /** Domain error for init state marker failures. */
-class InitStateError extends Schema.TaggedErrorClass<InitStateError>()(
+class InitStateError extends Schema.TaggedError<InitStateError>()(
   "InitStateError",
   {
     message: Schema.String,

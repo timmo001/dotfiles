@@ -104,12 +104,9 @@ export interface UpdateOptions {
   readonly postHookRepos?: readonly string[];
 }
 
-class UpdateError extends Schema.TaggedErrorClass<UpdateError>()(
-  "UpdateError",
-  {
-    message: Schema.String,
-  },
-) {}
+class UpdateError extends Schema.TaggedError<UpdateError>()("UpdateError", {
+  message: Schema.String,
+}) {}
 
 function requiredUpdateStep<E, R>(
   label: string,

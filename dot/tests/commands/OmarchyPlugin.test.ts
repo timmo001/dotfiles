@@ -15,6 +15,7 @@ import {
   UNMANAGED_PLUGIN_EXIT_CODE,
   httpsGitUrl,
   omarchyPlugin,
+  type OmarchyPluginInput,
   type OmarchyPluginPaths,
 } from "../../src/commands/OmarchyPlugin.js";
 import {
@@ -208,6 +209,43 @@ fi
 }
 
 function runPlugin(fixture: Fixture, args: readonly string[]) {
+  const sectionValue = args[args.indexOf("--section") + 1];
+  const section =
+    sectionValue === "left" ||
+    sectionValue === "center" ||
+    sectionValue === "right"
+      ? sectionValue
+      : undefined;
+  const input: OmarchyPluginInput = (() => {
+    if (args[0] === "add") {
+      return {
+        _tag: "add",
+        id: args[1],
+        url: args[2],
+        checkout: args[3],
+        section,
+        before: args.includes("--before")
+          ? args[args.indexOf("--before") + 1]
+          : undefined,
+        after: args.includes("--after")
+          ? args[args.indexOf("--after") + 1]
+          : undefined,
+      };
+    }
+    if (args[0] === "update") {
+      return {
+        _tag: "update",
+        id: args[1],
+        yes: args.includes("1") || args.includes("--yes"),
+      };
+    }
+    return {
+      _tag: "remove",
+      id: args[1],
+      yes: args.includes("1") || args.includes("--yes"),
+      offerCommit: !args.includes("--no-commit-offer"),
+    };
+  })();
   const spawn = (
     command: string,
     commandArgs: readonly string[],
@@ -240,7 +278,7 @@ function runPlugin(fixture: Fixture, args: readonly string[]) {
       Effect.sync(() => spawn(command, commandArgs, options?.cwd).exitCode),
   });
   return Effect.runPromise(
-    omarchyPlugin(args, fixture.paths).pipe(
+    omarchyPlugin(input, fixture.paths).pipe(
       Effect.provide(
         Layer.merge(Layer.succeed(Config, config(fixture.repo)), executor),
       ),

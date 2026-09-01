@@ -1,10 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { Effect, Layer, Schedule, Stream } from "effect";
-import {
-  HerdrRepoOpenError,
-  openHerdrRepo,
-  parseHerdrRepoOpenArgs,
-} from "../../src/commands/HerdrRepoOpen.js";
+import { openHerdrRepo } from "../../src/commands/HerdrRepoOpen.js";
 import {
   CommandError,
   CommandExecutor,
@@ -38,33 +34,6 @@ function executorLayer(options: {
     inherit: () => Effect.die("inherit should not be called"),
   });
 }
-
-describe("Herdr repository opener arguments", () => {
-  test("parses tab and pane modes", () => {
-    expect(parseHerdrRepoOpenArgs(["Repo", "/repo"])).toEqual({
-      pane: false,
-      label: "Repo",
-      directory: "/repo",
-      tabLabel: "Shell",
-    });
-    expect(
-      parseHerdrRepoOpenArgs(["--pane", "Repo", "/repo", "Lazygit", "lazygit"]),
-    ).toEqual({
-      pane: true,
-      label: "Repo",
-      directory: "/repo",
-      tabLabel: "Lazygit",
-      command: "lazygit",
-    });
-  });
-
-  test("rejects invalid arguments", () => {
-    expect(() => parseHerdrRepoOpenArgs(["Repo"])).toThrow(HerdrRepoOpenError);
-    expect(() =>
-      parseHerdrRepoOpenArgs(["--unknown", "Repo", "/repo"]),
-    ).toThrow("Usage: dot herdr-repo-open");
-  });
-});
 
 describe("Herdr repository opener workflow", () => {
   test("waits for the foreground client before focusing the workspace", async () => {

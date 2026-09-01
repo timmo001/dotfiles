@@ -71,53 +71,18 @@ const INIT_STEP_TIMEOUT_SECONDS = {
 } as const;
 
 /** Domain error for first-use init failures. */
-class InitError extends Schema.TaggedErrorClass<InitError>()("InitError", {
+class InitError extends Schema.TaggedError<InitError>()("InitError", {
   message: Schema.String,
 }) {}
 
-interface InitOptions {
+/** Typed options supplied by the Effect CLI command. */
+export interface InitOptions {
   readonly confirm: boolean;
   readonly noninteractive: boolean;
   readonly force: boolean;
   readonly host?: string;
   readonly log?: string;
 }
-
-interface InitOptionsDraft {
-  confirm: boolean;
-  noninteractive: boolean;
-  force: boolean;
-  host?: string;
-  log?: string;
-}
-
-type ParsedInitArgs =
-  | { readonly type: "options"; readonly options: InitOptions }
-  | { readonly type: "help" }
-  | { readonly type: "error"; readonly message: string };
-
-type ParseInitArgResult =
-  | { readonly type: "continue"; readonly consumed: number }
-  | { readonly type: "help" }
-  | { readonly type: "error"; readonly message: string };
-
-type BooleanInitOptionHandler = (options: InitOptionsDraft) => void;
-type ValueInitOptionHandler = (
-  options: InitOptionsDraft,
-  value: string,
-) => void;
-
-const booleanInitOptions = new Map<string, BooleanInitOptionHandler>([
-  ["--confirm", (options) => void (options.confirm = true)],
-  ["--noninteractive", (options) => void (options.noninteractive = true)],
-  ["--interactive", (options) => void (options.noninteractive = false)],
-  ["--force", (options) => void (options.force = true)],
-]);
-
-const valueInitOptions = new Map<string, ValueInitOptionHandler>([
-  ["--host", (options, value) => void (options.host = value)],
-  ["--log", (options, value) => void (options.log = value)],
-]);
 
 function fail(message: string): Effect.Effect<never, InitError> {
   return Effect.fail(new InitError({ message }));
@@ -214,105 +179,6 @@ function assertFreshInitTarget(
       );
     }
   });
-}
-
-function parseValueInitOption(
-  options: InitOptionsDraft,
-  name: string,
-  value: string | undefined,
-): ParseInitArgResult {
-  const handler = valueInitOptions.get(name);
-  if (!handler)
-    return { type: "error", message: `Unknown init option: ${name}` };
-  if (!value) return { type: "error", message: `${name} requires a value` };
-  handler(options, value);
-  return { type: "continue", consumed: 2 };
-}
-
-function parseEqualsInitOption(
-  options: InitOptionsDraft,
-  arg: string,
-): ParseInitArgResult {
-  const separator = arg.indexOf("=");
-  return parseValueInitOption(
-    options,
-    arg.slice(0, separator),
-    arg.slice(separator + 1),
-  );
-}
-
-function parseSpecialInitArg(
-  options: InitOptionsDraft,
-  arg: string,
-): ParseInitArgResult | null {
-  if (arg === "--help" || arg === "-h") return { type: "help" };
-
-  const booleanHandler = booleanInitOptions.get(arg);
-  if (booleanHandler) {
-    booleanHandler(options);
-    return { type: "continue", consumed: 1 };
-  }
-
-  return null;
-}
-
-function parseValueLikeInitArg(
-  options: InitOptionsDraft,
-  args: readonly string[],
-  index: number,
-): ParseInitArgResult {
-  const arg = args[index];
-  return arg.includes("=")
-    ? parseEqualsInitOption(options, arg)
-    : parseValueInitOption(options, arg, args[index + 1]);
-}
-
-function parseInitArg(
-  options: InitOptionsDraft,
-  args: readonly string[],
-  index: number,
-): ParseInitArgResult {
-  return (
-    parseSpecialInitArg(options, args[index]) ??
-    parseValueLikeInitArg(options, args, index)
-  );
-}
-
-function parseInitArgs(args: readonly string[]): ParsedInitArgs {
-  const options: InitOptionsDraft = {
-    confirm: false,
-    noninteractive: envFlag(ENV.DOT_INIT_NONINTERACTIVE),
-    force: false,
-  };
-
-  for (let index = 0; index < args.length; index++) {
-    const parsed = parseInitArg(options, args, index);
-    if (parsed.type !== "continue") return parsed;
-    index += parsed.consumed - 1;
-  }
-
-  return { type: "options", options: { ...options } };
-}
-
-function printInitHelp(): void {
-  console.log(`Usage: dot init [options]
-
-Run the one-time first-use setup workflow for a fresh machine. Init prepares
-stow links, mise tools, packages, and machine hooks. After init
-completes, run dot doctor, then use dot update for ongoing maintenance.
-
-Options:
-  --confirm                 Compatibility flag; accepted but does not suppress prompts
-  --noninteractive          Skip the Hypr host questionnaire for this run
-  --interactive             Enable the Hypr host questionnaire when no host is selected
-  --force                   Re-run init even if the machine looks initialised
-  --host <name>             Hypr host to link before stow (default: OMARCHY_HOST or desktop)
-  --log <path>              Init log path (default: ~/.local/state/dot/init.log)
-  --help, -h                Show this help message
-
-Examples:
-  dot init --noninteractive
-  dot init --host laptop --noninteractive`);
 }
 
 function initOmarchyHost(options: InitOptions): string {
@@ -782,7 +648,7 @@ function ensureLoginShellZsh(): Effect.Effect<
 
 /** Run the one-time first-use setup workflow for a fresh machine. */
 export function init(
-  rawArgs: readonly string[],
+  input: InitOptions & { readonly interactive: boolean },
 ): Effect.Effect<
   void,
   unknown,
@@ -791,20 +657,19 @@ export function init(
   return Effect.gen(function* () {
     const config = yield* Config;
     const log = yield* OutputLog;
-    const parsed = parseInitArgs(rawArgs);
-
-    if (parsed.type === "help") {
-      printInitHelp();
-      return;
-    }
-    if (parsed.type === "error") return yield* fail(parsed.message);
+    const optionsInput: InitOptions = {
+      ...input,
+      noninteractive: input.interactive
+        ? false
+        : input.noninteractive || envFlag(ENV.DOT_INIT_NONINTERACTIVE),
+    };
 
     yield* log.section("Initialization Workflow");
     if (envString(ENV.DOT_LOG_FILE)) {
       yield* log.info(`Init log: ${displayPath(envString(ENV.DOT_LOG_FILE)!)}`);
     }
-    yield* assertFreshInitTarget(config, parsed.options.force);
-    const options = yield* resolveInitOptions(parsed.options);
+    yield* assertFreshInitTarget(config, optionsInput.force);
+    const options = yield* resolveInitOptions(optionsInput);
     yield* writeInitInProgressMarker(config, options);
 
     yield* requiredInitStep(

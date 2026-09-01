@@ -22,7 +22,7 @@ const DEFAULT_PUBLIC_PACMAN_REPO_CONFIG = "/etc/pacman.d/timmo.conf";
 const DEFAULT_PUBLIC_PACMAN_MAIN_CONFIG = "/etc/pacman.conf";
 
 /** Domain error for public pacman repository setup failures. */
-class SetupPublicRepoError extends Schema.TaggedErrorClass<SetupPublicRepoError>()(
+class SetupPublicRepoError extends Schema.TaggedError<SetupPublicRepoError>()(
   "SetupPublicRepoError",
   { message: Schema.String },
 ) {}

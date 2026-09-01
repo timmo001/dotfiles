@@ -9,7 +9,7 @@ const log = (msg: string) => {
 };
 
 /** Domain error for launcher operations */
-export class LauncherError extends Schema.TaggedErrorClass<LauncherError>()(
+export class LauncherError extends Schema.TaggedError<LauncherError>()(
   "LauncherError",
   {
     message: Schema.String,

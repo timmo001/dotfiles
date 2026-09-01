@@ -41,7 +41,7 @@ function killOnAbort(proc: KillableProcess, signal: AbortSignal): void {
 }
 
 /** Domain error for command execution failures */
-export class CommandError extends Schema.TaggedErrorClass<CommandError>()(
+export class CommandError extends Schema.TaggedError<CommandError>()(
   "CommandError",
   {
     command: Schema.String,

@@ -135,7 +135,7 @@ const PresetsSchema = Schema.Struct({
 });
 
 /** Domain error raised by the workspace relayout command. */
-export class WorkspaceRelayoutError extends Schema.TaggedErrorClass<WorkspaceRelayoutError>()(
+export class WorkspaceRelayoutError extends Schema.TaggedError<WorkspaceRelayoutError>()(
   "WorkspaceRelayoutError",
   { message: Schema.String },
 ) {}

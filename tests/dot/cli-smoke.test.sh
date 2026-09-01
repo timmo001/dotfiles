@@ -18,10 +18,10 @@ commands=(
 )
 
 bare_help="$(DOT_USAGE_DISABLE=1 "$dot_binary")"
-[[ "$bare_help" == *'Usage: dot [subcommand] [options]'* ]]
+[[ "$bare_help" == *$'USAGE\n  dot <subcommand> [flags]'* ]]
 
 root_help="$(DOT_USAGE_DISABLE=1 "$dot_binary" --help)"
-[[ "$root_help" == *'Usage: dot [subcommand] [options]'* ]]
+[[ "$root_help" == *$'USAGE\n  dot <subcommand> [flags]'* ]]
 
 for removed_command in dashboard tui omarchy; do
   if DOT_USAGE_DISABLE=1 "$dot_binary" "$removed_command" --help >/dev/null 2>&1; then
@@ -32,14 +32,44 @@ done
 
 for command in "${commands[@]}"; do
   help="$(DOT_USAGE_DISABLE=1 "$dot_binary" "$command" --help)"
-  [[ "$help" == *"Usage: dot $command"* ]] || {
+  [[ "$help" == *$'USAGE\n  '"dot $command"* ]] || {
     printf 'Missing help usage for dot %s\n' "$command" >&2
     exit 1
   }
 done
 
-[[ "$(DOT_USAGE_DISABLE=1 "$dot_binary" diff --help)" == *'Usage: dot git-diff'* ]]
-[[ "$(DOT_USAGE_DISABLE=1 "$dot_binary" up --help)" == *'Usage: dot update'* ]]
+[[ "$(DOT_USAGE_DISABLE=1 "$dot_binary" diff --help)" == *$'USAGE\n  dot git-diff'* ]]
+[[ "$(DOT_USAGE_DISABLE=1 "$dot_binary" up --help)" == *$'USAGE\n  dot update'* ]]
+
+for malformed in \
+  'git-commit ---m Test --dry-run' \
+  'is-agent ---q' \
+  'workspace-capture ----current --help' \
+  'workspace-restore ----dryrun --help' \
+  'workspace-restore --no-no-launch --dry-run' \
+  'update --no-no-self-update --help' \
+  '--no-help'; do
+  if DOT_USAGE_DISABLE=1 "$dot_binary" $malformed >/dev/null 2>&1; then
+    printf 'Malformed option still succeeds: dot %s\n' "$malformed" >&2
+    exit 1
+  fi
+done
+
+set +e
+dryrun_output=$(DOT_USAGE_DISABLE=1 "$dot_binary" workspace-restore --dryrun 2>&1)
+set -e
+[[ "$dryrun_output" != *'Unrecognized flag'* ]]
+
+set +e
+DOT_USAGE_DISABLE=1 "$dot_binary" launch-floating-webapp >/dev/null 2>&1
+[[ $? == 2 ]]
+DOT_USAGE_DISABLE=1 "$dot_binary" herdr-repo-open >/dev/null 2>&1
+[[ $? == 2 ]]
+DOT_USAGE_DISABLE=1 "$dot_binary" launch-floating-webapp --width 0 https://example.com >/dev/null 2>&1
+[[ $? == 2 ]]
+DOT_USAGE_DISABLE=1 "$dot_binary" launch-floating-webapp --right-margin -1 https://example.com >/dev/null 2>&1
+[[ $? == 2 ]]
+set -e
 
 DOT_USAGE_DISABLE=1 "$dot_binary" git-diff --bar-json | jq -e 'type == "object"' >/dev/null
 DOT_USAGE_DISABLE=1 "$dot_binary" git-diff --panel-json | jq -e '.changed | type == "array"' >/dev/null

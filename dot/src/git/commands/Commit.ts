@@ -216,7 +216,7 @@ export interface GitCommitOptions {
 
 const handleCommitError = handleCommandError("dot git-commit");
 
-class GitCommitError extends Schema.TaggedErrorClass<GitCommitError>()(
+class GitCommitError extends Schema.TaggedError<GitCommitError>()(
   "GitCommitError",
   {
     message: Schema.String,

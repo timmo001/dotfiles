@@ -2,10 +2,6 @@ import { Cause, Effect, Schema } from "effect";
 import { decodeJson, type JsonValue } from "../lib/schema.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 
-const DEFAULT_WIDTH = 380;
-const DEFAULT_HEIGHT = 500;
-const DEFAULT_RIGHT_MARGIN = 16;
-const DEFAULT_BOTTOM_MARGIN = 6;
 const DETECT_ATTEMPTS = 80;
 const DETECT_INTERVAL = "100 millis";
 
@@ -56,7 +52,7 @@ export interface FloatingPosition {
 }
 
 /** Domain error raised by the floating webapp command. */
-export class LaunchFloatingWebappError extends Schema.TaggedErrorClass<LaunchFloatingWebappError>()(
+export class LaunchFloatingWebappError extends Schema.TaggedError<LaunchFloatingWebappError>()(
   "LaunchFloatingWebappError",
   { message: Schema.String, exitCode: Schema.Finite },
 ) {}
@@ -89,113 +85,6 @@ type HyprlandMonitor = Schema.Schema.Type<typeof MonitorSchema>;
 
 function fail(message: string, exitCode: 1 | 2): never {
   throw new LaunchFloatingWebappError({ message, exitCode });
-}
-
-function optionArgument(
-  args: readonly string[],
-  index: number,
-  option: string,
-): string {
-  return (
-    args[index + 1] ??
-    fail(`launch-floating-webapp: ${option} requires a value`, 2)
-  );
-}
-
-function nonNegativeInteger(value: string, name: string): number {
-  if (!/^\d+$/.test(value)) {
-    return fail(
-      `launch-floating-webapp: ${name} must be a non-negative integer`,
-      2,
-    );
-  }
-  return Number(value);
-}
-
-/** Parse and validate floating webapp command arguments. */
-export function parseFloatingWebappArgs(
-  args: readonly string[],
-): FloatingWebappOptions {
-  let monitor: string | undefined;
-  let workspace: string | undefined;
-  let width = DEFAULT_WIDTH;
-  let height = DEFAULT_HEIGHT;
-  let rightMargin = DEFAULT_RIGHT_MARGIN;
-  let bottomMargin = DEFAULT_BOTTOM_MARGIN;
-  let address: string | undefined;
-  let url: string | undefined;
-
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-    switch (arg) {
-      case "--monitor":
-        monitor = optionArgument(args, index, arg);
-        index += 1;
-        break;
-      case "--workspace":
-        workspace = optionArgument(args, index, arg);
-        index += 1;
-        break;
-      case "--width":
-        width = nonNegativeInteger(optionArgument(args, index, arg), "WIDTH");
-        index += 1;
-        break;
-      case "--height":
-        height = nonNegativeInteger(optionArgument(args, index, arg), "HEIGHT");
-        index += 1;
-        break;
-      case "--right-margin":
-        rightMargin = nonNegativeInteger(
-          optionArgument(args, index, arg),
-          "RIGHT_MARGIN",
-        );
-        index += 1;
-        break;
-      case "--bottom-margin":
-        bottomMargin = nonNegativeInteger(
-          optionArgument(args, index, arg),
-          "BOTTOM_MARGIN",
-        );
-        index += 1;
-        break;
-      case "--address":
-        address = optionArgument(args, index, arg);
-        index += 1;
-        break;
-      default:
-        if (arg.startsWith("--")) {
-          return fail(`launch-floating-webapp: unknown option: ${arg}`, 2);
-        }
-        if (url !== undefined) {
-          return fail(`launch-floating-webapp: unexpected argument: ${arg}`, 2);
-        }
-        url = arg;
-    }
-  }
-
-  if (width <= 0 || height <= 0) {
-    return fail("launch-floating-webapp: width and height must be positive", 2);
-  }
-  if (!address && !url) {
-    return fail("launch-floating-webapp: URL or --address is required", 2);
-  }
-  if (address && url) {
-    return fail(
-      "launch-floating-webapp: URL and --address are mutually exclusive",
-      2,
-    );
-  }
-
-  return {
-    ...(monitor !== undefined && { monitor }),
-    ...(workspace !== undefined && { workspace }),
-    width,
-    height,
-    rightMargin,
-    bottomMargin,
-    ...(address !== undefined && { address }),
-    ...(url !== undefined && { url }),
-  };
 }
 
 /** Calculate a bottom-right floating position from monitor scale and reserved areas. */
@@ -300,9 +189,20 @@ function monitorGeometry(monitor: HyprlandMonitor): FloatingMonitorGeometry {
 
 /** Launch or reposition one webapp and print only its resolved Hyprland address. */
 const runLaunchFloatingWebapp = Effect.fn("launchFloatingWebapp")(function* (
-  args: readonly string[],
+  options: FloatingWebappOptions,
 ) {
-  const options = parseFloatingWebappArgs(args);
+  if (options.width <= 0 || options.height <= 0) {
+    return fail("launch-floating-webapp: width and height must be positive", 2);
+  }
+  if (options.rightMargin < 0 || options.bottomMargin < 0) {
+    return fail("launch-floating-webapp: margins must be non-negative", 2);
+  }
+  if (options.address && options.url) {
+    return fail(
+      "launch-floating-webapp: URL and --address are mutually exclusive",
+      2,
+    );
+  }
   const executor = yield* CommandExecutor;
   let address = options.address;
 
@@ -413,8 +313,8 @@ const runLaunchFloatingWebapp = Effect.fn("launchFloatingWebapp")(function* (
 });
 
 /** Launch or reposition one webapp, preserving the command's public error contract. */
-export const launchFloatingWebapp = (args: readonly string[]) =>
-  runLaunchFloatingWebapp(args).pipe(
+export const launchFloatingWebapp = (options: FloatingWebappOptions) =>
+  runLaunchFloatingWebapp(options).pipe(
     Effect.catchCause((cause) => {
       const error = Cause.squash(cause);
       if (!(error instanceof LaunchFloatingWebappError)) {

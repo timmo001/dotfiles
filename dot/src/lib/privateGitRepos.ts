@@ -6,7 +6,7 @@ import { OutputLog } from "../services/OutputLog.js";
 import { ghRepoClone, ghRepoCloneCaptured } from "./git.js";
 
 /** Domain error for private git repository bootstrap failures. */
-export class GitConfigRepoError extends Schema.TaggedErrorClass<GitConfigRepoError>()(
+export class GitConfigRepoError extends Schema.TaggedError<GitConfigRepoError>()(
   "GitConfigRepoError",
   {
     message: Schema.String,

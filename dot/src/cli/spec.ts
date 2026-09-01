@@ -1,193 +1,229 @@
-/** Named value completion candidates for a CLI option. */
-export interface CliValueChoice {
-  /** Value inserted on the command line. */
-  readonly value: string;
-  /** Human-readable completion/help description. */
+import { Context, Effect, Option } from "effect";
+import {
+  Argument,
+  CliOutput,
+  Command,
+  Flag,
+  GlobalFlag,
+  type HelpDoc,
+  type Param,
+} from "effect/unstable/cli";
+import { agentsSync } from "../commands/AgentsSync.js";
+import { clean } from "../commands/Clean.js";
+import { completions } from "../commands/Completions.js";
+import { doctor } from "../commands/Doctor.js";
+import { herdrRepoOpen } from "../commands/HerdrRepoOpen.js";
+import { init } from "../commands/Init.js";
+import { install } from "../commands/Install.js";
+import { isAgentCommand } from "../commands/IsAgent.js";
+import { launchFloatingWebapp } from "../commands/LaunchFloatingWebapp.js";
+import { notesCaptureSync } from "../commands/NotesCaptureSync.js";
+import { omarchyPlugin } from "../commands/OmarchyPlugin.js";
+import { privatePkgPublish } from "../commands/PrivatePkgPublish.js";
+import { setupPrivateRepo } from "../commands/SetupPrivateRepo.js";
+import { setupPublicRepo } from "../commands/SetupPublicRepo.js";
+import { skillCheck } from "../commands/SkillCheck.js";
+import { skillUpdates } from "../commands/SkillUpdates.js";
+import {
+  skillUpdatesAgent,
+  SkillUpdatesAgentError,
+} from "../commands/SkillUpdatesAgent.js";
+import { stow } from "../commands/Stow.js";
+import { update, updateCheck } from "../commands/Update.js";
+import { usage } from "../commands/Usage.js";
+import { workspaceRelayout } from "../commands/WorkspaceRelayout.js";
+import {
+  workspaceCapture,
+  workspaceRestore,
+} from "../commands/WorkspaceSession.js";
+import { configureFirewallRules } from "../lib/firewallSetup.js";
+import { applyOmarchyShellConfig } from "../lib/omarchyShellConfig.js";
+import {
+  diffBarJson,
+  diffListAll,
+  diffListChanged,
+  diffPanelJson,
+  diffRaw,
+} from "../git/commands/Diff.js";
+import { gitCommitRaw } from "../git/commands/Commit.js";
+import {
+  notificationsAction,
+  notificationsBarJson,
+  notificationsListThreads,
+  notificationsMarkBotRead,
+  notificationsOpenShell,
+  notificationsRaw,
+} from "../git/commands/Notifications.js";
+import type { GitNotificationQueryOptions } from "../types.js";
+
+/** Additional documentation sections attached to executable commands. */
+export interface CliDocs {
+  /** Substantive command reference prose beyond the terminal summary. */
   readonly description?: string;
-}
-
-/** Positional argument shown in help/completion output. */
-export interface CliArgumentSpec {
-  /** Argument label, without angle brackets. */
-  readonly name: string;
-  /** Human-readable description. */
-  readonly description?: string;
-  /** Completion strategy for this argument. */
-  readonly completion?: "file" | "shell" | "none";
-  /** Fixed completion candidates for this argument. */
-  readonly choices?: readonly CliValueChoice[];
-  /** Whether the argument can repeat. */
-  readonly repeatable?: boolean;
-}
-
-/** CLI option/flag metadata. */
-export interface CliOptionSpec {
-  /** Long option name, including leading dashes. */
-  readonly name: `--${string}`;
-  /** Optional short option alias, including leading dash. */
-  readonly short?: `-${string}`;
-  /** Human-readable description. */
-  readonly description: string;
-  /** Value label shown in help, when the option takes a value. */
-  readonly valueName?: string;
-  /** Completion strategy for the value. */
-  readonly completion?: "file" | "shell" | "none";
-  /** Fixed value candidates. */
-  readonly choices?: readonly CliValueChoice[];
-}
-
-/** Extra help section rendered after options. */
-export interface CliHelpSection {
-  /** Section title. */
-  readonly title: string;
-  /** Section lines. */
-  readonly lines: readonly string[];
-}
-
-/** CLI command/subcommand metadata used for help and completions. */
-export interface CliCommandSpec {
-  /** Canonical command name. */
-  readonly name: string;
-  /** Human-readable summary for command listings. */
-  readonly summary: string;
-  /** Aliases accepted by the CLI. */
-  readonly aliases?: readonly string[];
-  /** Usage suffix after `dot <name>`. */
-  readonly usage?: string;
-  /** Long description paragraphs. */
-  readonly description?: readonly string[];
-  /** Mode lines rendered before options. */
+  /** Named command modes rendered as preformatted lines. */
   readonly modes?: readonly string[];
-  /** Nested subcommands. */
-  readonly commands?: readonly CliCommandSpec[];
-  /** Command options. */
-  readonly options?: readonly CliOptionSpec[];
-  /** Positional arguments. */
-  readonly arguments?: readonly CliArgumentSpec[];
-  /** Additional help sections. */
-  readonly sections?: readonly CliHelpSection[];
-  /** Example command lines. */
-  readonly examples?: readonly string[];
+  /** Extra named help sections such as exit and safety contracts. */
+  readonly sections?: readonly {
+    readonly title: string;
+    readonly lines: readonly string[];
+  }[];
 }
 
-const helpOption = {
-  name: "--help",
-  short: "-h",
-  description: "Show this help message",
-} satisfies CliOptionSpec;
+/** Command annotation key for generated documentation extensions. */
+export class CliDocsAnnotation extends Context.Service<
+  CliDocsAnnotation,
+  CliDocs
+>()("dot/cli/CliDocs") {}
 
-const rawOption = {
-  name: "--raw",
-  description: "Text summary output",
-} satisfies CliOptionSpec;
+const bool = (name: string, description: string) =>
+  Flag.boolean(name).pipe(
+    Flag.withDefault(false),
+    Flag.withDescription(description),
+  );
+const text = (name: string, description: string) =>
+  Flag.string(name).pipe(Flag.optional, Flag.withDescription(description));
+const pathFlag = (
+  name: string,
+  description: string,
+  pathType: "file" | "directory" | "either",
+) =>
+  Flag.path(name, { pathType }).pipe(
+    Flag.optional,
+    Flag.withDescription(description),
+  );
+const integer = (name: string, description: string, value: number) =>
+  Flag.integer(name).pipe(
+    Flag.withDefault(value),
+    Flag.withDescription(description),
+  );
+const optional = <A>(value: Option.Option<A>): A | undefined =>
+  Option.getOrUndefined(value);
 
-const barJsonOption = {
-  name: "--bar-json",
-  description: "JSON output for status bars and shell modules",
-} satisfies CliOptionSpec;
+/** Effect global flags enabled by the `dot` command runner. */
+export const cliBuiltIns = [GlobalFlag.Help] as const;
 
-const openOpencodeOption = {
-  name: "--open-opencode",
-  description: "Run checks and attempt OpenCode analysis",
-} satisfies CliOptionSpec;
+/** Preserve the legacy unquoted multi-token value accepted by `--since`. */
+export function normalizeCliArgs(args: readonly string[]): readonly string[] {
+  if (args[0] !== "git-notifications") return args;
+  const sinceIndex = args.indexOf("--since");
+  if (sinceIndex < 0) return args;
+  let end = sinceIndex + 1;
+  while (end < args.length && !args[end].startsWith("--")) end++;
+  if (end <= sinceIndex + 2) return args;
+  return [
+    ...args.slice(0, sinceIndex + 1),
+    args.slice(sinceIndex + 1, end).join(" "),
+    ...args.slice(end),
+  ];
+}
+const describe = <C extends Command.Command.Any>(
+  command: C,
+  description: string,
+  examples: readonly string[] = [],
+  docs?: CliDocs,
+): C => {
+  const described = command.pipe(
+    Command.withDescription(description),
+    Command.withShortDescription(description.split("\n", 1)[0]),
+    Command.withExamples(examples.map((example) => ({ command: example }))),
+  );
+  // SAFETY: Metadata and annotation combinators preserve command input, error, and service types.
+  return (
+    docs ? described.pipe(Command.annotate(CliDocsAnnotation, docs)) : described
+  ) as C;
+};
 
-/** Top-level native `dot` command descriptors. */
-export const cliCommands: readonly CliCommandSpec[] = [
+const initCommand = describe(
+  Command.make(
+    "init",
+    {
+      confirm: bool(
+        "confirm",
+        "Compatibility flag; accepted but does not suppress prompts",
+      ),
+      noninteractive: bool(
+        "noninteractive",
+        "Skip the Hypr host questionnaire for this run",
+      ),
+      interactive: bool(
+        "interactive",
+        "Enable the Hypr host questionnaire when no host is selected",
+      ),
+      force: bool("force", "Re-run init even if the machine looks initialised"),
+      host: text("host", "Hypr host to link before stow"),
+      log: pathFlag(
+        "log",
+        "Init log path (default: ~/.local/state/dot/init.log)",
+        "file",
+      ),
+    },
+    (input) =>
+      init({ ...input, host: optional(input.host), log: optional(input.log) }),
+  ),
+  "Run one-time first-use machine setup",
+  [
+    "dot init --noninteractive",
+    "dot init --host laptop --noninteractive",
+    "dot init --force --noninteractive",
+  ],
   {
-    name: "init",
-    summary: "Run one-time first-use machine setup",
-    usage: "[options]",
-    description: [
-      "Run the one-time first-use setup workflow for a fresh machine. Init prepares",
-      "repos, stow links, mise tools, packages, and machine hooks. After init",
-      "completes, reboot so the Omarchy session picks up host env, then run",
-      "dot doctor. Before the bounded workflow starts, init updates or clones the",
-      "optional private overlay according to DOT_ALLOW_PRIVATE. Use dot update for",
-      "ongoing maintenance.",
-    ],
-    options: [
-      {
-        name: "--confirm",
-        description:
-          "Compatibility flag; accepted but does not suppress prompts",
-      },
-      {
-        name: "--noninteractive",
-        description: "Skip the Hypr host questionnaire for this run",
-      },
-      {
-        name: "--interactive",
-        description:
-          "Enable the Hypr host questionnaire when no host is selected",
-      },
-      {
-        name: "--force",
-        description: "Re-run init even if the machine looks initialised",
-      },
-      {
-        name: "--host",
-        valueName: "name",
-        description:
-          "Hypr host to link before stow (default: OMARCHY_HOST or desktop)",
-      },
-      {
-        name: "--log",
-        valueName: "path",
-        completion: "file",
-        description: "Init log path (default: ~/.local/state/dot/init.log)",
-      },
-      helpOption,
-    ],
-    examples: [
-      "dot init --noninteractive",
-      "dot init --host laptop --noninteractive",
-      "dot init --force --noninteractive",
-    ],
+    description:
+      "Run the one-time first-use setup workflow for a fresh machine. Init prepares repos, stow links, mise tools, packages, and machine hooks. After init completes, reboot so the Omarchy session picks up host env, then run dot doctor. Before the bounded workflow starts, init updates or clones the optional private overlay according to DOT_ALLOW_PRIVATE. Use dot update for ongoing maintenance.",
   },
+);
+
+const installCommand = describe(
+  Command.make("install", {}, () => install),
+  "Ensure prerequisites, then backup/adopt dotfiles",
+);
+
+const updateCommand = describe(
+  Command.make(
+    "update",
+    {
+      pull: bool("pull", "Run the repository pull phase only"),
+      stow: bool(
+        "stow",
+        "Generate completions, sync MCP configs, and stow only",
+      ),
+      app: bool(
+        "app",
+        "Install Bun dependencies and rebuild the dot binary only",
+      ),
+      check: bool("check", "Report core/system repos behind upstream"),
+      checkAll: bool("check-all", "Report all tracked repos behind upstream"),
+      noSelfUpdate: bool(
+        "no-self-update",
+        "Skip the internal self-update phase",
+      ),
+      postHookRepo: text("post-hook-repo", "Internal post-hook repository"),
+    },
+    ({
+      app,
+      check,
+      checkAll,
+      noSelfUpdate,
+      postHookRepo,
+      pull,
+      stow: onlyStow,
+    }) =>
+      check || checkAll
+        ? updateCheck({ all: checkAll })
+        : update({
+            pull,
+            stow: onlyStow,
+            app,
+            selfUpdate: !noSelfUpdate,
+            postHookRepos: Option.isSome(postHookRepo)
+              ? [postHookRepo.value]
+              : [],
+          }),
+  ),
+  "Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Internal --no-self-update and --post-hook-repo flags support the active self-update handoff.",
+  [],
   {
-    name: "install",
-    summary: "Ensure prerequisites, then backup/adopt dotfiles",
-    options: [helpOption],
-  },
-  {
-    name: "update",
-    aliases: ["up"],
-    summary: "Self-update, pull repos, stow dotfiles, rebuild",
-    description: [
-      "A full update pulls the public dotfiles, installs Bun dependencies, rebuilds",
-      "and relaunches dot, then scans and pulls tracked repositories. It trusts",
-      "tracked mise configs, regenerates completions, installs missing public",
-      "Arch/AUR packages, runs the required MCP sync, stows, rebuilds again, runs",
-      "agents sync, backfills the init marker, and starts the resume refresh.",
-      "It finishes with a summary of updated repositories and completed actions.",
-      "",
-      "Phase flags are inclusive: passing any of --pull, --stow, or --app runs only",
-      "the selected phases. Scoped runs skip full-update package reconciliation,",
-      "agents sync, and init-marker backfill. Every mode that reaches the end starts",
-      "the bounded resume refresh.",
-    ],
-    options: [
-      { name: "--pull", description: "Run the repository pull phase only" },
-      {
-        name: "--stow",
-        description: "Generate completions, sync MCP configs, and stow only",
-      },
-      {
-        name: "--app",
-        description: "Install Bun dependencies and rebuild the dot binary only",
-      },
-      {
-        name: "--check",
-        description:
-          "Report core/system repos behind upstream (no update); exit 10 if any",
-      },
-      {
-        name: "--check-all",
-        description:
-          "Report all tracked repos behind upstream (no update); exit 10 if any",
-      },
-      helpOption,
-    ],
+    description:
+      "A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories. It trusts tracked mise configs, regenerates completions, installs missing public Arch/AUR packages, runs the required MCP sync, stows, rebuilds again, runs agents sync, backfills the init marker, and starts the resume refresh. It finishes with a summary of updated repositories and completed actions.\n\nPhase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Scoped runs skip full-update package reconciliation, agents sync, and init-marker backfill. Every mode that reaches the end starts the bounded resume refresh.",
     sections: [
       {
         title: "Exit codes",
@@ -196,103 +232,120 @@ export const cliCommands: readonly CliCommandSpec[] = [
           "1   Fatal workflow failure",
           "2   Update check could not scan repositories",
           "10  Update check found repositories behind upstream",
-          "11  Legacy Hypr migration is required before update can continue",
+          "11  Legacy Hypr migration is required",
         ],
       },
     ],
   },
+).pipe(Command.withAlias("up"));
+
+const stowCommand = describe(
+  Command.make(
+    "stow",
+    {
+      publicOnly: bool("public", "Stow public dotfiles only"),
+      privateOnly: bool("private", "Stow private dotfiles only"),
+    },
+    ({ privateOnly, publicOnly }) =>
+      stow({ publicOnly, privateOnly }).pipe(Effect.asVoid),
+  ),
+  "Re-stow public/private dotfiles",
+);
+
+const pluginAdd = describe(
+  Command.make(
+    "add",
+    {
+      id: Argument.string("id").pipe(Argument.withDescription("Plugin ID")),
+      url: Argument.string("url").pipe(
+        Argument.withDescription("Plugin Git remote"),
+      ),
+      checkout: Argument.path("checkout").pipe(
+        Argument.withDescription("Validated live plugin checkout"),
+      ),
+      section: Flag.choice("section", ["left", "center", "right"]).pipe(
+        Flag.optional,
+      ),
+      before: text("before", "Place before this plugin"),
+      after: text("after", "Place after this plugin"),
+    },
+    (input) =>
+      omarchyPlugin({
+        _tag: "add",
+        ...input,
+        section: optional(input.section),
+        before: optional(input.before),
+        after: optional(input.after),
+      }),
+  ),
+  "Import a validated plugin checkout",
+);
+const pluginUpdate = describe(
+  Command.make(
+    "update",
+    {
+      id: Argument.string("id").pipe(
+        Argument.withDescription("Managed plugin ID"),
+        Argument.optional,
+      ),
+      confirm: Argument.choice("confirm", ["0", "1"]).pipe(
+        Argument.withDescription("Compatibility confirmation value"),
+        Argument.optional,
+      ),
+      yes: bool("yes", "Update without confirmation"),
+    },
+    ({ confirm, id, yes }) =>
+      omarchyPlugin({
+        _tag: "update",
+        id: optional(id),
+        yes: yes || Option.getOrUndefined(confirm) === "1",
+      }),
+  ),
+  "Update one or all managed plugins",
+);
+const pluginRemove = describe(
+  Command.make(
+    "remove",
+    {
+      id: Argument.string("id").pipe(
+        Argument.withDescription("Managed plugin ID"),
+      ),
+      confirm: Argument.choice("confirm", ["0", "1"]).pipe(
+        Argument.withDescription("Compatibility confirmation value"),
+        Argument.optional,
+      ),
+      save: Argument.choice("save", ["0", "1"]).pipe(
+        Argument.withDescription("Compatibility commit-offer value"),
+        Argument.optional,
+      ),
+      yes: bool("yes", "Remove without confirmation"),
+      noCommitOffer: bool(
+        "no-commit-offer",
+        "Do not offer the optional git-commit handoff",
+      ),
+    },
+    ({ confirm, id, noCommitOffer, save, yes }) =>
+      omarchyPlugin({
+        _tag: "remove",
+        id,
+        yes: yes || Option.getOrUndefined(confirm) === "1",
+        offerCommit: !noCommitOffer && Option.getOrUndefined(save) !== "0",
+      }),
+  ),
+  "Remove a managed plugin",
+);
+const omarchyPluginCommand = describe(
+  Command.make("omarchy-plugin").pipe(
+    Command.withSubcommands([pluginAdd, pluginUpdate, pluginRemove]),
+  ),
+  "Manage Omarchy plugin submodules. The manage-omarchy-plugin compatibility wrapper may pass trailing 0/1 confirmation and commit-offer values to update and remove.",
+  [
+    "dot omarchy-plugin update timmo.clock --yes",
+    "dot omarchy-plugin remove timmo.clock",
+  ],
   {
-    name: "stow",
-    summary: "Re-stow public/private dotfiles",
-    options: [
-      { name: "--public", description: "Stow public dotfiles only" },
-      { name: "--private", description: "Stow private dotfiles only" },
-      helpOption,
-    ],
-  },
-  {
-    name: "omarchy-shell-config",
-    summary: "Regenerate the Omarchy shell layout",
-    description: [
-      "Regenerate ~/.config/omarchy/shell.json from Omarchy's shipped default",
-      "and the host-specific dotfiles layout without running the full stow flow.",
-    ],
-    options: [helpOption],
-    examples: ["dot omarchy-shell-config"],
-  },
-  {
-    name: "omarchy-plugin",
-    summary: "Manage Omarchy plugin submodules",
-    usage: "<add|update|remove> ...",
-    description: [
-      "Import, update, or remove Omarchy plugins managed as dotfiles submodules.",
-      "The Omarchy plugin lifecycle hook calls this command through the",
-      "manage-omarchy-plugin compatibility wrapper.",
-    ],
-    commands: [
-      {
-        name: "add",
-        summary: "Import a validated plugin checkout",
-        usage: "<id> <url> <checkout> [options]",
-        arguments: [
-          { name: "id", description: "Plugin ID" },
-          { name: "url", description: "Plugin Git remote" },
-          {
-            name: "checkout",
-            description: "Validated live plugin checkout",
-            completion: "file",
-          },
-        ],
-        options: [
-          {
-            name: "--section",
-            valueName: "section",
-            description: "Bar section (default: plugin manifest)",
-            choices: [
-              { value: "left" },
-              { value: "center" },
-              { value: "right" },
-            ],
-          },
-          {
-            name: "--before",
-            valueName: "plugin-id",
-            description: "Place before this plugin",
-          },
-          {
-            name: "--after",
-            valueName: "plugin-id",
-            description: "Place after this plugin",
-          },
-          helpOption,
-        ],
-      },
-      {
-        name: "update",
-        summary: "Update one or all managed plugins",
-        usage: "[id] [options]",
-        arguments: [{ name: "id", description: "Managed plugin ID" }],
-        options: [
-          { name: "--yes", description: "Update without confirmation" },
-          helpOption,
-        ],
-      },
-      {
-        name: "remove",
-        summary: "Remove a managed plugin",
-        usage: "<id> [options]",
-        arguments: [{ name: "id", description: "Managed plugin ID" }],
-        options: [
-          { name: "--yes", description: "Remove without confirmation" },
-          {
-            name: "--no-commit-offer",
-            description: "Do not offer the optional git-commit handoff",
-          },
-          helpOption,
-        ],
-      },
-    ],
-    options: [helpOption],
+    description:
+      "Import, update, or remove Omarchy plugins managed as dotfiles submodules. The Omarchy plugin lifecycle hook calls this command through the manage-omarchy-plugin compatibility wrapper.",
     sections: [
       {
         title: "Exit codes",
@@ -303,619 +356,510 @@ export const cliCommands: readonly CliCommandSpec[] = [
         ],
       },
     ],
-    examples: [
-      "dot omarchy-plugin update timmo.clock --yes",
-      "dot omarchy-plugin remove timmo.clock",
-    ],
   },
+);
+
+const gitDiffCommand = describe(
+  Command.make(
+    "git-diff",
+    {
+      noFetch: bool("no-fetch", "Skip fetching from remotes"),
+      raw: bool("raw", "Text summary output"),
+      barJson: bool(
+        "bar-json",
+        "JSON output for status bars and shell modules",
+      ),
+      panelJson: bool(
+        "panel-json",
+        "Full JSON snapshot for the native shell panel",
+      ),
+      listChanged: bool("list-changed", "Changed repos as rows"),
+      listAll: bool("list-all", "All tracked repos as rows"),
+    },
+    ({ barJson, listAll, listChanged, noFetch, panelJson }) => {
+      const options = noFetch ? { noFetch: true } : undefined;
+      if (barJson) return diffBarJson(options);
+      if (panelJson) return diffPanelJson(options);
+      if (listChanged) return diffListChanged(options);
+      if (listAll) return diffListAll;
+      return diffRaw(options);
+    },
+  ),
+  "Show repository change state across all tracked repositories.",
+  [
+    "dot git-diff",
+    "dot git-diff --raw",
+    "dot git-diff --bar-json",
+    "dot git-diff --panel-json",
+  ],
   {
-    name: "firewall",
-    summary: "Reconcile managed ufw firewall rules",
-    description: [
-      "Ensure the managed ufw allow rules are present with their exact source,",
-      "destination, interface/direction, and purpose comment. Missing rules are",
-      "added, stale-comment rules are deleted and re-added, then ufw is reloaded",
-      "once. A source-restricted rule does not satisfy a managed any-source rule.",
-    ],
-    options: [helpOption],
-    examples: ["dot firewall"],
-  },
-  {
-    name: "doctor",
-    summary: "Run dotfiles system health checks",
-    usage: "[options]",
-    description: [
-      "Run health checks on the dotfiles system. Verifies dependencies, repos,",
-      "stow integrity, systemd timers, packages, browser config, and more.",
-      "",
-      "All checks run in parallel and each section streams to the terminal as it",
-      "finishes, so sections appear in completion order. A grouped summary of any",
-      "errors and warnings, ordered by section, follows at the end. A log file is",
-      "always written to ~/.local/state/dot/logs/.",
-    ],
-    options: [
-      {
-        ...openOpencodeOption,
-        description: "Save the report and attempt to open it in OpenCode",
-      },
-      helpOption,
-    ],
-    sections: [
-      {
-        title: "Checks performed",
-        lines: [
-          "Dependencies         Required/optional CLI tools (git, stow, gh, gum, ...)",
-          "gh extensions        Configured gh CLI extensions are installed",
-          "Locale               Required locales from shell config are generated",
-          "Zsh key bindings     Delete/forward-delete bindings and other expected defaults",
-          "Repositories         Public/private dotfiles + private git repos exist and have upstreams",
-          "Origin HEAD          Local origin/HEAD tracks the remote default branch (not stale)",
-          "Stow integrity       Dry-run restow to detect drift",
-          "OpenCode location    Canonical paths, legacy remnants",
-          "OpenCode server      Shared Hypr autostart and ~/.config/opencode/.env password",
-          "Herdr integration    Herdr binary and OpenCode integration installed",
-          "GitHub MCP auth      gh token available for DOT_GH_MCP_BEARER",
-          "Git config           Managed include is active",
-          "Git notifications    API scope and notification access",
-          "Doctor startup       Startup notification timer",
-          "uwsm session PATH    ~/.local/bin on the uwsm/systemd user-environment PATH",
-          "Daily volume reset   Laptop-only optional timer",
-          "Omarchy config       Managed repos and Hypr host-link correctness",
-          "Legacy Hypr repo     Flags a retired omarchy-hypr clone at ~/.config/hypr",
-          "Neovim theme link    Repairs a mislocated omarchy-nvim theme.lua symlink",
-          "Private access       Private dotfiles overlay enabled or explains why it is disabled",
-          "Browser flags        Symlinks from private stow package",
-          "Hardware video       VAAPI render nodes, drivers, packages",
-          "Browser extensions   Private extension check list",
-          "Public packages      Pacman/AUR packages installed + version check",
-          "Private package repo Private pacman repo registered",
-          "Private packages     Private repo + packages installed",
-          "Pacman hooks         Hook files installed and up to date",
-          "Firewall rules       Managed ufw rules (KDE Connect, Home Assistant, OpenCode, LocalSend, libvirt); repair with dot firewall",
-        ],
-      },
-      {
-        title: "Exit codes",
-        lines: [
-          "0    No critical errors (warnings may still be present)",
-          "1    One or more critical errors found",
-        ],
-      },
-    ],
-    examples: ["dot doctor", "dot doctor --open-opencode"],
-  },
-  {
-    name: "clean",
-    summary: "Unstow managed dotfiles",
-    options: [helpOption],
-  },
-  {
-    name: "git-diff",
-    aliases: ["diff"],
-    summary: "Show repository change state",
-    usage: "[options]",
-    description: ["Show change state across all tracked repositories."],
     modes: [
-      "(default)        Text summary of repos with changes",
-      "--raw            Text summary of repos with changes",
-      "--bar-json      JSON output for status bars and shell modules",
-      "--panel-json    Full JSON snapshot for the native shell panel",
-      "--list-changed   Changed repos as name|path rows",
-      "--list-all       All tracked repos as name|path rows",
-    ],
-    options: [
-      {
-        name: "--no-fetch",
-        description: "Skip fetching from remotes (use local refs only)",
-      },
-      rawOption,
-      barJsonOption,
-      {
-        name: "--panel-json",
-        description: "Full JSON snapshot for the native shell panel",
-      },
-      { name: "--list-changed", description: "Changed repos as rows" },
-      { name: "--list-all", description: "All tracked repos as rows" },
-      helpOption,
-    ],
-    examples: [
-      "dot git-diff",
-      "dot git-diff --raw",
-      "dot git-diff --bar-json",
-      "dot git-diff --panel-json",
+      "(default)       Text summary of repos with changes",
+      "--bar-json      JSON output for status bars",
+      "--panel-json    Full JSON panel snapshot",
+      "--list-changed  Changed repositories as rows",
+      "--list-all      All tracked repositories as rows",
     ],
   },
+).pipe(Command.withAlias("diff"));
+
+const gitCommitCommand = describe(
+  Command.make(
+    "git-commit",
+    {
+      message: Flag.string("message").pipe(
+        Flag.withAlias("m"),
+        Flag.optional,
+        Flag.withDescription("Single-line commit subject"),
+      ),
+      paths: Flag.path("path").pipe(
+        Flag.atLeast(0),
+        Flag.withDescription("Commit only this file; repeatable"),
+      ),
+      amend: bool("amend", "Amend the previous commit"),
+      push: bool("push", "Push after committing"),
+      dryRun: bool("dry-run", "Preview without changing anything"),
+    },
+    ({ amend, dryRun, message, paths, push }) =>
+      gitCommitRaw({ message: optional(message), paths, amend, push, dryRun }),
+  ),
+  "Commit staged changes through the guarded gateway. Subjects must be one line, have no trailing full stop, and stay within the hard length limit. Explicit --path scopes never imply git add -A; --amend keeps the existing message unless --message is supplied.",
+  [
+    'dot git-commit -m "Add commit gateway"',
+    'dot git-commit -m "Scope to one file" --path src/git/commands/Status.ts',
+    'dot git-commit -m "Commit and push" --push',
+    "dot git-commit --amend",
+    'dot git-commit --amend -m "Reword the previous commit"',
+    'dot git-commit -m "Preview only" --dry-run',
+  ],
   {
-    name: "git-commit",
-    summary: "Commit staged changes through the guarded gateway",
-    usage: "--message <subject> [options] | --amend [options]",
-    description: [
-      "Create a commit through dot's guarded gateway instead of raw git commit.",
-      "The subject is validated as a single line with no trailing full stop and",
-      "a length limit, then the staged set (or an explicit --path scope) is",
-      "committed. It never runs git add -A.",
-      "",
-      "Pass --amend to rewrite the previous commit instead of creating a new",
-      "one; it keeps the existing message unless you pass --message. With",
-      "--push, an amend force-pushes with --force-with-lease (never a plain",
-      "force).",
-      "",
-      "Agents are routed here by the git-commit skill and blocked from raw",
-      "git commit in the OpenCode permission config, so commits stay in the",
-      "maintainer's concise one-line style.",
-    ],
+    description:
+      "Create a commit through dot's guarded gateway instead of raw git commit. The subject is validated as a single line with no trailing full stop and a length limit, then the staged set (or an explicit --path scope) is committed. It never runs git add -A.\n\nPass --amend to rewrite the previous commit instead of creating a new one; it keeps the existing message unless you pass --message. With --push, an amend force-pushes with --force-with-lease, never a plain force. Agents are routed here by the git-commit skill and blocked from raw git commit in the OpenCode permission config.",
     modes: [
-      "(default)     Commit the staged set",
-      "--path        Commit only the named files",
-      "--amend       Rewrite the previous commit",
-      "--dry-run     Preview the plan, change nothing",
-    ],
-    options: [
-      {
-        name: "--message",
-        short: "-m",
-        valueName: "subject",
-        description: "Single-line commit subject (required unless --amend)",
-      },
-      {
-        name: "--path",
-        valueName: "file",
-        completion: "file",
-        description: "Commit only this file; repeatable",
-      },
-      {
-        name: "--amend",
-        description:
-          "Amend the previous commit; keeps its message unless --message is given",
-      },
-      {
-        name: "--push",
-        description:
-          "Push the current branch after committing (pulls --rebase first, or force-with-lease when amending, never a plain force)",
-      },
-      {
-        name: "--dry-run",
-        description:
-          "Preview the commit and push plan without changing anything",
-      },
-      helpOption,
+      "(default)  Commit the staged set",
+      "--path     Commit only named files",
+      "--amend    Rewrite the previous commit",
+      "--dry-run  Preview the plan without changes",
     ],
     sections: [
       {
         title: "Message guards",
         lines: [
-          "Single line     Rejects multi-line messages",
-          "No em/en-dash   Rejects '\u2014' and '\u2013'; use a hyphen",
-          "No full stop    Rejects a trailing '.'",
-          "Warn over 60    Warns on stderr, still commits",
-          "Reject over 120 Fails; shorten the subject",
+          "Single line      Rejects multi-line messages",
+          "No em/en-dash    Rejects em/en-dashes; use a hyphen",
+          "No full stop     Rejects a trailing full stop",
+          "Warn over 60     Warns on stderr, still commits",
+          "Reject over 120  Fails; shorten the subject",
         ],
       },
       {
         title: "Base branch guard",
         lines: [
-          "Refuses commits to the base branch of a repo you do not own,",
-          "including a fork kept for upstream PRs. Owners you control are",
-          "listed in `git config dot.owner`. Work on a feature branch.",
+          "Refuses commits to the base branch of a repo you do not own.",
+          "Owners you control are listed in git config dot.owner. Work on a feature branch.",
         ],
       },
     ],
-    examples: [
-      'dot git-commit -m "Add commit gateway"',
-      'dot git-commit -m "Scope to one file" --path src/git/commands/Status.ts',
-      'dot git-commit -m "Commit and push" --push',
-      "dot git-commit --amend",
-      'dot git-commit --amend -m "Reword the previous commit"',
-      'dot git-commit -m "Preview only" --dry-run',
-    ],
   },
+);
+
+/** Parse an absolute, epoch, or documented relative notification timestamp. */
+export function parseSinceValue(value: string, now = Date.now()): string {
+  const relative = value.match(
+    /^(\d+)\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days|w|week|weeks)(?:\s+ago)?$/i,
+  );
+  const units = {
+    s: 1_000,
+    m: 60_000,
+    h: 3_600_000,
+    d: 86_400_000,
+    w: 604_800_000,
+  } as const;
+  const unit = relative?.[2].toLowerCase();
+  const multiplier = unit?.startsWith("s")
+    ? units.s
+    : unit?.startsWith("m")
+      ? units.m
+      : unit?.startsWith("h")
+        ? units.h
+        : unit?.startsWith("d")
+          ? units.d
+          : units.w;
+  const timestamp = /^\d+$/.test(value)
+    ? Number(value) < 10_000_000_000
+      ? Number(value) * 1000
+      : Number(value)
+    : relative
+      ? now - Number(relative[1]) * multiplier
+      : Date.parse(value);
+  if (!Number.isFinite(timestamp))
+    throw new Error(
+      "Expected an ISO/RFC date, epoch timestamp, or relative duration",
+    );
+  return new Date(timestamp).toISOString();
+}
+
+const since = Flag.string("since").pipe(
+  Flag.mapTryCatch(parseSinceValue, (error) => String(error)),
+  Flag.withDescription("Only include notifications updated after this date"),
+  Flag.optional,
+);
+const gitNotificationsCommand = describe(
+  Command.make(
+    "git-notifications",
+    {
+      raw: bool("raw", "Text summary of notification threads"),
+      barJson: bool(
+        "bar-json",
+        "JSON output for status bars and shell modules",
+      ),
+      listThreads: bool("list-threads", "Notification threads as rows"),
+      barFilter: bool("bar-filter", "Apply watched-repo filtering"),
+      all: bool("all", "Include read notifications"),
+      participating: bool("participating", "Only participating threads"),
+      since,
+      markRead: text("mark-read", "Mark a thread as read"),
+      markDone: text("mark-done", "Mark a thread as done"),
+      ignore: text("ignore", "Ignore a thread"),
+      unignore: text("unignore", "Stop ignoring a thread"),
+      markBotRead: bool("mark-bot-read", "Mark bot notifications as read"),
+      dryRun: bool("dry-run", "Preview bot marking"),
+    },
+    (input) =>
+      Effect.gen(function* () {
+        const options: GitNotificationQueryOptions | undefined =
+          input.all ||
+          input.participating ||
+          input.barFilter ||
+          Option.isSome(input.since)
+            ? {
+                ...(input.all && { all: true }),
+                ...(input.participating && { participating: true }),
+                ...(input.barFilter && { barFilter: true }),
+                ...(Option.isSome(input.since) && { since: input.since.value }),
+              }
+            : undefined;
+        for (const [value, action] of [
+          [input.markRead, "read"],
+          [input.markDone, "done"],
+          [input.ignore, "ignore"],
+          [input.unignore, "unignore"],
+        ] as const)
+          if (Option.isSome(value))
+            return yield* notificationsAction(action, value.value);
+        if (input.markBotRead)
+          return yield* notificationsMarkBotRead(options, {
+            dryRun: input.dryRun,
+          });
+        if (input.barJson) return yield* notificationsBarJson(options);
+        if (input.listThreads) return yield* notificationsListThreads(options);
+        if (input.raw || options) return yield* notificationsRaw(options);
+        return yield* notificationsOpenShell;
+      }),
+  ),
+  'Open the authenticated GitHub notification inbox. Without machine-output or action flags, this opens the Omarchy shell panel. --since accepts ISO/RFC dates, epoch timestamps, compact durations such as 2d, and quoted durations such as "2 days ago".',
+  [
+    "dot git-notifications",
+    "dot git-notifications --bar-json",
+    "dot git-notifications --participating",
+    "dot git-notifications --mark-bot-read --dry-run",
+    "dot git-notifications --mark-read 12345",
+  ],
   {
-    name: "git-notifications",
-    summary: "Open GitHub notification inbox",
-    usage: "[options]",
-    description: [
-      "Open the authenticated user's GitHub notification inbox. Without machine or",
-      "action flags, opens the Omarchy shell panel.",
-    ],
     modes: [
-      "(default)       Omarchy shell notifications panel",
-      "--raw           Text summary of notification threads",
-      "--bar-json     JSON output for status bars and shell modules",
-      "--list-threads  Notification threads as rows",
-      "--bar-filter    Apply watched-repo filtering in raw/list output",
-    ],
-    options: [
-      { ...rawOption, description: "Text summary of notification threads" },
-      barJsonOption,
-      { name: "--list-threads", description: "Notification threads as rows" },
-      {
-        name: "--bar-filter",
-        description: "Apply watched-repo filtering in raw/list output",
-      },
-      { name: "--all", description: "Include read notifications" },
-      {
-        name: "--participating",
-        description: "Only include participating or mentioned threads",
-      },
-      {
-        name: "--since",
-        valueName: "date",
-        description: "Only include notifications updated after this date",
-      },
-      {
-        name: "--mark-read",
-        valueName: "id",
-        description: "Mark a notification thread as read",
-      },
-      {
-        name: "--mark-bot-read",
-        description:
-          "Mark unread Renovate/Dependabot/bot notifications as read",
-      },
-      {
-        name: "--dry-run",
-        description: "Preview --mark-bot-read without mutating GitHub state",
-      },
-      {
-        name: "--mark-done",
-        valueName: "id",
-        description: "Mark a notification thread as done",
-      },
-      {
-        name: "--ignore",
-        valueName: "id",
-        description: "Ignore new notifications for a thread",
-      },
-      {
-        name: "--unignore",
-        valueName: "id",
-        description: "Stop ignoring notifications for a thread",
-      },
-      helpOption,
-    ],
-    examples: [
-      "dot git-notifications",
-      "dot git-notifications --bar-json",
-      "dot git-notifications --participating",
-      "dot git-notifications --mark-bot-read --dry-run",
-      "dot git-notifications --mark-read 12345",
+      "(default)       Open the shell notification panel",
+      "--raw           Text summary",
+      "--bar-json      Status-bar JSON",
+      "--list-threads  Notification rows",
+      "--bar-filter    Apply watched-repository filtering",
     ],
   },
-  {
-    name: "agents-sync",
-    summary: "Mirror AGENTS.md to agent harness instruction files",
-    options: [helpOption],
-  },
-  {
-    name: "mcp-sync",
-    summary: "Regenerate MCP configs for all harnesses from the spec",
-    description: [
-      "Regenerate each active harness's native MCP config from the single",
-      "private spec (mcp.yml), keeping agent harness MCP configs aligned.",
-      "Writes into the stowed private source tree; run dot stow after.",
-      "",
-      "Some agent harnesses are documented stubs and are not written.",
-      "OpenCode gated servers also receive a default-off tools gate so their",
-      "tool schemas stay out of the baseline context until an agent re-enables",
-      "them.",
-    ],
-    options: [helpOption],
-    examples: ["dot mcp-sync"],
-  },
-  {
-    name: "notes-capture-sync",
-    summary: "Sync watched repositories to the notes capture picker",
-    description: [
-      "Regenerate the notes capture repository picker from repositories with",
-      "GitHub notifications enabled in the private dot-git.yml configuration.",
-      "Updates only CAPTURE_REPOSITORIES in the ignored",
-      "capture/wrangler.local.jsonc file, creating it from the deploy template",
-      "when needed. Mirrors non-secret settings from the active Worker, then",
-      "deploys when the live picker differs.",
-    ],
-    options: [helpOption],
-    examples: ["dot notes-capture-sync"],
-  },
-  {
-    name: "is-agent",
-    summary: "Detect whether an AI coding agent is running dot",
-    usage: "[options]",
-    description: [
-      "Detect whether dot is running under an agent harness from agent",
-      "environment variables, falling back to a Linux",
-      "/proc process-ancestry check. Exits 0 when an agent is detected and 1",
-      "otherwise, so scripts can branch with `if dot is-agent`.",
-      "",
-      "Set DOT_AGENT=1 to force detection on or DOT_AGENT=0 to force it off.",
-    ],
-    modes: [
-      "(default)   Print the detected agent, or a no-agent message",
-      "--quiet     Print only the provider id (nothing when no agent)",
-      "--json      Print the detection result as JSON",
-    ],
-    options: [
+);
+
+const simpleCommands = [
+  describe(
+    Command.make("omarchy-shell-config", {}, () =>
+      applyOmarchyShellConfig.pipe(Effect.asVoid),
+    ),
+    "Regenerate the Omarchy shell layout",
+    ["dot omarchy-shell-config"],
+    {
+      description:
+        "Regenerate ~/.config/omarchy/shell.json from Omarchy's shipped default and the host-specific dotfiles layout without running the full stow flow.",
+    },
+  ),
+  describe(
+    Command.make("firewall", {}, () => configureFirewallRules),
+    "Reconcile managed ufw firewall rules",
+    ["dot firewall"],
+    {
+      description:
+        "Ensure the managed ufw allow rules are present with their exact source, destination, interface/direction, and purpose comment. Missing rules are added, stale-comment rules are deleted and re-added, then ufw is reloaded once. A source-restricted rule does not satisfy a managed any-source rule.",
+    },
+  ),
+  describe(
+    Command.make(
+      "doctor",
       {
-        name: "--quiet",
-        short: "-q",
-        description: "Print only the provider id",
+        openOpencode: bool(
+          "open-opencode",
+          "Save the report and attempt to open it in OpenCode",
+        ),
       },
-      { name: "--json", description: "Print the detection result as JSON" },
-      helpOption,
-    ],
-    examples: [
-      "dot is-agent",
-      "dot is-agent --quiet",
-      "dot is-agent --json",
-      "dot is-agent && echo running under an agent",
-    ],
-  },
+      doctor,
+    ),
+    "Run parallel health checks for dependencies, repositories, stow integrity, services, packages, browser configuration, hardware video, firewall rules, and OpenCode/Herdr integration. A timestamped report is always written under ~/.local/state/dot/logs/.",
+    [],
+    {
+      description:
+        "Run health checks on the dotfiles system. All checks run in parallel and each section streams to the terminal as it finishes, followed by a grouped summary. A timestamped log is always written under ~/.local/state/dot/logs/.",
+      sections: [
+        {
+          title: "Checks performed",
+          lines: [
+            "Dependencies and configured gh extensions",
+            "Repositories, origin HEAD, git config, and stow integrity",
+            "OpenCode, Herdr, notifications, timers, and UWSM integration",
+            "Omarchy host links, browser flags/extensions, and hardware video",
+            "Public/private packages, pacman hooks, and managed firewall rules",
+          ],
+        },
+        {
+          title: "Exit codes",
+          lines: [
+            "0  No critical errors (warnings may still be present)",
+            "1  One or more critical errors found",
+          ],
+        },
+      ],
+    },
+  ),
+  describe(
+    Command.make("clean", {}, () => clean),
+    "Unstow managed dotfiles",
+  ),
+  describe(
+    Command.make("agents-sync", {}, () => agentsSync),
+    "Mirror AGENTS.md to agent harness instruction files",
+  ),
+  describe(
+    Command.make("notes-capture-sync", {}, () => notesCaptureSync),
+    "Sync watched repositories to the notes capture picker",
+    ["dot notes-capture-sync"],
+    {
+      description:
+        "Regenerate the notes capture repository picker from repositories with GitHub notifications enabled in the private dot-git.yml configuration. Updates only CAPTURE_REPOSITORIES in the ignored capture/wrangler.local.jsonc file, creating it from the deploy template when needed. Mirrors non-secret settings from the active Worker, then deploys when the live picker differs.",
+    },
+  ),
+  describe(
+    Command.make("setup-private-repo", {}, () => setupPrivateRepo),
+    "Sync and register the private pacman repository",
+    ["dot setup-private-repo"],
+    {
+      description:
+        "Sync the private Arch package repo mirror, write the private pacman repo snippet, and add the Include line to /etc/pacman.conf when it is missing. This repairs Omarchy pacman.conf refreshes that remove local repository includes. Privileged writes prefer pkexec and fall back to sudo.",
+    },
+  ),
+  describe(
+    Command.make("setup-public-repo", {}, () => setupPublicRepo),
+    "Trust and register the public timmo pacman repository",
+    ["dot setup-public-repo"],
+    {
+      description:
+        "Download the public signing key, require its pinned full fingerprint, locally sign it in pacman's keyring, and register the signed [timmo] repository before the other package repositories. The command fails before changing trust or pacman configuration when the repository is unavailable or the downloaded fingerprint does not match.",
+    },
+  ),
+] as const;
+
+const privatePublishCommand = describe(
+  Command.make(
+    "private-pkg-publish",
+    {
+      packageName: Argument.string("package-name").pipe(
+        Argument.withDescription("Mapped private package name"),
+      ),
+      noGit: bool("no-git", "Skip package repo commit and push"),
+      skipBuild: bool("skip-build", "Publish an existing artifact"),
+      install: bool("install", "Install after publishing"),
+    },
+    ({ install, noGit, packageName, skipBuild }) =>
+      privatePkgPublish({
+        packageName,
+        publishGit: !noGit,
+        buildPackage: !skipBuild,
+        installPackage: install,
+      }),
+  ),
+  "Build and publish a private package",
+  [
+    "dot private-pkg-publish twitch-notifications --install",
+    "dot private-pkg-publish --skip-build --no-git twitch-notifications",
+  ],
   {
-    name: "setup-public-repo",
-    summary: "Trust and register the public timmo pacman repository",
-    description: [
-      "Download the public signing key, require its pinned full fingerprint,",
-      "locally sign it in pacman's keyring, and register the signed [timmo]",
-      "repository before the other package repositories.",
-      "",
-      "The command fails before changing trust or pacman configuration when the",
-      "repository is unavailable or the downloaded fingerprint does not match.",
-    ],
-    options: [helpOption],
-    examples: ["dot setup-public-repo"],
-  },
-  {
-    name: "setup-private-repo",
-    summary: "Sync and register the private pacman repository",
-    description: [
-      "Sync the private Arch package repo mirror, write the private pacman repo",
-      "snippet, and add the Include line to /etc/pacman.conf when it is missing.",
-      "",
-      "This repairs Omarchy pacman.conf refreshes that remove local repository",
-      "includes. Privileged writes prefer pkexec and fall back to sudo.",
-    ],
-    options: [helpOption],
-    examples: ["dot setup-private-repo"],
-  },
-  {
-    name: "private-pkg-publish",
-    summary: "Build and publish a private package",
-    usage: "[options] <package-name>",
-    description: [
+    description:
       "Build and publish a mapped private package into the private pacman repo.",
-    ],
-    options: [
-      { name: "--no-git", description: "Skip package repo commit and push" },
-      {
-        name: "--skip-build",
-        description: "Publish an existing dist package artifact",
-      },
-      {
-        name: "--install",
-        description: "Install the published package after syncing the mirror",
-      },
-      helpOption,
-    ],
-    arguments: [{ name: "package-name" }],
-    examples: [
-      "dot private-pkg-publish twitch-notifications --install",
-      "dot private-pkg-publish --skip-build --no-git twitch-notifications",
+  },
+);
+
+const skillUpdatesCommand = describe(
+  Command.make(
+    "skill-updates",
+    {
+      check: bool("check", "Check only"),
+      update: bool("update", "Apply clean updates"),
+      json: bool("json", "Report as JSON"),
+      skill: text("skill", "Limit to one skill"),
+      noCommit: bool("no-commit", "Apply without committing"),
+      skipReview: bool("skip-review", "Skip local-edit review"),
+    },
+    ({ skill, ...options }) =>
+      skillUpdates({ ...options, skill: optional(skill) }).pipe(Effect.asVoid),
+  ),
+  "Check/apply imported skill updates",
+  [
+    "dot skill-updates --json",
+    "dot skill-updates --update --skill browser-control --no-commit",
+  ],
+);
+const skillCheckCommand = describe(
+  Command.make(
+    "skill-check",
+    {
+      openOpencode: bool("open-opencode", "Attempt OpenCode analysis"),
+      diffOrigin: bool("diff-origin", "Diff against upstream origins"),
+      skill: text("skill", "Check one skill"),
+    },
+    ({ skill, ...options }) =>
+      skillCheck({ ...options, skill: optional(skill) }),
+  ),
+  "Validate skill maintenance and adapted imports",
+  ["dot skill-check --skill browser-control"],
+  {
+    description:
+      "Validate branch-context wiring and ensure adapted imported skills still differ from every file in their current upstream source. When an adapted skill exactly matches its source, human sessions can reimport it through the standard Skills CLI. Agent sessions print the equivalent command instead.",
+  },
+);
+const skillUpdatesAgentCommand = describe(
+  Command.make(
+    "skill-updates-agent",
+    {
+      mode: Argument.choice("mode", ["github", "device"]).pipe(
+        Argument.withDescription("Automation mode"),
+      ),
+      configPath: pathFlag("config", "Use another YAML config", "file"),
+      runId: text("run-id", "Wait for this workflow run"),
+      skillsDir: pathFlag(
+        "skills-dir",
+        "Use this Skills checkout",
+        "directory",
+      ),
+    },
+    ({ configPath, mode, runId, skillsDir }) =>
+      mode === "github" || mode === "device"
+        ? skillUpdatesAgent({
+            mode,
+            configPath: optional(configPath),
+            runId: optional(runId),
+            skillsDir: optional(skillsDir),
+          })
+        : Effect.fail(
+            new SkillUpdatesAgentError({
+              operation: "mode",
+              message: "skill-updates-agent requires github or device mode",
+            }),
+          ),
+  ),
+  "Run GitHub or device skill update automation",
+  [
+    "dot skill-updates-agent github --skills-dir .",
+    "dot skill-updates-agent device --config ~/.config/dotfiles-private/skill-updates-agent.yml --run-id 123456",
+  ],
+  {
+    description:
+      "Run the shared skill update workflow. GitHub mode checks imports, opens clean update pull requests, dispatches validation, and refreshes the dashboard. Device mode optionally waits for that workflow, then runs the configured local OpenCode processor with completed-run deduplication.",
+  },
+);
+
+const completionsCommand = describe(
+  Command.make(
+    "completions",
+    {
+      shell: Argument.choice("shell", ["bash", "fish", "zsh"]).pipe(
+        Argument.withDescription("Shell to generate completions for"),
+        Argument.withDefault("zsh"),
+      ),
+      stdout: bool("stdout", "Print instead of writing"),
+    },
+    completions,
+  ),
+  "Generate shell completions",
+  [
+    "dot completions zsh",
+    "dot completions bash --stdout",
+    "dot completions fish --stdout",
+  ],
+  {
+    description:
+      "Generate shell completions for dot. By default this writes the managed completion file for the selected shell in the public dotfiles repo so the next dot stow installs it.",
+  },
+);
+const isAgent = describe(
+  Command.make(
+    "is-agent",
+    {
+      quiet: Flag.boolean("quiet").pipe(
+        Flag.withAlias("q"),
+        Flag.withDefault(false),
+      ),
+      json: bool("json", "Print JSON"),
+    },
+    isAgentCommand,
+  ),
+  "Detect whether an AI coding agent is running dot",
+  [
+    "dot is-agent",
+    "dot is-agent --quiet",
+    "dot is-agent --json",
+    "dot is-agent && echo running under an agent",
+  ],
+  {
+    description:
+      "Detect whether dot is running under an agent harness from agent environment variables, falling back to a Linux /proc process-ancestry check. Exits 0 when an agent is detected and 1 otherwise, so scripts can branch with `if dot is-agent`. Set DOT_AGENT=1 to force detection on or DOT_AGENT=0 to force it off.",
+    modes: [
+      "(default)  Print the detected agent, or a no-agent message",
+      "--quiet    Print only the provider id (nothing when no agent)",
+      "--json     Print the detection result as JSON",
     ],
   },
+);
+const floating = describe(
+  Command.make(
+    "launch-floating-webapp",
+    {
+      url: Argument.string("url").pipe(
+        Argument.withDescription("Webapp URL to launch"),
+        Argument.optional,
+      ),
+      monitor: text("monitor", "Target monitor"),
+      workspace: text("workspace", "Target workspace"),
+      width: integer("width", "Window width", 380),
+      height: integer("height", "Window height", 500),
+      rightMargin: integer("right-margin", "Right margin", 16),
+      bottomMargin: integer("bottom-margin", "Bottom margin", 6),
+      address: text("address", "Existing window address"),
+    },
+    (input) =>
+      launchFloatingWebapp({
+        ...input,
+        url: optional(input.url),
+        monitor: optional(input.monitor),
+        workspace: optional(input.workspace),
+        address: optional(input.address),
+      }),
+  ),
+  "Launch one Omarchy webapp and place its new window in the target monitor's bottom-right corner, or reposition an existing window with --address. Width and height must be positive integers; margins must be non-negative.",
+  [],
   {
-    name: "skill-updates",
-    summary: "Check/apply imported skill updates",
-    options: [
-      { name: "--check", description: "Check only without applying" },
-      { name: "--update", description: "Auto-apply clean updates" },
-      {
-        name: "--json",
-        description: "Report update states as JSON without applying",
-      },
-      {
-        name: "--skill",
-        valueName: "name",
-        description: "Limit checking or updating to one imported skill",
-      },
-      {
-        name: "--no-commit",
-        description: "Apply updates without creating a commit",
-      },
-      { name: "--skip-review", description: "Skip local-edit review" },
-      helpOption,
-    ],
-    examples: [
-      "dot skill-updates --json",
-      "dot skill-updates --update --skill browser-control --no-commit",
-    ],
-  },
-  {
-    name: "skill-check",
-    summary: "Validate skill maintenance and adapted imports",
-    description: [
-      "Validate branch-context wiring and ensure adapted imported skills still",
-      "differ from every file in their current upstream source.",
-      "",
-      "When an adapted skill exactly matches its source, human sessions can",
-      "reimport it through the standard Skills CLI. Agent sessions print the",
-      "equivalent command instead.",
-    ],
-    options: [
-      openOpencodeOption,
-      {
-        name: "--diff-origin",
-        description:
-          "Diff imported skills against their upstream origins; with --open-opencode, include the diff in the prompt",
-      },
-      {
-        name: "--skill",
-        valueName: "name",
-        description: "Check one adapted imported skill only",
-      },
-      helpOption,
-    ],
-    examples: ["dot skill-check --skill browser-control"],
-  },
-  {
-    name: "skill-updates-agent",
-    summary: "Run GitHub or device skill update automation",
-    usage: "<github|device> [options]",
-    description: [
-      "Run the shared skill update workflow. GitHub mode checks imports, opens",
-      "clean update pull requests, dispatches validation, and refreshes the",
-      "dashboard. Device mode optionally waits for that workflow, then runs the",
-      "configured local OpenCode processor with completed-run deduplication.",
-    ],
-    options: [
-      {
-        name: "--config",
-        valueName: "path",
-        completion: "file",
-        description:
-          "Use a YAML config other than private dotfiles/skill-updates-agent.yml",
-      },
-      {
-        name: "--run-id",
-        valueName: "id",
-        description: "Wait for this workflow run before device processing",
-      },
-      {
-        name: "--skills-dir",
-        valueName: "path",
-        completion: "file",
-        description: "Use this Skills checkout in GitHub mode",
-      },
-      helpOption,
-    ],
-    arguments: [
-      {
-        name: "mode",
-        choices: [
-          { value: "github", description: "Run the GitHub Actions phase" },
-          { value: "device", description: "Run the local OpenCode phase" },
-        ],
-      },
-    ],
-    examples: [
-      "dot skill-updates-agent github --skills-dir .",
-      "dot skill-updates-agent device --config ~/.config/dotfiles-private/skill-updates-agent.yml --run-id 123456",
-    ],
-  },
-  {
-    name: "completions",
-    summary: "Generate shell completions",
-    usage: "[bash|fish|zsh] [--stdout]",
-    description: [
-      "Generate shell completions for dot.",
-      "",
-      "By default this writes the managed completion file for the selected shell",
-      "in the public dotfiles repo so the next dot stow installs it.",
-    ],
-    options: [
-      {
-        name: "--stdout",
-        description: "Print the completion script instead of writing it",
-      },
-      helpOption,
-    ],
-    arguments: [
-      {
-        name: "shell",
-        choices: [{ value: "bash" }, { value: "fish" }, { value: "zsh" }],
-        completion: "shell",
-      },
-    ],
-    examples: [
-      "dot completions zsh",
-      "dot completions bash --stdout",
-      "dot completions fish --stdout",
-    ],
-  },
-  {
-    name: "herdr-repo-open",
-    summary: "Open or focus a repository in Herdr",
-    usage: "[--pane] <label> <directory> [tab-label command]",
-    description: [
-      "Open or focus a repository workspace in the shared Herdr session. If the",
-      "Herdr server is headless, open a tiled terminal and wait for it before",
-      "focusing the workspace.",
-    ],
-    options: [
-      {
-        name: "--pane",
-        description: "Run the command in a new pane instead of a new tab",
-      },
-      helpOption,
-    ],
-    arguments: [
-      { name: "label", description: "Herdr workspace label" },
-      {
-        name: "directory",
-        description: "Repository working directory",
-        completion: "file",
-      },
-      { name: "tab-label", description: "Optional command tab label" },
-      { name: "command", description: "Optional command to run" },
-    ],
-    examples: [
-      "dot herdr-repo-open Dotfiles ~/.config/dotfiles",
-      "dot herdr-repo-open Dotfiles ~/.config/dotfiles OpenCode opencode",
-      "dot herdr-repo-open --pane Dotfiles ~/.config/dotfiles Lazygit lazygit",
-    ],
-  },
-  {
-    name: "launch-floating-webapp",
-    summary: "Launch or reposition a floating webapp",
-    usage: "[options] <url> | [options] --address <window-address>",
-    description: [
-      "Launch one Omarchy webapp and place only its new window in the target",
-      "monitor's bottom-right corner. Pass --address to reposition an existing",
-      "window instead. The resolved Hyprland address is the only stdout output.",
-    ],
-    options: [
-      {
-        name: "--monitor",
-        valueName: "name",
-        description: "Target monitor (default: focused monitor)",
-      },
-      {
-        name: "--workspace",
-        valueName: "id",
-        description: "Move to this workspace and use its monitor",
-      },
-      {
-        name: "--width",
-        valueName: "px",
-        description: "Window width (default: 380)",
-      },
-      {
-        name: "--height",
-        valueName: "px",
-        description: "Window height (default: 500)",
-      },
-      {
-        name: "--right-margin",
-        valueName: "px",
-        description: "Right margin (default: 16)",
-      },
-      {
-        name: "--bottom-margin",
-        valueName: "px",
-        description: "Bottom margin (default: 6)",
-      },
-      {
-        name: "--address",
-        valueName: "window-address",
-        description: "Reposition an existing window instead of launching",
-      },
-      helpOption,
-    ],
-    arguments: [
-      {
-        name: "url",
-        description: "Webapp URL to launch",
-        completion: "none",
-      },
-    ],
     sections: [
       {
         title: "Exit codes",
@@ -926,176 +870,278 @@ export const cliCommands: readonly CliCommandSpec[] = [
         ],
       },
     ],
-    examples: [
-      "dot launch-floating-webapp https://example.com",
-      "dot launch-floating-webapp --workspace 3 https://example.com",
-      "dot launch-floating-webapp --address 0x123abc",
-    ],
   },
+);
+const herdr = describe(
+  Command.make(
+    "herdr-repo-open",
+    {
+      pane: bool("pane", "Run in a new pane"),
+      label: Argument.string("label").pipe(
+        Argument.withDescription("Herdr workspace label"),
+      ),
+      directory: Argument.path("directory").pipe(
+        Argument.withDescription("Repository working directory"),
+      ),
+      tabLabel: Argument.string("tab-label").pipe(
+        Argument.withDescription("Optional command tab label"),
+        Argument.withDefault("Shell"),
+      ),
+      command: Argument.string("command").pipe(
+        Argument.withDescription("Optional command to run"),
+        Argument.optional,
+      ),
+    },
+    ({ command, ...input }) =>
+      herdrRepoOpen({ ...input, command: optional(command) }),
+  ),
+  "Open or focus a repository workspace in the shared Herdr session. If the server is headless, open a tiled terminal and wait for a foreground client before focusing the workspace.",
+  [],
   {
-    name: "workspace-relayout",
-    summary: "Apply or capture a Hyprland workspace layout",
-    usage: "[--edit]",
-    description: [
-      "Apply a saved ratio-based Dwindle layout to the active workspace, or",
-      "capture the current tiled window geometry into a preset with --edit.",
-      "The command validates presets and temporary workspace availability before",
-      "moving windows, then verifies the result and attempts rollback on failure.",
-    ],
-    options: [
-      { name: "--edit", description: "Capture or overwrite a layout preset" },
-      helpOption,
-    ],
-    examples: ["dot workspace-relayout", "dot workspace-relayout --edit"],
-  },
-  {
-    name: "workspace-capture",
-    summary: "Capture Hyprland workspace and window state",
-    usage: "[options]",
-    description: [
-      "Write a version 2 workspace session containing Hyprland clients, process",
-      "metadata, active workspace state, monitor state, and available browser URLs.",
-    ],
-    options: [
+    sections: [
       {
-        name: "--current-workspace",
-        description: "Capture only visible clients on the active workspace",
-      },
-      {
-        name: "--output",
-        valueName: "file",
-        completion: "file",
-        description:
-          "Write to this file instead of the default state directory",
-      },
-      {
-        name: "--state-dir",
-        valueName: "dir",
-        completion: "file",
-        description: "Directory for default captures and capture.log",
-      },
-      helpOption,
-    ],
-    examples: [
-      "dot workspace-capture",
-      "dot workspace-capture --current-workspace",
-    ],
-  },
-  {
-    name: "workspace-restore",
-    summary: "Restore a captured Hyprland workspace session",
-    usage: "[options]",
-    description: [
-      "Reuse, launch, move, and resize windows from a version 2 workspace capture.",
-      "Application-specific launch policy can be supplied by the optional private overlay.",
-    ],
-    options: [
-      {
-        name: "--dry-run",
-        description: "Print the restore plan without changing windows",
-      },
-      {
-        name: "--file",
-        valueName: "file",
-        completion: "file",
-        description: "Restore this capture file",
-      },
-      {
-        name: "--state-dir",
-        valueName: "dir",
-        completion: "file",
-        description: "Directory containing captures and restore.log",
-      },
-      {
-        name: "--no-launch",
-        description: "Do not launch missing supported apps",
-      },
-      {
-        name: "--no-move",
-        description: "Do not move or resize matched windows",
-      },
-      helpOption,
-    ],
-    examples: ["dot workspace-restore --dry-run", "dot workspace-restore"],
-  },
-  {
-    name: "usage",
-    summary: "Local-first analytics for dot usage",
-    usage: "[summary|stale|path|backfill] [options]",
-    description: [
-      "Report local-first usage analytics for dot. Dispatched dot commands append",
-      "NDJSON events under $XDG_STATE_HOME/tool-usage with timestamps, machine,",
-      "canonical command, recognised flag names, exit status, duration, source,",
-      "and invoker. Live dot events never store positional values.",
-      "",
-      "Optional shell-history backfill observes selected standalone tools without",
-      "requiring integration. It uses whitespace tokenisation, so review the source",
-      "history before applying when arguments may contain sensitive text.",
-      "",
-      "Set DOT_USAGE_DISABLE=1 to stop automatic live recording, or DOT_USAGE_DIR",
-      "to relocate the event root. Explicit backfill --apply still writes events.",
-    ],
-    modes: [
-      "summary    Per-feature usage table (default)",
-      "stale      Features not used within the window",
-      "path       Print the event storage root",
-      "backfill   Import whitelisted invocations from shell history",
-    ],
-    options: [
-      {
-        name: "--days",
-        valueName: "n",
-        description: "Window for summary/stale (default: 90)",
-      },
-      {
-        name: "--format",
-        valueName: "fmt",
-        description: "summary format",
-        choices: [
-          { value: "text" },
-          { value: "json" },
-          { value: "agent-context" },
+        title: "Exit codes",
+        lines: [
+          "0  Repository workspace focused or opened",
+          "1  Herdr operation failed",
+          "2  Invalid arguments",
         ],
       },
-      {
-        name: "--root",
-        valueName: "path",
-        completion: "file",
-        description: "Extra event root to combine (repeatable)",
-      },
-      {
-        name: "--history",
-        description: "Backfill from shell history (accepted for clarity)",
-      },
-      {
-        name: "--apply",
-        description: "Write events during backfill (default: dry run)",
-      },
-      helpOption,
-    ],
-    examples: [
-      "dot usage summary --days 30",
-      "dot usage summary --format agent-context",
-      "dot usage stale --days 90",
-      "dot usage backfill --history",
-      "dot usage backfill --history --apply",
     ],
   },
+);
+const relayout = describe(
+  Command.make(
+    "workspace-relayout",
+    { edit: bool("edit", "Capture or overwrite a preset") },
+    workspaceRelayout,
+  ),
+  "Apply or capture a Hyprland workspace layout",
+);
+const capture = describe(
+  Command.make(
+    "workspace-capture",
+    {
+      currentWorkspace: Flag.boolean("current-workspace").pipe(
+        Flag.withAlias("current"),
+        Flag.withDefault(false),
+      ),
+      output: pathFlag("output", "Write to this file", "file"),
+      stateDir: pathFlag("state-dir", "Capture state directory", "directory"),
+    },
+    ({ output, stateDir, ...input }) =>
+      workspaceCapture({
+        ...input,
+        output: optional(output),
+        stateDir: optional(stateDir),
+      }),
+  ),
+  "Capture Hyprland workspace and window state",
+);
+const restore = describe(
+  Command.make(
+    "workspace-restore",
+    {
+      dryRun: Flag.boolean("dry-run").pipe(
+        Flag.withAlias("dryrun"),
+        Flag.withDefault(false),
+      ),
+      file: pathFlag("file", "Restore this capture", "file"),
+      stateDir: pathFlag("state-dir", "Capture state directory", "directory"),
+      noLaunch: bool("no-launch", "Do not launch missing apps"),
+      noMove: bool("no-move", "Do not move matched windows"),
+    },
+    ({ file, noLaunch, noMove, stateDir, ...input }) =>
+      workspaceRestore({
+        ...input,
+        file: optional(file),
+        stateDir: optional(stateDir),
+        launchMissing: !noLaunch,
+        moveExisting: !noMove,
+      }),
+  ),
+  "Restore a captured Hyprland workspace session",
+);
+const usageCommand = describe(
+  Command.make(
+    "usage",
+    {
+      subcommand: Argument.choice("command", [
+        "summary",
+        "stale",
+        "path",
+        "backfill",
+      ]).pipe(
+        Argument.withDescription("Analytics operation"),
+        Argument.withDefault("summary"),
+      ),
+      days: integer("days", "Window in days", 90),
+      format: Flag.choice("format", ["text", "json", "agent-context"]).pipe(
+        Flag.withDefault("text"),
+      ),
+      roots: Flag.path("root").pipe(Flag.atLeast(0)),
+      history: bool("history", "Backfill from shell history"),
+      apply: bool("apply", "Write backfilled events"),
+    },
+    (input) =>
+      usage(
+        { ...input, days: input.days > 0 ? input.days : 90 },
+        getCommandNames(),
+      ),
+  ),
+  "Report local-first usage analytics from NDJSON events under $XDG_STATE_HOME/tool-usage. Live events store canonical commands and recognised flag names, never positional values. Set DOT_USAGE_DISABLE=1 to disable live recording or DOT_USAGE_DIR to relocate storage.",
+  [],
   {
-    name: "help",
-    summary: "Show this help menu",
-    options: [helpOption],
+    modes: [
+      "summary   Per-feature usage table (default)",
+      "stale     Features not used within the window",
+      "path      Print the event storage root",
+      "backfill  Import whitelisted shell-history invocations",
+    ],
+    sections: [
+      {
+        title: "Privacy",
+        lines: [
+          "Live dot events never store positional values",
+          "Shell-history backfill is a dry run unless --apply is passed",
+          "Review history before applying when arguments may contain sensitive text",
+        ],
+      },
+    ],
   },
-];
-
-/** Top-level command names and aliases accepted by native dispatch. */
-export const nativeCommandNames = new Set(
-  cliCommands.flatMap((command) => [command.name, ...(command.aliases ?? [])]),
+);
+function showHelp(command: Option.Option<string>): Effect.Effect<void> {
+  return Effect.gen(function* () {
+    const target = Option.isSome(command)
+      ? getCliCommand(command.value)
+      : dotCommand;
+    const formatter = yield* CliOutput.Formatter;
+    const path =
+      target === dotCommand ? ["dot"] : ["dot", target?.name ?? "help"];
+    process.stdout.write(
+      `${formatter.formatHelpDoc(commandHelp(target ?? helpCommand, path))}\n`,
+    );
+  });
+}
+const helpCommand = describe(
+  Command.make(
+    "help",
+    {
+      command: Argument.string("command").pipe(
+        Argument.withDescription("Command to show help for"),
+        Argument.optional,
+      ),
+    },
+    ({ command }) => showHelp(command),
+  ),
+  "Show this help menu",
 );
 
-/** Return the command descriptor for a canonical name or alias. */
-export function getCliCommand(name: string): CliCommandSpec | undefined {
-  return cliCommands.find(
-    (command) => command.name === name || command.aliases?.includes(name),
+/** Executable `dot` command tree and single source of CLI truth. */
+export const dotCommand = describe(
+  Command.make("dot").pipe(
+    Command.withSubcommands([
+      initCommand,
+      installCommand,
+      updateCommand,
+      stowCommand,
+      omarchyPluginCommand,
+      ...simpleCommands,
+      gitDiffCommand,
+      gitCommitCommand,
+      gitNotificationsCommand,
+      describe(
+        Command.make("mcp-sync", {}, () =>
+          Effect.promise(() => import("../mcp/commands/McpSync.js")).pipe(
+            Effect.flatMap((module) => module.mcpSync),
+          ),
+        ),
+        "Regenerate MCP configs for all harnesses from the spec",
+        ["dot mcp-sync"],
+        {
+          description:
+            "Regenerate each active harness's native MCP config from the single private spec (mcp.yml), keeping agent harness MCP configs aligned. Writes into the stowed private source tree; run dot stow after. Some agent harnesses are documented stubs and are not written. OpenCode gated servers also receive a default-off tools gate so their tool schemas stay out of the baseline context until an agent re-enables them.",
+        },
+      ),
+      privatePublishCommand,
+      skillUpdatesCommand,
+      skillCheckCommand,
+      skillUpdatesAgentCommand,
+      completionsCommand,
+      isAgent,
+      floating,
+      herdr,
+      relayout,
+      capture,
+      restore,
+      usageCommand,
+      helpCommand,
+    ]),
+  ),
+  "Manage dotfiles and system configuration",
+);
+
+/** Canonical top-level command names derived from the executable tree. */
+export const commandNames = dotCommand.subcommands.flatMap((group) =>
+  group.commands.map((command) => command.name),
+);
+
+function getCommandNames(): readonly string[] {
+  return dotCommand.subcommands.flatMap((group) =>
+    group.commands.map((command) => command.name),
+  );
+}
+
+/** Resolve a top-level command by canonical name or alias. */
+export function getCliCommand(name: string): Command.Command.Any | undefined {
+  return dotCommand.subcommands
+    .flatMap((group) => group.commands)
+    .find((command) => command.name === name || command.alias === name);
+}
+
+/** Runtime structural view exposed by Effect commands for generated consumers. */
+export interface InspectableCommand extends Command.Command.Any {
+  /** Build structured help for a command path. */
+  readonly buildHelpDoc: (path: ReadonlyArray<string>) => HelpDoc.HelpDoc;
+  /** Parsed command parameter configuration. */
+  readonly config: {
+    readonly flags: ReadonlyArray<Param.AnyFlag>;
+    readonly arguments: ReadonlyArray<Param.AnyArgument>;
+  };
+}
+
+/** Read Effect's structured help directly from the executable command tree. */
+export function commandHelp(
+  command: Command.Command.Any,
+  path: ReadonlyArray<string>,
+): HelpDoc.HelpDoc {
+  // SAFETY: Effect command instances expose buildHelpDoc on their runtime implementation.
+  const help = (command as InspectableCommand).buildHelpDoc(path);
+  return {
+    ...help,
+    globalFlags: [
+      {
+        name: "help",
+        aliases: ["-h"],
+        type: "boolean",
+        description: Option.some("Show help information"),
+        required: false,
+      },
+    ],
+  };
+}
+
+/** Read the parsed parameter configuration from an Effect command. */
+export function commandConfig(
+  command: Command.Command.Any,
+): InspectableCommand["config"] {
+  // SAFETY: Effect command instances expose config on their runtime implementation.
+  return (command as InspectableCommand).config;
+}
+
+/** Read optional generated-documentation extensions from a command annotation. */
+export function commandDocs(command: Command.Command.Any): CliDocs | undefined {
+  return Option.getOrUndefined(
+    Context.getOption(command.annotations, CliDocsAnnotation),
   );
 }
