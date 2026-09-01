@@ -25,7 +25,7 @@ Item {
   property bool notificationsLoaded: false
   property string notificationsError: ""
 
-  readonly property bool refreshing: diffProcess.running || panelProcess.running || notificationsProcess.running
+  readonly property bool refreshing: diffProcess.running || panelProcess.running || notificationsProcess.running || pullProcess.running
   readonly property bool clear: diffLoaded && notificationsLoaded
     && diffError === "" && notificationsError === ""
     && diffClass === "dots-ok" && notificationClass === "hidden"
@@ -146,7 +146,15 @@ Item {
   function openRepo(repo, action) {
     if (!repo || !repo.path) return
     var path = String(repo.path)
-    if (action === "lazygit-floating")
+    if (action === "pull") {
+      if (pullProcess.running) return
+      pullProcess.command = [
+        "bash", "-lc",
+        "cd \"$1\" && GIT_TERMINAL_PROMPT=0 git pull --rebase --no-edit --recurse-submodules && GIT_TERMINAL_PROMPT=0 git submodule update --init --recursive",
+        "bash", path
+      ]
+      pullProcess.running = true
+    } else if (action === "lazygit-floating")
       Quickshell.execDetached(["uwsm", "app", "--", "xdg-terminal-exec", "--app-id=TUI.float", "--dir=" + path, "lazygit"])
     else if (action === "lazygit-pane" || action === "lazygit-tab")
       Quickshell.execDetached([
@@ -245,6 +253,14 @@ Item {
   Process {
     id: markReadProcess
     onExited: root.refresh()
+  }
+
+  Process {
+    id: pullProcess
+    onExited: {
+      root.refresh()
+      root.refreshPanel()
+    }
   }
 
   Timer {

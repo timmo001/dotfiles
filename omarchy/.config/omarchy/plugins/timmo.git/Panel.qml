@@ -34,6 +34,7 @@ Panel {
     var rows = []
     if (view === "overview") {
     } else if (view === "repo") {
+      rows.push(actionRow("pull", "Pull", "󰜷"))
       rows.push(actionRow("lazygit", "Open in lazygit", ""))
       rows.push(actionRow("editor", "Open in editor", ""))
       rows.push(actionRow("agent", "Open in agent", "󱚣"))
@@ -224,6 +225,13 @@ Panel {
     if (Number(repo.ahead || 0) > 0) values.push(repo.ahead + " ahead")
     if (Number(repo.behind || 0) > 0) values.push(repo.behind + " behind")
     return values.join(" · ") || "Clean"
+  }
+
+  Shortcut {
+    sequence: "Ctrl+P"
+    context: Qt.ApplicationShortcut
+    enabled: root.opened && root.view === "repo" && root.selectedRepo !== null
+    onActivated: root.activateAction("pull", Qt.NoModifier)
   }
 
   KeyboardPanel {
