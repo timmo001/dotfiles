@@ -49,6 +49,12 @@ run = "bun test"
 description = "Lint, type-check, test, and verify dot formatting"
 depends = ["lint", "dot:typecheck", "dot:test", "dot:format:check"]
 
+[tasks."skills-maintenance:build"]
+description = "Compile the standalone skills CLI into the stow package"
+dir = "dot"
+depends = ["dot:install"]
+run = "bun run src/buildSkillsMaintenance.ts"
+
 [tasks."tests:integration"]
 description = "Run deterministic repository integration tests"
 depends = ["dot:build"]

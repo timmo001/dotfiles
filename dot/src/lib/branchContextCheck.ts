@@ -28,8 +28,8 @@ export interface BranchContextIssue extends BranchContextConsumer {
   readonly registeredMode?: BranchContextMode;
 }
 
-/** Result of a skill-check maintenance scan */
-export interface SkillCheckResult {
+/** Result of a branch-context registration scan. */
+export interface BranchContextCheckResult {
   /** Commands that request BranchContextPlugin context */
   readonly branchContextConsumers: readonly BranchContextConsumer[];
   /** Branch-context commands missing from or mismatched with the plugin */
@@ -210,11 +210,11 @@ function checkBranchContextRegistrations(
 // Check Orchestration
 // ---------------------------------------------------------------------------
 
-/** Run the skill-check maintenance analysis */
-export function checkSkills(
+/** Check branch-context consumers against plugin registrations. */
+export function checkBranchContext(
   publicDotfiles: string,
   privateDotfiles?: string | null,
-): SkillCheckResult {
+): BranchContextCheckResult {
   const branchContextConsumers = scanBranchContextConsumers(
     publicDotfiles,
     privateDotfiles,

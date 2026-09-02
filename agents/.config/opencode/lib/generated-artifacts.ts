@@ -27,8 +27,24 @@ const GENERATED_ARTIFACTS = [
     command: "scripts/.local/bin/dot completions zsh",
   },
   {
+    path: "bash/.local/share/bash-completion/completions/skill-maintenance",
+    command: "scripts/.local/bin/skill-maintenance --completions bash",
+  },
+  {
+    path: "fish/.config/fish/completions/skill-maintenance.fish",
+    command: "scripts/.local/bin/skill-maintenance --completions fish",
+  },
+  {
+    path: "zsh/.local/share/zsh/site-functions/_skill-maintenance",
+    command: "scripts/.local/bin/skill-maintenance --completions zsh",
+  },
+  {
     path: "scripts/.local/bin/dot",
     command: "mise run dot:build",
+  },
+  {
+    path: "scripts/.local/bin/skill-maintenance",
+    command: "mise run skills-maintenance:build",
   },
   {
     path: "docs/public/og.png",

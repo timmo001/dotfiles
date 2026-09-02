@@ -33,6 +33,7 @@ dot/node_modules/
 dot/dist/
 scripts/.local/bin/dot
 scripts/.local/bin/dot*
+scripts/.local/bin/skill-maintenance
 zsh/.local/share/zsh/chpwd-recent-dirs
 zsh/.local/share/zsh/site-functions/_mise
 zsh/.local/share/zsh/site-functions/_op

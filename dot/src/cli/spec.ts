@@ -23,12 +23,7 @@ import { omarchyPlugin } from "../commands/OmarchyPlugin.js";
 import { privatePkgPublish } from "../commands/PrivatePkgPublish.js";
 import { setupPrivateRepo } from "../commands/SetupPrivateRepo.js";
 import { setupPublicRepo } from "../commands/SetupPublicRepo.js";
-import { skillCheck } from "../commands/SkillCheck.js";
-import { skillUpdates } from "../commands/SkillUpdates.js";
-import {
-  skillUpdatesAgent,
-  SkillUpdatesAgentError,
-} from "../commands/SkillUpdatesAgent.js";
+import { runSkillsMaintenance } from "../commands/Skills.js";
 import { stow } from "../commands/Stow.js";
 import { update, updateCheck } from "../commands/Update.js";
 import { usage } from "../commands/Usage.js";
@@ -702,9 +697,37 @@ const privatePublishCommand = describe(
   },
 );
 
-const skillUpdatesCommand = describe(
+const skillsValidate = describe(
+  Command.make("validate", {}, () => runSkillsMaintenance(["validate"])),
+  "Validate the standalone skills repository",
+);
+const skillsImport = describe(
   Command.make(
-    "skill-updates",
+    "import",
+    {
+      name: Argument.string("name").pipe(
+        Argument.withDescription("Imported skill name"),
+      ),
+      apply: bool("apply", "Apply a clean imported snapshot"),
+      metadataOnly: bool("metadata-only", "Materialise metadata only"),
+      reviewedSha: text("reviewed-sha", "Set the reviewed upstream SHA"),
+    },
+    ({ apply, metadataOnly, name, reviewedSha }) =>
+      runSkillsMaintenance([
+        "import",
+        name,
+        ...(apply ? ["--apply"] : []),
+        ...(metadataOnly ? ["--metadata-only"] : []),
+        ...(Option.isSome(reviewedSha)
+          ? ["--reviewed-sha", reviewedSha.value]
+          : []),
+      ]),
+  ),
+  "Import or refresh a reviewed skill snapshot",
+);
+const skillsUpdates = describe(
+  Command.make(
+    "updates",
     {
       check: bool("check", "Check only"),
       update: bool("update", "Apply clean updates"),
@@ -713,72 +736,98 @@ const skillUpdatesCommand = describe(
       noCommit: bool("no-commit", "Apply without committing"),
       skipReview: bool("skip-review", "Skip local-edit review"),
     },
-    ({ skill, ...options }) =>
-      skillUpdates({ ...options, skill: optional(skill) }).pipe(Effect.asVoid),
+    ({ check, json, noCommit, skill, skipReview, update }) =>
+      runSkillsMaintenance([
+        "updates",
+        ...(check ? ["--check"] : []),
+        ...(update ? ["--update"] : []),
+        ...(json ? ["--json"] : []),
+        ...(Option.isSome(skill) ? ["--skill", skill.value] : []),
+        ...(noCommit ? ["--no-commit"] : []),
+        ...(skipReview ? ["--skip-review"] : []),
+      ]),
   ),
   "Check/apply imported skill updates",
   [
-    "dot skill-updates --json",
-    "dot skill-updates --update --skill browser-control --no-commit",
+    "dot skills updates --json",
+    "dot skills updates --update --skill browser-control --no-commit",
   ],
 );
-const skillCheckCommand = describe(
+const skillsCheck = describe(
   Command.make(
-    "skill-check",
+    "check",
     {
       openOpencode: bool("open-opencode", "Attempt OpenCode analysis"),
       diffOrigin: bool("diff-origin", "Diff against upstream origins"),
       skill: text("skill", "Check one skill"),
     },
-    ({ skill, ...options }) =>
-      skillCheck({ ...options, skill: optional(skill) }),
+    ({ diffOrigin, openOpencode, skill }) =>
+      runSkillsMaintenance([
+        "check",
+        ...(Option.isSome(skill) ? ["--skill", skill.value] : []),
+        ...(diffOrigin ? ["--diff-origin"] : []),
+        ...(openOpencode ? ["--open-opencode"] : []),
+      ]),
   ),
-  "Validate skill maintenance and adapted imports",
-  ["dot skill-check --skill browser-control"],
-  {
-    description:
-      "Validate branch-context wiring and ensure adapted imported skills still differ from every file in their current upstream source. When an adapted skill exactly matches its source, human sessions can reimport it through the standard Skills CLI. Agent sessions print the equivalent command instead.",
-  },
+  "Check adapted imports against upstream",
+  ["dot skills check --skill browser-control"],
 );
-const skillUpdatesAgentCommand = describe(
+const skillsAgentGitHub = describe(
   Command.make(
-    "skill-updates-agent",
+    "github",
     {
-      mode: Argument.choice("mode", ["github", "device"]).pipe(
-        Argument.withDescription("Automation mode"),
-      ),
-      configPath: pathFlag("config", "Use another YAML config", "file"),
-      runId: text("run-id", "Wait for this workflow run"),
       skillsDir: pathFlag(
         "skills-dir",
         "Use this Skills checkout",
         "directory",
       ),
     },
-    ({ configPath, mode, runId, skillsDir }) =>
-      mode === "github" || mode === "device"
-        ? skillUpdatesAgent({
-            mode,
-            configPath: optional(configPath),
-            runId: optional(runId),
-            skillsDir: optional(skillsDir),
-          })
-        : Effect.fail(
-            new SkillUpdatesAgentError({
-              operation: "mode",
-              message: "skill-updates-agent requires github or device mode",
-            }),
-          ),
+    ({ skillsDir }) =>
+      runSkillsMaintenance([
+        "updates-agent",
+        "github",
+        ...(Option.isSome(skillsDir) ? ["--skills-dir", skillsDir.value] : []),
+      ]),
   ),
-  "Run GitHub or device skill update automation",
-  [
-    "dot skill-updates-agent github --skills-dir .",
-    "dot skill-updates-agent device --config ~/.config/dotfiles-private/skill-updates-agent.yml --run-id 123456",
-  ],
-  {
-    description:
-      "Run the shared skill update workflow. GitHub mode checks imports, opens clean update pull requests, dispatches validation, and refreshes the dashboard. Device mode optionally waits for that workflow, then runs the configured local OpenCode processor with completed-run deduplication.",
-  },
+  "Run GitHub skill update automation",
+);
+const skillsAgentDevice = describe(
+  Command.make(
+    "device",
+    {
+      configPath: Flag.path("config", { pathType: "file" }).pipe(
+        Flag.withDescription("Use this YAML config"),
+      ),
+      runId: text("run-id", "Wait for this workflow run"),
+    },
+    ({ configPath, runId }) =>
+      runSkillsMaintenance([
+        "updates-agent",
+        "device",
+        "--config",
+        configPath,
+        ...(Option.isSome(runId) ? ["--run-id", runId.value] : []),
+      ]),
+  ),
+  "Run local device skill update automation",
+);
+const skillsUpdatesAgent = describe(
+  Command.make("updates-agent").pipe(
+    Command.withSubcommands([skillsAgentGitHub, skillsAgentDevice]),
+  ),
+  "Run skill update automation",
+);
+const skillsCommand = describe(
+  Command.make("skills").pipe(
+    Command.withSubcommands([
+      skillsValidate,
+      skillsImport,
+      skillsUpdates,
+      skillsCheck,
+      skillsUpdatesAgent,
+    ]),
+  ),
+  "Maintain imported agent skills",
 );
 
 const completionsCommand = describe(
@@ -801,7 +850,7 @@ const completionsCommand = describe(
   ],
   {
     description:
-      "Generate shell completions for dot. By default this writes the managed completion file for the selected shell in the public dotfiles repo so the next dot stow installs it.",
+      "Generate shell completions for dot. By default this writes the managed dot and skill-maintenance completion files for the selected shell so the next dot stow installs them. Pass --stdout to print only dot completions.",
   },
 );
 const isAgent = describe(
@@ -1091,9 +1140,7 @@ export const dotCommand = describe(
         },
       ),
       privatePublishCommand,
-      skillUpdatesCommand,
-      skillCheckCommand,
-      skillUpdatesAgentCommand,
+      skillsCommand,
       completionsCommand,
       isAgent,
       agentOxlintCommand,

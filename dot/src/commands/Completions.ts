@@ -9,6 +9,7 @@ import { mkdirSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { commandConfig, commandHelp, dotCommand } from "../cli/spec.js";
 import { Config } from "../services/Config.js";
+import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
 
 interface ChoicePrimitive extends Primitive.Primitive<unknown> {
@@ -69,6 +70,12 @@ const COMPLETION_TARGETS = {
   bash: "bash/.local/share/bash-completion/completions/dot",
   fish: "fish/.config/fish/completions/dot.fish",
   zsh: "zsh/.local/share/zsh/site-functions/_dot",
+} satisfies Record<CompletionShell, string>;
+
+const SKILL_MAINTENANCE_COMPLETION_TARGETS = {
+  bash: "bash/.local/share/bash-completion/completions/skill-maintenance",
+  fish: "fish/.config/fish/completions/skill-maintenance.fish",
+  zsh: "zsh/.local/share/zsh/site-functions/_skill-maintenance",
 } satisfies Record<CompletionShell, string>;
 
 function flagType(single: Param.Single<"flag", unknown>): Completions.FlagType {
@@ -250,10 +257,36 @@ export function writeCompletions(shell: CompletionShell) {
   });
 }
 
+/** Generate and write standalone skill-maintenance completions. */
+export function writeSkillsMaintenanceCompletions(shell: CompletionShell) {
+  return Effect.gen(function* () {
+    const config = yield* Config;
+    const executor = yield* CommandExecutor;
+    const executable = join(
+      config.publicDotfiles,
+      "scripts",
+      ".local",
+      "bin",
+      "skill-maintenance",
+    );
+    const target = join(
+      config.publicDotfiles,
+      SKILL_MAINTENANCE_COMPLETION_TARGETS[shell],
+    );
+    const output = yield* executor.run(executable, ["--completions", shell]);
+    yield* Effect.sync(() => {
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, output);
+    });
+    return target;
+  });
+}
+
 /** Write generated completions for every supported shell. */
-export const writeAllCompletions = Effect.all(
-  SUPPORTED_SHELLS.map(writeCompletions),
-);
+export const writeAllCompletions = Effect.all([
+  ...SUPPORTED_SHELLS.map(writeCompletions),
+  ...SUPPORTED_SHELLS.map(writeSkillsMaintenanceCompletions),
+]);
 
 /** Generate or write completions for one shell. */
 export function completions(options: {
@@ -267,8 +300,13 @@ export function completions(options: {
       );
       return;
     }
-    const target = yield* writeCompletions(options.shell);
+    const targets = yield* Effect.all([
+      writeCompletions(options.shell),
+      writeSkillsMaintenanceCompletions(options.shell),
+    ]);
     const log = yield* OutputLog;
-    yield* log.info(`Generated ${options.shell} completions: ${target}`);
+    for (const target of targets) {
+      yield* log.info(`Generated ${options.shell} completions: ${target}`);
+    }
   });
 }

@@ -10,6 +10,7 @@ import { agentsSync } from "./AgentsSync.js";
 import { mcpSync } from "../mcp/commands/McpSync.js";
 import { writeAllCompletions } from "./Completions.js";
 import { rebuild, restartDot } from "../lib/selfUpdate.js";
+import { buildSkillsMaintenance } from "../lib/skillsMaintenance.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
 import { trustTrackedMiseConfigs } from "../lib/miseTrust.js";
 import { loadPrivatePackageRepoConfig } from "../doctor/checks/packages.js";
@@ -864,6 +865,19 @@ export const update = (opts?: UpdateOptions) =>
     }
 
     let shellConfigChanged = false;
+    if (doStow || doApp) {
+      yield* requiredUpdateStep(
+        "Build Skill Maintenance",
+        STEP_TIMEOUT_SECONDS.rebuild,
+        Effect.gen(function* () {
+          yield* log.section("Skill Maintenance");
+          const target = yield* buildSkillsMaintenance;
+          yield* log.info(`Built ${displayPath(target)}`);
+        }),
+      );
+      completedActions.push("Rebuilt the skill-maintenance executable");
+    }
+
     if (doStow) {
       yield* requiredUpdateStep(
         "Stow",

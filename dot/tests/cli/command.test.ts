@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { Command } from "effect/unstable/cli";
 import {
   commandHelp,
   commandNames,
@@ -8,10 +9,26 @@ import {
 } from "../../src/cli/spec.js";
 import { renderCompletions } from "../../src/commands/Completions.js";
 
+function nestedCommand(...path: readonly string[]) {
+  let command: Command.Command.Any = dotCommand;
+  for (const name of path) {
+    const nested = command.subcommands
+      .flatMap((group) => group.commands)
+      .find((item) => item.name === name);
+    if (!nested) throw new Error(`Command missing: ${path.join(" ")}`);
+    command = nested;
+  }
+  return command;
+}
+
 describe("Effect command tree", () => {
   test("owns canonical commands and aliases", () => {
     expect(commandNames).toContain("update");
     expect(commandNames).toContain("agent-oxlint");
+    expect(commandNames).toContain("skills");
+    expect(commandNames).not.toContain("skill-updates");
+    expect(commandNames).not.toContain("skill-check");
+    expect(commandNames).not.toContain("skill-updates-agent");
     expect(getCliCommand("up")?.name).toBe("update");
     expect(getCliCommand("diff")?.name).toBe("git-diff");
   });
@@ -45,7 +62,6 @@ describe("Effect command tree", () => {
   test("uses path primitives for path-valued options", () => {
     for (const [name, flags] of [
       ["init", ["log"]],
-      ["skill-updates-agent", ["config", "skills-dir"]],
       ["workspace-capture", ["output", "state-dir"]],
       ["workspace-restore", ["file", "state-dir"]],
     ] as const) {
@@ -57,6 +73,15 @@ describe("Effect command tree", () => {
           "path",
         );
       }
+    }
+
+    for (const [path, flag] of [
+      [["skills", "updates-agent", "github"], "skills-dir"],
+      [["skills", "updates-agent", "device"], "config"],
+    ] as const) {
+      const command = nestedCommand(...path);
+      const help = commandHelp(command, ["dot", ...path]);
+      expect(help.flags.find((item) => item.name === flag)?.type).toBe("path");
     }
 
     const agentOxlint = getCliCommand("agent-oxlint");
@@ -72,6 +97,10 @@ describe("Effect command tree", () => {
       expect(completion).toContain("git-diff");
       expect(completion).toContain("omarchy-plugin");
       expect(completion).toContain("agent-oxlint");
+      expect(completion).toContain("skills");
+      expect(completion).toContain("updates-agent");
+      expect(completion).toContain("--metadata-only");
+      expect(completion).toContain("--reviewed-sha");
       expect(completion).toContain("--help");
       expect(completion).toContain("github");
       expect(completion).toContain("device");

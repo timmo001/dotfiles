@@ -582,12 +582,63 @@ dot private-pkg-publish twitch-notifications --install
 dot private-pkg-publish --skip-build --no-git twitch-notifications
 ```
 
-## `dot skill-updates`
+## `dot skills`
+
+Maintain imported agent skills
+
+```text
+dot skills <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot skills validate`
+
+Validate the standalone skills repository
+
+```text
+dot skills validate [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot skills import`
+
+Import or refresh a reviewed skill snapshot
+
+```text
+dot skills import [flags] <name>
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--apply` | Apply a clean imported snapshot |
+| `--metadata-only` | Materialise metadata only |
+| `--reviewed-sha` `<string>` | Set the reviewed upstream SHA |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<name>` | Imported skill name |
+
+### `dot skills updates`
 
 Check/apply imported skill updates
 
 ```text
-dot skill-updates [flags]
+dot skills updates [flags]
 ```
 
 **Options**
@@ -605,19 +656,17 @@ dot skill-updates [flags]
 **Examples**
 
 ```bash
-dot skill-updates --json
-dot skill-updates --update --skill browser-control --no-commit
+dot skills updates --json
+dot skills updates --update --skill browser-control --no-commit
 ```
 
-## `dot skill-check`
+### `dot skills check`
 
-Validate skill maintenance and adapted imports
+Check adapted imports against upstream
 
 ```text
-dot skill-check [flags]
+dot skills check [flags]
 ```
-
-Validate branch-context wiring and ensure adapted imported skills still differ from every file in their current upstream source. When an adapted skill exactly matches its source, human sessions can reimport it through the standard Skills CLI. Agent sessions print the equivalent command instead.
 
 **Options**
 
@@ -631,40 +680,53 @@ Validate branch-context wiring and ensure adapted imported skills still differ f
 **Examples**
 
 ```bash
-dot skill-check --skill browser-control
+dot skills check --skill browser-control
 ```
 
-## `dot skill-updates-agent`
+### `dot skills updates-agent`
 
-Run GitHub or device skill update automation
+Run skill update automation
 
 ```text
-dot skill-updates-agent [flags] <mode>
+dot skills updates-agent <subcommand> [flags]
 ```
-
-Run the shared skill update workflow. GitHub mode checks imports, opens clean update pull requests, dispatches validation, and refreshes the dashboard. Device mode optionally waits for that workflow, then runs the configured local OpenCode processor with completed-run deduplication.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
-| `--config` `<path>` | Use another YAML config |
-| `--run-id` `<string>` | Wait for this workflow run |
+| `--help` `-h` | Show help information |
+
+#### `dot skills updates-agent github`
+
+Run GitHub skill update automation
+
+```text
+dot skills updates-agent github [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
 | `--skills-dir` `<path>` | Use this Skills checkout |
 | `--help` `-h` | Show help information |
 
-**Arguments**
+#### `dot skills updates-agent device`
 
-| Argument | Description |
-| --- | --- |
-| `<mode>` | Automation mode |
+Run local device skill update automation
 
-**Examples**
-
-```bash
-dot skill-updates-agent github --skills-dir .
-dot skill-updates-agent device --config ~/.config/dotfiles-private/skill-updates-agent.yml --run-id 123456
+```text
+dot skills updates-agent device [flags]
 ```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--config` `<path>` | Use this YAML config |
+| `--run-id` `<string>` | Wait for this workflow run |
+| `--help` `-h` | Show help information |
 
 ## `dot completions`
 
@@ -674,7 +736,7 @@ Generate shell completions
 dot completions [flags] [<shell>]
 ```
 
-Generate shell completions for dot. By default this writes the managed completion file for the selected shell in the public dotfiles repo so the next dot stow installs it.
+Generate shell completions for dot. By default this writes the managed dot and skill-maintenance completion files for the selected shell so the next dot stow installs them. Pass --stdout to print only dot completions.
 
 **Options**
 

@@ -34,9 +34,7 @@ _dot() {
     'git-notifications:Open the authenticated GitHub notification inbox. Without machine-output or action flags, this opens the Omarchy shell panel. --since accepts ISO/RFC dates, epoch timestamps, compact durations such as 2d, and quoted durations such as "2 days ago".'
     'mcp-sync:Regenerate MCP configs for all harnesses from the spec'
     'private-pkg-publish:Build and publish a private package'
-    'skill-updates:Check/apply imported skill updates'
-    'skill-check:Validate skill maintenance and adapted imports'
-    'skill-updates-agent:Run GitHub or device skill update automation'
+    'skills:Maintain imported agent skills'
     'completions:Generate shell completions'
     'is-agent:Detect whether an AI coding agent is running dot'
     'agent-oxlint:Run the advisory generic Oxlint pass for cleanup work in an opted-in repository. Repository-owned Oxlint takes precedence. Pass changed paths normally, or use --all when explicitly requested.'
@@ -125,14 +123,8 @@ _dot() {
         private-pkg-publish)
           _dot_private_pkg_publish
           ;;
-        skill-updates)
-          _dot_skill_updates
-          ;;
-        skill-check)
-          _dot_skill_check
-          ;;
-        skill-updates-agent)
-          _dot_skill_updates_agent
+        skills)
+          _dot_skills
           ;;
         completions)
           _dot_completions
@@ -522,7 +514,80 @@ _dot_private_pkg_publish() {
   _arguments "${specs[@]}"
 }
 
-_dot_skill_updates() {
+_dot_skills() {
+  local context state state_descr line
+  typeset -A opt_args
+
+  local -a commands
+  commands=(
+    'validate:Validate the standalone skills repository'
+    'import:Import or refresh a reviewed skill snapshot'
+    'updates:Check/apply imported skill updates'
+    'check:Check adapted imports against upstream'
+    'updates-agent:Run skill update automation'
+  )
+
+  local -a specs
+  specs=(
+    '(--help -h)--help[Show help information]'
+    '(--help -h)-h[Show help information]'
+    '1:command:->command'
+    '*::arg:->args'
+  )
+
+  _arguments -C "${specs[@]}"
+
+  case "$state" in
+    command)
+      _describe -t commands 'commands' commands
+      ;;
+    args)
+      case "$words[1]" in
+        validate)
+          _dot_skills_validate
+          ;;
+        import)
+          _dot_skills_import
+          ;;
+        updates)
+          _dot_skills_updates
+          ;;
+        check)
+          _dot_skills_check
+          ;;
+        updates-agent)
+          _dot_skills_updates_agent
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_dot_skills_validate() {
+  local -a specs
+  specs=(
+    '(--help -h)--help[Show help information]'
+    '(--help -h)-h[Show help information]'
+  )
+  _arguments "${specs[@]}"
+}
+
+_dot_skills_import() {
+  local -a specs
+  specs=(
+    '(--apply --no-apply)--apply[Apply a clean imported snapshot]'
+    '(--apply --no-apply)--no-apply[Disable apply]'
+    '(--metadata-only --no-metadata-only)--metadata-only[Materialise metadata only]'
+    '(--metadata-only --no-metadata-only)--no-metadata-only[Disable metadata-only]'
+    '(--reviewed-sha)--reviewed-sha[Set the reviewed upstream SHA]:value:'
+    '(--help -h)--help[Show help information]'
+    '(--help -h)-h[Show help information]'
+    ':Imported skill name:'
+  )
+  _arguments "${specs[@]}"
+}
+
+_dot_skills_updates() {
   local -a specs
   specs=(
     '(--check --no-check)--check[Check only]'
@@ -541,7 +606,7 @@ _dot_skill_updates() {
   _arguments "${specs[@]}"
 }
 
-_dot_skill_check() {
+_dot_skills_check() {
   local -a specs
   specs=(
     '(--open-opencode --no-open-opencode)--open-opencode[Attempt OpenCode analysis]'
@@ -555,15 +620,60 @@ _dot_skill_check() {
   _arguments "${specs[@]}"
 }
 
-_dot_skill_updates_agent() {
+_dot_skills_updates_agent() {
+  local context state state_descr line
+  typeset -A opt_args
+
+  local -a commands
+  commands=(
+    'github:Run GitHub skill update automation'
+    'device:Run local device skill update automation'
+  )
+
   local -a specs
   specs=(
-    '(--config)--config[Use another YAML config]:file:_files'
-    '(--run-id)--run-id[Wait for this workflow run]:value:'
+    '(--help -h)--help[Show help information]'
+    '(--help -h)-h[Show help information]'
+    '1:command:->command'
+    '*::arg:->args'
+  )
+
+  _arguments -C "${specs[@]}"
+
+  case "$state" in
+    command)
+      _describe -t commands 'commands' commands
+      ;;
+    args)
+      case "$words[1]" in
+        github)
+          _dot_skills_updates_agent_github
+          ;;
+        device)
+          _dot_skills_updates_agent_device
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_dot_skills_updates_agent_github() {
+  local -a specs
+  specs=(
     '(--skills-dir)--skills-dir[Use this Skills checkout]:directory:_directories'
     '(--help -h)--help[Show help information]'
     '(--help -h)-h[Show help information]'
-    ':Automation mode:(github device)'
+  )
+  _arguments "${specs[@]}"
+}
+
+_dot_skills_updates_agent_device() {
+  local -a specs
+  specs=(
+    '(--config)--config[Use this YAML config]:file:_files'
+    '(--run-id)--run-id[Wait for this workflow run]:value:'
+    '(--help -h)--help[Show help information]'
+    '(--help -h)-h[Show help information]'
   )
   _arguments "${specs[@]}"
 }

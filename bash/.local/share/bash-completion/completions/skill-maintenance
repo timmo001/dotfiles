@@ -1,0 +1,331 @@
+###-begin-skill-maintenance-completions-###
+#
+# Static completion script for Bash
+#
+# Installation:
+#   skill-maintenance --completions bash >> ~/.bashrc
+#
+
+if ! type _init_completion &>/dev/null; then
+  _init_completion()
+  {
+    COMPREPLY=()
+    local _i _j=0 _piece _line="$COMP_LINE"
+    words=("${COMP_WORDS[0]}")
+    cword=0
+    _line="${_line#*"${COMP_WORDS[0]}"}"
+    for ((_i = 1; _i < ${#COMP_WORDS[@]}; _i++)); do
+      _piece="${COMP_WORDS[_i]}"
+      if [[ "$_line" == [[:blank:]]* ]]; then
+        ((_j++))
+        words[_j]="$_piece"
+      else
+        words[_j]="${words[_j]}$_piece"
+      fi
+      ((_i == COMP_CWORD)) && cword=$_j
+      _line="${_line#*"$_piece"}"
+    done
+    cur="${words[cword]}"
+    prev=""
+    ((cword > 0)) && prev="${words[cword-1]}"
+    return 0
+  }
+fi
+
+_skill_maintenance--choices()
+{
+  local _cur="$1" _word="$2"; shift 2
+
+  local _head="${_cur%"$_word"}"
+  local _open=""
+  case "$_head" in
+    *\') _open="'" ;;
+    *\") _open='"' ;;
+  esac
+
+  local _prefix="$_cur" _committed="$_head"
+  _prefix=${_prefix//\\/}; _prefix=${_prefix//\"/}; _prefix=${_prefix//\'/}
+  _committed=${_committed//\\/}; _committed=${_committed//\"/}; _committed=${_committed//\'/}
+
+  COMPREPLY=()
+  local _choice _rest _match
+  for _choice in "$@"; do
+    [[ "$_choice" == "$_prefix"* ]] || continue
+    _rest="${_choice#"$_committed"}"
+    case "$_open" in
+      "'")
+        if [[ "$_head" == "'" ]]; then
+          _match=${_rest//\'/\'\\\'\'}
+        else
+          [[ "$_rest" == *\'* ]] && continue
+          _match="$_rest"
+        fi
+        ;;
+      '"')
+        _match="${_rest//\\/\\\\}"
+        _match="${_match//\$/\\$}"
+        _match="${_match//\`/\\\`}"
+        _match="${_match//\"/\\\"}"
+        ;;
+      *)
+        printf -v _match '%q' "$_rest"
+        [[ -z "$_head" && "$_match" == '~'* ]] && _match="\\$_match"
+        ;;
+    esac
+    [[ -n "$_open" && "$_match" == *"$_open" ]] && _match+="$_open"
+    COMPREPLY+=("$_match")
+  done
+}
+
+_skill_maintenance()
+{
+  local cur prev words cword i
+  local _command_index=0
+  _init_completion -n "$COMP_WORDBREAKS" || return
+  local _comp_word="$2"
+
+  # Subcommand dispatch
+  local cmd _skip_next=0
+  for ((i = _command_index + 1; i < cword; i++)); do
+    if (( _skip_next )); then
+      _skip_next=0
+      continue
+    fi
+    case "${words[i]}" in
+      validate)
+        _skill_maintenance_validate "$i"
+        return
+        ;;
+      import)
+        _skill_maintenance_import "$i"
+        return
+        ;;
+      updates)
+        _skill_maintenance_updates "$i"
+        return
+        ;;
+      check)
+        _skill_maintenance_check "$i"
+        return
+        ;;
+      updates-agent)
+        _skill_maintenance_updates_agent "$i"
+        return
+        ;;
+    esac
+  done
+
+  # Complete flags (filtered) and subcommands
+  if [[ "$cur" == -* ]]; then
+    return
+  fi
+
+  COMPREPLY=( $(compgen -W 'validate import updates check updates-agent' -- "$cur") )
+}
+
+_skill_maintenance_validate()
+{
+  local cur prev words cword i
+  local _command_index="$1"
+  _init_completion -n "$COMP_WORDBREAKS" || return
+
+}
+
+_skill_maintenance_import()
+{
+  local cur prev words cword i
+  local _command_index="$1"
+  _init_completion -n "$COMP_WORDBREAKS" || return
+
+  # Flag value completions
+  case "$prev" in
+  esac
+
+  local _used_0="" _used_1="" _used_2=""
+  for ((i = 1; i < cword; i++)); do
+    case "${words[i]%%=*}" in
+      --apply|--no-apply) _used_0=1 ;;
+      --metadata-only|--no-metadata-only) _used_1=1 ;;
+      --reviewed-sha) _used_2=1 ;;
+    esac
+  done
+  local _filtered_flags=""
+  [[ -n "$_used_0" ]] || _filtered_flags+=" --apply --no-apply"
+  [[ -n "$_used_1" ]] || _filtered_flags+=" --metadata-only --no-metadata-only"
+  [[ -n "$_used_2" ]] || _filtered_flags+=" --reviewed-sha"
+
+  # Complete flags (filtered) and subcommands
+  if [[ "$cur" == -* ]]; then
+    COMPREPLY=( $(compgen -W "$_filtered_flags" -- "$cur") )
+    return
+  fi
+
+}
+
+_skill_maintenance_updates()
+{
+  local cur prev words cword i
+  local _command_index="$1"
+  _init_completion -n "$COMP_WORDBREAKS" || return
+
+  # Flag value completions
+  case "$prev" in
+  esac
+
+  local _used_0="" _used_1="" _used_2="" _used_3="" _used_4="" _used_5=""
+  for ((i = 1; i < cword; i++)); do
+    case "${words[i]%%=*}" in
+      --check|--no-check) _used_0=1 ;;
+      --update|--no-update) _used_1=1 ;;
+      --json|--no-json) _used_2=1 ;;
+      --skill) _used_3=1 ;;
+      --commit|--no-commit) _used_4=1 ;;
+      --skip-review|--no-skip-review) _used_5=1 ;;
+    esac
+  done
+  local _filtered_flags=""
+  [[ -n "$_used_0" ]] || _filtered_flags+=" --check --no-check"
+  [[ -n "$_used_1" ]] || _filtered_flags+=" --update --no-update"
+  [[ -n "$_used_2" ]] || _filtered_flags+=" --json --no-json"
+  [[ -n "$_used_3" ]] || _filtered_flags+=" --skill"
+  [[ -n "$_used_4" ]] || _filtered_flags+=" --commit --no-commit"
+  [[ -n "$_used_5" ]] || _filtered_flags+=" --skip-review --no-skip-review"
+
+  # Complete flags (filtered) and subcommands
+  if [[ "$cur" == -* ]]; then
+    COMPREPLY=( $(compgen -W "$_filtered_flags" -- "$cur") )
+    return
+  fi
+
+}
+
+_skill_maintenance_check()
+{
+  local cur prev words cword i
+  local _command_index="$1"
+  _init_completion -n "$COMP_WORDBREAKS" || return
+
+  # Flag value completions
+  case "$prev" in
+  esac
+
+  local _used_0="" _used_1="" _used_2=""
+  for ((i = 1; i < cword; i++)); do
+    case "${words[i]%%=*}" in
+      --skill) _used_0=1 ;;
+      --diff-origin|--no-diff-origin) _used_1=1 ;;
+      --open-opencode|--no-open-opencode) _used_2=1 ;;
+    esac
+  done
+  local _filtered_flags=""
+  [[ -n "$_used_0" ]] || _filtered_flags+=" --skill"
+  [[ -n "$_used_1" ]] || _filtered_flags+=" --diff-origin --no-diff-origin"
+  [[ -n "$_used_2" ]] || _filtered_flags+=" --open-opencode --no-open-opencode"
+
+  # Complete flags (filtered) and subcommands
+  if [[ "$cur" == -* ]]; then
+    COMPREPLY=( $(compgen -W "$_filtered_flags" -- "$cur") )
+    return
+  fi
+
+}
+
+_skill_maintenance_updates_agent()
+{
+  local cur prev words cword i
+  local _command_index="$1"
+  _init_completion -n "$COMP_WORDBREAKS" || return
+
+  # Subcommand dispatch
+  local cmd _skip_next=0
+  for ((i = _command_index + 1; i < cword; i++)); do
+    if (( _skip_next )); then
+      _skip_next=0
+      continue
+    fi
+    case "${words[i]}" in
+      github)
+        _skill_maintenance_updates_agent_github "$i"
+        return
+        ;;
+      device)
+        _skill_maintenance_updates_agent_device "$i"
+        return
+        ;;
+    esac
+  done
+
+  # Complete flags (filtered) and subcommands
+  if [[ "$cur" == -* ]]; then
+    return
+  fi
+
+  COMPREPLY=( $(compgen -W 'github device' -- "$cur") )
+}
+
+_skill_maintenance_updates_agent_github()
+{
+  local cur prev words cword i
+  local _command_index="$1"
+  _init_completion -n "$COMP_WORDBREAKS" || return
+
+  # Flag value completions
+  case "$prev" in
+    --skills-dir)
+      COMPREPLY=( $(compgen -d -- "$cur") )
+      return
+      ;;
+  esac
+
+  local _used_0=""
+  for ((i = 1; i < cword; i++)); do
+    case "${words[i]%%=*}" in
+      --skills-dir) _used_0=1 ;;
+    esac
+  done
+  local _filtered_flags=""
+  [[ -n "$_used_0" ]] || _filtered_flags+=" --skills-dir"
+
+  # Complete flags (filtered) and subcommands
+  if [[ "$cur" == -* ]]; then
+    COMPREPLY=( $(compgen -W "$_filtered_flags" -- "$cur") )
+    return
+  fi
+
+}
+
+_skill_maintenance_updates_agent_device()
+{
+  local cur prev words cword i
+  local _command_index="$1"
+  _init_completion -n "$COMP_WORDBREAKS" || return
+
+  # Flag value completions
+  case "$prev" in
+    --config)
+      COMPREPLY=( $(compgen -f -- "$cur") )
+      return
+      ;;
+  esac
+
+  local _used_0="" _used_1=""
+  for ((i = 1; i < cword; i++)); do
+    case "${words[i]%%=*}" in
+      --config) _used_0=1 ;;
+      --run-id) _used_1=1 ;;
+    esac
+  done
+  local _filtered_flags=""
+  [[ -n "$_used_0" ]] || _filtered_flags+=" --config"
+  [[ -n "$_used_1" ]] || _filtered_flags+=" --run-id"
+
+  # Complete flags (filtered) and subcommands
+  if [[ "$cur" == -* ]]; then
+    COMPREPLY=( $(compgen -W "$_filtered_flags" -- "$cur") )
+    return
+  fi
+
+}
+
+complete -F _skill_maintenance skill-maintenance
+###-end-skill-maintenance-completions-###

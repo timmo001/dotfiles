@@ -1,0 +1,162 @@
+#compdef skill-maintenance
+###-begin-skill-maintenance-completions-###
+#
+# Static completion script for Zsh
+#
+# Installation:
+#   skill-maintenance --completions zsh > ~/.zsh/completions/_skill-maintenance
+#   then add ~/.zsh/completions to your fpath
+#
+
+_skill_maintenance() {
+  local context state state_descr line
+  typeset -A opt_args
+
+  local -a commands
+  commands=(
+    'validate:Validate skills and repository metadata'
+    'import:Fetch and compare or apply an imported skill'
+    'updates:Check and update tracked upstream skills'
+    'check:Review adapted imports against their origins'
+    'updates-agent:Run scheduled skill update automation'
+  )
+
+  local -a specs
+  specs=(
+    '1:command:->command'
+    '*::arg:->args'
+  )
+
+  _arguments -C "${specs[@]}"
+
+  case "$state" in
+    command)
+      _describe -t commands 'commands' commands
+      ;;
+    args)
+      case "$words[1]" in
+        validate)
+          _skill_maintenance_validate
+          ;;
+        import)
+          _skill_maintenance_import
+          ;;
+        updates)
+          _skill_maintenance_updates
+          ;;
+        check)
+          _skill_maintenance_check
+          ;;
+        updates-agent)
+          _skill_maintenance_updates_agent
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_skill_maintenance_validate() {
+}
+
+_skill_maintenance_import() {
+  local -a specs
+  specs=(
+    '(--apply --no-apply)--apply[Apply a clean upstream snapshot]'
+    '(--apply --no-apply)--no-apply[Disable apply]'
+    '(--metadata-only --no-metadata-only)--metadata-only[Materialise imports.json metadata only]'
+    '(--metadata-only --no-metadata-only)--no-metadata-only[Disable metadata-only]'
+    '(--reviewed-sha)--reviewed-sha:value:'
+    ':name:'
+  )
+  _arguments "${specs[@]}"
+}
+
+_skill_maintenance_updates() {
+  local -a specs
+  specs=(
+    '(--check --no-check)--check[Exit non-zero when imports need attention]'
+    '(--check --no-check)--no-check[Disable check]'
+    '(--update --no-update)--update[Apply clean updates and SHA-only refreshes]'
+    '(--update --no-update)--no-update[Disable update]'
+    '(--json --no-json)--json[Print the versioned machine report]'
+    '(--json --no-json)--no-json[Disable json]'
+    '(--skill)--skill:value:'
+    '(--commit --no-commit)--commit[Commit applied updates]'
+    '(--commit --no-commit)--no-commit[Disable commit]'
+    '(--skip-review --no-skip-review)--skip-review[Do not open adapted imports for review]'
+    '(--skip-review --no-skip-review)--no-skip-review[Disable skip-review]'
+  )
+  _arguments "${specs[@]}"
+}
+
+_skill_maintenance_check() {
+  local -a specs
+  specs=(
+    '(--skill)--skill:value:'
+    '(--diff-origin --no-diff-origin)--diff-origin[Render complete upstream diffs]'
+    '(--diff-origin --no-diff-origin)--no-diff-origin[Disable diff-origin]'
+    '(--open-opencode --no-open-opencode)--open-opencode[Open an interactive OpenCode review]'
+    '(--open-opencode --no-open-opencode)--no-open-opencode[Disable open-opencode]'
+  )
+  _arguments "${specs[@]}"
+}
+
+_skill_maintenance_updates_agent() {
+  local context state state_descr line
+  typeset -A opt_args
+
+  local -a commands
+  commands=(
+    'github:Publish clean import updates from GitHub Actions'
+    'device:Process one completed update workflow locally'
+  )
+
+  local -a specs
+  specs=(
+    '1:command:->command'
+    '*::arg:->args'
+  )
+
+  _arguments -C "${specs[@]}"
+
+  case "$state" in
+    command)
+      _describe -t commands 'commands' commands
+      ;;
+    args)
+      case "$words[1]" in
+        github)
+          _skill_maintenance_updates_agent_github
+          ;;
+        device)
+          _skill_maintenance_updates_agent_device
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_skill_maintenance_updates_agent_github() {
+  local -a specs
+  specs=(
+    '(--skills-dir)--skills-dir:directory:_directories'
+  )
+  _arguments "${specs[@]}"
+}
+
+_skill_maintenance_updates_agent_device() {
+  local -a specs
+  specs=(
+    '(--config)--config:file:_files'
+    '(--run-id)--run-id:value:'
+  )
+  _arguments "${specs[@]}"
+}
+
+# Handle both direct invocation and autoload
+if [[ "${zsh_eval_context[-1]}" == "loadautofunc" ]]; then
+  _skill_maintenance "$@"
+else
+  compdef _skill_maintenance skill-maintenance
+fi
+###-end-skill-maintenance-completions-###

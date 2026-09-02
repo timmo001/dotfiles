@@ -13,7 +13,7 @@ fi
 commands=(
   init install update stow firewall doctor clean git-diff git-commit
   git-notifications agents-sync mcp-sync notes-capture-sync is-agent
-  setup-private-repo private-pkg-publish skill-updates skill-check completions
+  setup-private-repo private-pkg-publish skills completions
   omarchy-plugin omarchy-shell-config agent-oxlint launch-floating-webapp usage help
 )
 
@@ -28,6 +28,29 @@ for removed_command in dashboard tui omarchy; do
     printf 'Removed command still succeeds: dot %s\n' "$removed_command" >&2
     exit 1
   fi
+done
+
+for removed_command in skill-updates skill-check skill-updates-agent; do
+  if DOT_USAGE_DISABLE=1 "$dot_binary" "$removed_command" --help >/dev/null 2>&1; then
+    printf 'Removed command still succeeds: dot %s\n' "$removed_command" >&2
+    exit 1
+  fi
+done
+
+for command in validate import updates check updates-agent; do
+  help="$(DOT_USAGE_DISABLE=1 "$dot_binary" skills "$command" --help)"
+  [[ "$help" == *"dot skills $command"* ]] || {
+    printf 'Missing help usage for dot skills %s\n' "$command" >&2
+    exit 1
+  }
+done
+
+for mode in github device; do
+  help="$(DOT_USAGE_DISABLE=1 "$dot_binary" skills updates-agent "$mode" --help)"
+  [[ "$help" == *"dot skills updates-agent $mode"* ]] || {
+    printf 'Missing help usage for dot skills updates-agent %s\n' "$mode" >&2
+    exit 1
+  }
 done
 
 for command in "${commands[@]}"; do
