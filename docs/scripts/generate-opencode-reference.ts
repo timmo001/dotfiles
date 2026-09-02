@@ -67,7 +67,7 @@ async function pluginDescription(file: string): Promise<string> {
   return match ? match[1].replace(/\.?\s*$/, '').trim() : '';
 }
 
-const escapeCell = (value: string) => value.replace(/\|/g, '\\|');
+const escapeCell = (value: string) => value.replace(/[\\|]/g, '\\$&');
 
 /** Recursively list markdown files under a directory, relative to it. */
 async function listMarkdown(dir: string, base = dir): Promise<string[]> {
