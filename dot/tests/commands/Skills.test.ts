@@ -59,16 +59,17 @@ describe("skills facade", () => {
       inherit: () => Effect.succeed(75),
     });
 
-    const exit = await Effect.runPromise(
-      Effect.exit(
+    const previousExitCode = process.exitCode;
+    process.exitCode = undefined;
+    try {
+      await Effect.runPromise(
         runSkillsMaintenance(["validate"]).pipe(
           Effect.provide(Layer.mergeAll(layer, Config.layer)),
         ),
-      ),
-    );
-    expect(exit._tag).toBe("Failure");
-    if (exit._tag === "Failure") {
-      expect(String(exit.cause)).toContain("75");
+      );
+      expect(Number(process.exitCode)).toBe(75);
+    } finally {
+      process.exitCode = previousExitCode;
     }
   });
 });

@@ -2,7 +2,6 @@ import { Effect } from "effect";
 import { join } from "path";
 import { HOME_DIR } from "../lib/paths.js";
 import { skillsMaintenanceSource } from "../lib/skillsMaintenance.js";
-import { LauncherError } from "../services/Launcher.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 
@@ -17,9 +16,6 @@ export const runSkillsMaintenance = Effect.fn("Skills.run")(function* (
     cwd: skillsMaintenanceSource(config.publicDotfiles),
   });
   if (exitCode !== 0) {
-    return yield* new LauncherError({
-      message: `skill-maintenance exited ${exitCode}`,
-      exitCode,
-    });
+    process.exitCode = exitCode;
   }
 });

@@ -1,5 +1,5 @@
 import { NodeServices } from "@effect/platform-node";
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Option } from "effect";
 import { CliConfig, CliError, Command } from "effect/unstable/cli";
 import { mkdirSync } from "fs";
 import { dirname, join } from "path";
@@ -22,7 +22,7 @@ import { isGvfsPath, writeMirroredLog } from "./lib/logMirror.js";
 import { CONFIG_DIR, STATE_DIR, expandHomePath } from "./lib/paths.js";
 import { formatCause } from "./lib/schema.js";
 import { installUsageHook } from "./lib/usage.js";
-import { withStepTimeout } from "./lib/workflowStep.js";
+import { withStepTimeout, withTimeoutOption } from "./lib/workflowStep.js";
 import { DotDiff } from "./git/services/DotDiff.js";
 import { GitHub } from "./git/services/GitHub.js";
 import { GitNotifications } from "./git/services/GitNotifications.js";
@@ -189,6 +189,17 @@ function withNativeCommandTimeout<E, R>(
       )?.[1]
     : undefined;
   if (!seconds || !command) return effect;
+  if (command === "skills" && args.includes("--json")) {
+    return Effect.gen(function* () {
+      const completed = yield* withTimeoutOption(effect, seconds);
+      if (Option.isNone(completed)) {
+        console.error(
+          `${commandLabel(command)} exceeded ${seconds}s and was stopped`,
+        );
+        process.exitCode = 1;
+      }
+    });
+  }
   return Effect.gen(function* () {
     const completed = yield* withStepTimeout(
       commandLabel(command),

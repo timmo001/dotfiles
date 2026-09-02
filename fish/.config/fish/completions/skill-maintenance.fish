@@ -18,12 +18,12 @@ complete -c skill-maintenance -n '__fish_seen_subcommand_from import; and not __
 complete -c skill-maintenance -n '__fish_seen_subcommand_from import; and not __fish_contains_opt apply no-apply' -l no-apply -d 'Disable apply'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from import; and not __fish_contains_opt metadata-only no-metadata-only' -l metadata-only -d 'Materialise imports.json metadata only'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from import; and not __fish_contains_opt metadata-only no-metadata-only' -l no-metadata-only -d 'Disable metadata-only'
-complete -c skill-maintenance -n '__fish_seen_subcommand_from import; and begin; not __fish_contains_opt reviewed-sha; or contains -- (commandline -poc)[-1] --reviewed-sha; end' -l reviewed-sha -r -f
+complete -c skill-maintenance -n '__fish_seen_subcommand_from import; and begin; not __fish_contains_opt reviewed-sha; or contains -- (commandline -poc)[-1] --reviewed-sha; end' -l reviewed-sha -d 'Set the reviewed upstream SHA' -r -f
 complete -c skill-maintenance -n '__fish_seen_subcommand_from import; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt apply no-apply' -f -a '--apply' -d 'Apply a clean upstream snapshot'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from import; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt apply no-apply' -f -a '--no-apply' -d 'Disable apply'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from import; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt metadata-only no-metadata-only' -f -a '--metadata-only' -d 'Materialise imports.json metadata only'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from import; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt metadata-only no-metadata-only' -f -a '--no-metadata-only' -d 'Disable metadata-only'
-complete -c skill-maintenance -n '__fish_seen_subcommand_from import; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt reviewed-sha' -f -a '--reviewed-sha'
+complete -c skill-maintenance -n '__fish_seen_subcommand_from import; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt reviewed-sha' -f -a '--reviewed-sha' -d 'Set the reviewed upstream SHA'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from updates' -f
 complete -c skill-maintenance -n '__fish_seen_subcommand_from updates; and not __fish_contains_opt check no-check' -l check -d 'Exit non-zero when imports need attention'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from updates; and not __fish_contains_opt check no-check' -l no-check -d 'Disable check'
@@ -31,7 +31,7 @@ complete -c skill-maintenance -n '__fish_seen_subcommand_from updates; and not _
 complete -c skill-maintenance -n '__fish_seen_subcommand_from updates; and not __fish_contains_opt update no-update' -l no-update -d 'Disable update'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from updates; and not __fish_contains_opt json no-json' -l json -d 'Print the versioned machine report'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from updates; and not __fish_contains_opt json no-json' -l no-json -d 'Disable json'
-complete -c skill-maintenance -n '__fish_seen_subcommand_from updates; and begin; not __fish_contains_opt skill; or contains -- (commandline -poc)[-1] --skill; end' -l skill -r -f
+complete -c skill-maintenance -n '__fish_seen_subcommand_from updates; and begin; not __fish_contains_opt skill; or contains -- (commandline -poc)[-1] --skill; end' -l skill -d 'Limit to one skill' -r -f
 complete -c skill-maintenance -n '__fish_seen_subcommand_from updates; and not __fish_contains_opt commit no-commit' -l commit -d 'Commit applied updates'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from updates; and not __fish_contains_opt commit no-commit' -l no-commit -d 'Disable commit'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from updates; and not __fish_contains_opt skip-review no-skip-review' -l skip-review -d 'Do not open adapted imports for review'
@@ -42,18 +42,18 @@ complete -c skill-maintenance -n '__fish_seen_subcommand_from updates; and not s
 complete -c skill-maintenance -n '__fish_seen_subcommand_from updates; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt update no-update' -f -a '--no-update' -d 'Disable update'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from updates; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt json no-json' -f -a '--json' -d 'Print the versioned machine report'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from updates; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt json no-json' -f -a '--no-json' -d 'Disable json'
-complete -c skill-maintenance -n '__fish_seen_subcommand_from updates; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt skill' -f -a '--skill'
+complete -c skill-maintenance -n '__fish_seen_subcommand_from updates; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt skill' -f -a '--skill' -d 'Limit to one skill'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from updates; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt commit no-commit' -f -a '--commit' -d 'Commit applied updates'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from updates; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt commit no-commit' -f -a '--no-commit' -d 'Disable commit'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from updates; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt skip-review no-skip-review' -f -a '--skip-review' -d 'Do not open adapted imports for review'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from updates; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt skip-review no-skip-review' -f -a '--no-skip-review' -d 'Disable skip-review'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from check' -f
-complete -c skill-maintenance -n '__fish_seen_subcommand_from check; and begin; not __fish_contains_opt skill; or contains -- (commandline -poc)[-1] --skill; end' -l skill -r -f
+complete -c skill-maintenance -n '__fish_seen_subcommand_from check; and begin; not __fish_contains_opt skill; or contains -- (commandline -poc)[-1] --skill; end' -l skill -d 'Check one skill' -r -f
 complete -c skill-maintenance -n '__fish_seen_subcommand_from check; and not __fish_contains_opt diff-origin no-diff-origin' -l diff-origin -d 'Render complete upstream diffs'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from check; and not __fish_contains_opt diff-origin no-diff-origin' -l no-diff-origin -d 'Disable diff-origin'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from check; and not __fish_contains_opt open-opencode no-open-opencode' -l open-opencode -d 'Open an interactive OpenCode review'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from check; and not __fish_contains_opt open-opencode no-open-opencode' -l no-open-opencode -d 'Disable open-opencode'
-complete -c skill-maintenance -n '__fish_seen_subcommand_from check; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt skill' -f -a '--skill'
+complete -c skill-maintenance -n '__fish_seen_subcommand_from check; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt skill' -f -a '--skill' -d 'Check one skill'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from check; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt diff-origin no-diff-origin' -f -a '--diff-origin' -d 'Render complete upstream diffs'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from check; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt diff-origin no-diff-origin' -f -a '--no-diff-origin' -d 'Disable diff-origin'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from check; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt open-opencode no-open-opencode' -f -a '--open-opencode' -d 'Open an interactive OpenCode review'
@@ -62,12 +62,12 @@ complete -c skill-maintenance -n '__fish_seen_subcommand_from updates-agent; and
 complete -c skill-maintenance -n '__fish_seen_subcommand_from updates-agent; and not __fish_seen_subcommand_from github device' -f -a 'github' -d 'Publish clean import updates from GitHub Actions'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from updates-agent; and not __fish_seen_subcommand_from github device' -f -a 'device' -d 'Process one completed update workflow locally'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from updates-agent; and __fish_seen_subcommand_from github' -f
-complete -c skill-maintenance -n '__fish_seen_subcommand_from updates-agent; and __fish_seen_subcommand_from github; and begin; not __fish_contains_opt skills-dir; or contains -- (commandline -poc)[-1] --skills-dir; end' -l skills-dir -r -F
-complete -c skill-maintenance -n '__fish_seen_subcommand_from updates-agent; and __fish_seen_subcommand_from github; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt skills-dir' -f -a '--skills-dir'
+complete -c skill-maintenance -n '__fish_seen_subcommand_from updates-agent; and __fish_seen_subcommand_from github; and begin; not __fish_contains_opt skills-dir; or contains -- (commandline -poc)[-1] --skills-dir; end' -l skills-dir -d 'Use this Skills checkout' -r -F
+complete -c skill-maintenance -n '__fish_seen_subcommand_from updates-agent; and __fish_seen_subcommand_from github; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt skills-dir' -f -a '--skills-dir' -d 'Use this Skills checkout'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from updates-agent; and __fish_seen_subcommand_from device' -f
-complete -c skill-maintenance -n '__fish_seen_subcommand_from updates-agent; and __fish_seen_subcommand_from device; and begin; not __fish_contains_opt config; or contains -- (commandline -poc)[-1] --config; end' -l config -r -F
-complete -c skill-maintenance -n '__fish_seen_subcommand_from updates-agent; and __fish_seen_subcommand_from device; and begin; not __fish_contains_opt run-id; or contains -- (commandline -poc)[-1] --run-id; end' -l run-id -r -f
-complete -c skill-maintenance -n '__fish_seen_subcommand_from updates-agent; and __fish_seen_subcommand_from device; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt config' -f -a '--config'
-complete -c skill-maintenance -n '__fish_seen_subcommand_from updates-agent; and __fish_seen_subcommand_from device; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt run-id' -f -a '--run-id'
+complete -c skill-maintenance -n '__fish_seen_subcommand_from updates-agent; and __fish_seen_subcommand_from device; and begin; not __fish_contains_opt config; or contains -- (commandline -poc)[-1] --config; end' -l config -d 'Use this YAML config' -r -F
+complete -c skill-maintenance -n '__fish_seen_subcommand_from updates-agent; and __fish_seen_subcommand_from device; and begin; not __fish_contains_opt run-id; or contains -- (commandline -poc)[-1] --run-id; end' -l run-id -d 'Wait for this workflow run' -r -f
+complete -c skill-maintenance -n '__fish_seen_subcommand_from updates-agent; and __fish_seen_subcommand_from device; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt config' -f -a '--config' -d 'Use this YAML config'
+complete -c skill-maintenance -n '__fish_seen_subcommand_from updates-agent; and __fish_seen_subcommand_from device; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt run-id' -f -a '--run-id' -d 'Wait for this workflow run'
 
 ###-end-skill-maintenance-completions-###

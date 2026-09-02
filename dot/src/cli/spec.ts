@@ -51,6 +51,7 @@ import {
   notificationsRaw,
 } from "../git/commands/Notifications.js";
 import type { GitNotificationQueryOptions } from "../types.js";
+import { resolve } from "path";
 
 /** Additional documentation sections attached to executable commands. */
 export interface CliDocs {
@@ -786,7 +787,9 @@ const skillsAgentGitHub = describe(
       runSkillsMaintenance([
         "updates-agent",
         "github",
-        ...(Option.isSome(skillsDir) ? ["--skills-dir", skillsDir.value] : []),
+        ...(Option.isSome(skillsDir)
+          ? ["--skills-dir", resolve(skillsDir.value)]
+          : []),
       ]),
   ),
   "Run GitHub skill update automation",
@@ -805,7 +808,7 @@ const skillsAgentDevice = describe(
         "updates-agent",
         "device",
         "--config",
-        configPath,
+        resolve(configPath),
         ...(Option.isSome(runId) ? ["--run-id", runId.value] : []),
       ]),
   ),

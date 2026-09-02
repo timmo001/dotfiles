@@ -65,8 +65,8 @@ _skill_maintenance_import() {
     '(--apply --no-apply)--no-apply[Disable apply]'
     '(--metadata-only --no-metadata-only)--metadata-only[Materialise imports.json metadata only]'
     '(--metadata-only --no-metadata-only)--no-metadata-only[Disable metadata-only]'
-    '(--reviewed-sha)--reviewed-sha:value:'
-    ':name:'
+    '(--reviewed-sha)--reviewed-sha[Set the reviewed upstream SHA]:value:'
+    ':Imported skill name:'
   )
   _arguments "${specs[@]}"
 }
@@ -80,7 +80,7 @@ _skill_maintenance_updates() {
     '(--update --no-update)--no-update[Disable update]'
     '(--json --no-json)--json[Print the versioned machine report]'
     '(--json --no-json)--no-json[Disable json]'
-    '(--skill)--skill:value:'
+    '(--skill)--skill[Limit to one skill]:value:'
     '(--commit --no-commit)--commit[Commit applied updates]'
     '(--commit --no-commit)--no-commit[Disable commit]'
     '(--skip-review --no-skip-review)--skip-review[Do not open adapted imports for review]'
@@ -92,7 +92,7 @@ _skill_maintenance_updates() {
 _skill_maintenance_check() {
   local -a specs
   specs=(
-    '(--skill)--skill:value:'
+    '(--skill)--skill[Check one skill]:value:'
     '(--diff-origin --no-diff-origin)--diff-origin[Render complete upstream diffs]'
     '(--diff-origin --no-diff-origin)--no-diff-origin[Disable diff-origin]'
     '(--open-opencode --no-open-opencode)--open-opencode[Open an interactive OpenCode review]'
@@ -139,7 +139,7 @@ _skill_maintenance_updates_agent() {
 _skill_maintenance_updates_agent_github() {
   local -a specs
   specs=(
-    '(--skills-dir)--skills-dir:directory:_directories'
+    '(--skills-dir)--skills-dir[Use this Skills checkout]:directory:_directories'
   )
   _arguments "${specs[@]}"
 }
@@ -147,8 +147,8 @@ _skill_maintenance_updates_agent_github() {
 _skill_maintenance_updates_agent_device() {
   local -a specs
   specs=(
-    '(--config)--config:file:_files'
-    '(--run-id)--run-id:value:'
+    '(--config)--config[Use this YAML config]:file:_files'
+    '(--run-id)--run-id[Wait for this workflow run]:value:'
   )
   _arguments "${specs[@]}"
 }
