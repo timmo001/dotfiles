@@ -8,6 +8,9 @@ import { Config } from "../services/Config.js";
 /** Forward parsed facade arguments to the installed skill-maintenance executable. */
 export const runSkillsMaintenance = Effect.fn("Skills.run")(function* (
   args: readonly string[],
+  setExitCode: (exitCode: number) => void = (exitCode) => {
+    process.exitCode = exitCode;
+  },
 ) {
   const executor = yield* CommandExecutor;
   const config = yield* Config;
@@ -16,6 +19,6 @@ export const runSkillsMaintenance = Effect.fn("Skills.run")(function* (
     cwd: skillsMaintenanceSource(config.publicDotfiles),
   });
   if (exitCode !== 0) {
-    process.exitCode = exitCode;
+    setExitCode(exitCode);
   }
 });
