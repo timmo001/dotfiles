@@ -348,6 +348,26 @@
       },
       {
         "group": "Top / bottom",
+        "name": "70% top",
+        "tree": {
+          "dir": "tb",
+          "ratio": 70,
+          "a": "w",
+          "b": {
+            "dir": "lr",
+            "ratio": 24.16,
+            "a": "w",
+            "b": {
+              "dir": "lr",
+              "ratio": 31.92,
+              "a": "w",
+              "b": "w"
+            }
+          }
+        }
+      },
+      {
+        "group": "Top / bottom",
         "name": "57% top",
         "tree": {
           "dir": "tb",
