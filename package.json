@@ -4,8 +4,9 @@
   "type": "module",
   "description": "Root-level typescript so OpenCode's TS LSP resolves from the repo root (ctx.directory) for subprojects like dot/ and docs/. Not stowed, not a real project.",
   "devDependencies": {
-    "@oxlint/plugins": "1.80.0",
-    "oxlint": "1.80.0",
+    "@oxlint/plugins": "1.81.0",
+    "@timmo001/oxlint-rules": "0.1.3",
+    "oxlint": "1.81.0",
     "oxlint-tsgolint": "7.0.2001",
     "typescript": "^7.0.0"
   }
