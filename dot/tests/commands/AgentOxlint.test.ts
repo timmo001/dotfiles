@@ -11,7 +11,7 @@ import {
 } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import packageJson from "../../package.json" with { type: "json" };
+import packageJson from "../../../package.json" with { type: "json" };
 import { agentOxlint } from "../../src/commands/AgentOxlint.js";
 import { CommandExecutor } from "../../src/services/CommandExecutor.js";
 import { Config, type ConfigService } from "../../src/services/Config.js";

@@ -1,7 +1,7 @@
 import { Effect, Schema } from "effect";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { basename, isAbsolute, join, relative, resolve } from "path";
-import packageJson from "../../package.json" with { type: "json" };
+import packageJson from "../../../package.json" with { type: "json" };
 import { decodeJson, isJsonObject, isString } from "../lib/schema.js";
 import {
   CommandExecutor,
