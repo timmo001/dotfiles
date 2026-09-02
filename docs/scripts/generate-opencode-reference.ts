@@ -241,7 +241,7 @@ async function generateSkills(): Promise<void> {
 }
 
 async function generatePlugins(): Promise<void> {
-  const directories = ['plugins', 'tui-plugins'];
+  const directories = ['plugins'];
   const files = (
     await Promise.all(
       directories.map(async (directory) =>
