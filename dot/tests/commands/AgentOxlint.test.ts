@@ -11,6 +11,7 @@ import {
 } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
+import packageJson from "../../package.json" with { type: "json" };
 import { agentOxlint } from "../../src/commands/AgentOxlint.js";
 import { CommandExecutor } from "../../src/services/CommandExecutor.js";
 import { Config, type ConfigService } from "../../src/services/Config.js";
@@ -25,6 +26,13 @@ import { OutputLog } from "../../src/services/OutputLog.js";
 const roots: string[] = [];
 const originalCwd = process.cwd();
 const originalExitCode = process.exitCode;
+const managedDependencies = {
+  "@oxlint/plugins": packageJson.devDependencies["@oxlint/plugins"],
+  "@timmo001/oxlint-rules":
+    packageJson.devDependencies["@timmo001/oxlint-rules"],
+  oxlint: packageJson.devDependencies.oxlint,
+} as const;
+const cacheDirectory = `rules-${managedDependencies["@timmo001/oxlint-rules"]}-oxlint-${managedDependencies.oxlint}-plugins-${managedDependencies["@oxlint/plugins"]}`;
 
 afterEach(() => {
   process.chdir(originalCwd);
@@ -93,11 +101,17 @@ function fixture() {
 }
 
 function seedInstalledCache(cacheDir: string): string {
-  const directory = join(cacheDir, "agent-oxlint", "rules-0.1.4-oxlint-1.81.0");
+  const directory = join(cacheDir, "agent-oxlint", cacheDirectory);
   for (const [path, version] of [
-    ["node_modules/oxlint/package.json", "1.81.0"],
-    ["node_modules/@oxlint/plugins/package.json", "1.81.0"],
-    ["node_modules/@timmo001/oxlint-rules/package.json", "0.1.4"],
+    ["node_modules/oxlint/package.json", managedDependencies.oxlint],
+    [
+      "node_modules/@oxlint/plugins/package.json",
+      managedDependencies["@oxlint/plugins"],
+    ],
+    [
+      "node_modules/@timmo001/oxlint-rules/package.json",
+      managedDependencies["@timmo001/oxlint-rules"],
+    ],
   ] as const) {
     const target = join(directory, path);
     mkdirSync(join(target, ".."), { recursive: true });
@@ -204,14 +218,13 @@ describe("agentOxlint", () => {
     ]);
     expect(calls[1]?.[2]).toBe(repo);
     const manifest = readFileSync(
-      join(cache, "agent-oxlint/rules-0.1.4-oxlint-1.81.0/package.json"),
+      join(cache, "agent-oxlint", cacheDirectory, "package.json"),
       "utf-8",
     );
-    expect(manifest).toContain('"@timmo001/oxlint-rules": "0.1.4"');
-    expect(manifest.match(/"1\.81\.0"/g)).toHaveLength(2);
+    expect(JSON.parse(manifest).dependencies).toEqual(managedDependencies);
     expect(
       readFileSync(
-        join(cache, "agent-oxlint/rules-0.1.4-oxlint-1.81.0/oxlint.config.mjs"),
+        join(cache, "agent-oxlint", cacheDirectory, "oxlint.config.mjs"),
         "utf-8",
       ),
     ).toContain(
@@ -253,7 +266,7 @@ describe("agentOxlint", () => {
   test("reuses a ready cache, supports --all, and preserves lint failure", async () => {
     const { repo, cache } = fixture();
     seedInstalledCache(cache);
-    const directory = join(cache, "agent-oxlint/rules-0.1.4-oxlint-1.81.0");
+    const directory = join(cache, "agent-oxlint", cacheDirectory);
     writeFileSync(
       join(directory, "package.json"),
       `${JSON.stringify(
@@ -261,11 +274,7 @@ describe("agentOxlint", () => {
           name: "dot-agent-oxlint",
           private: true,
           type: "module",
-          dependencies: {
-            "@oxlint/plugins": "1.81.0",
-            "@timmo001/oxlint-rules": "0.1.4",
-            oxlint: "1.81.0",
-          },
+          dependencies: managedDependencies,
         },
         null,
         2,

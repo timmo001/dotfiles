@@ -1,6 +1,7 @@
 import { Effect, Schema } from "effect";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { basename, isAbsolute, join, relative, resolve } from "path";
+import packageJson from "../../package.json" with { type: "json" };
 import { decodeJson, isJsonObject, isString } from "../lib/schema.js";
 import {
   CommandExecutor,
@@ -10,8 +11,12 @@ import { Config } from "../services/Config.js";
 import { managedGitRepoForPath } from "../services/GitConfig.js";
 import { OutputLog } from "../services/OutputLog.js";
 
-const RULES_VERSION = "0.1.4";
-const OXLINT_VERSION = "1.81.0";
+const MANAGED_DEPENDENCIES = {
+  "@oxlint/plugins": packageJson.devDependencies["@oxlint/plugins"],
+  "@timmo001/oxlint-rules":
+    packageJson.devDependencies["@timmo001/oxlint-rules"],
+  oxlint: packageJson.devDependencies.oxlint,
+} as const;
 const RULE_OVERRIDES = {
   "anti-slop/require-safety-comment-for-type-assertion": "warn",
 } as const;
@@ -30,11 +35,7 @@ const CACHE_MANIFEST = `${JSON.stringify(
     name: "dot-agent-oxlint",
     private: true,
     type: "module",
-    dependencies: {
-      "@oxlint/plugins": OXLINT_VERSION,
-      "@timmo001/oxlint-rules": RULES_VERSION,
-      oxlint: OXLINT_VERSION,
-    },
+    dependencies: MANAGED_DEPENDENCIES,
   },
   null,
   2,
@@ -81,7 +82,7 @@ function cachePaths(cacheDir: string): AgentOxlintCache {
   const directory = join(
     cacheDir,
     "agent-oxlint",
-    `rules-${RULES_VERSION}-oxlint-${OXLINT_VERSION}`,
+    `rules-${MANAGED_DEPENDENCIES["@timmo001/oxlint-rules"]}-oxlint-${MANAGED_DEPENDENCIES.oxlint}-plugins-${MANAGED_DEPENDENCIES["@oxlint/plugins"]}`,
   );
   return {
     directory,
@@ -117,7 +118,7 @@ function cacheReady(cache: AgentOxlintCache): boolean {
     existsSync(cache.binary) &&
     installedVersion(
       join(cache.directory, "node_modules", "oxlint", "package.json"),
-    ) === OXLINT_VERSION &&
+    ) === MANAGED_DEPENDENCIES.oxlint &&
     installedVersion(
       join(
         cache.directory,
@@ -126,7 +127,7 @@ function cacheReady(cache: AgentOxlintCache): boolean {
         "plugins",
         "package.json",
       ),
-    ) === OXLINT_VERSION &&
+    ) === MANAGED_DEPENDENCIES["@oxlint/plugins"] &&
     installedVersion(
       join(
         cache.directory,
@@ -135,7 +136,7 @@ function cacheReady(cache: AgentOxlintCache): boolean {
         "oxlint-rules",
         "package.json",
       ),
-    ) === RULES_VERSION
+    ) === MANAGED_DEPENDENCIES["@timmo001/oxlint-rules"]
   );
 }
 
