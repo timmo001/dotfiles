@@ -45,8 +45,8 @@ export const missingLocales: Effect.Effect<string[], never, CommandExecutor> =
   });
 
 /** Build a sed expression that uncomments a locale's line in /etc/locale.gen. */
-function uncommentLocaleExpr(locale: string): string {
-  const escaped = locale.replace(/[.]/g, "\\.");
+export function uncommentLocaleExpr(locale: string): string {
+  const escaped = locale.replace(/\\/g, "\\\\").replace(/[.]/g, "\\.");
   return `sed -i '/^#[[:space:]]*${escaped}[[:space:]]/s/^#[[:space:]]*//' /etc/locale.gen`;
 }
 
