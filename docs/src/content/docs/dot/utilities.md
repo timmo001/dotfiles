@@ -85,7 +85,7 @@ The `lint.yml` `validate-skills` job uses the shared `lint-agent-skills` workflo
 
 The `mise-toolchain.yml` workflow runs when the stowed global mise config changes. It force-builds Terminal Control with the pinned Rust and Zig toolchain, catching incompatible automated version updates before they merge.
 
-Run `mise run lint` to check owned TypeScript and JavaScript with the vendored anti-slop Oxlint rules. `mise run dot:check` includes that lint alongside the dot type check, tests, and formatting check. Run `mise run tests:integration` for deterministic repository tests and `mise run tests:smoke` for the build plus CLI smoke checks. TypeScript unit tests mirror `dot/src/` under `dot/tests/` and run through `mise run dot:test`.
+Run `mise run lint` to check owned TypeScript and JavaScript with `@timmo001/oxlint-rules`. `mise run dot:check` includes that lint alongside the dot type check, tests, and formatting check. Run `mise run tests:integration` for deterministic repository tests and `mise run tests:smoke` for the build plus CLI smoke checks. TypeScript unit tests mirror `dot/src/` under `dot/tests/` and run through `mise run dot:test`.
 
 ## Firewall rules
 

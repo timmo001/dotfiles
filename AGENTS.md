@@ -117,7 +117,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 ## Validation
 
 - Basic health check: `dot doctor`
-- Dev tasks: `mise run <task>` from the repo root. `mise run lint` checks owned TypeScript and JavaScript with the vendored anti-slop Oxlint plugin. Project tasks are namespaced: `dot:*` (`dot:build`, `dot:typecheck`, `dot:test`, `dot:format`, `dot:check`), `docs:*` (`docs:build`, `docs:dev`, `docs:gen`, `docs:check`), and `tests:*` (`tests:integration`, `tests:smoke`); `mise tasks` lists them.
+- Dev tasks: `mise run <task>` from the repo root. `mise run lint` checks owned TypeScript and JavaScript with `@timmo001/oxlint-rules`. Project tasks are namespaced: `dot:*` (`dot:build`, `dot:typecheck`, `dot:test`, `dot:format`, `dot:check`), `docs:*` (`docs:build`, `docs:dev`, `docs:gen`, `docs:check`), and `tests:*` (`tests:integration`, `tests:smoke`); `mise tasks` lists them.
 - Skill frontmatter: the `lint.yml` `validate-skills` job validates public skills with the shared `lint-agent-skills` workflow.
 - OpenCode debug: use `opencode debug` subcommands directly, for example `opencode debug config`, `opencode debug skill`, or `opencode debug agent <name>`.
 - MCP config sync: `dot mcp-sync` regenerates each active agent harness's MCP config from the single private spec `dotfiles-private/mcp.yml`; some agent harnesses are documented stubs. Runs automatically in `dot update` before re-stow; run `dot stow` after a manual sync.
