@@ -5,7 +5,7 @@
   "description": "Root tooling and managed dependency versions for repository linting, OpenCode's TypeScript LSP, and the dot CLI.",
   "devDependencies": {
     "@oxlint/plugins": "1.81.0",
-    "@timmo001/oxlint-rules": "0.2.0",
+    "@timmo001/oxlint-rules": "0.3.0",
     "oxlint": "1.81.0",
     "oxlint-tsgolint": "7.0.2001",
     "typescript": "^7.0.0"
