@@ -16,6 +16,7 @@ Item {
   property var otherRepos: []
   property bool panelLoaded: false
   property string panelError: ""
+  property bool panelRefreshPending: false
   property var installedAgents: []
   property string notificationText: ""
   property string notificationTooltip: ""
@@ -39,6 +40,7 @@ Item {
       diffTooltip = String(payload.tooltip || "")
       diffClass = String(payload["class"] || "dots-unknown")
       repos = Array.isArray(payload.repos) ? payload.repos : []
+      if (!panelLoaded) changedRepos = repos
       diffLoaded = true
       diffError = ""
     } catch (error) {
@@ -97,19 +99,20 @@ Item {
   }
 
   function failPanel(message) {
-    changedRepos = []
-    otherRepos = []
     panelLoaded = true
     panelError = message
   }
 
   function refresh() {
+    panelRefreshPending = true
     if (!diffProcess.running) diffProcess.running = true
     if (!notificationsProcess.running) notificationsProcess.running = true
   }
 
-  function refreshPanel() {
-    if (!panelProcess.running) panelProcess.running = true
+  function startPanelRefresh() {
+    if (!panelRefreshPending || diffProcess.running || panelProcess.running) return
+    panelRefreshPending = false
+    panelProcess.running = true
   }
 
   function applyAgents(raw) {
@@ -230,6 +233,7 @@ Item {
     onExited: function(exitCode) {
       if (exitCode === 0) root.applyDiff(diffOutput.text)
       else root.failDiff("Repository status unavailable")
+      root.startPanelRefresh()
     }
   }
 
@@ -240,6 +244,7 @@ Item {
     onExited: function(exitCode) {
       if (exitCode === 0) root.applyPanel(panelOutput.text)
       else root.failPanel("Repository panel unavailable")
+      root.startPanelRefresh()
     }
   }
 
@@ -260,10 +265,7 @@ Item {
 
   Process {
     id: pullProcess
-    onExited: {
-      root.refresh()
-      root.refreshPanel()
-    }
+    onExited: root.refresh()
   }
 
   Timer {

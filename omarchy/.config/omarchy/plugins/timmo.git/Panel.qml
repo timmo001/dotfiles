@@ -134,10 +134,6 @@ Panel {
     view = initialView
     selectedRepo = null
     filterController.reset()
-    if (service) {
-      service.refresh()
-      service.refreshPanel()
-    }
     controller.show()
     Qt.callLater(function() {
       panelFlick.contentY = 0
@@ -204,7 +200,7 @@ Panel {
 
   function activateAction(action, modifiers) {
     if (!service) return
-    if (action === "refresh") { service.refresh(); service.refreshPanel() }
+    if (action === "refresh") service.refresh()
     else if (action === "changed" || action === "other") showView(action)
     else if (action === "agent") showView("agent")
     else if (action === "back") showView(view === "agent" ? "repo" : (view === "repo" ? selectedRepoView : "overview"))

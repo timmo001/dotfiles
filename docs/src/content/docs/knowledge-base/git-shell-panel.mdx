@@ -43,13 +43,15 @@ Type to filter every visible action and row. Enter on a repository opens its act
 
 ## Data sources
 
-The service polls these structured commands every minute:
+While the shell is running, the service polls these structured commands every minute and preloads the full repository snapshot after the faster bar scan:
 
 ```bash
 dot git-diff --bar-json
 dot git-diff --panel-json
 dot git-notifications --bar-json
 ```
+
+Opening the panel uses the preloaded snapshot instead of starting another scan. Refreshes run in the background, and the panel keeps the last successful repository list visible if a refresh fails.
 
 Repository and notification visibility follows the private `dot-git.yml` configuration. GitHub notifications require an authenticated `gh` token with the `notifications` or `repo` scope.
 
