@@ -24,8 +24,10 @@ Item {
   property var threads: []
   property bool notificationsLoaded: false
   property string notificationsError: ""
+  signal panelUpdated()
 
   readonly property bool refreshing: diffProcess.running || panelProcess.running || notificationsProcess.running || pullProcess.running
+  readonly property bool pulling: pullProcess.running
   readonly property bool clear: diffLoaded && notificationsLoaded
     && diffError === "" && notificationsError === ""
     && diffClass === "dots-ok" && notificationClass === "hidden"
@@ -69,6 +71,7 @@ Item {
       otherRepos = Array.isArray(payload.other) ? payload.other : []
       panelLoaded = true
       panelError = ""
+      panelUpdated()
     } catch (error) {
       failPanel("Invalid repository panel response")
     }

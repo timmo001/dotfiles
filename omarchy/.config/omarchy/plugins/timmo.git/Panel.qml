@@ -17,6 +17,10 @@ Panel {
   property string view: "overview"
   property var selectedRepo: null
   property string selectedRepoView: "changed"
+  readonly property bool selectedRepoCanPull: selectedRepo !== null
+    && Number(selectedRepo.behind || 0) > 0
+    && Number(selectedRepo.modified || 0) === 0
+    && Number(selectedRepo.ahead || 0) === 0
   readonly property int repoCount: service ? service.repos.length : 0
   readonly property int changedRepoCount: service ? service.changedRepos.length : 0
   readonly property int otherRepoCount: service ? service.otherRepos.length : 0
@@ -34,7 +38,7 @@ Panel {
     var rows = []
     if (view === "overview") {
     } else if (view === "repo") {
-      rows.push(actionRow("pull", "Pull", "󰜷"))
+      if (selectedRepoCanPull) rows.push(actionRow("pull", "Pull", "󰜷"))
       rows.push(actionRow("lazygit", "Open in lazygit", ""))
       rows.push(actionRow("editor", "Open in editor", ""))
       rows.push(actionRow("agent", "Open in agent", "󱚣"))
@@ -189,6 +193,15 @@ Panel {
     showView("repo")
   }
 
+  function syncSelectedRepo() {
+    if (!selectedRepo || !service) return
+    var path = String(selectedRepo.path || "")
+    var repo = service.changedRepos.concat(service.otherRepos).find(function(value) {
+      return String(value.path || "") === path
+    })
+    if (repo) selectedRepo = repo
+  }
+
   function activateAction(action, modifiers) {
     if (!service) return
     if (action === "refresh") { service.refresh(); service.refreshPanel() }
@@ -198,6 +211,10 @@ Panel {
     else if (action === "notifications") { close(); service.openNotifications() }
     else if (action.indexOf("agent:") === 0 && selectedRepo) { close(); service.openAgent(selectedRepo, action.slice(6)) }
     else if (selectedRepo) {
+      if (action === "pull") {
+        service.openRepo(selectedRepo, action)
+        return
+      }
       close()
       if (action === "lazygit") {
         if (modifiers & Qt.ShiftModifier) service.openRepo(selectedRepo, "lazygit-floating")
@@ -230,8 +247,13 @@ Panel {
   Shortcut {
     sequence: "Ctrl+P"
     context: Qt.ApplicationShortcut
-    enabled: root.opened && root.view === "repo" && root.selectedRepo !== null
+    enabled: root.opened && root.view === "repo" && root.selectedRepoCanPull
     onActivated: root.activateAction("pull", Qt.NoModifier)
+  }
+
+  Connections {
+    target: root.service
+    function onPanelUpdated() { root.syncSelectedRepo() }
   }
 
   KeyboardPanel {
@@ -275,7 +297,7 @@ Panel {
             width: parent.width
             title: root.view === "agent" ? "Open in agent" : (root.view === "repo" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "overview" ? "Git" : (root.view === "changed" ? "Changed" : (root.view === "notifications" ? "Notifications" : "Other"))))
             meta: root.view === "agent" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.notificationCountText : (root.view === "changed" ? root.changedRepoCount + " repositories" : (root.view === "notifications" ? root.notificationCountText : root.otherRepoCount + " repositories"))))
-            detail: root.service && root.service.refreshing ? "REFRESHING" : "STATUS"
+            detail: root.service && root.service.pulling ? "PULLING" : (root.service && root.service.refreshing ? "REFRESHING" : "STATUS")
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             iconComponent: Component {
