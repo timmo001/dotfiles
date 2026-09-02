@@ -11,6 +11,7 @@ import { renderCompletions } from "../../src/commands/Completions.js";
 describe("Effect command tree", () => {
   test("owns canonical commands and aliases", () => {
     expect(commandNames).toContain("update");
+    expect(commandNames).toContain("agent-oxlint");
     expect(getCliCommand("up")?.name).toBe("update");
     expect(getCliCommand("diff")?.name).toBe("git-diff");
   });
@@ -57,6 +58,12 @@ describe("Effect command tree", () => {
         );
       }
     }
+
+    const agentOxlint = getCliCommand("agent-oxlint");
+    if (!agentOxlint) throw new Error("agent-oxlint command missing");
+    const agentOxlintHelp = commandHelp(agentOxlint, ["dot", "agent-oxlint"]);
+    expect(agentOxlintHelp.flags.map((flag) => flag.name)).toContain("all");
+    expect(agentOxlintHelp.usage).toContain("<path...>");
   });
 
   test("generates exact aliases, help, and choices for every shell", () => {
@@ -64,6 +71,7 @@ describe("Effect command tree", () => {
       const completion = renderCompletions(shell);
       expect(completion).toContain("git-diff");
       expect(completion).toContain("omarchy-plugin");
+      expect(completion).toContain("agent-oxlint");
       expect(completion).toContain("--help");
       expect(completion).toContain("github");
       expect(completion).toContain("device");

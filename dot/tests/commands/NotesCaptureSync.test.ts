@@ -32,6 +32,7 @@ function repository(
     github,
     aliases: [],
     postUpdate: null,
+    agentOxlint: false,
     activity: { enabled: true, schedule: "* * * * *" },
     notifications: {
       enabled: notificationsEnabled,

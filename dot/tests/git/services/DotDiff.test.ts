@@ -93,6 +93,7 @@ describe("DotDiff", () => {
           github: "example/scheduled",
           aliases: [],
           postUpdate: null,
+          agentOxlint: false,
           activity: { enabled: true, schedule: "0 0 31 2 *" },
           notifications: {
             enabled: false,

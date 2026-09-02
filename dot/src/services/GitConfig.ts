@@ -18,6 +18,7 @@ const REPO_KEYS = new Set([
   "github",
   "aliases",
   "post_update",
+  "agent_oxlint",
   "activity",
   "notifications",
 ]);
@@ -71,6 +72,8 @@ export interface GitManagedRepo {
   readonly aliases: readonly string[];
   /** Command run from the repository root after `dot update` pulls a new HEAD. */
   readonly postUpdate: string | null;
+  /** Whether the dot-managed generic Oxlint pass may run without a local setup. */
+  readonly agentOxlint: boolean;
   /** Local activity check used by git diff and repository updates. */
   readonly activity: GitRepoCheckConfig;
   /** GitHub notification check and status-bar filters. */
@@ -306,6 +309,11 @@ function parseRepo(
     `${location}.aliases`,
     diagnostics,
   );
+  const agentOxlint = optionalBoolean(
+    value.agent_oxlint,
+    `${location}.agent_oxlint`,
+    diagnostics,
+  );
   const activity = parseCheck(
     value.activity,
     `${location}.activity`,
@@ -329,10 +337,21 @@ function parseRepo(
       github,
       aliases,
       postUpdate,
+      agentOxlint,
       activity,
       notifications,
     },
   ];
+}
+
+function optionalBoolean(
+  value: JsonValue,
+  location: string,
+  diagnostics: string[],
+): boolean {
+  if (value === undefined) return false;
+  const parsed = requiredBoolean(value, location, diagnostics);
+  return parsed ?? false;
 }
 
 function optionalAliases(

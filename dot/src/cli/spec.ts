@@ -9,6 +9,7 @@ import {
   type Param,
 } from "effect/unstable/cli";
 import { agentsSync } from "../commands/AgentsSync.js";
+import { agentOxlint } from "../commands/AgentOxlint.js";
 import { clean } from "../commands/Clean.js";
 import { completions } from "../commands/Completions.js";
 import { doctor } from "../commands/Doctor.js";
@@ -832,6 +833,32 @@ const isAgent = describe(
     ],
   },
 );
+const agentOxlintCommand = describe(
+  Command.make(
+    "agent-oxlint",
+    {
+      paths: Argument.path("path", { pathType: "either" }).pipe(
+        Argument.atLeast(0),
+      ),
+      all: bool("all", "Lint the complete repository tree"),
+    },
+    agentOxlint,
+  ),
+  "Run the advisory generic Oxlint pass for cleanup work in an opted-in repository. Repository-owned Oxlint takes precedence. Pass changed paths normally, or use --all when explicitly requested.",
+  [
+    "dot agent-oxlint src/example.ts",
+    "dot agent-oxlint src/one.ts src/two.ts",
+    "dot agent-oxlint --all",
+  ],
+  {
+    description:
+      "Run the generic @timmo001/oxlint-rules recommended config from a dot-managed cache without changing the target repository. The current repository must set agent_oxlint: true in private dot-git.yml. Repositories with their own Oxlint config, dependency, script, or local binary are skipped because their local setup takes precedence. Diagnostics are advisory for cleanup work and do not make these personal rules authoritative for the host repository.",
+    modes: [
+      "<path>...  Lint explicit changed files or directories",
+      "--all      Lint the complete repository tree",
+    ],
+  },
+);
 const floating = describe(
   Command.make(
     "launch-floating-webapp",
@@ -1069,6 +1096,7 @@ export const dotCommand = describe(
       skillUpdatesAgentCommand,
       completionsCommand,
       isAgent,
+      agentOxlintCommand,
       floating,
       herdr,
       relayout,

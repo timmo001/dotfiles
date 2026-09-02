@@ -732,6 +732,44 @@ dot is-agent --json
 dot is-agent && echo running under an agent
 ```
 
+## `dot agent-oxlint`
+
+Run the advisory generic Oxlint pass for cleanup work in an opted-in repository. Repository-owned Oxlint takes precedence. Pass changed paths normally, or use --all when explicitly requested.
+
+```text
+dot agent-oxlint [flags] [<path...>]
+```
+
+Run the generic @timmo001/oxlint-rules recommended config from a dot-managed cache without changing the target repository. The current repository must set agent_oxlint: true in private dot-git.yml. Repositories with their own Oxlint config, dependency, script, or local binary are skipped because their local setup takes precedence. Diagnostics are advisory for cleanup work and do not make these personal rules authoritative for the host repository.
+
+**Modes**
+
+```text
+<path>...  Lint explicit changed files or directories
+--all      Lint the complete repository tree
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--all` | Lint the complete repository tree |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<path>` | path |
+
+**Examples**
+
+```bash
+dot agent-oxlint src/example.ts
+dot agent-oxlint src/one.ts src/two.ts
+dot agent-oxlint --all
+```
+
 ## `dot launch-floating-webapp`
 
 Launch one Omarchy webapp and place its new window in the target monitor's bottom-right corner, or reposition an existing window with --address. Width and height must be positive integers; margins must be non-negative.

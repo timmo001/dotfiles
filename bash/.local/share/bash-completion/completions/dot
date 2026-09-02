@@ -192,6 +192,10 @@ _dot()
         _dot_is_agent "$i"
         return
         ;;
+      agent-oxlint)
+        _dot_agent_oxlint "$i"
+        return
+        ;;
       launch-floating-webapp)
         _dot_launch_floating_webapp "$i"
         return
@@ -238,7 +242,7 @@ _dot()
     return
   fi
 
-  COMPREPLY=( $(compgen -W 'init install update up stow omarchy-plugin omarchy-shell-config firewall doctor clean agents-sync notes-capture-sync setup-private-repo setup-public-repo git-diff diff git-commit git-notifications mcp-sync private-pkg-publish skill-updates skill-check skill-updates-agent completions is-agent launch-floating-webapp herdr-repo-open workspace-relayout workspace-capture workspace-restore usage help' -- "$cur") )
+  COMPREPLY=( $(compgen -W 'init install update up stow omarchy-plugin omarchy-shell-config firewall doctor clean agents-sync notes-capture-sync setup-private-repo setup-public-repo git-diff diff git-commit git-notifications mcp-sync private-pkg-publish skill-updates skill-check skill-updates-agent completions is-agent agent-oxlint launch-floating-webapp herdr-repo-open workspace-relayout workspace-capture workspace-restore usage help' -- "$cur") )
 }
 
 _dot_init()
@@ -1257,6 +1261,56 @@ _dot_is_agent()
     return
   fi
 
+}
+
+_dot_agent_oxlint()
+{
+  local cur prev words cword i
+  local _command_index="$1"
+  _init_completion -n "$COMP_WORDBREAKS" || return
+
+  local _used_0="" _used_1=""
+  for ((i = 1; i < cword; i++)); do
+    case "${words[i]%%=*}" in
+      --all|--no-all) _used_0=1 ;;
+      --help|-h) _used_1=1 ;;
+    esac
+  done
+  local _filtered_flags=""
+  [[ -n "$_used_0" ]] || _filtered_flags+=" --all --no-all"
+  [[ -n "$_used_1" ]] || _filtered_flags+=" --help -h"
+
+  # Complete flags (filtered) and subcommands
+  if [[ "$cur" == -* ]]; then
+    COMPREPLY=( $(compgen -W "$_filtered_flags" -- "$cur") )
+    return
+  fi
+
+  # Positional argument completions
+  local _position=0 _skip_next=0 _end_of_options=0
+  for ((i = _command_index + 1; i < cword; i++)); do
+    if (( _skip_next )); then
+      _skip_next=0
+      continue
+    fi
+    if (( _end_of_options )); then
+      ((_position += 1))
+      continue
+    fi
+    case "${words[i]}" in
+      --) _end_of_options=1 ;;
+      --all|--no-all) ;;
+      --help|-h) ;;
+      -*) ;;
+      *) ((_position += 1)) ;;
+    esac
+  done
+  case "$_position" in
+  esac
+  if (( _position >= 0 )); then
+    COMPREPLY=( $(compgen -f -- "$cur") )
+    return
+  fi
 }
 
 _dot_launch_floating_webapp()

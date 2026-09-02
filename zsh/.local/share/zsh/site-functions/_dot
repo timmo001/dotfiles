@@ -39,6 +39,7 @@ _dot() {
     'skill-updates-agent:Run GitHub or device skill update automation'
     'completions:Generate shell completions'
     'is-agent:Detect whether an AI coding agent is running dot'
+    'agent-oxlint:Run the advisory generic Oxlint pass for cleanup work in an opted-in repository. Repository-owned Oxlint takes precedence. Pass changed paths normally, or use --all when explicitly requested.'
     'launch-floating-webapp:Launch one Omarchy webapp and place its new window in the target monitor'\''s bottom-right corner, or reposition an existing window with --address. Width and height must be positive integers; margins must be non-negative.'
     'herdr-repo-open:Open or focus a repository workspace in the shared Herdr session. If the server is headless, open a tiled terminal and wait for a foreground client before focusing the workspace.'
     'workspace-relayout:Apply or capture a Hyprland workspace layout'
@@ -138,6 +139,9 @@ _dot() {
           ;;
         is-agent)
           _dot_is_agent
+          ;;
+        agent-oxlint)
+          _dot_agent_oxlint
           ;;
         launch-floating-webapp)
           _dot_launch_floating_webapp
@@ -586,6 +590,18 @@ _dot_is_agent() {
     '(--json --no-json)--no-json[Disable json]'
     '(--help -h)--help[Show help information]'
     '(--help -h)-h[Show help information]'
+  )
+  _arguments "${specs[@]}"
+}
+
+_dot_agent_oxlint() {
+  local -a specs
+  specs=(
+    '(--all --no-all)--all[Lint the complete repository tree]'
+    '(--all --no-all)--no-all[Disable all]'
+    '(--help -h)--help[Show help information]'
+    '(--help -h)-h[Show help information]'
+    '*:path:_files'
   )
   _arguments "${specs[@]}"
 }

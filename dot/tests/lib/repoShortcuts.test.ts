@@ -15,6 +15,7 @@ function repository(overrides: Partial<GitManagedRepo> = {}): GitManagedRepo {
     github: "owner/dotfiles",
     aliases: ["dotfiles", "dots"],
     postUpdate: null,
+    agentOxlint: false,
     activity: { enabled: true, schedule: "* * * * *" },
     notifications: {
       enabled: true,

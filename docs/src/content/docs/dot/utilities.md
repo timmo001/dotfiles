@@ -33,6 +33,19 @@ The wrappers print section headings and the resolved remote, branch, comparison 
 - `git-diff-default` (`gdd`) shows the current branch diff from its merge base with the default branch.
 - `git-log-default` (`gld`) shows commits on the current branch since it diverged from the default branch.
 
+## Agent Oxlint
+
+`dot agent-oxlint` runs the generic `@timmo001/oxlint-rules` recommended config as an extra personal check without adding dependencies or configuration to the target repository. The repository must set `agent_oxlint: true` in the private [`dot-git.yml`](/configuration/private-git/) config. A repository-owned Oxlint config, dependency, script, or local binary takes precedence and makes the command skip successfully.
+
+```bash
+dot agent-oxlint src/changed-file.ts src/other-file.ts
+dot agent-oxlint --all
+```
+
+Use this pass for targeted cleanup or slop-reduction work. Pass only the in-scope changed JavaScript or TypeScript files, then act only on diagnostics whose lines were added or modified by the current diff. Findings elsewhere in those files are advisory context, not required cleanup. Use `--all` only when explicitly requested. Run the repository's own lint workflow first; this command supplements it rather than replacing it.
+
+The exact Oxlint, plugin API, and shared rules versions live in a versioned directory under `${XDG_CACHE_HOME:-$HOME/.cache}/dot/agent-oxlint`. The managed config extends the published generic rules unchanged, then applies personal severity overrides. `anti-slop/require-safety-comment-for-type-assertion` is currently a warning because a repository skill or a more precise rule may identify an expressible type contract instead. The wrapper does not enable `anti-slop-effect` or `timmo-effect`.
+
 ## System updates
 
 [topgrade](https://github.com/topgrade-rs/topgrade) runs the machine's update steps (AUR via `yay`, Flatpak, firmware checks, `mise` tools, `rustup`, `cargo`, and more) in one pass. The repo stows a tuned config to `~/.config/topgrade.toml` and a logging wrapper at `scripts/.local/bin/topgrade` that shadows the system binary via `~/.local/bin` on `PATH`.

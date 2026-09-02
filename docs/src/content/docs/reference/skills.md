@@ -13,6 +13,7 @@ Skills own reusable workflows and behavioural contracts. Shared skills are expos
 
 | Skill | Description |
 | --- | --- |
+| [`agent-oxlint`](https://github.com/timmo001/skills/blob/main/agent-oxlint/SKILL.md) | Run the optional advisory Oxlint pass during JavaScript or TypeScript cleanup and slop-reduction work in dot-managed repositories. Use after the repository's own lint workflow; act only on diagnostics intersecting changed diff lines, while the command checks private opt-in and local Oxlint precedence. |
 | [`branch-context-consumer`](https://github.com/timmo001/skills/blob/main/branch-context-consumer/SKILL.md) | Consume BranchContextPlugin injections in commands. Use when a command depends on an injected <branch-context> block for its scope. |
 | [`changeset-scope`](https://github.com/timmo001/skills/blob/main/changeset-scope/SKILL.md) | Keep all scoped code work contained to the user-defined changeset. Use for implementation, fixes, diagnosis, refactoring, cleanup, and review when explicit instructions, named files, diffs, branches, pull requests, or injected work scopes define the boundary. |
 | [`check-skill-updates`](https://github.com/timmo001/skills/blob/main/check-skill-updates/SKILL.md) | Check imported skills for upstream changes and review safe updates. Use when a tracked `# origin:` may have changed or when refreshing installed skills from their source repositories. |

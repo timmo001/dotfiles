@@ -169,6 +169,7 @@ const NATIVE_COMMAND_TIMEOUT_SECONDS = {
   "agents-sync": 2 * 60,
   "mcp-sync": 2 * 60,
   "notes-capture-sync": 2 * 60,
+  "agent-oxlint": 10 * 60,
   completions: 2 * 60,
 } satisfies Partial<Record<string, number>>;
 

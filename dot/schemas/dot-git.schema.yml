@@ -83,6 +83,9 @@ $defs:
         type: string
         minLength: 1
         description: Command run from the repository root after dot update pulls a new HEAD.
+      agent_oxlint:
+        type: boolean
+        description: Allow the dot-managed generic Oxlint pass when the repository has no local Oxlint setup.
       activity:
         $ref: "#/$defs/scheduled_check"
       notifications:

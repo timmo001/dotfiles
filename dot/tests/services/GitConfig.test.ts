@@ -90,6 +90,7 @@ describe("loadDotGitConfig", () => {
         github: "timmo001/dotfiles",
         aliases: [],
         postUpdate: null,
+        agentOxlint: false,
         activity: { enabled: true, schedule: "*/15 9-17 * * 1-5" },
         notifications: {
           enabled: true,
@@ -138,6 +139,26 @@ describe("loadDotGitConfig", () => {
 
     expect(config.valid).toBe(true);
     expect(config.repositories[0]?.postUpdate).toBe("mise run build");
+  });
+
+  test("loads an optional agent Oxlint opt-in", () => {
+    const config = loadDotGitConfig(
+      writeConfig(validConfig(repository("    agent_oxlint: true\n"))),
+    );
+
+    expect(config.valid).toBe(true);
+    expect(config.repositories[0]?.agentOxlint).toBe(true);
+  });
+
+  test("rejects a non-boolean agent Oxlint opt-in", () => {
+    const config = loadDotGitConfig(
+      writeConfig(validConfig(repository("    agent_oxlint: yes\n"))),
+    );
+
+    expect(config.valid).toBe(false);
+    expect(config.diagnostics).toContain(
+      "root.repositories[0].agent_oxlint must be true or false",
+    );
   });
 
   test("loads and validates repository aliases", () => {
