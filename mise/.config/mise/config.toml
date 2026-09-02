@@ -40,7 +40,7 @@ zoxide = "0.10.0"
 just = "1.58.0"
 uv = "0.12.7"
 [tools."aqua:anomalyco/opencode"]
-version = "1.18.25"
+version = "1.18.26"
 minimum_release_age = "2h"
 
 [tools."npm:@opencode-ai/cli"]
