@@ -117,6 +117,7 @@ o.bind("CTRL + ALT + H", "Home Assistant panel", "omarchy-shell shell toggle tim
 o.bind("CTRL + ALT + G", "Git panel", "omarchy-shell shell toggle timmo.git")
 o.bind("CTRL + ALT + SHIFT + G", "Other repositories", "omarchy-shell timmo.git other")
 o.bind("CTRL + ALT + S", "System Bridge panel", "omarchy-shell shell toggle timmo.system-bridge")
+o.bind("CTRL + ALT + N", "Notes panel", "omarchy-shell shell toggle timmo.notes")
 o.bind("CTRL + ALT + C", "Capture note", "omarchy-shell timmo.notes capture")
 o.bind("CTRL + ALT + M", "MOMENTUM 4 controls", "omarchy-shell shell toggle timmo.momentumctl")
 
