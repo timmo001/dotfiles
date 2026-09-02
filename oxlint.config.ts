@@ -1,8 +1,8 @@
 import { defineConfig } from "oxlint";
-import effectRulesConfig from "@timmo001/oxlint-rules/configs/effect";
+import recommendedEffect from "@timmo001/oxlint-rules/configs/recommended-effect";
 
 export default defineConfig({
-  extends: [effectRulesConfig],
+  extends: [recommendedEffect],
   ignorePatterns: [
     ".agent/**",
     ".agents/**",
