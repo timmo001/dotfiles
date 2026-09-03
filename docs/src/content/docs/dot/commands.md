@@ -923,27 +923,6 @@ dot herdr-repo-open [flags] <label> <directory> [<tab-label>] [<command>]
 2  Invalid arguments
 ```
 
-## `dot workspace-setup`
-
-Launch or reuse desktop apps and rebuild the workspace layout
-
-```text
-dot workspace-setup [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--step-through` `--step` | Pause after each logged step |
-| `--speed-multiplier` `<number>` | Multiply built-in sleep durations |
-| `--sleep` `<number>` | Wait before running setup logic |
-| `--fast` | Use a speed multiplier of 1 |
-| `--temp-workspace` `<integer>` | Numeric temporary workspace |
-| `--move-dispatcher` `<choice>` | Window move dispatcher (choices: movetoworkspace, movetoworkspacesilent) |
-| `--log-file` `<path>` | Write the run log to this file |
-| `--help` `-h` | Show help information |
-
 ## `dot workspace-relayout`
 
 Apply or capture a Hyprland workspace layout

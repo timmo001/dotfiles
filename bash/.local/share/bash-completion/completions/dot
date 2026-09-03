@@ -200,10 +200,6 @@ _dot()
         _dot_herdr_repo_open "$i"
         return
         ;;
-      workspace-setup)
-        _dot_workspace_setup "$i"
-        return
-        ;;
       workspace-relayout)
         _dot_workspace_relayout "$i"
         return
@@ -242,7 +238,7 @@ _dot()
     return
   fi
 
-  COMPREPLY=( $(compgen -W 'init install update up system-update stow omarchy-plugin omarchy-shell-config firewall doctor clean agents-sync notes-capture-sync setup-private-repo setup-public-repo git-diff diff git-commit git-notifications mcp-sync private-pkg-publish skills completions is-agent agent-oxlint launch-floating-webapp herdr-repo-open workspace-setup workspace-relayout workspace-capture workspace-restore usage help' -- "$cur") )
+  COMPREPLY=( $(compgen -W 'init install update up system-update stow omarchy-plugin omarchy-shell-config firewall doctor clean agents-sync notes-capture-sync setup-private-repo setup-public-repo git-diff diff git-commit git-notifications mcp-sync private-pkg-publish skills completions is-agent agent-oxlint launch-floating-webapp herdr-repo-open workspace-relayout workspace-capture workspace-restore usage help' -- "$cur") )
 }
 
 _dot_init()
@@ -1578,55 +1574,6 @@ _dot_herdr_repo_open()
       return
       ;;
   esac
-}
-
-_dot_workspace_setup()
-{
-  local cur prev words cword i
-  local _command_index="$1"
-  _init_completion -n "$COMP_WORDBREAKS" || return
-
-  # Flag value completions
-  case "$prev" in
-    --move-dispatcher)
-      _dot--choices "$cur" "$_comp_word" 'movetoworkspace' 'movetoworkspacesilent'
-      return
-      ;;
-    --log-file)
-      COMPREPLY=( $(compgen -f -- "$cur") )
-      return
-      ;;
-  esac
-
-  local _used_0="" _used_1="" _used_2="" _used_3="" _used_4="" _used_5="" _used_6="" _used_7=""
-  for ((i = 1; i < cword; i++)); do
-    case "${words[i]%%=*}" in
-      --step-through|--step|--no-step-through) _used_0=1 ;;
-      --speed-multiplier) _used_1=1 ;;
-      --sleep) _used_2=1 ;;
-      --fast|--no-fast) _used_3=1 ;;
-      --temp-workspace) _used_4=1 ;;
-      --move-dispatcher) _used_5=1 ;;
-      --log-file) _used_6=1 ;;
-      --help|-h) _used_7=1 ;;
-    esac
-  done
-  local _filtered_flags=""
-  [[ -n "$_used_0" ]] || _filtered_flags+=" --step-through --step --no-step-through"
-  [[ -n "$_used_1" ]] || _filtered_flags+=" --speed-multiplier"
-  [[ -n "$_used_2" ]] || _filtered_flags+=" --sleep"
-  [[ -n "$_used_3" ]] || _filtered_flags+=" --fast --no-fast"
-  [[ -n "$_used_4" ]] || _filtered_flags+=" --temp-workspace"
-  [[ -n "$_used_5" ]] || _filtered_flags+=" --move-dispatcher"
-  [[ -n "$_used_6" ]] || _filtered_flags+=" --log-file"
-  [[ -n "$_used_7" ]] || _filtered_flags+=" --help -h"
-
-  # Complete flags (filtered) and subcommands
-  if [[ "$cur" == -* ]]; then
-    COMPREPLY=( $(compgen -W "$_filtered_flags" -- "$cur") )
-    return
-  fi
-
 }
 
 _dot_workspace_relayout()

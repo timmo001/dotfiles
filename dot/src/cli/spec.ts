@@ -29,7 +29,6 @@ import { systemUpdate } from "../commands/SystemUpdate.js";
 import { update, updateCheck } from "../commands/Update.js";
 import { usage } from "../commands/Usage.js";
 import { workspaceRelayout } from "../commands/WorkspaceRelayout.js";
-import { workspaceSetup } from "../commands/WorkspaceSetup.js";
 import {
   workspaceCapture,
   workspaceRestore,
@@ -1013,45 +1012,6 @@ const relayout = describe(
   ),
   "Apply or capture a Hyprland workspace layout",
 );
-const setupWorkspace = describe(
-  Command.make(
-    "workspace-setup",
-    {
-      stepThrough: Flag.boolean("step-through").pipe(
-        Flag.withAlias("step"),
-        Flag.withDefault(false),
-        Flag.withDescription("Pause after each logged step"),
-      ),
-      speedMultiplier: Flag.float("speed-multiplier").pipe(
-        Flag.withDefault(1.8),
-        Flag.withDescription("Multiply built-in sleep durations"),
-      ),
-      sleep: Flag.float("sleep").pipe(
-        Flag.withDefault(0),
-        Flag.withDescription("Wait before running setup logic"),
-      ),
-      fast: bool("fast", "Use a speed multiplier of 1"),
-      temporaryWorkspace: Flag.integer("temp-workspace").pipe(
-        Flag.optional,
-        Flag.withDescription("Numeric temporary workspace"),
-      ),
-      moveDispatcher: Flag.choice("move-dispatcher", [
-        "movetoworkspace",
-        "movetoworkspacesilent",
-      ]).pipe(Flag.optional, Flag.withDescription("Window move dispatcher")),
-      logFile: pathFlag("log-file", "Write the run log to this file", "file"),
-    },
-    ({ logFile, moveDispatcher, sleep, temporaryWorkspace, ...input }) =>
-      workspaceSetup({
-        ...input,
-        startupDelay: sleep,
-        logFile: optional(logFile),
-        moveDispatcher: optional(moveDispatcher),
-        temporaryWorkspace: optional(temporaryWorkspace),
-      }),
-  ),
-  "Launch or reuse desktop apps and rebuild the workspace layout",
-);
 const capture = describe(
   Command.make(
     "workspace-capture",
@@ -1205,7 +1165,6 @@ export const dotCommand = describe(
       agentOxlintCommand,
       floating,
       herdr,
-      setupWorkspace,
       relayout,
       capture,
       restore,
