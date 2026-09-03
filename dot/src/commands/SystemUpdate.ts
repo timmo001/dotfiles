@@ -8,8 +8,8 @@ import { HOME_DIR, STATE_DIR } from "../lib/paths.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 
 const TOPGRADE_UPDATES = [
-  ["Topgrade: GitHub CLI extensions", "github_cli_extensions", true],
-  ["Topgrade: Yazi", "yazi", true],
+  ["Topgrade: GitHub CLI extensions", "github_cli_extensions", false],
+  ["Topgrade: Yazi", "yazi", false],
   ["Topgrade: Mise", "mise", false],
   ["Topgrade: ProtonPlus", "protonplus", false],
   ["Topgrade: Firmware", "firmware", false],
