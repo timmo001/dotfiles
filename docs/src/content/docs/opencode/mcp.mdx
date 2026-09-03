@@ -158,7 +158,12 @@ A trimmed, sanitised `opencode.json`. Machine-specific repository paths are remo
     },
     "chrome-devtools": {
       "type": "local",
-      "command": ["opencode", "x", "chrome-devtools-mcp@latest"]
+      "command": [
+        "npx",
+        "-y",
+        "chrome-devtools-mcp@latest",
+        "--no-usage-statistics"
+      ]
     },
     "context": {
       "type": "local",
