@@ -85,9 +85,9 @@ const runChild = Effect.fn("SystemUpdate.runChild")(function* (
 });
 
 /** Select and run system maintenance steps in their fixed display order. */
-export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (
-  options: { readonly yes: boolean },
-) {
+export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
+  readonly yes: boolean;
+}) {
   const automatic =
     options.yes ||
     process.stdin.isTTY !== true ||
