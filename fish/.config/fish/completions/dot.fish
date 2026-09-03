@@ -11,6 +11,7 @@ complete -c dot -n '__fish_use_subcommand' -f -a 'init' -d 'Run one-time first-u
 complete -c dot -n '__fish_use_subcommand' -f -a 'install' -d 'Ensure prerequisites, then backup/adopt dotfiles'
 complete -c dot -n '__fish_use_subcommand' -f -a 'update' -d 'Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Internal --no-self-update and --post-hook-repo flags support the active self-update handoff.'
 complete -c dot -n '__fish_use_subcommand' -f -a 'up' -d 'Alias for update'
+complete -c dot -n '__fish_use_subcommand' -f -a 'system-update' -d 'Select and run Dotfiles, Omarchy, and Topgrade updates'
 complete -c dot -n '__fish_use_subcommand' -f -a 'stow' -d 'Re-stow public/private dotfiles'
 complete -c dot -n '__fish_use_subcommand' -f -a 'omarchy-plugin' -d 'Manage Omarchy plugin submodules. The manage-omarchy-plugin compatibility wrapper may pass trailing 0/1 confirmation and commit-offer values to update and remove.'
 complete -c dot -n '__fish_use_subcommand' -f -a 'omarchy-shell-config' -d 'Regenerate the Omarchy shell layout'
@@ -120,6 +121,13 @@ complete -c dot -n '__fish_seen_subcommand_from up; and not string match -q -- "
 complete -c dot -n '__fish_seen_subcommand_from up; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt no-self-update no-no-self-update' -f -a '--no-self-update' -d 'Skip the internal self-update phase'
 complete -c dot -n '__fish_seen_subcommand_from up; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt post-hook-repo' -f -a '--post-hook-repo' -d 'Internal post-hook repository'
 complete -c dot -n '__fish_seen_subcommand_from up; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt -s h help no-help' -f -a '--help' -d 'Show help information'
+complete -c dot -n '__fish_seen_subcommand_from system-update' -f
+complete -c dot -n '__fish_seen_subcommand_from system-update; and not __fish_contains_opt yes no-yes' -l yes -d 'Select every update without prompting'
+complete -c dot -n '__fish_seen_subcommand_from system-update; and not __fish_contains_opt yes no-yes' -l no-yes -d 'Disable yes'
+complete -c dot -n '__fish_seen_subcommand_from system-update; and not __fish_contains_opt -s h help no-help' -l help -s h -d 'Show help information'
+complete -c dot -n '__fish_seen_subcommand_from system-update; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt yes no-yes' -f -a '--yes' -d 'Select every update without prompting'
+complete -c dot -n '__fish_seen_subcommand_from system-update; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt yes no-yes' -f -a '--no-yes' -d 'Disable yes'
+complete -c dot -n '__fish_seen_subcommand_from system-update; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt -s h help no-help' -f -a '--help' -d 'Show help information'
 complete -c dot -n '__fish_seen_subcommand_from stow' -f
 complete -c dot -n '__fish_seen_subcommand_from stow; and not __fish_contains_opt public no-public' -l public -d 'Stow public dotfiles only'
 complete -c dot -n '__fish_seen_subcommand_from stow; and not __fish_contains_opt public no-public' -l no-public -d 'Disable public'

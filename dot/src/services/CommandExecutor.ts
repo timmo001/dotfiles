@@ -135,7 +135,10 @@ export interface CommandExecutorService {
   readonly inherit: (
     cmd: string,
     args: readonly string[],
-    opts?: { readonly cwd?: string },
+    opts?: {
+      readonly cwd?: string;
+      readonly env?: Readonly<Record<string, string>>;
+    },
   ) => Effect.Effect<number>;
 }
 
@@ -323,6 +326,7 @@ export class CommandExecutor extends Context.Service<
           `inherit: ${fullCmd.join(" ")}${opts?.cwd ? ` (cwd: ${opts.cwd})` : ""}`,
         );
         const commandLogFile = inheritedCommandLogFile();
+        const env = opts?.env ? { ...process.env, ...opts.env } : undefined;
         if (commandLogFile) {
           appendRawLog(commandLogFile, `\n$ ${fullCmd.join(" ")}\n`);
           const proc = Bun.spawn(fullCmd, {
@@ -330,6 +334,7 @@ export class CommandExecutor extends Context.Service<
             stdout: "pipe",
             stderr: "pipe",
             cwd: opts?.cwd,
+            env,
           });
           killOnAbort(proc, signal);
           const stdout = pipeProcessOutput(
@@ -354,6 +359,7 @@ export class CommandExecutor extends Context.Service<
           stdout: "inherit",
           stderr: "inherit",
           cwd: opts?.cwd,
+          env,
         });
         killOnAbort(proc, signal);
         return proc.exited;

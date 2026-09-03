@@ -18,6 +18,7 @@ _dot() {
     'install:Ensure prerequisites, then backup/adopt dotfiles'
     'update:Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive\: passing any of --pull, --stow, or --app runs only the selected phases. Internal --no-self-update and --post-hook-repo flags support the active self-update handoff.'
     'up:Alias for update'
+    'system-update:Select and run Dotfiles, Omarchy, and Topgrade updates'
     'stow:Re-stow public/private dotfiles'
     'omarchy-plugin:Manage Omarchy plugin submodules. The manage-omarchy-plugin compatibility wrapper may pass trailing 0/1 confirmation and commit-offer values to update and remove.'
     'omarchy-shell-config:Regenerate the Omarchy shell layout'
@@ -74,6 +75,9 @@ _dot() {
           ;;
         up)
           _dot_up
+          ;;
+        system-update)
+          _dot_system_update
           ;;
         stow)
           _dot_stow
@@ -225,6 +229,17 @@ _dot_up() {
     '(--check-all --no-check-all)--no-check-all[Disable check-all]'
     '(--no-self-update)--no-self-update[Skip the internal self-update phase]'
     '(--post-hook-repo)--post-hook-repo[Internal post-hook repository]:value:'
+    '(--help -h)--help[Show help information]'
+    '(--help -h)-h[Show help information]'
+  )
+  _arguments "${specs[@]}"
+}
+
+_dot_system_update() {
+  local -a specs
+  specs=(
+    '(--yes --no-yes)--yes[Select every update without prompting]'
+    '(--yes --no-yes)--no-yes[Disable yes]'
     '(--help -h)--help[Show help information]'
     '(--help -h)-h[Show help information]'
   )

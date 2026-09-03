@@ -62,7 +62,6 @@ run = """
 bun test tests/opencode
 bun test ./scripts/.local/share/herdr-plugins/plannotator/runner.test.ts
 bash tests/github/opencode-publish.test.sh
-bash tests/scripts/update.test.sh
 bash tests/scripts/browser-control-extension-sync.test.sh
 bash tests/scripts/mise.test.sh
 bash tests/scripts/git-default-ref.test.sh

@@ -90,6 +90,30 @@ Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the
 11  Legacy Hypr migration is required
 ```
 
+## `dot system-update`
+
+Select and run Dotfiles, Omarchy, and Topgrade updates
+
+```text
+dot system-update [flags]
+```
+
+Select maintenance steps interactively, then run them in order: Dotfiles, Omarchy, and Topgrade. Non-interactive runs and --yes select every step. Cancelling the prompt exits without running updates.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--yes` | Select every update without prompting |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot system-update
+dot system-update --yes
+```
+
 ## `dot stow`
 
 Re-stow public/private dotfiles

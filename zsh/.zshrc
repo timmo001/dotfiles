@@ -795,6 +795,7 @@ alias fev="find-and-edit --visual"
 alias olw="omarchy-launch-webapp"
 alias ou="omarchy-update"
 alias ouf="omarchy-update-firmware"
+alias update="dot system-update"
 
 # ------------------------------
 # History

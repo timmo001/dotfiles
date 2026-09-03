@@ -25,6 +25,7 @@ import { setupPrivateRepo } from "../commands/SetupPrivateRepo.js";
 import { setupPublicRepo } from "../commands/SetupPublicRepo.js";
 import { runSkillsMaintenance } from "../commands/Skills.js";
 import { stow } from "../commands/Stow.js";
+import { systemUpdate } from "../commands/SystemUpdate.js";
 import { update, updateCheck } from "../commands/Update.js";
 import { usage } from "../commands/Usage.js";
 import { workspaceRelayout } from "../commands/WorkspaceRelayout.js";
@@ -235,6 +236,20 @@ const updateCommand = describe(
     ],
   },
 ).pipe(Command.withAlias("up"));
+
+const systemUpdateCommand = describe(
+  Command.make(
+    "system-update",
+    { yes: bool("yes", "Select every update without prompting") },
+    (input) => systemUpdate(input),
+  ),
+  "Select and run Dotfiles, Omarchy, and Topgrade updates",
+  ["dot system-update", "dot system-update --yes"],
+  {
+    description:
+      "Select maintenance steps interactively, then run them in order: Dotfiles, Omarchy, and Topgrade. Non-interactive runs and --yes select every step. Cancelling the prompt exits without running updates.",
+  },
+);
 
 const stowCommand = describe(
   Command.make(
@@ -1123,6 +1138,7 @@ export const dotCommand = describe(
       initCommand,
       installCommand,
       updateCommand,
+      systemUpdateCommand,
       stowCommand,
       omarchyPluginCommand,
       ...simpleCommands,

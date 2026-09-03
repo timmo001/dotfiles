@@ -16,4 +16,19 @@ describe("CommandExecutor", () => {
 
     expect(exitCode).toBe(0);
   });
+
+  test("merges environment overrides for inherited commands", async () => {
+    const exitCode = await Effect.runPromise(
+      Effect.gen(function* () {
+        const executor = yield* CommandExecutor;
+        return yield* executor.inherit(
+          "sh",
+          ["-c", 'test "$COMMAND_EXECUTOR_TEST" = inherited'],
+          { env: { COMMAND_EXECUTOR_TEST: "inherited" } },
+        );
+      }).pipe(Effect.provide(CommandExecutor.layer)),
+    );
+
+    expect(exitCode).toBe(0);
+  });
 });
