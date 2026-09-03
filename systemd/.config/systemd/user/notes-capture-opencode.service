@@ -1,5 +1,5 @@
 [Unit]
-Description=Run isolated OpenCode server for notes capture processing
+Description=Run isolated OpenCode 2 server for notes capture processing
 After=network-online.target
 Wants=network-online.target
 
