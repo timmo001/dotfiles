@@ -1,22 +1,21 @@
 import { Cause, Effect, Schema } from "effect";
 import {
-  closeSync,
-  mkdirSync,
-  openSync,
   readFileSync,
   realpathSync,
   renameSync,
   rmSync,
-  unlinkSync,
   writeFileSync,
-  writeSync,
 } from "fs";
 import { dirname, join } from "path";
 import { randomUUID } from "crypto";
 import { ENV, envString } from "../lib/env.js";
-import { HOME_DIR, STATE_DIR } from "../lib/paths.js";
+import { HOME_DIR } from "../lib/paths.js";
 import { decodeJson, type JsonValue } from "../lib/schema.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
+import {
+  acquireWorkspaceMutationLock,
+  releaseWorkspaceMutationLock,
+} from "../lib/workspaceMutationLock.js";
 
 const LEAF = "w" as const;
 const DEFAULT_TEMP_WORKSPACE = 99;
@@ -516,37 +515,6 @@ function tempWorkspace(): number {
   return Number(raw);
 }
 
-function acquireLock(): string {
-  const path = join(STATE_DIR, "dot", "workspace-relayout.lock");
-  mkdirSync(dirname(path), { recursive: true });
-  const create = () => {
-    const descriptor = openSync(path, "wx", 0o600);
-    writeSync(descriptor, String(process.pid));
-    closeSync(descriptor);
-  };
-  try {
-    create();
-  } catch (error) {
-    let active = true;
-    try {
-      const pid = Number(readFileSync(path, "utf8"));
-      process.kill(pid, 0);
-    } catch {
-      active = false;
-    }
-    if (active) return fail("Another workspace relayout is already running");
-    unlinkSync(path);
-    try {
-      create();
-    } catch {
-      return fail(
-        `Could not acquire workspace relayout lock: ${String(error)}`,
-      );
-    }
-  }
-  return path;
-}
-
 function parseJson(source: string, label: string): JsonValue {
   try {
     return decodeJson(JSON.parse(source));
@@ -835,7 +803,10 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
     });
 
     const lock = yield* Effect.try({
-      try: acquireLock,
+      try: () =>
+        acquireWorkspaceMutationLock(
+          (message) => new WorkspaceRelayoutError({ message }),
+        ),
       catch: (error) =>
         error instanceof WorkspaceRelayoutError
           ? error
@@ -847,7 +818,7 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
           Effect.flatMap(() => Effect.failCause(cause)),
         ),
       ),
-      Effect.ensuring(Effect.sync(() => rmSync(lock, { force: true }))),
+      Effect.ensuring(Effect.sync(() => releaseWorkspaceMutationLock(lock))),
     );
   },
 );
