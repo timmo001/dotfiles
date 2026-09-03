@@ -5,7 +5,7 @@ sidebar:
   order: 3
 ---
 
-`workspace-setup` is the desktop host's opinionated workspace arranger. It launches or reuses the expected apps, tags them by slot, moves them to fixed workspaces, and rebuilds the main workspace split tree.
+`workspace-setup` is the compatibility entry point for `dot workspace-setup`, the desktop host's opinionated workspace arranger. It launches or reuses the expected apps, tags them by slot, moves them to fixed workspaces, and rebuilds the main workspace split tree.
 
 Use it when the desktop workspace set has drifted, after login, or after a restart where capture/restore is not the right tool.
 
@@ -35,7 +35,7 @@ workspace-setup
 
 ## Work-time mode
 
-The script branches on `is-work-time`, which returns success Monday to Friday from `07:00` through `16:59` local time.
+The command branches on `is-work-time`, which returns success Monday to Friday from `07:00` through `16:59` local time.
 
 During work time, setup prepares:
 
@@ -104,7 +104,13 @@ Override the log path for one run:
 WORKSPACE_SETUP_LOG_FILE=/tmp/workspace-setup.log workspace-setup --step-through
 ```
 
-The script removes `workspace-setup-*.log` files older than seven days from the default log directory.
+The equivalent explicit flag takes precedence over the legacy environment variable:
+
+```bash
+workspace-setup --log-file=/tmp/workspace-setup.log
+```
+
+The command removes `workspace-setup-*.log` files older than seven days from the default log directory.
 
 ## Temporary workspace
 
@@ -116,7 +122,13 @@ Override it if workspace `99` is in use:
 WORKSPACE_SETUP_TEMP_WS=98 workspace-setup
 ```
 
-The temp workspace must be a positive integer.
+Prefer the explicit flag for new uses:
+
+```bash
+workspace-setup --temp-workspace=98
+```
+
+The temp workspace must be a positive integer, must not be workspace `1`, `2`, or `3`, and must be unoccupied when setup starts. The explicit flag takes precedence over `WORKSPACE_SETUP_TEMP_WS`.
 
 ## Move dispatcher
 
@@ -128,7 +140,13 @@ Use the silent dispatcher only when intentionally testing it:
 WORKSPACE_SETUP_MOVE_DISPATCHER=movetoworkspacesilent workspace-setup
 ```
 
-Valid values are `movetoworkspace` and `movetoworkspacesilent`.
+The equivalent explicit flag is:
+
+```bash
+workspace-setup --move-dispatcher=movetoworkspacesilent
+```
+
+Valid values are `movetoworkspace` and `movetoworkspacesilent`. The explicit flag takes precedence over `WORKSPACE_SETUP_MOVE_DISPATCHER`. Moves follow their target workspace by default; selecting `movetoworkspacesilent` disables following.
 
 ## Recovery flow
 
@@ -141,8 +159,6 @@ Valid values are `movetoworkspace` and `movetoworkspacesilent`.
 
 ## Troubleshooting
 
-If a terminal slot reuses an OpenCode terminal, the setup script filters titles starting with `OC |` for terminal candidates that should not be reused.
+If a terminal slot reuses an OpenCode terminal, setup filters titles starting with `OC |` for terminal candidates that should not be reused.
 
-If the startup browser should become the main browser slot, focus a Chromium window before running setup. The script prefers the focused startup Chromium address for that slot.
-
-If the non-work layout puts the blank tab in the wrong slot, setup tries to detect blank Chromium tabs and swap the top/main browser tags.
+If the startup browser should become the main browser slot, focus a Chromium window before running setup. The command prefers the focused startup Chromium address for that slot.

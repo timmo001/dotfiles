@@ -34,6 +34,7 @@ complete -c dot -n '__fish_use_subcommand' -f -a 'is-agent' -d 'Detect whether a
 complete -c dot -n '__fish_use_subcommand' -f -a 'agent-oxlint' -d 'Run the advisory generic Oxlint pass for cleanup work in an opted-in repository. Repository-owned Oxlint takes precedence. Pass changed paths normally, or use --all when explicitly requested.'
 complete -c dot -n '__fish_use_subcommand' -f -a 'launch-floating-webapp' -d 'Launch one Omarchy webapp and place its new window in the target monitor\'s bottom-right corner, or reposition an existing window with --address. Width and height must be positive integers; margins must be non-negative.'
 complete -c dot -n '__fish_use_subcommand' -f -a 'herdr-repo-open' -d 'Open or focus a repository workspace in the shared Herdr session. If the server is headless, open a tiled terminal and wait for a foreground client before focusing the workspace.'
+complete -c dot -n '__fish_use_subcommand' -f -a 'workspace-setup' -d 'Launch or reuse desktop apps and rebuild the workspace layout'
 complete -c dot -n '__fish_use_subcommand' -f -a 'workspace-relayout' -d 'Apply or capture a Hyprland workspace layout'
 complete -c dot -n '__fish_use_subcommand' -f -a 'workspace-capture' -d 'Capture Hyprland workspace and window state'
 complete -c dot -n '__fish_use_subcommand' -f -a 'workspace-restore' -d 'Restore a captured Hyprland workspace session'
@@ -458,6 +459,27 @@ complete -c dot -n '__fish_seen_subcommand_from herdr-repo-open; and not string 
 complete -c dot -n '__fish_seen_subcommand_from herdr-repo-open; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt pane no-pane' -f -a '--no-pane' -d 'Disable pane'
 complete -c dot -n '__fish_seen_subcommand_from herdr-repo-open; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt -s h help no-help' -f -a '--help' -d 'Show help information'
 complete -c dot -n '__fish_seen_subcommand_from herdr-repo-open' -r -F -d 'Repository working directory'
+complete -c dot -n '__fish_seen_subcommand_from workspace-setup' -f
+complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not __fish_contains_opt step-through step no-step-through' -l step-through -l step -d 'Pause after each logged step'
+complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not __fish_contains_opt step-through step no-step-through' -l no-step-through -d 'Disable step-through'
+complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and begin; not __fish_contains_opt speed-multiplier; or contains -- (commandline -poc)[-1] --speed-multiplier; end' -l speed-multiplier -d 'Multiply built-in sleep durations' -r -f
+complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and begin; not __fish_contains_opt sleep; or contains -- (commandline -poc)[-1] --sleep; end' -l sleep -d 'Wait before running setup logic' -r -f
+complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not __fish_contains_opt fast no-fast' -l fast -d 'Use a speed multiplier of 1'
+complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not __fish_contains_opt fast no-fast' -l no-fast -d 'Disable fast'
+complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and begin; not __fish_contains_opt temp-workspace; or contains -- (commandline -poc)[-1] --temp-workspace; end' -l temp-workspace -d 'Numeric temporary workspace' -r -f
+complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and begin; not __fish_contains_opt move-dispatcher; or contains -- (commandline -poc)[-1] --move-dispatcher; end' -l move-dispatcher -d 'Window move dispatcher' -r -f -a 'movetoworkspace movetoworkspacesilent'
+complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and begin; not __fish_contains_opt log-file; or contains -- (commandline -poc)[-1] --log-file; end' -l log-file -d 'Write the run log to this file' -r -F
+complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not __fish_contains_opt -s h help no-help' -l help -s h -d 'Show help information'
+complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt step-through step no-step-through' -f -a '--step-through' -d 'Pause after each logged step'
+complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt step-through step no-step-through' -f -a '--no-step-through' -d 'Disable step-through'
+complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt speed-multiplier' -f -a '--speed-multiplier' -d 'Multiply built-in sleep durations'
+complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt sleep' -f -a '--sleep' -d 'Wait before running setup logic'
+complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt fast no-fast' -f -a '--fast' -d 'Use a speed multiplier of 1'
+complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt fast no-fast' -f -a '--no-fast' -d 'Disable fast'
+complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt temp-workspace' -f -a '--temp-workspace' -d 'Numeric temporary workspace'
+complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt move-dispatcher' -f -a '--move-dispatcher' -d 'Window move dispatcher'
+complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt log-file' -f -a '--log-file' -d 'Write the run log to this file'
+complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt -s h help no-help' -f -a '--help' -d 'Show help information'
 complete -c dot -n '__fish_seen_subcommand_from workspace-relayout' -f
 complete -c dot -n '__fish_seen_subcommand_from workspace-relayout; and not __fish_contains_opt edit no-edit' -l edit -d 'Capture or overwrite a preset'
 complete -c dot -n '__fish_seen_subcommand_from workspace-relayout; and not __fish_contains_opt edit no-edit' -l no-edit -d 'Disable edit'

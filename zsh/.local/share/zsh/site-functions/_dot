@@ -41,6 +41,7 @@ _dot() {
     'agent-oxlint:Run the advisory generic Oxlint pass for cleanup work in an opted-in repository. Repository-owned Oxlint takes precedence. Pass changed paths normally, or use --all when explicitly requested.'
     'launch-floating-webapp:Launch one Omarchy webapp and place its new window in the target monitor'\''s bottom-right corner, or reposition an existing window with --address. Width and height must be positive integers; margins must be non-negative.'
     'herdr-repo-open:Open or focus a repository workspace in the shared Herdr session. If the server is headless, open a tiled terminal and wait for a foreground client before focusing the workspace.'
+    'workspace-setup:Launch or reuse desktop apps and rebuild the workspace layout'
     'workspace-relayout:Apply or capture a Hyprland workspace layout'
     'workspace-capture:Capture Hyprland workspace and window state'
     'workspace-restore:Restore a captured Hyprland workspace session'
@@ -144,6 +145,9 @@ _dot() {
           ;;
         herdr-repo-open)
           _dot_herdr_repo_open
+          ;;
+        workspace-setup)
+          _dot_workspace_setup
           ;;
         workspace-relayout)
           _dot_workspace_relayout
@@ -759,6 +763,25 @@ _dot_herdr_repo_open() {
     ':Repository working directory:_files'
     ':Optional command tab label:'
     ':Optional command to run:'
+  )
+  _arguments "${specs[@]}"
+}
+
+_dot_workspace_setup() {
+  local -a specs
+  specs=(
+    '(--step-through --step --no-step-through)--step-through[Pause after each logged step]'
+    '(--step-through --step --no-step-through)--step[Pause after each logged step]'
+    '(--step-through --step --no-step-through)--no-step-through[Disable step-through]'
+    '(--speed-multiplier)--speed-multiplier[Multiply built-in sleep durations]:float:'
+    '(--sleep)--sleep[Wait before running setup logic]:float:'
+    '(--fast --no-fast)--fast[Use a speed multiplier of 1]'
+    '(--fast --no-fast)--no-fast[Disable fast]'
+    '(--temp-workspace)--temp-workspace[Numeric temporary workspace]:integer:'
+    '(--move-dispatcher)--move-dispatcher[Window move dispatcher]:value:(movetoworkspace movetoworkspacesilent)'
+    '(--log-file)--log-file[Write the run log to this file]:file:_files'
+    '(--help -h)--help[Show help information]'
+    '(--help -h)-h[Show help information]'
   )
   _arguments "${specs[@]}"
 }
