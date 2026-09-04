@@ -165,4 +165,8 @@ Valid values are `movetoworkspace` and `movetoworkspacesilent`. The explicit fla
 
 If a terminal slot reuses an OpenCode terminal, setup filters titles starting with `OC |` for terminal candidates that should not be reused.
 
-If the startup browser should become the main browser slot, focus a Chromium window before running setup. The command prefers the focused startup Chromium address for that slot.
+Blank Ghostty slots also skip windows that match `^herdr$` on class or title, so the workspace 2 Herdr client is not pulled onto workspace 1.
+
+Slack and Discord use prefix class matches (`^chrome-app\.slack\.com__client` and `^chrome-discord\.com__app`) because Chrome appends a profile suffix. A trailing `$` will miss those windows and skip the work-tree rebuild.
+
+If the startup browser should become the main browser slot, focus a Chromium window before running setup. The command prefers the focused startup Chromium address for that slot. The focused window is read before the loading overlay is shown.

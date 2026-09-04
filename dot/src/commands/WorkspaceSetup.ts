@@ -86,11 +86,21 @@ interface HyprlandClient {
 
 interface Slot {
   readonly tag: string;
-  readonly pattern: RegExp;
+  /** jq-compatible regex, matching class, initialClass, title, or initialTitle. */
+  readonly pattern: string;
   readonly command: string;
   readonly workspace: number;
   readonly skipOpenCode: boolean;
+  /** jq-compatible regex of windows this slot must not claim. */
+  readonly excludePattern?: string;
 }
+
+const PATTERN_SLACK = "^chrome-app\\.slack\\.com__client";
+const PATTERN_DISCORD = "^chrome-discord\\.com__app";
+const PATTERN_CHROMIUM = "^chromium$";
+const PATTERN_GHOSTTY = "^com\\.mitchellh\\.ghostty$";
+const PATTERN_HERDR = "^herdr$";
+const PATTERN_WORK_BROWSER = "^(work-browser|google-chrome)$";
 
 const WorkspaceSchema = Schema.Struct({ id: Schema.Finite });
 const ClientSchema = Schema.Struct({
@@ -261,12 +271,21 @@ function timestampedLogPath(now: number): string {
   return join(LOG_DIRECTORY, `workspace-setup-${timestamp}.log`);
 }
 
+function fieldsMatch(client: HyprlandClient, pattern: string): boolean {
+  return [
+    client.class,
+    client.initialClass,
+    client.title,
+    client.initialTitle,
+  ].some((value) => new RegExp(pattern).test(value));
+}
+
 function clientMatches(client: HyprlandClient, slot: Slot): boolean {
   return (
-    [client.class, client.initialClass, client.title, client.initialTitle].some(
-      (value) => slot.pattern.test(value),
-    ) &&
-    (!slot.skipOpenCode || !client.title.startsWith("OC |"))
+    fieldsMatch(client, slot.pattern) &&
+    (!slot.skipOpenCode || !client.title.startsWith("OC |")) &&
+    (slot.excludePattern === undefined ||
+      !fieldsMatch(client, slot.excludePattern))
   );
 }
 
@@ -436,6 +455,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
         clients = yield* readClients();
         address = clients.find(
           (client) =>
+            client.address !== startFocusAddress &&
             clientMatches(client, slot) &&
             !before.has(client.address) &&
             !used.has(client.address),
@@ -475,11 +495,19 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
     dispatch(`hl.dsp.layout(${quote(`preselect ${direction}`)})`);
   const slot = (
     tag: string,
-    pattern: RegExp,
+    pattern: string,
     command: string,
     workspace: number,
     skipOpenCode: boolean,
-  ): Slot => ({ tag, pattern, command, workspace, skipOpenCode });
+    excludePattern?: string,
+  ): Slot => ({
+    tag,
+    pattern,
+    command,
+    workspace,
+    skipOpenCode,
+    excludePattern,
+  });
 
   if (config.startupDelay > 0) {
     const line = `[workspace-setup] Sleeping ${config.startupDelay}s before startup`;
@@ -500,7 +528,6 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
   });
 
   const run = Effect.gen(function* () {
-    yield* showOverlay("Setting up workspace...");
     for (const dependency of [
       "hyprctl",
       ...(config.mode === undefined ? ["is-work-time"] : []),
@@ -524,6 +551,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       config.temporaryWorkspace,
     );
     startFocusAddress = activeAddress;
+    yield* showOverlay("Setting up workspace...");
     const startupBrowser = clients.some(
       (client) =>
         client.address === activeAddress &&
@@ -565,17 +593,24 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
 
     const personalBrowser = slot(
       TAGS.browser,
-      /^chromium$/,
+      PATTERN_CHROMIUM,
       'uwsm app -- chromium --new-window --ozone-platform=wayland --profile-directory="Default" --force-device-scale-factor=0.8',
       1,
       false,
     );
     const terminalCommand = `uwsm app -- ghostty-host-config --working-directory=${HOME_DIR}`;
     const terminal = (tag: string, workspace: number) =>
-      slot(tag, /^com\.mitchellh\.ghostty$/, terminalCommand, workspace, true);
+      slot(
+        tag,
+        PATTERN_GHOSTTY,
+        terminalCommand,
+        workspace,
+        true,
+        PATTERN_HERDR,
+      );
     const herdr = slot(
       TAGS.workspace2Terminal,
-      /^herdr$/,
+      PATTERN_HERDR,
       `uwsm app -- ghostty-host-config --working-directory=${HOME_DIR} -e herdr`,
       2,
       true,
@@ -589,7 +624,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       const slackAddress = yield* ensureSlot(
         slot(
           TAGS.slack,
-          /^chrome-app\.slack\.com__client$/,
+          PATTERN_SLACK,
           `${workChrome} --app=https://app.slack.com/client`,
           1,
           false,
@@ -610,7 +645,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       yield* ensureSlot(
         slot(
           TAGS.discord,
-          /^chrome-discord\.com__app$/,
+          PATTERN_DISCORD,
           `${workChrome} --app=https://discord.com/app`,
           1,
           false,
@@ -659,7 +694,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       yield* ensureSlot(
         slot(
           TAGS.workBrowser,
-          /^(work-browser|google-chrome)$/,
+          PATTERN_WORK_BROWSER,
           `${workChrome} --class=work-browser`,
           3,
           false,
