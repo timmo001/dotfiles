@@ -1,0 +1,15 @@
+---
+title: Pi
+description: Lightweight companion agent harness.
+---
+
+Pi is a lighter companion agent for smaller sessions. It shares skills and project instructions with OpenCode without carrying the full OpenCode plugin stack.
+
+| Piece | Why |
+| --- | --- |
+| `pi/` stow package | Pi-side config and extensions |
+| Shared skills | Same `~/.agents/skills/` set as OpenCode |
+| Shared AGENTS | Project and global instructions via `dot agents-sync` |
+| Workflow extension | Local Pi agent extension under `.pi/` |
+
+Use Pi when a thin session is enough. Use [OpenCode](/opencode/) for day-to-day interactive work and Herdr panes.

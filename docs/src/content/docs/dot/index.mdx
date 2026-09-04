@@ -1,17 +1,57 @@
 ---
 title: The dot Command
-description: The CLI that drives the dotfiles system.
+description: The CLI for setup, sync, and git helpers across managed repos.
 ---
 
-`dot` is the compiled CLI for these dotfiles ([Bun](https://bun.sh) + [Effect](https://effect.website) v4), stowed to `~/.local/bin/dot`. It owns setup, sync, stow, health checks, and the git helpers used day to day.
+`dot` is the compiled CLI for these dotfiles ([Bun](https://bun.sh) + [Effect](https://effect.website) v4), stowed to `~/.local/bin/dot`. It owns setup, sync, stow, health checks, desktop helpers, and the git tooling used day to day.
+
+## Setup and maintenance
 
 | Command | Purpose |
 | --- | --- |
 | `dot init` | First-use setup on a fresh machine |
 | `dot update` | Pull, refresh config, stow, rebuild |
-| `dot stow` | Stow only |
-| `dot doctor` | Health checks |
-| `dot git-diff` | Change state across managed repos |
-| `dot git-commit` | Guarded commit gateway |
+| `dot system-update` | Interactive Dotfiles, Omarchy, and Topgrade updates |
+| `dot stow` | Stow only (public and/or private) |
+| `dot doctor` | Parallel health checks and a saved report |
+| `dot firewall` | Reconcile managed ufw rules |
+| `dot clean` | Remove stowed links / reverse setup side effects |
+| `dot completions` | Regenerate shell completions |
+
+## Git and repos
+
+| Command | Purpose |
+| --- | --- |
+| `dot git-diff` | Dirty / ahead / behind state across managed repos |
+| `dot git-commit` | Guarded commits instead of raw `git commit` |
+| `dot git-notifications` | GitHub notification inbox for the shell and CLI |
+| `dot setup-public-repo` | Scaffold a public repository |
+| `dot setup-private-repo` | Scaffold a private repository |
+| `dot herdr-repo-open` | Open a managed repo workspace in Herdr |
+
+Managed-repo lists and notification rules live in the private `dot-git.yml` overlay. Branch and stack context for agents come from the separate [`context`](https://context.timmo.dev) tool.
+
+## Desktop
+
+| Command | Purpose |
+| --- | --- |
+| `dot workspace-setup` | Launch or reuse apps and rebuild work/normal layouts |
+| `dot workspace-relayout` | Apply or capture a ratio-based layout on the active workspace |
+| `dot omarchy-shell-config` | Regenerate `shell.json` without a full stow |
+| `dot omarchy-plugin` | Add, update, or remove Omarchy bar plugins |
+| `dot launch-floating-webapp` | Open a floating webapp window |
+
+## Agents and tooling
+
+| Command | Purpose |
+| --- | --- |
+| `dot agents-sync` | Mirror global AGENTS into agent harness instruction files |
+| `dot mcp-sync` | Regenerate MCP configs from private `mcp.yml` |
+| `dot skills` | Check and apply skill updates from the skills repo |
+| `dot notes-capture-sync` | Sync notes-capture repository wiring |
+| `dot private-pkg-publish` | Publish a package to the private pacman repo |
+| `dot is-agent` | Detect whether the current process is under an AI agent |
+| `dot usage` | Local usage tracking for `dot` commands |
+| `dot agent-oxlint` | Optional advisory Oxlint pass for cleanup work |
 
 Full flags and subcommands: [Command Reference](/dot/commands/) (generated from `dot/src/cli/spec.ts`) or `dot --help`.

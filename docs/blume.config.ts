@@ -23,9 +23,25 @@ export default defineConfig({
       '/getting-started',
       '/configuration',
       '/dot',
-      '/git',
-      '/omarchy',
-      '/opencode',
+      {
+        label: 'Desktop',
+        items: [
+          '/hyprland',
+          '/ghostty',
+          '/herdr',
+          '/uwsm',
+          '/shell',
+        ],
+      },
+      '/stow',
+      {
+        label: 'Agents',
+        items: [
+          '/opencode',
+          '/pi',
+          '/cursor',
+        ],
+      },
       {
         label: 'Reference',
         items: [

@@ -1,15 +1,23 @@
 ---
-title: OpenCode & Agents
-description: Shared OpenCode agents, commands, skills, and plugins.
+title: OpenCode
+description: Primary coding-agent harness.
 ---
 
-Shared [OpenCode](https://opencode.ai) config for agents, slash commands, skills, and plugins. Source is `agents/.config/opencode/`; portable skills are pinned from [`timmo001/skills`](https://github.com/timmo001/skills). The same assets publish to [`opencode-config`](https://github.com/timmo001/opencode-config) for reuse outside these dotfiles.
+[OpenCode](https://opencode.ai) is the main interactive agent UI: sessions, slash commands, plugins, and Herdr panes. Most agent work happens here.
 
 | Piece | Why |
+| --- | --- |
+| `agents/.config/opencode/` | Agents, commands, plugins, and shared `lib/` |
+| `agents/.agents/skills/` | Pinned [`timmo001/skills`](https://github.com/timmo001/skills) checkout |
+| [`opencode-config`](https://github.com/timmo001/opencode-config) | Portable publish of the same assets |
+| `dot mcp-sync` | MCP servers from private `mcp.yml` |
+| `dot agents-sync` | Mirrors global AGENTS into other harnesses |
+
+| Layer | Role |
 | --- | --- |
 | Agents | Execution posture (permissions, tools, plan mode) |
 | Commands | Thin routers to agents and skills |
 | Skills | Reusable workflows |
 | Plugins | Context injection and enforcement hooks |
 
-Catalogues: [agents](/reference/agents/), [commands](/reference/commands/), [skills](/reference/skills/), [plugins](/reference/plugins/). MCP servers come from the private `mcp.yml` sync (`dot mcp-sync`), not from hand-written docs here.
+Generated catalogues: [agents](/reference/agents/), [commands](/reference/commands/), [skills](/reference/skills/), [plugins](/reference/plugins/).

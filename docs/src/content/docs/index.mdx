@@ -11,15 +11,35 @@ Personal [Omarchy](https://omarchy.org) dotfiles (Arch-based), managed with [GNU
 These are tuned for my machines and a private overlay that is not public. Borrow ideas; do not install wholesale.
 :::
 
-## Parts
+## Core
 
-| Area | Why it exists |
+| Page | Why |
 | --- | --- |
-| [Getting started](/getting-started/) | How I bootstrap a fresh Omarchy machine |
+| [Getting started](/getting-started/) | Bootstrap a fresh Omarchy machine |
 | [Configuration](/configuration/) | Private overlay, packages, and tracked app config |
-| [`dot` CLI](/dot/) | One binary for init, update, stow, doctor, and day-to-day tooling |
-| [Git & GitHub](/git/) | Cross-repo status, commits, and notifications without juggling many checkouts by hand |
-| [Omarchy & Hyprland](/omarchy/) | Desktop and host overrides on top of Omarchy Quattro |
-| [OpenCode & Agents](/opencode/) | Shared agents, commands, skills, and plugins (also published as [`opencode-config`](https://github.com/timmo001/opencode-config)) |
+| [`dot` CLI](/dot/) | Setup, sync, stow, doctor, and git helpers |
+| [Stow packages](/stow/) | One-line blurbs for everything else that is stowed |
 
-Generated catalogues live under Reference. Machine-readable bundles and the docs MCP are on [Agents / LLMs](/agents-llms/).
+## Desktop
+
+| Page | Why |
+| --- | --- |
+| [Hyprland](/hyprland/) | Window manager config and per-host overrides |
+| [Ghostty](/ghostty/) | Terminal config with host overrides |
+| [Herdr](/herdr/) | Shared agent terminal multiplexer |
+| [UWSM](/uwsm/) | User environment for the graphical session |
+| [Shell](/shell/) | Omarchy Quickshell bar plugins and generated `shell.json` |
+
+## Agents
+
+| Page | Why |
+| --- | --- |
+| [OpenCode](/opencode/) | Primary coding-agent harness |
+| [Pi](/pi/) | Lightweight companion agent |
+| [Cursor](/cursor/) | IDE-embedded agent and launchers |
+
+## Reference
+
+Generated catalogues: [`dot` commands](/dot/commands/), [agents](/reference/agents/), [slash commands](/reference/commands/), [skills](/reference/skills/), [plugins](/reference/plugins/).
+
+Machine-readable bundles and the docs MCP: [Agents / LLMs](/agents-llms/).

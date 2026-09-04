@@ -1,0 +1,15 @@
+---
+title: Ghostty
+description: Stowed Ghostty config with per-host overrides.
+---
+
+Primary terminal. Shared defaults live in `ghostty/`; each machine can override fonts and window behaviour without forking the base file.
+
+| Piece | Why |
+| --- | --- |
+| `config` | Shared Ghostty settings (theme hook, fonts, window, cursor) |
+| `config.desktop`, `config.laptop` | Host overrides loaded as `config.$OMARCHY_HOST` |
+| Stowed launcher | Picks the host override when opening a terminal |
+| `tabs.css` | Tab bar styling |
+
+Herdr clients run inside Ghostty. New terminal windows keep the active host config.

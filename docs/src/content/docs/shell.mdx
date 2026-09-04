@@ -1,0 +1,27 @@
+---
+title: Shell
+description: Omarchy Quickshell bar plugins and generated shell.json.
+---
+
+The Omarchy Quickshell process (`omarchy-shell`) owns the bar, notifications, OSD, launcher, and settings. These dotfiles extend it instead of forking it.
+
+| Piece | Why |
+| --- | --- |
+| `omarchy/.config/omarchy/plugins/` | Custom bar modules (`timmo.*` namespace) |
+| Generated `shell.json` | Bar layout rendered by `dot` from Omarchy defaults plus personal modules |
+| `omarchy-plugins.json` | Persistent placement for third-party plugins added as submodules |
+| `omarchy restart shell` | Reload after plugin or bar config changes |
+
+| Plugin | Role |
+| --- | --- |
+| `timmo.git` | Managed-repo and notification panel |
+| `timmo.clock` | Clock / time zones |
+| `timmo.workspaces` | Workspace indicators |
+| `timmo.notes` | Notes capture affordances |
+| `timmo.home-assistant` | Home Assistant status |
+| `timmo.twitch` | Twitch panel |
+| `timmo.system-bridge` | System Bridge status |
+| `timmo.command` / `timmo.stream-command` | Command cells |
+| `timmo.momentumctl` | Momentum control |
+
+Do not hand-edit the live `shell.json`. Change the generator in `dot`, rebuild, and stow.

@@ -10,6 +10,14 @@ Behaviour prefers CLI flags. Environment variables cover process context and sec
 | Private overlay | Host-only config, secrets, package lists, browser checks, `dot-git.yml` |
 | Public packages | Signed `timmo` repo plus AUR where needed |
 | Private packages | Optional private pacman repo via the private publish flow |
-| Stow packages | App config (shell, editor, Cursor, Lazygit, Yazi, and so on) in this repo |
+| Stow packages | App config in this repo; see [Stow packages](/stow/) and the Desktop / Agents pages |
+| Env vars | `DOT_*`, `DOTFILES_*`, and `OMARCHY_*` influence `dot` and session tooling |
 
-Prefer reading the stowed source and private YAML over expanding this page. Env vars that affect `dot` are named `DOT_*`, `DOTFILES_*`, or `OMARCHY_*` in code and `--help`.
+| Private file (typical) | Role |
+| --- | --- |
+| `dot-git.yml` | Managed repos, shortcuts, notifications, activity |
+| Package manifests | Private pacman / install lists |
+| Browser checks | Machine-specific doctor expectations |
+| MCP spec (`mcp.yml`) | Source for `dot mcp-sync` |
+
+Prefer reading the stowed source and private YAML over expanding this page further. Flags and env details live in `dot --help` and code.
