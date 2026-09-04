@@ -1,0 +1,27 @@
+---
+title: Skills
+description: Shared agent skills catalogue and repo-local skills.
+---
+
+Reusable agent workflows live in <a href="https://github.com/timmo001/skills" target="_blank" rel="noopener noreferrer">timmo001/skills</a>. The generated catalogue is <a href="https://github.com/timmo001/skills/blob/main/SKILLS.md#skills-catalogue" target="_blank" rel="noopener noreferrer">SKILLS.md</a> (name + description per skill). That repo is the source of truth; this docs site does not regenerate a full skills page.
+
+| Piece | Why |
+| --- | --- |
+| `agents/.agents/skills/` | Pinned skills submodule (stowed to `~/.agents/skills/`) |
+| `.agents/skills/` | Repo-local skills for this checkout only |
+| `dotfiles-skills/` | Global skills tied to dotfiles paths or private overlays |
+| `dot skills` | Validate, import, and update skills from the standalone repo |
+
+Edit reusable skills in `~/repos/skills`, then update the submodule pin here. Do not edit the submodule checkout or live `~/.agents/skills` directly.
+
+## Local skills
+
+Repo-only skills under `.agents/skills/` (registered via `skills.paths` in `opencode.json`). Shared first-party skills stay in the skills repo catalogue above.
+
+| Skill | Role |
+| --- | --- |
+| `agent-benchmark` | Run this repo's OpenCode agent benchmark and return the completed report |
+| `dotfiles-docs` | Author and maintain the Blume docs site (`docs/`, dotfiles.timmo.dev) |
+| `omarchy-shell-quickshell` | Customise and reload Omarchy shell / Quickshell (bar, panels, plugins) in this repo |
+
+Harness overview: [Agents](/agents/overview/). OpenCode layers and catalogues: [OpenCode](/agents/opencode/overview/).

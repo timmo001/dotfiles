@@ -41,6 +41,13 @@ export default defineConfig({
       },
       '/stow',
       {
+        label: 'Agents',
+        items: [
+          '/agents/overview',
+          '/agents/skills',
+        ],
+      },
+      {
         label: 'OpenCode',
         items: [
           '/agents/opencode/overview',
@@ -61,6 +68,8 @@ export default defineConfig({
   redirects: [
     { from: '/dot', to: '/dot/overview', status: 301 },
     { from: '/dot/', to: '/dot/overview/', status: 301 },
+    { from: '/agents', to: '/agents/overview', status: 301 },
+    { from: '/agents/', to: '/agents/overview/', status: 301 },
     { from: '/opencode', to: '/agents/opencode/overview', status: 301 },
     { from: '/opencode/', to: '/agents/opencode/overview/', status: 301 },
     { from: '/opencode/overview', to: '/agents/opencode/overview', status: 301 },

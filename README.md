@@ -39,7 +39,8 @@ Ongoing: `dot doctor` (health checks), `dot update` (pull, stow, rebuild).
 - [`dot`](https://dotfiles.timmo.dev/dot/overview/) · [command reference](https://dotfiles.timmo.dev/dot/commands/)
 - [Hyprland](https://dotfiles.timmo.dev/desktop/hyprland/) · [Ghostty](https://dotfiles.timmo.dev/desktop/ghostty/) · [Herdr](https://dotfiles.timmo.dev/desktop/herdr/) · [UWSM](https://dotfiles.timmo.dev/desktop/uwsm/) · [Omarchy Shell](https://dotfiles.timmo.dev/desktop/omarchy-shell/)
 - [Stow packages](https://dotfiles.timmo.dev/stow/)
-- [OpenCode](https://dotfiles.timmo.dev/agents/opencode/overview/) · [agents](https://dotfiles.timmo.dev/agents/opencode/agents/) · [commands](https://dotfiles.timmo.dev/agents/opencode/commands/) · [plugins](https://dotfiles.timmo.dev/agents/opencode/plugins/) ([skills](https://github.com/timmo001/skills))
+- [Agents](https://dotfiles.timmo.dev/agents/overview/) · [skills](https://dotfiles.timmo.dev/agents/skills/)
+- [OpenCode](https://dotfiles.timmo.dev/agents/opencode/overview/) · [agents](https://dotfiles.timmo.dev/agents/opencode/agents/) · [commands](https://dotfiles.timmo.dev/agents/opencode/commands/) · [plugins](https://dotfiles.timmo.dev/agents/opencode/plugins/)
 - [Pi](https://dotfiles.timmo.dev/agents/pi/) · [Cursor](https://dotfiles.timmo.dev/agents/cursor/)
 
 Detail lives in code and `--help`. The site stays a short what-and-why reference.

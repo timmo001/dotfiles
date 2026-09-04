@@ -12,12 +12,8 @@ sidebar:
 | Piece | Why |
 | --- | --- |
 | `agents/.config/opencode/` | Agents, commands, plugins, TUI plugins, and shared `lib/` |
-| `agents/.agents/skills/` | Pinned <a href="https://github.com/timmo001/skills" target="_blank" rel="noopener noreferrer">timmo001/skills</a> submodule (stowed to `~/.agents/skills/`) |
-| `.agents/skills/` | Repo-local skills for this checkout only |
-| `dotfiles-skills/` | Global skills tied to dotfiles paths or private overlays |
+| Shared [skills](/agents/skills/) | Pinned submodule + repo-local skills (see Skills page) |
 | Private overlay | Machine-specific OpenCode packages, AGENTS source, and MCP wiring |
-
-Reusable skills are edited in `~/repos/skills`, then the submodule pin here is updated. Do not edit the submodule checkout or live `~/.agents/skills` directly.
 
 ## Layers
 
@@ -25,7 +21,7 @@ Reusable skills are edited in `~/repos/skills`, then the submodule pin here is u
 | --- | --- |
 | Agents | Execution posture (permissions, tools, plan mode, delegation) |
 | Commands | Thin routers: intent, arguments, required skills/context, output shape |
-| Skills | Reusable workflows and behavioural contracts |
+| Skills | Reusable workflows and behavioural contracts ([Skills](/agents/skills/)) |
 | Plugins | Context injection and enforcement hooks (branch/stack context, guards, notes, workflows) |
 
 Commands do not own long workflows; skills and plugins do. AGENTS stays to cross-cutting policy that no skill description already carries.
@@ -42,7 +38,7 @@ Commands do not own long workflows; skills and plugins do. AGENTS stays to cross
 
 ## Runtime
 
-Sessions often run inside Herdr panes (OpenCode integration checked by `dot doctor`). Companion harnesses [Pi](/agents/pi/) and [Cursor](/agents/cursor/) share skills and/or AGENTS guidance but not this full plugin and command stack.
+Sessions often run inside Herdr panes (OpenCode integration checked by `dot doctor`). Companion harnesses [Pi](/agents/pi/) and [Cursor](/agents/cursor/) share skills and/or AGENTS guidance but not this full plugin and command stack. See [Agents](/agents/overview/) for how the harnesses fit together.
 
 ## Reference
 
@@ -54,17 +50,5 @@ OpenCode-only generated catalogues (do not hand-edit):
 | [Commands](/agents/opencode/commands/) | Slash-command routers |
 | [Plugins](/agents/opencode/plugins/) | Context and enforcement hooks |
 
-Skills are catalogued in <a href="https://github.com/timmo001/skills/blob/main/SKILLS.md#skills-catalogue" target="_blank" rel="noopener noreferrer">timmo001/skills</a> (`SKILLS.md`), not a local generated page.
-
-## Local skills
-
-Repo-only skills under `.agents/skills/` (registered via `skills.paths` in `opencode.json`). Shared first-party skills stay in the skills repo catalogue above.
-
-| Skill | Role |
-| --- | --- |
-| `agent-benchmark` | Run this repo's OpenCode agent benchmark and return the completed report |
-| `dotfiles-docs` | Author and maintain the Blume docs site (`docs/`, dotfiles.timmo.dev) |
-| `omarchy-shell-quickshell` | Customise and reload Omarchy shell / Quickshell (bar, panels, plugins) in this repo |
-
-Regenerate with `mise run docs:gen` after the sources change. The [`dot` command reference](/dot/commands/) is separate (CLI, not OpenCode).
+Skills: [Skills](/agents/skills/) (catalogue in the skills repo, plus local skills). Regenerate OpenCode catalogues with `mise run docs:gen` after the sources change. The [`dot` command reference](/dot/commands/) is separate (CLI, not OpenCode).
 
