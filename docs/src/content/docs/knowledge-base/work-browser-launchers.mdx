@@ -84,11 +84,9 @@ They match these Hyprland classes after launch:
 | Slack   | `^chrome-app\.slack\.com__client` |
 | Discord | `^chrome-discord\.com__app`       |
 
-## Relationship to workspace recovery
+## Relationship to workspace setup
 
-`workspace-setup` uses equivalent commands for the work slots. `dot workspace-restore` reads the private `workspace-session.json` policy to relaunch Slack, Discord, and the work browser from captured client classes.
-
-If a work app does not restore correctly, test the launcher directly before debugging restore logic.
+`workspace-setup` uses equivalent commands for the work slots. If a work app does not land on the expected workspace, test the launcher directly before debugging setup.
 
 ## Troubleshooting
 

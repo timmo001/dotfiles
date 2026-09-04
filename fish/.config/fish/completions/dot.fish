@@ -36,8 +36,6 @@ complete -c dot -n '__fish_use_subcommand' -f -a 'launch-floating-webapp' -d 'La
 complete -c dot -n '__fish_use_subcommand' -f -a 'herdr-repo-open' -d 'Open or focus a repository workspace in the shared Herdr session. If the server is headless, open a tiled terminal and wait for a foreground client before focusing the workspace.'
 complete -c dot -n '__fish_use_subcommand' -f -a 'workspace-setup' -d 'Launch or reuse desktop apps and rebuild the workspace layout'
 complete -c dot -n '__fish_use_subcommand' -f -a 'workspace-relayout' -d 'Apply or capture a Hyprland workspace layout'
-complete -c dot -n '__fish_use_subcommand' -f -a 'workspace-capture' -d 'Capture Hyprland workspace and window state'
-complete -c dot -n '__fish_use_subcommand' -f -a 'workspace-restore' -d 'Restore a captured Hyprland workspace session'
 complete -c dot -n '__fish_use_subcommand' -f -a 'usage' -d 'Report local-first usage analytics from NDJSON events under $XDG_STATE_HOME/tool-usage. Live events store canonical commands and recognised flag names, never positional values. Set DOT_USAGE_DISABLE=1 to disable live recording or DOT_USAGE_DIR to relocate storage.'
 complete -c dot -n '__fish_use_subcommand' -f -a 'help' -d 'Show this help menu'
 complete -c dot -n '__fish_use_subcommand; and not __fish_contains_opt -s h help no-help' -l help -s h -d 'Show help information'
@@ -489,32 +487,6 @@ complete -c dot -n '__fish_seen_subcommand_from workspace-relayout; and not __fi
 complete -c dot -n '__fish_seen_subcommand_from workspace-relayout; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt edit no-edit' -f -a '--edit' -d 'Capture or overwrite a preset'
 complete -c dot -n '__fish_seen_subcommand_from workspace-relayout; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt edit no-edit' -f -a '--no-edit' -d 'Disable edit'
 complete -c dot -n '__fish_seen_subcommand_from workspace-relayout; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt -s h help no-help' -f -a '--help' -d 'Show help information'
-complete -c dot -n '__fish_seen_subcommand_from workspace-capture' -f
-complete -c dot -n '__fish_seen_subcommand_from workspace-capture; and not __fish_contains_opt current-workspace current no-current-workspace' -l current-workspace -l current
-complete -c dot -n '__fish_seen_subcommand_from workspace-capture; and not __fish_contains_opt current-workspace current no-current-workspace' -l no-current-workspace
-complete -c dot -n '__fish_seen_subcommand_from workspace-capture; and begin; not __fish_contains_opt output; or contains -- (commandline -poc)[-1] --output; end' -l output -d 'Write to this file' -r -F
-complete -c dot -n '__fish_seen_subcommand_from workspace-capture; and begin; not __fish_contains_opt state-dir; or contains -- (commandline -poc)[-1] --state-dir; end' -l state-dir -d 'Capture state directory' -r -F
-complete -c dot -n '__fish_seen_subcommand_from workspace-capture; and not __fish_contains_opt -s h help no-help' -l help -s h -d 'Show help information'
-complete -c dot -n '__fish_seen_subcommand_from workspace-capture; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt current-workspace current no-current-workspace' -f -a '--current-workspace'
-complete -c dot -n '__fish_seen_subcommand_from workspace-capture; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt current-workspace current no-current-workspace' -f -a '--no-current-workspace'
-complete -c dot -n '__fish_seen_subcommand_from workspace-capture; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt output' -f -a '--output' -d 'Write to this file'
-complete -c dot -n '__fish_seen_subcommand_from workspace-capture; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt state-dir' -f -a '--state-dir' -d 'Capture state directory'
-complete -c dot -n '__fish_seen_subcommand_from workspace-capture; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt -s h help no-help' -f -a '--help' -d 'Show help information'
-complete -c dot -n '__fish_seen_subcommand_from workspace-restore' -f
-complete -c dot -n '__fish_seen_subcommand_from workspace-restore; and not __fish_contains_opt dry-run dryrun no-dry-run' -l dry-run -l dryrun
-complete -c dot -n '__fish_seen_subcommand_from workspace-restore; and not __fish_contains_opt dry-run dryrun no-dry-run' -l no-dry-run
-complete -c dot -n '__fish_seen_subcommand_from workspace-restore; and begin; not __fish_contains_opt file; or contains -- (commandline -poc)[-1] --file; end' -l file -d 'Restore this capture' -r -F
-complete -c dot -n '__fish_seen_subcommand_from workspace-restore; and begin; not __fish_contains_opt state-dir; or contains -- (commandline -poc)[-1] --state-dir; end' -l state-dir -d 'Capture state directory' -r -F
-complete -c dot -n '__fish_seen_subcommand_from workspace-restore; and not __fish_contains_opt no-launch no-no-launch' -l no-launch -d 'Do not launch missing apps'
-complete -c dot -n '__fish_seen_subcommand_from workspace-restore; and not __fish_contains_opt no-move no-no-move' -l no-move -d 'Do not move matched windows'
-complete -c dot -n '__fish_seen_subcommand_from workspace-restore; and not __fish_contains_opt -s h help no-help' -l help -s h -d 'Show help information'
-complete -c dot -n '__fish_seen_subcommand_from workspace-restore; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt dry-run dryrun no-dry-run' -f -a '--dry-run'
-complete -c dot -n '__fish_seen_subcommand_from workspace-restore; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt dry-run dryrun no-dry-run' -f -a '--no-dry-run'
-complete -c dot -n '__fish_seen_subcommand_from workspace-restore; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt file' -f -a '--file' -d 'Restore this capture'
-complete -c dot -n '__fish_seen_subcommand_from workspace-restore; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt state-dir' -f -a '--state-dir' -d 'Capture state directory'
-complete -c dot -n '__fish_seen_subcommand_from workspace-restore; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt no-launch no-no-launch' -f -a '--no-launch' -d 'Do not launch missing apps'
-complete -c dot -n '__fish_seen_subcommand_from workspace-restore; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt no-move no-no-move' -f -a '--no-move' -d 'Do not move matched windows'
-complete -c dot -n '__fish_seen_subcommand_from workspace-restore; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt -s h help no-help' -f -a '--help' -d 'Show help information'
 complete -c dot -n '__fish_seen_subcommand_from usage' -f
 complete -c dot -n '__fish_seen_subcommand_from usage; and begin; not __fish_contains_opt days; or contains -- (commandline -poc)[-1] --days; end' -l days -d 'Window in days' -r -f
 complete -c dot -n '__fish_seen_subcommand_from usage; and begin; not __fish_contains_opt format; or contains -- (commandline -poc)[-1] --format; end' -l format -r -f -a 'text json agent-context'

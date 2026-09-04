@@ -67,9 +67,6 @@ done
 for malformed in \
   'git-commit ---m Test --dry-run' \
   'is-agent ---q' \
-  'workspace-capture ----current --help' \
-  'workspace-restore ----dryrun --help' \
-  'workspace-restore --no-no-launch --dry-run' \
   'update --no-no-self-update --help' \
   '--no-help'; do
   if DOT_USAGE_DISABLE=1 "$dot_binary" $malformed >/dev/null 2>&1; then
@@ -77,11 +74,6 @@ for malformed in \
     exit 1
   fi
 done
-
-set +e
-dryrun_output=$(DOT_USAGE_DISABLE=1 "$dot_binary" workspace-restore --dryrun 2>&1)
-set -e
-[[ "$dryrun_output" != *'Unrecognized flag'* ]]
 
 set +e
 DOT_USAGE_DISABLE=1 "$dot_binary" launch-floating-webapp >/dev/null 2>&1

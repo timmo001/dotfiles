@@ -43,8 +43,6 @@ _dot() {
     'herdr-repo-open:Open or focus a repository workspace in the shared Herdr session. If the server is headless, open a tiled terminal and wait for a foreground client before focusing the workspace.'
     'workspace-setup:Launch or reuse desktop apps and rebuild the workspace layout'
     'workspace-relayout:Apply or capture a Hyprland workspace layout'
-    'workspace-capture:Capture Hyprland workspace and window state'
-    'workspace-restore:Restore a captured Hyprland workspace session'
     'usage:Report local-first usage analytics from NDJSON events under $XDG_STATE_HOME/tool-usage. Live events store canonical commands and recognised flag names, never positional values. Set DOT_USAGE_DISABLE=1 to disable live recording or DOT_USAGE_DIR to relocate storage.'
     'help:Show this help menu'
   )
@@ -151,12 +149,6 @@ _dot() {
           ;;
         workspace-relayout)
           _dot_workspace_relayout
-          ;;
-        workspace-capture)
-          _dot_workspace_capture
-          ;;
-        workspace-restore)
-          _dot_workspace_restore
           ;;
         usage)
           _dot_usage
@@ -792,36 +784,6 @@ _dot_workspace_relayout() {
   specs=(
     '(--edit --no-edit)--edit[Capture or overwrite a preset]'
     '(--edit --no-edit)--no-edit[Disable edit]'
-    '(--help -h)--help[Show help information]'
-    '(--help -h)-h[Show help information]'
-  )
-  _arguments "${specs[@]}"
-}
-
-_dot_workspace_capture() {
-  local -a specs
-  specs=(
-    '(--current-workspace --current --no-current-workspace)--current-workspace'
-    '(--current-workspace --current --no-current-workspace)--current'
-    '(--current-workspace --current --no-current-workspace)--no-current-workspace'
-    '(--output)--output[Write to this file]:file:_files'
-    '(--state-dir)--state-dir[Capture state directory]:directory:_directories'
-    '(--help -h)--help[Show help information]'
-    '(--help -h)-h[Show help information]'
-  )
-  _arguments "${specs[@]}"
-}
-
-_dot_workspace_restore() {
-  local -a specs
-  specs=(
-    '(--dry-run --dryrun --no-dry-run)--dry-run'
-    '(--dry-run --dryrun --no-dry-run)--dryrun'
-    '(--dry-run --dryrun --no-dry-run)--no-dry-run'
-    '(--file)--file[Restore this capture]:file:_files'
-    '(--state-dir)--state-dir[Capture state directory]:directory:_directories'
-    '(--no-launch)--no-launch[Do not launch missing apps]'
-    '(--no-move)--no-move[Do not move matched windows]'
     '(--help -h)--help[Show help information]'
     '(--help -h)-h[Show help information]'
   )

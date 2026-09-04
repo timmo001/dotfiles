@@ -208,14 +208,6 @@ _dot()
         _dot_workspace_relayout "$i"
         return
         ;;
-      workspace-capture)
-        _dot_workspace_capture "$i"
-        return
-        ;;
-      workspace-restore)
-        _dot_workspace_restore "$i"
-        return
-        ;;
       usage)
         _dot_usage "$i"
         return
@@ -242,7 +234,7 @@ _dot()
     return
   fi
 
-  COMPREPLY=( $(compgen -W 'init install update up system-update stow omarchy-plugin omarchy-shell-config firewall doctor clean agents-sync notes-capture-sync setup-private-repo setup-public-repo git-diff diff git-commit git-notifications mcp-sync private-pkg-publish skills completions is-agent agent-oxlint launch-floating-webapp herdr-repo-open workspace-setup workspace-relayout workspace-capture workspace-restore usage help' -- "$cur") )
+  COMPREPLY=( $(compgen -W 'init install update up system-update stow omarchy-plugin omarchy-shell-config firewall doctor clean agents-sync notes-capture-sync setup-private-repo setup-public-repo git-diff diff git-commit git-notifications mcp-sync private-pkg-publish skills completions is-agent agent-oxlint launch-floating-webapp herdr-repo-open workspace-setup workspace-relayout usage help' -- "$cur") )
 }
 
 _dot_init()
@@ -1651,92 +1643,6 @@ _dot_workspace_relayout()
   local _filtered_flags=""
   [[ -n "$_used_0" ]] || _filtered_flags+=" --edit --no-edit"
   [[ -n "$_used_1" ]] || _filtered_flags+=" --help -h"
-
-  # Complete flags (filtered) and subcommands
-  if [[ "$cur" == -* ]]; then
-    COMPREPLY=( $(compgen -W "$_filtered_flags" -- "$cur") )
-    return
-  fi
-
-}
-
-_dot_workspace_capture()
-{
-  local cur prev words cword i
-  local _command_index="$1"
-  _init_completion -n "$COMP_WORDBREAKS" || return
-
-  # Flag value completions
-  case "$prev" in
-    --output)
-      COMPREPLY=( $(compgen -f -- "$cur") )
-      return
-      ;;
-    --state-dir)
-      COMPREPLY=( $(compgen -d -- "$cur") )
-      return
-      ;;
-  esac
-
-  local _used_0="" _used_1="" _used_2="" _used_3=""
-  for ((i = 1; i < cword; i++)); do
-    case "${words[i]%%=*}" in
-      --current-workspace|--current|--no-current-workspace) _used_0=1 ;;
-      --output) _used_1=1 ;;
-      --state-dir) _used_2=1 ;;
-      --help|-h) _used_3=1 ;;
-    esac
-  done
-  local _filtered_flags=""
-  [[ -n "$_used_0" ]] || _filtered_flags+=" --current-workspace --current --no-current-workspace"
-  [[ -n "$_used_1" ]] || _filtered_flags+=" --output"
-  [[ -n "$_used_2" ]] || _filtered_flags+=" --state-dir"
-  [[ -n "$_used_3" ]] || _filtered_flags+=" --help -h"
-
-  # Complete flags (filtered) and subcommands
-  if [[ "$cur" == -* ]]; then
-    COMPREPLY=( $(compgen -W "$_filtered_flags" -- "$cur") )
-    return
-  fi
-
-}
-
-_dot_workspace_restore()
-{
-  local cur prev words cword i
-  local _command_index="$1"
-  _init_completion -n "$COMP_WORDBREAKS" || return
-
-  # Flag value completions
-  case "$prev" in
-    --file)
-      COMPREPLY=( $(compgen -f -- "$cur") )
-      return
-      ;;
-    --state-dir)
-      COMPREPLY=( $(compgen -d -- "$cur") )
-      return
-      ;;
-  esac
-
-  local _used_0="" _used_1="" _used_2="" _used_3="" _used_4="" _used_5=""
-  for ((i = 1; i < cword; i++)); do
-    case "${words[i]%%=*}" in
-      --dry-run|--dryrun|--no-dry-run) _used_0=1 ;;
-      --file) _used_1=1 ;;
-      --state-dir) _used_2=1 ;;
-      --no-launch) _used_3=1 ;;
-      --no-move) _used_4=1 ;;
-      --help|-h) _used_5=1 ;;
-    esac
-  done
-  local _filtered_flags=""
-  [[ -n "$_used_0" ]] || _filtered_flags+=" --dry-run --dryrun --no-dry-run"
-  [[ -n "$_used_1" ]] || _filtered_flags+=" --file"
-  [[ -n "$_used_2" ]] || _filtered_flags+=" --state-dir"
-  [[ -n "$_used_3" ]] || _filtered_flags+=" --no-launch"
-  [[ -n "$_used_4" ]] || _filtered_flags+=" --no-move"
-  [[ -n "$_used_5" ]] || _filtered_flags+=" --help -h"
 
   # Complete flags (filtered) and subcommands
   if [[ "$cur" == -* ]]; then

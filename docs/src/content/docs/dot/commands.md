@@ -968,42 +968,6 @@ dot workspace-relayout [flags]
 | `--edit` | Capture or overwrite a preset |
 | `--help` `-h` | Show help information |
 
-## `dot workspace-capture`
-
-Capture Hyprland workspace and window state
-
-```text
-dot workspace-capture [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--current-workspace` `--current` |  |
-| `--output` `<path>` | Write to this file |
-| `--state-dir` `<path>` | Capture state directory |
-| `--help` `-h` | Show help information |
-
-## `dot workspace-restore`
-
-Restore a captured Hyprland workspace session
-
-```text
-dot workspace-restore [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--dry-run` `--dryrun` |  |
-| `--file` `<path>` | Restore this capture |
-| `--state-dir` `<path>` | Capture state directory |
-| `--no-launch` | Do not launch missing apps |
-| `--no-move` | Do not move matched windows |
-| `--help` `-h` | Show help information |
-
 ## `dot usage`
 
 Report local-first usage analytics from NDJSON events under $XDG_STATE_HOME/tool-usage. Live events store canonical commands and recognised flag names, never positional values. Set DOT_USAGE_DISABLE=1 to disable live recording or DOT_USAGE_DIR to relocate storage.

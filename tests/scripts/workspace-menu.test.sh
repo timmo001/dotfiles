@@ -8,16 +8,8 @@ trap 'rm -rf "$temp_dir"' EXIT
 
 cat >"$temp_dir/omarchy-menu-select" <<'EOF'
 #!/usr/bin/env bash
-count_file="${MENU_COUNT_FILE:?}"
-count=0
-[[ -f "$count_file" ]] && count="$(<"$count_file")"
-count=$((count + 1))
-printf '%s' "$count" >"$count_file"
-if [[ $count -eq 1 ]]; then
-  printf '%s\n' 'Setup workspace'
-else
-  printf '%s\n' "${MENU_SETUP_CHOICE:?}"
-fi
+printf '%s\n' "$@" >"${MENU_ARGS:?}"
+printf '%s\n' "${MENU_CHOICE:?}"
 EOF
 cat >"$temp_dir/workspace-setup" <<'EOF'
 #!/usr/bin/env bash
@@ -29,13 +21,11 @@ chmod +x "$temp_dir/omarchy-menu-select" "$temp_dir/workspace-setup"
 run_menu() {
   local choice="$1"
   local captured="$2"
-  local count_file="$temp_dir/count-$choice"
-  rm -f "$count_file" "$captured"
+  rm -f "$captured"
   set +e
   PATH="$temp_dir:$PATH" \
-    OMARCHY_HOST=desktop \
-    MENU_COUNT_FILE="$count_file" \
-    MENU_SETUP_CHOICE="$choice" \
+    MENU_CHOICE="$choice" \
+    MENU_ARGS="$temp_dir/menu-args" \
     CAPTURED_ARGS="$captured" \
     "$repo_root/scripts/.local/bin/workspace-menu"
   local status=$?
@@ -46,6 +36,7 @@ run_menu() {
 captured_work="$temp_dir/args-work"
 run_menu Work "$captured_work"
 diff -u <(printf '%s\n' --mode=work) "$captured_work"
+diff -u <(printf '%s\n' '󰋜  Normal' '󰣇  Work') <(grep -E '  (Normal|Work)$' "$temp_dir/menu-args")
 
 captured_normal="$temp_dir/args-normal"
 run_menu Normal "$captured_normal"

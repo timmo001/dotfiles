@@ -30,10 +30,6 @@ import { update, updateCheck } from "../commands/Update.js";
 import { usage } from "../commands/Usage.js";
 import { workspaceRelayout } from "../commands/WorkspaceRelayout.js";
 import { workspaceSetup } from "../commands/WorkspaceSetup.js";
-import {
-  workspaceCapture,
-  workspaceRestore,
-} from "../commands/WorkspaceSession.js";
 import { configureFirewallRules } from "../lib/firewallSetup.js";
 import { applyOmarchyShellConfig } from "../lib/omarchyShellConfig.js";
 import {
@@ -1064,50 +1060,6 @@ const setupWorkspace = describe(
     "dot workspace-setup --mode=normal",
   ],
 );
-const capture = describe(
-  Command.make(
-    "workspace-capture",
-    {
-      currentWorkspace: Flag.boolean("current-workspace").pipe(
-        Flag.withAlias("current"),
-        Flag.withDefault(false),
-      ),
-      output: pathFlag("output", "Write to this file", "file"),
-      stateDir: pathFlag("state-dir", "Capture state directory", "directory"),
-    },
-    ({ output, stateDir, ...input }) =>
-      workspaceCapture({
-        ...input,
-        output: optional(output),
-        stateDir: optional(stateDir),
-      }),
-  ),
-  "Capture Hyprland workspace and window state",
-);
-const restore = describe(
-  Command.make(
-    "workspace-restore",
-    {
-      dryRun: Flag.boolean("dry-run").pipe(
-        Flag.withAlias("dryrun"),
-        Flag.withDefault(false),
-      ),
-      file: pathFlag("file", "Restore this capture", "file"),
-      stateDir: pathFlag("state-dir", "Capture state directory", "directory"),
-      noLaunch: bool("no-launch", "Do not launch missing apps"),
-      noMove: bool("no-move", "Do not move matched windows"),
-    },
-    ({ file, noLaunch, noMove, stateDir, ...input }) =>
-      workspaceRestore({
-        ...input,
-        file: optional(file),
-        stateDir: optional(stateDir),
-        launchMissing: !noLaunch,
-        moveExisting: !noMove,
-      }),
-  ),
-  "Restore a captured Hyprland workspace session",
-);
 const usageCommand = describe(
   Command.make(
     "usage",
@@ -1219,8 +1171,6 @@ export const dotCommand = describe(
       herdr,
       setupWorkspace,
       relayout,
-      capture,
-      restore,
       usageCommand,
       helpCommand,
     ]),
