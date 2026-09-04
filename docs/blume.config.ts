@@ -13,7 +13,7 @@ export default defineConfig({
   github: {
     owner: 'timmo001',
     repo: 'dotfiles',
-    branch: 'distro/arch-omarchy',
+    branch: 'distro/arch-omarchy-quattro',
     dir: 'docs',
   },
   navigation: {

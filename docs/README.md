@@ -33,7 +33,7 @@ All commands run from this `docs/` directory:
 The site deploys to Cloudflare Workers with Blume's Astro server bundle. Server output provides the hosted read-only MCP endpoint and Markdown content negotiation; Ask AI is disabled and no model binding or API key is required. Workers Builds uses:
 
 - Root directory: `docs`
-- Production branch: `distro/arch-omarchy`
+- Production branch: `distro/arch-omarchy-quattro`
 - Build command: `bun run build`
 - Deploy command: `bun run deploy`
 - Non-production deploy command: `bun run deploy:preview`
