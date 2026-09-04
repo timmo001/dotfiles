@@ -7,7 +7,7 @@ sidebar:
 
 `workspace-setup` is the compatibility entry point for `dot workspace-setup`, the desktop host's opinionated workspace arranger. It launches or reuses the expected apps, tags them by slot, moves them to fixed workspaces, and rebuilds the main workspace split tree.
 
-Use it when the desktop workspace set has drifted, after login, or after a restart where capture/restore is not the right tool.
+Use it when the desktop workspace set has drifted, after login, or after a restart.
 
 :::note
 This is more specific than [Workspace Relayout](/knowledge-base/workspace-relayout/). Relayout reshapes whatever tiled windows are already on the active workspace. Workspace setup chooses specific apps and workspaces.
@@ -21,11 +21,16 @@ The desktop host autostarts setup after Hyprland starts:
 exec-once = workspace-setup --sleep=5
 ```
 
-On the `desktop` host, `workspace-menu` also exposes a **Setup workspace** action. That action asks whether to use the work or normal layout. The shared menu binding is:
+`SUPER+CTRL+TAB` opens `workspace-menu`, a two-option picker. Normal is first:
 
 ```text
-SUPER+ALT+W
+SUPER+CTRL+TAB
 ```
+
+| Choice | Command |
+| --- | --- |
+| `󰋜 Normal` | `workspace-setup --mode=normal` |
+| `󰣇 Work` | `workspace-setup --mode=work` |
 
 You can also run it directly:
 
@@ -56,11 +61,23 @@ The normal layout prepares:
 
 After setup, it switches to workspace `2`.
 
-Setup shows the [`popup-loading`](/knowledge-base/desktop-command-wrappers/#loading-overlay) overlay on the focused monitor while it runs. The overlay starts with `Setting up workspace...` and then follows the current high-level step, such as preparing apps or rebuilding a split tree. Window moves, tags, and other slot details stay in the log. The overlay hides when setup finishes or fails.
+Setup shows the [`popup-loading`](/knowledge-base/desktop-command-wrappers/#loading-overlay) overlay on the focused monitor while it runs. The overlay starts with `Setting up workspace...` and then follows the current high-level step, such as preparing apps or rebuilding a split tree. Window moves, tags, and other slot details stay in the log. The overlay hides when setup finishes or fails. If setup aborts because a window must be closed first, the overlay shows that message before hiding.
 
 Terminal slots launch through `ghostty-host-config`, so they keep the active `config.$OMARCHY_HOST` override. The left monitor's terminal always starts in the home directory. The central monitor attaches directly to the shared default Herdr session. Repository shortcuts only create or focus named workspaces when they are run inside Herdr; in a normal shell they keep their usual `cd` behaviour. Herdr's `prefix+s` picker exposes the same configured repositories plus the home and `~/repos` directories.
 
 Hyprland starts the shared Herdr server once in UWSM's background graphical slice. Every terminal is only a client of that server.
+
+## Close-first checks
+
+Setup aborts before moving, tagging, or launching windows when the requested layout would clash with what is already open, or when extra terminals on workspace 1 would squash the rebuilt split tree. The loading overlay shows the reason, a desktop notification repeats it, and the command exits with an error.
+
+Normal layout (`--mode=normal`, or non-work-time without `--mode`) refuses to run while Slack, Discord, or the work browser is still open.
+
+Work layout (`--mode=work`, or work-time without `--mode`) refuses to run while the extra workspace-1 top Ghostty (`wssetup-ws1-term-top`) is still open.
+
+Unused Ghostty windows on workspace 1 can still fill the expected home-terminal slots: one in the work layout, two in the normal layout. OpenCode terminals (titles starting with `OC |`) cannot fill those slots. Any leftover tiled Ghostty after that would stay in the dwindle tree, so setup stops rather than shrinking the intended panes. Close the named window and run setup again.
+
+Shared personal Chromium, the shared home Ghostty (`wssetup-ws1-term`), and Herdr do not block either layout.
 
 ## How slots are matched
 
@@ -158,7 +175,7 @@ Valid values are `movetoworkspace` and `movetoworkspacesilent`. The explicit fla
 2. Watch the log output for the slot that fails to resolve.
 3. Check whether the app window class matches the slot regex.
 4. If timing is the issue, rerun with a higher `--speed-multiplier` or `--sleep`.
-5. If placement goes wrong, move windows manually or restore a capture from [Workspace Session Recovery](/knowledge-base/workspace-session-recovery/).
+5. If placement goes wrong, move windows manually or rerun setup.
 
 
 ## Troubleshooting

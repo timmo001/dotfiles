@@ -11,10 +11,12 @@ import {
 import { tmpdir } from "os";
 import { join } from "path";
 import {
+  findWorkspaceSetupBlocker,
   WorkspaceSetupError,
   resolveWorkspaceSetupConfig,
   validateWorkspaceSetupPreflight,
   workspaceSetup,
+  type WorkspaceSetupLayoutClient,
   type WorkspaceSetupOptions,
 } from "../../src/commands/WorkspaceSetup.js";
 import { STATE_DIR } from "../../src/lib/paths.js";
@@ -80,6 +82,31 @@ function applyTagDispatch(clients: MockClient[], dispatched: string): void {
   }
   if (!client.tags.includes(tag)) client.tags = [...client.tags, tag];
 }
+
+function layoutClient(
+  overrides: Partial<WorkspaceSetupLayoutClient> & { class: string },
+): WorkspaceSetupLayoutClient {
+  return {
+    initialClass: "",
+    title: "",
+    initialTitle: "",
+    workspace: { id: 1 },
+    tags: [],
+    floating: false,
+    ...overrides,
+  };
+}
+
+const chromium = layoutClient({ class: "chromium" });
+const herdr = layoutClient({
+  class: "herdr",
+  workspace: { id: 2 },
+  tags: ["wssetup-ws2-term"],
+});
+const homeGhostty = layoutClient({
+  class: "com.mitchellh.ghostty",
+  tags: ["wssetup-ws1-term"],
+});
 
 describe("workspace setup", () => {
   test("resolves flags before legacy environment values and validates reserved workspaces", () => {
@@ -279,6 +306,7 @@ describe("workspace setup", () => {
     ];
     const probed: string[] = [];
     const overlays: string[][] = [];
+    const dispatches: string[] = [];
     const executor = Layer.succeed(CommandExecutor, {
       run: (command, args) => {
         if (command === "popup-loading") {
@@ -292,6 +320,7 @@ describe("workspace setup", () => {
         if (args[0] === "-j" && args[1] === "activewindow") {
           return Effect.succeed('{"address":"0xb"}');
         }
+        dispatches.push(args[1] ?? "");
         return Effect.succeed("");
       },
       stream: () => Stream.empty,
@@ -328,6 +357,15 @@ describe("workspace setup", () => {
     expect(readFileSync(join(root, "run.log"), "utf8")).toContain(
       "Using normal mode",
     );
+    expect(
+      dispatches.filter((command) =>
+        command.startsWith("hl.dsp.window.resize"),
+      ),
+    ).toEqual([
+      'hl.dsp.window.resize({ x = 1294, y = 660, window = "address:0xt" })',
+      'hl.dsp.window.resize({ x = 1348, y = 240, window = "address:0xm" })',
+      'hl.dsp.window.resize({ x = 1348, y = 850, window = "address:0xb" })',
+    ]);
   });
 
   test("forces the work layout without consulting is-work-time", async () => {
@@ -422,6 +460,16 @@ describe("workspace setup", () => {
     expect(readFileSync(join(root, "run.log"), "utf8")).toContain(
       "Using work mode",
     );
+    expect(
+      dispatches.filter((command) =>
+        command.startsWith("hl.dsp.window.resize"),
+      ),
+    ).toEqual([
+      'hl.dsp.window.resize({ x = 671, y = 660, window = "address:0xs" })',
+      'hl.dsp.window.resize({ x = 671, y = 660, window = "address:0xd" })',
+      'hl.dsp.window.resize({ x = 1348, y = 850, window = "address:0xb" })',
+      'hl.dsp.window.resize({ x = 1348, y = 850, window = "address:0xm" })',
+    ]);
   });
 
   test("reuses slack and discord windows whose chrome class has a profile suffix", async () => {
@@ -564,7 +612,10 @@ describe("workspace setup", () => {
         if (dispatched.startsWith("hl.dsp.exec_cmd(")) {
           const launched = JSON.parse(
             dispatched.slice("hl.dsp.exec_cmd(".length, -1),
-          ) as string;
+          );
+          if (typeof launched !== "string") {
+            throw new Error("expected exec command string");
+          }
           execs.push(launched);
           if (launched.includes(" -e herdr")) {
             throw new Error("existing herdr window should be reused");
@@ -617,5 +668,412 @@ describe("workspace setup", () => {
     expect(moves.filter((command) => command.includes("address:0xh"))).toEqual([
       expect.stringContaining('workspace = "2"'),
     ]);
+  });
+
+  test("finds the first close-first blocker for the requested layout", () => {
+    expect(
+      findWorkspaceSetupBlocker(
+        [
+          chromium,
+          herdr,
+          homeGhostty,
+          layoutClient({ class: "chrome-app.slack.com__client-Default" }),
+        ],
+        false,
+      ),
+    ).toEqual({
+      name: "Slack",
+      message: "You must close Slack first",
+    });
+    expect(
+      findWorkspaceSetupBlocker(
+        [
+          chromium,
+          herdr,
+          homeGhostty,
+          layoutClient({ class: "chrome-discord.com__app-Default" }),
+        ],
+        false,
+      ),
+    ).toEqual({
+      name: "Discord",
+      message: "You must close Discord first",
+    });
+    expect(
+      findWorkspaceSetupBlocker(
+        [chromium, herdr, homeGhostty, layoutClient({ class: "work-browser" })],
+        false,
+      ),
+    ).toEqual({
+      name: "the work browser",
+      message: "You must close the work browser first",
+    });
+    expect(
+      findWorkspaceSetupBlocker(
+        [
+          chromium,
+          herdr,
+          layoutClient({
+            class: "com.mitchellh.ghostty",
+            tags: ["wssetup-ws1-term-top"],
+          }),
+        ],
+        true,
+      ),
+    ).toEqual({
+      name: "the extra top terminal",
+      message: "You must close the extra top terminal first",
+    });
+    expect(findWorkspaceSetupBlocker([chromium, herdr], true)).toBeUndefined();
+    expect(
+      findWorkspaceSetupBlocker([chromium, herdr, homeGhostty], true),
+    ).toBeUndefined();
+    expect(
+      findWorkspaceSetupBlocker(
+        [chromium, herdr, homeGhostty, homeGhostty],
+        false,
+      ),
+    ).toBeUndefined();
+    expect(
+      findWorkspaceSetupBlocker(
+        [
+          chromium,
+          herdr,
+          homeGhostty,
+          layoutClient({ class: "com.mitchellh.ghostty" }),
+        ],
+        true,
+      ),
+    ).toEqual({
+      name: "Ghostty",
+      message: "You must close Ghostty first",
+    });
+    expect(
+      findWorkspaceSetupBlocker(
+        [
+          chromium,
+          herdr,
+          homeGhostty,
+          layoutClient({
+            class: "com.mitchellh.ghostty",
+            title: "OC | notes",
+          }),
+        ],
+        true,
+      ),
+    ).toEqual({
+      name: "OC | notes",
+      message: "You must close OC | notes first",
+    });
+    expect(
+      findWorkspaceSetupBlocker(
+        [
+          chromium,
+          herdr,
+          homeGhostty,
+          layoutClient({ class: "com.mitchellh.ghostty" }),
+          layoutClient({ class: "com.mitchellh.ghostty" }),
+        ],
+        false,
+      ),
+    ).toEqual({
+      name: "Ghostty",
+      message: "You must close Ghostty first",
+    });
+    expect(
+      findWorkspaceSetupBlocker(
+        [
+          chromium,
+          herdr,
+          homeGhostty,
+          layoutClient({
+            class: "com.mitchellh.ghostty",
+            floating: true,
+          }),
+          layoutClient({
+            class: "com.mitchellh.ghostty",
+            workspace: { id: 2 },
+          }),
+        ],
+        true,
+      ),
+    ).toBeUndefined();
+  });
+
+  test("aborts normal mode when Slack is still open", async () => {
+    const root = mkdtempSync(join(tmpdir(), "workspace-setup-slack-block-"));
+    roots.push(root);
+    installDependencies(root);
+    const clients = [
+      {
+        address: "0xb",
+        class: "chromium",
+        workspace: { id: 1 },
+        tags: ["wssetup-ws1-browser-main"],
+      },
+      {
+        address: "0xh",
+        class: "herdr",
+        workspace: { id: 2 },
+        tags: ["wssetup-ws2-term"],
+      },
+      {
+        address: "0xs",
+        class: "chrome-app.slack.com__client-Default",
+        workspace: { id: 1 },
+        tags: ["wssetup-ws1-slack"],
+      },
+    ];
+    const dispatches: string[] = [];
+    const overlays: string[][] = [];
+    const notifications: string[][] = [];
+    const executor = Layer.succeed(CommandExecutor, {
+      run: (command, args) => {
+        if (command === "popup-loading") {
+          overlays.push([...args]);
+          return Effect.succeed("");
+        }
+        if (command === "omarchy") {
+          notifications.push([...args]);
+          return Effect.succeed("");
+        }
+        if (command !== "hyprctl") return Effect.succeed("");
+        if (args[0] === "-j" && args[1] === "clients") {
+          return Effect.succeed(JSON.stringify(clients));
+        }
+        if (args[0] === "-j" && args[1] === "activewindow") {
+          return Effect.succeed('{"address":"0xb"}');
+        }
+        dispatches.push(args[1] ?? "");
+        return Effect.succeed("");
+      },
+      stream: () => Stream.empty,
+      exitCode: () => Effect.succeed(1),
+      inherit: () => Effect.succeed(0),
+    });
+
+    await expect(
+      Effect.runPromise(
+        workspaceSetup({
+          ...defaults,
+          fast: true,
+          mode: "normal",
+          logFile: join(root, "run.log"),
+        }).pipe(Effect.provide(executor)),
+      ),
+    ).rejects.toThrow("You must close Slack first");
+    expect(dispatches).toEqual([]);
+    expect(overlays).toContainEqual(["show", "You must close Slack first"]);
+    expect(overlays.at(-1)).toEqual(["hide"]);
+    expect(notifications).toContainEqual([
+      "notification",
+      "send",
+      "-g",
+      "󱂬",
+      "Workspace setup",
+      "You must close Slack first",
+    ]);
+    expect(existsSync(join(STATE_DIR, "dot", "workspace-mutation.lock"))).toBe(
+      false,
+    );
+  });
+
+  test("aborts work mode when the extra top terminal is still open", async () => {
+    const root = mkdtempSync(join(tmpdir(), "workspace-setup-top-term-block-"));
+    roots.push(root);
+    installDependencies(root);
+    writeFileSync(join(root, "google-chrome-stable"), "#!/bin/sh\nexit 0\n");
+    chmodSync(join(root, "google-chrome-stable"), 0o755);
+    const clients = [
+      {
+        address: "0xb",
+        class: "chromium",
+        workspace: { id: 1 },
+        tags: ["wssetup-ws1-browser-main"],
+      },
+      {
+        address: "0xh",
+        class: "herdr",
+        workspace: { id: 2 },
+        tags: ["wssetup-ws2-term"],
+      },
+      {
+        address: "0xt",
+        class: "com.mitchellh.ghostty",
+        workspace: { id: 1 },
+        tags: ["wssetup-ws1-term-top"],
+      },
+    ];
+    const dispatches: string[] = [];
+    const overlays: string[][] = [];
+    const executor = Layer.succeed(CommandExecutor, {
+      run: (command, args) => {
+        if (command === "popup-loading") {
+          overlays.push([...args]);
+          return Effect.succeed("");
+        }
+        if (command !== "hyprctl") return Effect.succeed("");
+        if (args[0] === "-j" && args[1] === "clients") {
+          return Effect.succeed(JSON.stringify(clients));
+        }
+        if (args[0] === "-j" && args[1] === "activewindow") {
+          return Effect.succeed('{"address":"0xb"}');
+        }
+        dispatches.push(args[1] ?? "");
+        return Effect.succeed("");
+      },
+      stream: () => Stream.empty,
+      exitCode: () => Effect.succeed(1),
+      inherit: () => Effect.succeed(0),
+    });
+
+    await expect(
+      Effect.runPromise(
+        workspaceSetup({
+          ...defaults,
+          fast: true,
+          mode: "work",
+          logFile: join(root, "run.log"),
+        }).pipe(Effect.provide(executor)),
+      ),
+    ).rejects.toThrow("You must close the extra top terminal first");
+    expect(dispatches).toEqual([]);
+    expect(overlays).toContainEqual([
+      "show",
+      "You must close the extra top terminal first",
+    ]);
+  });
+
+  test("does not abort for shared Chromium and Herdr alone", async () => {
+    const root = mkdtempSync(join(tmpdir(), "workspace-setup-shared-ok-"));
+    roots.push(root);
+    installDependencies(root);
+    const clients: MockClient[] = [
+      {
+        address: "0xb",
+        class: "chromium",
+        workspace: { id: 1 },
+        tags: ["wssetup-ws1-browser-main"],
+      },
+      {
+        address: "0xh",
+        class: "herdr",
+        workspace: { id: 2 },
+        tags: ["wssetup-ws2-term"],
+      },
+    ];
+    const dispatches: string[] = [];
+    const executor = Layer.succeed(CommandExecutor, {
+      run: (command, args) => {
+        if (command !== "hyprctl") return Effect.succeed("");
+        if (args[0] === "-j" && args[1] === "clients") {
+          return Effect.succeed(JSON.stringify(clients));
+        }
+        if (args[0] === "-j" && args[1] === "activewindow") {
+          return Effect.succeed('{"address":"0xb"}');
+        }
+        const dispatched = args[1] ?? "";
+        dispatches.push(dispatched);
+        applyTagDispatch(clients, dispatched);
+        if (dispatched.startsWith("hl.dsp.exec_cmd(")) {
+          const launched = JSON.parse(
+            dispatched.slice("hl.dsp.exec_cmd(".length, -1),
+          ) as string;
+          if (launched.includes("ghostty-host-config")) {
+            clients.push({
+              address: `0xg${clients.length}`,
+              class: "com.mitchellh.ghostty",
+              workspace: { id: 1 },
+              tags: [],
+            });
+          }
+        }
+        return Effect.succeed("");
+      },
+      stream: () => Stream.empty,
+      exitCode: () => Effect.succeed(1),
+      inherit: () => Effect.succeed(0),
+    });
+
+    await Effect.runPromise(
+      workspaceSetup({
+        ...defaults,
+        fast: true,
+        mode: "normal",
+        logFile: join(root, "run.log"),
+      }).pipe(Effect.provide(executor)),
+    );
+    expect(
+      dispatches.some((command) => command.startsWith("hl.dsp.window.move")),
+    ).toBe(true);
+  });
+
+  test("aborts when leftover workspace-1 Ghostty would squash the work tree", async () => {
+    const root = mkdtempSync(join(tmpdir(), "workspace-setup-leftover-block-"));
+    roots.push(root);
+    installDependencies(root);
+    writeFileSync(join(root, "google-chrome-stable"), "#!/bin/sh\nexit 0\n");
+    chmodSync(join(root, "google-chrome-stable"), 0o755);
+    const clients = [
+      {
+        address: "0xb",
+        class: "chromium",
+        workspace: { id: 1 },
+        tags: ["wssetup-ws1-browser-main"],
+      },
+      {
+        address: "0xh",
+        class: "herdr",
+        workspace: { id: 2 },
+        tags: ["wssetup-ws2-term"],
+      },
+      {
+        address: "0xm",
+        class: "com.mitchellh.ghostty",
+        workspace: { id: 1 },
+        tags: ["wssetup-ws1-term"],
+      },
+      {
+        address: "0xe",
+        class: "com.mitchellh.ghostty",
+        workspace: { id: 1 },
+        tags: [],
+      },
+    ];
+    const dispatches: string[] = [];
+    const overlays: string[][] = [];
+    const executor = Layer.succeed(CommandExecutor, {
+      run: (command, args) => {
+        if (command === "popup-loading") {
+          overlays.push([...args]);
+          return Effect.succeed("");
+        }
+        if (command !== "hyprctl") return Effect.succeed("");
+        if (args[0] === "-j" && args[1] === "clients") {
+          return Effect.succeed(JSON.stringify(clients));
+        }
+        if (args[0] === "-j" && args[1] === "activewindow") {
+          return Effect.succeed('{"address":"0xb"}');
+        }
+        dispatches.push(args[1] ?? "");
+        return Effect.succeed("");
+      },
+      stream: () => Stream.empty,
+      exitCode: () => Effect.succeed(1),
+      inherit: () => Effect.succeed(0),
+    });
+
+    await expect(
+      Effect.runPromise(
+        workspaceSetup({
+          ...defaults,
+          fast: true,
+          mode: "work",
+          logFile: join(root, "run.log"),
+        }).pipe(Effect.provide(executor)),
+      ),
+    ).rejects.toThrow("You must close Ghostty first");
+    expect(dispatches).toEqual([]);
+    expect(overlays).toContainEqual(["show", "You must close Ghostty first"]);
   });
 });

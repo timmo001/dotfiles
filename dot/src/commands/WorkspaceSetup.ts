@@ -10,7 +10,6 @@ import {
 import { CommandExecutor } from "../services/CommandExecutor.js";
 
 const DEFAULT_TEMP_WORKSPACE = 99;
-const DEFAULT_SPEED_MULTIPLIER = 1.8;
 const LAUNCH_POLLS = 80;
 const LOG_DIRECTORY = join(STATE_DIR, "workspace-setup", "runs");
 const TAG_PREFIX = "wssetup-";
@@ -82,6 +81,38 @@ interface HyprlandClient {
   readonly workspace: { readonly id: number };
   readonly tags: readonly string[];
   readonly focusHistoryID: number;
+  readonly floating: boolean;
+}
+
+/** Client fields inspected when deciding whether setup must abort. */
+export interface WorkspaceSetupLayoutClient {
+  /** Window class. */
+  readonly class: string;
+  /** Class at map time. */
+  readonly initialClass: string;
+  /** Window title. */
+  readonly title: string;
+  /** Title at map time. */
+  readonly initialTitle: string;
+  /** Workspace containing the window. */
+  readonly workspace: { readonly id: number };
+  /** Hyprland tags. */
+  readonly tags: readonly string[];
+  /** Whether the window is floating. */
+  readonly floating: boolean;
+}
+
+/** Window that must be closed before workspace setup can continue. */
+export interface WorkspaceSetupBlocker {
+  /** Short name used in the close-first copy. */
+  readonly name: string;
+  /** Overlay, notification, and tagged-error copy. */
+  readonly message: string;
+}
+
+interface WorkspaceSetupPreflight {
+  readonly clients: readonly HyprlandClient[];
+  readonly activeAddress: string;
 }
 
 interface Slot {
@@ -112,6 +143,7 @@ const ClientSchema = Schema.Struct({
   workspace: WorkspaceSchema,
   tags: Schema.optional(Schema.Array(Schema.String)),
   focusHistoryID: Schema.optional(Schema.Finite),
+  floating: Schema.optional(Schema.Boolean),
 });
 const ClientsSchema = Schema.Array(ClientSchema);
 const ActiveWindowSchema = Schema.Struct({
@@ -138,6 +170,7 @@ function overlayProgress(message: string): string | undefined {
     message.startsWith("Using ") ||
     message.startsWith("Detected ") ||
     message.startsWith("Skipping ") ||
+    message.startsWith("You must close ") ||
     message === "Workspace setup complete"
   ) {
     return message;
@@ -227,6 +260,7 @@ function decodeClients(value: JsonValue): readonly HyprlandClient[] {
       initialTitle: client.initialTitle ?? "",
       tags: client.tags ?? [],
       focusHistoryID: client.focusHistoryID ?? 999_999,
+      floating: client.floating ?? false,
     }));
   } catch (error) {
     return fail(`Invalid Hyprland clients response: ${String(error)}`);
@@ -246,10 +280,7 @@ export function validateWorkspaceSetupPreflight(
   clientsJson: string,
   activeWindowJson: string,
   temporaryWorkspace: number,
-): {
-  readonly clients: readonly HyprlandClient[];
-  readonly activeAddress: string;
-} {
+): WorkspaceSetupPreflight {
   const clients = decodeClients(parseJson(clientsJson, "hyprctl clients"));
   const activeAddress = decodeActiveAddress(
     parseJson(activeWindowJson, "hyprctl activewindow"),
@@ -271,7 +302,13 @@ function timestampedLogPath(now: number): string {
   return join(LOG_DIRECTORY, `workspace-setup-${timestamp}.log`);
 }
 
-function fieldsMatch(client: HyprlandClient, pattern: string): boolean {
+function fieldsMatch(
+  client: Pick<
+    WorkspaceSetupLayoutClient,
+    "class" | "initialClass" | "title" | "initialTitle"
+  >,
+  pattern: string,
+): boolean {
   return [
     client.class,
     client.initialClass,
@@ -287,6 +324,73 @@ function clientMatches(client: HyprlandClient, slot: Slot): boolean {
     (slot.excludePattern === undefined ||
       !fieldsMatch(client, slot.excludePattern))
   );
+}
+
+const WORK_ONLY_WINDOWS = [
+  { name: "Slack", pattern: PATTERN_SLACK },
+  { name: "Discord", pattern: PATTERN_DISCORD },
+  { name: "the work browser", pattern: PATTERN_WORK_BROWSER },
+] as const;
+
+function closeFirst(name: string): WorkspaceSetupBlocker {
+  return { name, message: `You must close ${name} first` };
+}
+
+function isOpenCodeTitle(client: Pick<WorkspaceSetupLayoutClient, "title">) {
+  return client.title.startsWith("OC |");
+}
+
+function isHomeGhostty(client: WorkspaceSetupLayoutClient) {
+  return (
+    fieldsMatch(client, PATTERN_GHOSTTY) && !fieldsMatch(client, PATTERN_HERDR)
+  );
+}
+
+function leftoverWorkspace1Terminal(
+  clients: readonly WorkspaceSetupLayoutClient[],
+  slotCount: number,
+): WorkspaceSetupLayoutClient | undefined {
+  const home = clients.filter(
+    (client) =>
+      client.workspace.id === 1 && !client.floating && isHomeGhostty(client),
+  );
+  const openCode = home.find((client) => isOpenCodeTitle(client));
+  if (openCode) return openCode;
+  return home.filter((client) => !isOpenCodeTitle(client))[slotCount];
+}
+
+function leftoverTerminalName(client: WorkspaceSetupLayoutClient): string {
+  const title = client.title.trim();
+  return title === "" ? "Ghostty" : title;
+}
+
+/**
+ * First window that must be closed before the requested layout can run.
+ *
+ * Work-only apps block the normal layout. The extra workspace-1 top Ghostty
+ * blocks the work layout. After claiming extras into the expected home-terminal
+ * slots, leftover tiled Ghostty windows on workspace 1 also block, including
+ * OpenCode terminals that cannot fill a slot.
+ */
+export function findWorkspaceSetupBlocker(
+  clients: readonly WorkspaceSetupLayoutClient[],
+  workLayout: boolean,
+): WorkspaceSetupBlocker | undefined {
+  if (workLayout) {
+    if (clients.some((client) => client.tags.includes(TAGS.terminalTop))) {
+      return closeFirst("the extra top terminal");
+    }
+  } else {
+    for (const window of WORK_ONLY_WINDOWS) {
+      if (clients.some((client) => fieldsMatch(client, window.pattern))) {
+        return closeFirst(window.name);
+      }
+    }
+  }
+
+  const leftover = leftoverWorkspace1Terminal(clients, workLayout ? 1 : 2);
+  if (leftover) return closeFirst(leftoverTerminalName(leftover));
+  return undefined;
 }
 
 /** Run the native workspace setup workflow. */
@@ -305,6 +409,10 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
     executor.run("popup-loading", ["show", message]).pipe(Effect.ignore);
   const hideOverlay = () =>
     executor.run("popup-loading", ["hide"]).pipe(Effect.ignore);
+  const notify = (title: string, message: string) =>
+    executor
+      .run("omarchy", ["notification", "send", "-g", "󱂬", title, message])
+      .pipe(Effect.ignore);
   const logStep = (message: string) =>
     Effect.gen(function* () {
       const now = yield* Clock.currentTimeMillis;
@@ -590,6 +698,12 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
         ? `Detected ${workTime ? "work-time" : "non-work-time"} mode`
         : `Using ${config.mode} mode`,
     );
+    const blocker = findWorkspaceSetupBlocker(clients, workTime);
+    if (blocker) {
+      yield* logStep(blocker.message);
+      yield* notify("Workspace setup", blocker.message);
+      return fail(blocker.message);
+    }
 
     const personalBrowser = slot(
       TAGS.browser,
@@ -733,9 +847,9 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
         );
       }
       yield* logStep("Applying workspace 1 non-work layout sizes");
-      yield* resize(TAGS.terminalTop, 1294, 600);
+      yield* resize(TAGS.terminalTop, 1294, 660);
+      yield* resize(TAGS.terminal, 1348, 240);
       yield* resize(TAGS.browser, 1348, 850);
-      yield* resize(TAGS.terminal, 1348, 850);
       if (activeAddress) yield* focus(activeAddress);
 
       yield* logStep("Preparing workspace 2 non-work app");
