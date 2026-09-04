@@ -1,0 +1,15 @@
+---
+title: Configuration
+description: Private overlay, packages, and tracked app config.
+---
+
+Behaviour prefers CLI flags. Environment variables cover process context and secrets. Machine-specific and private data stay in `~/.config/dotfiles-private`.
+
+| Piece | Why |
+| --- | --- |
+| Private overlay | Host-only config, secrets, package lists, browser checks, `dot-git.yml` |
+| Public packages | Signed `timmo` repo plus AUR where needed |
+| Private packages | Optional private pacman repo via the private publish flow |
+| Stow packages | App config (shell, editor, Cursor, Lazygit, Yazi, and so on) in this repo |
+
+Prefer reading the stowed source and private YAML over expanding this page. Env vars that affect `dot` are named `DOT_*`, `DOTFILES_*`, or `OMARCHY_*` in code and `--help`.

@@ -5,74 +5,21 @@ description: An agent-driven Omarchy setup for development, desktop, and automat
 
 # Dotfiles
 
-An agent-driven Omarchy setup for development, desktop, and automation.
+Personal [Omarchy](https://omarchy.org) dotfiles (Arch-based), managed with [GNU Stow](https://www.gnu.org/software/stow/) and a compiled `dot` CLI. Public config, desktop customisations, git tooling, and a shared OpenCode setup. Private machine details live in a separate overlay.
 
-<CardGroup cols={2}>
-  <Card title="Get started" href="/getting-started/" icon="arrow-right">
-    Bootstrap a fresh Omarchy machine and run the ongoing dotfiles workflow.
-  </Card>
-  <Card title="View on GitHub" href="https://github.com/timmo001/dotfiles" icon="github">
-    Browse the public source and generated references.
-  </Card>
-</CardGroup>
-
-These are my public [Omarchy](https://omarchy.org) dotfiles (Omarchy is an Arch Linux based distro), managed with [GNU Stow](https://www.gnu.org/software/stow/) and a single compiled `dot` binary. They cover shell, editor, and desktop config, plus the tooling that keeps multiple machines in sync.
-
-:::caution[These are my personal dotfiles]
-They are tightly tuned for my [Omarchy](https://omarchy.org) setup and my specific machines, and are **not** meant to be installed as-is by anyone else. They are unlikely to work on plain Arch (or any other distro) without replicating my setup, and they lean on a deeply integrated private overlay (`dotfiles-private`) that is not public, so the public repo on its own is an incomplete picture. Use them as a reference to borrow from, or pull individual pieces into your own dotfiles, rather than as a turnkey setup.
-
-The shared [OpenCode](https://opencode.ai) config (agents, commands, skills, and plugins) is the exception: it is published separately as [`opencode-config`](https://github.com/timmo001/opencode-config) and deliberately written to be portable and reusable on its own.
+:::caution[Personal setup]
+These are tuned for my machines and a private overlay that is not public. Borrow ideas; do not install wholesale.
 :::
 
-:::note[AI-generated]
-Large parts of this project - including this documentation and much of the codebase - are generated or heavily assisted by LLMs and coding agents. Expect the rough edges that come with that, and verify anything before relying on it.
-:::
+## Parts
 
-## At a glance
+| Area | Why it exists |
+| --- | --- |
+| [Getting started](/getting-started/) | How I bootstrap a fresh Omarchy machine |
+| [Configuration](/configuration/) | Private overlay, packages, and tracked app config |
+| [`dot` CLI](/dot/) | One binary for init, update, stow, doctor, and day-to-day tooling |
+| [Git & GitHub](/git/) | Cross-repo status, commits, and notifications without juggling many checkouts by hand |
+| [Omarchy & Hyprland](/omarchy/) | Desktop and host overrides on top of Omarchy Quattro |
+| [OpenCode & Agents](/opencode/) | Shared agents, commands, skills, and plugins (also published as [`opencode-config`](https://github.com/timmo001/opencode-config)) |
 
-<CardGroup cols={2}>
-  <Card title="Stow-based dotfiles" icon="folder-tree">
-    Public config for shell, editor, and tooling, rooted at <code>~/.config/dotfiles</code> and laid down with GNU Stow.
-  </Card>
-  <Card title="The dot binary" icon="wrench">
-    A single compiled CLI ([Bun](https://bun.sh) + [Effect](https://effect.website) v4) for setup, updates, and git tooling.
-  </Card>
-  <Card title="Git & GitHub tooling" icon="git-branch">
-    Diff, log, status, and a notification inbox across every managed repo, with status-bar modules.
-  </Card>
-  <Card title="Omarchy & Hyprland" icon="monitor">
-    Managed Omarchy repos and per-host Hyprland overrides, with a desktop controls menu.
-  </Card>
-  <Card title="OpenCode & agents" icon="bot">
-    Shared agents, commands, skills, and plugins, published to <a href="https://github.com/timmo001/opencode-config" target="_blank" rel="noopener noreferrer">opencode-config</a>.
-  </Card>
-  <Card title="Private overlay" icon="lock">
-    A deeply integrated private overlay (<code>~/.config/dotfiles-private</code>) layers machine-specific config on top of the public repo.
-  </Card>
-</CardGroup>
-
-## Get started
-
-<CardGroup cols={2}>
-  <Card title="Install" href="/getting-started/install/">Prerequisites, bootstrap build, and the ongoing workflow.</Card>
-  <Card title="New Machine Checklist" href="/getting-started/new-machine/">Step-by-step setup for a new Omarchy machine.</Card>
-</CardGroup>
-
-## Explore
-
-<CardGroup cols={2}>
-  <Card title="The dot Command" href="/dot/">The CLI for stow, notes, maintenance, and utility workflows.</Card>
-  <Card title="Configuration" href="/configuration/">Environment options, private git config, and private packages.</Card>
-  <Card title="Git & GitHub" href="/git/">Diff, log, status, and notifications.</Card>
-  <Card title="Omarchy & Hyprland" href="/omarchy/">Managed Omarchy repos and per-host Hyprland overrides.</Card>
-  <Card title="Knowledge Base" href="/knowledge-base/">Practical runbooks for system customisations and one-off fixes.</Card>
-  <Card title="OpenCode & Agents" href="/opencode/">Agents, commands, skills, and plugins, with the generated reference.</Card>
-</CardGroup>
-
-## Reference
-
-<CardGroup cols={2}>
-  <Card title="Bar Integrations" href="/bar-integrations/">The shared <code>--bar-json</code> status-bar contract.</Card>
-  <Card title="Cleanup" href="/cleanup/">Remove stowed links and reverse setup side effects.</Card>
-  <Card title="Agents / LLMs" href="/agents-llms/">Machine-readable docs, hosted MCP, and model-less AI surfaces.</Card>
-</CardGroup>
+Generated catalogues live under Reference. Machine-readable bundles and the docs MCP are on [Agents / LLMs](/agents-llms/).

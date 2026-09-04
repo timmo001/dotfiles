@@ -1,0 +1,40 @@
+---
+title: Getting Started
+description: Bootstrap a fresh Omarchy machine and keep it in sync.
+---
+
+How I stand up a new Omarchy machine. Personal setup; not a turnkey install for other people.
+
+## Bootstrap
+
+```bash
+# Public source of truth; stow packages live under this checkout
+git clone git@github.com:timmo001/dotfiles.git ~/.config/dotfiles
+
+# Private overlay clone during init needs an authenticated gh
+gh auth status || gh auth login
+
+cd ~/.config/dotfiles
+
+# Allow this repo's mise.toml, then install the pinned toolchain
+mise trust
+mise install
+
+# Build the checked-out binary before it is on PATH
+mise run dot:build
+
+# First-use setup (pulls private overlay when gh auth works)
+~/.config/dotfiles/scripts/.local/bin/dot init
+```
+
+## Ongoing
+
+```bash
+# Health checks for the local setup
+dot doctor
+
+# Pull, stow, and rebuild
+dot update
+```
+
+Command detail is in `dot --help` and the [command reference](/dot/commands/).

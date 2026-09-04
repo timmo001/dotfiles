@@ -18,6 +18,26 @@ export default defineConfig({
   },
   navigation: {
     repo: true,
+    sidebar: [
+      '/',
+      '/getting-started',
+      '/configuration',
+      '/dot',
+      '/git',
+      '/omarchy',
+      '/opencode',
+      {
+        label: 'Reference',
+        items: [
+          '/dot/commands',
+          '/reference/agents',
+          '/reference/commands',
+          '/reference/skills',
+          '/reference/plugins',
+        ],
+      },
+      '/agents-llms',
+    ],
   },
   theme: {
     accent: {

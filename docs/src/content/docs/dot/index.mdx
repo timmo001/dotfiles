@@ -1,50 +1,17 @@
 ---
 title: The dot Command
 description: The CLI that drives the dotfiles system.
-sidebar:
-  label: Overview
-  order: 1
 ---
 
-`dot` is the single CLI that manages these dotfiles. It is compiled from `dot/` in the repo ([Bun](https://bun.sh) + [Effect](https://effect.website) v4) to a single executable, stowed to `~/.local/bin/dot`.
+`dot` is the compiled CLI for these dotfiles ([Bun](https://bun.sh) + [Effect](https://effect.website) v4), stowed to `~/.local/bin/dot`. It owns setup, sync, stow, health checks, and the git helpers used day to day.
 
-Run `dot` without arguments to print root help. Maintenance actions are native subcommands (`dot update`, `dot git-diff`, `dot doctor`, ...), suitable for interactive use, scripts, and status bars.
+| Command | Purpose |
+| --- | --- |
+| `dot init` | First-use setup on a fresh machine |
+| `dot update` | Pull, refresh config, stow, rebuild |
+| `dot stow` | Stow only |
+| `dot doctor` | Health checks |
+| `dot git-diff` | Change state across managed repos |
+| `dot git-commit` | Guarded commit gateway |
 
-<CardGroup cols={2}>
-  <Card title="Command Reference" href="/dot/commands/">Every command, alias, flag, and example, generated from the CLI registry.</Card>
-  <Card title="Stow Workflow" href="/dot/stow/">How packages are stowed into your home directory.</Card>
-  <Card title="Shell Setup" href="/dot/shell/">Zsh completions, editing keys, aliases, and small shell helpers.</Card>
-  <Card title="System Utilities" href="/dot/utilities/">Health checks, benchmarks, and optional timers.</Card>
-  <Card title="Notes & Handoffs" href="/dot/notes/">Standalone notes CLI, MCP server, and handoff workflow.</Card>
-  <Card title="Cleanup" href="/cleanup/">Remove stowed links and reverse setup side effects.</Card>
-</CardGroup>
-
-## Common commands
-
-| Command          | What it does                                                                                             |
-| ---------------- | -------------------------------------------------------------------------------------------------------- |
-| `dot init`       | One-time first-use setup for a fresh machine.                                                            |
-| `dot update`     | Self-update and relaunch, pull, refresh config, stow, and rebuild.                                        |
-| `dot stow`       | Stow refresh only (no git pull).                                                                         |
-| `dot doctor`     | Run dotfiles system health checks.                                                                       |
-| `dot firewall`   | Reconcile managed ufw firewall rules.                                                                    |
-| `dot git-diff`   | Print change state across managed repositories.                                                          |
-| `context git`    | Branch context for the current repo (agent context), provided by [`context`](https://context.timmo.dev). |
-| `context stack`  | Tech-stack context for a directory (agent context), provided by [`context`](https://context.timmo.dev).  |
-| `dot git-commit` | Guarded commit gateway for scoped, styled commits.                                                       |
-
-See the full [Command Reference](/dot/commands/) for every subcommand and flag.
-
-## Progress and timeouts
-
-Long-running Effect-managed CLI workflows use the same progress wrapper: an interactive spinner, elapsed duration logging, and a timeout that interrupts the running child process group. This covers the main first-use setup phases (`dot init`), updates, doctor checks, skill update checks/applies/diffs, stow/install/clean, private package publishing, and other bounded maintenance commands.
-
-`dot update` keeps each phase bounded so a slow remote, stuck hook, or helper process cannot leave the update sitting silently. Individual repository pulls are retried once and skipped after repeated failure or timeout. Every pull phase restores recursive submodules to their committed revisions, including Renovate-managed plugin pins, even when no repository is behind. When a managed repository's pull moves HEAD, any configured `post_update` command in [Private Git Config](/configuration/private-git/) runs from that repository root before the update continues; a failure or five-minute timeout stops the update. Full updates run from ordinary shells as well as Herdr panes. Inside Herdr they install Herdr Lazy when it is missing, run `herdr-lazy restore` after stow and rebuild, link local plugins, and start the title watcher; outside Herdr they skip that session-bound phase. A repository scan, pull phase, stow phase, rebuild, or configured Herdr plugin restore timeout stops the update with failure instead of continuing with a partial result. Successful full and scoped updates finish with a summary of repositories updated and actions completed.
-
-`dot init` uses the spinner and timeout wrapper for each required setup phase. Its private-overlay pull or clone is a synchronous preflight before that bounded workflow and before the already-initialised check. If a required init phase times out, init stops instead of writing the complete marker. `dot doctor` keeps its live "running checks" spinner and also times out individual checks, reporting timed-out checks as warnings.
-
-Post-hooks and the final resume refresh are bounded but non-fatal. The refresh restarts status-bar services without auto-opening Twitch streams. If either helper does not return, the step is stopped and the completed update is not turned into a failure.
-
-## Source of truth
-
-Command and flag metadata lives in `dot/src/cli/spec.ts`. Help rendering, shell completions, and the generated [Command Reference](/dot/commands/) all read from that one registry. When a command changes, regenerate the reference page and shell completions from `spec.ts`.
+Full flags and subcommands: [Command Reference](/dot/commands/) (generated from `dot/src/cli/spec.ts`) or `dot --help`.

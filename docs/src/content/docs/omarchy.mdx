@@ -1,0 +1,16 @@
+---
+title: Omarchy & Hyprland
+description: Stowed Omarchy customisations and host overrides.
+---
+
+Desktop layer for [Omarchy](https://omarchy.org): stowed UWSM, [Hyprland](https://hyprland.org), Ghostty, and Quickshell bar plugins, plus per-host overrides.
+
+| Piece | Why |
+| --- | --- |
+| `hypr/` | Hyprland config and host-specific overrides (not a forked Omarchy Hypr repo) |
+| `uwsm/` | User environment on top of Quattro defaults |
+| `ghostty/` | Terminal config with host overrides |
+| Omarchy shell plugins | Custom bar modules (git, clock, and similar) via generated `shell.json` |
+| Herdr | Shared agent terminal session restored during `dot update` |
+
+Keybindings and layout scripts live in the Hypr and script packages; they are not listed here. Reload the shell after plugin or bar config changes with `omarchy restart shell`.

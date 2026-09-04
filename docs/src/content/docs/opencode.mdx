@@ -1,0 +1,15 @@
+---
+title: OpenCode & Agents
+description: Shared OpenCode agents, commands, skills, and plugins.
+---
+
+Shared [OpenCode](https://opencode.ai) config for agents, slash commands, skills, and plugins. Source is `agents/.config/opencode/`; portable skills are pinned from [`timmo001/skills`](https://github.com/timmo001/skills). The same assets publish to [`opencode-config`](https://github.com/timmo001/opencode-config) for reuse outside these dotfiles.
+
+| Piece | Why |
+| --- | --- |
+| Agents | Execution posture (permissions, tools, plan mode) |
+| Commands | Thin routers to agents and skills |
+| Skills | Reusable workflows |
+| Plugins | Context injection and enforcement hooks |
+
+Catalogues: [agents](/reference/agents/), [commands](/reference/commands/), [skills](/reference/skills/), [plugins](/reference/plugins/). MCP servers come from the private `mcp.yml` sync (`dot mcp-sync`), not from hand-written docs here.

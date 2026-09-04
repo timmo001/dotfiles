@@ -1,0 +1,15 @@
+---
+title: Git & GitHub
+description: Diff, commits, and notifications across managed repos.
+---
+
+Git helpers that span the managed repositories (public and private dotfiles, configured repos, Omarchy checkouts) so status and notifications stay in one place.
+
+| Piece | Why |
+| --- | --- |
+| `dot git-diff` | Dirty / ahead / behind state for the Omarchy shell panel and scripts |
+| `dot git-commit` | Guarded commits instead of raw `git commit` |
+| `dot git-notifications` | GitHub notification inbox for the shell and CLI |
+| [`context`](https://context.timmo.dev) | Branch and stack context for agents (separate product) |
+
+Which repos are tracked, and notification rules, live in the private `dot-git.yml` overlay. Flags: `dot git-diff --help`, `dot git-commit --help`, `dot git-notifications --help`.
