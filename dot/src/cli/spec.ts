@@ -29,10 +29,7 @@ import { systemUpdate } from "../commands/SystemUpdate.js";
 import { update, updateCheck } from "../commands/Update.js";
 import { usage } from "../commands/Usage.js";
 import { workspaceRelayout } from "../commands/WorkspaceRelayout.js";
-import {
-  workspaceCapture,
-  workspaceRestore,
-} from "../commands/WorkspaceSession.js";
+import { workspaceSetup } from "../commands/WorkspaceSetup.js";
 import { configureFirewallRules } from "../lib/firewallSetup.js";
 import { applyOmarchyShellConfig } from "../lib/omarchyShellConfig.js";
 import {
@@ -1012,49 +1009,56 @@ const relayout = describe(
   ),
   "Apply or capture a Hyprland workspace layout",
 );
-const capture = describe(
+const setupWorkspace = describe(
   Command.make(
-    "workspace-capture",
+    "workspace-setup",
     {
-      currentWorkspace: Flag.boolean("current-workspace").pipe(
-        Flag.withAlias("current"),
+      stepThrough: Flag.boolean("step-through").pipe(
+        Flag.withAlias("step"),
         Flag.withDefault(false),
+        Flag.withDescription("Pause after each logged step"),
       ),
-      output: pathFlag("output", "Write to this file", "file"),
-      stateDir: pathFlag("state-dir", "Capture state directory", "directory"),
+      speedMultiplier: Flag.float("speed-multiplier").pipe(
+        Flag.withDefault(1.8),
+        Flag.withDescription("Multiply built-in sleep durations"),
+      ),
+      sleep: Flag.float("sleep").pipe(
+        Flag.withDefault(0),
+        Flag.withDescription("Wait before running setup logic"),
+      ),
+      fast: bool("fast", "Use a speed multiplier of 1"),
+      temporaryWorkspace: Flag.integer("temp-workspace").pipe(
+        Flag.optional,
+        Flag.withDescription("Numeric temporary workspace"),
+      ),
+      moveDispatcher: Flag.choice("move-dispatcher", [
+        "movetoworkspace",
+        "movetoworkspacesilent",
+      ]).pipe(Flag.optional, Flag.withDescription("Window move dispatcher")),
+      logFile: pathFlag("log-file", "Write the run log to this file", "file"),
+      mode: Flag.choice("mode", ["work", "normal"]).pipe(
+        Flag.optional,
+        Flag.withDescription(
+          "Use the work or normal layout instead of detecting work time",
+        ),
+      ),
     },
-    ({ output, stateDir, ...input }) =>
-      workspaceCapture({
+    ({ logFile, mode, moveDispatcher, sleep, temporaryWorkspace, ...input }) =>
+      workspaceSetup({
         ...input,
-        output: optional(output),
-        stateDir: optional(stateDir),
+        startupDelay: sleep,
+        logFile: optional(logFile),
+        mode: optional(mode),
+        moveDispatcher: optional(moveDispatcher),
+        temporaryWorkspace: optional(temporaryWorkspace),
       }),
   ),
-  "Capture Hyprland workspace and window state",
-);
-const restore = describe(
-  Command.make(
-    "workspace-restore",
-    {
-      dryRun: Flag.boolean("dry-run").pipe(
-        Flag.withAlias("dryrun"),
-        Flag.withDefault(false),
-      ),
-      file: pathFlag("file", "Restore this capture", "file"),
-      stateDir: pathFlag("state-dir", "Capture state directory", "directory"),
-      noLaunch: bool("no-launch", "Do not launch missing apps"),
-      noMove: bool("no-move", "Do not move matched windows"),
-    },
-    ({ file, noLaunch, noMove, stateDir, ...input }) =>
-      workspaceRestore({
-        ...input,
-        file: optional(file),
-        stateDir: optional(stateDir),
-        launchMissing: !noLaunch,
-        moveExisting: !noMove,
-      }),
-  ),
-  "Restore a captured Hyprland workspace session",
+  "Launch or reuse desktop apps and rebuild the workspace layout",
+  [
+    "dot workspace-setup",
+    "dot workspace-setup --mode=work",
+    "dot workspace-setup --mode=normal",
+  ],
 );
 const usageCommand = describe(
   Command.make(
@@ -1165,9 +1169,8 @@ export const dotCommand = describe(
       agentOxlintCommand,
       floating,
       herdr,
+      setupWorkspace,
       relayout,
-      capture,
-      restore,
       usageCommand,
       helpCommand,
     ]),

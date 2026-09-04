@@ -1,13 +1,13 @@
 ---
 title: Workspace Setup
-description: Rebuild the desktop host's work and non-work workspace layout.
+description: Rebuild the desktop host's work and normal workspace layout.
 sidebar:
   order: 3
 ---
 
-`workspace-setup` is the desktop host's opinionated workspace arranger. It launches or reuses the expected apps, tags them by slot, moves them to fixed workspaces, and rebuilds the main workspace split tree.
+`workspace-setup` is the compatibility entry point for `dot workspace-setup`, the desktop host's opinionated workspace arranger. It launches or reuses the expected apps, tags them by slot, moves them to fixed workspaces, and rebuilds the main workspace split tree.
 
-Use it when the desktop workspace set has drifted, after login, or after a restart where capture/restore is not the right tool.
+Use it when the desktop workspace set has drifted, after login, or after a restart.
 
 :::note
 This is more specific than [Workspace Relayout](/knowledge-base/workspace-relayout/). Relayout reshapes whatever tiled windows are already on the active workspace. Workspace setup chooses specific apps and workspaces.
@@ -21,23 +21,30 @@ The desktop host autostarts setup after Hyprland starts:
 exec-once = workspace-setup --sleep=5
 ```
 
-On the `desktop` host, `workspace-menu` also exposes a **Setup workspace** action. The shared menu binding is:
+`SUPER+CTRL+TAB` opens `workspace-menu`, a two-option picker. Normal is first:
 
 ```text
-SUPER+ALT+W
+SUPER+CTRL+TAB
 ```
+
+| Choice | Command |
+| --- | --- |
+| `󰋜 Normal` | `workspace-setup --mode=normal` |
+| `󰣇 Work` | `workspace-setup --mode=work` |
 
 You can also run it directly:
 
 ```bash
 workspace-setup
+workspace-setup --mode=work
+workspace-setup --mode=normal
 ```
 
-## Work-time mode
+## Work and normal layouts
 
-The script branches on `is-work-time`, which returns success Monday to Friday from `07:00` through `16:59` local time.
+Without `--mode`, the command branches on `is-work-time`, which returns success Monday to Friday from `07:00` through `16:59` local time. Autostart after login uses that detection. `--mode=work` and `--mode=normal` skip the clock and force that layout.
 
-During work time, setup prepares:
+The work layout prepares:
 
 | Workspace | Slots |
 | --- | --- |
@@ -45,7 +52,7 @@ During work time, setup prepares:
 | `2` | Standard Herdr. |
 | `3` | Work browser. |
 
-Outside work time, setup prepares:
+The normal layout prepares:
 
 | Workspace | Slots |
 | --- | --- |
@@ -54,9 +61,23 @@ Outside work time, setup prepares:
 
 After setup, it switches to workspace `2`.
 
+Setup shows the [`popup-loading`](/knowledge-base/desktop-command-wrappers/#loading-overlay) overlay on the focused monitor while it runs. The overlay starts with `Setting up workspace...` and then follows the current high-level step, such as preparing apps or rebuilding a split tree. Window moves, tags, and other slot details stay in the log. The overlay hides when setup finishes or fails. If setup aborts because a window must be closed first, the overlay shows that message before hiding.
+
 Terminal slots launch through `ghostty-host-config`, so they keep the active `config.$OMARCHY_HOST` override. The left monitor's terminal always starts in the home directory. The central monitor attaches directly to the shared default Herdr session. Repository shortcuts only create or focus named workspaces when they are run inside Herdr; in a normal shell they keep their usual `cd` behaviour. Herdr's `prefix+s` picker exposes the same configured repositories plus the home and `~/repos` directories.
 
 Hyprland starts the shared Herdr server once in UWSM's background graphical slice. Every terminal is only a client of that server.
+
+## Close-first checks
+
+Setup aborts before moving, tagging, or launching windows when the requested layout would clash with what is already open, or when extra windows on workspace 1 would squash the rebuilt split tree. The loading overlay shows the reason, a desktop notification repeats it, and the command exits with an error.
+
+Normal layout (`--mode=normal`, or non-work-time without `--mode`) refuses to run while Slack, Discord, or the work browser is still open.
+
+Work layout (`--mode=work`, or work-time without `--mode`) refuses to run while the extra workspace-1 top Ghostty (`wssetup-ws1-term-top`) is still open.
+
+Unused Ghostty windows on workspace 1 can still fill the expected home-terminal slots: one in the work layout, two in the normal layout. OpenCode terminals (titles starting with `OC |`) cannot fill those slots. Any leftover tiled window after that (another Ghostty, Files, Firefox, and so on) would stay in the dwindle tree, so setup stops rather than shrinking the intended panes. The close-first copy is the window title and application name (`~/repos/dotfiles - Ghostty`, `Home - Nautilus`). Close the named window and run setup again.
+
+Shared personal Chromium, the shared home Ghostty (`wssetup-ws1-term`), and Herdr do not block either layout.
 
 ## How slots are matched
 
@@ -104,7 +125,13 @@ Override the log path for one run:
 WORKSPACE_SETUP_LOG_FILE=/tmp/workspace-setup.log workspace-setup --step-through
 ```
 
-The script removes `workspace-setup-*.log` files older than seven days from the default log directory.
+The equivalent explicit flag takes precedence over the legacy environment variable:
+
+```bash
+workspace-setup --log-file=/tmp/workspace-setup.log
+```
+
+The command removes `workspace-setup-*.log` files older than seven days from the default log directory.
 
 ## Temporary workspace
 
@@ -116,7 +143,13 @@ Override it if workspace `99` is in use:
 WORKSPACE_SETUP_TEMP_WS=98 workspace-setup
 ```
 
-The temp workspace must be a positive integer.
+Prefer the explicit flag for new uses:
+
+```bash
+workspace-setup --temp-workspace=98
+```
+
+The temp workspace must be a positive integer, must not be workspace `1`, `2`, or `3`, and must be unoccupied when setup starts. The explicit flag takes precedence over `WORKSPACE_SETUP_TEMP_WS`.
 
 ## Move dispatcher
 
@@ -128,7 +161,13 @@ Use the silent dispatcher only when intentionally testing it:
 WORKSPACE_SETUP_MOVE_DISPATCHER=movetoworkspacesilent workspace-setup
 ```
 
-Valid values are `movetoworkspace` and `movetoworkspacesilent`.
+The equivalent explicit flag is:
+
+```bash
+workspace-setup --move-dispatcher=movetoworkspacesilent
+```
+
+Valid values are `movetoworkspace` and `movetoworkspacesilent`. The explicit flag takes precedence over `WORKSPACE_SETUP_MOVE_DISPATCHER`. Moves follow their target workspace by default; selecting `movetoworkspacesilent` disables following.
 
 ## Recovery flow
 
@@ -136,13 +175,15 @@ Valid values are `movetoworkspace` and `movetoworkspacesilent`.
 2. Watch the log output for the slot that fails to resolve.
 3. Check whether the app window class matches the slot regex.
 4. If timing is the issue, rerun with a higher `--speed-multiplier` or `--sleep`.
-5. If placement goes wrong, move windows manually or restore a capture from [Workspace Session Recovery](/knowledge-base/workspace-session-recovery/).
+5. If placement goes wrong, move windows manually or rerun setup.
 
 
 ## Troubleshooting
 
-If a terminal slot reuses an OpenCode terminal, the setup script filters titles starting with `OC |` for terminal candidates that should not be reused.
+If a terminal slot reuses an OpenCode terminal, setup filters titles starting with `OC |` for terminal candidates that should not be reused.
 
-If the startup browser should become the main browser slot, focus a Chromium window before running setup. The script prefers the focused startup Chromium address for that slot.
+Blank Ghostty slots also skip windows that match `^herdr$` on class or title, so the workspace 2 Herdr client is not pulled onto workspace 1.
 
-If the non-work layout puts the blank tab in the wrong slot, setup tries to detect blank Chromium tabs and swap the top/main browser tags.
+Slack and Discord use prefix class matches (`^chrome-app\.slack\.com__client` and `^chrome-discord\.com__app`) because Chrome appends a profile suffix. A trailing `$` will miss those windows and skip the work-tree rebuild.
+
+If the startup browser should become the main browser slot, focus a Chromium window before running setup. The command prefers the focused startup Chromium address for that slot. The focused window is read before the loading overlay is shown.

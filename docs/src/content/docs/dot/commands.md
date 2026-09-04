@@ -923,6 +923,36 @@ dot herdr-repo-open [flags] <label> <directory> [<tab-label>] [<command>]
 2  Invalid arguments
 ```
 
+## `dot workspace-setup`
+
+Launch or reuse desktop apps and rebuild the workspace layout
+
+```text
+dot workspace-setup [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--step-through` `--step` | Pause after each logged step |
+| `--speed-multiplier` `<number>` | Multiply built-in sleep durations |
+| `--sleep` `<number>` | Wait before running setup logic |
+| `--fast` | Use a speed multiplier of 1 |
+| `--temp-workspace` `<integer>` | Numeric temporary workspace |
+| `--move-dispatcher` `<choice>` | Window move dispatcher (choices: movetoworkspace, movetoworkspacesilent) |
+| `--log-file` `<path>` | Write the run log to this file |
+| `--mode` `<choice>` | Use the work or normal layout instead of detecting work time (choices: work, normal) |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot workspace-setup
+dot workspace-setup --mode=work
+dot workspace-setup --mode=normal
+```
+
 ## `dot workspace-relayout`
 
 Apply or capture a Hyprland workspace layout
@@ -936,42 +966,6 @@ dot workspace-relayout [flags]
 | Option | Description |
 | --- | --- |
 | `--edit` | Capture or overwrite a preset |
-| `--help` `-h` | Show help information |
-
-## `dot workspace-capture`
-
-Capture Hyprland workspace and window state
-
-```text
-dot workspace-capture [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--current-workspace` `--current` |  |
-| `--output` `<path>` | Write to this file |
-| `--state-dir` `<path>` | Capture state directory |
-| `--help` `-h` | Show help information |
-
-## `dot workspace-restore`
-
-Restore a captured Hyprland workspace session
-
-```text
-dot workspace-restore [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--dry-run` `--dryrun` |  |
-| `--file` `<path>` | Restore this capture |
-| `--state-dir` `<path>` | Capture state directory |
-| `--no-launch` | Do not launch missing apps |
-| `--no-move` | Do not move matched windows |
 | `--help` `-h` | Show help information |
 
 ## `dot usage`

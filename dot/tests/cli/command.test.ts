@@ -62,8 +62,7 @@ describe("Effect command tree", () => {
   test("uses path primitives for path-valued options", () => {
     for (const [name, flags] of [
       ["init", ["log"]],
-      ["workspace-capture", ["output", "state-dir"]],
-      ["workspace-restore", ["file", "state-dir"]],
+      ["workspace-setup", ["log-file"]],
     ] as const) {
       const command = getCliCommand(name);
       if (!command) throw new Error(`${name} command missing`);
@@ -109,8 +108,6 @@ describe("Effect command tree", () => {
       expect(completion).toContain("right");
       expect(completion).toContain("-m");
       expect(completion).toContain("-q");
-      expect(completion).toContain("current");
-      expect(completion).toContain("dryrun");
       expect(completion).not.toContain("---m");
       expect(completion).not.toContain("---q");
       expect(completion).not.toContain("----current");

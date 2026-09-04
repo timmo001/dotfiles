@@ -2,52 +2,20 @@
 
 set -euo pipefail
 
-menu_select() {
-  local prompt="$1"
-  local width="$2"
-  local maxheight="$3"
-  shift 3
+choice="$(omarchy-menu-select 'Workspace setup' \
+  '󰋜  Normal' \
+  '󰣇  Work' \
+  -- --width 280 --maxheight 180 2>/dev/null || true)"
+choice="${choice#*  }"
 
-  omarchy-menu-select "$prompt" "$@" -- --width "$width" --maxheight "$maxheight" 2>/dev/null || true
-}
-
-while true; do
-  options=(
-    '󰙀  Relayout current workspace'
-    '󰆓  Capture all workspaces'
-    '󰆓  Capture current workspace'
-    '󰑓  Restore latest (dry run)'
-    '󰑓  Restore latest'
-  )
-
-  if [[ ${OMARCHY_HOST:-} == 'desktop' ]]; then
-    options=('󰣇  Setup workspace' "${options[@]}")
-  fi
-
-  choice="$(menu_select 'Workspace' 360 420 "${options[@]}")"
-  choice="${choice#*  }"
-
-  case "$choice" in
-    'Setup workspace')
-      exec workspace-setup
-      ;;
-    'Relayout current workspace')
-      exec dot workspace-relayout
-      ;;
-    'Capture all workspaces')
-      run-with-notify -a 'Workspace' 'Capture' dot workspace-capture; exit 0
-      ;;
-    'Capture current workspace')
-      run-with-notify -a 'Workspace' 'Capture' dot workspace-capture --current-workspace; exit 0
-      ;;
-    'Restore latest (dry run)')
-      exec run-in-terminal --wait 'dot workspace-restore --dry-run'
-      ;;
-    'Restore latest')
-      run-with-notify -a 'Workspace' 'Restore' dot workspace-restore; exit 0
-      ;;
-    *)
-      exit 0
-      ;;
-  esac
-done
+case "$choice" in
+  Work)
+    exec workspace-setup --mode=work
+    ;;
+  Normal)
+    exec workspace-setup --mode=normal
+    ;;
+  *)
+    exit 0
+    ;;
+esac
