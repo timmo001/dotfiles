@@ -49,6 +49,8 @@ export default defineConfig({
       },
       {
         label: 'OpenCode',
+        display: 'group',
+        collapsed: false,
         items: [
           '/agents/opencode/overview',
           '/agents/opencode/agents',
@@ -56,13 +58,8 @@ export default defineConfig({
           '/agents/opencode/plugins',
         ],
       },
-      {
-        label: 'Other agents',
-        items: [
-          '/agents/pi',
-          '/agents/cursor',
-        ],
-      },
+      '/agents/pi',
+      '/agents/cursor',
     ],
   },
   redirects: [
