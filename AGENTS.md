@@ -21,8 +21,8 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 - Main entrypoint: `scripts/.local/bin/dot` (compiled binary from `dot/src/`)
 - Source: `dot/` (Bun + Effect v4 CLI; excluded from stow)
-- TypeScript tests: `dot/tests/` (mirrors `dot/src/`)
-- Repository integration tests: `tests/` (grouped by area; excluded from stow)
+- TypeScript tests: `dot/tests/` (excluded from stow; usually empty)
+- Repository tests: `tests/` (excluded from stow)
 - Docs site: `docs/` (Astro + Starlight, bun; excluded from stow; deploys to `dotfiles.timmo.dev`)
 - Stow config: `.stowrc`
 - Readme: `README.md` (slim pointer; links to the docs site, which is the canonical human documentation)
@@ -113,6 +113,16 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - For dotfiles and system scripts, prefer explicit CLI flags over environment-variable toggles for runtime behavior.
 - Use environment variables only for standard process context (`HOME`, `PATH`, `XDG_*`, etc.), secrets, or compatibility shims that already exist.
 - For test/simulation/force behaviors, implement documented flags first; if an env fallback is temporarily needed, treat it as deprecated and remove it in follow-up cleanup.
+
+## Testing
+
+This is a personal dotfiles repo. Do not aim for coverage, and do not add a test suite for every command, flag, layout, app, or behaviour change.
+
+- Default: no new tests. Validate by building, typing, formatting, and running the changed command or script.
+- Effect and the typed CLI already constrain most `dot/` behaviour; do not re-simulate whole workflows in Bun tests.
+- Add a test only for a durable edge case or a cross-cutting invariant that is easy to regress and hard to catch by hand (for example a known lock race, a ban on legacy dispatcher syntax, or a shared OpenCode contract).
+- Prefer immutable, narrow checks under `tests/`. Do not grow large `dot/tests` suites that mirror `dot/src`.
+- Never invent “representative” coverage, happy-path Effect walks, or per-app permutations when changing personal scripts or workspace layout.
 
 ## Validation
 

@@ -103,6 +103,8 @@ mise run dot:build
 
 When command metadata changes, also regenerate docs and completions, then run repository smoke tests.
 
+Do not add Bun tests for ordinary command, flag, layout, or app changes. Follow the Testing section in the repo-root `AGENTS.md`: default is no new tests; only durable edge cases or cross-cutting invariants belong under `../tests/` or, rarely, `tests/`.
+
 Manual checks:
 
 ```bash

@@ -43,7 +43,7 @@ run = "bun run format:check"
 [tasks."dot:test"]
 description = "Run the dot test suite"
 dir = "dot"
-run = "bun test"
+run = "bun test tests --pass-with-no-tests"
 
 [tasks."dot:check"]
 description = "Lint, type-check, test, and verify dot formatting"
@@ -61,28 +61,13 @@ depends = ["dot:build"]
 run = """
 bun test tests/opencode
 bun test ./scripts/.local/share/herdr-plugins/plannotator/runner.test.ts
-bash tests/github/opencode-publish.test.sh
-bash tests/scripts/browser-control-extension-sync.test.sh
-bash tests/scripts/mise.test.sh
-bash tests/scripts/git-default-ref.test.sh
-bash tests/scripts/repo-shortcuts.test.sh
-bash tests/scripts/ha-module-bar.test.sh
-bash tests/scripts/singleton-stream.test.sh
-bash tests/scripts/reload-ui.test.sh
-bash tests/scripts/launch-floating-webapp.test.sh
 bash tests/scripts/hypr-lua-dispatchers.test.sh
-bash tests/scripts/terminal-tab-action.test.sh
-bash tests/scripts/omarchy-notifications.test.sh
-bash tests/scripts/omarchy-patches.test.sh
-bash tests/scripts/manage-omarchy-plugin.test.sh
-bash tests/scripts/agent-crash-hook.test.sh
 """
 
 [tasks."tests:smoke"]
-description = "Build dot and smoke-test side-effect-free CLI entry points"
+description = "Build dot and run the git-diff index-lock smoke check"
 depends = ["dot:build"]
 run = """
-bash tests/dot/cli-smoke.test.sh
 bash tests/dot/git-diff-index-lock.test.sh
 """
 

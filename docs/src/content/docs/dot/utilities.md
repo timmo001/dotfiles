@@ -87,17 +87,18 @@ system-resource-leak-check
 
 Driver capability does not prove smooth playback. For a live stream, use `chrome://media-internals` to confirm `kVideoDecoderName` is `VaapiVideoDecoder` and `kIsPlatformVideoDecoder` is `true`, then inspect dropped frames and buffering separately.
 
-Repository regression tests live under `tests/`, use temporary directories, and run through mise tasks and the `lint.yml` workflow:
+Repository tests live under `tests/` and run through mise tasks and the `lint.yml` workflow:
 
-- `tests/github/opencode-publish.test.sh` checks publication of shared `lib/` modules and rejects missing relative plugin imports before cleaning the publish checkout.
-- `scripts/.local/share/herdr-plugins/plannotator/runner.test.ts` checks the Herdr Plannotator plugin runner.
-- `tests/dot/cli-smoke.test.sh` builds `dot` and checks side-effect-free CLI entry points.
+- `tests/dot/git-diff-index-lock.test.sh`
+- `tests/scripts/hypr-lua-dispatchers.test.sh`
+- `tests/opencode/generated-artifact-guard.test.ts` and `tests/opencode/evidence-decisions-contract.test.ts`
+- `scripts/.local/share/herdr-plugins/plannotator/runner.test.ts`
 
 The `lint.yml` `validate-skills` job uses the shared `lint-agent-skills` workflow to validate public `SKILL.md` files with [`skills-ref`](https://github.com/agentskills/agentskills/tree/main/skills-ref).
 
 The `mise-toolchain.yml` workflow runs when the stowed global mise config changes. It force-builds Terminal Control with the pinned Rust and Zig toolchain, catching incompatible automated version updates before they merge.
 
-Run `mise run lint` to check owned TypeScript and JavaScript with `@timmo001/oxlint-rules`. `mise run dot:check` includes that lint alongside the dot type check, tests, and formatting check. Run `mise run tests:integration` for deterministic repository tests and `mise run tests:smoke` for the build plus CLI smoke checks. TypeScript unit tests mirror `dot/src/` under `dot/tests/` and run through `mise run dot:test`.
+Run `mise run lint` to check owned TypeScript and JavaScript with `@timmo001/oxlint-rules`. `mise run dot:check` includes that lint alongside the dot type check, tests, and formatting check. Run `mise run tests:integration` and `mise run tests:smoke` for the repository test tasks.
 
 ## Firewall rules
 
