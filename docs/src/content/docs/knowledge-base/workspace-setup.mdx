@@ -56,6 +56,8 @@ The normal layout prepares:
 
 After setup, it switches to workspace `2`.
 
+Setup shows the [`popup-loading`](/knowledge-base/desktop-command-wrappers/#loading-overlay) overlay on the focused monitor while it runs. The overlay starts with `Setting up workspace...` and then follows the current high-level step, such as preparing apps or rebuilding a split tree. Window moves, tags, and other slot details stay in the log. The overlay hides when setup finishes or fails.
+
 Terminal slots launch through `ghostty-host-config`, so they keep the active `config.$OMARCHY_HOST` override. The left monitor's terminal always starts in the home directory. The central monitor attaches directly to the shared default Herdr session. Repository shortcuts only create or focus named workspaces when they are run inside Herdr; in a normal shell they keep their usual `cd` behaviour. Herdr's `prefix+s` picker exposes the same configured repositories plus the home and `~/repos` directories.
 
 Hyprland starts the shared Herdr server once in UWSM's background graphical slice. Every terminal is only a client of that server.

@@ -103,7 +103,8 @@ describe("workspace setup", () => {
     installDependencies(root);
     const dispatches: string[] = [];
     const executor = Layer.succeed(CommandExecutor, {
-      run: (_command, args) => {
+      run: (command, args) => {
+        if (command !== "hyprctl") return Effect.succeed("");
         if (args[0] === "-j" && args[1] === "clients") {
           return Effect.succeed("not-json");
         }
@@ -251,8 +252,13 @@ describe("workspace setup", () => {
       },
     ];
     const probed: string[] = [];
+    const overlays: string[][] = [];
     const executor = Layer.succeed(CommandExecutor, {
       run: (command, args) => {
+        if (command === "popup-loading") {
+          overlays.push([...args]);
+          return Effect.succeed("");
+        }
         if (command !== "hyprctl") return Effect.succeed("");
         if (args[0] === "-j" && args[1] === "clients") {
           return Effect.succeed(JSON.stringify(clients));
@@ -280,6 +286,19 @@ describe("workspace setup", () => {
     );
 
     expect(probed).toEqual([]);
+    expect(overlays[0]).toEqual(["show", "Setting up workspace..."]);
+    expect(overlays).toContainEqual(["show", "Using normal mode"]);
+    expect(overlays).toContainEqual([
+      "show",
+      "Preparing workspace 1 non-work apps",
+    ]);
+    expect(overlays).toContainEqual(["show", "Workspace setup complete"]);
+    expect(overlays.at(-1)).toEqual(["hide"]);
+    expect(
+      overlays.some(
+        (args) => args[0] === "show" && args[1]?.startsWith("Moving "),
+      ),
+    ).toBe(false);
     expect(readFileSync(join(root, "run.log"), "utf8")).toContain(
       "Using normal mode",
     );

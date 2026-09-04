@@ -58,6 +58,8 @@ Calling it with only a message also shows the overlay:
 popup-loading 'Loading dashboard...'
 ```
 
+A second `show` on the running overlay updates the message. `dot workspace-setup` uses that to follow the current setup step; see [Workspace Setup](/knowledge-base/workspace-setup/).
+
 The overlay keeps a runtime socket and lock under `${XDG_RUNTIME_DIR:-/tmp}`:
 
 ```text

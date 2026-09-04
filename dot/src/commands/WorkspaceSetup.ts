@@ -118,6 +118,23 @@ function fail(message: string): never {
   throw new WorkspaceSetupError({ message });
 }
 
+/** Overlay copy for a logged step, or `undefined` when the step is too detailed. */
+function overlayProgress(message: string): string | undefined {
+  if (
+    message.startsWith("Preparing ") ||
+    message.startsWith("Rebuilding ") ||
+    message.startsWith("Applying ") ||
+    message.startsWith("Switching ") ||
+    message.startsWith("Using ") ||
+    message.startsWith("Detected ") ||
+    message.startsWith("Skipping ") ||
+    message === "Workspace setup complete"
+  ) {
+    return message;
+  }
+  return undefined;
+}
+
 function positiveWorkspace(value: string | undefined, label: string): number {
   if (value === undefined || !/^\d+$/.test(value) || Number(value) <= 0) {
     return fail(`${label} must be a positive integer workspace id`);
@@ -265,6 +282,10 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
   mkdirSync(dirname(logFile), { recursive: true });
   appendFileSync(logFile, "");
 
+  const showOverlay = (message: string) =>
+    executor.run("popup-loading", ["show", message]).pipe(Effect.ignore);
+  const hideOverlay = () =>
+    executor.run("popup-loading", ["hide"]).pipe(Effect.ignore);
   const logStep = (message: string) =>
     Effect.gen(function* () {
       const now = yield* Clock.currentTimeMillis;
@@ -272,6 +293,8 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       const line = `[workspace-setup ${timestamp}] ${message}`;
       console.log(line);
       appendFileSync(logFile, `${line}\n`);
+      const overlay = overlayProgress(message);
+      if (overlay !== undefined) yield* showOverlay(overlay);
       if (config.stepThrough) {
         yield* Effect.sync(() => {
           prompt("[workspace-setup] Press Enter to continue... ");
@@ -477,6 +500,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
   });
 
   const run = Effect.gen(function* () {
+    yield* showOverlay("Setting up workspace...");
     for (const dependency of [
       "hyprctl",
       ...(config.mode === undefined ? ["is-work-time"] : []),
@@ -700,6 +724,11 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
   });
 
   yield* run.pipe(
-    Effect.ensuring(Effect.sync(() => releaseWorkspaceMutationLock(lock))),
+    Effect.ensuring(
+      Effect.gen(function* () {
+        yield* hideOverlay();
+        releaseWorkspaceMutationLock(lock);
+      }),
+    ),
   );
 });
