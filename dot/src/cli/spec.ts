@@ -247,7 +247,7 @@ const systemUpdateCommand = describe(
   ["dot system-update", "dot system-update --yes"],
   {
     description:
-      "Select maintenance steps interactively, then run them in order: Dotfiles, Omarchy, and Topgrade. Non-interactive runs and --yes select every step. Cancelling the prompt exits without running updates.",
+      "Select maintenance steps interactively, then run them in order: Dotfiles, Omarchy, and Topgrade. Interactive runs pre-select Dotfiles and Omarchy only; every Topgrade step is opt-in. Non-interactive runs and --yes select every step. Cancelling the prompt exits without running updates.",
   },
 );
 

@@ -39,7 +39,7 @@ Omarchy's `ff` alias opens an fzf file picker with previews. `fast` runs Fastfet
 
 The shell keeps a few typo and navigation helpers close to the aliases. For example, `cwd` prints a short reminder that the real command is `pwd`, then runs `pwd` so the mistake still returns useful output.
 
-The Zsh `update` alias calls `dot system-update` and selects maintenance steps with Effect's terminal prompt. Dotfiles and Omarchy remain separate choices, while each enabled Topgrade step can be selected independently. Selected work runs in the displayed order: Dotfiles, Omarchy, then Topgrade. GitHub CLI extensions and Yazi start selected; Mise and the remaining steps are opt-in because Omarchy already updates mise-managed tools. Selected Topgrade steps run together through `topgrade --only`; selecting every Topgrade step uses the normal full `topgrade` command instead.
+The Zsh `update` alias calls `dot system-update` and selects maintenance steps with Effect's terminal prompt. Dotfiles and Omarchy start selected; every Topgrade step is opt-in because Omarchy already updates mise-managed tools and most other package managers. Selected work runs in the displayed order: Dotfiles, Omarchy, then Topgrade. Selected Topgrade steps run together through `topgrade --only`; selecting every Topgrade step uses the normal full `topgrade` command instead.
 
 The Omarchy step re-stows the public dotfiles before updating, ensuring the native `post-update.d` patch hook and current command wrappers are installed. It redirects Quattro's global mise writes to `~/.local/state/mise/omarchy-config.toml`, keeping `mise/.config/mise/config.toml` under dotfiles control during the complete update, not just normal shell commands.
 

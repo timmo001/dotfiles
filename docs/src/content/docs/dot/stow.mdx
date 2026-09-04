@@ -52,6 +52,7 @@ dot stow --private  # private only
 
 - Lays down public packages first, then the private overlay from `~/.config/dotfiles-private`.
 - Stows any package that targets runtime-owned directories with `--no-folding`, including `uwsm/`, `hypr/`, `ghostty/`, `herdr/`, shell completions, `.local/bin`, and systemd user units. This keeps generated UWSM migration files and Herdr runtime state out of the source directories. For Hypr it also creates/repairs the `~/.config/hypr/host` symlink for the active host.
+- When Omarchy is enabled, enables and restarts `dot-reload-ui-monitor.service` after the public stow so resume recovery keeps watching logind. See [Resume recovery](/knowledge-base/resume-recovery/) for manual checks and the `reload-ui` shortcut.
 - Before stow, moves unmanaged real files or directories that block active package targets into the repo's `backup/` directory and logs each source-to-backup path. This includes host-specific packages such as `chromium--laptop`. It does not follow an unmanaged parent symlink into an external tree; those conflicts are left for manual resolution.
 - Before public stow, backs up the retired `timmo001/omarchy-ghostty` clone at `~/.config/ghostty` when present, so the `ghostty/` package can own that path.
 - Before public stow, removes the retired `timmo001/omarchy-uwsm` checkout, including Quattro's generated migration files, then links only the intentional `90-dotfiles` override.
