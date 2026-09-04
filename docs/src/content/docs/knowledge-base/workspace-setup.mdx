@@ -69,13 +69,13 @@ Hyprland starts the shared Herdr server once in UWSM's background graphical slic
 
 ## Close-first checks
 
-Setup aborts before moving, tagging, or launching windows when the requested layout would clash with what is already open, or when extra terminals on workspace 1 would squash the rebuilt split tree. The loading overlay shows the reason, a desktop notification repeats it, and the command exits with an error.
+Setup aborts before moving, tagging, or launching windows when the requested layout would clash with what is already open, or when extra windows on workspace 1 would squash the rebuilt split tree. The loading overlay shows the reason, a desktop notification repeats it, and the command exits with an error.
 
 Normal layout (`--mode=normal`, or non-work-time without `--mode`) refuses to run while Slack, Discord, or the work browser is still open.
 
 Work layout (`--mode=work`, or work-time without `--mode`) refuses to run while the extra workspace-1 top Ghostty (`wssetup-ws1-term-top`) is still open.
 
-Unused Ghostty windows on workspace 1 can still fill the expected home-terminal slots: one in the work layout, two in the normal layout. OpenCode terminals (titles starting with `OC |`) cannot fill those slots. Any leftover tiled Ghostty after that would stay in the dwindle tree, so setup stops rather than shrinking the intended panes. Close the named window and run setup again.
+Unused Ghostty windows on workspace 1 can still fill the expected home-terminal slots: one in the work layout, two in the normal layout. OpenCode terminals (titles starting with `OC |`) cannot fill those slots. Any leftover tiled window after that (another Ghostty, Files, Firefox, and so on) would stay in the dwindle tree, so setup stops rather than shrinking the intended panes. The close-first copy is the window title and application name (`~/repos/dotfiles - Ghostty`, `Home - Nautilus`). Close the named window and run setup again.
 
 Shared personal Chromium, the shared home Ghostty (`wssetup-ws1-term`), and Herdr do not block either layout.
 

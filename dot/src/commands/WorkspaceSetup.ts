@@ -326,10 +326,10 @@ function clientMatches(client: HyprlandClient, slot: Slot): boolean {
   );
 }
 
-const WORK_ONLY_WINDOWS = [
-  { name: "Slack", pattern: PATTERN_SLACK },
-  { name: "Discord", pattern: PATTERN_DISCORD },
-  { name: "the work browser", pattern: PATTERN_WORK_BROWSER },
+const WORK_ONLY_PATTERNS = [
+  PATTERN_SLACK,
+  PATTERN_DISCORD,
+  PATTERN_WORK_BROWSER,
 ] as const;
 
 function closeFirst(name: string): WorkspaceSetupBlocker {
@@ -346,22 +346,70 @@ function isHomeGhostty(client: WorkspaceSetupLayoutClient) {
   );
 }
 
-function leftoverWorkspace1Terminal(
-  clients: readonly WorkspaceSetupLayoutClient[],
-  slotCount: number,
-): WorkspaceSetupLayoutClient | undefined {
-  const home = clients.filter(
-    (client) =>
-      client.workspace.id === 1 && !client.floating && isHomeGhostty(client),
-  );
-  const openCode = home.find((client) => isOpenCodeTitle(client));
-  if (openCode) return openCode;
-  return home.filter((client) => !isOpenCodeTitle(client))[slotCount];
+function isWorkOnlyWindow(client: WorkspaceSetupLayoutClient) {
+  return WORK_ONLY_PATTERNS.some((pattern) => fieldsMatch(client, pattern));
 }
 
-function leftoverTerminalName(client: WorkspaceSetupLayoutClient): string {
+function humanizeClassName(className: string): string {
+  const trimmed = className.trim();
+  if (trimmed === "") return "window";
+  const last = trimmed.includes(".")
+    ? (trimmed.split(".").at(-1) ?? trimmed)
+    : trimmed;
+  return last
+    .replace(/__+/g, " ")
+    .replace(/[-_]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 0)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function applicationName(client: WorkspaceSetupLayoutClient): string {
+  if (fieldsMatch(client, PATTERN_SLACK)) return "Slack";
+  if (fieldsMatch(client, PATTERN_DISCORD)) return "Discord";
+  if (fieldsMatch(client, PATTERN_WORK_BROWSER)) return "the work browser";
+  if (fieldsMatch(client, PATTERN_HERDR)) return "Herdr";
+  if (fieldsMatch(client, PATTERN_GHOSTTY)) return "Ghostty";
+  if (fieldsMatch(client, PATTERN_CHROMIUM)) return "Chromium";
+  return humanizeClassName(client.class || client.initialClass);
+}
+
+function closeFirstName(client: WorkspaceSetupLayoutClient): string {
+  const app = applicationName(client);
   const title = client.title.trim();
-  return title === "" ? "Ghostty" : title;
+  if (title === "" || title === app) return app;
+  return `${title} - ${app}`;
+}
+
+function closeFirstWindow(
+  client: WorkspaceSetupLayoutClient,
+): WorkspaceSetupBlocker {
+  return closeFirst(closeFirstName(client));
+}
+
+function leftoverWorkspace1Window(
+  clients: readonly WorkspaceSetupLayoutClient[],
+  workLayout: boolean,
+): WorkspaceSetupLayoutClient | undefined {
+  let remainingSlots = workLayout ? 1 : 2;
+  for (const client of clients) {
+    if (client.workspace.id !== 1 || client.floating) continue;
+    if (fieldsMatch(client, PATTERN_HERDR)) continue;
+    if (fieldsMatch(client, PATTERN_CHROMIUM)) continue;
+    if (workLayout && isWorkOnlyWindow(client)) continue;
+    if (
+      isHomeGhostty(client) &&
+      !isOpenCodeTitle(client) &&
+      remainingSlots > 0
+    ) {
+      remainingSlots -= 1;
+      continue;
+    }
+    return client;
+  }
+  return undefined;
 }
 
 /**
@@ -369,27 +417,28 @@ function leftoverTerminalName(client: WorkspaceSetupLayoutClient): string {
  *
  * Work-only apps block the normal layout. The extra workspace-1 top Ghostty
  * blocks the work layout. After claiming extras into the expected home-terminal
- * slots, leftover tiled Ghostty windows on workspace 1 also block, including
- * OpenCode terminals that cannot fill a slot.
+ * slots, leftover tiled windows on workspace 1 also block, including OpenCode
+ * terminals that cannot fill a slot. Close-first copy is the window title and
+ * application name.
  */
 export function findWorkspaceSetupBlocker(
   clients: readonly WorkspaceSetupLayoutClient[],
   workLayout: boolean,
 ): WorkspaceSetupBlocker | undefined {
   if (workLayout) {
-    if (clients.some((client) => client.tags.includes(TAGS.terminalTop))) {
-      return closeFirst("the extra top terminal");
-    }
+    const extraTop = clients.find((client) =>
+      client.tags.includes(TAGS.terminalTop),
+    );
+    if (extraTop) return closeFirstWindow(extraTop);
   } else {
-    for (const window of WORK_ONLY_WINDOWS) {
-      if (clients.some((client) => fieldsMatch(client, window.pattern))) {
-        return closeFirst(window.name);
-      }
+    for (const pattern of WORK_ONLY_PATTERNS) {
+      const workOnly = clients.find((client) => fieldsMatch(client, pattern));
+      if (workOnly) return closeFirstWindow(workOnly);
     }
   }
 
-  const leftover = leftoverWorkspace1Terminal(clients, workLayout ? 1 : 2);
-  if (leftover) return closeFirst(leftoverTerminalName(leftover));
+  const leftover = leftoverWorkspace1Window(clients, workLayout);
+  if (leftover) return closeFirstWindow(leftover);
   return undefined;
 }
 

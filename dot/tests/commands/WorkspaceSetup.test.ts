@@ -691,6 +691,23 @@ describe("workspace setup", () => {
           chromium,
           herdr,
           homeGhostty,
+          layoutClient({
+            class: "chrome-app.slack.com__client-Default",
+            title: "#general",
+          }),
+        ],
+        false,
+      ),
+    ).toEqual({
+      name: "#general - Slack",
+      message: "You must close #general - Slack first",
+    });
+    expect(
+      findWorkspaceSetupBlocker(
+        [
+          chromium,
+          herdr,
+          homeGhostty,
           layoutClient({ class: "chrome-discord.com__app-Default" }),
         ],
         false,
@@ -721,8 +738,25 @@ describe("workspace setup", () => {
         true,
       ),
     ).toEqual({
-      name: "the extra top terminal",
-      message: "You must close the extra top terminal first",
+      name: "Ghostty",
+      message: "You must close Ghostty first",
+    });
+    expect(
+      findWorkspaceSetupBlocker(
+        [
+          chromium,
+          herdr,
+          layoutClient({
+            class: "com.mitchellh.ghostty",
+            title: "/home/aidan/repos/dotfiles",
+            tags: ["wssetup-ws1-term-top"],
+          }),
+        ],
+        true,
+      ),
+    ).toEqual({
+      name: "/home/aidan/repos/dotfiles - Ghostty",
+      message: "You must close /home/aidan/repos/dotfiles - Ghostty first",
     });
     expect(findWorkspaceSetupBlocker([chromium, herdr], true)).toBeUndefined();
     expect(
@@ -762,8 +796,25 @@ describe("workspace setup", () => {
         true,
       ),
     ).toEqual({
-      name: "OC | notes",
-      message: "You must close OC | notes first",
+      name: "OC | notes - Ghostty",
+      message: "You must close OC | notes - Ghostty first",
+    });
+    expect(
+      findWorkspaceSetupBlocker(
+        [
+          chromium,
+          herdr,
+          homeGhostty,
+          layoutClient({
+            class: "com.mitchellh.ghostty",
+            title: "/home/aidan/repos/dotfiles",
+          }),
+        ],
+        true,
+      ),
+    ).toEqual({
+      name: "/home/aidan/repos/dotfiles - Ghostty",
+      message: "You must close /home/aidan/repos/dotfiles - Ghostty first",
     });
     expect(
       findWorkspaceSetupBlocker(
@@ -779,6 +830,40 @@ describe("workspace setup", () => {
     ).toEqual({
       name: "Ghostty",
       message: "You must close Ghostty first",
+    });
+    expect(
+      findWorkspaceSetupBlocker(
+        [
+          chromium,
+          herdr,
+          homeGhostty,
+          layoutClient({
+            class: "org.gnome.Nautilus",
+            title: "Home",
+          }),
+        ],
+        true,
+      ),
+    ).toEqual({
+      name: "Home - Nautilus",
+      message: "You must close Home - Nautilus first",
+    });
+    expect(
+      findWorkspaceSetupBlocker(
+        [
+          chromium,
+          herdr,
+          homeGhostty,
+          layoutClient({
+            class: "firefox",
+            title: "GitHub",
+          }),
+        ],
+        true,
+      ),
+    ).toEqual({
+      name: "GitHub - Firefox",
+      message: "You must close GitHub - Firefox first",
     });
     expect(
       findWorkspaceSetupBlocker(
@@ -936,12 +1021,9 @@ describe("workspace setup", () => {
           logFile: join(root, "run.log"),
         }).pipe(Effect.provide(executor)),
       ),
-    ).rejects.toThrow("You must close the extra top terminal first");
+    ).rejects.toThrow("You must close Ghostty first");
     expect(dispatches).toEqual([]);
-    expect(overlays).toContainEqual([
-      "show",
-      "You must close the extra top terminal first",
-    ]);
+    expect(overlays).toContainEqual(["show", "You must close Ghostty first"]);
   });
 
   test("does not abort for shared Chromium and Herdr alone", async () => {
