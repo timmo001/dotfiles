@@ -96,6 +96,10 @@ _skill_maintenance()
         _skill_maintenance_validate "$i"
         return
         ;;
+      catalogue)
+        _skill_maintenance_catalogue "$i"
+        return
+        ;;
       import)
         _skill_maintenance_import "$i"
         return
@@ -120,7 +124,7 @@ _skill_maintenance()
     return
   fi
 
-  COMPREPLY=( $(compgen -W 'validate import updates check updates-agent' -- "$cur") )
+  COMPREPLY=( $(compgen -W 'validate catalogue import updates check updates-agent' -- "$cur") )
 }
 
 _skill_maintenance_validate()
@@ -128,6 +132,29 @@ _skill_maintenance_validate()
   local cur prev words cword i
   local _command_index="$1"
   _init_completion -n "$COMP_WORDBREAKS" || return
+
+}
+
+_skill_maintenance_catalogue()
+{
+  local cur prev words cword i
+  local _command_index="$1"
+  _init_completion -n "$COMP_WORDBREAKS" || return
+
+  local _used_0=""
+  for ((i = 1; i < cword; i++)); do
+    case "${words[i]%%=*}" in
+      --check|--no-check) _used_0=1 ;;
+    esac
+  done
+  local _filtered_flags=""
+  [[ -n "$_used_0" ]] || _filtered_flags+=" --check --no-check"
+
+  # Complete flags (filtered) and subcommands
+  if [[ "$cur" == -* ]]; then
+    COMPREPLY=( $(compgen -W "$_filtered_flags" -- "$cur") )
+    return
+  fi
 
 }
 

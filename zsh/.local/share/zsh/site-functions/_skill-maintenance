@@ -15,6 +15,7 @@ _skill_maintenance() {
   local -a commands
   commands=(
     'validate:Validate skills and repository metadata'
+    'catalogue:Generate or check the SKILLS.md catalogue from skill frontmatter'
     'import:Fetch and compare or apply an imported skill'
     'updates:Check and update tracked upstream skills'
     'check:Review adapted imports against their origins'
@@ -38,6 +39,9 @@ _skill_maintenance() {
         validate)
           _skill_maintenance_validate
           ;;
+        catalogue)
+          _skill_maintenance_catalogue
+          ;;
         import)
           _skill_maintenance_import
           ;;
@@ -56,6 +60,15 @@ _skill_maintenance() {
 }
 
 _skill_maintenance_validate() {
+}
+
+_skill_maintenance_catalogue() {
+  local -a specs
+  specs=(
+    '(--check --no-check)--check[Exit non-zero when SKILLS.md does not match the generated catalogue]'
+    '(--check --no-check)--no-check[Disable check]'
+  )
+  _arguments "${specs[@]}"
 }
 
 _skill_maintenance_import() {

@@ -8,11 +8,17 @@
 
 complete -c skill-maintenance -n '__fish_use_subcommand' -f
 complete -c skill-maintenance -n '__fish_use_subcommand' -f -a 'validate' -d 'Validate skills and repository metadata'
+complete -c skill-maintenance -n '__fish_use_subcommand' -f -a 'catalogue' -d 'Generate or check the SKILLS.md catalogue from skill frontmatter'
 complete -c skill-maintenance -n '__fish_use_subcommand' -f -a 'import' -d 'Fetch and compare or apply an imported skill'
 complete -c skill-maintenance -n '__fish_use_subcommand' -f -a 'updates' -d 'Check and update tracked upstream skills'
 complete -c skill-maintenance -n '__fish_use_subcommand' -f -a 'check' -d 'Review adapted imports against their origins'
 complete -c skill-maintenance -n '__fish_use_subcommand' -f -a 'updates-agent' -d 'Run scheduled skill update automation'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from validate' -f
+complete -c skill-maintenance -n '__fish_seen_subcommand_from catalogue' -f
+complete -c skill-maintenance -n '__fish_seen_subcommand_from catalogue; and not __fish_contains_opt check no-check' -l check -d 'Exit non-zero when SKILLS.md does not match the generated catalogue'
+complete -c skill-maintenance -n '__fish_seen_subcommand_from catalogue; and not __fish_contains_opt check no-check' -l no-check -d 'Disable check'
+complete -c skill-maintenance -n '__fish_seen_subcommand_from catalogue; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt check no-check' -f -a '--check' -d 'Exit non-zero when SKILLS.md does not match the generated catalogue'
+complete -c skill-maintenance -n '__fish_seen_subcommand_from catalogue; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt check no-check' -f -a '--no-check' -d 'Disable check'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from import' -f
 complete -c skill-maintenance -n '__fish_seen_subcommand_from import; and not __fish_contains_opt apply no-apply' -l apply -d 'Apply a clean upstream snapshot'
 complete -c skill-maintenance -n '__fish_seen_subcommand_from import; and not __fish_contains_opt apply no-apply' -l no-apply -d 'Disable apply'
