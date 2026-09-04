@@ -18,12 +18,12 @@
     "predev": "bun run gen"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "14.2.6",
-    "blume": "1.5.3",
+    "@astrojs/cloudflare": "14.3.0",
+    "blume": "1.6.0",
     "sharp": "^0.35.1"
   },
   "devDependencies": {
-    "wrangler": "^4.0.0"
+    "wrangler": "^4.125.0"
   },
   "trustedDependencies": ["esbuild", "sharp"]
 }
