@@ -11,12 +11,12 @@ Agents set the execution posture (permissions, tool access, delegation) for Open
 
 | Agent | Description |
 | --- | --- |
-| [`build-ask`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/build-ask.md) | Build agent that executes clear tasks and relies on permissions for write actions |
-| [`coordinator`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/coordinator.md) | Manages low-context delegated sessions through delivery |
-| [`general-readonly`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/general-readonly.md) | General-style parallel subagent that researches with read-only tools and a narrow shell inspection allowlist (for delegation from read-only primaries). |
-| [`grill`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/grill.md) | Read-only planning stress-test agent for light or full round-based grilling |
-| [`refactorer`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/refactorer.md) | Refactor code while preserving behavior and following local command and skill workflows |
-| [`researcher-readonly`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/researcher-readonly.md) | Primary-source research subagent that compares claim-specific evidence and cannot delegate further |
-| [`researcher`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/researcher.md) | Interactive primary-source research agent that compares claim-specific evidence and may delegate one layer of read-only legwork |
-| [`reviewer`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/reviewer.md) | Reviews code for quality, bugs, security, and best practices |
-| [`workflow-watcher`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy/agents/.config/opencode/agents/workflow-watcher.md) | Watches host-resolved GitHub Actions targets and optionally fixes an explicitly scoped quick-check failure without rediscovering workflows |
+| [`build-ask`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/agents/build-ask.md) | Build agent that executes clear tasks and relies on permissions for write actions |
+| [`coordinator`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/agents/coordinator.md) | Manages low-context delegated sessions through delivery |
+| [`general-readonly`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/agents/general-readonly.md) | General-style parallel subagent that researches with read-only tools and a narrow shell inspection allowlist (for delegation from read-only primaries). |
+| [`grill`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/agents/grill.md) | Read-only planning stress-test agent for light or full round-based grilling |
+| [`refactorer`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/agents/refactorer.md) | Refactor code while preserving behavior and following local command and skill workflows |
+| [`researcher-readonly`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/agents/researcher-readonly.md) | Primary-source research subagent that compares claim-specific evidence and cannot delegate further |
+| [`researcher`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/agents/researcher.md) | Interactive primary-source research agent that compares claim-specific evidence and may delegate one layer of read-only legwork |
+| [`reviewer`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/agents/reviewer.md) | Reviews code for quality, bugs, security, and best practices |
+| [`workflow-watcher`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/agents/workflow-watcher.md) | Watches host-resolved GitHub Actions targets and optionally fixes an explicitly scoped quick-check failure without rediscovering workflows |

@@ -14,7 +14,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = path.resolve(root, '..');
 const outDir = path.join(root, 'src/content/docs/agents/opencode');
 
-const BRANCH = 'distro/arch-omarchy';
+const BRANCH = 'distro/arch-omarchy-quattro';
 const BLOB = `https://github.com/timmo001/dotfiles/blob/${BRANCH}`;
 
 const OPENCODE_PREFIX = 'agents/.config/opencode';
