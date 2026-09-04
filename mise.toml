@@ -78,6 +78,7 @@ bash tests/scripts/manage-omarchy-plugin.test.sh
 bash tests/scripts/agent-crash-hook.test.sh
 bash tests/scripts/workspace-restore.test.sh
 bash tests/scripts/workspace-setup.test.sh
+bash tests/scripts/workspace-menu.test.sh
 """
 
 [tasks."tests:smoke"]

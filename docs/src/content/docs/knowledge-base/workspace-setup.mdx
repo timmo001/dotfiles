@@ -1,6 +1,6 @@
 ---
 title: Workspace Setup
-description: Rebuild the desktop host's work and non-work workspace layout.
+description: Rebuild the desktop host's work and normal workspace layout.
 sidebar:
   order: 3
 ---
@@ -21,7 +21,7 @@ The desktop host autostarts setup after Hyprland starts:
 exec-once = workspace-setup --sleep=5
 ```
 
-On the `desktop` host, `workspace-menu` also exposes a **Setup workspace** action. The shared menu binding is:
+On the `desktop` host, `workspace-menu` also exposes a **Setup workspace** action. That action asks whether to use the work or normal layout. The shared menu binding is:
 
 ```text
 SUPER+ALT+W
@@ -31,13 +31,15 @@ You can also run it directly:
 
 ```bash
 workspace-setup
+workspace-setup --mode=work
+workspace-setup --mode=normal
 ```
 
-## Work-time mode
+## Work and normal layouts
 
-The command branches on `is-work-time`, which returns success Monday to Friday from `07:00` through `16:59` local time.
+Without `--mode`, the command branches on `is-work-time`, which returns success Monday to Friday from `07:00` through `16:59` local time. Autostart after login uses that detection. `--mode=work` and `--mode=normal` skip the clock and force that layout.
 
-During work time, setup prepares:
+The work layout prepares:
 
 | Workspace | Slots |
 | --- | --- |
@@ -45,7 +47,7 @@ During work time, setup prepares:
 | `2` | Standard Herdr. |
 | `3` | Work browser. |
 
-Outside work time, setup prepares:
+The normal layout prepares:
 
 | Workspace | Slots |
 | --- | --- |

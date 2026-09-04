@@ -1596,9 +1596,13 @@ _dot_workspace_setup()
       COMPREPLY=( $(compgen -f -- "$cur") )
       return
       ;;
+    --mode)
+      _dot--choices "$cur" "$_comp_word" 'work' 'normal'
+      return
+      ;;
   esac
 
-  local _used_0="" _used_1="" _used_2="" _used_3="" _used_4="" _used_5="" _used_6="" _used_7=""
+  local _used_0="" _used_1="" _used_2="" _used_3="" _used_4="" _used_5="" _used_6="" _used_7="" _used_8=""
   for ((i = 1; i < cword; i++)); do
     case "${words[i]%%=*}" in
       --step-through|--step|--no-step-through) _used_0=1 ;;
@@ -1608,7 +1612,8 @@ _dot_workspace_setup()
       --temp-workspace) _used_4=1 ;;
       --move-dispatcher) _used_5=1 ;;
       --log-file) _used_6=1 ;;
-      --help|-h) _used_7=1 ;;
+      --mode) _used_7=1 ;;
+      --help|-h) _used_8=1 ;;
     esac
   done
   local _filtered_flags=""
@@ -1619,7 +1624,8 @@ _dot_workspace_setup()
   [[ -n "$_used_4" ]] || _filtered_flags+=" --temp-workspace"
   [[ -n "$_used_5" ]] || _filtered_flags+=" --move-dispatcher"
   [[ -n "$_used_6" ]] || _filtered_flags+=" --log-file"
-  [[ -n "$_used_7" ]] || _filtered_flags+=" --help -h"
+  [[ -n "$_used_7" ]] || _filtered_flags+=" --mode"
+  [[ -n "$_used_8" ]] || _filtered_flags+=" --help -h"
 
   # Complete flags (filtered) and subcommands
   if [[ "$cur" == -* ]]; then

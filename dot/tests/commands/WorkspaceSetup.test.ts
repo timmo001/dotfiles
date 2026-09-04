@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { Effect, Layer, Stream } from "effect";
-import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from "fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import {
@@ -58,6 +65,7 @@ describe("workspace setup", () => {
           temporaryWorkspace: 98,
           moveDispatcher: "movetoworkspacesilent",
           logFile: "/flag.log",
+          mode: "work",
         },
         {
           WORKSPACE_SETUP_TEMP_WS: "97",
@@ -71,6 +79,7 @@ describe("workspace setup", () => {
       moveDispatcher: "movetoworkspacesilent",
       follow: false,
       logFile: "/flag.log",
+      mode: "work",
     });
     expect(() =>
       resolveWorkspaceSetupConfig({ ...defaults, temporaryWorkspace: 2 }),
@@ -208,5 +217,165 @@ describe("workspace setup", () => {
       expect.stringContaining("address:0xm"),
     ]);
     expect(dispatches.at(-1)).toBe('hl.dsp.focus({ workspace = "2" })');
+  });
+
+  test("forces the normal layout without consulting is-work-time", async () => {
+    const root = mkdtempSync(join(tmpdir(), "workspace-setup-normal-"));
+    roots.push(root);
+    installDependencies(root);
+
+    const clients = [
+      {
+        address: "0xb",
+        class: "chromium",
+        workspace: { id: 1 },
+        tags: ["wssetup-ws1-browser-main"],
+      },
+      {
+        address: "0xt",
+        class: "com.mitchellh.ghostty",
+        workspace: { id: 1 },
+        tags: ["wssetup-ws1-term-top"],
+      },
+      {
+        address: "0xm",
+        class: "com.mitchellh.ghostty",
+        workspace: { id: 1 },
+        tags: ["wssetup-ws1-term"],
+      },
+      {
+        address: "0xh",
+        class: "herdr",
+        workspace: { id: 2 },
+        tags: ["wssetup-ws2-term"],
+      },
+    ];
+    const probed: string[] = [];
+    const executor = Layer.succeed(CommandExecutor, {
+      run: (command, args) => {
+        if (command !== "hyprctl") return Effect.succeed("");
+        if (args[0] === "-j" && args[1] === "clients") {
+          return Effect.succeed(JSON.stringify(clients));
+        }
+        if (args[0] === "-j" && args[1] === "activewindow") {
+          return Effect.succeed('{"address":"0xb"}');
+        }
+        return Effect.succeed("");
+      },
+      stream: () => Stream.empty,
+      exitCode: (command) => {
+        probed.push(command);
+        return Effect.succeed(0);
+      },
+      inherit: () => Effect.succeed(0),
+    });
+
+    await Effect.runPromise(
+      workspaceSetup({
+        ...defaults,
+        fast: true,
+        mode: "normal",
+        logFile: join(root, "run.log"),
+      }).pipe(Effect.provide(executor)),
+    );
+
+    expect(probed).toEqual([]);
+    expect(readFileSync(join(root, "run.log"), "utf8")).toContain(
+      "Using normal mode",
+    );
+  });
+
+  test("forces the work layout without consulting is-work-time", async () => {
+    const root = mkdtempSync(join(tmpdir(), "workspace-setup-work-"));
+    roots.push(root);
+    installDependencies(root);
+    const chrome = join(root, "google-chrome-stable");
+    writeFileSync(chrome, "#!/bin/sh\nexit 0\n");
+    chmodSync(chrome, 0o755);
+
+    const clients = [
+      {
+        address: "0xs",
+        class: "chrome-app.slack.com__client",
+        workspace: { id: 1 },
+        tags: ["wssetup-ws1-slack"],
+      },
+      {
+        address: "0xd",
+        class: "chrome-discord.com__app",
+        workspace: { id: 1 },
+        tags: ["wssetup-ws1-discord"],
+      },
+      {
+        address: "0xb",
+        class: "chromium",
+        workspace: { id: 1 },
+        tags: ["wssetup-ws1-browser-main"],
+      },
+      {
+        address: "0xm",
+        class: "com.mitchellh.ghostty",
+        workspace: { id: 1 },
+        tags: ["wssetup-ws1-term"],
+      },
+      {
+        address: "0xh",
+        class: "herdr",
+        workspace: { id: 2 },
+        tags: ["wssetup-ws2-term"],
+      },
+      {
+        address: "0xw",
+        class: "work-browser",
+        workspace: { id: 3 },
+        tags: ["wssetup-ws3-browser"],
+      },
+    ];
+    const probed: string[] = [];
+    const dispatches: string[] = [];
+    const executor = Layer.succeed(CommandExecutor, {
+      run: (command, args) => {
+        if (command !== "hyprctl") return Effect.succeed("");
+        if (args[0] === "-j" && args[1] === "clients") {
+          return Effect.succeed(JSON.stringify(clients));
+        }
+        if (args[0] === "-j" && args[1] === "activewindow") {
+          return Effect.succeed('{"address":"0xb"}');
+        }
+        dispatches.push(args[1] ?? "");
+        return Effect.succeed("");
+      },
+      stream: () => Stream.empty,
+      exitCode: (command) => {
+        probed.push(command);
+        return Effect.succeed(1);
+      },
+      inherit: () => Effect.succeed(0),
+    });
+
+    await Effect.runPromise(
+      workspaceSetup({
+        ...defaults,
+        fast: true,
+        mode: "work",
+        logFile: join(root, "run.log"),
+      }).pipe(Effect.provide(executor)),
+    );
+
+    expect(probed).toEqual([]);
+    const moves = dispatches.filter((command) =>
+      command.startsWith("hl.dsp.window.move"),
+    );
+    expect(
+      moves.filter((command) => command.includes('workspace = "99"')),
+    ).toEqual([
+      expect.stringContaining("address:0xs"),
+      expect.stringContaining("address:0xd"),
+      expect.stringContaining("address:0xb"),
+      expect.stringContaining("address:0xm"),
+    ]);
+    expect(readFileSync(join(root, "run.log"), "utf8")).toContain(
+      "Using work mode",
+    );
   });
 });

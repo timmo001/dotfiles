@@ -16,9 +16,9 @@ chmod +x "$temp_dir/dot"
 captured="$temp_dir/args"
 set +e
 PATH="$temp_dir:$PATH" CAPTURED_ARGS="$captured" \
-  "$repo_root/scripts/.local/bin/workspace-setup" --fast --temp-workspace=98
+  "$repo_root/scripts/.local/bin/workspace-setup" --fast --temp-workspace=98 --mode=work
 status=$?
 set -e
 
 [[ $status -eq 23 ]]
-diff -u <(printf '%s\n' workspace-setup --fast --temp-workspace=98) "$captured"
+diff -u <(printf '%s\n' workspace-setup --fast --temp-workspace=98 --mode=work) "$captured"

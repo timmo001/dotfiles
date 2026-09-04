@@ -30,6 +30,9 @@ const MANAGED_TAGS = Object.values(TAGS);
 export type WorkspaceMoveDispatcher =
   "movetoworkspace" | "movetoworkspacesilent";
 
+/** Explicit workspace setup layout, bypassing work-time detection. */
+export type WorkspaceSetupMode = "work" | "normal";
+
 /** Raw workspace setup options supplied by the CLI. */
 export interface WorkspaceSetupOptions {
   /** Pause after each logged step. */
@@ -46,6 +49,8 @@ export interface WorkspaceSetupOptions {
   readonly moveDispatcher?: WorkspaceMoveDispatcher;
   /** Explicit run log path. */
   readonly logFile?: string;
+  /** Explicit work or normal layout, skipping `is-work-time`. */
+  readonly mode?: WorkspaceSetupMode;
 }
 
 /** Validated workspace setup configuration. */
@@ -64,6 +69,8 @@ export interface WorkspaceSetupConfig {
   readonly follow: boolean;
   /** Optional explicit run log path. */
   readonly logFile?: string;
+  /** Explicit work or normal layout, skipping `is-work-time`. */
+  readonly mode?: WorkspaceSetupMode;
 }
 
 interface HyprlandClient {
@@ -169,6 +176,7 @@ export function resolveWorkspaceSetupConfig(
     moveDispatcher,
     follow: moveDispatcher === "movetoworkspace",
     logFile: configuredLog ? expandHomePath(configuredLog) : undefined,
+    mode: options.mode,
   };
 }
 
@@ -471,7 +479,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
   const run = Effect.gen(function* () {
     for (const dependency of [
       "hyprctl",
-      "is-work-time",
+      ...(config.mode === undefined ? ["is-work-time"] : []),
       "uwsm",
       "chromium",
       "ghostty-host-config",
@@ -499,7 +507,12 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
     )
       ? activeAddress
       : "";
-    const workTime = (yield* executor.exitCode("is-work-time", [])) === 0;
+    const workTime =
+      config.mode === "work"
+        ? true
+        : config.mode === "normal"
+          ? false
+          : (yield* executor.exitCode("is-work-time", [])) === 0;
     if (workTime && Bun.which("google-chrome-stable") === null) {
       return fail("google-chrome-stable is not available");
     }
@@ -520,7 +533,11 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
         "No focused startup window detected; center browser slot will use normal candidate selection",
       );
     }
-    yield* logStep(`Detected ${workTime ? "work-time" : "non-work-time"} mode`);
+    yield* logStep(
+      config.mode === undefined
+        ? `Detected ${workTime ? "work-time" : "non-work-time"} mode`
+        : `Using ${config.mode} mode`,
+    );
 
     const personalBrowser = slot(
       TAGS.browser,

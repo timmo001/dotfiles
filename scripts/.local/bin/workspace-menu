@@ -29,7 +29,21 @@ while true; do
 
   case "$choice" in
     'Setup workspace')
-      exec workspace-setup
+      setup_choice="$(menu_select 'Setup workspace' 280 180 \
+        '󰣇  Work' \
+        '󰋜  Normal')"
+      setup_choice="${setup_choice#*  }"
+      case "$setup_choice" in
+        Work)
+          exec workspace-setup --mode=work
+          ;;
+        Normal)
+          exec workspace-setup --mode=normal
+          ;;
+        *)
+          continue
+          ;;
+      esac
       ;;
     'Relayout current workspace')
       exec dot workspace-relayout

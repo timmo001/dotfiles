@@ -1040,17 +1040,29 @@ const setupWorkspace = describe(
         "movetoworkspacesilent",
       ]).pipe(Flag.optional, Flag.withDescription("Window move dispatcher")),
       logFile: pathFlag("log-file", "Write the run log to this file", "file"),
+      mode: Flag.choice("mode", ["work", "normal"]).pipe(
+        Flag.optional,
+        Flag.withDescription(
+          "Use the work or normal layout instead of detecting work time",
+        ),
+      ),
     },
-    ({ logFile, moveDispatcher, sleep, temporaryWorkspace, ...input }) =>
+    ({ logFile, mode, moveDispatcher, sleep, temporaryWorkspace, ...input }) =>
       workspaceSetup({
         ...input,
         startupDelay: sleep,
         logFile: optional(logFile),
+        mode: optional(mode),
         moveDispatcher: optional(moveDispatcher),
         temporaryWorkspace: optional(temporaryWorkspace),
       }),
   ),
   "Launch or reuse desktop apps and rebuild the workspace layout",
+  [
+    "dot workspace-setup",
+    "dot workspace-setup --mode=work",
+    "dot workspace-setup --mode=normal",
+  ],
 );
 const capture = describe(
   Command.make(

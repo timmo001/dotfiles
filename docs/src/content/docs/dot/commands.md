@@ -942,7 +942,16 @@ dot workspace-setup [flags]
 | `--temp-workspace` `<integer>` | Numeric temporary workspace |
 | `--move-dispatcher` `<choice>` | Window move dispatcher (choices: movetoworkspace, movetoworkspacesilent) |
 | `--log-file` `<path>` | Write the run log to this file |
+| `--mode` `<choice>` | Use the work or normal layout instead of detecting work time (choices: work, normal) |
 | `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot workspace-setup
+dot workspace-setup --mode=work
+dot workspace-setup --mode=normal
+```
 
 ## `dot workspace-relayout`
 

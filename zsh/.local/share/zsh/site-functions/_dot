@@ -780,6 +780,7 @@ _dot_workspace_setup() {
     '(--temp-workspace)--temp-workspace[Numeric temporary workspace]:integer:'
     '(--move-dispatcher)--move-dispatcher[Window move dispatcher]:value:(movetoworkspace movetoworkspacesilent)'
     '(--log-file)--log-file[Write the run log to this file]:file:_files'
+    '(--mode)--mode[Use the work or normal layout instead of detecting work time]:value:(work normal)'
     '(--help -h)--help[Show help information]'
     '(--help -h)-h[Show help information]'
   )

@@ -469,6 +469,7 @@ complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not __fish_
 complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and begin; not __fish_contains_opt temp-workspace; or contains -- (commandline -poc)[-1] --temp-workspace; end' -l temp-workspace -d 'Numeric temporary workspace' -r -f
 complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and begin; not __fish_contains_opt move-dispatcher; or contains -- (commandline -poc)[-1] --move-dispatcher; end' -l move-dispatcher -d 'Window move dispatcher' -r -f -a 'movetoworkspace movetoworkspacesilent'
 complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and begin; not __fish_contains_opt log-file; or contains -- (commandline -poc)[-1] --log-file; end' -l log-file -d 'Write the run log to this file' -r -F
+complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and begin; not __fish_contains_opt mode; or contains -- (commandline -poc)[-1] --mode; end' -l mode -d 'Use the work or normal layout instead of detecting work time' -r -f -a 'work normal'
 complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not __fish_contains_opt -s h help no-help' -l help -s h -d 'Show help information'
 complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt step-through step no-step-through' -f -a '--step-through' -d 'Pause after each logged step'
 complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt step-through step no-step-through' -f -a '--no-step-through' -d 'Disable step-through'
@@ -479,6 +480,7 @@ complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not string 
 complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt temp-workspace' -f -a '--temp-workspace' -d 'Numeric temporary workspace'
 complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt move-dispatcher' -f -a '--move-dispatcher' -d 'Window move dispatcher'
 complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt log-file' -f -a '--log-file' -d 'Write the run log to this file'
+complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt mode' -f -a '--mode' -d 'Use the work or normal layout instead of detecting work time'
 complete -c dot -n '__fish_seen_subcommand_from workspace-setup; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt -s h help no-help' -f -a '--help' -d 'Show help information'
 complete -c dot -n '__fish_seen_subcommand_from workspace-relayout' -f
 complete -c dot -n '__fish_seen_subcommand_from workspace-relayout; and not __fish_contains_opt edit no-edit' -l edit -d 'Capture or overwrite a preset'
