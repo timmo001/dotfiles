@@ -16,7 +16,7 @@
     "effect": "^4.0.0-rc.112"
   },
   "devDependencies": {
-    "@effect/tsgo": "^0.39.0",
+    "@effect/tsgo": "^0.41.0",
     "@types/bun": "^1.3.13",
     "prettier": "^3.5.3",
     "typescript": "^7.0.0"
