@@ -64,7 +64,10 @@ jobs:
 
       - name: Verify regenerated reference is committed
         run: |
-          if ! git diff --exit-code -- docs/src/content/docs/reference; then
+          if ! git diff --exit-code -- \
+            docs/src/content/docs/agents/opencode/agents.md \
+            docs/src/content/docs/agents/opencode/commands.md \
+            docs/src/content/docs/agents/opencode/plugins.md; then
             echo "::error::OpenCode reference docs are out of date. Run 'mise run docs:gen:opencode' and commit the result."
             exit 1
           fi

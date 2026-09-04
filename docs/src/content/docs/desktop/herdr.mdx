@@ -1,0 +1,40 @@
+---
+title: Herdr
+description: Dotfiles-managed Herdr session config and plugins.
+---
+
+<a href="https://herdr.dev" target="_blank" rel="noopener noreferrer">Herdr</a> is the shared agent terminal multiplexer. Product behaviour, concepts, and configuration options live in the <a href="https://herdr.dev/docs" target="_blank" rel="noopener noreferrer">official docs</a>. This page covers only what these dotfiles customise. Clients attach from [Ghostty](/desktop/ghostty/).
+
+## Layout
+
+| Piece | Why |
+| --- | --- |
+| `herdr/` package | Stow source for managed session and plugin config |
+| Runtime `~/.config/herdr/` | Herdr-owned logs, sockets, and session state stay untracked beside stowed files |
+| `config.toml` | Reproducible session layer (prefix commands, theme, sidebar, plugin chords). Edit the file; do not mirror every setting here |
+| `plugins/config/` | Selected third-party plugin config stowed with the package |
+| `scripts/.local/share/herdr-plugins/` | Local `dotfiles.*` plugin sources linked on `dot update` |
+
+## Local plugins
+
+`dot update` links each directory under `scripts/.local/share/herdr-plugins/` into the live Herdr plugin tree (`herdr plugin link … --enabled`) and starts the terminal-title watcher:
+
+| Plugin | Role |
+| --- | --- |
+| `dotfiles.repository-picker` | Open or focus configured repository workspaces |
+| `dotfiles.terminal-title` | Mirror pane titles into Herdr tab labels |
+| `dotfiles.yazi` | <a href="https://yazi-rs.github.io" target="_blank" rel="noopener noreferrer">Yazi</a> explorer in a split or tab |
+| `dotfiles.mise-task-runner` | Pick and run the current project's <a href="https://mise.jdx.dev" target="_blank" rel="noopener noreferrer">mise</a> tasks |
+| `dotfiles.plannotator` | Review or annotate via <a href="https://github.com/backnotprop/plannotator" target="_blank" rel="noopener noreferrer">Plannotator</a> |
+
+## Lazy plugins
+
+`plugins/config/herdr-lazy/plugins.list` and `plugins.lock` pin third-party plugins. When a Herdr session is available, `dot update` restores them through `herdr-lazy`. Stowed companion config covers lazygit, sessionizer, usagebar, and reviewr. Everything else under `~/.config/herdr/` remains runtime-owned.
+
+## Dot helpers
+
+| Command | Purpose |
+| --- | --- |
+| `dot update` | Restore Lazy lockfile, relink local plugins, restart the title watcher |
+| `dot doctor` | Warn when Herdr, the <a href="https://opencode.ai" target="_blank" rel="noopener noreferrer">OpenCode</a> integration, or required local plugins are missing |
+| `dot herdr-repo-open` | Open or focus a managed repo workspace once the shared server is up |

@@ -5,10 +5,10 @@ description: An agent-driven Omarchy setup for development, desktop, and automat
 
 # Dotfiles
 
-Personal [Omarchy](https://omarchy.org) dotfiles (Arch-based), managed with [GNU Stow](https://www.gnu.org/software/stow/) and a compiled `dot` CLI. Public config, desktop customisations, git tooling, and a shared OpenCode setup. Private machine details live in a separate overlay.
+Personal <a href="https://omarchy.org" target="_blank" rel="noopener noreferrer">Omarchy</a> dotfiles (Arch-based), managed with <a href="https://www.gnu.org/software/stow/" target="_blank" rel="noopener noreferrer">GNU Stow</a> and a compiled `dot` CLI. Public config, desktop customisations, git tooling, and a shared <a href="https://opencode.ai" target="_blank" rel="noopener noreferrer">OpenCode</a> setup. Private machine details live in a separate overlay.
 
 :::caution[Personal setup]
-These are tuned for my machines and a private overlay that is not public. Borrow ideas; do not install wholesale.
+These docs and the public dotfiles are for reference. They are tuned for my machines and a private overlay that is not public, so installation is not recommended; borrow ideas rather than installing wholesale.
 :::
 
 ## Core
@@ -17,29 +17,48 @@ These are tuned for my machines and a private overlay that is not public. Borrow
 | --- | --- |
 | [Getting started](/getting-started/) | Bootstrap a fresh Omarchy machine |
 | [Configuration](/configuration/) | Private overlay, packages, and tracked app config |
-| [`dot` CLI](/dot/) | Setup, sync, stow, doctor, and git helpers |
+| [`dot` CLI](/dot/overview/) | Setup, sync, stow, doctor, and git helpers ([command reference](/dot/commands/)) |
 | [Stow packages](/stow/) | One-line blurbs for everything else that is stowed |
 
 ## Desktop
 
 | Page | Why |
 | --- | --- |
-| [Hyprland](/hyprland/) | Window manager config and per-host overrides |
-| [Ghostty](/ghostty/) | Terminal config with host overrides |
-| [Herdr](/herdr/) | Shared agent terminal multiplexer |
-| [UWSM](/uwsm/) | User environment for the graphical session |
-| [Shell](/shell/) | Omarchy Quickshell bar plugins and generated `shell.json` |
+| [Hyprland](/desktop/hyprland/) | Window manager config and per-host overrides |
+| [Ghostty](/desktop/ghostty/) | Terminal config with host overrides |
+| [Herdr](/desktop/herdr/) | Shared agent terminal multiplexer |
+| [UWSM](/desktop/uwsm/) | User environment for the graphical session |
+| [Omarchy Shell](/desktop/omarchy-shell/) | Quickshell bar, panels, and `timmo.*` plugins |
 
 ## Agents
 
+### OpenCode
+
 | Page | Why |
 | --- | --- |
-| [OpenCode](/opencode/) | Primary coding-agent harness |
-| [Pi](/pi/) | Lightweight companion agent |
-| [Cursor](/cursor/) | IDE-embedded agent and launchers |
+| [Overview](/agents/opencode/overview/) | Primary coding-agent harness |
+| [Agents](/agents/opencode/agents/) | Generated catalogue of OpenCode agents |
+| [Commands](/agents/opencode/commands/) | Generated catalogue of slash commands |
+| [Plugins](/agents/opencode/plugins/) | Generated catalogue of lifecycle plugins |
 
-## Reference
+Skills live in the <a href="https://github.com/timmo001/skills/blob/main/SKILLS.md#skills-catalogue" target="_blank" rel="noopener noreferrer">timmo001/skills</a> catalogue (not a local docs page).
 
-Generated catalogues: [`dot` commands](/dot/commands/), [agents](/reference/agents/), [slash commands](/reference/commands/), [skills](/reference/skills/), [plugins](/reference/plugins/).
+### Other
 
-Machine-readable bundles and the docs MCP: [Agents / LLMs](/agents-llms/).
+| Page | Why |
+| --- | --- |
+| [Pi](/agents/pi/) | Lightweight companion agent |
+| [Cursor](/agents/cursor/) | IDE-embedded agent and launchers |
+
+## Machine-readable docs
+
+Build-time <a href="https://llmstxt.org" target="_blank" rel="noopener noreferrer">llms.txt</a> bundles and a read-only docs MCP, generated from the same source as the site.
+
+| URL | Use |
+| --- | --- |
+| https://dotfiles.timmo.dev/llms.txt | Compact page index |
+| https://dotfiles.timmo.dev/llms-full.txt | Full docs bundle |
+| https://dotfiles.timmo.dev/mcp | Hosted MCP (search / page / navigation) |
+| `/{route}.md` | One page as Markdown |
+
+Ask AI on the site is off. For live repo state, use <a href="https://context.timmo.dev" target="_blank" rel="noopener noreferrer">context</a> rather than these static bundles.

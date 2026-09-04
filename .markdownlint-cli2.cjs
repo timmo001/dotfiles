@@ -50,7 +50,9 @@ module.exports = {
     "docs/.astro/**",
     "dot-migration/**",
     "docs/src/content/docs/dot/commands.md",
-    "docs/src/content/docs/reference/**",
+    "docs/src/content/docs/agents/opencode/agents.md",
+    "docs/src/content/docs/agents/opencode/commands.md",
+    "docs/src/content/docs/agents/opencode/plugins.md",
     ...importedSkillIgnores,
   ],
 };

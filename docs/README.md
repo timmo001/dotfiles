@@ -11,7 +11,7 @@ The site is available at <https://dotfiles.timmo.dev>.
 Content lives in `src/content/docs/` and is exposed as routes based on file names. Two sections are generated and should not be hand-edited:
 
 - `src/content/docs/dot/commands.md` — generated from `dot/src/cli/spec.ts` by `bun run gen:cli`.
-- `src/content/docs/reference/{agents,commands,skills,plugins}.md` — generated from the OpenCode assets by `bun run gen:opencode`.
+- `src/content/docs/agents/opencode/{agents,commands,plugins}.md` — generated from the OpenCode assets by `bun run gen:opencode`. Skills are catalogued in [timmo001/skills `SKILLS.md`](https://github.com/timmo001/skills/blob/main/SKILLS.md#skills-catalogue).
 
 ## Commands
 

@@ -1,0 +1,37 @@
+---
+title: Omarchy Shell
+description: Omarchy Quickshell bar, panels, and timmo.* plugins.
+---
+
+The Omarchy Shell is the long-running <a href="https://quickshell.org" target="_blank" rel="noopener noreferrer">Quickshell</a> process (`omarchy-shell`) behind the bar, notifications, OSD, launcher, and settings on <a href="https://omarchy.org" target="_blank" rel="noopener noreferrer">Omarchy</a>. These dotfiles extend it with `timmo.*` plugins instead of forking Omarchy's shell.
+
+`~/.config/omarchy/shell.json` is generated, not hand-edited. `dot` merges Omarchy's default layout with `omarchy-plugins.json` (and an optional private overlay). After plugin or layout changes, use `omarchy restart shell` when a hot-reload is not enough. `dot omarchy-shell-config` regenerates the layout without a full stow.
+
+## Layout
+
+Public `omarchy-plugins.json` owns placement and per-host tweaks. Stock `omarchy.weather` and `omarchy.agents` are removed. `timmo.workspaces` and `timmo.clock` replace the stock workspace and clock widgets.
+
+Several centre/right widgets are primary-output only, with host-specific outputs (desktop `HDMI-A-2`, laptop `eDP-1`). A private overlay can add or override plugins without publishing them.
+
+## Bar and panel plugins
+
+| Plugin | Role |
+| --- | --- |
+| `timmo.workspaces` | Dynamic workspace numbers only (no persistent empties); focused full opacity, others dimmed |
+| `timmo.twitch` | Live channel status and controls for the local <a href="https://github.com/timmo001/twitch-notifications" target="_blank" rel="noopener noreferrer">Twitch notifications</a> daemon |
+| `timmo.git` | Managed-repo dirty/ahead state plus GitHub notifications in one centre widget and panel |
+| `timmo.command` | Interval command cell; here runs `package-updates-bar` and colours package-update state |
+| `timmo.stream-command` | Streaming status JSON for long-running watchers; available but not placed on the public bar |
+| `timmo.home-assistant` | Home Assistant status on the right |
+| `timmo.system-bridge` | Local <a href="https://system-bridge.timmo.dev" target="_blank" rel="noopener noreferrer">System Bridge</a> health (bar + detail panel) |
+| `timmo.notes` | Notes vault browse/search/capture panel wired to the `notes` CLI |
+| `timmo.clock` | Compact clock with calendar, year progress, and world clocks (replaces stock clock) |
+| `timmo.momentumctl` | Headset panel via `momentumctl`; panel-only in the public layout |
+
+## Sources
+
+Custom plugins live under `omarchy/.config/omarchy/plugins/`. Some are local QML in this repo (`workspaces`, `command`, `stream-command`, `git`); others are managed plugin checkouts (`clock`, `twitch`, `notes`, `system-bridge`, `momentumctl`) with placement recorded in `omarchy-plugins.json`.
+
+Third-party bar plugins can be imported the same way: <a href="https://omarchy.org" target="_blank" rel="noopener noreferrer">Omarchy</a>'s `omarchy plugin add` (backed by `dot omarchy-plugin`) checks them out as submodules. Placement and config then live in `omarchy-plugins.json`. A private overlay can extend that layout the same way.
+
+Do not hand-edit the live `shell.json`. Change the generator or registry, rebuild `dot` when needed, then stow.

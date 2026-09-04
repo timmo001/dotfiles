@@ -17,7 +17,9 @@ on:
       - 'docs/scripts/generate-cli-reference.ts'
       - 'docs/scripts/generate-opencode-reference.ts'
       - 'docs/src/content/docs/dot/commands.md'
-      - 'docs/src/content/docs/reference/**'
+      - 'docs/src/content/docs/agents/opencode/agents.md'
+      - 'docs/src/content/docs/agents/opencode/commands.md'
+      - 'docs/src/content/docs/agents/opencode/plugins.md'
       - '.github/workflows/docs-drift.yml'
 
 permissions:
@@ -49,7 +51,9 @@ jobs:
         run: |
           if ! git diff --exit-code -- \
             docs/src/content/docs/dot/commands.md \
-            docs/src/content/docs/reference; then
+            docs/src/content/docs/agents/opencode/agents.md \
+            docs/src/content/docs/agents/opencode/commands.md \
+            docs/src/content/docs/agents/opencode/plugins.md; then
             echo "::error::Generated docs are out of date. Run 'mise run docs:gen' and commit the result (the dot command reference also pairs with 'dot completions')."
             exit 1
           fi

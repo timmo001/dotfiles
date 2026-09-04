@@ -7,7 +7,7 @@ import {
 } from "../../agents/.config/opencode/lib/generated-artifacts";
 
 const root = "/tmp/dotfiles";
-const generatedDocs = "docs/src/content/docs/reference/plugins.md";
+const generatedDocs = "docs/src/content/docs/agents/opencode/plugins.md";
 
 describe("generated artefact paths", () => {
   test("matches exact relative and absolute generated paths", () => {
@@ -41,7 +41,7 @@ describe("generated artefact paths", () => {
     expect(
       generatedArtifactForPath(
         root,
-        "src/content/docs/reference/plugins.md",
+        "src/content/docs/agents/opencode/plugins.md",
         resolve(root, "docs"),
       )?.path,
     ).toBe(generatedDocs);
@@ -65,7 +65,7 @@ describe("apply_patch mutations", () => {
 
   test("resolves patch paths from a nested tool workdir", () => {
     const patch = `*** Begin Patch
-*** Update File: src/content/docs/reference/plugins.md
+*** Update File: src/content/docs/agents/opencode/plugins.md
 *** End Patch`;
     expect(
       generatedArtifactFromPatch(root, patch, resolve(root, "docs"))?.path,
@@ -123,7 +123,7 @@ describe("shell mutations", () => {
     expect(
       generatedArtifactFromShell(
         root,
-        "rm src/content/docs/reference/plugins.md",
+        "rm src/content/docs/agents/opencode/plugins.md",
         resolve(root, "docs"),
       )?.path,
     ).toBe(generatedDocs);

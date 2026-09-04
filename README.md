@@ -1,11 +1,11 @@
 # 🧰 Dotfiles
 
-Personal [Omarchy](https://omarchy.org) dotfiles, managed with GNU Stow and the `dot` command.
+Personal [Omarchy](https://omarchy.org) dotfiles, managed with [GNU Stow](https://www.gnu.org/software/stow/) and the `dot` command.
 
 **Docs:** <https://dotfiles.timmo.dev>
 
 > [!CAUTION]
-> Tuned for Omarchy and my machines, with a private overlay that is not public. Borrow pieces; do not install wholesale. The shared OpenCode config is the exception: [`opencode-config`](https://github.com/timmo001/opencode-config).
+> This repository is for reference. The configs are tuned for Omarchy and my machines, with a private overlay that is not public, so installation is not recommended; borrow pieces rather than installing wholesale. The shared OpenCode config is the exception: [`opencode-config`](https://github.com/timmo001/opencode-config).
 
 ## Quick start
 
@@ -36,12 +36,11 @@ Ongoing: `dot doctor` (health checks), `dot update` (pull, stow, rebuild).
 - [Overview](https://dotfiles.timmo.dev/)
 - [Getting started](https://dotfiles.timmo.dev/getting-started/)
 - [Configuration](https://dotfiles.timmo.dev/configuration/)
-- [`dot`](https://dotfiles.timmo.dev/dot/) · [command reference](https://dotfiles.timmo.dev/dot/commands/)
-- [Hyprland](https://dotfiles.timmo.dev/hyprland/) · [Ghostty](https://dotfiles.timmo.dev/ghostty/) · [Herdr](https://dotfiles.timmo.dev/herdr/) · [UWSM](https://dotfiles.timmo.dev/uwsm/) · [Shell](https://dotfiles.timmo.dev/shell/)
+- [`dot`](https://dotfiles.timmo.dev/dot/overview/) · [command reference](https://dotfiles.timmo.dev/dot/commands/)
+- [Hyprland](https://dotfiles.timmo.dev/desktop/hyprland/) · [Ghostty](https://dotfiles.timmo.dev/desktop/ghostty/) · [Herdr](https://dotfiles.timmo.dev/desktop/herdr/) · [UWSM](https://dotfiles.timmo.dev/desktop/uwsm/) · [Omarchy Shell](https://dotfiles.timmo.dev/desktop/omarchy-shell/)
 - [Stow packages](https://dotfiles.timmo.dev/stow/)
-- [OpenCode](https://dotfiles.timmo.dev/opencode/) · [Pi](https://dotfiles.timmo.dev/pi/) · [Cursor](https://dotfiles.timmo.dev/cursor/)
-- [Reference](https://dotfiles.timmo.dev/reference/agents/) (generated catalogues)
-- [Agents / LLMs](https://dotfiles.timmo.dev/agents-llms/)
+- [OpenCode](https://dotfiles.timmo.dev/agents/opencode/overview/) · [agents](https://dotfiles.timmo.dev/agents/opencode/agents/) · [commands](https://dotfiles.timmo.dev/agents/opencode/commands/) · [plugins](https://dotfiles.timmo.dev/agents/opencode/plugins/) ([skills](https://github.com/timmo001/skills))
+- [Pi](https://dotfiles.timmo.dev/agents/pi/) · [Cursor](https://dotfiles.timmo.dev/agents/cursor/)
 
 Detail lives in code and `--help`. The site stays a short what-and-why reference.
 

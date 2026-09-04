@@ -1,0 +1,42 @@
+---
+title: Hyprland
+description: Stowed Hyprland config and per-host overrides.
+---
+
+<a href="https://hyprland.org" target="_blank" rel="noopener noreferrer">Hyprland</a> window manager config for this <a href="https://omarchy.org" target="_blank" rel="noopener noreferrer">Omarchy</a> setup. It is a stowed `hypr/` package, not a forked Omarchy Hypr repository. Shared Lua entry files live at the package root; each machine overrides them under `hosts/`.
+
+`dot stow` lays the package down with `--no-folding`, keeps `~/.config/hypr/host` pointing at `hosts/$OMARCHY_HOST`, and reloads Hyprland afterwards without dropping the live config mid-stow.
+
+## Host selection
+
+`hyprland.lua` loads Omarchy defaults, then the shared personal modules (`envs`, `monitors`, `input`, `bindings`, `looknfeel`, `autostart`). Each of those ends with `require("hypr.host.<module>")`, which resolves through the `host` symlink.
+
+Two hosts are tracked: `desktop` and `laptop`. Shared behaviour stays at the package root; machine differences stay under `hosts/<name>/`.
+
+## Monitors and workspaces
+
+Monitor layout is host-owned. Shared `monitors.lua` only forwards to the active host.
+
+**Desktop** pins a portrait left panel (`DP-1`, rotated) and a landscape main (`HDMI-A-2`), both 4K, with GDK/QT scale set for that setup. Named workspace rules pin workspace 1 to the left monitor and workspaces 2–6 to the right. A catch-all preferred/auto rule covers anything else (for example a VM display).
+
+**Laptop** uses a single preferred/auto output at 2× scale, with matching GDK/QT scale. Both hosts drop to 1× scale when `hypr.lib.machine` detects a virtual machine.
+
+## Per-host overrides
+
+Beyond monitors, each host keeps its own:
+
+**Envs** — Each host sets GPU-appropriate Wayland/VA-API vars and `OMARCHY_HOST` to its name.
+
+**Input** — Shared defaults are a British (GB) keyboard layout, a flat mouse acceleration profile (no acceleration), and basic touchpad settings. Desktop leaves pointer sensitivity alone; laptop raises sensitivity, slows touchpad scrolling, and tunes per-app touchpad scroll speed for terminals and Chromium.
+
+**Look and feel** — Desktop uses small gaps, light rounding, blur/shadow, and window rules that park common apps on specific workspaces. Laptop tightens gaps/borders (no rounding) and shrinks the floating terminal.
+
+**Autostart** — Shared start pulls <a href="https://system-bridge.timmo.dev" target="_blank" rel="noopener noreferrer">System Bridge</a>, Chromium, <a href="https://kdeconnect.kde.org/" target="_blank" rel="noopener noreferrer">KDE Connect</a>, <a href="https://github.com/timmo001/twitch-notifications" target="_blank" rel="noopener noreferrer">Twitch notifications</a>, and the <a href="https://herdr.dev" target="_blank" rel="noopener noreferrer">Herdr</a> server. Desktop also starts Solaar, `opencode-server`, and a delayed `workspace-setup`. Laptop starts `power-profile-daemon`.
+
+**Bindings** — Shared bindings cover browsers, terminals, reload-ui, and similar day-to-day chords. Host files only add machine-specific chords.
+
+## Shared helpers
+
+`bin/` helpers land on `PATH` via [UWSM](/desktop/uwsm/) (url handler setup, `timmo-run-command`, a Quickshell wrapper). `float-app.lua` holds generated floating rules. `hyprsunset.conf` and `xdph.conf` sit beside the Lua entry files for night light and portal defaults.
+
+Bindings and layout scripts stay in the package; they are not listed here.

@@ -1,0 +1,15 @@
+---
+title: Pi
+description: Lightweight companion agent harness.
+---
+
+<a href="https://pi.dev" target="_blank" rel="noopener noreferrer">Pi</a> is a lighter companion agent for smaller sessions. It is used sparingly here: shared skills and AGENTS guidance without the full <a href="https://opencode.ai" target="_blank" rel="noopener noreferrer">OpenCode</a> plugin and command stack.
+
+| Piece | Why |
+| --- | --- |
+| `pi/` stow package | Pi-side config; mainly `.pi/agent/extensions/` |
+| Shared skills | Same `~/.agents/skills/` set as OpenCode |
+| `dot agents-sync` | Keeps project/global AGENTS aligned with the OpenCode AGENTS source |
+| `workflow.ts` extension | Compaction follow-up and light <a href="https://herdr.dev" target="_blank" rel="noopener noreferrer">Herdr</a> helpers under `.pi/` |
+
+Use Pi when a thin session is enough. Use [OpenCode](/agents/opencode/overview/) for day-to-day interactive work, slash commands, plugins, and Herdr panes. There is no generated Pi command catalogue in these docs.

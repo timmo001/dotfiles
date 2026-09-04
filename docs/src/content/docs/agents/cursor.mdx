@@ -1,0 +1,16 @@
+---
+title: Cursor
+description: IDE-embedded agent, launchers, and mirrored AGENTS rules.
+---
+
+<a href="https://cursor.com" target="_blank" rel="noopener noreferrer">Cursor</a> is the IDE-embedded agent. These dotfiles only wire a thin slice of it: desktop launchers, mirrored global AGENTS rules, and MCP config from the private overlay. It does not load the OpenCode agent, command, skill, or plugin trees.
+
+## What is tracked
+
+| Piece | Why |
+| --- | --- |
+| `cursor/` stow package | Two desktop entries only: Editor (`--classic`) and Agents (glass deeplink) |
+| `dot agents-sync` | Writes `~/.cursor/rules/global-agents.mdc` (`alwaysApply`) from `~/.config/opencode/AGENTS.md` |
+| `dot mcp-sync` | Regenerates Cursor MCP config under the private `agents/.cursor/mcp.json` path |
+
+There is no generated Cursor command catalogue in this docs site. Generated references cover [`dot` commands](/dot/commands/) and [OpenCode slash commands](/agents/opencode/commands/) only. Cursor IDE commands stay in Cursor; shared slash-command and plugin behaviour lives on [OpenCode](/agents/opencode/overview/).

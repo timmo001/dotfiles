@@ -117,7 +117,7 @@ Shared [OpenCode](https://opencode.ai) skills, agents, plugins, and commands.
 
 Generated and published from [\`${DOTFILES_REPO}\`](${DOTFILES_URL}), with shared skills sourced from [\`${SKILLS_REPO}\`](${SKILLS_URL}).
 
-See the [OpenCode & Agents docs](https://dotfiles.timmo.dev/opencode/) for the overview, MCP notes, and generated reference pages.
+See the [OpenCode overview](https://dotfiles.timmo.dev/agents/opencode/overview/) for the overview, MCP notes, and generated reference pages.
 
 ## Installation
 

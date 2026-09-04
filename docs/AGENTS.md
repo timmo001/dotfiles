@@ -14,7 +14,7 @@ This directory is the Blume + Astro documentation site for the dotfiles repo, de
 
 ## Layout
 
-- Content: `src/content/docs/` (Markdown/MDX with YAML frontmatter; file names map to routes). Top-level pages for the main sections; `dot/commands.md` and `reference/` hold generated catalogues.
+- Content: `src/content/docs/` (Markdown/MDX with YAML frontmatter; file names map to routes). Top-level pages for the main sections; `dot/`, `desktop/`, and `agents/` hold section pages (`agents/opencode/` for OpenCode, other harnesses directly under `agents/`). Generated catalogues live under `dot/commands.md` and `agents/opencode/{agents,commands,plugins}.md`.
 - Sidebar order is set explicitly in `blume.config.ts` (`navigation.sidebar`).
 - Branding: `src/assets/logo.svg` + `public/favicon.svg` (twemoji toolbox).
 - Site, navigation, theme, AI, SEO, and deployment config: `blume.config.ts`.
@@ -25,11 +25,11 @@ This directory is the Blume + Astro documentation site for the dotfiles repo, de
 Two areas are generated from the single source of truth in the repo:
 
 - `src/content/docs/dot/commands.md` ← `dot/src/cli/spec.ts` via `mise run docs:gen:cli` (wraps `bun run gen:cli`).
-- `src/content/docs/reference/{agents,commands,skills,plugins}.md` ← `agents/.config/opencode/**` and `agents/.agents/skills/**` via `mise run docs:gen:opencode` (wraps `bun run gen:opencode`).
+- `src/content/docs/agents/opencode/{agents,commands,plugins}.md` ← `agents/.config/opencode/**` via `mise run docs:gen:opencode` (wraps `bun run gen:opencode`). Skills are catalogued in [timmo001/skills `SKILLS.md`](https://github.com/timmo001/skills/blob/main/SKILLS.md#skills-catalogue), not generated here.
 
 `mise run docs:dev` (and `bun run dev`) regenerates both first (via `predev`). `bun run build` does **not** regenerate (Cloudflare builds the committed output). CI regenerates these references and fails if the committed output is stale. When you change a `dot` command or an OpenCode asset, run `mise run docs:gen` and commit the result (the `dot` reference also pairs with shell completions).
 
-The `docs-drift`, `dot-build`, and `opencode-publish` workflows enforce this on pull requests and direct pushes: they regenerate the relevant pages and fail when the committed `commands.md` or `reference/*.md` differ from a fresh regeneration. Regenerate and commit the generated files before pushing.
+The `docs-drift`, `dot-build`, and `opencode-publish` workflows enforce this on pull requests and direct pushes: they regenerate the relevant pages and fail when the committed `commands.md` or `agents/opencode/*.md` differ from a fresh regeneration. Regenerate and commit the generated files before pushing.
 
 The `dot-build` workflow also builds the docs site (`mise run docs:build`) on `docs/**` or `dot/**` changes. Blume's strict build and validation commands catch invalid content and broken links before Cloudflare deploys.
 
