@@ -44,6 +44,10 @@ jobs:
           mise trust
           mise install
 
+      - name: Install dot dependencies
+        run: bun install --frozen-lockfile
+        working-directory: dot
+
       - name: Regenerate generated docs
         run: mise run docs:gen
 
