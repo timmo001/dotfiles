@@ -102,7 +102,7 @@ dir = "docs"
 run = "bun run dev"
 
 [tasks."docs:build"]
-description = "Build the docs site"
+description = "Prepare and validate the docs site"
 dir = "docs"
 run = "bun run build"
 

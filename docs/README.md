@@ -19,12 +19,12 @@ All commands run from this `docs/` directory:
 
 - `bun install`
 - `bun run dev` (runs the generators first via `predev`)
-- `bun run build`
+- `bun run build` (prepare and type-check the generated Astro runtime)
 - `bun run check`
 - `bun run validate`
-- `bun run deploy` (deploy the built site to Cloudflare Workers)
-- `bun run deploy:preview` (upload a preview version without promoting it)
-- `bun run preview`
+- `bun run deploy` (build and deploy the prepared site to Cloudflare Workers)
+- `bun run deploy:preview` (deploy the isolated preview stage)
+- `bun run preview` (run the prepared site through Alchemy)
 - `bun run gen` (regenerate the generated reference pages)
 - `bun run og` (regenerate the legacy shared Open Graph image)
 
@@ -38,4 +38,4 @@ The site deploys to Cloudflare Workers with Blume's Astro server bundle. Server 
 - Deploy command: `bun run deploy`
 - Non-production deploy command: `bun run deploy:preview`
 
-`wrangler.jsonc` owns the Worker name, compatibility settings, custom domain, and observability. Blume passes it to the Astro Cloudflare adapter, which writes the deployable configuration to `dist/server/wrangler.json`; the deploy scripts use that generated configuration.
+`alchemy.run.ts` owns the Worker, custom domain, observability, and stage isolation. Alchemy builds Blume's generated Astro runtime with its Wrangler-free Cloudflare integration. The production deploy adopts the existing `dotfiles-docs` Worker; non-production deploys use a separate Alchemy stage.

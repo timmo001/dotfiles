@@ -107,7 +107,7 @@ export default defineConfig({
   deployment: {
     site: 'https://dotfiles.timmo.dev',
     output: 'server',
-    adapter: 'cloudflare',
+    adapter: null,
   },
   feedback: false,
   lastModified: true,

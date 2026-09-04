@@ -4,6 +4,7 @@ dist/
 .astro/
 .blume/
 .blume-verify/
+.alchemy/
 
 # dependencies
 node_modules/
