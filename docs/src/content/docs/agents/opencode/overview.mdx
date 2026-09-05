@@ -11,7 +11,7 @@ sidebar:
 
 | Piece | Why |
 | --- | --- |
-| `agents/.config/opencode/` | Agents, commands, plugins, TUI plugins, and shared `lib/` |
+| `agents/.config/opencode/` | Agents, commands, plugins (`plugins/` plus OpenCode 2 `plugins-v2/`), and shared `lib/` |
 | Shared [skills](/agents/skills/) | Pinned submodule + repo-local skills (see Skills page) |
 | Private overlay | Machine-specific OpenCode packages, AGENTS source, and MCP wiring |
 
@@ -30,7 +30,7 @@ Commands do not own long workflows; skills and plugins do. AGENTS stays to cross
 
 | Command / flow | Purpose |
 | --- | --- |
-| `dot agents-sync` | Mirror global AGENTS into other harness instruction files (Cursor, Claude) |
+| `dot agents-sync` | Mirror global AGENTS into other harness instruction files |
 | `dot mcp-sync` | Regenerate MCP configs from private `mcp.yml` for OpenCode and other harnesses |
 | `dot skills` | Check and apply skill updates from the skills repo |
 | `dot update` / `dot init` | Run agents-sync (and related refresh) as part of maintenance |
