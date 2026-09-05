@@ -5,12 +5,12 @@
   "scripts": {
     "dev": "blume dev",
     "start": "blume dev",
-    "build": "blume build --strict",
+    "build": "blume check --strict && blume validate --strict",
     "check": "blume check --strict",
     "validate": "blume validate --strict",
-    "deploy": "wrangler deploy --config dist/server/wrangler.json",
-    "deploy:preview": "wrangler versions upload --config dist/server/wrangler.json",
-    "preview": "blume preview",
+    "deploy": "bun alchemy deploy --stage prod --yes --adopt",
+    "deploy:preview": "bun alchemy deploy --stage preview --yes",
+    "preview": "bun alchemy dev --stage dev",
     "og": "bun scripts/generate-og.mjs",
     "gen:cli": "bun scripts/generate-cli-reference.ts",
     "gen:opencode": "bun scripts/generate-opencode-reference.ts",
@@ -18,12 +18,15 @@
     "predev": "bun run gen"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "14.3.0",
+    "@effect/platform-bun": "^4.0.0-rc.112",
+    "@effect/platform-node": "^4.0.0-rc.112",
+    "alchemy": "2.0.0-beta.76",
     "blume": "1.6.0",
+    "effect": "^4.0.0-rc.112",
     "sharp": "^0.35.1"
   },
   "devDependencies": {
-    "wrangler": "^4.125.0"
+    "@alchemy.run/frontend-frameworks": "2.0.0-beta.76"
   },
   "trustedDependencies": ["esbuild", "sharp"]
 }
