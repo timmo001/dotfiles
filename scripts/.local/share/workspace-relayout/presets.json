@@ -24,6 +24,16 @@
       },
       {
         "group": "Top / bottom",
+        "name": "59% top",
+        "tree": {
+          "dir": "tb",
+          "ratio": 58.74,
+          "a": "w",
+          "b": "w"
+        }
+      },
+      {
+        "group": "Top / bottom",
         "name": "Equal height",
         "tree": {
           "dir": "tb",
