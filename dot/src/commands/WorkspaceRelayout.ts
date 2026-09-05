@@ -1,11 +1,14 @@
 import { Cause, Effect, Schema } from "effect";
 import {
+  existsSync,
+  mkdtempSync,
   readFileSync,
   realpathSync,
   renameSync,
   rmSync,
   writeFileSync,
 } from "fs";
+import { tmpdir } from "os";
 import { dirname, join } from "path";
 import { randomUUID } from "crypto";
 import { ENV, envString } from "../lib/env.js";
@@ -21,6 +24,8 @@ const LEAF = "w" as const;
 const DEFAULT_TEMP_WORKSPACE = 99;
 const VERIFY_ATTEMPTS = 20;
 const VERIFY_INTERVAL = "25 millis";
+const PICKER_PLUGIN = "timmo.workspace-relayout";
+const PICKER_FLIP_TAG = "flip";
 
 /** A leaf in a saved Hyprland Dwindle split tree. */
 export type LayoutLeaf = typeof LEAF;
@@ -398,6 +403,21 @@ function ratioSignature(tree: LayoutTree): string {
   ].join(", ");
 }
 
+/** Invert the root split so a 25/75 pane becomes 75/25. Nested splits stay. */
+export function flipLayoutTree(tree: LayoutTree): LayoutTree {
+  if (tree === LEAF) return tree;
+  return { dir: tree.dir, ratio: 100 - tree.ratio, a: tree.a, b: tree.b };
+}
+
+function parsePickerChoice(raw: string) {
+  const value = raw.trim();
+  const suffix = `\t${PICKER_FLIP_TAG}`;
+  if (value.endsWith(suffix)) {
+    return { label: value.slice(0, -suffix.length), flipped: true as const };
+  }
+  return { label: value, flipped: false as const };
+}
+
 /** Return the generated human-readable description for a layout tree. */
 export function describeLayoutTree(tree: LayoutTree): string {
   const count = layoutLeafCount(tree);
@@ -563,6 +583,7 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
       for (const dependency of [
         "hyprctl",
         "omarchy-menu-select",
+        "omarchy-shell",
         "omarchy",
       ] as const) {
         if (!commandAvailable(dependency))
@@ -630,6 +651,49 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
             Effect.map((choice) => choice.trim()),
             Effect.orElseSucceed(() => ""),
           );
+      const pickLayout = (prompt: string, choices: readonly string[]) => {
+        const directory = mkdtempSync(join(tmpdir(), "workspace-relayout-"));
+        return Effect.gen(function* () {
+          const selectionFile = join(directory, "selection");
+          const doneFile = join(directory, "done");
+          writeFileSync(selectionFile, "");
+          const summoned = yield* executor
+            .run("omarchy-shell", [
+              "shell",
+              "summon",
+              PICKER_PLUGIN,
+              JSON.stringify({
+                prompt,
+                options: [...choices],
+                selectionFile,
+                doneFile,
+                width: 460,
+                maxHeight: 360,
+              }),
+            ])
+            .pipe(
+              Effect.map((output) => output.trim()),
+              Effect.orElseSucceed(() => ""),
+            );
+          if (summoned !== "ok") {
+            return fail("Workspace relayout picker is not available");
+          }
+          while (!existsSync(doneFile)) {
+            yield* Effect.sleep("50 millis");
+          }
+          return parsePickerChoice(
+            existsSync(selectionFile)
+              ? readFileSync(selectionFile, "utf8")
+              : "",
+          );
+        }).pipe(
+          Effect.ensuring(
+            Effect.sync(() =>
+              rmSync(directory, { recursive: true, force: true }),
+            ),
+          ),
+        );
+      };
       const input = (prompt: string, fallback: string) =>
         executor.run("omarchy-menu-input", [prompt, "--width", "460"]).pipe(
           Effect.map((value) => value.trim() || fallback),
@@ -710,12 +774,15 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
         (preset) => preset.group === selectedGroup,
       );
       const labels = uniqueLabels(inGroup);
-      const selectedLabel = yield* select(`${selectedGroup} layout`, labels);
-      if (!selectedLabel) return;
-      const selectedIndex = labels.indexOf(selectedLabel);
+      const choice = yield* pickLayout(`${selectedGroup} layout`, labels);
+      if (!choice.label) return;
+      const selectedIndex = labels.indexOf(choice.label);
       if (selectedIndex < 0)
         return fail("The selected layout is no longer available");
       const selected = inGroup[selectedIndex];
+      const tree = choice.flipped
+        ? flipLayoutTree(selected.tree)
+        : selected.tree;
 
       const activeWindow = parseJson(
         yield* executor.run("hyprctl", ["-j", "activewindow"]),
@@ -729,10 +796,10 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
           ? decodedActiveWindow.value.address
           : undefined;
       const originalTree = captureLayoutTree(clients);
-      const selectedAddresses = assignLayoutWindows(selected.tree, clients);
+      const selectedAddresses = assignLayoutWindows(tree, clients);
       const originalAddresses = assignLayoutWindows(originalTree, clients);
       const applyBatch = buildLayoutBatch(
-        selected.tree,
+        tree,
         selectedAddresses,
         active.id,
         temporaryWorkspace,
@@ -799,7 +866,10 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
           "Layout verification timed out; restored the previous layout",
         );
       }
-      yield* notify(title, `Applied ${describeLayoutTree(selected.tree)}`);
+      yield* notify(
+        title,
+        `Applied ${describeLayoutTree(tree)}${choice.flipped ? " (flipped)" : ""}`,
+      );
     });
 
     const lock = yield* Effect.try({

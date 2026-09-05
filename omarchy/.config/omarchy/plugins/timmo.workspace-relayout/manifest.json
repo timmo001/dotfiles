@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "timmo.workspace-relayout",
+  "name": "Workspace relayout",
+  "version": "1.0.0",
+  "author": "Aidan Timson",
+  "description": "Layout picker for workspace relayout; Alt+Enter or Alt+click flips the primary split",
+  "kinds": [
+    "overlay"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "overlay": "Overlay.qml"
+  }
+}

@@ -29,3 +29,8 @@ require("default.hypr.toggles")
 
 -- Add any other personal Hyprland configuration below.
 -- o.window("qemu", { workspace = "5" })
+hl.layer_rule({
+  match = { namespace = "timmo-workspace-relayout" },
+  no_anim = true,
+  animation = "none",
+})

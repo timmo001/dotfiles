@@ -148,6 +148,9 @@
       "managed": true
     },
     {
+      "id": "timmo.workspace-relayout"
+    },
+    {
       "id": "timmo.clock",
       "managed": true,
       "replace": "omarchy.clock",
