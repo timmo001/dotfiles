@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "timmo.popup-loading",
+  "name": "Loading overlay",
+  "version": "1.0.0",
+  "author": "Aidan Timson",
+  "description": "Singleton loading overlay on the focused monitor",
+  "kinds": [
+    "overlay"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "overlay": "Overlay.qml"
+  }
+}

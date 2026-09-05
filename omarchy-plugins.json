@@ -151,6 +151,9 @@
       "id": "timmo.workspace-relayout"
     },
     {
+      "id": "timmo.popup-loading"
+    },
+    {
       "id": "timmo.clock",
       "managed": true,
       "replace": "omarchy.clock",
