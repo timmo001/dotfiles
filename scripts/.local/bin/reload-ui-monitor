@@ -12,7 +12,7 @@ while IFS= read -r line; do
       ;;
     *"boolean false"*)
       if (( saw_sleep )); then
-        sleep 1
+        sleep 30
         "$HOME/.local/bin/reload-ui" --no-auto-open
       fi
       saw_sleep=0
