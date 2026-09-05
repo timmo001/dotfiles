@@ -33,7 +33,9 @@ const LEGACY_UWSM_REPO_SLUG = "timmo001/omarchy-uwsm";
 
 const RETIRED_PUBLIC_STOW_PATHS = [
   "scripts/.local/bin/waybar",
+  "scripts/.local/bin/reload-ui-monitor",
   "scripts/.local/share/omarchy/bin/waybar",
+  "systemd/.config/systemd/user/dot-reload-ui-monitor.service",
   "hypr/.config/hypr/hyprland.conf",
   "hypr/.config/hypr/hypridle.conf",
   "hypr/.config/hypr/hyprlock.conf",
@@ -108,7 +110,7 @@ export function formatBackupMove(move: BackupMove): string {
   return `${displayPath(move.source)} -> ${displayPath(move.destination)}`;
 }
 
-/** Remove dangling live links for files retired by the Omarchy 4 migration. */
+/** Remove dangling live links for retired public stow files. */
 export function removeRetiredPublicStowLinks(
   publicDotfiles: string,
   homeDir = HOME_DIR,

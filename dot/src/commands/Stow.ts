@@ -161,39 +161,6 @@ export const stow = (opts?: {
       }
       yield* stowRepo(config.publicDotfiles, "public", launcher, log, config);
 
-      const reloadUiMonitorUnit = "dot-reload-ui-monitor.service";
-      const reloadUiMonitorPath = join(
-        config.omarchy.repoBase,
-        "systemd",
-        "user",
-        reloadUiMonitorUnit,
-      );
-      if (config.omarchy.enabled && existsSync(reloadUiMonitorPath)) {
-        yield* log.section("Reload UI Monitor");
-        const daemonReloadExit = yield* launcher.stream(
-          "systemctl --user daemon-reload",
-        );
-        const enableExit =
-          daemonReloadExit === 0
-            ? yield* launcher.stream(
-                `systemctl --user enable ${reloadUiMonitorUnit}`,
-              )
-            : daemonReloadExit;
-        const restartExit =
-          enableExit === 0
-            ? yield* launcher.stream(
-                `systemctl --user restart ${reloadUiMonitorUnit}`,
-              )
-            : enableExit;
-        if (restartExit === 0) {
-          yield* log.info(`Enabled and restarted ${reloadUiMonitorUnit}`);
-        } else {
-          yield* log.warn(
-            `Could not enable and restart ${reloadUiMonitorUnit} (systemctl exit ${restartExit})`,
-          );
-        }
-      }
-
       yield* log.section("Omarchy Neovim Theme");
       yield* ensureNvimThemeLink(log);
 
