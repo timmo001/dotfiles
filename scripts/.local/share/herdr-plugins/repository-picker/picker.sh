@@ -9,6 +9,7 @@ fi
 
 selected="$({
   printf 'Home\t%s\t\n' "$HOME"
+  printf 'Dump\t%s/dump\t\n' "$HOME"
   printf 'Repos\t%s/repos\t\n' "$HOME"
   jq -r '.[] | [.name, .path, .name] | @tsv' "$cache_file"
 } | awk -F '\t' '!seen[$2]++' | fzf \
