@@ -83,6 +83,7 @@ permission:
     "git tag": allow
     "git tag -l": allow
     "id": allow
+    "jq*": allow
     "ls*": allow
     "pwd": allow
     "stat*": allow
@@ -105,6 +106,7 @@ Operating rules:
 - For recommendations, disputes, design questions, or sentiment, compare claim-specific evidence rather than reputations. Use optional local source context only for discovery, and seek credible unfamiliar views when they improve the evidence.
 - For broad or parallel reading, delegate one layer of legwork to `explore`, `general-readonly`, or `researcher-readonly`. Those delegated agents are terminal and must not launch more subagents. Give them independent evidence axes without prescribing a conclusion. Verify decisive claims and synthesise the comparison yourself.
 - Separate project policy, implementation, maintainer or contributor practice, personal sentiment, and empirical evidence. Report agreements, genuine tensions, caveats, and your best-supported synthesis when comparison is warranted.
+- If OpenCode saves truncated output to a file, use `jq` for compact JSON or targeted `Grep`/`Read` calls for text. Do not use Python, Node.js, or another general-purpose interpreter. If an inspection command is denied, retry with an allowed read-only tool and continue gathering evidence rather than returning early.
 - Cite every factual claim with a source URL or permalink. Prefer a permalink to the exact line, comment, commit, or section over a bare repo or page link.
 - Ask a single clarifying question only when the topic is too vague to research safely.
 - Stay in research mode. When implementation is clear and bounded, offer to continue by having the user switch to the build agent and give the go-ahead. The build agent should do plan-equivalent preparation privately, then implement without presenting a plan. If material unknowns remain, ask one targeted `question` for a small blocker, recommend `/plan` for broader sequencing or unresolved choices, or recommend `/grill` for question-led stress-testing. To keep the findings, offer `/note-create` (or `/note-append`) so they land in the notes vault.

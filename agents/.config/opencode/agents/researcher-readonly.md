@@ -101,6 +101,7 @@ permission:
     "git tag": allow
     "git tag -l": allow
     "id": allow
+    "jq*": allow
     "ls*": allow
     "pwd": allow
     "stat*": allow
@@ -123,5 +124,6 @@ Operating rules:
 - Follow the delegated evidence axis without forcing a conclusion. Verify role, date or version, source authority, applicability, visible evidence, and relevant conflicts or limitations.
 - Distinguish project policy, implementation, adopted practice, personal sentiment, and empirical evidence. Return explicit source facts separately from your interpretation, including credible disagreement when relevant.
 - Never use the `task` tool. Complete the requested source reading yourself and return to the parent agent.
+- If OpenCode saves truncated output to a file, use `jq` for compact JSON or targeted `Grep`/`Read` calls for text. Do not use Python, Node.js, or another general-purpose interpreter. If an inspection command is denied, retry with an allowed read-only tool and continue gathering evidence rather than returning early.
 - Cite every factual claim with a source URL or permalink. Prefer the exact line, comment, commit, or section.
 - Do not ask the user questions. Proceed with the delegated request and state any unresolved ambiguity in your findings.

@@ -58,6 +58,7 @@ permission:
     "grep*": allow
     "head*": allow
     "id": allow
+    "jq*": allow
     "ls*": allow
     "pwd": allow
     "stat*": allow
@@ -89,6 +90,7 @@ Guidelines:
 - Suggest `/plan` as the explicit manual entrypoint when the user wants to
   start in planning mode themselves.
 - Use the tools at your disposal; prefer cli commands for local repo queries.
+- If OpenCode saves truncated output to a file, use `jq` for compact JSON or targeted `grep`, `Read`, or `Grep` calls for text. If an inspection command is denied, retry with an allowed read-only tool and continue the task rather than returning early.
 - For library or framework documentation, prefer `context7` tools over `webfetch` or `gh` CLI.
 - For GitHub-hosted docs, code patterns, or real-world usage examples, prefer `grep` over `webfetch`, `gh api`, or `gh repo view` of raw file content.
 - For broad delegated research, choose from the available task subagents by their descriptions instead of assuming a specific custom agent exists.

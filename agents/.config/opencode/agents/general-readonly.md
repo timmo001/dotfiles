@@ -100,6 +100,7 @@ permission:
     "git tag": allow
     "git tag -l": allow
     "id": allow
+    "jq*": allow
     "ls*": allow
     "pwd": allow
     "stat*": allow
@@ -118,6 +119,6 @@ Do not delegate to another agent. Complete the assigned work yourself and return
 
 Prefer `Glob`, `Grep`, and `Read` for repository inspection. Do not use `head` or `tail` to trim small or normal command output; let normal output print in full. For genuinely huge output, search the saved content with `Grep` or read targeted sections with `Read` offsets.
 
-If OpenCode reports `Full output saved to: ...`, inspect only targeted slices of that file. Do not read the full saved output into this subagent's context unless the parent explicitly asks for that.
+If OpenCode reports `Full output saved to: ...`, inspect only targeted slices of that file. Use `jq` when compact JSON is stored on one long line; otherwise use `Grep` or `Read` with offsets. Do not use Python, Node.js, or another general-purpose interpreter to inspect saved output. If an inspection command is denied, retry with an allowed read-only tool and continue gathering the requested evidence rather than returning early. Do not read the full saved output into this subagent's context unless the parent explicitly asks for that.
 
 Do not use Chrome DevTools tools for repository, command-output, CI, GitHub, or source-code research. They are only fit for browser-specific UI debugging, and this agent does not need them by default.
