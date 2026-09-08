@@ -40,7 +40,7 @@ _dot() {
     'is-agent:Detect whether an AI coding agent is running dot'
     'agent-oxlint:Run the advisory generic Oxlint pass for cleanup work in an opted-in repository. Repository-owned Oxlint takes precedence. Pass changed paths normally, or use --all when explicitly requested.'
     'launch-floating-webapp:Launch one Omarchy webapp and place its new window in the target monitor'\''s bottom-right corner, or reposition an existing window with --address. Width and height must be positive integers; margins must be non-negative.'
-    'herdr-repo-open:Open or focus a repository workspace in the shared Herdr session. If the server is headless, open a tiled terminal and wait for a foreground client before focusing the workspace.'
+    'herdr:Manage the shared Herdr server and repository workspaces'
     'workspace-setup:Launch or reuse desktop apps and rebuild the workspace layout'
     'workspace-relayout:Apply or capture a Hyprland workspace layout'
     'usage:Report local-first usage analytics from NDJSON events under $XDG_STATE_HOME/tool-usage. Live events store canonical commands and recognised flag names, never positional values. Set DOT_USAGE_DISABLE=1 to disable live recording or DOT_USAGE_DIR to relocate storage.'
@@ -141,8 +141,8 @@ _dot() {
         launch-floating-webapp)
           _dot_launch_floating_webapp
           ;;
-        herdr-repo-open)
-          _dot_herdr_repo_open
+        herdr)
+          _dot_herdr
           ;;
         workspace-setup)
           _dot_workspace_setup
@@ -740,6 +740,82 @@ _dot_launch_floating_webapp() {
     '(--help -h)--help[Show help information]'
     '(--help -h)-h[Show help information]'
     ':Webapp URL to launch:'
+  )
+  _arguments "${specs[@]}"
+}
+
+_dot_herdr() {
+  local context state state_descr line
+  typeset -A opt_args
+
+  local -a commands
+  commands=(
+    'start:Start the default Herdr server with the desktop autostart launch context'
+    'stop:Stop the default Herdr server only when its panes are idle shells. Run outside Herdr; --check also works inside it. Lists active agents, commands, and background jobs, then exits if blocked.'
+    'restart:Restart the default Herdr server only when its panes are idle shells. Run outside Herdr; --check also works inside it. Lists active agents, commands, and background jobs, then exits if blocked.'
+    'repo-open:Open or focus a repository workspace in the shared Herdr session. If the server is headless, open a tiled terminal and wait for a foreground client before focusing the workspace.'
+  )
+
+  local -a specs
+  specs=(
+    '(--help -h)--help[Show help information]'
+    '(--help -h)-h[Show help information]'
+    '1:command:->command'
+    '*::arg:->args'
+  )
+
+  _arguments -C "${specs[@]}"
+
+  case "$state" in
+    command)
+      _describe -t commands 'commands' commands
+      ;;
+    args)
+      case "$words[1]" in
+        start)
+          _dot_herdr_start
+          ;;
+        stop)
+          _dot_herdr_stop
+          ;;
+        restart)
+          _dot_herdr_restart
+          ;;
+        repo-open)
+          _dot_herdr_repo_open
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_dot_herdr_start() {
+  local -a specs
+  specs=(
+    '(--help -h)--help[Show help information]'
+    '(--help -h)-h[Show help information]'
+  )
+  _arguments "${specs[@]}"
+}
+
+_dot_herdr_stop() {
+  local -a specs
+  specs=(
+    '(--check --no-check)--check[Report blockers without stopping]'
+    '(--check --no-check)--no-check[Disable check]'
+    '(--help -h)--help[Show help information]'
+    '(--help -h)-h[Show help information]'
+  )
+  _arguments "${specs[@]}"
+}
+
+_dot_herdr_restart() {
+  local -a specs
+  specs=(
+    '(--check --no-check)--check[Report blockers without restarting]'
+    '(--check --no-check)--no-check[Disable check]'
+    '(--help -h)--help[Show help information]'
+    '(--help -h)-h[Show help information]'
   )
   _arguments "${specs[@]}"
 }

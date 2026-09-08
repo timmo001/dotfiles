@@ -891,12 +891,84 @@ dot launch-floating-webapp [flags] [<url>]
 2  Invalid arguments
 ```
 
-## `dot herdr-repo-open`
+## `dot herdr`
+
+Manage the shared Herdr server and repository workspaces
+
+```text
+dot herdr <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot herdr start`
+
+Start the default Herdr server with the desktop autostart launch context
+
+```text
+dot herdr start [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot herdr stop`
+
+Stop the default Herdr server only when its panes are idle shells. Run outside Herdr; --check also works inside it. Lists active agents, commands, and background jobs, then exits if blocked.
+
+```text
+dot herdr stop [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--check` | Report blockers without stopping |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot herdr stop --check
+dot herdr stop
+```
+
+### `dot herdr restart`
+
+Restart the default Herdr server only when its panes are idle shells. Run outside Herdr; --check also works inside it. Lists active agents, commands, and background jobs, then exits if blocked.
+
+```text
+dot herdr restart [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--check` | Report blockers without restarting |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot herdr restart --check
+dot herdr restart
+```
+
+### `dot herdr repo-open`
 
 Open or focus a repository workspace in the shared Herdr session. If the server is headless, open a tiled terminal and wait for a foreground client before focusing the workspace.
 
 ```text
-dot herdr-repo-open [flags] <label> <directory> [<tab-label>] [<command>]
+dot herdr repo-open [flags] <label> <directory> [<tab-label>] [<command>]
 ```
 
 **Options**

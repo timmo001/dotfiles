@@ -9,6 +9,7 @@ Instructions for coding agents working in the Hyprland config package.
 - Host overrides live under `hosts/desktop/` and `hosts/laptop/`.
 - `dot stow` creates `~/.config/hypr/host` as a symlink to `hosts/$OMARCHY_HOST`.
 - This package is stowed non-destructively: `dot stow` and `dot install` skip the usual unstow-then-restow for `hypr` (its symlinks, notably `hyprland.lua`, never vanish mid-stow) and reload Hyprland afterwards, so Hyprland's live-config autoreload never trips into emergency mode. Preserve this if you edit the stow loop in `dot/src/commands/{Stow,Install}.ts`.
+- Herdr autostart uses `dot herdr start`; `dot herdr stop` and `dot herdr restart` check the default server before stopping it. Server commands share the UWSM launch context in `dot/src/commands/HerdrServer.ts`.
 
 ## Documentation Sync
 

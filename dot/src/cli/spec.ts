@@ -14,6 +14,7 @@ import { clean } from "../commands/Clean.js";
 import { completions } from "../commands/Completions.js";
 import { doctor } from "../commands/Doctor.js";
 import { herdrRepoOpen } from "../commands/HerdrRepoOpen.js";
+import { herdrServerAction, herdrStart } from "../commands/HerdrServer.js";
 import { init } from "../commands/Init.js";
 import { install } from "../commands/Install.js";
 import { isAgentCommand } from "../commands/IsAgent.js";
@@ -963,9 +964,9 @@ const floating = describe(
     ],
   },
 );
-const herdr = describe(
+const herdrRepoOpenCommand = describe(
   Command.make(
-    "herdr-repo-open",
+    "repo-open",
     {
       pane: bool("pane", "Run in a new pane"),
       label: Argument.string("label").pipe(
@@ -1000,6 +1001,39 @@ const herdr = describe(
       },
     ],
   },
+);
+const herdrStartCommand = describe(
+  Command.make("start", {}, () => herdrStart),
+  "Start the default Herdr server with the desktop autostart launch context",
+);
+const herdrRestartCommand = describe(
+  Command.make(
+    "restart",
+    { check: bool("check", "Report blockers without restarting") },
+    (options) => herdrServerAction("restart", options),
+  ),
+  "Restart the default Herdr server only when its panes are idle shells. Run outside Herdr; --check also works inside it. Lists active agents, commands, and background jobs, then exits if blocked.",
+  ["dot herdr restart --check", "dot herdr restart"],
+);
+const herdrStopCommand = describe(
+  Command.make(
+    "stop",
+    { check: bool("check", "Report blockers without stopping") },
+    (options) => herdrServerAction("stop", options),
+  ),
+  "Stop the default Herdr server only when its panes are idle shells. Run outside Herdr; --check also works inside it. Lists active agents, commands, and background jobs, then exits if blocked.",
+  ["dot herdr stop --check", "dot herdr stop"],
+);
+const herdr = describe(
+  Command.make("herdr").pipe(
+    Command.withSubcommands([
+      herdrStartCommand,
+      herdrStopCommand,
+      herdrRestartCommand,
+      herdrRepoOpenCommand,
+    ]),
+  ),
+  "Manage the shared Herdr server and repository workspaces",
 );
 const relayout = describe(
   Command.make(

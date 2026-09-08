@@ -231,7 +231,7 @@ const program = withNativeCommandTimeout(
       process.exitCode =
         CliError.isCliError(error) &&
         (invokedCommand === "launch-floating-webapp" ||
-          invokedCommand === "herdr-repo-open")
+          invokedCommand === "herdr")
           ? 2
           : 1;
     }),
