@@ -906,21 +906,27 @@ const agentOxlintCommand = describe(
         Argument.atLeast(0),
       ),
       all: bool("all", "Lint the complete repository tree"),
+      force: bool(
+        "force",
+        "Run even if the repository is not opted in or already has Oxlint",
+      ),
     },
     agentOxlint,
   ),
-  "Run the advisory generic Oxlint pass for cleanup work in an opted-in repository. Repository-owned Oxlint takes precedence. Pass changed paths normally, or use --all when explicitly requested.",
+  "Run the advisory generic Oxlint pass for cleanup work in an opted-in repository. Repository-owned Oxlint takes precedence. Pass changed paths normally, or use --all when explicitly requested. Pass --force to run despite those skips.",
   [
     "dot agent-oxlint src/example.ts",
     "dot agent-oxlint src/one.ts src/two.ts",
     "dot agent-oxlint --all",
+    "dot agent-oxlint --force src/example.ts",
   ],
   {
     description:
-      "Run the generic @timmo001/oxlint-rules recommended config from a dot-managed cache without changing the target repository. The current repository must set agent_oxlint: true in private dot-git.yml. Repositories with their own Oxlint config, dependency, script, or local binary are skipped because their local setup takes precedence. Diagnostics are advisory for cleanup work and do not make these personal rules authoritative for the host repository.",
+      "Run the generic @timmo001/oxlint-rules recommended config from a dot-managed cache without changing the target repository. The current repository must set agent_oxlint: true in private dot-git.yml. Repositories with their own Oxlint config, dependency, script, or local binary are skipped because their local setup takes precedence. Pass --force to run anyway. Diagnostics are advisory for cleanup work and do not make these personal rules authoritative for the host repository.",
     modes: [
       "<path>...  Lint explicit changed files or directories",
       "--all      Lint the complete repository tree",
+      "--force    Run even if opt-in or repository Oxlint would skip",
     ],
   },
 );

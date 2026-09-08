@@ -38,7 +38,7 @@ _dot() {
     'skills:Maintain imported agent skills'
     'completions:Generate shell completions'
     'is-agent:Detect whether an AI coding agent is running dot'
-    'agent-oxlint:Run the advisory generic Oxlint pass for cleanup work in an opted-in repository. Repository-owned Oxlint takes precedence. Pass changed paths normally, or use --all when explicitly requested.'
+    'agent-oxlint:Run the advisory generic Oxlint pass for cleanup work in an opted-in repository. Repository-owned Oxlint takes precedence. Pass changed paths normally, or use --all when explicitly requested. Pass --force to run despite those skips.'
     'launch-floating-webapp:Launch one Omarchy webapp and place its new window in the target monitor'\''s bottom-right corner, or reposition an existing window with --address. Width and height must be positive integers; margins must be non-negative.'
     'herdr:Manage the shared Herdr server and repository workspaces'
     'workspace-setup:Launch or reuse desktop apps and rebuild the workspace layout'
@@ -720,6 +720,8 @@ _dot_agent_oxlint() {
   specs=(
     '(--all --no-all)--all[Lint the complete repository tree]'
     '(--all --no-all)--no-all[Disable all]'
+    '(--force --no-force)--force[Run even if the repository is not opted in or already has Oxlint]'
+    '(--force --no-force)--no-force[Disable force]'
     '(--help -h)--help[Show help information]'
     '(--help -h)-h[Show help information]'
     '*:path:_files'

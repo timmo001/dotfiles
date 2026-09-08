@@ -31,7 +31,7 @@ complete -c dot -n '__fish_use_subcommand' -f -a 'private-pkg-publish' -d 'Build
 complete -c dot -n '__fish_use_subcommand' -f -a 'skills' -d 'Maintain imported agent skills'
 complete -c dot -n '__fish_use_subcommand' -f -a 'completions' -d 'Generate shell completions'
 complete -c dot -n '__fish_use_subcommand' -f -a 'is-agent' -d 'Detect whether an AI coding agent is running dot'
-complete -c dot -n '__fish_use_subcommand' -f -a 'agent-oxlint' -d 'Run the advisory generic Oxlint pass for cleanup work in an opted-in repository. Repository-owned Oxlint takes precedence. Pass changed paths normally, or use --all when explicitly requested.'
+complete -c dot -n '__fish_use_subcommand' -f -a 'agent-oxlint' -d 'Run the advisory generic Oxlint pass for cleanup work in an opted-in repository. Repository-owned Oxlint takes precedence. Pass changed paths normally, or use --all when explicitly requested. Pass --force to run despite those skips.'
 complete -c dot -n '__fish_use_subcommand' -f -a 'launch-floating-webapp' -d 'Launch one Omarchy webapp and place its new window in the target monitor\'s bottom-right corner, or reposition an existing window with --address. Width and height must be positive integers; margins must be non-negative.'
 complete -c dot -n '__fish_use_subcommand' -f -a 'herdr' -d 'Manage the shared Herdr server and repository workspaces'
 complete -c dot -n '__fish_use_subcommand' -f -a 'workspace-setup' -d 'Launch or reuse desktop apps and rebuild the workspace layout'
@@ -428,9 +428,13 @@ complete -c dot -n '__fish_seen_subcommand_from is-agent; and not string match -
 complete -c dot -n '__fish_seen_subcommand_from is-agent; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt -s h help no-help' -f -a '--help' -d 'Show help information'
 complete -c dot -n '__fish_seen_subcommand_from agent-oxlint; and not __fish_contains_opt all no-all' -l all -d 'Lint the complete repository tree'
 complete -c dot -n '__fish_seen_subcommand_from agent-oxlint; and not __fish_contains_opt all no-all' -l no-all -d 'Disable all'
+complete -c dot -n '__fish_seen_subcommand_from agent-oxlint; and not __fish_contains_opt force no-force' -l force -d 'Run even if the repository is not opted in or already has Oxlint'
+complete -c dot -n '__fish_seen_subcommand_from agent-oxlint; and not __fish_contains_opt force no-force' -l no-force -d 'Disable force'
 complete -c dot -n '__fish_seen_subcommand_from agent-oxlint; and not __fish_contains_opt -s h help no-help' -l help -s h -d 'Show help information'
 complete -c dot -n '__fish_seen_subcommand_from agent-oxlint; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt all no-all' -f -a '--all' -d 'Lint the complete repository tree'
 complete -c dot -n '__fish_seen_subcommand_from agent-oxlint; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt all no-all' -f -a '--no-all' -d 'Disable all'
+complete -c dot -n '__fish_seen_subcommand_from agent-oxlint; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt force no-force' -f -a '--force' -d 'Run even if the repository is not opted in or already has Oxlint'
+complete -c dot -n '__fish_seen_subcommand_from agent-oxlint; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt force no-force' -f -a '--no-force' -d 'Disable force'
 complete -c dot -n '__fish_seen_subcommand_from agent-oxlint; and not string match -q -- "-*" (commandline -ct); and not __fish_contains_opt -s h help no-help' -f -a '--help' -d 'Show help information'
 complete -c dot -n '__fish_seen_subcommand_from agent-oxlint' -r -F
 complete -c dot -n '__fish_seen_subcommand_from launch-floating-webapp' -f

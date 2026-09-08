@@ -59,6 +59,8 @@ export interface AgentOxlintOptions {
   readonly paths: readonly string[];
   /** Lint the complete repository tree instead of explicit paths. */
   readonly all: boolean;
+  /** Run even if the repository is not opted in or already has Oxlint. */
+  readonly force: boolean;
 }
 
 /** Domain error raised before Oxlint starts. */
@@ -178,7 +180,7 @@ function commandError(
   return fail(`${operation}: ${error.stderr || `exit ${error.exitCode}`}`);
 }
 
-/** Run the generic personal Oxlint pass when the current repository opts in. */
+/** Run the generic personal Oxlint pass when the current repository opts in or --force is set. */
 export const agentOxlint = Effect.fn("agentOxlint")(function* (
   options: AgentOxlintOptions,
 ) {
@@ -202,12 +204,14 @@ export const agentOxlint = Effect.fn("agentOxlint")(function* (
       ),
     )).trim();
 
-  if (!config.gitConfig.valid) {
+  if (options.force) {
+    yield* log.warn(
+      "Forcing agent Oxlint: skipping opt-in and repository Oxlint gates (--force)",
+    );
+  } else if (!config.gitConfig.valid) {
     yield* log.info("Private git config is unavailable; skipping agent Oxlint");
     return;
-  }
-  const repository = managedGitRepoForPath(config.gitConfig, root);
-  if (!repository?.agentOxlint) {
+  } else if (!managedGitRepoForPath(config.gitConfig, root)?.agentOxlint) {
     yield* log.info("Repository is not opted into agent Oxlint; skipping");
     return;
   }
@@ -228,7 +232,7 @@ export const agentOxlint = Effect.fn("agentOxlint")(function* (
         commandError(error, "agent-oxlint: could not inspect repository files"),
       ),
     )).split("\n");
-  if (hasLocalOxlint(root, files)) {
+  if (hasLocalOxlint(root, files) && !options.force) {
     yield* log.info("Repository Oxlint takes precedence; skipping agent pass");
     return;
   }
