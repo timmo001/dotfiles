@@ -5,7 +5,8 @@ import { join } from "path";
 import { ENV, envString } from "../lib/env.js";
 import { CACHE_DIR, CONFIG_DIR } from "../lib/paths.js";
 import { formatCause } from "../lib/schema.js";
-import { CommandExecutor } from "../services/CommandExecutor.js";
+import { CommandError, CommandExecutor } from "../services/CommandExecutor.js";
+import { herdrServerPid } from "./HerdrServer.js";
 
 const READINESS_SCHEDULE = Schedule.recurs(49).pipe(
   Schedule.addDelay(() => Effect.succeed("100 millis")),
@@ -167,11 +168,13 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
 ) {
   const executor = yield* CommandExecutor;
   const label = canonicalLabel(options);
+  if ((yield* executor.exitCode("herdr", ["status", "server"])) !== 0) {
+    return fail("Shared Herdr server is not running");
+  }
+  const socketPath = envString(ENV.HERDR_SOCKET_PATH) ?? DEFAULT_SOCKET_PATH;
+  const binary = `/proc/${yield* herdrServerPid(socketPath)}/exe`;
   const clientReady =
-    runtime.foregroundClientReady ??
-    probeForegroundClient(
-      envString(ENV.HERDR_SOCKET_PATH) ?? DEFAULT_SOCKET_PATH,
-    );
+    runtime.foregroundClientReady ?? probeForegroundClient(socketPath);
   const launchTerminal =
     runtime.launchTerminal ??
     Effect.try({
@@ -183,7 +186,7 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
             "--",
             "ghostty-host-config",
             "-e",
-            "herdr",
+            binary,
             "session",
             "attach",
             "default",
@@ -203,10 +206,6 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
           exitCode: 1,
         }),
     });
-
-  if ((yield* executor.exitCode("herdr", ["status", "server"])) !== 0) {
-    return fail("Shared Herdr server is not running");
-  }
 
   const initiallyReady = yield* clientReady;
   if (!initiallyReady) {
@@ -230,7 +229,7 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
   }
 
   const workspaceList = decodeResponse(
-    yield* executor.run("herdr", ["workspace", "list"]),
+    yield* executor.run(binary, ["workspace", "list"]),
     "herdr workspace list",
   );
   let workspaceId = workspaceList.workspaces?.find(
@@ -241,7 +240,7 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
 
   if (!workspaceId) {
     const created = decodeResponse(
-      yield* executor.run("herdr", [
+      yield* executor.run(binary, [
         "workspace",
         "create",
         "--cwd",
@@ -259,12 +258,7 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
       (workspace) => workspace.workspace_id === workspaceId,
     )?.active_tab_id;
     const panes = decodeResponse(
-      yield* executor.run("herdr", [
-        "pane",
-        "list",
-        "--workspace",
-        workspaceId,
-      ]),
+      yield* executor.run(binary, ["pane", "list", "--workspace", workspaceId]),
       "herdr pane list",
     ).panes;
     const target =
@@ -273,7 +267,7 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
       panes?.[0];
     if (!target) return fail(`Herdr did not return a pane ID for ${label}`);
     const created = decodeResponse(
-      yield* executor.run("herdr", [
+      yield* executor.run(binary, [
         "pane",
         "split",
         "--pane",
@@ -289,7 +283,7 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
     paneId = created.pane?.pane_id;
   } else if (options.command) {
     const created = decodeResponse(
-      yield* executor.run("herdr", [
+      yield* executor.run(binary, [
         "tab",
         "create",
         "--workspace",
@@ -315,14 +309,13 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
       );
     }
     if (tabId) {
-      yield* executor.run("herdr", ["tab", "rename", tabId, options.tabLabel]);
+      yield* executor.run(binary, ["tab", "rename", tabId, options.tabLabel]);
     }
-    yield* executor.run("herdr", ["pane", "run", paneId, options.command]);
+    yield* executor.run(binary, ["pane", "run", paneId, options.command]);
   }
 
-  yield* executor.run("herdr", ["workspace", "focus", workspaceId]);
-  if (tabId) yield* executor.run("herdr", ["tab", "focus", tabId]);
-  else if (paneId) yield* executor.run("herdr", ["pane", "focus", paneId]);
+  yield* executor.run(binary, ["workspace", "focus", workspaceId]);
+  if (tabId) yield* executor.run(binary, ["tab", "focus", tabId]);
 });
 
 /** Open or focus a repository workspace in the visible Herdr terminal. */
@@ -334,7 +327,10 @@ export const herdrRepoOpen = (options: HerdrRepoOpenOptions) =>
         error instanceof HerdrRepoOpenError
           ? error
           : new HerdrRepoOpenError({
-              message: formatCause(error),
+              message:
+                error instanceof CommandError
+                  ? error.stderr || `Herdr command failed: ${error.command}`
+                  : formatCause(error),
               exitCode: 1,
             });
       return Effect.sync(() => {
