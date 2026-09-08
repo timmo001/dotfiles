@@ -196,8 +196,8 @@ _dot()
         _dot_launch_floating_webapp "$i"
         return
         ;;
-      herdr-repo-open)
-        _dot_herdr_repo_open "$i"
+      herdr)
+        _dot_herdr "$i"
         return
         ;;
       workspace-setup)
@@ -234,7 +234,7 @@ _dot()
     return
   fi
 
-  COMPREPLY=( $(compgen -W 'init install update up system-update stow omarchy-plugin omarchy-shell-config firewall doctor clean agents-sync notes-capture-sync setup-private-repo setup-public-repo git-diff diff git-commit git-notifications mcp-sync private-pkg-publish skills completions is-agent agent-oxlint launch-floating-webapp herdr-repo-open workspace-setup workspace-relayout usage help' -- "$cur") )
+  COMPREPLY=( $(compgen -W 'init install update up system-update stow omarchy-plugin omarchy-shell-config firewall doctor clean agents-sync notes-capture-sync setup-private-repo setup-public-repo git-diff diff git-commit git-notifications mcp-sync private-pkg-publish skills completions is-agent agent-oxlint launch-floating-webapp herdr workspace-setup workspace-relayout usage help' -- "$cur") )
 }
 
 _dot_init()
@@ -1513,6 +1513,130 @@ _dot_launch_floating_webapp()
   [[ -n "$_used_5" ]] || _filtered_flags+=" --bottom-margin"
   [[ -n "$_used_6" ]] || _filtered_flags+=" --address"
   [[ -n "$_used_7" ]] || _filtered_flags+=" --help -h"
+
+  # Complete flags (filtered) and subcommands
+  if [[ "$cur" == -* ]]; then
+    COMPREPLY=( $(compgen -W "$_filtered_flags" -- "$cur") )
+    return
+  fi
+
+}
+
+_dot_herdr()
+{
+  local cur prev words cword i
+  local _command_index="$1"
+  _init_completion -n "$COMP_WORDBREAKS" || return
+
+  # Subcommand dispatch
+  local cmd _skip_next=0
+  for ((i = _command_index + 1; i < cword; i++)); do
+    if (( _skip_next )); then
+      _skip_next=0
+      continue
+    fi
+    case "${words[i]}" in
+      start)
+        _dot_herdr_start "$i"
+        return
+        ;;
+      stop)
+        _dot_herdr_stop "$i"
+        return
+        ;;
+      restart)
+        _dot_herdr_restart "$i"
+        return
+        ;;
+      repo-open)
+        _dot_herdr_repo_open "$i"
+        return
+        ;;
+    esac
+  done
+
+  local _used_0=""
+  for ((i = 1; i < cword; i++)); do
+    case "${words[i]%%=*}" in
+      --help|-h) _used_0=1 ;;
+    esac
+  done
+  local _filtered_flags=""
+  [[ -n "$_used_0" ]] || _filtered_flags+=" --help -h"
+
+  # Complete flags (filtered) and subcommands
+  if [[ "$cur" == -* ]]; then
+    COMPREPLY=( $(compgen -W "$_filtered_flags" -- "$cur") )
+    return
+  fi
+
+  COMPREPLY=( $(compgen -W 'start stop restart repo-open' -- "$cur") )
+}
+
+_dot_herdr_start()
+{
+  local cur prev words cword i
+  local _command_index="$1"
+  _init_completion -n "$COMP_WORDBREAKS" || return
+
+  local _used_0=""
+  for ((i = 1; i < cword; i++)); do
+    case "${words[i]%%=*}" in
+      --help|-h) _used_0=1 ;;
+    esac
+  done
+  local _filtered_flags=""
+  [[ -n "$_used_0" ]] || _filtered_flags+=" --help -h"
+
+  # Complete flags (filtered) and subcommands
+  if [[ "$cur" == -* ]]; then
+    COMPREPLY=( $(compgen -W "$_filtered_flags" -- "$cur") )
+    return
+  fi
+
+}
+
+_dot_herdr_stop()
+{
+  local cur prev words cword i
+  local _command_index="$1"
+  _init_completion -n "$COMP_WORDBREAKS" || return
+
+  local _used_0="" _used_1=""
+  for ((i = 1; i < cword; i++)); do
+    case "${words[i]%%=*}" in
+      --check|--no-check) _used_0=1 ;;
+      --help|-h) _used_1=1 ;;
+    esac
+  done
+  local _filtered_flags=""
+  [[ -n "$_used_0" ]] || _filtered_flags+=" --check --no-check"
+  [[ -n "$_used_1" ]] || _filtered_flags+=" --help -h"
+
+  # Complete flags (filtered) and subcommands
+  if [[ "$cur" == -* ]]; then
+    COMPREPLY=( $(compgen -W "$_filtered_flags" -- "$cur") )
+    return
+  fi
+
+}
+
+_dot_herdr_restart()
+{
+  local cur prev words cword i
+  local _command_index="$1"
+  _init_completion -n "$COMP_WORDBREAKS" || return
+
+  local _used_0="" _used_1=""
+  for ((i = 1; i < cword; i++)); do
+    case "${words[i]%%=*}" in
+      --check|--no-check) _used_0=1 ;;
+      --help|-h) _used_1=1 ;;
+    esac
+  done
+  local _filtered_flags=""
+  [[ -n "$_used_0" ]] || _filtered_flags+=" --check --no-check"
+  [[ -n "$_used_1" ]] || _filtered_flags+=" --help -h"
 
   # Complete flags (filtered) and subcommands
   if [[ "$cur" == -* ]]; then
