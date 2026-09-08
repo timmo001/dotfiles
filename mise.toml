@@ -1,4 +1,4 @@
-min_version = "2025.1.0"
+min_version = "2026.9.1"
 
 [tools]
 node = "26.8.1"

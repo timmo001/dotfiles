@@ -9,6 +9,8 @@ name: Docs drift
 on:
   pull_request:
     paths:
+      - 'mise.toml'
+      - '.github/actions/setup-mise/**'
       - 'dot/src/cli/spec.ts'
       - 'agents/.config/opencode/**'
       - 'agents/.agents/skills/**'
@@ -35,7 +37,7 @@ jobs:
           submodules: true
 
       - name: Setup mise
-        uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        uses: ./.github/actions/setup-mise
         with:
           install: false
 
