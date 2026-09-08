@@ -906,6 +906,10 @@ const agentOxlintCommand = describe(
         Argument.atLeast(0),
       ),
       all: bool("all", "Lint the complete repository tree"),
+      optIn: bool(
+        "opt-in",
+        "Enable the existing private config entry and commit the single-line change",
+      ),
       force: bool(
         "force",
         "Run even if the repository is not opted in or already has Oxlint",
@@ -919,6 +923,7 @@ const agentOxlintCommand = describe(
     "dot agent-oxlint src/one.ts src/two.ts",
     "dot agent-oxlint --all",
     "dot agent-oxlint --force src/example.ts",
+    "dot agent-oxlint --opt-in",
   ],
   {
     description:
@@ -927,6 +932,15 @@ const agentOxlintCommand = describe(
       "<path>...  Lint explicit changed files or directories",
       "--all      Lint the complete repository tree",
       "--force    Run even if opt-in or repository Oxlint would skip",
+      "--opt-in   Enable and commit the existing config entry; add paths or --all to also lint",
+    ],
+    sections: [
+      {
+        title: "Opt-in",
+        lines: [
+          "--opt-in adds or sets only agent_oxlint: true in the existing private repository entry, preserving all other bytes. The config must be tracked and clean. Active commit hooks are refused rather than bypassed so formatters cannot expand the change. Commits through dot git-commit without pushing; unrelated staged files are excluded. An existing opt-in creates no commit.",
+        ],
+      },
     ],
   },
 );

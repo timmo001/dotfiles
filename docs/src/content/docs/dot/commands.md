@@ -834,6 +834,7 @@ Run the generic @timmo001/oxlint-rules recommended config from a dot-managed cac
 <path>...  Lint explicit changed files or directories
 --all      Lint the complete repository tree
 --force    Run even if opt-in or repository Oxlint would skip
+--opt-in   Enable and commit the existing config entry; add paths or --all to also lint
 ```
 
 **Options**
@@ -841,6 +842,7 @@ Run the generic @timmo001/oxlint-rules recommended config from a dot-managed cac
 | Option | Description |
 | --- | --- |
 | `--all` | Lint the complete repository tree |
+| `--opt-in` | Enable the existing private config entry and commit the single-line change |
 | `--force` | Run even if the repository is not opted in or already has Oxlint |
 | `--help` `-h` | Show help information |
 
@@ -850,6 +852,12 @@ Run the generic @timmo001/oxlint-rules recommended config from a dot-managed cac
 | --- | --- |
 | `<path>` | path |
 
+**Opt-in**
+
+```text
+--opt-in adds or sets only agent_oxlint: true in the existing private repository entry, preserving all other bytes. The config must be tracked and clean. Active commit hooks are refused rather than bypassed so formatters cannot expand the change. Commits through dot git-commit without pushing; unrelated staged files are excluded. An existing opt-in creates no commit.
+```
+
 **Examples**
 
 ```bash
@@ -857,6 +865,7 @@ dot agent-oxlint src/example.ts
 dot agent-oxlint src/one.ts src/two.ts
 dot agent-oxlint --all
 dot agent-oxlint --force src/example.ts
+dot agent-oxlint --opt-in
 ```
 
 ## `dot launch-floating-webapp`

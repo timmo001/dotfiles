@@ -1437,18 +1437,20 @@ _dot_agent_oxlint()
   local _command_index="$1"
   _init_completion -n "$COMP_WORDBREAKS" || return
 
-  local _used_0="" _used_1="" _used_2=""
+  local _used_0="" _used_1="" _used_2="" _used_3=""
   for ((i = 1; i < cword; i++)); do
     case "${words[i]%%=*}" in
       --all|--no-all) _used_0=1 ;;
-      --force|--no-force) _used_1=1 ;;
-      --help|-h) _used_2=1 ;;
+      --opt-in|--no-opt-in) _used_1=1 ;;
+      --force|--no-force) _used_2=1 ;;
+      --help|-h) _used_3=1 ;;
     esac
   done
   local _filtered_flags=""
   [[ -n "$_used_0" ]] || _filtered_flags+=" --all --no-all"
-  [[ -n "$_used_1" ]] || _filtered_flags+=" --force --no-force"
-  [[ -n "$_used_2" ]] || _filtered_flags+=" --help -h"
+  [[ -n "$_used_1" ]] || _filtered_flags+=" --opt-in --no-opt-in"
+  [[ -n "$_used_2" ]] || _filtered_flags+=" --force --no-force"
+  [[ -n "$_used_3" ]] || _filtered_flags+=" --help -h"
 
   # Complete flags (filtered) and subcommands
   if [[ "$cur" == -* ]]; then
@@ -1470,6 +1472,7 @@ _dot_agent_oxlint()
     case "${words[i]}" in
       --) _end_of_options=1 ;;
       --all|--no-all) ;;
+      --opt-in|--no-opt-in) ;;
       --force|--no-force) ;;
       --help|-h) ;;
       -*) ;;

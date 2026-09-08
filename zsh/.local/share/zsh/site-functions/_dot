@@ -720,6 +720,8 @@ _dot_agent_oxlint() {
   specs=(
     '(--all --no-all)--all[Lint the complete repository tree]'
     '(--all --no-all)--no-all[Disable all]'
+    '(--opt-in --no-opt-in)--opt-in[Enable the existing private config entry and commit the single-line change]'
+    '(--opt-in --no-opt-in)--no-opt-in[Disable opt-in]'
     '(--force --no-force)--force[Run even if the repository is not opted in or already has Oxlint]'
     '(--force --no-force)--no-force[Disable force]'
     '(--help -h)--help[Show help information]'
