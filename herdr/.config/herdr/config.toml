@@ -80,12 +80,6 @@ command = "dotfiles.yazi.open-tab"
 description = "open Yazi in a new tab"
 
 [[keys.command]]
-key = "prefix+alt+n"
-type = "plugin_action"
-command = "mirror.remote-new-workspace"
-description = "create a remote Herdr workspace"
-
-[[keys.command]]
 key = "prefix+u"
 type = "plugin_action"
 command = "usagebar.open-limits"
@@ -122,7 +116,7 @@ row_gap = 0
 rows = [
   ["state_icon", "$title", "$pr"],
   ["$provider", "$limit"],
-  ["$context"],
+  ["$context", "machine"],
 ]
 
 [ui.toast]
