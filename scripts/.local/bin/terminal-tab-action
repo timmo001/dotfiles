@@ -3,7 +3,6 @@
 set -euo pipefail
 
 hyprctl_bin="${NEW_TERMINAL_TAB_HYPRCTL_BIN:-hyprctl}"
-herdr_bin="${NEW_TERMINAL_TAB_HERDR_BIN:-herdr}"
 action="${1:-}"
 
 case "$action" in
@@ -36,36 +35,13 @@ if [[ "$action" == "ghostty-new" ]]; then
   send_shortcut_once "CTRL ALT SHIFT" "N"
 fi
 
-if [[ "$active_class" == "com.mitchellh.ghostty" && "$active_title" == "herdr" ]] && command -v "$herdr_bin" >/dev/null 2>&1; then
-  if [[ "$action" == "new" ]] && $herdr_bin tab create --focus >/dev/null 2>&1; then
-    exit 0
-  fi
-
-  tab_row="$($herdr_bin tab list 2>/dev/null | jq -r --arg action "$action" '
-    ((.result.tabs // .tabs // []) | sort_by(.number)) as $tabs
-    | ($tabs | map(select(.focused)) | first | .tab_id) as $current
-    | ($tabs | map(.tab_id) | index($current)) as $index
-    | [
-        ($current // ""),
-        ($tabs | length),
-        if ($tabs | length) < 2 or $index == null then ""
-        elif $action == "next" then $tabs[($index + 1) % ($tabs | length)].tab_id
-        elif $action == "previous" then $tabs[($index - 1 + ($tabs | length)) % ($tabs | length)].tab_id
-        else ""
-        end
-      ]
-    | @tsv
-  ' 2>/dev/null || true)"
-  IFS=$'\t' read -r tab_id _ target_tab <<<"$tab_row"
-
-  if [[ "$action" == "close" && -n "$tab_id" ]]; then
-    if $herdr_bin tab close "$tab_id" >/dev/null 2>&1; then
-      exit 0
-    fi
-  fi
-  if [[ ("$action" == "next" || "$action" == "previous") && -n "$target_tab" ]] && $herdr_bin tab focus "$target_tab" >/dev/null 2>&1; then
-    exit 0
-  fi
+if [[ "$active_class" == "com.mitchellh.ghostty" && "$active_title" == "herdr" ]]; then
+  case "$action" in
+    new) send_shortcut_once "CTRL ALT SHIFT" "T" ;;
+    close) send_shortcut_once "CTRL ALT SHIFT" "W" ;;
+    next) send_shortcut_once "CTRL ALT SHIFT" "RIGHT" ;;
+    previous) send_shortcut_once "CTRL ALT SHIFT" "LEFT" ;;
+  esac
 fi
 
 if [[ "$action" == "new" && "$active_class" == "com.mitchellh.ghostty" && -n "$active_address" ]]; then
