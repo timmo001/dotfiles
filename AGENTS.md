@@ -108,6 +108,8 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 ## Script Configuration Policy
 
+- Implement commands and non-trivial scripting in `dot/` using TypeScript and Effect. Do not add Python or other language implementations when the behaviour can live in `dot/`.
+- Shell/Bash is fine for simple wrappers and commands with little or no logic.
 - For dotfiles and system scripts, prefer explicit CLI flags over environment-variable toggles for runtime behavior.
 - Use environment variables only for standard process context (`HOME`, `PATH`, `XDG_*`, etc.), secrets, or compatibility shims that already exist.
 - For test/simulation/force behaviors, implement documented flags first; if an env fallback is temporarily needed, treat it as deprecated and remove it in follow-up cleanup.
