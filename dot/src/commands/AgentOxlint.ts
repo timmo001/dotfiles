@@ -1,13 +1,5 @@
 import { Effect, Schema } from "effect";
-import {
-  accessSync,
-  constants,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  realpathSync,
-  writeFileSync,
-} from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { basename, isAbsolute, join, relative, resolve } from "path";
 import packageJson from "../../../package.json" with { type: "json" };
 import { decodeJson, isJsonObject, isString } from "../lib/schema.js";
@@ -16,9 +8,18 @@ import {
   type CommandError,
 } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
-import { managedGitRepoForPath } from "../services/GitConfig.js";
+import {
+  loadDotGitConfig,
+  managedGitRepoForPath,
+} from "../services/GitConfig.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { agentOxlintOptInText } from "../lib/agentOxlintOptIn.js";
+import {
+  commitGitRepoConfigEdit,
+  prepareGitRepoConfigEdit,
+} from "../lib/gitRepoConfig.js";
+import { canPromptForInduction, inductRepository } from "./RepoInduct.js";
+import { Prompt } from "effect/unstable/cli";
 
 const MANAGED_DEPENDENCIES = {
   "@oxlint/plugins": packageJson.devDependencies["@oxlint/plugins"],
@@ -191,122 +192,51 @@ function commandError(
   return fail(`${operation}: ${error.stderr || `exit ${error.exitCode}`}`);
 }
 
-const optInRepository = Effect.fn("agentOxlint.optIn")(function* (
-  root: string,
-) {
-  const config = yield* Config;
-  const executor = yield* CommandExecutor;
-  const log = yield* OutputLog;
-  if (!config.privateDotfiles || !config.gitConfig.valid) {
-    return yield* fail(
-      "agent-oxlint: --opt-in requires valid private git config",
+const optInRepository = Effect.fn("agentOxlint.optIn")(
+  function* (root: string) {
+    const log = yield* OutputLog;
+    const edit = yield* prepareGitRepoConfigEdit();
+    const repositoryIndex = edit.config.repositories.findIndex(
+      (repo) => repo.path === root,
     );
-  }
-  const repositoryIndex = config.gitConfig.repositories.findIndex(
-    (repo) => repo.path === root,
-  );
-  if (repositoryIndex < 0) {
-    return yield* fail(
-      "agent-oxlint: repository must already exist in private git config",
-    );
-  }
-  const privateRoot = config.privateDotfiles;
-  const file = config.gitConfig.filePath;
-  const configPath = yield* Effect.try({
-    try: () => relative(realpathSync(privateRoot), realpathSync(file)),
-    catch: (error) =>
-      fail(`agent-oxlint: could not resolve private config: ${String(error)}`),
-  });
-  if (!configPath || configPath.startsWith("..") || isAbsolute(configPath)) {
-    return yield* fail("agent-oxlint: config must be inside dotfiles-private");
-  }
-  const git = (args: readonly string[]) =>
-    executor
-      .run("git", args, { cwd: privateRoot })
-      .pipe(
-        Effect.mapError((error) =>
-          commandError(error, "agent-oxlint: private config Git check failed"),
-        ),
-      );
-  yield* git(["ls-files", "--error-unmatch", "--", configPath]);
-  if ((yield* git(["status", "--porcelain", "--", configPath])).trim()) {
-    return yield* fail(
-      "agent-oxlint: private config has staged or unstaged changes; commit or restore them first",
-    );
-  }
-  const source = yield* Effect.try({
-    try: () => readFileSync(file, "utf-8"),
-    catch: (error) =>
-      fail(`agent-oxlint: could not read private config: ${String(error)}`),
-  });
-  const updated = yield* Effect.try({
-    try: () => agentOxlintOptInText(source, repositoryIndex),
-    catch: (error) => fail(`agent-oxlint: ${String(error)}`),
-  });
-  if (updated === source) {
-    yield* log.info("Repository is already opted into agent Oxlint");
-    return;
-  }
-  for (const hook of [
-    "pre-commit",
-    "prepare-commit-msg",
-    "commit-msg",
-    "post-commit",
-  ]) {
-    const hookPath = (yield* git([
-      "rev-parse",
-      "--path-format=absolute",
-      "--git-path",
-      `hooks/${hook}`,
-    ])).trim();
-    const executable = yield* Effect.sync(() => {
-      try {
-        accessSync(hookPath, constants.X_OK);
-        return true;
-      } catch {
-        return false;
+    if (repositoryIndex < 0) {
+      if (!canPromptForInduction()) {
+        return yield* fail(
+          `agent-oxlint: repository is not inducted. Run dot repo-induct ${JSON.stringify(root)} in a terminal, or add --noninteractive --agent-oxlint to preview with flags, then --commit after approval`,
+        );
       }
-    });
-    if (executable) {
-      return yield* fail(
-        `agent-oxlint: ${hook} hook is active; cannot guarantee a single-line commit without bypassing hooks`,
-      );
+      if (
+        !(yield* Prompt.run(
+          Prompt.confirm({
+            message: "Repository is not inducted. Induct it now?",
+            initial: false,
+          }),
+        ))
+      )
+        return false;
+      const inducted = yield* inductRepository({
+        path: root,
+        agentOxlint: true,
+      });
+      return inducted?.path === root && inducted.agentOxlint;
     }
-  }
-  // Verify the gateway is available before changing the config.
-  yield* executor
-    .run("dot", ["git-commit", "--help"], { cwd: privateRoot })
-    .pipe(
-      Effect.mapError((error) =>
-        commandError(error, "agent-oxlint: dot git-commit is unavailable"),
-      ),
-    );
-  yield* Effect.try({
-    try: () => {
-      if (readFileSync(file, "utf-8") !== source)
-        throw new Error("Private config changed during opt-in");
-      writeFileSync(file, updated);
-    },
-    catch: (error) =>
-      fail(`agent-oxlint: could not update private config: ${String(error)}`),
-  });
-  const exit = yield* executor.inherit(
-    "dot",
-    [
-      "git-commit",
-      "--message",
+    const updated = yield* Effect.try({
+      try: () => agentOxlintOptInText(edit.source, repositoryIndex),
+      catch: (error) => fail(`agent-oxlint: ${String(error)}`),
+    });
+    if (updated === edit.source) {
+      yield* log.info("Repository is already opted into agent Oxlint");
+      return true;
+    }
+    yield* commitGitRepoConfigEdit(
+      edit,
+      updated,
       "Opt repository into agent Oxlint",
-      "--path",
-      configPath,
-    ],
-    { cwd: privateRoot },
-  );
-  if (exit !== 0) {
-    return yield* fail(
-      "agent-oxlint: opt-in commit failed; the one-line edit remains for review",
     );
-  }
-});
+    return true;
+  },
+  Effect.catchTag("QuitError", () => Effect.succeed(false)),
+);
 
 /** Run the generic personal Oxlint pass when the current repository opts in or --force is set. */
 export const agentOxlint = Effect.fn("agentOxlint")(function* (
@@ -322,6 +252,7 @@ export const agentOxlint = Effect.fn("agentOxlint")(function* (
   const config = yield* Config;
   const executor = yield* CommandExecutor;
   const log = yield* OutputLog;
+  let gitConfig = config.gitConfig;
   const root = (yield* executor
     .run("git", ["rev-parse", "--show-toplevel"], {
       cwd: process.cwd(),
@@ -340,21 +271,19 @@ export const agentOxlint = Effect.fn("agentOxlint")(function* (
     );
   }
   if (options.optIn) {
-    yield* optInRepository(root);
+    if (!(yield* optInRepository(root))) return;
     if (!options.all && options.paths.length === 0) return;
+    gitConfig = loadDotGitConfig(config.gitConfig.filePath);
   }
 
   if (options.force) {
     yield* log.warn(
       "Forcing agent Oxlint: skipping opt-in and repository Oxlint gates (--force)",
     );
-  } else if (!config.gitConfig.valid) {
+  } else if (!gitConfig.valid) {
     yield* log.info("Private git config is unavailable; skipping agent Oxlint");
     return;
-  } else if (
-    !options.optIn &&
-    !managedGitRepoForPath(config.gitConfig, root)?.agentOxlint
-  ) {
+  } else if (!managedGitRepoForPath(gitConfig, root)?.agentOxlint) {
     yield* log.info("Repository is not opted into agent Oxlint; skipping");
     return;
   }

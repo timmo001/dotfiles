@@ -131,16 +131,7 @@ export function loadDotGitConfig(filePath: string): DotGitConfig {
   }
 
   try {
-    const parsed = decodeJson(Bun.YAML.parse(readFileSync(filePath, "utf-8")));
-    const result = parseDotGitConfig(parsed);
-    return {
-      filePath,
-      present: true,
-      valid: result.diagnostics.length === 0,
-      repositories: result.diagnostics.length === 0 ? result.repositories : [],
-      shortcuts: result.diagnostics.length === 0 ? result.shortcuts : [],
-      diagnostics: result.diagnostics,
-    };
+    return parseDotGitConfigText(readFileSync(filePath, "utf-8"), filePath);
   } catch (error) {
     return {
       filePath,
@@ -151,6 +142,29 @@ export function loadDotGitConfig(filePath: string): DotGitConfig {
       diagnostics: [
         `Could not read private git config ${displayPath(filePath)}: ${formatError(error)}`,
       ],
+    };
+  }
+}
+
+/** Validate a proposed config in memory using the same rules as the file loader. */
+export function parseDotGitConfigText(
+  source: string,
+  filePath: string,
+): DotGitConfig {
+  try {
+    const result = parseDotGitConfig(decodeJson(Bun.YAML.parse(source)));
+    return {
+      filePath,
+      present: true,
+      valid: result.diagnostics.length === 0,
+      repositories: result.diagnostics.length === 0 ? result.repositories : [],
+      shortcuts: result.diagnostics.length === 0 ? result.shortcuts : [],
+      diagnostics: result.diagnostics,
+    };
+  } catch (error) {
+    return {
+      ...emptyDotGitConfig(filePath, [formatError(error)]),
+      present: true,
     };
   }
 }

@@ -818,6 +818,49 @@ dot is-agent --json
 dot is-agent && echo running under an agent
 ```
 
+## `dot repo-induct`
+
+Induct a local repository into private dot git config with a preview before committing
+
+```text
+dot repo-induct [flags] [<path>]
+```
+
+The terminal wizard asks for Normal (first and default) or Home Assistant, then every repository field using private dot-git-presets.yml defaults and local Git identity. Flags prefill the wizard. With --noninteractive, flags override preset defaults and the command only previews; repeat the reviewed options with --commit to save. Each run validates the complete config and shows the exact diff. The config must be tracked and clean; active commit hooks are refused. Existing entries and formatting are preserved. Commits through dot git-commit without pushing or including unrelated staged files. Repositories already inducted are rejected; use agent-oxlint --opt-in to enable their agent pass.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--preset` `<choice>` | Private preset (default: normal) (choices: normal, home-assistant) |
+| `--name` `<string>` | Friendly repository label |
+| `--github` `<string>` | GitHub owner/repository (default: origin remote) |
+| `--aliases` `<string>` | Space- or comma-separated aliases; empty for none |
+| `--post-update` `<string>` | Post-update command; empty for none |
+| `--agent-oxlint` | Enable agent Oxlint; --no-agent-oxlint disables it |
+| `--activity-enabled` | Enable activity checks; --no-activity-enabled disables them |
+| `--activity-schedule` `<string>` | Five-field cron schedule for activity checks |
+| `--notifications-enabled` | Enable notifications; --no-notifications-enabled disables them |
+| `--notifications-schedule` `<string>` | Five-field cron schedule for notifications |
+| `--ignore-bot-activity` | Filter bot-only activity; --no-ignore-bot-activity shows it |
+| `--noninteractive` | Use flags and preset defaults without questions; preview by default |
+| `--commit` | Commit the proposed entry with --noninteractive after reviewing its preview |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<path>` | path |
+
+**Examples**
+
+```bash
+dot repo-induct
+dot repo-induct ~/repos/example --noninteractive --preset normal --name Example --aliases example
+dot repo-induct ~/repos/example --noninteractive --preset normal --name Example --aliases example --commit
+```
+
 ## `dot agent-oxlint`
 
 Run the advisory generic Oxlint pass for cleanup work in an opted-in repository. Repository-owned Oxlint takes precedence. Pass changed paths normally, or use --all when explicitly requested. Pass --force to run despite those skips.
@@ -855,7 +898,7 @@ Run the generic @timmo001/oxlint-rules recommended config from a dot-managed cac
 **Opt-in**
 
 ```text
---opt-in adds or sets only agent_oxlint: true in the existing private repository entry, preserving all other bytes. The config must be tracked and clean. Active commit hooks are refused rather than bypassed so formatters cannot expand the change. Commits through dot git-commit without pushing; unrelated staged files are excluded. An existing opt-in creates no commit.
+--opt-in adds or sets only agent_oxlint: true in an existing private repository entry, preserving all other bytes. If the entry is missing, it offers the repo-induct wizard with agent Oxlint prefilled as enabled. Without a terminal it prints induction instructions. The config must be tracked and clean. Active commit hooks are refused rather than bypassed so formatters cannot expand the change. Commits through dot git-commit without pushing; unrelated staged files are excluded. An existing opt-in creates no commit.
 ```
 
 **Examples**

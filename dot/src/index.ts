@@ -189,6 +189,14 @@ function withNativeCommandTimeout<E, R>(
       )?.[1]
     : undefined;
   if (!seconds || !command) return effect;
+  // The progress renderer would erase the induction questions during opt-in.
+  if (
+    command === "agent-oxlint" &&
+    args.includes("--opt-in") &&
+    process.stdin.isTTY === true &&
+    process.stdout.isTTY === true
+  )
+    return effect;
   if (command === "skills" && args.includes("--json")) {
     return Effect.gen(function* () {
       const completed = yield* withTimeoutOption(effect, seconds);

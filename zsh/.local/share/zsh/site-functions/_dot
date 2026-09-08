@@ -38,6 +38,7 @@ _dot() {
     'skills:Maintain imported agent skills'
     'completions:Generate shell completions'
     'is-agent:Detect whether an AI coding agent is running dot'
+    'repo-induct:Induct a local repository into private dot git config with a preview before committing'
     'agent-oxlint:Run the advisory generic Oxlint pass for cleanup work in an opted-in repository. Repository-owned Oxlint takes precedence. Pass changed paths normally, or use --all when explicitly requested. Pass --force to run despite those skips.'
     'launch-floating-webapp:Launch one Omarchy webapp and place its new window in the target monitor'\''s bottom-right corner, or reposition an existing window with --address. Width and height must be positive integers; margins must be non-negative.'
     'herdr:Manage the shared Herdr server and repository workspaces'
@@ -134,6 +135,9 @@ _dot() {
           ;;
         is-agent)
           _dot_is_agent
+          ;;
+        repo-induct)
+          _dot_repo_induct
           ;;
         agent-oxlint)
           _dot_agent_oxlint
@@ -711,6 +715,35 @@ _dot_is_agent() {
     '(--json --no-json)--no-json[Disable json]'
     '(--help -h)--help[Show help information]'
     '(--help -h)-h[Show help information]'
+  )
+  _arguments "${specs[@]}"
+}
+
+_dot_repo_induct() {
+  local -a specs
+  specs=(
+    '(--preset)--preset[Private preset (default\: normal)]:value:(normal home-assistant)'
+    '(--name)--name[Friendly repository label]:value:'
+    '(--github)--github[GitHub owner/repository (default\: origin remote)]:value:'
+    '(--aliases)--aliases[Space- or comma-separated aliases; empty for none]:value:'
+    '(--post-update)--post-update[Post-update command; empty for none]:value:'
+    '(--agent-oxlint --no-agent-oxlint)--agent-oxlint[Enable agent Oxlint; --no-agent-oxlint disables it]'
+    '(--agent-oxlint --no-agent-oxlint)--no-agent-oxlint[Disable agent-oxlint]'
+    '(--activity-enabled --no-activity-enabled)--activity-enabled[Enable activity checks; --no-activity-enabled disables them]'
+    '(--activity-enabled --no-activity-enabled)--no-activity-enabled[Disable activity-enabled]'
+    '(--activity-schedule)--activity-schedule[Five-field cron schedule for activity checks]:value:'
+    '(--notifications-enabled --no-notifications-enabled)--notifications-enabled[Enable notifications; --no-notifications-enabled disables them]'
+    '(--notifications-enabled --no-notifications-enabled)--no-notifications-enabled[Disable notifications-enabled]'
+    '(--notifications-schedule)--notifications-schedule[Five-field cron schedule for notifications]:value:'
+    '(--ignore-bot-activity --no-ignore-bot-activity)--ignore-bot-activity[Filter bot-only activity; --no-ignore-bot-activity shows it]'
+    '(--ignore-bot-activity --no-ignore-bot-activity)--no-ignore-bot-activity[Disable ignore-bot-activity]'
+    '(--noninteractive --no-noninteractive)--noninteractive[Use flags and preset defaults without questions; preview by default]'
+    '(--noninteractive --no-noninteractive)--no-noninteractive[Disable noninteractive]'
+    '(--commit --no-commit)--commit[Commit the proposed entry with --noninteractive after reviewing its preview]'
+    '(--commit --no-commit)--no-commit[Disable commit]'
+    '(--help -h)--help[Show help information]'
+    '(--help -h)-h[Show help information]'
+    ':path:_directories'
   )
   _arguments "${specs[@]}"
 }

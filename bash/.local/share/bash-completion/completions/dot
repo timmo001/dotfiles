@@ -188,6 +188,10 @@ _dot()
         _dot_is_agent "$i"
         return
         ;;
+      repo-induct)
+        _dot_repo_induct "$i"
+        return
+        ;;
       agent-oxlint)
         _dot_agent_oxlint "$i"
         return
@@ -234,7 +238,7 @@ _dot()
     return
   fi
 
-  COMPREPLY=( $(compgen -W 'init install update up system-update stow omarchy-plugin omarchy-shell-config firewall doctor clean agents-sync notes-capture-sync setup-private-repo setup-public-repo git-diff diff git-commit git-notifications mcp-sync private-pkg-publish skills completions is-agent agent-oxlint launch-floating-webapp herdr workspace-setup workspace-relayout usage help' -- "$cur") )
+  COMPREPLY=( $(compgen -W 'init install update up system-update stow omarchy-plugin omarchy-shell-config firewall doctor clean agents-sync notes-capture-sync setup-private-repo setup-public-repo git-diff diff git-commit git-notifications mcp-sync private-pkg-publish skills completions is-agent repo-induct agent-oxlint launch-floating-webapp herdr workspace-setup workspace-relayout usage help' -- "$cur") )
 }
 
 _dot_init()
@@ -1429,6 +1433,107 @@ _dot_is_agent()
     return
   fi
 
+}
+
+_dot_repo_induct()
+{
+  local cur prev words cword i
+  local _command_index="$1"
+  _init_completion -n "$COMP_WORDBREAKS" || return
+
+  # Flag value completions
+  case "$prev" in
+    --preset)
+      _dot--choices "$cur" "$_comp_word" 'normal' 'home-assistant'
+      return
+      ;;
+  esac
+
+  local _used_0="" _used_1="" _used_2="" _used_3="" _used_4="" _used_5="" _used_6="" _used_7="" _used_8="" _used_9="" _used_10="" _used_11="" _used_12="" _used_13=""
+  for ((i = 1; i < cword; i++)); do
+    case "${words[i]%%=*}" in
+      --preset) _used_0=1 ;;
+      --name) _used_1=1 ;;
+      --github) _used_2=1 ;;
+      --aliases) _used_3=1 ;;
+      --post-update) _used_4=1 ;;
+      --agent-oxlint|--no-agent-oxlint) _used_5=1 ;;
+      --activity-enabled|--no-activity-enabled) _used_6=1 ;;
+      --activity-schedule) _used_7=1 ;;
+      --notifications-enabled|--no-notifications-enabled) _used_8=1 ;;
+      --notifications-schedule) _used_9=1 ;;
+      --ignore-bot-activity|--no-ignore-bot-activity) _used_10=1 ;;
+      --noninteractive|--no-noninteractive) _used_11=1 ;;
+      --commit|--no-commit) _used_12=1 ;;
+      --help|-h) _used_13=1 ;;
+    esac
+  done
+  local _filtered_flags=""
+  [[ -n "$_used_0" ]] || _filtered_flags+=" --preset"
+  [[ -n "$_used_1" ]] || _filtered_flags+=" --name"
+  [[ -n "$_used_2" ]] || _filtered_flags+=" --github"
+  [[ -n "$_used_3" ]] || _filtered_flags+=" --aliases"
+  [[ -n "$_used_4" ]] || _filtered_flags+=" --post-update"
+  [[ -n "$_used_5" ]] || _filtered_flags+=" --agent-oxlint --no-agent-oxlint"
+  [[ -n "$_used_6" ]] || _filtered_flags+=" --activity-enabled --no-activity-enabled"
+  [[ -n "$_used_7" ]] || _filtered_flags+=" --activity-schedule"
+  [[ -n "$_used_8" ]] || _filtered_flags+=" --notifications-enabled --no-notifications-enabled"
+  [[ -n "$_used_9" ]] || _filtered_flags+=" --notifications-schedule"
+  [[ -n "$_used_10" ]] || _filtered_flags+=" --ignore-bot-activity --no-ignore-bot-activity"
+  [[ -n "$_used_11" ]] || _filtered_flags+=" --noninteractive --no-noninteractive"
+  [[ -n "$_used_12" ]] || _filtered_flags+=" --commit --no-commit"
+  [[ -n "$_used_13" ]] || _filtered_flags+=" --help -h"
+
+  # Complete flags (filtered) and subcommands
+  if [[ "$cur" == -* ]]; then
+    COMPREPLY=( $(compgen -W "$_filtered_flags" -- "$cur") )
+    return
+  fi
+
+  # Positional argument completions
+  local _position=0 _skip_next=0 _end_of_options=0
+  for ((i = _command_index + 1; i < cword; i++)); do
+    if (( _skip_next )); then
+      _skip_next=0
+      continue
+    fi
+    if (( _end_of_options )); then
+      ((_position += 1))
+      continue
+    fi
+    case "${words[i]}" in
+      --) _end_of_options=1 ;;
+      --preset) _skip_next=1 ;;
+      --preset=*) ;;
+      --name) _skip_next=1 ;;
+      --name=*) ;;
+      --github) _skip_next=1 ;;
+      --github=*) ;;
+      --aliases) _skip_next=1 ;;
+      --aliases=*) ;;
+      --post-update) _skip_next=1 ;;
+      --post-update=*) ;;
+      --agent-oxlint|--no-agent-oxlint) ;;
+      --activity-enabled|--no-activity-enabled) ;;
+      --activity-schedule) _skip_next=1 ;;
+      --activity-schedule=*) ;;
+      --notifications-enabled|--no-notifications-enabled) ;;
+      --notifications-schedule) _skip_next=1 ;;
+      --notifications-schedule=*) ;;
+      --ignore-bot-activity|--no-ignore-bot-activity) ;;
+      --noninteractive|--no-noninteractive) ;;
+      --commit|--no-commit) ;;
+      --help|-h) ;;
+      -*) ;;
+      *) ((_position += 1)) ;;
+    esac
+  done
+  case "$_position" in
+    0)
+      COMPREPLY=( $(compgen -d -- "$cur") )
+      return
+      ;;
+  esac
 }
 
 _dot_agent_oxlint()

@@ -10,6 +10,7 @@ import {
 } from "effect/unstable/cli";
 import { agentsSync } from "../commands/AgentsSync.js";
 import { agentOxlint } from "../commands/AgentOxlint.js";
+import { repoInduct } from "../commands/RepoInduct.js";
 import { clean } from "../commands/Clean.js";
 import { completions } from "../commands/Completions.js";
 import { doctor } from "../commands/Doctor.js";
@@ -78,6 +79,8 @@ const bool = (name: string, description: string) =>
   );
 const text = (name: string, description: string) =>
   Flag.string(name).pipe(Flag.optional, Flag.withDescription(description));
+const optionalBool = (name: string, description: string) =>
+  Flag.boolean(name).pipe(Flag.optional, Flag.withDescription(description));
 const pathFlag = (
   name: string,
   description: string,
@@ -898,6 +901,89 @@ const isAgent = describe(
     ],
   },
 );
+const repoInductCommand = describe(
+  Command.make(
+    "repo-induct",
+    {
+      path: Argument.path("path", { pathType: "directory" }).pipe(
+        Argument.optional,
+      ),
+      preset: Flag.choice("preset", ["normal", "home-assistant"]).pipe(
+        Flag.optional,
+        Flag.withDescription("Private preset (default: normal)"),
+      ),
+      name: text("name", "Friendly repository label"),
+      github: text(
+        "github",
+        "GitHub owner/repository (default: origin remote)",
+      ),
+      aliases: text(
+        "aliases",
+        "Space- or comma-separated aliases; empty for none",
+      ),
+      postUpdate: text("post-update", "Post-update command; empty for none"),
+      agentOxlint: optionalBool(
+        "agent-oxlint",
+        "Enable agent Oxlint; --no-agent-oxlint disables it",
+      ),
+      activityEnabled: optionalBool(
+        "activity-enabled",
+        "Enable activity checks; --no-activity-enabled disables them",
+      ),
+      activitySchedule: text(
+        "activity-schedule",
+        "Five-field cron schedule for activity checks",
+      ),
+      notificationsEnabled: optionalBool(
+        "notifications-enabled",
+        "Enable notifications; --no-notifications-enabled disables them",
+      ),
+      notificationsSchedule: text(
+        "notifications-schedule",
+        "Five-field cron schedule for notifications",
+      ),
+      ignoreBotActivity: optionalBool(
+        "ignore-bot-activity",
+        "Filter bot-only activity; --no-ignore-bot-activity shows it",
+      ),
+      noninteractive: bool(
+        "noninteractive",
+        "Use flags and preset defaults without questions; preview by default",
+      ),
+      commit: bool(
+        "commit",
+        "Commit the proposed entry with --noninteractive after reviewing its preview",
+      ),
+    },
+    (input) =>
+      repoInduct({
+        path: optional(input.path),
+        preset: optional(input.preset),
+        name: optional(input.name),
+        github: optional(input.github),
+        aliases: optional(input.aliases),
+        postUpdate: optional(input.postUpdate),
+        agentOxlint: optional(input.agentOxlint),
+        activityEnabled: optional(input.activityEnabled),
+        activitySchedule: optional(input.activitySchedule),
+        notificationsEnabled: optional(input.notificationsEnabled),
+        notificationsSchedule: optional(input.notificationsSchedule),
+        ignoreBotActivity: optional(input.ignoreBotActivity),
+        noninteractive: input.noninteractive,
+        commit: input.commit,
+      }),
+  ),
+  "Induct a local repository into private dot git config with a preview before committing",
+  [
+    "dot repo-induct",
+    "dot repo-induct ~/repos/example --noninteractive --preset normal --name Example --aliases example",
+    "dot repo-induct ~/repos/example --noninteractive --preset normal --name Example --aliases example --commit",
+  ],
+  {
+    description:
+      "The terminal wizard asks for Normal (first and default) or Home Assistant, then every repository field using private dot-git-presets.yml defaults and local Git identity. Flags prefill the wizard. With --noninteractive, flags override preset defaults and the command only previews; repeat the reviewed options with --commit to save. Each run validates the complete config and shows the exact diff. The config must be tracked and clean; active commit hooks are refused. Existing entries and formatting are preserved. Commits through dot git-commit without pushing or including unrelated staged files. Repositories already inducted are rejected; use agent-oxlint --opt-in to enable their agent pass.",
+  },
+);
 const agentOxlintCommand = describe(
   Command.make(
     "agent-oxlint",
@@ -938,7 +1024,7 @@ const agentOxlintCommand = describe(
       {
         title: "Opt-in",
         lines: [
-          "--opt-in adds or sets only agent_oxlint: true in the existing private repository entry, preserving all other bytes. The config must be tracked and clean. Active commit hooks are refused rather than bypassed so formatters cannot expand the change. Commits through dot git-commit without pushing; unrelated staged files are excluded. An existing opt-in creates no commit.",
+          "--opt-in adds or sets only agent_oxlint: true in an existing private repository entry, preserving all other bytes. If the entry is missing, it offers the repo-induct wizard with agent Oxlint prefilled as enabled. Without a terminal it prints induction instructions. The config must be tracked and clean. Active commit hooks are refused rather than bypassed so formatters cannot expand the change. Commits through dot git-commit without pushing; unrelated staged files are excluded. An existing opt-in creates no commit.",
         ],
       },
     ],
@@ -1220,6 +1306,7 @@ export const dotCommand = describe(
       skillsCommand,
       completionsCommand,
       isAgent,
+      repoInductCommand,
       agentOxlintCommand,
       floating,
       herdr,
