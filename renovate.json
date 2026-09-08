@@ -13,6 +13,13 @@
     "enabled": true
   },
   "customDatasources": {
+    "omarchy-mise": {
+      "defaultRegistryUrlTemplate": "https://raw.githubusercontent.com/omacom-io/omarchy-pkgs/master/pkgbuilds/mise-bin/PKGBUILD",
+      "format": "plain",
+      "transformTemplates": [
+        "{\"releases\": [releases[$contains(version, /^pkgver=/)].{\"version\": $substringAfter(version, \"pkgver=\")}], \"sourceUrl\": \"https://github.com/omacom-io/omarchy-pkgs\"}"
+      ]
+    },
     "arch-quickshell": {
       "defaultRegistryUrlTemplate": "https://archlinux.org/packages/extra/x86_64/quickshell/json/",
       "transformTemplates": [
@@ -21,6 +28,15 @@
     }
   },
   "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Follow Omarchy's mise-bin version for CI.",
+      "managerFilePatterns": ["/^mise\\.toml$/"],
+      "matchStrings": ["^min_version\\s*=\\s*\"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "omarchy/mise-bin",
+      "datasourceTemplate": "custom.omarchy-mise",
+      "versioningTemplate": "semver"
+    },
     {
       "customType": "regex",
       "description": "Update the OpenCode reference tag.",
