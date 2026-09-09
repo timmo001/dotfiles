@@ -1,3 +1,4 @@
+import { Gh } from "@timmo001/effect-gh";
 import { Effect } from "effect";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
@@ -7,11 +8,13 @@ import {
   parseInstalledGhExtensions,
 } from "../../lib/ghExtensions.js";
 import type { CheckResult } from "../types.js";
+import { ghOutput } from "../../lib/gh.js";
 
 /** Check that configured gh CLI extensions are installed */
 export const checkGhExtensions = Effect.gen(function* () {
   const config = yield* Config;
   const executor = yield* CommandExecutor;
+  const gh = yield* Gh;
   const results: CheckResult[] = [];
 
   const desired = loadGhExtensions(ghExtensionsListPath(config));
@@ -28,9 +31,9 @@ export const checkGhExtensions = Effect.gen(function* () {
     return results;
   }
 
-  const listed = yield* executor
-    .run("gh", ["extension", "list"])
-    .pipe(Effect.catch(() => Effect.succeed("")));
+  const listed = yield* ghOutput(gh, ["extension", "list"]).pipe(
+    Effect.catch(() => Effect.succeed("")),
+  );
   const installed = parseInstalledGhExtensions(listed);
 
   const missing: string[] = [];

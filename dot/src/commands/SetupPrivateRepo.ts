@@ -1,3 +1,4 @@
+import type { Gh } from "@timmo001/effect-gh";
 import { Effect, Option, Schema } from "effect";
 import { existsSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "fs";
 import { join } from "path";
@@ -125,7 +126,7 @@ function removePartialClone(
 
 function clonePrivatePackageRepo(
   repo: PrivatePackageRepoConfig,
-): Effect.Effect<void, SetupPrivateRepoError, CommandExecutor | OutputLog> {
+): Effect.Effect<void, SetupPrivateRepoError, Gh | OutputLog> {
   return Effect.gen(function* () {
     if (existsSync(repo.path)) return;
     if (!repo.remote) {
@@ -296,7 +297,11 @@ function registerPrivatePacmanRepoInclude(): Effect.Effect<
 /** Sync and register a loaded private package repository config. */
 export const setupPrivatePackageRepo = (
   repo: PrivatePackageRepoConfig,
-): Effect.Effect<void, SetupPrivateRepoError, CommandExecutor | OutputLog> =>
+): Effect.Effect<
+  void,
+  SetupPrivateRepoError,
+  CommandExecutor | OutputLog | Gh
+> =>
   Effect.gen(function* () {
     const log = yield* OutputLog;
     if (!existsSync(repo.path) && privatePackageRepoInstalled(repo)) {

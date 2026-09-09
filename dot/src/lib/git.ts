@@ -1,9 +1,11 @@
+import { Gh } from "@timmo001/effect-gh";
 import { Duration, Effect, Schema } from "effect";
 import { existsSync, mkdirSync } from "fs";
 import { dirname, join } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Launcher } from "../services/Launcher.js";
 import { displayPath } from "./paths.js";
+import { ghOutput } from "./gh.js";
 import type { CommandError } from "../services/CommandExecutor.js";
 
 /** Options for git commands that run inside a repository. */
@@ -198,7 +200,7 @@ export function ghRepoClone(
 /**
  * Clone a GitHub repository with captured stdio, returning only on success.
  *
- * Unlike {@link ghRepoClone} this runs through `executor.run`, so clone
+ * Unlike {@link ghRepoClone} this captures the SDK stream, so clone
  * progress never reaches the terminal. Use it on flows that pin a spinner
  * (e.g. `dot init`), where inherited git/gh output would clash with the
  * animated line. Captured stdio cannot answer interactive prompts, so reserve
@@ -208,10 +210,10 @@ export function ghRepoCloneCaptured(
   remote: string,
   repoPath: string,
   gitArgs: readonly string[] = [],
-): Effect.Effect<void, GitCommandError, CommandExecutor> {
+): Effect.Effect<void, GitCommandError, Gh> {
   return Effect.gen(function* () {
     mkdirSync(dirname(repoPath), { recursive: true });
-    const executor = yield* CommandExecutor;
+    const gh = yield* Gh;
     const args = [
       "repo",
       "clone",
@@ -219,18 +221,17 @@ export function ghRepoCloneCaptured(
       repoPath,
       ...(gitArgs.length > 0 ? ["--", ...gitArgs] : []),
     ];
-    yield* executor
-      .run("env", [
-        "GIT_TERMINAL_PROMPT=0",
-        "GIT_SSH_COMMAND=ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new",
-        "gh",
-        ...args,
-      ])
-      .pipe(
-        Effect.catchTag("CommandError", (error) =>
-          fail(commandFailureMessage("gh", args, error)),
-        ),
-      );
+    yield* ghOutput(gh, args, {
+      env: {
+        GIT_TERMINAL_PROMPT: "0",
+        GIT_SSH_COMMAND:
+          "ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new",
+      },
+    }).pipe(
+      Effect.catchTag("CommandError", (error) =>
+        fail(commandFailureMessage("gh", args, error)),
+      ),
+    );
   });
 }
 

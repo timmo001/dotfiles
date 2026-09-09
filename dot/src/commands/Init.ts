@@ -1,3 +1,4 @@
+import type { Gh } from "@timmo001/effect-gh";
 import { Duration, Effect, Schema } from "effect";
 import {
   existsSync,
@@ -511,7 +512,7 @@ function syncAgentsStrict(): Effect.Effect<
 function setupPrivatePackages(
   config: ConfigService,
   options: InitOptions,
-): Effect.Effect<void, unknown, Config | CommandExecutor | OutputLog> {
+): Effect.Effect<void, unknown, Config | CommandExecutor | OutputLog | Gh> {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
     if (!config.canUsePrivate) {
@@ -651,7 +652,7 @@ export function init(
 ): Effect.Effect<
   void,
   unknown,
-  Config | CommandExecutor | OutputLog | Launcher
+  Config | CommandExecutor | OutputLog | Launcher | Gh
 > {
   return Effect.gen(function* () {
     const config = yield* Config;

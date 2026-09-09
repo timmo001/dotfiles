@@ -1,4 +1,5 @@
-import { Effect } from "effect";
+import { Gh } from "@timmo001/effect-gh";
+import { Effect, Stream } from "effect";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import type { CheckResult } from "../types.js";
 
@@ -6,11 +7,12 @@ import type { CheckResult } from "../types.js";
  * Check that a GitHub MCP bearer can be sourced from gh. The public `.zshrc`
  * export `DOT_GH_MCP_BEARER="$(gh auth token)"` feeds the read-only GitHub MCP
  * server used by OpenCode and Cursor, so a logged-out gh leaves it empty and the
- * server returns 401. Uses `exitCode` (stdout ignored) so the token value is
- * never captured into the saved doctor report.
+ * server returns 401. Drains output without collecting it so the token value
+ * is never captured into the saved doctor report.
  */
 export const checkGithubMcpAuth = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
+  const gh = yield* Gh;
   const results: CheckResult[] = [];
 
   if ((yield* executor.exitCode("which", ["gh"])) !== 0) {
@@ -23,7 +25,9 @@ export const checkGithubMcpAuth = Effect.gen(function* () {
     return results;
   }
 
-  if ((yield* executor.exitCode("gh", ["auth", "token"])) === 0) {
+  if (
+    yield* gh.stream(["auth", "token"]).pipe(Stream.runDrain, Effect.isSuccess)
+  ) {
     results.push({
       severity: "ok",
       message:

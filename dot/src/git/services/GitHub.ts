@@ -1,9 +1,11 @@
+import { Gh } from "@timmo001/effect-gh";
 import { Clock, Context, Duration, Effect, Layer, Schema } from "effect";
 import {
   CommandExecutor,
   type CommandError,
 } from "../../services/CommandExecutor.js";
 import { ENV, envNonNegativeInt, envString } from "../../lib/env.js";
+import { ghOutput } from "../../lib/gh.js";
 
 const DEBUG = !!envString(ENV.DOT_DEBUG);
 const log = (msg: string) => {
@@ -82,6 +84,7 @@ export class GitHub extends Context.Service<GitHub, GitHubService>()("GitHub") {
     GitHub,
     Effect.gen(function* () {
       const executor = yield* CommandExecutor;
+      const gh = yield* Gh;
       let rateLimitCache: RateLimitSnapshot | null = null;
 
       const isAvailable = () =>
@@ -92,7 +95,7 @@ export class GitHub extends Context.Service<GitHub, GitHubService>()("GitHub") {
       const fetchRateLimit = Effect.fn("GitHub.fetchRateLimit")(function* (
         checkedAtMillis: number,
       ) {
-        const raw = yield* executor.run("gh", [
+        const raw = yield* ghOutput(gh, [
           "api",
           "rate_limit",
           "--jq",
@@ -156,7 +159,7 @@ export class GitHub extends Context.Service<GitHub, GitHubService>()("GitHub") {
       });
 
       const runAttempt = (args: readonly string[]) =>
-        executor.run("gh", args).pipe(
+        ghOutput(gh, args).pipe(
           Effect.matchEffect({
             onSuccess: (output) =>
               Effect.succeed({ type: "success" as const, output }),

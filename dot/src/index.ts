@@ -1,4 +1,5 @@
 import { NodeServices } from "@effect/platform-node";
+import { layer as ghLayer } from "@timmo001/effect-gh";
 import { Effect, Layer, Option } from "effect";
 import { CliConfig, CliError, Command } from "effect/unstable/cli";
 import { mkdirSync } from "fs";
@@ -151,6 +152,7 @@ const CliLayers = Launcher.layer.pipe(
   Layer.provideMerge(GitNotifications.layer),
   Layer.provideMerge(GitStaging.layer),
   Layer.provideMerge(GitHub.layer),
+  Layer.provideMerge(ghLayer().pipe(Layer.provide(NodeServices.layer))),
   Layer.provideMerge(OutputLog.layer),
   Layer.provideMerge(CommandExecutor.layer),
   Layer.provideMerge(Config.layer),

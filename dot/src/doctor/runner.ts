@@ -1,3 +1,4 @@
+import type { Gh } from "@timmo001/effect-gh";
 import { Cause, Effect, Option } from "effect";
 import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
@@ -53,7 +54,7 @@ interface SectionDef {
   readonly check: Effect.Effect<
     CheckResult[],
     unknown,
-    Config | CommandExecutor | GitHub
+    Config | CommandExecutor | GitHub | Gh
   >;
   readonly requiresPrivate?: boolean;
   readonly host?: string;
@@ -128,7 +129,7 @@ export const runDoctor = (
   onSection: (section: CheckSection) => Effect.Effect<void> = () => Effect.void,
   onStart: (names: readonly string[]) => Effect.Effect<void> = () =>
     Effect.void,
-): Effect.Effect<DoctorReport, never, Config | CommandExecutor | GitHub> =>
+): Effect.Effect<DoctorReport, never, Config | CommandExecutor | GitHub | Gh> =>
   Effect.gen(function* () {
     const config = yield* Config;
 

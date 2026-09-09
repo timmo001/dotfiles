@@ -1,3 +1,4 @@
+import { Gh } from "@timmo001/effect-gh";
 import { Effect } from "effect";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
@@ -5,6 +6,7 @@ import { CommandExecutor } from "../services/CommandExecutor.js";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import { ENV, envString } from "./env.js";
+import { ghOutput } from "./gh.js";
 import type { ConfigService } from "../services/Config.js";
 
 /** Resolve the path to the public gh CLI extensions list. */
@@ -53,10 +55,11 @@ export function parseInstalledGhExtensions(
 export const installGhExtensions: Effect.Effect<
   void,
   never,
-  Config | CommandExecutor | OutputLog
+  Config | CommandExecutor | OutputLog | Gh
 > = Effect.gen(function* () {
   const config = yield* Config;
   const executor = yield* CommandExecutor;
+  const gh = yield* Gh;
   const log = yield* OutputLog;
 
   yield* log.section("Install GitHub CLI Extensions");
@@ -72,9 +75,9 @@ export const installGhExtensions: Effect.Effect<
     return;
   }
 
-  const listed = yield* executor
-    .run("gh", ["extension", "list"])
-    .pipe(Effect.catch(() => Effect.succeed("")));
+  const listed = yield* ghOutput(gh, ["extension", "list"]).pipe(
+    Effect.catch(() => Effect.succeed("")),
+  );
   const installed = parseInstalledGhExtensions(listed);
 
   const missing = desired.filter((repo) => !installed.has(repo.toLowerCase()));

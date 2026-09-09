@@ -54,12 +54,16 @@ export function cloneMissingGitConfigRepos(opts?: {
     yield* log.section("Clone Private Git Repositories");
     for (const repo of missing) {
       yield* log.info(`Cloning ${repo.name} (${repo.github})`);
-      const clone = opts?.captured
-        ? log.withSpinner(
+      const clone = Effect.gen(function* () {
+        if (opts?.captured) {
+          yield* log.withSpinner(
             `Cloning ${repo.name}`,
             ghRepoCloneCaptured(repo.github, repo.path),
-          )
-        : ghRepoClone(repo.github, repo.path);
+          );
+        } else {
+          yield* ghRepoClone(repo.github, repo.path);
+        }
+      });
       const cloneError = yield* clone.pipe(
         Effect.map(() => null),
         Effect.catchTag("GitCommandError", (error) =>
