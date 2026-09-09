@@ -336,6 +336,10 @@ function restartUpdateArgs(
     "update",
     ...selectedUpdateFlags(opts),
     DISABLE_SELF_UPDATE_ARG,
+    ...(opts?.postHookRepos ?? []).flatMap((name) => [
+      POST_HOOK_REPO_ARG,
+      name,
+    ]),
     ...(pulledRepoName ? [POST_HOOK_REPO_ARG, pulledRepoName] : []),
   ];
 }
@@ -703,7 +707,9 @@ const haltOnLegacyHyprRepo = (config: ConfigService) =>
  * Flags are inclusive — passing any of pull/stow/app selects only those
  * steps; if none are set, all three run (legacy semantics).
  *
- * The pull phase fetch-scans every tracked repo (public, private, notes,
+ * The pull phase first updates private dotfiles and restarts if they changed,
+ * so cloning and stow use the refreshed configuration. It then fetch-scans
+ * every tracked repo (public, private, notes,
  * omarchy + worktrees, schedule-gated extras) via {@link DotDiff} and only
  * pulls repos that are behind upstream. It then marks any mise config files in
  * the tracked repos as trusted (best-effort) so `mise` never prompts for them
@@ -741,6 +747,20 @@ export const update = (opts?: UpdateOptions) =>
     if (doPull || doStow) {
       const halted = yield* haltOnLegacyHyprRepo(config);
       if (halted) return;
+    }
+
+    if (
+      doPull &&
+      config.privateDotfiles &&
+      !opts?.postHookRepos?.includes(basename(config.privateDotfiles))
+    ) {
+      const repoName = basename(config.privateDotfiles);
+      const moved = yield* safePull(repoName, config.privateDotfiles);
+      if (moved) {
+        yield* log.info("Restarting update to reload private configuration");
+        yield* restartDot(restartUpdateArgs(opts, repoName));
+        return;
+      }
     }
 
     const updatedNames = [...(opts?.postHookRepos ?? [])];
@@ -805,7 +825,10 @@ export const update = (opts?: UpdateOptions) =>
               const changed = repos.filter(
                 (r) => r.isDirty || r.ahead > 0 || r.behind > 0,
               );
-              const behind = repos.filter((r) => r.behind > 0);
+              // Private dotfiles were already pulled before loading this repo list.
+              const behind = repos.filter(
+                (r) => r.behind > 0 && r.path !== config.privateDotfiles,
+              );
 
               if (behind.length === 0) {
                 if (changed.length > 0) {

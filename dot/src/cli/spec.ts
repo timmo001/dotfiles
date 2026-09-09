@@ -195,7 +195,10 @@ const updateCommand = describe(
         "no-self-update",
         "Skip the internal self-update phase",
       ),
-      postHookRepo: text("post-hook-repo", "Internal post-hook repository"),
+      postHookRepo: Flag.string("post-hook-repo").pipe(
+        Flag.atLeast(0),
+        Flag.withDescription("Internal post-hook repository"),
+      ),
     },
     ({
       app,
@@ -213,9 +216,7 @@ const updateCommand = describe(
             stow: onlyStow,
             app,
             selfUpdate: !noSelfUpdate,
-            postHookRepos: Option.isSome(postHookRepo)
-              ? [postHookRepo.value]
-              : [],
+            postHookRepos: postHookRepo,
           }),
   ),
   "Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Internal --no-self-update and --post-hook-repo flags support the active self-update handoff.",
