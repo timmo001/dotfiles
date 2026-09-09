@@ -121,7 +121,7 @@ status_indicators = "symbols"
 [ui.sidebar.spaces]
 rows = [
   ["state_icon", "workspace"],
-  ["branch", "git_status", { token = "$timmo_workflow_watch", fg = "#f38ba8", dim = false, rules = [{ equals = "CI ?", fg = "#f9e2af" }] }],
+  ["branch", "git_status", { token = "$timmo_workflow_watch", fg = "#f38ba8", dim = false, rules = [{ equals = "⚡?", fg = "#f9e2af" }, { equals = "⚡✓", fg = "#a6e3a1" }] }],
 ]
 
 [ui.sidebar.agents]
