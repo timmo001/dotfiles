@@ -129,6 +129,8 @@ rows = [
     "git_status",
     { token = "$timmo_workflow_watch", fg = "#f38ba8", dim = false, rules = [
       { equals = "⚠", fg = "#f9e2af" },
+      { equals = "…", fg = "#89b4fa" },
+      { equals = "↻", fg = "#f9e2af" },
       { equals = "✓", fg = "#a6e3a1" },
     ] },
   ],
