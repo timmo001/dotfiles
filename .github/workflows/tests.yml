@@ -1,5 +1,5 @@
 ---
-name: Lint
+name: Tests
 
 on:
   push:
@@ -39,8 +39,9 @@ jobs:
               - 'tests/dot/**'
               - '.github/workflows/dot-build.yml'
               - '.github/workflows/lint.yml'
+              - '.github/workflows/tests.yml'
 
-  dot-typecheck:
+  dot-tests:
     needs:
       - changes
     if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.dot == 'true'
@@ -58,19 +59,23 @@ jobs:
         working-directory: dot
         run: bun install --frozen-lockfile
 
-      - name: Type check
-        run: mise run dot:typecheck
+      - name: Test
+        run: mise run dot:test
 
-  oxlint:
+  regression-tests:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          fetch-depth: 0
           submodules: true
 
       - name: Setup mise
         uses: ./.github/actions/setup-mise
+
+      - name: Install test dependencies
+        run: sudo apt-get update && sudo apt-get install --yes ripgrep zsh
 
       - name: Install dot dependencies
         working-directory: dot
@@ -82,32 +87,5 @@ jobs:
       - name: Install OpenCode v2 plugin dependencies
         run: bun install --cwd agents/.config/opencode/plugins-v2 --frozen-lockfile
 
-      - name: Run TypeScript lint
-        run: mise run lint
-
-  validate-skills:
-    uses: timmo001/workflows/.github/workflows/lint-agent-skills.yml@722ef29d1740604bd16be91fde520339d2cfadbb # master
-    with:
-      skill-roots: .agents/skills dotfiles-skills/.agents/skills
-
-  actionlint:
-    uses: timmo001/workflows/.github/workflows/lint-actionlint.yml@722ef29d1740604bd16be91fde520339d2cfadbb # master
-
-  markdownlint:
-    uses: timmo001/workflows/.github/workflows/lint-markdownlint.yml@722ef29d1740604bd16be91fde520339d2cfadbb # master
-
-  yamllint:
-    uses: timmo001/workflows/.github/workflows/lint-yamllint.yml@722ef29d1740604bd16be91fde520339d2cfadbb # master
-
-  jsonlint:
-    uses: timmo001/workflows/.github/workflows/lint-jsonlint.yml@722ef29d1740604bd16be91fde520339d2cfadbb # master
-
-  markdown-links:
-    uses: timmo001/workflows/.github/workflows/lint-markdown-links.yml@722ef29d1740604bd16be91fde520339d2cfadbb # master
-
-  shellcheck:
-    uses: timmo001/workflows/.github/workflows/lint-shellcheck.yml@722ef29d1740604bd16be91fde520339d2cfadbb # master
-    with:
-      scandir: ./scripts/.local/bin
-      severity: warning
-      ignore_names: gh-import-dotenv-to-secrets
+      - name: Run regression tests
+        run: mise run tests:integration
