@@ -28,6 +28,7 @@ const MANAGED_DEPENDENCIES = {
   oxlint: packageJson.devDependencies.oxlint,
 } as const;
 const RULE_OVERRIDES = {
+  "anti-slop/no-runtime-typeof": "warn",
   "anti-slop/require-safety-comment-for-type-assertion": "warn",
 } as const;
 const CONFIG_NAMES = new Set([
