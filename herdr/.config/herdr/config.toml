@@ -124,7 +124,6 @@ rows = [
   [
     "branch",
     "git_status",
-    { token = "$timmo_workflow_watch_label", fg = "#6c7086", dim = true },
     { token = "$timmo_workflow_watch", fg = "#f38ba8", dim = false, rules = [
       { equals = "⚠", fg = "#f9e2af" },
       { equals = "✓", fg = "#a6e3a1" },
