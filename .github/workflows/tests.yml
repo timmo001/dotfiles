@@ -75,7 +75,10 @@ jobs:
         uses: ./.github/actions/setup-mise
 
       - name: Install test dependencies
-        run: sudo apt-get update && sudo apt-get install --yes ripgrep zsh
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list*
+          sudo apt-get update
+          sudo apt-get install --yes ripgrep zsh
 
       - name: Install dot dependencies
         working-directory: dot
