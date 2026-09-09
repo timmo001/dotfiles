@@ -76,7 +76,7 @@ jobs:
 
       - name: Install test dependencies
         run: |
-          sudo rm -f /etc/apt/sources.list.d/google-chrome.list*
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.{list,sources}*
           sudo apt-get update
           sudo apt-get install --yes ripgrep zsh
 
