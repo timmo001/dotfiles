@@ -1,0 +1,13 @@
+diff --git a/package.json b/package.json
+index e90370cd88a95fa097a0b556035a966cd104a508..338873d937f3125145921ff24127a843b0c742f3 100644
+--- a/package.json
++++ b/package.json
+@@ -16,7 +16,7 @@
+    ],
+    "type": "module",
+    "exports": {
+-    ".": "./dist/index.mjs",
++    ".": "./src/index.ts",
+      "./package.json": "./package.json"
+    },
+    "publishConfig": {

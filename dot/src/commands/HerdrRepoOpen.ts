@@ -1,6 +1,11 @@
-import { Cause, Effect, Schedule, Schema } from "effect";
+import {
+  HerdrSdk,
+  herdrSdkLayerFromOptions,
+  type PaneId,
+  type TabId,
+} from "@herdr/sdk";
+import { Cause, Duration, Effect, Schedule, Schema } from "effect";
 import { existsSync, readFileSync } from "fs";
-import { createConnection } from "net";
 import { join } from "path";
 import { ENV, envString } from "../lib/env.js";
 import { CACHE_DIR, CONFIG_DIR } from "../lib/paths.js";
@@ -13,38 +18,9 @@ const READINESS_SCHEDULE = Schedule.recurs(49).pipe(
 );
 const DEFAULT_SOCKET_PATH = join(CONFIG_DIR, "herdr", "herdr.sock");
 
-const WorkspaceSchema = Schema.Struct({
-  workspace_id: Schema.String,
-  active_tab_id: Schema.optional(Schema.String),
-  label: Schema.optional(Schema.String),
-});
-const TabSchema = Schema.Struct({ tab_id: Schema.String });
-const PaneSchema = Schema.Struct({
-  pane_id: Schema.String,
-  tab_id: Schema.optional(Schema.String),
-  focused: Schema.optional(Schema.Boolean),
-});
-const ResponseFields = {
-  workspaces: Schema.optional(Schema.Array(WorkspaceSchema)),
-  workspace: Schema.optional(WorkspaceSchema),
-  tab: Schema.optional(TabSchema),
-  root_pane: Schema.optional(PaneSchema),
-  panes: Schema.optional(Schema.Array(PaneSchema)),
-  pane: Schema.optional(PaneSchema),
-};
-const ResponsePayloadSchema = Schema.Struct(ResponseFields);
-const ResponseSchema = Schema.Struct({
-  ...ResponseFields,
-  result: Schema.optional(ResponsePayloadSchema),
-});
 const PickerCacheSchema = Schema.Array(
   Schema.Struct({ name: Schema.String, path: Schema.String }),
 );
-const ClientProbeResponseSchema = Schema.Struct({
-  result: Schema.Struct({ reason: Schema.String }),
-});
-
-type ResponsePayload = Schema.Schema.Type<typeof ResponsePayloadSchema>;
 
 /** Parsed repository-opening options. */
 export interface HerdrRepoOpenOptions {
@@ -90,17 +66,6 @@ function fail(message: string, exitCode: 1 | 2 = 1): never {
   throw new HerdrRepoOpenError({ message, exitCode });
 }
 
-function decodeResponse(source: string, label: string): ResponsePayload {
-  try {
-    const response = Schema.decodeUnknownSync(ResponseSchema)(
-      JSON.parse(source),
-    );
-    return response.result ?? response;
-  } catch (error) {
-    return fail(`${label} returned invalid JSON: ${formatCause(error)}`);
-  }
-}
-
 function canonicalLabel(options: HerdrRepoOpenOptions): string {
   const path =
     options.pickerCache ?? join(CACHE_DIR, "dot", "repo-picker.json");
@@ -118,55 +83,13 @@ function canonicalLabel(options: HerdrRepoOpenOptions): string {
   }
 }
 
-function probeForegroundClient(socketPath: string): Effect.Effect<boolean> {
-  return Effect.callback<boolean>((resume) => {
-    let buffer = "";
-    let settled = false;
-    const socket = createConnection(socketPath);
-    const finish = (ready: boolean) => {
-      if (settled) return;
-      settled = true;
-      socket.destroy();
-      resume(Effect.succeed(ready));
-    };
-    socket.setTimeout(500, () => finish(false));
-    socket.on("connect", () => {
-      socket.write(
-        `${JSON.stringify({
-          id: "dot:herdr-repo-open:ready",
-          method: "client.window_title.clear",
-          params: {},
-        })}\n`,
-      );
-    });
-    socket.on("data", (chunk) => {
-      buffer += chunk.toString();
-      const newline = buffer.indexOf("\n");
-      if (newline === -1) return;
-      try {
-        const response = Schema.decodeUnknownSync(ClientProbeResponseSchema)(
-          JSON.parse(buffer.slice(0, newline)),
-        );
-        finish(response.result.reason !== "no_foreground_client");
-      } catch {
-        finish(false);
-      }
-    });
-    socket.on("error", () => finish(false));
-    socket.on("close", () => finish(false));
-    return Effect.sync(() => {
-      settled = true;
-      socket.destroy();
-    });
-  });
-}
-
 /** Open or focus a repository workspace with a configurable readiness schedule. */
 export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
   options: HerdrRepoOpenOptions,
   runtime: HerdrRepoOpenRuntime = {},
 ) {
   const executor = yield* CommandExecutor;
+  const herdr = yield* HerdrSdk;
   const label = canonicalLabel(options);
   if ((yield* executor.exitCode("herdr", ["status", "server"])) !== 0) {
     return fail("Shared Herdr server is not running");
@@ -174,7 +97,13 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
   const socketPath = envString(ENV.HERDR_SOCKET_PATH) ?? DEFAULT_SOCKET_PATH;
   const binary = `/proc/${yield* herdrServerPid(socketPath)}/exe`;
   const clientReady =
-    runtime.foregroundClientReady ?? probeForegroundClient(socketPath);
+    runtime.foregroundClientReady ??
+    herdr.client.windowTitle
+      .clear({ requestTimeout: Duration.millis(500) })
+      .pipe(
+        Effect.map((response) => response.reason !== "no_foreground_client"),
+        Effect.orElseSucceed(() => false),
+      );
   const launchTerminal =
     runtime.launchTerminal ??
     Effect.try({
@@ -228,76 +157,46 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
     yield* terminalReady;
   }
 
-  const workspaceList = decodeResponse(
-    yield* executor.run(binary, ["workspace", "list"]),
-    "herdr workspace list",
-  );
-  let workspaceId = workspaceList.workspaces?.find(
+  const workspaces = yield* herdr.workspaces.list();
+  let workspaceId = workspaces.find(
     (workspace) => workspace.label === label,
-  )?.workspace_id;
-  let tabId: string | undefined;
-  let paneId: string | undefined;
+  )?.id;
+  let tabId: TabId | undefined;
+  let paneId: PaneId | undefined;
 
   if (!workspaceId) {
-    const created = decodeResponse(
-      yield* executor.run(binary, [
-        "workspace",
-        "create",
-        "--cwd",
-        options.directory,
-        ...(label ? ["--label", label] : []),
-        "--no-focus",
-      ]),
-      "herdr workspace create",
+    const created = yield* herdr.workspaces.createInDirectory(
+      options.directory,
+      label ? { label, focus: false } : { focus: false },
     );
-    workspaceId = created.workspace?.workspace_id;
-    tabId = created.tab?.tab_id;
-    paneId = created.root_pane?.pane_id;
+    workspaceId = created.workspace.id;
+    tabId = created.tab.id;
+    paneId = created.rootPane.id;
   } else if (options.command && options.pane) {
-    const activeTabId = workspaceList.workspaces?.find(
-      (workspace) => workspace.workspace_id === workspaceId,
-    )?.active_tab_id;
-    const panes = decodeResponse(
-      yield* executor.run(binary, ["pane", "list", "--workspace", workspaceId]),
-      "herdr pane list",
-    ).panes;
+    const activeTabId = workspaces.find(
+      (workspace) => workspace.id === workspaceId,
+    )?.activeTabId;
+    const panes = yield* herdr.panes.list({ workspaceId });
     const target =
-      panes?.find((pane) => pane.tab_id === activeTabId && pane.focused) ??
-      panes?.find((pane) => pane.tab_id === activeTabId) ??
-      panes?.[0];
+      panes.find((pane) => pane.tabId === activeTabId && pane.focused) ??
+      panes.find((pane) => pane.tabId === activeTabId) ??
+      panes[0];
     if (!target) return fail(`Herdr did not return a pane ID for ${label}`);
-    const created = decodeResponse(
-      yield* executor.run(binary, [
-        "pane",
-        "split",
-        "--pane",
-        target.pane_id,
-        "--direction",
-        "right",
-        "--cwd",
-        options.directory,
-        "--focus",
-      ]),
-      "herdr pane split",
-    );
-    paneId = created.pane?.pane_id;
+    const created = yield* herdr.panes.split(target.id, {
+      direction: "right",
+      cwd: options.directory,
+      focus: true,
+    });
+    paneId = created.id;
   } else if (options.command) {
-    const created = decodeResponse(
-      yield* executor.run(binary, [
-        "tab",
-        "create",
-        "--workspace",
-        workspaceId,
-        "--cwd",
-        options.directory,
-        "--label",
-        options.tabLabel,
-        "--no-focus",
-      ]),
-      "herdr tab create",
-    );
-    tabId = created.tab?.tab_id;
-    paneId = created.root_pane?.pane_id;
+    const created = yield* herdr.tabs.create({
+      workspaceId,
+      cwd: options.directory,
+      label: options.tabLabel,
+      focus: false,
+    });
+    tabId = created.tab.id;
+    paneId = created.rootPane.id;
   }
 
   if (!workspaceId)
@@ -309,18 +208,27 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
       );
     }
     if (tabId) {
-      yield* executor.run(binary, ["tab", "rename", tabId, options.tabLabel]);
+      yield* herdr.tabs.rename(tabId, options.tabLabel);
     }
-    yield* executor.run(binary, ["pane", "run", paneId, options.command]);
+    yield* herdr.panes.sendInput(paneId, {
+      text: options.command,
+      keys: ["enter"],
+    });
   }
 
-  yield* executor.run(binary, ["workspace", "focus", workspaceId]);
-  if (tabId) yield* executor.run(binary, ["tab", "focus", tabId]);
+  yield* herdr.workspaces.focus(workspaceId);
+  if (tabId) yield* herdr.tabs.focus(tabId);
 });
 
 /** Open or focus a repository workspace in the visible Herdr terminal. */
 export const herdrRepoOpen = (options: HerdrRepoOpenOptions) =>
   openHerdrRepo(options).pipe(
+    Effect.provide(
+      herdrSdkLayerFromOptions({
+        socketPath: envString(ENV.HERDR_SOCKET_PATH) ?? DEFAULT_SOCKET_PATH,
+        requestTimeout: Duration.seconds(5),
+      }),
+    ),
     Effect.catchCause((cause) => {
       const error = Cause.squash(cause);
       const failure =
