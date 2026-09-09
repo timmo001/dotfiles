@@ -35,7 +35,6 @@ permission:
     "gh release view*": allow
     "gh repo view*": allow
     "gh run view*": allow
-    "gh run watch*": allow
     "gh search code*": allow
     "gh search commits*": allow
     "gh search issues*": allow

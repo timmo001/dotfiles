@@ -19,7 +19,6 @@ import { discoverService } from "./lib/service";
 const TARGET_COMMANDS = new Set([
   "commit",
   "commit-push",
-  "commit-push-watch",
 ]);
 const MARKER = /<commit-context-command>([^<]+)<\/commit-context-command>/;
 

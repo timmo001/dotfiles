@@ -25,4 +25,3 @@ Plugins provide context, evidence, or enforcement hooks for OpenCode. Server plu
 | [`repo-notes`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/plugins/repo-notes.ts) | Injects repo-note context into OpenCode note commands |
 | [`stack-context`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/plugins/stack-context.ts) | Injects codebase stack-context blocks into prompts |
 | [`subagent-chrome-devtools-guard`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/plugins/subagent-chrome-devtools-guard.ts) | Blocks Chrome DevTools tools from delegated subagent sessions |
-| [`workflow-manifest`](https://github.com/timmo001/dotfiles/blob/distro/arch-omarchy-quattro/agents/.config/opencode/plugins/workflow-manifest.ts) | Resolves pushed GitHub Actions runs into a compact watcher manifest |
