@@ -120,7 +120,10 @@ agent_panel_sort = "priority"
 status_indicators = "symbols"
 [ui.sidebar.spaces]
 rows = [
-  ["state_icon", "workspace"],
+  [
+    "state_icon",
+    "workspace",
+  ],
   [
     "branch",
     "git_status",
@@ -134,9 +137,19 @@ rows = [
 [ui.sidebar.agents]
 row_gap = 0
 rows = [
-  ["state_icon", "$title", "$pr"],
-  ["$provider", "$limit"],
-  ["$context", "machine"],
+  [
+    "state_icon",
+    "$title",
+    "$pr",
+  ],
+  [
+    "$provider",
+    "$limit",
+  ],
+  [
+    "$context",
+    "machine",
+  ],
 ]
 
 [ui.toast]
