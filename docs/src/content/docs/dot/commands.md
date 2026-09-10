@@ -560,9 +560,9 @@ Compare enabled repositories with their latest published stable release, explain
 dot git-releases <subcommand> [flags]
 ```
 
-Read the last local snapshot, collecting one on first use. --refresh fetches immutable release and branch refs immediately; --scheduled follows each repository's local-time cron and records attempted minutes. Draft and prerelease releases are excluded. Failed checks retain previous evidence marked stale. Quiet changes remain inspectable. Desktop notifications require --notify and honour configured minimum impact, cooldown and acknowledgement. --open opens the release review, optionally selected by --repo, without fetching.
+Read the last local snapshot, collecting one on first use. --refresh fetches immutable release and branch refs immediately; --scheduled follows each repository's local-time cron and records attempted minutes. Draft and prerelease releases are excluded. Failed checks retain previous evidence marked stale. Quiet changes remain inspectable. Desktop notifications require --notify and honour configured minimum impact and cooldown. --open opens the release review, optionally selected by --repo, without fetching.
 
-Local review and acknowledgement require the displayed snapshot ID. Finding overrides follow exact evidence; an overall override follows the release-relevant comparison. Changed evidence invalidates its review. Use --impact auto to clear an override. Extra CI-only commits do not invalidate an acknowledgement or repeat delivery. Incomplete or stale evidence cannot be acknowledged or reviewed.
+Local reviews require the displayed snapshot ID. Finding overrides follow exact evidence; an overall override follows the release-relevant comparison. Changed evidence invalidates its review. Use --impact auto to clear an override. Extra CI-only commits do not repeat delivery. Incomplete or stale evidence cannot be reviewed.
 
 **Options**
 
@@ -600,7 +600,6 @@ dot git-releases --scheduled --notify --panel-json
 dot git-releases --open --repo example/project
 dot git-releases review --repo example/project --snapshot ID --finding FINDING --impact patch
 dot git-releases review --repo example/project --snapshot ID --impact auto
-dot git-releases acknowledge --repo example/project --snapshot ID
 ```
 
 ### `dot git-releases review`
@@ -620,23 +619,6 @@ dot git-releases review [flags]
 | `--panel-json` | Return the updated complete JSON snapshot |
 | `--finding` `<string>` | Finding ID, or overall for the current release-relevant comparison |
 | `--impact` `<choice>` | Local release impact; auto clears the override (choices: none, patch, minor, major, auto) |
-| `--help` `-h` | Show help information |
-
-### `dot git-releases acknowledge`
-
-Silence the current evidence while keeping it in the overview
-
-```text
-dot git-releases acknowledge [flags]
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--repo` `<string>` | Configured repository name or GitHub slug |
-| `--snapshot` `<string>` | Exact displayed snapshot ID; stale selections are rejected |
-| `--panel-json` | Return the updated complete JSON snapshot |
 | `--help` `-h` | Show help information |
 
 ## `dot mcp-sync`

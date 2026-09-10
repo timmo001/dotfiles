@@ -42,7 +42,6 @@ export function emptyReleaseReview(): ReleaseReviewState {
   return {
     findings: {},
     overall: null,
-    acknowledged: null,
     pending: null,
     delivered: null,
     deliveredAt: null,
@@ -157,7 +156,7 @@ export const saveReleaseDocument = Effect.fn("releases.saveDocument")(
   },
 );
 
-/** Serialise scan, review and acknowledgement across CLI processes, with scoped cleanup. */
+/** Serialise scans and reviews across CLI processes, with scoped cleanup. */
 export function withReleaseLock<A, E, R>(
   paths: ReturnType<typeof releasePaths>,
   effect: Effect.Effect<A, E, R>,
@@ -325,7 +324,6 @@ export function releaseNotificationState(
     snapshot.suggestion !== "none" &&
     order.indexOf(snapshot.suggestion) >=
       order.indexOf(settings.notifications.minimum_impact) &&
-    review.acknowledged !== snapshot.notificationId &&
     review.delivered !== snapshot.notificationId;
   return {
     ...review,

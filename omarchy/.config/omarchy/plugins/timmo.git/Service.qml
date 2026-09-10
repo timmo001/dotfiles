@@ -35,7 +35,7 @@ Item {
   readonly property bool releaseStale: releasesError !== "" || releases.some(function(entry) { return entry.stale || entry.deliveryError })
   readonly property string releaseTooltip: releasesError || releases.map(function(entry) {
     return entry.name + ": " + (entry.stale ? "stale" : (entry.snapshot ? entry.snapshot.suggestion : "not checked"))
-      + (entry.needsAttention ? " · awaiting review" : "") + (entry.pending ? " · notification pending" : "")
+      + (entry.needsAttention ? " · release candidate" : "") + (entry.pending ? " · notification pending" : "")
       + (entry.deliveryError ? " · " + entry.deliveryError : "")
   }).join("\n")
   signal panelUpdated()
@@ -154,11 +154,10 @@ Item {
     }
   }
 
-  function releaseAction(entry, target, impact, acknowledge) {
+  function releaseAction(entry, target, impact) {
     if (!entry || !entry.snapshot || releaseBusy) return
     releaseActionError = ""
-    var args = ["dot", "git-releases", acknowledge ? "acknowledge" : "review", "--repo", entry.repo, "--snapshot", entry.snapshot.id, "--panel-json"]
-    if (!acknowledge) args.push("--finding", target, "--impact", impact)
+    var args = ["dot", "git-releases", "review", "--repo", entry.repo, "--snapshot", entry.snapshot.id, "--panel-json", "--finding", target, "--impact", impact]
     releaseActionProcess.command = args
     releaseActionProcess.running = true
   }

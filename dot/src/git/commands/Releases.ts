@@ -30,7 +30,7 @@ function summary(entries: readonly ReleaseEntry[]): string {
           lines.push(`  ${entry.error ?? "Not checked yet; use --refresh"}`);
         else {
           lines.push(
-            `  ${snapshot.releaseTag} -> ${snapshot.branch}: ${snapshot.complete && !entry.stale ? snapshot.suggestion : `incomplete (provisional ${snapshot.suggestion})`}${snapshot.reviewed ? " (reviewed)" : ""}${entry.acknowledged ? " (acknowledged)" : ""}`,
+            `  ${snapshot.releaseTag} -> ${snapshot.branch}: ${snapshot.complete && !entry.stale ? snapshot.suggestion : `incomplete (provisional ${snapshot.suggestion})`}${snapshot.reviewed ? " (reviewed)" : ""}`,
           );
           lines.push(
             `  ${snapshot.commits.length} commits; ${snapshot.findings.filter((fact) => fact.impact !== "none").length} release-relevant and ${snapshot.findings.filter((fact) => fact.impact === "none").length} quiet findings`,
@@ -83,7 +83,7 @@ export const releasesQuery = Effect.fn("releases.query")(function* (
   yield* flushOutput;
 }, handleCommandError("dot git-releases"));
 
-/** Apply a snapshot-bound local review or acknowledgement and return the new display. */
+/** Apply a snapshot-bound local impact review and return the new display. */
 export const releasesAction = Effect.fn("releases.action")(function* (
   action: ReleaseAction,
   panelJson: boolean,

@@ -51,8 +51,6 @@ export interface ReleaseAction {
   readonly repo: string;
   /** Displayed snapshot ID. */
   readonly snapshot: string;
-  /** Local acknowledgement or impact review. */
-  readonly action: "review" | "acknowledge";
   /** Finding ID or overall. */
   readonly target: string;
   /** Explicit choice, or auto to clear it. */
@@ -79,11 +77,9 @@ export interface ReleaseEntry {
   readonly error: string | null;
   /** Most recent attempted check. */
   readonly attemptedAt: string | null;
-  /** Current evidence was locally acknowledged. */
-  readonly acknowledged: boolean;
   /** Eligible candidate retained for future explicit desktop delivery. */
   readonly pending: string | null;
-  /** Relevant unacknowledged evidence still needs local review. */
+  /** The comparison contains release-relevant changes. */
   readonly needsAttention: boolean;
   /** Desktop delivery failure, separate from stale comparison errors. */
   readonly deliveryError: string | null;
@@ -97,7 +93,7 @@ export interface GitReleasesService {
   readonly query: (
     options: ReleaseQuery,
   ) => Effect.Effect<readonly ReleaseEntry[], ReleaseError>;
-  /** Persist an evidence-bound local review or acknowledgement. */
+  /** Persist an evidence-bound local impact review. */
   readonly action: (
     action: ReleaseAction,
   ) => Effect.Effect<ReleaseEntry, ReleaseError>;
@@ -146,13 +142,8 @@ function entry(
         ? "Release policy or branch changed; refresh the comparison"
         : null),
     attemptedAt: cache.attemptedAt,
-    acknowledged:
-      snapshot !== null && review.acknowledged === snapshot.notificationId,
     pending: review.pending,
-    needsAttention:
-      snapshot !== null &&
-      snapshot.suggestion !== "none" &&
-      review.acknowledged !== snapshot.notificationId,
+    needsAttention: snapshot !== null && snapshot.suggestion !== "none",
     deliveryError: review.deliveryError ?? null,
     notifications: settings.notifications,
   };
@@ -477,7 +468,6 @@ export class GitReleases extends Context.Service<
                       stale: true,
                       error: error.message,
                       attemptedAt: null,
-                      acknowledged: false,
                       pending: null,
                       needsAttention: false,
                       deliveryError: null,
@@ -517,7 +507,7 @@ export class GitReleases extends Context.Service<
             if (current.stale || !current.snapshot?.complete)
               return yield* new ReleaseError({
                 message:
-                  "Release evidence is stale or incomplete; refresh before reviewing or acknowledging",
+                  "Release evidence is stale or incomplete; refresh before reviewing",
               });
             const snapshot = current.snapshot;
             yield* Effect.try({
@@ -529,14 +519,7 @@ export class GitReleases extends Context.Service<
             });
             let updated = yield* Effect.try({
               try: () =>
-                action.action === "acknowledge"
-                  ? { ...review, acknowledged: snapshot.notificationId }
-                  : reviewRelease(
-                      snapshot,
-                      review,
-                      action.target,
-                      action.impact,
-                    ),
+                reviewRelease(snapshot, review, action.target, action.impact),
               catch: (error) =>
                 error instanceof ReleaseError
                   ? error

@@ -161,7 +161,7 @@ export const ReleaseSnapshot = Schema.Struct({
   policyId: Schema.String,
   /** Release-relevant evidence identity for overall reviews. */
   comparisonId: Schema.String,
-  /** Effective release candidate identity for acknowledgement and delivery. */
+  /** Effective release candidate identity for notification delivery. */
   notificationId: Schema.String,
   /** Immutable GitHub comparison link. */
   url: Schema.String,
@@ -193,8 +193,6 @@ export const ReleaseReviewState = Schema.Struct({
   overall: Schema.NullOr(
     Schema.Struct({ comparisonId: Schema.String, impact: Impact }),
   ),
-  /** Last acknowledged effective candidate. */
-  acknowledged: Schema.NullOr(Schema.String),
   /** Candidate awaiting explicit delivery, retained during cooldown. */
   pending: Schema.NullOr(Schema.String),
   /** Last successfully delivered candidate. */

@@ -89,23 +89,23 @@ test("Go requirements and replacements compare structurally, not by source order
   expect(snapshot(facts).suggestion).toBe("patch");
 });
 
-test("quiet head updates preserve overall review and acknowledgement, changed evidence rejects stale actions", () => {
+test("quiet head updates preserve overall review and delivery identity, changed evidence rejects stale actions", () => {
   const relevant = file("src/rule.ts");
   const initial = snapshot([relevant]);
   const review = reviewRelease(initial, emptyReleaseReview(), "overall", "minor");
   const reviewed = applyReleaseReview(initial, review);
-  const acknowledged = { ...review, acknowledged: reviewed.notificationId };
-  const next = applyReleaseReview(snapshot([relevant, file(".github/workflows/check.yml")], "head-two"), acknowledged);
+  const delivered = { ...review, delivered: reviewed.notificationId };
+  const next = applyReleaseReview(snapshot([relevant, file(".github/workflows/check.yml")], "head-two"), delivered);
   expect(next.id).not.toBe(reviewed.id);
   expect(next.comparisonId).toBe(reviewed.comparisonId);
   expect(next.notificationId).toBe(reviewed.notificationId);
   expect(next.suggestion).toBe("minor");
-  expect(releaseNotificationState(next, acknowledged, settings(), false).pending).toBeNull();
+  expect(releaseNotificationState(next, delivered, settings(), false).pending).toBeNull();
   expect(() => assertReleaseSelection(next, reviewed.id)).toThrow("refresh");
   const changed = releaseFact({ ...relevant, after: "100644:different" });
-  const later = applyReleaseReview(snapshot([changed], "head-three"), acknowledged);
+  const later = applyReleaseReview(snapshot([changed], "head-three"), delivered);
   expect(later.suggestion).toBe("patch");
-  expect(releaseNotificationState(later, acknowledged, settings(), false).pending).toBe(later.notificationId);
+  expect(releaseNotificationState(later, delivered, settings(), false).pending).toBe(later.notificationId);
   const quiet = reviewRelease(initial, emptyReleaseReview(), relevant.id, "none");
   expect(applyReleaseReview(initial, quiet).suggestion).toBe("none");
   expect(applyReleaseReview(snapshot([changed]), quiet).suggestion).toBe("patch");
@@ -118,6 +118,8 @@ test("atomic locked persistence retains a failed scan's snapshot and concurrent 
   const current = snapshot([file("src/first.ts"), file("src/second.ts")]);
   try {
     await Effect.runPromise(withReleaseLock(paths, saveReleaseDocument(paths.cache, "snapshot.json", { ...emptyReleaseCache(), snapshot: current, error: "Upstream unavailable" })));
+    const legacyReview = { ...emptyReleaseReview(), acknowledged: current.notificationId, delivered: current.notificationId };
+    await Effect.runPromise(withReleaseLock(paths, saveReleaseDocument(paths.state, "review.json", legacyReview)));
     await Promise.all(current.findings.map((finding) => Effect.runPromise(withReleaseLock(paths, Effect.gen(function* () {
       const { cache, review } = yield* readReleaseState(paths);
       expect(cache.snapshot?.id).toBe(current.id);
@@ -126,6 +128,8 @@ test("atomic locked persistence retains a failed scan's snapshot and concurrent 
       yield* saveReleaseDocument(paths.state, "review.json", reviewRelease(current, review, finding.id, "none"));
     })))));
     const saved = await Effect.runPromise(withReleaseLock(paths, readReleaseState(paths)));
+    expect(saved.review).not.toHaveProperty("acknowledged");
+    expect(saved.review.delivered).toBe(current.notificationId);
     expect(Object.keys(saved.review.findings)).toHaveLength(2);
     expect(saved.cache.snapshot?.id).toBe(current.id);
     expect(releaseNotificationState(current, saved.review, settings(), true).pending).toBeNull();
@@ -133,7 +137,7 @@ test("atomic locked persistence retains a failed scan's snapshot and concurrent 
 });
 
 test("delivery retries failures, serialises success, and preserves pending evidence through cooldown without re-fetching", async () => {
-  const root = mkdtempSync("/tmp/opencode/release-delivery-");
+  const root = mkdtempSync(join(tmpdir(), "release-delivery-"));
   const paths = releasePaths("example/project", root, root);
   const original = snapshot([file("src/rule.ts")]);
   let now = Date.parse("2026-09-10T12:00:00Z");
@@ -190,7 +194,6 @@ test("delivery retries failures, serialises success, and preserves pending evide
     for (const [candidate, state, stale, config] of [
       [original, emptyReleaseReview(), true, settings()],
       [{ ...original, complete: false }, emptyReleaseReview(), false, settings()],
-      [original, { ...emptyReleaseReview(), acknowledged: original.notificationId }, false, settings()],
       [snapshot([file(".github/workflows/ci.yml")]), emptyReleaseReview(), false, settings()],
       [original, emptyReleaseReview(), false, { ...settings(), notifications: { ...settings().notifications, minimum_impact: "minor" as const } }],
       [original, emptyReleaseReview(), false, { ...settings(), notifications: { ...settings().notifications, enabled: false } }],

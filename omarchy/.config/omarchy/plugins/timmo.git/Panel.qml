@@ -61,7 +61,6 @@ Panel {
           rows.push(actionRow("release-policy", "Edit policy", ""))
           if (releaseSnapshot) {
             rows.push(actionRow("release-choice", "Overall impact: " + releaseSnapshot.suggestion + (releaseSnapshot.reviewed ? " (reviewed)" : " (auto)"), "󰓹"))
-            rows.push(actionRow("release-acknowledge", selectedRelease.acknowledged ? "Acknowledged" : "Acknowledge this evidence", ""))
             rows.push(actionRow("release-evidence", "Open full comparison", ""))
             rows.push(actionRow("release-commits", "All commits · " + releaseSnapshot.commits.length, ""))
             rows.push(actionRow("release-files", "Changed files · " + releaseFiles().length, ""))
@@ -130,7 +129,7 @@ Panel {
     }
     if (view === "overview") {
       rows.push(actionRow("other", "Other repositories", "󰙅"))
-      rows.push(actionRow("releases", "Unreleased changes" + (service && service.releasePendingCount ? " · " + service.releasePendingCount + " awaiting review" : ""), "󰓹"))
+      rows.push(actionRow("releases", "Unreleased changes" + (service && service.releasePendingCount ? " · " + service.releasePendingCount + " release candidates" : ""), "󰓹"))
     }
     var threads = service && (view === "overview" || view === "notifications") ? service.threads : []
     for (var k = 0; k < threads.length; k++) {
@@ -172,7 +171,7 @@ Panel {
 
   function releaseDetail(entry) {
     return (entry.snapshot ? entry.snapshot.releaseTag + " → " + entry.branch + " · " + entry.snapshot.suggestion : entry.branch + " · not checked")
-      + (entry.stale ? " · stale" : "") + (entry.acknowledged ? " · acknowledged" : (entry.needsAttention ? " · awaiting review" : ""))
+      + (entry.stale ? " · stale" : "") + (entry.needsAttention ? " · release candidate" : "")
       + (entry.pending ? " · notification pending" : "")
   }
 
@@ -322,10 +321,7 @@ Panel {
     else if (action === "release-policy") { close(); service.editReleasePolicy(selectedRelease) }
     else if (["release-choice", "release-commits", "release-files"].indexOf(action) >= 0) showView(action)
     else if (action === "release-evidence") service.openEvidence(view === "finding" ? findingUrl(selectedFinding) : (releaseSnapshot ? releaseSnapshot.url : ""))
-    else if (action === "release-acknowledge") {
-      if (selectedRelease && !selectedRelease.acknowledged) service.releaseAction(selectedRelease, "overall", "auto", true)
-    }
-    else if (action.indexOf("impact:") === 0) service.releaseAction(selectedRelease, view === "finding" ? selectedFindingId : "overall", action.slice(7), false)
+    else if (action.indexOf("impact:") === 0) service.releaseAction(selectedRelease, view === "finding" ? selectedFindingId : "overall", action.slice(7))
     else if (action === "back" && releaseView) showView(view === "releases" ? "overview" : (view === "release" ? "releases" : "release"))
     else if (action === "refresh") service.refresh()
     else if (action === "changed" || action === "other") showView(action)

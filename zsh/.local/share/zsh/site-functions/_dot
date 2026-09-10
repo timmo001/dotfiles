@@ -516,7 +516,6 @@ _dot_git_releases() {
   local -a commands
   commands=(
     'review:Review exact local release evidence without publishing anything'
-    'acknowledge:Silence the current evidence while keeping it in the overview'
   )
 
   local -a specs
@@ -549,9 +548,6 @@ _dot_git_releases() {
         review)
           _dot_git_releases_review
           ;;
-        acknowledge)
-          _dot_git_releases_acknowledge
-          ;;
       esac
       ;;
   esac
@@ -566,19 +562,6 @@ _dot_git_releases_review() {
     '(--panel-json --no-panel-json)--no-panel-json[Disable panel-json]'
     '(--finding)--finding[Finding ID, or overall for the current release-relevant comparison]:value:'
     '(--impact)--impact[Local release impact; auto clears the override]:value:(none patch minor major auto)'
-    '(--help -h)--help[Show help information]'
-    '(--help -h)-h[Show help information]'
-  )
-  _arguments "${specs[@]}"
-}
-
-_dot_git_releases_acknowledge() {
-  local -a specs
-  specs=(
-    '(--repo)--repo[Configured repository name or GitHub slug]:value:'
-    '(--snapshot)--snapshot[Exact displayed snapshot ID; stale selections are rejected]:value:'
-    '(--panel-json --no-panel-json)--panel-json[Return the updated complete JSON snapshot]'
-    '(--panel-json --no-panel-json)--no-panel-json[Disable panel-json]'
     '(--help -h)--help[Show help information]'
     '(--help -h)-h[Show help information]'
   )
