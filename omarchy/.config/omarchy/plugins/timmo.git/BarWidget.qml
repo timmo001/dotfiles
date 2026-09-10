@@ -27,21 +27,17 @@ BarWidget {
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
   readonly property bool popoutSwitchClosing: panelLoader.item ? panelLoader.item.popoutSwitchClosing === true : false
   readonly property real openPanelIndicatorWidth: button.labelWidth
-  readonly property bool hiddenByState: git && git.clear
-  readonly property bool hoverRevealed: hiddenByState
-    && setting("revealOnHover", true)
-    && !!bar && bar.barHovered === true
-  readonly property bool shown: !git || !hiddenByState || hoverRevealed || opened
   readonly property string displayText: {
     if (!git) return " ?   ?"
-    if (root.hiddenByState && (root.hoverRevealed || root.opened)) return "  "
     var values = []
     if (git.diffError !== "") values.push(" ?")
     else if (!git.diffLoaded) values.push(" ..")
     else if (git.repos.length > 0) values.push(" " + git.repos.length)
+    else values.push("")
     if (git.notificationsError !== "") values.push(" ?")
     else if (!git.notificationsLoaded) values.push(" ..")
     else if (git.threads.length > 0) values.push(" " + git.threads.length)
+    else values.push("")
     return values.join("  ")
   }
   readonly property color displayColor: {
@@ -105,8 +101,8 @@ BarWidget {
     panel.service = root.git
   }
 
-  visible: activeInstance && shown
-  implicitWidth: activeInstance && shown ? button.implicitWidth : 0
+  visible: activeInstance
+  implicitWidth: activeInstance ? button.implicitWidth : 0
   implicitHeight: button.implicitHeight
 
   onBarChanged: injectPanel()
@@ -156,7 +152,6 @@ BarWidget {
     bar: root.bar
     fontSize: 10
     text: root.displayText
-    dimmed: root.hoverRevealed
     foreground: root.displayColor
     tooltipText: root.tooltipText
     horizontalMargin: 6
