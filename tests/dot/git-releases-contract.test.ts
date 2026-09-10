@@ -164,7 +164,7 @@ test("version formats preserve exact JSON and Python bytes and reject ambiguous 
 });
 
 test("prepared Python and JSON writes are exact and validation cannot widen the version edit", async () => {
-  const root = mkdtempSync("/tmp/opencode/release-preparation-");
+  const root = mkdtempSync(join(tmpdir(), "release-preparation-"));
   const config: ReleaseSettings = { ...settings(), publish: { version_files: ["package.json", { path: "setup.py", format: "python-setup" }], commands: [["validate"]] } };
   const current = snapshot([file("src/app.ts")]);
   const module = (path: string) => JSON.stringify(join(import.meta.dir, "../../dot", path));
