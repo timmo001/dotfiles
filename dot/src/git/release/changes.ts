@@ -239,10 +239,18 @@ function lockGraph(
     if (!Array.isArray(record) || !isString(record[0]))
       throw new Error(`Invalid Bun package record: ${key}`);
     const workspacePath = record[0].split("@workspace:")[1];
-    const metadata =
-      workspacePath !== undefined
-        ? object(workspaces[workspacePath])
-        : object(record[2]);
+    let metadata: JsonObject;
+    if (workspacePath !== undefined)
+      metadata = object(workspaces[workspacePath]);
+    else if (record[0].includes("@github:")) {
+      if (!isJsonObject(record[1]) || !isString(record[2]))
+        throw new Error(`Invalid Bun package record: ${key}`);
+      metadata = record[1];
+    } else {
+      if (!isString(record[1]) || !isJsonObject(record[2]))
+        throw new Error(`Invalid Bun package record: ${key}`);
+      metadata = record[2];
+    }
     for (const field of [
       "dependencies",
       "optionalDependencies",

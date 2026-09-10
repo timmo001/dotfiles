@@ -8,6 +8,7 @@ import {
 import { formatCause } from "../../lib/schema.js";
 import { GitHub } from "./GitHub.js";
 import {
+  nextReleaseTag,
   publishRelease,
   type ReleasePublishAction,
   type ReleasePublishResult,
@@ -93,6 +94,8 @@ export interface ReleaseEntry {
   readonly notifications: ReleaseSettings["notifications"];
   /** A local programmatic publishing recipe is available. */
   readonly publishAvailable: boolean;
+  /** Authoritative proposed tag, or null when no valid release can be proposed. */
+  readonly nextVersion: string | null;
 }
 
 /** CLI and panel operations with opt-in desktop delivery. */
@@ -126,6 +129,7 @@ function policyIdentity(settings: ReleaseSettings): string {
     settings.overrides ?? [],
     settings.source_excludes ?? [],
     settings.source_minor_threshold ?? null,
+    settings.versioning ?? "semver",
   ]);
 }
 
@@ -135,6 +139,7 @@ function entry(
   cache: ReleaseCache,
   review: ReleaseReviewState,
   configPath: string,
+  timestamp: number,
 ): ReleaseEntry {
   const snapshot = cache.snapshot
     ? applyReleaseReview(cache.snapshot, review)
@@ -143,6 +148,15 @@ function entry(
     snapshot !== null &&
     (snapshot.branch !== settings.branch ||
       snapshot.policyId !== policyIdentity(settings));
+  const stale = cache.error !== null || changed;
+  let nextVersion: string | null = null;
+  if (snapshot?.complete && !stale) {
+    try {
+      nextVersion = nextReleaseTag(snapshot, settings.versioning, timestamp);
+    } catch (error) {
+      if (!(error instanceof ReleaseError)) throw error;
+    }
+  }
   return {
     repo: repo.github,
     name: repo.name,
@@ -150,7 +164,7 @@ function entry(
     configPath,
     branch: settings.branch,
     snapshot,
-    stale: cache.error !== null || changed,
+    stale,
     error:
       cache.error ??
       (changed
@@ -162,6 +176,7 @@ function entry(
     deliveryError: review.deliveryError ?? null,
     notifications: settings.notifications,
     publishAvailable: settings.publish !== undefined,
+    nextVersion,
   };
 }
 
@@ -425,16 +440,28 @@ export class GitReleases extends Context.Service<
                 applyReleaseReview(cache.snapshot, review),
                 review,
                 settings,
-                entry(repo, settings, cache, review, config.gitConfig.filePath)
-                  .stale,
+                entry(
+                  repo,
+                  settings,
+                  cache,
+                  review,
+                  config.gitConfig.filePath,
+                  now,
+                ).stale,
               );
             if (options.notify && cache.snapshot)
               review = yield* deliverReleaseNotification(
                 applyReleaseReview(cache.snapshot, review),
                 review,
                 settings,
-                entry(repo, settings, cache, review, config.gitConfig.filePath)
-                  .stale,
+                entry(
+                  repo,
+                  settings,
+                  cache,
+                  review,
+                  config.gitConfig.filePath,
+                  now,
+                ).stale,
               ).pipe(Effect.provideService(CommandExecutor, executor));
             yield* saveReleaseDocument(paths.state, "review.json", review);
             yield* saveReleaseDocument(paths.cache, "snapshot.json", cache);
@@ -444,6 +471,7 @@ export class GitReleases extends Context.Service<
               cache,
               review,
               config.gitConfig.filePath,
+              now,
             );
           }),
         );
@@ -453,6 +481,7 @@ export class GitReleases extends Context.Service<
         options: ReleaseQuery,
       ) {
         const repositories = yield* select(options.repo);
+        const now = yield* Clock.currentTimeMillis;
         return yield* Effect.forEach(
           repositories,
           (repo) => {
@@ -471,6 +500,7 @@ export class GitReleases extends Context.Service<
                       { ...cache, error: error.message },
                       { ...review, pending: null },
                       config.gitConfig.filePath,
+                      now,
                     ),
                   ),
                   Effect.catch(() =>
@@ -489,6 +519,7 @@ export class GitReleases extends Context.Service<
                       deliveryError: null,
                       notifications: settings.notifications,
                       publishAvailable: settings.publish !== undefined,
+                      nextVersion: null,
                     } satisfies ReleaseEntry),
                   ),
                 ),
@@ -514,12 +545,14 @@ export class GitReleases extends Context.Service<
           paths,
           Effect.gen(function* () {
             const { cache, review } = yield* readReleaseState(paths);
+            const now = yield* Clock.currentTimeMillis;
             const current = entry(
               repo,
               settings,
               cache,
               review,
               config.gitConfig.filePath,
+              now,
             );
             if (current.stale || !current.snapshot?.complete)
               return yield* new ReleaseError({
@@ -557,6 +590,7 @@ export class GitReleases extends Context.Service<
               cache,
               updated,
               config.gitConfig.filePath,
+              now,
             );
           }),
         );
@@ -577,12 +611,14 @@ export class GitReleases extends Context.Service<
           paths,
           Effect.gen(function* () {
             const { cache, review } = yield* readReleaseState(paths);
+            const now = yield* Clock.currentTimeMillis;
             const current = entry(
               repo,
               settings,
               cache,
               review,
               config.gitConfig.filePath,
+              now,
             );
             if (
               current.stale ||

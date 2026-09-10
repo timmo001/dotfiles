@@ -40,6 +40,19 @@ export const ReleaseRule = Schema.Struct({
 /** One ordered classification rule. */
 export type ReleaseRule = typeof ReleaseRule.Type;
 
+/** JSON manifest path or an explicit Python setup version source. */
+export const ReleaseVersionFile = Schema.Union([
+  Schema.String,
+  Schema.Struct({
+    /** Repository-relative setup.py path. */
+    path: Schema.String,
+    /** Literal keyword version in a setup call. */
+    format: Schema.Literal("python-setup"),
+  }),
+]);
+/** Supported version sources for release preparation. */
+export type ReleaseVersionFile = typeof ReleaseVersionFile.Type;
+
 /** Optional per-repository release watcher configuration. */
 export const ReleaseSettings = Schema.Struct({
   /** Enable release comparisons. */
@@ -49,7 +62,9 @@ export const ReleaseSettings = Schema.Struct({
   /** Remote branch to compare with the published stable release. */
   branch: Schema.String,
   /** Portable shipped-content policy. */
-  policy: Schema.Literals(["oxlint-rules", "system-bridge"]),
+  policy: Schema.Literals(["oxlint-rules", "system-bridge", "application"]),
+  /** Stable tag scheme; omission retains SemVer. */
+  versioning: Schema.optional(Schema.Literals(["semver", "calver"])),
   /** Changed source lines above this cutoff suggest minor; omission disables the heuristic. */
   source_minor_threshold: Schema.optional(Schema.Number),
   /** Paths excluded from the source-size heuristic; new paths count by default. */
@@ -59,8 +74,8 @@ export const ReleaseSettings = Schema.Struct({
   /** Explicit local recipe for confirmed, programmatic releases. */
   publish: Schema.optional(
     Schema.Struct({
-      /** JSON manifests whose top-level version must match the new tag. */
-      version_files: Schema.Array(Schema.String),
+      /** Version sources which must match the new tag. */
+      version_files: Schema.Array(ReleaseVersionFile),
       /** Ordered preparation and validation commands, each an argv array. */
       commands: Schema.Array(Schema.Array(Schema.String)),
     }),

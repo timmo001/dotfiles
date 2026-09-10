@@ -7,7 +7,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join, relative } from "node:path";
-import { Effect, Schema, Stream } from "effect";
+import { Clock, Effect, Schema, Stream } from "effect";
 import {
   CommandError,
   CommandExecutor,
@@ -16,7 +16,7 @@ import {
   normalizeGitHubSlug,
   type GitManagedRepo,
 } from "../../services/GitConfig.js";
-import { formatCause } from "../../lib/schema.js";
+import { formatCause, isString } from "../../lib/schema.js";
 import { GitHub } from "../services/GitHub.js";
 import { evidenceId } from "./changes.js";
 import { releasePaths } from "./state.js";
@@ -24,6 +24,7 @@ import {
   ReleaseError,
   type ReleaseSettings,
   type ReleaseSnapshot,
+  type ReleaseVersionFile,
 } from "./types.js";
 
 /** Preview selection, or explicit confirmation of the returned plan identity. */
@@ -108,6 +109,78 @@ function withManifestVersion(content: string, version: string): string {
       "Could not replace the top-level manifest version while preserving formatting",
   });
 }
+
+/** Read and replace one supported version literal, preserving every other byte. */
+export function prepareReleaseVersion(
+  content: string,
+  file: ReleaseVersionFile,
+  version: string,
+) {
+  if (isString(file)) {
+    const before = Schema.decodeSync(Manifest)(content).version;
+    return { before, content: withManifestVersion(content, version) };
+  }
+
+  // Tokenise without evaluating Python, so comments and strings cannot mimic keywords.
+  const tokens = [
+    ...content.matchAll(
+      /#[^\r\n]*|'''(?:\\[\s\S]|(?!''')[^\\])*'''|"""(?:\\[\s\S]|(?!""")[^\\])*"""|'(?:\\[\s\S]|[^'\\\r\n])*'|"(?:\\[\s\S]|[^"\\\r\n])*"|[A-Za-z_]\w*|\s+|[^\s]/g,
+    ),
+  ].filter((token) => !/^(?:\s|#)/.test(token[0]));
+  const calls = tokens.flatMap((token, index) =>
+    token[0] === "setup" && tokens[index + 1]?.[0] === "(" ? [index + 1] : [],
+  );
+  const invalid = () =>
+    new ReleaseError({
+      message: `${file.path} must contain one explicit literal version keyword in a single setup call`,
+    });
+  if (
+    calls.length !== 1 ||
+    tokens.some((token) => token[0] === "'" || token[0] === '"')
+  )
+    throw invalid();
+  const opening = calls[0];
+  if (tokens[opening - 2]?.[0] === "def") throw invalid();
+  if (
+    tokens[opening - 2]?.[0] === "." &&
+    tokens[opening - 3]?.[0] !== "setuptools"
+  )
+    throw invalid();
+  const stack = ["("];
+  let literal: RegExpExecArray | undefined;
+  for (let index = opening + 1; index < tokens.length; index++) {
+    const token = tokens[index][0];
+    if (stack.length === 1) {
+      if (token === "*" && tokens[index + 1]?.[0] === "*") throw invalid();
+      if (token === "version" && tokens[index + 1]?.[0] === "=") {
+        if (literal || !["(", ","].includes(tokens[index - 1][0]))
+          throw invalid();
+        literal = tokens[index + 2];
+        if (
+          !literal ||
+          !/^(['"])\d+(?:\.\d+)+\1$/.test(literal[0]) ||
+          ![",", ")"].includes(tokens[index + 3]?.[0])
+        )
+          throw invalid();
+      }
+    }
+    if (["(", "[", "{"].includes(token)) stack.push(token);
+    else if ([")", "]", "}"].includes(token)) {
+      if (stack.pop() !== { ")": "(", "]": "[", "}": "{" }[token])
+        throw invalid();
+      if (stack.length === 0) break;
+    }
+  }
+  if (stack.length || !literal || !/^\d+(?:\.\d+)+$/.test(version))
+    throw invalid();
+  return {
+    before: literal[0].slice(1, -1),
+    content:
+      content.slice(0, literal.index + 1) +
+      version +
+      content.slice(literal.index + literal[0].length - 1),
+  };
+}
 const StableRelease = Schema.Struct({
   tag_name: Schema.String,
   draft: Schema.Boolean,
@@ -115,7 +188,59 @@ const StableRelease = Schema.Struct({
 });
 
 /** Increment a stable SemVer tag using the reviewed consumer impact. */
-export function nextReleaseTag(snapshot: ReleaseSnapshot): string {
+export function nextReleaseTag(snapshot: ReleaseSnapshot): string;
+/** Compute the configured stable tag using an explicitly supplied timestamp. */
+export function nextReleaseTag(
+  snapshot: ReleaseSnapshot,
+  versioning: ReleaseSettings["versioning"],
+  timestamp: number,
+): string;
+/** Compute the next stable tag without reading the wall clock. */
+export function nextReleaseTag(
+  snapshot: ReleaseSnapshot,
+  versioning: ReleaseSettings["versioning"] = "semver",
+  timestamp?: number,
+): string {
+  if (versioning === "calver") {
+    const match = /^(v?)(\d{4})(\d{2})(\d{2})\.(0|[1-9]\d*)$/.exec(
+      snapshot.releaseTag,
+    );
+    const now = new Date(timestamp ?? NaN);
+    if (
+      !match ||
+      snapshot.suggestion === "none" ||
+      !Number.isFinite(now.getTime()) ||
+      now.getUTCFullYear() < 1 ||
+      now.getUTCFullYear() > 9999
+    )
+      throw new ReleaseError({
+        message:
+          "Choose a release impact, a valid UTC date and a stable YYYYMMDD.N baseline before creating a release",
+      });
+    const date = `${match[2]}-${match[3]}-${match[4]}`;
+    const baseline = new Date(`${date}T00:00:00.000Z`);
+    if (
+      Number(match[2]) < 1 ||
+      !Number.isFinite(baseline.getTime()) ||
+      baseline.toISOString().slice(0, 10) !== date
+    )
+      throw new ReleaseError({
+        message: "The CalVer baseline must contain a valid calendar date",
+      });
+    const today = now.toISOString().slice(0, 10);
+    if (date > today)
+      throw new ReleaseError({
+        message:
+          "The CalVer baseline is in the future; reconcile it before creating a release",
+      });
+    const count = Number(match[5]);
+    const next = date === today ? count + 1 : 0;
+    if (!Number.isSafeInteger(count) || !Number.isSafeInteger(next))
+      throw new ReleaseError({
+        message: "CalVer release counts must be safe integers",
+      });
+    return `${match[1]}${today.replaceAll("-", "")}.${next}`;
+  }
   const match = /^(v?)(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(
     snapshot.releaseTag,
   );
@@ -163,8 +288,9 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
     });
     yield* report(message);
   });
+  const timestamp = yield* Clock.currentTimeMillis;
   const tag = yield* Effect.try({
-    try: () => nextReleaseTag(snapshot),
+    try: () => nextReleaseTag(snapshot, settings.versioning, timestamp),
     catch: (error) => new ReleaseError({ message: formatCause(error) }),
   });
   const version = tag.replace(/^v/, "");
@@ -230,33 +356,38 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
       });
   });
   yield* verifyRemote(snapshot.head);
-  const versions = yield* Effect.forEach(recipe.version_files, (path) =>
+  const prepared = yield* Effect.forEach(recipe.version_files, (file) =>
     Effect.gen(function* () {
+      const path = isString(file) ? file : file.path;
       const mode = (yield* git(["ls-tree", snapshot.head, "--", path])).split(
         " ",
       )[0];
       if (mode !== "100644" && mode !== "100755")
         return yield* new ReleaseError({
-          message: `${path} must be a tracked regular JSON file`,
+          message: `${path} must be a tracked regular version file`,
         });
-      const manifest = yield* git(["show", `${snapshot.head}:${path}`]).pipe(
-        Effect.flatMap(Schema.decodeUnknownEffect(Manifest)),
-        Effect.mapError(
-          (error) => new ReleaseError({ message: formatCause(error) }),
-        ),
-      );
+      const original = yield* git(["show", `${snapshot.head}:${path}`]);
+      const manifest = yield* Effect.try({
+        try: () => prepareReleaseVersion(original, file, version),
+        catch: (error) => new ReleaseError({ message: formatCause(error) }),
+      });
       if (
         ![snapshot.releaseTag.replace(/^v/, ""), version].includes(
-          manifest.version,
+          manifest.before,
         )
       )
         return yield* new ReleaseError({
-          message: `${path} has version ${manifest.version}; reconcile it with ${tag} in the release preparation session`,
+          message: `${path} has version ${manifest.before}; reconcile it with ${tag} in the release preparation session`,
         });
-      return { path, before: manifest.version, after: version };
+      return { file, path, before: manifest.before, after: version };
     }),
   );
-  const changed = versions.filter((file) => file.before !== file.after);
+  const versions = prepared.map(({ path, before, after }) => ({
+    path,
+    before,
+    after,
+  }));
+  const changed = prepared.filter((file) => file.before !== file.after);
   const needsPreparation = changed.length > 0 || recipe.commands.length > 0;
   const id = evidenceId([snapshot.id, remote, tag, recipe, versions]);
   const logPath = join(releasePaths(repo.github).state, `publish-${id}.log`);
@@ -393,7 +524,10 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
             if (relative(realpathSync(directory), path).startsWith(".."))
               throw new Error(`${file.path} leaves the prepared worktree`);
             const content = readFileSync(path, "utf8");
-            writeFileSync(path, withManifestVersion(content, version));
+            writeFileSync(
+              path,
+              prepareReleaseVersion(content, file.file, version).content,
+            );
           },
           catch: (error) => new ReleaseError({ message: formatCause(error) }),
         });
@@ -421,14 +555,14 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
           message:
             "Validation changed files outside the confirmed version bump; inspect the retained worktree",
         });
-      for (const file of versions) {
+      for (const file of prepared) {
         const original = yield* git(["show", `${snapshot.head}:${file.path}`]);
         yield* Effect.try({
           try: () => {
             const expected =
               file.before === file.after
                 ? original
-                : withManifestVersion(original, version);
+                : prepareReleaseVersion(original, file.file, version).content;
             if (readFileSync(join(directory, file.path), "utf8") !== expected)
               throw new Error(
                 `Validation changed ${file.path} beyond its agreed version bump`,

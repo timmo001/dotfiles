@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Clock, Effect, Stream } from "../../dot/node_modules/effect/dist/index.js";
@@ -11,7 +11,7 @@ import { acceptReleaseSnapshot, applyReleaseReview, assertReleaseSelection, empt
 import { CommandError, CommandExecutor } from "../../dot/src/services/CommandExecutor.js";
 import { deliverReleaseNotification } from "../../dot/src/git/services/GitReleases.js";
 import { GitHub } from "../../dot/src/git/services/GitHub.js";
-import { nextReleaseTag, publishRelease } from "../../dot/src/git/release/publish.js";
+import { nextReleaseTag, prepareReleaseVersion, publishRelease } from "../../dot/src/git/release/publish.js";
 import type { ReleaseFact, ReleaseReviewState, ReleaseSettings, ReleaseSnapshot } from "../../dot/src/git/release/types.js";
 
 const repository: GitManagedRepo = {
@@ -31,17 +31,18 @@ function settings(): ReleaseSettings {
 }
 
 test("release confirmation binds the reviewed head and recipe before any write", async () => {
-  const config = { ...settings(), publish: { version_files: ["package.json"], commands: [["mise", "run", "check"]] } };
+  const config = { ...settings(), publish: { version_files: ["package.json", { path: "setup.py", format: "python-setup" as const }], commands: [["mise", "run", "check"]] } };
   const current = snapshot([file("src/rule.ts")], "reviewed-head", config);
   const writes: string[] = [];
   let remoteHead = current.head;
   let newTag = "";
+  let python = 'setup(\n    name="example",\n    version="1.0.0",\n)\n';
   const executor = CommandExecutor.of({
     run: (_command, args) => Effect.sync(() => {
       if (args[0] === "remote") return "git@github.com:example/project.git\n";
       if (args[0] === "ls-remote") return `${remoteHead}\trefs/heads/main\npublished\trefs/tags/1.0.0\n${newTag}`;
       if (args[0] === "ls-tree") return "100644 blob hash\tpackage.json\n";
-      if (args[0] === "show") return '{"version":"1.0.0"}';
+      if (args[0] === "show") return args[1].endsWith(":setup.py") ? python : '{"version":"1.0.0"}';
       writes.push(args.join(" "));
       throw new Error("Unexpected write");
     }),
@@ -60,9 +61,12 @@ test("release confirmation binds the reviewed head and recipe before any write",
   const preview = await run();
   expect(preview.type).toBe("plan");
   if (preview.type !== "plan") throw new Error("Expected preview");
-  expect(preview.plan.versions).toEqual([{ path: "package.json", before: "1.0.0", after: "1.0.1" }]);
+  expect(preview.plan.versions).toEqual([{ path: "package.json", before: "1.0.0", after: "1.0.1" }, { path: "setup.py", before: "1.0.0", after: "1.0.1" }]);
   expect(preview.plan.steps.join("\n")).toContain("Atomically push");
   expect(writes).toEqual([]);
+  python = 'setup(version=get_version())';
+  await expect(run()).rejects.toThrow("explicit literal version");
+  python = 'setup(version="1.0.0")';
   await expect(run({ ...config, publish: { ...config.publish, commands: [["different-check"]] } }, preview.plan.id)).rejects.toThrow("plan changed");
   remoteHead = "new-head";
   await expect(run(config, preview.plan.id)).rejects.toThrow("watched branch changed");
@@ -70,6 +74,256 @@ test("release confirmation binds the reviewed head and recipe before any write",
   newTag = "another-commit\trefs/tags/1.0.1\n";
   await expect(run(config, preview.plan.id)).rejects.toThrow("already exists");
   expect(writes).toEqual([]);
+});
+
+test("CalVer uses UTC dates, validates baselines and safely increments same-day counts", () => {
+  const current = snapshot([file("src/app.ts")]);
+  const next = (releaseTag: string, date: string) => nextReleaseTag({ ...current, releaseTag }, "calver", Date.parse(date));
+  expect(next("v20260910.7", "2026-09-10T23:59:59.999Z")).toBe("v20260910.8");
+  expect(next("v20260910.7", "2026-09-11T00:00:00Z")).toBe("v20260911.0");
+  expect(next("20261231.2", "2027-01-01T00:30:00+01:00")).toBe("20261231.3");
+  expect(next("20261231.2", "2027-01-01T00:00:00Z")).toBe("20270101.0");
+  expect(next("20240229.0", "2024-03-01T00:00:00Z")).toBe("20240301.0");
+  for (const baseline of ["20260229.0", "20260931.0", "20260010.0", "20261301.0", "20260910.01", "20260910.-1", "1.0.0", "20260910.9007199254740992"]) {
+    expect(() => next(baseline, "2026-09-10T12:00:00Z")).toThrow();
+  }
+  expect(() => next("20260911.0", "2026-09-10T12:00:00Z")).toThrow("future");
+  expect(() => next("20260910.9007199254740991", "2026-09-10T12:00:00Z")).toThrow("safe integers");
+  expect(() => next("20260910.0", "invalid")).toThrow();
+  expect(() => nextReleaseTag({ ...current, releaseTag: "20260910.0", suggestion: "none" }, "calver", Date.parse("2026-09-10T12:00:00Z"))).toThrow("release impact");
+  expect(nextReleaseTag(current)).toBe("1.0.1");
+});
+
+test("UTC midnight invalidates the CalVer preview confirmation without writing", async () => {
+  const config: ReleaseSettings = { ...settings(), policy: "application", versioning: "calver", publish: { version_files: [], commands: [] } };
+  const current = { ...snapshot([file("src/app.ts")], "head", config), releaseTag: "20260910.2" };
+  let now = Date.parse("2026-09-10T23:59:59Z");
+  const executor = CommandExecutor.of({
+    run: (_command, args) => {
+      if (args[0] === "remote") return Effect.succeed("git@github.com:example/project.git\n");
+      if (args[0] === "ls-remote") return Effect.succeed(`head\trefs/heads/main\npublished\trefs/tags/${current.releaseTag}\n`);
+      return Effect.die("Unexpected process");
+    },
+    stream: () => Stream.die("Unexpected write"),
+    exitCode: () => Effect.die("Unexpected process"), inherit: () => Effect.die("Unexpected process"),
+  });
+  const github = GitHub.of({
+    isAvailable: () => Effect.succeed(true),
+    json: () => Effect.succeed({ tag_name: current.releaseTag, draft: false, prerelease: false }),
+    api: () => Effect.die("Unexpected API call"), run: () => Effect.die("Unexpected release"),
+  });
+  const run = (confirmation?: string) => Effect.runPromise(Clock.clockWith((clock) => publishRelease(repository, config, current, confirmation, () => Effect.void).pipe(
+    Effect.provideService(CommandExecutor, executor), Effect.provideService(GitHub, github),
+    Effect.provideService(Clock.Clock, {
+      sleep: clock.sleep.bind(clock), currentTimeMillis: Effect.succeed(now), currentTimeMillisUnsafe: () => now,
+      currentTimeNanos: Effect.succeed(BigInt(now) * 1000000n), currentTimeNanosUnsafe: () => BigInt(now) * 1000000n,
+      monotonicTimeNanos: clock.monotonicTimeNanos, monotonicTimeNanosUnsafe: clock.monotonicTimeNanosUnsafe.bind(clock),
+    }),
+  )));
+  const before = await run();
+  if (before.type !== "plan") throw new Error("Expected preview");
+  expect(before.plan.tag).toBe("20260910.3");
+  expect(existsSync(before.plan.logPath)).toBe(false);
+  now = Date.parse("2026-09-11T00:00:00Z");
+  await expect(run(before.plan.id)).rejects.toThrow("plan changed");
+  const after = await run();
+  if (after.type !== "plan") throw new Error("Expected preview");
+  expect(after.plan.tag).toBe("20260911.0");
+  expect(after.plan.id).not.toBe(before.plan.id);
+  expect(existsSync(before.plan.logPath)).toBe(false);
+  expect(existsSync(after.plan.logPath)).toBe(false);
+});
+
+test("version formats preserve exact JSON and Python bytes and reject ambiguous or dynamic Python", () => {
+  const python = { path: "package/setup.py", format: "python-setup" as const };
+  const source = '# version="unrelated"\r\nfrom setuptools import setup\r\nsetup(\r\n    name="example",\r\n    version = "5.4.4",  # keep this\r\n    description="version=other",\r\n)\r\n';
+  expect(prepareReleaseVersion(source, python, "5.4.5")).toEqual({ before: "5.4.4", content: source.replace('"5.4.4"', '"5.4.5"') });
+  expect(prepareReleaseVersion("setuptools.setup(version='5.4.4')\n", python, "5.5.0").content).toBe("setuptools.setup(version='5.5.0')\n");
+  for (const content of [
+    'version="5.4.4"',
+    'setup(version=VERSION)',
+    'setup(version=get_version())',
+    'setup(version="5.4.4" + suffix)',
+    'setup(version="5.4.4" if stable else "5.4.5")',
+    'setup(version=f"5.4.4")',
+    'setup(version="5.4.4" "extra")',
+    'setup(version="""5.4.4""")',
+    'setup(version="5.4.4", version="5.4.5")',
+    'setup(version="5.4.4", **kwargs)',
+    'setup(version="5.4.4")\nsetup(version="5.4.5")',
+    'def setup(version="5.4.4"):\n    pass\n',
+    'setup(name=dict(version="5.4.4"))',
+    'setup(version="5.4.4"',
+    'setup(version="5.4.4)\n',
+    '# setup(version="5.4.4")\n',
+    '"""setup(version="5.4.4")"""\n',
+  ]) expect(() => prepareReleaseVersion(content, python, "5.4.5")).toThrow("explicit literal version");
+  const json = '{\r\n  "nested": {"version": "5.4.4"},\r\n  "version" : "5.4.4",\r\n  "keep": [1, 2]\r\n}\r\n';
+  expect(prepareReleaseVersion(json, "package.json", "5.4.5")).toEqual({ before: "5.4.4", content: json.replace('"version" : "5.4.4"', '"version" : "5.4.5"') });
+  expect(prepareReleaseVersion(json, "package.json", "5.4.4").content).toBe(json);
+});
+
+test("prepared Python and JSON writes are exact and validation cannot widen the version edit", async () => {
+  const root = mkdtempSync("/tmp/opencode/release-preparation-");
+  const config: ReleaseSettings = { ...settings(), publish: { version_files: ["package.json", { path: "setup.py", format: "python-setup" }], commands: [["validate"]] } };
+  const current = snapshot([file("src/app.ts")]);
+  const module = (path: string) => JSON.stringify(join(import.meta.dir, "../../dot", path));
+  try {
+    const child = Bun.spawn(["bun", "--eval", `
+      import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+      import { join } from "node:path";
+      import { Effect, Stream } from ${module("node_modules/effect/dist/index.js")};
+      import { CommandExecutor } from ${module("src/services/CommandExecutor.ts")};
+      import { GitHub } from ${module("src/git/services/GitHub.ts")};
+      import { publishRelease } from ${module("src/git/release/publish.ts")};
+      const repo = ${JSON.stringify(repository)}, config = ${JSON.stringify(config)}, snapshot = ${JSON.stringify(current)};
+      const original = ${JSON.stringify({ "package.json": '{\n  "nested": {"version":"1.0.0"},\n  "version": "1.0.0"\n}\n', "setup.py": 'setup(\n  name="example",\n  version="1.0.0",\n)\n' })};
+      let directory, validated = false;
+      const executor = CommandExecutor.of({
+        run: (_command, args) => Effect.sync(() => {
+          if (args[0] === "remote") return "git@github.com:example/project.git";
+          if (args[0] === "ls-remote") return snapshot.head + "\\trefs/heads/main\\npublished\\trefs/tags/1.0.0\\n";
+          if (args[0] === "ls-tree") return "100644 blob hash";
+          if (args[0] === "show") return original[args[1].split(":")[1]];
+          if (args[0] === "diff") return "package.json\\0setup.py\\0";
+          if (args[0] === "ls-files") return "";
+          throw new Error("Unexpected command " + args.join(" "));
+        }),
+        stream: (command, args, options) => Stream.fromEffect(Effect.sync(() => {
+          if (command === "git" && args[0] === "worktree") {
+            directory = args[3];
+            mkdirSync(directory, { recursive: true });
+            for (const [path, content] of Object.entries(original)) writeFileSync(join(directory, path), content);
+          } else if (command === "git" && args[0] === "submodule") {
+          } else if (command === "validate") {
+            if (options.cwd !== directory) throw new Error("Validation escaped preparation");
+            for (const [path, content] of Object.entries(original)) {
+              const expected = path === "setup.py" ? content.replace('version="1.0.0"', 'version="1.0.1"') : content.replace('"version": "1.0.0"', '"version": "1.0.1"');
+              if (readFileSync(join(directory, path), "utf8") !== expected) throw new Error("Version write changed unrelated bytes");
+            }
+            validated = true;
+            writeFileSync(join(directory, "setup.py"), readFileSync(join(directory, "setup.py"), "utf8") + "# unexpected\\n");
+          } else throw new Error("Unexpected write " + command);
+          return "";
+        })),
+        exitCode: () => Effect.die("Unexpected process"), inherit: () => Effect.die("Unexpected process"),
+      });
+      const github = GitHub.of({
+        isAvailable: () => Effect.succeed(true),
+        json: () => Effect.succeed({ tag_name: "1.0.0", draft: false, prerelease: false }),
+        api: () => Effect.die("Unexpected API"), run: () => Effect.die("Unexpected release"),
+      });
+      const run = (confirmation) => Effect.runPromise(publishRelease(repo, config, snapshot, confirmation, () => Effect.void).pipe(Effect.provideService(CommandExecutor, executor), Effect.provideService(GitHub, github)));
+      const preview = await run();
+      try { await run(preview.plan.id); throw new Error("Accepted widened version edit"); }
+      catch (error) { if (!validated || !String(error).includes("Validation changed setup.py beyond its agreed version bump")) throw error; }
+      console.log("Exact writes verified; widened edit rejected");
+    `], { env: { ...process.env, XDG_STATE_HOME: root }, stdout: "pipe", stderr: "pipe" });
+    const [output, error, code] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
+    expect(error).toBe("");
+    expect(code).toBe(0);
+    expect(output.trim()).toBe("Exact writes verified; widened edit rejected");
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("release query exposes the authoritative CalVer proposal and review can clear it", async () => {
+  const history = gitHistory();
+  const module = (path: string) => JSON.stringify(join(import.meta.dir, "../../dot", path));
+  const config: ReleaseSettings = { ...settings(), policy: "application", versioning: "calver", publish: { version_files: [], commands: [] } };
+  try {
+    const base = history.commit({ "src/app.ts": "old\n" }, "Baseline");
+    const head = history.commit({ "src/app.ts": "new\n" }, "Fix application", base);
+    const source = appendGitRepository("schema_version: 2\nrepositories: []\n", { ...repository, path: history.root, releases: config });
+    const child = Bun.spawn(["bun", "--eval", `
+      import { Clock, Effect, Layer } from ${module("node_modules/effect/dist/index.js")};
+      import { Config } from ${module("src/services/Config.ts")};
+      import { CommandExecutor } from ${module("src/services/CommandExecutor.ts")};
+      import { parseDotGitConfigText } from ${module("src/services/GitConfig.ts")};
+      import { GitHub } from ${module("src/git/services/GitHub.ts")};
+      import { GitReleases } from ${module("src/git/services/GitReleases.ts")};
+      const github = GitHub.of({
+        isAvailable: () => Effect.succeed(true),
+        json: () => Effect.succeed({ tag_name: "v20260910.2", draft: false, prerelease: false, published_at: "2026-09-10T00:00:00Z" }),
+        api: () => Effect.die("Unexpected API"), run: () => Effect.die("Unexpected release"),
+      });
+      const program = Effect.gen(function* () {
+        const live = yield* CommandExecutor;
+        const executor = CommandExecutor.of({ ...live, run: (command, args, options) => {
+          if (args[0] === "fetch") return Effect.succeed("");
+          if (args[0] === "rev-parse" && args[2]?.startsWith("refs/dot/git-releases/")) return Effect.succeed(args[2].endsWith("/release^{commit}") ? ${JSON.stringify(base)} : ${JSON.stringify(head)});
+          return live.run(command, args, options);
+        } });
+        return yield* Effect.gen(function* () {
+          const service = yield* GitReleases;
+          const [entry] = yield* service.query({ repo: "example/project", refresh: true });
+          if (entry.stale || entry.nextVersion !== "v20260911.0") throw new Error(JSON.stringify(entry));
+          const reviewed = yield* service.action({ repo: entry.repo, snapshot: entry.snapshot.id, target: "overall", impact: "none" });
+          if (reviewed.nextVersion !== null) throw new Error("Quiet review still proposes a release");
+          return entry.nextVersion;
+        }).pipe(Effect.provide(GitReleases.layer), Effect.provideService(CommandExecutor, executor), Effect.provideService(GitHub, github), Effect.provide(Layer.mock(Config, { gitConfig: parseDotGitConfigText(${JSON.stringify(source)}, "fixture.yml") })));
+      }).pipe(Effect.provide(CommandExecutor.layer));
+      const now = Date.parse("2026-09-11T00:00:00Z");
+      const tag = await Effect.runPromise(Clock.clockWith((clock) => program.pipe(Effect.provideService(Clock.Clock, {
+        sleep: clock.sleep.bind(clock), currentTimeMillis: Effect.succeed(now), currentTimeMillisUnsafe: () => now,
+        currentTimeNanos: Effect.succeed(BigInt(now) * 1000000n), currentTimeNanosUnsafe: () => BigInt(now) * 1000000n,
+        monotonicTimeNanos: clock.monotonicTimeNanos, monotonicTimeNanosUnsafe: clock.monotonicTimeNanosUnsafe.bind(clock),
+      }))));
+      console.log(tag);
+    `], { env: { ...process.env, XDG_STATE_HOME: join(history.root, "state"), XDG_CACHE_HOME: join(history.root, "cache") }, stdout: "pipe", stderr: "pipe" });
+    const [output, error, code] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
+    expect(error).toBe("");
+    expect(code).toBe(0);
+    expect(output.trim()).toBe("v20260911.0");
+  } finally { history.close(); }
+});
+
+test("application versioning and mixed format recipes round-trip through strict config", () => {
+  const config: ReleaseSettings = { ...settings(), policy: "application", versioning: "calver", publish: { version_files: ["package.json", { path: "python/setup.py", format: "python-setup" }], commands: [] } };
+  const source = appendGitRepository("schema_version: 2\nrepositories: []\n", { ...repository, releases: config });
+  expect(parseDotGitConfigText(source, "fixture.yml").repositories[0].releases).toEqual(config);
+  expect(settings().versioning).toBeUndefined();
+  expect(parseDotGitConfigText(source.replace("calver", "semver"), "fixture.yml").valid).toBe(true);
+  expect(parseDotGitConfigText(source.replace("calver", "date"), "fixture.yml").valid).toBe(false);
+  for (const version_files of [
+    ["package.json", "package.json"],
+    [{ path: "setup.py", format: "python-setup" }, { path: "setup.py", format: "python-setup" }],
+    ["setup.py", { path: "setup.py", format: "python-setup" }],
+    [{ path: "setup.py", format: "python-setup", extra: true }],
+    [{ path: "setup.py", format: "regex" }],
+    [{ path: "package.json", format: "python-setup" }],
+    ...["../setup.py", "/setup.py", "pkg/../setup.py", "pkg/./setup.py", "pkg//setup.py", "pkg\\setup.py", "other.py", ""].map((path) => [{ path, format: "python-setup" }]),
+    ...["../package.json", "pkg/../package.json", "pkg/./package.json", "pkg//package.json", "/package.json", "package.txt"].map((path) => [path]),
+  ]) {
+    const invalid = { schema_version: 2, repositories: [{ name: repository.name, path: repository.path, github: repository.github, activity: repository.activity, notifications: { enabled: false, schedule: "* * * * *", bar: { ignore_bot_activity: false } }, releases: { ...config, publish: { version_files, commands: [] } } }] };
+    expect(parseDotGitConfigText(Bun.YAML.stringify(invalid), "fixture.yml").valid).toBe(false);
+  }
+});
+
+test("application policy keeps development quiet and shipped source, build and packaging relevant", () => {
+  const config: ReleaseSettings = { ...settings(), policy: "application" };
+  for (const path of ["src/app.test.ts", "tests/test_app.py", "pkg/test_app.py", "docs/index.md", ".agents/config.md", "AGENTS.md", ".oxlintrc.json", ".github/workflows/check.yml", "ruff.toml", "README.md"]) {
+    expect(snapshot([{ ...file(path), changedLines: 100 }], "head", config).suggestion).toBe("none");
+  }
+  for (const path of ["src/app.ts", "module/app.py", "scripts/build.ts", "build/app.spec", "setup.py", "requirements.txt", "package.json", "unknown/source.rs"]) {
+    expect(snapshot([file(path)], "head", config).suggestion).toBe("patch");
+  }
+  expect(snapshot([{ ...file("src/app.ts"), changedLines: 51 }], "head", config).suggestion).toBe("minor");
+  for (const role of ["runtime", "peer", "build", "development"] as const) {
+    const dependency = { ...file("package.json"), kind: "dependency" as const, dependency: "example", role };
+    expect(snapshot([dependency], "head", config).suggestion).toBe(role === "development" ? "none" : "patch");
+  }
+});
+
+test("documentation and development tooling stay quiet across release policies", () => {
+  for (const policy of ["application", "oxlint-rules", "system-bridge"] as const) {
+    const config = { ...settings(), policy };
+    for (const path of ["docs/config.ts", "pkg/docs/package.json", "pkg/doc/example.py", "documentation/assets/logo.svg", "src/guide.mdx", "README", "pkg/readme.txt", "mise.toml", ".mise.local.toml", "mise.lock", ".config/mise/config.toml", "tsconfig.json", "oxlint.config.ts", ".opencode/agent.ts", ".scripts/linux/PKGBUILD", ".scripts/package.sh", ".github/scripts/package.sh"]) {
+      expect(snapshot([{ ...file(path), changedLines: 100 }], "head", config).suggestion).toBe("none");
+    }
+    const docsDependency = { ...file("pkg/docs/package.json"), kind: "dependency" as const, dependency: "example", role: "runtime" as const };
+    expect(snapshot([docsDependency], "head", config).suggestion).toBe("none");
+    expect(snapshot([{ ...file("src/app.ts"), changedLines: 51 }], "head", config).suggestion).toBe("minor");
+  }
 });
 
 function file(path: string, submodule: string | null = null): ReleaseFact {
@@ -255,6 +509,29 @@ test("runtime lock-only updates, shared reachability and build exceptions remain
   const unresolved = bunLockChanges("bun.lock", null, JSON.stringify({ lockfileVersion: 1, workspaces: { "": {} }, packages: { orphan: ["orphan@1", "", {}] } }), config);
   expect(unresolved.errors.length).toBeGreaterThan(0);
   expect(snapshot(unresolved.facts).complete).toBe(false);
+});
+
+test("GitHub Bun tuples retain transitive roles and resolved identity across npm migrations", () => {
+  const config = { ...settings(), policy: "application" as const };
+  const lock = (revision: string, github: boolean) => JSON.stringify({ lockfileVersion: 1, workspaces: { "": { dependencies: { app: "1" }, devDependencies: { lint: "1" } } }, packages: {
+    app: github
+      ? [`app@github:example/app#${revision}`, { dependencies: { shared: "1" }, peerDependencies: { peer: "1", optional: "1" }, optionalPeers: ["optional"] }, `example-app-${revision}`, "hash"]
+      : ["app@1", "", { dependencies: { shared: "1" }, peerDependencies: { peer: "1", optional: "1" }, optionalPeers: ["optional"] }, "hash"],
+    lint: [`lint@github:example/lint#${revision}`, { dependencies: { shared: "1", tool: "1" } }, `example-lint-${revision}`, "hash"],
+    shared: [`shared@${revision}`, "", {}, "hash"],
+    peer: [`peer@${revision}`, "", {}, "hash"],
+    tool: [`tool@${revision}`, "", {}, "hash"],
+  } });
+  const changes = bunLockChanges("bun.lock", lock("1", false), lock("2", true), config);
+  expect(changes.errors).toEqual([]);
+  expect(snapshot(changes.facts, "head", config).findings.map((fact) => [fact.dependency, fact.role, fact.impact])).toEqual([
+    ["app", "runtime", "patch"], ["lint", "development", "none"], ["shared", "runtime", "patch"], ["peer", "runtime", "patch"], ["tool", "development", "none"],
+  ]);
+  expect(bunLockChanges("bun.lock", lock("2", true), lock("2", true), config)).toEqual({ facts: [], errors: [] });
+  expect(bunLockChanges("bun.lock", lock("2", true), lock("2", true).replaceAll('"hash"', '"other"'), config)).toEqual({ facts: [], errors: [] });
+  expect(bunLockChanges("bun.lock", lock("2", true), lock("2", true).replace("example-app-2", "example-app-3"), config).facts.map((fact) => fact.dependency)).toEqual(["app"]);
+  expect(() => bunLockChanges("bun.lock", null, lock("2", true).replaceAll("@github:", "@unknown:"), config)).toThrow("Invalid Bun package record");
+  expect(() => bunLockChanges("bun.lock", null, lock("2", true).replace('"app@github:example/app#2",{', '"app@github:example/app#2",null,{'), config)).toThrow("Invalid Bun package record");
 });
 
 test("Go requirements and replacements compare structurally, not by source order or dependency semver", () => {
@@ -463,6 +740,35 @@ function gitHistory() {
     close: () => rmSync(root, { recursive: true, force: true }),
   };
 }
+
+test("application docs retain quiet file evidence without entering the shipped dependency graph", async () => {
+  const history = gitHistory();
+  try {
+    const config = { ...settings(), policy: "application" as const };
+    const lock = (version: string, rooted: boolean) => JSON.stringify({ lockfileVersion: 1, workspaces: { "": rooted ? { dependencies: { app: "1" } } : {} }, packages: { app: [`app@${version}`, "", {}, "hash"] } });
+    const source = { "bun.lock": lock("1", true), "docs/bun.lock": lock("1", false), "docs/package.json": '{"dependencies":{"app":"1"}}' };
+    const base = history.commit(source, "Baseline");
+    const docs = { ...source, "docs/bun.lock": lock("2", false), "docs/package.json": '{"dependencies":{"app":"2"}}', "pkg/docs/bun.lock": "unparseable documentation lock", ".opencode/bun.lock": "unparseable tooling lock" };
+    const docsHead = history.commit(docs, "Update docs dependencies", base);
+    const quiet = await history.collect(base, docsHead, config);
+    expect(quiet.errors).toEqual([]);
+    expect(quiet.facts).toHaveLength(4);
+    expect(quiet.facts).toEqual(quiet.files);
+    expect(snapshot(quiet.facts, docsHead, config).findings.map((fact) => [fact.path, fact.kind, fact.complete, fact.impact])).toEqual([
+      [".opencode/bun.lock", "file", true, "none"],
+      ["docs/bun.lock", "file", true, "none"], ["docs/package.json", "file", true, "none"],
+      ["pkg/docs/bun.lock", "file", true, "none"],
+    ]);
+    const shippedHead = history.commit({ ...docs, "bun.lock": lock("2", true) }, "Update shipped dependency", docsHead);
+    const shipped = await history.collect(base, shippedHead, config);
+    expect(shipped.errors).toEqual([]);
+    expect(snapshot(shipped.facts, shippedHead, config).findings.filter((fact) => fact.impact !== "none").map((fact) => [fact.path, fact.role, fact.impact])).toEqual([["bun.lock", "runtime", "patch"]]);
+    const orphanHead = history.commit({ ...docs, "bun.lock": lock("2", false).replaceAll("app", "orphan") }, "Unresolved shipped dependency", base);
+    const orphan = await history.collect(base, orphanHead, config);
+    expect(orphan.errors).toContain("Cannot establish runtime/development reachability for bun.lock: orphan");
+    expect(snapshot(orphan.facts, orphanHead, config).complete).toBe(false);
+  } finally { history.close(); }
+});
 
 test("source intent follows surviving added and removed lines, not a reverted major change in the same file", async () => {
   const history = gitHistory();

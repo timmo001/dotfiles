@@ -7,7 +7,50 @@ import type {
 } from "./types.js";
 
 /** Portable shipped-content boundaries; increment when classification semantics change. */
-export const RELEASE_POLICY_VERSION = 5;
+export const RELEASE_POLICY_VERSION = 10;
+
+const quietPaths = [
+  "**/docs",
+  "**/docs/**",
+  "**/doc",
+  "**/doc/**",
+  "**/documentation",
+  "**/documentation/**",
+  "**/*.md",
+  "**/*.mdx",
+  "**/*.rst",
+  "**/[Rr][Ee][Aa][Dd][Mm][Ee]*",
+  "**/mise.toml",
+  "**/mise.*.toml",
+  "**/.mise.toml",
+  "**/.mise.*.toml",
+  "**/mise.lock",
+  "**/.mise.lock",
+  "**/.config/mise/**",
+  "**/.agents/**",
+  "**/.opencode/**",
+  "**/.cursor/**",
+  "**/.vscode/**",
+  "**/.scripts/**",
+  "**/.github/**",
+  "**/tsconfig*.json",
+  "**/oxlint.config.*",
+  "**/.oxlint*",
+  "**/.prettier*",
+  "**/eslint.config.*",
+  "**/.eslintrc*",
+  "**/.editorconfig",
+  "**/.gitignore",
+  "**/mlc_config.json",
+  "**/pitchfork.toml",
+  "**/PKGBUILD",
+];
+
+const quiet: ReleaseRule = {
+  paths: quietPaths,
+  impact: "none",
+  reason: "Documentation and development tooling are quiet",
+};
 
 /** Build dependencies whose output is shipped by the application. */
 export const SYSTEM_BRIDGE_BUILD_DEPENDENCIES = [
@@ -19,16 +62,17 @@ export const SYSTEM_BRIDGE_BUILD_DEPENDENCIES = [
   "postcss",
 ] as const;
 
-/** Independent products contribute file evidence, not application dependency graphs. */
+/** Quiet tooling and independent products contribute file evidence, not dependency graphs. */
 export function separatelyPublishedPath(
   path: string,
   settings: ReleaseSettings,
 ): boolean {
   return (
-    settings.policy === "system-bridge" &&
-    ["docs", "omarchy-plugin"].some(
-      (root) => path === root || path.startsWith(`${root}/`),
-    )
+    quietPaths.some((pattern) => new Bun.Glob(pattern).match(path)) ||
+    (settings.policy === "system-bridge" &&
+      ["docs", "omarchy-plugin"].some(
+        (root) => path === root || path.startsWith(`${root}/`),
+      ))
   );
 }
 
@@ -65,7 +109,50 @@ const dependencies: readonly ReleaseRule[] = [
 ];
 
 const presets: Record<ReleaseSettings["policy"], readonly ReleaseRule[]> = {
+  application: [
+    quiet,
+    tests,
+    ...dependencies,
+    {
+      paths: [
+        "**/test_*.py",
+        "**/*_test.py",
+        "**/docs/**",
+        "**/AGENTS.md",
+        "**/CLAUDE.md",
+        "**/README*",
+        "**/CHANGELOG*",
+        ".agents/**",
+        ".cursor/**",
+        ".vscode/**",
+        ".github/workflows/**",
+        ".github/ISSUE_TEMPLATE/**",
+        ".github/PULL_REQUEST_TEMPLATE*",
+        "**/eslint*",
+        "**/.prettier*",
+        "**/.oxlint*",
+        "**/.golangci*",
+        "**/.markdownlint*",
+        "**/.yamllint*",
+        "**/ruff.toml",
+        "**/.ruff.toml",
+        "**/pytest.ini",
+        "**/renovate.json*",
+        "**/opencode.json*",
+        "pitchfork.toml",
+      ],
+      impact: "none",
+      reason:
+        "Tests, documentation, agent configuration or lint/CI-only change",
+    },
+    {
+      impact: "patch",
+      reason:
+        "Shipped application content, build or package definition changed",
+    },
+  ],
   "oxlint-rules": [
+    quiet,
     tests,
     ...dependencies,
     {
@@ -109,6 +196,7 @@ const presets: Record<ReleaseSettings["policy"], readonly ReleaseRule[]> = {
     },
   ],
   "system-bridge": [
+    quiet,
     {
       paths: ["docs/**", "omarchy-plugin/**"],
       impact: "none",

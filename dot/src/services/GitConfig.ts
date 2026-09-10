@@ -383,19 +383,23 @@ function parseReleases(
       throw new Error("schedule must contain five fields");
     Cron.parseUnsafe(settings.schedule);
     if (settings.publish) {
-      for (const path of settings.publish.version_files) {
+      const paths = settings.publish.version_files.map((file) =>
+        isString(file) ? file : file.path,
+      );
+      for (const file of settings.publish.version_files) {
+        const path = isString(file) ? file : file.path;
         if (
-          !/^[A-Za-z0-9_][A-Za-z0-9_./-]*\.json$/.test(path) ||
+          !/^[A-Za-z0-9_][A-Za-z0-9_./-]*$/.test(path) ||
+          (isString(file)
+            ? !path.endsWith(".json")
+            : !/(^|\/)setup\.py$/.test(path)) ||
           path.split("/").some((part) => part === ".." || part === "." || !part)
         )
           throw new Error(
-            "publish version_files must be repository-relative JSON paths",
+            "publish version_files must be repository-relative JSON or explicit setup.py paths",
           );
       }
-      if (
-        new Set(settings.publish.version_files).size !==
-        settings.publish.version_files.length
-      )
+      if (new Set(paths).size !== paths.length)
         throw new Error("publish version_files must be unique");
       for (const command of settings.publish.commands) {
         if (!command.length || command.some((arg) => !arg.trim()))

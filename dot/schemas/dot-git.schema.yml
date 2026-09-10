@@ -176,6 +176,12 @@ $defs:
         enum:
           - oxlint-rules
           - system-bridge
+          - application
+      versioning:
+        enum:
+          - semver
+          - calver
+        description: Stable tag scheme. Omission retains SemVer; CalVer uses UTC YYYYMMDD.N.
       source_minor_threshold:
         type: integer
         minimum: 0
@@ -197,10 +203,22 @@ $defs:
           version_files:
             type: array
             uniqueItems: true
-            description: Repository-relative JSON manifests with a top-level version field.
+            description: Unique repository-relative version paths. Strings select top-level JSON versions; objects select literal setup.py versions.
             items:
-              type: string
-              minLength: 1
+              oneOf:
+                - type: string
+                  pattern: '^(?!.*(?:^|/)\.{1,2}(?:/|$))(?!.*//)[A-Za-z0-9_][A-Za-z0-9_./-]*\.json$'
+                - type: object
+                  additionalProperties: false
+                  required:
+                    - path
+                    - format
+                  properties:
+                    path:
+                      type: string
+                      pattern: '^(?!.*(?:^|/)\.{1,2}(?:/|$))(?!.*//)(?:[A-Za-z0-9_][A-Za-z0-9_./-]*/)?setup\.py$'
+                    format:
+                      const: python-setup
           commands:
             type: array
             description: Ordered preparation and validation commands, each an argv array.
