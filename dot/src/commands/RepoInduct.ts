@@ -3,6 +3,7 @@ import { Prompt } from "effect/unstable/cli";
 import { readFileSync } from "fs";
 import { basename, join, resolve } from "path";
 import { CommandExecutor } from "../services/CommandExecutor.js";
+import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
 import {
   normalizeGitHubSlug,
@@ -17,6 +18,7 @@ import {
   previewGitRepoConfigEdit,
 } from "../lib/gitRepoConfig.js";
 import { displayPath, expandHomePath } from "../lib/paths.js";
+import { writeRepoPicker } from "../lib/repoShortcuts.js";
 import { formatCause } from "../lib/schema.js";
 
 const ScheduledCheck = Schema.Struct({
@@ -297,6 +299,19 @@ export const inductRepository = Effect.fn("repoInduct.run")(
         updated,
         "Induct repository into dot git config",
       );
+      const config = yield* Config;
+      yield* Effect.try({
+        try: () =>
+          writeRepoPicker(config.cacheDir, [
+            ...parsed.repositories,
+            ...parsed.shortcuts,
+          ]),
+        catch: (error) =>
+          new GitRepoConfigError({
+            message: `Repository committed, but the Herdr picker could not be refreshed: ${formatCause(error)}. Run dot stow to retry.`,
+          }),
+      });
+      yield* log.info("Refreshed Herdr repository picker");
       return parsed.repositories.find((repo) => repo.path === root) ?? null;
     }
   },
