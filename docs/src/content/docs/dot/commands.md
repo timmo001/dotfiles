@@ -1100,6 +1100,8 @@ dot herdr repo-open [flags] <label> <directory> [<tab-label>] [<command>]
 | Option | Description |
 | --- | --- |
 | `--pane` | Run in a new pane |
+| `--prompt` `<string>` | Initial prompt to send through Herdr after the agent is ready |
+| `--agent-kind` `<string>` | Expected Herdr agent kind for --prompt |
 | `--help` `-h` | Show help information |
 
 **Arguments**

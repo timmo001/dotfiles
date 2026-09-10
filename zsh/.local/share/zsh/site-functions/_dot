@@ -925,6 +925,8 @@ _dot_herdr_repo_open() {
   specs=(
     '(--pane --no-pane)--pane[Run in a new pane]'
     '(--pane --no-pane)--no-pane[Disable pane]'
+    '(--prompt)--prompt[Initial prompt to send through Herdr after the agent is ready]:value:'
+    '(--agent-kind)--agent-kind[Expected Herdr agent kind for --prompt]:value:'
     '(--help -h)--help[Show help information]'
     '(--help -h)-h[Show help information]'
     ':Herdr workspace label:'

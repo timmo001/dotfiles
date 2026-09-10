@@ -1187,6 +1187,16 @@ const herdrRepoOpenCommand = describe(
     "repo-open",
     {
       pane: bool("pane", "Run in a new pane"),
+      prompt: Flag.string("prompt").pipe(
+        Flag.withDescription(
+          "Initial prompt to send through Herdr after the agent is ready",
+        ),
+        Flag.optional,
+      ),
+      agentKind: Flag.string("agent-kind").pipe(
+        Flag.withDescription("Expected Herdr agent kind for --prompt"),
+        Flag.optional,
+      ),
       label: Argument.string("label").pipe(
         Argument.withDescription("Herdr workspace label"),
       ),
@@ -1202,8 +1212,13 @@ const herdrRepoOpenCommand = describe(
         Argument.optional,
       ),
     },
-    ({ command, ...input }) =>
-      herdrRepoOpen({ ...input, command: optional(command) }),
+    ({ command, prompt, agentKind, ...input }) =>
+      herdrRepoOpen({
+        ...input,
+        command: optional(command),
+        prompt: optional(prompt),
+        agentKind: optional(agentKind),
+      }),
   ),
   "Open or focus a repository workspace in the shared Herdr session. If the server is headless, open a tiled terminal and wait for a foreground client before focusing the workspace.",
   [],

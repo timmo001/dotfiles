@@ -4,11 +4,11 @@ import {
   type PaneId,
   type TabId,
 } from "@herdr/sdk";
-import { Cause, Duration, Effect, Schedule, Schema } from "effect";
+import { Cause, Duration, Effect, Option, Schedule, Schema } from "effect";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { ENV, envString } from "../lib/env.js";
-import { CACHE_DIR, CONFIG_DIR } from "../lib/paths.js";
+import { CACHE_DIR, CONFIG_DIR, HOME_DIR } from "../lib/paths.js";
 import { formatCause } from "../lib/schema.js";
 import { CommandError, CommandExecutor } from "../services/CommandExecutor.js";
 import { herdrServerPid } from "./HerdrServer.js";
@@ -34,6 +34,10 @@ export interface HerdrRepoOpenOptions {
   readonly tabLabel: string;
   /** Optional command to run in the selected repository. */
   readonly command?: string;
+  /** Initial prompt delivered through Herdr after the selected agent is ready. */
+  readonly prompt?: string;
+  /** Expected Herdr agent kind when delivering an initial prompt. */
+  readonly agentKind?: string;
   /** Repository picker cache used to resolve the canonical label. */
   readonly pickerCache?: string;
 }
@@ -91,6 +95,24 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
   const executor = yield* CommandExecutor;
   const herdr = yield* HerdrSdk;
   const label = canonicalLabel(options);
+  if (options.prompt !== undefined && (!options.command || !options.agentKind))
+    return fail("An initial prompt requires a command and --agent-kind", 2);
+  let expectedExecutable: string | undefined;
+  if (
+    options.prompt !== undefined &&
+    options.command === join(HOME_DIR, ".local", "bin", "opencode2")
+  ) {
+    yield* executor.run("test", ["-x", options.command]);
+    expectedExecutable = (yield* executor.run("mise", ["which", "opencode2"], {
+      cwd: options.directory,
+    })).trim();
+    if (
+      !expectedExecutable.startsWith("/") ||
+      expectedExecutable.includes("\n")
+    )
+      return fail("OpenCode 2 verification did not return an executable path");
+    yield* executor.run("test", ["-x", expectedExecutable]);
+  }
   if ((yield* executor.exitCode("herdr", ["status", "server"])) !== 0) {
     return fail("Shared Herdr server is not running");
   }
@@ -218,6 +240,39 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
 
   yield* herdr.workspaces.focus(workspaceId);
   if (tabId) yield* herdr.tabs.focus(tabId);
+  if (options.prompt !== undefined && paneId) {
+    const targetPane = paneId;
+    yield* herdr.agents.get({ paneId: targetPane }).pipe(
+      Effect.retry({
+        times: 60,
+        schedule: Schedule.spaced(500),
+      }),
+      Effect.timeout("30 seconds"),
+    );
+    const agent = yield* herdr.agents.wait(
+      { paneId: targetPane },
+      { until: ["idle", "done"], timeoutMs: 30_000 },
+      { requestTimeout: Duration.seconds(35) },
+    );
+    if (Option.getOrUndefined(agent.agent) !== options.agentKind)
+      return fail(`The selected ${options.agentKind} agent did not start`);
+    if (expectedExecutable) {
+      const processes =
+        (yield* herdr.panes.processInfo(targetPane)).foregroundProcesses ?? [];
+      if (
+        !processes.some((process) =>
+          Option.exists(process.argv, (argv) =>
+            argv.includes(expectedExecutable),
+          ),
+        )
+      )
+        return fail("OpenCode 2 did not start through the expected runtime");
+    }
+    yield* herdr.agents.prompt(
+      { paneId: targetPane },
+      { text: options.prompt },
+    );
+  }
 });
 
 /** Open or focus a repository workspace in the visible Herdr terminal. */
