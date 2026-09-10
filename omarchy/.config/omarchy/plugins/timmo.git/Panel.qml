@@ -26,8 +26,8 @@ Panel {
   }) || null : null
   readonly property var releaseSnapshot: selectedRelease ? selectedRelease.snapshot : null
   readonly property var selectedFinding: releaseSnapshot ? releaseSnapshot.findings.find(function(finding) { return finding.id === selectedFindingId }) || null : null
-  readonly property bool releaseView: ["releases", "release", "release-choice", "finding", "release-commits", "release-files"].indexOf(view) >= 0
-  readonly property var filteredReleaseRows: filterController.filteredModel.filter(function(entry) { return ["release", "finding", "commit", "file"].indexOf(entry.kind) >= 0 })
+  readonly property bool releaseView: ["releases", "release", "release-choice", "finding", "release-commits"].indexOf(view) >= 0
+  readonly property var filteredReleaseRows: filterController.filteredModel.filter(function(entry) { return ["release", "finding", "commit"].indexOf(entry.kind) >= 0 })
   readonly property var releaseGeometry: ({ x: panel.cardOrigin.x, y: panel.cardOrigin.y, width: panel.contentWidth, height: panel.contentHeight, screen: panel.screen ? panel.screen.name : "" })
   readonly property string cursorKey: filterController.selectedEntry() ? filterController.selectedEntry().key : ""
   readonly property bool selectedRepoCanPull: selectedRepo !== null
@@ -65,7 +65,6 @@ Panel {
             rows.push(actionRow("release-choice", "Overall impact: " + releaseSnapshot.suggestion + (releaseSnapshot.reviewed ? " (reviewed)" : " (auto)"), "󰓹"))
             rows.push(actionRow("release-evidence", "Open full comparison", ""))
             rows.push(actionRow("release-commits", "All commits · " + releaseSnapshot.commits.length, ""))
-            rows.push(actionRow("release-files", "Changed files · " + releaseFiles().length, ""))
             var findings = releaseSnapshot.findings.slice().sort(function(a, b) { return Number(a.impact === "none") - Number(b.impact === "none") })
             for (var f = 0; f < findings.length; f++) {
               var finding = findings[f]
@@ -83,9 +82,6 @@ Panel {
             var commit = releaseSnapshot.commits[c]
             rows.push(releaseRow("commit", (commit.submodule || "") + commit.id, commit, commit.subject, commit.id.slice(0, 12) + " · " + commit.date + (commit.submodule ? " · " + commit.submodule : "")))
           }
-        } else if (releaseSnapshot && view === "release-files") {
-          var files = releaseFiles()
-          for (var d = 0; d < files.length; d++) rows.push(releaseRow("file", files[d].id, files[d], files[d].path, files[d].changeType + (files[d].previousPath ? " · from " + files[d].previousPath : "")))
         }
       }
       return rows
@@ -193,18 +189,6 @@ Panel {
       + (entry.pending ? " · notification pending" : "")
   }
 
-  function releaseFiles() {
-    if (!releaseSnapshot) return []
-    var files = releaseSnapshot.files || releaseSnapshot.findings
-    var seen = {}
-    return files.filter(function(file) {
-      var key = (file.submodule || "") + ":" + file.path
-      if (seen[key]) return false
-      seen[key] = true
-      return true
-    })
-  }
-
   function findingUrl(finding) {
     if (!finding || !releaseSnapshot) return ""
     return finding.evidenceUrl || (finding.submodule ? "" : releaseSnapshot.url)
@@ -290,7 +274,7 @@ Panel {
       if (entry.action === "notifications-refresh") return notificationsHeading
       return releaseView && view !== "releases" ? comparisonHeading : releasesHeading
     }
-    if (["release", "finding", "commit", "file"].indexOf(entry.kind) >= 0)
+    if (["release", "finding", "commit"].indexOf(entry.kind) >= 0)
       return releaseRepeater.itemAt(filteredReleaseRows.indexOf(entry))
     var rows = entry.kind === "action" ? filteredActions
       : (entry.kind === "repo" ? filteredRepos
@@ -352,8 +336,8 @@ Panel {
     else if (action === "releases") showView("releases")
     else if (action === "release-repo" && selectedRelease) showRepoActions(selectedRelease)
     else if (action === "release-policy") { close(); service.editReleasePolicy(selectedRelease) }
-    else if (["release-choice", "release-commits", "release-files"].indexOf(action) >= 0) showView(action)
-    else if (action === "release-evidence") service.openEvidence(view === "finding" ? findingUrl(selectedFinding) : (releaseSnapshot ? releaseSnapshot.url : ""))
+    else if (["release-choice", "release-commits"].indexOf(action) >= 0) showView(action)
+    else if (action === "release-evidence") service.openEvidence(view === "finding" ? findingUrl(selectedFinding) : (releaseSnapshot ? "https://github.com/" + releaseSnapshot.repo + "/compare/" + releaseSnapshot.releaseCommit + "...HEAD" : ""))
     else if (action.indexOf("impact:") === 0) service.releaseAction(selectedRelease, view === "finding" ? selectedFindingId : "overall", action.slice(7))
     else if (action === "back" && releaseView) showView(view === "releases" ? "overview" : (view === "release" ? selectedReleaseView : "release"))
     else if (action === "refresh") service.refresh()
@@ -388,7 +372,6 @@ Panel {
     else if (entry.kind === "thread") activateThread(entry.value)
     else if (entry.kind === "release") { selectedReleaseView = view; selectedReleaseKey = entry.value.repo; showView("release") }
     else if (entry.kind === "finding") { selectedFindingId = entry.value.id; showView("finding") }
-    else if (entry.kind === "file") service.openEvidence(findingUrl(entry.value))
     else if (entry.kind === "commit") service.openEvidence(entry.value.url || (entry.value.submodule ? "" : "https://github.com/" + selectedRelease.repo + "/commit/" + entry.value.id))
   }
 
@@ -463,7 +446,7 @@ Panel {
           PanelHero {
             width: parent.width
             title: root.releaseView ? (root.view === "releases" ? "Unreleased changes" : (root.selectedRelease ? root.selectedRelease.name : "Release review")) : (root.view === "agent" ? "Open in agent" : (root.view === "repo" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "overview" ? "Git" : (root.view === "changed" ? "Changed" : (root.view === "notifications" ? "Notifications" : "Other")))))
-            meta: root.releaseView ? (root.view === "finding" ? "Finding evidence" : (root.view === "release-commits" ? "All commits" : (root.view === "release-files" ? "Changed files" : "Local release review"))) : (root.view === "agent" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.notificationCountText : (root.view === "changed" ? root.changedRepoCount + " repositories" : (root.view === "notifications" ? root.notificationCountText : root.otherRepoCount + " repositories")))))
+            meta: root.releaseView ? (root.view === "finding" ? "Finding evidence" : (root.view === "release-commits" ? "All commits" : "Local release review")) : (root.view === "agent" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.notificationCountText : (root.view === "changed" ? root.changedRepoCount + " repositories" : (root.view === "notifications" ? root.notificationCountText : root.otherRepoCount + " repositories")))))
             detail: root.service && root.service.pulling ? "PULLING" : (root.service && root.service.refreshing ? "REFRESHING" : "STATUS")
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
@@ -734,7 +717,7 @@ Panel {
             visible: (root.view === "overview" || root.view === "releases") && (!filterController.filterText || root.filteredReleaseRows.length > 0 || filterController.indexForKey("action:release-refresh") >= 0)
               || (root.releaseView && root.filteredReleaseRows.length > 0)
             title: root.view === "overview" || root.view === "releases" ? "Unreleased changes · " + root.filteredReleaseRows.length
-              : (root.view === "release-commits" ? "Commits" : (root.view === "release-files" ? "Changed files" : "Findings")) + " · " + root.filteredReleaseRows.length
+              : (root.view === "release-commits" ? "Commits" : "Findings") + " · " + root.filteredReleaseRows.length
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             refreshable: root.view === "overview" || root.view === "releases"
