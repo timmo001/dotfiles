@@ -107,11 +107,6 @@
       "groupSlug": "opencode-2-beta"
     },
     {
-      "description": "Update first-party workflows without a release delay.",
-      "matchPackageNames": ["timmo001/workflows"],
-      "minimumReleaseAge": null
-    },
-    {
       "description": "Update Git submodules without a release delay.",
       "matchManagers": ["git-submodules"],
       "minimumReleaseAge": null
@@ -153,6 +148,15 @@
       "description": "Use mise's shorter release delay for Pi updates.",
       "matchDepNames": ["aqua:earendil-works/pi"],
       "minimumReleaseAge": "2 hours"
+    },
+    {
+      "description": "Update first-party dependencies without a release delay.",
+      "matchPackageNames": [
+        "@timmo001/**",
+        "timmo001/**",
+        "https://github.com/timmo001/**"
+      ],
+      "minimumReleaseAge": null
     }
   ]
 }
