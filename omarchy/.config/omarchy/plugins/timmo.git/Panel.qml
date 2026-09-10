@@ -651,9 +651,9 @@ Panel {
           }
 
           Text {
-            visible: !filterController.filterText && (root.view === "overview" || root.view === "changed" || root.view === "other") && root.filteredRepos.length === 0
+            visible: !filterController.filterText && (root.view === "overview" || root.view === "changed" || root.view === "other") && root.filteredRepos.length === 0 && root.service && (root.service.panelError !== "" || !root.service.panelLoaded)
             width: parent.width
-            text: root.service && root.service.panelError !== "" ? root.service.panelError : (root.service && !root.service.panelLoaded ? "Loading repositories" : (root.view === "other" ? "No Other repositories" : "All tracked repositories are clean"))
+            text: root.service && root.service.panelError !== "" ? root.service.panelError : "Loading repositories"
             color: Qt.darker(root.contentForeground, 1.4)
             font.family: root.contentFontFamily
             font.pixelSize: Style.font.body
@@ -743,9 +743,9 @@ Panel {
           }
 
           Text {
-            visible: (root.view === "overview" || root.view === "notifications") && !filterController.filterText && root.threadCount === 0
+            visible: (root.view === "overview" || root.view === "notifications") && !filterController.filterText && root.threadCount === 0 && root.service && (root.service.notificationsError !== "" || !root.service.notificationsLoaded)
             width: parent.width
-            text: root.service && root.service.notificationsError !== "" ? root.service.notificationsError : (root.service && !root.service.notificationsLoaded ? "Loading notifications" : "GitHub inbox clear")
+            text: root.service && root.service.notificationsError !== "" ? root.service.notificationsError : "Loading notifications"
             color: Qt.darker(root.contentForeground, 1.4)
             font.family: root.contentFontFamily
             font.pixelSize: Style.font.body
