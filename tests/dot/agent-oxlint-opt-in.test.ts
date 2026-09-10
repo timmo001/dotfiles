@@ -64,3 +64,23 @@ test("induction preserves existing entries and validates duplicates across secti
   const duplicate = appendGitRepository(first + "shortcuts: []\n", repository);
   expect(parseDotGitConfigText(duplicate, "dot-git.yml").diagnostics).toContain("Duplicate repository path: /example");
 });
+
+test("induction preserves release policy comments and round-trips an optional release block", () => {
+  const releases = {
+    enabled: true,
+    schedule: "*/15 * * * *",
+    branch: "main",
+    policy: "oxlint-rules" as const,
+    overrides: [{ paths: ["src/public/**"], impact: "minor" as const, reason: "Public API addition" }],
+    notifications: { enabled: true, minimum_impact: "patch" as const, cooldown_minutes: 60 },
+  };
+  const first = appendGitRepository("schema_version: 2\nrepositories: []\n", { ...repository, releases }).replace("    releases:\n", "    # keep policy rationale\n    releases:\n");
+  const updated = appendGitRepository(first, { ...repository, name: "Second", path: "/second", github: "example/second", aliases: ["second_repo"], releases });
+  expect(updated.startsWith(first)).toBe(true);
+  expect(updated).toContain("paths:\n");
+  const parsed = parseDotGitConfigText(updated, "dot-git.yml");
+  expect(parsed.diagnostics).toEqual([]);
+  expect(parsed.repositories.map((repo) => repo.releases)).toEqual([releases, releases]);
+  expect(parseDotGitConfigText(updated.replace("cooldown_minutes: 60", "cooldown_minutes: -1"), "dot-git.yml").valid).toBe(false);
+  expect(parseDotGitConfigText(updated.replace("policy: oxlint-rules", "policy: oxlint-rules\n      unsupported: true"), "dot-git.yml").valid).toBe(false);
+});

@@ -1,5 +1,7 @@
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
+import { Cron, Schema } from "effect";
+import { ReleaseSettings } from "../git/release/types.js";
 import { displayPath, expandHomePath } from "../lib/paths.js";
 import {
   decodeJson,
@@ -21,6 +23,7 @@ const REPO_KEYS = new Set([
   "agent_oxlint",
   "activity",
   "notifications",
+  "releases",
 ]);
 const CHECK_KEYS = new Set(["enabled", "schedule"]);
 const NOTIFICATION_KEYS = new Set(["enabled", "schedule", "bar"]);
@@ -78,6 +81,8 @@ export interface GitManagedRepo {
   readonly activity: GitRepoCheckConfig;
   /** GitHub notification check and status-bar filters. */
   readonly notifications: GitRepoNotificationConfig;
+  /** Optional release comparison policy and schedule; omitted means disabled. */
+  readonly releases?: ReleaseSettings;
 }
 
 /** Loaded private dot git config and validation diagnostics. */
@@ -339,6 +344,11 @@ function parseRepo(
     diagnostics,
   );
   const github = rawGithub ? normalizeGitHubSlug(rawGithub) : null;
+  const releases = parseReleases(
+    value.releases,
+    `${location}.releases`,
+    diagnostics,
+  );
   if (rawGithub && !github) {
     diagnostics.push(`${location}.github must be a GitHub owner/repo slug`);
   }
@@ -354,8 +364,61 @@ function parseRepo(
       agentOxlint,
       activity,
       notifications,
+      ...(releases && { releases }),
     },
   ];
+}
+
+function parseReleases(
+  value: JsonValue,
+  location: string,
+  diagnostics: string[],
+): ReleaseSettings | undefined {
+  if (value === undefined) return undefined;
+  try {
+    const settings = Schema.decodeUnknownSync(ReleaseSettings)(value, {
+      onExcessProperty: "error",
+    });
+    if (settings.schedule.trim().split(/\s+/).length !== 5)
+      throw new Error("schedule must contain five fields");
+    Cron.parseUnsafe(settings.schedule);
+    if (
+      !/^[A-Za-z0-9_][A-Za-z0-9_./-]*$/.test(settings.branch) ||
+      /\.\.|\/\.|\/\/|\.lock(?:\/|$)|[./]$/.test(settings.branch)
+    )
+      throw new Error("branch must be a valid branch name");
+    if (
+      !Number.isInteger(settings.notifications.cooldown_minutes) ||
+      settings.notifications.cooldown_minutes < 0
+    )
+      throw new Error(
+        "notification cooldown_minutes must be a non-negative integer",
+      );
+    for (const rule of settings.overrides ?? []) {
+      if (!rule.reason.trim())
+        throw new Error("override reason must not be empty");
+      for (const values of [
+        rule.paths,
+        rule.dependencies,
+        rule.roles,
+        rule.submodules,
+        rule.change_types,
+        rule.subjects,
+      ]) {
+        if (values && (!values.length || values.some((value) => !value.trim())))
+          throw new Error("override match lists must contain non-empty values");
+      }
+      for (const pattern of rule.subjects ?? []) new RegExp(pattern);
+      for (const path of [...(rule.paths ?? []), ...(rule.submodules ?? [])]) {
+        if (path.startsWith("/") || path.split("/").includes(".."))
+          throw new Error("override paths must be repository-relative");
+      }
+    }
+    return settings;
+  } catch (error) {
+    diagnostics.push(`${location}: ${formatError(error)}`);
+    return undefined;
+  }
 }
 
 function optionalBoolean(

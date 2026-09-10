@@ -90,6 +90,112 @@ $defs:
         $ref: "#/$defs/scheduled_check"
       notifications:
         $ref: "#/$defs/notifications"
+      releases:
+        $ref: "#/$defs/releases"
+
+  release_impact:
+    type: string
+    enum:
+      - none
+      - patch
+      - minor
+      - major
+
+  release_rule:
+    type: object
+    additionalProperties: false
+    description: First match wins. Selectors are ANDed, values within selectors are ORed. Omitted selectors match everything.
+    required:
+      - impact
+      - reason
+    properties:
+      paths:
+        $ref: "#/$defs/release_matches"
+        description: Repository-relative globs, including old paths for renames.
+      change_types:
+        type: array
+        minItems: 1
+        items:
+          enum:
+            - added
+            - modified
+            - deleted
+            - renamed
+      dependencies:
+        $ref: "#/$defs/release_matches"
+        description: Exact dependency names.
+      roles:
+        type: array
+        minItems: 1
+        items:
+          enum:
+            - runtime
+            - peer
+            - development
+            - build
+            - unknown
+      submodules:
+        $ref: "#/$defs/release_matches"
+        description: Exact repository-relative submodule paths.
+      subjects:
+        $ref: "#/$defs/release_matches"
+        description: Explicit commit-subject regular expressions attributed to surviving source lines or individual structured values. Reverted intent is excluded; each net fact is classified once.
+      impact:
+        $ref: "#/$defs/release_impact"
+      reason:
+        type: string
+        minLength: 1
+
+  release_matches:
+    type: array
+    minItems: 1
+    items:
+      type: string
+      minLength: 1
+
+  releases:
+    type: object
+    additionalProperties: false
+    description: Optional release watcher. Omission leaves watching disabled.
+    required:
+      - enabled
+      - schedule
+      - branch
+      - policy
+      - notifications
+    properties:
+      enabled:
+        type: boolean
+      schedule:
+        $ref: "#/$defs/cron_schedule"
+      branch:
+        type: string
+        minLength: 1
+        description: Remote branch compared with the latest published stable release.
+      policy:
+        enum:
+          - oxlint-rules
+          - system-bridge
+      overrides:
+        type: array
+        items:
+          $ref: "#/$defs/release_rule"
+      notifications:
+        type: object
+        additionalProperties: false
+        required:
+          - enabled
+          - minimum_impact
+          - cooldown_minutes
+        properties:
+          enabled:
+            type: boolean
+            description: Preference for future explicit desktop delivery; inspection sends nothing.
+          minimum_impact:
+            $ref: "#/$defs/release_impact"
+          cooldown_minutes:
+            type: integer
+            minimum: 0
 
   scheduled_check:
     type: object

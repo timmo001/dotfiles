@@ -33,6 +33,7 @@ _dot() {
     'diff:Alias for git-diff'
     'git-commit:Commit staged changes through the guarded gateway. Subjects must be one line, have no trailing full stop, and stay within the hard length limit. Explicit --path scopes never imply git add -A; --amend keeps the existing message unless --message is supplied.'
     'git-notifications:Open the authenticated GitHub notification inbox. Without machine-output or action flags, this opens the Omarchy shell panel. --since accepts ISO/RFC dates, epoch timestamps, compact durations such as 2d, and quoted durations such as "2 days ago".'
+    'git-releases:Compare enabled repositories with their latest published stable release, explain impact and retain local reviews.'
     'mcp-sync:Regenerate MCP configs for all harnesses from the spec'
     'private-pkg-publish:Build and publish a private package'
     'skills:Maintain imported agent skills'
@@ -120,6 +121,9 @@ _dot() {
           ;;
         git-notifications)
           _dot_git_notifications
+          ;;
+        git-releases)
+          _dot_git_releases
           ;;
         mcp-sync)
           _dot_mcp_sync
@@ -499,6 +503,78 @@ _dot_git_notifications() {
     '(--mark-bot-read --no-mark-bot-read)--no-mark-bot-read[Disable mark-bot-read]'
     '(--dry-run --no-dry-run)--dry-run[Preview bot marking]'
     '(--dry-run --no-dry-run)--no-dry-run[Disable dry-run]'
+    '(--help -h)--help[Show help information]'
+    '(--help -h)-h[Show help information]'
+  )
+  _arguments "${specs[@]}"
+}
+
+_dot_git_releases() {
+  local context state state_descr line
+  typeset -A opt_args
+
+  local -a commands
+  commands=(
+    'review:Review exact local release evidence without publishing anything'
+    'acknowledge:Silence the current evidence while keeping it in the overview'
+  )
+
+  local -a specs
+  specs=(
+    '(--repo)--repo[Select an enabled repository by name or GitHub slug]:value:'
+    '(--scheduled --no-scheduled)--scheduled[Check only in a due cron minute, once per minute]'
+    '(--scheduled --no-scheduled)--no-scheduled[Disable scheduled]'
+    '(--refresh --no-refresh)--refresh[Fetch now, bypassing the schedule and cache]'
+    '(--refresh --no-refresh)--no-refresh[Disable refresh]'
+    '(--panel-json --no-panel-json)--panel-json[Complete JSON review snapshots, including quiet changes and errors]'
+    '(--panel-json --no-panel-json)--no-panel-json[Disable panel-json]'
+    '(--help -h)--help[Show help information]'
+    '(--help -h)-h[Show help information]'
+    '1:command:->command'
+    '*::arg:->args'
+  )
+
+  _arguments -C "${specs[@]}"
+
+  case "$state" in
+    command)
+      _describe -t commands 'commands' commands
+      ;;
+    args)
+      case "$words[1]" in
+        review)
+          _dot_git_releases_review
+          ;;
+        acknowledge)
+          _dot_git_releases_acknowledge
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_dot_git_releases_review() {
+  local -a specs
+  specs=(
+    '(--repo)--repo[Configured repository name or GitHub slug]:value:'
+    '(--snapshot)--snapshot[Exact displayed snapshot ID; stale selections are rejected]:value:'
+    '(--panel-json --no-panel-json)--panel-json[Return the updated complete JSON snapshot]'
+    '(--panel-json --no-panel-json)--no-panel-json[Disable panel-json]'
+    '(--finding)--finding[Finding ID, or overall for the current release-relevant comparison]:value:'
+    '(--impact)--impact[Local release impact; auto clears the override]:value:(none patch minor major auto)'
+    '(--help -h)--help[Show help information]'
+    '(--help -h)-h[Show help information]'
+  )
+  _arguments "${specs[@]}"
+}
+
+_dot_git_releases_acknowledge() {
+  local -a specs
+  specs=(
+    '(--repo)--repo[Configured repository name or GitHub slug]:value:'
+    '(--snapshot)--snapshot[Exact displayed snapshot ID; stale selections are rejected]:value:'
+    '(--panel-json --no-panel-json)--panel-json[Return the updated complete JSON snapshot]'
+    '(--panel-json --no-panel-json)--no-panel-json[Disable panel-json]'
     '(--help -h)--help[Show help information]'
     '(--help -h)-h[Show help information]'
   )

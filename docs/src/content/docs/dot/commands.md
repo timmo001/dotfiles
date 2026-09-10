@@ -552,6 +552,90 @@ dot git-notifications --mark-bot-read --dry-run
 dot git-notifications --mark-read 12345
 ```
 
+## `dot git-releases`
+
+Compare enabled repositories with their latest published stable release, explain impact and retain local reviews.
+
+```text
+dot git-releases <subcommand> [flags]
+```
+
+Read the last local snapshot, collecting one on first use. --refresh fetches immutable release and branch refs immediately; --scheduled follows each repository's local-time cron and records attempted minutes. Draft and prerelease releases are excluded. Failed checks retain previous evidence marked stale. Quiet changes remain inspectable. No desktop notifications are sent.
+
+Local review and acknowledgement require the displayed snapshot ID. Finding overrides follow exact evidence; an overall override follows the release-relevant comparison. Changed evidence invalidates its review. Use --impact auto to clear an override. Extra CI-only commits do not invalidate an acknowledgement. Incomplete or stale evidence cannot be acknowledged or reviewed.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--repo` `<string>` | Select an enabled repository by name or GitHub slug |
+| `--scheduled` | Check only in a due cron minute, once per minute |
+| `--refresh` | Fetch now, bypassing the schedule and cache |
+| `--panel-json` | Complete JSON review snapshots, including quiet changes and errors |
+| `--help` `-h` | Show help information |
+
+**Policy**
+
+```text
+Optional releases config selects oxlint-rules or system-bridge and a watched branch.
+Private overrides precede preset rules; the first match wins for each fact.
+Match paths with globs, change_types, exact dependencies, roles, submodules or explicit subjects regexes.
+Selectors are ANDed; values within each selector are ORed. Explicit path overrides match either rename endpoint.
+Preset rename impact is the highest affected old/new boundary; both endpoints must be quiet for a quiet rename.
+Subject selectors follow surviving source lines or individual structured values, excluding reverted intent.
+Each net fact is classified once; any attributed subject can match the first applicable ordered rule.
+Every override supplies impact (none/patch/minor/major) and a readable reason.
+Dependency versions never imply consumer minor or major changes.
+Notification enabled/minimum_impact/cooldown_minutes are stored for future explicit delivery.
+```
+
+**Examples**
+
+```bash
+dot git-releases
+dot git-releases --refresh --panel-json
+dot git-releases --scheduled --panel-json
+dot git-releases review --repo example/project --snapshot ID --finding FINDING --impact patch
+dot git-releases review --repo example/project --snapshot ID --impact auto
+dot git-releases acknowledge --repo example/project --snapshot ID
+```
+
+### `dot git-releases review`
+
+Review exact local release evidence without publishing anything
+
+```text
+dot git-releases review [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--repo` `<string>` | Configured repository name or GitHub slug |
+| `--snapshot` `<string>` | Exact displayed snapshot ID; stale selections are rejected |
+| `--panel-json` | Return the updated complete JSON snapshot |
+| `--finding` `<string>` | Finding ID, or overall for the current release-relevant comparison |
+| `--impact` `<choice>` | Local release impact; auto clears the override (choices: none, patch, minor, major, auto) |
+| `--help` `-h` | Show help information |
+
+### `dot git-releases acknowledge`
+
+Silence the current evidence while keeping it in the overview
+
+```text
+dot git-releases acknowledge [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--repo` `<string>` | Configured repository name or GitHub slug |
+| `--snapshot` `<string>` | Exact displayed snapshot ID; stale selections are rejected |
+| `--panel-json` | Return the updated complete JSON snapshot |
+| `--help` `-h` | Show help information |
+
 ## `dot mcp-sync`
 
 Regenerate MCP configs for all harnesses from the spec

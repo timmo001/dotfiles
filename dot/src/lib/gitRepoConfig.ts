@@ -264,6 +264,7 @@ export function appendGitRepository(
   };
   if (repo.postUpdate !== null)
     Object.assign(entry, { post_update: repo.postUpdate });
+  if (repo.releases) Object.assign(entry, { releases: repo.releases });
   const newline = source.includes("\r\n") ? "\r\n" : "\n";
   const block = [
     `  - name: ${JSON.stringify(entry.name)}`,
@@ -287,6 +288,15 @@ export function appendGitRepository(
     `      schedule: ${JSON.stringify(entry.notifications.schedule)}`,
     "      bar:",
     `        ignore_bot_activity: ${entry.notifications.bar.ignore_bot_activity}`,
+    ...(repo.releases
+      ? [
+          "    releases:",
+          ...Bun.YAML.stringify(repo.releases, null, 2)
+            .trimEnd()
+            .split("\n")
+            .map((line) => `      ${line.trimEnd()}`),
+        ]
+      : []),
     "",
   ].join(newline);
   const expected = Object.assign({}, original, {

@@ -42,6 +42,7 @@ import {
   diffRaw,
 } from "../git/commands/Diff.js";
 import { gitCommitRaw } from "../git/commands/Commit.js";
+import { releasesAction, releasesQuery } from "../git/commands/Releases.js";
 import {
   notificationsAction,
   notificationsBarJson,
@@ -416,6 +417,119 @@ const gitDiffCommand = describe(
     ],
   },
 ).pipe(Command.withAlias("diff"));
+
+const releaseActionFlags = {
+  repo: Flag.string("repo").pipe(
+    Flag.withDescription("Configured repository name or GitHub slug"),
+  ),
+  snapshot: Flag.string("snapshot").pipe(
+    Flag.withDescription(
+      "Exact displayed snapshot ID; stale selections are rejected",
+    ),
+  ),
+  panelJson: bool("panel-json", "Return the updated complete JSON snapshot"),
+};
+const gitReleasesCommand = describe(
+  Command.make(
+    "git-releases",
+    {
+      repo: text("repo", "Select an enabled repository by name or GitHub slug"),
+      scheduled: bool(
+        "scheduled",
+        "Check only in a due cron minute, once per minute",
+      ),
+      refresh: bool("refresh", "Fetch now, bypassing the schedule and cache"),
+      panelJson: bool(
+        "panel-json",
+        "Complete JSON review snapshots, including quiet changes and errors",
+      ),
+    },
+    ({ repo, scheduled, refresh, panelJson }) =>
+      releasesQuery({ repo: optional(repo), scheduled, refresh }, panelJson),
+  ).pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make(
+          "review",
+          {
+            ...releaseActionFlags,
+            finding: Flag.string("finding").pipe(
+              Flag.withDefault("overall"),
+              Flag.withDescription(
+                "Finding ID, or overall for the current release-relevant comparison",
+              ),
+            ),
+            impact: Flag.choice("impact", [
+              "none",
+              "patch",
+              "minor",
+              "major",
+              "auto",
+            ]).pipe(
+              Flag.withDescription(
+                "Local release impact; auto clears the override",
+              ),
+            ),
+          },
+          ({ repo, snapshot, finding, impact, panelJson }) =>
+            releasesAction(
+              { repo, snapshot, target: finding, impact, action: "review" },
+              panelJson,
+            ),
+        ),
+        "Review exact local release evidence without publishing anything",
+      ),
+      describe(
+        Command.make(
+          "acknowledge",
+          releaseActionFlags,
+          ({ repo, snapshot, panelJson }) =>
+            releasesAction(
+              {
+                repo,
+                snapshot,
+                target: "overall",
+                impact: "auto",
+                action: "acknowledge",
+              },
+              panelJson,
+            ),
+        ),
+        "Silence the current evidence while keeping it in the overview",
+      ),
+    ]),
+  ),
+  "Compare enabled repositories with their latest published stable release, explain impact and retain local reviews.",
+  [
+    "dot git-releases",
+    "dot git-releases --refresh --panel-json",
+    "dot git-releases --scheduled --panel-json",
+    "dot git-releases review --repo example/project --snapshot ID --finding FINDING --impact patch",
+    "dot git-releases review --repo example/project --snapshot ID --impact auto",
+    "dot git-releases acknowledge --repo example/project --snapshot ID",
+  ],
+  {
+    description:
+      "Read the last local snapshot, collecting one on first use. --refresh fetches immutable release and branch refs immediately; --scheduled follows each repository's local-time cron and records attempted minutes. Draft and prerelease releases are excluded. Failed checks retain previous evidence marked stale. Quiet changes remain inspectable. No desktop notifications are sent.\n\nLocal review and acknowledgement require the displayed snapshot ID. Finding overrides follow exact evidence; an overall override follows the release-relevant comparison. Changed evidence invalidates its review. Use --impact auto to clear an override. Extra CI-only commits do not invalidate an acknowledgement. Incomplete or stale evidence cannot be acknowledged or reviewed.",
+    sections: [
+      {
+        title: "Policy",
+        lines: [
+          "Optional releases config selects oxlint-rules or system-bridge and a watched branch.",
+          "Private overrides precede preset rules; the first match wins for each fact.",
+          "Match paths with globs, change_types, exact dependencies, roles, submodules or explicit subjects regexes.",
+          "Selectors are ANDed; values within each selector are ORed. Explicit path overrides match either rename endpoint.",
+          "Preset rename impact is the highest affected old/new boundary; both endpoints must be quiet for a quiet rename.",
+          "Subject selectors follow surviving source lines or individual structured values, excluding reverted intent.",
+          "Each net fact is classified once; any attributed subject can match the first applicable ordered rule.",
+          "Every override supplies impact (none/patch/minor/major) and a readable reason.",
+          "Dependency versions never imply consumer minor or major changes.",
+          "Notification enabled/minimum_impact/cooldown_minutes are stored for future explicit delivery.",
+        ],
+      },
+    ],
+  },
+);
 
 const gitCommitCommand = describe(
   Command.make(
@@ -1290,6 +1404,7 @@ export const dotCommand = describe(
       gitDiffCommand,
       gitCommitCommand,
       gitNotificationsCommand,
+      gitReleasesCommand,
       describe(
         Command.make("mcp-sync", {}, () =>
           Effect.promise(() => import("../mcp/commands/McpSync.js")).pipe(
