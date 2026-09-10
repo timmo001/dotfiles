@@ -86,6 +86,8 @@ Panel {
           }
         } else if (view === "release-prepare") {
           rows.push(actionRow("release-choice", "Choose overall impact", "󰓹"))
+          if (service && !service.releaseLaunching && selectedRelease.publishAvailable && releaseSnapshot && releaseSnapshot.complete && !selectedRelease.stale && service.nextReleaseVersion(releaseSnapshot))
+            rows.push(actionRow("release-publish", "Start release…", "󰑓"))
           if (service && !service.releasePreparationIssue(selectedRelease))
             rows.push(actionRow("release-agent", "Open in agent", "󱚣"))
         } else if (view === "finding-group" && selectedFindingGroup) {
@@ -261,7 +263,7 @@ Panel {
         lines.push("Proposed version: " + (service.nextReleaseVersion(releaseSnapshot) || "To be resolved in the release session"))
         lines.push("Target branch: " + releaseSnapshot.branch, "Compared commit: " + releaseSnapshot.head)
         lines.push("Impact: " + releaseSnapshot.suggestion + (releaseSnapshot.reviewed ? " · local overall choice" : " · automatic"))
-        lines.push("Open a release preparation session with the reviewed findings. The agent follows this repository's release workflow and runs its checks. Publish when ready from that session.")
+        lines.push(selectedRelease.publishAvailable ? "Start release opens a Release tab in this repository's Herdr workspace. The terminal explains the steps, asks for confirmation and shows live progress. Failures offer agent recovery; success shows a summary and links." : "Open a release preparation session with the reviewed findings. The agent follows this repository's release workflow and runs its checks. Publish when ready from that session.")
       }
       var issue = service ? service.releasePreparationIssue(selectedRelease) : "Release service unavailable"
       if (issue) lines.push(issue)
@@ -401,6 +403,7 @@ Panel {
     else if (action === "releases") showView("releases")
     else if (action === "release-repo" && selectedRelease) showRepoActions(selectedRelease)
     else if (action === "release-agent") showAgentPicker(selectedRelease)
+    else if (action === "release-publish") service.openRelease(selectedRelease)
     else if (action === "release-choice") { selectedImpactView = view; showView(action) }
     else if (["release-prepare", "release-commits"].indexOf(action) >= 0) showView(action)
     else if (action === "release-evidence") service.openEvidence(view === "finding" ? findingUrl(selectedFinding) : (releaseSnapshot ? "https://github.com/" + releaseSnapshot.repo + "/compare/" + releaseSnapshot.releaseCommit + "...HEAD" : ""))
@@ -464,6 +467,7 @@ Panel {
   Connections {
     target: root.service
     function onAgentOpened() { if (root.view === "agent") root.close() }
+    function onReleaseOpened() { root.close() }
     function onPanelUpdated() { root.syncSelectedRepo() }
     function onReleasesUpdating() {
       var entry = filterController.selectedEntry()
@@ -519,7 +523,7 @@ Panel {
             width: parent.width
             title: root.releaseView ? (root.view === "releases" ? "Unreleased changes" : (root.selectedRelease ? root.selectedRelease.name : "Release review")) : (root.view === "agent" ? "Open in agent" : (root.view === "repo" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "overview" ? "Git" : (root.view === "changed" ? "Changed" : (root.view === "notifications" ? "Notifications" : "Other")))))
             meta: root.releaseView ? (root.view === "finding-group" && root.selectedFindingGroup ? root.selectedFindingGroup.title : (root.view === "finding" ? "Finding evidence" : (root.view === "release-commits" ? "All commits" : "Local release review"))) : (root.view === "agent" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.notificationCountText : (root.view === "changed" ? root.changedRepoCount + " repositories" : (root.view === "notifications" ? root.notificationCountText : root.otherRepoCount + " repositories")))))
-            detail: root.view === "agent" && root.service && root.service.agentLaunching ? "OPENING" : (root.service && root.service.pulling ? "PULLING" : (root.service && root.service.refreshing ? "REFRESHING" : "STATUS"))
+            detail: root.service && (root.service.releaseLaunching || (root.view === "agent" && root.service.agentLaunching)) ? "OPENING" : (root.service && root.service.pulling ? "PULLING" : (root.service && root.service.refreshing ? "REFRESHING" : "STATUS"))
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             iconComponent: Component {

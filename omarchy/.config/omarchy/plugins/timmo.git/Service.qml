@@ -34,6 +34,8 @@ Item {
   property string releaseActionError: ""
   property string releaseRefreshPending: ""
   readonly property bool releaseBusy: releaseProcess.running || releaseActionProcess.running
+  readonly property bool releaseLaunching: releaseLaunchProcess.running
+  signal releaseOpened()
   readonly property int releasePendingCount: releases.filter(function(entry) { return entry.needsAttention }).length
   readonly property bool releaseStale: releasesError !== "" || releases.some(function(entry) { return entry.stale || entry.deliveryError })
   signal panelUpdated()
@@ -134,7 +136,7 @@ Item {
   }
 
   function refreshReleases(mode) {
-    if (releaseProcess.running || releaseActionProcess.running) {
+    if (releaseBusy) {
       if (releaseRefreshPending !== "refresh") releaseRefreshPending = mode
       return
     }
@@ -172,6 +174,15 @@ Item {
 
   function openEvidence(url) {
     if (url) Quickshell.execDetached(["xdg-open", String(url)])
+  }
+
+  function openRelease(entry) {
+    if (!entry || !entry.snapshot || !entry.path || releaseLaunching) return
+    releaseActionError = ""
+    var command = ["dot", "git-releases", "publish", "--interactive", "--repo", entry.repo, "--snapshot", entry.snapshot.id]
+      .map(function(arg) { return "'" + String(arg).replace(/'/g, "'\\''") + "'" }).join(" ")
+    releaseLaunchProcess.command = ["dot", "herdr", "repo-open", String(entry.name), String(entry.path), "Release", command]
+    releaseLaunchProcess.running = true
   }
 
   function nextReleaseVersion(snapshot) {
@@ -242,37 +253,8 @@ Item {
   }
 
   function applyAgents(raw) {
-    var commands = String(raw || "").trim().split(/\s+/).filter(function(value) { return value !== "" })
-    var labels = {
-      "opencode2": "OpenCode 2",
-      "opencode": "OpenCode 1",
-      "claude": "Claude Code",
-      "codex": "Codex",
-      "pi": "Pi",
-      "cursor": "Cursor Agent",
-      "devin": "Devin",
-      "omp": "OMP",
-      "mastracode": "Mastra Code",
-      "copilot": "GitHub Copilot",
-      "kimi": "Kimi",
-      "kiro": "Kiro",
-      "droid": "Droid",
-      "grok": "Grok",
-      "hermes": "Hermes",
-      "kilo": "Kilo",
-      "qodercli": "Qoder CLI",
-      "qwen": "Qwen",
-      "antigravity-cli": "Antigravity CLI"
-    }
-    installedAgents = commands.map(function(command) {
-      return {
-        command: command,
-        executable: command === "opencode2"
-          ? Quickshell.env("HOME") + "/.local/bin/opencode2"
-          : (command === "cursor" ? "cursor-agent" : command),
-        label: labels[command] || command
-      }
-    })
+    try { installedAgents = JSON.parse(String(raw || "[]")) }
+    catch (error) { installedAgents = [] }
   }
 
   function openRepo(repo, action) {
@@ -356,10 +338,7 @@ Item {
 
   Process {
     id: agentDiscoveryProcess
-    command: [
-      "bash", "-lc",
-      "status=$(herdr integration status 2>/dev/null) || exit 1; installed() { printf '%s\\n' \"$status\" | grep -Eq \"^$1: (current|outdated)\"; }; if installed opencode && [ -x \"$HOME/.local/bin/opencode2\" ]; then printf 'opencode2\\n'; fi; for name in opencode pi cursor claude codex copilot omp devin droid kimi kilo hermes qodercli qwen mastracode antigravity-cli grok; do installed \"$name\" && printf '%s\\n' \"$name\"; done; exit 0"
-    ]
+    command: ["dot", "herdr", "agents"]
     running: true
     stdout: StdioCollector { id: agentDiscoveryOutput; waitForEnd: true }
     onExited: function(exitCode) {
@@ -420,6 +399,18 @@ Item {
       if (exitCode === 0) root.applyReleases(releaseOutput.text, false)
       else { root.releasesLoaded = true; root.releasesError = String(releaseStderr.text || "Release comparisons unavailable; refresh to retry").trim().slice(0, 500) }
       root.drainReleaseRefresh()
+    }
+  }
+
+  Process {
+    id: releaseLaunchProcess
+    stderr: StdioCollector {
+      id: releaseLaunchStderr
+      waitForEnd: true
+    }
+    onExited: function(exitCode) {
+      if (exitCode === 0) root.releaseOpened()
+      else root.releaseActionError = String(releaseLaunchStderr.text || "Could not open the release terminal").trim()
     }
   }
 
