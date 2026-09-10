@@ -18,8 +18,8 @@
       "id": "timmo.twitch",
       "managed": true,
       "placement": {
-        "section": "center",
-        "after": "omarchy.keyboard-layout"
+        "section": "right",
+        "index": 0
       },
       "settings": {
         "revealOnHover": true,
@@ -37,7 +37,7 @@
     {
       "id": "timmo.git",
       "placement": {
-        "section": "center",
+        "section": "right",
         "after": "timmo.twitch"
       },
       "settings": {
@@ -56,7 +56,7 @@
     {
       "id": "timmo.command",
       "placement": {
-        "section": "center",
+        "section": "right",
         "after": "timmo.git"
       },
       "settings": {
@@ -89,7 +89,7 @@
       "id": "timmo.home-assistant",
       "placement": {
         "section": "right",
-        "index": 0
+        "before": "omarchy.bluetooth"
       },
       "settings": {
         "primaryOnly": true
@@ -110,7 +110,7 @@
       "managed": true,
       "placement": {
         "section": "right",
-        "after": "timmo.home-assistant"
+        "before": "omarchy.bluetooth"
       },
       "settings": {
         "primaryOnly": true
@@ -129,7 +129,7 @@
       "managed": true,
       "placement": {
         "section": "right",
-        "after": "timmo.system-bridge"
+        "before": "timmo.git"
       },
       "settings": {
         "primaryOnly": true
