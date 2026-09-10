@@ -168,6 +168,10 @@ _dot()
         _dot_git_notifications "$i"
         return
         ;;
+      git-releases)
+        _dot_git_releases "$i"
+        return
+        ;;
       mcp-sync)
         _dot_mcp_sync "$i"
         return
@@ -238,7 +242,7 @@ _dot()
     return
   fi
 
-  COMPREPLY=( $(compgen -W 'init install update up system-update stow omarchy-plugin omarchy-shell-config firewall doctor clean agents-sync notes-capture-sync setup-private-repo setup-public-repo git-diff diff git-commit git-notifications mcp-sync private-pkg-publish skills completions is-agent repo-induct agent-oxlint launch-floating-webapp herdr workspace-setup workspace-relayout usage help' -- "$cur") )
+  COMPREPLY=( $(compgen -W 'init install update up system-update stow omarchy-plugin omarchy-shell-config firewall doctor clean agents-sync notes-capture-sync setup-private-repo setup-public-repo git-diff diff git-commit git-notifications git-releases mcp-sync private-pkg-publish skills completions is-agent repo-induct agent-oxlint launch-floating-webapp herdr workspace-setup workspace-relayout usage help' -- "$cur") )
 }
 
 _dot_init()
@@ -1003,6 +1007,104 @@ _dot_git_notifications()
   [[ -n "$_used_11" ]] || _filtered_flags+=" --mark-bot-read --no-mark-bot-read"
   [[ -n "$_used_12" ]] || _filtered_flags+=" --dry-run --no-dry-run"
   [[ -n "$_used_13" ]] || _filtered_flags+=" --help -h"
+
+  # Complete flags (filtered) and subcommands
+  if [[ "$cur" == -* ]]; then
+    COMPREPLY=( $(compgen -W "$_filtered_flags" -- "$cur") )
+    return
+  fi
+
+}
+
+_dot_git_releases()
+{
+  local cur prev words cword i
+  local _command_index="$1"
+  _init_completion -n "$COMP_WORDBREAKS" || return
+
+  # Flag value completions
+  case "$prev" in
+  esac
+
+  # Subcommand dispatch
+  local cmd _skip_next=0
+  for ((i = _command_index + 1; i < cword; i++)); do
+    if (( _skip_next )); then
+      _skip_next=0
+      continue
+    fi
+    case "${words[i]}" in
+      --repo) _skip_next=1 ;;
+      --repo=*) ;;
+      review)
+        _dot_git_releases_review "$i"
+        return
+        ;;
+    esac
+  done
+
+  local _used_0="" _used_1="" _used_2="" _used_3="" _used_4="" _used_5="" _used_6=""
+  for ((i = 1; i < cword; i++)); do
+    case "${words[i]%%=*}" in
+      --repo) _used_0=1 ;;
+      --scheduled|--no-scheduled) _used_1=1 ;;
+      --refresh|--no-refresh) _used_2=1 ;;
+      --notify|--no-notify) _used_3=1 ;;
+      --open|--no-open) _used_4=1 ;;
+      --panel-json|--no-panel-json) _used_5=1 ;;
+      --help|-h) _used_6=1 ;;
+    esac
+  done
+  local _filtered_flags=""
+  [[ -n "$_used_0" ]] || _filtered_flags+=" --repo"
+  [[ -n "$_used_1" ]] || _filtered_flags+=" --scheduled --no-scheduled"
+  [[ -n "$_used_2" ]] || _filtered_flags+=" --refresh --no-refresh"
+  [[ -n "$_used_3" ]] || _filtered_flags+=" --notify --no-notify"
+  [[ -n "$_used_4" ]] || _filtered_flags+=" --open --no-open"
+  [[ -n "$_used_5" ]] || _filtered_flags+=" --panel-json --no-panel-json"
+  [[ -n "$_used_6" ]] || _filtered_flags+=" --help -h"
+
+  # Complete flags (filtered) and subcommands
+  if [[ "$cur" == -* ]]; then
+    COMPREPLY=( $(compgen -W "$_filtered_flags" -- "$cur") )
+    return
+  fi
+
+  COMPREPLY=( $(compgen -W 'review' -- "$cur") )
+}
+
+_dot_git_releases_review()
+{
+  local cur prev words cword i
+  local _command_index="$1"
+  _init_completion -n "$COMP_WORDBREAKS" || return
+
+  # Flag value completions
+  case "$prev" in
+    --impact)
+      _dot--choices "$cur" "$_comp_word" 'none' 'patch' 'minor' 'major' 'auto'
+      return
+      ;;
+  esac
+
+  local _used_0="" _used_1="" _used_2="" _used_3="" _used_4="" _used_5=""
+  for ((i = 1; i < cword; i++)); do
+    case "${words[i]%%=*}" in
+      --repo) _used_0=1 ;;
+      --snapshot) _used_1=1 ;;
+      --panel-json|--no-panel-json) _used_2=1 ;;
+      --finding) _used_3=1 ;;
+      --impact) _used_4=1 ;;
+      --help|-h) _used_5=1 ;;
+    esac
+  done
+  local _filtered_flags=""
+  [[ -n "$_used_0" ]] || _filtered_flags+=" --repo"
+  [[ -n "$_used_1" ]] || _filtered_flags+=" --snapshot"
+  [[ -n "$_used_2" ]] || _filtered_flags+=" --panel-json --no-panel-json"
+  [[ -n "$_used_3" ]] || _filtered_flags+=" --finding"
+  [[ -n "$_used_4" ]] || _filtered_flags+=" --impact"
+  [[ -n "$_used_5" ]] || _filtered_flags+=" --help -h"
 
   # Complete flags (filtered) and subcommands
   if [[ "$cur" == -* ]]; then
