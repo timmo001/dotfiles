@@ -17,10 +17,12 @@ Panel {
   property string view: "overview"
   property var selectedRepo: null
   property string selectedRepoView: "changed"
+  property string selectedAgentView: "repo"
   property string selectedReleaseKey: ""
   property string selectedReleaseView: "overview"
   property string selectedFindingId: ""
   property string selectedFindingGroupKey: ""
+  property string selectedImpactView: "release"
   property string releaseCursorKey: ""
   readonly property var selectedRelease: service ? service.releases.find(function(entry) {
     return entry.repo.toLowerCase() === selectedReleaseKey.toLowerCase() || entry.name.toLowerCase() === selectedReleaseKey.toLowerCase()
@@ -29,7 +31,8 @@ Panel {
   readonly property var selectedFinding: releaseSnapshot ? releaseSnapshot.findings.find(function(finding) { return finding.id === selectedFindingId }) || null : null
   readonly property var findingGroups: groupFindings()
   readonly property var selectedFindingGroup: findingGroups.find(function(group) { return group.id === selectedFindingGroupKey }) || null
-  readonly property bool releaseView: ["releases", "release", "release-choice", "finding-group", "finding", "release-commits"].indexOf(view) >= 0
+  readonly property bool releaseAgentView: view === "agent" && selectedAgentView === "release-prepare"
+  readonly property bool releaseView: releaseAgentView || ["releases", "release", "release-prepare", "release-choice", "finding-group", "finding", "release-commits"].indexOf(view) >= 0
   readonly property var filteredReleaseRows: filterController.filteredModel.filter(function(entry) { return ["release", "finding-group", "finding", "commit"].indexOf(entry.kind) >= 0 })
   readonly property var releaseGeometry: ({ x: panel.cardOrigin.x, y: panel.cardOrigin.y, width: panel.contentWidth, height: panel.contentHeight, screen: panel.screen ? panel.screen.name : "" })
   readonly property string cursorKey: filterController.selectedEntry() ? filterController.selectedEntry().key : ""
@@ -52,9 +55,18 @@ Panel {
 
   function buildPanelRows() {
     var rows = []
+    if (view === "agent") {
+      var agents = service ? service.installedAgents : []
+      for (var i = 0; i < agents.length; i++) {
+        var agent = agents[i]
+        rows.push(actionRow("agent:" + agent.command, agent.label, "󱚣"))
+      }
+      rows.push(actionRow("back", releaseAgentView ? "Back to release preparation" : "Back to repository", ""))
+      return rows
+    }
     if (releaseView) {
       if (view !== "releases") rows.push(headerActionRow("release-refresh", "Refresh release comparison", "release-summary"))
-      rows.push(actionRow("back", view === "releases" || (view === "release" && selectedReleaseView === "overview") ? "Back to Git overview" : (view === "release" ? "Back to unreleased changes" : (view === "finding" && selectedFindingGroup ? "Back to " + selectedFindingGroup.title.toLowerCase() : "Back to release review")), ""))
+      rows.push(actionRow("back", view === "releases" || (view === "release" && selectedReleaseView === "overview") ? "Back to Git overview" : (view === "release" ? "Back to unreleased changes" : (view === "finding" && selectedFindingGroup ? "Back to " + selectedFindingGroup.title.toLowerCase() : (view === "release-choice" && selectedImpactView === "release-prepare" ? "Back to release preparation" : "Back to release review"))), ""))
       if (view === "releases") {
         rows.push(headerActionRow("release-refresh", "Refresh unreleased changes", "release"))
         var releases = service ? service.releases : []
@@ -63,9 +75,8 @@ Panel {
       } else if (selectedRelease) {
         if (view === "release") {
           rows.push(actionRow("release-repo", "Open repository…", ""))
-          rows.push(actionRow("release-policy", "Edit policy", ""))
+          rows.push(actionRow("release-prepare", "Prepare release…", "󰑓"))
           if (releaseSnapshot) {
-            rows.push(actionRow("release-choice", "Overall impact: " + releaseSnapshot.suggestion + (releaseSnapshot.reviewed ? " (reviewed)" : " (auto)"), "󰓹"))
             rows.push(actionRow("release-evidence", "Open full comparison", ""))
             rows.push(actionRow("release-commits", "All commits · " + releaseSnapshot.commits.length, ""))
             for (var g = 0; g < findingGroups.length; g++) {
@@ -73,6 +84,10 @@ Panel {
               if (group.findings.length) rows.push(releaseRow("finding-group", group.id, group, group.title + " · " + group.findings.length + "  ›", group.summary))
             }
           }
+        } else if (view === "release-prepare") {
+          rows.push(actionRow("release-choice", "Choose overall impact", "󰓹"))
+          if (service && !service.releasePreparationIssue(selectedRelease))
+            rows.push(actionRow("release-agent", "Open in agent", "󱚣"))
         } else if (view === "finding-group" && selectedFindingGroup) {
           var findings = selectedFindingGroup.findings
           for (var f = 0; f < findings.length; f++) {
@@ -103,14 +118,6 @@ Panel {
       rows.push(actionRow("terminal", "Open terminal", ""))
       rows.push(actionRow("web", "Open on GitHub", ""))
       rows.push(actionRow("back", "Back to repositories", ""))
-      return rows
-    } else if (view === "agent") {
-      var agents = service ? service.installedAgents : []
-      for (var i = 0; i < agents.length; i++) {
-        var agent = agents[i]
-        rows.push(actionRow("agent:" + agent.command, agent.label, "󱚣"))
-      }
-      rows.push(actionRow("back", "Back to repository", ""))
       return rows
     } else {
       rows.push(actionRow("back", "Back to Git overview", ""))
@@ -249,6 +256,15 @@ Panel {
         lines.push("Before: " + String(selectedFinding.before || "absent"), "After: " + String(selectedFinding.after || "absent"))
         if (!findingUrl(selectedFinding)) lines.push("Upstream link unavailable in this cached snapshot; refresh to collect it")
       }
+    } else if (view === "release-prepare" || releaseAgentView) {
+      if (releaseSnapshot && service) {
+        lines.push("Proposed version: " + (service.nextReleaseVersion(releaseSnapshot) || "To be resolved in the release session"))
+        lines.push("Target branch: " + releaseSnapshot.branch, "Compared commit: " + releaseSnapshot.head)
+        lines.push("Impact: " + releaseSnapshot.suggestion + (releaseSnapshot.reviewed ? " · local overall choice" : " · automatic"))
+        lines.push("Open a release preparation session with the reviewed findings. The agent follows this repository's release workflow and runs its checks. Publish when ready from that session.")
+      }
+      var issue = service ? service.releasePreparationIssue(selectedRelease) : "Release service unavailable"
+      if (issue) lines.push(issue)
     } else if (view === "finding-group") {
       lines.push(selectedFindingGroup && selectedFindingGroup.findings.length ? selectedFindingGroup.summary : "No findings remain in this group; their impact or evidence may have changed")
     } else if (releaseSnapshot) {
@@ -360,6 +376,14 @@ Panel {
     showView("repo")
   }
 
+  function showAgentPicker(repo) {
+    selectedAgentView = view
+    selectedRepo = repo
+    service.agentLaunchError = ""
+    service.releaseActionError = ""
+    showView("agent")
+  }
+
   function syncSelectedRepo() {
     if (!selectedRepo || !service) return
     var path = String(selectedRepo.path || "")
@@ -376,17 +400,22 @@ Panel {
     else if (action === "notifications-refresh") service.refreshNotifications()
     else if (action === "releases") showView("releases")
     else if (action === "release-repo" && selectedRelease) showRepoActions(selectedRelease)
-    else if (action === "release-policy") { close(); service.editReleasePolicy(selectedRelease) }
-    else if (["release-choice", "release-commits"].indexOf(action) >= 0) showView(action)
+    else if (action === "release-agent") showAgentPicker(selectedRelease)
+    else if (action === "release-choice") { selectedImpactView = view; showView(action) }
+    else if (["release-prepare", "release-commits"].indexOf(action) >= 0) showView(action)
     else if (action === "release-evidence") service.openEvidence(view === "finding" ? findingUrl(selectedFinding) : (releaseSnapshot ? "https://github.com/" + releaseSnapshot.repo + "/compare/" + releaseSnapshot.releaseCommit + "...HEAD" : ""))
     else if (action.indexOf("impact:") === 0) service.releaseAction(selectedRelease, view === "finding" ? selectedFindingId : "overall", action.slice(7))
-    else if (action === "back" && releaseView) showView(view === "releases" ? "overview" : (view === "release" ? selectedReleaseView : (view === "finding" && selectedFindingGroup ? "finding-group" : "release")))
+    else if (action === "back" && view === "agent") showView(selectedAgentView)
+    else if (action === "back" && releaseView) showView(view === "releases" ? "overview" : (view === "release" ? selectedReleaseView : (view === "finding" && selectedFindingGroup ? "finding-group" : (view === "release-choice" ? selectedImpactView : "release"))))
     else if (action === "refresh") service.refresh()
     else if (action === "changed" || action === "other") showView(action)
-    else if (action === "agent") showView("agent")
-    else if (action === "back") showView(view === "agent" ? "repo" : (view === "repo" ? selectedRepoView : "overview"))
+    else if (action === "agent") showAgentPicker(selectedRepo)
+    else if (action === "back") showView(view === "repo" ? selectedRepoView : "overview")
     else if (action === "notifications") { close(); service.openNotifications() }
-    else if (action.indexOf("agent:") === 0 && selectedRepo) { close(); service.openAgent(selectedRepo, action.slice(6)) }
+    else if (action.indexOf("agent:") === 0 && selectedRepo) {
+      if (releaseAgentView) service.prepareRelease(selectedRelease, findingGroups.map(function(group) { return { title: group.title, count: group.findings.length, summary: group.summary } }), action.slice(6))
+      else service.openAgent(selectedRepo, action.slice(6))
+    }
     else if (selectedRepo) {
       if (action === "pull") {
         service.openRepo(selectedRepo, action)
@@ -434,6 +463,7 @@ Panel {
 
   Connections {
     target: root.service
+    function onAgentOpened() { if (root.view === "agent") root.close() }
     function onPanelUpdated() { root.syncSelectedRepo() }
     function onReleasesUpdating() {
       var entry = filterController.selectedEntry()
@@ -489,7 +519,7 @@ Panel {
             width: parent.width
             title: root.releaseView ? (root.view === "releases" ? "Unreleased changes" : (root.selectedRelease ? root.selectedRelease.name : "Release review")) : (root.view === "agent" ? "Open in agent" : (root.view === "repo" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "overview" ? "Git" : (root.view === "changed" ? "Changed" : (root.view === "notifications" ? "Notifications" : "Other")))))
             meta: root.releaseView ? (root.view === "finding-group" && root.selectedFindingGroup ? root.selectedFindingGroup.title : (root.view === "finding" ? "Finding evidence" : (root.view === "release-commits" ? "All commits" : "Local release review"))) : (root.view === "agent" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.notificationCountText : (root.view === "changed" ? root.changedRepoCount + " repositories" : (root.view === "notifications" ? root.notificationCountText : root.otherRepoCount + " repositories")))))
-            detail: root.service && root.service.pulling ? "PULLING" : (root.service && root.service.refreshing ? "REFRESHING" : "STATUS")
+            detail: root.view === "agent" && root.service && root.service.agentLaunching ? "OPENING" : (root.service && root.service.pulling ? "PULLING" : (root.service && root.service.refreshing ? "REFRESHING" : "STATUS"))
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             iconComponent: Component {
@@ -505,10 +535,10 @@ Panel {
           SectionHeading {
             id: comparisonHeading
             visible: root.releaseView && root.view !== "releases"
-            title: root.view === "finding-group" ? "Group summary" : "Release comparison"
+            title: root.view === "release-prepare" || root.releaseAgentView ? "Prepare release" : (root.view === "finding-group" ? "Group summary" : "Release comparison")
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
-            refreshable: true
+            refreshable: !root.releaseAgentView
             refreshing: root.service ? root.service.releaseBusy : false
             hasCursor: root.cursorKey === "action:release-refresh"
             onRefreshHovered: filterController.cursorIndex = filterController.indexForKey("action:release-refresh")
@@ -563,6 +593,17 @@ Panel {
                 MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: root.activateAction(modelData.action) }
               }
             }
+          }
+
+          Text {
+            visible: root.view === "agent" && root.service && root.service.agentLaunchError !== ""
+            width: parent.width
+            text: root.service ? root.service.agentLaunchError : ""
+            textFormat: Text.PlainText
+            wrapMode: Text.Wrap
+            color: root.contentForeground
+            font.family: root.contentFontFamily
+            font.pixelSize: Style.font.caption
           }
 
           SectionHeading {
