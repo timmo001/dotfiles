@@ -312,14 +312,21 @@ Panel {
 
   Timer {
     id: revealTimer
+    property string requestedKey: ""
     interval: 0
-    onTriggered: root.scrollCursorIntoView()
+    onTriggered: if (requestedKey === root.cursorKey) root.scrollCursorIntoView()
   }
 
   function showView(nextView) {
+    revealTimer.stop()
     view = nextView
     filterController.reset()
     panelFlick.contentY = 0
+    Qt.callLater(function() {
+      revealTimer.stop()
+      filterController.reset()
+      panelFlick.contentY = 0
+    })
   }
 
   function showRepoActions(repo) {
@@ -430,7 +437,7 @@ Panel {
       anchors.fill: parent
       model: root.panelRows
       backOnEmptyFilter: true
-      onRevealRequested: revealTimer.restart()
+      onRevealRequested: { revealTimer.requestedKey = root.cursorKey; revealTimer.restart() }
       onActivateRequested: function(entry, modifiers) { root.activateEntry(entry, modifiers) }
       onBackRequested: if (root.view === "overview") root.close(); else root.activateAction("back")
       onCloseRequested: root.close()
