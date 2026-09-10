@@ -313,6 +313,14 @@ Panel {
     filterController.reset()
     controller.show()
     Qt.callLater(function() {
+      if (view === "overview") {
+        var index = filterController.filteredModel.findIndex(function(entry) { return entry.kind === "repo" })
+        if (service && service.updateStatus === "available")
+          index = filterController.indexForKey("action:pull-all")
+        else if (index < 0)
+          index = filterController.indexForKey("action:repositories-refresh")
+        filterController.selectIndex(index)
+      }
       panelFlick.contentY = 0
       filterController.forceActiveFocus()
     })
