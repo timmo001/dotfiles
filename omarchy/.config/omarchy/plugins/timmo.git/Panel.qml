@@ -18,6 +18,7 @@ Panel {
   property var selectedRepo: null
   property string selectedRepoView: "changed"
   property string selectedReleaseKey: ""
+  property string selectedReleaseView: "overview"
   property string selectedFindingId: ""
   property string releaseCursorKey: ""
   readonly property var selectedRelease: service ? service.releases.find(function(entry) {
@@ -49,9 +50,10 @@ Panel {
   function buildPanelRows() {
     var rows = []
     if (releaseView) {
-      rows.push(actionRow("back", view === "releases" ? "Back to Git overview" : (view === "release" ? "Back to unreleased changes" : "Back to release review"), ""))
-      rows.push(actionRow("release-refresh", "Refresh release comparisons", "󰑐"))
+      if (view !== "releases") rows.push(headerActionRow("release-refresh", "Refresh release comparison", "release-summary"))
+      rows.push(actionRow("back", view === "releases" || (view === "release" && selectedReleaseView === "overview") ? "Back to Git overview" : (view === "release" ? "Back to unreleased changes" : "Back to release review"), ""))
       if (view === "releases") {
+        rows.push(headerActionRow("release-refresh", "Refresh unreleased changes", "release"))
         var releases = service ? service.releases : []
         for (var r = 0; r < releases.length; r++)
           rows.push(releaseRow("release", releases[r].repo, releases[r], releases[r].name, releaseDetail(releases[r])))
@@ -110,6 +112,8 @@ Panel {
       rows.push(actionRow("back", "Back to Git overview", ""))
     }
     var repos = []
+    if (["overview", "changed", "other"].indexOf(view) >= 0)
+      rows.push(headerActionRow("repositories-refresh", "Refresh repositories", "repo"))
     if (service) {
       if (view === "overview")
         repos = filterController.filterText ? service.changedRepos.concat(service.otherRepos) : service.changedRepos
@@ -131,6 +135,8 @@ Panel {
       rows.push(actionRow("other", "Other repositories", "󰙅"))
     }
     var threads = service && (view === "overview" || view === "notifications") ? service.threads : []
+    if (view === "overview" || view === "notifications")
+      rows.push(headerActionRow("notifications-refresh", "Refresh notifications", "thread"))
     for (var k = 0; k < threads.length; k++) {
       var thread = threads[k]
       rows.push({
@@ -149,13 +155,12 @@ Panel {
         notificationCountText,
         ""
       ))
-    if (view === "overview")
-      rows.push(footerActionRow(
-        "releases",
-        "Unreleased changes",
-        (service ? service.releasePendingCount : 0) + " release candidates",
-        "󰓹"
-      ))
+    if (view === "overview") {
+      rows.push(headerActionRow("release-refresh", "Refresh unreleased changes", "release"))
+      var releases = service ? service.releases : []
+      for (var r = 0; r < releases.length; r++)
+        rows.push(releaseRow("release", releases[r].repo, releases[r], releases[r].name, releaseDetail(releases[r])))
+    }
     return rows
   }
 
@@ -173,6 +178,13 @@ Panel {
 
   function releaseRow(kind, key, value, title, detail) {
     return { key: kind + ":" + key, kind: kind, section: "release", value: value, primaryText: title, secondaryText: detail }
+  }
+
+  function headerActionRow(action, label, section) {
+    var row = actionRow(action, label, "󰑐")
+    row.kind = "header-action"
+    row.section = section
+    return row
   }
 
   function releaseDetail(entry) {
@@ -239,6 +251,7 @@ Panel {
   function open(payloadJson) {
     var initialView = "overview"
     selectedReleaseKey = ""
+    selectedReleaseView = "overview"
     selectedFindingId = ""
     try {
       var payload = JSON.parse(String(payloadJson || "{}"))
@@ -251,7 +264,7 @@ Panel {
     }
     view = initialView
     selectedRepo = null
-    if (releaseView && service) service.refreshReleases("read")
+    if ((releaseView || view === "overview") && service) service.refreshReleases("read")
     filterController.reset()
     controller.show()
     Qt.callLater(function() {
@@ -272,6 +285,11 @@ Panel {
   function cursorItem() {
     var entry = filterController.selectedEntry()
     if (!entry) return null
+    if (entry.kind === "header-action") {
+      if (entry.action === "repositories-refresh") return repositoriesHeading
+      if (entry.action === "notifications-refresh") return notificationsHeading
+      return releaseView && view !== "releases" ? comparisonHeading : releasesHeading
+    }
     if (["release", "finding", "commit", "file"].indexOf(entry.kind) >= 0)
       return releaseRepeater.itemAt(filteredReleaseRows.indexOf(entry))
     var rows = entry.kind === "action" ? filteredActions
@@ -322,13 +340,15 @@ Panel {
   function activateAction(action, modifiers) {
     if (!service) return
     if (action === "release-refresh") { service.releaseActionError = ""; service.refreshReleases("refresh") }
+    else if (action === "repositories-refresh") service.refreshRepositories()
+    else if (action === "notifications-refresh") service.refreshNotifications()
     else if (action === "releases") showView("releases")
     else if (action === "release-repo" && selectedRelease) showRepoActions(selectedRelease)
     else if (action === "release-policy") { close(); service.editReleasePolicy(selectedRelease) }
     else if (["release-choice", "release-commits", "release-files"].indexOf(action) >= 0) showView(action)
     else if (action === "release-evidence") service.openEvidence(view === "finding" ? findingUrl(selectedFinding) : (releaseSnapshot ? releaseSnapshot.url : ""))
     else if (action.indexOf("impact:") === 0) service.releaseAction(selectedRelease, view === "finding" ? selectedFindingId : "overall", action.slice(7))
-    else if (action === "back" && releaseView) showView(view === "releases" ? "overview" : (view === "release" ? "releases" : "release"))
+    else if (action === "back" && releaseView) showView(view === "releases" ? "overview" : (view === "release" ? selectedReleaseView : "release"))
     else if (action === "refresh") service.refresh()
     else if (action === "changed" || action === "other") showView(action)
     else if (action === "agent") showView("agent")
@@ -356,10 +376,10 @@ Panel {
   }
 
   function activateEntry(entry, modifiers) {
-    if (entry.kind === "action" || entry.kind === "footer-action") activateAction(entry.action, modifiers)
+    if (entry.kind === "action" || entry.kind === "footer-action" || entry.kind === "header-action") activateAction(entry.action, modifiers)
     else if (entry.kind === "repo") showRepoActions(entry.value)
     else if (entry.kind === "thread") activateThread(entry.value)
-    else if (entry.kind === "release") { selectedReleaseKey = entry.value.repo; showView("release") }
+    else if (entry.kind === "release") { selectedReleaseView = view; selectedReleaseKey = entry.value.repo; showView("release") }
     else if (entry.kind === "finding") { selectedFindingId = entry.value.id; showView("finding") }
     else if (entry.kind === "file") service.openEvidence(findingUrl(entry.value))
     else if (entry.kind === "commit") service.openEvidence(entry.value.url || (entry.value.submodule ? "" : "https://github.com/" + selectedRelease.repo + "/commit/" + entry.value.id))
@@ -450,6 +470,19 @@ Panel {
             }
           }
 
+          SectionHeading {
+            id: comparisonHeading
+            visible: root.releaseView && root.view !== "releases"
+            title: "Release comparison"
+            foreground: root.contentForeground
+            fontFamily: root.contentFontFamily
+            refreshable: true
+            refreshing: root.service ? root.service.releaseBusy : false
+            hasCursor: root.cursorKey === "action:release-refresh"
+            onRefreshHovered: filterController.cursorIndex = filterController.indexForKey("action:release-refresh")
+            onRefreshRequested: root.activateAction("release-refresh")
+          }
+
           Text {
             visible: root.releaseView
             width: parent.width
@@ -461,14 +494,11 @@ Panel {
             font.pixelSize: Style.font.caption
           }
 
-          Text {
-            visible: root.view !== "overview"
-            text: filterController.filterText || "ACTIONS"
-            color: Qt.darker(root.contentForeground, 1.4)
-            font.family: root.contentFontFamily
-            font.pixelSize: Style.font.caption
-            font.bold: true
-            font.letterSpacing: 1.2
+          SectionHeading {
+            visible: root.view !== "overview" && root.filteredActions.length > 0
+            title: "Actions"
+            foreground: root.contentForeground
+            fontFamily: root.contentFontFamily
           }
 
           Column {
@@ -503,43 +533,17 @@ Panel {
             }
           }
 
-          Column {
-            width: parent.width
-            spacing: Style.space(2)
-            Repeater {
-              id: releaseRepeater
-              model: root.filteredReleaseRows
-              CursorSurface {
-                required property var modelData
-                x: Style.space(8)
-                width: Math.max(0, contentColumn.width - Style.space(16))
-                implicitHeight: releaseColumn.implicitHeight + Style.space(12)
-                hasCursor: filterController.cursorIndex === filterController.indexForKey(modelData.key)
-                foreground: root.contentForeground
-                accent: root.contentForeground
-                Column {
-                  id: releaseColumn
-                  anchors.left: parent.left
-                  anchors.right: parent.right
-                  anchors.verticalCenter: parent.verticalCenter
-                  anchors.margins: Style.space(8)
-                  spacing: Style.space(2)
-                  Text { width: parent.width; text: modelData.primaryText; textFormat: Text.PlainText; wrapMode: Text.WrapAnywhere; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body }
-                  Text { width: parent.width; text: modelData.secondaryText; textFormat: Text.PlainText; wrapMode: Text.WrapAnywhere; color: Qt.darker(root.contentForeground, 1.4); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption }
-                }
-                MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: root.activateEntry(modelData, Qt.NoModifier) }
-              }
-            }
-          }
-
-          Text {
-            visible: root.filteredRepos.length > 0
-            text: (root.view === "overview" && !filterController.filterText ? "CHANGED REPOSITORIES" : "REPOSITORIES") + " · " + (filterController.filterText ? root.filteredRepos.length + " MATCHING" : (root.view === "other" ? root.otherRepoCount : root.changedRepoCount))
-            color: Qt.darker(root.contentForeground, 1.4)
-            font.family: root.contentFontFamily
-            font.pixelSize: Style.font.caption
-            font.bold: true
-            font.letterSpacing: 1.2
+          SectionHeading {
+            id: repositoriesHeading
+            visible: ["overview", "changed", "other"].indexOf(root.view) >= 0 && (!filterController.filterText || root.filteredRepos.length > 0 || filterController.indexForKey("action:repositories-refresh") >= 0)
+            title: (root.view === "overview" && !filterController.filterText ? "Changed repositories" : "Repositories") + " · " + root.filteredRepos.length
+            foreground: root.contentForeground
+            fontFamily: root.contentFontFamily
+            refreshable: true
+            refreshing: root.service ? root.service.repositoriesBusy : false
+            hasCursor: root.cursorKey === "action:repositories-refresh"
+            onRefreshHovered: filterController.cursorIndex = filterController.indexForKey("action:repositories-refresh")
+            onRefreshRequested: root.activateAction("repositories-refresh")
           }
 
           Column {
@@ -596,15 +600,6 @@ Panel {
                 width: contentColumn.width
                 spacing: Style.space(8)
 
-                Rectangle {
-                  anchors.left: parent.left
-                  anchors.right: parent.right
-                  anchors.leftMargin: Style.space(8)
-                  anchors.rightMargin: Style.space(8)
-                  height: 1
-                  color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.18)
-                }
-
                 CursorSurface {
                   x: Style.space(8)
                   width: Math.max(0, contentColumn.width - Style.space(16))
@@ -629,11 +624,17 @@ Panel {
             }
           }
 
-          Rectangle {
-            visible: root.view === "overview"
-            width: parent.width
-            height: 1
-            color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.18)
+          SectionHeading {
+            id: notificationsHeading
+            visible: (root.view === "overview" || root.view === "notifications") && (!filterController.filterText || root.filteredThreads.length > 0 || root.filteredFooterActions.length > 0 || filterController.indexForKey("action:notifications-refresh") >= 0)
+            title: "Notifications · " + root.filteredThreads.length
+            foreground: root.contentForeground
+            fontFamily: root.contentFontFamily
+            refreshable: true
+            refreshing: root.service ? root.service.notificationsBusy : false
+            hasCursor: root.cursorKey === "action:notifications-refresh"
+            onRefreshHovered: filterController.cursorIndex = filterController.indexForKey("action:notifications-refresh")
+            onRefreshRequested: root.activateAction("notifications-refresh")
           }
 
           Column {
@@ -683,44 +684,95 @@ Panel {
             width: parent.width
             spacing: Style.space(8)
 
-            Rectangle {
-              anchors.left: parent.left
-              anchors.right: parent.right
-              anchors.leftMargin: Style.space(8)
-              anchors.rightMargin: Style.space(8)
-              height: 1
-              color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.18)
-            }
-
             Repeater {
               id: footerActionRepeater
               model: root.filteredFooterActions
-              CursorSurface {
+              Column {
                 required property int index
+                required property var modelData
+                width: contentColumn.width
+                spacing: Style.space(8)
+
+                CursorSurface {
+                  x: Style.space(8)
+                  width: Math.max(0, contentColumn.width - Style.space(16))
+                  implicitHeight: footerActionRow.implicitHeight + Style.space(12)
+                  hasCursor: filterController.cursorIndex === filterController.indexForKey(modelData.key)
+                  foreground: root.contentForeground
+                  accent: root.contentForeground
+                  Row {
+                    id: footerActionRow
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: Style.space(8)
+                    anchors.rightMargin: Style.space(8)
+                    spacing: Style.space(10)
+                    Text { width: Style.space(22); text: modelData.icon; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.icon; horizontalAlignment: Text.AlignHCenter }
+                    Column {
+                      width: Math.max(0, footerActionRow.width - Style.space(32))
+                      spacing: Style.space(2)
+                      Text { width: parent.width; text: modelData.primaryText; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
+                      Text { width: parent.width; text: modelData.secondaryText; color: Qt.darker(root.contentForeground, 1.4); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; elide: Text.ElideRight }
+                    }
+                  }
+                  MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: root.activateAction(modelData.action) }
+                }
+              }
+            }
+          }
+
+          SectionHeading {
+            id: releasesHeading
+            visible: (root.view === "overview" || root.view === "releases") && (!filterController.filterText || root.filteredReleaseRows.length > 0 || filterController.indexForKey("action:release-refresh") >= 0)
+              || (root.releaseView && root.filteredReleaseRows.length > 0)
+            title: root.view === "overview" || root.view === "releases" ? "Unreleased changes · " + root.filteredReleaseRows.length
+              : (root.view === "release-commits" ? "Commits" : (root.view === "release-files" ? "Changed files" : "Findings")) + " · " + root.filteredReleaseRows.length
+            foreground: root.contentForeground
+            fontFamily: root.contentFontFamily
+            refreshable: root.view === "overview" || root.view === "releases"
+            refreshing: root.service ? root.service.releaseBusy : false
+            hasCursor: root.cursorKey === "action:release-refresh"
+            onRefreshHovered: filterController.cursorIndex = filterController.indexForKey("action:release-refresh")
+            onRefreshRequested: root.activateAction("release-refresh")
+          }
+
+          Text {
+            visible: (root.view === "overview" || root.view === "releases") && !filterController.filterText && (root.filteredReleaseRows.length === 0 || (root.service && root.service.releasesError !== ""))
+            width: parent.width
+            text: root.service && root.service.releasesError ? root.service.releasesError : (root.service && root.service.releasesLoaded ? "No repositories configured for release tracking" : "Loading release comparisons")
+            textFormat: Text.PlainText
+            wrapMode: Text.WrapAnywhere
+            color: Qt.darker(root.contentForeground, 1.4)
+            font.family: root.contentFontFamily
+            font.pixelSize: Style.font.body
+          }
+
+          Column {
+            width: parent.width
+            spacing: Style.space(2)
+            Repeater {
+              id: releaseRepeater
+              model: root.filteredReleaseRows
+              CursorSurface {
                 required property var modelData
                 x: Style.space(8)
                 width: Math.max(0, contentColumn.width - Style.space(16))
-                implicitHeight: footerActionRow.implicitHeight + Style.space(12)
+                implicitHeight: releaseColumn.implicitHeight + Style.space(12)
                 hasCursor: filterController.cursorIndex === filterController.indexForKey(modelData.key)
                 foreground: root.contentForeground
                 accent: root.contentForeground
-                Row {
-                  id: footerActionRow
+                Column {
+                  id: releaseColumn
                   anchors.left: parent.left
                   anchors.right: parent.right
                   anchors.verticalCenter: parent.verticalCenter
-                  anchors.leftMargin: Style.space(8)
-                  anchors.rightMargin: Style.space(8)
-                  spacing: Style.space(10)
-                  Text { width: Style.space(22); text: modelData.icon; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.icon; horizontalAlignment: Text.AlignHCenter }
-                  Column {
-                    width: Math.max(0, footerActionRow.width - Style.space(32))
-                    spacing: Style.space(2)
-                    Text { width: parent.width; text: modelData.primaryText; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
-                    Text { width: parent.width; text: modelData.secondaryText; color: Qt.darker(root.contentForeground, 1.4); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; elide: Text.ElideRight }
-                  }
+                  anchors.margins: Style.space(8)
+                  spacing: Style.space(2)
+                  Text { width: parent.width; text: modelData.primaryText; textFormat: Text.PlainText; wrapMode: Text.WrapAnywhere; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body }
+                  Text { width: parent.width; text: modelData.secondaryText; textFormat: Text.PlainText; wrapMode: Text.WrapAnywhere; color: Qt.darker(root.contentForeground, 1.4); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption }
                 }
-                MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: root.activateAction(modelData.action) }
+                MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: root.activateEntry(modelData, Qt.NoModifier) }
               }
             }
           }

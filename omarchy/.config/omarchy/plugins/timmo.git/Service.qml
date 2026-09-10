@@ -38,6 +38,8 @@ Item {
   signal releasesUpdated()
 
   readonly property bool refreshing: diffProcess.running || panelProcess.running || notificationsProcess.running || pullProcess.running || releaseBusy
+  readonly property bool repositoriesBusy: diffProcess.running || panelProcess.running || pullProcess.running
+  readonly property bool notificationsBusy: notificationsProcess.running
   readonly property bool pulling: pullProcess.running
   readonly property bool clear: diffLoaded && notificationsLoaded
     && diffError === "" && notificationsError === ""
@@ -114,10 +116,18 @@ Item {
   }
 
   function refresh(mode) {
+    refreshRepositories()
+    refreshNotifications()
+    if (mode !== "action") refreshReleases(mode === "scheduled" ? "scheduled" : "refresh")
+  }
+
+  function refreshRepositories() {
     panelRefreshPending = true
     if (!diffProcess.running) diffProcess.running = true
+  }
+
+  function refreshNotifications() {
     if (!notificationsProcess.running) notificationsProcess.running = true
-    if (mode !== "action") refreshReleases(mode === "scheduled" ? "scheduled" : "refresh")
   }
 
   function refreshReleases(mode) {
