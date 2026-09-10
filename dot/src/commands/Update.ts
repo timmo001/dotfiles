@@ -76,6 +76,7 @@ const PULL_MAX_ATTEMPTS = 2;
 const STEP_TIMEOUT_SECONDS = {
   pull: 8 * 60,
   stow: 3 * 60,
+  miseInstall: 10 * 60,
   rebuild: 5 * 60,
   herdrPlugins: 5 * 60,
   postHooks: 2 * 60,
@@ -376,6 +377,46 @@ const postHooks = Effect.gen(function* () {
   yield* log.section("Post-Hooks");
 
   yield* agentsSync;
+});
+
+/** Install missing home-level mise tools after checking with mise. */
+const installMissingMiseTools = Effect.gen(function* () {
+  const executor = yield* CommandExecutor;
+  const log = yield* OutputLog;
+
+  yield* log.section("Install Mise Tools");
+  if ((yield* executor.exitCode("which", ["mise"])) !== 0) {
+    yield* log.warn("Skipping mise install (mise not installed)");
+    return false;
+  }
+
+  const checkExitCode = yield* executor.exitCode(
+    "mise",
+    ["install", "--dry-run-code"],
+    { cwd: HOME_DIR },
+  );
+  if (checkExitCode === 0) {
+    yield* log.info(
+      "All global mise tools are installed; skipping mise install",
+    );
+    return false;
+  }
+  if (checkExitCode !== 1) {
+    return yield* new UpdateError({
+      message: `mise install check exited ${checkExitCode}`,
+    });
+  }
+
+  const exitCode = yield* executor.inherit("mise", ["install"], {
+    cwd: HOME_DIR,
+  });
+  if (exitCode !== 0) {
+    return yield* new UpdateError({
+      message: `mise install exited ${exitCode}`,
+    });
+  }
+
+  return true;
 });
 
 /** Read the Herdr Lazy plugin root from `herdr plugin list --json`. */
@@ -921,6 +962,21 @@ export const update = (opts?: UpdateOptions) =>
       );
       completedActions.push(
         "Generated completions, synced MCP, and stowed dotfiles",
+      );
+    }
+
+    if (doPull || doStow) {
+      yield* requiredUpdateStep(
+        "Install Mise Tools",
+        STEP_TIMEOUT_SECONDS.miseInstall,
+        installMissingMiseTools.pipe(
+          Effect.map((installed) => {
+            if (installed)
+              completedActions.push(
+                "Installed tools from the global mise config",
+              );
+          }),
+        ),
       );
     }
 
