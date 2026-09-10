@@ -98,6 +98,12 @@ type = "plugin_action"
 command = "timmo.workflow-watch.open"
 description = "open workflow failures"
 
+[[keys.command]]
+key = "prefix+t"
+type = "plugin_action"
+command = "timmo.mascot.toggle"
+description = "toggle mascot"
+
 [theme]
 name = "catppuccin"
 auto_switch = false
