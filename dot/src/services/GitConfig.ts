@@ -414,6 +414,22 @@ function parseReleases(
       throw new Error(
         "notification cooldown_minutes must be a non-negative integer",
       );
+    if (
+      settings.source_minor_threshold !== undefined &&
+      (!Number.isInteger(settings.source_minor_threshold) ||
+        settings.source_minor_threshold < 0)
+    )
+      throw new Error("source_minor_threshold must be a non-negative integer");
+    for (const path of settings.source_excludes ?? []) {
+      if (
+        !path.trim() ||
+        path.startsWith("/") ||
+        path.split("/").includes("..")
+      )
+        throw new Error(
+          "source_excludes must contain non-empty repository-relative globs",
+        );
+    }
     for (const rule of settings.overrides ?? []) {
       if (!rule.reason.trim())
         throw new Error("override reason must not be empty");

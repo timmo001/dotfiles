@@ -91,6 +91,28 @@ export function acceptReleaseSnapshot(
     ),
   };
   const snapshot = applyReleaseReview(candidate, retained);
+  const previous = cache.snapshot
+    ? applyReleaseReview(cache.snapshot, review)
+    : null;
+  // Policy upgrades may change automatic impact without changing the reviewed evidence.
+  if (
+    previous &&
+    retained.overall?.comparisonId === previous.comparisonId &&
+    releaseReviewEvidence(previous) === releaseReviewEvidence(snapshot)
+  ) {
+    const migrated = {
+      ...retained,
+      overall: { ...retained.overall, comparisonId: snapshot.comparisonId },
+    };
+    return {
+      cache: {
+        ...cache,
+        snapshot: applyReleaseReview(candidate, migrated),
+        error: null,
+      },
+      review: migrated,
+    };
+  }
   return {
     cache: { ...cache, snapshot, error: null },
     review:
@@ -99,6 +121,23 @@ export function acceptReleaseSnapshot(
         ? { ...retained, overall: null }
         : retained,
   };
+}
+
+function releaseReviewEvidence(snapshot: ReleaseSnapshot): string {
+  return evidenceId([
+    snapshot.repo,
+    snapshot.branch,
+    snapshot.releaseCommit,
+    snapshot.findings
+      .filter(
+        (fact) =>
+          fact.automaticImpact !== "none" ||
+          fact.impact !== "none" ||
+          fact.reviewed,
+      )
+      .map((fact) => fact.id)
+      .sort(),
+  ]);
 }
 
 /** Read validated cache and state while holding the repository lock. */

@@ -50,6 +50,7 @@ export function releaseFact(
     complete: _complete,
     subjects: _subjects,
     evidenceUrl: _evidenceUrl,
+    changedLines: _changedLines,
     ...evidence
   } = input;
   return { ...input, id: evidenceId(evidence) };
@@ -461,6 +462,28 @@ function parseLog(output: string, submodule: string | null): ReleaseCommit[] {
   return commits;
 }
 
+function parseNumstat(output: string): Map<string, number | null> {
+  const records = output.split("\0");
+  const counts = new Map<string, number | null>();
+  for (let index = 0; index < records.length && records[index];) {
+    const match = /^(\d+|-)\t(\d+|-)\t([\s\S]*)$/.exec(records[index++]);
+    if (!match) throw new Error("Could not parse Git line counts");
+    let path = match[3];
+    if (!path) {
+      index++; // Renames carry separate old and new path records.
+      path = records[index++];
+    }
+    if (!path) throw new Error("Missing Git line-count path");
+    counts.set(
+      path,
+      match[1] === "-" || match[2] === "-"
+        ? null
+        : Number(match[1]) + Number(match[2]),
+    );
+  }
+  return counts;
+}
+
 const range = Effect.fn("releases.range")(function* (
   cwd: string,
   before: string,
@@ -487,11 +510,35 @@ const range = Effect.fn("releases.range")(function* (
     `${before}..${after}`,
     "--",
   ]);
+  const numstat = yield* git(cwd, [
+    "diff",
+    "--numstat",
+    "-z",
+    "--no-ext-diff",
+    "--no-textconv",
+    "--diff-algorithm=myers",
+    "--no-indent-heuristic",
+    "--ignore-submodules=none",
+    "-M",
+    before,
+    after,
+    "--",
+  ]);
   return yield* Effect.try({
-    try: () => ({
-      facts: parseRawDiff(diff, submodule),
-      commits: parseLog(log, submodule),
-    }),
+    try: () => {
+      const counts = parseNumstat(numstat);
+      return {
+        facts: parseRawDiff(diff, submodule).map((fact) => {
+          const path = submodule
+            ? fact.path.slice(submodule.length + 1)
+            : fact.path;
+          if (!counts.has(path))
+            throw new Error(`Missing Git line count for ${fact.path}`);
+          return { ...fact, changedLines: counts.get(path) };
+        }),
+        commits: parseLog(log, submodule),
+      };
+    },
     catch: (error) => new ReleaseError({ message: formatCause(error) }),
   });
 });

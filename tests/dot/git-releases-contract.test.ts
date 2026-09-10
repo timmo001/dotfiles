@@ -11,14 +11,14 @@ import { acceptReleaseSnapshot, applyReleaseReview, assertReleaseSelection, empt
 import { CommandError, CommandExecutor } from "../../dot/src/services/CommandExecutor.js";
 import { deliverReleaseNotification } from "../../dot/src/git/services/GitReleases.js";
 import { GitHub } from "../../dot/src/git/services/GitHub.js";
-import { publishRelease } from "../../dot/src/git/release/publish.js";
+import { nextReleaseTag, publishRelease } from "../../dot/src/git/release/publish.js";
 import type { ReleaseFact, ReleaseReviewState, ReleaseSettings, ReleaseSnapshot } from "../../dot/src/git/release/types.js";
 
 const repository: GitManagedRepo = {
   name: "Example", path: "/example", github: "example/project", aliases: [], postUpdate: null, agentOxlint: false,
   activity: { enabled: false, schedule: "* * * * *" },
   notifications: { enabled: false, schedule: "* * * * *", bar: { ignoreBotActivity: false } },
-  releases: { enabled: true, schedule: "*/15 * * * *", branch: "main", policy: "oxlint-rules", overrides: [], notifications: { enabled: true, minimum_impact: "patch", cooldown_minutes: 60 } },
+  releases: { enabled: true, schedule: "*/15 * * * *", branch: "main", policy: "oxlint-rules", source_minor_threshold: 50, overrides: [], notifications: { enabled: true, minimum_impact: "patch", cooldown_minutes: 60 } },
 };
 
 function settings(): ReleaseSettings {
@@ -95,6 +95,120 @@ test("strict optional config feeds separate patch peers and quiet development-ve
   expect(parseDotGitConfigText(source.replace("*/15 * * * *", "*/0 * * * *"), "fixture.yml").valid).toBe(false);
 });
 
+test("source totals use net added plus deleted lines with a strict 50-line boundary", async () => {
+  const history = gitHistory();
+  const config = { ...settings(), policy: "system-bridge" as const };
+  try {
+    const source = { "main.go": "var value = 0\n" };
+    const base = history.commit(source, "Baseline");
+    for (const count of [49, 50, 51]) {
+      const files = { "main.go": "var value = 1\n", "client/data_watch.go": "watch()\n".repeat(count - 2) };
+      const head = history.commit(files, "fix: source update", base);
+      const changes = await history.collect(base, head, config);
+      expect(changes.errors).toEqual([]);
+      expect(changes.facts.map((fact) => fact.changedLines)).toEqual([count - 2, 2]);
+      const current = snapshot(changes.facts, head, config);
+      expect(current.suggestion).toBe(count > 50 ? "minor" : "patch");
+      expect(nextReleaseTag(current)).toBe(count > 50 ? "1.1.0" : "1.0.1");
+      expect(snapshot(changes.facts, head, { ...config, source_excludes: ["**"] }).suggestion).toBe("patch");
+      const reverted = history.commit({ "main.go": "var value = 2\n" }, "feat: misleading reverted change", head);
+      expect(snapshot((await history.collect(base, reverted, config)).facts, reverted, config).suggestion).toBe("patch");
+    }
+    const rename = history.commit({ "client/odd\tname\n.go": source["main.go"] }, "Rename only", base);
+    const renamed = await history.collect(base, rename, config);
+    expect(renamed.errors).toEqual([]);
+    expect(renamed.facts[0].changeType).toBe("renamed");
+    expect(renamed.facts[0].changedLines).toBe(0);
+    const binary = history.commit({ ...source, "client/image.bin": "\0binary\0" }, "Binary asset", base);
+    expect((await history.collect(base, binary, config)).facts[0].changedLines).toBeNull();
+  } finally { history.close(); }
+});
+
+test("source cutoff comes from validated config and omission disables only the size heuristic", () => {
+  for (const threshold of [0, 10, 100]) {
+    const config = { ...settings(), source_minor_threshold: threshold };
+    expect(snapshot([{ ...file("src/change.ts"), changedLines: threshold }], "head", config).suggestion).toBe("patch");
+    const above = snapshot([{ ...file("src/change.ts"), changedLines: threshold + 1 }], "head", config);
+    expect(above.suggestion).toBe("minor");
+    expect(above.findings[0].reason).toContain(`over ${threshold}`);
+  }
+  const disabled = { ...settings(), source_minor_threshold: undefined };
+  const fact = { ...file("src/change.ts"), changedLines: 1000 };
+  expect(snapshot([fact], "head", disabled).suggestion).toBe("patch");
+  expect(snapshot([fact], "head", { ...disabled, overrides: [{ paths: ["src/**"], impact: "minor", reason: "Local rule policy" }] }).suggestion).toBe("minor");
+  for (const threshold of [-1, 1.5]) {
+    const source = appendGitRepository("schema_version: 2\nrepositories: []\n", { ...repository, releases: { ...settings(), source_minor_threshold: threshold } });
+    expect(parseDotGitConfigText(source, "fixture.yml").valid).toBe(false);
+  }
+});
+
+test("quiet paths, excluded scripts and dependency churn do not inflate source impact", async () => {
+  const history = gitHistory();
+  const config = { ...settings(), policy: "system-bridge" as const, source_excludes: ["scripts/**"] };
+  try {
+    const base = history.commit({ "client/source.go": "old\n" }, "Baseline");
+    const head = history.commit({
+      "client/source.go": "new\n",
+      "client/source_test.go": "test\n".repeat(100),
+      "scripts/dev.go": "dev\n".repeat(100),
+      ".github/workflows/check.yml": "ci\n".repeat(100),
+      "docs/guide.md": "docs\n".repeat(100),
+      "omarchy-plugin/Panel.qml": "plugin\n".repeat(100),
+      "client/package.json": JSON.stringify({ dependencies: Object.fromEntries(Array.from({ length: 100 }, (_, index) => [`lib-${index}`, "99.0.0"])) }, null, 2),
+    }, "feat: big dependency bump", base);
+    const changes = await history.collect(base, head, config);
+    expect(changes.errors).toEqual([]);
+    const current = snapshot(changes.facts, head, config);
+    expect(current.suggestion).toBe("patch");
+    expect(current.findings.filter((finding) => finding.impact === "none").map((finding) => finding.path)).toEqual([".github/workflows/check.yml", "client/source_test.go", "docs/guide.md", "omarchy-plugin/Panel.qml"]);
+    const newCategory = history.commit({
+      "client/source.go": "old\n",
+      "future-category/feature.rs": "source\n".repeat(51),
+    }, "New source category", base);
+    const added = await history.collect(base, newCategory, config);
+    expect(added.errors).toEqual([]);
+    expect(added.facts[0].changedLines).toBe(51);
+    expect(snapshot(added.facts, newCategory, config).suggestion).toBe("minor");
+  } finally { history.close(); }
+});
+
+test("source exclusions retain the included side of a rename", () => {
+  const config = { ...settings(), source_excludes: ["scripts/**"] };
+  for (const [from, to, impact] of [
+    ["scripts/old.ts", "new-category/feature.ts", "minor"],
+    ["new-category/feature.ts", "scripts/old.ts", "minor"],
+    ["scripts/old.ts", "scripts/new.ts", "patch"],
+  ] as const) {
+    const renamed = { ...file(to), previousPath: from, changeType: "renamed" as const, changedLines: 51 };
+    expect(snapshot([renamed], "head", config).suggestion).toBe(impact);
+  }
+});
+
+test("size heuristics preserve explicit policy and evidence-bound human impacts across upgrades", () => {
+  const original = file("src/fix.ts");
+  const fact = releaseFact({ ...original, changedLines: 51 });
+  expect(fact.id).toBe(original.id);
+  const config = settings();
+  const initial = snapshot([original]);
+  const current = { ...snapshot([fact], "head", config), policyId: "new-policy" };
+  expect(current.suggestion).toBe("minor");
+  for (const impact of ["none", "patch", "minor", "major"] as const) {
+    const explicit = { ...config, overrides: [{ paths: [fact.path], impact, reason: "Explicit consumer policy" }] };
+    expect(snapshot([fact], "head", explicit).suggestion).toBe(impact);
+    const local = reviewRelease(initial, emptyReleaseReview(), fact.id, impact);
+    const accepted = acceptReleaseSnapshot({ ...emptyReleaseCache(), snapshot: initial }, local, current);
+    expect(accepted.cache.snapshot?.suggestion).toBe(impact);
+    expect(accepted.review.findings).toEqual(local.findings);
+  }
+  const review = reviewRelease(initial, emptyReleaseReview(), "overall", "patch");
+  const accepted = acceptReleaseSnapshot({ ...emptyReleaseCache(), snapshot: initial }, review, current);
+  expect(accepted.cache.snapshot?.suggestion).toBe("patch");
+  expect(accepted.cache.snapshot?.reviewed).toBe(true);
+  expect(accepted.review.overall?.comparisonId).toBe(accepted.cache.snapshot?.comparisonId);
+  const changed = releaseFact({ ...fact, after: "different" });
+  expect(acceptReleaseSnapshot(accepted.cache, accepted.review, snapshot([changed], "new-head", config)).review.overall).toBeNull();
+});
+
 test("upstream shipped files drive patch while upstream docs and tests stay inspectable and quiet", () => {
   const current = snapshot([file("vendor/anti-slop/src/rules/example.ts", "vendor/anti-slop"), file("vendor/anti-slop/src/rules/example.test.ts", "vendor/anti-slop"), file("vendor/anti-slop/README.md", "vendor/anti-slop")]);
   expect(current.findings.map((fact) => fact.impact)).toEqual(["patch", "none", "none"]);
@@ -102,6 +216,26 @@ test("upstream shipped files drive patch while upstream docs and tests stay insp
   expect(snapshot(current.findings, "head", overridden).findings.map((fact) => fact.impact)).toEqual(["minor", "none", "none"]);
   const incomplete = snapshot([{ ...file("vendor/anti-slop"), kind: "submodule", complete: false }]);
   expect(releaseNotificationState(incomplete, emptyReleaseReview(), settings(), false).pending).toBeNull();
+});
+
+test("configured local-rule minor and vendored patch policies take precedence over source size", () => {
+  const config: ReleaseSettings = { ...settings(), source_excludes: ["scripts/**"], overrides: [
+    { paths: ["**/*.test.*"], impact: "none", reason: "Tests are quiet" },
+    { paths: ["vendor/anti-slop/src/**"], impact: "patch", reason: "Vendored rules" },
+    { paths: ["src/**"], impact: "minor", reason: "Local rules" },
+  ] };
+  const vendored = { ...file("vendor/anti-slop/src/rule.ts", "vendor/anti-slop"), changedLines: 500 };
+  const local = { ...file("src/xyz/rule.ts"), changedLines: 2 };
+  expect(snapshot([vendored], "head", config).suggestion).toBe("patch");
+  expect(snapshot([local], "head", config).suggestion).toBe("minor");
+  expect(snapshot([vendored, local], "head", config).findings.map((finding) => finding.impact)).toEqual(["patch", "minor"]);
+  expect(snapshot([{ ...file("src/xyz/rule.test.ts"), changedLines: 100 }], "head", config).suggestion).toBe("none");
+  const source = appendGitRepository("schema_version: 2\nrepositories: []\n", { ...repository, releases: config });
+  expect(parseDotGitConfigText(source, "fixture.yml").repositories[0].releases).toEqual(config);
+  for (const path of ["", "/absolute", "../outside"]) {
+    const invalid = appendGitRepository("schema_version: 2\nrepositories: []\n", { ...repository, releases: { ...config, source_excludes: [path] } });
+    expect(parseDotGitConfigText(invalid, "fixture.yml").valid).toBe(false);
+  }
 });
 
 test("runtime lock-only updates, shared reachability and build exceptions remain relevant without semver escalation", () => {
@@ -313,14 +447,14 @@ function gitHistory() {
     const entries: string[] = [];
     for (const [path, text] of Object.entries(files)) {
       const slash = path.indexOf("/");
-      if (slash === -1) entries.push(`100644 blob ${git(["hash-object", "-w", "--stdin"], text)}\t${path}\n`);
+      if (slash === -1) entries.push(`100644 blob ${git(["hash-object", "-w", "--stdin"], text)}\t${path}\0`);
       else {
         const dir = path.slice(0, slash);
         directories.set(dir, { ...directories.get(dir), [path.slice(slash + 1)]: text });
       }
     }
-    for (const [name, files] of directories) entries.push(`040000 tree ${tree(files)}\t${name}\n`);
-    return git(["mktree"], entries.sort().join(""));
+    for (const [name, files] of directories) entries.push(`040000 tree ${tree(files)}\t${name}\0`);
+    return git(["mktree", "-z"], entries.sort().join(""));
   };
   return {
     root,

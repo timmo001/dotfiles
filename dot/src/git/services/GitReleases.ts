@@ -124,6 +124,8 @@ function policyIdentity(settings: ReleaseSettings): string {
     RELEASE_POLICY_VERSION,
     settings.policy,
     settings.overrides ?? [],
+    settings.source_excludes ?? [],
+    settings.source_minor_threshold ?? null,
   ]);
 }
 

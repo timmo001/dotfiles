@@ -176,6 +176,16 @@ $defs:
         enum:
           - oxlint-rules
           - system-bridge
+      source_minor_threshold:
+        type: integer
+        minimum: 0
+        description: Net added plus deleted source lines above this cutoff recommends minor. At or below it stays patch. Omission disables the size heuristic.
+      source_excludes:
+        type: array
+        description: Globs excluded from the source-size heuristic. New paths count by default. Quiet paths, explicit overrides and dependency changes are excluded.
+        items:
+          type: string
+          minLength: 1
       publish:
         type: object
         additionalProperties: false

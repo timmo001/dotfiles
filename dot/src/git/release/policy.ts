@@ -7,7 +7,7 @@ import type {
 } from "./types.js";
 
 /** Portable shipped-content boundaries; increment when classification semantics change. */
-export const RELEASE_POLICY_VERSION = 2;
+export const RELEASE_POLICY_VERSION = 5;
 
 /** Build dependencies whose output is shipped by the application. */
 export const SYSTEM_BRIDGE_BUILD_DEPENDENCIES = [
@@ -212,7 +212,7 @@ export function classifyReleaseFacts(
   facts: readonly ReleaseFact[],
   settings: ReleaseSettings,
 ): ReleaseFinding[] {
-  return facts.map((fact) => {
+  const findings = facts.map((fact) => {
     const override = settings.overrides?.find((rule) =>
       releaseRuleMatches(rule, fact),
     );
@@ -251,6 +251,43 @@ export function classifyReleaseFacts(
       reviewed: false,
     };
   });
+  if (settings.source_minor_threshold === undefined) return findings;
+  const sourceFindings = new Set(
+    findings.filter(
+      (finding) =>
+        finding.kind === "file" &&
+        finding.complete &&
+        finding.automaticImpact !== "none" &&
+        !/(^|\/)(package\.json|bun\.lockb?|go\.mod|go\.sum)$/.test(
+          finding.path,
+        ) &&
+        !settings.overrides?.some((rule) =>
+          releaseRuleMatches(rule, finding),
+        ) &&
+        [finding.path, finding.previousPath].some(
+          (path) =>
+            path !== null &&
+            !(settings.source_excludes ?? []).some((pattern) =>
+              new Bun.Glob(pattern).match(path),
+            ),
+        ),
+    ),
+  );
+  const changedLines = [...sourceFindings].reduce(
+    (total, finding) => total + (finding.changedLines ?? 0),
+    0,
+  );
+  if (changedLines <= settings.source_minor_threshold) return findings;
+  return findings.map((finding) =>
+    sourceFindings.has(finding) && (finding.changedLines ?? 0) > 0
+      ? {
+          ...finding,
+          automaticImpact: "minor",
+          impact: "minor",
+          reason: `Source size heuristic: ${changedLines} added/deleted lines across non-excluded shipped source (over ${settings.source_minor_threshold})`,
+        }
+      : finding,
+  );
 }
 
 /** Return the highest suggested consumer impact. */

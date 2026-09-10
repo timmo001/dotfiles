@@ -50,6 +50,10 @@ export const ReleaseSettings = Schema.Struct({
   branch: Schema.String,
   /** Portable shipped-content policy. */
   policy: Schema.Literals(["oxlint-rules", "system-bridge"]),
+  /** Changed source lines above this cutoff suggest minor; omission disables the heuristic. */
+  source_minor_threshold: Schema.optional(Schema.Number),
+  /** Paths excluded from the source-size heuristic; new paths count by default. */
+  source_excludes: Schema.optional(Schema.Array(Schema.String)),
   /** First-match rules applied before the preset. */
   overrides: Schema.optional(Schema.Array(ReleaseRule)),
   /** Explicit local recipe for confirmed, programmatic releases. */
@@ -109,6 +113,8 @@ export const ReleaseFact = Schema.Struct({
   subjects: Schema.optional(Schema.Array(Schema.String)),
   /** Short evidence description. */
   detail: Schema.String,
+  /** Net added plus deleted lines; null for binary files, absent in older caches. */
+  changedLines: Schema.optional(Schema.NullOr(Schema.Number)),
   /** Whether all evidence needed to classify this fact was obtained. */
   complete: Schema.Boolean,
   /** Immutable upstream comparison link; absent in older cached evidence. */
