@@ -129,7 +129,6 @@ Panel {
     }
     if (view === "overview") {
       rows.push(actionRow("other", "Other repositories", "󰙅"))
-      rows.push(actionRow("releases", "Unreleased changes" + (service && service.releasePendingCount ? " · " + service.releasePendingCount + " release candidates" : ""), "󰓹"))
     }
     var threads = service && (view === "overview" || view === "notifications") ? service.threads : []
     for (var k = 0; k < threads.length; k++) {
@@ -149,6 +148,13 @@ Panel {
         "GitHub notifications",
         notificationCountText,
         ""
+      ))
+    if (view === "overview")
+      rows.push(footerActionRow(
+        "releases",
+        "Unreleased changes",
+        (service ? service.releasePendingCount : 0) + " release candidates",
+        "󰓹"
       ))
     return rows
   }
