@@ -36,7 +36,7 @@ BarWidget {
     if (git.notificationsError !== "") values.push(" ?")
     else if (!git.notificationsLoaded) values.push(" ..")
     else if (git.threads.length > 0) values.push(" " + git.threads.length)
-    return values.length > 0 ? values.join("  ") : "  "
+    return values.length > 0 ? values.join("  ") : ""
   }
   readonly property color displayColor: {
     if (!git) return "#9b9b9b"
