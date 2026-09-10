@@ -71,7 +71,8 @@ Panel {
         rows.push(headerActionRow("release-refresh", "Refresh unreleased changes", "release"))
         var releases = service ? service.releases : []
         for (var r = 0; r < releases.length; r++)
-          rows.push(releaseRow("release", releases[r].repo, releases[r], releases[r].name, releaseDetail(releases[r])))
+          if (releases[r].needsAttention)
+            rows.push(releaseRow("release", releases[r].repo, releases[r], releases[r].name, releaseDetail(releases[r])))
       } else if (selectedRelease) {
         if (view === "release") {
           rows.push(actionRow("release-repo", "Open repository…", ""))
@@ -174,7 +175,8 @@ Panel {
       rows.push(headerActionRow("release-refresh", "Refresh unreleased changes", "release"))
       var releases = service ? service.releases : []
       for (var r = 0; r < releases.length; r++)
-        rows.push(releaseRow("release", releases[r].repo, releases[r], releases[r].name, releaseDetail(releases[r])))
+        if (releases[r].needsAttention)
+          rows.push(releaseRow("release", releases[r].repo, releases[r], releases[r].name, releaseDetail(releases[r])))
     }
     return rows
   }
@@ -245,7 +247,7 @@ Panel {
   }
 
   function releaseSummary() {
-    if (view === "releases") return service && !service.releasesLoaded ? "Loading release comparisons" : "All watched repositories, including quiet changes"
+    if (view === "releases") return service && !service.releasesLoaded ? "Loading release comparisons" : "Watched repositories with a suggested release"
     if (!selectedRelease) return service && !service.releasesLoaded ? "Loading selected repository" : "Repository unavailable; return to unreleased changes or refresh"
     var lines = [releaseDetail(selectedRelease)]
     if (selectedRelease.error) lines.push(selectedRelease.error)
@@ -827,7 +829,7 @@ Panel {
             id: releasesHeading
             visible: (root.view === "overview" || root.view === "releases") && (!filterController.filterText || root.filteredReleaseRows.length > 0 || filterController.indexForKey("action:release-refresh") >= 0)
               || (root.releaseView && root.filteredReleaseRows.length > 0)
-            title: root.view === "overview" || root.view === "releases" ? "Unreleased changes · " + root.filteredReleaseRows.length
+            title: root.view === "overview" || root.view === "releases" ? "Unreleased changes · " + root.filteredReleaseRows.length + " of " + (root.service ? root.service.releases.length : 0)
               : (root.view === "release-commits" ? "Commits" : (root.view === "release" ? "Finding groups" : "Findings")) + " · " + root.filteredReleaseRows.length
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
@@ -839,7 +841,7 @@ Panel {
           }
 
           Text {
-            visible: (root.view === "overview" || root.view === "releases") && !filterController.filterText && (root.filteredReleaseRows.length === 0 || (root.service && root.service.releasesError !== ""))
+            visible: (root.view === "overview" || root.view === "releases") && !filterController.filterText && (!root.service || !root.service.releasesLoaded || root.service.releases.length === 0 || root.service.releasesError !== "")
             width: parent.width
             text: root.service && root.service.releasesError ? root.service.releasesError : (root.service && root.service.releasesLoaded ? "No repositories configured for release tracking" : "Loading release comparisons")
             textFormat: Text.PlainText
