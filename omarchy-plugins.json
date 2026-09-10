@@ -19,7 +19,7 @@
       "managed": true,
       "placement": {
         "section": "right",
-        "index": 0
+        "before": "omarchy.bluetooth"
       },
       "settings": {
         "revealOnHover": true,
@@ -38,7 +38,7 @@
       "id": "timmo.git",
       "placement": {
         "section": "right",
-        "after": "timmo.twitch"
+        "index": 0
       },
       "settings": {
         "revealOnHover": true,
