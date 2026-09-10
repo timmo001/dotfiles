@@ -7,6 +7,12 @@ import {
 } from "../../services/GitConfig.js";
 import { formatCause } from "../../lib/schema.js";
 import { GitHub } from "./GitHub.js";
+import {
+  publishRelease,
+  type ReleasePublishAction,
+  type ReleasePublishResult,
+  type ReleaseProgress,
+} from "../release/publish.js";
 import { collectReleaseChanges, evidenceId } from "../release/changes.js";
 import {
   classifyReleaseFacts,
@@ -85,6 +91,8 @@ export interface ReleaseEntry {
   readonly deliveryError: string | null;
   /** Configured future delivery preferences. */
   readonly notifications: ReleaseSettings["notifications"];
+  /** A local programmatic publishing recipe is available. */
+  readonly publishAvailable: boolean;
 }
 
 /** CLI and panel operations with opt-in desktop delivery. */
@@ -97,6 +105,11 @@ export interface GitReleasesService {
   readonly action: (
     action: ReleaseAction,
   ) => Effect.Effect<ReleaseEntry, ReleaseError>;
+  /** Preview a release, or execute its explicitly confirmed plan with progress. */
+  readonly publish: (
+    action: ReleasePublishAction,
+    progress: ReleaseProgress,
+  ) => Effect.Effect<ReleasePublishResult, ReleaseError>;
 }
 
 const StableRelease = Schema.Struct({
@@ -146,6 +159,7 @@ function entry(
     needsAttention: snapshot !== null && snapshot.suggestion !== "none",
     deliveryError: review.deliveryError ?? null,
     notifications: settings.notifications,
+    publishAvailable: settings.publish !== undefined,
   };
 }
 
@@ -472,6 +486,7 @@ export class GitReleases extends Context.Service<
                       needsAttention: false,
                       deliveryError: null,
                       notifications: settings.notifications,
+                      publishAvailable: settings.publish !== undefined,
                     } satisfies ReleaseEntry),
                   ),
                 ),
@@ -544,7 +559,52 @@ export class GitReleases extends Context.Service<
           }),
         );
       });
-      return { query, action };
+      const publish = Effect.fn("GitReleases.publish")(function* (
+        action: ReleasePublishAction,
+        progress: ReleaseProgress,
+      ) {
+        const repositories = yield* select(action.repo);
+        const repo = repositories[0];
+        const settings = repo.releases;
+        if (!settings)
+          return yield* new ReleaseError({
+            message: "Release settings missing",
+          });
+        const paths = releasePaths(repo.github);
+        return yield* withReleaseLock(
+          paths,
+          Effect.gen(function* () {
+            const { cache, review } = yield* readReleaseState(paths);
+            const current = entry(
+              repo,
+              settings,
+              cache,
+              review,
+              config.gitConfig.filePath,
+            );
+            if (
+              current.stale ||
+              !current.snapshot?.complete ||
+              current.snapshot.id !== action.snapshot
+            )
+              return yield* new ReleaseError({
+                message:
+                  "Release evidence changed or is incomplete; refresh before creating a release",
+              });
+            return yield* publishRelease(
+              repo,
+              settings,
+              current.snapshot,
+              action.confirm,
+              progress,
+            ).pipe(
+              Effect.provideService(CommandExecutor, executor),
+              Effect.provideService(GitHub, github),
+            );
+          }),
+        );
+      });
+      return { query, action, publish };
     }),
   );
 }

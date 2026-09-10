@@ -621,6 +621,27 @@ dot git-releases review [flags]
 | `--impact` `<choice>` | Local release impact; auto clears the override (choices: none, patch, minor, major, auto) |
 | `--help` `-h` | Show help information |
 
+### `dot git-releases publish`
+
+Preview version changes, validation, pushes and generated release notes. --interactive explains and confirms in the terminal; --confirm PLAN executes a reviewed plan with live progress.
+
+```text
+dot git-releases publish [flags]
+```
+
+Requires an explicit private releases.publish recipe. The preview is read-only. Confirmation binds the reviewed snapshot, version files, commands and target. Preparation runs in an isolated worktree. Only agreed version changes are committed through dot git-commit, then the version commit and tag are pushed atomically. GitHub release notes are generated from the previous stable release. Progress includes command output and a saved log. Release creation does not wait for GitHub publication jobs; follow the returned Actions URL. Failed preparation is retained for inspection. Refresh and preview again after resolving a failure.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--repo` `<string>` | Configured repository name or GitHub slug |
+| `--snapshot` `<string>` | Exact displayed snapshot ID; stale selections are rejected |
+| `--panel-json` | Stream JSON progress and the final plan or release result |
+| `--interactive` | Explain, confirm and run the release in this terminal, with an optional log pager |
+| `--confirm` `<string>` | Execute the exact plan ID returned by the preview |
+| `--help` `-h` | Show help information |
+
 ## `dot mcp-sync`
 
 Regenerate MCP configs for all harnesses from the spec
@@ -1120,6 +1141,20 @@ dot herdr repo-open [flags] <label> <directory> [<tab-label>] [<command>]
 1  Herdr operation failed
 2  Invalid arguments
 ```
+
+### `dot herdr agents`
+
+List installed agent targets shared by repository and release pickers
+
+```text
+dot herdr agents [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
 
 ## `dot workspace-setup`
 

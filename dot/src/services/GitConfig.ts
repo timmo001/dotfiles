@@ -382,6 +382,26 @@ function parseReleases(
     if (settings.schedule.trim().split(/\s+/).length !== 5)
       throw new Error("schedule must contain five fields");
     Cron.parseUnsafe(settings.schedule);
+    if (settings.publish) {
+      for (const path of settings.publish.version_files) {
+        if (
+          !/^[A-Za-z0-9_][A-Za-z0-9_./-]*\.json$/.test(path) ||
+          path.split("/").some((part) => part === ".." || part === "." || !part)
+        )
+          throw new Error(
+            "publish version_files must be repository-relative JSON paths",
+          );
+      }
+      if (
+        new Set(settings.publish.version_files).size !==
+        settings.publish.version_files.length
+      )
+        throw new Error("publish version_files must be unique");
+      for (const command of settings.publish.commands) {
+        if (!command.length || command.some((arg) => !arg.trim()))
+          throw new Error("publish commands must be non-empty argv arrays");
+      }
+    }
     if (
       !/^[A-Za-z0-9_][A-Za-z0-9_./-]*$/.test(settings.branch) ||
       /\.\.|\/\.|\/\/|\.lock(?:\/|$)|[./]$/.test(settings.branch)

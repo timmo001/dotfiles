@@ -10,6 +10,8 @@ import { classifyReleaseFacts, highestImpact } from "../../dot/src/git/release/p
 import { acceptReleaseSnapshot, applyReleaseReview, assertReleaseSelection, emptyReleaseCache, emptyReleaseReview, readReleaseState, releaseNotificationState, releasePaths, reviewRelease, saveReleaseDocument, withReleaseLock } from "../../dot/src/git/release/state.js";
 import { CommandError, CommandExecutor } from "../../dot/src/services/CommandExecutor.js";
 import { deliverReleaseNotification } from "../../dot/src/git/services/GitReleases.js";
+import { GitHub } from "../../dot/src/git/services/GitHub.js";
+import { publishRelease } from "../../dot/src/git/release/publish.js";
 import type { ReleaseFact, ReleaseReviewState, ReleaseSettings, ReleaseSnapshot } from "../../dot/src/git/release/types.js";
 
 const repository: GitManagedRepo = {
@@ -27,6 +29,48 @@ function settings(): ReleaseSettings {
   if (!releases) throw new Error("Fixture lost release settings");
   return releases;
 }
+
+test("release confirmation binds the reviewed head and recipe before any write", async () => {
+  const config = { ...settings(), publish: { version_files: ["package.json"], commands: [["mise", "run", "check"]] } };
+  const current = snapshot([file("src/rule.ts")], "reviewed-head", config);
+  const writes: string[] = [];
+  let remoteHead = current.head;
+  let newTag = "";
+  const executor = CommandExecutor.of({
+    run: (_command, args) => Effect.sync(() => {
+      if (args[0] === "remote") return "git@github.com:example/project.git\n";
+      if (args[0] === "ls-remote") return `${remoteHead}\trefs/heads/main\npublished\trefs/tags/1.0.0\n${newTag}`;
+      if (args[0] === "ls-tree") return "100644 blob hash\tpackage.json\n";
+      if (args[0] === "show") return '{"version":"1.0.0"}';
+      writes.push(args.join(" "));
+      throw new Error("Unexpected write");
+    }),
+    stream: (command) => { writes.push(command); return Stream.empty; },
+    exitCode: () => Effect.succeed(0), inherit: () => Effect.succeed(0),
+  });
+  const github = GitHub.of({
+    isAvailable: () => Effect.succeed(true),
+    json: () => Effect.succeed({ tag_name: "1.0.0", draft: false, prerelease: false }),
+    api: () => Effect.die("Unexpected API call"),
+    run: () => { writes.push("release"); return Effect.succeed(""); },
+  });
+  const run = (recipe = config, confirmation?: string) => Effect.runPromise(publishRelease(repository, recipe, current, confirmation, () => Effect.void).pipe(
+    Effect.provideService(CommandExecutor, executor), Effect.provideService(GitHub, github),
+  ));
+  const preview = await run();
+  expect(preview.type).toBe("plan");
+  if (preview.type !== "plan") throw new Error("Expected preview");
+  expect(preview.plan.versions).toEqual([{ path: "package.json", before: "1.0.0", after: "1.0.1" }]);
+  expect(preview.plan.steps.join("\n")).toContain("Atomically push");
+  expect(writes).toEqual([]);
+  await expect(run({ ...config, publish: { ...config.publish, commands: [["different-check"]] } }, preview.plan.id)).rejects.toThrow("plan changed");
+  remoteHead = "new-head";
+  await expect(run(config, preview.plan.id)).rejects.toThrow("watched branch changed");
+  remoteHead = current.head;
+  newTag = "another-commit\trefs/tags/1.0.1\n";
+  await expect(run(config, preview.plan.id)).rejects.toThrow("already exists");
+  expect(writes).toEqual([]);
+});
 
 function file(path: string, submodule: string | null = null): ReleaseFact {
   return releaseFact({ kind: "file", path, previousPath: null, changeType: "modified", before: "100644:old", after: "100644:new", dependency: null, role: null, submodule, subject: null, detail: `M ${path}`, complete: true });

@@ -1040,6 +1040,10 @@ _dot_git_releases()
         _dot_git_releases_review "$i"
         return
         ;;
+      publish)
+        _dot_git_releases_publish "$i"
+        return
+        ;;
     esac
   done
 
@@ -1070,7 +1074,7 @@ _dot_git_releases()
     return
   fi
 
-  COMPREPLY=( $(compgen -W 'review' -- "$cur") )
+  COMPREPLY=( $(compgen -W 'review publish' -- "$cur") )
 }
 
 _dot_git_releases_review()
@@ -1104,6 +1108,43 @@ _dot_git_releases_review()
   [[ -n "$_used_2" ]] || _filtered_flags+=" --panel-json --no-panel-json"
   [[ -n "$_used_3" ]] || _filtered_flags+=" --finding"
   [[ -n "$_used_4" ]] || _filtered_flags+=" --impact"
+  [[ -n "$_used_5" ]] || _filtered_flags+=" --help -h"
+
+  # Complete flags (filtered) and subcommands
+  if [[ "$cur" == -* ]]; then
+    COMPREPLY=( $(compgen -W "$_filtered_flags" -- "$cur") )
+    return
+  fi
+
+}
+
+_dot_git_releases_publish()
+{
+  local cur prev words cword i
+  local _command_index="$1"
+  _init_completion -n "$COMP_WORDBREAKS" || return
+
+  # Flag value completions
+  case "$prev" in
+  esac
+
+  local _used_0="" _used_1="" _used_2="" _used_3="" _used_4="" _used_5=""
+  for ((i = 1; i < cword; i++)); do
+    case "${words[i]%%=*}" in
+      --repo) _used_0=1 ;;
+      --snapshot) _used_1=1 ;;
+      --panel-json|--no-panel-json) _used_2=1 ;;
+      --interactive|--no-interactive) _used_3=1 ;;
+      --confirm) _used_4=1 ;;
+      --help|-h) _used_5=1 ;;
+    esac
+  done
+  local _filtered_flags=""
+  [[ -n "$_used_0" ]] || _filtered_flags+=" --repo"
+  [[ -n "$_used_1" ]] || _filtered_flags+=" --snapshot"
+  [[ -n "$_used_2" ]] || _filtered_flags+=" --panel-json --no-panel-json"
+  [[ -n "$_used_3" ]] || _filtered_flags+=" --interactive --no-interactive"
+  [[ -n "$_used_4" ]] || _filtered_flags+=" --confirm"
   [[ -n "$_used_5" ]] || _filtered_flags+=" --help -h"
 
   # Complete flags (filtered) and subcommands
@@ -1765,6 +1806,10 @@ _dot_herdr()
         _dot_herdr_repo_open "$i"
         return
         ;;
+      agents)
+        _dot_herdr_agents "$i"
+        return
+        ;;
     esac
   done
 
@@ -1783,7 +1828,7 @@ _dot_herdr()
     return
   fi
 
-  COMPREPLY=( $(compgen -W 'start stop restart repo-open' -- "$cur") )
+  COMPREPLY=( $(compgen -W 'start stop restart repo-open agents' -- "$cur") )
 }
 
 _dot_herdr_start()
@@ -1865,16 +1910,24 @@ _dot_herdr_repo_open()
   local _command_index="$1"
   _init_completion -n "$COMP_WORDBREAKS" || return
 
-  local _used_0="" _used_1=""
+  # Flag value completions
+  case "$prev" in
+  esac
+
+  local _used_0="" _used_1="" _used_2="" _used_3=""
   for ((i = 1; i < cword; i++)); do
     case "${words[i]%%=*}" in
       --pane|--no-pane) _used_0=1 ;;
-      --help|-h) _used_1=1 ;;
+      --prompt) _used_1=1 ;;
+      --agent-kind) _used_2=1 ;;
+      --help|-h) _used_3=1 ;;
     esac
   done
   local _filtered_flags=""
   [[ -n "$_used_0" ]] || _filtered_flags+=" --pane --no-pane"
-  [[ -n "$_used_1" ]] || _filtered_flags+=" --help -h"
+  [[ -n "$_used_1" ]] || _filtered_flags+=" --prompt"
+  [[ -n "$_used_2" ]] || _filtered_flags+=" --agent-kind"
+  [[ -n "$_used_3" ]] || _filtered_flags+=" --help -h"
 
   # Complete flags (filtered) and subcommands
   if [[ "$cur" == -* ]]; then
@@ -1896,6 +1949,10 @@ _dot_herdr_repo_open()
     case "${words[i]}" in
       --) _end_of_options=1 ;;
       --pane|--no-pane) ;;
+      --prompt) _skip_next=1 ;;
+      --prompt=*) ;;
+      --agent-kind) _skip_next=1 ;;
+      --agent-kind=*) ;;
       --help|-h) ;;
       -*) ;;
       *) ((_position += 1)) ;;
@@ -1907,6 +1964,29 @@ _dot_herdr_repo_open()
       return
       ;;
   esac
+}
+
+_dot_herdr_agents()
+{
+  local cur prev words cword i
+  local _command_index="$1"
+  _init_completion -n "$COMP_WORDBREAKS" || return
+
+  local _used_0=""
+  for ((i = 1; i < cword; i++)); do
+    case "${words[i]%%=*}" in
+      --help|-h) _used_0=1 ;;
+    esac
+  done
+  local _filtered_flags=""
+  [[ -n "$_used_0" ]] || _filtered_flags+=" --help -h"
+
+  # Complete flags (filtered) and subcommands
+  if [[ "$cur" == -* ]]; then
+    COMPREPLY=( $(compgen -W "$_filtered_flags" -- "$cur") )
+    return
+  fi
+
 }
 
 _dot_workspace_setup()

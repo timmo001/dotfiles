@@ -176,6 +176,30 @@ $defs:
         enum:
           - oxlint-rules
           - system-bridge
+      publish:
+        type: object
+        additionalProperties: false
+        description: Local recipe, run only after confirming the displayed release plan.
+        required:
+          - version_files
+          - commands
+        properties:
+          version_files:
+            type: array
+            uniqueItems: true
+            description: Repository-relative JSON manifests with a top-level version field.
+            items:
+              type: string
+              minLength: 1
+          commands:
+            type: array
+            description: Ordered preparation and validation commands, each an argv array.
+            items:
+              type: array
+              minItems: 1
+              items:
+                type: string
+                minLength: 1
       overrides:
         type: array
         items:

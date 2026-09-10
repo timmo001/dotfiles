@@ -15,6 +15,7 @@ import { clean } from "../commands/Clean.js";
 import { completions } from "../commands/Completions.js";
 import { doctor } from "../commands/Doctor.js";
 import { herdrRepoOpen } from "../commands/HerdrRepoOpen.js";
+import { installedHerdrAgents } from "../commands/HerdrAgents.js";
 import { herdrServerAction, herdrStart } from "../commands/HerdrServer.js";
 import { init } from "../commands/Init.js";
 import { install } from "../commands/Install.js";
@@ -44,6 +45,7 @@ import {
 import { gitCommitRaw } from "../git/commands/Commit.js";
 import {
   releasesAction,
+  releasesPublish,
   releasesQuery,
   releasesOpenShell,
 } from "../git/commands/Releases.js";
@@ -493,6 +495,38 @@ const gitReleasesCommand = describe(
             ),
         ),
         "Review exact local release evidence without publishing anything",
+      ),
+      describe(
+        Command.make(
+          "publish",
+          {
+            ...releaseActionFlags,
+            interactive: bool(
+              "interactive",
+              "Explain, confirm and run the release in this terminal, with an optional log pager",
+            ),
+            panelJson: bool(
+              "panel-json",
+              "Stream JSON progress and the final plan or release result",
+            ),
+            confirm: text(
+              "confirm",
+              "Execute the exact plan ID returned by the preview",
+            ),
+          },
+          ({ repo, snapshot, confirm, panelJson, interactive }) =>
+            releasesPublish(
+              { repo, snapshot, confirm: optional(confirm) },
+              panelJson,
+              interactive,
+            ),
+        ),
+        "Preview version changes, validation, pushes and generated release notes. --interactive explains and confirms in the terminal; --confirm PLAN executes a reviewed plan with live progress.",
+        [],
+        {
+          description:
+            "Requires an explicit private releases.publish recipe. The preview is read-only. Confirmation binds the reviewed snapshot, version files, commands and target. Preparation runs in an isolated worktree. Only agreed version changes are committed through dot git-commit, then the version commit and tag are pushed atomically. GitHub release notes are generated from the previous stable release. Progress includes command output and a saved log. Release creation does not wait for GitHub publication jobs; follow the returned Actions URL. Failed preparation is retained for inspection. Refresh and preview again after resolving a failure.",
+        },
       ),
     ]),
   ),
@@ -1264,6 +1298,16 @@ const herdr = describe(
       herdrStopCommand,
       herdrRestartCommand,
       herdrRepoOpenCommand,
+      describe(
+        Command.make("agents", {}, () =>
+          installedHerdrAgents.pipe(
+            Effect.tap((agents) =>
+              Effect.sync(() => console.log(JSON.stringify(agents))),
+            ),
+          ),
+        ),
+        "List installed agent targets shared by repository and release pickers",
+      ),
     ]),
   ),
   "Manage the shared Herdr server and repository workspaces",

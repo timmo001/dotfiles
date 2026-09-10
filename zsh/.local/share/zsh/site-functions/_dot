@@ -516,6 +516,7 @@ _dot_git_releases() {
   local -a commands
   commands=(
     'review:Review exact local release evidence without publishing anything'
+    'publish:Preview version changes, validation, pushes and generated release notes. --interactive explains and confirms in the terminal; --confirm PLAN executes a reviewed plan with live progress.'
   )
 
   local -a specs
@@ -548,6 +549,9 @@ _dot_git_releases() {
         review)
           _dot_git_releases_review
           ;;
+        publish)
+          _dot_git_releases_publish
+          ;;
       esac
       ;;
   esac
@@ -562,6 +566,22 @@ _dot_git_releases_review() {
     '(--panel-json --no-panel-json)--no-panel-json[Disable panel-json]'
     '(--finding)--finding[Finding ID, or overall for the current release-relevant comparison]:value:'
     '(--impact)--impact[Local release impact; auto clears the override]:value:(none patch minor major auto)'
+    '(--help -h)--help[Show help information]'
+    '(--help -h)-h[Show help information]'
+  )
+  _arguments "${specs[@]}"
+}
+
+_dot_git_releases_publish() {
+  local -a specs
+  specs=(
+    '(--repo)--repo[Configured repository name or GitHub slug]:value:'
+    '(--snapshot)--snapshot[Exact displayed snapshot ID; stale selections are rejected]:value:'
+    '(--panel-json --no-panel-json)--panel-json[Stream JSON progress and the final plan or release result]'
+    '(--panel-json --no-panel-json)--no-panel-json[Disable panel-json]'
+    '(--interactive --no-interactive)--interactive[Explain, confirm and run the release in this terminal, with an optional log pager]'
+    '(--interactive --no-interactive)--no-interactive[Disable interactive]'
+    '(--confirm)--confirm[Execute the exact plan ID returned by the preview]:value:'
     '(--help -h)--help[Show help information]'
     '(--help -h)-h[Show help information]'
   )
@@ -854,6 +874,7 @@ _dot_herdr() {
     'stop:Stop the default Herdr server only when its panes are idle shells. Run outside Herdr; --check also works inside it. Lists active agents, commands, and background jobs, then exits if blocked.'
     'restart:Restart the default Herdr server only when its panes are idle shells. Run outside Herdr; --check also works inside it. Lists active agents, commands, and background jobs, then exits if blocked.'
     'repo-open:Open or focus a repository workspace in the shared Herdr session. If the server is headless, open a tiled terminal and wait for a foreground client before focusing the workspace.'
+    'agents:List installed agent targets shared by repository and release pickers'
   )
 
   local -a specs
@@ -883,6 +904,9 @@ _dot_herdr() {
           ;;
         repo-open)
           _dot_herdr_repo_open
+          ;;
+        agents)
+          _dot_herdr_agents
           ;;
       esac
       ;;
@@ -933,6 +957,15 @@ _dot_herdr_repo_open() {
     ':Repository working directory:_files'
     ':Optional command tab label:'
     ':Optional command to run:'
+  )
+  _arguments "${specs[@]}"
+}
+
+_dot_herdr_agents() {
+  local -a specs
+  specs=(
+    '(--help -h)--help[Show help information]'
+    '(--help -h)-h[Show help information]'
   )
   _arguments "${specs[@]}"
 }

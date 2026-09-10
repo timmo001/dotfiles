@@ -52,6 +52,15 @@ export const ReleaseSettings = Schema.Struct({
   policy: Schema.Literals(["oxlint-rules", "system-bridge"]),
   /** First-match rules applied before the preset. */
   overrides: Schema.optional(Schema.Array(ReleaseRule)),
+  /** Explicit local recipe for confirmed, programmatic releases. */
+  publish: Schema.optional(
+    Schema.Struct({
+      /** JSON manifests whose top-level version must match the new tag. */
+      version_files: Schema.Array(Schema.String),
+      /** Ordered preparation and validation commands, each an argv array. */
+      commands: Schema.Array(Schema.Array(Schema.String)),
+    }),
+  ),
   /** Preferences retained for opt-in desktop delivery. */
   notifications: Schema.Struct({
     /** Whether future explicit delivery is enabled. */
