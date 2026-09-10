@@ -138,6 +138,10 @@ rows = [
       { equals = "…", fg = "#89b4fa" },
       { equals = "↻", fg = "#f9e2af" },
       { equals = "✓", fg = "#a6e3a1" },
+      { equals = "○", fg = "#73758a" },
+      { starts_with = "○ ✓ ", fg = "#7f9f7a" },
+      { starts_with = "○ ✗ ", fg = "#b07883" },
+      { starts_with = "○ ↻ ", fg = "#b3a078" },
     ] },
   ],
 ]
