@@ -74,12 +74,6 @@
   ],
   "packageRules": [
     {
-      "description": "Keep Effect at rc.112 for the pinned @herdr/sdk Config.string and Config.mapOrFail APIs.",
-      "matchFileNames": ["dot/package.json"],
-      "matchPackageNames": ["effect", "@effect/platform-node"],
-      "allowedVersions": "4.0.0-rc.112"
-    },
-    {
       "description": "Keep the OpenCode plugin Effect version aligned with its pinned packages.",
       "matchFileNames": ["agents/.config/opencode/plugins-v2/package.json"],
       "matchPackageNames": ["effect"],
