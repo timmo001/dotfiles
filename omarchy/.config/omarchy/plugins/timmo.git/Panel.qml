@@ -125,6 +125,8 @@ Panel {
       rows.push(actionRow("back", "Back to Git overview", ""))
     }
     var repos = []
+    if (view === "overview")
+      rows.push(headerActionRow("pull-all", "Pull all repositories", "repo"))
     if (["overview", "changed", "other"].indexOf(view) >= 0)
       rows.push(headerActionRow("repositories-refresh", "Refresh repositories", "repo"))
     if (service) {
@@ -329,6 +331,7 @@ Panel {
     var entry = filterController.selectedEntry()
     if (!entry) return null
     if (entry.kind === "header-action") {
+      if (entry.action === "pull-all") return repositoriesHeading
       if (entry.action === "repositories-refresh") return repositoriesHeading
       if (entry.action === "notifications-refresh") return notificationsHeading
       return releaseView && view !== "releases" ? comparisonHeading : releasesHeading
@@ -411,6 +414,7 @@ Panel {
     else if (action === "back" && view === "agent") showView(selectedAgentView)
     else if (action === "back" && releaseView) showView(view === "releases" ? "overview" : (view === "release" ? selectedReleaseView : (view === "finding" && selectedFindingGroup ? "finding-group" : (view === "release-choice" ? selectedImpactView : "release"))))
     else if (action === "refresh") service.refresh()
+    else if (action === "pull-all") { close(); service.pullAll() }
     else if (action === "changed" || action === "other") showView(action)
     else if (action === "agent") showAgentPicker(selectedRepo)
     else if (action === "back") showView(view === "repo" ? selectedRepoView : "overview")
@@ -612,7 +616,7 @@ Panel {
 
           SectionHeading {
             id: repositoriesHeading
-            visible: ["overview", "changed", "other"].indexOf(root.view) >= 0 && (!filterController.filterText || root.filteredRepos.length > 0 || filterController.indexForKey("action:repositories-refresh") >= 0)
+            visible: ["overview", "changed", "other"].indexOf(root.view) >= 0 && (!filterController.filterText || root.filteredRepos.length > 0 || filterController.indexForKey("action:repositories-refresh") >= 0 || filterController.indexForKey("action:pull-all") >= 0)
             title: (root.view === "overview" && !filterController.filterText ? "Changed repositories" : "Repositories") + " · " + root.filteredRepos.length
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
@@ -621,6 +625,18 @@ Panel {
             hasCursor: root.cursorKey === "action:repositories-refresh"
             onRefreshHovered: filterController.cursorIndex = filterController.indexForKey("action:repositories-refresh")
             onRefreshRequested: root.activateAction("repositories-refresh")
+            trailingControl: Component {
+              PanelActionButton {
+                visible: root.view === "overview"
+                iconText: "󰜷"
+                tooltipText: "Run dot update" + (root.service ? (root.service.updateStatus === "current" ? " · Up to date" : (root.service.updateStatus === "available" ? " · Updates available" : " · Update status unknown")) : "")
+                foreground: root.service && root.service.updateStatus === "current" ? Qt.darker(root.contentForeground, 2.0) : root.contentForeground
+                fontFamily: root.contentFontFamily
+                hasCursor: root.cursorKey === "action:pull-all"
+                onHovered: function(hovered) { if (hovered) filterController.cursorIndex = filterController.indexForKey("action:pull-all") }
+                onClicked: root.activateAction("pull-all")
+              }
+            }
           }
 
           Column {

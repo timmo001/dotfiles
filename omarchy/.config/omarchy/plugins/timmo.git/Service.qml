@@ -46,6 +46,8 @@ Item {
   readonly property bool repositoriesBusy: diffProcess.running || panelProcess.running || pullProcess.running
   readonly property bool notificationsBusy: notificationsProcess.running
   readonly property bool pulling: pullProcess.running
+  readonly property var dotfilesRepo: changedRepos.concat(otherRepos).find(function(repo) { return repo.name === "dotfiles" }) || null
+  property string updateStatus: "unknown"
   readonly property bool clear: diffLoaded && notificationsLoaded
     && diffError === "" && notificationsError === ""
     && diffClass === "dots-ok" && notificationClass === "hidden"
@@ -129,6 +131,7 @@ Item {
   function refreshRepositories() {
     panelRefreshPending = true
     if (!diffProcess.running) diffProcess.running = true
+    if (!updateCheckProcess.running) updateCheckProcess.running = true
   }
 
   function refreshNotifications() {
@@ -263,7 +266,7 @@ Item {
     catch (error) { installedAgents = [] }
   }
 
-  function openRepo(repo, action) {
+  function openRepo(repo, action, command, tabLabel) {
     if (!repo || !repo.path) return
     var path = String(repo.path)
     if (action === "pull") {
@@ -291,11 +294,15 @@ Item {
     else if (action === "terminal")
       Quickshell.execDetached([
         "bash", "-lc",
-        "if herdr status server >/dev/null 2>&1; then exec dot herdr repo-open \"$1\" \"$2\"; else exec uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal --dir=\"$2\"; fi",
-        "bash", String(repo.name || ""), path
+        "if herdr status server >/dev/null 2>&1; then exec dot herdr repo-open \"$1\" \"$2\" \"$3\" \"$4\"; else exec uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal --dir=\"$2\" bash -lc 'if [ -n \"$1\" ]; then bash -lc \"$1\"; fi; exec \"${SHELL:-/bin/bash}\" -i' bash \"$4\"; fi",
+        "bash", String(repo.name || ""), path, tabLabel || "Shell", command || ""
       ])
     else if (action === "web")
       Quickshell.execDetached(["bash", "-lc", "cd \"$1\" && exec gh repo view --web", "bash", path])
+  }
+
+  function pullAll() {
+    openRepo(dotfilesRepo, "terminal", "dot update", "Update")
   }
 
   function openAgent(repo, command, prompt) {
@@ -388,6 +395,15 @@ Item {
   Process {
     id: markReadProcess
     onExited: root.refresh("action")
+  }
+
+  Process {
+    id: updateCheckProcess
+    command: ["dot", "update", "--check-all"]
+    stdout: StdioCollector {}
+    onExited: function(exitCode) {
+      root.updateStatus = exitCode === 0 ? "current" : (exitCode === 10 ? "available" : "unknown")
+    }
   }
 
   Process {

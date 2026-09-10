@@ -11,12 +11,13 @@ Rectangle {
   property bool refreshable: false
   property bool refreshing: false
   property bool hasCursor: false
+  property Component trailingControl: null
 
   signal refreshRequested()
   signal refreshHovered()
 
   width: parent.width
-  implicitHeight: Math.max(titleText.implicitHeight, refreshButton.implicitHeight) + Style.space(12)
+  implicitHeight: Math.max(titleText.implicitHeight, refreshButton.implicitHeight, trailingLoader.implicitHeight) + Style.space(12)
   radius: 0
   color: Qt.rgba(foreground.r, foreground.g, foreground.b, 0.06)
   border.width: 1
@@ -26,7 +27,7 @@ Rectangle {
     id: titleText
     anchors.left: parent.left
     anchors.leftMargin: Style.space(12)
-    anchors.right: refreshButton.visible ? refreshButton.left : parent.right
+    anchors.right: trailingLoader.item && trailingLoader.item.visible ? trailingLoader.left : (refreshButton.visible ? refreshButton.left : parent.right)
     anchors.rightMargin: Style.space(12)
     anchors.verticalCenter: parent.verticalCenter
     text: root.title.toUpperCase()
@@ -37,6 +38,14 @@ Rectangle {
     font.pixelSize: Style.font.caption
     font.bold: true
     font.letterSpacing: 1.2
+  }
+
+  Loader {
+    id: trailingLoader
+    sourceComponent: root.trailingControl
+    anchors.right: refreshButton.visible ? refreshButton.left : parent.right
+    anchors.rightMargin: Style.space(refreshButton.visible ? 4 : 8)
+    anchors.verticalCenter: parent.verticalCenter
   }
 
   PanelActionButton {
