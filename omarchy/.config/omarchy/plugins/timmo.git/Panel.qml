@@ -87,7 +87,7 @@ Panel {
           }
         } else if (view === "release-prepare") {
           rows.push(actionRow("release-choice", "Choose overall impact", "󰓹"))
-          if (service && !service.releaseLaunching && selectedRelease.publishAvailable && releaseSnapshot && releaseSnapshot.complete && !selectedRelease.stale && service.nextReleaseVersion(releaseSnapshot))
+          if (service && !service.releaseLaunching && selectedRelease.publishAvailable && releaseSnapshot && releaseSnapshot.complete && !selectedRelease.stale && selectedRelease.nextVersion)
             rows.push(actionRow("release-publish", "Start release…", "󰑓"))
           if (service && !service.releasePreparationIssue(selectedRelease))
             rows.push(actionRow("release-agent", "Open in agent", "󱚣"))
@@ -264,7 +264,7 @@ Panel {
       }
     } else if (view === "release-prepare" || releaseAgentView) {
       if (releaseSnapshot && service) {
-        lines.push("Proposed version: " + (service.nextReleaseVersion(releaseSnapshot) || "To be resolved in the release session"))
+        lines.push("Proposed version: " + (selectedRelease.nextVersion || "To be resolved in the release session"))
         lines.push("Target branch: " + releaseSnapshot.branch, "Compared commit: " + releaseSnapshot.head)
         lines.push("Impact: " + releaseSnapshot.suggestion + (releaseSnapshot.reviewed ? " · local overall choice" : " · automatic"))
         lines.push(selectedRelease.publishAvailable ? "Start release opens a Release tab in this repository's Herdr workspace. The terminal explains the steps, asks for confirmation and shows live progress. Failures offer agent recovery; success shows a summary and links." : "Open a release preparation session with the reviewed findings. The agent follows this repository's release workflow and runs its checks. Publish when ready from that session.")

@@ -188,17 +188,6 @@ Item {
     releaseLaunchProcess.running = true
   }
 
-  function nextReleaseVersion(snapshot) {
-    if (!snapshot || ["patch", "minor", "major"].indexOf(snapshot.suggestion) < 0) return ""
-    var version = /^(v?)(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(snapshot.releaseTag)
-    if (!version) return ""
-    var major = Number(version[2]), minor = Number(version[3]), patch = Number(version[4])
-    if (snapshot.suggestion === "major") { major++; minor = 0; patch = 0 }
-    else if (snapshot.suggestion === "minor") { minor++; patch = 0 }
-    else patch++
-    return version[1] + major + "." + minor + "." + patch
-  }
-
   function releasePreparationIssue(entry) {
     if (!entry || !entry.snapshot) return "Refresh to collect a release comparison"
     if (releaseBusy) return "Waiting for the release comparison"
@@ -223,7 +212,7 @@ Item {
       snapshotId: snapshot.id,
       suggestedImpact: snapshot.suggestion,
       overallReviewed: snapshot.reviewed,
-      proposedVersion: nextReleaseVersion(snapshot) || null,
+      proposedVersion: entry.nextVersion || null,
       comparisonUrl: snapshot.url,
       groups: summary,
       overrides: snapshot.findings.filter(function(finding) { return finding.reviewed }).map(function(finding) {
