@@ -42,21 +42,18 @@ BarWidget {
     if (git.notificationsError !== "") values.push(" ?")
     else if (!git.notificationsLoaded) values.push(" ..")
     else if (git.threads.length > 0) values.push(" " + git.threads.length)
-    if (git.releaseStale) values.push("󰓹 " + (git.releasePendingCount || "?") + " !")
-    else if (!git.releasesLoaded) values.push("󰓹 ..")
-    else if (git.releasePendingCount > 0) values.push("󰓹 " + git.releasePendingCount)
     return values.join("  ")
   }
   readonly property color displayColor: {
     if (!git) return "#9b9b9b"
     if (git.notificationClass === "notifications-attention") return "#e06c75"
-    if (git.diffClass === "dots-attention" || git.notificationClass === "notifications-unread" || git.releasePendingCount > 0 || git.releaseStale) return "#e5c07b"
+    if (git.diffClass === "dots-attention" || git.notificationClass === "notifications-unread") return "#e5c07b"
     if (git.diffClass === "dots-pull-only") return "#98c379"
     if (git.diffClass === "dots-extra-only") return "#61afef"
     return "#9b9b9b"
   }
   readonly property string tooltipText: git
-    ? [git.diffTooltip || git.diffError, git.notificationTooltip || git.notificationsError, git.releaseTooltip].filter(function(value) { return value !== "" }).join("\n")
+    ? [git.diffTooltip || git.diffError, git.notificationTooltip || git.notificationsError].filter(function(value) { return value !== "" }).join("\n")
     : "Git status unavailable"
 
   function activeWidget() {

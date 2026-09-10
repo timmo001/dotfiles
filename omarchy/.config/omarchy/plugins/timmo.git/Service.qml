@@ -33,18 +33,13 @@ Item {
   readonly property bool releaseBusy: releaseProcess.running || releaseActionProcess.running
   readonly property int releasePendingCount: releases.filter(function(entry) { return entry.needsAttention }).length
   readonly property bool releaseStale: releasesError !== "" || releases.some(function(entry) { return entry.stale || entry.deliveryError })
-  readonly property string releaseTooltip: releasesError || releases.map(function(entry) {
-    return entry.name + ": " + (entry.stale ? "stale" : (entry.snapshot ? entry.snapshot.suggestion : "not checked"))
-      + (entry.needsAttention ? " · release candidate" : "") + (entry.pending ? " · notification pending" : "")
-      + (entry.deliveryError ? " · " + entry.deliveryError : "")
-  }).join("\n")
   signal panelUpdated()
   signal releasesUpdating()
   signal releasesUpdated()
 
   readonly property bool refreshing: diffProcess.running || panelProcess.running || notificationsProcess.running || pullProcess.running || releaseBusy
   readonly property bool pulling: pullProcess.running
-  readonly property bool clear: diffLoaded && notificationsLoaded && releasesLoaded && !releaseStale && releasePendingCount === 0
+  readonly property bool clear: diffLoaded && notificationsLoaded
     && diffError === "" && notificationsError === ""
     && diffClass === "dots-ok" && notificationClass === "hidden"
 
