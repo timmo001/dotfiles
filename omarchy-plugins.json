@@ -1,5 +1,5 @@
 {
-  "remove": ["omarchy.agents"],
+  "remove": ["omarchy.weather", "omarchy.agents"],
   "plugins": [
     {
       "id": "timmo.workspaces",
@@ -158,8 +158,7 @@
       "managed": true,
       "replace": "omarchy.clock",
       "placement": {
-        "section": "center",
-        "before": "omarchy.keyboard-layout"
+        "section": "right"
       },
       "settings": {
         "format": "HH:mm d MMM"
