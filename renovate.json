@@ -112,6 +112,11 @@
       "minimumReleaseAge": null
     },
     {
+      "description": "Update system package versions without a release delay.",
+      "matchDepNames": ["omarchy/mise-bin", "arch/quickshell"],
+      "minimumReleaseAge": null
+    },
+    {
       "description": "Use the shorter release delay for fast-moving development dependencies.",
       "matchDepNames": [
         "@effect/platform-node",
