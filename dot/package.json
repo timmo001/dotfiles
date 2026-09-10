@@ -12,10 +12,10 @@
     "prepare": "effect-tsgo patch"
   },
   "dependencies": {
-    "@effect/platform-node": "^4.0.0-rc.112",
+    "@effect/platform-node": "4.0.0-rc.112",
     "@herdr/sdk": "github:dmmulroy/herdr-ts-sdk#77abbf81ac35407bc5138a8f4fe19f0833af4402",
     "@timmo001/effect-gh": "github:timmo001/effect-gh#fc81f6d87445b302ac03769dfe73b3e7c558fadb",
-    "effect": "^4.0.0-rc.112"
+    "effect": "4.0.0-rc.112"
   },
   "devDependencies": {
     "@effect/tsgo": "^0.44.0",

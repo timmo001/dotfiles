@@ -5,10 +5,10 @@
     "": {
       "name": "dot-cli",
       "dependencies": {
-        "@effect/platform-node": "^4.0.0-rc.112",
+        "@effect/platform-node": "4.0.0-rc.112",
         "@herdr/sdk": "github:dmmulroy/herdr-ts-sdk#77abbf81ac35407bc5138a8f4fe19f0833af4402",
         "@timmo001/effect-gh": "github:timmo001/effect-gh#fc81f6d87445b302ac03769dfe73b3e7c558fadb",
-        "effect": "^4.0.0-rc.112",
+        "effect": "4.0.0-rc.112",
       },
       "devDependencies": {
         "@effect/tsgo": "^0.44.0",
@@ -22,8 +22,8 @@
     "@herdr/sdk@github:dmmulroy/herdr-ts-sdk#77abbf8": "patches/@herdr%2Fsdk@github%3Admmulroy%2Fherdr-ts-sdk#77abbf8.patch",
   },
   "overrides": {
-    "@effect/platform-node-shared": "^4.0.0-rc.112",
-    "effect": "^4.0.0-rc.112",
+    "@effect/platform-node-shared": "4.0.0-rc.112",
+    "effect": "4.0.0-rc.112",
   },
   "packages": {
     "@effect/platform-node": ["@effect/platform-node@4.0.0-rc.112", "", { "dependencies": { "@effect/platform-node-shared": "^4.0.0-rc.112", "mime": "^4.1.0", "undici": "^8.10.0" }, "peerDependencies": { "effect": "^4.0.0-rc.112", "redis": ">=5.0.0 <7.0.0" } }, "sha512-/BMAcdNGQQskLmI0Zoa95KfTZkr9HV9N4NSxaSrusG6GeW6Ulp9KvZ+Rlaiw8lnOt43CXjFLdfll5/k5rxL4hQ=="],
