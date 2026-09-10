@@ -129,7 +129,7 @@
       "managed": true,
       "placement": {
         "section": "right",
-        "before": "timmo.git"
+        "after": "timmo.git"
       },
       "settings": {
         "primaryOnly": true
