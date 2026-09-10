@@ -49,6 +49,7 @@ export function releaseFact(
     id: _id,
     complete: _complete,
     subjects: _subjects,
+    evidenceUrl: _evidenceUrl,
     ...evidence
   } = input;
   return { ...input, id: evidenceId(evidence) };
@@ -376,6 +377,8 @@ export function goModuleChanges(
 export interface ReleaseChanges {
   /** Facts including quiet and missing evidence. */
   readonly facts: readonly ReleaseFact[];
+  /** Unfiltered net file changes for review. */
+  readonly files: readonly ReleaseFact[];
   /** Complete commit range, including upstream submodule commits. */
   readonly commits: readonly ReleaseCommit[];
   /** Evidence collection failures. */
@@ -920,6 +923,11 @@ export const collectReleaseChanges = Effect.fn("releases.collect")(function* (
         );
         return {
           ...upstream,
+          evidenceUrl: `${url.replace(/^git@github.com:/, "https://github.com/").replace(/\.git$/, "")}/compare/${oldCommit}...${nextCommit}`,
+          commits: upstream.commits.map((commit) => ({
+            ...commit,
+            url: `${url.replace(/^git@github.com:/, "https://github.com/").replace(/\.git$/, "")}/commit/${commit.id}`,
+          })),
           facts: yield* attributeReleaseSubjects(
             directory,
             oldCommit,
@@ -933,8 +941,15 @@ export const collectReleaseChanges = Effect.fn("releases.collect")(function* (
       }).pipe(Effect.result);
       if (upstream._tag === "Success") {
         facts.push(
-          { ...fact, submodule: fact.path },
-          ...upstream.success.facts,
+          {
+            ...fact,
+            submodule: fact.path,
+            evidenceUrl: upstream.success.evidenceUrl,
+          },
+          ...upstream.success.facts.map((finding) => ({
+            ...finding,
+            evidenceUrl: upstream.success.evidenceUrl,
+          })),
         );
         commits.push(...upstream.success.commits);
       } else {
@@ -1011,5 +1026,15 @@ export const collectReleaseChanges = Effect.fn("releases.collect")(function* (
   for (const fact of attributed)
     if (!fact.complete && !errors.includes(fact.detail))
       errors.push(fact.detail);
-  return { facts: attributed, commits, errors };
+  return {
+    facts: attributed,
+    files: [
+      ...comparison.facts,
+      ...attributed.filter(
+        (fact) => fact.submodule !== null && fact.kind !== "submodule",
+      ),
+    ],
+    commits,
+    errors,
+  };
 });

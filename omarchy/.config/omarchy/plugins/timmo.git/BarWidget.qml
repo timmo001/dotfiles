@@ -42,18 +42,21 @@ BarWidget {
     if (git.notificationsError !== "") values.push(" ?")
     else if (!git.notificationsLoaded) values.push(" ..")
     else if (git.threads.length > 0) values.push(" " + git.threads.length)
+    if (git.releaseStale) values.push("󰓹 " + (git.releasePendingCount || "?") + " !")
+    else if (!git.releasesLoaded) values.push("󰓹 ..")
+    else if (git.releasePendingCount > 0) values.push("󰓹 " + git.releasePendingCount)
     return values.join("  ")
   }
   readonly property color displayColor: {
     if (!git) return "#9b9b9b"
     if (git.notificationClass === "notifications-attention") return "#e06c75"
-    if (git.diffClass === "dots-attention" || git.notificationClass === "notifications-unread") return "#e5c07b"
+    if (git.diffClass === "dots-attention" || git.notificationClass === "notifications-unread" || git.releasePendingCount > 0 || git.releaseStale) return "#e5c07b"
     if (git.diffClass === "dots-pull-only") return "#98c379"
     if (git.diffClass === "dots-extra-only") return "#61afef"
     return "#9b9b9b"
   }
   readonly property string tooltipText: git
-    ? [git.diffTooltip || git.diffError, git.notificationTooltip || git.notificationsError].filter(function(value) { return value !== "" }).join("\n")
+    ? [git.diffTooltip || git.diffError, git.notificationTooltip || git.notificationsError, git.releaseTooltip].filter(function(value) { return value !== "" }).join("\n")
     : "Git status unavailable"
 
   function activeWidget() {
@@ -65,10 +68,10 @@ BarWidget {
     return null
   }
 
-  function open() {
+  function open(payloadJson) {
     var widget = activeWidget()
-    if (widget && widget !== root) { widget.open(); return }
-    if (panelLoader.item) panelLoader.item.open()
+    if (widget && widget !== root) { widget.open(payloadJson); return }
+    if (panelLoader.item) panelLoader.item.open(payloadJson)
   }
 
   function openOther() {
@@ -122,12 +125,25 @@ BarWidget {
   }
 
   Loader {
-    active: root.activeInstance
+    active: root.activeInstance && root.currentOutput !== "" && root.currentOutput === root.activeOutput
     sourceComponent: Component {
       IpcHandler {
         target: "timmo.git"
         function refresh(): void { if (root.git) root.git.refresh() }
         function open(): void { root.open() }
+        function release(repo: string): void { root.open(JSON.stringify({ view: "releases", repo: repo })) }
+        function releaseStatus(): string {
+          var panel = panelLoader.item
+          return JSON.stringify({
+            opened: root.opened, view: panel ? panel.view : "", repo: panel && panel.selectedRelease ? panel.selectedRelease.repo : "",
+            finding: panel ? panel.selectedFindingId : "", rows: panel ? panel.panelRows.length : 0,
+            cursor: panel ? panel.cursorKey : "", geometry: panel ? panel.releaseGeometry : null,
+            loaded: root.git ? root.git.releasesLoaded : false, busy: root.git ? root.git.releaseBusy : false,
+            error: root.git ? root.git.releasesError : "Service unavailable",
+            pending: root.git ? root.git.releasePendingCount : 0, stale: root.git ? root.git.releaseStale : false,
+            summary: panel && panel.releaseView ? panel.releaseSummary() : ""
+          })
+        }
         function other(): void { root.openOther() }
         function close(): void { root.close() }
         function show(): void { root.open() }

@@ -41,6 +41,8 @@ export interface ReleaseQuery {
   readonly refresh?: boolean;
   /** Only scan in a due cron minute not already attempted. */
   readonly scheduled?: boolean;
+  /** Explicit opt-in to eligible desktop delivery. */
+  readonly notify?: boolean;
 }
 
 /** Local action against the exact displayed snapshot. */
@@ -63,6 +65,12 @@ export interface ReleaseEntry {
   readonly repo: string;
   /** Configured display name. */
   readonly name: string;
+  /** Current checkout path from private configuration, never cached. */
+  readonly path: string;
+  /** Current private policy source, for the editor action. */
+  readonly configPath: string;
+  /** Configured branch, also available before the first comparison. */
+  readonly branch: string;
   /** Last available comparison. */
   readonly snapshot: ReleaseSnapshot | null;
   /** Whether the last scan failed or the selected policy changed. */
@@ -75,11 +83,15 @@ export interface ReleaseEntry {
   readonly acknowledged: boolean;
   /** Eligible candidate retained for future explicit desktop delivery. */
   readonly pending: string | null;
+  /** Relevant unacknowledged evidence still needs local review. */
+  readonly needsAttention: boolean;
+  /** Desktop delivery failure, separate from stale comparison errors. */
+  readonly deliveryError: string | null;
   /** Configured future delivery preferences. */
   readonly notifications: ReleaseSettings["notifications"];
 }
 
-/** CLI and future panel operations; no release publishing or desktop delivery. */
+/** CLI and panel operations with opt-in desktop delivery. */
 export interface GitReleasesService {
   /** Return per-repository snapshots and failures without losing other results. */
   readonly query: (
@@ -111,6 +123,7 @@ function entry(
   settings: ReleaseSettings,
   cache: ReleaseCache,
   review: ReleaseReviewState,
+  configPath: string,
 ): ReleaseEntry {
   const snapshot = cache.snapshot
     ? applyReleaseReview(cache.snapshot, review)
@@ -122,6 +135,9 @@ function entry(
   return {
     repo: repo.github,
     name: repo.name,
+    path: repo.path,
+    configPath,
+    branch: settings.branch,
     snapshot,
     stale: cache.error !== null || changed,
     error:
@@ -133,9 +149,74 @@ function entry(
     acknowledged:
       snapshot !== null && review.acknowledged === snapshot.notificationId,
     pending: review.pending,
+    needsAttention:
+      snapshot !== null &&
+      snapshot.suggestion !== "none" &&
+      review.acknowledged !== snapshot.notificationId,
+    deliveryError: review.deliveryError ?? null,
     notifications: settings.notifications,
   };
 }
+
+/** Deliver an eligible candidate under the caller's repository lock; failed sends retain it. */
+export const deliverReleaseNotification = Effect.fn("GitReleases.deliver")(
+  function* (
+    snapshot: ReleaseSnapshot,
+    review: ReleaseReviewState,
+    settings: ReleaseSettings,
+    stale: boolean,
+  ) {
+    const current = releaseNotificationState(snapshot, review, settings, stale);
+    const now = yield* Clock.currentTimeMillis;
+    if (
+      !current.pending ||
+      (current.deliveredAt !== null &&
+        now - Date.parse(current.deliveredAt) <
+          settings.notifications.cooldown_minutes * 60000)
+    )
+      return current;
+    const executor = yield* CommandExecutor;
+    const finding =
+      snapshot.findings.find(
+        (finding) => finding.impact === snapshot.suggestion,
+      ) ?? snapshot.findings.find((finding) => finding.impact !== "none");
+    const reason = snapshot.reviewed
+      ? "Local overall release choice"
+      : finding
+        ? `${finding.detail}: ${finding.reason}`
+        : "Unreleased changes need review";
+    const sent = yield* executor
+      .run("omarchy", [
+        "notification",
+        "send",
+        "--app-name",
+        "Git releases",
+        "--urgency",
+        "normal",
+        `${snapshot.name}: ${snapshot.suggestion} release suggested`,
+        `Changes: ${reason.replace(/\s+/g, " ").slice(0, 180)}`,
+        "--exec",
+        "dot",
+        "git-releases",
+        "--open",
+        "--repo",
+        snapshot.repo,
+      ])
+      .pipe(Effect.timeout("15 seconds"), Effect.result);
+    if (sent._tag === "Failure")
+      return {
+        ...current,
+        deliveryError: `Notification delivery failed: ${formatCause(sent.failure).replace(/\s+/g, " ").slice(0, 240)}`,
+      };
+    return {
+      ...current,
+      pending: null,
+      delivered: current.pending,
+      deliveredAt: new Date(now).toISOString(),
+      deliveryError: null,
+    };
+  },
+);
 
 /** Effect service for {@link GitReleasesService}. */
 export class GitReleases extends Context.Service<
@@ -269,6 +350,7 @@ export class GitReleases extends Context.Service<
           url: `https://github.com/${repo.github}/compare/${releaseCommit}...${head}`,
           commits: changes.commits,
           findings,
+          files: changes.files,
           automaticSuggestion: highestImpact(
             findings.map((fact) => fact.automaticImpact),
           ),
@@ -336,11 +418,26 @@ export class GitReleases extends Context.Service<
                 applyReleaseReview(cache.snapshot, review),
                 review,
                 settings,
-                entry(repo, settings, cache, review).stale,
+                entry(repo, settings, cache, review, config.gitConfig.filePath)
+                  .stale,
               );
+            if (options.notify && cache.snapshot)
+              review = yield* deliverReleaseNotification(
+                applyReleaseReview(cache.snapshot, review),
+                review,
+                settings,
+                entry(repo, settings, cache, review, config.gitConfig.filePath)
+                  .stale,
+              ).pipe(Effect.provideService(CommandExecutor, executor));
             yield* saveReleaseDocument(paths.state, "review.json", review);
             yield* saveReleaseDocument(paths.cache, "snapshot.json", cache);
-            return entry(repo, settings, cache, review);
+            return entry(
+              repo,
+              settings,
+              cache,
+              review,
+              config.gitConfig.filePath,
+            );
           }),
         );
       });
@@ -366,18 +463,24 @@ export class GitReleases extends Context.Service<
                       settings,
                       { ...cache, error: error.message },
                       { ...review, pending: null },
+                      config.gitConfig.filePath,
                     ),
                   ),
                   Effect.catch(() =>
                     Effect.succeed({
                       repo: repo.github,
                       name: repo.name,
+                      path: repo.path,
+                      configPath: config.gitConfig.filePath,
+                      branch: settings.branch,
                       snapshot: null,
                       stale: true,
                       error: error.message,
                       attemptedAt: null,
                       acknowledged: false,
                       pending: null,
+                      needsAttention: false,
+                      deliveryError: null,
                       notifications: settings.notifications,
                     } satisfies ReleaseEntry),
                   ),
@@ -404,7 +507,13 @@ export class GitReleases extends Context.Service<
           paths,
           Effect.gen(function* () {
             const { cache, review } = yield* readReleaseState(paths);
-            const current = entry(repo, settings, cache, review);
+            const current = entry(
+              repo,
+              settings,
+              cache,
+              review,
+              config.gitConfig.filePath,
+            );
             if (current.stale || !current.snapshot?.complete)
               return yield* new ReleaseError({
                 message:
@@ -442,7 +551,13 @@ export class GitReleases extends Context.Service<
             );
             // Reviews are authoritative; a scan cache never overwrites them.
             yield* saveReleaseDocument(paths.state, "review.json", updated);
-            return entry(repo, settings, cache, updated);
+            return entry(
+              repo,
+              settings,
+              cache,
+              updated,
+              config.gitConfig.filePath,
+            );
           }),
         );
       });

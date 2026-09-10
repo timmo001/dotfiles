@@ -2,14 +2,15 @@ import { expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Effect } from "../../dot/node_modules/effect/dist/index.js";
+import { Clock, Effect, Stream } from "../../dot/node_modules/effect/dist/index.js";
 import { appendGitRepository } from "../../dot/src/lib/gitRepoConfig.js";
 import { parseDotGitConfigText, type GitManagedRepo } from "../../dot/src/services/GitConfig.js";
 import { bunLockChanges, collectReleaseChanges, goModuleChanges, manifestChanges, releaseFact } from "../../dot/src/git/release/changes.js";
 import { classifyReleaseFacts, highestImpact } from "../../dot/src/git/release/policy.js";
 import { acceptReleaseSnapshot, applyReleaseReview, assertReleaseSelection, emptyReleaseCache, emptyReleaseReview, readReleaseState, releaseNotificationState, releasePaths, reviewRelease, saveReleaseDocument, withReleaseLock } from "../../dot/src/git/release/state.js";
-import { CommandExecutor } from "../../dot/src/services/CommandExecutor.js";
-import type { ReleaseFact, ReleaseSettings, ReleaseSnapshot } from "../../dot/src/git/release/types.js";
+import { CommandError, CommandExecutor } from "../../dot/src/services/CommandExecutor.js";
+import { deliverReleaseNotification } from "../../dot/src/git/services/GitReleases.js";
+import type { ReleaseFact, ReleaseReviewState, ReleaseSettings, ReleaseSnapshot } from "../../dot/src/git/release/types.js";
 
 const repository: GitManagedRepo = {
   name: "Example", path: "/example", github: "example/project", aliases: [], postUpdate: null, agentOxlint: false,
@@ -129,6 +130,89 @@ test("atomic locked persistence retains a failed scan's snapshot and concurrent 
     expect(saved.cache.snapshot?.id).toBe(current.id);
     expect(releaseNotificationState(current, saved.review, settings(), true).pending).toBeNull();
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("delivery retries failures, serialises success, and preserves pending evidence through cooldown without re-fetching", async () => {
+  const root = mkdtempSync("/tmp/opencode/release-delivery-");
+  const paths = releasePaths("example/project", root, root);
+  const original = snapshot([file("src/rule.ts")]);
+  let now = Date.parse("2026-09-10T12:00:00Z");
+  let fail = true;
+  const calls: { command: string; args: readonly string[] }[] = [];
+  const executor: CommandExecutor["Service"] = {
+    run: (command, args) => Effect.gen(function* () {
+      calls.push({ command, args });
+      if (fail) return yield* new CommandError({ command, exitCode: 1, stderr: "Unavailable ".repeat(100) });
+      return "";
+    }),
+    stream: () => Stream.empty,
+    exitCode: () => Effect.die("Unexpected process"),
+    inherit: () => Effect.die("Unexpected process"),
+  };
+  const deliver = (current: ReleaseSnapshot, review: ReleaseReviewState, stale = false, config = settings()) =>
+    Clock.clockWith((clock) => deliverReleaseNotification(current, review, config, stale).pipe(
+      Effect.provideService(CommandExecutor, executor),
+      Effect.provideService(Clock.Clock, {
+        sleep: clock.sleep.bind(clock), currentTimeMillis: Effect.succeed(now), currentTimeMillisUnsafe: () => now,
+        currentTimeNanos: Effect.succeed(BigInt(now) * 1000000n), currentTimeNanosUnsafe: () => BigInt(now) * 1000000n,
+        monotonicTimeNanos: clock.monotonicTimeNanos, monotonicTimeNanosUnsafe: clock.monotonicTimeNanosUnsafe.bind(clock),
+      }),
+    ));
+  const lockedDelivery = (current: ReleaseSnapshot) => Effect.runPromise(withReleaseLock(paths, Effect.gen(function* () {
+    const { review } = yield* readReleaseState(paths);
+    const next = yield* deliver(current, review);
+    yield* saveReleaseDocument(paths.state, "review.json", next);
+    return next;
+  })));
+  try {
+    const failed = await lockedDelivery(original);
+    expect(failed.pending).toBe(original.notificationId);
+    expect(failed.delivered).toBeNull();
+    expect(failed.deliveryError?.length).toBeLessThan(300);
+    fail = false;
+    await Promise.all([lockedDelivery(original), lockedDelivery(original)]);
+    expect(calls).toHaveLength(2);
+    expect(calls[1].command).toBe("omarchy");
+    expect(calls[1].args.slice(0, 6)).toEqual(["notification", "send", "--app-name", "Git releases", "--urgency", "normal"]);
+    expect(calls[1].args.slice(-6)).toEqual(["--exec", "dot", "git-releases", "--open", "--repo", "example/project"]);
+    const saved = (await Effect.runPromise(readReleaseState(paths))).review;
+    expect(saved.deliveredAt).toBe("2026-09-10T12:00:00.000Z");
+    expect(saved.deliveryError).toBeNull();
+    await lockedDelivery(snapshot([file("src/rule.ts"), file(".github/workflows/ci.yml")], "quiet-head"));
+    expect(calls).toHaveLength(2);
+    const changed = snapshot([file("src/new-rule.ts")], "new-head");
+    now += 59 * 60000;
+    expect((await lockedDelivery(changed)).pending).toBe(changed.notificationId);
+    expect(calls).toHaveLength(2);
+    now += 60000;
+    expect((await lockedDelivery(changed)).delivered).toBe(changed.notificationId);
+    expect(calls).toHaveLength(3);
+    for (const [candidate, state, stale, config] of [
+      [original, emptyReleaseReview(), true, settings()],
+      [{ ...original, complete: false }, emptyReleaseReview(), false, settings()],
+      [original, { ...emptyReleaseReview(), acknowledged: original.notificationId }, false, settings()],
+      [snapshot([file(".github/workflows/ci.yml")]), emptyReleaseReview(), false, settings()],
+      [original, emptyReleaseReview(), false, { ...settings(), notifications: { ...settings().notifications, minimum_impact: "minor" as const } }],
+      [original, emptyReleaseReview(), false, { ...settings(), notifications: { ...settings().notifications, enabled: false } }],
+    ] as const) expect((await Effect.runPromise(deliver(candidate, state, stale, config))).pending).toBeNull();
+    expect(calls).toHaveLength(3);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("large release panel snapshots finish writing to a pipe before the CLI exits", async () => {
+  const module = (path: string) => JSON.stringify(join(import.meta.dir, "../../dot", path));
+  const child = Bun.spawn(["bun", "--eval", `
+    import { Effect } from ${module("node_modules/effect/dist/index.js")};
+    import { GitReleases } from ${module("src/git/services/GitReleases.ts")};
+    import { releasesQuery } from ${module("src/git/commands/Releases.ts")};
+    const repositories = [{ repo: "example/project", snapshot: { findings: Array.from({ length: 4000 }, (_, id) => ({ id, detail: "Evidence ".repeat(40) })) } }];
+    await Effect.runPromise(releasesQuery({}, true).pipe(Effect.provideService(GitReleases, { query: () => Effect.succeed(repositories) })));
+    process.exit(0);
+  `], { stdout: "pipe", stderr: "pipe" });
+  const [output, error, code] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
+  expect(error).toBe("");
+  expect(code).toBe(0);
+  expect(JSON.parse(output).repositories[0].snapshot.findings).toHaveLength(4000);
 });
 
 test("incomplete upstream and manifest collections retain the last complete snapshot and its exact reviews", () => {

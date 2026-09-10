@@ -42,7 +42,11 @@ import {
   diffRaw,
 } from "../git/commands/Diff.js";
 import { gitCommitRaw } from "../git/commands/Commit.js";
-import { releasesAction, releasesQuery } from "../git/commands/Releases.js";
+import {
+  releasesAction,
+  releasesQuery,
+  releasesOpenShell,
+} from "../git/commands/Releases.js";
 import {
   notificationsAction,
   notificationsBarJson,
@@ -439,13 +443,24 @@ const gitReleasesCommand = describe(
         "Check only in a due cron minute, once per minute",
       ),
       refresh: bool("refresh", "Fetch now, bypassing the schedule and cache"),
+      notify: bool(
+        "notify",
+        "Send eligible desktop notifications with review actions",
+      ),
+      open: bool("open", "Open the release review in the Omarchy shell"),
       panelJson: bool(
         "panel-json",
         "Complete JSON review snapshots, including quiet changes and errors",
       ),
     },
-    ({ repo, scheduled, refresh, panelJson }) =>
-      releasesQuery({ repo: optional(repo), scheduled, refresh }, panelJson),
+    ({ repo, scheduled, refresh, notify, open, panelJson }) =>
+      Effect.gen(function* () {
+        if (open) return yield* releasesOpenShell(optional(repo));
+        return yield* releasesQuery(
+          { repo: optional(repo), scheduled, refresh, notify },
+          panelJson,
+        );
+      }),
   ).pipe(
     Command.withSubcommands([
       describe(
@@ -503,14 +518,15 @@ const gitReleasesCommand = describe(
   [
     "dot git-releases",
     "dot git-releases --refresh --panel-json",
-    "dot git-releases --scheduled --panel-json",
+    "dot git-releases --scheduled --notify --panel-json",
+    "dot git-releases --open --repo example/project",
     "dot git-releases review --repo example/project --snapshot ID --finding FINDING --impact patch",
     "dot git-releases review --repo example/project --snapshot ID --impact auto",
     "dot git-releases acknowledge --repo example/project --snapshot ID",
   ],
   {
     description:
-      "Read the last local snapshot, collecting one on first use. --refresh fetches immutable release and branch refs immediately; --scheduled follows each repository's local-time cron and records attempted minutes. Draft and prerelease releases are excluded. Failed checks retain previous evidence marked stale. Quiet changes remain inspectable. No desktop notifications are sent.\n\nLocal review and acknowledgement require the displayed snapshot ID. Finding overrides follow exact evidence; an overall override follows the release-relevant comparison. Changed evidence invalidates its review. Use --impact auto to clear an override. Extra CI-only commits do not invalidate an acknowledgement. Incomplete or stale evidence cannot be acknowledged or reviewed.",
+      "Read the last local snapshot, collecting one on first use. --refresh fetches immutable release and branch refs immediately; --scheduled follows each repository's local-time cron and records attempted minutes. Draft and prerelease releases are excluded. Failed checks retain previous evidence marked stale. Quiet changes remain inspectable. Desktop notifications require --notify and honour configured minimum impact, cooldown and acknowledgement. --open opens the release review, optionally selected by --repo, without fetching.\n\nLocal review and acknowledgement require the displayed snapshot ID. Finding overrides follow exact evidence; an overall override follows the release-relevant comparison. Changed evidence invalidates its review. Use --impact auto to clear an override. Extra CI-only commits do not invalidate an acknowledgement or repeat delivery. Incomplete or stale evidence cannot be acknowledged or reviewed.",
     sections: [
       {
         title: "Policy",

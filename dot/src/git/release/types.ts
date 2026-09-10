@@ -102,6 +102,8 @@ export const ReleaseFact = Schema.Struct({
   detail: Schema.String,
   /** Whether all evidence needed to classify this fact was obtained. */
   complete: Schema.Boolean,
+  /** Immutable upstream comparison link; absent in older cached evidence. */
+  evidenceUrl: Schema.optional(Schema.String),
 });
 /** One immutable change fact. */
 export type ReleaseFact = typeof ReleaseFact.Type;
@@ -131,6 +133,8 @@ export const ReleaseCommit = Schema.Struct({
   date: Schema.String,
   /** Submodule path for upstream commits, otherwise null. */
   submodule: Schema.NullOr(Schema.String),
+  /** Immutable upstream commit link; absent in older cached summaries. */
+  url: Schema.optional(Schema.String),
 });
 /** Immutable commit summary. */
 export type ReleaseCommit = typeof ReleaseCommit.Type;
@@ -165,6 +169,8 @@ export const ReleaseSnapshot = Schema.Struct({
   commits: Schema.Array(ReleaseCommit),
   /** All findings, including quiet evidence. */
   findings: Schema.Array(ReleaseFinding),
+  /** Full net file changes, including files with no classified semantic changes. */
+  files: Schema.optional(Schema.Array(ReleaseFact)),
   /** Automatic highest impact. */
   automaticSuggestion: Impact,
   /** Highest impact after local review. */
@@ -195,6 +201,8 @@ export const ReleaseReviewState = Schema.Struct({
   delivered: Schema.NullOr(Schema.String),
   /** Last successful delivery time. */
   deliveredAt: Schema.NullOr(Schema.String),
+  /** Bounded last delivery failure, separate from comparison freshness. */
+  deliveryError: Schema.optional(Schema.NullOr(Schema.String)),
 });
 /** Persisted local decisions. */
 export type ReleaseReviewState = typeof ReleaseReviewState.Type;

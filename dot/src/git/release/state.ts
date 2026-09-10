@@ -327,5 +327,9 @@ export function releaseNotificationState(
       order.indexOf(settings.notifications.minimum_impact) &&
     review.acknowledged !== snapshot.notificationId &&
     review.delivered !== snapshot.notificationId;
-  return { ...review, pending: eligible ? snapshot.notificationId : null };
+  return {
+    ...review,
+    pending: eligible ? snapshot.notificationId : null,
+    deliveryError: eligible ? (review.deliveryError ?? null) : null,
+  };
 }

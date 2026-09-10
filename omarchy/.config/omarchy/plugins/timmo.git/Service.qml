@@ -25,11 +25,26 @@ Item {
   property var threads: []
   property bool notificationsLoaded: false
   property string notificationsError: ""
+  property var releases: []
+  property bool releasesLoaded: false
+  property string releasesError: ""
+  property string releaseActionError: ""
+  property string releaseRefreshPending: ""
+  readonly property bool releaseBusy: releaseProcess.running || releaseActionProcess.running
+  readonly property int releasePendingCount: releases.filter(function(entry) { return entry.needsAttention }).length
+  readonly property bool releaseStale: releasesError !== "" || releases.some(function(entry) { return entry.stale || entry.deliveryError })
+  readonly property string releaseTooltip: releasesError || releases.map(function(entry) {
+    return entry.name + ": " + (entry.stale ? "stale" : (entry.snapshot ? entry.snapshot.suggestion : "not checked"))
+      + (entry.needsAttention ? " · awaiting review" : "") + (entry.pending ? " · notification pending" : "")
+      + (entry.deliveryError ? " · " + entry.deliveryError : "")
+  }).join("\n")
   signal panelUpdated()
+  signal releasesUpdating()
+  signal releasesUpdated()
 
-  readonly property bool refreshing: diffProcess.running || panelProcess.running || notificationsProcess.running || pullProcess.running
+  readonly property bool refreshing: diffProcess.running || panelProcess.running || notificationsProcess.running || pullProcess.running || releaseBusy
   readonly property bool pulling: pullProcess.running
-  readonly property bool clear: diffLoaded && notificationsLoaded
+  readonly property bool clear: diffLoaded && notificationsLoaded && releasesLoaded && !releaseStale && releasePendingCount === 0
     && diffError === "" && notificationsError === ""
     && diffClass === "dots-ok" && notificationClass === "hidden"
 
@@ -103,10 +118,65 @@ Item {
     panelError = message
   }
 
-  function refresh() {
+  function refresh(mode) {
     panelRefreshPending = true
     if (!diffProcess.running) diffProcess.running = true
     if (!notificationsProcess.running) notificationsProcess.running = true
+    if (mode !== "action") refreshReleases(mode === "scheduled" ? "scheduled" : "refresh")
+  }
+
+  function refreshReleases(mode) {
+    if (releaseProcess.running || releaseActionProcess.running) {
+      if (releaseRefreshPending !== "refresh") releaseRefreshPending = mode
+      return
+    }
+    var args = ["dot", "git-releases", "--panel-json"]
+    if (mode === "scheduled") args.push("--scheduled", "--notify")
+    else if (mode === "refresh") args.push("--refresh")
+    releaseProcess.command = args
+    releaseProcess.running = true
+  }
+
+  function applyReleases(raw, partial) {
+    try {
+      var payload = JSON.parse(String(raw || "").trim())
+      if (!Array.isArray(payload.repositories)) throw new Error("Invalid release response")
+      releasesUpdating()
+      releases = partial ? releases.map(function(entry) {
+        return payload.repositories.find(function(next) { return next.repo === entry.repo }) || entry
+      }) : payload.repositories
+      releasesLoaded = true
+      releasesError = ""
+      releasesUpdated()
+    } catch (error) {
+      releasesLoaded = true
+      releasesError = "Invalid release response: " + String(error).slice(0, 240) + "; refresh to retry"
+    }
+  }
+
+  function releaseAction(entry, target, impact, acknowledge) {
+    if (!entry || !entry.snapshot || releaseBusy) return
+    releaseActionError = ""
+    var args = ["dot", "git-releases", acknowledge ? "acknowledge" : "review", "--repo", entry.repo, "--snapshot", entry.snapshot.id, "--panel-json"]
+    if (!acknowledge) args.push("--finding", target, "--impact", impact)
+    releaseActionProcess.command = args
+    releaseActionProcess.running = true
+  }
+
+  function openEvidence(url) {
+    if (url) Quickshell.execDetached(["xdg-open", String(url)])
+  }
+
+  function editReleasePolicy(entry) {
+    if (!entry || !entry.configPath) return
+    Quickshell.execDetached(["uwsm", "app", "--", "xdg-terminal-exec", "--app-id=org.omarchy.terminal", "nvim", "--", String(entry.configPath)])
+  }
+
+  function drainReleaseRefresh() {
+    if (!releaseRefreshPending) return
+    var mode = releaseRefreshPending
+    releaseRefreshPending = ""
+    refreshReleases(mode)
   }
 
   function startPanelRefresh() {
@@ -260,12 +330,39 @@ Item {
 
   Process {
     id: markReadProcess
-    onExited: root.refresh()
+    onExited: root.refresh("action")
   }
 
   Process {
     id: pullProcess
-    onExited: root.refresh()
+    onExited: root.refresh("action")
+  }
+
+  Process {
+    id: releaseProcess
+    command: ["dot", "git-releases", "--panel-json"]
+    running: true
+    stdout: StdioCollector { id: releaseOutput; waitForEnd: true }
+    stderr: StdioCollector { id: releaseStderr; waitForEnd: true }
+    onExited: function(exitCode) {
+      if (exitCode === 0) root.applyReleases(releaseOutput.text, false)
+      else { root.releasesLoaded = true; root.releasesError = String(releaseStderr.text || "Release comparisons unavailable; refresh to retry").trim().slice(0, 500) }
+      root.drainReleaseRefresh()
+    }
+  }
+
+  Process {
+    id: releaseActionProcess
+    stdout: StdioCollector { id: releaseActionOutput; waitForEnd: true }
+    stderr: StdioCollector { id: releaseActionStderr; waitForEnd: true }
+    onExited: function(exitCode) {
+      if (exitCode === 0) root.applyReleases(releaseActionOutput.text, true)
+      else {
+        root.releaseActionError = String(releaseActionStderr.text || "Release action failed; refresh and select again").trim().slice(0, 500)
+        if (!root.releaseRefreshPending) root.releaseRefreshPending = "read"
+      }
+      root.drainReleaseRefresh()
+    }
   }
 
   Timer {
@@ -273,6 +370,6 @@ Item {
     running: true
     repeat: true
     triggeredOnStart: true
-    onTriggered: root.refresh()
+    onTriggered: root.refresh("scheduled")
   }
 }

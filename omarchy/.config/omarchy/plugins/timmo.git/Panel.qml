@@ -17,6 +17,18 @@ Panel {
   property string view: "overview"
   property var selectedRepo: null
   property string selectedRepoView: "changed"
+  property string selectedReleaseKey: ""
+  property string selectedFindingId: ""
+  property string releaseCursorKey: ""
+  readonly property var selectedRelease: service ? service.releases.find(function(entry) {
+    return entry.repo.toLowerCase() === selectedReleaseKey.toLowerCase() || entry.name.toLowerCase() === selectedReleaseKey.toLowerCase()
+  }) || null : null
+  readonly property var releaseSnapshot: selectedRelease ? selectedRelease.snapshot : null
+  readonly property var selectedFinding: releaseSnapshot ? releaseSnapshot.findings.find(function(finding) { return finding.id === selectedFindingId }) || null : null
+  readonly property bool releaseView: ["releases", "release", "release-choice", "finding", "release-commits", "release-files"].indexOf(view) >= 0
+  readonly property var filteredReleaseRows: filterController.filteredModel.filter(function(entry) { return ["release", "finding", "commit", "file"].indexOf(entry.kind) >= 0 })
+  readonly property var releaseGeometry: ({ x: panel.cardOrigin.x, y: panel.cardOrigin.y, width: panel.contentWidth, height: panel.contentHeight, screen: panel.screen ? panel.screen.name : "" })
+  readonly property string cursorKey: filterController.selectedEntry() ? filterController.selectedEntry().key : ""
   readonly property bool selectedRepoCanPull: selectedRepo !== null
     && Number(selectedRepo.behind || 0) > 0
     && Number(selectedRepo.modified || 0) === 0
@@ -36,6 +48,47 @@ Panel {
 
   function buildPanelRows() {
     var rows = []
+    if (releaseView) {
+      rows.push(actionRow("back", view === "releases" ? "Back to Git overview" : (view === "release" ? "Back to unreleased changes" : "Back to release review"), ""))
+      rows.push(actionRow("release-refresh", "Refresh release comparisons", "󰑐"))
+      if (view === "releases") {
+        var releases = service ? service.releases : []
+        for (var r = 0; r < releases.length; r++)
+          rows.push(releaseRow("release", releases[r].repo, releases[r], releases[r].name, releaseDetail(releases[r])))
+      } else if (selectedRelease) {
+        if (view === "release") {
+          rows.push(actionRow("release-repo", "Open repository…", ""))
+          rows.push(actionRow("release-policy", "Edit policy", ""))
+          if (releaseSnapshot) {
+            rows.push(actionRow("release-choice", "Overall impact: " + releaseSnapshot.suggestion + (releaseSnapshot.reviewed ? " (reviewed)" : " (auto)"), "󰓹"))
+            rows.push(actionRow("release-acknowledge", selectedRelease.acknowledged ? "Acknowledged" : "Acknowledge this evidence", ""))
+            rows.push(actionRow("release-evidence", "Open full comparison", ""))
+            rows.push(actionRow("release-commits", "All commits · " + releaseSnapshot.commits.length, ""))
+            rows.push(actionRow("release-files", "Changed files · " + releaseFiles().length, ""))
+            var findings = releaseSnapshot.findings.slice().sort(function(a, b) { return Number(a.impact === "none") - Number(b.impact === "none") })
+            for (var f = 0; f < findings.length; f++) {
+              var finding = findings[f]
+              rows.push(releaseRow("finding", finding.id, finding, "[" + (finding.impact === "none" ? "quiet" : finding.impact) + "] " + finding.detail, finding.reason + (finding.reviewed ? " · local review" : "")))
+            }
+          }
+        } else if (view === "release-choice" || view === "finding") {
+          if (view === "finding" && selectedFinding && findingUrl(selectedFinding)) rows.push(actionRow("release-evidence", "Open full evidence", ""))
+          if (releaseSnapshot && (view === "release-choice" || selectedFinding) && !selectedRelease.stale && releaseSnapshot.complete) {
+            var impacts = ["none", "patch", "minor", "major", "auto"]
+            for (var p = 0; p < impacts.length; p++) rows.push(actionRow("impact:" + impacts[p], impacts[p] === "auto" ? "Auto · reset local choice" : "Choose " + impacts[p], "󰓹"))
+          }
+        } else if (releaseSnapshot && view === "release-commits") {
+          for (var c = 0; c < releaseSnapshot.commits.length; c++) {
+            var commit = releaseSnapshot.commits[c]
+            rows.push(releaseRow("commit", (commit.submodule || "") + commit.id, commit, commit.subject, commit.id.slice(0, 12) + " · " + commit.date + (commit.submodule ? " · " + commit.submodule : "")))
+          }
+        } else if (releaseSnapshot && view === "release-files") {
+          var files = releaseFiles()
+          for (var d = 0; d < files.length; d++) rows.push(releaseRow("file", files[d].id, files[d], files[d].path, files[d].changeType + (files[d].previousPath ? " · from " + files[d].previousPath : "")))
+        }
+      }
+      return rows
+    }
     if (view === "overview") {
     } else if (view === "repo") {
       if (selectedRepoCanPull) rows.push(actionRow("pull", "Pull", "󰜷"))
@@ -77,6 +130,7 @@ Panel {
     }
     if (view === "overview") {
       rows.push(actionRow("other", "Other repositories", "󰙅"))
+      rows.push(actionRow("releases", "Unreleased changes" + (service && service.releasePendingCount ? " · " + service.releasePendingCount + " awaiting review" : ""), "󰓹"))
     }
     var threads = service && (view === "overview" || view === "notifications") ? service.threads : []
     for (var k = 0; k < threads.length; k++) {
@@ -112,6 +166,59 @@ Panel {
     }
   }
 
+  function releaseRow(kind, key, value, title, detail) {
+    return { key: kind + ":" + key, kind: kind, section: "release", value: value, primaryText: title, secondaryText: detail }
+  }
+
+  function releaseDetail(entry) {
+    return (entry.snapshot ? entry.snapshot.releaseTag + " → " + entry.branch + " · " + entry.snapshot.suggestion : entry.branch + " · not checked")
+      + (entry.stale ? " · stale" : "") + (entry.acknowledged ? " · acknowledged" : (entry.needsAttention ? " · awaiting review" : ""))
+      + (entry.pending ? " · notification pending" : "")
+  }
+
+  function releaseFiles() {
+    if (!releaseSnapshot) return []
+    var files = releaseSnapshot.files || releaseSnapshot.findings
+    var seen = {}
+    return files.filter(function(file) {
+      var key = (file.submodule || "") + ":" + file.path
+      if (seen[key]) return false
+      seen[key] = true
+      return true
+    })
+  }
+
+  function findingUrl(finding) {
+    if (!finding || !releaseSnapshot) return ""
+    return finding.evidenceUrl || (finding.submodule ? "" : releaseSnapshot.url)
+  }
+
+  function releaseSummary() {
+    if (view === "releases") return service && !service.releasesLoaded ? "Loading release comparisons" : "All watched repositories, including quiet changes"
+    if (!selectedRelease) return service && !service.releasesLoaded ? "Loading selected repository" : "Repository unavailable; return to unreleased changes or refresh"
+    var lines = [releaseDetail(selectedRelease)]
+    if (selectedRelease.error) lines.push(selectedRelease.error)
+    if (selectedRelease.deliveryError) lines.push(selectedRelease.deliveryError)
+    if (view === "finding") {
+      if (!selectedFinding) lines.push("This evidence changed; return to the release review and select again")
+      else {
+        lines.push(selectedFinding.detail, selectedFinding.reason, "Impact: " + selectedFinding.impact + " · automatic: " + selectedFinding.automaticImpact)
+        lines.push(selectedFinding.changeType + " · " + selectedFinding.path)
+        if (selectedFinding.previousPath) lines.push("From path: " + selectedFinding.previousPath)
+        if (selectedFinding.role) lines.push("Dependency role: " + selectedFinding.role)
+        lines.push("Before: " + String(selectedFinding.before || "absent"), "After: " + String(selectedFinding.after || "absent"))
+        if (!findingUrl(selectedFinding)) lines.push("Upstream link unavailable in this cached snapshot; refresh to collect it")
+      }
+    } else if (releaseSnapshot) {
+      lines.push("Suggested impact: " + releaseSnapshot.suggestion + (releaseSnapshot.reviewed ? " · local overall choice" : " · automatic"))
+      var reasons = []
+      releaseSnapshot.findings.forEach(function(finding) { if (finding.impact !== "none" && reasons.indexOf(finding.reason) < 0) reasons.push(finding.reason) })
+      lines.push(reasons.length ? reasons.join("\n") : "No release-relevant changes")
+      lines.push("Checked: " + releaseSnapshot.checkedAt)
+    }
+    return lines.join("\n")
+  }
+
   function footerActionRow(action, label, secondaryText, icon) {
     var row = actionRow(action, label, icon)
     row.kind = "footer-action"
@@ -126,13 +233,20 @@ Panel {
 
   function open(payloadJson) {
     var initialView = "overview"
+    selectedReleaseKey = ""
+    selectedFindingId = ""
     try {
       var payload = JSON.parse(String(payloadJson || "{}"))
       if (payload.view === "notifications") initialView = payload.view
+      if (payload.view === "releases") {
+        selectedReleaseKey = String(payload.repo || "")
+        initialView = selectedReleaseKey ? "release" : "releases"
+      }
     } catch (error) {
     }
     view = initialView
     selectedRepo = null
+    if (releaseView && service) service.refreshReleases("read")
     filterController.reset()
     controller.show()
     Qt.callLater(function() {
@@ -153,6 +267,8 @@ Panel {
   function cursorItem() {
     var entry = filterController.selectedEntry()
     if (!entry) return null
+    if (["release", "finding", "commit", "file"].indexOf(entry.kind) >= 0)
+      return releaseRepeater.itemAt(filteredReleaseRows.indexOf(entry))
     var rows = entry.kind === "action" ? filteredActions
       : (entry.kind === "repo" ? filteredRepos
         : (entry.kind === "thread" ? filteredThreads : filteredFooterActions))
@@ -200,7 +316,18 @@ Panel {
 
   function activateAction(action, modifiers) {
     if (!service) return
-    if (action === "refresh") service.refresh()
+    if (action === "release-refresh") { service.releaseActionError = ""; service.refreshReleases("refresh") }
+    else if (action === "releases") showView("releases")
+    else if (action === "release-repo" && selectedRelease) showRepoActions(selectedRelease)
+    else if (action === "release-policy") { close(); service.editReleasePolicy(selectedRelease) }
+    else if (["release-choice", "release-commits", "release-files"].indexOf(action) >= 0) showView(action)
+    else if (action === "release-evidence") service.openEvidence(view === "finding" ? findingUrl(selectedFinding) : (releaseSnapshot ? releaseSnapshot.url : ""))
+    else if (action === "release-acknowledge") {
+      if (selectedRelease && !selectedRelease.acknowledged) service.releaseAction(selectedRelease, "overall", "auto", true)
+    }
+    else if (action.indexOf("impact:") === 0) service.releaseAction(selectedRelease, view === "finding" ? selectedFindingId : "overall", action.slice(7), false)
+    else if (action === "back" && releaseView) showView(view === "releases" ? "overview" : (view === "release" ? "releases" : "release"))
+    else if (action === "refresh") service.refresh()
     else if (action === "changed" || action === "other") showView(action)
     else if (action === "agent") showView("agent")
     else if (action === "back") showView(view === "agent" ? "repo" : (view === "repo" ? selectedRepoView : "overview"))
@@ -230,6 +357,10 @@ Panel {
     if (entry.kind === "action" || entry.kind === "footer-action") activateAction(entry.action, modifiers)
     else if (entry.kind === "repo") showRepoActions(entry.value)
     else if (entry.kind === "thread") activateThread(entry.value)
+    else if (entry.kind === "release") { selectedReleaseKey = entry.value.repo; showView("release") }
+    else if (entry.kind === "finding") { selectedFindingId = entry.value.id; showView("finding") }
+    else if (entry.kind === "file") service.openEvidence(findingUrl(entry.value))
+    else if (entry.kind === "commit") service.openEvidence(entry.value.url || (entry.value.submodule ? "" : "https://github.com/" + selectedRelease.repo + "/commit/" + entry.value.id))
   }
 
   function repoDetail(repo) {
@@ -250,6 +381,16 @@ Panel {
   Connections {
     target: root.service
     function onPanelUpdated() { root.syncSelectedRepo() }
+    function onReleasesUpdating() {
+      var entry = filterController.selectedEntry()
+      root.releaseCursorKey = entry ? entry.key : ""
+    }
+    function onReleasesUpdated() {
+      Qt.callLater(function() {
+        var index = filterController.indexForKey(root.releaseCursorKey)
+        if (index >= 0) filterController.cursorIndex = index
+      })
+    }
   }
 
   KeyboardPanel {
@@ -272,6 +413,7 @@ Panel {
       onBackRequested: if (root.view === "overview") root.close(); else root.activateAction("back")
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
+      onRefreshRequested: if (root.releaseView) root.activateAction("release-refresh"); else root.service.refresh()
 
       Flickable {
         id: panelFlick
@@ -291,8 +433,8 @@ Panel {
 
           PanelHero {
             width: parent.width
-            title: root.view === "agent" ? "Open in agent" : (root.view === "repo" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "overview" ? "Git" : (root.view === "changed" ? "Changed" : (root.view === "notifications" ? "Notifications" : "Other"))))
-            meta: root.view === "agent" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.notificationCountText : (root.view === "changed" ? root.changedRepoCount + " repositories" : (root.view === "notifications" ? root.notificationCountText : root.otherRepoCount + " repositories"))))
+            title: root.releaseView ? (root.view === "releases" ? "Unreleased changes" : (root.selectedRelease ? root.selectedRelease.name : "Release review")) : (root.view === "agent" ? "Open in agent" : (root.view === "repo" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "overview" ? "Git" : (root.view === "changed" ? "Changed" : (root.view === "notifications" ? "Notifications" : "Other")))))
+            meta: root.releaseView ? (root.view === "finding" ? "Finding evidence" : (root.view === "release-commits" ? "All commits" : (root.view === "release-files" ? "Changed files" : "Local release review"))) : (root.view === "agent" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.notificationCountText : (root.view === "changed" ? root.changedRepoCount + " repositories" : (root.view === "notifications" ? root.notificationCountText : root.otherRepoCount + " repositories")))))
             detail: root.service && root.service.pulling ? "PULLING" : (root.service && root.service.refreshing ? "REFRESHING" : "STATUS")
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
@@ -304,6 +446,17 @@ Panel {
                 font.pixelSize: Style.font.display
               }
             }
+          }
+
+          Text {
+            visible: root.releaseView
+            width: parent.width
+            text: root.releaseSummary() + (root.service && root.service.releasesError ? "\n" + root.service.releasesError : "") + (root.service && root.service.releaseActionError ? "\n" + root.service.releaseActionError : "")
+            textFormat: Text.PlainText
+            wrapMode: Text.WrapAnywhere
+            color: root.contentForeground
+            font.family: root.contentFontFamily
+            font.pixelSize: Style.font.caption
           }
 
           Text {
@@ -344,6 +497,35 @@ Panel {
                   Text { width: Math.max(0, actionRow.width - Style.space(32)); text: modelData.primaryText; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
                 }
                 MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: root.activateAction(modelData.action) }
+              }
+            }
+          }
+
+          Column {
+            width: parent.width
+            spacing: Style.space(2)
+            Repeater {
+              id: releaseRepeater
+              model: root.filteredReleaseRows
+              CursorSurface {
+                required property var modelData
+                x: Style.space(8)
+                width: Math.max(0, contentColumn.width - Style.space(16))
+                implicitHeight: releaseColumn.implicitHeight + Style.space(12)
+                hasCursor: filterController.cursorIndex === filterController.indexForKey(modelData.key)
+                foreground: root.contentForeground
+                accent: root.contentForeground
+                Column {
+                  id: releaseColumn
+                  anchors.left: parent.left
+                  anchors.right: parent.right
+                  anchors.verticalCenter: parent.verticalCenter
+                  anchors.margins: Style.space(8)
+                  spacing: Style.space(2)
+                  Text { width: parent.width; text: modelData.primaryText; textFormat: Text.PlainText; wrapMode: Text.WrapAnywhere; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body }
+                  Text { width: parent.width; text: modelData.secondaryText; textFormat: Text.PlainText; wrapMode: Text.WrapAnywhere; color: Qt.darker(root.contentForeground, 1.4); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption }
+                }
+                MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: root.activateEntry(modelData, Qt.NoModifier) }
               }
             }
           }
