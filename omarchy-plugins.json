@@ -81,13 +81,13 @@
       },
       "settings": {
         "primaryOnly": true,
-        "run": "package-updates-bar status",
+        "run": "dot package-updates status",
         "interval": 60000,
         "refreshTarget": "timmo.package-updates",
         "loadingText": "󰏕 ..",
         "loadingClass": "package-updates-unknown",
         "onClick": "omarchy launch terminal zsh -ic update",
-        "onClickRight": "package-updates-bar refresh",
+        "onClickRight": "dot package-updates refresh",
         "classColors": {
           "package-updates-current": "#9b9b9b",
           "package-updates-unknown": "#9b9b9b",

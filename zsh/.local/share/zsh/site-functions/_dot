@@ -19,6 +19,7 @@ _dot() {
     'update:Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive\: passing any of --pull, --stow, or --app runs only the selected phases. Internal --no-self-update and --post-hook-repo flags support the active self-update handoff.'
     'up:Alias for update'
     'system-update:Select and run Dotfiles, Omarchy, and Topgrade updates'
+    'package-updates:Check watched package and Dotfiles updates for the status bar'
     'stow:Re-stow public/private dotfiles'
     'omarchy-plugin:Manage Omarchy plugin submodules. The manage-omarchy-plugin compatibility wrapper may pass trailing 0/1 confirmation and commit-offer values to update and remove.'
     'omarchy-shell-config:Regenerate the Omarchy shell layout'
@@ -79,6 +80,9 @@ _dot() {
           ;;
         system-update)
           _dot_system_update
+          ;;
+        package-updates)
+          _dot_package_updates
           ;;
         stow)
           _dot_stow
@@ -244,6 +248,70 @@ _dot_system_update() {
   specs=(
     '(--yes --no-yes)--yes[Select every update without prompting]'
     '(--yes --no-yes)--no-yes[Disable yes]'
+    '(--help -h)--help[Show help information]'
+    '(--help -h)-h[Show help information]'
+  )
+  _arguments "${specs[@]}"
+}
+
+_dot_package_updates() {
+  local context state state_descr line
+  typeset -A opt_args
+
+  local -a commands
+  commands=(
+    'status:Print cached status-bar JSON and refresh stale data in the background'
+    'refresh:Refresh package and Dotfiles status and notify the shell'
+  )
+
+  local -a specs
+  specs=(
+    '(--help -h)--help[Show help information]'
+    '(--help -h)-h[Show help information]'
+    '1:command:->command'
+    '*::arg:->args'
+  )
+
+  _arguments -C "${specs[@]}"
+
+  case "$state" in
+    command)
+      _describe -t commands 'commands' commands
+      ;;
+    args)
+      case "$words[1]" in
+        status)
+          _dot_package_updates_status
+          ;;
+        refresh)
+          _dot_package_updates_refresh
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_dot_package_updates_status() {
+  local -a specs
+  specs=(
+    '(--package-file)--package-file[Watched package list (default\: public dotfiles manifest)]:file:_files'
+    '(--cache-dir)--cache-dir[Status cache directory (default\: XDG status-bar cache)]:directory:_directories'
+    '(--timeout)--timeout[Maximum seconds for each external check]:integer:'
+    '(--cache-max-age)--cache-max-age[Seconds before starting a background refresh]:integer:'
+    '(--help -h)--help[Show help information]'
+    '(--help -h)-h[Show help information]'
+  )
+  _arguments "${specs[@]}"
+}
+
+_dot_package_updates_refresh() {
+  local -a specs
+  specs=(
+    '(--package-file)--package-file[Watched package list (default\: public dotfiles manifest)]:file:_files'
+    '(--cache-dir)--cache-dir[Status cache directory (default\: XDG status-bar cache)]:directory:_directories'
+    '(--timeout)--timeout[Maximum seconds for each external check]:integer:'
+    '(--scheduled --no-scheduled)--scheduled[Respect the AUR request backoff]'
+    '(--scheduled --no-scheduled)--no-scheduled[Disable scheduled]'
     '(--help -h)--help[Show help information]'
     '(--help -h)-h[Show help information]'
   )

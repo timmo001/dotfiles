@@ -114,6 +114,77 @@ dot system-update
 dot system-update --yes
 ```
 
+## `dot package-updates`
+
+Check watched package and Dotfiles updates for the status bar
+
+```text
+dot package-updates <subcommand> [flags]
+```
+
+Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks watched repository/AUR packages and all dot-managed repositories, writes the cache atomically under a shared lock, and notifies the Omarchy shell. Scheduled refreshes respect AUR HTTP-error backoff; manual refreshes retry immediately. Use --package-file, --cache-dir, --timeout, and status --cache-max-age to override defaults.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot package-updates status
+dot package-updates refresh
+```
+
+### `dot package-updates status`
+
+Print cached status-bar JSON and refresh stale data in the background
+
+```text
+dot package-updates status [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--package-file` `<path>` | Watched package list (default: public dotfiles manifest) |
+| `--cache-dir` `<path>` | Status cache directory (default: XDG status-bar cache) |
+| `--timeout` `<integer>` | Maximum seconds for each external check |
+| `--cache-max-age` `<integer>` | Seconds before starting a background refresh |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot package-updates status
+```
+
+### `dot package-updates refresh`
+
+Refresh package and Dotfiles status and notify the shell
+
+```text
+dot package-updates refresh [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--package-file` `<path>` | Watched package list (default: public dotfiles manifest) |
+| `--cache-dir` `<path>` | Status cache directory (default: XDG status-bar cache) |
+| `--timeout` `<integer>` | Maximum seconds for each external check |
+| `--scheduled` | Respect the AUR request backoff |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot package-updates refresh
+```
+
 ## `dot stow`
 
 Re-stow public/private dotfiles

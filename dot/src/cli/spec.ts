@@ -23,6 +23,10 @@ import { isAgentCommand } from "../commands/IsAgent.js";
 import { launchFloatingWebapp } from "../commands/LaunchFloatingWebapp.js";
 import { notesCaptureSync } from "../commands/NotesCaptureSync.js";
 import { omarchyPlugin } from "../commands/OmarchyPlugin.js";
+import {
+  packageUpdatesRefresh,
+  packageUpdatesStatus,
+} from "../commands/PackageUpdates.js";
 import { privatePkgPublish } from "../commands/PrivatePkgPublish.js";
 import { setupPrivateRepo } from "../commands/SetupPrivateRepo.js";
 import { setupPublicRepo } from "../commands/SetupPublicRepo.js";
@@ -257,6 +261,88 @@ const systemUpdateCommand = describe(
   {
     description:
       "Select maintenance steps interactively, then run them in order: Dotfiles, Omarchy, and Topgrade. Interactive runs pre-select Dotfiles and Omarchy; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step. Cancelling the prompt exits without running updates.",
+  },
+);
+
+const packageUpdateFlags = {
+  packageFile: pathFlag(
+    "package-file",
+    "Watched package list (default: public dotfiles manifest)",
+    "file",
+  ),
+  cacheDir: pathFlag(
+    "cache-dir",
+    "Status cache directory (default: XDG status-bar cache)",
+    "directory",
+  ),
+  timeout: integer(
+    "timeout",
+    "Maximum seconds for each external check",
+    120,
+  ).pipe(
+    Flag.filter(
+      (value) => value > 0,
+      () => "Timeout must be positive",
+    ),
+  ),
+};
+
+const packageUpdatesCommand = describe(
+  Command.make("package-updates").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make(
+          "status",
+          {
+            ...packageUpdateFlags,
+            cacheMaxAge: integer(
+              "cache-max-age",
+              "Seconds before starting a background refresh",
+              900,
+            ).pipe(
+              Flag.filter(
+                (value) => value >= 0,
+                () => "Cache age cannot be negative",
+              ),
+            ),
+          },
+          (input) =>
+            packageUpdatesStatus({
+              ...input,
+              packageFile: optional(input.packageFile),
+              cacheDir: optional(input.cacheDir),
+            }),
+        ),
+        "Print cached status-bar JSON and refresh stale data in the background",
+        ["dot package-updates status"],
+      ),
+      describe(
+        Command.make(
+          "refresh",
+          {
+            ...packageUpdateFlags,
+            scheduled: bool("scheduled", "Respect the AUR request backoff"),
+          },
+          (input) =>
+            packageUpdatesRefresh(
+              {
+                ...input,
+                packageFile: optional(input.packageFile),
+                cacheDir: optional(input.cacheDir),
+              },
+              input.scheduled,
+            ),
+        ),
+        "Refresh package and Dotfiles status and notify the shell",
+        ["dot package-updates refresh"],
+      ),
+    ]),
+  ),
+  "Check watched package and Dotfiles updates for the status bar",
+  ["dot package-updates status", "dot package-updates refresh"],
+  {
+    description:
+      "Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks watched repository/AUR packages and all dot-managed repositories, writes the cache atomically under a shared lock, and notifies the Omarchy shell. Scheduled refreshes respect AUR HTTP-error backoff; manual refreshes retry immediately. Use --package-file, --cache-dir, --timeout, and status --cache-max-age to override defaults.",
   },
 );
 
@@ -1454,6 +1540,7 @@ export const dotCommand = describe(
       installCommand,
       updateCommand,
       systemUpdateCommand,
+      packageUpdatesCommand,
       stowCommand,
       omarchyPluginCommand,
       ...simpleCommands,
