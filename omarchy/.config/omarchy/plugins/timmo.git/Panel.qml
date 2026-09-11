@@ -114,6 +114,7 @@ Panel {
     }
     if (view === "overview") {
       if (workspaceContext && workspaceContext.repository) {
+        rows.push(headerActionRow("context-refresh", "Refresh workspace", "context"))
         var current = workspaceContext.repository
         var known = service.changedRepos.concat(service.otherRepos).find(function(repo) { return repo.path === current.path })
         var value = known || { name: current.name, path: current.path, statusKnown: false }
@@ -361,6 +362,7 @@ Panel {
     if (!entry) return null
     if (entry.kind === "context-action") return contextRepeater.itemAt(contextRows.indexOf(entry))
     if (entry.kind === "header-action") {
+      if (entry.action === "context-refresh") return contextHeading
       if (entry.action === "pull-changed") return repositoriesHeading
       if (entry.action === "repositories-refresh") return repositoriesHeading
       if (entry.action === "notifications-refresh") return notificationsHeading
@@ -391,6 +393,13 @@ Panel {
     property string requestedKey: ""
     interval: 0
     onTriggered: if (requestedKey === root.cursorKey) root.scrollCursorIntoView()
+  }
+
+  Timer {
+    interval: 3000
+    running: root.opened && root.service !== null
+    repeat: true
+    onTriggered: root.service.refreshHerdrContext()
   }
 
   function showView(nextView) {
@@ -431,6 +440,7 @@ Panel {
   function activateAction(action, modifiers) {
     if (!service) return
     if (action === "release-refresh") { service.releaseActionError = ""; service.refreshReleases("refresh") }
+    else if (action === "context-refresh") service.refreshHerdrContext(true)
     else if (action === "repositories-refresh") service.refreshRepositories()
     else if (action === "notifications-refresh") service.refreshNotifications()
     else if (action === "releases") showView("releases")
@@ -566,7 +576,6 @@ Panel {
             width: parent.width
             title: root.releaseView ? (root.view === "releases" ? "Unreleased changes" : (root.selectedRelease ? root.selectedRelease.name : "Release review")) : (root.view === "agent" ? "Open in agent" : (root.view === "repo" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "overview" ? "Git" : (root.view === "changed" ? "Changed" : (root.view === "notifications" ? "Notifications" : "Other")))))
             meta: root.releaseView ? (root.view === "finding-group" && root.selectedFindingGroup ? root.selectedFindingGroup.title : (root.view === "finding" ? "Finding evidence" : (root.view === "release-commits" ? "All commits" : "Local release review"))) : (root.view === "agent" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.notificationCountText : (root.view === "changed" ? root.changedRepoCount + " repositories" : (root.view === "notifications" ? root.notificationCountText : root.otherRepoCount + " repositories")))))
-            detail: root.service && (root.service.releaseLaunching || (root.view === "agent" && root.service.agentLaunching)) ? "OPENING" : (root.service && root.service.pulling ? "PULLING" : (root.service && root.service.refreshing ? "REFRESHING" : "STATUS"))
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             iconComponent: Component {
@@ -580,10 +589,16 @@ Panel {
           }
 
           SectionHeading {
-            visible: root.contextRows.length > 0
+            id: contextHeading
+            visible: root.contextRows.length > 0 || filterController.indexForKey("action:context-refresh") >= 0
             title: root.workspaceContext?.workspace?.label.trim() || "Current workspace"
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
+            refreshable: true
+            refreshing: root.service ? root.service.contextRefreshing : false
+            hasCursor: root.cursorKey === "action:context-refresh"
+            onRefreshHovered: filterController.cursorIndex = filterController.indexForKey("action:context-refresh")
+            onRefreshRequested: root.activateAction("context-refresh")
           }
 
           Column {

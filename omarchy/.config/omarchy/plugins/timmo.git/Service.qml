@@ -7,11 +7,17 @@ Item {
 
   property var shell: null
   property var herdrContext: null
+  property bool contextRefreshRequested: false
+  readonly property bool contextRefreshing: contextRefreshRequested && contextProcess.running
   signal contextUpdating()
   signal contextUpdated()
 
-  function refreshHerdrContext() {
-    if (contextProcess.running) return
+  function refreshHerdrContext(manual) {
+    if (contextProcess.running) {
+      contextRefreshRequested = contextRefreshRequested || manual === true
+      return
+    }
+    contextRefreshRequested = manual === true
     contextProcess.startedSuccessfully = false
     contextProcess.running = true
   }
@@ -152,7 +158,7 @@ Item {
   }
 
   function refresh(mode) {
-    refreshHerdrContext()
+    if (mode !== "scheduled") refreshHerdrContext()
     refreshRepositories()
     refreshNotifications()
     if (mode !== "action") refreshReleases(mode === "scheduled" ? "scheduled" : "refresh")
@@ -411,13 +417,6 @@ Item {
       root.applyHerdrContext(value)
     }
     onRunningChanged: if (!running && !startedSuccessfully) root.applyHerdrContext(null)
-  }
-
-  Timer {
-    interval: 3000
-    running: true
-    repeat: true
-    onTriggered: root.refreshHerdrContext()
   }
 
   Process {
