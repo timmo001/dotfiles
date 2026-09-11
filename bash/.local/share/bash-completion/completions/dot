@@ -112,6 +112,10 @@ _dot()
         _dot_system_update "$i"
         return
         ;;
+      package-updates)
+        _dot_package_updates "$i"
+        return
+        ;;
       stow)
         _dot_stow "$i"
         return
@@ -242,7 +246,7 @@ _dot()
     return
   fi
 
-  COMPREPLY=( $(compgen -W 'init install update up system-update stow omarchy-plugin omarchy-shell-config firewall doctor clean agents-sync notes-capture-sync setup-private-repo setup-public-repo git-diff diff git-commit git-notifications git-releases mcp-sync private-pkg-publish skills completions is-agent repo-induct agent-oxlint launch-floating-webapp herdr workspace-setup workspace-relayout usage help' -- "$cur") )
+  COMPREPLY=( $(compgen -W 'init install update up system-update package-updates stow omarchy-plugin omarchy-shell-config firewall doctor clean agents-sync notes-capture-sync setup-private-repo setup-public-repo git-diff diff git-commit git-notifications git-releases mcp-sync private-pkg-publish skills completions is-agent repo-induct agent-oxlint launch-floating-webapp herdr workspace-setup workspace-relayout usage help' -- "$cur") )
 }
 
 _dot_init()
@@ -409,6 +413,135 @@ _dot_system_update()
   local _filtered_flags=""
   [[ -n "$_used_0" ]] || _filtered_flags+=" --yes --no-yes"
   [[ -n "$_used_1" ]] || _filtered_flags+=" --help -h"
+
+  # Complete flags (filtered) and subcommands
+  if [[ "$cur" == -* ]]; then
+    COMPREPLY=( $(compgen -W "$_filtered_flags" -- "$cur") )
+    return
+  fi
+
+}
+
+_dot_package_updates()
+{
+  local cur prev words cword i
+  local _command_index="$1"
+  _init_completion -n "$COMP_WORDBREAKS" || return
+
+  # Subcommand dispatch
+  local cmd _skip_next=0
+  for ((i = _command_index + 1; i < cword; i++)); do
+    if (( _skip_next )); then
+      _skip_next=0
+      continue
+    fi
+    case "${words[i]}" in
+      status)
+        _dot_package_updates_status "$i"
+        return
+        ;;
+      refresh)
+        _dot_package_updates_refresh "$i"
+        return
+        ;;
+    esac
+  done
+
+  local _used_0=""
+  for ((i = 1; i < cword; i++)); do
+    case "${words[i]%%=*}" in
+      --help|-h) _used_0=1 ;;
+    esac
+  done
+  local _filtered_flags=""
+  [[ -n "$_used_0" ]] || _filtered_flags+=" --help -h"
+
+  # Complete flags (filtered) and subcommands
+  if [[ "$cur" == -* ]]; then
+    COMPREPLY=( $(compgen -W "$_filtered_flags" -- "$cur") )
+    return
+  fi
+
+  COMPREPLY=( $(compgen -W 'status refresh' -- "$cur") )
+}
+
+_dot_package_updates_status()
+{
+  local cur prev words cword i
+  local _command_index="$1"
+  _init_completion -n "$COMP_WORDBREAKS" || return
+
+  # Flag value completions
+  case "$prev" in
+    --package-file)
+      COMPREPLY=( $(compgen -f -- "$cur") )
+      return
+      ;;
+    --cache-dir)
+      COMPREPLY=( $(compgen -d -- "$cur") )
+      return
+      ;;
+  esac
+
+  local _used_0="" _used_1="" _used_2="" _used_3="" _used_4=""
+  for ((i = 1; i < cword; i++)); do
+    case "${words[i]%%=*}" in
+      --package-file) _used_0=1 ;;
+      --cache-dir) _used_1=1 ;;
+      --timeout) _used_2=1 ;;
+      --cache-max-age) _used_3=1 ;;
+      --help|-h) _used_4=1 ;;
+    esac
+  done
+  local _filtered_flags=""
+  [[ -n "$_used_0" ]] || _filtered_flags+=" --package-file"
+  [[ -n "$_used_1" ]] || _filtered_flags+=" --cache-dir"
+  [[ -n "$_used_2" ]] || _filtered_flags+=" --timeout"
+  [[ -n "$_used_3" ]] || _filtered_flags+=" --cache-max-age"
+  [[ -n "$_used_4" ]] || _filtered_flags+=" --help -h"
+
+  # Complete flags (filtered) and subcommands
+  if [[ "$cur" == -* ]]; then
+    COMPREPLY=( $(compgen -W "$_filtered_flags" -- "$cur") )
+    return
+  fi
+
+}
+
+_dot_package_updates_refresh()
+{
+  local cur prev words cword i
+  local _command_index="$1"
+  _init_completion -n "$COMP_WORDBREAKS" || return
+
+  # Flag value completions
+  case "$prev" in
+    --package-file)
+      COMPREPLY=( $(compgen -f -- "$cur") )
+      return
+      ;;
+    --cache-dir)
+      COMPREPLY=( $(compgen -d -- "$cur") )
+      return
+      ;;
+  esac
+
+  local _used_0="" _used_1="" _used_2="" _used_3="" _used_4=""
+  for ((i = 1; i < cword; i++)); do
+    case "${words[i]%%=*}" in
+      --package-file) _used_0=1 ;;
+      --cache-dir) _used_1=1 ;;
+      --timeout) _used_2=1 ;;
+      --scheduled|--no-scheduled) _used_3=1 ;;
+      --help|-h) _used_4=1 ;;
+    esac
+  done
+  local _filtered_flags=""
+  [[ -n "$_used_0" ]] || _filtered_flags+=" --package-file"
+  [[ -n "$_used_1" ]] || _filtered_flags+=" --cache-dir"
+  [[ -n "$_used_2" ]] || _filtered_flags+=" --timeout"
+  [[ -n "$_used_3" ]] || _filtered_flags+=" --scheduled --no-scheduled"
+  [[ -n "$_used_4" ]] || _filtered_flags+=" --help -h"
 
   # Complete flags (filtered) and subcommands
   if [[ "$cur" == -* ]]; then
