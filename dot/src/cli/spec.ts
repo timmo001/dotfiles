@@ -213,8 +213,14 @@ const updateCommand = describe(
         "app",
         "Install Bun dependencies and rebuild the dot binary only",
       ),
-      check: bool("check", "Report core/system repos behind upstream"),
-      checkAll: bool("check-all", "Report all tracked repos behind upstream"),
+      check: bool(
+        "check",
+        "Report dotfiles pulls, pending pins and stow changes, skipping local work",
+      ),
+      checkAll: bool(
+        "check-all",
+        "Also check development repos for pulls, skipping local work",
+      ),
       noSelfUpdate: bool(
         "no-self-update",
         "Skip the internal self-update phase",
@@ -233,15 +239,16 @@ const updateCommand = describe(
       pull,
       stow: onlyStow,
     }) =>
-      check || checkAll
-        ? updateCheck({ all: checkAll })
-        : update({
-            pull,
-            stow: onlyStow,
-            app,
-            selfUpdate: !noSelfUpdate,
-            postHookRepos: postHookRepo,
-          }),
+      Effect.gen(function* () {
+        if (check || checkAll) return yield* updateCheck({ all: checkAll });
+        return yield* update({
+          pull,
+          stow: onlyStow,
+          app,
+          selfUpdate: !noSelfUpdate,
+          postHookRepos: postHookRepo,
+        });
+      }),
   ),
   "Self-update, pull repos, stow dotfiles, rebuild. Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Internal --no-self-update and --post-hook-repo flags support the active self-update handoff.",
   [],
@@ -252,10 +259,10 @@ const updateCommand = describe(
       {
         title: "Exit codes",
         lines: [
-          "0   Update completed, or an update check found nothing behind",
+          "0   Update completed, or no actionable updates were found",
           "1   Fatal workflow failure",
-          "2   Update check could not scan repositories",
-          "10  Update check found repositories behind upstream",
+          "2   Update check could not finish",
+          "10  Update check found pulls, pending pins or stow changes",
           "11  Legacy Hypr migration is required",
         ],
       },

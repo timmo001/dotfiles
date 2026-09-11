@@ -74,8 +74,8 @@ Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the
 | `--pull` | Run the repository pull phase only |
 | `--stow` | Generate completions, sync MCP configs, and stow only |
 | `--app` | Install Bun dependencies and rebuild the dot binary only |
-| `--check` | Report core/system repos behind upstream |
-| `--check-all` | Report all tracked repos behind upstream |
+| `--check` | Report dotfiles pulls, pending pins and stow changes, skipping local work |
+| `--check-all` | Also check development repos for pulls, skipping local work |
 | `--no-self-update` | Skip the internal self-update phase |
 | `--post-hook-repo` `<string>` | Internal post-hook repository |
 | `--help` `-h` | Show help information |
@@ -83,10 +83,10 @@ Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the
 **Exit codes**
 
 ```text
-0   Update completed, or an update check found nothing behind
+0   Update completed, or no actionable updates were found
 1   Fatal workflow failure
-2   Update check could not scan repositories
-10  Update check found repositories behind upstream
+2   Update check could not finish
+10  Update check found pulls, pending pins or stow changes
 11  Legacy Hypr migration is required
 ```
 

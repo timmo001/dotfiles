@@ -111,6 +111,8 @@ export interface DiffScanOptions {
   readonly noFetch?: boolean;
   /** Only scan repositories whose activity schedule is currently active. */
   readonly scheduledOnly?: boolean;
+  /** Restrict discovery before fetching or scanning repositories. */
+  readonly categories?: ReadonlySet<RepoCategory>;
 }
 
 /** Service interface for computing diff state across tracked repositories */
@@ -411,7 +413,9 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
       const getAll = Effect.fn("DotDiff.getAll")(function* (
         opts?: DiffScanOptions,
       ): Effect.fn.Return<readonly DiffRepo[], DotDiffError> {
-        const repoList = buildRepoList(opts?.scheduledOnly);
+        const repoList = buildRepoList(opts?.scheduledOnly).filter(
+          (repo) => !opts?.categories || opts.categories.has(repo.category),
+        );
         log(`Scanning ${repoList.length} repositories...`);
 
         const results = yield* Effect.all(

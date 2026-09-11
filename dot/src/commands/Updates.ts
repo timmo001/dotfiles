@@ -250,7 +250,7 @@ export const updatesRefresh = Effect.fn("Updates.refresh")(function* (
 
         const dotResult = yield* query(
           "dot",
-          ["update", "--check-all"],
+          ["update", "--check"],
           options.timeout,
         );
 

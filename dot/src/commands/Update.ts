@@ -15,6 +15,10 @@ import { trustTrackedMiseConfigs } from "../lib/miseTrust.js";
 import { loadPrivatePackageRepoConfig } from "../doctor/checks/packages.js";
 import { withSpinnerTimeout, withStepTimeout } from "../lib/workflowStep.js";
 import {
+  hasLocalUpdateWork,
+  pendingUpdateMaintenance,
+} from "../lib/updateMaintenance.js";
+import {
   ensureInitCompleteMarker,
   initCompleteMarker,
 } from "../lib/initState.js";
@@ -681,19 +685,19 @@ const CORE_CHECK_CATEGORIES: ReadonlySet<RepoCategory> = new Set([
 
 /** Options controlling `dot update --check`. */
 export interface UpdateCheckOptions {
-  /** Check every tracked repo instead of only core/system repos. */
+  /** Also report upstream changes in development repositories. */
   readonly all?: boolean;
 }
 
 /**
- * Report tracked repos that are behind upstream without pulling or stowing.
+ * Report actionable pulls and unapplied dotfiles maintenance without changing files.
  *
  * Scans repos via {@link DotDiff} (TTL-cached fetch). By default only
  * core/system repos (dotfiles + omarchy) are considered; `all` widens the
- * scope to every tracked repo. Sets the process exit code to
- * {@link UPDATE_CHECK_AVAILABLE_EXIT} when at least one in-scope repo is behind
- * upstream and {@link UPDATE_CHECK_ERROR_EXIT} when the scan fails; the code is
- * left at 0 when everything in scope is up to date.
+ * scope to every tracked repo. Repositories with local work are skipped.
+ * Returns {@link UPDATE_CHECK_AVAILABLE_EXIT} for actionable pulls or maintenance,
+ * {@link UPDATE_CHECK_ERROR_EXIT} when checks fail without finding an update,
+ * and 0 when no updates need applying.
  */
 export const updateCheck = (opts?: UpdateCheckOptions) =>
   Effect.gen(function* () {
@@ -706,15 +710,17 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
     const scanned = yield* withSpinnerTimeout(
       "Checking repositories",
       REPO_SCAN_TIMEOUT_SECONDS,
-      dotDiff.getAll().pipe(
-        Effect.catch((error) =>
-          Effect.gen(function* () {
-            yield* log.error(`Update check failed: ${error.message}`);
+      dotDiff
+        .getAll(opts?.all ? undefined : { categories: CORE_CHECK_CATEGORIES })
+        .pipe(
+          Effect.catch((error) =>
+            Effect.gen(function* () {
+              yield* log.error(`Update check failed: ${error.message}`);
 
-            return null;
-          }),
+              return null;
+            }),
+          ),
         ),
-      ),
     );
 
     const repos = yield* Option.match(scanned, {
@@ -746,20 +752,48 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
         .map((repo) => repo.name)
         .join(", ")}`,
     );
-    const behind = scoped.filter((repo) => repo.behind > 0);
+    const pending: string[] = [];
+    let failed = false;
 
-    if (behind.length === 0) {
-      yield* log.info(`All ${scopeRepos} are up to date`);
+    for (const repo of scoped) {
+      yield* Effect.gen(function* () {
+        if (yield* hasLocalUpdateWork(repo)) {
+          yield* log.info(`Skipping ${repo.name} (local work)`);
+          return;
+        }
+
+        if (repo.behind > 0)
+          pending.push(`${repo.name}: ${repo.behind} behind`);
+        if (CORE_CHECK_CATEGORIES.has(repo.category)) {
+          pending.push(...(yield* pendingUpdateMaintenance(repo)));
+        }
+      }).pipe(
+        Effect.timeout(`${REPO_SCAN_TIMEOUT_SECONDS} seconds`),
+        Effect.catch((error) =>
+          Effect.gen(function* () {
+            failed = true;
+            yield* log.error(`Could not check ${repo.name}: ${error.message}`);
+          }),
+        ),
+      );
+    }
+
+    if (pending.length === 0) {
+      if (failed) {
+        yield* Effect.sync(() => {
+          process.exitCode = UPDATE_CHECK_ERROR_EXIT;
+        });
+      } else {
+        yield* log.info(`No updates needed for ${scopeRepos}`);
+      }
 
       return;
     }
 
-    yield* log.info(
-      `${behind.length} of ${scoped.length} ${scopeRepos} behind upstream:`,
-    );
+    yield* log.info(`${pending.length} pending updates:`);
 
-    for (const repo of behind) {
-      yield* log.info(`  ${repo.name}: ${repo.behind} behind`);
+    for (const item of pending) {
+      yield* log.info(`  ${item}`);
     }
 
     yield* log.info("Run `dot update` to apply.");
