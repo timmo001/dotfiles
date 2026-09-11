@@ -49,6 +49,19 @@ Panel {
   readonly property var filteredRepos: filterRows("repo")
   readonly property var filteredThreads: filterRows("thread")
   readonly property var filteredFooterActions: filterRows("footer-action")
+  readonly property var workspaceContext: service ? service.herdrContext : null
+  readonly property var contextRows: filterRows("context-repo")
+  property string contextCursorKey: ""
+
+  function workspaceDetail() {
+    var context = workspaceContext
+    if (!context) return ""
+    var labels = []
+    if (context.workspace) labels.push(context.workspace.label || context.workspace.id)
+    if (context.tab) labels.push(context.tab.label || context.tab.id)
+    if (context.pane) labels.push(context.pane.id + " · " + (context.pane.agent || "shell") + " · " + context.pane.status)
+    return labels.join(" · ") + "\n" + (context.cwd || "Directory unavailable")
+  }
 
   function buildPanelRows() {
     var rows = []
@@ -110,6 +123,17 @@ Panel {
       return rows
     }
     if (view === "overview") {
+      if (workspaceContext && workspaceContext.repository) {
+        var current = workspaceContext.repository
+        var known = service.changedRepos.concat(service.otherRepos).find(function(repo) { return repo.path === current.path })
+        var value = known || { name: current.name, path: current.path, statusKnown: false }
+        rows.push({
+          key: "context:" + workspaceContext.session.socketPath + ":" + (workspaceContext.pane ? workspaceContext.pane.id : "") + ":" + current.path,
+          kind: "context-repo", section: "context", value: value,
+          primaryText: current.name,
+          secondaryText: (current.branch || "Detached HEAD") + " · " + repoDetail(value) + "\n" + workspaceDetail()
+        })
+      }
     } else if (view === "repo") {
       if (selectedRepoCanPull) rows.push(actionRow("pull", "Pull", "󰜷"))
       rows.push(actionRow("lazygit", "Open in lazygit", ""))
@@ -308,12 +332,13 @@ Panel {
     }
     view = initialView
     selectedRepo = null
+    if (service) service.refreshHerdrContext()
     if ((releaseView || view === "overview") && service) service.refreshReleases("read")
     filterController.reset()
     controller.show()
     Qt.callLater(function() {
       if (view === "overview") {
-        var index = filterController.filteredModel.findIndex(function(entry) { return entry.kind === "repo" })
+        var index = filterController.filteredModel.findIndex(function(entry) { return entry.kind === "repo" || entry.kind === "context-repo" })
         if (index < 0)
           index = filterController.indexForKey("action:repositories-refresh")
         filterController.selectIndex(index)
@@ -335,6 +360,7 @@ Panel {
   function cursorItem() {
     var entry = filterController.selectedEntry()
     if (!entry) return null
+    if (entry.kind === "context-repo") return contextRepeater.itemAt(contextRows.indexOf(entry))
     if (entry.kind === "header-action") {
       if (entry.action === "pull-changed") return repositoriesHeading
       if (entry.action === "repositories-refresh") return repositoriesHeading
@@ -450,7 +476,7 @@ Panel {
 
   function activateEntry(entry, modifiers) {
     if (entry.kind === "action" || entry.kind === "footer-action" || entry.kind === "header-action") activateAction(entry.action, modifiers)
-    else if (entry.kind === "repo") showRepoActions(entry.value)
+    else if (entry.kind === "repo" || entry.kind === "context-repo") showRepoActions(entry.value)
     else if (entry.kind === "thread") activateThread(entry.value)
     else if (entry.kind === "release") { selectedReleaseView = view; selectedReleaseKey = entry.value.repo; showView("release") }
     else if (entry.kind === "finding-group") { selectedFindingGroupKey = entry.value.id; showView("finding-group") }
@@ -459,6 +485,7 @@ Panel {
   }
 
   function repoDetail(repo) {
+    if (repo.statusKnown === false) return "Status not tracked"
     var values = []
     if (Number(repo.modified || 0) > 0) values.push(repo.modified + " changed")
     if (Number(repo.ahead || 0) > 0) values.push(repo.ahead + " ahead")
@@ -478,6 +505,13 @@ Panel {
     function onAgentOpened() { if (root.view === "agent") root.close() }
     function onReleaseOpened() { root.close() }
     function onPanelUpdated() { root.syncSelectedRepo() }
+    function onContextUpdating() { root.contextCursorKey = root.cursorKey }
+    function onContextUpdated() {
+      Qt.callLater(function() {
+        var index = filterController.indexForKey(root.contextCursorKey)
+        if (index >= 0) filterController.selectIndex(index)
+      })
+    }
     function onReleasesUpdating() {
       var entry = filterController.selectedEntry()
       root.releaseCursorKey = entry ? entry.key : ""
@@ -541,6 +575,55 @@ Panel {
                 color: root.hostWidget ? root.hostWidget.displayColor : root.contentForeground
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.display
+              }
+            }
+          }
+
+          SectionHeading {
+            visible: root.view === "overview" && root.workspaceContext !== null && (!filterController.filterText || root.contextRows.length > 0)
+            title: "Current workspace"
+            foreground: root.contentForeground
+            fontFamily: root.contentFontFamily
+          }
+
+          Text {
+            visible: root.view === "overview" && root.workspaceContext !== null && (!filterController.filterText || root.contextRows.length > 0)
+            width: parent.width
+            text: root.workspaceDetail()
+            textFormat: Text.PlainText
+            wrapMode: Text.WrapAnywhere
+            color: root.contentForeground
+            font.family: root.contentFontFamily
+            font.pixelSize: Style.font.caption
+          }
+
+          Repeater {
+            id: contextRepeater
+            model: root.contextRows
+            CursorSurface {
+              required property var modelData
+              x: Style.space(8)
+              width: Math.max(0, contentColumn.width - Style.space(16))
+              implicitHeight: currentRepoColumn.implicitHeight + Style.space(12)
+              hasCursor: root.cursorKey === modelData.key
+              foreground: root.contentForeground
+              accent: root.hostWidget ? root.hostWidget.displayColor : root.contentForeground
+              Column {
+                id: currentRepoColumn
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.margins: Style.space(8)
+                spacing: Style.space(2)
+                Text { width: parent.width; text: modelData.primaryText; textFormat: Text.PlainText; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
+                Text { width: parent.width; text: modelData.secondaryText.split("\n")[0]; textFormat: Text.PlainText; color: Qt.darker(root.contentForeground, 1.4); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; elide: Text.ElideRight }
+              }
+              MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key)
+                onClicked: root.showRepoActions(modelData.value)
               }
             }
           }

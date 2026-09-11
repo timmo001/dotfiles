@@ -6,6 +6,32 @@ Item {
   id: root
 
   property var shell: null
+  property var herdrContext: null
+  signal contextUpdating()
+  signal contextUpdated()
+
+  function refreshHerdrContext() {
+    if (contextProcess.running) return
+    contextProcess.startedSuccessfully = false
+    contextProcess.running = true
+  }
+
+  function applyHerdrContext(value) {
+    if (!value || value.attached !== true || !value.session
+        || typeof value.session.socketPath !== "string"
+        || (value.cwd !== null && (typeof value.cwd !== "string" || value.cwd.charAt(0) !== "/"))
+        || (value.repository !== null && (!value.repository || typeof value.repository.name !== "string"
+          || typeof value.repository.path !== "string" || value.repository.path.charAt(0) !== "/"
+          || (value.repository.branch !== null && typeof value.repository.branch !== "string")))
+        || (value.workspace !== null && (!value.workspace || typeof value.workspace.id !== "string" || typeof value.workspace.label !== "string"))
+        || (value.tab !== null && (!value.tab || typeof value.tab.id !== "string" || typeof value.tab.label !== "string"))
+        || (value.pane !== null && (!value.pane || typeof value.pane.id !== "string" || typeof value.pane.status !== "string"
+          || (value.pane.agent !== null && typeof value.pane.agent !== "string")))) value = null
+    if (JSON.stringify(value) === JSON.stringify(herdrContext)) return
+    contextUpdating()
+    herdrContext = value
+    contextUpdated()
+  }
   property string diffText: ""
   property string diffTooltip: ""
   property string diffClass: "dots-unknown"
@@ -126,6 +152,7 @@ Item {
   }
 
   function refresh(mode) {
+    refreshHerdrContext()
     refreshRepositories()
     refreshNotifications()
     if (mode !== "action") refreshReleases(mode === "scheduled" ? "scheduled" : "refresh")
@@ -359,6 +386,30 @@ Item {
       if (exitCode === 0) root.agentOpened()
       else root.agentLaunchError = String(agentLaunchStderr.text || "Could not open the agent").trim().slice(0, 500)
     }
+  }
+
+  Process {
+    id: contextProcess
+    property bool startedSuccessfully: false
+    command: ["dot", "herdr", "context", "--json"]
+    stdout: StdioCollector { id: contextOutput; waitForEnd: true }
+    onStarted: startedSuccessfully = true
+    onExited: function(exitCode) {
+      var value = null
+      if (exitCode === 0) {
+        try { value = JSON.parse(String(contextOutput.text || "null")) }
+        catch (error) {}
+      }
+      root.applyHerdrContext(value)
+    }
+    onRunningChanged: if (!running && !startedSuccessfully) root.applyHerdrContext(null)
+  }
+
+  Timer {
+    interval: 3000
+    running: true
+    repeat: true
+    onTriggered: root.refreshHerdrContext()
   }
 
   Process {
