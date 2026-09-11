@@ -42,7 +42,7 @@
       "managed": true,
       "placement": {
         "section": "center",
-        "before": "omarchy.system-update"
+        "index": 0
       },
       "settings": {
         "revealOnHover": true,
@@ -61,7 +61,7 @@
       "id": "timmo.git",
       "placement": {
         "section": "center",
-        "index": 0
+        "after": "timmo.twitch"
       },
       "settings": {
         "revealOnHover": true,
