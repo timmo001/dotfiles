@@ -43,6 +43,7 @@ export type HerdrContext = typeof HerdrContext.Type;
 export const readHerdrContext = Effect.fn("readHerdrContext")(function* () {
   const sdk = yield* HerdrSdk;
   const executor = yield* CommandExecutor;
+
   const empty: HerdrContext = {
     attached: false,
     session: {
@@ -59,19 +60,26 @@ export const readHerdrContext = Effect.fn("readHerdrContext")(function* () {
     cwd: null,
     repository: null,
   };
+
   if (!(yield* localHerdrAttachment(sdk.config.socketPath))) return empty;
   const snapshot = yield* sdk.session.snapshot();
+
   const pane = snapshot.panes.find(
     (value) => value.id === Option.getOrNull(snapshot.focusedPaneId),
   );
+
   const workspace = snapshot.workspaces.find(
     (value) => value.id === pane?.workspaceId,
   );
+
   const tab = snapshot.tabs.find((value) => value.id === pane?.tabId);
+
   const cwd = pane
     ? Option.getOrNull(Option.orElse(pane.foregroundCwd, () => pane.cwd))
     : null;
+
   let repository: HerdrContext["repository"] = null;
+
   if (cwd) {
     const path = yield* executor
       .run("git", ["rev-parse", "--show-toplevel"], {
@@ -85,6 +93,7 @@ export const readHerdrContext = Effect.fn("readHerdrContext")(function* () {
             : Effect.fail(error),
         ),
       );
+
     if (path) {
       const branch = yield* executor
         .run("git", ["symbolic-ref", "--quiet", "--short", "HEAD"], {
@@ -96,6 +105,7 @@ export const readHerdrContext = Effect.fn("readHerdrContext")(function* () {
             error.exitCode === 1 ? Effect.succeed(null) : Effect.fail(error),
           ),
         );
+
       repository = {
         name: basename(path.trim()),
         path: path.trim(),
@@ -103,7 +113,9 @@ export const readHerdrContext = Effect.fn("readHerdrContext")(function* () {
       };
     }
   }
+
   if (!(yield* localHerdrAttachment(sdk.config.socketPath))) return empty;
+
   return {
     ...empty,
     attached: true,
@@ -127,7 +139,9 @@ export function formatHerdrContext(
   json: boolean,
 ): string {
   if (json) return JSON.stringify(context);
+
   if (!context.attached) return "No attached Herdr terminal";
+
   return [
     `Herdr: attached (${context.session.name ?? context.session.socketPath})`,
     `Workspace: ${context.workspace ? `${context.workspace.label} (${context.workspace.id})` : "unavailable"}`,
@@ -157,10 +171,12 @@ export const herdrContext = Effect.fn("herdrContext")(
         : options.session
           ? { session: options.session }
           : {};
+
     const context = yield* readHerdrContext().pipe(
       Effect.provide(herdrSdkLayerFromOptions(sdkOptions)),
       Effect.timeout("2 seconds"),
     );
+
     console.log(formatHerdrContext(context, options.json));
   },
   Effect.catch((error) =>

@@ -1,10 +1,11 @@
 import { expect, test } from "bun:test";
-import { Effect, FileSystem, PlatformError, Schema } from "../../dot/node_modules/effect/dist/index.js";
+import { Effect, FileSystem, Schema } from "../../dot/node_modules/effect/dist/index.js";
 import { HerdrSdk, herdrSdkLayerFromOptions, SessionSnapshot } from "../../dot/node_modules/@herdr/sdk/src/index.ts";
 import { formatHerdrContext, HerdrContext, readHerdrContext } from "../../dot/src/commands/HerdrContext.js";
 import { CommandError, CommandExecutor } from "../../dot/src/services/CommandExecutor.js";
 
 const socketPath = "/fixture/with spaces/herdr.sock";
+
 const clientSocket = "/fixture/with spaces/herdr-client.sock";
 
 async function collect(options: {
@@ -23,6 +24,7 @@ async function collect(options: {
 } = {}) {
   const calls: string[] = [];
   let snapshotRead = false;
+
   const snapshot = Schema.decodeUnknownSync(SessionSnapshot)({
     version: "0.9.0", protocol: 22,
     focused_workspace_id: "w1", focused_tab_id: "w1:t1",
@@ -34,22 +36,30 @@ async function collect(options: {
       foreground_cwd: options.foregroundCwd === undefined ? "/fixture/worktree/src" : options.foregroundCwd }],
     layouts: [], agents: [],
   });
+
   const executor = CommandExecutor.of({
     run: (command, args, input) => Effect.suspend(() => {
       calls.push(`${command} ${args.join(" ")}`);
+
       if (command === "ss") {
         expect(args.at(-1)).toBe(clientSocket);
+
         if (options.failProbe) return Effect.fail(new CommandError({ command, exitCode: 2, stderr: "probe failed" }));
+
         return Effect.succeed(options.attached === false || (snapshotRead && options.detachAfterSnapshot)
           ? "" : `u_str ESTAB 0 0 ${clientSocket} 100 * 200\n`);
       }
+
       if (command === "ps") return Effect.succeed(`42 42 ${options.foreground === false ? 55 : 42} ${process.getuid?.()} pts/7\n`);
       expect(command).toBe("git");
       expect(input?.cwd).toBe(options.foregroundCwd ?? options.paneCwd ?? "/fixture/worktree/src");
       expect(input?.env?.GIT_OPTIONAL_LOCKS).toBe("0");
+
       if (options.git === false) return Effect.fail(new CommandError({ command, exitCode: 128, stderr: "fatal: not a git repository" }));
+
       if (args[0] === "rev-parse") return Effect.succeed("/fixture/worktree\n");
       expect(args).toEqual(["symbolic-ref", "--quiet", "--short", "HEAD"]);
+
       return options.branch === null
         ? Effect.fail(new CommandError({ command, exitCode: 1, stderr: "" }))
         : Effect.succeed(options.branch ?? "topic\n");
@@ -58,25 +68,34 @@ async function collect(options: {
     inherit: () => Effect.die("Unexpected command"),
     stream: () => { throw new Error("Unexpected command"); },
   });
+
   const program = Effect.gen(function* () {
     const sdk = yield* HerdrSdk;
+
     return yield* readHerdrContext().pipe(Effect.provideService(HerdrSdk, {
       ...sdk,
-      session: { snapshot: () => Effect.sync(() => { calls.push("snapshot"); snapshotRead = true; return snapshot; }) },
+      session: { snapshot: () => Effect.sync(() => {
+        calls.push("snapshot");
+        snapshotRead = true;
+
+        return snapshot;
+      }) },
     }));
   });
+
   const context = await Effect.runPromise(program.pipe(
     Effect.provide(herdrSdkLayerFromOptions({ socketPath })),
     Effect.provideService(CommandExecutor, executor),
     Effect.provide(FileSystem.layerNoop({
-      readLink: path => options.disappear ? Effect.fail(PlatformError.systemError({
-        _tag: "NotFound", module: "FileSystem", method: "readLink", pathOrDescriptor: path,
-      })) : Effect.succeed(path.endsWith("/exe") ? "/usr/bin/herdr" : `socket:[${options.peer ?? "200"}]`),
+      readLink: path => options.disappear ? FileSystem.makeNoop({}).readLink(path)
+        : Effect.succeed(path.endsWith("/exe") ? "/usr/bin/herdr" : `socket:[${options.peer ?? "200"}]`),
       readFileString: () => Effect.succeed((options.args ?? ["herdr", "session", "attach", "default"]).join("\0") + "\0"),
       readDirectory: () => Effect.succeed(["4"]),
     })),
   ));
+
   expect(Schema.is(HerdrContext)(context)).toBe(true);
+
   return { context, calls };
 }
 
