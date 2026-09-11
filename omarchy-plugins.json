@@ -2,6 +2,9 @@
   "remove": ["omarchy.weather", "omarchy.agents"],
   "plugins": [
     {
+      "id": "timmo.workspace-context"
+    },
+    {
       "id": "omarchy.keyboard-layout",
       "placement": {
         "section": "right",
@@ -151,7 +154,8 @@
       },
       "settings": {
         "primaryOnly": true,
-        "workspaceContextCommand": "dot herdr context --json"
+        "workspaceContextFile": "dot-herdr-context.json",
+        "workspaceContextRefreshCommand": "omarchy-shell timmo.workspace-context refresh"
       },
       "hosts": {
         "desktop": {

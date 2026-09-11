@@ -7,17 +7,16 @@ Item {
 
   property var shell: null
   property var herdrContext: null
-  property bool contextRefreshRequested: false
-  readonly property bool contextRefreshing: contextRefreshRequested && contextProcess.running
+  property bool contextRefreshing: false
   signal contextUpdating()
   signal contextUpdated()
 
   function refreshHerdrContext(manual) {
-    if (contextProcess.running) {
-      contextRefreshRequested = contextRefreshRequested || manual === true
-      return
+    if (manual === true) {
+      contextRefreshing = true
+      contextRefreshTimeout.restart()
     }
-    contextRefreshRequested = manual === true
+    if (contextProcess.running) return
     contextProcess.startedSuccessfully = false
     contextProcess.running = true
   }
@@ -405,18 +404,44 @@ Item {
   Process {
     id: contextProcess
     property bool startedSuccessfully: false
-    command: ["dot", "herdr", "context", "--json"]
-    stdout: StdioCollector { id: contextOutput; waitForEnd: true }
+    command: ["omarchy-shell", "timmo.workspace-context", "refresh"]
     onStarted: startedSuccessfully = true
     onExited: function(exitCode) {
-      var value = null
-      if (exitCode === 0) {
-        try { value = JSON.parse(String(contextOutput.text || "null")) }
-        catch (error) {}
+      if (exitCode !== 0) {
+        root.contextRefreshing = false
+        contextRefreshTimeout.stop()
       }
-      root.applyHerdrContext(value)
     }
-    onRunningChanged: if (!running && !startedSuccessfully) root.applyHerdrContext(null)
+    onRunningChanged: if (!running && !startedSuccessfully) {
+      root.contextRefreshing = false
+      contextRefreshTimeout.stop()
+    }
+  }
+
+  FileView {
+    id: contextFile
+    path: Quickshell.env("XDG_RUNTIME_DIR") + "/dot-herdr-context.json"
+    watchChanges: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: {
+      var value = null
+      try { value = JSON.parse(text()) } catch (error) {}
+      root.applyHerdrContext(value)
+      root.contextRefreshing = false
+      contextRefreshTimeout.stop()
+    }
+    onLoadFailed: {
+      root.applyHerdrContext(null)
+      root.contextRefreshing = false
+      contextRefreshTimeout.stop()
+    }
+  }
+
+  Timer {
+    id: contextRefreshTimeout
+    interval: 8000
+    onTriggered: root.contextRefreshing = false
   }
 
   Process {

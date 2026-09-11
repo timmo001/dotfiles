@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "timmo.workspace-context",
+  "name": "Workspace context",
+  "version": "1.0.0",
+  "author": "Timmo",
+  "description": "Share attached Herdr workspace changes with shell plugins",
+  "kinds": ["service"],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml"
+  }
+}

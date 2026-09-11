@@ -395,13 +395,6 @@ Panel {
     onTriggered: if (requestedKey === root.cursorKey) root.scrollCursorIntoView()
   }
 
-  Timer {
-    interval: 3000
-    running: root.opened && root.service !== null
-    repeat: true
-    onTriggered: root.service.refreshHerdrContext()
-  }
-
   function showView(nextView) {
     revealTimer.stop()
     view = nextView
