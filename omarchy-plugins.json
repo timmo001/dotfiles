@@ -86,7 +86,7 @@
         "refreshTarget": "timmo.package-updates",
         "loadingText": "󰏕 ..",
         "loadingClass": "package-updates-unknown",
-        "onClick": "omarchy launch terminal zsh -ic update",
+        "onClick": "dot herdr repo-open dotfiles \"${DOTFILES_PUBLIC_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles}\" Update update",
         "onClickRight": "dot package-updates refresh",
         "classColors": {
           "package-updates-current": "#9b9b9b",
