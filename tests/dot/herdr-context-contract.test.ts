@@ -1,14 +1,18 @@
 import { expect, test } from "bun:test";
-import { Effect, FileSystem, Schema } from "../../dot/node_modules/effect/dist/index.js";
-import { HerdrSdk, herdrSdkLayerFromOptions, SessionSnapshot } from "../../dot/node_modules/@herdr/sdk/src/index.ts";
-import { formatHerdrContext, HerdrContext, readHerdrContext } from "../../dot/src/commands/HerdrContext.js";
+import { mkdtemp, rm } from "node:fs/promises";
+import { createServer, type Socket } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { Effect, Fiber, FileSystem, Layer, Queue, Schema, Stream } from "../../dot/node_modules/effect/dist/index.js";
+import { HerdrSdk, herdrConfigLayerFromOptions, herdrSdkLayerFromOptions, herdrTransportLayerWithoutDependencies, SessionSnapshot } from "../../dot/node_modules/@herdr/sdk/src/index.ts";
+import { formatHerdrContext, HerdrContext, readHerdrContext, watchHerdrContext } from "../../dot/src/commands/HerdrContext.js";
 import { CommandError, CommandExecutor } from "../../dot/src/services/CommandExecutor.js";
 
 const socketPath = "/fixture/with spaces/herdr.sock";
 
 const clientSocket = "/fixture/with spaces/herdr-client.sock";
 
-async function collect(options: {
+function contextFixture(options: {
   attached?: boolean;
   peer?: string;
   args?: string[];
@@ -21,11 +25,12 @@ async function collect(options: {
   branch?: string | null;
   failProbe?: boolean;
   disappear?: boolean;
+  beforeSnapshot?: () => Effect.Effect<void>;
 } = {}) {
   const calls: string[] = [];
   let snapshotRead = false;
 
-  const snapshot = Schema.decodeUnknownSync(SessionSnapshot)({
+  const snapshot = () => Schema.decodeUnknownSync(SessionSnapshot)({
     version: "0.9.0", protocol: 22,
     focused_workspace_id: "w1", focused_tab_id: "w1:t1",
     focused_pane_id: options.focusedPane === undefined ? "w1:p1" : options.focusedPane,
@@ -69,21 +74,22 @@ async function collect(options: {
     stream: () => { throw new Error("Unexpected command"); },
   });
 
-  const program = Effect.gen(function* () {
+  const provide = <A, E, R>(program: Effect.Effect<A, E, R>) => Effect.gen(function* () {
     const sdk = yield* HerdrSdk;
 
-    return yield* readHerdrContext().pipe(Effect.provideService(HerdrSdk, {
+    return yield* program.pipe(Effect.provideService(HerdrSdk, {
       ...sdk,
-      session: { snapshot: () => Effect.sync(() => {
+      session: { snapshot: () => Effect.gen(function* () {
         calls.push("snapshot");
         snapshotRead = true;
+        const value = snapshot();
 
-        return snapshot;
+        if (options.beforeSnapshot) yield* options.beforeSnapshot();
+
+        return value;
       }) },
     }));
-  });
-
-  const context = await Effect.runPromise(program.pipe(
+  }).pipe(
     Effect.provide(herdrSdkLayerFromOptions({ socketPath })),
     Effect.provideService(CommandExecutor, executor),
     Effect.provide(FileSystem.layerNoop({
@@ -92,7 +98,14 @@ async function collect(options: {
       readFileString: () => Effect.succeed((options.args ?? ["herdr", "session", "attach", "default"]).join("\0") + "\0"),
       readDirectory: () => Effect.succeed(["4"]),
     })),
-  ));
+  );
+
+  return { provide, calls };
+}
+
+async function collect(options: Parameters<typeof contextFixture>[0] = {}) {
+  const { provide, calls } = contextFixture(options);
+  const context = await Effect.runPromise(provide(readHerdrContext()));
 
   expect(Schema.is(HerdrContext)(context)).toBe(true);
 
@@ -151,3 +164,101 @@ test("non-Git directories and detached HEAD still have valid Herdr context", asy
 test("probe failure is an error, not a detached or cached result", async () => {
   await expect(collect({ failProbe: true })).rejects.toThrow();
 });
+
+const watchServer = Effect.acquireRelease(
+  Effect.gen(function* () {
+    const subscriptions = yield* Queue.unbounded<Socket>();
+    const directory = yield* Effect.promise(() => mkdtemp(join(tmpdir(), "dot-herdr-context-")));
+    const path = join(directory, "api.sock");
+    const sockets = new Set<Socket>();
+
+    const server = createServer(socket => {
+      sockets.add(socket);
+      socket.on("close", () => sockets.delete(socket));
+      let buffer = "";
+      socket.on("data", data => {
+        buffer += data.toString();
+        let newline: number;
+
+        while ((newline = buffer.indexOf("\n")) >= 0) {
+          const request = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Struct({ id: Schema.String, method: Schema.String })))(buffer.slice(0, newline));
+          buffer = buffer.slice(newline + 1);
+          expect(["ping", "events.subscribe"]).toContain(request.method);
+          socket.write(JSON.stringify({ id: request.id, result: request.method === "ping"
+            ? { type: "pong", version: "0.9.0", protocol: 22 }
+            : { type: "subscription_started" } }) + "\n");
+
+          if (request.method === "events.subscribe") Queue.offerUnsafe(subscriptions, socket);
+        }
+      });
+    });
+
+    yield* Effect.promise(() => new Promise<void>(resolve => server.listen(path, resolve)));
+
+    return { path, subscriptions, server, sockets, directory };
+  }),
+  ({ server, sockets, directory }) => Effect.promise(async () => {
+    for (const socket of sockets) socket.destroy();
+    await new Promise<void>(resolve => server.close(() => resolve()));
+    await rm(directory, { recursive: true, force: true });
+  }),
+);
+
+test("watch subscribes before collecting, follows switches and closes its socket", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
+    const server = yield* watchServer;
+    let subscribed = false;
+
+    const options = {
+      foregroundCwd: "/fixture/old",
+      beforeSnapshot: () => Effect.sync(() => expect(subscribed).toBe(true)),
+    };
+
+    const { provide } = contextFixture(options);
+    const output = yield* Queue.unbounded<HerdrContext | null>();
+    const refreshes = yield* Queue.unbounded<void>();
+
+    const watcher = yield* provide(watchHerdrContext(value => Queue.offer(output, value).pipe(Effect.asVoid), Stream.fromQueue(refreshes))).pipe(
+      Effect.provide(herdrTransportLayerWithoutDependencies.pipe(Layer.provide(herdrConfigLayerFromOptions({ socketPath: server.path })))),
+      Effect.forkChild,
+    );
+
+    const socket = yield* Queue.take(server.subscriptions);
+    subscribed = true;
+    expect((yield* Queue.take(output))?.cwd).toBe("/fixture/old");
+    yield* Queue.offer(refreshes, undefined);
+    expect((yield* Queue.take(output))?.cwd).toBe("/fixture/old");
+    options.foregroundCwd = "/fixture/new";
+    socket.write(JSON.stringify({ event: "pane_focused", data: { type: "pane_focused", pane_id: "w1:p1", workspace_id: "w1" } }) + "\n");
+    socket.write(JSON.stringify({ event: "pane_focused", data: { type: "pane_focused", pane_id: "w1:p1", workspace_id: "w1" } }) + "\n");
+    expect((yield* Queue.take(output))?.cwd).toBe("/fixture/new");
+    yield* Fiber.interrupt(watcher);
+    yield* Effect.promise(() => socket.closed ? Promise.resolve() : new Promise<void>(resolve => socket.once("close", resolve)));
+  })));
+}, 10000);
+
+test("watch clears failed context, reconnects and observes detachment", async () => {
+  await Effect.runPromise(Effect.scoped(Effect.gen(function* () {
+    const server = yield* watchServer;
+    const options = { attached: true, failProbe: false };
+    const { provide } = contextFixture(options);
+    const output = yield* Queue.unbounded<HerdrContext | null>();
+
+    const watcher = yield* provide(watchHerdrContext(value => Queue.offer(output, value).pipe(Effect.asVoid))).pipe(
+      Effect.provide(herdrTransportLayerWithoutDependencies.pipe(Layer.provide(herdrConfigLayerFromOptions({ socketPath: server.path })))),
+      Effect.forkChild,
+    );
+
+    const socket = yield* Queue.take(server.subscriptions);
+    expect((yield* Queue.take(output))?.attached).toBe(true);
+    options.failProbe = true;
+    socket.write(JSON.stringify({ event: "workspace_focused", data: { type: "workspace_focused", workspace_id: "w1" } }) + "\n");
+    expect(yield* Queue.take(output)).toBeNull();
+    options.failProbe = false;
+    options.attached = false;
+    socket.end();
+    yield* Queue.take(server.subscriptions);
+    expect(yield* Queue.take(output)).toMatchObject({ attached: false, cwd: null });
+    yield* Fiber.interrupt(watcher);
+  })));
+}, 10000);

@@ -1250,13 +1250,14 @@ Show context for a locally attached Herdr terminal
 dot herdr context [flags]
 ```
 
-Shows the selected workspace, tab, pane, directory and Git repository while a local foreground terminal client is connected to the selected Herdr session. Desktop window focus is not required. JSON uses attached: false and null context fields when no terminal is attached. Without --session, uses the SDK's HERDR_SOCKET_PATH, HERDR_SESSION and default socket selection. Local Linux process and socket checks do not detect remote clients. Probe failures exit non-zero with an error on stderr.
+Shows the selected workspace, tab, pane, directory and Git repository while a local foreground terminal client is connected to the selected Herdr session. Desktop window focus is not required. JSON uses attached: false and null context fields when no terminal is attached. Without --session, uses the SDK's HERDR_SOCKET_PATH, HERDR_SESSION and default socket selection. Local Linux process and socket checks do not detect remote clients. Probe failures exit non-zero with an error on stderr. --watch emits changed context as newline-delimited JSON, following workspace, tab and pane events with a 30-second fallback. Send refresh followed by a newline on stdin to collect and emit context even when unchanged. Watch failures emit null and an error on stderr; dropped connections reconnect automatically.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
 | `--json` | Emit attached-session context as JSON |
+| `--watch` | Watch context changes as newline-delimited JSON |
 | `--session` `<string>` | Select a Herdr session (use default for the default socket) |
 | `--help` `-h` | Show help information |
 
@@ -1265,6 +1266,7 @@ Shows the selected workspace, tab, pane, directory and Git repository while a lo
 ```bash
 dot herdr context
 dot herdr context --json
+dot herdr context --watch --json
 dot herdr context --session default
 ```
 
