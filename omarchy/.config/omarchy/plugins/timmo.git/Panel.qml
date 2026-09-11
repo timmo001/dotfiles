@@ -581,7 +581,7 @@ Panel {
 
           SectionHeading {
             visible: root.contextRows.length > 0
-            title: "Current workspace"
+            title: root.workspaceContext?.workspace?.label.trim() || "Current workspace"
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
           }
