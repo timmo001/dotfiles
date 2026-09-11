@@ -33,7 +33,8 @@ Item {
   property string releasesError: ""
   property string releaseActionError: ""
   property string releaseRefreshPending: ""
-  readonly property bool releaseBusy: releaseProcess.running || releaseActionProcess.running
+  readonly property bool releaseRefreshing: releaseProcess.running
+  readonly property bool releaseBusy: releaseRefreshing || releaseActionProcess.running
   readonly property bool releaseLaunching: releaseLaunchProcess.running
   signal releaseOpened()
   readonly property int releasePendingCount: releases.filter(function(entry) { return entry.needsAttention }).length

@@ -557,7 +557,7 @@ Panel {
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             refreshable: !root.releaseAgentView
-            refreshing: root.service ? root.service.releaseBusy : false
+            refreshing: root.service ? root.service.releaseRefreshing : false
             hasCursor: root.cursorKey === "action:release-refresh"
             onRefreshHovered: filterController.cursorIndex = filterController.indexForKey("action:release-refresh")
             onRefreshRequested: root.activateAction("release-refresh")
@@ -834,7 +834,7 @@ Panel {
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             refreshable: root.view === "overview" || root.view === "releases"
-            refreshing: root.service ? root.service.releaseBusy : false
+            refreshing: root.service ? root.service.releaseRefreshing : false
             hasCursor: root.cursorKey === "action:release-refresh"
             onRefreshHovered: filterController.cursorIndex = filterController.indexForKey("action:release-refresh")
             onRefreshRequested: root.activateAction("release-refresh")
