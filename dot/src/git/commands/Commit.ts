@@ -67,11 +67,15 @@ export interface RemoteRef {
 /** Parse `git remote -v` output into one {@link RemoteRef} per remote name. */
 export function parseRemotes(remoteVerbose: string): readonly RemoteRef[] {
   const byName = new Map<string, string | null>();
+
   for (const line of remoteVerbose.split("\n")) {
     const [name, url] = line.trim().split(/\s+/);
+
     if (!name || !url) continue;
+
     if (!byName.has(name)) byName.set(name, normalizeGitHubSlug(url));
   }
+
   return [...byName].map(([name, slug]) => ({ name, slug }));
 }
 
@@ -90,6 +94,7 @@ export function foreignRemoteSlug(
 ): string | null {
   if (myOwners.length === 0) return null;
   const mine = new Set(myOwners.map((owner) => owner.toLowerCase()));
+
   const isForeign = (remote: RemoteRef): boolean =>
     remote.slug !== null &&
     !mine.has((remote.slug.split("/")[0] ?? "").toLowerCase());
@@ -98,6 +103,7 @@ export function foreignRemoteSlug(
     remotes.find((remote) => remote.name === "upstream" && isForeign(remote)) ??
     remotes.find((remote) => remote.name === "origin" && isForeign(remote)) ??
     remotes.find(isForeign);
+
   return foreign?.slug ?? null;
 }
 
@@ -122,9 +128,11 @@ export function branchProtectionError(
   input: BaseBranchGuardInput,
 ): string | null {
   if (!input.foreignSlug || !input.branch || !input.baseBranch) return null;
+
   if (input.branch.toLowerCase() !== input.baseBranch.toLowerCase()) {
     return null;
   }
+
   return `Refusing to commit to base branch '${input.branch}' of ${input.foreignSlug}: do not work on the base branch of a repo you do not own. Use a feature branch.`;
 }
 
@@ -153,25 +161,30 @@ export function validateCommitMessage(raw: string): CommitMessageCheck {
       "Commit message must be a single line: one concise subject, no body.",
     );
   }
+
   if (
     Array.from(subject).some((character) => {
       const code = character.charCodeAt(0);
+
       return code <= 0x1f && code !== 0x0a && code !== 0x0d;
     })
   ) {
     errors.push("Commit subject must not contain tabs or control characters.");
   }
+
   for (const { char, label } of FORBIDDEN_CHARACTERS) {
     if (subject.includes(char)) {
       errors.push(`Commit subject must not contain an ${label}; use a hyphen.`);
     }
   }
+
   if (subject.endsWith(".")) {
     errors.push("Commit subject must not end with a full stop.");
   }
 
   // Count Unicode code points so the limit reflects visible characters.
   const length = Array.from(subject).length;
+
   if (length > COMMIT_SUBJECT_MAX) {
     errors.push(
       `Commit subject is ${length} characters; keep it under ${COMMIT_SUBJECT_MAX}.`,
@@ -185,12 +198,15 @@ export function validateCommitMessage(raw: string): CommitMessageCheck {
   if (SMART_QUOTES.test(subject)) {
     warnings.push("Commit subject uses curly quotes; prefer straight quotes.");
   }
+
   if (subject.includes("\u00A0")) {
     warnings.push("Commit subject contains a non-breaking space (U+00A0).");
   }
+
   if (DOUBLE_SPACE.test(subject)) {
     warnings.push("Commit subject has a double space.");
   }
+
   if (!/\s/.test(subject)) {
     warnings.push(
       "Commit subject is a single word; prefer a few words describing the change.",
@@ -267,10 +283,12 @@ function checkBranchProtection(): Effect.Effect<
     const remotes = parseRemotes(yield* readGit(["remote", "-v"]));
     const myOwners = yield* readGitConfigAll("dot.owner");
     const foreignSlug = foreignRemoteSlug(remotes, myOwners);
+
     if (!foreignSlug) return null;
 
     const branch = yield* readGit(["branch", "--show-current"]);
     const baseBranch = yield* resolveBaseBranch();
+
     return branchProtectionError({ foreignSlug, branch, baseBranch });
   });
 }
@@ -291,6 +309,7 @@ function resolveBaseBranch(): Effect.Effect<
       "symbolic-ref",
       "refs/remotes/origin/HEAD",
     ]);
+
     return symbolicRef ? parseDefaultBranch(symbolicRef, "origin") : null;
   });
 }
@@ -314,11 +333,13 @@ export function gitCommitRaw(
       "rev-parse",
       "--is-inside-work-tree",
     ]);
+
     if (insideWorkTree !== "true") {
       return yield* failCommit("Not inside a git repository.");
     }
 
     const protection = yield* checkBranchProtection();
+
     if (protection) {
       return yield* failCommit(protection);
     }
@@ -331,22 +352,28 @@ export function gitCommitRaw(
 
     // Amend without --message keeps HEAD's existing message (--no-edit).
     let subject: string | undefined;
+
     if (options.message !== undefined) {
       const check = validateCommitMessage(options.message);
+
       for (const warning of check.warnings) {
         yield* writeStderr(`[dot git-commit] warning: ${warning}\n`);
       }
+
       if (!check.ok) {
         return yield* failCommit(check.errors.join(" "));
       }
+
       subject = check.subject;
     }
 
     const staging = yield* GitStaging;
     const status = yield* staging.getStatus(process.cwd());
+
     const stagedFiles = [
       ...new Set(status.filter((file) => file.staged).map((file) => file.path)),
     ];
+
     const scoped = options.paths.length > 0;
 
     if (options.dryRun) {
@@ -364,6 +391,7 @@ export function gitCommitRaw(
       for (const path of options.paths) {
         yield* staging.stageFile(process.cwd(), path);
       }
+
       yield* staging.commit(process.cwd(), {
         message: subject,
         paths: options.paths,
@@ -377,6 +405,7 @@ export function gitCommitRaw(
           "Nothing staged. Stage changes first, or pass --path <file> to commit specific files.",
         );
       }
+
       yield* staging.commit(process.cwd(), {
         message: subject,
         amend: options.amend,
@@ -384,8 +413,10 @@ export function gitCommitRaw(
     }
 
     const shortHash = yield* readGit(["rev-parse", "--short", "HEAD"]);
+
     const reportSubject =
       subject ?? (yield* readGit(["log", "-1", "--pretty=%s"]));
+
     const committed = scoped ? options.paths : stagedFiles;
     yield* writeText(
       formatCommitReport(shortHash, reportSubject, committed, options.amend),
@@ -393,9 +424,11 @@ export function gitCommitRaw(
 
     if (options.push) {
       const pushed = yield* pushBranch({ amend: options.amend });
+
       if (!pushed.ok) {
         return yield* failCommit(pushed.error ?? "Push failed.");
       }
+
       yield* writeText(`${pushed.message}\n`);
     }
   }).pipe(Effect.withSpan("gitCommit.raw"), handleCommitError);
@@ -417,12 +450,15 @@ function reportDryRun(
 ): Effect.Effect<void, never, CommandExecutor> {
   return Effect.gen(function* () {
     const action = input.amend ? "Would amend HEAD" : "Would commit";
+
     const messagePart =
       input.subject !== undefined
         ? `: ${input.subject}`
         : " (keep existing message)";
+
     const lines = [`[dry-run] ${action}${messagePart}`];
     const files = input.scoped ? input.paths : input.staged;
+
     if (!input.scoped && input.staged.length === 0) {
       lines.push(
         input.amend
@@ -432,8 +468,10 @@ function reportDryRun(
     } else {
       lines.push(`  ${files.length} file(s): ${files.join(", ")}`);
     }
+
     if (input.push) {
       const { target, hasUpstream } = yield* describePushTarget();
+
       if (input.amend && hasUpstream) {
         lines.push(`[dry-run] Would force-push (with lease): ${target}`);
       } else {
@@ -444,6 +482,7 @@ function reportDryRun(
         );
       }
     }
+
     yield* writeText(`${lines.join("\n")}\n`);
   });
 }
@@ -457,7 +496,9 @@ function formatCommitReport(
 ): string {
   const list =
     files.length > 0 ? `\n  ${files.length} file(s): ${files.join(", ")}` : "";
+
   const hash = shortHash ? `${shortHash} ` : "";
   const verb = amend ? "Amended" : "Committed";
+
   return `${verb} ${hash}${subject}${list}\n`;
 }

@@ -59,7 +59,9 @@ function readLinkTarget(linkPath: string):
     } {
   try {
     const stat = lstatSync(linkPath);
+
     if (!stat.isSymbolicLink()) return { kind: "not-symlink" };
+
     return {
       kind: "target",
       target: resolveLinkTarget(linkPath, readlinkSync(linkPath)),
@@ -81,9 +83,11 @@ function readLinkTarget(linkPath: string):
 export function detectNvimThemeLink(): NvimThemeLink {
   const linkPath = nvimThemeLinkPath();
   const desiredTarget = themeSpecCandidates().find(existsSync) ?? null;
+
   const desiredLinkContent = desiredTarget
     ? relative(dirname(linkPath), desiredTarget)
     : null;
+
   const base = { linkPath, desiredTarget, desiredLinkContent };
 
   if (!existsSync(nvimPluginsDir())) {
@@ -91,11 +95,13 @@ export function detectNvimThemeLink(): NvimThemeLink {
   }
 
   const link = readLinkTarget(linkPath);
+
   if (link.kind === "not-symlink") {
     return { ...base, status: "not-symlink", currentTarget: null };
   }
 
   const currentTarget = link.kind === "target" ? link.target : null;
+
   if (currentTarget && existsSync(currentTarget)) {
     return { ...base, status: "ok", currentTarget };
   }
@@ -127,11 +133,13 @@ export const ensureNvimThemeLink = (
 
     if (link.status === "ok") {
       yield* log.info(`Neovim theme link OK (${path})`);
+
       return;
     }
 
     if (link.status === "not-symlink") {
       yield* log.warn(`Skipping Neovim theme link (${path} is not a symlink)`);
+
       return;
     }
 
@@ -139,6 +147,7 @@ export const ensureNvimThemeLink = (
       yield* log.warn(
         `Skipping Neovim theme link (no omarchy current theme spec to target)`,
       );
+
       return;
     }
 

@@ -49,6 +49,7 @@ function renderHeaders(
   harness: McpHarness,
 ): Record<string, string> {
   const style = ENV_STYLE[harness];
+
   return Object.fromEntries(
     Object.entries(headers).map(([key, value]) => [
       key,
@@ -62,6 +63,7 @@ function renderEnv(
   harness: McpHarness,
 ): Record<string, string> {
   const style = ENV_STYLE[harness];
+
   return Object.fromEntries(
     Object.entries(env).map(([key, value]) => [
       key,
@@ -80,37 +82,49 @@ function renderOpencodeEntry(
       command: resolveCommand(server, "opencode") ?? [],
       enabled,
     };
+
     if (server.env) entry.env = renderEnv(server.env, "opencode");
+
     return entry;
   }
+
   const entry: MutableJsonObject = {
     type: "remote",
     url: resolveUrl(server, "opencode") ?? "",
     enabled,
   };
+
   if (server.oauth === false) entry.oauth = false;
+
   if (
     server.oauth !== undefined &&
     server.oauth !== true &&
     server.oauth !== false
   ) {
     const oauth: MutableJsonObject = {};
+
     if (server.oauth.client_id !== undefined)
       oauth.clientId = server.oauth.client_id;
+
     if (server.oauth.client_secret !== undefined) {
       oauth.clientSecret = renderEnvRefs(
         server.oauth.client_secret,
         ENV_STYLE.opencode,
       );
     }
+
     if (server.oauth.scope !== undefined) oauth.scope = server.oauth.scope;
+
     if (server.oauth.callback_port !== undefined)
       oauth.callbackPort = server.oauth.callback_port;
+
     if (server.oauth.redirect_uri !== undefined)
       oauth.redirectUri = server.oauth.redirect_uri;
     entry.oauth = oauth;
   }
+
   if (server.headers) entry.headers = renderHeaders(server.headers, "opencode");
+
   return entry;
 }
 
@@ -123,18 +137,24 @@ function renderCursorEntry(server: McpServerSpec): JsonObject {
     const { command, args } = splitCommand(
       resolveCommand(server, "cursor") ?? [],
     );
+
     const entry: MutableJsonObject = {
       command,
       args,
     };
+
     if (server.env) entry.env = renderEnv(server.env, "cursor");
+
     return entry;
   }
+
   const entry: MutableJsonObject = {
     type: "http",
     url: resolveUrl(server, "cursor") ?? "",
   };
+
   if (server.headers) entry.headers = renderHeaders(server.headers, "cursor");
+
   return entry;
 }
 
@@ -143,19 +163,25 @@ function renderVscodeEntry(server: McpServerSpec): JsonObject {
     const { command, args } = splitCommand(
       resolveCommand(server, "vscode") ?? [],
     );
+
     const entry: MutableJsonObject = {
       type: "stdio",
       command,
       args,
     };
+
     if (server.env) entry.env = renderEnv(server.env, "vscode");
+
     return entry;
   }
+
   const entry: MutableJsonObject = {
     type: "http",
     url: resolveUrl(server, "vscode") ?? "",
   };
+
   if (server.headers) entry.headers = renderHeaders(server.headers, "vscode");
+
   return entry;
 }
 
@@ -164,21 +190,27 @@ function renderCopilotEntry(server: McpServerSpec): JsonObject {
     const { command, args } = splitCommand(
       resolveCommand(server, "copilot") ?? [],
     );
+
     const entry: MutableJsonObject = {
       type: "local",
       command,
       args,
       tools: ["*"],
     };
+
     if (server.env) entry.env = renderEnv(server.env, "copilot");
+
     return entry;
   }
+
   const entry: MutableJsonObject = {
     type: "http",
     url: resolveUrl(server, "copilot") ?? "",
     tools: ["*"],
   };
+
   if (server.headers) entry.headers = renderHeaders(server.headers, "copilot");
+
   return entry;
 }
 
@@ -206,6 +238,7 @@ export function buildMcpEntries(
   harness: McpHarness,
 ): JsonObject {
   const entries: Record<string, JsonValue> = {};
+
   if (harness === "opencode") {
     for (const server of spec.servers) {
       entries[server.name] = renderOpencodeEntry(
@@ -213,11 +246,14 @@ export function buildMcpEntries(
         serverEnabledFor(server, "opencode"),
       );
     }
+
     return entries;
   }
+
   for (const server of serversForHarness(spec, harness)) {
     entries[server.name] = renderEntry(server, harness);
   }
+
   return entries;
 }
 

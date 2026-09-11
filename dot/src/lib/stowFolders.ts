@@ -75,9 +75,11 @@ const NO_FOLDING_TARGET_PREFIXES = [
  */
 export function requiresNoFolding(repoDir: string, folder: string): boolean {
   const packageDir = join(repoDir, folder);
+
   return NO_FOLDING_TARGET_PREFIXES.some((prefix) => {
     try {
       statSync(join(packageDir, prefix));
+
       return true;
     } catch {
       return false;
@@ -100,6 +102,7 @@ export function listStowFolders(
 
   return entries.filter((entry) => {
     const fullPath = join(repoDir, entry);
+
     try {
       if (!statSync(fullPath).isDirectory()) return false;
     } catch {
@@ -118,6 +121,7 @@ export function listStowFolders(
     // Host-specific packages use double-dash: <name>--<host>
     if (entry.includes("--")) {
       const hostSuffix = entry.split("--").pop()!;
+
       if (hostSuffix !== host) return false;
     }
 

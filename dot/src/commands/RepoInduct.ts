@@ -25,6 +25,7 @@ const ScheduledCheck = Schema.Struct({
   enabled: Schema.Boolean,
   schedule: Schema.String,
 });
+
 const Preset = Schema.Struct({
   name_prefix: Schema.optionalKey(Schema.String),
   post_update: Schema.NullOr(Schema.String),
@@ -36,6 +37,7 @@ const Preset = Schema.Struct({
     bar: Schema.Struct({ ignore_bot_activity: Schema.Boolean }),
   }),
 });
+
 const Presets = Schema.Struct({ normal: Preset, "home-assistant": Preset });
 
 /** Terminal questionnaire defaults and non-interactive repository overrides. */
@@ -77,6 +79,7 @@ export function canPromptForInduction(): boolean {
 
 const repositoryRoot = Effect.fn("repoInduct.root")(function* (path: string) {
   const executor = yield* CommandExecutor;
+
   return (yield* executor
     .run("git", ["rev-parse", "--show-toplevel"], {
       cwd: resolve(expandHomePath(path)),
@@ -117,15 +120,18 @@ export const inductRepository = Effect.fn("repoInduct.run")(
           "Run dot repo-induct in a terminal, or use --noninteractive to preview with flags and --commit after approval",
       });
     }
+
     if (options.commit && !options.noninteractive) {
       return yield* new GitRepoConfigError({
         message:
           "--commit requires --noninteractive; the terminal wizard asks before committing",
       });
     }
+
     const edit = yield* prepareGitRepoConfigEdit();
     const executor = yield* CommandExecutor;
     const log = yield* OutputLog;
+
     const presets = yield* Effect.try({
       try: () =>
         Bun.YAML.parse(
@@ -144,6 +150,7 @@ export const inductRepository = Effect.fn("repoInduct.run")(
           }),
       ),
     );
+
     const presetName = options.noninteractive
       ? (options.preset ?? "normal")
       : yield* Prompt.run(
@@ -163,25 +170,30 @@ export const inductRepository = Effect.fn("repoInduct.run")(
             ],
           }),
         );
+
     const preset = presets[presetName];
     let root = yield* repositoryRoot(options.path ?? process.cwd());
+
     if (!options.noninteractive) {
       root = yield* repositoryRoot(
         yield* askText("Repository path", displayPath(root)),
       );
     }
+
     if (edit.config.repositories.some((repo) => repo.path === root)) {
       return yield* new GitRepoConfigError({
         message:
           "Repository is already inducted; use dot agent-oxlint --opt-in to enable its agent pass",
       });
     }
+
     const remote =
       options.github === undefined
         ? yield* executor
             .run("git", ["remote", "get-url", "origin"], { cwd: root })
             .pipe(Effect.orElseSucceed(() => ""))
         : options.github;
+
     let answers: GitManagedRepo = {
       name: options.name ?? `${preset.name_prefix ?? ""}${basename(root)}`,
       path: root,
@@ -207,6 +219,7 @@ export const inductRepository = Effect.fn("repoInduct.run")(
         },
       },
     };
+
     while (true) {
       if (!options.noninteractive) {
         answers = {
@@ -258,28 +271,37 @@ export const inductRepository = Effect.fn("repoInduct.run")(
           },
         };
       }
+
       const updated = yield* Effect.try({
         try: () => appendGitRepository(edit.source, answers),
         catch: (error) =>
           new GitRepoConfigError({ message: formatCause(error) }),
       });
+
       const parsed = parseDotGitConfigText(updated, edit.file);
+
       if (!parsed.valid) {
         if (options.noninteractive)
           return yield* new GitRepoConfigError({
             message: parsed.diagnostics.join("\n"),
           });
         yield* log.warn(parsed.diagnostics.join("\n"));
+
         if (yield* askBoolean("Correct these answers?", true)) continue;
+
         return null;
       }
+
       yield* previewGitRepoConfigEdit(edit, updated);
+
       if (options.noninteractive && !options.commit) {
         yield* log.info(
           "Preview only. After approval, repeat these options with --commit to save this entry.",
         );
+
         return null;
       }
+
       if (!options.noninteractive) {
         const action = yield* Prompt.run(
           Prompt.select({
@@ -291,9 +313,12 @@ export const inductRepository = Effect.fn("repoInduct.run")(
             ],
           }),
         );
+
         if (action === "cancel") return null;
+
         if (action === "edit") continue;
       }
+
       yield* commitGitRepoConfigEdit(
         edit,
         updated,
@@ -312,6 +337,7 @@ export const inductRepository = Effect.fn("repoInduct.run")(
           }),
       });
       yield* log.info("Refreshed Herdr repository picker");
+
       return parsed.repositories.find((repo) => repo.path === root) ?? null;
     }
   },

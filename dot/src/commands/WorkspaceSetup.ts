@@ -1,4 +1,4 @@
-import { Clock, Effect, Schema } from "effect";
+import { Clock, Effect, Match, Schema } from "effect";
 import { appendFileSync, mkdirSync, rmSync } from "fs";
 import { dirname, join } from "path";
 import { HOME_DIR, STATE_DIR, expandHomePath } from "../lib/paths.js";
@@ -10,9 +10,13 @@ import {
 import { CommandExecutor } from "../services/CommandExecutor.js";
 
 const DEFAULT_TEMP_WORKSPACE = 99;
+
 const LAUNCH_POLLS = 80;
+
 const LOG_DIRECTORY = join(STATE_DIR, "workspace-setup", "runs");
+
 const TAG_PREFIX = "wssetup-";
+
 const TAGS = {
   slack: `${TAG_PREFIX}ws1-slack`,
   discord: `${TAG_PREFIX}ws1-discord`,
@@ -23,6 +27,7 @@ const TAGS = {
   workspace2Cursor: `${TAG_PREFIX}ws2-cursor`,
   workBrowser: `${TAG_PREFIX}ws3-browser`,
 } as const;
+
 const MANAGED_TAGS = Object.values(TAGS);
 
 /** Move dispatcher supported by workspace setup. */
@@ -127,13 +132,19 @@ interface Slot {
 }
 
 const PATTERN_SLACK = "^chrome-app\\.slack\\.com__client";
+
 const PATTERN_DISCORD = "^chrome-discord\\.com__app";
+
 const PATTERN_CHROMIUM = "^chromium$";
+
 const PATTERN_GHOSTTY = "^com\\.mitchellh\\.ghostty$";
+
 const PATTERN_HERDR = "^herdr$";
+
 const PATTERN_WORK_BROWSER = "^(work-browser|google-chrome)$";
 
 const WorkspaceSchema = Schema.Struct({ id: Schema.Finite });
+
 const ClientSchema = Schema.Struct({
   address: Schema.NonEmptyString,
   class: Schema.optional(Schema.String),
@@ -145,7 +156,9 @@ const ClientSchema = Schema.Struct({
   focusHistoryID: Schema.optional(Schema.Finite),
   floating: Schema.optional(Schema.Boolean),
 });
+
 const ClientsSchema = Schema.Array(ClientSchema);
+
 const ActiveWindowSchema = Schema.Struct({
   address: Schema.optional(Schema.String),
 });
@@ -175,6 +188,7 @@ function overlayProgress(message: string): string | undefined {
   ) {
     return message;
   }
+
   return undefined;
 }
 
@@ -182,6 +196,7 @@ function positiveWorkspace(value: string | undefined, label: string): number {
   if (value === undefined || !/^\d+$/.test(value) || Number(value) <= 0) {
     return fail(`${label} must be a positive integer workspace id`);
   }
+
   return Number(value);
 }
 
@@ -191,9 +206,11 @@ export function resolveWorkspaceSetupConfig(
   environment: Readonly<Record<string, string | undefined>> = process.env,
 ): WorkspaceSetupConfig {
   const speedMultiplier = options.fast ? 1 : options.speedMultiplier;
+
   if (!Number.isFinite(speedMultiplier) || speedMultiplier <= 0) {
     return fail("--speed-multiplier must be a positive number");
   }
+
   if (!Number.isFinite(options.startupDelay) || options.startupDelay < 0) {
     return fail("--sleep must be a non-negative number");
   }
@@ -206,9 +223,11 @@ export function resolveWorkspaceSetupConfig(
           environment.WORKSPACE_SETUP_TEMP_WS,
           "WORKSPACE_SETUP_TEMP_WS",
         ));
+
   if (!Number.isInteger(temporaryWorkspace) || temporaryWorkspace <= 0) {
     return fail("--temp-workspace must be a positive integer workspace id");
   }
+
   if ([1, 2, 3].includes(temporaryWorkspace)) {
     return fail("Temporary workspace must not be workspace 1, 2, or 3");
   }
@@ -217,6 +236,7 @@ export function resolveWorkspaceSetupConfig(
     options.moveDispatcher ??
     environment.WORKSPACE_SETUP_MOVE_DISPATCHER ??
     "movetoworkspace";
+
   if (
     moveDispatcher !== "movetoworkspace" &&
     moveDispatcher !== "movetoworkspacesilent"
@@ -228,6 +248,7 @@ export function resolveWorkspaceSetupConfig(
 
   const configuredLog =
     options.logFile ?? environment.WORKSPACE_SETUP_LOG_FILE ?? undefined;
+
   return {
     stepThrough: options.stepThrough,
     speedMultiplier,
@@ -282,14 +303,17 @@ export function validateWorkspaceSetupPreflight(
   temporaryWorkspace: number,
 ): WorkspaceSetupPreflight {
   const clients = decodeClients(parseJson(clientsJson, "hyprctl clients"));
+
   const activeAddress = decodeActiveAddress(
     parseJson(activeWindowJson, "hyprctl activewindow"),
   );
+
   if (clients.some((client) => client.workspace.id === temporaryWorkspace)) {
     return fail(
       `Temporary workspace ${temporaryWorkspace} is already occupied`,
     );
   }
+
   return { clients, activeAddress };
 }
 
@@ -299,6 +323,7 @@ function timestampedLogPath(now: number): string {
     .replace(/[-:]/g, "")
     .replace("T", "-")
     .slice(0, 15);
+
   return join(LOG_DIRECTORY, `workspace-setup-${timestamp}.log`);
 }
 
@@ -352,10 +377,13 @@ function isWorkOnlyWindow(client: WorkspaceSetupLayoutClient) {
 
 function humanizeClassName(className: string): string {
   const trimmed = className.trim();
+
   if (trimmed === "") return "window";
+
   const last = trimmed.includes(".")
     ? (trimmed.split(".").at(-1) ?? trimmed)
     : trimmed;
+
   return last
     .replace(/__+/g, " ")
     .replace(/[-_]+/g, " ")
@@ -368,18 +396,26 @@ function humanizeClassName(className: string): string {
 
 function applicationName(client: WorkspaceSetupLayoutClient): string {
   if (fieldsMatch(client, PATTERN_SLACK)) return "Slack";
+
   if (fieldsMatch(client, PATTERN_DISCORD)) return "Discord";
+
   if (fieldsMatch(client, PATTERN_WORK_BROWSER)) return "the work browser";
+
   if (fieldsMatch(client, PATTERN_HERDR)) return "Herdr";
+
   if (fieldsMatch(client, PATTERN_GHOSTTY)) return "Ghostty";
+
   if (fieldsMatch(client, PATTERN_CHROMIUM)) return "Chromium";
+
   return humanizeClassName(client.class || client.initialClass);
 }
 
 function closeFirstName(client: WorkspaceSetupLayoutClient): string {
   const app = applicationName(client);
   const title = client.title.trim();
+
   if (title === "" || title === app) return app;
+
   return `${title} - ${app}`;
 }
 
@@ -394,11 +430,16 @@ function leftoverWorkspace1Window(
   workLayout: boolean,
 ): WorkspaceSetupLayoutClient | undefined {
   let remainingSlots = workLayout ? 1 : 2;
+
   for (const client of clients) {
     if (client.workspace.id !== 1 || client.floating) continue;
+
     if (fieldsMatch(client, PATTERN_HERDR)) continue;
+
     if (fieldsMatch(client, PATTERN_CHROMIUM)) continue;
+
     if (workLayout && isWorkOnlyWindow(client)) continue;
+
     if (
       isHomeGhostty(client) &&
       !isOpenCodeTitle(client) &&
@@ -407,8 +448,10 @@ function leftoverWorkspace1Window(
       remainingSlots -= 1;
       continue;
     }
+
     return client;
   }
+
   return undefined;
 }
 
@@ -429,16 +472,20 @@ export function findWorkspaceSetupBlocker(
     const extraTop = clients.find((client) =>
       client.tags.includes(TAGS.terminalTop),
     );
+
     if (extraTop) return closeFirstWindow(extraTop);
   } else {
     for (const pattern of WORK_ONLY_PATTERNS) {
       const workOnly = clients.find((client) => fieldsMatch(client, pattern));
+
       if (workOnly) return closeFirstWindow(workOnly);
     }
   }
 
   const leftover = leftoverWorkspace1Window(clients, workLayout);
+
   if (leftover) return closeFirstWindow(leftover);
+
   return undefined;
 }
 
@@ -456,12 +503,15 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
 
   const showOverlay = (message: string) =>
     executor.run("popup-loading", ["show", message]).pipe(Effect.ignore);
+
   const hideOverlay = () =>
     executor.run("popup-loading", ["hide"]).pipe(Effect.ignore);
+
   const notify = (title: string, message: string) =>
     executor
       .run("omarchy", ["notification", "send", "-g", "󱂬", title, message])
       .pipe(Effect.ignore);
+
   const logStep = (message: string) =>
     Effect.gen(function* () {
       const now = yield* Clock.currentTimeMillis;
@@ -470,18 +520,24 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       console.log(line);
       appendFileSync(logFile, `${line}\n`);
       const overlay = overlayProgress(message);
+
       if (overlay !== undefined) yield* showOverlay(overlay);
+
       if (config.stepThrough) {
         yield* Effect.sync(() => {
           prompt("[workspace-setup] Press Enter to continue... ");
         });
       }
     });
+
   const sleep = (seconds: number) =>
     Effect.sleep(`${seconds * config.speedMultiplier} seconds`);
+
   const dispatch = (command: string) =>
     executor.run("hyprctl", ["dispatch", command]).pipe(Effect.ignore);
+
   let startFocusAddress = "";
+
   const readClients = Effect.fn("workspaceSetup.readClients")(function* () {
     return decodeClients(
       parseJson(
@@ -490,7 +546,9 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       ),
     );
   });
+
   const quote = (value: string) => JSON.stringify(value);
+
   const move = Effect.fn("workspaceSetup.move")(function* (
     workspace: number,
     address: string,
@@ -502,24 +560,29 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       `hl.dsp.window.move({ workspace = ${quote(String(workspace))}, window = ${quote(`address:${address}`)}, follow = ${config.follow} })`,
     );
   });
+
   const focus = Effect.fn("workspaceSetup.focus")(function* (address: string) {
     if (!address) return false;
     yield* logStep(`Focusing window ${address}`);
     yield* dispatch(
       `hl.dsp.focus({ window = ${quote(`address:${address}`)} })`,
     );
+
     return true;
   });
+
   const addressByTag = Effect.fn("workspaceSetup.addressByTag")(function* (
     tag: string,
   ) {
     return (yield* readClients()).find((client) => client.tags.includes(tag))
       ?.address;
   });
+
   const clearTag = Effect.fn("workspaceSetup.clearTag")(function* (
     tag: string,
   ) {
     yield* logStep(`Clearing tag '${tag}' from all windows`);
+
     for (const client of yield* readClients()) {
       if (client.tags.includes(tag)) {
         yield* dispatch(
@@ -528,22 +591,27 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       }
     }
   });
+
   const tagAddress = Effect.fn("workspaceSetup.tagAddress")(function* (
     address: string,
     tag: string,
   ) {
     yield* logStep(`Tagging window ${address} as '${tag}'`);
+
     for (const managed of MANAGED_TAGS) {
       yield* dispatch(
         `hl.dsp.window.tag({ tag = ${quote(`-${managed}`)}, window = ${quote(`address:${address}`)} })`,
       );
     }
+
     yield* clearTag(tag);
     yield* dispatch(
       `hl.dsp.window.tag({ tag = ${quote(`+${tag}`)}, window = ${quote(`address:${address}`)} })`,
     );
   });
+
   const used = new Set<string>();
+
   const ensureSlot = Effect.fn("workspaceSetup.ensureSlot")(function* (
     slot: Slot,
     preferredAddress = "",
@@ -552,6 +620,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       `Ensuring slot '${slot.tag}' on workspace ${slot.workspace}`,
     );
     let clients = yield* readClients();
+
     let address = clients.find(
       (client) =>
         client.tags.includes(slot.tag) &&
@@ -598,16 +667,20 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       clients = yield* readClients();
       address = candidates(clients)[0]?.address;
     }
+
     if (!address) {
       yield* logStep(
         `No reusable candidate for '${slot.tag}', launching command`,
       );
+
       const before = new Set(
         (yield* readClients())
           .filter((client) => clientMatches(client, slot))
           .map((c) => c.address),
       );
+
       yield* dispatch(`hl.dsp.exec_cmd(${quote(slot.command)})`);
+
       for (let attempt = 0; attempt < LAUNCH_POLLS; attempt += 1) {
         clients = yield* readClients();
         address = clients.find(
@@ -617,16 +690,20 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
             !before.has(client.address) &&
             !used.has(client.address),
         )?.address;
+
         if (address) break;
         yield* sleep(0.1);
       }
     }
+
     if (!address) {
       yield* logStep(`Fallback candidate lookup for '${slot.tag}'`);
       address = candidates(yield* readClients())[0]?.address;
     }
+
     if (!address) {
       yield* logStep(`Failed to resolve address for slot '${slot.tag}'`);
+
       return undefined;
     }
 
@@ -634,22 +711,27 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
     yield* tagAddress(address, slot.tag);
     used.add(address);
     yield* logStep(`Slot '${slot.tag}' now bound to ${address}`);
+
     return address;
   });
+
   const resize = Effect.fn("workspaceSetup.resize")(function* (
     tag: string,
     width: number,
     height: number,
   ) {
     const address = yield* addressByTag(tag);
+
     if (!address) return;
     yield* logStep(`Resizing tag '${tag}' (${address}) to ${width}x${height}`);
     yield* dispatch(
       `hl.dsp.window.resize({ x = ${width}, y = ${height}, window = ${quote(`address:${address}`)} })`,
     );
   });
+
   const preselect = (direction: "d" | "r") =>
     dispatch(`hl.dsp.layout(${quote(`preselect ${direction}`)})`);
+
   const slot = (
     tag: string,
     pattern: string,
@@ -698,17 +780,21 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
     }
 
     const clientsJson = yield* executor.run("hyprctl", ["-j", "clients"]);
+
     const activeWindowJson = yield* executor.run("hyprctl", [
       "-j",
       "activewindow",
     ]);
+
     const { clients, activeAddress } = validateWorkspaceSetupPreflight(
       clientsJson,
       activeWindowJson,
       config.temporaryWorkspace,
     );
+
     startFocusAddress = activeAddress;
     yield* showOverlay("Setting up workspace...");
+
     const startupBrowser = clients.some(
       (client) =>
         client.address === activeAddress &&
@@ -716,12 +802,17 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
     )
       ? activeAddress
       : "";
-    const workTime =
-      config.mode === "work"
-        ? true
-        : config.mode === "normal"
-          ? false
-          : (yield* executor.exitCode("is-work-time", [])) === 0;
+
+    const workTime = yield* Match.value(config.mode).pipe(
+      Match.when("work", () => Effect.succeed(true)),
+      Match.when("normal", () => Effect.succeed(false)),
+      Match.orElse(() =>
+        executor
+          .exitCode("is-work-time", [])
+          .pipe(Effect.map((code) => code === 0)),
+      ),
+    );
+
     if (workTime && Bun.which("google-chrome-stable") === null) {
       return fail("google-chrome-stable is not available");
     }
@@ -729,6 +820,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
     yield* logStep(
       `Starting workspace setup (step-through=${config.stepThrough}, speed-multiplier=${config.speedMultiplier}, move-dispatcher=${config.moveDispatcher}, log-file=${logFile})`,
     );
+
     if (startupBrowser) {
       yield* logStep(
         `Startup browser detected at ${startupBrowser}; preferring it for center browser slot`,
@@ -742,15 +834,18 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
         "No focused startup window detected; center browser slot will use normal candidate selection",
       );
     }
+
     yield* logStep(
       config.mode === undefined
         ? `Detected ${workTime ? "work-time" : "non-work-time"} mode`
         : `Using ${config.mode} mode`,
     );
     const blocker = findWorkspaceSetupBlocker(clients, workTime);
+
     if (blocker) {
       yield* logStep(blocker.message);
       yield* notify("Workspace setup", blocker.message);
+
       return fail(blocker.message);
     }
 
@@ -761,7 +856,9 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       1,
       false,
     );
+
     const terminalCommand = `uwsm app -- ghostty-host-config --working-directory=${HOME_DIR}`;
+
     const terminal = (tag: string, workspace: number) =>
       slot(
         tag,
@@ -771,6 +868,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
         true,
         PATTERN_HERDR,
       );
+
     const herdr = slot(
       TAGS.workspace2Terminal,
       PATTERN_HERDR,
@@ -778,12 +876,14 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       2,
       true,
     );
+
     const workChrome =
       "uwsm app -- google-chrome-stable --new-window --ozone-platform=wayland --force-device-scale-factor=0.8 --profile-directory=Profile\\ 1 --user-data-dir=$HOME/.config/google-chrome-work";
 
     if (workTime) {
       yield* logStep("Preparing workspace 1 work apps");
       yield* clearTag(TAGS.terminalTop);
+
       const slackAddress = yield* ensureSlot(
         slot(
           TAGS.slack,
@@ -793,18 +893,23 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
           false,
         ),
       );
+
       const browserAddress = yield* ensureSlot(personalBrowser, startupBrowser);
+
       if (browserAddress) {
         yield* focus(browserAddress);
         yield* preselect("d");
         yield* sleep(0.2);
       }
+
       yield* ensureSlot(terminal(TAGS.terminal, 1));
+
       if (slackAddress) {
         yield* focus(slackAddress);
         yield* preselect("r");
         yield* sleep(0.2);
       }
+
       yield* ensureSlot(
         slot(
           TAGS.discord,
@@ -819,11 +924,14 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       const discord = yield* addressByTag(TAGS.discord);
       const browser = yield* addressByTag(TAGS.browser);
       const term = yield* addressByTag(TAGS.terminal);
+
       if (slack && discord && browser && term) {
         yield* logStep("Rebuilding workspace 1 work tree");
+
         for (const address of [slack, discord, browser, term]) {
           yield* move(config.temporaryWorkspace, address);
         }
+
         yield* sleep(0.2);
         yield* move(1, slack);
         yield* focus(slack);
@@ -844,11 +952,13 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
           "Skipping workspace 1 work tree rebuild (missing one or more windows)",
         );
       }
+
       yield* logStep("Applying workspace 1 work layout sizes");
       yield* resize(TAGS.slack, 671, 660);
       yield* resize(TAGS.discord, 671, 660);
       yield* resize(TAGS.browser, 1348, 850);
       yield* resize(TAGS.terminal, 1348, 850);
+
       if (activeAddress) yield* focus(activeAddress);
 
       yield* logStep("Preparing workspace 2 and 3 work apps");
@@ -874,11 +984,14 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       const top = yield* addressByTag(TAGS.terminalTop);
       const browser = yield* addressByTag(TAGS.browser);
       const term = yield* addressByTag(TAGS.terminal);
+
       if (top && browser && term) {
         yield* logStep("Rebuilding workspace 1 non-work tree");
+
         for (const address of [top, browser, term]) {
           yield* move(config.temporaryWorkspace, address);
         }
+
         yield* sleep(0.2);
         yield* move(1, top);
         yield* focus(top);
@@ -895,10 +1008,12 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
           "Skipping workspace 1 non-work tree rebuild (missing one or more windows)",
         );
       }
+
       yield* logStep("Applying workspace 1 non-work layout sizes");
       yield* resize(TAGS.terminalTop, 1294, 660);
       yield* resize(TAGS.terminal, 1348, 240);
       yield* resize(TAGS.browser, 1348, 850);
+
       if (activeAddress) yield* focus(activeAddress);
 
       yield* logStep("Preparing workspace 2 non-work app");
@@ -912,6 +1027,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
     yield* logStep("Cleaning up logs older than 7 days");
     const now = yield* Clock.currentTimeMillis;
     const cutoff = now - 7 * 24 * 60 * 60 * 1000;
+
     for (const entry of new Bun.Glob("workspace-setup-*.log").scanSync({
       cwd: LOG_DIRECTORY,
       absolute: true,

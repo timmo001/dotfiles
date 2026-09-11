@@ -21,7 +21,9 @@ import {
 } from "../../commands/SetupPublicRepo.js";
 
 const DEFAULT_PRIVATE_PACMAN_REPO_CONFIG = "/etc/pacman.d/timmo-private.conf";
+
 const DEFAULT_PRIVATE_PACMAN_MAIN_CONFIG = "/etc/pacman.conf";
+
 const PUBLIC_PACKAGE_REPOSITORY = "timmo";
 
 /** Private Arch package repository settings loaded from private dotfiles. */
@@ -83,6 +85,7 @@ function applyPrivatePackageRepoConfigLine(
   line: string,
 ): void {
   const eqIdx = line.indexOf("=");
+
   if (eqIdx < 0) return;
 
   const key = line.slice(0, eqIdx).trim();
@@ -96,6 +99,7 @@ function completePrivatePackageRepoConfig(
   draft: PrivatePackageRepoConfigDraft,
 ): PrivatePackageRepoConfig | null {
   if (!draft.name || !draft.path || !draft.mirrorPath) return null;
+
   return {
     name: draft.name,
     remote: draft.remote,
@@ -149,6 +153,7 @@ export function loadPrivatePackageRepoConfig(
   };
 
   const lines = readPrivatePackageRepoConfigLines(repoConfigFile);
+
   if (!lines) return null;
 
   for (const line of lines) {
@@ -175,7 +180,9 @@ export function privatePackageRepoRegistered(
   repo: PrivatePackageRepoConfig,
 ): boolean {
   const configPath = privatePacmanRepoConfigPath();
+
   if (!existsSync(configPath)) return false;
+
   return readFileSync(configPath, "utf-8").includes(`[${repo.name}]`);
 }
 
@@ -184,15 +191,19 @@ export function privatePackageRepoConfigMatches(
   repo: PrivatePackageRepoConfig,
 ): boolean {
   const configPath = privatePacmanRepoConfigPath();
+
   if (!existsSync(configPath)) return false;
   const actual = readFileSync(configPath, "utf-8").trimEnd();
+
   return actual === privatePackageRepoConfigContents(repo).trimEnd();
 }
 
 /** Whether the main pacman config includes the private repo snippet. */
 export function privatePackageRepoIncludeRegistered(): boolean {
   const mainConfigPath = privatePacmanMainConfigPath();
+
   if (!existsSync(mainConfigPath)) return false;
+
   return readFileSync(mainConfigPath, "utf-8")
     .split("\n")
     .some((line) => line.trim() === privatePackageRepoIncludeLine());
@@ -270,6 +281,7 @@ function privatePackageRepoResults(config: ConfigService): CheckResult[] {
   }
 
   const repo = loadPrivatePackageRepoConfig(config);
+
   if (!repo) return [missingPrivatePackageRepoConfigResult(config)];
 
   const cloneResult = !existsSync(repo.path)
@@ -280,7 +292,9 @@ function privatePackageRepoResults(config: ConfigService): CheckResult[] {
         },
       ]
     : [];
+
   const repoStatus = privatePackageRepoStatusResult(repo);
+
   if (repoStatus) return [...cloneResult, repoStatus];
 
   return [
@@ -315,13 +329,17 @@ function packageRepositoryFromInfo(info: string): string | null {
 function installedPackageVersion(packageName: string) {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
+
     for (const candidate of installedPackageCandidates(packageName)) {
       const info = yield* executor
         .run("pacman", ["-Q", candidate])
         .pipe(Effect.orElseSucceed(() => ""));
+
       const version = info.trim().split(/\s+/)[1];
+
       if (version) return version;
     }
+
     return null;
   });
 }
@@ -329,9 +347,11 @@ function installedPackageVersion(packageName: string) {
 function repositoryPackageVersion(packageName: string, repository: string) {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
+
     const info = yield* executor
       .run("pacman", ["-Si", `${repository}/${packageName}`])
       .pipe(Effect.orElseSucceed(() => ""));
+
     return packageVersionFromInfo(info);
   });
 }
@@ -339,11 +359,14 @@ function repositoryPackageVersion(packageName: string, repository: string) {
 function syncPackageVersion(packageName: string) {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
+
     const info = yield* executor
       .run("pacman", ["-Si", packageName])
       .pipe(Effect.orElseSucceed(() => ""));
+
     const repository = packageRepositoryFromInfo(info);
     const version = packageVersionFromInfo(info);
+
     return repository && version ? { repository, version } : null;
   });
 }
@@ -351,9 +374,11 @@ function syncPackageVersion(packageName: string) {
 function aurPackageVersion(packageName: string) {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
+
     const info = yield* executor
       .run("yay", ["-Si", "--aur", packageName])
       .pipe(Effect.orElseSucceed(() => ""));
+
     return packageVersionFromInfo(info);
   });
 }
@@ -367,26 +392,32 @@ export function packageUpdateResult(
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
     const installedVersion = yield* installedPackageVersion(packageName);
+
     const repositoryVersion = yield* repositoryPackageVersion(
       packageName,
       repository,
     );
+
     const syncPackage =
       !repositoryVersion && sourceFallback
         ? yield* syncPackageVersion(packageName)
         : null;
+
     const source = repositoryVersion
       ? repository
       : (syncPackage?.repository ?? (sourceFallback ? "AUR" : null));
+
     const latestVersion =
       repositoryVersion ??
       syncPackage?.version ??
       (sourceFallback ? yield* aurPackageVersion(packageName) : null);
+
     if (!installedVersion || !latestVersion || !source) return null;
 
     const comparison = yield* executor
       .run("vercmp", [installedVersion, latestVersion])
       .pipe(Effect.orElseSucceed(() => "0"));
+
     return isInstalledVersionOlder(comparison)
       ? {
           severity: "warn" as const,
@@ -404,10 +435,12 @@ export function publicPackageKeyTrusted(
   const records = gpgOutput.split("\n").map((line) => line.split(":"));
   const publicKey = records.find(([type]) => type === "pub");
   const primaryFingerprint = records.find(([type]) => type === "fpr")?.[9];
+
   const hasLocalSignature = records.some(
     ([type, , , , , , , , , , signatureClass]) =>
       type === "sig" && signatureClass?.includes("l"),
   );
+
   return (
     (publicKey?.[1] === "f" || publicKey?.[1] === "u") &&
     primaryFingerprint === fingerprint &&
@@ -428,15 +461,18 @@ export const checkPublicPackages = Effect.gen(function* () {
     join(config.publicDotfiles, ".dot-public-packages");
 
   const packages = loadPackageList(packagesFile);
+
   if (packages.length === 0) {
     results.push({
       severity: "warn",
       message: "Could not load public packages file",
     });
+
     return results;
   }
 
   const hasYay = (yield* executor.exitCode("which", ["yay"])) === 0;
+
   for (const pkg of packages) {
     const display = packageDisplayName(pkg);
 
@@ -453,6 +489,7 @@ export const checkPublicPackages = Effect.gen(function* () {
       PUBLIC_PACKAGE_REPOSITORY,
       hasYay,
     );
+
     if (updateResult) {
       results.push(updateResult);
       updatePackages.push(pkg);
@@ -506,6 +543,7 @@ export const checkPublicPackageRepo = Effect.gen(function* () {
       fingerprint,
     ])
     .pipe(Effect.catch(() => Effect.succeed("")));
+
   const keyTrusted = publicPackageKeyTrusted(keyDetails, fingerprint);
   results.push(
     keyTrusted
@@ -516,12 +554,14 @@ export const checkPublicPackageRepo = Effect.gen(function* () {
           detail: "Run dot setup-public-repo to verify and trust it",
         },
   );
+
   return results;
 });
 
 /** Check private package repo configuration */
 export const checkPrivatePackageRepo = Effect.gen(function* () {
   const config = yield* Config;
+
   return privatePackageRepoResults(config);
 });
 
@@ -535,10 +575,12 @@ export const checkPrivatePackages = Effect.gen(function* () {
       severity: "warn",
       message: `Skipping private package checks (${config.privateReason})`,
     });
+
     return results;
   }
 
   const packagesOverride = envString(ENV.DOT_PRIVATE_PACKAGES_FILE);
+
   const packagesFile =
     packagesOverride ??
     (config.privateDotfiles
@@ -550,27 +592,34 @@ export const checkPrivatePackages = Effect.gen(function* () {
       severity: "warn",
       message: `Missing private package list: ${displayPath(packagesFile ?? "")}`,
     });
+
     return results;
   }
 
   const host = resolvedOmarchyHost(config);
+
   const packages = loadPackageLists([
     packagesFile,
     ...(packagesOverride || !host ? [] : [`${packagesFile}--${host}`]),
   ]);
+
   if (packages.length === 0) {
     results.push({ severity: "ok", message: "No private packages configured" });
+
     return results;
   }
 
   const missingPackages: string[] = [];
   const updatePackages: string[] = [];
   const repository = loadPrivatePackageRepoConfig(config)?.name;
+
   for (const pkg of packages) {
     if (yield* isPackageInstalled(pkg)) {
       results.push({ severity: "ok", message: `${pkg} is installed` });
+
       if (repository) {
         const updateResult = yield* packageUpdateResult(pkg, repository, false);
+
         if (updateResult) {
           results.push(updateResult);
           updatePackages.push(pkg);

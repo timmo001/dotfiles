@@ -43,8 +43,11 @@ export function chooseElevationBinary(
   inputs: ElevationInputs,
 ): ElevationBinary {
   if (inputs.preferSudo && inputs.hasSudo) return "sudo";
+
   if (inputs.hasPkexec && inputs.hasGraphicalSession) return "pkexec";
+
   if (inputs.hasSudo) return "sudo";
+
   return "pkexec";
 }
 
@@ -53,15 +56,19 @@ export function withSudoKeepAlive<E, R>(
   effect: Effect.Effect<void, E, R>,
 ): Effect.Effect<void, E, R | CommandExecutor> {
   if (isRoot()) return effect;
+
   return Effect.acquireUseRelease(
     Effect.gen(function* () {
       const executor = yield* CommandExecutor;
+
       if ((yield* executor.exitCode("which", ["sudo"])) !== 0) return null;
 
       const exitCode = yield* executor.inherit("sudo", ["-v"]);
+
       if (exitCode !== 0) return null;
 
       sudoKeepAliveActive = true;
+
       return Bun.spawn(
         ["sh", "-c", "while true; do sudo -n true; sleep 60; done"],
         {
@@ -95,16 +102,19 @@ export function elevatedCommand(
 ): Effect.Effect<readonly [string, readonly string[]], never, CommandExecutor> {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
+
     if (isRoot()) return [command, args] as const;
 
     const hasPkexec = (yield* executor.exitCode("which", ["pkexec"])) === 0;
     const hasSudo = (yield* executor.exitCode("which", ["sudo"])) === 0;
+
     const binary = chooseElevationBinary({
       hasPkexec,
       hasSudo,
       hasGraphicalSession: hasGraphicalSession(),
       preferSudo: sudoKeepAliveActive,
     });
+
     return [binary, [command, ...args]] as const;
   });
 }
@@ -117,6 +127,7 @@ export function runElevated(
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
     const [elevated, elevatedArgs] = yield* elevatedCommand(command, args);
+
     return yield* executor.inherit(elevated, elevatedArgs);
   });
 }

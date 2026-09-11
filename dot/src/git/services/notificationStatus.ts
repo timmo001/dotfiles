@@ -19,6 +19,7 @@ export function notificationReasonIsImportant(reason: string): boolean {
 /** Return a compact icon for a notification thread. */
 export function formatNotificationIcon(thread: GitNotificationThread): string {
   if (!thread.unread) return "○";
+
   return notificationReasonIsImportant(thread.reason) ? "×" : "●";
 }
 
@@ -27,6 +28,7 @@ export function formatNotificationThreadDetail(
   thread: GitNotificationThread,
 ): string {
   const status = thread.unread ? "unread" : "read";
+
   return `${status} • ${thread.reason} • ${thread.type} • ${formatNotificationTimeAgo(thread.updatedAt)}`;
 }
 

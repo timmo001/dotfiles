@@ -1,4 +1,4 @@
-import { Clock, Context, Cron, Effect, Layer, Schema } from "effect";
+import { Clock, Context, Cron, Effect, Layer, Result, Schema } from "effect";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import {
@@ -144,12 +144,15 @@ function entry(
   const snapshot = cache.snapshot
     ? applyReleaseReview(cache.snapshot, review)
     : null;
+
   const changed =
     snapshot !== null &&
     (snapshot.branch !== settings.branch ||
       snapshot.policyId !== policyIdentity(settings));
+
   const stale = cache.error !== null || changed;
   let nextVersion: string | null = null;
+
   if (snapshot?.complete && !stale) {
     try {
       nextVersion = nextReleaseTag(snapshot, settings.versioning, timestamp);
@@ -157,6 +160,7 @@ function entry(
       if (!(error instanceof ReleaseError)) throw error;
     }
   }
+
   return {
     repo: repo.github,
     name: repo.name,
@@ -190,6 +194,7 @@ export const deliverReleaseNotification = Effect.fn("GitReleases.deliver")(
   ) {
     const current = releaseNotificationState(snapshot, review, settings, stale);
     const now = yield* Clock.currentTimeMillis;
+
     if (
       !current.pending ||
       (current.deliveredAt !== null &&
@@ -198,15 +203,18 @@ export const deliverReleaseNotification = Effect.fn("GitReleases.deliver")(
     )
       return current;
     const executor = yield* CommandExecutor;
+
     const finding =
       snapshot.findings.find(
         (finding) => finding.impact === snapshot.suggestion,
       ) ?? snapshot.findings.find((finding) => finding.impact !== "none");
+
     const reason = snapshot.reviewed
       ? "Local overall release choice"
       : finding
         ? `${finding.detail}: ${finding.reason}`
         : "Unreleased changes need review";
+
     const sent = yield* executor
       .run("omarchy", [
         "notification",
@@ -225,11 +233,13 @@ export const deliverReleaseNotification = Effect.fn("GitReleases.deliver")(
         snapshot.repo,
       ])
       .pipe(Effect.timeout("15 seconds"), Effect.result);
-    if (sent._tag === "Failure")
+
+    if (Result.isFailure(sent))
       return {
         ...current,
         deliveryError: `Notification delivery failed: ${formatCause(sent.failure).replace(/\s+/g, " ").slice(0, 240)}`,
       };
+
     return {
       ...current,
       pending: null,
@@ -259,6 +269,7 @@ export class GitReleases extends Context.Service<
               throw new ReleaseError({
                 message: config.gitConfig.diagnostics.join("\n"),
               });
+
             const repositories = managedGitRepos(config.gitConfig).filter(
               (repo) =>
                 repo.releases?.enabled &&
@@ -267,10 +278,12 @@ export class GitReleases extends Context.Service<
                     (name) => name.toLowerCase() === selection.toLowerCase(),
                   )),
             );
+
             if (selection && repositories.length !== 1)
               throw new ReleaseError({
                 message: `No unique enabled release repository matches ${selection}`,
               });
+
             return repositories;
           },
           catch: (error) =>
@@ -290,6 +303,7 @@ export class GitReleases extends Context.Service<
               (error) => new ReleaseError({ message: error.stderr }),
             ),
           );
+
         const release = yield* Schema.decodeUnknownEffect(StableRelease)(
           metadata,
         ).pipe(
@@ -300,10 +314,12 @@ export class GitReleases extends Context.Service<
               }),
           ),
         );
+
         if (release.draft || release.prerelease || !release.published_at)
           return yield* new ReleaseError({
             message: "No published stable release is available",
           });
+
         const runGit = (args: readonly string[]) =>
           executor
             .run("git", args, {
@@ -316,6 +332,7 @@ export class GitReleases extends Context.Service<
                   new ReleaseError({ message: error.stderr || error.command }),
               ),
             );
+
         yield* runGit(["check-ref-format", `refs/tags/${release.tag_name}`]);
         yield* runGit(["check-ref-format", `refs/heads/${settings.branch}`]);
         const prefix = `refs/dot/git-releases/${evidenceId(repo.github)}`;
@@ -329,25 +346,30 @@ export class GitReleases extends Context.Service<
           `+refs/tags/${release.tag_name}:${prefix}/release`,
           `+refs/heads/${settings.branch}:${prefix}/head`,
         ]);
+
         const releaseCommit = (yield* runGit([
           "rev-parse",
           "--verify",
           `${prefix}/release^{commit}`,
         ])).trim();
+
         const head = (yield* runGit([
           "rev-parse",
           "--verify",
           `${prefix}/head^{commit}`,
         ])).trim();
+
         const ancestor = yield* executor.exitCode(
           "git",
           ["merge-base", "--is-ancestor", releaseCommit, head],
           { cwd: repo.path },
         );
+
         if (ancestor !== 0)
           return yield* new ReleaseError({
             message: `Published release ${release.tag_name} is not an ancestor of ${settings.branch}, or history is unavailable`,
           });
+
         const changes = yield* collectReleaseChanges(
           repo.path,
           releaseCommit,
@@ -355,8 +377,10 @@ export class GitReleases extends Context.Service<
           settings,
           releasePaths(repo.github).cache,
         ).pipe(Effect.provideService(CommandExecutor, executor));
+
         const findings = classifyReleaseFacts(changes.facts, settings);
         const now = yield* Clock.currentTimeMillis;
+
         return {
           id: "",
           repo: repo.github,
@@ -391,12 +415,14 @@ export class GitReleases extends Context.Service<
         options: ReleaseQuery,
       ) {
         const paths = releasePaths(repo.github);
+
         return yield* withReleaseLock(
           paths,
           Effect.gen(function* () {
             let { cache, review } = yield* readReleaseState(paths);
             const now = yield* Clock.currentTimeMillis;
             const minute = Math.floor(now / 60000);
+
             const scheduled =
               options.scheduled &&
               cache.attemptedMinute !== minute &&
@@ -407,10 +433,12 @@ export class GitReleases extends Context.Service<
                 ),
                 new Date(now),
               );
+
             const shouldScan =
               options.refresh ||
               scheduled ||
               (!options.scheduled && cache.attemptedAt === null);
+
             if (shouldScan) {
               cache = {
                 ...cache,
@@ -420,6 +448,7 @@ export class GitReleases extends Context.Service<
                   "Release comparison is pending or was interrupted; refresh to retry",
               };
               yield* saveReleaseDocument(paths.cache, "snapshot.json", cache);
+
               const result = yield* scan(repo, settings).pipe(
                 Effect.timeout("3 minutes"),
                 Effect.mapError(
@@ -427,7 +456,8 @@ export class GitReleases extends Context.Service<
                 ),
                 Effect.result,
               );
-              if (result._tag === "Success") {
+
+              if (Result.isSuccess(result)) {
                 ({ cache, review } = acceptReleaseSnapshot(
                   cache,
                   review,
@@ -435,6 +465,7 @@ export class GitReleases extends Context.Service<
                 ));
               } else cache = { ...cache, error: result.failure.message };
             }
+
             if (cache.snapshot)
               review = releaseNotificationState(
                 applyReleaseReview(cache.snapshot, review),
@@ -449,6 +480,7 @@ export class GitReleases extends Context.Service<
                   now,
                 ).stale,
               );
+
             if (options.notify && cache.snapshot)
               review = yield* deliverReleaseNotification(
                 applyReleaseReview(cache.snapshot, review),
@@ -465,6 +497,7 @@ export class GitReleases extends Context.Service<
               ).pipe(Effect.provideService(CommandExecutor, executor));
             yield* saveReleaseDocument(paths.state, "review.json", review);
             yield* saveReleaseDocument(paths.cache, "snapshot.json", cache);
+
             return entry(
               repo,
               settings,
@@ -482,14 +515,17 @@ export class GitReleases extends Context.Service<
       ) {
         const repositories = yield* select(options.repo);
         const now = yield* Clock.currentTimeMillis;
+
         return yield* Effect.forEach(
           repositories,
           (repo) => {
             const settings = repo.releases;
+
             if (!settings)
               return Effect.fail(
                 new ReleaseError({ message: "Release settings missing" }),
               );
+
             return queryRepo(repo, settings, options).pipe(
               Effect.catch((error) =>
                 readReleaseState(releasePaths(repo.github)).pipe(
@@ -536,16 +572,19 @@ export class GitReleases extends Context.Service<
         const repositories = yield* select(action.repo);
         const repo = repositories[0];
         const settings = repo.releases;
+
         if (!settings)
           return yield* new ReleaseError({
             message: "Release settings missing",
           });
         const paths = releasePaths(repo.github);
+
         return yield* withReleaseLock(
           paths,
           Effect.gen(function* () {
             const { cache, review } = yield* readReleaseState(paths);
             const now = yield* Clock.currentTimeMillis;
+
             const current = entry(
               repo,
               settings,
@@ -554,6 +593,7 @@ export class GitReleases extends Context.Service<
               config.gitConfig.filePath,
               now,
             );
+
             if (current.stale || !current.snapshot?.complete)
               return yield* new ReleaseError({
                 message:
@@ -567,6 +607,7 @@ export class GitReleases extends Context.Service<
                   ? error
                   : new ReleaseError({ message: formatCause(error) }),
             });
+
             let updated = yield* Effect.try({
               try: () =>
                 reviewRelease(snapshot, review, action.target, action.impact),
@@ -575,6 +616,7 @@ export class GitReleases extends Context.Service<
                   ? error
                   : new ReleaseError({ message: formatCause(error) }),
             });
+
             const reviewed = applyReleaseReview(snapshot, updated);
             updated = releaseNotificationState(
               reviewed,
@@ -584,6 +626,7 @@ export class GitReleases extends Context.Service<
             );
             // Reviews are authoritative; a scan cache never overwrites them.
             yield* saveReleaseDocument(paths.state, "review.json", updated);
+
             return entry(
               repo,
               settings,
@@ -595,6 +638,7 @@ export class GitReleases extends Context.Service<
           }),
         );
       });
+
       const publish = Effect.fn("GitReleases.publish")(function* (
         action: ReleasePublishAction,
         progress: ReleaseProgress,
@@ -602,16 +646,19 @@ export class GitReleases extends Context.Service<
         const repositories = yield* select(action.repo);
         const repo = repositories[0];
         const settings = repo.releases;
+
         if (!settings)
           return yield* new ReleaseError({
             message: "Release settings missing",
           });
         const paths = releasePaths(repo.github);
+
         return yield* withReleaseLock(
           paths,
           Effect.gen(function* () {
             const { cache, review } = yield* readReleaseState(paths);
             const now = yield* Clock.currentTimeMillis;
+
             const current = entry(
               repo,
               settings,
@@ -620,6 +667,7 @@ export class GitReleases extends Context.Service<
               config.gitConfig.filePath,
               now,
             );
+
             if (
               current.stale ||
               !current.snapshot?.complete ||
@@ -629,6 +677,7 @@ export class GitReleases extends Context.Service<
                 message:
                   "Release evidence changed or is incomplete; refresh before creating a release",
               });
+
             return yield* publishRelease(
               repo,
               settings,
@@ -642,6 +691,7 @@ export class GitReleases extends Context.Service<
           }),
         );
       });
+
       return { query, action, publish };
     }),
   );

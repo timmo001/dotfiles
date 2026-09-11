@@ -18,8 +18,10 @@ export function acquireWorkspaceMutationLock(
   path = LOCK_PATH,
 ): string {
   mkdirSync(dirname(path), { recursive: true });
+
   const create = () => {
     const descriptor = openSync(path, "wx", 0o600);
+
     try {
       writeSync(descriptor, String(process.pid));
     } finally {
@@ -31,15 +33,19 @@ export function acquireWorkspaceMutationLock(
     create();
   } catch (initialError) {
     let active = true;
+
     try {
       const pid = Number(readFileSync(path, "utf8"));
+
       if (!Number.isInteger(pid) || pid <= 0) throw new Error("Invalid PID");
       process.kill(pid, 0);
     } catch {
       active = false;
     }
+
     if (active) throw failure("Another workspace mutation is already running");
     unlinkSync(path);
+
     try {
       create();
     } catch {
@@ -48,6 +54,7 @@ export function acquireWorkspaceMutationLock(
       );
     }
   }
+
   return path;
 }
 

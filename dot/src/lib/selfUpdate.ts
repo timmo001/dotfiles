@@ -6,9 +6,11 @@ import { ENV, envString } from "./env.js";
 import { withSpinnerTimeout } from "./workflowStep.js";
 
 const DEPENDENCY_INSTALL_TIMEOUT_SECONDS = 3 * 60;
+
 const BINARY_COMPILE_TIMEOUT_SECONDS = 3 * 60;
 
 const DEBUG = !!envString(ENV.DOT_DEBUG);
+
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot:selfUpdate] ${msg}`);
 };
@@ -27,6 +29,7 @@ const BIN_PATH = (() => {
     return process.execPath;
   }
 })();
+
 const DOT_SRC = join(dirname(BIN_PATH), "..", "..", "..", "dot");
 
 /**
@@ -46,6 +49,7 @@ export const rebuild = Effect.gen(function* () {
     DEPENDENCY_INSTALL_TIMEOUT_SECONDS,
     executor.run("bun", ["install"], { cwd: DOT_SRC }),
   );
+
   if (Option.isNone(installed)) {
     return yield* new CommandError({
       command: "bun install",
@@ -53,9 +57,11 @@ export const rebuild = Effect.gen(function* () {
       stderr: `timed out after ${DEPENDENCY_INSTALL_TIMEOUT_SECONDS}s`,
     });
   }
+
   log("Dependencies installed");
 
   const tmpPath = `${BIN_PATH}.new`;
+
   const compiled = yield* withSpinnerTimeout(
     "Compiling dot binary",
     BINARY_COMPILE_TIMEOUT_SECONDS,
@@ -65,6 +71,7 @@ export const rebuild = Effect.gen(function* () {
       { cwd: DOT_SRC },
     ),
   );
+
   if (Option.isNone(compiled)) {
     return yield* new CommandError({
       command: "bun build src/index.ts --compile",
@@ -72,6 +79,7 @@ export const rebuild = Effect.gen(function* () {
       stderr: `timed out after ${BINARY_COMPILE_TIMEOUT_SECONDS}s`,
     });
   }
+
   log(`Built to: ${tmpPath}`);
 
   // Atomic rename over the real binary (not the symlink)
@@ -91,6 +99,7 @@ export const restartDot = (
     const command = `${BIN_PATH} ${args.join(" ")}`;
     log(`Restarting: ${command}`);
     const exitCode = yield* executor.inherit(BIN_PATH, args);
+
     if (exitCode !== 0) {
       return yield* new CommandError({ command, exitCode, stderr: "" });
     }

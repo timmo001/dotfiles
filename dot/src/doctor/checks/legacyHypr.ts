@@ -25,6 +25,7 @@ export const checkLegacyHyprRepo = Effect.gen(function* () {
   }
 
   const path = displayPath(legacy.repoPath);
+
   return [
     {
       severity: "error",

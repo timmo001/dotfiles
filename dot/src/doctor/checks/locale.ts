@@ -12,6 +12,7 @@ export const checkLocale = Effect.gen(function* () {
       severity: "ok",
       message: "Required locales are generated",
     });
+
     return results;
   }
 
@@ -22,5 +23,6 @@ export const checkLocale = Effect.gen(function* () {
       detail: `Uncomment '${locale} UTF-8' in /etc/locale.gen, then run: sudo locale-gen (or rerun dot init)`,
     });
   }
+
   return results;
 });

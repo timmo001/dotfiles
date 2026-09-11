@@ -53,10 +53,13 @@ function scanMarkdownFiles(
   if (!existsSync(dir)) return [];
 
   const files: MarkdownFile[] = [];
+
   const scan = (current: string) => {
     const entries = readdirSync(current, { withFileTypes: true });
+
     for (const entry of entries) {
       const fullPath = join(current, entry.name);
+
       if (entry.isDirectory()) {
         scan(fullPath);
       } else if (entry.isFile() && entry.name.endsWith(".md")) {
@@ -90,9 +93,12 @@ const BRANCH_CONTEXT_RE =
   /BranchContextPlugin|work-scope mode|full-context mode/i;
 
 const WORK_SCOPE_RE = /work-scope mode/i;
+
 const FULL_CONTEXT_RE = /full-context mode/i;
+
 const COMMAND_SET_RE =
   /const\s+(BRANCH_CONTEXT_COMMANDS|WORK_SCOPE_COMMANDS)\s*=\s*new\s+Set\(\[([\s\S]*?)\]\)/g;
+
 const STRING_LITERAL_RE = /["']([^"']+)["']/g;
 
 /** Derive the OpenCode command name from a command Markdown file path */
@@ -110,6 +116,7 @@ function extractBranchContextConsumer(
 ): BranchContextConsumer | null {
   const lines = content.split("\n");
   const markerIndex = lines.findIndex((line) => BRANCH_CONTEXT_RE.test(line));
+
   if (markerIndex === -1) return null;
 
   const mode = lines.some((line) => WORK_SCOPE_RE.test(line))
@@ -130,13 +137,16 @@ export function scanBranchContextConsumers(
 
   const scanRoot = (dotfilesRoot: string, scanPath: string, relPrefix = "") => {
     const commandDir = join(dotfilesRoot, scanPath);
+
     for (const file of scanMarkdownFiles(commandDir, dotfilesRoot)) {
       const content = readFileSync(file.fullPath, "utf-8");
+
       const consumer = extractBranchContextConsumer(
         commandNameFromPath(file.fullPath, commandDir),
         `${relPrefix}${file.relPath}`,
         content,
       );
+
       if (consumer) consumers.push(consumer);
     }
   };
@@ -158,16 +168,20 @@ function scanBranchContextRegistrations(
 ): ReadonlyMap<string, BranchContextMode> {
   const pluginPath = join(publicDotfiles, BRANCH_CONTEXT_PLUGIN_PATH);
   const registrations = new Map<string, BranchContextMode>();
+
   if (!existsSync(pluginPath)) return registrations;
 
   const content = readFileSync(pluginPath, "utf-8");
   let setMatch: RegExpExecArray | null;
   COMMAND_SET_RE.lastIndex = 0;
+
   while ((setMatch = COMMAND_SET_RE.exec(content)) !== null) {
     const mode: BranchContextMode =
       setMatch[1] === "BRANCH_CONTEXT_COMMANDS" ? "full-context" : "work-scope";
+
     STRING_LITERAL_RE.lastIndex = 0;
     let commandMatch: RegExpExecArray | null;
+
     while ((commandMatch = STRING_LITERAL_RE.exec(setMatch[2])) !== null) {
       registrations.set(commandMatch[1], mode);
     }
@@ -183,6 +197,7 @@ function checkBranchContextRegistrations(
 ): readonly BranchContextIssue[] {
   return consumers.flatMap((consumer) => {
     const registeredMode = registrations.get(consumer.command);
+
     if (!registeredMode) {
       return [
         {
@@ -219,6 +234,7 @@ export function checkBranchContext(
     publicDotfiles,
     privateDotfiles,
   );
+
   const branchContextRegistrations =
     scanBranchContextRegistrations(publicDotfiles);
 

@@ -36,24 +36,30 @@ export function cloneMissingGitConfigRepos(opts?: {
       yield* log.warn(
         `Skipping private git repo clones (${config.privateReason})`,
       );
+
       return;
     }
 
     if (!config.gitConfig.valid) {
       const message = config.gitConfig.diagnostics.join("; ");
+
       if (opts?.strict) return yield* fail(message);
       yield* log.warn(message);
+
       return;
     }
 
     const missing = managedGitRepos(config.gitConfig).filter(
       (repo) => !existsSync(repo.path),
     );
+
     if (missing.length === 0) return;
 
     yield* log.section("Clone Private Git Repositories");
+
     for (const repo of missing) {
       yield* log.info(`Cloning ${repo.name} (${repo.github})`);
+
       const clone = Effect.gen(function* () {
         if (opts?.captured) {
           yield* log.withSpinner(
@@ -64,12 +70,14 @@ export function cloneMissingGitConfigRepos(opts?: {
           yield* ghRepoClone(repo.github, repo.path);
         }
       });
+
       const cloneError = yield* clone.pipe(
         Effect.map(() => null),
         Effect.catchTag("GitCommandError", (error) =>
           Effect.succeed(error.message),
         ),
       );
+
       if (cloneError) {
         if (opts?.strict) return yield* fail(cloneError);
         yield* log.warn(cloneError);

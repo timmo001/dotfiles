@@ -7,7 +7,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join, relative } from "node:path";
-import { Clock, Effect, Schema, Stream } from "effect";
+import { Clock, Effect, Option, Schema, Stream } from "effect";
 import {
   CommandError,
   CommandExecutor,
@@ -85,6 +85,7 @@ export type ReleasePublishResult =
 const Manifest = Schema.fromJsonString(
   Schema.Struct({ version: Schema.String }),
 );
+
 const JsonManifest = Schema.fromJsonString(
   Schema.Record(Schema.String, Schema.Unknown),
 );
@@ -92,6 +93,7 @@ const JsonManifest = Schema.fromJsonString(
 function withManifestVersion(content: string, version: string): string {
   const original = Schema.decodeUnknownSync(JsonManifest)(content);
   const expected = JSON.stringify({ ...original, version });
+
   for (const match of content.matchAll(
     /("version"\s*:\s*)"(?:[^"\\]|\\.)*"/g,
   )) {
@@ -100,10 +102,13 @@ function withManifestVersion(content: string, version: string): string {
       match[1] +
       JSON.stringify(version) +
       content.slice(match.index + match[0].length);
+
     const decoded = Schema.decodeUnknownOption(JsonManifest)(candidate);
-    if (decoded._tag === "Some" && JSON.stringify(decoded.value) === expected)
+
+    if (Option.isSome(decoded) && JSON.stringify(decoded.value) === expected)
       return candidate;
   }
+
   throw new ReleaseError({
     message:
       "Could not replace the top-level manifest version while preserving formatting",
@@ -118,6 +123,7 @@ export function prepareReleaseVersion(
 ) {
   if (isString(file)) {
     const before = Schema.decodeSync(Manifest)(content).version;
+
     return { before, content: withManifestVersion(content, version) };
   }
 
@@ -127,20 +133,25 @@ export function prepareReleaseVersion(
       /#[^\r\n]*|'''(?:\\[\s\S]|(?!''')[^\\])*'''|"""(?:\\[\s\S]|(?!""")[^\\])*"""|'(?:\\[\s\S]|[^'\\\r\n])*'|"(?:\\[\s\S]|[^"\\\r\n])*"|[A-Za-z_]\w*|\s+|[^\s]/g,
     ),
   ].filter((token) => !/^(?:\s|#)/.test(token[0]));
+
   const calls = tokens.flatMap((token, index) =>
     token[0] === "setup" && tokens[index + 1]?.[0] === "(" ? [index + 1] : [],
   );
+
   const invalid = () =>
     new ReleaseError({
       message: `${file.path} must contain one explicit literal version keyword in a single setup call`,
     });
+
   if (
     calls.length !== 1 ||
     tokens.some((token) => token[0] === "'" || token[0] === '"')
   )
     throw invalid();
   const opening = calls[0];
+
   if (tokens[opening - 2]?.[0] === "def") throw invalid();
+
   if (
     tokens[opening - 2]?.[0] === "." &&
     tokens[opening - 3]?.[0] !== "setuptools"
@@ -148,14 +159,18 @@ export function prepareReleaseVersion(
     throw invalid();
   const stack = ["("];
   let literal: RegExpExecArray | undefined;
+
   for (let index = opening + 1; index < tokens.length; index++) {
     const token = tokens[index][0];
+
     if (stack.length === 1) {
       if (token === "*" && tokens[index + 1]?.[0] === "*") throw invalid();
+
       if (token === "version" && tokens[index + 1]?.[0] === "=") {
         if (literal || !["(", ","].includes(tokens[index - 1][0]))
           throw invalid();
         literal = tokens[index + 2];
+
         if (
           !literal ||
           !/^(['"])\d+(?:\.\d+)+\1$/.test(literal[0]) ||
@@ -164,15 +179,19 @@ export function prepareReleaseVersion(
           throw invalid();
       }
     }
+
     if (["(", "[", "{"].includes(token)) stack.push(token);
     else if ([")", "]", "}"].includes(token)) {
       if (stack.pop() !== { ")": "(", "]": "[", "}": "{" }[token])
         throw invalid();
+
       if (stack.length === 0) break;
     }
   }
+
   if (stack.length || !literal || !/^\d+(?:\.\d+)+$/.test(version))
     throw invalid();
+
   return {
     before: literal[0].slice(1, -1),
     content:
@@ -181,6 +200,7 @@ export function prepareReleaseVersion(
       content.slice(literal.index + literal[0].length - 1),
   };
 }
+
 const StableRelease = Schema.Struct({
   tag_name: Schema.String,
   draft: Schema.Boolean,
@@ -205,7 +225,9 @@ export function nextReleaseTag(
     const match = /^(v?)(\d{4})(\d{2})(\d{2})\.(0|[1-9]\d*)$/.exec(
       snapshot.releaseTag,
     );
+
     const now = new Date(timestamp ?? NaN);
+
     if (
       !match ||
       snapshot.suggestion === "none" ||
@@ -219,6 +241,7 @@ export function nextReleaseTag(
       });
     const date = `${match[2]}-${match[3]}-${match[4]}`;
     const baseline = new Date(`${date}T00:00:00.000Z`);
+
     if (
       Number(match[2]) < 1 ||
       !Number.isFinite(baseline.getTime()) ||
@@ -228,6 +251,7 @@ export function nextReleaseTag(
         message: "The CalVer baseline must contain a valid calendar date",
       });
     const today = now.toISOString().slice(0, 10);
+
     if (date > today)
       throw new ReleaseError({
         message:
@@ -235,23 +259,29 @@ export function nextReleaseTag(
       });
     const count = Number(match[5]);
     const next = date === today ? count + 1 : 0;
+
     if (!Number.isSafeInteger(count) || !Number.isSafeInteger(next))
       throw new ReleaseError({
         message: "CalVer release counts must be safe integers",
       });
+
     return `${match[1]}${today.replaceAll("-", "")}.${next}`;
   }
+
   const match = /^(v?)(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(
     snapshot.releaseTag,
   );
+
   if (!match || snapshot.suggestion === "none")
     throw new ReleaseError({
       message:
         "Choose a release impact and a stable SemVer baseline before creating a release",
     });
+
   let major = Number(match[2]),
     minor = Number(match[3]),
     patch = Number(match[4]);
+
   if (snapshot.suggestion === "major") {
     major++;
     minor = 0;
@@ -260,6 +290,7 @@ export function nextReleaseTag(
     minor++;
     patch = 0;
   } else patch++;
+
   return `${match[1]}${major}.${minor}.${patch}`;
 }
 
@@ -272,6 +303,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
   report: ReleaseProgress,
 ) {
   const recipe = settings.publish;
+
   if (!recipe)
     return yield* new ReleaseError({
       message: "Programmatic releases are not configured for this repository",
@@ -279,6 +311,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
   const executor = yield* CommandExecutor;
   const github = yield* GitHub;
   let logFile: string | undefined;
+
   const progress = Effect.fn("releases.progress")(function* (message: string) {
     yield* Effect.try({
       try: () => {
@@ -288,19 +321,25 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
     });
     yield* report(message);
   });
+
   const timestamp = yield* Clock.currentTimeMillis;
+
   const tag = yield* Effect.try({
     try: () => nextReleaseTag(snapshot, settings.versioning, timestamp),
     catch: (error) => new ReleaseError({ message: formatCause(error) }),
   });
+
   const version = tag.replace(/^v/, "");
+
   const git = (args: readonly string[], cwd = repo.path) =>
     executor
       .run("git", args, { cwd })
       .pipe(
         Effect.mapError((error) => new ReleaseError({ message: error.stderr })),
       );
+
   const remote = (yield* git(["remote", "get-url", "--push", "origin"])).trim();
+
   if (normalizeGitHubSlug(remote)?.toLowerCase() !== repo.github.toLowerCase())
     return yield* new ReleaseError({
       message:
@@ -314,6 +353,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
     yield* progress(
       "Checking the latest stable release, watched branch and new tag",
     );
+
     const release = yield* github
       .json(["api", `repos/${repo.github}/releases/latest`])
       .pipe(
@@ -322,6 +362,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
           (error) => new ReleaseError({ message: formatCause(error) }),
         ),
       );
+
     const refs = (yield* git([
       "ls-remote",
       remote,
@@ -333,7 +374,9 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
       .trim()
       .split("\n")
       .map((line) => line.split(/\s+/));
+
     const ref = (name: string) => refs.find(([, key]) => key === name)?.[0];
+
     if (
       release.draft ||
       release.prerelease ||
@@ -346,31 +389,39 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
         message:
           "The release baseline or watched branch changed; refresh the review and preview again",
       });
+
     if (tagged && ref(`refs/tags/${tag}`) !== head)
       return yield* new ReleaseError({
         message: `Tag ${tag} does not point at the prepared commit; inspect GitHub before retrying`,
       });
+
     if (!tagged && ref(`refs/tags/${tag}`))
       return yield* new ReleaseError({
         message: `Tag ${tag} already exists; inspect it on GitHub before creating another release`,
       });
   });
+
   yield* verifyRemote(snapshot.head);
+
   const prepared = yield* Effect.forEach(recipe.version_files, (file) =>
     Effect.gen(function* () {
       const path = isString(file) ? file : file.path;
+
       const mode = (yield* git(["ls-tree", snapshot.head, "--", path])).split(
         " ",
       )[0];
+
       if (mode !== "100644" && mode !== "100755")
         return yield* new ReleaseError({
           message: `${path} must be a tracked regular version file`,
         });
       const original = yield* git(["show", `${snapshot.head}:${path}`]);
+
       const manifest = yield* Effect.try({
         try: () => prepareReleaseVersion(original, file, version),
         catch: (error) => new ReleaseError({ message: formatCause(error) }),
       });
+
       if (
         ![snapshot.releaseTag.replace(/^v/, ""), version].includes(
           manifest.before,
@@ -379,18 +430,22 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
         return yield* new ReleaseError({
           message: `${path} has version ${manifest.before}; reconcile it with ${tag} in the release preparation session`,
         });
+
       return { file, path, before: manifest.before, after: version };
     }),
   );
+
   const versions = prepared.map(({ path, before, after }) => ({
     path,
     before,
     after,
   }));
+
   const changed = prepared.filter((file) => file.before !== file.after);
   const needsPreparation = changed.length > 0 || recipe.commands.length > 0;
   const id = evidenceId([snapshot.id, remote, tag, recipe, versions]);
   const logPath = join(releasePaths(repo.github).state, `publish-${id}.log`);
+
   const steps = [
     ...(needsPreparation
       ? [
@@ -430,6 +485,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
       : []),
     `Stream every step and command output here and save the full log to ${logPath}.`,
   ];
+
   const plan: ReleasePlan = {
     id,
     repo: repo.github,
@@ -443,8 +499,10 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
     commands: recipe.commands,
     logPath,
   };
+
   if (confirmation === undefined)
     return { type: "plan", plan } satisfies ReleasePublishResult;
+
   if (confirmation !== id)
     return yield* new ReleaseError({
       message:
@@ -472,11 +530,13 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
         try: () => {
           const base = join(releasePaths(repo.github).state, "preparations");
           mkdirSync(base, { recursive: true, mode: 0o700 });
+
           return join(mkdtempSync(join(base, "release-")), "source");
         },
         catch: (error) => new ReleaseError({ message: formatCause(error) }),
       })
     : repo.path;
+
   const run = Effect.fn("releases.runStep")(function* (
     command: string,
     args: readonly string[],
@@ -500,8 +560,10 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
     );
     yield* progress(`Completed: ${command} ${args.join(" ")}`);
   });
+
   return yield* Effect.gen(function* () {
     let target = snapshot.head;
+
     if (needsPreparation) {
       yield* progress(`Preparing ${tag} in ${directory}`);
       yield* run(
@@ -514,6 +576,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
         ["submodule", "update", "--init", "--recursive"],
         directory,
       );
+
       for (const file of changed) {
         yield* progress(
           `Updating ${file.path}: ${file.before} -> ${file.after}`,
@@ -521,6 +584,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
         yield* Effect.try({
           try: () => {
             const path = realpathSync(join(directory, file.path));
+
             if (relative(realpathSync(directory), path).startsWith(".."))
               throw new Error(`${file.path} leaves the prepared worktree`);
             const content = readFileSync(path, "utf8");
@@ -532,21 +596,25 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
           catch: (error) => new ReleaseError({ message: formatCause(error) }),
         });
       }
+
       for (const command of recipe.commands)
         yield* run(command[0], command.slice(1), directory);
       yield* progress(
         "Checking the validated worktree contains only the agreed version changes",
       );
+
       const paths = (yield* git(
         ["diff", "HEAD", "--name-only", "-z"],
         directory,
       ))
         .split("\0")
         .filter(Boolean);
+
       const untracked = (yield* git(
         ["ls-files", "--others", "--exclude-standard"],
         directory,
       )).trim();
+
       if (
         untracked ||
         paths.some((path) => !changed.some((file) => file.path === path))
@@ -555,6 +623,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
           message:
             "Validation changed files outside the confirmed version bump; inspect the retained worktree",
         });
+
       for (const file of prepared) {
         const original = yield* git(["show", `${snapshot.head}:${file.path}`]);
         yield* Effect.try({
@@ -563,6 +632,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
               file.before === file.after
                 ? original
                 : prepareReleaseVersion(original, file.file, version).content;
+
             if (readFileSync(join(directory, file.path), "utf8") !== expected)
               throw new Error(
                 `Validation changed ${file.path} beyond its agreed version bump`,
@@ -571,6 +641,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
           catch: (error) => new ReleaseError({ message: formatCause(error) }),
         });
       }
+
       if (
         (yield* git(["rev-parse", "HEAD"], directory)).trim() !== snapshot.head
       )
@@ -578,6 +649,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
           message: "Validation changed the prepared HEAD; preview again",
         });
       yield* verifyRemote(snapshot.head);
+
       const diffArgs = [
         "diff",
         "--binary",
@@ -587,7 +659,9 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
         "--no-prefix",
         snapshot.head,
       ];
+
       const approvedDiff = yield* git(diffArgs, directory);
+
       if (changed.length) {
         yield* run(
           "dot",
@@ -600,6 +674,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
           directory,
         );
         target = (yield* git(["rev-parse", "HEAD"], directory)).trim();
+
         if (
           (yield* git(["rev-parse", `${target}^`], directory)).trim() !==
             snapshot.head ||
@@ -611,6 +686,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
           });
       }
     }
+
     yield* verifyRemote(snapshot.head);
     yield* run(
       "git",
@@ -632,6 +708,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
     yield* progress(
       `Creating GitHub release ${tag} at ${target} with generated notes since ${snapshot.releaseTag}`,
     );
+
     const url = (yield* github
       .run(
         [
@@ -650,9 +727,11 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
       .pipe(
         Effect.mapError((error) => new ReleaseError({ message: error.stderr })),
       )).trim();
+
     yield* progress(`GitHub release created: ${url}`);
     const actionsUrl = `https://github.com/${repo.github}/actions`;
     yield* progress(`Follow publication jobs: ${actionsUrl}`);
+
     if (needsPreparation)
       yield* run(
         "git",
@@ -665,6 +744,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
           ),
         ),
       );
+
     return {
       type: "created",
       tag,
@@ -678,6 +758,7 @@ export const publishRelease = Effect.fn("releases.publish")(function* (
       Effect.gen(function* () {
         const message = `${error.message}\n${needsPreparation ? `Prepared worktree retained at ${directory}. ` : ""}Full progress: ${logPath}. If a push or release request failed, inspect GitHub and refresh before retrying.`;
         yield* progress(message);
+
         return yield* new ReleaseError({ message });
       }),
     ),

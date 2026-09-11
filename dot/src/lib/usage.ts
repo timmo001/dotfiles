@@ -81,12 +81,14 @@ export function usageDisabled(): boolean {
  */
 export function usageRoot(): string {
   const override = envString(ENV.DOT_USAGE_DIR);
+
   return override ? expandHomePath(override) : join(STATE_DIR, "tool-usage");
 }
 
 /** Replace filesystem-unsafe characters in a machine identifier. */
 function sanitizeMachine(value: string): string {
   const cleaned = value.trim().replace(/[^A-Za-z0-9._-]+/g, "_");
+
   return cleaned.length > 0 ? cleaned : "unknown";
 }
 
@@ -108,19 +110,23 @@ export function extractFlagNames(
   allowedFlags?: ReadonlySet<string>,
 ): readonly string[] {
   const names = new Set<string>();
+
   for (const arg of args) {
     if (!arg.startsWith("-") || arg === "-" || arg === "--") continue;
     const name = arg.split("=", 1)[0];
+
     if (name.length > 1 && (!allowedFlags || allowedFlags.has(name))) {
       names.add(name);
     }
   }
+
   return [...names].sort();
 }
 
 /** Path of the NDJSON file that holds events for a machine on a given date. */
 function eventFilePath(root: string, machine: string, ts: string): string {
   const day = ts.slice(0, 10);
+
   return join(root, "events", machine, `${day}.ndjson`);
 }
 
@@ -141,11 +147,14 @@ export function appendUsageEvent(event: UsageEvent, root = usageRoot()): void {
 /** Parse one NDJSON line into a UsageEvent, or null when it is not valid. */
 export function parseUsageEvent(line: string): UsageEvent | null {
   const trimmed = line.trim();
+
   if (trimmed.length === 0) return null;
+
   try {
     const value = Schema.decodeUnknownSync(UsageEventSchema)(
       JSON.parse(trimmed),
     );
+
     return {
       ts: value.ts,
       machine: value.machine ?? "unknown",
@@ -166,28 +175,36 @@ export function parseUsageEvent(line: string): UsageEvent | null {
 /** Read every event under the `events/` tree of a single root directory. */
 function readEventsFromRoot(root: string): readonly UsageEvent[] {
   const eventsDir = join(root, "events");
+
   if (!existsSync(eventsDir)) return [];
   const events: UsageEvent[] = [];
   let machineDirs: readonly string[] = [];
+
   try {
     machineDirs = readdirSync(eventsDir);
   } catch {
     return [];
   }
+
   for (const machine of machineDirs) {
     const dir = join(eventsDir, machine);
     let files: readonly string[] = [];
+
     try {
       files = readdirSync(dir);
     } catch {
       continue;
     }
+
     for (const file of files) {
       if (!file.endsWith(".ndjson")) continue;
+
       try {
         const contents = readFileSync(join(dir, file), "utf8");
+
         for (const line of contents.split("\n")) {
           const event = parseUsageEvent(line);
+
           if (event) events.push(event);
         }
       } catch {
@@ -195,6 +212,7 @@ function readEventsFromRoot(root: string): readonly UsageEvent[] {
       }
     }
   }
+
   return events;
 }
 
@@ -207,13 +225,16 @@ export function readAllEvents(
 ): readonly UsageEvent[] {
   const seen = new Set<string>();
   const events: UsageEvent[] = [];
+
   for (const root of roots) {
     if (seen.has(root)) continue;
     seen.add(root);
+
     for (const event of readEventsFromRoot(root)) {
       events.push(event);
     }
   }
+
   return events;
 }
 

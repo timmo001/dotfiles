@@ -1,10 +1,20 @@
-import { Cause, Context, Effect, Layer, Queue, Schema, Stream } from "effect";
+import {
+  Cause,
+  Context,
+  Effect,
+  Layer,
+  Option,
+  Queue,
+  Schema,
+  Stream,
+} from "effect";
 import { writeMirroredLog } from "../lib/logMirror.js";
 import { expandHomePath } from "../lib/paths.js";
 import { ENV, envString } from "../lib/env.js";
 import { formatCause } from "../lib/schema.js";
 
 const DEBUG = !!envString(ENV.DOT_DEBUG);
+
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot:CommandExecutor] ${msg}`);
 };
@@ -15,6 +25,7 @@ type KillableProcess = Pick<Bun.Subprocess, "exitCode" | "kill" | "pid">;
 /** Terminate a spawned process if it is still running; a no-op once it has exited. */
 function killProcess(proc: KillableProcess): void {
   if (proc.exitCode !== null) return;
+
   try {
     process.kill(-proc.pid, "SIGTERM");
   } catch {
@@ -35,8 +46,10 @@ function killProcess(proc: KillableProcess): void {
 function killOnAbort(proc: KillableProcess, signal: AbortSignal): void {
   if (signal.aborted) {
     killProcess(proc);
+
     return;
   }
+
   signal.addEventListener("abort", () => killProcess(proc), { once: true });
 }
 
@@ -55,11 +68,13 @@ const CommandFailure = Schema.Struct({
   exitCode: Schema.Number,
   stderr: Schema.String,
 });
+
 const decodeCommandFailure = Schema.decodeUnknownOption(CommandFailure);
 
 function toCommandError(cause: unknown, command: string): CommandError {
   const failure = decodeCommandFailure(cause);
-  if (failure._tag === "Some") {
+
+  if (Option.isSome(failure)) {
     return new CommandError({
       command: failure.value.command,
       exitCode: failure.value.exitCode,
@@ -77,6 +92,7 @@ function toCommandError(cause: unknown, command: string): CommandError {
 function inheritedCommandLogFile(): string | null {
   if (envString(ENV.DOT_TEE_INHERIT_LOG) !== "1") return null;
   const logFile = envString(ENV.DOT_LOG_FILE);
+
   return logFile ? expandHomePath(logFile) : null;
 }
 
@@ -94,8 +110,10 @@ async function pipeProcessOutput(
   logFile: string | null,
 ): Promise<void> {
   const reader = stream.getReader();
+
   while (true) {
     const { done, value } = await reader.read();
+
     if (done) return;
     output.write(value);
     appendRawLog(logFile, value);
@@ -152,11 +170,13 @@ async function pipeLines(
 
   while (true) {
     const { done, value } = await reader.read();
+
     if (done) break;
 
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split("\n");
     buffer = lines.pop() ?? "";
+
     for (const line of lines) {
       onLine(line);
     }
@@ -178,12 +198,14 @@ function processLineStream(
           string,
           CommandError | Cause.Done
         >();
+
         const proc = Bun.spawn([...fullCmd], {
           stdout: "pipe",
           stderr: "pipe",
           cwd: opts?.cwd,
           detached: true,
         });
+
         const stderrLines: string[] = [];
 
         const stdout = pipeLines(
@@ -193,6 +215,7 @@ function processLineStream(
             Queue.offerUnsafe(queue, line);
           },
         );
+
         const stderr = pipeLines(
           // SAFETY: Bun types pipe output as a readable stream when stderr is "pipe".
           proc.stderr as ReadableStream<Uint8Array>,
@@ -206,8 +229,10 @@ function processLineStream(
           .then(([, , exitCode]) => {
             if (exitCode === 0) {
               Queue.endUnsafe(queue);
+
               return;
             }
+
             Queue.failCauseUnsafe(
               queue,
               Cause.fail(
@@ -250,6 +275,7 @@ export class CommandExecutor extends Context.Service<
           log(
             `run: ${fullCmd.join(" ")}${opts?.cwd ? ` (cwd: ${opts.cwd})` : ""}`,
           );
+
           const spawnOptions: Bun.SpawnOptions.OptionsObject<
             "ignore",
             "pipe",
@@ -260,6 +286,7 @@ export class CommandExecutor extends Context.Service<
             cwd: opts?.cwd,
             detached: true,
           };
+
           if (opts?.env) spawnOptions.env = { ...process.env, ...opts.env };
           const proc = Bun.spawn(fullCmd, spawnOptions);
           killOnAbort(proc, signal);
@@ -284,6 +311,7 @@ export class CommandExecutor extends Context.Service<
           log(
             `Failed (exit ${commandError.exitCode}): ${commandError.command}`,
           );
+
           return commandError;
         },
       }),
@@ -303,6 +331,7 @@ export class CommandExecutor extends Context.Service<
         log(
           `exitCode: ${fullCmd.join(" ")}${opts?.cwd ? ` (cwd: ${opts.cwd})` : ""}`,
         );
+
         const spawnOptions: Bun.SpawnOptions.OptionsObject<
           "ignore",
           "ignore",
@@ -313,9 +342,11 @@ export class CommandExecutor extends Context.Service<
           cwd: opts?.cwd,
           detached: true,
         };
+
         if (opts?.env) spawnOptions.env = { ...process.env, ...opts.env };
         const proc = Bun.spawn(fullCmd, spawnOptions);
         killOnAbort(proc, signal);
+
         return proc.exited;
       }),
 
@@ -327,8 +358,10 @@ export class CommandExecutor extends Context.Service<
         );
         const commandLogFile = inheritedCommandLogFile();
         const env = opts?.env ? { ...process.env, ...opts.env } : undefined;
+
         if (commandLogFile) {
           appendRawLog(commandLogFile, `\n$ ${fullCmd.join(" ")}\n`);
+
           const proc = Bun.spawn(fullCmd, {
             stdin: "inherit",
             stdout: "pipe",
@@ -336,21 +369,26 @@ export class CommandExecutor extends Context.Service<
             cwd: opts?.cwd,
             env,
           });
+
           killOnAbort(proc, signal);
+
           const stdout = pipeProcessOutput(
             // SAFETY: Bun types pipe output as a readable stream when stdout is "pipe".
             proc.stdout as ReadableStream<Uint8Array>,
             process.stdout,
             commandLogFile,
           );
+
           const stderr = pipeProcessOutput(
             // SAFETY: Bun types pipe output as a readable stream when stderr is "pipe".
             proc.stderr as ReadableStream<Uint8Array>,
             process.stderr,
             commandLogFile,
           );
+
           const exitCode = await proc.exited;
           await Promise.all([stdout, stderr]);
+
           return exitCode;
         }
 
@@ -361,7 +399,9 @@ export class CommandExecutor extends Context.Service<
           cwd: opts?.cwd,
           env,
         });
+
         killOnAbort(proc, signal);
+
         return proc.exited;
       }),
   });

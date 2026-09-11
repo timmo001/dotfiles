@@ -1,4 +1,4 @@
-import { Clock, Context, Effect, Layer, Schema } from "effect";
+import { Clock, Context, Effect, Layer, Option, Schema } from "effect";
 import type {
   GitNotificationAction,
   GitNotificationActionResult,
@@ -25,7 +25,9 @@ import { ENV, envString } from "../../lib/env.js";
 import type { JsonObject, JsonValue } from "../../lib/schema.js";
 
 const NOTIFICATION_LIMIT = 50;
+
 const DEBUG = !!envString(ENV.DOT_DEBUG);
+
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot:GitNotifications] ${msg}`);
 };
@@ -83,10 +85,12 @@ export class GitNotifications extends Context.Service<
       const github = yield* GitHub;
       const config = yield* Config;
       const executor = yield* CommandExecutor;
+
       const fetchNotificationPage = Effect.fn(
         "GitNotifications.fetchNotificationPage",
       )(function* (opts?: GitNotificationQueryOptions) {
         const parsed = yield* github.json(notificationListArgs(opts));
+
         return Array.isArray(parsed)
           ? parsed.filter(isNotificationRecord).map(toNotificationThread)
           : [];
@@ -103,6 +107,7 @@ export class GitNotifications extends Context.Service<
           const normalizedQuery = normalizeQuery(opts);
 
           const hasGh = yield* github.isAvailable();
+
           if (!hasGh) {
             return buildState(
               [],
@@ -114,11 +119,14 @@ export class GitNotifications extends Context.Service<
           }
 
           const allThreads = yield* fetchThreads(normalizedQuery);
+
           const threads = yield* filterBarThreadsIfNeeded(
             allThreads,
             normalizedQuery,
           );
+
           log(`Query complete: ${threads.length} notification threads`);
+
           return buildState(
             threads,
             allThreads.length,
@@ -147,6 +155,7 @@ export class GitNotifications extends Context.Service<
         if (!query.barFilter) {
           return Effect.succeed(threads);
         }
+
         if (!config.canUsePrivate || !config.gitConfig.valid)
           return Effect.succeed([]);
 
@@ -165,10 +174,14 @@ export class GitNotifications extends Context.Service<
       const includeBarThread = (thread: GitNotificationThread) =>
         Effect.gen(function* () {
           const repo = yield* managedRepoForNotification(thread.repo);
+
           if (!repo) return null;
+
           if (!gitRepoNotificationsActive(repo)) return null;
+
           if (!repo.notifications.bar.ignoreBotActivity) return thread;
           const botThread = yield* notificationThreadLooksBot(thread, github);
+
           return botThread ? null : thread;
         });
 
@@ -178,11 +191,14 @@ export class GitNotifications extends Context.Service<
             config.gitConfig,
             notificationRepo,
           );
+
           if (exact) return exact;
 
           const normalizedNotificationRepo = notificationRepo.toLowerCase();
+
           for (const repo of managedGitRepos(config.gitConfig)) {
             const slugs = yield* managedRepoGitHubSlugs(repo, executor);
+
             if (
               slugs.some(
                 (slug) => slug.toLowerCase() === normalizedNotificationRepo,
@@ -210,6 +226,7 @@ export class GitNotifications extends Context.Service<
               }),
           ),
         );
+
         return {
           action,
           threadId,
@@ -233,6 +250,7 @@ export class GitNotifications extends Context.Service<
           const query = normalizeQuery(opts);
           const threads = yield* fetchThreads(query);
           const unreadThreads = threads.filter((thread) => thread.unread);
+
           const botChecks = yield* Effect.all(
             unreadThreads.map((thread) =>
               notificationThreadLooksBot(thread, github).pipe(
@@ -241,9 +259,11 @@ export class GitNotifications extends Context.Service<
             ),
             { concurrency: 4 },
           );
+
           const matched = botChecks
             .filter((check) => check.bot)
             .map((check) => check.thread);
+
           const dryRun = actionOpts?.dryRun === true;
 
           if (dryRun) {
@@ -272,9 +292,11 @@ export class GitNotifications extends Context.Service<
             ),
             { concurrency: 4 },
           );
+
           const marked = results
             .filter((result) => result.type === "marked")
             .map((result) => result.thread);
+
           const failed = results
             .filter((result) => result.type === "failed")
             .map((result) => ({
@@ -330,9 +352,13 @@ function notificationListArgs(
 function notificationEndpoint(opts?: GitNotificationQueryOptions): string {
   const params = new URLSearchParams();
   params.set("per_page", String(NOTIFICATION_LIMIT));
+
   if (opts?.all) params.set("all", "true");
+
   if (opts?.participating) params.set("participating", "true");
+
   if (opts?.since) params.set("since", opts.since);
+
   return `notifications?${params.toString()}`;
 }
 
@@ -381,6 +407,7 @@ function notificationThreadLooksBot(
       if (valuesLookLikeBotActivity([thread.title, thread.webUrl])) {
         return Effect.succeed(true);
       }
+
       return workflowNotificationThreadLooksBot(thread, github);
     default:
       return Effect.succeed(
@@ -397,17 +424,23 @@ function pullRequestThreadLooksBot(
     thread.title,
     thread.webUrl,
   ]);
+
   const endpoint = apiEndpointFromUrl(thread.subjectApiUrl);
+
   if (!endpoint) return Effect.succeed(threadLooksBot);
+
   return github.json(["api", endpoint]).pipe(
     Effect.map((value) => {
       const decoded = Schema.decodeUnknownOption(
         Schema.Record(Schema.String, Schema.Json),
       )(value);
-      if (decoded._tag === "None") return threadLooksBot;
+
+      if (Option.isNone(decoded)) return threadLooksBot;
       const user = recordValue(decoded.value.user);
       const head = recordValue(decoded.value.head);
+
       if (decoded.value.draft === true) return false;
+
       return (
         threadLooksBot ||
         valuesLookLikeBotActivity([
@@ -425,16 +458,20 @@ function workflowNotificationThreadLooksBot(
   github: GitHubService,
 ) {
   const endpoint = apiEndpointFromUrl(thread.subjectApiUrl);
+
   if (!endpoint) return Effect.succeed(false);
+
   return github.json(["api", endpoint]).pipe(
     Effect.map((value) => {
       const decoded = Schema.decodeUnknownOption(
         Schema.Record(Schema.String, Schema.Json),
       )(value);
-      if (decoded._tag === "None") return false;
+
+      if (Option.isNone(decoded)) return false;
       const actor = recordValue(decoded.value.actor);
       const headCommit = recordValue(decoded.value.head_commit);
       const author = recordValue(headCommit.author);
+
       return valuesLookLikeBotActivity([
         stringValue(actor.login),
         nullableStringValue(decoded.value.head_branch),
@@ -448,9 +485,12 @@ function workflowNotificationThreadLooksBot(
 
 function apiEndpointFromUrl(url: string | null): string | null {
   if (!url) return null;
+
   try {
     const parsed = new URL(url);
+
     if (parsed.hostname !== "api.github.com") return null;
+
     return parsed.pathname.replace(/^\//, "");
   } catch {
     return null;
@@ -479,8 +519,10 @@ function toNotificationThread(
   const repo = recordValue(record.repository);
   const subject = recordValue(record.subject);
   const repoSlug = stringValue(repo.full_name) || "unknown/repository";
+
   const repoUrl =
     stringValue(repo.html_url) || `https://github.com/${repoSlug}`;
+
   const subjectApiUrl = nullableStringValue(subject.url);
   const webUrl = subjectWebUrl(subjectApiUrl, repoUrl);
 
@@ -505,6 +547,7 @@ function subjectWebUrl(subjectApiUrl: string | null, repoUrl: string): string {
   if (!subjectApiUrl) return repoUrl;
 
   const path = parseSubjectApiPath(subjectApiUrl);
+
   return path ? subjectPathWebUrl(path) || repoUrl : repoUrl;
 }
 
@@ -517,6 +560,7 @@ function normalizeSubjectType(value: string): GitNotificationSubjectType {
     value === "Commit"
   )
     return value;
+
   return "unknown";
 }
 
@@ -526,7 +570,9 @@ function parseSubjectApiPath(
   try {
     const url = new URL(subjectApiUrl);
     const parts = url.pathname.split("/").filter(Boolean);
+
     if (parts[0] !== "repos" || parts.length < 4) return null;
+
     return {
       base: `https://github.com/${parts[1]}/${parts[2]}`,
       tail: parts.slice(3),

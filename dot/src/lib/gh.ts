@@ -1,5 +1,5 @@
 import type { GhOptions, Interface as GhService } from "@timmo001/effect-gh";
-import { Effect, Stream } from "effect";
+import { Effect, Match, Stream } from "effect";
 import { CommandError } from "../services/CommandExecutor.js";
 import { formatCause } from "./schema.js";
 
@@ -18,23 +18,38 @@ export const ghOutput = Effect.fn("ghOutput")(function* (
   yield* gh.stream(args, options).pipe(
     Stream.runForEach((chunk) =>
       Effect.sync(() => {
-        if (chunk._tag === "Stdout") stdout += chunk.text;
-        else stderr += chunk.text;
+        Match.value(chunk).pipe(
+          Match.tag("Stdout", (chunk) => {
+            stdout += chunk.text;
+          }),
+          Match.tag("Stderr", (chunk) => {
+            stderr += chunk.text;
+          }),
+          Match.exhaustive,
+        );
       }),
     ),
     Effect.mapError(
       (error) =>
         new CommandError({
           command: `gh ${args.join(" ")}`,
-          exitCode: error._tag === "GhCommandError" ? error.exitCode : 1,
-          stderr:
-            error._tag === "GhCommandError"
-              ? stderr.trim()
-              : error._tag === "GhTimeoutError"
-                ? `gh timed out after ${error.timeoutMs}ms`
-                : formatCause(error.cause),
+          ...Match.value(error).pipe(
+            Match.tag("GhCommandError", (error) => ({
+              exitCode: error.exitCode,
+              stderr: stderr.trim(),
+            })),
+            Match.tag("GhTimeoutError", (error) => ({
+              exitCode: 1,
+              stderr: `gh timed out after ${error.timeoutMs}ms`,
+            })),
+            Match.orElse((error) => ({
+              exitCode: 1,
+              stderr: formatCause(error.cause),
+            })),
+          ),
         }),
     ),
   );
+
   return stdout;
 });

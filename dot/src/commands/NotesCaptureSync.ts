@@ -1,4 +1,4 @@
-import { Effect, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 import {
   chmodSync,
   existsSync,
@@ -16,8 +16,11 @@ import type { GitManagedRepo } from "../services/GitConfig.js";
 import { OutputLog } from "../services/OutputLog.js";
 
 const NOTES_REPOSITORY = "timmo001/notes";
+
 const CAPTURE_CONFIG_PATH = join("capture", "wrangler.local.jsonc");
+
 const CAPTURE_CONFIG_TEMPLATE_PATH = join("capture", "wrangler.deploy.jsonc");
+
 const CAPTURE_REPOSITORY_PRIORITY = [
   "Dotfiles",
   "Skills",
@@ -27,12 +30,15 @@ const CAPTURE_REPOSITORY_PRIORITY = [
 ];
 
 const JsonObject = Schema.Record(Schema.String, Schema.Json);
+
 const WranglerConfig = Schema.Struct({ vars: Schema.optional(JsonObject) });
+
 const DeploymentStatus = Schema.Struct({
   versions: Schema.Array(
     Schema.Struct({ percentage: Schema.Number, version_id: Schema.String }),
   ),
 });
+
 const WorkerVersion = Schema.Struct({
   resources: Schema.Struct({
     script_runtime: Schema.Struct({
@@ -73,6 +79,7 @@ export function captureRepositoryOptions(
   const enabled = repositories.filter(
     ({ notifications }) => notifications.enabled,
   );
+
   return [
     ...CAPTURE_REPOSITORY_PRIORITY.flatMap((name) =>
       enabled.filter((repository) => repository.name === name),
@@ -91,21 +98,26 @@ export function mergeCaptureRepositories(
 ): string {
   const config = Schema.decodeUnknownSync(JsonObject)(Bun.JSONC.parse(source));
   let existing: typeof WranglerConfig.Type;
+
   try {
     existing = Schema.decodeUnknownSync(WranglerConfig)(config);
   } catch {
     throw new Error("Wrangler vars configuration is not an object");
   }
+
   const merged = { ...config };
+
   if (live) {
     merged.compatibility_date = live.compatibilityDate;
     merged.compatibility_flags = [...live.compatibilityFlags];
     merged.kv_namespaces = [...live.kvNamespaces];
   }
+
   merged.vars = {
     ...(live?.vars ?? existing.vars),
     CAPTURE_REPOSITORIES: JSON.stringify(repositories),
   };
+
   return `${JSON.stringify(merged, null, 2)}\n`;
 }
 
@@ -114,12 +126,15 @@ export function activeVersionId(source: string): string {
   const deployment = Schema.decodeUnknownSync(DeploymentStatus)(
     JSON.parse(source),
   );
+
   const versionId = deployment.versions.find(
     ({ percentage }) => percentage === 100,
   )?.version_id;
+
   if (!versionId) {
     throw new Error("Deployment has no active version");
   }
+
   return versionId;
 }
 
@@ -128,11 +143,13 @@ export function liveCaptureConfig(source: string): LiveCaptureConfig {
   const { resources } = Schema.decodeUnknownSync(WorkerVersion)(
     JSON.parse(source),
   );
+
   const compatibilityDate = resources.script_runtime.compatibility_date;
   const compatibilityFlags = resources.script_runtime.compatibility_flags;
 
   const vars: Record<string, string> = {};
   const kvNamespaces: { binding: string; id: string }[] = [];
+
   for (const binding of resources.bindings) {
     const plainText = Schema.decodeUnknownOption(
       Schema.Struct({
@@ -141,10 +158,12 @@ export function liveCaptureConfig(source: string): LiveCaptureConfig {
         text: Schema.String,
       }),
     )(binding);
-    if (plainText._tag === "Some") {
+
+    if (Option.isSome(plainText)) {
       vars[plainText.value.name] = plainText.value.text;
       continue;
     }
+
     const kvNamespace = Schema.decodeUnknownOption(
       Schema.Struct({
         type: Schema.Literal("kv_namespace"),
@@ -152,13 +171,15 @@ export function liveCaptureConfig(source: string): LiveCaptureConfig {
         namespace_id: Schema.String,
       }),
     )(binding);
-    if (kvNamespace._tag === "Some") {
+
+    if (Option.isSome(kvNamespace)) {
       kvNamespaces.push({
         binding: kvNamespace.value.name,
         id: kvNamespace.value.namespace_id,
       });
     }
   }
+
   return {
     compatibilityDate,
     compatibilityFlags,
@@ -171,6 +192,7 @@ export function liveCaptureConfig(source: string): LiveCaptureConfig {
 export function writePrivateConfig(destination: string, content: string): void {
   const temporary = `${destination}.tmp.${process.pid}`;
   const mode = existsSync(destination) ? statSync(destination).mode : 0o600;
+
   try {
     writeFileSync(temporary, content, { encoding: "utf-8", mode: 0o600 });
     chmodSync(temporary, mode);
@@ -190,21 +212,27 @@ export const notesCaptureSync = Effect.gen(function* () {
 
   if (!config.canUsePrivate) {
     yield* log.warn(`Skipped: ${config.privateReason}`);
+
     return;
   }
+
   if (!config.gitConfig.present) {
     yield* log.warn(
       `Skipped (missing config): ${displayPath(config.gitConfig.filePath)}`,
     );
+
     return;
   }
+
   if (!config.gitConfig.valid) {
     yield* log.error(
       `Invalid config: ${displayPath(config.gitConfig.filePath)}`,
     );
+
     for (const diagnostic of config.gitConfig.diagnostics) {
       yield* log.error(`  ${diagnostic}`);
     }
+
     return yield* new NotesCaptureSyncError({
       message: `Invalid git config: ${displayPath(config.gitConfig.filePath)}`,
     });
@@ -213,25 +241,31 @@ export const notesCaptureSync = Effect.gen(function* () {
   const notes = config.gitConfig.repositories.find(
     ({ github }) => github.toLowerCase() === NOTES_REPOSITORY,
   );
+
   if (!notes) {
     yield* log.warn(`Skipped (unmanaged repository): ${NOTES_REPOSITORY}`);
+
     return;
   }
 
   const destination = join(notes.path, CAPTURE_CONFIG_PATH);
   const template = join(notes.path, CAPTURE_CONFIG_TEMPLATE_PATH);
+
   if (!existsSync(destination) && !existsSync(template)) {
     yield* log.warn(`Skipped (missing template): ${displayPath(template)}`);
+
     return;
   }
 
   const repositories = captureRepositoryOptions(config.gitConfig.repositories);
   const captureDirectory = join(notes.path, "capture");
+
   const deployment = yield* executor.run(
     "bunx",
     ["wrangler", "deployments", "status", "--name", "notes-capture", "--json"],
     { cwd: captureDirectory },
   );
+
   const versionId = yield* Effect.try({
     try: () => activeVersionId(deployment),
     catch: (error) =>
@@ -239,6 +273,7 @@ export const notesCaptureSync = Effect.gen(function* () {
         message: `Could not identify the active notes-capture version: ${String(error)}`,
       }),
   });
+
   const version = yield* executor.run(
     "bunx",
     [
@@ -252,6 +287,7 @@ export const notesCaptureSync = Effect.gen(function* () {
     ],
     { cwd: captureDirectory },
   );
+
   const live = yield* Effect.try({
     try: () => liveCaptureConfig(version),
     catch: (error) =>
@@ -259,6 +295,7 @@ export const notesCaptureSync = Effect.gen(function* () {
         message: `Could not decode live notes-capture settings: ${String(error)}`,
       }),
   });
+
   const output = yield* Effect.try({
     try: () =>
       mergeCaptureRepositories(
@@ -271,6 +308,7 @@ export const notesCaptureSync = Effect.gen(function* () {
         message: `Invalid Wrangler config ${displayPath(destination)}: ${String(error)}`,
       }),
   });
+
   yield* Effect.try({
     try: () => writePrivateConfig(destination, output),
     catch: (error) =>
@@ -284,15 +322,19 @@ export const notesCaptureSync = Effect.gen(function* () {
 
   const liveRepositories = live.vars.CAPTURE_REPOSITORIES;
   const generatedRepositories = JSON.stringify(repositories);
+
   if (liveRepositories === generatedRepositories) {
     yield* log.info("Live Worker already matches");
+
     return;
   }
 
   yield* log.info("Deploying notes-capture...");
+
   const exitCode = yield* executor.inherit("bun", ["run", "deploy"], {
     cwd: captureDirectory,
   });
+
   if (exitCode !== 0) {
     return yield* new NotesCaptureSyncError({
       message: `notes-capture deploy failed with exit code ${exitCode}`,

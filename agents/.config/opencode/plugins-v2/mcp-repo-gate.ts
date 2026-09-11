@@ -75,6 +75,7 @@ const SKIP_DIRS = new Set([
   "vendor",
   "target",
 ]);
+
 const MAX_DOWN_DEPTH = 2;
 
 const markerIn = (directory: string, markers: readonly string[]) =>
@@ -82,9 +83,11 @@ const markerIn = (directory: string, markers: readonly string[]) =>
 
 const hasMarkerUpward = (startDirectory: string, markers: readonly string[]) => {
   let directory = startDirectory;
+
   for (;;) {
     if (markerIn(directory, markers)) return true;
     const parent = dirname(directory);
+
     if (parent === directory) return false;
     directory = parent;
   }
@@ -97,11 +100,13 @@ const hasMarkerDownward = (
 ): boolean => {
   if (depth <= 0) return false;
   let entries: Dirent[];
+
   try {
     entries = readdirSync(directory, { withFileTypes: true });
   } catch {
     return false;
   }
+
   for (const entry of entries) {
     if (
       !entry.isDirectory() ||
@@ -110,12 +115,14 @@ const hasMarkerDownward = (
     )
       continue;
     const child = join(directory, entry.name);
+
     if (
       markerIn(child, markers) ||
       hasMarkerDownward(child, markers, depth - 1)
     )
       return true;
   }
+
   return false;
 };
 
@@ -132,6 +139,7 @@ export const serverForTool = (tool: string): GatedServer | undefined => {
       .split("-")
       .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
       .join("[-_]");
+
     if (tool === server || new RegExp(`^${prefix}(?:[._:/-]|__)`).test(tool)) {
       return server;
     }
@@ -143,13 +151,18 @@ export const filterRepoTools = (
   directory: string,
 ) => {
   const enabled = new Map<GatedServer, boolean>();
+
   for (const tool of Object.keys(tools)) {
     const server = serverForTool(tool);
+
     if (!server) continue;
+
     const available =
       enabled.get(server) ??
       hasMarkerNearby(directory, REPO_REQUIRED_MARKERS[server]);
+
     enabled.set(server, available);
+
     if (!available) delete tools[tool];
   }
 };
@@ -176,10 +189,13 @@ export default Plugin.define({
           const session = yield* context.session
             .get({ sessionID: event.sessionID })
             .pipe(Effect.result);
+
           if (Result.isFailure(session)) {
             removeGatedTools(event.tools);
+
             return;
           }
+
           filterRepoTools(event.tools, session.success.location.directory);
         }),
       );
@@ -187,14 +203,19 @@ export default Plugin.define({
       yield* context.tool.hook("execute.before", (event) =>
         Effect.gen(function* () {
           const server = serverForTool(event.tool);
+
           if (!server) return;
+
           const session = yield* context.session
             .get({ sessionID: event.sessionID })
             .pipe(Effect.result);
+
           if (Result.isFailure(session)) {
             return yield* Effect.fail(blockedToolError(event.tool));
           }
+
           const directory = session.success.location.directory;
+
           if (!hasMarkerNearby(directory, REPO_REQUIRED_MARKERS[server])) {
             return yield* Effect.fail(blockedToolError(event.tool, directory));
           }

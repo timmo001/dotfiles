@@ -58,6 +58,7 @@ const MAX_ANCESTRY_HOPS = 24;
 /** Whether an environment variable is set to a non-empty value. */
 function envSet(name: EnvName): boolean {
   const value = envString(name);
+
   return value !== undefined && value !== "";
 }
 
@@ -68,6 +69,7 @@ function matchProviderEnv(): AgentDetection | undefined {
       return { isAgent: true, id: provider.id, name: provider.name };
     }
   }
+
   return undefined;
 }
 
@@ -88,12 +90,15 @@ function readProc(pid: number): ProcInfo | undefined {
     const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
     const commEnd = stat.lastIndexOf(")");
     const commStart = stat.indexOf("(");
+
     if (commStart === -1 || commEnd === -1) return undefined;
     const comm = stat.slice(commStart + 1, commEnd);
+
     const ppid = Number.parseInt(
       stat.slice(commEnd + 2).split(" ")[1] ?? "",
       10,
     );
+
     return Number.isFinite(ppid) ? { ppid, comm } : undefined;
   } catch {
     return undefined;
@@ -107,18 +112,23 @@ function readProc(pid: number): ProcInfo | undefined {
  */
 function matchProcessAncestry(): AgentDetection | undefined {
   let pid = process.pid;
+
   for (let hop = 0; hop < MAX_ANCESTRY_HOPS; hop++) {
     const info = readProc(pid);
+
     if (!info) return undefined;
     const comm = info.comm.toLowerCase();
+
     for (const provider of PROVIDERS) {
       if (provider.processNames.some((name) => comm.includes(name))) {
         return { isAgent: true, id: provider.id, name: provider.name };
       }
     }
+
     if (info.ppid <= 1) return undefined;
     pid = info.ppid;
   }
+
   return undefined;
 }
 
@@ -133,11 +143,14 @@ function matchProcessAncestry(): AgentDetection | undefined {
  */
 export function detectAgent(): AgentDetection {
   const override = envString(ENV.DOT_AGENT);
+
   if (override === "0") return NO_AGENT;
   const matched = matchProviderEnv() ?? matchProcessAncestry();
+
   if (override === "1") {
     return matched ?? { isAgent: true, id: "unknown", name: "AI agent" };
   }
+
   return matched ?? NO_AGENT;
 }
 

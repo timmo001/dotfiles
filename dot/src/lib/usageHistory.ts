@@ -60,15 +60,20 @@ function eventFromTokens(
   machine: string,
 ): UsageEvent | null {
   const [binary, ...rest] = tokens;
+
   if (!binary) return null;
   const invokedAs = binary.split("/").pop() ?? binary;
+
   const tool = Object.entries(HISTORY_TOOLS).find(
     ([binary]) => binary === invokedAs,
   )?.[1];
+
   if (!tool) return null;
+
   if (!Number.isFinite(epochSeconds) || epochSeconds <= 0) return null;
 
   const positional = rest.find((token) => !token.startsWith("-"));
+
   const command =
     positional === undefined
       ? []
@@ -88,6 +93,7 @@ function eventFromTokens(
         ? new Set(
             (() => {
               const command = getCliCommand(positional);
+
               return command
                 ? commandHelp(command, ["dot", command.name]).flags.flatMap(
                     (flag) =>
@@ -118,22 +124,27 @@ function parseFishHistory(
 ): readonly UsageEvent[] {
   const events: UsageEvent[] = [];
   let cmd: string | null = null;
+
   for (const line of contents.split("\n")) {
     if (line.startsWith("- cmd: ")) {
       cmd = line.slice("- cmd: ".length);
       continue;
     }
+
     const whenMatch = line.match(/^\s+when:\s*(\d+)/);
+
     if (whenMatch && cmd !== null) {
       const event = eventFromTokens(
         tokenise(cmd),
         Number.parseInt(whenMatch[1], 10),
         machine,
       );
+
       if (event) events.push(event);
       cmd = null;
     }
   }
+
   return events;
 }
 
@@ -143,16 +154,21 @@ function parseZshHistory(
   machine: string,
 ): readonly UsageEvent[] {
   const events: UsageEvent[] = [];
+
   for (const line of contents.split("\n")) {
     const match = line.match(/^: (\d+):\d+;(.*)$/);
+
     if (!match) continue;
+
     const event = eventFromTokens(
       tokenise(match[2]),
       Number.parseInt(match[1], 10),
       machine,
     );
+
     if (event) events.push(event);
   }
+
   return events;
 }
 
@@ -160,6 +176,7 @@ function parseZshHistory(
 function fishHistoryPath(): string {
   const dataHome =
     envString(ENV.XDG_DATA_HOME) ?? join(HOME_DIR, ".local", "share");
+
   return join(dataHome, "fish", "fish_history");
 }
 
@@ -171,6 +188,7 @@ function zshHistoryPath(): string {
 /** Read a history file, returning null when it is absent or unreadable. */
 function readHistory(path: string): string | null {
   if (!existsSync(path)) return null;
+
   try {
     return readFileSync(path, "utf8");
   } catch {
@@ -190,6 +208,7 @@ export function scanShellHistory(): HistoryScan {
 
   const fishPath = fishHistoryPath();
   const fishContents = readHistory(fishPath);
+
   if (fishContents === null) {
     sources.push({ shell: "fish", file: fishPath, found: false, imported: 0 });
   } else {
@@ -205,6 +224,7 @@ export function scanShellHistory(): HistoryScan {
 
   const zshPath = zshHistoryPath();
   const zshContents = readHistory(zshPath);
+
   if (zshContents === null) {
     sources.push({ shell: "zsh", file: zshPath, found: false, imported: 0 });
   } else {
@@ -223,6 +243,7 @@ export function scanShellHistory(): HistoryScan {
   }
 
   const bashPath = join(HOME_DIR, ".bash_history");
+
   if (existsSync(bashPath)) {
     sources.push({
       shell: "bash",

@@ -91,6 +91,7 @@ function formatDuration(ms: number): string {
 function formatPlain(entry: LogEntry): string {
   const ts = new Date(entry.timestamp).toISOString();
   const label = entry.level.toUpperCase().padEnd(7);
+
   return `${ts} [${label}] ${entry.message}`;
 }
 
@@ -112,9 +113,11 @@ function logFiles(defaultLogFile: string): readonly string[] {
   const configuredLogFile = envString(ENV.DOT_LOG_FILE)
     ? expandHomePath(envString(ENV.DOT_LOG_FILE)!)
     : undefined;
+
   const paths = configuredLogFile
     ? [defaultLogFile, configuredLogFile]
     : [defaultLogFile];
+
   return [...new Set(paths)];
 }
 
@@ -122,21 +125,26 @@ function initialiseLogFiles(paths: readonly string[]): void {
   const configuredLogFile = envString(ENV.DOT_LOG_FILE)
     ? expandHomePath(envString(ENV.DOT_LOG_FILE)!)
     : null;
+
   for (const path of paths) {
     mkdirSync(dirname(path), { recursive: true });
+
     if (
       configuredLogFile === path &&
       envString(ENV.DOT_TEE_INHERIT_LOG) === "1"
     ) {
       continue;
     }
+
     writeFileSync(path, "");
   }
+
   mirrorConfiguredLog();
 }
 
 function appendLogFiles(paths: readonly string[], entry: LogEntry): void {
   const line = formatPlain(entry) + "\n";
+
   for (const path of paths) appendFileSync(path, line);
   mirrorConfiguredLog();
 }
@@ -159,13 +167,16 @@ const RUN_LOG_RE = /^\d{4}-\d{2}-\d{2}T[\d-]+Z\.log$/;
  */
 function pruneRunLogs(logDir: string, keep: number): void {
   let names: string[];
+
   try {
     names = readdirSync(logDir).filter((name) => RUN_LOG_RE.test(name));
   } catch {
     return;
   }
+
   if (names.length <= keep) return;
   names.sort();
+
   for (const name of names.slice(0, names.length - keep)) {
     try {
       unlinkSync(join(logDir, name));
@@ -184,15 +195,18 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
     OutputLog,
     Effect.gen(function* () {
       const config = yield* Config;
+
       const defaultLogFile = join(
         config.logDir,
         `${new Date(yield* Clock.currentTimeMillis).toISOString().replace(/[:.]/g, "-")}.log`,
       );
+
       const paths = logFiles(defaultLogFile);
 
       // Create/prune log files lazily on first emit so query/machine commands
       // that never log (e.g. status-bar JSON polls) leave no files behind.
       let initialised = false;
+
       const ensureInitialised = (): void => {
         if (initialised) return;
         initialised = true;
@@ -203,6 +217,7 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
       // Animate the spinner only on an interactive TTY so frames and cursor
       // escapes never leak into piped output, redirects, or the init log tee.
       const spinnerEnabled = process.stdout.isTTY === true;
+
       let spinner: {
         label: string;
         frame: number;
@@ -220,13 +235,16 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
         // `|| 80` (not `??`) so a pty reporting 0 columns falls back sensibly.
         const columns = process.stdout.columns || 80;
         const maxLabel = Math.max(0, columns - 2 - elapsedText.length - 1);
+
         const label =
           spinner.label.length > maxLabel
             ? spinner.label.slice(0, Math.max(0, maxLabel - 1)) + "\u2026"
             : spinner.label;
+
         const elapsed = elapsedText
           ? `${ANSI.dim}${elapsedText}${ANSI.reset}`
           : "";
+
         process.stdout.write(
           `${CLEAR_LINE}${ANSI.cyan}${frame}${ANSI.reset} ${label}${elapsed}`,
         );
@@ -238,10 +256,12 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
           ensureInitialised();
           const entry: LogEntry = { level, message, timestamp: now };
           appendLogFiles(paths, entry);
+
           // Clear the spinner line before a real log line, then redraw it
           // beneath so the spinner stays pinned to the bottom.
           if (spinner) process.stdout.write(CLEAR_LINE);
           process.stdout.write(formatAnsi(entry) + "\n");
+
           if (spinner) renderSpinner(now);
         });
 
@@ -276,6 +296,7 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
               Effect.repeat(Schedule.spaced(SPINNER_INTERVAL)),
               Effect.forkScoped,
             );
+
             return yield* effect;
           }),
         );
@@ -286,15 +307,18 @@ export class OutputLog extends Context.Service<OutputLog, OutputLogService>()(
       ): Effect.Effect<A, E, R> =>
         Effect.gen(function* () {
           const startedAt = yield* Clock.currentTimeMillis;
+
           // Animate only on a TTY; the duration line is logged either way.
           const result = yield* spinnerEnabled
             ? runSpinner(label, startedAt, effect)
             : effect;
+
           const finishedAt = yield* Clock.currentTimeMillis;
           yield* emit(
             "info",
             `${label} (${formatDuration(finishedAt - startedAt)})`,
           );
+
           return result;
         });
 

@@ -45,10 +45,15 @@ import { ENV, envFlag, envString, setEnv } from "../lib/env.js";
 import type { ConfigService } from "../services/Config.js";
 
 const GIT_INCLUDE_PATH = "~/.config/git/config.dotfiles";
+
 const DOCTOR_STARTUP_TIMER_UNIT = "dot-doctor-startup.timer";
+
 const DEFAULT_INIT_OMARCHY_HOST = "desktop";
+
 const INIT_OMARCHY_HOSTS = ["desktop", "laptop"] as const;
+
 const ETC_SHELLS = "/etc/shells";
+
 const OMARCHY_HOST_PERSIST_TIMEOUT_SECONDS = 10;
 
 /** Upper bound (seconds) for each init phase. */
@@ -95,6 +100,7 @@ function requiredInitStep<E, R>(
 ): Effect.Effect<void, E | InitError, R | OutputLog> {
   return Effect.gen(function* () {
     const completed = yield* withStepTimeout(label, seconds, step);
+
     if (!completed) return yield* fail(`Init step timed out: ${label}`);
   });
 }
@@ -102,7 +108,9 @@ function requiredInitStep<E, R>(
 function symlinkTarget(path: string): string | null {
   try {
     const stat = lstatSync(path);
+
     if (!stat.isSymbolicLink()) return null;
+
     return resolveLinkTarget(path, readlinkSync(path));
   } catch {
     return null;
@@ -111,6 +119,7 @@ function symlinkTarget(path: string): string | null {
 
 function isManagedTarget(target: string, config: ConfigService): boolean {
   if (target.startsWith(config.publicDotfiles)) return true;
+
   return config.privateDotfiles
     ? target.startsWith(config.privateDotfiles)
     : false;
@@ -118,12 +127,15 @@ function isManagedTarget(target: string, config: ConfigService): boolean {
 
 function isManagedSymlink(path: string, config: ConfigService): boolean {
   const target = symlinkTarget(path);
+
   return target ? isManagedTarget(target, config) : false;
 }
 
 function gitConfigIncludesManagedPath(): boolean {
   const gitConfigFile = join(CONFIG_DIR, "git", "config");
+
   if (!existsSync(gitConfigFile)) return false;
+
   return readFileSync(gitConfigFile, "utf-8").includes(
     `path = ${GIT_INCLUDE_PATH}`,
   );
@@ -131,15 +143,19 @@ function gitConfigIncludesManagedPath(): boolean {
 
 function existingInitSignals(config: ConfigService): readonly string[] {
   const signals: string[] = [];
+
   if (gitConfigIncludesManagedPath()) {
     signals.push(`managed git include (${GIT_INCLUDE_PATH})`);
   }
+
   if (isManagedSymlink(join(HOME_DIR, ".local", "bin", "dot"), config)) {
     signals.push("managed dot binary symlink (~/.local/bin/dot)");
   }
+
   if (isManagedSymlink(join(CONFIG_DIR, "git", "config.dotfiles"), config)) {
     signals.push("managed git config symlink (~/.config/git/config.dotfiles)");
   }
+
   return signals;
 }
 
@@ -156,6 +172,7 @@ function assertFreshInitTarget(
       yield* log.warn(
         "Forcing init: skipping already-initialised guards (--force)",
       );
+
       return;
     }
 
@@ -169,10 +186,12 @@ function assertFreshInitTarget(
       yield* log.warn(
         `Retrying incomplete init attempt (${displayPath(inProgressMarker)})`,
       );
+
       return;
     }
 
     const signals = existingInitSignals(config);
+
     if (signals.length >= 2) {
       return yield* fail(
         `This machine already looks initialised: ${signals.join(", ")}. Use dot update for ongoing maintenance.`,
@@ -208,6 +227,7 @@ function promptForHost(): Effect.Effect<
 > {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
+
     if ((yield* executor.exitCode("which", ["gum"])) !== 0) {
       return yield* fail(
         "Interactive init questionnaire requires gum. Install gum or pass --noninteractive/--host <name>.",
@@ -232,11 +252,14 @@ function promptForHost(): Effect.Effect<
             stderr: "inherit",
           },
         );
+
         const output = await new Response(proc.stdout).text();
         const exitCode = await proc.exited;
+
         if (exitCode !== 0) {
           throw new Error(`gum choose exited ${exitCode}`);
         }
+
         return output.trim();
       },
       catch: (error) =>
@@ -261,11 +284,13 @@ function resolveInitOptions(
       );
       const host = yield* promptForHost();
       yield* log.info(`Selected Hypr host: ${host}`);
+
       return { ...options, host };
     }
 
     const host = initOmarchyHost(options);
     yield* log.info(`Using Hypr host: ${host}`);
+
     return { ...options, host };
   });
 }
@@ -278,6 +303,7 @@ function persistOmarchyHostEnv(
     const log = yield* OutputLog;
     const file = "/etc/environment";
     const line = `OMARCHY_HOST=${host}`;
+
     // Idempotent: no-op when already correct, otherwise replace any existing
     // OMARCHY_HOST line or append one. pam_env reads /etc/environment at login,
     // so the value reaches the graphical session and every terminal.
@@ -303,6 +329,7 @@ function persistOmarchyHostEnv(
         Effect.timeout(Duration.seconds(OMARCHY_HOST_PERSIST_TIMEOUT_SECONDS)),
         Effect.catch(() => Effect.succeed(1)),
       );
+
     if (exitCode === 0) {
       yield* log.info(`Persisted ${line} to ${file}`);
     } else {
@@ -319,11 +346,13 @@ function ensureInitHyprHostLink(
 ): Effect.Effect<void, InitError, CommandExecutor | OutputLog> {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
+
     if (!config.omarchy.enabled) return;
 
     const host = initOmarchyHost(options);
 
     yield* log.section("Omarchy Host Links");
+
     // Validate the requested host against the stowed package source so a typo
     // fails fast, even on a fresh machine before hypr is stowed.
     const sourceHostDir = join(
@@ -334,6 +363,7 @@ function ensureInitHyprHostLink(
       "hosts",
       host,
     );
+
     if (!existsSync(sourceHostDir)) {
       return yield* fail(
         `Unknown Hypr host '${host}': missing ${displayPath(sourceHostDir)}. Pass --host <name> with a configured host.`,
@@ -351,10 +381,12 @@ function ensureInitHyprHostLink(
     // The live host directory only exists once hypr is stowed; when it is not
     // there yet, the stow phase creates the host link after stowing.
     const liveHostDir = join(hyprRepoPath(config), "hosts", host);
+
     if (!existsSync(liveHostDir)) {
       yield* log.info(
         `Hypr host '${host}' selected; host link will be created during stow`,
       );
+
       return;
     }
 
@@ -370,11 +402,13 @@ function configureGitInclude(
     const managedConfig = join(CONFIG_DIR, "git", "config.dotfiles");
 
     yield* log.section("Configure Git");
+
     if (!existsSync(managedConfig)) {
       if (!config.canUsePrivate) {
         yield* log.warn(
           `Skipping managed Git include (${config.privateReason})`,
         );
+
         return;
       }
 
@@ -385,6 +419,7 @@ function configureGitInclude(
 
     if (gitConfigIncludesManagedPath()) {
       yield* log.info("Git config already includes managed dotfiles settings");
+
       return;
     }
 
@@ -412,11 +447,13 @@ function installPacmanHook(
     const source = join(hooksSource, hookFile);
     const target = join("/etc", "pacman.d", "hooks", basename(hookFile));
     const exitCode = yield* runElevated("install", ["-Dm644", source, target]);
+
     if (exitCode !== 0) {
       return yield* fail(
         `install ${displayPath(source)} ${target} exited ${exitCode}`,
       );
     }
+
     yield* log.info(`Installed ${hookFile}`);
   });
 }
@@ -431,16 +468,20 @@ function installPacmanHooks(): Effect.Effect<
     const hooksSource = join(CONFIG_DIR, "pacman-hooks");
 
     yield* log.section("Install Pacman Hooks");
+
     if (!existsSync(hooksSource)) {
       yield* log.info(
         `No pacman hooks directory found: ${displayPath(hooksSource)}`,
       );
+
       return;
     }
 
     const hookFiles = pacmanHookFiles(hooksSource);
+
     if (hookFiles.length === 0) {
       yield* log.info("No pacman hooks configured");
+
       return;
     }
 
@@ -456,6 +497,7 @@ function runUserSystemctl(
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
     const exitCode = yield* executor.inherit("systemctl", ["--user", ...args]);
+
     if (exitCode !== 0) {
       return yield* fail(
         `systemctl --user ${args.join(" ")} exited ${exitCode}`,
@@ -474,8 +516,10 @@ function enableUserUnit(
     const unitPath = join(CONFIG_DIR, "systemd", "user", unit);
 
     yield* log.section(sectionTitle);
+
     if ((yield* executor.exitCode("which", ["systemctl"])) !== 0) {
       yield* log.warn(`Skipping ${unit} (systemctl not found)`);
+
       return;
     }
 
@@ -496,15 +540,19 @@ function syncAgentsStrict(): Effect.Effect<
 > {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
+
     const source =
       envString(ENV.DOT_AGENTS_SYNC_SOURCE) ??
       join(CONFIG_DIR, "opencode", "AGENTS.md");
+
     if (!existsSync(source)) {
       yield* log.warn(
         `Skipping agents sync; source missing: ${displayPath(source)}`,
       );
+
       return;
     }
+
     yield* agentsSync;
   });
 }
@@ -515,10 +563,12 @@ function setupPrivatePackages(
 ): Effect.Effect<void, unknown, Config | CommandExecutor | OutputLog | Gh> {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
+
     if (!config.canUsePrivate) {
       yield* log.warn(
         `Skipping private package setup (${config.privateReason})`,
       );
+
       return;
     }
 
@@ -538,10 +588,13 @@ function resolveZshPath(): Effect.Effect<
 > {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
+
     const output = yield* executor
       .run("which", ["zsh"])
       .pipe(Effect.catch(() => Effect.succeed("")));
+
     const path = output.trim();
+
     return path.length > 0 ? path : null;
   });
 }
@@ -555,11 +608,15 @@ function currentLoginShell(): Effect.Effect<
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
     const uid = process.getuid?.();
+
     if (uid === undefined) return null;
+
     const output = yield* executor
       .run("getent", ["passwd", String(uid)])
       .pipe(Effect.catch(() => Effect.succeed("")));
+
     const fields = output.trim().split(":");
+
     return fields.length >= 7 ? fields[6] : null;
   });
 }
@@ -572,10 +629,13 @@ function currentUsername(): Effect.Effect<
 > {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
+
     const output = yield* executor
       .run("id", ["-un"])
       .pipe(Effect.catch(() => Effect.succeed("")));
+
     const name = output.trim();
+
     return name.length > 0 ? name : null;
   });
 }
@@ -583,6 +643,7 @@ function currentUsername(): Effect.Effect<
 /** Whether the given shell path is already registered in /etc/shells. */
 function shellRegisteredInEtcShells(shellPath: string): boolean {
   if (!existsSync(ETC_SHELLS)) return false;
+
   return readFileSync(ETC_SHELLS, "utf-8")
     .split("\n")
     .map((line) => line.trim())
@@ -606,8 +667,10 @@ function ensureLoginShellZsh(): Effect.Effect<
     yield* log.section("Login Shell");
 
     const zshPath = yield* resolveZshPath();
+
     if (!zshPath) {
       yield* log.warn("Skipping login shell setup (zsh not found on PATH)");
+
       return;
     }
 
@@ -619,29 +682,36 @@ function ensureLoginShellZsh(): Effect.Effect<
         zshPath,
         ETC_SHELLS,
       ]);
+
       if (exitCode !== 0) {
         return yield* fail(
           `Failed to register ${zshPath} in ${ETC_SHELLS} (exit ${exitCode})`,
         );
       }
+
       yield* log.info(`Registered ${zshPath} in ${ETC_SHELLS}`);
     }
 
     const loginShell = yield* currentLoginShell();
+
     if (loginShell === zshPath) {
       yield* log.info(`Login shell is already ${zshPath}`);
+
       return;
     }
 
     const username = yield* currentUsername();
+
     if (!username) {
       return yield* fail("Unable to determine current username for chsh");
     }
 
     const exitCode = yield* runElevated("chsh", ["-s", zshPath, username]);
+
     if (exitCode !== 0) {
       return yield* fail(`chsh -s ${zshPath} ${username} exited ${exitCode}`);
     }
+
     yield* log.info(`Set login shell to ${zshPath} for ${username}`);
   });
 }
@@ -657,6 +727,7 @@ export function init(
   return Effect.gen(function* () {
     const config = yield* Config;
     const log = yield* OutputLog;
+
     const optionsInput: InitOptions = {
       ...input,
       noninteractive: input.interactive
@@ -665,9 +736,11 @@ export function init(
     };
 
     yield* log.section("Initialization Workflow");
+
     if (envString(ENV.DOT_LOG_FILE)) {
       yield* log.info(`Init log: ${displayPath(envString(ENV.DOT_LOG_FILE)!)}`);
     }
+
     yield* assertFreshInitTarget(config, optionsInput.force);
     const options = yield* resolveInitOptions(optionsInput);
     yield* writeInitInProgressMarker(config, options);

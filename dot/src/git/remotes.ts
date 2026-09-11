@@ -23,11 +23,13 @@ export function resolveDefaultRemote(remotesOutput: string): ResolvedRemote {
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
+
   const remote = remotes.includes("upstream")
     ? "upstream"
     : remotes.includes("origin")
       ? "origin"
       : remotes[0] || "origin";
+
   return { remote, remotes };
 }
 
@@ -37,7 +39,9 @@ export function resolveDefaultRemote(remotesOutput: string): ResolvedRemote {
  */
 export function parseDefaultBranch(ref: string, remote: string): string {
   const prefix = `refs/remotes/${remote}/`;
+
   if (ref.startsWith(prefix)) return ref.slice(prefix.length);
   const parts = ref.split("/");
+
   return parts[parts.length - 1] || "main";
 }

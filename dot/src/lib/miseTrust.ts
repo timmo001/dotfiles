@@ -37,7 +37,9 @@ const MISE_CONFIG_DIR_NAMES: ReadonlySet<string> = new Set(["mise", ".mise"]);
 /** Whether a repo-relative path is a mise config file worth trusting. */
 function isMiseConfigPath(relativePath: string): boolean {
   const base = basename(relativePath);
+
   if (MISE_CONFIG_BASENAMES.has(base)) return true;
+
   return (
     base === "config.toml" &&
     MISE_CONFIG_DIR_NAMES.has(basename(dirname(relativePath)))
@@ -54,6 +56,7 @@ function isMiseConfigPath(relativePath: string): boolean {
  */
 function trackedRepoRoots(config: ConfigService): readonly string[] {
   const roots: string[] = [];
+
   const add = (path: string | null): void => {
     if (path) roots.push(path);
   };
@@ -61,19 +64,23 @@ function trackedRepoRoots(config: ConfigService): readonly string[] {
   add(config.publicDotfiles);
   add(config.privateDotfiles);
   add(config.notesDir);
+
   if (config.omarchy.enabled) {
     for (const repoName of config.omarchy.diffRepos) {
       add(join(config.omarchy.repoBase, repoName));
     }
   }
+
   for (const repo of managedGitRepos(config.gitConfig)) {
     add(repo.path);
   }
 
   const seen = new Set<string>();
+
   return roots.filter((path) => {
     if (seen.has(path)) return false;
     seen.add(path);
+
     return existsSync(path) && isGitRepo(path);
   });
 }
@@ -115,9 +122,11 @@ function trustMiseConfig(
 ): Effect.Effect<boolean, never, CommandExecutor> {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
+
     const exitCode = yield* executor.exitCode("mise", ["trust", configPath], {
       cwd: HOME_DIR,
     });
+
     return exitCode === 0;
   });
 }
@@ -143,12 +152,15 @@ export const trustTrackedMiseConfigs: Effect.Effect<
 
   if ((yield* executor.exitCode("which", ["mise"])) !== 0) {
     yield* log.warn("Skipping mise trust (mise not installed)");
+
     return;
   }
 
   const repoRoots = trackedRepoRoots(config);
+
   if (repoRoots.length === 0) {
     yield* log.info("No tracked repositories to scan for mise configs");
+
     return;
   }
 
@@ -157,6 +169,7 @@ export const trustTrackedMiseConfigs: Effect.Effect<
 
   for (const repoPath of repoRoots) {
     const configs = yield* discoverMiseConfigs(repoPath);
+
     if (configs.length === 0) continue;
     reposWithConfigs += 1;
 
@@ -174,6 +187,7 @@ export const trustTrackedMiseConfigs: Effect.Effect<
 
   if (trusted === 0) {
     yield* log.info("No mise configs found in tracked repositories");
+
     return;
   }
 

@@ -3,8 +3,10 @@ import { CommandExecutor } from "../../services/CommandExecutor.js";
 import type { CheckResult } from "../types.js";
 
 const INSTALL_HERDR_COMMAND = "mise install herdr";
+
 const INSTALL_OPENCODE_INTEGRATION_COMMAND =
   "herdr integration install opencode";
+
 const REQUIRED_LOCAL_PLUGINS = [
   "dotfiles.terminal-title",
   "dotfiles.yazi",
@@ -12,6 +14,7 @@ const REQUIRED_LOCAL_PLUGINS = [
   "dotfiles.mise-task-runner",
   "dotfiles.plannotator",
 ] as const;
+
 const HerdrPluginList = Schema.Struct({
   result: Schema.Struct({
     plugins: Schema.Array(
@@ -29,6 +32,7 @@ export function enabledHerdrPluginIds(source: string): ReadonlySet<string> {
     const { plugins } = Schema.decodeUnknownSync(HerdrPluginList)(
       JSON.parse(source),
     ).result;
+
     return new Set(
       plugins.flatMap((plugin) =>
         plugin.enabled && plugin.plugin_id ? [plugin.plugin_id] : [],
@@ -56,11 +60,13 @@ export const checkHerdr = Effect.gen(function* () {
   const status = yield* executor
     .run("herdr", ["integration", "status"])
     .pipe(Effect.orElseSucceed(() => ""));
+
   const opencodeStatus = status
     .split("\n")
     .find((line) => line.startsWith("opencode:"));
 
   const results: CheckResult[] = [];
+
   if (opencodeStatus?.includes("current")) {
     results.push({
       severity: "ok",
@@ -79,9 +85,11 @@ export const checkHerdr = Effect.gen(function* () {
       .run("herdr", ["plugin", "list", "--json"])
       .pipe(Effect.orElseSucceed(() => "")),
   );
+
   const missingPlugins = REQUIRED_LOCAL_PLUGINS.filter(
     (plugin) => !plugins.has(plugin),
   );
+
   if (missingPlugins.length === 0) {
     results.push({
       severity: "ok",

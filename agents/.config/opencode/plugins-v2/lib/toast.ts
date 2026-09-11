@@ -29,14 +29,17 @@ export const showToast = (
 ) =>
   Effect.gen(function* () {
     const endpoint = yield* dependencies.discover();
+
     if (!endpoint) return;
 
     const url = new URL("/tui/show-toast", endpoint.url);
     url.searchParams.set("directory", directory);
+
     const request = yield* HttpClientRequest.post(url).pipe(
       HttpClientRequest.setHeaders(Service.headers(endpoint) ?? {}),
       HttpClientRequest.schemaBodyJson(TuiEvent.ToastShow.data)(input),
     );
+
     yield* dependencies.execute(request).pipe(
       Effect.flatMap(HttpClientResponse.filterStatusOk),
     );

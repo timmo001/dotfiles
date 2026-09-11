@@ -77,6 +77,7 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
         envString(ENV.DOTFILES_PRIVATE_DIR) ??
           join(CONFIG_DIR, "dotfiles-private"),
       );
+
       const privateExists = existsSync(join(privatePath, ".git"));
       let canUsePrivate = false;
       let privateReason: string;
@@ -92,6 +93,7 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
         try {
           const stat = statSync(privatePath);
           const uid = process.getuid?.();
+
           if (uid !== undefined && stat.uid !== uid) {
             privateReason = `private repo not owned by current user (${privatePath})`;
           } else {
@@ -114,6 +116,7 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
       // Omarchy config
       const omarchyRepoBase =
         envString(ENV.OMARCHY_REPO_BASE_DIR) ?? CONFIG_DIR;
+
       const omarchyDiffRepos: readonly string[] = [];
       const omarchyWorktreeRepos: readonly string[] = [];
       const omarchyWorktreeBranches = ["desktop", "laptop"];
@@ -132,12 +135,14 @@ export class Config extends Context.Service<Config, ConfigService>()("Config") {
       const gitConfigFile =
         envString(ENV.DOT_GIT_CONFIG_FILE) ??
         defaultDotGitConfigPath(privatePath);
+
       const gitConfig = canUsePrivate
         ? loadDotGitConfig(gitConfigFile)
         : emptyDotGitConfig(gitConfigFile);
 
       const mcpConfigFile =
         envString(ENV.DOT_MCP_CONFIG_FILE) ?? defaultMcpConfigPath(privatePath);
+
       const mcpConfig = canUsePrivate
         ? loadMcpConfig(mcpConfigFile)
         : emptyMcpConfig(mcpConfigFile);

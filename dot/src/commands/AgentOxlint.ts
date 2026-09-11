@@ -27,10 +27,12 @@ const MANAGED_DEPENDENCIES = {
     packageJson.devDependencies["@timmo001/oxlint-rules"],
   oxlint: packageJson.devDependencies.oxlint,
 } as const;
+
 const RULE_OVERRIDES = {
   "anti-slop/no-runtime-typeof": "warn",
   "anti-slop/require-safety-comment-for-type-assertion": "warn",
 } as const;
+
 const CONFIG_NAMES = new Set([
   ".oxlintrc.json",
   ".oxlintrc.jsonc",
@@ -41,6 +43,7 @@ const CONFIG_NAMES = new Set([
   "oxlint.config.mts",
   "oxlint.config.cts",
 ]);
+
 const CACHE_MANIFEST = `${JSON.stringify(
   {
     name: "dot-agent-oxlint",
@@ -51,6 +54,7 @@ const CACHE_MANIFEST = `${JSON.stringify(
   null,
   2,
 )}\n`;
+
 const CACHE_CONFIG = [
   'import { defineConfig } from "oxlint";',
   'import recommended from "@timmo001/oxlint-rules/configs/recommended";',
@@ -99,6 +103,7 @@ function cachePaths(cacheDir: string): AgentOxlintCache {
     "agent-oxlint",
     `rules-${MANAGED_DEPENDENCIES["@timmo001/oxlint-rules"]}-oxlint-${MANAGED_DEPENDENCIES.oxlint}-plugins-${MANAGED_DEPENDENCIES["@oxlint/plugins"]}`,
   );
+
   return {
     directory,
     manifest: join(directory, "package.json"),
@@ -118,6 +123,7 @@ function readText(path: string): string | null {
 function installedVersion(path: string): string | null {
   try {
     const value = decodeJson(JSON.parse(readFileSync(path, "utf-8")));
+
     return isJsonObject(value) && isString(value.version)
       ? value.version
       : null;
@@ -163,16 +169,21 @@ function writeCache(cache: AgentOxlintCache): void {
 
 function packageUsesOxlint(path: string): boolean {
   const contents = readText(path);
+
   return contents !== null && /\boxlint\b/.test(contents);
 }
 
 function hasLocalOxlint(root: string, files: readonly string[]): boolean {
   if (existsSync(join(root, "node_modules", ".bin", "oxlint"))) return true;
+
   if ([...CONFIG_NAMES].some((name) => existsSync(join(root, name))))
     return true;
+
   if (packageUsesOxlint(join(root, "package.json"))) return true;
+
   return files.some((file) => {
     const name = basename(file);
+
     return (
       CONFIG_NAMES.has(name) ||
       (name === "package.json" && packageUsesOxlint(join(root, file)))
@@ -183,6 +194,7 @@ function hasLocalOxlint(root: string, files: readonly string[]): boolean {
 function pathInsideRoot(root: string, path: string): boolean {
   const absolute = isAbsolute(path) ? resolve(path) : resolve(root, path);
   const offset = relative(root, absolute);
+
   return offset === "" || (!offset.startsWith("..") && !isAbsolute(offset));
 }
 
@@ -197,15 +209,18 @@ const optInRepository = Effect.fn("agentOxlint.optIn")(
   function* (root: string) {
     const log = yield* OutputLog;
     const edit = yield* prepareGitRepoConfigEdit();
+
     const repositoryIndex = edit.config.repositories.findIndex(
       (repo) => repo.path === root,
     );
+
     if (repositoryIndex < 0) {
       if (!canPromptForInduction()) {
         return yield* fail(
           `agent-oxlint: repository is not inducted. Run dot repo-induct ${JSON.stringify(root)} in a terminal, or add --noninteractive --agent-oxlint to preview with flags, then --commit after approval`,
         );
       }
+
       if (
         !(yield* Prompt.run(
           Prompt.confirm({
@@ -215,25 +230,32 @@ const optInRepository = Effect.fn("agentOxlint.optIn")(
         ))
       )
         return false;
+
       const inducted = yield* inductRepository({
         path: root,
         agentOxlint: true,
       });
+
       return inducted?.path === root && inducted.agentOxlint;
     }
+
     const updated = yield* Effect.try({
       try: () => agentOxlintOptInText(edit.source, repositoryIndex),
       catch: (error) => fail(`agent-oxlint: ${String(error)}`),
     });
+
     if (updated === edit.source) {
       yield* log.info("Repository is already opted into agent Oxlint");
+
       return true;
     }
+
     yield* commitGitRepoConfigEdit(
       edit,
       updated,
       "Opt repository into agent Oxlint",
     );
+
     return true;
   },
   Effect.catchTag("QuitError", () => Effect.succeed(false)),
@@ -246,6 +268,7 @@ export const agentOxlint = Effect.fn("agentOxlint")(function* (
   if (options.all && options.paths.length > 0) {
     return yield* fail("agent-oxlint: --all cannot be combined with paths");
   }
+
   if (!options.optIn && !options.all && options.paths.length === 0) {
     return yield* fail("agent-oxlint: pass changed paths or use --all");
   }
@@ -254,6 +277,7 @@ export const agentOxlint = Effect.fn("agentOxlint")(function* (
   const executor = yield* CommandExecutor;
   const log = yield* OutputLog;
   let gitConfig = config.gitConfig;
+
   const root = (yield* executor
     .run("git", ["rev-parse", "--show-toplevel"], {
       cwd: process.cwd(),
@@ -266,13 +290,16 @@ export const agentOxlint = Effect.fn("agentOxlint")(function* (
 
   const targets = options.all ? ["."] : options.paths;
   const escaped = targets.find((path) => !pathInsideRoot(root, path));
+
   if (escaped) {
     return yield* fail(
       `agent-oxlint: path is outside the repository: ${escaped}`,
     );
   }
+
   if (options.optIn) {
     if (!(yield* optInRepository(root))) return;
+
     if (!options.all && options.paths.length === 0) return;
     gitConfig = loadDotGitConfig(config.gitConfig.filePath);
   }
@@ -283,9 +310,11 @@ export const agentOxlint = Effect.fn("agentOxlint")(function* (
     );
   } else if (!gitConfig.valid) {
     yield* log.info("Private git config is unavailable; skipping agent Oxlint");
+
     return;
   } else if (!managedGitRepoForPath(gitConfig, root)?.agentOxlint) {
     yield* log.info("Repository is not opted into agent Oxlint; skipping");
+
     return;
   }
 
@@ -298,28 +327,35 @@ export const agentOxlint = Effect.fn("agentOxlint")(function* (
         commandError(error, "agent-oxlint: could not inspect repository files"),
       ),
     )).split("\n");
+
   if (hasLocalOxlint(root, files) && !options.force) {
     yield* log.info("Repository Oxlint takes precedence; skipping agent pass");
+
     return;
   }
 
   const cache = cachePaths(config.cacheDir);
+
   if (!cacheReady(cache)) {
     yield* Effect.try({
       try: () => writeCache(cache),
       catch: (error) =>
         fail(`agent-oxlint: could not prepare managed cache: ${String(error)}`),
     });
+
     const installExit = yield* executor.inherit("bun", [
       "install",
       "--production",
       "--cwd",
       cache.directory,
     ]);
+
     if (installExit !== 0) {
       process.exitCode = installExit;
+
       return;
     }
+
     if (!cacheReady(cache)) {
       return yield* fail(
         "agent-oxlint: managed cache is incomplete after install",
@@ -332,5 +368,6 @@ export const agentOxlint = Effect.fn("agentOxlint")(function* (
     ["--config", cache.config, ...targets],
     { cwd: root },
   );
+
   if (lintExit !== 0) process.exitCode = lintExit;
 });

@@ -29,6 +29,7 @@ import {
 interface MutableJsonConfig {
   [key: string]: JsonValue;
 }
+
 import {
   MCP_HARNESSES,
   serversForHarness,
@@ -65,6 +66,7 @@ function atomicWriteJson(dest: string, value: JsonValue): void {
 /** Read an existing JSON object, or an empty object when absent. */
 function readJsonObject(path: string) {
   if (!existsSync(path)) return {};
+
   try {
     return decodeJsonObject(JSON.parse(readFileSync(path, "utf-8")));
   } catch {
@@ -82,10 +84,13 @@ function mergeToolsGate(
 ) {
   const managed = new Set(spec.servers.map((server) => `${server.name}*`));
   const tools: Record<string, JsonValue> = {};
+
   for (const [key, value] of Object.entries(existing ?? {})) {
     if (!managed.has(key)) tools[key] = value;
   }
+
   for (const key of opencodeGateKeys(spec)) tools[key] = false;
+
   return tools;
 }
 
@@ -98,6 +103,7 @@ function buildHarnessConfig(
   const existing = readJsonObject(path);
   const config: MutableJsonConfig = { ...existing };
   config[topKeyFor(harness)] = buildMcpEntries(spec, harness);
+
   if (harness === "opencode") {
     const tools = existing.tools;
     config.tools = mergeToolsGate(
@@ -105,6 +111,7 @@ function buildHarnessConfig(
       spec,
     );
   }
+
   return decodeJson(config);
 }
 
@@ -121,32 +128,42 @@ export const mcpSync = Effect.gen(function* () {
   yield* log.section("MCP Config Sync");
 
   const { canUsePrivate, privateDotfiles, mcpConfig } = config;
+
   if (!canUsePrivate || privateDotfiles === null) {
     yield* log.warn(`Skipped: ${config.privateReason}`);
+
     return;
   }
+
   if (!mcpConfig.present) {
     yield* log.warn(
       `Skipped (missing spec): ${displayPath(mcpConfig.filePath)}`,
     );
+
     return;
   }
+
   if (!mcpConfig.valid) {
     yield* log.error(`Invalid spec: ${displayPath(mcpConfig.filePath)}`);
+
     for (const diagnostic of mcpConfig.diagnostics) {
       yield* log.error(`  ${diagnostic}`);
     }
+
     return yield* new McpSyncError({
       message: `Invalid MCP spec: ${displayPath(mcpConfig.filePath)}`,
     });
   }
 
   const spec = mcpConfig.spec;
+
   for (const harness of MCP_HARNESSES) {
     const dest = join(privateDotfiles, HARNESS_RELATIVE_PATH[harness]);
+
     const built = yield* Effect.sync(() =>
       buildHarnessConfig(harness, dest, spec),
     );
+
     yield* Effect.sync(() => atomicWriteJson(dest, built));
     const count = serversForHarness(spec, harness).length;
     yield* log.info(

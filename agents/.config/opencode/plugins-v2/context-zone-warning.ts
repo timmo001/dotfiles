@@ -57,6 +57,7 @@ const createDesktopNotifier = Effect.gen(function* () {
     Effect.map((address) => address.trim()),
     Effect.catch(() => Effect.succeed("")),
   );
+
   const originHerdrTabID = process.env.HERDR_TAB_ID ?? "";
   let canNotify: boolean | undefined;
 
@@ -70,6 +71,7 @@ const createDesktopNotifier = Effect.gen(function* () {
           Effect.catch(() => Effect.succeed(false)),
         );
       }
+
       if (!canNotify) return;
 
       const focusCommand = /^0x[0-9a-f]+$/i.test(originWindowAddress)
@@ -79,6 +81,7 @@ const createDesktopNotifier = Effect.gen(function* () {
               : ""
           }`
         : "";
+
       yield* Effect.tryPromise(() =>
         $`omarchy notification send -g ${glyph} --app-name OpenCode ${title} ${body} ${focusCommand ? "--exec" : []} ${focusCommand ? focusCommand : []}`,
       ).pipe(Effect.ignore, Effect.forkScoped);
@@ -104,20 +107,25 @@ export default Plugin.define({
                 event.type === "session.deleted"
               ) {
                 warnedBand.delete(event.data.sessionID);
+
                 return;
               }
+
               if (event.type !== "session.usage.updated") return;
 
               const sessionResult = yield* context.session
                 .get({ sessionID: event.data.sessionID })
                 .pipe(Effect.result);
+
               if (Result.isFailure(sessionResult) || !sessionResult.success.model)
                 return;
 
               const { id: modelID, providerID } = sessionResult.success.model;
               const policy = policyFor(providerID, modelID);
+
               const tokens =
                 event.data.tokens.input + event.data.tokens.cache.read;
+
               if (tokens <= 0) return;
 
               const band: Band | undefined =
@@ -126,9 +134,11 @@ export default Plugin.define({
                   : tokens >= policy.warning
                     ? "warning"
                     : undefined;
+
               if (!band) return;
 
               const previousBand = warnedBand.get(event.data.sessionID);
+
               if (
                 previousBand &&
                 BAND_RANK[previousBand] >= BAND_RANK[band]
@@ -140,6 +150,7 @@ export default Plugin.define({
                 const modelsResult = yield* context.catalog.model
                   .list()
                   .pipe(Effect.result);
+
                 contextLimits = Result.isSuccess(modelsResult)
                   ? new Map(
                       modelsResult.success.data.map((model) => [
@@ -151,13 +162,16 @@ export default Plugin.define({
               }
 
               const limit = contextLimits.get(`${providerID}/${modelID}`);
+
               const usage = limit
                 ? ` (${Math.round((tokens / limit) * 100)}%)`
                 : "";
+
               const title =
                 band === "critical"
                   ? "Context reliability critical"
                   : "Context reliability warning";
+
               const alertMessage =
                 band === "critical"
                   ? `${modelID} is using ${formatTokens(tokens)} tokens${usage}. Compact now or start a new session.`

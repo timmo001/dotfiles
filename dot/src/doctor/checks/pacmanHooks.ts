@@ -9,12 +9,14 @@ export const checkPacmanHooks = Effect.sync(() => {
   const results: CheckResult[] = [];
 
   const hooksSource = join(CONFIG_DIR, "pacman-hooks");
+
   if (!existsSync(hooksSource)) {
     // No hooks configured, nothing to check
     return results;
   }
 
   const hookFiles = hookFileNames(hooksSource);
+
   if (hookFiles === null) {
     return results;
   }
@@ -34,6 +36,7 @@ export const checkPacmanHooks = Effect.sync(() => {
 
     const sourceContent = readTextFile(sourceFile);
     const installedContent = readTextFile(installedFile);
+
     if (sourceContent === null || installedContent === null) {
       results.push({
         severity: "warn",

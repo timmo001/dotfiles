@@ -14,6 +14,7 @@ import {
 } from "../lib/schema.js";
 
 const TOP_LEVEL_KEYS = new Set(["schema_version", "repositories", "shortcuts"]);
+
 const REPO_KEYS = new Set([
   "name",
   "path",
@@ -25,9 +26,13 @@ const REPO_KEYS = new Set([
   "notifications",
   "releases",
 ]);
+
 const CHECK_KEYS = new Set(["enabled", "schedule"]);
+
 const NOTIFICATION_KEYS = new Set(["enabled", "schedule", "bar"]);
+
 const NOTIFICATION_BAR_KEYS = new Set(["ignore_bot_activity"]);
+
 const SHORTCUT_KEYS = new Set(["name", "path", "aliases"]);
 
 /** A shell shortcut target generated from private git configuration. */
@@ -158,6 +163,7 @@ export function parseDotGitConfigText(
 ): DotGitConfig {
   try {
     const result = parseDotGitConfig(decodeJson(Bun.YAML.parse(source)));
+
     return {
       filePath,
       present: true,
@@ -214,6 +220,7 @@ export function managedGitRepoForGitHub(
   github: string,
 ): GitManagedRepo | undefined {
   const normalized = github.toLowerCase();
+
   return managedGitRepos(gitConfig).find(
     (repo) => repo.github.toLowerCase() === normalized,
   );
@@ -226,6 +233,7 @@ export function gitRepoCheckActive(
   now: Date = new Date(),
 ): boolean {
   const config = repo[check];
+
   return config.enabled && cronScheduleActive(config.schedule, now);
 }
 
@@ -242,6 +250,7 @@ export function gitRepoNotificationsActive(
 
 function parseDotGitConfig(value: JsonValue): ParsedGitConfig {
   const diagnostics: string[] = [];
+
   if (!isRecord(value)) {
     return {
       repositories: [],
@@ -251,17 +260,21 @@ function parseDotGitConfig(value: JsonValue): ParsedGitConfig {
   }
 
   pushUnknownKeyDiagnostics(diagnostics, value, TOP_LEVEL_KEYS, "root");
+
   if (value.schema_version !== 2) {
     diagnostics.push("root.schema_version must be 2");
   }
+
   if (!Array.isArray(value.repositories)) {
     diagnostics.push("root.repositories must be an array");
+
     return { repositories: [], shortcuts: [], diagnostics };
   }
 
   const repositories = value.repositories.flatMap((repo, index) =>
     parseRepo(repo, index, diagnostics),
   );
+
   const shortcuts = parseShortcuts(value.shortcuts, diagnostics);
   pushDuplicateDiagnostics(diagnostics, repositories, "name");
   pushDuplicateDiagnostics(diagnostics, repositories, "path");
@@ -276,25 +289,32 @@ function parseShortcuts(
   diagnostics: string[],
 ): readonly GitRepoShortcut[] {
   if (value === undefined) return [];
+
   if (!Array.isArray(value)) {
     diagnostics.push("root.shortcuts must be an array");
+
     return [];
   }
 
   return value.flatMap((shortcut, index) => {
     const location = `root.shortcuts[${index}]`;
+
     if (!isRecord(shortcut)) {
       diagnostics.push(`${location} must be an object`);
+
       return [];
     }
+
     pushUnknownKeyDiagnostics(diagnostics, shortcut, SHORTCUT_KEYS, location);
     const name = requiredString(shortcut.name, `${location}.name`, diagnostics);
     const path = requiredString(shortcut.path, `${location}.path`, diagnostics);
+
     const aliases = optionalAliases(
       shortcut.aliases,
       `${location}.aliases`,
       diagnostics,
     );
+
     return name && path ? [{ name, path: expandHomePath(path), aliases }] : [];
   });
 }
@@ -305,55 +325,67 @@ function parseRepo(
   diagnostics: string[],
 ): readonly GitManagedRepo[] {
   const location = `root.repositories[${index}]`;
+
   if (!isRecord(value)) {
     diagnostics.push(`${location} must be an object`);
+
     return [];
   }
 
   pushUnknownKeyDiagnostics(diagnostics, value, REPO_KEYS, location);
   const name = requiredString(value.name, `${location}.name`, diagnostics);
   const rawPath = requiredString(value.path, `${location}.path`, diagnostics);
+
   const rawGithub = requiredString(
     value.github,
     `${location}.github`,
     diagnostics,
   );
+
   const postUpdate = optionalString(
     value.post_update,
     `${location}.post_update`,
     diagnostics,
   );
+
   const aliases = optionalAliases(
     value.aliases,
     `${location}.aliases`,
     diagnostics,
   );
+
   const agentOxlint = optionalBoolean(
     value.agent_oxlint,
     `${location}.agent_oxlint`,
     diagnostics,
   );
+
   const activity = parseCheck(
     value.activity,
     `${location}.activity`,
     diagnostics,
   );
+
   const notifications = parseNotifications(
     value.notifications,
     `${location}.notifications`,
     diagnostics,
   );
+
   const github = rawGithub ? normalizeGitHubSlug(rawGithub) : null;
+
   const releases = parseReleases(
     value.releases,
     `${location}.releases`,
     diagnostics,
   );
+
   if (rawGithub && !github) {
     diagnostics.push(`${location}.github must be a GitHub owner/repo slug`);
   }
 
   if (!name || !rawPath || !github || !activity || !notifications) return [];
+
   return [
     {
       name,
@@ -375,19 +407,24 @@ function parseReleases(
   diagnostics: string[],
 ): ReleaseSettings | undefined {
   if (value === undefined) return undefined;
+
   try {
     const settings = Schema.decodeUnknownSync(ReleaseSettings)(value, {
       onExcessProperty: "error",
     });
+
     if (settings.schedule.trim().split(/\s+/).length !== 5)
       throw new Error("schedule must contain five fields");
     Cron.parseUnsafe(settings.schedule);
+
     if (settings.publish) {
       const paths = settings.publish.version_files.map((file) =>
         isString(file) ? file : file.path,
       );
+
       for (const file of settings.publish.version_files) {
         const path = isString(file) ? file : file.path;
+
         if (
           !/^[A-Za-z0-9_][A-Za-z0-9_./-]*$/.test(path) ||
           (isString(file)
@@ -399,18 +436,22 @@ function parseReleases(
             "publish version_files must be repository-relative JSON or explicit setup.py paths",
           );
       }
+
       if (new Set(paths).size !== paths.length)
         throw new Error("publish version_files must be unique");
+
       for (const command of settings.publish.commands) {
         if (!command.length || command.some((arg) => !arg.trim()))
           throw new Error("publish commands must be non-empty argv arrays");
       }
     }
+
     if (
       !/^[A-Za-z0-9_][A-Za-z0-9_./-]*$/.test(settings.branch) ||
       /\.\.|\/\.|\/\/|\.lock(?:\/|$)|[./]$/.test(settings.branch)
     )
       throw new Error("branch must be a valid branch name");
+
     if (
       !Number.isInteger(settings.notifications.cooldown_minutes) ||
       settings.notifications.cooldown_minutes < 0
@@ -418,12 +459,14 @@ function parseReleases(
       throw new Error(
         "notification cooldown_minutes must be a non-negative integer",
       );
+
     if (
       settings.source_minor_threshold !== undefined &&
       (!Number.isInteger(settings.source_minor_threshold) ||
         settings.source_minor_threshold < 0)
     )
       throw new Error("source_minor_threshold must be a non-negative integer");
+
     for (const path of settings.source_excludes ?? []) {
       if (
         !path.trim() ||
@@ -434,9 +477,11 @@ function parseReleases(
           "source_excludes must contain non-empty repository-relative globs",
         );
     }
+
     for (const rule of settings.overrides ?? []) {
       if (!rule.reason.trim())
         throw new Error("override reason must not be empty");
+
       for (const values of [
         rule.paths,
         rule.dependencies,
@@ -448,15 +493,19 @@ function parseReleases(
         if (values && (!values.length || values.some((value) => !value.trim())))
           throw new Error("override match lists must contain non-empty values");
       }
+
       for (const pattern of rule.subjects ?? []) new RegExp(pattern);
+
       for (const path of [...(rule.paths ?? []), ...(rule.submodules ?? [])]) {
         if (path.startsWith("/") || path.split("/").includes(".."))
           throw new Error("override paths must be repository-relative");
       }
     }
+
     return settings;
   } catch (error) {
     diagnostics.push(`${location}: ${formatError(error)}`);
+
     return undefined;
   }
 }
@@ -468,6 +517,7 @@ function optionalBoolean(
 ): boolean {
   if (value === undefined) return false;
   const parsed = requiredBoolean(value, location, diagnostics);
+
   return parsed ?? false;
 }
 
@@ -477,16 +527,20 @@ function optionalAliases(
   diagnostics: string[],
 ): readonly string[] {
   if (value === undefined) return [];
+
   if (!Array.isArray(value)) {
     diagnostics.push(`${location} must be an array`);
+
     return [];
   }
 
   return value.flatMap((alias, index) => {
     if (!isString(alias) || !/^[A-Za-z_][A-Za-z0-9_-]*$/.test(alias)) {
       diagnostics.push(`${location}[${index}] must be a valid shell alias`);
+
       return [];
     }
+
     return [alias];
   });
 }
@@ -497,6 +551,7 @@ function optionalString(
   diagnostics: string[],
 ): string | null {
   if (value === undefined) return null;
+
   return requiredString(value, location, diagnostics);
 }
 
@@ -507,25 +562,30 @@ function parseNotifications(
 ): GitRepoNotificationConfig | null {
   if (!isRecord(value)) {
     diagnostics.push(`${location} must be an object`);
+
     return null;
   }
 
   pushUnknownKeyDiagnostics(diagnostics, value, NOTIFICATION_KEYS, location);
+
   const enabled = requiredBoolean(
     value.enabled,
     `${location}.enabled`,
     diagnostics,
   );
+
   const schedule = requiredString(
     value.schedule,
     `${location}.schedule`,
     diagnostics,
   );
+
   if (schedule && !validCronSchedule(schedule)) {
     diagnostics.push(
       `${location}.schedule must be a five-field cron expression`,
     );
   }
+
   const bar = parseNotificationBar(value.bar, `${location}.bar`, diagnostics);
 
   return enabled === null || !schedule || !bar
@@ -540,6 +600,7 @@ function parseNotificationBar(
 ): GitRepoNotificationBarConfig | null {
   if (!isRecord(value)) {
     diagnostics.push(`${location} must be an object`);
+
     return null;
   }
 
@@ -549,6 +610,7 @@ function parseNotificationBar(
     NOTIFICATION_BAR_KEYS,
     location,
   );
+
   const ignoreBotActivity = requiredBoolean(
     value.ignore_bot_activity,
     `${location}.ignore_bot_activity`,
@@ -565,20 +627,24 @@ function parseCheck(
 ): GitRepoCheckConfig | null {
   if (!isRecord(value)) {
     diagnostics.push(`${location} must be an object`);
+
     return null;
   }
 
   pushUnknownKeyDiagnostics(diagnostics, value, CHECK_KEYS, location);
+
   const enabled = requiredBoolean(
     value.enabled,
     `${location}.enabled`,
     diagnostics,
   );
+
   const schedule = requiredString(
     value.schedule,
     `${location}.schedule`,
     diagnostics,
   );
+
   if (schedule && !validCronSchedule(schedule)) {
     diagnostics.push(
       `${location}.schedule must be a five-field cron expression`,
@@ -595,8 +661,10 @@ function requiredString(
 ): string | null {
   if (!isString(value) || value.trim().length === 0) {
     diagnostics.push(`${location} must be a non-empty string`);
+
     return null;
   }
+
   return value.trim();
 }
 
@@ -607,8 +675,10 @@ function requiredBoolean(
 ): boolean | null {
   if (!isBoolean(value)) {
     diagnostics.push(`${location} must be true or false`);
+
     return null;
   }
+
   return value;
 }
 
@@ -630,8 +700,10 @@ function pushDuplicateDiagnostics(
   key: "name" | "path" | "github",
 ): void {
   const seen = new Set<string>();
+
   for (const repo of repositories) {
     const value = repo[key];
+
     if (seen.has(value))
       diagnostics.push(`Duplicate repository ${key}: ${value}`);
     seen.add(value);
@@ -643,6 +715,7 @@ function pushDuplicateAliasDiagnostics(
   repositories: readonly GitRepoShortcut[],
 ): void {
   const seen = new Set<string>();
+
   for (const repo of repositories) {
     for (const alias of repo.aliases) {
       if (seen.has(alias))
@@ -658,6 +731,7 @@ function validCronSchedule(schedule: string): boolean {
 
 function cronScheduleActive(schedule: string, now: Date): boolean {
   const fields = schedule.trim().split(/\s+/);
+
   if (fields.length !== 5) return false;
 
   const checks: readonly [
@@ -672,6 +746,7 @@ function cronScheduleActive(schedule: string, now: Date): boolean {
     [now.getMonth() + 1, fields[3], 1, 12],
     [now.getDay(), fields[4], 0, 6],
   ];
+
   return checks.every(([value, expr, min, max]) =>
     cronFieldMatches(value, expr, min, max),
   );
@@ -684,7 +759,9 @@ function cronFieldMatches(
   max: number,
 ): boolean {
   const trimmed = expr.trim();
+
   if (trimmed === "*" || trimmed === "?") return true;
+
   return trimmed
     .split(",")
     .some((part) => cronFieldPartMatches(value, part, min, max));
@@ -700,6 +777,7 @@ function cronFieldPartMatches(
   const hasStep = stepStr !== undefined;
   const step = hasStep ? parseInt(stepStr, 10) : 1;
   const range = parseCronRange(rangePart, min, max, hasStep);
+
   return rangeMatches(value, range.start, range.end, step);
 }
 
@@ -715,14 +793,17 @@ function parseCronRange(
   hasStep: boolean,
 ): CronRange {
   if (rangePart === "*") return { start: min, end: max };
+
   if (!rangePart.includes("-")) {
     const value = parseInt(rangePart, 10);
+
     // A bare value with a step (`N/step`) means "from N through max, every
     // step"; without a step it matches only N.
     return { start: value, end: hasStep ? max : value };
   }
 
   const [startStr, endStr] = rangePart.split("-", 2);
+
   return { start: parseInt(startStr, 10), end: parseInt(endStr, 10) };
 }
 
@@ -745,6 +826,7 @@ function rangeMatches(
 /** Normalise a GitHub remote URL or owner/repo string to an owner/repo slug. */
 export function normalizeGitHubSlug(value: string): string | null {
   let slug = value.trim();
+
   if (slug.startsWith("git@github.com:")) {
     slug = slug.slice("git@github.com:".length);
   } else if (slug.startsWith("ssh://git@github.com/")) {
@@ -758,8 +840,10 @@ export function normalizeGitHubSlug(value: string): string | null {
   }
 
   slug = slug.replace(/\.git$/, "").replace(/\/$/, "");
+
   return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(slug) ? slug : null;
 }
 
 const formatError = formatCause;
+
 const isRecord = isJsonObject;

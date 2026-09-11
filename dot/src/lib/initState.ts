@@ -34,6 +34,7 @@ class InitStateError extends Schema.TaggedError<InitStateError>()(
 
 /** What triggered writing the first-use setup complete marker. */
 type InitCompleteSource = "init" | "update";
+
 /** Outcome of ensuring the first-use setup complete marker exists. */
 export type InitCompleteMarkerStatus = "created" | "exists" | "in-progress";
 
@@ -104,8 +105,10 @@ export function ensureInitCompleteMarker(
 ): Effect.Effect<InitCompleteMarkerStatus, InitStateError> {
   return Effect.gen(function* () {
     if (existsSync(initCompleteMarker(config))) return "exists";
+
     if (existsSync(initInProgressMarker(config))) return "in-progress";
     yield* writeInitCompleteMarker(config, source);
+
     return "created";
   });
 }

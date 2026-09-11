@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { dirname, join } from "node:path";
 import { existsSync, mkdirSync } from "node:fs";
-import { Effect } from "effect";
+import { Effect, Result } from "effect";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import {
   decodeJsonObject,
@@ -27,12 +27,15 @@ import {
 /** Canonical representation for evidence hashes and structural comparisons. */
 export function canonical(value: JsonValue | undefined): string {
   if (value === undefined) return "undefined";
+
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+
   if (isJsonObject(value))
     return `{${Object.entries(value)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`)
       .join(",")}}`;
+
   return JSON.stringify(value) ?? "null";
 }
 
@@ -53,11 +56,13 @@ export function releaseFact(
     changedLines: _changedLines,
     ...evidence
   } = input;
+
   return { ...input, id: evidenceId(evidence) };
 }
 
 function object(value: JsonValue | undefined): JsonObject {
   if (value === undefined) return {};
+
   return decodeJsonObject(value);
 }
 
@@ -111,22 +116,27 @@ export function manifestChanges(
   const old = before === null ? {} : decodeJsonObject(JSON.parse(before));
   const next = after === null ? {} : decodeJsonObject(JSON.parse(after));
   const facts: ReleaseFact[] = [];
+
   const fields = [
     "dependencies",
     "optionalDependencies",
     "peerDependencies",
     "devDependencies",
   ];
+
   for (const field of fields) {
     const a = values(old, field);
     const b = values(next, field);
+
     for (const name of new Set([...Object.keys(a), ...Object.keys(b)])) {
       if (canonical(a[name]) === canonical(b[name])) continue;
+
       const runtime = [old, next].some(
         (manifest) =>
           name in values(manifest, "dependencies") ||
           name in values(manifest, "optionalDependencies"),
       );
+
       const role =
         field === "peerDependencies"
           ? "peer"
@@ -135,11 +145,13 @@ export function manifestChanges(
             : buildDependency(name, settings)
               ? "build"
               : "development";
+
       facts.push(
         dependencyFact(path, name, role, a[name], b[name], `${field}: ${name}`),
       );
     }
   }
+
   for (const key of new Set([...Object.keys(old), ...Object.keys(next)])) {
     if (fields.includes(key) || canonical(old[key]) === canonical(next[key]))
       continue;
@@ -160,6 +172,7 @@ export function manifestChanges(
       }),
     );
   }
+
   return facts;
 }
 
@@ -175,16 +188,19 @@ function lockGraph(
 ): LockGraph {
   if (source === null) return { packages: {}, roles: new Map(), errors: [] };
   const lock = decodeJsonObject(Bun.JSONC.parse(source));
+
   if (lock.lockfileVersion !== 1 && lock.lockfileVersion !== 2)
     throw new Error("Unsupported Bun lockfile version");
   const packages = values(lock, "packages");
   const workspaces = values(lock, "workspaces");
+
   if (!Object.keys(workspaces).length)
     throw new Error("Bun lockfile has no workspace dependency roots");
   const roles = new Map<string, DependencyRole>();
   const errors = new Set<string>();
   const queue: { key: string; role: DependencyRole }[] = [];
   const rank = { unknown: 0, development: 1, peer: 2, build: 3, runtime: 4 };
+
   const resolve = (name: string, parent: string) => {
     for (
       let scope = parent;
@@ -193,8 +209,10 @@ function lockGraph(
     ) {
       if (`${scope}/${name}` in packages) return `${scope}/${name}`;
     }
+
     return name in packages ? name : undefined;
   };
+
   const enqueue = (
     name: string,
     parent: string,
@@ -202,19 +220,24 @@ function lockGraph(
     optional: boolean,
   ) => {
     const key = resolve(name, parent);
+
     if (key === undefined) {
       if (!optional)
         errors.add(
           `Unresolved Bun dependency ${name} from ${parent || "root"}`,
         );
+
       return;
     }
+
     if (rank[roles.get(key) ?? "unknown"] >= rank[role]) return;
     roles.set(key, role);
     queue.push({ key, role });
   };
+
   for (const [workspace, value] of Object.entries(workspaces)) {
     const manifest = object(value);
+
     for (const field of [
       "dependencies",
       "optionalDependencies",
@@ -233,13 +256,16 @@ function lockGraph(
         );
     }
   }
+
   for (let index = 0; index < queue.length; index++) {
     const { key, role } = queue[index];
     const record = packages[key];
+
     if (!Array.isArray(record) || !isString(record[0]))
       throw new Error(`Invalid Bun package record: ${key}`);
     const workspacePath = record[0].split("@workspace:")[1];
     let metadata: JsonObject;
+
     if (workspacePath !== undefined)
       metadata = object(workspaces[workspacePath]);
     else if (record[0].includes("@github:")) {
@@ -251,6 +277,7 @@ function lockGraph(
         throw new Error(`Invalid Bun package record: ${key}`);
       metadata = record[2];
     }
+
     for (const field of [
       "dependencies",
       "optionalDependencies",
@@ -258,21 +285,26 @@ function lockGraph(
     ]) {
       for (const name of Object.keys(values(metadata, field))) {
         const optionalPeers = metadata.optionalPeers;
+
         const optional =
           field === "optionalDependencies" ||
           (field === "peerDependencies" &&
             Array.isArray(optionalPeers) &&
             optionalPeers.includes(name));
+
         enqueue(name, key, role, optional);
       }
     }
   }
+
   return { packages, roles, errors: [...errors] };
 }
 
 function lockedValue(record: JsonValue | undefined): JsonValue | undefined {
   if (record === undefined) return undefined;
+
   if (!Array.isArray(record)) throw new Error("Invalid Bun package record");
+
   // The trailing integrity hash alone does not change a resolved package.
   return record.slice(0, 3);
 }
@@ -288,14 +320,17 @@ export function bunLockChanges(
   const next = lockGraph(after, settings);
   const facts: ReleaseFact[] = [];
   const errors = [...new Set([...old.errors, ...next.errors])];
+
   for (const key of new Set([
     ...Object.keys(old.packages),
     ...Object.keys(next.packages),
   ])) {
     const a = lockedValue(old.packages[key]);
     const b = lockedValue(next.packages[key]);
+
     if (canonical(a) === canonical(b)) continue;
     const roles = [old.roles.get(key), next.roles.get(key)];
+
     const role = roles.includes("runtime")
       ? "runtime"
       : roles.includes("build")
@@ -303,42 +338,56 @@ export function bunLockChanges(
         : roles.includes("development") && errors.length === 0
           ? "development"
           : "unknown";
+
     const record = next.packages[key] ?? old.packages[key];
+
     const locator =
       Array.isArray(record) && isString(record[0]) ? record[0] : key;
+
     const name = locator.slice(0, locator.lastIndexOf("@")) || key;
     facts.push(
       dependencyFact(path, name, role, a, b, `Locked package: ${key}`),
     );
+
     if (role === "unknown")
       errors.push(
         `Cannot establish runtime/development reachability for ${path}: ${key}`,
       );
   }
+
   return { facts, errors };
 }
 
 function goModule(source: string | null): Map<string, string> {
   const result = new Map<string, string>();
   let block = "";
+
   for (const raw of (source ?? "").split("\n")) {
     const line = raw.replace(/\/\/.*$/, "").trim();
+
     if (!line) continue;
+
     if (line === ")") {
       block = "";
       continue;
     }
+
     const start = /^(require|replace|exclude|retract|tool)\s*\($/.exec(line);
+
     if (start) {
       block = start[1];
       continue;
     }
+
     const fields: string[] = line.match(/"(?:[^"\\]|\\.)*"|\S+/g) ?? [];
     const directive = block || fields.shift();
+
     if (!directive || !fields.length)
       throw new Error(`Unsupported go.mod line: ${line}`);
+
     if (directive === "replace") {
       const arrow = fields.indexOf("=>");
+
       if (arrow < 1 || arrow === fields.length - 1)
         throw new Error(`Invalid Go replacement: ${line}`);
       result.set(
@@ -355,7 +404,9 @@ function goModule(source: string | null): Map<string, string> {
         fields.join(" "),
       );
   }
+
   if (block) throw new Error("Unclosed go.mod block");
+
   return result;
 }
 
@@ -367,10 +418,13 @@ export function goModuleChanges(
 ): ReleaseFact[] {
   const old = goModule(before);
   const next = goModule(after);
+
   return [...new Set([...old.keys(), ...next.keys()])]
+    .values()
     .filter((key) => old.get(key) !== next.get(key))
     .map((key) => {
       const [directive, name] = key.split(" ");
+
       return dependencyFact(
         path,
         name ?? directive,
@@ -379,7 +433,8 @@ export function goModuleChanges(
         next.get(key),
         `Go ${key}`,
       );
-    });
+    })
+    .toArray();
 }
 
 /** Net changes and all commit summaries collected from immutable Git objects. */
@@ -399,6 +454,7 @@ const git = Effect.fn("releases.git")(function* (
   args: readonly string[],
 ) {
   const executor = yield* CommandExecutor;
+
   return yield* executor
     .run("git", args, {
       cwd,
@@ -414,14 +470,17 @@ const git = Effect.fn("releases.git")(function* (
 function parseRawDiff(output: string, submodule: string | null): ReleaseFact[] {
   const parts = output.split("\0");
   const facts: ReleaseFact[] = [];
+
   for (let index = 0; index < parts.length && parts[index];) {
     const header = /^:(\d+) (\d+) ([a-f0-9]+) ([a-f0-9]+) ([A-Z])\d*$/.exec(
       parts[index++],
     );
+
     if (!header) throw new Error("Could not parse Git raw diff");
     const path = parts[index++];
     const renamed = header[5] === "R";
     const nextPath = renamed ? parts[index++] : path;
+
     if (!path || !nextPath) throw new Error("Missing Git diff path");
     const prefix = submodule ? `${submodule}/` : "";
     facts.push(
@@ -450,14 +509,17 @@ function parseRawDiff(output: string, submodule: string | null): ReleaseFact[] {
       }),
     );
   }
+
   return facts;
 }
 
 function parseLog(output: string, submodule: string | null): ReleaseCommit[] {
   const parts = output.split("\0");
   const commits: ReleaseCommit[] = [];
+
   for (let index = 0; index + 2 < parts.length; index += 3) {
     const id = parts[index].trim();
+
     if (!/^[a-f0-9]{40,64}$/.test(id))
       throw new Error("Invalid commit ID in Git log");
     commits.push({
@@ -467,20 +529,25 @@ function parseLog(output: string, submodule: string | null): ReleaseCommit[] {
       submodule,
     });
   }
+
   return commits;
 }
 
 function parseNumstat(output: string): Map<string, number | null> {
   const records = output.split("\0");
   const counts = new Map<string, number | null>();
+
   for (let index = 0; index < records.length && records[index];) {
     const match = /^(\d+|-)\t(\d+|-)\t([\s\S]*)$/.exec(records[index++]);
+
     if (!match) throw new Error("Could not parse Git line counts");
     let path = match[3];
+
     if (!path) {
       index++; // Renames carry separate old and new path records.
       path = records[index++];
     }
+
     if (!path) throw new Error("Missing Git line-count path");
     counts.set(
       path,
@@ -489,6 +556,7 @@ function parseNumstat(output: string): Map<string, number | null> {
         : Number(match[1]) + Number(match[2]),
     );
   }
+
   return counts;
 }
 
@@ -511,6 +579,7 @@ const range = Effect.fn("releases.range")(function* (
     after,
     "--",
   ]);
+
   const log = yield* git(cwd, [
     "log",
     "-z",
@@ -518,6 +587,7 @@ const range = Effect.fn("releases.range")(function* (
     `${before}..${after}`,
     "--",
   ]);
+
   const numstat = yield* git(cwd, [
     "diff",
     "--numstat",
@@ -532,16 +602,20 @@ const range = Effect.fn("releases.range")(function* (
     after,
     "--",
   ]);
+
   return yield* Effect.try({
     try: () => {
       const counts = parseNumstat(numstat);
+
       return {
         facts: parseRawDiff(diff, submodule).map((fact) => {
           const path = submodule
             ? fact.path.slice(submodule.length + 1)
             : fact.path;
+
           if (!counts.has(path))
             throw new Error(`Missing Git line count for ${fact.path}`);
+
           return { ...fact, changedLines: counts.get(path) };
         }),
         commits: parseLog(log, submodule),
@@ -568,17 +642,22 @@ const submoduleUrl = Effect.fn("releases.submoduleUrl")(function* (
     "--get-regexp",
     "^submodule\\..*\\.(path|url)$",
   ]);
+
   const entries = output
     .trim()
     .split("\n")
     .map((line) => {
       const index = line.indexOf(" ");
+
       return [line.slice(0, index), line.slice(index + 1)] as const;
     });
+
   const name = entries
     .find(([key, value]) => key.endsWith(".path") && value === path)?.[0]
     .slice(0, -5);
+
   const url = entries.find(([key]) => key === `${name}.url`)?.[1];
+
   if (
     !url ||
     !/^(https:\/\/github\.com\/|git@github\.com:)[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\.git)?$/.test(
@@ -588,6 +667,7 @@ const submoduleUrl = Effect.fn("releases.submoduleUrl")(function* (
     return yield* new ReleaseError({
       message: `Missing or unsupported upstream URL for ${path}`,
     });
+
   return url;
 });
 
@@ -602,8 +682,10 @@ function changedLines(diff: string): ChangedLines {
   let oldLine = 0;
   let newLine = 0;
   let inHunk = false;
+
   for (const line of diff.split("\n")) {
     const hunk = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
+
     if (hunk) {
       oldLine = Number(hunk[1]);
       newLine = Number(hunk[2]);
@@ -615,6 +697,7 @@ function changedLines(diff: string): ChangedLines {
       newLine++;
     } else if (!line.startsWith("\\")) inHunk = false;
   }
+
   return { added, removed };
 }
 
@@ -625,10 +708,13 @@ interface BlamedLine {
 
 function blameLines(output: string): BlamedLine[] {
   const lines: BlamedLine[] = [];
+
   for (const line of output.split("\n")) {
     const header = /^([a-f0-9]{40,64}) (\d+) (\d+)(?: \d+)?$/.exec(line);
+
     if (header) lines.push({ commit: header[1], finalLine: Number(header[3]) });
   }
+
   return lines;
 }
 
@@ -644,6 +730,7 @@ export const attributeReleaseSubjects = Effect.fn("releases.attributeSubjects")(
     submodule: string | null = null,
   ): Effect.fn.Return<readonly ReleaseFact[], ReleaseError, CommandExecutor> {
     const rules = settings.overrides?.filter((rule) => rule.subjects) ?? [];
+
     if (
       !rules.length ||
       !commits.some((commit) =>
@@ -655,6 +742,7 @@ export const attributeReleaseSubjects = Effect.fn("releases.attributeSubjects")(
       )
     )
       return facts;
+
     const graph = new Map(
       (yield* git(cwd, ["rev-list", "--parents", `${before}..${after}`]))
         .trim()
@@ -662,21 +750,27 @@ export const attributeReleaseSubjects = Effect.fn("releases.attributeSubjects")(
         .filter(Boolean)
         .map((line) => {
           const [commit, ...parents] = line.split(" ");
+
           return [commit, parents] as const;
         }),
     );
+
     const trees = new Map<string, string | null>();
     const sources = new Map<string, string | null>();
     const structured = new Map<string, readonly ReleaseFact[]>();
     const diffs = new Map<string, ChangedLines>();
+
     const gitPath = (path: string) =>
       submodule === null ? path : path.slice(submodule.length + 1);
+
     const tree = Effect.fn("releases.lineageTree")(function* (
       commit: string,
       path: string,
     ) {
       const key = `${commit}:${path}`;
+
       if (trees.has(key)) return trees.get(key) ?? null;
+
       const output = yield* git(cwd, [
         "ls-tree",
         "-z",
@@ -684,21 +778,27 @@ export const attributeReleaseSubjects = Effect.fn("releases.attributeSubjects")(
         "--",
         `:(literal)${gitPath(path)}`,
       ]);
+
       const record = /^(\d+) (?:blob|commit) ([a-f0-9]+)\t/.exec(output);
       const value = record ? `${record[1]}:${record[2]}` : null;
       trees.set(key, value);
+
       return value;
     });
+
     const source = Effect.fn("releases.lineageSource")(function* (
       commit: string,
       path: string,
     ) {
       const key = `${commit}:${path}`;
+
       if (sources.has(key)) return sources.get(key) ?? null;
       const value = yield* blob(cwd, yield* tree(commit, path));
       sources.set(key, value);
+
       return value;
     });
+
     const value = Effect.fn("releases.lineageValue")(function* (
       commit: string,
       fact: ReleaseFact,
@@ -706,8 +806,10 @@ export const attributeReleaseSubjects = Effect.fn("releases.attributeSubjects")(
       if (fact.kind !== "dependency" && fact.kind !== "metadata")
         return yield* tree(commit, fact.path);
       const key = `${commit}:${fact.path}`;
+
       if (!structured.has(key)) {
         const text = yield* source(commit, fact.path);
+
         const parsed = yield* Effect.try({
           try: () =>
             fact.path.endsWith("package.json")
@@ -720,8 +822,10 @@ export const attributeReleaseSubjects = Effect.fn("releases.attributeSubjects")(
               message: `Cannot attribute ${fact.path} at ${commit}: ${formatCause(error)}`,
             }),
         });
+
         structured.set(key, parsed);
       }
+
       return (
         structured
           .get(key)
@@ -733,6 +837,7 @@ export const attributeReleaseSubjects = Effect.fn("releases.attributeSubjects")(
           )?.after ?? (fact.kind === "metadata" ? "undefined" : null)
       );
     });
+
     const valueOwners = Effect.fn("releases.valueOwners")(function* (
       fact: ReleaseFact,
     ) {
@@ -740,18 +845,24 @@ export const attributeReleaseSubjects = Effect.fn("releases.attributeSubjects")(
       const owners = new Set<string>();
       const pending = [after];
       const visited = new Set<string>();
+
       for (let index = 0; index < pending.length; index++) {
         const commit = pending[index];
+
         if (visited.has(commit) || !graph.has(commit)) continue;
         visited.add(commit);
         const inherited: string[] = [];
+
         for (const parent of graph.get(commit) ?? [])
           if ((yield* value(parent, fact)) === expected) inherited.push(parent);
+
         if (inherited.length) pending.push(...inherited);
         else owners.add(commit);
       }
+
       return owners;
     });
+
     const lineDiff = Effect.fn("releases.lineDiff")(function* (
       old: string,
       next: string,
@@ -760,7 +871,9 @@ export const attributeReleaseSubjects = Effect.fn("releases.attributeSubjects")(
     ) {
       const key = `${old}:${next}:${path}:${previousPath ?? ""}`;
       const cached = diffs.get(key);
+
       if (cached) return cached;
+
       const output = yield* git(cwd, [
         "diff",
         "--no-ext-diff",
@@ -778,10 +891,13 @@ export const attributeReleaseSubjects = Effect.fn("releases.attributeSubjects")(
           ? []
           : [`:(literal)${gitPath(previousPath)}`]),
       ]);
+
       const result = changedLines(output);
       diffs.set(key, result);
+
       return result;
     });
+
     const blame = Effect.fn("releases.lineageBlame")(function* (
       args: readonly string[],
       path: string,
@@ -797,6 +913,7 @@ export const attributeReleaseSubjects = Effect.fn("releases.attributeSubjects")(
         "--",
         gitPath(path),
       ]);
+
       return yield* Effect.try({
         try: () => blameLines(output),
         catch: (error) =>
@@ -805,6 +922,7 @@ export const attributeReleaseSubjects = Effect.fn("releases.attributeSubjects")(
           }),
       });
     });
+
     const removalOwners = Effect.fn("releases.removalOwners")(function* (
       fact: ReleaseFact,
       line: number,
@@ -812,11 +930,14 @@ export const attributeReleaseSubjects = Effect.fn("releases.attributeSubjects")(
       const owners = new Set<string>();
       const pending = [after];
       const visited = new Set<string>();
+
       for (let index = 0; index < pending.length; index++) {
         const commit = pending[index];
+
         if (visited.has(commit) || !graph.has(commit)) continue;
         visited.add(commit);
         const inherited: string[] = [];
+
         // Compare each parent with the baseline so a restored line ends the old removal's lineage.
         for (const parent of graph.get(commit) ?? [])
           if (
@@ -828,12 +949,16 @@ export const attributeReleaseSubjects = Effect.fn("releases.attributeSubjects")(
             )).removed.has(line)
           )
             inherited.push(parent);
+
         if (inherited.length) pending.push(...inherited);
         else owners.add(commit);
       }
+
       return owners;
     });
+
     const attributed: ReleaseFact[] = [];
+
     for (const fact of facts) {
       if (
         !fact.complete ||
@@ -844,8 +969,10 @@ export const attributeReleaseSubjects = Effect.fn("releases.attributeSubjects")(
         attributed.push(fact);
         continue;
       }
+
       const result = yield* Effect.gen(function* () {
         let owners: ReadonlySet<string>;
+
         if (fact.kind === "dependency" || fact.kind === "metadata")
           owners = yield* valueOwners(fact);
         else {
@@ -855,12 +982,15 @@ export const attributeReleaseSubjects = Effect.fn("releases.attributeSubjects")(
             fact.path,
             fact.previousPath,
           );
+
           if (!net.added.size && !net.removed.size)
             owners = yield* valueOwners(fact);
           else {
             const contentOwners = new Set<string>();
+
             if (net.added.size) {
               const added = yield* blame([after], fact.path);
+
               if (
                 [...net.added].some(
                   (line) => !added.some((entry) => entry.finalLine === line),
@@ -869,29 +999,34 @@ export const attributeReleaseSubjects = Effect.fn("releases.attributeSubjects")(
                 return yield* new ReleaseError({
                   message: `Incomplete added-line lineage for ${fact.path}`,
                 });
+
               for (const line of added)
                 if (net.added.has(line.finalLine))
                   contentOwners.add(line.commit);
             }
+
             for (const line of net.removed)
               for (const owner of yield* removalOwners(fact, line))
                 contentOwners.add(owner);
             owners = contentOwners;
           }
         }
+
         return {
           ...fact,
           subjects: [
             ...new Set(
               commits
+                .values()
                 .filter((commit) => owners.has(commit.id))
                 .map((commit) => commit.subject),
             ),
           ].sort(),
         };
       }).pipe(Effect.result);
+
       attributed.push(
-        result._tag === "Success"
+        Result.isSuccess(result)
           ? result.success
           : {
               ...fact,
@@ -900,6 +1035,7 @@ export const attributeReleaseSubjects = Effect.fn("releases.attributeSubjects")(
             },
       );
     }
+
     return attributed;
   },
 );
@@ -916,6 +1052,7 @@ export const collectReleaseChanges = Effect.fn("releases.collect")(function* (
   const facts: ReleaseFact[] = [];
   const commits = [...comparison.commits];
   const errors: string[] = [];
+
   for (const fact of comparison.facts) {
     if (
       separatelyPublishedPath(fact.path, settings) &&
@@ -925,6 +1062,7 @@ export const collectReleaseChanges = Effect.fn("releases.collect")(function* (
       facts.push(fact);
       continue;
     }
+
     if (fact.kind === "submodule") {
       const upstream = yield* Effect.gen(function* () {
         if (
@@ -934,29 +1072,36 @@ export const collectReleaseChanges = Effect.fn("releases.collect")(function* (
           return yield* new ReleaseError({
             message: `No upstream shipped-content policy for ${fact.path}`,
           });
+
         if (!fact.before || !fact.after)
           return yield* new ReleaseError({
             message: `Submodule added or removed: ${fact.path}; upstream comparison needs review`,
           });
+
         const oldUrl = yield* submoduleUrl(
           cwd,
           before,
           fact.previousPath ?? fact.path,
         );
+
         const url = yield* submoduleUrl(cwd, after, fact.path);
+
         if (url !== oldUrl)
           return yield* new ReleaseError({
             message: `Submodule URL changed: ${fact.path}; upstream comparison needs review`,
           });
+
         const directory = join(
           cacheDirectory,
           "upstream",
           evidenceId(fact.path),
         );
+
         yield* Effect.try({
           try: () => mkdirSync(dirname(directory), { recursive: true }),
           catch: (error) => new ReleaseError({ message: formatCause(error) }),
         });
+
         if (!existsSync(directory))
           yield* git(cwd, ["init", "--bare", directory]);
         const oldCommit = fact.before.split(":")[1];
@@ -970,12 +1115,14 @@ export const collectReleaseChanges = Effect.fn("releases.collect")(function* (
           `+${oldCommit}:refs/dot-release/base`,
           `+${nextCommit}:refs/dot-release/head`,
         ]);
+
         const upstream = yield* range(
           directory,
           oldCommit,
           nextCommit,
           fact.path,
         );
+
         return {
           ...upstream,
           evidenceUrl: `${url.replace(/^git@github.com:/, "https://github.com/").replace(/\.git$/, "")}/compare/${oldCommit}...${nextCommit}`,
@@ -994,7 +1141,8 @@ export const collectReleaseChanges = Effect.fn("releases.collect")(function* (
           ),
         };
       }).pipe(Effect.result);
-      if (upstream._tag === "Success") {
+
+      if (Result.isSuccess(upstream)) {
         facts.push(
           {
             ...fact,
@@ -1011,8 +1159,10 @@ export const collectReleaseChanges = Effect.fn("releases.collect")(function* (
         facts.push({ ...fact, submodule: fact.path, complete: false });
         errors.push(upstream.failure.message);
       }
+
       continue;
     }
+
     if (
       fact.path.endsWith("/package.json") ||
       fact.path === "package.json" ||
@@ -1022,9 +1172,11 @@ export const collectReleaseChanges = Effect.fn("releases.collect")(function* (
       fact.path === "go.mod"
     ) {
       if (fact.previousPath !== null) facts.push(fact);
+
       const parsed = yield* Effect.gen(function* () {
         const old = yield* blob(cwd, fact.before);
         const next = yield* blob(cwd, fact.after);
+
         return yield* Effect.try({
           try: () =>
             fact.path.endsWith("package.json")
@@ -1041,12 +1193,14 @@ export const collectReleaseChanges = Effect.fn("releases.collect")(function* (
             }),
         });
       }).pipe(Effect.result);
-      if (parsed._tag === "Failure") {
+
+      if (Result.isFailure(parsed)) {
         facts.push({ ...fact, complete: false });
         errors.push(parsed.failure.message);
       } else {
         facts.push(...parsed.success.facts);
         errors.push(...parsed.success.errors);
+
         if (parsed.success.facts.length === 0)
           facts.push({
             ...fact,
@@ -1068,6 +1222,7 @@ export const collectReleaseChanges = Effect.fn("releases.collect")(function* (
             : fact,
       );
   }
+
   const localFacts = yield* attributeReleaseSubjects(
     cwd,
     before,
@@ -1076,11 +1231,14 @@ export const collectReleaseChanges = Effect.fn("releases.collect")(function* (
     comparison.commits,
     settings,
   );
+
   const attributedById = new Map(localFacts.map((fact) => [fact.id, fact]));
   const attributed = facts.map((fact) => attributedById.get(fact.id) ?? fact);
+
   for (const fact of attributed)
     if (!fact.complete && !errors.includes(fact.detail))
       errors.push(fact.detail);
+
   return {
     facts: attributed,
     files: [

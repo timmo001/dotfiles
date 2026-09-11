@@ -2,6 +2,7 @@ import { Schema } from "effect";
 
 /** Ordered release impacts, independent of dependency version numbers. */
 export const Impact = Schema.Literals(["none", "patch", "minor", "major"]);
+
 /** A policy or local review's release impact. */
 export type Impact = typeof Impact.Type;
 
@@ -13,6 +14,7 @@ export const DependencyRole = Schema.Literals([
   "build",
   "unknown",
 ]);
+
 /** A dependency's resolved purpose. */
 export type DependencyRole = typeof DependencyRole.Type;
 
@@ -37,6 +39,7 @@ export const ReleaseRule = Schema.Struct({
   /** Human-readable explanation. */
   reason: Schema.String,
 });
+
 /** One ordered classification rule. */
 export type ReleaseRule = typeof ReleaseRule.Type;
 
@@ -50,6 +53,7 @@ export const ReleaseVersionFile = Schema.Union([
     format: Schema.Literal("python-setup"),
   }),
 ]);
+
 /** Supported version sources for release preparation. */
 export type ReleaseVersionFile = typeof ReleaseVersionFile.Type;
 
@@ -90,6 +94,7 @@ export const ReleaseSettings = Schema.Struct({
     cooldown_minutes: Schema.Number,
   }),
 });
+
 /** Validated release settings, absent for unwatched repositories. */
 export type ReleaseSettings = typeof ReleaseSettings.Type;
 
@@ -135,6 +140,7 @@ export const ReleaseFact = Schema.Struct({
   /** Immutable upstream comparison link; absent in older cached evidence. */
   evidenceUrl: Schema.optional(Schema.String),
 });
+
 /** One immutable change fact. */
 export type ReleaseFact = typeof ReleaseFact.Type;
 
@@ -150,6 +156,7 @@ export const ReleaseFinding = Schema.Struct({
   /** Whether this exact evidence has a local override. */
   reviewed: Schema.Boolean,
 });
+
 /** Classified release evidence. */
 export type ReleaseFinding = typeof ReleaseFinding.Type;
 
@@ -166,6 +173,7 @@ export const ReleaseCommit = Schema.Struct({
   /** Immutable upstream commit link; absent in older cached summaries. */
   url: Schema.optional(Schema.String),
 });
+
 /** Immutable commit summary. */
 export type ReleaseCommit = typeof ReleaseCommit.Type;
 
@@ -212,6 +220,7 @@ export const ReleaseSnapshot = Schema.Struct({
   /** Missing evidence explanations. */
   errors: Schema.Array(Schema.String),
 });
+
 /** Complete CLI review snapshot. */
 export type ReleaseSnapshot = typeof ReleaseSnapshot.Type;
 
@@ -232,6 +241,7 @@ export const ReleaseReviewState = Schema.Struct({
   /** Bounded last delivery failure, separate from comparison freshness. */
   deliveryError: Schema.optional(Schema.NullOr(Schema.String)),
 });
+
 /** Persisted local decisions. */
 export type ReleaseReviewState = typeof ReleaseReviewState.Type;
 
@@ -246,6 +256,7 @@ export const ReleaseCache = Schema.Struct({
   /** Latest scan failure, without discarding previous evidence. */
   error: Schema.NullOr(Schema.String),
 });
+
 /** On-disk cache envelope. */
 export type ReleaseCache = typeof ReleaseCache.Type;
 

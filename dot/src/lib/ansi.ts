@@ -31,7 +31,9 @@ export function colorEnabled(
   stream: { readonly isTTY?: boolean } = process.stdout,
 ): boolean {
   const noColor = envString(ENV.NO_COLOR);
+
   if (noColor !== undefined && noColor !== "") return false;
+
   return stream.isTTY === true;
 }
 

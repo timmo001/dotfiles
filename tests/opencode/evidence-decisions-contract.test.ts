@@ -3,10 +3,12 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = resolve(import.meta.dir, "../..");
+
 const evidenceFirstSkill = readFileSync(
   resolve(root, "agents/.agents/skills/evidence-first/SKILL.md"),
   "utf8",
 );
+
 const researchSkill = readFileSync(
   resolve(root, "agents/.agents/skills/research/SKILL.md"),
   "utf8",

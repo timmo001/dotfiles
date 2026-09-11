@@ -11,6 +11,7 @@ export default Plugin.define({
     Effect.gen(function* () {
       yield* context.tool.hook("execute.before", (event) => {
         if (!isChromeDevToolsTool(event.tool)) return Effect.void;
+
         return context.session.get({ sessionID: event.sessionID }).pipe(
           Effect.map((session) => Boolean(session.parentID)),
           Effect.catch(() => Effect.succeed(true)),

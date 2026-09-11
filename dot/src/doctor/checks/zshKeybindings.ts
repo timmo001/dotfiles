@@ -7,6 +7,7 @@ import type { CheckResult } from "../types.js";
 
 /** Match a `bindkey "^[[3~" delete-char` line (any inner whitespace). */
 const LITERAL_DELETE = /bindkey\s+"\^\[\[3~"\s+delete-char/;
+
 /** Match a terminfo-backed `bindkey "${terminfo[kdch1]}" delete-char` line. */
 const TERMINFO_DELETE = /terminfo\[kdch1\][^\n]*delete-char/;
 
@@ -32,6 +33,7 @@ export const checkZshKeybindings = Effect.gen(function* () {
   }
 
   const content = readFileSync(zshrc, "utf-8");
+
   if (LITERAL_DELETE.test(content) || TERMINFO_DELETE.test(content)) {
     return [
       { severity: "ok", message: "Delete key binding present in zsh config" },

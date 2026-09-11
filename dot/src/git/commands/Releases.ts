@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Result } from "effect";
 import { Prompt } from "effect/unstable/cli";
 import { decodeJson } from "../../lib/schema.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
@@ -18,18 +18,22 @@ import { handleCommandError, writeJsonLine, writeText } from "./rows.js";
 const flushOutput = Effect.callback<void, ReleaseError>((resume) => {
   const onError = (error: Error) =>
     resume(Effect.fail(new ReleaseError({ message: error.message })));
+
   process.stdout.once("error", onError);
   process.stdout.end(() => resume(Effect.void));
+
   return Effect.sync(() => process.stdout.off("error", onError));
 });
 
 function summary(entries: readonly ReleaseEntry[]): string {
   if (!entries.length) return "No release repositories enabled.\n";
+
   return (
     entries
       .map((entry) => {
         const snapshot = entry.snapshot;
         const lines = [`${entry.name} (${entry.repo})`];
+
         if (!snapshot)
           lines.push(`  ${entry.error ?? "Not checked yet; use --refresh"}`);
         else {
@@ -44,15 +48,20 @@ function summary(entries: readonly ReleaseEntry[]): string {
             `  Snapshot: ${snapshot.id}`,
             `  ${snapshot.url}`,
           );
+
           for (const fact of snapshot.findings)
             lines.push(
               `  [${fact.impact}${fact.complete ? "" : ", incomplete"}] ${fact.detail}: ${fact.reason}${fact.reviewed ? " (local review)" : ""}`,
             );
+
           for (const error of snapshot.errors)
             lines.push(`  Missing evidence: ${error}`);
+
           if (entry.error) lines.push(`  Stale: ${entry.error}`);
         }
+
         if (entry.deliveryError) lines.push(`  ${entry.deliveryError}`);
+
         return lines.join("\n");
       })
       .join("\n\n") + "\n"
@@ -79,6 +88,7 @@ const viewReleaseLog = Effect.fn("releases.viewLog")(function* (path: string) {
   const open = yield* Prompt.run(
     Prompt.confirm({ message: "Read the full progress log?", initial: false }),
   ).pipe(Effect.catchTag("QuitError", () => Effect.succeed(false)));
+
   if (!open) return;
   const executor = yield* CommandExecutor;
   // Let NodeTerminal release its raw input reader before the pager takes over.
@@ -106,9 +116,11 @@ export const releasesPublish = Effect.fn("releases.publish")(function* (
   const releases = yield* GitReleases;
   const output: string[] = [];
   const log = yield* OutputLog;
+
   const progress = (message: string) =>
     Effect.sync(() => {
       output.push(message);
+
       if (output.length > 120) output.shift();
     }).pipe(
       Effect.andThen(
@@ -119,19 +131,25 @@ export const releasesPublish = Effect.fn("releases.publish")(function* (
             : writeText(message + "\n"),
       ),
     );
+
   const inspect = releases.publish(action, progress);
+
   const preview = yield* (
     interactive ? log.withSpinner("Checking release", inspect) : inspect
   ).pipe(Effect.result);
-  if (preview._tag === "Failure") {
+
+  if (Result.isFailure(preview)) {
     if (!interactive) return yield* preview.failure;
     yield* recoverRelease(action, preview.failure, output);
     process.exitCode = 1;
     yield* flushOutput;
+
     return;
   }
+
   let result = preview.success;
   const plan = result.type === "plan" ? result.plan : null;
+
   if (panelJson) yield* writeJsonLine(decodeJson(result));
   else if (result.type === "plan")
     yield* writeText(
@@ -148,6 +166,7 @@ export const releasesPublish = Effect.fn("releases.publish")(function* (
         "",
       ].join("\n"),
     );
+
   if (interactive && result.type === "plan") {
     const confirmed = yield* Prompt.run(
       Prompt.confirm({
@@ -155,18 +174,22 @@ export const releasesPublish = Effect.fn("releases.publish")(function* (
         initial: false,
       }),
     ).pipe(Effect.catchTag("QuitError", () => Effect.succeed(false)));
+
     if (!confirmed) {
       yield* writeText("Release cancelled.\n");
       yield* flushOutput;
+
       return;
     }
+
     const outcome = yield* log
       .withSpinner(
         `Creating release ${result.plan.tag}`,
         releases.publish({ ...action, confirm: result.plan.id }, progress),
       )
       .pipe(Effect.result);
-    if (outcome._tag === "Failure") {
+
+    if (Result.isFailure(outcome)) {
       yield* recoverRelease(
         action,
         outcome.failure,
@@ -175,13 +198,17 @@ export const releasesPublish = Effect.fn("releases.publish")(function* (
       );
       process.exitCode = 1;
       yield* flushOutput;
+
       return;
     }
+
     result = outcome.success;
   }
+
   if (result.type === "created" && !panelJson) {
     if (interactive) {
       yield* log.section("Release Summary");
+
       if (plan) {
         for (const file of plan.versions)
           yield* log.info(`${file.path}: ${file.before} -> ${file.after}`);
@@ -198,13 +225,17 @@ export const releasesPublish = Effect.fn("releases.publish")(function* (
           `Release notes: generated by GitHub since ${plan.previousTag}`,
         );
       }
+
       yield* log.info(`Released commit: ${result.target}`);
     }
+
     yield* writeText(
       `Created ${result.tag}: ${result.url}\nPublication jobs: ${result.actionsUrl}\nFull log: ${result.logPath}\n`,
     );
+
     if (interactive) yield* viewReleaseLog(result.logPath);
   }
+
   yield* flushOutput;
 }, handleCommandError("dot git-releases publish"));
 

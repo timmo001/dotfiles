@@ -46,6 +46,7 @@ function uniqueSlugs(slugs: readonly (string | null)[]): readonly string[] {
   for (const slug of slugs) {
     if (!slug) continue;
     const normalized = slug.toLowerCase();
+
     if (seen.has(normalized)) continue;
     seen.add(normalized);
     unique.push(slug);

@@ -51,42 +51,53 @@ export const install = Effect.gen(function* () {
   yield* ensureStowInstalled;
 
   yield* log.section("Completions");
+
   for (const target of yield* writeAllCompletions) {
     yield* log.info(`Generated completions: ${displayPath(target)}`);
   }
 
   yield* log.section("Backup");
+
   if (config.privateDotfiles) {
     const privateDotfiles = config.privateDotfiles;
+
     const removedPrivateCrashHook = yield* Effect.sync(() =>
       removeRetiredPrivateCrashHook(privateDotfiles),
     );
+
     if (removedPrivateCrashHook) {
       yield* log.info(
         `Migrated crash hook to public stow: ${displayPath(removedPrivateCrashHook)}`,
       );
     }
   }
+
   for (const path of removeRetiredPublicStowLinks(config.publicDotfiles)) {
     yield* log.info(`Removed retired stow link: ${displayPath(path)}`);
   }
+
   const legacyGhosttyMove = yield* Effect.sync(() =>
     backupLegacyGhosttyRepo(config.publicDotfiles),
   );
+
   if (legacyGhosttyMove) {
     yield* log.info(
       `Backed up retired Ghostty repo: ${formatBackupMove(legacyGhosttyMove)}`,
     );
   }
+
   const removedLegacyUwsm = yield* Effect.sync(() => removeLegacyUwsmRepo());
+
   if (removedLegacyUwsm) {
     yield* log.info(
       `Removed retired UWSM repo: ${displayPath(removedLegacyUwsm)}`,
     );
   }
+
   const knownMoves = yield* Effect.sync(() =>
     backupPublicFiles(config.publicDotfiles),
   );
+
   for (const move of knownMoves) {
     yield* log.info(`Backed up existing file: ${formatBackupMove(move)}`);
   }
@@ -97,10 +108,12 @@ export const install = Effect.gen(function* () {
   const protectedTargets = yield* Effect.sync(() =>
     backupConflictingPublicTargets(config.publicDotfiles, config),
   );
+
   if (protectedTargets.length > 0) {
     yield* log.info(
       `Protected ${protectedTargets.length} public stow target(s) from --adopt (live copies moved to backup/):`,
     );
+
     for (const move of protectedTargets) {
       yield* log.info(`  ${formatBackupMove(move)}`);
     }
@@ -129,14 +142,17 @@ export const install = Effect.gen(function* () {
   if (config.canUsePrivate && config.privateDotfiles) {
     const privateDotfiles = config.privateDotfiles;
     yield* log.section("Install Private Dotfiles");
+
     const privateMoves = yield* Effect.sync(() =>
       backupUnmanagedStowTargets(privateDotfiles, config),
     );
+
     for (const move of privateMoves) {
       yield* log.info(
         `[private] backed up unmanaged target: ${formatBackupMove(move)}`,
       );
     }
+
     yield* stowRepo(
       privateDotfiles,
       "private",
@@ -174,6 +190,7 @@ function backupPublicFiles(publicDotfiles: string): BackupMove[] {
 
   for (const { source, backupDir } of targets) {
     const move = backupFileIfUnmanaged(source, backupDir);
+
     if (move) moves.push(move);
   }
 
@@ -194,10 +211,12 @@ const publicRepoStatus = (
 /** Collect the home-relative paths that already have a working-tree status. */
 function dirtyPaths(porcelain: string): Set<string> {
   const paths = new Set<string>();
+
   for (const line of porcelain.split("\n")) {
     if (line.length < 4) continue;
     paths.add(line.slice(3));
   }
+
   return paths;
 }
 
@@ -222,19 +241,24 @@ const warnIfAdoptDirtiedRepo = (
     const beforeDirty = dirtyPaths(before);
 
     const adopted: string[] = [];
+
     for (const line of after.split("\n")) {
       if (line.length < 4) continue;
       const status = line.slice(0, 2);
       const path = line.slice(3);
+
       if (status === "??" || beforeDirty.has(path)) continue;
       adopted.push(path);
     }
+
     if (adopted.length === 0) return;
 
     yield* log.warn("stow --adopt changed committed files in the public repo:");
+
     for (const path of adopted) {
       yield* log.warn(`  ${path}`);
     }
+
     yield* log.warn(`Review: git -C ${displayPath(repoDir)} diff`);
     yield* log.warn(
       `Discard leftovers: git -C ${displayPath(repoDir)} restore <path>`,
@@ -267,6 +291,7 @@ const stowRepo = (
       yield* log.info(`[${scope}] stow ${folder} (repo: ${repoDisplayPath})`);
 
       const isHypr = scope === "public" && folder === "hypr";
+
       if (isHypr) {
         yield* ensureHyprConfigLink(repoDir, log);
       } else {
@@ -275,10 +300,12 @@ const stowRepo = (
         const unstowExit = yield* launcher.stream(`stow -D ${folder}`, {
           cwd: repoDir,
         });
+
         if (unstowExit !== 0) {
           yield* log.error(
             `[${scope}] unstow ${folder} failed (exit ${unstowExit})`,
           );
+
           return yield* new LauncherError({
             message: `${scope} install unstow failed on ${folder}`,
             exitCode: unstowExit,
@@ -289,18 +316,23 @@ const stowRepo = (
       // Build stow command with folder-specific flags
       const flags: string[] = [];
       let externalLinks: ExternalSymlink[] = [];
+
       if (requiresNoFolding(repoDir, folder)) {
         flags.push("--no-folding");
       }
+
       if (folder === "agents") {
         if (scope === "private") {
           flags.push(...AGENTS_PRIVATE_IGNORES);
         }
+
         externalLinks = findExternalSkillSymlinks(repoDir);
+
         if (externalLinks.length > 0) {
           removeExternalSymlinks(externalLinks);
         }
       }
+
       // Keep ~/.config/hypr a real directory so the runtime host symlink and
       // Hyprland runtime state live in the live tree, not the stow source.
       if (folder === "hypr") {
@@ -321,6 +353,7 @@ const stowRepo = (
 
       if (exit !== 0) {
         yield* log.error(`[${scope}] stow ${folder} failed (exit ${exit})`);
+
         return yield* new LauncherError({
           message: `${scope} install stow failed on ${folder}`,
           exitCode: exit,

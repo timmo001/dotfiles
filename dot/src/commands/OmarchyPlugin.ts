@@ -1,4 +1,4 @@
-import { Effect, Schema } from "effect";
+import { Data, Effect, Schema } from "effect";
 import {
   existsSync,
   lstatSync,
@@ -76,6 +76,9 @@ export type OmarchyPluginInput =
       readonly offerCommit: boolean;
     };
 
+/** Constructors and guards for managed plugin operations. */
+export const OmarchyPluginInput = Data.taggedEnum<OmarchyPluginInput>();
+
 type PluginEffect = Effect.Effect<
   void,
   OmarchyPluginError | CommandError,
@@ -107,21 +110,26 @@ export function httpsGitUrl(url: string): string {
   if (url.startsWith("git@github.com:")) {
     return `https://github.com/${url.slice("git@github.com:".length)}`;
   }
+
   if (url.startsWith("ssh://git@github.com/")) {
     return `https://github.com/${url.slice("ssh://git@github.com/".length)}`;
   }
+
   return url;
 }
 
 function pluginEntries(registry: JsonObject): readonly JsonObject[] {
   const plugins = registry.plugins;
+
   if (!Array.isArray(plugins)) {
     throw new OmarchyPluginError({ message: "plugins must be an array" });
   }
+
   return plugins.map((plugin) => {
     if (!isJsonObject(plugin)) {
       throw new OmarchyPluginError({ message: "plugins must contain objects" });
     }
+
     return plugin;
   });
 }
@@ -134,7 +142,9 @@ function readRegistry(
       const registry = decodeJsonObject(
         JSON.parse(readFileSync(paths.registry, "utf8")),
       );
+
       pluginEntries(registry);
+
       return registry;
     },
     catch: (error) =>
@@ -175,11 +185,13 @@ function commandFailure(command: string, exitCode: number) {
 function runInherited(command: string, args: readonly string[], cwd?: string) {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
+
     const exitCode = yield* executor.inherit(
       command,
       args,
       cwd ? { cwd } : undefined,
     );
+
     if (exitCode !== 0) return yield* commandFailure(command, exitCode);
   });
 }
@@ -208,6 +220,7 @@ function writeRegistry(paths: OmarchyPluginPaths, registry: JsonObject) {
     if (!existsSync(paths.prettier)) {
       return yield* fail(`Prettier not found: ${paths.prettier}`);
     }
+
     const temporary = `${paths.registry}.tmp.${process.pid}`;
     yield* fsEffect(
       () => writeFileSync(temporary, `${JSON.stringify(registry)}\n`),
@@ -237,6 +250,7 @@ function writeRegistry(paths: OmarchyPluginPaths, registry: JsonObject) {
 
 function restoreRegistry(paths: OmarchyPluginPaths, contents: string) {
   const temporary = `${paths.registry}.tmp.${process.pid}`;
+
   return fsEffect(() => {
     try {
       writeFileSync(temporary, contents);
@@ -292,7 +306,9 @@ function choose(header: string, choices: readonly string[]) {
           signal,
         },
       );
+
       const output = await new Response(proc.stdout).text();
+
       return (await proc.exited) === 0 ? output.trim() : "";
     },
     catch: (error) =>
@@ -305,6 +321,7 @@ function choose(header: string, choices: readonly string[]) {
 function confirm(message: string) {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
+
     return (yield* executor.inherit("gum", ["confirm", message])) === 0;
   });
 }
@@ -317,19 +334,25 @@ function offerCommit(
 ): PluginEffect {
   return Effect.gen(function* () {
     if (!interactive()) return;
+
     const choices =
       action === "add"
         ? ["Discard plugin", "No", "Commit", "Commit and push"]
         : ["No", "Commit", "Commit and push"];
+
     const choice = yield* choose("Save managed plugin changes?", choices);
+
     if (choice === "Discard plugin") {
       yield* removePlugin(paths, id, true, false);
+
       if (registryBeforeAdd !== undefined) {
         yield* restoreRegistry(paths, registryBeforeAdd);
         yield* unstage(paths, id);
       }
+
       return;
     }
+
     if (choice !== "Commit" && choice !== "Commit and push") return;
 
     const args = [
@@ -343,6 +366,7 @@ function offerCommit(
       "--path",
       `omarchy/.config/omarchy/plugins/${id}`,
     ];
+
     if (choice === "Commit and push") args.push("--push");
     yield* runInherited("dot", args, paths.repo);
   });
@@ -355,19 +379,25 @@ function parsePlacement(
   let section = defaultSection;
   let before: string | undefined;
   let after: string | undefined;
+
   for (let index = 0; index < args.length; index += 2) {
     const option = args[index];
     const value = args[index + 1];
+
     if (!value) return fail(`${option} requires a value`);
+
     if (option === "--section") section = value;
     else if (option === "--before") before = value;
     else if (option === "--after") after = value;
     else return fail(`unknown placement option: ${option}`);
   }
+
   if (section !== "left" && section !== "center" && section !== "right") {
     return fail(`invalid section: ${section}`);
   }
+
   if (before && after) return fail("use only one of --before or --after");
+
   return Effect.succeed({
     section,
     ...(before && { before }),
@@ -381,7 +411,9 @@ function manifestDefaultSection(checkout: string) {
       const manifest = decodeJsonObject(
         JSON.parse(readFileSync(join(checkout, "manifest.json"), "utf8")),
       );
+
       const barWidget = manifest.barWidget;
+
       return isJsonObject(barWidget) && isString(barWidget.defaultSection)
         ? barWidget.defaultSection
         : "center";
@@ -396,10 +428,13 @@ function manifestDefaultSection(checkout: string) {
 function addPlugin(paths: OmarchyPluginPaths, options: AddOptions) {
   return Effect.gen(function* () {
     const id = yield* requirePluginId(options.id);
+
     if (pathExists(join(paths.pluginsSource, id))) {
       return yield* fail(`managed plugin '${id}' already exists`);
     }
+
     const executor = yield* CommandExecutor;
+
     const registryBeforeAdd = yield* Effect.try({
       try: () => readFileSync(paths.registry, "utf8"),
       catch: (error) =>
@@ -407,9 +442,11 @@ function addPlugin(paths: OmarchyPluginPaths, options: AddOptions) {
           message: `could not read managed plugin registry: ${String(error)}`,
         }),
     });
+
     const sha = (yield* executor.run("git", ["rev-parse", "HEAD"], {
       cwd: options.checkout,
     })).trim();
+
     const exactTag = yield* executor
       .run("git", ["describe", "--tags", "--exact-match", "HEAD"], {
         cwd: options.checkout,
@@ -418,6 +455,7 @@ function addPlugin(paths: OmarchyPluginPaths, options: AddOptions) {
         Effect.map((value) => value.trim()),
         Effect.orElseSucceed(() => ""),
       );
+
     const branch =
       exactTag ||
       (yield* executor
@@ -429,6 +467,7 @@ function addPlugin(paths: OmarchyPluginPaths, options: AddOptions) {
           Effect.orElseSucceed(() => ""),
         )) ||
       "main";
+
     const submodulePath = `omarchy/.config/omarchy/plugins/${id}`;
 
     yield* Effect.gen(function* () {
@@ -449,9 +488,11 @@ function addPlugin(paths: OmarchyPluginPaths, options: AddOptions) {
         cwd: join(paths.pluginsSource, id),
       });
       const registry = yield* readRegistry(paths);
+
       const plugins = pluginEntries(registry).filter(
         (plugin) => plugin.id !== id,
       );
+
       const placement: JsonValue = { ...options.placement };
       yield* writeRegistry(paths, {
         ...registry,
@@ -474,13 +515,17 @@ function updatePlugin(
 ) {
   return Effect.gen(function* () {
     yield* requirePluginId(id);
+
     if (!(yield* isManaged(paths, id))) {
       process.exitCode = UNMANAGED_PLUGIN_EXIT_CODE;
+
       return;
     }
+
     const executor = yield* CommandExecutor;
     const pluginPath = join(paths.pluginsSource, id);
     const submodulePath = `omarchy/.config/omarchy/plugins/${id}`;
+
     const ref = (yield* executor.run(
       "git",
       [
@@ -492,36 +537,49 @@ function updatePlugin(
       ],
       { cwd: paths.repo },
     )).trim();
+
     const oldSha = (yield* executor.run("git", ["rev-parse", "HEAD"], {
       cwd: pluginPath,
     })).trim();
+
     yield* executor.run("git", ["fetch", "-q", "origin", ref], {
       cwd: pluginPath,
     });
+
     const newSha = (yield* executor.run("git", ["rev-parse", "FETCH_HEAD"], {
       cwd: pluginPath,
     })).trim();
+
     if (oldSha === newSha) {
       process.stdout.write(`${id} is up to date.\n`);
+
       return;
     }
+
     if (!assumeYes) {
       yield* runInherited("git", ["diff", oldSha, newSha], pluginPath);
+
       if (!(yield* confirm(`Update ${id}?`))) {
         process.stdout.write(`Skipped ${id}.\n`);
+
         return;
       }
     }
+
     yield* executor.run("git", ["checkout", "-q", newSha], { cwd: pluginPath });
+
     const validation = yield* executor.inherit("omarchy-plugin-validate", [
       pluginPath,
     ]);
+
     if (validation !== 0) {
       yield* executor.run("git", ["checkout", "-q", oldSha], {
         cwd: pluginPath,
       });
+
       return yield* fail(`update of '${id}' failed validation; rolled back`);
     }
+
     yield* unstage(paths, id);
     yield* rescanPlugins();
     process.stdout.write(`Updated managed plugin ${id} to ${newSha}.\n`);
@@ -533,17 +591,23 @@ function leftoverParts(paths: OmarchyPluginPaths, id: string) {
     const executor = yield* CommandExecutor;
     const submodulePath = `omarchy/.config/omarchy/plugins/${id}`;
     const leftovers: string[] = [];
+
     if (pathExists(join(paths.pluginsSource, id))) leftovers.push("source");
+
     if (pathExists(join(paths.pluginsLive, id))) leftovers.push("live");
+
     if (existsSync(join(paths.repo, ".git", "modules", submodulePath)))
       leftovers.push("module-cache");
+
     const configKeys = yield* executor
       .run("git", ["config", "--name-only", "--get-regexp", "^submodule\\."], {
         cwd: paths.repo,
       })
       .pipe(Effect.orElseSucceed(() => ""));
+
     if (configKeys.includes(`submodule.${submodulePath}.`))
       leftovers.push("git-config");
+
     const gitmodulesKeys = yield* executor
       .run(
         "git",
@@ -558,11 +622,14 @@ function leftoverParts(paths: OmarchyPluginPaths, id: string) {
         { cwd: paths.repo },
       )
       .pipe(Effect.orElseSucceed(() => ""));
+
     if (gitmodulesKeys.includes(`submodule.${submodulePath}.`))
       leftovers.push("gitmodules");
     const registry = yield* readRegistry(paths);
+
     if (pluginEntries(registry).some((plugin) => plugin.id === id))
       leftovers.push("registry");
+
     return leftovers;
   });
 }
@@ -575,16 +642,20 @@ function removePlugin(
 ): PluginEffect {
   return Effect.gen(function* () {
     yield* requirePluginId(id);
+
     if (!(yield* isManaged(paths, id))) {
       process.exitCode = UNMANAGED_PLUGIN_EXIT_CODE;
+
       return;
     }
+
     if (
       !assumeYes &&
       !(yield* confirm(`Remove managed plugin '${id}' from dotfiles?`))
     ) {
       return yield* fail("aborted");
     }
+
     const executor = yield* CommandExecutor;
     const submodulePath = `omarchy/.config/omarchy/plugins/${id}`;
     yield* executor.exitCode("omarchy-shell", [
@@ -612,6 +683,7 @@ function removePlugin(
           cwd: paths.repo,
         });
       }
+
       yield* fsEffect(
         () =>
           rmSync(join(paths.pluginsSource, id), {
@@ -652,6 +724,7 @@ function removePlugin(
       yield* stowPublic();
       yield* rescanPlugins();
       const leftovers = yield* leftoverParts(paths, id);
+
       if (leftovers.length > 0) {
         return yield* fail(
           `removal of '${id}' left behind: ${leftovers.join(" ")}`,
@@ -660,6 +733,7 @@ function removePlugin(
     }).pipe(Effect.ensuring(unstage(paths, id)));
 
     process.stdout.write(`Removed managed plugin ${id}.\n`);
+
     if (offerSave) yield* offerCommit(paths, "remove", id);
   });
 }
@@ -667,6 +741,7 @@ function removePlugin(
 function defaultPaths(repo: string): OmarchyPluginPaths {
   const home = process.env.HOME ?? "";
   const configHome = process.env.XDG_CONFIG_HOME ?? join(home, ".config");
+
   return {
     repo,
     registry: join(repo, "omarchy-plugins.json"),
@@ -684,14 +759,18 @@ export const omarchyPlugin = Effect.fn("omarchyPlugin")(function* (
   pathOverrides?: OmarchyPluginPaths,
 ) {
   const config = yield* Config;
+
   const paths =
     pathOverrides ??
     defaultPaths(process.env.DOTFILES_REPO ?? config.publicDotfiles);
+
   if (!existsSync(paths.registry)) {
     return yield* fail(`managed plugin registry not found: ${paths.registry}`);
   }
-  if (input._tag === "add") {
+
+  if (OmarchyPluginInput.$is("add")(input)) {
     const defaultSection = yield* manifestDefaultSection(input.checkout);
+
     const placement = yield* parsePlacement(
       [
         ...(input.section ? ["--section", input.section] : []),
@@ -700,6 +779,7 @@ export const omarchyPlugin = Effect.fn("omarchyPlugin")(function* (
       ],
       defaultSection,
     );
+
     return yield* addPlugin(paths, {
       id: input.id,
       url: input.url,
@@ -707,16 +787,22 @@ export const omarchyPlugin = Effect.fn("omarchyPlugin")(function* (
       placement,
     });
   }
-  if (input._tag === "update") {
+
+  if (OmarchyPluginInput.$is("update")(input)) {
     if (input.id) return yield* updatePlugin(paths, input.id, input.yes);
+
     for (const managedId of yield* managedPluginIds(paths)) {
       yield* updatePlugin(paths, managedId, input.yes);
     }
+
     process.exitCode = UNMANAGED_PLUGIN_EXIT_CODE;
+
     return;
   }
-  if (input._tag === "remove") {
+
+  if (OmarchyPluginInput.$is("remove")(input)) {
     const id = yield* requirePluginId(input.id);
+
     return yield* removePlugin(paths, id, input.yes, input.offerCommit);
   }
 });

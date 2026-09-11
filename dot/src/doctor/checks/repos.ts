@@ -27,6 +27,7 @@ export const checkRepos = Effect.gen(function* () {
 
   // Private dotfiles
   const privatePath = `${HOME_DIR}/.config/dotfiles-private`;
+
   if (existsSync(privatePath)) {
     results.push({
       severity: "ok",
@@ -65,6 +66,7 @@ export const checkRepos = Effect.gen(function* () {
           ["rev-parse", "--is-inside-work-tree"],
           { cwd: repo.path },
         );
+
         if (isGit !== 0) {
           results.push({
             severity: "warn",

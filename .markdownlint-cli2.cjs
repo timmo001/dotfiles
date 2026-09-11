@@ -1,20 +1,25 @@
 const fs = require("node:fs");
+
 const path = require("node:path");
 
 const skillsDirectory = "agents/.agents/skills";
+
 const importedSkillIgnores = fs
   .readdirSync(skillsDirectory, { withFileTypes: true })
   .filter((entry) => entry.isDirectory())
   .flatMap((entry) => {
     const skillPath = path.join(skillsDirectory, entry.name, "SKILL.md");
+
     if (!fs.existsSync(skillPath)) {
       return [];
     }
 
     const content = fs.readFileSync(skillPath, "utf8");
+
     const frontmatter = content.match(
       /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/,
     )?.[1];
+
     return frontmatter?.includes("# origin:") &&
       !frontmatter.includes("# local-edits:")
       ? [`${skillsDirectory}/${entry.name}/**`]

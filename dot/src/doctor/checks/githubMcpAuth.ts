@@ -22,6 +22,7 @@ export const checkGithubMcpAuth = Effect.gen(function* () {
         "gh is missing; GitHub MCP bearer (DOT_GH_MCP_BEARER) cannot be sourced",
       detail: "Install gh and run: gh auth login",
     });
+
     return results;
   }
 

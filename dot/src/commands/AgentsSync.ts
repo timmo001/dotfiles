@@ -34,6 +34,7 @@ function atomicWrite(dest: string, content: string): void {
   // Remove broken symlinks at dest (rename won't overwrite them on all platforms)
   try {
     const stat = existsSync(dest);
+
     if (!stat) {
       // lstatSync would tell us if it's a dangling symlink, but
       // the simplest approach: unlink if the path entry exists but is unresolvable
@@ -110,10 +111,12 @@ export const agentsSync = Effect.gen(function* () {
 
   if (!existsSync(source)) {
     yield* log.warn(`Skipped (missing source): ${displayPath(source)}`);
+
     return;
   }
 
   const content = readFileSync(source, "utf-8");
+
   const metadata: SyncMetadata = {
     source: displayPath(source),
     timestamp: new Date().toISOString(),

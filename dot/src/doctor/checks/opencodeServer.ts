@@ -7,16 +7,19 @@ import { Config } from "../../services/Config.js";
 import type { CheckResult } from "../types.js";
 
 const OPENCODE_SERVER_COMMAND = "opencode-server";
+
 const OPENCODE_ENV_PATH = join(CONFIG_DIR, "opencode", ".env");
 
 type PasswordStatus = "missing-file" | "missing-key" | "empty" | "set";
 
 function unquoteValue(value: string): string {
   const trimmed = value.trim();
+
   if (trimmed.length < 2) return trimmed;
 
   const first = trimmed[0];
   const last = trimmed[trimmed.length - 1];
+
   return (first === '"' && last === '"') || (first === "'" && last === "'")
     ? trimmed.slice(1, -1).trim()
     : trimmed.replace(/\s+#.*$/, "").trim();
@@ -26,6 +29,7 @@ function passwordStatus(envPath: string): PasswordStatus {
   if (!existsSync(envPath)) return "missing-file";
 
   const content = readFileSync(envPath, "utf8");
+
   const passwordLine = content
     .split("\n")
     .map((line) =>
@@ -34,6 +38,7 @@ function passwordStatus(envPath: string): PasswordStatus {
     .find((match): match is RegExpMatchArray => match !== null);
 
   if (!passwordLine) return "missing-key";
+
   return unquoteValue(passwordLine[1] ?? "") ? "set" : "empty";
 }
 
@@ -98,6 +103,7 @@ export function opencodeServerResults(
 /** Check desktop OpenCode server autostart and password configuration. */
 export const checkOpencodeServer = Effect.gen(function* () {
   const config = yield* Config;
+
   return opencodeServerResults(
     join(hyprRepoPath(config), "hosts", "desktop", "autostart.lua"),
     OPENCODE_ENV_PATH,

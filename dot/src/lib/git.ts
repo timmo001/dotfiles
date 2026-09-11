@@ -33,6 +33,7 @@ function commandFailureMessage(
   error: CommandError,
 ): string {
   const stderr = error.stderr ? `: ${error.stderr}` : "";
+
   return `${commandText(command, args)} failed with exit ${error.exitCode}${stderr}`;
 }
 
@@ -53,7 +54,9 @@ export function gitCurrentBranchSync(repoPath: string): string {
       stdout: "pipe",
       stderr: "pipe",
     });
+
     if (result.exitCode !== 0) return "";
+
     return new TextDecoder().decode(result.stdout).trim();
   } catch {
     return "";
@@ -68,7 +71,9 @@ export function gitRemoteOriginSync(repoPath: string): string {
       stdout: "pipe",
       stderr: "pipe",
     });
+
     if (result.exitCode !== 0) return "";
+
     return new TextDecoder().decode(result.stdout).trim();
   } catch {
     return "";
@@ -82,6 +87,7 @@ export function gitOutput(
 ): Effect.Effect<string, GitCommandError, CommandExecutor> {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
+
     return yield* executor
       .run("git", args, opts)
       .pipe(
@@ -112,6 +118,7 @@ export function gitRemoteOutput(
 ): Effect.Effect<string, GitCommandError, CommandExecutor> {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
+
     return yield* executor
       .run(
         "env",
@@ -146,6 +153,7 @@ export function gitExitCode(
 ): Effect.Effect<number, never, CommandExecutor> {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
+
     return yield* executor.exitCode("git", args, opts);
   });
 }
@@ -157,6 +165,7 @@ export function gitInheritExitCode(
 ): Effect.Effect<number, never, CommandExecutor> {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
+
     return yield* executor.inherit("git", args, opts);
   });
 }
@@ -169,6 +178,7 @@ export function gitRequired(
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
     const exitCode = yield* executor.inherit("git", args, opts);
+
     if (exitCode !== 0) {
       return yield* fail(`${commandText("git", args)} exited ${exitCode}`);
     }
@@ -183,12 +193,14 @@ export function ghRepoClone(
   return Effect.gen(function* () {
     mkdirSync(dirname(repoPath), { recursive: true });
     const executor = yield* CommandExecutor;
+
     const exitCode = yield* executor.inherit("gh", [
       "repo",
       "clone",
       remote,
       repoPath,
     ]);
+
     if (exitCode !== 0) {
       return yield* fail(
         `gh repo clone ${remote} ${displayPath(repoPath)} exited ${exitCode}`,
@@ -214,6 +226,7 @@ export function ghRepoCloneCaptured(
   return Effect.gen(function* () {
     mkdirSync(dirname(repoPath), { recursive: true });
     const gh = yield* Gh;
+
     const args = [
       "repo",
       "clone",
@@ -221,6 +234,7 @@ export function ghRepoCloneCaptured(
       repoPath,
       ...(gitArgs.length > 0 ? ["--", ...gitArgs] : []),
     ];
+
     yield* ghOutput(gh, args, {
       env: {
         GIT_TERMINAL_PROMPT: "0",
@@ -243,6 +257,7 @@ export function gitWorkingTreeClean(
     const status = (yield* gitOutput(["status", "--porcelain"], {
       cwd: repoPath,
     })).trim();
+
     return status.length === 0;
   });
 }
@@ -313,6 +328,7 @@ export function gitPullRebase(
 ): Effect.Effect<boolean, never, CommandExecutor | Launcher> {
   return Effect.gen(function* () {
     const launcher = yield* Launcher;
+
     const exitCode = yield* launcher
       .stream(
         "GIT_TERMINAL_PROMPT=0 git pull --rebase --no-edit --recurse-submodules && GIT_TERMINAL_PROMPT=0 git submodule update --init --recursive",

@@ -23,15 +23,19 @@ const generatedLocales: Effect.Effect<
   CommandExecutor
 > = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
+
   const output = yield* executor
     .run("locale", ["-a"])
     .pipe(Effect.catch(() => Effect.succeed("")));
 
   const generated = new Set<string>();
+
   for (const line of output.split("\n")) {
     const trimmed = line.trim();
+
     if (trimmed) generated.add(normaliseLocale(trimmed));
   }
+
   return generated;
 });
 
@@ -39,6 +43,7 @@ const generatedLocales: Effect.Effect<
 export const missingLocales: Effect.Effect<string[], never, CommandExecutor> =
   Effect.gen(function* () {
     const generated = yield* generatedLocales;
+
     return REQUIRED_LOCALES.filter(
       (locale) => !generated.has(normaliseLocale(locale)),
     );
@@ -47,6 +52,7 @@ export const missingLocales: Effect.Effect<string[], never, CommandExecutor> =
 /** Build a sed expression that uncomments a locale's line in /etc/locale.gen. */
 export function uncommentLocaleExpr(locale: string): string {
   const escaped = locale.replace(/\\/g, "\\\\").replace(/[.]/g, "\\.");
+
   return `sed -i '/^#[[:space:]]*${escaped}[[:space:]]/s/^#[[:space:]]*//' /etc/locale.gen`;
 }
 
@@ -66,14 +72,17 @@ export const ensureLocalesGenerated: Effect.Effect<
   yield* log.section("Locale");
 
   const missing = yield* missingLocales;
+
   if (missing.length === 0) {
     yield* log.info("Required locales already generated");
+
     return;
   }
 
   yield* log.info(`Generating missing locale(s): ${missing.join(", ")}`);
   const script = `${missing.map(uncommentLocaleExpr).join(" && ")} && locale-gen`;
   const exit = yield* runElevated("bash", ["-c", script]);
+
   if (exit === 0) {
     yield* log.info("Locale generation complete");
   } else {

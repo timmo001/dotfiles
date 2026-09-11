@@ -17,6 +17,7 @@ export function skillsMaintenanceSource(
   home = HOME_DIR,
 ): string {
   const writable = join(home, "repos", "skills");
+
   return existsSync(join(writable, "src", "index.ts"))
     ? writable
     : join(publicDotfiles, "agents", ".agents", "skills");
@@ -28,6 +29,7 @@ export const buildSkillsMaintenance = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
   const source = skillsMaintenanceSource(config.publicDotfiles);
   const entrypoint = join(source, "src", "index.ts");
+
   const target = join(
     config.publicDotfiles,
     "scripts",
@@ -35,6 +37,7 @@ export const buildSkillsMaintenance = Effect.gen(function* () {
     "bin",
     "skill-maintenance",
   );
+
   const temporary = `${target}.new`;
 
   if (!existsSync(entrypoint)) {
@@ -53,6 +56,7 @@ export const buildSkillsMaintenance = Effect.gen(function* () {
     ["install", "--frozen-lockfile"],
     { cwd: source },
   );
+
   if (installCode !== 0) {
     return yield* new SkillsMaintenanceBuildError({
       message: `Locked skill-maintenance dependency install exited ${installCode}`,
@@ -64,8 +68,10 @@ export const buildSkillsMaintenance = Effect.gen(function* () {
     ["build", "src/index.ts", "--compile", "--outfile", temporary],
     { cwd: source },
   );
+
   if (buildCode !== 0) {
     yield* Effect.sync(() => rmSync(temporary, { force: true }));
+
     return yield* new SkillsMaintenanceBuildError({
       message: `Skill-maintenance build exited ${buildCode}`,
     });
@@ -75,5 +81,6 @@ export const buildSkillsMaintenance = Effect.gen(function* () {
     chmodSync(temporary, 0o755);
     renameSync(temporary, target);
   });
+
   return target;
 });

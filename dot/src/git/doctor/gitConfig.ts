@@ -15,6 +15,7 @@ export const checkGitConfig = Effect.sync(() => {
   if (existsSync(gitConfigDotfiles)) {
     if (existsSync(gitConfigFile)) {
       const content = readTextFile(gitConfigFile);
+
       if (content === null) {
         results.push({
           severity: "warn",

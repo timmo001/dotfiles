@@ -41,15 +41,19 @@ function formatReport(report: DoctorReport): string {
 
   for (const section of report.sections) {
     lines.push(`\u2500\u2500 ${section.name}`);
+
     for (const r of section.results) {
       const label = r.severity === "ok" ? "INFO" : r.severity.toUpperCase();
       lines.push(`  [${label.padEnd(5)}] ${r.message}`);
+
       if (r.detail) lines.push(`           ${r.detail}`);
     }
+
     lines.push("");
   }
 
   lines.push(`${report.warnings} warning(s), ${report.errors} error(s)`);
+
   return lines.join("\n");
 }
 
@@ -67,12 +71,15 @@ export const doctor = (opts?: { readonly openOpencode?: boolean }) =>
 
     // Header summary (matches legacy), printed before checks start streaming
     yield* log.info(`Public repo: ${displayPath(config.publicDotfiles)}`);
+
     if (config.privateDotfiles) {
       yield* log.info(`Private repo: ${displayPath(config.privateDotfiles)}`);
     }
+
     if (config.notesDir) {
       yield* log.info(`Notes repo: ${displayPath(config.notesDir)}`);
     }
+
     yield* log.info(
       `Private mode: ${envString(ENV.DOT_ALLOW_PRIVATE) ?? "auto"}`,
     );
@@ -81,11 +88,13 @@ export const doctor = (opts?: { readonly openOpencode?: boolean }) =>
     // run in parallel, so this starts as every check and shrinks to the slow
     // ones (typically the network checks) as the fast ones finish.
     const running = new Set<string>();
+
     const runningLabel = (): string => {
       if (running.size === 0) return "Running health checks";
       const names = [...running];
       const shown = names.slice(0, 3).join(", ");
       const more = names.length > 3 ? ` +${names.length - 3} more` : "";
+
       return `Running health checks (${running.size}): ${shown}${more}`;
     };
 
@@ -104,6 +113,7 @@ export const doctor = (opts?: { readonly openOpencode?: boolean }) =>
         running.delete(section.name);
         yield* log.updateSpinner(runningLabel());
         yield* log.section(section.name);
+
         for (const result of section.results) {
           switch (result.severity) {
             case "ok":
@@ -116,6 +126,7 @@ export const doctor = (opts?: { readonly openOpencode?: boolean }) =>
               yield* log.error(result.message);
               break;
           }
+
           if (result.detail) {
             yield* log.info(`  ${result.detail}`);
           }
@@ -129,17 +140,22 @@ export const doctor = (opts?: { readonly openOpencode?: boolean }) =>
       DOCTOR_RUN_TIMEOUT_SECONDS,
       runDoctor(renderSection, onStart),
     );
+
     const report = Option.getOrElse(reportResult, timedOutDoctorReport);
 
     // Grouped summary: errors by section, then warnings by section
     if (report.errors > 0) {
       yield* log.section("Collected Errors");
+
       for (const section of report.sections) {
         const errors = section.results.filter((r) => r.severity === "error");
+
         if (errors.length === 0) continue;
         yield* log.info(`  ${section.name}`);
+
         for (const r of errors) {
           yield* log.error(`    ${r.message}`);
+
           if (r.detail) {
             yield* log.info(`      ${r.detail}`);
           }
@@ -149,10 +165,13 @@ export const doctor = (opts?: { readonly openOpencode?: boolean }) =>
 
     if (report.warnings > 0) {
       yield* log.section("Collected Warnings");
+
       for (const section of report.sections) {
         const warns = section.results.filter((r) => r.severity === "warn");
+
         if (warns.length === 0) continue;
         yield* log.info(`  ${section.name}`);
+
         for (const r of warns) {
           yield* log.warn(`    ${r.message}`);
         }

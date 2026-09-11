@@ -81,12 +81,14 @@ export function envFlag(name: EnvName): boolean {
 export function envInt(name: EnvName, fallback: number): number {
   const value = envString(name);
   const parsed = value === undefined ? NaN : parseInt(value, 10);
+
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 /** Read a non-negative integer environment variable with a fallback. */
 export function envNonNegativeInt(name: EnvName, fallback: number): number {
   const parsed = envInt(name, fallback);
+
   return parsed >= 0 ? parsed : fallback;
 }
 

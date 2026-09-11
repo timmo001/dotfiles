@@ -37,7 +37,9 @@ import type { InitCompleteMarkerStatus } from "../lib/initState.js";
 import type { DiffRepo, RepoCategory } from "../types.js";
 
 const DISABLE_SELF_UPDATE_ARG = "--no-self-update";
+
 const POST_HOOK_REPO_ARG = "--post-hook-repo";
+
 const SELECTABLE_UPDATE_FLAGS = [
   ["--pull", "pull"],
   ["--stow", "stow"],
@@ -50,6 +52,7 @@ const SELECTABLE_UPDATE_FLAGS = [
  * spiking load while the pull stage runs alongside it.
  */
 const REFRESH_REMOTE_HEAD_CONCURRENCY = 6;
+
 const LOCAL_HERDR_PLUGINS = [
   "terminal-title",
   "yazi",
@@ -125,9 +128,13 @@ function requiredUpdateStep<E, R>(
 
 const repoStatus = (repo: DiffRepo): string => {
   const parts: string[] = [];
+
   if (repo.isDirty) parts.push(`${repo.modified} modified`);
+
   if (repo.ahead > 0) parts.push(`${repo.ahead} ahead`);
+
   if (repo.behind > 0) parts.push(`${repo.behind} behind`);
+
   return parts.length > 0 ? parts.join(", ") : "up to date";
 };
 
@@ -142,14 +149,19 @@ function logInitMarkerStatus(
   return Effect.gen(function* () {
     const log = yield* OutputLog;
     const marker = displayPath(initCompleteMarker(config));
+
     if (status === "created") {
       yield* log.info(`Init state complete: ${marker}`);
+
       return;
     }
+
     if (status === "exists") {
       yield* log.info(`Init state already complete: ${marker}`);
+
       return;
     }
+
     yield* log.info("Init state backfill skipped: init is in progress");
   });
 }
@@ -168,15 +180,19 @@ const safePull = (name: string, path: string) =>
 
     // Clear a stale index lock; skip if held by a running git process.
     const lockFile = join(path, ".git", "index.lock");
+
     if (existsSync(lockFile)) {
       const held = yield* executor.exitCode("fuser", [lockFile]);
+
       if (held === 0) {
         yield* log.warn(
           `Lock held by active git process for ${name}: ${displayPath(path)}`,
         );
         yield* log.info(`Skipping ${name} pull (lock held)`);
+
         return false;
       }
+
       yield* log.warn(
         `Removing stale lock for ${name}: ${displayPath(lockFile)}`,
       );
@@ -193,10 +209,12 @@ const safePull = (name: string, path: string) =>
     const clean = yield* gitWorkingTreeClean(path).pipe(
       Effect.catch(() => Effect.succeed(false)),
     );
+
     if (!clean) {
       yield* log.warn(
         `Skipping ${name} pull (working tree not clean): ${displayPath(path)}`,
       );
+
       return false;
     }
 
@@ -207,12 +225,14 @@ const safePull = (name: string, path: string) =>
     yield* log.info(`Pulling ${name} (${displayPath(path)})...`);
 
     let pulled = false;
+
     for (let attempt = 1; attempt <= PULL_MAX_ATTEMPTS; attempt++) {
       const outcome = yield* withSpinnerTimeout(
         `Pulling ${name} (${attempt}/${PULL_MAX_ATTEMPTS}, timeout ${PULL_ATTEMPT_TIMEOUT_SECONDS}s)`,
         PULL_ATTEMPT_TIMEOUT_SECONDS,
         gitPullRebase(path),
       );
+
       if (Option.isSome(outcome) && outcome.value) {
         pulled = true;
         break;
@@ -225,6 +245,7 @@ const safePull = (name: string, path: string) =>
       const reason = Option.isNone(outcome)
         ? `timed out after ${PULL_ATTEMPT_TIMEOUT_SECONDS}s`
         : "failed";
+
       if (attempt < PULL_MAX_ATTEMPTS) {
         yield* log.warn(
           `Pull ${reason} for ${name}, retrying (${attempt + 1}/${PULL_MAX_ATTEMPTS})...`,
@@ -252,6 +273,7 @@ const notifyUpdated = (names: readonly string[]) =>
     const executor = yield* CommandExecutor;
 
     const title = names.length === 1 ? "Git repo updated" : "Git repos updated";
+
     const message =
       names.length === 1
         ? `${names[0]} pulled new changes`
@@ -285,6 +307,7 @@ const runRepoPostUpdate = (repo: GitManagedRepo) =>
         const exitCode = yield* executor.inherit("sh", ["-c", command], {
           cwd: repo.path,
         });
+
         if (exitCode !== 0) {
           return yield* new UpdateError({
             message: `${repo.name} post-update command exited ${exitCode}`,
@@ -292,17 +315,19 @@ const runRepoPostUpdate = (repo: GitManagedRepo) =>
         }
       }),
     );
+
     if (!result) {
       return yield* new UpdateError({
         message: `${repo.name} post-update command timed out`,
       });
     }
+
     yield* log.info(`${repo.name} post-update command complete`);
   });
 
 function selectedUpdateFlags(opts?: UpdateOptions): readonly string[] {
-  return SELECTABLE_UPDATE_FLAGS.filter(([, key]) => opts?.[key]).map(
-    ([flag]) => flag,
+  return SELECTABLE_UPDATE_FLAGS.flatMap(([flag, key]) =>
+    opts?.[key] ? [flag] : [],
   );
 }
 
@@ -322,6 +347,7 @@ export function logUpdateSummary(
         : `Updated repositories (${repositories.length}): ${repositories.join(", ")}`,
     );
     yield* log.info("Actions taken:");
+
     for (const action of actions) {
       yield* log.info(`  - ${action}`);
     }
@@ -353,16 +379,19 @@ function selfUpdateAndRestart(
     yield* log.section("Self Update");
     const repoName = basename(config.publicDotfiles);
     const moved = yield* safePull(repoName, config.publicDotfiles);
+
     const rebuilt = yield* withStepTimeout(
       "Rebuild",
       STEP_TIMEOUT_SECONDS.rebuild,
       rebuild,
     );
+
     if (!rebuilt) {
       return yield* new UpdateError({
         message: "Update step timed out: Self Update Rebuild",
       });
     }
+
     yield* log.info("Self update successful");
     yield* log.info("Restarting update with rebuilt dot binary");
     yield* restartDot(restartUpdateArgs(opts, moved ? repoName : undefined));
@@ -384,8 +413,10 @@ const installMissingMiseTools = Effect.gen(function* () {
   const log = yield* OutputLog;
 
   yield* log.section("Install Mise Tools");
+
   if ((yield* executor.exitCode("which", ["mise"])) !== 0) {
     yield* log.warn("Skipping mise install (mise not installed)");
+
     return false;
   }
 
@@ -394,12 +425,15 @@ const installMissingMiseTools = Effect.gen(function* () {
     ["install", "--dry-run-code"],
     { cwd: HOME_DIR },
   );
+
   if (checkExitCode === 0) {
     yield* log.info(
       "All global mise tools are installed; skipping mise install",
     );
+
     return false;
   }
+
   if (checkExitCode !== 1) {
     return yield* new UpdateError({
       message: `mise install check exited ${checkExitCode}`,
@@ -409,6 +443,7 @@ const installMissingMiseTools = Effect.gen(function* () {
   const exitCode = yield* executor.inherit("mise", ["install"], {
     cwd: HOME_DIR,
   });
+
   if (exitCode !== 0) {
     return yield* new UpdateError({
       message: `mise install exited ${exitCode}`,
@@ -433,6 +468,7 @@ export function herdrLazyPluginRoot(source: string): string | null {
         }),
       }),
     )(JSON.parse(source));
+
     return (
       parsed.result.plugins.find(({ plugin_id }) => plugin_id === "herdr-lazy")
         ?.plugin_root ?? null
@@ -457,26 +493,32 @@ const restoreHerdrPlugins = Effect.gen(function* () {
 
   if (!canRunHerdrSessionActions()) {
     yield* log.info("Skipping Herdr plugins (outside Herdr)");
+
     return;
   }
 
   const pluginList = yield* executor
     .run("herdr", ["plugin", "list", "--json"])
     .pipe(Effect.orElseSucceed(() => null));
+
   if (pluginList === null) {
     yield* log.warn("Skipping Herdr plugins (Herdr is unavailable)");
+
     return;
   }
 
   let pluginRoot = herdrLazyPluginRoot(pluginList);
+
   if (!pluginRoot) {
     yield* log.info("Installing Herdr Lazy");
+
     const installExitCode = yield* executor.inherit("herdr", [
       "plugin",
       "install",
       "natori-hrj/herdr-lazy",
       "--yes",
     ]);
+
     if (installExitCode !== 0) {
       return yield* new UpdateError({
         message: `Herdr Lazy install exited ${installExitCode}`,
@@ -488,7 +530,9 @@ const restoreHerdrPlugins = Effect.gen(function* () {
       "list",
       "--json",
     ]);
+
     pluginRoot = herdrLazyPluginRoot(installedPluginList);
+
     if (!pluginRoot) {
       return yield* new UpdateError({
         message: "Herdr Lazy is missing after installation",
@@ -497,12 +541,15 @@ const restoreHerdrPlugins = Effect.gen(function* () {
   }
 
   const binary = join(pluginRoot, "target", "release", "herdr-lazy");
+
   if (!existsSync(binary)) {
     yield* log.warn("Skipping Herdr plugins (Herdr Lazy binary is missing)");
+
     return;
   }
 
   const exitCode = yield* executor.inherit(binary, ["restore"]);
+
   if (exitCode !== 0) {
     return yield* new UpdateError({
       message: `Herdr plugin restore exited ${exitCode}`,
@@ -520,12 +567,14 @@ const restoreHerdrPlugins = Effect.gen(function* () {
       "herdr-plugins",
       plugin,
     );
+
     const linkExitCode = yield* executor.inherit("herdr", [
       "plugin",
       "link",
       pluginRoot,
       "--enabled",
     ]);
+
     if (linkExitCode !== 0) {
       return yield* new UpdateError({
         message: `Herdr local plugin ${plugin} link exited ${linkExitCode}`,
@@ -541,6 +590,7 @@ const restoreHerdrPlugins = Effect.gen(function* () {
     "--plugin",
     "dotfiles.terminal-title",
   ]);
+
   if (titleWatcherExitCode !== 0) {
     return yield* new UpdateError({
       message: `Herdr terminal title watcher exited ${titleWatcherExitCode}`,
@@ -560,6 +610,7 @@ const runUiReload = Effect.gen(function* () {
 
   if (!existsSync(helper)) {
     yield* log.warn("Skipping reload-ui helper (not installed)");
+
     return;
   }
 
@@ -567,6 +618,7 @@ const runUiReload = Effect.gen(function* () {
 
   if (exitCode !== 0) {
     yield* log.warn(`Reload UI helper failed (exit ${exitCode})`);
+
     return;
   }
 
@@ -601,6 +653,7 @@ const reloadOmarchyShell = Effect.gen(function* () {
     yield* log.warn(
       `Shell reload skipped or failed (exit ${exitCode}; session may be locked)`,
     );
+
     return;
   }
 
@@ -657,6 +710,7 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
         Effect.catch((error) =>
           Effect.gen(function* () {
             yield* log.error(`Update check failed: ${error.message}`);
+
             return null;
           }),
         ),
@@ -669,6 +723,7 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
           yield* log.error(
             `Update check timed out after ${REPO_SCAN_TIMEOUT_SECONDS}s`,
           );
+
           return null;
         }),
       onSome: (value) => Effect.succeed(value),
@@ -678,12 +733,14 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
       yield* Effect.sync(() => {
         process.exitCode = UPDATE_CHECK_ERROR_EXIT;
       });
+
       return;
     }
 
     const scoped = opts?.all
       ? repos
       : repos.filter((repo) => CORE_CHECK_CATEGORIES.has(repo.category));
+
     yield* log.info(
       `Checked ${scoped.length} ${scopeRepos}: ${scoped
         .map((repo) => repo.name)
@@ -693,15 +750,18 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
 
     if (behind.length === 0) {
       yield* log.info(`All ${scopeRepos} are up to date`);
+
       return;
     }
 
     yield* log.info(
       `${behind.length} of ${scoped.length} ${scopeRepos} behind upstream:`,
     );
+
     for (const repo of behind) {
       yield* log.info(`  ${repo.name}: ${repo.behind} behind`);
     }
+
     yield* log.info("Run `dot update` to apply.");
     yield* Effect.sync(() => {
       process.exitCode = UPDATE_CHECK_AVAILABLE_EXIT;
@@ -722,6 +782,7 @@ export const MIGRATION_REQUIRED_EXIT = 11;
 const haltOnLegacyHyprRepo = (config: ConfigService) =>
   Effect.gen(function* () {
     const legacy = detectLegacyHyprRepo(config);
+
     if (!legacy.present) return false;
 
     const log = yield* OutputLog;
@@ -738,6 +799,7 @@ const haltOnLegacyHyprRepo = (config: ConfigService) =>
     yield* Effect.sync(() => {
       process.exitCode = MIGRATION_REQUIRED_EXIT;
     });
+
     return true;
   });
 
@@ -769,6 +831,7 @@ export const update = (opts?: UpdateOptions) =>
 
     const config = yield* Config;
     const log = yield* OutputLog;
+
     const privatePackageRepo = config.canUsePrivate
       ? loadPrivatePackageRepoConfig(config)
       : null;
@@ -777,6 +840,7 @@ export const update = (opts?: UpdateOptions) =>
 
     if (isFullUpdate && opts?.selfUpdate !== false) {
       yield* selfUpdateAndRestart(config, opts);
+
       return;
     }
 
@@ -786,6 +850,7 @@ export const update = (opts?: UpdateOptions) =>
     // the first phase until the legacy repo is resolved.
     if (doPull || doStow) {
       const halted = yield* haltOnLegacyHyprRepo(config);
+
       if (halted) return;
     }
 
@@ -796,9 +861,11 @@ export const update = (opts?: UpdateOptions) =>
     ) {
       const repoName = basename(config.privateDotfiles);
       const moved = yield* safePull(repoName, config.privateDotfiles);
+
       if (moved) {
         yield* log.info("Restarting update to reload private configuration");
         yield* restartDot(restartUpdateArgs(opts, repoName));
+
         return;
       }
     }
@@ -816,11 +883,13 @@ export const update = (opts?: UpdateOptions) =>
           yield* cloneMissingGitConfigRepos({ strict: false });
 
           const dotDiff = yield* DotDiff;
+
           const scanned = yield* withSpinnerTimeout(
             "Scanning repositories",
             REPO_SCAN_TIMEOUT_SECONDS,
             dotDiff.getAll(),
           );
+
           const repos = yield* Option.match(scanned, {
             onNone: () =>
               new UpdateError({
@@ -828,6 +897,7 @@ export const update = (opts?: UpdateOptions) =>
               }),
             onSome: (value) => Effect.succeed(value),
           });
+
           for (const repo of repos) {
             yield* log.info(
               `${repo.name}: ${repoStatus(repo)} (${displayPath(repo.path)})`,
@@ -865,6 +935,7 @@ export const update = (opts?: UpdateOptions) =>
               const changed = repos.filter(
                 (r) => r.isDirty || r.ahead > 0 || r.behind > 0,
               );
+
               // Private dotfiles were already pulled before loading this repo list.
               const behind = repos.filter(
                 (r) => r.behind > 0 && r.path !== config.privateDotfiles,
@@ -875,13 +946,16 @@ export const update = (opts?: UpdateOptions) =>
                   yield* log.info("Nothing to pull (no repos behind upstream)");
 
                   const notes: string[] = [];
+
                   if (changed.some((r) => r.isDirty))
                     notes.push("dirty working tree");
+
                   if (changed.some((r) => r.ahead > 0))
                     notes.push("ahead of upstream");
                   yield* log.warn(
                     `${changed.length} repo(s) need attention: ${notes.join(", ")}`,
                   );
+
                   for (const repo of changed) {
                     yield* log.warn(
                       `  - ${repo.name}: ${displayPath(repo.path)}`,
@@ -892,10 +966,13 @@ export const update = (opts?: UpdateOptions) =>
                 }
               } else {
                 yield* log.info(`${changed.length} repo(s) need attention`);
+
                 for (const repo of behind) {
                   const moved = yield* safePull(repo.name, repo.path);
+
                   if (moved) {
                     updatedNames.push(repo.name);
+
                     if (repo.path === privatePackageRepo?.path) {
                       privatePackageRepoUpdated = true;
                     }
@@ -905,6 +982,7 @@ export const update = (opts?: UpdateOptions) =>
 
               yield* log.info("Updating pinned submodules");
               yield* updatePinnedSubmodules(config.publicDotfiles);
+
               if (config.privateDotfiles)
                 yield* updatePinnedSubmodules(config.privateDotfiles);
             }),
@@ -915,6 +993,7 @@ export const update = (opts?: UpdateOptions) =>
           yield* trustTrackedMiseConfigs;
 
           const updated = new Set(updatedNames);
+
           for (const repo of managedGitRepos(config.gitConfig)) {
             if (updated.has(repo.name)) yield* runRepoPostUpdate(repo);
           }
@@ -928,6 +1007,7 @@ export const update = (opts?: UpdateOptions) =>
     }
 
     let shellConfigChanged = false;
+
     if (doStow || doApp) {
       yield* requiredUpdateStep(
         "Build Skill Maintenance",
@@ -972,6 +1052,7 @@ export const update = (opts?: UpdateOptions) =>
     }
 
     yield* reloadOmarchyShellIfChanged(shellConfigChanged);
+
     if (shellConfigChanged) {
       completedActions.push("Attempted an Omarchy shell reload");
     }
@@ -1025,6 +1106,7 @@ export const update = (opts?: UpdateOptions) =>
       STEP_TIMEOUT_SECONDS.uiReload,
       runUiReload,
     );
+
     if (uiRefreshCompleted) {
       completedActions.push("Completed the UI resume refresh step");
     }
@@ -1033,11 +1115,13 @@ export const update = (opts?: UpdateOptions) =>
 
     yield* log.section("Update Status");
     const executor = yield* CommandExecutor;
+
     const refreshExitCode = yield* executor.inherit("dot", [
       "updates",
       "refresh",
       "--dot-only",
     ]);
+
     if (refreshExitCode !== 0) {
       yield* log.warn(`Update status refresh failed (exit ${refreshExitCode})`);
     }

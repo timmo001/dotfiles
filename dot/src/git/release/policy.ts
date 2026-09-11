@@ -89,6 +89,7 @@ const tests: ReleaseRule = {
   impact: "none",
   reason: "Tests are not shipped",
 };
+
 const dependencies: readonly ReleaseRule[] = [
   {
     roles: ["runtime", "build"],
@@ -304,6 +305,7 @@ export function classifyReleaseFacts(
     const override = settings.overrides?.find((rule) =>
       releaseRuleMatches(rule, fact),
     );
+
     const endpoints = [
       fact.path,
       ...(fact.previousPath === null ? [] : [fact.previousPath]),
@@ -311,20 +313,26 @@ export function classifyReleaseFacts(
       const match = presets[settings.policy].find((rule) =>
         releaseRuleMatches(rule, { ...fact, path, previousPath: null }),
       );
+
       return {
         impact: match?.impact ?? "patch",
         reason: match?.reason ?? "Policy default: patch; review this change",
       };
     });
+
     const affectedImpact = highestImpact(
       endpoints.map((endpoint) => endpoint.impact),
     );
+
     const match = endpoints.find(
       (endpoint) => endpoint.impact === affectedImpact,
     );
+
     const quietEvidence = fact.kind === "checksum" || fact.kind === "submodule";
+
     const impact =
       override?.impact ?? (quietEvidence ? "none" : affectedImpact);
+
     return {
       ...fact,
       automaticImpact: impact,
@@ -339,7 +347,9 @@ export function classifyReleaseFacts(
       reviewed: false,
     };
   });
+
   if (settings.source_minor_threshold === undefined) return findings;
+
   const sourceFindings = new Set(
     findings.filter(
       (finding) =>
@@ -361,11 +371,14 @@ export function classifyReleaseFacts(
         ),
     ),
   );
+
   const changedLines = [...sourceFindings].reduce(
     (total, finding) => total + (finding.changedLines ?? 0),
     0,
   );
+
   if (changedLines <= settings.source_minor_threshold) return findings;
+
   return findings.map((finding) =>
     sourceFindings.has(finding) && (finding.changedLines ?? 0) > 0
       ? {
@@ -381,6 +394,7 @@ export function classifyReleaseFacts(
 /** Return the highest suggested consumer impact. */
 export function highestImpact(impacts: readonly Impact[]): Impact {
   const order: readonly Impact[] = ["none", "patch", "minor", "major"];
+
   return impacts.reduce(
     (highest, impact) =>
       order.indexOf(impact) > order.indexOf(highest) ? impact : highest,

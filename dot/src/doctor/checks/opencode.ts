@@ -24,6 +24,7 @@ export const checkOpencode = Effect.gen(function* () {
 
   // Check external skills directory (~/.agents/skills/)
   const externalSkillsPath = join(HOME_DIR, ".agents", "skills");
+
   if (existsSync(externalSkillsPath)) {
     results.push({
       severity: "ok",
@@ -38,6 +39,7 @@ export const checkOpencode = Effect.gen(function* () {
 
   // Warn if legacy skills dir still exists under ~/.config/opencode/
   const legacySkillsPath = join(CONFIG_DIR, "opencode", "skills");
+
   if (existsSync(legacySkillsPath) || lstatExists(legacySkillsPath)) {
     results.push({
       severity: "warn",
@@ -65,8 +67,10 @@ export const checkOpencode = Effect.gen(function* () {
 
     if (existsSync(legacyPath) || lstatExists(legacyPath)) {
       foundLegacy = true;
+
       const isSymlink =
         lstatExists(legacyPath) && lstatSync(legacyPath).isSymbolicLink();
+
       if (isSymlink) {
         const target = readlinkSync(legacyPath);
         results.push({
@@ -79,6 +83,7 @@ export const checkOpencode = Effect.gen(function* () {
           message: `Legacy OpenCode path still exists: ${displayPath(legacyPath)}`,
         });
       }
+
       results.push({
         severity: "warn",
         message: `Move/remove legacy OpenCode resources after confirming ${displayPath(canonicalPath)} is correct`,
@@ -93,9 +98,11 @@ export const checkOpencode = Effect.gen(function* () {
       join(HOME_DIR, ".opencode"),
     ]) {
       const path = join(base, name);
+
       if (existsSync(path) || lstatExists(path)) {
         foundLegacy = true;
         const isSymlink = lstatExists(path) && lstatSync(path).isSymbolicLink();
+
         if (isSymlink) {
           const target = readlinkSync(path);
           results.push({
@@ -108,6 +115,7 @@ export const checkOpencode = Effect.gen(function* () {
             message: `Legacy OpenCode singular path still exists: ${displayPath(path)}`,
           });
         }
+
         results.push({
           severity: "warn",
           message:
@@ -150,6 +158,7 @@ export const checkOpencode = Effect.gen(function* () {
 function lstatExists(path: string): boolean {
   try {
     lstatSync(path);
+
     return true;
   } catch {
     return false;

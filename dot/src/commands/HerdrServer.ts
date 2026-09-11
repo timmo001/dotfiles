@@ -1,4 +1,4 @@
-import { Effect, Option, Schedule, Schema } from "effect";
+import { Effect, Match, Option, Schedule, Schema } from "effect";
 import {
   closeSync,
   existsSync,
@@ -36,6 +36,7 @@ const Sessions = Schema.fromJsonString(
     ),
   }),
 );
+
 const Panes = Schema.fromJsonString(
   Schema.Struct({
     result: Schema.Struct({
@@ -52,6 +53,7 @@ const Panes = Schema.fromJsonString(
     }),
   }),
 );
+
 const ProcessInfo = Schema.fromJsonString(
   Schema.Struct({
     result: Schema.Struct({
@@ -69,6 +71,7 @@ const ProcessInfo = Schema.fromJsonString(
     }),
   }),
 );
+
 const Snapshot = Schema.fromJsonString(
   Schema.Struct({
     result: Schema.Struct({
@@ -76,6 +79,7 @@ const Snapshot = Schema.fromJsonString(
     }),
   }),
 );
+
 const ProcessRow = Schema.Tuple([
   Schema.FiniteFromString,
   Schema.FiniteFromString,
@@ -85,6 +89,7 @@ const ProcessRow = Schema.Tuple([
   Schema.String,
   Schema.String,
 ]);
+
 const CommandFailure = Schema.fromJsonString(
   Schema.Struct({ error: Schema.Struct({ message: Schema.String }) }),
 );
@@ -110,6 +115,7 @@ const run = Effect.fn("HerdrServer.run")(function* (
   socket?: string,
 ) {
   const executor = yield* CommandExecutor;
+
   return yield* executor
     .run("env", [
       ...cleanEnvironmentArgs(),
@@ -122,13 +128,17 @@ const run = Effect.fn("HerdrServer.run")(function* (
       Effect.mapError(
         (error) =>
           new HerdrServerError({
-            message:
-              error._tag === "CommandError"
-                ? Schema.decodeOption(CommandFailure)(error.stderr).pipe(
-                    Option.map((response) => response.error.message),
-                    Option.getOrElse(() => error.stderr || `${binary} failed.`),
-                  )
-                : `${binary} did not respond within 10 seconds.`,
+            message: Match.value(error).pipe(
+              Match.tag("CommandError", (error) =>
+                Schema.decodeOption(CommandFailure)(error.stderr).pipe(
+                  Option.map((response) => response.error.message),
+                  Option.getOrElse(() => error.stderr || `${binary} failed.`),
+                ),
+              ),
+              Match.orElse(
+                () => `${binary} did not respond within 10 seconds.`,
+              ),
+            ),
           }),
       ),
     );
@@ -139,12 +149,14 @@ export const herdrServerPid = Effect.fn("HerdrServer.pid")(function* (
   socket: string,
 ) {
   const result = (yield* run("fuser", [socket])).trim();
+
   if (!/^\d+$/.test(result)) {
     return yield* new HerdrServerError({
       message:
         "Cannot identify a single local Herdr server for the default socket.",
     });
   }
+
   const pid = Number(result);
   yield* Effect.try({
     try: () => {
@@ -161,19 +173,24 @@ export const herdrServerPid = Effect.fn("HerdrServer.pid")(function* (
     },
     catch: (error) => new HerdrServerError({ message: formatCause(error) }),
   });
+
   return pid;
 });
 
 function descendants(pid: number, processes: ReadonlyMap<number, Process>) {
   const found = new Set([pid]);
   let previous = 0;
+
   while (previous !== found.size) {
     previous = found.size;
+
     for (const [child, info] of processes) {
       if (found.has(info.parent)) found.add(child);
     }
   }
+
   found.delete(pid);
+
   return found;
 }
 
@@ -184,43 +201,55 @@ const checkPanes = Effect.fn("HerdrServer.checkPanes")(function* (
 ) {
   // The running executable still speaks the old protocol after a mise upgrade.
   const binary = `/proc/${pid}/exe`;
+
   const {
     result: { panes },
   } = yield* Schema.decodeEffect(Panes)(
     yield* run(binary, ["pane", "list"], socket),
   );
+
   const infos = yield* Effect.forEach(panes, (pane) =>
     run(binary, ["pane", "process-info", "--pane", pane.pane_id], socket).pipe(
       Effect.flatMap(Schema.decodeEffect(ProcessInfo)),
       Effect.map((response) => ({ pane, info: response.result.process_info })),
     ),
   );
+
   const rows = yield* run("ps", [
     "-e",
     "-o",
     "pid=,ppid=,sid=,pgid=,tpgid=,stat=,comm=",
   ]);
+
   const processes = new Map<number, Process>();
+
   for (const row of rows.trim().split("\n")) {
     const match = row
       .trim()
       .match(/^(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(-?\d+)\s+(\S+)\s+(.+)$/);
+
     const [child, parent, session, group, foreground, state, name] =
       yield* Schema.decodeUnknownEffect(ProcessRow)(match?.slice(1));
+
     processes.set(child, { parent, session, group, foreground, state, name });
   }
+
   if (!processes.has(pid)) {
     return yield* new HerdrServerError({
       message: `The Herdr server disappeared during the check. Run dot herdr ${action} again.`,
     });
   }
+
   const blockers: string[] = [];
+
   for (const { pane, info } of infos) {
     const shell = info.shell_pid;
     const processInfo = shell === null ? undefined : processes.get(shell);
     const label = `${pane.pane_id} (${JSON.stringify(pane.label || pane.cwd || pane.tab_id)})`;
+
     const children =
       shell === null ? new Set<number>() : descendants(shell, processes);
+
     if (pane.agent) {
       blockers.push(`${label}: ${pane.agent} agent (${pane.agent_status})`);
     } else if (!processInfo) {
@@ -261,11 +290,13 @@ const checkPanes = Effect.fn("HerdrServer.checkPanes")(function* (
       }
     }
   }
+
   if (blockers.length) {
     return yield* new HerdrServerError({
       message: `Herdr is not ready to ${action}:\n${blockers.map((item) => `  - ${item}`).join("\n")}\nClose these agents or finish these jobs, then run dot herdr ${action} again.`,
     });
   }
+
   return infos
     .map(({ pane, info }) => `${pane.pane_id}:${info.shell_pid}`)
     .sort();
@@ -273,10 +304,12 @@ const checkPanes = Effect.fn("HerdrServer.checkPanes")(function* (
 
 const launch = Effect.gen(function* () {
   const logPath = join(STATE_DIR, "herdr-restart.log");
+
   return yield* Effect.try({
     try: () => {
       mkdirSync(STATE_DIR, { recursive: true });
       const log = openSync(logPath, "a", 0o600);
+
       try {
         const child = Bun.spawn(
           [
@@ -298,7 +331,9 @@ const launch = Effect.gen(function* () {
             detached: true,
           },
         );
+
         child.unref();
+
         return child;
       } finally {
         closeSync(log);
@@ -329,11 +364,13 @@ export const herdrStart = launch.pipe(
 export const herdrServerAction = Effect.fn("herdrServerAction")(
   function* (action: "stop" | "restart", options: { readonly check: boolean }) {
     const output = yield* OutputLog;
+
     if (!options.check && envFlag(ENV.HERDR_ENV)) {
       return yield* new HerdrServerError({
         message: `Run dot herdr ${action} from a terminal outside Herdr. Use --check here to list blockers.`,
       });
     }
+
     for (const command of [
       "herdr",
       "fuser",
@@ -345,6 +382,7 @@ export const herdrServerAction = Effect.fn("herdrServerAction")(
           message: `Missing command: ${command}.`,
         });
     }
+
     yield* Effect.acquireRelease(
       Effect.try({
         try: () =>
@@ -362,10 +400,13 @@ export const herdrServerAction = Effect.fn("herdrServerAction")(
       }),
       (path) => Effect.sync(() => releaseWorkspaceMutationLock(path)),
     );
+
     const { sessions } = yield* Schema.decodeEffect(Sessions)(
       yield* run("herdr", ["session", "list", "--json"]),
     );
+
     const session = sessions.find((item) => item.default);
+
     if (!session?.running)
       return yield* new HerdrServerError({
         message:
@@ -373,12 +414,15 @@ export const herdrServerAction = Effect.fn("herdrServerAction")(
       });
     const pid = yield* herdrServerPid(session.socket_path);
     const panes = yield* checkPanes(pid, session.socket_path, action);
+
     if (options.check) {
       yield* output.info(
         `Herdr is ready to ${action}: ${panes.length} idle shell pane(s).`,
       );
+
       return;
     }
+
     if (
       (yield* herdrServerPid(session.socket_path)) !== pid ||
       JSON.stringify(yield* checkPanes(pid, session.socket_path, action)) !==
@@ -388,6 +432,7 @@ export const herdrServerAction = Effect.fn("herdrServerAction")(
         message: `Herdr changed during the check. Run dot herdr ${action} again.`,
       });
     }
+
     yield* output.info(
       `Herdr is clean. ${action === "restart" ? "Restarting" : "Stopping"} the default server...`,
     );
@@ -407,24 +452,31 @@ export const herdrServerAction = Effect.fn("herdrServerAction")(
         ),
       ),
     );
+
     if (action === "stop") {
       yield* output.info("Herdr stopped.");
+
       return;
     }
+
     const child = yield* launch;
+
     const ready = Effect.gen(function* () {
       if (child.exitCode !== null && child.exitCode !== 0)
         return yield* new HerdrServerError({
           message: "Herdr failed to start.",
         });
+
       if ((yield* herdrServerPid(session.socket_path)) === pid)
         return yield* new HerdrServerError({
           message: "The old server is still running.",
         });
+
       return yield* Schema.decodeEffect(Snapshot)(
         yield* run("herdr", ["api", "snapshot"], session.socket_path),
       );
     });
+
     const response = yield* ready.pipe(
       Effect.retry(
         Schedule.recurs(74).pipe(
@@ -439,6 +491,7 @@ export const herdrServerAction = Effect.fn("herdrServerAction")(
           }),
       ),
     );
+
     yield* output.info(
       `Herdr restarted (v${response.result.snapshot.version}). Reattach with Super+Q.`,
     );

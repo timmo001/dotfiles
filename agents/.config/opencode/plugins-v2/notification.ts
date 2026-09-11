@@ -8,6 +8,7 @@ const sanitizeNotificationText = (value: string, fallback: string) => {
   const sanitized = Array.from(value)
     .map((character) => {
       const codePoint = character.codePointAt(0) ?? 0;
+
       return codePoint < 32 ||
         (codePoint >= 127 && codePoint <= 159) ||
         character === ";"
@@ -18,6 +19,7 @@ const sanitizeNotificationText = (value: string, fallback: string) => {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 160);
+
   return sanitized || fallback;
 };
 
@@ -28,6 +30,7 @@ const createDesktopNotifier = Effect.gen(function* () {
     Effect.map((address) => address.trim()),
     Effect.catch(() => Effect.succeed("")),
   );
+
   const originHerdrTabID = process.env.HERDR_TAB_ID ?? "";
   let canNotify: boolean | undefined;
 
@@ -41,6 +44,7 @@ const createDesktopNotifier = Effect.gen(function* () {
           Effect.catch(() => Effect.succeed(false)),
         );
       }
+
       if (!canNotify) return;
 
       const focusCommand = /^0x[0-9a-f]+$/i.test(originWindowAddress)
@@ -50,6 +54,7 @@ const createDesktopNotifier = Effect.gen(function* () {
               : ""
           }`
         : "";
+
       yield* Effect.tryPromise(() =>
         $`omarchy notification send -g ${glyph} --app-name OpenCode ${title} ${body} ${focusCommand ? "--exec" : []} ${focusCommand ? focusCommand : []}`,
       ).pipe(Effect.ignore, Effect.forkScoped);
@@ -74,6 +79,7 @@ export default Plugin.define({
               Effect.catch(() => Effect.succeed(false)),
             );
           }
+
           if (!canPlaySound) return;
 
           yield* Effect.tryPromise(() => $`paplay ${SOUND_PATH}`).pipe(
@@ -95,6 +101,7 @@ export default Plugin.define({
           }
 
           yield* sendDesktopNotification(glyph, safeTitle, safeBody);
+
           if (!isHerdrSession) yield* playSound();
         });
 
@@ -110,6 +117,7 @@ export default Plugin.define({
           Effect.gen(function* () {
             if (event.type === "session.idle") {
               const session = yield* getSession(event.data.sessionID);
+
               if (session?.parentID) return;
 
               yield* notify(
@@ -117,6 +125,7 @@ export default Plugin.define({
                 "OpenCode: Task complete",
                 session?.title ?? "OpenCode session",
               );
+
               return;
             }
 
