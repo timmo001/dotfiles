@@ -117,7 +117,7 @@ Panel {
         var current = workspaceContext.repository
         var known = service.changedRepos.concat(service.otherRepos).find(function(repo) { return repo.path === current.path })
         var value = known || { name: current.name, path: current.path, statusKnown: false }
-        repoActions().forEach(function(row) {
+        repoActions(value).forEach(function(row) {
           row.key = "context:" + workspaceContext.session.socketPath + ":" + (workspaceContext.pane ? workspaceContext.pane.id : "") + ":" + current.path + ":" + row.action
           row.kind = "context-action"
           row.section = "context"
@@ -127,8 +127,7 @@ Panel {
         })
       }
     } else if (view === "repo") {
-      if (selectedRepoCanPull) rows.push(actionRow("pull", "Pull", "󰜷"))
-      rows = rows.concat(repoActions())
+      rows = rows.concat(repoActions(selectedRepo))
       rows.push(actionRow("back", "Back to repositories", ""))
       return rows
     } else {
@@ -190,14 +189,16 @@ Panel {
     return rows
   }
 
-  function repoActions() {
-    return [
+  function repoActions(repo) {
+    var rows = []
+    if (service && service.canPullRepo(repo)) rows.push(actionRow("pull", "Pull", "󰜷"))
+    return rows.concat([
       actionRow("lazygit", "Open in lazygit", ""),
       actionRow("editor", "Open in editor", ""),
       actionRow("agent", "Open in agent", "󱚣"),
       actionRow("terminal", "Open terminal", ""),
       actionRow("web", "Open on GitHub", "")
-    ]
+    ])
   }
 
   function actionRow(action, label, icon) {
