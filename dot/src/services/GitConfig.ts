@@ -13,7 +13,12 @@ import {
   type JsonValue,
 } from "../lib/schema.js";
 
-const TOP_LEVEL_KEYS = new Set(["schema_version", "repositories", "shortcuts"]);
+const TOP_LEVEL_KEYS = new Set([
+  "schema_version",
+  "repositories",
+  "shortcuts",
+  "browsers",
+]);
 
 const REPO_KEYS = new Set([
   "name",
@@ -22,6 +27,7 @@ const REPO_KEYS = new Set([
   "aliases",
   "post_update",
   "agent_oxlint",
+  "browser",
   "activity",
   "notifications",
   "releases",
@@ -82,6 +88,8 @@ export interface GitManagedRepo {
   readonly postUpdate: string | null;
   /** Whether the dot-managed generic Oxlint pass may run without a local setup. */
   readonly agentOxlint: boolean;
+  /** Named browser for repository web actions; omitted uses the desktop default. */
+  readonly browser?: string;
   /** Local activity check used by git diff and repository updates. */
   readonly activity: GitRepoCheckConfig;
   /** GitHub notification check and status-bar filters. */
@@ -102,11 +110,14 @@ export interface DotGitConfig {
   readonly repositories: readonly GitManagedRepo[];
   /** Additional shell shortcut targets that are not managed repositories. */
   readonly shortcuts: readonly GitRepoShortcut[];
+  /** Named browser commands, with the URL appended as one argument. */
+  readonly browsers: Readonly<Record<string, readonly string[]>>;
   /** Validation diagnostics for missing or malformed config. */
   readonly diagnostics: readonly string[];
 }
 
 interface ParsedGitConfig {
+  readonly browsers: Readonly<Record<string, readonly string[]>>;
   readonly repositories: readonly GitManagedRepo[];
   readonly shortcuts: readonly GitRepoShortcut[];
   readonly diagnostics: readonly string[];
@@ -128,6 +139,7 @@ export function emptyDotGitConfig(
     valid: diagnostics.length === 0,
     repositories: [],
     shortcuts: [],
+    browsers: {},
     diagnostics,
   };
 }
@@ -149,6 +161,7 @@ export function loadDotGitConfig(filePath: string): DotGitConfig {
       valid: false,
       repositories: [],
       shortcuts: [],
+      browsers: {},
       diagnostics: [
         `Could not read private git config ${displayPath(filePath)}: ${formatError(error)}`,
       ],
@@ -170,6 +183,7 @@ export function parseDotGitConfigText(
       valid: result.diagnostics.length === 0,
       repositories: result.diagnostics.length === 0 ? result.repositories : [],
       shortcuts: result.diagnostics.length === 0 ? result.shortcuts : [],
+      browsers: result.diagnostics.length === 0 ? result.browsers : {},
       diagnostics: result.diagnostics,
     };
   } catch (error) {
@@ -256,6 +270,7 @@ function parseDotGitConfig(value: JsonValue): ParsedGitConfig {
       repositories: [],
       shortcuts: [],
       diagnostics: ["dot-git.yml must contain a YAML object"],
+      browsers: {},
     };
   }
 
@@ -268,7 +283,7 @@ function parseDotGitConfig(value: JsonValue): ParsedGitConfig {
   if (!Array.isArray(value.repositories)) {
     diagnostics.push("root.repositories must be an array");
 
-    return { repositories: [], shortcuts: [], diagnostics };
+    return { repositories: [], shortcuts: [], browsers: {}, diagnostics };
   }
 
   const repositories = value.repositories.flatMap((repo, index) =>
@@ -276,12 +291,41 @@ function parseDotGitConfig(value: JsonValue): ParsedGitConfig {
   );
 
   const shortcuts = parseShortcuts(value.shortcuts, diagnostics);
+  const browsers: Record<string, readonly string[]> = {};
+
+  if (value.browsers !== undefined) {
+    if (!isRecord(value.browsers))
+      diagnostics.push("root.browsers must be an object");
+    else
+      for (const [name, command] of Object.entries(value.browsers)) {
+        if (
+          !/^[a-z][a-z0-9_-]*$/.test(name) ||
+          !Array.isArray(command) ||
+          command.length === 0 ||
+          !command.every(
+            (arg): arg is string => isString(arg) && arg.trim().length > 0,
+          )
+        ) {
+          diagnostics.push(
+            `root.browsers.${name} must be a non-empty command argument list with a lowercase name`,
+          );
+        } else browsers[name] = command;
+      }
+  }
+
+  for (const repo of repositories) {
+    if (repo.browser && !Object.hasOwn(browsers, repo.browser))
+      diagnostics.push(
+        `Repository ${repo.name} references unknown browser: ${repo.browser}`,
+      );
+  }
+
   pushDuplicateDiagnostics(diagnostics, repositories, "name");
   pushDuplicateDiagnostics(diagnostics, repositories, "path");
   pushDuplicateDiagnostics(diagnostics, repositories, "github");
   pushDuplicateAliasDiagnostics(diagnostics, [...repositories, ...shortcuts]);
 
-  return { repositories, shortcuts, diagnostics };
+  return { repositories, shortcuts, browsers, diagnostics };
 }
 
 function parseShortcuts(
@@ -360,6 +404,12 @@ function parseRepo(
     diagnostics,
   );
 
+  const browser = optionalString(
+    value.browser,
+    `${location}.browser`,
+    diagnostics,
+  );
+
   const activity = parseCheck(
     value.activity,
     `${location}.activity`,
@@ -394,6 +444,7 @@ function parseRepo(
       aliases,
       postUpdate,
       agentOxlint,
+      ...(browser && { browser }),
       activity,
       notifications,
       ...(releases && { releases }),

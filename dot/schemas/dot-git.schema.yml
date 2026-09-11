@@ -11,6 +11,17 @@ required:
   - repositories
 
 properties:
+  browsers:
+    description: Named browser commands. Web actions append the URL as one argument.
+    type: object
+    propertyNames:
+      pattern: "^[a-z][a-z0-9_-]*$"
+    additionalProperties:
+      type: array
+      minItems: 1
+      items:
+        type: string
+        pattern: "\\S"
   schema_version:
     description: dot-git.yml schema version.
     const: 2
@@ -86,6 +97,10 @@ $defs:
       agent_oxlint:
         type: boolean
         description: Allow the dot-managed generic Oxlint pass when the repository has no local Oxlint setup.
+      browser:
+        type: string
+        pattern: "^[a-z][a-z0-9_-]*$"
+        description: Name from browsers for web actions. Omitted uses the desktop default.
       activity:
         $ref: "#/$defs/scheduled_check"
       notifications:

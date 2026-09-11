@@ -204,8 +204,16 @@ Item {
     releaseActionProcess.running = true
   }
 
-  function openEvidence(url) {
-    if (url) Quickshell.execDetached(["xdg-open", String(url)])
+  function openWeb(url, path, modifiers) {
+    var args = ["dot", "git-web"]
+    if (url) args.push("--url", String(url))
+    if (path) args.push("--path", String(path))
+    if (modifiers & Qt.AltModifier) args.push("--browser", "work")
+    Quickshell.execDetached(args)
+  }
+
+  function openEvidence(url, repo, modifiers) {
+    if (url) openWeb(url, repo ? repo.path : "", modifiers)
   }
 
   function openRelease(entry) {
@@ -285,7 +293,7 @@ Item {
     catch (error) { installedAgents = [] }
   }
 
-  function openRepo(repo, action, command, tabLabel) {
+  function openRepo(repo, action, modifiers, command, tabLabel) {
     if (!repo || !repo.path) return
     var path = String(repo.path)
     if (action === "pull") {
@@ -311,7 +319,7 @@ Item {
         "bash", String(repo.name || ""), path, tabLabel || "Shell", command || ""
       ])
     else if (action === "web")
-      Quickshell.execDetached(["bash", "-lc", "cd \"$1\" && exec gh repo view --web", "bash", path])
+      openWeb("", path, modifiers)
   }
 
   function canPullRepo(repo) {
@@ -363,11 +371,11 @@ Item {
     agentOpened()
   }
 
-  function openNotifications() {
-    Quickshell.execDetached(["xdg-open", "https://github.com/notifications"])
+  function openNotifications(modifiers) {
+    openWeb("https://github.com/notifications", herdrContext && herdrContext.repository ? herdrContext.repository.path : "", modifiers)
   }
 
-  function openThread(thread) {
+  function openThread(thread, modifiers) {
     if (!thread) return
     var threadId = String(thread.id || "")
     if (threadId !== "" && !markReadProcess.running) {
@@ -376,7 +384,7 @@ Item {
       markReadProcess.command = ["dot", "git-notifications", "--mark-read", threadId]
       markReadProcess.running = true
     }
-    if (thread.webUrl) Quickshell.execDetached(["xdg-open", String(thread.webUrl)])
+    if (thread.webUrl) openWeb(thread.webUrl, "", modifiers)
   }
 
   Process {

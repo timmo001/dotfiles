@@ -48,6 +48,7 @@ import {
   diffRaw,
 } from "../git/commands/Diff.js";
 import { gitCommitRaw } from "../git/commands/Commit.js";
+import { gitWeb } from "../git/commands/Web.js";
 import {
   releasesAction,
   releasesPublish,
@@ -486,6 +487,39 @@ const omarchyPluginCommand = describe(
         ],
       },
     ],
+  },
+);
+
+const gitWebCommand = describe(
+  Command.make(
+    "git-web",
+    {
+      path: text(
+        "path",
+        "Repository directory; defaults to the current directory when no URL is supplied",
+      ),
+      url: text("url", "Web URL; defaults to the repository's GitHub page"),
+      browser: text(
+        "browser",
+        "Override the repository browser with a name from dot-git.yml",
+      ),
+    },
+    ({ path, url, browser }) =>
+      gitWeb({
+        path: optional(path),
+        url: optional(url),
+        browser: optional(browser),
+      }),
+  ),
+  "Open a Git web action using the repository's configured browser",
+  [
+    "dot git-web",
+    "dot git-web --browser work",
+    "dot git-web --url https://github.com/example/project/issues/1",
+  ],
+  {
+    description:
+      "Resolves repository browser settings from dot-git.yml, including linked worktrees. URL-only actions use the GitHub repository in the URL. Named browsers are argument lists under browsers; each repository can select one with browser. Without a selection, uses the desktop default. --browser overrides the selection. The Git panel uses the work browser override for Alt+Enter and Alt+click on web actions.",
   },
 );
 
@@ -1636,6 +1670,7 @@ export const dotCommand = describe(
       omarchyPluginCommand,
       ...simpleCommands,
       gitDiffCommand,
+      gitWebCommand,
       gitCommitCommand,
       gitNotificationsCommand,
       gitReleasesCommand,
