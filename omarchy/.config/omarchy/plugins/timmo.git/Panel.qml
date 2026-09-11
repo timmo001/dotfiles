@@ -50,18 +50,8 @@ Panel {
   readonly property var filteredThreads: filterRows("thread")
   readonly property var filteredFooterActions: filterRows("footer-action")
   readonly property var workspaceContext: service ? service.herdrContext : null
-  readonly property var contextRows: filterRows("context-repo")
+  readonly property var contextRows: filterRows("context-action")
   property string contextCursorKey: ""
-
-  function workspaceDetail() {
-    var context = workspaceContext
-    if (!context) return ""
-    var labels = []
-    if (context.workspace) labels.push(context.workspace.label || context.workspace.id)
-    if (context.tab) labels.push(context.tab.label || context.tab.id)
-    if (context.pane) labels.push(context.pane.id + " · " + (context.pane.agent || "shell") + " · " + context.pane.status)
-    return labels.join(" · ") + "\n" + (context.cwd || "Directory unavailable")
-  }
 
   function buildPanelRows() {
     var rows = []
@@ -71,7 +61,7 @@ Panel {
         var agent = agents[i]
         rows.push(actionRow("agent:" + agent.command, agent.label, "󱚣"))
       }
-      rows.push(actionRow("back", releaseAgentView ? "Back to release preparation" : "Back to repository", ""))
+      rows.push(actionRow("back", releaseAgentView ? "Back to release preparation" : (selectedAgentView === "overview" ? "Back to Git overview" : "Back to repository"), ""))
       return rows
     }
     if (releaseView) {
@@ -127,20 +117,18 @@ Panel {
         var current = workspaceContext.repository
         var known = service.changedRepos.concat(service.otherRepos).find(function(repo) { return repo.path === current.path })
         var value = known || { name: current.name, path: current.path, statusKnown: false }
-        rows.push({
-          key: "context:" + workspaceContext.session.socketPath + ":" + (workspaceContext.pane ? workspaceContext.pane.id : "") + ":" + current.path,
-          kind: "context-repo", section: "context", value: value,
-          primaryText: current.name,
-          secondaryText: (current.branch || "Detached HEAD") + " · " + repoDetail(value) + "\n" + workspaceDetail()
+        repoActions().forEach(function(row) {
+          row.key = "context:" + workspaceContext.session.socketPath + ":" + (workspaceContext.pane ? workspaceContext.pane.id : "") + ":" + current.path + ":" + row.action
+          row.kind = "context-action"
+          row.section = "context"
+          row.value = value
+          row.secondaryText = current.name + " " + current.path
+          rows.push(row)
         })
       }
     } else if (view === "repo") {
       if (selectedRepoCanPull) rows.push(actionRow("pull", "Pull", "󰜷"))
-      rows.push(actionRow("lazygit", "Open in lazygit", ""))
-      rows.push(actionRow("editor", "Open in editor", ""))
-      rows.push(actionRow("agent", "Open in agent", "󱚣"))
-      rows.push(actionRow("terminal", "Open terminal", ""))
-      rows.push(actionRow("web", "Open on GitHub", ""))
+      rows = rows.concat(repoActions())
       rows.push(actionRow("back", "Back to repositories", ""))
       return rows
     } else {
@@ -200,6 +188,16 @@ Panel {
           rows.push(releaseRow("release", releases[r].repo, releases[r], releases[r].name, releaseDetail(releases[r])))
     }
     return rows
+  }
+
+  function repoActions() {
+    return [
+      actionRow("lazygit", "Open in lazygit", ""),
+      actionRow("editor", "Open in editor", ""),
+      actionRow("agent", "Open in agent", "󱚣"),
+      actionRow("terminal", "Open terminal", ""),
+      actionRow("web", "Open on GitHub", "")
+    ]
   }
 
   function actionRow(action, label, icon) {
@@ -338,7 +336,7 @@ Panel {
     controller.show()
     Qt.callLater(function() {
       if (view === "overview") {
-        var index = filterController.filteredModel.findIndex(function(entry) { return entry.kind === "repo" || entry.kind === "context-repo" })
+        var index = filterController.filteredModel.findIndex(function(entry) { return entry.kind === "repo" || entry.kind === "context-action" })
         if (index < 0)
           index = filterController.indexForKey("action:repositories-refresh")
         filterController.selectIndex(index)
@@ -360,7 +358,7 @@ Panel {
   function cursorItem() {
     var entry = filterController.selectedEntry()
     if (!entry) return null
-    if (entry.kind === "context-repo") return contextRepeater.itemAt(contextRows.indexOf(entry))
+    if (entry.kind === "context-action") return contextRepeater.itemAt(contextRows.indexOf(entry))
     if (entry.kind === "header-action") {
       if (entry.action === "pull-changed") return repositoriesHeading
       if (entry.action === "repositories-refresh") return repositoriesHeading
@@ -476,7 +474,8 @@ Panel {
 
   function activateEntry(entry, modifiers) {
     if (entry.kind === "action" || entry.kind === "footer-action" || entry.kind === "header-action") activateAction(entry.action, modifiers)
-    else if (entry.kind === "repo" || entry.kind === "context-repo") showRepoActions(entry.value)
+    else if (entry.kind === "context-action") { selectedRepo = entry.value; activateAction(entry.action, modifiers) }
+    else if (entry.kind === "repo") showRepoActions(entry.value)
     else if (entry.kind === "thread") activateThread(entry.value)
     else if (entry.kind === "release") { selectedReleaseView = view; selectedReleaseKey = entry.value.repo; showView("release") }
     else if (entry.kind === "finding-group") { selectedFindingGroupKey = entry.value.id; showView("finding-group") }
@@ -580,50 +579,44 @@ Panel {
           }
 
           SectionHeading {
-            visible: root.view === "overview" && root.workspaceContext !== null && (!filterController.filterText || root.contextRows.length > 0)
+            visible: root.contextRows.length > 0
             title: "Current workspace"
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
           }
 
-          Text {
-            visible: root.view === "overview" && root.workspaceContext !== null && (!filterController.filterText || root.contextRows.length > 0)
+          Column {
+            visible: root.contextRows.length > 0
             width: parent.width
-            text: root.workspaceDetail()
-            textFormat: Text.PlainText
-            wrapMode: Text.WrapAnywhere
-            color: root.contentForeground
-            font.family: root.contentFontFamily
-            font.pixelSize: Style.font.caption
-          }
-
-          Repeater {
-            id: contextRepeater
-            model: root.contextRows
-            CursorSurface {
-              required property var modelData
-              x: Style.space(8)
-              width: Math.max(0, contentColumn.width - Style.space(16))
-              implicitHeight: currentRepoColumn.implicitHeight + Style.space(12)
-              hasCursor: root.cursorKey === modelData.key
-              foreground: root.contentForeground
-              accent: root.hostWidget ? root.hostWidget.displayColor : root.contentForeground
-              Column {
-                id: currentRepoColumn
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.margins: Style.space(8)
-                spacing: Style.space(2)
-                Text { width: parent.width; text: modelData.primaryText; textFormat: Text.PlainText; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
-                Text { width: parent.width; text: modelData.secondaryText.split("\n")[0]; textFormat: Text.PlainText; color: Qt.darker(root.contentForeground, 1.4); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; elide: Text.ElideRight }
-              }
-              MouseArea {
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key)
-                onClicked: root.showRepoActions(modelData.value)
+            spacing: Style.space(2)
+            Repeater {
+              id: contextRepeater
+              model: root.contextRows
+              CursorSurface {
+                required property var modelData
+                x: Style.space(8)
+                width: Math.max(0, contentColumn.width - Style.space(16))
+                implicitHeight: contextActionRow.implicitHeight + Style.space(12)
+                hasCursor: root.cursorKey === modelData.key
+                foreground: root.contentForeground
+                accent: root.contentForeground
+                Row {
+                  id: contextActionRow
+                  anchors.left: parent.left
+                  anchors.right: parent.right
+                  anchors.verticalCenter: parent.verticalCenter
+                  anchors.margins: Style.space(8)
+                  spacing: Style.space(10)
+                  Text { width: Style.space(22); text: modelData.icon; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.icon; horizontalAlignment: Text.AlignHCenter }
+                  Text { width: Math.max(0, contextActionRow.width - Style.space(32)); text: modelData.primaryText; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
+                }
+                MouseArea {
+                  anchors.fill: parent
+                  hoverEnabled: true
+                  cursorShape: Qt.PointingHandCursor
+                  onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key)
+                  onClicked: function(mouse) { root.activateEntry(modelData, mouse.modifiers) }
+                }
               }
             }
           }
