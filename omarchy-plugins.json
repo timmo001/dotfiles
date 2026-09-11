@@ -81,17 +81,17 @@
       },
       "settings": {
         "primaryOnly": true,
-        "run": "dot package-updates status",
+        "run": "dot updates status",
         "interval": 60000,
-        "refreshTarget": "timmo.package-updates",
+        "refreshTarget": "timmo.updates",
         "loadingText": "󰏕 ..",
-        "loadingClass": "package-updates-unknown",
+        "loadingClass": "updates-unknown",
         "onClick": "dot herdr repo-open dotfiles \"${DOTFILES_PUBLIC_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles}\" Update update",
-        "onClickRight": "dot package-updates refresh",
+        "onClickRight": "dot updates refresh",
         "classColors": {
-          "package-updates-current": "#9b9b9b",
-          "package-updates-unknown": "#9b9b9b",
-          "package-updates": "#e5c07b"
+          "updates-current": "#9b9b9b",
+          "updates-unknown": "#9b9b9b",
+          "updates": "#e5c07b"
         }
       },
       "hosts": {

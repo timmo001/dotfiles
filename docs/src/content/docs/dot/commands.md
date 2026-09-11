@@ -114,12 +114,12 @@ dot system-update
 dot system-update --yes
 ```
 
-## `dot package-updates`
+## `dot updates`
 
 Check watched package and Dotfiles updates for the status bar
 
 ```text
-dot package-updates <subcommand> [flags]
+dot updates <subcommand> [flags]
 ```
 
 Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks watched repository/AUR packages and all dot-managed repositories, writes the cache atomically under a shared lock, and notifies the Omarchy shell. Scheduled refreshes respect AUR HTTP-error backoff; manual refreshes retry immediately. Use --package-file, --cache-dir, --timeout, and status --cache-max-age to override defaults.
@@ -133,16 +133,16 @@ Read cached status immediately and refresh it in the background after 15 minutes
 **Examples**
 
 ```bash
-dot package-updates status
-dot package-updates refresh
+dot updates status
+dot updates refresh
 ```
 
-### `dot package-updates status`
+### `dot updates status`
 
 Print cached status-bar JSON and refresh stale data in the background
 
 ```text
-dot package-updates status [flags]
+dot updates status [flags]
 ```
 
 **Options**
@@ -158,15 +158,15 @@ dot package-updates status [flags]
 **Examples**
 
 ```bash
-dot package-updates status
+dot updates status
 ```
 
-### `dot package-updates refresh`
+### `dot updates refresh`
 
 Refresh package and Dotfiles status and notify the shell
 
 ```text
-dot package-updates refresh [flags]
+dot updates refresh [flags]
 ```
 
 **Options**
@@ -182,7 +182,7 @@ dot package-updates refresh [flags]
 **Examples**
 
 ```bash
-dot package-updates refresh
+dot updates refresh
 ```
 
 ## `dot stow`

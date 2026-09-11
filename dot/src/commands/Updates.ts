@@ -15,11 +15,7 @@ import { Config } from "../services/Config.js";
 const BarStatus = Schema.Struct({
   text: Schema.String,
   tooltip: Schema.String,
-  class: Schema.Literals([
-    "package-updates",
-    "package-updates-current",
-    "package-updates-unknown",
-  ]),
+  class: Schema.Literals(["updates", "updates-current", "updates-unknown"]),
 });
 type BarStatus = typeof BarStatus.Type;
 const decodeStatus = Schema.decodeUnknownOption(
@@ -32,21 +28,21 @@ const decodeBackoff = Schema.decodeUnknownOption(
 const current: BarStatus = {
   text: "󰏕 0",
   tooltip: "Watched packages are up to date",
-  class: "package-updates-current",
+  class: "updates-current",
 };
 const unavailable: BarStatus = {
   text: " ?",
   tooltip: "Watched package updates unavailable",
-  class: "package-updates-unknown",
+  class: "updates-unknown",
 };
 const loading: BarStatus = {
   text: "󰏕 ..",
   tooltip: "Dotfiles update status: loading\nWatched package updates: loading",
-  class: "package-updates-unknown",
+  class: "updates-unknown",
 };
 
-/** Paths and timing controls shared by package status and refresh commands. */
-export interface PackageUpdatesOptions {
+/** Paths and timing controls shared by update status and refresh commands. */
+export interface UpdatesOptions {
   /** Watched package list; defaults to the public dotfiles package manifest. */
   readonly packageFile?: string;
   /** Status cache directory; defaults to the XDG status-bar cache. */
@@ -57,9 +53,7 @@ export interface PackageUpdatesOptions {
   readonly cacheMaxAge?: number;
 }
 
-const paths = Effect.fn("PackageUpdates.paths")(function* (
-  options: PackageUpdatesOptions,
-) {
+const paths = Effect.fn("Updates.paths")(function* (options: UpdatesOptions) {
   const config = yield* Config;
   const directory = options.cacheDir ?? join(CACHE_DIR, "status-bar");
   return {
@@ -73,7 +67,7 @@ const paths = Effect.fn("PackageUpdates.paths")(function* (
   };
 });
 
-const query = Effect.fn("PackageUpdates.query")(
+const query = Effect.fn("Updates.query")(
   function* (command: string, args: readonly string[], _timeout: number) {
     const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
     const child = yield* spawner.spawn(
@@ -98,8 +92,8 @@ const query = Effect.fn("PackageUpdates.query")(
     ),
 );
 
-const packages = Effect.fn("PackageUpdates.packages")(function* (
-  options: PackageUpdatesOptions,
+const packages = Effect.fn("Updates.packages")(function* (
+  options: UpdatesOptions,
   locations: Effect.Success<ReturnType<typeof paths>>,
   scheduled: boolean,
 ) {
@@ -183,116 +177,111 @@ const packages = Effect.fn("PackageUpdates.packages")(function* (
   return {
     text: `󰏕 ${updates.length}`,
     tooltip: `Watched package updates:\n${updates.join("\n")}${aurAvailable ? "" : "\n\nAUR updates unavailable"}`,
-    class: "package-updates",
+    class: "updates",
   } satisfies BarStatus;
 });
 
 /** Refresh the cached package and Dotfiles status, respecting AUR backoff when scheduled. */
-export const packageUpdatesRefresh = Effect.fn("PackageUpdates.refresh")(
-  function* (options: PackageUpdatesOptions, scheduled = false) {
-    const fs = yield* FileSystem.FileSystem;
-    const locations = yield* paths(options);
-    yield* fs.makeDirectory(locations.directory, { recursive: true });
-    yield* Effect.acquireUseRelease(
-      fs.makeDirectory(locations.lock).pipe(
-        Effect.as(true),
-        Effect.catch((error) =>
-          error.reason._tag === "AlreadyExists"
-            ? Effect.succeed(false)
-            : Effect.fail(error),
-        ),
+export const updatesRefresh = Effect.fn("Updates.refresh")(function* (
+  options: UpdatesOptions,
+  scheduled = false,
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const locations = yield* paths(options);
+  yield* fs.makeDirectory(locations.directory, { recursive: true });
+  yield* Effect.acquireUseRelease(
+    fs.makeDirectory(locations.lock).pipe(
+      Effect.as(true),
+      Effect.catch((error) =>
+        error.reason._tag === "AlreadyExists"
+          ? Effect.succeed(false)
+          : Effect.fail(error),
       ),
-      (acquired) =>
-        Effect.gen(function* () {
-          if (!acquired) return;
-          const packageStatus = yield* packages(options, locations, scheduled);
-          const dotResult = yield* query(
-            "dot",
-            ["update", "--check-all"],
-            options.timeout,
-          );
-          const message =
-            dotResult.code === 0
-              ? "Dotfiles are up to date"
-              : dotResult.code === 10
-                ? "Dotfiles updates available"
-                : "Dotfiles update status unavailable";
-          const status: BarStatus = {
-            ...packageStatus,
-            tooltip: `${message}\n\n${packageStatus.tooltip}`,
-            class:
-              dotResult.code === 10
-                ? "package-updates"
-                : dotResult.code !== 0 &&
-                    packageStatus.class === "package-updates-current"
-                  ? "package-updates-unknown"
-                  : packageStatus.class,
-          };
-          yield* fs.writeFileString(
-            `${locations.cache}.tmp`,
-            `${JSON.stringify(status)}\n`,
-            { mode: 0o600 },
-          );
-          yield* fs.rename(`${locations.cache}.tmp`, locations.cache);
-          yield* query(
-            "omarchy-shell",
-            ["-q", "timmo.package-updates", "refresh"],
-            5,
-          );
-        }),
-      (acquired) =>
-        acquired
-          ? fs.remove(locations.lock, { recursive: true }).pipe(Effect.orDie)
-          : Effect.void,
-    );
-  },
-);
+    ),
+    (acquired) =>
+      Effect.gen(function* () {
+        if (!acquired) return;
+        const packageStatus = yield* packages(options, locations, scheduled);
+        const dotResult = yield* query(
+          "dot",
+          ["update", "--check-all"],
+          options.timeout,
+        );
+        const message =
+          dotResult.code === 0
+            ? "Dotfiles are up to date"
+            : dotResult.code === 10
+              ? "Dotfiles updates available"
+              : "Dotfiles update status unavailable";
+        const status: BarStatus = {
+          ...packageStatus,
+          tooltip: `${message}\n\n${packageStatus.tooltip}`,
+          class:
+            dotResult.code === 10
+              ? "updates"
+              : dotResult.code !== 0 &&
+                  packageStatus.class === "updates-current"
+                ? "updates-unknown"
+                : packageStatus.class,
+        };
+        yield* fs.writeFileString(
+          `${locations.cache}.tmp`,
+          `${JSON.stringify(status)}\n`,
+          { mode: 0o600 },
+        );
+        yield* fs.rename(`${locations.cache}.tmp`, locations.cache);
+        yield* query("omarchy-shell", ["-q", "timmo.updates", "refresh"], 5);
+      }),
+    (acquired) =>
+      acquired
+        ? fs.remove(locations.lock, { recursive: true }).pipe(Effect.orDie)
+        : Effect.void,
+  );
+});
 
 /** Print cached status immediately and start a detached refresh when it is stale. */
-export const packageUpdatesStatus = Effect.fn("PackageUpdates.status")(
-  function* (options: PackageUpdatesOptions) {
-    const fs = yield* FileSystem.FileSystem;
-    const locations = yield* paths(options);
-    const now = yield* Clock.currentTimeMillis;
-    const cached = yield* fs
-      .readFileString(locations.cache)
-      .pipe(Effect.option);
-    const status = Option.flatMap(cached, decodeStatus);
-    const modified = yield* fs.stat(locations.cache).pipe(
-      Effect.map((info) =>
-        Option.getOrElse(info.mtime, () => new Date(0)).getTime(),
-      ),
-      Effect.orElseSucceed(() => 0),
-    );
-    if (
-      (Option.isNone(status) ||
-        now - modified >= (options.cacheMaxAge ?? 900) * 1000) &&
-      !(yield* fs.exists(locations.lock))
-    ) {
-      yield* Effect.try(() => {
-        const child = Bun.spawn(
-          [
-            "dot",
-            "package-updates",
-            "refresh",
-            "--scheduled",
-            "--package-file",
-            locations.packageFile,
-            "--cache-dir",
-            locations.directory,
-            "--timeout",
-            String(options.timeout),
-          ],
-          {
-            stdin: "ignore",
-            stdout: "ignore",
-            stderr: "ignore",
-            detached: true,
-          },
-        );
-        child.unref();
-      });
-    }
-    yield* Console.log(JSON.stringify(Option.getOrElse(status, () => loading)));
-  },
-);
+export const updatesStatus = Effect.fn("Updates.status")(function* (
+  options: UpdatesOptions,
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const locations = yield* paths(options);
+  const now = yield* Clock.currentTimeMillis;
+  const cached = yield* fs.readFileString(locations.cache).pipe(Effect.option);
+  const status = Option.flatMap(cached, decodeStatus);
+  const modified = yield* fs.stat(locations.cache).pipe(
+    Effect.map((info) =>
+      Option.getOrElse(info.mtime, () => new Date(0)).getTime(),
+    ),
+    Effect.orElseSucceed(() => 0),
+  );
+  if (
+    (Option.isNone(status) ||
+      now - modified >= (options.cacheMaxAge ?? 900) * 1000) &&
+    !(yield* fs.exists(locations.lock))
+  ) {
+    yield* Effect.try(() => {
+      const child = Bun.spawn(
+        [
+          "dot",
+          "updates",
+          "refresh",
+          "--scheduled",
+          "--package-file",
+          locations.packageFile,
+          "--cache-dir",
+          locations.directory,
+          "--timeout",
+          String(options.timeout),
+        ],
+        {
+          stdin: "ignore",
+          stdout: "ignore",
+          stderr: "ignore",
+          detached: true,
+        },
+      );
+      child.unref();
+    });
+  }
+  yield* Console.log(JSON.stringify(Option.getOrElse(status, () => loading)));
+});

@@ -23,10 +23,7 @@ import { isAgentCommand } from "../commands/IsAgent.js";
 import { launchFloatingWebapp } from "../commands/LaunchFloatingWebapp.js";
 import { notesCaptureSync } from "../commands/NotesCaptureSync.js";
 import { omarchyPlugin } from "../commands/OmarchyPlugin.js";
-import {
-  packageUpdatesRefresh,
-  packageUpdatesStatus,
-} from "../commands/PackageUpdates.js";
+import { updatesRefresh, updatesStatus } from "../commands/Updates.js";
 import { privatePkgPublish } from "../commands/PrivatePkgPublish.js";
 import { setupPrivateRepo } from "../commands/SetupPrivateRepo.js";
 import { setupPublicRepo } from "../commands/SetupPublicRepo.js";
@@ -264,7 +261,7 @@ const systemUpdateCommand = describe(
   },
 );
 
-const packageUpdateFlags = {
+const updateStatusFlags = {
   packageFile: pathFlag(
     "package-file",
     "Watched package list (default: public dotfiles manifest)",
@@ -287,14 +284,14 @@ const packageUpdateFlags = {
   ),
 };
 
-const packageUpdatesCommand = describe(
-  Command.make("package-updates").pipe(
+const updatesCommand = describe(
+  Command.make("updates").pipe(
     Command.withSubcommands([
       describe(
         Command.make(
           "status",
           {
-            ...packageUpdateFlags,
+            ...updateStatusFlags,
             cacheMaxAge: integer(
               "cache-max-age",
               "Seconds before starting a background refresh",
@@ -307,24 +304,24 @@ const packageUpdatesCommand = describe(
             ),
           },
           (input) =>
-            packageUpdatesStatus({
+            updatesStatus({
               ...input,
               packageFile: optional(input.packageFile),
               cacheDir: optional(input.cacheDir),
             }),
         ),
         "Print cached status-bar JSON and refresh stale data in the background",
-        ["dot package-updates status"],
+        ["dot updates status"],
       ),
       describe(
         Command.make(
           "refresh",
           {
-            ...packageUpdateFlags,
+            ...updateStatusFlags,
             scheduled: bool("scheduled", "Respect the AUR request backoff"),
           },
           (input) =>
-            packageUpdatesRefresh(
+            updatesRefresh(
               {
                 ...input,
                 packageFile: optional(input.packageFile),
@@ -334,12 +331,12 @@ const packageUpdatesCommand = describe(
             ),
         ),
         "Refresh package and Dotfiles status and notify the shell",
-        ["dot package-updates refresh"],
+        ["dot updates refresh"],
       ),
     ]),
   ),
   "Check watched package and Dotfiles updates for the status bar",
-  ["dot package-updates status", "dot package-updates refresh"],
+  ["dot updates status", "dot updates refresh"],
   {
     description:
       "Read cached status immediately and refresh it in the background after 15 minutes. Refresh checks watched repository/AUR packages and all dot-managed repositories, writes the cache atomically under a shared lock, and notifies the Omarchy shell. Scheduled refreshes respect AUR HTTP-error backoff; manual refreshes retry immediately. Use --package-file, --cache-dir, --timeout, and status --cache-max-age to override defaults.",
@@ -1540,7 +1537,7 @@ export const dotCommand = describe(
       installCommand,
       updateCommand,
       systemUpdateCommand,
-      packageUpdatesCommand,
+      updatesCommand,
       stowCommand,
       omarchyPluginCommand,
       ...simpleCommands,
