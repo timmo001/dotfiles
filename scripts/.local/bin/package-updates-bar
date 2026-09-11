@@ -14,8 +14,8 @@ CACHE_MAX_AGE="${PACKAGE_UPDATES_CACHE_MAX_AGE:-900}"
 BACKOFF_BASE="${PACKAGE_UPDATES_BACKOFF_BASE:-1800}"
 BACKOFF_MAX="${PACKAGE_UPDATES_BACKOFF_MAX:-21600}"
 
-loading_json='{"text":"󰏗 ..","tooltip":"Watched package updates: loading","class":"package-updates-unknown"}'
-hidden_json='{"text":"","tooltip":"Watched packages are up to date","class":"hidden"}'
+loading_json='{"text":"󰏕 ..","tooltip":"Dotfiles update status: loading\nWatched package updates: loading","class":"package-updates-unknown"}'
+current_json='{"text":"󰏕 0","tooltip":"Watched packages are up to date","class":"package-updates-current"}'
 error_json='{"text":" ?","tooltip":"Watched package updates unavailable","class":"package-updates-unknown"}'
 
 mkdir -p "$CACHE_DIR"
@@ -23,6 +23,7 @@ mkdir -p "$CACHE_DIR"
 refresh_cache() {
   local repo_output_file aur_output_file aur_error_file aur_status aur_available output rendered_json tmp_file
   local now backoff_failures=0 backoff_until=0 backoff_seconds
+  local dot_status=0 dot_message
   local -a packages=() repo_packages=() aur_packages=()
 
   if [[ ! -r "$PACKAGE_FILE" ]]; then
@@ -35,7 +36,7 @@ refresh_cache() {
     done <"$PACKAGE_FILE"
 
     if ((${#packages[@]} == 0)); then
-      rendered_json="$hidden_json"
+      rendered_json="$current_json"
     else
       for package in "${packages[@]}"; do
         if "$PACMAN_BIN" -Qnq -- "$package" >/dev/null 2>&1; then
@@ -88,13 +89,13 @@ refresh_cache() {
         rendered_json="$(jq -cn --arg updates "$output" --argjson aur_available "$aur_available" '
           ($updates | split("\n")) as $packages
           | {
-              text: ("󰏗 " + ($packages | length | tostring)),
+              text: ("󰏕 " + ($packages | length | tostring)),
               tooltip: ("Watched package updates:\n" + ($packages | join("\n")) + (if $aur_available then "" else "\n\nAUR updates unavailable" end)),
               class: "package-updates"
             }
         ')"
       elif { ((aur_status == 0 || aur_status == 1)) && [[ ! -s "$aur_error_file" ]]; }; then
-        rendered_json="$hidden_json"
+        rendered_json="$current_json"
       else
         rendered_json="$error_json"
       fi
@@ -102,6 +103,19 @@ refresh_cache() {
       rm -f "$repo_output_file" "$aur_output_file" "$aur_error_file"
     fi
   fi
+
+  timeout "$REFRESH_TIMEOUT" dot update --check-all >/dev/null 2>&1 || dot_status=$?
+  case "$dot_status" in
+  0) dot_message="Dotfiles are up to date" ;;
+  10) dot_message="Dotfiles updates available" ;;
+  *) dot_message="Dotfiles update status unavailable" ;;
+  esac
+  rendered_json="$(jq --arg message "$dot_message" --argjson status "$dot_status" '
+    .tooltip = ($message + "\n\n" + .tooltip)
+    | if $status == 10 then .class = "package-updates"
+      elif $status != 0 and .class == "package-updates-current" then .class = "package-updates-unknown"
+      else . end
+  ' <<<"$rendered_json")"
 
   tmp_file="$CACHE_FILE.tmp"
   printf '%s\n' "$rendered_json" >"$tmp_file"
