@@ -200,7 +200,17 @@ owner_iteration() {
   rm -f "$source_pipe"
   mkfifo "$source_pipe"
 
-  (exec {lock_fd}>&-; exec "${COMMAND[@]}") > "$source_pipe" &
+  (
+    exec {lock_fd}>&-
+    # Quickshell can SIGKILL this owner on reload, bypassing its cleanup trap.
+    # Check the parent after arming the signal to cover death during startup.
+    # shellcheck disable=SC2016
+    exec setpriv --pdeathsig TERM bash -c '
+      [[ "$PPID" == "$1" ]] || exit 0
+      shift
+      exec "$@"
+    ' bash "$$" "${COMMAND[@]}"
+  ) > "$source_pipe" &
   source_pid="$!"
   exec {source_fd}<"$source_pipe"
   rm -f "$source_pipe"
