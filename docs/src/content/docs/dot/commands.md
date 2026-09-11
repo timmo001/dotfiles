@@ -1215,6 +1215,32 @@ dot herdr repo-open [flags] <label> <directory> [<tab-label>] [<command>]
 2  Invalid arguments
 ```
 
+### `dot herdr context`
+
+Show context for a locally attached Herdr terminal
+
+```text
+dot herdr context [flags]
+```
+
+Shows the selected workspace, tab, pane, directory and Git repository while a local foreground terminal client is connected to the selected Herdr session. Desktop window focus is not required. JSON uses attached: false and null context fields when no terminal is attached. Without --session, uses the SDK's HERDR_SOCKET_PATH, HERDR_SESSION and default socket selection. Local Linux process and socket checks do not detect remote clients. Probe failures exit non-zero with an error on stderr.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--json` | Emit attached-session context as JSON |
+| `--session` `<string>` | Select a Herdr session (use default for the default socket) |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot herdr context
+dot herdr context --json
+dot herdr context --session default
+```
+
 ### `dot herdr agents`
 
 List installed agent targets shared by repository and release pickers

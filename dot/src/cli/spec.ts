@@ -16,6 +16,7 @@ import { completions } from "../commands/Completions.js";
 import { doctor } from "../commands/Doctor.js";
 import { herdrRepoOpen } from "../commands/HerdrRepoOpen.js";
 import { installedHerdrAgents } from "../commands/HerdrAgents.js";
+import { herdrContext } from "../commands/HerdrContext.js";
 import { herdrServerAction, herdrStart } from "../commands/HerdrServer.js";
 import { init } from "../commands/Init.js";
 import { install } from "../commands/Install.js";
@@ -1442,6 +1443,30 @@ const herdr = describe(
       herdrStopCommand,
       herdrRestartCommand,
       herdrRepoOpenCommand,
+      describe(
+        Command.make(
+          "context",
+          {
+            json: bool("json", "Emit attached-session context as JSON"),
+            session: text(
+              "session",
+              "Select a Herdr session (use default for the default socket)",
+            ),
+          },
+          ({ json, session }) =>
+            herdrContext({ json, session: optional(session) }),
+        ),
+        "Show context for a locally attached Herdr terminal",
+        [
+          "dot herdr context",
+          "dot herdr context --json",
+          "dot herdr context --session default",
+        ],
+        {
+          description:
+            "Shows the selected workspace, tab, pane, directory and Git repository while a local foreground terminal client is connected to the selected Herdr session. Desktop window focus is not required. JSON uses attached: false and null context fields when no terminal is attached. Without --session, uses the SDK's HERDR_SOCKET_PATH, HERDR_SESSION and default socket selection. Local Linux process and socket checks do not detect remote clients. Probe failures exit non-zero with an error on stderr.",
+        },
+      ),
       describe(
         Command.make("agents", {}, () =>
           installedHerdrAgents.pipe(
