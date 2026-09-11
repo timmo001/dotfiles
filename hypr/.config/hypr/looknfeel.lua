@@ -75,6 +75,7 @@ hl.window_rule({ name = "opaque-chromium-based-browser", match = { tag = "chromi
 -- Video websites and Home Assistant should be opaque.
 hl.window_rule({ name = "opaque-twitch", match = { initial_title = ".*twitch\\.tv.*" }, opacity = "1 1" })
 hl.window_rule({ name = "opaque-youtube", match = { initial_title = ".*youtube\\.com.*" }, opacity = "1 1" })
+hl.window_rule({ name = "opaque-netflix", match = { initial_title = ".*netflix\\.com.*" }, opacity = "1 1" })
 hl.window_rule({ name = "opaque-corridor", match = { initial_title = ".*corridordigital\\.com.*" }, opacity = "1 1" })
 hl.window_rule({ name = "opaque-floatplane", match = { initial_title = ".*floatplane\\.com.*" }, opacity = "1 1" })
 hl.window_rule({ name = "opaque-vivaplus", match = { initial_title = ".*vivaplus\\.tv.*" }, opacity = "1 1" })
