@@ -628,6 +628,24 @@ test("quiet head updates preserve overall review and delivery identity, changed 
   expect(applyReleaseReview(initial, reviewRelease(initial, quiet, relevant.id, "auto")).suggestion).toBe("patch");
 });
 
+test("release locks recover when a process exits without running finalisers", async () => {
+  const root = mkdtempSync(join(tmpdir(), "release-interrupted-"));
+  const paths = releasePaths("example/project", root, root);
+  const module = (path: string) => JSON.stringify(join(import.meta.dir, "../../dot", path));
+
+  try {
+    const child = Bun.spawn(["bun", "--eval", `
+      import { Effect } from ${module("node_modules/effect/dist/index.js")};
+      import { withReleaseLock } from ${module("src/git/release/state.ts")};
+      await Effect.runPromise(withReleaseLock(${JSON.stringify(paths)}, Effect.sync(() => process.exit(0))));
+    `], { stdout: "pipe", stderr: "pipe" });
+
+    expect(await child.exited).toBe(0);
+    expect(existsSync(join(paths.state, "write.lock"))).toBe(true);
+    expect(await Effect.runPromise(withReleaseLock(paths, Effect.succeed("recovered")).pipe(Effect.timeout("2 seconds")))).toBe("recovered");
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test("atomic locked persistence retains a failed scan's snapshot and concurrent evidence-bound reviews", async () => {
   const root = mkdtempSync(join(tmpdir(), "release-contract-"));
   const paths = releasePaths("example/project", root, root);

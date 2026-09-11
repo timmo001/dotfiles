@@ -10,7 +10,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { Effect, Schema } from "effect";
+import { Effect, Schedule, Schema } from "effect";
 import { CACHE_DIR, STATE_DIR } from "../../lib/paths.js";
 import { formatCause } from "../../lib/schema.js";
 import { evidenceId } from "./changes.js";
@@ -204,56 +204,63 @@ export const saveReleaseDocument = Effect.fn("releases.saveDocument")(
   },
 );
 
-/** Serialise scans and reviews across CLI processes, with scoped cleanup. */
+/** Serialise scans and reviews with a kernel lock released even after a crash. */
 export function withReleaseLock<A, E, R>(
   paths: ReturnType<typeof releasePaths>,
   effect: Effect.Effect<A, E, R>,
 ): Effect.Effect<A, E | ReleaseError, R> {
   const path = join(paths.state, "write.lock");
 
-  const acquire = Effect.gen(function* () {
-    yield* Effect.try({
-      try: () => mkdirSync(paths.state, { recursive: true, mode: 0o700 }),
-      catch: (error) => new ReleaseError({ message: formatCause(error) }),
-    });
-
-    for (let attempt = 0; attempt < 240; attempt++) {
-      const acquired = yield* Effect.try({
+  return Effect.gen(function* () {
+    const descriptor = yield* Effect.acquireRelease(
+      Effect.try({
         try: () => {
-          try {
-            const fd = openSync(path, "wx", 0o600);
-            closeSync(fd);
+          mkdirSync(paths.state, { recursive: true, mode: 0o700 });
 
-            return true;
-          } catch (error) {
-            if (
-              error instanceof Error &&
-              "code" in error &&
-              error.code === "EEXIST"
-            )
-              return false;
-            throw error;
-          }
+          return openSync(path, "a+", 0o600);
         },
         catch: (error) =>
           new ReleaseError({
-            message: `Could not lock release state: ${formatCause(error)}`,
+            message: `Could not open release lock: ${formatCause(error)}`,
           }),
-      });
-
-      if (acquired) return;
-      yield* Effect.sleep("250 millis");
-    }
-
-    return yield* new ReleaseError({
-      message: `Release state is locked: ${path}. Wait for the active scan; after an interrupted process, remove this file before retrying`,
-    });
-  });
-
-  return Effect.gen(function* () {
-    yield* Effect.acquireRelease(acquire, () =>
-      Effect.sync(() => unlinkSync(path)),
+      }),
+      (fd) => Effect.sync(() => closeSync(fd)),
     );
+
+    const acquired = yield* Effect.try({
+      try: () => {
+        // The inherited descriptor shares the lock with this process. Keep the
+        // file in place so concurrent callers always lock the same inode.
+        const result = Bun.spawnSync(
+          ["flock", "--exclusive", "--nonblock", "0"],
+          {
+            stdin: descriptor,
+            stdout: "ignore",
+            stderr: "pipe",
+          },
+        );
+
+        if (result.exitCode === 0) return true;
+
+        if (result.exitCode === 1) return false;
+        throw new Error(result.stderr.toString().trim() || "flock failed");
+      },
+      catch: (error) =>
+        new ReleaseError({
+          message: `Could not lock release state: ${formatCause(error)}`,
+        }),
+    }).pipe(
+      Effect.repeat({
+        while: (locked) => !locked,
+        times: 239,
+        schedule: Schedule.spaced("250 millis"),
+      }),
+    );
+
+    if (!acquired)
+      return yield* new ReleaseError({
+        message: `Release state is locked: ${path}. Wait for the active scan before retrying`,
+      });
 
     return yield* effect;
   }).pipe(Effect.scoped);
