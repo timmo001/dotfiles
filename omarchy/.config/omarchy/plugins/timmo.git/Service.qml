@@ -16,6 +16,9 @@ Item {
   property var otherRepos: []
   property bool panelLoaded: false
   property string panelError: ""
+  property string pullError: ""
+  property var pullQueue: []
+  property string pullingRepoName: ""
   property bool panelRefreshPending: false
   property var installedAgents: []
   property string agentLaunchError: ""
@@ -43,12 +46,11 @@ Item {
   signal releasesUpdating()
   signal releasesUpdated()
 
-  readonly property bool refreshing: diffProcess.running || panelProcess.running || notificationsProcess.running || pullProcess.running || releaseBusy
-  readonly property bool repositoriesBusy: diffProcess.running || panelProcess.running || pullProcess.running
+  readonly property bool refreshing: diffProcess.running || panelProcess.running || notificationsProcess.running || pulling || releaseBusy
+  readonly property bool repositoriesBusy: diffProcess.running || panelProcess.running || pulling
   readonly property bool notificationsBusy: notificationsProcess.running
-  readonly property bool pulling: pullProcess.running
-  readonly property var dotfilesRepo: changedRepos.concat(otherRepos).find(function(repo) { return repo.name === "dotfiles" }) || null
-  property string updateStatus: "unknown"
+  readonly property bool pulling: pullProcess.running || pullQueue.length > 0
+  readonly property var pullableRepos: changedRepos.filter(function(repo) { return root.canPullRepo(repo) })
   readonly property bool clear: diffLoaded && notificationsLoaded
     && diffError === "" && notificationsError === ""
     && diffClass === "dots-ok" && notificationClass === "hidden"
@@ -132,7 +134,6 @@ Item {
   function refreshRepositories() {
     panelRefreshPending = true
     if (!diffProcess.running) diffProcess.running = true
-    if (!updateCheckProcess.running) updateCheckProcess.running = true
   }
 
   function refreshNotifications() {
@@ -261,13 +262,7 @@ Item {
     if (!repo || !repo.path) return
     var path = String(repo.path)
     if (action === "pull") {
-      if (pullProcess.running) return
-      pullProcess.command = [
-        "bash", "-lc",
-        "cd \"$1\" && GIT_TERMINAL_PROMPT=0 git pull --rebase --no-edit --recurse-submodules && GIT_TERMINAL_PROMPT=0 git submodule update --init --recursive",
-        "bash", path
-      ]
-      pullProcess.running = true
+      pullRepositories([repo])
     } else if (action === "lazygit-floating")
       Quickshell.execDetached(["uwsm", "app", "--", "xdg-terminal-exec", "--app-id=TUI.float", "--dir=" + path, "lazygit"])
     else if (action === "lazygit-pane" || action === "lazygit-tab")
@@ -292,8 +287,34 @@ Item {
       Quickshell.execDetached(["bash", "-lc", "cd \"$1\" && exec gh repo view --web", "bash", path])
   }
 
-  function pullAll() {
-    openRepo(dotfilesRepo, "terminal", "dot update", "Update")
+  function canPullRepo(repo) {
+    return repo && repo.path && Number(repo.behind || 0) > 0
+      && Number(repo.modified || 0) === 0 && Number(repo.ahead || 0) === 0
+  }
+
+  function pullRepositories(repositories) {
+    if (pulling) return
+    pullQueue = repositories.filter(function(repo) { return root.canPullRepo(repo) })
+    if (pullQueue.length === 0) return
+    pullError = ""
+    pullNextRepository()
+  }
+
+  function pullNextRepository() {
+    if (pullQueue.length === 0) {
+      pullingRepoName = ""
+      refresh("action")
+      return
+    }
+    var repo = pullQueue[0]
+    pullQueue = pullQueue.slice(1)
+    pullingRepoName = String(repo.name || repo.path)
+    pullProcess.command = [
+      "bash", "-lc",
+      "cd \"$1\" && GIT_TERMINAL_PROMPT=0 git pull --rebase --no-autostash --no-edit --recurse-submodules && GIT_TERMINAL_PROMPT=0 git submodule update --init --recursive",
+      "bash", String(repo.path)
+    ]
+    pullProcess.running = true
   }
 
   function openAgent(repo, command, prompt) {
@@ -389,17 +410,16 @@ Item {
   }
 
   Process {
-    id: updateCheckProcess
-    command: ["dot", "update", "--check-all"]
-    stdout: StdioCollector {}
-    onExited: function(exitCode) {
-      root.updateStatus = exitCode === 0 ? "current" : (exitCode === 10 ? "available" : "unknown")
-    }
-  }
-
-  Process {
     id: pullProcess
-    onExited: root.refresh("action")
+    stdout: StdioCollector {}
+    stderr: StdioCollector { id: pullStderr; waitForEnd: true }
+    onExited: function(exitCode) {
+      if (exitCode !== 0) {
+        var message = root.pullingRepoName + ": " + String(pullStderr.text || "Pull failed").trim().slice(0, 500)
+        root.pullError = root.pullError ? root.pullError + "\n" + message : message
+      }
+      root.pullNextRepository()
+    }
   }
 
   Process {
