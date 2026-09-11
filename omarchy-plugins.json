@@ -9,13 +9,6 @@
       }
     },
     {
-      "id": "omarchy.indicators",
-      "placement": {
-        "section": "right",
-        "before": "omarchy.bluetooth"
-      }
-    },
-    {
       "id": "omarchy.system-update",
       "placement": {
         "section": "center"
@@ -32,6 +25,13 @@
       "settings": {
         "activeOpacity": 1,
         "inactiveOpacity": 0.5
+      }
+    },
+    {
+      "id": "omarchy.indicators",
+      "placement": {
+        "section": "left",
+        "after": "timmo.workspaces"
       }
     },
     {
