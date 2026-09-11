@@ -27,6 +27,7 @@ import {
   type ExternalSymlink,
 } from "../lib/stowConflicts.js";
 import type { ConfigService } from "../services/Config.js";
+import { writeAllCompletions } from "./Completions.js";
 
 /** Extra stow flags for the agents folder (matches legacy behaviour) */
 const AGENTS_PRIVATE_IGNORES = [
@@ -48,6 +49,11 @@ export const install = Effect.gen(function* () {
   const launcher = yield* Launcher;
 
   yield* ensureStowInstalled;
+
+  yield* log.section("Completions");
+  for (const target of yield* writeAllCompletions) {
+    yield* log.info(`Generated completions: ${displayPath(target)}`);
+  }
 
   yield* log.section("Backup");
   if (config.privateDotfiles) {

@@ -8,7 +8,6 @@ import { DotDiff } from "../git/services/DotDiff.js";
 import { stow as runStow } from "./Stow.js";
 import { agentsSync } from "./AgentsSync.js";
 import { mcpSync } from "../mcp/commands/McpSync.js";
-import { writeAllCompletions } from "./Completions.js";
 import { rebuild, restartDot } from "../lib/selfUpdate.js";
 import { buildSkillsMaintenance } from "../lib/skillsMaintenance.js";
 import { cloneMissingGitConfigRepos } from "../lib/privateGitRepos.js";
@@ -947,14 +946,6 @@ export const update = (opts?: UpdateOptions) =>
         "Stow",
         STEP_TIMEOUT_SECONDS.stow,
         Effect.gen(function* () {
-          yield* log.section("Completions");
-          const completionTargets = yield* writeAllCompletions;
-          for (const completionTarget of completionTargets) {
-            yield* log.info(
-              `Generated completions: ${displayPath(completionTarget)}`,
-            );
-          }
-
           yield* mcpSync;
 
           shellConfigChanged = yield* runStow();

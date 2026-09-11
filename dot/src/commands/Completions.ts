@@ -5,12 +5,13 @@ import {
   type Param,
   type Primitive,
 } from "effect/unstable/cli";
-import { mkdirSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { commandConfig, commandHelp, dotCommand } from "../cli/spec.js";
 import { Config } from "../services/Config.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
+import { buildSkillsMaintenance } from "../lib/skillsMaintenance.js";
 
 interface ChoicePrimitive extends Primitive.Primitive<unknown> {
   readonly choiceKeys: readonly string[];
@@ -273,6 +274,7 @@ export function writeSkillsMaintenanceCompletions(shell: CompletionShell) {
       config.publicDotfiles,
       SKILL_MAINTENANCE_COMPLETION_TARGETS[shell],
     );
+    if (!existsSync(executable)) yield* buildSkillsMaintenance;
     const output = yield* executor.run(executable, ["--completions", shell]);
     yield* Effect.sync(() => {
       mkdirSync(dirname(target), { recursive: true });

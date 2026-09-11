@@ -31,6 +31,13 @@ dot/dist/
 scripts/.local/bin/dot
 scripts/.local/bin/dot*
 scripts/.local/bin/skill-maintenance
+# Generated shell completions; hand-written completions stay tracked.
+/bash/.local/share/bash-completion/completions/dot
+/bash/.local/share/bash-completion/completions/skill-maintenance
+/fish/.config/fish/completions/dot.fish
+/fish/.config/fish/completions/skill-maintenance.fish
+/zsh/.local/share/zsh/site-functions/_dot
+/zsh/.local/share/zsh/site-functions/_skill-maintenance
 zsh/.local/share/zsh/chpwd-recent-dirs
 zsh/.local/share/zsh/site-functions/_mise
 zsh/.local/share/zsh/site-functions/_op

@@ -22,6 +22,7 @@ import {
   writeRepoShortcuts,
 } from "../lib/repoShortcuts.js";
 import { captureRepositoryOptions } from "./NotesCaptureSync.js";
+import { writeAllCompletions } from "./Completions.js";
 import {
   backupUnmanagedStowTargets,
   backupLegacyGhosttyRepo,
@@ -105,6 +106,11 @@ export const stow = (opts?: {
     }
 
     if (runPublic) {
+      yield* log.section("Completions");
+      for (const target of yield* writeAllCompletions) {
+        yield* log.info(`Generated completions: ${displayPath(target)}`);
+      }
+
       yield* log.section("Stow Public Dotfiles");
       if (config.privateDotfiles) {
         const privateDotfiles = config.privateDotfiles;

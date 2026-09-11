@@ -32,6 +32,9 @@ const LEGACY_GHOSTTY_REPO_SLUG = "timmo001/omarchy-ghostty";
 const LEGACY_UWSM_REPO_SLUG = "timmo001/omarchy-uwsm";
 
 const RETIRED_PUBLIC_STOW_PATHS = [
+  "bash/.local/share/bash-completion/completions/context",
+  "fish/.config/fish/completions/context.fish",
+  "zsh/.local/share/zsh/site-functions/_context",
   "scripts/.local/bin/waybar",
   "scripts/.local/bin/reload-ui-monitor",
   "scripts/.local/share/omarchy/bin/waybar",

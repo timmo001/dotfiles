@@ -69,7 +69,7 @@ When changing a command, alias, or flag:
 
 1. Update `src/cli/spec.ts`.
 2. Rebuild with `mise run dot:build`.
-3. Run `dot completions fish` and `dot completions zsh`.
+3. Run `dot stow` to generate and apply Bash, Fish, and Zsh completions. Generated completions are ignored by Git; do not stage them.
 4. Regenerate the command reference with `mise run docs:gen:cli`.
 
 The generated command reference is `../docs/src/content/docs/dot/commands.md`. The `dot-build` workflow checks that it is current.
