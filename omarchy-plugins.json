@@ -150,7 +150,8 @@
         "after": "timmo.git"
       },
       "settings": {
-        "primaryOnly": true
+        "primaryOnly": true,
+        "workspaceContextCommand": "dot herdr context --json"
       },
       "hosts": {
         "desktop": {
