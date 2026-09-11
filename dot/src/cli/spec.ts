@@ -241,6 +241,7 @@ const updateCommand = describe(
     }) =>
       Effect.gen(function* () {
         if (check || checkAll) return yield* updateCheck({ all: checkAll });
+
         return yield* update({
           pull,
           stow: onlyStow,

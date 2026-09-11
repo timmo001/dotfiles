@@ -27,9 +27,11 @@ export const hasLocalUpdateWork = Effect.fn("Update.hasLocalWork")(function* (
   repo: DiffRepo,
 ) {
   if (repo.ahead > 0) return true;
+
   if (!repo.isDirty) return false;
 
   const executor = yield* CommandExecutor;
+
   const status = yield* executor.run(
     "git",
     [
@@ -68,7 +70,9 @@ export const pendingUpdateMaintenance = Effect.fn("Update.pendingMaintenance")(
 
     for (const folder of listStowFolders(repo.path, config).sort()) {
       const flags = ["--simulate", "--verbose"];
+
       if (requiresNoFolding(repo.path, folder)) flags.push("--no-folding");
+
       if (folder === "agents") {
         flags.push(
           ...(repo.path === config.publicDotfiles
@@ -104,10 +108,12 @@ export const pendingUpdateMaintenance = Effect.fn("Update.pendingMaintenance")(
       repo.path,
       "herdr/.config/herdr/plugins/config/herdr-lazy/plugins.lock",
     );
+
     if (!(yield* fs.exists(lockPath))) return pending;
 
     const lock = yield* fs.readFileString(lockPath);
     const registryPath = join(CONFIG_DIR, "herdr/plugins.json");
+
     const plugins = (yield* fs.exists(registryPath))
       ? yield* fs
           .readFileString(registryPath)
@@ -120,12 +126,15 @@ export const pendingUpdateMaintenance = Effect.fn("Update.pendingMaintenance")(
 
     for (const line of lock.split("\n")) {
       const pin = line.split("#", 1)[0].trim();
+
       if (!pin) continue;
       const [slug, commit] = pin.split("@");
+
       if (!slug || !commit)
         return yield* new UpdateMaintenanceError({
           message: `Invalid Herdr pin: ${pin}`,
         });
+
       if (
         !plugins.some(
           ({ source }) =>

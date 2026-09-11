@@ -759,11 +759,13 @@ export const updateCheck = (opts?: UpdateCheckOptions) =>
       yield* Effect.gen(function* () {
         if (yield* hasLocalUpdateWork(repo)) {
           yield* log.info(`Skipping ${repo.name} (local work)`);
+
           return;
         }
 
         if (repo.behind > 0)
           pending.push(`${repo.name}: ${repo.behind} behind`);
+
         if (CORE_CHECK_CATEGORIES.has(repo.category)) {
           pending.push(...(yield* pendingUpdateMaintenance(repo)));
         }

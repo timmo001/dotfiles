@@ -416,6 +416,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
         const repoList = buildRepoList(opts?.scheduledOnly).filter(
           (repo) => !opts?.categories || opts.categories.has(repo.category),
         );
+
         log(`Scanning ${repoList.length} repositories...`);
 
         const results = yield* Effect.all(
