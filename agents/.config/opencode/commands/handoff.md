@@ -2,6 +2,8 @@
 description: Write a handoff document for the next agent session
 ---
 
+<repo-note-command>handoff</repo-note-command>
+
 A `<repo-note-context>` block has been injected above by RepoNotesPlugin. It contains the resolved `owner`, `repo`, and `notes_path` for the current repository.
 
 Load and follow the `notes-mcp` and `handoff` skills.
