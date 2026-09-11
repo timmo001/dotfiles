@@ -35,6 +35,7 @@ export function writeRepoShortcuts(
   mkdirSync(dirname(target), { recursive: true });
   writeFileSync(temporary, renderRepoShortcuts(repositories));
   renameSync(temporary, target);
+
   return target;
 }
 
@@ -55,6 +56,7 @@ export function writeRepoPicker(
     )}\n`,
   );
   renameSync(temporary, target);
+
   return target;
 }
 
@@ -68,5 +70,6 @@ export function writeCaptureRepositoryOptions(
   mkdirSync(dirname(target), { recursive: true });
   writeFileSync(temporary, `${JSON.stringify(repositories, null, 2)}\n`);
   renameSync(temporary, target);
+
   return target;
 }

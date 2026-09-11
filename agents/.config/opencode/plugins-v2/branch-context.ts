@@ -12,6 +12,7 @@ const BRANCH_COMMANDS = new Set([
   "reset-branch-reapply",
   "code-review",
 ]);
+
 const WORK_SCOPE_COMMANDS = new Set([
   "refactor-cleanup-variables",
   "refactor-remove-single-use",
@@ -24,10 +25,14 @@ const WORK_SCOPE_COMMANDS = new Set([
   "home-assistant/list-components",
   "home-assistant/lit-rendering",
 ]);
+
 const TARGET_COMMANDS = new Set([...BRANCH_COMMANDS, ...WORK_SCOPE_COMMANDS]);
+
 const MARKER = /<branch-context-command>([^<]+)<\/branch-context-command>/;
+
 const INJECT_CONTEXT_PROMPT =
   "Branch context and codebase stack context have been injected above.";
+
 const escapeXml = (value: string) =>
   value
     .replaceAll("&", "&amp;")
@@ -61,23 +66,30 @@ export default Plugin.define({
             ?.content.filter((part) => part.type === "text")
             .map((part) => part.text)
             .join("\n");
+
           const command =
             messageText?.match(MARKER)?.[1] ??
             (messageText?.includes(INJECT_CONTEXT_PROMPT)
               ? "inject-context"
               : undefined);
+
           if (!command || !TARGET_COMMANDS.has(command)) return;
+
           const session = yield* context.session
             .get({ sessionID: event.sessionID })
             .pipe(Effect.result);
+
           if (Result.isFailure(session)) {
             event.system.unshift({
               type: "text",
               text: `<branch-context><warnings>BranchContextPlugin could not resolve the session location: ${escapeXml(String(session.failure))}</warnings></branch-context>`,
             });
+
             return;
           }
+
           const includePullRequest = BRANCH_COMMANDS.has(command);
+
           const args = includePullRequest
             ? [
                 "git",
@@ -88,12 +100,15 @@ export default Plugin.define({
                 "--checks",
               ]
             : ["git", "--json", "--no-pr"];
+
           const result = yield* Effect.tryPromise({
             try: () =>
               $`context ${args}`.cwd(session.success.location.directory).text(),
             catch: (error) => error,
           }).pipe(Effect.result);
+
           let text: string;
+
           if (Result.isFailure(result)) {
             text = `<branch-context><warnings>BranchContextPlugin could not collect git context: ${escapeXml(String(result.failure))}</warnings></branch-context>`;
           } else {
@@ -102,6 +117,7 @@ export default Plugin.define({
               ? renderBranchContext(data, includePullRequest)
               : "<branch-context><warnings>BranchContextPlugin could not parse context git output.</warnings></branch-context>";
           }
+
           event.system.unshift({ type: "text", text });
         }),
       );

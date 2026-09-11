@@ -36,6 +36,7 @@ export default function workflow(pi: ExtensionAPI) {
 				deliverAs: "followUp",
 			});
 		}, 0);
+
 		pendingTimers.add(timer);
 	});
 
@@ -52,15 +53,18 @@ export default function workflow(pi: ExtensionAPI) {
 
 			if (!topic) {
 				ctx.ui.notify("Usage: /research-tab <topic>", "warning");
+
 				return;
 			}
 
 			if (process.env.HERDR_ENV !== "1" || !workspaceId) {
 				ctx.ui.notify("Research tabs require Pi to run inside Herdr", "error");
+
 				return;
 			}
 
 			let createdTabId: string | undefined;
+
 			try {
 				const created = await runHerdr(
 					"tab",
@@ -73,6 +77,7 @@ export default function workflow(pi: ExtensionAPI) {
 					`Research: ${topic.slice(0, 48)}`,
 					"--no-focus",
 				);
+
 // SAFETY: Herdr's create-tab JSON contract is represented by CreatedTab.
 const createdTab = JSON.parse(created.stdout) as CreatedTab;
 				createdTabId = createdTab.result?.tab?.tab_id;

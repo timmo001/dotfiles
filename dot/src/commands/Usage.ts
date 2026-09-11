@@ -64,9 +64,11 @@ function cutoffIso(days: number): string {
 /** Aggregate events into per-feature stats. */
 function aggregate(events: readonly UsageEvent[]): readonly FeatureAgg[] {
   const byKey = new Map<string, FeatureAgg>();
+
   for (const event of events) {
     const key = FEATURE_KEY(event);
     let agg = byKey.get(key);
+
     if (!agg) {
       agg = {
         tool: event.tool,
@@ -81,14 +83,20 @@ function aggregate(events: readonly UsageEvent[]): readonly FeatureAgg[] {
       };
       byKey.set(key, agg);
     }
+
     agg.total += 1;
+
     if (event.invoker === "agent") agg.agent += 1;
     else if (event.invoker === "automation") agg.automation += 1;
     else agg.human += 1;
+
     if (event.exitCode !== null && event.exitCode !== 0) agg.failures += 1;
+
     if (event.ts > agg.lastSeen) agg.lastSeen = event.ts;
+
     if (event.durationMs !== null) agg.durations.push(event.durationMs);
   }
+
   return [...byKey.values()].sort((a, b) => b.total - a.total);
 }
 
@@ -97,6 +105,7 @@ function median(values: readonly number[]): number | null {
   if (values.length === 0) return null;
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
+
   return sorted.length % 2 === 0
     ? Math.round((sorted[mid - 1] + sorted[mid]) / 2)
     : sorted[mid];
@@ -116,7 +125,9 @@ function renderText(
   if (aggs.length === 0) {
     return `No usage events in the last ${days} days.\nRun \`dot usage backfill --history\` to import from shell history.`;
   }
+
   const header = `Usage summary (last ${days} days · ${machineCount(events)} machine(s) · ${events.length} events)`;
+
   const cols = [
     "TOOL".padEnd(8),
     "COMMAND".padEnd(20),
@@ -128,8 +139,10 @@ function renderText(
     "P50ms".padStart(7),
     "LAST",
   ].join("  ");
+
   const rows = aggs.map((agg) => {
     const p50 = median(agg.durations);
+
     return [
       agg.tool.padEnd(8),
       (agg.command || "(root)").padEnd(20),
@@ -142,6 +155,7 @@ function renderText(
       agg.lastSeen.slice(0, 10),
     ].join("  ");
   });
+
   return [header, "", cols, ...rows].join("\n");
 }
 
@@ -182,14 +196,17 @@ function renderAgentContext(
   if (aggs.length === 0) {
     return `No tool usage recorded in the last ${days} days.`;
   }
+
   const top = [...aggs]
     .sort((a, b) => b.human + b.agent - (a.human + a.agent))
     .slice(0, 10)
     .map((agg) => {
       const label = `${agg.tool} ${agg.command}`.trim();
       const auto = agg.automation > 0 ? `, ${agg.automation} auto` : "";
+
       return `- ${label} — ${agg.human + agg.agent} interactive (${agg.human} human / ${agg.agent} agent${auto}), last ${agg.lastSeen.slice(0, 10)}`;
     });
+
   const failing = aggs
     .filter((agg) => agg.failures > 0)
     .slice(0, 10)
@@ -197,20 +214,26 @@ function renderAgentContext(
       (agg) =>
         `- ${`${agg.tool} ${agg.command}`.trim()} — ${agg.failures} failed of ${agg.total}`,
     );
+
   const lines = [`## Tool usage (last ${days} days)`, "", "Most used:", ...top];
+
   if (failing.length > 0) {
     lines.push("", "Recently failing:", ...failing);
   }
+
   return lines.join("\n");
 }
 
 /** Run `dot usage summary`. */
 function runSummary(options: UsageOptions): string {
   const cutoff = cutoffIso(options.days);
+
   const events = readAllEvents(resolveRoots(options)).filter(
     (event) => event.ts >= cutoff,
   );
+
   const aggs = aggregate(events);
+
   switch (options.format) {
     case "json":
       return renderJson(events, aggs, options.days);
@@ -229,9 +252,11 @@ function runStale(
   const cutoff = cutoffIso(options.days);
   const events = readAllEvents(resolveRoots(options));
   const lastSeen = new Map<string, string>();
+
   for (const event of events) {
     const key = FEATURE_KEY(event);
     const current = lastSeen.get(key);
+
     if (!current || event.ts > current) lastSeen.set(key, event.ts);
   }
 
@@ -241,14 +266,17 @@ function runStale(
     .map(([key, ts]) => `  ${key.padEnd(28)} last ${ts.slice(0, 10)}`);
 
   const neverSeen = commandNames
+    .values()
     .map((command) => `dot ${command}`)
     .filter((key) => !lastSeen.has(key))
-    .map((key) => `  ${key}`);
+    .map((key) => `  ${key}`)
+    .toArray();
 
   const lines = [`Features not used in the last ${options.days} days:`];
   lines.push(staleObserved.length > 0 ? staleObserved.join("\n") : "  (none)");
   lines.push("", "dot commands never recorded:");
   lines.push(neverSeen.length > 0 ? neverSeen.join("\n") : "  (none)");
+
   return lines.join("\n");
 }
 
@@ -258,34 +286,45 @@ function runBackfill(options: UsageOptions): string {
   const recorded = readAllEvents([usageRoot()]);
   const existing = new Set(recorded.map(usageEventKey));
   const firstLiveByCommand = new Map<string, string>();
+
   for (const event of recorded) {
     if (event.source !== "live") continue;
     const key = usageCommandKey(event);
     const current = firstLiveByCommand.get(key);
+
     if (!current || event.ts < current) firstLiveByCommand.set(key, event.ts);
   }
+
   const fresh = scan.events.filter((event) => {
     const key = usageEventKey(event);
+
     if (existing.has(key)) return false;
     const liveSince = firstLiveByCommand.get(usageCommandKey(event));
+
     if (liveSince && event.ts >= liveSince) return false;
     existing.add(key);
+
     return true;
   });
 
   const lines = ["Shell history backfill:"];
+
   for (const source of scan.sources) {
     const status = !source.found
       ? "not found"
       : (source.note ?? `${source.imported} whitelisted entries`);
+
     lines.push(`  ${source.shell.padEnd(5)} ${status}`);
   }
 
   const byTool = new Map<string, number>();
+
   for (const event of fresh) {
     byTool.set(event.tool, (byTool.get(event.tool) ?? 0) + 1);
   }
+
   lines.push("", `New events to import: ${fresh.length}`);
+
   for (const [tool, count] of [...byTool.entries()].sort(([left], [right]) =>
     left.localeCompare(right),
   )) {
@@ -294,11 +333,13 @@ function runBackfill(options: UsageOptions): string {
 
   if (!options.apply) {
     lines.push("", "Dry run. Re-run with --apply to write these events.");
+
     return lines.join("\n");
   }
 
   for (const event of fresh) appendUsageEvent(event);
   lines.push("", `Imported ${fresh.length} events to ${usageRoot()}.`);
+
   return lines.join("\n");
 }
 
@@ -309,6 +350,7 @@ export function usage(
 ): Effect.Effect<void> {
   return Effect.sync(() => {
     const options = { ...input, roots: input.roots.map(expandHomePath) };
+
     const output = (() => {
       switch (options.subcommand) {
         case "path":
@@ -323,6 +365,7 @@ export function usage(
           return runSummary(options);
       }
     })();
+
     process.stdout.write(`${output}\n`);
   });
 }

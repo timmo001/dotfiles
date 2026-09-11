@@ -29,6 +29,7 @@ const AGENTS_PRIVATE_IGNORED_ENTRIES = new Set([
 ]);
 
 const LEGACY_GHOSTTY_REPO_SLUG = "timmo001/omarchy-ghostty";
+
 const LEGACY_UWSM_REPO_SLUG = "timmo001/omarchy-uwsm";
 
 const RETIRED_PUBLIC_STOW_PATHS = [
@@ -101,10 +102,12 @@ export function backupFileIfUnmanaged(
       .toISOString()
       .replace(/[:.]/g, "-")
       .slice(0, 19);
+
     dest = join(backupDir, `${name}.${timestamp}`);
   }
 
   renameSync(source, dest);
+
   return { source, destination: dest };
 }
 
@@ -128,6 +131,7 @@ export function removeRetiredPublicStowLinks(
 
     try {
       if (!lstatSync(target).isSymbolicLink()) continue;
+
       if (resolve(dirname(target), readlinkSync(target)) !== source) continue;
       unlinkSync(target);
       removed.push(target);
@@ -145,6 +149,7 @@ export function removeRetiredPrivateCrashHook(
   homeDir = HOME_DIR,
 ): string | null {
   const target = join(homeDir, ".config", "omarchy", "hooks", "agent-crash");
+
   const retiredSource = join(
     privateDotfiles,
     "omarchy-hooks",
@@ -156,9 +161,11 @@ export function removeRetiredPrivateCrashHook(
 
   try {
     if (!lstatSync(target).isSymbolicLink()) return null;
+
     if (resolve(dirname(target), readlinkSync(target)) !== retiredSource)
       return null;
     unlinkSync(target);
+
     return target;
   } catch {
     return null;
@@ -176,8 +183,10 @@ export function backupUnmanagedStowTargets(
 
   for (const folder of listStowFolders(repoDir, config).sort()) {
     const packageRoot = join(repoDir, folder);
+
     for (const { source, target } of listStowTargetPairs(packageRoot, folder)) {
       const relativeTarget = relative(HOME_DIR, target);
+
       if (
         [...ignoredTargets].some(
           (ignored) =>
@@ -187,6 +196,7 @@ export function backupUnmanagedStowTargets(
       ) {
         continue;
       }
+
       backupBlockingParentTargets(target, backupRoot, moves);
       backupTargetIfUnmanaged(source, target, backupRoot, moves);
     }
@@ -201,10 +211,13 @@ export function removeStowedSkillOwner(
   oldSource: string,
 ): boolean {
   const target = join(HOME_DIR, ".agents", "skills", skillName);
+
   try {
     if (!lstatSync(target).isSymbolicLink()) return false;
+
     if (realpathSync(target) !== realpathSync(oldSource)) return false;
     unlinkSync(target);
+
     return true;
   } catch {
     return false;
@@ -216,6 +229,7 @@ export function backupLegacyGhosttyRepo(
   publicDotfiles: string,
 ): BackupMove | null {
   const source = join(HOME_DIR, ".config", "ghostty");
+
   if (!isLegacyGhosttyRepo(source)) return null;
 
   return backupFileIfUnmanaged(
@@ -231,6 +245,7 @@ export function removeLegacyUwsmRepo(
   if (!isGitRepoWithSlug(source, LEGACY_UWSM_REPO_SLUG)) return null;
 
   rmSync(source, { recursive: true });
+
   return source;
 }
 
@@ -255,8 +270,10 @@ export function backupConflictingPublicTargets(
 
   for (const folder of listStowFolders(publicDotfiles, config).sort()) {
     const packageRoot = join(publicDotfiles, folder);
+
     for (const { source, target } of listStowTargetPairs(packageRoot, folder)) {
       backupBlockingParentTargets(target, backupRoot, moves);
+
       if (liveTargetConflicts(source, target)) {
         backupTargetIfUnmanaged(source, target, backupRoot, moves);
       }
@@ -269,11 +286,13 @@ export function backupConflictingPublicTargets(
 /** True when the live target is a real file whose bytes differ from source. */
 function liveTargetConflicts(source: string, target: string): boolean {
   let stat: ReturnType<typeof lstatSync>;
+
   try {
     stat = lstatSync(target);
   } catch {
     return false;
   }
+
   // lstat reports a symlink as a non-file, so this also skips managed targets.
   if (!stat.isFile()) return false;
 
@@ -291,11 +310,14 @@ function backupTargetIfUnmanaged(
   moves: BackupMove[],
 ): void {
   if (targetAlreadyOwnedBySource(source, target)) return;
+
   if (hasUnmanagedSymlinkParent(target)) return;
+
   const move = backupFileIfUnmanaged(
     target,
     join(backupRoot, dirname(relative(HOME_DIR, target))),
   );
+
   if (move) moves.push(move);
 }
 
@@ -306,8 +328,10 @@ function hasUnmanagedSymlinkParent(target: string): boolean {
     } catch {
       // Missing ancestors cannot redirect the target outside HOME.
     }
+
     parent = dirname(parent);
   }
+
   return false;
 }
 
@@ -317,6 +341,7 @@ function backupBlockingParentTargets(
   moves: BackupMove[],
 ): void {
   const parents: string[] = [];
+
   for (let parent = dirname(target); parent.startsWith(`${HOME_DIR}/`);) {
     parents.push(parent);
     parent = dirname(parent);
@@ -324,16 +349,20 @@ function backupBlockingParentTargets(
 
   for (const parent of parents.reverse()) {
     let stat: ReturnType<typeof lstatSync>;
+
     try {
       stat = lstatSync(parent);
     } catch {
       continue;
     }
+
     if (stat.isDirectory() || stat.isSymbolicLink()) continue;
+
     const move = backupFileIfUnmanaged(
       parent,
       join(backupRoot, dirname(relative(HOME_DIR, parent))),
     );
+
     if (move) moves.push(move);
   }
 }
@@ -353,12 +382,14 @@ function isLegacyGhosttyRepo(source: string): boolean {
 function isGitRepoWithSlug(source: string, slug: string): boolean {
   try {
     const stat = lstatSync(source);
+
     if (!stat.isDirectory()) return false;
   } catch {
     return false;
   }
 
   const gitConfig = join(source, ".git", "config");
+
   if (!existsSync(gitConfig)) return false;
 
   try {
@@ -371,14 +402,19 @@ function isGitRepoWithSlug(source: string, slug: string): boolean {
 /** Find symlinks in external skill dirs that stow would otherwise reject. */
 export function findExternalSkillSymlinks(repoDir: string): ExternalSymlink[] {
   const results: ExternalSymlink[] = [];
+
   for (const skillsDir of EXTERNAL_SKILL_DIRS) {
     if (!existsSync(skillsDir)) continue;
+
     for (const entry of readdirSync(skillsDir)) {
       const fullPath = join(skillsDir, entry);
+
       try {
         const stat = lstatSync(fullPath);
+
         if (!stat.isSymbolicLink()) continue;
         const target = readlinkSync(fullPath);
+
         if (!target.startsWith(repoDir)) {
           results.push({ path: fullPath, target });
         }
@@ -387,6 +423,7 @@ export function findExternalSkillSymlinks(repoDir: string): ExternalSymlink[] {
       }
     }
   }
+
   return results;
 }
 
@@ -427,6 +464,7 @@ export function removeStaleSkillSymlinks(
 
   for (const skillsDir of skillsDirs) {
     if (!existsSync(skillsDir)) continue;
+
     for (const entry of readdirSync(skillsDir)) {
       removeStaleSkillSymlinksFrom(
         join(skillsDir, entry),
@@ -447,6 +485,7 @@ function removeStaleSkillSymlinksFrom(
   removeEmptyDirectory: boolean,
 ): void {
   let stat: ReturnType<typeof lstatSync>;
+
   try {
     stat = lstatSync(path);
   } catch {
@@ -456,21 +495,26 @@ function removeStaleSkillSymlinksFrom(
   if (stat.isSymbolicLink()) {
     const target = resolve(dirname(path), readlinkSync(path));
     const targetRelative = relative(repoDir, target);
+
     const ownedByRepo =
       targetRelative !== "" &&
       targetRelative !== ".." &&
       !targetRelative.startsWith(`..${sep}`);
+
     if (ownedByRepo && !existsSync(path)) {
       unlinkSync(path);
       removed.push(path);
     }
+
     return;
   }
 
   if (!stat.isDirectory()) return;
+
   for (const entry of readdirSync(path)) {
     removeStaleSkillSymlinksFrom(join(path, entry), repoDir, removed, false);
   }
+
   if (removeEmptyDirectory && readdirSync(path).length === 0) {
     rmSync(path, { recursive: true });
   }
@@ -489,6 +533,7 @@ function listStowTargetPairs(
 ): StowTargetPair[] {
   const pairs: StowTargetPair[] = [];
   collectStowTargetPairs(packageRoot, packageRoot, folder, pairs);
+
   return pairs;
 }
 
@@ -505,6 +550,7 @@ function collectStowTargetPairs(
     }
 
     const source = join(currentDir, entry.name);
+
     if (entry.isDirectory()) {
       collectStowTargetPairs(packageRoot, source, folder, pairs);
       continue;

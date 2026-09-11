@@ -78,18 +78,21 @@ export const stow = (opts?: {
           ...config.gitConfig.shortcuts,
         ]),
       );
+
       const pickerPath = yield* Effect.sync(() =>
         writeRepoPicker(config.cacheDir, [
           ...config.gitConfig.repositories,
           ...config.gitConfig.shortcuts,
         ]),
       );
+
       const captureRepositoriesPath = yield* Effect.sync(() =>
         writeCaptureRepositoryOptions(
           config.cacheDir,
           captureRepositoryOptions(config.gitConfig.repositories),
         ),
       );
+
       yield* log.info(
         `Generated repository shortcuts: ${displayPath(shortcutsPath)}`,
       );
@@ -107,44 +110,55 @@ export const stow = (opts?: {
 
     if (runPublic) {
       yield* log.section("Completions");
+
       for (const target of yield* writeAllCompletions) {
         yield* log.info(`Generated completions: ${displayPath(target)}`);
       }
 
       yield* log.section("Stow Public Dotfiles");
+
       if (config.privateDotfiles) {
         const privateDotfiles = config.privateDotfiles;
+
         const removedPrivateCrashHook = yield* Effect.sync(() =>
           removeRetiredPrivateCrashHook(privateDotfiles),
         );
+
         if (removedPrivateCrashHook) {
           yield* log.info(
             `Migrated crash hook to public stow: ${displayPath(removedPrivateCrashHook)}`,
           );
         }
       }
+
       for (const path of removeRetiredPublicStowLinks(config.publicDotfiles)) {
         yield* log.info(`Removed retired stow link: ${displayPath(path)}`);
       }
+
       const legacyGhosttyMove = yield* Effect.sync(() =>
         backupLegacyGhosttyRepo(config.publicDotfiles),
       );
+
       if (legacyGhosttyMove) {
         yield* log.info(
           `[public] backed up retired Ghostty repo: ${formatBackupMove(legacyGhosttyMove)}`,
         );
       }
+
       const removedLegacyUwsm = yield* Effect.sync(() =>
         removeLegacyUwsmRepo(),
       );
+
       if (removedLegacyUwsm) {
         yield* log.info(
           `[public] removed retired UWSM repo: ${displayPath(removedLegacyUwsm)}`,
         );
       }
+
       const ignoredTargets = new Set([
         join(".agents", "skills", "dotfiles-stow", "SKILL.md"),
       ]);
+
       const backedUp = yield* Effect.sync(() =>
         backupUnmanagedStowTargets(
           config.publicDotfiles,
@@ -152,11 +166,13 @@ export const stow = (opts?: {
           ignoredTargets,
         ),
       );
+
       for (const move of backedUp) {
         yield* log.info(
           `[public] backed up unmanaged target: ${formatBackupMove(move)}`,
         );
       }
+
       if (
         removeStowedSkillOwner(
           "dotfiles-stow",
@@ -165,6 +181,7 @@ export const stow = (opts?: {
       ) {
         yield* log.info("[public] migrated skill owner: dotfiles-stow");
       }
+
       yield* stowRepo(config.publicDotfiles, "public", launcher, log, config);
 
       yield* log.section("Omarchy Neovim Theme");
@@ -178,14 +195,17 @@ export const stow = (opts?: {
       if (config.canUsePrivate && config.privateDotfiles) {
         const privateDotfiles = config.privateDotfiles;
         yield* log.section("Stow Private Dotfiles");
+
         const backedUp = yield* Effect.sync(() =>
           backupUnmanagedStowTargets(privateDotfiles, config),
         );
+
         for (const move of backedUp) {
           yield* log.info(
             `[private] backed up unmanaged target: ${formatBackupMove(move)}`,
           );
         }
+
         yield* stowRepo(privateDotfiles, "private", launcher, log, config);
       } else {
         yield* log.warn(
@@ -231,6 +251,7 @@ const stowRepo = (
       yield* log.info(`[${scope}] stow ${folder} (repo: ${repoDisplayPath})`);
 
       const isHypr = folder === "hypr";
+
       if (isHypr) {
         // Never unstow hypr: Hyprland watches its live config and auto-reloads
         // on change. Removing the symlinks (even briefly) drops Hyprland into
@@ -242,10 +263,12 @@ const stowRepo = (
         // Unstow first, then restow (equivalent to --restow per folder)
         const unstowCmd = `stow -D ${folder}`;
         const unstowExit = yield* launcher.stream(unstowCmd, { cwd: repoDir });
+
         if (unstowExit !== 0) {
           yield* log.error(
             `[${scope}] unstow ${folder} failed (exit ${unstowExit})`,
           );
+
           return yield* new LauncherError({
             message: `${scope} unstow failed on ${folder}`,
             exitCode: unstowExit,
@@ -256,27 +279,34 @@ const stowRepo = (
       // Build restow command with folder-specific flags
       const flags: string[] = [];
       let externalLinks: ExternalSymlink[] = [];
+
       // Some packages must stay real directories (not folded symlinks) so
       // runtime symlinks, host overrides, and tool-generated files can live
       // alongside the stowed config. See requiresNoFolding for the rationale.
       if (requiresNoFolding(repoDir, folder)) {
         flags.push("--no-folding");
       }
+
       if (folder === "agents") {
         if (scope === "public") {
           flags.push("--ignore='\\.agents/skills/dotfiles-stow($|/)'");
         }
+
         const staleSkillLinks = removeStaleSkillSymlinks(repoDir);
+
         for (const path of staleSkillLinks) {
           yield* log.info(
             `[${scope}] removed stale skill link: ${displayPath(path)}`,
           );
         }
+
         if (scope === "private") {
           flags.push(...AGENTS_PRIVATE_IGNORES);
         }
+
         // Temporarily remove external symlinks that would conflict with stow
         externalLinks = findExternalSkillSymlinks(repoDir);
+
         if (externalLinks.length > 0) {
           removeExternalSymlinks(externalLinks);
         }
@@ -292,6 +322,7 @@ const stowRepo = (
 
       if (exit !== 0) {
         yield* log.error(`[${scope}] stow ${folder} failed (exit ${exit})`);
+
         return yield* new LauncherError({
           message: `${scope} stow failed on ${folder}`,
           exitCode: exit,
@@ -331,6 +362,7 @@ const unstowLegacyInternalFolders = (
       yield* log.info(
         `[public] unstow legacy ${folder} (repo: ${displayPath})`,
       );
+
       const exit = yield* launcher.stream(`stow -D ${folder}`, {
         cwd: repoDir,
       });
@@ -339,6 +371,7 @@ const unstowLegacyInternalFolders = (
         yield* log.error(
           `[public] unstow legacy ${folder} failed (exit ${exit})`,
         );
+
         return yield* new LauncherError({
           message: `public legacy unstow failed on ${folder}`,
           exitCode: exit,

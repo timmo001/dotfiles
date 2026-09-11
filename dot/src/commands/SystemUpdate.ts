@@ -62,6 +62,7 @@ function temporarySudoEnvironment(): Effect.Effect<
         join(HOME_DIR, ".local", "libexec", "update-sudo"),
         join(directory, "sudo"),
       );
+
       return directory;
     }),
     (directory) =>
@@ -79,6 +80,7 @@ const runChild = Effect.fn("SystemUpdate.runChild")(function* (
   env: Readonly<Record<string, string>>,
 ) {
   const executor = yield* CommandExecutor;
+
   return yield* executor.inherit(command, args, {
     ...(Object.keys(env).length > 0 && { env }),
   });
@@ -92,6 +94,7 @@ export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
     options.yes ||
     process.stdin.isTTY !== true ||
     process.stdout.isTTY !== true;
+
   const selected = automatic
     ? UPDATE_CHOICES.map(({ value }) => value)
     : yield* Prompt.run(
@@ -113,8 +116,10 @@ export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
   if (selectedSet.has("dotfiles")) {
     section("Dotfiles");
     const exitCode = yield* runChild("dot", ["update"], baseEnv);
+
     if (exitCode !== 0) {
       process.exitCode = exitCode;
+
       return;
     }
   }
@@ -122,6 +127,7 @@ export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
   if (selectedSet.has("omarchy")) {
     section("Omarchy");
     let exitCode = yield* runChild("dot", ["stow", "--public"], baseEnv);
+
     if (exitCode === 0) {
       yield* Effect.sync(() =>
         mkdirSync(join(STATE_DIR, "mise"), { recursive: true }),
@@ -131,35 +137,44 @@ export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
         MISE_GLOBAL_CONFIG_FILE: join(STATE_DIR, "mise", "omarchy-config.toml"),
       });
     }
+
     if (exitCode !== 0) {
       process.exitCode = exitCode;
+
       return;
     }
   }
 
-  const topgrade = TOPGRADE_UPDATES.filter(([, value]) =>
-    selectedSet.has(value),
-  ).map(([, value]) => value);
+  const topgrade = TOPGRADE_UPDATES.flatMap(([, value]) =>
+    selectedSet.has(value) ? [value] : [],
+  );
+
   if (topgrade.length > 0) {
     section("Topgrade");
+
     const args =
       topgrade.length === TOPGRADE_UPDATES.length
         ? automatic
           ? ["-y"]
           : []
         : ["--only", ...topgrade];
+
     const exitCode = yield* runChild("topgrade", args, baseEnv);
+
     if (exitCode !== 0) {
       process.exitCode = exitCode;
+
       return;
     }
   }
 
   section("Update Status");
+
   const refreshExitCode = yield* runChild(
     "dot",
     ["updates", "refresh"],
     baseEnv,
   );
+
   if (refreshExitCode !== 0) process.exitCode = refreshExitCode;
 }, Effect.scoped);

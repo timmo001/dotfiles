@@ -21,9 +21,12 @@ const defaultRenderer: StackRenderer = {
 };
 
 const TARGET_COMMANDS = new Set(["inject-stack", "inject-context"]);
+
 const MARKER = /<stack-context-command>([^<]+)<\/stack-context-command>/;
+
 const INJECT_CONTEXT_PROMPT =
   "Branch context and codebase stack context have been injected above.";
+
 const parseWarning =
   "<stack-context><warnings>StackContextPlugin could not parse the `context stack --json` output.</warnings></stack-context>";
 
@@ -33,8 +36,11 @@ export const stackContextFromOutput = (
   renderer: StackRenderer = defaultRenderer,
 ): string | undefined => {
   const data = renderer.parseStackContextJSON(output.trim());
+
   if (!data) return explicit ? parseWarning : undefined;
+
   if (!explicit && renderer.isEmptyStackContext(data)) return;
+
   return renderer.renderStackContext(data);
 };
 
@@ -66,15 +72,19 @@ export default Plugin.define({
             ?.content.filter((part) => part.type === "text")
             .map((part) => part.text)
             .join("\n");
+
           const command =
             messageText?.match(MARKER)?.[1] ??
             (messageText?.includes(INJECT_CONTEXT_PROMPT)
               ? "inject-context"
               : undefined);
+
           if (injectedSessions.has(event.sessionID) && !command) return;
+
           const session = yield* context.session
             .get({ sessionID: event.sessionID })
             .pipe(Effect.result);
+
           if (Result.isFailure(session)) {
             if (command) {
               event.system.unshift({
@@ -82,8 +92,10 @@ export default Plugin.define({
                 text: "<stack-context><warnings>StackContextPlugin could not resolve the session location.</warnings></stack-context>",
               });
             }
+
             return;
           }
+
           const rootResult = yield* Effect.tryPromise({
             try: () =>
               $`git rev-parse --show-toplevel`
@@ -91,8 +103,10 @@ export default Plugin.define({
                 .text(),
             catch: (error) => error,
           }).pipe(Effect.result);
+
           if (Result.isFailure(rootResult)) return;
           const root = String(rootResult.success).trim();
+
           const stackResult = yield* Effect.tryPromise({
             try: () =>
               $`context stack ${root} --json`
@@ -100,18 +114,22 @@ export default Plugin.define({
                 .text(),
             catch: (error) => error,
           }).pipe(Effect.result);
+
           if (Result.isFailure(stackResult)) {
             if (command)
               event.system.unshift({
                 type: "text",
                 text: "<stack-context><warnings>StackContextPlugin could not collect stack context.</warnings></stack-context>",
               });
+
             return;
           }
+
           const text = stackContextFromOutput(
             String(stackResult.success),
             Boolean(command),
           );
+
           if (!text) return;
           event.system.unshift({ type: "text", text });
           injectedSessions.add(event.sessionID);

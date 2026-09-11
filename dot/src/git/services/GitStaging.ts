@@ -6,6 +6,7 @@ import { CommandExecutor } from "../../services/CommandExecutor.js";
 import type { GitStatusCode, StagedFile } from "../../types.js";
 
 const DEBUG = !!envString(ENV.DOT_DEBUG);
+
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot:GitStaging] ${msg}`);
 };
@@ -61,6 +62,7 @@ export class GitStaging extends Context.Service<
     GitStaging,
     Effect.gen(function* () {
       const executor = yield* CommandExecutor;
+
       const provideExecutor = <A, E>(
         effect: Effect.Effect<A, E, CommandExecutor>,
       ) => effect.pipe(Effect.provideService(CommandExecutor, executor));
@@ -73,13 +75,16 @@ export class GitStaging extends Context.Service<
                 .split("\n")
                 .filter((line) => line.length > 0)
                 .flatMap(parseStatusLine);
+
               log(`Status for ${repoPath}: ${files.length} entries`);
+
               return files;
             }),
           ),
 
         stageFile: (repoPath, file) => {
           log(`Staging: ${file}`);
+
           return provideExecutor(runGitVoid(repoPath, ["add", "--", file]));
         },
 
@@ -87,6 +92,7 @@ export class GitStaging extends Context.Service<
           log(
             `${amend ? "Amending" : "Committing"} in ${repoPath}: ${message ?? "(keep message)"}`,
           );
+
           return provideExecutor(
             commitIn({ cwd: repoPath, message, paths, amend }).pipe(
               Effect.flatMap((outcome) =>

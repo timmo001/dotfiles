@@ -27,11 +27,14 @@ export const diffBarJson = (opts?: DiffScanOptions) =>
     const dotDiff = yield* DotDiff;
     const executor = yield* CommandExecutor;
     const repos = yield* dotDiff.getAll({ ...opts, scheduledOnly: true });
+
     const includeBarRepo = Effect.fn("diff.includeBarRepo")(function* (
       repo: DiffRepo,
     ) {
       const managedRepo = managedGitRepoForPath(config.gitConfig, repo.path);
+
       if (!managedRepo?.notifications.bar.ignoreBotActivity) return repo;
+
       if (repo.isDirty || repo.ahead > 0 || repo.behind === 0) return repo;
 
       const output = yield* executor
@@ -39,16 +42,19 @@ export const diffBarJson = (opts?: DiffScanOptions) =>
           cwd: repo.path,
         })
         .pipe(Effect.catch(() => Effect.succeed(null)));
+
       if (output === null) return repo;
 
       const authors = output
         .split("\n")
         .map((line) => line.trim())
         .filter((line) => line.length > 0);
+
       if (authors.length === 0) return repo;
 
       return authors.every(textLooksLikeBotActivity) ? null : repo;
     });
+
     const changed = (yield* Effect.all(
       changedRepos(repos).map(includeBarRepo),
       {
@@ -62,12 +68,14 @@ export const diffBarJson = (opts?: DiffScanOptions) =>
 /** Format repository state for status bars and the native shell panel. */
 export function formatDiffBarJson(changed: readonly DiffRepo[]) {
   const text = `\uF418 ${changed.length}`;
+
   const tooltip =
     changed.length > 0
       ? `Repositories with changes pending: ${changed.map((repo) => repo.name).join("; ")}`
       : "All tracked repositories look up to date.";
 
   let cls: string;
+
   if (changed.length === 0) {
     cls = "dots-ok";
   } else {
@@ -75,6 +83,7 @@ export function formatDiffBarJson(changed: readonly DiffRepo[]) {
     const hasAhead = changed.some((repo) => repo.ahead > 0);
     const hasBehind = changed.some((repo) => repo.behind > 0);
     const onlyPulls = hasBehind && !hasDirty && !hasAhead;
+
     const onlyExtra =
       changed.every(
         (repo) =>
@@ -125,7 +134,9 @@ export function formatDiffPanelJson(repos: readonly DiffRepo[]) {
 
   return {
     changed: changedRepos(repos).map(toRow),
-    other: repos.filter(isUnchangedRepo).map(toRow),
+    other: repos.flatMap((repo) =>
+      isUnchangedRepo(repo) ? [toRow(repo)] : [],
+    ),
   };
 }
 
@@ -163,6 +174,7 @@ export const diffRaw = (opts?: DiffScanOptions) =>
       const statusOut = yield* executor
         .run("git", ["status", "--short"], { cwd: repo.path })
         .pipe(Effect.catch(() => Effect.succeed("")));
+
       if (statusOut.trim()) {
         yield* log.info("Git status:");
         yield* writeText(statusOut);
@@ -174,6 +186,7 @@ export const diffRaw = (opts?: DiffScanOptions) =>
       const unstagedOut = yield* executor
         .run("git", ["diff", "--stat"], { cwd: repo.path })
         .pipe(Effect.catch(() => Effect.succeed("")));
+
       if (unstagedOut.trim()) {
         yield* log.info("Unstaged diff:");
         yield* writeText(unstagedOut);
@@ -185,6 +198,7 @@ export const diffRaw = (opts?: DiffScanOptions) =>
       const stagedOut = yield* executor
         .run("git", ["diff", "--cached", "--stat"], { cwd: repo.path })
         .pipe(Effect.catch(() => Effect.succeed("")));
+
       if (stagedOut.trim()) {
         yield* log.info("Staged diff:");
         yield* writeText(stagedOut);
@@ -212,6 +226,7 @@ export const diffRaw = (opts?: DiffScanOptions) =>
               cwd: repo.path,
             })
             .pipe(Effect.catch(() => Effect.succeed("")));
+
           if (unpushedOut.trim()) {
             yield* log.info("Unpushed commits:");
             yield* writeText(unpushedOut);
@@ -225,6 +240,7 @@ export const diffRaw = (opts?: DiffScanOptions) =>
               cwd: repo.path,
             })
             .pipe(Effect.catch(() => Effect.succeed("")));
+
           if (unpulledOut.trim()) {
             yield* log.info("Unpulled commits:");
             yield* writeText(unpulledOut);

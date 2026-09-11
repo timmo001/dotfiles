@@ -1,4 +1,4 @@
-import { Effect, Schema } from "effect";
+import { Effect, Option, Schema } from "effect";
 import { formatCause, type JsonValue } from "../../lib/schema.js";
 
 const ErrorMessage = Schema.decodeUnknownOption(
@@ -32,7 +32,8 @@ export function writeRows(rows: Iterable<string>): Effect.Effect<void> {
 /** Format an unknown command error for CLI output. */
 export function formatCommandError(cause: unknown): string {
   const decoded = ErrorMessage(cause);
-  return decoded._tag === "Some" && decoded.value.message.length > 0
+
+  return Option.isSome(decoded) && decoded.value.message.length > 0
     ? decoded.value.message
     : formatCause(cause);
 }

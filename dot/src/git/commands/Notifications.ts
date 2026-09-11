@@ -49,6 +49,7 @@ export const notificationsBarJson = (opts?: GitNotificationQueryOptions) =>
       ...opts,
       barFilter: true,
     });
+
     yield* writeJsonLine(formatNotificationsBarJson(filteredState));
   }).pipe(Effect.withSpan("notifications.barJson"), handleNotificationError);
 
@@ -69,12 +70,14 @@ export const notificationsAction = (
 ) =>
   Effect.gen(function* () {
     const notifications = yield* GitNotifications;
+
     const actionEffects = {
       read: notifications.markRead,
       done: notifications.markDone,
       ignore: notifications.ignore,
       unignore: notifications.unignore,
     };
+
     const result = yield* actionEffects[action](threadId);
     yield* writeText(`${result.message}\n`);
   }).pipe(Effect.withSpan("notifications.action"), handleNotificationError);
@@ -96,12 +99,14 @@ export const notificationsMarkBotRead = (
 function refreshNotificationState(opts?: GitNotificationQueryOptions) {
   return Effect.gen(function* () {
     const notifications = yield* GitNotifications;
+
     return yield* notifications.query(opts);
   });
 }
 
 function formatRaw(state: GitNotificationState): string {
   const summary = notificationStateSummary(state);
+
   const lines = [
     "GitHub Notifications",
     `Last checked: ${formatNotificationTimeAgo(state.lastChecked.toISOString())}`,
@@ -109,9 +114,12 @@ function formatRaw(state: GitNotificationState): string {
   ];
 
   appendNotificationQueryLines(lines, state.query);
+
   if (state.message) lines.push(`Message: ${state.message}`);
+
   if (state.threads.length === 0) {
     lines.push("", "No GitHub notifications.");
+
     return lines.join("\n") + "\n";
   }
 
@@ -155,6 +163,7 @@ function notificationBarText(
   summary: ReturnType<typeof notificationStateSummary>,
 ): string {
   if (state.message) return "\uf071 ?";
+
   // Always emit the count (including "0") so the bar widget has an icon to
   // reveal dimmed on hover; the "hidden" class still collapses it when clear.
   return `\uf0f3 ${summary.unreadCount}`;
@@ -165,8 +174,11 @@ function notificationBarClass(
   summary: ReturnType<typeof notificationStateSummary>,
 ): string {
   if (state.message) return "notifications-unknown";
+
   if (summary.unreadCount === 0) return "hidden";
+
   if (summary.importantUnreadCount > 0) return "notifications-attention";
+
   return "notifications-unread";
 }
 
@@ -175,13 +187,16 @@ function formatBarJsonTooltip(
   summary: ReturnType<typeof notificationStateSummary>,
 ): string {
   if (state.message) return `GitHub notifications: ${state.message}`;
+
   if (state.threads.length === 0) return "GitHub notifications: inbox clear.";
 
   const lines = [
     `GitHub notifications: ${summary.unreadCount} unread, ${summary.importantUnreadCount} important, ${state.threads.length} shown.`,
   ];
+
   appendNotificationQueryLines(lines, state.query);
   appendNotificationThreadLines(lines, state.threads);
+
   return lines.join("\n");
 }
 
@@ -192,6 +207,7 @@ function appendNotificationThreadLines(
   for (const thread of threads.slice(0, 10)) {
     lines.push(`${thread.repo}: ${thread.title} (${thread.reason})`);
   }
+
   if (threads.length > 10) lines.push(`+${threads.length - 10} more`);
 }
 
@@ -209,6 +225,7 @@ function notificationStateSummary(
   for (const thread of state.threads) {
     if (!thread.unread) continue;
     unreadCount += 1;
+
     if (notificationReasonIsImportant(thread.reason)) importantUnreadCount += 1;
   }
 
@@ -230,6 +247,7 @@ function formatThreadRow(thread: GitNotificationThread): string {
 
 function formatBotReadResult(result: GitNotificationBotReadResult): string {
   const action = result.dryRun ? "Would mark" : "Marked";
+
   const lines = [
     `${action} ${result.dryRun ? result.matched.length : result.marked.length} bot notification${pluralSuffix(result.dryRun ? result.matched.length : result.marked.length)} read.`,
   ];
@@ -241,8 +259,10 @@ function formatBotReadResult(result: GitNotificationBotReadResult): string {
   }
 
   const threads = result.dryRun ? result.matched : result.marked;
+
   if (threads.length > 0) {
     lines.push("", "Matched threads:");
+
     for (const thread of threads) {
       lines.push(`  ${formatBotReadThread(thread)}`);
     }
@@ -250,6 +270,7 @@ function formatBotReadResult(result: GitNotificationBotReadResult): string {
 
   if (result.failed.length > 0) {
     lines.push("", "Failures:");
+
     for (const failure of result.failed) {
       lines.push(
         `  ${formatBotReadThread(failure.thread)}: ${failure.message}`,
@@ -273,7 +294,10 @@ function appendNotificationQueryLines(
   query: GitNotificationQueryOptions,
 ): void {
   if (query.all) lines.push("Including read notifications");
+
   if (query.participating) lines.push("Participating only");
+
   if (query.since) lines.push(`Since: ${query.since}`);
+
   if (query.barFilter) lines.push("Status-bar filters active");
 }

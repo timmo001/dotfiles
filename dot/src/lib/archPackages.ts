@@ -20,11 +20,13 @@ export function isPackageInstalled(
 ): Effect.Effect<boolean, never, CommandExecutor> {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
+
     for (const candidate of installedPackageCandidates(packageName)) {
       if ((yield* executor.exitCode("pacman", ["-Q", candidate])) === 0) {
         return true;
       }
     }
+
     return false;
   });
 }
@@ -33,6 +35,7 @@ export function isPackageInstalled(
 export function loadPackageList(filePath: string): readonly string[] {
   try {
     if (!existsSync(filePath)) return [];
+
     return readFileSync(filePath, "utf-8")
       .split("\n")
       .map((line) => line.trim())

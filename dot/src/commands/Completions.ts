@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect";
+import { Data, Effect, Match, Option } from "effect";
 import {
   Completions,
   type Command,
@@ -21,12 +21,16 @@ interface PathPrimitive extends Primitive.Primitive<unknown> {
   readonly pathType: "file" | "directory" | "either";
 }
 
+type ParamWrapper = "Map" | "Transform" | "Optional" | "Variadic";
+
 type InspectableParam<Kind extends Param.ParamKind> =
   | Param.Single<Kind, unknown>
   | {
-      readonly _tag: "Map" | "Transform" | "Optional" | "Variadic";
-      readonly param: Param.Param<Kind, unknown>;
-    };
+      [Tag in ParamWrapper]: {
+        readonly _tag: Tag;
+        readonly param: Param.Param<Kind, unknown>;
+      };
+    }[ParamWrapper];
 
 interface ParamMetadata {
   readonly isOptional: boolean;
@@ -38,8 +42,11 @@ function extractSingleParams<Kind extends Param.ParamKind>(
 ): readonly Param.Single<Kind, unknown>[] {
   // SAFETY: Every non-Single Effect Param combinator stores its wrapped parameter in param.
   const node = param as InspectableParam<Kind>;
-  if (node._tag === "Single") return [node];
-  return extractSingleParams(node.param);
+
+  return Match.value(node).pipe(
+    Match.tag("Single", (node) => [node]),
+    Match.orElse((node) => extractSingleParams(node.param)),
+  );
 }
 
 function paramMetadata<Kind extends Param.ParamKind>(
@@ -47,18 +54,23 @@ function paramMetadata<Kind extends Param.ParamKind>(
 ): ParamMetadata {
   // SAFETY: Every non-Single Effect Param combinator stores its wrapped parameter in param.
   const node = param as InspectableParam<Kind>;
-  if (node._tag === "Optional") {
-    const nested = paramMetadata(node.param);
-    return { isOptional: true, isVariadic: nested.isVariadic };
-  }
-  if (node._tag === "Variadic") {
-    const nested = paramMetadata(node.param);
-    return { isOptional: nested.isOptional, isVariadic: true };
-  }
-  if (node._tag === "Single") {
-    return { isOptional: false, isVariadic: false };
-  }
-  return paramMetadata(node.param);
+
+  return Match.value(node).pipe(
+    Match.tag("Optional", (node) => {
+      const nested = paramMetadata(node.param);
+
+      return { isOptional: true, isVariadic: nested.isVariadic };
+    }),
+    Match.tag("Variadic", (node) => {
+      const nested = paramMetadata(node.param);
+
+      return { isOptional: nested.isOptional, isVariadic: true };
+    }),
+    Match.tag("Single", () => {
+      return { isOptional: false, isVariadic: false };
+    }),
+    Match.orElse((node) => paramMetadata(node.param)),
+  );
 }
 
 /** Shells supported by Effect's completion generator. */
@@ -79,66 +91,39 @@ const SKILL_MAINTENANCE_COMPLETION_TARGETS = {
   zsh: "zsh/.local/share/zsh/site-functions/_skill-maintenance",
 } satisfies Record<CompletionShell, string>;
 
+const CompletionType = Data.taggedEnum<Completions.FlagType>();
+
 function flagType(single: Param.Single<"flag", unknown>): Completions.FlagType {
-  switch (single.primitiveType._tag) {
-    case "Boolean":
-      return { _tag: "Boolean" };
-    case "Integer":
-      return { _tag: "Integer" };
-    case "Float":
-      return { _tag: "Float" };
-    case "Date":
-      return { _tag: "Date" };
-    case "Choice":
-      // SAFETY: Effect's Choice primitive stores its constructor keys on choiceKeys.
-      return {
-        _tag: "Choice",
-        values: (single.primitiveType as ChoicePrimitive).choiceKeys,
-      };
-    case "Path":
-      // SAFETY: Effect's Path primitive stores its constructor path type on pathType.
-      return {
-        _tag: "Path",
-        pathType: (single.primitiveType as PathPrimitive).pathType,
-      };
-    case "FileText":
-    case "FileParse":
-    case "FileSchema":
-      return { _tag: "Path", pathType: "file" };
-    default:
-      return { _tag: "String" };
-  }
+  return Match.value(single.primitiveType).pipe(
+    Match.tag("Boolean", () => CompletionType.Boolean()),
+    Match.orElse(() => argumentType(single)),
+  );
 }
 
 function argumentType(
-  single: Param.Single<"argument", unknown>,
+  single: Param.Single<Param.ParamKind, unknown>,
 ): Completions.ArgumentType {
-  switch (single.primitiveType._tag) {
-    case "Integer":
-      return { _tag: "Integer" };
-    case "Float":
-      return { _tag: "Float" };
-    case "Date":
-      return { _tag: "Date" };
-    case "Choice":
+  return Match.value(single.primitiveType).pipe(
+    Match.tag("Integer", () => CompletionType.Integer()),
+    Match.tag("Float", () => CompletionType.Float()),
+    Match.tag("Date", () => CompletionType.Date()),
+    Match.tag("Choice", () =>
       // SAFETY: Effect's Choice primitive stores its constructor keys on choiceKeys.
-      return {
-        _tag: "Choice",
+      CompletionType.Choice({
         values: (single.primitiveType as ChoicePrimitive).choiceKeys,
-      };
-    case "Path":
+      }),
+    ),
+    Match.tag("Path", () =>
       // SAFETY: Effect's Path primitive stores its constructor path type on pathType.
-      return {
-        _tag: "Path",
+      CompletionType.Path({
         pathType: (single.primitiveType as PathPrimitive).pathType,
-      };
-    case "FileText":
-    case "FileParse":
-    case "FileSchema":
-      return { _tag: "Path", pathType: "file" };
-    default:
-      return { _tag: "String" };
-  }
+      }),
+    ),
+    Match.tag("FileText", "FileParse", "FileSchema", () =>
+      CompletionType.Path({ pathType: "file" }),
+    ),
+    Match.orElse(() => CompletionType.String()),
+  );
 }
 
 function descriptor(
@@ -146,14 +131,16 @@ function descriptor(
   path: readonly string[],
 ): Completions.CommandDescriptor {
   const config = commandConfig(command);
+
   const globalFlags = (commandHelp(command, path).globalFlags ?? []).map(
     (flag) => ({
       name: flag.name,
       aliases: flag.aliases.map((alias) => alias.replace(/^-+/, "")),
       description: Option.getOrUndefined(flag.description),
-      type: { _tag: "Boolean" as const },
+      type: CompletionType.Boolean(),
     }),
   );
+
   const flags = config.flags.flatMap((flag) =>
     extractSingleParams(flag).flatMap((single) =>
       single.kind === "flag" && !single.hidden
@@ -168,8 +155,10 @@ function descriptor(
         : [],
     ),
   );
+
   const arguments_ = config.arguments.flatMap((argument) => {
     const metadata = paramMetadata(argument);
+
     return extractSingleParams(argument).flatMap((single) =>
       single.kind === "argument"
         ? [
@@ -184,7 +173,9 @@ function descriptor(
         : [],
     );
   });
+
   const subcommands = command.subcommands.flatMap((group) => group.commands);
+
   return {
     name: command.name,
     description: command.shortDescription ?? command.description,
@@ -210,6 +201,7 @@ function unsupportedNegations(
   path: readonly string[],
 ): readonly string[] {
   const help = commandHelp(command, path);
+
   return [
     ...help.flags
       .map((flag) => flag.name)
@@ -226,15 +218,18 @@ function unsupportedNegations(
 function removeUnsupportedNegations(script: string): string {
   const names = ["no-help", ...unsupportedNegations(dotCommand, ["dot"])];
   const blockedLines = names.map((name) => `Disable ${name.slice(3)}`);
+
   let output = script
     .split("\n")
     .filter(
       (line) => !blockedLines.some((description) => line.includes(description)),
     )
     .join("\n");
+
   for (const name of names) {
     output = output.replaceAll(`|--${name}`, "").replaceAll(` --${name}`, "");
   }
+
   return output;
 }
 
@@ -254,6 +249,7 @@ export function writeCompletions(shell: CompletionShell) {
       mkdirSync(dirname(target), { recursive: true });
       writeFileSync(target, renderCompletions(shell));
     });
+
     return target;
   });
 }
@@ -263,6 +259,7 @@ export function writeSkillsMaintenanceCompletions(shell: CompletionShell) {
   return Effect.gen(function* () {
     const config = yield* Config;
     const executor = yield* CommandExecutor;
+
     const executable = join(
       config.publicDotfiles,
       "scripts",
@@ -270,16 +267,20 @@ export function writeSkillsMaintenanceCompletions(shell: CompletionShell) {
       "bin",
       "skill-maintenance",
     );
+
     const target = join(
       config.publicDotfiles,
       SKILL_MAINTENANCE_COMPLETION_TARGETS[shell],
     );
+
     if (!existsSync(executable)) yield* buildSkillsMaintenance;
+
     const output = yield* executor.run(executable, ["--completions", shell]);
     yield* Effect.sync(() => {
       mkdirSync(dirname(target), { recursive: true });
       writeFileSync(target, output);
     });
+
     return target;
   });
 }
@@ -300,13 +301,17 @@ export function completions(options: {
       yield* Effect.sync(() =>
         process.stdout.write(renderCompletions(options.shell)),
       );
+
       return;
     }
+
     const targets = yield* Effect.all([
       writeCompletions(options.shell),
       writeSkillsMaintenanceCompletions(options.shell),
     ]);
+
     const log = yield* OutputLog;
+
     for (const target of targets) {
       yield* log.info(`Generated ${options.shell} completions: ${target}`);
     }

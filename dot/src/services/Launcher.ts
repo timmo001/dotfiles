@@ -4,6 +4,7 @@ import { OutputLog } from "./OutputLog.js";
 import { ENV, envString } from "../lib/env.js";
 
 const DEBUG = !!envString(ENV.DOT_DEBUG);
+
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot:Launcher] ${msg}`);
 };
@@ -77,6 +78,7 @@ export class Launcher extends Context.Service<Launcher, LauncherService>()(
           Effect.gen(function* () {
             log(`Running (CLI): ${cmd}`);
             const exitCode = yield* executor.inherit("bash", ["-c", cmd]);
+
             if (exitCode !== 0) {
               return yield* new LauncherError({
                 message: `Command failed: ${cmd}`,
@@ -89,10 +91,12 @@ export class Launcher extends Context.Service<Launcher, LauncherService>()(
           Effect.gen(function* () {
             log(`Running (CLI): ${[command, ...args].join(" ")}`);
             const displayCommand = [command, ...args].join(" ");
+
             const exitCode = yield* catchLauncherDefect(
               executor.inherit(command, args, { cwd: opts?.cwd }),
               displayCommand,
             );
+
             if (exitCode !== 0) {
               return yield* new LauncherError({
                 message: `Command failed: ${command}`,
@@ -104,6 +108,7 @@ export class Launcher extends Context.Service<Launcher, LauncherService>()(
         stream: (cmd, opts) =>
           Effect.gen(function* () {
             log(`Streaming (CLI): ${cmd}`);
+
             const lines = executor.stream("bash", ["-c", cmd], {
               cwd: opts?.cwd,
             });
@@ -125,6 +130,7 @@ export class Launcher extends Context.Service<Launcher, LauncherService>()(
         silent: (cmd) =>
           Effect.gen(function* () {
             log(`Silent (CLI): ${cmd}`);
+
             return yield* executor.run("bash", ["-c", cmd]).pipe(
               Effect.catchTag("CommandError", (err: CommandError) =>
                 Effect.fail(

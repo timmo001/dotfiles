@@ -18,7 +18,9 @@ const NOTE_COMMANDS = [
   "handoff",
   "handoffs-list",
 ] as const;
+
 const NOTE_COMMAND_SET = new Set<string>(NOTE_COMMANDS);
+
 const COMMAND_MARKER = /<repo-note-command>([^<]+)<\/repo-note-command>/;
 
 const escapeXml = (value: string): string =>
@@ -38,6 +40,7 @@ export const collectRepoNoteContext = Effect.fn("RepoNotes.collectContext")(
   ) {
     const result = yield* Effect.gen(function* () {
       const cwd = yield* directory;
+
       return String(
         yield* Effect.tryPromise({
           try: () => execute(command, cwd),
@@ -76,11 +79,13 @@ export default Plugin.define({
       yield* context.session.hook("context", (event) =>
         Effect.gen(function* () {
           const userMessage = event.messages.findLast((message) => message.role === "user");
+
           const command = userMessage?.content
             .filter((part) => part.type === "text")
             .map((part) => part.text)
             .join("\n")
             .match(COMMAND_MARKER)?.[1];
+
           if (!command || !NOTE_COMMAND_SET.has(command)) return;
 
           const text = yield* collectRepoNoteContext(
@@ -89,6 +94,7 @@ export default Plugin.define({
               .get({ sessionID: event.sessionID })
               .pipe(Effect.map((session) => session.location.directory)),
           );
+
           event.system.unshift({ type: "text", text });
         }),
       );

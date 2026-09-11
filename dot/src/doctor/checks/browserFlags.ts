@@ -15,9 +15,11 @@ export const checkBrowserFlags = Effect.gen(function* () {
 
   const host = resolvedOmarchyHost(config) ?? "";
   const browserFlagsHostPkg = `chromium--${host}`;
+
   const browserFlagsPkgDir = config.privateDotfiles
     ? join(config.privateDotfiles, browserFlagsHostPkg)
     : null;
+
   const omarchyDefaultFlags = join(
     HOME_DIR,
     ".local",
@@ -43,6 +45,7 @@ export const checkBrowserFlags = Effect.gen(function* () {
         flagsOk = false;
       } else {
         const isSymlink = isSymbolicLink(flagFile);
+
         if (isSymlink === null) {
           flagsOk = false;
         } else if (!isSymlink) {

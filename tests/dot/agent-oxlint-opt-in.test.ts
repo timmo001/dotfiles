@@ -74,6 +74,7 @@ test("induction preserves release policy comments and round-trips an optional re
     overrides: [{ paths: ["src/public/**"], impact: "minor" as const, reason: "Public API addition" }],
     notifications: { enabled: true, minimum_impact: "patch" as const, cooldown_minutes: 60 },
   };
+
   const first = appendGitRepository("schema_version: 2\nrepositories: []\n", { ...repository, releases }).replace("    releases:\n", "    # keep policy rationale\n    releases:\n");
   const updated = appendGitRepository(first, { ...repository, name: "Second", path: "/second", github: "example/second", aliases: ["second_repo"], releases });
   expect(updated.startsWith(first)).toBe(true);

@@ -19,14 +19,18 @@ export interface HerdrAgentTarget {
 export const installedHerdrAgents = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
   const status = yield* executor.run("herdr", ["integration", "status"]);
+
   const available = new Set(
     status.split("\n").flatMap((line) => {
       const match = /^(\S+): (current|outdated)\b/.exec(line);
+
       return match ? [match[1]] : [];
     }),
   );
+
   const targets: HerdrAgentTarget[] = [];
   const opencode2 = join(HOME_DIR, ".local", "bin", "opencode2");
+
   if (
     available.has("opencode") &&
     (yield* executor.exitCode("test", ["-x", opencode2])) === 0
@@ -37,6 +41,7 @@ export const installedHerdrAgents = Effect.gen(function* () {
       executable: opencode2,
       kind: "opencode",
     });
+
   const labels = [
     ["opencode", "OpenCode 1"],
     ["pi", "Pi"],
@@ -56,6 +61,7 @@ export const installedHerdrAgents = Effect.gen(function* () {
     ["antigravity-cli", "Antigravity CLI"],
     ["grok", "Grok"],
   ];
+
   for (const [command, label] of labels)
     if (available.has(command))
       targets.push({
@@ -64,5 +70,6 @@ export const installedHerdrAgents = Effect.gen(function* () {
         executable: command === "cursor" ? "cursor-agent" : command,
         kind: command,
       });
+
   return targets;
 }).pipe(Effect.withSpan("herdr.installedAgents"));

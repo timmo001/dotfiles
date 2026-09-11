@@ -12,15 +12,19 @@ import { argRecord, stringArg } from "../lib/guard-paths";
 
 const findDotfilesRoot = async (directory: string): Promise<string | undefined> => {
   let current = resolve(directory);
+
   for (;;) {
     try {
       await Promise.all([
         access(resolve(current, "dot/src/cli/spec.ts")),
         access(resolve(current, "docs/scripts/generate-opencode-reference.ts")),
       ]);
+
       return current;
     } catch {}
+
     const parent = dirname(current);
+
     if (parent === current) return;
     current = parent;
   }
@@ -35,14 +39,17 @@ export default Plugin.define({
           const session = yield* context.session.get({ sessionID: event.sessionID }).pipe(Effect.orDie);
           const baseDirectory = session.location.directory;
           const root = yield* Effect.promise(() => findDotfilesRoot(baseDirectory));
+
           if (!root) return;
           const args = argRecord(event.input);
           const workdirArg = stringArg(args.workdir);
+
           const workdir = workdirArg
             ? isAbsolute(workdirArg)
               ? workdirArg
               : resolve(baseDirectory, workdirArg)
             : baseDirectory;
+
           const artifact =
             event.tool === "write" || event.tool === "edit"
               ? generatedArtifactForPath(root, stringArg(args.filePath), workdir)
@@ -51,6 +58,7 @@ export default Plugin.define({
                 : event.tool === "shell" || event.tool === "bash"
                   ? generatedArtifactFromShell(root, stringArg(args.command), workdir)
                   : undefined;
+
           if (artifact) {
             return yield* Effect.fail(
               new Tool.Error({

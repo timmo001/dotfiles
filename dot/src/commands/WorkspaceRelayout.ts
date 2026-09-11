@@ -1,4 +1,4 @@
-import { Cause, Effect, Schema } from "effect";
+import { Cause, Effect, Option, Schema } from "effect";
 import {
   existsSync,
   mkdtempSync,
@@ -21,10 +21,15 @@ import {
 } from "../lib/workspaceMutationLock.js";
 
 const LEAF = "w" as const;
+
 const DEFAULT_TEMP_WORKSPACE = 99;
+
 const VERIFY_ATTEMPTS = 20;
+
 const VERIFY_INTERVAL = "25 millis";
+
 const PICKER_PLUGIN = "timmo.workspace-relayout";
+
 const PICKER_FLIP_TAG = "flip";
 
 /** A leaf in a saved Hyprland Dwindle split tree. */
@@ -96,7 +101,9 @@ interface LayoutWalkResult {
 }
 
 const CoordinateSchema = Schema.Tuple([Schema.Finite, Schema.Finite]);
+
 const WorkspaceSchema = Schema.Struct({ id: Schema.Finite });
+
 const ClientSchema = Schema.Struct({
   address: Schema.NonEmptyString,
   mapped: Schema.Boolean,
@@ -106,15 +113,19 @@ const ClientSchema = Schema.Struct({
   at: CoordinateSchema,
   size: CoordinateSchema,
 });
+
 const ClientsSchema = Schema.Array(ClientSchema);
+
 const ActiveWorkspaceSchema = Schema.Struct({
   id: Schema.Finite,
   name: Schema.optional(Schema.String),
 });
+
 const ActiveWindowSchema = Schema.Struct({
   address: Schema.NonEmptyString,
   workspace: WorkspaceSchema,
 });
+
 const LayoutTreeSchema: Schema.Codec<LayoutTree> = Schema.Union([
   Schema.Literal(LEAF),
   Schema.Struct({
@@ -124,6 +135,7 @@ const LayoutTreeSchema: Schema.Codec<LayoutTree> = Schema.Union([
     b: Schema.suspend((): Schema.Codec<LayoutTree> => LayoutTreeSchema),
   }),
 ]);
+
 const PresetsSchema = Schema.Struct({
   version: Schema.Literal(3),
   layouts: Schema.Record(
@@ -171,11 +183,14 @@ export function decodePresets(value: JsonValue): PresetsFile {
       return fail(`Invalid presets file: ${String(error)}`);
     }
   })();
+
   for (const [count, entries] of Object.entries(decoded.layouts)) {
     const expectedLeaves = Number(count);
+
     if (!Number.isInteger(expectedLeaves) || expectedLeaves < 1) {
       return fail(`Invalid layout window count: ${count}`);
     }
+
     entries.forEach((entry, index) => {
       if (layoutLeafCount(entry.tree) !== expectedLeaves) {
         return fail(
@@ -184,6 +199,7 @@ export function decodePresets(value: JsonValue): PresetsFile {
       }
     });
   }
+
   return {
     version: 3,
     layouts: Object.fromEntries(
@@ -206,9 +222,11 @@ function decodeClients(value: JsonValue): readonly HyprlandClient[] {
 function decodeActiveWorkspace(value: JsonValue): ActiveWorkspace {
   try {
     const decoded = Schema.decodeUnknownSync(ActiveWorkspaceSchema)(value);
+
     if (!Number.isInteger(decoded.id)) {
       return fail("Active workspace id must be an integer");
     }
+
     return { id: decoded.id, name: decoded.name ?? "" };
   } catch (error) {
     return fail(`Could not read active workspace: ${String(error)}`);
@@ -234,15 +252,20 @@ function findCut(
   const sorted = [...windows].sort(
     (left, right) => left.at[axis] - right.at[axis],
   );
+
   for (let index = 1; index < sorted.length; index += 1) {
     const a = sorted.slice(0, index);
     const b = sorted.slice(index);
+
     const aEnd = Math.max(
       ...a.map((window) => window.at[axis] + window.size[axis]),
     );
+
     const bStart = Math.min(...b.map((window) => window.at[axis]));
+
     if (aEnd <= bStart) return { a, b };
   }
+
   return null;
 }
 
@@ -251,11 +274,13 @@ export function captureLayoutTree(
   windows: readonly LayoutWindow[],
 ): LayoutTree {
   if (windows.length === 0) return fail("Cannot capture an empty workspace");
+
   if (windows.length === 1) return LEAF;
 
   const vertical = findCut(windows, 0);
   const horizontal = vertical ? null : findCut(windows, 1);
   const cut = vertical ?? horizontal;
+
   if (!cut) return fail("Window geometry is not a guillotine split tree");
 
   const direction = vertical ? "lr" : "tb";
@@ -267,6 +292,7 @@ export function captureLayoutTree(
   const end = axis === 0 ? allBounds.right : allBounds.bottom;
   const aEnd = axis === 0 ? aBounds.right : aBounds.bottom;
   const bStart = axis === 0 ? bBounds.left : bBounds.top;
+
   const ratio =
     Math.round(((aEnd - start) / (aEnd - start + end - bStart)) * 10_000) / 100;
 
@@ -289,6 +315,7 @@ export function layoutOperations(tree: LayoutTree): readonly LayoutOperation[] {
     const branchIndex = next;
     const a = walk(node.a, anchor, next + 1);
     const b = walk(node.b, branchIndex, a.next);
+
     return {
       operations: [
         { dir: node.dir, ratio: node.ratio, anchor, next: branchIndex },
@@ -298,6 +325,7 @@ export function layoutOperations(tree: LayoutTree): readonly LayoutOperation[] {
       next: b.next,
     };
   }
+
   return walk(tree, 0, 1).operations;
 }
 
@@ -307,11 +335,14 @@ function simulatedBoxes(
   const boxes = new Map<number, readonly [number, number, number, number]>([
     [0, [0, 0, 1, 1]],
   ]);
+
   for (const operation of layoutOperations(tree)) {
     const box = boxes.get(operation.anchor);
+
     if (!box)
       return fail(`Missing simulated box for window ${operation.anchor}`);
     const ratio = operation.ratio / 100;
+
     if (operation.dir === "lr") {
       boxes.set(operation.anchor, [box[0], box[1], box[2] * ratio, box[3]]);
       boxes.set(operation.next, [
@@ -330,6 +361,7 @@ function simulatedBoxes(
       ]);
     }
   }
+
   return boxes;
 }
 
@@ -341,7 +373,9 @@ export function assignLayoutWindows(
   if (layoutLeafCount(tree) !== windows.length) {
     return fail("Layout leaf count does not match the current window count");
   }
+
   const boxes = simulatedBoxes(tree);
+
   const targetOrder = [...boxes.entries()]
     .map(([index, box]) => ({
       index,
@@ -349,9 +383,11 @@ export function assignLayoutWindows(
       y: box[1] + box[3] / 2,
     }))
     .sort((left, right) => left.y - right.y || left.x - right.x);
+
   const windowBounds = bounds(windows);
   const width = windowBounds.right - windowBounds.left || 1;
   const height = windowBounds.bottom - windowBounds.top || 1;
+
   const windowOrder = windows
     .map((window) => ({
       address: window.address,
@@ -359,12 +395,15 @@ export function assignLayoutWindows(
       y: (window.at[1] + window.size[1] / 2 - windowBounds.top) / height,
     }))
     .sort((left, right) => left.y - right.y || left.x - right.x);
+
   const byIndex = new Map<number, string>();
   targetOrder.forEach((target, index) =>
     byIndex.set(target.index, windowOrder[index].address),
   );
+
   return Array.from({ length: windows.length }, (_, index) => {
     const address = byIndex.get(index);
+
     return address ?? fail(`Could not assign window ${index}`);
   });
 }
@@ -384,6 +423,7 @@ function allRows(tree: LayoutTree): boolean {
 
 function leafPercentages(tree: LayoutTree): readonly number[] {
   if (tree === LEAF) return [100];
+
   return [
     ...leafPercentages(tree.a).map((value) => (value * tree.ratio) / 100),
     ...leafPercentages(tree.b).map(
@@ -394,42 +434,53 @@ function leafPercentages(tree: LayoutTree): readonly number[] {
 
 function ratioSignature(tree: LayoutTree): string {
   if (tree === LEAF) return "";
+
   if (allColumns(tree) || allRows(tree)) {
     return leafPercentages(tree).map(Math.round).join("/");
   }
+
   return [
     `${Math.round(tree.ratio)}/${Math.round(100 - tree.ratio)}`,
-    ...[tree.a, tree.b].map(ratioSignature).filter(Boolean),
+    ...[tree.a, tree.b].values().map(ratioSignature).filter(Boolean),
   ].join(", ");
 }
 
 /** Invert the root split so a 25/75 pane becomes 75/25. Nested splits stay. */
 export function flipLayoutTree(tree: LayoutTree): LayoutTree {
   if (tree === LEAF) return tree;
+
   return { dir: tree.dir, ratio: 100 - tree.ratio, a: tree.a, b: tree.b };
 }
 
 function parsePickerChoice(raw: string) {
   const value = raw.trim();
   const suffix = `\t${PICKER_FLIP_TAG}`;
+
   if (value.endsWith(suffix)) {
     return { label: value.slice(0, -suffix.length), flipped: true as const };
   }
+
   return { label: value, flipped: false as const };
 }
 
 /** Return the generated human-readable description for a layout tree. */
 export function describeLayoutTree(tree: LayoutTree): string {
   const count = layoutLeafCount(tree);
+
   if (tree === LEAF) return "1 window";
+
   if (allColumns(tree)) return `${count} columns`;
+
   if (allRows(tree)) return `${count} rows`;
+
   if (tree.dir === "tb" && allColumns(tree.a) && allColumns(tree.b)) {
     return `${layoutLeafCount(tree.a)} top / ${layoutLeafCount(tree.b)} bottom`;
   }
+
   if (tree.dir === "lr" && allRows(tree.a) && allRows(tree.b)) {
     return `${layoutLeafCount(tree.a)} left / ${layoutLeafCount(tree.b)} right`;
   }
+
   return `${count} windows`;
 }
 
@@ -439,10 +490,12 @@ function presetLabel(preset: LayoutPreset): string {
 
 function uniqueLabels(presets: readonly LayoutPreset[]): readonly string[] {
   const seen = new Map<string, number>();
+
   return presets.map((preset) => {
     const label = presetLabel(preset);
     const occurrence = (seen.get(label) ?? 0) + 1;
     seen.set(label, occurrence);
+
     return occurrence === 1 ? label : `${label} (${occurrence})`;
   });
 }
@@ -470,10 +523,13 @@ export function buildLayoutBatch(
   if (addresses.length < 2 || addresses.length !== layoutLeafCount(tree)) {
     return fail("Cannot build a layout batch for the supplied windows");
   }
+
   const commands = addresses.map((address) =>
     moveCommand(temporaryWorkspace, address),
   );
+
   commands.push(moveCommand(workspace, addresses[0]));
+
   for (const operation of layoutOperations(tree)) {
     const anchor = addresses[operation.anchor];
     const next = addresses[operation.next];
@@ -486,7 +542,9 @@ export function buildLayoutBatch(
       `dispatch hl.dsp.layout(${quoteLua(`splitratio ${((2 * operation.ratio) / 100).toFixed(4)} exact`)})`,
     );
   }
+
   if (restoreAddress) commands.push(focusCommand(restoreAddress));
+
   return commands.join(" ; ");
 }
 
@@ -503,6 +561,7 @@ function loadPresets(path: string): PresetsFile {
     return decodePresets(JSON.parse(readFileSync(path, "utf8")));
   } catch (error) {
     if (error instanceof WorkspaceRelayoutError) throw error;
+
     return fail(
       `Could not read presets: ${error instanceof Error ? error.message : String(error)}`,
     );
@@ -516,6 +575,7 @@ export function savePresetsAtomically(
 ): void {
   const target = realpathSync(path);
   const temporary = join(dirname(target), `.${randomUUID()}.tmp`);
+
   try {
     writeFileSync(temporary, `${JSON.stringify(presets, null, 2)}\n`, {
       mode: 0o644,
@@ -528,10 +588,13 @@ export function savePresetsAtomically(
 
 function tempWorkspace(): number {
   const raw = process.env.WORKSPACE_RELAYOUT_TEMP_WS;
+
   if (raw === undefined) return DEFAULT_TEMP_WORKSPACE;
+
   if (!/^\d+$/.test(raw) || Number(raw) <= 0) {
     return fail("WORKSPACE_RELAYOUT_TEMP_WS must be a positive workspace id");
   }
+
   return Number(raw);
 }
 
@@ -566,6 +629,7 @@ function commandAvailable(command: string): boolean {
 export const workspaceRelayout = Effect.fn("workspaceRelayout")(
   function* (options: { readonly edit: boolean }) {
     const executor = yield* CommandExecutor;
+
     const notify = (title: string, message: string) =>
       executor
         .exitCode("omarchy", [
@@ -577,6 +641,7 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
           message,
         ])
         .pipe(Effect.asVoid);
+
     let title = "Workspace relayout";
 
     const run = Effect.gen(function* () {
@@ -589,6 +654,7 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
         if (!commandAvailable(dependency))
           return fail(`${dependency} is not available`);
       }
+
       if (options.edit && !commandAvailable("omarchy-menu-input")) {
         return fail("omarchy-menu-input is not available");
       }
@@ -599,8 +665,10 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
           "hyprctl activeworkspace",
         ),
       );
+
       title = active.name ? `Workspace relayout (${active.name})` : title;
       const temporaryWorkspace = tempWorkspace();
+
       if (temporaryWorkspace === active.id) {
         return fail(
           "WORKSPACE_RELAYOUT_TEMP_WS must differ from the active workspace id",
@@ -613,6 +681,7 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
           "hyprctl clients",
         ),
       );
+
       if (
         allClients.some(
           (client) =>
@@ -623,12 +692,15 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
           `Temporary workspace ${temporaryWorkspace} is already occupied`,
         );
       }
+
       const clients = workspaceClients(allClients, active.id);
+
       if (clients.length < 2) {
         yield* notify(
           title,
           `Need at least 2 tiled windows on this workspace, found ${clients.length}`,
         );
+
         return;
       }
 
@@ -636,6 +708,7 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
       const presets = loadPresets(path);
       const count = String(clients.length);
       const available = presets.layouts[count] ?? [];
+
       const select = (prompt: string, choices: readonly string[]) =>
         executor
           .run("omarchy-menu-select", [
@@ -651,12 +724,15 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
             Effect.map((choice) => choice.trim()),
             Effect.orElseSucceed(() => ""),
           );
+
       const pickLayout = (prompt: string, choices: readonly string[]) => {
         const directory = mkdtempSync(join(tmpdir(), "workspace-relayout-"));
+
         return Effect.gen(function* () {
           const selectionFile = join(directory, "selection");
           const doneFile = join(directory, "done");
           writeFileSync(selectionFile, "");
+
           const summoned = yield* executor
             .run("omarchy-shell", [
               "shell",
@@ -675,12 +751,15 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
               Effect.map((output) => output.trim()),
               Effect.orElseSucceed(() => ""),
             );
+
           if (summoned !== "ok") {
             return fail("Workspace relayout picker is not available");
           }
+
           while (!existsSync(doneFile)) {
             yield* Effect.sleep("50 millis");
           }
+
           return parsePickerChoice(
             existsSync(selectionFile)
               ? readFileSync(selectionFile, "utf8")
@@ -694,6 +773,7 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
           ),
         );
       };
+
       const input = (prompt: string, fallback: string) =>
         executor.run("omarchy-menu-input", [prompt, "--width", "460"]).pipe(
           Effect.map((value) => value.trim() || fallback),
@@ -703,57 +783,72 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
       if (options.edit) {
         const addFamily = "Add new family";
         const groups = [...new Set(available.map((preset) => preset.group))];
+
         const selectedGroup = yield* select(
           `Edit ${count} window layout family`,
           [...groups, addFamily],
         );
+
         if (!selectedGroup) return;
         const tree = captureLayoutTree(clients);
+
         if (selectedGroup === addFamily) {
           const group = yield* input(
             "Layout name (New layout family)",
             "New layout family",
           );
+
           const name = yield* input(
             `Layout name (${describeLayoutTree(tree)})`,
             describeLayoutTree(tree),
           );
+
           presets.layouts[count] = [...available, { group, name, tree }];
           savePresetsAtomically(path, presets);
           yield* notify(title, `Added ${name}`);
+
           return;
         }
 
         const inGroup = available.filter(
           (preset) => preset.group === selectedGroup,
         );
+
         const labels = uniqueLabels(inGroup);
         const addLayout = "➕  Add new layout";
+
         const selectedLabel = yield* select(`Edit ${count} window layouts`, [
           ...labels,
           addLayout,
         ]);
+
         if (!selectedLabel) return;
+
         if (selectedLabel === addLayout) {
           const name = yield* input(
             `Layout name (${describeLayoutTree(tree)})`,
             describeLayoutTree(tree),
           );
+
           presets.layouts[count] = [
             ...available,
             { group: selectedGroup, name, tree },
           ];
           savePresetsAtomically(path, presets);
           yield* notify(title, `Added ${name}`);
+
           return;
         }
+
         const selectedIndex = labels.indexOf(selectedLabel);
+
         if (selectedIndex < 0)
           return fail("The selected layout is no longer available");
         const selected = inGroup[selectedIndex];
         selected.tree = tree;
         savePresetsAtomically(path, presets);
         yield* notify(title, `Updated ${selected.name}`);
+
         return;
       }
 
@@ -762,24 +857,33 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
           title,
           `No presets for ${count} windows yet - use edit mode to add one`,
         );
+
         return;
       }
+
       const groups = [...new Set(available.map((preset) => preset.group))];
+
       const selectedGroup = yield* select(
         `${count} window layout family`,
         groups,
       );
+
       if (!selectedGroup) return;
+
       const inGroup = available.filter(
         (preset) => preset.group === selectedGroup,
       );
+
       const labels = uniqueLabels(inGroup);
       const choice = yield* pickLayout(`${selectedGroup} layout`, labels);
+
       if (!choice.label) return;
       const selectedIndex = labels.indexOf(choice.label);
+
       if (selectedIndex < 0)
         return fail("The selected layout is no longer available");
       const selected = inGroup[selectedIndex];
+
       const tree = choice.flipped
         ? flipLayoutTree(selected.tree)
         : selected.tree;
@@ -788,16 +892,20 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
         yield* executor.run("hyprctl", ["-j", "activewindow"]),
         "hyprctl activewindow",
       );
+
       const decodedActiveWindow =
         Schema.decodeUnknownOption(ActiveWindowSchema)(activeWindow);
+
       const restoreAddress =
-        decodedActiveWindow._tag === "Some" &&
+        Option.isSome(decodedActiveWindow) &&
         decodedActiveWindow.value.workspace.id === active.id
           ? decodedActiveWindow.value.address
           : undefined;
+
       const originalTree = captureLayoutTree(clients);
       const selectedAddresses = assignLayoutWindows(tree, clients);
       const originalAddresses = assignLayoutWindows(originalTree, clients);
+
       const applyBatch = buildLayoutBatch(
         tree,
         selectedAddresses,
@@ -805,6 +913,7 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
         temporaryWorkspace,
         restoreAddress,
       );
+
       const rollbackBatch = buildLayoutBatch(
         originalTree,
         originalAddresses,
@@ -819,6 +928,7 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
           Effect.as(true),
           Effect.orElseSucceed(() => false),
         );
+
       if (!applied) {
         const rolledBack = yield* executor
           .run("hyprctl", ["--batch", rollbackBatch])
@@ -826,14 +936,17 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
             Effect.as(true),
             Effect.orElseSucceed(() => false),
           );
+
         if (!rolledBack) {
           const restoreOnly = selectedAddresses
             .map((address) => moveCommand(active.id, address))
             .join(" ; ");
+
           yield* executor
             .run("hyprctl", ["--batch", restoreOnly])
             .pipe(Effect.ignore);
         }
+
         return fail(
           rolledBack
             ? "Could not apply layout; restored the previous layout"
@@ -842,6 +955,7 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
       }
 
       let verified = false;
+
       for (let attempt = 0; attempt < VERIFY_ATTEMPTS; attempt += 1) {
         const current = decodeClients(
           parseJson(
@@ -849,23 +963,28 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
             "hyprctl clients",
           ),
         );
+
         verified = selectedAddresses.every((address) =>
           current.some(
             (client) =>
               client.address === address && client.workspace.id === active.id,
           ),
         );
+
         if (verified) break;
         yield* Effect.sleep(VERIFY_INTERVAL);
       }
+
       if (!verified) {
         yield* executor
           .run("hyprctl", ["--batch", rollbackBatch])
           .pipe(Effect.ignore);
+
         return fail(
           "Layout verification timed out; restored the previous layout",
         );
       }
+
       yield* notify(
         title,
         `Applied ${describeLayoutTree(tree)}${choice.flipped ? " (flipped)" : ""}`,
@@ -882,6 +1001,7 @@ export const workspaceRelayout = Effect.fn("workspaceRelayout")(
           ? error
           : new WorkspaceRelayoutError({ message: String(error) }),
     });
+
     yield* run.pipe(
       Effect.catchCause((cause) =>
         notify(title, String(Cause.squash(cause))).pipe(

@@ -13,6 +13,7 @@ const serviceFileSystem = FileSystem.makeNoop({
       try: () => readFile(path, "utf8"),
       catch: (cause) =>
         PlatformError.systemError({
+          // oxlint-disable-next-line anti-slop-effect/no-manual-tagged-construction -- systemError requires a reason tag in its constructor options.
           _tag: "Unknown",
           module: "FileSystem",
           method: "readFileString",
@@ -30,6 +31,7 @@ export const discoverService = () =>
 export const executeHttp = (request: HttpClientRequest.HttpClientRequest) =>
   Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient;
+
     return yield* client.execute(request);
   }).pipe(
     Effect.provide(FetchHttpClient.layer),

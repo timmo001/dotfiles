@@ -22,6 +22,7 @@ function copyFile(command: readonly string[]): number {
 export function mirrorConfiguredLog(): void {
   const source = envString(ENV.DOT_LOG_FILE);
   const target = envString(ENV.DOT_LOG_MIRROR_FILE);
+
   if (!source || !target || source === target) return;
 
   if (copyFile(["gio", "copy", "-f", source, target]) === 0) return;
@@ -36,11 +37,13 @@ export function writeMirroredLog(
 ): void {
   try {
     mkdirSync(dirname(logFile), { recursive: true });
+
     if (opts?.truncate) {
       writeFileSync(logFile, chunk);
     } else {
       appendFileSync(logFile, chunk);
     }
+
     mirrorConfiguredLog();
   } catch (error) {
     process.stderr.write(

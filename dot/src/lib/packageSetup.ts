@@ -54,11 +54,14 @@ function privatePackageListPath(config: ConfigService): string | null {
 
 function privatePackageListPaths(config: ConfigService): readonly string[] {
   const override = envString(ENV.DOT_PRIVATE_PACKAGES_FILE);
+
   if (override) return [override];
+
   if (!config.privateDotfiles) return [];
 
   const base = join(config.privateDotfiles, ".dot-private-packages");
   const host = resolvedOmarchyHost(config);
+
   return host ? [base, `${base}--${host}`] : [base];
 }
 
@@ -79,6 +82,7 @@ function commandAvailable(
 ): Effect.Effect<boolean, never, CommandExecutor> {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
+
     return (yield* executor.exitCode("which", [command])) === 0;
   });
 }
@@ -88,6 +92,7 @@ function requirePackageListPath(
   scope: ArchPackageScope,
 ): Effect.Effect<string, PackageSetupError> {
   const filePath = packageListPath(config, scope);
+
   return filePath
     ? Effect.succeed(filePath)
     : fail(`Missing ${scope} package list path`);
@@ -107,9 +112,11 @@ function missingFromPackageList(
 ): Effect.Effect<readonly string[], never, CommandExecutor> {
   return Effect.gen(function* () {
     const missing: string[] = [];
+
     for (const packageName of packages) {
       if (!(yield* isPackageInstalled(packageName))) missing.push(packageName);
     }
+
     return missing;
   });
 }
@@ -121,10 +128,12 @@ function missingPackages(
   return Effect.gen(function* () {
     const filePath = yield* requirePackageListPath(config, scope);
     yield* assertPackageListExists(scope, filePath);
+
     const packages =
       scope === "private"
         ? loadPackageLists(privatePackageListPaths(config))
         : loadPackageList(filePath);
+
     return yield* missingFromPackageList(packages);
   });
 }
@@ -145,6 +154,7 @@ function installWithOmarchyPkgAdd(
 
     yield* log.info(`Installing: ${packageName}`);
     const exitCode = yield* executor.inherit("omarchy-pkg-add", [packageName]);
+
     if (exitCode !== 0) {
       return yield* fail(`omarchy-pkg-add ${packageName} exited ${exitCode}`);
     }
@@ -172,6 +182,7 @@ export const ensureStowInstalled: Effect.Effect<
 
   if (yield* commandAvailable("stow")) {
     yield* log.info("stow is already installed");
+
     return;
   }
 
@@ -194,6 +205,7 @@ export const ensureGumInstalled: Effect.Effect<
 
   if (yield* commandAvailable("gum")) {
     yield* log.info("gum is already installed");
+
     return;
   }
 
@@ -227,6 +239,7 @@ export const installMiseTools: Effect.Effect<
 
   if (!miseConfigExists()) {
     yield* log.info("No mise config found; skipping mise install");
+
     return;
   }
 
@@ -242,6 +255,7 @@ export const installMiseTools: Effect.Effect<
   const exitCode = yield* executor.inherit("mise", ["install"], {
     cwd: HOME_DIR,
   });
+
   if (exitCode !== 0) {
     return yield* fail(`mise install exited ${exitCode}`);
   }
@@ -253,12 +267,15 @@ function shouldSkipPackageScope(
 ): Effect.Effect<boolean, never, OutputLog> {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
+
     if (scope === "private" && !config.canUsePrivate) {
       yield* log.warn(
         `Skipping private Arch packages (${config.privateReason})`,
       );
+
       return true;
     }
+
     return false;
   });
 }
@@ -281,11 +298,14 @@ function installWithAurHelper(
     }
 
     yield* log.section(`Install ${opts.scope} Arch packages`);
+
     if (opts.confirm) {
       yield* log.warn("--confirm is ignored for omarchy-pkg-aur-add");
     }
+
     yield* log.info(`Installing: ${missing.join(" ")}`);
     const exitCode = yield* executor.inherit("omarchy-pkg-aur-add", missing);
+
     if (exitCode !== 0) {
       return yield* fail(
         `omarchy-pkg-aur-add ${missing.join(" ")} exited ${exitCode}`,
@@ -306,12 +326,14 @@ function installWithPacman(
 
     yield* log.section(`Install ${opts.scope} Arch packages`);
     yield* log.info(`Installing: ${missing.join(" ")}`);
+
     const exitCode = yield* runElevated("pacman", [
       "-Sy",
       "--needed",
       "--noconfirm",
       ...missing,
     ]);
+
     if (exitCode !== 0) {
       return yield* fail(`pacman -Sy ${missing.join(" ")} exited ${exitCode}`);
     }
@@ -332,6 +354,7 @@ function installPublicPackageReplacements(
 
     for (const packageName of missing) {
       const replaced = replacedPublicPackage(packageName);
+
       if (
         !replaced ||
         (yield* executor.exitCode("pacman", ["-Q", replaced])) !== 0
@@ -341,6 +364,7 @@ function installPublicPackageReplacements(
       }
 
       yield* log.info(`Replacing ${replaced} with ${packageName}`);
+
       const exitCode = yield* runElevated("pacman", [
         "-S",
         "--needed",
@@ -348,6 +372,7 @@ function installPublicPackageReplacements(
         "--ask=4",
         packageName,
       ]);
+
       if (exitCode !== 0) {
         return yield* fail(
           `pacman -S ${packageName} exited ${exitCode}; cannot replace ${replaced}`,
@@ -376,8 +401,10 @@ export function installMissingArchPackages(opts: {
     if (yield* shouldSkipPackageScope(config, opts.scope)) return;
 
     const missing = yield* missingPackages(config, opts.scope);
+
     if (missing.length === 0) {
       yield* log.info(`${label} Arch packages already installed`);
+
       return;
     }
 
@@ -385,6 +412,7 @@ export function installMissingArchPackages(opts: {
       yield* installWithPacman(opts, missing);
     } else {
       const remaining = yield* installPublicPackageReplacements(missing);
+
       if (remaining.length > 0) yield* installWithAurHelper(opts, remaining);
     }
   });

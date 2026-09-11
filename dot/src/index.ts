@@ -35,18 +35,23 @@ import { Launcher } from "./services/Launcher.js";
 import { OutputLog } from "./services/OutputLog.js";
 
 const DEFAULT_INIT_LOG_FILE = join(STATE_DIR, "dot", "init.log");
+
 const PRIVATE_DOTFILES_REPO = "timmo001/dotfiles-private";
+
 const args = normalizeCliArgs(process.argv.slice(2));
 
 const invokedCommand = args.find((arg) => !arg.startsWith("-"));
+
 const unsupportedNegation = args.find(
   (arg) =>
     arg.startsWith("---") || arg === "--no-help" || arg.startsWith("--no-no-"),
 );
+
 if (unsupportedNegation) {
   console.error(`dot: unknown option '${unsupportedNegation}'`);
   process.exit(1);
 }
+
 if (invokedCommand && !getCliCommand(invokedCommand)) {
   console.error(`dot: unknown command '${invokedCommand}'`);
   console.error("Run 'dot --help' to see available commands.");
@@ -55,14 +60,17 @@ if (invokedCommand && !getCliCommand(invokedCommand)) {
 
 function optionValue(name: string): string | undefined {
   const equals = args.find((arg) => arg.startsWith(`${name}=`));
+
   if (equals) return equals.slice(name.length + 1);
   const index = args.indexOf(name);
+
   return index >= 0 ? args[index + 1] : undefined;
 }
 
 function validateFloatingWebappWidth(): void {
   if (args[0] !== "launch-floating-webapp") return;
   const width = optionValue("--width");
+
   if (width === undefined || /^\d+$/.test(width)) return;
   console.error("launch-floating-webapp: WIDTH must be a non-negative integer");
   process.exit(2);
@@ -70,58 +78,74 @@ function validateFloatingWebappWidth(): void {
 
 function appendBootstrapLog(message: string | Uint8Array): void {
   const logFile = envString(ENV.DOT_LOG_FILE);
+
   if (logFile) writeMirroredLog(logFile, message);
 }
 
 function prepareInit(): void {
   if (args[0] !== "init" || args.includes("--help") || args.includes("-h"))
     return;
+
   const requested = expandHomePath(
     optionValue("--log") ??
       envString(ENV.DOT_INIT_LOG_FILE) ??
       DEFAULT_INIT_LOG_FILE,
   );
+
   setEnv(
     ENV.DOT_LOG_FILE,
     isGvfsPath(requested) ? DEFAULT_INIT_LOG_FILE : requested,
   );
+
   if (envString(ENV.DOT_LOG_FILE) !== requested)
     setEnv(ENV.DOT_LOG_MIRROR_FILE, requested);
   else unsetEnv(ENV.DOT_LOG_MIRROR_FILE);
   setEnv(ENV.DOT_TEE_INHERIT_LOG, "1");
   const logFile = envString(ENV.DOT_LOG_FILE);
+
   if (!logFile) return;
   mkdirSync(dirname(logFile), { recursive: true });
   writeMirroredLog(logFile, "", { truncate: true });
 
   if (envString(ENV.DOT_ALLOW_PRIVATE) === "never") return;
+
   const privatePath = expandHomePath(
     envString(ENV.DOTFILES_PRIVATE_DIR) ?? join(CONFIG_DIR, "dotfiles-private"),
   );
+
   if (bootstrapGitRepoExists(privatePath)) {
     const exitCode = bootstrapGitPullRebase(privatePath, appendBootstrapLog);
+
     if (exitCode !== 0 && envString(ENV.DOT_ALLOW_PRIVATE) === "always")
       process.exit(exitCode);
+
     return;
   }
+
   if (!ghAuthenticated()) {
     const message =
       "[WARN] Skipping private dotfiles clone; run `gh auth login` before `dot init` if private dotfiles are wanted.\n";
+
     process.stderr.write(message);
     appendBootstrapLog(message);
+
     if (envString(ENV.DOT_ALLOW_PRIVATE) === "always") process.exit(1);
+
     return;
   }
+
   const exitCode = bootstrapGhRepoClone(
     PRIVATE_DOTFILES_REPO,
     privatePath,
     appendBootstrapLog,
   );
+
   if (exitCode !== 0) process.exit(exitCode);
 }
 
 function recordUsage(): void {
   const command = invokedCommand ? getCliCommand(invokedCommand) : undefined;
+
   const allowedFlags = new Set(
     (command ? commandHelp(command, ["dot", command.name]).flags : []).flatMap(
       (flag) =>
@@ -130,6 +154,7 @@ function recordUsage(): void {
         ),
     ),
   );
+
   installUsageHook({
     tool: "dot",
     invokedAs: "dot",
@@ -145,7 +170,9 @@ function recordUsage(): void {
 }
 
 validateFloatingWebappWidth();
+
 prepareInit();
+
 recordUsage();
 
 const CliLayers = Launcher.layer.pipe(
@@ -192,7 +219,9 @@ function withNativeCommandTimeout<E, R>(
         ([name]) => name === command,
       )?.[1]
     : undefined;
+
   if (!seconds || !command) return effect;
+
   // The progress renderer would erase the induction questions during opt-in.
   if (
     command === "agent-oxlint" &&
@@ -201,9 +230,11 @@ function withNativeCommandTimeout<E, R>(
     process.stdout.isTTY === true
   )
     return effect;
+
   if (command === "skills" && args.includes("--json")) {
     return Effect.gen(function* () {
       const completed = yield* withTimeoutOption(effect, seconds);
+
       if (Option.isNone(completed)) {
         console.error(
           `${commandLabel(command)} exceeded ${seconds}s and was stopped`,
@@ -212,12 +243,14 @@ function withNativeCommandTimeout<E, R>(
       }
     });
   }
+
   return Effect.gen(function* () {
     const completed = yield* withStepTimeout(
       commandLabel(command),
       seconds,
       effect,
     );
+
     if (!completed) process.exitCode = 1;
   });
 }
@@ -225,6 +258,7 @@ function withNativeCommandTimeout<E, R>(
 const commandProgram = Command.runWith(dotCommand, { version: "1.0.0" })(
   args.length === 0 ? ["--help"] : args,
 );
+
 const program = withNativeCommandTimeout(
   getCliCommand(invokedCommand ?? "")?.name,
   commandProgram,
@@ -239,6 +273,7 @@ const program = withNativeCommandTimeout(
   Effect.catch((error) =>
     Effect.sync(() => {
       appendBootstrapLog(`\n[ERROR] ${formatCause(error)}\n`);
+
       if (!CliError.isCliError(error)) console.error(error);
       process.exitCode =
         CliError.isCliError(error) &&

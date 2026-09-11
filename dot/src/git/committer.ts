@@ -55,6 +55,7 @@ function runStep(
   io: GitIo,
 ): Effect.Effect<GitStepResult, never, CommandExecutor> {
   const opts = cwd ? { cwd } : undefined;
+
   if (io === "capture") {
     return gitOutput(args, opts).pipe(
       Effect.map((text): GitStepResult => ({ ok: true, text: text.trim() })),
@@ -67,6 +68,7 @@ function runStep(
       ),
     );
   }
+
   return gitRequired(args, opts).pipe(
     Effect.map((): GitStepResult => ({ ok: true, text: "" })),
     Effect.catch((error) =>
@@ -101,7 +103,9 @@ export function ensureRepo(
       "rev-parse",
       "--is-inside-work-tree",
     ]);
+
     if (inside === "true") return { ok: true, text: "" };
+
     return yield* runStep(cwd, ["init"], "capture");
   });
 }
@@ -119,8 +123,10 @@ export function stageIn(
   if (spec.mode === "paths" && spec.paths.length === 0) {
     return Effect.succeed({ ok: true, text: "" });
   }
+
   const args =
     spec.mode === "all" ? ["add", "-A"] : ["add", "--", ...spec.paths];
+
   return runStep(opts?.cwd, args, opts?.io ?? "inherit");
 }
 
@@ -169,12 +175,15 @@ export function commitIn(
   step: CommitStep,
 ): Effect.Effect<CommitOutcome, never, CommandExecutor> {
   const io = step.io ?? "inherit";
+
   return Effect.gen(function* () {
     if (step.tolerateEmpty && !step.amend) {
       const staged = yield* hasStagedChanges(step.cwd);
+
       if (!staged)
         return { ok: true, committed: false, text: "nothing to commit" };
     }
+
     const args = [
       "commit",
       ...(step.amend ? ["--amend"] : []),
@@ -182,7 +191,9 @@ export function commitIn(
       ...(step.noVerify ? ["--no-verify"] : []),
       ...(step.paths && step.paths.length > 0 ? ["--", ...step.paths] : []),
     ];
+
     const result = yield* runStep(step.cwd, args, io);
+
     return result.ok
       ? { ok: true, committed: true, text: result.text }
       : { ok: false, committed: false, text: result.text, error: result.error };
@@ -222,13 +233,16 @@ function rebaseOnUpstream(
 ): Effect.Effect<GitStepResult, never, CommandExecutor> {
   const opts = cwd ? { cwd } : undefined;
   const run = io === "inherit" ? gitInheritExitCode : gitExitCode;
+
   return Effect.gen(function* () {
     const code = yield* run(
       ["pull", "--rebase", "--autostash", "--no-edit"],
       opts,
     );
+
     if (code === 0) return { ok: true, text: "" };
     yield* run(["rebase", "--abort"], opts);
+
     return {
       ok: false,
       text: "",
@@ -251,8 +265,10 @@ export function pushBranch(
   options: PushOptions = {},
 ): Effect.Effect<PushOutcome, never, CommandExecutor> {
   const { cwd, amend = false, io = "inherit" } = options;
+
   return Effect.gen(function* () {
     const branch = yield* readGitIn(cwd, ["branch", "--show-current"]);
+
     if (!branch) {
       return {
         ok: false,
@@ -260,28 +276,36 @@ export function pushBranch(
         error: "Cannot push from a detached HEAD.",
       };
     }
+
     const upstream = yield* readGitIn(cwd, [
       "rev-parse",
       "--abbrev-ref",
       "--symbolic-full-name",
       "@{upstream}",
     ]);
+
     if (upstream) {
       if (amend) {
         const pushed = yield* runStep(cwd, ["push", "--force-with-lease"], io);
+
         return pushed.ok
           ? { ok: true, message: `Force-pushed (with lease) to ${upstream}` }
           : { ok: false, message: "", error: pushed.error };
       }
+
       const rebased = yield* rebaseOnUpstream(cwd, io);
+
       if (!rebased.ok) return { ok: false, message: "", error: rebased.error };
       const pushed = yield* runStep(cwd, ["push"], io);
+
       return pushed.ok
         ? { ok: true, message: `Pushed to ${upstream}` }
         : { ok: false, message: "", error: pushed.error };
     }
+
     const { remote } = resolveDefaultRemote(yield* readGitIn(cwd, ["remote"]));
     const pushed = yield* runStep(cwd, ["push", "-u", remote, branch], io);
+
     return pushed.ok
       ? { ok: true, message: `Pushed to ${remote}/${branch} (new upstream)` }
       : { ok: false, message: "", error: pushed.error };
@@ -302,14 +326,17 @@ export function describePushTarget(
 ): Effect.Effect<PushTarget, never, CommandExecutor> {
   return Effect.gen(function* () {
     const branch = yield* readGitIn(cwd, ["branch", "--show-current"]);
+
     const upstream = yield* readGitIn(cwd, [
       "rev-parse",
       "--abbrev-ref",
       "--symbolic-full-name",
       "@{upstream}",
     ]);
+
     if (upstream) return { target: upstream, hasUpstream: true };
     const { remote } = resolveDefaultRemote(yield* readGitIn(cwd, ["remote"]));
+
     return {
       target: `${remote}/${branch || "(detached)"} (new upstream)`,
       hasUpstream: false,

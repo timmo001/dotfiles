@@ -28,5 +28,6 @@ export function readGitUpstream(
 /** Return the branch segment from an upstream ref such as origin/main. */
 export function upstreamBranch(upstream: string): string {
   const slashIndex = upstream.indexOf("/");
+
   return slashIndex === -1 ? upstream : upstream.slice(slashIndex + 1);
 }

@@ -42,6 +42,7 @@ function readPrivatePackageMap(
   config: ConfigService,
 ): ReadonlyMap<string, string> {
   const filePath = packageMapFile(config);
+
   if (!filePath || !existsSync(filePath)) return new Map();
 
   return new Map(
@@ -56,13 +57,16 @@ function parsePrivatePackageMapLine(
   rawLine: string,
 ): readonly [string, string] | null {
   const line = rawLine.trim();
+
   if (isBlankOrComment(line)) return null;
 
   const separator = line.indexOf("=");
+
   if (separator < 0) return null;
 
   const key = line.slice(0, separator).trim();
   const value = expandHomePath(line.slice(separator + 1).trim());
+
   return privatePackageMapEntry(key, value);
 }
 
@@ -75,7 +79,9 @@ function privatePackageMapEntry(
   value: string,
 ): readonly [string, string] | null {
   if (!key) return null;
+
   if (!value) return null;
+
   return [key, value];
 }
 
@@ -95,6 +101,7 @@ function latestRuntimeArtifact(
     .map((name) => join(distDir, name))
     .sort((left, right) => {
       const mtimeDelta = statSync(left).mtimeMs - statSync(right).mtimeMs;
+
       return mtimeDelta === 0 ? left.localeCompare(right) : mtimeDelta;
     });
 
@@ -158,6 +165,7 @@ function markFailure(
   return Effect.gen(function* () {
     yield* log.error(message);
     process.exitCode = 1;
+
     return false;
   });
 }
@@ -171,7 +179,9 @@ function runRequired(
     const executor = yield* CommandExecutor;
     const log = yield* OutputLog;
     const exitCode = yield* executor.inherit(command, args, { cwd: opts?.cwd });
+
     if (exitCode === 0) return true;
+
     return yield* markFailure(
       log,
       opts.failureMessage ?? `${command} exited ${exitCode}`,
@@ -185,9 +195,11 @@ function supportsDenoPackageArch(
   return Effect.gen(function* () {
     if (!existsSync(join(sourceRepo, "deno.json"))) return false;
     const executor = yield* CommandExecutor;
+
     const output = yield* executor
       .run("deno", ["task", "--cwd", sourceRepo])
       .pipe(Effect.catch(() => Effect.succeed("")));
+
     return /(^|\s)package:arch($|\s)/.test(output);
   });
 }
@@ -244,6 +256,7 @@ function publishArtifact(
     removeRepoSidecars(repo.path);
 
     const artifacts = publishedRuntimeArtifacts(repo.path);
+
     if (artifacts.length === 0) {
       return yield* markFailure(
         log,
@@ -254,6 +267,7 @@ function publishArtifact(
     const repoDb = join(repo.path, `${repo.name}.db.tar.gz`);
     const added = yield* runRequired("repo-add", [repoDb, ...artifacts]);
     removeRepoSidecars(repo.path);
+
     return added;
   });
 }
@@ -265,13 +279,17 @@ function installPublishedPackage(
     const log = yield* OutputLog;
     const executor = yield* CommandExecutor;
     yield* log.section(`Install private package: ${packageName}`);
+
     const [command, args] = yield* elevatedCommand("pacman", [
       "-Sy",
       "--noconfirm",
       packageName,
     ]);
+
     const exitCode = yield* executor.inherit(command, args);
+
     if (exitCode === 0) return true;
+
     return yield* markFailure(
       log,
       `${command} ${args.join(" ")} exited ${exitCode}`,
@@ -286,27 +304,33 @@ function commitAndPushPackageRepo(
   return Effect.gen(function* () {
     const log = yield* OutputLog;
     yield* log.section("Commit private package repo");
+
     if (!(yield* runGitPublishStep(["add", "."], repoPath))) {
       return false;
     }
 
     if (!(yield* hasStagedChanges(repoPath))) {
       yield* log.info("No private package repo changes to commit");
+
       return true;
     }
 
     const message = `publish ${packageName} package`;
     const commit = yield* commitIn({ cwd: repoPath, message });
+
     if (!commit.ok) {
       return yield* markFailure(log, commit.error ?? "git commit failed");
     }
 
     yield* log.section("Push private package repo");
     const pushed = yield* pushBranch({ cwd: repoPath });
+
     if (!pushed.ok) {
       return yield* markFailure(log, pushed.error ?? "git push failed");
     }
+
     yield* log.info(pushed.message);
+
     return true;
   });
 }
@@ -317,13 +341,16 @@ function runGitPublishStep(
 ): Effect.Effect<boolean, never, CommandExecutor | OutputLog> {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
+
     const gitError = yield* gitRequired(args, { cwd: repoPath }).pipe(
       Effect.map(() => null),
       Effect.catchTag("GitCommandError", (error) =>
         Effect.succeed(error.message),
       ),
     );
+
     if (!gitError) return true;
+
     return yield* markFailure(log, gitError);
   });
 }
@@ -333,34 +360,42 @@ export const privatePkgPublish = (args: PrivatePkgPublishArgs) =>
   Effect.gen(function* () {
     const config = yield* Config;
     const log = yield* OutputLog;
+
     if (!config.canUsePrivate) {
       yield* markFailure(
         log,
         `Private access is not available (${config.privateReason})`,
       );
+
       return;
     }
 
     const repo = loadPrivatePackageRepoConfig(config);
+
     if (!repo) {
       yield* markFailure(log, "Missing private package repo config");
+
       return;
     }
+
     yield* setupPrivateRepo;
 
     const packageMap = readPrivatePackageMap(config);
     const sourceRepo = packageMap.get(args.packageName);
+
     if (!sourceRepo) {
       yield* markFailure(
         log,
         `No private package publish mapping configured for: ${args.packageName}`,
       );
       const filePath = packageMapFile(config);
+
       if (filePath) {
         yield* log.error(
           `Add '${args.packageName} = ~/repos/${args.packageName}' to ${displayPath(filePath)}`,
         );
       }
+
       return;
     }
 
@@ -369,6 +404,7 @@ export const privatePkgPublish = (args: PrivatePkgPublishArgs) =>
         log,
         `Missing package source repo: ${displayPath(sourceRepo)}`,
       );
+
       return;
     }
 
@@ -382,11 +418,13 @@ export const privatePkgPublish = (args: PrivatePkgPublishArgs) =>
 
     const distDir = join(sourceRepo, "dist");
     const runtimePackage = latestRuntimeArtifact(distDir, args.packageName);
+
     if (!runtimePackage) {
       yield* markFailure(
         log,
         `No runtime package artifact found for ${args.packageName} in ${displayPath(distDir)}`,
       );
+
       return;
     }
 

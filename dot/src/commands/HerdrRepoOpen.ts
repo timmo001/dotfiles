@@ -16,6 +16,7 @@ import { herdrServerPid } from "./HerdrServer.js";
 const READINESS_SCHEDULE = Schedule.recurs(49).pipe(
   Schedule.addDelay(() => Effect.succeed("100 millis")),
 );
+
 const DEFAULT_SOCKET_PATH = join(CONFIG_DIR, "herdr", "herdr.sock");
 
 const PickerCacheSchema = Schema.Array(
@@ -73,11 +74,14 @@ function fail(message: string, exitCode: 1 | 2 = 1): never {
 function canonicalLabel(options: HerdrRepoOpenOptions): string {
   const path =
     options.pickerCache ?? join(CACHE_DIR, "dot", "repo-picker.json");
+
   if (!existsSync(path)) return options.label;
+
   try {
     const entries = Schema.decodeUnknownSync(PickerCacheSchema)(
       JSON.parse(readFileSync(path, "utf8")),
     );
+
     return (
       entries.find((entry) => entry.path === options.directory)?.name ??
       options.label
@@ -95,9 +99,11 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
   const executor = yield* CommandExecutor;
   const herdr = yield* HerdrSdk;
   const label = canonicalLabel(options);
+
   if (options.prompt !== undefined && (!options.command || !options.agentKind))
     return fail("An initial prompt requires a command and --agent-kind", 2);
   let expectedExecutable: string | undefined;
+
   if (
     options.prompt !== undefined &&
     options.command === join(HOME_DIR, ".local", "bin", "opencode2")
@@ -106,6 +112,7 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
     expectedExecutable = (yield* executor.run("mise", ["which", "opencode2"], {
       cwd: options.directory,
     })).trim();
+
     if (
       !expectedExecutable.startsWith("/") ||
       expectedExecutable.includes("\n")
@@ -113,11 +120,14 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
       return fail("OpenCode 2 verification did not return an executable path");
     yield* executor.run("test", ["-x", expectedExecutable]);
   }
+
   if ((yield* executor.exitCode("herdr", ["status", "server"])) !== 0) {
     return fail("Shared Herdr server is not running");
   }
+
   const socketPath = envString(ENV.HERDR_SOCKET_PATH) ?? DEFAULT_SOCKET_PATH;
   const binary = `/proc/${yield* herdrServerPid(socketPath)}/exe`;
+
   const clientReady =
     runtime.foregroundClientReady ??
     herdr.client.windowTitle
@@ -126,6 +136,7 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
         Effect.map((response) => response.reason !== "no_foreground_client"),
         Effect.orElseSucceed(() => false),
       );
+
   const launchTerminal =
     runtime.launchTerminal ??
     Effect.try({
@@ -149,6 +160,7 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
             detached: true,
           },
         );
+
         process.unref();
       },
       catch: (error) =>
@@ -159,6 +171,7 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
     });
 
   const initiallyReady = yield* clientReady;
+
   if (!initiallyReady) {
     yield* launchTerminal;
 
@@ -176,13 +189,16 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
           }),
       ),
     );
+
     yield* terminalReady;
   }
 
   const workspaces = yield* herdr.workspaces.list();
+
   let workspaceId = workspaces.find(
     (workspace) => workspace.label === label,
   )?.id;
+
   let tabId: TabId | undefined;
   let paneId: PaneId | undefined;
 
@@ -191,6 +207,7 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
       options.directory,
       label ? { label, focus: false } : { focus: false },
     );
+
     workspaceId = created.workspace.id;
     tabId = created.tab.id;
     paneId = created.rootPane.id;
@@ -198,17 +215,22 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
     const activeTabId = workspaces.find(
       (workspace) => workspace.id === workspaceId,
     )?.activeTabId;
+
     const panes = yield* herdr.panes.list({ workspaceId });
+
     const target =
       panes.find((pane) => pane.tabId === activeTabId && pane.focused) ??
       panes.find((pane) => pane.tabId === activeTabId) ??
       panes[0];
+
     if (!target) return fail(`Herdr did not return a pane ID for ${label}`);
+
     const created = yield* herdr.panes.split(target.id, {
       direction: "right",
       cwd: options.directory,
       focus: true,
     });
+
     paneId = created.id;
   } else if (options.command) {
     const created = yield* herdr.tabs.create({
@@ -217,21 +239,25 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
       label: options.tabLabel,
       focus: false,
     });
+
     tabId = created.tab.id;
     paneId = created.rootPane.id;
   }
 
   if (!workspaceId)
     return fail(`Herdr did not return a workspace ID for ${label}`);
+
   if (options.command) {
     if (!paneId || (!options.pane && !tabId)) {
       return fail(
         `Herdr did not return the required pane or tab ID for ${label}`,
       );
     }
+
     if (tabId) {
       yield* herdr.tabs.rename(tabId, options.tabLabel);
     }
+
     yield* herdr.panes.sendInput(paneId, {
       text: options.command,
       keys: ["enter"],
@@ -239,7 +265,9 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
   }
 
   yield* herdr.workspaces.focus(workspaceId);
+
   if (tabId) yield* herdr.tabs.focus(tabId);
+
   if (options.prompt !== undefined && paneId) {
     const targetPane = paneId;
     yield* herdr.agents.get({ paneId: targetPane }).pipe(
@@ -249,16 +277,20 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
       }),
       Effect.timeout("30 seconds"),
     );
+
     const agent = yield* herdr.agents.wait(
       { paneId: targetPane },
       { until: ["idle", "done"], timeoutMs: 30_000 },
       { requestTimeout: Duration.seconds(35) },
     );
+
     if (Option.getOrUndefined(agent.agent) !== options.agentKind)
       return fail(`The selected ${options.agentKind} agent did not start`);
+
     if (expectedExecutable) {
       const processes =
         (yield* herdr.panes.processInfo(targetPane)).foregroundProcesses ?? [];
+
       if (
         !processes.some((process) =>
           Option.exists(process.argv, (argv) =>
@@ -268,6 +300,7 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
       )
         return fail("OpenCode 2 did not start through the expected runtime");
     }
+
     yield* herdr.agents.prompt(
       { paneId: targetPane },
       { text: options.prompt },
@@ -286,6 +319,7 @@ export const herdrRepoOpen = (options: HerdrRepoOpenOptions) =>
     ),
     Effect.catchCause((cause) => {
       const error = Cause.squash(cause);
+
       const failure =
         error instanceof HerdrRepoOpenError
           ? error
@@ -296,6 +330,7 @@ export const herdrRepoOpen = (options: HerdrRepoOpenOptions) =>
                   : formatCause(error),
               exitCode: 1,
             });
+
       return Effect.sync(() => {
         process.stderr.write(`${failure.message}\n`);
         process.exitCode = failure.exitCode;

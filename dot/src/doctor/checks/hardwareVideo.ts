@@ -21,13 +21,16 @@ export function browserVideoFlagResults(
   content: string,
 ): CheckResult[] {
   const results: CheckResult[] = [];
+
   const flags = content
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.startsWith("--"));
+
   const obsolete = obsoleteVideoFeatures.filter((feature) =>
     flags.some((flag) => flag.includes(feature)),
   );
+
   const disabledFeatures = flags
     .filter((flag) => flag.startsWith("--disable-features="))
     .flatMap((flag) => flag.slice("--disable-features=".length).split(","))
@@ -55,6 +58,7 @@ export function browserVideoFlagResults(
         "--disable-gpu-compositing",
       ].includes(flag),
     );
+
     results.push({
       severity: "warn",
       message: `${name}-flags.conf disables hardware video acceleration`,
@@ -82,6 +86,7 @@ export const checkHardwareVideo = Effect.gen(function* () {
 
   // Check for vainfo
   const hasVainfo = (yield* executor.exitCode("which", ["vainfo"])) === 0;
+
   if (!hasVainfo) {
     results.push({
       severity: "warn",
@@ -95,13 +100,16 @@ export const checkHardwareVideo = Effect.gen(function* () {
     .pipe(Effect.catch(() => Effect.succeed("")));
 
   let hasNvidiaNode = false;
+
   for (const nodePath of renderNodesOutput.trim().split("\n").filter(Boolean)) {
     const driverLink = join(nodePath, "device", "driver");
+
     if (!existsSync(driverLink)) continue;
 
     const driverResult = yield* executor
       .run("readlink", ["-f", driverLink])
       .pipe(Effect.catch(() => Effect.succeed("")));
+
     const driverName = basename(driverResult.trim());
     const nodeName = basename(nodePath);
 
@@ -124,6 +132,7 @@ export const checkHardwareVideo = Effect.gen(function* () {
       .pipe(Effect.catch(() => Effect.succeed("")));
 
     let vaapiWorking = false;
+
     for (const renderNode of devNodesOutput
       .trim()
       .split("\n")
@@ -134,14 +143,17 @@ export const checkHardwareVideo = Effect.gen(function* () {
       // Determine per-node driver
       let renderDriverName = "";
       const driverLink = join(sysNode, "device", "driver");
+
       if (existsSync(driverLink)) {
         const driverResult = yield* executor
           .run("readlink", ["-f", driverLink])
           .pipe(Effect.catch(() => Effect.succeed("")));
+
         renderDriverName = basename(driverResult.trim());
       }
 
       let renderVaapiDriver = "";
+
       switch (renderDriverName) {
         case "i915":
         case "xe":
@@ -156,9 +168,11 @@ export const checkHardwareVideo = Effect.gen(function* () {
       }
 
       const driverLabel = renderVaapiDriver || currentVaapiDriver || "auto";
+
       const envPrefix = renderVaapiDriver
         ? `LIBVA_DRIVER_NAME="${renderVaapiDriver}" `
         : "";
+
       const vainfoResult = yield* executor
         .run("bash", [
           "-c",
@@ -211,16 +225,19 @@ export const checkHardwareVideo = Effect.gen(function* () {
   for (const { name, wrapper } of browsers) {
     if (existsSync(wrapper)) {
       const content = readTextFile(wrapper);
+
       if (content !== null) {
         const driverMatch = content.match(
           /^\s*export\s+LIBVA_DRIVER_NAME=(\S+)/m,
         );
+
         if (driverMatch) {
           results.push({
             severity: "ok",
             message: `${name} wrapper overrides LIBVA_DRIVER_NAME=${driverMatch[1]}`,
           });
         }
+
         if (content.includes("__EGL_VENDOR_LIBRARY_FILENAMES")) {
           results.push({
             severity: "ok",
@@ -240,6 +257,7 @@ export const checkHardwareVideo = Effect.gen(function* () {
   for (const { name, path } of flagsFiles) {
     if (existsSync(path)) {
       const content = readTextFile(path);
+
       if (content !== null) {
         results.push(...browserVideoFlagResults(name, content));
       }
@@ -255,6 +273,7 @@ export const checkHardwareVideo = Effect.gen(function* () {
   }
 
   let hasVaapiDriverPkg = false;
+
   for (const pkg of [
     "intel-media-driver",
     "libva-intel-driver",
@@ -266,6 +285,7 @@ export const checkHardwareVideo = Effect.gen(function* () {
       hasVaapiDriverPkg = true;
     }
   }
+
   if (!hasVaapiDriverPkg) {
     results.push({
       severity: "error",

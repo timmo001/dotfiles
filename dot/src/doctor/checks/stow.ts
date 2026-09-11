@@ -14,11 +14,13 @@ export const checkStow = Effect.gen(function* () {
 
   // Need stow installed
   const stowExit = yield* executor.exitCode("which", ["stow"]);
+
   if (stowExit !== 0) {
     results.push({
       severity: "warn",
       message: "stow not installed \u2014 cannot verify link integrity",
     });
+
     return results;
   }
 
@@ -30,9 +32,11 @@ export const checkStow = Effect.gen(function* () {
 
       for (const folder of folders) {
         const extraArgs: string[] = [];
+
         if (requiresNoFolding(repoDir, folder)) {
           extraArgs.push("--no-folding");
         }
+
         if (folder === "agents" && scope === "private") {
           extraArgs.push(
             "--ignore=node_modules",
@@ -43,6 +47,7 @@ export const checkStow = Effect.gen(function* () {
         }
 
         const cmd = ["stow", "-n", "-v", ...extraArgs, folder].join(" ");
+
         const output = yield* executor
           .run("bash", ["-c", `cd ${JSON.stringify(repoDir)} && ${cmd} 2>&1`])
           .pipe(Effect.catch(() => Effect.succeed("")));

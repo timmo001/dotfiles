@@ -11,8 +11,11 @@ const toolTargetsProtectedEnv = (
   args: ReturnType<typeof argRecord>,
 ) => {
   if (tool === "read") return targetsProtectedEnv(stringArg(args.filePath) || stringArg(args.path));
+
   if (tool === "grep") return [args.path, args.include].some((value) => targetsProtectedEnv(stringArg(value)));
+
   if (tool === "glob") return [args.pattern, args.path].some((value) => targetsProtectedEnv(stringArg(value)));
+
   return false;
 };
 
@@ -23,11 +26,13 @@ export default Plugin.define({
       yield* context.tool.hook("execute.before", (event) => {
         const args = argRecord(event.input);
         const command = stringArg(args.command);
+
         const blocked =
           toolTargetsProtectedEnv(event.tool, args) ||
           ((event.tool === "shell" || event.tool === "bash") &&
             targetsProtectedEnv(command) &&
             ENV_COMMAND_PATTERN.test(command));
+
         return blocked
           ? Effect.fail(new Tool.Error({ message: "Do not read .env files" }))
           : Effect.void;

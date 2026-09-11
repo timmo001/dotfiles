@@ -22,6 +22,7 @@ export const checkBrowserExtensions = Effect.gen(function* () {
       severity: "warn",
       message: `Skipping browser extension checks (${config.privateReason})`,
     });
+
     return results;
   }
 
@@ -36,15 +37,18 @@ export const checkBrowserExtensions = Effect.gen(function* () {
       severity: "ok",
       message: "No private browser checks configured",
     });
+
     return results;
   }
 
   const content = readTextFile(configFile);
+
   if (content === null) {
     results.push({
       severity: "warn",
       message: `Could not read browser checks file: ${displayPath(configFile)}`,
     });
+
     return results;
   }
 
@@ -59,11 +63,13 @@ export function browserExtensionResults(content: string): CheckResult[] {
 
   for (const rawLine of content.split("\n")) {
     const line = rawLine.trim();
+
     if (!line || line.startsWith("#")) continue;
 
     const [kind, rawProfileDir, target, label, hint] = line
       .split("|")
       .map((s) => s.trim());
+
     if (!kind || !rawProfileDir || !target || !label) continue;
 
     const profileDir = expandHomePath(rawProfileDir);
@@ -77,6 +83,7 @@ export function browserExtensionResults(content: string): CheckResult[] {
     }
 
     const prefsFile = join(profileDir, "Preferences");
+
     if (!existsSync(prefsFile)) {
       results.push({
         severity: "warn",
@@ -86,6 +93,7 @@ export function browserExtensionResults(content: string): CheckResult[] {
     }
 
     const prefs = readTextFile(prefsFile);
+
     if (prefs === null) {
       results.push({
         severity: "warn",
@@ -97,6 +105,7 @@ export function browserExtensionResults(content: string): CheckResult[] {
     const mustBeAbsent = kind.endsWith("-absent");
     const lookupKind = mustBeAbsent ? kind.slice(0, -"-absent".length) : kind;
     let found = false;
+
     if (lookupKind === "chromium-id") {
       // Check by extension ID in extensions.settings
       found = prefs.includes(`"${target}"`);
@@ -159,17 +168,23 @@ function extensionManifestIncludesName(prefs: string, target: string): boolean {
         ),
       }),
     )(JSON.parse(prefs));
+
     const settings = parsed.extensions?.settings;
+
     if (!settings) return false;
+
     for (const ext of Object.values(settings)) {
       if (!ext.path) continue;
       const manifestPath = join(ext.path, "manifest.json");
+
       if (!existsSync(manifestPath)) continue;
       const manifest = readTextFile(manifestPath);
+
       if (manifest?.includes(`"name": "${target}"`)) return true;
     }
   } catch {
     return false;
   }
+
   return false;
 }

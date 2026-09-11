@@ -20,15 +20,18 @@ function runBootstrapCommand(
   appendLog: BootstrapLog,
 ): number {
   appendLog(`\n$ ${command.join(" ")}\n`);
+
   const proc = Bun.spawnSync([...command], {
     stdin: "inherit",
     stdout: "pipe",
     stderr: "pipe",
   });
+
   process.stdout.write(proc.stdout);
   process.stderr.write(proc.stderr);
   appendLog(proc.stdout);
   appendLog(proc.stderr);
+
   return proc.exitCode;
 }
 
@@ -55,6 +58,7 @@ export function bootstrapGhRepoClone(
   appendLog: BootstrapLog,
 ): number {
   mkdirSync(dirname(repoPath), { recursive: true });
+
   return runBootstrapCommand(
     ["gh", "repo", "clone", remote, repoPath],
     appendLog,

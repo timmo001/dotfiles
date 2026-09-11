@@ -141,6 +141,7 @@ export function ufwRulesFilePath(): string {
 /** Build the specs (one per protocol) for a single port rule. */
 function portRuleSpecs(rule: ManagedPortRule): readonly FirewallRuleSpec[] {
   const direction = rule.interface ? `in_${rule.interface}` : "in";
+
   return rule.protocols.map((protocol) => {
     const addArgs = rule.interface
       ? [
@@ -166,6 +167,7 @@ function portRuleSpecs(rule: ManagedPortRule): readonly FirewallRuleSpec[] {
           "port",
           rule.port,
         ];
+
     return {
       addArgs,
       deleteArgs: ["delete", ...addArgs],
@@ -214,11 +216,14 @@ export function parseUfwAllowTuples(
   content: string,
 ): ReadonlyMap<string, UfwTuple> {
   const tuples = new Map<string, UfwTuple>();
+
   for (const line of content.split("\n")) {
     const head = line.match(
       /### tuple ### (\S+) (\S+) (\S+) (\S+) (\S+) (\S+) (\S+)/,
     );
+
     if (!head) continue;
+
     const [
       ,
       action,
@@ -229,6 +234,7 @@ export function parseUfwAllowTuples(
       source,
       direction,
     ] = head;
+
     const commentMatch = line.match(/ comment=([0-9a-fA-F]+)/);
     tuples.set(
       `${action} ${proto} ${port} ${destination} ${destinationPort} ${source} ${direction}`,
@@ -237,13 +243,16 @@ export function parseUfwAllowTuples(
       },
     );
   }
+
   return tuples;
 }
 
 /** Read the currently allowed ufw tuples, or an empty map when unreadable. */
 export function presentUfwTuples(): ReadonlyMap<string, UfwTuple> {
   const filePath = ufwRulesFilePath();
+
   if (!existsSync(filePath)) return new Map();
+
   try {
     return parseUfwAllowTuples(readFileSync(filePath, "utf-8"));
   } catch {
@@ -255,8 +264,10 @@ function unresolvedFirewallSpecs(
   specs: readonly FirewallRuleSpec[],
 ): readonly FirewallRuleSpec[] {
   const present = presentUfwTuples();
+
   return specs.filter((spec) => {
     const tuple = present.get(spec.tupleKey);
+
     return !tuple || tuple.comment !== spec.comment;
   });
 }
@@ -270,12 +281,14 @@ function commandAvailable(
 ): Effect.Effect<boolean, never, CommandExecutor> {
   return Effect.gen(function* () {
     const executor = yield* CommandExecutor;
+
     return (yield* executor.exitCode("which", [command])) === 0;
   });
 }
 
 function shellQuote(value: string): string {
   if (/^[A-Za-z0-9_@%+=:,./-]+$/.test(value)) return value;
+
   return `'${value.replaceAll("'", `'"'"'`)}'`;
 }
 
@@ -318,12 +331,14 @@ export const configureFirewallRules: Effect.Effect<
 
   if (!(yield* commandAvailable("ufw"))) {
     yield* log.warn("Skipping firewall rules (ufw not installed)");
+
     return;
   }
 
   const present = presentUfwTuples();
   const specs = firewallRuleSpecs();
   const toAdd = specs.filter((spec) => !present.has(spec.tupleKey));
+
   const toRecomment = specs.filter(
     (spec) =>
       present.has(spec.tupleKey) &&
@@ -332,6 +347,7 @@ export const configureFirewallRules: Effect.Effect<
 
   if (toAdd.length === 0 && toRecomment.length === 0) {
     yield* log.info("Firewall rules already configured");
+
     return;
   }
 
@@ -353,11 +369,13 @@ export const configureFirewallRules: Effect.Effect<
     "-c",
     firewallSetupScript(commands),
   ]);
+
   if (exitCode !== 0) {
     return yield* fail(`ufw firewall setup exited ${exitCode}`);
   }
 
   const unresolved = unresolvedFirewallSpecs(specs);
+
   if (unresolved.length > 0) {
     return yield* fail(
       `ufw firewall setup did not persist: ${unresolved

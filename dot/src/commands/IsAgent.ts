@@ -11,6 +11,7 @@ export function isAgentCommand(options: {
 }) {
   return Effect.promise(async () => {
     const detection = detectAgent();
+
     if (options.json) {
       process.stdout.write(`${JSON.stringify(detection)}\n`);
     } else if (options.quiet) {
@@ -22,6 +23,7 @@ export function isAgentCommand(options: {
     } else {
       process.stdout.write("No AI agent detected\n");
     }
+
     process.exit(detection.isAgent ? 0 : 1);
   });
 }

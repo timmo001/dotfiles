@@ -24,13 +24,16 @@ type PaneResponse = {
 };
 
 type SessionsResponse = { data: Session[] };
+
 type MessagesResponse = { data: Message[] };
+
 type AnnotationDecision = { decision?: string };
 
 const herdr = process.env.HERDR_BIN_PATH || "herdr";
 
 export function opencodeBinary(home = process.env.HOME): string {
   if (!home) throw new Error("HOME is required to locate the OpenCode wrapper");
+
   return `${home}/.local/bin/opencode2`;
 }
 
@@ -58,10 +61,13 @@ async function run(
     new Response(child.stderr).text(),
     child.exited,
   ]);
+
   if (exitCode !== 0) {
     throw new Error(stderr.trim() || `${command} exited ${exitCode}`);
   }
+
   if (stderr) process.stderr.write(stderr);
+
   return stdout.trim();
 }
 
@@ -97,12 +103,15 @@ export function resolveSession(
   const directoryMatches = sessions.filter(
     (session) => session.location?.directory === directory,
   );
+
   if (directoryMatches.length === 1) return directoryMatches[0];
 
   const title = paneTitle(terminalTitle);
+
   const titleMatches = title
     ? directoryMatches.filter((session) => session.title?.startsWith(title))
     : [];
+
   if (titleMatches.length === 1) return titleMatches[0];
 
   throw new Error(
@@ -115,13 +124,16 @@ export function resolveSession(
 export function lastAssistantText(messages: Message[]): string {
   for (const message of messages) {
     if (message.type !== "assistant") continue;
+
     const text = (message.content || [])
       .filter((part) => part.type === "text" && part.text)
       .map((part) => part.text)
       .join("\n")
       .trim();
+
     if (text) return text;
   }
+
   throw new Error("No assistant response found in the active OpenCode session");
 }
 
@@ -137,23 +149,29 @@ async function deliver(paneId: string, message: string): Promise<void> {
 async function main(): Promise<void> {
   const mode = process.argv[2];
   const paneId = process.env.HERDR_PANE_ID;
+
   if (!paneId) throw new Error("Plannotator requires a focused Herdr pane");
+
   if (mode !== "review" && mode !== "last") {
     throw new Error("Usage: runner.ts review|last");
   }
 
   const pane = parsePaneResponse(await run(herdr, ["pane", "get", paneId])).result
     .pane;
+
   const { cwd } = pane;
+
   if (!cwd) {
     throw new Error("The focused pane has no working directory");
   }
 
   if (mode === "review") {
     const feedback = await run("plannotator", ["review"], { cwd });
+
     if (feedback !== "Review session closed without feedback.") {
       await deliver(paneId, feedback);
     }
+
     return;
   }
 
@@ -162,6 +180,7 @@ async function main(): Promise<void> {
     cwd,
     pane.terminal_title_stripped,
   );
+
   const messages = parseMessages(
     await run(opencode, [
       "api",
@@ -169,12 +188,15 @@ async function main(): Promise<void> {
       `/api/session/${session.id}/message`,
     ]),
   ).data;
+
   const response = await run(
     "plannotator",
     ["annotate-last", "--stdin", "--gate", "--json"],
     { cwd, stdin: lastAssistantText(messages) },
   );
+
   const decision = parseDecision(response);
+
   if (decision.decision !== "dismissed") await deliver(paneId, response);
 }
 

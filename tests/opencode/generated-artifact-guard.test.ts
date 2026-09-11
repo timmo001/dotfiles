@@ -7,6 +7,7 @@ import {
 } from "../../agents/.config/opencode/lib/generated-artifacts";
 
 const root = "/tmp/dotfiles";
+
 const generatedDocs = "docs/src/content/docs/agents/opencode/plugins.md";
 
 describe("generated artefact paths", () => {
@@ -60,6 +61,7 @@ describe("apply_patch mutations", () => {
 *** Move to: ${generatedDocs}
 *** Update File: unrelated.md
 *** End Patch`;
+
     expect(generatedArtifactFromPatch(root, patch)?.path).toBe(generatedDocs);
   });
 
@@ -67,6 +69,7 @@ describe("apply_patch mutations", () => {
     const patch = `*** Begin Patch
 *** Update File: src/content/docs/agents/opencode/plugins.md
 *** End Patch`;
+
     expect(
       generatedArtifactFromPatch(root, patch, resolve(root, "docs"))?.path,
     ).toBe(generatedDocs);

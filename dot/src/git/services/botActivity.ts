@@ -8,7 +8,9 @@ export function textLooksLikeBotActivity(
 ): boolean {
   if (!value) return false;
   const normalized = value.trim().toLowerCase();
+
   if (normalized.length === 0) return false;
+
   return (
     normalized.startsWith("app/") ||
     BOT_TEXT_MARKERS.some((marker) => normalized.includes(marker))
@@ -21,6 +23,7 @@ export function branchLooksLikeBotActivity(
 ): boolean {
   if (!branch) return false;
   const normalized = branch.trim().toLowerCase();
+
   return BOT_BRANCH_PREFIXES.some((prefix) => normalized.startsWith(prefix));
 }
 

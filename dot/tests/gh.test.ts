@@ -1,6 +1,15 @@
 import { expect, test } from "bun:test";
 import { Gh, layer } from "@timmo001/effect-gh";
-import { Deferred, Effect, Fiber, Layer, Sink, Stream } from "effect";
+import {
+  Deferred,
+  Effect,
+  Fiber,
+  Layer,
+  Match,
+  Predicate,
+  Sink,
+  Stream,
+} from "effect";
 import { TestClock } from "effect/testing";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 import { GitHub } from "../src/git/services/GitHub.js";
@@ -19,14 +28,17 @@ const fixture = Effect.fn("test.fixture")(function* (
   const commands: ChildProcess.StandardCommand[] = [];
   const spawned = yield* Deferred.make<void>();
   let releases = 0;
+
   const spawner = Layer.succeed(
     ChildProcessSpawner.ChildProcessSpawner,
     ChildProcessSpawner.make((command) => {
-      if (command._tag !== "StandardCommand")
+      if (!Predicate.isTagged(command, "StandardCommand"))
         return Effect.die("Expected literal gh argv");
+
       return Effect.acquireRelease(
         Effect.sync(() => {
           commands.push(command);
+
           return ChildProcessSpawner.makeHandle({
             pid: ChildProcessSpawner.ProcessId(1),
             exitCode: Effect.succeed(ChildProcessSpawner.ExitCode(0)),
@@ -49,10 +61,13 @@ const fixture = Effect.fn("test.fixture")(function* (
       );
     }),
   );
+
   const sdk = layer().pipe(Layer.provide(spawner));
+
   const executor = Layer.mock(CommandExecutor, {
     exitCode: () => Effect.succeed(0),
   });
+
   return {
     commands,
     spawned,
@@ -68,6 +83,7 @@ test("rate-limit retries retain full stderr, invalidate the cache and stop at th
     Effect.gen(function* () {
       const failed = yield* Deferred.make<void>();
       const stderr = `  rate limit exceeded\n${"x".repeat(70_000)}\n`;
+
       const fake = yield* fixture((command) =>
         command.args[1] === "rate_limit"
           ? { stdout: text("10\t0\n") }
@@ -78,15 +94,18 @@ test("rate-limit retries retain full stderr, invalidate the cache and stop at th
               ),
             },
       );
+
       const github = yield* GitHub.pipe(Effect.provide(fake.github));
+
       const fiber = yield* github
         .run(["api", "user"], { retries: 1 })
         .pipe(Effect.flip, Effect.forkChild);
+
       yield* Deferred.await(failed);
       yield* TestClock.adjust("1 second");
       const error = yield* Fiber.join(fiber);
+      expect(error._tag).toBe("GitHubError");
       expect(error).toMatchObject({
-        _tag: "GitHubError",
         command: "gh api user",
         exitCode: 7,
         stderr: stderr.trim(),
@@ -109,22 +128,22 @@ test("JSON pages, jq output and decode failures keep their existing contracts", 
     Effect.gen(function* () {
       const fake = yield* fixture((command) => ({
         stdout: text(
-          command.args[1] === "rate_limit"
-            ? "10\t0\n"
-            : command.args[1] === "items"
-              ? '[[{"id":1}],[]]'
-              : command.args[1] === "user"
-                ? "  login\n"
-                : "invalid JSON",
+          Match.value(command.args[1]).pipe(
+            Match.when("rate_limit", () => "10\t0\n"),
+            Match.when("items", () => '[[{"id":1}],[]]'),
+            Match.when("user", () => "  login\n"),
+            Match.orElse(() => "invalid JSON"),
+          ),
         ),
       }));
+
       const github = yield* GitHub.pipe(Effect.provide(fake.github));
       const args = ["api", "items", "--paginate", "--slurp"];
       expect(yield* github.json(args)).toEqual([[{ id: 1 }], []]);
       expect(yield* github.api("user", { jq: ".login" })).toBe("login");
       const error = yield* github.json(["api", "bad"]).pipe(Effect.flip);
+      expect(error._tag).toBe("GitHubError");
       expect(error).toMatchObject({
-        _tag: "GitHubError",
         retryable: false,
         rateLimited: false,
       });
@@ -151,12 +170,14 @@ test("captured clone keeps literal args, noninteractive git settings and domain 
         stderr: text("  clone failed\n"),
         exitCode: Effect.succeed(ChildProcessSpawner.ExitCode(3)),
       }));
+
       const error = yield* ghRepoCloneCaptured("owner/repo", "test clone", [
         "--depth",
         "1",
       ]).pipe(Effect.provide(fake.sdk), Effect.flip);
+
+      expect(error._tag).toBe("GitCommandError");
       expect(error).toMatchObject({
-        _tag: "GitCommandError",
         message:
           "gh repo clone owner/repo test clone -- --depth 1 failed with exit 3: clone failed",
       });
@@ -194,12 +215,15 @@ test("caller timeouts interrupt captured gh and release the child scope", async 
         stdout: Stream.never,
         exitCode: Effect.never,
       }));
+
       const gh = yield* Gh.pipe(Effect.provide(fake.sdk));
+
       const fiber = yield* ghOutput(gh, ["api", "user"]).pipe(
         Effect.timeout("5 seconds"),
         Effect.flip,
         Effect.forkChild,
       );
+
       yield* Deferred.await(fake.spawned);
       yield* TestClock.adjust("5 seconds");
       expect((yield* Fiber.join(fiber))._tag).toBe("TimeoutError");
@@ -217,9 +241,11 @@ test("doctor auth drains both pipes without including tokens in its report", asy
         stderr: text("secret-diagnostic"),
         exitCode: Effect.succeed(ChildProcessSpawner.ExitCode(1)),
       }));
+
       const results = yield* checkGithubMcpAuth.pipe(
         Effect.provide(fake.doctor),
       );
+
       expect(results).toEqual([
         {
           severity: "warn",

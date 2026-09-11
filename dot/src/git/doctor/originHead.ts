@@ -44,6 +44,7 @@ function tryGit(
 function parseLocalHeadBranch(symbolicRef: string): string {
   const prefix = `refs/remotes/${REMOTE}/`;
   const trimmed = symbolicRef.trim();
+
   return trimmed.startsWith(prefix) ? trimmed.slice(prefix.length) : "";
 }
 
@@ -54,13 +55,17 @@ function parseLocalHeadBranch(symbolicRef: string): string {
  */
 function parseRemoteHeadBranch(lsRemoteOutput: string): string {
   const headsPrefix = "ref: refs/heads/";
+
   for (const line of lsRemoteOutput.split("\n")) {
     const trimmed = line.trim();
+
     if (trimmed.startsWith(headsPrefix)) {
       const [branch = ""] = trimmed.slice(headsPrefix.length).split("\t");
+
       return branch.trim();
     }
   }
+
   return "";
 }
 
@@ -81,6 +86,7 @@ function checkRepoHead(
         cwd: target.path,
       }).pipe(Effect.catch(() => Effect.succeed(""))),
     );
+
     // No origin remote, offline, timed out, or remote advertises no HEAD.
     if (!remoteBranch) return null;
 
@@ -143,6 +149,7 @@ export const checkOriginHead = Effect.gen(function* () {
     targets.map((target) => checkRepoHead(target)),
     { concurrency: HEAD_CHECK_CONCURRENCY },
   );
+
   const results: CheckResult[] = checked.filter(
     (result): result is CheckResult => result !== null,
   );

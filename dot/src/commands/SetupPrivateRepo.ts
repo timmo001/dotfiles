@@ -23,9 +23,13 @@ import {
 import type { PrivatePackageRepoConfig } from "../doctor/checks/packages.js";
 
 const PRIVATE_PACKAGE_REPO_CLONE_TIMEOUT_SECONDS = 3 * 60;
+
 const PRIVATE_PACKAGE_REPO_MKDIR_TIMEOUT_SECONDS = 60;
+
 const PRIVATE_PACKAGE_REPO_RSYNC_TIMEOUT_SECONDS = 5 * 60;
+
 const PRIVATE_PACKAGE_REPO_CONFIG_TIMEOUT_SECONDS = 60;
+
 const PRIVATE_PACKAGE_REPO_REFRESH_TIMEOUT_SECONDS = 5 * 60;
 
 /** Domain error for private pacman repository setup failures. */
@@ -87,6 +91,7 @@ function runPrivateRepoStep<R>(
 ): Effect.Effect<void, SetupPrivateRepoError, R | OutputLog> {
   return Effect.gen(function* () {
     const completed = yield* withStepTimeout(label, seconds, step);
+
     if (!completed) {
       return yield* fail(
         `Private package repo step timed out after ${seconds}s: ${label}`,
@@ -107,6 +112,7 @@ function runElevatedPrivateRepoCommand(
     seconds,
     Effect.gen(function* () {
       const exitCode = yield* runElevated(command, args);
+
       if (exitCode !== 0) return yield* fail(failureMessage(exitCode));
     }),
   );
@@ -129,6 +135,7 @@ function clonePrivatePackageRepo(
 ): Effect.Effect<void, SetupPrivateRepoError, Gh | OutputLog> {
   return Effect.gen(function* () {
     if (existsSync(repo.path)) return;
+
     if (!repo.remote) {
       return yield* fail(
         `Missing private package repo source clone: ${displayPath(repo.path)}`,
@@ -147,8 +154,10 @@ function clonePrivatePackageRepo(
         ),
       ),
     );
+
     if (Option.isNone(cloned)) {
       yield* removePartialClone(repo).pipe(Effect.ignore);
+
       return yield* fail(
         `Private package repo clone timed out after ${PRIVATE_PACKAGE_REPO_CLONE_TIMEOUT_SECONDS}s`,
       );
@@ -177,7 +186,9 @@ function writeTempPrivatePacmanRepoConfig(
         envString(ENV.TMPDIR) ?? "/tmp",
         `dot-private-pacman-${process.pid}.conf`,
       );
+
       writeFileSync(tempPath, privatePackageRepoConfigContents(repo));
+
       return tempPath;
     },
     catch: (error) =>
@@ -195,6 +206,7 @@ function syncPrivatePackageRepoMirror(
     const log = yield* OutputLog;
 
     yield* log.section("Sync private package repo mirror");
+
     if (!existsSync(repo.path)) {
       return yield* fail(
         `Missing private package repo source clone: ${displayPath(repo.path)}`,
@@ -274,6 +286,7 @@ function registerPrivatePacmanRepoInclude(): Effect.Effect<
 > {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
+
     if (privatePackageRepoIncludeRegistered()) return;
 
     yield* log.section("Register private pacman repo include");
@@ -304,11 +317,13 @@ export const setupPrivatePackageRepo = (
 > =>
   Effect.gen(function* () {
     const log = yield* OutputLog;
+
     if (!existsSync(repo.path) && privatePackageRepoInstalled(repo)) {
       yield* log.info(
         "Private pacman repo already configured; skipping source clone",
       );
       yield* refreshPrivatePacmanMetadata();
+
       return;
     }
 
@@ -335,6 +350,7 @@ export const setupPrivateRepo = Effect.gen(function* () {
   }
 
   const repo = loadPrivatePackageRepoConfig(config);
+
   if (!repo) {
     return yield* fail("Missing private package repo config");
   }

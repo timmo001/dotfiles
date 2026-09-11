@@ -18,8 +18,10 @@ export const checkGhExtensions = Effect.gen(function* () {
   const results: CheckResult[] = [];
 
   const desired = loadGhExtensions(ghExtensionsListPath(config));
+
   if (desired.length === 0) {
     results.push({ severity: "ok", message: "No gh extensions configured" });
+
     return results;
   }
 
@@ -28,15 +30,18 @@ export const checkGhExtensions = Effect.gen(function* () {
       severity: "warn",
       message: `gh is missing; cannot verify ${desired.length} configured extensions`,
     });
+
     return results;
   }
 
   const listed = yield* ghOutput(gh, ["extension", "list"]).pipe(
     Effect.catch(() => Effect.succeed("")),
   );
+
   const installed = parseInstalledGhExtensions(listed);
 
   const missing: string[] = [];
+
   for (const repo of desired) {
     if (installed.has(repo.toLowerCase())) {
       results.push({ severity: "ok", message: `${repo} is installed` });

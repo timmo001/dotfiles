@@ -23,6 +23,7 @@ import {
 } from "../../services/GitConfig.js";
 
 const DEBUG = !!envString(ENV.DOT_DEBUG);
+
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot:DotDiff] ${msg}`);
 };
@@ -32,8 +33,11 @@ const log = (msg: string) => {
 // ---------------------------------------------------------------------------
 
 const FETCH_TTL_SECONDS = envInt(ENV.DOT_FETCH_TTL_SECONDS, 300);
+
 const FETCH_TIMEOUT_SECONDS = 20;
+
 const FETCH_TIMEOUT = Duration.seconds(FETCH_TIMEOUT_SECONDS);
+
 const FETCH_CACHE_DIR = join(CACHE_DIR, "dot", "fetch-upstream");
 
 /** Check if a fetch is needed based on TTL cache */
@@ -45,18 +49,22 @@ function shouldFetch(
   if (FETCH_TTL_SECONDS <= 0) return true;
 
   mkdirSync(FETCH_CACHE_DIR, { recursive: true });
+
   const cacheKey = createHash("sha1")
     .update(`${repoPath}\n${upstreamRef}\n`)
     .digest("hex");
+
   const cacheFile = join(FETCH_CACHE_DIR, cacheKey);
 
   try {
     const lastAttempt = parseInt(readFileSync(cacheFile, "utf-8").trim(), 10);
+
     if (!isNaN(lastAttempt)) {
       if (nowSeconds - lastAttempt < FETCH_TTL_SECONDS) {
         log(
           `${repoPath}: fetch cache hit (${nowSeconds - lastAttempt}s < ${FETCH_TTL_SECONDS}s TTL)`,
         );
+
         return false;
       }
     }
@@ -77,9 +85,11 @@ function recordFetch(
 
   try {
     mkdirSync(FETCH_CACHE_DIR, { recursive: true });
+
     const cacheKey = createHash("sha1")
       .update(`${repoPath}\n${upstreamRef}\n`)
       .digest("hex");
+
     const cacheFile = join(FETCH_CACHE_DIR, cacheKey);
     writeFileSync(cacheFile, `${nowSeconds}\n`);
   } catch {
@@ -141,6 +151,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
           path: string;
           category: RepoCategory;
         }> = [];
+
         const { repoBase, diffRepos, worktreeRepos, worktreeBranches } =
           config.omarchy;
 
@@ -154,6 +165,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
 
           // Check for worktree branches
           if (!worktreeRepos.includes(repoName)) continue;
+
           if (!isGitRepo(repoPath)) continue;
 
           // Get current branch to skip it in worktree enumeration
@@ -186,7 +198,9 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
           path: string;
           category: RepoCategory;
         }> = [];
+
         const seenPaths = new Set<string>();
+
         const addRepo = (repo: {
           name: string;
           path: string;
@@ -228,6 +242,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
 
         // Omarchy repos
         const omarchyTargets = discoverOmarchyRepos();
+
         for (const target of omarchyTargets) {
           if (existsSync(target.path)) {
             addRepo(target);
@@ -239,9 +254,11 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
           const configured = scheduledOnly
             ? activeGitReposForCheck(config.gitConfig, "activity")
             : enabledGitReposForCheck(config.gitConfig, "activity");
+
           const visible = [...configured].sort((a, b) =>
             a.name.localeCompare(b.name),
           );
+
           for (const extra of visible) {
             if (existsSync(extra.path)) {
               addRepo({
@@ -265,6 +282,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
       ): Effect.fn.Return<DiffRepo | null, DotDiffError> {
         if (!isGitRepo(repoPath)) {
           log(`${name}: not a git repo, skipping`);
+
           return null;
         }
 
@@ -279,6 +297,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
           .trim()
           .split("\n")
           .filter((l) => l.length > 0);
+
         const modified = statusLines.length;
         const isDirty = modified > 0;
 
@@ -303,12 +322,15 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
               .pipe(Effect.catch(() => Effect.succeed("")));
 
             const trimmedRef = upstreamRef.trim();
+
             const nowSeconds = Math.floor(
               (yield* Clock.currentTimeMillis) / 1000,
             );
+
             if (trimmedRef && shouldFetch(repoPath, trimmedRef, nowSeconds)) {
               const [remoteName] = trimmedRef.split("/", 1);
               const remoteBranch = trimmedRef.slice(remoteName.length + 1);
+
               const fetchExit = yield* executor
                 .exitCode(
                   "env",
@@ -345,12 +367,14 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
                     { cwd: repoPath },
                   )
                   .pipe(Effect.timeoutOption(FETCH_TIMEOUT));
+
                 if (Option.isNone(fallbackExit)) {
                   yield* outputLog.warn(
                     `Fallback fetch timed out after ${FETCH_TIMEOUT_SECONDS}s for ${name}: ${displayPath(repoPath)}`,
                   );
                 }
               }
+
               recordFetch(repoPath, trimmedRef, nowSeconds);
             }
           }
@@ -360,6 +384,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
               cwd: repoPath,
             })
             .pipe(Effect.catch(() => Effect.succeed("0")));
+
           ahead = parseInt(aheadStr.trim(), 10) || 0;
 
           const behindStr = yield* executor
@@ -367,6 +392,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
               cwd: repoPath,
             })
             .pipe(Effect.catch(() => Effect.succeed("0")));
+
           behind = parseInt(behindStr.trim(), 10) || 0;
         }
 
@@ -395,6 +421,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
 
         const repos = results.filter((r): r is DiffRepo => r !== null);
         log(`Scan complete: ${repos.length} repos found`);
+
         return repos;
       });
 
@@ -403,6 +430,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
         listAll: () =>
           Effect.sync(() => {
             const repoList = buildRepoList();
+
             return repoList
               .filter((r) => isGitRepo(r.path))
               .map((r) => ({ name: r.name, path: r.path, locked: false }));
@@ -410,6 +438,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
         listChanged: (opts) =>
           Effect.gen(function* () {
             const all = yield* getAll(opts);
+
             return all
               .filter((r) => r.isDirty || r.ahead > 0 || r.behind > 0)
               .map((r) => ({ name: r.name, path: r.path, locked: false }));

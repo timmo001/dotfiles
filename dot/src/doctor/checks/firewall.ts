@@ -24,6 +24,7 @@ export const checkFirewall = Effect.gen(function* () {
   const results: CheckResult[] = [];
 
   const hasUfw = (yield* executor.exitCode("which", ["ufw"])) === 0;
+
   if (!hasUfw) {
     results.push({
       severity: "warn",
@@ -31,10 +32,12 @@ export const checkFirewall = Effect.gen(function* () {
       detail:
         "Install ufw and run dot firewall to configure managed firewall rules",
     });
+
     return results;
   }
 
   const rulesPath = ufwRulesFilePath();
+
   if (!existsSync(rulesPath)) {
     results.push({
       severity: "warn",
@@ -42,6 +45,7 @@ export const checkFirewall = Effect.gen(function* () {
       detail:
         "Enable ufw and run dot firewall to configure managed firewall rules",
     });
+
     return results;
   }
 
@@ -51,6 +55,7 @@ export const checkFirewall = Effect.gen(function* () {
 
   for (const spec of firewallRuleSpecs()) {
     const tuple = present.get(spec.tupleKey);
+
     if (!tuple) {
       results.push({
         severity: "warn",

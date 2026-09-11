@@ -31,6 +31,7 @@ export function releasePaths(
   stateRoot = STATE_DIR,
 ) {
   const key = evidenceId(repo.toLowerCase());
+
   return {
     cache: join(cacheRoot, "dot", "git-releases", key),
     state: join(stateRoot, "dot", "git-releases", key),
@@ -83,17 +84,22 @@ export function acceptReleaseSnapshot(
       review,
     };
   }
+
   const currentIds = new Set(candidate.findings.map((fact) => fact.id));
+
   const retained = {
     ...review,
     findings: Object.fromEntries(
       Object.entries(review.findings).filter(([id]) => currentIds.has(id)),
     ),
   };
+
   const snapshot = applyReleaseReview(candidate, retained);
+
   const previous = cache.snapshot
     ? applyReleaseReview(cache.snapshot, review)
     : null;
+
   // Policy upgrades may change automatic impact without changing the reviewed evidence.
   if (
     previous &&
@@ -104,6 +110,7 @@ export function acceptReleaseSnapshot(
       ...retained,
       overall: { ...retained.overall, comparisonId: snapshot.comparisonId },
     };
+
     return {
       cache: {
         ...cache,
@@ -113,6 +120,7 @@ export function acceptReleaseSnapshot(
       review: migrated,
     };
   }
+
   return {
     cache: { ...cache, snapshot, error: null },
     review:
@@ -177,6 +185,7 @@ export const saveReleaseDocument = Effect.fn("releases.saveDocument")(
       try: () => {
         mkdirSync(directory, { recursive: true, mode: 0o700 });
         const temporary = join(directory, `.${name}.${randomUUID()}.tmp`);
+
         try {
           writeFileSync(temporary, JSON.stringify(value), {
             mode: 0o600,
@@ -201,17 +210,20 @@ export function withReleaseLock<A, E, R>(
   effect: Effect.Effect<A, E, R>,
 ): Effect.Effect<A, E | ReleaseError, R> {
   const path = join(paths.state, "write.lock");
+
   const acquire = Effect.gen(function* () {
     yield* Effect.try({
       try: () => mkdirSync(paths.state, { recursive: true, mode: 0o700 }),
       catch: (error) => new ReleaseError({ message: formatCause(error) }),
     });
+
     for (let attempt = 0; attempt < 240; attempt++) {
       const acquired = yield* Effect.try({
         try: () => {
           try {
             const fd = openSync(path, "wx", 0o600);
             closeSync(fd);
+
             return true;
           } catch (error) {
             if (
@@ -228,17 +240,21 @@ export function withReleaseLock<A, E, R>(
             message: `Could not lock release state: ${formatCause(error)}`,
           }),
       });
+
       if (acquired) return;
       yield* Effect.sleep("250 millis");
     }
+
     return yield* new ReleaseError({
       message: `Release state is locked: ${path}. Wait for the active scan; after an interrupted process, remove this file before retrying`,
     });
   });
+
   return Effect.gen(function* () {
     yield* Effect.acquireRelease(acquire, () =>
       Effect.sync(() => unlinkSync(path)),
     );
+
     return yield* effect;
   }).pipe(Effect.scoped);
 }
@@ -253,6 +269,7 @@ export function applyReleaseReview(
     impact: review.findings[fact.id] ?? fact.automaticImpact,
     reviewed: review.findings[fact.id] !== undefined,
   }));
+
   const relevant = findings
     .filter(
       (fact) =>
@@ -262,6 +279,7 @@ export function applyReleaseReview(
     )
     .map((fact) => [fact.id, fact.automaticImpact])
     .sort(([a], [b]) => a.localeCompare(b));
+
   const comparisonId = evidenceId([
     snapshot.repo,
     snapshot.branch,
@@ -269,12 +287,15 @@ export function applyReleaseReview(
     snapshot.policyId,
     relevant,
   ]);
+
   const overall =
     review.overall?.comparisonId === comparisonId
       ? review.overall.impact
       : undefined;
+
   const suggestion =
     overall ?? highestImpact(findings.map((fact) => fact.impact));
+
   const notificationId = evidenceId([
     comparisonId,
     findings
@@ -285,6 +306,7 @@ export function applyReleaseReview(
       .sort(([a], [b]) => a.localeCompare(b)),
     suggestion,
   ]);
+
   const id = evidenceId([
     snapshot.repo,
     snapshot.branch,
@@ -300,6 +322,7 @@ export function applyReleaseReview(
     overall ?? null,
     snapshot.complete,
   ]);
+
   return {
     ...snapshot,
     findings,
@@ -338,13 +361,16 @@ export function reviewRelease(
           ? null
           : { comparisonId: snapshot.comparisonId, impact },
     };
+
   if (!snapshot.findings.some((finding) => finding.id === target))
     throw new ReleaseError({
       message: "Finding is not in this snapshot; refresh the overview",
     });
   const findings = { ...state.findings };
+
   if (impact === "auto") delete findings[target];
   else findings[target] = impact;
+
   return { ...state, findings };
 }
 
@@ -356,6 +382,7 @@ export function releaseNotificationState(
   stale: boolean,
 ): ReleaseReviewState {
   const order: readonly Impact[] = ["none", "patch", "minor", "major"];
+
   const eligible =
     !stale &&
     snapshot.complete &&
@@ -364,6 +391,7 @@ export function releaseNotificationState(
     order.indexOf(snapshot.suggestion) >=
       order.indexOf(settings.notifications.minimum_impact) &&
     review.delivered !== snapshot.notificationId;
+
   return {
     ...review,
     pending: eligible ? snapshot.notificationId : null,

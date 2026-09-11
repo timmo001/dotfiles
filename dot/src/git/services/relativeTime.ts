@@ -15,12 +15,15 @@ export function formatRelativeTimeAgo(
   now: number = Date.now(),
 ): string {
   const time = new Date(value ?? "").getTime();
+
   if (!Number.isFinite(time)) return "unknown";
 
   const seconds = Math.max(0, Math.floor((now - time) / 1000));
+
   const unit = RELATIVE_TIME_UNITS.find(
     (candidate) => seconds < candidate.limit,
   );
+
   return unit
     ? formatRelativeTimeUnit(seconds, unit)
     : formatRelativeDays(seconds);

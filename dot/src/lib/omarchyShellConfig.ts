@@ -101,6 +101,7 @@ export function mergeManagedPluginConfigs(
   privateConfig: ManagedPluginConfig,
 ): ManagedPluginConfig {
   const privateIds = new Set(privateConfig.plugins.map(({ id }) => id));
+
   return {
     remove: [...new Set([...publicConfig.remove, ...privateConfig.remove])],
     plugins: [
@@ -157,6 +158,7 @@ interface MutableManagedPlugin {
 function omarchyDefaultShellConfigPath(): string {
   const base =
     envString(ENV.OMARCHY_PATH) ?? join(HOME_DIR, ".local", "share", "omarchy");
+
   return join(base, "config", "omarchy", "shell.json");
 }
 
@@ -172,10 +174,13 @@ function isBarEntryArray(value: JsonValue): boolean {
 function isShellConfig(value: JsonValue): value is JsonObject {
   if (!isJsonObject(value)) return false;
   const bar = value.bar;
+
   if (bar === undefined || !isJsonObject(bar)) return false;
   const layout = bar.layout;
+
   if (layout === undefined || !isJsonObject(layout)) return false;
   const { left, center, right } = layout;
+
   return (
     isBarEntryArray(left) && isBarEntryArray(center) && isBarEntryArray(right)
   );
@@ -188,12 +193,15 @@ function placeManagedPlugin(
   host: string,
 ): void {
   const placement = plugin.placement;
+
   if (!placement) return;
   let existing: BarEntry | undefined;
+
   for (const entries of [layout.left, layout.center, layout.right]) {
     let index = entries.findIndex(
       (entry) => entry.id === plugin.id || entry.id === plugin.replace,
     );
+
     while (index !== -1) {
       existing ??= entries[index];
       entries.splice(index, 1);
@@ -204,12 +212,15 @@ function placeManagedPlugin(
   }
 
   const entries = layout[placement.section];
+
   const beforeIndex = placement.before
     ? entries.findIndex((entry) => entry.id === placement.before)
     : -1;
+
   const afterIndex = placement.after
     ? entries.findIndex((entry) => entry.id === placement.after)
     : -1;
+
   const index =
     beforeIndex !== -1
       ? beforeIndex
@@ -218,11 +229,15 @@ function placeManagedPlugin(
         : placement.index === undefined
           ? entries.length
           : Math.min(placement.index, entries.length);
+
   const entry: BarEntry = { id: plugin.id };
+
   if (plugin.inheritSettings !== false && existing)
     Object.assign(entry, existing);
   entry.id = plugin.id;
+
   if (plugin.settings) Object.assign(entry, plugin.settings);
+
   if (plugin.hosts?.[host]) Object.assign(entry, plugin.hosts[host]);
   entries.splice(index, 0, entry);
 }
@@ -233,17 +248,21 @@ export function parseManagedPlugins(
 ): ManagedPluginConfig | null {
   if (!isJsonObject(value)) return null;
   const { remove, plugins } = value;
+
   if (
     !Array.isArray(remove) ||
     !remove.every((id) => isString(id) && isPluginId(id))
   )
     return null;
+
   if (!Array.isArray(plugins)) return null;
 
   const parsed: ManagedPlugin[] = [];
   const ids = new Set<string>();
+
   for (const plugin of plugins) {
     if (!isJsonObject(plugin)) return null;
+
     const {
       id,
       enabled,
@@ -254,53 +273,76 @@ export function parseManagedPlugins(
       settings,
       hosts,
     } = plugin;
+
     if (!isString(id) || !isPluginId(id) || ids.has(id)) return null;
     ids.add(id);
+
     if (enabled !== undefined && !isBoolean(enabled)) return null;
+
     if (managed !== undefined && !isBoolean(managed)) return null;
+
     if (replace !== undefined && !isPluginId(replace)) return null;
+
     if (inheritSettings !== undefined && !isBoolean(inheritSettings))
       return null;
+
     if (settings !== undefined && !isSettings(settings)) return null;
+
     if (
       hosts !== undefined &&
       (!isJsonObject(hosts) || !Object.values(hosts).every(isSettings))
     )
       return null;
     const parsedPlugin: MutableManagedPlugin = { id };
+
     if (enabled !== undefined && isBoolean(enabled))
       parsedPlugin.enabled = enabled;
+
     if (placement !== undefined) {
       if (!isJsonObject(placement)) return null;
       const { section, before, after, index } = placement;
+
       if (section !== "left" && section !== "center" && section !== "right")
         return null;
+
       if (before !== undefined && !isString(before)) return null;
+
       if (after !== undefined && !isString(after)) return null;
+
       if (before !== undefined && after !== undefined) return null;
+
       if (
         index !== undefined &&
         (!isNumber(index) || !Number.isInteger(index) || index < 0)
       )
         return null;
+
       if (index !== undefined && (before !== undefined || after !== undefined))
         return null;
       const parsedPlacement: MutablePluginPlacement = { section };
+
       if (before !== undefined) parsedPlacement.before = before;
+
       if (after !== undefined) parsedPlacement.after = after;
+
       if (index !== undefined && isNumber(index)) parsedPlacement.index = index;
       parsedPlugin.placement = parsedPlacement;
     } else if (replace !== undefined || inheritSettings !== undefined) {
       return null;
     }
+
     if (managed !== undefined && isBoolean(managed))
       parsedPlugin.managed = managed;
+
     if (replace !== undefined && isString(replace))
       parsedPlugin.replace = replace;
+
     if (inheritSettings !== undefined && isBoolean(inheritSettings))
       parsedPlugin.inheritSettings = inheritSettings;
+
     if (settings !== undefined && isSettings(settings))
       parsedPlugin.settings = settings;
+
     if (hosts !== undefined && isJsonObject(hosts)) {
       parsedPlugin.hosts = Object.fromEntries(
         Object.entries(hosts).filter((entry): entry is [string, JsonObject] =>
@@ -308,8 +350,10 @@ export function parseManagedPlugins(
         ),
       );
     }
+
     parsed.push(parsedPlugin);
   }
+
   return { remove, plugins: parsed };
 }
 
@@ -353,6 +397,7 @@ export function mergeOmarchyShellConfig(
   ]) {
     for (const id of managedPlugins.remove) {
       let index = entries.findIndex((entry) => entry.id === id);
+
       while (index !== -1) {
         entries.splice(index, 1);
         index = entries.findIndex((entry) => entry.id === id);
@@ -362,16 +407,20 @@ export function mergeOmarchyShellConfig(
 
   for (const plugin of managedPlugins.plugins) {
     if (plugin.enabled === false) continue;
+
     if (plugin.placement) {
       placeManagedPlugin(base.bar.layout, plugin, host);
     } else {
       base.plugins ??= [];
       let entry = base.plugins.find(({ id }) => id === plugin.id);
+
       if (!entry) {
         entry = { id: plugin.id };
         base.plugins.push(entry);
       }
+
       if (plugin.settings) Object.assign(entry, plugin.settings);
+
       if (plugin.hosts?.[host]) Object.assign(entry, plugin.hosts[host]);
       entry.id = plugin.id;
     }
@@ -405,26 +454,32 @@ export const applyOmarchyShellConfig: Effect.Effect<
   if (!config.omarchy.enabled) return false;
 
   const host = resolvedOmarchyHost(config);
+
   if (!host) {
     yield* log.info(
       "Skipping Omarchy shell config (OMARCHY_HOST and Hypr host link are unset)",
     );
+
     return false;
   }
 
   const omarchyDir = join(CONFIG_DIR, "omarchy");
+
   if (!existsSync(omarchyDir)) {
     yield* log.info(
       `Skipping Omarchy shell config (${displayPath(omarchyDir)} not found)`,
     );
+
     return false;
   }
 
   const defaultPath = omarchyDefaultShellConfigPath();
+
   if (!existsSync(defaultPath)) {
     yield* log.info(
       `Skipping Omarchy shell config (no default at ${displayPath(defaultPath)}; pre-Omarchy 4?)`,
     );
+
     return false;
   }
 
@@ -435,10 +490,12 @@ export const applyOmarchyShellConfig: Effect.Effect<
       return undefined;
     }
   });
+
   if (parsed === undefined) {
     yield* log.warn(
       `Skipping Omarchy shell config (could not read ${displayPath(defaultPath)})`,
     );
+
     return false;
   }
 
@@ -446,6 +503,7 @@ export const applyOmarchyShellConfig: Effect.Effect<
     yield* log.warn(
       `Skipping Omarchy shell config (unexpected default shape in ${displayPath(defaultPath)})`,
     );
+
     return false;
   }
 
@@ -453,6 +511,7 @@ export const applyOmarchyShellConfig: Effect.Effect<
     config.publicDotfiles,
     "omarchy-plugins.json",
   );
+
   let managedPlugins = yield* Effect.sync((): ManagedPluginConfig | null => {
     try {
       return parseManagedPlugins(
@@ -462,10 +521,12 @@ export const applyOmarchyShellConfig: Effect.Effect<
       return null;
     }
   });
+
   if (managedPlugins === null) {
     yield* log.warn(
       `Skipping Omarchy shell config (invalid managed plugin registry at ${displayPath(managedPluginsPath)})`,
     );
+
     return false;
   }
 
@@ -474,6 +535,7 @@ export const applyOmarchyShellConfig: Effect.Effect<
       config.privateDotfiles,
       "omarchy-plugins.json",
     );
+
     if (existsSync(privateManagedPluginsPath)) {
       const privateManagedPlugins = yield* Effect.sync(
         (): ManagedPluginConfig | null => {
@@ -488,12 +550,15 @@ export const applyOmarchyShellConfig: Effect.Effect<
           }
         },
       );
+
       if (privateManagedPlugins === null) {
         yield* log.warn(
           `Skipping Omarchy shell config (invalid private managed plugin registry at ${displayPath(privateManagedPluginsPath)})`,
         );
+
         return false;
       }
+
       managedPlugins = mergeManagedPluginConfigs(
         managedPlugins,
         privateManagedPlugins,
@@ -502,26 +567,31 @@ export const applyOmarchyShellConfig: Effect.Effect<
   }
 
   const target = join(omarchyDir, "shell.json");
+
   // SAFETY: isShellConfig validates the ShellConfig fields consumed here.
   const merged = mergeOmarchyShellConfig(
     parsed as ShellConfig,
     host,
     managedPlugins,
   );
+
   const rendered = `${JSON.stringify(merged, null, 2)}\n`;
 
   const existing = existsSync(target)
     ? yield* Effect.sync(() => readFileSync(target, "utf-8"))
     : null;
+
   if (existing === rendered) {
     yield* log.info(
       `Omarchy shell config up to date: ${displayPath(target)} (host: ${host})`,
     );
+
     return false;
   }
 
   yield* Effect.sync(() => {
     const temporary = `${target}.dot-${process.pid}`;
+
     try {
       writeFileSync(temporary, rendered, { mode: 0o600 });
       chmodSync(temporary, 0o600);
@@ -533,5 +603,6 @@ export const applyOmarchyShellConfig: Effect.Effect<
   yield* log.info(
     `Wrote Omarchy shell config: ${displayPath(target)} (host: ${host})`,
   );
+
   return true;
 });

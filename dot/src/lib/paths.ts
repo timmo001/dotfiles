@@ -25,6 +25,7 @@ export function expandHomePath(path: string): string {
 /** Display an absolute path relative to the current user's home directory. */
 export function displayPath(path: string): string {
   if (path === HOME_DIR) return "~";
+
   return path.startsWith(`${HOME_DIR}/`)
     ? `~${path.slice(HOME_DIR.length)}`
     : path;

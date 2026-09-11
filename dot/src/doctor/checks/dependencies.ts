@@ -54,6 +54,7 @@ export const checkDependencies = Effect.gen(function* () {
 
   for (const tool of TOOLS) {
     const exit = yield* executor.exitCode("which", [tool.name]);
+
     if (exit === 0) {
       results.push({
         severity: "ok",
@@ -84,11 +85,14 @@ export const checkDependencies = Effect.gen(function* () {
 
   // gh authentication check
   const ghAvailable = yield* github.isAvailable();
+
   if (ghAvailable) {
     const ghUser = yield* github
       .api("user", { jq: ".login" })
       .pipe(Effect.catch(() => Effect.succeed("")));
+
     const username = ghUser.trim();
+
     if (username) {
       results.push({
         severity: "ok",

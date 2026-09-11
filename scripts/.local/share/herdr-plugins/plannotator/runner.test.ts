@@ -11,6 +11,7 @@ describe("resolveSession", () => {
     title: "First task",
     location: { directory: "/repo" },
   };
+
   const second = {
     id: "two",
     title: "Second task",

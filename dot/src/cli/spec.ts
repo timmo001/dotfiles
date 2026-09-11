@@ -22,7 +22,10 @@ import { install } from "../commands/Install.js";
 import { isAgentCommand } from "../commands/IsAgent.js";
 import { launchFloatingWebapp } from "../commands/LaunchFloatingWebapp.js";
 import { notesCaptureSync } from "../commands/NotesCaptureSync.js";
-import { omarchyPlugin } from "../commands/OmarchyPlugin.js";
+import {
+  omarchyPlugin,
+  OmarchyPluginInput,
+} from "../commands/OmarchyPlugin.js";
 import { updatesRefresh, updatesStatus } from "../commands/Updates.js";
 import { privatePkgPublish } from "../commands/PrivatePkgPublish.js";
 import { setupPrivateRepo } from "../commands/SetupPrivateRepo.js";
@@ -85,10 +88,13 @@ const bool = (name: string, description: string) =>
     Flag.withDefault(false),
     Flag.withDescription(description),
   );
+
 const text = (name: string, description: string) =>
   Flag.string(name).pipe(Flag.optional, Flag.withDescription(description));
+
 const optionalBool = (name: string, description: string) =>
   Flag.boolean(name).pipe(Flag.optional, Flag.withDescription(description));
+
 const pathFlag = (
   name: string,
   description: string,
@@ -98,11 +104,13 @@ const pathFlag = (
     Flag.optional,
     Flag.withDescription(description),
   );
+
 const integer = (name: string, description: string, value: number) =>
   Flag.integer(name).pipe(
     Flag.withDefault(value),
     Flag.withDescription(description),
   );
+
 const optional = <A>(value: Option.Option<A>): A | undefined =>
   Option.getOrUndefined(value);
 
@@ -113,16 +121,21 @@ export const cliBuiltIns = [GlobalFlag.Help] as const;
 export function normalizeCliArgs(args: readonly string[]): readonly string[] {
   if (args[0] !== "git-notifications") return args;
   const sinceIndex = args.indexOf("--since");
+
   if (sinceIndex < 0) return args;
   let end = sinceIndex + 1;
+
   while (end < args.length && !args[end].startsWith("--")) end++;
+
   if (end <= sinceIndex + 2) return args;
+
   return [
     ...args.slice(0, sinceIndex + 1),
     args.slice(sinceIndex + 1, end).join(" "),
     ...args.slice(end),
   ];
 }
+
 const describe = <C extends Command.Command.Any>(
   command: C,
   description: string,
@@ -134,6 +147,7 @@ const describe = <C extends Command.Command.Any>(
     Command.withShortDescription(description.split("\n", 1)[0]),
     Command.withExamples(examples.map((example) => ({ command: example }))),
   );
+
   // SAFETY: Metadata and annotation combinators preserve command input, error, and service types.
   return (
     docs ? described.pipe(Command.annotate(CliDocsAnnotation, docs)) : described
@@ -379,16 +393,18 @@ const pluginAdd = describe(
       after: text("after", "Place after this plugin"),
     },
     (input) =>
-      omarchyPlugin({
-        _tag: "add",
-        ...input,
-        section: optional(input.section),
-        before: optional(input.before),
-        after: optional(input.after),
-      }),
+      omarchyPlugin(
+        OmarchyPluginInput.add({
+          ...input,
+          section: optional(input.section),
+          before: optional(input.before),
+          after: optional(input.after),
+        }),
+      ),
   ),
   "Import a validated plugin checkout",
 );
+
 const pluginUpdate = describe(
   Command.make(
     "update",
@@ -404,14 +420,16 @@ const pluginUpdate = describe(
       yes: bool("yes", "Update without confirmation"),
     },
     ({ confirm, id, yes }) =>
-      omarchyPlugin({
-        _tag: "update",
-        id: optional(id),
-        yes: yes || Option.getOrUndefined(confirm) === "1",
-      }),
+      omarchyPlugin(
+        OmarchyPluginInput.update({
+          id: optional(id),
+          yes: yes || Option.getOrUndefined(confirm) === "1",
+        }),
+      ),
   ),
   "Update one or all managed plugins",
 );
+
 const pluginRemove = describe(
   Command.make(
     "remove",
@@ -434,15 +452,17 @@ const pluginRemove = describe(
       ),
     },
     ({ confirm, id, noCommitOffer, save, yes }) =>
-      omarchyPlugin({
-        _tag: "remove",
-        id,
-        yes: yes || Option.getOrUndefined(confirm) === "1",
-        offerCommit: !noCommitOffer && Option.getOrUndefined(save) !== "0",
-      }),
+      omarchyPlugin(
+        OmarchyPluginInput.remove({
+          id,
+          yes: yes || Option.getOrUndefined(confirm) === "1",
+          offerCommit: !noCommitOffer && Option.getOrUndefined(save) !== "0",
+        }),
+      ),
   ),
   "Remove a managed plugin",
 );
+
 const omarchyPluginCommand = describe(
   Command.make("omarchy-plugin").pipe(
     Command.withSubcommands([pluginAdd, pluginUpdate, pluginRemove]),
@@ -487,10 +507,15 @@ const gitDiffCommand = describe(
     },
     ({ barJson, listAll, listChanged, noFetch, panelJson }) => {
       const options = noFetch ? { noFetch: true } : undefined;
+
       if (barJson) return diffBarJson(options);
+
       if (panelJson) return diffPanelJson(options);
+
       if (listChanged) return diffListChanged(options);
+
       if (listAll) return diffListAll;
+
       return diffRaw(options);
     },
   ),
@@ -523,6 +548,7 @@ const releaseActionFlags = {
   ),
   panelJson: bool("panel-json", "Return the updated complete JSON snapshot"),
 };
+
 const gitReleasesCommand = describe(
   Command.make(
     "git-releases",
@@ -546,6 +572,7 @@ const gitReleasesCommand = describe(
     ({ repo, scheduled, refresh, notify, open, panelJson }) =>
       Effect.gen(function* () {
         if (open) return yield* releasesOpenShell(optional(repo));
+
         return yield* releasesQuery(
           { repo: optional(repo), scheduled, refresh, notify },
           panelJson,
@@ -715,6 +742,7 @@ export function parseSinceValue(value: string, now = Date.now()): string {
   const relative = value.match(
     /^(\d+)\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days|w|week|weeks)(?:\s+ago)?$/i,
   );
+
   const units = {
     s: 1_000,
     m: 60_000,
@@ -722,7 +750,9 @@ export function parseSinceValue(value: string, now = Date.now()): string {
     d: 86_400_000,
     w: 604_800_000,
   } as const;
+
   const unit = relative?.[2].toLowerCase();
+
   const multiplier = unit?.startsWith("s")
     ? units.s
     : unit?.startsWith("m")
@@ -732,6 +762,7 @@ export function parseSinceValue(value: string, now = Date.now()): string {
         : unit?.startsWith("d")
           ? units.d
           : units.w;
+
   const timestamp = /^\d+$/.test(value)
     ? Number(value) < 10_000_000_000
       ? Number(value) * 1000
@@ -739,10 +770,12 @@ export function parseSinceValue(value: string, now = Date.now()): string {
     : relative
       ? now - Number(relative[1]) * multiplier
       : Date.parse(value);
+
   if (!Number.isFinite(timestamp))
     throw new Error(
       "Expected an ISO/RFC date, epoch timestamp, or relative duration",
     );
+
   return new Date(timestamp).toISOString();
 }
 
@@ -751,6 +784,7 @@ const since = Flag.string("since").pipe(
   Flag.withDescription("Only include notifications updated after this date"),
   Flag.optional,
 );
+
 const gitNotificationsCommand = describe(
   Command.make(
     "git-notifications",
@@ -786,6 +820,7 @@ const gitNotificationsCommand = describe(
                 ...(Option.isSome(input.since) && { since: input.since.value }),
               }
             : undefined;
+
         for (const [value, action] of [
           [input.markRead, "read"],
           [input.markDone, "done"],
@@ -794,13 +829,18 @@ const gitNotificationsCommand = describe(
         ] as const)
           if (Option.isSome(value))
             return yield* notificationsAction(action, value.value);
+
         if (input.markBotRead)
           return yield* notificationsMarkBotRead(options, {
             dryRun: input.dryRun,
           });
+
         if (input.barJson) return yield* notificationsBarJson(options);
+
         if (input.listThreads) return yield* notificationsListThreads(options);
+
         if (input.raw || options) return yield* notificationsRaw(options);
+
         return yield* notificationsOpenShell;
       }),
   ),
@@ -952,6 +992,7 @@ const skillsValidate = describe(
   Command.make("validate", {}, () => runSkillsMaintenance(["validate"])),
   "Validate the standalone skills repository",
 );
+
 const skillsImport = describe(
   Command.make(
     "import",
@@ -976,6 +1017,7 @@ const skillsImport = describe(
   ),
   "Import or refresh a reviewed skill snapshot",
 );
+
 const skillsUpdates = describe(
   Command.make(
     "updates",
@@ -1004,6 +1046,7 @@ const skillsUpdates = describe(
     "dot skills updates --update --skill browser-control --no-commit",
   ],
 );
+
 const skillsCheck = describe(
   Command.make(
     "check",
@@ -1023,6 +1066,7 @@ const skillsCheck = describe(
   "Check adapted imports against upstream",
   ["dot skills check --skill browser-control"],
 );
+
 const skillsAgentGitHub = describe(
   Command.make(
     "github",
@@ -1044,6 +1088,7 @@ const skillsAgentGitHub = describe(
   ),
   "Run GitHub skill update automation",
 );
+
 const skillsAgentDevice = describe(
   Command.make(
     "device",
@@ -1064,12 +1109,14 @@ const skillsAgentDevice = describe(
   ),
   "Run local device skill update automation",
 );
+
 const skillsUpdatesAgent = describe(
   Command.make("updates-agent").pipe(
     Command.withSubcommands([skillsAgentGitHub, skillsAgentDevice]),
   ),
   "Run skill update automation",
 );
+
 const skillsCommand = describe(
   Command.make("skills").pipe(
     Command.withSubcommands([
@@ -1106,6 +1153,7 @@ const completionsCommand = describe(
       "Generate shell completions for dot. By default this writes the managed dot and skill-maintenance completion files for the selected shell so the next dot stow installs them. Pass --stdout to print only dot completions.",
   },
 );
+
 const isAgent = describe(
   Command.make(
     "is-agent",
@@ -1135,6 +1183,7 @@ const isAgent = describe(
     ],
   },
 );
+
 const repoInductCommand = describe(
   Command.make(
     "repo-induct",
@@ -1218,6 +1267,7 @@ const repoInductCommand = describe(
       "The terminal wizard asks for Normal (first and default) or Home Assistant, then every repository field using private dot-git-presets.yml defaults and local Git identity. Flags prefill the wizard. With --noninteractive, flags override preset defaults and the command only previews; repeat the reviewed options with --commit to save. Each run validates the complete config and shows the exact diff. The config must be tracked and clean; active commit hooks are refused. Existing entries and formatting are preserved. Commits through dot git-commit without pushing or including unrelated staged files. Repositories already inducted are rejected; use agent-oxlint --opt-in to enable their agent pass.",
   },
 );
+
 const agentOxlintCommand = describe(
   Command.make(
     "agent-oxlint",
@@ -1264,6 +1314,7 @@ const agentOxlintCommand = describe(
     ],
   },
 );
+
 const floating = describe(
   Command.make(
     "launch-floating-webapp",
@@ -1304,6 +1355,7 @@ const floating = describe(
     ],
   },
 );
+
 const herdrRepoOpenCommand = describe(
   Command.make(
     "repo-open",
@@ -1357,10 +1409,12 @@ const herdrRepoOpenCommand = describe(
     ],
   },
 );
+
 const herdrStartCommand = describe(
   Command.make("start", {}, () => herdrStart),
   "Start the default Herdr server with the desktop autostart launch context",
 );
+
 const herdrRestartCommand = describe(
   Command.make(
     "restart",
@@ -1370,6 +1424,7 @@ const herdrRestartCommand = describe(
   "Restart the default Herdr server only when its panes are idle shells. Run outside Herdr; --check also works inside it. Lists active agents, commands, and background jobs, then exits if blocked.",
   ["dot herdr restart --check", "dot herdr restart"],
 );
+
 const herdrStopCommand = describe(
   Command.make(
     "stop",
@@ -1379,6 +1434,7 @@ const herdrStopCommand = describe(
   "Stop the default Herdr server only when its panes are idle shells. Run outside Herdr; --check also works inside it. Lists active agents, commands, and background jobs, then exits if blocked.",
   ["dot herdr stop --check", "dot herdr stop"],
 );
+
 const herdr = describe(
   Command.make("herdr").pipe(
     Command.withSubcommands([
@@ -1400,6 +1456,7 @@ const herdr = describe(
   ),
   "Manage the shared Herdr server and repository workspaces",
 );
+
 const relayout = describe(
   Command.make(
     "workspace-relayout",
@@ -1408,6 +1465,7 @@ const relayout = describe(
   ),
   "Apply or capture a Hyprland workspace layout",
 );
+
 const setupWorkspace = describe(
   Command.make(
     "workspace-setup",
@@ -1459,6 +1517,7 @@ const setupWorkspace = describe(
     "dot workspace-setup --mode=normal",
   ],
 );
+
 const usageCommand = describe(
   Command.make(
     "usage",
@@ -1507,19 +1566,24 @@ const usageCommand = describe(
     ],
   },
 );
+
 function showHelp(command: Option.Option<string>): Effect.Effect<void> {
   return Effect.gen(function* () {
     const target = Option.isSome(command)
       ? getCliCommand(command.value)
       : dotCommand;
+
     const formatter = yield* CliOutput.Formatter;
+
     const path =
       target === dotCommand ? ["dot"] : ["dot", target?.name ?? "help"];
+
     process.stdout.write(
       `${formatter.formatHelpDoc(commandHelp(target ?? helpCommand, path))}\n`,
     );
   });
 }
+
 const helpCommand = describe(
   Command.make(
     "help",
@@ -1616,6 +1680,7 @@ export function commandHelp(
 ): HelpDoc.HelpDoc {
   // SAFETY: Effect command instances expose buildHelpDoc on their runtime implementation.
   const help = (command as InspectableCommand).buildHelpDoc(path);
+
   return {
     ...help,
     globalFlags: [

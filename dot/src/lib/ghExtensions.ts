@@ -24,6 +24,7 @@ export function ghExtensionsListPath(config: ConfigService): string {
  */
 export function loadGhExtensions(filePath: string): readonly string[] {
   if (!existsSync(filePath)) return [];
+
   return readFileSync(filePath, "utf-8")
     .split("\n")
     .map((line) => line.trim())
@@ -39,11 +40,13 @@ export function parseInstalledGhExtensions(
   output: string,
 ): ReadonlySet<string> {
   const installed = new Set<string>();
+
   for (const line of output.split("\n")) {
     for (const field of line.trim().split(/\s+/)) {
       if (field.includes("/")) installed.add(field.toLowerCase());
     }
   }
+
   return installed;
 }
 
@@ -65,34 +68,42 @@ export const installGhExtensions: Effect.Effect<
   yield* log.section("Install GitHub CLI Extensions");
 
   const desired = loadGhExtensions(ghExtensionsListPath(config));
+
   if (desired.length === 0) {
     yield* log.info("No gh extensions configured");
+
     return;
   }
 
   if ((yield* executor.exitCode("which", ["gh"])) !== 0) {
     yield* log.warn("gh is not installed; skipping gh extension setup");
+
     return;
   }
 
   const listed = yield* ghOutput(gh, ["extension", "list"]).pipe(
     Effect.catch(() => Effect.succeed("")),
   );
+
   const installed = parseInstalledGhExtensions(listed);
 
   const missing = desired.filter((repo) => !installed.has(repo.toLowerCase()));
+
   if (missing.length === 0) {
     yield* log.info("All configured gh extensions are installed");
+
     return;
   }
 
   for (const repo of missing) {
     yield* log.info(`Installing gh extension: ${repo}`);
+
     const exitCode = yield* executor.inherit("gh", [
       "extension",
       "install",
       repo,
     ]);
+
     if (exitCode !== 0) {
       yield* log.warn(`gh extension install ${repo} exited ${exitCode}`);
     }

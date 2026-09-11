@@ -12,8 +12,11 @@ import { resolvedOmarchyHost } from "../../lib/omarchyHost.js";
 import type { CheckResult } from "../types.js";
 
 const DOCTOR_STARTUP_TIMER_UNIT = "dot-doctor-startup.timer";
+
 const DAILY_VOLUME_ZERO_TIMER_UNIT = "daily-volume-zero.timer";
+
 const LOCAL_BIN_DIR = join(HOME_DIR, ".local", "bin");
+
 const DOCTOR_STARTUP_NOTIFY_SCRIPT = join(
   HOME_DIR,
   ".local",
@@ -28,6 +31,7 @@ function userSystemdUnitPath(unit: string): string {
 function executableExists(path: string): boolean {
   try {
     accessSync(path, constants.X_OK);
+
     return true;
   } catch {
     return false;
@@ -76,11 +80,13 @@ const checkRequiredUserUnit = (
   Effect.gen(function* () {
     const hasSystemctl =
       (yield* executor.exitCode("which", ["systemctl"])) === 0;
+
     if (!hasSystemctl) {
       results.push({
         severity: "warn",
         message: `Skipping ${label.toLowerCase()} checks (systemctl not found)`,
       });
+
       return;
     }
 
@@ -89,6 +95,7 @@ const checkRequiredUserUnit = (
       "is-enabled",
       unit,
     ]);
+
     if (enabled === 0) {
       results.push({ severity: "ok", message: `${label} enabled: ${unit}` });
     } else {
@@ -104,6 +111,7 @@ const checkRequiredUserUnit = (
       "is-active",
       unit,
     ]);
+
     if (active === 0) {
       results.push({ severity: "ok", message: `${label} active: ${unit}` });
     } else {
@@ -165,6 +173,7 @@ export const checkGitNotifications = Effect.gen(function* () {
   const results: CheckResult[] = [];
 
   const hasGh = yield* github.isAvailable();
+
   if (!hasGh) {
     results.push({
       severity: "warn",
@@ -177,6 +186,7 @@ export const checkGitNotifications = Effect.gen(function* () {
         Effect.map(() => true),
         Effect.catch(() => Effect.succeed(false)),
       );
+
     if (notificationsAccess) {
       results.push({
         severity: "ok",
@@ -241,6 +251,7 @@ export const checkDailyVolumeReset = Effect.gen(function* () {
       host === "laptop"
         ? "Run dot stow (or dot install) to link systemd user units if you want this optional timer"
         : `Daily volume reset is laptop-only; not linking it for OMARCHY_HOST=${host}`;
+
     results.push({
       severity: "ok",
       message: `Daily volume reset service unit file missing: ${displayPath(serviceUnit)}`,
@@ -258,6 +269,7 @@ export const checkDailyVolumeReset = Effect.gen(function* () {
       host === "laptop"
         ? "Run dot stow (or dot install) to link systemd user units if you want this optional timer"
         : `Daily volume reset is laptop-only; not linking it for OMARCHY_HOST=${host}`;
+
     results.push({
       severity: "ok",
       message: `Daily volume reset timer unit file missing: ${displayPath(timerUnit)}`,
@@ -266,12 +278,14 @@ export const checkDailyVolumeReset = Effect.gen(function* () {
   }
 
   const hasSystemctl = (yield* executor.exitCode("which", ["systemctl"])) === 0;
+
   if (hasSystemctl) {
     const enabled = yield* executor.exitCode("systemctl", [
       "--user",
       "is-enabled",
       DAILY_VOLUME_ZERO_TIMER_UNIT,
     ]);
+
     if (enabled === 0) {
       results.push({
         severity: "ok",
@@ -282,6 +296,7 @@ export const checkDailyVolumeReset = Effect.gen(function* () {
         host === "laptop"
           ? `Enable with: systemctl --user enable --now ${DAILY_VOLUME_ZERO_TIMER_UNIT}`
           : `Daily volume reset is laptop-only; leave it disabled for OMARCHY_HOST=${host}`;
+
       results.push({
         severity: "ok",
         message: `Daily volume reset timer is disabled: ${DAILY_VOLUME_ZERO_TIMER_UNIT}`,
@@ -294,6 +309,7 @@ export const checkDailyVolumeReset = Effect.gen(function* () {
       "is-active",
       DAILY_VOLUME_ZERO_TIMER_UNIT,
     ]);
+
     if (active === 0) {
       results.push({
         severity: "ok",
@@ -322,7 +338,9 @@ function userEnvironmentPathEntries(
   const pathLine = showEnvironment
     .split("\n")
     .find((line) => line.startsWith("PATH="));
+
   if (!pathLine) return [];
+
   return pathLine.slice("PATH=".length).split(":").filter(Boolean);
 }
 
@@ -336,6 +354,7 @@ function userEnvironmentPathEntries(
 export const checkLocalBinPath = Effect.gen(function* () {
   const executor = yield* CommandExecutor;
   const hasSystemctl = (yield* executor.exitCode("which", ["systemctl"])) === 0;
+
   if (!hasSystemctl) {
     return [
       {
@@ -348,6 +367,7 @@ export const checkLocalBinPath = Effect.gen(function* () {
   const showEnvironment = yield* executor
     .run("systemctl", ["--user", "show-environment"])
     .pipe(Effect.catch(() => Effect.succeed("")));
+
   const onPath = userEnvironmentPathEntries(showEnvironment).some(
     (entry) => resolve(entry) === LOCAL_BIN_DIR,
   );

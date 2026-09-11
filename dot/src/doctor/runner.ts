@@ -136,6 +136,7 @@ export const runDoctor = (
     // Filter out private-only checks when private is unavailable
     // (individual checks also handle this gracefully, but this avoids unnecessary work)
     const host = resolvedOmarchyHost(config);
+
     const applicable = sections.filter(
       (s) =>
         (!s.requiresPrivate || config.canUsePrivate) &&

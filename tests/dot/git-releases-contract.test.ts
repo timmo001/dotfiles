@@ -26,7 +26,9 @@ function settings(): ReleaseSettings {
   const parsed = parseDotGitConfigText(source, "fixture.yml");
   expect(parsed.diagnostics).toEqual([]);
   const releases = parsed.repositories[0].releases;
+
   if (!releases) throw new Error("Fixture lost release settings");
+
   return releases;
 }
 
@@ -37,29 +39,45 @@ test("release confirmation binds the reviewed head and recipe before any write",
   let remoteHead = current.head;
   let newTag = "";
   let python = 'setup(\n    name="example",\n    version="1.0.0",\n)\n';
+
   const executor = CommandExecutor.of({
     run: (_command, args) => Effect.sync(() => {
       if (args[0] === "remote") return "git@github.com:example/project.git\n";
+
       if (args[0] === "ls-remote") return `${remoteHead}\trefs/heads/main\npublished\trefs/tags/1.0.0\n${newTag}`;
+
       if (args[0] === "ls-tree") return "100644 blob hash\tpackage.json\n";
+
       if (args[0] === "show") return args[1].endsWith(":setup.py") ? python : '{"version":"1.0.0"}';
       writes.push(args.join(" "));
       throw new Error("Unexpected write");
     }),
-    stream: (command) => { writes.push(command); return Stream.empty; },
+    stream: (command) => {
+      writes.push(command);
+
+      return Stream.empty;
+    },
     exitCode: () => Effect.succeed(0), inherit: () => Effect.succeed(0),
   });
+
   const github = GitHub.of({
     isAvailable: () => Effect.succeed(true),
     json: () => Effect.succeed({ tag_name: "1.0.0", draft: false, prerelease: false }),
     api: () => Effect.die("Unexpected API call"),
-    run: () => { writes.push("release"); return Effect.succeed(""); },
+    run: () => {
+      writes.push("release");
+
+      return Effect.succeed("");
+    },
   });
+
   const run = (recipe = config, confirmation?: string) => Effect.runPromise(publishRelease(repository, recipe, current, confirmation, () => Effect.void).pipe(
     Effect.provideService(CommandExecutor, executor), Effect.provideService(GitHub, github),
   ));
+
   const preview = await run();
   expect(preview.type).toBe("plan");
+
   if (preview.type !== "plan") throw new Error("Expected preview");
   expect(preview.plan.versions).toEqual([{ path: "package.json", before: "1.0.0", after: "1.0.1" }, { path: "setup.py", before: "1.0.0", after: "1.0.1" }]);
   expect(preview.plan.steps.join("\n")).toContain("Atomically push");
@@ -84,9 +102,11 @@ test("CalVer uses UTC dates, validates baselines and safely increments same-day 
   expect(next("20261231.2", "2027-01-01T00:30:00+01:00")).toBe("20261231.3");
   expect(next("20261231.2", "2027-01-01T00:00:00Z")).toBe("20270101.0");
   expect(next("20240229.0", "2024-03-01T00:00:00Z")).toBe("20240301.0");
+
   for (const baseline of ["20260229.0", "20260931.0", "20260010.0", "20261301.0", "20260910.01", "20260910.-1", "1.0.0", "20260910.9007199254740992"]) {
     expect(() => next(baseline, "2026-09-10T12:00:00Z")).toThrow();
   }
+
   expect(() => next("20260911.0", "2026-09-10T12:00:00Z")).toThrow("future");
   expect(() => next("20260910.9007199254740991", "2026-09-10T12:00:00Z")).toThrow("safe integers");
   expect(() => next("20260910.0", "invalid")).toThrow();
@@ -98,20 +118,25 @@ test("UTC midnight invalidates the CalVer preview confirmation without writing",
   const config: ReleaseSettings = { ...settings(), policy: "application", versioning: "calver", publish: { version_files: [], commands: [] } };
   const current = { ...snapshot([file("src/app.ts")], "head", config), releaseTag: "20260910.2" };
   let now = Date.parse("2026-09-10T23:59:59Z");
+
   const executor = CommandExecutor.of({
     run: (_command, args) => {
       if (args[0] === "remote") return Effect.succeed("git@github.com:example/project.git\n");
+
       if (args[0] === "ls-remote") return Effect.succeed(`head\trefs/heads/main\npublished\trefs/tags/${current.releaseTag}\n`);
+
       return Effect.die("Unexpected process");
     },
     stream: () => Stream.die("Unexpected write"),
     exitCode: () => Effect.die("Unexpected process"), inherit: () => Effect.die("Unexpected process"),
   });
+
   const github = GitHub.of({
     isAvailable: () => Effect.succeed(true),
     json: () => Effect.succeed({ tag_name: current.releaseTag, draft: false, prerelease: false }),
     api: () => Effect.die("Unexpected API call"), run: () => Effect.die("Unexpected release"),
   });
+
   const run = (confirmation?: string) => Effect.runPromise(Clock.clockWith((clock) => publishRelease(repository, config, current, confirmation, () => Effect.void).pipe(
     Effect.provideService(CommandExecutor, executor), Effect.provideService(GitHub, github),
     Effect.provideService(Clock.Clock, {
@@ -120,13 +145,16 @@ test("UTC midnight invalidates the CalVer preview confirmation without writing",
       monotonicTimeNanos: clock.monotonicTimeNanos, monotonicTimeNanosUnsafe: clock.monotonicTimeNanosUnsafe.bind(clock),
     }),
   )));
+
   const before = await run();
+
   if (before.type !== "plan") throw new Error("Expected preview");
   expect(before.plan.tag).toBe("20260910.3");
   expect(existsSync(before.plan.logPath)).toBe(false);
   now = Date.parse("2026-09-11T00:00:00Z");
   await expect(run(before.plan.id)).rejects.toThrow("plan changed");
   const after = await run();
+
   if (after.type !== "plan") throw new Error("Expected preview");
   expect(after.plan.tag).toBe("20260911.0");
   expect(after.plan.id).not.toBe(before.plan.id);
@@ -139,6 +167,7 @@ test("version formats preserve exact JSON and Python bytes and reject ambiguous 
   const source = '# version="unrelated"\r\nfrom setuptools import setup\r\nsetup(\r\n    name="example",\r\n    version = "5.4.4",  # keep this\r\n    description="version=other",\r\n)\r\n';
   expect(prepareReleaseVersion(source, python, "5.4.5")).toEqual({ before: "5.4.4", content: source.replace('"5.4.4"', '"5.4.5"') });
   expect(prepareReleaseVersion("setuptools.setup(version='5.4.4')\n", python, "5.5.0").content).toBe("setuptools.setup(version='5.5.0')\n");
+
   for (const content of [
     'version="5.4.4"',
     'setup(version=VERSION)',
@@ -168,6 +197,7 @@ test("prepared Python and JSON writes are exact and validation cannot widen the 
   const config: ReleaseSettings = { ...settings(), publish: { version_files: ["package.json", { path: "setup.py", format: "python-setup" }], commands: [["validate"]] } };
   const current = snapshot([file("src/app.ts")]);
   const module = (path: string) => JSON.stringify(join(import.meta.dir, "../../dot", path));
+
   try {
     const child = Bun.spawn(["bun", "--eval", `
       import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -219,6 +249,7 @@ test("prepared Python and JSON writes are exact and validation cannot widen the 
       catch (error) { if (!validated || !String(error).includes("Validation changed setup.py beyond its agreed version bump")) throw error; }
       console.log("Exact writes verified; widened edit rejected");
     `], { env: { ...process.env, XDG_STATE_HOME: root }, stdout: "pipe", stderr: "pipe" });
+
     const [output, error, code] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
     expect(error).toBe("");
     expect(code).toBe(0);
@@ -230,10 +261,12 @@ test("release query exposes the authoritative CalVer proposal and review can cle
   const history = gitHistory();
   const module = (path: string) => JSON.stringify(join(import.meta.dir, "../../dot", path));
   const config: ReleaseSettings = { ...settings(), policy: "application", versioning: "calver", publish: { version_files: [], commands: [] } };
+
   try {
     const base = history.commit({ "src/app.ts": "old\n" }, "Baseline");
     const head = history.commit({ "src/app.ts": "new\n" }, "Fix application", base);
     const source = appendGitRepository("schema_version: 2\nrepositories: []\n", { ...repository, path: history.root, releases: config });
+
     const child = Bun.spawn(["bun", "--eval", `
       import { Clock, Effect, Layer } from ${module("node_modules/effect/dist/index.js")};
       import { Config } from ${module("src/services/Config.ts")};
@@ -270,6 +303,7 @@ test("release query exposes the authoritative CalVer proposal and review can cle
       }))));
       console.log(tag);
     `], { env: { ...process.env, XDG_STATE_HOME: join(history.root, "state"), XDG_CACHE_HOME: join(history.root, "cache") }, stdout: "pipe", stderr: "pipe" });
+
     const [output, error, code] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
     expect(error).toBe("");
     expect(code).toBe(0);
@@ -284,6 +318,7 @@ test("application versioning and mixed format recipes round-trip through strict 
   expect(settings().versioning).toBeUndefined();
   expect(parseDotGitConfigText(source.replace("calver", "semver"), "fixture.yml").valid).toBe(true);
   expect(parseDotGitConfigText(source.replace("calver", "date"), "fixture.yml").valid).toBe(false);
+
   for (const version_files of [
     ["package.json", "package.json"],
     [{ path: "setup.py", format: "python-setup" }, { path: "setup.py", format: "python-setup" }],
@@ -301,13 +336,17 @@ test("application versioning and mixed format recipes round-trip through strict 
 
 test("application policy keeps development quiet and shipped source, build and packaging relevant", () => {
   const config: ReleaseSettings = { ...settings(), policy: "application" };
+
   for (const path of ["src/app.test.ts", "tests/test_app.py", "pkg/test_app.py", "docs/index.md", ".agents/config.md", "AGENTS.md", ".oxlintrc.json", ".github/workflows/check.yml", "ruff.toml", "README.md"]) {
     expect(snapshot([{ ...file(path), changedLines: 100 }], "head", config).suggestion).toBe("none");
   }
+
   for (const path of ["src/app.ts", "module/app.py", "scripts/build.ts", "build/app.spec", "setup.py", "requirements.txt", "package.json", "unknown/source.rs"]) {
     expect(snapshot([file(path)], "head", config).suggestion).toBe("patch");
   }
+
   expect(snapshot([{ ...file("src/app.ts"), changedLines: 51 }], "head", config).suggestion).toBe("minor");
+
   for (const role of ["runtime", "peer", "build", "development"] as const) {
     const dependency = { ...file("package.json"), kind: "dependency" as const, dependency: "example", role };
     expect(snapshot([dependency], "head", config).suggestion).toBe(role === "development" ? "none" : "patch");
@@ -317,9 +356,11 @@ test("application policy keeps development quiet and shipped source, build and p
 test("documentation and development tooling stay quiet across release policies", () => {
   for (const policy of ["application", "oxlint-rules", "system-bridge"] as const) {
     const config = { ...settings(), policy };
+
     for (const path of ["docs/config.ts", "pkg/docs/package.json", "pkg/doc/example.py", "documentation/assets/logo.svg", "src/guide.mdx", "README", "pkg/readme.txt", "mise.toml", ".mise.local.toml", "mise.lock", ".config/mise/config.toml", "tsconfig.json", "oxlint.config.ts", ".opencode/agent.ts", ".scripts/linux/PKGBUILD", ".scripts/package.sh", ".github/scripts/package.sh"]) {
       expect(snapshot([{ ...file(path), changedLines: 100 }], "head", config).suggestion).toBe("none");
     }
+
     const docsDependency = { ...file("pkg/docs/package.json"), kind: "dependency" as const, dependency: "example", role: "runtime" as const };
     expect(snapshot([docsDependency], "head", config).suggestion).toBe("none");
     expect(snapshot([{ ...file("src/app.ts"), changedLines: 51 }], "head", config).suggestion).toBe("minor");
@@ -332,6 +373,7 @@ function file(path: string, submodule: string | null = null): ReleaseFact {
 
 function snapshot(facts: readonly ReleaseFact[], head = "head-one", config = settings()): ReleaseSnapshot {
   const findings = classifyReleaseFacts(facts, config);
+
   return applyReleaseReview({ id: "", repo: "example/project", name: "Example", branch: "main", releaseTag: "1.0.0", releaseCommit: "published", head, checkedAt: "2026-09-10T12:00:00Z", policyId: "fixture-policy", comparisonId: "", notificationId: "", url: `https://github.com/example/project/compare/published...${head}`, commits: [], findings, automaticSuggestion: highestImpact(findings.map((finding) => finding.automaticImpact)), suggestion: "none", reviewed: false, complete: facts.every((fact) => fact.complete), errors: [] }, emptyReleaseReview());
 }
 
@@ -352,9 +394,11 @@ test("strict optional config feeds separate patch peers and quiet development-ve
 test("source totals use net added plus deleted lines with a strict 50-line boundary", async () => {
   const history = gitHistory();
   const config = { ...settings(), policy: "system-bridge" as const };
+
   try {
     const source = { "main.go": "var value = 0\n" };
     const base = history.commit(source, "Baseline");
+
     for (const count of [49, 50, 51]) {
       const files = { "main.go": "var value = 1\n", "client/data_watch.go": "watch()\n".repeat(count - 2) };
       const head = history.commit(files, "fix: source update", base);
@@ -368,6 +412,7 @@ test("source totals use net added plus deleted lines with a strict 50-line bound
       const reverted = history.commit({ "main.go": "var value = 2\n" }, "feat: misleading reverted change", head);
       expect(snapshot((await history.collect(base, reverted, config)).facts, reverted, config).suggestion).toBe("patch");
     }
+
     const rename = history.commit({ "client/odd\tname\n.go": source["main.go"] }, "Rename only", base);
     const renamed = await history.collect(base, rename, config);
     expect(renamed.errors).toEqual([]);
@@ -386,10 +431,12 @@ test("source cutoff comes from validated config and omission disables only the s
     expect(above.suggestion).toBe("minor");
     expect(above.findings[0].reason).toContain(`over ${threshold}`);
   }
+
   const disabled = { ...settings(), source_minor_threshold: undefined };
   const fact = { ...file("src/change.ts"), changedLines: 1000 };
   expect(snapshot([fact], "head", disabled).suggestion).toBe("patch");
   expect(snapshot([fact], "head", { ...disabled, overrides: [{ paths: ["src/**"], impact: "minor", reason: "Local rule policy" }] }).suggestion).toBe("minor");
+
   for (const threshold of [-1, 1.5]) {
     const source = appendGitRepository("schema_version: 2\nrepositories: []\n", { ...repository, releases: { ...settings(), source_minor_threshold: threshold } });
     expect(parseDotGitConfigText(source, "fixture.yml").valid).toBe(false);
@@ -399,8 +446,10 @@ test("source cutoff comes from validated config and omission disables only the s
 test("quiet paths, excluded scripts and dependency churn do not inflate source impact", async () => {
   const history = gitHistory();
   const config = { ...settings(), policy: "system-bridge" as const, source_excludes: ["scripts/**"] };
+
   try {
     const base = history.commit({ "client/source.go": "old\n" }, "Baseline");
+
     const head = history.commit({
       "client/source.go": "new\n",
       "client/source_test.go": "test\n".repeat(100),
@@ -410,15 +459,18 @@ test("quiet paths, excluded scripts and dependency churn do not inflate source i
       "omarchy-plugin/Panel.qml": "plugin\n".repeat(100),
       "client/package.json": JSON.stringify({ dependencies: Object.fromEntries(Array.from({ length: 100 }, (_, index) => [`lib-${index}`, "99.0.0"])) }, null, 2),
     }, "feat: big dependency bump", base);
+
     const changes = await history.collect(base, head, config);
     expect(changes.errors).toEqual([]);
     const current = snapshot(changes.facts, head, config);
     expect(current.suggestion).toBe("patch");
     expect(current.findings.filter((finding) => finding.impact === "none").map((finding) => finding.path)).toEqual([".github/workflows/check.yml", "client/source_test.go", "docs/guide.md", "omarchy-plugin/Panel.qml"]);
+
     const newCategory = history.commit({
       "client/source.go": "old\n",
       "future-category/feature.rs": "source\n".repeat(51),
     }, "New source category", base);
+
     const added = await history.collect(base, newCategory, config);
     expect(added.errors).toEqual([]);
     expect(added.facts[0].changedLines).toBe(51);
@@ -428,6 +480,7 @@ test("quiet paths, excluded scripts and dependency churn do not inflate source i
 
 test("source exclusions retain the included side of a rename", () => {
   const config = { ...settings(), source_excludes: ["scripts/**"] };
+
   for (const [from, to, impact] of [
     ["scripts/old.ts", "new-category/feature.ts", "minor"],
     ["new-category/feature.ts", "scripts/old.ts", "minor"],
@@ -446,6 +499,7 @@ test("size heuristics preserve explicit policy and evidence-bound human impacts 
   const initial = snapshot([original]);
   const current = { ...snapshot([fact], "head", config), policyId: "new-policy" };
   expect(current.suggestion).toBe("minor");
+
   for (const impact of ["none", "patch", "minor", "major"] as const) {
     const explicit = { ...config, overrides: [{ paths: [fact.path], impact, reason: "Explicit consumer policy" }] };
     expect(snapshot([fact], "head", explicit).suggestion).toBe(impact);
@@ -454,6 +508,7 @@ test("size heuristics preserve explicit policy and evidence-bound human impacts 
     expect(accepted.cache.snapshot?.suggestion).toBe(impact);
     expect(accepted.review.findings).toEqual(local.findings);
   }
+
   const review = reviewRelease(initial, emptyReleaseReview(), "overall", "patch");
   const accepted = acceptReleaseSnapshot({ ...emptyReleaseCache(), snapshot: initial }, review, current);
   expect(accepted.cache.snapshot?.suggestion).toBe("patch");
@@ -478,6 +533,7 @@ test("configured local-rule minor and vendored patch policies take precedence ov
     { paths: ["vendor/anti-slop/src/**"], impact: "patch", reason: "Vendored rules" },
     { paths: ["src/**"], impact: "minor", reason: "Local rules" },
   ] };
+
   const vendored = { ...file("vendor/anti-slop/src/rule.ts", "vendor/anti-slop"), changedLines: 500 };
   const local = { ...file("src/xyz/rule.ts"), changedLines: 2 };
   expect(snapshot([vendored], "head", config).suggestion).toBe("patch");
@@ -486,6 +542,7 @@ test("configured local-rule minor and vendored patch policies take precedence ov
   expect(snapshot([{ ...file("src/xyz/rule.test.ts"), changedLines: 100 }], "head", config).suggestion).toBe("none");
   const source = appendGitRepository("schema_version: 2\nrepositories: []\n", { ...repository, releases: config });
   expect(parseDotGitConfigText(source, "fixture.yml").repositories[0].releases).toEqual(config);
+
   for (const path of ["", "/absolute", "../outside"]) {
     const invalid = appendGitRepository("schema_version: 2\nrepositories: []\n", { ...repository, releases: { ...config, source_excludes: [path] } });
     expect(parseDotGitConfigText(invalid, "fixture.yml").valid).toBe(false);
@@ -494,12 +551,14 @@ test("configured local-rule minor and vendored patch policies take precedence ov
 
 test("runtime lock-only updates, shared reachability and build exceptions remain relevant without semver escalation", () => {
   const config = { ...settings(), policy: "system-bridge" as const };
+
   const lock = (runtime: string, dev: string) => JSON.stringify({ lockfileVersion: 1, workspaces: { "": { dependencies: { app: "1" }, devDependencies: { lint: "1", vite: "1" } } }, packages: {
     app: ["app@1", "", { dependencies: { shared: "1" } }, "hash"],
     lint: [`lint@${dev}`, "", { dependencies: { shared: "1" } }, "hash"],
     shared: [`shared@${runtime}`, "", {}, "hash"],
     vite: [`vite@${dev}`, "", {}, "hash"],
   } });
+
   const changes = bunLockChanges("web-client/bun.lock", lock("1", "1"), lock("9", "9"), config);
   expect(changes.errors).toEqual([]);
   const current = snapshot(changes.facts, "head", config);
@@ -513,6 +572,7 @@ test("runtime lock-only updates, shared reachability and build exceptions remain
 
 test("GitHub Bun tuples retain transitive roles and resolved identity across npm migrations", () => {
   const config = { ...settings(), policy: "application" as const };
+
   const lock = (revision: string, github: boolean) => JSON.stringify({ lockfileVersion: 1, workspaces: { "": { dependencies: { app: "1" }, devDependencies: { lint: "1" } } }, packages: {
     app: github
       ? [`app@github:example/app#${revision}`, { dependencies: { shared: "1" }, peerDependencies: { peer: "1", optional: "1" }, optionalPeers: ["optional"] }, `example-app-${revision}`, "hash"]
@@ -522,6 +582,7 @@ test("GitHub Bun tuples retain transitive roles and resolved identity across npm
     peer: [`peer@${revision}`, "", {}, "hash"],
     tool: [`tool@${revision}`, "", {}, "hash"],
   } });
+
   const changes = bunLockChanges("bun.lock", lock("1", false), lock("2", true), config);
   expect(changes.errors).toEqual([]);
   expect(snapshot(changes.facts, "head", config).findings.map((fact) => [fact.dependency, fact.role, fact.impact])).toEqual([
@@ -571,6 +632,7 @@ test("atomic locked persistence retains a failed scan's snapshot and concurrent 
   const root = mkdtempSync(join(tmpdir(), "release-contract-"));
   const paths = releasePaths("example/project", root, root);
   const current = snapshot([file("src/first.ts"), file("src/second.ts")]);
+
   try {
     await Effect.runPromise(withReleaseLock(paths, saveReleaseDocument(paths.cache, "snapshot.json", { ...emptyReleaseCache(), snapshot: current, error: "Upstream unavailable" })));
     const legacyReview = { ...emptyReleaseReview(), acknowledged: current.notificationId, delivered: current.notificationId };
@@ -598,16 +660,20 @@ test("delivery retries failures, serialises success, and preserves pending evide
   let now = Date.parse("2026-09-10T12:00:00Z");
   let fail = true;
   const calls: { command: string; args: readonly string[] }[] = [];
+
   const executor: CommandExecutor["Service"] = {
     run: (command, args) => Effect.gen(function* () {
       calls.push({ command, args });
+
       if (fail) return yield* new CommandError({ command, exitCode: 1, stderr: "Unavailable ".repeat(100) });
+
       return "";
     }),
     stream: () => Stream.empty,
     exitCode: () => Effect.die("Unexpected process"),
     inherit: () => Effect.die("Unexpected process"),
   };
+
   const deliver = (current: ReleaseSnapshot, review: ReleaseReviewState, stale = false, config = settings()) =>
     Clock.clockWith((clock) => deliverReleaseNotification(current, review, config, stale).pipe(
       Effect.provideService(CommandExecutor, executor),
@@ -617,12 +683,15 @@ test("delivery retries failures, serialises success, and preserves pending evide
         monotonicTimeNanos: clock.monotonicTimeNanos, monotonicTimeNanosUnsafe: clock.monotonicTimeNanosUnsafe.bind(clock),
       }),
     ));
+
   const lockedDelivery = (current: ReleaseSnapshot) => Effect.runPromise(withReleaseLock(paths, Effect.gen(function* () {
     const { review } = yield* readReleaseState(paths);
     const next = yield* deliver(current, review);
     yield* saveReleaseDocument(paths.state, "review.json", next);
+
     return next;
   })));
+
   try {
     const failed = await lockedDelivery(original);
     expect(failed.pending).toBe(original.notificationId);
@@ -646,6 +715,7 @@ test("delivery retries failures, serialises success, and preserves pending evide
     now += 60000;
     expect((await lockedDelivery(changed)).delivered).toBe(changed.notificationId);
     expect(calls).toHaveLength(3);
+
     for (const [candidate, state, stale, config] of [
       [original, emptyReleaseReview(), true, settings()],
       [{ ...original, complete: false }, emptyReleaseReview(), false, settings()],
@@ -659,6 +729,7 @@ test("delivery retries failures, serialises success, and preserves pending evide
 
 test("large release panel snapshots finish writing to a pipe before the CLI exits", async () => {
   const module = (path: string) => JSON.stringify(join(import.meta.dir, "../../dot", path));
+
   const child = Bun.spawn(["bun", "--eval", `
     import { Effect } from ${module("node_modules/effect/dist/index.js")};
     import { GitReleases } from ${module("src/git/services/GitReleases.ts")};
@@ -667,6 +738,7 @@ test("large release panel snapshots finish writing to a pipe before the CLI exit
     await Effect.runPromise(releasesQuery({}, true).pipe(Effect.provideService(GitReleases, { query: () => Effect.succeed(repositories) })));
     process.exit(0);
   `], { stdout: "pipe", stderr: "pipe" });
+
   const [output, error, code] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
   expect(error).toBe("");
   expect(code).toBe(0);
@@ -679,6 +751,7 @@ test("incomplete upstream and manifest collections retain the last complete snap
   let accepted = acceptReleaseSnapshot(emptyReleaseCache(), emptyReleaseReview(), complete);
   const findingReview = reviewRelease(complete, accepted.review, upstream.id, "minor");
   accepted.review = reviewRelease(applyReleaseReview(complete, findingReview), findingReview, "overall", "major");
+
   for (const detail of ["Upstream fetch unavailable", "package.json: invalid JSON"]) {
     const incomplete = { ...snapshot([{ ...file("vendor/anti-slop"), kind: "submodule" as const, complete: false }], "new-head"), errors: [detail] };
     const failed = acceptReleaseSnapshot(accepted.cache, accepted.review, incomplete);
@@ -697,6 +770,7 @@ test("incomplete upstream and manifest collections retain the last complete snap
 
 test("preset rename impact considers both boundaries while explicit overrides still match either endpoint", () => {
   const config = { ...settings(), policy: "system-bridge" as const };
+
   for (const [from, to, impact] of [
     ["web-client/public/logo.svg", "docs/public/logo.svg", "patch"],
     ["docs/public/logo.svg", "web-client/public/logo.svg", "patch"],
@@ -713,26 +787,36 @@ test("preset rename impact considers both boundaries while explicit overrides st
 // Immutable test objects live only in a disposable bare repository, without a worktree or user refs.
 function gitHistory() {
   const root = mkdtempSync(join(tmpdir(), "release-lineage-"));
+
   const git = (args: string[], input?: string) => {
     const result = Bun.spawnSync(["git", "-C", root, ...args], { stdin: input === undefined ? undefined : new TextEncoder().encode(input), env: { ...process.env, GIT_AUTHOR_NAME: "Fixture", GIT_AUTHOR_EMAIL: "fixture@example.org", GIT_COMMITTER_NAME: "Fixture", GIT_COMMITTER_EMAIL: "fixture@example.org" } });
+
     if (result.exitCode !== 0) throw new Error(result.stderr.toString());
+
     return result.stdout.toString().trim();
   };
+
   git(["init", "--bare"]);
+
   const tree = (files: Record<string, string>): string => {
     const directories = new Map<string, Record<string, string>>();
     const entries: string[] = [];
+
     for (const [path, text] of Object.entries(files)) {
       const slash = path.indexOf("/");
+
       if (slash === -1) entries.push(`100644 blob ${git(["hash-object", "-w", "--stdin"], text)}\t${path}\0`);
       else {
         const dir = path.slice(0, slash);
         directories.set(dir, { ...directories.get(dir), [path.slice(slash + 1)]: text });
       }
     }
+
     for (const [name, files] of directories) entries.push(`040000 tree ${tree(files)}\t${name}\0`);
+
     return git(["mktree", "-z"], entries.sort().join(""));
   };
+
   return {
     root,
     commit: (files: Record<string, string>, subject: string, parent?: string) => git(["commit-tree", tree(files), ...(parent ? ["-p", parent] : []), "-m", subject]),
@@ -743,6 +827,7 @@ function gitHistory() {
 
 test("application docs retain quiet file evidence without entering the shipped dependency graph", async () => {
   const history = gitHistory();
+
   try {
     const config = { ...settings(), policy: "application" as const };
     const lock = (version: string, rooted: boolean) => JSON.stringify({ lockfileVersion: 1, workspaces: { "": rooted ? { dependencies: { app: "1" } } : {} }, packages: { app: [`app@${version}`, "", {}, "hash"] } });
@@ -772,6 +857,7 @@ test("application docs retain quiet file evidence without entering the shipped d
 
 test("source intent follows surviving added and removed lines, not a reverted major change in the same file", async () => {
   const history = gitHistory();
+
   try {
     const source = { "src/api.ts": "export const api = 1;\nexport const label = 'old';\nexport const keep = true;\n" };
     const base = history.commit(source, "Baseline");
@@ -815,6 +901,7 @@ test("source intent follows surviving added and removed lines, not a reverted ma
 
 test("subject rules classify structured dependency facts once, using each value's unreverted lineage", async () => {
   const history = gitHistory();
+
   try {
     const manifest = (compiler: string, lib: string) => ({ "package.json": JSON.stringify({ dependencies: { lib }, devDependencies: { compiler } }) });
     const base = history.commit(manifest("1", "1"), "Baseline");
@@ -822,11 +909,13 @@ test("subject rules classify structured dependency facts once, using each value'
     const reverted = history.commit(manifest("1", "1"), "Revert compiler change", major);
     const chore = history.commit(manifest("2", "1"), "chore: compiler update", reverted);
     const patch = history.commit(manifest("2", "2"), "fix: library update", chore);
+
     const config = { ...settings(), overrides: [
       { subjects: ["^major:"], impact: "major" as const, reason: "Surviving explicit major intent" },
       { subjects: ["^chore:"], roles: ["development" as const], dependencies: ["compiler"], impact: "minor" as const, reason: "Explicit compiler output change" },
       { subjects: ["^fix:"], roles: ["runtime" as const], dependencies: ["lib"], impact: "none" as const, reason: "Quiet runtime correction" },
     ] };
+
     const current = await history.collect(base, patch, config);
     expect(current.errors).toEqual([]);
     const classified = snapshot(current.facts, patch, config);

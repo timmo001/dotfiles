@@ -10,10 +10,12 @@ export function optionValue(
 ): string | undefined {
   const equalsPrefix = `${name}=`;
   const equalsArg = args.find((arg) => arg.startsWith(equalsPrefix));
+
   if (equalsArg) return equalsArg.slice(equalsPrefix.length);
 
   const index = args.indexOf(name);
   const value = index === -1 ? undefined : args[index + 1];
+
   return value && !value.startsWith("--") ? value : undefined;
 }
 
@@ -27,18 +29,23 @@ export function optionValues(
 ): readonly string[] {
   const equalsPrefix = `${name}=`;
   const values: string[] = [];
+
   for (let index = 0; index < args.length; index++) {
     const arg = args[index];
+
     if (arg === name) {
       const next = args[index + 1];
+
       if (next && !next.startsWith("-")) {
         values.push(next);
         index++;
       }
     } else if (arg.startsWith(equalsPrefix)) {
       const value = arg.slice(equalsPrefix.length);
+
       if (value) values.push(value);
     }
   }
+
   return values;
 }

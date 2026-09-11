@@ -51,12 +51,14 @@ const unstowRepo = (
 
     for (const folder of folders) {
       yield* log.info(`[${scope}] unstow ${folder} (repo: ${repoDisplayPath})`);
+
       const exit = yield* launcher.stream(`stow -D ${folder}`, {
         cwd: repoDir,
       });
 
       if (exit !== 0) {
         yield* log.error(`[${scope}] unstow ${folder} failed (exit ${exit})`);
+
         return yield* new LauncherError({
           message: `${scope} unstow failed on ${folder}`,
           exitCode: exit,

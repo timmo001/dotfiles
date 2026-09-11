@@ -8,17 +8,21 @@ import { ENV, envNonNegativeInt, envString } from "../../lib/env.js";
 import { ghOutput } from "../../lib/gh.js";
 
 const DEBUG = !!envString(ENV.DOT_DEBUG);
+
 const log = (msg: string) => {
   if (DEBUG) console.error(`[dot:GitHub] ${msg}`);
 };
 
 const DEFAULT_RETRIES = envNonNegativeInt(ENV.DOT_GITHUB_RETRIES, 2);
+
 const RATE_LIMIT_TTL_MS =
   envNonNegativeInt(ENV.DOT_GITHUB_RATE_LIMIT_TTL_SECONDS, 60) * 1000;
+
 const RATE_LIMIT_MIN_REMAINING = envNonNegativeInt(
   ENV.DOT_GITHUB_RATE_LIMIT_MIN_REMAINING,
   0,
 );
+
 const RATE_LIMIT_MAX_WAIT_SECONDS = envNonNegativeInt(
   ENV.DOT_GITHUB_RATE_LIMIT_MAX_WAIT_SECONDS,
   60,
@@ -101,11 +105,13 @@ export class GitHub extends Context.Service<GitHub, GitHubService>()("GitHub") {
           "--jq",
           ".resources.core | [.remaining, .reset] | @tsv",
         ]);
+
         return parseRateLimit(raw, checkedAtMillis);
       });
 
       const getRateLimit = Effect.fn("GitHub.getRateLimit")(function* () {
         const now = yield* Clock.currentTimeMillis;
+
         if (
           rateLimitCache &&
           now - rateLimitCache.checkedAtMillis < RATE_LIMIT_TTL_MS
@@ -116,7 +122,9 @@ export class GitHub extends Context.Service<GitHub, GitHubService>()("GitHub") {
         const snapshot = yield* fetchRateLimit(now).pipe(
           Effect.catch(() => Effect.succeed(null)),
         );
+
         rateLimitCache = snapshot;
+
         return snapshot;
       });
 
@@ -126,6 +134,7 @@ export class GitHub extends Context.Service<GitHub, GitHubService>()("GitHub") {
         if (isRateLimitCommand(args)) return;
 
         const snapshot = yield* getRateLimit();
+
         if (!snapshot) return;
 
         return yield* guardRateLimit(args, snapshot);
@@ -138,6 +147,7 @@ export class GitHub extends Context.Service<GitHub, GitHubService>()("GitHub") {
         if (hasRateLimitCapacity(snapshot)) return;
 
         const now = yield* Clock.currentTimeMillis;
+
         const resetInSeconds = Math.max(
           0,
           snapshot.resetEpochSeconds - Math.floor(now / 1000),
@@ -146,6 +156,7 @@ export class GitHub extends Context.Service<GitHub, GitHubService>()("GitHub") {
         if (resetInSeconds <= RATE_LIMIT_MAX_WAIT_SECONDS) {
           yield* Effect.sleep(Duration.seconds(resetInSeconds + 1));
           rateLimitCache = null;
+
           return;
         }
 
@@ -180,10 +191,12 @@ export class GitHub extends Context.Service<GitHub, GitHubService>()("GitHub") {
         if (checkRateLimit) yield* ensureRateLimit(args);
 
         const result: GitHubAttemptResult = yield* runAttempt(args);
+
         if (result.type === "success") return result.output;
 
         const { error } = result;
         clearRateLimitCache(error);
+
         if (!shouldRetry(error, attempt, retries)) {
           return yield* error;
         }
@@ -193,6 +206,7 @@ export class GitHub extends Context.Service<GitHub, GitHubService>()("GitHub") {
           `Retrying ${formatGhCommand(args)} after ${delaySeconds}s (${attempt + 1}/${retries})`,
         );
         yield* Effect.sleep(Duration.seconds(delaySeconds));
+
         return yield* runWithRetry(args, retries, attempt + 1, checkRateLimit);
       });
 
@@ -205,6 +219,7 @@ export class GitHub extends Context.Service<GitHub, GitHubService>()("GitHub") {
         opts?: GitHubCommandOptions,
       ): Effect.fn.Return<string, GitHubError> {
         const retries = opts?.retries ?? DEFAULT_RETRIES;
+
         return yield* runWithRetry(
           args,
           retries,
@@ -215,7 +230,9 @@ export class GitHub extends Context.Service<GitHub, GitHubService>()("GitHub") {
 
       const api = (endpoint: string, opts?: GitHubApiOptions) => {
         const args = ["api", endpoint];
+
         if (opts?.jq) args.push("--jq", opts.jq);
+
         return run(args, opts).pipe(Effect.map((output) => output.trim()));
       };
 
@@ -247,6 +264,7 @@ function parseRateLimit(
   checkedAtMillis: number,
 ): RateLimitSnapshot | null {
   const [remainingRaw, resetRaw] = raw.trim().split(/\s+/, 2);
+
   return parseRateLimitFields(remainingRaw, resetRaw, checkedAtMillis);
 }
 
@@ -266,6 +284,7 @@ function parseRateLimitFields(
 function parseInteger(value: string | undefined): number | null {
   if (value === undefined) return null;
   const parsed = Number.parseInt(value, 10);
+
   return Number.isFinite(parsed) ? parsed : null;
 }
 
@@ -286,6 +305,7 @@ function toGitHubError(
   error: CommandError,
 ): GitHubError {
   const rateLimited = isRateLimitMessage(error.stderr);
+
   return new GitHubError({
     command: formatGhCommand(args),
     exitCode: error.exitCode,
@@ -301,11 +321,13 @@ function isRateLimitCommand(args: readonly string[]): boolean {
 
 function isRateLimitMessage(stderr: string): boolean {
   const lower = stderr.toLowerCase();
+
   return lower.includes("rate limit") || lower.includes("secondary rate");
 }
 
 function isTransientMessage(stderr: string): boolean {
   const lower = stderr.toLowerCase();
+
   return TRANSIENT_ERROR_PATTERNS.some((pattern) => lower.includes(pattern));
 }
 

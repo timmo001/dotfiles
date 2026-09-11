@@ -16,6 +16,7 @@ export const withSpinnerTimeout = <A, E, R>(
 ): Effect.Effect<Option.Option<A>, E, R | OutputLog> =>
   Effect.gen(function* () {
     const log = yield* OutputLog;
+
     return yield* log.withSpinner(label, withTimeoutOption(effect, seconds));
   });
 
@@ -34,9 +35,12 @@ export const withStepTimeout = <E, R>(
   Effect.gen(function* () {
     const log = yield* OutputLog;
     const completed = yield* withSpinnerTimeout(label, seconds, step);
+
     if (Option.isNone(completed)) {
       yield* log.warn(`Step "${label}" exceeded ${seconds}s and was stopped`);
+
       return false;
     }
+
     return true;
   });
