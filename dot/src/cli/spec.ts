@@ -319,6 +319,10 @@ const updatesCommand = describe(
           {
             ...updateStatusFlags,
             scheduled: bool("scheduled", "Respect the AUR request backoff"),
+            dotOnly: bool(
+              "dot-only",
+              "Refresh only Dotfiles status, keeping cached package status",
+            ),
           },
           (input) =>
             updatesRefresh(
@@ -328,10 +332,11 @@ const updatesCommand = describe(
                 cacheDir: optional(input.cacheDir),
               },
               input.scheduled,
+              input.dotOnly,
             ),
         ),
         "Refresh package and Dotfiles status and notify the shell",
-        ["dot updates refresh"],
+        ["dot updates refresh", "dot updates refresh --dot-only"],
       ),
     ]),
   ),

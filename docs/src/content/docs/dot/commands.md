@@ -177,12 +177,14 @@ dot updates refresh [flags]
 | `--cache-dir` `<path>` | Status cache directory (default: XDG status-bar cache) |
 | `--timeout` `<integer>` | Maximum seconds for each external check |
 | `--scheduled` | Respect the AUR request backoff |
+| `--dot-only` | Refresh only Dotfiles status, keeping cached package status |
 | `--help` `-h` | Show help information |
 
 **Examples**
 
 ```bash
 dot updates refresh
+dot updates refresh --dot-only
 ```
 
 ## `dot stow`

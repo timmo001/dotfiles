@@ -1030,4 +1030,15 @@ export const update = (opts?: UpdateOptions) =>
     }
 
     yield* logUpdateSummary(updatedNames, completedActions);
+
+    yield* log.section("Update Status");
+    const executor = yield* CommandExecutor;
+    const refreshExitCode = yield* executor.inherit("dot", [
+      "updates",
+      "refresh",
+      "--dot-only",
+    ]);
+    if (refreshExitCode !== 0) {
+      yield* log.warn(`Update status refresh failed (exit ${refreshExitCode})`);
+    }
   });

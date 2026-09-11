@@ -18,8 +18,13 @@ const BarStatus = Schema.Struct({
   class: Schema.Literals(["updates", "updates-current", "updates-unknown"]),
 });
 type BarStatus = typeof BarStatus.Type;
+const CachedStatus = Schema.Struct({
+  ...BarStatus.fields,
+  packageStatus: Schema.optional(BarStatus),
+  packagesCheckedAt: Schema.optional(Schema.Number),
+});
 const decodeStatus = Schema.decodeUnknownOption(
-  Schema.fromJsonString(BarStatus),
+  Schema.fromJsonString(CachedStatus),
 );
 const decodeBackoff = Schema.decodeUnknownOption(
   Schema.Tuple([Schema.Int, Schema.Int]),
@@ -181,10 +186,11 @@ const packages = Effect.fn("Updates.packages")(function* (
   } satisfies BarStatus;
 });
 
-/** Refresh the cached package and Dotfiles status, respecting AUR backoff when scheduled. */
+/** Refresh Dotfiles status and optionally packages, respecting scheduled AUR backoff. */
 export const updatesRefresh = Effect.fn("Updates.refresh")(function* (
   options: UpdatesOptions,
   scheduled = false,
+  dotOnly = false,
 ) {
   const fs = yield* FileSystem.FileSystem;
   const locations = yield* paths(options);
@@ -201,7 +207,19 @@ export const updatesRefresh = Effect.fn("Updates.refresh")(function* (
     (acquired) =>
       Effect.gen(function* () {
         if (!acquired) return;
-        const packageStatus = yield* packages(options, locations, scheduled);
+        const cached = dotOnly
+          ? yield* fs.readFileString(locations.cache).pipe(
+              Effect.map(decodeStatus),
+              Effect.orElseSucceed(() => Option.none()),
+            )
+          : Option.none();
+        const previous = Option.getOrUndefined(cached);
+        const packageStatus = dotOnly
+          ? (previous?.packageStatus ?? unavailable)
+          : yield* packages(options, locations, scheduled);
+        const packagesCheckedAt = dotOnly
+          ? (previous?.packagesCheckedAt ?? 0)
+          : yield* Clock.currentTimeMillis;
         const dotResult = yield* query(
           "dot",
           ["update", "--check-all"],
@@ -226,7 +244,7 @@ export const updatesRefresh = Effect.fn("Updates.refresh")(function* (
         };
         yield* fs.writeFileString(
           `${locations.cache}.tmp`,
-          `${JSON.stringify(status)}\n`,
+          `${JSON.stringify({ ...status, packageStatus, packagesCheckedAt })}\n`,
           { mode: 0o600 },
         );
         yield* fs.rename(`${locations.cache}.tmp`, locations.cache);
@@ -256,7 +274,8 @@ export const updatesStatus = Effect.fn("Updates.status")(function* (
   );
   if (
     (Option.isNone(status) ||
-      now - modified >= (options.cacheMaxAge ?? 900) * 1000) &&
+      now - (Option.getOrUndefined(status)?.packagesCheckedAt ?? modified) >=
+        (options.cacheMaxAge ?? 900) * 1000) &&
     !(yield* fs.exists(locations.lock))
   ) {
     yield* Effect.try(() => {
@@ -283,5 +302,10 @@ export const updatesStatus = Effect.fn("Updates.status")(function* (
       child.unref();
     });
   }
-  yield* Console.log(JSON.stringify(Option.getOrElse(status, () => loading)));
+  const {
+    text,
+    tooltip,
+    class: statusClass,
+  } = Option.getOrElse(status, () => loading);
+  yield* Console.log(JSON.stringify({ text, tooltip, class: statusClass }));
 });

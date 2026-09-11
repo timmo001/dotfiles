@@ -140,15 +140,26 @@ export const systemUpdate = Effect.fn("SystemUpdate.run")(function* (options: {
   const topgrade = TOPGRADE_UPDATES.filter(([, value]) =>
     selectedSet.has(value),
   ).map(([, value]) => value);
-  if (topgrade.length === 0) return;
+  if (topgrade.length > 0) {
+    section("Topgrade");
+    const args =
+      topgrade.length === TOPGRADE_UPDATES.length
+        ? automatic
+          ? ["-y"]
+          : []
+        : ["--only", ...topgrade];
+    const exitCode = yield* runChild("topgrade", args, baseEnv);
+    if (exitCode !== 0) {
+      process.exitCode = exitCode;
+      return;
+    }
+  }
 
-  section("Topgrade");
-  const args =
-    topgrade.length === TOPGRADE_UPDATES.length
-      ? automatic
-        ? ["-y"]
-        : []
-      : ["--only", ...topgrade];
-  const exitCode = yield* runChild("topgrade", args, baseEnv);
-  if (exitCode !== 0) process.exitCode = exitCode;
+  section("Update Status");
+  const refreshExitCode = yield* runChild(
+    "dot",
+    ["updates", "refresh"],
+    baseEnv,
+  );
+  if (refreshExitCode !== 0) process.exitCode = refreshExitCode;
 }, Effect.scoped);
