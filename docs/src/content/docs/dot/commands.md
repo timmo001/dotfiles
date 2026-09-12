@@ -114,6 +114,46 @@ dot system-update
 dot system-update --yes
 ```
 
+## `dot run`
+
+Run a command with a deadline and process-group cleanup
+
+```text
+dot run [flags] <command> [<args...>]
+```
+
+Pass the executable and its arguments after --. Standard input, output and errors are inherited. Completion, timeout and SIGINT/SIGTERM/SIGHUP all release the owned process group, first with SIGTERM and then SIGKILL after the cleanup grace period. Use foreground commands: processes that deliberately leave the group or send work to an existing server are outside this ownership. For isolated OpenCode jobs, pass run --standalone.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--timeout` `<string>` | Execution deadline, for example '5 minutes' or '30 seconds' |
+| `--kill-after` `<string>` | Cleanup grace period before SIGKILL (default: 5 seconds) |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<command>` | Executable to run after -- |
+| `<args>` | Arguments passed unchanged to the command |
+
+**Exit codes**
+
+```text
+Child exit code on completion
+124  Execution deadline exceeded
+125  Process execution failed
+128 + signal number on interruption
+```
+
+**Examples**
+
+```bash
+dot run --timeout '5 minutes' -- opencode2 run --standalone 'Process this capture'
+```
+
 ## `dot updates`
 
 Check watched package and Dotfiles updates for the status bar

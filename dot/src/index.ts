@@ -33,6 +33,7 @@ import { CommandExecutor } from "./services/CommandExecutor.js";
 import { Config } from "./services/Config.js";
 import { Launcher } from "./services/Launcher.js";
 import { OutputLog } from "./services/OutputLog.js";
+import { ProcessRunner } from "./services/ProcessRunner.js";
 
 const DEFAULT_INIT_LOG_FILE = join(STATE_DIR, "dot", "init.log");
 
@@ -40,9 +41,14 @@ const PRIVATE_DOTFILES_REPO = "timmo001/dotfiles-private";
 
 const args = normalizeCliArgs(process.argv.slice(2));
 
+const ownArgs =
+  args[0] === "run" && args.includes("--")
+    ? args.slice(0, args.indexOf("--"))
+    : args;
+
 const invokedCommand = args.find((arg) => !arg.startsWith("-"));
 
-const unsupportedNegation = args.find(
+const unsupportedNegation = ownArgs.find(
   (arg) =>
     arg.startsWith("---") || arg === "--no-help" || arg.startsWith("--no-no-"),
 );
@@ -159,7 +165,7 @@ function recordUsage(): void {
     tool: "dot",
     invokedAs: "dot",
     command: command ? [command.name] : [],
-    args,
+    args: ownArgs,
     allowedFlags,
     invoker: args.includes("--bar-json")
       ? "automation"
@@ -266,6 +272,7 @@ const program = withNativeCommandTimeout(
   Effect.provide(
     Layer.mergeAll(
       CliLayers,
+      ProcessRunner.layer,
       NodeServices.layer,
       CliConfig.layer({ builtIns: cliBuiltIns }),
     ),

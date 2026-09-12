@@ -1,4 +1,4 @@
-import { Context, Effect, Option, Schema } from "effect";
+import { Context, Duration, Effect, Option, Schema } from "effect";
 import {
   Argument,
   CliOutput,
@@ -32,6 +32,7 @@ import { privatePkgPublish } from "../commands/PrivatePkgPublish.js";
 import { setupPrivateRepo } from "../commands/SetupPrivateRepo.js";
 import { setupPublicRepo } from "../commands/SetupPublicRepo.js";
 import { runSkillsMaintenance } from "../commands/Skills.js";
+import { runCommand } from "../commands/Run.js";
 import { stow } from "../commands/Stow.js";
 import { systemUpdate } from "../commands/SystemUpdate.js";
 import { update, updateCheck } from "../commands/Update.js";
@@ -282,6 +283,60 @@ const systemUpdateCommand = describe(
   {
     description:
       "Select maintenance steps interactively, then run them in order: Dotfiles, Omarchy, and Topgrade. Interactive runs pre-select Dotfiles and Omarchy; extra Topgrade steps start unselected. Non-interactive runs and --yes select every step. Cancelling the prompt exits without running updates.",
+  },
+);
+
+const runDuration = (name: string, description: string) =>
+  Flag.string(name).pipe(
+    Flag.withSchema(Schema.DurationFromString),
+    Flag.map(Duration.toMillis),
+    Flag.filter(
+      (value) => Number.isFinite(value) && value > 0,
+      () => "Duration must be finite and positive",
+    ),
+    Flag.withDescription(description),
+  );
+
+const runCommandSpec = describe(
+  Command.make(
+    "run",
+    {
+      timeout: runDuration(
+        "timeout",
+        "Execution deadline, for example '5 minutes' or '30 seconds'",
+      ),
+      killAfter: runDuration(
+        "kill-after",
+        "Cleanup grace period before SIGKILL (default: 5 seconds)",
+      ).pipe(Flag.withDefault(5000)),
+      command: Argument.string("command").pipe(
+        Argument.withDescription("Executable to run after --"),
+      ),
+      args: Argument.string("args").pipe(
+        Argument.variadic(),
+        Argument.withDescription("Arguments passed unchanged to the command"),
+      ),
+    },
+    ({ command, args, ...options }) => runCommand(command, args, options),
+  ),
+  "Run a command with a deadline and process-group cleanup",
+  [
+    "dot run --timeout '5 minutes' -- opencode2 run --standalone 'Process this capture'",
+  ],
+  {
+    description:
+      "Pass the executable and its arguments after --. Standard input, output and errors are inherited. Completion, timeout and SIGINT/SIGTERM/SIGHUP all release the owned process group, first with SIGTERM and then SIGKILL after the cleanup grace period. Use foreground commands: processes that deliberately leave the group or send work to an existing server are outside this ownership. For isolated OpenCode jobs, pass run --standalone.",
+    sections: [
+      {
+        title: "Exit codes",
+        lines: [
+          "Child exit code on completion",
+          "124  Execution deadline exceeded",
+          "125  Process execution failed",
+          "128 + signal number on interruption",
+        ],
+      },
+    ],
   },
 );
 
@@ -1702,6 +1757,7 @@ export const dotCommand = describe(
       installCommand,
       updateCommand,
       systemUpdateCommand,
+      runCommandSpec,
       updatesCommand,
       stowCommand,
       omarchyPluginCommand,

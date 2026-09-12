@@ -97,6 +97,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 ## Dot Command Changes
 
 - When editing files under `dot/`, always follow `dot/AGENTS.md` (validation steps, skills, patterns).
+- Bounded external jobs use `ProcessRunner` through `dot run --timeout <duration> -- <command> [args...]`. Keep caller-specific arguments and permissions in the caller; the runner owns the deadline, signals, and process-group cleanup.
 - When adding new `dot` subcommands that users may want quick access to, also add them to the menu registry in `dot/src/menu.ts`.
 - Keep command and flag metadata in `dot/src/cli/spec.ts`; help and completion generation consume that registry.
 - Generated `dot` and `skill-maintenance` completions are ignored by Git. Public `dot stow`, `dot install` (including `dot init`), and `dot update` generate them before stowing. Keep hand-written completions tracked; use package-provided completions for external tools such as `context`.
