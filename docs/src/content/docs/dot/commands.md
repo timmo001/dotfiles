@@ -1210,7 +1210,7 @@ dot herdr restart
 
 ### `dot herdr repo-open`
 
-Open or focus a repository workspace in the shared Herdr session. If the server is headless, open a tiled terminal and wait for a foreground client before focusing the workspace.
+Open or focus a repository workspace in the shared Herdr session, attaching a tiled terminal when needed. Commands reuse an idle shell tab by default, otherwise split right. --layout vertical always splits right, horizontal splits below, and tab always opens a new tab. --modifiers selects the same behaviour from Qt click/Enter modifiers, with Ctrl taking priority over Alt, then Shift. Placement flags are mutually exclusive. Without a command, focus the workspace; an empty command opens a shell using the selected layout.
 
 ```text
 dot herdr repo-open [flags] <label> <directory> [<tab-label>] [<command>]
@@ -1220,7 +1220,9 @@ dot herdr repo-open [flags] <label> <directory> [<tab-label>] [<command>]
 
 | Option | Description |
 | --- | --- |
-| `--pane` | Run in a new pane |
+| `--pane` | Shorthand for --layout vertical |
+| `--layout` `<choice>` | Auto reuses an idle shell tab, otherwise splits right; vertical splits right, horizontal splits below, tab opens a new tab (choices: auto, vertical, horizontal, tab) |
+| `--modifiers` `<integer>` | Qt keyboard modifier bitmask: Ctrl new tab, Alt split below, Shift split right, otherwise auto |
 | `--prompt` `<string>` | Initial prompt to send through Herdr after the agent is ready |
 | `--agent-kind` `<string>` | Expected Herdr agent kind for --prompt |
 | `--help` `-h` | Show help information |

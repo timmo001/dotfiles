@@ -6,7 +6,7 @@ import {
 } from "@herdr/sdk";
 import { Cause, Duration, Effect, Option, Schedule, Schema } from "effect";
 import { existsSync, readFileSync } from "fs";
-import { join } from "path";
+import { join, resolve } from "path";
 import { ENV, envString } from "../lib/env.js";
 import { localHerdrAttachment } from "../lib/herdrAttachment.js";
 import { CACHE_DIR, CONFIG_DIR, HOME_DIR } from "../lib/paths.js";
@@ -19,19 +19,30 @@ const READINESS_SCHEDULE = Schedule.recurs(49).pipe(
 
 const DEFAULT_SOCKET_PATH = join(CONFIG_DIR, "herdr", "herdr.sock");
 
+// Qt::KeyboardModifier values passed unchanged by desktop click/key events.
+const SHIFT_MODIFIER = 0x02000000;
+
+const CONTROL_MODIFIER = 0x04000000;
+
+const ALT_MODIFIER = 0x08000000;
+
 const PickerCacheSchema = Schema.Array(
   Schema.Struct({ name: Schema.String, path: Schema.String }),
 );
 
 /** Parsed repository-opening options. */
 export interface HerdrRepoOpenOptions {
-  /** Whether a command should split the active tab instead of opening a tab. */
-  readonly pane: boolean;
+  /** Shorthand for an explicit vertical split. */
+  readonly pane?: boolean;
+  /** Placement override; auto reuses an idle tab before splitting right. */
+  readonly layout?: "auto" | "vertical" | "horizontal" | "tab";
+  /** Qt keyboard modifiers, resolved with Ctrl, Alt, then Shift precedence. */
+  readonly modifiers?: number;
   /** Requested Herdr workspace label. */
   readonly label: string;
   /** Repository working directory. */
   readonly directory: string;
-  /** Label for a newly created command tab. */
+  /** Label for the selected command tab or new pane. */
   readonly tabLabel: string;
   /** Optional command to run in the selected repository. */
   readonly command?: string;
@@ -91,6 +102,41 @@ function canonicalLabel(options: HerdrRepoOpenOptions): string {
   }
 }
 
+const readIdleShell = Effect.fn("herdrRepoOpen.readIdleShell")(function* (
+  paneId: PaneId,
+) {
+  const herdr = yield* HerdrSdk;
+
+  if (Option.isSome((yield* herdr.panes.get(paneId)).agent)) return;
+
+  const info = yield* herdr.panes.processInfo(paneId);
+  const shellPid = Option.getOrUndefined(info.shellPid);
+  const shell = info.foregroundProcesses?.[0];
+
+  if (
+    !shellPid ||
+    info.foregroundProcesses?.length !== 1 ||
+    shell?.pid !== shellPid ||
+    Option.getOrUndefined(info.foregroundProcessGroupId) !== shellPid ||
+    !["sh", "bash", "zsh", "fish", "dash", "ksh"].includes(shell.name) ||
+    !Option.exists(
+      shell.argv,
+      (argv) =>
+        argv.length > 0 &&
+        argv
+          .slice(1)
+          .every((arg) =>
+            ["-l", "-i", "-il", "-li", "--login", "--interactive"].includes(
+              arg,
+            ),
+          ),
+    )
+  )
+    return;
+
+  return shell;
+});
+
 /** Open or focus a repository workspace with a configurable readiness schedule. */
 export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
   options: HerdrRepoOpenOptions,
@@ -99,6 +145,31 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
   const executor = yield* CommandExecutor;
   const herdr = yield* HerdrSdk;
   const label = canonicalLabel(options);
+  const directory = resolve(options.directory);
+  let command = options.command;
+
+  if (
+    [
+      options.pane === true,
+      options.layout !== undefined,
+      options.modifiers !== undefined,
+    ].filter(Boolean).length > 1
+  )
+    return fail("Use only one of --pane, --layout or --modifiers", 2);
+
+  const modifiers = options.modifiers ?? 0;
+
+  const layout =
+    options.layout ??
+    (options.pane
+      ? "vertical"
+      : modifiers & CONTROL_MODIFIER
+        ? "tab"
+        : modifiers & ALT_MODIFIER
+          ? "horizontal"
+          : modifiers & SHIFT_MODIFIER
+            ? "vertical"
+            : "auto");
 
   if (options.prompt !== undefined && (!options.command || !options.agentKind))
     return fail("An initial prompt requires a command and --agent-kind", 2);
@@ -184,60 +255,90 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
 
   const workspaces = yield* herdr.workspaces.list();
 
-  let workspaceId = workspaces.find(
-    (workspace) => workspace.label === label,
-  )?.id;
+  const workspace = workspaces.find((workspace) => workspace.label === label);
+  let workspaceId = workspace?.id;
 
   let tabId: TabId | undefined;
   let paneId: PaneId | undefined;
 
   if (!workspaceId) {
     const created = yield* herdr.workspaces.createInDirectory(
-      options.directory,
+      directory,
       label ? { label, focus: false } : { focus: false },
     );
 
     workspaceId = created.workspace.id;
     tabId = created.tab.id;
     paneId = created.rootPane.id;
-  } else if (options.command && options.pane) {
-    const activeTabId = workspaces.find(
-      (workspace) => workspace.id === workspaceId,
-    )?.activeTabId;
-
-    const panes = yield* herdr.panes.list({ workspaceId });
-
-    const target =
-      panes.find((pane) => pane.tabId === activeTabId && pane.focused) ??
-      panes.find((pane) => pane.tabId === activeTabId) ??
-      panes[0];
-
-    if (!target) return fail(`Herdr did not return a pane ID for ${label}`);
-
-    const created = yield* herdr.panes.split(target.id, {
-      direction: "right",
-      cwd: options.directory,
-      focus: true,
-    });
-
-    paneId = created.id;
-  } else if (options.command) {
+  } else if (command !== undefined && layout === "tab") {
     const created = yield* herdr.tabs.create({
       workspaceId,
-      cwd: options.directory,
+      cwd: directory,
       label: options.tabLabel,
       focus: false,
     });
 
     tabId = created.tab.id;
     paneId = created.rootPane.id;
+  } else if (command !== undefined) {
+    const panes = yield* herdr.panes.list({ workspaceId });
+
+    if (layout === "auto") {
+      const tabs = (yield* herdr.tabs.list({ workspaceId })).toSorted(
+        (left, right) =>
+          Number(right.id === workspace?.activeTabId) -
+          Number(left.id === workspace?.activeTabId),
+      );
+
+      for (const tab of tabs) {
+        if (tab.paneCount !== 1) continue;
+        const pane = panes.find((pane) => pane.tabId === tab.id);
+
+        if (!pane || Option.isSome(pane.agent)) continue;
+        const shell = yield* readIdleShell(pane.id);
+
+        if (!shell) continue;
+
+        const currentShell = yield* readIdleShell(pane.id);
+
+        if (!currentShell || currentShell.pid !== shell.pid) break;
+
+        tabId = tab.id;
+        paneId = pane.id;
+
+        if (Option.getOrUndefined(currentShell.cwd) !== directory) {
+          command =
+            `cd -- '${directory.replaceAll("'", "'\\''")}'` +
+            (command ? ` && eval '${command.replaceAll("'", "'\\''")}'` : "");
+        }
+
+        break;
+      }
+    }
+
+    if (!paneId) {
+      const target =
+        panes.find(
+          (pane) => pane.tabId === workspace?.activeTabId && pane.focused,
+        ) ??
+        panes.find((pane) => pane.tabId === workspace?.activeTabId) ??
+        panes[0];
+
+      if (!target) return fail(`Herdr did not return a pane ID for ${label}`);
+
+      paneId = (yield* herdr.panes.split(target.id, {
+        direction: layout === "horizontal" ? "down" : "right",
+        cwd: directory,
+        focus: false,
+      })).id;
+    }
   }
 
   if (!workspaceId)
     return fail(`Herdr did not return a workspace ID for ${label}`);
 
-  if (options.command) {
-    if (!paneId || (!options.pane && !tabId)) {
+  if (command !== undefined) {
+    if (!paneId) {
       return fail(
         `Herdr did not return the required pane or tab ID for ${label}`,
       );
@@ -245,17 +346,23 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
 
     if (tabId) {
       yield* herdr.tabs.rename(tabId, options.tabLabel);
+    } else {
+      yield* herdr.panes.rename(paneId, options.tabLabel);
     }
 
-    yield* herdr.panes.sendInput(paneId, {
-      text: options.command,
-      keys: ["enter"],
-    });
+    if (command) {
+      yield* herdr.panes.sendInput(paneId, {
+        text: command,
+        keys: ["enter"],
+      });
+    }
   }
 
   yield* herdr.workspaces.focus(workspaceId);
 
   if (tabId) yield* herdr.tabs.focus(tabId);
+
+  if (paneId) yield* herdr.panes.focus(paneId);
 
   if (options.prompt !== undefined && paneId) {
     const targetPane = paneId;

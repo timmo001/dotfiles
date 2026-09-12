@@ -221,12 +221,18 @@ Item {
     if (url) openWeb(url, repo ? repo.path : "", modifiers)
   }
 
-  function openRelease(entry) {
+  function herdrCommand(repo, tabLabel, command, modifiers, flags) {
+    return ["dot", "herdr", "repo-open", "--modifiers", String(modifiers || 0)]
+      .concat(flags || [])
+      .concat([String(repo.name || ""), String(repo.path), tabLabel || "Shell", command || ""])
+  }
+
+  function openRelease(entry, modifiers) {
     if (!entry || !entry.snapshot || !entry.path || releaseLaunching) return
     releaseActionError = ""
     var command = ["dot", "git-releases", "publish", "--interactive", "--repo", entry.repo, "--snapshot", entry.snapshot.id]
       .map(function(arg) { return "'" + String(arg).replace(/'/g, "'\\''") + "'" }).join(" ")
-    releaseLaunchProcess.command = ["dot", "herdr", "repo-open", String(entry.name), String(entry.path), "Release", command]
+    releaseLaunchProcess.command = herdrCommand(entry, "Release", command, modifiers)
     releaseLaunchProcess.running = true
   }
 
@@ -240,7 +246,7 @@ Item {
     return ""
   }
 
-  function prepareRelease(entry, summary, command) {
+  function prepareRelease(entry, summary, command, modifiers) {
     releaseActionError = releasePreparationIssue(entry)
     if (releaseActionError) return false
     var snapshot = entry.snapshot
@@ -277,7 +283,7 @@ Item {
       "Release review context:",
       JSON.stringify(context, null, 2)
     ].join("\n\n")
-    return openAgent(entry, command, prompt)
+    return openAgent(entry, command, prompt, modifiers)
   }
 
   function drainReleaseRefresh() {
@@ -300,31 +306,16 @@ Item {
 
   function openRepo(repo, action, modifiers, command, tabLabel) {
     if (!repo || !repo.path) return
-    var path = String(repo.path)
     if (action === "pull") {
       pullRepositories([repo])
-    } else if (action === "lazygit-floating")
-      Quickshell.execDetached(["uwsm", "app", "--", "xdg-terminal-exec", "--app-id=TUI.float", "--dir=" + path, "lazygit"])
-    else if (action === "lazygit-pane" || action === "lazygit-tab")
-      Quickshell.execDetached([
-        "bash", "-lc",
-        "if herdr status server >/dev/null 2>&1; then exec dot herdr repo-open $1 \"$2\" \"$3\" Lazygit lazygit; else exec uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal --dir=\"$3\" lazygit; fi",
-        "bash", action === "lazygit-pane" ? "--pane" : "", String(repo.name || ""), path
-      ])
+    } else if (action === "lazygit")
+      Quickshell.execDetached(herdrCommand(repo, "Lazygit", "lazygit", modifiers))
     else if (action === "editor")
-      Quickshell.execDetached([
-        "bash", "-lc",
-        "if herdr status server >/dev/null 2>&1; then exec dot herdr repo-open \"$1\" \"$2\" Editor \"nvim .\"; else exec uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal --dir=\"$2\" nvim .; fi",
-        "bash", String(repo.name || ""), path
-      ])
+      Quickshell.execDetached(herdrCommand(repo, "Editor", "nvim .", modifiers))
     else if (action === "terminal")
-      Quickshell.execDetached([
-        "bash", "-lc",
-        "if herdr status server >/dev/null 2>&1; then exec dot herdr repo-open \"$1\" \"$2\" \"$3\" \"$4\"; else exec uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal --dir=\"$2\" bash -lc 'if [ -n \"$1\" ]; then bash -lc \"$1\"; fi; exec \"${SHELL:-/bin/bash}\" -i' bash \"$4\"; fi",
-        "bash", String(repo.name || ""), path, tabLabel || "Shell", command || ""
-      ])
+      Quickshell.execDetached(herdrCommand(repo, tabLabel, command, modifiers))
     else if (action === "web")
-      openWeb("", path, modifiers)
+      openWeb("", String(repo.path), modifiers)
   }
 
   function canPullRepo(repo) {
@@ -357,23 +348,14 @@ Item {
     pullProcess.running = true
   }
 
-  function openAgent(repo, command, prompt) {
+  function openAgent(repo, command, prompt, modifiers) {
     if (!repo || !repo.path || !command || agentLaunching) return
     var agent = installedAgents.find(function(value) { return value.command === command })
     if (!agent) return
     agentLaunchError = ""
-    if (prompt) {
-      agentLaunchProcess.command = ["dot", "herdr", "repo-open", "--agent-kind", command === "opencode2" ? "opencode" : command, "--prompt", prompt, String(repo.name || ""), String(repo.path), String(agent.label), String(agent.executable)]
-      agentLaunchProcess.running = true
-      return
-    }
-    var path = String(repo.path)
-    Quickshell.execDetached([
-      "bash", "-lc",
-      "if herdr status server >/dev/null 2>&1; then exec dot herdr repo-open \"$1\" \"$2\" \"$3\" \"$4\"; else exec uwsm app -- xdg-terminal-exec --app-id=org.omarchy.terminal --dir=\"$2\" \"$4\"; fi",
-      "bash", String(repo.name || ""), path, String(agent.label), String(agent.executable)
-    ])
-    agentOpened()
+    agentLaunchProcess.command = herdrCommand(repo, String(agent.label), String(agent.executable), modifiers,
+      prompt ? ["--agent-kind", command === "opencode2" ? "opencode" : command, "--prompt", prompt] : [])
+    agentLaunchProcess.running = true
   }
 
   function openNotifications(modifiers) {

@@ -288,7 +288,7 @@ Panel {
         lines.push("Proposed version: " + (selectedRelease.nextVersion || "To be resolved in the release session"))
         lines.push("Target branch: " + releaseSnapshot.branch, "Compared commit: " + releaseSnapshot.head)
         lines.push("Impact: " + releaseSnapshot.suggestion + (releaseSnapshot.reviewed ? " · local overall choice" : " · automatic"))
-        lines.push(selectedRelease.publishAvailable ? "Start release opens a Release tab in this repository's Herdr workspace. The terminal explains the steps, asks for confirmation and shows live progress. Failures offer agent recovery; success shows a summary and links." : "Open a release preparation session with the reviewed findings. The agent follows this repository's release workflow and runs its checks. Publish when ready from that session.")
+        lines.push(selectedRelease.publishAvailable ? "Start release opens a terminal in this repository's Herdr workspace. The terminal explains the steps, asks for confirmation and shows live progress. Failures offer agent recovery; success shows a summary and links." : "Open a release preparation session with the reviewed findings. The agent follows this repository's release workflow and runs its checks. Publish when ready from that session.")
       }
       var issue = service ? service.releasePreparationIssue(selectedRelease) : "Release service unavailable"
       if (issue) lines.push(issue)
@@ -439,7 +439,7 @@ Panel {
     else if (action === "releases") showView("releases")
     else if (action === "release-repo" && selectedRelease) showRepoActions(selectedRelease)
     else if (action === "release-agent") showAgentPicker(selectedRelease)
-    else if (action === "release-publish") service.openRelease(selectedRelease)
+    else if (action === "release-publish") service.openRelease(selectedRelease, modifiers)
     else if (action === "release-choice") { selectedImpactView = view; showView(action) }
     else if (["release-prepare", "release-commits"].indexOf(action) >= 0) showView(action)
     else if (action === "release-evidence") service.openEvidence(view === "finding" ? findingUrl(selectedFinding) : (releaseSnapshot ? "https://github.com/" + releaseSnapshot.repo + "/compare/" + releaseSnapshot.releaseCommit + "...HEAD" : ""), selectedRelease, modifiers)
@@ -453,8 +453,8 @@ Panel {
     else if (action === "back") showView(view === "repo" ? selectedRepoView : "overview")
     else if (action === "notifications") { close(); service.openNotifications(modifiers) }
     else if (action.indexOf("agent:") === 0 && selectedRepo) {
-      if (releaseAgentView) service.prepareRelease(selectedRelease, findingGroups.map(function(group) { return { title: group.title, count: group.findings.length, summary: group.summary } }), action.slice(6))
-      else service.openAgent(selectedRepo, action.slice(6))
+      if (releaseAgentView) service.prepareRelease(selectedRelease, findingGroups.map(function(group) { return { title: group.title, count: group.findings.length, summary: group.summary } }), action.slice(6), modifiers)
+      else service.openAgent(selectedRepo, action.slice(6), "", modifiers)
     }
     else if (selectedRepo) {
       if (action === "pull") {
@@ -462,11 +462,7 @@ Panel {
         return
       }
       close()
-      if (action === "lazygit") {
-        if (modifiers & Qt.ShiftModifier) service.openRepo(selectedRepo, "lazygit-floating")
-        else if (modifiers & Qt.ControlModifier) service.openRepo(selectedRepo, "lazygit-tab")
-        else service.openRepo(selectedRepo, "lazygit-pane")
-      } else service.openRepo(selectedRepo, action, modifiers)
+      service.openRepo(selectedRepo, action, modifiers)
     }
   }
 

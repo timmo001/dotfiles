@@ -1,4 +1,4 @@
-import { Context, Effect, Option } from "effect";
+import { Context, Effect, Option, Schema } from "effect";
 import {
   Argument,
   CliOutput,
@@ -1403,7 +1403,29 @@ const herdrRepoOpenCommand = describe(
   Command.make(
     "repo-open",
     {
-      pane: bool("pane", "Run in a new pane"),
+      pane: bool("pane", "Shorthand for --layout vertical"),
+      layout: Flag.choice("layout", [
+        "auto",
+        "vertical",
+        "horizontal",
+        "tab",
+      ]).pipe(
+        Flag.withDescription(
+          "Auto reuses an idle shell tab, otherwise splits right; vertical splits right, horizontal splits below, tab opens a new tab",
+        ),
+        Flag.optional,
+      ),
+      modifiers: Flag.integer("modifiers").pipe(
+        Flag.withSchema(
+          Schema.Int.check(
+            Schema.isBetween({ minimum: 0, maximum: 0x7fffffff }),
+          ),
+        ),
+        Flag.withDescription(
+          "Qt keyboard modifier bitmask: Ctrl new tab, Alt split below, Shift split right, otherwise auto",
+        ),
+        Flag.optional,
+      ),
       prompt: Flag.string("prompt").pipe(
         Flag.withDescription(
           "Initial prompt to send through Herdr after the agent is ready",
@@ -1429,15 +1451,17 @@ const herdrRepoOpenCommand = describe(
         Argument.optional,
       ),
     },
-    ({ command, prompt, agentKind, ...input }) =>
+    ({ command, prompt, agentKind, layout, modifiers, ...input }) =>
       herdrRepoOpen({
         ...input,
+        layout: optional(layout),
+        modifiers: optional(modifiers),
         command: optional(command),
         prompt: optional(prompt),
         agentKind: optional(agentKind),
       }),
   ),
-  "Open or focus a repository workspace in the shared Herdr session. If the server is headless, open a tiled terminal and wait for a foreground client before focusing the workspace.",
+  "Open or focus a repository workspace in the shared Herdr session, attaching a tiled terminal when needed. Commands reuse an idle shell tab by default, otherwise split right. --layout vertical always splits right, horizontal splits below, and tab always opens a new tab. --modifiers selects the same behaviour from Qt click/Enter modifiers, with Ctrl taking priority over Alt, then Shift. Placement flags are mutually exclusive. Without a command, focus the workspace; an empty command opens a shell using the selected layout.",
   [],
   {
     sections: [

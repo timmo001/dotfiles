@@ -11,6 +11,7 @@
 //   returnType     "json" (text/tooltip/class) or "text" (default "json")
 //   tooltip        Whether to show the JSON tooltip (default true)
 //   onClick        Command run on left click
+//   herdrLaunch    Forward click modifiers to a dot herdr repo-open command
 //   onClickRight   Command run on right click
 //   onMiddleClick  Command run on middle click
 //   classColors    Map of class name -> colour string
@@ -38,6 +39,7 @@ BarWidget {
   readonly property string returnType: setting("returnType", "json")
   readonly property bool tooltipEnabled: setting("tooltip", true)
   readonly property string onClickCmd: setting("onClick", "")
+  readonly property bool herdrLaunch: setting("herdrLaunch", false)
   readonly property string onClickRightCmd: setting("onClickRight", "")
   readonly property string onMiddleClickCmd: setting("onMiddleClick", "")
   readonly property var classColors: setting("classColors", ({}))
@@ -170,6 +172,17 @@ BarWidget {
     return root.bar ? root.bar.barForeground : Color.foreground
   }
 
+  function activateCommand(button, modifiers) {
+    if (!root.bar) return
+    if (button === Qt.RightButton) {
+      if (root.onClickRightCmd !== "") root.bar.run(root.onClickRightCmd)
+    } else if (button === Qt.MiddleButton) {
+      if (root.onMiddleClickCmd !== "") root.bar.run(root.onMiddleClickCmd)
+    } else if (root.onClickCmd !== "") {
+      root.bar.run(root.onClickCmd + (root.herdrLaunch ? " --modifiers " + String(modifiers || 0) : ""))
+    }
+  }
+
   visible: root.activeInstance && root.shown
   implicitWidth: root.activeInstance && root.shown ? button.implicitWidth : 0
   implicitHeight: button.implicitHeight
@@ -211,6 +224,9 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
+    // The bar's synthetic pressed signal drops modifiers. Let opted-in clicks
+    // propagate to the local MouseArea instead of launching twice.
+    pressable: !root.herdrLaunch
     // Match the stock right-side indicators (audio/network/tray), which render
     // at caption size. The clock/weather sit at body, but their Weather-Icons
     // and digit glyphs are visually lighter than the Material Design / Font
@@ -224,13 +240,20 @@ BarWidget {
     tooltipText: root.tooltipEnabled ? root.outTooltip : ""
     foreground: root.loading && root.loadingText !== "" ? root.colorForClass(root.loadingClass) : (root.hoverRevealed && root.revealColor !== "" ? root.revealColor : root.colorForClass(root.outClass))
     onPressed: function (b) {
-      if (!root.bar) return
-      if (b === Qt.RightButton) {
-        if (root.onClickRightCmd !== "") root.bar.run(root.onClickRightCmd)
-      } else if (b === Qt.MiddleButton) {
-        if (root.onMiddleClickCmd !== "") root.bar.run(root.onMiddleClickCmd)
-      } else {
-        if (root.onClickCmd !== "") root.bar.run(root.onClickCmd)
+      if (!root.herdrLaunch) root.activateCommand(b, Qt.NoModifier)
+    }
+
+    MouseArea {
+      anchors.fill: parent
+      enabled: root.herdrLaunch
+      acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+      hoverEnabled: true
+      cursorShape: Qt.PointingHandCursor
+      onEntered: if (root.bar) root.bar.showTooltip(button, button.tooltipText)
+      onExited: if (root.bar) root.bar.hideTooltip(button)
+      onClicked: function(mouse) {
+        if (root.bar) root.bar.hideTooltip(button)
+        root.activateCommand(mouse.button, mouse.modifiers)
       }
     }
   }
