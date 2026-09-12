@@ -2,7 +2,7 @@
 description: Keep documentation current with recent code changes, via the Context CLI and delegated investigation
 ---
 
-Load the `maintain-docs` skill as the authoritative workflow, and load the `writing-style` skill alongside it before authoring any docs.
+Load `maintain-docs` as the authoritative workflow, `context-cli` for repository snapshots, and `writing-style` before authoring any docs.
 
 In this repository, also load the repo-local `dotfiles-docs` skill for the Blume site density, privacy, upstream-link, and generated-catalogue rules. Follow the Documentation section in the repo-root `AGENTS.md` as the short policy summary. Default is no hand-written docs update. Prefer short what-and-why pages; do not restore deleted runbooks, keybinding tables, or quirk detail. Only edit a hand-written page when a whole section's purpose changed. Generated catalogues still regenerate from source when those sources changed.
 

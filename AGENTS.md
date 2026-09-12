@@ -46,9 +46,9 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - For human-written command names and command/docs prose in this repo, prefer UK spelling. Keep upstream tool, API, or MCP names unchanged when they use US spelling.
 - `agents/.config/opencode/` contains the shared OpenCode config source published from this repo.
 - `agents/.config/opencode/lib/` contains shared plugin support modules. Relative plugin imports must resolve before publication.
-- `agents/.agents/skills/` is the `timmo001/skills` submodule and exposes its skills via `~/.agents/skills/`. Create, import, review, and update every reusable skill in the standalone checkout under `~/repos/skills`, even when first requested from this repo. Never edit the submodule checkout or `~/.agents/skills` directly. After every committed or upstream-updated skills revision, update and commit the pinned submodule revision here; do not leave the repositories out of sync.
+- `agents/.agents/skills/` is the `timmo001/skills` submodule and exposes its skills via `~/.agents/skills/`. Author shared skills and manage imports in the standalone checkout under `~/repos/skills`. Tool-owned skills live in `.agents/skills/` in their owning repository and are imported through `skills`. Never edit the submodule checkout or `~/.agents/skills` directly. After every committed or upstream-updated skills revision, update and commit the pinned submodule revision here; do not leave the repositories out of sync.
 - `herdr/.config/herdr/` stows the main config and selected plugin configuration; runtime logs, sockets, generated files, and session state stay untracked in `~/.config/herdr/`.
-- `.agents/skills/` contains repo-local skills for this repo only and is registered through `skills.paths` in `opencode.json`. Use `dotfiles-skills/.agents/skills/` only for global skills whose workflow is specifically coupled to dotfiles paths, commands, or private overlays; tool-specific or cross-repository workflows belong in `~/repos/skills`.
+- `.agents/skills/` contains repo-local skills for this repo only and is registered through `skills.paths` in `opencode.json`. Use `dotfiles-skills/.agents/skills/` only for global skills whose workflow is specifically coupled to dotfiles paths, commands, or private overlays. Shared cross-repository workflows belong in `~/repos/skills`; tool-owned skills belong in the tool repository and are tracked there as imports.
 - Public `SKILL.md` files must satisfy the [Agent Skills](https://agentskills.io/specification) frontmatter rules. The standalone skills repo validates `agents/.agents/skills/`; this repo validates its local `.agents/skills/` root.
 - `dot agents-sync` mirrors the global private AGENTS source into agent harness instruction files; full `dot update` and `dot init` run that sync automatically.
 - Pinned private OpenCode packages, including plugins in `dotfiles-private/agents/.config/opencode/{opencode,tui}.json`, should be managed by an npm regex custom manager in `dotfiles-private/renovate.json`.
@@ -60,6 +60,13 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 - Skills own reusable workflows and behavioural contracts. Prefer updating a skill when the same guidance would otherwise be repeated across commands or agents.
 - Plugins provide context, evidence, or enforcement hooks. Commands opt into plugin-provided context, and skills define how to consume it.
 - AGENTS guidance should stay to invariant repo policy, source-of-truth rules, and routing conventions rather than step-by-step command workflows.
+
+### Tool-Owned Skill Sources
+
+- `timmo001/context` owns `.agents/skills/context-cli/` and `.agents/skills/context-mcp/`; `timmo001/notes` owns `.agents/skills/notes-cli/` and `.agents/skills/notes-mcp/`. Resolve their local checkouts through the optional private `dot-git.yml`.
+- The standalone skills repository imports only `context-cli` and `notes-cli`. The MCP skills remain in their source repositories and are not part of the shared import set.
+- Update flow: edit and validate the owning repository -> authorised source commit and push -> refresh the CLI import in skills -> validate and commit/push skills -> advance this repository's `agents/.agents/skills` submodule to that skills commit -> commit the pointer and companion commands -> `dot stow`.
+- Dotfiles commands and global guidance select the CLI skills; they do not own the tool workflows. Never edit imported submodule files or installed skills to bypass the source-to-import update flow.
 
 ## Repo-Specific Skills
 

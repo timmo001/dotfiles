@@ -4,7 +4,7 @@ description: Create a new note for the current repository in your Obsidian notes
 
 A `<repo-note-context>` block has been injected above by RepoNotesPlugin. It contains the resolved `owner`, `repo`, and `notes_path` for the current repository.
 
-Use the `notes` CLI for vault operations. Resolve missing injected context with `notes context --json`.
+Load `notes-cli` for repository context, vault operations, and mutation results. Use `note-create` as the context command.
 
 Follow these steps exactly:
 
@@ -36,12 +36,7 @@ Auto-generate a kebab-case slug from the summary topic. Rules:
 Read `Notes path` from the `<repository>` section of the injected context.
 
 1. Generate the full note content using the format below.
-2. Verify that `{notes_path}/{slug}.md` is unused with `notes list`.
-3. Pass the full note content on stdin to `notes write --path "{notes_path}/{slug}.md" --stdin --json`.
-
-The Notes CLI adds the frontmatter `date:` for you. Check its JSON result and report any save, commit, or push failure.
-
-Use the Notes CLI rather than writing directly to the vault.
+2. Create `{notes_path}/{slug}.md` through the `notes-cli` create workflow.
 
 Use this exact format for `content`:
 
@@ -80,8 +75,4 @@ tags:
 
 ## Step 4: Confirm
 
-Tell the user exactly:
-
-```text
-Saved: repo-notes/{owner}/{repo}/{slug}.md
-```
+Report the actual saved path and mutation result through `notes-cli`.

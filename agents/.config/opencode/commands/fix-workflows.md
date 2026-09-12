@@ -2,7 +2,7 @@
 description: Diagnose and fix recent GitHub Actions failures, optionally scoped to a workflow or run
 ---
 
-Load the `diagnose` skill before proceeding.
+Load `diagnose` and `context-cli` before proceeding.
 
 Use `${ARGUMENTS}` as an optional workflow name, workflow file, run ID, job name, or GitHub Actions URL. If it is empty, inspect recent failed workflow runs for the current repository and branch. Do not ask for a target unless multiple unrelated failures make the intended scope materially ambiguous.
 

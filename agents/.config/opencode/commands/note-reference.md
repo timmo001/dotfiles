@@ -42,7 +42,7 @@ If the user's text suggests a topic rather than a specific filename, rank the ca
 
 ## Step 4: Load the note(s)
 
-For each selected note, run `notes read --path "{notes_path}/{filename}" --json`. Do not use the built-in `read` tool for the notes vault. Hold the returned full content in context for this session.
+Load `notes-cli` and read each selected note through its CLI workflow. Hold the returned full content in context for this session.
 
 ## Step 5: Load relevant skills
 
@@ -64,7 +64,7 @@ After loading the note and skills, present the immediate next step only:
 - If the note is a handoff, suggest the single next action needed to resume from the handoff.
 - If multiple notes imply different follow-ups, list the next step for each note briefly.
 
-When a loaded note is a handoff or plan and the user proceeds with implementation, treat that note as active coordination state. The final implementation step after all tracked work and validation are complete is to ask the user to confirm deletion and then remove it with `notes delete`. If tracked work remains deferred, blocked, or unresolved, update or preserve the note instead of deleting it.
+When a loaded note is a handoff or plan and the user proceeds with implementation, treat that note as active coordination state. The final implementation step after all tracked work and validation are complete is to ask the user to confirm deletion and then remove it through `notes-cli`. If tracked work remains deferred, blocked, or unresolved, update or preserve the note instead of deleting it.
 
 Confirm to the user:
 

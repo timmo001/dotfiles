@@ -4,7 +4,7 @@ description: Append new notes to an existing note file for the current repositor
 
 A `<repo-note-context>` block has been injected above by RepoNotesPlugin. It contains the resolved `owner`, `repo`, `notes_path`, and the list of existing note files in `<existing-notes>`, sorted newest-first by modification time.
 
-Use the `notes` CLI for vault operations. Resolve missing injected context with `notes context --json`.
+Load `notes-cli` for repository context, vault operations, and mutation results. Use `note-append` as the context command.
 
 Follow these steps exactly:
 
@@ -47,20 +47,14 @@ Omit any section that has no new content for this session.
 
 ## Step 4: Rewrite the note with integrated content
 
-1. Run `notes read --path "{notes_path}/{filename}" --json` to get the full existing content and revision hash.
+1. Read the selected note through the `notes-cli` update workflow.
 2. Integrate the new content into the appropriate sections:
     - Append new bullet items to existing sections (Key Ideas, Decisions, Actions Taken, Open Threads)
     - If a section in the existing note is missing but has new content, add it
     - Do not duplicate existing items
-    - Leave the frontmatter `name`, `description`, and `tags` unchanged (they reflect the original session). The Notes CLI refreshes the frontmatter `date:` to now automatically; do not read the date yourself.
-3. Pass the complete updated file on stdin to `notes write --path "{notes_path}/{filename}" --stdin --expected-hash "{hash}" --json`, using the hash returned by `notes read`. If it reports a stale revision, read again and reconcile before retrying.
-
-Use the Notes CLI rather than writing directly to the vault. Check its JSON result and report any save, commit, or push failure.
+    - Leave the frontmatter `name`, `description`, and `tags` unchanged (they reflect the original session).
+3. Save the integrated content through the `notes-cli` revision-checked update workflow.
 
 ## Step 5: Confirm
 
-Tell the user exactly:
-
-```text
-Updated: repo-notes/{owner}/{repo}/{filename}
-```
+Report the actual updated path and mutation result through `notes-cli`.
