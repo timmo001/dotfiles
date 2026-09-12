@@ -41,6 +41,11 @@ permission:
   todowrite: deny
   bash:
     "*": deny
+    "context git*": allow
+    "context stack*": allow
+    "notes context*": allow
+    "notes list*": allow
+    "notes read*": allow
     "timeout *": allow
     "command -v*": allow
     "ctx docs search*": allow

@@ -3,7 +3,6 @@ import { Tool } from "@opencode-ai/schema/tool";
 import { Effect } from "effect";
 import {
   argRecord,
-  commandMentionsPath,
   expandHome,
   stringArg,
   targetIsInsideDirectory,
@@ -42,7 +41,7 @@ export default Plugin.define({
 
       const message = (tool: string) =>
         `Direct '${tool}' access to the notes vault is blocked.\n` +
-        `The vault at ${expandedVaultPath} is exclusively managed by the notes MCP tools.`;
+        `Use the Notes CLI to access the vault at ${expandedVaultPath}.`;
 
       yield* context.tool.hook("execute.before", (event) => {
         const args = argRecord(event.input);
@@ -53,13 +52,7 @@ export default Plugin.define({
             targetIsInsideDirectory(expandedVaultPath, stringArg(value)),
           );
 
-        const command = stringArg(args.command);
-
-        const shellBlocked =
-          (event.tool === "shell" || event.tool === "bash") &&
-          (commandMentionsPath(command, expandedVaultPath) || commandMentionsPath(command, vaultPath));
-
-        return pathBlocked || shellBlocked
+        return pathBlocked
           ? Effect.fail(new Tool.Error({ message: message(event.tool) }))
           : Effect.void;
       });

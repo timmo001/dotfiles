@@ -4,7 +4,7 @@ description: Create a new note for the current repository in your Obsidian notes
 
 A `<repo-note-context>` block has been injected above by RepoNotesPlugin. It contains the resolved `owner`, `repo`, and `notes_path` for the current repository.
 
-Load and follow the `notes-mcp` skill.
+Use the `notes` CLI for vault operations. Resolve missing injected context with `notes context --json`.
 
 Follow these steps exactly:
 
@@ -36,13 +36,12 @@ Auto-generate a kebab-case slug from the summary topic. Rules:
 Read `Notes path` from the `<repository>` section of the injected context.
 
 1. Generate the full note content using the format below.
-2. Call the `notes_note_write` tool with:
-   - `path`: `{notes_path}/{slug}.md`
-   - `content`: the full note content
+2. Verify that `{notes_path}/{slug}.md` is unused with `notes list`.
+3. Pass the full note content on stdin to `notes write --path "{notes_path}/{slug}.md" --stdin --json`.
 
-The `notes_note_write` tool adds the frontmatter `date:` for you.
+The Notes CLI adds the frontmatter `date:` for you. Check its JSON result and report any save, commit, or push failure.
 
-Do **not** use the `write`, `bash`, or any other tool to write the file - only `notes_note_write`.
+Use the Notes CLI rather than writing directly to the vault.
 
 Use this exact format for `content`:
 
@@ -51,7 +50,9 @@ Use this exact format for `content`:
 repo: {owner}/{repo}
 name: {Short human-readable title, 3–6 words, Title Case}
 description: {One sentence describing what this note covers}
-tags: [{2–5 kebab-case tags derived from the conversation content, e.g. authentication, jwt, api-design}]
+tags:
+  - {kebab-case tag derived from the conversation}
+  - {another tag, using 2–5 tags in total}
 ---
 
 # {name value repeated here as the heading}

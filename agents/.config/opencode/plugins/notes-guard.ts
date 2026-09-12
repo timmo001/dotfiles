@@ -1,14 +1,13 @@
 /**
- * @file Blocks direct file and shell access to the repository notes vault.
+ * @file Blocks direct file access to the repository notes vault.
  *
- * Notes are only read, written, and deleted through the notes MCP tools, which
+ * Notes are read, written, and deleted through the Notes CLI, which
  * keeps vault changes auditable and prevents bypassing notes-specific guards.
  */
 
 import type { Plugin } from "@opencode-ai/plugin"
 import {
   argRecord,
-  commandMentionsPath,
   expandHome,
   stringArg,
   targetIsInsideDirectory,
@@ -70,8 +69,8 @@ export const NotesGuardPlugin = (async () => {
 
   const guardMessage = (tool: string) =>
     `Direct '${tool}' access to the notes vault is blocked.\n` +
-    `The vault at ${expandedVaultPath} is exclusively managed by the notes_note_read, notes_note_write, and notes_note_delete tools.\n` +
-    "Use notes_note_read to read a note, notes_note_write to create or update one, or notes_note_delete to remove one."
+    `Use the Notes CLI to access the vault at ${expandedVaultPath}.\n` +
+    "Use notes read, notes write, or notes delete."
 
   return {
     "tool.execute.before": async (input, output) => {
@@ -79,15 +78,6 @@ export const NotesGuardPlugin = (async () => {
       const args = argRecord(output.args)
 
       if (toolTargetsVault(tool, args)) throw new Error(guardMessage(tool))
-
-      if (tool === "bash") {
-        const cmd = stringArg(args.command)
-        if (
-          commandMentionsPath(cmd, expandedVaultPath) ||
-          commandMentionsPath(cmd, vaultPath)
-        )
-          throw new Error(guardMessage("bash"))
-      }
     },
   }
 }) satisfies Plugin

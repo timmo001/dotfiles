@@ -6,7 +6,7 @@ Load the `diagnose` skill before proceeding.
 
 Use `${ARGUMENTS}` as an optional workflow name, workflow file, run ID, job name, or GitHub Actions URL. If it is empty, inspect recent failed workflow runs for the current repository and branch. Do not ask for a target unless multiple unrelated failures make the intended scope materially ambiguous.
 
-Use the Context MCP server's `git_context` tool to identify the current repository, branch, remotes, and working-tree state. Prefer the GitHub Actions MCP tools for concise run, job, and failed-log reads. Use `gh` only when the MCP tools cannot express the required lookup.
+Use `context git --remotes` to identify the current repository, branch, remotes, and working-tree state. Prefer the GitHub Actions MCP tools for concise run, job, and failed-log reads. Use `gh` only when the MCP tools cannot express the required lookup.
 
 Identify the failing workflow, job, step, and exact error before editing. Build and run the smallest local reproduction of the failing command where feasible, then trace the failure to its root cause. If the failure comes from a reusable workflow, load the `shared-workflows` skill and inspect the referenced workflow before deciding which repository should change.
 

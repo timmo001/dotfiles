@@ -4,7 +4,7 @@ description: Append new notes to an existing note file for the current repositor
 
 A `<repo-note-context>` block has been injected above by RepoNotesPlugin. It contains the resolved `owner`, `repo`, `notes_path`, and the list of existing note files in `<existing-notes>`, sorted newest-first by modification time.
 
-Load and follow the `notes-mcp` skill.
+Use the `notes` CLI for vault operations. Resolve missing injected context with `notes context --json`.
 
 Follow these steps exactly:
 
@@ -47,19 +47,15 @@ Omit any section that has no new content for this session.
 
 ## Step 4: Rewrite the note with integrated content
 
-1. Call the `notes_note_read` tool with `path: {notes_path}/{filename}` to get the full existing content and revision hash.
-   Do **not** use the built-in `read` tool — it is blocked for the notes vault.
+1. Run `notes read --path "{notes_path}/{filename}" --json` to get the full existing content and revision hash.
 2. Integrate the new content into the appropriate sections:
     - Append new bullet items to existing sections (Key Ideas, Decisions, Actions Taken, Open Threads)
     - If a section in the existing note is missing but has new content, add it
     - Do not duplicate existing items
-    - Leave the frontmatter `name`, `description`, and `tags` unchanged (they reflect the original session). The `notes_note_write` tool refreshes the frontmatter `date:` to now automatically; do not read the date yourself.
-3. Call the `notes_note_write` tool with:
-    - `path`: `{notes_path}/{filename}`
-    - `content`: the complete updated file content
-    - `expectedHash`: the hash returned by `notes_note_read`
+    - Leave the frontmatter `name`, `description`, and `tags` unchanged (they reflect the original session). The Notes CLI refreshes the frontmatter `date:` to now automatically; do not read the date yourself.
+3. Pass the complete updated file on stdin to `notes write --path "{notes_path}/{filename}" --stdin --expected-hash "{hash}" --json`, using the hash returned by `notes read`. If it reports a stale revision, read again and reconcile before retrying.
 
-Do **not** use the `write`, `bash`, or any other tool to write the file - only `notes_note_write`.
+Use the Notes CLI rather than writing directly to the vault. Check its JSON result and report any save, commit, or push failure.
 
 ## Step 5: Confirm
 

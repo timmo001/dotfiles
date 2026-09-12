@@ -131,17 +131,5 @@
       "repository": "quickshell-mirror/quickshell",
       "description": "Use for upstream Quickshell QML types, WlrLayershell/layer-shell, IpcHandler, reloadable config, and the qs CLI when customising the Omarchy shell bar widgets"
     }
-  },
-  "mcp": {
-    "context": {
-      "type": "local",
-      "command": ["context", "mcp"],
-      "enabled": true
-    },
-    "notes": {
-      "type": "local",
-      "command": ["notes", "mcp"],
-      "enabled": true
-    }
   }
 }

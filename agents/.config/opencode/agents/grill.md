@@ -24,6 +24,11 @@ permission:
   todowrite: deny
   bash:
     "*": deny
+    "context git*": allow
+    "context stack*": allow
+    "notes context*": allow
+    "notes list*": allow
+    "notes read*": allow
     "timeout *": allow
     "gh issue list*": allow
     "gh issue view*": allow

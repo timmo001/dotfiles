@@ -13,10 +13,6 @@ permission:
   todowrite: allow
   task: allow
   subagent: allow
-  notes_note_list: allow
-  notes_note_read: allow
-  notes_note_delete: allow
-  context_git_context: allow
   edit:
     "*": deny
     "~/.cache/agent-coordinator/sessions/**": allow
@@ -27,6 +23,12 @@ permission:
     "~/.cache/agent-coordinator/sessions/**": allow
   bash:
     "*": ask
+    "context git*": allow
+    "context stack*": allow
+    "notes context*": allow
+    "notes list*": allow
+    "notes read*": allow
+    "notes delete*": ask
     "test *HERDR_ENV*": allow
     "printf *HERDR_ENV*": allow
     "test -x *": allow
