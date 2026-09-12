@@ -8,9 +8,9 @@ import { CommandExecutor } from "../../dot/src/services/CommandExecutor.js";
 
 const directory = "/fixture/repo";
 
-const idlePane = (id = "w1:p1", tab = "w1:t1", agent: string | null = null) => Schema.decodeUnknownSync(Pane)({
+const idlePane = (id = "w1:p1", tab = "w1:t1", agent: string | null = null, focused = true) => Schema.decodeUnknownSync(Pane)({
   pane_id: id, tab_id: tab, workspace_id: "w1", terminal_id: `terminal-${id}`,
-  revision: 0, focused: true, agent_status: "idle", agent, cwd: directory,
+  revision: 0, focused, agent_status: "idle", agent, cwd: directory,
 });
 
 const shellInfo = (id: string, process: { pid?: number; name?: string; argv?: string[]; cwd?: string } = {}) => Schema.decodeUnknownSync(PaneProcessInfo)({
@@ -125,10 +125,49 @@ test.each([
   expect(calls.some(call => call.method === "panes.processInfo")).toBe(false);
 });
 
-test("agent-idle panes and split tabs are not reusable base shells", async () => {
-  const calls = await launch({ panes: [idlePane("w1:p1", "w1:t1", "opencode"), idlePane("w1:p2", "w1:t2"), idlePane("w1:p3", "w1:t2")] });
+test("agent-idle panes are not reusable shells", async () => {
+  const calls = await launch({ panes: [idlePane("w1:p1", "w1:t1", "opencode"), idlePane("w1:p2", "w1:t1", "opencode", false)] });
   expect(calls.find(call => call.method === "panes.split")).toMatchObject({ id: "w1:p1", input: { direction: "right" } });
   expect(calls.some(call => call.method === "panes.processInfo")).toBe(false);
+});
+
+test("a split tab reuses its focused idle pane and keeps the tab label", async () => {
+  const calls = await launch({ panes: [idlePane("w1:p1", "w1:t1", null, false), idlePane("w1:p2", "w1:t1")] });
+  expect(calls.some(call => ["tabs.create", "panes.split", "tabs.rename"].includes(call.method))).toBe(false);
+  expect(calls.find(call => call.method === "panes.sendInput")?.id).toBe("w1:p2");
+  expect(calls.find(call => call.method === "panes.rename")).toMatchObject({ id: "w1:p2", input: "Action" });
+  expect(calls.at(-1)).toMatchObject({ method: "panes.focus", id: "w1:p2" });
+});
+
+test("the focused idle pane wins over an earlier workspace tab snapshot", async () => {
+  const calls = await launch({ panes: [idlePane("w1:p1", "w1:t1", null, false), idlePane("w1:p2", "w1:t2")] });
+  expect(calls.find(call => call.method === "panes.sendInput")?.id).toBe("w1:p2");
+  expect(calls.at(-1)).toMatchObject({ method: "panes.focus", id: "w1:p2" });
+});
+
+test("a busy focused pane still prioritises its idle sibling over the earlier active tab", async () => {
+  const calls = await launch({
+    panes: [idlePane("w1:p1", "w1:t1", null, false), idlePane("w1:p2", "w1:t2", null, false), idlePane("w1:p3", "w1:t2")],
+    processInfo: id => shellInfo(id, id === "w1:p3" ? { pid: 99, name: "lazygit", argv: ["lazygit"] } : {}),
+  });
+
+  expect(calls.find(call => call.method === "panes.sendInput")?.id).toBe("w1:p2");
+});
+
+test("an idle sibling wins over another tab when the focused pane and agent are busy", async () => {
+  const calls = await launch({
+    panes: [idlePane("w1:p1", "w1:t1", "opencode", false), idlePane("w1:p2", "w1:t1", null, false), idlePane("w1:p3", "w1:t1"), idlePane("w1:p4", "w1:t2")],
+    processInfo: id => shellInfo(id, id === "w1:p3" ? { pid: 99, name: "lazygit", argv: ["lazygit"] } : {}),
+  });
+
+  expect(calls.some(call => ["tabs.create", "panes.split", "tabs.rename"].includes(call.method))).toBe(false);
+  expect(calls.find(call => call.method === "panes.sendInput")?.id).toBe("w1:p2");
+});
+
+test("idle panes in other split tabs can be reused", async () => {
+  const calls = await launch({ panes: [idlePane("w1:p1", "w1:t1", "opencode"), idlePane("w1:p2", "w1:t2", "opencode", false), idlePane("w1:p3", "w1:t2")] });
+  expect(calls.some(call => ["tabs.create", "panes.split", "tabs.rename"].includes(call.method))).toBe(false);
+  expect(calls.at(-1)).toMatchObject({ method: "panes.focus", id: "w1:p3" });
 });
 
 test("a shell that becomes busy before reuse gets a new split instead", async () => {

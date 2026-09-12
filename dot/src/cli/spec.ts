@@ -1411,7 +1411,7 @@ const herdrRepoOpenCommand = describe(
         "tab",
       ]).pipe(
         Flag.withDescription(
-          "Auto reuses an idle shell tab, otherwise splits right; vertical splits right, horizontal splits below, tab opens a new tab",
+          "Auto reuses an idle shell pane, otherwise splits right; vertical splits right, horizontal splits below, tab opens a new tab",
         ),
         Flag.optional,
       ),
@@ -1461,7 +1461,7 @@ const herdrRepoOpenCommand = describe(
         agentKind: optional(agentKind),
       }),
   ),
-  "Open or focus a repository workspace in the shared Herdr session, attaching a tiled terminal when needed. Commands reuse an idle shell tab by default, otherwise split right. --layout vertical always splits right, horizontal splits below, and tab always opens a new tab. --modifiers selects the same behaviour from Qt click/Enter modifiers, with Ctrl taking priority over Alt, then Shift. Placement flags are mutually exclusive. Without a command, focus the workspace; an empty command opens a shell using the selected layout.",
+  "Open or focus a repository workspace in the shared Herdr session, attaching a tiled terminal when needed. Commands reuse an idle shell pane by default, checking the focused pane, other panes in its tab, then other tabs before splitting right. --layout vertical always splits right, horizontal splits below, and tab always opens a new tab. --modifiers selects the same behaviour from Qt click/Enter modifiers, with Ctrl taking priority over Alt, then Shift. Placement flags are mutually exclusive. Without a command, focus the workspace; an empty command opens a shell using the selected layout.",
   [],
   {
     sections: [

@@ -34,7 +34,7 @@ const PickerCacheSchema = Schema.Array(
 export interface HerdrRepoOpenOptions {
   /** Shorthand for an explicit vertical split. */
   readonly pane?: boolean;
-  /** Placement override; auto reuses an idle tab before splitting right. */
+  /** Placement override; auto reuses an idle shell pane before splitting right. */
   readonly layout?: "auto" | "vertical" | "horizontal" | "tab";
   /** Qt keyboard modifiers, resolved with Ctrl, Alt, then Shift precedence. */
   readonly modifiers?: number;
@@ -282,19 +282,26 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
     paneId = created.rootPane.id;
   } else if (command !== undefined) {
     const panes = yield* herdr.panes.list({ workspaceId });
+    const focusedPane = panes.find((pane) => pane.focused);
+    const activeTabId = focusedPane?.tabId ?? workspace?.activeTabId;
 
     if (layout === "auto") {
       const tabs = (yield* herdr.tabs.list({ workspaceId })).toSorted(
         (left, right) =>
-          Number(right.id === workspace?.activeTabId) -
-          Number(left.id === workspace?.activeTabId),
+          Number(right.id === activeTabId) - Number(left.id === activeTabId),
       );
 
-      for (const tab of tabs) {
-        if (tab.paneCount !== 1) continue;
-        const pane = panes.find((pane) => pane.tabId === tab.id);
+      const candidates = tabs.flatMap((tab) =>
+        panes
+          .filter((pane) => pane.tabId === tab.id)
+          .toSorted(
+            (left, right) => Number(right.focused) - Number(left.focused),
+          )
+          .map((pane) => ({ tab, pane })),
+      );
 
-        if (!pane || Option.isSome(pane.agent)) continue;
+      for (const { tab, pane } of candidates) {
+        if (Option.isSome(pane.agent)) continue;
         const shell = yield* readIdleShell(pane.id);
 
         if (!shell) continue;
@@ -303,7 +310,7 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
 
         if (!currentShell || currentShell.pid !== shell.pid) break;
 
-        tabId = tab.id;
+        tabId = tab.paneCount === 1 ? tab.id : undefined;
         paneId = pane.id;
 
         if (Option.getOrUndefined(currentShell.cwd) !== directory) {
@@ -318,10 +325,8 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
 
     if (!paneId) {
       const target =
-        panes.find(
-          (pane) => pane.tabId === workspace?.activeTabId && pane.focused,
-        ) ??
-        panes.find((pane) => pane.tabId === workspace?.activeTabId) ??
+        focusedPane ??
+        panes.find((pane) => pane.tabId === activeTabId) ??
         panes[0];
 
       if (!target) return fail(`Herdr did not return a pane ID for ${label}`);
