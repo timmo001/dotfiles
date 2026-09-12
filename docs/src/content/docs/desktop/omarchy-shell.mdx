@@ -19,7 +19,7 @@ Several centre/right widgets are primary-output only, with host-specific outputs
 | --- | --- |
 | `timmo.workspaces` | Dynamic workspace numbers only (no persistent empties); focused full opacity, others dimmed |
 | `timmo.twitch` | Live channel status and controls for the local <a href="https://github.com/timmo001/twitch-notifications" target="_blank" rel="noopener noreferrer">Twitch notifications</a> daemon |
-| `timmo.git` | Managed-repo dirty/ahead state plus GitHub notifications in one centre widget and panel |
+| `timmo.git` | Managed-repo state, GitHub notifications, and release reviews in one centre widget and panel |
 | `timmo.command` | Interval command cell; here shows Dotfiles and watched package update status via `dot updates` |
 | `timmo.stream-command` | Streaming status JSON for long-running watchers; available but not placed on the public bar |
 | `timmo.home-assistant` | Home Assistant status on the right |
@@ -30,7 +30,7 @@ Several centre/right widgets are primary-output only, with host-specific outputs
 
 ## Sources
 
-Custom plugins live under `omarchy/.config/omarchy/plugins/`. Some are local QML in this repo (`workspaces`, `command`, `stream-command`, `git`); others are managed plugin checkouts (`clock`, `twitch`, `notes`, `system-bridge`, `momentumctl`) with placement recorded in `omarchy-plugins.json`.
+Custom plugins live under `omarchy/.config/omarchy/plugins/`. Some are local QML in this repo (`workspaces`, `command`, `stream-command`, `git`, `workspace-context`, `workspace-relayout`, `popup-loading`); others are managed plugin checkouts (`clock`, `twitch`, `notes`, `system-bridge`, `momentumctl`) with placement recorded in `omarchy-plugins.json`. `workspace-context` shares attached Herdr workspace changes with the bar; `workspace-relayout` and `popup-loading` are overlays rather than bar cells.
 
 Third-party bar plugins can be imported the same way: <a href="https://omarchy.org" target="_blank" rel="noopener noreferrer">Omarchy</a>'s `omarchy plugin add` (backed by `dot omarchy-plugin`) checks them out as submodules. Placement and config then live in `omarchy-plugins.json`. A private overlay can extend that layout the same way.
 

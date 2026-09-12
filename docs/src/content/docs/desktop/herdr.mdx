@@ -29,7 +29,7 @@ description: Dotfiles-managed Herdr session config and plugins.
 
 ## Lazy plugins
 
-`plugins/config/herdr-lazy/plugins.list` and `plugins.lock` pin third-party plugins. When a Herdr session is available, `dot update` restores them through `herdr-lazy`. Stowed companion config covers lazygit, sessionizer, usagebar, and reviewr. Everything else under `~/.config/herdr/` remains runtime-owned.
+`plugins/config/herdr-lazy/plugins.list` and `plugins.lock` pin third-party plugins. When a Herdr session is available, `dot update` restores them through `herdr-lazy`. Stowed companion config covers sessionizer, usagebar, and reviewr. Everything else under `~/.config/herdr/` remains runtime-owned.
 
 ## Dot helpers
 
@@ -37,4 +37,4 @@ description: Dotfiles-managed Herdr session config and plugins.
 | --- | --- |
 | `dot update` | Restore Lazy lockfile, relink local plugins, restart the title watcher |
 | `dot doctor` | Warn when Herdr, the <a href="https://opencode.ai" target="_blank" rel="noopener noreferrer">OpenCode</a> integration, or required local plugins are missing |
-| `dot herdr-repo-open` | Open or focus a managed repo workspace once the shared server is up |
+| `dot herdr` | Start, stop, or restart the shared server; open a repo workspace; show attached context |

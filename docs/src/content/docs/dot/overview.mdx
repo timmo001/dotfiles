@@ -14,9 +14,12 @@ sidebar:
 | `dot init` | First-use setup on a fresh machine |
 | `dot update` | Pull, refresh config, stow, rebuild |
 | `dot system-update` | Interactive Dotfiles, Omarchy, and Topgrade updates |
+| `dot updates` | Watched package and Dotfiles status for the bar |
 | `dot stow` | Stow only (public and/or private) |
 | `dot doctor` | Parallel health checks and a saved report |
 | `dot firewall` | Reconcile managed ufw rules |
+| `dot setup-public-repo` | Trust and register the public timmo pacman repository |
+| `dot setup-private-repo` | Sync and register the private pacman repository |
 | `dot clean` | Remove stowed links / reverse setup side effects |
 | `dot completions` | Regenerate shell completions |
 
@@ -27,11 +30,11 @@ sidebar:
 | `dot git-diff` | Dirty / ahead / behind state across managed repos |
 | `dot git-commit` | Guarded commits instead of raw `git commit` |
 | `dot git-notifications` | GitHub notification inbox for the shell and CLI |
-| `dot setup-public-repo` | Scaffold a public repository |
-| `dot setup-private-repo` | Scaffold a private repository |
-| `dot herdr-repo-open` | Open a managed repo workspace in Herdr |
+| `dot git-web` | Open GitHub URLs in the configured browser |
+| `dot git-releases` | Local release comparisons and reviews for managed repos |
+| `dot repo-induct` | Add a local repo to private git config after a preview |
 
-Managed-repo lists and notification rules live in the private `dot-git.yml` overlay. Branch and stack context for agents come from the separate <a href="https://context.timmo.dev" target="_blank" rel="noopener noreferrer">context</a> tool.
+Managed-repo lists, browser choices, and notification rules live in the private `dot-git.yml` overlay. Branch and stack context for agents come from the separate <a href="https://context.timmo.dev" target="_blank" rel="noopener noreferrer">context</a> tool.
 
 ## Desktop
 
@@ -41,6 +44,7 @@ Managed-repo lists and notification rules live in the private `dot-git.yml` over
 | `dot workspace-relayout` | Apply or capture a ratio-based layout on the active workspace |
 | `dot omarchy-shell-config` | Regenerate `shell.json` without a full stow |
 | `dot omarchy-plugin` | Add, update, or remove Omarchy bar plugins |
+| `dot herdr` | Shared Herdr server, repo workspaces, and attached context |
 | `dot launch-floating-webapp` | Open a floating webapp window |
 
 ## Agents and tooling
