@@ -345,6 +345,39 @@ dot omarchy-plugin remove [flags] <id> [<confirm>] [<save>]
 | `<confirm>` | Compatibility confirmation value |
 | `<save>` | Compatibility commit-offer value |
 
+## `dot snapshot`
+
+Save a CPU and memory snapshot with process rankings
+
+```text
+dot snapshot [flags]
+```
+
+Print a Markdown CPU and memory summary with a usage-filtered process tree. --sort mem defaults to an 80 MiB measured subtree PSS cutoff; --sort cpu defaults to 1% of one core. Adjust these with --min-memory-mib and --min-cpu. Each tree row shows aligned memory and CPU totals beside the process name. Totals include hidden children, so small workers can qualify together; parent and child totals overlap. Expand the largest remaining qualifying branch until --limit visible processes are reached (default: 40, including ancestors). Zero-usage branches are omitted. The saved report adds CPU, memory and process-name rankings with the same cutoffs and per-table limit, plus pressure measurements. Interactive human runs open it in $EDITOR (vi if unset). The internal dot is-agent check automatically selects JSON; --json selects it explicitly. JSON retains all sampled processes and the complete processTree, and reportSelection identifies visible PIDs, cutoffs, the limit and omitted count. Missing measurements are null; unavailable parents are marked. CPU is sampled over approximately one second; 100% per process means one logical CPU. PSS divides shared pages between processes. Reports default to the system temporary directory ($TMPDIR, normally /tmp), named dot-snapshot-<timestamp>.md or .json. Use --output to choose a path. Existing output files are never overwritten.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--output` `<string>` | Save the report to a new file at this path |
+| `--json` | Print and save structured JSON for agents |
+| `--sort` `<choice>` | Sort the process tree and JSON process list by CPU or memory (choices: cpu, mem) |
+| `--limit` `<integer>` | Maximum visible tree processes, including parents, and entries per ranking table |
+| `--min-memory-mib` `<number>` | Minimum measured subtree PSS in MiB for memory sorting (default: 80) |
+| `--min-cpu` `<number>` | Minimum measured subtree CPU percentage for CPU sorting (default: 1; 100% = one core) |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot snapshot
+dot snapshot --sort cpu
+dot snapshot --limit 40
+dot snapshot --min-memory-mib 50
+dot snapshot --json --sort mem
+dot snapshot --output /tmp/snapshot.md
+```
+
 ## `dot omarchy-shell-config`
 
 Regenerate the Omarchy shell layout
