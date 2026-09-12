@@ -293,6 +293,9 @@ export function appendGitRepository(
     Object.assign(entry, { post_update: repo.postUpdate });
 
   if (repo.releases) Object.assign(entry, { releases: repo.releases });
+
+  if (repo.opencodeMcp?.length)
+    Object.assign(entry, { opencode_mcp: repo.opencodeMcp });
   const newline = source.includes("\r\n") ? "\r\n" : "\n";
 
   const block = [
@@ -309,6 +312,12 @@ export function appendGitRepository(
       ? []
       : [`    post_update: ${JSON.stringify(repo.postUpdate)}`]),
     `    agent_oxlint: ${entry.agent_oxlint}`,
+    ...(repo.opencodeMcp?.length
+      ? [
+          "    opencode_mcp:",
+          ...repo.opencodeMcp.map((name) => `      - ${JSON.stringify(name)}`),
+        ]
+      : []),
     "    activity:",
     `      enabled: ${entry.activity.enabled}`,
     `      schedule: ${JSON.stringify(entry.activity.schedule)}`,

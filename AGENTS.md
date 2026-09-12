@@ -17,6 +17,7 @@ Keep shared cross-project agent behaviour in the global `~/.config/opencode/AGEN
 
 - Repository induction defaults live in optional private `dot-git-presets.yml`; shared code must not hardcode personal schedules or name prefixes.
 - Git web browser commands and per-repository selections live in private `dot-git.yml`; the Git panel passes repository context and browser overrides to the shared CLI resolver.
+- Repository `opencode_mcp` lists in private `dot-git.yml` select MCP opt-ins. `dot mcp-sync` owns the generated, Git-ignored `.opencode/opencode.jsonc` files in those checkouts.
 
 - The global "Private Repos And Files" policy governs the public/private split and the git-remote visibility check; this repo just consumes it, reading optional private config such as `dot-git.yml`, `.dot-browser-checks`, and private package config files.
 

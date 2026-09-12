@@ -27,6 +27,7 @@ const REPO_KEYS = new Set([
   "aliases",
   "post_update",
   "agent_oxlint",
+  "opencode_mcp",
   "browser",
   "activity",
   "notifications",
@@ -88,6 +89,8 @@ export interface GitManagedRepo {
   readonly postUpdate: string | null;
   /** Whether the dot-managed generic Oxlint pass may run without a local setup. */
   readonly agentOxlint: boolean;
+  /** MCP server names explicitly enabled for this repository by dot mcp-sync. */
+  readonly opencodeMcp?: readonly string[];
   /** Named browser for repository web actions; omitted uses the desktop default. */
   readonly browser?: string;
   /** Local activity check used by git diff and repository updates. */
@@ -404,6 +407,18 @@ function parseRepo(
     diagnostics,
   );
 
+  const opencodeMcp =
+    value.opencode_mcp === undefined
+      ? []
+      : Schema.decodeUnknownSync(Schema.Array(Schema.NonEmptyString))(
+          value.opencode_mcp,
+        );
+
+  if (new Set(opencodeMcp).size !== opencodeMcp.length)
+    diagnostics.push(
+      `${location}.opencode_mcp must contain unique server names`,
+    );
+
   const browser = optionalString(
     value.browser,
     `${location}.browser`,
@@ -444,6 +459,7 @@ function parseRepo(
       aliases,
       postUpdate,
       agentOxlint,
+      ...(opencodeMcp.length > 0 && { opencodeMcp }),
       ...(browser && { browser }),
       activity,
       notifications,

@@ -97,6 +97,13 @@ $defs:
       agent_oxlint:
         type: boolean
         description: Allow the dot-managed generic Oxlint pass when the repository has no local Oxlint setup.
+      opencode_mcp:
+        type: array
+        uniqueItems: true
+        items:
+          type: string
+          minLength: 1
+        description: MCP server names from mcp.yml enabled for this repository by dot mcp-sync.
       browser:
         type: string
         pattern: "^[a-z][a-z0-9_-]*$"

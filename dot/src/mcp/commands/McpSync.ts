@@ -42,6 +42,7 @@ import {
   topKeyFor,
 } from "../sync/adapters.js";
 import { formatJson } from "../sync/formatJson.js";
+import { syncRepoMcpConfigs } from "../sync/repositories.js";
 
 /** Relative path (under the private dotfiles repo) for each harness config. */
 const HARNESS_RELATIVE_PATH = {
@@ -156,6 +157,8 @@ export const mcpSync = Effect.gen(function* () {
   }
 
   const spec = mcpConfig.spec;
+
+  yield* syncRepoMcpConfigs;
 
   for (const harness of MCP_HARNESSES) {
     const dest = join(privateDotfiles, HARNESS_RELATIVE_PATH[harness]);

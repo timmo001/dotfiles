@@ -132,6 +132,46 @@ function splitCommand(command: readonly string[]) {
   return { command: command[0] ?? "", args: command.slice(1) };
 }
 
+/** Render explicit repository opt-ins using native OpenCode V2 config. */
+export function buildRepoMcpEntries(
+  spec: McpSyncSpec,
+  names: readonly string[],
+): JsonObject {
+  return Object.fromEntries(
+    names.map((name) => {
+      const server = spec.servers.find((entry) => entry.name === name);
+
+      if (!server) throw new Error(`Unknown MCP server: ${name}`);
+
+      const entry: MutableJsonObject =
+        server.type === "local"
+          ? {
+              type: "local",
+              command: resolveCommand(server, "opencode") ?? [],
+              ...(server.env && { environment: server.env }),
+            }
+          : {
+              type: "remote",
+              url: resolveUrl(server, "opencode") ?? "",
+              ...(server.headers && { headers: server.headers }),
+            };
+
+      entry.disabled = false;
+
+      if (server.oauth === false) entry.oauth = false;
+
+      if (
+        server.oauth !== undefined &&
+        server.oauth !== true &&
+        server.oauth !== false
+      )
+        entry.oauth = { ...server.oauth };
+
+      return [name, entry];
+    }),
+  );
+}
+
 function renderCursorEntry(server: McpServerSpec): JsonObject {
   if (server.type === "local") {
     const { command, args } = splitCommand(
