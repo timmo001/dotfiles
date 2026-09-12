@@ -8,10 +8,10 @@ import { Cause, Duration, Effect, Option, Schedule, Schema } from "effect";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { ENV, envString } from "../lib/env.js";
+import { localHerdrAttachment } from "../lib/herdrAttachment.js";
 import { CACHE_DIR, CONFIG_DIR, HOME_DIR } from "../lib/paths.js";
 import { formatCause } from "../lib/schema.js";
 import { CommandError, CommandExecutor } from "../services/CommandExecutor.js";
-import { herdrServerPid } from "./HerdrServer.js";
 
 const READINESS_SCHEDULE = Schedule.recurs(49).pipe(
   Schedule.addDelay(() => Effect.succeed("100 millis")),
@@ -121,21 +121,10 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
     yield* executor.run("test", ["-x", expectedExecutable]);
   }
 
-  if ((yield* executor.exitCode("herdr", ["status", "server"])) !== 0) {
-    return fail("Shared Herdr server is not running");
-  }
-
-  const socketPath = envString(ENV.HERDR_SOCKET_PATH) ?? DEFAULT_SOCKET_PATH;
-  const binary = `/proc/${yield* herdrServerPid(socketPath)}/exe`;
+  const socketPath = herdr.config.socketPath;
 
   const clientReady =
-    runtime.foregroundClientReady ??
-    herdr.client.windowTitle
-      .clear({ requestTimeout: Duration.millis(500) })
-      .pipe(
-        Effect.map((response) => response.reason !== "no_foreground_client"),
-        Effect.orElseSucceed(() => false),
-      );
+    runtime.foregroundClientReady ?? localHerdrAttachment(socketPath);
 
   const launchTerminal =
     runtime.launchTerminal ??
@@ -148,7 +137,7 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
             "--",
             "ghostty-host-config",
             "-e",
-            binary,
+            "herdr",
             "session",
             "attach",
             "default",
