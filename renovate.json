@@ -126,8 +126,6 @@
         "@opencode/client",
         "@opencode/plugin",
         "@opencode/schema",
-        "anomalyco/opencode",
-        "aqua:anomalyco/opencode",
         "npm:@opencode-ai/browser-control",
         "npm:@opencode/cli"
       ],
