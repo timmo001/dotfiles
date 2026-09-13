@@ -3,7 +3,7 @@
  */
 
 import { $ } from "bun";
-import { Plugin } from "@opencode-ai/plugin/effect";
+import { Plugin } from "@opencode/plugin/effect";
 import { Effect, Result, Stream } from "effect";
 import { createToast } from "./lib/toast";
 

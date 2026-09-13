@@ -1,5 +1,5 @@
-import { Plugin } from "@opencode-ai/plugin/effect";
-import { Tool } from "@opencode-ai/schema/tool";
+import { Plugin } from "@opencode/plugin/effect";
+import { Tool } from "@opencode/schema/tool";
 import { Effect, Result } from "effect";
 import { existsSync, readdirSync, type Dirent } from "node:fs";
 import { dirname, join } from "node:path";

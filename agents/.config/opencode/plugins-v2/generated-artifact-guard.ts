@@ -1,5 +1,5 @@
-import { Plugin } from "@opencode-ai/plugin/effect";
-import { Tool } from "@opencode-ai/schema/tool";
+import { Plugin } from "@opencode/plugin/effect";
+import { Tool } from "@opencode/schema/tool";
 import { Effect } from "effect";
 import { access } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";

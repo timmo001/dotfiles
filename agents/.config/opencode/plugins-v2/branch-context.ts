@@ -1,4 +1,4 @@
-import { Plugin } from "@opencode-ai/plugin/effect";
+import { Plugin } from "@opencode/plugin/effect";
 import { Effect, Result } from "effect";
 import { $ } from "bun";
 import {

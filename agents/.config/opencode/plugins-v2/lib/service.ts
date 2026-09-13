@@ -1,4 +1,4 @@
-import { Service } from "@opencode-ai/client/effect/service";
+import { Service } from "@opencode/client/effect/service";
 import { Effect, FileSystem, PlatformError } from "effect";
 import {
   FetchHttpClient,

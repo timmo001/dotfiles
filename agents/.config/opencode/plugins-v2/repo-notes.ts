@@ -3,7 +3,7 @@
  */
 
 import { $ } from "bun";
-import { Plugin } from "@opencode-ai/plugin/effect";
+import { Plugin } from "@opencode/plugin/effect";
 import { Effect, Result } from "effect";
 import { errorMessage } from "../lib/error-message";
 

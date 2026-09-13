@@ -80,31 +80,15 @@
       "enabled": false
     },
     {
-      "description": "Keep OpenCode 2 packages on numeric beta builds.",
-      "matchFileNames": ["agents/.config/opencode/plugins-v2/package.json"],
-      "matchPackageNames": [
-        "@opencode-ai/client",
-        "@opencode-ai/plugin",
-        "@opencode-ai/schema"
-      ],
-      "allowedVersions": "/^0\\.0\\.0-beta-[0-9]{5,6}$/"
-    },
-    {
-      "description": "Keep the mise-managed OpenCode 2 CLI on numeric beta builds.",
-      "matchManagers": ["mise"],
-      "matchDepNames": ["npm:@opencode/cli"],
-      "allowedVersions": "/^0\\.0\\.0-beta-[0-9]{5,6}$/"
-    },
-    {
-      "description": "Keep coordinated OpenCode 2 beta packages together.",
+      "description": "Keep coordinated OpenCode 2 packages together.",
       "matchDepNames": [
-        "@opencode-ai/client",
-        "@opencode-ai/plugin",
-        "@opencode-ai/schema",
+        "@opencode/client",
+        "@opencode/plugin",
+        "@opencode/schema",
         "npm:@opencode/cli"
       ],
-      "groupName": "OpenCode 2 beta",
-      "groupSlug": "opencode-2-beta"
+      "groupName": "OpenCode 2",
+      "groupSlug": "opencode-2"
     },
     {
       "description": "Update Git submodules without a release delay.",
@@ -139,9 +123,9 @@
     {
       "description": "Use the shorter release delay for OpenCode updates.",
       "matchDepNames": [
-        "@opencode-ai/client",
-        "@opencode-ai/plugin",
-        "@opencode-ai/schema",
+        "@opencode/client",
+        "@opencode/plugin",
+        "@opencode/schema",
         "anomalyco/opencode",
         "aqua:anomalyco/opencode",
         "npm:@opencode-ai/browser-control",

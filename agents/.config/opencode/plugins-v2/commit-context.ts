@@ -1,10 +1,10 @@
 import { $ } from "bun";
-import { OpenCode, type OpenCodeClient } from "@opencode-ai/client/effect";
-import type { SessionListInput } from "@opencode-ai/client/effect/api";
-import { Service } from "@opencode-ai/client/effect/service";
-import type { Endpoint } from "@opencode-ai/client/service";
-import { Plugin } from "@opencode-ai/plugin/effect";
-import type { SessionMessage } from "@opencode-ai/schema/session-message";
+import { OpenCode, type OpenCodeClient } from "@opencode/client/effect";
+import type { SessionListInput } from "@opencode/client/effect/api";
+import { Service } from "@opencode/client/effect/service";
+import type { Endpoint } from "@opencode/client/service";
+import { Plugin } from "@opencode/plugin/effect";
+import type { SessionMessage } from "@opencode/schema/session-message";
 import { Effect, Result, Schema } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
 import { dirname } from "node:path";

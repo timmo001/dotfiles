@@ -1,6 +1,6 @@
-import { Service } from "@opencode-ai/client/effect/service";
-import type { Endpoint } from "@opencode-ai/client/service";
-import { TuiEvent } from "@opencode-ai/schema/tui-event";
+import { Service } from "@opencode/client/effect/service";
+import type { Endpoint } from "@opencode/client/service";
+import { TuiEvent } from "@opencode/schema/tui-event";
 import { Effect } from "effect";
 import {
   HttpClientRequest,
