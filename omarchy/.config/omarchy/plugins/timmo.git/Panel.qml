@@ -66,13 +66,12 @@ Panel {
     }
     if (releaseView) {
       if (view !== "releases") rows.push(headerActionRow("release-refresh", "Refresh release comparison", "release-summary"))
-      rows.push(actionRow("back", view === "releases" || (view === "release" && selectedReleaseView === "overview") ? "Back to Git overview" : (view === "release" ? "Back to unreleased changes" : (view === "finding" && selectedFindingGroup ? "Back to " + selectedFindingGroup.title.toLowerCase() : (view === "release-choice" && selectedImpactView === "release-prepare" ? "Back to release preparation" : "Back to release review"))), ""))
+      rows.push(actionRow("back", view === "releases" || (view === "release" && selectedReleaseView === "overview") ? "Back to Git overview" : (view === "release" ? "Back to all tracked repositories" : (view === "finding" && selectedFindingGroup ? "Back to " + selectedFindingGroup.title.toLowerCase() : (view === "release-choice" && selectedImpactView === "release-prepare" ? "Back to release preparation" : "Back to release review"))), ""))
       if (view === "releases") {
         rows.push(headerActionRow("release-refresh", "Refresh unreleased changes", "release"))
         var releases = service ? service.releases : []
         for (var r = 0; r < releases.length; r++)
-          if (releases[r].needsAttention)
-            rows.push(releaseRow("release", releases[r].repo, releases[r], releases[r].name, releaseDetail(releases[r])))
+          rows.push(releaseRow("release", releases[r].repo, releases[r], releases[r].name, releaseDetail(releases[r])))
       } else if (selectedRelease) {
         if (view === "release") {
           rows.push(actionRow("release-repo", "Open repository…", ""))
@@ -157,7 +156,7 @@ Panel {
       })
     }
     if (view === "overview") {
-      rows.push(actionRow("other", "Other repositories", "󰙅"))
+      rows.push(actionRow("other", "Other tracked repositories", "󰙅"))
     }
     var threads = service && (view === "overview" || view === "notifications") ? service.threads : []
     if (view === "overview" || view === "notifications")
@@ -186,6 +185,10 @@ Panel {
       for (var r = 0; r < releases.length; r++)
         if (releases[r].needsAttention)
           rows.push(releaseRow("release", releases[r].repo, releases[r], releases[r].name, releaseDetail(releases[r])))
+      var allReleases = actionRow("releases", "All tracked repositories", "󰙅")
+      allReleases.kind = "release-action"
+      allReleases.section = "release"
+      rows.push(allReleases)
     }
     return rows
   }
@@ -268,7 +271,7 @@ Panel {
   }
 
   function releaseSummary() {
-    if (view === "releases") return service && !service.releasesLoaded ? "Loading release comparisons" : "Watched repositories with a suggested release"
+    if (view === "releases") return service && !service.releasesLoaded ? "Loading release comparisons" : "All repositories configured for release tracking"
     if (!selectedRelease) return service && !service.releasesLoaded ? "Loading selected repository" : "Repository unavailable; return to unreleased changes or refresh"
     var lines = [releaseDetail(selectedRelease)]
     if (selectedRelease.error) lines.push(selectedRelease.error)
@@ -360,6 +363,7 @@ Panel {
   function cursorItem() {
     var entry = filterController.selectedEntry()
     if (!entry) return null
+    if (entry.kind === "release-action") return allReleasesAction
     if (entry.kind === "context-action") return contextRepeater.itemAt(contextRows.indexOf(entry))
     if (entry.kind === "header-action") {
       if (entry.action === "context-refresh") return contextHeading
@@ -473,7 +477,7 @@ Panel {
   }
 
   function activateEntry(entry, modifiers) {
-    if (entry.kind === "action" || entry.kind === "footer-action" || entry.kind === "header-action") activateAction(entry.action, modifiers)
+    if (entry.kind === "action" || entry.kind === "footer-action" || entry.kind === "header-action" || entry.kind === "release-action") activateAction(entry.action, modifiers)
     else if (entry.kind === "context-action") { selectedRepo = entry.value; activateAction(entry.action, modifiers) }
     else if (entry.kind === "repo") showRepoActions(entry.value)
     else if (entry.kind === "thread") activateThread(entry.value, modifiers)
@@ -563,7 +567,7 @@ Panel {
 
           PanelHero {
             width: parent.width
-            title: root.releaseView ? (root.view === "releases" ? "Unreleased changes" : (root.selectedRelease ? root.selectedRelease.name : "Release review")) : (root.view === "agent" ? "Open in agent" : (root.view === "repo" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "overview" ? "Git" : (root.view === "changed" ? "Changed" : (root.view === "notifications" ? "Notifications" : "Other")))))
+            title: root.releaseView ? (root.view === "releases" ? "All tracked repositories" : (root.selectedRelease ? root.selectedRelease.name : "Release review")) : (root.view === "agent" ? "Open in agent" : (root.view === "repo" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "overview" ? "Git" : (root.view === "changed" ? "Changed" : (root.view === "notifications" ? "Notifications" : "Other")))))
             meta: root.releaseView ? (root.view === "finding-group" && root.selectedFindingGroup ? root.selectedFindingGroup.title : (root.view === "finding" ? "Finding evidence" : (root.view === "release-commits" ? "All commits" : "Local release review"))) : (root.view === "agent" && root.selectedRepo ? String(root.selectedRepo.name) : (root.view === "repo" && root.selectedRepo ? root.repoDetail(root.selectedRepo) : (root.view === "overview" ? root.changedRepoCount + " changed · " + root.notificationCountText : (root.view === "changed" ? root.changedRepoCount + " repositories" : (root.view === "notifications" ? root.notificationCountText : root.otherRepoCount + " repositories")))))
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
@@ -917,7 +921,7 @@ Panel {
             id: releasesHeading
             visible: (root.view === "overview" || root.view === "releases") && (!filterController.filterText || root.filteredReleaseRows.length > 0 || filterController.indexForKey("action:release-refresh") >= 0)
               || (root.releaseView && root.filteredReleaseRows.length > 0)
-            title: root.view === "overview" || root.view === "releases" ? "Unreleased changes · " + root.filteredReleaseRows.length + " of " + (root.service ? root.service.releases.length : 0)
+            title: root.view === "overview" || root.view === "releases" ? (root.view === "releases" ? "Tracked repositories · " : "Unreleased changes · ") + root.filteredReleaseRows.length + " of " + (root.service ? root.service.releases.length : 0)
               : (root.view === "release-commits" ? "Commits" : (root.view === "release" ? "Finding groups" : "Findings")) + " · " + root.filteredReleaseRows.length
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
@@ -965,6 +969,35 @@ Panel {
                 }
                 MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: function(mouse) { root.activateEntry(modelData, mouse.modifiers) } }
               }
+            }
+          }
+
+          CursorSurface {
+            id: allReleasesAction
+            readonly property var entry: root.filterRows("release-action")[0] || null
+            visible: entry !== null
+            x: Style.space(8)
+            width: Math.max(0, contentColumn.width - Style.space(16))
+            implicitHeight: allReleasesRow.implicitHeight + Style.space(12)
+            hasCursor: entry !== null && root.cursorKey === entry.key
+            foreground: root.contentForeground
+            accent: root.contentForeground
+            Row {
+              id: allReleasesRow
+              anchors.left: parent.left
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              anchors.margins: Style.space(8)
+              spacing: Style.space(10)
+              Text { width: Style.space(22); text: allReleasesAction.entry ? allReleasesAction.entry.icon : ""; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.icon; horizontalAlignment: Text.AlignHCenter }
+              Text { width: Math.max(0, allReleasesRow.width - Style.space(32)); text: allReleasesAction.entry ? allReleasesAction.entry.primaryText : ""; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
+            }
+            MouseArea {
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onEntered: filterController.cursorIndex = filterController.indexForKey(allReleasesAction.entry.key)
+              onClicked: function(mouse) { root.activateEntry(allReleasesAction.entry, mouse.modifiers) }
             }
           }
 
