@@ -881,11 +881,13 @@ _dot_with_mcp_bearers() {
     "$bin" "$@"
 }
 
-opencode() {
-  _dot_with_mcp_bearers opencode "$@"
+opencode2() {
+  "$HOME/.local/bin/opencode2" "$@"
 }
 
-alias c="opencode"
+alias c2="opencode2"
+alias opencode="opencode2"
+alias c="c2"
 alias c2-cancel="opencode2-cancel"
 
 cursor() {
