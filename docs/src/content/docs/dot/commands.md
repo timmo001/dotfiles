@@ -1102,9 +1102,9 @@ The terminal wizard asks for Normal (first and default) or Home Assistant, then 
 | `--post-update` `<string>` | Post-update command; empty for none |
 | `--agent-oxlint` | Enable agent Oxlint; --no-agent-oxlint disables it |
 | `--activity-enabled` | Enable activity checks; --no-activity-enabled disables them |
-| `--activity-schedule` `<string>` | Five-field cron schedule for activity checks |
+| `--activity-schedule` `<string>` | Activity schedule: five-field cron or work |
 | `--notifications-enabled` | Enable notifications; --no-notifications-enabled disables them |
-| `--notifications-schedule` `<string>` | Five-field cron schedule for notifications |
+| `--notifications-schedule` `<string>` | Notification schedule: five-field cron or work |
 | `--ignore-bot-activity` | Filter bot-only activity; --no-ignore-bot-activity shows it |
 | `--noninteractive` | Use flags and preset defaults without questions; preview by default |
 | `--commit` | Commit the proposed entry with --noninteractive after reviewing its preview |

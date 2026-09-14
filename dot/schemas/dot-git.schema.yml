@@ -282,7 +282,7 @@ $defs:
         type: boolean
         description: Enables this scheduled check for the repository.
       schedule:
-        $ref: "#/$defs/cron_schedule"
+        $ref: "#/$defs/check_schedule"
 
   notifications:
     type: object
@@ -296,7 +296,7 @@ $defs:
         type: boolean
         description: Enables GitHub notification checks for this repository.
       schedule:
-        $ref: "#/$defs/cron_schedule"
+        $ref: "#/$defs/check_schedule"
       bar:
         $ref: "#/$defs/bar_notifications"
 
@@ -309,6 +309,12 @@ $defs:
       ignore_bot_activity:
         type: boolean
         description: Suppress bot-only activity from status-bar JSON output after the relevant schedule gate passes.
+
+  check_schedule:
+    description: A local cron expression or the shared work-hours and calendar-leave check.
+    oneOf:
+      - const: work
+      - $ref: "#/$defs/cron_schedule"
 
   cron_schedule:
     type: string

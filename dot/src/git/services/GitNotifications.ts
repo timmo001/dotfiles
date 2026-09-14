@@ -22,6 +22,7 @@ import { notificationReasonIsImportant } from "./notificationStatus.js";
 import { managedRepoGitHubSlugs } from "./repoRelations.js";
 import { formatGhError, nullableStringValue, stringValue } from "./record.js";
 import { ENV, envString } from "../../lib/env.js";
+import { isWorkTime } from "../../lib/workTime.js";
 import type { JsonObject, JsonValue } from "../../lib/schema.js";
 
 const NOTIFICATION_LIMIT = 50;
@@ -159,25 +160,49 @@ export class GitNotifications extends Context.Service<
         if (!config.canUsePrivate || !config.gitConfig.valid)
           return Effect.succeed([]);
 
-        return Effect.all(
-          threads.map((thread) => includeBarThread(thread)),
-          { concurrency: 4 },
-        ).pipe(
-          Effect.map((filtered) =>
-            filtered.filter(
-              (thread): thread is GitNotificationThread => thread !== null,
+        return Effect.gen(function* () {
+          const workTimeActive =
+            threads.length > 0 &&
+            managedGitRepos(config.gitConfig).some(
+              (repo) =>
+                repo.notifications.enabled &&
+                repo.notifications.schedule === "work",
+            )
+              ? yield* isWorkTime((message) =>
+                  Effect.sync(() => log(message)),
+                ).pipe(
+                  Effect.provideService(Config, config),
+                  Effect.provideService(CommandExecutor, executor),
+                )
+              : false;
+
+          const now = new Date(yield* Clock.currentTimeMillis);
+
+          const filtered = yield* Effect.all(
+            threads.map((thread) =>
+              includeBarThread(thread, now, workTimeActive),
             ),
-          ),
-        );
+            { concurrency: 4 },
+          );
+
+          return filtered.filter(
+            (thread): thread is GitNotificationThread => thread !== null,
+          );
+        });
       };
 
-      const includeBarThread = (thread: GitNotificationThread) =>
+      const includeBarThread = (
+        thread: GitNotificationThread,
+        now: Date,
+        workTimeActive: boolean,
+      ) =>
         Effect.gen(function* () {
           const repo = yield* managedRepoForNotification(thread.repo);
 
           if (!repo) return null;
 
-          if (!gitRepoNotificationsActive(repo)) return null;
+          if (!gitRepoNotificationsActive(repo, now, workTimeActive))
+            return null;
 
           if (!repo.notifications.bar.ignoreBotActivity) return thread;
           const botThread = yield* notificationThreadLooksBot(thread, github);

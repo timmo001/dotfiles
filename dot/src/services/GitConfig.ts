@@ -59,7 +59,7 @@ export type GitRepoCheckName = "activity";
 export interface GitRepoCheckConfig {
   /** Whether this check is enabled for the repository. */
   readonly enabled: boolean;
-  /** Five-field cron schedule in local time. */
+  /** Five-field local cron expression or the shared `work` schedule. */
   readonly schedule: string;
 }
 
@@ -209,9 +209,10 @@ export function activeGitReposForCheck(
   gitConfig: DotGitConfig,
   check: GitRepoCheckName,
   now: Date = new Date(),
+  workTimeActive = false,
 ): readonly GitManagedRepo[] {
   return enabledGitReposForCheck(gitConfig, check).filter((repo) =>
-    gitRepoCheckActive(repo, check, now),
+    gitRepoCheckActive(repo, check, now, workTimeActive),
   );
 }
 
@@ -248,20 +249,29 @@ export function gitRepoCheckActive(
   repo: GitManagedRepo,
   check: GitRepoCheckName,
   now: Date = new Date(),
+  workTimeActive = false,
 ): boolean {
   const config = repo[check];
 
-  return config.enabled && cronScheduleActive(config.schedule, now);
+  return (
+    config.enabled &&
+    (config.schedule === "work"
+      ? workTimeActive
+      : cronScheduleActive(config.schedule, now))
+  );
 }
 
 /** Check whether a repository notification check is enabled and currently in schedule. */
 export function gitRepoNotificationsActive(
   repo: GitManagedRepo,
   now: Date = new Date(),
+  workTimeActive = false,
 ): boolean {
   return (
     repo.notifications.enabled &&
-    cronScheduleActive(repo.notifications.schedule, now)
+    (repo.notifications.schedule === "work"
+      ? workTimeActive
+      : cronScheduleActive(repo.notifications.schedule, now))
   );
 }
 
@@ -647,9 +657,9 @@ function parseNotifications(
     diagnostics,
   );
 
-  if (schedule && !validCronSchedule(schedule)) {
+  if (schedule && !validGitSchedule(schedule)) {
     diagnostics.push(
-      `${location}.schedule must be a five-field cron expression`,
+      `${location}.schedule must be a five-field cron expression or work`,
     );
   }
 
@@ -712,9 +722,9 @@ function parseCheck(
     diagnostics,
   );
 
-  if (schedule && !validCronSchedule(schedule)) {
+  if (schedule && !validGitSchedule(schedule)) {
     diagnostics.push(
-      `${location}.schedule must be a five-field cron expression`,
+      `${location}.schedule must be a five-field cron expression or work`,
     );
   }
 
@@ -792,8 +802,8 @@ function pushDuplicateAliasDiagnostics(
   }
 }
 
-function validCronSchedule(schedule: string): boolean {
-  return schedule.trim().split(/\s+/).length === 5;
+function validGitSchedule(schedule: string): boolean {
+  return schedule === "work" || schedule.trim().split(/\s+/).length === 5;
 }
 
 function cronScheduleActive(schedule: string, now: Date): boolean {

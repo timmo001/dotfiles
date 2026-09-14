@@ -1374,7 +1374,7 @@ const repoInductCommand = describe(
       ),
       activitySchedule: text(
         "activity-schedule",
-        "Five-field cron schedule for activity checks",
+        "Activity schedule: five-field cron or work",
       ),
       notificationsEnabled: optionalBool(
         "notifications-enabled",
@@ -1382,7 +1382,7 @@ const repoInductCommand = describe(
       ),
       notificationsSchedule: text(
         "notifications-schedule",
-        "Five-field cron schedule for notifications",
+        "Notification schedule: five-field cron or work",
       ),
       ignoreBotActivity: optionalBool(
         "ignore-bot-activity",

@@ -17,6 +17,7 @@ import { OutputLog } from "../../services/OutputLog.js";
 import { gitCurrentBranchSync, isGitRepo } from "../../lib/git.js";
 import { CACHE_DIR, displayPath } from "../../lib/paths.js";
 import { ENV, envInt, envString } from "../../lib/env.js";
+import { isWorkTime } from "../../lib/workTime.js";
 import {
   activeGitReposForCheck,
   enabledGitReposForCheck,
@@ -190,6 +191,8 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
       /** Build the full list of tracked repos */
       const buildRepoList = (
         scheduledOnly = false,
+        workTimeActive = false,
+        now: Date = new Date(),
       ): Array<{
         name: string;
         path: string;
@@ -254,7 +257,12 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
         // Private git config activity repos, sorted alphabetically
         if (config.canUsePrivate) {
           const configured = scheduledOnly
-            ? activeGitReposForCheck(config.gitConfig, "activity")
+            ? activeGitReposForCheck(
+                config.gitConfig,
+                "activity",
+                now,
+                workTimeActive,
+              )
             : enabledGitReposForCheck(config.gitConfig, "activity");
 
           const visible = [...configured].sort((a, b) =>
@@ -413,7 +421,26 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
       const getAll = Effect.fn("DotDiff.getAll")(function* (
         opts?: DiffScanOptions,
       ): Effect.fn.Return<readonly DiffRepo[], DotDiffError> {
-        const repoList = buildRepoList(opts?.scheduledOnly).filter(
+        const workTimeActive =
+          opts?.scheduledOnly &&
+          enabledGitReposForCheck(config.gitConfig, "activity").some(
+            (repo) => repo.activity.schedule === "work",
+          )
+            ? yield* isWorkTime((message) =>
+                Effect.sync(() => log(message)),
+              ).pipe(
+                Effect.provideService(Config, config),
+                Effect.provideService(CommandExecutor, executor),
+              )
+            : false;
+
+        const now = new Date(yield* Clock.currentTimeMillis);
+
+        const repoList = buildRepoList(
+          opts?.scheduledOnly,
+          workTimeActive,
+          now,
+        ).filter(
           (repo) => !opts?.categories || opts.categories.has(repo.category),
         );
 

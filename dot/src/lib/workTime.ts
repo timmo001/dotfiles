@@ -50,7 +50,7 @@ const CalendarEvents = Schema.Array(
   }),
 );
 
-const calendarLeave = Effect.fn("workspaceWorkTime.calendarLeave")(function* (
+const calendarLeave = Effect.fn("workTime.calendarLeave")(function* (
   configPath: string,
 ) {
   const config = yield* Effect.tryPromise(() =>
@@ -142,8 +142,8 @@ const calendarLeave = Effect.fn("workspaceWorkTime.calendarLeave")(function* (
   return false;
 });
 
-/** Apply optional private calendar leave to the automatic work-hours decision. */
-export const workspaceWorkTime = Effect.fn("workspaceWorkTime")(function* (
+/** Check shared work hours with optional private calendar leave exclusions. */
+export const isWorkTime = Effect.fn("isWorkTime")(function* (
   log: (message: string) => Effect.Effect<void>,
 ) {
   const executor = yield* CommandExecutor;
@@ -167,7 +167,7 @@ export const workspaceWorkTime = Effect.fn("workspaceWorkTime")(function* (
     ),
   );
 
-  if (leave) yield* log("Calendar leave is active; using normal mode");
+  if (leave) yield* log("Calendar leave is active; work schedule is inactive");
 
   return !leave;
 });

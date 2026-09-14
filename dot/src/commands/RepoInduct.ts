@@ -58,11 +58,11 @@ export interface RepoInductOptions {
   readonly agentOxlint?: boolean;
   /** Enable activity checks. */
   readonly activityEnabled?: boolean;
-  /** Activity cron schedule. */
+  /** Activity cron or shared work schedule. */
   readonly activitySchedule?: string;
   /** Enable notification checks. */
   readonly notificationsEnabled?: boolean;
-  /** Notification cron schedule. */
+  /** Notification cron or shared work schedule. */
   readonly notificationsSchedule?: string;
   /** Filter bot-only notification activity. */
   readonly ignoreBotActivity?: boolean;
@@ -249,7 +249,7 @@ export const inductRepository = Effect.fn("repoInduct.run")(
               answers.activity.enabled,
             ),
             schedule: yield* askText(
-              "Activity schedule (five-field cron)",
+              "Activity schedule (five-field cron or work)",
               answers.activity.schedule,
             ),
           },
@@ -259,7 +259,7 @@ export const inductRepository = Effect.fn("repoInduct.run")(
               answers.notifications.enabled,
             ),
             schedule: yield* askText(
-              "Notification schedule (five-field cron)",
+              "Notification schedule (five-field cron or work)",
               answers.notifications.schedule,
             ),
             bar: {
