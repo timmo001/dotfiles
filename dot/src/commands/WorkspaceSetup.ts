@@ -8,6 +8,7 @@ import {
   releaseWorkspaceMutationLock,
 } from "../lib/workspaceMutationLock.js";
 import { CommandExecutor } from "../services/CommandExecutor.js";
+import { workspaceWorkTime } from "../lib/workspaceWorkTime.js";
 
 const DEFAULT_TEMP_WORKSPACE = 99;
 
@@ -806,11 +807,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
     const workTime = yield* Match.value(config.mode).pipe(
       Match.when("work", () => Effect.succeed(true)),
       Match.when("normal", () => Effect.succeed(false)),
-      Match.orElse(() =>
-        executor
-          .exitCode("is-work-time", [])
-          .pipe(Effect.map((code) => code === 0)),
-      ),
+      Match.orElse(() => workspaceWorkTime(logStep)),
     );
 
     if (workTime && Bun.which("google-chrome-stable") === null) {
