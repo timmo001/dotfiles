@@ -78,4 +78,10 @@ log "Requested Omarchy shell indicator refresh"
 refresh_git_modules
 log "Requested git status module refresh"
 
+if dot updates refresh >> "$LOG_FILE" 2>&1; then
+  log "Refreshed available updates"
+else
+  log "Available updates refresh failed"
+fi
+
 log "UI reload complete"
