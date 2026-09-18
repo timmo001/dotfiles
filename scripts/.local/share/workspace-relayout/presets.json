@@ -573,6 +573,38 @@
           }
         }
       }
+    ],
+    "6": [
+      {
+        "group": "Left / Right",
+        "name": "4 left / 2 right",
+        "tree": {
+          "dir": "lr",
+          "ratio": 27.02,
+          "a": {
+            "dir": "tb",
+            "ratio": 24.94,
+            "a": "w",
+            "b": {
+              "dir": "tb",
+              "ratio": 33.18,
+              "a": "w",
+              "b": {
+                "dir": "tb",
+                "ratio": 50.12,
+                "a": "w",
+                "b": "w"
+              }
+            }
+          },
+          "b": {
+            "dir": "tb",
+            "ratio": 50,
+            "a": "w",
+            "b": "w"
+          }
+        }
+      }
     ]
   }
 }
