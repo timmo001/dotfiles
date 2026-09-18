@@ -116,13 +116,13 @@ dot system-update --yes
 
 ## `dot deps`
 
-Preview native dependency updates from a pinned remote target
+Validate and publish grouped native dependency updates
 
 ```text
 dot deps <subcommand> [flags] [<repository>]
 ```
 
-Read native policy and manifests from one pinned remote target commit, preserving the caller's checkout. Paginate all open PRs and exclude whole coordinated groups using actual base/head dependency changes, including failed, pending and draft PRs. --all bypasses only that inventory and exclusion. Metadata lookups are bounded, deduplicated and read-only; HTTP validators are cached. Unsupported policy and missing metadata remain visible blockers. No repository scripts, installs, lockfile jobs, checks, commits, PR mutations or pushes run. Bare dot deps refuses publication until Stage 3; use --dry-run.
+Read native policy and manifests from a pinned remote target, preserving the caller's checkout. Exclude whole groups covered by any open dependency PR, including failed, pending and draft PRs. --all bypasses only PR inventory and exclusion. --dry-run discovers updates without repository scripts, installs, checks or writes to Git. Bare dot deps validates eligible groups in isolated worktrees and publishes one checked commit per group without creating PRs or waiting for hosted CI. Host permissions are read from $XDG_CONFIG_HOME/dot/dependencies.json (default ~/.config/dot/dependencies.json), keyed by owner/repository with trusted and allowBypass booleans. Required hosted checks must have equivalent validation.checks mappings; protected direct pushes require explicit allowBypass permission and existing account rights. Unsupported policy remains blocking. Integration is serialised per repository/target; target movement rebuilds and revalidates, up to three attempts per group. Failed work and logs remain under $XDG_STATE_HOME/dot/dependencies. Setup/check mutations and commit-hook mutations prevent publication. Independent groups continue after failures; a partial run exits non-zero. A normal invocation authorises passing updates, regardless of Renovate automerge policy.
 
 **Options**
 

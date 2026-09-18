@@ -37,7 +37,7 @@ import {
   type Snapshot,
 } from "./model.js";
 
-/** Bounded discovery options; publication is deliberately unavailable in this stage. */
+/** Bounded discovery options shared by previews and isolated update runs. */
 export interface DependencyPlanOptions {
   /** Caller directory, used only to select repository and detect override drift. */
   readonly directory: string;
@@ -374,10 +374,7 @@ export class DependencyPlanner extends Context.Service<
               : [],
           );
 
-          blockers.push(
-            ...extracted.blockers,
-            "Publication is unavailable until Stage 3",
-          );
+          blockers.push(...extracted.blockers);
 
           if (!config.validation.checks.length)
             blockers.push("Required local check mappings are missing");
