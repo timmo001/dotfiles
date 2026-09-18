@@ -58,6 +58,8 @@ minimum_release_age = "2h"
 [settings]
 aqua.registries = ["https://github.com/aquaproj/aqua-registry"]
 idiomatic_version_file_enable_tools = ["bun", "deno", "go", "node", "python"]
+# Remove with mise 2026.11.0, when minimum-version detection is removed.
+idiomatic_version_file_ignore_minimum_versions = true
 lockfile = true
 minimum_release_age = "1d"
 npm.package_manager = "bun"
