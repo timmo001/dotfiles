@@ -1,7 +1,7 @@
 # Declarative Herdr plugins shared across systems.
 natori-hrj/herdr-lazy@65414af74cc5e3a1b2c8d45e106d7b71cb423ae8
 andrewchng/herdr-sessionizer@9aba5d0e4e14eca1a6d5be0a69e828b8a72c0e5c
-senna-lang/herdr-agent-usage@df95abc0ba2edb002697d49a218868f87f823a3e
+senna-lang/herdr-agent-usage@cfd84237738c3e653274b4f0090cf1ab779234e8
 wyattjoh/herdr-plugin-gh-pr@6fe22de9a90c569f2186595cfddc3707f55ba1bd
 rmarganti/herdr-pluck@d1eacb80956c3a23ab6f7428a9e83961fb86ba28
 timmo001/herdr-workflow-watch@532bb51a7ac2bc3fc9875cdf24f6d15d2266e7a8
