@@ -114,6 +114,51 @@ dot system-update
 dot system-update --yes
 ```
 
+## `dot deps`
+
+Manage native dependency update policy
+
+```text
+dot deps <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--help` `-h` | Show help information |
+
+### `dot deps import-renovate`
+
+Import Renovate policy into dot-deps.json
+
+```text
+dot deps import-renovate [flags] [<directory>]
+```
+
+Create a versioned native dependency policy from a repository's JSON Renovate config. The first import resolves presets with an isolated, pinned Renovate runtime. Later imports replace explicit override sections, including edits within them, while preserving the native base policy and local check mappings. Unsupported settings are recorded as publication blockers. Importing creates no commits or PRs. This stage provides conversion only; native update execution is not available yet.
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--source` `<string>` | Repository-relative Renovate JSON file (default: renovate.json) |
+| `--timeout` `<string>` | Deadline per import pass (default: 5 minutes) |
+| `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<directory>` | directory |
+
+**Examples**
+
+```bash
+dot deps import-renovate
+dot deps import-renovate /path/to/repository
+```
+
 ## `dot run`
 
 Run a command with a deadline and process-group cleanup

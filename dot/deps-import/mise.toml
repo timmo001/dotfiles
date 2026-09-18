@@ -1,0 +1,3 @@
+[tools]
+node = "24.21.0"
+"npm:renovate" = "44.103.0"

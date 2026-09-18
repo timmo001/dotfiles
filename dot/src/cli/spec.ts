@@ -14,6 +14,7 @@ import { repoInduct } from "../commands/RepoInduct.js";
 import { clean } from "../commands/Clean.js";
 import { completions } from "../commands/Completions.js";
 import { doctor } from "../commands/Doctor.js";
+import { importRenovate } from "../commands/Dependencies.js";
 import { herdrRepoOpen } from "../commands/HerdrRepoOpen.js";
 import { installedHerdrAgents } from "../commands/HerdrAgents.js";
 import { herdrContext } from "../commands/HerdrContext.js";
@@ -297,6 +298,44 @@ const runDuration = (name: string, description: string) =>
     ),
     Flag.withDescription(description),
   );
+
+const dependenciesCommand = describe(
+  Command.make("deps").pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make(
+          "import-renovate",
+          {
+            directory: Argument.string("directory").pipe(
+              Argument.withDefault("."),
+            ),
+            source: Flag.string("source").pipe(
+              Flag.withDefault("renovate.json"),
+              Flag.withDescription(
+                "Repository-relative Renovate JSON file (default: renovate.json)",
+              ),
+            ),
+            timeout: runDuration(
+              "timeout",
+              "Deadline per import pass (default: 5 minutes)",
+            ).pipe(Flag.withDefault(5 * 60 * 1000)),
+          },
+          importRenovate,
+        ),
+        "Import Renovate policy into dot-deps.json",
+        [
+          "dot deps import-renovate",
+          "dot deps import-renovate /path/to/repository",
+        ],
+        {
+          description:
+            "Create a versioned native dependency policy from a repository's JSON Renovate config. The first import resolves presets with an isolated, pinned Renovate runtime. Later imports replace explicit override sections, including edits within them, while preserving the native base policy and local check mappings. Unsupported settings are recorded as publication blockers. Importing creates no commits or PRs. This stage provides conversion only; native update execution is not available yet.",
+        },
+      ),
+    ]),
+  ),
+  "Manage native dependency update policy",
+);
 
 const runCommandSpec = describe(
   Command.make(
@@ -1818,6 +1857,7 @@ export const dotCommand = describe(
       installCommand,
       updateCommand,
       systemUpdateCommand,
+      dependenciesCommand,
       runCommandSpec,
       updatesCommand,
       stowCommand,
