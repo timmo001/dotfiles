@@ -21490,8 +21490,166 @@
     }
   },
   "validation": {
-    "setup": [],
-    "checks": []
+    "setup": [
+      {
+        "argv": [
+          "git",
+          "submodule",
+          "update",
+          "--init",
+          "--recursive"
+        ],
+        "cwd": ".",
+        "timeout": 300000
+      },
+      {
+        "argv": [
+          "mise",
+          "trust"
+        ],
+        "cwd": ".",
+        "timeout": 30000
+      },
+      {
+        "argv": [
+          "mise",
+          "install"
+        ],
+        "cwd": ".",
+        "timeout": 300000
+      },
+      {
+        "argv": [
+          "bun",
+          "install",
+          "--frozen-lockfile"
+        ],
+        "cwd": ".",
+        "timeout": 120000
+      },
+      {
+        "argv": [
+          "bun",
+          "install",
+          "--frozen-lockfile"
+        ],
+        "cwd": "dot",
+        "timeout": 120000
+      },
+      {
+        "argv": [
+          "bun",
+          "install",
+          "--frozen-lockfile"
+        ],
+        "cwd": "docs",
+        "timeout": 120000
+      },
+      {
+        "argv": [
+          "bun",
+          "install",
+          "--frozen-lockfile"
+        ],
+        "cwd": "agents/.config/opencode/plugins-v2",
+        "timeout": 120000
+      }
+    ],
+    "checks": [
+      {
+        "context": "build",
+        "appId": 15368,
+        "commands": [
+          {
+            "argv": [
+              "mise",
+              "run",
+              "dot:build"
+            ],
+            "cwd": ".",
+            "timeout": 120000
+          },
+          {
+            "argv": [
+              "mise",
+              "run",
+              "docs:gen:cli"
+            ],
+            "cwd": ".",
+            "timeout": 120000
+          },
+          {
+            "argv": [
+              "mise",
+              "run",
+              "docs:build"
+            ],
+            "cwd": ".",
+            "timeout": 300000
+          }
+        ]
+      },
+      {
+        "context": "oxlint",
+        "appId": 15368,
+        "commands": [
+          {
+            "argv": [
+              "mise",
+              "run",
+              "lint"
+            ],
+            "cwd": ".",
+            "timeout": 120000
+          }
+        ]
+      },
+      {
+        "context": "dot-typecheck",
+        "appId": 15368,
+        "commands": [
+          {
+            "argv": [
+              "mise",
+              "run",
+              "dot:typecheck"
+            ],
+            "cwd": ".",
+            "timeout": 120000
+          }
+        ]
+      },
+      {
+        "context": "dot-tests",
+        "appId": 15368,
+        "commands": [
+          {
+            "argv": [
+              "mise",
+              "run",
+              "dot:test"
+            ],
+            "cwd": ".",
+            "timeout": 120000
+          }
+        ]
+      },
+      {
+        "context": "regression-tests",
+        "appId": 15368,
+        "commands": [
+          {
+            "argv": [
+              "mise",
+              "run",
+              "tests:integration"
+            ],
+            "cwd": ".",
+            "timeout": 300000
+          }
+        ]
+      }
+    ]
   },
   "import": {
     "source": "renovate.json",
