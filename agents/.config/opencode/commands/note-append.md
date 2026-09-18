@@ -2,59 +2,8 @@
 description: Append new notes to an existing note file for the current repository
 ---
 
-A `<repo-note-context>` block has been injected above by RepoNotesPlugin. It contains the resolved `owner`, `repo`, `notes_path`, and the list of existing note files in `<existing-notes>`, sorted newest-first by modification time.
+Load `notes-cli`, using `note-append` as the context command. Reuse injected `<repo-note-context>` when available.
 
-Load `notes-cli` for repository context, vault operations, and mutation results. Use `note-append` as the context command.
+Resolve the target from `${ARGUMENTS}` and the conversation. Use an unambiguous selection directly; ask only when the target is unclear. If no notes exist, suggest `/note-create`.
 
-Follow these steps exactly:
-
-## Step 1: Check for existing notes
-
-If `Notes directory exists: no` appears in the injected `<repository>` section, or `<existing-notes>` contains "(notes directory does not exist yet)" or "(no .md files found in notes directory)", stop and tell the user:
-
-> No notes exist yet for `{owner}/{repo}`. Run `/note-create` to create the first note.
-
-Do not proceed further.
-
-## Step 2: Rank and present existing notes
-
-1. Read the list from the `<existing-notes>` section (already sorted newest-first by modification time)
-2. Re-rank by relevance to the current conversation topic. Use all three signals together:
-   - **Tags** — primary signal: tags that overlap with the current topic should score highest
-   - **Description** — secondary signal: semantic match to what was discussed
-   - **Name** — tertiary signal: title similarity
-3. Present the ranked list to the user using the `question` tool — always show it even if the top match seems obvious
-
-The question should look like:
-> Which note should this session's content be appended to?
-
-List each option using the full label from `<existing-notes>` (filename, name, description, tags, last modified).
-
-Wait for the user to select a file before continuing.
-
-## Step 3: Summarise the conversation
-
-Review the current conversation and write a structured update that captures new content from this session. Focus on what is new or changed — do not repeat content already in the existing note.
-
-Write the update using the same section vocabulary as the existing note:
-
-- **Key Ideas** — new concepts, insights, or approaches from this session
-- **Decisions** — new decisions and their reasoning
-- **Actions Taken** — new files, commands, or builds (brief list)
-- **Open Threads** — new unresolved items or follow-ups
-
-Omit any section that has no new content for this session.
-
-## Step 4: Rewrite the note with integrated content
-
-1. Read the selected note through the `notes-cli` update workflow.
-2. Integrate the new content into the appropriate sections:
-    - Append new bullet items to existing sections (Key Ideas, Decisions, Actions Taken, Open Threads)
-    - If a section in the existing note is missing but has new content, add it
-    - Do not duplicate existing items
-    - Leave the frontmatter `name`, `description`, and `tags` unchanged (they reflect the original session).
-3. Save the integrated content through the `notes-cli` revision-checked update workflow.
-
-## Step 5: Confirm
-
-Report the actual updated path and mutation result through `notes-cli`.
+Read the selected note and integrate only new information from this conversation into its existing structure. Preserve unrelated content and frontmatter. Save through the skill's revision-checked update workflow, then report the actual saved path and any partial failure.
