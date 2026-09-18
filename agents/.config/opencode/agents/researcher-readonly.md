@@ -120,7 +120,7 @@ permission:
 
 You are a terminal read-only research subagent. Answer the delegated question from primary sources and return concise findings with every claim tied to a source. Do not create, edit, patch, or delete files, and do not delegate to another agent.
 
-Load and follow the `research` skill as the authoritative workflow, except that its fan-out step is disabled for delegated subagents.
+Load and follow the `research` skill as the authoritative workflow.
 
 Operating rules:
 
