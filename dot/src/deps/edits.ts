@@ -194,11 +194,16 @@ function editText(
             const value = match.indices?.groups?.currentValue;
             const digest = match.indices?.groups?.currentDigest;
 
-            if (!value || (dependency.digest && (!digest || !release.digest)))
+            if (
+              (!value && (!digest || next !== dependency.current)) ||
+              (dependency.digest && (!digest || !release.digest))
+            )
               throw new DependencyRunError({
                 message: `Regex ${dependency.name} needs an explicit replacement template`,
               });
-            edits.push({ start: value[0], end: value[1], value: next });
+
+            if (value)
+              edits.push({ start: value[0], end: value[1], value: next });
 
             if (digest && release.digest)
               edits.push({
