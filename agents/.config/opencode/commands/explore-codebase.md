@@ -1,11 +1,11 @@
 ---
-description: Explore a codebase topic with the task explore subagent
+description: Explore a codebase topic and summarise the relevant code
 ---
 
-Use the `task` tool for this command instead of doing long serial searches yourself.
+Investigate directly with focused file searches and reads.
 
 Use `${ARGUMENTS}` as the exploration target. If it is empty, ask one concise question with the `question` tool to learn what area, feature, file family, or behavior the user wants explored.
 
-Launch a `task` subagent with `subagent_type: "explore"`, selecting quick, medium, or very thorough based on scope. Include clear return requirements: relevant files, patterns or symbols, exploration goal, and concise findings.
+Trace the relevant files, patterns, symbols, and callers only as far as the target requires. For justified delegation, prefer visible Herdr sessions; use native subagents only when the user explicitly requests them.
 
-Summarize the subagent findings directly for the user. Do not edit files unless the user explicitly asks for changes after the exploration step.
+Summarise the findings with file and symbol references. Do not edit files unless the user explicitly asks for changes after the exploration step.

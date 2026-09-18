@@ -11,11 +11,10 @@ Follow these steps:
 1. Use `${ARGUMENTS}` as the topic, issue, question, or area to investigate.
 2. If `${ARGUMENTS}` is empty or too vague to investigate safely, ask one concise question with the `question` tool to get the missing target.
 3. Choose the right workflow for the request instead of forcing one tool path:
-   - use the `diagnose` skill for concrete bug reports, regressions, flaky behaviour, or performance problems that need a reproducible feedback loop before fixing
-   - use direct reads/searches for narrow local repo lookups
-   - use the `task` tool with an available local exploration subagent for broad codebase discovery
-   - use the `task` tool with an available read-only research subagent for broad upstream dependency, source, or documentation inspection
-   - use the `task` tool with an available cited-research subagent for external primary-source research that needs synthesis (docs, specs, APIs, library or GitHub behaviour)
+   - use the `diagnose` skill for concrete bug reports, regressions, flaky behaviour, or performance problems
+   - use focused reads and searches for local codebase and upstream source inspection
+   - use the `research` skill for external primary-source research that needs synthesis (docs, specs, APIs, library or GitHub behaviour)
+   - investigate directly by default; prefer visible Herdr sessions for justified delegation and use native subagents only when explicitly requested
    - use Chrome DevTools tools for browser-specific investigation
    - use `context7` tools for library/framework documentation lookups
    - use `grep` for GitHub-hosted docs or real-world code-pattern investigation

@@ -92,7 +92,7 @@ Guidelines:
 - If OpenCode saves truncated output to a file, use `jq` for compact JSON or targeted `grep`, `Read`, or `Grep` calls for text. If an inspection command is denied, retry with an allowed read-only tool and continue the task rather than returning early.
 - For library or framework documentation, prefer `context7` tools over `webfetch` or `gh` CLI.
 - For GitHub-hosted docs, code patterns, or real-world usage examples, prefer `grep` over `webfetch`, `gh api`, or `gh repo view` of raw file content.
-- For broad delegated research, choose from the available task subagents by their descriptions instead of assuming a specific custom agent exists.
+- Investigate directly by default. Prefer visible Herdr sessions for justified delegation; use native subagents only when explicitly requested.
 - Reserve `gh` CLI for GitHub workflow operations (PRs, issues, checks, runs) and local repo metadata.
 - Load the `git-context` skill when working with branches, remotes, or diffs.
 - Load the `code-review` skill when reviewing code changes or pull requests.
