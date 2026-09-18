@@ -8,6 +8,29 @@ bun = "1.4.2"
 description = "Lint owned TypeScript and JavaScript with Oxlint"
 run = "bunx oxlint --type-aware --ignore-pattern agents/.agents/skills"
 
+[tasks."lint:actions"]
+description = "Run the required ActionLint check on tracked source"
+tools = { actionlint = "1.7.12" }
+run = "bun dot/src/checkRepositoryFiles.ts actions"
+
+[tasks."lint:json"]
+description = "Validate tracked JSON with the same strict parser as CI"
+run = "bun dot/src/checkRepositoryFiles.ts json"
+
+[tasks."lint:yaml"]
+description = "Run the required YAMLLint check on tracked source"
+tools = { yamllint = "1.38.0" }
+run = "bun dot/src/checkRepositoryFiles.ts yaml"
+
+[tasks."lint:markdown"]
+description = "Run the required MarkdownLint check on tracked source"
+run = "bun dot/src/checkRepositoryFiles.ts markdown"
+
+[tasks."lint:shell"]
+description = "Run the required ShellCheck scope and severity"
+tools = { shellcheck = "0.11.0" }
+run = "bun dot/src/checkRepositoryFiles.ts shell"
+
 # dot (runs in ./dot)
 [tasks."dot:install"]
 description = "Install dot dependencies"
