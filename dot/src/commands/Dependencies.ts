@@ -12,6 +12,7 @@ import { DependencySources } from "../deps/sources.js";
 import {
   DependencyLocalPolicy,
   DependencyPlanner,
+  dependencyGroupOrder,
   type DependencyPlanOptions,
 } from "../deps/plan.js";
 import { DependencyDiscoveryError } from "../deps/model.js";
@@ -43,9 +44,7 @@ export const previewDependencies = Effect.fn("Dependencies.preview")(
     if (result.snapshot.directory)
       yield* log.info(`Isolated source checkout: ${result.snapshot.directory}`);
 
-    const groups = [
-      ...new Set(result.dependencies.map((entry) => entry.group)),
-    ];
+    const groups = dependencyGroupOrder(result.dependencies);
 
     for (const group of groups) {
       yield* log.info(`[GROUP] ${group}`);

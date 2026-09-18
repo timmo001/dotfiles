@@ -77,6 +77,10 @@
               "appId": {
                 "type": "integer"
               },
+              "parallel": {
+                "type": "boolean",
+                "description": "Allow this check to overlap adjacent parallel checks. Commands within a check remain ordered."
+              },
               "commands": {
                 "type": "array",
                 "minItems": 1,
@@ -477,6 +481,10 @@
               "type": "null"
             }
           ]
+        },
+        "priority": {
+          "type": "integer",
+          "description": "Higher values run first; a coordinated group uses its highest member priority."
         }
       },
       "additionalProperties": false

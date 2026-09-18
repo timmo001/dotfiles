@@ -9,10 +9,11 @@ import { readDependencyConfig } from "./policyFile.js";
 import { dependencyCheckRequirements } from "./checks.js";
 import { DependencyGithub } from "./github.js";
 import { extractDependencies } from "./extract.js";
-import { dependencyGroups, requiresSourceUrl } from "./rules.js";
+import { requiresSourceUrl } from "./rules.js";
 import { dependencyRunLog, type DependencyRunLog } from "./log.js";
 import {
   DependencyPlanner,
+  dependencyGroupOrder,
   type DependencyPlan,
   type DependencyPlanOptions,
   type PlannedDependency,
@@ -62,8 +63,7 @@ const runnablePlan = Effect.fn("Dependencies.runnablePlan")(function* (
   for (const entry of plan.dependencies)
     if (
       entry.selection.blockers.length &&
-      (requiresSourceUrl(policy, entry.dependency) ||
-        dependencyGroups(policy, entry.dependency).length !== 1)
+      (requiresSourceUrl(policy, entry.dependency) || entry.groups.length !== 1)
     )
       return yield* new DependencyRunError({
         message: `Cannot establish independent groups while ${entry.dependency.name} has unresolved grouping metadata`,
@@ -158,7 +158,7 @@ const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
     );
 
     if (workspace.moved) {
-      plan = yield* planner.plan(options);
+      plan = yield* planner.refresh(plan, options);
       continue;
     }
 
@@ -207,7 +207,12 @@ const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
       options.timeout,
     );
 
-    yield* validateDependencyGroup(workspace.directory, config, log);
+    yield* validateDependencyGroup(
+      workspace.directory,
+      config,
+      log,
+      options.concurrency,
+    );
 
     const checked = yield* dependencyCandidateTree(
       workspace.directory,
@@ -223,7 +228,7 @@ const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
           "Setup or checks modified the prepared candidate; retained worktree needs inspection",
       });
 
-    const refreshed = yield* planner.plan(options);
+    const refreshed = yield* planner.refresh(plan, options);
     yield* runnablePlan(refreshed);
 
     if (refreshed.snapshot.sha !== plan.snapshot.sha) {
@@ -286,7 +291,7 @@ const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
     );
 
     if (result.status === "moved") {
-      plan = yield* planner.plan(options);
+      plan = yield* planner.refresh(plan, options);
       continue;
     }
 
@@ -392,18 +397,20 @@ export const runDependencyUpdates = Effect.fn("Dependencies.run")(function* (
   const initial = yield* planner.plan({ ...options, target });
   yield* runnablePlan(initial);
 
-  const groups = [
-    ...new Set(
-      initial.dependencies
-        .filter(
-          (entry) =>
-            entry.selection.release ||
-            entry.selection.blockers.length ||
-            entry.skippedBy.length,
-        )
-        .map((entry) => entry.group),
-    ),
-  ];
+  const activeGroups = new Set(
+    initial.dependencies
+      .filter(
+        (entry) =>
+          entry.selection.release ||
+          entry.selection.blockers.length ||
+          entry.skippedBy.length,
+      )
+      .map((entry) => entry.group),
+  );
+
+  const groups = dependencyGroupOrder(initial.dependencies).filter((group) =>
+    activeGroups.has(group),
+  );
 
   const failedFiles = new Set(
     groupFiles(
@@ -418,12 +425,14 @@ export const runDependencyUpdates = Effect.fn("Dependencies.run")(function* (
     commit?: string;
   }[] = [];
 
+  let plan = initial;
+
   for (const [index, group] of groups.entries()) {
     yield* log.event(`[GROUP ${index + 1}/${groups.length}] ${group}`);
 
     const outcome = yield* Effect.gen(function* () {
-      const plan =
-        index === 0 ? initial : yield* planner.plan({ ...options, target });
+      if (index !== 0)
+        plan = yield* planner.refresh(plan, { ...options, target });
 
       return yield* publishGroup(
         group,

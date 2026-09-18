@@ -1,4 +1,5 @@
 import { dirname, join } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import {
   Clock,
   Context,
@@ -17,7 +18,6 @@ import {
   assertDependencyOverrides,
   mergeDependencyPolicy,
   blockingDependencyDiagnostics,
-  type DependencyPolicy,
 } from "./config.js";
 import {
   decodeDependencyConfig,
@@ -66,6 +66,8 @@ export interface PlannedDependency {
   readonly dependency: Dependency;
   /** Coordinated group label. */
   readonly group: string;
+  /** All coordinated memberships, resolved once for these policy and dependency inputs. */
+  readonly groups: readonly string[];
   /** Version-selection outcome. */
   readonly selection: Selection;
   /** Open PRs covering this group. */
@@ -86,6 +88,26 @@ export interface DependencyPlan {
   readonly timings: Readonly<Record<string, number>>;
   /** Provider requests and in-process deduplication hits. */
   readonly cache: { readonly requests: number; readonly hits: number };
+}
+
+/** Order coordinated groups by their highest member priority, preserving discovery order on ties. */
+export function dependencyGroupOrder(
+  dependencies: readonly PlannedDependency[],
+): readonly string[] {
+  const priorities = new Map<string, number>();
+
+  for (const entry of dependencies)
+    priorities.set(
+      entry.group,
+      Math.max(
+        priorities.get(entry.group) ?? -Infinity,
+        entry.selection.settings.priority ?? 0,
+      ),
+    );
+
+  return [...priorities.keys()].sort(
+    (left, right) => (priorities.get(right) ?? 0) - (priorities.get(left) ?? 0),
+  );
 }
 
 /** Read-only authority for rejecting stale caller overrides. */
@@ -156,13 +178,15 @@ export class DependencyLocalPolicy extends Context.Service<
 
 /** Match coverage conservatively, then transitively exclude coordinated groups. */
 export function coveredGroups(
-  dependencies: readonly Dependency[],
-  policy: DependencyPolicy,
+  memberships: readonly {
+    readonly dependency: Dependency;
+    readonly groups: readonly string[];
+  }[],
   prs: readonly PullRequestCoverage[],
 ): ReadonlyMap<string, readonly PullRequestCoverage[]> {
   const covered = new Map<string, PullRequestCoverage[]>();
 
-  for (const dependency of dependencies) {
+  for (const { dependency, groups } of memberships) {
     const matching = prs.filter(
       (pr) =>
         pr.identities.includes(dependencyIdentity(dependency)) ||
@@ -175,7 +199,7 @@ export function coveredGroups(
     );
 
     if (matching.length)
-      for (const group of dependencyGroups(policy, dependency))
+      for (const group of groups)
         covered.set(group, [...(covered.get(group) ?? []), ...matching]);
   }
 
@@ -184,8 +208,7 @@ export function coveredGroups(
   while (changed) {
     changed = false;
 
-    for (const dependency of dependencies) {
-      const groups = dependencyGroups(policy, dependency);
+    for (const { groups } of memberships) {
       const prs = groups.flatMap((group) => covered.get(group) ?? []);
 
       if (!prs.length) continue;
@@ -198,13 +221,24 @@ export function coveredGroups(
     }
   }
 
-  return covered;
+  return new Map(
+    [...covered].map(([group, prs]) => [
+      group,
+      [...new Map(prs.map((pr) => [pr.number, pr])).values()],
+    ]),
+  );
 }
 
 /** Planner authority with explicit repository, metadata and output dependencies. */
 export interface DependencyPlannerService {
   /** Discover a read-only grouped plan. */
   readonly plan: (
+    options: DependencyPlanOptions,
+    previous?: DependencyPlan,
+  ) => Effect.Effect<DependencyPlan, DependencyDiscoveryError>;
+  /** Refresh target and PR coverage, retaining run-pinned selections when inputs are unchanged. */
+  readonly refresh: (
+    previous: DependencyPlan,
     options: DependencyPlanOptions,
   ) => Effect.Effect<DependencyPlan, DependencyDiscoveryError>;
 }
@@ -223,237 +257,289 @@ export class DependencyPlanner extends Context.Service<
       const sources = yield* DependencySources;
       const log = yield* OutputLog;
 
-      return DependencyPlanner.of({
-        plan: Effect.fn("DependencyPlanner.plan")(function* (options) {
-          const started = yield* Clock.currentTimeMillis;
-          yield* log.info("[SNAPSHOT] Resolving remote target");
+      const plan = Effect.fn("DependencyPlanner.plan")(function* (
+        options: DependencyPlanOptions,
+        previous?: DependencyPlan,
+      ) {
+        const started = yield* Clock.currentTimeMillis;
+        yield* log.info("[SNAPSHOT] Resolving remote target");
 
-          const repository = yield* github.resolve(
-            options.directory,
-            options.repository,
-            options.timeout,
-          );
+        const repository = yield* github.resolve(
+          options.directory,
+          options.repository,
+          options.timeout,
+        );
 
-          const target = options.target ?? repository.defaultBranchRef?.name;
+        const target = options.target ?? repository.defaultBranchRef?.name;
 
-          if (!repository.url.startsWith("https://github.com/"))
-            return yield* new DependencyDiscoveryError({
-              message:
-                "Native dependency discovery currently requires a github.com repository",
-            });
-
-          if (!target)
-            return yield* new DependencyDiscoveryError({
-              message: "Repository has no remote default branch; pass --target",
-            });
-
-          const snapshot = yield* github.snapshot(
-            repository.nameWithOwner,
-            target,
-            options.timeout,
-            options.concurrency,
-          );
-
-          const config = yield* readDependencyConfig(snapshot.files).pipe(
-            Effect.mapError(
-              () =>
-                new DependencyDiscoveryError({
-                  message: `Missing or invalid native policy at ${snapshot.sha}`,
-                }),
-            ),
-          );
-
-          const targetSource = yield* Schema.decodeUnknownEffect(
-            Schema.fromJsonString(RenovateObject),
-          )(snapshot.files[config.import.source]).pipe(
-            Effect.mapError(
-              () =>
-                new DependencyDiscoveryError({
-                  message: `Missing or invalid target overrides at ${snapshot.sha}`,
-                }),
-            ),
-          );
-
-          yield* assertDependencyOverrides(config, targetSource).pipe(
-            Effect.mapError(
-              (error) =>
-                new DependencyDiscoveryError({
-                  message: `Target override drift: ${error.message}`,
-                }),
-            ),
-          );
-
-          if (!options.repository)
-            yield* local.validate(options.directory, config, options.timeout);
-
-          const policy = mergeDependencyPolicy(
-            config.policy.base,
-            config.policy.overrides,
-          );
-
-          yield* Effect.try({
-            try: () => validateDependencyPatterns(policy),
-            catch: () =>
-              new DependencyDiscoveryError({
-                message: "Invalid native dependency matcher",
-              }),
+        if (!repository.url.startsWith("https://github.com/"))
+          return yield* new DependencyDiscoveryError({
+            message:
+              "Native dependency discovery currently requires a github.com repository",
           });
 
-          const pinned = yield* Clock.currentTimeMillis;
-          yield* log.info(
-            `[EXTRACT] ${repository.nameWithOwner}@${snapshot.sha}`,
-          );
-          const extracted = yield* extractDependencies(snapshot, policy);
-          const extractedAt = yield* Clock.currentTimeMillis;
-          yield* log.info(
-            options.all
-              ? "[PRS] --all bypasses inventory and exclusion"
-              : "[PRS] Inspecting all open PRs",
-          );
+        if (!target)
+          return yield* new DependencyDiscoveryError({
+            message: "Repository has no remote default branch; pass --target",
+          });
 
-          const prs = options.all
-            ? []
-            : yield* github.inventory(
-                snapshot,
-                policy,
-                options.timeout,
-                options.concurrency,
-              );
+        const snapshot = yield* github.snapshot(
+          repository.nameWithOwner,
+          target,
+          options.timeout,
+          options.concurrency,
+        );
 
-          const inventoried = yield* Clock.currentTimeMillis;
-          yield* log.info(
-            `[PRS] ${prs.length} open PRs inspected in ${inventoried - extractedAt}ms`,
-          );
-          yield* log.info(
-            `[SOURCES] Resolving grouping metadata with up to ${options.concurrency} concurrent lookups`,
-          );
+        const config = yield* readDependencyConfig(snapshot.files).pipe(
+          Effect.mapError(
+            () =>
+              new DependencyDiscoveryError({
+                message: `Missing or invalid native policy at ${snapshot.sha}`,
+              }),
+          ),
+        );
 
-          // Source selectors must be resolved before propagating any PR group coverage.
-          const identified = yield* Effect.forEach(
-            extracted.dependencies,
-            Effect.fn("DependencyPlanner.identifySource")(
-              function* (dependency): Effect.fn.Return<{
-                dependency: Dependency;
-                metadata?: Releases;
-                failure?: string;
-              }> {
-                if (
-                  !requiresSourceUrl(policy, dependency) ||
-                  dependencySettings(policy, dependency).enabled === false ||
-                  dependency.datasource === "local"
+        const targetSource = yield* Schema.decodeUnknownEffect(
+          Schema.fromJsonString(RenovateObject),
+        )(snapshot.files[config.import.source]).pipe(
+          Effect.mapError(
+            () =>
+              new DependencyDiscoveryError({
+                message: `Missing or invalid target overrides at ${snapshot.sha}`,
+              }),
+          ),
+        );
+
+        yield* assertDependencyOverrides(config, targetSource).pipe(
+          Effect.mapError(
+            (error) =>
+              new DependencyDiscoveryError({
+                message: `Target override drift: ${error.message}`,
+              }),
+          ),
+        );
+
+        if (!options.repository)
+          yield* local.validate(options.directory, config, options.timeout);
+
+        const policy = mergeDependencyPolicy(
+          config.policy.base,
+          config.policy.overrides,
+        );
+
+        const previousConfig = previous
+          ? yield* readDependencyConfig(previous.snapshot.files).pipe(
+              Effect.mapError(
+                (error) =>
+                  new DependencyDiscoveryError({ message: error.message }),
+              ),
+            )
+          : undefined;
+
+        const reusable = new Map(
+          previous && isDeepStrictEqual(config.policy, previousConfig?.policy)
+            ? previous.dependencies
+                .filter(
+                  (entry) =>
+                    !entry.skippedBy.length && !entry.selection.blockers.length,
                 )
-                  return { dependency };
+                .map(
+                  (entry) =>
+                    [dependencyIdentity(entry.dependency), entry] as const,
+                )
+            : [],
+        );
 
-                return yield* sources
-                  .lookup(dependency, policy, options.timeout)
-                  .pipe(
-                    Effect.map((metadata) => ({
-                      dependency: {
-                        ...dependency,
-                        ...Record.filter(
-                          { sourceUrl: metadata.sourceUrl },
-                          Predicate.isNotUndefined,
-                        ),
-                      },
-                      metadata,
-                      ...Record.filter(
-                        {
-                          failure:
-                            metadata.sourceUrl !== undefined
-                              ? undefined
-                              : "Missing source URL required by ordered policy",
-                        },
-                        Predicate.isNotUndefined,
-                      ),
-                    })),
-                    Effect.catch((error) =>
-                      Effect.succeed({ dependency, failure: error.message }),
-                    ),
-                  );
-              },
-            ),
-            { concurrency: options.concurrency },
-          );
+        yield* Effect.try({
+          try: () => validateDependencyPatterns(policy),
+          catch: () =>
+            new DependencyDiscoveryError({
+              message: "Invalid native dependency matcher",
+            }),
+        });
 
-          const coverage = coveredGroups(
-            identified.map((entry) => entry.dependency),
-            policy,
-            prs,
-          );
+        const pinned = yield* Clock.currentTimeMillis;
+        yield* log.info(
+          `[EXTRACT] ${repository.nameWithOwner}@${snapshot.sha}`,
+        );
+        const extracted = yield* extractDependencies(snapshot, policy);
+        const extractedAt = yield* Clock.currentTimeMillis;
+        yield* log.info(
+          options.all
+            ? "[PRS] --all bypasses inventory and exclusion"
+            : "[PRS] Inspecting all open PRs",
+        );
 
-          yield* log.info(
-            `[SOURCES] Grouping metadata resolved in ${(yield* Clock.currentTimeMillis) - inventoried}ms`,
-          );
+        const prs = options.all
+          ? []
+          : yield* github.inventory(
+              snapshot,
+              policy,
+              options.timeout,
+              options.concurrency,
+            );
 
-          const relevant = yield* Effect.try({
-            try: () =>
-              blockingDependencyDiagnostics(config, {
-                dependencies: extracted.dependencies,
-                files: snapshot.tree.map((entry) => entry.path),
-              }),
-            catch: () =>
-              new DependencyDiscoveryError({
-                message: "Invalid imported diagnostic scope",
-              }),
-          });
+        const inventoried = yield* Clock.currentTimeMillis;
+        yield* log.info(
+          `[PRS] ${prs.length} open PRs inspected in ${inventoried - extractedAt}ms`,
+        );
+        yield* log.info(
+          `[SOURCES] Resolving grouping metadata with up to ${options.concurrency} concurrent lookups`,
+        );
 
-          const blockers = relevant.map(
-            (diagnostic) => `${diagnostic.path}: ${diagnostic.message}`,
-          );
-
-          const total = [
-            ...config.import.baseDiagnostics,
-            ...config.import.overrideDiagnostics,
-          ].filter((diagnostic) => diagnostic.disposition === "blocked").length;
-
-          yield* log.info(
-            `[POLICY] ${relevant.length} applicable or unscoped import blockers; ${total - relevant.length} do not match the pinned repository`,
-          );
-
-          blockers.push(...extracted.blockers);
-
-          if (!config.validation.checks.length)
-            blockers.push("Required local check mappings are missing");
-          const failures = [...extracted.blockers];
-          let completed = 0;
-
-          const dependencies = yield* Effect.forEach(
-            identified,
-            Effect.fn("DependencyPlanner.lookup")(function* ({
-              dependency,
-              metadata,
-              failure,
-            }): Effect.fn.Return<PlannedDependency> {
-              const settings = dependencySettings(policy, dependency);
-
-              const group =
-                settings.groupSlug ?? settings.groupName ?? dependency.package;
-
-              const skippedBy = [
-                ...new Map(
-                  dependencyGroups(policy, dependency)
-                    .flatMap((group) => coverage.get(group) ?? [])
-                    .map((pr) => [pr.number, pr]),
-                ).values(),
-              ];
-
-              let selection: Selection = {
-                settings,
-                reason:
-                  failure ??
-                  (skippedBy.length
-                    ? "Covered by an open dependency PR (or ambiguous overlapping change)"
-                    : "Disabled or local dependency"),
-                blockers: failure ? [failure] : [],
-              };
+        // Source selectors must be resolved before propagating any PR group coverage.
+        const identified = yield* Effect.forEach(
+          extracted.dependencies,
+          Effect.fn("DependencyPlanner.identifySource")(
+            function* (dependency): Effect.fn.Return<{
+              dependency: Dependency;
+              metadata?: Releases;
+              failure?: string;
+              previous?: PlannedDependency;
+            }> {
+              const old = reusable.get(dependencyIdentity(dependency));
 
               if (
-                !skippedBy.length &&
-                !failure &&
-                settings.enabled !== false &&
-                dependency.datasource !== "local"
-              ) {
-                selection = yield* (
+                old &&
+                isDeepStrictEqual(
+                  {
+                    ...dependency,
+                    sourceUrl:
+                      dependency.sourceUrl === undefined
+                        ? old.dependency.sourceUrl
+                        : dependency.sourceUrl,
+                  },
+                  { ...old.dependency, sourceUrl: old.dependency.sourceUrl },
+                )
+              )
+                return { dependency: old.dependency, previous: old };
+
+              if (
+                !requiresSourceUrl(policy, dependency) ||
+                dependencySettings(policy, dependency).enabled === false ||
+                dependency.datasource === "local"
+              )
+                return { dependency };
+
+              return yield* sources
+                .lookup(dependency, policy, options.timeout)
+                .pipe(
+                  Effect.map((metadata) => ({
+                    dependency: {
+                      ...dependency,
+                      ...Record.filter(
+                        { sourceUrl: metadata.sourceUrl },
+                        Predicate.isNotUndefined,
+                      ),
+                    },
+                    metadata,
+                    ...Record.filter(
+                      {
+                        failure:
+                          metadata.sourceUrl !== undefined
+                            ? undefined
+                            : "Missing source URL required by ordered policy",
+                      },
+                      Predicate.isNotUndefined,
+                    ),
+                  })),
+                  Effect.catch((error) =>
+                    Effect.succeed({ dependency, failure: error.message }),
+                  ),
+                );
+            },
+          ),
+          { concurrency: options.concurrency },
+        );
+
+        const grouped = identified.map((entry) => ({
+          ...entry,
+          groups:
+            entry.previous?.groups ??
+            dependencyGroups(policy, entry.dependency),
+        }));
+
+        const coverage = coveredGroups(grouped, prs);
+
+        yield* log.info(
+          `[SOURCES] Grouping metadata resolved in ${(yield* Clock.currentTimeMillis) - inventoried}ms`,
+        );
+
+        const relevant = yield* Effect.try({
+          try: () =>
+            blockingDependencyDiagnostics(config, {
+              dependencies: extracted.dependencies,
+              files: snapshot.tree.map((entry) => entry.path),
+            }),
+          catch: () =>
+            new DependencyDiscoveryError({
+              message: "Invalid imported diagnostic scope",
+            }),
+        });
+
+        const blockers = relevant.map(
+          (diagnostic) => `${diagnostic.path}: ${diagnostic.message}`,
+        );
+
+        const total = [
+          ...config.import.baseDiagnostics,
+          ...config.import.overrideDiagnostics,
+        ].filter((diagnostic) => diagnostic.disposition === "blocked").length;
+
+        yield* log.info(
+          `[POLICY] ${relevant.length} applicable or unscoped import blockers; ${total - relevant.length} do not match the pinned repository`,
+        );
+
+        blockers.push(...extracted.blockers);
+
+        if (!config.validation.checks.length)
+          blockers.push("Required local check mappings are missing");
+        const failures = [...extracted.blockers];
+        let completed = 0;
+
+        const dependencies = yield* Effect.forEach(
+          grouped,
+          Effect.fn("DependencyPlanner.lookup")(function* ({
+            dependency,
+            metadata,
+            failure,
+            previous,
+            groups,
+          }): Effect.fn.Return<PlannedDependency> {
+            const settings =
+              previous?.selection.settings ??
+              dependencySettings(policy, dependency);
+
+            const group =
+              settings.groupSlug ?? settings.groupName ?? dependency.package;
+
+            const skippedBy = [
+              ...new Map(
+                groups
+                  .flatMap((group) => coverage.get(group) ?? [])
+                  .map((pr) => [pr.number, pr]),
+              ).values(),
+            ];
+
+            let selection: Selection = {
+              settings,
+              reason:
+                failure ??
+                (skippedBy.length
+                  ? "Covered by an open dependency PR (or ambiguous overlapping change)"
+                  : "Disabled or local dependency"),
+              blockers: failure ? [failure] : [],
+            };
+
+            if (
+              !skippedBy.length &&
+              !failure &&
+              settings.enabled !== false &&
+              dependency.datasource !== "local"
+            ) {
+              selection =
+                previous?.selection ??
+                (yield* (
                   metadata
                     ? Effect.succeed(metadata)
                     : sources.lookup(dependency, policy, options.timeout)
@@ -488,100 +574,175 @@ export class DependencyPlanner extends Context.Service<
                       blockers: [error.message],
                     }),
                   ),
-                );
-              }
+                ));
+            }
 
-              completed += 1;
+            completed += 1;
+
+            if (!previous || skippedBy.length)
               yield* log.info(
                 `[LOOKUP ${completed}/${extracted.dependencies.length}] ${dependency.name}: ${selection.reason}`,
               );
 
-              return {
-                dependency,
-                group:
-                  selection.settings.groupSlug ??
-                  selection.settings.groupName ??
-                  group,
-                selection,
-                skippedBy,
-              };
-            }),
-            { concurrency: options.concurrency },
+            return {
+              dependency,
+              groups,
+              group:
+                selection.settings.groupSlug ??
+                selection.settings.groupName ??
+                group,
+              selection,
+              skippedBy,
+            };
+          }),
+          { concurrency: options.concurrency },
+        );
+
+        const finalCoverage = coveredGroups(dependencies, prs);
+
+        const finalDependencies = dependencies.map(
+          (entry): PlannedDependency => {
+            const covered = finalCoverage.get(entry.group) ?? entry.skippedBy;
+
+            const skippedBy = [
+              ...new Map(covered.map((pr) => [pr.number, pr])).values(),
+            ];
+
+            const settings = entry.selection.settings;
+
+            const separation =
+              settings.separateMajorMinor !== false &&
+              entry.selection.updateType === "major"
+                ? ":major"
+                : settings.separateMinorPatch &&
+                    entry.selection.updateType === "patch"
+                  ? ":patch"
+                  : "";
+
+            return {
+              ...entry,
+              group: `${entry.group}${separation}`,
+              skippedBy,
+              selection:
+                skippedBy.length && !entry.selection.blockers.length
+                  ? {
+                      settings,
+                      reason:
+                        "Covered by an open dependency PR (or ambiguous overlapping change)",
+                      blockers: [],
+                    }
+                  : entry.selection,
+            };
+          },
+        );
+
+        for (const entry of finalDependencies) {
+          blockers.push(
+            ...entry.selection.blockers.map(
+              (blocker) =>
+                `${entry.dependency.file}: ${entry.dependency.name}: ${blocker}`,
+            ),
           );
-
-          const finalCoverage = coveredGroups(
-            dependencies.map((entry) => entry.dependency),
-            policy,
-            prs,
+          failures.push(
+            ...entry.selection.blockers.map(
+              (blocker) => `${entry.dependency.name}: ${blocker}`,
+            ),
           );
+        }
 
-          const finalDependencies = dependencies.map(
-            (entry): PlannedDependency => {
-              const covered = finalCoverage.get(entry.group) ?? entry.skippedBy;
+        const finished = yield* Clock.currentTimeMillis;
+        yield* log.info(
+          `[PLAN] ${grouped.filter((entry) => entry.previous).length}/${grouped.length} unchanged selections reused; ${finished - started}ms`,
+        );
 
-              const skippedBy = [
-                ...new Map(covered.map((pr) => [pr.number, pr])).values(),
-              ];
+        return {
+          snapshot,
+          dependencies: finalDependencies,
+          blockers: [...new Set(blockers)],
+          failures: [...new Set(failures)],
+          timings: {
+            snapshot: pinned - started,
+            extraction: extractedAt - pinned,
+            prs: inventoried - extractedAt,
+            lookup: finished - inventoried,
+            total: finished - started,
+          },
+          cache: yield* sources.stats(),
+        };
+      });
 
-              const settings = entry.selection.settings;
+      return DependencyPlanner.of({
+        plan,
+        refresh: Effect.fn("DependencyPlanner.refresh")(
+          function* (previous, options) {
+            const { snapshot } = previous;
 
-              const separation =
-                settings.separateMajorMinor !== false &&
-                entry.selection.updateType === "major"
-                  ? ":major"
-                  : settings.separateMinorPatch &&
-                      entry.selection.updateType === "patch"
-                    ? ":patch"
-                    : "";
+            const head = yield* github.head(
+              snapshot.repository,
+              snapshot.target,
+              options.timeout,
+            );
 
-              return {
-                ...entry,
-                group: `${entry.group}${separation}`,
-                skippedBy,
-                selection:
-                  skippedBy.length && !entry.selection.blockers.length
-                    ? {
-                        settings,
-                        reason:
-                          "Covered by an open dependency PR (or ambiguous overlapping change)",
-                        blockers: [],
-                      }
-                    : entry.selection,
-              };
-            },
-          );
+            if (head !== snapshot.sha) {
+              yield* log.info(
+                "[REFRESH] Target changed; refreshing changed dependency inputs",
+              );
 
-          for (const entry of finalDependencies) {
-            blockers.push(
-              ...entry.selection.blockers.map(
-                (blocker) =>
-                  `${entry.dependency.file}: ${entry.dependency.name}: ${blocker}`,
+              return yield* plan(options, previous);
+            }
+
+            const config = yield* readDependencyConfig(snapshot.files).pipe(
+              Effect.mapError(
+                (error) =>
+                  new DependencyDiscoveryError({ message: error.message }),
               ),
             );
-            failures.push(
-              ...entry.selection.blockers.map(
-                (blocker) => `${entry.dependency.name}: ${blocker}`,
-              ),
+
+            if (!options.repository)
+              yield* local.validate(options.directory, config, options.timeout);
+
+            const policy = mergeDependencyPolicy(
+              config.policy.base,
+              config.policy.overrides,
             );
-          }
 
-          const finished = yield* Clock.currentTimeMillis;
+            const prs = options.all
+              ? []
+              : yield* github.inventory(
+                  snapshot,
+                  policy,
+                  options.timeout,
+                  options.concurrency,
+                );
 
-          return {
-            snapshot,
-            dependencies: finalDependencies,
-            blockers: [...new Set(blockers)],
-            failures: [...new Set(failures)],
-            timings: {
-              snapshot: pinned - started,
-              extraction: extractedAt - pinned,
-              prs: inventoried - extractedAt,
-              lookup: finished - inventoried,
-              total: finished - started,
-            },
-            cache: yield* sources.stats(),
-          };
-        }),
+            const coverage = coveredGroups(previous.dependencies, prs);
+
+            const dependencies = previous.dependencies.map((entry) => ({
+              ...entry,
+              skippedBy:
+                coverage.get(
+                  entry.selection.settings.groupSlug ??
+                    entry.selection.settings.groupName ??
+                    entry.dependency.package,
+                ) ?? [],
+            }));
+
+            if (
+              previous.dependencies.some(
+                (entry, index) =>
+                  entry.skippedBy.length &&
+                  !dependencies[index].skippedBy.length,
+              )
+            )
+              return yield* plan(options, previous);
+
+            yield* log.info(
+              `[REFRESH] Target unchanged; refreshed ${prs.length} open PRs, reused dependency selections`,
+            );
+
+            return { ...previous, dependencies };
+          },
+        ),
       });
     }),
   );

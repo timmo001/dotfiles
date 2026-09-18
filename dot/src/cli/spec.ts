@@ -332,7 +332,7 @@ const dependenciesCommand = describe(
           () => "Concurrency must be between 1 and 16",
         ),
         Flag.withDescription(
-          "Maximum concurrent lookups or PR inspections, 1-16 (default: 4)",
+          "Maximum concurrent lookups, PR inspections or parallel checks, 1-16 (default: 4)",
         ),
       ),
     },

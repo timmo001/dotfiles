@@ -13836,6 +13836,35 @@ policy:
         set:
           groupName: "symfony packages"
           groupSlug: "symfony"
+      - description:
+          - "Prioritise OpenCode updates."
+        match:
+          packages:
+            - "@opencode/**"
+            - "@opencode-ai/**"
+            - "anomalyco/opencode"
+        set:
+          priority: 200
+      - description:
+          - "Prioritise Herdr and its plugins."
+        match:
+          packages:
+            - "@herdr/**"
+            - "herdrdev/**"
+            - "*/herdr*"
+            - "https://github.com/herdrdev/**"
+            - "https://github.com/*/herdr*"
+        set:
+          priority: 100
+      - description:
+          - "Prioritise first-party updates."
+        match:
+          packages:
+            - "@timmo001/**"
+            - "timmo001/**"
+            - "https://github.com/timmo001/**"
+        set:
+          priority: 300
     regexManagers:
       - files:
           - "**/{j,t}sconfig.json"
@@ -14040,6 +14069,7 @@ validation:
       timeout: 120000
   checks:
     - context: "actionlint / 👕 ActionLint"
+      parallel: true
       appId: 15368
       commands:
         - argv:
@@ -14049,6 +14079,7 @@ validation:
           cwd: "."
           timeout: 120000
     - context: "jsonlint / 👕 JSONLint"
+      parallel: true
       appId: 15368
       commands:
         - argv:
@@ -14058,6 +14089,7 @@ validation:
           cwd: "."
           timeout: 120000
     - context: "yamllint / 👕 YAMLLint"
+      parallel: true
       appId: 15368
       commands:
         - argv:
@@ -14067,6 +14099,7 @@ validation:
           cwd: "."
           timeout: 120000
     - context: "markdownlint / 👕 MarkdownLint"
+      parallel: true
       appId: 15368
       commands:
         - argv:
@@ -14076,6 +14109,7 @@ validation:
           cwd: "."
           timeout: 120000
     - context: "shellcheck / 👕 ShellCheck"
+      parallel: true
       appId: 15368
       commands:
         - argv:
@@ -14106,6 +14140,7 @@ validation:
           cwd: "."
           timeout: 300000
     - context: "oxlint"
+      parallel: true
       appId: 15368
       commands:
         - argv:
@@ -14115,6 +14150,7 @@ validation:
           cwd: "."
           timeout: 120000
     - context: "dot-typecheck"
+      parallel: true
       appId: 15368
       commands:
         - argv:
@@ -14124,6 +14160,7 @@ validation:
           cwd: "."
           timeout: 120000
     - context: "dot-tests"
+      parallel: true
       appId: 15368
       commands:
         - argv:

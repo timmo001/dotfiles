@@ -132,7 +132,7 @@ Read native policy and manifests from a pinned remote target, preserving the cal
 | `--all` | Bypass open-PR inventory and exclusion only; leave PRs untouched |
 | `--target` `<string>` | Remote target branch (default: repository default branch) |
 | `--timeout` `<string>` | Deadline per command/provider lookup (default: 30 seconds) |
-| `--concurrency` `<integer>` | Maximum concurrent lookups or PR inspections, 1-16 (default: 4) |
+| `--concurrency` `<integer>` | Maximum concurrent lookups, PR inspections or parallel checks, 1-16 (default: 4) |
 | `--help` `-h` | Show help information |
 
 **Arguments**

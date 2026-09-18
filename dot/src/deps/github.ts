@@ -91,6 +91,12 @@ export interface DependencyGithubService {
     repository: string | undefined,
     timeout: number,
   ) => Effect.Effect<Repository.Repository, DependencyDiscoveryError>;
+  /** Resolve the current target without loading its tree or dependency metadata. */
+  readonly head: (
+    repository: string,
+    target: string,
+    timeout: number,
+  ) => Effect.Effect<string, DependencyDiscoveryError>;
   /** Load immutable selected blobs from one remote commit. */
   readonly snapshot: (
     repository: string,
@@ -385,6 +391,20 @@ export class DependencyGithub extends Context.Service<
             ),
         ),
         snapshot,
+        head: Effect.fn("DependencyGithub.head")(
+          (repository, target, timeout) =>
+            read(
+              Api.json(
+                {
+                  endpoint: `repos/${repository}/commits/${encodeURIComponent(target)}`,
+                  method: "GET",
+                  options: { timeout },
+                },
+                Commit,
+              ),
+              `Refresh ${repository}@${target}`,
+            ).pipe(Effect.map((commit) => commit.sha)),
+        ),
         inventory: Effect.fn("DependencyGithub.inventory")(
           function* (pinned, policy, timeout, concurrency) {
             const pages = yield* read(

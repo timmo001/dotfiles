@@ -27,6 +27,10 @@ const Settings = Schema.Struct({
   separateMultipleMajor: Schema.optionalKey(Schema.Boolean),
   groupName: Schema.optionalKey(Schema.NullOr(Schema.String)),
   groupSlug: Schema.optionalKey(Schema.NullOr(Schema.String)),
+  priority: Schema.optionalKey(Schema.Int).annotate({
+    description:
+      "Higher values run first; a coordinated group uses its highest member priority.",
+  }),
 }).annotate({ identifier: "DependencySettings" });
 
 const Rule = Schema.Struct({
@@ -192,6 +196,10 @@ export const DependencyConfig = Schema.Struct({
       Schema.Struct({
         context: Schema.NonEmptyString,
         appId: Schema.optionalKey(Schema.Int),
+        parallel: Schema.optionalKey(Schema.Boolean).annotate({
+          description:
+            "Allow this check to overlap adjacent parallel checks. Commands within a check remain ordered.",
+        }),
         commands: Schema.NonEmptyArray(Command),
       }),
     ),

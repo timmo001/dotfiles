@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { dirname, join, relative, resolve } from "node:path";
-import { Effect, FileSystem, Result } from "effect";
+import { Array, Effect, FileSystem, Result } from "effect";
 import type { DependencyConfig, DependencyPolicy } from "./config.js";
 import { prepareDependencyEdits, verifyDependencyEdits } from "./edits.js";
 import type { DependencyRunLog } from "./log.js";
@@ -182,22 +182,34 @@ export const validateDependencyGroup = Effect.fn("Dependencies.validateGroup")(
     directory: string,
     config: DependencyConfig,
     log: DependencyRunLog,
+    concurrency = 4,
   ) {
     for (const command of config.validation.setup) {
       const cwd = yield* dependencyWorkPath(directory, command.cwd, true);
       yield* log.command("SETUP", command.argv, cwd, command.timeout);
     }
 
-    for (const check of config.validation.checks)
-      for (const command of check.commands) {
-        const cwd = yield* dependencyWorkPath(directory, command.cwd, true);
-        yield* log.command(
-          `CHECK ${check.context}`,
-          command.argv,
-          cwd,
-          command.timeout,
-        );
-      }
+    if (!Array.isReadonlyArrayNonEmpty(config.validation.checks)) return;
+
+    for (const batch of Array.groupWith(
+      config.validation.checks,
+      (left, right) => left.parallel === true && right.parallel === true,
+    ))
+      yield* Effect.forEach(
+        batch,
+        Effect.fn("Dependencies.validateCheck")(function* (check) {
+          for (const command of check.commands) {
+            const cwd = yield* dependencyWorkPath(directory, command.cwd, true);
+            yield* log.command(
+              `CHECK ${check.context}`,
+              command.argv,
+              cwd,
+              command.timeout,
+            );
+          }
+        }),
+        { concurrency, discard: true },
+      );
   },
 );
 
