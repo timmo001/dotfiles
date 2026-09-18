@@ -14,7 +14,7 @@ Bind the skill's steps to these tools:
 
 - **Scope:** use `context git` for the recent-change map (commits and their changed files). Set `--since` to widen the window past the default, and add `--diff` or `--branch-diff` when you need the actual change contents. Do not rebuild this with separate `git status` or `git log` calls.
 - **Investigate:** read the relevant code and docs, and verify external claims against primary sources.
-- **External access:** the MCP tools this workflow needs must be available; if any are missing, stop. Decide access to external docs from the environment's advertised scope - the `<env>` workspace root and any `<available_references>` directories, with `opencode.json` permissions as one indicator, not a prerequisite. If an external docs location is outside that scope, halt and ask the user to widen scope (open a session in the parent directory, or add the reference) or grant access.
+- **External access:** use available authorised documentation tools, local references, or CLI access. Report a blocker only when required evidence or write access is unavailable.
 - **Verify:** run checks relevant to the documentation changes and any repository-required checks. Regenerate affected references; use docs builds and link validation when those surfaces are affected.
 
 Preview the intended documentation updates before editing, write in-code and in-repo docs directly, and for gated external locations write in place or propose changes per the skill. Stop before commit: make no commit, push, or pull request. Report the skill's summary, and suggest `/plan` if the user wants to act on it further. If the recent changes only need generated-catalogue refresh or need no docs change at all, say so and stop without inventing prose.
