@@ -17,8 +17,42 @@ import { CommandExecutor } from "../src/services/CommandExecutor.js";
 import { ghOutput } from "../src/lib/gh.js";
 import { ghRepoCloneCaptured } from "../src/lib/git.js";
 import { checkGithubMcpAuth } from "../src/doctor/checks/githubMcpAuth.js";
+import { githubWorkflowScope } from "../src/lib/githubWorkflowScope.js";
 
 const text = (value: string) => Stream.succeed(new TextEncoder().encode(value));
+
+test("workflow permissions distinguish absent OAuth headers from a missing scope", async () => {
+  for (const [headers, expected] of [
+    ["X-OAuth-Scopes: repo, workflow\r\n", "granted"],
+    ["x-oauth-scopes: workflow, repo\r\n", "granted"],
+    ["X-OAuth-Scopes: repo\r\n", "missing"],
+    ["X-OAuth-Scopes: \r\nX-Accepted-OAuth-Scopes: workflow\r\n", "missing"],
+    ["X-Accepted-OAuth-Scopes: workflow\r\n", "unknown"],
+  ] as const) {
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const fake = yield* fixture(() => ({
+          stdout: text(`HTTP/2.0 200 OK\r\n${headers}\r\n`),
+        }));
+
+        expect(
+          yield* githubWorkflowScope().pipe(Effect.provide(fake.sdk)),
+        ).toBe(expected);
+        expect(fake.commands.map((command) => command.args)).toEqual([
+          [
+            "api",
+            "--hostname",
+            "github.com",
+            "--method",
+            "HEAD",
+            "--include",
+            "user",
+          ],
+        ]);
+      }),
+    );
+  }
+});
 
 const fixture = Effect.fn("test.fixture")(function* (
   response: (

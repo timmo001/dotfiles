@@ -1,6 +1,7 @@
-import { Effect } from "effect";
+import { Effect, Match } from "effect";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
 import { GitHub } from "../../git/services/GitHub.js";
+import { githubWorkflowScope } from "../../lib/githubWorkflowScope.js";
 import type { CheckResult } from "../types.js";
 
 interface ToolDef {
@@ -98,6 +99,41 @@ export const checkDependencies = Effect.gen(function* () {
         severity: "ok",
         message: `gh authentication is active (${username})`,
       });
+
+      const scope = yield* githubWorkflowScope().pipe(
+        Effect.catch(() => Effect.succeed("unavailable" as const)),
+      );
+
+      results.push(
+        scope === "granted"
+          ? {
+              severity: "ok",
+              message:
+                "GitHub workflow scope is available (dependency workflow updates)",
+            }
+          : {
+              severity: "warn",
+              message:
+                scope === "missing"
+                  ? "GitHub workflow scope is missing (dependency workflow updates cannot be pushed)"
+                  : "Could not verify GitHub workflow scope",
+              detail: Match.value(scope).pipe(
+                Match.when(
+                  "missing",
+                  () =>
+                    "Run: gh auth refresh --hostname github.com --scopes workflow",
+                ),
+                Match.when(
+                  "unknown",
+                  () =>
+                    "This token does not expose OAuth scopes; check that it has Workflows write permission for the target repository",
+                ),
+                Match.orElse(
+                  () => "Check GitHub API access, then rerun dot doctor",
+                ),
+              ),
+            },
+      );
     } else {
       results.push({
         severity: "warn",
