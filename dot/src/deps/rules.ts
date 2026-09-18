@@ -282,9 +282,15 @@ export function selectRelease(
 
   if (
     settings.rangeStrategy &&
-    !["auto", "replace", "bump", "pin", "in-range"].includes(
-      settings.rangeStrategy,
-    )
+    ![
+      "auto",
+      "replace",
+      "bump",
+      "pin",
+      "update-lockfile",
+      "in-range-only",
+      "in-range",
+    ].includes(settings.rangeStrategy)
   )
     return none("Unsupported range strategy", [
       `Unsupported range strategy: ${settings.rangeStrategy}`,
@@ -385,9 +391,15 @@ export function selectRelease(
     if (
       candidateSettings.separateMultipleMajor ||
       (candidateSettings.rangeStrategy &&
-        !["auto", "replace", "bump", "pin", "in-range"].includes(
-          candidateSettings.rangeStrategy,
-        ))
+        ![
+          "auto",
+          "replace",
+          "bump",
+          "pin",
+          "update-lockfile",
+          "in-range-only",
+          "in-range",
+        ].includes(candidateSettings.rangeStrategy))
     ) {
       blockers.add(
         "Unsupported candidate-specific range or multiple-major policy",
@@ -482,7 +494,9 @@ export function selectRelease(
       }
 
       if (
-        candidateSettings.rangeStrategy === "in-range" &&
+        ["in-range", "in-range-only"].includes(
+          candidateSettings.rangeStrategy ?? "",
+        ) &&
         !semver.satisfies(release.version, dependency.current, {
           includePrerelease: true,
         })
@@ -493,13 +507,19 @@ export function selectRelease(
         includePrerelease: true,
       });
 
+      if (satisfied && candidateSettings.rangeStrategy === "replace") continue;
+
       candidate =
         candidateSettings.rangeStrategy === "pin"
           ? release.version
           : satisfied &&
-              [undefined, "auto", "replace", "in-range"].includes(
-                candidateSettings.rangeStrategy,
-              )
+              [
+                undefined,
+                "auto",
+                "update-lockfile",
+                "in-range-only",
+                "in-range",
+              ].includes(candidateSettings.rangeStrategy)
             ? dependency.current
             : `${range[1]}${release.version}`;
     } else if (
