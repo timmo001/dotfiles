@@ -65,14 +65,22 @@ export const dependencyRunLog = Effect.fn("Dependencies.runLog")(function* (
     );
 
     if (Result.isFailure(result)) {
-      yield* fs.writeFileString(
-        path,
-        `${redact(result.failure instanceof CommandError ? result.failure.stderr : result.failure instanceof Error ? result.failure.message : String(result.failure))}\n`,
-        { flag: "a", mode: 0o600 },
-      );
+      const failure =
+        result.failure instanceof CommandError
+          ? result.failure.stderr
+          : result.failure instanceof Error
+            ? result.failure.message
+            : String(result.failure);
+
+      yield* fs.writeFileString(path, `${redact(failure)}\n`, {
+        flag: "a",
+        mode: 0o600,
+      });
 
       return yield* new DependencyRunError({
-        message: `${label} failed; see ${path}`,
+        message: /without [`'"]?workflow[`'"]? scope/i.test(failure)
+          ? `GitHub credential lacks workflow scope; run gh auth refresh --hostname github.com --scopes workflow, then retry; see ${path}`
+          : `${label} failed; see ${path}`,
       });
     }
 

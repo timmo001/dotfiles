@@ -56,7 +56,7 @@ export interface DependencyPlanOptions {
   readonly all: boolean;
   /** Per-command/provider deadline in milliseconds. */
   readonly timeout: number;
-  /** Maximum concurrent lookups or PR inspections. */
+  /** Maximum concurrent groups, lookups, PR inspections or check commands. */
   readonly concurrency: number;
 }
 
@@ -90,7 +90,7 @@ export interface DependencyPlan {
   readonly cache: { readonly requests: number; readonly hits: number };
 }
 
-/** Order coordinated groups by their highest member priority, preserving discovery order on ties. */
+/** Order group starts by their highest member priority, preserving discovery order on ties. */
 export function dependencyGroupOrder(
   dependencies: readonly PlannedDependency[],
 ): readonly string[] {

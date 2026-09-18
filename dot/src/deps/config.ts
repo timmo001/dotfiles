@@ -29,7 +29,7 @@ const Settings = Schema.Struct({
   groupSlug: Schema.optionalKey(Schema.NullOr(Schema.String)),
   priority: Schema.optionalKey(Schema.Int).annotate({
     description:
-      "Higher values run first; a coordinated group uses its highest member priority.",
+      "Higher values start first; a coordinated group uses its highest member priority. Ready groups may publish in any order.",
   }),
 }).annotate({ identifier: "DependencySettings" });
 

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { dirname, join, relative, resolve } from "node:path";
-import { Array, Effect, FileSystem, Result } from "effect";
+import { Array, Effect, FileSystem, Result, Semaphore } from "effect";
 import type { DependencyConfig, DependencyPolicy } from "./config.js";
 import { prepareDependencyEdits, verifyDependencyEdits } from "./edits.js";
 import type { DependencyRunLog } from "./log.js";
@@ -60,8 +60,6 @@ export const prepareDependencyWorkspace = Effect.fn(
   yield* git(["check-ref-format", `refs/heads/${snapshot.target}`]);
   yield* git(["fetch", "--no-tags", "origin", `refs/heads/${snapshot.target}`]);
 
-  if ((yield* git(["rev-parse", "FETCH_HEAD"])) !== snapshot.sha)
-    return { moved: true as const };
   const directory = join(paths.run, `worktree-${randomUUID()}`);
   yield* git([
     "worktree",
@@ -73,7 +71,49 @@ export const prepareDependencyWorkspace = Effect.fn(
   ]);
   yield* log.event(`[WORKTREE] ${directory}`);
 
-  return { moved: false as const, directory };
+  return { directory };
+});
+
+/** Remove a clean, published run-owned worktree, including its submodules. */
+export const removeDependencyWorkspace = Effect.fn(
+  "Dependencies.removeWorkspace",
+)(function* (
+  paths: ReturnType<typeof dependencyRunPaths>,
+  directory: string,
+  commit: string,
+  log: DependencyRunLog,
+  timeout: number,
+) {
+  if (
+    dirname(directory) !== paths.run ||
+    !/^worktree-[a-f\d-]+$/.test(directory.slice(paths.run.length + 1))
+  )
+    return yield* new DependencyRunError({
+      message: `Refusing to remove a worktree outside this run: ${directory}`,
+    });
+
+  const git = dependencyGit(log, directory, timeout);
+
+  if (
+    (yield* git(["rev-parse", "HEAD"])) !== commit ||
+    (yield* git([
+      "status",
+      "--porcelain",
+      "--untracked-files=all",
+      "--ignore-submodules=none",
+    ]))
+  )
+    return yield* new DependencyRunError({
+      message: `Published worktree changed; retained ${directory}`,
+    });
+
+  // Git requires --force for worktrees containing submodules, even when clean.
+  yield* dependencyGit(
+    log,
+    paths.repository,
+    timeout,
+  )(["worktree", "remove", "--force", directory]);
+  yield* log.event(`[CLEANUP] Removed ${directory}`);
 });
 
 /** Refuse repository paths whose parent or command working directory escapes through symlinks. */
@@ -113,6 +153,7 @@ export const applyDependencyGroup = Effect.fn("Dependencies.applyGroup")(
     entries: readonly PlannedDependency[],
     log: DependencyRunLog,
     timeout: number,
+    repository?: Semaphore.Semaphore,
   ) {
     const fs = yield* FileSystem.FileSystem;
     const git = dependencyGit(log, directory, timeout);
@@ -128,11 +169,17 @@ export const applyDependencyGroup = Effect.fn("Dependencies.applyGroup")(
       yield* fs.writeFileString(path, text);
     }
 
-    for (const [file, digest] of Object.entries(edits.gitlinks)) {
-      yield* dependencyWorkPath(directory, file);
-      yield* git(["update-index", "--cacheinfo", `160000,${digest},${file}`]);
-      yield* git(["submodule", "update", "--init", "--", file]);
-    }
+    const submodules = Effect.forEach(
+      Object.entries(edits.gitlinks),
+      Effect.fn("Dependencies.updateSubmodule")(function* ([file, digest]) {
+        yield* dependencyWorkPath(directory, file);
+        yield* git(["update-index", "--cacheinfo", `160000,${digest},${file}`]);
+        yield* git(["submodule", "update", "--init", "--", file]);
+      }),
+      { discard: true },
+    );
+
+    yield* repository ? repository.withPermit(submodules) : submodules;
 
     for (const [file, pinned] of Object.entries(edits.pinned)) {
       const path = yield* dependencyWorkPath(directory, file);
@@ -183,11 +230,24 @@ export const validateDependencyGroup = Effect.fn("Dependencies.validateGroup")(
     config: DependencyConfig,
     log: DependencyRunLog,
     concurrency = 4,
+    limits?: {
+      readonly repository: Semaphore.Semaphore;
+      readonly checks: Semaphore.Semaphore;
+    },
   ) {
-    for (const command of config.validation.setup) {
-      const cwd = yield* dependencyWorkPath(directory, command.cwd, true);
-      yield* log.command("SETUP", command.argv, cwd, command.timeout);
-    }
+    const setup = Effect.forEach(
+      config.validation.setup,
+      Effect.fn("Dependencies.setupCommand")(function* (command) {
+        const cwd = yield* dependencyWorkPath(directory, command.cwd, true);
+        yield* log.command("SETUP", command.argv, cwd, command.timeout);
+      }),
+      { discard: true },
+    );
+
+    // Setup may initialise shared submodule configuration or install host tools.
+    yield* limits ? limits.repository.withPermit(setup) : setup;
+
+    const checks = limits?.checks ?? (yield* Semaphore.make(concurrency));
 
     if (!Array.isReadonlyArrayNonEmpty(config.validation.checks)) return;
 
@@ -200,12 +260,14 @@ export const validateDependencyGroup = Effect.fn("Dependencies.validateGroup")(
         Effect.fn("Dependencies.validateCheck")(function* (check) {
           for (const command of check.commands) {
             const cwd = yield* dependencyWorkPath(directory, command.cwd, true);
-            yield* log.command(
-              `CHECK ${check.context}`,
-              command.argv,
-              cwd,
-              command.timeout,
-            );
+            yield* log
+              .command(
+                `CHECK ${check.context}`,
+                command.argv,
+                cwd,
+                command.timeout,
+              )
+              .pipe(Semaphore.withPermit(checks));
           }
         }),
         { concurrency, discard: true },
@@ -336,7 +398,7 @@ export const publishDependencyGroup = Effect.fn("Dependencies.publishGroup")(
     if (remote !== snapshot.sha) return { status: "moved" as const, commit };
 
     return yield* new DependencyRunError({
-      message: `Push ${Result.isSuccess(pushed) ? "was not observed" : "failed"}; retained ${commit} for inspection`,
+      message: `Push ${Result.isSuccess(pushed) ? "was not observed" : `failed: ${pushed.failure.message}`}; retained ${commit} for inspection`,
     });
   },
 );

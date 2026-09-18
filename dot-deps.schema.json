@@ -484,7 +484,7 @@
         },
         "priority": {
           "type": "integer",
-          "description": "Higher values run first; a coordinated group uses its highest member priority."
+          "description": "Higher values start first; a coordinated group uses its highest member priority. Ready groups may publish in any order."
         }
       },
       "additionalProperties": false

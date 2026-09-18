@@ -1,6 +1,14 @@
-import { basename, dirname, join } from "node:path";
+import { basename, join } from "node:path";
 import { Api } from "@timmo001/effect-gh";
-import { Clock, Effect, FileSystem, Result, Schema } from "effect";
+import {
+  Clock,
+  Effect,
+  FileSystem,
+  Ref,
+  Result,
+  Schema,
+  Semaphore,
+} from "effect";
 import {
   assertDependencyPolicyReady,
   mergeDependencyPolicy,
@@ -10,19 +18,19 @@ import { dependencyCheckRequirements } from "./checks.js";
 import { DependencyGithub } from "./github.js";
 import { extractDependencies } from "./extract.js";
 import { requiresSourceUrl } from "./rules.js";
+import { githubWorkflowScope } from "../lib/githubWorkflowScope.js";
 import { dependencyRunLog, type DependencyRunLog } from "./log.js";
 import {
   DependencyPlanner,
   dependencyGroupOrder,
   type DependencyPlan,
   type DependencyPlanOptions,
-  type PlannedDependency,
 } from "./plan.js";
 import {
   applyDependencyGroup,
   dependencyCandidateTree,
-  dependencyGit,
   prepareDependencyWorkspace,
+  removeDependencyWorkspace,
   publishDependencyGroup,
   validateDependencyGroup,
 } from "./publish.js";
@@ -32,19 +40,6 @@ import {
   lockDependencyTarget,
   readDependencyTrust,
 } from "./state.js";
-
-function groupFiles(entries: readonly PlannedDependency[]) {
-  return [
-    ...new Set(
-      entries.flatMap(({ dependency }) => [
-        dependency.file,
-        ...(dependency.manager === "npm"
-          ? [join(dirname(dependency.file), "bun.lock")]
-          : []),
-      ]),
-    ),
-  ];
-}
 
 const runnablePlan = Effect.fn("Dependencies.runnablePlan")(function* (
   plan: DependencyPlan,
@@ -87,17 +82,25 @@ const runnablePlan = Effect.fn("Dependencies.runnablePlan")(function* (
 
 const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
   group: string,
-  plan: DependencyPlan,
   options: DependencyPlanOptions,
   paths: ReturnType<typeof dependencyRunPaths>,
   identity: { readonly login: string; readonly id: number },
   log: DependencyRunLog,
-  failedFiles: ReadonlySet<string>,
+  coordination: {
+    readonly plan: Ref.Ref<DependencyPlan>;
+    readonly publication: Semaphore.Semaphore;
+    readonly repository: Semaphore.Semaphore;
+    readonly checks: Semaphore.Semaphore;
+    readonly discovery: Semaphore.Semaphore;
+    readonly workflowScope: ReturnType<typeof githubWorkflowScope>;
+  },
 ) {
   const planner = yield* DependencyPlanner;
   const fs = yield* FileSystem.FileSystem;
   const started = yield* Clock.currentTimeMillis;
   const retained: string[] = [];
+  let plan = yield* Ref.get(coordination.plan);
+  let publishing = false;
 
   for (let attempt = 0; attempt < 3; attempt++) {
     const config = yield* runnablePlan(plan);
@@ -105,7 +108,7 @@ const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
 
     if (entries.some((entry) => entry.selection.blockers.length))
       return yield* new DependencyRunError({
-        message: `Group ${group} has unresolved discovery failures`,
+        message: `Group ${group}: ${entries.flatMap((entry) => entry.selection.blockers.map((reason) => `${entry.dependency.name}: ${reason}`)).join("; ")}`,
       });
 
     if (entries.some((entry) => entry.skippedBy.length)) {
@@ -126,9 +129,17 @@ const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
         retained,
       };
 
-    if (groupFiles(updates).some((file) => failedFiles.has(file)))
+    if (
+      updates.some((entry) =>
+        entry.dependency.file.startsWith(".github/workflows/"),
+      ) &&
+      (yield* coordination.workflowScope.pipe(
+        Semaphore.withPermit(coordination.discovery),
+      )) === "missing"
+    )
       return yield* new DependencyRunError({
-        message: `${group} shares files with a failed group`,
+        message:
+          "GitHub credential lacks workflow scope; run gh auth refresh --hostname github.com --scopes workflow, then retry",
       });
 
     for (const entry of updates)
@@ -143,7 +154,7 @@ const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
       config,
       trust.allowBypass,
       options.timeout,
-    );
+    ).pipe(Semaphore.withPermit(coordination.discovery));
 
     yield* log.event(
       `[CHECKS] ${requirements.required.length} required mappings; base hosted results: ${requirements.current.join(", ") || "none"}`,
@@ -155,12 +166,7 @@ const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
       log,
       options.timeout,
       identity,
-    );
-
-    if (workspace.moved) {
-      plan = yield* planner.refresh(plan, options);
-      continue;
-    }
+    ).pipe(Semaphore.withPermit(coordination.repository));
 
     retained.push(workspace.directory);
     yield* fs.writeFileString(
@@ -197,6 +203,7 @@ const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
       updates,
       log,
       options.timeout,
+      coordination.repository,
     );
 
     const candidate = yield* dependencyCandidateTree(
@@ -212,6 +219,7 @@ const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
       config,
       log,
       options.concurrency,
+      coordination,
     );
 
     const checked = yield* dependencyCandidateTree(
@@ -228,7 +236,23 @@ const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
           "Setup or checks modified the prepared candidate; retained worktree needs inspection",
       });
 
-    const refreshed = yield* planner.refresh(plan, options);
+    if (!publishing) {
+      yield* log.event(
+        `[READY] ${group}: validation passed; waiting for publication slot`,
+      );
+      yield* Effect.acquireRelease(
+        Effect.interruptible(coordination.publication.take(1)),
+        () => coordination.publication.release(1),
+      );
+      publishing = true;
+      yield* log.event(`[INTEGRATE] ${group}`);
+    }
+
+    const refreshed = yield* planner
+      .refresh(yield* Ref.get(coordination.plan), options)
+      .pipe(Semaphore.withPermit(coordination.discovery));
+
+    yield* Ref.set(coordination.plan, refreshed);
     yield* runnablePlan(refreshed);
 
     if (refreshed.snapshot.sha !== plan.snapshot.sha) {
@@ -270,7 +294,7 @@ const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
       config,
       currentTrust.allowBypass,
       options.timeout,
-    );
+    ).pipe(Semaphore.withPermit(coordination.discovery));
 
     if (currentRequirements.fingerprint !== requirements.fingerprint) {
       yield* log.event(
@@ -288,12 +312,31 @@ const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
       allowed,
       log,
       options.timeout,
-    );
+    ).pipe(Semaphore.withPermit(coordination.repository));
 
     if (result.status === "moved") {
-      plan = yield* planner.refresh(plan, options);
+      plan = yield* planner
+        .refresh(plan, options)
+        .pipe(Semaphore.withPermit(coordination.discovery));
+      yield* Ref.set(coordination.plan, plan);
       continue;
     }
+
+    const removed = yield* removeDependencyWorkspace(
+      paths,
+      workspace.directory,
+      result.commit,
+      log,
+      options.timeout,
+    ).pipe(
+      Semaphore.withPermit(coordination.repository),
+      Effect.as(true),
+      Effect.catch((error) =>
+        log
+          .event(`[RETAINED] Published successfully; ${error.message}`)
+          .pipe(Effect.as(false)),
+      ),
+    );
 
     const record = {
       group,
@@ -303,7 +346,9 @@ const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
       url: `https://github.com/${plan.snapshot.repository}/commit/${result.commit}`,
       actions: `https://github.com/${plan.snapshot.repository}/actions?query=sha%3A${result.commit}`,
       duration: (yield* Clock.currentTimeMillis) - started,
-      retained: retained.filter((path) => path !== workspace.directory),
+      retained: retained.filter(
+        (path) => !removed || path !== workspace.directory,
+      ),
     };
 
     yield* fs.writeFileString(
@@ -317,17 +362,6 @@ const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
     yield* log.event(
       `[TARGET] ${plan.snapshot.repository}@${plan.snapshot.target}: ${record.target}; caller checkout preserved`,
     );
-    yield* dependencyGit(
-      log,
-      paths.repository,
-      options.timeout,
-    )(["worktree", "remove", workspace.directory]).pipe(
-      Effect.catch(() =>
-        log.event(
-          `[RETAINED] Published successfully; could not remove ${workspace.directory}`,
-        ),
-      ),
-    );
 
     return record;
   }
@@ -335,9 +369,9 @@ const publishGroup = Effect.fn("Dependencies.runGroup")(function* (
   return yield* new DependencyRunError({
     message: `${group}: target, policy or requirements kept moving; three attempts exhausted`,
   });
-});
+}, Effect.scoped);
 
-/** Integrate independent groups serially from current remote state, retaining all failed work. */
+/** Start groups by priority with bounded parallel work and one exact-commit publisher. */
 export const runDependencyUpdates = Effect.fn("Dependencies.run")(function* (
   options: DependencyPlanOptions,
 ) {
@@ -412,11 +446,16 @@ export const runDependencyUpdates = Effect.fn("Dependencies.run")(function* (
     activeGroups.has(group),
   );
 
-  const failedFiles = new Set(
-    groupFiles(
-      initial.dependencies.filter((entry) => entry.selection.blockers.length),
-    ),
-  );
+  const coordination = {
+    plan: yield* Ref.make(initial),
+    publication: yield* Semaphore.make(1),
+    repository: yield* Semaphore.make(1),
+    checks: yield* Semaphore.make(options.concurrency),
+    discovery: yield* Semaphore.make(1),
+    workflowScope: yield* Effect.cached(githubWorkflowScope()),
+  };
+
+  const reports = yield* Semaphore.make(1);
 
   const results: {
     group: string;
@@ -425,50 +464,57 @@ export const runDependencyUpdates = Effect.fn("Dependencies.run")(function* (
     commit?: string;
   }[] = [];
 
-  let plan = initial;
+  yield* log.event(
+    `[CONCURRENCY] Up to ${options.concurrency} groups and ${options.concurrency} check commands; first ready group publishes`,
+  );
+  yield* log.event(
+    `[WORKTREES] ${paths.repository}; worktree directories under ${paths.run}`,
+  );
 
-  for (const [index, group] of groups.entries()) {
-    yield* log.event(`[GROUP ${index + 1}/${groups.length}] ${group}`);
+  yield* Effect.forEach(
+    groups,
+    Effect.fn("Dependencies.groupWorker")(function* (group, index) {
+      const groupLog = yield* dependencyRunLog(
+        join(paths.run, `group-${index + 1}`),
+      );
 
-    const outcome = yield* Effect.gen(function* () {
-      if (index !== 0)
-        plan = yield* planner.refresh(plan, { ...options, target });
+      yield* log.event(
+        `[GROUP ${index + 1}/${groups.length}] ${group}; ${groupLog.path}`,
+      );
 
-      return yield* publishGroup(
+      const outcome = yield* publishGroup(
         group,
-        plan,
         { ...options, target },
         paths,
         identity,
-        log,
-        failedFiles,
-      );
-    }).pipe(Effect.result);
+        groupLog,
+        coordination,
+      ).pipe(Effect.result);
 
-    if (Result.isSuccess(outcome)) results.push(outcome.success);
-    else {
-      const reason =
-        outcome.failure instanceof Error
-          ? outcome.failure.message
-          : String(outcome.failure);
+      yield* Effect.gen(function* () {
+        if (Result.isSuccess(outcome)) results.push(outcome.success);
+        else {
+          const reason =
+            outcome.failure instanceof Error
+              ? outcome.failure.message
+              : String(outcome.failure);
 
-      results.push({ group, status: "failed", reason });
+          results.push({ group, status: "failed", reason });
 
-      for (const file of groupFiles(
-        initial.dependencies.filter((entry) => entry.group === group),
-      ))
-        failedFiles.add(file);
-      yield* log.event(
-        `[FAILED] ${group}: ${reason}; work retained under ${paths.run}`,
-      );
-    }
+          yield* log.event(
+            `[FAILED] ${group}: ${reason}; see ${groupLog.path}`,
+          );
+        }
 
-    yield* fs.writeFileString(
-      join(paths.run, "results.json"),
-      JSON.stringify(results, null, 2),
-      { mode: 0o600 },
-    );
-  }
+        yield* fs.writeFileString(
+          join(paths.run, "results.json"),
+          JSON.stringify(results, null, 2),
+          { mode: 0o600 },
+        );
+      }).pipe(Semaphore.withPermit(reports));
+    }),
+    { concurrency: options.concurrency, discard: true },
+  );
 
   const failed = results.filter((result) => result.status === "failed").length;
   yield* log.event(
