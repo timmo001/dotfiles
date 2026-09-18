@@ -1,13 +1,12 @@
 ---
 name: agent-benchmark
-description: Run this repository's OpenCode agent benchmark in an experimental background task and return its completed report. Use when asked to run, repeat, or inspect the agent benchmark or `/agent-benchmark`.
+description: Run this repository's OpenCode agent benchmark and return its completed report. Use when asked to run, repeat, or inspect the agent benchmark or `/agent-benchmark`.
 ---
 
 # Agent Benchmark
 
-Run the benchmark from the repository root in one OpenCode experimental
-background task. The task owns the complete benchmark run and returns its final
-report to the parent session automatically.
+Run the benchmark command directly from the repository root. Use the shell
+tool's background execution when available; this does not need another agent.
 
 ## Resolve the model first
 
@@ -21,23 +20,16 @@ The benchmark runs OpenCode in an isolated config, so the calling harness's mode
 ## Run it
 
 1. Build the benchmark arguments from `--model <resolved provider/model>` followed by any requested flags. If the requested flags already include `--model`, do not add one.
-2. Launch one `general` task with `background: true`. Give it the repository
-   root and require it to run:
+2. Run:
 
    ```bash
    mise run benchmarks:opencode -- <arguments>
    ```
 
-   The background agent must not delegate or edit files. It must wait for the
-   command to finish and return the exit status, deterministic pass count,
-   artifact path, host report path, and any model/provider error.
-3. Report that the benchmark started in the background and name the resolved
-   model. Do not poll, sleep, request status, or duplicate the run. OpenCode
-   injects the task's final result into the parent session automatically.
-4. When the result arrives, summarise it for the user. Distinguish benchmark
-   failures from model/provider failures using the signature above.
-
-Use this only in a persistent interactive OpenCode session. Experimental
-background tasks are process-local, so one-shot `opencode run` exits before the
-benchmark can return its result. Do not replace the task with Pitchfork,
-`nohup`, shell backgrounding, tmux, or direct process signals.
+   Use background execution only when the shell tool can notify this session
+   on completion; otherwise wait in the foreground with a suitable timeout.
+3. For a background run, report that it started and name the resolved model.
+   Await the completion notification without polling or duplicating the run.
+4. Report the exit status, deterministic pass count, output path, host report
+   path, and any model/provider error. Distinguish benchmark failures from
+   model/provider failures using the signature above.
