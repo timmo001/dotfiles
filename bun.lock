@@ -6,7 +6,7 @@
       "name": "dotfiles-root-lsp",
       "devDependencies": {
         "@oxlint/plugins": "1.83.0",
-        "@timmo001/oxlint-rules": "0.3.3",
+        "@timmo001/oxlint-rules": "0.3.4",
         "oxlint": "1.83.0",
         "oxlint-tsgolint": "7.0.2001",
         "typescript": "^7.0.0",
@@ -66,7 +66,7 @@
 
     "@oxlint/plugins": ["@oxlint/plugins@1.83.0", "", {}, "sha512-qD64wr6SS1DL7YbJQ8WWjyUfFfrJsvAy9Vo0sG/PYUQy30w0uemN2h6j4xuvj4noyETDpzcGC20sv+FH7GrN5A=="],
 
-    "@timmo001/oxlint-rules": ["@timmo001/oxlint-rules@0.3.3", "", { "peerDependencies": { "@oxlint/plugins": "1.82.0", "oxlint": "1.82.0" }, "bin": { "oxlint-rules": "dist/cli.js" } }, "sha512-Hshoa5LI9HV1VJRUOz7iAhdz1l12ygXB1bfp2bhYkaA1O3zvzUqAIDZa4GGuhbA9z8j3vDG1tzmxbgA7H+/cDQ=="],
+    "@timmo001/oxlint-rules": ["@timmo001/oxlint-rules@0.3.4", "", { "peerDependencies": { "@oxlint/plugins": "1.83.0", "oxlint": "1.83.0" }, "bin": { "oxlint-rules": "dist/cli.js" } }, "sha512-m+zHYrtsJB+THRxYv0CR3EfOsFpa1g5CJraNDhHqBY0VXYkXoqQSkwbNG+iiW6GL9QOaVAKUvHrsTwud/TSOXg=="],
 
     "@typescript/typescript-aix-ppc64": ["@typescript/typescript-aix-ppc64@7.0.2", "", { "os": "aix", "cpu": "ppc64" }, "sha512-MTKKkWB7p/0E9xi1d1tHtZ5PiLkGEMIq88pK2CubZjOsLtYTLqhgIgi6zepFa+9GHZ6h05NMCkQxGKiPXMxXtQ=="],
 
