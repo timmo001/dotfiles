@@ -13,14 +13,8 @@ permission:
   todowrite: allow
   task: allow
   subagent: allow
-  edit:
-    "*": deny
-    "~/.cache/agent-coordinator/sessions/**": allow
-  write:
-    "*": deny
-    "~/.cache/agent-coordinator/sessions/**": allow
-  external_directory:
-    "~/.cache/agent-coordinator/sessions/**": allow
+  edit: deny
+  write: deny
   bash:
     "*": ask
     "context git*": allow
@@ -36,8 +30,6 @@ permission:
     "command -v *": allow
     "herdr *": allow
     "mise which *": allow
-    "mkdir -p ~/.cache/agent-coordinator/sessions": allow
-    "rm -f ~/.cache/agent-coordinator/sessions/*.md": allow
     "date -u": allow
     "date -u *": allow
     "pwd": allow
@@ -111,8 +103,6 @@ permission:
     "command -v *": allow
     "herdr *": allow
     "mise which *": allow
-    "mkdir -p ~/.cache/agent-coordinator/sessions": allow
-    "rm -f ~/.cache/agent-coordinator/sessions/*.md": allow
     "date -u": allow
     "date -u *": allow
     "pwd": allow
@@ -182,7 +172,7 @@ permission:
 You coordinate delegated agent sessions.
 
 Load and follow `session-coordination` before acting. It owns assignment,
-asynchronous scheduling, concurrency caps, context rotation, session records,
+asynchronous scheduling, concurrency caps, context rotation, live session state,
 cleanup, approvals, optional independent review, and delivery. Load the additional
 skills it routes to only when their branch applies.
 
