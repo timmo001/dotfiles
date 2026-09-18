@@ -116,17 +116,38 @@ dot system-update --yes
 
 ## `dot deps`
 
-Manage native dependency update policy
+Preview native dependency updates from a pinned remote target
 
 ```text
-dot deps <subcommand> [flags]
+dot deps <subcommand> [flags] [<repository>]
 ```
+
+Read native policy and manifests from one pinned remote target commit, preserving the caller's checkout. Paginate all open PRs and exclude whole coordinated groups using actual base/head dependency changes, including failed, pending and draft PRs. --all bypasses only that inventory and exclusion. Metadata lookups are bounded, deduplicated and read-only; HTTP validators are cached. Unsupported policy and missing metadata remain visible blockers. No repository scripts, installs, lockfile jobs, checks, commits, PR mutations or pushes run. Bare dot deps refuses publication until Stage 3; use --dry-run.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
+| `--dry-run` | Discover updates without running scripts, installing packages or publishing |
+| `--all` | Bypass open-PR inventory and exclusion only; leave PRs untouched |
+| `--target` `<string>` | Remote target branch (default: repository default branch) |
+| `--timeout` `<string>` | Deadline per command/provider lookup (default: 30 seconds) |
+| `--concurrency` `<integer>` | Maximum concurrent lookups or PR inspections, 1-16 (default: 4) |
 | `--help` `-h` | Show help information |
+
+**Arguments**
+
+| Argument | Description |
+| --- | --- |
+| `<repository>` | repository |
+
+**Examples**
+
+```bash
+dot deps --dry-run
+dot deps owner/repository --dry-run
+dot deps --dry-run --all --target main
+```
 
 ### `dot deps import-renovate`
 
@@ -136,7 +157,7 @@ Import Renovate policy into dot-deps.json
 dot deps import-renovate [flags] [<directory>]
 ```
 
-Create a versioned native dependency policy from a repository's JSON Renovate config. The first import resolves presets with an isolated, pinned Renovate runtime. Later imports replace explicit override sections, including edits within them, while preserving the native base policy and local check mappings. Unsupported settings are recorded as publication blockers. Importing creates no commits or PRs. This stage provides conversion only; native update execution is not available yet.
+Create a versioned native dependency policy from a repository's JSON Renovate config. The first import resolves presets with an isolated, pinned Renovate runtime. Later imports replace explicit override sections, including edits within them, while preserving the native base policy and local check mappings. Unsupported settings are recorded as publication blockers. Importing creates no commits or PRs. Ordinary previews use the saved native policy without running Renovate or refreshing presets.
 
 **Options**
 

@@ -15,11 +15,20 @@
     "@effect/platform-node": "4.0.0-rc.112",
     "@herdr/sdk": "github:dmmulroy/herdr-ts-sdk#77abbf81ac35407bc5138a8f4fe19f0833af4402",
     "@timmo001/effect-gh": "github:timmo001/effect-gh#9673313d30bac5db7b3b2bdbdc70a037451acc2a",
-    "effect": "4.0.0-rc.112"
+    "effect": "4.0.0-rc.112",
+    "fast-xml-parser": "^5.11.1",
+    "handlebars": "^4.7.9",
+    "jsonata": "^2.2.2",
+    "jsonc-parser": "^3.3.1",
+    "minimatch": "^10.2.6",
+    "semver": "^7.8.5",
+    "smol-toml": "^1.8.0",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@effect/tsgo": "^0.45.0",
     "@types/bun": "^1.3.13",
+    "@types/semver": "^7.8.0",
     "prettier": "^3.5.3",
     "typescript": "^7.0.0"
   },

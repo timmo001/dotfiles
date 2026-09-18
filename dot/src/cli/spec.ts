@@ -14,7 +14,10 @@ import { repoInduct } from "../commands/RepoInduct.js";
 import { clean } from "../commands/Clean.js";
 import { completions } from "../commands/Completions.js";
 import { doctor } from "../commands/Doctor.js";
-import { importRenovate } from "../commands/Dependencies.js";
+import {
+  importRenovate,
+  previewDependencies,
+} from "../commands/Dependencies.js";
 import { herdrRepoOpen } from "../commands/HerdrRepoOpen.js";
 import { installedHerdrAgents } from "../commands/HerdrAgents.js";
 import { herdrContext } from "../commands/HerdrContext.js";
@@ -300,7 +303,49 @@ const runDuration = (name: string, description: string) =>
   );
 
 const dependenciesCommand = describe(
-  Command.make("deps").pipe(
+  Command.make(
+    "deps",
+    {
+      repository: Argument.string("repository").pipe(Argument.withDefault("")),
+      dryRun: bool(
+        "dry-run",
+        "Discover updates without running scripts, installing packages or publishing",
+      ),
+      all: bool(
+        "all",
+        "Bypass open-PR inventory and exclusion only; leave PRs untouched",
+      ),
+      target: Flag.string("target").pipe(
+        Flag.withDefault(""),
+        Flag.withDescription(
+          "Remote target branch (default: repository default branch)",
+        ),
+      ),
+      timeout: runDuration(
+        "timeout",
+        "Deadline per command/provider lookup (default: 30 seconds)",
+      ).pipe(Flag.withDefault(30000)),
+      concurrency: Flag.integer("concurrency").pipe(
+        Flag.withDefault(4),
+        Flag.filter(
+          (value) => value >= 1 && value <= 16,
+          () => "Concurrency must be between 1 and 16",
+        ),
+        Flag.withDescription(
+          "Maximum concurrent lookups or PR inspections, 1-16 (default: 4)",
+        ),
+      ),
+    },
+    (input) =>
+      previewDependencies({
+        ...input,
+        directory: process.cwd(),
+        ...(input.repository
+          ? { repository: input.repository }
+          : { repository: undefined }),
+        ...(input.target ? { target: input.target } : { target: undefined }),
+      }),
+  ).pipe(
     Command.withSubcommands([
       describe(
         Command.make(
@@ -329,12 +374,21 @@ const dependenciesCommand = describe(
         ],
         {
           description:
-            "Create a versioned native dependency policy from a repository's JSON Renovate config. The first import resolves presets with an isolated, pinned Renovate runtime. Later imports replace explicit override sections, including edits within them, while preserving the native base policy and local check mappings. Unsupported settings are recorded as publication blockers. Importing creates no commits or PRs. This stage provides conversion only; native update execution is not available yet.",
+            "Create a versioned native dependency policy from a repository's JSON Renovate config. The first import resolves presets with an isolated, pinned Renovate runtime. Later imports replace explicit override sections, including edits within them, while preserving the native base policy and local check mappings. Unsupported settings are recorded as publication blockers. Importing creates no commits or PRs. Ordinary previews use the saved native policy without running Renovate or refreshing presets.",
         },
       ),
     ]),
   ),
-  "Manage native dependency update policy",
+  "Preview native dependency updates from a pinned remote target",
+  [
+    "dot deps --dry-run",
+    "dot deps owner/repository --dry-run",
+    "dot deps --dry-run --all --target main",
+  ],
+  {
+    description:
+      "Read native policy and manifests from one pinned remote target commit, preserving the caller's checkout. Paginate all open PRs and exclude whole coordinated groups using actual base/head dependency changes, including failed, pending and draft PRs. --all bypasses only that inventory and exclusion. Metadata lookups are bounded, deduplicated and read-only; HTTP validators are cached. Unsupported policy and missing metadata remain visible blockers. No repository scripts, installs, lockfile jobs, checks, commits, PR mutations or pushes run. Bare dot deps refuses publication until Stage 3; use --dry-run.",
+  },
 );
 
 const runCommandSpec = describe(
