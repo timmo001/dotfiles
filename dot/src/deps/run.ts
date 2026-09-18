@@ -8,6 +8,7 @@ import {
 } from "./config.js";
 import { dependencyCheckRequirements } from "./checks.js";
 import { DependencyGithub } from "./github.js";
+import { extractDependencies } from "./extract.js";
 import { dependencyGroups, requiresSourceUrl } from "./rules.js";
 import { dependencyRunLog, type DependencyRunLog } from "./log.js";
 import {
@@ -53,7 +54,10 @@ const runnablePlan = Effect.fn("Dependencies.runnablePlan")(function* (
   plan: DependencyPlan,
 ) {
   const config = yield* nativeConfig(plan);
-  yield* assertDependencyPolicyReady(config);
+  yield* assertDependencyPolicyReady(config, {
+    dependencies: plan.dependencies.map((entry) => entry.dependency),
+    files: plan.snapshot.tree.map((entry) => entry.path),
+  });
 
   const policy = mergeDependencyPolicy(
     config.policy.base,
@@ -373,7 +377,19 @@ export const runDependencyUpdates = Effect.fn("Dependencies.run")(function* (
     Schema.fromJsonString(DependencyConfig),
   )(snapshot.files["dot-deps.json"]);
 
-  yield* assertDependencyPolicyReady(config);
+  const extracted = yield* extractDependencies(
+    snapshot,
+    mergeDependencyPolicy(config.policy.base, config.policy.overrides),
+  );
+
+  if (extracted.blockers.length)
+    return yield* new DependencyRunError({
+      message: extracted.blockers.join("; "),
+    });
+  yield* assertDependencyPolicyReady(config, {
+    dependencies: extracted.dependencies,
+    files: snapshot.tree.map((entry) => entry.path),
+  });
 
   const identity = yield* Api.json(
     { endpoint: "user", method: "GET", options: { timeout: options.timeout } },

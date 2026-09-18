@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { isAbsolute, normalize } from "node:path";
 import { Effect, Predicate, Record, Schema } from "effect";
+import type { Dependency } from "./model.js";
+import { matchesPatterns, matchesRule } from "./rules.js";
 
 /** Invalid native policy or incomplete Renovate conversion. */
 export class DependencyConfigError extends Schema.TaggedError<DependencyConfigError>()(
@@ -152,6 +154,21 @@ const Diagnostic = Schema.Struct({
   path: Schema.String,
   disposition: Schema.Literals(["blocked", "ignored"]),
   message: Schema.String,
+  scope: Schema.optionalKey(
+    Schema.Union([
+      Schema.Struct({
+        dependencies: Schema.Struct({
+          managers: Rule.fields.match.fields.managers,
+          datasources: Rule.fields.match.fields.datasources,
+          packages: Rule.fields.match.fields.packages,
+          dependencies: Rule.fields.match.fields.dependencies,
+          files: Rule.fields.match.fields.files,
+          dependencyTypes: Rule.fields.match.fields.dependencyTypes,
+        }),
+      }),
+      Schema.Struct({ files: Strings }),
+    ]),
+  ),
 });
 
 /** Versioned, credential-free policy consumed by the native updater. */
@@ -307,14 +324,78 @@ export const assertDependencyOverrides = Effect.fn(
   }
 });
 
-/** Reject unresolved conversion or missing local validation before publication. */
-export const assertDependencyPolicyReady = Effect.fn(
-  "Dependencies.assertPolicyReady",
-)(function* (config: DependencyConfig) {
-  const blocked = [
+/** Pinned discovery evidence used to determine whether imported unsupported policy applies. */
+export interface DependencyDiagnosticContext {
+  /** Complete native dependency extraction; unknown managers are checked through file scopes. */
+  readonly dependencies: readonly Dependency[];
+  /** Complete pinned repository file paths, including files outside native managers. */
+  readonly files: readonly string[];
+}
+
+/** Keep unscoped or possibly applicable findings blocking; missing evidence never excludes them. */
+export function blockingDependencyDiagnostics(
+  config: DependencyConfig,
+  context?: DependencyDiagnosticContext,
+): readonly DependencyDiagnostic[] {
+  const managers =
+    config.policy.overrides.enabledManagers ??
+    config.policy.base.enabledManagers;
+
+  const nativeInventory =
+    managers !== undefined &&
+    managers.length > 0 &&
+    managers.every((manager) =>
+      [
+        "npm",
+        "bun",
+        "mise",
+        "github-actions",
+        "git-submodules",
+        "custom.regex",
+      ].includes(manager),
+    );
+
+  return [
     ...config.import.baseDiagnostics,
     ...config.import.overrideDiagnostics,
-  ].filter((entry) => entry.disposition === "blocked");
+  ].filter((entry) => {
+    if (entry.disposition !== "blocked") return false;
+
+    if (!context || !entry.scope) return true;
+
+    if ("files" in entry.scope) {
+      const patterns = entry.scope.files;
+
+      for (const pattern of patterns) matchesPatterns("", [pattern]);
+
+      return context.files.some((file) => matchesPatterns(file, patterns));
+    }
+
+    if (!nativeInventory) return true;
+    const match = entry.scope.dependencies;
+
+    for (const patterns of Object.values(match))
+      for (const pattern of patterns ?? []) matchesPatterns("", [pattern]);
+
+    if (!Object.keys(match).length) return true;
+
+    return context.dependencies.some((dependency) =>
+      matchesRule(match, dependency),
+    );
+  });
+}
+
+/** Reject relevant unresolved conversion or missing local validation before publication. */
+export const assertDependencyPolicyReady = Effect.fn(
+  "Dependencies.assertPolicyReady",
+)(function* (config: DependencyConfig, context?: DependencyDiagnosticContext) {
+  const blocked = yield* Effect.try({
+    try: () => blockingDependencyDiagnostics(config, context),
+    catch: () =>
+      new DependencyConfigError({
+        message: "Invalid imported diagnostic scope",
+      }),
+  });
 
   if (blocked.length) {
     return yield* new DependencyConfigError({

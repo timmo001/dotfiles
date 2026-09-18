@@ -72,12 +72,23 @@ function diagnosticsFor(
         !supported.has(key) &&
         !(defaults && isDeepStrictEqual(defaults[key], value)),
     )
-    .map(([key]) => ({
+    .map(([key, value]) => ({
       path: `${path}.${key}`,
       disposition: ignoredRenovateFields.has(key) ? "ignored" : "blocked",
       message: ignoredRenovateFields.has(key)
         ? "Not used by the on-demand, no-PR workflow"
         : "No native translation; implement or explicitly exclude this policy before publishing",
+      ...Record.filter(
+        {
+          scope:
+            Schema.is(RenovateObject)(value) &&
+            Schema.is(RenovateObject)(defaults?.[key]) &&
+            Schema.is(Strings)(value.managerFilePatterns)
+              ? { files: value.managerFilePatterns }
+              : undefined,
+        },
+        Predicate.isNotUndefined,
+      ),
     }));
 }
 
@@ -122,6 +133,60 @@ export const translateDependencyPolicy = Effect.fn(
         `${path}.packageRules[${index}]`,
       );
 
+      const unsupported = findings.some(
+        (entry) => entry.disposition === "blocked",
+      );
+
+      const presentationOnly = Object.keys(rule).every(
+        (key) =>
+          key in selectors ||
+          key === "matchJsonata" ||
+          key === "description" ||
+          ignoredRenovateFields.has(key),
+      );
+
+      const scope = Object.fromEntries(
+        Object.entries(selectors)
+          .filter(
+            ([key, name]) =>
+              rule[key] !== undefined &&
+              [
+                "managers",
+                "datasources",
+                "packages",
+                "dependencies",
+                "files",
+                "dependencyTypes",
+              ].includes(name),
+          )
+          .map(([key, name]) => [
+            name,
+            Array.isArray(rule[key]) ? rule[key] : [rule[key]],
+          ]),
+      );
+
+      const scopedFindings = findings.map((finding) =>
+        finding.disposition === "ignored"
+          ? finding
+          : {
+              ...finding,
+              ...(presentationOnly && finding.disposition === "blocked"
+                ? {
+                    disposition: "ignored" as const,
+                    message:
+                      "Selector only controls presentation fields unused by the native updater",
+                  }
+                : Record.filter(
+                    {
+                      scope: Object.keys(scope).length
+                        ? { dependencies: scope }
+                        : undefined,
+                    },
+                    Predicate.isNotUndefined,
+                  )),
+            },
+      );
+
       const description =
         rule.description === undefined
           ? undefined
@@ -132,9 +197,9 @@ export const translateDependencyPolicy = Effect.fn(
             );
 
       return {
-        findings,
+        findings: scopedFindings,
         // Dropping a selector could broaden a rule, so reject the whole rule.
-        rule: findings.some((entry) => entry.disposition === "blocked")
+        rule: unsupported
           ? []
           : [
               {

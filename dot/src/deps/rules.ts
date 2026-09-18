@@ -66,7 +66,8 @@ function matchesVersion(value: string, patterns: readonly string[]): boolean {
   );
 }
 
-function matchesRule(
+/** Match validated selectors without treating missing metadata as a match. */
+export function matchesRule(
   match: DependencyPolicy["rules"][number]["match"],
   dependency: Dependency,
   updateType?: string,
@@ -90,6 +91,7 @@ function matchesRule(
 
     return (
       value !== undefined &&
+      value !== null &&
       (key === "currentVersions"
         ? matchesVersion(value, patterns)
         : matchesPatterns(value, patterns))
@@ -142,7 +144,7 @@ export function requiresSourceUrl(
   dependency: Dependency,
 ): boolean {
   return (
-    !dependency.sourceUrl &&
+    dependency.sourceUrl === undefined &&
     policy.rules.some(
       (rule) =>
         rule.match.sourceUrls?.length &&
@@ -311,6 +313,14 @@ export function selectRelease(
     version: string | null;
   }[] = [];
 
+  const settingsByType = new Map<string, DependencySettings>();
+
+  const pinsRange =
+    dependency.datasource === "npm" &&
+    !semver.valid(dependency.current) &&
+    (settings.rangeStrategy === "pin" ||
+      dependencySettings(policy, dependency, "pin").rangeStrategy === "pin");
+
   for (const original of metadata.releases) {
     const extracted = settings.extractVersion
       ? new RegExp(settings.extractVersion).exec(original.version)?.groups
@@ -322,15 +332,7 @@ export function selectRelease(
     const version = comparable(release.version, versioning);
     const git = dependency.datasource === "git-refs";
 
-    const pin =
-      dependency.datasource === "npm" &&
-      !semver.valid(dependency.current) &&
-      (settings.rangeStrategy === "pin" ||
-        dependencySettings(policy, dependency, "pin").rangeStrategy ===
-          "pin") &&
-      current &&
-      version &&
-      semver.eq(version, current);
+    const pin = pinsRange && current && version && semver.eq(version, current);
 
     if (
       git
@@ -372,11 +374,11 @@ export function selectRelease(
               ? "minor"
               : "patch";
 
-    const candidateSettings = dependencySettings(
-      policy,
-      dependency,
-      updateType,
-    );
+    const candidateSettings =
+      settingsByType.get(updateType) ??
+      dependencySettings(policy, dependency, updateType);
+
+    settingsByType.set(updateType, candidateSettings);
 
     if (candidateSettings.enabled === false) continue;
 

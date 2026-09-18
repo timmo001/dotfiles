@@ -143,7 +143,7 @@ export const importRenovate = Effect.fn("Dependencies.importRenovate")(
 
     if (blocked.length)
       yield* log.warn(
-        "Publication remains blocked by unresolved policy; inspect the saved conversion report",
+        "Applicable unresolved settings block publication; preview checks their scope against the pinned repository",
       );
 
     if (!result.config.validation.checks.length)

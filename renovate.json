@@ -23,7 +23,7 @@
     "arch-quickshell": {
       "defaultRegistryUrlTemplate": "https://archlinux.org/packages/extra/x86_64/quickshell/json/",
       "transformTemplates": [
-        "{\"releases\":[{\"version\":pkgver}],\"homepage\":url}"
+        "{\"releases\":[{\"version\":pkgver}],\"sourceUrl\":url}"
       ]
     }
   },

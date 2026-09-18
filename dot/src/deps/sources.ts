@@ -10,6 +10,7 @@ import {
   Record,
 } from "effect";
 import { HttpClient, HttpClientResponse } from "effect/unstable/http";
+import { RateLimiter } from "effect/unstable/persistence";
 import jsonata from "jsonata";
 import { XMLParser, XMLValidator } from "fast-xml-parser";
 import { DependencyPolicy } from "./config.js";
@@ -65,7 +66,21 @@ export class DependencySources extends Context.Service<
     Effect.gen(function* () {
       const github = yield* DependencyGithub;
       const disk = yield* DependencyDiskCache;
-      const http = yield* HttpClient.HttpClient;
+
+      const limiter = yield* RateLimiter.make.pipe(
+        Effect.provide(RateLimiter.layerStoreMemory),
+      );
+
+      const http = (yield* HttpClient.HttpClient).pipe(
+        HttpClient.withRateLimiter({
+          limiter,
+          window: "1 second",
+          limit: 4,
+          key: (request) => new URL(request.url).origin,
+          times: 2,
+        }),
+      );
+
       const requests = yield* Ref.make(0);
       const calls = yield* Ref.make(0);
 
@@ -292,6 +307,7 @@ export class DependencySources extends Context.Service<
             )(data);
 
             return {
+              sourceUrl: null,
               releases: metadata["sdk-repository"].remotePackage
                 .filter(
                   (entry) =>
@@ -361,6 +377,7 @@ export class DependencySources extends Context.Service<
               .replace(/\.git$/, "");
 
             return {
+              sourceUrl: sourceUrl || null,
               releases: Object.keys(metadata.versions).map((version) => ({
                 version,
                 ...Record.filter(
@@ -369,7 +386,7 @@ export class DependencySources extends Context.Service<
                 ),
               })),
               ...Record.filter(
-                { latest: metadata["dist-tags"]?.latest, sourceUrl },
+                { latest: metadata["dist-tags"]?.latest },
                 Predicate.isNotUndefined,
               ),
             };
@@ -399,10 +416,7 @@ export class DependencySources extends Context.Service<
             )(text);
 
             return {
-              ...Record.filter(
-                { sourceUrl: metadata.crate.repository ?? undefined },
-                Predicate.isNotUndefined,
-              ),
+              sourceUrl: metadata.crate.repository,
               releases: metadata.versions
                 .filter((version) => !version.yanked)
                 .map((version) => ({
@@ -507,7 +521,9 @@ export class DependencySources extends Context.Service<
                 error instanceof DependencyDiscoveryError
                   ? error
                   : new DependencyDiscoveryError({
-                      message: `${dependency.name}: metadata decoding or lookup deadline failed`,
+                      message: Predicate.isTagged(error, "TimeoutError")
+                        ? `${dependency.name}: ${dependency.datasource} lookup exceeded ${timeout}ms`
+                        : `${dependency.name}: ${dependency.datasource} returned metadata that failed decoding`,
                     }),
               ),
             );

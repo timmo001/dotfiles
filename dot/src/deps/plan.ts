@@ -16,6 +16,7 @@ import {
   RenovateObject,
   assertDependencyOverrides,
   mergeDependencyPolicy,
+  blockingDependencyDiagnostics,
   type DependencyPolicy,
 } from "./config.js";
 import { extractDependencies } from "./extract.js";
@@ -312,6 +313,12 @@ export class DependencyPlanner extends Context.Service<
               );
 
           const inventoried = yield* Clock.currentTimeMillis;
+          yield* log.info(
+            `[PRS] ${prs.length} open PRs inspected in ${inventoried - extractedAt}ms`,
+          );
+          yield* log.info(
+            `[SOURCES] Resolving grouping metadata with up to ${options.concurrency} concurrent lookups`,
+          );
 
           // Source selectors must be resolved before propagating any PR group coverage.
           const identified = yield* Effect.forEach(
@@ -343,9 +350,10 @@ export class DependencyPlanner extends Context.Service<
                       metadata,
                       ...Record.filter(
                         {
-                          failure: metadata.sourceUrl
-                            ? undefined
-                            : "Missing source URL required by ordered policy",
+                          failure:
+                            metadata.sourceUrl !== undefined
+                              ? undefined
+                              : "Missing source URL required by ordered policy",
                         },
                         Predicate.isNotUndefined,
                       ),
@@ -365,13 +373,33 @@ export class DependencyPlanner extends Context.Service<
             prs,
           );
 
-          const blockers = [
+          yield* log.info(
+            `[SOURCES] Grouping metadata resolved in ${(yield* Clock.currentTimeMillis) - inventoried}ms`,
+          );
+
+          const relevant = yield* Effect.try({
+            try: () =>
+              blockingDependencyDiagnostics(config, {
+                dependencies: extracted.dependencies,
+                files: snapshot.tree.map((entry) => entry.path),
+              }),
+            catch: () =>
+              new DependencyDiscoveryError({
+                message: "Invalid imported diagnostic scope",
+              }),
+          });
+
+          const blockers = relevant.map(
+            (diagnostic) => `${diagnostic.path}: ${diagnostic.message}`,
+          );
+
+          const total = [
             ...config.import.baseDiagnostics,
             ...config.import.overrideDiagnostics,
-          ].flatMap((diagnostic) =>
-            diagnostic.disposition === "blocked"
-              ? [`${diagnostic.path}: ${diagnostic.message}`]
-              : [],
+          ].filter((diagnostic) => diagnostic.disposition === "blocked").length;
+
+          yield* log.info(
+            `[POLICY] ${relevant.length} applicable or unscoped import blockers; ${total - relevant.length} do not match the pinned repository`,
           );
 
           blockers.push(...extracted.blockers);

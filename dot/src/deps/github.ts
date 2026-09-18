@@ -18,6 +18,8 @@ import {
   Schedule,
   Predicate,
   Record,
+  Ref as EffectRef,
+  Semaphore,
 } from "effect";
 import {
   DependencyConfig,
@@ -134,27 +136,49 @@ export class DependencyGithub extends Context.Service<
     Effect.gen(function* () {
       const gh = yield* Gh;
       const disk = yield* DependencyDiskCache;
+      const permits = yield* Semaphore.make(4);
+      const rateLimited = yield* EffectRef.make(false);
 
-      const read = <A>(
-        effect: Effect.Effect<A, GhError, Gh>,
-        operation: string,
-      ) =>
-        effect.pipe(
-          Effect.provideService(Gh, gh),
-          Effect.retry({
-            times: 2,
-            schedule: Schedule.exponential("300 millis"),
-            while: (error) =>
+      const read = Effect.fn("DependencyGithub.read")(
+        function* <A>(
+          effect: Effect.Effect<A, GhError, Gh>,
+          operation: string,
+        ) {
+          if (yield* EffectRef.get(rateLimited))
+            return yield* new DependencyDiscoveryError({
+              message: `${operation}: GitHub rate limit reached; further reads stopped for this run`,
+            });
+
+          return yield* effect.pipe(
+            Effect.provideService(Gh, gh),
+            Effect.tapError((error) =>
               error instanceof GhCommandError &&
-              /HTTP 50[234]|connection reset/.test(error.stderr),
-          }),
-          Effect.mapError(
-            (error) =>
-              new DependencyDiscoveryError({
-                message: `${operation}: ${error._tag}${error instanceof GhCommandError && /rate limit|HTTP 429|HTTP 403/i.test(error.stderr) ? " (provider rate limit or access denied; no retry)" : ""}`,
-              }),
+              /rate limit|HTTP 429/i.test(error.stderr)
+                ? EffectRef.set(rateLimited, true)
+                : Effect.void,
+            ),
+          );
+        },
+        (effect, _request, operation) =>
+          effect.pipe(
+            permits.withPermit,
+            Effect.retry({
+              times: 2,
+              schedule: Schedule.exponential("300 millis"),
+              while: (error) =>
+                error instanceof GhCommandError &&
+                /HTTP 50[234]|connection reset/.test(error.stderr) &&
+                !/rate limit|HTTP 429/i.test(error.stderr),
+            }),
+            Effect.mapError((error) =>
+              error instanceof DependencyDiscoveryError
+                ? error
+                : new DependencyDiscoveryError({
+                    message: `${operation}: ${error._tag}${error instanceof GhCommandError && /rate limit|HTTP 429|HTTP 403/i.test(error.stderr) ? " (provider rate limit or access denied; no retry)" : ""}`,
+                  }),
+            ),
           ),
-        );
+      );
 
       const blobs = yield* Cache.make({
         capacity: 4096,
@@ -375,36 +399,43 @@ export class DependencyGithub extends Context.Service<
             return yield* Effect.forEach(
               pages.flat(),
               Effect.fn("DependencyGithub.comparePr")(function* (pr) {
-                const checks = yield* read(
-                  PullRequest.checks(pr.number, {
-                    repository: pinned.repository,
-                    timeout,
-                  }),
-                  `Read checks for PR #${pr.number}`,
-                ).pipe(
-                  Effect.map(
-                    (value) =>
-                      `${value.status} (${value.checks.length} checks)${pr.draft ? ", draft" : ""}`,
-                  ),
-                  Effect.catch((error) =>
-                    Effect.succeed(
-                      `unavailable (${error.message})${pr.draft ? ", draft" : ""}`,
+                const [checks, filePages] = yield* Effect.all(
+                  [
+                    read(
+                      PullRequest.checks(pr.number, {
+                        repository: pinned.repository,
+                        timeout,
+                      }),
+                      `Read checks for PR #${pr.number}`,
+                    ).pipe(
+                      Effect.map(
+                        (value) =>
+                          `${value.status} (${value.checks.length} checks)${pr.draft ? ", draft" : ""}`,
+                      ),
+                      Effect.catch((error) =>
+                        Effect.succeed(
+                          `unavailable (${error.message})${pr.draft ? ", draft" : ""}`,
+                        ),
+                      ),
                     ),
-                  ),
+
+                    read(
+                      Api.pages(
+                        {
+                          endpoint: `repos/${pinned.repository}/pulls/${pr.number}/files`,
+                          method: "GET",
+                          query: { per_page: 100 },
+                          options: { timeout },
+                        },
+                        Schema.Array(ChangedFile),
+                      ),
+                      `Read changed files for PR #${pr.number}`,
+                    ),
+                  ],
+                  { concurrency: 2 },
                 );
 
-                const files = (yield* read(
-                  Api.pages(
-                    {
-                      endpoint: `repos/${pinned.repository}/pulls/${pr.number}/files`,
-                      method: "GET",
-                      query: { per_page: 100 },
-                      options: { timeout },
-                    },
-                    Schema.Array(ChangedFile),
-                  ),
-                  `Read changed files for PR #${pr.number}`,
-                )).flat();
+                const files = filePages.flat();
 
                 if (files.length >= 3000)
                   return yield* new DependencyDiscoveryError({
@@ -490,18 +521,18 @@ export class DependencyGithub extends Context.Service<
                         pinned.repository,
                         comparison.merge_base_commit.sha,
                         timeout,
-                        1,
+                        concurrency,
                         policy,
                       ),
                       snapshot(
                         pinned.repository,
                         pr.head.sha,
                         timeout,
-                        1,
+                        concurrency,
                         policy,
                       ),
                     ],
-                    { concurrency: 1 },
+                    { concurrency: 2 },
                   );
 
                   const before = yield* extractDependencies(base, policy);
@@ -763,7 +794,7 @@ export class DependencyGithub extends Context.Service<
                   ),
                 };
               }),
-              { concurrency: 1 },
+              { concurrency: 4 },
             );
 
             return { releases: versions };

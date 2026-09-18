@@ -16,7 +16,8 @@ export const Dependency = Schema.Struct({
   current: Schema.String,
   digest: Schema.optionalKey(Schema.String),
   resolved: Schema.optionalKey(Schema.String),
-  sourceUrl: Schema.optionalKey(Schema.String),
+  /** Undefined needs discovery; null means the provider supplies no source repository. */
+  sourceUrl: Schema.optionalKey(Schema.NullOr(Schema.String)),
   dependencyType: Schema.String,
   versioning: Schema.optionalKey(Schema.String),
   extractVersion: Schema.optionalKey(Schema.String),
@@ -39,7 +40,8 @@ export interface Release extends Schema.Schema.Type<typeof Release> {}
 export const Releases = Schema.Struct({
   releases: Schema.Array(Release),
   latest: Schema.optionalKey(Schema.String),
-  sourceUrl: Schema.optionalKey(Schema.String),
+  /** Null records confirmed absence; omitted metadata still needs resolution. */
+  sourceUrl: Schema.optionalKey(Schema.NullOr(Schema.String)),
 });
 
 /** Decoded version lookup. */

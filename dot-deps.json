@@ -17,7 +17,14 @@
         "groupName": null,
         "groupSlug": null
       },
-      "enabledManagers": [],
+      "enabledManagers": [
+        "npm",
+        "bun",
+        "mise",
+        "github-actions",
+        "git-submodules",
+        "custom.regex"
+      ],
       "ignorePaths": [
         "**/node_modules/**",
         "**/bower_components/**",
@@ -21483,7 +21490,7 @@
           "registry": "https://archlinux.org/packages/extra/x86_64/quickshell/json/",
           "format": "json",
           "transforms": [
-            "{\"releases\":[{\"version\":pkgver}],\"homepage\":url}"
+            "{\"releases\":[{\"version\":pkgver}],\"sourceUrl\":url}"
           ]
         }
       }
@@ -21556,6 +21563,81 @@
       }
     ],
     "checks": [
+      {
+        "context": "actionlint / 👕 ActionLint",
+        "appId": 15368,
+        "commands": [
+          {
+            "argv": [
+              "mise",
+              "run",
+              "lint:actions"
+            ],
+            "cwd": ".",
+            "timeout": 120000
+          }
+        ]
+      },
+      {
+        "context": "jsonlint / 👕 JSONLint",
+        "appId": 15368,
+        "commands": [
+          {
+            "argv": [
+              "mise",
+              "run",
+              "lint:json"
+            ],
+            "cwd": ".",
+            "timeout": 120000
+          }
+        ]
+      },
+      {
+        "context": "yamllint / 👕 YAMLLint",
+        "appId": 15368,
+        "commands": [
+          {
+            "argv": [
+              "mise",
+              "run",
+              "lint:yaml"
+            ],
+            "cwd": ".",
+            "timeout": 120000
+          }
+        ]
+      },
+      {
+        "context": "markdownlint / 👕 MarkdownLint",
+        "appId": 15368,
+        "commands": [
+          {
+            "argv": [
+              "mise",
+              "run",
+              "lint:markdown"
+            ],
+            "cwd": ".",
+            "timeout": 120000
+          }
+        ]
+      },
+      {
+        "context": "shellcheck / 👕 ShellCheck",
+        "appId": 15368,
+        "commands": [
+          {
+            "argv": [
+              "mise",
+              "run",
+              "lint:shell"
+            ],
+            "cwd": ".",
+            "timeout": 120000
+          }
+        ]
+      },
       {
         "context": "build",
         "appId": 15368,
@@ -21654,7 +21736,7 @@
   "import": {
     "source": "renovate.json",
     "resolverVersion": "44.103.0",
-    "overrideHash": "c1451c31af1f384de077bf2ec664f41617500aeab0aad2238d2c2cc0de07c4d3",
+    "overrideHash": "8f004c1ce3a85f936a29b7ecf2c1b2ec2a5ed9a4a0640a6b4012725b46fd4a5c",
     "baseDiagnostics": [
       {
         "path": "presets.description",
@@ -21669,7 +21751,15 @@
       {
         "path": "presets.nuget",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "files": [
+            "/\\.(?:cs|fs|vb|sql)proj$/",
+            "/\\.(?:props|targets)$/",
+            "/(^|/)dotnet-tools\\.json$/",
+            "/(^|/)global\\.json$/"
+          ]
+        }
       },
       {
         "path": "presets.packageRules[0].semanticCommitType",
@@ -21698,8 +21788,8 @@
       },
       {
         "path": "presets.packageRules[5].matchJsonata",
-        "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "disposition": "ignored",
+        "message": "Selector only controls presentation fields unused by the native updater"
       },
       {
         "path": "presets.packageRules[5].semanticCommitType",
@@ -21724,1152 +21814,3463 @@
       {
         "path": "presets.packageRules[529].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "github-tags"
+            ],
+            "packages": [
+              "actions/attest-build-provenance"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[530].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "airbnb-prop-types"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[530].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "airbnb-prop-types"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[531].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "apollo-server",
+              "apollo-server-core",
+              "apollo-server-express"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[531].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "apollo-server",
+              "apollo-server-core",
+              "apollo-server-express"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[532].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "apollo-server-errors"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[532].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "apollo-server-errors"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[533].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "apollo-server-types",
+              "apollo-server-plugin-base"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[533].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "apollo-server-types",
+              "apollo-server-plugin-base"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[534].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "apollo-datasource-rest"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[534].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "apollo-datasource-rest"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[535].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "apollo-server-plugin-response-cache"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[535].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "apollo-server-plugin-response-cache"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[536].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "apollo-server-plugin-operation-registry"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[536].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "apollo-server-plugin-operation-registry"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[537].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "apollo-reporting-protobuf"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[537].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "apollo-reporting-protobuf"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[538].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@aws-sdk/smithy-client"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[538].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@aws-sdk/smithy-client"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[539].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "babel-eslint"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[539].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "babel-eslint"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[540].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@base-ui-components/react"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[540].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@base-ui-components/react"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[541].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "docker"
+            ],
+            "packages": [
+              "/^(?:docker\\.io/)?containerbase/(?:buildpack|base)$/",
+              "/^ghcr\\.io/containerbase/buildpack$/",
+              "/^(?:docker\\.io/)?renovate/buildpack$/"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[542].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "docker"
+            ],
+            "packages": [
+              "/^(?:docker\\.io/)?(?:containerbase|renovate)/node$/"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[543].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "docker"
+            ],
+            "packages": [
+              "/^(?:docker\\.io/)?(?:containerbase|renovate)/sidecar$/"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[544].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "github-tags"
+            ],
+            "packages": [
+              "renovatebot/internal-tools"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[545].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "docker"
+            ],
+            "packages": [
+              "ghcr.io/renovatebot/renovate",
+              "/^(?:docker\\.io/)?renovate/renovate$/"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[547].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "cpx"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[547].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "cpx"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[548].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "cucumber"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[548].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "cucumber"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[549].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@comet/dev-oidc-provider"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[549].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@comet/dev-oidc-provider"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[550].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@comet/dev-process-manager"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[550].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@comet/dev-process-manager"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[551].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "docker"
+            ],
+            "packages": [
+              "docker/compose"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[551].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "docker"
+            ],
+            "packages": [
+              "docker/compose"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[552].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "maven"
+            ],
+            "packages": [
+              "com.edb:edb-jdbc"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[552].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "maven"
+            ],
+            "packages": [
+              "com.edb:edb-jdbc"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[553].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "maven"
+            ],
+            "packages": [
+              "com.edb:edb-jdbc18"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[553].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "maven"
+            ],
+            "packages": [
+              "com.edb:edb-jdbc18"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[554].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "eslint-config-standard-with-typescript"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[554].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "eslint-config-standard-with-typescript"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[555].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "eslint-plugin-eslint-comments"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[555].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "eslint-plugin-eslint-comments"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[556].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "eslint-plugin-node"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[556].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "eslint-plugin-node"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[557].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "eslint-plugin-vitest"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[557].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "eslint-plugin-vitest"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[558].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "express-mung"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[558].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "express-mung"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[559].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "faker"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[559].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "faker"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[560].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "faker"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[560].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "faker"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[561].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "faker"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[561].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "faker"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[562].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "faker"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[562].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "faker"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[563].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "faker"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[563].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "faker"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[564].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-accepts-serializer"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[564].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-accepts-serializer"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[565].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-accepts"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[565].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-accepts"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[566].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-auth"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[566].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-auth"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[567].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-autoload"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[567].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-autoload"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[568].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-awilix"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[568].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-awilix"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[569].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-basic-auth"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[569].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-basic-auth"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[570].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-bearer-auth"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[570].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-bearer-auth"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[571].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-caching"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[571].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-caching"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[572].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-circuit-breaker"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[572].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-circuit-breaker"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[573].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-compress"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[573].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-compress"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[574].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-cookie"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[574].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-cookie"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[575].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-cors"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[575].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-cors"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[576].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-diagnostics-channel"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[576].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-diagnostics-channel"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[577].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-elasticsearch"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[577].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-elasticsearch"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[578].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-env"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[578].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-env"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[579].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-error"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[579].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-error"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[580].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-etag"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[580].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-etag"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[581].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-express"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[581].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-express"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[582].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-flash"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[582].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-flash"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[583].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-formbody"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[583].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-formbody"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[584].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-funky"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[584].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-funky"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[585].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-helmet"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[585].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-helmet"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[586].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-hotwire"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[586].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-hotwire"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[587].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-http-proxy"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[587].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-http-proxy"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[588].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-jwt"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[588].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-jwt"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[589].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-kafka"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[589].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-kafka"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[590].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-leveldb"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[590].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-leveldb"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[591].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-mongodb"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[591].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-mongodb"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[592].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-multipart"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[592].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-multipart"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[593].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-mysql"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[593].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-mysql"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[594].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-nextjs"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[594].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-nextjs"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[595].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-oauth2"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[595].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-oauth2"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[596].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-passport"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[596].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-passport"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[597].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-postgres"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[597].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-postgres"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[598].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-rate-limit"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[598].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-rate-limit"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[599].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-redis"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[599].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-redis"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[600].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-reply-from"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[600].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-reply-from"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[601].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-request-context"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[601].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-request-context"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[602].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-response-validation"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[602].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-response-validation"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[603].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-routes-stats"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[603].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-routes-stats"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[604].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-routes"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[604].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-routes"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[605].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-schedule"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[605].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-schedule"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[606].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-secure-session"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[606].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-secure-session"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[607].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-sensible"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[607].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-sensible"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[608].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-soap-client"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[608].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-soap-client"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[609].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-static"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[609].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-static"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[610].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-swagger"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[610].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-swagger"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[611].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-url-data"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[611].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-url-data"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[612].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-websocket"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[612].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-websocket"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[613].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-zipkin"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[613].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "fastify-zipkin"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[614].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "framer-motion"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[615].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "github-tags"
+            ],
+            "packages": [
+              "google-github-actions/release-please-action"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[616].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "docker"
+            ],
+            "packages": [
+              "/^(?:docker\\.io/)?grafana/grafana-oss$/"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[617].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "hapi"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[617].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "hapi"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[618].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "helm",
+              "docker"
+            ],
+            "packages": [
+              "ghcr.io/home-operations/charts-mirror/cilium"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[618].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "helm",
+              "docker"
+            ],
+            "packages": [
+              "ghcr.io/home-operations/charts-mirror/cilium"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[619].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "jade"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[619].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "jade"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[620].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "joi"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[620].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "joi"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[621].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@hapi/joi"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[621].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@hapi/joi"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[622].replacementNameTemplate",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "docker"
+            ],
+            "packages": [
+              "/^k8s\\.gcr\\.io/.+$/"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[623].replacementNameTemplate",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "maven"
+            ],
+            "packages": [
+              "/^io\\.github\\.microutils:kotlin-logging/"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[623].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "maven"
+            ],
+            "packages": [
+              "/^io\\.github\\.microutils:kotlin-logging/"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[624].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@material-ui/codemod"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[624].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@material-ui/codemod"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[625].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@material-ui/core"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[625].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@material-ui/core"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[626].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@material-ui/icons"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[626].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@material-ui/icons"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[627].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@material-ui/lab"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[627].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@material-ui/lab"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[628].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@material-ui/private-theming"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[628].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@material-ui/private-theming"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[629].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@material-ui/styled-engine"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[629].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@material-ui/styled-engine"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[630].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@material-ui/styled-engine-sc"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[630].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@material-ui/styled-engine-sc"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[631].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@material-ui/styles"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[631].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@material-ui/styles"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[632].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@material-ui/system"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[632].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@material-ui/system"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[633].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@material-ui/types"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[633].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@material-ui/types"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[634].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@material-ui/unstyled"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[634].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@material-ui/unstyled"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[635].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "mem"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[635].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "mem"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[636].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "messageformat-cli"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[636].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "messageformat-cli"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[637].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "messageformat"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[637].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "messageformat"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[638].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "messageformat-convert"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[638].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "messageformat-convert"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[639].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "react-message-context"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[639].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "react-message-context"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[640].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "messageformat-parser"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[640].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "messageformat-parser"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[641].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "middie"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[641].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "middie"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[642].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "now"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[642].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "now"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[643].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "npm-run-all"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[643].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "npm-run-all"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[644].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "maven"
+            ],
+            "packages": [
+              "ojdbc:ojdbc"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[644].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "maven"
+            ],
+            "packages": [
+              "ojdbc:ojdbc"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[645].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "maven"
+            ],
+            "packages": [
+              "com.oracle.database.jdbc:ojdbc10"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[645].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "maven"
+            ],
+            "packages": [
+              "com.oracle.database.jdbc:ojdbc10"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[646].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "docker"
+            ],
+            "packages": [
+              "quay.io/kubecost1/kubecost-cost-model"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[646].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "docker"
+            ],
+            "packages": [
+              "quay.io/kubecost1/kubecost-cost-model"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[647].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "docker"
+            ],
+            "packages": [
+              "quay.io/kubecost1/opencost-ui"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[647].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "docker"
+            ],
+            "packages": [
+              "quay.io/kubecost1/opencost-ui"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[648].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@parcel/css"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[648].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@parcel/css"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[649].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "passport-saml"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[649].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "passport-saml"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[650].prBodyNotes",
@@ -22879,182 +25280,542 @@
       {
         "path": "presets.packageRules[650].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "docker"
+            ],
+            "packages": [
+              "/^(?:docker\\.io/)?pglombardo/pwpush-(?:ephemeral|mysql|postgres)$/"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[651].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "react-query/devtools"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[651].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "react-query/devtools"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[652].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "react-query"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[652].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "react-query"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[653].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "react-scripts-ts"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[653].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "react-scripts-ts"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[654].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "read-pkg-up"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[654].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "read-pkg-up"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[655].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "redux-devtools-extension"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[655].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "redux-devtools-extension"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[656].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@renovate/pep440"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[656].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@renovate/pep440"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[657].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "rolldown-vite"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[657].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "rolldown-vite"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[658].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "rollup-plugin-babel"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[658].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "rollup-plugin-babel"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[659].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "rollup-plugin-json"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[659].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "rollup-plugin-json"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[660].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "rollup-plugin-node-resolve"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[660].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "rollup-plugin-node-resolve"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[661].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "rollup-plugin-terser"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[661].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "rollup-plugin-terser"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[662].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "rome"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[662].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "rome"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[663].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "docker"
+            ],
+            "packages": [
+              "gcr.io/openssf/scorecard"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[664].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@google/semantic-release-replace-plugin"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[664].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@google/semantic-release-replace-plugin"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[665].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "nuget"
+            ],
+            "packages": [
+              "Spectre.Cli"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[665].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "nuget"
+            ],
+            "packages": [
+              "Spectre.Cli"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[666].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "standard-version"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[666].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "standard-version"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[667].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@temporalio/interceptors-opentelemetry"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[667].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@temporalio/interceptors-opentelemetry"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[668].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "terraform-provider"
+            ],
+            "packages": [
+              "mrparkers/keycloak"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[668].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "terraform-provider"
+            ],
+            "packages": [
+              "mrparkers/keycloak"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[669].commitMessageExtra",
@@ -23064,167 +25825,516 @@
       {
         "path": "presets.packageRules[670].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@tsconfig/node10"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[670].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@tsconfig/node10"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[671].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@tsconfig/node12"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[671].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@tsconfig/node12"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[672].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@tsconfig/node14"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[672].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@tsconfig/node14"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[673].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@tsconfig/node16",
+              "@tsconfig/node17"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[673].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@tsconfig/node16",
+              "@tsconfig/node17"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[674].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@tsconfig/node18",
+              "@tsconfig/node19"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[674].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@tsconfig/node18",
+              "@tsconfig/node19"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[675].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@tsconfig/node20",
+              "@tsconfig/node21"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[675].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@tsconfig/node20",
+              "@tsconfig/node21"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[676].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@tsconfig/node22",
+              "@tsconfig/node23"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[676].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@tsconfig/node22",
+              "@tsconfig/node23"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[677].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "typeorm-seeding"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[677].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "typeorm-seeding"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[678].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@vitest/coverage-c8"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[678].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@vitest/coverage-c8"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[679].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "vso-task-lib"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[679].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "vso-task-lib"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[680].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "vsts-task-lib"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[680].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "vsts-task-lib"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[681].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@wuchale/vite-plugin"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[681].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "@wuchale/vite-plugin"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[682].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "xlsx"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[682].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "xlsx"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[683].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "xmldom",
+              "xmldom-alpha"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[683].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "npm"
+            ],
+            "packages": [
+              "xmldom",
+              "xmldom-alpha"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[684].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "docker"
+            ],
+            "packages": [
+              "/^(?:docker\\.io/)?owasp/zap2docker-stable$/",
+              "/^(?:docker\\.io/)?softwaresecurityproject/zap-stable$/"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[684].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "docker"
+            ],
+            "packages": [
+              "/^(?:docker\\.io/)?owasp/zap2docker-stable$/",
+              "/^(?:docker\\.io/)?softwaresecurityproject/zap-stable$/"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[685].replacementName",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "docker"
+            ],
+            "packages": [
+              "/^(?:docker\\.io/)?owasp/zap2docker-bare$/",
+              "/^(?:docker\\.io/)?softwaresecurityproject/zap-bare$/"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[685].replacementVersion",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "docker"
+            ],
+            "packages": [
+              "/^(?:docker\\.io/)?owasp/zap2docker-bare$/",
+              "/^(?:docker\\.io/)?softwaresecurityproject/zap-bare$/"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[691].versionCompatibility",
         "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "message": "No native translation; implement or explicitly exclude this policy before publishing",
+        "scope": {
+          "dependencies": {
+            "datasources": [
+              "docker"
+            ],
+            "packages": [
+              "/(?:^|/)node$/",
+              "!calico/node",
+              "!docker.io/calico/node",
+              "!ghcr.io/devcontainers/features/node",
+              "!kindest/node",
+              "!docker.io/kindest/node"
+            ]
+          }
+        }
       },
       {
         "path": "presets.packageRules[715].changelogUrl",
@@ -23238,8 +26348,8 @@
       },
       {
         "path": "presets.packageRules[716].matchJsonata",
-        "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "disposition": "ignored",
+        "message": "Selector only controls presentation fields unused by the native updater"
       },
       {
         "path": "presets.packageRules[717].changelogUrl",
@@ -23253,8 +26363,8 @@
       },
       {
         "path": "presets.packageRules[718].matchJsonata",
-        "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "disposition": "ignored",
+        "message": "Selector only controls presentation fields unused by the native updater"
       },
       {
         "path": "presets.packageRules[719].changelogUrl",
@@ -23268,8 +26378,8 @@
       },
       {
         "path": "presets.packageRules[720].matchJsonata",
-        "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "disposition": "ignored",
+        "message": "Selector only controls presentation fields unused by the native updater"
       },
       {
         "path": "presets.packageRules[721].changelogUrl",
@@ -23278,8 +26388,8 @@
       },
       {
         "path": "presets.packageRules[721].matchJsonata",
-        "disposition": "blocked",
-        "message": "No native translation; implement or explicitly exclude this policy before publishing"
+        "disposition": "ignored",
+        "message": "Selector only controls presentation fields unused by the native updater"
       },
       {
         "path": "presets.packageRules[722].changelogUrl",
