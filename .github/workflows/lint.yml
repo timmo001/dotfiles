@@ -86,27 +86,27 @@ jobs:
         run: mise run lint
 
   validate-skills:
-    uses: timmo001/workflows/.github/workflows/lint-agent-skills.yml@0396f6681097e20d0d623589c60cec6fb187db50 # master
+    uses: timmo001/workflows/.github/workflows/lint-agent-skills.yml@111a75f50ee7db97bcc83545d723b6d519793a0a # master
     with:
       skill-roots: .agents/skills dotfiles-skills/.agents/skills
 
   actionlint:
-    uses: timmo001/workflows/.github/workflows/lint-actionlint.yml@0396f6681097e20d0d623589c60cec6fb187db50 # master
+    uses: timmo001/workflows/.github/workflows/lint-actionlint.yml@111a75f50ee7db97bcc83545d723b6d519793a0a # master
 
   markdownlint:
-    uses: timmo001/workflows/.github/workflows/lint-markdownlint.yml@0396f6681097e20d0d623589c60cec6fb187db50 # master
+    uses: timmo001/workflows/.github/workflows/lint-markdownlint.yml@111a75f50ee7db97bcc83545d723b6d519793a0a # master
 
   yamllint:
-    uses: timmo001/workflows/.github/workflows/lint-yamllint.yml@0396f6681097e20d0d623589c60cec6fb187db50 # master
+    uses: timmo001/workflows/.github/workflows/lint-yamllint.yml@111a75f50ee7db97bcc83545d723b6d519793a0a # master
 
   jsonlint:
-    uses: timmo001/workflows/.github/workflows/lint-jsonlint.yml@0396f6681097e20d0d623589c60cec6fb187db50 # master
+    uses: timmo001/workflows/.github/workflows/lint-jsonlint.yml@111a75f50ee7db97bcc83545d723b6d519793a0a # master
 
   markdown-links:
-    uses: timmo001/workflows/.github/workflows/lint-markdown-links.yml@0396f6681097e20d0d623589c60cec6fb187db50 # master
+    uses: timmo001/workflows/.github/workflows/lint-markdown-links.yml@111a75f50ee7db97bcc83545d723b6d519793a0a # master
 
   shellcheck:
-    uses: timmo001/workflows/.github/workflows/lint-shellcheck.yml@0396f6681097e20d0d623589c60cec6fb187db50 # master
+    uses: timmo001/workflows/.github/workflows/lint-shellcheck.yml@111a75f50ee7db97bcc83545d723b6d519793a0a # master
     with:
       scandir: ./scripts/.local/bin
       severity: warning
