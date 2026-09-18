@@ -1,32 +1,18 @@
 ---
-description: Reset branch to default and reapply current diff staged
+description: Reset a clean feature branch to its base and reapply its committed changes staged
 agent: build
-permission:
-  bash:
-    "gh repo view*": allow
-    "git apply --index*": allow
-    "git diff*": allow
-    "git remote": allow
-    "git reset --hard*": allow
-    "git status*": allow
-    "git symbolic-ref*": allow
 ---
 
-# Reset Branch And Reapply Diff
+Load `branch-context-consumer` in full-context mode and `git-context`. Require an unambiguous base ref from `<branch-metadata>`; do not guess `main` or continue when injection failed.
 
-Drop all changes on the current branch and reapply the current branch diff on top of the default branch, staged.
+This rewrites the current branch. Before acting:
 
-Load the `branch-context-consumer` skill. Use full-context mode, but only `<branch-metadata>` is required for this command.
+- Inspect fresh working-tree state, including staged, unstaged, untracked, and submodule changes. Stop if any exist; also stop if an ignored file would be overwritten by the base tree. Do not stash or discard files automatically.
+- Require a named feature branch distinct from the default branch. Stop for detached HEAD or an in-progress Git operation.
+- Resolve the base and current HEAD to exact commit IDs. Require the base to be an ancestor of HEAD; otherwise a rebase needs separate conflict handling.
 
-Follow these steps:
+Save `git diff --binary --full-index <base-commit>...<head-commit>` to a unique temporary file. Verify the write succeeded and the patch is non-empty. Create a uniquely named local backup branch at the original HEAD and verify it before resetting.
 
-1. Extract `Base ref` from `<branch-metadata>`.
-2. If `Base ref` is missing, resolve it with fallback commands (`git remote`, `git symbolic-ref`, then `gh repo view`, fallback `main`).
-3. Save the current branch diff against `<base-ref>` to a temp file:
-   - `git diff <base-ref>...HEAD > /tmp/opencode-branch-reapply.patch`
-4. Reset the branch to `<base-ref>`:
-   - `git reset --hard <base-ref>`
-5. Reapply the patch and stage it:
-   - `git apply --index /tmp/opencode-branch-reapply.patch`
-6. Report status with `git status -sb`.
-7. Summarize what happened, including if the branch is ahead/behind `<base-ref>`.
+Immediately before resetting, confirm HEAD and the clean working-tree state have not changed. Reset to the resolved base commit, run `git apply --check --index <patch>`, then `git apply --index <patch>`. Stop on any failure and retain the patch and backup ref for recovery. Never reset a second time as an automatic fallback.
+
+Verify the staged tree matches the original HEAD tree, then report the staged result, backup ref, and patch path. Do not commit or push.
