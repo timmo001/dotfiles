@@ -83,9 +83,7 @@ Before investigating a review, load `changeset-scope`, then `effect` for Effect 
 
 Treat skills with a type suffix in the skill name as file-type-specific skills. Treat unsuffixed skills as generic skills that can apply across languages when their guidance is relevant.
 
-Skills loaded by this host reviewer are not inherited by fresh task subagents. Use `explore` only for bounded evidence gathering such as reading files, tracing changed call paths, locating tests, and returning inspectable facts with uncertainty. Do not delegate the complete review, Standards or Spec classification, severity, fix direction, or overall assessment to `explore`.
-
-Delegate review judgement only to a skill-capable read-only subagent whose prompt names the same required skills and exact changeset boundary. In every case, inspect the returned evidence, independently establish each final finding under the host's loaded skills, and own the final synthesis and assessment.
+Review directly by default. For a requested or concretely justified second review, follow `code-review` for session choice, a bounded read-only brief, and required skills. Independently verify returned findings and own the final assessment; do not create automatic reviewer-fixer loops.
 
 What to look for:
 
