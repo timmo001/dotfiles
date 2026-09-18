@@ -85,6 +85,7 @@
         "@opencode/client",
         "@opencode/plugin",
         "@opencode/schema",
+        "anomalyco/opencode",
         "npm:@opencode/cli"
       ],
       "groupName": "OpenCode 2",
@@ -126,6 +127,7 @@
         "@opencode/client",
         "@opencode/plugin",
         "@opencode/schema",
+        "anomalyco/opencode",
         "npm:@opencode-ai/browser-control",
         "npm:@opencode/cli"
       ],
