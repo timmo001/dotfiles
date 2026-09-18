@@ -18,7 +18,7 @@ Use this skill for changes to user config managed by GNU Stow through the public
 4. Run `dot stow` after stowed source changes.
 5. Create, import, review, and update reusable skills in `~/repos/skills`; never edit `~/.agents/skills` or `agents/.agents/skills` directly. Review third-party updates through `dot skills updates`; normal `dot update` only stows committed snapshots.
 6. Leave the `agents/.agents/skills` submodule revision in `~/.config/dotfiles` to Renovate. Skills commits and update jobs must not advance it manually unless the user explicitly requests that update.
-7. Update the canonical docs site when user-facing behaviour, paths, commands, or configuration change.
+7. Follow the repository's documentation policy. Regenerate affected catalogues; ordinary behaviour changes do not require hand-written pages.
 
 ## Common Paths
 

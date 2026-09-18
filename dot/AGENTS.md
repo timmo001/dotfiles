@@ -105,18 +105,7 @@ When command metadata changes, also regenerate docs and completions, then run re
 
 Do not add Bun tests for ordinary command, flag, layout, or app changes. Follow the Testing section in the repo-root `AGENTS.md`: default is no new tests; only durable edge cases or cross-cutting invariants belong under `../tests/` or, rarely, `tests/`.
 
-Manual checks:
-
-```bash
-dot
-dot --help
-dot git-diff
-dot git-diff --bar-json
-dot git-commit --help
-dot git-notifications --raw
-dot doctor
-dot init --help
-```
+Run the changed command's relevant help or behaviour check. Use `dot doctor` for installation or stow health changes; unrelated command checks are not required.
 
 ## Logging Style
 

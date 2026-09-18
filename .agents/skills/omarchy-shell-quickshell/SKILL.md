@@ -32,7 +32,7 @@ Read the owning sources before relying on remembered plugin or backend behaviour
 - Keep third-party ids namespaced outside the reserved `omarchy.*` namespace.
 - Prefer Omarchy's `omarchy plugin` and `omarchy bar` commands when they cover the operation. They own validation, enabled state, placement, and persisted layout.
 - For a new manually installed plugin, run `dot stow`, rescan plugins, then enable the plugin. Rescanning discovers code but does not enable it.
-- Existing user-plugin file changes are watched and reloaded automatically. Force a rescan only when discovery or automatic reload has not applied the change.
+- Omarchy watches user-plugin files, but this repo requires an explicit restart after edits to verify the final stowed state.
 - Plugins run unsandboxed in the shell process. Review all plugin code before enabling it.
 
 `~/.config/omarchy/plugins/` is a real directory with per-plugin symlinks. A new stowed plugin is invisible until `dot stow` creates its symlink. Existing plugin files are already live through their symlinks.
@@ -41,9 +41,9 @@ Read the owning sources before relying on remembered plugin or backend behaviour
 
 | Change | Action |
 | --- | --- |
-| `shell.json` layout/settings, existing modules only | Hot-reloads on save - nothing to run |
-| User plugin QML edited | Hot-reloads on save - nothing to run |
-| New manual plugin added | `dot stow`, rescan, then enable |
+| `shell.json` layout/settings, existing modules only | `dot stow`, then `omarchy restart shell` |
+| User plugin QML edited | `dot stow`, then `omarchy restart shell` |
+| New manual plugin added | `dot stow`, rescan, enable, then `omarchy restart shell` |
 | Rescan or automatic reload cannot recover | Restart the shell with Omarchy's lifecycle command |
 
 Use `$OMARCHY_PATH/docs/omarchy-shell.md` for current IPC method names and return values. A full `omarchy restart shell` protects an active lock session, stops matching Quickshell instances, and asks Hyprland to launch the replacement with the canonical session environment.
@@ -51,7 +51,7 @@ Use `$OMARCHY_PATH/docs/omarchy-shell.md` for current IPC method names and retur
 ## Shell lifecycle
 
 - Do not recreate shell launch or termination logic. Use `omarchy restart shell` and inspect the current launch scripts when diagnosing lifecycle behaviour.
-- Current Quattro launches the replacement through Hyprland so it inherits the session environment rather than transient terminal, SSH, or agent variables. Do not add caller-side `QT_QPA_PLATFORM` workarounds based on older behaviour.
+- Current Quattro launches the replacement through Hyprland so it inherits the session environment rather than transient terminal, SSH, or agent variables. `dot update` retains an existing `QT_QPA_PLATFORM=wayland` override on its restart call for compatibility; do not copy it into new callers or treat it as the source of the replacement process's environment.
 - Omarchy disables Quickshell's whole-config file watcher for the packaged shell and restarts deliberately during lifecycle operations. Shell-owned `FileView` and plugin-directory watchers still handle `shell.json` and user-plugin updates.
 - `dot update` restarts the shell only when the generated `shell.json` changed. Standalone `dot stow` does not restart it.
 
