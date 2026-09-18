@@ -151,13 +151,13 @@ dot deps --dry-run --all --target main
 
 ### `dot deps import-renovate`
 
-Import Renovate policy into dot-deps.json
+Import Renovate policy into dot-deps.yml with an editor schema
 
 ```text
 dot deps import-renovate [flags] [<directory>]
 ```
 
-Create a versioned native dependency policy from a repository's JSON Renovate config. The first import resolves presets with an isolated, pinned Renovate runtime. Later imports replace explicit override sections, including edits within them, while preserving the native base policy and local check mappings. Unsupported settings are recorded as publication blockers. Importing creates no commits or PRs. Ordinary previews use the saved native policy without running Renovate or refreshing presets.
+Create dot-deps.yml and its editor schema from a repository's JSON Renovate config, migrating an existing dot-deps.json policy. The first import resolves presets with an isolated, pinned Renovate runtime. Later imports replace explicit override sections, including edits within them, while preserving the native base policy and local check mappings. Unsupported settings are recorded as publication blockers. Importing creates no commits or PRs. Ordinary previews use the saved native policy without running Renovate or refreshing presets.
 
 **Options**
 

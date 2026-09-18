@@ -21,11 +21,8 @@ import {
   Ref as EffectRef,
   Semaphore,
 } from "effect";
-import {
-  DependencyConfig,
-  mergeDependencyPolicy,
-  type DependencyPolicy,
-} from "./config.js";
+import { mergeDependencyPolicy, type DependencyPolicy } from "./config.js";
+import { decodeDependencyConfig, dependencyPolicyPath } from "./policyFile.js";
 import { DependencyDiskCache } from "./cache.js";
 import { dependencyFile, extractDependencies } from "./extract.js";
 import { validateDependencyPatterns } from "./rules.js";
@@ -297,20 +294,30 @@ export class DependencyGithub extends Context.Service<
           );
         });
 
-        const configText = existingPolicy
+        const configPath = existingPolicy
           ? undefined
-          : yield* file("dot-deps.json");
+          : yield* dependencyPolicyPath(
+              tree.tree.map((entry) => entry.path),
+            ).pipe(
+              Effect.mapError(
+                (error) =>
+                  new DependencyDiscoveryError({
+                    message: `${error.message} at ${commit.sha}`,
+                  }),
+              ),
+            );
+
+        const configText =
+          configPath === undefined ? undefined : yield* file(configPath);
 
         const config =
           configText === undefined
             ? undefined
-            : yield* Schema.decodeUnknownEffect(
-                Schema.fromJsonString(DependencyConfig),
-              )(configText, { onExcessProperty: "error" }).pipe(
+            : yield* decodeDependencyConfig(configText).pipe(
                 Effect.mapError(
                   () =>
                     new DependencyDiscoveryError({
-                      message: `Invalid dot-deps.json at ${commit.sha}`,
+                      message: `Invalid ${configPath} at ${commit.sha}`,
                     }),
                 ),
               );
@@ -350,13 +357,10 @@ export class DependencyGithub extends Context.Service<
           { concurrency },
         );
 
-        const files = {
-          ...Object.fromEntries(entries),
-          ...Record.filter(
-            { "dot-deps.json": configText },
-            Predicate.isNotUndefined,
-          ),
-        };
+        const files = Object.fromEntries(entries);
+
+        if (configPath !== undefined && configText !== undefined)
+          files[configPath] = configText;
 
         const directory = configText
           ? yield* disk.checkout(repository, commit.sha, files)

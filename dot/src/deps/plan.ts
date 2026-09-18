@@ -12,13 +12,19 @@ import {
 import { CommandExecutor } from "../services/CommandExecutor.js";
 import { OutputLog } from "../services/OutputLog.js";
 import {
-  DependencyConfig,
+  type DependencyConfig,
   RenovateObject,
   assertDependencyOverrides,
   mergeDependencyPolicy,
   blockingDependencyDiagnostics,
   type DependencyPolicy,
 } from "./config.js";
+import {
+  decodeDependencyConfig,
+  dependencyPolicyFiles,
+  dependencyPolicyPath,
+  readDependencyConfig,
+} from "./policyFile.js";
 import { extractDependencies } from "./extract.js";
 import { DependencyGithub, type PullRequestCoverage } from "./github.js";
 import { DependencySources } from "./sources.js";
@@ -116,12 +122,18 @@ export class DependencyLocalPolicy extends Context.Service<
             )(yield* fs.readFileString(join(root, config.import.source)));
 
             yield* assertDependencyOverrides(config, source);
-            const localConfigPath = join(root, "dot-deps.json");
 
-            if (yield* fs.exists(localConfigPath)) {
-              const local = yield* Schema.decodeEffect(
-                Schema.fromJsonString(DependencyConfig),
-              )(yield* fs.readFileString(localConfigPath));
+            const localPaths = yield* Effect.filter(
+              dependencyPolicyFiles,
+              (path) => fs.exists(join(root, path)),
+            );
+
+            if (localPaths.length) {
+              const localPath = yield* dependencyPolicyPath(localPaths);
+
+              const local = yield* decodeDependencyConfig(
+                yield* fs.readFileString(join(root, localPath)),
+              );
 
               if (local.import.source !== config.import.source)
                 return yield* new DependencyDiscoveryError({
@@ -242,11 +254,7 @@ export class DependencyPlanner extends Context.Service<
             options.concurrency,
           );
 
-          const config = yield* Schema.decodeUnknownEffect(
-            Schema.fromJsonString(DependencyConfig),
-          )(snapshot.files["dot-deps.json"], {
-            onExcessProperty: "error",
-          }).pipe(
+          const config = yield* readDependencyConfig(snapshot.files).pipe(
             Effect.mapError(
               () =>
                 new DependencyDiscoveryError({

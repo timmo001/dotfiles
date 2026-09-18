@@ -1,0 +1,937 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Dot dependency policy",
+  "$comment": "Generated from the native dependency policy schema by dot deps import-renovate",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "enum": [
+        1
+      ]
+    },
+    "policy": {
+      "type": "object",
+      "properties": {
+        "base": {
+          "$ref": "#/definitions/DependencyPolicy"
+        },
+        "overrides": {
+          "$ref": "#/definitions/DependencyPolicy_1"
+        }
+      },
+      "required": [
+        "base",
+        "overrides"
+      ],
+      "additionalProperties": false
+    },
+    "validation": {
+      "type": "object",
+      "properties": {
+        "setup": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "argv": {
+                "type": "array",
+                "minItems": 1,
+                "items": [
+                  {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                ],
+                "additionalItems": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "cwd": {
+                "type": "string",
+                "minLength": 1
+              },
+              "timeout": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            },
+            "required": [
+              "argv",
+              "cwd",
+              "timeout"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "context": {
+                "type": "string",
+                "minLength": 1
+              },
+              "appId": {
+                "type": "integer"
+              },
+              "commands": {
+                "type": "array",
+                "minItems": 1,
+                "items": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "argv": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": [
+                          {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        ],
+                        "additionalItems": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "cwd": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "timeout": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    },
+                    "required": [
+                      "argv",
+                      "cwd",
+                      "timeout"
+                    ],
+                    "additionalProperties": false
+                  }
+                ],
+                "additionalItems": {
+                  "type": "object",
+                  "properties": {
+                    "argv": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": [
+                        {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      ],
+                      "additionalItems": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "cwd": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "timeout": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    }
+                  },
+                  "required": [
+                    "argv",
+                    "cwd",
+                    "timeout"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "context",
+              "commands"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "setup",
+        "checks"
+      ],
+      "additionalProperties": false,
+      "description": "Local setup and checks required before publishing dependency updates."
+    },
+    "import": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resolverVersion": {
+          "type": "string"
+        },
+        "overrideHash": {
+          "type": "string"
+        },
+        "baseDiagnostics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "disposition": {
+                "type": "string",
+                "enum": [
+                  "blocked",
+                  "ignored"
+                ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "scope": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "dependencies": {
+                        "type": "object",
+                        "properties": {
+                          "managers": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "datasources": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "packages": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "dependencies": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "files": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "dependencyTypes": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "dependencies"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "files": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": [
+                      "files"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "required": [
+              "path",
+              "disposition",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "overrideDiagnostics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "disposition": {
+                "type": "string",
+                "enum": [
+                  "blocked",
+                  "ignored"
+                ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "scope": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "dependencies": {
+                        "type": "object",
+                        "properties": {
+                          "managers": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "datasources": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "packages": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "dependencies": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "files": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "dependencyTypes": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "dependencies"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "files": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": [
+                      "files"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "required": [
+              "path",
+              "disposition",
+              "message"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "source",
+        "resolverVersion",
+        "overrideHash",
+        "baseDiagnostics",
+        "overrideDiagnostics"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "policy",
+    "validation",
+    "import"
+  ],
+  "additionalProperties": false,
+  "definitions": {
+    "DependencySettings": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "minimumReleaseAge": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "allowedVersions": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "versioning": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "extractVersion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rangeStrategy": {
+          "type": "string"
+        },
+        "pinDigests": {
+          "type": "boolean"
+        },
+        "ignoreUnstable": {
+          "type": "boolean"
+        },
+        "respectLatest": {
+          "type": "boolean"
+        },
+        "separateMajorMinor": {
+          "type": "boolean"
+        },
+        "separateMinorPatch": {
+          "type": "boolean"
+        },
+        "separateMultipleMajor": {
+          "type": "boolean"
+        },
+        "groupName": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "groupSlug": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "DependencyPolicy": {
+      "type": "object",
+      "properties": {
+        "settings": {
+          "$ref": "#/definitions/DependencySettings"
+        },
+        "enabledManagers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ignorePaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ignoreDependencies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "managers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "files": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "settings": {
+                "$ref": "#/definitions/DependencySettings"
+              }
+            },
+            "required": [
+              "settings"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "match": {
+                "type": "object",
+                "properties": {
+                  "managers": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "datasources": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "packages": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "dependencies": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "dependencyTypes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "sourceUrls": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "currentValues": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "currentVersions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "updateTypes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "additionalProperties": false
+              },
+              "set": {
+                "$ref": "#/definitions/DependencySettings"
+              }
+            },
+            "required": [
+              "match",
+              "set"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "regexManagers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "files": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "patterns": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "strategy": {
+                "type": "string"
+              },
+              "templates": {
+                "type": "object",
+                "properties": {
+                  "datasource": {
+                    "type": "string"
+                  },
+                  "dependency": {
+                    "type": "string"
+                  },
+                  "package": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "string"
+                  },
+                  "versioning": {
+                    "type": "string"
+                  },
+                  "extractVersion": {
+                    "type": "string"
+                  },
+                  "replacement": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "files",
+              "patterns",
+              "templates"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "datasources": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "registry": {
+                "type": "string"
+              },
+              "format": {
+                "type": "string"
+              },
+              "transforms": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "registry",
+              "format",
+              "transforms"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "settings",
+        "managers",
+        "rules",
+        "regexManagers",
+        "datasources"
+      ],
+      "additionalProperties": false,
+      "description": "Editable policy imported from resolved presets."
+    },
+    "DependencyPolicy_1": {
+      "type": "object",
+      "properties": {
+        "settings": {
+          "$ref": "#/definitions/DependencySettings"
+        },
+        "enabledManagers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ignorePaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ignoreDependencies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "managers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "files": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "settings": {
+                "$ref": "#/definitions/DependencySettings"
+              }
+            },
+            "required": [
+              "settings"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "match": {
+                "type": "object",
+                "properties": {
+                  "managers": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "datasources": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "packages": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "dependencies": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "dependencyTypes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "sourceUrls": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "currentValues": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "currentVersions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "updateTypes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "additionalProperties": false
+              },
+              "set": {
+                "$ref": "#/definitions/DependencySettings"
+              }
+            },
+            "required": [
+              "match",
+              "set"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "regexManagers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "files": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "patterns": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "strategy": {
+                "type": "string"
+              },
+              "templates": {
+                "type": "object",
+                "properties": {
+                  "datasource": {
+                    "type": "string"
+                  },
+                  "dependency": {
+                    "type": "string"
+                  },
+                  "package": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "string"
+                  },
+                  "versioning": {
+                    "type": "string"
+                  },
+                  "extractVersion": {
+                    "type": "string"
+                  },
+                  "replacement": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "files",
+              "patterns",
+              "templates"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "datasources": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "registry": {
+                "type": "string"
+              },
+              "format": {
+                "type": "string"
+              },
+              "transforms": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "registry",
+              "format",
+              "transforms"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "settings",
+        "managers",
+        "rules",
+        "regexManagers",
+        "datasources"
+      ],
+      "additionalProperties": false,
+      "description": "Repository overrides replaced by an explicit Renovate re-import."
+    }
+  }
+}

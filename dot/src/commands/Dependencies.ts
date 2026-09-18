@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema } from "effect";
+import { Effect, Layer } from "effect";
 import {
   DependencyImporter,
   type ImportRenovateOptions,
@@ -17,7 +17,7 @@ import {
 import { DependencyDiscoveryError } from "../deps/model.js";
 import { runDependencyUpdates } from "../deps/run.js";
 import { dependencyCheckRequirements } from "../deps/checks.js";
-import { DependencyConfig } from "../deps/config.js";
+import { readDependencyConfig } from "../deps/policyFile.js";
 
 const github = DependencyGithub.layer.pipe(
   Layer.provide(DependencyDiskCache.layer),
@@ -68,9 +68,7 @@ export const previewDependencies = Effect.fn("Dependencies.preview")(
     for (const blocker of result.blockers)
       yield* log.warn(`[BLOCKED] ${blocker}`);
 
-    const config = yield* Schema.decodeEffect(
-      Schema.fromJsonString(DependencyConfig),
-    )(result.snapshot.files["dot-deps.json"]);
+    const config = yield* readDependencyConfig(result.snapshot.files);
 
     yield* dependencyCheckRequirements(
       result.snapshot,

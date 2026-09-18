@@ -70,7 +70,17 @@ run = "bun test tests --pass-with-no-tests"
 
 [tasks."dot:check"]
 description = "Lint, type-check, test, and verify dot formatting"
-depends = ["lint", "dot:typecheck", "dot:test", "dot:format:check"]
+depends = ["lint", "dot:typecheck", "dot:test", "dot:format:check", "dot:deps:schema:check"]
+
+[tasks."dot:deps:schema"]
+description = "Generate the dependency policy editor schema"
+dir = "dot"
+run = "bun src/generateDependencySchema.ts"
+
+[tasks."dot:deps:schema:check"]
+description = "Check the generated dependency policy editor schema"
+dir = "dot"
+run = "bun src/generateDependencySchema.ts --check"
 
 [tasks."skills-maintenance:build"]
 description = "Compile the standalone skills CLI into the stow package"

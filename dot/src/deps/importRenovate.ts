@@ -22,6 +22,15 @@ import {
   type DependencyDiagnostic,
 } from "./config.js";
 import { RenovateResolver } from "./renovateResolver.js";
+import {
+  decodeDependencyConfig,
+  dependencyPolicyFile,
+  dependencyPolicyFiles,
+  dependencyPolicyPath,
+  dependencyPolicySchemaFile,
+  renderDependencyConfig,
+  renderDependencySchema,
+} from "./policyFile.js";
 
 const managers = ["bun", "npm", "mise", "github-actions", "git-submodules"];
 
@@ -445,17 +454,30 @@ export class DependencyImporter extends Context.Service<
               ),
             );
 
-            const output = join(root, "dot-deps.json");
+            const output = join(root, dependencyPolicyFile);
+            const schemaPath = join(root, dependencyPolicySchemaFile);
 
-            const originalOutput = (yield* fs.exists(output))
-              ? yield* fs.readFileString(output)
+            const originalPaths = yield* Effect.filter(
+              dependencyPolicyFiles,
+              (path) => fs.exists(join(root, path)),
+            );
+
+            const originalPath = originalPaths.length
+              ? yield* dependencyPolicyPath(originalPaths)
+              : undefined;
+
+            const originalOutput =
+              originalPath !== undefined
+                ? yield* fs.readFileString(join(root, originalPath))
+                : undefined;
+
+            const originalSchema = (yield* fs.exists(schemaPath))
+              ? yield* fs.readFileString(schemaPath)
               : undefined;
 
             const imported = yield* Effect.gen(function* () {
               if (originalOutput !== undefined) {
-                const existing = yield* Schema.decodeEffect(
-                  Schema.fromJsonString(DependencyConfig),
-                )(originalOutput, { onExcessProperty: "error" });
+                const existing = yield* decodeDependencyConfig(originalOutput);
 
                 if (existing.import.source !== sourcePath)
                   return yield* new DependencyConfigError({
@@ -537,9 +559,18 @@ export class DependencyImporter extends Context.Service<
             if (
               (yield* fs.readFileString(join(root, sourcePath))) !==
                 sourceText ||
-              ((yield* fs.exists(output))
-                ? yield* fs.readFileString(output)
-                : undefined) !== originalOutput
+              !isDeepStrictEqual(
+                originalPaths,
+                yield* Effect.filter(dependencyPolicyFiles, (path) =>
+                  fs.exists(join(root, path)),
+                ),
+              ) ||
+              (originalPath !== undefined
+                ? yield* fs.readFileString(join(root, originalPath))
+                : undefined) !== originalOutput ||
+              ((yield* fs.exists(schemaPath))
+                ? yield* fs.readFileString(schemaPath)
+                : undefined) !== originalSchema
             )
               return yield* new DependencyConfigError({
                 message:
@@ -549,25 +580,46 @@ export class DependencyImporter extends Context.Service<
             if (
               (yield* executor.run(
                 "git",
-                ["diff", "--cached", "--name-only", "--", "dot-deps.json"],
+                [
+                  "diff",
+                  "--cached",
+                  "--name-only",
+                  "--",
+                  ...dependencyPolicyFiles,
+                  dependencyPolicySchemaFile,
+                ],
                 { cwd: root },
               )).trim()
             )
               return yield* new DependencyConfigError({
                 message:
-                  "dot-deps.json has staged changes; finish those before importing",
+                  "Dependency policy or editor schema has staged changes; finish those before importing",
               });
 
-            const temporary = yield* fs.makeTempFileScoped({
+            const temporary = yield* fs.makeTempDirectoryScoped({
               directory: root,
               prefix: ".dot-deps-",
             });
 
             yield* fs.writeFileString(
-              temporary,
-              `${JSON.stringify(imported, null, 2)}\n`,
+              join(temporary, dependencyPolicyFile),
+              renderDependencyConfig(imported),
             );
-            yield* fs.rename(temporary, output);
+            yield* fs.writeFileString(
+              join(temporary, dependencyPolicySchemaFile),
+              renderDependencySchema(),
+            );
+            yield* fs.rename(
+              join(temporary, dependencyPolicySchemaFile),
+              schemaPath,
+            );
+            yield* fs.rename(join(temporary, dependencyPolicyFile), output);
+
+            if (
+              originalPath !== undefined &&
+              originalPath !== dependencyPolicyFile
+            )
+              yield* fs.remove(join(root, originalPath));
 
             return { path: output, config: imported };
           },

@@ -3,9 +3,9 @@ import { Api } from "@timmo001/effect-gh";
 import { Clock, Effect, FileSystem, Result, Schema } from "effect";
 import {
   assertDependencyPolicyReady,
-  DependencyConfig,
   mergeDependencyPolicy,
 } from "./config.js";
+import { readDependencyConfig } from "./policyFile.js";
 import { dependencyCheckRequirements } from "./checks.js";
 import { DependencyGithub } from "./github.js";
 import { extractDependencies } from "./extract.js";
@@ -45,15 +45,10 @@ function groupFiles(entries: readonly PlannedDependency[]) {
   ];
 }
 
-const nativeConfig = (plan: DependencyPlan) =>
-  Schema.decodeEffect(Schema.fromJsonString(DependencyConfig))(
-    plan.snapshot.files["dot-deps.json"],
-  );
-
 const runnablePlan = Effect.fn("Dependencies.runnablePlan")(function* (
   plan: DependencyPlan,
 ) {
-  const config = yield* nativeConfig(plan);
+  const config = yield* readDependencyConfig(plan.snapshot.files);
   yield* assertDependencyPolicyReady(config, {
     dependencies: plan.dependencies.map((entry) => entry.dependency),
     files: plan.snapshot.tree.map((entry) => entry.path),
@@ -373,9 +368,7 @@ export const runDependencyUpdates = Effect.fn("Dependencies.run")(function* (
     options.concurrency,
   );
 
-  const config = yield* Schema.decodeEffect(
-    Schema.fromJsonString(DependencyConfig),
-  )(snapshot.files["dot-deps.json"]);
+  const config = yield* readDependencyConfig(snapshot.files);
 
   const extracted = yield* extractDependencies(
     snapshot,

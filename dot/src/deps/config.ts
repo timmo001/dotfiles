@@ -27,7 +27,7 @@ const Settings = Schema.Struct({
   separateMultipleMajor: Schema.optionalKey(Schema.Boolean),
   groupName: Schema.optionalKey(Schema.NullOr(Schema.String)),
   groupSlug: Schema.optionalKey(Schema.NullOr(Schema.String)),
-});
+}).annotate({ identifier: "DependencySettings" });
 
 const Rule = Schema.Struct({
   description: Schema.optionalKey(Strings),
@@ -82,7 +82,7 @@ export const DependencyPolicy = Schema.Struct({
   rules: Schema.Array(Rule),
   regexManagers: Schema.Array(RegexManager),
   datasources: Schema.Record(Schema.String, Datasource),
-});
+}).annotate({ identifier: "DependencyPolicy" });
 
 /** Decoded native policy layer. */
 export interface DependencyPolicy extends Schema.Schema.Type<
@@ -142,7 +142,10 @@ const RepositoryPath = Schema.NonEmptyString.check(
 
     return !isAbsolute(path) && normal !== ".." && !normal.startsWith("../");
   }),
-);
+).annotate({
+  description:
+    "Repository-relative path. Runtime validation also rejects paths that resolve outside the checkout.",
+});
 
 const Command = Schema.Struct({
   argv: Schema.NonEmptyArray(Schema.NonEmptyString),
@@ -175,8 +178,13 @@ const Diagnostic = Schema.Struct({
 export const DependencyConfig = Schema.Struct({
   schemaVersion: Schema.Literal(1),
   policy: Schema.Struct({
-    base: DependencyPolicy,
-    overrides: DependencyPolicy,
+    base: DependencyPolicy.annotate({
+      description: "Editable policy imported from resolved presets.",
+    }),
+    overrides: DependencyPolicy.annotate({
+      description:
+        "Repository overrides replaced by an explicit Renovate re-import.",
+    }),
   }),
   validation: Schema.Struct({
     setup: Schema.Array(Command),
@@ -187,6 +195,9 @@ export const DependencyConfig = Schema.Struct({
         commands: Schema.NonEmptyArray(Command),
       }),
     ),
+  }).annotate({
+    description:
+      "Local setup and checks required before publishing dependency updates.",
   }),
   import: Schema.Struct({
     source: RepositoryPath,
