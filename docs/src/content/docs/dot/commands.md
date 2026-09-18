@@ -154,40 +154,6 @@ Child exit code on completion
 dot run --timeout '5 minutes' -- opencode2 run --standalone 'Process this capture'
 ```
 
-## `dot renovate`
-
-Create dependency update PRs now using your gh account
-
-```text
-dot renovate [flags] [<repository>]
-```
-
-Run local Renovate against the GitHub repository selected by the current directory, or an explicit owner/repo. Read Renovate config from its remote default branch, including presets, custom managers, grouping and lockfile updates. Use gh authentication and personal dot-renovate/<login>/ branches. Bypass PR limits, schedules and dashboard approval; keep release-age rules and disabled dependencies. Default mode previews the original branch names and skips dependencies covered by open update PRs. --all includes those dependencies and leaves existing PRs open. Repeated runs maintain your own update PRs. Automerge and dependency dashboard writes are disabled. --dry-run also skips lockfile generation. Mise supplies the pinned Renovate and Node runtime from dot/renovate/mise.toml; package managers used by the target repository must be available.
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--all` | Include dependencies covered by existing Renovate PRs |
-| `--dry-run` | Preview without writing branches, PRs or issues |
-| `--timeout` `<string>` | Deadline per Renovate pass (default: 30 minutes) |
-| `--help` `-h` | Show help information |
-
-**Arguments**
-
-| Argument | Description |
-| --- | --- |
-| `<repository>` | GitHub owner/repo (default: current directory) |
-
-**Examples**
-
-```bash
-dot renovate --dry-run
-dot renovate
-dot renovate --all
-dot renovate owner/repo
-```
-
 ## `dot updates`
 
 Check watched package and Dotfiles updates for the status bar
