@@ -74,6 +74,12 @@
   ],
   "packageRules": [
     {
+      "description": "Keep the local Renovate runtime within Renovate's supported Node range.",
+      "matchFileNames": ["dot/renovate/mise.toml"],
+      "matchPackageNames": ["node"],
+      "allowedVersions": "^24.11.0"
+    },
+    {
       "description": "Keep the OpenCode plugin Effect version aligned with its pinned packages.",
       "matchFileNames": ["agents/.config/opencode/plugins-v2/package.json"],
       "matchPackageNames": ["effect"],

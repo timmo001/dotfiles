@@ -33,6 +33,7 @@ import { setupPrivateRepo } from "../commands/SetupPrivateRepo.js";
 import { setupPublicRepo } from "../commands/SetupPublicRepo.js";
 import { runSkillsMaintenance } from "../commands/Skills.js";
 import { runCommand } from "../commands/Run.js";
+import { renovate } from "../commands/Renovate.js";
 import { stow } from "../commands/Stow.js";
 import { snapshot } from "../commands/Snapshot.js";
 import { systemUpdate } from "../commands/SystemUpdate.js";
@@ -297,6 +298,41 @@ const runDuration = (name: string, description: string) =>
     ),
     Flag.withDescription(description),
   );
+
+const renovateCommand = describe(
+  Command.make(
+    "renovate",
+    {
+      repository: Argument.string("repository").pipe(
+        Argument.optional,
+        Argument.withDescription(
+          "GitHub owner/repo (default: current directory)",
+        ),
+      ),
+      all: bool("all", "Include dependencies covered by existing Renovate PRs"),
+      dryRun: bool(
+        "dry-run",
+        "Preview without writing branches, PRs or issues",
+      ),
+      timeout: runDuration(
+        "timeout",
+        "Deadline per Renovate pass (default: 30 minutes)",
+      ).pipe(Flag.withDefault(30 * 60 * 1000)),
+    },
+    (input) => renovate({ ...input, repository: optional(input.repository) }),
+  ),
+  "Create dependency update PRs now using your gh account",
+  [
+    "dot renovate --dry-run",
+    "dot renovate",
+    "dot renovate --all",
+    "dot renovate owner/repo",
+  ],
+  {
+    description:
+      "Run local Renovate against the GitHub repository selected by the current directory, or an explicit owner/repo. Read Renovate config from its remote default branch, including presets, custom managers, grouping and lockfile updates. Use gh authentication and personal dot-renovate/<login>/ branches. Bypass PR limits, schedules and dashboard approval; keep release-age rules and disabled dependencies. Default mode previews the original branch names and skips dependencies covered by open update PRs. --all includes those dependencies and leaves existing PRs open. Repeated runs maintain your own update PRs. Automerge and dependency dashboard writes are disabled. --dry-run also skips lockfile generation. Mise supplies the pinned Renovate and Node runtime from dot/renovate/mise.toml; package managers used by the target repository must be available.",
+  },
+);
 
 const runCommandSpec = describe(
   Command.make(
@@ -1819,6 +1855,7 @@ export const dotCommand = describe(
       updateCommand,
       systemUpdateCommand,
       runCommandSpec,
+      renovateCommand,
       updatesCommand,
       stowCommand,
       omarchyPluginCommand,
