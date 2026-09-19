@@ -31,14 +31,14 @@ Commands do not own long workflows; skills and plugins do. AGENTS stays to cross
 | Command / flow | Purpose |
 | --- | --- |
 | `dot agents-sync` | Mirror global AGENTS into other harness instruction files (Cursor, Claude) |
-| `dot mcp-sync` | Regenerate MCP configs from private `mcp.yml` for OpenCode and other harnesses |
+| `dot mcp-sync` | Regenerate MCP configs from private `mcp.yml`; OpenCode repos opt in via `opencode_mcp` in private `dot-git.yml` |
 | `dot skills` | Check and apply skill updates from the skills repo |
 | `dot update` / `dot init` | Run agents-sync (and related refresh) as part of maintenance |
 | opencode-config publish | Portable mirror of the public OpenCode assets for other machines |
 
 ## Runtime
 
-Sessions often run inside Herdr panes (OpenCode integration checked by `dot doctor`). Companion harnesses [Pi](/agents/pi/) and [Cursor](/agents/cursor/) share skills and/or AGENTS guidance but not this full plugin and command stack. See [Agents](/agents/overview/) for how the harnesses fit together.
+Sessions often run inside Herdr panes (OpenCode integration checked by `dot doctor`). The public Zsh config aliases `opencode` to OpenCode 2 (`opencode2`). Companion harnesses [Pi](/agents/pi/) and [Cursor](/agents/cursor/) share skills and/or AGENTS guidance but not this full plugin and command stack. See [Agents](/agents/overview/) for how the harnesses fit together.
 
 ## Reference
 
