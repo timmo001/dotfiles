@@ -14,7 +14,7 @@
   "dependencies": {
     "@effect/platform-node": "4.0.0-rc.112",
     "@herdr/sdk": "github:dmmulroy/herdr-ts-sdk#77abbf81ac35407bc5138a8f4fe19f0833af4402",
-    "@timmo001/effect-gh": "github:timmo001/effect-gh#54d4b126c1385697c9ad0de18e4e03c6dd5573f0",
+    "@timmo001/effect-gh": "github:timmo001/effect-gh#4127a2b046df4e3bda200167221792bc65a8c703",
     "effect": "4.0.0-rc.112",
     "fast-xml-parser": "^5.11.1",
     "handlebars": "^4.7.9",
