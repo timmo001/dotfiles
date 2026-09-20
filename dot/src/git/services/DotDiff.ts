@@ -8,7 +8,7 @@ import {
   Schema,
 } from "effect";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
-import { basename, join } from "path";
+import { join } from "path";
 import { createHash } from "crypto";
 import type { DiffRepo, Repo, RepoCategory } from "../../types.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
@@ -206,6 +206,11 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
 
         const seenPaths = new Set<string>();
 
+        const configuredRepos = [
+          ...config.gitConfig.repositories,
+          ...config.gitConfig.shortcuts,
+        ];
+
         const addRepo = (repo: {
           name: string;
           path: string;
@@ -213,13 +218,19 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
         }): void => {
           if (seenPaths.has(repo.path)) return;
           seenPaths.add(repo.path);
-          repos.push(repo);
+          repos.push({
+            ...repo,
+            name:
+              configuredRepos.find(
+                (configured) => configured.path === repo.path,
+              )?.name ?? repo.name,
+          });
         };
 
         // Public dotfiles
         if (existsSync(config.publicDotfiles)) {
           addRepo({
-            name: basename(config.publicDotfiles),
+            name: "Dotfiles",
             path: config.publicDotfiles,
             category: "dotfiles",
           });
@@ -229,7 +240,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
         if (config.canUsePrivate && config.privateDotfiles) {
           if (existsSync(config.privateDotfiles)) {
             addRepo({
-              name: basename(config.privateDotfiles),
+              name: "Dotfiles Private",
               path: config.privateDotfiles,
               category: "dotfiles",
             });
@@ -239,7 +250,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
         // Notes
         if (existsSync(config.notesDir)) {
           addRepo({
-            name: basename(config.notesDir),
+            name: "Notes",
             path: config.notesDir,
             category: "notes",
           });
@@ -272,7 +283,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
           for (const extra of visible) {
             if (existsSync(extra.path)) {
               addRepo({
-                name: `private:${extra.name}`,
+                name: extra.name,
                 path: extra.path,
                 category: "private",
               });

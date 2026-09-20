@@ -85,10 +85,7 @@ export function formatDiffBarJson(changed: readonly DiffRepo[]) {
     const onlyPulls = hasBehind && !hasDirty && !hasAhead;
 
     const onlyExtra =
-      changed.every(
-        (repo) =>
-          repo.name.startsWith("private:") || repo.name.startsWith("extra:"),
-      ) &&
+      changed.every((repo) => repo.category === "private") &&
       hasDirty &&
       !hasAhead &&
       !hasBehind;
