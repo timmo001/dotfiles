@@ -1642,8 +1642,26 @@ const herdrRepoOpenCommand = describe(
         Flag.optional,
       ),
       agentKind: Flag.string("agent-kind").pipe(
-        Flag.withDescription("Expected Herdr agent kind for --prompt"),
+        Flag.withDescription(
+          "Expected Herdr agent kind for an explicit command",
+        ),
         Flag.optional,
+      ),
+      agent: text(
+        "agent",
+        "Installed launcher from dot herdr agents, such as opencode2",
+      ),
+      agentName: text(
+        "agent-name",
+        "Unique Herdr agent name, assigned before prompting",
+      ),
+      noFocus: bool(
+        "no-focus",
+        "Keep the current view focused without opening a terminal client",
+      ),
+      json: bool(
+        "json",
+        "Print resource IDs, creation flags, agent details and prompt status as JSON",
       ),
       label: Argument.string("label").pipe(
         Argument.withDescription("Herdr workspace label"),
@@ -1652,15 +1670,27 @@ const herdrRepoOpenCommand = describe(
         Argument.withDescription("Repository working directory"),
       ),
       tabLabel: Argument.string("tab-label").pipe(
-        Argument.withDescription("Optional command tab label"),
-        Argument.withDefault("Shell"),
+        Argument.withDescription(
+          "Optional command tab label; defaults to the selected agent label or Shell",
+        ),
+        Argument.optional,
       ),
       command: Argument.string("command").pipe(
         Argument.withDescription("Optional command to run"),
         Argument.optional,
       ),
     },
-    ({ command, prompt, agentKind, layout, modifiers, ...input }) =>
+    ({
+      command,
+      prompt,
+      agentKind,
+      agent,
+      agentName,
+      tabLabel,
+      layout,
+      modifiers,
+      ...input
+    }) =>
       herdrRepoOpen({
         ...input,
         layout: optional(layout),
@@ -1668,9 +1698,12 @@ const herdrRepoOpenCommand = describe(
         command: optional(command),
         prompt: optional(prompt),
         agentKind: optional(agentKind),
+        agent: optional(agent),
+        agentName: optional(agentName),
+        tabLabel: optional(tabLabel),
       }),
   ),
-  "Open or focus a repository workspace in the shared Herdr session, attaching a tiled terminal when needed. Commands reuse an idle shell pane by default, checking the focused pane, other panes in its tab, then other tabs before splitting right. --layout vertical always splits right, horizontal splits below, and tab always opens a new tab. --modifiers selects the same behaviour from Qt click/Enter modifiers, with Ctrl taking priority over Alt, then Shift. Placement flags are mutually exclusive. Without a command, focus the workspace; an empty command opens a shell using the selected layout.",
+  "Open or focus a repository workspace in the shared Herdr session, attaching a tiled terminal when needed. Commands reuse an idle shell pane by default, checking the focused pane, other panes in its tab, then other tabs before splitting right. --layout vertical always splits right, horizontal splits below, and tab always opens a new tab. --modifiers selects the same behaviour from Qt click/Enter modifiers, with Ctrl taking priority over Alt, then Shift. Placement flags are mutually exclusive. Use --agent to resolve the launcher, label and kind from dot herdr agents; it cannot be combined with a command or --agent-kind. Agent launches wait for readiness and verify the selected kind before naming or prompting. --no-focus leaves the current view alone. --json reports resource IDs, creation flags, agent details and whether the prompt was sent. Without a command or --agent, focus the workspace; an empty command opens a shell using the selected layout.",
   [],
   {
     sections: [

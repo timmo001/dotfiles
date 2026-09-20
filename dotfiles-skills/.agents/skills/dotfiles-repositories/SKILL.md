@@ -33,44 +33,48 @@ in an agent can cover that launch; a general preference for parallel work cannot
 Discovery alone needs no new session. Keep focused work in the current session.
 
 1. Load `herdr` and pass its managed-pane check before control. Keep its socket
-   context; do not silently switch servers. Inspect existing workspace and pane
-   state, including the directory behind a matching label. Reuse an existing
-   worker only when it belongs to this assignment; never prompt an unrelated agent.
-2. Read `dot herdr repo-open --help` and `dot herdr agents`. Select the requested
-   target's `executable`, `label`, and `kind`; otherwise match the current runtime.
-   Verify the exact launcher before opening anything. Do not substitute the
-   executable selected by `herdr agent start --kind` for a configured launcher.
+   context; do not silently switch servers. For a new agent, let the opener find
+   an idle shell or create a pane. Inspect live state when reusing an existing
+   worker, and only reuse one that belongs to this assignment.
+2. Read `dot herdr repo-open --help`. Select the requested launcher with `--agent`
+   (for example `opencode2`); otherwise match the current runtime. Use
+   `dot herdr agents` when the launcher identity is unknown. The opener resolves
+   its executable, label and kind; do not repeat that discovery or substitute
+   the executable selected by `herdr agent start --kind`.
 3. Use the shared opener directly rather than driving the picker or Git panel.
-   With values resolved from those sources, the one-command launch is:
+   The one-command launch is:
 
    ```sh
-   dot herdr repo-open --agent-kind "$kind" --prompt "$brief" \
-     "$repo_label" "$repo_path" "$agent_label" "$launcher"
+   dot herdr repo-open --agent "$launcher" --agent-name "$worker_name" \
+     --prompt "$brief" --json "$repo_label" "$repo_path"
    ```
 
-   Omit both prompt flags when the user only wants an agent opened. Omit the
-   command argument to open or focus just the workspace. An empty command instead
-   selects an idle shell or creates a pane using the requested layout.
+   Omit `--prompt` when the user only wants an agent opened. Worker names use the
+   `coord-` prefix from `session-coordination`; the opener checks availability
+   before launching and assigns the name before prompting. Omit `--agent` to
+   open or focus just the workspace. An empty command instead selects an idle
+   shell or creates a pane using the requested layout.
 4. The opener uses the picker label to reuse a workspace or creates one when
    absent. Commands reuse an idle shell, searching the focused pane, its tab,
    then other tabs; otherwise they split right. Existing agents and foreground
    commands are skipped. Use `--layout vertical`, `horizontal`, or `tab` for an
    agreed explicit placement. Same-project workers normally use sibling panes;
    retain direct Herdr splitting when exact pane targeting is required.
-5. Record the target pane and agent from live Herdr state after launching. The
-   opener currently returns no pane IDs, so launch serially and compare before
-   and after state. Do not guess IDs or infer ownership from focus or a label.
-   For workers, assign the coordination name with `herdr agent rename` once
-   identified. Reusing a pre-existing shell does not make its pane yours to close.
+5. Use the returned `workspaceId`, `tabId`, `paneId`, `agent` and `promptSent`
+   directly. `created.pane` distinguishes a new pane from a reused shell; reuse
+   does not make its pane yours to close. `agent.session` is optional, and agent
+   status is a snapshot, not proof that work has completed. Do not list all agents
+   again to rediscover these IDs or rename an agent already named by the opener.
+   A workspace-only focus may return a null `paneId` because no pane was selected.
 
 ## Alternate Runtimes And Focus
 
-- OpenCode 2 is advertised by `dot herdr agents` with its configured wrapper as
-  `executable` and `opencode` as `kind`. Use those values together. `opencode2`
-  is not a Herdr kind; `--agent` inside OpenCode selects a profile, not a version.
-  With the exact standard wrapper and `--prompt`, the opener checks the expected
+- `--agent opencode2` selects the configured OpenCode 2 wrapper and `opencode`
+  kind. `--agent` inside OpenCode itself selects a profile, not a version.
+  The opener checks the expected
   executable from `mise which opencode2`, waits for readiness, checks the detected
-  kind and foreground process, then sends the brief. No second prompt is needed.
+  kind and foreground process, then names the agent and sends any brief. Trust
+  that verification on success; no separate runtime lookup or prompt is needed.
 - For another wrapper or a command containing extra arguments, verify its actual
   exec target first. Launch through the opener without `--prompt`, identify the
   pane, and check `herdr pane process-info` against that target. Wait for the
@@ -78,12 +82,10 @@ Discovery alone needs no new session. Keep focused work in the current session.
   kind detection alone verifies an alternate runtime, or fall back to a different
   agent when detection fails. Inspect blocked or failed launches before retrying:
   failure can leave a live agent or an already-delivered prompt.
-- The opener focuses the destination and has no `--no-focus`. Leave it focused
-  for an explicit open-in-agent request. For approved background workers, retain
-  the caller pane ID and restore it with `herdr agent focus` after launch, including
-  failed launches. This can briefly switch focus. If focus must never move, use
-  direct Herdr `--no-focus` placement in an existing workspace, or ask before
-  creating a missing workspace through a different route.
+- Leave the default focus behaviour for an explicit open-in-agent request. Use
+  `--no-focus` for approved background workers; it skips focus changes and terminal
+  client attachment, including when creating a workspace. No focus-restoration
+  call is needed.
 - Keep launch, verification, and any manual prompt steps sequential. Let workers
   run in parallel only after their identity and assignment are established.
 

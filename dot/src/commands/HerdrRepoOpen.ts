@@ -1,6 +1,8 @@
 import {
+  AgentName,
   HerdrSdk,
   herdrSdkLayerFromOptions,
+  type Agent,
   type PaneId,
   type TabId,
 } from "@herdr/sdk";
@@ -12,6 +14,7 @@ import { localHerdrAttachment } from "../lib/herdrAttachment.js";
 import { CACHE_DIR, CONFIG_DIR, HOME_DIR } from "../lib/paths.js";
 import { formatCause } from "../lib/schema.js";
 import { CommandError, CommandExecutor } from "../services/CommandExecutor.js";
+import { installedHerdrAgents } from "./HerdrAgents.js";
 
 const READINESS_SCHEDULE = Schedule.recurs(49).pipe(
   Schedule.addDelay(() => Effect.succeed("100 millis")),
@@ -43,13 +46,21 @@ export interface HerdrRepoOpenOptions {
   /** Repository working directory. */
   readonly directory: string;
   /** Label for the selected command tab or new pane. */
-  readonly tabLabel: string;
+  readonly tabLabel?: string;
   /** Optional command to run in the selected repository. */
   readonly command?: string;
   /** Initial prompt delivered through Herdr after the selected agent is ready. */
   readonly prompt?: string;
-  /** Expected Herdr agent kind when delivering an initial prompt. */
+  /** Expected Herdr agent kind for an explicit command. */
   readonly agentKind?: string;
+  /** Installed launcher identity from dot herdr agents. */
+  readonly agent?: string;
+  /** Unique name assigned to the verified agent before prompting. */
+  readonly agentName?: string;
+  /** Leave the current view focused and do not open a terminal client. */
+  readonly noFocus?: boolean;
+  /** Print the selected resources and launch outcome as JSON. */
+  readonly json?: boolean;
   /** Repository picker cache used to resolve the canonical label. */
   readonly pickerCache?: string;
 }
@@ -146,7 +157,6 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
   const herdr = yield* HerdrSdk;
   const label = canonicalLabel(options);
   const directory = resolve(options.directory);
-  let command = options.command;
 
   if (
     [
@@ -171,15 +181,68 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
             ? "vertical"
             : "auto");
 
-  if (options.prompt !== undefined && (!options.command || !options.agentKind))
-    return fail("An initial prompt requires a command and --agent-kind", 2);
-  let expectedExecutable: string | undefined;
+  if (
+    options.agent !== undefined &&
+    (options.command !== undefined || options.agentKind !== undefined)
+  )
+    return fail("Use --agent or a command with --agent-kind, not both", 2);
+
+  const launcher =
+    options.agent === undefined
+      ? undefined
+      : (yield* installedHerdrAgents).find(
+          (target) => target.command === options.agent,
+        );
+
+  if (options.agent !== undefined && !launcher)
+    return fail(
+      `Agent ${options.agent} is not available in dot herdr agents`,
+      2,
+    );
+
+  let command = launcher?.executable ?? options.command;
+  const agentKind = launcher?.kind ?? options.agentKind;
+  const tabLabel = options.tabLabel ?? launcher?.label ?? "Shell";
 
   if (
-    options.prompt !== undefined &&
-    options.command === join(HOME_DIR, ".local", "bin", "opencode2")
-  ) {
-    yield* executor.run("test", ["-x", options.command]);
+    (options.prompt !== undefined || options.agentName !== undefined) &&
+    (!command || !agentKind)
+  )
+    return fail(
+      "A prompt or agent name requires --agent or a command with --agent-kind",
+      2,
+    );
+
+  if (agentKind && !command) return fail("--agent-kind requires a command", 2);
+
+  const agentName =
+    options.agentName === undefined
+      ? undefined
+      : yield* Schema.decodeUnknownEffect(
+          AgentName.check(Schema.isPattern(/^[a-z][a-z0-9_-]{0,31}$/)),
+        )(options.agentName).pipe(
+          Effect.mapError(
+            () =>
+              new HerdrRepoOpenError({
+                message:
+                  "Agent names must start with a lowercase letter and contain only lowercase letters, digits, '-' or '_' (1-32 characters)",
+                exitCode: 2,
+              }),
+          ),
+        );
+
+  if (
+    agentName !== undefined &&
+    (yield* herdr.agents.list()).some(
+      (agent) => Option.getOrUndefined(agent.name) === agentName,
+    )
+  )
+    return fail(`Agent name ${agentName} is already in use`, 2);
+
+  let expectedExecutable: string | undefined;
+
+  if (agentKind && command === join(HOME_DIR, ".local", "bin", "opencode2")) {
+    yield* executor.run("test", ["-x", command]);
     expectedExecutable = (yield* executor.run("mise", ["which", "opencode2"], {
       cwd: options.directory,
     })).trim();
@@ -230,7 +293,7 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
         }),
     });
 
-  const initiallyReady = yield* clientReady;
+  const initiallyReady = options.noFocus || (yield* clientReady);
 
   if (!initiallyReady) {
     yield* launchTerminal;
@@ -260,26 +323,35 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
 
   let tabId: TabId | undefined;
   let paneId: PaneId | undefined;
+  let renameTab = false;
+  const created = { workspace: false, tab: false, pane: false };
 
   if (!workspaceId) {
-    const created = yield* herdr.workspaces.createInDirectory(
+    const opened = yield* herdr.workspaces.createInDirectory(
       directory,
       label ? { label, focus: false } : { focus: false },
     );
 
-    workspaceId = created.workspace.id;
-    tabId = created.tab.id;
-    paneId = created.rootPane.id;
+    workspaceId = opened.workspace.id;
+    tabId = opened.tab.id;
+    paneId = opened.rootPane.id;
+    renameTab = true;
+    created.workspace = true;
+    created.tab = true;
+    created.pane = true;
   } else if (command !== undefined && layout === "tab") {
-    const created = yield* herdr.tabs.create({
+    const opened = yield* herdr.tabs.create({
       workspaceId,
       cwd: directory,
-      label: options.tabLabel,
+      label: tabLabel,
       focus: false,
     });
 
-    tabId = created.tab.id;
-    paneId = created.rootPane.id;
+    tabId = opened.tab.id;
+    paneId = opened.rootPane.id;
+    renameTab = true;
+    created.tab = true;
+    created.pane = true;
   } else if (command !== undefined) {
     const panes = yield* herdr.panes.list({ workspaceId });
     const focusedPane = panes.find((pane) => pane.focused);
@@ -310,7 +382,8 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
 
         if (!currentShell || currentShell.pid !== shell.pid) break;
 
-        tabId = tab.paneCount === 1 ? tab.id : undefined;
+        tabId = tab.id;
+        renameTab = tab.paneCount === 1;
         paneId = pane.id;
 
         if (Option.getOrUndefined(currentShell.cwd) !== directory) {
@@ -331,11 +404,15 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
 
       if (!target) return fail(`Herdr did not return a pane ID for ${label}`);
 
-      paneId = (yield* herdr.panes.split(target.id, {
+      const opened = yield* herdr.panes.split(target.id, {
         direction: layout === "horizontal" ? "down" : "right",
         cwd: directory,
         focus: false,
-      })).id;
+      });
+
+      paneId = opened.id;
+      tabId = opened.tabId;
+      created.pane = true;
     }
   }
 
@@ -349,10 +426,10 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
       );
     }
 
-    if (tabId) {
-      yield* herdr.tabs.rename(tabId, options.tabLabel);
+    if (renameTab && tabId) {
+      yield* herdr.tabs.rename(tabId, tabLabel);
     } else {
-      yield* herdr.panes.rename(paneId, options.tabLabel);
+      yield* herdr.panes.rename(paneId, tabLabel);
     }
 
     if (command) {
@@ -363,13 +440,17 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
     }
   }
 
-  yield* herdr.workspaces.focus(workspaceId);
+  if (!options.noFocus) {
+    yield* herdr.workspaces.focus(workspaceId);
 
-  if (tabId) yield* herdr.tabs.focus(tabId);
+    if (tabId) yield* herdr.tabs.focus(tabId);
 
-  if (paneId) yield* herdr.panes.focus(paneId);
+    if (paneId) yield* herdr.panes.focus(paneId);
+  }
 
-  if (options.prompt !== undefined && paneId) {
+  let agent: Agent | undefined;
+
+  if (agentKind && paneId) {
     const targetPane = paneId;
     yield* herdr.agents.get({ paneId: targetPane }).pipe(
       Effect.retry({
@@ -379,14 +460,14 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
       Effect.timeout("30 seconds"),
     );
 
-    const agent = yield* herdr.agents.wait(
+    agent = yield* herdr.agents.wait(
       { paneId: targetPane },
       { until: ["idle", "done"], timeoutMs: 30_000 },
       { requestTimeout: Duration.seconds(35) },
     );
 
-    if (Option.getOrUndefined(agent.agent) !== options.agentKind)
-      return fail(`The selected ${options.agentKind} agent did not start`);
+    if (Option.getOrUndefined(agent.agent) !== agentKind)
+      return fail(`The selected ${agentKind} agent did not start`);
 
     if (expectedExecutable) {
       const processes =
@@ -402,16 +483,42 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
         return fail("OpenCode 2 did not start through the expected runtime");
     }
 
-    yield* herdr.agents.prompt(
-      { paneId: targetPane },
-      { text: options.prompt },
-    );
+    if (agentName !== undefined)
+      agent = yield* herdr.agents.rename({ paneId: targetPane }, agentName);
+
+    if (options.prompt !== undefined)
+      agent = yield* herdr.agents.prompt(
+        { paneId: targetPane },
+        { text: options.prompt },
+      );
   }
+
+  return {
+    workspaceId,
+    tabId: tabId ?? workspace?.activeTabId ?? null,
+    paneId: paneId ?? null,
+    directory,
+    created,
+    agent: agent
+      ? {
+          kind: Option.getOrNull(agent.agent),
+          name: Option.getOrNull(agent.name),
+          status: agent.status,
+          session: Option.getOrNull(agent.agentSession),
+        }
+      : null,
+    promptSent: options.prompt !== undefined && agent !== undefined,
+  };
 });
 
 /** Open or focus a repository workspace in the visible Herdr terminal. */
 export const herdrRepoOpen = (options: HerdrRepoOpenOptions) =>
   openHerdrRepo(options).pipe(
+    Effect.tap((result) =>
+      Effect.sync(() => {
+        if (options.json) process.stdout.write(`${JSON.stringify(result)}\n`);
+      }),
+    ),
     Effect.provide(
       herdrSdkLayerFromOptions({
         socketPath: envString(ENV.HERDR_SOCKET_PATH) ?? DEFAULT_SOCKET_PATH,

@@ -1,9 +1,10 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
-import { Effect, FileSystem, Schema } from "../../dot/node_modules/effect/dist/index.js";
-import { HerdrSdk, herdrSdkLayerFromOptions, Pane, PaneProcessInfo, Tab, Workspace } from "../../dot/node_modules/@herdr/sdk/src/index.ts";
+import { Effect, FileSystem, Option, Schema } from "../../dot/node_modules/effect/dist/index.js";
+import { Agent, HerdrSdk, herdrSdkLayerFromOptions, Pane, PaneProcessInfo, Tab, Workspace } from "../../dot/node_modules/@herdr/sdk/src/index.ts";
 import { openHerdrRepo, type HerdrRepoOpenOptions } from "../../dot/src/commands/HerdrRepoOpen.js";
+import { HOME_DIR } from "../../dot/src/lib/paths.js";
 import { CommandExecutor } from "../../dot/src/services/CommandExecutor.js";
 
 const directory = "/fixture/repo";
@@ -23,6 +24,9 @@ async function launch(options: {
   panes?: Pane[];
   processInfo?: (id: string, read: number) => PaneProcessInfo;
   workspaceExists?: boolean;
+  detectedKind?: string;
+  nameTaken?: boolean;
+  onResult?: (result: Effect.Success<ReturnType<typeof openHerdrRepo>>) => void;
 } = {}) {
   const panes = options.panes ?? [idlePane()];
 
@@ -46,6 +50,12 @@ async function launch(options: {
   const calls: { method: string; id?: string; input?: unknown }[] = [];
   const reads = new Map<string, number>();
 
+  let agent = Schema.decodeUnknownSync(Agent)({
+    terminal_id: "terminal-w1:p1", pane_id: "w1:p1", tab_id: "w1:t1", workspace_id: "w1",
+    agent: options.detectedKind ?? "opencode", agent_status: "idle", revision: 0, focused: false,
+    name: options.nameTaken ? options.request?.agentName : null,
+  });
+
   const record = <A, Input = undefined>(method: string, result: A, id?: string, input?: Input) => Effect.sync(() => {
     calls.push({ method, id, input });
 
@@ -56,9 +66,23 @@ async function launch(options: {
     const sdk = yield* HerdrSdk;
 
     return yield* openHerdrRepo({ pane: false, label: "fixture", directory, tabLabel: "Action", command: "lazygit", ...options.request }, {
-      foregroundClientReady: Effect.succeed(true),
+      foregroundClientReady: options.request?.noFocus ? Effect.die("Background launch checked the terminal client") : Effect.succeed(true),
+      launchTerminal: Effect.die("Unexpected terminal launch"),
     }).pipe(Effect.provideService(HerdrSdk, {
       ...sdk,
+      agents: { ...sdk.agents,
+        list: () => options.request?.agentName === "Invalid Name"
+          ? Effect.die("Invalid name reached Herdr")
+          : record("agents.list", options.nameTaken ? [agent] : []),
+        get: target => record("agents.get", agent, target.paneId),
+        wait: target => record("agents.wait", agent, target.paneId),
+        rename: (target, name) => {
+          agent = { ...agent, name: Option.fromNullishOr(name) };
+
+          return record("agents.rename", agent, target.paneId, name);
+        },
+        prompt: (target, input) => record("agents.prompt", agent, target.paneId, input),
+      },
       workspaces: { ...sdk.workspaces,
         list: () => record("workspaces.list", options.workspaceExists === false ? [] : [workspace]),
         createInDirectory: (cwd, input) => record("workspaces.create", { workspace, tab: newTab, rootPane: newPane }, cwd, input),
@@ -88,15 +112,24 @@ async function launch(options: {
   }).pipe(
     Effect.provide(herdrSdkLayerFromOptions({ socketPath: "/fixture/herdr.sock" })),
     Effect.provideService(CommandExecutor, CommandExecutor.of({
-      run: () => Effect.die("Unexpected external command"),
-      exitCode: () => Effect.die("Unexpected external command"),
+      run: (command, args) => {
+        if (command === "herdr" && args?.join(" ") === "integration status") return record("executor.run", "opencode: current\n", command, args);
+
+        if (command === "mise" && args?.join(" ") === "which opencode2") return record("executor.run", "/fixture/opencode2", command, args);
+
+        if (command === "test" && args?.[0] === "-x") return record("executor.run", "", command, args);
+
+        return Effect.die(`Unexpected external command: ${command}`);
+      },
+      exitCode: () => Effect.succeed(0),
       inherit: () => Effect.die("Unexpected external command"),
       stream: () => { throw new Error("Unexpected external command"); },
     })),
     Effect.provide(FileSystem.layerNoop({})),
   );
 
-  await Effect.runPromise(program);
+  const result = await Effect.runPromise(program);
+  options.onResult?.(result);
 
   return calls;
 }
@@ -190,6 +223,55 @@ test("a new workspace runs its first command in its initial pane", async () => {
   const calls = await launch({ workspaceExists: false, request: { modifiers: 0x04000000 } });
   expect(calls.some(call => ["tabs.create", "panes.split"].includes(call.method))).toBe(false);
   expect(calls.find(call => call.method === "panes.sendInput")?.id).toBe("w1:p9");
+});
+
+test("background agent launches resolve the wrapper, verify it and name the exact pane before prompting", async () => {
+  const calls = await launch({
+    request: { command: undefined, tabLabel: undefined, agent: "opencode2", agentName: "coord-fixture", prompt: "Investigate", noFocus: true },
+    processInfo: (id, read) => shellInfo(id, read > 2 ? { pid: 99, name: "opencode2", argv: ["/fixture/opencode2"] } : {}),
+    onResult: result => expect(result).toMatchObject({
+      workspaceId: "w1", tabId: "w1:t1", paneId: "w1:p1", created: { workspace: false, tab: false, pane: false },
+      agent: { kind: "opencode", name: "coord-fixture", status: "idle", session: null }, promptSent: true,
+    }),
+  });
+
+  expect(calls.some(call => call.method.endsWith(".focus"))).toBe(false);
+  expect(calls.find(call => call.method === "panes.sendInput")).toMatchObject({ id: "w1:p1", input: { text: `${HOME_DIR}/.local/bin/opencode2` } });
+  expect(calls.find(call => call.method === "tabs.rename")?.input).toBe("OpenCode 2");
+  expect(calls.slice(-2)).toMatchObject([
+    { method: "agents.rename", id: "w1:p1", input: "coord-fixture" },
+    { method: "agents.prompt", id: "w1:p1", input: { text: "Investigate" } },
+  ]);
+});
+
+test("background workspace creation returns owned resource IDs without focusing", async () => {
+  const calls = await launch({
+    workspaceExists: false,
+    request: { noFocus: true },
+    onResult: result => expect(result).toMatchObject({
+      workspaceId: "w1", tabId: "w1:t9", paneId: "w1:p9", created: { workspace: true, tab: true, pane: true }, agent: null, promptSent: false,
+    }),
+  });
+
+  expect(calls.some(call => call.method.endsWith(".focus"))).toBe(false);
+  expect(calls.find(call => call.method === "workspaces.create")?.input).toMatchObject({ focus: false });
+});
+
+test("naming or prompting requires the detected agent to match the requested kind", async () => {
+  await expect(launch({
+    request: { command: "opencode", agentKind: "opencode", agentName: "coord-fixture", prompt: "Investigate" },
+    detectedKind: "claude",
+  })).rejects.toThrow("The selected opencode agent did not start");
+  await expect(launch({
+    request: { command: "opencode", agentKind: "opencode", agentName: "coord-fixture" },
+    nameTaken: true,
+  })).rejects.toThrow("Agent name coord-fixture is already in use");
+  await expect(launch({
+    request: { command: undefined, agent: "opencode2" },
+  })).rejects.toThrow("OpenCode 2 did not start through the expected runtime");
+  await expect(launch({
+    request: { command: "opencode", agentKind: "opencode", agentName: "Invalid Name" },
+  })).rejects.toThrow("Agent names must start with a lowercase letter");
 });
 
 test("an explicit empty-shell action still honours Ctrl while a picker only focuses", async () => {

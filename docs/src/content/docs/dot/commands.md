@@ -1349,7 +1349,7 @@ dot herdr restart
 
 ### `dot herdr repo-open`
 
-Open or focus a repository workspace in the shared Herdr session, attaching a tiled terminal when needed. Commands reuse an idle shell pane by default, checking the focused pane, other panes in its tab, then other tabs before splitting right. --layout vertical always splits right, horizontal splits below, and tab always opens a new tab. --modifiers selects the same behaviour from Qt click/Enter modifiers, with Ctrl taking priority over Alt, then Shift. Placement flags are mutually exclusive. Without a command, focus the workspace; an empty command opens a shell using the selected layout.
+Open or focus a repository workspace in the shared Herdr session, attaching a tiled terminal when needed. Commands reuse an idle shell pane by default, checking the focused pane, other panes in its tab, then other tabs before splitting right. --layout vertical always splits right, horizontal splits below, and tab always opens a new tab. --modifiers selects the same behaviour from Qt click/Enter modifiers, with Ctrl taking priority over Alt, then Shift. Placement flags are mutually exclusive. Use --agent to resolve the launcher, label and kind from dot herdr agents; it cannot be combined with a command or --agent-kind. Agent launches wait for readiness and verify the selected kind before naming or prompting. --no-focus leaves the current view alone. --json reports resource IDs, creation flags, agent details and whether the prompt was sent. Without a command or --agent, focus the workspace; an empty command opens a shell using the selected layout.
 
 ```text
 dot herdr repo-open [flags] <label> <directory> [<tab-label>] [<command>]
@@ -1363,7 +1363,11 @@ dot herdr repo-open [flags] <label> <directory> [<tab-label>] [<command>]
 | `--layout` `<choice>` | Auto reuses an idle shell pane, otherwise splits right; vertical splits right, horizontal splits below, tab opens a new tab (choices: auto, vertical, horizontal, tab) |
 | `--modifiers` `<integer>` | Qt keyboard modifier bitmask: Ctrl new tab, Alt split below, Shift split right, otherwise auto |
 | `--prompt` `<string>` | Initial prompt to send through Herdr after the agent is ready |
-| `--agent-kind` `<string>` | Expected Herdr agent kind for --prompt |
+| `--agent-kind` `<string>` | Expected Herdr agent kind for an explicit command |
+| `--agent` `<string>` | Installed launcher from dot herdr agents, such as opencode2 |
+| `--agent-name` `<string>` | Unique Herdr agent name, assigned before prompting |
+| `--no-focus` | Keep the current view focused without opening a terminal client |
+| `--json` | Print resource IDs, creation flags, agent details and prompt status as JSON |
 | `--help` `-h` | Show help information |
 
 **Arguments**
@@ -1372,7 +1376,7 @@ dot herdr repo-open [flags] <label> <directory> [<tab-label>] [<command>]
 | --- | --- |
 | `<label>` | Herdr workspace label |
 | `<directory>` | Repository working directory |
-| `<tab-label>` | Optional command tab label |
+| `<tab-label>` | Optional command tab label; defaults to the selected agent label or Shell |
 | `<command>` | Optional command to run |
 
 **Exit codes**
