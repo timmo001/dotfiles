@@ -180,14 +180,11 @@ Honour the user's explicit agent choice and keep runtime selection separate from
 the profile selected inside that runtime. Prefer visible Herdr-managed sessions
 for delegated work, including research. Use native child sessions only when
 the user explicitly requests them. If Herdr is unavailable, report the limitation
-rather than silently substituting native subagents. Keep Herdr panes unfocused
-while they work. On this setup, launch OpenCode 2
-through the configured launcher path. Treat that path as authoritative: verify
-it before creating the target pane, never resolve a bare `opencode2` from
-`PATH`, and launch the exact path with `herdr pane run`. Before prompting, use
-`herdr pane process-info` to confirm the foreground `argv` matches the launcher
-or its documented exec target. Use Pi or another Herdr-supported
-agent only when the user requests it.
+rather than silently substituting native subagents. Apply `dotfiles-repositories`
+for repository discovery and open-in-agent flows on this setup. It owns the shared
+opener, alternate-runtime checks, and focus restoration; `session-coordination`
+owns launch approval and worker lifecycle. Use the configured exact OpenCode 2
+launcher. Use Pi or another Herdr-supported agent only when the user requests it.
 
 Run each shell command as a separate tool call. Do not chain commands.
 
