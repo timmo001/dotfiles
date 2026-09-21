@@ -6,7 +6,7 @@
       "name": "dot-cli",
       "dependencies": {
         "@effect/platform-node": "4.0.0-rc.117",
-        "@herdr/sdk": "github:timmo001/herdr-ts-sdk#4fe6fb68089152a7c97f01a488470981aa234322",
+        "@herdr/sdk": "github:timmo001/herdr-ts-sdk#143613f356261e525012f5f38dfa9c28e38aa7e4",
         "@timmo001/effect-gh": "github:timmo001/effect-gh#43e8de9461833f6133edcb13f49051d2b9b00862",
         "effect": "4.0.0-rc.117",
         "fast-xml-parser": "^5.11.1",
@@ -52,7 +52,7 @@
 
     "@effect/tsgo-win32-x64": ["@effect/tsgo-win32-x64@0.45.0", "", { "os": "win32", "cpu": "x64" }, "sha512-1Hsr/sT5dmIafoY9L0ASJo4VqGyPNzM1nwTb4Wj1Lmjq6kGuwO/PVozFg3WZZ0piChFmgiU3nx1AKZfyqgjGUw=="],
 
-    "@herdr/sdk": ["@herdr/sdk@github:timmo001/herdr-ts-sdk#4fe6fb6", { "dependencies": { "@effect/platform-node-shared": "4.0.0-rc.117", "ajv": "^8.20.0", "effect": "4.0.0-rc.117" } }, "timmo001-herdr-ts-sdk-4fe6fb6", "sha512-uFuqinUfMMYOOJ95s5sT38T91SFx7TJvBTJNyiFYQx0dXyqkRTGCVnoYV7qILn2MkTu5H+NtoTWePUgeWq99hA=="],
+    "@herdr/sdk": ["@herdr/sdk@github:timmo001/herdr-ts-sdk#143613f", { "dependencies": { "@effect/platform-node-shared": "4.0.0-rc.117", "ajv": "^8.20.0", "effect": "4.0.0-rc.117" } }, "timmo001-herdr-ts-sdk-143613f", "sha512-r3H092OeHCD4pbwm1oxaOA3vmabCrSohz9u6T7zgPFe0ZPq+gTPVN/lQaCBZIaXxkHS1TSSUPddMXr08CDV6Ig=="],
 
     "@nodable/entities": ["@nodable/entities@3.0.0", "", {}, "sha512-8L9xFeTYKhm49xfIypoe2W5wV1m/3Z58kT+7kR9A8OyFxcPduI4VmxaUMQyKYrRjUoLLSXv6EKKID5Tvj9cUVw=="],
 
