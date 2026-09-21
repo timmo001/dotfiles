@@ -23,13 +23,10 @@ import {
   initCompleteMarker,
 } from "../lib/initState.js";
 import {
-  gitExitCode,
   gitHead,
-  gitOutput,
-  gitPullRebase,
+  gitPullFastForward,
   gitRefreshRemoteHead,
   gitRequired,
-  gitWorkingTreeClean,
 } from "../lib/git.js";
 import { HOME_DIR, displayPath } from "../lib/paths.js";
 import { detectLegacyHyprRepo } from "../lib/omarchyHost.js";
@@ -76,7 +73,7 @@ const PULL_ATTEMPT_TIMEOUT_SECONDS = 30;
 /** Upper bound for repository scans that include fetches. */
 const REPO_SCAN_TIMEOUT_SECONDS = 60;
 
-/** Attempts per repo: the initial pull plus one retry. */
+/** Attempts per repo: the initial pull plus one retry after a timeout. */
 const PULL_MAX_ATTEMPTS = 2;
 
 /** Upper bound (seconds) for each update step. */
@@ -177,8 +174,8 @@ function logInitMarkerStatus(
  * Safely pull a single repo, mirroring legacy `_git_clear_lock_and_pull`.
  *
  * Clears a stale `.git/index.lock` (skips if held by an active process),
- * skips repos with a dirty working tree, pulls with `--rebase`, and aborts
- * the rebase on failure. Returns true only if the pull moved HEAD.
+ * and lets Git fast-forward only when local work can be preserved.
+ * Returns true only if the pull moved HEAD.
  */
 const safePull = (name: string, path: string, required = false) =>
   Effect.gen(function* () {
@@ -215,24 +212,6 @@ const safePull = (name: string, path: string, required = false) =>
       });
     }
 
-    // Skip repos with uncommitted changes.
-    const clean = yield* gitWorkingTreeClean(path).pipe(
-      Effect.catch(() => Effect.succeed(false)),
-    );
-
-    if (!clean) {
-      yield* log.warn(
-        `Skipping ${name} pull (working tree not clean): ${displayPath(path)}`,
-      );
-
-      if (required)
-        return yield* new UpdateError({
-          message: `${name}: working tree not clean`,
-        });
-
-      return false;
-    }
-
     const before = yield* gitHead(path).pipe(
       Effect.catch(() => Effect.succeed("")),
     );
@@ -245,29 +224,25 @@ const safePull = (name: string, path: string, required = false) =>
       const outcome = yield* withSpinnerTimeout(
         `Pulling ${name} (${attempt}/${PULL_MAX_ATTEMPTS}, timeout ${PULL_ATTEMPT_TIMEOUT_SECONDS}s)`,
         PULL_ATTEMPT_TIMEOUT_SECONDS,
-        gitPullRebase(path),
+        gitPullFastForward(path),
       );
 
-      if (Option.isSome(outcome) && outcome.value) {
-        pulled = true;
+      if (Option.isSome(outcome)) {
+        pulled = outcome.value;
+
+        if (!pulled)
+          yield* log.warn(`Pull failed or was refused for ${name}, skipping`);
+
         break;
       }
 
-      // Clean up any half-applied rebase left by a failed or interrupted pull
-      // before retrying or moving on.
-      yield* gitExitCode(["rebase", "--abort"], { cwd: path });
-
-      const reason = Option.isNone(outcome)
-        ? `timed out after ${PULL_ATTEMPT_TIMEOUT_SECONDS}s`
-        : "failed";
-
       if (attempt < PULL_MAX_ATTEMPTS) {
         yield* log.warn(
-          `Pull ${reason} for ${name}, retrying (${attempt + 1}/${PULL_MAX_ATTEMPTS})...`,
+          `Pull timed out after ${PULL_ATTEMPT_TIMEOUT_SECONDS}s for ${name}, retrying (${attempt + 1}/${PULL_MAX_ATTEMPTS})...`,
         );
       } else {
         yield* log.warn(
-          `Pull ${reason} for ${name} after ${PULL_MAX_ATTEMPTS} attempts, skipping`,
+          `Pull timed out for ${name} after ${PULL_MAX_ATTEMPTS} attempts, skipping`,
         );
       }
     }
@@ -371,16 +346,6 @@ export const updateRepositories = Effect.fn("Update.repositories")(function* (
       const repoPath = yield* fs.realPath(path);
       const repo = managed.find((entry) => entry.path === repoPath);
       const name = repo?.name ?? basename(repoPath);
-
-      const ahead = yield* gitOutput(
-        ["rev-list", "--count", "@{upstream}..HEAD"],
-        { cwd: repoPath },
-      );
-
-      if (ahead.trim() !== "0")
-        return yield* new UpdateError({
-          message: `${name}: local commits ahead of upstream`,
-        });
 
       if (!(yield* safePull(name, repoPath, true))) return;
       updatedNames.push(name);

@@ -318,7 +318,6 @@ Item {
 
   function canPullRepo(repo) {
     return repo && repo.path && Number(repo.behind || 0) > 0
-      && Number(repo.modified || 0) === 0 && Number(repo.ahead || 0) === 0
   }
 
   function pullRepositories(repositories) {

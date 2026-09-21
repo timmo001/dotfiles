@@ -316,22 +316,33 @@ export function gitRefreshRemoteHead(
 }
 
 /**
- * Pull a repository with rebase, streaming output through the launcher. Returns
+ * Fast-forward a repository without stashing or rebasing local work. Returns
  * true only when the pull succeeds (exit 0). Runs with `GIT_TERMINAL_PROMPT=0`
  * so a private or unreachable remote fails fast instead of blocking on a
- * credential prompt. Timeout, retry, and post-failure `rebase --abort` cleanup
- * are owned by the caller (see `safePull` in the update flow), which holds the
+ * credential prompt. Timeout and retry are owned by the caller
+ * (see `safePull` in the update flow), which holds the
  * per-repo context needed to report and retry.
  */
-export function gitPullRebase(
+export function gitPullFastForward(
   repoPath: string,
 ): Effect.Effect<boolean, never, CommandExecutor | Launcher> {
   return Effect.gen(function* () {
     const launcher = yield* Launcher;
 
+    // Pull updates submodules after moving the parent HEAD, so refuse active
+    // submodule work first rather than leaving a partially applied pull.
+    const submodulesClean = yield* launcher
+      .stream(
+        `git submodule foreach --recursive 'if test -n "$(git status --porcelain --untracked-files=normal --ignore-submodules=none)" || test "$(git rev-parse HEAD)" != "$sha1"; then echo "Local work in submodule $displaypath; skipping pull" >&2; exit 1; fi'`,
+        { cwd: repoPath },
+      )
+      .pipe(Effect.orElseSucceed(() => 1));
+
+    if (submodulesClean !== 0) return false;
+
     const exitCode = yield* launcher
       .stream(
-        "GIT_TERMINAL_PROMPT=0 git pull --rebase --no-autostash --no-edit --recurse-submodules && git submodule sync --recursive && GIT_TERMINAL_PROMPT=0 git submodule update --init --recursive",
+        "GIT_TERMINAL_PROMPT=0 git pull --no-rebase --ff-only --no-autostash --no-squash --no-edit --recurse-submodules && git submodule sync --recursive && GIT_TERMINAL_PROMPT=0 git submodule update --init --recursive --checkout",
         { cwd: repoPath },
       )
       .pipe(Effect.catch(() => Effect.succeed(1)));
