@@ -60,6 +60,11 @@ Item {
   property var threads: []
   property bool notificationsLoaded: false
   property string notificationsError: ""
+  property var notificationWorkspace: null
+  property var notificationRepositories: []
+  property string notificationLaunchError: ""
+  readonly property bool notificationLaunching: notificationLaunchProcess.running
+  signal notificationReviewOpened()
   property var releases: []
   property bool releasesLoaded: false
   property string releasesError: ""
@@ -106,6 +111,8 @@ Item {
       notificationTooltip = String(payload.tooltip || "")
       notificationClass = String(payload["class"] || "notifications-unknown")
       notificationAllCount = Number(payload.allCount || 0)
+      notificationWorkspace = payload.workspace && typeof payload.workspace.path === "string" ? payload.workspace : null
+      notificationRepositories = Array.isArray(payload.repositories) ? payload.repositories : []
       var payloadThreads = Array.isArray(payload.threads) ? payload.threads : []
       threads = notificationClass === "notifications-unknown" ? [] : payloadThreads
       notificationsLoaded = true
@@ -144,6 +151,7 @@ Item {
     notificationTooltip = ""
     notificationAllCount = 0
     threads = []
+    notificationRepositories = []
     notificationsLoaded = true
     notificationsError = message
     notificationClass = "notifications-unknown"
@@ -350,6 +358,34 @@ Item {
     openWeb("https://github.com/notifications", herdrContext && herdrContext.repository ? herdrContext.repository.path : "", modifiers)
   }
 
+  function notificationRepository(repo) {
+    if (!repo) return null
+    return notificationRepositories.find(function(entry) { return entry.path === repo.path }) || null
+  }
+
+  function notificationSummary(repo) {
+    if (notificationsError) return notificationsError
+    var entry = notificationRepository(repo)
+    if (!entry) return notificationsLoaded ? "No notification stack available" : "Loading notifications"
+    if (!entry.count) return "No unread notifications"
+    return entry.count + " unread · " + entry.titles.join(" · ") + (entry.count > entry.titles.length ? " · +" + (entry.count - entry.titles.length) + " more" : "")
+  }
+
+  function openNotificationReview(repo) {
+    if (notificationLaunching) return
+    notificationLaunchError = ""
+    if (!notificationWorkspace) {
+      notificationLaunchError = "Refresh notifications to load the Dotfiles workspace"
+      return
+    }
+    var args = ["dot", "git-notifications", "dismiss"]
+    if (repo) args.push("--repo", String(repo.path))
+    var command = args.map(function(arg) { return "'" + String(arg).replace(/'/g, "'\\''") + "'" }).join(" ")
+    notificationLaunchProcess.command = ["dot", "herdr", "repo-open", "--layout", "tab",
+      String(notificationWorkspace.name), String(notificationWorkspace.path), "Notifications", command]
+    notificationLaunchProcess.running = true
+  }
+
   function openThread(thread, modifiers) {
     if (!thread) return
     var threadId = String(thread.id || "")
@@ -460,6 +496,15 @@ Item {
   Process {
     id: markReadProcess
     onExited: root.refresh("action")
+  }
+
+  Process {
+    id: notificationLaunchProcess
+    stderr: StdioCollector { id: notificationLaunchStderr; waitForEnd: true }
+    onExited: function(exitCode) {
+      if (exitCode === 0) root.notificationReviewOpened()
+      else root.notificationLaunchError = String(notificationLaunchStderr.text || "Could not open notification review").trim().slice(0, 500)
+    }
   }
 
   Process {

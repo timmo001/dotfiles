@@ -42,6 +42,7 @@ Panel {
   readonly property int otherRepoCount: service ? service.otherRepos.length : 0
   readonly property int threadCount: service ? service.threads.length : 0
   readonly property int allThreadCount: service ? service.notificationAllCount : 0
+  readonly property bool notificationReviewEnabled: service !== null && !service.notificationLaunching && allThreadCount > 0
   readonly property int otherThreadCount: Math.max(0, allThreadCount - threadCount)
   readonly property string notificationCountText: threadCount + (threadCount === 1 ? " notification" : " notifications") + " (" + otherThreadCount + (otherThreadCount === 1 ? " other)" : " others)")
   readonly property var panelRows: buildPanelRows()
@@ -122,7 +123,7 @@ Panel {
           row.kind = "context-action"
           row.section = "context"
           row.value = value
-          row.secondaryText = current.name + " " + current.path
+           if (!row.secondaryText) row.secondaryText = current.name + " " + current.path
           rows.push(row)
         })
       }
@@ -159,8 +160,10 @@ Panel {
       rows.push(actionRow("other", "Other tracked repositories", "󰙅"))
     }
     var threads = service && (view === "overview" || view === "notifications") ? service.threads : []
-    if (view === "overview" || view === "notifications")
+    if (view === "overview" || view === "notifications") {
+      if (notificationReviewEnabled) rows.push(headerActionRow("notifications-dismiss", "Review and dismiss notifications", "thread"))
       rows.push(headerActionRow("notifications-refresh", "Refresh notifications", "thread"))
+    }
     for (var k = 0; k < threads.length; k++) {
       var thread = threads[k]
       rows.push({
@@ -172,13 +175,14 @@ Panel {
         secondaryText: [thread.title, thread.reason, thread.type].join(" ")
       })
     }
-    if (view === "overview" || view === "notifications")
+    if (view === "overview" || view === "notifications") {
       rows.push(footerActionRow(
         "notifications",
         "GitHub notifications",
         notificationCountText,
         ""
       ))
+    }
     if (view === "overview") {
       rows.push(headerActionRow("release-refresh", "Refresh unreleased changes", "release"))
       var releases = service ? service.releases : []
@@ -196,13 +200,19 @@ Panel {
   function repoActions(repo) {
     var rows = []
     if (service && service.canPullRepo(repo)) rows.push(actionRow("pull", "Pull", "󰜷"))
-    return rows.concat([
+    rows.push(
       actionRow("lazygit", "Open in lazygit", ""),
       actionRow("editor", "Open in editor", ""),
       actionRow("agent", "Open in agent", "󱚣"),
       actionRow("terminal", "Open terminal", ""),
       actionRow("web", "Open on GitHub", "")
-    ])
+    )
+    if (service && service.notificationRepository(repo)) {
+      var notifications = actionRow("repo-notifications", "Review notifications…", "")
+      notifications.secondaryText = service.notificationSummary(repo)
+      rows.push(notifications)
+    }
+    return rows
   }
 
   function actionRow(action, label, icon) {
@@ -336,6 +346,7 @@ Panel {
     view = initialView
     selectedRepo = null
     if (service) service.refreshHerdrContext()
+    if (service) { service.notificationLaunchError = ""; service.refreshNotifications() }
     if ((releaseView || view === "overview") && service) service.refreshReleases("read")
     filterController.reset()
     controller.show()
@@ -369,7 +380,7 @@ Panel {
       if (entry.action === "context-refresh") return contextHeading
       if (entry.action === "pull-changed") return repositoriesHeading
       if (entry.action === "repositories-refresh") return repositoriesHeading
-      if (entry.action === "notifications-refresh") return notificationsHeading
+      if (entry.action === "notifications-refresh" || entry.action === "notifications-dismiss") return notificationsHeading
       return releaseView && view !== "releases" ? comparisonHeading : releasesHeading
     }
     if (["release", "finding-group", "finding", "commit"].indexOf(entry.kind) >= 0)
@@ -440,6 +451,8 @@ Panel {
     else if (action === "context-refresh") service.refreshHerdrContext(true)
     else if (action === "repositories-refresh") service.refreshRepositories()
     else if (action === "notifications-refresh") service.refreshNotifications()
+    else if (action === "notifications-dismiss" && notificationReviewEnabled) service.openNotificationReview(null)
+    else if (action === "repo-notifications") service.openNotificationReview(selectedRepo)
     else if (action === "releases") showView("releases")
     else if (action === "release-repo" && selectedRelease) showRepoActions(selectedRelease)
     else if (action === "release-agent") showAgentPicker(selectedRelease)
@@ -507,6 +520,7 @@ Panel {
     target: root.service
     function onAgentOpened() { if (root.view === "agent") root.close() }
     function onReleaseOpened() { root.close() }
+    function onNotificationReviewOpened() { root.close() }
     function onPanelUpdated() { root.syncSelectedRepo() }
     function onContextUpdating() { root.contextCursorKey = root.cursorKey }
     function onContextUpdated() {
@@ -617,7 +631,12 @@ Panel {
                   anchors.margins: Style.space(8)
                   spacing: Style.space(10)
                   Text { width: Style.space(22); text: modelData.icon; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.icon; horizontalAlignment: Text.AlignHCenter }
-                  Text { width: Math.max(0, contextActionRow.width - Style.space(32)); text: modelData.primaryText; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
+                  Column {
+                    width: Math.max(0, contextActionRow.width - Style.space(32))
+                    spacing: Style.space(2)
+                    Text { width: parent.width; text: modelData.primaryText; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
+                    Text { visible: modelData.action === "repo-notifications"; width: parent.width; text: modelData.secondaryText; textFormat: Text.PlainText; color: Qt.darker(root.contentForeground, 1.25); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; elide: Text.ElideRight }
+                  }
                 }
                 MouseArea {
                   anchors.fill: parent
@@ -686,7 +705,12 @@ Panel {
                   anchors.rightMargin: Style.space(8)
                   spacing: Style.space(10)
                   Text { width: Style.space(22); text: modelData.icon; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.icon; horizontalAlignment: Text.AlignHCenter }
-                  Text { width: Math.max(0, actionRow.width - Style.space(32)); text: modelData.primaryText; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
+                  Column {
+                    width: Math.max(0, actionRow.width - Style.space(32))
+                    spacing: Style.space(2)
+                    Text { width: parent.width; text: modelData.primaryText; color: root.contentForeground; font.family: root.contentFontFamily; font.pixelSize: Style.font.body; elide: Text.ElideRight }
+                    Text { visible: !!modelData.secondaryText; width: parent.width; text: modelData.secondaryText; textFormat: Text.PlainText; color: Qt.darker(root.contentForeground, 1.25); font.family: root.contentFontFamily; font.pixelSize: Style.font.caption; elide: Text.ElideRight }
+                  }
                 }
                 MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onEntered: filterController.cursorIndex = filterController.indexForKey(modelData.key); onClicked: function(mouse) { root.activateAction(modelData.action, mouse.modifiers) } }
               }
@@ -697,6 +721,17 @@ Panel {
             visible: root.view === "agent" && root.service && root.service.agentLaunchError !== ""
             width: parent.width
             text: root.service ? root.service.agentLaunchError : ""
+            textFormat: Text.PlainText
+            wrapMode: Text.Wrap
+            color: root.contentForeground
+            font.family: root.contentFontFamily
+            font.pixelSize: Style.font.caption
+          }
+
+          Text {
+            visible: root.service !== null && root.service.notificationLaunchError !== ""
+            width: parent.width
+            text: root.service ? root.service.notificationLaunchError : ""
             textFormat: Text.PlainText
             wrapMode: Text.Wrap
             color: root.contentForeground
@@ -821,7 +856,7 @@ Panel {
 
           SectionHeading {
             id: notificationsHeading
-            visible: (root.view === "overview" || root.view === "notifications") && (!filterController.filterText || root.filteredThreads.length > 0 || root.filteredFooterActions.length > 0 || filterController.indexForKey("action:notifications-refresh") >= 0)
+            visible: (root.view === "overview" || root.view === "notifications") && (!filterController.filterText || root.filteredThreads.length > 0 || root.filteredFooterActions.length > 0 || filterController.indexForKey("action:notifications-refresh") >= 0 || filterController.indexForKey("action:notifications-dismiss") >= 0)
             title: "Notifications · " + root.filteredThreads.length
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
@@ -830,6 +865,18 @@ Panel {
             hasCursor: root.cursorKey === "action:notifications-refresh"
             onRefreshHovered: filterController.cursorIndex = filterController.indexForKey("action:notifications-refresh")
             onRefreshRequested: root.activateAction("notifications-refresh")
+            trailingControl: Component {
+              PanelActionButton {
+                enabled: root.notificationReviewEnabled
+                iconText: "󰄬"
+                tooltipText: "Review and dismiss notifications in Dotfiles"
+                foreground: root.contentForeground
+                fontFamily: root.contentFontFamily
+                hasCursor: root.cursorKey === "action:notifications-dismiss"
+                onHovered: function(hovered) { if (hovered) filterController.cursorIndex = filterController.indexForKey("action:notifications-dismiss") }
+                onClicked: root.activateAction("notifications-dismiss")
+              }
+            }
           }
 
           Column {
