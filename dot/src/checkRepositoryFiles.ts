@@ -105,11 +105,7 @@ const checkRepositoryFiles = Effect.gen(function* () {
     ),
     Match.when("shell", () =>
       Effect.forEach(
-        files.filter(
-          (file) =>
-            file.startsWith("scripts/.local/bin/") &&
-            basename(file) !== "gh-import-dotenv-to-secrets",
-        ),
+        files.filter((file) => file.startsWith("scripts/.local/bin/")),
         (file) =>
           Effect.gen(function* () {
             const name = basename(file);

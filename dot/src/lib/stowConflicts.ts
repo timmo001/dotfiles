@@ -38,6 +38,15 @@ const RETIRED_PUBLIC_STOW_PATHS = [
   "zsh/.local/share/zsh/site-functions/_context",
   "scripts/.local/bin/waybar",
   "scripts/.local/bin/reload-ui-monitor",
+  "scripts/.local/bin/git-diff-bar",
+  "scripts/.local/bin/gh-is-file-changed",
+  "scripts/.local/bin/gh-import-dotenv-to-secrets",
+  "scripts/.local/bin/notes-process",
+  "scripts/.local/bin/run-in-terminal",
+  "scripts/.local/bin/run-with-notify",
+  "scripts/.local/bin/with-popup-loading",
+  "scripts/.local/bin/system-quick-benchmark",
+  "scripts/.local/bin/system-resource-leak-check",
   "scripts/.local/share/omarchy/bin/waybar",
   "systemd/.config/systemd/user/dot-reload-ui-monitor.service",
   "hypr/.config/hypr/hyprland.conf",
@@ -53,6 +62,7 @@ const RETIRED_PUBLIC_STOW_PATHS = [
   "hypr/.config/hypr/bin/hyprsunset-clear-dim",
   "hypr/.config/hypr/bin/hyprsunset-dim-step",
   "hypr/.config/hypr/bin/hyprsunset-toggle-dim",
+  "hypr/.config/hypr/bin/timmo-setup-url-handler",
   "omarchy/.config/omarchy/plugins/omaconnect",
   ...["desktop", "laptop"].flatMap((host) =>
     [

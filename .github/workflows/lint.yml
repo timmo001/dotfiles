@@ -110,4 +110,3 @@ jobs:
     with:
       scandir: ./scripts/.local/bin
       severity: warning
-      ignore_names: gh-import-dotenv-to-secrets
