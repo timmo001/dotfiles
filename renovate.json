@@ -1,14 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended",
-    "helpers:pinGitHubActionDigests",
-    "group:monorepos",
-    "group:recommended"
-  ],
-  "dependencyDashboard": true,
-  "labels": ["dependencies"],
-  "minimumReleaseAge": "1 day",
+  "extends": ["github>timmo001/renovate-config"],
   "git-submodules": {
     "enabled": true
   },
@@ -74,33 +66,10 @@
   ],
   "packageRules": [
     {
-      "description": "Update the Effect runtime and integrations together.",
-      "matchPackageNames": ["effect", "@effect/platform-*", "@effect/vitest"],
-      "groupName": "Effect",
-      "groupSlug": "effect"
-    },
-    {
       "description": "Keep the OpenCode plugin Effect version aligned with its pinned packages.",
       "matchFileNames": ["agents/.config/opencode/plugins-v2/package.json"],
       "matchPackageNames": ["effect"],
       "enabled": false
-    },
-    {
-      "description": "Keep coordinated OpenCode 2 packages together.",
-      "matchDepNames": [
-        "@opencode/client",
-        "@opencode/plugin",
-        "@opencode/schema",
-        "anomalyco/opencode",
-        "npm:@opencode/cli"
-      ],
-      "groupName": "OpenCode 2",
-      "groupSlug": "opencode-2"
-    },
-    {
-      "description": "Update Git submodules without a release delay.",
-      "matchManagers": ["git-submodules"],
-      "minimumReleaseAge": null
     },
     {
       "description": "Update system package versions without a release delay.",
@@ -108,51 +77,18 @@
       "minimumReleaseAge": null
     },
     {
-      "description": "Use the shorter release delay for fast-moving development dependencies.",
-      "matchDepNames": [
-        "@effect/platform-*",
-        "@effect/tsgo",
-        "@effect/vitest",
-        "aqua:herdrdev/herdr",
-        "effect",
-        "github:backnotprop/plannotator"
-      ],
-      "minimumReleaseAge": "2 hours"
-    },
-    {
       "description": "Use the shorter update delay for Herdr plugins.",
       "matchDatasources": ["git-refs"],
+      "matchPackageNames": [
+        "!@timmo001/**",
+        "!timmo001/**",
+        "!https://github.com/timmo001/**"
+      ],
       "matchFileNames": [
         "herdr/.config/herdr/plugins/config/herdr-lazy/plugins.list",
         "herdr/.config/herdr/plugins/config/herdr-lazy/plugins.lock"
       ],
       "minimumReleaseAge": "2 hours"
-    },
-    {
-      "description": "Use the shorter release delay for OpenCode updates.",
-      "matchDepNames": [
-        "@opencode/client",
-        "@opencode/plugin",
-        "@opencode/schema",
-        "anomalyco/opencode",
-        "npm:@opencode-ai/browser-control",
-        "npm:@opencode/cli"
-      ],
-      "minimumReleaseAge": "2 hours"
-    },
-    {
-      "description": "Use mise's shorter release delay for Pi updates.",
-      "matchDepNames": ["aqua:earendil-works/pi"],
-      "minimumReleaseAge": "2 hours"
-    },
-    {
-      "description": "Update first-party dependencies without a release delay.",
-      "matchPackageNames": [
-        "@timmo001/**",
-        "timmo001/**",
-        "https://github.com/timmo001/**"
-      ],
-      "minimumReleaseAge": null
     }
   ]
 }
