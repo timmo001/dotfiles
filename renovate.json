@@ -110,8 +110,9 @@
     {
       "description": "Use the shorter release delay for fast-moving development dependencies.",
       "matchDepNames": [
-        "@effect/platform-node",
+        "@effect/platform-*",
         "@effect/tsgo",
+        "@effect/vitest",
         "aqua:herdrdev/herdr",
         "effect",
         "github:backnotprop/plannotator"
