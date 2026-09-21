@@ -68,8 +68,5 @@ npm.package_manager = "bun"
 # from auto-installing and reshimming all shims on every update.
 ignored_config_paths = ["~/.cache"]
 
-[settings.github]
-credential_command = 'gh auth token --hostname "$MISE_CREDENTIAL_HOST"'
-
 [hooks]
 postinstall = "if command -v browser-control-extension-sync >/dev/null; then browser-control-extension-sync; fi"
