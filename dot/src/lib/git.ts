@@ -331,7 +331,7 @@ export function gitPullRebase(
 
     const exitCode = yield* launcher
       .stream(
-        "GIT_TERMINAL_PROMPT=0 git pull --rebase --no-edit --recurse-submodules && GIT_TERMINAL_PROMPT=0 git submodule update --init --recursive",
+        "GIT_TERMINAL_PROMPT=0 git pull --rebase --no-autostash --no-edit --recurse-submodules && git submodule sync --recursive && GIT_TERMINAL_PROMPT=0 git submodule update --init --recursive",
         { cwd: repoPath },
       )
       .pipe(Effect.catch(() => Effect.succeed(1)));

@@ -1,4 +1,4 @@
-import { Effect, Option, Schema } from "effect";
+import { Effect, FileSystem, Option, Schema } from "effect";
 import { existsSync, unlinkSync } from "fs";
 import { basename, join } from "path";
 import { Config } from "../services/Config.js";
@@ -25,6 +25,7 @@ import {
 import {
   gitExitCode,
   gitHead,
+  gitOutput,
   gitPullRebase,
   gitRefreshRemoteHead,
   gitRequired,
@@ -33,7 +34,7 @@ import {
 import { HOME_DIR, displayPath } from "../lib/paths.js";
 import { detectLegacyHyprRepo } from "../lib/omarchyHost.js";
 import { ENV, envFlag } from "../lib/env.js";
-import { managedGitRepos } from "../services/GitConfig.js";
+import { loadDotGitConfig, managedGitRepos } from "../services/GitConfig.js";
 import { setupPrivateRepo } from "./SetupPrivateRepo.js";
 import type { ConfigService } from "../services/Config.js";
 import type { GitManagedRepo } from "../services/GitConfig.js";
@@ -108,6 +109,8 @@ export interface UpdateOptions {
   readonly app?: boolean;
   /** Run the initial self-update/restart phase before the selected phases. */
   readonly selfUpdate?: boolean;
+  /** Reload the shell and run the UI resume refresh after applying changes. */
+  readonly reload?: boolean;
   /** Repository names already pulled before restart, for post-hook handling. */
   readonly postHookRepos?: readonly string[];
 }
@@ -177,7 +180,7 @@ function logInitMarkerStatus(
  * skips repos with a dirty working tree, pulls with `--rebase`, and aborts
  * the rebase on failure. Returns true only if the pull moved HEAD.
  */
-const safePull = (name: string, path: string) =>
+const safePull = (name: string, path: string, required = false) =>
   Effect.gen(function* () {
     const log = yield* OutputLog;
     const executor = yield* CommandExecutor;
@@ -193,6 +196,9 @@ const safePull = (name: string, path: string) =>
           `Lock held by active git process for ${name}: ${displayPath(path)}`,
         );
         yield* log.info(`Skipping ${name} pull (lock held)`);
+
+        if (required)
+          return yield* new UpdateError({ message: `${name}: Git lock held` });
 
         return false;
       }
@@ -218,6 +224,11 @@ const safePull = (name: string, path: string) =>
       yield* log.warn(
         `Skipping ${name} pull (working tree not clean): ${displayPath(path)}`,
       );
+
+      if (required)
+        return yield* new UpdateError({
+          message: `${name}: working tree not clean`,
+        });
 
       return false;
     }
@@ -261,7 +272,14 @@ const safePull = (name: string, path: string) =>
       }
     }
 
-    if (!pulled) return false;
+    if (!pulled) {
+      if (required)
+        return yield* new UpdateError({
+          message: `${name}: pull or submodule update failed`,
+        });
+
+      return false;
+    }
 
     const after = yield* gitHead(path).pipe(
       Effect.catch(() => Effect.succeed("")),
@@ -329,6 +347,100 @@ const runRepoPostUpdate = (repo: GitManagedRepo) =>
     yield* log.info(`${repo.name} post-update command complete`);
   });
 
+/** Pull selected repositories, run their hooks and apply changed dotfiles once. */
+export const updateRepositories = Effect.fn("Update.repositories")(function* (
+  paths: readonly string[],
+  reload = true,
+) {
+  const config = yield* Config;
+  const fs = yield* FileSystem.FileSystem;
+  const log = yield* OutputLog;
+  const updatedNames: string[] = [];
+  const updatedPaths = new Set<string>();
+  const failures: string[] = [];
+  const pulledDotfiles: string[] = [];
+  const managed = managedGitRepos(config.gitConfig);
+  const publicPath = yield* fs.realPath(config.publicDotfiles);
+
+  const privatePath = config.privateDotfiles
+    ? yield* fs.realPath(config.privateDotfiles)
+    : null;
+
+  for (const path of new Set(paths)) {
+    yield* Effect.gen(function* () {
+      const repoPath = yield* fs.realPath(path);
+      const repo = managed.find((entry) => entry.path === repoPath);
+      const name = repo?.name ?? basename(repoPath);
+
+      const ahead = yield* gitOutput(
+        ["rev-list", "--count", "@{upstream}..HEAD"],
+        { cwd: repoPath },
+      );
+
+      if (ahead.trim() !== "0")
+        return yield* new UpdateError({
+          message: `${name}: local commits ahead of upstream`,
+        });
+
+      if (!(yield* safePull(name, repoPath, true))) return;
+      updatedNames.push(name);
+      updatedPaths.add(repoPath);
+
+      if (repoPath === publicPath || repoPath === privatePath)
+        pulledDotfiles.push(basename(repoPath));
+    }).pipe(
+      Effect.catch((error) =>
+        Effect.gen(function* () {
+          const message = `${displayPath(path)}: ${error.message}`;
+          failures.push(message);
+          yield* log.error(message);
+        }),
+      ),
+    );
+  }
+
+  if (updatedPaths.size > 0) {
+    const refreshedConfig = {
+      ...config,
+      gitConfig: config.canUsePrivate
+        ? loadDotGitConfig(config.gitConfig.filePath)
+        : config.gitConfig,
+    };
+
+    yield* trustTrackedMiseConfigs.pipe(
+      Effect.provideService(Config, refreshedConfig),
+    );
+
+    for (const repo of managedGitRepos(refreshedConfig.gitConfig)) {
+      if (!updatedPaths.has(repo.path)) continue;
+      yield* runRepoPostUpdate(repo).pipe(
+        Effect.catch((error) =>
+          Effect.gen(function* () {
+            failures.push(error.message);
+            yield* log.error(error.message);
+          }),
+        ),
+      );
+    }
+  }
+
+  if (pulledDotfiles.length > 0) {
+    yield* requiredUpdateStep("Rebuild", STEP_TIMEOUT_SECONDS.rebuild, rebuild);
+    yield* restartDot([
+      "update",
+      "--stow",
+      "--app",
+      ...(reload ? [] : ["--no-reload"]),
+      ...pulledDotfiles.flatMap((name) => [POST_HOOK_REPO_ARG, name]),
+    ]);
+  } else {
+    yield* notifyUpdated(updatedNames);
+  }
+
+  if (failures.length > 0)
+    return yield* new UpdateError({ message: failures.join("\n") });
+});
+
 function selectedUpdateFlags(opts?: UpdateOptions): readonly string[] {
   return SELECTABLE_UPDATE_FLAGS.flatMap(([flag, key]) =>
     opts?.[key] ? [flag] : [],
@@ -366,6 +478,7 @@ function restartUpdateArgs(
     "update",
     ...selectedUpdateFlags(opts),
     DISABLE_SELF_UPDATE_ARG,
+    ...(opts?.reload === false ? ["--no-reload"] : []),
     ...(opts?.postHookRepos ?? []).flatMap((name) => [
       POST_HOOK_REPO_ARG,
       name,
@@ -854,19 +967,29 @@ const haltOnLegacyHyprRepo = (config: ConfigService) =>
  * on this machine. Full updates pull public dotfiles,
  * rebuild, and restart without self-update before continuing the workflow.
  * Pull notifications fire only when a repo actually moved, while post-hooks
- * (agents-sync) run on every full update regardless of pulls
- * and are skipped for flag-scoped runs (e.g. `--stow`/`--app`/`--pull` only).
+ * (agents-sync) run on every full update and the changed-dotfiles handoff.
+ * Ordinary flag-scoped runs skip them.
  */
 export const update = (opts?: UpdateOptions) =>
   Effect.gen(function* () {
     const anyFlag = !!(opts?.pull || opts?.stow || opts?.app);
     const doPull = anyFlag ? !!opts?.pull : true;
     const doStow = anyFlag ? !!opts?.stow : true;
-    const doApp = anyFlag ? !!opts?.app : opts?.selfUpdate !== false;
+    const doApp = anyFlag ? !!opts?.app : true;
     const isFullUpdate = anyFlag ? doPull && doStow && doApp : true;
 
     const config = yield* Config;
     const log = yield* OutputLog;
+
+    const applyPulledDotfiles =
+      doStow &&
+      doApp &&
+      opts?.postHookRepos?.some(
+        (name) =>
+          name === basename(config.publicDotfiles) ||
+          (config.privateDotfiles !== null &&
+            name === basename(config.privateDotfiles)),
+      );
 
     const privatePackageRepo = config.canUsePrivate
       ? loadPrivatePackageRepoConfig(config)
@@ -1087,10 +1210,12 @@ export const update = (opts?: UpdateOptions) =>
       );
     }
 
-    yield* reloadOmarchyShellIfChanged(shellConfigChanged);
+    if (opts?.reload !== false) {
+      yield* reloadOmarchyShellIfChanged(shellConfigChanged);
 
-    if (shellConfigChanged) {
-      completedActions.push("Attempted an Omarchy shell reload");
+      if (shellConfigChanged) {
+        completedActions.push("Attempted an Omarchy shell reload");
+      }
     }
 
     if (doApp) {
@@ -1106,7 +1231,7 @@ export const update = (opts?: UpdateOptions) =>
       completedActions.push("Rebuilt the dot binary");
     }
 
-    if (isFullUpdate) {
+    if (isFullUpdate || applyPulledDotfiles) {
       yield* requiredUpdateStep(
         "Herdr Plugins",
         STEP_TIMEOUT_SECONDS.herdrPlugins,
@@ -1120,9 +1245,8 @@ export const update = (opts?: UpdateOptions) =>
       yield* notifyUpdated(updatedNames);
     }
 
-    // Post-hooks run on every full update,
-    // independent of whether a repo was pulled; flag-scoped runs skip them.
-    if (isFullUpdate) {
+    // Full updates and the changed-dotfiles handoff sync agent instructions.
+    if (isFullUpdate || applyPulledDotfiles) {
       yield* requiredUpdateStep(
         "Post-Hooks",
         STEP_TIMEOUT_SECONDS.postHooks,
@@ -1137,14 +1261,16 @@ export const update = (opts?: UpdateOptions) =>
       completedActions.push("Checked the init state marker");
     }
 
-    const uiRefreshCompleted = yield* withStepTimeout(
-      "Reload UI",
-      STEP_TIMEOUT_SECONDS.uiReload,
-      runUiReload,
-    );
+    if (opts?.reload !== false) {
+      const uiRefreshCompleted = yield* withStepTimeout(
+        "Reload UI",
+        STEP_TIMEOUT_SECONDS.uiReload,
+        runUiReload,
+      );
 
-    if (uiRefreshCompleted) {
-      completedActions.push("Completed the UI resume refresh step");
+      if (uiRefreshCompleted) {
+        completedActions.push("Completed the UI resume refresh step");
+      }
     }
 
     yield* logUpdateSummary(updatedNames, completedActions);

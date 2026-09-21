@@ -1,6 +1,7 @@
 import { Context, Duration, Effect, Option, Schema } from "effect";
 import {
   Argument,
+  CliError,
   CliOutput,
   Command,
   Flag,
@@ -40,7 +41,7 @@ import { runCommand } from "../commands/Run.js";
 import { stow } from "../commands/Stow.js";
 import { snapshot } from "../commands/Snapshot.js";
 import { systemUpdate } from "../commands/SystemUpdate.js";
-import { update, updateCheck } from "../commands/Update.js";
+import { update, updateCheck, updateRepositories } from "../commands/Update.js";
 import { usage } from "../commands/Usage.js";
 import { workspaceRelayout } from "../commands/WorkspaceRelayout.js";
 import { workspaceSetup } from "../commands/WorkspaceSetup.js";
@@ -210,6 +211,12 @@ const updateCommand = describe(
   Command.make(
     "update",
     {
+      repo: Flag.String("repo").pipe(
+        Flag.atLeast(0),
+        Flag.withDescription(
+          "Pull only this repository and run its post-update command; repeat for a batch. Changed dotfiles also rebuild and stow",
+        ),
+      ),
       pull: bool("pull", "Run the repository pull phase only"),
       stow: bool(
         "stow",
@@ -231,6 +238,7 @@ const updateCommand = describe(
         "no-self-update",
         "Skip the internal self-update phase",
       ),
+      noReload: bool("no-reload", "Skip shell reload and UI resume refresh"),
       postHookRepo: Flag.String("post-hook-repo").pipe(
         Flag.atLeast(0),
         Flag.withDescription("Internal post-hook repository"),
@@ -241,11 +249,33 @@ const updateCommand = describe(
       check,
       checkAll,
       noSelfUpdate,
+      noReload,
       postHookRepo,
       pull,
+      repo,
       stow: onlyStow,
     }) =>
       Effect.gen(function* () {
+        if (repo.length > 0) {
+          if (
+            check ||
+            checkAll ||
+            pull ||
+            onlyStow ||
+            app ||
+            noSelfUpdate ||
+            postHookRepo.length > 0
+          )
+            return yield* new CliError.InvalidValue({
+              option: "repo",
+              value: repo.join(", "),
+              kind: "flag",
+              expected: "--repo without update phase, check or internal flags",
+            });
+
+          return yield* updateRepositories(repo, !noReload);
+        }
+
         if (check || checkAll) return yield* updateCheck({ all: checkAll });
 
         return yield* update({
@@ -253,6 +283,7 @@ const updateCommand = describe(
           stow: onlyStow,
           app,
           selfUpdate: !noSelfUpdate,
+          reload: !noReload,
           postHookRepos: postHookRepo,
         });
       }),
@@ -261,7 +292,7 @@ const updateCommand = describe(
   [],
   {
     description:
-      "A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories. It trusts tracked mise configs, regenerates completions, installs missing public Arch/AUR packages, runs the required MCP sync, stows, rebuilds again, runs agents sync, backfills the init marker, and starts the resume refresh. It finishes with a summary of updated repositories and completed actions.\n\nPhase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Scoped runs skip full-update package reconciliation, agents sync, and init-marker backfill. Every mode that reaches the end starts the bounded resume refresh.",
+      "A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories. It trusts tracked mise configs, regenerates completions, installs missing public Arch/AUR packages, runs the required MCP sync, stows, rebuilds again, runs agents sync, backfills the init marker, and starts the resume refresh. It finishes with a summary of updated repositories and completed actions.\n\nPhase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Scoped runs skip full-update package reconciliation, agents sync, and init-marker backfill.\n\nUse --repo PATH (repeatable) to pull selected clean repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Herdr plugins are refreshed only inside Herdr. The Git panel uses --no-reload to skip shell reload and UI resume refresh.",
     sections: [
       {
         title: "Exit codes",

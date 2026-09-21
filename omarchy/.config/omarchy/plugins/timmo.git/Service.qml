@@ -48,8 +48,6 @@ Item {
   property bool panelLoaded: false
   property string panelError: ""
   property string pullError: ""
-  property var pullQueue: []
-  property string pullingRepoName: ""
   property bool panelRefreshPending: false
   property var installedAgents: []
   property string agentLaunchError: ""
@@ -80,7 +78,7 @@ Item {
   readonly property bool refreshing: diffProcess.running || panelProcess.running || notificationsProcess.running || pulling || releaseBusy
   readonly property bool repositoriesBusy: diffProcess.running || panelProcess.running || pulling
   readonly property bool notificationsBusy: notificationsProcess.running
-  readonly property bool pulling: pullProcess.running || pullQueue.length > 0
+  readonly property bool pulling: pullProcess.running
   readonly property var pullableRepos: changedRepos.filter(function(repo) { return root.canPullRepo(repo) })
   readonly property bool clear: diffLoaded && notificationsLoaded
     && diffError === "" && notificationsError === ""
@@ -325,26 +323,17 @@ Item {
 
   function pullRepositories(repositories) {
     if (pulling) return
-    pullQueue = repositories.filter(function(repo) { return root.canPullRepo(repo) })
-    if (pullQueue.length === 0) return
+    var repos = repositories.filter(function(repo) { return root.canPullRepo(repo) })
+    if (repos.length === 0) return
     pullError = ""
-    pullNextRepository()
-  }
-
-  function pullNextRepository() {
-    if (pullQueue.length === 0) {
-      pullingRepoName = ""
-      refresh("action")
-      return
-    }
-    var repo = pullQueue[0]
-    pullQueue = pullQueue.slice(1)
-    pullingRepoName = String(repo.name || repo.path)
-    pullProcess.command = [
-      "bash", "-lc",
-      "cd \"$1\" && GIT_TERMINAL_PROMPT=0 git pull --rebase --no-autostash --no-edit --recurse-submodules && GIT_TERMINAL_PROMPT=0 git submodule update --init --recursive",
-      "bash", String(repo.path)
+    // Keep the update alive when pulled plugin files or stow reload the shell.
+    var command = [
+      "systemd-run", "--user", "--wait", "--collect", "--service-type=exec",
+      "--unit=dot-panel-update", "--", "dot", "update", "--no-reload"
     ]
+    for (var i = 0; i < repos.length; i++)
+      command.push("--repo", String(repos[i].path))
+    pullProcess.command = command
     pullProcess.running = true
   }
 
@@ -480,10 +469,10 @@ Item {
     stderr: StdioCollector { id: pullStderr; waitForEnd: true }
     onExited: function(exitCode) {
       if (exitCode !== 0) {
-        var message = root.pullingRepoName + ": " + String(pullStderr.text || "Pull failed").trim().slice(0, 500)
-        root.pullError = root.pullError ? root.pullError + "\n" + message : message
+        root.pullError = String(pullStderr.text || "Pull failed").trim().slice(0, 500)
+          + "\nSee journalctl --user -u dot-panel-update for details"
       }
-      root.pullNextRepository()
+      root.refresh("action")
     }
   }
 

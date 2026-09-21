@@ -65,18 +65,22 @@ dot update [flags]
 
 A full update pulls the public dotfiles, installs Bun dependencies, rebuilds and relaunches dot, then scans and pulls tracked repositories. It trusts tracked mise configs, regenerates completions, installs missing public Arch/AUR packages, runs the required MCP sync, stows, rebuilds again, runs agents sync, backfills the init marker, and starts the resume refresh. It finishes with a summary of updated repositories and completed actions.
 
-Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Scoped runs skip full-update package reconciliation, agents sync, and init-marker backfill. Every mode that reaches the end starts the bounded resume refresh.
+Phase flags are inclusive: passing any of --pull, --stow, or --app runs only the selected phases. Scoped runs skip full-update package reconciliation, agents sync, and init-marker backfill.
+
+Use --repo PATH (repeatable) to pull selected clean repositories, restore their pinned submodules and run configured post-update commands after HEAD changes. Changed public or private dotfiles also rebuild, stow and sync agent instructions once per batch. Herdr plugins are refreshed only inside Herdr. The Git panel uses --no-reload to skip shell reload and UI resume refresh.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
+| `--repo` `<string>` | Pull only this repository and run its post-update command; repeat for a batch. Changed dotfiles also rebuild and stow |
 | `--pull` | Run the repository pull phase only |
 | `--stow` | Generate completions, sync MCP configs, and stow only |
 | `--app` | Install Bun dependencies and rebuild the dot binary only |
 | `--check` | Report dotfiles pulls, pending pins and stow changes, skipping local work |
 | `--check-all` | Also check development repos for pulls, skipping local work |
 | `--no-self-update` | Skip the internal self-update phase |
+| `--no-reload` | Skip shell reload and UI resume refresh |
 | `--post-hook-repo` `<string>` | Internal post-hook repository |
 | `--help` `-h` | Show help information |
 
