@@ -1,9 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["github>timmo001/renovate-config"],
-  "git-submodules": {
-    "enabled": true
-  },
   "customDatasources": {
     "omarchy-mise": {
       "defaultRegistryUrlTemplate": "https://raw.githubusercontent.com/omacom-io/omarchy-pkgs/master/pkgbuilds/mise-bin/PKGBUILD",
