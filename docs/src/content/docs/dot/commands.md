@@ -755,7 +755,7 @@ dot git-commit -m "Preview only" --dry-run
 Open the authenticated GitHub notification inbox. Without machine-output or action flags, this opens the Omarchy shell panel. --since accepts ISO/RFC dates, epoch timestamps, compact durations such as 2d, and quoted durations such as "2 days ago".
 
 ```text
-dot git-notifications [flags]
+dot git-notifications <subcommand> [flags]
 ```
 
 **Modes**
@@ -764,7 +764,6 @@ dot git-notifications [flags]
 (default)       Open the shell notification panel
 --raw           Text summary
 --bar-json      Status-bar JSON
---list-threads  Notification rows
 --bar-filter    Apply watched-repository filtering
 ```
 
@@ -774,17 +773,11 @@ dot git-notifications [flags]
 | --- | --- |
 | `--raw` | Text summary of notification threads |
 | `--bar-json` | JSON output for status bars and shell modules |
-| `--list-threads` | Notification threads as rows |
 | `--bar-filter` | Apply watched-repo filtering |
 | `--all` | Include read notifications |
 | `--participating` | Only participating threads |
 | `--since` `<string>` | Only include notifications updated after this date |
 | `--mark-read` `<string>` | Mark a thread as read |
-| `--mark-done` `<string>` | Mark a thread as done |
-| `--ignore` `<string>` | Ignore a thread |
-| `--unignore` `<string>` | Stop ignoring a thread |
-| `--mark-bot-read` | Mark bot notifications as read |
-| `--dry-run` | Preview bot marking |
 | `--help` `-h` | Show help information |
 
 **Examples**
@@ -793,9 +786,68 @@ dot git-notifications [flags]
 dot git-notifications
 dot git-notifications --bar-json
 dot git-notifications --participating
-dot git-notifications --mark-bot-read --dry-run
+dot git-notifications dismiss --dry-run
 dot git-notifications --mark-read 12345
 ```
+
+### `dot git-notifications dismiss`
+
+Show a coloured repository summary, then review merged dependencies followed by remaining unread notifications. Done queues work in the background while progress appears above the next choices. Every repository offers Done, Open on GitHub, Skip and Stop. Stop ends the questions and finishes queued work before a completion and issues summary. --repo selects a single notification stack. Bar hiding preferences do not restrict this inbox.
+
+```text
+dot git-notifications dismiss <subcommand> [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--repo` `<string>` | Configured repository name/path or GitHub owner/repository |
+| `--dry-run` | Print repository batches and reasons without changing notifications |
+| `--help` `-h` | Show help information |
+
+**Examples**
+
+```bash
+dot git-notifications dismiss
+dot git-notifications dismiss --repo owner/repository
+dot git-notifications dismiss --dry-run
+dot git-notifications dismiss dependencies --mode all
+dot git-notifications dismiss remaining
+```
+
+#### `dot git-notifications dismiss dependencies`
+
+Review unread merged Renovate/Dependabot updates with successful CI. All-mode excludes failed, pending and unverifiable CI. Opening GitHub returns to the review without dismissing anything.
+
+```text
+dot git-notifications dismiss dependencies [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--repo` `<string>` | Configured repository name/path or GitHub owner/repository |
+| `--dry-run` | Print repository batches and reasons without changing notifications |
+| `--mode` `<choice>` | Mark all verified dependencies done, or prompt per repository; omit to choose (choices: all, repos) |
+| `--help` `-h` | Show help information |
+
+#### `dot git-notifications dismiss remaining`
+
+Review all other unread notifications per repository, including PRs with unresolved CI and their reasons. This pass always requires a choice before dismissal.
+
+```text
+dot git-notifications dismiss remaining [flags]
+```
+
+**Options**
+
+| Option | Description |
+| --- | --- |
+| `--repo` `<string>` | Configured repository name/path or GitHub owner/repository |
+| `--dry-run` | Print repository batches and reasons without changing notifications |
+| `--help` `-h` | Show help information |
 
 ## `dot git-releases`
 

@@ -84,6 +84,8 @@ export interface GitNotificationThread {
 
 /** Query options for fetching GitHub notifications. */
 export interface GitNotificationQueryOptions {
+  /** Restrict the inbox to a GitHub owner/repository slug. */
+  readonly repo?: string;
   /** Include read notifications when true. */
   readonly all?: boolean;
   /** Restrict results to participating or mentioned threads when true. */
@@ -96,6 +98,8 @@ export interface GitNotificationQueryOptions {
 
 /** Snapshot of the authenticated user's GitHub notification inbox. */
 export interface GitNotificationState {
+  /** Unfiltered inbox threads, including those hidden by bar preferences. */
+  readonly inbox: readonly GitNotificationThread[];
   /** Notification threads returned by GitHub. */
   readonly threads: readonly GitNotificationThread[];
   /** Number of threads returned before local status-bar filters. */
@@ -108,14 +112,35 @@ export interface GitNotificationState {
   readonly message?: string;
 }
 
-/** Mutating GitHub notification action. */
-export type GitNotificationAction = "read" | "done" | "ignore" | "unignore";
+/** Notification review pass; only dependencies allow automatic dismissal. */
+export type GitNotificationCategory = "dependencies" | "remaining";
 
-/** Options for batch bot notification read actions. */
-export interface GitNotificationBotReadOptions {
-  /** Report matching bot notifications without mutating GitHub state. */
-  readonly dryRun?: boolean;
+/** Current evidence displayed before dismissing a notification. */
+export interface GitNotificationReview {
+  /** Original unread inbox thread. */
+  readonly thread: GitNotificationThread;
+  /** Review pass selected from current PR and CI evidence. */
+  readonly category: GitNotificationCategory;
+  /** Human-readable PR state, CI results or notification context. */
+  readonly detail: string;
+  /** Final PR head used for CI checks, when available. */
+  readonly headSha: string | null;
+  /** Whether an API or decoding failure prevented inspection. */
+  readonly inspectionFailed: boolean;
 }
+
+/** Outcome for one reviewed notification, including partial batch failures. */
+export interface GitNotificationDismissal {
+  /** Evidence that was selected for dismissal. */
+  readonly entry: GitNotificationReview;
+  /** Whether the notification was dismissed, changed or could not be dismissed. */
+  readonly status: "done" | "skipped" | "failed";
+  /** Outcome or failure reason. */
+  readonly message: string;
+}
+
+/** Mutating GitHub notification action. */
+export type GitNotificationAction = "read" | "done";
 
 /** Result from a mutating GitHub notification action. */
 export interface GitNotificationActionResult {
@@ -125,26 +150,6 @@ export interface GitNotificationActionResult {
   readonly threadId: string;
   /** Human-readable action result. */
   readonly message: string;
-}
-
-/** Failed batch notification mark-read attempt. */
-export interface GitNotificationBotReadFailure {
-  /** Notification thread that could not be marked read. */
-  readonly thread: GitNotificationThread;
-  /** Human-readable failure reason. */
-  readonly message: string;
-}
-
-/** Summary of a batch bot notification mark-read operation. */
-export interface GitNotificationBotReadResult {
-  /** Whether this run only reported matches without mutating GitHub state. */
-  readonly dryRun: boolean;
-  /** Bot notification threads matched by the detector. */
-  readonly matched: readonly GitNotificationThread[];
-  /** Bot notification threads successfully marked read. */
-  readonly marked: readonly GitNotificationThread[];
-  /** Bot notification threads that could not be marked read. */
-  readonly failed: readonly GitNotificationBotReadFailure[];
 }
 
 // --- Git staging types ---

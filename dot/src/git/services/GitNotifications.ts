@@ -2,12 +2,13 @@ import { Clock, Context, Effect, Layer, Option, Schema } from "effect";
 import type {
   GitNotificationAction,
   GitNotificationActionResult,
-  GitNotificationBotReadOptions,
-  GitNotificationBotReadResult,
   GitNotificationQueryOptions,
   GitNotificationState,
   GitNotificationSubjectType,
   GitNotificationThread,
+  GitNotificationReview,
+  GitNotificationDismissal,
+  GitNotificationCategory,
 } from "../../types.js";
 import { Config } from "../../services/Config.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
@@ -24,8 +25,28 @@ import { formatGhError, nullableStringValue, stringValue } from "./record.js";
 import { ENV, envString } from "../../lib/env.js";
 import { isWorkTime } from "../../lib/workTime.js";
 import type { JsonObject, JsonValue } from "../../lib/schema.js";
+import { inspectNotification } from "./notificationReview.js";
 
-const NOTIFICATION_LIMIT = 50;
+const NOTIFICATION_LIMIT = 100;
+
+const NotificationRecord = Schema.Struct({
+  id: Schema.NonEmptyString,
+  unread: Schema.Boolean,
+  reason: Schema.NonEmptyString,
+  updated_at: Schema.NonEmptyString,
+  last_read_at: Schema.NullOr(Schema.String),
+  url: Schema.NonEmptyString,
+  repository: Schema.Struct({
+    full_name: Schema.NonEmptyString,
+    html_url: Schema.NonEmptyString,
+  }),
+  subject: Schema.Struct({
+    title: Schema.String,
+    type: Schema.NonEmptyString,
+    url: Schema.NullOr(Schema.String),
+    latest_comment_url: Schema.NullOr(Schema.String),
+  }),
+});
 
 const DEBUG = !!envString(ENV.DOT_DEBUG);
 
@@ -45,29 +66,21 @@ export class GitNotificationError extends Schema.TaggedError<GitNotificationErro
 
 /** Service interface for the authenticated user's GitHub notification inbox. */
 interface GitNotificationsService {
+  /** Inspect every unread notification for the two dismissal passes. */
+  readonly review: (
+    repos?: readonly string[],
+  ) => Effect.Effect<readonly GitNotificationReview[], GitNotificationError>;
+  /** Revalidate displayed selections and dismiss only the selected pass. */
+  readonly dismiss: (
+    entries: readonly GitNotificationReview[],
+    category: GitNotificationCategory,
+  ) => Effect.Effect<readonly GitNotificationDismissal[]>;
   /** Fetch the current notification inbox state from GitHub. */
   readonly query: (
     opts?: GitNotificationQueryOptions,
   ) => Effect.Effect<GitNotificationState>;
   /** Mark a notification thread as read. */
   readonly markRead: (
-    threadId: string,
-  ) => Effect.Effect<GitNotificationActionResult, GitNotificationError>;
-  /** Mark unread bot notification threads as read, or preview them in dry-run mode. */
-  readonly markBotRead: (
-    opts?: GitNotificationQueryOptions,
-    actionOpts?: GitNotificationBotReadOptions,
-  ) => Effect.Effect<GitNotificationBotReadResult, GitNotificationError>;
-  /** Mark a notification thread as done. */
-  readonly markDone: (
-    threadId: string,
-  ) => Effect.Effect<GitNotificationActionResult, GitNotificationError>;
-  /** Ignore new notifications for a thread. */
-  readonly ignore: (
-    threadId: string,
-  ) => Effect.Effect<GitNotificationActionResult, GitNotificationError>;
-  /** Stop ignoring notifications for a thread. */
-  readonly unignore: (
     threadId: string,
   ) => Effect.Effect<GitNotificationActionResult, GitNotificationError>;
 }
@@ -92,9 +105,21 @@ export class GitNotifications extends Context.Service<
       )(function* (opts?: GitNotificationQueryOptions) {
         const parsed = yield* github.json(notificationListArgs(opts));
 
-        return Array.isArray(parsed)
-          ? parsed.filter(isNotificationRecord).map(toNotificationThread)
-          : [];
+        const pages = yield* Schema.decodeUnknownEffect(
+          Schema.Array(Schema.Array(NotificationRecord)),
+        )(parsed);
+
+        const seen = new Set<string>();
+
+        return pages
+          .flat()
+          .filter((thread) => {
+            if (seen.has(thread.id)) return false;
+            seen.add(thread.id);
+
+            return true;
+          })
+          .map(toNotificationThread);
       });
 
       const fetchThreads = Effect.fn("GitNotifications.fetchThreads")(
@@ -133,6 +158,8 @@ export class GitNotifications extends Context.Service<
             allThreads.length,
             new Date(yield* Clock.currentTimeMillis),
             normalizedQuery,
+            undefined,
+            allThreads,
           );
         }).pipe(
           Effect.withSpan("GitNotifications.query"),
@@ -241,7 +268,7 @@ export class GitNotifications extends Context.Service<
         threadId: string,
         args: readonly string[],
       ): Effect.fn.Return<GitNotificationActionResult, GitNotificationError> {
-        yield* github.run(args).pipe(
+        yield* github.run(args, { retries: 0 }).pipe(
           Effect.mapError(
             (error) =>
               new GitNotificationError({
@@ -267,81 +294,6 @@ export class GitNotifications extends Context.Service<
           threadEndpoint(threadId),
         ]);
 
-      const markBotRead = (
-        opts?: GitNotificationQueryOptions,
-        actionOpts?: GitNotificationBotReadOptions,
-      ) =>
-        Effect.gen(function* () {
-          const query = normalizeQuery(opts);
-          const threads = yield* fetchThreads(query);
-          const unreadThreads = threads.filter((thread) => thread.unread);
-
-          const botChecks = yield* Effect.all(
-            unreadThreads.map((thread) =>
-              notificationThreadLooksBot(thread, github).pipe(
-                Effect.map((bot) => ({ thread, bot })),
-              ),
-            ),
-            { concurrency: 4 },
-          );
-
-          const matched = botChecks
-            .filter((check) => check.bot)
-            .map((check) => check.thread);
-
-          const dryRun = actionOpts?.dryRun === true;
-
-          if (dryRun) {
-            return {
-              dryRun,
-              matched,
-              marked: [],
-              failed: [],
-            } satisfies GitNotificationBotReadResult;
-          }
-
-          const results = yield* Effect.all(
-            matched.map((thread) =>
-              markRead(thread.id).pipe(
-                Effect.matchEffect({
-                  onSuccess: () =>
-                    Effect.succeed({ type: "marked" as const, thread }),
-                  onFailure: (error) =>
-                    Effect.succeed({
-                      type: "failed" as const,
-                      thread,
-                      message: error.message,
-                    }),
-                }),
-              ),
-            ),
-            { concurrency: 4 },
-          );
-
-          const marked = results
-            .filter((result) => result.type === "marked")
-            .map((result) => result.thread);
-
-          const failed = results
-            .filter((result) => result.type === "failed")
-            .map((result) => ({
-              thread: result.thread,
-              message: result.message,
-            }));
-
-          return { dryRun, matched, marked, failed };
-        }).pipe(
-          Effect.withSpan("GitNotifications.markBotRead"),
-          Effect.mapError((error) =>
-            error instanceof GitNotificationError
-              ? error
-              : new GitNotificationError({
-                  message: formatGhError(error),
-                  action: "mark-bot-read",
-                }),
-          ),
-        );
-
       const markDone = (threadId: string) =>
         runAction("done", threadId, [
           "api",
@@ -350,19 +302,119 @@ export class GitNotifications extends Context.Service<
           threadEndpoint(threadId),
         ]);
 
-      const ignore = (threadId: string) =>
-        runAction("ignore", threadId, subscriptionArgs(threadId, true));
+      const review = Effect.fn("GitNotifications.review")(
+        function* (repos?: readonly string[]) {
+          const pages = yield* Effect.forEach(
+            repos ?? [undefined],
+            (repo) => fetchThreads({ repo }),
+            { concurrency: 2 },
+          );
 
-      const unignore = (threadId: string) =>
-        runAction("unignore", threadId, subscriptionArgs(threadId, false));
+          const seen = new Set<string>();
+
+          const threads = pages.flat().filter((thread) => {
+            if (!thread.unread || seen.has(thread.id)) return false;
+            seen.add(thread.id);
+
+            return true;
+          });
+
+          return yield* Effect.forEach(
+            threads,
+            (thread) => inspectNotification(thread, github),
+            { concurrency: 4 },
+          );
+        },
+        Effect.mapError(
+          (error) =>
+            new GitNotificationError({ message: formatGhError(error) }),
+        ),
+      );
+
+      const dismiss = Effect.fn("GitNotifications.dismiss")(function* (
+        entries: readonly GitNotificationReview[],
+        category: GitNotificationCategory,
+      ) {
+        return yield* Effect.forEach(
+          entries,
+          (entry) =>
+            Effect.gen(function* (): Effect.fn.Return<
+              GitNotificationDismissal,
+              GitNotificationError
+            > {
+              if (entry.category !== category)
+                return {
+                  entry,
+                  status: "skipped",
+                  message: "Notification belongs to a different review pass",
+                };
+
+              const current = yield* github
+                .json([
+                  "api",
+                  "--method",
+                  "GET",
+                  threadEndpoint(entry.thread.id),
+                ])
+                .pipe(
+                  Effect.flatMap(
+                    Schema.decodeUnknownEffect(NotificationRecord),
+                  ),
+                  Effect.map(toNotificationThread),
+                  Effect.mapError(
+                    (error) =>
+                      new GitNotificationError({
+                        message: formatGhError(error),
+                      }),
+                  ),
+                );
+
+              if (
+                !current.unread ||
+                current.updatedAt !== entry.thread.updatedAt ||
+                current.subjectApiUrl !== entry.thread.subjectApiUrl ||
+                current.repo !== entry.thread.repo
+              )
+                return {
+                  entry,
+                  status: "skipped",
+                  message:
+                    "Notification changed or is already read; review it again",
+                };
+              const inspected = yield* inspectNotification(current, github);
+
+              if (
+                inspected.category !== entry.category ||
+                inspected.detail !== entry.detail ||
+                inspected.headSha !== entry.headSha ||
+                (category === "dependencies" && inspected.inspectionFailed)
+              )
+                return {
+                  entry,
+                  status: "skipped",
+                  message: `Evidence changed; review again: ${inspected.detail}`,
+                };
+              yield* markDone(current.id);
+
+              return { entry, status: "done", message: "Marked done" };
+            }).pipe(
+              Effect.catch((error) =>
+                Effect.succeed<GitNotificationDismissal>({
+                  entry,
+                  status: "failed",
+                  message: error.message,
+                }),
+              ),
+            ),
+          { concurrency: 2 },
+        );
+      });
 
       return {
+        review,
+        dismiss,
         query,
         markRead,
-        markBotRead,
-        markDone,
-        ignore,
-        unignore,
       };
     }),
   );
@@ -371,7 +423,14 @@ export class GitNotifications extends Context.Service<
 function notificationListArgs(
   opts?: GitNotificationQueryOptions,
 ): readonly string[] {
-  return ["api", notificationEndpoint(opts)];
+  return [
+    "api",
+    "--method",
+    "GET",
+    notificationEndpoint(opts),
+    "--paginate",
+    "--slurp",
+  ];
 }
 
 function notificationEndpoint(opts?: GitNotificationQueryOptions): string {
@@ -384,31 +443,18 @@ function notificationEndpoint(opts?: GitNotificationQueryOptions): string {
 
   if (opts?.since) params.set("since", opts.since);
 
-  return `notifications?${params.toString()}`;
+  return `${opts?.repo ? `repos/${opts.repo}/` : ""}notifications?${params.toString()}`;
 }
 
 function threadEndpoint(threadId: string): string {
   return `notifications/threads/${encodeURIComponent(threadId)}`;
 }
 
-function subscriptionArgs(
-  threadId: string,
-  ignored: boolean,
-): readonly string[] {
-  return [
-    "api",
-    "-X",
-    "PUT",
-    `${threadEndpoint(threadId)}/subscription`,
-    "-F",
-    `ignored=${ignored ? "true" : "false"}`,
-  ];
-}
-
 function normalizeQuery(
   opts?: GitNotificationQueryOptions,
 ): GitNotificationQueryOptions {
   return {
+    ...(opts?.repo && { repo: opts.repo }),
     ...(opts?.all && { all: true }),
     ...(opts?.participating && { participating: true }),
     ...(opts?.since && { since: opts.since }),
@@ -528,8 +574,10 @@ function buildState(
   lastChecked: Date,
   query: GitNotificationQueryOptions,
   message?: string,
+  inbox: readonly GitNotificationThread[] = threads,
 ): GitNotificationState {
   return {
+    inbox,
     threads,
     totalCount,
     lastChecked,
@@ -582,7 +630,11 @@ function normalizeSubjectType(value: string): GitNotificationSubjectType {
     value === "PullRequest" ||
     value === "Release" ||
     value === "Discussion" ||
-    value === "Commit"
+    value === "Commit" ||
+    value === "WorkflowRun" ||
+    value === "CheckSuite" ||
+    value === "RepositoryAdvisory" ||
+    value === "SecurityAdvisory"
   )
     return value;
 
@@ -635,10 +687,6 @@ function recordValue(value: JsonValue): JsonObject {
   return isRecord(value) ? value : {};
 }
 
-function isNotificationRecord(value: JsonValue): value is GhNotificationRecord {
-  return isRecord(value);
-}
-
 function isRecord(value: JsonValue): value is GhNotificationRecord {
   return Schema.is(Schema.Record(Schema.String, Schema.Json))(value);
 }
@@ -652,9 +700,5 @@ function actionMessage(
       return `Marked read: ${threadId}`;
     case "done":
       return `Marked done: ${threadId}`;
-    case "ignore":
-      return `Ignored: ${threadId}`;
-    case "unignore":
-      return `Unignored: ${threadId}`;
   }
 }

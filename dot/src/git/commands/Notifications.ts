@@ -1,12 +1,13 @@
 import { Effect } from "effect";
 import type {
-  GitNotificationAction,
-  GitNotificationBotReadResult,
   GitNotificationQueryOptions,
   GitNotificationState,
   GitNotificationThread,
 } from "../../types.js";
 import { CommandExecutor } from "../../services/CommandExecutor.js";
+import { Config } from "../../services/Config.js";
+import { managedGitRepos } from "../../services/GitConfig.js";
+import { managedRepoGitHubSlugs } from "../services/repoRelations.js";
 import { GitNotifications } from "../services/GitNotifications.js";
 import {
   formatNotificationIcon,
@@ -14,13 +15,7 @@ import {
   formatNotificationTimeAgo,
   notificationReasonIsImportant,
 } from "../services/notificationStatus.js";
-import {
-  handleCommandError,
-  pipeRow,
-  writeJsonLine,
-  writeRows,
-  writeText,
-} from "./rows.js";
+import { handleCommandError, writeJsonLine, writeText } from "./rows.js";
 
 const handleNotificationError = handleCommandError("dot git-notifications");
 
@@ -45,56 +40,53 @@ export const notificationsRaw = (opts?: GitNotificationQueryOptions) =>
 /** Machine output: status bar JSON. */
 export const notificationsBarJson = (opts?: GitNotificationQueryOptions) =>
   Effect.gen(function* () {
+    const config = yield* Config;
+    const executor = yield* CommandExecutor;
+
     const filteredState = yield* refreshNotificationState({
       ...opts,
       barFilter: true,
     });
 
-    yield* writeJsonLine(formatNotificationsBarJson(filteredState));
+    const repositories = yield* Effect.forEach(
+      managedGitRepos(config.gitConfig),
+      (repo) =>
+        Effect.gen(function* () {
+          const slugs = yield* managedRepoGitHubSlugs(repo, executor);
+
+          const threads = filteredState.inbox.filter(
+            (thread) =>
+              thread.unread &&
+              slugs.some(
+                (slug) => slug.toLowerCase() === thread.repo.toLowerCase(),
+              ),
+          );
+
+          return {
+            path: repo.path,
+            repo: repo.github,
+            count: threads.length,
+            titles: threads.slice(0, 3).map((thread) => thread.title),
+          };
+        }),
+      { concurrency: 4 },
+    );
+
+    yield* writeJsonLine({
+      ...formatNotificationsBarJson(filteredState),
+      workspace: { name: "Dotfiles", path: config.publicDotfiles },
+      repositories,
+    });
   }).pipe(Effect.withSpan("notifications.barJson"), handleNotificationError);
 
-/** Machine output: --list-threads pipe-delimited notification rows. */
-export const notificationsListThreads = (opts?: GitNotificationQueryOptions) =>
-  Effect.gen(function* () {
-    const state = yield* refreshNotificationState(opts);
-    yield* writeRows(state.threads.map(formatThreadRow));
-  }).pipe(
-    Effect.withSpan("notifications.listThreads"),
-    handleNotificationError,
-  );
-
-/** Apply a mutating notification action and print the result. */
-export const notificationsAction = (
-  action: GitNotificationAction,
-  threadId: string,
-) =>
+/** Mark a notification read when opening it from the panel. */
+export const notificationsMarkRead = (threadId: string) =>
   Effect.gen(function* () {
     const notifications = yield* GitNotifications;
 
-    const actionEffects = {
-      read: notifications.markRead,
-      done: notifications.markDone,
-      ignore: notifications.ignore,
-      unignore: notifications.unignore,
-    };
-
-    const result = yield* actionEffects[action](threadId);
+    const result = yield* notifications.markRead(threadId);
     yield* writeText(`${result.message}\n`);
   }).pipe(Effect.withSpan("notifications.action"), handleNotificationError);
-
-/** Mark unread bot notification threads as read, or preview them with --dry-run. */
-export const notificationsMarkBotRead = (
-  opts?: GitNotificationQueryOptions,
-  actionOpts?: { readonly dryRun?: boolean },
-) =>
-  Effect.gen(function* () {
-    const notifications = yield* GitNotifications;
-    const result = yield* notifications.markBotRead(opts, actionOpts);
-    yield* writeText(formatBotReadResult(result));
-  }).pipe(
-    Effect.withSpan("notifications.markBotRead"),
-    handleNotificationError,
-  );
 
 function refreshNotificationState(opts?: GitNotificationQueryOptions) {
   return Effect.gen(function* () {
@@ -230,63 +222,6 @@ function notificationStateSummary(
   }
 
   return { unreadCount, importantUnreadCount };
-}
-
-function formatThreadRow(thread: GitNotificationThread): string {
-  return pipeRow([
-    thread.id,
-    thread.repo,
-    thread.reason,
-    thread.type,
-    thread.unread ? "unread" : "read",
-    thread.updatedAt,
-    thread.title,
-    thread.webUrl,
-  ]);
-}
-
-function formatBotReadResult(result: GitNotificationBotReadResult): string {
-  const action = result.dryRun ? "Would mark" : "Marked";
-
-  const lines = [
-    `${action} ${result.dryRun ? result.matched.length : result.marked.length} bot notification${pluralSuffix(result.dryRun ? result.matched.length : result.marked.length)} read.`,
-  ];
-
-  if (!result.dryRun && result.failed.length > 0) {
-    lines.push(
-      `Failed: ${result.failed.length} notification${pluralSuffix(result.failed.length)}.`,
-    );
-  }
-
-  const threads = result.dryRun ? result.matched : result.marked;
-
-  if (threads.length > 0) {
-    lines.push("", "Matched threads:");
-
-    for (const thread of threads) {
-      lines.push(`  ${formatBotReadThread(thread)}`);
-    }
-  }
-
-  if (result.failed.length > 0) {
-    lines.push("", "Failures:");
-
-    for (const failure of result.failed) {
-      lines.push(
-        `  ${formatBotReadThread(failure.thread)}: ${failure.message}`,
-      );
-    }
-  }
-
-  return lines.join("\n") + "\n";
-}
-
-function formatBotReadThread(thread: GitNotificationThread): string {
-  return `${thread.id} | ${thread.repo} | ${thread.type} | ${thread.title}`;
-}
-
-function pluralSuffix(count: number): string {
-  return count === 1 ? "" : "s";
 }
 
 function appendNotificationQueryLines(

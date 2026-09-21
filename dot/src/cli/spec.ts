@@ -63,13 +63,12 @@ import {
   releasesOpenShell,
 } from "../git/commands/Releases.js";
 import {
-  notificationsAction,
   notificationsBarJson,
-  notificationsListThreads,
-  notificationsMarkBotRead,
+  notificationsMarkRead,
   notificationsOpenShell,
   notificationsRaw,
 } from "../git/commands/Notifications.js";
+import { notificationsDismiss } from "../git/commands/NotificationDismiss.js";
 import type { GitNotificationQueryOptions } from "../types.js";
 import { resolve } from "path";
 
@@ -1010,6 +1009,66 @@ const since = Flag.String("since").pipe(
   Flag.optional,
 );
 
+const notificationReviewFlags = {
+  repo: text(
+    "repo",
+    "Configured repository name/path or GitHub owner/repository",
+  ),
+  dryRun: bool(
+    "dry-run",
+    "Print repository batches and reasons without changing notifications",
+  ),
+};
+
+const notificationDismissCommand = describe(
+  Command.make("dismiss", notificationReviewFlags, ({ repo, dryRun }) =>
+    notificationsDismiss({ scope: "all", repo: optional(repo), dryRun }),
+  ).pipe(
+    Command.withSubcommands([
+      describe(
+        Command.make(
+          "dependencies",
+          {
+            ...notificationReviewFlags,
+            mode: Flag.Literals("mode", ["all", "repos"]).pipe(
+              Flag.withDescription(
+                "Mark all verified dependencies done, or prompt per repository; omit to choose",
+              ),
+              Flag.optional,
+            ),
+          },
+          ({ repo, dryRun, mode }) =>
+            notificationsDismiss({
+              scope: "dependencies",
+              repo: optional(repo),
+              dryRun,
+              mode: optional(mode),
+            }),
+        ),
+        "Review unread merged Renovate/Dependabot updates with successful CI. All-mode excludes failed, pending and unverifiable CI. Opening GitHub returns to the review without dismissing anything.",
+      ),
+      describe(
+        Command.make("remaining", notificationReviewFlags, ({ repo, dryRun }) =>
+          notificationsDismiss({
+            scope: "remaining",
+            repo: optional(repo),
+            dryRun,
+          }),
+        ),
+        "Review all other unread notifications per repository, including PRs with unresolved CI and their reasons. This pass always requires a choice before dismissal.",
+      ),
+    ]),
+  ),
+  "Show a coloured repository summary, then review merged dependencies followed by remaining unread notifications. Done queues work in the background while progress appears above the next choices. Every repository offers Done, Open on GitHub, Skip and Stop. Stop ends the questions and finishes queued work before a completion and issues summary. --repo selects a single notification stack. Bar hiding preferences do not restrict this inbox.",
+  [
+    "dot git-notifications dismiss",
+    "dot git-notifications dismiss --repo owner/repository",
+    "dot git-notifications dismiss --dry-run",
+    "dot git-notifications dismiss dependencies --mode all",
+    "dot git-notifications dismiss remaining",
+  ],
+);
+
 const gitNotificationsCommand = describe(
   Command.make(
     "git-notifications",
@@ -1019,17 +1078,11 @@ const gitNotificationsCommand = describe(
         "bar-json",
         "JSON output for status bars and shell modules",
       ),
-      listThreads: bool("list-threads", "Notification threads as rows"),
       barFilter: bool("bar-filter", "Apply watched-repo filtering"),
       all: bool("all", "Include read notifications"),
       participating: bool("participating", "Only participating threads"),
       since,
       markRead: text("mark-read", "Mark a thread as read"),
-      markDone: text("mark-done", "Mark a thread as done"),
-      ignore: text("ignore", "Ignore a thread"),
-      unignore: text("unignore", "Stop ignoring a thread"),
-      markBotRead: bool("mark-bot-read", "Mark bot notifications as read"),
-      dryRun: bool("dry-run", "Preview bot marking"),
     },
     (input) =>
       Effect.gen(function* () {
@@ -1046,35 +1099,22 @@ const gitNotificationsCommand = describe(
               }
             : undefined;
 
-        for (const [value, action] of [
-          [input.markRead, "read"],
-          [input.markDone, "done"],
-          [input.ignore, "ignore"],
-          [input.unignore, "unignore"],
-        ] as const)
-          if (Option.isSome(value))
-            return yield* notificationsAction(action, value.value);
-
-        if (input.markBotRead)
-          return yield* notificationsMarkBotRead(options, {
-            dryRun: input.dryRun,
-          });
+        if (Option.isSome(input.markRead))
+          return yield* notificationsMarkRead(input.markRead.value);
 
         if (input.barJson) return yield* notificationsBarJson(options);
-
-        if (input.listThreads) return yield* notificationsListThreads(options);
 
         if (input.raw || options) return yield* notificationsRaw(options);
 
         return yield* notificationsOpenShell;
       }),
-  ),
+  ).pipe(Command.withSubcommands([notificationDismissCommand])),
   'Open the authenticated GitHub notification inbox. Without machine-output or action flags, this opens the Omarchy shell panel. --since accepts ISO/RFC dates, epoch timestamps, compact durations such as 2d, and quoted durations such as "2 days ago".',
   [
     "dot git-notifications",
     "dot git-notifications --bar-json",
     "dot git-notifications --participating",
-    "dot git-notifications --mark-bot-read --dry-run",
+    "dot git-notifications dismiss --dry-run",
     "dot git-notifications --mark-read 12345",
   ],
   {
@@ -1082,7 +1122,6 @@ const gitNotificationsCommand = describe(
       "(default)       Open the shell notification panel",
       "--raw           Text summary",
       "--bar-json      Status-bar JSON",
-      "--list-threads  Notification rows",
       "--bar-filter    Apply watched-repository filtering",
     ],
   },
