@@ -3,7 +3,6 @@ import { writeFileSync } from "fs";
 import { join } from "path";
 import { Config } from "../services/Config.js";
 import { OutputLog } from "../services/OutputLog.js";
-import { Launcher } from "../services/Launcher.js";
 import { runDoctor } from "../doctor/runner.js";
 import { withSpinnerTimeout } from "../lib/workflowStep.js";
 import { displayPath } from "../lib/paths.js";
@@ -63,11 +62,10 @@ function formatReport(report: DoctorReport): string {
  * Matches legacy output density: section headings per category,
  * per-item status lines, grouped summary at end.
  */
-export const doctor = (opts?: { readonly openOpencode?: boolean }) =>
+export const doctor = () =>
   Effect.gen(function* () {
     const config = yield* Config;
     const log = yield* OutputLog;
-    const launcher = yield* Launcher;
 
     // Header summary (matches legacy), printed before checks start streaming
     yield* log.info(`Public repo: ${displayPath(config.publicDotfiles)}`);
@@ -194,17 +192,6 @@ export const doctor = (opts?: { readonly openOpencode?: boolean }) =>
     // Write report to file
     const reportPath = join(config.logDir, `doctor-${report.timestamp}.log`);
     writeFileSync(reportPath, formatReport(report));
-
-    // --open-opencode: hand off to opencode for analysis
-    if (opts?.openOpencode) {
-      yield* log.info(`Saved doctor report: ${reportPath}`);
-
-      const opencodePrompt = `Review the dot doctor report at ${reportPath}. Read it with the Read tool first. Give a concise diagnosis of any issues or warnings, probable causes, and a prioritized action plan to resolve them.`;
-
-      yield* launcher
-        .suspendArgv(["opencode", "--prompt", opencodePrompt])
-        .pipe(Effect.catch(() => Effect.void));
-    }
 
     // Exit with error status if critical issues found
     if (report.errors > 0) {

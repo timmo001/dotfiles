@@ -40,30 +40,14 @@ export type WorkspaceSetupMode = "work" | "normal";
 
 /** Raw workspace setup options supplied by the CLI. */
 export interface WorkspaceSetupOptions {
-  /** Pause after each logged step. */
-  readonly stepThrough: boolean;
-  /** Multiply built-in sleeps by this value. */
-  readonly speedMultiplier: number;
-  /** Use the unscaled fast timing preset. */
-  readonly fast: boolean;
   /** Delay startup by this many unscaled seconds. */
   readonly startupDelay: number;
-  /** Explicit numeric temporary workspace. */
-  readonly temporaryWorkspace?: number;
-  /** Explicit dispatcher selection. */
-  readonly moveDispatcher?: WorkspaceMoveDispatcher;
-  /** Explicit run log path. */
-  readonly logFile?: string;
   /** Explicit work or normal layout, skipping `is-work-time`. */
   readonly mode?: WorkspaceSetupMode;
 }
 
 /** Validated workspace setup configuration. */
 export interface WorkspaceSetupConfig {
-  /** Pause after each logged step. */
-  readonly stepThrough: boolean;
-  /** Multiplier applied to built-in sleeps. */
-  readonly speedMultiplier: number;
   /** Unscaled startup delay in seconds. */
   readonly startupDelay: number;
   /** Numeric temporary workspace used to rebuild split trees. */
@@ -201,42 +185,29 @@ function positiveWorkspace(value: string | undefined, label: string): number {
   return Number(value);
 }
 
-/** Resolve explicit options over legacy environment variables and defaults. */
+/** Resolve startup options and legacy environment defaults. */
 export function resolveWorkspaceSetupConfig(
   options: WorkspaceSetupOptions,
   environment: Readonly<Record<string, string | undefined>> = process.env,
 ): WorkspaceSetupConfig {
-  const speedMultiplier = options.fast ? 1 : options.speedMultiplier;
-
-  if (!Number.isFinite(speedMultiplier) || speedMultiplier <= 0) {
-    return fail("--speed-multiplier must be a positive number");
-  }
-
   if (!Number.isFinite(options.startupDelay) || options.startupDelay < 0) {
     return fail("--sleep must be a non-negative number");
   }
 
   const temporaryWorkspace =
-    options.temporaryWorkspace ??
-    (environment.WORKSPACE_SETUP_TEMP_WS === undefined
+    environment.WORKSPACE_SETUP_TEMP_WS === undefined
       ? DEFAULT_TEMP_WORKSPACE
       : positiveWorkspace(
           environment.WORKSPACE_SETUP_TEMP_WS,
           "WORKSPACE_SETUP_TEMP_WS",
-        ));
-
-  if (!Number.isInteger(temporaryWorkspace) || temporaryWorkspace <= 0) {
-    return fail("--temp-workspace must be a positive integer workspace id");
-  }
+        );
 
   if ([1, 2, 3].includes(temporaryWorkspace)) {
     return fail("Temporary workspace must not be workspace 1, 2, or 3");
   }
 
   const moveDispatcher =
-    options.moveDispatcher ??
-    environment.WORKSPACE_SETUP_MOVE_DISPATCHER ??
-    "movetoworkspace";
+    environment.WORKSPACE_SETUP_MOVE_DISPATCHER ?? "movetoworkspace";
 
   if (
     moveDispatcher !== "movetoworkspace" &&
@@ -247,12 +218,9 @@ export function resolveWorkspaceSetupConfig(
     );
   }
 
-  const configuredLog =
-    options.logFile ?? environment.WORKSPACE_SETUP_LOG_FILE ?? undefined;
+  const configuredLog = environment.WORKSPACE_SETUP_LOG_FILE;
 
   return {
-    stepThrough: options.stepThrough,
-    speedMultiplier,
     startupDelay: options.startupDelay,
     temporaryWorkspace,
     moveDispatcher,
@@ -523,16 +491,9 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
       const overlay = overlayProgress(message);
 
       if (overlay !== undefined) yield* showOverlay(overlay);
-
-      if (config.stepThrough) {
-        yield* Effect.sync(() => {
-          prompt("[workspace-setup] Press Enter to continue... ");
-        });
-      }
     });
 
-  const sleep = (seconds: number) =>
-    Effect.sleep(`${seconds * config.speedMultiplier} seconds`);
+  const sleep = (seconds: number) => Effect.sleep(`${seconds * 1.8} seconds`);
 
   const dispatch = (command: string) =>
     executor.run("hyprctl", ["dispatch", command]).pipe(Effect.ignore);
@@ -815,7 +776,7 @@ export const workspaceSetup = Effect.fn("workspaceSetup")(function* (
     }
 
     yield* logStep(
-      `Starting workspace setup (step-through=${config.stepThrough}, speed-multiplier=${config.speedMultiplier}, move-dispatcher=${config.moveDispatcher}, log-file=${logFile})`,
+      `Starting workspace setup (move-dispatcher=${config.moveDispatcher}, log-file=${logFile})`,
     );
 
     if (startupBrowser) {

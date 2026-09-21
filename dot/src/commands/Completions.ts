@@ -291,20 +291,9 @@ export const writeAllCompletions = Effect.all([
   ...SUPPORTED_SHELLS.map(writeSkillsMaintenanceCompletions),
 ]);
 
-/** Generate or write completions for one shell. */
-export function completions(options: {
-  readonly shell: CompletionShell;
-  readonly stdout: boolean;
-}) {
+/** Write completions for one shell. */
+export function completions(options: { readonly shell: CompletionShell }) {
   return Effect.gen(function* () {
-    if (options.stdout) {
-      yield* Effect.sync(() =>
-        process.stdout.write(renderCompletions(options.shell)),
-      );
-
-      return;
-    }
-
     const targets = yield* Effect.all([
       writeCompletions(options.shell),
       writeSkillsMaintenanceCompletions(options.shell),

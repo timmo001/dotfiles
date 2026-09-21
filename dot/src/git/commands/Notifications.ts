@@ -9,12 +9,7 @@ import { Config } from "../../services/Config.js";
 import { managedGitRepos } from "../../services/GitConfig.js";
 import { managedRepoGitHubSlugs } from "../services/repoRelations.js";
 import { GitNotifications } from "../services/GitNotifications.js";
-import {
-  formatNotificationIcon,
-  formatNotificationThreadDetail,
-  formatNotificationTimeAgo,
-  notificationReasonIsImportant,
-} from "../services/notificationStatus.js";
+import { notificationReasonIsImportant } from "../services/notificationStatus.js";
 import { handleCommandError, writeJsonLine, writeText } from "./rows.js";
 
 const handleNotificationError = handleCommandError("dot git-notifications");
@@ -29,13 +24,6 @@ export const notificationsOpenShell = Effect.gen(function* () {
     '{"view":"notifications"}',
   ]);
 }).pipe(Effect.withSpan("notifications.openShell"), handleNotificationError);
-
-/** CLI text output: --raw notification summary. */
-export const notificationsRaw = (opts?: GitNotificationQueryOptions) =>
-  Effect.gen(function* () {
-    const state = yield* refreshNotificationState(opts);
-    yield* writeText(formatRaw(state));
-  }).pipe(Effect.withSpan("notifications.raw"), handleNotificationError);
 
 /** Machine output: status bar JSON. */
 export const notificationsBarJson = (opts?: GitNotificationQueryOptions) =>
@@ -94,35 +82,6 @@ function refreshNotificationState(opts?: GitNotificationQueryOptions) {
 
     return yield* notifications.query(opts);
   });
-}
-
-function formatRaw(state: GitNotificationState): string {
-  const summary = notificationStateSummary(state);
-
-  const lines = [
-    "GitHub Notifications",
-    `Last checked: ${formatNotificationTimeAgo(state.lastChecked.toISOString())}`,
-    `Unread: ${summary.unreadCount} / ${state.threads.length}`,
-  ];
-
-  appendNotificationQueryLines(lines, state.query);
-
-  if (state.message) lines.push(`Message: ${state.message}`);
-
-  if (state.threads.length === 0) {
-    lines.push("", "No GitHub notifications.");
-
-    return lines.join("\n") + "\n";
-  }
-
-  for (const thread of state.threads) {
-    lines.push("", `${formatNotificationIcon(thread)} ${thread.repo}`);
-    lines.push(`  ${formatNotificationThreadDetail(thread)}`);
-    lines.push(`  ${thread.title}`);
-    lines.push(`  ${thread.webUrl}`);
-  }
-
-  return lines.join("\n") + "\n";
 }
 
 /** Format notification state for status bars and the native shell panel. */
@@ -231,8 +190,6 @@ function appendNotificationQueryLines(
   if (query.all) lines.push("Including read notifications");
 
   if (query.participating) lines.push("Participating only");
-
-  if (query.since) lines.push(`Since: ${query.since}`);
 
   if (query.barFilter) lines.push("Status-bar filters active");
 }

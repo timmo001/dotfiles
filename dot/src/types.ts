@@ -90,8 +90,6 @@ export interface GitNotificationQueryOptions {
   readonly all?: boolean;
   /** Restrict results to participating or mentioned threads when true. */
   readonly participating?: boolean;
-  /** Only include notifications updated at or after this ISO timestamp. */
-  readonly since?: string;
   /** Apply status-bar repo schedule and bot-activity filters. */
   readonly barFilter?: boolean;
 }

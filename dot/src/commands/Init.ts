@@ -82,7 +82,6 @@ class InitError extends Schema.TaggedError<InitError>()("InitError", {
 
 /** Typed options supplied by the Effect CLI command. */
 export interface InitOptions {
-  readonly confirm: boolean;
   readonly noninteractive: boolean;
   readonly force: boolean;
   readonly host?: string;
@@ -559,7 +558,6 @@ function syncAgentsStrict(): Effect.Effect<
 
 function setupPrivatePackages(
   config: ConfigService,
-  options: InitOptions,
 ): Effect.Effect<void, unknown, Config | CommandExecutor | OutputLog | Gh> {
   return Effect.gen(function* () {
     const log = yield* OutputLog;
@@ -575,7 +573,6 @@ function setupPrivatePackages(
     yield* setupPrivateRepo;
     yield* installMissingArchPackages({
       scope: "private",
-      confirm: options.confirm,
     });
   });
 }
@@ -775,7 +772,6 @@ export function init(
       INIT_STEP_TIMEOUT_SECONDS.publicPackages,
       installMissingArchPackages({
         scope: "public",
-        confirm: options.confirm,
       }),
     );
     yield* requiredInitStep(
@@ -796,7 +792,7 @@ export function init(
     yield* requiredInitStep(
       "Setup Private Packages",
       INIT_STEP_TIMEOUT_SECONDS.privatePackages,
-      setupPrivatePackages(config, options),
+      setupPrivatePackages(config),
     );
     yield* requiredInitStep(
       "Clone Private Git Repositories",

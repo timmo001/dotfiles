@@ -58,7 +58,7 @@ const loading: BarStatus = {
   class: "updates-unknown",
 };
 
-/** Paths and timing controls shared by update status and refresh commands. */
+/** Paths and timing controls for update refreshes. */
 export interface UpdatesOptions {
   /** Watched package list; defaults to the public dotfiles package manifest. */
   readonly packageFile?: string;
@@ -66,8 +66,6 @@ export interface UpdatesOptions {
   readonly cacheDir?: string;
   /** Maximum duration of each external check, in seconds. */
   readonly timeout: number;
-  /** Age at which status starts a background refresh, in seconds. */
-  readonly cacheMaxAge?: number;
 }
 
 const paths = Effect.fn("Updates.paths")(function* (options: UpdatesOptions) {
@@ -179,7 +177,9 @@ const packages = Effect.fn("Updates.packages")(function* (
       ) {
         yield* fs.remove(locations.backoff, { force: true });
       } else if (
-        AUR_HTTP_FAILURE_PATTERNS.some((pattern) => pattern.test(aurResult.stderr))
+        AUR_HTTP_FAILURE_PATTERNS.some((pattern) =>
+          pattern.test(aurResult.stderr),
+        )
       ) {
         const nextFailures = Math.min(5, Math.max(0, failures) + 1);
         const seconds = Math.min(21600, 1800 * 2 ** (nextFailures - 1));
@@ -291,11 +291,9 @@ export const updatesRefresh = Effect.fn("Updates.refresh")(function* (
 });
 
 /** Print cached status immediately and start a detached refresh when it is stale. */
-export const updatesStatus = Effect.fn("Updates.status")(function* (
-  options: UpdatesOptions,
-) {
+export const updatesStatus = Effect.fn("Updates.status")(function* () {
   const fs = yield* FileSystem.FileSystem;
-  const locations = yield* paths(options);
+  const locations = yield* paths({ timeout: 120 });
   const now = yield* Clock.currentTimeMillis;
   const cached = yield* fs.readFileString(locations.cache).pipe(Effect.option);
   const status = Option.flatMap(cached, decodeStatus);
@@ -310,7 +308,7 @@ export const updatesStatus = Effect.fn("Updates.status")(function* (
   if (
     (Option.isNone(status) ||
       now - (Option.getOrUndefined(status)?.packagesCheckedAt ?? modified) >=
-        (options.cacheMaxAge ?? 900) * 1000) &&
+        900 * 1000) &&
     !(yield* fs.exists(locations.lock))
   ) {
     yield* Effect.try(() => {
@@ -325,7 +323,7 @@ export const updatesStatus = Effect.fn("Updates.status")(function* (
           "--cache-dir",
           locations.directory,
           "--timeout",
-          String(options.timeout),
+          "120",
         ],
         {
           stdin: "ignore",

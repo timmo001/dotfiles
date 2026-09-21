@@ -1,8 +1,8 @@
 import { Clock, Effect, Schema } from "effect";
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { cpus, hostname, loadavg, tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { displayPath, expandHomePath } from "../lib/paths.js";
+import { dirname, join } from "node:path";
+import { displayPath } from "../lib/paths.js";
 import { isAgent } from "../lib/agent.js";
 import { ENV, envString } from "../lib/env.js";
 import { Launcher } from "../services/Launcher.js";
@@ -155,22 +155,17 @@ export class SnapshotError extends Schema.TaggedError<SnapshotError>()(
 
 /** Sample Linux CPU usage and save memory totals and process rankings. */
 export const snapshot = Effect.fn("Snapshot.run")(function* ({
-  output,
-  json = false,
   sort = "mem",
   limit = 40,
   minMemoryMib = 80,
   minCpu = 1,
 }: {
-  output?: string;
-  json?: boolean;
   sort?: "cpu" | "mem";
   limit?: number;
   minMemoryMib?: number;
   minCpu?: number;
 }) {
   const agent = isAgent();
-  const jsonOutput = json || agent;
   const timestamp = yield* Clock.currentTimeMillis;
 
   const before = yield* Effect.try({
@@ -572,24 +567,22 @@ export const snapshot = Effect.fn("Snapshot.run")(function* ({
     catch: (error) => new SnapshotError({ message: String(error) }),
   });
 
-  const target = output
-    ? resolve(expandHomePath(output))
-    : join(
-        tmpdir(),
-        `dot-snapshot-${new Date(timestamp).toISOString().replaceAll(":", "-")}.${jsonOutput ? "json" : "md"}`,
-      );
+  const target = join(
+    tmpdir(),
+    `dot-snapshot-${new Date(timestamp).toISOString().replaceAll(":", "-")}.${agent ? "json" : "md"}`,
+  );
 
   yield* Effect.try({
     try: () => {
       mkdirSync(dirname(target), { recursive: true });
 
-      const content = jsonOutput
+      const content = agent
         ? `${JSON.stringify({ ...report.data, reportPath: target }, null, 2)}\n`
         : report.full;
 
       writeFileSync(target, content, { mode: 0o600, flag: "wx" });
       console.log(
-        jsonOutput
+        agent
           ? content.trimEnd()
           : `${report.summary}\nFull report: ${markdownText(displayPath(target))}\n`,
       );
@@ -597,7 +590,7 @@ export const snapshot = Effect.fn("Snapshot.run")(function* ({
     catch: (error) => new SnapshotError({ message: String(error) }),
   });
 
-  if (!agent && !jsonOutput && process.stdin.isTTY && process.stdout.isTTY) {
+  if (!agent && process.stdin.isTTY && process.stdout.isTTY) {
     const launcher = yield* Launcher;
     const editor = envString(ENV.EDITOR)?.trim() || "vi";
 

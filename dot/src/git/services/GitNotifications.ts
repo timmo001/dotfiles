@@ -441,8 +441,6 @@ function notificationEndpoint(opts?: GitNotificationQueryOptions): string {
 
   if (opts?.participating) params.set("participating", "true");
 
-  if (opts?.since) params.set("since", opts.since);
-
   return `${opts?.repo ? `repos/${opts.repo}/` : ""}notifications?${params.toString()}`;
 }
 
@@ -457,7 +455,6 @@ function normalizeQuery(
     ...(opts?.repo && { repo: opts.repo }),
     ...(opts?.all && { all: true }),
     ...(opts?.participating && { participating: true }),
-    ...(opts?.since && { since: opts.since }),
     ...(opts?.barFilter && { barFilter: true }),
   };
 }

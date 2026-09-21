@@ -5,13 +5,6 @@ const ErrorMessage = Schema.decodeUnknownOption(
   Schema.Struct({ message: Schema.String }),
 );
 
-/** Format fields as a pipe-delimited machine-readable row. */
-export function pipeRow(
-  fields: readonly (string | null | undefined)[],
-): string {
-  return fields.map(pipeField).join("|");
-}
-
 /** Write text to stdout exactly as provided. */
 export function writeText(text: string): Effect.Effect<void> {
   return Effect.sync(() => process.stdout.write(text));
@@ -20,13 +13,6 @@ export function writeText(text: string): Effect.Effect<void> {
 /** Write one JSON-encoded value followed by a newline. */
 export function writeJsonLine(value: JsonValue): Effect.Effect<void> {
   return writeText(`${JSON.stringify(value)}\n`);
-}
-
-/** Write pipe-delimited rows followed by newlines. */
-export function writeRows(rows: Iterable<string>): Effect.Effect<void> {
-  return Effect.sync(() => {
-    for (const row of rows) process.stdout.write(`${row}\n`);
-  });
 }
 
 /** Format an unknown command error for CLI output. */
@@ -46,8 +32,4 @@ export function handleCommandError(label: string) {
       process.exit(1);
     }),
   );
-}
-
-function pipeField(value: string | null | undefined): string {
-  return (value ?? "").replace(/[|\r\n]+/g, " ").trim();
 }

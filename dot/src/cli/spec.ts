@@ -42,18 +42,11 @@ import { stow } from "../commands/Stow.js";
 import { snapshot } from "../commands/Snapshot.js";
 import { systemUpdate } from "../commands/SystemUpdate.js";
 import { update, updateCheck, updateRepositories } from "../commands/Update.js";
-import { usage } from "../commands/Usage.js";
 import { workspaceRelayout } from "../commands/WorkspaceRelayout.js";
 import { workspaceSetup } from "../commands/WorkspaceSetup.js";
 import { configureFirewallRules } from "../lib/firewallSetup.js";
 import { applyOmarchyShellConfig } from "../lib/omarchyShellConfig.js";
-import {
-  diffBarJson,
-  diffListAll,
-  diffListChanged,
-  diffPanelJson,
-  diffRaw,
-} from "../git/commands/Diff.js";
+import { diffBarJson, diffPanelJson, diffRaw } from "../git/commands/Diff.js";
 import { gitCommitRaw } from "../git/commands/Commit.js";
 import { gitWeb } from "../git/commands/Web.js";
 import {
@@ -66,7 +59,6 @@ import {
   notificationsBarJson,
   notificationsMarkRead,
   notificationsOpenShell,
-  notificationsRaw,
 } from "../git/commands/Notifications.js";
 import { notificationsDismiss } from "../git/commands/NotificationDismiss.js";
 import type { GitNotificationQueryOptions } from "../types.js";
@@ -125,25 +117,6 @@ const optional = <A>(value: Option.Option<A>): A | undefined =>
 /** Effect global flags enabled by the `dot` command runner. */
 export const cliBuiltIns = [GlobalFlag.Help] as const;
 
-/** Preserve the legacy unquoted multi-token value accepted by `--since`. */
-export function normalizeCliArgs(args: readonly string[]): readonly string[] {
-  if (args[0] !== "git-notifications") return args;
-  const sinceIndex = args.indexOf("--since");
-
-  if (sinceIndex < 0) return args;
-  let end = sinceIndex + 1;
-
-  while (end < args.length && !args[end].startsWith("--")) end++;
-
-  if (end <= sinceIndex + 2) return args;
-
-  return [
-    ...args.slice(0, sinceIndex + 1),
-    args.slice(sinceIndex + 1, end).join(" "),
-    ...args.slice(end),
-  ];
-}
-
 const describe = <C extends Command.Command.Any>(
   command: C,
   description: string,
@@ -166,10 +139,6 @@ const initCommand = describe(
   Command.make(
     "init",
     {
-      confirm: bool(
-        "confirm",
-        "Compatibility flag; accepted but does not suppress prompts",
-      ),
       noninteractive: bool(
         "noninteractive",
         "Skip the Hypr host questionnaire for this run",
@@ -464,7 +433,7 @@ const runCommandSpec = describe(
   },
 );
 
-const updateStatusFlags = {
+const updateRefreshFlags = {
   packageFile: pathFlag(
     "package-file",
     "Watched package list (default: public dotfiles manifest)",
@@ -491,28 +460,7 @@ const updatesCommand = describe(
   Command.make("updates").pipe(
     Command.withSubcommands([
       describe(
-        Command.make(
-          "status",
-          {
-            ...updateStatusFlags,
-            cacheMaxAge: integer(
-              "cache-max-age",
-              "Seconds before starting a background refresh",
-              900,
-            ).pipe(
-              Flag.filter(
-                (value) => value >= 0,
-                () => "Cache age cannot be negative",
-              ),
-            ),
-          },
-          (input) =>
-            updatesStatus({
-              ...input,
-              packageFile: optional(input.packageFile),
-              cacheDir: optional(input.cacheDir),
-            }),
-        ),
+        Command.make("status", {}, () => updatesStatus()),
         "Print cached status-bar JSON and refresh stale data in the background",
         ["dot updates status"],
       ),
@@ -520,7 +468,7 @@ const updatesCommand = describe(
         Command.make(
           "refresh",
           {
-            ...updateStatusFlags,
+            ...updateRefreshFlags,
             scheduled: bool("scheduled", "Respect the AUR request backoff"),
             dotOnly: bool(
               "dot-only",
@@ -714,8 +662,6 @@ const gitDiffCommand = describe(
   Command.make(
     "git-diff",
     {
-      noFetch: bool("no-fetch", "Skip fetching from remotes"),
-      raw: bool("raw", "Text summary output"),
       barJson: bool(
         "bar-json",
         "JSON output for status bars and shell modules",
@@ -724,37 +670,22 @@ const gitDiffCommand = describe(
         "panel-json",
         "Full JSON snapshot for the native shell panel",
       ),
-      listChanged: bool("list-changed", "Changed repos as rows"),
-      listAll: bool("list-all", "All tracked repos as rows"),
     },
-    ({ barJson, listAll, listChanged, noFetch, panelJson }) => {
-      const options = noFetch ? { noFetch: true } : undefined;
+    ({ barJson, panelJson }) => {
+      if (barJson) return diffBarJson();
 
-      if (barJson) return diffBarJson(options);
+      if (panelJson) return diffPanelJson();
 
-      if (panelJson) return diffPanelJson(options);
-
-      if (listChanged) return diffListChanged(options);
-
-      if (listAll) return diffListAll;
-
-      return diffRaw(options);
+      return diffRaw();
     },
   ),
   "Show repository change state across all tracked repositories.",
-  [
-    "dot git-diff",
-    "dot git-diff --raw",
-    "dot git-diff --bar-json",
-    "dot git-diff --panel-json",
-  ],
+  ["dot git-diff", "dot git-diff --bar-json", "dot git-diff --panel-json"],
   {
     modes: [
       "(default)       Text summary of repos with changes",
       "--bar-json      JSON output for status bars",
       "--panel-json    Full JSON panel snapshot",
-      "--list-changed  Changed repositories as rows",
-      "--list-all      All tracked repositories as rows",
     ],
   },
 ).pipe(Command.withAlias("diff"));
@@ -961,54 +892,6 @@ const gitCommitCommand = describe(
   },
 );
 
-/** Parse an absolute, epoch, or documented relative notification timestamp. */
-export function parseSinceValue(value: string, now = Date.now()): string {
-  const relative = value.match(
-    /^(\d+)\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days|w|week|weeks)(?:\s+ago)?$/i,
-  );
-
-  const units = {
-    s: 1_000,
-    m: 60_000,
-    h: 3_600_000,
-    d: 86_400_000,
-    w: 604_800_000,
-  } as const;
-
-  const unit = relative?.[2].toLowerCase();
-
-  const multiplier = unit?.startsWith("s")
-    ? units.s
-    : unit?.startsWith("m")
-      ? units.m
-      : unit?.startsWith("h")
-        ? units.h
-        : unit?.startsWith("d")
-          ? units.d
-          : units.w;
-
-  const timestamp = /^\d+$/.test(value)
-    ? Number(value) < 10_000_000_000
-      ? Number(value) * 1000
-      : Number(value)
-    : relative
-      ? now - Number(relative[1]) * multiplier
-      : Date.parse(value);
-
-  if (!Number.isFinite(timestamp))
-    throw new Error(
-      "Expected an ISO/RFC date, epoch timestamp, or relative duration",
-    );
-
-  return new Date(timestamp).toISOString();
-}
-
-const since = Flag.String("since").pipe(
-  Flag.mapTryCatch(parseSinceValue, (error) => String(error)),
-  Flag.withDescription("Only include notifications updated after this date"),
-  Flag.optional,
-);
-
 const notificationReviewFlags = {
   repo: text(
     "repo",
@@ -1073,43 +956,34 @@ const gitNotificationsCommand = describe(
   Command.make(
     "git-notifications",
     {
-      raw: bool("raw", "Text summary of notification threads"),
       barJson: bool(
         "bar-json",
         "JSON output for status bars and shell modules",
       ),
-      barFilter: bool("bar-filter", "Apply watched-repo filtering"),
       all: bool("all", "Include read notifications"),
       participating: bool("participating", "Only participating threads"),
-      since,
       markRead: text("mark-read", "Mark a thread as read"),
     },
     (input) =>
       Effect.gen(function* () {
         const options: GitNotificationQueryOptions | undefined =
-          input.all ||
-          input.participating ||
-          input.barFilter ||
-          Option.isSome(input.since)
+          input.all || input.participating
             ? {
                 ...(input.all && { all: true }),
                 ...(input.participating && { participating: true }),
-                ...(input.barFilter && { barFilter: true }),
-                ...(Option.isSome(input.since) && { since: input.since.value }),
               }
             : undefined;
 
         if (Option.isSome(input.markRead))
           return yield* notificationsMarkRead(input.markRead.value);
 
-        if (input.barJson) return yield* notificationsBarJson(options);
-
-        if (input.raw || options) return yield* notificationsRaw(options);
+        if (input.barJson || options)
+          return yield* notificationsBarJson(options);
 
         return yield* notificationsOpenShell;
       }),
   ).pipe(Command.withSubcommands([notificationDismissCommand])),
-  'Open the authenticated GitHub notification inbox. Without machine-output or action flags, this opens the Omarchy shell panel. --since accepts ISO/RFC dates, epoch timestamps, compact durations such as 2d, and quoted durations such as "2 days ago".',
+  "Open the authenticated GitHub notification inbox. Without output, query or action flags, this opens the Omarchy shell panel. --all and --participating return filtered bar JSON.",
   [
     "dot git-notifications",
     "dot git-notifications --bar-json",
@@ -1120,9 +994,7 @@ const gitNotificationsCommand = describe(
   {
     modes: [
       "(default)       Open the shell notification panel",
-      "--raw           Text summary",
       "--bar-json      Status-bar JSON",
-      "--bar-filter    Apply watched-repository filtering",
     ],
   },
 );
@@ -1132,8 +1004,6 @@ const simpleCommands = [
     Command.make(
       "snapshot",
       {
-        output: text("output", "Save the report to a new file at this path"),
-        json: bool("json", "Print and save structured JSON for agents"),
         sort: Flag.Literals("sort", ["cpu", "mem"]).pipe(
           Flag.withDefault("mem"),
           Flag.withDescription(
@@ -1171,8 +1041,7 @@ const simpleCommands = [
           ),
         ),
       },
-      ({ output, ...options }) =>
-        snapshot({ ...options, output: optional(output) }),
+      snapshot,
     ),
     "Save a CPU and memory snapshot with process rankings",
     [
@@ -1180,12 +1049,10 @@ const simpleCommands = [
       "dot snapshot --sort cpu",
       "dot snapshot --limit 40",
       "dot snapshot --min-memory-mib 50",
-      "dot snapshot --json --sort mem",
-      "dot snapshot --output /tmp/snapshot.md",
     ],
     {
       description:
-        "Print a Markdown CPU and memory summary with a usage-filtered process tree. --sort mem defaults to an 80 MiB measured subtree PSS cutoff; --sort cpu defaults to 1% of one core. Adjust these with --min-memory-mib and --min-cpu. Each tree row shows aligned memory and CPU totals beside the process name. Totals include hidden children, so small workers can qualify together; parent and child totals overlap. Expand the largest remaining qualifying branch until --limit visible processes are reached (default: 40, including ancestors). Zero-usage branches are omitted. The saved report adds CPU, memory and process-name rankings with the same cutoffs and per-table limit, plus pressure measurements. Interactive human runs open it in $EDITOR (vi if unset). The internal dot is-agent check automatically selects JSON; --json selects it explicitly. JSON retains all sampled processes and the complete processTree, and reportSelection identifies visible PIDs, cutoffs, the limit and omitted count. Missing measurements are null; unavailable parents are marked. CPU is sampled over approximately one second; 100% per process means one logical CPU. PSS divides shared pages between processes. Reports default to the system temporary directory ($TMPDIR, normally /tmp), named dot-snapshot-<timestamp>.md or .json. Use --output to choose a path. Existing output files are never overwritten.",
+        "Print a Markdown CPU and memory summary with a usage-filtered process tree. --sort mem defaults to an 80 MiB measured subtree PSS cutoff; --sort cpu defaults to 1% of one core. Adjust these with --min-memory-mib and --min-cpu. Each tree row shows aligned memory and CPU totals beside the process name. Totals include hidden children, so small workers can qualify together; parent and child totals overlap. Expand the largest remaining qualifying branch until --limit visible processes are reached (default: 40, including ancestors). Zero-usage branches are omitted. The saved report adds CPU, memory and process-name rankings with the same cutoffs and per-table limit, plus pressure measurements. Interactive human runs open it in $EDITOR (vi if unset). The internal dot is-agent check automatically selects JSON. JSON retains all sampled processes and the complete processTree, and reportSelection identifies visible PIDs, cutoffs, the limit and omitted count. Missing measurements are null; unavailable parents are marked. CPU is sampled over approximately one second; 100% per process means one logical CPU. PSS divides shared pages between processes. Reports are saved in the system temporary directory ($TMPDIR, normally /tmp), named dot-snapshot-<timestamp>.md or .json. Existing output files are never overwritten.",
     },
   ),
   describe(
@@ -1209,16 +1076,7 @@ const simpleCommands = [
     },
   ),
   describe(
-    Command.make(
-      "doctor",
-      {
-        openOpencode: bool(
-          "open-opencode",
-          "Save the report and attempt to open it in OpenCode",
-        ),
-      },
-      doctor,
-    ),
+    Command.make("doctor", {}, () => doctor()),
     "Run parallel health checks for dependencies, repositories, stow integrity, services, packages, browser configuration, hardware video, firewall rules, and OpenCode/Herdr integration. A timestamped report is always written under ~/.local/state/dot/logs/.",
     [],
     {
@@ -1462,19 +1320,14 @@ const completionsCommand = describe(
         Argument.withDescription("Shell to generate completions for"),
         Argument.withDefault("zsh"),
       ),
-      stdout: bool("stdout", "Print instead of writing"),
     },
     completions,
   ),
   "Generate shell completions",
-  [
-    "dot completions zsh",
-    "dot completions bash --stdout",
-    "dot completions fish --stdout",
-  ],
+  ["dot completions zsh", "dot completions bash", "dot completions fish"],
   {
     description:
-      "Generate shell completions for dot. By default this writes the managed dot and skill-maintenance completion files for the selected shell so the next dot stow installs them. Pass --stdout to print only dot completions.",
+      "Generate the managed dot and skill-maintenance completion files for the selected shell so the next dot stow installs them.",
   },
 );
 
@@ -1684,7 +1537,6 @@ const herdrRepoOpenCommand = describe(
   Command.make(
     "repo-open",
     {
-      pane: bool("pane", "Shorthand for --layout vertical"),
       layout: Flag.Literals("layout", [
         "auto",
         "vertical",
@@ -1880,29 +1732,10 @@ const setupWorkspace = describe(
   Command.make(
     "workspace-setup",
     {
-      stepThrough: Flag.Boolean("step-through").pipe(
-        Flag.withAlias("step"),
-        Flag.withDefault(false),
-        Flag.withDescription("Pause after each logged step"),
-      ),
-      speedMultiplier: Flag.Finite("speed-multiplier").pipe(
-        Flag.withDefault(1.8),
-        Flag.withDescription("Multiply built-in sleep durations"),
-      ),
       sleep: Flag.Finite("sleep").pipe(
         Flag.withDefault(0),
         Flag.withDescription("Wait before running setup logic"),
       ),
-      fast: bool("fast", "Use a speed multiplier of 1"),
-      temporaryWorkspace: Flag.Int("temp-workspace").pipe(
-        Flag.optional,
-        Flag.withDescription("Numeric temporary workspace"),
-      ),
-      moveDispatcher: Flag.Literals("move-dispatcher", [
-        "movetoworkspace",
-        "movetoworkspacesilent",
-      ]).pipe(Flag.optional, Flag.withDescription("Window move dispatcher")),
-      logFile: pathFlag("log-file", "Write the run log to this file", "file"),
       mode: Flag.Literals("mode", ["work", "normal"]).pipe(
         Flag.optional,
         Flag.withDescription(
@@ -1910,14 +1743,10 @@ const setupWorkspace = describe(
         ),
       ),
     },
-    ({ logFile, mode, moveDispatcher, sleep, temporaryWorkspace, ...input }) =>
+    ({ mode, sleep }) =>
       workspaceSetup({
-        ...input,
         startupDelay: sleep,
-        logFile: optional(logFile),
         mode: optional(mode),
-        moveDispatcher: optional(moveDispatcher),
-        temporaryWorkspace: optional(temporaryWorkspace),
       }),
   ),
   "Launch or reuse desktop apps and rebuild the workspace layout",
@@ -1926,55 +1755,6 @@ const setupWorkspace = describe(
     "dot workspace-setup --mode=work",
     "dot workspace-setup --mode=normal",
   ],
-);
-
-const usageCommand = describe(
-  Command.make(
-    "usage",
-    {
-      subcommand: Argument.Literals("command", [
-        "summary",
-        "stale",
-        "path",
-        "backfill",
-      ]).pipe(
-        Argument.withDescription("Analytics operation"),
-        Argument.withDefault("summary"),
-      ),
-      days: integer("days", "Window in days", 90),
-      format: Flag.Literals("format", ["text", "json", "agent-context"]).pipe(
-        Flag.withDefault("text"),
-      ),
-      roots: Flag.Path("root").pipe(Flag.atLeast(0)),
-      history: bool("history", "Backfill from shell history"),
-      apply: bool("apply", "Write backfilled events"),
-    },
-    (input) =>
-      usage(
-        { ...input, days: input.days > 0 ? input.days : 90 },
-        getCommandNames(),
-      ),
-  ),
-  "Report local-first usage analytics from NDJSON events under $XDG_STATE_HOME/tool-usage. Live events store canonical commands and recognised flag names, never positional values. Set DOT_USAGE_DISABLE=1 to disable live recording or DOT_USAGE_DIR to relocate storage.",
-  [],
-  {
-    modes: [
-      "summary   Per-feature usage table (default)",
-      "stale     Features not used within the window",
-      "path      Print the event storage root",
-      "backfill  Import whitelisted shell-history invocations",
-    ],
-    sections: [
-      {
-        title: "Privacy",
-        lines: [
-          "Live dot events never store positional values",
-          "Shell-history backfill is a dry run unless --apply is passed",
-          "Review history before applying when arguments may contain sensitive text",
-        ],
-      },
-    ],
-  },
 );
 
 function showHelp(command: Option.Option<string>): Effect.Effect<void> {
@@ -2050,7 +1830,6 @@ export const dotCommand = describe(
       herdr,
       setupWorkspace,
       relayout,
-      usageCommand,
       helpCommand,
     ]),
   ),
@@ -2061,12 +1840,6 @@ export const dotCommand = describe(
 export const commandNames = dotCommand.subcommands.flatMap((group) =>
   group.commands.map((command) => command.name),
 );
-
-function getCommandNames(): readonly string[] {
-  return dotCommand.subcommands.flatMap((group) =>
-    group.commands.map((command) => command.name),
-  );
-}
 
 /** Resolve a top-level command by canonical name or alias. */
 export function getCliCommand(name: string): Command.Command.Any | undefined {

@@ -63,7 +63,7 @@ src/
 
 ## CLI
 
-The executable Effect command tree lives in `src/cli/spec.ts`. Parsing, help, aliases, dispatch, completion generation, analytics, and command-reference generation consume that tree directly.
+The executable Effect command tree lives in `src/cli/spec.ts`. Parsing, help, aliases, dispatch, completion generation, and command-reference generation consume that tree directly.
 
 When changing a command, alias, or flag:
 

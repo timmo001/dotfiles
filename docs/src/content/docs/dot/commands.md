@@ -23,7 +23,6 @@ Run the one-time first-use setup workflow for a fresh machine. Init prepares rep
 
 | Option | Description |
 | --- | --- |
-| `--confirm` | Compatibility flag; accepted but does not suppress prompts |
 | `--noninteractive` | Skip the Hypr host questionnaire for this run |
 | `--interactive` | Enable the Hypr host questionnaire when no host is selected |
 | `--force` | Re-run init even if the machine looks initialised |
@@ -259,10 +258,6 @@ dot updates status [flags]
 
 | Option | Description |
 | --- | --- |
-| `--package-file` `<path>` | Watched package list (default: public dotfiles manifest) |
-| `--cache-dir` `<path>` | Status cache directory (default: XDG status-bar cache) |
-| `--timeout` `<integer>` | Maximum seconds for each external check |
-| `--cache-max-age` `<integer>` | Seconds before starting a background refresh |
 | `--help` `-h` | Show help information |
 
 **Examples**
@@ -423,14 +418,12 @@ Save a CPU and memory snapshot with process rankings
 dot snapshot [flags]
 ```
 
-Print a Markdown CPU and memory summary with a usage-filtered process tree. --sort mem defaults to an 80 MiB measured subtree PSS cutoff; --sort cpu defaults to 1% of one core. Adjust these with --min-memory-mib and --min-cpu. Each tree row shows aligned memory and CPU totals beside the process name. Totals include hidden children, so small workers can qualify together; parent and child totals overlap. Expand the largest remaining qualifying branch until --limit visible processes are reached (default: 40, including ancestors). Zero-usage branches are omitted. The saved report adds CPU, memory and process-name rankings with the same cutoffs and per-table limit, plus pressure measurements. Interactive human runs open it in $EDITOR (vi if unset). The internal dot is-agent check automatically selects JSON; --json selects it explicitly. JSON retains all sampled processes and the complete processTree, and reportSelection identifies visible PIDs, cutoffs, the limit and omitted count. Missing measurements are null; unavailable parents are marked. CPU is sampled over approximately one second; 100% per process means one logical CPU. PSS divides shared pages between processes. Reports default to the system temporary directory ($TMPDIR, normally /tmp), named dot-snapshot-<timestamp>.md or .json. Use --output to choose a path. Existing output files are never overwritten.
+Print a Markdown CPU and memory summary with a usage-filtered process tree. --sort mem defaults to an 80 MiB measured subtree PSS cutoff; --sort cpu defaults to 1% of one core. Adjust these with --min-memory-mib and --min-cpu. Each tree row shows aligned memory and CPU totals beside the process name. Totals include hidden children, so small workers can qualify together; parent and child totals overlap. Expand the largest remaining qualifying branch until --limit visible processes are reached (default: 40, including ancestors). Zero-usage branches are omitted. The saved report adds CPU, memory and process-name rankings with the same cutoffs and per-table limit, plus pressure measurements. Interactive human runs open it in $EDITOR (vi if unset). The internal dot is-agent check automatically selects JSON. JSON retains all sampled processes and the complete processTree, and reportSelection identifies visible PIDs, cutoffs, the limit and omitted count. Missing measurements are null; unavailable parents are marked. CPU is sampled over approximately one second; 100% per process means one logical CPU. PSS divides shared pages between processes. Reports are saved in the system temporary directory ($TMPDIR, normally /tmp), named dot-snapshot-<timestamp>.md or .json. Existing output files are never overwritten.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
-| `--output` `<string>` | Save the report to a new file at this path |
-| `--json` | Print and save structured JSON for agents |
 | `--sort` `<choice>` | Sort the process tree and JSON process list by CPU or memory (choices: cpu, mem) |
 | `--limit` `<integer>` | Maximum visible tree processes, including parents, and entries per ranking table |
 | `--min-memory-mib` `<number>` | Minimum measured subtree PSS in MiB for memory sorting (default: 80) |
@@ -444,8 +437,6 @@ dot snapshot
 dot snapshot --sort cpu
 dot snapshot --limit 40
 dot snapshot --min-memory-mib 50
-dot snapshot --json --sort mem
-dot snapshot --output /tmp/snapshot.md
 ```
 
 ## `dot omarchy-shell-config`
@@ -506,7 +497,6 @@ Run health checks on the dotfiles system. All checks run in parallel and each se
 
 | Option | Description |
 | --- | --- |
-| `--open-opencode` | Save the report and attempt to open it in OpenCode |
 | `--help` `-h` | Show help information |
 
 **Checks performed**
@@ -636,27 +626,20 @@ dot git-diff [flags]
 (default)       Text summary of repos with changes
 --bar-json      JSON output for status bars
 --panel-json    Full JSON panel snapshot
---list-changed  Changed repositories as rows
---list-all      All tracked repositories as rows
 ```
 
 **Options**
 
 | Option | Description |
 | --- | --- |
-| `--no-fetch` | Skip fetching from remotes |
-| `--raw` | Text summary output |
 | `--bar-json` | JSON output for status bars and shell modules |
 | `--panel-json` | Full JSON snapshot for the native shell panel |
-| `--list-changed` | Changed repos as rows |
-| `--list-all` | All tracked repos as rows |
 | `--help` `-h` | Show help information |
 
 **Examples**
 
 ```bash
 dot git-diff
-dot git-diff --raw
 dot git-diff --bar-json
 dot git-diff --panel-json
 ```
@@ -752,7 +735,7 @@ dot git-commit -m "Preview only" --dry-run
 
 ## `dot git-notifications`
 
-Open the authenticated GitHub notification inbox. Without machine-output or action flags, this opens the Omarchy shell panel. --since accepts ISO/RFC dates, epoch timestamps, compact durations such as 2d, and quoted durations such as "2 days ago".
+Open the authenticated GitHub notification inbox. Without output, query or action flags, this opens the Omarchy shell panel. --all and --participating return filtered bar JSON.
 
 ```text
 dot git-notifications <subcommand> [flags]
@@ -762,21 +745,16 @@ dot git-notifications <subcommand> [flags]
 
 ```text
 (default)       Open the shell notification panel
---raw           Text summary
 --bar-json      Status-bar JSON
---bar-filter    Apply watched-repository filtering
 ```
 
 **Options**
 
 | Option | Description |
 | --- | --- |
-| `--raw` | Text summary of notification threads |
 | `--bar-json` | JSON output for status bars and shell modules |
-| `--bar-filter` | Apply watched-repo filtering |
 | `--all` | Include read notifications |
 | `--participating` | Only participating threads |
-| `--since` `<string>` | Only include notifications updated after this date |
 | `--mark-read` `<string>` | Mark a thread as read |
 | `--help` `-h` | Show help information |
 
@@ -1147,13 +1125,12 @@ Generate shell completions
 dot completions [flags] [<shell>]
 ```
 
-Generate shell completions for dot. By default this writes the managed dot and skill-maintenance completion files for the selected shell so the next dot stow installs them. Pass --stdout to print only dot completions.
+Generate the managed dot and skill-maintenance completion files for the selected shell so the next dot stow installs them.
 
 **Options**
 
 | Option | Description |
 | --- | --- |
-| `--stdout` | Print instead of writing |
 | `--help` `-h` | Show help information |
 
 **Arguments**
@@ -1166,8 +1143,8 @@ Generate shell completions for dot. By default this writes the managed dot and s
 
 ```bash
 dot completions zsh
-dot completions bash --stdout
-dot completions fish --stdout
+dot completions bash
+dot completions fish
 ```
 
 ## `dot is-agent`
@@ -1417,7 +1394,6 @@ dot herdr repo-open [flags] <label> <directory> [<tab-label>] [<command>]
 
 | Option | Description |
 | --- | --- |
-| `--pane` | Shorthand for --layout vertical |
 | `--layout` `<choice>` | Auto reuses an idle shell pane, otherwise splits right; vertical splits right, horizontal splits below, tab opens a new tab (choices: auto, vertical, horizontal, tab) |
 | `--modifiers` `<integer>` | Qt keyboard modifier bitmask: Ctrl new tab, Alt split below, Shift split right, otherwise auto |
 | `--prompt` `<string>` | Initial prompt to send through Herdr after the agent is ready |
@@ -1499,13 +1475,7 @@ dot workspace-setup [flags]
 
 | Option | Description |
 | --- | --- |
-| `--step-through` `--step` | Pause after each logged step |
-| `--speed-multiplier` `<number>` | Multiply built-in sleep durations |
 | `--sleep` `<number>` | Wait before running setup logic |
-| `--fast` | Use a speed multiplier of 1 |
-| `--temp-workspace` `<integer>` | Numeric temporary workspace |
-| `--move-dispatcher` `<choice>` | Window move dispatcher (choices: movetoworkspace, movetoworkspacesilent) |
-| `--log-file` `<path>` | Write the run log to this file |
 | `--mode` `<choice>` | Use the work or normal layout instead of detecting work time (choices: work, normal) |
 | `--help` `-h` | Show help information |
 
@@ -1531,48 +1501,6 @@ dot workspace-relayout [flags]
 | --- | --- |
 | `--edit` | Capture or overwrite a preset |
 | `--help` `-h` | Show help information |
-
-## `dot usage`
-
-Report local-first usage analytics from NDJSON events under $XDG_STATE_HOME/tool-usage. Live events store canonical commands and recognised flag names, never positional values. Set DOT_USAGE_DISABLE=1 to disable live recording or DOT_USAGE_DIR to relocate storage.
-
-```text
-dot usage [flags] [<command>]
-```
-
-**Modes**
-
-```text
-summary   Per-feature usage table (default)
-stale     Features not used within the window
-path      Print the event storage root
-backfill  Import whitelisted shell-history invocations
-```
-
-**Options**
-
-| Option | Description |
-| --- | --- |
-| `--days` `<integer>` | Window in days |
-| `--format` `<choice>` | (choices: text, json, agent-context) |
-| `--root` `<path>` |  |
-| `--history` | Backfill from shell history |
-| `--apply` | Write backfilled events |
-| `--help` `-h` | Show help information |
-
-**Arguments**
-
-| Argument | Description |
-| --- | --- |
-| `<command>` | Analytics operation |
-
-**Privacy**
-
-```text
-Live dot events never store positional values
-Shell-history backfill is a dry run unless --apply is passed
-Review history before applying when arguments may contain sensitive text
-```
 
 ## `dot help`
 

@@ -35,8 +35,6 @@ const PickerCacheSchema = Schema.Array(
 
 /** Parsed repository-opening options. */
 export interface HerdrRepoOpenOptions {
-  /** Shorthand for an explicit vertical split. */
-  readonly pane?: boolean;
   /** Placement override; auto reuses an idle shell pane before splitting right. */
   readonly layout?: "auto" | "vertical" | "horizontal" | "tab";
   /** Qt keyboard modifiers, resolved with Ctrl, Alt, then Shift precedence. */
@@ -158,28 +156,20 @@ export const openHerdrRepo = Effect.fn("herdrRepoOpen")(function* (
   const label = canonicalLabel(options);
   const directory = resolve(options.directory);
 
-  if (
-    [
-      options.pane === true,
-      options.layout !== undefined,
-      options.modifiers !== undefined,
-    ].filter(Boolean).length > 1
-  )
-    return fail("Use only one of --pane, --layout or --modifiers", 2);
+  if (options.layout !== undefined && options.modifiers !== undefined)
+    return fail("Use only one of --layout or --modifiers", 2);
 
   const modifiers = options.modifiers ?? 0;
 
   const layout =
     options.layout ??
-    (options.pane
-      ? "vertical"
-      : modifiers & CONTROL_MODIFIER
-        ? "tab"
-        : modifiers & ALT_MODIFIER
-          ? "horizontal"
-          : modifiers & SHIFT_MODIFIER
-            ? "vertical"
-            : "auto");
+    (modifiers & CONTROL_MODIFIER
+      ? "tab"
+      : modifiers & ALT_MODIFIER
+        ? "horizontal"
+        : modifiers & SHIFT_MODIFIER
+          ? "vertical"
+          : "auto");
 
   if (
     options.agent !== undefined &&

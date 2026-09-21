@@ -7,13 +7,7 @@ import { managedGitRepoForPath } from "../../services/GitConfig.js";
 import { displayPath } from "../../lib/paths.js";
 import type { DiffRepo } from "../../types.js";
 import { textLooksLikeBotActivity } from "../services/botActivity.js";
-import {
-  handleCommandError,
-  pipeRow,
-  writeJsonLine,
-  writeRows,
-  writeText,
-} from "./rows.js";
+import { handleCommandError, writeJsonLine, writeText } from "./rows.js";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
@@ -137,23 +131,7 @@ export function formatDiffPanelJson(repos: readonly DiffRepo[]) {
   };
 }
 
-/** Machine output: --list-changed */
-export const diffListChanged = (opts?: DiffScanOptions) =>
-  Effect.gen(function* () {
-    const dotDiff = yield* DotDiff;
-    const repos = yield* dotDiff.getAll(opts);
-    const changed = changedRepos(repos);
-    yield* writeRows(changed.map((repo) => pipeRow([repo.name, repo.path])));
-  }).pipe(Effect.withSpan("diff.listChanged"), handleDiffError);
-
-/** Machine output: --list-all (lightweight, no git scan) */
-export const diffListAll = Effect.gen(function* () {
-  const dotDiff = yield* DotDiff;
-  const repos = yield* dotDiff.listAll();
-  yield* writeRows(repos.map((repo) => pipeRow([repo.name, repo.path])));
-}).pipe(Effect.withSpan("diff.listAll"), handleDiffError);
-
-/** CLI text output: --raw (detailed, shows all repos like legacy) */
+/** Default CLI text output with detailed state for all repositories. */
 export const diffRaw = (opts?: DiffScanOptions) =>
   Effect.gen(function* () {
     const config = yield* Config;

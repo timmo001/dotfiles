@@ -65,7 +65,6 @@ poll() {
         DOT_INCLUDE_OMARCHY_DIFF_REPOS=0 \
         DOT_NOTES_DIR="$fixture/missing-notes" \
         DOT_FETCH_TTL_SECONDS=300 \
-        DOT_USAGE_DISABLE=1 \
         GIT_POLL_TRACE="$fixture/poll.trace" \
         REAL_GIT="$real_git" \
         PATH="$fixture/bin:$PATH" \
@@ -103,7 +102,6 @@ DOTFILES_PUBLIC_DIR="$fixture" \
   DOT_ALLOW_PRIVATE=never \
   DOT_INCLUDE_OMARCHY_DIFF_REPOS=0 \
   DOT_NOTES_DIR="$fixture/missing-notes" \
-  DOT_USAGE_DISABLE=1 \
   GIT_POLL_TRACE="$fixture/poll.trace" \
   REAL_GIT="$real_git" \
   PATH="$fixture/bin:$PATH" \

@@ -5,7 +5,6 @@ import { displayPath } from "./paths.js";
 import type { ConfigService } from "../services/Config.js";
 
 interface InitMarkerOptions {
-  readonly confirm?: boolean;
   readonly noninteractive?: boolean;
   readonly force?: boolean;
   readonly host?: string;

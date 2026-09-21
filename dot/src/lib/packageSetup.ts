@@ -283,7 +283,6 @@ function shouldSkipPackageScope(
 function installWithAurHelper(
   opts: {
     readonly scope: ArchPackageScope;
-    readonly confirm?: boolean;
   },
   missing: readonly string[],
 ): Effect.Effect<void, PackageSetupError, CommandExecutor | OutputLog> {
@@ -299,10 +298,6 @@ function installWithAurHelper(
 
     yield* log.section(`Install ${opts.scope} Arch packages`);
 
-    if (opts.confirm) {
-      yield* log.warn("--confirm is ignored for omarchy-pkg-aur-add");
-    }
-
     yield* log.info(`Installing: ${missing.join(" ")}`);
     const exitCode = yield* executor.inherit("omarchy-pkg-aur-add", missing);
 
@@ -317,7 +312,6 @@ function installWithAurHelper(
 function installWithPacman(
   opts: {
     readonly scope: ArchPackageScope;
-    readonly confirm?: boolean;
   },
   missing: readonly string[],
 ): Effect.Effect<void, PackageSetupError, CommandExecutor | OutputLog> {
@@ -387,7 +381,6 @@ function installPublicPackageReplacements(
 /** Install missing Arch/AUR packages listed for the given scope. */
 export function installMissingArchPackages(opts: {
   readonly scope: ArchPackageScope;
-  readonly confirm?: boolean;
 }): Effect.Effect<
   void,
   PackageSetupError,

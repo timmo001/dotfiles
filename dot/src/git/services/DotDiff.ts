@@ -108,8 +108,6 @@ export class DotDiffError extends Schema.TaggedError<DotDiffError>()(
 
 /** Options for controlling diff scan behaviour */
 export interface DiffScanOptions {
-  /** Skip fetching from remotes (use local tracking refs only) */
-  readonly noFetch?: boolean;
   /** Only scan repositories whose activity schedule is currently active. */
   readonly scheduledOnly?: boolean;
   /** Restrict discovery before fetching or scanning repositories. */
@@ -122,8 +120,6 @@ interface DotDiffService {
   readonly listChanged: (
     opts?: DiffScanOptions,
   ) => Effect.Effect<readonly Repo[], DotDiffError>;
-  /** List all tracked repositories (lightweight, no git scan) */
-  readonly listAll: () => Effect.Effect<readonly Repo[], DotDiffError>;
   /** Get enriched diff state for all tracked repositories */
   readonly getAll: (
     opts?: DiffScanOptions,
@@ -299,7 +295,6 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
         name: string,
         repoPath: string,
         category: RepoCategory,
-        opts?: DiffScanOptions,
       ): Effect.fn.Return<DiffRepo | null, DotDiffError> {
         if (!isGitRepo(repoPath)) {
           log(`${name}: not a git repo, skipping`);
@@ -335,24 +330,46 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
 
         if (hasUpstream === 0) {
           // Fetch from remote to ensure tracking ref is up to date (TTL-cached)
-          if (!opts?.noFetch) {
-            const upstreamRef = yield* executor
-              .run("git", ["rev-parse", "--abbrev-ref", "@{u}"], {
-                cwd: repoPath,
-              })
-              .pipe(Effect.catch(() => Effect.succeed("")));
+          const upstreamRef = yield* executor
+            .run("git", ["rev-parse", "--abbrev-ref", "@{u}"], {
+              cwd: repoPath,
+            })
+            .pipe(Effect.catch(() => Effect.succeed("")));
 
-            const trimmedRef = upstreamRef.trim();
+          const trimmedRef = upstreamRef.trim();
 
-            const nowSeconds = Math.floor(
-              (yield* Clock.currentTimeMillis) / 1000,
-            );
+          const nowSeconds = Math.floor(
+            (yield* Clock.currentTimeMillis) / 1000,
+          );
 
-            if (trimmedRef && shouldFetch(repoPath, trimmedRef, nowSeconds)) {
-              const [remoteName] = trimmedRef.split("/", 1);
-              const remoteBranch = trimmedRef.slice(remoteName.length + 1);
+          if (trimmedRef && shouldFetch(repoPath, trimmedRef, nowSeconds)) {
+            const [remoteName] = trimmedRef.split("/", 1);
+            const remoteBranch = trimmedRef.slice(remoteName.length + 1);
 
-              const fetchExit = yield* executor
+            const fetchExit = yield* executor
+              .exitCode(
+                "env",
+                [
+                  "GIT_TERMINAL_PROMPT=0",
+                  "git",
+                  "fetch",
+                  "--quiet",
+                  remoteName,
+                  remoteBranch,
+                ],
+                { cwd: repoPath },
+              )
+              .pipe(Effect.timeoutOption(FETCH_TIMEOUT));
+
+            if (Option.isNone(fetchExit)) {
+              yield* outputLog.warn(
+                `Fetch timed out after ${FETCH_TIMEOUT_SECONDS}s for ${name}: ${displayPath(repoPath)}`,
+              );
+            }
+
+            // Fallback: fetch without branch if specific branch fetch failed
+            if (Option.isSome(fetchExit) && fetchExit.value !== 0) {
+              const fallbackExit = yield* executor
                 .exitCode(
                   "env",
                   [
@@ -361,43 +378,19 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
                     "fetch",
                     "--quiet",
                     remoteName,
-                    remoteBranch,
                   ],
                   { cwd: repoPath },
                 )
                 .pipe(Effect.timeoutOption(FETCH_TIMEOUT));
 
-              if (Option.isNone(fetchExit)) {
+              if (Option.isNone(fallbackExit)) {
                 yield* outputLog.warn(
-                  `Fetch timed out after ${FETCH_TIMEOUT_SECONDS}s for ${name}: ${displayPath(repoPath)}`,
+                  `Fallback fetch timed out after ${FETCH_TIMEOUT_SECONDS}s for ${name}: ${displayPath(repoPath)}`,
                 );
               }
-
-              // Fallback: fetch without branch if specific branch fetch failed
-              if (Option.isSome(fetchExit) && fetchExit.value !== 0) {
-                const fallbackExit = yield* executor
-                  .exitCode(
-                    "env",
-                    [
-                      "GIT_TERMINAL_PROMPT=0",
-                      "git",
-                      "fetch",
-                      "--quiet",
-                      remoteName,
-                    ],
-                    { cwd: repoPath },
-                  )
-                  .pipe(Effect.timeoutOption(FETCH_TIMEOUT));
-
-                if (Option.isNone(fallbackExit)) {
-                  yield* outputLog.warn(
-                    `Fallback fetch timed out after ${FETCH_TIMEOUT_SECONDS}s for ${name}: ${displayPath(repoPath)}`,
-                  );
-                }
-              }
-
-              recordFetch(repoPath, trimmedRef, nowSeconds);
             }
+
+            recordFetch(repoPath, trimmedRef, nowSeconds);
           }
 
           const aheadStr = yield* executor
@@ -458,7 +451,7 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
         log(`Scanning ${repoList.length} repositories...`);
 
         const results = yield* Effect.all(
-          repoList.map((r) => scanRepo(r.name, r.path, r.category, opts)),
+          repoList.map((r) => scanRepo(r.name, r.path, r.category)),
           { concurrency: 4 },
         );
 
@@ -470,14 +463,6 @@ export class DotDiff extends Context.Service<DotDiff, DotDiffService>()(
 
       return {
         getAll: (opts) => getAll(opts),
-        listAll: () =>
-          Effect.sync(() => {
-            const repoList = buildRepoList();
-
-            return repoList
-              .filter((r) => isGitRepo(r.path))
-              .map((r) => ({ name: r.name, path: r.path, locked: false }));
-          }),
         listChanged: (opts) =>
           Effect.gen(function* () {
             const all = yield* getAll(opts);

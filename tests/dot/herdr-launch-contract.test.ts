@@ -65,7 +65,7 @@ async function launch(options: {
   const program = Effect.gen(function* () {
     const sdk = yield* HerdrSdk;
 
-    return yield* openHerdrRepo({ pane: false, label: "fixture", directory, tabLabel: "Action", command: "lazygit", ...options.request }, {
+    return yield* openHerdrRepo({ label: "fixture", directory, tabLabel: "Action", command: "lazygit", ...options.request }, {
       foregroundClientReady: options.request?.noFocus ? Effect.die("Background launch checked the terminal client") : Effect.succeed(true),
       launchTerminal: Effect.die("Unexpected terminal launch"),
     }).pipe(Effect.provideService(HerdrSdk, {
@@ -279,12 +279,8 @@ test("an explicit empty-shell action still honours Ctrl while a picker only focu
   expect((await launch({ request: { command: undefined } })).map(call => call.method)).toEqual(["workspaces.list", "workspaces.focus"]);
 });
 
-test.each([
-  { pane: true, layout: "auto" as const },
-  { layout: "tab" as const, modifiers: 0 },
-  { pane: true, modifiers: 0 },
-])("conflicting placement inputs fail before touching Herdr: %j", async request => {
-  await expect(launch({ request })).rejects.toThrow("Use only one of --pane, --layout or --modifiers");
+test("conflicting placement inputs fail before touching Herdr", async () => {
+  await expect(launch({ request: { layout: "tab", modifiers: 0 } })).rejects.toThrow("Use only one of --layout or --modifiers");
 });
 
 function qmlFunctions(file: string, names: string[]) {

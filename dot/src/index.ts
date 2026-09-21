@@ -4,25 +4,17 @@ import { Effect, Layer, Option } from "effect";
 import { CliConfig, CliError, Command } from "effect/unstable/cli";
 import { mkdirSync } from "fs";
 import { dirname, join } from "path";
-import {
-  cliBuiltIns,
-  commandHelp,
-  dotCommand,
-  getCliCommand,
-  normalizeCliArgs,
-} from "./cli/spec.js";
+import { cliBuiltIns, dotCommand, getCliCommand } from "./cli/spec.js";
 import {
   bootstrapGhRepoClone,
   bootstrapGitPullRebase,
   bootstrapGitRepoExists,
   ghAuthenticated,
 } from "./lib/bootstrapGit.js";
-import { detectAgent } from "./lib/agent.js";
 import { ENV, envString, setEnv, unsetEnv } from "./lib/env.js";
 import { isGvfsPath, writeMirroredLog } from "./lib/logMirror.js";
 import { CONFIG_DIR, STATE_DIR, expandHomePath } from "./lib/paths.js";
 import { formatCause } from "./lib/schema.js";
-import { installUsageHook } from "./lib/usage.js";
 import { withStepTimeout, withTimeoutOption } from "./lib/workflowStep.js";
 import { DotDiff } from "./git/services/DotDiff.js";
 import { GitHub } from "./git/services/GitHub.js";
@@ -39,7 +31,7 @@ const DEFAULT_INIT_LOG_FILE = join(STATE_DIR, "dot", "init.log");
 
 const PRIVATE_DOTFILES_REPO = "timmo001/dotfiles-private";
 
-const args = normalizeCliArgs(process.argv.slice(2));
+const args = process.argv.slice(2);
 
 const ownArgs =
   args[0] === "run" && args.includes("--")
@@ -149,37 +141,9 @@ function prepareInit(): void {
   if (exitCode !== 0) process.exit(exitCode);
 }
 
-function recordUsage(): void {
-  const command = invokedCommand ? getCliCommand(invokedCommand) : undefined;
-
-  const allowedFlags = new Set(
-    (command ? commandHelp(command, ["dot", command.name]).flags : []).flatMap(
-      (flag) =>
-        [flag.name, ...flag.aliases].map((name) =>
-          name.startsWith("-") ? name : `--${name}`,
-        ),
-    ),
-  );
-
-  installUsageHook({
-    tool: "dot",
-    invokedAs: "dot",
-    command: command ? [command.name] : [],
-    args: ownArgs,
-    allowedFlags,
-    invoker: args.includes("--bar-json")
-      ? "automation"
-      : detectAgent().isAgent
-        ? "agent"
-        : "human",
-  });
-}
-
 validateFloatingWebappWidth();
 
 prepareInit();
-
-recordUsage();
 
 const CliLayers = Launcher.layer.pipe(
   Layer.provideMerge(DotDiff.layer),
