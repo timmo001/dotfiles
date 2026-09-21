@@ -923,6 +923,8 @@ const gitCommitCommand = describe(
         lines: [
           "Refuses commits to the base branch of a repo you do not own.",
           "Owners you control are listed in git config dot.owner. Work on a feature branch.",
+          "For a maintained fork with an owned origin, opt in one exact branch with git config --local dot.maintainedForkBranch <branch>.",
+          "The exception requires owned origin fetch and push targets; global settings are ignored.",
         ],
       },
     ],

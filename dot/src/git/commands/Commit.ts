@@ -64,19 +64,20 @@ export interface RemoteRef {
   readonly slug: string | null;
 }
 
-/** Parse `git remote -v` output into one {@link RemoteRef} per remote name. */
+/** Parse distinct remote names and slugs, preserving different push targets. */
 export function parseRemotes(remoteVerbose: string): readonly RemoteRef[] {
-  const byName = new Map<string, string | null>();
+  const remotes = new Map<string, RemoteRef>();
 
   for (const line of remoteVerbose.split("\n")) {
     const [name, url] = line.trim().split(/\s+/);
 
     if (!name || !url) continue;
 
-    if (!byName.has(name)) byName.set(name, normalizeGitHubSlug(url));
+    const slug = normalizeGitHubSlug(url);
+    remotes.set(`${name}\0${slug}`, { name, slug });
   }
 
-  return [...byName].map(([name, slug]) => ({ name, slug }));
+  return [...remotes.values()];
 }
 
 /**
@@ -109,31 +110,55 @@ export function foreignRemoteSlug(
 
 /** Inputs for the base-branch guard, all pre-resolved. */
 export interface BaseBranchGuardInput {
-  /** Slug of a repo to PR to, or null when the repo is the user's own. */
-  readonly foreignSlug: string | null;
+  /** Fetch and push remote identities. */
+  readonly remotes: readonly RemoteRef[];
+  /** Owners controlled by the user, from `dot.owner`. */
+  readonly myOwners: readonly string[];
   /** Current branch name (empty when detached). */
   readonly branch: string;
   /** The repo's resolved base/default branch, or null when unresolved. */
   readonly baseBranch: string | null;
+  /** Exact maintenance branch explicitly configured in this repository. */
+  readonly maintainedForkBranch: string | null;
 }
 
 /**
  * Return a rejection reason when the commit targets the base branch of a repo
  * the user does not own, otherwise null. Working directly on the base branch of
  * someone else's repo, including a fork kept for upstream PRs, is refused; use a
- * feature branch. The user's own repos, takeover forks with no foreign remote,
- * and every non-base branch are allowed. Pure and side-effect free.
+ * feature branch. An explicitly configured maintained-fork branch is allowed
+ * only when every origin target belongs to the user. Pure and side-effect free.
  */
 export function branchProtectionError(
   input: BaseBranchGuardInput,
 ): string | null {
-  if (!input.foreignSlug || !input.branch || !input.baseBranch) return null;
+  const foreignSlug = foreignRemoteSlug(input.remotes, input.myOwners);
+
+  if (!foreignSlug || !input.branch || !input.baseBranch) return null;
 
   if (input.branch.toLowerCase() !== input.baseBranch.toLowerCase()) {
     return null;
   }
 
-  return `Refusing to commit to base branch '${input.branch}' of ${input.foreignSlug}: do not work on the base branch of a repo you do not own. Use a feature branch.`;
+  if (input.maintainedForkBranch === input.branch) {
+    const origins = input.remotes.filter((remote) => remote.name === "origin");
+
+    if (
+      origins.length > 0 &&
+      origins.every(
+        (remote) =>
+          remote.slug !== null &&
+          input.myOwners.some(
+            (owner) =>
+              owner.toLowerCase() === remote.slug?.split("/")[0]?.toLowerCase(),
+          ),
+      )
+    ) {
+      return null;
+    }
+  }
+
+  return `Refusing to commit to base branch '${input.branch}' of ${foreignSlug}: do not work on the base branch of a repo you do not own. Use a feature branch.`;
 }
 
 /**
@@ -271,8 +296,8 @@ function readGitConfigAll(
 
 /**
  * Resolve the base-branch guard: refuse committing to the base branch of a repo
- * the user does not own (a foreign origin, or a fork with a foreign upstream),
- * returning a rejection reason or null.
+ * the user does not own, except for an explicitly configured maintained fork
+ * with an owned origin. Returns a rejection reason or null.
  */
 function checkBranchProtection(): Effect.Effect<
   string | null,
@@ -282,14 +307,26 @@ function checkBranchProtection(): Effect.Effect<
   return Effect.gen(function* () {
     const remotes = parseRemotes(yield* readGit(["remote", "-v"]));
     const myOwners = yield* readGitConfigAll("dot.owner");
-    const foreignSlug = foreignRemoteSlug(remotes, myOwners);
-
-    if (!foreignSlug) return null;
-
     const branch = yield* readGit(["branch", "--show-current"]);
     const baseBranch = yield* resolveBaseBranch();
 
-    return branchProtectionError({ foreignSlug, branch, baseBranch });
+    const maintainedForkBranch = yield* gitOutput([
+      "config",
+      "--local",
+      "--get",
+      "dot.maintainedForkBranch",
+    ]).pipe(
+      Effect.map((value) => value.trim() || null),
+      Effect.catch(() => Effect.succeed(null)),
+    );
+
+    return branchProtectionError({
+      remotes,
+      myOwners,
+      branch,
+      baseBranch,
+      maintainedForkBranch,
+    });
   });
 }
 
