@@ -22,9 +22,6 @@ Options:
   --key <name>            Unique stream key
   --parent-pid <pid>      Parent process to follow (default: caller PPID)
   --parent-starttime <t>  Parent /proc starttime tick (advanced)
-  --state-file <path>     Override shared state file path
-  --lock-file <path>      Override lock file path
-  --poll-interval <sec>   Follower polling interval (default: 0.2)
   --help                  Show this help
 
 Behavior:
@@ -54,18 +51,6 @@ parse_args() {
         ;;
       --parent-starttime)
         PARENT_STARTTIME="$2"
-        shift 2
-        ;;
-      --state-file)
-        STATE_FILE="$2"
-        shift 2
-        ;;
-      --lock-file)
-        LOCK_FILE="$2"
-        shift 2
-        ;;
-      --poll-interval)
-        POLL_INTERVAL="$2"
         shift 2
         ;;
       --help|-h)
@@ -104,13 +89,8 @@ parse_args() {
     exit 1
   fi
 
-  if [[ -z "$STATE_FILE" ]]; then
-    STATE_FILE="${XDG_RUNTIME_DIR:-/tmp}/singleton-stream-$(sanitize_key "$KEY").state"
-  fi
-
-  if [[ -z "$LOCK_FILE" ]]; then
-    LOCK_FILE="${XDG_RUNTIME_DIR:-/tmp}/singleton-stream-$(sanitize_key "$KEY").lock"
-  fi
+  STATE_FILE="${XDG_RUNTIME_DIR:-/tmp}/singleton-stream-$(sanitize_key "$KEY").state"
+  LOCK_FILE="${XDG_RUNTIME_DIR:-/tmp}/singleton-stream-$(sanitize_key "$KEY").lock"
 
   COMMAND=("$@")
 }

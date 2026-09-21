@@ -6,7 +6,6 @@ MODULE_ID=""
 ENTITY_ID=""
 ICON=""
 TEXT_ON=""
-TEXT_OFF=""
 TOOLTIP_ON=""
 TOOLTIP_OFF=""
 CLASS_ON=""
@@ -22,7 +21,6 @@ Options:
   --entity <entity_id>    Home Assistant entity id to watch
   --icon <icon>           Status bar icon for on/off states
   --text-on <text>        Status bar text when state is on
-  --text-off <text>       Status bar text when state is not on
   --tooltip-on <text>     Status bar tooltip when state is on
   --tooltip-off <text>    Status bar tooltip when state is not on
   --class-on <class>      Status bar class when state is on
@@ -49,10 +47,6 @@ parse_args() {
         ;;
       --text-on)
         TEXT_ON="$2"
-        shift 2
-        ;;
-      --text-off)
-        TEXT_OFF="$2"
         shift 2
         ;;
       --tooltip-on)
@@ -134,9 +128,6 @@ build_watch_command() {
   fi
   if [[ -n "$TEXT_ON" ]]; then
     WATCH_CMD+=(--text-on "$TEXT_ON")
-  fi
-  if [[ -n "$TEXT_OFF" ]]; then
-    WATCH_CMD+=(--text-off "$TEXT_OFF")
   fi
   if [[ -n "$TOOLTIP_ON" ]]; then
     WATCH_CMD+=(--tooltip-on "$TOOLTIP_ON")

@@ -16,9 +16,6 @@ GATE_STATE=""
 STATUS_ENTITY=""
 ACTIVE_STATE=""
 SHOW_ABOVE=""
-ICON_ONLY=0
-SIMULATE_STATE=""
-FORCE_TRUE=0
 FAKE_STATE=""
 STREAM_KEY=""
 MAX_LENGTH=""
@@ -56,8 +53,6 @@ Common options:
 Mode options:
   --quality-entity <id>          VOC quality entity (voc-alert)
   --value-entity <id>            VOC numeric entity (voc-alert)
-  --switch-entity <id>           Gate switch entity (nas-activity)
-  --inactive-script-entity <id>  Inactive script entity (nas-activity)
   --gate-entity <id>             Gate entity (temperature, dining-temperature)
   --gate-below <number>          Show only when gate entity is below this
                                  value (dining-temperature defaults to 25)
@@ -68,10 +63,6 @@ Mode options:
   --active-state <state>         Status entity state considered active
   --show-above <number>          Show only when the reading is strictly above
                                  this value (temperature)
-  --icon-only                    Show only the icon (temperature)
-  --simulate <on|off>            Emit simulated state and exit (doorbell)
-  --force-true                   Force simulated on and exit (doorbell)
-  --fake-state <warning|critical> Emit fake warning/critical output
   --stream-key <key>             Override singleton stream key (doorbell)
   --max-length <characters>      Limit bar text length (current-next-event)
 
@@ -174,14 +165,6 @@ parse_args() {
       VALUE_ENTITY="$2"
       shift 2
       ;;
-    --switch-entity)
-      SWITCH_ENTITY="$2"
-      shift 2
-      ;;
-    --inactive-script-entity)
-      INACTIVE_SCRIPT_ENTITY="$2"
-      shift 2
-      ;;
     --gate-entity)
       GATE_ENTITY="$2"
       shift 2
@@ -204,22 +187,6 @@ parse_args() {
       ;;
     --show-above)
       SHOW_ABOVE="$2"
-      shift 2
-      ;;
-    --icon-only)
-      ICON_ONLY=1
-      shift
-      ;;
-    --simulate)
-      SIMULATE_STATE="$2"
-      shift 2
-      ;;
-    --force-true)
-      FORCE_TRUE=1
-      shift
-      ;;
-    --fake-state)
-      FAKE_STATE="$2"
       shift 2
       ;;
     --stream-key)
@@ -564,9 +531,7 @@ run_temperature() {
     return
   fi
 
-  if ((ICON_ONLY)); then
-    text="$ICON"
-  elif [[ -n "$ICON" ]]; then
+  if [[ -n "$ICON" ]]; then
     text="$ICON $state"
   else
     text="$state"
@@ -881,33 +846,6 @@ run_doorbell_stream() {
   trap - EXIT HUP INT TERM
 }
 
-run_doorbell() {
-  if ((FORCE_TRUE)); then
-    SIMULATE_STATE="on"
-  fi
-
-  case "$SIMULATE_STATE" in
-  on)
-    doorbell_emit_on
-    maybe_run_trigger "on"
-    return
-    ;;
-  off)
-    doorbell_emit_off
-    maybe_run_trigger "off"
-    return
-    ;;
-  '')
-    ;;
-  *)
-    printf 'ha-module-bar: unsupported --simulate value: %s\n' "$SIMULATE_STATE" >&2
-    exit 1
-    ;;
-  esac
-
-  run_doorbell_stream
-}
-
 main() {
   if [[ $# -eq 0 ]]; then
     usage >&2
@@ -949,7 +887,7 @@ main() {
     run_current_next_event
     ;;
   doorbell)
-    run_doorbell
+    run_doorbell_stream
     ;;
   esac
 }
